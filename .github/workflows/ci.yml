@@ -13,11 +13,11 @@
 name: CI
 
 # --- Disparadores -----------------------------------------------------------
-#   - push a `main`: CI de integración en la rama protegida.
+#   - push a `master`: CI de integración en la rama protegida.
 #   - pull_request: CI de verificación antes de mergear.
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
 
 # --- Permisos mínimos -------------------------------------------------------
