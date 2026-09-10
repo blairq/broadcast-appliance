@@ -1,0 +1,24 @@
+# --- Build outputs ----------------------------------------------------------
+build/
+build-*/
+dist/
+
+# --- Python -----------------------------------------------------------------
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# --- Docs build artifacts ---------------------------------------------------
+docs/_build/
+docs/doxygen/
+
+# --- Stray build/test artifacts --------------------------------------------
+a.out
+Testing/
+
+# --- Tool / editor / OS state ----------------------------------------------
+.codemap/
+.opencode/
+.DS_Store

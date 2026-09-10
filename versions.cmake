@@ -1,0 +1,120 @@
+# ============================================================================
+# versions.cmake — Versiones FIJADAS (pins) de dependencias de terceros
+#
+# Único lugar donde se fijan las versiones (spec §14 "Versiones fijadas").
+# Todo el build consume estas variables para ser reproducible y auditable.
+#
+# ⚠️  ESTAS SON LAS PINS FIJADAS. No cambiarlas sin una decisión registrada:
+#     cada una arrastra una versión concreta de headers/binarios en `extern/`
+#     y una superficie de compatibilidad (libobs, CEF, Spout2, libwebrtc).
+#     Si hay que mover una, se documenta en el changelog y se re-valida el
+#     preflight (spec §10) contra el tag resultante.
+# ============================================================================
+
+# --- obs-studio ------------------------------------------------------------
+# Tag estable del que se compilan libobs + los plugins oficiales. El tag debe
+# seguir soportando Windows 10 22H2 (spec §2.5). De él se derivan, a su vez,
+# las versiones de Qt y CEF que OBS usa en ese tag.
+set(OBS_STUDIO_TAG "31.0.0" CACHE STRING "Tag estable de obs-studio")
+mark_as_advanced(OBS_STUDIO_TAG)
+
+# --- Qt 6 ------------------------------------------------------------------
+# Qt 6 Widgets para la UI del Proceso A. Se usa la LTS 6.6.x (estable,
+# mantenida). El runtime se despliega con windeployqt (spec §5.2).
+set(QT6_VERSION "6.6.3" CACHE STRING "Versión de Qt 6")
+mark_as_advanced(QT6_VERSION)
+
+# --- CEF (Chromium Embedded Framework) -------------------------------------
+# Versión de CEF que trae obs-browser en el tag fijado (spec §6.3, §5.1).
+# El formato es <cef>.<minor>.<patch>+<chromium>. Se fija para que la caché
+# de CEF y los .pak sean deterministas.
+set(CEF_VERSION "119.0.11+chromium-119.0.6045.105" CACHE STRING "Versión de CEF")
+mark_as_advanced(CEF_VERSION)
+
+# --- Spout2 ----------------------------------------------------------------
+# SDK de Spout2 (API DX11, clase `spoutDX`). Se enlaza estático; no hace falta
+# Spout2.dll (spec §4.2). Se fija por tag de release del SDK.
+set(SPOUT2_VERSION "2.0.0.0" CACHE STRING "Versión/tag del SDK Spout2")
+mark_as_advanced(SPOUT2_VERSION)
+
+# --- libwebrtc -------------------------------------------------------------
+# Milestone de libwebrtc (binarios precompilados, p. ej. webrtc-build de
+# Shiguredo). Se enlaza estático en el Proceso B (spec §8.1, §5.1). Se fija
+# por milestone M + versión de Chromium base para reproducibilidad.
+set(WEBRTC_MILESTONE "M123" CACHE STRING "Milestone de libwebrtc")
+set(WEBRTC_VERSION "123.0.6312.5" CACHE STRING "Versión base de Chromium de libwebrtc")
+mark_as_advanced(WEBRTC_MILESTONE WEBRTC_VERSION)
+
+# --- cloudflared -----------------------------------------------------------
+# Túnel de Cloudflare que supervisa el Proceso B (spec §8.8). Versión
+# date-based (AAAA.N.P). Se copia en bin/64bit/ en la versión fijada.
+set(CLOUDFLARED_VERSION "2024.11.0" CACHE STRING "Versión de cloudflared")
+mark_as_advanced(CLOUDFLARED_VERSION)
+
+# --- mbedTLS ---------------------------------------------------------------
+# Criptografía (TLS, X.509, primitivas) para el núcleo. Se compila estática
+# (sin tests/programs/examples) vía FetchContent en el CMakeLists raíz. Se fija
+# por tag de release 3.6.x (estable, mantenida).
+set(MBEDTLS_VERSION "v3.6.2" CACHE STRING "Versión/tag de mbedTLS")
+mark_as_advanced(MBEDTLS_VERSION)
+
+# --- nlohmann/json ---------------------------------------------------------
+# JSON header-only para serializar/deserializar en el núcleo. Se enlaza como
+# target `nlohmann_json::nlohmann_json` (header-only, sin binario). Se fija por
+# tag de release.
+set(NLOHMANN_JSON_VERSION "v3.11.3" CACHE STRING "Versión/tag de nlohmann/json")
+mark_as_advanced(NLOHMANN_JSON_VERSION)
+
+# --- Argon2 (referencia, dominio público) ----------------------------------
+# KDF para el cifrado de `Config/secrets.json` (spec §12, decisión D7):
+# Argon2id de la passphrase maestra + salt aleatorio -> clave AES-256-GCM.
+# Se usa la implementación de referencia del Password Hashing Competition
+# (P-H-C/phc-winner-argon2, CC0/Apache-2.0, C pura que compila en Linux y
+# Windows). ⚠️  El repo NO trae CMakeLists (es Makefile): se declara con
+# FetchContent y se arma el target `argon2` a mano en el CMakeLists raíz con
+# la lista de sources del Makefile oficial (argon2.c core.c ref.c thread.c
+# encoding.c blake2/blake2b.c). Tag real verificado con `git ls-remote --tags`
+# (el último es `20190702`; no existe tag con prefijo `v`).
+set(ARGON2_VERSION "20190702" CACHE STRING "Versión/tag de Argon2 (referencia P-H-C)")
+mark_as_advanced(ARGON2_VERSION)
+
+# --- libsamplerate (Secret Rabbit Code, MIT) --------------------------------
+# Re-muestreo de audio (cambio de frecuencia de muestreo) para la cadena DSP
+# (spec 7.4). Lib de C pura que compila en Linux y Windows; se trae por
+# FetchContent en el CMakeLists raíz (sin if(WIN32)). Se fija por tag de
+# release. ⚠️  El tag real del repo oficial (libsndfile/libsamplerate) es
+# `0.2.2` (NO existe `v2.2.0`): verificado con `git ls-remote --tags`.
+set(LIBSAMPLERATE_VERSION "0.2.2" CACHE STRING "Versión/tag de libsamplerate")
+mark_as_advanced(LIBSAMPLERATE_VERSION)
+
+# --- VST3 SDK (Steinberg, MIT) ---------------------------------------------
+# SDK VST3 que hace de base del host de plugins (spec D6/§7.5, LSP como
+# componente CORE). Se trae por FetchContent SOLO en Windows (if(WIN32) en el
+# CMakeLists raíz): en Linux el build es OFFLINE y el módulo compila solo con
+# std::filesystem. Tag real verificado en
+# https://github.com/steinbergmedia/vst3sdk.
+set(VST3_SDK_VERSION "v3.7.9_build_61" CACHE STRING "Versión/tag del VST3 SDK")
+mark_as_advanced(VST3_SDK_VERSION)
+
+# --- LSP Plugins (LGPL) -----------------------------------------------------
+# ⚠️  ASSET DE DESPLIEGUE, no se compila: es la versión de LSP de la que se
+# toman los bundles .vst3 que se shippean en AudioPlugins/ (spec D6/§7.5).
+# Release real verificado en https://github.com/lsp-plugins/lsp-plugins
+# /releases (1.2.35, con assets .vst3 para Windows/Linux).
+set(LSP_VERSION "1.2.35" CACHE STRING "Versión de LSP Plugins (asset de despliegue)")
+mark_as_advanced(LSP_VERSION)
+
+# --- Resumen legible en el configure ---------------------------------------
+message(STATUS "BroadcastAppliance — pins fijadas:")
+message(STATUS "  obs-studio  : ${OBS_STUDIO_TAG}")
+message(STATUS "  Qt6         : ${QT6_VERSION}")
+message(STATUS "  CEF         : ${CEF_VERSION}")
+message(STATUS "  Spout2      : ${SPOUT2_VERSION}")
+message(STATUS "  libwebrtc   : ${WEBRTC_MILESTONE} (${WEBRTC_VERSION})")
+message(STATUS "  cloudflared : ${CLOUDFLARED_VERSION}")
+message(STATUS "  mbedTLS     : ${MBEDTLS_VERSION}")
+message(STATUS "  nlohmann    : ${NLOHMANN_JSON_VERSION}")
+message(STATUS "  Argon2      : ${ARGON2_VERSION} (referencia P-H-C, KDF de secrets.json)")
+message(STATUS "  libsamplerate: ${LIBSAMPLERATE_VERSION}")
+message(STATUS "  VST3 SDK    : ${VST3_SDK_VERSION} (solo Windows)")
+message(STATUS "  LSP Plugins : ${LSP_VERSION} (asset de despliegue)")

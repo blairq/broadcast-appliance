@@ -1,0 +1,3 @@
+# Mantener el directorio AudioPlugins/ en git aunque esté vacío.
+# El contenido real (bundles .vst3 de LSP + manifest.json) lo pobla el paso
+# de deploy (ba::plugin::PluginDeployer::deploy).

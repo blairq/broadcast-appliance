@@ -1,0 +1,14 @@
+# Config-only metadata for the legis-studio repo-invariant pytest suite.
+# No [build-system] on purpose: this file is not a package, it only carries
+# project metadata and pytest configuration.
+
+[project]
+name = "legis-studio"
+version = "2.0.0"
+description = "Repo-invariant pytest suite for the legis-studio C++20 broadcast appliance"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-ra"

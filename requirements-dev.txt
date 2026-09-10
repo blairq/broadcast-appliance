@@ -1,0 +1,4 @@
+# Development-only dependencies for the repo-invariant pytest suite.
+# Install into a LOCAL virtualenv (never globally):
+#   python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
+pytest>=8

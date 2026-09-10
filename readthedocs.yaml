@@ -1,0 +1,35 @@
+# ============================================================================
+# readthedocs.yaml — Configuración de ReadTheDocs (esquema v2)
+#
+# Documentación de "Broadcast Appliance Portable v2" (C++20) en español,
+# generada con Sphinx. El build depende SOLO de Sphinx + sphinx-rtd-theme
+# (ver docs/requirements.txt). La integración con Doxygen (breathe) es
+# OPCIONAL: si las libs están instaladas y existe el XML generado por Doxygen
+# (docs/doxygen/xml), conf.py lo aprovecha; si no, el build sigue funcionando
+# con las páginas RST manuales de docs/modules/.
+# ============================================================================
+
+version: 2
+
+# --- Sistema de build -------------------------------------------------------
+# Ubuntu 22.04 + Python 3.12: entorno estable y moderno para Sphinx.
+build:
+  os: ubuntu-22.04
+  tools:
+    python: "3.12"
+
+# --- Sphinx -----------------------------------------------------------------
+# La configuración vive en docs/conf.py y el builder produce HTML.
+sphinx:
+  configuration: docs/conf.py
+  builder: html
+
+# --- Dependencias de Python -------------------------------------------------
+# Se instalan desde docs/requirements.txt (Sphinx + sphinx-rtd-theme).
+# Deliberadamente NO se exige breathe/sphinxcontrib-breathe para que el build
+# de ReadTheDocs sea robusto: Doxygen es un paso opcional (ver docs/README).
+python:
+  install:
+    - method: pip
+      path: docs
+      extra_requirements: []

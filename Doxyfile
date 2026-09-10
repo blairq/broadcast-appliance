@@ -1,0 +1,72 @@
+# ============================================================================
+# Doxyfile — Extracción de los docstrings C++ de src/
+#
+# Hook para la documentación de símbolos C++: extrae los docstrings en español
+# (comentarios de bloque de cabecera + comentarios doxygen ///) de los headers
+# de src/ a docs/doxygen/.
+#
+# IMPORTANTE: el build de Sphinx (ReadTheDocs) NO depende de que Doxygen haya
+# corrido con éxito. Si el XML no existe, docs/conf.py simplemente no activa
+# breathe y se construye solo con las páginas RST manuales de docs/modules/.
+#
+# Para generar:  doxygen Doxyfile
+# Salida:        docs/doxygen/  (HTML + XML)
+# ============================================================================
+
+PROJECT_NAME           = "Broadcast Appliance Portable v2"
+PROJECT_NUMBER         = 2.0.0
+PROJECT_BRIEF          = "Appliance de emisión en vivo embebido (libobs + WebRTC + Supervisor)"
+
+# --- Entradas ----------------------------------------------------------------
+# Extraer de src/ (los headers con los docstrings). RECURSIVE para bajar por
+# core/, plugin-host/, launcher/, etc.
+INPUT                  = src
+FILE_PATTERNS          = *.hpp *.h *.cpp *.cxx *.cc
+RECURSIVE              = YES
+
+# --- Extracción --------------------------------------------------------------
+# EXTRACT_ALL: documentar también los símbolos sin docstring (para que el
+# inventario completo aparezca). EXTRA_EXTRACT_DOC: extraer los comentarios de
+# bloque (/// y //) como documentación.
+EXTRACT_ALL            = YES
+EXTRACT_STATIC         = YES
+EXTRACT_ANON_NSPACES   = YES
+EXTRA_EXTRACT_DOCBLOCKS = YES
+
+# --- Salidas -----------------------------------------------------------------
+# HTML sí, LaTeX no. El XML (GENERATE_XML) es lo que consume breathe para
+# integrarlo en Sphinx.
+OUTPUT_DIRECTORY       = docs/doxygen
+CREATE_DIRECTORY       = YES
+USE_MDFILE_TEMPLATE    = NO
+
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+HTML_FILE_SUFFIX       = .html
+HTML_COLOR_MODE        = Default
+
+GENERATE_LATEX         = NO
+GENERATE_XML           = YES
+XML_OUTPUT             = xml
+
+# --- Idioma y estilo ---------------------------------------------------------
+# Los docstrings son en español; no traducir los comentarios.
+OPTIMIZE_OUTPUT_FOR_C  = NO
+OPTIMIZE_OUTPUT_JAVA   = NO
+OPTIMIZE_FOR_FORTRAN   = NO
+OPTIMIZE_OUTPUT_VHDL   = NO
+OPTIMIZE_OUTPUT_C      = YES
+
+# --- Búsqueda ----------------------------------------------------------------
+# Buscar en los nombres (no en el contenido) para no indexar el cuerpo.
+TOC_EXPAND             = YES
+MAX_INITIALIZER_LINES  = 30
+
+# --- C++20 -------------------------------------------------------------------
+# El proyecto es C++20; decirle a Doxygen el estándar para parsear bien.
+PREDEFINED             = "DOXYGEN"
+
+# --- Ruido -------------------------------------------------------------------
+QUIET                  = YES
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = NO

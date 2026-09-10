@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Broadcast Appliance
+GenericName=Broadcast Appliance Portable
+Comment=Broadcast Appliance Portable v2 (libobs embebido + Gateway WebRTC + Supervisor)
+Exec=/app/BroadcastAppliance
+Icon=org.legis.broadcastappliance
+Terminal=false
+Categories=AudioVideo;Video;
+Keywords=broadcast;obs;streaming;recording;
+StartupNotify=true
