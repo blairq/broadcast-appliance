@@ -107,6 +107,42 @@ set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
 if(WIN32)
     set(MBEDTLS_FATAL_WARNINGS OFF CACHE BOOL "" FORCE)
 endif()
+
+# --- Offline-first: preferir las fuentes vendored en extern/ -----------------
+# Si `make deps-src` (o `make deps`) ya pobló extern/ con los árboles de
+# código de terceros, se apunta FetchContent a esa copia local vía
+# FETCHCONTENT_SOURCE_DIR_<NOMBRE> (en mayúsculas) y el configure NO toca la
+# red: es el requisito de producto portable/offline. Si extern/ no está
+# poblado (CI, clon fresco sin `make deps`), se deja el FetchContent_Declare
+# (GIT_REPOSITORY) de arriba como FALLBACK online. NO se borran los Declare ni
+# el target `argon2` de más abajo: solo se sobreescribe la source dir cuando el
+# sentinel de extern/ existe. Con la override, `${argon2_SOURCE_DIR}` resuelve
+# a `extern/argon2` y el target a mano sigue compilando los mismos sources.
+set(_BA_EXTERN "${CMAKE_CURRENT_SOURCE_DIR}/extern")
+if(EXISTS "${_BA_EXTERN}/mbedtls/CMakeLists.txt")
+    set(FETCHCONTENT_SOURCE_DIR_MBEDTLS "${_BA_EXTERN}/mbedtls")
+    message(STATUS "mbedtls: usando vendored en extern/ (offline)")
+else()
+    message(STATUS "mbedtls: sin extern/mbedtls: usando git")
+endif()
+if(EXISTS "${_BA_EXTERN}/nlohmann-json/CMakeLists.txt")
+    set(FETCHCONTENT_SOURCE_DIR_NLOHMANN_JSON "${_BA_EXTERN}/nlohmann-json")
+    message(STATUS "nlohmann_json: usando vendored en extern/ (offline)")
+else()
+    message(STATUS "nlohmann_json: sin extern/nlohmann-json: usando git")
+endif()
+if(EXISTS "${_BA_EXTERN}/libsamplerate/CMakeLists.txt")
+    set(FETCHCONTENT_SOURCE_DIR_LIBSAMPLERATE "${_BA_EXTERN}/libsamplerate")
+    message(STATUS "libsamplerate: usando vendored en extern/ (offline)")
+else()
+    message(STATUS "libsamplerate: sin extern/libsamplerate: usando git")
+endif()
+if(EXISTS "${_BA_EXTERN}/argon2/Makefile")
+    set(FETCHCONTENT_SOURCE_DIR_ARGON2 "${_BA_EXTERN}/argon2")
+    message(STATUS "argon2: usando vendored en extern/ (offline)")
+else()
+    message(STATUS "argon2: sin extern/argon2: usando git")
+endif()
 FetchContent_MakeAvailable(mbedtls nlohmann_json libsamplerate argon2)
 
 # Target `argon2` a mano (el repo no trae CMakeLists): lib estática con los
@@ -150,6 +186,15 @@ if(WIN32)
         GIT_REPOSITORY https://github.com/steinbergmedia/vst3sdk.git
         GIT_TAG ${VST3_SDK_VERSION}
         GIT_SHALLOW TRUE)
+    # Offline-first (mismo criterio que las 4 nativas de arriba): si extern/
+    # trae el SDK vendored, se usa esa copia y el configure no toca la red;
+    # si no, cae al git de arriba.
+    if(EXISTS "${_BA_EXTERN}/vst3-sdk/CMakeLists.txt")
+        set(FETCHCONTENT_SOURCE_DIR_VST3SDK "${_BA_EXTERN}/vst3-sdk")
+        message(STATUS "vst3sdk: usando vendored en extern/ (offline)")
+    else()
+        message(STATUS "vst3sdk: sin extern/vst3-sdk: usando git")
+    endif()
     FetchContent_MakeAvailable(vst3sdk)
 
     # --- Excluir del build los targets del SDK que NO usamos ------------------

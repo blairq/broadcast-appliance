@@ -34,8 +34,12 @@
 // y `_dbg_common.h`, que usan tipos base de Windows (PSTR, HANDLE, ULONG,
 // CALLBACK) solo definidos una vez procesado `windows.h`. El orden inverso
 // rompe el cross-compile MinGW.
+// clang-format off: el ORDEN de estos dos includes es obligatorio (ver
+// comentario anterior); clang-format querría reordenarlos alfabéticamente
+// (dbghelp.h antes que windows.h) y eso rompería la compilación.
 #include <windows.h>
 #include <dbghelp.h> // MiniDumpWriteDump (se resuelve a runtime, no se enlaza)
+// clang-format on
 #else
 #include <unistd.h> // gethostname
 #endif

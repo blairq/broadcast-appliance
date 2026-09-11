@@ -39,9 +39,11 @@
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-// Backend real: la clase spoutDX del SDK de Spout2 (DX11).
-// // VERIFY: ruta del header spout2 (extern/Spout2/include) y firma de
-// // spoutDX::init/sendTexture/receiveTexture en la version fijada (spec §14).
+// Backend real: la clase `spoutDX` del SDK de Spout2 (DX11). Header real:
+// extern/Spout2/SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX.h (no existe
+// extern/Spout2/include). Firmas verificadas en ese header: no hay `init`;
+// es `OpenDirectX11(ID3D11Device*)`, y `SendTexture(ID3D11Texture2D*)` /
+// `ReceiveTexture(ID3D11Texture2D**)` (PascalCase, spec §14).
 #endif
 
 namespace ba::ipc {

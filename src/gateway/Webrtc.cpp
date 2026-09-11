@@ -352,16 +352,6 @@ class SessionPeerObserver : public webrtc::PeerConnectionObserver {
     webrtc::PeerConnectionInterface* pc_;
 };
 
-/// Observador de SetRemoteDescription (ref-counted).
-class SetRemoteDescObserver : public rtc::RefCountedObject<webrtc::SetRemoteDescriptionObserverInterface> {
-   public:
-    void OnSetRemoteDescriptionComplete(webrtc::RTCError error) override {
-        if (!error.ok()) {
-            // Loguea el error; la sesion queda en estado coherente.
-        }
-    }
-};
-
 /// Observador de SetLocalDescription (ref-counted, nueva API). Se declara
 /// ANTES que AnswerObserver porque este ultimo lo instancia en OnSuccess.
 class SetLocalDescObserver : public rtc::RefCountedObject<webrtc::SetLocalDescriptionObserverInterface> {
@@ -402,6 +392,40 @@ class AnswerObserver : public rtc::RefCountedObject<webrtc::CreateSessionDescrip
     webrtc::PeerConnectionInterface* pc_;
 };
 
+/// Observador de SetRemoteDescription (ref-counted, nueva API).
+///
+/// libwebrtc aplica el remote description de forma ASINCRONA: el answer solo
+/// puede generarse DESPUES de que SetRemoteDescription se haya completado, no
+/// inline. Por eso CreateAnswer se dispara desde este callback (la doc del
+/// header garantiza que al llegar aqui el estado de la PC ya refleja el remote
+/// desc aplicado). En el caso de error, la sesion queda coherente y no se
+/// genera answer.
+class SetRemoteDescObserver : public rtc::RefCountedObject<webrtc::SetRemoteDescriptionObserverInterface> {
+   public:
+    explicit SetRemoteDescObserver(webrtc::PeerConnectionInterface* pc) : pc_(pc) {}
+
+    void OnSetRemoteDescriptionComplete(webrtc::RTCError error) override {
+        if (!error.ok() || !pc_) {
+            // Loguea el error; la sesion queda en estado coherente (sin answer).
+            return;
+        }
+        try {
+            // El remote desc ya esta aplicado: ahora si se puede crear el answer.
+            // El AnswerObserver serializa el local description y dispara
+            // cb.onLocalAnswer.
+            rtc::scoped_refptr<webrtc::CreateSessionDescriptionObserver> answerObs(new AnswerObserver(pc_));
+            webrtc::PeerConnectionInterface::RTCOfferAnswerOptions options;
+            options.ice_restart = false;
+            pc_->CreateAnswer(answerObs.get(), options);
+        } catch (...) {
+            // No cruzar excepcion por el callback de libwebrtc.
+        }
+    }
+
+   private:
+    webrtc::PeerConnectionInterface* pc_;
+};
+
 } // namespace
 
 // Cierra el bloque #if BA_GATEWAY_HAVE_WEBRTC que abrio la seccion de backend
@@ -420,6 +444,14 @@ struct WebrtcSession::Impl {
     webrtc::PeerConnectionObserver* observer = nullptr;
     rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> factory;
     bool realConfigured = false;
+
+    // true mientras hay un offer recibido cuya respuesta (answer) esta en
+    // vuela: SetRemoteDescription ya se despacho y el answer se generara de
+    // forma asincrona desde el callback del observer. Sirve para manejar de
+    // forma coherente un offer tardio/segundo: la PC serializa las operaciones
+    // en su cadena, y este flag solo registra que el flujo de answer esta
+    // abierto (se resetea en close()).
+    bool answerPending = false;
 
     // Fuentes de medios locales (retorno a los invitados). Ref-counted.
     rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> videoSource;
@@ -505,16 +537,16 @@ struct WebrtcSession::Impl {
                 if (!offerDesc) return false;
 
                 // SetRemoteDescription con el observer nuevo (ref-counted).
+                // IMPORTANTE: el remote desc se aplica de forma ASINCRONA en
+                // libwebrtc, por lo que el answer NO puede generarse inline. El
+                // observer dispara CreateAnswer una vez el remote desc esta
+                // aplicado (ver SetRemoteDescObserver).
                 rtc::scoped_refptr<webrtc::SetRemoteDescriptionObserverInterface> obs(
-                    new SetRemoteDescObserver());
+                    new SetRemoteDescObserver(pc.get()));
                 pc->SetRemoteDescription(std::move(offerDesc), obs);
 
-                // CreateAnswer con el observer (ref-counted).
-                rtc::scoped_refptr<webrtc::CreateSessionDescriptionObserver> answerObs(
-                    new AnswerObserver(pc.get()));
-                webrtc::PeerConnectionInterface::RTCOfferAnswerOptions options;
-                options.ice_restart = false;
-                pc->CreateAnswer(answerObs.get(), options);
+                // Marca que hay un answer en vuela (se resetea en close()).
+                answerPending = true;
                 return true;
             } catch (...) {
                 return false;
@@ -627,6 +659,7 @@ struct WebrtcSession::Impl {
             videoTrack = nullptr;
             audioTrack = nullptr;
             realConfigured = false;
+            answerPending = false;
         }
         // El factory es compartido (lo aporta el hub); no se libera aqui.
         factory = nullptr;

@@ -18,6 +18,8 @@ docs/doxygen/
 a.out
 Testing/
 ba-app-headless/
+# `aqtinstall` (make deps-qt) escribe su log en el cwd al bajar el SDK Qt6.
+aqtinstall.log
 
 # --- Dependencias de terceros (descargadas por `make deps`) ----------------
 # `extern/` guarda los assets de terceros (libwebrtc, OBS, Spout2, cloudflared,

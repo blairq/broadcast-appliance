@@ -57,6 +57,24 @@ target_link_libraries(ba-app PRIVATE ba_core)
 #   a) si el build de OBS definió el target `obs`, se enlaza directamente; o
 #   b) vía las variables de caché OBS_LIBRARIES + OBS_INCLUDE_DIRS.
 if(WIN32)
+    # --- Qt 6 vendored (extern/qt6) — build autocontenido/portable ----------
+    # El producto portable NO debe depender de un Qt6 del sistema: si hay un
+    # SDK de Qt 6.6.3 win64_mingw en extern/qt6 (lo deja `make deps-qt` vía
+    # aqtinstall), se busca primero AHÍ. El layout de aqt es
+    # extern/qt6/<ver>/mingw_64/{include,lib,bin} con lib/cmake/Qt6/Qt6Config.cmake.
+    # Se detecta el prefijo real (el dir que contiene lib/cmake/Qt6/Qt6Config.cmake)
+    # y se antepone a CMAKE_PREFIX_PATH, así find_package resuelve el SDK
+    # VENDOR en vez de uno del sistema. Si no hay SDK vendored (p. ej. Linux o
+    # un build sin `make deps-qt`), CMAKE_PREFIX_PATH no se toca y find_package
+    # sigue usando el Qt6 del sistema (o no encuentra ninguno -> headless).
+    if(NOT DEFINED BA_QT6_ROOT)
+        set(BA_QT6_ROOT "${CMAKE_SOURCE_DIR}/extern/qt6")
+    endif()
+    if(EXISTS "${BA_QT6_ROOT}/${QT6_VERSION}/mingw_64/lib/cmake/Qt6/Qt6Config.cmake")
+        set(BA_QT6_PREFIX "${BA_QT6_ROOT}/${QT6_VERSION}/mingw_64")
+        list(PREPEND CMAKE_PREFIX_PATH "${BA_QT6_PREFIX}")
+        message(STATUS "ba-app: Qt 6 vendored detectado en ${BA_QT6_PREFIX} (build autocontenido)")
+    endif()
     find_package(Qt6 COMPONENTS Widgets QUIET)
     set(BA_APP_QT_OK ${Qt6_FOUND})
 
@@ -81,6 +99,119 @@ if(WIN32)
         message(STATUS "ba-app: app completa (Qt 6 + libobs) -> QApplication + obs_startup")
     else()
         message(STATUS "ba-app: modo headless (Qt 6 / libobs ausentes) -> solo ba_core")
+    endif()
+
+    # --- Validación por compilación del modo completo (compile-proxy) --------
+    # El SDK de Qt 6 win64_mingw que se vende en extern/qt6 es autocontenido:
+    # trae headers + import libs (libQt6Core.a) + moc.exe, así que el modo
+    # COMPLETO de la app (QApplication + MainWindow + AUTOMOC) se puede
+    # COMPILEAR bajo el cross-build MinGW usando el moc del SDK vendored.
+    #
+    # Lo que NO hay en el cross-build es libobs como BUILD INPUT: el runtime de
+    # OBS (extern/obs-studio) solo trae DLLs (obs.dll) y el obs.h vendoreado en
+    # src/obs-module/obs/ es el subconjunto de ba-sources (sin obs_startup/
+    # obs_shutdown). La superficie de libobs que el modo completo de la app usa
+    # es exactamente obs_startup + obs_shutdown (main.cpp; MainWindow.cpp solo
+    # usa Qt), así que se genera un obs.h shadow con esas dos declaraciones y se
+    # compila main.cpp + MainWindow.cpp con BA_APP_HAVE_QT_OBS como target
+    # OBJECT (sin enlazar) — mismo criterio que ba-gateway-webrtc-realcheck.
+    # Prueba: (1) el cierre de headers de Qt 6 del modo completo compila bajo
+    # MinGW; (2) AUTOMOC usa el moc del SDK vendored sobre el Q_OBJECT de
+    # MainWindow; (3) la firma de obs_startup/obs_shutdown es la que la app
+    # llama. El ENLACE del modo completo (contra obs.dll + las import libs de
+    # Qt) queda para el entorno con libobs real (MSVC / build con libobs).
+    if(BA_APP_QT_OK)
+        set(BA_APP_QT_SHADOW "${CMAKE_CURRENT_BINARY_DIR}/qt-obs-shadow/obs.h")
+        file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/qt-obs-shadow")
+        file(WRITE "${BA_APP_QT_SHADOW}"
+"// obs.h shadow — solo para el compile-proxy del modo completo de ba-app.
+//
+// Declara el ÚNICO subconjunto de la API C de libobs que el modo completo de
+// la app usa (main.cpp): obs_startup + obs_shutdown. No es el header real de
+// libobs (ese vive en src/obs-module/obs/obs.h, subconjunto de ba-sources):
+// existe para que el cross-build MinGW COMPILE el modo completo sin libobs
+// instalada (los símbolos obs_* se resuelven en el enlace contra obs.dll).
+#pragma once
+
+#ifdef __cplusplus
+extern \"C\" {
+#endif
+
+bool obs_startup(const char *module_name, const char *locale,
+                 const char *plugin_config, bool is_hwnd, void *private_data);
+
+void obs_shutdown(void);
+
+#ifdef __cplusplus
+}
+#endif
+")
+        # --- AUTOMOC: cómo ejecutar el moc del SDK vendored -------------------
+        # El moc del SDK vendored (extern/qt6/.../bin/moc.exe) es un PE de
+        # Windows. OJO: WIN32 es la plataforma OBJETIVO (siempre TRUE en el
+        # cross-build MinGW), no el host: lo que decide si el PE se ejecuta es
+        # CMAKE_HOST_SYSTEM_NAME. Si el HOST no es Windows (cross desde Linux/
+        # mac), el PE no corre directo: hay que pasarlo por wine. Si no hay
+        # wine, se SALTA el compile-proxy (no se crea el target) en vez de
+        # romper el configure. En Windows nativo el moc.exe se ejecuta directo,
+        # sin shim ni wine.
+        if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
+            # Host Windows: moc.exe nativo, AUTOMOC lo usa directo.
+            # EXCLUDE_FROM_ALL: es un compile-proxy opcional, no parte del
+            # producto; no debe entrar en el build por defecto (ni romper la
+            # puerta de artefactos si el toolchain cross es parcial).
+            add_library(ba-app-qt-realcheck EXCLUDE_FROM_ALL OBJECT
+                "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
+                "${CMAKE_CURRENT_SOURCE_DIR}/MainWindow.cpp")
+            target_compile_definitions(ba-app-qt-realcheck PRIVATE BA_APP_HAVE_QT_OBS)
+            # El shadow obs.h ANTES de cualquier otra ruta: gana sobre el obs.h de
+            # src/obs-module/obs/ (subconjunto de ba-sources, sin obs_startup).
+            target_include_directories(ba-app-qt-realcheck BEFORE PRIVATE
+                "${CMAKE_CURRENT_BINARY_DIR}/qt-obs-shadow"
+                "${CMAKE_CURRENT_SOURCE_DIR}")
+            # Qt 6 del SDK vendored: AUTOMOC usa el moc.exe de extern/qt6.
+            target_link_libraries(ba-app-qt-realcheck PRIVATE Qt6::Widgets)
+            set_target_properties(ba-app-qt-realcheck PROPERTIES AUTOMOC ON)
+            message(STATUS "ba-app: realcheck de modo completo (Qt 6 vendored + obs.h shadow) -> compile-proxy")
+        else()
+            # Host no-Windows (cross): el moc.exe vendored es un PE -> wine.
+            find_program(BA_WINE_EXE NAMES wine wine64)
+            if(BA_WINE_EXE)
+                # Shim POSIX que envuelve el moc.exe vendored bajo wine: AUTOMOC
+                # lo llama en vez de ejecutar el PE directamente. La propiedad de
+                # target AUTOMOC_EXECUTABLE hace que CMake SALTERA la detección
+                # automática del moc y el sanity-test de configure (`moc -h`) que
+                # fallaba al ejecutar el PE en el host Linux.
+                set(BA_MOC_SHIM "${CMAKE_CURRENT_BINARY_DIR}/qt-obs-shadow/run-moc.sh")
+                file(WRITE "${BA_MOC_SHIM}"
+"#!/bin/sh
+exec \"${BA_WINE_EXE}\" \"${BA_QT6_PREFIX}/bin/moc.exe\" \"$@\"
+")
+                execute_process(COMMAND chmod +x "${BA_MOC_SHIM}")
+                # EXCLUDE_FROM_ALL: compile-proxy opcional (igual que la rama
+                # Windows): no entra en el build por defecto.
+                add_library(ba-app-qt-realcheck EXCLUDE_FROM_ALL OBJECT
+                    "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/MainWindow.cpp")
+                target_compile_definitions(ba-app-qt-realcheck PRIVATE BA_APP_HAVE_QT_OBS)
+                # El shadow obs.h ANTES de cualquier otra ruta: gana sobre el
+                # obs.h de src/obs-module/obs/ (subconjunto de ba-sources, sin
+                # obs_startup).
+                target_include_directories(ba-app-qt-realcheck BEFORE PRIVATE
+                    "${CMAKE_CURRENT_BINARY_DIR}/qt-obs-shadow"
+                    "${CMAKE_CURRENT_SOURCE_DIR}")
+                # Qt 6 del SDK vendored: AUTOMOC usa el moc.exe de extern/qt6.
+                target_link_libraries(ba-app-qt-realcheck PRIVATE Qt6::Widgets)
+                set_target_properties(ba-app-qt-realcheck PROPERTIES
+                    AUTOMOC ON
+                    AUTOMOC_EXECUTABLE "${BA_MOC_SHIM}")
+                message(STATUS "ba-app: realcheck de modo completo (Qt 6 vendored + obs.h shadow, moc vía wine) -> compile-proxy")
+            else()
+                message(STATUS "ba-app: realcheck desactivado (Qt 6 presente pero sin wine para ejecutar moc.exe)")
+            endif()
+        endif()
+    else()
+        message(STATUS "ba-app: realcheck desactivado (Qt 6 ausente)")
     endif()
 endif()
 

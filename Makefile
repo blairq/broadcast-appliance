@@ -28,8 +28,9 @@ PY        ?= .venv/bin/python
 PIP       ?= .venv/bin/pip
 
 .PHONY: help dev build prod test test-unit lint docs release win clean clean-all \
-        deps deps-obs deps-webrtc deps-spout deps-cloudflared deps-vcredist \
-        deps-lsp deps-status deps-clean
+        deps deps-obs deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist \
+        deps-lsp deps-status deps-clean \
+        deps-src deps-mbedtls deps-nlohmann deps-samplerate deps-argon2 deps-vst3
 
 # --- Ayuda (target por defecto) ---------------------------------------------
 help:
@@ -48,13 +49,20 @@ help:
 	@echo "  make clean-all  Borra $(BUILD_DIR)/, release/ y docs/_build/"
 	@echo ""
 	@echo "Dependencias de terceros (extern/, gitignored, idempotente):"
-	@echo "  make deps             Descarga TODO (obs+webrtc+spout+cloudflared+vcredist+lsp)"
+	@echo "  make deps             Descarga TODO (runtime + fuentes de build)"
+	@echo "  make deps-src         Fuentes de BUILD (mbedtls+nlohmann+samplerate+argon2+vst3) -> extern/"
 	@echo "  make deps-obs         Runtime OBS 31.0.0 (libobs+CEF+Qt) -> extern/obs-studio"
+	@echo "  make deps-qt          SDK Qt 6.6.3 win64_mingw (build inputs) -> extern/qt6"
 	@echo "  make deps-webrtc      SDK libwebrtc M123 -> extern/webrtc (BA_WEBRTC_TARGET=windows|linux)"
 	@echo "  make deps-spout       SDK Spout2 (2.007h) -> extern/Spout2"
 	@echo "  make deps-cloudflared cloudflared 2024.11.0 -> extern/cloudflared"
 	@echo "  make deps-vcredist    Redist VC++ -> extern/vcredist"
 	@echo "  make deps-lsp         Bundles .vst3 de LSP 1.2.35 -> extern/lsp"
+	@echo "  make deps-mbedtls     mbedtls v3.6.2 (fuente de build) -> extern/mbedtls"
+	@echo "  make deps-nlohmann    nlohmann/json v3.11.3 (fuente de build) -> extern/nlohmann-json"
+	@echo "  make deps-samplerate  libsamplerate 0.2.2 (fuente de build) -> extern/libsamplerate"
+	@echo "  make deps-argon2      argon2 20190702 (fuente de build) -> extern/argon2"
+	@echo "  make deps-vst3        vst3sdk v3.7.9_build_61 (fuente de build) -> extern/vst3-sdk"
 	@echo "  make deps-status      Muestra qué assets hay y su estado"
 	@echo "  make deps-clean       Borra extern/"
 	@echo ""
@@ -184,6 +192,8 @@ CLOUDFLARED_VER:= $(shell awk -F'"' '/CLOUDFLARED_VERSION/{print $$2; exit}' ver
 CLOUDFLARED_VER?= 2024.11.0
 LSP_VER        := $(shell awk -F'"' '/LSP_VERSION/{print $$2; exit}' versions.cmake 2>/dev/null)
 LSP_VER        ?= 1.2.35
+QT6_VER        := $(shell awk -F'"' '/QT6_VERSION/{print $$2; exit}' versions.cmake 2>/dev/null)
+QT6_VER        ?= 6.6.3
 
 # --- Identificadores de descarga exactos (metadatos, no pins) ---------------
 # libwebrtc: el tag de Shiguredo que corresponde a WEBRTC_MILESTONE=M123 /
@@ -200,8 +210,23 @@ SPOUT2_TAG := 2.007h
 # vía BA_DEPLOY_OBS. Trae también las DLLs de Qt del runtime.
 OBS_URL  := https://github.com/obsproject/obs-studio/releases/download/$(OBS_TAG)/OBS-Studio-$(OBS_TAG)-Windows.zip
 OBS_SHA  := 0ea3f71bd4d8a611ef763d2591aaf12b61e6f563284a3a14ddff485621fe4c41
-OBS_ZIP  := $(DL_DIR)/OBS-Studio-$(OBS_TAG)-Windows.zip
+OBS_ZIP  := $(EXTERNS_DIR)/.downloads/OBS-Studio-$(OBS_TAG)-Windows.zip
 OBS_DEST := $(EXTERNS_DIR)/obs-studio
+
+# Qt 6.6.3 (win64_mingw): SDK de BUILD (headers + import libs + CMake config +
+# moc), NO el runtime (ese lo trae el zip de OBS en extern/obs-studio/bin/64bit).
+# Se instala con `aqtinstall` (en el .venv local) en lugar de curl: aqt baja el
+# componente exacto y lo deja en extern/qt6/$(QT6_VER)/mingw_64/{include,lib,bin}
+# (incl. lib/cmake/Qt6/Qt6Config.cmake y lib/libQt6Core.a). La ruta oficial de
+# descarga única (qt-opensource-...-mingw_2022-6.6.3.7z) no está disponible en
+# los mirrors actuales (404), por eso aqt es la vía fiable. El SDK es grande
+# (~1 GB); es idempotente: si el sentinel (Qt6Config.cmake) ya está, se salta.
+# El hash que se pinnea es el del sentinel (aqt no baja un único archivo con
+# hash conocido): es la verificación de integridad del layout.
+QT6_DEST     := $(EXTERNS_DIR)/qt6
+QT6_PREFIX   := $(QT6_DEST)/$(QT6_VER)/mingw_64
+QT6_SENTINEL := $(QT6_PREFIX)/lib/cmake/Qt6/Qt6Config.cmake
+QT6_SHA      := 381542ca9904f8595cccfa3a45a035e188924180f815e44afa77f296a9bee323
 
 # libwebrtc M123 (Shiguredo). El zip/tar trae un top-dir `webrtc/` con
 # include/ + lib/; se extrae sobre extern/ -> extern/webrtc/{include,lib}.
@@ -246,6 +271,95 @@ LSP_SHA  := 4ef3b2f63b29a522fdaf3a18f879c1c85c82f0bdd1e0b3c849a5f3c4b08d2550
 LSP_7Z   := $(DL_DIR)/lsp-plugins-$(LSP_VER)-Linux-x86_64.7z
 LSP_DEST := $(EXTERNS_DIR)/lsp
 
+# ============================================================================
+# FUENTES DE BUILD (se COMPILEN en el producto) — distinto de los assets de
+# runtime de arriba. Estos 5 son los árboles de código de terceros que el
+# CMakeLists raíz consume vía FetchContent (mbedtls, nlohmann/json,
+# libsamplerate, argon2 y vst3sdk). Se vendorean a `extern/` para que un
+# configure con `extern/` poblado sea OFFLINE (cero red): el CMake prefiere la
+# copia vendored y solo cae a git si falta. Son DEPS DE BUILD (entran en el
+# binario), NO assets de runtime como OBS/Qt/Spout. Mismo patrón idempotente:
+# presente+SHA -> skip; si no, curl a <tar>.part, mv, sha256sum -c, y se
+# extrae strippeando el top-dir de codeload.
+# ============================================================================
+
+# mbedtls v3.6.2 (Mbed-TLS/mbedtls). CMakeLists en la raíz del tar.
+MBEDTLS_URL  := https://codeload.github.com/Mbed-TLS/mbedtls/tar.gz/refs/tags/v3.6.2
+MBEDTLS_SHA  := f4a876b1f6921ad0aefb445f974ef62414d33928640b2c45555c5e64a196a1a8
+MBEDTLS_TAR  := $(DL_DIR)/mbedtls-v3.6.2.tar.gz
+MBEDTLS_DEST := $(EXTERNS_DIR)/mbedtls
+MBEDTLS_SENT := $(MBEDTLS_DEST)/CMakeLists.txt
+# Submodule `framework` de mbedtls v3.6.2: el gitlink del repo lo fija en el
+# commit 94599c0e3b5036e086446a51a3f79640f70f22f6 (Mbed-TLS/mbedtls-framework).
+# Codeload NO incluye submodules (el tar deja framework/ vacío) y el
+# CMakeLists de mbedtls hace FATAL_ERROR si framework/CMakeLists.txt no existe,
+# así que se vendorea aparte y se extrae dentro de extern/mbedtls/framework.
+MBEDTLS_FW_URL  := https://codeload.github.com/Mbed-TLS/mbedtls-framework/tar.gz/94599c0e3b5036e086446a51a3f79640f70f22f6
+MBEDTLS_FW_SHA  := 632d5aa4dd2e4179f9d648be12af9a9c3158d7f503a93e70e651751b5f31257c
+MBEDTLS_FW_TAR  := $(DL_DIR)/mbedtls-framework-94599c0e.tar.gz
+MBEDTLS_FW_DEST := $(MBEDTLS_DEST)/framework
+MBEDTLS_FW_SENT := $(MBEDTLS_FW_DEST)/CMakeLists.txt
+
+# nlohmann/json v3.11.3 (nlohmann/json). Header-only; CMakeLists en la raíz.
+NLOHMANN_URL  := https://codeload.github.com/nlohmann/json/tar.gz/refs/tags/v3.11.3
+NLOHMANN_SHA  := 0d8ef5af7f9794e3263480193c491549b2ba6cc74bb018906202ada498a79406
+NLOHMANN_TAR  := $(DL_DIR)/nlohmann-json-v3.11.3.tar.gz
+NLOHMANN_DEST := $(EXTERNS_DIR)/nlohmann-json
+NLOHMANN_SENT := $(NLOHMANN_DEST)/CMakeLists.txt
+
+# libsamplerate 0.2.2 (libsndfile/libsamplerate). CMakeLists en la raíz.
+SAMPLERATE_URL  := https://codeload.github.com/libsndfile/libsamplerate/tar.gz/refs/tags/0.2.2
+SAMPLERATE_SHA  := 16e881487f184250deb4fcb60432d7556ab12cb58caea71ef23960aec6c0405a
+SAMPLERATE_TAR  := $(DL_DIR)/libsamplerate-0.2.2.tar.gz
+SAMPLERATE_DEST := $(EXTERNS_DIR)/libsamplerate
+SAMPLERATE_SENT := $(SAMPLERATE_DEST)/CMakeLists.txt
+
+# argon2 20190702 (P-H-C/phc-winner-argon2). ⚠️  SIN CMakeLists: el target se
+# arma a mano en el CMakeLists raíz desde ${argon2_SOURCE_DIR}/src/*.c, por eso
+# el sentinel es el Makefile oficial (no un CMakeLists).
+ARGON2_URL  := https://codeload.github.com/P-H-C/phc-winner-argon2/tar.gz/refs/tags/20190702
+ARGON2_SHA  := daf972a89577f8772602bf2eb38b6a3dd3d922bf5724d45e7f9589b5e830442c
+ARGON2_TAR  := $(DL_DIR)/argon2-20190702.tar.gz
+ARGON2_DEST := $(EXTERNS_DIR)/argon2
+ARGON2_SENT := $(ARGON2_DEST)/Makefile
+
+# vst3sdk v3.7.9_build_61 (steinbergmedia/vst3sdk). Solo Windows (if(WIN32) en
+# el CMakeLists raíz). CMakeLists en la raíz.
+VST3_URL  := https://codeload.github.com/steinbergmedia/vst3sdk/tar.gz/refs/tags/v3.7.9_build_61
+VST3_SHA  := a9561c9e7ba5a6a076d708d1298d17ffb1f81ba52d1ea06539416f561be59b8a
+VST3_TAR  := $(DL_DIR)/vst3-sdk-v3.7.9_build_61.tar.gz
+VST3_DEST := $(EXTERNS_DIR)/vst3-sdk
+VST3_SENT := $(VST3_DEST)/CMakeLists.txt
+# Submodules del VST3 SDK: codeload NO los incluye (base, cmake, doc,
+# pluginterfaces, public.sdk, tutorials y vstgui4 quedan como dirs vacíos) y el
+# CMakeLists del SDK hace FATAL_ERROR si cmake/modules/SMTG_VST3_SDK.cmake no
+# existe (include(SMTG_VST3_SDK)). Se vendorean los 7 en el commit fijado por
+# cada gitlink del repo vst3sdk@v3.7.9_build_61 (equivale a
+# `git submodule update --init`). ⚠️  vstgui4 apunta al repo `vstgui` (NO
+# `vst3_vstgui`): el url del .gitmodules es `../vstgui`.
+VST3_SUB_SENT := $(VST3_DEST)/cmake/modules/SMTG_VST3_SDK.cmake
+VST3_BASE_URL  := https://codeload.github.com/steinbergmedia/vst3_base/tar.gz/4737789f52b4e2610a99257e9d93dcbe7717e72e
+VST3_BASE_SHA  := a8fe7e69dfbe92dc7b9773aa7c20909627f2c1e28accfaef73d6e5483c21bf48
+VST3_BASE_TAR  := $(DL_DIR)/vst3-base-4737789f.tar.gz
+VST3_CMAKE_URL := https://codeload.github.com/steinbergmedia/vst3_cmake/tar.gz/3ad5b558e8f94a5825c5c4930a7ffd0760d68c43
+VST3_CMAKE_SHA := a6c9e0f443d2fb9b5ce204fac1fbbeb360fc29587aff1dd15423ca6ca2db5243
+VST3_CMAKE_TAR := $(DL_DIR)/vst3-cmake-3ad5b558.tar.gz
+VST3_DOC_URL  := https://codeload.github.com/steinbergmedia/vst3_doc/tar.gz/1a90e37662834a54aa5406eeaa8634027f7801f8
+VST3_DOC_SHA  := 19e1458974bc71843c1e157e18ceada7b61e1758fc5408c39976df354c5e77b3
+VST3_DOC_TAR  := $(DL_DIR)/vst3-doc-1a90e376.tar.gz
+VST3_PI_URL  := https://codeload.github.com/steinbergmedia/vst3_pluginterfaces/tar.gz/f0eeef7ca771f3cac2dfe1922dc5733349766c7b
+VST3_PI_SHA  := 9f72e47cbc037f307aabba6234c34cbb6c9c2ad67cddb13f310b5de52fb1e9a3
+VST3_PI_TAR  := $(DL_DIR)/vst3-pluginterfaces-f0eeef7c.tar.gz
+VST3_PSDK_URL := https://codeload.github.com/steinbergmedia/vst3_public_sdk/tar.gz/e61ee76eb0f8771a05e99018bc4705ac1b603e48
+VST3_PSDK_SHA := 35f55f0284013ad0697d823edd7009c6f5751b3ac6d0e1e08fe2c06603a16433
+VST3_PSDK_TAR := $(DL_DIR)/vst3-public_sdk-e61ee76e.tar.gz
+VST3_TUT_URL  := https://codeload.github.com/steinbergmedia/vst3_tutorials/tar.gz/dc425c8e588a78147bc4c3616857b8918b809dcd
+VST3_TUT_SHA  := d2ee9aafc769f959422fb83cf6d2e2499707040a59313824ccdbb64cf82f0b37
+VST3_TUT_TAR  := $(DL_DIR)/vst3-tutorials-dc425c8e.tar.gz
+VST3_GUI_URL  := https://codeload.github.com/steinbergmedia/vstgui/tar.gz/65c353fcad783dd6baa34a2b9dbe23bb9f88d035
+VST3_GUI_SHA  := 036fba4feed74f88c4802caf1304334d3d1277de59871d3cbcc9afad7eeb5d26
+VST3_GUI_TAR  := $(DL_DIR)/vst3-vstgui4-65c353fc.tar.gz
+
 # Cada target enlaza el bloque idempotente de descarga (presente+sha -> skip;
 # si no, curl a <archivo>.part, mv y verificacion `sha256sum -c`). Se repite
 # por asset a proposito: es mas robusto y depurable que un macro define/call/
@@ -253,7 +367,7 @@ LSP_DEST := $(EXTERNS_DIR)/lsp
 # makefile y rompe el parseo).
 
 # --- deps (agregado) ---------------------------------------------------------
-deps: deps-obs deps-webrtc deps-spout deps-cloudflared deps-vcredist deps-lsp
+deps: deps-obs deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist deps-lsp deps-src
 
 deps-obs:
 	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
@@ -272,6 +386,34 @@ deps-obs:
 	else \
 	  echo "[deps] OBS: extrayendo a $(OBS_DEST)"; \
 	  unzip -q -o "$(OBS_ZIP)" -d "$(OBS_DEST)"; \
+	fi
+
+# Qt 6 (win64_mingw): SDK de BUILD (headers + import libs + CMake config + moc).
+# Vía aqtinstall (en el .venv local): baja el componente exacto y lo deja en
+# extern/qt6/$(QT6_VER)/mingw_64/{include,lib,bin} (incl. lib/cmake/Qt6/
+# Qt6Config.cmake y lib/libQt6Core.a). La vía aqt es la fiable aquí: la ruta
+# oficial de descarga única (qt-opensource-...-mingw_2022-6.6.3.7z) devuelve 404
+# en los mirrors actuales. IDEMPOTENTE: si el sentinel (Qt6Config.cmake) ya
+# está y su SHA coincide, se salta (ni pip ni aqt). El SDK es grande (~1 GB);
+# aqt lo baja por componentes, así que si falla a mitad se re-baja limpio.
+deps-qt:
+	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
+	@mkdir -p "$(QT6_DEST)"
+	@if [ -f "$(QT6_SENTINEL)" ] && [ "$$(sha256sum "$(QT6_SENTINEL)" | cut -d' ' -f1)" = "$(QT6_SHA)" ]; then \
+	  echo "[deps] Qt6 $(QT6_VER): ya presente y verificado ($(QT6_PREFIX))"; \
+	else \
+	  echo "[deps] Qt6 $(QT6_VER): instalando aqtinstall en el .venv..."; \
+	  "$(PIP)" install -q aqtinstall \
+	    || { echo "[deps] ERROR Qt6: no se pudo instalar aqtinstall" >&2; exit 1; }; \
+	  echo "[deps] Qt6 $(QT6_VER): instalando SDK win64_mingw a $(QT6_PREFIX)"; \
+	  rm -rf "$(QT6_DEST)"; \
+	  "$(PY)" -m aqt install-qt windows desktop $(QT6_VER) win64_mingw -O "$(QT6_DEST)" \
+	    || { echo "[deps] ERROR Qt6: fallo de aqt" >&2; exit 1; }; \
+	  if [ -f "$(QT6_SENTINEL)" ]; then \
+	    echo "[deps] Qt6 $(QT6_VER): SDK instalado ($(QT6_PREFIX))"; \
+	  else \
+	    echo "[deps] ERROR Qt6: sentinel ausente tras aqt ($(QT6_SENTINEL))" >&2; exit 1; \
+	  fi; \
 	fi
 
 deps-webrtc:
@@ -362,15 +504,184 @@ deps-lsp:
 	    && touch "$(LSP_DEST)/.deps-lsp-$(LSP_VER)"; \
 	fi
 
+# --- Fuentes de BUILD (se compilan en el producto) ---------------------------
+# Agrupado: baja y extrae los 5 árboles de código de terceros que el
+# CMakeLists raíz consume vía FetchContent. Con `extern/` poblado, el configure
+# es OFFLINE (prefiere la copia vendored); sin él, cae a git.
+deps-src: deps-mbedtls deps-nlohmann deps-samplerate deps-argon2 deps-vst3
+
+deps-mbedtls:
+	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
+	@mkdir -p "$(DL_DIR)" "$(MBEDTLS_DEST)"
+	@if [ -f "$(MBEDTLS_TAR)" ] && [ "$$(sha256sum "$(MBEDTLS_TAR)" | cut -d' ' -f1)" = "$(MBEDTLS_SHA)" ]; then \
+	  echo "[deps] mbedtls: ya presente y verificado ($(MBEDTLS_TAR))"; \
+	else \
+	  echo "[deps] mbedtls: descargando $(MBEDTLS_URL)"; \
+	  curl -fL --retry 3 --connect-timeout 30 -o "$(MBEDTLS_TAR).part" "$(MBEDTLS_URL)" \
+	    && mv "$(MBEDTLS_TAR).part" "$(MBEDTLS_TAR)" \
+	    && printf '%s  %s\n' "$(MBEDTLS_SHA)" "$(MBEDTLS_TAR)" | sha256sum -c --quiet \
+	    || { echo "[deps] ERROR mbedtls: fallo de descarga o hash" >&2; rm -f "$(MBEDTLS_TAR).part"; exit 1; }; \
+	fi
+	@if [ -f "$(MBEDTLS_SENT)" ]; then \
+	  echo "[deps] mbedtls: ya extraído en $(MBEDTLS_DEST)"; \
+	else \
+	  echo "[deps] mbedtls: extrayendo a $(MBEDTLS_DEST)"; \
+	  rm -rf "$(MBEDTLS_DEST)"; \
+	  mkdir -p "$(MBEDTLS_DEST)"; \
+	  tar xzf "$(MBEDTLS_TAR)" -C "$(MBEDTLS_DEST)" --strip-components=1; \
+	fi
+	# Submodule `framework`: codeload no lo incluye (queda framework/ vacío) y
+	# el CMakeLists de mbedtls hace FATAL_ERROR si framework/CMakeLists.txt no
+	# existe, así que se vendorea aparte y se extrae dentro de
+	# extern/mbedtls/framework. Idempotente: sentinel + tar verificado -> skip.
+	@if [ -f "$(MBEDTLS_FW_SENT)" ] && [ -f "$(MBEDTLS_FW_TAR)" ] && [ "$$(sha256sum "$(MBEDTLS_FW_TAR)" | cut -d' ' -f1)" = "$(MBEDTLS_FW_SHA)" ]; then \
+	  echo "[deps] mbedtls-framework: ya presente y verificado ($(MBEDTLS_FW_TAR))"; \
+	else \
+	  echo "[deps] mbedtls-framework: descargando $(MBEDTLS_FW_URL)"; \
+	  curl -fL --retry 3 --connect-timeout 30 -o "$(MBEDTLS_FW_TAR).part" "$(MBEDTLS_FW_URL)" \
+	    && mv "$(MBEDTLS_FW_TAR).part" "$(MBEDTLS_FW_TAR)" \
+	    && printf '%s  %s\n' "$(MBEDTLS_FW_SHA)" "$(MBEDTLS_FW_TAR)" | sha256sum -c --quiet \
+	    || { echo "[deps] ERROR mbedtls-framework: fallo de descarga o hash" >&2; rm -f "$(MBEDTLS_FW_TAR).part"; exit 1; }; \
+	  echo "[deps] mbedtls-framework: extrayendo a $(MBEDTLS_FW_DEST)"; \
+	  rm -rf "$(MBEDTLS_FW_DEST)"; \
+	  mkdir -p "$(MBEDTLS_FW_DEST)"; \
+	  tar xzf "$(MBEDTLS_FW_TAR)" -C "$(MBEDTLS_FW_DEST)" --strip-components=1; \
+	fi
+
+deps-nlohmann:
+	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
+	@mkdir -p "$(DL_DIR)" "$(NLOHMANN_DEST)"
+	@if [ -f "$(NLOHMANN_TAR)" ] && [ "$$(sha256sum "$(NLOHMANN_TAR)" | cut -d' ' -f1)" = "$(NLOHMANN_SHA)" ]; then \
+	  echo "[deps] nlohmann: ya presente y verificado ($(NLOHMANN_TAR))"; \
+	else \
+	  echo "[deps] nlohmann: descargando $(NLOHMANN_URL)"; \
+	  curl -fL --retry 3 --connect-timeout 30 -o "$(NLOHMANN_TAR).part" "$(NLOHMANN_URL)" \
+	    && mv "$(NLOHMANN_TAR).part" "$(NLOHMANN_TAR)" \
+	    && printf '%s  %s\n' "$(NLOHMANN_SHA)" "$(NLOHMANN_TAR)" | sha256sum -c --quiet \
+	    || { echo "[deps] ERROR nlohmann: fallo de descarga o hash" >&2; rm -f "$(NLOHMANN_TAR).part"; exit 1; }; \
+	fi
+	@if [ -f "$(NLOHMANN_SENT)" ]; then \
+	  echo "[deps] nlohmann: ya extraído en $(NLOHMANN_DEST)"; \
+	else \
+	  echo "[deps] nlohmann: extrayendo a $(NLOHMANN_DEST)"; \
+	  rm -rf "$(NLOHMANN_DEST)"; \
+	  mkdir -p "$(NLOHMANN_DEST)"; \
+	  tar xzf "$(NLOHMANN_TAR)" -C "$(NLOHMANN_DEST)" --strip-components=1; \
+	fi
+
+deps-samplerate:
+	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
+	@mkdir -p "$(DL_DIR)" "$(SAMPLERATE_DEST)"
+	@if [ -f "$(SAMPLERATE_TAR)" ] && [ "$$(sha256sum "$(SAMPLERATE_TAR)" | cut -d' ' -f1)" = "$(SAMPLERATE_SHA)" ]; then \
+	  echo "[deps] libsamplerate: ya presente y verificado ($(SAMPLERATE_TAR))"; \
+	else \
+	  echo "[deps] libsamplerate: descargando $(SAMPLERATE_URL)"; \
+	  curl -fL --retry 3 --connect-timeout 30 -o "$(SAMPLERATE_TAR).part" "$(SAMPLERATE_URL)" \
+	    && mv "$(SAMPLERATE_TAR).part" "$(SAMPLERATE_TAR)" \
+	    && printf '%s  %s\n' "$(SAMPLERATE_SHA)" "$(SAMPLERATE_TAR)" | sha256sum -c --quiet \
+	    || { echo "[deps] ERROR libsamplerate: fallo de descarga o hash" >&2; rm -f "$(SAMPLERATE_TAR).part"; exit 1; }; \
+	fi
+	@if [ -f "$(SAMPLERATE_SENT)" ]; then \
+	  echo "[deps] libsamplerate: ya extraído en $(SAMPLERATE_DEST)"; \
+	else \
+	  echo "[deps] libsamplerate: extrayendo a $(SAMPLERATE_DEST)"; \
+	  rm -rf "$(SAMPLERATE_DEST)"; \
+	  mkdir -p "$(SAMPLERATE_DEST)"; \
+	  tar xzf "$(SAMPLERATE_TAR)" -C "$(SAMPLERATE_DEST)" --strip-components=1; \
+	fi
+
+deps-argon2:
+	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
+	@mkdir -p "$(DL_DIR)" "$(ARGON2_DEST)"
+	@if [ -f "$(ARGON2_TAR)" ] && [ "$$(sha256sum "$(ARGON2_TAR)" | cut -d' ' -f1)" = "$(ARGON2_SHA)" ]; then \
+	  echo "[deps] argon2: ya presente y verificado ($(ARGON2_TAR))"; \
+	else \
+	  echo "[deps] argon2: descargando $(ARGON2_URL)"; \
+	  curl -fL --retry 3 --connect-timeout 30 -o "$(ARGON2_TAR).part" "$(ARGON2_URL)" \
+	    && mv "$(ARGON2_TAR).part" "$(ARGON2_TAR)" \
+	    && printf '%s  %s\n' "$(ARGON2_SHA)" "$(ARGON2_TAR)" | sha256sum -c --quiet \
+	    || { echo "[deps] ERROR argon2: fallo de descarga o hash" >&2; rm -f "$(ARGON2_TAR).part"; exit 1; }; \
+	fi
+	@if [ -f "$(ARGON2_SENT)" ]; then \
+	  echo "[deps] argon2: ya extraído en $(ARGON2_DEST)"; \
+	else \
+	  echo "[deps] argon2: extrayendo a $(ARGON2_DEST)"; \
+	  rm -rf "$(ARGON2_DEST)"; \
+	  mkdir -p "$(ARGON2_DEST)"; \
+	  tar xzf "$(ARGON2_TAR)" -C "$(ARGON2_DEST)" --strip-components=1; \
+	fi
+
+deps-vst3:
+	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
+	@mkdir -p "$(DL_DIR)" "$(VST3_DEST)"
+	@if [ -f "$(VST3_TAR)" ] && [ "$$(sha256sum "$(VST3_TAR)" | cut -d' ' -f1)" = "$(VST3_SHA)" ]; then \
+	  echo "[deps] vst3sdk: ya presente y verificado ($(VST3_TAR))"; \
+	else \
+	  echo "[deps] vst3sdk: descargando $(VST3_URL)"; \
+	  curl -fL --retry 3 --connect-timeout 30 -o "$(VST3_TAR).part" "$(VST3_URL)" \
+	    && mv "$(VST3_TAR).part" "$(VST3_TAR)" \
+	    && printf '%s  %s\n' "$(VST3_SHA)" "$(VST3_TAR)" | sha256sum -c --quiet \
+	    || { echo "[deps] ERROR vst3sdk: fallo de descarga o hash" >&2; rm -f "$(VST3_TAR).part"; exit 1; }; \
+	fi
+	@if [ -f "$(VST3_SENT)" ]; then \
+	  echo "[deps] vst3sdk: ya extraído en $(VST3_DEST)"; \
+	else \
+	  echo "[deps] vst3sdk: extrayendo a $(VST3_DEST)"; \
+	  rm -rf "$(VST3_DEST)"; \
+	  mkdir -p "$(VST3_DEST)"; \
+	  tar xzf "$(VST3_TAR)" -C "$(VST3_DEST)" --strip-components=1; \
+	fi
+	# Submodules: codeload no los incluye (base, cmake, doc, pluginterfaces,
+	# public.sdk, tutorials y vstgui4 quedan como dirs vacíos) y el CMakeLists
+	# del SDK hace FATAL_ERROR si cmake/modules/SMTG_VST3_SDK.cmake no existe
+	# (include(SMTG_VST3_SDK)). Se vendorean los 7 en el commit fijado por cada
+	# gitlink (equivale a `git submodule update --init`). Idempotente: sentinel
+	# presente -> skip. vstgui4 -> repo `vstgui` (NO `vst3_vstgui`).
+	@if [ -f "$(VST3_SUB_SENT)" ]; then \
+	  echo "[deps] vst3sdk submodules: ya presentes en $(VST3_DEST)"; \
+	else \
+	  echo "[deps] vst3sdk submodules: descargando y extrayendo los 7 submodules"; \
+	  for spec in \
+	    "base $(VST3_BASE_SHA) $(VST3_BASE_URL) $(VST3_BASE_TAR)" \
+	    "cmake $(VST3_CMAKE_SHA) $(VST3_CMAKE_URL) $(VST3_CMAKE_TAR)" \
+	    "doc $(VST3_DOC_SHA) $(VST3_DOC_URL) $(VST3_DOC_TAR)" \
+	    "pluginterfaces $(VST3_PI_SHA) $(VST3_PI_URL) $(VST3_PI_TAR)" \
+	    "public.sdk $(VST3_PSDK_SHA) $(VST3_PSDK_URL) $(VST3_PSDK_TAR)" \
+	    "tutorials $(VST3_TUT_SHA) $(VST3_TUT_URL) $(VST3_TUT_TAR)" \
+	    "vstgui4 $(VST3_GUI_SHA) $(VST3_GUI_URL) $(VST3_GUI_TAR)"; do \
+	    set -- $$spec; \
+	    name=$$1; sha=$$2; url=$$3; tar=$$4; \
+	    if [ -f "$$tar" ] && [ "$$(sha256sum "$$tar" | cut -d' ' -f1)" = "$$sha" ]; then \
+	      echo "[deps] vst3sdk $$name: tar ya verificado"; \
+	    else \
+	      echo "[deps] vst3sdk $$name: descargando $$url"; \
+	      curl -fL --retry 3 --connect-timeout 30 -o "$$tar.part" "$$url" \
+	        && mv "$$tar.part" "$$tar" \
+	        && printf '%s  %s\n' "$$sha" "$$tar" | sha256sum -c --quiet \
+	        || { echo "[deps] ERROR vst3sdk $$name: fallo de descarga o hash" >&2; rm -f "$$tar.part"; exit 1; }; \
+	    fi; \
+	    rm -rf "$(VST3_DEST)/$$name"; \
+	    mkdir -p "$(VST3_DEST)/$$name"; \
+	    tar xzf "$$tar" -C "$(VST3_DEST)/$$name" --strip-components=1; \
+	  done; \
+	fi
+
 # --- Estado / limpieza de dependencias --------------------------------------
 deps-status:
 	@echo "Assets de terceros en $(EXTERNS_DIR)/:"
 	@echo "  OBS $(OBS_TAG)          : $$( [ -f '$(OBS_DEST)/obs-plugins/64bit/libcef.dll' ] && echo OK || echo ausente )"
+	@echo "  Qt6 $(QT6_VER) (win64_mingw): $$( [ -f '$(QT6_SENTINEL)' ] && echo OK || echo ausente )"
 	@echo "  libwebrtc M123 ($(BA_WEBRTC_TARGET)): $$( [ -f '$(WEB_DEST)/lib/$(WEB_LIB)' ] && echo OK || echo ausente )"
 	@echo "  Spout2 $(SPOUT2_TAG)          : $$( [ -f '$(SPOUT_DEST)/SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX.h' ] && echo OK || echo ausente )"
 	@echo "  cloudflared $(CLOUDFLARED_VER)     : $$( [ -f '$(CFL_EXE)' ] && echo OK || echo ausente )"
 	@echo "  VC++ redist           : $$( [ -f '$(VCREDIST_EXE)' ] && echo OK || echo ausente )"
 	@echo "  LSP $(LSP_VER)           : $$( [ -f '$(LSP_DEST)/.deps-lsp-$(LSP_VER)' ] && echo OK || echo ausente )"
+	@echo "  --- Fuentes de BUILD (se compilan en el producto) ---"
+	@echo "  mbedtls v3.6.2        : $$( [ -f '$(MBEDTLS_SENT)' ] && echo OK || echo ausente )"
+	@echo "  nlohmann v3.11.3      : $$( [ -f '$(NLOHMANN_SENT)' ] && echo OK || echo ausente )"
+	@echo "  libsamplerate 0.2.2   : $$( [ -f '$(SAMPLERATE_SENT)' ] && echo OK || echo ausente )"
+	@echo "  argon2 20190702       : $$( [ -f '$(ARGON2_SENT)' ] && echo OK || echo ausente )"
+	@echo "  vst3sdk v3.7.9_build_61: $$( [ -f '$(VST3_SENT)' ] && echo OK || echo ausente )"
 
 deps-clean:
 	@echo "[deps] borrando $(EXTERNS_DIR)/"

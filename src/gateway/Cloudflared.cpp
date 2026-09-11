@@ -139,7 +139,9 @@ bool CloudflaredSupervisor::spawn() {
     }
 
     // Linea de comandos (spec §8.8). El token NO va aca: va por env.
-    // VERIFY: sintaxis exacta de flags en cloudflared 2024.11.0.
+    // Flags validos en cloudflared 2024.11.0 (verificado en el binario
+    // vendored extern/cloudflared/cloudflared.exe: --no-autoupdate,
+    // --metrics <host:port>, --log-level, y `tunnel run` con TUNNEL_TOKEN).
     const std::string cmd = "tunnel --no-autoupdate --metrics 127.0.0.1:" + std::to_string(metricsPort_) +
                             " --log-level info run";
     std::wstring cmdLine = L"\"" + std::wstring(cloudflaredPath_.begin(), cloudflaredPath_.end()) + L"\" " +
@@ -200,9 +202,10 @@ bool CloudflaredSupervisor::processAlive() const {
 }
 
 bool CloudflaredSupervisor::probeMetrics() const {
-    // Probe TCP a 127.0.0.1:metricsPort (endpoint /ready del servidor de
-    // metricas, spec §8.8). Si conecta, el tunel esta arriba.
-    // VERIFY: ruta exacta del endpoint de salud en cloudflared 2024.11.0.
+    // Probe TCP a 127.0.0.1:metricsPort: el servidor de metricas de
+    // cloudflared 2024.11.0 sirve Prometheus en /metrics (no hay endpoint
+    // /ready). Un TCP connect al puerto basta para saber que el tunel esta
+    // arriba (spec §8.8).
     WSADATA wsa{};
     bool wsaInit = (WSAStartup(MAKEWORD(2, 2), &wsa) == 0);
     SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
