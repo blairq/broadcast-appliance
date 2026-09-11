@@ -19,6 +19,11 @@ a.out
 Testing/
 ba-app-headless/
 
+# --- Dependencias de terceros (descargadas por `make deps`) ----------------
+# `extern/` guarda los assets de terceros (libwebrtc, OBS, Spout2, cloudflared,
+# VC++ redist, LSP). Se regenera con `make deps`; nunca se commitea.
+extern/
+
 # --- Tool / editor / OS state ----------------------------------------------
 .codemap/
 .opencode/
