@@ -140,6 +140,13 @@ build las trae por `FetchContent` (self-contained) en la versión fijada en
 [`versions.cmake`](versions.cmake). Lo de esta sección es la **toolchain** del
 host.
 
+Los **assets de despliegue** de Windows (los del bloque "plataforma-gated" de
+[Dependencias](#dependencias): OBS 31.0.0, libwebrtc M123, Spout2, cloudflared,
+VC++ redist y LSP) no se instalan a mano ni por `FetchContent`: `make deps` los
+descarga a `extern/` (gitignored, idempotente, verificado por SHA-256). Hay
+targets individuales `make deps-obs`, `deps-webrtc`, `deps-spout`,
+`deps-cloudflared`, `deps-vcredist` y `deps-lsp` (y `deps-status`/`deps-clean`).
+
 ### Herramientas obligatorias
 
 | Herramienta | Mínimo | Notas |

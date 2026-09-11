@@ -79,13 +79,22 @@ set(BA_GATEWAY_WEBRTC 0)
 # reales (absl/, api/, p2p/...), así que que el SDK esté descargado no debe
 # romper el verde del cross-build MinGW (WIN32). Sin el opt-in, el gateway y
 # sus tests siguen con el backend NULL (BA_GATEWAY_HAVE_WEBRTC=0).
+#
+# La puerta es MSVC (no WIN32): extern/webrtc/lib/webrtc.lib es un archivo COFF
+# con símbolos C++ mangling-MSVC y NO hay webrtc.dll, así que MinGW (mangling
+# Itanium) NO puede enlazarlo y el backend real solo ENLAZA bajo MSVC. El
+# cross-build MinGW entrega el backend NULL (BA_GATEWAY_HAVE_WEBRTC=0) y
+# valida el path real vía el target de compilación realcheck (bloque inferior).
 if(NOT DEFINED BA_GATEWAY_USE_WEBRTC)
     set(BA_GATEWAY_USE_WEBRTC OFF)
 endif()
-if(WIN32)
-    if(NOT DEFINED BA_WEBRTC_ROOT)
-        set(BA_WEBRTC_ROOT "${CMAKE_SOURCE_DIR}/extern/webrtc")
-    endif()
+# Ruta al SDK: se fija SIEMPRE (es solo una búsqueda de ruta), para que el
+# target realcheck de abajo la vea en cualquier toolchain. Solo el ENLACE del
+# backend real queda restringido a MSVC (bloque if(MSVC) de abajo).
+if(NOT DEFINED BA_WEBRTC_ROOT)
+    set(BA_WEBRTC_ROOT "${CMAKE_SOURCE_DIR}/extern/webrtc")
+endif()
+if(MSVC)
     if(BA_GATEWAY_USE_WEBRTC AND BA_WEBRTC_ROOT AND EXISTS "${BA_WEBRTC_ROOT}/include")
         set(BA_GATEWAY_WEBRTC 1)
     endif()
@@ -96,14 +105,46 @@ if(BA_GATEWAY_WEBRTC)
     target_compile_definitions(ba-gateway PRIVATE BA_GATEWAY_HAVE_WEBRTC=1)
     target_include_directories(ba-gateway PRIVATE "${BA_WEBRTC_ROOT}/include")
     target_link_directories(ba-gateway PRIVATE "${BA_WEBRTC_ROOT}/lib")
-    # Binarios precompilados de Shiguredo: libwebrtc.a (+ deps). El nombre
-    # exacto del artefacto puede variar entre builds; se declara el link
-    # genérico y se ajusta en el deploy si el tag lo requiere.
-    # VERIFY: nombre exacto del .a en el webrtc-build fijado (M123).
+    # Binarios precompilados de Shiguredo: webrtc.lib (+ deps) en COFF con
+    # símbolos C++ mangling-MSVC y sin webrtc.dll: solo enlazable bajo MSVC
+    # (de ahí la puerta if(MSVC) de arriba).
     target_link_libraries(ba-gateway PRIVATE webrtc)
 else()
     message(STATUS "ba-gateway: SDK libwebrtc ausente; backend NULL (BA_GATEWAY_HAVE_WEBRTC=0)")
     target_compile_definitions(ba-gateway PRIVATE BA_GATEWAY_HAVE_WEBRTC=0)
+endif()
+
+# --- Validación por compilación del backend real (no-MSVC) ------------------
+# webrtc.lib es COFF con nombres C++ mangling-MSVC y no hay webrtc.dll: MinGW
+# (mangling Itanium) NO puede enlazarlo, así que el backend real solo ENLAZA bajo
+# MSVC. Pero el cierre de headers M123 SÍ compila bajo MinGW si se neutraliza el
+# static_assert de sanity RTC_EXPORT_TEMPLATE_TEST(MSVC_HACK, __declspec(dllexport))
+# de rtc_base/system/rtc_export_template.h (GCC reescribe __declspec -> __attribute__).
+# Este target OBJECT compila SOLO Webrtc.cpp con BA_GATEWAY_HAVE_WEBRTC=1 (sin
+# enlazar webrtc.lib) como prueba de compilación del path real en toolchains no-MSVC.
+if(BA_GATEWAY_USE_WEBRTC AND DEFINED BA_WEBRTC_ROOT AND EXISTS "${BA_WEBRTC_ROOT}/include")
+    # Solo UNA de las cuatro llamadas del auto-test falla bajo GCC: la de
+    # __declspec(dllexport) (GCC la reescribe a __attribute__ y rompe el
+    # token-paste que la mapea a MSVC_HACK). Las otras tres (vacía, __attribute__,
+    # dllimport) son válidas bajo GCC. Por eso se usa REPLACE LITERAL sobre esa
+    # única línea (no un regex ancho, que casaría también la #define del macro).
+    file(READ "${BA_WEBRTC_ROOT}/include/rtc_base/system/rtc_export_template.h" _rtc_export_src)
+    string(REPLACE "RTC_EXPORT_TEMPLATE_TEST(MSVC_HACK, __declspec(dllexport));"
+           "#if defined(_MSC_VER)\nRTC_EXPORT_TEMPLATE_TEST(MSVC_HACK, __declspec(dllexport));\n#endif"
+           _rtc_export_shaded "${_rtc_export_src}")
+    file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/webrtc-shadow/rtc_base/system")
+    file(WRITE "${CMAKE_BINARY_DIR}/webrtc-shadow/rtc_base/system/rtc_export_template.h"
+         "${_rtc_export_shaded}")
+    add_library(ba-gateway-webrtc-realcheck OBJECT "${CMAKE_CURRENT_SOURCE_DIR}/Webrtc.cpp")
+    target_compile_definitions(ba-gateway-webrtc-realcheck PRIVATE
+        BA_GATEWAY_HAVE_WEBRTC=1 WEBRTC_WIN OS_WIN UNICODE _UNICODE)
+    target_include_directories(ba-gateway-webrtc-realcheck BEFORE PRIVATE
+        "${CMAKE_BINARY_DIR}/webrtc-shadow"
+        "${BA_WEBRTC_ROOT}/include"
+        "${BA_WEBRTC_ROOT}/include/third_party/abseil-cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}")
+else()
+    message(STATUS "ba-gateway: realcheck desactivado (sin SDK o sin BA_GATEWAY_USE_WEBRTC)")
 endif()
 
 # --- Tests del gateway (CTest) ----------------------------------------------

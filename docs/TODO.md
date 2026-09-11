@@ -27,11 +27,13 @@ Documento de arranque para sesiones nuevas. Contiene: qué se hizo, qué falta
 | Flag | Qué no se valida | Dónde |
 |---|---|---|
 | `BA_APP_HAVE_QT_OBS` | `MainWindow` + `obs_startup` solo se compilan con Qt6+libobs presentes | `src/app/` |
-| `BA_GATEWAY_HAVE_WEBRTC` | ~15 marcadores `VERIFY` en `Webrtc.cpp`: includes y firmas de libwebrtc M123 sin contrastar contra el SDK real | `src/gateway/Webrtc.cpp` |
+| `BA_GATEWAY_HAVE_WEBRTC` | Backend real adaptado a los headers M123 reales (`VERIFY` quitados) y gateado a **MSVC** (no solo WIN32): `extern/webrtc/lib/webrtc.lib` es un archive COFF con símbolos C++ mangleados por MSVC y no hay `webrtc.dll`, así que solo enlaza/corre bajo MSVC. En el cross MinGW el gateway shippea el backend NULL (`=0`); el target compile-only `ba-gateway-webrtc-realcheck` compila el real bajo MinGW (con un shadow header generado que neutraliza el static-assert `RTC_EXPORT_TEMPLATE_TEST(MSVC_HACK,…)` que le pilla GCC) como compile-proof. Encendido: `-D BA_GATEWAY_USE_WEBRTC=1` + SDK en `extern/webrtc` + toolchain MSVC. **Solo validado de compilación** (no de ejecución) en este entorno. | `src/gateway/Webrtc.cpp` |
 | `BA_SOURCES_HAVE_OBS` | `obs-stub.cpp` con 10 símbolos no-op; solo se activa con libobs 31 real | `src/obs-module/` |
 
 Acción: en un entorno con Qt6 + libobs 31 + libwebrtc M123 reales, encender los
-flags, compilar, ejecutar y quitar los `VERIFY`.
+flags y compilar. El path WebRTC ya quedó adaptado a los headers M123 reales
+(sin `VERIFY`, gateado a MSVC, validado de compilación): solo queda ejecutarlo
+bajo MSVC. Los flags de Qt6/libobs siguen pendientes.
 
 ### 2.2 Stubs explícitos
 - `main` no-Win del launcher — stub por diseño (valida compilación en Linux).

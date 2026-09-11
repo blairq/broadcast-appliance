@@ -91,7 +91,11 @@ void writeMinidump(void* handle, std::uint32_t pid, const std::wstring& path) {
         BA_LOG_WARN("dump", 0, "dbghelp.dll no disponible; sin minidump");
         return;
     }
-    auto fn = reinterpret_cast<MiniDumpWriteDumpFn>(GetProcAddress(dbghelp, "MiniDumpWriteDump"));
+    // Double-cast vía void*: GetProcAddress devuelve FARPROC (entero en MinGW),
+    // y el reinterpret_cast directo de ese entero a puntero-a-función dispara
+    // -Wcast-function-type. Pasar por void* lo silencia sin cambiar el valor.
+    auto fn = reinterpret_cast<MiniDumpWriteDumpFn>(
+        reinterpret_cast<void*>(GetProcAddress(dbghelp, "MiniDumpWriteDump")));
     if (!fn) {
         FreeLibrary(dbghelp);
         BA_LOG_WARN("dump", 0, "MiniDumpWriteDump no encontrado; sin minidump");
