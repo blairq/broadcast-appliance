@@ -73,11 +73,20 @@ endif()
 # y los tests de abajo (bloque inferior) hereden el MISMO flag: sin el SDK el
 # test imprime SKIP y pasa.
 set(BA_GATEWAY_WEBRTC 0)
+# El backend REAL de libwebrtc se enciende SOLO con opt-in explícito
+# (-D BA_GATEWAY_USE_WEBRTC=1). La mera presencia del SDK en extern/webrtc
+# (lo deja `make deps`) NO basta: Webrtc.cpp aún se adapta a los headers M123
+# reales (absl/, api/, p2p/...), así que que el SDK esté descargado no debe
+# romper el verde del cross-build MinGW (WIN32). Sin el opt-in, el gateway y
+# sus tests siguen con el backend NULL (BA_GATEWAY_HAVE_WEBRTC=0).
+if(NOT DEFINED BA_GATEWAY_USE_WEBRTC)
+    set(BA_GATEWAY_USE_WEBRTC OFF)
+endif()
 if(WIN32)
     if(NOT DEFINED BA_WEBRTC_ROOT)
         set(BA_WEBRTC_ROOT "${CMAKE_SOURCE_DIR}/extern/webrtc")
     endif()
-    if(BA_WEBRTC_ROOT AND EXISTS "${BA_WEBRTC_ROOT}/include")
+    if(BA_GATEWAY_USE_WEBRTC AND BA_WEBRTC_ROOT AND EXISTS "${BA_WEBRTC_ROOT}/include")
         set(BA_GATEWAY_WEBRTC 1)
     endif()
 endif()
