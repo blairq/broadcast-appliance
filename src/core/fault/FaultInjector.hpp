@@ -74,7 +74,7 @@ enum class FaultKind : int {
 /// Es una ayuda de TEST/INTEGRACION, no del steady RT path (ver docstring de
 /// modulo). No lanza.
 class FaultInjector {
-public:
+   public:
     /// Constructor: arma `FaultKind::None` (sin fallo).
     FaultInjector() = default;
 
@@ -121,7 +121,7 @@ public:
     /// :returns: true si consumio un fallo; false si no habia nada armado.
     bool fire() const;
 
-private:
+   private:
     // `mutable` porque fire() (const) consume el fallo: es un efecto colateral
     // de tipo "contador", no un cambio del estado logico observable por
     // armed() mas alla de lo que fire() ya reporto.
@@ -147,8 +147,6 @@ private:
 /// :param outPath: ruta donde se escribe la copia (se crea/trunca).
 /// :returns: true si se copio (con o sin byte alterado); false si `sourcePath`
 ///           no existe / no se puede leer o `outPath` no se puede escribir.
-bool writeWithFault(const FaultInjector& injector,
-                    const std::string& sourcePath,
-                    const std::string& outPath);
+bool writeWithFault(const FaultInjector& injector, const std::string& sourcePath, const std::string& outPath);
 
 } // namespace ba::fault

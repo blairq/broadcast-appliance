@@ -18,9 +18,8 @@
 
 namespace ba::crypto {
 
-std::array<std::uint8_t, kHmacSha256Size>
-hmacSha256(const std::uint8_t* key, std::size_t keyLen, const std::uint8_t* msg,
-           std::size_t msgLen) {
+std::array<std::uint8_t, kHmacSha256Size> hmacSha256(const std::uint8_t* key, std::size_t keyLen,
+                                                     const std::uint8_t* msg, std::size_t msgLen) {
     std::array<std::uint8_t, kHmacSha256Size> out{};
 
     const mbedtls_md_info_t* info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
@@ -37,14 +36,13 @@ hmacSha256(const std::uint8_t* key, std::size_t keyLen, const std::uint8_t* msg,
         return out;
     }
 
-    const unsigned char* keyPtr = (key != nullptr && keyLen > 0) ? key
-                                                                 : reinterpret_cast<const unsigned char*>("\0");
-    const unsigned char* msgPtr = (msg != nullptr && msgLen > 0) ? msg
-                                                                 : reinterpret_cast<const unsigned char*>("\0");
+    const unsigned char* keyPtr =
+        (key != nullptr && keyLen > 0) ? key : reinterpret_cast<const unsigned char*>("\0");
+    const unsigned char* msgPtr =
+        (msg != nullptr && msgLen > 0) ? msg : reinterpret_cast<const unsigned char*>("\0");
 
     if (mbedtls_md_hmac_starts(&ctx, keyPtr, keyLen) != 0 ||
-        mbedtls_md_hmac_update(&ctx, msgPtr, msgLen) != 0 ||
-        mbedtls_md_hmac_finish(&ctx, out.data()) != 0) {
+        mbedtls_md_hmac_update(&ctx, msgPtr, msgLen) != 0 || mbedtls_md_hmac_finish(&ctx, out.data()) != 0) {
         // Fallo ante un contexto invalido (practicamente inalcanzable). Se
         // deja un MAC de 32 bytes valido (cero) para respetar el contrato.
         out.fill(0);
@@ -55,10 +53,8 @@ hmacSha256(const std::uint8_t* key, std::size_t keyLen, const std::uint8_t* msg,
 }
 
 std::string hmacSha256Hex(const std::string& key, const std::string& msg) {
-    const auto mac = hmacSha256(reinterpret_cast<const std::uint8_t*>(key.data()),
-                                key.size(),
-                                reinterpret_cast<const std::uint8_t*>(msg.data()),
-                                msg.size());
+    const auto mac = hmacSha256(reinterpret_cast<const std::uint8_t*>(key.data()), key.size(),
+                                reinterpret_cast<const std::uint8_t*>(msg.data()), msg.size());
     static const char* hexd = "0123456789abcdef";
     std::string out;
     out.reserve(64);

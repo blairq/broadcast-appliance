@@ -104,6 +104,17 @@ mark_as_advanced(VST3_SDK_VERSION)
 set(LSP_VERSION "1.2.35" CACHE STRING "Versión de LSP Plugins (asset de despliegue)")
 mark_as_advanced(LSP_VERSION)
 
+# --- clang-format -----------------------------------------------------------
+# Versión esperada de clang-format para `make lint` (y el job `lint` de CI).
+# No se descarga nada: el binario entra por apt. El job `lint` de CI corre con
+# `runs-on: ubuntu-24.04` FIJADO (noble), donde `apt install clang-format-18`
+# da exactamente esta versión, y el job la aserta antes de correr `make lint`.
+# En el host: `apt install clang-format-18`. (Antes se descargaba el tarball
+# oficial de LLVM para pinnear la versión; se eliminó: la versión de apt de
+# noble coincide y es más simple.)
+set(CLANG_FORMAT_VERSION "18.1.3" CACHE STRING "Versión de clang-format")
+mark_as_advanced(CLANG_FORMAT_VERSION)
+
 # --- Resumen legible en el configure ---------------------------------------
 message(STATUS "BroadcastAppliance — pins fijadas:")
 message(STATUS "  obs-studio  : ${OBS_STUDIO_TAG}")
@@ -118,3 +129,4 @@ message(STATUS "  Argon2      : ${ARGON2_VERSION} (referencia P-H-C, KDF de secr
 message(STATUS "  libsamplerate: ${LIBSAMPLERATE_VERSION}")
 message(STATUS "  VST3 SDK    : ${VST3_SDK_VERSION} (solo Windows)")
 message(STATUS "  LSP Plugins : ${LSP_VERSION} (asset de despliegue)")
+message(STATUS "  clang-format: ${CLANG_FORMAT_VERSION} (herramienta de lint)")

@@ -62,11 +62,11 @@ inline constexpr const wchar_t* kHealthBlockName = L"BA.Health";
 /// TerminateProcess + reinicio (spec §3.1.7). `Unknown` es el estado inicial
 /// de un slot sin writer.
 enum class ProcessState : std::uint32_t {
-    Unknown = 0,     // Slot sin inicializar / writer ausente.
-    Starting = 1,    // Proceso lanzado, todavia inicializando.
-    Running = 2,     // Operativo; beat() lo fija y refresca lastBeatQpc.
-    Hung = 3,        // Colgado (detectado por el launcher o auto-declarado).
-    Terminated = 4,  // Cierre ordenado publicado por el proceso.
+    Unknown = 0,    // Slot sin inicializar / writer ausente.
+    Starting = 1,   // Proceso lanzado, todavia inicializando.
+    Running = 2,    // Operativo; beat() lo fija y refresca lastBeatQpc.
+    Hung = 3,       // Colgado (detectado por el launcher o auto-declarado).
+    Terminated = 4, // Cierre ordenado publicado por el proceso.
 };
 
 /// Header inmutable del bloque. Se escribe una sola vez en create().
@@ -120,7 +120,7 @@ struct Snapshot {
 ///   - Proceso hijo: `HealthBlock::open(name)` y escribe su slot con
 ///     `beat(slot)` (cada 250 ms) y `setState(slot, ...)` en transiciones.
 class HealthBlock {
-public:
+   public:
     /// Magic del layout binario. Un lector lo compara contra el header para
     /// validar que el buffer es un HealthBlock (y no basura de otro layout).
     static constexpr std::uint32_t kMagic = 0x4241484C; // "BAHL"
@@ -234,7 +234,7 @@ public:
     /// :returns: ticks QPC actuales (o nanosegundos steady en no-Windows).
     static std::uint64_t nowQpc();
 
-private:
+   private:
     SharedMemoryRegion region_; // vista (map) del buffer; move-only
 
     // Punteros cacheados sobre el buffer (validos solo cuando region_.valid()).

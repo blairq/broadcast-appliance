@@ -29,12 +29,12 @@ using namespace std::chrono_literals;
 // --- Macro minimo de assert ------------------------------------------------
 
 static int g_failures = 0;
-#define CHECK(cond, msg)                                                       \
-    do {                                                                       \
-        if (!(cond)) {                                                         \
-            std::printf("FAIL [%s:%d] %s\n", __FILE__, __LINE__, msg);         \
-            ++g_failures;                                                      \
-        }                                                                      \
+#define CHECK(cond, msg)                                                                                     \
+    do {                                                                                                     \
+        if (!(cond)) {                                                                                       \
+            std::printf("FAIL [%s:%d] %s\n", __FILE__, __LINE__, msg);                                       \
+            ++g_failures;                                                                                    \
+        }                                                                                                    \
     } while (0)
 
 // Rellena un buffer con un patron sentinel derivado de `seed`, para verificar
@@ -60,8 +60,7 @@ static bool matchSentinel(const float* buf, size_t n, uint64_t seed) {
 
 // Reloj monotono en "ns" para los timestamps QPC de prueba.
 static uint64_t nowNs() {
-    return static_cast<uint64_t>(
-        std::chrono::steady_clock::now().time_since_epoch().count());
+    return static_cast<uint64_t>(std::chrono::steady_clock::now().time_since_epoch().count());
 }
 
 // --- 1. Concurrencia -------------------------------------------------------
@@ -77,8 +76,7 @@ static void testConcurrency() {
     const size_t blockFloats = audio_ring::kBlockFrames * channels;
 
     SharedAudioRing ring;
-    Status s = SharedAudioRing::init(L"BA.Test.Concurrency", channels, capBlocks,
-                                     111, 1, ring);
+    Status s = SharedAudioRing::init(L"BA.Test.Concurrency", channels, capBlocks, 111, 1, ring);
     CHECK(s.ok, "init(concurrency)");
     if (!s.ok) return;
 
@@ -137,8 +135,7 @@ static void testConcurrency() {
     CHECK(integrityOk, "integridad de datos en concurrencia");
     // popped == pushed menos drops documentados. Con cap >= N, drops = 0.
     CHECK(droppedPushes == overruns, "drops documentados == overrunCount");
-    CHECK(poppedReal == successfulPushes - droppedPushes,
-          "popped == pushed - drops");
+    CHECK(poppedReal == successfulPushes - droppedPushes, "popped == pushed - drops");
     // Consistencia de contadores: los underruns son los pops de silencio.
     CHECK(underruns == poppedSilence, "underrunCount == pops de silencio");
     // Con capacidad >= N no debe haber overruns.
@@ -187,9 +184,9 @@ static void testWraparound() {
     // y readIndex == total (ambos han dado total/capBlocks vueltas).
     const uint64_t w = ring.header()->writeIndex;
     const uint64_t r = ring.header()->readIndex;
-    std::printf("  writeIndex=%llu readIndex=%llu cap=%llu vueltas=%llu\n",
-                (unsigned long long)w, (unsigned long long)r,
-                (unsigned long long)capBlocks, (unsigned long long)(total / capBlocks));
+    std::printf("  writeIndex=%llu readIndex=%llu cap=%llu vueltas=%llu\n", (unsigned long long)w,
+                (unsigned long long)r, (unsigned long long)capBlocks,
+                (unsigned long long)(total / capBlocks));
     CHECK(integrityOk, "integridad de datos (sentinel) a traves del wrap");
     CHECK(w == total, "writeIndex wrap correcto");
     CHECK(r == total, "readIndex wrap correcto");
@@ -205,8 +202,7 @@ static void testWriterRestart() {
     const size_t blockFloats = audio_ring::kBlockFrames * channels;
 
     SharedAudioRing ring;
-    Status s = SharedAudioRing::init(L"BA.Test.Restart", channels, capBlocks,
-                                     333, 1, ring);
+    Status s = SharedAudioRing::init(L"BA.Test.Restart", channels, capBlocks, 333, 1, ring);
     CHECK(s.ok, "init(restart)");
     if (!s.ok) return;
 
@@ -270,8 +266,7 @@ static void testCounters() {
         constexpr uint32_t channels = 1;
         const size_t blockFloats = audio_ring::kBlockFrames * channels;
         SharedAudioRing ring;
-        Status s = SharedAudioRing::init(L"BA.Test.Overrun", channels, capBlocks, 1, 1,
-                                         ring);
+        Status s = SharedAudioRing::init(L"BA.Test.Overrun", channels, capBlocks, 1, 1, ring);
         CHECK(s.ok, "init(overrun)");
         if (!s.ok) return;
         std::vector<float> block(blockFloats, 0.0f);
@@ -280,8 +275,7 @@ static void testCounters() {
             if (ring.push(block.data(), nowNs())) ++okCount;
         }
         const uint64_t overruns = ring.header()->overrunCount;
-        std::printf("  ok=%d overruns=%llu\n", okCount,
-                    (unsigned long long)overruns);
+        std::printf("  ok=%d overruns=%llu\n", okCount, (unsigned long long)overruns);
         CHECK(okCount == (int)capBlocks, "solo caben capBlocks sin leer");
         CHECK(overruns == 3, "overrunCount == bloques descartados");
     }
@@ -290,8 +284,7 @@ static void testCounters() {
         constexpr uint64_t capBlocks = 4;
         constexpr uint32_t channels = 1;
         SharedAudioRing ring;
-        Status s = SharedAudioRing::init(L"BA.Test.Underrun", channels, capBlocks, 1, 1,
-                                         ring);
+        Status s = SharedAudioRing::init(L"BA.Test.Underrun", channels, capBlocks, 1, 1, ring);
         CHECK(s.ok, "init(underrun)");
         if (!s.ok) return;
         SharedAudioRing reader;
@@ -304,8 +297,7 @@ static void testCounters() {
             if (pb.isSilence) ++silenceCount;
         }
         const uint64_t underruns = ring.header()->underrunCount;
-        std::printf("  silence=%d underruns=%llu\n", silenceCount,
-                    (unsigned long long)underruns);
+        std::printf("  silence=%d underruns=%llu\n", silenceCount, (unsigned long long)underruns);
         CHECK(silenceCount == 5, "5 pops de silencio");
         CHECK(underruns == 5, "underrunCount == pops de silencio");
     }

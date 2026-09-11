@@ -54,11 +54,11 @@ struct Status {
 /// contexto). Son negativos para que `code == 0` signifique siempre "ok".
 enum class ErrorCode : int {
     kOk = 0,
-    kInvalidArgument = -1,   // name nulo, bytes == 0, out ya valido, etc.
-    kOutOfMemory = -2,       // la asignacion anonima fallo
-    kNotFound = -3,          // open() de un nombre que no existe
-    kPlatform = -4,          // fallo del backend (CreateFileMappingW, mmap, ...)
-    kAlreadyMapped = -5,     // create/open sobre un objeto ya valido
+    kInvalidArgument = -1, // name nulo, bytes == 0, out ya valido, etc.
+    kOutOfMemory = -2,     // la asignacion anonima fallo
+    kNotFound = -3,        // open() de un nombre que no existe
+    kPlatform = -4,        // fallo del backend (CreateFileMappingW, mmap, ...)
+    kAlreadyMapped = -5,   // create/open sobre un objeto ya valido
 };
 
 /// RAII sobre un buffer contiguo de bytes en memoria compartida.
@@ -68,7 +68,7 @@ enum class ErrorCode : int {
 /// tamano en bytes. `create` reserva y (en Windows) publica el nombre; `open`
 /// reencuentra un nombre ya publicado.
 class SharedMemoryRegion {
-public:
+   public:
     SharedMemoryRegion() = default;
 
     ~SharedMemoryRegion();
@@ -119,7 +119,7 @@ public:
     /// Desmapa el buffer de forma explicita. Idempotente.
     void close();
 
-private:
+   private:
     struct Impl;
     Impl* impl_ = nullptr; // pimpl: oculta los detalles de la plataforma
 };

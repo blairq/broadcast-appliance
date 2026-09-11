@@ -42,7 +42,7 @@ namespace ba::gateway {
 
 /// Wrapper thread-safe de `ba::security::TokenService` para el gateway.
 class TokenAuth {
-public:
+   public:
     /// Codigos de `verify()` (estables, para el log y la respuesta HTTP/WS).
     enum class VerifyCode : int {
         kOk = 0,
@@ -57,8 +57,8 @@ public:
     /// :param maxAttempts: intentos de PIN antes del lockout (default 5).
     /// :param lockoutSec: duracion del lockout en segundos (default 60).
     /// :param ttlSec: vida util de los tokens emitidos (default 300).
-    TokenAuth(std::string secret, std::string pin, int maxAttempts = 5,
-              int lockoutSec = 60, int ttlSec = 300);
+    TokenAuth(std::string secret, std::string pin, int maxAttempts = 5, int lockoutSec = 60,
+              int ttlSec = 300);
 
     /// Cambia el PIN de la sala en caliente (ChangePin, spec §4.1).
     ///
@@ -86,7 +86,7 @@ public:
     /// Vida util configurada de los tokens (segundos).
     int ttlSec() const { return ttlSec_; }
 
-    private:
+   private:
     // `mutable`: `verify()` es const pero toma el lock (el PIN que lee el
     // callback es estado mutable compartido; se serializa todo).
     mutable std::mutex m_;

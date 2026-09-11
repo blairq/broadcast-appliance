@@ -30,9 +30,9 @@
 #include <random>
 
 #if defined(_WIN32)
-#    include <windows.h>
+#include <windows.h>
 #else
-#    include <unistd.h> // getpid() para el nombre del temp dir
+#include <unistd.h> // getpid() para el nombre del temp dir
 #endif
 
 using ba::diag::DiagExport;
@@ -43,12 +43,12 @@ namespace {
 
 int g_failures = 0;
 
-#define CHECK(cond)                                                            \
-    do {                                                                       \
-        if (!(cond)) {                                                         \
-            std::printf("FALLO: %s (linea %d)\n", #cond, __LINE__);            \
-            ++g_failures;                                                      \
-        }                                                                      \
+#define CHECK(cond)                                                                                          \
+    do {                                                                                                     \
+        if (!(cond)) {                                                                                       \
+            std::printf("FALLO: %s (linea %d)\n", #cond, __LINE__);                                          \
+            ++g_failures;                                                                                    \
+        }                                                                                                    \
     } while (0)
 
 // --- helpers ----------------------------------------------------------------
@@ -66,11 +66,9 @@ int uniqueSeed() {
 
 // Crea un directorio temporal unico y lo devuelve. El caller lo limpia.
 std::string makeTempDir() {
-    const std::string base =
-        (std::filesystem::temp_directory_path() / "ba_diag_test").string();
+    const std::string base = (std::filesystem::temp_directory_path() / "ba_diag_test").string();
     static int counter = 0;
-    std::string dir = base + "_" + std::to_string(uniqueSeed()) + "_" +
-                      std::to_string(++counter);
+    std::string dir = base + "_" + std::to_string(uniqueSeed()) + "_" + std::to_string(++counter);
     std::error_code ec;
     std::filesystem::create_directories(dir, ec);
     return dir;
@@ -88,8 +86,7 @@ bool readFileAll(const std::string& path, std::string& out) {
     if (!in) {
         return false;
     }
-    std::string s((std::istreambuf_iterator<char>(in)),
-                  std::istreambuf_iterator<char>());
+    std::string s((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
     out = s;
     return true;
 }
@@ -186,8 +183,7 @@ void testExportBundle() {
 
 void testMinidumpStub() {
     const std::string dir = makeTempDir();
-    const std::string dumpPath =
-        (std::filesystem::path(dir) / "dumps" / "x.dmp").string();
+    const std::string dumpPath = (std::filesystem::path(dir) / "dumps" / "x.dmp").string();
     // El stub no esta cableado: devuelve false en cualquier plataforma.
     CHECK(DiagExport::writeMinidump(dumpPath) == false);
     removeDir(dir);

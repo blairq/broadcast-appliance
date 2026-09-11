@@ -102,7 +102,7 @@ struct PoppedBlock {
 /// Move-only. El writer llama a init()/push(); el reader a pop(). No hay locks
 /// en el camino de datos.
 class SharedAudioRing {
-public:
+   public:
     SharedAudioRing() = default;
     ~SharedAudioRing() = default;
 
@@ -119,8 +119,7 @@ public:
     /// :param writerPid: PID del escritor (para deteccion de reinicio).
     /// :param generation: generacion del escritor (se incrementa por arranque).
     /// :returns: Status; en exito el objeto queda listo para push().
-    static Status init(const wchar_t* name, uint32_t channels,
-                       uint64_t capacityBlocks, uint32_t writerPid,
+    static Status init(const wchar_t* name, uint32_t channels, uint64_t capacityBlocks, uint32_t writerPid,
                        uint32_t generation, SharedAudioRing& out);
 
     /// Abre un ring ya creado y lo usa como LECTOR.
@@ -131,8 +130,8 @@ public:
 
     /// Abre un ring ya creado y lo usa como ESCRITOR (mismo writerPid/generation
     /// que el header). Util para reabrir tras un reinicio del proceso.
-    static Status openWriter(const wchar_t* name, uint32_t writerPid,
-                             uint32_t generation, SharedAudioRing& out);
+    static Status openWriter(const wchar_t* name, uint32_t writerPid, uint32_t generation,
+                             SharedAudioRing& out);
 
     /// Escribe un bloque de 480 frames (interleaved) con su timestamp QPC.
     ///
@@ -167,7 +166,7 @@ public:
     /// Puntero a la region subyacente (para diagnostico).
     SharedMemoryRegion* region();
 
-private:
+   private:
     RingHeader* hdr() const;
     // Offset (en bytes) del inicio del area de datos.
     static size_t dataOffset();

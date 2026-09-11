@@ -48,9 +48,8 @@ inline constexpr std::size_t kHmacSha256Size = 32;
 /// :param msg: mensaje a firmar.
 /// :param msgLen: longitud del mensaje en bytes.
 /// :returns: el MAC de 32 bytes.
-std::array<std::uint8_t, kHmacSha256Size>
-hmacSha256(const std::uint8_t* key, std::size_t keyLen, const std::uint8_t* msg,
-           std::size_t msgLen);
+std::array<std::uint8_t, kHmacSha256Size> hmacSha256(const std::uint8_t* key, std::size_t keyLen,
+                                                     const std::uint8_t* msg, std::size_t msgLen);
 
 /// Comodino de `hmacSha256` con clave/mensaje como std::string, devolviendo el
 /// MAC en hex en minuscula (64 chars).

@@ -22,7 +22,7 @@ namespace ba::launcher {
 
 /// Interfaz de la copia sombra (stub en Fase 1).
 class ShadowCopy {
-public:
+   public:
     /// Prepara la copia sombra y devuelve la raiz desde donde ejecutar.
     ///
     /// :param root: raiz del disco de origen.

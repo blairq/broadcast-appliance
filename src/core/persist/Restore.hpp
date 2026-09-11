@@ -82,7 +82,7 @@ struct RestoreResult {
 /// mantiene rutas y debounce). Reutiliza el checksum de SnapshotStore y el
 /// JSON de StateDoc (no re-implanta nada). Ninguna funcion lanza.
 class Restore {
-public:
+   public:
     /// Restaura UN archivo de snapshot a `out`.
     ///
     /// Lee el archivo, valida el header, verifica el checksum SHA-256 del

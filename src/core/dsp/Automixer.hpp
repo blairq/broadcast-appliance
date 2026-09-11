@@ -82,7 +82,7 @@ struct AutomixerParams {
 /// lectores) en paralelo, lock-free gracias a `std::atomic<float>`. RT-safe:
 /// sin asignacion, sin locks bloqueantes ni I/O en el camino de audio.
 class Automixer {
-public:
+   public:
     /// Construye la mesa con capacidad FIJA de `maxChannels` canales (sin
     /// crecimiento de heap despues). `maxChannels <= 0` se toma como 1. Estado
     /// inicial: todos los canales en silencio, sin hold activo.
@@ -130,7 +130,7 @@ public:
     /// Cantidad de canales con capacidad (para tests/monitoreo).
     int maxChannels() const;
 
-private:
+   private:
     // --- Capacidad fija (sin heap despues de la construccion) ---
     int maxChannels_ = 8;
 
@@ -145,8 +145,8 @@ private:
     double targetSummedGain_ = 1.0;
 
     // --- Coeficientes one-pole (0..1) precalculados en setParams() ---
-    float atk_ = 1.0f; // ataque de la envolvente (rapido)
-    float rel_ = 0.0f; // liberacion de la envolvente (lenta)
+    float atk_ = 1.0f;     // ataque de la envolvente (rapido)
+    float rel_ = 0.0f;     // liberacion de la envolvente (lenta)
     float attFade_ = 1.0f; // fade de la atenuacion (smoothMs)
 
     // --- Estado dinamico COMPARTIDO (lock-free) ---

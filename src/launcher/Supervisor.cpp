@@ -29,7 +29,7 @@ constexpr const wchar_t* kControlPipe = L"\\\\.\\pipe\\BroadcastAppliance.Contro
 constexpr int kPollMs = 250;
 constexpr std::uint32_t kProcVersion = 1;
 constexpr std::uint64_t kCircuitWindowMs = 2 * 60 * 1000; // 2 min.
-constexpr int kCircuitThreshold = 5;                       // >5 crashes.
+constexpr int kCircuitThreshold = 5;                      // >5 crashes.
 
 std::uint64_t nowMs() {
     using namespace std::chrono;
@@ -84,15 +84,14 @@ void writeMinidump(void* handle, std::uint32_t pid, const std::wstring& path) {
     // (stub minimo), por lo que se los declara aca de forma local.
     typedef DWORD MINIDUMP_TYPE;
     typedef void* LPMDRAWBUGINFO;
-    typedef BOOL(WINAPI* MiniDumpWriteDumpFn)(HANDLE, DWORD, LPCVOID, MINIDUMP_TYPE,
-                                              LPMDRAWBUGINFO, LPVOID, DWORD);
+    typedef BOOL(WINAPI * MiniDumpWriteDumpFn)(HANDLE, DWORD, LPCVOID, MINIDUMP_TYPE, LPMDRAWBUGINFO, LPVOID,
+                                               DWORD);
     HMODULE dbghelp = LoadLibraryW(L"dbghelp.dll");
     if (!dbghelp) {
         BA_LOG_WARN("dump", 0, "dbghelp.dll no disponible; sin minidump");
         return;
     }
-    auto fn = reinterpret_cast<MiniDumpWriteDumpFn>(
-        GetProcAddress(dbghelp, "MiniDumpWriteDump"));
+    auto fn = reinterpret_cast<MiniDumpWriteDumpFn>(GetProcAddress(dbghelp, "MiniDumpWriteDump"));
     if (!fn) {
         FreeLibrary(dbghelp);
         BA_LOG_WARN("dump", 0, "MiniDumpWriteDump no encontrado; sin minidump");
@@ -100,14 +99,13 @@ void writeMinidump(void* handle, std::uint32_t pid, const std::wstring& path) {
     }
     // MiniDumpNormal (0x0) | MiniDumpWithThreadInfo (0x400), como literales
     // porque MinGW no expone las constantes de dbghelp.
-    const BOOL ok = fn(static_cast<HANDLE>(handle), pid, path.c_str(),
-                       0x00000000 | 0x00000400, nullptr, nullptr, 0);
+    const BOOL ok =
+        fn(static_cast<HANDLE>(handle), pid, path.c_str(), 0x00000000 | 0x00000400, nullptr, nullptr, 0);
     FreeLibrary(dbghelp);
     if (!ok) {
         BA_LOG_WARN("dump", static_cast<int>(GetLastError()), "MiniDumpWriteDump fallo");
     } else {
-        BA_LOG_INFO("dump", 0, std::string("minidump escrito: ") +
-                                   std::string(path.begin(), path.end()));
+        BA_LOG_INFO("dump", 0, std::string("minidump escrito: ") + std::string(path.begin(), path.end()));
     }
 #else
     (void)handle;
@@ -217,12 +215,11 @@ void Supervisor::setupErrorMode() {
 IntegrityReport Supervisor::verifyIntegrity() {
     const IntegrityReport report = Integrity::verify(cfg_.root);
     if (report.ok) {
-        BA_LOG_INFO("integrity", 0, "integridad OK (" + std::to_string(report.checked) +
-                                       " archivos)");
+        BA_LOG_INFO("integrity", 0, "integridad OK (" + std::to_string(report.checked) + " archivos)");
     } else {
         BA_LOG_ERROR("integrity", static_cast<int>(report.failures.size()),
                      "integridad: " + std::to_string(report.missing) + " ausentes, " +
-                     std::to_string(report.mismatch) + " con hash distinto");
+                         std::to_string(report.mismatch) + " con hash distinto");
     }
     return report;
 }
@@ -240,9 +237,9 @@ void Supervisor::launchOne(std::uint32_t slot, ChildProcess& child, const std::w
     const ba::ipc::Snapshot snap = health_.read(slot);
     if (snap.pid != 0 && pidAlive(snap.pid)) {
         if (child.attach(snap.pid)) {
-            BA_LOG_INFO("sup", 0, std::string("readopt: adoptado ") +
-                                      std::string(name.begin(), name.end()) +
-                                      " pid=" + std::to_string(snap.pid));
+            BA_LOG_INFO("sup", 0,
+                        std::string("readopt: adoptado ") + std::string(name.begin(), name.end()) +
+                            " pid=" + std::to_string(snap.pid));
             return;
         }
     }
@@ -258,8 +255,7 @@ void Supervisor::launchOne(std::uint32_t slot, ChildProcess& child, const std::w
         health_.setIdentity(slot, child.pid(), kProcVersion);
         health_.setState(slot, ba::ipc::ProcessState::Running);
     } else {
-        BA_LOG_ERROR("sup", 0, std::string("no se pudo lanzar ") +
-                                    std::string(name.begin(), name.end()));
+        BA_LOG_ERROR("sup", 0, std::string("no se pudo lanzar ") + std::string(name.begin(), name.end()));
     }
 }
 
@@ -286,8 +282,7 @@ void Supervisor::relaunch(bool isA) {
             bConsecutive_ = 0;
         }
     } else {
-        BA_LOG_ERROR("sup", 0, std::string("reinicio fallido de ") +
-                                    std::string(name.begin(), name.end()));
+        BA_LOG_ERROR("sup", 0, std::string("reinicio fallido de ") + std::string(name.begin(), name.end()));
     }
 }
 
@@ -338,8 +333,7 @@ void Supervisor::handleHang(bool isA) {
     const std::string name = isA ? "A" : "B";
 
     BA_LOG_WARN("sup", 0, name + " colgado (heartbeat estancado); dump + terminate");
-    const std::wstring dumpPath =
-        join(cfg_.logsDir, L"dumps") + L"\\" + (isA ? L"A" : L"B") + L".dmp";
+    const std::wstring dumpPath = join(cfg_.logsDir, L"dumps") + L"\\" + (isA ? L"A" : L"B") + L".dmp";
     writeMinidump(child.handle(), child.pid(), dumpPath);
     terminateProcess(child.handle());
     health_.setState(slot, ba::ipc::ProcessState::Hung);
@@ -347,8 +341,7 @@ void Supervisor::handleHang(bool isA) {
     restartChild(isA);
 }
 
-RecoveryAction Supervisor::presentRecovery(bool appDown, bool appHung, bool gwDown,
-                                           bool gwHung) {
+RecoveryAction Supervisor::presentRecovery(bool appDown, bool appHung, bool gwDown, bool gwHung) {
     Incident inc;
     inc.title = L"Broadcast Appliance — Recuperación";
     inc.childADown = appDown || appHung;
@@ -376,9 +369,9 @@ RecoveryAction Supervisor::presentRecovery(bool appDown, bool appHung, bool gwDo
         inc.integrity = lastIntegrityReport_;
     }
 
-    BA_LOG_WARN("sup", 0, "UI de recuperacion: A caido=" + std::to_string(inc.childADown) +
-                              " B caido=" + std::to_string(inc.childBDown) +
-                              " integridad_ok=" + std::to_string(inc.integrity.ok));
+    BA_LOG_WARN("sup", 0,
+                "UI de recuperacion: A caido=" + std::to_string(inc.childADown) + " B caido=" +
+                    std::to_string(inc.childBDown) + " integridad_ok=" + std::to_string(inc.integrity.ok));
     return RecoveryUi::present(inc);
 }
 

@@ -63,7 +63,7 @@ struct ExportResult {
 /// Todas las funciones son static y no lanzan: son operaciones de control sobre
 /// rutas, sin estado persistente.
 class DiagExport {
-public:
+   public:
     /// Empaqueta los logs rotados de `logDir` + un encabezado de metadatos en
     /// un unico archivo en `outPath`.
     ///
@@ -77,8 +77,7 @@ public:
     /// :param logDir: directorio con los logs rotados (el de LogRotator).
     /// :param outPath: ruta completa del archivo de bundle a generar.
     /// :returns: ExportResult con ok=true y la outPath en exito.
-    static ExportResult exportBundle(const std::string& logDir,
-                                     const std::string& outPath);
+    static ExportResult exportBundle(const std::string& logDir, const std::string& outPath);
 
     /// Escribe un minidump del proceso actual en `path` (spec §11.4).
     ///

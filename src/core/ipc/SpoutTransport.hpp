@@ -124,7 +124,7 @@ static_assert(offsetof(SpoutMetaLayout, qpc) >= kSpoutCacheLine,
 ///   - Receiver: `SpoutMetaBlock::open(name, block)` y `read()` para ver el
 ///     ultimo frame publicado (lock-free).
 class SpoutMetaBlock {
-public:
+   public:
     SpoutMetaBlock() = default;
     ~SpoutMetaBlock();
 
@@ -177,8 +177,8 @@ public:
     /// Indica si el objeto posee un mapa vigente del bloque.
     bool valid() const;
 
-private:
-    SharedMemoryRegion region_; // vista (map) del buffer; move-only
+   private:
+    SharedMemoryRegion region_;         // vista (map) del buffer; move-only
     SpoutMetaLayout* layout_ = nullptr; // puntero cacheado (valido si region_.valid())
 };
 
@@ -212,7 +212,7 @@ struct SpoutNullSlot;
 /// Move-only. "Un sender existe siempre": el caller publica una placa si no hay
 /// invitado en el slot; esta clase no inventa frames por su cuenta.
 class SpoutSender {
-public:
+   public:
     SpoutSender() = default;
     ~SpoutSender();
 
@@ -254,7 +254,7 @@ public:
     /// Indica si el sender ya publico su slot.
     bool published() const;
 
-private:
+   private:
     // Backend NULL: referencia al slot en el registro de proceso.
     std::shared_ptr<SpoutNullSlot> null_;
     SpoutMetaBlock metaOwner_; // bloque de metadatos paralelo (spec §4.2)
@@ -269,7 +269,7 @@ private:
 ///
 /// Move-only. Un solo lector por receiver.
 class SpoutReceiver {
-public:
+   public:
     SpoutReceiver() = default;
     ~SpoutReceiver();
 
@@ -310,7 +310,7 @@ public:
     ///           false si no hay frame nuevo o el receiver no esta suscrito.
     bool hasData() const;
 
-private:
+   private:
     // Backend NULL: referencia al slot en el registro de proceso.
     std::shared_ptr<SpoutNullSlot> null_;
     SpoutMetaBlock metaOwner_; // bloque de metadatos abierto por name

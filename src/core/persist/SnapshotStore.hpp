@@ -68,11 +68,11 @@ struct Status {
 /// contexto). Son negativos para que `code == 0` signifique siempre "ok".
 enum class ErrorCode : int {
     kOk = 0,
-    kInvalidArgument = -1,  // dir vacio, fileA == fileB, etc.
-    kNotInitialized = -2,    // operacion sobre un store sin init()
-    kIo = -3,                // fallo de sistema al escribir/leer/rename
-    kNotFound = -4,          // readLatest: ninguna generacion valida
-    kCorrupt = -5,           // (interno) checksum invalido
+    kInvalidArgument = -1, // dir vacio, fileA == fileB, etc.
+    kNotInitialized = -2,  // operacion sobre un store sin init()
+    kIo = -3,              // fallo de sistema al escribir/leer/rename
+    kNotFound = -4,        // readLatest: ninguna generacion valida
+    kCorrupt = -5,         // (interno) checksum invalido
 };
 
 /// Writer/reader del snapshot con doble generacion alternada (spec §11.2).
@@ -87,7 +87,7 @@ enum class ErrorCode : int {
 ///   - Launcher / arranque: `readLatest(doc)` para restaurar el ultimo estado
 ///     valido (el de mayor secuencia con checksum correcto).
 class SnapshotStore {
-public:
+   public:
     /// Paso de la escritura donde se puede inyectar un fallo (para tests).
     ///
     /// `None` no inyecta nada. `Temp` falla al escribir el archivo temporal
@@ -119,8 +119,7 @@ public:
     /// :returns: Status con ok=true y code=0 en exito; si no, code es un
     ///           ErrorCode negativo (kInvalidArgument si dir vacio o fileA==fileB,
     ///           kIo si no se pudo crear el directorio).
-    Status init(const std::string& dir,
-                const std::string& fileA = "snapshot.A.json",
+    Status init(const std::string& dir, const std::string& fileA = "snapshot.A.json",
                 const std::string& fileB = "snapshot.B.json");
 
     /// Programa una escritura del `doc` con debounce (spec §11.2).
@@ -216,7 +215,7 @@ public:
     /// §11.2: "como maximo una escritura cada 500 ms").
     static constexpr std::chrono::milliseconds kDebounceMs{500};
 
-private:
+   private:
     // --- estado -------------------------------------------------------------
     std::string dir_;
     std::string pathA_;

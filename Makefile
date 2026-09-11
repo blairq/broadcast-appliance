@@ -37,7 +37,7 @@ help:
 	@echo "  make docs       Genera la documentación (Sphinx -> docs/_build/html)"
 	@echo "  make test       Corre ctest (tests unitarios de ba_core)"
 	@echo "  make test-unit  Alias de 'make test'"
-	@echo "  make lint       Revisa el formato con clang-format (si existe)"
+	@echo "  make lint       Revisa el formato con clang-format del sistema (apt)"
 	@echo "  make release    Instala el bundle portable (layout §5.1) en release/"
 	@echo "  make win        Cross-compile MinGW-w64 a build/win (si hay cross-compiler)"
 	@echo "  make clean      Borra $(BUILD_DIR)/"
@@ -85,14 +85,26 @@ test-unit:
 	ctest --test-dir $(BUILD_DIR) --output-on-failure
 
 # --- Lint (formato) ---------------------------------------------------------
-# Solo si clang-format existe en el PATH; si no, avisa y termina en verde.
+# Usa el clang-format de la distribucion (una herramienta de build, no un
+# asset a descargar): `sudo apt install clang-format` en Ubuntu 24.04 da
+# 18.1.3, la misma version que instala el job `lint` de CI (por apt, con
+# runs-on fijado a ubuntu-24.04 para que coincida con la de dev). La version
+# esperada queda documentada en versions.cmake (CLANG_FORMAT_VERSION) y CI la
+# aserta. NO se descarga nada. Si clang-format no esta presente, el target
+# FALA (no se salta en verde): un gate que se omite en silencio no es gate.
+CF := $(shell command -v clang-format 2>/dev/null || command -v clang-format-18 2>/dev/null)
+
+# `src/obs-module/obs/` es VENDOR (subconjunto fiel de la API C de libobs
+# 31.0.0): se excluye para que siga fiel al upstream y no se reformatee con
+# nuestro .clang-format.
 lint:
-	@if command -v clang-format >/dev/null 2>&1; then \
-		echo "Lint: clang-format sobre src/ (dry-run, -Werror)..."; \
-		find src -name '*.cpp' -o -name '*.h' -o -name '*.hpp' | xargs -r clang-format --dry-run -Werror; \
-	else \
-		echo "clang-format no instalado; se salta el lint (OK)."; \
+	@if [ -z "$(CF)" ]; then \
+		echo "ERROR: clang-format no encontrado. Instalarlo con: sudo apt install clang-format" >&2; \
+		exit 1; \
 	fi
+	@echo "Lint: $(CF) sobre src/ (dry-run, -Werror; excluye src/obs-module/obs/ vendored)..."
+	@find src \( -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \) ! -path 'src/obs-module/obs/*' -print0 \
+		| xargs -0 -r $(CF) --dry-run -Werror
 
 # --- Bundle portable (layout §5.1) ------------------------------------------
 # Instala el esqueleto del layout portable sobre release (bin/64bit,

@@ -26,15 +26,13 @@ namespace ba::security {
 
 int nowUnix() {
     using namespace std::chrono;
-    return static_cast<int>(
-        system_clock::now().time_since_epoch() / std::chrono::seconds(1));
+    return static_cast<int>(system_clock::now().time_since_epoch() / std::chrono::seconds(1));
 }
 
 // --- base64url (sin padding) ------------------------------------------------
 
 namespace {
-constexpr char kB64UrlAlphabet[] =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+constexpr char kB64UrlAlphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 }
 
 std::string base64UrlEncode(const std::uint8_t* data, std::size_t len) {
@@ -42,9 +40,8 @@ std::string base64UrlEncode(const std::uint8_t* data, std::size_t len) {
     out.reserve((len + 2) / 3 * 4);
     std::size_t i = 0;
     while (i + 3 <= len) {
-        const std::uint32_t n = (std::uint32_t(data[i]) << 16) |
-                                (std::uint32_t(data[i + 1]) << 8) |
-                                std::uint32_t(data[i + 2]);
+        const std::uint32_t n =
+            (std::uint32_t(data[i]) << 16) | (std::uint32_t(data[i + 1]) << 8) | std::uint32_t(data[i + 2]);
         out += char(kB64UrlAlphabet[(n >> 18) & 0x3F]);
         out += char(kB64UrlAlphabet[(n >> 12) & 0x3F]);
         out += char(kB64UrlAlphabet[(n >> 6) & 0x3F]);
@@ -57,8 +54,7 @@ std::string base64UrlEncode(const std::uint8_t* data, std::size_t len) {
         out += char(kB64UrlAlphabet[(n >> 18) & 0x3F]);
         out += char(kB64UrlAlphabet[(n >> 12) & 0x3F]);
     } else if (rem == 2) {
-        const std::uint32_t n = (std::uint32_t(data[i]) << 16) |
-                                (std::uint32_t(data[i + 1]) << 8);
+        const std::uint32_t n = (std::uint32_t(data[i]) << 16) | (std::uint32_t(data[i + 1]) << 8);
         out += char(kB64UrlAlphabet[(n >> 18) & 0x3F]);
         out += char(kB64UrlAlphabet[(n >> 12) & 0x3F]);
         out += char(kB64UrlAlphabet[(n >> 6) & 0x3F]);
@@ -114,32 +110,18 @@ std::string jsonEscape(const std::string& s) {
     out += '"';
     for (char c : s) {
         switch (c) {
-            case '"':
-                out += "\\\"";
-                break;
-            case '\\':
-                out += "\\\\";
-                break;
-            case '\b':
-                out += "\\b";
-                break;
-            case '\f':
-                out += "\\f";
-                break;
-            case '\n':
-                out += "\\n";
-                break;
-            case '\r':
-                out += "\\r";
-                break;
-            case '\t':
-                out += "\\t";
-                break;
+            case '"': out += "\\\""; break;
+            case '\\': out += "\\\\"; break;
+            case '\b': out += "\\b"; break;
+            case '\f': out += "\\f"; break;
+            case '\n': out += "\\n"; break;
+            case '\r': out += "\\r"; break;
+            case '\t': out += "\\t"; break;
             default:
                 if (static_cast<unsigned char>(c) < 0x20) {
                     char buf[8];
                     std::snprintf(buf, sizeof(buf), "\\u%04x",
-                                   static_cast<unsigned int>(static_cast<unsigned char>(c)));
+                                  static_cast<unsigned int>(static_cast<unsigned char>(c)));
                     out += buf;
                 } else {
                     out += c;
@@ -186,30 +168,14 @@ bool jsonValue(const std::string& json, const std::string& key, std::string& out
             if (c == '\\' && i + 1 < json.size()) {
                 const char n = json[i + 1];
                 switch (n) {
-                    case '"':
-                        v += '"';
-                        break;
-                    case '\\':
-                        v += '\\';
-                        break;
-                    case '/':
-                        v += '/';
-                        break;
-                    case 'b':
-                        v += '\b';
-                        break;
-                    case 'f':
-                        v += '\f';
-                        break;
-                    case 'n':
-                        v += '\n';
-                        break;
-                    case 'r':
-                        v += '\r';
-                        break;
-                    case 't':
-                        v += '\t';
-                        break;
+                    case '"': v += '"'; break;
+                    case '\\': v += '\\'; break;
+                    case '/': v += '/'; break;
+                    case 'b': v += '\b'; break;
+                    case 'f': v += '\f'; break;
+                    case 'n': v += '\n'; break;
+                    case 'r': v += '\r'; break;
+                    case 't': v += '\t'; break;
                     case 'u': {
                         if (i + 5 < json.size()) {
                             const std::string hexd = json.substr(i + 2, 4);
@@ -235,9 +201,7 @@ bool jsonValue(const std::string& json, const std::string& key, std::string& out
                         ++i;
                         continue;
                     }
-                    default:
-                        v += n;
-                        break;
+                    default: v += n; break;
                 }
                 i += 2;
                 continue;
@@ -259,8 +223,7 @@ bool jsonValue(const std::string& json, const std::string& key, std::string& out
         v += json[i];
         ++i;
     }
-    while (!v.empty() && (v.back() == ' ' || v.back() == '\t' || v.back() == '\n' ||
-                          v.back() == '\r')) {
+    while (!v.empty() && (v.back() == ' ' || v.back() == '\t' || v.back() == '\n' || v.back() == '\r')) {
         v.pop_back();
     }
     out = std::move(v);
@@ -280,19 +243,13 @@ bool constantTimeEqual(const std::uint8_t* a, const std::uint8_t* b, std::size_t
 
 // --- TokenService -----------------------------------------------------------
 
-TokenService::TokenService(std::string secret, int maxAttempts, int lockoutSec,
-                           PinValidator pinValidator)
-    : secret_(std::move(secret)),
-      maxAttempts_(maxAttempts > 0 ? maxAttempts : 1),
-      lockoutSec_(lockoutSec > 0 ? lockoutSec : 1),
-      pinValidator_(std::move(pinValidator)) {}
+TokenService::TokenService(std::string secret, int maxAttempts, int lockoutSec, PinValidator pinValidator)
+    : secret_(std::move(secret)), maxAttempts_(maxAttempts > 0 ? maxAttempts : 1),
+      lockoutSec_(lockoutSec > 0 ? lockoutSec : 1), pinValidator_(std::move(pinValidator)) {}
 
-void TokenService::setPinValidator(PinValidator pinValidator) {
-    pinValidator_ = std::move(pinValidator);
-}
+void TokenService::setPinValidator(PinValidator pinValidator) { pinValidator_ = std::move(pinValidator); }
 
-std::string TokenService::issue(const std::string& room, const std::string& pin,
-                                int ttlSec, int nowUnix) {
+std::string TokenService::issue(const std::string& room, const std::string& pin, int ttlSec, int nowUnix) {
     if (ttlSec <= 0) {
         ttlSec = 1;
     }
@@ -312,22 +269,20 @@ std::string TokenService::issue(const std::string& room, const std::string& pin,
     const std::string nonce = std::to_string(nowUnix) + "-" + std::to_string(n);
 
     const int exp = nowUnix + ttlSec;
-    const std::string payload = "{\"room\":" + jsonEscape(room) +
-                                ",\"exp\":" + std::to_string(exp) +
+    const std::string payload = "{\"room\":" + jsonEscape(room) + ",\"exp\":" + std::to_string(exp) +
                                 ",\"nonce\":" + jsonEscape(nonce) + "}";
 
     const std::string b64payload = base64UrlEncode(payload);
-    const auto mac = ba::crypto::hmacSha256(
-        reinterpret_cast<const std::uint8_t*>(secret_.data()), secret_.size(),
-        reinterpret_cast<const std::uint8_t*>(b64payload.data()), b64payload.size());
+    const auto mac =
+        ba::crypto::hmacSha256(reinterpret_cast<const std::uint8_t*>(secret_.data()), secret_.size(),
+                               reinterpret_cast<const std::uint8_t*>(b64payload.data()), b64payload.size());
     const std::string b64mac = base64UrlEncode(mac.data(), mac.size());
 
     return b64payload + "." + b64mac;
 }
 
-TokenService::VerifyResult
-TokenService::verify(const std::string& token, const std::string& room,
-                     int nowUnix) const {
+TokenService::VerifyResult TokenService::verify(const std::string& token, const std::string& room,
+                                                int nowUnix) const {
     // 1) Forma: "b64url(payload).b64url(mac)".
     const auto dot = token.find('.');
     if (dot == std::string::npos || dot == 0 || dot + 1 >= token.size()) {
@@ -349,9 +304,9 @@ TokenService::verify(const std::string& token, const std::string& room,
     }
 
     // 2) Firma: re-firmar el payload y comparar el MAC (tiempo constante).
-    const auto expected = ba::crypto::hmacSha256(
-        reinterpret_cast<const std::uint8_t*>(secret_.data()), secret_.size(),
-        reinterpret_cast<const std::uint8_t*>(b64payload.data()), b64payload.size());
+    const auto expected =
+        ba::crypto::hmacSha256(reinterpret_cast<const std::uint8_t*>(secret_.data()), secret_.size(),
+                               reinterpret_cast<const std::uint8_t*>(b64payload.data()), b64payload.size());
     if (!constantTimeEqual(expected.data(), macBytes.data(), macBytes.size())) {
         return VerifyResult::BadSignature;
     }

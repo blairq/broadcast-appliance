@@ -33,10 +33,10 @@
 #include "Log.hpp"
 
 #ifdef _WIN32
-#    define WIN32_LEAN_AND_MEAN
-#    include <winsock2.h>
-#    include <ws2tcpip.h>
-#    include <windows.h>
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
 #endif
 
 namespace ba::gateway {
@@ -60,14 +60,13 @@ wchar_t* buildEnvBlock(const std::string& token) {
     if (!block) return nullptr;
     // Longitud del bloque en wchars: recorremos hasta el doble NUL final.
     size_t len = 0;
-    while (block[len] != L'\0' || block[len + 1] != L'\0') ++len;
+    while (block[len] != L'\0' || block[len + 1] != L'\0')
+        ++len;
     // block[len] y block[len+1] son el doble NUL terminador.
-    const std::wstring envVar =
-        L"TUNNEL_TOKEN=" + std::wstring(token.begin(), token.end());
+    const std::wstring envVar = L"TUNNEL_TOKEN=" + std::wstring(token.begin(), token.end());
     // Nuevo bloque: [original sin el doble NUL final] + TUNNEL_TOKEN=... + doble NUL.
     const size_t totalW = len + envVar.size() + 2;
-    wchar_t* newBlock =
-        static_cast<wchar_t*>(LocalAlloc(LPTR, totalW * sizeof(wchar_t)));
+    wchar_t* newBlock = static_cast<wchar_t*>(LocalAlloc(LPTR, totalW * sizeof(wchar_t)));
     if (newBlock) {
         std::memcpy(newBlock, block, len * sizeof(wchar_t));
         std::memcpy(newBlock + len, envVar.data(), envVar.size() * sizeof(wchar_t));
@@ -81,15 +80,10 @@ wchar_t* buildEnvBlock(const std::string& token) {
 
 } // namespace
 
-CloudflaredSupervisor::CloudflaredSupervisor(std::string cloudflaredPath,
-                                             std::string tunnelToken,
-                                             uint16_t metricsPort,
-                                             std::string logPath, Log& log)
-    : cloudflaredPath_(std::move(cloudflaredPath)),
-      tunnelToken_(std::move(tunnelToken)),
-      metricsPort_(metricsPort),
-      logPath_(std::move(logPath)),
-      log_(log) {}
+CloudflaredSupervisor::CloudflaredSupervisor(std::string cloudflaredPath, std::string tunnelToken,
+                                             uint16_t metricsPort, std::string logPath, Log& log)
+    : cloudflaredPath_(std::move(cloudflaredPath)), tunnelToken_(std::move(tunnelToken)),
+      metricsPort_(metricsPort), logPath_(std::move(logPath)), log_(log) {}
 
 CloudflaredSupervisor::~CloudflaredSupervisor() { stop(); }
 
@@ -100,8 +94,7 @@ bool CloudflaredSupervisor::start() {
         log_.warn("cloudflared: no se pudo lanzar (se reintentara con backoff)", -1);
     }
     thread_ = std::thread(&CloudflaredSupervisor::runLoop, this);
-    log_.info("cloudflared: supervisor arrancado (metrics=" +
-              std::to_string(metricsPort_) + ")");
+    log_.info("cloudflared: supervisor arrancado (metrics=" + std::to_string(metricsPort_) + ")");
     return alive_.load();
 #else
     (void)metricsPort_;
@@ -114,8 +107,7 @@ void CloudflaredSupervisor::stop() {
     stop_.store(true);
     if (thread_.joinable()) thread_.join();
     kill();
-    log_.info("cloudflared: supervisor detenido (reinicios=" +
-              std::to_string(restartCount_.load()) + ")");
+    log_.info("cloudflared: supervisor detenido (reinicios=" + std::to_string(restartCount_.load()) + ")");
 }
 
 bool CloudflaredSupervisor::running() const { return alive_.load(); }
@@ -130,10 +122,8 @@ bool CloudflaredSupervisor::spawn() {
         job_ = CreateJobObjectW(nullptr, L"BA.Cloudflared");
         if (job_) {
             JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits{};
-            limits.BasicLimitInformation.LimitFlags =
-                JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-            if (!SetInformationJobObject(job_, JobObjectExtendedLimitInformation,
-                                         &limits, sizeof(limits))) {
+            limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+            if (!SetInformationJobObject(job_, JobObjectExtendedLimitInformation, &limits, sizeof(limits))) {
                 log_.warn("cloudflared: fallo SetInformationJobObject", -1);
             }
         }
@@ -141,9 +131,8 @@ bool CloudflaredSupervisor::spawn() {
 
     // Abre el archivo de log para redirigir stdout/stderr del hijo.
     HANDLE logFile =
-        CreateFileW((std::wstring(logPath_.begin(), logPath_.end()) + L".").c_str(),
-                    GENERIC_WRITE, FILE_SHARE_READ, nullptr, OPEN_ALWAYS,
-                    FILE_ATTRIBUTE_NORMAL, nullptr);
+        CreateFileW((std::wstring(logPath_.begin(), logPath_.end()) + L".").c_str(), GENERIC_WRITE,
+                    FILE_SHARE_READ, nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (logFile == INVALID_HANDLE_VALUE) {
         // Sin log file, sigue (el hijo heredara los handles del padre).
         logFile = nullptr;
@@ -151,12 +140,10 @@ bool CloudflaredSupervisor::spawn() {
 
     // Linea de comandos (spec §8.8). El token NO va aca: va por env.
     // VERIFY: sintaxis exacta de flags en cloudflared 2024.11.0.
-    const std::string cmd =
-        "tunnel --no-autoupdate --metrics 127.0.0.1:" + std::to_string(metricsPort_) +
-        " --log-level info run";
-    std::wstring cmdLine = L"\"" + std::wstring(cloudflaredPath_.begin(),
-                                                cloudflaredPath_.end()) +
-                           L"\" " + std::wstring(cmd.begin(), cmd.end());
+    const std::string cmd = "tunnel --no-autoupdate --metrics 127.0.0.1:" + std::to_string(metricsPort_) +
+                            " --log-level info run";
+    std::wstring cmdLine = L"\"" + std::wstring(cloudflaredPath_.begin(), cloudflaredPath_.end()) + L"\" " +
+                           std::wstring(cmd.begin(), cmd.end());
 
     // Token por env (no por CLI, spec §8.8).
     wchar_t* envBlock = buildEnvBlock(tunnelToken_);
@@ -174,17 +161,13 @@ bool CloudflaredSupervisor::spawn() {
     if (envBlock) flags |= CREATE_NEW_CONSOLE; // para que la env tome efecto
     const BOOL ok = CreateProcessW(
         cloudflaredPath_.empty() ? nullptr
-                                 : (std::wstring(cloudflaredPath_.begin(),
-                                                  cloudflaredPath_.end()))
-                                       .c_str(),
-        &cmdLine[0], nullptr, nullptr, logFile != nullptr, flags, envBlock, nullptr,
-        &si, &pi);
+                                 : (std::wstring(cloudflaredPath_.begin(), cloudflaredPath_.end())).c_str(),
+        &cmdLine[0], nullptr, nullptr, logFile != nullptr, flags, envBlock, nullptr, &si, &pi);
     if (envBlock) LocalFree(envBlock);
     if (logFile) CloseHandle(logFile);
 
     if (!ok) {
-        log_.fmt("warn", -1, "cloudflared: CreateProcessW fallo (err=%lu)",
-                 GetLastError());
+        log_.fmt("warn", -1, "cloudflared: CreateProcessW fallo (err=%lu)", GetLastError());
         return false;
     }
 

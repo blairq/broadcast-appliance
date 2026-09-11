@@ -64,7 +64,7 @@ namespace ba::security {
 /// disco + KDF), no del thread de audio/RT. No lanza: los fallos se reportan
 /// con false.
 class SecretsStore {
-public:
+   public:
     /// Construye una bóveda vacía (sin secretos en memoria).
     ///
     /// No hace E/S ni KDF: el estado se carga con load() o se llena con
@@ -121,7 +121,7 @@ public:
     /// :returns: cantidad de claves distintas en la bóveda.
     std::size_t size() const;
 
-private:
+   private:
     /// Estado en memoria: lista de pares (clave, valor) en ORDEN DE
     /// INSERCIÓN. Se usa un `std::vector<std::pair<...>>` (no un `std::map`)
     /// para preservar el orden en que se llamaron set(), de modo que save()

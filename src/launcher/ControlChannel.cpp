@@ -20,8 +20,8 @@
 
 namespace ba::launcher {
 
-bool ControlChannel::requestShutdown(const std::wstring& pipeName,
-                                     const std::wstring& target, int timeoutMs) {
+bool ControlChannel::requestShutdown(const std::wstring& pipeName, const std::wstring& target,
+                                     int timeoutMs) {
     const std::string targetStr(target.begin(), target.end());
 
 #ifndef _WIN32
@@ -31,25 +31,19 @@ bool ControlChannel::requestShutdown(const std::wstring& pipeName,
     return true;
 #else
     // Mensaje JSON con prefijo de longitud (spec 4.1).
-    const std::string json =
-        "{\"protocolVersion\":" + std::to_string(kProtocolVersion) +
-        ",\"type\":\"shutdown\",\"target\":\"" + targetStr + "\"}";
+    const std::string json = "{\"protocolVersion\":" + std::to_string(kProtocolVersion) +
+                             ",\"type\":\"shutdown\",\"target\":\"" + targetStr + "\"}";
 
-    const DWORD openMode =
-        (timeoutMs > 0) ? (WAIT_EVENT | 0) : 0; // reservado; usamos CreateFile directo.
+    const DWORD openMode = (timeoutMs > 0) ? (WAIT_EVENT | 0) : 0; // reservado; usamos CreateFile directo.
     (void)openMode;
 
-    HANDLE pipe = CreateFileW(pipeName.c_str(),
-                              GENERIC_WRITE,
-                              0, nullptr,
-                              OPEN_EXISTING,
-                              FILE_ATTRIBUTE_NORMAL | PIPE_REJECT_REMOTE_CLIENTS,
-                              nullptr);
+    HANDLE pipe = CreateFileW(pipeName.c_str(), GENERIC_WRITE, 0, nullptr, OPEN_EXISTING,
+                              FILE_ATTRIBUTE_NORMAL | PIPE_REJECT_REMOTE_CLIENTS, nullptr);
     if (pipe == INVALID_HANDLE_VALUE) {
         const DWORD err = GetLastError();
         BA_LOG_WARN("control", static_cast<int>(err),
                     "no se pudo abrir el pipe para shutdown de '" + targetStr +
-                    "' (el hijo probablemente ya no esta)");
+                        "' (el hijo probablemente ya no esta)");
         return false;
     }
 

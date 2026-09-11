@@ -33,20 +33,18 @@ namespace {
 
 int g_failures = 0;
 
-#define CHECK(cond)                                                            \
-    do {                                                                       \
-        if (!(cond)) {                                                         \
-            std::printf("FALLO: %s (linea %d)\n", #cond, __LINE__);            \
-            ++g_failures;                                                      \
-        }                                                                      \
+#define CHECK(cond)                                                                                          \
+    do {                                                                                                     \
+        if (!(cond)) {                                                                                       \
+            std::printf("FALLO: %s (linea %d)\n", #cond, __LINE__);                                          \
+            ++g_failures;                                                                                    \
+        }                                                                                                    \
     } while (0)
 
 constexpr double kFs = 48000.0;
 
 /// dB -> lineal.
-double dbToLin(double db) {
-    return std::pow(10.0, db / 20.0);
-}
+double dbToLin(double db) { return std::pow(10.0, db / 20.0); }
 
 /// Parametros de test: umbral alto (-60 dBFS) para que solo el nivel que
 /// alimentemos cuente como "abierto", y tiempos cortos para que la envolvente
@@ -226,8 +224,7 @@ void testNoNaNBounded() {
         for (int c = 0; c < n; ++c) {
             // Niveles aleatorios en [0,1] (determinista por LCG).
             state = state * 1664525u + 1013904223u;
-            const float rnd =
-                static_cast<float>(static_cast<double>(state) / 4294967296.0);
+            const float rnd = static_cast<float>(static_cast<double>(state) / 4294967296.0);
             am.setLevel(c, rnd);
         }
         // Cada gainFor debe ser finita y acotada.

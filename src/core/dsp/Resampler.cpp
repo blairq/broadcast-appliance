@@ -28,12 +28,9 @@ constexpr int kDefaultRate = 48000;
 /// devuelve `int` (los valores SRC_* son constantes enteras).
 int toSrcQuality(Quality q) {
     switch (q) {
-        case Quality::Linear:
-            return SRC_LINEAR;
-        case Quality::SincMedium:
-            return SRC_SINC_MEDIUM_QUALITY;
-        case Quality::SincBest:
-            return SRC_SINC_BEST_QUALITY;
+        case Quality::Linear: return SRC_LINEAR;
+        case Quality::SincMedium: return SRC_SINC_MEDIUM_QUALITY;
+        case Quality::SincBest: return SRC_SINC_BEST_QUALITY;
     }
     // Nunca se llega aqui (Quality solo tiene esos tres valores); se devuelve
     // la mejor calidad como default defensivo.
@@ -86,8 +83,8 @@ void Resampler::configure(int inRate, int outRate, int channels, Quality q) {
     }
 }
 
-bool Resampler::resample(const float* in, size_t inFrames, float* out,
-                         size_t maxOutFrames, size_t* outFrames) {
+bool Resampler::resample(const float* in, size_t inFrames, float* out, size_t maxOutFrames,
+                         size_t* outFrames) {
     // Pre-condiciones de la API: sin estado o sin buffers no hay nada que
     // re-muestrear. Se deja *outFrames en 0 para que el llamador sepa que no
     // se escribio nada.

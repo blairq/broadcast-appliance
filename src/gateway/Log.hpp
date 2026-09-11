@@ -31,7 +31,7 @@ inline constexpr const char* kLogComponent = "gateway";
 
 /// Logger estructurado thread-safe (stderr). Ver el header para el formato.
 class Log {
-public:
+   public:
     /// Registra una linea de info (codigo 0).
     void info(const std::string& ctx) const { line("info", 0, ctx); }
 
@@ -46,20 +46,18 @@ public:
     /// :param level: nivel de log.
     /// :param code: codigo de error (0 en info).
     /// :param fmt: cadena de formato printf.
-    template <typename... Args>
-    void fmt(const char* level, int code, const char* fmt, Args&&... args) const {
+    template <typename... Args> void fmt(const char* level, int code, const char* fmt, Args&&... args) const {
         char buf[1024];
         std::snprintf(buf, sizeof(buf), fmt, std::forward<Args>(args)...);
         line(level, code, buf);
     }
 
-private:
+   private:
     mutable std::mutex m_;
 
     void line(const char* level, int code, const std::string& ctx) const {
         std::lock_guard<std::mutex> lock(m_);
-        std::fprintf(stderr, "%s | %s | %d | %s\n", level, kLogComponent, code,
-                     ctx.c_str());
+        std::fprintf(stderr, "%s | %s | %d | %s\n", level, kLogComponent, code, ctx.c_str());
         std::fflush(stderr);
     }
 };

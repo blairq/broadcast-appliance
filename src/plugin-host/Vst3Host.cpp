@@ -33,8 +33,8 @@
 // (if(WIN32) en el CMakeLists raíz) Y el target definió
 // BA_PLUGIN_HOST_HAVE_VST3. En Linux (o en un Windows sin SDK) no se
 // incluyen: el módulo compila offline con el fallback headless.
-#include <pluginterfaces/base/funknown.h>
 #include <pluginterfaces/base/ftypes.h>
+#include <pluginterfaces/base/funknown.h>
 #include <pluginterfaces/gui/iplugview.h>
 #include <pluginterfaces/vst/ivstaudioprocessor.h>
 #include <pluginterfaces/vst/ivsteditcontroller.h>
@@ -75,8 +75,7 @@ std::filesystem::path findNearestBinary(const std::filesystem::path& bundle,
     }
     // Nota: sin `skip_missing_status` (C++23); el error_code por iteración
     // cubre los elementos cuyo estado no se pudo resolver (C++20).
-    for (const auto& entry :
-         std::filesystem::recursive_directory_iterator(bundle, ec)) {
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(bundle, ec)) {
         if (ec) {
             ec.clear();
             continue;
@@ -88,9 +87,7 @@ std::filesystem::path findNearestBinary(const std::filesystem::path& bundle,
         const std::string ext = entry.path().extension().string();
         for (const auto& want : exts) {
             if (ext == want) {
-                const size_t depth =
-                    static_cast<size_t>(std::distance(
-                        bundle.begin(), entry.path().begin()));
+                const size_t depth = static_cast<size_t>(std::distance(bundle.begin(), entry.path().begin()));
                 if (best.empty() || depth < bestDepth) {
                     best = entry.path();
                     bestDepth = depth;
@@ -114,8 +111,7 @@ std::vector<BundleInfo> scanDirectory(const std::string& root) {
         return result; // root inexistible/ilegible: lista vacía.
     }
 
-    for (const auto& entry :
-         std::filesystem::directory_iterator(rootPath, ec)) {
+    for (const auto& entry : std::filesystem::directory_iterator(rootPath, ec)) {
         if (ec) {
             ec.clear();
             continue;
@@ -135,8 +131,7 @@ std::vector<BundleInfo> scanDirectory(const std::string& root) {
 
 #ifdef _WIN32
         // Layout estándar Windows: Contents/x86_64-win/<Name>.dll.
-        const std::filesystem::path expected =
-            p / "Contents" / "x86_64-win" / (info.name + ".dll");
+        const std::filesystem::path expected = p / "Contents" / "x86_64-win" / (info.name + ".dll");
         if (std::filesystem::is_regular_file(expected, ec)) {
             info.dllPath = expected.string();
         } else {
@@ -168,8 +163,8 @@ using ModuleEntryFn = Steinberg::FUnknown* (*)(Steinberg::FUnknown*, void*);
 // TUID, kResultOk). Se traen a este scope para no ensuciar el código.
 using Steinberg::FUnknown;
 using Steinberg::IPlugView;
-using Steinberg::TUID;
 using Steinberg::kResultOk;
+using Steinberg::TUID;
 using Steinberg::Vst::IAudioProcessor;
 using Steinberg::Vst::IEditController;
 
@@ -191,33 +186,31 @@ bool Vst3Host::load(const BundleInfo& bundle) {
         reset();
     }
     if (bundle.dllPath.empty()) {
-        std::fprintf(stderr,
-                     "[ba_plugin_host] load: bundle sin dllPath resuelto\n");
+        std::fprintf(stderr, "[ba_plugin_host] load: bundle sin dllPath resuelto\n");
         return false;
     }
 
     const std::wstring wpath(bundle.dllPath.begin(), bundle.dllPath.end());
     HMODULE module = ::LoadLibraryW(wpath.c_str());
     if (!module) {
-        std::fprintf(stderr,
-                     "[ba_plugin_host] load: LoadLibraryW falló para %s\n",
-                     bundle.dllPath.c_str());
+        std::fprintf(stderr, "[ba_plugin_host] load: LoadLibraryW falló para %s\n", bundle.dllPath.c_str());
         return false;
     }
 
+    // Doble cast vía `void*`: `GetProcAddress` devuelve `FARPROC` (función),
+    // y castear directamente función→función dispara `-Wcast-function-type`.
+    // El tramo intermedio por `void*` es semánticamente idéntico.
     auto entry =
-        reinterpret_cast<ModuleEntryFn>(::GetProcAddress(module, "ModuleEntry"));
+        reinterpret_cast<ModuleEntryFn>(reinterpret_cast<void*>(::GetProcAddress(module, "ModuleEntry")));
     if (!entry) {
-        std::fprintf(stderr,
-                     "[ba_plugin_host] load: entry point `ModuleEntry` ausente\n");
+        std::fprintf(stderr, "[ba_plugin_host] load: entry point `ModuleEntry` ausente\n");
         ::FreeLibrary(module);
         return false;
     }
 
     FUnknown* moduleUnknown = entry(nullptr, nullptr);
     if (!moduleUnknown) {
-        std::fprintf(stderr,
-                     "[ba_plugin_host] load: ModuleEntry devolvió nullptr\n");
+        std::fprintf(stderr, "[ba_plugin_host] load: ModuleEntry devolvió nullptr\n");
         ::FreeLibrary(module);
         return false;
     }
@@ -226,23 +219,19 @@ bool Vst3Host::load(const BundleInfo& bundle) {
     // En el SDK v3.7.9 el IID de cada interface es su miembro estático `iid`
     // (no existe `FUID_IAudioProcessor`/`FUID_IEditControllerEx1`).
     IAudioProcessor* processor = nullptr;
-    if (moduleUnknown->queryInterface(
-            IAudioProcessor::iid, reinterpret_cast<void**>(&processor)) !=
+    if (moduleUnknown->queryInterface(IAudioProcessor::iid, reinterpret_cast<void**>(&processor)) !=
         kResultOk) {
-        std::fprintf(stderr,
-                     "[ba_plugin_host] load: QI IAudioProcessor falló\n");
+        std::fprintf(stderr, "[ba_plugin_host] load: QI IAudioProcessor falló\n");
         moduleUnknown->release();
         ::FreeLibrary(module);
         return false;
     }
 
     IEditController* controller = nullptr;
-    if (moduleUnknown->queryInterface(
-            IEditController::iid, reinterpret_cast<void**>(&controller)) !=
+    if (moduleUnknown->queryInterface(IEditController::iid, reinterpret_cast<void**>(&controller)) !=
         kResultOk) {
-        std::fprintf(stderr,
-                     "[ba_plugin_host] load: QI IEditController falló "
-                     "(sin editor gráfico)\n");
+        std::fprintf(stderr, "[ba_plugin_host] load: QI IEditController falló "
+                             "(sin editor gráfico)\n");
         processor->release();
         moduleUnknown->release();
         ::FreeLibrary(module);
@@ -289,24 +278,20 @@ void Vst3Host::reset() { unload(); }
 
 bool Vst3Host::attachEditor(void* parentHwnd) {
     if (!impl_ || !impl_->controller || parentHwnd == nullptr) {
-        std::fprintf(stderr,
-                     "[ba_plugin_host] attachEditor: sin controller o sin HWND\n");
+        std::fprintf(stderr, "[ba_plugin_host] attachEditor: sin controller o sin HWND\n");
         return false;
     }
     // Embebe el editor completo del plugin dentro del HWND padre. En el SDK
     // v3.7.9 `IEditController::createView` solo recibe el tipo de vista
     // ("editor"); el HWND padre se pasa después vía `IPlugView::attached`.
     IPlugView* view =
-        static_cast<IEditController*>(impl_->controller)->createView(
-            Steinberg::Vst::ViewType::kEditor);
+        static_cast<IEditController*>(impl_->controller)->createView(Steinberg::Vst::ViewType::kEditor);
     if (!view) {
-        std::fprintf(stderr,
-                     "[ba_plugin_host] attachEditor: createView falló\n");
+        std::fprintf(stderr, "[ba_plugin_host] attachEditor: createView falló\n");
         return false;
     }
     if (view->attached(parentHwnd, "win32") != kResultOk) {
-        std::fprintf(stderr,
-                     "[ba_plugin_host] attachEditor: attached falló\n");
+        std::fprintf(stderr, "[ba_plugin_host] attachEditor: attached falló\n");
         view->release();
         return false;
     }
@@ -314,9 +299,7 @@ bool Vst3Host::attachEditor(void* parentHwnd) {
     return true;
 }
 
-bool Vst3Host::isLoaded() const {
-    return impl_ != nullptr && impl_->processor != nullptr;
-}
+bool Vst3Host::isLoaded() const { return impl_ != nullptr && impl_->processor != nullptr; }
 
 #else // fallback HEADLESS: no _WIN32, o Windows sin SDK (offline)
 
@@ -331,8 +314,7 @@ bool Vst3Host::load(const BundleInfo& bundle) {
         reset();
     }
     if (bundle.dllPath.empty()) {
-        std::fprintf(stderr,
-                     "[ba_plugin_host] load (stub): bundle sin dllPath\n");
+        std::fprintf(stderr, "[ba_plugin_host] load (stub): bundle sin dllPath\n");
         return false;
     }
     std::fprintf(stderr,
@@ -355,15 +337,12 @@ void Vst3Host::unload() {
 void Vst3Host::reset() { unload(); }
 
 bool Vst3Host::attachEditor(void* /*parentHwnd*/) {
-    std::fprintf(stderr,
-                 "[ba_plugin_host] attachEditor (headless): VST3 real solo "
-                 "con SDK (Windows)\n");
+    std::fprintf(stderr, "[ba_plugin_host] attachEditor (headless): VST3 real solo "
+                         "con SDK (Windows)\n");
     return false;
 }
 
-bool Vst3Host::isLoaded() const {
-    return impl_ != nullptr && impl_->loaded;
-}
+bool Vst3Host::isLoaded() const { return impl_ != nullptr && impl_->loaded; }
 
 #endif // defined(_WIN32) && defined(BA_PLUGIN_HOST_HAVE_VST3)
 

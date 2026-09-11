@@ -23,10 +23,8 @@
 
 namespace ba::gateway {
 
-TokenAuth::TokenAuth(std::string secret, std::string pin, int maxAttempts,
-                     int lockoutSec, int ttlSec)
-    : pin_(std::make_shared<std::string>(std::move(pin))),
-      ttlSec_(ttlSec) {
+TokenAuth::TokenAuth(std::string secret, std::string pin, int maxAttempts, int lockoutSec, int ttlSec)
+    : pin_(std::make_shared<std::string>(std::move(pin))), ttlSec_(ttlSec) {
     // El TokenService se construye DESPUES de pin_ para que el callback pueda
     // capturar el shared_ptr ya inicializado. El callback compara el PIN
     // presentado contra *pin_ (el PIN actual de la sala, mutable en caliente).
@@ -34,9 +32,7 @@ TokenAuth::TokenAuth(std::string secret, std::string pin, int maxAttempts,
     // validador), asi que no puede ser miembro por valor default-constructed.
     svc_ = std::make_unique<ba::security::TokenService>(
         std::move(secret), maxAttempts, lockoutSec,
-        [ref = pin_](const std::string& presented) {
-            return !presented.empty() && *ref == presented;
-        });
+        [ref = pin_](const std::string& presented) { return !presented.empty() && *ref == presented; });
 }
 
 void TokenAuth::setPin(const std::string& pin) {
@@ -58,14 +54,12 @@ int TokenAuth::verify(const std::string& token, const std::string& room) const {
     std::lock_guard<std::mutex> lock(m_);
     const auto r = svc_->verify(token, room);
     switch (r) {
-        case ba::security::TokenService::VerifyResult::Ok:
-            return static_cast<int>(VerifyCode::kOk);
+        case ba::security::TokenService::VerifyResult::Ok: return static_cast<int>(VerifyCode::kOk);
         case ba::security::TokenService::VerifyResult::Malformed:
             return static_cast<int>(VerifyCode::kMalformed);
         case ba::security::TokenService::VerifyResult::BadSignature:
             return static_cast<int>(VerifyCode::kBadSignature);
-        case ba::security::TokenService::VerifyResult::Expired:
-            return static_cast<int>(VerifyCode::kExpired);
+        case ba::security::TokenService::VerifyResult::Expired: return static_cast<int>(VerifyCode::kExpired);
         case ba::security::TokenService::VerifyResult::WrongRoom:
             return static_cast<int>(VerifyCode::kWrongRoom);
     }

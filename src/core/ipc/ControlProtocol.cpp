@@ -41,17 +41,15 @@ std::vector<std::uint8_t> Frame::encodeFrame(const std::string& json) {
     return out;
 }
 
-bool Frame::decodeFrame(const std::uint8_t* buf, std::size_t len,
-                        std::string& jsonOut, std::size_t& consumed) {
+bool Frame::decodeFrame(const std::uint8_t* buf, std::size_t len, std::string& jsonOut,
+                        std::size_t& consumed) {
     if (buf == nullptr || len < 4) {
         return false; // ni siquiera el prefijo completo
     }
 
     const std::uint32_t payloadLen =
-        static_cast<std::uint32_t>(buf[0]) |
-        (static_cast<std::uint32_t>(buf[1]) << 8) |
-        (static_cast<std::uint32_t>(buf[2]) << 16) |
-        (static_cast<std::uint32_t>(buf[3]) << 24);
+        static_cast<std::uint32_t>(buf[0]) | (static_cast<std::uint32_t>(buf[1]) << 8) |
+        (static_cast<std::uint32_t>(buf[2]) << 16) | (static_cast<std::uint32_t>(buf[3]) << 24);
 
     // Guard de par hostil: acota la memoria ante una longitud enorme.
     if (payloadLen > kMaxPayloadBytes) {
@@ -74,35 +72,71 @@ bool Frame::decodeFrame(const std::uint8_t* buf, std::size_t len,
 
 std::string typeToString(Type t) {
     switch (t) {
-        case Type::Hello:       return "hello";
+        case Type::Hello: return "hello";
         case Type::TunnelState: return "tunnelState";
-        case Type::GuestList:   return "guestList";
-        case Type::GuestAdmit:  return "guestAdmit";
+        case Type::GuestList: return "guestList";
+        case Type::GuestAdmit: return "guestAdmit";
         case Type::GuestReject: return "guestReject";
-        case Type::GuestExpel:  return "guestExpel";
-        case Type::GuestMute:   return "guestMute";
-        case Type::ChangeRoom:  return "changeRoom";
-        case Type::ChangePin:   return "changePin";
-        case Type::FlowState:   return "flowState";
-        case Type::Shutdown:    return "shutdown";
-        case Type::Response:    return "response";
+        case Type::GuestExpel: return "guestExpel";
+        case Type::GuestMute: return "guestMute";
+        case Type::ChangeRoom: return "changeRoom";
+        case Type::ChangePin: return "changePin";
+        case Type::FlowState: return "flowState";
+        case Type::Shutdown: return "shutdown";
+        case Type::Response: return "response";
     }
     return "unknown";
 }
 
 bool typeFromString(const std::string& s, Type& out) {
-    if (s == "hello")       { out = Type::Hello;       return true; }
-    if (s == "tunnelState") { out = Type::TunnelState; return true; }
-    if (s == "guestList")   { out = Type::GuestList;   return true; }
-    if (s == "guestAdmit")  { out = Type::GuestAdmit;  return true; }
-    if (s == "guestReject") { out = Type::GuestReject; return true; }
-    if (s == "guestExpel")  { out = Type::GuestExpel;  return true; }
-    if (s == "guestMute")   { out = Type::GuestMute;   return true; }
-    if (s == "changeRoom")  { out = Type::ChangeRoom;  return true; }
-    if (s == "changePin")   { out = Type::ChangePin;   return true; }
-    if (s == "flowState")   { out = Type::FlowState;   return true; }
-    if (s == "shutdown")    { out = Type::Shutdown;    return true; }
-    if (s == "response")    { out = Type::Response;    return true; }
+    if (s == "hello") {
+        out = Type::Hello;
+        return true;
+    }
+    if (s == "tunnelState") {
+        out = Type::TunnelState;
+        return true;
+    }
+    if (s == "guestList") {
+        out = Type::GuestList;
+        return true;
+    }
+    if (s == "guestAdmit") {
+        out = Type::GuestAdmit;
+        return true;
+    }
+    if (s == "guestReject") {
+        out = Type::GuestReject;
+        return true;
+    }
+    if (s == "guestExpel") {
+        out = Type::GuestExpel;
+        return true;
+    }
+    if (s == "guestMute") {
+        out = Type::GuestMute;
+        return true;
+    }
+    if (s == "changeRoom") {
+        out = Type::ChangeRoom;
+        return true;
+    }
+    if (s == "changePin") {
+        out = Type::ChangePin;
+        return true;
+    }
+    if (s == "flowState") {
+        out = Type::FlowState;
+        return true;
+    }
+    if (s == "shutdown") {
+        out = Type::Shutdown;
+        return true;
+    }
+    if (s == "response") {
+        out = Type::Response;
+        return true;
+    }
     return false;
 }
 
@@ -199,8 +233,7 @@ namespace {
 constexpr std::size_t kReadChunk = 4096;
 } // namespace
 
-ControlEndpoint::ControlEndpoint(DuplexStream& stream, int myRole)
-    : stream_(stream), myRole_(myRole) {}
+ControlEndpoint::ControlEndpoint(DuplexStream& stream, int myRole) : stream_(stream), myRole_(myRole) {}
 
 bool ControlEndpoint::sendRequest(const Message& req) {
     if (!connected_) {
@@ -240,8 +273,7 @@ bool ControlEndpoint::poll(Message& out) {
     std::string json;
     std::size_t consumed = 0;
     if (Frame::decodeFrame(rxBuf_.data(), rxBuf_.size(), json, consumed)) {
-        rxBuf_.erase(rxBuf_.begin(),
-                     rxBuf_.begin() + static_cast<std::ptrdiff_t>(consumed));
+        rxBuf_.erase(rxBuf_.begin(), rxBuf_.begin() + static_cast<std::ptrdiff_t>(consumed));
         return Message::fromJson(json, out);
     }
 
@@ -251,13 +283,9 @@ bool ControlEndpoint::poll(Message& out) {
     return false;
 }
 
-bool ControlEndpoint::connected() const {
-    return connected_;
-}
+bool ControlEndpoint::connected() const { return connected_; }
 
-void ControlEndpoint::onDisconnect(std::function<void()> cb) {
-    onDisconnect_ = std::move(cb);
-}
+void ControlEndpoint::onDisconnect(std::function<void()> cb) { onDisconnect_ = std::move(cb); }
 
 void ControlEndpoint::handleDisconnect() {
     if (!connected_) {

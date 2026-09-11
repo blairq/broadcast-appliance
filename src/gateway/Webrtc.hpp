@@ -78,13 +78,12 @@ struct SessionCallbacks {
 /// BA_GATEWAY_HAVE_WEBRTC. Ver Webrtc.hpp para el modelo de threading y la
 /// estrategia de errores.
 class WebrtcSession {
-public:
+   public:
     /// :param slot: indice del invitado (1..maxGuests).
     /// :param videoW/videoH: resolucion del track de video local (retorno).
     /// :param audioRate: sample rate del track de audio local (retorno).
     /// :param audioChannels: canales del track de audio local.
-    WebrtcSession(int slot, int videoW, int videoH, int audioRate,
-                  int audioChannels);
+    WebrtcSession(int slot, int videoW, int videoH, int audioRate, int audioChannels);
     /// Ctor por defecto: sesion "vacía" en el slot 0 (reservado, sin invitado).
     /// Existe para que contenedores std (p. ej. el `std::vector<WebrtcSession>`
     /// del hub) puedan default-construct los elementos antes de moverlos; el
@@ -146,7 +145,7 @@ public:
     uint64_t localAudioBlocks() const;
     uint64_t localVideoFrames() const;
 
-private:
+   private:
     struct Impl;
     Impl* impl_;
 };
@@ -157,13 +156,12 @@ private:
 /// la webrtc::PeerConnectionFactory compartida. El servidor de senalizacion
 /// obtiene una sesion por slot y la configura con los callbacks de la conexion.
 class WebrtcHub {
-public:
+   public:
     /// :param guests: cantidad de invitados (1..4).
     /// :param videoW/videoH: resolucion del retorno de video al invitado.
     /// :param audioRate: sample rate del retorno de audio.
     /// :param audioChannels: canales del retorno de audio.
-    WebrtcHub(int guests, int videoW, int videoH, int audioRate,
-              int audioChannels);
+    WebrtcHub(int guests, int videoW, int videoH, int audioRate, int audioChannels);
     ~WebrtcHub();
 
     WebrtcHub(const WebrtcHub&) = delete;
@@ -181,7 +179,7 @@ public:
     /// webrtc::PeerConnectionFactory* (backend real) o nullptr (NULL).
     void* rtcFactory() const { return rtcFactory_; }
 
-private:
+   private:
     int guests_;
     int videoW_, videoH_, audioRate_, audioChannels_;
     std::vector<WebrtcSession> sessions_;

@@ -54,7 +54,7 @@ struct Incident {
 
 /// UI de recuperacion minima del launcher (spec 3.1.11).
 class RecoveryUi {
-public:
+   public:
     /// Muestra la ventana de recuperacion (bloqueante) y devuelve la decision
     /// del operador.
     ///

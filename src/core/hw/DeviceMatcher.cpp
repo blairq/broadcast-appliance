@@ -16,16 +16,13 @@ namespace {
 /// Devuelve true si `idx` esta en `alreadyAssigned`. Los indices fuera de rango
 /// de `known` se ignoran (no son candidatos de todos modos).
 bool isAssigned(int idx, const std::vector<int>& alreadyAssigned) {
-    return std::find(alreadyAssigned.begin(), alreadyAssigned.end(), idx) !=
-           alreadyAssigned.end();
+    return std::find(alreadyAssigned.begin(), alreadyAssigned.end(), idx) != alreadyAssigned.end();
 }
 
 /// Devuelve true si `observed` y `k` comparten al menos un locationPath.
-bool sharesLocationPath(const DeviceIdentity& observed,
-                        const DeviceIdentity& k) {
+bool sharesLocationPath(const DeviceIdentity& observed, const DeviceIdentity& k) {
     for (const auto& p : observed.locationPaths) {
-        if (std::find(k.locationPaths.begin(), k.locationPaths.end(), p) !=
-            k.locationPaths.end()) {
+        if (std::find(k.locationPaths.begin(), k.locationPaths.end(), p) != k.locationPaths.end()) {
             return true;
         }
     }
@@ -48,8 +45,7 @@ int candidateScore(const DeviceIdentity& observed, const DeviceIdentity& k) {
     // vid+pid solo tiene sentido si observed reporta un vid o pid real; un
     // 0/0 (dispositivo no-USB) no debe emparejar por vid+pid.
     const bool hasVidPid = (observed.vid != 0 || observed.pid != 0);
-    const bool sameVidPid =
-        hasVidPid && observed.vid == k.vid && observed.pid == k.pid;
+    const bool sameVidPid = hasVidPid && observed.vid == k.vid && observed.pid == k.pid;
     if (sameVidPid) {
         // 3. VidPidLocation: mismo vid+pid y al menos un locationPath en comun.
         if (sharesLocationPath(observed, k)) {
@@ -65,8 +61,7 @@ int candidateScore(const DeviceIdentity& observed, const DeviceIdentity& k) {
 
 } // namespace
 
-MatchResult DeviceMatcher::match(const DeviceIdentity& observed,
-                                 const std::vector<DeviceIdentity>& known,
+MatchResult DeviceMatcher::match(const DeviceIdentity& observed, const std::vector<DeviceIdentity>& known,
                                  const std::vector<int>& alreadyAssigned) const {
     // Cuantas veces aparece el vid+pid de observed entre los conocidos NO
     // asignados: es lo que decide si UniqueVidPid aplica (aparece 1 vez).
@@ -78,8 +73,7 @@ MatchResult DeviceMatcher::match(const DeviceIdentity& observed,
             continue;
         }
         hasAnyUnassigned = true;
-        if (observedHasVidPid && observed.vid == known[i].vid &&
-            observed.pid == known[i].pid) {
+        if (observedHasVidPid && observed.vid == known[i].vid && observed.pid == known[i].pid) {
             ++unassignedSameVidPid;
         }
     }
@@ -101,8 +95,7 @@ MatchResult DeviceMatcher::match(const DeviceIdentity& observed,
         }
         int s = candidateScore(observed, known[i]);
         // UniqueVidPid solo vale si el vid+pid es unico entre no asignados.
-        if (s == DeviceMatcher::kScoreUniqueVidPid &&
-            unassignedSameVidPid != 1) {
+        if (s == DeviceMatcher::kScoreUniqueVidPid && unassignedSameVidPid != 1) {
             s = 0;
         }
         if (s <= 0) {
@@ -111,13 +104,10 @@ MatchResult DeviceMatcher::match(const DeviceIdentity& observed,
         if (s > bestScore) {
             bestScore = s;
             bestIndex = static_cast<int>(i);
-            bestKind = (s == DeviceMatcher::kScoreExactEndpoint)
-                           ? MatchKind::ExactEndpoint
-                       : (s == DeviceMatcher::kScoreSerial)
-                             ? MatchKind::Serial
-                         : (s == DeviceMatcher::kScoreVidPidLocation)
-                               ? MatchKind::VidPidLocation
-                           : MatchKind::UniqueVidPid;
+            bestKind = (s == DeviceMatcher::kScoreExactEndpoint)    ? MatchKind::ExactEndpoint
+                       : (s == DeviceMatcher::kScoreSerial)         ? MatchKind::Serial
+                       : (s == DeviceMatcher::kScoreVidPidLocation) ? MatchKind::VidPidLocation
+                                                                    : MatchKind::UniqueVidPid;
             tiesAtBest = 1;
         } else if (s == bestScore) {
             // Empate en el puntaje maximo: ambiguo.

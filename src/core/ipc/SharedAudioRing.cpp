@@ -29,9 +29,7 @@ const float* silenceBuffer() {
     return buf;
 }
 
-inline size_t alignUp(size_t v, size_t align) {
-    return (v + align - 1) & ~(align - 1);
-}
+inline size_t alignUp(size_t v, size_t align) { return (v + align - 1) & ~(align - 1); }
 
 } // namespace
 
@@ -41,29 +39,22 @@ size_t SharedAudioRing::dataOffset() {
     return alignUp(sizeof(RingHeader), audio_ring::kCacheLine);
 }
 
-RingHeader* SharedAudioRing::hdr() const {
-    return reinterpret_cast<RingHeader*>(region_.data());
-}
+RingHeader* SharedAudioRing::hdr() const { return reinterpret_cast<RingHeader*>(region_.data()); }
 
 size_t SharedAudioRing::blockFloats() const {
     return static_cast<size_t>(audio_ring::kBlockFrames) * hdr()->channels;
 }
 
-uint64_t SharedAudioRing::capacityBlocks() const {
-    return hdr()->capacityFrames / audio_ring::kBlockFrames;
-}
+uint64_t SharedAudioRing::capacityBlocks() const { return hdr()->capacityFrames / audio_ring::kBlockFrames; }
 
-const RingHeader* SharedAudioRing::header() const {
-    return hdr();
-}
+const RingHeader* SharedAudioRing::header() const { return hdr(); }
 
 SharedMemoryRegion* SharedAudioRing::region() { return &region_; }
 
 // Cada slot de bloque: { uint64_t qpc; float samples[blockFloats]; }
 // Alineamos el inicio de samples a 16 bytes para SIMD.
 static size_t blockSlotBytes(uint32_t channels) {
-    const size_t samplesBytes =
-        static_cast<size_t>(audio_ring::kBlockFrames) * channels * sizeof(float);
+    const size_t samplesBytes = static_cast<size_t>(audio_ring::kBlockFrames) * channels * sizeof(float);
     // qpc(8) + padding a 16 + samples
     return alignUp(8 + samplesBytes, 16);
 }
@@ -76,15 +67,13 @@ float* SharedAudioRing::blockAt(uint64_t blockIndex) const {
     return reinterpret_cast<float*>(const_cast<uint8_t*>(slotBase) + 16);
 }
 
-static uint64_t* qpcAt(const uint8_t* base, uint64_t blockIndex, uint64_t capBlocks,
-                       uint32_t channels) {
+static uint64_t* qpcAt(const uint8_t* base, uint64_t blockIndex, uint64_t capBlocks, uint32_t channels) {
     const size_t slot = blockSlotBytes(channels);
     return reinterpret_cast<uint64_t*>(const_cast<uint8_t*>(base + (blockIndex % capBlocks) * slot));
 }
 
-Status SharedAudioRing::init(const wchar_t* name, uint32_t channels,
-                             uint64_t capacityBlocks, uint32_t writerPid,
-                             uint32_t generation, SharedAudioRing& out) {
+Status SharedAudioRing::init(const wchar_t* name, uint32_t channels, uint64_t capacityBlocks,
+                             uint32_t writerPid, uint32_t generation, SharedAudioRing& out) {
     if (name == nullptr) {
         return Status::fail(static_cast<int>(ErrorCode::kInvalidArgument));
     }
@@ -148,8 +137,8 @@ Status SharedAudioRing::openReader(const wchar_t* name, SharedAudioRing& out) {
     return Status::success();
 }
 
-Status SharedAudioRing::openWriter(const wchar_t* name, uint32_t writerPid,
-                                   uint32_t generation, SharedAudioRing& out) {
+Status SharedAudioRing::openWriter(const wchar_t* name, uint32_t writerPid, uint32_t generation,
+                                   SharedAudioRing& out) {
     if (name == nullptr) {
         return Status::fail(static_cast<int>(ErrorCode::kInvalidArgument));
     }
@@ -179,8 +168,7 @@ bool SharedAudioRing::push(const float* samples, uint64_t qpc) {
     auto* h = hdr();
     const uint64_t cap = capacityBlocks();
     const uint64_t write = h->writeIndex; // solo el escritor lo escribe
-    const uint64_t read =
-        std::atomic_ref<uint64_t>(h->readIndex).load(std::memory_order_acquire);
+    const uint64_t read = std::atomic_ref<uint64_t>(h->readIndex).load(std::memory_order_acquire);
 
     // Overrun: el lector no llego; el slot destino aun tiene datos no leidos.
     if (write - read >= cap) {
@@ -189,8 +177,7 @@ bool SharedAudioRing::push(const float* samples, uint64_t qpc) {
     }
 
     // Escribe qpc y samples ANTES de avanzar writeIndex (release).
-    *qpcAt(static_cast<const uint8_t*>(region_.data()) + dataOffset(), write, cap,
-           h->channels) = qpc;
+    *qpcAt(static_cast<const uint8_t*>(region_.data()) + dataOffset(), write, cap, h->channels) = qpc;
     std::memcpy(blockAt(write), samples, blockFloats() * sizeof(float));
 
     std::atomic_ref<uint64_t>(h->lastWriteQpc).store(qpc, std::memory_order_relaxed);
@@ -211,18 +198,15 @@ PoppedBlock SharedAudioRing::pop() {
         hasCached_ = true;
     } else if (pid != cachedWriterPid_ || gen != cachedGeneration_) {
         // Resincroniza: descarta lo bufferizado, readIndex <- writeIndex.
-        const uint64_t w =
-            std::atomic_ref<uint64_t>(h->writeIndex).load(std::memory_order_acquire);
+        const uint64_t w = std::atomic_ref<uint64_t>(h->writeIndex).load(std::memory_order_acquire);
         std::atomic_ref<uint64_t>(h->readIndex).store(w, std::memory_order_release);
         cachedWriterPid_ = pid;
         cachedGeneration_ = gen;
         pendingFadeIn_ = true;
     }
 
-    const uint64_t write =
-        std::atomic_ref<uint64_t>(h->writeIndex).load(std::memory_order_acquire);
-    const uint64_t read =
-        std::atomic_ref<uint64_t>(h->readIndex).load(std::memory_order_relaxed);
+    const uint64_t write = std::atomic_ref<uint64_t>(h->writeIndex).load(std::memory_order_acquire);
+    const uint64_t read = std::atomic_ref<uint64_t>(h->readIndex).load(std::memory_order_relaxed);
 
     // 2) Underrun: sin datos.
     if (read == write) {
@@ -238,8 +222,8 @@ PoppedBlock SharedAudioRing::pop() {
 
     // 3) Hay datos: entrega el bloque y avanza readIndex.
     const float* samples = blockAt(read);
-    const uint64_t qpc = *qpcAt(static_cast<const uint8_t*>(region_.data()) + dataOffset(),
-                                read, cap, h->channels);
+    const uint64_t qpc =
+        *qpcAt(static_cast<const uint8_t*>(region_.data()) + dataOffset(), read, cap, h->channels);
     std::atomic_ref<uint64_t>(h->readIndex).store(read + 1, std::memory_order_release);
 
     PoppedBlock b;

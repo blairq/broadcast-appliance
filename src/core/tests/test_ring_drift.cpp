@@ -38,12 +38,12 @@ using namespace ba::ipc;
 // --- Macro minimo de assert ------------------------------------------------
 
 static int g_failures = 0;
-#define CHECK(cond, msg)                                                       \
-    do {                                                                       \
-        if (!(cond)) {                                                         \
-            std::printf("FAIL [%s:%d] %s\n", __FILE__, __LINE__, msg);         \
-            ++g_failures;                                                      \
-        }                                                                      \
+#define CHECK(cond, msg)                                                                                     \
+    do {                                                                                                     \
+        if (!(cond)) {                                                                                       \
+            std::printf("FAIL [%s:%d] %s\n", __FILE__, __LINE__, msg);                                       \
+            ++g_failures;                                                                                    \
+        }                                                                                                    \
     } while (0)
 
 // Rellena un buffer con un patron sentinel derivado de `seed`, para verificar
@@ -77,7 +77,7 @@ static bool matchSentinel(const float* buf, size_t n, uint64_t seed) {
 // fenomeno que el soak de 8 h protegeria de la deriva.
 
 namespace {
-constexpr uint64_t kCapBlocks = 16u;  // potencia de 2, pequena => wraps frecuentes
+constexpr uint64_t kCapBlocks = 16u; // potencia de 2, pequena => wraps frecuentes
 constexpr uint32_t kChannels = 2u;
 // 8 h a 48 kHz / 480 frames por bloque = 2.88e6 bloques (el soak simulado).
 constexpr uint64_t kTotalBlocks = 2880000ull;
@@ -104,10 +104,10 @@ static void testRingDrift() {
 
     // Contadores logicos (lo que el caller "cree" que paso) vs. contadores del
     // ring (lo que el header dice). La deriva seria una divergencia entre ambos.
-    uint64_t framesProduced = 0;   // frames que el writer creo que escribio
-    uint64_t framesConsumed = 0;   // frames que el reader creo que leyó
-    uint64_t successfulPushes = 0; // push() que devolvieron true
-    uint64_t realPops = 0;         // pop() con datos (no silencio)
+    uint64_t framesProduced = 0;    // frames que el writer creo que escribio
+    uint64_t framesConsumed = 0;    // frames que el reader creo que leyó
+    uint64_t successfulPushes = 0;  // push() que devolvieron true
+    uint64_t realPops = 0;          // pop() con datos (no silencio)
     uint64_t consumedMonotonic = 0; // contador local del reader, debe crecer +1 por pop real
     bool integrityOk = true;
 
@@ -142,14 +142,12 @@ static void testRingDrift() {
 
     const uint64_t wraps = kTotalBlocks / cap; // vueltas completas del indice
 
-    std::printf("  totalBlocks=%llu cap=%llu wraps=%llu\n",
-                (unsigned long long)kTotalBlocks, (unsigned long long)cap,
-                (unsigned long long)wraps);
-    std::printf("  framesProduced=%llu framesConsumed=%llu\n",
-                (unsigned long long)framesProduced, (unsigned long long)framesConsumed);
-    std::printf("  writeIndex=%llu readIndex=%llu overruns=%llu underruns=%llu\n",
-                (unsigned long long)w, (unsigned long long)r,
-                (unsigned long long)overruns, (unsigned long long)underruns);
+    std::printf("  totalBlocks=%llu cap=%llu wraps=%llu\n", (unsigned long long)kTotalBlocks,
+                (unsigned long long)cap, (unsigned long long)wraps);
+    std::printf("  framesProduced=%llu framesConsumed=%llu\n", (unsigned long long)framesProduced,
+                (unsigned long long)framesConsumed);
+    std::printf("  writeIndex=%llu readIndex=%llu overruns=%llu underruns=%llu\n", (unsigned long long)w,
+                (unsigned long long)r, (unsigned long long)overruns, (unsigned long long)underruns);
 
     // (a) Sin perdida ni duplicacion: lo consumido == lo producido.
     CHECK(framesConsumed == framesProduced, "frames consumidos == frames producidos");

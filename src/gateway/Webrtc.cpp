@@ -40,28 +40,28 @@
 //   (peer_connection_interface.h, sdp_adapter.h, rtc_base/task_queue,
 //    media/engine/webrtc_media_engine, api/rtc_param_types.h). El layout de
 //   headers del webrtc-build puede variar; ajustar si el tag lo requiere.
-#    include "api/media_stream_interface.h"
-#    include "api/peer_connection_interface.h"
-#    include "api/rtp_parameters.h"
-#    include "media/engine/webrtc_media_engine.h"
-#    include "p2p/basic_port_allocator.h"
-#    include "p2p/basic_session_description.h"
-#    include "p2p/ice_transport_interface.h"
-#    include "p2p/port_allocator.h"
-#    include "p2p/session_description.h"
-#    include "p2p/stun.h"
-#    include "rtc_base/asyncinvoker.h"
-#    include "rtc_base/event.h"
-#    include "rtc_base/logging.h"
-#    include "rtc_base/location.h"
-#    include "rtc_base/messagehandler.h"
-#    include "rtc_base/task_queue.h"
-#    include "system_wrappers/include/clock.h"
-#    include "system_wrappers/include/gcc.h"
-#    include "system_wrappers/include/rwlock.h"
-#    include "system_wrappers/include/sleep.h"
-#    include "system_wrappers/include/stats.h"
-#    include "system_wrappers/include/timeutil.h"
+#include "api/media_stream_interface.h"
+#include "api/peer_connection_interface.h"
+#include "api/rtp_parameters.h"
+#include "media/engine/webrtc_media_engine.h"
+#include "p2p/basic_port_allocator.h"
+#include "p2p/basic_session_description.h"
+#include "p2p/ice_transport_interface.h"
+#include "p2p/port_allocator.h"
+#include "p2p/session_description.h"
+#include "p2p/stun.h"
+#include "rtc_base/asyncinvoker.h"
+#include "rtc_base/event.h"
+#include "rtc_base/location.h"
+#include "rtc_base/logging.h"
+#include "rtc_base/messagehandler.h"
+#include "rtc_base/task_queue.h"
+#include "system_wrappers/include/clock.h"
+#include "system_wrappers/include/gcc.h"
+#include "system_wrappers/include/rwlock.h"
+#include "system_wrappers/include/sleep.h"
+#include "system_wrappers/include/stats.h"
+#include "system_wrappers/include/timeutil.h"
 #endif // BA_GATEWAY_HAVE_WEBRTC
 
 namespace ba::gateway {
@@ -100,15 +100,14 @@ struct NullSession {
         // Genera un answer SDP minimo (suficiente para que el navegador avance
         // en el flujo de senalizacion). En el backend real esto vendria de
         // libwebrtc; aqui es un placeholder coherente.
-        const std::string answerSdp =
-            "v=0\r\n"
-            "o=- 0 0 IN IP4 127.0.0.1\r\n"
-            "s=-\r\n"
-            "t=0 0\r\n"
-            "m=audio 9 UDP/TLS/RTP/SAVPF 0\r\n"
-            "a=rtpmap:0 PCMU/8000\r\n"
-            "m=video 9 UDP/TLS/RTP/SAVPF 96\r\n"
-            "a=rtpmap:96 VP8/90000\r\n";
+        const std::string answerSdp = "v=0\r\n"
+                                      "o=- 0 0 IN IP4 127.0.0.1\r\n"
+                                      "s=-\r\n"
+                                      "t=0 0\r\n"
+                                      "m=audio 9 UDP/TLS/RTP/SAVPF 0\r\n"
+                                      "a=rtpmap:0 PCMU/8000\r\n"
+                                      "m=video 9 UDP/TLS/RTP/SAVPF 96\r\n"
+                                      "a=rtpmap:96 VP8/90000\r\n";
         (void)sdp;
         if (cb.onLocalAnswer) cb.onLocalAnswer(answerSdp);
         if (cb.onStateChange) cb.onStateChange(true);
@@ -157,9 +156,8 @@ namespace {
 /// cualquier excepcion en el borde (spec §14: no cruzar excepciones por un
 /// callback C de libwebrtc).
 class SessionPeerObserver : public webrtc::PeerConnectionObserver {
-public:
-    SessionPeerObserver(NullSession* null, WebrtcSession* self)
-        : null_(null), self_(self) {}
+   public:
+    SessionPeerObserver(NullSession* null, WebrtcSession* self) : null_(null), self_(self) {}
 
     void OnSignalingStateChange(webrtc::PeerConnectionState) override {
         // VERIFY: la transicion a Stable indica que el answer se envio.
@@ -167,8 +165,8 @@ public:
 
     void OnIceConnectionChange(webrtc::IceConnectionState s) override {
         if (!null_) return;
-        const bool up = (s == webrtc::IceConnectionState::kConnected) ||
-                        (s == webrtc::IceConnectionState::kCompleted);
+        const bool up =
+            (s == webrtc::IceConnectionState::kConnected) || (s == webrtc::IceConnectionState::kCompleted);
         try {
             if (null_->cb.onStateChange) null_->cb.onStateChange(up);
         } catch (...) {
@@ -206,7 +204,7 @@ public:
         // decode + entrega de frames vive en el motor de medios (spec §8.5/§8.6).
     }
 
-private:
+   private:
     NullSession* null_;
     WebrtcSession* self_;
 };
@@ -320,33 +318,24 @@ struct WebrtcSession::Impl {
         null.close();
     }
 
-    uint64_t localAudioBlocks() const {
-        return null.localAudioBlocks.load(std::memory_order_relaxed);
-    }
-    uint64_t localVideoFrames() const {
-        return null.localVideoFrames.load(std::memory_order_relaxed);
-    }
+    uint64_t localAudioBlocks() const { return null.localAudioBlocks.load(std::memory_order_relaxed); }
+    uint64_t localVideoFrames() const { return null.localVideoFrames.load(std::memory_order_relaxed); }
 };
 
 // ============================================================================
 // WebrtcSession (public API)
 // ============================================================================
-WebrtcSession::WebrtcSession(int slot, int videoW, int videoH, int audioRate,
-                             int audioChannels)
+WebrtcSession::WebrtcSession(int slot, int videoW, int videoH, int audioRate, int audioChannels)
     : impl_(new Impl(slot, videoW, videoH, audioRate, audioChannels)) {}
 
 /// Ctor por defecto: sesion vacía en el slot 0 (reservado). Solo existe para
 /// que `std::vector<WebrtcSession>::resize` pueda default-construct los
 /// elementos; el hub los sobreescribe con el ctor de 5 args vía move-assign.
-WebrtcSession::WebrtcSession()
-    : impl_(new Impl(0, 640, 360, 48000, 2)) {}
+WebrtcSession::WebrtcSession() : impl_(new Impl(0, 640, 360, 48000, 2)) {}
 
 WebrtcSession::~WebrtcSession() { delete impl_; }
 
-WebrtcSession::WebrtcSession(WebrtcSession&& other) noexcept
-    : impl_(other.impl_) {
-    other.impl_ = nullptr;
-}
+WebrtcSession::WebrtcSession(WebrtcSession&& other) noexcept : impl_(other.impl_) { other.impl_ = nullptr; }
 
 WebrtcSession& WebrtcSession::operator=(WebrtcSession&& other) noexcept {
     if (this != &other) {
@@ -361,9 +350,7 @@ bool WebrtcSession::configure(const SessionCallbacks& cb, void* factory) {
     return impl_ && impl_->configure(cb, factory);
 }
 
-bool WebrtcSession::setRemoteOffer(const std::string& sdp) {
-    return impl_ && impl_->setRemoteOffer(sdp);
-}
+bool WebrtcSession::setRemoteOffer(const std::string& sdp) { return impl_ && impl_->setRemoteOffer(sdp); }
 
 bool WebrtcSession::addRemoteIce(const std::string& candidate) {
     return impl_ && impl_->addRemoteIce(candidate);
@@ -373,8 +360,7 @@ void WebrtcSession::pushLocalAudio(const float* samples, size_t n, int rate) {
     if (impl_) impl_->pushLocalAudio(samples, n, rate);
 }
 
-void WebrtcSession::pushLocalVideo(const uint8_t* pixels, size_t bytes, int w,
-                                   int h) {
+void WebrtcSession::pushLocalVideo(const uint8_t* pixels, size_t bytes, int w, int h) {
     if (impl_) impl_->pushLocalVideo(pixels, bytes, w, h);
 }
 
@@ -386,29 +372,20 @@ void WebrtcSession::close() {
 
 int WebrtcSession::slot() const { return impl_ ? impl_->slot : 0; }
 
-uint64_t WebrtcSession::localAudioBlocks() const {
-    return impl_ ? impl_->localAudioBlocks() : 0;
-}
+uint64_t WebrtcSession::localAudioBlocks() const { return impl_ ? impl_->localAudioBlocks() : 0; }
 
-uint64_t WebrtcSession::localVideoFrames() const {
-    return impl_ ? impl_->localVideoFrames() : 0;
-}
+uint64_t WebrtcSession::localVideoFrames() const { return impl_ ? impl_->localVideoFrames() : 0; }
 
 // ============================================================================
 // WebrtcHub
 // ============================================================================
-WebrtcHub::WebrtcHub(int guests, int videoW, int videoH, int audioRate,
-                     int audioChannels)
-    : guests_(guests),
-      videoW_(videoW),
-      videoH_(videoH),
-      audioRate_(audioRate),
+WebrtcHub::WebrtcHub(int guests, int videoW, int videoH, int audioRate, int audioChannels)
+    : guests_(guests), videoW_(videoW), videoH_(videoH), audioRate_(audioRate),
       audioChannels_(audioChannels) {
     // Indice 0 reservado; las sesiones viven en 1..guests.
     sessions_.resize(static_cast<size_t>(guests) + 1);
     for (int s = 1; s <= guests; ++s) {
-        sessions_[static_cast<size_t>(s)] =
-            WebrtcSession(s, videoW, videoH, audioRate, audioChannels);
+        sessions_[static_cast<size_t>(s)] = WebrtcSession(s, videoW, videoH, audioRate, audioChannels);
     }
 #if BA_GATEWAY_HAVE_WEBRTC
     // VERIFY: crear la webrtc::PeerConnectionFactory compartida (con las
@@ -432,7 +409,8 @@ WebrtcSession* WebrtcHub::session(int slot) {
 }
 
 void WebrtcHub::closeAll() {
-    for (auto& s : sessions_) s.close();
+    for (auto& s : sessions_)
+        s.close();
 }
 
 } // namespace ba::gateway

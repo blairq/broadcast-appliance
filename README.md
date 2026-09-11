@@ -131,6 +131,49 @@ Queda por hacer:
 
 ---
 
+## Requisitos de build
+
+Todo lo que hay que tener instalado para compilar, probar y linterizar el
+repo. Las **dependencias de código** (mbedTLS, nlohmann, libsamplerate, Argon2,
+VST3 SDK, libobs, Qt, CEF, libwebrtc, cloudflared) NO se instalan a mano: el
+build las trae por `FetchContent` (self-contained) en la versión fijada en
+[`versions.cmake`](versions.cmake). Lo de esta sección es la **toolchain** del
+host.
+
+### Herramientas obligatorias
+
+| Herramienta | Mínimo | Notas |
+|---|---|---|
+| **CMake** | 3.21 | `cmake_minimum_required(VERSION 3.21)` en el CMakeLists raíz. |
+| **Compilador C++20** | gcc ≥ 13 / clang ≥ 15 / MSVC 2022 | C++20 obligatorio en todo el árbol. En Linux nativo: `g++` (gcc). |
+| **GNU Make** | 3.81 | El [`Makefile`](Makefile) envuelve a CMake. |
+| **git** | — | `FetchContent` baja las deps por git; se necesita en el PATH. |
+
+> **Referencia de este host** (Ubuntu 24.04 / noble, donde el verde está
+> verificado): gcc/g++ 13.3.0, CMake 3.28.3, GNU Make 4.3, git 2.43.0.
+
+### Herramientas por tarea (opcionales según lo que hagas)
+
+| Tarea | Herramienta | Cómo se obtiene |
+|---|---|---|
+| **Lint** (`make lint`) | `clang-format` | `sudo apt install clang-format` (noble → 18.1.3). El Makefile usa el binario de la distro y **no descarga nada**; si no está, `make lint` falla con un mensaje claro. La versión esperada queda fijada en `versions.cmake` (`CLANG_FORMAT_VERSION`) y CI la aserta. |
+| **Suite Python** (`pytest`) | Python ≥ 3.10 + `venv` | `.venv` local (nunca global) con [`requirements-dev.txt`](requirements-dev.txt) (pytest). |
+| **Docs** (`make docs`) | Python + Sphinx + sphinx-rtd-theme | Se instala en el `.venv` desde `docs/requirements.txt`. |
+| **Caché de build** (acelera) | `ccache` | Opcional: si está en el PATH, CMake lo usa como launcher de C/C++ automáticamente. |
+| **Cross Windows** (`make win`) | MinGW-w64 (`x86_64-w64-mingw32-g++`) | Opcional: solo para cross-compilar a Windows desde Linux. |
+
+### Reglas del entorno de desarrollo
+
+- **Sin instalaciones globales**: las deps de Python van en un venv local
+  (`.venv/`); las de C++ las trae `FetchContent` dentro del árbol de build.
+  `clang-format` y `ccache` son las únicas herramientas del sistema que se
+  asumen instaladas por apt.
+- **C++20** obligatorio; el build falla si el compilador no lo soporta.
+- El build es **self-contained**: no hay `Dockerfile` ni `.devcontainer`;
+  basta el toolchain de la tabla anterior.
+
+---
+
 ## Compilación
 
 El build es **CMake** (C++20, self-contained vía `FetchContent`); el
@@ -315,7 +358,7 @@ El flujo de desarrollo se basa en CMake + el `Makefile`:
 ```bash
 make dev      # build de desarrollo (Debug)
 make test     # corre ctest (18 tests de ba_core)
-make lint     # clang-format sobre src/ (si existe)
+make lint     # clang-format sobre src/ (requiere clang-format en el sistema)
 ```
 
 Para la suite de invariantes del repositorio (Python):

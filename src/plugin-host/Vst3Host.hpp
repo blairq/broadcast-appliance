@@ -102,7 +102,7 @@ std::vector<BundleInfo> scanDirectory(const std::string& root);
 /// el Proceso A); load/unload/reset/attachEditor son control path y solo se
 /// llaman con el plugin sin procesar.
 class Vst3Host {
-public:
+   public:
     Vst3Host() = default;
     ~Vst3Host();
 
@@ -145,7 +145,7 @@ public:
     /// true si hay un plugin cargado (processor != nullptr).
     bool isLoaded() const;
 
-private:
+   private:
     // Estado del plugin cargado. En el stub no-Windows estos punteros no se
     // usan (los tipos del SDK no se incluyen fuera de _WIN32).
     struct Impl;

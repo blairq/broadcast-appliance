@@ -24,9 +24,8 @@ int findNodeIndex(const std::string& id, const std::vector<DevNode>& nodes) {
 
 } // namespace
 
-bool DeviceIdentityResolver::resolveUsbAncestor(
-    const std::string& startNodeId, const std::vector<DevNode>& nodes,
-    DevNode& outUsb) const {
+bool DeviceIdentityResolver::resolveUsbAncestor(const std::string& startNodeId,
+                                                const std::vector<DevNode>& nodes, DevNode& outUsb) const {
     // Tabla vacia o id inicial desconocido: fallo.
     if (nodes.empty()) {
         return false;

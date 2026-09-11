@@ -29,22 +29,22 @@
 #include "ChildProcess.hpp"
 #include "ControlChannel.hpp"
 #include "Integrity.hpp"
-#include "RecoveryUi.hpp"
 #include "ipc/HealthBlock.hpp"
+#include "RecoveryUi.hpp"
 
 namespace ba::launcher {
 
 /// Supervisor de los procesos A (app) y B (gateway).
 class Supervisor {
-public:
+   public:
     /// Configuracion del supervisor.
     struct Config {
-        std::wstring root;        // raiz del disco (GetModuleFileNameW).
-        std::wstring appExe;      // bin/64bit/ba-app.exe.
-        std::wstring gatewayExe;  // bin/64bit/ba-gateway.exe.
-        std::wstring logsDir;     // Logs/ (para dumps).
-        std::uint32_t slotA = 1;  // slot de A en BA.Health.
-        std::uint32_t slotB = 0;  // slot de B en BA.Health.
+        std::wstring root;       // raiz del disco (GetModuleFileNameW).
+        std::wstring appExe;     // bin/64bit/ba-app.exe.
+        std::wstring gatewayExe; // bin/64bit/ba-gateway.exe.
+        std::wstring logsDir;    // Logs/ (para dumps).
+        std::uint32_t slotA = 1; // slot de A en BA.Health.
+        std::uint32_t slotB = 0; // slot de B en BA.Health.
     };
 
     explicit Supervisor(Config cfg);
@@ -55,21 +55,21 @@ public:
     /// :returns: codigo de salida del proceso.
     int run();
 
-private:
+   private:
     // --- Ciclo de vida ------------------------------------------------------
-    bool acquireInstance();      // mutex Local\BroadcastAppliance.Instance.
+    bool acquireInstance(); // mutex Local\BroadcastAppliance.Instance.
     void releaseInstance();
-    void setupErrorMode();       // SetErrorMode (spec 3.1.4).
+    void setupErrorMode();             // SetErrorMode (spec 3.1.4).
     IntegrityReport verifyIntegrity(); // manifest.json SHA-256 (spec 3.1.2).
 
     // --- Hijos --------------------------------------------------------------
     void launchChildren(bool safeMode);
-    void launchOne(std::uint32_t slot, ChildProcess& child, const std::wstring& exe,
-                   const std::wstring& name, bool safeMode);
+    void launchOne(std::uint32_t slot, ChildProcess& child, const std::wstring& exe, const std::wstring& name,
+                   bool safeMode);
     void relaunch(bool isA);
-    void restartChild(bool isA);   // backoff + relaunch (comun a crash/hang).
+    void restartChild(bool isA); // backoff + relaunch (comun a crash/hang).
     void handleCrash(bool isA);
-    void handleHang(bool isA);     // minidump + terminate + restart.
+    void handleHang(bool isA); // minidump + terminate + restart.
 
     // --- Recuperacion (UI) --------------------------------------------------
     // Muestra la UI de recuperacion con el estado actual de los hijos y la
@@ -90,14 +90,14 @@ private:
     ba::ipc::HealthBlock health_;
     ControlChannel control_;
 
-    void* hInstance_ = nullptr;   // HANDLE del mutex de instancia (Win32).
+    void* hInstance_ = nullptr; // HANDLE del mutex de instancia (Win32).
     bool shuttingDown_ = false;
 
     // Politica de reinicio (spec 3.1.8).
-    int appConsecutive_ = 0;      // reinicios consecutivos de A (para backoff).
+    int appConsecutive_ = 0; // reinicios consecutivos de A (para backoff).
     int bConsecutive_ = 0;
-    bool appNeedsRestore_ = false; // A relanzado tras crash arranca con --restore.
-    bool safeMode_ = false;        // circuit breaker: >5 crashes de A en 2 min.
+    bool appNeedsRestore_ = false;             // A relanzado tras crash arranca con --restore.
+    bool safeMode_ = false;                    // circuit breaker: >5 crashes de A en 2 min.
     std::vector<std::uint64_t> appCrashTimes_; // epoch ms, para el circuit breaker.
 
     // Cache del reporte de integridad para la UI de recuperacion (evita

@@ -25,8 +25,8 @@
 
 #include "Automixer.hpp"
 
-#include <cmath>
 #include <algorithm>
+#include <cmath>
 
 namespace ba::dsp {
 
@@ -86,8 +86,7 @@ float Automixer::attenuationForOpenCount(int openCount) const {
     if (openCount <= maxOpenMics_) {
         return 1.0f;
     }
-    double a = targetSummedGain_ * static_cast<double>(maxOpenMics_) /
-               static_cast<double>(openCount);
+    double a = targetSummedGain_ * static_cast<double>(maxOpenMics_) / static_cast<double>(openCount);
     if (a < 0.0) {
         a = 0.0;
     }
@@ -151,9 +150,7 @@ void Automixer::reset() {
     attenuationTarget_ = 1.0f;
 }
 
-int Automixer::maxChannels() const {
-    return maxChannels_;
-}
+int Automixer::maxChannels() const { return maxChannels_; }
 
 void Automixer::setLevel(int ch, float level) {
     if (ch < 0 || ch >= maxChannels_) {
@@ -184,8 +181,7 @@ void Automixer::setLevel(int ch, float level) {
     // El tiempo se mide en ticks de setLevel() (proxy de muestra). holdTicks es
     // la ventana de hold (ms) expresada en ticks.
     const long long tick = tick_.fetch_add(1);
-    const long long holdTicks = static_cast<long long>(
-        (holdMs_ / 1000.0) * fs_ + 0.5);
+    const long long holdTicks = static_cast<long long>((holdMs_ / 1000.0) * fs_ + 0.5);
     const double thrLin = dbToLin(openThresholdDb_);
     if (next > static_cast<float>(thrLin)) {
         // El canal esta abierto: refresca la ventana de hold (se extiende
@@ -200,8 +196,7 @@ void Automixer::setLevel(int ch, float level) {
     // el objetivo con un one-pole (smoothMs) para no producir clicks.
     int openCount = 0;
     for (int i = 0; i < maxChannels_; ++i) {
-        if (env_[static_cast<std::size_t>(i)].load() >
-            static_cast<float>(thrLin)) {
+        if (env_[static_cast<std::size_t>(i)].load() > static_cast<float>(thrLin)) {
             ++openCount;
         }
     }

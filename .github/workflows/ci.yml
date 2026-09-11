@@ -153,6 +153,52 @@ jobs:
           echo "Los 5 artefactos de producto existen."
 
   # ==========================================================================
+  # JOB 4 — LINT: formato de código con clang-format
+  # ==========================================================================
+  # El formato solo es determinista si el binario de clang-format es
+  # EXACTAMENTE el mismo en CI y en dev. Para eso la versión va FIJADA en
+  # versions.cmake (CLANG_FORMAT_VERSION) y este job corre con `runs-on`
+  # FIJADO a ubuntu-24.04 (noble): ahí `apt install clang-format-18` da
+  # exactamente esa versión (la misma que se instala en el host de dev). Si
+  # `ubuntu-latest` cambia de distro en el futuro, el pin de `runs-on`
+  # mantiene la versión estable.
+  lint:
+    name: "Lint (clang-format, apt)"
+    runs-on: ubuntu-24.04
+
+    steps:
+      # --- Checkout del código ---------------------------------------------
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # --- clang-format por apt (versión fijada) ----------------------------
+      # `clang-format-18` es el paquete versionado de noble (18.1.3). El
+      # symlink en /usr/local/bin deja `clang-format` en el PATH para que
+      # `make lint` lo encuentre sin cambios.
+      - name: Install clang-format (apt)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format-18
+          ln -sf /usr/bin/clang-format-18 /usr/local/bin/clang-format
+          clang-format --version
+
+      # --- Asertar la versión fijada ----------------------------------------
+      # Si noble cambia la versión del paquete, el job falla aquí (no con un
+      # diff de formato misterioso).
+      - name: Assert pinned version
+        run: |
+          want="$(sed -n 's/^set(CLANG_FORMAT_VERSION //p' versions.cmake | tr -d '"' | cut -d' ' -f1)"
+          clang-format --version | grep -q "$want" \
+            || { echo "clang-format no es la versión fijada ($want)" >&2; exit 1; }
+
+      # --- Lint (make lint) --------------------------------------------------
+      # El target del Makefile corre `clang-format --dry-run -Werror` sobre
+      # src/ con el .clang-format del repo. Si hay diffs, el job falla y el
+      # log muestra los archivos.
+      - name: Lint (make lint)
+        run: make lint
+
+  # ==========================================================================
   # JOB 3 — RELEASE: empaquetado portable (solo en tags)
   # ==========================================================================
   # Corre solo cuando el ref es una tag (refs/tags/*) y depende de que el

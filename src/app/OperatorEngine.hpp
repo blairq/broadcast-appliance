@@ -67,9 +67,9 @@ namespace ba::app {
 /// estable y coincide con el orden de los `QComboBox` de la UI: 0=Podio,
 /// 1=Lavalier, 2=De mano.
 enum class ChannelPreset : int {
-    kPodium = 0,     // presetPodium()    — atril / cuello de cisne.
-    kLavalier = 1,   // presetLavalier()  — corbetero / lavalier.
-    kHandheld = 2,   // presetHandheld()  — micrófono de mano.
+    kPodium = 0,   // presetPodium()    — atril / cuello de cisne.
+    kLavalier = 1, // presetLavalier()  — corbetero / lavalier.
+    kHandheld = 2, // presetHandheld()  — micrófono de mano.
 };
 
 /// Número de canales de micrófono que gestiona el operador (spec 7: tres
@@ -114,7 +114,7 @@ inline constexpr std::uint32_t kAppProtocolVersion = 2;
 ///   devuelve los bytes pendientes o 0 si no hay (EOF lógico: el loopback
 ///   nunca "se cierra", así que <0 no se produce).
 class LoopbackDuplex : public ba::ipc::DuplexStream {
-public:
+   public:
     /// Escribe `len` bytes a `data` en el buffer de salida (para el lector).
     ///
     /// :param data: bytes a escribir.
@@ -129,7 +129,7 @@ public:
     /// :returns: bytes leídos (>0) o 0 si no hay bytes pendientes.
     int read(std::uint8_t* buf, std::size_t cap) override;
 
-private:
+   private:
     std::vector<std::uint8_t> outBuf_;
     std::size_t outPos_ = 0;
 };
@@ -141,7 +141,7 @@ private:
 /// crean y lo operan desde su thread de control. Move-only por los objetos
 /// IPC/persistencia de `ba_core` (son move-only).
 class OperatorEngine {
-public:
+   public:
     /// Construye el motor en estado inicial (sin recursos IPC abiertos).
     /// Llamar a `init()` para abrirlos.
     OperatorEngine();
@@ -282,7 +282,7 @@ public:
     /// Último código de error (0 = ok; negativo = ErrorCode de ba_core).
     int lastError() const { return lastError_; }
 
-private:
+   private:
     /// Traduce un `ChannelPreset` a su `StripParams` de fábrica.
     ///
     /// :param preset: preset a resolver.
@@ -300,8 +300,8 @@ private:
     ba::dsp::Automixer automixer_;
 
     // --- Canal IPC hacia invitados (spec §4) --------------------------------
-    ba::ipc::SharedAudioRing guestRing_;   // lector del audio de invitados
-    ba::ipc::HealthBlock health_;          // beat (slot de A) + lectura (watchdog)
+    ba::ipc::SharedAudioRing guestRing_; // lector del audio de invitados
+    ba::ipc::HealthBlock health_;        // beat (slot de A) + lectura (watchdog)
     // ControlEndpoint sobre el loopback: en unique_ptr porque ControlEndpoint
     // NO es movible (guarda un `DuplexStream&`) y su vida se alinea con la del
     // motor. `loopback_` debe declararse ANTES para que siga vivo cuando el

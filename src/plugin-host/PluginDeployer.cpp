@@ -50,12 +50,10 @@ bool isVst3BundleDir(const std::filesystem::path& p) {
 
 } // namespace
 
-DeployResult PluginDeployer::deploy(const std::string& sourceDir,
-                                    const std::string& installDir) {
+DeployResult PluginDeployer::deploy(const std::string& sourceDir, const std::string& installDir) {
     DeployResult result;
     result.copied = 0;
-    result.manifestPath =
-        (std::filesystem::path(installDir) / "manifest.json").string();
+    result.manifestPath = (std::filesystem::path(installDir) / "manifest.json").string();
 
     std::error_code ec;
 
@@ -66,8 +64,7 @@ DeployResult PluginDeployer::deploy(const std::string& sourceDir,
     const std::filesystem::path srcRoot(sourceDir);
     const std::filesystem::path dstRoot(installDir);
     if (std::filesystem::is_directory(srcRoot, ec) && !ec) {
-        for (const auto& entry :
-             std::filesystem::directory_iterator(srcRoot, ec)) {
+        for (const auto& entry : std::filesystem::directory_iterator(srcRoot, ec)) {
             if (ec) {
                 ec.clear();
                 continue;
@@ -82,24 +79,19 @@ DeployResult PluginDeployer::deploy(const std::string& sourceDir,
             // de nuevo el bundle completo.
             std::error_code rec;
             std::filesystem::remove_all(dst, rec);
-            std::filesystem::copy(
-                bundle, dst,
-                std::filesystem::copy_options::recursive |
-                    std::filesystem::copy_options::overwrite_existing,
-                ec);
+            std::filesystem::copy(bundle, dst,
+                                  std::filesystem::copy_options::recursive |
+                                      std::filesystem::copy_options::overwrite_existing,
+                                  ec);
             if (ec) {
-                std::fprintf(stderr,
-                             "[ba_plugin_host] deploy: fallo copiando %s\n",
-                             bundle.string().c_str());
+                std::fprintf(stderr, "[ba_plugin_host] deploy: fallo copiando %s\n", bundle.string().c_str());
                 ec.clear();
                 continue; // no contar este bundle.
             }
             ++result.copied;
         }
     } else if (ec) {
-        std::fprintf(stderr,
-                     "[ba_plugin_host] deploy: no se pudo leer sourceDir=%s\n",
-                     sourceDir.c_str());
+        std::fprintf(stderr, "[ba_plugin_host] deploy: no se pudo leer sourceDir=%s\n", sourceDir.c_str());
         ec.clear();
     }
 
@@ -119,8 +111,7 @@ DeployResult PluginDeployer::deploy(const std::string& sourceDir,
         if (out) {
             out << arr.dump(2) << "\n";
         } else {
-            std::fprintf(stderr,
-                         "[ba_plugin_host] deploy: no se pudo escribir %s\n",
+            std::fprintf(stderr, "[ba_plugin_host] deploy: no se pudo escribir %s\n",
                          result.manifestPath.c_str());
         }
     }

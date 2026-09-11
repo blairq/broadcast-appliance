@@ -36,19 +36,19 @@ namespace {
 
 int g_failures = 0;
 
-#define CHECK(cond)                                                            \
-    do {                                                                       \
-        if (!(cond)) {                                                         \
-            std::printf("FALLO: %s (linea %d)\n", #cond, __LINE__);            \
-            ++g_failures;                                                      \
-        }                                                                      \
+#define CHECK(cond)                                                                                          \
+    do {                                                                                                     \
+        if (!(cond)) {                                                                                       \
+            std::printf("FALLO: %s (linea %d)\n", #cond, __LINE__);                                          \
+            ++g_failures;                                                                                    \
+        }                                                                                                    \
     } while (0)
 
 // Duplex en memoria: una cola de bytes por lado, cableados cruzados. Sirve de
 // transporte para las pruebas sin dependencias. `write` de una instancia entra
 // a la cola `rx_` de la otra; `read` consume de la cola propia.
 class MemoryDuplex final : public DuplexStream {
-public:
+   public:
     // Cablea dos instancias: lo que una escribe entra a la cola de la otra.
     void wireTo(MemoryDuplex& peer) {
         peer_ = &peer;
@@ -84,7 +84,7 @@ public:
     // Cierra el lado: los reads posteriores devuelven 0 (EOF).
     void close() { open_ = false; }
 
-private:
+   private:
     std::vector<std::uint8_t> rx_;
     MemoryDuplex* peer_ = nullptr;
     bool open_ = true;
@@ -92,8 +92,7 @@ private:
 
 // 1) Round-trip de frame: prefijo LE + payload.
 void testFrameRoundTrip() {
-    const std::string json =
-        "{\"protocolVersion\":1,\"id\":7,\"type\":\"hello\",\"payload\":{}}";
+    const std::string json = "{\"protocolVersion\":1,\"id\":7,\"type\":\"hello\",\"payload\":{}}";
 
     const std::vector<std::uint8_t> frame = Frame::encodeFrame(json);
     // Prefijo LE de 4 bytes + payload.
@@ -118,8 +117,7 @@ void testFrameRoundTrip() {
     CHECK(consumed2 == 123); // sin modificar en fallo
 
     // Prefijo + parte del payload -> frame parcial -> false.
-    const bool partialOk =
-        Frame::decodeFrame(frame.data(), 4 + json.size() / 2, out2, consumed2);
+    const bool partialOk = Frame::decodeFrame(frame.data(), 4 + json.size() / 2, out2, consumed2);
     CHECK(!partialOk);
 
     // Menos de 4 bytes -> false.
@@ -150,9 +148,8 @@ void testMessageRoundTrip() {
     Message bad;
     CHECK(!Message::fromJson("no es json", bad));
     CHECK(!Message::fromJson("{\"id\":1}", bad)); // falta type
-    CHECK(!Message::fromJson(
-        "{\"protocolVersion\":1,\"id\":1,\"type\":\"noExiste\",\"payload\":{}}",
-        bad)); // type desconocido
+    CHECK(!Message::fromJson("{\"protocolVersion\":1,\"id\":1,\"type\":\"noExiste\",\"payload\":{}}",
+                             bad)); // type desconocido
 }
 
 // 3) Request/response sobre un duplex en memoria.

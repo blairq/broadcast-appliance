@@ -18,11 +18,11 @@
 #include <vector>
 
 #if defined(_WIN32)
-#    define WIN32_LEAN_AND_MEAN
-#    include <windows.h>
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 #else
-#    include <sys/mman.h>
-#    include <unistd.h>
+#include <sys/mman.h>
+#include <unistd.h>
 #endif
 
 namespace ba::ipc {
@@ -52,15 +52,13 @@ bool buildCurrentUserDacl(SECURITY_ATTRIBUTES& sa) {
         return false;
     }
     CloseHandle(tokenHandle);
-    const PSID userSid =
-        const_cast<PSID>(reinterpret_cast<const TOKEN_USER*>(buf.data())->User.Sid);
+    const PSID userSid = const_cast<PSID>(reinterpret_cast<const TOKEN_USER*>(buf.data())->User.Sid);
 
     // Tamano conservador para SD + DACL + 1 ACE + SID del usuario.
     // Nota MinGW: el SDK de MSVC define `SECDACL` (un envoltorio de `ACL`), pero
     // los headers de MinGW no lo exponen. Como `sizeof(SECDACL) == sizeof(ACL)`,
     // se usa `ACL` directamente: el tamano resultante es identico.
-    const DWORD sdSize = sizeof(ACL) + sizeof(ACL) + sizeof(ACCESS_ALLOWED_ACE) +
-                         GetLengthSid(userSid);
+    const DWORD sdSize = sizeof(ACL) + sizeof(ACL) + sizeof(ACCESS_ALLOWED_ACE) + GetLengthSid(userSid);
     PSECURITY_DESCRIPTOR sd = static_cast<PSECURITY_DESCRIPTOR>(LocalAlloc(LPTR, sdSize));
     if (sd == nullptr) {
         return false;
@@ -116,8 +114,7 @@ struct SharedMemoryRegion::Impl {
     }
 };
 
-Status SharedMemoryRegion::create(const wchar_t* name, size_t bytes,
-                                  SharedMemoryRegion& out) {
+Status SharedMemoryRegion::create(const wchar_t* name, size_t bytes, SharedMemoryRegion& out) {
     if (name == nullptr || bytes == 0) {
         return Status::fail(static_cast<int>(ErrorCode::kInvalidArgument));
     }
@@ -135,19 +132,17 @@ Status SharedMemoryRegion::create(const wchar_t* name, size_t bytes,
     SECURITY_ATTRIBUTES sa;
     if (detail::buildCurrentUserDacl(sa)) {
         impl->sd = static_cast<PSECURITY_DESCRIPTOR>(sa.lpSecurityDescriptor);
-        impl->mapping = CreateFileMappingW(INVALID_HANDLE_VALUE, &sa, PAGE_READWRITE,
-                                           static_cast<DWORD>(bytes >> 32),
-                                           static_cast<DWORD>(bytes & 0xFFFFFFFF),
-                                           full.c_str());
+        impl->mapping =
+            CreateFileMappingW(INVALID_HANDLE_VALUE, &sa, PAGE_READWRITE, static_cast<DWORD>(bytes >> 32),
+                               static_cast<DWORD>(bytes & 0xFFFFFFFF), full.c_str());
         if (impl->mapping == nullptr && GetLastError() == ERROR_ALREADY_EXISTS) {
             impl->mapping = OpenFileMappingW(FILE_MAP_ALL_ACCESS, FALSE, full.c_str());
         }
     } else {
         // Sin DACL (raro): seguimos con el acceso por defecto.
-        impl->mapping = CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE,
-                                           static_cast<DWORD>(bytes >> 32),
-                                           static_cast<DWORD>(bytes & 0xFFFFFFFF),
-                                           full.c_str());
+        impl->mapping =
+            CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, static_cast<DWORD>(bytes >> 32),
+                               static_cast<DWORD>(bytes & 0xFFFFFFFF), full.c_str());
     }
 
     if (impl->mapping == nullptr) {
@@ -238,8 +233,7 @@ struct SharedMemoryRegion::Impl {
     }
 };
 
-Status SharedMemoryRegion::create(const wchar_t* name, size_t bytes,
-                                  SharedMemoryRegion& out) {
+Status SharedMemoryRegion::create(const wchar_t* name, size_t bytes, SharedMemoryRegion& out) {
     if (name == nullptr || bytes == 0) {
         return Status::fail(static_cast<int>(ErrorCode::kInvalidArgument));
     }
@@ -247,8 +241,7 @@ Status SharedMemoryRegion::create(const wchar_t* name, size_t bytes,
         return Status::fail(static_cast<int>(ErrorCode::kAlreadyMapped));
     }
 
-    void* addr = mmap(nullptr, bytes, PROT_READ | PROT_WRITE,
-                      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    void* addr = mmap(nullptr, bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (addr == MAP_FAILED) {
         return Status::fail(static_cast<int>(ErrorCode::kOutOfMemory));
     }
@@ -300,8 +293,7 @@ Status SharedMemoryRegion::open(const wchar_t* name, SharedMemoryRegion& out) {
 
 SharedMemoryRegion::~SharedMemoryRegion() { close(); }
 
-SharedMemoryRegion::SharedMemoryRegion(SharedMemoryRegion&& other) noexcept
-    : impl_(other.impl_) {
+SharedMemoryRegion::SharedMemoryRegion(SharedMemoryRegion&& other) noexcept : impl_(other.impl_) {
     other.impl_ = nullptr;
 }
 
@@ -314,17 +306,11 @@ SharedMemoryRegion& SharedMemoryRegion::operator=(SharedMemoryRegion&& other) no
     return *this;
 }
 
-void* SharedMemoryRegion::data() const {
-    return impl_ ? impl_->viewPtr() : nullptr;
-}
+void* SharedMemoryRegion::data() const { return impl_ ? impl_->viewPtr() : nullptr; }
 
-size_t SharedMemoryRegion::size() const {
-    return impl_ ? impl_->size : 0;
-}
+size_t SharedMemoryRegion::size() const { return impl_ ? impl_->size : 0; }
 
-bool SharedMemoryRegion::valid() const {
-    return impl_ != nullptr && impl_->viewPtr() != nullptr;
-}
+bool SharedMemoryRegion::valid() const { return impl_ != nullptr && impl_->viewPtr() != nullptr; }
 
 void SharedMemoryRegion::close() {
     if (impl_ == nullptr) {

@@ -31,12 +31,12 @@ namespace {
 
 int g_failures = 0;
 
-#define CHECK(cond)                                                            \
-    do {                                                                       \
-        if (!(cond)) {                                                         \
-            std::printf("FALLO: %s (linea %d)\n", #cond, __LINE__);            \
-            ++g_failures;                                                      \
-        }                                                                      \
+#define CHECK(cond)                                                                                          \
+    do {                                                                                                     \
+        if (!(cond)) {                                                                                       \
+            std::printf("FALLO: %s (linea %d)\n", #cond, __LINE__);                                          \
+            ++g_failures;                                                                                    \
+        }                                                                                                    \
     } while (0)
 
 // 1) beat() -> read() devuelve Running + timestamp reciente.
@@ -122,9 +122,9 @@ void testSlotsIndependent() {
     block.beat(1);
     CHECK(block.read(1).state == ProcessState::Running);
     CHECK(block.read(0).state == ProcessState::Running); // intacto
-    CHECK(block.read(2).state == ProcessState::Hung);     // intacto
-    CHECK(block.read(0).pid == 100);                      // pid intacto
-    CHECK(block.read(1).pid == 200);                      // beat preserva pid
+    CHECK(block.read(2).state == ProcessState::Hung);    // intacto
+    CHECK(block.read(0).pid == 100);                     // pid intacto
+    CHECK(block.read(1).pid == 200);                     // beat preserva pid
 
     // isStale por slot es independiente: solo el que no latio es estancado.
     const std::uint64_t beat1 = block.read(1).lastBeatQpc;

@@ -41,12 +41,12 @@ namespace {
 
 int g_failures = 0;
 
-#define CHECK(cond)                                                            \
-    do {                                                                       \
-        if (!(cond)) {                                                         \
-            std::printf("FALLO: %s (linea %d)\n", #cond, __LINE__);            \
-            ++g_failures;                                                      \
-        }                                                                      \
+#define CHECK(cond)                                                                                          \
+    do {                                                                                                     \
+        if (!(cond)) {                                                                                       \
+            std::printf("FALLO: %s (linea %d)\n", #cond, __LINE__);                                          \
+            ++g_failures;                                                                                    \
+        }                                                                                                    \
     } while (0)
 
 // --- helpers ----------------------------------------------------------------
@@ -57,8 +57,7 @@ bool readFileAll(const std::string& path, std::string& out) {
     if (!in) {
         return false;
     }
-    std::string s((std::istreambuf_iterator<char>(in)),
-                  std::istreambuf_iterator<char>());
+    std::string s((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
     out = s;
     return true;
 }
@@ -110,16 +109,13 @@ void testArmDiskFullAndFire() {
 // --- 2) arm(ChecksumMismatch) -> copia con un byte alterado -----------------
 
 void testChecksumMismatchProducesCorruptedCopy() {
-    const std::string src =
-        (std::filesystem::temp_directory_path() / "ba_fault_src.bin").string();
-    const std::string dst =
-        (std::filesystem::temp_directory_path() / "ba_fault_dst.bin").string();
+    const std::string src = (std::filesystem::temp_directory_path() / "ba_fault_src.bin").string();
+    const std::string dst = (std::filesystem::temp_directory_path() / "ba_fault_dst.bin").string();
 
     // Contenido de prueba con bytes variados (incluye 0x00 y 0xFF para que el
     // XOR 0x01 siempre cambie el primer byte).
     const std::string content =
-        std::string("\x00\x01\x02\xFF\x10\x20\x30\x40", 8) +
-        "legis-studio-fault-injection-checksum-mismatch";
+        std::string("\x00\x01\x02\xFF\x10\x20\x30\x40", 8) + "legis-studio-fault-injection-checksum-mismatch";
 
     CHECK(writeFileAll(src, content));
 
@@ -175,13 +171,10 @@ void testFireWithoutFault() {
 // --- 5) writeWithFault con None armado -> copia EXACTA ----------------------
 
 void testWriteWithFaultNoneIsExactCopy() {
-    const std::string src =
-        (std::filesystem::temp_directory_path() / "ba_fault_src2.bin").string();
-    const std::string dst =
-        (std::filesystem::temp_directory_path() / "ba_fault_dst2.bin").string();
+    const std::string src = (std::filesystem::temp_directory_path() / "ba_fault_src2.bin").string();
+    const std::string dst = (std::filesystem::temp_directory_path() / "ba_fault_dst2.bin").string();
 
-    const std::string content =
-        "legis-studio-fault-injection-exact-copy\x00\xFF";
+    const std::string content = "legis-studio-fault-injection-exact-copy\x00\xFF";
     CHECK(writeFileAll(src, content));
 
     FaultInjector inj;
@@ -203,10 +196,8 @@ void testWriteWithFaultNoneIsExactCopy() {
 // (Solo ChecksumMismatch altera bytes; p. ej. Timeout no debe corromper.)
 
 void testWriteWithFaultOtherKindIsExactCopy() {
-    const std::string src =
-        (std::filesystem::temp_directory_path() / "ba_fault_src3.bin").string();
-    const std::string dst =
-        (std::filesystem::temp_directory_path() / "ba_fault_dst3.bin").string();
+    const std::string src = (std::filesystem::temp_directory_path() / "ba_fault_src3.bin").string();
+    const std::string dst = (std::filesystem::temp_directory_path() / "ba_fault_dst3.bin").string();
 
     const std::string content = "legis-studio-fault-injection-timeout-kind";
     CHECK(writeFileAll(src, content));

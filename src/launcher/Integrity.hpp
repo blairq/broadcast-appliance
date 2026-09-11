@@ -29,16 +29,16 @@ namespace ba::launcher {
 
 /// Resultado de la verificacion de integridad.
 struct IntegrityReport {
-    bool ok = true;                       // true si no hubo fallos.
-    std::size_t checked = 0;              // archivos verificados.
-    std::size_t missing = 0;              // archivos ausentes.
-    std::size_t mismatch = 0;             // hashes que no coinciden.
-    std::vector<std::wstring> failures;   // archivos con problema (ausente o mismatch).
+    bool ok = true;                     // true si no hubo fallos.
+    std::size_t checked = 0;            // archivos verificados.
+    std::size_t missing = 0;            // archivos ausentes.
+    std::size_t mismatch = 0;           // hashes que no coinciden.
+    std::vector<std::wstring> failures; // archivos con problema (ausente o mismatch).
 };
 
 /// Verificador de integridad basado en manifest.json (SHA-256).
 class Integrity {
-public:
+   public:
     /// Carga el manifest y verifica los archivos en paralelo.
     ///
     /// :param root: raiz del disco (donde vive manifest.json y los binarios).

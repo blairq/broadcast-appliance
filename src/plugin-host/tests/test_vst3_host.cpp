@@ -68,10 +68,8 @@ int main() {
         check(bundles.size() == 1, "se encontró exactamente un bundle");
         if (bundles.size() == 1) {
             check(bundles[0].name == "Foo", "el bundle se llama \"Foo\"");
-            check(bundles[0].bundlePath == bundle.string(),
-                  "bundlePath apunta al directorio del bundle");
-            check(!bundles[0].dllPath.empty(),
-                  "dllPath no está vacío (Foo.dll resuelto)");
+            check(bundles[0].bundlePath == bundle.string(), "bundlePath apunta al directorio del bundle");
+            check(!bundles[0].dllPath.empty(), "dllPath no está vacío (Foo.dll resuelto)");
         }
 
         std::error_code ec2;
@@ -90,8 +88,7 @@ int main() {
 
     // --- Caso 3: root inexistible => lista vacía (no lanza) -----------------
     {
-        const auto bundles =
-            scanDirectory("/no/existe/para/ba_plugin_host_test");
+        const auto bundles = scanDirectory("/no/existe/para/ba_plugin_host_test");
         check(bundles.empty(), "root inexistible => lista vacía");
     }
 

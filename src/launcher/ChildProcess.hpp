@@ -30,13 +30,13 @@ namespace ba::launcher {
 
 /// Un proceso hijo lanzado por el launcher.
 class ChildProcess {
-public:
+   public:
     /// Parametros de lanzamiento.
     struct Config {
-        std::wstring exePath;   // ruta al .exe (bin/64bit/ba-app.exe, etc.).
-        std::wstring args;      // argumentos de linea (p. ej. L"--restore").
-        std::wstring workDir;   // directorio de trabajo (raiz del disco).
-        std::wstring name;      // nombre logico para logs ("A", "B").
+        std::wstring exePath; // ruta al .exe (bin/64bit/ba-app.exe, etc.).
+        std::wstring args;    // argumentos de linea (p. ej. L"--restore").
+        std::wstring workDir; // directorio de trabajo (raiz del disco).
+        std::wstring name;    // nombre logico para logs ("A", "B").
     };
 
     ChildProcess() = default;
@@ -79,7 +79,7 @@ public:
     /// Libera el handle. Idempotente.
     void close();
 
-private:
+   private:
     void* hProcess_ = nullptr; // HANDLE en Win32; nullptr en no-Win.
     std::uint32_t pid_ = 0;
     std::wstring name_;

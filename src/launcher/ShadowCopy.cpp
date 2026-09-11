@@ -132,8 +132,7 @@ bool copyTree(const fs::path& src, const fs::path& dst) {
     if (!fs::create_directories(dst, ec) && ec) {
         return false;
     }
-    fs::recursive_directory_iterator it(
-        src, fs::directory_options::skip_permission_denied, ec);
+    fs::recursive_directory_iterator it(src, fs::directory_options::skip_permission_denied, ec);
     const fs::recursive_directory_iterator end;
     while (!ec && it != end) {
         const fs::directory_entry& entry = *it;
@@ -151,8 +150,7 @@ bool copyTree(const fs::path& src, const fs::path& dst) {
             if (!fs::create_directories(target.parent_path(), ec2) && ec2) {
                 return false;
             }
-            fs::copy_file(entry.path(), target,
-                          fs::copy_options::overwrite_existing, ec2);
+            fs::copy_file(entry.path(), target, fs::copy_options::overwrite_existing, ec2);
             if (ec2) {
                 return false;
             }
@@ -169,16 +167,14 @@ bool writeMarker(const fs::path& shadowRoot, const std::wstring& versionHash) {
     if (!f) {
         return false;
     }
-    f << "shadow_ok\nhash=" << std::string(versionHash.begin(), versionHash.end())
-      << "\n";
+    f << "shadow_ok\nhash=" << std::string(versionHash.begin(), versionHash.end()) << "\n";
     f.flush();
     return static_cast<bool>(f);
 }
 
 } // namespace
 
-std::wstring ShadowCopy::prepare(const std::wstring& root,
-                                 const std::wstring& versionHash) {
+std::wstring ShadowCopy::prepare(const std::wstring& root, const std::wstring& versionHash) {
     std::wstring tempBaseStr;
     if (!tempBase(tempBaseStr)) {
         BA_LOG_ERROR("shadow", 1,
@@ -187,16 +183,12 @@ std::wstring ShadowCopy::prepare(const std::wstring& root,
         return root;
     }
 
-    const fs::path shadowRoot =
-        toPath(tempBaseStr) / kAppDir / sanitizeHash(versionHash);
+    const fs::path shadowRoot = toPath(tempBaseStr) / kAppDir / sanitizeHash(versionHash);
 
     // Reuso: si ya existe y tiene el marker, la copia es completa y valida.
     std::error_code ec;
-    if (fs::exists(shadowRoot, ec) && !ec &&
-        fs::exists(shadowRoot / kMarkerName, ec) && !ec) {
-        BA_LOG_INFO("shadow", 0,
-                    "copia sombra reutilizada (reused): " +
-                        shadowRoot.string());
+    if (fs::exists(shadowRoot, ec) && !ec && fs::exists(shadowRoot / kMarkerName, ec) && !ec) {
+        BA_LOG_INFO("shadow", 0, "copia sombra reutilizada (reused): " + shadowRoot.string());
         return toString(shadowRoot);
     }
 
@@ -206,8 +198,8 @@ std::wstring ShadowCopy::prepare(const std::wstring& root,
         fs::remove_all(shadowRoot, ec);
         if (ec) {
             BA_LOG_ERROR("shadow", 2,
-                         "no se pudo limpiar la copia sombra a medias: " +
-                             shadowRoot.string() + "; ejecutar desde la raiz");
+                         "no se pudo limpiar la copia sombra a medias: " + shadowRoot.string() +
+                             "; ejecutar desde la raiz");
             return root;
         }
     }
@@ -218,8 +210,8 @@ std::wstring ShadowCopy::prepare(const std::wstring& root,
     for (const char* sub : subdirs) {
         if (!copyTree(rootPath / sub, shadowRoot / sub)) {
             BA_LOG_ERROR("shadow", 3,
-                         "fallo al copiar " + std::string(sub) + " hacia " +
-                             shadowRoot.string() + "; ejecutar desde la raiz");
+                         "fallo al copiar " + std::string(sub) + " hacia " + shadowRoot.string() +
+                             "; ejecutar desde la raiz");
             return root;
         }
     }
@@ -227,13 +219,12 @@ std::wstring ShadowCopy::prepare(const std::wstring& root,
     // El marker va al FINAL: marca la copia como completa y valida.
     if (!writeMarker(shadowRoot, versionHash)) {
         BA_LOG_ERROR("shadow", 4,
-                     "no se pudo escribir el marker .shadow_ok en " +
-                         shadowRoot.string() + "; ejecutar desde la raiz");
+                     "no se pudo escribir el marker .shadow_ok en " + shadowRoot.string() +
+                         "; ejecutar desde la raiz");
         return root;
     }
 
-    BA_LOG_INFO("shadow", 0,
-                "copia sombra creada: " + shadowRoot.string());
+    BA_LOG_INFO("shadow", 0, "copia sombra creada: " + shadowRoot.string());
     return toString(shadowRoot);
 }
 
@@ -248,8 +239,7 @@ void ShadowCopy::cleanup(const std::wstring& shadowRoot) {
     }
     fs::remove_all(p, ec);
     if (ec) {
-        BA_LOG_ERROR("shadow", 5,
-                     "no se pudo borrar la copia sombra: " + p.string());
+        BA_LOG_ERROR("shadow", 5, "no se pudo borrar la copia sombra: " + p.string());
         return;
     }
     BA_LOG_INFO("shadow", 0, "copia sombra eliminada: " + p.string());

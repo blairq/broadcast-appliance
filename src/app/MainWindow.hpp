@@ -56,7 +56,7 @@ namespace ba::app {
 class MainWindow : public QMainWindow {
     Q_OBJECT
 
-public:
+   public:
     /// Construye la ventana y el layout inicial.
     ///
     /// :param engine: motor de operación a reflejar/operar (no se toma la
@@ -66,12 +66,12 @@ public:
     /// Destructor: detiene el timer.
     ~MainWindow() override;
 
-protected:
+   protected:
     /// Al cerrar: `OperatorEngine::shutdown()` (cierre ordenado, spec §11.2)
     /// antes de aceptar el evento.
     void closeEvent(QCloseEvent* event) override;
 
-private slots:
+   private slots:
     /// Cambio de preset en el canal `channel`: `engine.applyPreset()`.
     ///
     /// :param channel: índice de canal (dato del `QComboBox` que emite).
@@ -80,7 +80,7 @@ private slots:
     /// Tick periódico (50 ms): `engine.tick()` + refresco de medidores/estado.
     void onTick();
 
-private:
+   private:
     /// Construye el layout inicial (monitor program + panel de canales).
     void buildUi();
 
@@ -92,14 +92,14 @@ private:
 
     /// Widgets por canal (índice == índice de canal del motor).
     struct ChannelUi {
-        QComboBox* preset = nullptr;    // opciones: Podium/Lavalier/De mano
-        QProgressBar* level = nullptr;  // medidor de nivel (RMS 0..100)
-        QLabel* gain = nullptr;         // ganancia dinámica del automixer (dB)
+        QComboBox* preset = nullptr;   // opciones: Podium/Lavalier/De mano
+        QProgressBar* level = nullptr; // medidor de nivel (RMS 0..100)
+        QLabel* gain = nullptr;        // ganancia dinámica del automixer (dB)
     };
     std::vector<ChannelUi> channels_;
 
-    QLabel* monitorLabel_ = nullptr;  // etiqueta del área de monitor program
-    QLabel* statusLabel_ = nullptr;   // estado IPC/watchdog (barra de estado)
+    QLabel* monitorLabel_ = nullptr; // etiqueta del área de monitor program
+    QLabel* statusLabel_ = nullptr;  // estado IPC/watchdog (barra de estado)
 };
 
 } // namespace ba::app

@@ -51,11 +51,7 @@ namespace ba::dsp {
 ///   - `SincMedium` -> SRC_SINC_MEDIUM_QUALITY: Sinc de calidad media.
 ///   - `SincBest`   -> SRC_SINC_BEST_QUALITY: Sinc de mejor calidad (el
 ///                     default recomendado para audio de difusion).
-enum class Quality {
-    Linear,
-    SincMedium,
-    SincBest
-};
+enum class Quality { Linear, SincMedium, SincBest };
 
 /// Re-muestreador de audio (cambio de frecuencia de muestreo) sobre
 /// libsamplerate. Objeto RAII: el destructor libera el estado interno.
@@ -71,7 +67,7 @@ enum class Quality {
 /// 1, ... por frame) cuando `channels > 1`; con `channels == 1` es plano. La
 /// salida `out` se escribe en el mismo formato intercalado.
 class Resampler {
-public:
+   public:
     /// Constructor: deja el objeto en estado vacio (sin estado de
     /// libsamplerate). No asigna memoria hasta `configure()`.
     Resampler();
@@ -114,10 +110,9 @@ public:
     ///                   se deja con la cantidad que habria escrito.
     /// :returns: `true` si re-muestreo todo el bloque con exito; `false` si
     ///           fallo (error de libsamplerate o buffer de salida insuficiente).
-    bool resample(const float* in, size_t inFrames, float* out,
-                  size_t maxOutFrames, size_t* outFrames);
+    bool resample(const float* in, size_t inFrames, float* out, size_t maxOutFrames, size_t* outFrames);
 
-private:
+   private:
     // Estado interno de libsamplerate. Se crea en configure() y se libera en el
     // destructor. `SRC_STATE_tag` es el tag global que <samplerate.h> typedefa
     // como `SRC_STATE`; se declara opaca arriba para no exponer el header C.

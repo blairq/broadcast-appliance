@@ -32,7 +32,7 @@
 #if defined(_WIN32)
 #include <windows.h> // GetCurrentProcessId() en el camino portable de currentPid()
 #else
-#include <unistd.h>  // getpid() en el resto de plataformas
+#include <unistd.h> // getpid() en el resto de plataformas
 #endif
 
 namespace ba::app {
@@ -45,7 +45,7 @@ constexpr double kFs = 48000.0;
 // Convierte un ChannelPreset a su nombre para el StateDoc (persistencia).
 const char* presetName(ChannelPreset p) {
     switch (p) {
-        case ChannelPreset::kPodium:   return "podium";
+        case ChannelPreset::kPodium: return "podium";
         case ChannelPreset::kLavalier: return "lavalier";
         case ChannelPreset::kHandheld: return "handheld";
     }
@@ -93,8 +93,7 @@ int LoopbackDuplex::read(std::uint8_t* buf, std::size_t cap) {
     }
     const std::size_t avail = outBuf_.size() - outPos_;
     const std::size_t n = std::min(cap, avail);
-    std::copy_n(outBuf_.begin() + static_cast<std::ptrdiff_t>(outPos_),
-                static_cast<std::ptrdiff_t>(n), buf);
+    std::copy_n(outBuf_.begin() + static_cast<std::ptrdiff_t>(outPos_), static_cast<std::ptrdiff_t>(n), buf);
     outPos_ += n;
     return static_cast<int>(n);
 }
@@ -103,8 +102,7 @@ int LoopbackDuplex::read(std::uint8_t* buf, std::size_t cap) {
 // Construcción / destrucción
 // ============================================================================
 
-OperatorEngine::OperatorEngine()
-    : automixer_(kNumChannels) {
+OperatorEngine::OperatorEngine() : automixer_(kNumChannels) {
     strips_.resize(kNumChannels);
     presets_.assign(kNumChannels, ChannelPreset::kPodium);
     lastLevel_.assign(kNumChannels, 0.0f);
@@ -159,13 +157,11 @@ bool OperatorEngine::init(const std::string& configDir) {
     // usarse para leer igualmente. Evita un writer temporal que, al destruirse,
     // desmapearía la memoria compartida y dejaría el lector colgando.
     {
-        ba::ipc::Status rs = ba::ipc::SharedAudioRing::openReader(
-            kGuestAudioRingName, guestRing_);
+        ba::ipc::Status rs = ba::ipc::SharedAudioRing::openReader(kGuestAudioRingName, guestRing_);
         if (!rs.ok) {
-            rs = ba::ipc::SharedAudioRing::init(
-                kGuestAudioRingName, ba::ipc::audio_ring::kDefaultChannels,
-                ba::ipc::audio_ring::kDefaultCapacityBlocks,
-                currentPid(), 1u, guestRing_);
+            rs = ba::ipc::SharedAudioRing::init(kGuestAudioRingName, ba::ipc::audio_ring::kDefaultChannels,
+                                                ba::ipc::audio_ring::kDefaultCapacityBlocks, currentPid(), 1u,
+                                                guestRing_);
         }
         if (!rs.ok) {
             lastError_ = rs.code;
@@ -175,8 +171,7 @@ bool OperatorEngine::init(const std::string& configDir) {
     // ControlEndpoint sobre el loopback (rol launcher/cliente, spec §4.1).
     // En la app real (Qt/libobs) se respaldaría sobre el transporte real
     // (named pipe/socket hacia el gateway); aquí el loopback lo hace testeable.
-    control_ = std::make_unique<ba::ipc::ControlEndpoint>(
-        loopback_, ba::ipc::ControlEndpoint::kLauncher);
+    control_ = std::make_unique<ba::ipc::ControlEndpoint>(loopback_, ba::ipc::ControlEndpoint::kLauncher);
     control_->onDisconnect([this]() {
         // Reconexión (spec §4.1): en headless el loopback no se corta, así que
         // solo se registra el evento.
@@ -205,24 +200,19 @@ bool OperatorEngine::init(const std::string& configDir) {
 
 ba::dsp::StripParams OperatorEngine::stripParamsFor(ChannelPreset preset) const {
     switch (preset) {
-        case ChannelPreset::kPodium:
-            return ba::dsp::presetPodium();
-        case ChannelPreset::kLavalier:
-            return ba::dsp::presetLavalier();
-        case ChannelPreset::kHandheld:
-            return ba::dsp::presetHandheld();
+        case ChannelPreset::kPodium: return ba::dsp::presetPodium();
+        case ChannelPreset::kLavalier: return ba::dsp::presetLavalier();
+        case ChannelPreset::kHandheld: return ba::dsp::presetHandheld();
     }
     return ba::dsp::presetPodium();
 }
 
-bool OperatorEngine::applyPreset(int channel, ChannelPreset preset,
-                                 double smoothMs) {
+bool OperatorEngine::applyPreset(int channel, ChannelPreset preset, double smoothMs) {
     if (channel < 0 || channel >= kNumChannels) {
         return false;
     }
     const int p = static_cast<int>(preset);
-    if (p < static_cast<int>(ChannelPreset::kPodium) ||
-        p > static_cast<int>(ChannelPreset::kHandheld)) {
+    if (p < static_cast<int>(ChannelPreset::kPodium) || p > static_cast<int>(ChannelPreset::kHandheld)) {
         return false;
     }
     // Cambio en caliente: setParams con suavizado de ganancia (evita clicks).
@@ -274,8 +264,7 @@ void OperatorEngine::processAudio(float* interleaved, int frames, int channel) {
 // processGuestBlock
 // ============================================================================
 
-bool OperatorEngine::processGuestBlock(float* out, bool& isSilence,
-                                       bool& isFadeIn) {
+bool OperatorEngine::processGuestBlock(float* out, bool& isSilence, bool& isFadeIn) {
     isSilence = false;
     isFadeIn = false;
     // header() != nullptr equivale a "region mapeada" (data() nulo -> header nulo).
@@ -371,8 +360,7 @@ ba::persist::StateDoc OperatorEngine::buildStateDoc() const {
     // watchdog).
     nlohmann::json ipc;
     ipc["guestRingOpen"] = (guestRing_.header() != nullptr);
-    ipc["controlConnected"] =
-        (control_ != nullptr && control_->connected());
+    ipc["controlConnected"] = (control_ != nullptr && control_->connected());
     ipc["watchedStale"] = watchedIsStale();
     doc.sections[kSectionIpc] = ipc.dump();
 
@@ -424,16 +412,10 @@ float OperatorEngine::levelFor(int channel) const {
     return lastLevel_[channel];
 }
 
-float OperatorEngine::automixerGainFor(int channel) const {
-    return automixer_.gainFor(channel);
-}
+float OperatorEngine::automixerGainFor(int channel) const { return automixer_.gainFor(channel); }
 
-bool OperatorEngine::guestRingOpen() const {
-    return guestRing_.header() != nullptr;
-}
+bool OperatorEngine::guestRingOpen() const { return guestRing_.header() != nullptr; }
 
-bool OperatorEngine::controlConnected() const {
-    return control_ != nullptr && control_->connected();
-}
+bool OperatorEngine::controlConnected() const { return control_ != nullptr && control_->connected(); }
 
 } // namespace ba::app

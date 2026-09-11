@@ -1,0 +1,352 @@
+#!/usr/bin/env bash
+# ============================================================================
+# tools/deploy — Copia los runtimes de terceros sobre el bundle portable.
+#
+# PROPÓSITO
+#   `make release` / `make prod` instalan el ESQUELETO del layout §5.1 en
+#   release/ (bin/64bit, obs-plugins/64bit, data/libobs, Config, Logs,
+#   Recordings, Web/guest) con los binarios PROPIOS (BroadcastAppliance,
+#   ba-app, ba-gateway, ba-sources). Este script completa el bundle copiando
+#   los RUNTIMES DE TERCEROS que el build no produce:
+#
+#     * runtime de OBS  (DLLs a bin/64bit, plugins a obs-plugins/64bit,
+#                        shaders data/libobs/*.effect, obs-browser-page.exe
+#                        y el CEF completo, que viaja dentro de
+#                        obs-plugins/64bit según §5.1);
+#     * runtime de Qt   (vía windeployqt si hay, o copia de sus *.dll);
+#     * runtime VC++    app-local (incluye msvcp140_atomic_wait.dll,
+#                        requerido por std::atomic::wait de C++20);
+#     * cloudflared     fijado a la versión de versions.cmake.
+#
+#   Al final escribe `manifest.json` en la raíz del bundle: JSON determinista
+#   (claves ordenadas) con el nombre de la app, `generated_at` y el SHA-256 de
+#   cada archivo del árbol desplegado. El launcher (Proceso 0, §3.1) lo usa
+#   para la autoverificación de integridad.
+#
+# USO
+#   tools/deploy [--strict] [bundle_dir]
+#
+#     --strict     Si alguna fuente de terceros está SIN configurar, termina
+#                  con exit 1 (en vez de saltarla y seguir). Útil en CI para
+#                  asegurar que el bundle quedó completo.
+#     bundle_dir   Raíz del bundle a completar. Default: `release`.
+#                  Si no existe, se crea (el esqueleto puede ser vacío).
+#
+# VARIABLES DE ENTORNO (cada una OPCIONAL)
+#   BA_DEPLOY_OBS         Root del runtime de OBS. Debe espejar el layout
+#                         portable: <root>/bin/64bit, <root>/obs-plugins/64bit
+#                         y <root>/data/libobs. Se copia sobre el bundle
+#                         respetando esos subdirectorios.
+#   BA_DEPLOY_QT          Dir con el runtime de Qt. Si además hay
+#                         BA_DEPLOY_WINDEPLOYQT, se ejecuta ese sobre
+#                         bin/64bit (y trae plugins/tls/etc.); si no, se
+#                         copian sus *.dll a bin/64bit.
+#   BA_DEPLOY_WINDEPLOYQT Ruta al ejecutable windeployqt (opcional; solo se
+#                         usa si BA_DEPLOY_QT está definido).
+#   BA_DEPLOY_VC          Dir del redist de VC++ (app-local). DEBE incluir
+#                         msvcp140_atomic_wait.dll; si falta, el script lo
+#                         reporta y termina en error.
+#   BA_DEPLOY_CLOUDFLARED Ruta al cloudflared.exe fijado. Se copia a
+#                         bin/64bit/cloudflared.exe.
+#   BA_DEPLOY_SIGN_CMD    Comando opcional a invocar POR CADA ARCHIVO copiado
+#                         para firmarlo. Se expande `$1` a la ruta absoluta
+#                         del archivo recién copiado. Si falla, el deploy
+#                         falla (la firma es parte del contrato de §5.8).
+#
+# COMPORTAMIENTO
+#   * Idempotente: sobrescribe archivos existentes.
+#   * Respeta el layout §5.1 y NUNCA toca Web/guest (lo gestiona el build).
+#   * Fuente no configurada: log de skip claro y sigue (exit 0); con
+#     --strict, una fuente faltante → exit 1.
+#
+# CÓDIGOS DE SALIDA
+#   0  OK (con o sin fuentes; sin --strict, las faltantes se saltan).
+#   1  --strict con al menos una fuente faltante, o error de copia/verificación
+#      (p. ej. BA_DEPLOY_VC sin msvcp140_atomic_wait.dll, firma fallida).
+#   2  Uso incorrecta (argumento no reconocido).
+# ============================================================================
+
+set -euo pipefail
+
+# --- Constantes -------------------------------------------------------------
+APP_NAME="BroadcastAppliance"
+APP_VERSION="2.0.0"   # alineado con project(... VERSION) en CMakeLists.txt
+
+# --- Utilidades -------------------------------------------------------------
+log()  { printf '[deploy] %s\n' "$*"; }
+warn() { printf '[deploy] AVISO: %s\n' "$*" >&2; }
+err()  { printf '[deploy] ERROR: %s\n' "$*" >&2; }
+
+usage() {
+  sed -n '2,60p' "$0" | sed 's/^# \{0,1\}//'
+}
+
+# sha256 de un archivo → solo el hex (64 chars).
+sha256_of() {
+  sha256sum "$1" | awk '{print $1}'
+}
+
+# --- Parseo de argumentos ---------------------------------------------------
+STRICT=0
+BUNDLE_DIR="release"
+
+for arg in "$@"; do
+  case "$arg" in
+    --strict)
+      STRICT=1
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    -*)
+      err "argumento no reconocido: $arg"
+      echo "  use --help para ver el uso" >&2
+      exit 2
+      ;;
+    *)
+      BUNDLE_DIR="$arg"
+      ;;
+  esac
+done
+
+# Normaliza la raíz del bundle (quita barra final; acepta relativo o absoluto).
+BUNDLE_DIR="${BUNDLE_DIR%/}"
+[ -n "$BUNDLE_DIR" ] || BUNDLE_DIR="."
+
+# --- Estado de fuentes faltantes (para --strict) ----------------------------
+# Lista de nombres de fuentes que quedaron SIN configurar.
+MISSING_SOURCES=()
+
+# Registra que una fuente no estuvo disponible.
+mark_missing() {
+  MISSING_SOURCES+=("$1")
+}
+
+# --- Helpers de copia -------------------------------------------------------
+# copy_tree <src_dir> <dst_dir> <etiqueta>
+# Copia el CONTENIDO de src_dir sobre dst_dir (recursivo, sobrescribe).
+# Crea dst_dir si no existe. Si src_dir no existe, log de skip + return 1
+# (para que el llamador decida si es error o skip).
+copy_tree() {
+  local src="$1" dst="$2" label="$3"
+  if [ ! -d "$src" ]; then
+    warn "skip: $label — no existe $src"
+    return 1
+  fi
+  mkdir -p "$dst"
+  # `cp -a` preserva atributos y recursividad; `.` copia el contenido.
+  cp -a "$src/." "$dst/"
+  log "$label: copiado desde $src → $dst"
+  return 0
+}
+
+# copy_file <src> <dst> <etiqueta>
+# Copia UN archivo a dst (sobrescribe), creando el directorio destino.
+# Si src no existe, log de skip + return 1.
+copy_file() {
+  local src="$1" dst="$2" label="$3"
+  if [ ! -f "$src" ]; then
+    warn "skip: $label — no existe $src"
+    return 1
+  fi
+  mkdir -p "$(dirname "$dst")"
+  cp -f "$src" "$dst"
+  log "$label: copiado $src → $dst"
+  return 0
+}
+
+# sign_file <ruta_absoluta>
+# Invoca BA_DEPLOY_SIGN_CMD sobre el archivo si está definida.
+sign_file() {
+  local f="$1"
+  if [ -n "${BA_DEPLOY_SIGN_CMD:-}" ]; then
+    log "firmando: $f"
+    # shellcheck disable=SC2086  # BA_DEPLOY_SIGN_CMD puede llevar flags.
+    $BA_DEPLOY_SIGN_CMD "$f"
+  fi
+}
+
+# --- Raíces del bundle (layout §5.1) ----------------------------------------
+B_BIN64="$BUNDLE_DIR/bin/64bit"
+B_PLUGINS="$BUNDLE_DIR/obs-plugins/64bit"
+B_LIBOBS="$BUNDLE_DIR/data/libobs"
+
+mkdir -p "$B_BIN64" "$B_PLUGINS" "$B_LIBOBS"
+
+# ============================================================================
+# 1) RUNTIME DE OBS  (BA_DEPLOY_OBS)
+# ============================================================================
+# El root de OBS espeja el layout portable: bin/64bit, obs-plugins/64bit y
+# data/libobs. obs-browser-page.exe y el CEF (libcef.dll, chrome_elf.dll,
+# *.pak, icudtl.dat, locales/) viajan DENTRO de obs-plugins/64bit según §5.1,
+# así que se cubren con la copia de ese subdirectorio.
+if [ -n "${BA_DEPLOY_OBS:-}" ]; then
+  log "=== runtime de OBS (root: $BA_DEPLOY_OBS) ==="
+  copy_tree "$BA_DEPLOY_OBS/bin/64bit"        "$B_BIN64"   "OBS bin/64bit"        || true
+  copy_tree "$BA_DEPLOY_OBS/obs-plugins/64bit" "$B_PLUGINS" "OBS obs-plugins/64bit" || true
+  copy_tree "$BA_DEPLOY_OBS/data/libobs"      "$B_LIBOBS"  "OBS data/libobs"       || true
+else
+  warn "skip: BA_DEPLOY_OBS no configurado (runtime de OBS no copiado)"
+  mark_missing "BA_DEPLOY_OBS"
+fi
+
+# ============================================================================
+# 2) RUNTIME DE QT  (BA_DEPLOY_QT [, BA_DEPLOY_WINDEPLOYQT])
+# ============================================================================
+if [ -n "${BA_DEPLOY_QT:-}" ]; then
+  log "=== runtime de Qt (dir: $BA_DEPLOY_QT) ==="
+  if [ -n "${BA_DEPLOY_WINDEPLOYQT:-}" ]; then
+    if [ ! -x "$BA_DEPLOY_WINDEPLOYQT" ] && ! command -v "$BA_DEPLOY_WINDEPLOYQT" >/dev/null 2>&1; then
+      err "BA_DEPLOY_WINDEPLOYQT no es ejecutable: $BA_DEPLOY_WINDEPLOYQT"
+      exit 1
+    fi
+    log "ejecutando windeployqt sobre $B_BIN64"
+    # windeployqt toma la ruta del executable Qt (ba-app) como argumento.
+    "$BA_DEPLOY_WINDEPLOYQT" "$B_BIN64/ba-app"
+    log "windeployqt: OK"
+  else
+    # Sin windeployqt: copiar solo las DLLs del runtime Qt a bin/64bit.
+    # (No trae plugins/tls; documentado como limitación de este modo.)
+    if ls "$BA_DEPLOY_QT"/*.dll >/dev/null 2>&1; then
+      cp -f "$BA_DEPLOY_QT"/*.dll "$B_BIN64/"
+      log "Qt: *.dll copiados a $B_BIN64"
+    else
+      warn "Qt: sin *.dll en $BA_DEPLOY_QT (nada copiado)"
+    fi
+  fi
+else
+  warn "skip: BA_DEPLOY_QT no configurado (runtime de Qt no copiado)"
+  mark_missing "BA_DEPLOY_QT"
+fi
+
+# ============================================================================
+# 3) RUNTIME VC++ APP-LOCAL  (BA_DEPLOY_VC)
+# ============================================================================
+# DEBE incluir msvcp140_atomic_wait.dll (lo requiere std::atomic::wait de
+# C++20). Si falta, el bundle no arranca: es error, no skip.
+if [ -n "${BA_DEPLOY_VC:-}" ]; then
+  log "=== runtime VC++ app-local (dir: $BA_DEPLOY_VC) ==="
+  if [ ! -d "$BA_DEPLOY_VC" ]; then
+    err "BA_DEPLOY_VC no es un directorio: $BA_DEPLOY_VC"
+    exit 1
+  fi
+  if [ ! -f "$BA_DEPLOY_VC/msvcp140_atomic_wait.dll" ]; then
+    err "BA_DEPLOY_VC no incluye msvcp140_atomic_wait.dll (requerido por std::atomic::wait de C++20): $BA_DEPLOY_VC"
+    exit 1
+  fi
+  cp -f "$BA_DEPLOY_VC"/*.dll "$B_BIN64/"
+  log "VC++: *.dll copiados a $B_BIN64 (incl. msvcp140_atomic_wait.dll)"
+else
+  warn "skip: BA_DEPLOY_VC no configurado (runtime VC++ no copiado)"
+  mark_missing "BA_DEPLOY_VC"
+fi
+
+# ============================================================================
+# 4) CLOUDFLARED FIJADO  (BA_DEPLOY_CLOUDFLARED)
+# ============================================================================
+if [ -n "${BA_DEPLOY_CLOUDFLARED:-}" ]; then
+  log "=== cloudflared (ruta: $BA_DEPLOY_CLOUDFLARED) ==="
+  if ! copy_file "$BA_DEPLOY_CLOUDFLARED" "$B_BIN64/cloudflared.exe" "cloudflared"; then
+    err "BA_DEPLOY_CLOUDFLARED no es un archivo: $BA_DEPLOY_CLOUDFLARED"
+    exit 1
+  fi
+else
+  warn "skip: BA_DEPLOY_CLOUDFLARED no configurado (cloudflared no copiado)"
+  mark_missing "BA_DEPLOY_CLOUDFLARED"
+fi
+
+# ============================================================================
+# 5) FIRMA DE LOS ARCHIVOS COPIADOS  (BA_DEPLOY_SIGN_CMD)
+# ============================================================================
+# Se firma cada archivo que el deploy COPIO en esta corrida (no los del
+# esqueleto, que los firma el build). Recorre los cuatro destinos conocidos.
+if [ -n "${BA_DEPLOY_SIGN_CMD:-}" ]; then
+  log "=== firma de binarios (BA_DEPLOY_SIGN_CMD) ==="
+  # Archivo temporal con la lista de rutas a firmar (una por línea).
+  SIGN_LIST="$(mktemp)"
+  trap 'rm -f "$SIGN_LIST"' EXIT
+  # Recorre los destinos de despliegue y encola cada archivo.
+  for d in "$B_BIN64" "$B_PLUGINS" "$B_LIBOBS"; do
+    [ -d "$d" ] || continue
+    while IFS= read -r -d '' f; do
+      printf '%s\0' "$f" >> "$SIGN_LIST"
+    done < <(find "$d" -type f -print0)
+  done
+  # Firma cada uno (orden determinista: orden de find por directorio).
+  while IFS= read -r -d '' f; do
+    sign_file "$f"
+  done < "$SIGN_LIST"
+  log "firma: OK"
+fi
+
+# ============================================================================
+# 6) MANIFEST.JSON  (raíz del bundle)
+# ============================================================================
+# JSON determinista: claves ordenadas, lista de archivos ordenada por ruta.
+# Cubre TODO el árbol desplegado (incluye el esqueleto del build), porque el
+# launcher lo usa para la autoverificación de integridad (§3.1). Excluye
+# manifest.json mismo (no puede contener su propio hash).
+log "=== generando manifest.json ==="
+MANIFEST="$BUNDLE_DIR/manifest.json"
+GENERATED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+# Orden estable (byte-wise) independiente del locale del host.
+export LC_ALL=C
+
+# Escapa un string para JSON: comillas y backslash.
+json_escape() {
+  local s="$1"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  printf '%s' "$s"
+}
+
+{
+  printf '{\n'
+  printf '  "app": "%s",\n' "$APP_NAME"
+  printf '  "version": "%s",\n' "$APP_VERSION"
+  printf '  "generated_at": "%s",\n' "$GENERATED_AT"
+  printf '  "files": {\n'
+
+  first=1
+  # Recorre el árbol (sin seguir symlink a directorios), ordena por ruta
+  # relativa y emite una entrada por archivo. Las rutas van separadas por NUL
+  # (-d '') para soportar nombres con espacios o caracteres raros.
+  while IFS= read -r -d '' rel; do
+    abs="$BUNDLE_DIR/$rel"
+    [ -f "$abs" ] || continue
+    # Nunca se incluye a sí mismo.
+    [ "$rel" = "manifest.json" ] && continue
+    hash="$(sha256_of "$abs")"
+    if [ "$first" -eq 1 ]; then
+      first=0
+    else
+      printf ',\n'
+    fi
+    printf '    "%s": "%s"' "$(json_escape "$rel")" "$hash"
+  done < <(
+    ( cd "$BUNDLE_DIR" && find . -type f -print0 ) \
+      | sed -z 's|^\./||' \
+      | sort -z
+  )
+
+  printf '\n  }\n'
+  printf '}\n'
+} > "$MANIFEST"
+
+log "manifest.json escrito en $MANIFEST"
+
+# ============================================================================
+# 7) CHECK --STRICT
+# ============================================================================
+if [ "$STRICT" -eq 1 ]; then
+  if [ "${#MISSING_SOURCES[@]}" -gt 0 ]; then
+    err "--strict: fuentes de terceros SIN configurar: ${MISSING_SOURCES[*]}"
+    exit 1
+  fi
+  log "--strict: todas las fuentes de terceros configuradas"
+fi
+
+log "deploy completado (bundle: $BUNDLE_DIR)"
+exit 0

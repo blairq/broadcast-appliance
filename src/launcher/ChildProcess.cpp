@@ -61,8 +61,7 @@ std::wstring buildSanitizedEnv(const std::wstring& ownDir) {
             GetEnvironmentVariableW(L"TEMP", buf.data(), n);
             const std::wstring temp(buf.data(), n - 1);
             // Reemplaza los dos %TEMP% por el valor real.
-            const std::wstring fixed =
-                (systemRoot + L"\\system32;" + ownDir); // PATH ya puesto
+            const std::wstring fixed = (systemRoot + L"\\system32;" + ownDir); // PATH ya puesto
             (void)fixed;
             block += L"TEMP=" + temp + L"\0";
             block += L"TMP=" + temp + L"\0";
@@ -141,8 +140,8 @@ bool ChildProcess::start(const Config& cfg) {
 #ifndef _WIN32
     // Stub no-Windows: simula un hijo vivo para poder probar el flujo.
     pid_ = 1000 + static_cast<std::uint32_t>(cfg.name.size());
-    BA_LOG_INFO("child", 0, "stub: hijo '" + std::string(cfg.name.begin(), cfg.name.end()) +
-                                "' simulado (no-Win)");
+    BA_LOG_INFO("child", 0,
+                "stub: hijo '" + std::string(cfg.name.begin(), cfg.name.end()) + "' simulado (no-Win)");
     return true;
 #else
     STARTUPINFOW si{};
@@ -166,34 +165,27 @@ bool ChildProcess::start(const Config& cfg) {
     }
 
     const DWORD baseFlags = CREATE_UNICODE_ENVIRONMENT | CREATE_NO_WINDOW;
-    const DWORD attempts[2] = {
-        baseFlags | CREATE_BREAKAWAY_FROM_JOB,
-        baseFlags
-    };
+    const DWORD attempts[2] = {baseFlags | CREATE_BREAKAWAY_FROM_JOB, baseFlags};
 
     for (DWORD flags : attempts) {
-        BOOL ok = CreateProcessW(
-            cfg.exePath.c_str(), cmdBuf.data(),
-            nullptr, nullptr, FALSE,
-            flags,
-            envBuf.data(),
-            cfg.workDir.empty() ? nullptr : cfg.workDir.c_str(),
-            &si, &pi);
+        BOOL ok =
+            CreateProcessW(cfg.exePath.c_str(), cmdBuf.data(), nullptr, nullptr, FALSE, flags, envBuf.data(),
+                           cfg.workDir.empty() ? nullptr : cfg.workDir.c_str(), &si, &pi);
         if (ok) {
             hProcess_ = pi.hProcess;
             pid_ = static_cast<std::uint32_t>(pi.dwProcessId);
             if (pi.hThread) {
                 CloseHandle(pi.hThread);
             }
-            BA_LOG_INFO("child", 0, "hijo '" + std::string(cfg.name.begin(), cfg.name.end()) +
-                                     "' lanzado pid=" + std::to_string(pid_) +
-                                     " flags=0x" + std::to_string(flags));
+            BA_LOG_INFO("child", 0,
+                        "hijo '" + std::string(cfg.name.begin(), cfg.name.end()) +
+                            "' lanzado pid=" + std::to_string(pid_) + " flags=0x" + std::to_string(flags));
             return true;
         }
         const DWORD err = GetLastError();
         BA_LOG_WARN("child", static_cast<int>(err),
                     "CreateProcessW fallo para '" + std::string(cfg.name.begin(), cfg.name.end()) +
-                    "' (flags=0x" + std::to_string(flags) + "); reintento");
+                        "' (flags=0x" + std::to_string(flags) + "); reintento");
     }
     BA_LOG_ERROR("child", static_cast<int>(GetLastError()),
                  "no se pudo lanzar '" + std::string(cfg.name.begin(), cfg.name.end()) + "'");

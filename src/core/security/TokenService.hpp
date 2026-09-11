@@ -74,7 +74,7 @@ bool base64UrlDecode(const std::string& in, std::vector<std::uint8_t>& out);
 /// intentos de PIN. El `secret` es la clave HMAC compartida entre quien emite
 /// (el servidor) y quien verifica (el mismo servidor al admitir al invitado).
 class TokenService {
-public:
+   public:
     /// Motivo por el que un token no verifica.
     enum class VerifyResult {
         Ok,           // firma valida, sala coincide, no expirado.
@@ -115,8 +115,8 @@ public:
     /// :returns: el token "b64url(payload).b64url(mac)"; cadena vacia si no se
     ///           emite (PIN invalido, lockout activo, o sin validator). Un
     ///           fallo de PIN alimenta el lockout (recordFailure).
-    std::string issue(const std::string& room, const std::string& pin,
-                      int ttlSec = 300, int nowUnix = ba::security::nowUnix());
+    std::string issue(const std::string& room, const std::string& pin, int ttlSec = 300,
+                      int nowUnix = ba::security::nowUnix());
 
     /// Verifica un token contra (room, nowUnix).
     ///
@@ -156,14 +156,14 @@ public:
     ///                 inmediato).
     void resetLockout(int nowUnix);
 
-private:
+   private:
     std::string secret_;
     int maxAttempts_;
     int lockoutSec_;
     PinValidator pinValidator_;
 
-    int failures_ = 0;    // fallos de PIN en la ventana actual
-    int lockedUntil_ = 0; // hasta cuando (seg Unix) dura el lockout; 0 = sin lockout
+    int failures_ = 0;               // fallos de PIN en la ventana actual
+    int lockedUntil_ = 0;            // hasta cuando (seg Unix) dura el lockout; 0 = sin lockout
     std::uint64_t nonceCounter_ = 0; // para generar nonces unicos (no son secreto)
 };
 

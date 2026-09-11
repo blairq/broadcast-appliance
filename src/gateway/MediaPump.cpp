@@ -27,14 +27,14 @@
 
 #include <chrono>
 
-#include "Log.hpp"
 #include "ipc/HealthBlock.hpp"
+#include "Log.hpp"
 
 #ifdef _WIN32
-#    define WIN32_LEAN_AND_MEAN
-#    include <windows.h>
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 #else
-#    include <unistd.h>
+#include <unistd.h>
 #endif
 
 namespace ba::gateway {
@@ -81,8 +81,7 @@ void scaleBgra(const uint8_t* src, int sw, int sh, uint8_t* dst, int dw, int dh)
 
 } // namespace
 
-MediaPump::MediaPump(WebrtcHub& hub, const Cfg& cfg, Log& log)
-    : hub_(hub), cfg_(cfg), log_(log) {}
+MediaPump::MediaPump(WebrtcHub& hub, const Cfg& cfg, Log& log) : hub_(hub), cfg_(cfg), log_(log) {}
 
 MediaPump::~MediaPump() { stop(); }
 
@@ -111,17 +110,15 @@ void MediaPump::start() {
         // AUDIO B→A: ring BA.Audio.Guest.<s> (B es el writer).
         if (s < static_cast<int>(cfg_.guestAudioNames.size())) {
             const auto& name = cfg_.guestAudioNames[static_cast<size_t>(s)];
-            if (!SharedAudioRing::init(name.c_str(),
-                                       static_cast<uint32_t>(cfg_.audioChannels),
-                                       audio_ring::kDefaultCapacityBlocks, pid,
-                                       kGeneration,
-                                       outAudio_[static_cast<size_t>(s)]).ok) {
-                log_.warn("audio out slot " + std::to_string(s) +
-                              ": no se pudo crear el ring (se salta)",
+            if (!SharedAudioRing::init(name.c_str(), static_cast<uint32_t>(cfg_.audioChannels),
+                                       audio_ring::kDefaultCapacityBlocks, pid, kGeneration,
+                                       outAudio_[static_cast<size_t>(s)])
+                     .ok) {
+                log_.warn("audio out slot " + std::to_string(s) + ": no se pudo crear el ring (se salta)",
                           -1);
             } else {
-                log_.info("audio out slot " + std::to_string(s) +
-                              ": ring BA.Audio.Guest." + std::to_string(s) + " listo");
+                log_.info("audio out slot " + std::to_string(s) + ": ring BA.Audio.Guest." +
+                          std::to_string(s) + " listo");
             }
         }
         // VIDEO B→A: sender Spout BA.Guest.<s> (resolucion fija del slot).
@@ -129,12 +126,11 @@ void MediaPump::start() {
             const auto& name = cfg_.guestVideoNames[static_cast<size_t>(s)];
             SlotConfig vcfg{cfg_.programW, cfg_.programH};
             if (!outVideo_[static_cast<size_t>(s)].publish(name.c_str(), vcfg)) {
-                log_.warn("video out slot " + std::to_string(s) +
-                              ": no se pudo publicar el sender (se salta)",
-                          -1);
+                log_.warn(
+                    "video out slot " + std::to_string(s) + ": no se pudo publicar el sender (se salta)", -1);
             } else {
-                log_.info("video out slot " + std::to_string(s) +
-                              ": sender BA.Guest." + std::to_string(s) + " listo");
+                log_.info("video out slot " + std::to_string(s) + ": sender BA.Guest." + std::to_string(s) +
+                          " listo");
             }
         }
     }
@@ -142,8 +138,7 @@ void MediaPump::start() {
     stop_.store(false);
     audioThread_ = std::thread(&MediaPump::returnAudioThread, this);
     videoThread_ = std::thread(&MediaPump::returnVideoThread, this);
-    log_.info("MediaPump: threads de retorno arrancados (guests=" +
-              std::to_string(guests) + ")");
+    log_.info("MediaPump: threads de retorno arrancados (guests=" + std::to_string(guests) + ")");
 }
 
 void MediaPump::stop() {
@@ -166,8 +161,7 @@ void MediaPump::returnAudioThread() {
             auto now = std::chrono::steady_clock::now();
             if (now - lastRetry >= std::chrono::milliseconds(500)) {
                 lastRetry = now;
-                if (SharedAudioRing::openReader(cfg_.returnAudioName.c_str(),
-                                                reader).ok) {
+                if (SharedAudioRing::openReader(cfg_.returnAudioName.c_str(), reader).ok) {
                     open = true;
                     log_.info("retorno audio: ring BA.Audio.ContentForReturn abierto");
                 }
@@ -199,11 +193,9 @@ void MediaPump::returnVideoThread() {
     bool sub = false;
     auto lastRetry = std::chrono::steady_clock::now();
 
-    const size_t programBytes =
-        static_cast<size_t>(cfg_.programW) * cfg_.programH * 4u;
+    const size_t programBytes = static_cast<size_t>(cfg_.programW) * cfg_.programH * 4u;
     std::vector<uint8_t> programBuf(programBytes);
-    const size_t guestBytes =
-        static_cast<size_t>(cfg_.guestVideoW) * cfg_.guestVideoH * 4u;
+    const size_t guestBytes = static_cast<size_t>(cfg_.guestVideoW) * cfg_.guestVideoH * 4u;
     std::vector<uint8_t> guestBuf(guestBytes);
 
     while (!stop_.load(std::memory_order_relaxed)) {
@@ -226,13 +218,13 @@ void MediaPump::returnVideoThread() {
             FrameMeta meta{};
             if (receiver.receive(programBuf.data(), programBytes, meta)) {
                 // Escala a la resolucion del retorno al invitado (640x360).
-                scaleBgra(programBuf.data(), cfg_.programW, cfg_.programH,
-                          guestBuf.data(), cfg_.guestVideoW, cfg_.guestVideoH);
+                scaleBgra(programBuf.data(), cfg_.programW, cfg_.programH, guestBuf.data(), cfg_.guestVideoW,
+                          cfg_.guestVideoH);
                 for (int s = 1; s <= hub_.guests(); ++s) {
                     if (WebrtcSession* sess = hub_.session(s)) {
                         if (sess->connected()) {
-                            sess->pushLocalVideo(guestBuf.data(), guestBytes,
-                                                 cfg_.guestVideoW, cfg_.guestVideoH);
+                            sess->pushLocalVideo(guestBuf.data(), guestBytes, cfg_.guestVideoW,
+                                                 cfg_.guestVideoH);
                         }
                     }
                 }
@@ -269,8 +261,7 @@ void MediaPump::forwardAudio(int slot, const float* samples, size_t n, int rate)
 }
 
 // --- Uplink de VIDEO (invitado→B→A) ----------------------------------------
-void MediaPump::forwardVideo(int slot, const uint8_t* pixels, size_t bytes, int w,
-                             int h) {
+void MediaPump::forwardVideo(int slot, const uint8_t* pixels, size_t bytes, int w, int h) {
     (void)w;
     (void)h;
     if (slot < 1 || slot >= static_cast<int>(outVideo_.size())) return;

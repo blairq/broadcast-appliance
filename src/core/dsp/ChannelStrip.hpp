@@ -89,7 +89,7 @@ struct StripParams {
 /// Channel strip nativo (spec 7.2). Cadena fija HPF -> EQ4 -> de-esser ->
 /// gate -> comp -> lim, RT-safe (sin asignacion/locks/I/O en process()).
 class ChannelStrip {
-public:
+   public:
     /// Construye el strip con la cadena de biquads en memoria fija (sin heap
     /// en el camino de process). Estado inicial neutro: HPF 100 Hz 18 dB/oct,
     /// EQ desactivado, de-esser/gate desactivados, comp y lim activos.
@@ -121,7 +121,7 @@ public:
     /// última muestra procesada. Solo para tests/monitoreo.
     float lastGainDb() const;
 
-private:
+   private:
     // --- HPF: hasta 3 high-pass en cascada (12/18/24 dB/oct) ---
     Biquad hpf_[3];
     int hpfStages_ = 2;
@@ -138,8 +138,8 @@ private:
     bool deEsserEnabled_ = false;
     double deEsserRatio_ = 4.0;
     double deEsserThresholdDb_ = -30.0;
-    float deEsserEnv_ = 0.0f; // envolvente (peak) del sidechain (comun L/R)
-    float deEsserGain_ = 1.0f; // ganancia de compresion actual (lineal)
+    float deEsserEnv_ = 0.0f;        // envolvente (peak) del sidechain (comun L/R)
+    float deEsserGain_ = 1.0f;       // ganancia de compresion actual (lineal)
     float deEsserGainTarget_ = 1.0f; // objetivo (para suavizado)
 
     // --- Expander / gate ---
@@ -148,7 +148,7 @@ private:
     double gateRangeDb_ = 12.0;
     double gateAttackMs_ = 1.0;
     double gateReleaseMs_ = 100.0;
-    float gateEnv_ = 0.0f; // envolvente del nivel de entrada
+    float gateEnv_ = 0.0f;  // envolvente del nivel de entrada
     float gateGain_ = 1.0f; // ganancia actual (lineal)
     float gateGainTarget_ = 1.0f;
 
@@ -182,7 +182,7 @@ private:
     static constexpr int kMaxLookahead = 256;
     float limBufL_[kMaxLookahead] = {0};
     float limBufR_[kMaxLookahead] = {0};
-    int limBufPos_ = 0; // indice de escritura circular
+    int limBufPos_ = 0;  // indice de escritura circular
     int limBufFill_ = 0; // muestras validas en el buffer (0..kMaxLookahead)
 
     // --- Muestreo ---

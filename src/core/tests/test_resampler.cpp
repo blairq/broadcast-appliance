@@ -31,12 +31,12 @@ namespace {
 
 int g_failures = 0;
 
-#define CHECK(cond)                                                            \
-    do {                                                                       \
-        if (!(cond)) {                                                         \
-            std::printf("FALLO: %s (linea %d)\n", #cond, __LINE__);            \
-            ++g_failures;                                                      \
-        }                                                                      \
+#define CHECK(cond)                                                                                          \
+    do {                                                                                                     \
+        if (!(cond)) {                                                                                       \
+            std::printf("FALLO: %s (linea %d)\n", #cond, __LINE__);                                          \
+            ++g_failures;                                                                                    \
+        }                                                                                                    \
     } while (0)
 
 constexpr double kPi = 3.14159265358979323846;
@@ -79,8 +79,8 @@ void testResample44100To48000() {
 
     // Buffer de salida con holgura: el re-muestreo 44.1k -> 48k produce
     // inFrames * 48000/44100 frames (~1.088 * inFrames).
-    const size_t expectedOut = static_cast<size_t>(
-        static_cast<double>(inFrames) * kOutRate / static_cast<double>(kInRate));
+    const size_t expectedOut =
+        static_cast<size_t>(static_cast<double>(inFrames) * kOutRate / static_cast<double>(kInRate));
     const size_t maxOut = expectedOut + 64;
     std::vector<float> out(maxOut, 0.0f);
 
@@ -93,9 +93,8 @@ void testResample44100To48000() {
 
     // (a) La cantidad de frames de salida debe ser ~= inFrames * 48000/44100,
     //     dentro de ~2%.
-    const double relErr =
-        std::fabs(static_cast<double>(outFrames) - static_cast<double>(expectedOut)) /
-        static_cast<double>(expectedOut);
+    const double relErr = std::fabs(static_cast<double>(outFrames) - static_cast<double>(expectedOut)) /
+                          static_cast<double>(expectedOut);
     CHECK(relErr < 0.02);
 
     // (b) La salida conserva el tono: el numero de cruces por cero debe ser
@@ -106,8 +105,7 @@ void testResample44100To48000() {
     const double outDuration = static_cast<double>(outFrames) / static_cast<double>(kOutRate);
     const double expectedCrossings = 2.0 * kFreq * outDuration;
     const double crossings = static_cast<double>(countZeroCrossings(out));
-    const double crossRelErr =
-        std::fabs(crossings - expectedCrossings) / expectedCrossings;
+    const double crossRelErr = std::fabs(crossings - expectedCrossings) / expectedCrossings;
     CHECK(crossRelErr < 0.15);
 
     // La salida debe tener amplitud razonable (no colapsada a 0 ni explosiva):
@@ -144,8 +142,8 @@ void testSmallOutputBuffer() {
     CHECK(outFrames == maxOut); // se detuvo al agotar el buffer
     // La cantidad esperada seria ~48000 frames; 100 es mucho menos, lo que
     // demuestra que se truncó por el buffer chico.
-    const size_t expectedOut = static_cast<size_t>(
-        static_cast<double>(inFrames) * kOutRate / static_cast<double>(kInRate));
+    const size_t expectedOut =
+        static_cast<size_t>(static_cast<double>(inFrames) * kOutRate / static_cast<double>(kInRate));
     CHECK(outFrames < expectedOut);
 }
 

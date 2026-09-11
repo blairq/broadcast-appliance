@@ -41,11 +41,11 @@
 #include <vector>
 
 #if defined(_WIN32)
-#    define WIN32_LEAN_AND_MEAN
-#    include <windows.h>
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 #else
-#    include <fcntl.h>   // open, O_WRONLY, O_CREAT, O_TRUNC
-#    include <unistd.h>  // write, close, fsync, ssize_t
+#include <fcntl.h>  // open, O_WRONLY, O_CREAT, O_TRUNC
+#include <unistd.h> // write, close, fsync, ssize_t
 #endif
 
 namespace ba::persist {
@@ -65,23 +65,18 @@ struct Sha256 {
     std::size_t bufLen = 0;
     std::uint64_t totalLen = 0;
 
-    static std::uint32_t rotr(std::uint32_t x, int n) {
-        return (x >> n) | (x << (32 - n));
-    }
+    static std::uint32_t rotr(std::uint32_t x, int n) { return (x >> n) | (x << (32 - n)); }
 
     void compress(const unsigned char* chunk) {
         static const std::uint32_t K[64] = {
-            0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1,
-            0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
-            0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786,
-            0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
-            0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147,
-            0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
-            0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b,
-            0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
-            0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a,
-            0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
-            0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2};
+            0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+            0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+            0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+            0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+            0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+            0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+            0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+            0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2};
         std::uint32_t w[64];
         for (int t = 0; t < 16; ++t) {
             w[t] = (static_cast<std::uint32_t>(chunk[t * 4]) << 24) |
@@ -182,13 +177,11 @@ std::wstring toWide(const std::string& s) {
     if (s.empty()) {
         return std::wstring();
     }
-    const int n = MultiByteToWideChar(CP_UTF8, 0, s.c_str(),
-                                      static_cast<int>(s.size()), nullptr, 0);
+    const int n = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), static_cast<int>(s.size()), nullptr, 0);
     std::wstring out;
     if (n > 0) {
         out.resize(static_cast<std::size_t>(n));
-        MultiByteToWideChar(CP_UTF8, 0, s.c_str(), static_cast<int>(s.size()),
-                            out.data(), n);
+        MultiByteToWideChar(CP_UTF8, 0, s.c_str(), static_cast<int>(s.size()), out.data(), n);
     }
     return out;
 }
@@ -202,8 +195,8 @@ bool hexToU64(const std::string& s, std::uint64_t& out) {
     std::uint64_t v = 0;
     for (char c : s) {
         const char lc = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-        const int digit = (lc >= '0' && lc <= '9') ? (lc - '0')
-                         : (lc >= 'a' && lc <= 'f') ? (lc - 'a' + 10)
+        const int digit = (lc >= '0' && lc <= '9')   ? (lc - '0')
+                          : (lc >= 'a' && lc <= 'f') ? (lc - 'a' + 10)
                                                      : -1;
         if (digit < 0) {
             return false;
@@ -224,8 +217,7 @@ bool hexToU64(const std::string& s, std::uint64_t& out) {
 constexpr const char* kHeaderPrefix = "#BA-SNAP v1 seq=";
 
 // Construye el contenido completo del archivo (header + body).
-std::string buildFileContent(const StateDoc& doc, const std::string& body,
-                             const std::string& shaHex) {
+std::string buildFileContent(const StateDoc& doc, const std::string& body, const std::string& shaHex) {
     std::string out;
     out.reserve(body.size() + 96);
     out += kHeaderPrefix;
@@ -296,17 +288,10 @@ bool readFileAll(const std::string& path, std::string& out) {
 SnapshotStore::~SnapshotStore() = default;
 
 SnapshotStore::SnapshotStore(SnapshotStore&& other) noexcept
-    : dir_(std::move(other.dir_)),
-      pathA_(std::move(other.pathA_)),
-      pathB_(std::move(other.pathB_)),
-      initialized_(other.initialized_),
-      nextIsA_(other.nextIsA_),
-      lastWriteTime_(other.lastWriteTime_),
-      pendingDoc_(std::move(other.pendingDoc_)),
-      hasPending_(other.hasPending_),
-      diskPresent_(other.diskPresent_),
-      faultStep_(other.faultStep_),
-      physicalWrites_(other.physicalWrites_) {
+    : dir_(std::move(other.dir_)), pathA_(std::move(other.pathA_)), pathB_(std::move(other.pathB_)),
+      initialized_(other.initialized_), nextIsA_(other.nextIsA_), lastWriteTime_(other.lastWriteTime_),
+      pendingDoc_(std::move(other.pendingDoc_)), hasPending_(other.hasPending_),
+      diskPresent_(other.diskPresent_), faultStep_(other.faultStep_), physicalWrites_(other.physicalWrites_) {
     other.initialized_ = false;
     other.hasPending_ = false;
 }
@@ -332,8 +317,7 @@ SnapshotStore& SnapshotStore::operator=(SnapshotStore&& other) noexcept {
 
 // --- init -------------------------------------------------------------------
 
-Status SnapshotStore::init(const std::string& dir, const std::string& fileA,
-                           const std::string& fileB) {
+Status SnapshotStore::init(const std::string& dir, const std::string& fileA, const std::string& fileB) {
     if (dir.empty()) {
         return Status::fail(static_cast<int>(ErrorCode::kInvalidArgument));
     }
@@ -360,9 +344,7 @@ Status SnapshotStore::init(const std::string& dir, const std::string& fileA,
 
 // --- helpers ----------------------------------------------------------------
 
-std::chrono::steady_clock::time_point SnapshotStore::now() const {
-    return std::chrono::steady_clock::now();
-}
+std::chrono::steady_clock::time_point SnapshotStore::now() const { return std::chrono::steady_clock::now(); }
 
 bool SnapshotStore::debounceAllowsWrite() const {
     // Sin escritura previa: siempre permite (lastWriteTime_ == epoch).
@@ -412,8 +394,8 @@ Status SnapshotStore::atomicWrite(const StateDoc& doc, const std::string& target
     const std::wstring wTemp = toWide(tempPath);
     const std::wstring wTarget = toWide(targetPath);
 
-    HANDLE hFile = CreateFileW(wTemp.c_str(), GENERIC_WRITE, 0, nullptr,
-                               CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    HANDLE hFile =
+        CreateFileW(wTemp.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (hFile == INVALID_HANDLE_VALUE) {
         if (faultStep_ == Step::Temp) {
             return Status::fail(static_cast<int>(ErrorCode::kIo));
@@ -423,8 +405,7 @@ Status SnapshotStore::atomicWrite(const StateDoc& doc, const std::string& target
 
     const std::string& data = content;
     DWORD written = 0;
-    const BOOL okWrite = WriteFile(hFile, data.data(),
-                                   static_cast<DWORD>(data.size()), &written, nullptr);
+    const BOOL okWrite = WriteFile(hFile, data.data(), static_cast<DWORD>(data.size()), &written, nullptr);
     if (!okWrite || written != static_cast<DWORD>(data.size())) {
         CloseHandle(hFile);
         DeleteFileW(wTemp.c_str());
@@ -453,8 +434,7 @@ Status SnapshotStore::atomicWrite(const StateDoc& doc, const std::string& target
     }
 
     const BOOL okMove =
-        MoveFileExW(wTemp.c_str(), wTarget.c_str(),
-                    MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
+        MoveFileExW(wTemp.c_str(), wTarget.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
     if (!okMove) {
         DeleteFileW(wTemp.c_str());
         return Status::fail(static_cast<int>(ErrorCode::kIo));

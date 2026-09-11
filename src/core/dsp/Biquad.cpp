@@ -47,8 +47,7 @@ double clampFreq(double freq, double fs) {
 
 } // namespace
 
-void Biquad::setParams(BiquadType type, double fs, double freq, double gainDb,
-                       double q) {
+void Biquad::setParams(BiquadType type, double fs, double freq, double gainDb, double q) {
     // Clamps defensivos (ver docstring de la clase).
     if (fs <= 0.0) {
         fs = kDefaultFs;

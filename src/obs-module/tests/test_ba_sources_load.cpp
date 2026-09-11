@@ -45,14 +45,14 @@
 
 // --- Path ON: libobs presente. Headers mínimos vendoreados del módulo. -------
 #include "obs/obs-module.h"
-#include "obs/obs.h"
 #include "obs/obs-properties.h"
+#include "obs/obs.h"
 
 #include "dsp/ChannelStrip.hpp"
 #include "dsp/Presets.hpp"
 
-#include <cstdarg>
 #include <cmath>
+#include <cstdarg>
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
@@ -65,51 +65,48 @@
 extern "C" {
 // // VERIFY: obs-studio 31.0.0 (libobs/obs.h). Inicializa el contexto de
 // // libobs. `profiler_store` puede ser NULL (headless).
-bool obs_startup(const char *locale, const char *module_config_path,
-                 void *profiler_store);
+bool obs_startup(const char* locale, const char* module_config_path, void* profiler_store);
 // // VERIFY: obs-studio 31.0.0 (libobs/obs.h). Cierra el contexto de libobs.
 void obs_shutdown(void);
 // // VERIFY: obs-studio 31.0.0 (libobs/obs-source.h). Crea una instancia de
 // // fuente/filtro a partir de su id registrado. `settings`/`hotkey_data`
 // // pueden ser NULL.
-struct obs_source *obs_source_create(const char *id, const char *name,
-                                     struct obs_data *settings,
-                                     struct obs_data *hotkey_data);
+struct obs_source* obs_source_create(const char* id, const char* name, struct obs_data* settings,
+                                     struct obs_data* hotkey_data);
 // // VERIFY: obs-studio 31.0.0 (libobs/obs-source.h). Suelta una referencia.
-void obs_source_release(struct obs_source *source);
+void obs_source_release(struct obs_source* source);
 // // VERIFY: obs-studio 31.0.0 (libobs/obs-data.h). Crea un contenedor de
 // // settings vacío (ref-counted; liberar con obs_data_release).
-struct obs_data *obs_data_create(void);
+struct obs_data* obs_data_create(void);
 // // VERIFY: obs-studio 31.0.0 (libobs/obs-data.h). Suelta un contenedor.
-void obs_data_release(struct obs_data *data);
+void obs_data_release(struct obs_data* data);
 // // VERIFY: obs-studio 31.0.0 (libobs/obs-data.h). Escribe una cadena.
-void obs_data_set_string(struct obs_data *settings, const char *name,
-                         const char *val);
+void obs_data_set_string(struct obs_data* settings, const char* name, const char* val);
 }
 
 // Entry point del módulo (definido en ba_sources.cpp, enlace C, exportado de
 // la DLL). // VERIFY: firma de obs_module_register en obs-studio 31.0.0.
-extern "C" void obs_module_register(struct obs_module *module, obs_log_t log,
-                                    const char *local, const char *module_name);
+extern "C" void obs_module_register(struct obs_module* module, obs_log_t log, const char* local,
+                                    const char* module_name);
 
 namespace {
 
 // --- Estado de comprobaciones ------------------------------------------------
 int g_failures = 0;
 
-#define CHECK(cond)                                                            \
-    do {                                                                       \
-        if (!(cond)) {                                                         \
-            std::printf("FALLO: %s (linea %d)\n", #cond, __LINE__);            \
-            ++g_failures;                                                      \
-        }                                                                      \
+#define CHECK(cond)                                                                                          \
+    do {                                                                                                     \
+        if (!(cond)) {                                                                                       \
+            std::printf("FALLO: %s (linea %d)\n", #cond, __LINE__);                                          \
+            ++g_failures;                                                                                    \
+        }                                                                                                    \
     } while (0)
 
 constexpr double kFs = 48000.0; // reloj de libobs (spec 7.4)
 constexpr int kFrames = 480;    // 10 ms a 48 kHz: UN buffer de audio
 
 // Callback de log de libobs: lo pasa `obs_module_register`; no se usa.
-int test_log(int level, const char *line, va_list args) {
+int test_log(int level, const char* line, va_list args) {
     (void)level;
     (void)line;
     (void)args;
@@ -122,7 +119,7 @@ int test_log(int level, const char *line, va_list args) {
 // modulación de amplitud tipo sílaba (3 Hz). Es la misma señal que sintetiza
 // la fuente `ba_channel_preset`, de modo que el de-esser/gate/comp del
 // ChannelStrip tienen algo real que actuar. Determinista (sin aleatorio).
-void fillTestSignal(float *buf, int n) {
+void fillTestSignal(float* buf, int n) {
     constexpr double kTwoPi = 6.28318530717958647692;
     for (int i = 0; i < n; ++i) {
         const double t = static_cast<double>(i) / kFs;
@@ -146,22 +143,18 @@ void testModuleRegister() {
     obs_module_register(nullptr, &test_log, "", "ba-sources");
 
     // Fuente de preset de canal.
-    struct obs_data *srcSettings = obs_data_create();
+    struct obs_data* srcSettings = obs_data_create();
     obs_data_set_string(srcSettings, "preset", "podium");
-    struct obs_source *src =
-        obs_source_create("ba_channel_preset", "test_preset", srcSettings,
-                          nullptr);
+    struct obs_source* src = obs_source_create("ba_channel_preset", "test_preset", srcSettings, nullptr);
     CHECK(src != nullptr);
     if (src) {
         obs_source_release(src);
     }
 
     // Filtro de channel strip.
-    struct obs_data *filtSettings = obs_data_create();
+    struct obs_data* filtSettings = obs_data_create();
     obs_data_set_string(filtSettings, "preset", "lavalier");
-    struct obs_source *filt =
-        obs_source_create("ba_channel_strip", "test_strip", filtSettings,
-                          nullptr);
+    struct obs_source* filt = obs_source_create("ba_channel_strip", "test_strip", filtSettings, nullptr);
     CHECK(filt != nullptr);
     if (filt) {
         obs_source_release(filt);
@@ -183,12 +176,10 @@ void testModuleRegister() {
 // y el cast es bien definido. Así se ejercita el DSP real del módulo, no una
 // copia.
 void testFilterProcessesAudio() {
-    struct obs_data *settings = obs_data_create();
+    struct obs_data* settings = obs_data_create();
     // Lavalier: cadena completa activa (de-esser + gate + comp + lim + EQ).
     obs_data_set_string(settings, "preset", "lavalier");
-    struct obs_source *filt =
-        obs_source_create("ba_channel_strip", "test_strip_audio", settings,
-                          nullptr);
+    struct obs_source* filt = obs_source_create("ba_channel_strip", "test_strip_audio", settings, nullptr);
     obs_data_release(settings);
     CHECK(filt != nullptr);
     if (!filt) {
@@ -196,16 +187,16 @@ void testFilterProcessesAudio() {
     }
 
     // ChannelStrip real construido por el `create` del filtro.
-    void *priv = obs_source_get_private_data(filt);
+    void* priv = obs_source_get_private_data(filt);
     CHECK(priv != nullptr);
     if (!priv) {
         obs_source_release(filt);
         return;
     }
-    ba::dsp::ChannelStrip *strip = static_cast<ba::dsp::ChannelStrip *>(priv);
+    ba::dsp::ChannelStrip* strip = static_cast<ba::dsp::ChannelStrip*>(priv);
 
     // Buffer estéreo interleaved (2*kFrames floats) con la señal de prueba.
-    float *buf = new float[static_cast<std::size_t>(2 * kFrames)];
+    float* buf = new float[static_cast<std::size_t>(2 * kFrames)];
     fillTestSignal(buf, kFrames);
 
     // Procesa UN buffer a través del ChannelStrip del filtro (in-place).

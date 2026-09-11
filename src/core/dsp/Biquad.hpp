@@ -28,12 +28,12 @@ namespace ba::dsp {
 
 /// Tipos de filtro del cookbook RBJ que soporta `Biquad`.
 enum class BiquadType {
-    LowPass,    // paso bajo (Butterworth, Q=0.7071 por defecto del cookbook)
-    HighPass,   // paso alto (Butterworth)
-    BandPass,   // pasa banda (ganancia pico constante 0 dB)
-    Peaking,    // EQ parametrico de pico (boost/cut)
-    LowShelf,   // estanteria baja
-    HighShelf   // estanteria alta
+    LowPass,  // paso bajo (Butterworth, Q=0.7071 por defecto del cookbook)
+    HighPass, // paso alto (Butterworth)
+    BandPass, // pasa banda (ganancia pico constante 0 dB)
+    Peaking,  // EQ parametrico de pico (boost/cut)
+    LowShelf, // estanteria baja
+    HighShelf // estanteria alta
 };
 
 /// Biquad IIR de segundo orden, forma directa II transpuesta, coeficientes
@@ -43,7 +43,7 @@ enum class BiquadType {
 /// estado: un `Biquad` distinto por canal de audio. `setParams()` recalcula
 /// los coeficientes (no toca el estado); `reset()` limpia el estado.
 class Biquad {
-public:
+   public:
     /// Recalcula los coeficientes para el tipo/frecuencia/ganancia/Q dados.
     ///
     /// Aplica las formulas exactas del Audio EQ Cookbook de RBJ (bilinear
@@ -71,7 +71,7 @@ public:
     /// Evita transitorios al (re)iniciar el filtro.
     void reset();
 
-private:
+   private:
     // Coeficientes normalizados (a0 == 1). b0..b2 feedforward, a1..a2 feedback.
     float b0_ = 1.0f;
     float b1_ = 0.0f;

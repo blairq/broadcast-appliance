@@ -37,11 +37,11 @@
 #ifdef _WIN32
 
 #include "obs/obs-module.h"
-#include "obs/obs.h"
 #include "obs/obs-properties.h"
+#include "obs/obs.h"
 
-#include "dsp/ChannelStrip.hpp"
 #include "dsp/Biquad.hpp"
+#include "dsp/ChannelStrip.hpp"
 #include "dsp/Presets.hpp"
 
 #include <cmath>
@@ -53,8 +53,8 @@
 namespace {
 
 // --- Constantes --------------------------------------------------------------
-constexpr double kFs = 48000.0;    // reloj de libobs (spec 7.4)
-constexpr double kSmoothMs = 5.0;  // fade de ganancia al cambiar de preset
+constexpr double kFs = 48000.0;                   // reloj de libobs (spec 7.4)
+constexpr double kSmoothMs = 5.0;                 // fade de ganancia al cambiar de preset
 constexpr double kTwoPi = 6.28318530717958647692; // 2*pi (sin depender de M_PI)
 
 // --- Helpers de propiedades --------------------------------------------------
@@ -69,7 +69,7 @@ constexpr double kTwoPi = 6.28318530717958647692; // 2*pi (sin depender de M_PI)
 /// :param name: nombre interno de la propiedad.
 /// :param desc: descripcion para mostrar en la UI.
 /// :returns: la propiedad creada (NULL si falla).
-obs_property *add_preset_list(obs_properties *props, const char *name, const char *desc) {
+obs_property* add_preset_list(obs_properties* props, const char* name, const char* desc) {
     static const obs_property_list_item items[] = {
         {"podium", "Atril / cuello de cisne"},
         {"lavalier", "Corbatero / lavalier"},
@@ -83,7 +83,7 @@ obs_property *add_preset_list(obs_properties *props, const char *name, const cha
 ///
 /// :param props: propiedades a las que se añaden las subpropiedades de la banda.
 /// :param i: indice de la banda (0..3); se usan claves `eq<i>_*`.
-void add_eq_band(obs_properties *props, int i) {
+void add_eq_band(obs_properties* props, int i) {
     char key[64];
     char desc[64];
 
@@ -103,7 +103,7 @@ void add_eq_band(obs_properties *props, int i) {
 
     std::snprintf(key, sizeof(key), "eq%d_freq", i);
     std::snprintf(desc, sizeof(desc), "Banda EQ %d (Hz)", i + 1);
-    obs_property *p = obs_properties_add_double(props, key, desc);
+    obs_property* p = obs_properties_add_double(props, key, desc);
     obs_property_double_set_range(p, 20.0, 20000.0, 1.0);
 
     std::snprintf(key, sizeof(key), "eq%d_gain", i);
@@ -125,12 +125,12 @@ void add_eq_band(obs_properties *props, int i) {
 ///
 /// :returns: propiedades nuevas (el propietario las destruye con
 ///           `obs_properties_destroy`).
-obs_properties *build_full_properties() {
-    obs_properties *props = obs_properties_create();
+obs_properties* build_full_properties() {
+    obs_properties* props = obs_properties_create();
     add_preset_list(props, "preset", "Preset de canal");
 
     // HPF
-    obs_property *p = obs_properties_add_double(props, "hpf_freq", "HPF (Hz)");
+    obs_property* p = obs_properties_add_double(props, "hpf_freq", "HPF (Hz)");
     obs_property_double_set_range(p, 20.0, 2000.0, 1.0);
     p = obs_properties_add_double(props, "hpf_slope", "HPF pendiente (dB/oct)");
     obs_property_double_set_range(p, 12.0, 24.0, 6.0);
@@ -179,8 +179,8 @@ obs_properties *build_full_properties() {
 ///
 /// :param s: settings de la fuente/filtro (obs_data).
 /// :returns: `StripParams` ya armado para `ChannelStrip::setParams`.
-ba::dsp::StripParams build_params(obs_data *s) {
-    const char *preset = obs_data_get_string(s, "preset");
+ba::dsp::StripParams build_params(obs_data* s) {
+    const char* preset = obs_data_get_string(s, "preset");
     ba::dsp::StripParams p;
     if (preset && std::strcmp(preset, "lavalier") == 0) {
         p = ba::dsp::presetLavalier();
@@ -227,7 +227,7 @@ ba::dsp::StripParams build_params(obs_data *s) {
             continue;
         }
         std::snprintf(key, sizeof(key), "eq%d_type", i);
-        const char *t = obs_data_get_string(s, key);
+        const char* t = obs_data_get_string(s, key);
         if (t && std::strcmp(t, "lowshelf") == 0) {
             p.eq[i].type = ba::dsp::BiquadType::LowShelf;
         } else if (t && std::strcmp(t, "highshelf") == 0) {
@@ -266,8 +266,8 @@ struct ChannelStripFilter {
 /// :param settings: settings iniciales de la fuente.
 /// :param source: fuente en creacion.
 /// :returns: puntero al estado privado (se libera en `destroy`).
-void *channel_strip_create(obs_data *settings, obs_source *source) {
-    auto *f = new ChannelStripFilter();
+void* channel_strip_create(obs_data* settings, obs_source* source) {
+    auto* f = new ChannelStripFilter();
     f->strip.setParams(build_params(settings), kSmoothMs);
     (void)source;
     return f;
@@ -276,8 +276,8 @@ void *channel_strip_create(obs_data *settings, obs_source *source) {
 /// Destruye el filtro y libera el estado privado.
 ///
 /// :param source: fuente a destruir.
-void channel_strip_destroy(obs_source *source) {
-    delete static_cast<ChannelStripFilter *>(obs_source_get_private_data(source));
+void channel_strip_destroy(obs_source* source) {
+    delete static_cast<ChannelStripFilter*>(obs_source_get_private_data(source));
 }
 
 /// Actualiza los parámetros del strip desde las nuevas settings (thread de
@@ -286,9 +286,9 @@ void channel_strip_destroy(obs_source *source) {
 ///
 /// :param source: fuente del filtro.
 /// :param settings: nuevas settings.
-void channel_strip_update(obs_source *source, obs_data *settings) {
+void channel_strip_update(obs_source* source, obs_data* settings) {
     try {
-        auto *f = static_cast<ChannelStripFilter *>(obs_source_get_private_data(source));
+        auto* f = static_cast<ChannelStripFilter*>(obs_source_get_private_data(source));
         if (f) {
             f->strip.setParams(build_params(settings), kSmoothMs);
         }
@@ -305,12 +305,12 @@ void channel_strip_update(obs_source *source, obs_data *settings) {
 /// :param in: mezcla de audio de entrada (se modifica in-place).
 /// :param timestamp: marca de tiempo a devolver.
 /// :returns: el timestamp recibido (sin retardo).
-uint64_t channel_strip_filter_audio(obs_source *filter, const audio_mix *in, uint64_t timestamp) {
+uint64_t channel_strip_filter_audio(obs_source* filter, const audio_mix* in, uint64_t timestamp) {
     try {
-        auto *f = static_cast<ChannelStripFilter *>(obs_source_get_private_data(filter));
+        auto* f = static_cast<ChannelStripFilter*>(obs_source_get_private_data(filter));
         if (f && in && in->plane_ptr && in->format == AUDIO_FORMAT_F32 && in->planes == 1 &&
             in->frame_count > 0) {
-            float *buf = static_cast<float *>(in->plane_ptr[0]);
+            float* buf = static_cast<float*>(in->plane_ptr[0]);
             f->strip.process(buf, static_cast<int>(in->frame_count));
         }
     } catch (...) {
@@ -323,7 +323,7 @@ uint64_t channel_strip_filter_audio(obs_source *filter, const audio_mix *in, uin
 ///
 /// :param source: fuente del filtro (no se usa).
 /// :returns: propiedades nuevas.
-obs_properties *channel_strip_get_properties(obs_source *source) {
+obs_properties* channel_strip_get_properties(obs_source* source) {
     (void)source;
     return build_full_properties();
 }
@@ -363,8 +363,8 @@ struct ChannelPresetSource {
 /// :param settings: settings iniciales.
 /// :param source: fuente en creacion.
 /// :returns: puntero al estado privado.
-void *channel_preset_create(obs_data *settings, obs_source *source) {
-    auto *src = new ChannelPresetSource();
+void* channel_preset_create(obs_data* settings, obs_source* source) {
+    auto* src = new ChannelPresetSource();
     src->strip.setParams(build_params(settings), kSmoothMs);
     (void)source;
     return src;
@@ -373,8 +373,8 @@ void *channel_preset_create(obs_data *settings, obs_source *source) {
 /// Destruye la fuente y libera el estado privado.
 ///
 /// :param source: fuente a destruir.
-void channel_preset_destroy(obs_source *source) {
-    delete static_cast<ChannelPresetSource *>(obs_source_get_private_data(source));
+void channel_preset_destroy(obs_source* source) {
+    delete static_cast<ChannelPresetSource*>(obs_source_get_private_data(source));
 }
 
 /// Cambia el preset del strip (thread de control). Captura excepciones en el
@@ -382,9 +382,9 @@ void channel_preset_destroy(obs_source *source) {
 ///
 /// :param source: fuente.
 /// :param settings: nuevas settings.
-void channel_preset_update(obs_source *source, obs_data *settings) {
+void channel_preset_update(obs_source* source, obs_data* settings) {
     try {
-        auto *src = static_cast<ChannelPresetSource *>(obs_source_get_private_data(source));
+        auto* src = static_cast<ChannelPresetSource*>(obs_source_get_private_data(source));
         if (src) {
             src->strip.setParams(build_params(settings), kSmoothMs);
         }
@@ -402,9 +402,9 @@ void channel_preset_update(obs_source *source, obs_data *settings) {
 /// :param frame: frame de audio a rellenar (libobs preasigna data[0] y frames).
 /// :param ts: marca de tiempo.
 /// :returns: el timestamp recibido.
-uint64_t channel_preset_audio_render(obs_source *source, frame_data *frame, uint64_t ts) {
+uint64_t channel_preset_audio_render(obs_source* source, frame_data* frame, uint64_t ts) {
     try {
-        auto *src = static_cast<ChannelPresetSource *>(obs_source_get_private_data(source));
+        auto* src = static_cast<ChannelPresetSource*>(obs_source_get_private_data(source));
         if (!src || !frame) {
             return ts;
         }
@@ -412,7 +412,7 @@ uint64_t channel_preset_audio_render(obs_source *source, frame_data *frame, uint
         frame->channels = 2;
         frame->samples_per_sec = static_cast<uint32_t>(kFs);
         int n = static_cast<int>(frame->frames);
-        float *buf = static_cast<float *>(frame->data[0]);
+        float* buf = static_cast<float*>(frame->data[0]);
         if (!buf || n <= 0) {
             return ts;
         }
@@ -437,7 +437,7 @@ uint64_t channel_preset_audio_render(obs_source *source, frame_data *frame, uint
     } catch (...) {
         // Rellena de silencio si algo falla para no soltar basura.
         if (frame) {
-            float *buf = static_cast<float *>(frame->data[0]);
+            float* buf = static_cast<float*>(frame->data[0]);
             if (buf) {
                 std::memset(buf, 0, static_cast<size_t>(frame->frames) * 2 * sizeof(float));
             }
@@ -451,9 +451,9 @@ uint64_t channel_preset_audio_render(obs_source *source, frame_data *frame, uint
 ///
 /// :param source: fuente (no se usa).
 /// :returns: propiedades nuevas.
-obs_properties *channel_preset_get_properties(obs_source *source) {
+obs_properties* channel_preset_get_properties(obs_source* source) {
     (void)source;
-    obs_properties *props = obs_properties_create();
+    obs_properties* props = obs_properties_create();
     add_preset_list(props, "preset", "Preset de canal");
     return props;
 }
@@ -488,8 +488,8 @@ const obs_source_info channel_preset_info = {
 /// :param log: callback de log de libobs.
 /// :param local: ruta local del modulo.
 /// :param module_name: nombre del modulo.
-extern "C" void obs_module_register(struct obs_module *module, obs_log_t log,
-                                    const char *local, const char *module_name) {
+extern "C" void obs_module_register(struct obs_module* module, obs_log_t log, const char* local,
+                                    const char* module_name) {
     (void)module;
     (void)log;
     (void)local;
@@ -512,8 +512,6 @@ extern "C" void obs_module_unregister(void) {
 /// #ifdef _WIN32.
 ///
 /// :returns: 0 siempre.
-extern "C" int ba_sources_placeholder() {
-    return 0;
-}
+extern "C" int ba_sources_placeholder() { return 0; }
 
 #endif // _WIN32

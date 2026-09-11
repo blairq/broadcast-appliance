@@ -39,13 +39,9 @@ void FaultInjector::arm(FaultKind kind) {
     armed_.store(kind, std::memory_order_release);
 }
 
-void FaultInjector::disarm() {
-    armed_.store(FaultKind::None, std::memory_order_release);
-}
+void FaultInjector::disarm() { armed_.store(FaultKind::None, std::memory_order_release); }
 
-FaultKind FaultInjector::armed() const {
-    return armed_.load(std::memory_order_acquire);
-}
+FaultKind FaultInjector::armed() const { return armed_.load(std::memory_order_acquire); }
 
 bool FaultInjector::fire() const {
     // Consumo atomico: solo un thread gana si hay carrera.
@@ -57,9 +53,8 @@ bool FaultInjector::fire() const {
             // No habia fallo armado: no hay nada que consumir.
             return false;
         }
-        if (armed_.compare_exchange_strong(
-                expected, FaultKind::None,
-                std::memory_order_acq_rel, std::memory_order_acquire)) {
+        if (armed_.compare_exchange_strong(expected, FaultKind::None, std::memory_order_acq_rel,
+                                           std::memory_order_acquire)) {
             // Consumimos el fallo: queda en None para la proxima armed().
             return true;
         }
@@ -70,16 +65,14 @@ bool FaultInjector::fire() const {
 
 // --- writeWithFault (demostracion de ChecksumMismatch) ----------------------
 
-bool writeWithFault(const FaultInjector& injector,
-                    const std::string& sourcePath,
+bool writeWithFault(const FaultInjector& injector, const std::string& sourcePath,
                     const std::string& outPath) {
     // 1) Leer el archivo original completo (binario).
     std::ifstream in(sourcePath, std::ios::binary);
     if (!in) {
         return false; // no existe / no se puede leer
     }
-    std::string data((std::istreambuf_iterator<char>(in)),
-                     std::istreambuf_iterator<char>());
+    std::string data((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
     in.close();
 
     // 2) Si ChecksumMismatch esta armado, alterar EXACTAMENTE un byte (XOR

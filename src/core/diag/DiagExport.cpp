@@ -29,10 +29,15 @@
 #include <nlohmann/json.hpp>
 
 #if defined(_WIN32)
-#    define WIN32_LEAN_AND_MEAN
-#    include <windows.h>
+#define WIN32_LEAN_AND_MEAN
+// `windows.h` ANTES que `dbghelp.h`: el segundo arrastra `_dbg_LOAD_IMAGE.h`
+// y `_dbg_common.h`, que usan tipos base de Windows (PSTR, HANDLE, ULONG,
+// CALLBACK) solo definidos una vez procesado `windows.h`. El orden inverso
+// rompe el cross-compile MinGW.
+#include <windows.h>
+#include <dbghelp.h> // MiniDumpWriteDump (se resuelve a runtime, no se enlaza)
 #else
-#    include <unistd.h> // gethostname
+#include <unistd.h> // gethostname
 #endif
 
 namespace ba::diag {
@@ -55,13 +60,11 @@ std::string hostName() {
     DWORD n = sizeof(buf) / sizeof(buf[0]);
     if (GetComputerNameW(buf, &n)) {
         // UTF-16 -> UTF-8 (best-effort; los nombres de host suelen ser ASCII).
-        int need = WideCharToMultiByte(CP_UTF8, 0, buf, static_cast<int>(n),
-                                       nullptr, 0, nullptr, nullptr);
+        int need = WideCharToMultiByte(CP_UTF8, 0, buf, static_cast<int>(n), nullptr, 0, nullptr, nullptr);
         std::string out;
         if (need > 0) {
             out.resize(static_cast<std::size_t>(need));
-            WideCharToMultiByte(CP_UTF8, 0, buf, static_cast<int>(n),
-                                out.data(), need, nullptr, nullptr);
+            WideCharToMultiByte(CP_UTF8, 0, buf, static_cast<int>(n), out.data(), need, nullptr, nullptr);
         }
         if (!out.empty()) {
             return out;
@@ -94,9 +97,8 @@ std::string timestampUtc() {
     gmtime_r(&tt, &tm);
 #endif
     char buf[64];
-    std::snprintf(buf, sizeof(buf), "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ",
-                  tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour,
-                  tm.tm_min, tm.tm_sec, static_cast<int>(ms));
+    std::snprintf(buf, sizeof(buf), "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ", tm.tm_year + 1900, tm.tm_mon + 1,
+                  tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, static_cast<int>(ms));
     return std::string(buf);
 }
 
@@ -133,7 +135,8 @@ std::vector<std::string> collectLogFiles(const std::string& logDir) {
         const std::string name = entry.path().filename().string();
         if (name == kLogPrefix) {
             found.emplace_back(-1, entry.path().string());
-        } else if (name.rfind(kLogPrefix, 0) == 0 && name.size() > std::char_traits<char>::length(kLogPrefix)) {
+        } else if (name.rfind(kLogPrefix, 0) == 0 &&
+                   name.size() > std::char_traits<char>::length(kLogPrefix)) {
             const std::string suffix = name.substr(std::char_traits<char>::length(kLogPrefix));
             if (suffix.front() == '.') {
                 // "ba.log.<n>" -> n
@@ -153,8 +156,7 @@ std::vector<std::string> collectLogFiles(const std::string& logDir) {
     }
 
     // Orden: activo (-1) primero, luego por indice ascendente (.1, .2, ...).
-    std::sort(found.begin(), found.end(),
-              [](const auto& a, const auto& b) { return a.first < b.first; });
+    std::sort(found.begin(), found.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
     for (const auto& [idx, path] : found) {
         out.push_back(path);
     }
@@ -165,15 +167,13 @@ std::vector<std::string> collectLogFiles(const std::string& logDir) {
 
 // --- exportBundle -----------------------------------------------------------
 
-ExportResult DiagExport::exportBundle(const std::string& logDir,
-                                      const std::string& outPath) {
+ExportResult DiagExport::exportBundle(const std::string& logDir, const std::string& outPath) {
     ExportResult res{false, outPath};
 
     try {
         // Crea el directorio padre de outPath si no existe.
         std::error_code ec;
-        const std::filesystem::path parent =
-            std::filesystem::path(outPath).parent_path();
+        const std::filesystem::path parent = std::filesystem::path(outPath).parent_path();
         if (!parent.empty()) {
             std::filesystem::create_directories(parent, ec);
             if (ec) {
@@ -237,25 +237,100 @@ ExportResult DiagExport::exportBundle(const std::string& logDir,
     }
 }
 
-// --- writeMinidump (stub, GATED:Win) ----------------------------------------
+// --- writeMinidump (GATED:Win) ----------------------------------------------
 
 #if defined(_WIN32)
-// STUB (GATED:Win): la implementacion real usaria MiniDumpWriteDump de
-// dbghelp.dll. Se cargaria la lib a runtime (LoadLibraryW(L"dbghelp.dll") +
-// GetProcAddress "MiniDumpWriteDump") para no enlazar estaticamente, y se
-// llamaria con MiniDumpType = MiniDumpWithHeapSnapshot | MiniDumpWithThreadInfo
-// | MiniDumpWithStackWalk, escribiendo en un HANDLE abierto a `path`
-// (CreateFileW). El proceso se obtiene con GetCurrentProcess(). Por ahora no
-// esta cableado: devuelve false (el dump se genera desde el filtro de
-// excepciones / el launcher, que lo implementan en su componente).
-bool DiagExport::writeMinidump(const std::string& /*path*/) {
-    return false;
+namespace {
+
+// dbghelp.h se incluye solo para los tipos (MINIDUMP_TYPE, PMINIDUMP_*) y la
+// firma de MiniDumpWriteDump; el simbolo se resuelve a runtime con
+// GetProcAddress y NO se enlaza estaticamente.
+//
+// MinGW trae un enum MINIDUMP_TYPE incompleto: solo define MiniDumpNormal y
+// MiniDumpWithThreadInfo de los tres que usamos. MiniDumpWithHeapSnapshot y
+// MiniDumpWithStackWalk no existen en su dbghelp.h, asi que se los declara
+// localmente con #ifndef para que el codigo compile tanto contra el header de
+// MinGW como contra uno completo (MSVC/WDK).
+#ifndef MiniDumpWithHeapSnapshot
+constexpr DWORD MiniDumpWithHeapSnapshot = 0x00040000;
+#endif
+#ifndef MiniDumpWithStackWalk
+constexpr DWORD MiniDumpWithStackWalk = 0x04000000;
+#endif
+
+// MiniDumpWriteDump de dbghelp.dll (se resuelve a runtime).
+typedef BOOL(WINAPI* MiniDumpWriteDumpFn)(HANDLE hProcess, DWORD ProcessId, HANDLE hFile,
+                                          MINIDUMP_TYPE DumpType,
+                                          CONST PMINIDUMP_EXCEPTION_INFORMATION ExceptionParam,
+                                          CONST PMINIDUMP_USER_STREAM_INFORMATION UserStreamParam,
+                                          CONST PMINIDUMP_CALLBACK_INFORMATION CallbackParam);
+
+} // namespace
+
+// Escribe un minidump del proceso actual en `path` (spec §11.4).
+//
+// Proposito:
+//   Captura el estado del proceso (heap, hilos y stack) como un .dmp
+//   autocontenido para post-mortem. dbghelp.dll se carga a runtime
+//   (LoadLibraryW + GetProcAddress) y no se enlaza estaticamente: asi el
+//   binario no depende de dbghelp en el import table y sigue arrancando en
+//   sistemas donde no este presente (devuelve false en vez de fallar al
+//   resolver el simbolo al cargar).
+//
+// Threading:
+//   Camino de CONTROL, no de RT: MiniDumpWriteDump recorre la memoria del
+//   proceso y escribe un archivo, por lo que puede bloquear; debe llamarse
+//   desde un hilo de control (el filtro de excepciones o el launcher), nunca
+//   desde el bucle de audio.
+//
+// Errores:
+//   No-fallible por contrato: NUNCA lanza. Devuelve false ante CUALQUIER fallo
+//   (dbghelp.dll ausente, simbolo no resuelto, archivo no abre, o
+//   MiniDumpWriteDump devuelve 0) y true solo si se escribio el dump.
+bool DiagExport::writeMinidump(const std::string& path) {
+    // dbghelp.dll: cargar a runtime; si no esta, no hay minidump.
+    HMODULE dbghelp = ::LoadLibraryW(L"dbghelp.dll");
+    if (!dbghelp) {
+        return false;
+    }
+
+    // Doble cast via `void*`: GetProcAddress devuelve FARPROC (funcion), y
+    // castear directamente funcion->funcion dispara `-Wcast-function-type`.
+    // (Mismo patron que Vst3Host.cpp.)
+    auto fn = reinterpret_cast<MiniDumpWriteDumpFn>(
+        reinterpret_cast<void*>(::GetProcAddress(dbghelp, "MiniDumpWriteDump")));
+    if (!fn) {
+        ::FreeLibrary(dbghelp);
+        return false;
+    }
+
+    // Convertir la ruta UTF-8 a UTF-16 para CreateFileW.
+    const int need =
+        ::MultiByteToWideChar(CP_UTF8, 0, path.c_str(), static_cast<int>(path.size()), nullptr, 0);
+    std::wstring wpath(static_cast<std::size_t>(need), L'\0');
+    if (need > 0) {
+        ::MultiByteToWideChar(CP_UTF8, 0, path.c_str(), static_cast<int>(path.size()), wpath.data(), need);
+    }
+
+    // Abrir el destino (crea o sobreescribe). Si no se abre, no hay dump.
+    HANDLE hFile = ::CreateFileW(wpath.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS,
+                                 FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (hFile == INVALID_HANDLE_VALUE) {
+        ::FreeLibrary(dbghelp);
+        return false;
+    }
+
+    const BOOL ok = fn(
+        ::GetCurrentProcess(), ::GetCurrentProcessId(), hFile,
+        static_cast<MINIDUMP_TYPE>(MiniDumpWithHeapSnapshot | MiniDumpWithThreadInfo | MiniDumpWithStackWalk),
+        nullptr, nullptr, nullptr);
+    ::CloseHandle(hFile);
+    ::FreeLibrary(dbghelp);
+    return ok != 0;
 }
 #else
 // No-Windows: no hay minidump nativo (MiniDumpWriteDump es de Windows).
-bool DiagExport::writeMinidump(const std::string& /*path*/) {
-    return false;
-}
+bool DiagExport::writeMinidump(const std::string& /*path*/) { return false; }
 #endif
 
 } // namespace ba::diag

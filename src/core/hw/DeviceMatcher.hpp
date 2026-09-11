@@ -57,7 +57,7 @@ struct MatchResult {
 
 /// Matcher de identidad de dispositivos con puntaje (spec 9.4). Stateless.
 class DeviceMatcher {
-public:
+   public:
     /// Puntajes fijos, de mayor a menor (spec 9.4). Se exponen para que los
     /// tests y el caller puedan razonar sobre ellos de forma estable.
     static constexpr int kScoreExactEndpoint = 100;
@@ -83,8 +83,7 @@ public:
     /// :param alreadyAssigned: indices de `known` ya asignados a otra pista;
     ///                          se descartan como candidatos.
     /// :returns: MatchResult con kind/index/score del mejor match.
-    MatchResult match(const DeviceIdentity& observed,
-                      const std::vector<DeviceIdentity>& known,
+    MatchResult match(const DeviceIdentity& observed, const std::vector<DeviceIdentity>& known,
                       const std::vector<int>& alreadyAssigned) const;
 };
 

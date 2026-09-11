@@ -67,7 +67,7 @@ class MediaPump;
 
 /// Servidor de señalización HTTP + WebSocket en loopback. Ver el header.
 class SignalingServer {
-public:
+   public:
     /// Configuracion del servidor.
     struct Cfg {
         uint16_t port = 8787;
@@ -104,21 +104,19 @@ public:
     /// Indica si esta escuchando.
     bool running() const;
 
-private:
+   private:
     void acceptLoop();
     void handleConnection(long long clientFd);
 
     // HTTP
-    void handleHttp(long long fd, const std::string& method,
-                    const std::string& path, const std::string& query,
-                    const std::string& body);
+    void handleHttp(long long fd, const std::string& method, const std::string& path,
+                    const std::string& query, const std::string& body);
     bool serveStatic(long long fd, const std::string& relPath);
     void apiJoin(long long fd, const std::string& body);
     void apiVerify(long long fd, const std::string& query);
 
     // WebSocket
-    bool wsHandshake(long long fd, const std::string& req,
-                     const std::string& query);
+    bool wsHandshake(long long fd, const std::string& req, const std::string& query);
     void wsLoop(long long fd, int slot);
 
     // Conexiones WS activas (slot → conexion) para el send por callback.
@@ -140,8 +138,7 @@ private:
 
     // Utilidades de socket (dual plataforma).
     bool sendAll(long long fd, const void* data, size_t len) const;
-    bool sendResponse(long long fd, int code, const std::string& status,
-                      const std::string& contentType,
+    bool sendResponse(long long fd, int code, const std::string& status, const std::string& contentType,
                       const std::string& body) const;
     long long listenFd_ = -1;
 

@@ -50,9 +50,9 @@
 #include <thread>
 #include <vector>
 
-#include "Webrtc.hpp"
 #include "ipc/SharedAudioRing.hpp"
 #include "ipc/SpoutTransport.hpp"
+#include "Webrtc.hpp"
 
 namespace ba::gateway {
 
@@ -60,11 +60,11 @@ class Log;
 
 /// Motor de medios: enruta IPC ↔ WebRTC por invitado. Ver el header.
 class MediaPump {
-public:
+   public:
     /// Configuracion de los nombres de flujos IPC y resolucion.
     struct Cfg {
-        std::wstring returnAudioName;   // BA.Audio.ContentForReturn (A→B)
-        std::wstring programVideoName;  // BA.Program (A→B)
+        std::wstring returnAudioName;              // BA.Audio.ContentForReturn (A→B)
+        std::wstring programVideoName;             // BA.Program (A→B)
         std::vector<std::wstring> guestAudioNames; // BA.Audio.Guest.<n> (B→A)
         std::vector<std::wstring> guestVideoNames; // BA.Guest.<n> (B→A)
         int audioRate = 48000;
@@ -99,7 +99,7 @@ public:
     /// Se llama desde onRemoteVideo de la sesion.
     void forwardVideo(int slot, const uint8_t* pixels, size_t bytes, int w, int h);
 
-private:
+   private:
     void returnAudioThread();
     void returnVideoThread();
 

@@ -31,12 +31,12 @@ namespace {
 
 int g_failures = 0;
 
-#define CHECK(cond)                                                            \
-    do {                                                                       \
-        if (!(cond)) {                                                         \
-            std::printf("FALLO: %s (linea %d)\n", #cond, __LINE__);            \
-            ++g_failures;                                                      \
-        }                                                                      \
+#define CHECK(cond)                                                                                          \
+    do {                                                                                                     \
+        if (!(cond)) {                                                                                       \
+            std::printf("FALLO: %s (linea %d)\n", #cond, __LINE__);                                          \
+            ++g_failures;                                                                                    \
+        }                                                                                                    \
     } while (0)
 
 /// Lee un archivo completo como string (para inspeccionar los bytes crudos).
@@ -45,16 +45,14 @@ std::string readWholeFile(const std::string& path) {
     if (!ifs) {
         return {};
     }
-    std::string raw((std::istreambuf_iterator<char>(ifs)),
-                    std::istreambuf_iterator<char>());
+    std::string raw((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
     return raw;
 }
 
 // 1) + 2) Guardar 3 secretos, save(), y verificar que el archivo NO contiene
 //         ningún valor en claro (cifrado en reposo).
 void testSaveAndEncryptedAtRest() {
-    const std::string path =
-        (std::filesystem::temp_directory_path() / "ba_secrets_test.json").string();
+    const std::string path = (std::filesystem::temp_directory_path() / "ba_secrets_test.json").string();
 
     const std::string kStream = "srtmk_live_9f8e7d6c5b4a";
     const std::string kTurn = "turn_user_1234_secret";
@@ -88,8 +86,7 @@ void testSaveAndEncryptedAtRest() {
 // 3) Round-trip: un store NUEVO carga con la passphrase correcta y todos los
 //    valores vuelven intactos.
 void testRoundTripFreshStore() {
-    const std::string path =
-        (std::filesystem::temp_directory_path() / "ba_secrets_test.json").string();
+    const std::string path = (std::filesystem::temp_directory_path() / "ba_secrets_test.json").string();
 
     const std::string kStream = "srtmk_live_9f8e7d6c5b4a";
     const std::string kTurn = "turn_user_1234_secret";
@@ -122,8 +119,7 @@ void testRoundTripFreshStore() {
 // 4) Passphrase equivocada: load() falla LIMPIAMENTE (tag GCM no coincide) y
 //    devuelve false; get() sobre ese store devuelve false.
 void testWrongPassphraseFailsCleanly() {
-    const std::string path =
-        (std::filesystem::temp_directory_path() / "ba_secrets_test.json").string();
+    const std::string path = (std::filesystem::temp_directory_path() / "ba_secrets_test.json").string();
 
     const std::string kStream = "srtmk_live_9f8e7d6c5b4a";
     const std::string kPass = "passphrase-maestra-de-prueba";

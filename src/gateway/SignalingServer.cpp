@@ -32,26 +32,26 @@
 
 #include <nlohmann/json.hpp>
 
+#include "ipc/ControlProtocol.hpp"
 #include "Log.hpp"
 #include "MediaPump.hpp" // tipo completo: se invoca forwardAudio/forwardVideo
-#include "ipc/ControlProtocol.hpp"
 
 #ifdef _WIN32
-#    define WIN32_LEAN_AND_MEAN
-#    include <winsock2.h>
-#    include <ws2tcpip.h>
+#define WIN32_LEAN_AND_MEAN
+#include <winsock2.h>
+#include <ws2tcpip.h>
 typedef SOCKET Fd;
-#    define FD_INVALID INVALID_SOCKET
+#define FD_INVALID INVALID_SOCKET
 static Fd toFd(long long f) { return static_cast<Fd>(f); }
 static long long toLL(Fd f) { return static_cast<long long>(f); }
 #else
-#    include <arpa/inet.h>
-#    include <netinet/in.h>
-#    include <netinet/tcp.h>
-#    include <sys/socket.h>
-#    include <unistd.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <sys/socket.h>
+#include <unistd.h>
 typedef int Fd;
-#    define FD_INVALID (-1)
+#define FD_INVALID (-1)
 static Fd toFd(long long f) { return static_cast<Fd>(f); }
 static long long toLL(Fd f) { return static_cast<long long>(f); }
 #endif
@@ -87,17 +87,20 @@ struct Sha1 {
         uint32_t a = h[0], b = h[1], c = h[2], d = h[3], e = h[4];
         for (int i = 0; i < 80; ++i) {
             uint32_t f, k;
+            // Paréntesis explícitos en cada ronda: `&`/`|`/`^` tienen
+            // precedencias distintas y el compilador avisa (`-Wparentheses`)
+            // al mezclarlas sin agrupar. La aritmética no cambia.
             if (i < 16) {
-                f = b & c | (~b & d);
+                f = (b & c) | ((~b) & d);
                 k = 0x5A827999;
             } else if (i < 32) {
-                f = b ^ c ^ d;
+                f = (b ^ c) ^ d;
                 k = 0x6ED9EBA1;
             } else if (i < 48) {
-                f = b & c | b & d | c & d;
+                f = (b & c) | (b & d) | (c & d);
                 k = 0x8F1BBCDC;
             } else {
-                f = b ^ c ^ d;
+                f = (b ^ c) ^ d;
                 k = 0xCA62C1D6;
             }
             const uint32_t t = rol(a, 5) + f + e + k + w[i];
@@ -134,7 +137,8 @@ struct Sha1 {
         uint8_t pad = 0x80;
         update(&pad, 1);
         uint8_t zero = 0;
-        while (bufLen != 56) update(&zero, 1);
+        while (bufLen != 56)
+            update(&zero, 1);
         uint8_t lenBuf[8];
         for (int i = 0; i < 8; ++i)
             lenBuf[i] = uint8_t(bits >> (56 - i * 8));
@@ -159,14 +163,12 @@ std::array<uint8_t, 20> sha1(const std::string& s) {
 
 /// Base64 (estandar, con padding) de `n` bytes.
 std::string base64(const uint8_t* data, size_t n) {
-    static const char* tbl =
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    static const char* tbl = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     std::string out;
     out.reserve((n + 2) / 3 * 4);
     size_t i = 0;
     while (i + 3 <= n) {
-        const uint32_t v = (uint32_t(data[i]) << 16) | (uint32_t(data[i + 1]) << 8) |
-                           uint32_t(data[i + 2]);
+        const uint32_t v = (uint32_t(data[i]) << 16) | (uint32_t(data[i + 1]) << 8) | uint32_t(data[i + 2]);
         out += tbl[(v >> 18) & 63];
         out += tbl[(v >> 12) & 63];
         out += tbl[(v >> 6) & 63];
@@ -223,8 +225,7 @@ long long makeListen(uint16_t port) {
     if (s == FD_INVALID) return -1;
     int yes = 1;
 #ifdef _WIN32
-    setsockopt(s, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char*>(&yes),
-               sizeof(yes));
+    setsockopt(s, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char*>(&yes), sizeof(yes));
 #else
     setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
 #endif
@@ -234,7 +235,7 @@ long long makeListen(uint16_t port) {
 #ifdef _WIN32
     addr.sin_addr.S_un.S_addr = htonl(INADDR_LOOPBACK); // 127.0.0.1 (spec §5.6)
 #else
-    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);      // 127.0.0.1 (spec §5.6)
+    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK); // 127.0.0.1 (spec §5.6)
 #endif
     if (bind(s, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) != 0) {
         closeFdImpl(s);
@@ -250,8 +251,8 @@ long long makeListen(uint16_t port) {
 bool setNoDelay(long long fd) {
     int yes = 1;
 #ifdef _WIN32
-    return setsockopt(toFd(fd), IPPROTO_TCP, TCP_NODELAY,
-                      reinterpret_cast<const char*>(&yes), sizeof(yes)) == 0;
+    return setsockopt(toFd(fd), IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char*>(&yes), sizeof(yes)) ==
+           0;
 #else
     return setsockopt(toFd(fd), IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(yes)) == 0;
 #endif
@@ -261,8 +262,7 @@ bool setNoDelay(long long fd) {
 bool readExact(long long fd, uint8_t* out, size_t n) {
     size_t got = 0;
     while (got < n) {
-        const int r = recv(toFd(fd), reinterpret_cast<char*>(out + got),
-                           static_cast<int>(n - got), 0);
+        const int r = recv(toFd(fd), reinterpret_cast<char*>(out + got), static_cast<int>(n - got), 0);
         if (r <= 0) return false; // EOF o error
         got += static_cast<size_t>(r);
     }
@@ -288,9 +288,7 @@ bool readHeaders(long long fd, std::string& headers) {
         const int r = recv(toFd(fd), reinterpret_cast<char*>(&c), 1, 0);
         if (r <= 0) return false;
         headers.push_back(static_cast<char>(c));
-        if (headers.size() >= 4 &&
-            headers.compare(headers.size() - 4, 4, "\r\n\r\n") == 0)
-            return true;
+        if (headers.size() >= 4 && headers.compare(headers.size() - 4, 4, "\r\n\r\n") == 0) return true;
     }
     return false;
 }
@@ -300,15 +298,18 @@ std::string getHeader(const std::string& headers, const std::string& name) {
     const std::string lower = "\r\n" + headers;
     std::string needle = "\r\n" + name + ":";
     // Minúsculas del needle.
-    for (auto& ch : needle) ch = static_cast<char>(::tolower(ch));
+    for (auto& ch : needle)
+        ch = static_cast<char>(::tolower(ch));
     const size_t pos = lower.find(needle);
     if (pos == std::string::npos) return "";
     const size_t start = pos + needle.size();
     // Saltar espacios.
     size_t i = start;
-    while (i < lower.size() && (lower[i] == ' ' || lower[i] == '\t')) ++i;
+    while (i < lower.size() && (lower[i] == ' ' || lower[i] == '\t'))
+        ++i;
     size_t e = i;
-    while (e < lower.size() && lower[e] != '\r' && lower[e] != '\n') ++e;
+    while (e < lower.size() && lower[e] != '\r' && lower[e] != '\n')
+        ++e;
     return lower.substr(i, e - i);
 }
 
@@ -318,8 +319,7 @@ std::map<std::string, std::string> parseQuery(const std::string& q) {
     size_t i = 0;
     while (i < q.size()) {
         const size_t amp = q.find('&', i);
-        const std::string pair =
-            (amp == std::string::npos) ? q.substr(i) : q.substr(i, amp - i);
+        const std::string pair = (amp == std::string::npos) ? q.substr(i) : q.substr(i, amp - i);
         const size_t eq = pair.find('=');
         if (eq == std::string::npos) {
             out[pair] = "";
@@ -364,8 +364,7 @@ std::string urlDecode(const std::string& s) {
 // ============================================================================
 // SignalingServer
 // ============================================================================
-SignalingServer::SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub,
-                                 Log& log)
+SignalingServer::SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub, Log& log)
     : cfg_(cfg), auth_(auth), hub_(hub), log_(log) {
     slotBusy_.assign(static_cast<size_t>(cfg_.maxGuests) + 1, false);
 }
@@ -379,9 +378,8 @@ bool SignalingServer::start() {
     }
     listenFd_ = makeListen(cfg_.port);
     if (listenFd_ < 0) {
-        log_.error("senalizacion: no se pudo bind 127.0.0.1:" +
-                       std::to_string(cfg_.port) + " (puerto en uso?)",
-                   -1);
+        log_.error(
+            "senalizacion: no se pudo bind 127.0.0.1:" + std::to_string(cfg_.port) + " (puerto en uso?)", -1);
         socketCleanup();
         return false;
     }
@@ -440,9 +438,8 @@ void SignalingServer::handleConnection(long long fd) {
     const size_t sp1 = line.find(' ');
     const size_t sp2 = line.rfind(' ');
     const std::string method = line.substr(0, sp1);
-    std::string target = (sp1 == std::string::npos || sp2 == std::string::npos)
-                             ? ""
-                             : line.substr(sp1 + 1, sp2 - sp1 - 1);
+    std::string target =
+        (sp1 == std::string::npos || sp2 == std::string::npos) ? "" : line.substr(sp1 + 1, sp2 - sp1 - 1);
 
     // Separa path y query.
     std::string path, query;
@@ -475,9 +472,8 @@ void SignalingServer::handleConnection(long long fd) {
         if (wsHandshake(fd, headers, query)) {
             // wsHandshake ya reservo el slot; lo recupera de la query.
             const auto q = parseQuery(query);
-            const int slot = (q.count("slot") && !q.at("slot").empty())
-                                 ? std::stoi(urlDecode(q.at("slot")))
-                                 : 1;
+            const int slot =
+                (q.count("slot") && !q.at("slot").empty()) ? std::stoi(urlDecode(q.at("slot"))) : 1;
             registerConn(slot, fd);
             wsLoop(fd, slot);
             unregisterConn(slot);
@@ -493,9 +489,8 @@ void SignalingServer::handleConnection(long long fd) {
 }
 
 // --- HTTP -------------------------------------------------------------------
-void SignalingServer::handleHttp(long long fd, const std::string& method,
-                                 const std::string& path, const std::string& query,
-                                 const std::string& body) {
+void SignalingServer::handleHttp(long long fd, const std::string& method, const std::string& path,
+                                 const std::string& query, const std::string& body) {
     if (path == "/" || path == "/index.html") {
         serveStatic(fd, "index.html");
         return;
@@ -554,16 +549,14 @@ void SignalingServer::apiJoin(long long fd, const std::string& body) {
     try {
         req = json::parse(body);
     } catch (...) {
-        sendResponse(fd, 400, "Bad Request", "application/json",
-                     "{\"ok\":false,\"error\":\"json\"}");
+        sendResponse(fd, 400, "Bad Request", "application/json", "{\"ok\":false,\"error\":\"json\"}");
         return;
     }
     const std::string room = req.value("room", cfg_.room);
     const std::string pin = req.value("pin", "");
     const std::string token = auth_.issue(room, pin);
     if (token.empty()) {
-        sendResponse(fd, 401, "Unauthorized", "application/json",
-                     "{\"ok\":false,\"error\":\"pin\"}");
+        sendResponse(fd, 401, "Unauthorized", "application/json", "{\"ok\":false,\"error\":\"pin\"}");
         return;
     }
     json resp;
@@ -591,8 +584,7 @@ void SignalingServer::apiVerify(long long fd, const std::string& query) {
 }
 
 // --- WebSocket --------------------------------------------------------------
-bool SignalingServer::wsHandshake(long long fd, const std::string& req,
-                                  const std::string& query) {
+bool SignalingServer::wsHandshake(long long fd, const std::string& req, const std::string& query) {
     const std::string key = getHeader(req, "Sec-WebSocket-Key");
     if (key.empty()) {
         sendResponse(fd, 400, "Bad Request", "text/plain", "falta Sec-WebSocket-Key\n");
@@ -602,9 +594,7 @@ bool SignalingServer::wsHandshake(long long fd, const std::string& req,
     const auto q = parseQuery(query);
     const std::string token = q.count("token") ? urlDecode(q.at("token")) : "";
     const std::string room = q.count("room") ? urlDecode(q.at("room")) : cfg_.room;
-    const int slot = (q.count("slot") && !q.at("slot").empty())
-                         ? std::stoi(urlDecode(q.at("slot")))
-                         : 1;
+    const int slot = (q.count("slot") && !q.at("slot").empty()) ? std::stoi(urlDecode(q.at("slot"))) : 1;
 
     // Auth: verifica el token contra la sala (spec §8.3).
     const int vcode = auth_.verify(token, room);
@@ -621,14 +611,12 @@ bool SignalingServer::wsHandshake(long long fd, const std::string& req,
     }
 
     // Handshake RFC 6455: accept = base64(SHA1(key + GUID)).
-    const std::string accept =
-        base64(sha1(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").data(), 20);
-    std::string resp =
-        "HTTP/1.1 101 Switching Protocols\r\n"
-        "Upgrade: websocket\r\n"
-        "Connection: Upgrade\r\n"
-        "Sec-WebSocket-Accept: " +
-        accept + "\r\n\r\n";
+    const std::string accept = base64(sha1(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").data(), 20);
+    std::string resp = "HTTP/1.1 101 Switching Protocols\r\n"
+                       "Upgrade: websocket\r\n"
+                       "Connection: Upgrade\r\n"
+                       "Sec-WebSocket-Accept: " +
+                       accept + "\r\n\r\n";
     if (!sendAll(fd, resp.data(), resp.size())) {
         releaseSlot(slot);
         return false;
@@ -666,8 +654,7 @@ void SignalingServer::wsLoop(long long fd, int slot) {
         cb.onRemoteAudio = [this, slot](const float* samples, size_t n, int rate) {
             if (pump_) pump_->forwardAudio(slot, samples, n, rate);
         };
-        cb.onRemoteVideo = [this, slot](const uint8_t* pixels, size_t bytes, int w,
-                                        int h) {
+        cb.onRemoteVideo = [this, slot](const uint8_t* pixels, size_t bytes, int w, int h) {
             if (pump_) pump_->forwardVideo(slot, pixels, bytes, w, h);
         };
     }
@@ -689,15 +676,14 @@ void SignalingServer::wsLoop(long long fd, int slot) {
             case 0x1: // text
             case 0x2: // binary
                 break;
-            default:
-                continue;
+            default: continue;
         }
 
         // El payload es un frame (Frame::encodeFrame): prefijo LE + JSON.
         std::string jsonStr;
         size_t consumed = 0;
-        if (!Frame::decodeFrame(reinterpret_cast<const uint8_t*>(payload.data()),
-                                payload.size(), jsonStr, consumed)) {
+        if (!Frame::decodeFrame(reinterpret_cast<const uint8_t*>(payload.data()), payload.size(), jsonStr,
+                                consumed)) {
             log_.warn("ws: frame corrupto (slot=" + std::to_string(slot) + ")", -1);
             continue;
         }
@@ -711,8 +697,7 @@ void SignalingServer::wsLoop(long long fd, int slot) {
         if (type == "offer") {
             const std::string sdp = msg.value("sdp", "");
             if (!sess->setRemoteOffer(sdp)) {
-                log_.warn("ws: setRemoteOffer fallo (slot=" + std::to_string(slot) +
-                              ")", -1);
+                log_.warn("ws: setRemoteOffer fallo (slot=" + std::to_string(slot) + ")", -1);
             }
         } else if (type == "ice") {
             const std::string cand = msg.value("candidate", "");
@@ -774,13 +759,10 @@ bool SignalingServer::sendAll(long long fd, const void* data, size_t len) const 
 }
 
 bool SignalingServer::sendResponse(long long fd, int code, const std::string& status,
-                                   const std::string& contentType,
-                                   const std::string& body) const {
-    std::string resp = "HTTP/1.1 " + std::to_string(code) + " " + status + "\r\n" +
-                       "Content-Type: " + contentType + "\r\n" +
-                       "Content-Length: " + std::to_string(body.size()) + "\r\n" +
-                       "Connection: close\r\n\r\n" +
-                       body;
+                                   const std::string& contentType, const std::string& body) const {
+    std::string resp =
+        "HTTP/1.1 " + std::to_string(code) + " " + status + "\r\n" + "Content-Type: " + contentType + "\r\n" +
+        "Content-Length: " + std::to_string(body.size()) + "\r\n" + "Connection: close\r\n\r\n" + body;
     return sendAll(fd, resp.data(), resp.size());
 }
 
@@ -801,14 +783,14 @@ bool readWsFrame(long long fd, std::string& payload, int& opcode) {
         uint8_t ext[8];
         if (!readExact(fd, ext, 8)) return false;
         len = 0;
-        for (int i = 0; i < 8; ++i) len = (len << 8) | ext[i];
+        for (int i = 0; i < 8; ++i)
+            len = (len << 8) | ext[i];
     }
     if (len > Frame::kMaxPayloadBytes) return false;
     uint8_t mask[4] = {0, 0, 0, 0};
     if (masked && !readExact(fd, mask, 4)) return false;
     payload.resize(static_cast<size_t>(len));
-    if (len > 0 && !readExact(fd, reinterpret_cast<uint8_t*>(&payload[0]), len))
-        return false;
+    if (len > 0 && !readExact(fd, reinterpret_cast<uint8_t*>(&payload[0]), len)) return false;
     if (masked) {
         for (size_t i = 0; i < payload.size(); ++i)
             payload[i] = static_cast<char>(static_cast<uint8_t>(payload[i]) ^ mask[i % 4]);

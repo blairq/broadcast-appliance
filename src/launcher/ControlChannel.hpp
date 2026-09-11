@@ -24,7 +24,7 @@ namespace ba::launcher {
 
 /// Cliente del canal de control para el cierre ordenado.
 class ControlChannel {
-public:
+   public:
     /// Version del protocolo de control (campo protocolVersion).
     static constexpr int kProtocolVersion = 1;
 
@@ -34,8 +34,7 @@ public:
     /// :param target: identificador del destino ("A" o "B") para el mensaje.
     /// :param timeoutMs: tiempo maximo de espera al abrir/escribir.
     /// :returns: true si se envio la solicitud; false si el pipe no estaba.
-    bool requestShutdown(const std::wstring& pipeName, const std::wstring& target,
-                         int timeoutMs = 3000);
+    bool requestShutdown(const std::wstring& pipeName, const std::wstring& target, int timeoutMs = 3000);
 };
 
 } // namespace ba::launcher

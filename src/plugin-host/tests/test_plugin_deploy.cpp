@@ -60,8 +60,7 @@ void makeFakeBundle(const std::filesystem::path& root) {
 
 std::string readText(const std::filesystem::path& p) {
     std::ifstream in(p, std::ios::binary);
-    return std::string((std::istreambuf_iterator<char>(in)),
-                       std::istreambuf_iterator<char>());
+    return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
 }
 
 } // namespace
@@ -73,22 +72,18 @@ int main() {
 
     // --- Caso 1: deploy de un bundle fake -----------------------------------
     {
-        const DeployResult res =
-            PluginDeployer::deploy(source.string(), install.string());
+        const DeployResult res = PluginDeployer::deploy(source.string(), install.string());
 
         check(res.copied == 1, "se copió exactamente un bundle");
 
         const std::filesystem::path manifest = install / "manifest.json";
-        check(std::filesystem::exists(manifest),
-              "manifest.json existe en installDir");
+        check(std::filesystem::exists(manifest), "manifest.json existe en installDir");
 
         const std::string text = readText(manifest);
-        check(text.find("\"Bar\"") != std::string::npos,
-              "el manifest contiene \"Bar\"");
+        check(text.find("\"Bar\"") != std::string::npos, "el manifest contiene \"Bar\"");
 
         const auto bundles = scanDirectory(install.string());
-        check(bundles.size() == 1,
-              "scanDirectory(install) encuentra exactamente un bundle");
+        check(bundles.size() == 1, "scanDirectory(install) encuentra exactamente un bundle");
         if (bundles.size() == 1) {
             check(bundles[0].name == "Bar", "el bundle se llama \"Bar\"");
             check(bundles[0].bundlePath == (install / "Bar.vst3").string(),
@@ -96,21 +91,17 @@ int main() {
         }
 
         // El resultado debe reportar la ruta del manifest escrito.
-        check(res.manifestPath == manifest.string(),
-              "DeployResult.manifestPath apunta al manifest.json");
+        check(res.manifestPath == manifest.string(), "DeployResult.manifestPath apunta al manifest.json");
     }
 
     // --- Caso 2: idempotencia (re-deploy sobre el mismo installDir) ---------
     {
-        const DeployResult res2 =
-            PluginDeployer::deploy(source.string(), install.string());
+        const DeployResult res2 = PluginDeployer::deploy(source.string(), install.string());
         check(res2.copied == 1, "re-deploy: se copió exactamente un bundle");
         const std::string text = readText(install / "manifest.json");
-        check(text.find("\"Bar\"") != std::string::npos,
-              "re-deploy: el manifest sigue conteniendo \"Bar\"");
+        check(text.find("\"Bar\"") != std::string::npos, "re-deploy: el manifest sigue conteniendo \"Bar\"");
         const auto bundles = scanDirectory(install.string());
-        check(bundles.size() == 1,
-              "re-deploy: sigue habiendo exactamente un bundle");
+        check(bundles.size() == 1, "re-deploy: sigue habiendo exactamente un bundle");
     }
 
     // Limpieza.

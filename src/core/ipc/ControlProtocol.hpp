@@ -73,8 +73,8 @@ struct Frame {
     /// :returns: false si no hay un frame completo disponible (buffer corto) o
     ///           si la longitud anunciada supera `kMaxPayloadBytes`; en ese
     ///           caso `jsonOut`/`consumed` no se modifican.
-    static bool decodeFrame(const std::uint8_t* buf, std::size_t len,
-                            std::string& jsonOut, std::size_t& consumed);
+    static bool decodeFrame(const std::uint8_t* buf, std::size_t len, std::string& jsonOut,
+                            std::size_t& consumed);
 };
 
 // ============================================================================
@@ -83,18 +83,18 @@ struct Frame {
 
 /// Tipos de mensaje del canal de control (spec 4.1, "Mensajes minimos").
 enum class Type {
-    Hello,        // hello con version y heartbeat
-    TunnelState,  // estado del tunel
-    GuestList,    // lista de invitados con estado y estadisticas
-    GuestAdmit,   // admitir a un invitado
-    GuestReject,  // rechazar a un invitado
-    GuestExpel,   // expulsar a un invitado
-    GuestMute,    // mutear a un invitado
-    ChangeRoom,   // cambiar sala
-    ChangePin,    // cambiar PIN
-    FlowState,    // estado de los flujos IPC
-    Shutdown,     // apagado ordenado
-    Response,     // respuesta a una peticion (mismo id)
+    Hello,       // hello con version y heartbeat
+    TunnelState, // estado del tunel
+    GuestList,   // lista de invitados con estado y estadisticas
+    GuestAdmit,  // admitir a un invitado
+    GuestReject, // rechazar a un invitado
+    GuestExpel,  // expulsar a un invitado
+    GuestMute,   // mutear a un invitado
+    ChangeRoom,  // cambiar sala
+    ChangePin,   // cambiar PIN
+    FlowState,   // estado de los flujos IPC
+    Shutdown,    // apagado ordenado
+    Response,    // respuesta a una peticion (mismo id)
 };
 
 /// Convierte un `Type` a su nombre en el cable (minúsculas).
@@ -157,7 +157,7 @@ struct Message {
 /// solo usa estos dos metodos, de modo que el protocolo es testeable sin
 /// transporte real.
 class DuplexStream {
-public:
+   public:
     virtual ~DuplexStream() = default;
 
     /// Escribe `len` bytes a `data` al stream.
@@ -188,11 +188,11 @@ public:
 ///     callback de `onDisconnect` se dispara UNA unica vez, para que el owner
 ///     reconecte (spec 4.1: "Ambos lados reconectan solos").
 class ControlEndpoint {
-public:
+   public:
     /// Roles del endpoint (spec 4.1).
     enum Role {
         kLauncher = 0, // cliente
-        kGateway  = 1, // servidor
+        kGateway = 1,  // servidor
     };
 
     /// Construye el endpoint sobre `stream`.
@@ -233,7 +233,7 @@ public:
     /// :param cb: callback a invocar; puede ser vacio (no hace nada).
     void onDisconnect(std::function<void()> cb);
 
-private:
+   private:
     /// Marca la desconexion y dispara el callback (idempotente).
     void handleDisconnect();
 

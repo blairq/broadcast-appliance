@@ -42,14 +42,14 @@ class Log;
 
 /// Supervisor de cloudflared (autostart + recovery + Job Object). Ver header.
 class CloudflaredSupervisor {
-public:
+   public:
     /// :param cloudflaredPath: ruta a cloudflared.exe (bin/64bit).
     /// :param tunnelToken: token del tunel (env TUNNEL_TOKEN del hijo).
     /// :param metricsPort: puerto de metricas en loopback.
     /// :param logPath: donde redirigir stdout/stderr.
     /// :param log: logger compartido.
-    CloudflaredSupervisor(std::string cloudflaredPath, std::string tunnelToken,
-                          uint16_t metricsPort, std::string logPath, Log& log);
+    CloudflaredSupervisor(std::string cloudflaredPath, std::string tunnelToken, uint16_t metricsPort,
+                          std::string logPath, Log& log);
     ~CloudflaredSupervisor();
 
     CloudflaredSupervisor(const CloudflaredSupervisor&) = delete;
@@ -70,7 +70,7 @@ public:
     /// Cantidad de reinicios acumulados (diagnostico).
     int restartCount() const;
 
-private:
+   private:
     void runLoop();
     bool spawn();
     void kill();
@@ -92,8 +92,8 @@ private:
     std::thread thread_;
 
 #ifdef _WIN32
-    void* job_ = nullptr;   // HANDLE del Job Object (KILL_ON_JOB_CLOSE)
-    void* proc_ = nullptr;  // HANDLE del proceso hijo
+    void* job_ = nullptr;  // HANDLE del Job Object (KILL_ON_JOB_CLOSE)
+    void* proc_ = nullptr; // HANDLE del proceso hijo
 #endif
 };
 

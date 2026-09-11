@@ -61,8 +61,7 @@ bool StateDoc::deserialize(const std::string& text, StateDoc& out) {
     const auto seq = root.find("sequence");
     const auto cs = root.find("cleanShutdown");
     const auto sec = root.find("sections");
-    if (sv == root.end() || seq == root.end() || cs == root.end() ||
-        sec == root.end()) {
+    if (sv == root.end() || seq == root.end() || cs == root.end() || sec == root.end()) {
         return false; // falta un campo obligatorio
     }
     if (!sv->is_number_integer()) {

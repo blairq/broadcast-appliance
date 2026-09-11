@@ -61,11 +61,11 @@
 #include "Webrtc.hpp"
 
 #ifdef _WIN32
-#    define WIN32_LEAN_AND_MEAN
-#    include <windows.h>
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 #else
-#    include <csignal>
-#    include <unistd.h>
+#include <csignal>
+#include <unistd.h>
 #endif
 
 namespace {
@@ -83,20 +83,19 @@ constexpr std::size_t kHealthSlotCount = 4;
 std::wstring toWide(const std::string& s) {
 #ifdef _WIN32
     if (s.empty()) return std::wstring();
-    const int n = MultiByteToWideChar(CP_UTF8, 0, s.c_str(),
-                                      static_cast<int>(s.size()), nullptr, 0);
+    const int n = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), static_cast<int>(s.size()), nullptr, 0);
     std::wstring out;
     if (n > 0) {
         out.resize(static_cast<size_t>(n));
-        MultiByteToWideChar(CP_UTF8, 0, s.c_str(), static_cast<int>(s.size()),
-                            &out[0], n);
+        MultiByteToWideChar(CP_UTF8, 0, s.c_str(), static_cast<int>(s.size()), &out[0], n);
     }
     return out;
 #else
     // Linux / build offline: los nombres son ASCII; copia byte a byte.
     std::wstring out;
     out.reserve(s.size());
-    for (char c : s) out.push_back(static_cast<wchar_t>(static_cast<unsigned char>(c)));
+    for (char c : s)
+        out.push_back(static_cast<wchar_t>(static_cast<unsigned char>(c)));
     return out;
 #endif
 }
@@ -106,8 +105,7 @@ std::atomic<bool> g_stop{false};
 
 #ifdef _WIN32
 BOOL WINAPI ctrlHandler(DWORD type) {
-    if (type == CTRL_C_EVENT || type == CTRL_BREAK_EVENT ||
-        type == CTRL_SHUTDOWN_EVENT) {
+    if (type == CTRL_C_EVENT || type == CTRL_BREAK_EVENT || type == CTRL_SHUTDOWN_EVENT) {
         g_stop.store(true);
     }
     return TRUE;
@@ -129,9 +127,8 @@ int main(int argc, char** argv) {
     cfg.derivePaths();
     Log log;
 
-    log.info("arranque: guests=" + std::to_string(cfg.guests) +
-             " port=" + std::to_string(cfg.port) + " room=" + cfg.room +
-             " webroot=" + cfg.webroot +
+    log.info("arranque: guests=" + std::to_string(cfg.guests) + " port=" + std::to_string(cfg.port) +
+             " room=" + cfg.room + " webroot=" + cfg.webroot +
              " webrtc=" + (BA_GATEWAY_HAVE_WEBRTC ? "libwebrtc" : "NULL"));
 
     // Handler de senal para parada ordenada (SIGINT / Ctrl+C).
@@ -170,16 +167,14 @@ int main(int argc, char** argv) {
     TokenAuth auth("ba-gateway-hmac-secret", cfg.pin, 5, 60, 300);
 
     // --- Hub de sesiones WebRTC (1..guests).
-    WebrtcHub hub(cfg.guests, cfg.guestVideoW, cfg.guestVideoH, cfg.audioRate,
-                  cfg.audioChannels);
+    WebrtcHub hub(cfg.guests, cfg.guestVideoW, cfg.guestVideoH, cfg.audioRate, cfg.audioChannels);
 
     // --- Motor de medios (IPC ↔ WebRTC).
     MediaPump::Cfg pumpCfg;
     pumpCfg.returnAudioName = toWide("BA.Audio.ContentForReturn");
     pumpCfg.programVideoName = toWide("BA.Program");
     for (int s = 1; s <= cfg.guests; ++s) {
-        pumpCfg.guestAudioNames.push_back(toWide("BA.Audio.Guest." +
-                                                 std::to_string(s)));
+        pumpCfg.guestAudioNames.push_back(toWide("BA.Audio.Guest." + std::to_string(s)));
         pumpCfg.guestVideoNames.push_back(toWide("BA.Guest." + std::to_string(s)));
     }
     pumpCfg.audioRate = cfg.audioRate;
@@ -200,8 +195,8 @@ int main(int argc, char** argv) {
     server.setPump(&pump);
 
     // --- Supervisor de cloudflared (tunel).
-    CloudflaredSupervisor cloudflared(cfg.cloudflaredPath, cfg.tunnelToken,
-                                     cfg.metricsPort, cfg.cloudflaredLog, log);
+    CloudflaredSupervisor cloudflared(cfg.cloudflaredPath, cfg.tunnelToken, cfg.metricsPort,
+                                      cfg.cloudflaredLog, log);
 
     // --- Arranque de los componentes (degradacion elegante).
     if (!server.start()) {

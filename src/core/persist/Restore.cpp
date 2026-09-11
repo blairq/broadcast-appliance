@@ -66,13 +66,11 @@ std::string toLowerAscii(const std::string& s) {
 }
 
 bool startsWith(const std::string& s, const std::string& prefix) {
-    return s.size() >= prefix.size() &&
-           std::equal(prefix.begin(), prefix.end(), s.begin());
+    return s.size() >= prefix.size() && std::equal(prefix.begin(), prefix.end(), s.begin());
 }
 
 bool endsWith(const std::string& s, const std::string& suffix) {
-    return s.size() >= suffix.size() &&
-           std::equal(suffix.rbegin(), suffix.rend(), s.rbegin());
+    return s.size() >= suffix.size() && std::equal(suffix.rbegin(), suffix.rend(), s.rbegin());
 }
 
 // Un nombre de generacion retenida sigue el patron `snapshot.*.json`
@@ -83,8 +81,8 @@ bool isSnapshotName(const std::string& name) {
     const std::string lower = toLowerAscii(name);
     constexpr const char* kPrefix = "snapshot.";
     constexpr const char* kSuffix = ".json";
-    const std::size_t minLen = std::char_traits<char>::length(kPrefix) +
-                               std::char_traits<char>::length(kSuffix);
+    const std::size_t minLen =
+        std::char_traits<char>::length(kPrefix) + std::char_traits<char>::length(kSuffix);
     if (lower.size() < minLen) {
         return false;
     }
@@ -99,9 +97,9 @@ bool hexToU64(const std::string& s, std::uint64_t& out) {
     std::uint64_t v = 0;
     for (char c : s) {
         const char lc = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-        const int digit = (lc >= '0' && lc <= '9') ? (lc - '0')
+        const int digit = (lc >= '0' && lc <= '9')   ? (lc - '0')
                           : (lc >= 'a' && lc <= 'f') ? (lc - 'a' + 10)
-                                                      : -1;
+                                                     : -1;
         if (digit < 0) {
             return false;
         }
@@ -186,14 +184,12 @@ std::vector<std::string> listCandidates(const std::string& dir) {
 RestoreResult validateFile(const std::string& path, StateDoc& out) {
     std::string content;
     if (!readFileAll(path, content)) {
-        return RestoreResult{RestoreResult::Status::Missing,
-                             "no se pudo leer: " + path};
+        return RestoreResult{RestoreResult::Status::Missing, "no se pudo leer: " + path};
     }
 
     HeaderInfo hdr;
     if (!parseHeader(content, hdr)) {
-        return RestoreResult{RestoreResult::Status::Corrupt,
-                             "header malformado: " + path};
+        return RestoreResult{RestoreResult::Status::Corrupt, "header malformado: " + path};
     }
 
     // El body es todo lo despues del primer '\n' (sin el '\n' final).
@@ -210,13 +206,11 @@ RestoreResult validateFile(const std::string& path, StateDoc& out) {
     // que SnapshotStore escribio, sin re-implantarlo (sha256Hex es privado).
     SnapshotStore store;
     const std::filesystem::path p(path);
-    const std::string dir =
-        p.has_parent_path() ? p.parent_path().string() : ".";
+    const std::string dir = p.has_parent_path() ? p.parent_path().string() : ".";
     const std::string fileName = p.filename().string();
     const Status st = store.init(dir, fileName, fileName + ".other");
     if (!st.ok) {
-        return RestoreResult{RestoreResult::Status::Missing,
-                             "no se pudo inicializar el store: " + path};
+        return RestoreResult{RestoreResult::Status::Missing, "no se pudo inicializar el store: " + path};
     }
     StateDoc doc;
     const Status r = store.readLatest(doc);
@@ -231,11 +225,9 @@ RestoreResult validateFile(const std::string& path, StateDoc& out) {
     StateDoc probe;
     if (StateDoc::deserialize(body, probe)) {
         return RestoreResult{RestoreResult::Status::ChecksumMismatch,
-                             "checksum no coincide en " + path +
-                                 " (esperado " + hdr.shaHex + ")"};
+                             "checksum no coincide en " + path + " (esperado " + hdr.shaHex + ")"};
     }
-    return RestoreResult{RestoreResult::Status::Corrupt,
-                         "cuerpo no es un StateDoc JSON valido: " + path};
+    return RestoreResult{RestoreResult::Status::Corrupt, "cuerpo no es un StateDoc JSON valido: " + path};
 }
 
 } // namespace
@@ -258,8 +250,7 @@ RestoreResult Restore::recover(const std::string& dir, StateDoc& out) {
 
     const std::vector<std::string> candidates = listCandidates(dir);
     if (candidates.empty()) {
-        return RestoreResult{RestoreResult::Status::Missing,
-                             "sin snapshots en " + dir};
+        return RestoreResult{RestoreResult::Status::Missing, "sin snapshots en " + dir};
     }
 
     bool found = false;
@@ -281,12 +272,10 @@ RestoreResult Restore::recover(const std::string& dir, StateDoc& out) {
     }
 
     if (!found) {
-        return RestoreResult{RestoreResult::Status::Missing,
-                             "ningun snapshot bueno en " + dir};
+        return RestoreResult{RestoreResult::Status::Missing, "ningun snapshot bueno en " + dir};
     }
     return RestoreResult{RestoreResult::Status::Ok,
-                         "recuperado seq=" + std::to_string(bestSeq) +
-                             " en " + dir};
+                         "recuperado seq=" + std::to_string(bestSeq) + " en " + dir};
 }
 
 } // namespace ba::persist

@@ -17,8 +17,8 @@
 
 #include "ChannelStrip.hpp"
 
-#include <cmath>
 #include <algorithm>
+#include <cmath>
 
 namespace ba::dsp {
 
@@ -30,9 +30,7 @@ constexpr double kEps = 1e-9;
 
 } // namespace
 
-double ChannelStrip::dbToLin(double db) {
-    return std::pow(10.0, db / 20.0);
-}
+double ChannelStrip::dbToLin(double db) { return std::pow(10.0, db / 20.0); }
 
 double ChannelStrip::linToDb(double lin) {
     if (lin < kEps) {
@@ -190,8 +188,8 @@ void ChannelStrip::process(float* interleaved, int n) {
     }
 
     // Coeficientes one-pole de las envolventes (una vez por bloque).
-    const float deAtk = onePole(1.0, fs_);   // ataque de-esser (rapido)
-    const float deRel = onePole(10.0, fs_);  // liberacion de-esser (lenta)
+    const float deAtk = onePole(1.0, fs_);  // ataque de-esser (rapido)
+    const float deRel = onePole(10.0, fs_); // liberacion de-esser (lenta)
     const float gateAtk = onePole(gateAttackMs_, fs_);
     const float gateRel = onePole(gateReleaseMs_, fs_);
     const float compAtk = onePole(compAttackMs_, fs_);
@@ -318,8 +316,7 @@ void ChannelStrip::process(float* interleaved, int n) {
                     gainReductionDb = 0.0f;
                 } else {
                     // Dentro del knee: parabolica suave.
-                    gainReductionDb = ((x + knee) * (x + knee) / (4.0f * knee)) *
-                                       (1.0f - 1.0f / ratio);
+                    gainReductionDb = ((x + knee) * (x + knee) / (4.0f * knee)) * (1.0f - 1.0f / ratio);
                 }
                 g = static_cast<float>(dbToLin(-gainReductionDb));
             }
@@ -337,8 +334,7 @@ void ChannelStrip::process(float* interleaved, int n) {
             limBufL_[limBufPos_] = *L;
             limBufR_[limBufPos_] = *R;
 
-            const int outIdx =
-                (limBufPos_ - limLookahead_ + kMaxLookahead) % kMaxLookahead;
+            const int outIdx = (limBufPos_ - limLookahead_ + kMaxLookahead) % kMaxLookahead;
             // Pico en la ventana de lookahead (de outIdx a la muestra actual).
             float peak = 0.0f;
             for (int k = 0; k < limLookahead_; ++k) {

@@ -18,8 +18,8 @@
 //      sin nodo usb devuelve el tope; id desconocido -> false.
 
 #include "hw/DeviceIdentity.hpp"
-#include "hw/DeviceMatcher.hpp"
 #include "hw/DeviceIdentityResolver.hpp"
+#include "hw/DeviceMatcher.hpp"
 
 #include <cstdio>
 
@@ -32,12 +32,12 @@ static constexpr const char* PCI_LOC = "PCIROOT(0)#PCI(3000)#USB(1)";
 // --- Macro minimo de assert ------------------------------------------------
 
 static int g_failures = 0;
-#define CHECK(cond, msg)                                                       \
-    do {                                                                       \
-        if (!(cond)) {                                                         \
-            std::printf("FAIL [%s:%d] %s\n", __FILE__, __LINE__, msg);         \
-            ++g_failures;                                                      \
-        }                                                                      \
+#define CHECK(cond, msg)                                                                                     \
+    do {                                                                                                     \
+        if (!(cond)) {                                                                                       \
+            std::printf("FAIL [%s:%d] %s\n", __FILE__, __LINE__, msg);                                       \
+            ++g_failures;                                                                                    \
+        }                                                                                                    \
     } while (0)
 
 // --- 1. ExactEndpoint gana sobre todo --------------------------------------
@@ -79,7 +79,7 @@ static void testSerialMatch() {
 
     DeviceIdentity k0;
     k0.endpointId = "ep-VIEJO"; // endpoint distinto
-    k0.serial = "SER-42"; // mismo serial
+    k0.serial = "SER-42";       // mismo serial
 
     std::vector<DeviceIdentity> known = {k0};
     std::vector<int> assigned;
@@ -140,8 +140,7 @@ static void testUniqueVidPid() {
         std::vector<int> assigned = {0};
         DeviceMatcher m;
         MatchResult r = m.match(observed, known, assigned);
-        std::printf("  4a kind=%d index=%d score=%d\n", (int)r.kind, r.index,
-                    r.score);
+        std::printf("  4a kind=%d index=%d score=%d\n", (int)r.kind, r.index, r.score);
         CHECK(r.kind == MatchKind::UniqueVidPid, "4a: UniqueVidPid");
         CHECK(r.index == 1, "4a: elige el no asignado");
         CHECK(r.score == DeviceMatcher::kScoreUniqueVidPid, "4a: puntaje");
@@ -152,8 +151,7 @@ static void testUniqueVidPid() {
         std::vector<int> assigned; // ninguno asignado
         DeviceMatcher m;
         MatchResult r = m.match(observed, known, assigned);
-        std::printf("  4b kind=%d index=%d score=%d\n", (int)r.kind, r.index,
-                    r.score);
+        std::printf("  4b kind=%d index=%d score=%d\n", (int)r.kind, r.index, r.score);
         CHECK(r.kind == MatchKind::AskOperator, "4b: ambiguo -> AskOperator");
         CHECK(r.index == -1, "4b: sin indice");
     }
@@ -214,8 +212,7 @@ static void testResolverUsbAncestor() {
     DeviceIdentityResolver r;
     DevNode out;
     bool ok = r.resolveUsbAncestor("ep", nodes, out);
-    std::printf("  ok=%d out.id=%s out.isUsb=%d\n", (int)ok, out.id.c_str(),
-                (int)out.isUsb);
+    std::printf("  ok=%d out.id=%s out.isUsb=%d\n", (int)ok, out.id.c_str(), (int)out.isUsb);
     CHECK(ok, "resuelve el ancestro");
     CHECK(out.id == "usb", "devuelve el nodo USB");
     CHECK(out.isUsb, "el nodo devuelto es USB");

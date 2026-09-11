@@ -18,12 +18,9 @@ std::FILE* g_file = nullptr;
 
 const char* levelTag(Log::Level level) {
     switch (level) {
-        case Log::Level::Info:
-            return "INFO";
-        case Log::Level::Warn:
-            return "WARN";
-        case Log::Level::Error:
-            return "ERROR";
+        case Log::Level::Info: return "INFO";
+        case Log::Level::Warn: return "WARN";
+        case Log::Level::Error: return "ERROR";
     }
     return "?";
 }
@@ -75,9 +72,8 @@ void Log::close() {
 }
 
 void Log::write(Level level, const char* component, int code, const std::string& context) {
-    const std::string line =
-        timestamp() + " " + std::string(levelTag(level)) + " | " + component +
-        " | code=" + std::to_string(code) + " | " + context;
+    const std::string line = timestamp() + " " + std::string(levelTag(level)) + " | " + component +
+                             " | code=" + std::to_string(code) + " | " + context;
     std::lock_guard<std::mutex> lock(g_mutex);
     if (g_file) {
         std::fputs(line.c_str(), g_file);

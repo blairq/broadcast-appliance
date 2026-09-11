@@ -56,7 +56,7 @@ namespace ba::diag {
 /// Asi el activo nunca supera maxBytes en mas de una linea y el total de
 /// archivos rotados se mantiene acotado a keepFiles.
 class LogRotator {
-public:
+   public:
     /// Prepara el rotador para escribir en `dir`.
     ///
     /// Crea `dir` si no existe (best-effort). No crea el archivo activo:
@@ -93,13 +93,13 @@ public:
     ///           nuevo; vacio si no hay ninguno o no se pudo listar.
     std::vector<std::string> files() const;
 
-private:
+   private:
     // --- estado -------------------------------------------------------------
     std::string dir_;
     std::string activePath_;
     std::size_t maxBytes_;
     std::size_t keepFiles_;
-    bool active_ = false;  // false si el directorio no se pudo crear
+    bool active_ = false; // false si el directorio no se pudo crear
 
     // --- helpers (privados) -------------------------------------------------
 

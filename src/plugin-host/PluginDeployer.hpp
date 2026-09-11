@@ -54,7 +54,7 @@ struct DeployResult {
 /// `deploy()` es idempotente: re-ejecutarlo sobre el mismo `installDir`
 /// produce el mismo estado final.
 class PluginDeployer {
-public:
+   public:
     /// Copia cada bundle `.vst3` (un DIRECTORIO) directamente bajo
     /// `sourceDir` hacia `installDir` (recursivo, overwrite idempotente) y
     /// escribe `installDir/manifest.json` con los bundles reales hallados.
@@ -67,8 +67,7 @@ public:
     /// :param installDir: directorio destino (se crea si no existe).
     /// :returns: `DeployResult` con `copied` (bundles copiados) y
     ///           `manifestPath` (ruta del `manifest.json` escrito).
-    static DeployResult deploy(const std::string& sourceDir,
-                               const std::string& installDir);
+    static DeployResult deploy(const std::string& sourceDir, const std::string& installDir);
 };
 
 } // namespace plugin

@@ -28,21 +28,21 @@
 #include <vector>
 
 using ba::dsp::ChannelStrip;
-using ba::dsp::StripParams;
-using ba::dsp::presetPodium;
-using ba::dsp::presetLavalier;
 using ba::dsp::presetHandheld;
+using ba::dsp::presetLavalier;
+using ba::dsp::presetPodium;
+using ba::dsp::StripParams;
 
 namespace {
 
 int g_failures = 0;
 
-#define CHECK(cond)                                                            \
-    do {                                                                       \
-        if (!(cond)) {                                                         \
-            std::printf("FALLO: %s (linea %d)\n", #cond, __LINE__);            \
-            ++g_failures;                                                      \
-        }                                                                      \
+#define CHECK(cond)                                                                                          \
+    do {                                                                                                     \
+        if (!(cond)) {                                                                                       \
+            std::printf("FALLO: %s (linea %d)\n", #cond, __LINE__);                                          \
+            ++g_failures;                                                                                    \
+        }                                                                                                    \
     } while (0)
 
 constexpr double kFs = 48000.0;
@@ -55,9 +55,7 @@ double g_rmsQuiet = 0.0;
 double g_rmsLoud = 0.0;
 
 /// dB -> lineal.
-double dbToLin(double db) {
-    return std::pow(10.0, db / 20.0);
-}
+double dbToLin(double db) { return std::pow(10.0, db / 20.0); }
 
 /// RMS de un buffer mono.
 double rms(const std::vector<float>& v) {
@@ -74,8 +72,7 @@ double rms(const std::vector<float>& v) {
 /// Genera `n` FRAMES estéreo interleaved de una senal seno a `freq` Hz con
 /// amplitud `amp` (lineal) y un ruido blanco de amplitud `noiseAmp` (lineal,
 /// determinista por LCG). Devuelve el buffer de 2*n floats.
-std::vector<float> makeSineNoise(int n, double freq, double amp,
-                                 double noiseAmp, unsigned seed) {
+std::vector<float> makeSineNoise(int n, double freq, double amp, double noiseAmp, unsigned seed) {
     std::vector<float> buf(static_cast<std::size_t>(2 * n));
     unsigned state = seed;
     for (int i = 0; i < n; ++i) {
@@ -216,8 +213,7 @@ void testGate() {
     const double inLoudRms = dbToLin(-6.0) * std::sqrt(0.5);
     CHECK(g_rmsLoud > 0.5 * inLoudRms);
     // La quieta debe estar atenuada al menos 10 dB respecto a la fuerte.
-    const double ratioDb =
-        20.0 * std::log10((g_rmsQuiet + 1e-9) / (g_rmsLoud + 1e-9));
+    const double ratioDb = 20.0 * std::log10((g_rmsQuiet + 1e-9) / (g_rmsLoud + 1e-9));
     CHECK(ratioDb < -10.0);
 }
 

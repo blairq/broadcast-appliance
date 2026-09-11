@@ -22,8 +22,8 @@
 //   4. plate-when-absent: un sender recién publicado sin send -> hasData false
 //      (el "sender existe siempre, publica placa" es responsabilidad del caller).
 
-#include "ipc/SpoutTransport.hpp"
 #include "ipc/SharedMemoryRegion.hpp"
+#include "ipc/SpoutTransport.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -36,12 +36,12 @@ namespace {
 
 int g_failures = 0;
 
-#define CHECK(cond)                                                        \
-    do {                                                                   \
-        if (!(cond)) {                                                     \
-            ++g_failures;                                                  \
-            std::printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond);    \
-        }                                                                  \
+#define CHECK(cond)                                                                                          \
+    do {                                                                                                     \
+        if (!(cond)) {                                                                                       \
+            ++g_failures;                                                                                    \
+            std::printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond);                                      \
+        }                                                                                                    \
     } while (0)
 
 // Tamano de un frame BGRA 8888 (4 bytes/pixel), igual a slotBytes() del .cpp.

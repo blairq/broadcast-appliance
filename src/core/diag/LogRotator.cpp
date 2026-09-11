@@ -52,9 +52,8 @@ std::string timestampUtc() {
     gmtime_r(&tt, &tm);
 #endif
     char buf[64];
-    std::snprintf(buf, sizeof(buf), "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ",
-                  tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour,
-                  tm.tm_min, tm.tm_sec, static_cast<int>(ms));
+    std::snprintf(buf, sizeof(buf), "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ", tm.tm_year + 1900, tm.tm_mon + 1,
+                  tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, static_cast<int>(ms));
     return std::string(buf);
 }
 
@@ -63,8 +62,7 @@ std::string timestampUtc() {
 // --- constructor ------------------------------------------------------------
 
 LogRotator::LogRotator(std::string dir, std::size_t maxBytes, std::size_t keepFiles)
-    : dir_(std::move(dir)),
-      maxBytes_(maxBytes > 0 ? maxBytes : 1),
+    : dir_(std::move(dir)), maxBytes_(maxBytes > 0 ? maxBytes : 1),
       keepFiles_(keepFiles > 0 ? keepFiles : 1) {
     std::error_code ec;
     std::filesystem::create_directories(dir_, ec);
@@ -171,8 +169,7 @@ std::vector<std::string> LogRotator::files() const {
 
     // Orden de mas antiguo a mas nuevo: el rotado de MAYOR indice es el mas
     // antiguo; el activo (ba.log) es el mas nuevo y va al final.
-    std::sort(rotated.begin(), rotated.end(),
-              [](const auto& a, const auto& b) { return a.first > b.first; });
+    std::sort(rotated.begin(), rotated.end(), [](const auto& a, const auto& b) { return a.first > b.first; });
     for (const auto& [n, p] : rotated) {
         out.push_back(p);
     }

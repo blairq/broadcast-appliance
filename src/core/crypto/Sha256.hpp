@@ -43,7 +43,7 @@ namespace ba::crypto {
 ///   h.update(parte2, n2);
 ///   auto digest = h.digest(); // 32 bytes, no muta `h`
 class Sha256 {
-public:
+   public:
     /// Tamano del digest en bytes (32).
     static constexpr std::size_t kDigestSize = 32;
 
@@ -68,7 +68,7 @@ public:
     /// :returns: el hash de 32 bytes del mensaje absorbido hasta ahora.
     std::array<std::uint8_t, kDigestSize> digest() const;
 
-private:
+   private:
     /// Contexto de mbedTLS que acumula el estado del hash incremental.
     /// Detalle de implementacion privada (no forma parte de la API publica).
     mbedtls_sha256_context ctx_{};

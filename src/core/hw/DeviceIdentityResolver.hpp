@@ -31,9 +31,9 @@ namespace ba::hw {
 /// flag de si es nodo USB + vid/pid/serial opcionales. Modela el minimo que
 /// necesita el walk de spec 9.2 para ser testeable sin cfgmgr32.
 struct DevNode {
-    std::string id;      // id de instancia del devnode
-    std::string parent;  // id del devnode padre; "" = raiz (sin padre)
-    bool isUsb = false;  // true si este nodo es el dispositivo USB fisico
+    std::string id;     // id de instancia del devnode
+    std::string parent; // id del devnode padre; "" = raiz (sin padre)
+    bool isUsb = false; // true si este nodo es el dispositivo USB fisico
     std::uint32_t vid = 0;
     std::uint32_t pid = 0;
     std::string serial;
@@ -42,7 +42,7 @@ struct DevNode {
 /// Resuelve el ancestro USB de un endpoint subiendo por el arbol de devnodes
 /// (spec 9.2). Stateless.
 class DeviceIdentityResolver {
-public:
+   public:
     /// Dado el id del devnode del endpoint y la tabla de nodos, sube por el
     /// arbol (equivalente a `CM_Get_Parent`) hasta llegar a un nodo USB;
     /// devuelve ese nodo (el dispositivo USB fisico).
@@ -63,8 +63,7 @@ public:
     /// :param outUsb: recibe el nodo USB (o el tope) en exito.
     /// :returns: true si se resuelvo un nodo; false si no hay tabla o el id no
     ///           existe.
-    bool resolveUsbAncestor(const std::string& startNodeId,
-                            const std::vector<DevNode>& nodes,
+    bool resolveUsbAncestor(const std::string& startNodeId, const std::vector<DevNode>& nodes,
                             DevNode& outUsb) const;
 };
 

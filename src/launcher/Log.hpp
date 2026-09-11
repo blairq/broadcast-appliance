@@ -28,7 +28,7 @@ namespace ba::launcher {
 /// Logger de archivo con formato estructurado `nivel | componente | codigo |
 /// contexto`. Un solo archivo por ejecucion (Logs/launcher.log).
 class Log {
-public:
+   public:
     /// Nivel de severidad del mensaje.
     enum class Level { Info = 0, Warn = 1, Error = 2 };
 
@@ -47,16 +47,15 @@ public:
     /// :param component: componente emisor (p. ej. "supervisor", "integrity").
     /// :param code: codigo de error estable (0 en info).
     /// :param context: contexto libre (rutas, PIDs, etc.).
-    static void write(Level level, const char* component, int code,
-                      const std::string& context);
+    static void write(Level level, const char* component, int code, const std::string& context);
 };
 
 /// Macros de conveniencia para no repetir el namespace en cada llamada.
-#define BA_LOG_INFO(comp, code, ctx) \
+#define BA_LOG_INFO(comp, code, ctx)                                                                         \
     ::ba::launcher::Log::write(::ba::launcher::Log::Level::Info, comp, code, ctx)
-#define BA_LOG_WARN(comp, code, ctx) \
+#define BA_LOG_WARN(comp, code, ctx)                                                                         \
     ::ba::launcher::Log::write(::ba::launcher::Log::Level::Warn, comp, code, ctx)
-#define BA_LOG_ERROR(comp, code, ctx) \
+#define BA_LOG_ERROR(comp, code, ctx)                                                                        \
     ::ba::launcher::Log::write(::ba::launcher::Log::Level::Error, comp, code, ctx)
 
 } // namespace ba::launcher

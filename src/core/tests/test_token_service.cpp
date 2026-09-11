@@ -28,12 +28,12 @@ namespace {
 
 int g_failures = 0;
 
-#define CHECK(cond)                                                            \
-    do {                                                                       \
-        if (!(cond)) {                                                         \
-            std::printf("FALLO: %s (linea %d)\n", #cond, __LINE__);            \
-            ++g_failures;                                                      \
-        }                                                                      \
+#define CHECK(cond)                                                                                          \
+    do {                                                                                                     \
+        if (!(cond)) {                                                                                       \
+            std::printf("FALLO: %s (linea %d)\n", #cond, __LINE__);                                          \
+            ++g_failures;                                                                                    \
+        }                                                                                                    \
     } while (0)
 
 // 1) KAT de HMAC-SHA256 (vector conocido).
@@ -41,10 +41,8 @@ void testHmacKAT() {
     // RFC 4231, Test Case 2 (HMAC-SHA-256): key="Jefe",
     // data="what do ya want for nothing?". (El vector anterior era el KAT de
     // SHA-256 plano, no el de HMAC: por eso no coincidía.)
-    const std::string expected =
-        "5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843";
-    const std::string got =
-        hmacSha256Hex("Jefe", "what do ya want for nothing?");
+    const std::string expected = "5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843";
+    const std::string got = hmacSha256Hex("Jefe", "what do ya want for nothing?");
     CHECK(got == expected);
 }
 
@@ -60,8 +58,7 @@ void testIssueThenVerifyOk() {
 
 // 3) Alterar el token (cambiar un char del mac) -> BadSignature.
 void testTamperedMacBadSignature() {
-    TokenService svc("secret-para-pruebas", 5, 60,
-                     [](const std::string& pin) { return pin == "1234"; });
+    TokenService svc("secret-para-pruebas", 5, 60, [](const std::string& pin) { return pin == "1234"; });
     const int now0 = 1'700'000'000;
     const std::string token = svc.issue("sala-1", "1234", 300, now0);
     CHECK(!token.empty());
@@ -80,8 +77,7 @@ void testTamperedMacBadSignature() {
 
 // 4) verify con nowUnix posterior a exp -> Expired.
 void testExpired() {
-    TokenService svc("secret-para-pruebas", 5, 60,
-                     [](const std::string& pin) { return pin == "1234"; });
+    TokenService svc("secret-para-pruebas", 5, 60, [](const std::string& pin) { return pin == "1234"; });
     const int now0 = 1'700'000'000;
     const std::string token = svc.issue("sala-1", "1234", /*ttlSec=*/300, now0);
     CHECK(!token.empty());
@@ -93,8 +89,7 @@ void testExpired() {
 
 // 5) verify con una sala distinta -> WrongRoom.
 void testWrongRoom() {
-    TokenService svc("secret-para-pruebas", 5, 60,
-                     [](const std::string& pin) { return pin == "1234"; });
+    TokenService svc("secret-para-pruebas", 5, 60, [](const std::string& pin) { return pin == "1234"; });
     const int now0 = 1'700'000'000;
     const std::string token = svc.issue("sala-1", "1234", 300, now0);
     CHECK(!token.empty());
@@ -103,8 +98,7 @@ void testWrongRoom() {
 
 // 6) Token mal formado (basura / sin punto) -> Malformed.
 void testMalformed() {
-    TokenService svc("secret-para-pruebas", 5, 60,
-                     [](const std::string& pin) { return pin == "1234"; });
+    TokenService svc("secret-para-pruebas", 5, 60, [](const std::string& pin) { return pin == "1234"; });
     const int now0 = 1'700'000'000;
     CHECK(svc.verify("", "sala-1", now0) == VerifyResult::Malformed);
     CHECK(svc.verify("sin-punto", "sala-1", now0) == VerifyResult::Malformed);

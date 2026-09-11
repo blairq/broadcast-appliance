@@ -31,8 +31,8 @@
 #include <vector>
 
 #ifdef _WIN32
-#    define WIN32_LEAN_AND_MEAN
-#    include <windows.h>
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 #endif
 
 namespace ba::gateway {
@@ -44,26 +44,26 @@ inline constexpr int kMaxGuests = 4;
 /// Configuracion del gateway (CLI + rutas). Ver el header para el detalle.
 struct Config {
     // --- CLI ---------------------------------------------------------------
-    int guests = 2;             // 1..kMaxGuests (default 2)
-    uint16_t port = 8787;       // puerto de señalización en 127.0.0.1
+    int guests = 2;              // 1..kMaxGuests (default 2)
+    uint16_t port = 8787;        // puerto de señalización en 127.0.0.1
     uint16_t metricsPort = 9099; // puerto de métricas de cloudflared (loopback)
-    std::string room = "sala1"; // sala por defecto
-    std::string pin = "1234";   // PIN de la sala (por defecto; A lo cambia)
-    std::string webroot;        // ruta a Web/guest (se rellena en derivePaths)
-    std::string logsDir;        // ruta a Logs/
-    std::string tunnelToken;    // token de tunel de Cloudflare (env del hijo)
-    long long durationMs = 0;   // 0 = correr hasta señal; >0 = duracion de prueba
-    int audioRate = 48000;      // sample rate del retorno de audio
-    int audioChannels = 2;      // canales del retorno de audio
-    int videoW = 1280;          // resolucion del slot de video (BA.Guest.<n>)
+    std::string room = "sala1";  // sala por defecto
+    std::string pin = "1234";    // PIN de la sala (por defecto; A lo cambia)
+    std::string webroot;         // ruta a Web/guest (se rellena en derivePaths)
+    std::string logsDir;         // ruta a Logs/
+    std::string tunnelToken;     // token de tunel de Cloudflare (env del hijo)
+    long long durationMs = 0;    // 0 = correr hasta señal; >0 = duracion de prueba
+    int audioRate = 48000;       // sample rate del retorno de audio
+    int audioChannels = 2;       // canales del retorno de audio
+    int videoW = 1280;           // resolucion del slot de video (BA.Guest.<n>)
     int videoH = 720;
-    int guestVideoW = 640;      // resolucion del retorno de video al invitado
+    int guestVideoW = 640; // resolucion del retorno de video al invitado
     int guestVideoH = 360;
 
     // --- Rutas derivadas (solo-Windows en el layout real) ------------------
-    std::string appRoot;          // raiz del layout portable
-    std::string cloudflaredPath;  // <root>/bin/64bit/cloudflared.exe
-    std::string cloudflaredLog;   // <root>/Logs/cloudflared.log
+    std::string appRoot;         // raiz del layout portable
+    std::string cloudflaredPath; // <root>/bin/64bit/cloudflared.exe
+    std::string cloudflaredLog;  // <root>/Logs/cloudflared.log
 
     /// Parsea los argumentos de linea de comandos.
     ///
@@ -146,9 +146,9 @@ struct Config {
             const size_t slash = p.find_last_of(L"\\/");
             return (slash == std::wstring::npos) ? L"" : p.substr(0, slash);
         };
-        const std::wstring binDir = parentDir(mod);          // <root>/bin/64bit
-        const std::wstring binParent = parentDir(binDir);    // <root>/bin
-        const std::wstring root = parentDir(binParent);      // <root>
+        const std::wstring binDir = parentDir(mod);       // <root>/bin/64bit
+        const std::wstring binParent = parentDir(binDir); // <root>/bin
+        const std::wstring root = parentDir(binParent);   // <root>
         appRoot = toUtf8(root);
         cloudflaredPath = toUtf8(binDir + L"\\cloudflared.exe");
         if (logsDir.empty()) logsDir = toUtf8(root + L"\\Logs");
@@ -165,18 +165,17 @@ struct Config {
         return true;
     }
 
-private:
+   private:
     static std::string toUtf8(const std::wstring& w) {
         if (w.empty()) return std::string();
 #ifdef _WIN32
-        int n = WideCharToMultiByte(CP_UTF8, 0, w.c_str(),
-                                    static_cast<int>(w.size()), nullptr, 0,
-                                    nullptr, nullptr);
+        int n = WideCharToMultiByte(CP_UTF8, 0, w.c_str(), static_cast<int>(w.size()), nullptr, 0, nullptr,
+                                    nullptr);
         std::string out;
         if (n > 0) {
             out.resize(static_cast<size_t>(n));
-            WideCharToMultiByte(CP_UTF8, 0, w.c_str(), static_cast<int>(w.size()),
-                                &out[0], n, nullptr, nullptr);
+            WideCharToMultiByte(CP_UTF8, 0, w.c_str(), static_cast<int>(w.size()), &out[0], n, nullptr,
+                                nullptr);
         }
         return out;
 #else

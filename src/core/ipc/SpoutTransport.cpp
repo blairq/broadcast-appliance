@@ -37,8 +37,8 @@
 #include <vector>
 
 #if defined(_WIN32)
-#    define WIN32_LEAN_AND_MEAN
-#    include <windows.h>
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 // Backend real: la clase spoutDX del SDK de Spout2 (DX11).
 // // VERIFY: ruta del header spout2 (extern/Spout2/include) y firma de
 // // spoutDX::init/sendTexture/receiveTexture en la version fijada (spec §14).
@@ -107,9 +107,7 @@ std::size_t slotBytes(const SlotConfig& cfg) {
 
 // --- SpoutMetaBlock: RAII ---------------------------------------------------
 
-SpoutMetaBlock::~SpoutMetaBlock() {
-    region_.close();
-}
+SpoutMetaBlock::~SpoutMetaBlock() { region_.close(); }
 
 SpoutMetaBlock::SpoutMetaBlock(SpoutMetaBlock&& other) noexcept
     : region_(std::move(other.region_)), layout_(other.layout_) {
@@ -203,9 +201,7 @@ FrameMeta SpoutMetaBlock::read() const {
     return FrameMeta{frameIndex, qpc};
 }
 
-bool SpoutMetaBlock::valid() const {
-    return region_.valid() && layout_ != nullptr;
-}
+bool SpoutMetaBlock::valid() const { return region_.valid() && layout_ != nullptr; }
 
 // --- SpoutSender ------------------------------------------------------------
 
@@ -274,18 +270,14 @@ bool SpoutSender::send(const void* pixels, std::size_t bytes, const FrameMeta& m
     return true;
 }
 
-bool SpoutSender::published() const {
-    return published_;
-}
+bool SpoutSender::published() const { return published_; }
 
 // --- SpoutReceiver ----------------------------------------------------------
 
 SpoutReceiver::~SpoutReceiver() = default;
 
 SpoutReceiver::SpoutReceiver(SpoutReceiver&& other) noexcept
-    : null_(std::move(other.null_)),
-      lastSeenIndex_(other.lastSeenIndex_),
-      subscribed_(other.subscribed_) {
+    : null_(std::move(other.null_)), lastSeenIndex_(other.lastSeenIndex_), subscribed_(other.subscribed_) {
     other.subscribed_ = false;
 }
 

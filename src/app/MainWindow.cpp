@@ -55,8 +55,7 @@ const char* kChannelTitles[3] = {
 
 } // namespace
 
-MainWindow::MainWindow(OperatorEngine& engine)
-    : engine_(engine) {
+MainWindow::MainWindow(OperatorEngine& engine) : engine_(engine) {
     setWindowTitle(QStringLiteral("Broadcast Appliance — Operador"));
     resize(1180, 640);
     buildUi();
@@ -77,8 +76,7 @@ void MainWindow::buildUi() {
     auto* monitorFrame = new QFrame(this);
     monitorFrame->setFrameShape(QFrame::StyledPanel);
     auto* monitorLayout = new QVBoxLayout(monitorFrame);
-    monitorLabel_ = new QLabel(QStringLiteral("Monitor de programa\n(-preview de libobs)"),
-                               monitorFrame);
+    monitorLabel_ = new QLabel(QStringLiteral("Monitor de programa\n(-preview de libobs)"), monitorFrame);
     monitorLabel_->setAlignment(Qt::AlignCenter);
     monitorLayout->addWidget(monitorLabel_);
 
@@ -106,8 +104,10 @@ void MainWindow::buildUi() {
         combo->blockSignals(true);
         combo->setCurrentIndex(initial);
         combo->blockSignals(false);
-        connect(combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                this, [this, ch](int idx) { onPresetChanged(ch); (void)idx; });
+        connect(combo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this, ch](int idx) {
+            onPresetChanged(ch);
+            (void)idx;
+        });
         grid->addWidget(combo, row + 1, 0, 1, 2);
 
         // Medidor de nivel (RMS 0..100).
@@ -172,19 +172,17 @@ void MainWindow::onTick() {
         const float level = engine_.levelFor(ch); // RMS 0..1
         channels_[ch].level->setValue(static_cast<int>(level * 100.0f + 0.5f));
         const float gainDb = gainToDb(engine_.automixerGainFor(ch));
-        channels_[ch].gain->setText(
-            QStringLiteral("%1 dB").arg(gainDb, 0, 'f', 1));
+        channels_[ch].gain->setText(QStringLiteral("%1 dB").arg(gainDb, 0, 'f', 1));
     }
 
     // Estado IPC/watchdog en la barra de estado.
     const bool ring = engine_.guestRingOpen();
     const bool ctl = engine_.controlConnected();
     const bool stale = engine_.watchedIsStale();
-    statusLabel_->setText(QStringLiteral(
-        "IPC: ring %1 · control %2 · watchdog %3")
-        .arg(ring ? QStringLiteral("OK") : QStringLiteral("—"),
-             ctl ? QStringLiteral("OK") : QStringLiteral("—"),
-             stale ? QStringLiteral("STALE") : QStringLiteral("OK")));
+    statusLabel_->setText(QStringLiteral("IPC: ring %1 · control %2 · watchdog %3")
+                              .arg(ring ? QStringLiteral("OK") : QStringLiteral("—"),
+                                   ctl ? QStringLiteral("OK") : QStringLiteral("—"),
+                                   stale ? QStringLiteral("STALE") : QStringLiteral("OK")));
 }
 
 void MainWindow::closeEvent(QCloseEvent* event) {

@@ -25,8 +25,8 @@
 #include <cstdint>
 
 #if defined(_WIN32)
-#    define WIN32_LEAN_AND_MEAN
-#    include <windows.h>
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 #endif
 
 namespace ba::ipc {
@@ -45,8 +45,8 @@ namespace {
 constexpr int kMaxSeqlockSpins = 64;
 
 // Escribe un entry completo bajo el seqlock (writer).
-void writeEntry(HealthEntry* e, std::uint32_t state, std::uint32_t pid,
-                std::uint32_t version, std::uint64_t lastBeatQpc) {
+void writeEntry(HealthEntry* e, std::uint32_t state, std::uint32_t pid, std::uint32_t version,
+                std::uint64_t lastBeatQpc) {
     std::atomic_ref<std::uint32_t> seq{e->seq};
     std::atomic_ref<std::uint32_t> st{e->state};
     std::atomic_ref<std::uint32_t> pidRef{e->pid};
@@ -109,15 +109,13 @@ bool readEntry(HealthEntry* e, Snapshot& out) {
 std::uint64_t HealthBlock::nowQpc() {
 #if defined(_WIN32)
     LARGE_INTEGER freq, counter;
-    if (QueryPerformanceFrequency(&freq) && freq.QuadPart != 0 &&
-        QueryPerformanceCounter(&counter)) {
+    if (QueryPerformanceFrequency(&freq) && freq.QuadPart != 0 && QueryPerformanceCounter(&counter)) {
         return static_cast<std::uint64_t>(counter.QuadPart);
     }
     return 0;
 #else
     using namespace std::chrono;
-    return static_cast<std::uint64_t>(
-        steady_clock::now().time_since_epoch().count());
+    return static_cast<std::uint64_t>(steady_clock::now().time_since_epoch().count());
 #endif
 }
 
@@ -126,9 +124,7 @@ std::uint64_t HealthBlock::nowQpc() {
 HealthBlock::~HealthBlock() = default;
 
 HealthBlock::HealthBlock(HealthBlock&& other) noexcept
-    : region_(std::move(other.region_)),
-      header_(other.header_),
-      entries_(other.entries_),
+    : region_(std::move(other.region_)), header_(other.header_), entries_(other.entries_),
       slotCount_(other.slotCount_) {
     other.header_ = nullptr;
     other.entries_ = nullptr;
@@ -150,8 +146,7 @@ HealthBlock& HealthBlock::operator=(HealthBlock&& other) noexcept {
 
 // --- create / open ----------------------------------------------------------
 
-Status HealthBlock::create(const wchar_t* name, std::size_t slotCount,
-                           HealthBlock& out) {
+Status HealthBlock::create(const wchar_t* name, std::size_t slotCount, HealthBlock& out) {
     const wchar_t* n = (name != nullptr) ? name : kName;
     if (slotCount == 0) {
         return Status::fail(static_cast<int>(ErrorCode::kInvalidArgument));
@@ -160,8 +155,7 @@ Status HealthBlock::create(const wchar_t* name, std::size_t slotCount,
         return Status::fail(static_cast<int>(ErrorCode::kAlreadyMapped));
     }
 
-    const std::size_t bytes =
-        sizeof(HealthHeader) + slotCount * sizeof(HealthEntry);
+    const std::size_t bytes = sizeof(HealthHeader) + slotCount * sizeof(HealthEntry);
 
     SharedMemoryRegion region;
     Status st = SharedMemoryRegion::create(n, bytes, region);
@@ -175,8 +169,7 @@ Status HealthBlock::create(const wchar_t* name, std::size_t slotCount,
     }
 
     auto* header = static_cast<HealthHeader*>(base);
-    auto* entries = reinterpret_cast<HealthEntry*>(
-        static_cast<std::uint8_t*>(base) + sizeof(HealthHeader));
+    auto* entries = reinterpret_cast<HealthEntry*>(static_cast<std::uint8_t*>(base) + sizeof(HealthHeader));
 
     // Header inmutable: se escribe una sola vez, aqui.
     header->magic = kMagic;
@@ -221,13 +214,11 @@ Status HealthBlock::open(const wchar_t* name, HealthBlock& out) {
 
     auto* header = static_cast<HealthHeader*>(base);
     // Validacion: el buffer debe ser un HealthBlock del layout esperado.
-    if (header->magic != kMagic || header->version != kLayoutVersion ||
-        header->slotCount == 0) {
+    if (header->magic != kMagic || header->version != kLayoutVersion || header->slotCount == 0) {
         return Status::fail(static_cast<int>(ErrorCode::kInvalidArgument));
     }
 
-    auto* entries = reinterpret_cast<HealthEntry*>(
-        static_cast<std::uint8_t*>(base) + sizeof(HealthHeader));
+    auto* entries = reinterpret_cast<HealthEntry*>(static_cast<std::uint8_t*>(base) + sizeof(HealthHeader));
 
     out.region_ = std::move(region);
     out.header_ = header;
@@ -258,8 +249,7 @@ void HealthBlock::beat(std::size_t slot) {
     // refresca el latido y fija Running.
     Snapshot cur;
     readEntry(e, cur);
-    writeEntry(e, static_cast<std::uint32_t>(ProcessState::Running), cur.pid,
-               cur.version, nowQpc());
+    writeEntry(e, static_cast<std::uint32_t>(ProcessState::Running), cur.pid, cur.version, nowQpc());
 }
 
 void HealthBlock::setState(std::size_t slot, ProcessState state) {
@@ -269,20 +259,17 @@ void HealthBlock::setState(std::size_t slot, ProcessState state) {
     }
     Snapshot cur;
     readEntry(e, cur);
-    writeEntry(e, static_cast<std::uint32_t>(state), cur.pid, cur.version,
-               cur.lastBeatQpc);
+    writeEntry(e, static_cast<std::uint32_t>(state), cur.pid, cur.version, cur.lastBeatQpc);
 }
 
-void HealthBlock::setIdentity(std::size_t slot, std::uint32_t pid,
-                              std::uint32_t version) {
+void HealthBlock::setIdentity(std::size_t slot, std::uint32_t pid, std::uint32_t version) {
     HealthEntry* e = entryAt(slot);
     if (e == nullptr) {
         return;
     }
     Snapshot cur;
     readEntry(e, cur);
-    writeEntry(e, static_cast<std::uint32_t>(cur.state), pid, version,
-               cur.lastBeatQpc);
+    writeEntry(e, static_cast<std::uint32_t>(cur.state), pid, version, cur.lastBeatQpc);
 }
 
 Snapshot HealthBlock::read(std::size_t slot) const {
@@ -291,15 +278,12 @@ Snapshot HealthBlock::read(std::size_t slot) const {
     return out;
 }
 
-bool HealthBlock::isStale(std::size_t slot, std::uint64_t nowQpc,
-                          std::uint64_t thresholdNs) const {
+bool HealthBlock::isStale(std::size_t slot, std::uint64_t nowQpc, std::uint64_t thresholdNs) const {
     HealthEntry* e = entryAt(slot);
     if (e == nullptr) {
         return false;
     }
-    const std::uint64_t beat =
-        std::atomic_ref<std::uint64_t>{e->lastBeatQpc}.load(
-            std::memory_order_acquire);
+    const std::uint64_t beat = std::atomic_ref<std::uint64_t>{e->lastBeatQpc}.load(std::memory_order_acquire);
 
     // Slot sin latidos: se considera estancado si ya paso el umbral desde la
     // epoca (0). Asi un proceso que nunca llego a latir se detecta igual.

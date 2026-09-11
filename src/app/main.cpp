@@ -47,7 +47,10 @@ namespace {
 // Directorio del módulo (UTF-16), derivado de GetModuleFileNameW (spec §5.3:
 // la letra de unidad cambia entre equipos). En POSIX no existe "módulo"; el
 // fallback usa el directorio de trabajo actual (getcwd).
-std::wstring moduleDirW() {
+// `[[maybe_unused]]`: en la ruta headless de Linux (ruta 3) estas dos
+// funciones no se llaman (solo las usa la ruta Windows), así que sin el
+// attribute el compilador avisa `-Wunused-function`.
+[[maybe_unused]] std::wstring moduleDirW() {
 #ifdef _WIN32
     wchar_t buf[MAX_PATH]{};
     const DWORD n = GetModuleFileNameW(nullptr, buf, MAX_PATH);
@@ -74,19 +77,19 @@ std::wstring moduleDirW() {
 // UTF-16 -> UTF-8 (para las rutas que libobs/QSettings toman en UTF-8). En
 // POSIX el wstring es en realidad UTF-8 estrecho (1 wchar = 1 byte), así que la
 // conversión es un traspaso de bytes.
-std::string toUtf8(const std::wstring& p) {
+// `[[maybe_unused]]`: idem `moduleDirW` — solo la ruta Windows lo invoca.
+[[maybe_unused]] std::string toUtf8(const std::wstring& p) {
     if (p.empty()) {
         return std::string();
     }
 #ifdef _WIN32
-    const int n = WideCharToMultiByte(CP_UTF8, 0, p.c_str(),
-                                      static_cast<int>(p.size()), nullptr, 0,
-                                      nullptr, nullptr);
+    const int n =
+        WideCharToMultiByte(CP_UTF8, 0, p.c_str(), static_cast<int>(p.size()), nullptr, 0, nullptr, nullptr);
     std::string out;
     if (n > 0) {
         out.resize(static_cast<std::size_t>(n));
-        WideCharToMultiByte(CP_UTF8, 0, p.c_str(), static_cast<int>(p.size()),
-                            out.data(), n, nullptr, nullptr);
+        WideCharToMultiByte(CP_UTF8, 0, p.c_str(), static_cast<int>(p.size()), out.data(), n, nullptr,
+                            nullptr);
     }
     return out;
 #else
@@ -114,8 +117,7 @@ int runHeadlessSelfTest() {
     // Config en un subdir local (los snapshots van a cfg/Config/session).
     const std::string cfg = "ba-app-headless";
     if (!engine.init(cfg)) {
-        std::printf("ba-app headless: init falló (code=%d)\n",
-                    engine.lastError());
+        std::printf("ba-app headless: init falló (code=%d)\n", engine.lastError());
         return 1;
     }
 
@@ -130,8 +132,7 @@ int runHeadlessSelfTest() {
     const int frames = 480;
     std::vector<float> buf(static_cast<std::size_t>(frames) * 2, 0.0f);
     for (int i = 0; i < frames; ++i) {
-        const float s =
-            0.3f * std::sin(2.0f * 3.14159265f * 440.0f * i / 48000.0f);
+        const float s = 0.3f * std::sin(2.0f * 3.14159265f * 440.0f * i / 48000.0f);
         buf[static_cast<std::size_t>(i) * 2] = s;
         buf[static_cast<std::size_t>(i) * 2 + 1] = s;
     }
@@ -140,8 +141,7 @@ int runHeadlessSelfTest() {
     }
 
     // 3) IPC: lector de invitados (pop -> silencio esperado, sin B).
-    float guest[ba::ipc::audio_ring::kBlockFrames *
-                ba::ipc::audio_ring::kDefaultChannels];
+    float guest[ba::ipc::audio_ring::kBlockFrames * ba::ipc::audio_ring::kDefaultChannels];
     bool sil = false;
     bool fade = false;
     engine.processGuestBlock(guest, sil, fade);
@@ -153,16 +153,14 @@ int runHeadlessSelfTest() {
 
     // 5) Persistencia: StateDoc (fuente de verdad, spec §11.1).
     const ba::persist::StateDoc doc = engine.buildStateDoc();
-    std::printf("ba-app headless: seq=%llu dsp=%zu ipc=%zu\n",
-                static_cast<unsigned long long>(doc.sequence),
+    std::printf("ba-app headless: seq=%llu dsp=%zu ipc=%zu\n", static_cast<unsigned long long>(doc.sequence),
                 doc.sections.count("dsp") ? doc.sections.at("dsp").size() : 0,
                 doc.sections.count("ipc") ? doc.sections.at("ipc").size() : 0);
 
     // 6) Cierre ordenado: scheduleWrite(immediate) + flushNow (spec §11.2).
     const bool ok = engine.shutdown();
     std::printf("ba-app headless: OK (ring=%d control=%d stale=%d shutdown=%d)\n",
-                engine.guestRingOpen() ? 1 : 0,
-                engine.controlConnected() ? 1 : 0,
+                engine.guestRingOpen() ? 1 : 0, engine.controlConnected() ? 1 : 0,
                 engine.watchedIsStale() ? 1 : 0, ok ? 1 : 0);
     return ok ? 0 : 1;
 }
@@ -180,8 +178,7 @@ int runHeadlessSelfTest() {
 
 #include "MainWindow.hpp"
 
-int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
-                    LPWSTR lpCmdLine, int nCmdShow) {
+int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow) {
     (void)hPrevInstance;
     (void)lpCmdLine;
     (void)nCmdShow;
@@ -206,14 +203,13 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
     {
         // QApplication (Qt 6): argc/argv de 1 elemento (sin args extra).
         const char* argv0 = "ba-app";
-        char* argv[1] = { const_cast<char*>(argv0) };
+        char* argv[1] = {const_cast<char*>(argv0)};
         int argc = 1;
         QApplication app(argc, argv);
 
         ba::app::OperatorEngine engine;
         if (!engine.init(toUtf8(root))) {
-            std::printf("ba-app: motor no inicializado (code=%d)\n",
-                        engine.lastError());
+            std::printf("ba-app: motor no inicializado (code=%d)\n", engine.lastError());
             obs_shutdown();
             return 1;
         }
@@ -231,8 +227,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 // MinGW GUI CRT espera `WinMain` (narrow); trampoline a `wWinMain` (wide),
 // mismo patrón que el launcher.
 #if !defined(_MSC_VER)
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
-                   LPSTR lpCmdLine, int nCmdShow) {
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
     (void)lpCmdLine;
     return wWinMain(hInstance, hPrevInstance, nullptr, nCmdShow);
 }
@@ -243,13 +238,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 // ============================================================================
 #elif defined(_WIN32)
 
-int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
-    return runHeadlessSelfTest();
-}
+int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) { return runHeadlessSelfTest(); }
 
 #if !defined(_MSC_VER)
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
-                   LPSTR lpCmdLine, int nCmdShow) {
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
     (void)lpCmdLine;
     return wWinMain(hInstance, hPrevInstance, nullptr, nCmdShow);
 }

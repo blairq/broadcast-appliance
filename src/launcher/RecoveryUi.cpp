@@ -44,13 +44,13 @@ std::string toUtf8(const std::wstring& p) {
     if (p.empty()) {
         return std::string();
     }
-    const int n = WideCharToMultiByte(CP_UTF8, 0, p.c_str(), static_cast<int>(p.size()),
-                                      nullptr, 0, nullptr, nullptr);
+    const int n =
+        WideCharToMultiByte(CP_UTF8, 0, p.c_str(), static_cast<int>(p.size()), nullptr, 0, nullptr, nullptr);
     std::string out;
     if (n > 0) {
         out.resize(static_cast<std::size_t>(n));
-        WideCharToMultiByte(CP_UTF8, 0, p.c_str(), static_cast<int>(p.size()),
-                            out.data(), n, nullptr, nullptr);
+        WideCharToMultiByte(CP_UTF8, 0, p.c_str(), static_cast<int>(p.size()), out.data(), n, nullptr,
+                            nullptr);
     }
     return out;
 }
@@ -117,9 +117,8 @@ std::wstring buildIntegrityLine(const Incident& inc) {
         return L"Integridad del disco: OK (" + std::to_wstring(inc.integrity.checked) +
                L" archivos verificados).";
     }
-    return L"Integridad del disco: " + std::to_wstring(inc.integrity.checked) +
-           L" verificados, " + std::to_wstring(inc.integrity.missing) +
-           L" ausentes, " + std::to_wstring(inc.integrity.mismatch) +
+    return L"Integridad del disco: " + std::to_wstring(inc.integrity.checked) + L" verificados, " +
+           std::to_wstring(inc.integrity.missing) + L" ausentes, " + std::to_wstring(inc.integrity.mismatch) +
            L" con hash distinto.";
 }
 
@@ -154,11 +153,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             }
             return 0;
         }
-        case WM_DESTROY:
-            PostQuitMessage(0);
-            return 0;
-        default:
-            break;
+        case WM_DESTROY: PostQuitMessage(0); return 0;
+        default: break;
     }
     return DefWindowProcW(hwnd, msg, wParam, lParam);
 }
@@ -189,8 +185,7 @@ RecoveryAction RecoveryUi::present(const Incident& inc) {
     if (atom == 0) {
         const DWORD err = GetLastError();
         if (err != ERROR_CLASS_ALREADY_EXISTS) {
-            BA_LOG_ERROR("recovery", static_cast<int>(err),
-                         "RegisterClassW fallo; sin UI de recuperacion");
+            BA_LOG_ERROR("recovery", static_cast<int>(err), "RegisterClassW fallo; sin UI de recuperacion");
             return RecoveryAction::Dismissed;
         }
         // ERROR_CLASS_ALREADY_EXISTS: present() se volvio a invocar en el mismo
@@ -200,14 +195,11 @@ RecoveryAction RecoveryUi::present(const Incident& inc) {
     // --- 2. Crear la ventana fija (sin redimensionar, sin minimizar) --------
     const DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU;
     const std::wstring title = inc.title.empty() ? std::wstring(kDefaultTitle) : inc.title;
-    HWND hwnd = CreateWindowExW(
-        0, kClassName, title.c_str(), style,
-        CW_USEDEFAULT, CW_USEDEFAULT, kWindowWidth, kWindowHeight,
-        nullptr, nullptr, wc.hInstance, nullptr);
+    HWND hwnd = CreateWindowExW(0, kClassName, title.c_str(), style, CW_USEDEFAULT, CW_USEDEFAULT,
+                                kWindowWidth, kWindowHeight, nullptr, nullptr, wc.hInstance, nullptr);
     if (hwnd == nullptr) {
         const DWORD err = GetLastError();
-        BA_LOG_ERROR("recovery", static_cast<int>(err),
-                     "CreateWindowExW fallo; sin UI de recuperacion");
+        BA_LOG_ERROR("recovery", static_cast<int>(err), "CreateWindowExW fallo; sin UI de recuperacion");
         return RecoveryAction::Dismissed;
     }
 
@@ -219,10 +211,9 @@ RecoveryAction RecoveryUi::present(const Incident& inc) {
     // Static con el texto de estado (word-wrap a lo ancho del control).
     const int contentWidth = kWindowWidth - 2 * kMargin;
     const std::wstring status = buildStatus(inc);
-    HWND hStatus = CreateWindowExW(
-        0, L"STATIC", status.c_str(), WS_CHILD | WS_VISIBLE | SS_LEFT,
-        kMargin, kStatusTop, contentWidth, kStatusHeight,
-        hwnd, nullptr, wc.hInstance, nullptr);
+    HWND hStatus =
+        CreateWindowExW(0, L"STATIC", status.c_str(), WS_CHILD | WS_VISIBLE | SS_LEFT, kMargin, kStatusTop,
+                        contentWidth, kStatusHeight, hwnd, nullptr, wc.hInstance, nullptr);
     if (hStatus == nullptr) {
         const DWORD err = GetLastError();
         BA_LOG_ERROR("recovery", static_cast<int>(err), "no se pudo crear el static de estado");
@@ -234,29 +225,27 @@ RecoveryAction RecoveryUi::present(const Incident& inc) {
     if (inc.showIntegrity) {
         const std::wstring integrityLine = buildIntegrityLine(inc);
         HWND hIntegrity = CreateWindowExW(
-            0, L"STATIC", integrityLine.c_str(), WS_CHILD | WS_VISIBLE | SS_LEFT,
-            kMargin, kIntegrityTop, contentWidth, kIntegrityHeight,
-            hwnd, nullptr, wc.hInstance, nullptr);
+            0, L"STATIC", integrityLine.c_str(), WS_CHILD | WS_VISIBLE | SS_LEFT, kMargin, kIntegrityTop,
+            contentWidth, kIntegrityHeight, hwnd, nullptr, wc.hInstance, nullptr);
         if (hIntegrity == nullptr) {
             const DWORD err = GetLastError();
-            BA_LOG_WARN("recovery", static_cast<int>(err),
-                        "no se pudo crear el static de integridad");
+            BA_LOG_WARN("recovery", static_cast<int>(err), "no se pudo crear el static de integridad");
         }
     }
 
     // Botones de accion (Reintentar / Forzar reinicio / Salir).
-    HWND hRetry = CreateWindowExW(
-        0, L"BUTTON", kRetryLabel, WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_TEXT,
-        kButtonsLeft, kButtonTop, kButtonWidth, kButtonHeight,
-        hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdRetry)), wc.hInstance, nullptr);
+    HWND hRetry =
+        CreateWindowExW(0, L"BUTTON", kRetryLabel, WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_TEXT,
+                        kButtonsLeft, kButtonTop, kButtonWidth, kButtonHeight, hwnd,
+                        reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdRetry)), wc.hInstance, nullptr);
     HWND hForce = CreateWindowExW(
         0, L"BUTTON", kForceRestartLabel, WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_TEXT,
-        kButtonsLeft + kButtonWidth + kButtonGap, kButtonTop, kButtonWidth, kButtonHeight,
-        hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdForceRestart)), wc.hInstance, nullptr);
-    HWND hExit = CreateWindowExW(
-        0, L"BUTTON", kExitLabel, WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_TEXT,
-        kButtonsLeft + 2 * (kButtonWidth + kButtonGap), kButtonTop, kButtonWidth, kButtonHeight,
-        hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdExit)), wc.hInstance, nullptr);
+        kButtonsLeft + kButtonWidth + kButtonGap, kButtonTop, kButtonWidth, kButtonHeight, hwnd,
+        reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdForceRestart)), wc.hInstance, nullptr);
+    HWND hExit = CreateWindowExW(0, L"BUTTON", kExitLabel, WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_TEXT,
+                                 kButtonsLeft + 2 * (kButtonWidth + kButtonGap), kButtonTop, kButtonWidth,
+                                 kButtonHeight, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdExit)),
+                                 wc.hInstance, nullptr);
     if (hRetry == nullptr || hForce == nullptr || hExit == nullptr) {
         const DWORD err = GetLastError();
         BA_LOG_ERROR("recovery", static_cast<int>(err), "no se pudo crear un boton de accion");

@@ -1,4 +1,4 @@
-# TODO — Broadcast Appliance v2 (estado de corte: 2026-09-10)
+# TODO — Broadcast Appliance v2 (estado de corte: 2026-09-11)
 
 Documento de arranque para sesiones nuevas. Contiene: qué se hizo, qué falta
 (placeholders y paths sin validar) y cómo se construye en este entorno.
@@ -15,7 +15,11 @@ Documento de arranque para sesiones nuevas. Contiene: qué se hizo, qué falta
   - Cross MinGW: `cmake --build build/win` exit 0 (5 artefactos de producto).
   - `make test` → **20/20 ctest** · `pytest` → **22/22**.
   - `make release` → bundle portable en `release/` (layout §5.1).
-  - Smoke test headless `ba-app.exe` bajo wine: exit 0.
+   - Smoke test headless `ba-app.exe` bajo wine: exit 0.
+   - **2026-09-11**: `tools/deploy` creado; `writeMinidump()` real (Windows);
+     job `lint` en CI + 3 warnings limpios + formato de `src/` normalizado
+     (`.clang-format` corregido para 18.1.3); `pyproject.toml` renombrado a
+     `broadcast-appliance`; sección «Requisitos de build» en README.
 
 ## 2. Qué falta (placeholders y paths nunca compilados)
 
@@ -30,9 +34,12 @@ Acción: en un entorno con Qt6 + libobs 31 + libwebrtc M123 reales, encender los
 flags, compilar, ejecutar y quitar los `VERIFY`.
 
 ### 2.2 Stubs explícitos
-- `writeMinidump()` (`src/core/diag/DiagExport.cpp`) — siempre devuelve
-  `false` (GATED:Win; pendiente de `MiniDumpWriteDump` real).
 - `main` no-Win del launcher — stub por diseño (valida compilación en Linux).
+
+(`writeMinidump()` de `src/core/diag/DiagExport.cpp` quedó **implementado de
+real** el 2026-09-11: carga `dbghelp.dll` a runtime y llama a
+`MiniDumpWriteDump` con `MiniDumpWithHeapSnapshot | MiniDumpWithThreadInfo |
+MiniDumpWithStackWalk`; solo se compila en Windows. Hecho.)
 
 ### 2.3 Marcadores `VERIFY` externos pendientes
 - `src/gateway/Cloudflared.cpp:153,222` — flags y endpoint de salud de
@@ -48,31 +55,36 @@ flags, compilar, ejecutar y quitar los `VERIFY`.
 ### 2.5 Packaging
 - Flatpak: solo validado **estáticamente** (no hay `flatpak-builder` en el
   host). Pendiente: build real del manifiesto.
-- `tools/deploy` (copia de runtimes de terceros sobre el bundle) está citado
-  en README/docs pero **no existe en el repo**.
+
+(`tools/deploy` quedó **creado** el 2026-09-11: copia runtimes de terceros
+sobre el bundle portable vía env `BA_DEPLOY_*`, idempotente, respeta el layout
+§5.1 y escribe `manifest.json` con SHA-256. Hecho.)
 
 ### 2.6 Calidad
-- `make lint` no se aplica en ninguna parte: clang-format ausente local y sin
-  job de lint en CI.
-- Warnings propios abiertos:
-  - `src/plugin-host/Vst3Host.cpp:209` — `-Wcast-function-type` (cast de
-    `GetProcAddress`).
-  - `src/gateway/SignalingServer.cpp:91,97` — `-Wparentheses` (código SHA-1).
-  - `src/app/main.cpp` — `-Wunused-function` en Linux (`moduleDirW`/`toUtf8`,
-    solo los usa la ruta Windows).
+- **Hecho (2026-09-11)**: job `lint` en CI (`.github/workflows/ci.yml`,
+  `runs-on: ubuntu-24.04` fijado + `apt install clang-format` + asert del pin
+  `CLANG_FORMAT_VERSION` de `versions.cmake`). `make lint` usa el clang-format
+  de la distro (no descarga nada) y **falla** si no está. Los 3 warnings
+  propios quedaron limpios (`-Wcast-function-type` en `Vst3Host.cpp`,
+  `-Wparentheses` en `SignalingServer.cpp`, `-Wunused-function` en `main.cpp`
+  vía `[[maybe_unused]]`). Se normalizó el formato de `src/` con el
+  `.clang-format` corregido para 18.1.3 (excluye `src/obs-module/obs/`, que es
+  VENDOR).
 
 ### 2.7 Trivia
-- `pyproject.toml` sigue nombrando `"legis-studio"` (nombre viejo del repo;
-  ahora `broadcast-appliance`).
+- ~~`pyproject.toml` seguía nombrando `"legis-studio"`~~ — renombrado a
+  `broadcast-appliance` (2026-09-11).
 
 ## 3. Orden sugerido de ataque
 
 1. Entorno con Qt6 + libobs + libwebrtc reales → compilar y ejecutar los 3
-   paths con flags ON + tests de integración (2.1, 2.3, 2.4).
-2. `tools/deploy` (2.5).
-3. Minidump real (2.2).
-4. Job de lint en CI + limpiar los 3 warnings (2.6).
-5. Renombrar `legis-studio` → `broadcast-appliance` en `pyproject.toml` (2.7).
+   paths con flags ON + tests de integración (2.1, 2.3, 2.4). **Único grande
+   pendiente** (requiere las libs reales).
+2. ~~`tools/deploy` (2.5)~~ — hecho 2026-09-11.
+3. ~~Minidump real (2.2)~~ — hecho 2026-09-11.
+4. ~~Job de lint en CI + limpiar los 3 warnings (2.6)~~ — hecho 2026-09-11.
+5. ~~Renombrar `legis-studio` → `broadcast-appliance` en `pyproject.toml`
+   (2.7)~~ — hecho 2026-09-11.
 
 ## 4. Notas de build para este host (Linux)
 

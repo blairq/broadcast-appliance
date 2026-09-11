@@ -39,13 +39,13 @@ std::string toUtf8(const std::wstring& p) {
     if (p.empty()) {
         return std::string();
     }
-    const int n = WideCharToMultiByte(CP_UTF8, 0, p.c_str(), static_cast<int>(p.size()),
-                                      nullptr, 0, nullptr, nullptr);
+    const int n =
+        WideCharToMultiByte(CP_UTF8, 0, p.c_str(), static_cast<int>(p.size()), nullptr, 0, nullptr, nullptr);
     std::string out;
     if (n > 0) {
         out.resize(static_cast<std::size_t>(n));
-        WideCharToMultiByte(CP_UTF8, 0, p.c_str(), static_cast<int>(p.size()),
-                            out.data(), n, nullptr, nullptr);
+        WideCharToMultiByte(CP_UTF8, 0, p.c_str(), static_cast<int>(p.size()), out.data(), n, nullptr,
+                            nullptr);
     }
     return out;
 }

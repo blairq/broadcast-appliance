@@ -26,14 +26,13 @@ namespace {
 
 std::string toLower(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(),
-                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     return s;
 }
 
 // Extrae el valor de una clave "key" que precede a un string, a partir de pos.
 // Devuelve el string y avanza pos al final del valor.
-bool extractString(const std::string& json, std::size_t pos, const std::string& key,
-                   std::string& out) {
+bool extractString(const std::string& json, std::size_t pos, const std::string& key, std::string& out) {
     const std::string needle = "\"" + key + "\"";
     const std::size_t k = json.find(needle, pos);
     if (k == std::string::npos) {
