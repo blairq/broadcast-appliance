@@ -25,7 +25,7 @@ JOBS      ?= $(nproc)
 PY        ?= .venv/bin/python
 PIP       ?= .venv/bin/pip
 
-.PHONY: help dev build prod test test-unit lint docs dist win clean clean-all
+.PHONY: help dev build prod test test-unit lint docs release win clean clean-all
 
 # --- Ayuda (target por defecto) ---------------------------------------------
 help:
@@ -33,15 +33,15 @@ help:
 	@echo ""
 	@echo "  make dev        Build de desarrollo (Debug) en $(BUILD_DIR)/"
 	@echo "  make build      Configura y compila (build type por defecto de CMake)"
-	@echo "  make prod       Build de producción (Release) + bundle portable en dist/portable"
+	@echo "  make prod       Build de producción (Release) + bundle portable en release"
 	@echo "  make docs       Genera la documentación (Sphinx -> docs/_build/html)"
 	@echo "  make test       Corre ctest (tests unitarios de ba_core)"
 	@echo "  make test-unit  Alias de 'make test'"
 	@echo "  make lint       Revisa el formato con clang-format (si existe)"
-	@echo "  make dist       Instala el bundle portable (layout §5.1) en dist/portable"
+	@echo "  make release    Instala el bundle portable (layout §5.1) en release/"
 	@echo "  make win        Cross-compile MinGW-w64 a build-win (si hay cross-compiler)"
 	@echo "  make clean      Borra $(BUILD_DIR)/"
-	@echo "  make clean-all  Borra $(BUILD_DIR)/, dist/ y docs/_build/"
+	@echo "  make clean-all  Borra $(BUILD_DIR)/, release/ y docs/_build/"
 	@echo ""
 	@echo "Variables: BUILD_DIR?=$(BUILD_DIR)  JOBS?=$(JOBS)"
 
@@ -60,12 +60,12 @@ build:
 	cmake --build $(BUILD_DIR) -j$(JOBS)
 
 # --- Producción (Release + bundle) ------------------------------------------
-# Artefacto portable: Release + instalación del layout §5.1 en dist/portable.
+# Artefacto portable: Release + instalación del layout §5.1 en release.
 prod:
 	cmake -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=Release
 	cmake --build $(BUILD_DIR) -j$(JOBS)
-	cmake --install $(BUILD_DIR) --prefix dist/portable
-	@echo "Bundle portable: dist/portable/"
+	cmake --install $(BUILD_DIR) --prefix release
+	@echo "Bundle portable: release/"
 
 # --- Documentación (Sphinx / ReadTheDocs) -----------------------------------
 # Usa un venv local (.venv) para no instalar nada global. Instala sphinx +
@@ -95,10 +95,10 @@ lint:
 	fi
 
 # --- Bundle portable (layout §5.1) ------------------------------------------
-# Instala el esqueleto del layout portable sobre dist/portable (bin/64bit,
+# Instala el esqueleto del layout portable sobre release (bin/64bit,
 # obs-plugins, data/libobs, Config, Logs, Recordings, Web/guest).
-dist:
-	cmake --install $(BUILD_DIR) --prefix dist/portable
+release:
+	cmake --install $(BUILD_DIR) --prefix release
 
 # --- Cross-compile MinGW-w64 (Windows desde Linux) --------------------------
 # Solo si el cross-compiler existe; si no, avisa y termina en verde. El
@@ -120,4 +120,4 @@ clean:
 	rm -rf $(BUILD_DIR)
 
 clean-all:
-	rm -rf $(BUILD_DIR) dist docs/_build
+	rm -rf $(BUILD_DIR) release docs/_build

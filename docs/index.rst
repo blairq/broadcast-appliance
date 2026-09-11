@@ -94,10 +94,25 @@ clases y namespaces reales:
 - :doc:`modules/core` — `ba_core` (dsp, ipc, persist, security, diag, fault,
   crypto, hw).
 - :doc:`modules/plugin-host` — `ba_plugin_host` (host VST3 / LSP).
-- :doc:`modules/launcher` — `BroadcastAppliance` (supervisor).
-- :doc:`modules/gateway` — `ba-gateway` (Proceso B, skeleton).
-- :doc:`modules/app` — `ba-app` (Proceso A, skeleton).
-- :doc:`modules/obs-module` — `ba-sources` (módulo libobs, skeleton).
+- :doc:`modules/launcher` — `BroadcastAppliance` (supervisor + `RecoveryUi`).
+- :doc:`modules/gateway` — `ba-gateway` (Proceso B, implementado; flag
+  `BA_GATEWAY_HAVE_WEBRTC`).
+- :doc:`modules/app` — `ba-app` (Proceso A, implementado; flag
+  `BA_APP_HAVE_QT_OBS`).
+- :doc:`modules/obs-module` — `ba-sources` (módulo libobs, implementado; flag
+  `BA_SOURCES_HAVE_OBS`).
+
+Estado
+------
+
+Los procesos están **implementados** y compilan (cross MinGW a Windows; el
+núcleo además nativo en Linux). Ya no son esqueletos: `ba-app` (MainWindow +
+OperatorEngine), `ba-gateway` (Webrtc/SignalingServer/Cloudflared/MediaPump/
+TokenAuth), `ba-sources` (módulo libobs) y `ba_plugin_host` (Vst3Host +
+PluginDeployer) están completos, y el launcher suma `RecoveryUi` (ventana
+Win32 con `Incident` + `RecoveryAction`). Quedan por hacer los **tests de
+integración** con libobs/libwebrtc reales (hoy el núcleo y el host de plugins
+tienen unit tests en Linux) y el **packaging** final del bundle portable.
 
 .. _doxygen:
 

@@ -1,0 +1,209 @@
+/* ============================================================================
+   Web/guest/style.css — App web del invitado (spec §8.3, mobile-first)
+   Diseño: oscuro, minimal, legible en móvil. Sin dependencias externas.
+   ========================================================================== */
+
+:root {
+  --bg: #0b0f14;
+  --bg-2: #111722;
+  --card: #161d2b;
+  --fg: #e7ecf3;
+  --muted: #8b96a8;
+  --accent: #3b82f6;
+  --accent-2: #60a5fa;
+  --ok: #22c55e;
+  --warn: #f59e0b;
+  --err: #ef4444;
+  --onair: #ef4444;
+  --radius: 14px;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.screen {
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.hidden { display: none !important; }
+
+.card {
+  background: var(--card);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 24px;
+}
+
+h1 { font-size: 24px; margin: 0 0 4px; }
+h2 { font-size: 20px; margin: 0 0 4px; }
+.sub { color: var(--muted); margin: 0 0 20px; font-size: 14px; }
+
+label {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin: 14px 0 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+input {
+  width: 100%;
+  background: var(--bg-2);
+  color: var(--fg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 16px;
+}
+input:focus { outline: none; border-color: var(--accent); }
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-weight: 600;
+}
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+button.primary {
+  width: 100%;
+  margin-top: 22px;
+  background: var(--accent);
+  color: #fff;
+}
+button.primary:hover:not(:disabled) { background: var(--accent-2); }
+
+button.ghost {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--fg);
+}
+button.ghost:hover { background: rgba(255, 255, 255, 0.12); }
+button.ghost.danger { color: var(--err); }
+
+.error { color: var(--err); font-size: 13px; min-height: 16px; margin: 14px 0 0; }
+
+/* --- Chequeo de dispositivos ------------------------------------------- */
+.media-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.media-box {
+  position: relative;
+  background: var(--bg-2);
+  border-radius: 10px;
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000;
+}
+.badge {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  font-size: 11px;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+.badge.ok { color: var(--ok); }
+.badge.bad { color: var(--err); }
+
+.meter-wrap { width: 80%; }
+.meter {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.level {
+  height: 100%;
+  width: 0%;
+  background: var(--ok);
+  transition: width 80ms linear;
+}
+
+/* --- Sala en vivo ------------------------------------------------------ */
+.room-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.status { font-size: 13px; color: var(--muted); }
+.status.ok { color: var(--ok); }
+.status.bad { color: var(--err); }
+.onair {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--onair);
+  padding: 6px 12px;
+  border-radius: 999px;
+  animation: pulse 1.6s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+.stage {
+  position: relative;
+  background: #000;
+  border-radius: var(--radius);
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  box-shadow: var(--shadow);
+}
+.remote {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+.tile-label {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  font-size: 11px;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.room-foot {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+.room-foot button { flex: 1; }

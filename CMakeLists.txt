@@ -151,6 +151,33 @@ if(WIN32)
         GIT_TAG ${VST3_SDK_VERSION}
         GIT_SHALLOW TRUE)
     FetchContent_MakeAvailable(vst3sdk)
+
+    # --- Excluir del build los targets del SDK que NO usamos ------------------
+    # Solo enlazamos `base`, `pluginterfaces`, `sdk_hosting` y `sdk_common`
+    # (ver src/plugin-host). El resto de targets que el SDK crea por defecto
+    # se compilan dentro de `all` y, en un cross-compile MinGW, fallan en
+    # `public.sdk/source/vst/utility/alignedalloc.h:79` (`std::aligned_alloc`
+    # no existe en el libstdc++ de MinGW):
+    #   - `sdk`        : lib completa del SDK; `dataexchange.cpp` usa
+    #                     `Steinberg::Vst::aligned_alloc`. Ningún target de
+    #                     producto la enlaza (solo la usan los samples).
+    #   - `validator`  : test-host de Steinberg (samples/vst-hosting/validator);
+    #                     NO se crea bajo ninguna variable del SDK (audiohost/
+    #                     editorhost/inspectorapp sí respetan
+    #                     SMTG_ENABLE_VST3_HOSTING_EXAMPLES, validator no).
+    #   - `moduleinfotool` : util de samples/vst-utilities; la desactiva
+    #                     `SMTG_ADD_VST3_UTILITIES` (ON por defecto).
+    # `EXCLUDE_FROM_ALL` los saca del target `all` (y de `cmake --build`) sin
+    # borrar su definición, por lo que sigue siendo enlazable si algún día se
+    # quisiera. Solo se aplica en Windows: en Linux el SDK no se trae
+    # (if(WIN32)) y estos targets no existen.
+    foreach(_ba_vst3_excl_target sdk validator moduleinfotool)
+        if(TARGET ${_ba_vst3_excl_target})
+            set_target_properties(${_ba_vst3_excl_target}
+                PROPERTIES EXCLUDE_FROM_ALL ON)
+            message(STATUS "VST3 SDK: target '${_ba_vst3_excl_target}' -> EXCLUDE_FROM_ALL (no lo usamos; evita el fallo de aligned_alloc en cross MinGW)")
+        endif()
+    endforeach()
 endif()
 
 # --- Config por defecto del build -------------------------------------------

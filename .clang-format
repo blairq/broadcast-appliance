@@ -1,0 +1,78 @@
+# ============================================================================
+# .clang-format — Broadcast Appliance Portable v2
+#
+# Replica del estilo de facto que YA usa el codigo en src/ (no impone un
+# estilo nuevo). El target `make lint` corre `clang-format --dry-run -Werror`
+# sobre src/; con este archivo el codigo queda "ya formateado" y el lint
+# queda verde sin reformatear nada.
+#
+# Convenciones (verificadas en src/core/*):
+#   - 4 espacios, sin tabs.
+#   - Modificadores de acceso (`public:`/`private:`) en columna 0.
+#   - Punteros/referencias alineados a la IZQUIERDA (`const std::string& x`).
+#   - Llaves pegadas a la declaracion (`struct Foo {`).
+#   - Funciones y if cortos en una sola linea cuando caben.
+#   - Naming: clases/structs PascalCase; metodos/funciones/vars/params
+#     camelCase; miembros camelCase + sufijo `_`; constantes `k`+PascalCase.
+# ============================================================================
+
+BasedOnStyle: LLVM
+IndentWidth: 4
+UseTab: Never
+TabWidth: 4
+ColumnLimit: 110
+AccessModifierOffset: -1
+PointerAlignment: Left
+DerivePointerAlignment: false
+AllowShortFunctionsOnOneLine: All
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLambdasOnOneLine: All
+AllowShortBlocksOnOneLine: Never
+AllowShortCaseLabelsOnASingleLine: true
+NamespaceIndentation: None
+FixNamespaceComments: true
+SortIncludes: CaseInsensitive
+IncludeBlocks: Preserve
+IndentCaseLabels: true
+SpaceBeforeParens: ControlStatements
+ConstructorInitializerIndentWidth: 4
+Standard: c++20
+Language: Cpp
+
+NamingConventions:
+  # Clases / structs / aliases de tipo: PascalCase (Frame, Message, StateDoc).
+  - Class:
+      Convention: PascalCase
+  - Struct:
+      Convention: PascalCase
+  - TypedefAlias:
+      Convention: PascalCase
+  # Metodos / funciones: camelCase (encodeFrame, typeToString, process).
+  - Method:
+      Convention: CamelBack
+  - Function:
+      Convention: CamelBack
+  # Variables locales / parámetros: camelCase (payloadLen, jsonOut, myRole).
+  - Variable:
+      Convention: CamelBack
+  - Parameter:
+      Convention: CamelBack
+  # Miembros de clase: camelCase + sufijo "_" (stream_, nextId_, rxBuf_).
+  - Field:
+      Convention: CamelBack
+      Custom:
+        Suffix: "_"
+  # Constantes (niveles de namespace / anonimo): k + PascalCase (kMagic,
+  # kSampleRate, kReadChunk).
+  - Constant:
+      Convention: CamelBack
+      Custom:
+        Prefix: "k"
+  - GlobalConstant:
+      Convention: CamelBack
+      Custom:
+        Prefix: "k"
+  # Variables de solo lectura (const) locales: k + PascalCase cuando es
+  # una constante nombrada; lo demas queda camelCase.
+  - EnumConstantValue:
+      Convention: PascalCase

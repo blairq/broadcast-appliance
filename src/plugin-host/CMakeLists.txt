@@ -71,7 +71,19 @@ if(WIN32)
     # (IAudioProcessor::iid / IEditController::iid viven en vstinitiids.cpp,
     # que compila dentro de sdk_hosting): sin enlazarlo, el host queda con
     # referencia indefinida a esos símbolos en el link.
-    target_link_libraries(ba_plugin_host PRIVATE base pluginterfaces sdk_hosting)
+    #
+    # Feature flag (mismo patrón que ba-app con BA_APP_HAVE_QT_OBS): solo se
+    # enlaza el SDK y se define `BA_PLUGIN_HOST_HAVE_VST3` cuando los targets
+    # del SDK realmente existen. Así un Windows donde FetchContent no trajo
+    # el SDK cae al fallback HEADLESS (solo std::filesystem) y el módulo
+    # sigue compilando offline.
+    if(TARGET base AND TARGET pluginterfaces AND TARGET sdk_hosting)
+        target_link_libraries(ba_plugin_host PRIVATE base pluginterfaces sdk_hosting)
+        target_compile_definitions(ba_plugin_host PRIVATE BA_PLUGIN_HOST_HAVE_VST3)
+        message(STATUS "ba_plugin_host: VST3 real (SDK presente) -> LoadLibraryW + QI + createView")
+    else()
+        message(STATUS "ba_plugin_host: modo headless (SDK ausente) -> solo std::filesystem")
+    endif()
 endif()
 
 # --- Unit tests de ba_plugin_host (CTest) -----------------------------------

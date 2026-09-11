@@ -11,7 +11,7 @@ plugins **LSP/VST3** es un componente **CORE** del producto, no una opción.
 
 [![CI](https://github.com/actions/workflows/ci.yml/badge.svg)](#tests)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.wikipedia.org/wiki/C%2B%2B)
-[![Licencia](https://img.shields.io/badge/licencia-pendiente-77aa99.svg)](#licencia)
+[![Licencia](https://img.shields.io/badge/licencia-GPL--3.0-blue.svg)](#licencia)
 
 > La documentación completa (módulos, clases y namespaces reales) está en
 > [`docs/`](docs/) — generada con Sphinx y publicada en ReadTheDocs.
@@ -97,6 +97,40 @@ Reglas de la arquitectura (spec §14, §3, §9):
 
 ---
 
+## Estado
+
+Los procesos están **implementados** y compilan (cross MinGW a Windows; el
+núcleo además nativo en Linux). Ya no son esqueletos:
+
+- **`ba-app`** (Proceso A): `MainWindow` (QMainWindow del operador) +
+  `OperatorEngine` (integra `ba_core::dsp` ChannelStrip/Automixer + presets,
+  IPC SharedAudioRing/HealthBlock/ControlEndpoint y persistencia
+  SnapshotStore). Feature-flag `BA_APP_HAVE_QT_OBS` (headless si no hay
+  Qt6/libobs).
+- **`ba-gateway`** (Proceso B): `Webrtc` (sesiones + hub), `SignalingServer`
+  (HTTP + WebSocket), `Cloudflared` (túnel), `MediaPump` (IPC ↔ WebRTC) y
+  `TokenAuth` (sobre `ba_core::security::TokenService`). Sirve `Web/guest/`
+  (index.html, app.js, style.css). Feature-flag `BA_GATEWAY_HAVE_WEBRTC`.
+- **`ba-sources`** (módulo libobs): `ba_sources.cpp` con `obs_module_register`,
+  una fuente y un filtro basados en `ba_core::dsp` y presets
+  podium/lavalier/handheld. Stubs locales en `src/obs-module/obs/`.
+  Feature-flag `BA_SOURCES_HAVE_OBS`.
+- **`ba_plugin_host`** (VST3/LSP): `Vst3Host` (load + attachEditor),
+  `PluginDeployer` (deploy + manifest) y `scanDirectory`. Feature-flag
+  `BA_PLUGIN_HOST_HAVE_VST3`.
+- **`BroadcastAppliance`** (launcher): `Supervisor` + `RecoveryUi` (ventana
+  Win32 con `Incident` + `RecoveryAction`).
+
+Queda por hacer:
+
+- **Tests de integración** con libobs/libwebrtc reales (hoy el núcleo y el
+  host de plugins tienen unit tests en Linux; el comportamiento real de
+  libobs/libwebrtc se verifica en Windows).
+- **Packaging** final del bundle portable (runtime de terceros vía
+  `tools/deploy`).
+
+---
+
 ## Compilación
 
 El build es **CMake** (C++20, self-contained vía `FetchContent`); el
@@ -114,7 +148,7 @@ make build    # configura (idempotente) y compila (build type por defecto: Relea
 ### (b) Producción — bundle portable
 
 ```bash
-make prod     # Release + instala el layout §5.1 en dist/portable/
+make prod     # Release + instala el layout §5.1 en release/
 ```
 
 ### (c) Windows cross con MinGW-w64
@@ -185,8 +219,8 @@ El flujo completo (build nativo + ctest + pytest + cross Windows) corre en CI
   └── Web/guest/            # app web del invitado (la sirve B)
   ```
 
-  Se produce con `make prod` / `make dist` (instala el esqueleto en
-  `dist/portable/`). Los runtime de terceros (OBS, CEF, Qt, VC++, cloudflared)
+  Se produce con `make prod` / `make release` (instala el esqueleto en
+  `release/`). Los runtime de terceros (OBS, CEF, Qt, VC++, cloudflared)
   los copia `tools/deploy` sobre este esqueleto.
 
 - **Flatpak** (Linux): manifiesto en
@@ -203,7 +237,7 @@ El flujo completo (build nativo + ctest + pytest + cross Windows) corre en CI
 .
 ├── CMakeLists.txt            # build raíz (C++20, FetchContent, layout §5.1)
 ├── versions.cmake            # versiones FIJADAS de dependencias de terceros
-├── Makefile                  # envuelve a CMake (dev/build/prod/docs/test/dist/win)
+├── Makefile                  # envuelve a CMake (dev/build/prod/docs/test/release/win)
 ├── pyproject.toml            # metadatos + config de pytest (suite de invariantes)
 ├── requirements-dev.txt      # pytest (para la suite Python)
 ├── readthedocs.yaml          # config de ReadTheDocs (Sphinx)
@@ -219,10 +253,10 @@ El flujo completo (build nativo + ctest + pytest + cross Windows) corre en CI
 │   │   ├── crypto/           #   SHA-256, HMAC
 │   │   ├── hw/               #   identidad de dispositivos de audio
 │   │   └── tests/            #   unit tests (18)
-│   ├── launcher/             # BroadcastAppliance — supervisor (Win32, /MT)
-│   ├── app/                  # ba-app — Proceso A (Qt + libobs) [skeleton]
-│   ├── gateway/              # ba-gateway — Proceso B (WebRTC) [skeleton]
-│   ├── obs-module/           # ba-sources — módulo libobs [skeleton]
+│   ├── launcher/             # BroadcastAppliance — supervisor + RecoveryUi (Win32, /MT)
+│   ├── app/                  # ba-app — Proceso A (Qt + libobs, flag BA_APP_HAVE_QT_OBS)
+│   ├── gateway/              # ba-gateway — Proceso B (WebRTC, flag BA_GATEWAY_HAVE_WEBRTC)
+│   ├── obs-module/           # ba-sources — módulo libobs (flag BA_SOURCES_HAVE_OBS)
 │   └── plugin-host/          # ba_plugin_host — host VST3/LSP + PluginDeployer
 ├── AudioPlugins/             # bundles .vst3 de LSP 1.2.35 (asset de despliegue)
 ├── packaging/                # flatpak (manifiesto) + .desktop
@@ -263,9 +297,9 @@ compila en Linux y Windows; "plataforma-gated (Windows)" = solo se trae/usa bajo
 
 ## Licencia
 
-El código propio del proyecto es de su autor. **No hay un archivo `LICENSE` en
-la raíz todavía**; la licencia del propio código se documentará en ese archivo.
-Las dependencias de terceros conservan sus licencias propias (ver tabla de
+El código propio del proyecto se distribuye bajo **GNU GPL-3.0** (ver
+[`LICENSE`](LICENSE)); el titular es **Legis Studio**. Las dependencias de
+terceros conservan sus licencias propias (ver tabla de
 [Dependencias](#dependencias)): mbedTLS (Apache-2.0), nlohmann/json (MIT),
 libsamplerate (MIT), Argon2 (CC0/Apache-2.0), VST3 SDK (MIT) y LSP (LGPL), entre
 otras.

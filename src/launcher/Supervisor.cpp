@@ -142,11 +142,21 @@ int Supervisor::run() {
 
     setupErrorMode();
 
-    if (!verifyIntegrity()) {
+    const IntegrityReport integrityReport = verifyIntegrity();
+    if (!integrityReport.ok) {
         // Spec 3.1.2: "mensaje claro en lugar de crashear". No es fatal: se
-        // avisa (RecoveryUi stub) y se continua para no detener el vivo.
-        BA_LOG_ERROR("integrity", 0, "integridad con fallos; continuar con advertencia");
-        RecoveryUi::show(L"Integridad del disco con fallos. Ver Logs/launcher.log.");
+        // muestra el incidente con el estado de integridad y se deja al
+        // operador decidir: salir o continuar.
+        Incident inc;
+        inc.title = L"Broadcast Appliance — Integridad";
+        inc.showIntegrity = true;
+        inc.integrity = integrityReport;
+        const RecoveryAction action = RecoveryUi::present(inc);
+        if (action == RecoveryAction::Exit) {
+            BA_LOG_INFO("sup", 0, "operador eligio salir ante fallos de integridad");
+            return 1;
+        }
+        BA_LOG_INFO("sup", 0, "operador eligio continuar pese a fallos de integridad");
     }
 
     // Copia sombra (spec 3.1.5): en esta fase es no-op; devuelve la raiz.
@@ -204,17 +214,17 @@ void Supervisor::setupErrorMode() {
 #endif
 }
 
-bool Supervisor::verifyIntegrity() {
+IntegrityReport Supervisor::verifyIntegrity() {
     const IntegrityReport report = Integrity::verify(cfg_.root);
     if (report.ok) {
         BA_LOG_INFO("integrity", 0, "integridad OK (" + std::to_string(report.checked) +
                                        " archivos)");
-        return true;
+    } else {
+        BA_LOG_ERROR("integrity", static_cast<int>(report.failures.size()),
+                     "integridad: " + std::to_string(report.missing) + " ausentes, " +
+                     std::to_string(report.mismatch) + " con hash distinto");
     }
-    BA_LOG_ERROR("integrity", static_cast<int>(report.failures.size()),
-                 "integridad: " + std::to_string(report.missing) + " ausentes, " +
-                 std::to_string(report.mismatch) + " con hash distinto");
-    return false;
+    return report;
 }
 
 void Supervisor::launchChildren(bool safeMode) {
@@ -337,18 +347,91 @@ void Supervisor::handleHang(bool isA) {
     restartChild(isA);
 }
 
+RecoveryAction Supervisor::presentRecovery(bool appDown, bool appHung, bool gwDown,
+                                           bool gwHung) {
+    Incident inc;
+    inc.title = L"Broadcast Appliance — Recuperación";
+    inc.childADown = appDown || appHung;
+    inc.childBDown = gwDown || gwHung;
+    if (appDown) {
+        inc.appExitCode = app_.exitCode();
+        inc.appCodeValid = true;
+    }
+    if (gwDown) {
+        inc.gatewayExitCode = gateway_.exitCode();
+        inc.gwCodeValid = true;
+    }
+
+    // Si procede, mostrar el estado de integridad del disco: un hijo caido
+    // podria deberse a un archivo corrupto/ausente. Se cachea el reporte para
+    // no re-hashear todo el disco en cada iteracion de un loop de crashes.
+    inc.showIntegrity = true;
+    const std::uint64_t now = nowMs();
+    if (!hasIntegrityReport_ || now - lastIntegrityCheckMs_ > 60000) {
+        inc.integrity = Integrity::verify(cfg_.root);
+        lastIntegrityReport_ = inc.integrity;
+        lastIntegrityCheckMs_ = now;
+        hasIntegrityReport_ = true;
+    } else {
+        inc.integrity = lastIntegrityReport_;
+    }
+
+    BA_LOG_WARN("sup", 0, "UI de recuperacion: A caido=" + std::to_string(inc.childADown) +
+                              " B caido=" + std::to_string(inc.childBDown) +
+                              " integridad_ok=" + std::to_string(inc.integrity.ok));
+    return RecoveryUi::present(inc);
+}
+
+void Supervisor::forceRestart() {
+    BA_LOG_WARN("sup", 0, "forzar reinicio: terminando hijos y relanzando desde 0");
+    terminateProcess(app_.handle());
+    terminateProcess(gateway_.handle());
+    health_.setState(cfg_.slotA, ba::ipc::ProcessState::Terminated);
+    health_.setState(cfg_.slotB, ba::ipc::ProcessState::Terminated);
+    app_.close();
+    gateway_.close();
+    // El operador toma el control: limpiar la politica de reinicio.
+    appConsecutive_ = 0;
+    bConsecutive_ = 0;
+    appCrashTimes_.clear();
+    safeMode_ = false;
+    appNeedsRestore_ = true; // A relanzado arranca con --restore.
+    launchChildren(/*safeMode=*/false);
+}
+
 void Supervisor::watchdogLoop() {
     while (!shuttingDown_) {
-        if (!app_.alive()) {
-            handleCrash(true);
-        } else if (health_.isStale(cfg_.slotA)) {
-            handleHang(true);
+        const bool appDown = !app_.alive();
+        const bool appHung = !appDown && health_.isStale(cfg_.slotA);
+        const bool gwDown = !gateway_.alive();
+        const bool gwHung = !gwDown && health_.isStale(cfg_.slotB);
+
+        // Cierre ordenado del operador: A salio limpiamente (codigo 0) => no es
+        // un fallo; se cierra sin pasar por la UI de recuperacion.
+        if (appDown && app_.exitCode() == 0) {
+            orderedShutdown();
+            continue;
         }
 
-        if (!gateway_.alive()) {
-            handleCrash(false);
-        } else if (health_.isStale(cfg_.slotB)) {
-            handleHang(false);
+        if (appDown || appHung || gwDown || gwHung) {
+            const RecoveryAction action = presentRecovery(appDown, appHung, gwDown, gwHung);
+            if (action == RecoveryAction::Exit) {
+                orderedShutdown();
+            } else if (action == RecoveryAction::ForceRestart) {
+                forceRestart();
+            } else {
+                // Retry o Dismissed: continuar con el flujo normal de reinicio.
+                if (appDown) {
+                    handleCrash(true);
+                } else if (appHung) {
+                    handleHang(true);
+                }
+                if (gwDown) {
+                    handleCrash(false);
+                } else if (gwHung) {
+                    handleHang(false);
+                }
+            }
         }
 
         sleepMs(kPollMs);

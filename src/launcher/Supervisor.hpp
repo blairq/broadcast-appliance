@@ -28,6 +28,8 @@
 
 #include "ChildProcess.hpp"
 #include "ControlChannel.hpp"
+#include "Integrity.hpp"
+#include "RecoveryUi.hpp"
 #include "ipc/HealthBlock.hpp"
 
 namespace ba::launcher {
@@ -58,7 +60,7 @@ private:
     bool acquireInstance();      // mutex Local\BroadcastAppliance.Instance.
     void releaseInstance();
     void setupErrorMode();       // SetErrorMode (spec 3.1.4).
-    bool verifyIntegrity();      // manifest.json SHA-256 (spec 3.1.2).
+    IntegrityReport verifyIntegrity(); // manifest.json SHA-256 (spec 3.1.2).
 
     // --- Hijos --------------------------------------------------------------
     void launchChildren(bool safeMode);
@@ -68,6 +70,14 @@ private:
     void restartChild(bool isA);   // backoff + relaunch (comun a crash/hang).
     void handleCrash(bool isA);
     void handleHang(bool isA);     // minidump + terminate + restart.
+
+    // --- Recuperacion (UI) --------------------------------------------------
+    // Muestra la UI de recuperacion con el estado actual de los hijos y la
+    // integridad del disco; devuelve la accion elegida por el operador.
+    RecoveryAction presentRecovery(bool appDown, bool appHung, bool gwDown, bool gwHung);
+    // Forzar reinicio: termina todos los hijos, limpia la politica de reinicio
+    // y relanza B y A desde 0.
+    void forceRestart();
 
     // --- Vigilancia y cierre ------------------------------------------------
     void watchdogLoop();
@@ -89,6 +99,12 @@ private:
     bool appNeedsRestore_ = false; // A relanzado tras crash arranca con --restore.
     bool safeMode_ = false;        // circuit breaker: >5 crashes de A en 2 min.
     std::vector<std::uint64_t> appCrashTimes_; // epoch ms, para el circuit breaker.
+
+    // Cache del reporte de integridad para la UI de recuperacion (evita
+    // re-hashear todo el disco en un loop de crashes).
+    std::uint64_t lastIntegrityCheckMs_ = 0;
+    IntegrityReport lastIntegrityReport_;
+    bool hasIntegrityReport_ = false;
 };
 
 } // namespace ba::launcher

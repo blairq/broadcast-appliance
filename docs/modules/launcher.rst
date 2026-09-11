@@ -56,12 +56,27 @@ El launcher vive en la **raíz del disco** (spec §5.1), no en `bin/64bit/`.
 - `ShadowCopy` — Interfaz de la copia sombra (spec 3.1.5, decisión D3): copia
   `bin/`, `obs-plugins/` y `data/` a `%TEMP%\BroadcastAppliance\<hash>\` y
   ejecuta desde allí, para que un movimiento del cable USB no mate los
-  procesos. (Stub en Fase 1.)
+  procesos.
   - `prepare(root, versionHash)`, `cleanup(shadowRoot)`.
-- `RecoveryUi` — Interfaz de la UI de recuperación mínima (Win32, spec
-  3.1.11): solo visible si A no está corriendo; muestra el estado y un botón
-  "Reiniciar sistema". (Stub en Fase 1.)
-  - `show(statusText)`.
+- `RecoveryUi` — UI de recuperación mínima del launcher (Win32 puro, sin Qt,
+  `/MT`; spec 3.1.11). Es la única ventana visible del Proceso 0: cuando el
+  `Supervisor` detecta que un hijo (A o B) ha caído o colgado, presenta el
+  incidente (qué proceso, códigos de salida, estado de integridad del disco) y
+  deja al operador elegir una acción. `present()` es BLOQUEANTE: corre su propio
+  bucle de mensajes hasta que el operador elige una acción (botón) o cierra la
+  ventana (X). Nunca lanza: si no puede mostrar la UI, devuelve `Dismissed`
+  (el Supervisor lo interpreta como "continuar con el flujo normal").
+  - `RecoveryAction` (enum): decisión del operador. `Retry` (relanzar el hijo
+    caído con el backoff normal), `ForceRestart` (terminar todos los hijos y
+    relanzar desde 0), `Exit` (cierre ordenado del launcher), `Dismissed` (se
+    cerró la ventana sin elegir; el Supervisor continúa).
+  - `Incident` (struct): descripción del incidente a presentar. El Supervisor
+    aporta los hechos; la UI solo los presenta, sin lógica de negocio.
+    `title`, `childADown`, `childBDown`, `appExitCode` (+`appCodeValid`),
+    `gatewayExitCode` (+`gwCodeValid`), `integrity` (`IntegrityReport`),
+    `showIntegrity`.
+  - `static RecoveryAction present(const Incident& inc)` — Muestra la ventana
+    de recuperación (bloqueante) y devuelve la decisión del operador.
 - `Log` — Logger estructurado mínimo del launcher (spec regla 8: "todo camino
   de error deja un log estructurado: componente, código, contexto"). Writer de
   archivo con mutex, sin dependencias; espeja a stderr. Thread-safe.

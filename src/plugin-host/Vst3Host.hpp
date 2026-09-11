@@ -30,16 +30,18 @@
 //     llamar a malloc, IO ni locks. load/unload/attachEditor son control
 //     path y pueden hacer lo que haga falta (LoadLibrary, QI, CreateView).
 //
-// Plataforma:
-//   - Windows (_WIN32): implementación REAL — LoadLibraryW del .dll,
-//     resolución del entry point `ModuleEntry`, QueryInterface del
-//     IAudioProcessor + IEditControllerEx1 y embebido del editor vía
-//     IEditControllerEx1::createView sobre el HWND padre. Usa los headers
-//     del VST3 SDK (MIT), traído por FetchContent SOLO en Windows.
-//   - Linux/macOS: STUB funcional — scanDirectory() es puro C++ (std::
-//     filesystem) y se testa en Linux; load/unload/attachEditor loguean por
-//     stderr y devuelven false/vacíos, para que el módulo compile OFFLINE
-//     (sin SDK, sin red).
+// Plataforma / feature flag:
+//   - Windows + SDK presente (`_WIN32` && `BA_PLUGIN_HOST_HAVE_VST3`):
+//     implementación REAL — LoadLibraryW del .dll, resolución del entry
+//     point `ModuleEntry`, QueryInterface del IAudioProcessor +
+//     IEditControllerEx1 y embebido del editor vía createView sobre el HWND
+//     padre. Usa los headers del VST3 SDK (MIT), traído por FetchContent SOLO
+//     en Windows. El flag se define en el CMakeLists solo cuando los targets
+//     del SDK existen (mismo patrón que ba-app con BA_APP_HAVE_QT_OBS).
+//   - Sin SDK (Linux/macOS, o un Windows donde no se trajo el SDK): fallback
+//     HEADLESS — scanDirectory() es puro C++ (std::filesystem) y se testa en
+//     Linux; load/unload/attachEditor loguean por stderr y devuelven
+//     false/vacíos, para que el módulo compile OFFLINE (sin SDK, sin red).
 // ============================================================================
 
 #pragma once
@@ -110,9 +112,10 @@ public:
     /// Carga el bundle: abre el .dll, resuelve `ModuleEntry`, crea el
     /// IAudioProcessor y el IEditControllerEx1 (el editor gráfico completo).
     ///
-    /// Control path. En Windows es la implementación real (LoadLibraryW +
-    /// QI); fuera de Windows es un stub que loguea y devuelve false.
-    /// Si ya hay un plugin cargado, se descarta antes de cargar el nuevo.
+    /// Control path. Con `_WIN32` + SDK (`BA_PLUGIN_HOST_HAVE_VST3`) es la
+    /// implementación real (LoadLibraryW + QI); sin SDK es un fallback
+    /// headless que loguea y devuelve false. Si ya hay un plugin cargado, se
+    /// descarta antes de cargar el nuevo.
     ///
     /// :param bundle: bundle a cargar (dllPath debe ser válido).
     /// :returns: true si el processor Y el controller quedaron creados.
@@ -131,8 +134,9 @@ public:
     /// (requisito "toda la gráfica": el editor VST3 completo, no un subset).
     ///
     /// Control path. Solo tiene sentido tras un load() exitoso y con un
-    /// controller presente. En Windows usa IEditControllerEx1::createView;
-    /// fuera de Windows es un stub que loguea y devuelve false.
+    /// controller presente. Con `_WIN32` + SDK (`BA_PLUGIN_HOST_HAVE_VST3`)
+    /// usa IEditControllerEx1::createView; sin SDK es un fallback headless
+    /// que loguea y devuelve false.
     ///
     /// :param parentHwnd: HWND del contenedor donde se embebe el editor.
     /// :returns: true si la vista del editor se creó y quedó embebida.

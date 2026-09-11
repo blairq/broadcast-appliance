@@ -2,29 +2,31 @@
 //
 // Implementacion de la UI de recuperacion minima (ver RecoveryUi.hpp).
 //
-//   - _WIN32: ventana Win32 fija (sin dialog box del sistema) con un static
-//     que muestra el estado y un boton "Reiniciar sistema". Corre un bucle de
-//     mensajes propio y devuelve la decision del usuario.
-//   - no-_WIN32: no hay GUI; loguea el estado (componente "recovery") y
-//     devuelve false para que el arbol compile y el flujo se pueda razonar.
+//   - _WIN32: ventana Win32 fija (sin dialog box del sistema) con un static de
+//     estado (word-wrap), una linea opcional de integridad y tres botones
+//     ("Reintentar", "Forzar reinicio", "Salir"). Corre un bucle de mensajes
+//     propio y devuelve la decision del usuario.
+//   - no-_WIN32: no hay GUI; loguea el incidente (componente "recovery") y
+//     devuelve Retry para que el arbol compile y el flujo se pueda razonar.
 //
 // Modelo de threading:
-//   show() se ejecuta en el thread principal (el mismo que el Supervisor) y es
+//   present() se ejecuta en el thread principal (el del Supervisor) y es
 //   BLOQUEANTE: crea la ventana, entra en el bucle de mensajes y no regresa
-//   hasta que el usuario elige (boton -> true) o cierra la ventana (X ->
-//   false). No hay threads adicionales; el bucle es el unico consumidor de
-//   mensajes de la ventana.
+//   hasta que el usuario elige (boton) o cierra la ventana (X -> Dismissed).
+//   No hay threads adicionales; el bucle es el unico consumidor de mensajes.
 //
 // Estrategia de errores:
 //   Nunca lanza. Si no se puede registrar la clase de ventana, crear la
 //   ventana o crear los controles, se loguea el GetLastError() y se devuelve
-//   false (el Supervisor interpreta false como "no reiniciar"). El bucle de
-//   mensajes solo termina por PostQuitMessage (boton o WM_DESTROY), asi que no
-//   hay salida por error en mitad del loop.
+//   Dismissed (el Supervisor lo interpreta como "continuar con el flujo
+//   normal"). El bucle de mensajes solo termina por PostQuitMessage (boton o
+//   WM_DESTROY), asi que no hay salida por error en mitad del loop.
 
 #include "RecoveryUi.hpp"
 
 #include "Log.hpp"
+
+#include <string>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -33,50 +35,125 @@
 
 namespace ba::launcher {
 
+namespace {
+
 #ifdef _WIN32
 
-namespace {
+// Convierte un wstring a UTF-8 (para Log, que toma std::string).
+std::string toUtf8(const std::wstring& p) {
+    if (p.empty()) {
+        return std::string();
+    }
+    const int n = WideCharToMultiByte(CP_UTF8, 0, p.c_str(), static_cast<int>(p.size()),
+                                      nullptr, 0, nullptr, nullptr);
+    std::string out;
+    if (n > 0) {
+        out.resize(static_cast<std::size_t>(n));
+        WideCharToMultiByte(CP_UTF8, 0, p.c_str(), static_cast<int>(p.size()),
+                            out.data(), n, nullptr, nullptr);
+    }
+    return out;
+}
 
 // Nombre de la clase de ventana (local al proceso).
 constexpr const wchar_t kClassName[] = L"BroadcastAppliance.Recovery";
-// Titulo de la ventana (spec 3.1.11).
-constexpr const wchar_t kWindowTitle[] = L"Broadcast Appliance — Recuperación";
-// Etiqueta del boton de accion.
-constexpr const wchar_t kButtonLabel[] = L"Reiniciar sistema";
-// Id del boton (WM_COMMAND -> LOWORD(wParam)).
-constexpr int kIdRestartButton = 1;
+// Titulo por defecto (se usa si Incident::title esta vacio).
+constexpr const wchar_t kDefaultTitle[] = L"Broadcast Appliance — Recuperación";
+// Etiquetas de los botones de accion.
+constexpr const wchar_t kRetryLabel[] = L"Reintentar";
+constexpr const wchar_t kForceRestartLabel[] = L"Forzar reinicio";
+constexpr const wchar_t kExitLabel[] = L"Salir";
+// Ids de los botones (WM_COMMAND -> LOWORD(wParam)).
+constexpr int kIdRetry = 1;
+constexpr int kIdForceRestart = 2;
+constexpr int kIdExit = 3;
 
 // Dimensiones fijas de la ventana y de sus controles (px).
-constexpr int kWindowWidth = 460;
-constexpr int kWindowHeight = 180;
+constexpr int kWindowWidth = 520;
+constexpr int kWindowHeight = 240;
 constexpr int kMargin = 16;
 constexpr int kStatusTop = 16;
-constexpr int kStatusHeight = 96;
-constexpr int kButtonTop = 128;
-constexpr int kButtonWidth = 132;
+constexpr int kStatusHeight = 120;
+constexpr int kIntegrityTop = 144;
+constexpr int kIntegrityHeight = 32;
+constexpr int kButtonTop = 190;
+constexpr int kButtonWidth = 150;
+constexpr int kButtonGap = 10;
 constexpr int kButtonHeight = 32;
+constexpr int kButtonsLeft = 25;
+
+// Construye el texto de estado a partir del incidente (solo presentacion).
+std::wstring buildStatus(const Incident& inc) {
+    std::wstring s;
+    if (inc.childADown || inc.childBDown) {
+        s += L"El supervisor detecto un problema en los procesos hijos:";
+        s += L"\n\n";
+        if (inc.childADown) {
+            s += L"• Proceso A (aplicacion): CAIDO";
+            if (inc.appCodeValid) {
+                s += L" (codigo de salida " + std::to_wstring(inc.appExitCode) + L")";
+            }
+            s += L".\n";
+        }
+        if (inc.childBDown) {
+            s += L"• Proceso B (gateway): CAIDO";
+            if (inc.gwCodeValid) {
+                s += L" (codigo de salida " + std::to_wstring(inc.gatewayExitCode) + L")";
+            }
+            s += L".\n";
+        }
+    } else if (inc.showIntegrity) {
+        s += L"Se detectaron problemas de integridad en el disco.";
+    } else {
+        s += L"El supervisor requiere una accion del operador.";
+    }
+    s += L"\n\nElija una accion:";
+    return s;
+}
+
+// Linea de estado de integridad del disco (solo si procede mostrarla).
+std::wstring buildIntegrityLine(const Incident& inc) {
+    if (inc.integrity.ok) {
+        return L"Integridad del disco: OK (" + std::to_wstring(inc.integrity.checked) +
+               L" archivos verificados).";
+    }
+    return L"Integridad del disco: " + std::to_wstring(inc.integrity.checked) +
+           L" verificados, " + std::to_wstring(inc.integrity.missing) +
+           L" ausentes, " + std::to_wstring(inc.integrity.mismatch) +
+           L" con hash distinto.";
+}
 
 // WndProc de la ventana de recuperacion.
 //
-// El flag de decision (true si el usuario eligio reiniciar) vive en el
-// llamador (show) y se comparte por GWLP_USERDATA: la ventana guarda una
-// punteria a ese bool local, de modo que no hay estado global ni static.
+// La decision (RecoveryAction) vive en el llamador (present) y se comparte por
+// GWLP_USERDATA: la ventana guarda una punteria a ese enum local, de modo que
+// no hay estado global ni static.
 //
-//   - WM_COMMAND con el id del boton y BN_CLICKED: marca true y PostQuitMessage.
-//   - WM_DESTROY: PostQuitMessage (el flag queda como estaba: false si no se
-//     toco el boton, es decir, se cerro con la X).
+//   - WM_COMMAND con el id de un boton y BN_CLICKED: escribe la accion y
+//     PostQuitMessage.
+//   - WM_DESTROY: PostQuitMessage (la accion queda Dismissed si no se toco un
+//     boton, es decir, se cerro con la X).
 //   - resto: DefWindowProcW (incluye WM_CLOSE -> DestroyWindow por defecto).
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
-        case WM_COMMAND:
-            if (LOWORD(wParam) == kIdRestartButton && HIWORD(wParam) == BN_CLICKED) {
-                bool* flag = reinterpret_cast<bool*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
-                if (flag) {
-                    *flag = true;
+        case WM_COMMAND: {
+            if (HIWORD(wParam) == BN_CLICKED) {
+                const int id = LOWORD(wParam);
+                RecoveryAction* action =
+                    reinterpret_cast<RecoveryAction*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+                if (action != nullptr) {
+                    if (id == kIdRetry) {
+                        *action = RecoveryAction::Retry;
+                    } else if (id == kIdForceRestart) {
+                        *action = RecoveryAction::ForceRestart;
+                    } else if (id == kIdExit) {
+                        *action = RecoveryAction::Exit;
+                    }
                 }
                 PostQuitMessage(0);
             }
             return 0;
+        }
         case WM_DESTROY:
             PostQuitMessage(0);
             return 0;
@@ -86,11 +163,15 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     return DefWindowProcW(hwnd, msg, wParam, lParam);
 }
 
+#endif // _WIN32
+
 } // namespace
 
-bool RecoveryUi::show(const std::wstring& statusText) {
-    // Decision del usuario: true solo si se presiono "Reiniciar sistema".
-    bool restartChosen = false;
+#ifdef _WIN32
+
+RecoveryAction RecoveryUi::present(const Incident& inc) {
+    // Decision del operador: Dismissed salvo que se elija un boton.
+    RecoveryAction action = RecoveryAction::Dismissed;
 
     // --- 1. Registrar la clase de ventana (local) ---------------------------
     WNDCLASSW wc{};
@@ -108,62 +189,86 @@ bool RecoveryUi::show(const std::wstring& statusText) {
     if (atom == 0) {
         const DWORD err = GetLastError();
         if (err != ERROR_CLASS_ALREADY_EXISTS) {
-            // No se pudo registrar y no es "ya existe": no hay ventana posible.
-            BA_LOG_ERROR("recovery", static_cast<int>(err), "RegisterClassW fallo; sin UI de recuperacion");
-            return false;
+            BA_LOG_ERROR("recovery", static_cast<int>(err),
+                         "RegisterClassW fallo; sin UI de recuperacion");
+            return RecoveryAction::Dismissed;
         }
-        // ERROR_CLASS_ALREADY_EXISTS: show() se volvio a invocar en el mismo
+        // ERROR_CLASS_ALREADY_EXISTS: present() se volvio a invocar en el mismo
         // proceso; la clase ya esta registrada y se puede seguir usando.
     }
 
     // --- 2. Crear la ventana fija (sin redimensionar, sin minimizar) --------
     const DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU;
+    const std::wstring title = inc.title.empty() ? std::wstring(kDefaultTitle) : inc.title;
     HWND hwnd = CreateWindowExW(
-        0, kClassName, kWindowTitle, style,
+        0, kClassName, title.c_str(), style,
         CW_USEDEFAULT, CW_USEDEFAULT, kWindowWidth, kWindowHeight,
         nullptr, nullptr, wc.hInstance, nullptr);
     if (hwnd == nullptr) {
         const DWORD err = GetLastError();
-        BA_LOG_ERROR("recovery", static_cast<int>(err), "CreateWindowExW fallo; sin UI de recuperacion");
-        return false;
+        BA_LOG_ERROR("recovery", static_cast<int>(err),
+                     "CreateWindowExW fallo; sin UI de recuperacion");
+        return RecoveryAction::Dismissed;
     }
 
-    // Compartir el flag de decision con la ventana (vive en show, valido todo
-    // el bucle de mensajes).
-    SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(&restartChosen));
+    // Compartir la decision con la ventana (vive en present, valida todo el
+    // bucle de mensajes).
+    SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(&action));
 
     // --- 3. Controles hijos --------------------------------------------------
     // Static con el texto de estado (word-wrap a lo ancho del control).
-    const int statusWidth = kWindowWidth - 2 * kMargin;
+    const int contentWidth = kWindowWidth - 2 * kMargin;
+    const std::wstring status = buildStatus(inc);
     HWND hStatus = CreateWindowExW(
-        0, L"STATIC", statusText.c_str(), WS_CHILD | WS_VISIBLE | SS_LEFT,
-        kMargin, kStatusTop, statusWidth, kStatusHeight,
+        0, L"STATIC", status.c_str(), WS_CHILD | WS_VISIBLE | SS_LEFT,
+        kMargin, kStatusTop, contentWidth, kStatusHeight,
         hwnd, nullptr, wc.hInstance, nullptr);
     if (hStatus == nullptr) {
         const DWORD err = GetLastError();
         BA_LOG_ERROR("recovery", static_cast<int>(err), "no se pudo crear el static de estado");
         DestroyWindow(hwnd);
-        return false;
+        return RecoveryAction::Dismissed;
     }
 
-    // Boton "Reiniciar sistema".
-    HWND hButton = CreateWindowExW(
-        0, L"BUTTON", kButtonLabel, WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_TEXT,
-        kMargin, kButtonTop, kButtonWidth, kButtonHeight,
-        hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdRestartButton)), wc.hInstance, nullptr);
-    if (hButton == nullptr) {
-        const DWORD err = GetLastError();
-        BA_LOG_ERROR("recovery", static_cast<int>(err), "no se pudo crear el boton de reinicio");
-        DestroyWindow(hwnd);
-        return false;
+    // Linea opcional de integridad (solo si procede).
+    if (inc.showIntegrity) {
+        const std::wstring integrityLine = buildIntegrityLine(inc);
+        HWND hIntegrity = CreateWindowExW(
+            0, L"STATIC", integrityLine.c_str(), WS_CHILD | WS_VISIBLE | SS_LEFT,
+            kMargin, kIntegrityTop, contentWidth, kIntegrityHeight,
+            hwnd, nullptr, wc.hInstance, nullptr);
+        if (hIntegrity == nullptr) {
+            const DWORD err = GetLastError();
+            BA_LOG_WARN("recovery", static_cast<int>(err),
+                        "no se pudo crear el static de integridad");
+        }
     }
-    SetFocus(hButton);
+
+    // Botones de accion (Reintentar / Forzar reinicio / Salir).
+    HWND hRetry = CreateWindowExW(
+        0, L"BUTTON", kRetryLabel, WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_TEXT,
+        kButtonsLeft, kButtonTop, kButtonWidth, kButtonHeight,
+        hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdRetry)), wc.hInstance, nullptr);
+    HWND hForce = CreateWindowExW(
+        0, L"BUTTON", kForceRestartLabel, WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_TEXT,
+        kButtonsLeft + kButtonWidth + kButtonGap, kButtonTop, kButtonWidth, kButtonHeight,
+        hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdForceRestart)), wc.hInstance, nullptr);
+    HWND hExit = CreateWindowExW(
+        0, L"BUTTON", kExitLabel, WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_TEXT,
+        kButtonsLeft + 2 * (kButtonWidth + kButtonGap), kButtonTop, kButtonWidth, kButtonHeight,
+        hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdExit)), wc.hInstance, nullptr);
+    if (hRetry == nullptr || hForce == nullptr || hExit == nullptr) {
+        const DWORD err = GetLastError();
+        BA_LOG_ERROR("recovery", static_cast<int>(err), "no se pudo crear un boton de accion");
+        DestroyWindow(hwnd);
+        return RecoveryAction::Dismissed;
+    }
+    SetFocus(hRetry);
 
     // --- 4. Mostrar y correr el bucle de mensajes ----------------------------
     ShowWindow(hwnd, SW_SHOW);
     UpdateWindow(hwnd);
-    BA_LOG_INFO("recovery", 0, std::string("UI de recuperacion mostrada: ") +
-                                    std::string(statusText.begin(), statusText.end()));
+    BA_LOG_INFO("recovery", 0, std::string("UI de recuperacion mostrada: ") + toUtf8(status));
 
     MSG msg{};
     while (GetMessageW(&msg, nullptr, 0, 0) > 0) {
@@ -171,20 +276,28 @@ bool RecoveryUi::show(const std::wstring& statusText) {
         DispatchMessageW(&msg);
     }
 
-    // El bucle solo termina por PostQuitMessage: boton (true) o WM_DESTROY
-    // (false). Devolvemos la decision tal cual.
-    return restartChosen;
+    // El bucle solo termina por PostQuitMessage: boton (Retry/ForceRestart/Exit)
+    // o WM_DESTROY (Dismissed). Devolvemos la decision tal cual.
+    return action;
 }
 
 #else // ! _WIN32
 
-bool RecoveryUi::show(const std::wstring& statusText) {
-    // Sin GUI fuera de Windows: se loguea el estado y se devuelve false (no
-    // reiniciar), de modo que el Supervisor siga su flujo normal.
-    BA_LOG_WARN("recovery", 0,
-                "UI de recuperacion (sin GUI en esta plataforma): " +
-                    std::string(statusText.begin(), statusText.end()));
-    return false;
+RecoveryAction RecoveryUi::present(const Incident& inc) {
+    // Sin GUI fuera de Windows: se loguea el incidente y se devuelve Retry
+    // (continuar), de modo que el Supervisor siga su flujo normal.
+    std::string ctx = "UI de recuperacion (sin GUI en esta plataforma)";
+    if (inc.childADown) {
+        ctx += "; A caido";
+    }
+    if (inc.childBDown) {
+        ctx += "; B caido";
+    }
+    if (inc.showIntegrity && !inc.integrity.ok) {
+        ctx += "; integridad con fallos";
+    }
+    BA_LOG_WARN("recovery", 0, ctx);
+    return RecoveryAction::Retry;
 }
 
 #endif // _WIN32

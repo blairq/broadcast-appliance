@@ -1,7 +1,7 @@
 # --- Build outputs ----------------------------------------------------------
 build/
 build-*/
-dist/
+release/
 
 # --- Python -----------------------------------------------------------------
 .venv/
@@ -17,6 +17,7 @@ docs/doxygen/
 # --- Stray build/test artifacts --------------------------------------------
 a.out
 Testing/
+ba-app-headless/
 
 # --- Tool / editor / OS state ----------------------------------------------
 .codemap/

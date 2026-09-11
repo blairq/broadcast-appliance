@@ -27,18 +27,19 @@
 #include <cstdio>
 #include <filesystem>
 
-#ifdef _WIN32
-// --- VST3 SDK (MIT) — SOLO Windows -----------------------------------------
+#if defined(_WIN32) && defined(BA_PLUGIN_HOST_HAVE_VST3)
+// --- VST3 SDK (MIT) — solo cuando el SDK está presente --------------------
 // Estos headers solo existen cuando el SDK se trajo por FetchContent
-// (if(WIN32) en el CMakeLists raíz). En Linux no se incluyen: el módulo
-// compila offline sin SDK.
+// (if(WIN32) en el CMakeLists raíz) Y el target definió
+// BA_PLUGIN_HOST_HAVE_VST3. En Linux (o en un Windows sin SDK) no se
+// incluyen: el módulo compila offline con el fallback headless.
 #include <pluginterfaces/base/funknown.h>
 #include <pluginterfaces/base/ftypes.h>
 #include <pluginterfaces/gui/iplugview.h>
 #include <pluginterfaces/vst/ivstaudioprocessor.h>
 #include <pluginterfaces/vst/ivsteditcontroller.h>
 #include <windows.h>
-#endif // _WIN32
+#endif // defined(_WIN32) && defined(BA_PLUGIN_HOST_HAVE_VST3)
 
 namespace ba {
 namespace plugin {
@@ -155,7 +156,7 @@ std::vector<BundleInfo> scanDirectory(const std::string& root) {
 
 // --- Vst3Host ---------------------------------------------------------------
 
-#ifdef _WIN32
+#if defined(_WIN32) && defined(BA_PLUGIN_HOST_HAVE_VST3)
 
 namespace {
 
@@ -317,7 +318,7 @@ bool Vst3Host::isLoaded() const {
     return impl_ != nullptr && impl_->processor != nullptr;
 }
 
-#else // ! _WIN32 : STUB funcional (Linux/macOS, offline, sin SDK)
+#else // fallback HEADLESS: no _WIN32, o Windows sin SDK (offline)
 
 struct Vst3Host::Impl {
     bool loaded = false;
@@ -335,8 +336,8 @@ bool Vst3Host::load(const BundleInfo& bundle) {
         return false;
     }
     std::fprintf(stderr,
-                 "[ba_plugin_host] load (stub): VST3 real solo en Windows; "
-                 "bundle=%s\n",
+                 "[ba_plugin_host] load (headless): VST3 real solo con SDK "
+                 "(Windows); bundle=%s\n",
                  bundle.bundlePath.c_str());
     impl_ = new Impl();
     impl_->loaded = true;
@@ -345,7 +346,7 @@ bool Vst3Host::load(const BundleInfo& bundle) {
 
 void Vst3Host::unload() {
     if (impl_) {
-        std::fprintf(stderr, "[ba_plugin_host] unload (stub)\n");
+        std::fprintf(stderr, "[ba_plugin_host] unload (headless)\n");
         delete impl_;
         impl_ = nullptr;
     }
@@ -355,7 +356,8 @@ void Vst3Host::reset() { unload(); }
 
 bool Vst3Host::attachEditor(void* /*parentHwnd*/) {
     std::fprintf(stderr,
-                 "[ba_plugin_host] attachEditor (stub): solo en Windows\n");
+                 "[ba_plugin_host] attachEditor (headless): VST3 real solo "
+                 "con SDK (Windows)\n");
     return false;
 }
 
@@ -363,7 +365,7 @@ bool Vst3Host::isLoaded() const {
     return impl_ != nullptr && impl_->loaded;
 }
 
-#endif // _WIN32
+#endif // defined(_WIN32) && defined(BA_PLUGIN_HOST_HAVE_VST3)
 
 } // namespace plugin
 } // namespace ba

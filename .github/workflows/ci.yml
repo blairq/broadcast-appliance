@@ -4,7 +4,7 @@
 # Tres jobs:
 #   1. `linux`          : build nativo (ccache) + ctest (18) + pytest.
 #   2. `windows-cross`  : cross-compile MinGW-w64 (x86_64) desde Ubuntu.
-#   3. `release`        : solo en tags; empaqueta `make dist` y lo sube.
+#   3. `release`        : solo en tags; empaqueta `make release` y lo sube.
 #
 # El proyecto es C++20 / CMake con un Makefile que envuelve a CMake
 # (targets: build, test, dist, win). Las dependencias de terceros entran
@@ -48,8 +48,9 @@ jobs:
           sudo apt-get install -y ccache
 
       # --- Python 3.12 + venv local ----------------------------------------
-      # El proyecto usa un venv local (`.venv/`) con `requirements-dev.txt`.
-      # Reproducimos ese entorno para que `pytest` corra igual que en dev.
+      # El proyecto usa un venv local (`.venv/`) con `requirements-dev.lock`.
+      # El lockfile pinna pytest y sus dependencias transitivas a versiones
+      # exactas, así `pytest` corre igual que en dev.
       - name: Setup Python 3.12
         uses: actions/setup-python@v5
         with:
@@ -60,7 +61,7 @@ jobs:
         run: |
           python -m venv .venv
           .venv/bin/pip install --upgrade pip
-          .venv/bin/pip install -r requirements-dev.txt
+          .venv/bin/pip install -r requirements-dev.lock
 
       # --- Build nativo (usa ccache) ---------------------------------------
       # `make build` envuelve a CMake; el Makefile ya apunta el compilador
@@ -116,16 +117,40 @@ jobs:
         run: cmake --build build-win --config Release -j"$(nproc)"
 
       # --- Confirmar artefactos --------------------------------------------
-      # El cross-build debe producir .exe / .dll; si no hay ninguno, algo
-      # falló en el configure o en el build.
+      # El cross-build es COMPLETO: el CMakeLists raíz añade los 5
+      # subdirectorios sin guardas de plataforma, así que `cmake --build`
+      # compila los 5 targets de producto. Afirmamos la existencia exacta de
+      # los 5 artefactos (no solo "algún .exe/.dll"): si falta alguno, el
+      # configure o el build falló para ese target.
+      #   ba-app           -> .exe   (Proceso A, GUI)
+      #   ba-gateway       -> .exe   (Proceso B)
+      #   ba-sources       -> .dll   (módulo libobs, SHARED)
+      #   ba_plugin_host   -> .a     (host VST3, STATIC)
+      #   BroadcastAppliance -> .exe (Proceso 0, launcher)
       - name: Verify artifacts
         run: |
-          echo "Artefactos Windows generados:"
-          find build-win -name '*.exe' -o -name '*.dll'
-          if [ -z "$(find build-win -name '*.exe' -o -name '*.dll')" ]; then
-            echo "ERROR: no se generaron .exe ni .dll" >&2
+          artifacts=(
+            "build-win/src/app/ba-app.exe"
+            "build-win/src/gateway/ba-gateway.exe"
+            "build-win/src/obs-module/libba-sources.dll"
+            "build-win/src/plugin-host/libba_plugin_host.a"
+            "build-win/src/launcher/BroadcastAppliance.exe"
+          )
+          echo "Verificando los 5 artefactos de producto (cross-build MinGW):"
+          missing=0
+          for a in "${artifacts[@]}"; do
+            if [ -f "$a" ]; then
+              echo "  OK     $a"
+            else
+              echo "  FALTA  $a" >&2
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "ERROR: faltan artefactos de producto tras el cross-build" >&2
             exit 1
           fi
+          echo "Los 5 artefactos de producto existen."
 
   # ==========================================================================
   # JOB 3 — RELEASE: empaquetado portable (solo en tags)
@@ -150,14 +175,14 @@ jobs:
           sudo apt-get install -y ccache
 
       # --- Empaquetado portable --------------------------------------------
-      # `make dist` produce el bundle portable en `dist/portable`.
-      - name: Build portable bundle (make dist)
-        run: make dist
+      # `make release` produce el bundle portable en `release`.
+      - name: Build portable bundle (make release)
+        run: make release
 
       # --- Subir el bundle como artifact -----------------------------------
       - name: Upload portable bundle
         uses: actions/upload-artifact@v4
         with:
           name: portable-bundle
-          path: dist/portable
+          path: release
           if-no-files-found: error
