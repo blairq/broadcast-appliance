@@ -10,7 +10,7 @@ ba_plugin_host (host VST3)
 ==========================
 
 `ba_plugin_host` es la librería estática que carga los plugins **VST3** (los
-bundles `.vst3` de **LSP** que se despliegan en `AudioPlugins/`) y embebe su
+bundles `.vst3` de **LSP** que se despliegan en `assets/audio-plugins/`) y embebe su
 **editor gráfico completo** en una ventana hija. Es componente **CORE** (spec
 D6/§7.5): LSP ya no es opcional.
 
@@ -59,7 +59,7 @@ Enlaza `nlohmann_json` (header-only) para el manifest; en Windows además
 - `DeployResult` — Resultado de `PluginDeployer::deploy()`.
   - `copied` (bundles copiados), `manifestPath` (ruta del `manifest.json`).
 - `PluginDeployer` — Paso de despliegue de los bundles LSP: copia los `.vst3`
-  (versión fijada `LSP_VERSION`, ver `versions.cmake`) a `AudioPlugins/` y
+  (versión fijada `LSP_VERSION`, ver `versions.cmake`) a `assets/audio-plugins/` y
   escribe el `manifest.json` que el host consume. Puro C++ (`std::filesystem` +
   `nlohmann/json`), cross-platform y testeable en Linux.
   - `deploy(sourceDir, installDir)` — Estática, idempotente. Control path (I/O

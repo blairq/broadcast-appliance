@@ -102,10 +102,10 @@ jobs:
 
       # --- Cross-configure + build -----------------------------------------
       # Configuramos CMake para Windows con el toolchain MinGW y compilamos
-      # en `build-win` (aislado del build nativo).
+      # en `build/win` (dentro del root de build, aislado por subdirectorio).
       - name: Cross-configure (CMake, MinGW)
         run: |
-          cmake -S . -B build-win \
+          cmake -S . -B build/win \
             -DCMAKE_SYSTEM_NAME=Windows \
             -DCMAKE_SYSTEM_PROCESSOR=x86_64 \
             -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc \
@@ -114,7 +114,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release
 
       - name: Cross-build
-        run: cmake --build build-win --config Release -j"$(nproc)"
+        run: cmake --build build/win --config Release -j"$(nproc)"
 
       # --- Confirmar artefactos --------------------------------------------
       # El cross-build es COMPLETO: el CMakeLists raíz añade los 5
@@ -130,11 +130,11 @@ jobs:
       - name: Verify artifacts
         run: |
           artifacts=(
-            "build-win/src/app/ba-app.exe"
-            "build-win/src/gateway/ba-gateway.exe"
-            "build-win/src/obs-module/libba-sources.dll"
-            "build-win/src/plugin-host/libba_plugin_host.a"
-            "build-win/src/launcher/BroadcastAppliance.exe"
+            "build/win/src/app/ba-app.exe"
+            "build/win/src/gateway/ba-gateway.exe"
+            "build/win/src/obs-module/libba-sources.dll"
+            "build/win/src/plugin-host/libba_plugin_host.a"
+            "build/win/src/launcher/BroadcastAppliance.exe"
           )
           echo "Verificando los 5 artefactos de producto (cross-build MinGW):"
           missing=0

@@ -12,7 +12,7 @@
 #     (§8.3);
 #   - supervisión de cloudflared.exe (Job Object, token por env, backoff)
 #     (§8.8);
-#   - sirve la app web del invitado desde Web/guest/ (HTTP estático mínimo).
+#   - sirve la app web del invitado desde assets/web/guest/ (HTTP estático mínimo).
 #
 # Headless: sin Qt (spec §3.3). En Windows enlaza libwebrtc estáticamente;
 # en Linux / build offline se compila con un backend NULL de WebRTC para que
@@ -141,8 +141,8 @@ install(TARGETS ba-gateway
 )
 # App web del invitado (spec §8.3). Si el directorio existe en el árbol de
 # fuente se copia; si no, se deja el directorio vacío (lo crea el root).
-if(EXISTS "${CMAKE_SOURCE_DIR}/Web/guest")
-    install(DIRECTORY "${CMAKE_SOURCE_DIR}/Web/guest/"
+if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/guest")
+    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/guest/"
         DESTINATION Web/guest
     )
 endif()

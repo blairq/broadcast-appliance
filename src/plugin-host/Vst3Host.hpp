@@ -3,7 +3,7 @@
 // CORE)
 //
 // Módulo `ba_plugin_host`: carga plugins VST3 (los bundles .vst3 de LSP que
-// se despliegan en AudioPlugins/) y embebe su editor gráfico completo en una
+// se despliegan en assets/audio-plugins/) y embebe su editor gráfico completo en una
 // ventana hija.
 //
 // Modelo de hilos:
@@ -85,7 +85,7 @@ struct BundleInfo {
 ///
 /// No lanza. Si `root` no existe o no es un directorio, devuelve lista vacía.
 ///
-/// :param root: directorio a escanear (p. ej. AudioPlugins/).
+/// :param root: directorio a escanear (p. ej. assets/audio-plugins/).
 /// :returns: lista de bundles reales hallados (vacía si no hay ninguno).
 std::vector<BundleInfo> scanDirectory(const std::string& root);
 
@@ -93,7 +93,7 @@ std::vector<BundleInfo> scanDirectory(const std::string& root);
 ///
 /// Uso típico (todo en control path, con el grafo de audio detenido):
 ///   Vst3Host host;
-///   auto bundles = scanDirectory("AudioPlugins");
+///   auto bundles = scanDirectory("assets/audio-plugins");
 ///   if (host.load(bundles[0]) && host.attachEditor(hwnd)) { /* editor visible */ }
 ///   // ... más tarde, con audio detenido:
 ///   host.reset();

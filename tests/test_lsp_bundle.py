@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-BUNDLE = Path("AudioPlugins/lsp-plugins.vst3")
+BUNDLE = Path("assets/audio-plugins/lsp-plugins.vst3")
 PLUGIN_LIB = BUNDLE / "Contents" / "x86_64-linux" / "lsp-plugins.so"
 MODULE_INFO = BUNDLE / "Contents" / "Resources" / "moduleinfo.json"
 

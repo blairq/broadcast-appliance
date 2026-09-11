@@ -2,7 +2,7 @@
 # src/plugin-host — `ba_plugin_host` (host VST3, spec D6/§7.5 — LSP como CORE)
 #
 # Módulo que carga los bundles VST3 (los .vst3 de LSP que se despliegan en
-# AudioPlugins/) y embebe su editor gráfico completo.
+# assets/audio-plugins/) y embebe su editor gráfico completo.
 #
 # Regla de plataforma (por qué el intento anterior falló):
 #   - LINUX: el build es OFFLINE. No se trae ni se compila el VST3 SDK; el

@@ -3,7 +3,7 @@
 // (spec D6/§7.5, LSP como componente CORE)
 //
 // `ba::plugin::PluginDeployer` es el paso de despliegue que pobla
-// `AudioPlugins/` con los bundles `.vst3` de LSP (versión fijada
+// `assets/audio-plugins/` con los bundles `.vst3` de LSP (versión fijada
 // `LSP_VERSION`, ver versions.cmake) y genera el `manifest.json` que el host
 // (`Vst3Host` / `scanDirectory`) consume para descubrirlos.
 //
@@ -48,8 +48,8 @@ struct DeployResult {
 /// `manifest.json` que el host consume.
 ///
 /// Uso típico (control path, una vez, con el grafo de audio detenido):
-///   auto res = PluginDeployer::deploy("lsp-src", "AudioPlugins");
-///   // res.copied == N, res.manifestPath == "AudioPlugins/manifest.json"
+///   auto res = PluginDeployer::deploy("lsp-src", "assets/audio-plugins");
+///   // res.copied == N, res.manifestPath == "assets/audio-plugins/manifest.json"
 ///
 /// `deploy()` es idempotente: re-ejecutarlo sobre el mismo `installDir`
 /// produce el mismo estado final.

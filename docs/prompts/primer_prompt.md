@@ -482,7 +482,7 @@ Todo cruce entre el reloj de una placa de audio y el reloj QPC/libobs pasa por u
   - LSP tiene builds de Windows (VST2, VST3, LV2, CLAP) como servicio pago por plugin en lsp-builds.com. También se puede compilar desde el código LGPL-3.0.
   - El formato VST3 en Windows es un bundle `.vst3` (una carpeta), no un archivo suelto.
 - **Riesgo:** hostear plugins de terceros dentro de A contradice el aislamiento de fallas, porque un plugin que crashea tira el vivo.
-- **Si se incorpora:** solo en modo ingeniería, preferentemente en un proceso host separado, sin editores gráficos (solo parámetros y presets), y con el escaneo fijado a `AudioPlugins/`.
+- **Si se incorpora:** solo en modo ingeniería, preferentemente en un proceso host separado, sin editores gráficos (solo parámetros y presets), y con el escaneo fijado a `assets/audio-plugins/`.
 
 ---
 

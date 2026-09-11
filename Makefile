@@ -39,7 +39,7 @@ help:
 	@echo "  make test-unit  Alias de 'make test'"
 	@echo "  make lint       Revisa el formato con clang-format (si existe)"
 	@echo "  make release    Instala el bundle portable (layout §5.1) en release/"
-	@echo "  make win        Cross-compile MinGW-w64 a build-win (si hay cross-compiler)"
+	@echo "  make win        Cross-compile MinGW-w64 a build/win (si hay cross-compiler)"
 	@echo "  make clean      Borra $(BUILD_DIR)/"
 	@echo "  make clean-all  Borra $(BUILD_DIR)/, release/ y docs/_build/"
 	@echo ""
@@ -102,15 +102,15 @@ release:
 
 # --- Cross-compile MinGW-w64 (Windows desde Linux) --------------------------
 # Solo si el cross-compiler existe; si no, avisa y termina en verde. El
-# cross-build va a build-win (separado del build nativo).
+# cross-build va a build/win (dentro del root de build, aislado por subdirectorio).
 win:
 	@if command -v x86_64-w64-mingw32-g++ >/dev/null 2>&1; then \
-		cmake -S . -B build-win \
+		cmake -S . -B build/win \
 			-DCMAKE_SYSTEM_NAME=Windows \
 			-DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc \
 			-DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++ \
 			-DCMAKE_BUILD_TYPE=Release; \
-		cmake --build build-win -j$(JOBS); \
+		cmake --build build/win -j$(JOBS); \
 	else \
 		echo "MinGW-w64 (x86_64-w64-mingw32-g++) no encontrado; se salta el target win."; \
 	fi

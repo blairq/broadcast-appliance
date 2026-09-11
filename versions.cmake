@@ -98,7 +98,7 @@ mark_as_advanced(VST3_SDK_VERSION)
 
 # --- LSP Plugins (LGPL) -----------------------------------------------------
 # ⚠️  ASSET DE DESPLIEGUE, no se compila: es la versión de LSP de la que se
-# toman los bundles .vst3 que se shippean en AudioPlugins/ (spec D6/§7.5).
+# toman los bundles .vst3 que se shippean en assets/audio-plugins/ (spec D6/§7.5).
 # Release real verificado en https://github.com/lsp-plugins/lsp-plugins
 # /releases (1.2.35, con assets .vst3 para Windows/Linux).
 set(LSP_VERSION "1.2.35" CACHE STRING "Versión de LSP Plugins (asset de despliegue)")

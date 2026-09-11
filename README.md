@@ -34,7 +34,7 @@ plugins **LSP/VST3** es un componente **CORE** del producto, no una opción.
 - **Host de plugins VST3/LSP** con **editor gráfico completo** (`ba_plugin_host`):
   escaneo de bundles `.vst3` (C++ puro, testeado en Linux) y carga real +
   embebido del editor en Windows. LSP se empaqueta como asset en
-  [`AudioPlugins/`](AudioPlugins/).
+  [`assets/audio-plugins/`](assets/audio-plugins/).
 - **Secretos cifrados**: `Config/secrets.json` con **AES-256-GCM** (mbedTLS) +
   KDF **Argon2id** (referencia P-H-C).
 - **Snapshots y restauración** (`ba::persist`): persistencia con debounce, doble
@@ -83,7 +83,7 @@ dependencias de UI o de libobs.
   - `hw/` — identidad de dispositivos de audio.
 
 Los bundles de **LSP** (asset de despliegue, no se compila) viven en
-[`AudioPlugins/`](AudioPlugins/) y son poblados por el paso de deploy
+[`assets/audio-plugins/`](assets/audio-plugins/) y son poblados por el paso de deploy
 (`ba::plugin::PluginDeployer::deploy`), que además reescribe `manifest.json`.
 
 Reglas de la arquitectura (spec §14, §3, §9):
@@ -154,11 +154,11 @@ make prod     # Release + instala el layout §5.1 en release/
 ### (c) Windows cross con MinGW-w64
 
 ```bash
-make win      # cross-compile a build-win/ si existe x86_64-w64-mingw32-g++
+make win      # cross-compile a build/win/ si existe x86_64-w64-mingw32-g++
 ```
 
 Solo si el cross-compiler está disponible; si no, avisa y termina en verde. El
-cross-build va a `build-win/` (aislado del build nativo). En CI se usa
+cross-build va a `build/win/` (dentro del root de build, aislado por subdirectorio). En CI se usa
 `CMAKE_SYSTEM_NAME=Windows` con los binarios `x86_64-w64-mingw32-*` y verifica
 que se generen `.exe`/`.dll`.
 
@@ -258,7 +258,9 @@ El flujo completo (build nativo + ctest + pytest + cross Windows) corre en CI
 │   ├── gateway/              # ba-gateway — Proceso B (WebRTC, flag BA_GATEWAY_HAVE_WEBRTC)
 │   ├── obs-module/           # ba-sources — módulo libobs (flag BA_SOURCES_HAVE_OBS)
 │   └── plugin-host/          # ba_plugin_host — host VST3/LSP + PluginDeployer
-├── AudioPlugins/             # bundles .vst3 de LSP 1.2.35 (asset de despliegue)
+├── assets/                   # assets de despliegue (no se compilan)
+│   ├── web/guest/            #   app web del invitado (la sirve B)
+│   └── audio-plugins/        #   bundles .vst3 de LSP 1.2.35
 ├── packaging/                # flatpak (manifiesto) + .desktop
 ├── docs/                     # documentación Sphinx (módulos, compilación, tests)
 ├── tests/                    # suite Python de invariantes del repo (pytest)
@@ -281,7 +283,7 @@ compila en Linux y Windows; "plataforma-gated (Windows)" = solo se trae/usa bajo
 | libsamplerate (Secret Rabbit Code) | `0.2.2` | MIT | Núcleo (resampling, spec 7.4) |
 | Argon2 (referencia P-H-C) | `20190702` | CC0 / Apache-2.0 | Núcleo (KDF Argon2id de `secrets.json`) |
 | VST3 SDK (Steinberg) | `v3.7.9_build_61` | MIT | Host de plugins (solo Windows) |
-| LSP Plugins | `1.2.35` | LGPL | Asset de despliegue en `AudioPlugins/` |
+| LSP Plugins | `1.2.35` | LGPL | Asset de despliegue en `assets/audio-plugins/` |
 | obs-studio (libobs) | `31.0.0` | GPL-2.0 | Plataforma-gated (Windows) |
 | Qt 6 | `6.6.3` | LGPL-3.0 (dual) | Plataforma-gated (Windows) |
 | CEF (Chromium Embedded) | `119.0.11+chromium-119.0.6045.105` | BSD-3-Clause | Plataforma-gated (Windows) |
