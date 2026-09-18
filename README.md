@@ -218,6 +218,86 @@ vendorea `make deps-obs-linux` dentro de `extern/`.
 
 ---
 
+## Puesta en marcha
+
+Secuencia completa desde cero, en Linux. Los pasos 1 y 2 se hacen una sola vez.
+
+### 1. Clonar e instalar las dependencias de build
+
+```bash
+git clone https://github.com/blairq/broadcast-appliance.git
+cd broadcast-appliance
+```
+
+Después instalá los paquetes de desarrollo de la sección
+[Requisitos de build](#motor-de-emisión-libobs-linux). Son para compilar
+**libobs**, no dependencias del producto: el bundle final no las necesita.
+
+### 2. Compilar libobs
+
+```bash
+make deps-obs-linux
+```
+
+Clona obs-studio en la versión fijada en [`versions.cmake`](versions.cmake),
+vendorea `uthash` y `nv-codec-headers`, y compila hacia `extern/obs-linux/`.
+**Tarda** (del orden de 20 minutos en una máquina de escritorio) y no instala
+nada en el sistema.
+
+### 3. Compilar y probar el proyecto
+
+```bash
+make build
+make test
+```
+
+El configure imprime `ba-libobs: ENCONTRADA` cuando el motor de emisión se va a
+compilar; si dice `ausente`, el paso 2 no terminó bien y `ba-app`/`ba-sources`
+quedan en modo headless.
+
+### 4. Ejecutar el motor de emisión
+
+```bash
+make release
+cd release
+./bin/64bit/ba-app --engine-selftest
+```
+
+El autotest arranca libobs, arma la escena, publica el retorno hacia el Proceso
+B, graba unos segundos a `Recordings/` y verifica que el archivo quedó escrito.
+El bundle es autocontenido: **no** hace falta `LD_LIBRARY_PATH` ni
+`OBS_DATA_PATH`.
+
+> Corrélo desde una **sesión gráfica**, no por SSH: `obs_reset_video()` necesita
+> un contexto GL. Sin él el autotest termina con `SKIP` y el motivo (código 77),
+> no con error.
+
+Opciones útiles: `--rec-dir=<dir>` cambia dónde graba, `--modules=<dir>` y
+`--obs-data=<dir>` permiten correrlo desde el árbol de build en vez del bundle.
+
+### 5. Ejecutar el gateway de invitados
+
+```bash
+cd release
+BA_GATEWAY_PIN=123456 ./bin/64bit/ba-gateway --port 8787 --webroot ./Web/guest
+```
+
+Y abrir `http://127.0.0.1:8787` en el navegador: ingreso con sala y PIN, chequeo
+de cámara y micrófono, y sala con reconexión automática.
+
+El PIN se pasa por la variable de entorno `BA_GATEWAY_PIN` y no por `--pin`,
+porque los argumentos de línea de comandos son visibles en la lista de procesos
+de la máquina. Si no se define ninguno, el gateway genera uno aleatorio y lo
+escribe en el log de arranque. La clave HMAC que firma los tokens se genera
+aleatoria en cada arranque; el launcher puede inyectar una propia con
+`BA_GATEWAY_HMAC_SECRET`.
+
+> El backend WebRTC real (libwebrtc) es **plataforma-gated a Windows/MSVC**, así
+> que en Linux la señalización y la app web funcionan completas pero no hay
+> media del invitado. Ver [Estado](#estado).
+
+---
+
 ## Compilación
 
 El build es **CMake** (C++20, self-contained vía `FetchContent`); el
