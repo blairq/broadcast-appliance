@@ -43,30 +43,29 @@ std::wstring buildSanitizedEnv(const std::wstring& ownDir) {
     }
     const std::wstring system32 = systemRoot + L"\\system32";
 
-    appendVar(L"SystemRoot", systemRoot);
-    appendVar(L"SystemDrive", systemRoot.substr(0, 2));
-    appendVar(L"PATH", system32 + L";" + ownDir);
-    appendVar(L"TEMP", L"%TEMP%"); // se resuelve abajo si existe
-    appendVar(L"TMP", L"%TEMP%");
-
-    // Laptops hibridas: forzar GPU de alto rendimiento (spec 4.2).
-    appendVar(L"NvOptimusEnablement", L"1");
-    appendVar(L"AmdPowerXpressRequestHighPerformance", L"1");
-
-    // TEMP/TMP reales si existen (evita dejar la literal %TEMP%).
+    // TEMP/TMP: se lee el valor real UNA sola vez y se agrega una unica vez.
+    // (Dejar los placeholders %TEMP% y luego agregar los reales producia dos
+    // entradas TEMP= en el bloque, y el hijo leia la literal "%TEMP%".)
+    std::wstring temp;
     {
         const int n = GetEnvironmentVariableW(L"TEMP", nullptr, 0);
         if (n > 0) {
             std::vector<wchar_t> buf(static_cast<size_t>(n));
             GetEnvironmentVariableW(L"TEMP", buf.data(), n);
-            const std::wstring temp(buf.data(), n - 1);
-            // Reemplaza los dos %TEMP% por el valor real.
-            const std::wstring fixed = (systemRoot + L"\\system32;" + ownDir); // PATH ya puesto
-            (void)fixed;
-            block += L"TEMP=" + temp + L"\0";
-            block += L"TMP=" + temp + L"\0";
+            temp.assign(buf.data(), n - 1);
         }
     }
+
+    appendVar(L"SystemRoot", systemRoot);
+    appendVar(L"SystemDrive", systemRoot.substr(0, 2));
+    appendVar(L"PATH", system32 + L";" + ownDir);
+    appendVar(L"TEMP", temp); // una sola vez; si no existe TEMP, se omite
+    appendVar(L"TMP", temp);
+
+    // Laptops hibridas: forzar GPU de alto rendimiento (spec 4.2).
+    appendVar(L"NvOptimusEnablement", L"1");
+    appendVar(L"AmdPowerXpressRequestHighPerformance", L"1");
+
     block += L'\0'; // doble NUL final.
     return block;
 }

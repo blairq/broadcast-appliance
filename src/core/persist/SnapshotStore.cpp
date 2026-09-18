@@ -59,8 +59,8 @@ namespace {
 // por hash. Solo se usa para hashear el body del snapshot (no para cripto).
 
 struct Sha256 {
-    std::uint32_t h[8] = {0x6a09e667, 0xbb40e69e, 0x3c6ef372, 0xa54ff53a,
-                          0x510e527f, 0x9b0d1f6b, 0x16891980, 0x8a2be1e9};
+    std::uint32_t h[8] = {0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+                          0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19};
     unsigned char buf[64]{};
     std::size_t bufLen = 0;
     std::uint64_t totalLen = 0;

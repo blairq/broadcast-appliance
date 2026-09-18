@@ -48,6 +48,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <new>
 #include <string>
 
 namespace {
@@ -56,6 +57,13 @@ namespace {
 constexpr double kFs = 48000.0;                   // reloj de libobs (spec 7.4)
 constexpr double kSmoothMs = 5.0;                 // fade de ganancia al cambiar de preset
 constexpr double kTwoPi = 6.28318530717958647692; // 2*pi (sin depender de M_PI)
+// Tamano del buffer scratch interleaved del filtro, en FRAMES (2*frames floats).
+// El DSP nativo (ChannelStrip::process) opera sobre estéreo interleaved, pero
+// libobs entrega la mezcla del filtro en PLANAR (un plano por canal). El
+// callback de audio re-mapea planar -> scratch -> planar en bloques de hasta
+// kFilterChunkFrames frames; el scratch se asigna en `create` (thread de
+// control) para que el path de audio siga siendo RT-safe (sin asignacion).
+constexpr int kFilterChunkFrames = 1024;
 
 // --- Helpers de propiedades --------------------------------------------------
 
@@ -256,28 +264,55 @@ ba::dsp::StripParams build_params(obs_data* s) {
 // clicks.
 // ============================================================================
 
-/// Estado privado del filtro: un ChannelStrip por fuente.
+/// Estado privado del filtro: un ChannelStrip + un buffer scratch
+/// interleaved de tamano fijo para el re-mapeo planar -> interleaved.
 struct ChannelStripFilter {
     ba::dsp::ChannelStrip strip;
+    float* scratch = nullptr; // 2*kFilterChunkFrames floats; nullptr si la asignacion fallo
+    int chunkFrames = 0;      // capacidad en frames del scratch
 };
 
-/// Crea el filtro: asigna el ChannelStrip y aplica los parámetros iniciales.
+/// Crea el filtro: asigna el ChannelStrip y el buffer scratch interleaved y
+/// aplica los parámetros iniciales.
+///
+/// Todo con `std::nothrow`: si la asignacion falla, `scratch` queda nullptr y
+/// el callback de audio degrada a pass-through (no crash, no excepcion que
+/// cruce el callback C de libobs). El scratch se asigna aquí, en el thread de
+/// control, para que el path de audio siga siendo RT-safe (sin asignacion).
 ///
 /// :param settings: settings iniciales de la fuente.
 /// :param source: fuente en creacion.
-/// :returns: puntero al estado privado (se libera en `destroy`).
+/// :returns: puntero al estado privado (se libera en `destroy`); nullptr solo
+///           si no se pudo asignar el propio estado.
 void* channel_strip_create(obs_data* settings, obs_source* source) {
-    auto* f = new ChannelStripFilter();
-    f->strip.setParams(build_params(settings), kSmoothMs);
     (void)source;
+    auto* f = new (std::nothrow) ChannelStripFilter();
+    if (!f) {
+        return nullptr;
+    }
+    f->scratch = new (std::nothrow) float[static_cast<size_t>(2) * kFilterChunkFrames];
+    if (!f->scratch) {
+        f->chunkFrames = 0; // sin scratch: el callback degrada a pass-through
+    } else {
+        f->chunkFrames = kFilterChunkFrames;
+    }
+    try {
+        f->strip.setParams(build_params(settings), kSmoothMs);
+    } catch (...) {
+        // El strip queda con su estado neutro inicial (pasabanda).
+    }
     return f;
 }
 
-/// Destruye el filtro y libera el estado privado.
+/// Destruye el filtro y libera el estado privado (incluido el buffer scratch).
 ///
 /// :param source: fuente a destruir.
 void channel_strip_destroy(obs_source* source) {
-    delete static_cast<ChannelStripFilter*>(obs_source_get_private_data(source));
+    auto* f = static_cast<ChannelStripFilter*>(obs_source_get_private_data(source));
+    if (f) {
+        delete[] f->scratch;
+        delete f;
+    }
 }
 
 /// Actualiza los parámetros del strip desde las nuevas settings (thread de
@@ -297,9 +332,18 @@ void channel_strip_update(obs_source* source, obs_data* settings) {
     }
 }
 
-/// Callback de audio del filtro (thread de audio, RT-safe). Aplica el
-/// ChannelStrip in-place a la mezcla si es F32 entrelazado mono-plano; si no,
-/// deja el buffer intacto (pass-through). Captura excepciones en el borde.
+/// Callback de audio del filtro (thread de audio, RT-safe). La mezcla que
+/// libobs entrega al filtro es PLANAR (un plano por canal, F32), pero el DSP
+/// nativo (`ChannelStrip::process`) opera sobre estéreo INTERLEAVED. Este
+/// callback re-mapea planar -> scratch interleaved -> planar en bloques de
+/// hasta `kFilterChunkFrames` frames, sin asignacion (el scratch se asigno en
+/// `create`). Casos:
+///   - 2 planos (estéreo, caso normal de libobs): L y R se interleavan en el
+///     scratch, se procesan y se devuelven a sus planos.
+///   - 1 plano (mono): se duplica a L/R, se procesa y se escribe el plano L
+///     de vuelta (R no existe; el resultado de R se descarta).
+///   - otro formato/planeamiento: pass-through (buffer intacto).
+/// Captura excepciones en el borde (pass-through si algo falla).
 ///
 /// :param filter: fuente del filtro.
 /// :param in: mezcla de audio de entrada (se modifica in-place).
@@ -308,10 +352,38 @@ void channel_strip_update(obs_source* source, obs_data* settings) {
 uint64_t channel_strip_filter_audio(obs_source* filter, const audio_mix* in, uint64_t timestamp) {
     try {
         auto* f = static_cast<ChannelStripFilter*>(obs_source_get_private_data(filter));
-        if (f && in && in->plane_ptr && in->format == AUDIO_FORMAT_F32 && in->planes == 1 &&
+        if (f && f->scratch && f->chunkFrames > 0 && in && in->plane_ptr && in->format == AUDIO_FORMAT_F32 &&
             in->frame_count > 0) {
-            float* buf = static_cast<float*>(in->plane_ptr[0]);
-            f->strip.process(buf, static_cast<int>(in->frame_count));
+            const uint32_t channels = (in->planes == 1) ? 1 : (in->planes == 2) ? 2 : 0;
+            if (channels > 0) {
+                // `plane_ptr` es `void**` en la API de libobs: se castea cada
+                // plano a `float*` una sola vez (F32 ya verificado arriba).
+                float* p0 = static_cast<float*>(in->plane_ptr[0]);
+                float* p1 = (channels == 2) ? static_cast<float*>(in->plane_ptr[1]) : nullptr;
+                uint32_t remaining = in->frame_count;
+                uint32_t offset = 0;
+                while (remaining > 0) {
+                    const int chunk = (remaining < static_cast<uint32_t>(f->chunkFrames))
+                                           ? static_cast<int>(remaining)
+                                           : f->chunkFrames;
+                    float* scratch = f->scratch;
+                    for (int i = 0; i < chunk; ++i) {
+                        const float l = p0[offset + static_cast<uint32_t>(i)];
+                        const float r = (channels == 2) ? p1[offset + static_cast<uint32_t>(i)] : l;
+                        scratch[2 * i] = l;
+                        scratch[2 * i + 1] = r;
+                    }
+                    f->strip.process(scratch, chunk);
+                    for (int i = 0; i < chunk; ++i) {
+                        p0[offset + static_cast<uint32_t>(i)] = scratch[2 * i];
+                        if (channels == 2) {
+                            p1[offset + static_cast<uint32_t>(i)] = scratch[2 * i + 1];
+                        }
+                    }
+                    offset += static_cast<uint32_t>(chunk);
+                    remaining -= static_cast<uint32_t>(chunk);
+                }
+            }
         }
     } catch (...) {
         // Pass-through si algo falla: no tocar el buffer.
@@ -360,13 +432,23 @@ struct ChannelPresetSource {
 
 /// Crea la fuente: asigna el ChannelStrip y aplica el preset inicial.
 ///
+/// Con `std::nothrow`: si la asignacion falla, devuelve nullptr (libobs no
+/// crea la fuente) en vez de lanzar una excepcion que cruce el callback C.
+///
 /// :param settings: settings iniciales.
 /// :param source: fuente en creacion.
-/// :returns: puntero al estado privado.
+/// :returns: puntero al estado privado; nullptr si no se pudo asignar.
 void* channel_preset_create(obs_data* settings, obs_source* source) {
-    auto* src = new ChannelPresetSource();
-    src->strip.setParams(build_params(settings), kSmoothMs);
     (void)source;
+    auto* src = new (std::nothrow) ChannelPresetSource();
+    if (!src) {
+        return nullptr;
+    }
+    try {
+        src->strip.setParams(build_params(settings), kSmoothMs);
+    } catch (...) {
+        // El strip queda con su estado neutro inicial (pasabanda).
+    }
     return src;
 }
 

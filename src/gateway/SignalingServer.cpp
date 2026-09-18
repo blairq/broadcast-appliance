@@ -332,6 +332,29 @@ std::map<std::string, std::string> parseQuery(const std::string& q) {
     return out;
 }
 
+/// Parsea un entero decimal de forma NO-lanzante (devuelve `fallback` si la
+/// cadena no es un entero valido).
+///
+/// `std::stoi`/`std::stoll` lanzan `std::invalid_argument` (no numerico) y
+/// `std::out_of_range` (excede el rango); ambos cruzarian el borde del thread
+/// de conexion y tumbarian al proceso (contrato: no-throw cruzando threads).
+/// Primero se valida que solo haya [+-]?digitos (descarta invalid_argument) y
+/// se captura out_of_range.
+long long parseLong(const std::string& s, long long fallback) {
+    if (s.empty()) return fallback;
+    size_t i = 0;
+    if (s[0] == '+' || s[0] == '-') i = 1;
+    if (i >= s.size()) return fallback;
+    for (size_t k = i; k < s.size(); ++k) {
+        if (s[k] < '0' || s[k] > '9') return fallback;
+    }
+    try {
+        return std::stoll(s);
+    } catch (...) {
+        return fallback;
+    }
+}
+
 std::string urlDecode(const std::string& s) {
     std::string out;
     out.reserve(s.size());
@@ -455,7 +478,10 @@ void SignalingServer::handleConnection(long long fd) {
     std::string body;
     const std::string cl = getHeader(headers, "Content-Length");
     if (!cl.empty()) {
-        const long long n = std::stoll(cl);
+        // Content-Length hostil (no numerico / enorme): parseLong no lanza y
+        // devuelve 0, por lo que se descarta el cuerpo (conexion que no es WS
+        // ni POST valido).
+        const long long n = parseLong(cl, 0);
         if (n > 0 && n < static_cast<long long>(kMaxBodyBytes)) {
             body.resize(static_cast<size_t>(n));
             if (!readExact(fd, reinterpret_cast<uint8_t*>(&body[0]), body.size())) {
@@ -472,8 +498,8 @@ void SignalingServer::handleConnection(long long fd) {
         if (wsHandshake(fd, headers, query)) {
             // wsHandshake ya reservo el slot; lo recupera de la query.
             const auto q = parseQuery(query);
-            const int slot =
-                (q.count("slot") && !q.at("slot").empty()) ? std::stoi(urlDecode(q.at("slot"))) : 1;
+            const int slot = static_cast<int>(
+                (q.count("slot") && !q.at("slot").empty()) ? parseLong(urlDecode(q.at("slot")), 1) : 1);
             registerConn(slot, fd);
             wsLoop(fd, slot);
             unregisterConn(slot);
@@ -594,7 +620,8 @@ bool SignalingServer::wsHandshake(long long fd, const std::string& req, const st
     const auto q = parseQuery(query);
     const std::string token = q.count("token") ? urlDecode(q.at("token")) : "";
     const std::string room = q.count("room") ? urlDecode(q.at("room")) : cfg_.room;
-    const int slot = (q.count("slot") && !q.at("slot").empty()) ? std::stoi(urlDecode(q.at("slot"))) : 1;
+    const int slot = static_cast<int>(
+        (q.count("slot") && !q.at("slot").empty()) ? parseLong(urlDecode(q.at("slot")), 1) : 1);
 
     // Auth: verifica el token contra la sala (spec §8.3).
     const int vcode = auth_.verify(token, room);

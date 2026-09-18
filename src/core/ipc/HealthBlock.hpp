@@ -212,8 +212,9 @@ class HealthBlock {
     /// considera estancado si `nowQpc` ya supera el umbral desde la epoca.
     ///
     /// :param slot: indice del slot.
-    /// :param nowQpc: "ahora" en ticks QPC; por defecto nowQpc(). Se inyecta
-    ///                para pruebas deterministas (fake now).
+    /// :param nowQpc: "ahora" en nanosegundos (mismo reloj/unidad que
+    ///                lastBeatQpc y nowQpc()); por defecto nowQpc(). Se
+    ///                inyecta para pruebas deterministas (fake now).
     /// :param thresholdNs: umbral de estancamiento en nanosegundos; por
     ///                     defecto 5 s (kDefaultHangThresholdNs).
     /// :returns: true si el heartbeat es estancado (posible cuelgue).
@@ -223,15 +224,19 @@ class HealthBlock {
     /// Umbral por defecto de deteccion de cuelgue: 5 segundos (spec §3.1.7).
     static constexpr std::uint64_t kDefaultHangThresholdNs = 5'000'000'000ULL;
 
-    /// Reloj QPC cruzado de plataforma.
+    /// Reloj QPC cruzado de plataforma, normalizado a NANOSEGUNDOS.
     ///
     /// En Windows usa QueryPerformanceCounter (el mismo reloj que libobs via
-    /// os_gettime_ns, spec §4.3). En otras plataformas (Linux/macOS, y las
-    /// pruebas) usa steady_clock en nanosegundos, para que los tests corran en
-    /// cualquier lugar sin dependencias. Devuelve 0 si el reloj no esta
-    /// disponible (no lanza).
+    /// os_gettime_ns, spec §4.3) y convierte los ticks a nanosegundos
+    /// (dividiendo por QueryPerformanceFrequency). En otras plataformas
+    /// (Linux/macOS, y las pruebas) usa steady_clock, que ya nace en
+    /// nanosegundos. La unidad unica (ns) es la que exige isStale(): resta
+    /// (nowQpc - lastBeatQpc) y la compara contra thresholdNs (ns), asi que
+    /// cualquier aritmetica/comparacion de timestamps queda en una sola unidad.
+    /// Devuelve 0 si el reloj no esta disponible (no lanza).
     ///
-    /// :returns: ticks QPC actuales (o nanosegundos steady en no-Windows).
+    /// :returns: nanosegundos actuales (QPC normalizado en Windows; steady en
+    ///           no-Windows).
     static std::uint64_t nowQpc();
 
    private:

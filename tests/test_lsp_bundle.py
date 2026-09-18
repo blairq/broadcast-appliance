@@ -28,10 +28,21 @@ def test_plugin_library_present(repo_root: Path) -> None:
 
 
 def test_moduleinfo_present_and_valid(repo_root: Path) -> None:
-    """moduleinfo.json must exist, parse, and describe the lsp-plugins module."""
+    """moduleinfo.json must exist, parse, and describe the lsp-plugins module.
+
+    Every entry in ``Classes`` must carry a stable ``CID`` and a human
+    ``Name``: hosts enumerate these to instantiate the plugin, so a class
+    missing either is a broken bundle even if the file parses.
+    """
     path = repo_root / MODULE_INFO
     assert path.is_file(), f"missing moduleinfo.json: {MODULE_INFO}"
     info = json.loads(path.read_text(encoding="utf-8"))
     assert info.get("Name") == "lsp-plugins", "moduleinfo Name mismatch"
     classes = info.get("Classes")
     assert isinstance(classes, list) and classes, "moduleinfo has no Classes"
+    bad = [
+        c.get("Name") or c.get("CID") or "<no-identifier>"
+        for c in classes
+        if not (isinstance(c, dict) and c.get("CID") and c.get("Name"))
+    ]
+    assert not bad, f"moduleinfo classes missing CID or Name: {bad[:5]}"

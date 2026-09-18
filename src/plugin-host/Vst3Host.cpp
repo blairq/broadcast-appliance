@@ -62,6 +62,20 @@ bool isRealBundle(const std::filesystem::path& p) {
     return std::filesystem::is_directory(p / "Contents", ec);
 }
 
+/// Profundidad relativa de `file` bajo `bundle`: cuántos elementos de path
+/// separan al archivo del bundle (0 = el propio bundle). Se calcula por
+/// DIFERENCIA de longitudes (`path::iterator` no es random-access entre dos
+/// paths distintos: restar iteradores de `bundle` y de `file` directamente
+/// es UB y da un valor basura, medido ~6.1e18). `file` está bajo `bundle`
+/// por construcción (viene de `recursive_directory_iterator(bundle)`), así
+/// que la diferencia siempre es >= 0 y cabe en size_t.
+/// No lanza.
+size_t relativeDepth(const std::filesystem::path& bundle, const std::filesystem::path& file) {
+    const size_t fileLen = static_cast<size_t>(std::distance(file.begin(), file.end()));
+    const size_t bundleLen = static_cast<size_t>(std::distance(bundle.begin(), bundle.end()));
+    return fileLen >= bundleLen ? fileLen - bundleLen : 0;
+}
+
 /// Busca el binario más cercano bajo `bundle` con una de las extensiones
 /// dadas (recursivo). Devuelve la ruta o path vacío si no hay ninguno.
 /// No lanza.
@@ -87,7 +101,7 @@ std::filesystem::path findNearestBinary(const std::filesystem::path& bundle,
         const std::string ext = entry.path().extension().string();
         for (const auto& want : exts) {
             if (ext == want) {
-                const size_t depth = static_cast<size_t>(std::distance(bundle.begin(), entry.path().begin()));
+                const size_t depth = relativeDepth(bundle, entry.path());
                 if (best.empty() || depth < bestDepth) {
                     best = entry.path();
                     bestDepth = depth;
@@ -168,6 +182,32 @@ using Steinberg::TUID;
 using Steinberg::Vst::IAudioProcessor;
 using Steinberg::Vst::IEditController;
 
+/// Convierte una cadena UTF-8 a UTF-16 para `LoadLibraryW`.
+///
+/// `MultiByteToWideChar` con `CP_UTF8` es la conversión correcta: el
+/// constructor `std::wstring(const char*)` solo es válido para ASCII y
+/// corrompería rutas con caracteres > 127 (acentos, etc.). No lanza: ante
+/// un fallo de conversión devuelve un `std::wstring` vacío (el caller lo
+/// trata como fallo de carga).
+std::wstring utf8ToUtf16(const std::string& utf8) {
+    if (utf8.empty()) {
+        return {};
+    }
+    const int len = ::MultiByteToWideChar(CP_UTF8, 0, utf8.data(),
+                                          static_cast<int>(utf8.size()), nullptr, 0);
+    if (len <= 0) {
+        return {};
+    }
+    std::wstring out(static_cast<size_t>(len), L'\0');
+    const int copied = ::MultiByteToWideChar(CP_UTF8, 0, utf8.data(),
+                                             static_cast<int>(utf8.size()), out.data(), len);
+    if (copied <= 0) {
+        return {};
+    }
+    out.resize(static_cast<size_t>(copied));
+    return out;
+}
+
 } // namespace
 
 struct Vst3Host::Impl {
@@ -190,7 +230,11 @@ bool Vst3Host::load(const BundleInfo& bundle) {
         return false;
     }
 
-    const std::wstring wpath(bundle.dllPath.begin(), bundle.dllPath.end());
+    // `bundle.dllPath` es UTF-8; `LoadLibraryW` espera UTF-16. La conversión
+    // byte-a-byte (constructor de `std::wstring` desde `std::string`) solo es
+    // correcta para rutas ASCII: una ruta con caracteres > 127 (p. ej.
+    // acentos en la carpeta de instalación) se corrompería.
+    const std::wstring wpath = utf8ToUtf16(bundle.dllPath);
     HMODULE module = ::LoadLibraryW(wpath.c_str());
     if (!module) {
         std::fprintf(stderr, "[ba_plugin_host] load: LoadLibraryW falló para %s\n", bundle.dllPath.c_str());
@@ -304,7 +348,7 @@ bool Vst3Host::isLoaded() const { return impl_ != nullptr && impl_->processor !=
 #else // fallback HEADLESS: no _WIN32, o Windows sin SDK (offline)
 
 struct Vst3Host::Impl {
-    bool loaded = false;
+    bool active = false; // Solo para que unload() loguee; no hay processor real.
 };
 
 Vst3Host::~Vst3Host() { reset(); }
@@ -322,7 +366,7 @@ bool Vst3Host::load(const BundleInfo& bundle) {
                  "(Windows); bundle=%s\n",
                  bundle.bundlePath.c_str());
     impl_ = new Impl();
-    impl_->loaded = true;
+    impl_->active = true;
     return false; // el stub no carga el processor de verdad.
 }
 
@@ -342,7 +386,10 @@ bool Vst3Host::attachEditor(void* /*parentHwnd*/) {
     return false;
 }
 
-bool Vst3Host::isLoaded() const { return impl_ != nullptr && impl_->loaded; }
+// Headless: no hay processor real (load() siempre devuelve false), así que el
+// host nunca queda "cargado" a los efectos del contrato del header
+// ("true si hay un plugin cargado (processor != nullptr)").
+bool Vst3Host::isLoaded() const { return false; }
 
 #endif // defined(_WIN32) && defined(BA_PLUGIN_HOST_HAVE_VST3)
 

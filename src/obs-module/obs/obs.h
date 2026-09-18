@@ -36,6 +36,10 @@ extern "C" {
 
 struct obs_source;
 struct obs_module;
+// Forward declaration para el typedef obs_filter_video_t (el struct completo
+// vive en la API de video de libobs; ba-sources no registra video, pero el
+// callback de filtro de video lo referencia).
+struct video_mix;
 
 // --- Formato de audio (subconjunto del enum real de libobs) ------------------
 enum audio_format {

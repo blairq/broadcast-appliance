@@ -122,12 +122,26 @@ class LoopbackDuplex : public ba::ipc::DuplexStream {
     /// :returns: true siempre (escribir en memoria no falla).
     bool write(const std::uint8_t* data, std::size_t len) override;
 
-    /// Lee hasta `cap` bytes del buffer de salida, avanzando el cursor.
+     /// Lee hasta `cap` bytes del buffer de salida, avanzando el cursor.
+     ///
+     /// :param buf: buffer de destino.
+     /// :param cap: capacidad de `buf` en bytes.
+     /// :returns: bytes leídos (>0) o 0 si no hay bytes pendientes.
+     int read(std::uint8_t* buf, std::size_t cap) override;
+
+    /// Indica si hay bytes pendientes de leer en el buffer de salida.
     ///
-    /// :param buf: buffer de destino.
-    /// :param cap: capacidad de `buf` en bytes.
-    /// :returns: bytes leídos (>0) o 0 si no hay bytes pendientes.
-    int read(std::uint8_t* buf, std::size_t cap) override;
+    /// Se usa para no llamar a `ControlEndpoint::poll()` cuando no hay datos:
+    /// el loopback no se "cierra", así que un `read()` sobre un buffer vacío
+    /// devuelve 0 (sin datos por ahora), no un EOF real. Si `poll()` leyera ese
+    /// 0 con el buffer de recepción vacío, lo interpretaría como fin de
+    /// stream y marcaría el endpoint como desconectado (falso positivo).
+    /// Consultar esto antes de `poll()` evita la desconexión fantasma y deja
+    /// que el frame pendiente (p. ej. un ack propio) se decodifique cuando
+    /// llega.
+    ///
+    /// :returns: true si hay bytes sin leer; false si el buffer está vacío.
+    bool hasPending() const;
 
    private:
     std::vector<std::uint8_t> outBuf_;
@@ -164,13 +178,23 @@ class OperatorEngine {
     /// HealthBlock (beat + lectura) y el ControlEndpoint sobre el loopback, e
     /// inicializa el SnapshotStore en `configDir/Config/session`.
     ///
+    /// Si `restore` es true (arranque con `--restore`, spec §3.1.8/§11.3: A
+    /// relanzado tras crash o tras un corte de energía), se restaura el último
+    /// snapshot válido con `ba::persist::Restore::recover()` sobre el mismo
+    /// directorio de sesiones: se re-aplican los presets guardados por canal y
+    /// se continúa la secuencia monotónica desde la del snapshot. Si no hay
+    /// snapshots (primer arranque) o todos están corruptos, se degrada al
+    /// estado de fábrica sin fallar.
+    ///
     /// :param configDir: directorio raíz del disco portable (spec §5.1); los
     ///                   snapshots viven en `<configDir>/Config/session`.
     ///                   Si es vacío se usa el directorio actual.
+    /// :param restore: si es true, restaura el último snapshot válido al
+    ///                 arrancar (contrato `--restore` del launcher).
     /// :returns: true si todos los recursos se abrieron; false si alguno falló
     ///           (el objeto queda coherente y las operaciones se vuelven
     ///           no-op seguros). Ver `lastError()` para el motivo.
-    bool init(const std::string& configDir = "");
+    bool init(const std::string& configDir = "", bool restore = false);
 
     /// Aplica un preset de fábrica a un canal de micrófono, en caliente.
     ///
@@ -287,6 +311,17 @@ class OperatorEngine {
     ///
     /// :param preset: preset a resolver.
     ba::dsp::StripParams stripParamsFor(ChannelPreset preset) const;
+
+    /// Re-aplica los presets guardados en la sección "dsp" de un `StateDoc`
+    /// restaurado (spec §11.3, "qué se restaura"): para cada canal, mapea el
+    /// nombre del preset a su `ChannelPreset` y lo aplica en caliente.
+    ///
+    /// Es la contraparte de lectura de `buildStateDoc()`: interpreta el blob
+    /// JSON opaco `{"channels":[{channel,preset},...]}` y reconstruye el
+    /// estado DSP del motor. No escribe (el caller decide cuándo persistir).
+    ///
+    /// :param doc: documento restaurado (su `sections["dsp"]` se interpreta).
+    void applyRestoredPresets(const ba::persist::StateDoc& doc);
 
     /// Despacha un mensaje de control recibido en `tick()`: responde con un
     /// `Response` (request/response, spec §4.1) sobre el `ControlEndpoint`.

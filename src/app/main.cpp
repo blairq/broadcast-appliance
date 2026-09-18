@@ -32,6 +32,8 @@
 
 #include <cmath>
 #include <cstdio>
+#include <cstring>
+#include <cwchar>
 #include <string>
 #include <vector>
 
@@ -101,6 +103,16 @@ namespace {
 #endif
 }
 
+// Detecta la bandera --restore en una línea de comandos wide (Windows).
+// El launcher pasa `--restore` como argumento único al relanzar a A tras un
+// crash (Supervisor.cpp, spec §3.1.8); se busca la substring para tolerar
+// espacios o flags adicionales. No lanza.
+// `[[maybe_unused]]`: solo las rutas Windows la llaman; la de Linux usa
+// strcmp directo sobre argv.
+[[maybe_unused]] bool cmdLineHasRestore(const wchar_t* cmdLine) {
+    return cmdLine != nullptr && std::wcsstr(cmdLine, L"--restore") != nullptr;
+}
+
 // --- Autotest headless (sin Qt/libobs) -------------------------------------
 //
 // Ejercita la integración real de `ba_core` que el motor aporta:
@@ -111,12 +123,14 @@ namespace {
 //   - Persistencia: StateDoc construido + snapshot escrito en el cierre
 //     ordenado (SnapshotStore::scheduleWrite + flushNow).
 //
+// :param restore: si es true, el motor restaura el último snapshot válido al
+//                 arrancar (contrato `--restore` del launcher, spec §3.1.8).
 // :returns: 0 si la integración funciona; 1 si init o shutdown fallaron.
-int runHeadlessSelfTest() {
+int runHeadlessSelfTest(bool restore = false) {
     ba::app::OperatorEngine engine;
     // Config en un subdir local (los snapshots van a cfg/Config/session).
     const std::string cfg = "ba-app-headless";
-    if (!engine.init(cfg)) {
+    if (!engine.init(cfg, restore)) {
         std::printf("ba-app headless: init falló (code=%d)\n", engine.lastError());
         return 1;
     }
@@ -180,8 +194,10 @@ int runHeadlessSelfTest() {
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow) {
     (void)hPrevInstance;
-    (void)lpCmdLine;
     (void)nCmdShow;
+
+    // --restore (spec §3.1.8): el launcher lo pasa al relanzar A tras un crash.
+    const bool restore = cmdLineHasRestore(lpCmdLine);
 
     // Búsqueda de DLLs (spec §5.2): solo los directorios propios, nunca el PATH.
     SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
@@ -208,7 +224,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
         QApplication app(argc, argv);
 
         ba::app::OperatorEngine engine;
-        if (!engine.init(toUtf8(root))) {
+        if (!engine.init(toUtf8(root), restore)) {
             std::printf("ba-app: motor no inicializado (code=%d)\n", engine.lastError());
             obs_shutdown();
             return 1;
@@ -238,7 +254,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 // ============================================================================
 #elif defined(_WIN32)
 
-int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) { return runHeadlessSelfTest(); }
+int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
+    // --restore (spec §3.1.8): el launcher lo pasa al relanzar A tras un crash.
+    return runHeadlessSelfTest(cmdLineHasRestore(lpCmdLine));
+}
 
 #if !defined(_MSC_VER)
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
@@ -253,9 +272,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 #else
 
 int main(int argc, char** argv) {
-    (void)argc;
-    (void)argv;
-    return runHeadlessSelfTest();
+    // --restore (spec §3.1.8): el launcher lo pasa al relanzar A tras un crash.
+    // En Linux el launcher es un stub (hijo ficticio), pero se parsea igual para
+    // que el contrato de argv sea idéntico en las tres rutas.
+    bool restore = false;
+    for (int i = 1; i < argc; ++i) {
+        if (std::strcmp(argv[i], "--restore") == 0) {
+            restore = true;
+        }
+    }
+    return runHeadlessSelfTest(restore);
 }
 
 #endif // rutas

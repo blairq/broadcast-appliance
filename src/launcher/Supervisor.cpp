@@ -77,6 +77,33 @@ void terminateProcess(void* handle) {
 #endif
 }
 
+#ifdef _WIN32
+// Directorio padre de una ruta (para CreateDirectoryW del destino del dump).
+std::wstring parentDir(const std::wstring& p) {
+    const std::size_t pos = p.find_last_of(L"\\/");
+    if (pos == std::wstring::npos) {
+        return L"";
+    }
+    return p.substr(0, pos);
+}
+
+// Crea cada nivel de un directorio (Logs no existe en un deploy fresco).
+// ERROR_ALREADY_EXISTS es inofensivo; no lanza.
+void ensureDir(const std::wstring& dir) {
+    if (dir.empty()) {
+        return;
+    }
+    std::wstring cur;
+    for (wchar_t c : dir) {
+        cur += c;
+        if (c == L'\\' || c == L'/') {
+            CreateDirectoryW(cur.c_str(), nullptr);
+        }
+    }
+    CreateDirectoryW(dir.c_str(), nullptr);
+}
+#endif
+
 void writeMinidump(void* handle, std::uint32_t pid, const std::wstring& path) {
 #ifdef _WIN32
     // dbghelp.dll se carga a runtime (LoadLibraryW/GetProcAddress), sin import
@@ -101,10 +128,21 @@ void writeMinidump(void* handle, std::uint32_t pid, const std::wstring& path) {
         BA_LOG_WARN("dump", 0, "MiniDumpWriteDump no encontrado; sin minidump");
         return;
     }
+    // MiniDumpWriteDump exige un HANDLE a un archivo ABIERTO (LPCVOID FileHandle),
+    // no la ruta: se abre el destino con CreateFileW y se pasa ese handle.
+    ensureDir(parentDir(path)); // <logsDir>\dumps puede no existir en un deploy fresco.
+    HANDLE hFile = CreateFileW(path.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL,
+                               nullptr);
+    if (hFile == INVALID_HANDLE_VALUE) {
+        FreeLibrary(dbghelp);
+        BA_LOG_WARN("dump", static_cast<int>(GetLastError()), "no se pudo abrir el destino del minidump");
+        return;
+    }
     // MiniDumpNormal (0x0) | MiniDumpWithThreadInfo (0x400), como literales
     // porque MinGW no expone las constantes de dbghelp.
-    const BOOL ok =
-        fn(static_cast<HANDLE>(handle), pid, path.c_str(), 0x00000000 | 0x00000400, nullptr, nullptr, 0);
+    const BOOL ok = fn(static_cast<HANDLE>(handle), pid, static_cast<LPCVOID>(hFile), 0x00000000 | 0x00000400,
+                       nullptr, nullptr, 0);
+    CloseHandle(hFile);
     FreeLibrary(dbghelp);
     if (!ok) {
         BA_LOG_WARN("dump", static_cast<int>(GetLastError()), "MiniDumpWriteDump fallo");

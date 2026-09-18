@@ -110,7 +110,13 @@ std::uint64_t HealthBlock::nowQpc() {
 #if defined(_WIN32)
     LARGE_INTEGER freq, counter;
     if (QueryPerformanceFrequency(&freq) && freq.QuadPart != 0 && QueryPerformanceCounter(&counter)) {
-        return static_cast<std::uint64_t>(counter.QuadPart);
+        // Normaliza a NANOSEGUNDOS (unidad unica, spec §4.3): isStale() resta
+        // (nowQpc - lastBeatQpc) y lo compara contra thresholdNs (ns), asi que
+        // el valor devuelto y el guardado en lastBeatQpc deben estar en ns.
+        // Se divide primero (segundos + resto) para evitar overflow de 64 bits.
+        const std::uint64_t f = static_cast<std::uint64_t>(freq.QuadPart);
+        const std::uint64_t c = static_cast<std::uint64_t>(counter.QuadPart);
+        return (c / f) * 1000000000ULL + (c % f) * 1000000000ULL / f;
     }
     return 0;
 #else

@@ -29,6 +29,8 @@
 #include <nlohmann/json.hpp>
 #include <vector>
 
+#include "persist/Restore.hpp"
+
 #if defined(_WIN32)
 #include <windows.h> // GetCurrentProcessId() en el camino portable de currentPid()
 #else
@@ -98,6 +100,8 @@ int LoopbackDuplex::read(std::uint8_t* buf, std::size_t cap) {
     return static_cast<int>(n);
 }
 
+bool LoopbackDuplex::hasPending() const { return outPos_ < outBuf_.size(); }
+
 // ============================================================================
 // Construcción / destrucción
 // ============================================================================
@@ -114,7 +118,7 @@ OperatorEngine::~OperatorEngine() = default;
 // init
 // ============================================================================
 
-bool OperatorEngine::init(const std::string& configDir) {
+bool OperatorEngine::init(const std::string& configDir, bool restore) {
     lastError_ = 0;
     if (initialized_) {
         return true; // idempotente
@@ -190,6 +194,28 @@ bool OperatorEngine::init(const std::string& configDir) {
         lastError_ = ss.code;
     }
 
+    // --- Restauración (spec §3.1.8/§11.3) -----------------------------------
+    // Arranque con `--restore` (A relanzado tras crash o tras un corte de
+    // energía): recupera el último snapshot válido y re-aplica su estado DSP.
+    // `Restore::recover` es stateless y no lanza: si no hay snapshots (primer
+    // arranque) o todos están corruptos, devuelve Missing y se degrada al
+    // estado de fábrica sin fallar el init.
+    if (restore && ss.ok) {
+        ba::persist::StateDoc restored;
+        const ba::persist::RestoreResult rr = ba::persist::Restore::recover(sessionDir, restored);
+        if (rr.status == ba::persist::RestoreResult::Status::Ok) {
+            applyRestoredPresets(restored);
+            // Continúa la secuencia monotónica desde la del snapshot: el
+            // próximo buildStateDoc() escribe restored.sequence + 1, así
+            // Restore::recover (que elige por mayor secuencia) siempre prefiere
+            // la generación recién escrita sobre la restaurada.
+            sequence_ = restored.sequence + 1;
+            lastDoc_ = restored;
+        }
+        // Missing/Corrupt/ChecksumMismatch: se degrada (no hay nada bueno que
+        // recuperar). No es un fallo del init: el motor arranca con fábrica.
+    }
+
     initialized_ = (lastError_ == 0);
     return initialized_;
 }
@@ -221,10 +247,65 @@ bool OperatorEngine::applyPreset(int channel, ChannelPreset preset, double smoot
     strips_[channel].setParams(stripParamsFor(preset), smoothMs);
     presets_[channel] = preset;
     // Persistencia no crítica (debounce): se escribe en la próxima oportunidad.
+    // `sequence_` es la secuencia monotónica que SnapshotStore/Restore usan para
+    // elegir la generación más nueva: se incrementa en cada cambio de estado
+    // persistido, de modo que cada generación lleva un número creciente y
+    // `Restore::recover` (mayor secuencia) siempre prefiere la recién escrita.
     if (initialized_) {
+        ++sequence_;
         store_.scheduleWrite(buildStateDoc(), false);
     }
     return true;
+}
+
+// ============================================================================
+// applyRestoredPresets
+// ============================================================================
+
+void OperatorEngine::applyRestoredPresets(const ba::persist::StateDoc& doc) {
+    // Contraparte de lectura de buildStateDoc(): interpreta el blob JSON opaco
+    // de la sección "dsp" ({"channels":[{channel,preset},...]}) y re-aplica el
+    // preset guardado por canal. No lanza: ante un blob corrupto o ausente se
+    // degrada al estado de fábrica (no hay nada bueno que restaurar).
+    const auto it = doc.sections.find(kSectionDsp);
+    if (it == doc.sections.end()) {
+        return;
+    }
+    nlohmann::ordered_json dsp;
+    try {
+        dsp = nlohmann::ordered_json::parse(it->second);
+    } catch (const nlohmann::json::exception&) {
+        return; // blob no-JSON: se degrada a fábrica
+    }
+    const auto chIt = dsp.find("channels");
+    if (chIt == dsp.end() || !chIt->is_array()) {
+        return;
+    }
+    for (const auto& entry : *chIt) {
+        if (!entry.is_object()) {
+            continue;
+        }
+        const auto chIt2 = entry.find("channel");
+        const auto prIt = entry.find("preset");
+        if (chIt2 == entry.end() || !chIt2->is_number_integer()) {
+            continue;
+        }
+        if (prIt == entry.end() || !prIt->is_string()) {
+            continue;
+        }
+        const int ch = chIt2->get<int>();
+        const std::string name = prIt->get<std::string>();
+        ChannelPreset preset = ChannelPreset::kPodium;
+        if (name == "lavalier") {
+            preset = ChannelPreset::kLavalier;
+        } else if (name == "handheld") {
+            preset = ChannelPreset::kHandheld;
+        }
+        // applyPreset valida el rango de canal (fuera de rango es no-op) y, en
+        // init() (initialized_ aún false), no persiste ni bump. Suavizado 0:
+        // es una carga en frío, sin click.
+        applyPreset(ch, preset, 0.0);
+    }
 }
 
 // ============================================================================
@@ -299,7 +380,15 @@ bool OperatorEngine::tick() {
     }
 
     // 2) Canal de control: poll() no bloqueante + despacho.
-    if (control_ != nullptr && control_->connected()) {
+    // Solo se hace `poll()` cuando el loopback tiene bytes pendientes: el
+    // loopback nunca "se cierra", así que un `read()` sobre un buffer vacío
+    // devuelve 0 (sin datos por ahora), no un EOF real. Si `poll()` leyera ese
+    // 0 con su buffer de recepción vacío, `ControlEndpoint` lo trataría como
+    // fin de stream y marcaría el endpoint como desconectado (falso positivo
+    // que cortaría el canal de control tras el primer tick). Consultar
+    // hasPending() antes evita la desconexión fantasma y deja que el frame
+    // pendiente (p. ej. un ack propio) se decodifique cuando llega.
+    if (control_ != nullptr && control_->connected() && loopback_.hasPending()) {
         ba::ipc::Message m;
         if (control_->poll(m)) {
             dispatchMessage(m);
@@ -320,6 +409,10 @@ void OperatorEngine::dispatchMessage(const ba::ipc::Message& m) {
     ack.type = ba::ipc::Type::Response;
     ack.payload = nlohmann::json{{"ackFor", m.type}}.dump();
     control_->sendRequest(ack);
+    // El ack queda en el buffer del loopback. Lo despacha el próximo tick()
+    // (su hasPending() será true y poll() lo decodificará): así el round-trip
+    // sendRequest -> poll queda ejercitado sin que el loopback vacío marque un
+    // EOF falso (ver tick()).
 }
 
 // ============================================================================

@@ -222,26 +222,28 @@ float Automixer::gainFor(int ch) const {
         sum += env_[static_cast<std::size_t>(i)].load();
     }
 
-    // Piso del denominador: todo en silencio -> ganancias 0 (nunca NaN).
-    if (sum < kDenomFloor) {
-        return 0.0f;
+    // Normalizacion Dugan: energia del canal / energia total. Con piso en el
+    // denominador: todo en silencio (sum < kDenomFloor) -> gain 0 (nunca NaN).
+    float gain = 0.0f;
+    if (sum >= kDenomFloor) {
+        const float envCh = env_[idx].load();
+        gain = envCh / sum;
+        if (gain < 0.0f) {
+            gain = 0.0f;
+        }
+        if (gain > 1.0f) {
+            gain = 1.0f;
+        }
+        // Atenuacion por cantidad de micros abiertos (suavizada).
+        gain *= attenuation_;
     }
-
-    // Normalizacion Dugan: energia del canal / energia total.
-    const float envCh = env_[idx].load();
-    float gain = envCh / sum;
-    if (gain < 0.0f) {
-        gain = 0.0f;
-    }
-    if (gain > 1.0f) {
-        gain = 1.0f;
-    }
-
-    // Atenuacion por cantidad de micros abiertos (suavizada).
-    gain *= attenuation_;
 
     // Piso de ganancia minima del "ultimo micro abierto": si el canal esta en
-    // hold (recientemente abierto), no baje de holdFloor.
+    // hold (recientemente abierto), no baje de holdFloor. Se aplica AUN cuando
+    // el denominador esta en silencio (sum < kDenomFloor): el hold existe para
+    // que el micro que acaba de hablar no se corte de golpe a 0 al terminar una
+    // frase (su energia cae bajo el piso del denominador justo en ese momento).
+    // Sin esto, la normalizacion Dugan lo mandaba a 0 y el hold quedaba inutil.
     const long long tick = tick_.load();
     const long long holdUntil = holdUntil_[idx].load();
     if (holdUntil > tick) {

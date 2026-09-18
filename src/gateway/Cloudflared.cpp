@@ -139,11 +139,15 @@ bool CloudflaredSupervisor::spawn() {
     }
 
     // Linea de comandos (spec §8.8). El token NO va aca: va por env.
-    // Flags validos en cloudflared 2024.11.0 (verificado en el binario
-    // vendored extern/cloudflared/cloudflared.exe: --no-autoupdate,
-    // --metrics <host:port>, --log-level, y `tunnel run` con TUNNEL_TOKEN).
+    // Flags validos en cloudflared 2024.11.0 (verificado contra el binario
+    // vendored extern/cloudflared/cloudflared.exe: `tunnel run --help`).
+    // IMPORTANTE: el flag de logging es `--loglevel` (sin guion interno);
+    // `--log-level` es rechazado ("flag provided but not defined"), lo que
+    // haria que el tunel falle en cada spawn y el supervisor quedara en un
+    // loop de reinicio perpetuo. `tunnel run` sin nombre de tunel es correcto
+    // para tunel por token (TUNNEL_TOKEN por env).
     const std::string cmd = "tunnel --no-autoupdate --metrics 127.0.0.1:" + std::to_string(metricsPort_) +
-                            " --log-level info run";
+                            " --loglevel info run";
     std::wstring cmdLine = L"\"" + std::wstring(cloudflaredPath_.begin(), cloudflaredPath_.end()) + L"\" " +
                            std::wstring(cmd.begin(), cmd.end());
 

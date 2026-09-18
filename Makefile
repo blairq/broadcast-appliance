@@ -27,7 +27,8 @@ JOBS      ?= $(nproc)
 PY        ?= .venv/bin/python
 PIP       ?= .venv/bin/pip
 
-.PHONY: help dev build prod test test-unit lint docs release win clean clean-all \
+.PHONY: help dev build prod test test-unit pytest test-all lint docs release win \
+        clean clean-all \
         deps deps-obs deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist \
         deps-lsp deps-status deps-clean \
         deps-src deps-mbedtls deps-nlohmann deps-samplerate deps-argon2 deps-vst3
@@ -106,6 +107,23 @@ test:
 
 test-unit:
 	ctest --test-dir $(BUILD_DIR) --output-on-failure
+
+# --- Tests Python (pytest) --------------------------------------------------
+# Suite Python en tests/ (22 tests), corriendo con el pytest del venv local
+# (.venv). Usa `$(PY) -m pytest` (mismo patrón que `docs` con `$(PY) -m
+# sphinx`) para no depender del entrypoint binario. No requiere build C++:
+# los tests Python son independientes de $(BUILD_DIR).
+pytest:
+	$(PY) -m pytest tests/ -v
+
+# --- Suite completa (C++ + Python) ------------------------------------------
+# "Todo de una vez": build de desarrollo + tests C++ (ctest) + tests Python
+# (pytest). Cada paso se invoca vía $(MAKE) para que la cadena sea estrictamente
+# secuencial aunque se corra con -j (dev antes que test, test antes que pytest).
+test-all:
+	$(MAKE) dev
+	$(MAKE) test
+	$(MAKE) pytest
 
 # --- Lint (formato) ---------------------------------------------------------
 # Usa el clang-format de la distribucion (una herramienta de build, no un
