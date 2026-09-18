@@ -169,9 +169,15 @@ class DuplexStream {
 
     /// Lee hasta `cap` bytes desde el stream, de forma no bloqueante.
     ///
+    /// "Sin datos por ahora" y "el otro lado cerro" son cosas distintas y el
+    /// contrato las separa: con un transporte real (socket, pipe) un frame
+    /// puede llegar partido en dos lecturas, y tratar el 0 como EOF cortaba
+    /// el canal en medio del frame.
+    ///
     /// :param buf: buffer de destino.
     /// :param cap: capacidad de `buf` en bytes.
-    /// :returns: bytes leidos (>0), 0 en EOF (fin del stream), o <0 en error.
+    /// :returns: bytes leidos (>0), 0 si no hay datos disponibles ahora, o <0
+    ///           si el stream se cerro (EOF) o fallo.
     virtual int read(std::uint8_t* buf, std::size_t cap) = 0;
 };
 
@@ -212,8 +218,9 @@ class ControlEndpoint {
     /// No bloqueante: decodifica UN frame pendiente si hay bytes suficientes.
     ///
     /// Mantiene un buffer de recepcion interno para acumular frames parciales
-    /// entre llamadas. Si `read()` llega a EOF/error, marca la desconexion y
-    /// dispara el callback `onDisconnect` (una unica vez).
+    /// entre llamadas. Si `read()` informa cierre/error (<0), marca la
+    /// desconexion y dispara el callback `onDisconnect` (una unica vez). Un
+    /// frame incompleto NO desconecta: se espera al resto.
     ///
     /// :param out: recibe el mensaje decodificado en exito.
     /// :returns: true si se decodifico un mensaje completo; false si no hay

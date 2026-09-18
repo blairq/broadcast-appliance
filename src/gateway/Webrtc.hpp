@@ -61,13 +61,18 @@ struct SessionCallbacks {
     /// B genero el answer tras recibir el offer del invitado. `answerSdp` es la
     /// seccion sdp del answer (sin el tipo, que el servidor envia aparte).
     std::function<void(const std::string& answerSdp)> onLocalAnswer;
-    /// B genero un candidato ICE local a enviar al invitado (JSON del candidato).
-    std::function<void(const std::string& iceCandidate)> onLocalIce;
-    /// Llego audio del invitado (track remoto). `samples` es float32 intercalado
-    /// a `rate` Hz; `n` es la cantidad de floats.
+    /// B genero un candidato ICE local a enviar al invitado: objeto JSON
+    /// {candidate, sdpMid, sdpMLineIndex} serializado (lo que espera
+    /// RTCPeerConnection.addIceCandidate del navegador).
+    std::function<void(const std::string& iceCandidateJson)> onLocalIce;
+    /// Llego audio del invitado (track remoto). `samples` es float32 ESTEREO
+    /// intercalado a `rate` Hz (el mono del navegador se duplica); `n` es la
+    /// cantidad de floats.
     std::function<void(const float* samples, size_t n, int rate)> onRemoteAudio;
-    /// Llego video del invitado (track remoto). `pixels` es BGRA; `w`x`h`.
+    /// Llego video de la CAMARA del invitado (primer track de video). BGRA.
     std::function<void(const uint8_t* pixels, size_t bytes, int w, int h)> onRemoteVideo;
+    /// Llego video de su PANTALLA/VENTANA compartida (segundo track de video).
+    std::function<void(const uint8_t* pixels, size_t bytes, int w, int h)> onRemoteScreen;
     /// Cambio de estado de la sesion (true = conectada, false = cerrada).
     std::function<void(bool connected)> onStateChange;
 };
@@ -115,7 +120,8 @@ class WebrtcSession {
 
     /// Agrega un candidato ICE remoto del invitado.
     ///
-    /// :param candidate: JSON del candidato (campo "candidate").
+    /// :param candidate: JSON {candidate, sdpMid, sdpMLineIndex} (o la linea
+    ///                   "candidate:..." sola, que se asocia a la m-line 0).
     /// :returns: true si se agrego.
     bool addRemoteIce(const std::string& candidate);
 
@@ -150,14 +156,15 @@ class WebrtcSession {
     Impl* impl_;
 };
 
-/// Hub de sesiones: 1..N invitados en estrella (spec §8.2).
-///
-/// Posee las sesiones (indice 1..guests; 0 reservado) y, en el backend real,
-/// la webrtc::PeerConnectionFactory compartida. El servidor de senalizacion
-/// obtiene una sesion por slot y la configura con los callbacks de la conexion.
+/// Hub de sesiones en estrella (spec §8.2): un POOL de sesiones (1..N; 0
+/// reservado). El servidor asigna una sesion a cada participante que publica
+/// medios, este en el lobby o adentro; A DONDE van sus medios (slot del
+/// programa o preview del lobby) lo decide la tabla de rutas del MediaPump,
+/// no el numero de sesion. En el backend real posee ademas la
+/// webrtc::PeerConnectionFactory compartida.
 class WebrtcHub {
    public:
-    /// :param guests: cantidad de invitados (1..4).
+    /// :param guests: tamaño del pool de sesiones (invitados + lobby).
     /// :param videoW/videoH: resolucion del retorno de video al invitado.
     /// :param audioRate: sample rate del retorno de audio.
     /// :param audioChannels: canales del retorno de audio.
@@ -167,10 +174,12 @@ class WebrtcHub {
     WebrtcHub(const WebrtcHub&) = delete;
     WebrtcHub& operator=(const WebrtcHub&) = delete;
 
-    /// Devuelve la sesion del slot (1..guests). Fuera de rango: nullptr.
-    WebrtcSession* session(int slot);
+    /// Devuelve la sesion `idx` (1..sessions()). Fuera de rango: nullptr.
+    WebrtcSession* session(int idx);
 
-    /// Cantidad de invitados.
+    /// Tamaño del pool de sesiones.
+    int sessions() const { return guests_; }
+    /// Compatibilidad: igual a sessions().
     int guests() const { return guests_; }
 
     /// Cierra todas las sesiones (shutdown ordenado).
@@ -178,6 +187,11 @@ class WebrtcHub {
 
     /// webrtc::PeerConnectionFactory* (backend real) o nullptr (NULL).
     void* rtcFactory() const { return rtcFactory_; }
+
+    /// Red de las sesiones NUEVAS: rango UDP fijo (firewall / redireccion del
+    /// tunel) y si se atiende tambien en 127.0.0.1 (lo usa el puente del tunel
+    /// WireGuard, que entrega los medios del invitado en loopback).
+    void setNetwork(uint16_t minPort, uint16_t maxPort, bool allowLoopback);
 
    private:
     int guests_;

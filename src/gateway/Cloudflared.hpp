@@ -9,8 +9,8 @@
 //     - RECUPERACION: si cloudflared cae, B lo reinicia con backoff. Las
 //       llamadas ya establecidas SIGUEN (el medio no pasa por el tunel); solo
 //       fallan las conexiones nuevas hasta que vuelva (spec §3.4).
-//     - AISLAMIENTO: Job Object con KILL_ON_JOB_CLOSE: si B muere, el tunel
-//       muere con el (spec §8.8).
+//     - AISLAMIENTO: killWithParent (Job Object en Windows, PDEATHSIG en
+//       Linux): si B muere, el tunel muere con el (spec §8.8).
 //     - TOKEN: por la variable de entorno TUNNEL_TOKEN del hijo, NO por linea
 //       de comandos (ahi seria visible en el listado de procesos, spec §8.8).
 //     - SALIDA: stdout/stderr redirigidos a Logs/cloudflared.log, con
@@ -24,17 +24,20 @@
 //   - start()/stop() se llaman desde el thread de control de B.
 //
 // Estrategia de errores:
-//   No lanza. Si cloudflared.exe no existe o CreateProcessW falla, se loguea y
-//   se reintenta con backoff (el gateway sigue corriendo: sin tunel solo no hay
-//   conexiones nuevas, pero el medio local sigue). En no-Windows es un no-op
-//   (build offline) para que el arbol compile.
+//   No lanza. Sin token o sin binario no se lanza (se avisa). Si el proceso no
+//   arranca o cae, se loguea y se reintenta con backoff (el gateway sigue
+//   corriendo: sin tunel solo no hay conexiones nuevas, el medio local sigue).
+//   Igual en Windows, Linux y macOS (ba::platform::Process).
 // ============================================================================
 #pragma once
 
 #include <atomic>
 #include <cstdint>
+#include <mutex>
 #include <string>
 #include <thread>
+
+#include "platform/Process.hpp"
 
 namespace ba::gateway {
 
@@ -74,7 +77,7 @@ class CloudflaredSupervisor {
     void runLoop();
     bool spawn();
     void kill();
-    bool processAlive() const;
+    bool processAlive();
     bool probeMetrics() const;
     void sleepBackoff();
 
@@ -90,11 +93,11 @@ class CloudflaredSupervisor {
     int backoffMs_ = 1000;
 
     std::thread thread_;
+    bool started_ = false;
+    bool loggedUp_ = false; // solo lo toca runLoop
 
-#ifdef _WIN32
-    void* job_ = nullptr;  // HANDLE del Job Object (KILL_ON_JOB_CLOSE)
-    void* proc_ = nullptr; // HANDLE del proceso hijo
-#endif
+    std::mutex procLock_;
+    ba::platform::Process proc_; // killWithParent: muere si B muere
 };
 
 } // namespace ba::gateway

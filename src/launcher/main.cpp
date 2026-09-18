@@ -1,97 +1,134 @@
 // main.cpp
 //
-// Punto de entrada del launcher (Proceso 0, spec 3.1). Win32 puro, subsistema
-// GUI (sin consola), CRT estatica (/MT). Deriva todas las rutas de
-// GetModuleFileNameW porque la letra de unidad cambia entre equipos (spec 5.3).
+// Punto de entrada del launcher (Proceso 0, spec 3.1), igual en todas las
+// plataformas. Deriva las rutas de la ubicacion del ejecutable
+// (ba::platform::bundleRoot), porque la unidad o el punto de montaje cambian
+// entre equipos (spec 5.3).
 //
-// Modelo de threading:
-//   El thread principal inicializa el log, construye el Supervisor y llama a
-//   run(), que ejecuta el ciclo de vida completo (ver Supervisor.hpp).
+// Diferencias de plataforma que quedan aca (solo el ENTRY POINT):
+//   - Windows: subsistema GUI (wWinMain), sin consola.
+//   - Linux/macOS: main() de consola; SIGINT/SIGTERM/SIGHUP piden el cierre
+//     ordenado (Ctrl+C en la terminal, systemd, fin de sesion).
 //
-// Estrategia de errores:
-//   Si no se puede determinar la raiz o el supervisor falla, se loguea y se
-//   devuelve un codigo de salida distinto de 0. En no-Windows es un stub que
-//   loguea "solo Windows" y devuelve 0 (el target se valida aca por compilacion).
+// Opciones (para desarrollo y operacion):
+//   --shadow         ejecutar A y B desde una copia sombra en la cache del
+//                    usuario (spec 3.1.5). Desactivado por defecto: se corre
+//                    desde el bundle, donde esta.
+//   --no-recovery-ui reiniciar solo, sin dialogo de recuperacion
+//   --app-arg=<x>    argumento extra para A (repetible)
+//   --gw-arg=<x>     argumento extra para B (repetible)
 
 #include "Log.hpp"
+#include "platform/Paths.hpp"
 #include "Supervisor.hpp"
 
+#include <nlohmann/json.hpp>
+
+#include <csignal>
+#include <fstream>
 #include <string>
+#include <vector>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+// shellapi.h necesita windows.h antes (bloque aparte: clang-format no lo reordena).
+#include <shellapi.h>
+#endif
 
 namespace {
-std::wstring moduleDir() {
-    wchar_t buf[MAX_PATH]{};
-    const DWORD n = GetModuleFileNameW(nullptr, buf, MAX_PATH);
-    if (n == 0 || n >= MAX_PATH) {
-        return L".";
-    }
-    std::wstring p(buf, n);
-    const size_t slash = p.find_last_of(L"\\/");
-    return (slash == std::wstring::npos) ? L"." : p.substr(0, slash);
-}
 
-// Convierte una ruta UTF-16 a UTF-8 para Log::init (que toma std::string).
-std::string toUtf8(const std::wstring& p) {
-    if (p.empty()) {
-        return std::string();
-    }
-    const int n =
-        WideCharToMultiByte(CP_UTF8, 0, p.c_str(), static_cast<int>(p.size()), nullptr, 0, nullptr, nullptr);
-    std::string out;
-    if (n > 0) {
-        out.resize(static_cast<std::size_t>(n));
-        WideCharToMultiByte(CP_UTF8, 0, p.c_str(), static_cast<int>(p.size()), out.data(), n, nullptr,
-                            nullptr);
-    }
-    return out;
-}
-} // namespace
+#ifdef _WIN32
+constexpr const char* kExeSuffix = ".exe";
+#else
+constexpr const char* kExeSuffix = "";
+#endif
 
-/// Punto de entrada GUI del launcher.
-///
-/// :param hInstance: handle de instancia.
-/// :param hPrevInstance: reservado.
-/// :param lpCmdLine: argumentos.
-/// :param nCmdShow: estado de visualizacion.
-/// :returns: codigo de salida del proceso.
-int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow) {
-    (void)hInstance;
-    (void)hPrevInstance;
-    (void)lpCmdLine;
-    (void)nCmdShow;
-
-    const std::wstring root = moduleDir();
-    ba::launcher::Log::init(toUtf8(root + L"\\Logs\\launcher.log"));
+int runLauncher(const std::vector<std::string>& args) {
+    const std::filesystem::path root = ba::platform::bundleRoot();
+    const std::filesystem::path bin = root / "bin" / "64bit";
+    ba::launcher::Log::init((root / "Logs" / "launcher.log").string());
 
     ba::launcher::Supervisor::Config cfg;
     cfg.root = root;
-    cfg.appExe = root + L"\\bin\\64bit\\ba-app.exe";
-    cfg.gatewayExe = root + L"\\bin\\64bit\\ba-gateway.exe";
-    cfg.logsDir = root + L"\\Logs";
+    cfg.appExe = bin / (std::string("ba-app") + kExeSuffix);
+    cfg.gatewayExe = bin / (std::string("ba-gateway") + kExeSuffix);
+    cfg.logsDir = root / "Logs";
+
+    // Config/launcher.json (lo escribe la interfaz de A): copia sombra,
+    // dialogo de recuperacion y argumentos extra de A y B. La linea de
+    // comandos, mas abajo, lo pisa.
+    {
+        std::ifstream in(root / "Config" / "launcher.json");
+        const nlohmann::json j = nlohmann::json::parse(in, nullptr, false, true);
+        if (in && j.is_object()) {
+            cfg.shadowCopy = j.value("shadowCopy", cfg.shadowCopy);
+            cfg.recoveryUi = j.value("recoveryUi", cfg.recoveryUi);
+            for (const auto& a : j.value("appArgs", nlohmann::json::array())) {
+                if (a.is_string()) cfg.appArgs.push_back(a.get<std::string>());
+            }
+            for (const auto& a : j.value("gatewayArgs", nlohmann::json::array())) {
+                if (a.is_string()) cfg.gatewayArgs.push_back(a.get<std::string>());
+            }
+        }
+    }
+    for (const auto& a : args) {
+        if (a == "--shadow") {
+            cfg.shadowCopy = true;
+        } else if (a == "--no-shadow") {
+            cfg.shadowCopy = false; // ya es el default; se acepta por compatibilidad
+        } else if (a == "--no-recovery-ui") {
+            cfg.recoveryUi = false;
+        } else if (a.rfind("--app-arg=", 0) == 0) {
+            cfg.appArgs.push_back(a.substr(10));
+        } else if (a.rfind("--gw-arg=", 0) == 0) {
+            cfg.gatewayArgs.push_back(a.substr(9));
+        }
+    }
+    BA_LOG_INFO("launcher", 0, "raiz del bundle: " + root.string());
 
     ba::launcher::Supervisor sup(std::move(cfg));
-    return sup.run();
+    const int rc = sup.run();
+    ba::launcher::Log::close();
+    return rc;
 }
 
-#if defined(_WIN32) && !defined(_MSC_VER)
-// MinGW GUI CRT espera `WinMain` (narrow) como entry point. El launcher
-// implementa `wWinMain` (wide); este trampoline lo puentea.
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
-    (void)lpCmdLine;
+} // namespace
+
+#ifdef _WIN32
+
+int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
+    int argc = 0;
+    LPWSTR* argvW = CommandLineToArgvW(GetCommandLineW(), &argc);
+    std::vector<std::string> args;
+    for (int i = 1; argvW != nullptr && i < argc; ++i) {
+        const int n = WideCharToMultiByte(CP_UTF8, 0, argvW[i], -1, nullptr, 0, nullptr, nullptr);
+        std::string s(static_cast<std::size_t>(n > 0 ? n - 1 : 0), '\0');
+        WideCharToMultiByte(CP_UTF8, 0, argvW[i], -1, s.data(), n, nullptr, nullptr);
+        args.push_back(s);
+    }
+    LocalFree(argvW);
+    return runLauncher(args);
+}
+
+#if !defined(_MSC_VER)
+// MinGW GUI CRT espera `WinMain` (narrow); se puentea a `wWinMain`.
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR, int nCmdShow) {
     return wWinMain(hInstance, hPrevInstance, nullptr, nCmdShow);
 }
 #endif
+
 #else
-// Stub no-Windows: el launcher es Win32 puro; aca solo se valida la compilacion.
+
+extern "C" void onStopSignal(int) { ba::launcher::Supervisor::requestStop(); }
+
 int main(int argc, char** argv) {
-    (void)argc;
-    (void)argv;
-    ba::launcher::Log::init("./Logs/launcher.log");
-    BA_LOG_INFO("launcher", 0, "launcher es solo para Windows; nada que hacer en esta plataforma");
-    return 0;
+    std::signal(SIGINT, onStopSignal);
+    std::signal(SIGTERM, onStopSignal);
+    std::signal(SIGHUP, onStopSignal);
+    std::signal(SIGPIPE, SIG_IGN);
+    std::vector<std::string> args(argv + 1, argv + argc);
+    return runLauncher(args);
 }
+
 #endif

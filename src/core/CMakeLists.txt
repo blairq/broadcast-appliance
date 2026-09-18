@@ -25,6 +25,24 @@ file(GLOB_RECURSE BA_CORE_SOURCES CONFIGURE_DEPENDS
 # Excluir los unit tests del propio lib: son ejecutables, no parte de la lib.
 list(FILTER BA_CORE_SOURCES EXCLUDE REGEX ".*/tests/.*")
 
+# --- Capa de plataforma (`platform/`) ----------------------------------------
+# Cada interfaz de `ba::platform` tiene una implementacion por sistema, elegida
+# por SUFIJO de archivo y no por #ifdef en la logica:
+#   *_win.cpp   -> Windows
+#   *_posix.cpp -> Linux y macOS (lo comun a POSIX)
+#   *_linux.cpp -> solo Linux
+#   *_mac.cpp / *_mac.mm -> solo macOS
+# Los archivos sin sufijo (p. ej. Paths.cpp) son comunes a todas.
+file(GLOB BA_CORE_PLATFORM_MM CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/platform/*_mac.mm")
+if(WIN32)
+    list(FILTER BA_CORE_SOURCES EXCLUDE REGEX ".*/platform/.*_(posix|linux|mac)\\.cpp$")
+elseif(APPLE)
+    list(FILTER BA_CORE_SOURCES EXCLUDE REGEX ".*/platform/.*_(win|linux)\\.cpp$")
+    list(APPEND BA_CORE_SOURCES ${BA_CORE_PLATFORM_MM})
+else()
+    list(FILTER BA_CORE_SOURCES EXCLUDE REGEX ".*/platform/.*_(win|mac)\\.cpp$")
+endif()
+
 # Saneamiento: si no hay sources todavía (otros agentes aún no los escribieron)
 # creamos un placeholder mínimo para que el target configure y compile.
 if(NOT BA_CORE_SOURCES)
@@ -64,6 +82,16 @@ target_link_libraries(ba_core PRIVATE mbedcrypto mbedx509 mbedtls)
 target_link_libraries(ba_core PUBLIC nlohmann_json::nlohmann_json)
 target_link_libraries(ba_core PRIVATE samplerate)
 target_link_libraries(ba_core PRIVATE argon2)
+
+# Bibliotecas del sistema que usa `ba::platform`.
+#   Windows: advapi32 (tokens, SIDs y descriptores de seguridad de los pipes).
+#   Linux: pthread (hilos de std::thread, explicito por glibc < 2.34).
+if(WIN32)
+    target_link_libraries(ba_core PUBLIC advapi32)
+else()
+    find_package(Threads REQUIRED)
+    target_link_libraries(ba_core PUBLIC Threads::Threads)
+endif()
 
 # --- Unit tests de ba_core (CTest) ------------------------------------------
 # Cada test_*.cpp en src/core/tests/ se convierte en un ejecutable que enlaza

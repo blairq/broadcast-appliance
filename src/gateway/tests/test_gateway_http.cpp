@@ -1,41 +1,41 @@
 // test_gateway_http.cpp
 //
-// Humo de la superficie HTTP + WebSocket + tokens del gateway, SIN libwebrtc.
-//
-// Por que existe: el unico test del gateway que habia (test_gateway_integration)
-// solo compila con el SDK de libwebrtc presente; sin el imprime SKIP y no
-// ejerce nada. Bajo esa cobertura ausente vivio un fallo que dejaba el proceso
-// entero inalcanzable: `getHeader()` no pasaba las cabeceras a minusculas, asi
-// que TODA cabecera HTTP devolvia "" y, en consecuencia, `/ws` nunca hacia
-// upgrade (caia al handler HTTP y respondia 404) y `POST /api/join` leia un
-// cuerpo vacio (Content-Length no se encontraba) y devolvia 400.
-//
-// Nada de eso necesita libwebrtc: el backend NULL de WebrtcHub alcanza para
-// ejercer el servidor de verdad. Este test corre SIEMPRE, tambien en CI.
+// La superficie de red del gateway de punta a punta, SIN libwebrtc (el backend
+// NULL de WebrtcHub alcanza para ejercer el servidor de verdad). Corre siempre.
 //
 // Casos:
-//   1. GET /healthz -> 200.
-//   2. GET / -> sirve el index del webroot (estatico).
-//   3. POST /api/join con el PIN correcto -> 200 + token; con PIN incorrecto
-//      -> 401.
-//   4. Upgrade a WebSocket con el token -> 101 y un Sec-WebSocket-Accept que
-//      coincide con el SHA-1/base64 del RFC 6455 (prueba que el valor de la
-//      cabecera NO se altero al leerlo: es sensible a mayusculas).
-//   5. El mismo token una segunda vez -> 401 (anti-replay: el nonce ya se
-//      canjeo).
-//   6. Cabeceras en capitalizacion arbitraria (uPgRaDe:) -> siguen
-//      reconociendose: la busqueda es case-insensitive, el valor no.
+//   1. /healthz, estatico del invitado, path traversal codificado.
+//   2. /api/join con PIN correcto/incorrecto.
+//   3. Upgrade WS: cabeceras en cualquier capitalizacion, Sec-WebSocket-Accept
+//      del RFC 6455 (el valor de la cabecera no se altera) y anti-replay.
+//   4. API de control: Bearer, cookie (solo lectura sin X-BA-Admin: CSRF) y
+//      que NO exista en la superficie de invitados.
+//   5. Lobby: el invitado espera, el operador lo ve por SSE, un offer desde el
+//      lobby se ignora, admitir por la API le da su slot.
+//   6. Offer fragmentado (FIN=0 + continuaciones) -> answer.
+//   7. Chat invitado -> operador (SSE) y operador -> invitado.
+//   8. Subida de archivos: tipo por contenido, descarga identica, ejecutable
+//      disfrazado -> 415, sin clave -> 401, tope -> 413, borrado.
+//   9. Sala llena -> 409, expulsion (aviso + corte), el slot se reusa.
+//  10. Reconexion: el corte conserva el slot; resume con clave mala -> 401,
+//      con la buena vuelve a su slot.
+//  11. Sala cerrada -> 423; lobby apagado -> admision directa.
+//  12. Cambio de PIN y login de la consola web con codigo de un solo uso.
 
 #include "Log.hpp"
+#include "Room.hpp"
+#include "ShareStore.hpp"
 #include "SignalingServer.hpp"
 #include "TokenAuth.hpp"
 #include "Webrtc.hpp"
 
 #include <array>
 #include <chrono>
+#include <csignal>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <string>
 #include <thread>
 
@@ -55,6 +55,9 @@ static constexpr TestFd kFdInvalid = -1;
 #endif
 
 using ba::gateway::Log;
+using ba::gateway::Room;
+using ba::gateway::ShareStore;
+using json = nlohmann::json;
 using ba::gateway::SignalingServer;
 using ba::gateway::TokenAuth;
 using ba::gateway::WebrtcHub;
@@ -176,14 +179,6 @@ std::string extractToken(const std::string& body) {
     return body.substr(start, end - start);
 }
 
-/// Extrae el valor de "slot":N de una respuesta JSON. 0 si no esta.
-int extractSlot(const std::string& body) {
-    const std::string key = "\"slot\":";
-    const size_t p = body.find(key);
-    if (p == std::string::npos) return 0;
-    return std::atoi(body.c_str() + p + key.size());
-}
-
 std::string httpPost(uint16_t port, const std::string& path, const std::string& body) {
     return roundTrip(port, "POST " + path +
                                " HTTP/1.1\r\n"
@@ -229,11 +224,79 @@ std::string encodeBaFrame(const std::string& jsonStr) {
     return out;
 }
 
-/// Abre una conexion, completa el handshake WS y devuelve el descriptor.
-TestFd openWs(uint16_t port, const std::string& token, const std::string& room, int slot) {
+/// Peticion HTTP completa con cabeceras extra (cada una terminada en \r\n).
+std::string httpReq(uint16_t port, const std::string& method, const std::string& path,
+                    const std::string& extra, const std::string& body = {}) {
+    std::string req = method + " " + path + " HTTP/1.1\r\nHost: 127.0.0.1\r\n" + extra;
+    if (!body.empty() || method == "POST") req += "Content-Length: " + std::to_string(body.size()) + "\r\n";
+    req += "\r\n" + body;
+    return roundTrip(port, req);
+}
+
+/// Cuerpo de una respuesta HTTP (despues de la cabecera).
+std::string bodyOf(const std::string& resp) {
+    const size_t p = resp.find("\r\n\r\n");
+    return p == std::string::npos ? std::string() : resp.substr(p + 4);
+}
+
+json jsonBody(const std::string& resp) { return json::parse(bodyOf(resp), nullptr, false); }
+
+/// Lee UN mensaje del servidor por el WebSocket (frame sin mascara con el
+/// encoding Frame adentro). null si no llega nada en el timeout del socket.
+json readWsMsg(TestFd fd) {
+    uint8_t h[2];
+    auto readN = [&](uint8_t* out, size_t n) {
+        size_t got = 0;
+        while (got < n) {
+            const int r = recv(fd, reinterpret_cast<char*>(out + got), static_cast<int>(n - got), 0);
+            if (r <= 0) return false;
+            got += static_cast<size_t>(r);
+        }
+        return true;
+    };
+    for (;;) {
+        if (!readN(h, 2)) return nullptr;
+        const int op = h[0] & 0x0F;
+        uint64_t len = h[1] & 0x7F;
+        if (len == 126) {
+            uint8_t e[2];
+            if (!readN(e, 2)) return nullptr;
+            len = (uint64_t(e[0]) << 8) | e[1];
+        } else if (len == 127) {
+            uint8_t e[8];
+            if (!readN(e, 8)) return nullptr;
+            len = 0;
+            for (uint8_t b : e)
+                len = (len << 8) | b;
+        }
+        std::string payload(static_cast<size_t>(len), '\0');
+        if (len > 0 && !readN(reinterpret_cast<uint8_t*>(&payload[0]), payload.size())) return nullptr;
+        if (op == 0x8) return json{{"type", "__close"}};
+        if (op != 0x2 || payload.size() < 4) continue;
+        return json::parse(payload.substr(4), nullptr, false);
+    }
+}
+
+/// Lee mensajes hasta uno de tipo `type` (o null si se agota el tiempo).
+json waitWsType(TestFd fd, const std::string& type) {
+    for (int i = 0; i < 20; ++i) {
+        const json m = readWsMsg(fd);
+        if (m.is_null()) return nullptr;
+        if (m.value("type", "") == type) return m;
+    }
+    return nullptr;
+}
+
+void sendWsJson(TestFd fd, const json& j) {
+    sendAllTest(fd, makeClientFrame(0x2, true, encodeBaFrame(j.dump())));
+}
+
+/// Abre el WebSocket de sala con `query` (token nuevo o resume) y devuelve el
+/// descriptor tras el 101.
+TestFd openWsQuery(uint16_t port, const std::string& query) {
     TestFd fd = connectLoopback(port);
     if (fd == kFdInvalid) return kFdInvalid;
-    const std::string req = "GET /ws?token=" + token + "&room=" + room + "&slot=" + std::to_string(slot) +
+    const std::string req = "GET /ws?" + query +
                             " HTTP/1.1\r\n"
                             "Host: 127.0.0.1\r\n"
                             "Upgrade: websocket\r\n"
@@ -243,136 +306,151 @@ TestFd openWs(uint16_t port, const std::string& token, const std::string& room, 
         closeTestFd(fd);
         return kFdInvalid;
     }
-    // Leer la respuesta del handshake.
     std::string resp;
-    char buf[1024];
-    for (int i = 0; i < 16; ++i) {
-        const int n = recv(fd, buf, sizeof(buf), 0);
-        if (n <= 0) break;
-        resp.append(buf, static_cast<size_t>(n));
-        if (resp.find("\r\n\r\n") != std::string::npos) break;
+    char c;
+    while (resp.find("\r\n\r\n") == std::string::npos) {
+        if (recv(fd, &c, 1, 0) != 1) break;
+        resp.push_back(c);
     }
-    if (resp.find("101") == std::string::npos) {
+    if (resp.find(" 101 ") == std::string::npos) {
         closeTestFd(fd);
         return kFdInvalid;
     }
     return fd;
 }
 
+/// Invitado completo: join + WS + hello. `id`/`key` salen del hello.
+struct Guest {
+    TestFd fd = kFdInvalid;
+    std::string id;
+    std::string key;
+};
+
+Guest joinGuest(uint16_t port, const std::string& name) {
+    Guest g;
+    const std::string tok =
+        extractToken(httpPost(port, "/api/join", "{\"room\":\"sala-test\",\"pin\":\"9182\"}"));
+    if (tok.empty()) return g;
+    g.fd = openWsQuery(port, "token=" + tok + "&room=sala-test&name=" + name);
+    if (g.fd == kFdInvalid) return g;
+    const json hello = waitWsType(g.fd, "hello");
+    if (hello.is_object()) {
+        g.id = hello.value("id", "");
+        g.key = hello.value("key", "");
+    }
+    return g;
+}
+
+/// Conexion SSE a la API de control: devuelve el fd tras la cabecera.
+TestFd openSse(uint16_t port, const std::string& token) {
+    TestFd fd = connectLoopback(port);
+    if (fd == kFdInvalid) return kFdInvalid;
+    sendAllTest(fd, "GET /api/v1/events HTTP/1.1\r\nHost: 127.0.0.1\r\nAuthorization: Bearer " + token +
+                        "\r\n\r\n");
+    return fd;
+}
+
+/// Lee del SSE hasta ver `event: <name>` completo. :returns: su data (JSON).
+json waitSse(TestFd fd, const std::string& name, std::string& buf) {
+    const std::string tag = "event: " + name + "\ndata: ";
+    char tmp[4096];
+    for (int i = 0; i < 50; ++i) {
+        const size_t p = buf.find(tag);
+        if (p != std::string::npos) {
+            const size_t end = buf.find("\n\n", p);
+            if (end != std::string::npos) {
+                const std::string data = buf.substr(p + tag.size(), end - p - tag.size());
+                buf.erase(0, end + 2);
+                return json::parse(data, nullptr, false);
+            }
+        }
+        const int n = recv(fd, tmp, sizeof(tmp), 0);
+        if (n <= 0) return nullptr;
+        buf.append(tmp, static_cast<size_t>(n));
+    }
+    return nullptr;
+}
+
+json findP(const json& snap, const std::string& id) {
+    if (snap.is_object() && snap.contains("participants")) {
+        for (const auto& p : snap["participants"]) {
+            if (p["id"] == id) return p;
+        }
+    }
+    return json::object(); // vacio (no null): .value() devuelve el default
+}
+
 } // namespace
 
 int main() {
     std::printf("== test_gateway_http (sin libwebrtc) ==\n");
+#ifndef _WIN32
+    // El propio test escribe a sockets que el servidor corta (expulsion).
+    std::signal(SIGPIPE, SIG_IGN);
+#endif
     CHECK(socketInitTest(), "init de sockets");
 
     Log log;
     WebrtcHub hub(2, 640, 360, 48000, 2);
     TokenAuth auth("secreto-de-prueba", "9182");
+    Room::Cfg rcfg;
+    rcfg.name = "sala-test";
+    rcfg.maxGuests = 2;
+    rcfg.graceMs = 60000;
+    rcfg.lobbySlots = 1; // un solo lugar de preview: se prueba la cola
+    Room room(rcfg);
+    const auto sharesDir = std::filesystem::temp_directory_path() / "ba-test-http-shares";
+    std::filesystem::remove_all(sharesDir);
+    ShareStore shares(sharesDir, 1u << 20);
 
     SignalingServer::Cfg scfg;
     scfg.room = "sala-test";
     scfg.maxGuests = 2;
-    // El webroot apunta a la app real del invitado, que se instala junto al
-    // binario de test desde assets/web/guest.
+    scfg.port = 0;      // efimero: nada de pelear por un puerto fijo en CI
+    scfg.adminPort = 0; // idem
     scfg.webroot = BA_TEST_WEBROOT;
+    scfg.adminWebroot = BA_TEST_WEBROOT; // alcanza para probar el estatico
+    const std::string kAdmin = "token-de-operador-de-prueba";
+    scfg.adminToken = kAdmin;
 
-    SignalingServer server(scfg, auth, hub, log);
-
-    bool listening = false;
-    for (int port = 18800; port < 18830; ++port) {
-        scfg.port = static_cast<uint16_t>(port);
-        SignalingServer probe(scfg, auth, hub, log);
-        if (probe.start()) {
-            probe.stop();
-            listening = true;
-            break;
-        }
-    }
-    CHECK(listening, "hay un puerto libre en el rango de prueba");
-    if (!listening) return 1;
-
-    SignalingServer srv(scfg, auth, hub, log);
+    SignalingServer srv(scfg, auth, hub, room, shares, log);
     CHECK(srv.start(), "el servidor arranco");
     if (!srv.running()) return 1;
-    const uint16_t port = scfg.port;
+    const uint16_t port = srv.guestPort();
+    const uint16_t aport = srv.adminPort();
+    CHECK(port != 0 && aport != 0 && port != aport, "dos superficies en puertos distintos");
+    const std::string bearer = "Authorization: Bearer " + kAdmin + "\r\n";
+    const uint16_t aportEarly = aport;
 
-    // --- 1) /healthz --------------------------------------------------------
-    {
-        const std::string r = roundTrip(port, "GET /healthz HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n");
-        CHECK(statusLine(r).find("200") != std::string::npos, "/healthz responde 200");
-    }
-
-    // --- 2) estatico --------------------------------------------------------
+    // --- 1) /healthz y estatico ---------------------------------------------
+    CHECK(statusLine(roundTrip(port, "GET /healthz HTTP/1.1\r\nHost: x\r\n\r\n")).find("200") !=
+              std::string::npos,
+          "/healthz responde 200");
     {
         const std::string r = roundTrip(port, "GET / HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n");
         CHECK(statusLine(r).find("200") != std::string::npos, "/ sirve el index del invitado");
         CHECK(r.find("text/html") != std::string::npos, "/ tiene Content-Type text/html");
+        const std::string t = roundTrip(port, "GET /..%2f..%2fetc/passwd HTTP/1.1\r\nHost: x\r\n\r\n");
+        CHECK(statusLine(t).find("200") == std::string::npos, "path traversal codificado se rechaza");
     }
 
-    // --- 3) /api/join -------------------------------------------------------
-    // Este es el caso que el bug de getHeader() rompia: sin leer
-    // Content-Length el cuerpo llegaba vacio y el parseo JSON fallaba con 400.
+    // --- 2) /api/join -------------------------------------------------------
     std::string token;
     {
         const std::string r = httpPost(port, "/api/join", "{\"room\":\"sala-test\",\"pin\":\"9182\"}");
         CHECK(statusLine(r).find("200") != std::string::npos, "join con PIN correcto responde 200");
         token = extractToken(r);
         CHECK(!token.empty(), "join devuelve un token");
-    }
-    {
-        const std::string r = httpPost(port, "/api/join", "{\"room\":\"sala-test\",\"pin\":\"0000\"}");
-        CHECK(statusLine(r).find("401") != std::string::npos, "join con PIN incorrecto responde 401");
+        const std::string bad = httpPost(port, "/api/join", "{\"room\":\"sala-test\",\"pin\":\"0000\"}");
+        CHECK(statusLine(bad).find("401") != std::string::npos, "join con PIN incorrecto responde 401");
     }
 
-    // --- 4) upgrade a WebSocket --------------------------------------------
-    // La clave del RFC 6455 y su accept esperado (el ejemplo canonico del
-    // estandar). Que coincida prueba que el valor de Sec-WebSocket-Key llego
-    // INTACTO: es base64 y bajarlo a minusculas cambiaria el hash.
+    // --- 3) upgrade, accept del RFC 6455 y anti-replay ----------------------
     const std::string kKey = "dGhlIHNhbXBsZSBub25jZQ==";
     const std::string kExpectedAccept = "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=";
     {
         const std::string req = "GET /ws?token=" + token +
-                                "&room=sala-test&slot=1 HTTP/1.1\r\n"
-                                "Host: 127.0.0.1\r\n"
-                                "Upgrade: websocket\r\n"
-                                "Connection: Upgrade\r\n"
-                                "Sec-WebSocket-Key: " +
-                                kKey +
-                                "\r\n"
-                                "Sec-WebSocket-Version: 13\r\n\r\n";
-        const std::string r = roundTrip(port, req);
-        CHECK(statusLine(r).find("101") != std::string::npos, "el upgrade a WebSocket responde 101");
-        CHECK(r.find(kExpectedAccept) != std::string::npos,
-              "Sec-WebSocket-Accept correcto (la cabecera no se altero al leerla)");
-    }
-
-    // --- 5) anti-replay -----------------------------------------------------
-    {
-        // Pequeña espera: el slot se libera cuando el thread de la conexion
-        // anterior termina.
-        std::this_thread::sleep_for(std::chrono::milliseconds(300));
-        const std::string req = "GET /ws?token=" + token +
-                                "&room=sala-test&slot=1 HTTP/1.1\r\n"
-                                "Host: 127.0.0.1\r\n"
-                                "Upgrade: websocket\r\n"
-                                "Connection: Upgrade\r\n"
-                                "Sec-WebSocket-Key: " +
-                                kKey + "\r\n\r\n";
-        const std::string r = roundTrip(port, req);
-        CHECK(statusLine(r).find("401") != std::string::npos,
-              "reusar el mismo token es rechazado (anti-replay)");
-    }
-
-    // --- 6) cabeceras con capitalizacion arbitraria -------------------------
-    // RFC 7230 §3.2: los nombres de cabecera no distinguen mayusculas. Un
-    // cliente que escriba "uPgRaDe" debe funcionar igual.
-    {
-        const std::string t2 =
-            extractToken(httpPost(port, "/api/join", "{\"room\":\"sala-test\",\"pin\":\"9182\"}"));
-        CHECK(!t2.empty(), "segundo token emitido");
-        std::this_thread::sleep_for(std::chrono::milliseconds(300));
-        const std::string req = "GET /ws?token=" + t2 +
-                                "&room=sala-test&slot=2 HTTP/1.1\r\n"
+                                "&room=sala-test&name=Prueba HTTP/1.1\r\n"
                                 "hOsT: 127.0.0.1\r\n"
                                 "uPgRaDe: WebSocket\r\n"
                                 "CONNECTION: Upgrade\r\n"
@@ -380,98 +458,235 @@ int main() {
                                 kKey + "\r\n\r\n";
         const std::string r = roundTrip(port, req);
         CHECK(statusLine(r).find("101") != std::string::npos,
-              "cabeceras en cualquier capitalizacion se reconocen");
+              "upgrade con cabeceras en cualquier capitalizacion");
+        CHECK(r.find(kExpectedAccept) != std::string::npos, "Sec-WebSocket-Accept correcto");
+        const std::string again = roundTrip(port, req);
+        CHECK(statusLine(again).find("401") != std::string::npos,
+              "reusar el token es rechazado (anti-replay)");
+        // "Prueba" quedo en el lobby (desconectado, dentro del plazo de
+        // reenganche): se lo rechaza para que no ocupe la fila de los casos
+        // que siguen.
+        const json snap = jsonBody(httpReq(aportEarly, "GET", "/api/v1/room", bearer));
+        for (const auto& p : snap["participants"])
+            httpReq(aportEarly, "POST", "/api/v1/participants/" + p.value("id", "") + "/reject", bearer);
     }
 
-    // --- 7) mensaje WS FRAGMENTADO -----------------------------------------
-    // Los navegadores parten mensajes grandes (un SDP lo es) en varios frames:
-    // el primero con el opcode real y FIN=0, el resto con opcode 0 y el ultimo
-    // con FIN=1. Antes se ignoraba el bit FIN y cada fragmento se procesaba
-    // como un mensaje entero, asi que el JSON llegaba cortado y la
-    // señalizacion fallaba. Aqui se envia una oferta partida en tres y se
-    // espera la respuesta (answer) del lado servidor.
+    // --- 4) API de control: credenciales ------------------------------------
     {
-        const std::string t3 =
-            extractToken(httpPost(port, "/api/join", "{\"room\":\"sala-test\",\"pin\":\"9182\"}"));
-        CHECK(!t3.empty(), "tercer token emitido");
-        std::this_thread::sleep_for(std::chrono::milliseconds(300));
-        TestFd ws = openWs(port, t3, "sala-test", 1);
-        CHECK(ws != kFdInvalid, "handshake WS para la prueba de fragmentacion");
-        if (ws != kFdInvalid) {
-            // SDP largo para que el mensaje sea de tamaño realista.
-            std::string sdp = "v=0\\r\\no=- 0 0 IN IP4 127.0.0.1\\r\\n";
-            for (int i = 0; i < 40; ++i) {
-                sdp += "a=relleno-de-prueba-para-alargar-el-sdp-" + std::to_string(i) + "\\r\\n";
-            }
-            const std::string msg = "{\"type\":\"offer\",\"sdp\":\"" + sdp + "\"}";
-            const std::string framed = encodeBaFrame(msg);
+        CHECK(statusLine(httpReq(aport, "GET", "/api/v1/room", "")).find("401") != std::string::npos,
+              "sin credenciales -> 401");
+        CHECK(statusLine(httpReq(aport, "GET", "/api/v1/room", "Authorization: Bearer x\r\n")).find("401") !=
+                  std::string::npos,
+              "token incorrecto -> 401");
+        const std::string ok = httpReq(aport, "GET", "/api/v1/room", bearer);
+        CHECK(statusLine(ok).find("200") != std::string::npos, "con Bearer -> 200");
+        CHECK(jsonBody(ok).value("pin", "") == "", "el PIN lo informa main (aca no se seteo)");
+        const std::string cookie = "Cookie: ba_admin=" + kAdmin + "\r\n";
+        CHECK(statusLine(httpReq(aport, "GET", "/api/v1/room", cookie)).find("200") != std::string::npos,
+              "cookie sirve para leer");
+        CHECK(statusLine(httpReq(aport, "POST", "/api/v1/room", cookie, "{\"locked\":false}")).find("401") !=
+                  std::string::npos,
+              "con cookie, escribir sin X-BA-Admin -> 401 (CSRF)");
+        CHECK(statusLine(httpReq(aport, "POST", "/api/v1/room", cookie + "X-BA-Admin: 1\r\n", "{}"))
+                      .find("200") != std::string::npos,
+              "con cookie + X-BA-Admin -> 200");
+        CHECK(statusLine(httpReq(port, "GET", "/api/v1/room", bearer)).find("404") != std::string::npos,
+              "la API de control NO existe en la superficie de invitados");
+    }
 
-            // Partir en tres fragmentos.
-            const size_t third = framed.size() / 3;
-            const std::string f1 = framed.substr(0, third);
-            const std::string f2 = framed.substr(third, third);
-            const std::string f3 = framed.substr(2 * third);
-            bool sent = sendAllTest(ws, makeClientFrame(0x2, false, f1));
-            sent = sent && sendAllTest(ws, makeClientFrame(0x0, false, f2));
-            sent = sent && sendAllTest(ws, makeClientFrame(0x0, true, f3));
-            CHECK(sent, "se enviaron los tres fragmentos");
+    // --- 5) lobby + admision por la API + SSE -------------------------------
+    TestFd sse = openSse(aport, kAdmin);
+    std::string sseBuf;
+    CHECK(waitSse(sse, "room", sseBuf).is_object(), "SSE entrega el estado inicial");
 
-            // El servidor debe reensamblar, parsear el offer y responder con un
-            // answer. Si no reensambla, el JSON no parsea y no llega nada.
-            std::string resp;
-            char rbuf[4096];
-            for (int i = 0; i < 40; ++i) {
-                const int n = recv(ws, rbuf, sizeof(rbuf), 0);
-                if (n <= 0) break;
-                resp.append(rbuf, static_cast<size_t>(n));
-                if (resp.find("answer") != std::string::npos) break;
-            }
-            CHECK(resp.find("answer") != std::string::npos,
-                  "el servidor reensamblo el mensaje fragmentado y respondio el answer");
-            closeTestFd(ws);
+    Guest ana = joinGuest(port, "Ana");
+    CHECK(!ana.id.empty() && !ana.key.empty(), "Ana entra y recibe id + clave");
+    {
+        const json lobby = waitWsType(ana.fd, "lobby");
+        CHECK(lobby.value("position", 0) == 1, "Ana espera primera en el lobby");
+        json snap;
+        for (int i = 0; i < 5 && findP(snap, ana.id).empty(); ++i)
+            snap = waitSse(sse, "room", sseBuf);
+        CHECK(findP(snap, ana.id).value("state", "") == "waiting", "el operador la ve esperando (SSE)");
+
+        // En el lobby YA publica, pero solo hacia el operador (preview privado):
+        // el servidor le avisa "publish" y contesta su offer.
+        CHECK(waitWsType(ana.fd, "publish").is_object(),
+              "en el lobby se le permite publicar (preview del operador)");
+        sendWsJson(ana.fd, json{{"type", "offer"}, {"sdp", "v=0"}});
+        CHECK(waitWsType(ana.fd, "answer").is_object(), "su offer desde el lobby se contesta");
+        {
+            json s2;
+            for (int i = 0; i < 5 && findP(s2, ana.id).value("lobbySlot", 0) == 0; ++i)
+                s2 = jsonBody(httpReq(aport, "GET", "/api/v1/room", bearer));
+            CHECK(findP(s2, ana.id).value("lobbySlot", 0) == 1, "ocupa el lugar de preview 1 del lobby");
         }
+        CHECK(statusLine(httpReq(aport, "POST", "/api/v1/participants/" + ana.id + "/talk", bearer,
+                                 R"({"on":true})"))
+                      .find("200") != std::string::npos,
+              "el operador le habla en privado");
+        CHECK(waitWsType(ana.fd, "talk").value("on", false), "Ana sabe que el operador le esta hablando");
+
+        const std::string r = httpReq(aport, "POST", "/api/v1/participants/" + ana.id + "/admit", bearer);
+        CHECK(statusLine(r).find("200") != std::string::npos, "admitir por la API");
+        CHECK(waitWsType(ana.fd, "admitted").value("slot", 0) == 1, "Ana recibe el slot 1");
+        CHECK(statusLine(httpReq(aport, "POST", "/api/v1/participants/pnadie/admit", bearer)).find("404") !=
+                  std::string::npos,
+              "admitir a un id inexistente -> 404");
     }
 
-    // --- 8) DOS invitados simultaneos ---------------------------------------
-    // El servidor asigna slots distintos y ambos pueden tener su WebSocket
-    // abierto a la vez. Antes el cliente pedia siempre el slot 1, de modo que
-    // el segundo invitado recibia 409 y la mesa de varios invitados -- que es
-    // la propuesta del producto -- no podia existir.
+    // --- 6) offer FRAGMENTADO una vez admitida -> answer ---------------------
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(400));
-
-        // Flujo realista: cada invitado pide token, se prepara y abre su WS.
-        const std::string bodyA = httpPost(port, "/api/join", "{\"room\":\"sala-test\",\"pin\":\"9182\"}");
-        const std::string tA = extractToken(bodyA);
-        const int slotA = extractSlot(bodyA);
-        CHECK(!tA.empty(), "token del primer invitado");
-        CHECK(slotA >= 1, "el servidor asigno un slot al primer invitado");
-        TestFd wsA = openWs(port, tA, "sala-test", slotA);
-        CHECK(wsA != kFdInvalid, "el primer invitado abrio su WebSocket");
-
-        const std::string bodyB = httpPost(port, "/api/join", "{\"room\":\"sala-test\",\"pin\":\"9182\"}");
-        const std::string tB = extractToken(bodyB);
-        const int slotB = extractSlot(bodyB);
-        CHECK(!tB.empty(), "token del segundo invitado");
-        CHECK(slotB >= 1, "el servidor asigno un slot al segundo invitado");
-        CHECK(slotA != slotB, "los slots asignados son distintos");
-        TestFd wsB = openWs(port, tB, "sala-test", slotB);
-        CHECK(wsB != kFdInvalid, "el SEGUNDO invitado esta conectado a la vez que el primero");
-
-        // Con los dos slots tomados (maxGuests = 2) la sala esta llena.
-        const std::string bodyC = httpPost(port, "/api/join", "{\"room\":\"sala-test\",\"pin\":\"9182\"}");
-        CHECK(bodyC.find("full") != std::string::npos, "un tercer invitado recibe sala llena");
-
-        if (wsA != kFdInvalid) closeTestFd(wsA);
-        if (wsB != kFdInvalid) closeTestFd(wsB);
-
-        // Al soltarse las conexiones los slots vuelven al pool.
-        std::this_thread::sleep_for(std::chrono::milliseconds(400));
-        const std::string bodyD = httpPost(port, "/api/join", "{\"room\":\"sala-test\",\"pin\":\"9182\"}");
-        CHECK(extractSlot(bodyD) >= 1, "los slots se liberan al desconectarse");
+        std::string sdp = "v=0\\r\\no=- 0 0 IN IP4 127.0.0.1\\r\\n";
+        for (int i = 0; i < 40; ++i)
+            sdp += "a=relleno-de-prueba-para-alargar-el-sdp-" + std::to_string(i) + "\\r\\n";
+        const std::string framed = encodeBaFrame("{\"type\":\"offer\",\"sdp\":\"" + sdp + "\"}");
+        const size_t third = framed.size() / 3;
+        bool sent = sendAllTest(ana.fd, makeClientFrame(0x2, false, framed.substr(0, third)));
+        sent = sent && sendAllTest(ana.fd, makeClientFrame(0x0, false, framed.substr(third, third)));
+        sent = sent && sendAllTest(ana.fd, makeClientFrame(0x0, true, framed.substr(2 * third)));
+        CHECK(sent, "se enviaron los tres fragmentos");
+        CHECK(waitWsType(ana.fd, "answer").is_object(),
+              "el servidor reensamblo el offer y respondio el answer");
     }
 
+    // --- 7) chat en los dos sentidos ----------------------------------------
+    {
+        sendWsJson(ana.fd, json{{"type", "chat"}, {"text", "hola operador"}});
+        CHECK(waitSse(sse, "chat", sseBuf).value("text", "") == "hola operador",
+              "el operador recibe el chat (SSE)");
+        const std::string r = httpReq(aport, "POST", "/api/v1/chat", bearer, R"({"text":"bienvenida"})");
+        CHECK(statusLine(r).find("200") != std::string::npos, "el operador escribe");
+        // Ana recibe primero el eco de su propio mensaje (va a toda la sala).
+        json m = waitWsType(ana.fd, "chat");
+        CHECK(m.is_object() && m["msg"].value("text", "") == "hola operador", "Ana ve su mensaje en la sala");
+        m = waitWsType(ana.fd, "chat");
+        CHECK(m.is_object() && m["msg"].value("text", "") == "bienvenida", "Ana recibe el mensaje");
+    }
+
+    // --- 8) subida de archivos ----------------------------------------------
+    std::string shareId;
+    {
+        std::string png = std::string("\x89PNG\r\n\x1a\n", 8) + std::string(2000, 'x');
+        const std::string up =
+            httpReq(port, "POST", "/api/v1/files?name=diapo%201.png", "X-BA-Key: " + ana.key + "\r\n", png);
+        CHECK(statusLine(up).find("201") != std::string::npos, "subida aceptada");
+        shareId = jsonBody(up).value("id", "");
+        CHECK(!shareId.empty(), "devuelve el id del archivo");
+        CHECK(waitWsType(ana.fd, "shared").value("id", "") == shareId, "Ana recibe la confirmacion");
+
+        const json snap = jsonBody(httpReq(aport, "GET", "/api/v1/room", bearer));
+        CHECK(snap["shares"].size() == 1 && snap["shares"][0].value("name", "") == "diapo 1.png",
+              "el operador ve el archivo con su nombre");
+        CHECK(snap["shares"][0].value("kind", "") == "image", "tipo detectado por contenido");
+
+        const std::string content = httpReq(aport, "GET", "/api/v1/shares/" + shareId + "/content", bearer);
+        CHECK(bodyOf(content) == png, "el operador descarga exactamente lo subido");
+        CHECK(content.find("Content-Type: image/png") != std::string::npos, "con su tipo");
+
+        const std::string exe = httpReq(port, "POST", "/api/v1/files?name=a.png",
+                                        "X-BA-Key: " + ana.key + "\r\n", "MZ" + std::string(100, '\0'));
+        CHECK(statusLine(exe).find("415") != std::string::npos, "un ejecutable disfrazado se rechaza");
+        const std::string noKey = httpReq(port, "POST", "/api/v1/files?name=a.png", "", png);
+        CHECK(statusLine(noKey).find("401") != std::string::npos, "sin clave de participante -> 401");
+        // Solo la cabecera: el servidor decide por el Content-Length anunciado
+        // y corta sin leer el cuerpo (el cliente web ademas lo valida antes).
+        const std::string big =
+            roundTrip(port, "POST /api/v1/files HTTP/1.1\r\nHost: x\r\nX-BA-Key: " + ana.key +
+                                "\r\nContent-Length: " + std::to_string(2u << 20) + "\r\n\r\n");
+        CHECK(statusLine(big).find("413") != std::string::npos, "mas grande que el tope -> 413");
+
+        const std::string del = httpReq(aport, "DELETE", "/api/v1/shares/" + shareId, bearer);
+        CHECK(statusLine(del).find("200") != std::string::npos, "el operador lo borra");
+        CHECK(std::filesystem::is_empty(sharesDir), "y desaparece del disco");
+    }
+
+    // --- 9) segundo invitado, sala llena, expulsion -------------------------
+    Guest beto = joinGuest(port, "Beto");
+    Guest caro = joinGuest(port, "Caro");
+    CHECK(!beto.id.empty() && !caro.id.empty(), "dos invitados mas en el lobby");
+    // Un solo lugar de preview: Beto lo toma; Caro espera sin publicar.
+    CHECK(waitWsType(beto.fd, "publish").is_object(), "Beto tiene lugar de preview");
+    sendWsJson(caro.fd, json{{"type", "offer"}, {"sdp", "v=0"}});
+    setRecvTimeout(caro.fd, 400);
+    CHECK(waitWsType(caro.fd, "answer").is_null(), "sin lugar de preview, el offer de Caro no se atiende");
+    setRecvTimeout(caro.fd, 3000);
+    CHECK(statusLine(httpReq(aport, "POST", "/api/v1/participants/" + beto.id + "/admit", bearer))
+                  .find("200") != std::string::npos,
+          "admitir a Beto");
+    CHECK(waitWsType(beto.fd, "admitted").value("slot", 0) == 2, "Beto recibe el slot 2");
+    CHECK(waitWsType(caro.fd, "publish").is_object(), "al liberarse el preview, Caro ya puede publicar");
+    CHECK(statusLine(httpReq(aport, "POST", "/api/v1/participants/" + caro.id + "/admit", bearer))
+                  .find("409") != std::string::npos,
+          "con dos adentro la sala esta llena -> 409");
+    CHECK(
+        statusLine(httpReq(aport, "POST", "/api/v1/participants/" + beto.id + "/kick", bearer)).find("200") !=
+            std::string::npos,
+        "expulsar a Beto");
+    CHECK(waitWsType(beto.fd, "kicked").is_object(), "Beto se entera");
+    CHECK(waitWsType(beto.fd, "__nada").is_null(), "y su conexion se corta");
+    closeTestFd(beto.fd);
+    CHECK(statusLine(httpReq(aport, "POST", "/api/v1/participants/" + caro.id + "/admit", bearer))
+                  .find("200") != std::string::npos,
+          "el slot liberado lo toma Caro");
+    CHECK(waitWsType(caro.fd, "admitted").value("slot", 0) == 2, "Caro recibe el slot 2");
+
+    // --- 10) reconexion con la clave ----------------------------------------
+    {
+        closeTestFd(caro.fd); // corte abrupto (recarga de la pagina)
+        std::this_thread::sleep_for(std::chrono::milliseconds(300));
+        const json snap = jsonBody(httpReq(aport, "GET", "/api/v1/room", bearer));
+        CHECK(findP(snap, caro.id).value("connected", true) == false, "Caro figura desconectada");
+        CHECK(findP(snap, caro.id).value("slot", 0) == 2, "pero conserva su slot");
+        CHECK(openWsQuery(port, "resume=" + caro.id + "&key=mala") == kFdInvalid,
+              "reenganche con clave mala -> 401");
+        caro.fd = openWsQuery(port, "resume=" + caro.id + "&key=" + caro.key);
+        CHECK(caro.fd != kFdInvalid, "reenganche con su clave");
+        CHECK(waitWsType(caro.fd, "hello").value("resumed", false), "hello de reenganche");
+        CHECK(waitWsType(caro.fd, "admitted").value("slot", 0) == 2, "vuelve a su slot");
+    }
+
+    // --- 11) sala cerrada y lobby apagado -----------------------------------
+    {
+        httpReq(aport, "POST", "/api/v1/room", bearer, R"({"locked":true})");
+        const std::string r = httpPost(port, "/api/join", "{\"room\":\"sala-test\",\"pin\":\"9182\"}");
+        CHECK(statusLine(r).find("423") != std::string::npos, "sala cerrada -> 423");
+        httpReq(aport, "POST", "/api/v1/room", bearer, R"({"locked":false,"lobby":false})");
+        sendWsJson(caro.fd, json{{"type", "bye"}});
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        Guest dani = joinGuest(port, "Dani");
+        CHECK(waitWsType(dani.fd, "admitted").is_object(), "sin lobby entra directo");
+        closeTestFd(dani.fd);
+    }
+
+    // --- 12) PIN y login de la consola web ----------------------------------
+    {
+        const json pin = jsonBody(httpReq(aport, "POST", "/api/v1/pin", bearer, R"({"pin":"4455"})"));
+        CHECK(pin.value("pin", "") == "4455", "cambiar el PIN");
+        CHECK(statusLine(httpPost(port, "/api/join", "{\"room\":\"sala-test\",\"pin\":\"4455\"}"))
+                      .find("200") != std::string::npos,
+              "el PIN nuevo vale");
+        const json gen = jsonBody(httpReq(aport, "POST", "/api/v1/pin", bearer, "{}"));
+        CHECK(gen.value("pin", "").size() == 6, "PIN generado de 6 digitos");
+
+        const json code = jsonBody(httpReq(aport, "POST", "/api/v1/login-code", bearer));
+        const std::string c = code.value("code", "");
+        CHECK(!c.empty(), "codigo de un solo uso para la consola");
+        const std::string login = httpReq(aport, "GET", "/admin/login?code=" + c, "");
+        CHECK(login.find("Set-Cookie: ba_admin=" + kAdmin) != std::string::npos, "el codigo da la cookie");
+        CHECK(login.find("HttpOnly") != std::string::npos &&
+                  login.find("SameSite=Strict") != std::string::npos,
+              "cookie HttpOnly + SameSite=Strict");
+        const std::string again = httpReq(aport, "GET", "/admin/login?code=" + c, "");
+        CHECK(again.find("Set-Cookie") == std::string::npos, "el codigo no sirve dos veces");
+        CHECK(statusLine(httpReq(aport, "GET", "/admin/", "")).find("200") != std::string::npos,
+              "la consola web se sirve");
+    }
+
+    closeTestFd(ana.fd);
+    closeTestFd(sse);
     srv.stop();
+    std::filesystem::remove_all(sharesDir);
 
     if (g_failures == 0) {
         std::printf("test_gateway_http: OK\n");

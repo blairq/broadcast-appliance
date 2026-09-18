@@ -27,8 +27,14 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <string>
 #include <vector>
+
+#include <nlohmann/json.hpp>
+
+#include "platform/Paths.hpp"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -44,10 +50,12 @@ inline constexpr int kMaxGuests = 4;
 /// Configuracion del gateway (CLI + rutas). Ver el header para el detalle.
 struct Config {
     // --- CLI ---------------------------------------------------------------
-    int guests = 2;              // 1..kMaxGuests (default 2)
-    uint16_t port = 8787;        // puerto de señalización en 127.0.0.1
-    uint16_t metricsPort = 9099; // puerto de métricas de cloudflared (loopback)
-    std::string room = "sala1";  // sala por defecto
+    int guests = 2;                        // 1..kMaxGuests (default 2)
+    uint16_t port = 8787;                  // puerto de señalización en 127.0.0.1
+    uint16_t metricsPort = 9099;           // puerto de métricas de cloudflared (loopback)
+    std::string bindAddress = "127.0.0.1"; // escucha de la senalizacion
+    bool tunnel = true;                    // lanzar cloudflared si hay token
+    std::string room = "sala1";            // sala por defecto
     // PIN de la sala. VACIO por defecto a proposito: un PIN fijo en el binario
     // es publico (el bundle es portable). Si queda vacio, main() lo toma de
     // BA_GATEWAY_PIN o genera uno aleatorio y lo loguea. A lo cambia en
@@ -64,6 +72,28 @@ struct Config {
     int videoH = 720;
     int guestVideoW = 640; // resolucion del retorno de video al invitado
     int guestVideoH = 360;
+    // --- Sala / API de control ---------------------------------------------
+    uint16_t adminPort = 8788; // API del operador (siempre 127.0.0.1)
+    bool lobby = true;         // el operador admite a cada invitado
+    int lobbySlots = 4;        // cuantos del lobby muestran su camara al operador
+    int maxUploadMB = 2048;    // tope por archivo compartido
+    std::string adminWebroot;  // Web/admin (consola web del operador)
+    // --- Acceso directo de invitados ----------------------------------------
+    bool https = true;           // HTTPS propio (camara/micro exigen pagina segura)
+    uint16_t httpsPort = 8789;   // en bindAddress (8443 suele estar tomado: LXD, etc.)
+    uint16_t rtcPortMin = 40000; // rango UDP de WebRTC (reglas de firewall / tunel)
+    uint16_t rtcPortMax = 40099;
+    // WireGuard hacia un servidor con IP publica (tunel en espacio de usuario).
+    bool wgEnabled = false;
+    std::string wgEndpoint;                 // host:puerto del servidor WireGuard
+    std::string wgServerPublicKey;          // base64
+    std::string wgAddress = "10.99.0.2/24"; // nuestra IP en el tunel
+    std::string wgPublicAddress;            // IP publica que usan los invitados (ICE/enlaces)
+    int wgKeepalive = 25;
+    uint16_t wgHttpPort = 80; // puertos que el servidor redirige a nuestra IP del tunel
+    uint16_t wgHttpsPort = 443;
+    std::string configDir; // <datos>/Config
+    std::string sharesDir; // <datos>/Shares (archivos de los invitados)
 
     // --- Rutas derivadas (solo-Windows en el layout real) ------------------
     std::string appRoot;         // raiz del layout portable
@@ -79,6 +109,45 @@ struct Config {
     ///
     /// :param argc: cantidad de argumentos.
     /// :param argv: argumentos.
+    /// Lee Config/gateway.json (si existe). Claves: guests, port,
+    /// bindAddress, room, tunnel, metricsPort, videoW/H, guestVideoW/H,
+    /// adminPort, lobby, maxUploadMB.
+    void loadFile(const std::string& path) {
+        std::ifstream in(path);
+        if (!in) return;
+        const nlohmann::json j = nlohmann::json::parse(in, nullptr, false, true);
+        if (!j.is_object()) return;
+        guests = j.value("guests", guests);
+        port = j.value("port", port);
+        bindAddress = j.value("bindAddress", bindAddress);
+        room = j.value("room", room);
+        tunnel = j.value("tunnel", tunnel);
+        metricsPort = j.value("metricsPort", metricsPort);
+        videoW = j.value("videoW", videoW);
+        videoH = j.value("videoH", videoH);
+        guestVideoW = j.value("guestVideoW", guestVideoW);
+        guestVideoH = j.value("guestVideoH", guestVideoH);
+        adminPort = j.value("adminPort", adminPort);
+        lobby = j.value("lobby", lobby);
+        lobbySlots = j.value("lobbySlots", lobbySlots);
+        https = j.value("https", https);
+        httpsPort = j.value("httpsPort", httpsPort);
+        rtcPortMin = j.value("rtcPortMin", rtcPortMin);
+        rtcPortMax = j.value("rtcPortMax", rtcPortMax);
+        if (j.contains("wireguard") && j["wireguard"].is_object()) {
+            const auto& w = j["wireguard"];
+            wgEnabled = w.value("enabled", wgEnabled);
+            wgEndpoint = w.value("endpoint", wgEndpoint);
+            wgServerPublicKey = w.value("serverPublicKey", wgServerPublicKey);
+            wgAddress = w.value("address", wgAddress);
+            wgPublicAddress = w.value("publicAddress", wgPublicAddress);
+            wgKeepalive = w.value("keepalive", wgKeepalive);
+            wgHttpPort = w.value("httpPort", wgHttpPort);
+            wgHttpsPort = w.value("httpsPort", wgHttpsPort);
+        }
+        maxUploadMB = j.value("maxUploadMB", maxUploadMB);
+    }
+
     void parseArgs(int argc, char** argv) {
         for (int i = 1; i < argc; ++i) {
             const std::string arg = argv[i];
@@ -98,6 +167,14 @@ struct Config {
                 metricsPort = static_cast<uint16_t>(nextInt());
             } else if (arg == "--room") {
                 room = nextStr();
+            } else if (arg == "--bind") {
+                bindAddress = nextStr();
+            } else if (arg == "--admin-port") {
+                adminPort = static_cast<uint16_t>(nextInt());
+            } else if (arg == "--no-lobby") {
+                lobby = false;
+            } else if (arg == "--no-tunnel") {
+                tunnel = false;
             } else if (arg == "--pin") {
                 pin = nextStr();
                 pinFromCli = !pin.empty();
@@ -133,61 +210,55 @@ struct Config {
         if (videoH <= 0) videoH = 720;
         if (guestVideoW <= 0) guestVideoW = 640;
         if (guestVideoH <= 0) guestVideoH = 360;
+        if (maxUploadMB <= 0) maxUploadMB = 2048;
+        if (lobbySlots < 0) lobbySlots = 0;
+        if (lobbySlots > 8) lobbySlots = 8;
+        if (rtcPortMax < rtcPortMin) rtcPortMax = rtcPortMin;
+        if (rtcPortMax - rtcPortMin > 150) rtcPortMax = static_cast<uint16_t>(rtcPortMin + 150);
     }
 
-    /// Deriva las rutas del layout a partir del modulo (Windows) o del cwd
-    /// (Linux). Si `webroot` ya fue fijado por CLI no se sobreescribe.
+    /// Deriva las rutas del layout a partir de la ubicacion del ejecutable
+    /// (`ba::platform::bundleRoot`), igual en todas las plataformas: B puede
+    /// lanzarse desde cualquier directorio. Si `webroot` ya fue fijado por CLI
+    /// no se sobreescribe.
     ///
-    /// :returns: true si se pudo resolver la raiz; false si no (el caller
-    ///           decide que hacer: normalmente seguir con los defaults).
+    /// :returns: true si se pudo resolver la raiz; false si no (se sigue con
+    ///           el directorio de trabajo como raiz).
     bool derivePaths() {
+        // Binarios de la raiz del bundle (quiza la copia sombra); datos
+        // (Web/, Logs/) de la raiz real que informa el launcher.
+        std::filesystem::path bundle = ba::platform::bundleRoot();
+        std::filesystem::path root = ba::platform::dataRoot();
+        const bool ok = !bundle.empty();
+        if (!ok) {
+            bundle = ".";
+        }
+        if (root.empty()) {
+            root = bundle;
+        }
+        const std::filesystem::path binDir = bundle / "bin" / "64bit";
 #ifdef _WIN32
-        wchar_t modPath[MAX_PATH];
-        const DWORD n = GetModuleFileNameW(nullptr, modPath, MAX_PATH);
-        if (n == 0 || n >= MAX_PATH) return false;
-        std::wstring mod(modPath, n);
-        // mod = <root>/bin/64bit/ba-gateway.exe
-        // dir = <root>/bin/64bit ; raiz = dos niveles arriba.
-        auto parentDir = [](std::wstring p) -> std::wstring {
-            const size_t slash = p.find_last_of(L"\\/");
-            return (slash == std::wstring::npos) ? L"" : p.substr(0, slash);
-        };
-        const std::wstring binDir = parentDir(mod);       // <root>/bin/64bit
-        const std::wstring binParent = parentDir(binDir); // <root>/bin
-        const std::wstring root = parentDir(binParent);   // <root>
-        appRoot = toUtf8(root);
-        cloudflaredPath = toUtf8(binDir + L"\\cloudflared.exe");
-        if (logsDir.empty()) logsDir = toUtf8(root + L"\\Logs");
-        cloudflaredLog = toUtf8(std::wstring(root, 0) + L"\\Logs\\cloudflared.log");
-        if (webroot.empty()) webroot = toUtf8(root + L"\\Web\\guest");
+        const char* exe = "cloudflared.exe";
 #else
-        // Linux / build offline: cwd como raiz.
-        appRoot = ".";
-        cloudflaredPath = "./cloudflared";
-        if (logsDir.empty()) logsDir = "./Logs";
-        cloudflaredLog = "./Logs/cloudflared.log";
-        if (webroot.empty()) webroot = "./Web/guest";
+        const char* exe = "cloudflared";
 #endif
-        return true;
+        appRoot = utf8(root);
+        cloudflaredPath = utf8(binDir / exe);
+        if (logsDir.empty()) logsDir = utf8(root / "Logs");
+        cloudflaredLog = utf8(root / "Logs" / "cloudflared.log");
+        if (webroot.empty()) webroot = utf8(root / "Web" / "guest");
+        if (adminWebroot.empty()) adminWebroot = utf8(root / "Web" / "admin");
+        if (sharesDir.empty()) sharesDir = utf8(root / "Shares");
+        if (configDir.empty()) configDir = utf8(root / "Config");
+        return ok;
     }
 
    private:
-    static std::string toUtf8(const std::wstring& w) {
-        if (w.empty()) return std::string();
-#ifdef _WIN32
-        int n = WideCharToMultiByte(CP_UTF8, 0, w.c_str(), static_cast<int>(w.size()), nullptr, 0, nullptr,
-                                    nullptr);
-        std::string out;
-        if (n > 0) {
-            out.resize(static_cast<size_t>(n));
-            WideCharToMultiByte(CP_UTF8, 0, w.c_str(), static_cast<int>(w.size()), &out[0], n, nullptr,
-                                nullptr);
-        }
-        return out;
-#else
-        (void)w;
-        return std::string();
-#endif
+    /// Ruta a UTF-8 (en Windows `path::string()` usa la codepage ANSI y rompe
+    /// rutas con acentos, que en un disco portable son esperables).
+    static std::string utf8(const std::filesystem::path& p) {
+        const std::u8string u = p.u8string();
+        return std::string(u.begin(), u.end());
     }
 };
 

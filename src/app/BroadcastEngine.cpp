@@ -9,18 +9,30 @@
 //   1. obs_startup            -> contexto global
 //   2. obs_reset_video        -> modulo grafico + lienzo + formato de salida
 //   3. obs_reset_audio        -> mezclador a 48 kHz
-//   4. obs_add_module_path    -> donde estan los .so/.dll de los plugins
-//   5. obs_load_all_modules   -> SIN esto no existen encoders ni salidas
-//   6. obs_post_load_modules  -> los plugins terminan de inicializarse
+//   4. carga de modulos       -> SIN esto no existen encoders ni salidas
+//                                (solo los del bundle: ver loadBundleModules)
+//   5. obs_post_load_modules  -> los plugins terminan de inicializarse
 // ============================================================================
 
 #include "BroadcastEngine.hpp"
 
 #include <obs.h>
 
+#include "WindowingPlatform.hpp"
+
+#if defined(_WIN32)
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
+
 #include <algorithm>
 #include <chrono>
+#include <cmath>
+#include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -30,26 +42,72 @@ namespace ba::app {
 
 namespace {
 
+std::uint32_t currentPid() {
+#if defined(_WIN32)
+    return static_cast<std::uint32_t>(GetCurrentProcessId());
+#else
+    return static_cast<std::uint32_t>(::getpid());
+#endif
+}
+
 /// Nombres de los canales IPC hacia el Proceso B (spec §4.3/§8.5).
 constexpr const wchar_t* kReturnAudioName = L"BA.Audio.ContentForReturn";
 constexpr const wchar_t* kProgramVideoName = L"BA.Program";
-
-/// Canal de salida de libobs donde vive la escena de programa.
-constexpr std::uint32_t kProgramChannel = 0;
 
 /// Puntero al motor que tiene instalados los callbacks crudos. libobs los
 /// invoca como funciones C sin contexto de usuario para el video, asi que hace
 /// falta un puntero de archivo. Solo hay un motor por proceso (A es uno solo).
 BroadcastEngine* g_returnFeedOwner = nullptr;
 
-/// Convierte UTF-8 a wide para los nombres de los canales IPC.
-std::wstring toWide(const std::string& s) {
-    std::wstring out;
-    out.reserve(s.size());
-    for (char c : s) {
-        out.push_back(static_cast<wchar_t>(static_cast<unsigned char>(c)));
+/// Carga los modulos de `binDir` y SOLO esos.
+///
+/// No se usa `obs_load_all_modules()` porque recorre tambien las rutas por
+/// defecto que libobs agrega en `obs_startup` (en Linux, entre otras, el
+/// OBS_INSTALL_PREFIX con el que se compilo libobs: `extern/obs-linux` en la
+/// maquina de build). En la maquina de build eso cargaba cada plugin dos veces
+/// ("Duplicate library?") y en cualquier otra podria levantar plugins ajenos
+/// al bundle. Aca el conjunto de modulos es exactamente el del bundle.
+///
+/// :param binDir: directorio con los `.so`/`.dll` de los plugins.
+/// :param dataDir: raiz de los datos de los plugins; cada modulo recibe
+///                 `<dataDir>/<nombre>` (locale, efectos).
+/// :returns: cantidad de modulos cargados.
+int loadBundleModules(const std::string& binDir, const std::string& dataDir) {
+#if defined(_WIN32)
+    const char* ext = ".dll";
+#else
+    const char* ext = ".so";
+#endif
+    std::error_code ec;
+    std::vector<std::filesystem::path> files;
+    for (const auto& entry : std::filesystem::directory_iterator(binDir, ec)) {
+        if (entry.is_regular_file(ec) && entry.path().extension() == ext) {
+            files.push_back(entry.path());
+        }
     }
-    return out;
+    std::sort(files.begin(), files.end()); // orden estable entre corridas
+
+    int loaded = 0;
+    for (const auto& file : files) {
+        const std::string name = file.stem().string();
+        const std::string data = dataDir + "/" + name;
+        obs_module_t* module = nullptr;
+        const int rc = obs_open_module(&module, file.string().c_str(), data.c_str());
+        if (rc != MODULE_SUCCESS) {
+            // MODULE_MISSING_EXPORTS: una DLL de soporte que no es plugin.
+            if (rc != MODULE_MISSING_EXPORTS) {
+                blog(LOG_WARNING, "ba-engine: no se pudo abrir el modulo '%s' (%d)", file.string().c_str(),
+                     rc);
+            }
+            continue;
+        }
+        if (obs_init_module(module)) {
+            ++loaded;
+        } else {
+            blog(LOG_WARNING, "ba-engine: el modulo '%s' fallo al inicializarse", name.c_str());
+        }
+    }
+    return loaded;
 }
 
 } // namespace
@@ -79,6 +137,14 @@ bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video
     paths_ = paths;
     video_ = video;
     audio_ = audio;
+
+    // 0) Plataforma de ventanas (Linux): libobs arranca por defecto en modo
+    //    X11 y en obs_startup abre el display X (atajos de teclado). En una
+    //    sesion Wayland eso funcionaba de rebote via XWayland; sin display,
+    //    obs_startup fallaba sin explicacion.
+    if (!selectWindowingPlatform()) {
+        return false;
+    }
 
     // 1) Contexto global. El segundo argumento es el directorio de config de
     //    los modulos (cada plugin guarda ahi lo suyo).
@@ -138,20 +204,22 @@ bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video
         return false;
     }
 
-    // 4-6) Modulos. Sin esto no hay codificadores ni salidas: es el paso que
-    //      faltaba en el arranque anterior del Proceso A.
+    // 4-5) Modulos. Sin esto no hay codificadores ni salidas: es el paso que
+    //      faltaba en el arranque anterior del Proceso A. Con un directorio
+    //      de modulos explicito se cargan solo esos; sin el, se delega en las
+    //      rutas por defecto de libobs (una instalacion de OBS del sistema).
     if (!paths_.moduleBinDir.empty()) {
-        // OJO con la forma de los argumentos: el primero es el DIRECTORIO donde
-        // viven los modulos, NO un patron con `%module%` y extension. libobs
-        // arma el nombre del archivo por su cuenta; si se le pasa
-        // ".../%module%.so" no encuentra nada y no carga ningun plugin, en
-        // silencio. El segundo si lleva `%module%`: es donde cada modulo busca
-        // sus datos (locale, efectos).
-        const std::string dataPattern = paths_.moduleDataDir.empty() ? (paths_.moduleBinDir + "/%module%")
-                                                                     : (paths_.moduleDataDir + "/%module%");
-        obs_add_module_path(paths_.moduleBinDir.c_str(), dataPattern.c_str());
+        const std::string dataDir = paths_.moduleDataDir.empty() ? paths_.moduleBinDir : paths_.moduleDataDir;
+        if (loadBundleModules(paths_.moduleBinDir, dataDir) == 0) {
+            // Sin modulos no hay encoders ni salidas: el motor no sirve y hay
+            // que decirlo aca, no dejar que falle mas tarde sin motivo claro.
+            setError("no se cargo ningun modulo desde " + paths_.moduleBinDir);
+            obs_shutdown();
+            return false;
+        }
+    } else {
+        obs_load_all_modules();
     }
-    obs_load_all_modules();
     obs_post_load_modules();
 
     started_ = true;
@@ -166,11 +234,11 @@ void BroadcastEngine::shutdown() {
     stopStreaming();
     stopRecording();
     stopReturnFeeds();
+    disablePreview();
 
-    if (videoEncoder_ != nullptr) {
-        obs_encoder_release(reinterpret_cast<obs_encoder_t*>(videoEncoder_));
-        videoEncoder_ = nullptr;
-    }
+    releaseVideoEncoder();
+    encoderCandidates_.clear();
+    encoderIndex_ = 0;
     if (audioEncoder_ != nullptr) {
         obs_encoder_release(reinterpret_cast<obs_encoder_t*>(audioEncoder_));
         audioEncoder_ = nullptr;
@@ -179,90 +247,25 @@ void BroadcastEngine::shutdown() {
         obs_service_release(reinterpret_cast<obs_service_t*>(service_));
         service_ = nullptr;
     }
-    if (sceneSource_ != nullptr) {
-        obs_set_output_source(kProgramChannel, nullptr);
-        obs_source_release(reinterpret_cast<obs_source_t*>(sceneSource_));
-        sceneSource_ = nullptr;
-        scene_ = nullptr; // la escena muere con su source
-    }
+    releaseScenes(); // transicion, escenas, fuentes y vumetros
 
     obs_shutdown();
     started_ = false;
+    releaseWindowingPlatform();
 }
 
-// ============================================================================
-// Escena
-// ============================================================================
-
-bool BroadcastEngine::buildScene() {
-    if (!started_) {
-        setError("buildScene sin startup");
+bool BroadcastEngine::selectWindowingPlatform() {
+    std::string err;
+    if (!ba::app::selectWindowingPlatform(nixDisplay_, nixWayland_, err)) {
+        setError(err);
         return false;
     }
-    if (scene_ != nullptr) {
-        return true;
-    }
-    obs_scene_t* scene = obs_scene_create("programa");
-    if (scene == nullptr) {
-        setError("obs_scene_create fallo");
-        return false;
-    }
-    scene_ = reinterpret_cast<obs_scene*>(scene);
-    obs_source_t* src = obs_scene_get_source(scene);
-    // El canal 0 es lo que se compone y sale al aire.
-    obs_set_output_source(kProgramChannel, src);
-    // `obs_scene_get_source` devuelve una referencia PRESTADA; se toma una
-    // propia para que la escena sobreviva mientras el motor la use.
-    sceneSource_ = reinterpret_cast<obs_source*>(obs_source_get_ref(src));
     return true;
 }
 
-bool BroadcastEngine::addGuestAudio(int slot) {
-    if (scene_ == nullptr) {
-        setError("addGuestAudio sin escena");
-        return false;
-    }
-    obs_data_t* settings = obs_data_create();
-    obs_data_set_int(settings, "slot", slot);
-    const std::string name = "invitado-audio-" + std::to_string(slot);
-    // `ba_guest_audio` lo registra el modulo propio `ba-sources`: lee el ring
-    // BA.Audio.Guest.<slot> que publica el Proceso B.
-    obs_source_t* src = obs_source_create("ba_guest_audio", name.c_str(), settings, nullptr);
-    obs_data_release(settings);
-    if (src == nullptr) {
-        setError("no se pudo crear ba_guest_audio (¿esta cargado ba-sources?)");
-        return false;
-    }
-    obs_scene_add(reinterpret_cast<obs_scene_t*>(scene_), src);
-    obs_source_release(src);
-    return true;
-}
-
-bool BroadcastEngine::addGuestVideo(int slot) {
-    if (scene_ == nullptr) {
-        setError("addGuestVideo sin escena");
-        return false;
-    }
-    obs_data_t* settings = obs_data_create();
-    obs_data_set_int(settings, "slot", slot);
-    const std::string name = "invitado-video-" + std::to_string(slot);
-    obs_source_t* src = obs_source_create("ba_guest_video", name.c_str(), settings, nullptr);
-    obs_data_release(settings);
-    if (src == nullptr) {
-        setError("no se pudo crear ba_guest_video (¿esta cargado ba-sources?)");
-        return false;
-    }
-    obs_sceneitem_t* item = obs_scene_add(reinterpret_cast<obs_scene_t*>(scene_), src);
-    if (item != nullptr) {
-        // Los invitados entran escalados al lienzo; el operador los reubica.
-        obs_sceneitem_set_bounds_type(item, OBS_BOUNDS_SCALE_INNER);
-        struct vec2 bounds;
-        vec2_set(&bounds, static_cast<float>(video_.baseWidth) / 2.0f,
-                 static_cast<float>(video_.baseHeight) / 2.0f);
-        obs_sceneitem_set_bounds(item, &bounds);
-    }
-    obs_source_release(src);
-    return true;
+void BroadcastEngine::releaseWindowingPlatform() {
+    ba::app::releaseWindowingPlatform(nixDisplay_, nixWayland_);
+    nixDisplay_ = nullptr;
 }
 
 // ============================================================================
@@ -290,12 +293,9 @@ bool BroadcastEngine::publishReturnFeeds() {
     }
 
     // --- Ring de audio de retorno (A -> B) ---
-    const std::uint32_t pid =
-#if defined(_WIN32)
-        0u;
-#else
-        0u;
-#endif
+    // El PID real identifica a ESTE escritor: si A se reinicia, B lo nota
+    // (SharedAudioRing::stale) y reabre el ring en vez de quedar mudo.
+    const std::uint32_t pid = currentPid();
     ba::ipc::Status st = ba::ipc::SharedAudioRing::init(
         kReturnAudioName, static_cast<std::uint32_t>(audio_.channels),
         ba::ipc::audio_ring::kDefaultCapacityBlocks, pid, /*generation=*/1u, returnAudio_);
@@ -371,11 +371,142 @@ void BroadcastEngine::onRawVideo(struct video_data* frame) {
     // libobs entrega BGRA empaquetado en el plano 0. `linesize` puede ser mayor
     // que ancho*4 por alineacion, asi que el tamaño util se calcula con el
     // ancho real, no con el linesize.
-    const std::size_t bytes = static_cast<std::size_t>(video_.outputWidth) * video_.outputHeight * 4u;
+    const std::size_t rowBytes = static_cast<std::size_t>(video_.outputWidth) * 4u;
+    const std::size_t bytes = rowBytes * static_cast<std::size_t>(video_.outputHeight);
+    const std::uint8_t* pixels = frame->data[0];
+    // Con relleno por fila (linesize > ancho*4) hay que empaquetar: mandar el
+    // buffer tal cual corria cada fila y B recibia la imagen inclinada.
+    if (static_cast<std::size_t>(frame->linesize[0]) != rowBytes) {
+        programPacked_.resize(bytes);
+        for (int y = 0; y < video_.outputHeight; ++y) {
+            std::memcpy(programPacked_.data() + static_cast<std::size_t>(y) * rowBytes,
+                        frame->data[0] + static_cast<std::size_t>(y) * frame->linesize[0], rowBytes);
+        }
+        pixels = programPacked_.data();
+    }
     ba::ipc::FrameMeta meta;
     meta.frameIndex = ++programFrameIndex_;
     meta.qpc = ba::ipc::HealthBlock::nowQpc();
-    programVideo_.send(frame->data[0], bytes, meta);
+    programVideo_.send(pixels, bytes, meta);
+}
+
+// ============================================================================
+// Vista previa y medidor (UI)
+// ============================================================================
+
+namespace {
+
+void previewVideoCallback(void* param, struct video_data* frame) {
+    auto* eng = static_cast<BroadcastEngine*>(param);
+    if (eng != nullptr && frame != nullptr && frame->data[0] != nullptr) {
+        eng->onPreviewVideo(frame);
+    }
+}
+
+void meterAudioCallback(void* param, size_t, struct audio_data* data) {
+    auto* eng = static_cast<BroadcastEngine*>(param);
+    if (eng != nullptr && data != nullptr) {
+        eng->onMeterAudio(data);
+    }
+}
+
+/// Max atomico sin lock (el hilo de audio publica, la UI lee y resetea).
+void atomicMax(std::atomic<float>& a, float v) {
+    float cur = a.load(std::memory_order_relaxed);
+    while (v > cur && !a.compare_exchange_weak(cur, v, std::memory_order_relaxed)) {
+    }
+}
+
+float toDb(float lin) { return lin <= 0.00001f ? -100.0f : 20.0f * std::log10(lin); }
+
+} // namespace
+
+bool BroadcastEngine::enablePreview(int width, int height) {
+    if (!started_ || width <= 0 || height <= 0) {
+        setError("enablePreview sin startup o con tamaño invalido");
+        return false;
+    }
+    if (previewActive_) {
+        return true;
+    }
+    {
+        std::lock_guard<std::mutex> lock(previewLock_);
+        previewW_ = width;
+        previewH_ = height;
+        previewBuf_.assign(static_cast<std::size_t>(width) * height * 4u, 0);
+    }
+    struct video_scale_info vsi = {};
+    vsi.format = VIDEO_FORMAT_BGRA;
+    vsi.width = static_cast<uint32_t>(width);
+    vsi.height = static_cast<uint32_t>(height);
+    vsi.colorspace = VIDEO_CS_709;
+    vsi.range = VIDEO_RANGE_FULL;
+    obs_add_raw_video_callback(&vsi, previewVideoCallback, this);
+
+    struct audio_convert_info aci = {};
+    aci.format = AUDIO_FORMAT_FLOAT_PLANAR;
+    aci.samples_per_sec = static_cast<uint32_t>(audio_.sampleRate);
+    aci.speakers = SPEAKERS_STEREO;
+    obs_add_raw_audio_callback(0, &aci, meterAudioCallback, this);
+    previewActive_ = true;
+    return true;
+}
+
+void BroadcastEngine::disablePreview() {
+    if (!previewActive_) {
+        return;
+    }
+    obs_remove_raw_video_callback(previewVideoCallback, this);
+    obs_remove_raw_audio_callback(0, meterAudioCallback, this);
+    previewActive_ = false;
+}
+
+void BroadcastEngine::onPreviewVideo(struct video_data* frame) {
+    std::lock_guard<std::mutex> lock(previewLock_);
+    const std::size_t rowBytes = static_cast<std::size_t>(previewW_) * 4u;
+    if (previewBuf_.size() < rowBytes * static_cast<std::size_t>(previewH_)) {
+        return;
+    }
+    for (int y = 0; y < previewH_; ++y) {
+        std::memcpy(previewBuf_.data() + static_cast<std::size_t>(y) * rowBytes,
+                    frame->data[0] + static_cast<std::size_t>(y) * frame->linesize[0], rowBytes);
+    }
+    ++previewSerial_;
+}
+
+bool BroadcastEngine::latestPreview(std::vector<std::uint8_t>& dst, int& width, int& height,
+                                    std::uint64_t& serial) const {
+    std::lock_guard<std::mutex> lock(previewLock_);
+    if (previewSerial_ == serial || previewBuf_.empty()) {
+        return false;
+    }
+    dst = previewBuf_;
+    width = previewW_;
+    height = previewH_;
+    serial = previewSerial_;
+    return true;
+}
+
+void BroadcastEngine::onMeterAudio(struct audio_data* data) {
+    float pl = 0.0f;
+    float pr = 0.0f;
+    const auto* l = reinterpret_cast<const float*>(data->data[0]);
+    const auto* r = reinterpret_cast<const float*>(data->data[1]);
+    for (uint32_t i = 0; i < data->frames; ++i) {
+        if (l != nullptr) {
+            pl = std::max(pl, std::fabs(l[i]));
+        }
+        if (r != nullptr) {
+            pr = std::max(pr, std::fabs(r[i]));
+        }
+    }
+    atomicMax(peakL_, pl);
+    atomicMax(peakR_, pr);
+}
+
+void BroadcastEngine::programPeaksDb(float& left, float& right) {
+    left = toDb(peakL_.exchange(0.0f, std::memory_order_relaxed));
+    right = toDb(peakR_.exchange(0.0f, std::memory_order_relaxed));
 }
 
 void BroadcastEngine::onRawAudio(struct audio_data* data) {
@@ -415,20 +546,81 @@ void BroadcastEngine::onRawAudio(struct audio_data* data) {
 // Codificadores y salidas
 // ============================================================================
 
-std::string BroadcastEngine::pickVideoEncoder(bool preferHardware) const {
-    if (preferHardware) {
-        // Orden de preferencia: NVENC (NVIDIA), QSV (Intel), AMF (AMD). Se
-        // consulta que exista de verdad antes de elegirlo: pedir un encoder
-        // ausente hace fallar la salida entera en el peor momento.
-        static const char* kHw[] = {"obs_nvenc_h264_tex", "ffmpeg_nvenc", "obs_qsv11_v2", "h264_texture_amf"};
-        for (const char* id : kHw) {
-            const char* name = obs_encoder_get_display_name(id);
-            if (name != nullptr) {
-                return id;
+namespace {
+
+/// Ids de libobs por familia de codificador H.264 (el primero es el preferido
+/// dentro de la familia: las variantes "_tex" codifican desde la textura de la
+/// GPU sin bajar el frame a RAM).
+const std::vector<std::string>& encoderFamily(const std::string& alias) {
+    static const std::vector<std::string> kNvenc = {"obs_nvenc_h264_tex", "ffmpeg_nvenc", "jim_nvenc"};
+    static const std::vector<std::string> kQsv = {"obs_qsv11_v2", "obs_qsv11"};
+    static const std::vector<std::string> kAmf = {"h264_texture_amf", "amd_amf_h264"};
+    static const std::vector<std::string> kVaapi = {"ffmpeg_vaapi_tex", "ffmpeg_vaapi"};
+    static const std::vector<std::string> kVt = {"com.apple.videotoolbox.videoencoder.ave.avc",
+                                                 "com.apple.videotoolbox.videoencoder.h264.gva",
+                                                 "com.apple.videotoolbox.videoencoder.h264"};
+    static const std::vector<std::string> kX264 = {"obs_x264"};
+    static const std::vector<std::string> kNone = {};
+    if (alias == "nvenc") return kNvenc;
+    if (alias == "qsv") return kQsv;
+    if (alias == "amf") return kAmf;
+    if (alias == "vaapi") return kVaapi;
+    if (alias == "videotoolbox") return kVt;
+    if (alias == "x264" || alias == "software") return kX264;
+    return kNone;
+}
+
+/// Orden de hardware de "auto" por plataforma (plan multiplataforma §3.2).
+const std::vector<std::string>& autoHardwareOrder() {
+#if defined(_WIN32)
+    static const std::vector<std::string> kOrder = {"nvenc", "qsv", "amf"};
+#elif defined(__APPLE__)
+    static const std::vector<std::string> kOrder = {"videotoolbox"};
+#else
+    static const std::vector<std::string> kOrder = {"nvenc", "vaapi"};
+#endif
+    return kOrder;
+}
+
+bool encoderRegistered(const std::string& id) { return obs_encoder_get_display_name(id.c_str()) != nullptr; }
+
+} // namespace
+
+std::vector<std::string> BroadcastEngine::videoEncoderCandidates(const EncoderConfig& enc) const {
+    std::vector<std::string> wanted;
+    const std::string& choice = enc.videoEncoder.empty() ? std::string("auto") : enc.videoEncoder;
+    if (choice == "auto") {
+        if (enc.preferHardware) {
+            for (const auto& alias : autoHardwareOrder()) {
+                const auto& fam = encoderFamily(alias);
+                wanted.insert(wanted.end(), fam.begin(), fam.end());
             }
         }
+    } else if (!encoderFamily(choice).empty()) {
+        const auto& fam = encoderFamily(choice);
+        wanted.insert(wanted.end(), fam.begin(), fam.end());
+    } else {
+        wanted.push_back(choice); // id literal de libobs
     }
-    return "obs_x264"; // siempre disponible: el plugin obs-x264 viaja en el bundle
+    wanted.push_back("obs_x264"); // red de seguridad: viaja siempre en el bundle
+
+    // Solo los registrados (un modulo de hardware sin driver no se registra),
+    // sin repetidos y en orden.
+    std::vector<std::string> out;
+    for (const auto& id : wanted) {
+        if (encoderRegistered(id) && std::find(out.begin(), out.end(), id) == out.end()) {
+            out.push_back(id);
+        }
+    }
+    return out;
+}
+
+void BroadcastEngine::releaseVideoEncoder() {
+    if (videoEncoder_ != nullptr) {
+        obs_encoder_release(reinterpret_cast<obs_encoder_t*>(videoEncoder_));
+        videoEncoder_ = nullptr;
+    }
+    videoEncoderId_.clear();
 }
 
 bool BroadcastEngine::ensureEncoders(const EncoderConfig& enc) {
@@ -437,21 +629,40 @@ bool BroadcastEngine::ensureEncoders(const EncoderConfig& enc) {
     }
 
     if (videoEncoder_ == nullptr) {
-        const std::string encId = pickVideoEncoder(enc.preferHardware);
-        obs_data_t* vs = obs_data_create();
-        obs_data_set_int(vs, "bitrate", enc.videoBitrateKbps);
-        obs_data_set_string(vs, "rate_control", enc.rateControl.c_str());
-        obs_data_set_string(vs, "preset", enc.preset.c_str());
-        // keyint en SEGUNDOS: los CDN piden 2 s y x264 lo toma asi.
-        obs_data_set_int(vs, "keyint_sec", enc.keyintSec);
-        obs_encoder_t* ve = obs_video_encoder_create(encId.c_str(), "video", vs, nullptr);
-        obs_data_release(vs);
-        if (ve == nullptr) {
-            setError("no se pudo crear el codificador de video: " + encId);
+        if (encoderCandidates_.empty()) {
+            encoderCandidates_ = videoEncoderCandidates(enc);
+            encoderIndex_ = 0;
+        }
+        // Se prueban en orden los que ni siquiera se pueden CREAR (p. ej. un
+        // id literal mal escrito); los que fallan al ARRANCAR los cubre
+        // startOutputWithFallback.
+        while (encoderIndex_ < encoderCandidates_.size() && videoEncoder_ == nullptr) {
+            const std::string& encId = encoderCandidates_[encoderIndex_];
+            obs_data_t* vs = obs_data_create();
+            obs_data_set_int(vs, "bitrate", enc.videoBitrateKbps);
+            obs_data_set_string(vs, "rate_control", enc.rateControl.c_str());
+            // keyint en SEGUNDOS: los CDN piden 2 s.
+            obs_data_set_int(vs, "keyint_sec", enc.keyintSec);
+            if (encId == "obs_x264") {
+                obs_data_set_string(vs, "preset", enc.preset.c_str());
+            }
+            obs_encoder_t* ve = obs_video_encoder_create(encId.c_str(), "video", vs, nullptr);
+            obs_data_release(vs);
+            if (ve == nullptr) {
+                blog(LOG_WARNING, "ba-engine: no se pudo crear el codificador '%s'; se prueba el siguiente",
+                     encId.c_str());
+                ++encoderIndex_;
+                continue;
+            }
+            obs_encoder_set_video(ve, obs_get_video());
+            videoEncoder_ = reinterpret_cast<obs_encoder*>(ve);
+            videoEncoderId_ = encId;
+            blog(LOG_INFO, "ba-engine: codificador de video: %s", encId.c_str());
+        }
+        if (videoEncoder_ == nullptr) {
+            setError("no hay codificador de video utilizable");
             return false;
         }
-        obs_encoder_set_video(ve, obs_get_video());
-        videoEncoder_ = reinterpret_cast<obs_encoder*>(ve);
     }
 
     if (audioEncoder_ == nullptr) {
@@ -467,6 +678,36 @@ bool BroadcastEngine::ensureEncoders(const EncoderConfig& enc) {
         audioEncoder_ = reinterpret_cast<obs_encoder*>(ae);
     }
     return true;
+}
+
+bool BroadcastEngine::startOutputWithFallback(obs_output* outRaw, const EncoderConfig& enc) {
+    auto* out = reinterpret_cast<obs_output_t*>(outRaw);
+    for (;;) {
+        obs_output_set_video_encoder(out, reinterpret_cast<obs_encoder_t*>(videoEncoder_));
+        obs_output_set_audio_encoder(out, reinterpret_cast<obs_encoder_t*>(audioEncoder_), 0);
+        if (obs_output_start(out)) {
+            return true;
+        }
+        const char* err = obs_output_get_last_error(out);
+        const std::string why = (err != nullptr && *err != '\0') ? err : "sin detalle";
+        // Solo se cambia de codificador si ninguna OTRA salida lo usa: cambiarlo
+        // en caliente cortaria la emision o la grabacion que ya corre.
+        const bool otherActive = (streamOutput_ != nullptr && streamOutput_ != outRaw &&
+                                  obs_output_active(reinterpret_cast<obs_output_t*>(streamOutput_))) ||
+                                 (recordOutput_ != nullptr && recordOutput_ != outRaw &&
+                                  obs_output_active(reinterpret_cast<obs_output_t*>(recordOutput_)));
+        if (otherActive || encoderIndex_ + 1 >= encoderCandidates_.size()) {
+            setError(why);
+            return false;
+        }
+        blog(LOG_WARNING, "ba-engine: la salida no arranco con '%s' (%s); se prueba el siguiente codificador",
+             videoEncoderId_.c_str(), why.c_str());
+        releaseVideoEncoder();
+        ++encoderIndex_;
+        if (!ensureEncoders(enc)) {
+            return false;
+        }
+    }
 }
 
 bool BroadcastEngine::startStreaming(const StreamConfig& stream, const EncoderConfig& enc) {
@@ -507,13 +748,8 @@ bool BroadcastEngine::startStreaming(const StreamConfig& stream, const EncoderCo
         return false;
     }
     obs_output_set_service(out, svc);
-    obs_output_set_video_encoder(out, reinterpret_cast<obs_encoder_t*>(videoEncoder_));
-    obs_output_set_audio_encoder(out, reinterpret_cast<obs_encoder_t*>(audioEncoder_), 0);
-
-    if (!obs_output_start(out)) {
-        const char* err = obs_output_get_last_error(out);
-        setError(std::string("no se pudo iniciar la transmision") +
-                 (err != nullptr && *err != '\0' ? std::string(": ") + err : std::string()));
+    if (!startOutputWithFallback(reinterpret_cast<obs_output*>(out), enc)) {
+        setError("no se pudo iniciar la transmision: " + lastError_);
         obs_output_release(out);
         return false;
     }
@@ -564,13 +800,8 @@ bool BroadcastEngine::startRecording(const RecordConfig& rec, const EncoderConfi
         setError("obs_output_create(ffmpeg_muxer) fallo");
         return false;
     }
-    obs_output_set_video_encoder(out, reinterpret_cast<obs_encoder_t*>(videoEncoder_));
-    obs_output_set_audio_encoder(out, reinterpret_cast<obs_encoder_t*>(audioEncoder_), 0);
-
-    if (!obs_output_start(out)) {
-        const char* err = obs_output_get_last_error(out);
-        setError(std::string("no se pudo iniciar la grabacion") +
-                 (err != nullptr && *err != '\0' ? std::string(": ") + err : std::string()));
+    if (!startOutputWithFallback(reinterpret_cast<obs_output*>(out), enc)) {
+        setError("no se pudo iniciar la grabacion: " + lastError_);
         obs_output_release(out);
         return false;
     }
@@ -606,6 +837,7 @@ EngineStatus BroadcastEngine::status() const {
     st.videoActive = obs_get_video() != nullptr;
     st.audioActive = obs_get_audio() != nullptr;
     st.fps = obs_get_active_fps();
+    st.videoEncoder = videoEncoderId_;
 
     auto* stream = reinterpret_cast<obs_output_t*>(streamOutput_);
     if (stream != nullptr) {

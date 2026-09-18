@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0c0c0e" />
+  <title>Sala — Consola del operador</title>
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+  <!-- ================================================================
+       Consola web del operador: cliente PURO de la API de control de B
+       (REST + SSE en 127.0.0.1). No tiene logica de sala propia; la vista
+       Qt de la app consume exactamente la misma API.
+       ================================================================ -->
+
+  <section id="login" class="login hidden">
+    <div class="card">
+      <div class="brand"><span class="dot"></span> Broadcast Appliance</div>
+      <h1>Consola de la sala</h1>
+      <p class="sub">Abrila desde la app (botón «Consola web») o pegá el token de control
+        (está en <code>gateway-admin.json</code> del directorio de runtime).</p>
+      <input id="login-token" type="password" placeholder="Token de control" autocomplete="off" />
+      <button id="btn-login" class="primary">Entrar</button>
+      <p id="login-error" class="error"></p>
+    </div>
+  </section>
+
+  <main id="app" class="app hidden">
+    <header class="top">
+      <div class="title">
+        <div class="brand"><span class="dot" id="live-dot"></span> Sala <strong id="room-name">—</strong></div>
+        <div class="meta">
+          <span id="slots"></span>
+          <span class="sep">·</span>
+          <span>Enlace <a id="guest-url" target="_blank" rel="noopener"></a></span>
+          <button class="chip" id="btn-copy">Copiar</button>
+        </div>
+      </div>
+      <div class="controls">
+        <div class="pin">
+          PIN <strong id="pin" class="blur">••••••</strong>
+          <button class="chip" id="btn-pin-show">Ver</button>
+          <button class="chip" id="btn-pin-new">Nuevo</button>
+        </div>
+        <label class="switch"><input type="checkbox" id="sw-lobby" /><span></span> Lobby</label>
+        <label class="switch"><input type="checkbox" id="sw-locked" /><span></span> Sala cerrada</label>
+      </div>
+    </header>
+
+    <div class="grid">
+      <section class="panel" id="panel-lobby">
+        <header><h2>Lobby</h2><span class="count" id="lobby-count">0</span>
+          <button class="chip" id="btn-admit-all">Admitir a todos</button></header>
+        <ul id="lobby" class="list"></ul>
+        <p class="empty" id="lobby-empty">Nadie esperando.</p>
+      </section>
+
+      <section class="panel" id="panel-people">
+        <header><h2>En la sala</h2><span class="count" id="people-count">0</span></header>
+        <ul id="people" class="list"></ul>
+        <p class="empty" id="people-empty">Todavía no entró nadie.</p>
+      </section>
+
+      <section class="panel" id="panel-net">
+        <header><h2>Acceso directo</h2><button class="chip" id="btn-wg">Configurar servidor…</button></header>
+        <div class="badges" id="net-badges"></div>
+        <ul class="list" id="net-urls"></ul>
+        <p class="muted" id="net-wg"></p>
+      </section>
+
+      <section class="panel" id="panel-shares">
+        <header><h2>Archivos compartidos</h2><span class="count" id="shares-count">0</span></header>
+        <ul id="shares" class="shares"></ul>
+        <p class="empty" id="shares-empty">Los invitados pueden compartir imágenes, videos o audio desde su pantalla.</p>
+      </section>
+
+      <section class="panel chat" id="panel-chat">
+        <header><h2>Chat</h2></header>
+        <div id="chat-log" class="chat-log"></div>
+        <form id="chat-form" class="chat-form">
+          <select id="chat-to"><option value="all">A todos</option></select>
+          <input id="chat-input" type="text" maxlength="1000" autocomplete="off" placeholder="Escribí un mensaje…" />
+          <button class="primary small">Enviar</button>
+        </form>
+      </section>
+    </div>
+  </main>
+
+  <dialog id="wgdlg" class="viewer">
+    <h3>Servidor propio con IP publica (WireGuard)</h3>
+    <p class="muted">Genera claves y el <code>wg0.conf</code> del servidor con las redirecciones de puertos.
+      Despues cargá los datos del servidor en la app (Configuración → Acceso directo), o usá el asistente de la página Sala.</p>
+    <div class="wgform">
+      <input id="wg-endpoint" placeholder="vps.midominio.com:51820" />
+      <input id="wg-iface" value="eth0" title="Interfaz publica del servidor" />
+      <button class="primary small" id="btn-wg-gen">Generar</button>
+    </div>
+    <pre id="wg-conf" class="conf hidden"></pre>
+    <form method="dialog"><button class="chip" id="btn-wg-copy" type="button">Copiar</button> <button class="primary small">Cerrar</button></form>
+  </dialog>
+
+  <dialog id="viewer" class="viewer">
+    <div class="viewer-body" id="viewer-body"></div>
+    <form method="dialog"><button class="primary small">Cerrar</button></form>
+  </dialog>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+  <script src="admin.js"></script>
+</body>
+</html>

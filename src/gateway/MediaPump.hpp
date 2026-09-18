@@ -1,43 +1,33 @@
 // ============================================================================
-// src/gateway/MediaPump.hpp — Motor de medios del Proceso B (IPC → WebRTC)
+// src/gateway/MediaPump.hpp — Motor de medios de B (IPC <-> WebRTC)
 //
 // Proposito:
-//   Conecta los flujos IPC (ba_core::ipc) con los tracks WebRTC de cada
-//   invitado (spec §8.5, §8.6). Dos direcciones:
+//   Mueve los medios entre las sesiones WebRTC de los participantes y los
+//   canales de memoria compartida con A. QUE va a DONDE lo decide la ruta de
+//   cada sesion (MediaRoute), que fija la sala; admitir a alguien cambia su
+//   ruta sin tocar su conexion.
 //
-//   RETORNO (A → B → invitado):
-//     - AUDIO : consume el ring `BA.Audio.ContentForReturn` (A→B, el audio de
-//               presentacion/reproduccion) con SharedAudioRing::openReader/pop
-//               y lo inyecta en el track local de audio de cada invitado
-//               (pushLocalAudio).
-//     - VIDEO : consume el sender `BA.Program` (A→B, el video de programa) con
-//               SpoutReceiver/subscribe/receive, lo escala a la resolucion del
-//               retorno (640x360) y lo inyecta en el track local de video de
-//               cada invitado (pushLocalVideo).
+//   Subida (participante -> B -> A):
+//     Program(n): camara  -> BA.Guest.<n>        (tamaño del programa)
+//                 pantalla-> BA.GuestShare.<n>   (tamaño del programa)
+//                 audio   -> BA.Audio.Guest.<n>
+//     Lobby(k):   camara  -> BA.Lobby.<k>        (preview chico, solo operador)
+//                 audio   -> BA.Audio.Lobby.<k>  (solo si el operador le habla)
+//   Bajada (A -> B -> participante):
+//     Program(n): BA.Program + BA.Audio.ContentForReturn
+//     Lobby(k):   BA.Operator (o una placa si A no lo publica) + la voz del
+//                 operador BA.Audio.Operator solo si talk
 //
-//   UPLINK (invitado → B → A):
-//     - AUDIO : la voz del invitado (onRemoteAudio) se publica en el ring
-//               `BA.Audio.Guest.<n>` (B→A) para el mix de YouTube.
-//     - VIDEO : la camara del invitado (onRemoteVideo) se publica en el sender
-//               Spout `BA.Guest.<n>` (B→A) para que A la compuesta.
-//   "Un sender existe siempre" (spec §4.2): B publica BA.Guest.<n> y el ring
-//   BA.Audio.Guest.<n> para cada slot, incluso sin invitado (placa/silencio).
+//   Un sender existe siempre (spec §4.2): mientras un slot del programa no
+//   tiene video del invitado, B publica una placa.
 //
-// Modelo de threading:
-//   - Un thread de RETORNO DE AUDIO: abre el ring de retorno, pop() bloques de
-//     10 ms y los inyecta en las sesiones conectadas. Pacing de 10 ms (tiempo
-//     real) para no adelantar al productor (A).
-//   - Un thread de RETORNO DE VIDEO: se suscribe a BA.Program, receive() frames
-//     nuevos, escala y los inyecta. Pacing de ~33 ms (30 fps).
-//   - forwardAudio/forwardVideo se llaman desde los callbacks de las sesiones
-//     (en el backend real, desde los threads de libwebrtc; en el NULL nunca se
-//     llaman). Toman un lock por slot para el buffer de re-bloqueo a 480 frames.
-//   - Los threads se detienen por un std::atomic<bool>; no lanzan.
-//
-// Estrategia de errores:
-//   No lanza. Si A no esta corriendo (ring/sender ausentes), los threads de
-//   retorno reintentan la apertura/suscripcion cada 500 ms y siguen vivos. Un
-//   pop/receive fallido se loguea y se sigue (degradacion elegante).
+// Threading:
+//   - 4 threads de bajada (audio/video del programa, audio/video del operador)
+//     con reintento de apertura cada 500 ms y resuscripcion si A se reinicia.
+//   - 1 thread de placas.
+//   - forwardAudio/forwardVideo/forwardScreen: desde los threads de libwebrtc;
+//     un lock por canal de salida.
+//   - setRoute: desde la sala; la tabla de rutas tiene su propio mutex.
 // ============================================================================
 #pragma once
 
@@ -53,92 +43,101 @@
 #include "dsp/Resampler.hpp"
 #include "ipc/SharedAudioRing.hpp"
 #include "ipc/SpoutTransport.hpp"
+#include "MediaRoute.hpp"
 #include "Webrtc.hpp"
 
 namespace ba::gateway {
 
 class Log;
 
-/// Motor de medios: enruta IPC ↔ WebRTC por invitado. Ver el header.
 class MediaPump {
    public:
-    /// Configuracion de los nombres de flujos IPC y resolucion.
     struct Cfg {
-        std::wstring returnAudioName;  // BA.Audio.ContentForReturn (A→B)
-        std::wstring programVideoName; // BA.Program (A→B)
-        // Indexados POR SLOT: el elemento [n] es el nombre del invitado del
-        // slot n (1..guests) y el [0] es un hueco reservado (no hay slot 0).
-        // El tamaño esperado es guests+1; un vector mas corto deja invitados
-        // sin canal (start() lo loguea como warning).
-        std::vector<std::wstring> guestAudioNames; // [n] = BA.Audio.Guest.<n> (B→A)
-        std::vector<std::wstring> guestVideoNames; // [n] = BA.Guest.<n> (B→A)
+        std::wstring returnAudioName;   // BA.Audio.ContentForReturn (A->B)
+        std::wstring programVideoName;  // BA.Program (A->B)
+        std::wstring operatorVideoName; // BA.Operator (A->B, para el lobby)
+        std::wstring operatorAudioName; // BA.Audio.Operator (A->B, para el lobby)
+        // Indexados por slot, [0] reservado (tamaño guests+1 / lobbySlots+1).
+        std::vector<std::wstring> guestAudioNames; // BA.Audio.Guest.<n>
+        std::vector<std::wstring> guestVideoNames; // BA.Guest.<n>
+        std::vector<std::wstring> shareVideoNames; // BA.GuestShare.<n>
+        std::vector<std::wstring> lobbyAudioNames; // BA.Audio.Lobby.<k>
+        std::vector<std::wstring> lobbyVideoNames; // BA.Lobby.<k>
         int audioRate = 48000;
         int audioChannels = 2;
-        int programW = 1280;
+        int programW = 1280; // tamaño de los canales del programa (camara/pantalla)
         int programH = 720;
-        int guestVideoW = 640;
+        int lobbyW = 640; // preview del lobby
+        int lobbyH = 360;
+        int guestVideoW = 640; // retorno al participante
         int guestVideoH = 360;
     };
 
-    /// :param hub: hub de sesiones al que se inyecta el retorno.
-    /// :param cfg: nombres de flujos IPC y resolucion.
-    /// :param log: logger compartido.
     MediaPump(WebrtcHub& hub, const Cfg& cfg, Log& log);
     ~MediaPump();
 
     MediaPump(const MediaPump&) = delete;
     MediaPump& operator=(const MediaPump&) = delete;
 
-    /// Crea los canales de salida (B→A): ring BA.Audio.Guest.<n> (writer) y
-    /// sender Spout BA.Guest.<n> por slot, y arranca los threads de retorno.
     void start();
-
-    /// Detiene los threads de retorno y cierra los canales de salida.
     void stop();
 
-    /// Publica audio de uplink del invitado `slot` en su ring BA.Audio.Guest.
-    /// Se llama desde onRemoteAudio de la sesion. Re-bloquea a 480 frames.
-    void forwardAudio(int slot, const float* samples, size_t n, int rate);
+    /// Ruta de la sesion `session` (1..hub.sessions()).
+    void setRoute(int session, const MediaRoute& route);
+    MediaRoute route(int session) const;
 
-    /// Publica video de uplink del invitado `slot` en su sender BA.Guest.
-    /// Se llama desde onRemoteVideo de la sesion.
-    void forwardVideo(int slot, const uint8_t* pixels, size_t bytes, int w, int h);
+    /// Subida desde la sesion `session` (se rutea segun su MediaRoute).
+    void forwardAudio(int session, const float* samples, size_t n, int rate);
+    void forwardVideo(int session, const uint8_t* pixels, size_t bytes, int w, int h);
+    void forwardScreen(int session, const uint8_t* pixels, size_t bytes, int w, int h);
 
    private:
+    /// Canal de video B->A con tamaño fijo (el frame se ajusta adentro).
+    struct VideoOut {
+        ba::ipc::SpoutSender sender;
+        std::mutex lock;
+        std::vector<uint8_t> scratch;
+        int w = 0;
+        int h = 0;
+        std::atomic<uint64_t> lastNs{0}; // ultimo frame REAL (no placa)
+    };
+    /// Canal de audio B->A: ring + re-bloqueo a 10 ms + re-muestreo.
+    struct AudioOut {
+        ba::ipc::SharedAudioRing ring;
+        std::mutex lock;
+        std::vector<float> buf;
+        size_t pos = 0;
+        std::unique_ptr<ba::dsp::Resampler> resampler;
+        int resamplerRate = 0;
+        std::vector<float> resampleOut;
+    };
+
     void returnAudioThread();
     void returnVideoThread();
+    void operatorAudioThread();
+    void operatorVideoThread();
+    void plateThread();
+
+    void publishVideo(VideoOut& out, const uint8_t* pixels, int w, int h, bool real);
+    void publishAudio(AudioOut& out, const float* samples, size_t n, int rate);
+    /// Sesiones cuya ruta cumple `pred` (copia de la tabla bajo lock).
+    template <typename Pred> std::vector<int> sessionsWhere(Pred pred) const;
 
     WebrtcHub& hub_;
     Cfg cfg_;
     Log& log_;
     std::atomic<bool> stop_{false};
+    std::vector<std::thread> threads_;
 
-    std::thread audioThread_;
-    std::thread videoThread_;
+    // [0] reservado en todos.
+    std::vector<std::unique_ptr<VideoOut>> guestVideo_;
+    std::vector<std::unique_ptr<VideoOut>> shareVideo_;
+    std::vector<std::unique_ptr<VideoOut>> lobbyVideo_;
+    std::vector<std::unique_ptr<AudioOut>> guestAudio_;
+    std::vector<std::unique_ptr<AudioOut>> lobbyAudio_;
 
-    // Canales de salida (B→A), uno por slot (1..guests). 0 reservado.
-    std::vector<ba::ipc::SharedAudioRing> outAudio_;
-    std::vector<ba::ipc::SpoutSender> outVideo_;
-
-    // Buffer de re-bloqueo de audio de uplink a bloques de 480 frames, por slot.
-    std::vector<std::vector<float>> audioBuf_;
-    // Posicion de lectura dentro de audioBuf_[slot]. Antes cada bloque
-    // publicado hacia un erase() desde el frente, es decir un memmove de todo
-    // el resto, dentro del callback de libwebrtc y bajo el lock del slot. Con
-    // un indice, publicar es O(1) y el buffer se compacta de vez en cuando.
-    std::vector<size_t> audioBufPos_;
-    // Re-muestreador por slot: el invitado puede entregar a 44.1 kHz y el ring
-    // B→A es de 48 kHz fijos. Antes el `rate` se ignoraba (`(void)rate`) y el
-    // audio se publicaba crudo, o sea desafinado y a velocidad equivocada.
-    std::vector<std::unique_ptr<ba::dsp::Resampler>> audioResampler_;
-    std::vector<int> audioResamplerRate_; // rate de entrada configurado
-    std::vector<std::vector<float>> audioResampleIn_;
-    std::vector<std::vector<float>> audioResampleOut_;
-    // unique_ptr<mutex>: std::mutex no es copiable ni movible, y cualquier op
-    // que haga crecer un std::vector<std::mutex> (emplace_back/resize) debe
-    // reubicar los elementos existentes (instantia el move/copy borrado). Detras
-    // del unique_ptr el vector crece moviendo punteros (no los mutex).
-    std::vector<std::unique_ptr<std::mutex>> audioBufLock_;
+    mutable std::mutex routesLock_;
+    std::vector<MediaRoute> routes_; // por sesion, [0] reservado
 };
 
 } // namespace ba::gateway

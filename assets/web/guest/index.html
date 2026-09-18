@@ -3,81 +3,137 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#0b0f14" />
+  <meta name="theme-color" content="#0c0c0e" />
   <title>Conferencia — Invitado</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <!-- ================================================================
-       App web del invitado (spec §8.3): mobile-first, en español.
-       Flujo:
-         1. Pantalla de entrada: sala + PIN → POST /api/join → token.
-         2. Chequeo de cámara/micrófono con medidor de nivel.
-         3. Conexión WebSocket /ws?token=..&slot=1 (señalización WebRTC).
-         4. getUserMedia (máx 720p30) + RTCPeerConnection (offerer).
-         5. Retorno: video de programa + audio de la sala.
-         6. Reconexión automática con backoff; indicador "estás al aire".
-       Los mensajes de señalización viajan como frames binarios WS que
-       cargan el encoding Frame (4 bytes LE + JSON, spec §4.1).
+       App web del invitado (spec §8.3). Flujo:
+         1. Entrada: nombre + sala + PIN -> POST /api/join -> token.
+         2. Dispositivos: camara/micro (opcionales) con medidor.
+         3. Lobby: WebSocket /ws; espera a que el operador lo admita
+            (posicion en la fila + chat con el operador).
+         4. Sala: WebRTC (camara/micro + pantalla o ventana compartida),
+            archivos para mostrar, chat, mano levantada.
+       La reconexion usa el id + clave que da la sala (guardados en
+       sessionStorage: una recarga no le hace perder el lugar).
        ================================================================ -->
 
-  <!-- Pantalla de entrada (sala + PIN) -->
+  <!-- 1) Entrada -->
   <section id="screen-join" class="screen">
     <div class="card">
-      <h1>Conferencia</h1>
-      <p class="sub">Ingresa con la sala y el PIN que te dio el operador.</p>
-      <label for="room">Sala</label>
-      <input id="room" type="text" autocomplete="off" placeholder="sala1" />
-      <label for="pin">PIN</label>
-      <input id="pin" type="password" inputmode="numeric" placeholder="••••" />
-      <button id="btn-join" class="primary">Entrar</button>
+      <div class="brand"><span class="dot"></span> Conferencia</div>
+      <h1>Hola 👋</h1>
+      <p class="sub">Ingresá con los datos que te pasó el operador.</p>
+      <label for="name">Tu nombre</label>
+      <input id="name" type="text" maxlength="40" autocomplete="name" placeholder="Cómo te van a ver" />
+      <div class="row2">
+        <div>
+          <label for="room">Sala</label>
+          <input id="room" type="text" autocomplete="off" placeholder="sala1" />
+        </div>
+        <div>
+          <label for="pin">PIN</label>
+          <input id="pin" type="password" inputmode="numeric" autocomplete="off" placeholder="••••••" />
+        </div>
+      </div>
+      <button id="btn-join" class="primary">Continuar</button>
       <p id="join-error" class="error" role="alert"></p>
     </div>
   </section>
 
-  <!-- Pantalla de chequeo de dispositivos -->
+  <!-- 2) Dispositivos -->
   <section id="screen-check" class="screen hidden">
     <div class="card">
-      <h2>Prepara tus dispositivos</h2>
-      <p class="sub">Recomendado: usá auriculares para evitar el eco.</p>
-      <div class="media-grid">
-        <div class="media-box">
-          <video id="local-preview" class="preview" autoplay muted playsinline></video>
+      <h2>Prepará tus dispositivos</h2>
+      <p class="sub">Recomendado: auriculares, para evitar el eco.</p>
+      <div class="preview-box">
+        <video id="local-preview" class="preview" autoplay muted playsinline></video>
+        <div class="meter"><div id="level" class="level"></div></div>
+        <div class="badges">
           <span class="badge" id="cam-state">Cámara</span>
-        </div>
-        <div class="media-box">
-          <div class="meter-wrap">
-            <div class="meter"><div id="level" class="level"></div></div>
-          </div>
           <span class="badge" id="mic-state">Micrófono</span>
         </div>
       </div>
       <p id="check-error" class="error" role="alert"></p>
-      <button id="btn-start" class="primary" disabled>Conectar a la sala</button>
+      <button id="btn-start" class="primary">Pedir entrar</button>
+      <button id="btn-nodevices" class="ghost wide">Entrar sin cámara ni micrófono</button>
     </div>
   </section>
 
-  <!-- Pantalla de sala (en vivo) -->
-  <section id="screen-room" class="screen hidden">
+  <!-- 3) Lobby: solo ves al operador (nunca a los demas que esperan) -->
+  <section id="screen-lobby" class="screen hidden">
+    <div class="card center">
+      <div class="lobby-stage">
+        <video id="lobby-video" class="lobby-operator" autoplay playsinline></video>
+        <div class="pulse" id="lobby-pulse"></div>
+        <span class="tile-label">Operador</span>
+        <span class="talk hidden" id="talk-badge">● Te está hablando</span>
+      </div>
+      <h2 id="lobby-title">Esperando al operador</h2>
+      <p class="sub" id="lobby-text">Ya avisamos que llegaste. El operador te ve y en un momento te hace pasar.</p>
+      <p class="position" id="lobby-pos"></p>
+      <button class="ghost" id="btn-lobby-chat">💬 Escribirle al operador</button>
+      <button class="ghost danger" id="btn-lobby-leave">Salir</button>
+    </div>
+  </section>
+
+  <!-- 4) Sala -->
+  <section id="screen-room" class="screen wide hidden">
     <header class="room-head">
       <div class="status" id="conn-state">Conectando…</div>
-      <div class="onair hidden" id="onair">● Estás al aire</div>
+      <div class="onair hidden" id="onair">● Estás en la sala</div>
     </header>
     <div class="stage">
-      <!-- Retorno: video de programa (A→B→invitado) -->
       <div class="tile program-tile">
         <video id="remote-video" class="remote" autoplay playsinline></video>
         <span class="tile-label">Programa</span>
       </div>
-      <!-- Retorno: audio de la sala (A→B→invitado) -->
+      <div class="tile self-tile">
+        <video id="self-video" autoplay muted playsinline></video>
+        <span class="tile-label" id="self-label">Vos</span>
+      </div>
+      <div class="tile share-tile hidden" id="share-tile">
+        <video id="share-video" autoplay muted playsinline></video>
+        <span class="tile-label">Tu pantalla</span>
+      </div>
       <audio id="remote-audio" autoplay></audio>
     </div>
-    <footer class="room-foot">
-      <button id="btn-mute" class="ghost">Silenciar mic</button>
-      <button id="btn-cam" class="ghost">Apagar cámara</button>
-      <button id="btn-leave" class="ghost danger">Salir</button>
+    <div class="uploads" id="uploads"></div>
+    <footer class="dock">
+      <button id="btn-mic" class="round" title="Micrófono">🎙️</button>
+      <button id="btn-cam" class="round" title="Cámara">📷</button>
+      <button id="btn-screen" class="round" title="Compartir pantalla o ventana">🖥️</button>
+      <button id="btn-file" class="round" title="Compartir un archivo (imagen, video o audio)">📎</button>
+      <button id="btn-hand" class="round" title="Levantar la mano">✋</button>
+      <button id="btn-chat" class="round" title="Chat">💬<span class="unread hidden" id="unread"></span></button>
+      <button id="btn-leave" class="round danger" title="Salir">⏻</button>
+      <input id="file-input" type="file" class="hidden"
+             accept="image/png,image/jpeg,image/gif,image/webp,video/mp4,video/quicktime,video/webm,video/x-matroska,audio/mpeg,audio/wav,audio/ogg,audio/flac,audio/mp4" />
     </footer>
   </section>
+
+  <!-- Fin (rechazado / expulsado / salio) -->
+  <section id="screen-end" class="screen hidden">
+    <div class="card center">
+      <h2 id="end-title">Saliste de la sala</h2>
+      <p class="sub" id="end-text"></p>
+      <button id="btn-again" class="primary">Volver a entrar</button>
+    </div>
+  </section>
+
+  <!-- Chat (panel lateral, sirve en lobby y sala) -->
+  <aside id="chat" class="chat hidden" aria-label="Chat">
+    <header><strong>Chat</strong><button id="btn-chat-close" class="icon">✕</button></header>
+    <div id="chat-log" class="chat-log"></div>
+    <form id="chat-form" class="chat-form">
+      <input id="chat-input" type="text" maxlength="1000" autocomplete="off" placeholder="Escribí un mensaje…" />
+      <button class="primary small">Enviar</button>
+    </form>
+  </aside>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
 
   <script src="app.js"></script>
 </body>

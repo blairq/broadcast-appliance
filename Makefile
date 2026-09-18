@@ -27,7 +27,7 @@ JOBS      ?= $(nproc)
 PY        ?= .venv/bin/python
 PIP       ?= .venv/bin/pip
 
-.PHONY: help dev build prod test test-unit pytest test-all lint docs release win \
+.PHONY: deps-lwip help dev build prod test test-unit pytest test-all lint docs release win deps-cloudflared-host deps-qt-host \
         clean clean-all \
         deps deps-obs deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist \
         deps-lsp deps-status deps-clean \
@@ -55,6 +55,7 @@ help:
 	@echo "  make deps-obs         Runtime OBS 31.0.0 (libobs+CEF+Qt) -> extern/obs-studio"
 	@echo "  make deps-qt          SDK Qt 6.6.3 win64_mingw (build inputs) -> extern/qt6"
 	@echo "  make deps-webrtc      SDK libwebrtc M123 -> extern/webrtc (BA_WEBRTC_TARGET=windows|linux)"
+	@echo "  make deps-lwip        lwIP 2.2.0 -> extern/lwip (tunel WireGuard del gateway)"
 	@echo "  make deps-spout       SDK Spout2 (2.007h) -> extern/Spout2"
 	@echo "  make deps-cloudflared cloudflared 2024.11.0 -> extern/cloudflared"
 	@echo "  make deps-vcredist    Redist VC++ -> extern/vcredist"
@@ -88,7 +89,7 @@ build:
 prod:
 	cmake -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=Release
 	cmake --build $(BUILD_DIR) -j$(JOBS)
-	cmake --install $(BUILD_DIR) --prefix release
+	cmake --install $(BUILD_DIR) --prefix release --component bundle
 	@echo "Bundle portable: release/"
 
 # --- Documentación (Sphinx / ReadTheDocs) -----------------------------------
@@ -151,7 +152,7 @@ lint:
 # Instala el esqueleto del layout portable sobre release (bin/64bit,
 # obs-plugins, data/libobs, Config, Logs, Recordings, Web/guest).
 release:
-	cmake --install $(BUILD_DIR) --prefix release
+	cmake --install $(BUILD_DIR) --prefix release --component bundle
 
 # --- Cross-compile MinGW-w64 (Windows desde Linux) --------------------------
 # Solo si el cross-compiler existe; si no, avisa y termina en verde. El
@@ -250,7 +251,7 @@ QT6_SHA      := 381542ca9904f8595cccfa3a45a035e188924180f815e44afa77f296a9bee323
 # include/ + lib/; se extrae sobre extern/ -> extern/webrtc/{include,lib}.
 ifeq ($(BA_WEBRTC_TARGET),linux)
   WEBRTC_URL := https://github.com/shiguredo-webrtc-build/webrtc-build/releases/download/$(WEBRTC_TAG)/webrtc.ubuntu-22.04_x86_64.tar.gz
-  WEBRTC_SHA := 5858e94f14d11da0612b24bd139664281db8e227885587ef0d2ca614fb9d693
+  WEBRTC_SHA := 5858e94f14d11da0612b24bd139664281db8e2278885587ef0d2ca614fb9d693
   WEBARC     := $(DL_DIR)/webrtc.ubuntu-22.04_x86_64.tar.gz
   WEB_KIND   := tar
   WEB_LIB    := libwebrtc.a
@@ -262,6 +263,16 @@ else
   WEB_LIB    := webrtc.lib
 endif
 WEB_DEST := $(EXTERNS_DIR)/webrtc
+# libc++ de Chromium para compilar contra libwebrtc de Linux (commits de
+# extern/webrtc/VERSIONS: WEBRTC_SRC_THIRD_PARTY_LIBCXX_SRC_COMMIT y
+# WEBRTC_SRC_BUILDTOOLS_COMMIT).
+LIBCXX_COMMIT     := 9d119c1f4a097b7d27210874f4eba3fc91a83a4e
+LIBCXX_URL        := https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxx/+archive/$(LIBCXX_COMMIT)/include.tar.gz
+LIBCXX_TREE_SHA   := 501fb1f30f3d690019f488461af2453d9c5f508f3dd7ee12145da6e63151e425
+BUILDTOOLS_COMMIT := f35a7d885ace0b7dd8e8ac2376ca759d3905f4dc
+BUILDTOOLS_URL    := https://chromium.googlesource.com/chromium/src/buildtools/+/$(BUILDTOOLS_COMMIT)/third_party/libc++
+LIBCXX_CFG_SHA    := 6feb8f5430ffa14ca3c32638ac55f40b8f513f615ed650a6f4bb99f35d92ca8e
+LIBCXX_ASSERT_SHA := 84a4c12bc4870c0f5d23b940ce5f38248bc2d2abfdcd4462f81d3a2761e6f29a
 
 # Spout2 (leadedge/Spout2, tag 2.007h): SDK completo (headers SPOUTSDK/ +
 # lib estáticas BUILD/Binaries/x64/). Top-dir `Spout2-2.007h/` -> se strippea.
@@ -275,6 +286,28 @@ SPOUT_DEST := $(EXTERNS_DIR)/Spout2
 CFL_URL  := https://github.com/cloudflare/cloudflared/releases/download/$(CLOUDFLARED_VER)/cloudflared-windows-amd64.exe
 CFL_SHA  := f287dc99f9abe8f49510c78270b13fbb7a3fa0e22e53d1e061455a4d82901298
 CFL_EXE  := $(EXTERNS_DIR)/cloudflared/cloudflared.exe
+
+# cloudflared para el SISTEMA DEL HOST (Linux/macOS): el que corre el gateway
+# cuando el appliance se ejecuta en esta maquina. Hashes de los binarios
+# oficiales 2024.11.0.
+CFL_HOST_OS   := $(shell uname -s)
+CFL_HOST_ARCH := $(shell uname -m)
+CFL_HOST_BIN  := $(EXTERNS_DIR)/cloudflared/cloudflared
+ifeq ($(CFL_HOST_OS),Linux)
+  ifeq ($(CFL_HOST_ARCH),aarch64)
+    CFL_HOST_ASSET := cloudflared-linux-arm64
+    CFL_HOST_SHA   := 45a4e6d4c15ffc493ce685d3548e02c59da10a22b67d262be8e32611c173f707
+  else
+    CFL_HOST_ASSET := cloudflared-linux-amd64
+    CFL_HOST_SHA   := cd7095b33a861ccb055606d512fc74d81865f46fe9c2c7c84452ee60383db13c
+  endif
+else ifeq ($(CFL_HOST_OS),Darwin)
+  CFL_HOST_ASSET := cloudflared-darwin-arm64.tgz
+  CFL_HOST_SHA   := 9be7398e5cfaa8b5883bdd31185acc9931c53be34796a9ba8ef94ab7a8293206
+endif
+CFL_HOST_URL := https://github.com/cloudflare/cloudflared/releases/download/$(CLOUDFLARED_VER)/$(CFL_HOST_ASSET)
+# macOS no trae sha256sum: shasum -a 256 acepta el mismo formato.
+SHA256_CHECK := $(shell command -v sha256sum >/dev/null 2>&1 && echo "sha256sum -c --quiet" || echo "shasum -a 256 -c --quiet")
 
 # Redist VC++ (evergreen aka.ms): aporta msvcp140_atomic_wait.dll (requerido
 # por std::atomic::wait de C++20). Es un objetivo MOVIENTE (sin tag), por lo
@@ -385,7 +418,7 @@ VST3_GUI_TAR  := $(DL_DIR)/vst3-vstgui4-65c353fc.tar.gz
 # makefile y rompe el parseo).
 
 # --- deps (agregado) ---------------------------------------------------------
-deps: deps-obs deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist deps-lsp deps-src
+deps: deps-obs deps-qt deps-webrtc deps-lwip deps-spout deps-cloudflared deps-vcredist deps-lsp deps-src
 
 # --- libobs para Linux (compilada desde fuente hacia extern/) ---------------
 # El motor de emision necesita libobs. En Windows se usa el runtime prebuilt
@@ -468,6 +501,34 @@ deps-qt:
 	  fi; \
 	fi
 
+# Qt 6 para el SISTEMA DEL HOST (Linux gcc_64 / macOS clang_64), vendoreado en
+# extern/qt6-host: la interfaz grafica de ba-app compila SOLO contra esta copia
+# y el bundle se la lleva (portable: nunca el Qt del sistema). Se instala con
+# aqtinstall dentro del .venv local (nada global). ~1,2 GB en extern/.
+QT6_HOST_DEST := $(EXTERNS_DIR)/qt6-host
+ifeq ($(shell uname -s),Darwin)
+  QT6_HOST_OS   := mac
+  QT6_HOST_ARCH := clang_64
+  QT6_HOST_DIR  := macos
+else
+  QT6_HOST_OS   := linux
+  QT6_HOST_ARCH := gcc_64
+  QT6_HOST_DIR  := gcc_64
+endif
+QT6_HOST_SENTINEL := $(QT6_HOST_DEST)/$(QT6_VER)/$(QT6_HOST_DIR)/lib/cmake/Qt6/Qt6Config.cmake
+
+deps-qt-host:
+	@if [ -f "$(QT6_HOST_SENTINEL)" ]; then \
+	  echo "[deps] Qt6 $(QT6_VER) ($(QT6_HOST_ARCH)): ya presente ($(QT6_HOST_DEST))"; \
+	else \
+	  test -x "$(PY)" || python3 -m venv .venv; \
+	  "$(PIP)" install -q aqtinstall || { echo "[deps] ERROR Qt6: no se pudo instalar aqtinstall" >&2; exit 1; }; \
+	  echo "[deps] Qt6 $(QT6_VER): instalando $(QT6_HOST_OS)/$(QT6_HOST_ARCH) en $(QT6_HOST_DEST)"; \
+	  "$(PY)" -m aqt install-qt $(QT6_HOST_OS) desktop $(QT6_VER) $(QT6_HOST_ARCH) -O "$(QT6_HOST_DEST)" \
+	    || { echo "[deps] ERROR Qt6: fallo de aqt" >&2; exit 1; }; \
+	  test -f "$(QT6_HOST_SENTINEL)" || { echo "[deps] ERROR Qt6: falta $(QT6_HOST_SENTINEL)" >&2; exit 1; }; \
+	fi
+
 deps-webrtc:
 	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
 	@mkdir -p "$(DL_DIR)" "$(EXTERNS_DIR)"
@@ -487,6 +548,55 @@ deps-webrtc:
 	  rm -rf "$(WEB_DEST)"; \
 	  if [ "$(WEB_KIND)" = "tar" ]; then tar xzf "$(WEBARC)" -C "$(EXTERNS_DIR)"; \
 	  else unzip -q -o "$(WEBARC)" -d "$(EXTERNS_DIR)"; fi; \
+	fi
+ifeq ($(BA_WEBRTC_TARGET),linux)
+	@# libwebrtc de Linux usa la libc++ de Chromium (std::__Cr). El SDK trae solo
+	@# los .h de libc++: se bajan los headers completos y la configuracion de
+	@# Chromium (__config_site/__assertion_handler) en los commits de VERSIONS,
+	@# verificados por hash del CONTENIDO (los tar de gitiles no son byte-estables).
+	@if [ -f "$(WEB_DEST)/libcxx/include/vector" ] && [ "$$(cd $(WEB_DEST)/libcxx/include && find . -type f | LC_ALL=C sort | xargs sha256sum | sha256sum | cut -d' ' -f1)" = "$(LIBCXX_TREE_SHA)" ]; then \
+	  echo "[deps] libc++ (Chromium): headers ya presentes y verificados"; \
+	else \
+	  echo "[deps] libc++ (Chromium): bajando headers ($(LIBCXX_COMMIT))"; \
+	  rm -rf "$(WEB_DEST)/libcxx"; mkdir -p "$(WEB_DEST)/libcxx/include"; \
+	  curl -fsSL --retry 5 --retry-delay 3 "$(LIBCXX_URL)" | tar xz -C "$(WEB_DEST)/libcxx/include" \
+	    || { echo "[deps] ERROR libc++: fallo de descarga" >&2; exit 1; }; \
+	  test "$$(cd $(WEB_DEST)/libcxx/include && find . -type f | LC_ALL=C sort | xargs sha256sum | sha256sum | cut -d' ' -f1)" = "$(LIBCXX_TREE_SHA)" \
+	    || { echo "[deps] ERROR libc++: el contenido no coincide con el hash fijado" >&2; exit 1; }; \
+	fi
+	@mkdir -p "$(WEB_DEST)/buildtools-libcxx"
+	@for f in __config_site:$(LIBCXX_CFG_SHA) __assertion_handler:$(LIBCXX_ASSERT_SHA); do \
+	  n=$${f%%:*}; h=$${f##*:}; d="$(WEB_DEST)/buildtools-libcxx/$$n"; \
+	  if [ -f "$$d" ] && [ "$$(sha256sum "$$d" | cut -d' ' -f1)" = "$$h" ]; then continue; fi; \
+	  echo "[deps] libc++ (Chromium): bajando $$n ($(BUILDTOOLS_COMMIT))"; \
+	  curl -fsSL --retry 5 --retry-delay 3 "$(BUILDTOOLS_URL)/$$n?format=TEXT" | base64 -d > "$$d.part" \
+	    && [ "$$(sha256sum "$$d.part" | cut -d' ' -f1)" = "$$h" ] && mv "$$d.part" "$$d" \
+	    || { echo "[deps] ERROR libc++: $$n no coincide con el hash fijado" >&2; rm -f "$$d.part"; exit 1; }; \
+	done
+endif
+
+# lwIP 2.2.0 (BSD): pila IP en espacio de usuario para el tunel WireGuard del
+# gateway (src/gateway/net). El zip de Savannah es un archivo estatico: se fija
+# su hash. Mismo codigo que el tag STABLE-2_2_0_RELEASE de GitHub (verificado).
+LWIP_URL := https://download.savannah.nongnu.org/releases/lwip/lwip-2.2.0.zip
+LWIP_SHA := e12c769be5a1da9a1edf1b8f38d645c6c87d52a26a636172cea4b8c63ec04994
+LWIP_ZIP := $(DL_DIR)/lwip-2.2.0.zip
+deps-lwip:
+	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
+	@mkdir -p "$(DL_DIR)" "$(EXTERNS_DIR)"
+	@if [ -f "$(LWIP_ZIP)" ] && [ "$$(sha256sum "$(LWIP_ZIP)" | cut -d' ' -f1)" = "$(LWIP_SHA)" ]; then \
+	  echo "[deps] lwIP: ya presente y verificado"; \
+	else \
+	  echo "[deps] lwIP: descargando $(LWIP_URL)"; \
+	  curl -fL --retry 3 -o "$(LWIP_ZIP).part" "$(LWIP_URL)" && mv "$(LWIP_ZIP).part" "$(LWIP_ZIP)" \
+	    && printf '%s  %s\n' "$(LWIP_SHA)" "$(LWIP_ZIP)" | sha256sum -c --quiet \
+	    || { echo "[deps] ERROR lwIP: fallo de descarga o hash" >&2; rm -f "$(LWIP_ZIP).part"; exit 1; }; \
+	fi
+	@if [ -f "$(EXTERNS_DIR)/lwip/src/Filelists.cmake" ]; then \
+	  echo "[deps] lwIP: ya extraido en $(EXTERNS_DIR)/lwip"; \
+	else \
+	  rm -rf "$(EXTERNS_DIR)/lwip" "$(EXTERNS_DIR)/lwip-2.2.0"; \
+	  unzip -q "$(LWIP_ZIP)" -d "$(EXTERNS_DIR)" && mv "$(EXTERNS_DIR)/lwip-2.2.0" "$(EXTERNS_DIR)/lwip"; \
 	fi
 
 deps-spout:
@@ -521,6 +631,26 @@ deps-cloudflared:
 	    && mv "$(CFL_EXE).part" "$(CFL_EXE)" \
 	    && printf '%s  %s\n' "$(CFL_SHA)" "$(CFL_EXE)" | sha256sum -c --quiet \
 	    || { echo "[deps] ERROR cloudflared: fallo de descarga o hash" >&2; rm -f "$(CFL_EXE).part"; exit 1; }; \
+	fi
+
+# cloudflared del host (Linux amd64/arm64 o macOS arm64), verificado por
+# SHA-256. En macOS el asset es un .tgz con el binario adentro.
+deps-cloudflared-host:
+	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
+	@test -n "$(CFL_HOST_ASSET)" || { echo "[deps] cloudflared: host $(CFL_HOST_OS) sin binario conocido" >&2; exit 1; }
+	@mkdir -p "$(dir $(CFL_HOST_BIN))" "$(DL_DIR)"
+	@if [ -x "$(CFL_HOST_BIN)" ]; then \
+	  echo "[deps] cloudflared ($(CFL_HOST_ASSET)): ya presente ($(CFL_HOST_BIN))"; \
+	else \
+	  echo "[deps] cloudflared: descargando $(CFL_HOST_URL)"; \
+	  curl -fL --retry 3 --connect-timeout 30 -o "$(DL_DIR)/$(CFL_HOST_ASSET)" "$(CFL_HOST_URL)" \
+	    && printf '%s  %s\n' "$(CFL_HOST_SHA)" "$(DL_DIR)/$(CFL_HOST_ASSET)" | $(SHA256_CHECK) \
+	    || { echo "[deps] ERROR cloudflared: fallo de descarga o hash" >&2; rm -f "$(DL_DIR)/$(CFL_HOST_ASSET)"; exit 1; }; \
+	  case "$(CFL_HOST_ASSET)" in \
+	    *.tgz) tar -xzf "$(DL_DIR)/$(CFL_HOST_ASSET)" -C "$(dir $(CFL_HOST_BIN))" ;; \
+	    *) cp "$(DL_DIR)/$(CFL_HOST_ASSET)" "$(CFL_HOST_BIN)" ;; \
+	  esac; \
+	  chmod +x "$(CFL_HOST_BIN)"; \
 	fi
 
 deps-vcredist:

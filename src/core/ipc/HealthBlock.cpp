@@ -19,6 +19,7 @@
 
 #include "HealthBlock.hpp"
 
+#include "ipc/AtomicRef.hpp"
 #include <atomic>
 #include <chrono>
 #include <cstddef>
@@ -47,11 +48,11 @@ constexpr int kMaxSeqlockSpins = 64;
 // Escribe un entry completo bajo el seqlock (writer).
 void writeEntry(HealthEntry* e, std::uint32_t state, std::uint32_t pid, std::uint32_t version,
                 std::uint64_t lastBeatQpc) {
-    std::atomic_ref<std::uint32_t> seq{e->seq};
-    std::atomic_ref<std::uint32_t> st{e->state};
-    std::atomic_ref<std::uint32_t> pidRef{e->pid};
-    std::atomic_ref<std::uint32_t> verRef{e->version};
-    std::atomic_ref<std::uint64_t> beat{e->lastBeatQpc};
+    AtomicRef<std::uint32_t> seq{e->seq};
+    AtomicRef<std::uint32_t> st{e->state};
+    AtomicRef<std::uint32_t> pidRef{e->pid};
+    AtomicRef<std::uint32_t> verRef{e->version};
+    AtomicRef<std::uint64_t> beat{e->lastBeatQpc};
 
     // Abre la ventana de escritura (seq impar).
     seq.fetch_add(1, std::memory_order_acq_rel);
@@ -71,11 +72,11 @@ bool readEntry(HealthEntry* e, Snapshot& out) {
         out = Snapshot{}; // state=Unknown, lastBeatQpc=0
         return false;
     }
-    std::atomic_ref<std::uint32_t> seq{e->seq};
-    std::atomic_ref<std::uint32_t> st{e->state};
-    std::atomic_ref<std::uint32_t> pidRef{e->pid};
-    std::atomic_ref<std::uint32_t> verRef{e->version};
-    std::atomic_ref<std::uint64_t> beat{e->lastBeatQpc};
+    AtomicRef<std::uint32_t> seq{e->seq};
+    AtomicRef<std::uint32_t> st{e->state};
+    AtomicRef<std::uint32_t> pidRef{e->pid};
+    AtomicRef<std::uint32_t> verRef{e->version};
+    AtomicRef<std::uint64_t> beat{e->lastBeatQpc};
 
     for (int spin = 0;; ++spin) {
         const std::uint32_t s1 = seq.load(std::memory_order_acquire);
@@ -295,7 +296,7 @@ bool HealthBlock::isStale(std::size_t slot, std::uint64_t nowQpc, std::uint64_t 
     if (e == nullptr) {
         return false;
     }
-    const std::uint64_t beat = std::atomic_ref<std::uint64_t>{e->lastBeatQpc}.load(std::memory_order_acquire);
+    const std::uint64_t beat = AtomicRef<std::uint64_t>{e->lastBeatQpc}.load(std::memory_order_acquire);
 
     // Slot sin latidos: se considera estancado si ya paso el umbral desde la
     // epoca (0). Asi un proceso que nunca llego a latir se detecta igual.

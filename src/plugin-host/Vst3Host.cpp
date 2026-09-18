@@ -193,14 +193,13 @@ std::wstring utf8ToUtf16(const std::string& utf8) {
     if (utf8.empty()) {
         return {};
     }
-    const int len = ::MultiByteToWideChar(CP_UTF8, 0, utf8.data(),
-                                          static_cast<int>(utf8.size()), nullptr, 0);
+    const int len = ::MultiByteToWideChar(CP_UTF8, 0, utf8.data(), static_cast<int>(utf8.size()), nullptr, 0);
     if (len <= 0) {
         return {};
     }
     std::wstring out(static_cast<size_t>(len), L'\0');
-    const int copied = ::MultiByteToWideChar(CP_UTF8, 0, utf8.data(),
-                                             static_cast<int>(utf8.size()), out.data(), len);
+    const int copied =
+        ::MultiByteToWideChar(CP_UTF8, 0, utf8.data(), static_cast<int>(utf8.size()), out.data(), len);
     if (copied <= 0) {
         return {};
     }

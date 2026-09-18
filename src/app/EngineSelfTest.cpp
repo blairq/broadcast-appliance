@@ -9,11 +9,14 @@
 #include "EngineSelfTest.hpp"
 
 #include <obs.h>
+#include <util/bmem.h>
+#include <util/platform.h>
 
 #include <chrono>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <set>
 #include <string>
 #include <thread>
 #include <vector>
@@ -44,6 +47,23 @@ std::string argValue(int argc, char** argv, const char* key, const std::string& 
         }
     }
     return def;
+}
+
+/// Raiz del bundle portable: dos niveles arriba del ejecutable
+/// (`<root>/bin/64bit/ba-app`). Las rutas por defecto se resuelven desde aca y
+/// NO desde el directorio de trabajo: si no, el autotest solo funcionaba
+/// lanzado con `cd release` y desde cualquier otro lado no cargaba ningun
+/// modulo. Si no se puede resolver, cae al cwd.
+std::string bundleRoot() {
+    std::string root = ".";
+    if (char* exeRel = os_get_executable_path_ptr("../..")) {
+        if (char* abs = os_get_abs_path_ptr(exeRel)) {
+            root = abs;
+            bfree(abs);
+        }
+        bfree(exeRel);
+    }
+    return root;
 }
 
 /// Lista los ids disponibles de un enumerador de libobs.
@@ -81,13 +101,16 @@ int runEngineSelfTest(int argc, char** argv) {
 
     // Rutas: por defecto el layout portable relativo al cwd; se pueden
     // sobreescribir para correr desde el arbol de build.
+    const std::string root = bundleRoot();
     EnginePaths paths;
-    paths.moduleBinDir = argValue(argc, argv, "--modules", "./obs-plugins/64bit");
-    paths.moduleDataDir = argValue(argc, argv, "--module-data", "");
-    paths.obsDataDir = argValue(argc, argv, "--obs-data", "./data/libobs");
-    paths.configDir = argValue(argc, argv, "--config", "");
+    paths.moduleBinDir = argValue(argc, argv, "--modules", root + "/obs-plugins/64bit");
+    paths.moduleDataDir = argValue(argc, argv, "--module-data", root + "/data/obs-plugins");
+    paths.obsDataDir = argValue(argc, argv, "--obs-data", root + "/data/libobs");
+    // Config de los plugins (rtmp-services baja services.json, etc.). Vacio
+    // = el cwd: ensuciaba el directorio desde donde se lanzara el autotest.
+    paths.configDir = argValue(argc, argv, "--config", root + "/Config/plugin_config");
 
-    const std::string recDir = argValue(argc, argv, "--rec-dir", "./Recordings");
+    const std::string recDir = argValue(argc, argv, "--rec-dir", root + "/Recordings");
     std::error_code ec;
     std::filesystem::create_directories(recDir, ec);
 
@@ -110,7 +133,8 @@ int runEngineSelfTest(int argc, char** argv) {
         // Sin contexto grafico no hay nada que probar, pero tampoco es un fallo
         // del motor: se reporta como SALTADO para no teñir de rojo una suite
         // que corre en una maquina sin servidor grafico.
-        if (err.find("obs_reset_video") != std::string::npos) {
+        if (err.find("obs_reset_video") != std::string::npos ||
+            err.find("sin sesion grafica") != std::string::npos) {
             std::printf("\nSKIP: esta sesion no tiene contexto grafico (GL/D3D).\n"
                         "      El pipeline de video de libobs no puede inicializarse aca;\n"
                         "      correr en una sesion con servidor grafico para ejercitarlo.\n");
@@ -128,6 +152,9 @@ int runEngineSelfTest(int argc, char** argv) {
     ok("salida RTMP disponible", contains(outputs, "rtmp_output"));
     ok("salida de grabacion disponible", contains(outputs, "ffmpeg_muxer"));
     std::printf("         (%zu codificadores, %zu salidas)\n", encoders.size(), outputs.size());
+    for (const auto& id : encoders) {
+        std::printf("           - %s\n", id.c_str());
+    }
 
     // --- 3) Escena de programa ----------------------------------------------
     ok("escena de programa creada", eng.buildScene(), eng.lastError());
@@ -146,6 +173,14 @@ int runEngineSelfTest(int argc, char** argv) {
     rec.directory = recDir;
     rec.container = "mkv";
 
+    // Lo que ya habia en el directorio antes de grabar: el chequeo final mira
+    // SOLO archivos nuevos. Antes tomaba el mas grande del directorio, y con
+    // una grabacion de una corrida previa pasaba aunque esta no escribiera nada.
+    std::set<std::string> before;
+    for (const auto& e : std::filesystem::directory_iterator(recDir, ec)) {
+        before.insert(e.path().filename().string());
+    }
+
     const bool recStarted = eng.startRecording(rec, enc);
     ok("grabacion iniciada", recStarted, eng.lastError());
 
@@ -163,7 +198,7 @@ int runEngineSelfTest(int argc, char** argv) {
         std::uintmax_t biggest = 0;
         std::string biggestName;
         for (const auto& e : std::filesystem::directory_iterator(recDir, ec)) {
-            if (!e.is_regular_file(ec)) {
+            if (!e.is_regular_file(ec) || before.count(e.path().filename().string()) != 0) {
                 continue;
             }
             const auto sz = e.file_size(ec);

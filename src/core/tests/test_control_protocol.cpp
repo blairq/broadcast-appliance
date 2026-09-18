@@ -13,8 +13,13 @@
 //   3. request/response sobre un duplex en memoria: el servidor lee la
 //      peticion y responde con un Response que lleva el MISMO id; el cliente
 //      lo recibe por poll() y connected() sigue true.
-//   4. desconexion: se cierra el lado servidor (read devuelve 0) y el poll()
+//   4. desconexion: se cierra el lado servidor (read devuelve <0) y el poll()
 //      del cliente dispara el callback onDisconnect.
+//   5. frame partido: la mitad de un frame llega en un read y el resto en
+//      otro. poll() devuelve false SIN desconectar y decodifica al completar
+//      (con el contrato viejo, "0 = EOF", esto cortaba el canal).
+//   6. escribir y cerrar: el peer manda un frame y cierra enseguida. El frame
+//      se entrega igual y RECIEN DESPUES se informa la desconexion.
 
 #include "ipc/ControlProtocol.hpp"
 
@@ -67,12 +72,14 @@ class MemoryDuplex final : public DuplexStream {
 
     int read(std::uint8_t* buf, std::size_t cap) override {
         if (!open_) {
-            return 0; // EOF
-        }
-        if (peer_ != nullptr && !peer_->open_) {
-            return 0; // el peer cerro el pipe -> EOF
+            return -1; // EOF
         }
         if (rx_.empty()) {
+            // Como un socket real: el EOF del peer llega DESPUES de los datos
+            // que ya habia mandado.
+            if (peer_ != nullptr && !peer_->open_) {
+                return -1; // el peer cerro el pipe -> EOF
+            }
             return 0; // sin datos por ahora
         }
         const std::size_t n = std::min(cap, rx_.size());
@@ -81,7 +88,7 @@ class MemoryDuplex final : public DuplexStream {
         return static_cast<int>(n);
     }
 
-    // Cierra el lado: los reads posteriores devuelven 0 (EOF).
+    // Cierra el lado: los reads posteriores devuelven <0 (EOF).
     void close() { open_ = false; }
 
    private:
@@ -228,7 +235,7 @@ void testDisconnect() {
     }
     CHECK(got);
 
-    // Cierra el lado servidor: los reads del cliente devuelven 0 (EOF).
+    // Cierra el lado servidor: los reads del cliente devuelven <0 (EOF).
     serverStream.close();
 
     // El poll() del cliente detecta el EOF y dispara onDisconnect.
@@ -243,6 +250,58 @@ void testDisconnect() {
     CHECK(fired == firedBefore);
 }
 
+// 5) Frame partido entre dos lecturas: no es una desconexion.
+void testSplitFrame() {
+    MemoryDuplex clientStream;
+    MemoryDuplex serverStream;
+    clientStream.wireTo(serverStream);
+    ControlEndpoint server(serverStream, ControlEndpoint::kGateway);
+    bool fired = false;
+    server.onDisconnect([&fired]() { fired = true; });
+
+    Message req;
+    req.type = Type::Hello;
+    req.id = 1;
+    req.payload = R"({"device":"launcher"})";
+    const std::vector<std::uint8_t> frame = Frame::encodeFrame(req.toJson());
+    const std::size_t half = frame.size() / 2;
+
+    CHECK(clientStream.write(frame.data(), half));
+    Message got;
+    CHECK(!server.poll(got)); // incompleto
+    CHECK(server.connected());
+    CHECK(!fired);
+
+    CHECK(clientStream.write(frame.data() + half, frame.size() - half));
+    CHECK(server.poll(got));
+    CHECK(got.type == Type::Hello);
+    CHECK(got.payload == req.payload);
+    CHECK(server.connected());
+}
+
+// 6) Escribir y cerrar en el acto (lo que hace el launcher con "shutdown").
+void testWriteThenClose() {
+    MemoryDuplex clientStream;
+    MemoryDuplex serverStream;
+    clientStream.wireTo(serverStream);
+    ControlEndpoint client(clientStream, ControlEndpoint::kLauncher);
+    ControlEndpoint server(serverStream, ControlEndpoint::kGateway);
+    bool fired = false;
+    server.onDisconnect([&fired]() { fired = true; });
+
+    Message req;
+    req.type = Type::Shutdown;
+    req.payload = "{}";
+    CHECK(client.sendRequest(req));
+    clientStream.close(); // el servidor ve datos + EOF en la misma lectura
+
+    Message got;
+    CHECK(server.poll(got));
+    CHECK(got.type == Type::Shutdown);
+    CHECK(fired); // el cierre se informa, pero despues de entregar el frame
+    CHECK(!server.poll(got));
+}
+
 } // namespace
 
 int main() {
@@ -250,6 +309,8 @@ int main() {
     testMessageRoundTrip();
     testRequestResponse();
     testDisconnect();
+    testSplitFrame();
+    testWriteThenClose();
 
     if (g_failures == 0) {
         std::printf("test_control_protocol: OK\n");

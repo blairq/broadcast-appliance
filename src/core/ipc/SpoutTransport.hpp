@@ -63,11 +63,13 @@
 
 #pragma once
 
+#include "ipc/AtomicRef.hpp"
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <cwchar>
 #include <memory>
+#include <string>
 
 #include "ipc/SharedMemoryRegion.hpp" // ba::ipc::SharedMemoryRegion, Status, ErrorCode
 
@@ -103,8 +105,8 @@ struct SpoutMetaLayout {
 
 // atomic_ref<uint64_t> debe ser lock-free para que el camino de datos no tome
 // locks (spec §4.2, analogo al ring de audio §4.3).
-static_assert(std::atomic_ref<std::uint64_t>::is_always_lock_free,
-              "std::atomic_ref<std::uint64_t> debe ser lock-free en esta plataforma");
+static_assert(AtomicRef<std::uint64_t>::is_always_lock_free,
+              "AtomicRef<std::uint64_t> debe ser lock-free en esta plataforma");
 // El layout debe alinearse a una cache line y poner qpc en otra linea que
 // frameIndex (false sharing writer/reader).
 static_assert(alignof(SpoutMetaLayout) == kSpoutCacheLine,
@@ -194,12 +196,8 @@ struct SlotConfig {
     int height = 720;
 };
 
-/// Backend NULL: slot de pixeles compartido entre sender y receiver (definido
-/// en el .cpp). Se adelanta aqui como forward decl para que los miembros
-/// `std::shared_ptr<SpoutNullSlot>` de SpoutSender y SpoutReceiver referencien
-/// el MISMO tipo (si cada clase tuviera su propio `NullSlot` anidado, el
-/// `shared_ptr` del registro no encajaria en el miembro del otro).
-struct SpoutNullSlot;
+/// Layout del slot en memoria compartida (backend CPU, definido en el .cpp).
+struct VideoSlotHeader;
 
 /// Abstraccion de un SENDER Spout (spec §4.2).
 ///
@@ -255,9 +253,9 @@ class SpoutSender {
     bool published() const;
 
    private:
-    // Backend NULL: referencia al slot en el registro de proceso.
-    std::shared_ptr<SpoutNullSlot> null_;
-    SpoutMetaBlock metaOwner_; // bloque de metadatos paralelo (spec §4.2)
+    // Backend CPU: region compartida con cabecera + triple buffer.
+    SharedMemoryRegion region_;
+    VideoSlotHeader* header_ = nullptr;
     bool published_ = false;
 };
 
@@ -323,11 +321,25 @@ class SpoutReceiver {
     /// Tamano en bytes de un frame del slot (0 si no esta suscrito).
     std::size_t frameBytes() const;
 
+    /// true si el sender al que estamos suscritos ya no existe o fue
+    /// reemplazado por otro (el proceso productor se reinicio y publico el
+    /// mismo nombre de nuevo). El receptor seguiria mirando la memoria vieja
+    /// para siempre -- video congelado -- si no se resuscribe.
+    ///
+    /// Solo mira de verdad (reabre el nombre) si no llegaron frames en el
+    /// ultimo segundo, y como mucho una vez por segundo: se puede llamar en
+    /// cada vuelta del bucle del consumidor.
+    bool stale();
+
    private:
-    // Backend NULL: referencia al slot en el registro de proceso.
-    std::shared_ptr<SpoutNullSlot> null_;
-    SpoutMetaBlock metaOwner_; // bloque de metadatos abierto por name
-    std::uint64_t lastSeenIndex_ = 0;
+    // Backend CPU: region compartida con cabecera + triple buffer.
+    SharedMemoryRegion region_;
+    VideoSlotHeader* header_ = nullptr;
+    std::wstring name_;
+    std::uint64_t instanceId_ = 0;
+    std::uint64_t lastSeenPub_ = 0;
+    std::uint64_t lastFrameNs_ = 0; // reloj monotono del ultimo frame (o de la suscripcion)
+    std::uint64_t lastCheckNs_ = 0; // ultimo chequeo de stale()
     bool subscribed_ = false;
 };
 

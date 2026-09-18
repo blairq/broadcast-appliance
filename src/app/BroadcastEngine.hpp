@@ -36,8 +36,12 @@
 // ============================================================================
 #pragma once
 
+#include <atomic>
 #include <cstdint>
+#include <memory>
+#include <mutex>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "ipc/SharedAudioRing.hpp"
@@ -51,6 +55,7 @@ struct obs_encoder;
 struct obs_service;
 struct obs_scene;
 struct obs_source;
+struct obs_scene_item;
 struct video_data;
 struct audio_data;
 
@@ -79,7 +84,43 @@ struct EncoderConfig {
     int keyintSec = 2;               ///< intervalo de keyframe (2 s es el estandar de RTMP)
     std::string preset = "veryfast"; ///< preset de x264
     std::string rateControl = "CBR"; ///< CBR es lo que esperan los CDN
-    bool preferHardware = true;      ///< usar NVENC/QSV si esta disponible
+    bool preferHardware = true;      ///< con "auto": probar hardware antes que x264
+    /// Codificador de video: un alias o un id de libobs.
+    ///   "auto"         -> hardware de la plataforma en orden (Windows: NVENC,
+    ///                     QSV, AMF; Linux: NVENC, VAAPI; macOS: VideoToolbox)
+    ///   "nvenc" | "qsv" | "amf" | "vaapi" | "videotoolbox" | "x264"
+    ///   cualquier otro -> id literal de libobs (p. ej. "ffmpeg_vaapi_tex")
+    /// Siempre termina en x264 como red de seguridad: si el elegido no esta o
+    /// no arranca (driver roto, GPU ocupada), se cae al siguiente.
+    std::string videoEncoder = "auto";
+};
+
+/// Rectangulo en FRACCIONES del lienzo (0..1): independiente de la resolucion.
+struct CanvasRect {
+    float x = 0.0f;
+    float y = 0.0f;
+    float w = 1.0f;
+    float h = 1.0f;
+};
+
+/// Fuente generica de libobs para la escena (camara, captura, imagen, texto,
+/// media...). Es lo que hace a la escena configurable sin recompilar.
+struct SourceSpec {
+    std::string id;                  ///< id de libobs: "v4l2_input", "image_source", ...
+    std::string name;                ///< nombre unico en la escena
+    std::string settingsJson = "{}"; ///< settings de la fuente, tal cual los usa OBS
+    CanvasRect rect;                 ///< ubicacion (ignorado en fuentes solo-audio)
+    bool visible = true;
+    float volume = 1.0f; ///< ganancia lineal (1 = 0 dB)
+    bool muted = false;
+};
+
+/// Tipo de fuente disponible en esta libobs (para "Agregar fuente").
+struct SourceType {
+    std::string id;          ///< id de libobs ("v4l2_input", "image_source"...)
+    std::string displayName; ///< nombre legible que da el plugin
+    bool video = false;
+    bool audio = false;
 };
 
 /// Destino de transmision (spec §8).
@@ -97,7 +138,7 @@ struct RecordConfig {
 /// Rutas del layout portable que el motor necesita (spec §5.1/§5.3).
 struct EnginePaths {
     std::string moduleBinDir;  ///< obs-plugins/64bit
-    std::string moduleDataDir; ///< data de los plugins
+    std::string moduleDataDir; ///< data/obs-plugins (cada modulo en <dir>/<nombre>)
     std::string obsDataDir;    ///< data/libobs (shaders .effect)
     std::string configDir;     ///< Config/
 };
@@ -112,6 +153,7 @@ struct EngineStatus {
     int totalFrames = 0;
     double fps = 0.0;
     std::uint64_t bytesSent = 0;
+    std::string videoEncoder; ///< id de libobs del codificador en uso ("" si ninguno)
     std::string lastError;
 };
 
@@ -144,7 +186,7 @@ class BroadcastEngine {
     /// Arranca libobs: contexto grafico, pipeline de audio y modulos.
     ///
     /// Hace `obs_startup`, `obs_reset_video`, `obs_reset_audio` y carga los
-    /// modulos desde `paths.moduleBinDir`. Sin `obs_load_all_modules()` no
+    /// modulos desde `paths.moduleBinDir` (solo esos). Sin modulos no
     /// existen ni los codificadores ni las salidas (ni el modulo propio
     /// `ba-sources`), que es exactamente lo que le faltaba al arranque anterior.
     ///
@@ -157,24 +199,118 @@ class BroadcastEngine {
     /// Detiene salidas, libera la escena y apaga libobs. Idempotente.
     void shutdown();
 
-    /// Crea la escena de programa y la deja como fuente de salida del canal 0.
-    ///
-    /// :returns: true si la escena quedo activa.
+    // --- Escenas ------------------------------------------------------------
+    //
+    // Varias escenas; la del aire es la "actual". El canal de salida 0 es una
+    // TRANSICION de libobs (corte, fundido, barrido...) cuyo destino es la
+    // escena actual: cambiar de escena es iniciar la transicion.
+
+    /// Crea una escena vacia. false si el nombre ya existe.
+    bool createScene(const std::string& name);
+
+    /// Elimina una escena (no la actual si es la unica).
+    bool removeScene(const std::string& name);
+
+    /// Renombra una escena.
+    bool renameScene(const std::string& from, const std::string& to);
+
+    /// Nombres de las escenas en orden de creacion.
+    std::vector<std::string> sceneNames() const;
+
+    /// Pone `name` al aire con la transicion configurada (setTransition).
+    bool setCurrentScene(const std::string& name);
+
+    /// Escena al aire ("" si no hay).
+    const std::string& currentScene() const { return currentScene_; }
+
+    /// Tipo ("cut", "fade", "swipe", "slide", "fade_to_color") y duracion de
+    /// la transicion entre escenas.
+    bool setTransition(const std::string& type, int durationMs);
+
+    /// Compatibilidad: crea la escena "programa" y la pone al aire.
     bool buildScene();
 
-    /// Agrega a la escena una fuente de audio de invitado (`ba_guest_audio`),
-    /// que lee el ring `BA.Audio.Guest.<slot>` publicado por el Proceso B.
-    ///
-    /// :param slot: numero de invitado (1..4).
-    /// :returns: true si la fuente se creo y se agrego a la escena.
-    bool addGuestAudio(int slot);
+    // --- Fuentes -------------------------------------------------------------
+    //
+    // Los nombres de fuente son unicos en todo libobs. Agregar a una escena una
+    // fuente cuyo nombre ya existe REUTILIZA esa fuente (la misma camara en dos
+    // escenas es una sola captura).
 
-    /// Agrega a la escena una fuente de video de invitado (`ba_guest_video`),
-    /// que lee el canal compartido `BA.Guest.<slot>`.
-    ///
-    /// :param slot: numero de invitado (1..4).
-    /// :returns: true si la fuente se creo y se agrego a la escena.
+    /// Agrega (o reutiliza) una fuente en la escena `scene`, arriba de todo.
+    bool addSource(const std::string& scene, const SourceSpec& spec);
+
+    /// Compatibilidad: agrega a la escena actual.
+    bool addSource(const SourceSpec& spec);
+
+    /// Saca la fuente de la escena (si no queda en ninguna, se libera).
+    bool removeSource(const std::string& scene, const std::string& name);
+
+    /// Sube (delta > 0) o baja (delta < 0) la fuente en el orden de la escena.
+    bool moveSource(const std::string& scene, const std::string& name, int delta);
+
+    /// Fuentes de la escena, de abajo hacia arriba.
+    std::vector<std::string> sceneSources(const std::string& scene) const;
+
+    bool setSourceVisible(const std::string& scene, const std::string& name, bool visible);
+    bool sourceVisible(const std::string& scene, const std::string& name) const;
+
+    /// Ubica la fuente en `rect` (fracciones del lienzo) dentro de la escena.
+    bool setSourceRect(const std::string& scene, const std::string& name, const CanvasRect& rect);
+
+    /// Renombra una fuente (en todas las escenas).
+    bool renameSource(const std::string& from, const std::string& to);
+
+    /// id de libobs de la fuente ("" si no existe).
+    std::string sourceTypeId(const std::string& name) const;
+
+    /// Settings actuales de la fuente como JSON.
+    std::string sourceSettingsJson(const std::string& name) const;
+
+    /// Reemplaza los settings de la fuente (JSON como en app.json).
+    bool updateSourceSettings(const std::string& name, const std::string& settingsJson);
+
+    /// Puntero opaco a la fuente (obs_source_t*) para el editor de propiedades
+    /// de la interfaz. Prestado: valido mientras la fuente exista.
+    struct obs_source* sourceHandle(const std::string& name) const;
+
+    /// Tipos de fuente de entrada disponibles (solo los utilizables).
+    std::vector<SourceType> inputTypes() const;
+
+    /// Invitados: la fuente de video va en escenas; la de AUDIO es global
+    /// (siempre en la mezcla, como un microfono): canal de salida 1+slot.
+    bool addGuestAudio(int slot);
     bool addGuestVideo(int slot);
+    bool addGuestVideo(int slot, const CanvasRect& rect);
+
+    // --- Audio por fuente (mezclador) ------------------------------------------
+
+    /// Fuentes con audio que maneja el motor (escenas + globales), en orden.
+    std::vector<std::string> audioSources() const;
+    bool setSourceVolume(const std::string& name, float mul);
+    float sourceVolume(const std::string& name) const;
+    bool setSourceMuted(const std::string& name, bool muted);
+    bool sourceMuted(const std::string& name) const;
+    /// Pico mas reciente de la fuente en dBFS (-100 = silencio).
+    float sourcePeakDb(const std::string& name) const;
+
+    // --- Cambios en caliente -------------------------------------------------
+
+    /// true si hay grabacion o transmision en curso.
+    bool outputsActive() const;
+
+    /// Cambia resolucion/fps. Solo sin salidas activas (libobs no lo permite
+    /// en caliente): reinicia video, retorno a B y vista previa.
+    bool resetVideo(const VideoConfig& video);
+
+    /// Suelta los codificadores para que la proxima salida use una
+    /// configuracion nueva. Solo sin salidas activas.
+    bool resetEncoders();
+
+    const VideoConfig& videoConfig() const { return video_; }
+
+    /// Ids de codificador de video registrados en esta libobs, en el orden en
+    /// que se probarian para `enc` (el ultimo siempre es x264).
+    std::vector<std::string> videoEncoderCandidates(const EncoderConfig& enc) const;
 
     /// Publica el programa hacia el Proceso B (spec §8.5/§8.6).
     ///
@@ -228,6 +364,34 @@ class BroadcastEngine {
     /// :param data: bloque de audio planar float entregado por libobs.
     void onRawAudio(struct audio_data* data);
 
+    // --- Vista previa y medicion (para la UI) -------------------------------
+
+    /// Activa la vista previa del programa a `width` x `height`.
+    ///
+    /// Registra un callback de video crudo de libobs PROPIO, con su tamaño y
+    /// formato (BGRA): el escalado y la conversion los hace libobs en la GPU,
+    /// asi que la vista previa no cuesta CPU de escalado. Tambien activa el
+    /// medidor de picos de la mezcla de programa.
+    bool enablePreview(int width, int height);
+
+    /// Desactiva la vista previa y el medidor. Idempotente.
+    void disablePreview();
+
+    /// Copia el ultimo frame de vista previa si es mas nuevo que `serial`.
+    ///
+    /// :param dst: recibe BGRA empaquetado (width*4 bytes por fila).
+    /// :param serial: el ultimo visto; se actualiza al entregar uno nuevo.
+    /// :returns: true si se copio un frame nuevo.
+    bool latestPreview(std::vector<std::uint8_t>& dst, int& width, int& height, std::uint64_t& serial) const;
+
+    /// Picos de la mezcla de programa desde la ultima llamada, en dBFS por
+    /// canal (L, R). -100 = silencio.
+    void programPeaksDb(float& left, float& right);
+
+    /// Callbacks crudos de la vista previa y el medidor (los llama libobs).
+    void onPreviewVideo(struct video_data* frame);
+    void onMeterAudio(struct audio_data* data);
+
     /// Estado actual (para la UI y el HealthBlock).
     EngineStatus status() const;
 
@@ -241,12 +405,21 @@ class BroadcastEngine {
     // Crea los codificadores si todavia no existen (se comparten entre las dos
     // salidas: codificar una sola vez y muxar dos veces).
     bool ensureEncoders(const EncoderConfig& enc);
-    // Elige el codificador de video disponible: NVENC/QSV si se pidio hardware
-    // y esta presente; x264 si no.
-    std::string pickVideoEncoder(bool preferHardware) const;
+    // Arranca una salida con los codificadores actuales y, si falla con un
+    // codificador de hardware (y ninguna otra salida lo esta usando), cae al
+    // siguiente candidato y reintenta.
+    bool startOutputWithFallback(struct obs_output* out, const EncoderConfig& enc);
+    void releaseVideoEncoder();
+    // Ubica un item de escena en un rectangulo (fracciones del lienzo).
+    void placeItem(struct obs_scene_item* item, const CanvasRect& rect) const;
     void setError(std::string msg);
+    // Linux: elige Wayland/X11 para libobs antes de obs_startup (ver .cpp).
+    bool selectWindowingPlatform();
+    void releaseWindowingPlatform();
 
     bool started_ = false;
+    void* nixDisplay_ = nullptr; // wl_display* o Display* (Linux)
+    bool nixWayland_ = false;
     std::string lastError_;
 
     EnginePaths paths_;
@@ -254,13 +427,40 @@ class BroadcastEngine {
     AudioConfig audio_;
 
     // Handles de libobs (punteros opacos; el .cpp los castea).
+    // Escenas (referencias propias) en orden de creacion y la transicion del
+    // canal 0. Fuentes creadas por el motor (referencias propias).
+    std::vector<std::pair<std::string, obs_scene*>> scenes_;
+    std::string currentScene_;
+    obs_source* transition_ = nullptr;
+    std::string transitionType_ = "fade";
+    int transitionMs_ = 300;
+    std::vector<std::pair<std::string, obs_source*>> sources_;
+    std::vector<std::string> globalAudio_; // fuentes en canales de salida 1..
+    // Vumetro por fuente: obs_volmeter (opaco) + pico mas reciente en dBFS.
+    struct Meter {
+        void* vm = nullptr;
+        std::atomic<float> peakDb{-100.0f};
+        ~Meter(); // BroadcastEngineScenes.cpp
+    };
+    std::vector<std::pair<std::string, std::unique_ptr<Meter>>> meters_;
+
+    obs_scene* sceneByName(const std::string& name) const;
+    obs_source* ownedSource(const std::string& name) const;
+    void attachMeter(const std::string& name, obs_source* src);
+    void releaseScenes();
+    // Compatibilidad con el codigo de una sola escena (escena actual).
     obs_scene* scene_ = nullptr;
-    obs_source* sceneSource_ = nullptr;
     obs_encoder* videoEncoder_ = nullptr;
     obs_encoder* audioEncoder_ = nullptr;
     obs_output* streamOutput_ = nullptr;
     obs_output* recordOutput_ = nullptr;
     obs_service* service_ = nullptr;
+
+    // Candidatos de codificador de video (ver EncoderConfig::videoEncoder) y
+    // el indice del que esta en uso.
+    std::vector<std::string> encoderCandidates_;
+    std::size_t encoderIndex_ = 0;
+    std::string videoEncoderId_;
 
     // Canales IPC hacia el Proceso B (el lado PRODUCTOR).
     ba::ipc::SharedAudioRing returnAudio_;
@@ -273,6 +473,20 @@ class BroadcastEngine {
     // libobs), por eso no necesita lock.
     std::vector<float> audioAccum_;
     std::uint64_t programFrameIndex_ = 0;
+    // Frame de programa empaquetado cuando libobs entrega filas con relleno
+    // (linesize > ancho*4). Solo lo toca el hilo de render.
+    std::vector<std::uint8_t> programPacked_;
+
+    // Vista previa: el hilo de render escribe, la UI lee (bajo previewLock_).
+    mutable std::mutex previewLock_;
+    std::vector<std::uint8_t> previewBuf_;
+    int previewW_ = 0;
+    int previewH_ = 0;
+    std::uint64_t previewSerial_ = 0;
+    bool previewActive_ = false;
+    // Picos de programa (lineales, 0..1) acumulados entre lecturas.
+    std::atomic<float> peakL_{0.0f};
+    std::atomic<float> peakR_{0.0f};
 };
 
 } // namespace ba::app

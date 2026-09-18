@@ -30,10 +30,13 @@
 
 #include "SpoutTransport.hpp"
 
+#include "ipc/AtomicRef.hpp"
+#include <atomic>
+#include <chrono>
 #include <cstring>
 #include <memory>
-#include <mutex>
-#include <unordered_map>
+#include <random>
+#include <string>
 #include <vector>
 
 #if defined(_WIN32)
@@ -48,68 +51,93 @@
 
 namespace ba::ipc {
 
-// --- Backend NULL: slot de pixeles ------------------------------------------
+// --- Backend CPU: layout del slot en memoria compartida --------------------
 //
-// Solo se usa en el backend NULL (no-Windows / ruta de pruebas). Un slot es
-// { buffer de pixeles, tamano }. El meta block es un SharedMemoryRegion
-// SEPARADO (creado/abierto por name), fiel al modelo real donde la textura no
-// vive en memoria compartida: solo el meta cruza procesos. Sender y receiver
-// comparten el mismo slot (shared_ptr), por lo que el flujo A<->B se prueba
-// dentro del proceso.
+// Un slot es UNA region compartida con nombre (`BA.Guest.1`, `BA.Program`):
 //
-// Es un tipo NOMBRADO (no anonimo) porque la header lo adelanta como forward
-// decl y los miembros std::shared_ptr de SpoutSender/SpoutReceiver lo
-// referencian: debe ser el MISMO tipo en ambos.
-struct SpoutNullSlot {
-    std::vector<std::uint8_t> buffer; // pixeles opacos (en el real: textura)
-    std::size_t bufferBytes = 0;      // capacidad del buffer
-    // Resolucion del slot, fijada por el sender al publicar. El receptor la
-    // necesita para saber como interpretar los bytes: sin esto solo sabia
-    // CUANTOS bytes hay, no que forma tienen, y ningun consumidor real podia
-    // armar un frame.
-    int width = 0;
-    int height = 0;
+//   [ VideoSlotHeader | buffer 0 | buffer 1 | buffer 2 ]
+//
+// Triple buffer + seqlock por buffer:
+//   - El escritor escribe siempre en el buffer (pubCount+1) % 3, nunca en el
+//     ultimo publicado. Cada buffer tiene un contador de secuencia: impar
+//     mientras se escribe, par cuando esta completo.
+//   - `pubCount` (release) anuncia el frame nuevo. El lector lee pubCount
+//     (acquire), copia el buffer pubCount % 3 y verifica que la secuencia no
+//     cambio durante la copia; si cambio (el escritor dio toda la vuelta a
+//     los tres buffers mientras copiabamos, ~66 ms a 30 fps) reintenta con el
+//     frame mas nuevo.
+//   Resultado: el escritor nunca espera, puede haber varios lectores y ninguno
+//   ve un frame a medio escribir.
+//
+// `instanceId` identifica a ESTE productor: si el proceso se reinicia y vuelve
+// a publicar el nombre, el id cambia y los lectores lo detectan (stale()).
+
+inline constexpr std::uint32_t kVideoMagic = 0x31564142u; // "BAV1"
+inline constexpr std::uint32_t kVideoBuffers = 3;
+inline constexpr std::size_t kBufferAlign = 4096; // alineado a pagina: memcpy rapido
+
+struct alignas(kSpoutCacheLine) VideoBufferHeader {
+    std::uint64_t seq = 0; // impar = escribiendose (atomic_ref)
+    std::uint64_t frameIndex = 0;
+    std::uint64_t qpc = 0;
+};
+
+struct VideoSlotHeader {
+    std::uint32_t magic = 0;
+    std::uint32_t version = 1;
+    std::uint32_t width = 0;
+    std::uint32_t height = 0;
+    std::uint64_t frameBytes = 0;
+    std::uint64_t instanceId = 0;
+    alignas(kSpoutCacheLine) std::uint64_t pubCount = 0; // frames publicados (atomic_ref)
+    VideoBufferHeader buffers[kVideoBuffers];
 };
 
 namespace {
 
-std::mutex& registryMutex() {
-    static std::mutex m;
-    return m;
+std::size_t headerBytes() {
+    return (sizeof(VideoSlotHeader) + kBufferAlign - 1) / kBufferAlign * kBufferAlign;
 }
 
-std::unordered_map<std::wstring, std::shared_ptr<SpoutNullSlot>>& registry() {
-    static std::unordered_map<std::wstring, std::shared_ptr<SpoutNullSlot>> r;
-    return r;
+std::size_t alignedFrame(std::size_t bytes) {
+    return (bytes + kBufferAlign - 1) / kBufferAlign * kBufferAlign;
 }
 
-// Obtiene el slot de `name` (creandolo si no existe) y devuelve su shared_ptr.
-std::shared_ptr<SpoutNullSlot> getSlot(const wchar_t* name, bool& created) {
-    std::lock_guard<std::mutex> lock(registryMutex());
-    auto& r = registry();
-    auto it = r.find(std::wstring(name));
-    if (it != r.end()) {
-        created = false;
-        return it->second;
-    }
-    auto slot = std::make_shared<SpoutNullSlot>();
-    r[std::wstring(name)] = slot;
-    created = true;
-    return slot;
-}
-
-// Busca el slot de `name` sin crearlo; nullptr si no existe.
-std::shared_ptr<SpoutNullSlot> findSlot(const wchar_t* name) {
-    std::lock_guard<std::mutex> lock(registryMutex());
-    auto it = registry().find(std::wstring(name));
-    return (it != registry().end()) ? it->second : nullptr;
-}
-
-// Tamano del buffer de pixeles de un slot: BGRA 8888 (4 bytes/pixel). Es un
-// supuesto del backend NULL (en el real el tamano lo da la textura DX11).
+// BGRA 8888 (4 bytes/pixel), igual que el frame crudo que entrega libobs.
 std::size_t slotBytes(const SlotConfig& cfg) {
     return static_cast<std::size_t>(cfg.width) * static_cast<std::size_t>(cfg.height) * 4u;
 }
+
+std::uint8_t* bufferAt(VideoSlotHeader* h, std::uint32_t i) {
+    return reinterpret_cast<std::uint8_t*>(h) + headerBytes() + i * alignedFrame(h->frameBytes);
+}
+
+std::uint64_t monoNs() {
+    return static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                          std::chrono::steady_clock::now().time_since_epoch())
+                                          .count());
+}
+
+std::uint64_t newInstanceId() {
+    std::random_device rd;
+    const std::uint64_t r = (static_cast<std::uint64_t>(rd()) << 32) ^ rd();
+    return r ^ monoNs();
+}
+
+/// Valida que una region mapeada sea un slot bien formado.
+VideoSlotHeader* asSlot(SharedMemoryRegion& region) {
+    if (!region.valid() || region.size() < sizeof(VideoSlotHeader)) {
+        return nullptr;
+    }
+    auto* h = static_cast<VideoSlotHeader*>(region.data());
+    if (h->magic != kVideoMagic || h->width == 0 || h->height == 0) {
+        return nullptr;
+    }
+    const std::size_t need = headerBytes() + kVideoBuffers * alignedFrame(h->frameBytes);
+    return region.size() >= need ? h : nullptr;
+}
+
+static_assert(AtomicRef<std::uint64_t>::is_always_lock_free, "atomic_ref<uint64_t> debe ser lock-free");
 
 } // namespace
 
@@ -191,8 +219,8 @@ void SpoutMetaBlock::publish(std::uint64_t frameIndex, std::uint64_t qpc) {
     }
     // frameIndex primero (relaxed), qpc despues (release): el reader que vea el
     // qpc nuevo (acquire) ve tambien el frameIndex correspondiente.
-    std::atomic_ref<std::uint64_t> fi{layout_->frameIndex};
-    std::atomic_ref<std::uint64_t> q{layout_->qpc};
+    AtomicRef<std::uint64_t> fi{layout_->frameIndex};
+    AtomicRef<std::uint64_t> q{layout_->qpc};
     fi.store(frameIndex, std::memory_order_relaxed);
     q.store(qpc, std::memory_order_release);
 }
@@ -202,8 +230,8 @@ FrameMeta SpoutMetaBlock::read() const {
         return FrameMeta{}; // {0, 0}
     }
     // qpc primero (acquire), frameIndex despues (relaxed): par consistente.
-    std::atomic_ref<std::uint64_t> q{layout_->qpc};
-    std::atomic_ref<std::uint64_t> fi{layout_->frameIndex};
+    AtomicRef<std::uint64_t> q{layout_->qpc};
+    AtomicRef<std::uint64_t> fi{layout_->frameIndex};
     const std::uint64_t qpc = q.load(std::memory_order_acquire);
     const std::uint64_t frameIndex = fi.load(std::memory_order_relaxed);
     return FrameMeta{frameIndex, qpc};
@@ -216,67 +244,78 @@ bool SpoutMetaBlock::valid() const { return region_.valid() && layout_ != nullpt
 SpoutSender::~SpoutSender() = default;
 
 SpoutSender::SpoutSender(SpoutSender&& other) noexcept
-    : null_(std::move(other.null_)), published_(other.published_) {
+    : region_(std::move(other.region_)), header_(other.header_), published_(other.published_) {
+    other.header_ = nullptr;
     other.published_ = false;
 }
 
 SpoutSender& SpoutSender::operator=(SpoutSender&& other) noexcept {
     if (this != &other) {
-        null_ = std::move(other.null_);
+        region_ = std::move(other.region_);
+        header_ = other.header_;
         published_ = other.published_;
+        other.header_ = nullptr;
         other.published_ = false;
     }
     return *this;
 }
 
 bool SpoutSender::publish(const wchar_t* name, const SlotConfig& cfg) {
-    if (name == nullptr) {
-        return false;
-    }
-    if (cfg.width <= 0 || cfg.height <= 0) {
+    if (name == nullptr || cfg.width <= 0 || cfg.height <= 0) {
         return false;
     }
     if (published_) {
         return false; // la resolucion es fija por slot: no se re-publica
     }
-
-    // Backend NULL: reserva el buffer de pixeles del tamano de cfg.
-    bool created = false;
-    null_ = getSlot(name, created);
-    if (null_ == nullptr) {
+    const std::size_t frame = slotBytes(cfg);
+    SharedMemoryRegion region;
+    if (!SharedMemoryRegion::create(name, headerBytes() + kVideoBuffers * alignedFrame(frame), region).ok) {
         return false;
     }
-    null_->bufferBytes = slotBytes(cfg);
-    null_->buffer.assign(null_->bufferBytes, 0);
-    null_->width = cfg.width;
-    null_->height = cfg.height;
-
-    // Bloque de metadatos paralelo (spec §4.2): la textura no lleva timestamps.
-    SpoutMetaBlock meta;
-    Status st = SpoutMetaBlock::create(name, meta);
-    if (!st.ok) {
+    auto* h = static_cast<VideoSlotHeader*>(region.data());
+    if (h == nullptr) {
         return false;
     }
-    // El meta lo retiene el slot para que el receiver lo abra por name.
-    // (En el backend NULL el receiver abre el mismo nombre via SharedMemoryRegion.)
-    metaOwner_ = std::move(meta);
+    // Cabecera completa ANTES del magic (release): un lector que vea el magic
+    // ve el resto de los campos.
+    h->version = 1;
+    h->width = static_cast<std::uint32_t>(cfg.width);
+    h->height = static_cast<std::uint32_t>(cfg.height);
+    h->frameBytes = frame;
+    h->instanceId = newInstanceId();
+    h->pubCount = 0;
+    for (auto& b : h->buffers) {
+        b = VideoBufferHeader{};
+    }
+    AtomicRef<std::uint32_t>(h->magic).store(kVideoMagic, std::memory_order_release);
 
+    region_ = std::move(region);
+    header_ = h;
     published_ = true;
     return true;
 }
 
 bool SpoutSender::send(const void* pixels, std::size_t bytes, const FrameMeta& meta) {
-    if (!published_ || pixels == nullptr || null_ == nullptr) {
+    if (!published_ || header_ == nullptr || pixels == nullptr || bytes > header_->frameBytes) {
         return false;
     }
-    if (bytes > null_->bufferBytes) {
-        return false;
-    }
-    // 1) Copia los pixeles ANTES de publicar el meta (release), para que un
-    //    reader que vea el meta nuevo (acquire) vea los pixeles completos.
-    std::memcpy(null_->buffer.data(), pixels, bytes);
-    // 2) Publica el meta (frameIndex monotono + qpc).
-    metaOwner_.publish(meta.frameIndex, meta.qpc);
+    AtomicRef<std::uint64_t> pub(header_->pubCount);
+    const std::uint64_t next = pub.load(std::memory_order_relaxed) + 1;
+    const std::uint32_t idx = static_cast<std::uint32_t>(next % kVideoBuffers);
+    VideoBufferHeader& bh = header_->buffers[idx];
+    AtomicRef<std::uint64_t> seq(bh.seq);
+
+    // Seqlock: impar mientras se escribe.
+    const std::uint64_t s0 = seq.load(std::memory_order_relaxed);
+    seq.store(s0 + 1, std::memory_order_relaxed);
+    std::atomic_thread_fence(std::memory_order_release);
+    std::memcpy(bufferAt(header_, idx), pixels, bytes);
+    bh.frameIndex = meta.frameIndex;
+    bh.qpc = meta.qpc;
+    seq.store(s0 + 2, std::memory_order_release);
+
+    // Recien ahora se anuncia el frame.
+    pub.store(next, std::memory_order_release);
     return true;
 }
 
@@ -287,81 +326,122 @@ bool SpoutSender::published() const { return published_; }
 SpoutReceiver::~SpoutReceiver() = default;
 
 SpoutReceiver::SpoutReceiver(SpoutReceiver&& other) noexcept
-    : null_(std::move(other.null_)), lastSeenIndex_(other.lastSeenIndex_), subscribed_(other.subscribed_) {
+    : region_(std::move(other.region_)), header_(other.header_), name_(std::move(other.name_)),
+      instanceId_(other.instanceId_), lastSeenPub_(other.lastSeenPub_), lastFrameNs_(other.lastFrameNs_),
+      lastCheckNs_(other.lastCheckNs_), subscribed_(other.subscribed_) {
+    other.header_ = nullptr;
     other.subscribed_ = false;
 }
 
 SpoutReceiver& SpoutReceiver::operator=(SpoutReceiver&& other) noexcept {
     if (this != &other) {
-        null_ = std::move(other.null_);
-        lastSeenIndex_ = other.lastSeenIndex_;
+        region_ = std::move(other.region_);
+        header_ = other.header_;
+        name_ = std::move(other.name_);
+        instanceId_ = other.instanceId_;
+        lastSeenPub_ = other.lastSeenPub_;
+        lastFrameNs_ = other.lastFrameNs_;
+        lastCheckNs_ = other.lastCheckNs_;
         subscribed_ = other.subscribed_;
+        other.header_ = nullptr;
         other.subscribed_ = false;
     }
     return *this;
 }
 
 bool SpoutReceiver::subscribe(const wchar_t* name) {
-    if (name == nullptr) {
+    if (name == nullptr || subscribed_) {
         return false;
     }
-    if (subscribed_) {
-        return false;
+    SharedMemoryRegion region;
+    if (!SharedMemoryRegion::open(name, region).ok) {
+        return false; // el sender todavia no publico
     }
-
-    // Backend NULL: el slot debe existir (lo creo el sender al publicar).
-    null_ = findSlot(name);
-    if (null_ == nullptr) {
-        return false;
+    VideoSlotHeader* h = asSlot(region);
+    if (h == nullptr || AtomicRef<std::uint32_t>(h->magic).load(std::memory_order_acquire) != kVideoMagic) {
+        return false; // region ajena o todavia inicializandose
     }
-
-    // Abre el bloque de metadatos por name (el sender lo publico al publicar).
-    SpoutMetaBlock meta;
-    Status st = SpoutMetaBlock::open(name, meta);
-    if (!st.ok) {
-        return false;
-    }
-    metaOwner_ = std::move(meta);
-
-    // El primer receive() solo entrega frames NUEVOS: arranca en el frameIndex
-    // actual (que puede ser 0 si el sender aun no envio: "placa ausente").
-    lastSeenIndex_ = metaOwner_.read().frameIndex;
+    region_ = std::move(region);
+    header_ = h;
+    name_ = name;
+    instanceId_ = h->instanceId;
+    // El primer receive() solo entrega frames NUEVOS.
+    lastSeenPub_ = AtomicRef<std::uint64_t>(h->pubCount).load(std::memory_order_acquire);
+    lastFrameNs_ = monoNs();
+    lastCheckNs_ = lastFrameNs_;
     subscribed_ = true;
     return true;
 }
 
 bool SpoutReceiver::receive(void* dst, std::size_t cap, FrameMeta& metaOut) {
-    if (!subscribed_ || dst == nullptr || null_ == nullptr) {
+    if (!subscribed_ || header_ == nullptr || dst == nullptr) {
         return false;
     }
-    const FrameMeta m = metaOwner_.read();
-    // "Frame nuevo": frameIndex mayor al ultimo visto.
-    if (m.frameIndex <= lastSeenIndex_) {
-        return false; // no hay frame nuevo (no bloquea, no reentrega)
-    }
-    const std::size_t bytes = null_->bufferBytes;
+    const std::size_t bytes = header_->frameBytes;
     if (bytes > cap) {
         return false; // el buffer de destino no alcanza
     }
-    // Lee los pixeles DESPUES de ver el meta nuevo (acquire): son completos.
-    std::memcpy(dst, null_->buffer.data(), bytes);
-    metaOut = m;
-    lastSeenIndex_ = m.frameIndex;
-    return true;
+    AtomicRef<std::uint64_t> pub(header_->pubCount);
+    // Pocos reintentos: chocar con el escritor requiere que de la vuelta a los
+    // tres buffers durante una copia.
+    for (int attempt = 0; attempt < 4; ++attempt) {
+        const std::uint64_t p = pub.load(std::memory_order_acquire);
+        if (p <= lastSeenPub_) {
+            return false; // no hay frame nuevo (no bloquea, no reentrega)
+        }
+        const std::uint32_t idx = static_cast<std::uint32_t>(p % kVideoBuffers);
+        VideoBufferHeader& bh = header_->buffers[idx];
+        AtomicRef<std::uint64_t> seq(bh.seq);
+        const std::uint64_t s1 = seq.load(std::memory_order_acquire);
+        if ((s1 & 1u) != 0) {
+            continue; // se esta escribiendo: probar con el siguiente anuncio
+        }
+        std::memcpy(dst, bufferAt(header_, idx), bytes);
+        const FrameMeta m{bh.frameIndex, bh.qpc};
+        std::atomic_thread_fence(std::memory_order_acquire);
+        if (seq.load(std::memory_order_relaxed) != s1) {
+            continue; // el escritor piso el buffer durante la copia
+        }
+        metaOut = m;
+        lastSeenPub_ = p;
+        lastFrameNs_ = monoNs();
+        return true;
+    }
+    return false;
 }
 
-int SpoutReceiver::width() const { return (null_ != nullptr) ? null_->width : 0; }
-
-int SpoutReceiver::height() const { return (null_ != nullptr) ? null_->height : 0; }
-
-std::size_t SpoutReceiver::frameBytes() const { return (null_ != nullptr) ? null_->bufferBytes : 0; }
-
 bool SpoutReceiver::hasData() const {
-    if (!subscribed_ || null_ == nullptr) {
+    if (!subscribed_ || header_ == nullptr) {
         return false;
     }
-    const FrameMeta m = metaOwner_.read();
-    return m.frameIndex > lastSeenIndex_;
+    return AtomicRef<std::uint64_t>(header_->pubCount).load(std::memory_order_acquire) > lastSeenPub_;
+}
+
+int SpoutReceiver::width() const { return header_ != nullptr ? static_cast<int>(header_->width) : 0; }
+
+int SpoutReceiver::height() const { return header_ != nullptr ? static_cast<int>(header_->height) : 0; }
+
+std::size_t SpoutReceiver::frameBytes() const {
+    return header_ != nullptr ? static_cast<std::size_t>(header_->frameBytes) : 0;
+}
+
+bool SpoutReceiver::stale() {
+    if (!subscribed_) {
+        return true;
+    }
+    const std::uint64_t now = monoNs();
+    constexpr std::uint64_t kSecond = 1000000000ULL;
+    // Llegan frames: el productor esta vivo, no hace falta mirar.
+    if (now - lastFrameNs_ < kSecond || now - lastCheckNs_ < kSecond) {
+        return false;
+    }
+    lastCheckNs_ = now;
+    SharedMemoryRegion probe;
+    if (!SharedMemoryRegion::open(name_.c_str(), probe).ok) {
+        return true; // el nombre ya no existe: el productor termino
+    }
+    VideoSlotHeader* h = asSlot(probe);
+    return h == nullptr || h->instanceId != instanceId_;
 }
 
 } // namespace ba::ipc

@@ -1,0 +1,25 @@
+// Tema visual (solo presentacion). Colores y medidas en un unico lugar.
+pragma Singleton
+import QtQuick
+
+QtObject {
+    readonly property color bg: "#0a0a0c"
+    readonly property color panel: "#141417"
+    readonly property color accent: "#ff6a2b"
+    readonly property color accentSoft: "#ff9a5c"
+    readonly property color amber: "#f5b83d"
+    readonly property color live: "#ff3b30"
+    readonly property color ok: "#35c46b"
+    readonly property color warn: "#f5b83d"
+    readonly property color text: "#f4f4f6"
+    readonly property color textDim: "#a2a2aa"
+    readonly property color textFaint: "#6c6c74"
+    readonly property color glassTint: Qt.rgba(0.08, 0.08, 0.09, 0.42)
+    readonly property color glassBorder: Qt.rgba(1, 1, 1, 0.13)
+    readonly property color glassHighlight: Qt.rgba(1, 1, 1, 0.07)
+    readonly property color field: Qt.rgba(1, 1, 1, 0.07)
+    readonly property int radius: 22
+    readonly property int radiusSmall: 12
+    readonly property int gap: 12
+    readonly property string font: "Inter, Noto Sans, DejaVu Sans, Sans"
+}

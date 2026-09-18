@@ -30,6 +30,12 @@ class ShadowCopy {
     /// :returns: raiz efectiva desde donde lanzar (en esta fase, `root`).
     static std::wstring prepare(const std::wstring& root, const std::wstring& versionHash);
 
+    /// Clave de version del CONTENIDO de bin/, obs-plugins/ y data/: hash de
+    /// (ruta relativa, tamaño, fecha de modificacion) de cada archivo. Cambia
+    /// en cuanto se actualiza cualquier binario, asi que una copia sombra de
+    /// otra version nunca se reutiliza por error. Cuesta un `stat` por archivo.
+    static std::wstring versionKey(const std::wstring& root);
+
     /// Borra la copia sombra en el cierre ordenado. No-op en esta fase.
     static void cleanup(const std::wstring& shadowRoot);
 };

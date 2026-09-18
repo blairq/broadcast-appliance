@@ -92,6 +92,9 @@ if(WIN32)
             set(BA_HAVE_LIBOBS 1)
             # Runtime que el bundle debe llevarse (spec §5.1, bin/64bit/).
             file(GLOB BA_LIBOBS_RUNTIME_LIBS "${BA_OBS_WIN_RUNTIME}/bin/64bit/*.dll")
+            # Helper de grabacion: obs-ffmpeg lo busca JUNTO al ejecutable
+            # (os_get_executable_path_ptr); sin el, la grabacion no arranca.
+            file(GLOB BA_LIBOBS_RUNTIME_PROGRAMS "${BA_OBS_WIN_RUNTIME}/bin/64bit/obs-ffmpeg-mux.exe")
             set(BA_LIBOBS_PLUGIN_DIR "${BA_OBS_WIN_RUNTIME}/obs-plugins/64bit")
             set(BA_LIBOBS_DATA_DIR "${BA_OBS_WIN_RUNTIME}/data")
         endif()
@@ -119,6 +122,9 @@ else()
         # Todo lo que el bundle se lleva: libobs, el modulo grafico y los
         # plugins de encoder/salida/captura.
         file(GLOB BA_LIBOBS_RUNTIME_LIBS "${BA_OBS_LINUX_PREFIX}/lib/*.so*")
+        # Helper de grabacion: obs-ffmpeg lo busca JUNTO al ejecutable
+        # (os_get_executable_path_ptr); sin el, la grabacion no arranca.
+        file(GLOB BA_LIBOBS_RUNTIME_PROGRAMS "${BA_OBS_LINUX_PREFIX}/bin/obs-ffmpeg-mux")
         set(BA_LIBOBS_PLUGIN_DIR "${BA_OBS_LINUX_PREFIX}/lib/obs-plugins")
         set(BA_LIBOBS_DATA_DIR "${BA_OBS_LINUX_PREFIX}/share/obs")
     endif()

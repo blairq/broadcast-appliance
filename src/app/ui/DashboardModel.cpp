@@ -1,0 +1,464 @@
+// ============================================================================
+// src/app/ui/DashboardModel.cpp — ver DashboardModel.hpp
+// ============================================================================
+
+#include "ui/DashboardModel.hpp"
+
+#include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+
+#include <algorithm>
+#include <cmath>
+
+namespace ba::app {
+
+namespace {
+
+constexpr double kGridX = 1.0 / 48.0; // grilla fina: 48 x 32
+constexpr double kGridY = 1.0 / 32.0;
+constexpr double kGapPx = 12.0;    // separacion entre tarjetas vecinas
+constexpr double kMagnetPx = 18.0; // distancia de "iman"
+constexpr double kMinW = 0.10;
+constexpr double kMinH = 0.10;
+
+struct Kind {
+    const char* id;
+    const char* title;
+};
+const Kind kKinds[] = {
+    {"outputs", "Salidas"}, {"scenes", "Escenas"},  {"mixer", "Mezclador"}, {"guests", "Invitados"},
+    {"health", "Sistema"},  {"monitor", "Monitor"}, {"sources", "Fuentes"}, {"lobby", "Sala"},
+};
+
+} // namespace
+
+DashboardModel::DashboardModel(std::filesystem::path file, QObject* parent)
+    : QAbstractListModel(parent), file_(std::move(file)) {
+    windows_ = new OutputWindowsModel([this]() { save(); }, this);
+    load();
+}
+
+void DashboardModel::setBackgroundLayout(const QString& l) {
+    if (l == layout_) {
+        return;
+    }
+    layout_ = l;
+    emit backgroundChanged();
+    save();
+}
+
+// ============================================================================
+// OutputWindowsModel
+// ============================================================================
+
+OutputWindowsModel::OutputWindowsModel(std::function<void()> onChange, QObject* parent)
+    : QAbstractListModel(parent), onChange_(std::move(onChange)) {}
+
+int OutputWindowsModel::rowCount(const QModelIndex&) const { return static_cast<int>(wins_.size()); }
+
+QVariant OutputWindowsModel::data(const QModelIndex& index, int role) const {
+    if (!index.isValid() || index.row() >= rowCount()) {
+        return {};
+    }
+    const Win& w = wins_[static_cast<std::size_t>(index.row())];
+    switch (role) {
+        case IdRole: return w.id;
+        case KeysRole: return w.keys;
+        case LayoutRole: return w.layout;
+        case ScreenRole: return w.screen;
+        case FullscreenRole: return w.fullscreen;
+        case GeometryRole: return w.geometry;
+        default: return {};
+    }
+}
+
+QHash<int, QByteArray> OutputWindowsModel::roleNames() const {
+    return {{IdRole, "winId"},
+            {KeysRole, "keys"},
+            {LayoutRole, "layout"},
+            {ScreenRole, "screenName"},
+            {FullscreenRole, "fullscreen"},
+            {GeometryRole, "geometry"}};
+}
+
+int OutputWindowsModel::rowOf(int id) const {
+    for (std::size_t i = 0; i < wins_.size(); ++i) {
+        if (wins_[i].id == id) {
+            return static_cast<int>(i);
+        }
+    }
+    return -1;
+}
+
+void OutputWindowsModel::changed(int row, const QList<int>& roles) {
+    emit dataChanged(index(row), index(row), roles);
+    if (onChange_) {
+        onChange_();
+    }
+}
+
+int OutputWindowsModel::open(const QStringList& keys, const QString& layout) {
+    Win w;
+    w.id = nextId_++;
+    w.keys = keys;
+    w.layout = layout.isEmpty() ? "grid" : layout;
+    // Cada ventana nueva un poco corrida de la anterior.
+    w.geometry.translate(40 * static_cast<int>(wins_.size()), 40 * static_cast<int>(wins_.size()));
+    const int row = rowCount();
+    beginInsertRows({}, row, row);
+    wins_.push_back(w);
+    endInsertRows();
+    if (onChange_) {
+        onChange_();
+    }
+    return w.id;
+}
+
+void OutputWindowsModel::close(int id) {
+    const int row = rowOf(id);
+    if (row < 0) {
+        return;
+    }
+    beginRemoveRows({}, row, row);
+    wins_.erase(wins_.begin() + row);
+    endRemoveRows();
+    if (onChange_) {
+        onChange_();
+    }
+}
+
+void OutputWindowsModel::setScreen(int id, const QString& screenName) {
+    const int row = rowOf(id);
+    if (row >= 0 && wins_[static_cast<std::size_t>(row)].screen != screenName) {
+        wins_[static_cast<std::size_t>(row)].screen = screenName;
+        changed(row, {ScreenRole});
+    }
+}
+
+void OutputWindowsModel::setFullscreen(int id, bool on) {
+    const int row = rowOf(id);
+    if (row >= 0 && wins_[static_cast<std::size_t>(row)].fullscreen != on) {
+        wins_[static_cast<std::size_t>(row)].fullscreen = on;
+        changed(row, {FullscreenRole});
+    }
+}
+
+void OutputWindowsModel::setLayout(int id, const QString& layout) {
+    const int row = rowOf(id);
+    if (row >= 0 && wins_[static_cast<std::size_t>(row)].layout != layout) {
+        wins_[static_cast<std::size_t>(row)].layout = layout;
+        changed(row, {LayoutRole});
+    }
+}
+
+void OutputWindowsModel::setGeometry(int id, int x, int y, int w, int h) {
+    const int row = rowOf(id);
+    const QRect r(x, y, w, h);
+    // La geometria solo se guarda (no notifica): la ventana ya esta ahi y
+    // re-aplicarla peleaba con el arrastre del usuario.
+    if (row >= 0 && wins_[static_cast<std::size_t>(row)].geometry != r && w > 0 && h > 0) {
+        wins_[static_cast<std::size_t>(row)].geometry = r;
+        if (onChange_) {
+            onChange_();
+        }
+    }
+}
+
+void OutputWindowsModel::restore(std::vector<Win> wins) {
+    beginResetModel();
+    wins_ = std::move(wins);
+    for (auto& w : wins_) {
+        w.id = nextId_++;
+    }
+    endResetModel();
+}
+
+int DashboardModel::rowCount(const QModelIndex&) const { return static_cast<int>(cards_.size()); }
+
+QVariant DashboardModel::data(const QModelIndex& index, int role) const {
+    if (!index.isValid() || index.row() >= rowCount()) {
+        return {};
+    }
+    const Card& c = cards_[static_cast<std::size_t>(index.row())];
+    switch (role) {
+        case IdRole: return c.id;
+        case KindRole: return c.kind;
+        case XRole: return c.rect.x();
+        case YRole: return c.rect.y();
+        case WRole: return c.rect.width();
+        case HRole: return c.rect.height();
+        case SourceRole: return c.source;
+        case TitleRole: return kindTitle(c.kind);
+        default: return {};
+    }
+}
+
+QHash<int, QByteArray> DashboardModel::roleNames() const {
+    return {{IdRole, "cardId"}, {KindRole, "kind"}, {XRole, "fx"},          {YRole, "fy"},
+            {WRole, "fw"},      {HRole, "fh"},      {SourceRole, "source"}, {TitleRole, "title"}};
+}
+
+QStringList DashboardModel::cardKinds() const {
+    QStringList out;
+    for (const auto& k : kKinds) {
+        out << k.id;
+    }
+    return out;
+}
+
+QString DashboardModel::kindTitle(const QString& kind) const {
+    for (const auto& k : kKinds) {
+        if (kind == k.id) {
+            return k.title;
+        }
+    }
+    return kind;
+}
+
+void DashboardModel::setBackground(const QStringList& keys) {
+    if (keys == background_) {
+        return;
+    }
+    background_ = keys;
+    emit backgroundChanged();
+    save();
+}
+
+void DashboardModel::setBackgroundDim(double d) {
+    d = std::clamp(d, 0.0, 0.9);
+    if (std::abs(d - dim_) < 1e-6) {
+        return;
+    }
+    dim_ = d;
+    emit backgroundChanged();
+    save();
+}
+
+int DashboardModel::rowOf(int id) const {
+    for (std::size_t i = 0; i < cards_.size(); ++i) {
+        if (cards_[i].id == id) {
+            return static_cast<int>(i);
+        }
+    }
+    return -1;
+}
+
+void DashboardModel::addCard(const QString& kind, const QString& source) {
+    // Aparece centrada; el operador la lleva a su lugar.
+    const int row = rowCount();
+    beginInsertRows({}, row, row);
+    cards_.push_back(Card{nextId_++, kind, QRectF(0.36, 0.30, 0.28, 0.30), source});
+    endInsertRows();
+    save();
+}
+
+void DashboardModel::removeCard(int id) {
+    const int row = rowOf(id);
+    if (row < 0) {
+        return;
+    }
+    beginRemoveRows({}, row, row);
+    cards_.erase(cards_.begin() + row);
+    endRemoveRows();
+    save();
+}
+
+void DashboardModel::setCardSource(int id, const QString& source) {
+    const int row = rowOf(id);
+    if (row < 0) {
+        return;
+    }
+    cards_[static_cast<std::size_t>(row)].source = source;
+    emit dataChanged(index(row), index(row), {SourceRole});
+    save();
+}
+
+QRectF DashboardModel::snap(int id, double x, double y, double w, double h, double aspect) const {
+    // Separaciones en fracciones: el mismo numero de pixeles en X y en Y.
+    const double px = 1.0 / 1000.0; // el area se piensa de 1000 px de alto
+    const double gx = kGapPx * px / aspect;
+    const double gy = kGapPx * px;
+    const double mx = kMagnetPx * px / aspect;
+    const double my = kMagnetPx * px;
+
+    // 1) Grilla. El minimo va DESPUES del redondeo (y redondeado hacia
+    //    arriba): redondear primero podia dejar la tarjeta por debajo.
+    x = std::round(x / kGridX) * kGridX;
+    y = std::round(y / kGridY) * kGridY;
+    w = std::max(std::round(w / kGridX) * kGridX, std::ceil(kMinW / kGridX) * kGridX);
+    h = std::max(std::round(h / kGridY) * kGridY, std::ceil(kMinH / kGridY) * kGridY);
+
+    // 2) Iman con bordes de otras tarjetas (con separacion) y del area.
+    std::vector<double> xs = {gx, 1.0 - gx};
+    std::vector<double> ys = {gy, 1.0 - gy};
+    for (const auto& c : cards_) {
+        if (c.id == id) {
+            continue;
+        }
+        const QRectF& r = c.rect;
+        xs.insert(xs.end(), {r.left(), r.right(), r.left() - gx, r.right() + gx});
+        ys.insert(ys.end(), {r.top(), r.bottom(), r.top() - gy, r.bottom() + gy});
+    }
+    const auto magnet = [](double v, const std::vector<double>& targets, double reach) {
+        double best = v;
+        double dist = reach;
+        for (double t : targets) {
+            if (std::abs(v - t) < dist) {
+                dist = std::abs(v - t);
+                best = t;
+            }
+        }
+        return best;
+    };
+    // Borde izquierdo o derecho, el que quede mas cerca de un iman.
+    const double left = magnet(x, xs, mx);
+    const double right = magnet(x + w, xs, mx);
+    if (left != x) {
+        x = left;
+    } else if (right != x + w) {
+        x = right - w;
+    }
+    const double top = magnet(y, ys, my);
+    const double bottom = magnet(y + h, ys, my);
+    if (top != y) {
+        y = top;
+    } else if (bottom != y + h) {
+        y = bottom - h;
+    }
+
+    // 3) Siempre adentro del area.
+    w = std::min(w, 1.0);
+    h = std::min(h, 1.0);
+    x = std::clamp(x, 0.0, 1.0 - w);
+    y = std::clamp(y, 0.0, 1.0 - h);
+    return QRectF(x, y, w, h);
+}
+
+void DashboardModel::setCardRect(int id, double x, double y, double w, double h) {
+    const int row = rowOf(id);
+    if (row < 0) {
+        return;
+    }
+    cards_[static_cast<std::size_t>(row)].rect = QRectF(x, y, w, h);
+    emit dataChanged(index(row), index(row), {XRole, YRole, WRole, HRole});
+    save();
+}
+
+void DashboardModel::raise(int id) {
+    const int row = rowOf(id);
+    if (row < 0 || row == rowCount() - 1) {
+        return;
+    }
+    beginMoveRows({}, row, row, {}, rowCount());
+    std::rotate(cards_.begin() + row, cards_.begin() + row + 1, cards_.end());
+    endMoveRows();
+    save();
+}
+
+void DashboardModel::defaults() {
+    cards_.clear();
+    nextId_ = 1;
+    const auto add = [&](const char* kind, QRectF r, const char* src = "") {
+        cards_.push_back(Card{nextId_++, kind, r, src});
+    };
+    // Parte superior libre para ver el fondo (como un monitor grande); tarjetas
+    // en dos filas abajo y un monitor alto a la derecha.
+    add("outputs", QRectF(0.00, 0.40, 0.24, 0.29));
+    add("scenes", QRectF(0.25, 0.40, 0.24, 0.29));
+    add("health", QRectF(0.50, 0.40, 0.24, 0.29));
+    add("mixer", QRectF(0.00, 0.70, 0.49, 0.30));
+    add("guests", QRectF(0.50, 0.70, 0.24, 0.30));
+    add("monitor", QRectF(0.75, 0.40, 0.25, 0.60), "guest:1");
+    background_ = QStringList{"program"};
+    layout_ = "grid";
+    dim_ = 0.35;
+}
+
+void DashboardModel::resetLayout() {
+    beginResetModel();
+    defaults();
+    endResetModel();
+    emit backgroundChanged();
+    save();
+}
+
+void DashboardModel::load() {
+    QFile f(QString::fromStdString(file_.string()));
+    if (!f.open(QIODevice::ReadOnly)) {
+        defaults();
+        return;
+    }
+    const QJsonObject o = QJsonDocument::fromJson(f.readAll()).object();
+    const QJsonArray cards = o.value("cards").toArray();
+    if (cards.isEmpty()) {
+        defaults();
+        return;
+    }
+    for (const auto& v : cards) {
+        const QJsonObject c = v.toObject();
+        Card card{nextId_++, c.value("kind").toString(),
+                  QRectF(c.value("x").toDouble(), c.value("y").toDouble(), c.value("w").toDouble(0.25),
+                         c.value("h").toDouble(0.25)),
+                  c.value("source").toString()};
+        cards_.push_back(card);
+    }
+    background_.clear();
+    for (const auto& v : o.value("background").toArray()) {
+        background_ << v.toString();
+    }
+    dim_ = o.value("backgroundDim").toDouble(0.35);
+    layout_ = o.value("backgroundLayout").toString("grid");
+    std::vector<OutputWindowsModel::Win> wins;
+    for (const auto& v : o.value("windows").toArray()) {
+        const QJsonObject w = v.toObject();
+        OutputWindowsModel::Win win;
+        for (const auto& k : w.value("keys").toArray()) {
+            win.keys << k.toString();
+        }
+        win.layout = w.value("layout").toString("grid");
+        win.screen = w.value("screen").toString();
+        win.fullscreen = w.value("fullscreen").toBool();
+        win.geometry = QRect(w.value("x").toInt(120), w.value("y").toInt(120), w.value("w").toInt(960),
+                             w.value("h").toInt(540));
+        wins.push_back(win);
+    }
+    windows_->restore(std::move(wins));
+}
+
+void DashboardModel::save() const {
+    QJsonArray cards;
+    for (const auto& c : cards_) {
+        cards.append(QJsonObject{{"kind", c.kind},
+                                 {"x", c.rect.x()},
+                                 {"y", c.rect.y()},
+                                 {"w", c.rect.width()},
+                                 {"h", c.rect.height()},
+                                 {"source", c.source}});
+    }
+    QJsonArray wins;
+    for (const auto& w : windows_->windows()) {
+        wins.append(QJsonObject{{"keys", QJsonArray::fromStringList(w.keys)},
+                                {"layout", w.layout},
+                                {"screen", w.screen},
+                                {"fullscreen", w.fullscreen},
+                                {"x", w.geometry.x()},
+                                {"y", w.geometry.y()},
+                                {"w", w.geometry.width()},
+                                {"h", w.geometry.height()}});
+    }
+    const QJsonObject o{{"windows", wins},
+                        {"backgroundLayout", layout_},
+                        {"cards", cards},
+                        {"background", QJsonArray::fromStringList(background_)},
+                        {"backgroundDim", dim_}};
+    std::error_code ec;
+    std::filesystem::create_directories(file_.parent_path(), ec);
+    QFile f(QString::fromStdString(file_.string()));
+    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        f.write(QJsonDocument(o).toJson());
+    }
+}
+
+} // namespace ba::app

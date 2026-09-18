@@ -122,12 +122,12 @@ class LoopbackDuplex : public ba::ipc::DuplexStream {
     /// :returns: true siempre (escribir en memoria no falla).
     bool write(const std::uint8_t* data, std::size_t len) override;
 
-     /// Lee hasta `cap` bytes del buffer de salida, avanzando el cursor.
-     ///
-     /// :param buf: buffer de destino.
-     /// :param cap: capacidad de `buf` en bytes.
-     /// :returns: bytes leídos (>0) o 0 si no hay bytes pendientes.
-     int read(std::uint8_t* buf, std::size_t cap) override;
+    /// Lee hasta `cap` bytes del buffer de salida, avanzando el cursor.
+    ///
+    /// :param buf: buffer de destino.
+    /// :param cap: capacidad de `buf` en bytes.
+    /// :returns: bytes leídos (>0) o 0 si no hay bytes pendientes.
+    int read(std::uint8_t* buf, std::size_t cap) override;
 
     /// Indica si hay bytes pendientes de leer en el buffer de salida.
     ///

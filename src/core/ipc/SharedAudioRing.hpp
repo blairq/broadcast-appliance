@@ -40,9 +40,11 @@
 
 #pragma once
 
+#include "ipc/AtomicRef.hpp"
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <string>
 
 #include "SharedMemoryRegion.hpp"
 
@@ -86,8 +88,8 @@ struct alignas(audio_ring::kCacheLine) RingHeader {
 
 // Los indices se acceden con std::atomic_ref<uint64_t>; debe ser lock-free
 // para que el camino de datos no tome locks (spec 4.3).
-static_assert(std::atomic_ref<uint64_t>::is_always_lock_free,
-              "std::atomic_ref<uint64_t> debe ser lock-free en esta plataforma");
+static_assert(AtomicRef<uint64_t>::is_always_lock_free,
+              "AtomicRef<uint64_t> debe ser lock-free en esta plataforma");
 
 /// Resultado de un pop(): metadatos del bloque copiado al buffer del llamador.
 struct PoppedBlock {
@@ -176,6 +178,16 @@ class SharedAudioRing {
     /// Puntero a la region subyacente (para diagnostico).
     SharedMemoryRegion* region();
 
+    /// Lado LECTOR: true si el escritor al que estamos conectados ya no existe
+    /// o fue reemplazado (el proceso productor se reinicio y volvio a crear el
+    /// ring con el mismo nombre). Sin resuscribirse, el lector seguiria leyendo
+    /// un ring que ya nadie escribe: audio mudo para siempre.
+    ///
+    /// Solo reabre el nombre si no llegaron datos en el ultimo segundo, y como
+    /// mucho una vez por segundo: se puede llamar en cada vuelta del bucle.
+    /// La identidad del escritor es (writerPid, generation) del header.
+    bool stale();
+
    private:
     RingHeader* hdr() const;
     // Offset (en bytes) del inicio del area de datos.
@@ -191,6 +203,10 @@ class SharedAudioRing {
     uint32_t cachedGeneration_ = 0;
     bool hasCached_ = false;
     bool pendingFadeIn_ = false; // aplica fade-in al proximo pop tras resync
+    // Para stale(): nombre abierto y relojes monotonos (ns).
+    std::wstring name_;
+    uint64_t lastDataNs_ = 0;
+    uint64_t lastCheckNs_ = 0;
 };
 
 } // namespace ba::ipc

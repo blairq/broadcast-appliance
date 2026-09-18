@@ -54,21 +54,31 @@ namespace {
 
 /// Rango de invitados (spec §3.2, §8.2).
 constexpr int kMinSlot = 1;
-constexpr int kMaxSlot = 4;
+constexpr int kMaxSlot = 8; // invitados 1..4; previews del lobby 1..8
 constexpr int kDefaultSlot = 1;
 
 /// Periodo de reintento cuando el canal IPC todavia no existe.
 constexpr int kReopenMs = 500;
 
-/// Nombre wide del canal de audio de un invitado.
-std::wstring guestAudioName(int slot) {
-    const std::string s = "BA.Audio.Guest." + std::to_string(slot);
+/// Canal de origen: "guest" (camara/voz del invitado en el programa),
+/// "share" (su pantalla o ventana compartida, solo video) o "lobby" (preview y
+/// voz de alguien que espera; lo usa la vista del operador, nunca el programa).
+std::string channelFromSettings(obs_data_t* settings) {
+    const char* ch = obs_data_get_string(settings, "channel");
+    const std::string c = ch != nullptr ? ch : "";
+    return (c == "share" || c == "lobby") ? c : std::string("guest");
+}
+
+/// Nombre wide del canal de audio (BA.Audio.Guest.<n> / BA.Audio.Lobby.<n>).
+std::wstring audioName(const std::string& channel, int slot) {
+    const std::string s = (channel == "lobby" ? "BA.Audio.Lobby." : "BA.Audio.Guest.") + std::to_string(slot);
     return std::wstring(s.begin(), s.end());
 }
 
-/// Nombre wide del canal de video de un invitado.
-std::wstring guestVideoName(int slot) {
-    const std::string s = "BA.Guest." + std::to_string(slot);
+/// Nombre wide del canal de video (BA.Guest / BA.GuestShare / BA.Lobby).
+std::wstring videoName(const std::string& channel, int slot) {
+    const char* base = channel == "share" ? "BA.GuestShare." : channel == "lobby" ? "BA.Lobby." : "BA.Guest.";
+    const std::string s = base + std::to_string(slot);
     return std::wstring(s.begin(), s.end());
 }
 
@@ -104,6 +114,7 @@ struct GuestAudioSource {
     std::atomic<bool> stop{false};
     std::mutex slotLock;
     int slot = kDefaultSlot;
+    std::string channel = "guest";
 
     /// Bucle de datos: abre el ring y bombea bloques hacia libobs.
     void run() {
@@ -120,22 +131,26 @@ struct GuestAudioSource {
         std::uint64_t startNs = 0;
         std::uint64_t samplesSent = 0;
 
+        std::string openedChannel;
         while (!stop.load(std::memory_order_relaxed)) {
             int want;
+            std::string wantChannel;
             {
                 std::lock_guard<std::mutex> lock(slotLock);
                 want = slot;
+                wantChannel = channel;
             }
-            // Cambio de invitado en caliente: se reabre el ring del nuevo slot.
-            if (open && want != openedSlot) {
+            // Cambio de invitado/canal en caliente: se reabre el ring.
+            if (open && (want != openedSlot || wantChannel != openedChannel)) {
                 ring = ba::ipc::SharedAudioRing{};
                 open = false;
             }
             if (!open) {
-                const std::wstring name = guestAudioName(want);
+                const std::wstring name = audioName(wantChannel, want);
                 if (ba::ipc::SharedAudioRing::openReader(name.c_str(), ring).ok) {
                     open = true;
                     openedSlot = want;
+                    openedChannel = wantChannel;
                     block.assign(ring.blockFloats(), 0.0f);
                     startNs = os_gettime_ns();
                     samplesSent = 0;
@@ -146,6 +161,13 @@ struct GuestAudioSource {
                 }
             }
 
+            // B se reinicio (ring nuevo con el mismo nombre): reabrir, o el
+            // invitado queda mudo leyendo un ring que ya nadie escribe.
+            if (ring.stale()) {
+                ring = ba::ipc::SharedAudioRing{};
+                open = false;
+                continue;
+            }
             ba::ipc::PoppedBlock meta;
             if (!ring.pop(block.data(), meta)) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(kReopenMs));
@@ -176,6 +198,7 @@ void* guestAudioCreate(obs_data_t* settings, obs_source_t* source) {
         auto* ctx = new GuestAudioSource();
         ctx->source = source;
         ctx->slot = slotFromSettings(settings);
+        ctx->channel = channelFromSettings(settings);
         ctx->worker = std::thread([ctx] { ctx->run(); });
         return ctx;
     } catch (...) {
@@ -202,6 +225,7 @@ void guestAudioUpdate(void* data, obs_data_t* settings) {
     }
     std::lock_guard<std::mutex> lock(ctx->slotLock);
     ctx->slot = slotFromSettings(settings);
+    ctx->channel = channelFromSettings(settings);
 }
 
 obs_properties_t* guestAudioProperties(void*) {
@@ -222,6 +246,7 @@ struct GuestVideoSource {
     std::atomic<bool> stop{false};
     std::mutex slotLock;
     int slot = kDefaultSlot;
+    std::string channel = "guest";
 
     void run() {
         ba::ipc::SpoutReceiver receiver;
@@ -231,21 +256,25 @@ struct GuestVideoSource {
         uint32_t width = 0;
         uint32_t height = 0;
 
+        std::string subChannel;
         while (!stop.load(std::memory_order_relaxed)) {
             int want;
+            std::string wantChannel;
             {
                 std::lock_guard<std::mutex> lock(slotLock);
                 want = slot;
+                wantChannel = channel;
             }
-            if (sub && want != subSlot) {
+            if (sub && (want != subSlot || wantChannel != subChannel)) {
                 receiver = ba::ipc::SpoutReceiver{};
                 sub = false;
             }
             if (!sub) {
-                const std::wstring name = guestVideoName(want);
+                const std::wstring name = videoName(wantChannel, want);
                 if (receiver.subscribe(name.c_str())) {
                     sub = true;
                     subSlot = want;
+                    subChannel = wantChannel;
                     width = static_cast<uint32_t>(receiver.width());
                     height = static_cast<uint32_t>(receiver.height());
                     pixels.assign(static_cast<size_t>(width) * height * 4u, 0u);
@@ -255,6 +284,13 @@ struct GuestVideoSource {
                 }
             }
 
+            // B se reinicio (slot nuevo con el mismo nombre): resuscribirse, o
+            // el video del invitado queda congelado en el ultimo frame.
+            if (receiver.stale()) {
+                receiver = ba::ipc::SpoutReceiver{};
+                sub = false;
+                continue;
+            }
             if (receiver.hasData()) {
                 ba::ipc::FrameMeta meta{};
                 if (receiver.receive(pixels.data(), pixels.size(), meta)) {
@@ -281,6 +317,7 @@ void* guestVideoCreate(obs_data_t* settings, obs_source_t* source) {
         auto* ctx = new GuestVideoSource();
         ctx->source = source;
         ctx->slot = slotFromSettings(settings);
+        ctx->channel = channelFromSettings(settings);
         ctx->worker = std::thread([ctx] { ctx->run(); });
         return ctx;
     } catch (...) {
@@ -307,6 +344,7 @@ void guestVideoUpdate(void* data, obs_data_t* settings) {
     }
     std::lock_guard<std::mutex> lock(ctx->slotLock);
     ctx->slot = slotFromSettings(settings);
+    ctx->channel = channelFromSettings(settings);
 }
 
 obs_properties_t* guestVideoProperties(void*) {

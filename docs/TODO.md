@@ -13,7 +13,8 @@ Documento de arranque para sesiones nuevas. Contiene: qué se hizo, qué falta
 - **Builds verdes**:
   - Nativo Linux: `make build` 100%.
   - Cross MinGW: `cmake --build build/win` exit 0 (5 artefactos de producto).
-  - `make test` → **20/20 ctest** · `pytest` → **22/22**.
+  - `make test` → **23 ctest** (22 pasan + `test_gateway_integration` saltado)
+    (2026-09-18).
   - `make release` → bundle portable en `release/` (layout §5.1).
    - Smoke test headless `ba-app.exe` bajo wine: exit 0.
    - **2026-09-11**: `tools/deploy` creado; `writeMinidump()` real (Windows);

@@ -251,20 +251,24 @@ bool ControlEndpoint::sendRequest(const Message& req) {
 }
 
 bool ControlEndpoint::poll(Message& out) {
-    if (!connected_) {
+    // Tras la desconexion se siguen entregando los frames que ya estaban en el
+    // buffer: un peer que escribe y cierra enseguida (el launcher manda
+    // "shutdown" y cuelga) no debe perder su ultimo mensaje.
+    if (!connected_ && rxBuf_.empty()) {
         return false;
     }
 
     // Acumula los bytes disponibles en el buffer de recepcion.
-    for (;;) {
+    bool eof = false;
+    while (connected_) {
         std::uint8_t tmp[kReadChunk];
         const int n = stream_.read(tmp, sizeof(tmp));
         if (n < 0) {
-            handleDisconnect(); // error del stream
-            return false;
+            eof = true; // EOF o error: se decodifica lo que haya antes de cortar
+            break;
         }
         if (n == 0) {
-            break; // EOF / sin datos por ahora
+            break; // sin datos por ahora
         }
         rxBuf_.insert(rxBuf_.end(), tmp, tmp + n);
     }
@@ -274,12 +278,18 @@ bool ControlEndpoint::poll(Message& out) {
     std::size_t consumed = 0;
     if (Frame::decodeFrame(rxBuf_.data(), rxBuf_.size(), json, consumed)) {
         rxBuf_.erase(rxBuf_.begin(), rxBuf_.begin() + static_cast<std::ptrdiff_t>(consumed));
+        if (eof) {
+            handleDisconnect();
+        }
         return Message::fromJson(json, out);
     }
 
-    // Sin frame completo y el stream llego a EOF: se desconecta (el owner
-    // reconecta via onDisconnect).
-    handleDisconnect();
+    if (eof) {
+        // Lo que quede es un frame truncado por el cierre: se descarta.
+        rxBuf_.clear();
+        handleDisconnect();
+    }
+    // Sin frame completo todavia: el resto llega en un poll() posterior.
     return false;
 }
 

@@ -22,6 +22,8 @@
 #include <windows.h>
 #else
 #include <cerrno>
+#include <cstdint>
+#include <cstdio>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -222,20 +224,33 @@ namespace detail {
 /// conversion byte a byte es exacta; cualquier caracter fuera de ASCII o una
 /// barra se sustituyen por '_' para que el nombre sea valido.
 std::string toShmName(const wchar_t* name) {
-    std::string out = "/";
+    // Formato: "/ba.<hasta 12 caracteres legibles>.<12 hex>" (<= 30 chars).
+    //   - macOS limita el nombre a 31 caracteres (PSHMNAMLEN): con el recorte
+    //     anterior a 200, "BA.Test.Gateway.ReturnAudio" y compañia rozaban el
+    //     limite y cualquier prefijo lo pasaba.
+    //   - El namespace de shm POSIX es de toda la maquina: el hash incluye el
+    //     UID para que dos usuarios con el appliance abierto no choquen (los
+    //     objetos ademas se crean 0600).
+    //   - La parte legible es solo para diagnostico (ls /dev/shm); la
+    //     identidad la da el hash del nombre COMPLETO.
+    std::string full = std::to_string(::getuid()) + ":";
+    std::string readable;
     for (const wchar_t* p = name; *p != L'\0'; ++p) {
         const wchar_t c = *p;
-        if (c == L'/' || c == L'\\' || c > 127 || c < 32) {
-            out.push_back('_');
-        } else {
-            out.push_back(static_cast<char>(c));
+        const bool ok = (c >= L'a' && c <= L'z') || (c >= L'A' && c <= L'Z') || (c >= L'0' && c <= L'9');
+        full.push_back(c > 127 ? '?' : static_cast<char>(c));
+        if (ok && readable.size() < 12) {
+            readable.push_back(static_cast<char>(c));
         }
     }
-    // NAME_MAX suele ser 255; se deja margen para el '/' inicial.
-    if (out.size() > 200) {
-        out.resize(200);
+    std::uint64_t h = 1469598103934665603ULL; // FNV-1a 64
+    for (unsigned char c : full) {
+        h ^= c;
+        h *= 1099511628211ULL;
     }
-    return out;
+    char hex[13];
+    std::snprintf(hex, sizeof(hex), "%012llx", static_cast<unsigned long long>(h & 0xFFFFFFFFFFFFULL));
+    return "/ba." + readable + "." + hex;
 }
 
 } // namespace detail

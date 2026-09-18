@@ -1,23 +1,25 @@
 // ControlChannel.hpp
 //
 // Proposito:
-//   Cliente del canal de control (named pipe, spec 4.1) que el launcher usa
-//   para el cierre ordenado (3.1.10): pide a A y a B que terminen, espera y
-//   marca clean_shutdown. El pipe es `\\.\pipe\BroadcastAppliance.Control` con
-//   PIPE_REJECT_REMOTE_CLIENTS; los mensajes son JSON con prefijo de longitud
-//   y campo protocolVersion.
+//   Cliente del canal de control (spec 4.1) que el launcher usa para el cierre
+//   ordenado (3.1.10): pide a A y a B que terminen. Va sobre
+//   `ba::platform::LocalStream` (named pipe en Windows, socket Unix en
+//   Linux/macOS) con el framing y los mensajes de `ba::ipc::ControlProtocol`.
+//
+//   Cada proceso sirve su canal con un nombre fijo: A en `control.app`, B en
+//   `control.gateway`. Si el hijo todavia no sirve el canal (o ya murio),
+//   `requestShutdown` devuelve false rapido y el supervisor cae a terminar el
+//   proceso por el SO.
 //
 // Modelo de threading:
-//   requestShutdown() se invoca desde el thread principal durante el cierre,
-//   fuera del loop del supervisor. Es bloqueante acotado por timeoutMs.
+//   requestShutdown() se invoca desde el thread del supervisor durante el
+//   cierre. Es bloqueante, acotado por timeoutMs.
 //
 // Estrategia de errores:
-//   No lanza. Si el pipe no existe (hijo ya muerto) o la escritura falla,
-//   devuelve false y loguea; el caller decide si fuerza el cierre.
+//   No lanza. Devuelve false y loguea si no se pudo entregar el pedido.
 
 #pragma once
 
-#include <cstdint>
 #include <string>
 
 namespace ba::launcher {
@@ -25,16 +27,16 @@ namespace ba::launcher {
 /// Cliente del canal de control para el cierre ordenado.
 class ControlChannel {
    public:
-    /// Version del protocolo de control (campo protocolVersion).
-    static constexpr int kProtocolVersion = 1;
+    /// Nombres de canal de cada proceso.
+    static constexpr const char* kAppChannel = "control.app";
+    static constexpr const char* kGatewayChannel = "control.gateway";
 
     /// Pide a un hijo que termine de forma ordenada.
     ///
-    /// :param pipeName: nombre del pipe (p. ej. \\.\pipe\BroadcastAppliance.Control).
-    /// :param target: identificador del destino ("A" o "B") para el mensaje.
-    /// :param timeoutMs: tiempo maximo de espera al abrir/escribir.
-    /// :returns: true si se envio la solicitud; false si el pipe no estaba.
-    bool requestShutdown(const std::wstring& pipeName, const std::wstring& target, int timeoutMs = 3000);
+    /// :param channel: nombre del canal (`kAppChannel` / `kGatewayChannel`).
+    /// :param timeoutMs: tiempo maximo para conectar y escribir.
+    /// :returns: true si el pedido se entrego.
+    bool requestShutdown(const std::string& channel, int timeoutMs = 1000);
 };
 
 } // namespace ba::launcher

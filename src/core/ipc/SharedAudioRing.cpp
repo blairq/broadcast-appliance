@@ -11,11 +11,23 @@
 // El camino de datos no toma locks: solo fenceas acquire/release.
 
 #include "SharedAudioRing.hpp"
+#include "ipc/AtomicRef.hpp"
+
+#include <chrono>
 
 #include <algorithm>
 #include <cstring>
 
 namespace ba::ipc {
+
+namespace {
+/// Reloj monotono en ns (para stale(); no es el reloj QPC de los bloques).
+uint64_t monotonicNs() {
+    return static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                     std::chrono::steady_clock::now().time_since_epoch())
+                                     .count());
+}
+} // namespace
 
 namespace {
 
@@ -134,7 +146,30 @@ Status SharedAudioRing::openReader(const wchar_t* name, SharedAudioRing& out) {
     out.region_ = std::move(region);
     out.isWriter_ = false;
     out.hasCached_ = false;
+    out.name_ = name;
+    out.lastDataNs_ = monotonicNs();
+    out.lastCheckNs_ = out.lastDataNs_;
     return Status::success();
+}
+
+bool SharedAudioRing::stale() {
+    const RingHeader* mine = header();
+    if (mine == nullptr || isWriter_) {
+        return mine == nullptr;
+    }
+    const uint64_t now = monotonicNs();
+    constexpr uint64_t kSecond = 1000000000ULL;
+    if (now - lastDataNs_ < kSecond || now - lastCheckNs_ < kSecond) {
+        return false; // llegan datos (o se miro hace poco)
+    }
+    lastCheckNs_ = now;
+    SharedMemoryRegion probe;
+    if (!SharedMemoryRegion::open(name_.c_str(), probe).ok) {
+        return true; // el nombre ya no existe: el escritor termino
+    }
+    const auto* h = reinterpret_cast<const RingHeader*>(probe.data());
+    return h == nullptr || h->magic != audio_ring::kMagic || h->writerPid != mine->writerPid ||
+           h->generation != mine->generation;
 }
 
 Status SharedAudioRing::openWriter(const wchar_t* name, uint32_t writerPid, uint32_t generation,
@@ -168,11 +203,11 @@ bool SharedAudioRing::push(const float* samples, uint64_t qpc) {
     auto* h = hdr();
     const uint64_t cap = capacityBlocks();
     const uint64_t write = h->writeIndex; // solo el escritor lo escribe
-    const uint64_t read = std::atomic_ref<uint64_t>(h->readIndex).load(std::memory_order_acquire);
+    const uint64_t read = AtomicRef<uint64_t>(h->readIndex).load(std::memory_order_acquire);
 
     // Overrun: el lector no llego; el slot destino aun tiene datos no leidos.
     if (write - read >= cap) {
-        std::atomic_ref<uint64_t>(h->overrunCount).fetch_add(1, std::memory_order_relaxed);
+        AtomicRef<uint64_t>(h->overrunCount).fetch_add(1, std::memory_order_relaxed);
         return false; // descarta el bloque
     }
 
@@ -180,8 +215,8 @@ bool SharedAudioRing::push(const float* samples, uint64_t qpc) {
     *qpcAt(static_cast<const uint8_t*>(region_.data()) + dataOffset(), write, cap, h->channels) = qpc;
     std::memcpy(blockAt(write), samples, blockFloats() * sizeof(float));
 
-    std::atomic_ref<uint64_t>(h->lastWriteQpc).store(qpc, std::memory_order_relaxed);
-    std::atomic_ref<uint64_t>(h->writeIndex).store(write + 1, std::memory_order_release);
+    AtomicRef<uint64_t>(h->lastWriteQpc).store(qpc, std::memory_order_relaxed);
+    AtomicRef<uint64_t>(h->writeIndex).store(write + 1, std::memory_order_release);
     return true;
 }
 
@@ -202,24 +237,24 @@ bool SharedAudioRing::pop(float* out, PoppedBlock& meta) {
         hasCached_ = true;
     } else if (pid != cachedWriterPid_ || gen != cachedGeneration_) {
         // Resincroniza: descarta lo bufferizado, readIndex <- writeIndex.
-        const uint64_t w = std::atomic_ref<uint64_t>(h->writeIndex).load(std::memory_order_acquire);
-        std::atomic_ref<uint64_t>(h->readIndex).store(w, std::memory_order_release);
+        const uint64_t w = AtomicRef<uint64_t>(h->writeIndex).load(std::memory_order_acquire);
+        AtomicRef<uint64_t>(h->readIndex).store(w, std::memory_order_release);
         cachedWriterPid_ = pid;
         cachedGeneration_ = gen;
         pendingFadeIn_ = true;
     }
 
-    const uint64_t write = std::atomic_ref<uint64_t>(h->writeIndex).load(std::memory_order_acquire);
-    const uint64_t read = std::atomic_ref<uint64_t>(h->readIndex).load(std::memory_order_relaxed);
+    const uint64_t write = AtomicRef<uint64_t>(h->writeIndex).load(std::memory_order_acquire);
+    const uint64_t read = AtomicRef<uint64_t>(h->readIndex).load(std::memory_order_relaxed);
 
     const size_t floats = blockFloats();
 
     // 2) Underrun: sin datos. Se entrega silencio en el buffer del llamador.
     if (read == write) {
-        std::atomic_ref<uint64_t>(h->underrunCount).fetch_add(1, std::memory_order_relaxed);
+        AtomicRef<uint64_t>(h->underrunCount).fetch_add(1, std::memory_order_relaxed);
         std::memcpy(out, silenceBuffer(), floats * sizeof(float));
         meta.samples = out;
-        meta.qpc = std::atomic_ref<uint64_t>(h->lastWriteQpc).load(std::memory_order_relaxed);
+        meta.qpc = AtomicRef<uint64_t>(h->lastWriteQpc).load(std::memory_order_relaxed);
         meta.isSilence = true;
         meta.isFadeIn = pendingFadeIn_;
         pendingFadeIn_ = false;
@@ -235,7 +270,8 @@ bool SharedAudioRing::pop(float* out, PoppedBlock& meta) {
     const uint64_t qpc =
         *qpcAt(static_cast<const uint8_t*>(region_.data()) + dataOffset(), read, cap, h->channels);
     std::memcpy(out, blockAt(read), floats * sizeof(float));
-    std::atomic_ref<uint64_t>(h->readIndex).store(read + 1, std::memory_order_release);
+    AtomicRef<uint64_t>(h->readIndex).store(read + 1, std::memory_order_release);
+    lastDataNs_ = monotonicNs(); // para stale(): el escritor esta vivo
 
     meta.samples = out;
     meta.qpc = qpc;

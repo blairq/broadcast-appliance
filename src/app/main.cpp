@@ -1,135 +1,45 @@
 // ============================================================================
-// src/app/main.cpp — Punto de entrada del Proceso A (motor de emisión + UI)
+// src/app/main.cpp — Punto de entrada de ba-app (Proceso A)
 //
-// Propósito:
-//   Punto de entrada de `ba-app` (Proceso A, spec §6). Tres rutas, elegidas en
-//   tiempo de compilación:
-//     1. `#if defined(_WIN32) && defined(BA_APP_HAVE_QT_OBS)` — app COMPLETA:
-//        `obs_startup`/`obs_shutdown` (libobs) + `QApplication` + `MainWindow`
-//        (Qt 6). Es la UI real del operador.
-//     2. `#elif defined(_WIN32)` — modo HEADLESS Windows (cross-compile MinGW
-//        de validación sin Qt/libobs): `wWinMain` que corre un autotest del
-//        motor (dsp + ipc + persist) y termina.
-//     3. `#else` — modo HEADLESS no-Windows (Linux): `main()` con el mismo
-//        autotest, para validar la compilación del árbol en Linux.
+// Un solo despacho para todas las plataformas (solo el ENTRY POINT difiere:
+// wWinMain en Windows, main en el resto):
 //
-//   El motor (`OperatorEngine`) es el que integra `ba_core`; aquí solo se
-//   arranca la plataforma (libobs/Qt) y se le pasa el motor. Todo lo Qt/obs
-//   vive tras `#ifdef _WIN32` (spec: "todo Qt/obs tras #ifdef _WIN32").
+//   --headless-selftest  autotest de OperatorEngine (sin libobs)
+//   --engine-selftest    autotest del motor de emision (libobs)
+//   --no-ui              modo consola aunque haya pantalla
+//   (default)            interfaz grafica si hay Qt y pantalla; si no, consola
 //
-// Modelo de threading:
-//   El thread principal inicializa libobs (en la ruta completa) y entra al
-//   event loop de Qt (o corre el autotest y termina en headless). No crea
-//   threads propios.
-//
-// Estrategia de errores:
-//   No lanza. Si `obs_startup` o el motor fallan, se loguea (printf) y se
-//   devuelve un código de salida distinto de 0. En headless el autotest
-//   devuelve 0 si la integración dsp/ipc/persist funciona.
+// "Hay pantalla": Windows y macOS siempre; Linux si hay WAYLAND_DISPLAY o
+// DISPLAY (por SSH no hay y se cae a la consola, que avisa si el motor no
+// puede arrancar sin contexto grafico).
 // ============================================================================
 
 #include "OperatorEngine.hpp"
 
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
-#include <cwchar>
 #include <string>
 #include <vector>
 
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#else
-#include <unistd.h> // getcwd (fallback POSIX de moduleDirW)
+// shellapi.h necesita windows.h antes (bloque aparte: clang-format no lo reordena).
+#include <shellapi.h>
 #endif
 
 #if BA_HAVE_LIBOBS
 #include "EngineSelfTest.hpp"
+#include "OperateMode.hpp"
+#endif
+#if BA_APP_HAVE_QT_OBS
+#include "GuiMode.hpp"
 #endif
 
 namespace {
 
-// Directorio del módulo (UTF-16), derivado de GetModuleFileNameW (spec §5.3:
-// la letra de unidad cambia entre equipos). En POSIX no existe "módulo"; el
-// fallback usa el directorio de trabajo actual (getcwd).
-// `[[maybe_unused]]`: en la ruta headless de Linux (ruta 3) estas dos
-// funciones no se llaman (solo las usa la ruta Windows), así que sin el
-// attribute el compilador avisa `-Wunused-function`.
-[[maybe_unused]] std::wstring moduleDirW() {
-#ifdef _WIN32
-    wchar_t buf[MAX_PATH]{};
-    const DWORD n = GetModuleFileNameW(nullptr, buf, MAX_PATH);
-    if (n == 0 || n >= MAX_PATH) {
-        return L".";
-    }
-    const std::wstring p(buf, n);
-    const std::size_t slash = p.find_last_of(L"\\/");
-    return (slash == std::wstring::npos) ? L"." : p.substr(0, slash);
-#else
-    char buf[4096]{};
-    if (getcwd(buf, sizeof(buf)) == nullptr) {
-        return L".";
-    }
-    const std::string p(buf);
-    std::wstring out;
-    out.reserve(p.size());
-    for (char c : p)
-        out.push_back(static_cast<wchar_t>(static_cast<unsigned char>(c)));
-    return out;
-#endif
-}
-
-// UTF-16 -> UTF-8 (para las rutas que libobs/QSettings toman en UTF-8). En
-// POSIX el wstring es en realidad UTF-8 estrecho (1 wchar = 1 byte), así que la
-// conversión es un traspaso de bytes.
-// `[[maybe_unused]]`: idem `moduleDirW` — solo la ruta Windows lo invoca.
-[[maybe_unused]] std::string toUtf8(const std::wstring& p) {
-    if (p.empty()) {
-        return std::string();
-    }
-#ifdef _WIN32
-    const int n =
-        WideCharToMultiByte(CP_UTF8, 0, p.c_str(), static_cast<int>(p.size()), nullptr, 0, nullptr, nullptr);
-    std::string out;
-    if (n > 0) {
-        out.resize(static_cast<std::size_t>(n));
-        WideCharToMultiByte(CP_UTF8, 0, p.c_str(), static_cast<int>(p.size()), out.data(), n, nullptr,
-                            nullptr);
-    }
-    return out;
-#else
-    std::string out;
-    out.reserve(p.size());
-    for (wchar_t c : p)
-        out.push_back(static_cast<char>(static_cast<unsigned char>(c)));
-    return out;
-#endif
-}
-
-// Detecta la bandera --restore en una línea de comandos wide (Windows).
-// El launcher pasa `--restore` como argumento único al relanzar a A tras un
-// crash (Supervisor.cpp, spec §3.1.8); se busca la substring para tolerar
-// espacios o flags adicionales. No lanza.
-// `[[maybe_unused]]`: solo las rutas Windows la llaman; la de Linux usa
-// strcmp directo sobre argv.
-[[maybe_unused]] bool cmdLineHasRestore(const wchar_t* cmdLine) {
-    return cmdLine != nullptr && std::wcsstr(cmdLine, L"--restore") != nullptr;
-}
-
-// --- Autotest headless (sin Qt/libobs) -------------------------------------
-//
-// Ejercita la integración real de `ba_core` que el motor aporta:
-//   - DSP: los tres presets aplicados en caliente a cada canal + un tono de
-//     440 Hz procesado por cada ChannelStrip + Automixer;
-//   - IPC: ring de invitados (lector, pop -> silencio), HealthBlock (beat +
-//     lectura/watchdog) y ControlEndpoint (sendRequest/poll vía tick);
-//   - Persistencia: StateDoc construido + snapshot escrito en el cierre
-//     ordenado (SnapshotStore::scheduleWrite + flushNow).
-//
-// :param restore: si es true, el motor restaura el último snapshot válido al
-//                 arrancar (contrato `--restore` del launcher, spec §3.1.8).
-// :returns: 0 si la integración funciona; 1 si init o shutdown fallaron.
 int runHeadlessSelfTest(bool restore = false) {
     ba::app::OperatorEngine engine;
     // Config en un subdir local (los snapshots van a cfg/Config/session).
@@ -183,122 +93,82 @@ int runHeadlessSelfTest(bool restore = false) {
     return ok ? 0 : 1;
 }
 
-} // namespace
-
-// ============================================================================
-// Ruta 1 — App completa (Qt 6 + libobs)
-// ============================================================================
-#if defined(_WIN32) && defined(BA_APP_HAVE_QT_OBS)
-
-#include <QApplication>
-
-#include <obs.h>
-
-#include "MainWindow.hpp"
-
-int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow) {
-    (void)hPrevInstance;
-    (void)nCmdShow;
-
-    // --restore (spec §3.1.8): el launcher lo pasa al relanzar A tras un crash.
-    const bool restore = cmdLineHasRestore(lpCmdLine);
-
-    // Búsqueda de DLLs (spec §5.2): solo los directorios propios, nunca el PATH.
-    SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
-    const std::wstring root = moduleDirW();
-    AddDllDirectory((root + L"\\bin\\64bit").c_str());
-
-    // libobs (spec §6.1/§5.4): obs_startup con el plugin_config en el disco
-    // portable (<root>\Config\plugin_config), para que los plugins (incluida la
-    // caché de CEF de obs-browser) escriban ahí.
-    const std::string locale = "es_ES";
-    const std::string pluginConfig = toUtf8(root + L"\\Config\\plugin_config");
-    if (!obs_startup(locale.c_str(), pluginConfig.c_str(), locale.c_str(),
-                     /*is_hwnd=*/false, /*private_data=*/nullptr)) {
-        std::printf("ba-app: obs_startup falló\n");
-        return 1;
-    }
-
-    int rc = 0;
-    {
-        // QApplication (Qt 6): argc/argv de 1 elemento (sin args extra).
-        const char* argv0 = "ba-app";
-        char* argv[1] = {const_cast<char*>(argv0)};
-        int argc = 1;
-        QApplication app(argc, argv);
-
-        ba::app::OperatorEngine engine;
-        if (!engine.init(toUtf8(root), restore)) {
-            std::printf("ba-app: motor no inicializado (code=%d)\n", engine.lastError());
-            obs_shutdown();
-            return 1;
-        }
-
-        ba::app::MainWindow window(engine);
-        window.show();
-        rc = app.exec();
-
-        // Cierre ordenado: lo hace MainWindow::closeEvent (engine.shutdown).
-        obs_shutdown();
-    }
-    return rc;
-}
-
-// MinGW GUI CRT espera `WinMain` (narrow); trampoline a `wWinMain` (wide),
-// mismo patrón que el launcher.
-#if !defined(_MSC_VER)
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
-    (void)lpCmdLine;
-    return wWinMain(hInstance, hPrevInstance, nullptr, nCmdShow);
-}
-#endif
-
-// ============================================================================
-// Ruta 2 — Headless Windows (cross MinGW sin Qt/libobs)
-// ============================================================================
-#elif defined(_WIN32)
-
-int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
-    // --restore (spec §3.1.8): el launcher lo pasa al relanzar A tras un crash.
-    return runHeadlessSelfTest(cmdLineHasRestore(lpCmdLine));
-}
-
-#if !defined(_MSC_VER)
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
-    (void)lpCmdLine;
-    return wWinMain(hInstance, hPrevInstance, nullptr, nCmdShow);
-}
-#endif
-
-// ============================================================================
-// Ruta 3 — Headless no-Windows (Linux)
-// ============================================================================
-#else
-
-int main(int argc, char** argv) {
-    // --restore (spec §3.1.8): el launcher lo pasa al relanzar A tras un crash.
-    // En Linux el launcher es un stub (hijo ficticio), pero se parsea igual para
-    // que el contrato de argv sea idéntico en las tres rutas.
-    bool restore = false;
-    bool engineSelfTest = false;
+bool hasFlag(int argc, char** argv, const char* flag) {
     for (int i = 1; i < argc; ++i) {
-        if (std::strcmp(argv[i], "--restore") == 0) {
-            restore = true;
-        } else if (std::strcmp(argv[i], "--engine-selftest") == 0) {
-            engineSelfTest = true;
+        if (std::strcmp(argv[i], flag) == 0) {
+            return true;
         }
+    }
+    return false;
+}
+
+[[maybe_unused]] bool hasDisplay() {
+#if defined(_WIN32) || defined(__APPLE__)
+    return true;
+#else
+    const char* wl = std::getenv("WAYLAND_DISPLAY");
+    const char* x = std::getenv("DISPLAY");
+    return (wl != nullptr && *wl != '\0') || (x != nullptr && *x != '\0');
+#endif
+}
+
+int dispatch(int argc, char** argv) {
+    // --restore (spec §3.1.8): el launcher lo pasa al relanzar A tras un crash.
+    const bool restore = hasFlag(argc, argv, "--restore");
+    if (hasFlag(argc, argv, "--headless-selftest")) {
+        return runHeadlessSelfTest(restore);
     }
 #if BA_HAVE_LIBOBS
-    if (engineSelfTest) {
+    if (hasFlag(argc, argv, "--engine-selftest")) {
         return ba::app::runEngineSelfTest(argc, argv);
     }
+#if BA_APP_HAVE_QT_OBS
+    if (!hasFlag(argc, argv, "--no-ui") && hasDisplay()) {
+        return ba::app::runGui(argc, argv);
+    }
+#endif
+    return ba::app::runOperate(argc, argv);
 #else
-    if (engineSelfTest) {
+    if (hasFlag(argc, argv, "--engine-selftest")) {
         std::printf("ba-app: compilado sin libobs; no hay motor de emision que probar\n");
         return 77; // 77 = saltado, igual que en la suite de CTest
     }
-#endif
     return runHeadlessSelfTest(restore);
+#endif
 }
 
-#endif // rutas
+} // namespace
+
+#if defined(_WIN32)
+
+int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
+    int argc = 0;
+    LPWSTR* argvW = CommandLineToArgvW(GetCommandLineW(), &argc);
+    std::vector<std::string> store;
+    for (int i = 0; argvW != nullptr && i < argc; ++i) {
+        const int n = WideCharToMultiByte(CP_UTF8, 0, argvW[i], -1, nullptr, 0, nullptr, nullptr);
+        std::string s(static_cast<std::size_t>(n > 0 ? n - 1 : 0), '\0');
+        WideCharToMultiByte(CP_UTF8, 0, argvW[i], -1, s.data(), n, nullptr, nullptr);
+        store.push_back(s);
+    }
+    LocalFree(argvW);
+    std::vector<char*> argv;
+    for (auto& s : store) {
+        argv.push_back(s.data());
+    }
+    argv.push_back(nullptr);
+    return dispatch(static_cast<int>(store.size()), argv.data());
+}
+
+#if !defined(_MSC_VER)
+// MinGW GUI CRT espera `WinMain` (narrow); se puentea a `wWinMain`.
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR, int nCmdShow) {
+    return wWinMain(hInstance, hPrevInstance, nullptr, nCmdShow);
+}
+#endif
+
+#else
+
+int main(int argc, char** argv) { return dispatch(argc, argv); }
+
+#endif

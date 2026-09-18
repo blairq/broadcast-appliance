@@ -79,6 +79,13 @@ fs::path makeFakeRoot() {
     writeFile(base / "bin" / "x.dll", "fake-x-dll");
     writeFile(base / "obs-plugins" / "y.dll", "fake-y-dll");
     writeFile(base / "data" / "libobs" / "z.effect", "fake-z-effect");
+#if !defined(_WIN32)
+    // Cadena de biblioteca versionada (Linux/macOS): libq.so.6 -> libq.so.6.6.3.
+    // La copia tiene que llevarse el symlink: sin el, el enlazador del hijo
+    // cae a la biblioteca del SISTEMA.
+    writeFile(base / "bin" / "qt" / "lib" / "libq.so.6.6.3", "fake-q-lib");
+    fs::create_symlink("libq.so.6.6.3", base / "bin" / "qt" / "lib" / "libq.so.6");
+#endif
     // Un arbol que NO debe copiarse (spec 3.1.5): config se queda en el disco.
     writeFile(base / "Config" / "user.ini", "fake-config");
     return base;
@@ -97,6 +104,12 @@ int main() {
     CHECK(fs::exists(shadowPath / "obs-plugins" / "y.dll"));
     CHECK(fs::exists(shadowPath / "data" / "libobs" / "z.effect"));
     CHECK(fs::exists(shadowPath / ".shadow_ok"));
+#if !defined(_WIN32)
+    const fs::path link = shadowPath / "bin" / "qt" / "lib" / "libq.so.6";
+    CHECK(fs::is_symlink(link));
+    CHECK(fs::read_symlink(link) == fs::path("libq.so.6.6.3")); // relativo: apunta DENTRO de la copia
+    CHECK(fs::exists(link));                                    // y resuelve
+#endif
     // config/ no viaja (spec 3.1.5).
     CHECK(!fs::exists(shadowPath / "Config" / "user.ini"));
 

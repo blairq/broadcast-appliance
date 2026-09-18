@@ -48,7 +48,29 @@ else()
     add_executable(ba-gateway ${BA_GATEWAY_SOURCES})
 endif()
 
-target_link_libraries(ba-gateway PRIVATE ba_core)
+target_link_libraries(ba-gateway PRIVATE ba_core mbedcrypto)
+target_include_directories(ba-gateway PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+
+# --- lwIP (pila IP en espacio de usuario para el tunel WireGuard) ------------
+# extern/lwip (make deps-lwip). Sin lwIP el gateway compila igual, sin tunel.
+set(LWIP_DIR "${CMAKE_SOURCE_DIR}/extern/lwip")
+set(BA_HAVE_LWIP OFF)
+if(EXISTS "${LWIP_DIR}/src/Filelists.cmake")
+    include("${LWIP_DIR}/src/Filelists.cmake")
+    add_library(ba_lwip STATIC ${lwipcore_SRCS} ${lwipcore4_SRCS})
+    target_include_directories(ba_lwip PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/net/lwip-port" "${LWIP_DIR}/src/include")
+    set_target_properties(ba_lwip PROPERTIES POSITION_INDEPENDENT_CODE ON C_STANDARD 99)
+    target_compile_options(ba_lwip PRIVATE -w) # codigo de terceros: sin nuestros warnings
+    target_link_libraries(ba-gateway PRIVATE ba_lwip)
+    target_compile_definitions(ba-gateway PRIVATE BA_HAVE_LWIP=1)
+    set(BA_HAVE_LWIP ON)
+else()
+    message(STATUS "ba-gateway: sin lwIP (extern/lwip); el tunel WireGuard queda deshabilitado")
+    get_target_property(_gw_srcs ba-gateway SOURCES)
+    list(FILTER _gw_srcs EXCLUDE REGEX ".*/net/IpStack\\.cpp$")
+    set_target_properties(ba-gateway PROPERTIES SOURCES "${_gw_srcs}")
+    target_compile_definitions(ba-gateway PRIVATE BA_HAVE_LWIP=0)
+endif()
 
 # --- Dependencias de red / plataforma ---------------------------------------
 # El servidor de señalización usa sockets. En Windows es winsock2 (ws2_32);
@@ -110,7 +132,7 @@ if(BA_GATEWAY_WEBRTC)
     # (de ahí la puerta if(MSVC) de arriba).
     target_link_libraries(ba-gateway PRIVATE webrtc)
 else()
-    message(STATUS "ba-gateway: SDK libwebrtc ausente; backend NULL (BA_GATEWAY_HAVE_WEBRTC=0)")
+    message(STATUS "ba-gateway (GCC): backend NULL para los tests de logica (BA_GATEWAY_HAVE_WEBRTC=0)")
     target_compile_definitions(ba-gateway PRIVATE BA_GATEWAY_HAVE_WEBRTC=0)
 endif()
 
@@ -156,14 +178,22 @@ endif()
 file(GLOB_RECURSE BA_GATEWAY_TESTS CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_*.cpp"
 )
+# test_webrtc_*: necesitan libwebrtc de verdad; los compila el subproyecto
+# cmake/gateway-webrtc (clang + libc++ de Chromium), no este build.
+list(FILTER BA_GATEWAY_TESTS EXCLUDE REGEX ".*/test_webrtc_[^/]*\\.cpp$")
 
 # Sources del gateway para los tests: los del propio directorio (no
 # recursivo, para no meter los tests) sin main.cpp.
 file(GLOB BA_GATEWAY_LIB_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/net/*.cpp"
 )
 list(FILTER BA_GATEWAY_LIB_SOURCES EXCLUDE REGEX ".*/tests/.*")
 list(FILTER BA_GATEWAY_LIB_SOURCES EXCLUDE REGEX ".*/main\\.cpp$")
+if(NOT BA_HAVE_LWIP)
+    list(FILTER BA_GATEWAY_LIB_SOURCES EXCLUDE REGEX ".*/net/IpStack\\.cpp$")
+    list(FILTER BA_GATEWAY_TESTS EXCLUDE REGEX ".*/test_ipstack\\.cpp$")
+endif()
 
 foreach(test_source ${BA_GATEWAY_TESTS})
     get_filename_component(test_name ${test_source} NAME_WE)
@@ -173,8 +203,14 @@ foreach(test_source ${BA_GATEWAY_TESTS})
         BA_GATEWAY_HAVE_WEBRTC=${BA_GATEWAY_WEBRTC}
         # Webroot real (assets/web/guest) para el humo HTTP: sirve el index del
         # invitado de verdad en vez de un directorio inventado.
-        BA_TEST_WEBROOT="${CMAKE_SOURCE_DIR}/assets/web/guest")
-    target_link_libraries(${test_name} PRIVATE ba_core)
+        BA_TEST_WEBROOT="${CMAKE_SOURCE_DIR}/assets/web/guest"
+        # Par WireGuard de referencia (Python) para la interoperabilidad.
+        BA_TEST_WG_PEER="${CMAKE_CURRENT_SOURCE_DIR}/tests/wg_reference_peer.py")
+    target_link_libraries(${test_name} PRIVATE ba_core mbedcrypto)
+    if(BA_HAVE_LWIP)
+        target_link_libraries(${test_name} PRIVATE ba_lwip)
+        target_compile_definitions(${test_name} PRIVATE BA_HAVE_LWIP=1)
+    endif()
     if(WIN32)
         target_link_libraries(${test_name} PRIVATE ws2_32)
     endif()
@@ -191,13 +227,66 @@ endforeach()
 # --- Instalación ------------------------------------------------------------
 # Proceso B va a bin/64bit/ (spec §5.1). La app web del invitado se instala en
 # Web/guest/ (la sirve B, spec §5.1 layout).
-install(TARGETS ba-gateway
-    RUNTIME DESTINATION bin/64bit
-)
+# --- Gateway con libwebrtc REAL en Linux --------------------------------------
+# libwebrtc (Shiguredo M123) esta compilado contra la libc++ de Chromium
+# (std::__Cr) y la trae adentro. El gateway real se compila aparte, con clang y
+# esos headers (cmake/gateway-webrtc); reutiliza las libs de C de este build.
+# El ba-gateway de arriba (GCC, backend NULL) sigue existiendo para los tests
+# de logica. `make deps-webrtc BA_WEBRTC_TARGET=linux` baja el SDK.
+set(BA_GATEWAY_REAL_POSIX OFF)
+set(BA_GW_RTC_DIR "${CMAKE_BINARY_DIR}/gateway-webrtc")
+if(UNIX AND NOT APPLE AND BA_WEBRTC_ROOT
+   AND EXISTS "${BA_WEBRTC_ROOT}/lib/libwebrtc.a"
+   AND EXISTS "${BA_WEBRTC_ROOT}/libcxx/include/vector"
+   AND EXISTS "${BA_WEBRTC_ROOT}/buildtools-libcxx/__config_site")
+    find_program(BA_CLANG clang)
+    find_program(BA_CLANGXX clang++)
+    if(BA_CLANG AND BA_CLANGXX)
+        set(BA_GATEWAY_REAL_POSIX ON)
+    else()
+        message(WARNING "ba-gateway: hay SDK de libwebrtc pero falta clang; queda el backend NULL")
+    endif()
+endif()
+
+if(BA_GATEWAY_REAL_POSIX)
+    message(STATUS "ba-gateway: libwebrtc REAL (clang + libc++ de Chromium) en ${BA_GW_RTC_DIR}")
+    include(ExternalProject)
+    ExternalProject_Add(ba_gateway_webrtc
+        SOURCE_DIR "${CMAKE_SOURCE_DIR}/cmake/gateway-webrtc"
+        BINARY_DIR "${BA_GW_RTC_DIR}"
+        LIST_SEPARATOR |
+        CMAKE_ARGS
+            -DCMAKE_C_COMPILER=${BA_CLANG}
+            -DCMAKE_CXX_COMPILER=${BA_CLANGXX}
+            -DCMAKE_BUILD_TYPE=Release
+            -DBA_SRC=${CMAKE_SOURCE_DIR}
+            -DBA_WEBRTC_ROOT=${BA_WEBRTC_ROOT}
+            -DBA_LIBCXX_CFG=${BA_WEBRTC_ROOT}/buildtools-libcxx
+            "-DBA_C_LIBS=$<TARGET_FILE:mbedtls>|$<TARGET_FILE:mbedx509>|$<TARGET_FILE:mbedcrypto>|$<TARGET_FILE:samplerate>|$<TARGET_FILE:argon2>"
+            "-DBA_C_INCLUDES=${mbedtls_SOURCE_DIR}/include|${libsamplerate_SOURCE_DIR}/include|${argon2_SOURCE_DIR}/include|${nlohmann_json_SOURCE_DIR}/include"
+        INSTALL_COMMAND ""
+        BUILD_ALWAYS ON
+        DEPENDS mbedtls mbedx509 mbedcrypto samplerate argon2
+        BUILD_BYPRODUCTS "${BA_GW_RTC_DIR}/ba-gateway" "${BA_GW_RTC_DIR}/test_webrtc_loopback")
+    # Medios reales de punta a punta (RTP/SRTP sobre UDP local).
+    add_test(NAME test_webrtc_loopback COMMAND "${BA_GW_RTC_DIR}/test_webrtc_loopback")
+    set_tests_properties(test_webrtc_loopback PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+    install(PROGRAMS "${BA_GW_RTC_DIR}/ba-gateway" DESTINATION bin/64bit)
+else()
+    install(TARGETS ba-gateway
+        RUNTIME DESTINATION bin/64bit
+    )
+endif()
 # App web del invitado (spec §8.3). Si el directorio existe en el árbol de
 # fuente se copia; si no, se deja el directorio vacío (lo crea el root).
 if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/guest")
     install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/guest/"
         DESTINATION Web/guest
+    )
+endif()
+# Consola web del operador (la sirve B en 127.0.0.1:adminPort/admin/).
+if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/admin")
+    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/admin/"
+        DESTINATION Web/admin
     )
 endif()

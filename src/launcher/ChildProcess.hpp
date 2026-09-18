@@ -1,88 +1,86 @@
 // ChildProcess.hpp
 //
 // Proposito:
-//   Lanzamiento y seguimiento de un proceso hijo del launcher (spec 3.1.6):
-//   subsistema GUI, sin consola, con entorno saneado (sin QT_*/PYTHON*) y
-//   PATH minimo. Intenta CREATE_BREAKAWAY_FROM_JOB y reintenta sin ese flag si
-//   falla (spec 3.1.6). Publica el PID para el readopt (3.1.9).
+//   Lanzamiento y seguimiento de un proceso hijo del launcher (spec 3.1.6),
+//   sobre `ba::platform::Process` (igual en Windows, Linux y macOS). Agrega lo
+//   propio del launcher: la politica de entorno saneado (spec 3.1.3), el
+//   readopt de un hijo que sobrevivio a un launcher anterior (3.1.9) y el log.
+//
+//   Los hijos se lanzan SIN killWithParent: si el launcher se cae, A y B
+//   siguen al aire y el launcher que vuelve los adopta.
+//
+// Politica de entorno:
+//   - Windows: entorno minimo armado a mano (SystemRoot, PATH = System32 +
+//     dir propio, TEMP/TMP) mas las variables de GPU de alto rendimiento para
+//     laptops hibridas (spec 4.2).
+//   - Linux/macOS: se hereda el entorno (hace falta DISPLAY, WAYLAND_DISPLAY,
+//     XDG_RUNTIME_DIR, PulseAudio/PipeWire...) quitando lo que puede romper el
+//     bundle: LD_PRELOAD/LD_LIBRARY_PATH, DYLD_*, QT_* y PYTHON*.
 //
 // Modelo de threading:
-//   start() se invoca desde el thread principal (o el del supervisor) ANTES de
-//   entrar al loop de vigilancia. alive()/pid() son lecturas sobre un HANDLE
-//   de proceso (thread-safe por naturaleza: WaitForSingleObject/GetExitCode).
-//   close() libera el handle; no llamar desde dos threads a la vez.
+//   Se usa desde el thread del supervisor. No es thread-safe.
 //
 // Estrategia de errores:
-//   start() devuelve bool y loguea el fallo (codigo GetLastError). No lanza.
-//   Un hijo que no pudo lanzarse deja pid()==0.
+//   start()/attach() devuelven bool y loguean el motivo. No lanza.
 
 #pragma once
 
 #include <cstdint>
+#include <filesystem>
+#include <optional>
 #include <string>
+#include <vector>
 
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#endif
+#include "platform/Process.hpp"
 
 namespace ba::launcher {
 
-/// Un proceso hijo lanzado por el launcher.
+/// Un proceso hijo lanzado (o adoptado) por el launcher.
 class ChildProcess {
    public:
     /// Parametros de lanzamiento.
     struct Config {
-        std::wstring exePath; // ruta al .exe (bin/64bit/ba-app.exe, etc.).
-        std::wstring args;    // argumentos de linea (p. ej. L"--restore").
-        std::wstring workDir; // directorio de trabajo (raiz del disco).
-        std::wstring name;    // nombre logico para logs ("A", "B").
+        std::filesystem::path exePath; // bin/64bit/ba-app(.exe), etc.
+        std::vector<std::string> args; // p. ej. {"--restore"}
+        std::filesystem::path workDir; // raiz del bundle
+        std::string name;              // nombre logico para logs ("A", "B")
     };
 
-    ChildProcess() = default;
-    ~ChildProcess();
-
-    ChildProcess(const ChildProcess&) = delete;
-    ChildProcess& operator=(const ChildProcess&) = delete;
-    ChildProcess(ChildProcess&&) = default;
-    ChildProcess& operator=(ChildProcess&&) = default;
-
-    /// Lanza el hijo con entorno saneado.
+    /// Lanza el hijo con el entorno saneado.
     ///
-    /// :param cfg: configuracion de lanzamiento.
-    /// :returns: true si el proceso arranco; false en fallo (logueado).
+    /// :returns: true si arranco; false en fallo (logueado).
     bool start(const Config& cfg);
 
-    /// Indica si el proceso sigue vivo.
-    bool alive() const;
-
-    /// PID del hijo (0 si no arranco).
-    std::uint32_t pid() const;
-
-    /// Handle del proceso (para WaitForMultipleObjects / MiniDumpWriteDump).
-    /// En no-Windows devuelve 0.
-    void* handle() const;
-
-    /// Adopta un proceso ya vivo (readopt, spec 3.1.9): abre un handle sobre
-    /// un PID publicado en memoria compartida por una ejecucion anterior.
+    /// Adopta un proceso vivo publicado por un launcher anterior.
     ///
-    /// :param pid: PID del proceso a adoptar.
-    /// :returns: true si se pudo abrir el handle; false si el proceso no existe.
-    bool attach(std::uint32_t pid);
+    /// :returns: true si el PID existe y se pudo abrir.
+    bool attach(std::uint32_t pid, const std::string& name);
 
-    /// Codigo de salida del proceso (STILL_ACTIVE si sigue vivo).
-    ///
-    /// :returns: codigo de salida; 0 si no hay handle. Un 0 real (cierre
-    ///           ordenado) se distingue de "sin handle" por alive().
-    std::uint32_t exitCode() const;
+    /// true si el proceso sigue vivo.
+    bool alive();
 
-    /// Libera el handle. Idempotente.
-    void close();
+    /// PID del hijo (0 si no hay).
+    std::uint32_t pid() const { return proc_.pid(); }
+
+    /// Codigo de salida si ya termino (nullopt si sigue vivo o no hay hijo).
+    /// Un hijo adoptado que termino informa -1 en POSIX (codigo desconocido).
+    std::optional<int> exitCode();
+
+    /// Pide cierre amable (SIGTERM en POSIX; en Windows equivale a kill).
+    bool terminate() { return proc_.terminate(); }
+
+    /// Mata al hijo y a sus descendientes.
+    bool kill() { return proc_.kill(); }
+
+    /// Espera la salida hasta `ms`. :returns: true si termino.
+    bool waitExit(int ms) { return proc_.wait(ms).has_value(); }
+
+    /// Suelta el proceso (no lo mata). Idempotente.
+    void close() { proc_ = ba::platform::Process(); }
 
    private:
-    void* hProcess_ = nullptr; // HANDLE en Win32; nullptr en no-Win.
-    std::uint32_t pid_ = 0;
-    std::wstring name_;
+    ba::platform::Process proc_;
+    std::string name_;
 };
 
 } // namespace ba::launcher

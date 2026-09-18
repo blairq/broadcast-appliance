@@ -1,195 +1,134 @@
 // ChildProcess.cpp
 //
 // Implementacion del lanzamiento de procesos hijos (ver ChildProcess.hpp).
-// Win32 real bajo _WIN32; fuera de Windows es un stub que loguea y "arranca"
-// un hijo ficticio para que el arbol compile y el flujo se pueda probar.
+// Toda la mecanica de SO vive en ba::platform::Process; aca solo queda la
+// politica del launcher (entorno, logs, readopt).
 
 #include "ChildProcess.hpp"
 
 #include "Log.hpp"
+#include "platform/Paths.hpp"
+
+#include <cstdlib>
+#include <cstring>
 
 #ifdef _WIN32
-#include <vector>
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h> // GetEnvironmentStringsA
 #endif
 
 namespace ba::launcher {
 
 namespace {
 
-#ifdef _WIN32
-// Construye un bloque de entorno saneado (spec 3.1.3): sin QT_PLUGIN_PATH,
-// QT_QPA_PLATFORM_PLUGIN_PATH, QT_QPA_PLATFORM, QML2_IMPORT_PATH, PYTHONHOME,
-// PYTHONPATH; PATH minimo = System32 + directorios propios.
-std::wstring buildSanitizedEnv(const std::wstring& ownDir) {
-    std::wstring block;
-    auto appendVar = [&block](const wchar_t* name, const std::wstring& value) {
-        if (value.empty()) {
-            return;
-        }
-        block += name;
-        block += L"=";
-        block += value;
-        block += L'\0';
-    };
+/// Variables que un hijo nunca debe heredar: apuntan a bibliotecas o plugins
+/// de fuera del bundle y rompen la carga de Qt/libobs de formas dificiles de
+/// diagnosticar (spec 3.1.3).
+const char* const kDropAlways[] = {
+    "QT_PLUGIN_PATH", "QT_QPA_PLATFORM_PLUGIN_PATH", "QML2_IMPORT_PATH", "PYTHONHOME", "PYTHONPATH",
+};
 
-    std::wstring systemRoot = L"C:\\Windows";
-    {
-        const int n = GetEnvironmentVariableW(L"SystemRoot", nullptr, 0);
-        if (n > 0) {
-            std::vector<wchar_t> buf(static_cast<size_t>(n));
-            GetEnvironmentVariableW(L"SystemRoot", buf.data(), n);
-            systemRoot.assign(buf.data(), n - 1);
-        }
-    }
-    const std::wstring system32 = systemRoot + L"\\system32";
+#if !defined(_WIN32)
+const char* const kDropPosix[] = {
+    "LD_PRELOAD",
+    "LD_LIBRARY_PATH",
+    "DYLD_LIBRARY_PATH",
+    "DYLD_FALLBACK_LIBRARY_PATH",
+    "DYLD_INSERT_LIBRARIES",
+};
+#endif
 
-    // TEMP/TMP: se lee el valor real UNA sola vez y se agrega una unica vez.
-    // (Dejar los placeholders %TEMP% y luego agregar los reales producia dos
-    // entradas TEMP= en el bloque, y el hijo leia la literal "%TEMP%".)
-    std::wstring temp;
-    {
-        const int n = GetEnvironmentVariableW(L"TEMP", nullptr, 0);
-        if (n > 0) {
-            std::vector<wchar_t> buf(static_cast<size_t>(n));
-            GetEnvironmentVariableW(L"TEMP", buf.data(), n);
-            temp.assign(buf.data(), n - 1);
-        }
-    }
-
-    appendVar(L"SystemRoot", systemRoot);
-    appendVar(L"SystemDrive", systemRoot.substr(0, 2));
-    appendVar(L"PATH", system32 + L";" + ownDir);
-    appendVar(L"TEMP", temp); // una sola vez; si no existe TEMP, se omite
-    appendVar(L"TMP", temp);
-
-    // Laptops hibridas: forzar GPU de alto rendimiento (spec 4.2).
-    appendVar(L"NvOptimusEnablement", L"1");
-    appendVar(L"AmdPowerXpressRequestHighPerformance", L"1");
-
-    block += L'\0'; // doble NUL final.
-    return block;
+#if defined(_WIN32)
+std::string envOr(const char* name, const std::string& def) {
+    const char* v = std::getenv(name);
+    return (v != nullptr && *v != '\0') ? std::string(v) : def;
 }
 #endif
+
+void applyEnvPolicy(ba::platform::ProcessOptions& o, const std::filesystem::path& ownBinDir) {
+    for (const char* n : kDropAlways) {
+        o.envRemove.emplace_back(n);
+    }
+#if defined(_WIN32)
+    // Entorno minimo (spec 3.1.3): nada heredado salvo lo imprescindible.
+    o.inheritEnv = false;
+    const std::string systemRoot = envOr("SystemRoot", "C:\\Windows");
+    o.envSet["SystemRoot"] = systemRoot;
+    o.envSet["SystemDrive"] = systemRoot.substr(0, 2);
+    o.envSet["PATH"] = systemRoot + "\\system32;" + ownBinDir.string();
+    const std::string temp = envOr("TEMP", "");
+    if (!temp.empty()) {
+        o.envSet["TEMP"] = temp;
+        o.envSet["TMP"] = temp;
+    }
+    o.envSet["LOCALAPPDATA"] = envOr("LOCALAPPDATA", "");
+    o.envSet["USERPROFILE"] = envOr("USERPROFILE", "");
+    // Laptops hibridas: GPU de alto rendimiento (spec 4.2).
+    o.envSet["NvOptimusEnablement"] = "1";
+    o.envSet["AmdPowerXpressRequestHighPerformance"] = "1";
+    // Las variables del propio producto (BA_*) SI pasan: por ahi viajan los
+    // secretos que no deben ir en la linea de comandos (BA_GATEWAY_PIN,
+    // BA_TUNNEL_TOKEN, BA_STREAM_KEY, BA_ADMIN_TOKEN...). Con el entorno
+    // minimo de arriba no le llegaban a A ni a B.
+    if (LPCH env = GetEnvironmentStringsA()) {
+        for (const char* e = env; *e != '\0'; e += std::strlen(e) + 1) {
+            const char* eq = std::strchr(e, '=');
+            if (eq != nullptr && std::strncmp(e, "BA_", 3) == 0) {
+                o.envSet[std::string(e, eq)] = std::string(eq + 1);
+            }
+        }
+        FreeEnvironmentStringsA(env);
+    }
+#else
+    (void)ownBinDir;
+    for (const char* n : kDropPosix) {
+        o.envRemove.emplace_back(n);
+    }
+#endif
+}
 
 } // namespace
 
-ChildProcess::~ChildProcess() { close(); }
-
-void ChildProcess::close() {
-#ifdef _WIN32
-    if (hProcess_) {
-        CloseHandle(hProcess_);
-        hProcess_ = nullptr;
-    }
-#endif
-    pid_ = 0;
-}
-
-bool ChildProcess::alive() const {
-#ifdef _WIN32
-    if (!hProcess_) {
-        return false;
-    }
-    return WaitForSingleObject(static_cast<HANDLE>(hProcess_), 0) == WAIT_TIMEOUT;
-#else
-    (void)hProcess_;
-    return pid_ != 0;
-#endif
-}
-
-std::uint32_t ChildProcess::pid() const { return pid_; }
-
-void* ChildProcess::handle() const { return hProcess_; }
-
-bool ChildProcess::attach(std::uint32_t pid) {
-    close();
-    pid_ = pid;
-#ifdef _WIN32
-    hProcess_ = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | SYNCHRONIZE, FALSE, pid);
-    if (!hProcess_) {
-        pid_ = 0;
-        return false;
-    }
-    return true;
-#else
-    return pid != 0;
-#endif
-}
-
-std::uint32_t ChildProcess::exitCode() const {
-#ifdef _WIN32
-    if (!hProcess_) {
-        return 0;
-    }
-    DWORD code = 0;
-    if (GetExitCodeProcess(static_cast<HANDLE>(hProcess_), &code)) {
-        return code;
-    }
-    return 0;
-#else
-    (void)hProcess_;
-    return 0;
-#endif
-}
-
 bool ChildProcess::start(const Config& cfg) {
     name_ = cfg.name;
-    close();
+    ba::platform::ProcessOptions o;
+    o.exe = cfg.exePath;
+    o.args = cfg.args;
+    o.workDir = cfg.workDir;
+    o.killWithParent = false; // A y B sobreviven a un crash del launcher (3.1.9)
+    o.hideWindow = true;
+    applyEnvPolicy(o, cfg.exePath.parent_path());
+    // Los datos (Config/, Logs/, Recordings/, Web/) viven en la raiz REAL
+    // aunque el binario corra desde la copia sombra.
+    const std::u8string root = cfg.workDir.u8string();
+    o.envSet[ba::platform::kDataRootEnv] = std::string(root.begin(), root.end());
 
-#ifndef _WIN32
-    // Stub no-Windows: simula un hijo vivo para poder probar el flujo.
-    pid_ = 1000 + static_cast<std::uint32_t>(cfg.name.size());
-    BA_LOG_INFO("child", 0,
-                "stub: hijo '" + std::string(cfg.name.begin(), cfg.name.end()) + "' simulado (no-Win)");
+    std::string err;
+    if (!ba::platform::Process::spawn(o, proc_, &err)) {
+        BA_LOG_ERROR("child", 0, "no se pudo lanzar '" + name_ + "' (" + cfg.exePath.string() + "): " + err);
+        return false;
+    }
+    BA_LOG_INFO("child", 0, "lanzado '" + name_ + "' pid=" + std::to_string(proc_.pid()));
     return true;
-#else
-    STARTUPINFOW si{};
-    si.cb = sizeof(si);
-    si.dwFlags = STARTF_USESHOWWINDOW;
-    si.wShowWindow = SW_HIDE; // GUI, sin consola visible.
+}
 
-    PROCESS_INFORMATION pi{};
-    std::wstring cmdLine = L"\"" + cfg.exePath + L"\"";
-    if (!cfg.args.empty()) {
-        cmdLine += L" " + cfg.args;
+bool ChildProcess::attach(std::uint32_t pid, const std::string& name) {
+    name_ = name;
+    return ba::platform::Process::attach(pid, proc_);
+}
+
+bool ChildProcess::alive() { return proc_.running(); }
+
+std::optional<int> ChildProcess::exitCode() {
+    if (proc_.pid() == 0) {
+        return std::nullopt;
     }
-    std::vector<wchar_t> cmdBuf(cmdLine.begin(), cmdLine.end());
-    cmdBuf.push_back(L'\0');
-
-    const std::wstring envBlock = buildSanitizedEnv(cfg.workDir);
-    std::vector<wchar_t> envBuf(envBlock.begin(), envBlock.end());
-    // Asegura doble NUL final.
-    if (envBuf.empty() || envBuf.back() != L'\0') {
-        envBuf.push_back(L'\0');
-    }
-
-    const DWORD baseFlags = CREATE_UNICODE_ENVIRONMENT | CREATE_NO_WINDOW;
-    const DWORD attempts[2] = {baseFlags | CREATE_BREAKAWAY_FROM_JOB, baseFlags};
-
-    for (DWORD flags : attempts) {
-        BOOL ok =
-            CreateProcessW(cfg.exePath.c_str(), cmdBuf.data(), nullptr, nullptr, FALSE, flags, envBuf.data(),
-                           cfg.workDir.empty() ? nullptr : cfg.workDir.c_str(), &si, &pi);
-        if (ok) {
-            hProcess_ = pi.hProcess;
-            pid_ = static_cast<std::uint32_t>(pi.dwProcessId);
-            if (pi.hThread) {
-                CloseHandle(pi.hThread);
-            }
-            BA_LOG_INFO("child", 0,
-                        "hijo '" + std::string(cfg.name.begin(), cfg.name.end()) +
-                            "' lanzado pid=" + std::to_string(pid_) + " flags=0x" + std::to_string(flags));
-            return true;
-        }
-        const DWORD err = GetLastError();
-        BA_LOG_WARN("child", static_cast<int>(err),
-                    "CreateProcessW fallo para '" + std::string(cfg.name.begin(), cfg.name.end()) +
-                        "' (flags=0x" + std::to_string(flags) + "); reintento");
-    }
-    BA_LOG_ERROR("child", static_cast<int>(GetLastError()),
-                 "no se pudo lanzar '" + std::string(cfg.name.begin(), cfg.name.end()) + "'");
-    return false;
-#endif
+    return proc_.wait(0);
 }
 
 } // namespace ba::launcher

@@ -107,10 +107,13 @@ núcleo además nativo en Linux). Ya no son esqueletos:
   IPC SharedAudioRing/HealthBlock/ControlEndpoint y persistencia
   SnapshotStore). Feature-flag `BA_APP_HAVE_QT_OBS` (headless si no hay
   Qt6/libobs).
-- **`ba-gateway`** (Proceso B): `Webrtc` (sesiones + hub), `SignalingServer`
-  (HTTP + WebSocket), `Cloudflared` (túnel), `MediaPump` (IPC ↔ WebRTC) y
-  `TokenAuth` (sobre `ba_core::security::TokenService`). Sirve `Web/guest/`
-  (index.html, app.js, style.css). Feature-flag `BA_GATEWAY_HAVE_WEBRTC`.
+- **`ba-gateway`** (Proceso B): la sala de videoconferencia. `Room` (lobby,
+  participantes, chat, archivos, rutas de medios), `SignalingServer` (HTTP +
+  WebSocket de invitados) y `AdminApi` (API de control REST + SSE, de la que
+  cuelgan la consola web `Web/admin/` y la vista Qt), `Webrtc` (libwebrtc real,
+  también en Linux), `MediaPump` (IPC ↔ WebRTC por ruta), `TlsTerminator`
+  (HTTPS), `WgDevice` + `IpStack` (WireGuard + lwIP en espacio de usuario) y
+  `Cloudflared`. Ver [`docs/CONFERENCIA.md`](docs/CONFERENCIA.md).
 - **`ba-sources`** (módulo libobs): se compila contra libobs **real** en
   cualquier plataforma y registra cuatro cosas — `ba_guest_audio` y
   `ba_guest_video` (traen al invitado remoto a la escena desde el IPC del
@@ -120,14 +123,25 @@ núcleo además nativo en Linux). Ya no son esqueletos:
 - **`ba_plugin_host`** (VST3/LSP): `Vst3Host` (load + attachEditor),
   `PluginDeployer` (deploy + manifest) y `scanDirectory`. Feature-flag
   `BA_PLUGIN_HOST_HAVE_VST3`.
-- **`BroadcastAppliance`** (launcher): `Supervisor` + `RecoveryUi` (ventana
-  Win32 con `Incident` + `RecoveryAction`).
+- **`BroadcastAppliance`** (launcher): `Supervisor` + `RecoveryUi`. Funciona
+  en Windows y en Linux (y está escrito para macOS) sobre la capa de
+  plataforma `ba::platform` (`src/core/platform/`): lanza B y A, detecta crash
+  y cuelgue, reinicia con backoff, adopta a A y B si el launcher se cae y
+  vuelve (la emisión no se corta), y hace el cierre ordenado por el canal de
+  control. La ventana de recuperación sigue siendo Win32; en Linux el
+  incidente se loguea y se reintenta.
+- **Interfaz Qt/QML de `ba-app`** (Qt vendoreado, portable): dashboard de
+  tarjetas de vidrio sobre el video en vivo, ventanas de salida para otro
+  monitor, escenas y fuentes, configuración completa y la página **Sala**
+  (lobby privado, invitados con su video, chat, archivos, acceso directo).
+  Sin pantalla, `ba-app --no-ui` corre en modo consola.
 
-Queda por hacer:
+Queda por hacer (ver [`docs/PLAN_MULTIPLATAFORMA.md`](docs/PLAN_MULTIPLATAFORMA.md)):
 
-- **Tests de integración** con libobs/libwebrtc reales (hoy el núcleo y el
-  host de plugins tienen unit tests en Linux; el comportamiento real de
-  libobs/libwebrtc se verifica en Windows).
+- **Compilar y probar en Windows (MSVC) y macOS** la interfaz, el motor y el
+  gateway real (hoy se validan en Linux), y **CI** con runners nativos.
+- **libwebrtc para macOS** (el SDK de Shiguredo existe; falta el build) y
+  **PDF** como archivo compartido (hoy: imagen, video y audio).
 - **Packaging** final del bundle portable (runtime de terceros vía
   `tools/deploy`).
 
@@ -255,46 +269,113 @@ El configure imprime `ba-libobs: ENCONTRADA` cuando el motor de emisión se va a
 compilar; si dice `ausente`, el paso 2 no terminó bien y `ba-app`/`ba-sources`
 quedan en modo headless.
 
-### 4. Ejecutar el motor de emisión
+### 4. Levantar el sistema completo
 
 ```bash
 make release
-cd release
-./bin/64bit/ba-app --engine-selftest
+BA_GATEWAY_PIN=123456 ./release/BroadcastAppliance --no-recovery-ui
 ```
 
-El autotest arranca libobs, arma la escena, publica el retorno hacia el Proceso
-B, graba unos segundos a `Recordings/` y verifica que el archivo quedó escrito.
-El bundle es autocontenido: **no** hace falta `LD_LIBRARY_PATH` ni
-`OBS_DATA_PATH`.
+El launcher lanza el gateway (B) y el motor de emisión (A), los vigila y los
+reinicia si se caen o se cuelgan. `Ctrl+C` (o `SIGTERM`) hace el cierre
+ordenado: le pide a A y a B que terminen por el canal de control y, si no
+responden, los termina. Se puede lanzar desde cualquier directorio: las rutas
+salen de la ubicación del ejecutable. El log queda en `release/Logs/launcher.log`.
 
-> Corrélo desde una **sesión gráfica**, no por SSH: `obs_reset_video()` necesita
-> un contexto GL. Sin él el autotest termina con `SKIP` y el motivo (código 77),
-> no con error.
+Detalles que conviene saber:
 
-Opciones útiles: `--rec-dir=<dir>` cambia dónde graba, `--modules=<dir>` y
-`--obs-data=<dir>` permiten correrlo desde el árbol de build en vez del bundle.
+- **Copia sombra**: A y B corren desde una copia de `bin/`, `obs-plugins/` y
+  `data/` en `~/.cache/BroadcastAppliance/<versión>` (así el bundle se puede
+  actualizar en disco con el sistema corriendo). La versión sale del contenido:
+  tras un `make release` se usa una copia nueva. `--no-shadow` la desactiva.
+- **Los datos** (`Config/`, `Logs/`, `Recordings/`, `Web/`) siempre se leen y
+  escriben en el bundle real.
+- **Si el launcher se cae**, A y B siguen al aire; al volver a lanzarlo los
+  adopta sin cortar nada.
 
-### 5. Ejecutar el gateway de invitados
+> Corrélo desde una **sesión gráfica**: `obs_reset_video()` necesita un
+> contexto GL. Por SSH sin display, A no arranca el motor y el launcher lo
+> reintenta.
+
+### 5. Configurar la emisión (`Config/app.json`)
+
+La primera vez, A escribe `release/Config/app.json` con valores por defecto
+(fondo + título, 1080p30, dos invitados). Todo es editable:
+
+```json
+{
+  "video":   {"width": 1920, "height": 1080, "fps": 30},
+  "encoder": {"video": "auto", "bitrateKbps": 6000},
+  "record":  {"enabled": true, "dir": "Recordings", "container": "mkv"},
+  "stream":  {"enabled": true, "server": "rtmp://a.rtmp.youtube.com/live2", "keyEnv": "BA_STREAM_KEY"},
+  "guests":  {"count": 2},
+  "sources": [
+    {"id": "v4l2_input", "name": "camara", "settings": {"device_id": "/dev/video0"}},
+    {"id": "text_ft2_source_v2", "name": "titulo", "settings": {"text": "En vivo"}, "rect": [0.05, 0.05, 0.6, 0.12]}
+  ]
+}
+```
+
+- **`sources`** acepta cualquier fuente de libobs con sus *settings* tal cual
+  los usa OBS (cámara `v4l2_input`, `image_source`, `ffmpeg_source` para
+  archivos o URLs, `pulse_input_capture`, etc.). `rect` es la ubicación en
+  fracciones del lienzo `[x, y, ancho, alto]`. Una fuente que falla (cámara
+  desenchufada) se omite con un aviso: no tumba la emisión.
+- **`encoder.video`**: `auto` elige el hardware disponible en esta máquina y cae
+  a x264 si no hay o si falla al arrancar. Alias: `vaapi` (AMD/Intel en Linux),
+  `nvenc`, `qsv`, `amf`, `videotoolbox` (macOS) y `x264`, o un id de libobs
+  literal. En una GPU AMD integrada (Ryzen) `auto` usa `ffmpeg_vaapi_tex`.
+- **La clave de transmisión no va en el archivo**: se lee de la variable de
+  entorno que indique `keyEnv` (por defecto `BA_STREAM_KEY`).
+
+Opciones de `ba-app` por línea de comandos (pisan el archivo): `--encoder=`,
+`--bitrate=`, `--resolution=WxH`, `--fps=`, `--record`/`--no-record`,
+`--rec-dir=`, `--stream-server=`, `--guests=`, `--duration=<seg>`,
+`--config=<archivo>`. Para pasarlas desde el launcher:
+`--app-arg=--record`. `ba-app` también corre solo, sin launcher:
 
 ```bash
-cd release
-BA_GATEWAY_PIN=123456 ./bin/64bit/ba-gateway --port 8787 --webroot ./Web/guest
+./release/bin/64bit/ba-app --record --duration=10
 ```
 
-Y abrir `http://127.0.0.1:8787` en el navegador: ingreso con sala y PIN, chequeo
-de cámara y micrófono, y sala con reconexión automática.
+Para diagnosticar libobs sin la escena completa:
+`./release/bin/64bit/ba-app --engine-selftest` (lista los codificadores
+disponibles, graba unos segundos y verifica el archivo; devuelve 77 si no hay
+contexto gráfico).
 
-El PIN se pasa por la variable de entorno `BA_GATEWAY_PIN` y no por `--pin`,
-porque los argumentos de línea de comandos son visibles en la lista de procesos
-de la máquina. Si no se define ninguno, el gateway genera uno aleatorio y lo
-escribe en el log de arranque. La clave HMAC que firma los tokens se genera
-aleatoria en cada arranque; el launcher puede inyectar una propia con
-`BA_GATEWAY_HMAC_SECRET`.
+### 6. La sala de invitados (gateway)
 
-> El backend WebRTC real (libwebrtc) es **plataforma-gated a Windows/MSVC**, así
-> que en Linux la señalización y la app web funcionan completas pero no hay
-> media del invitado. Ver [Estado](#estado).
+El launcher ya lo levanta. Para correrlo solo:
+
+```bash
+BA_GATEWAY_PIN=123456 ./release/bin/64bit/ba-gateway --port 8787
+```
+
+Los invitados entran por el enlace de la página **Sala** de la app (o
+`https://127.0.0.1:8789`): nombre, sala y PIN → **lobby** (el operador los ve y
+les habla en privado; ellos solo ven al operador) → admitidos a la sala, con
+cámara, micrófono, **pantalla o ventana compartida**, archivos para mostrar,
+chat y mano levantada. El operador maneja todo desde la página Sala o desde la
+**consola web** (`http://127.0.0.1:8788/admin/`, botón "Abrir consola web"):
+las dos son clientes de la misma API de control.
+
+- **WebRTC real** en Linux: `make deps-webrtc BA_WEBRTC_TARGET=linux` y
+  `make build` compilan el gateway con libwebrtc (estático, sin dependencias
+  del sistema).
+- **HTTPS propio** (cámara/micrófono exigen página segura) con certificado
+  propio en `Config/tls/` o autofirmado automático.
+- **Acceso directo por internet** sin Cloudflare: túnel **WireGuard en espacio
+  de usuario** hacia un servidor propio con IP pública (`make deps-lwip`); el
+  asistente de la página Sala genera la configuración del servidor.
+
+Detalle completo (arquitectura, lobby, API, servidor, seguridad):
+[`docs/CONFERENCIA.md`](docs/CONFERENCIA.md).
+
+Secretos por entorno, nunca por línea de comandos (se ven en la lista de
+procesos): `BA_GATEWAY_PIN` (si falta, se genera uno y se muestra en la app),
+`BA_TUNNEL_TOKEN` (Cloudflare), `BA_WG_PRIVATE_KEY` / `BA_WG_PSK` (WireGuard;
+si falta, la clave vive en `Config/wireguard.key`, solo-usuario). La clave HMAC
+de los tokens es aleatoria por arranque (`BA_GATEWAY_HMAC_SECRET` la fija).
 
 ---
 
@@ -344,18 +425,29 @@ con Doxygen (breathe) es opcional y no es requerida por el build.
 
 Dos suites:
 
-- **C++ (ctest)** — unit tests de `ba_core` (y del host de plugins) en Linux:
+- **C++ (ctest)** — unit tests de `ba_core`, del host de plugins, del gateway y
+  del módulo OBS, en Linux:
 
   ```bash
   make test             # o: ctest --test-dir build --output-on-failure
   ```
 
-  **18/18** tests: `test_shared_audio_ring`, `test_health_block`,
-  `test_control_protocol`, `test_spout_transport`, `test_shadow_copy`,
-  `test_channel_strip`, `test_token_service`, `test_snapshot_store`,
-  `test_device_match`, `test_automixer`, `test_vst3_host`, `test_plugin_deploy`,
-  `test_resampler`, `test_secrets`, `test_restore`, `test_diag`, `test_fault`,
-  `test_ring_drift`.
+  **30** tests (29 pasan + 1 saltado): núcleo (`test_platform`,
+  `test_shared_audio_ring`, `test_health_block`, `test_ipc_cross_process`,
+  `test_control_protocol`, `test_spout_transport`, `test_video_cross_process`,
+  `test_channel_strip`, `test_automixer`, `test_resampler`, `test_token_service`,
+  `test_snapshot_store`, `test_restore`, `test_diag`, `test_fault`,
+  `test_secrets`, `test_device_match`, `test_ring_drift`), launcher
+  (`test_shadow_copy`), plugins (`test_vst3_host`, `test_plugin_deploy`),
+  módulo OBS (`test_ba_sources_real`), interfaz (`test_dashboard_model`,
+  `test_qml_syntax`) y gateway (`test_room`, `test_gateway_http`,
+  `test_wireguard`, `test_ipstack`, `test_webrtc_loopback`,
+  `test_gateway_integration`).
+
+  `test_gateway_integration` (el test histórico contra el SDK de Windows) se
+  reporta **Skipped**; el WebRTC real de Linux lo prueba
+  `test_webrtc_loopback`. `test_ba_sources_real` solo se registra si libobs
+  está en `extern/obs-linux`. Detalle en [`docs/tests.rst`](docs/tests.rst).
 
 - **Python (pytest)** — suite de invariantes del repositorio en
   [`tests/`](tests/) (docs, packaging, bundle LSP, tests C++):
@@ -451,7 +543,7 @@ compila en Linux y Windows; "plataforma-gated (Windows)" = solo se trae/usa bajo
 | Argon2 (referencia P-H-C) | `20190702` | CC0 / Apache-2.0 | Núcleo (KDF Argon2id de `secrets.json`) |
 | VST3 SDK (Steinberg) | `v3.7.9_build_61` | MIT | Host de plugins (solo Windows) |
 | LSP Plugins | `1.2.35` | LGPL | Asset de despliegue en `assets/audio-plugins/` |
-| obs-studio (libobs) | `31.0.0` | GPL-2.0 | Plataforma-gated (Windows) |
+| obs-studio (libobs) | `31.0.0` | GPL-2.0 | Motor de emisión (Linux: desde fuente en `extern/obs-linux`; Windows: runtime prebuilt) |
 | Qt 6 | `6.6.3` | LGPL-3.0 (dual) | Plataforma-gated (Windows) |
 | CEF (Chromium Embedded) | `119.0.11+chromium-119.0.6045.105` | BSD-3-Clause | Plataforma-gated (Windows) |
 | Spout2 (SDK) | `2.0.0.0` | — | Plataforma-gated (Windows) |
@@ -496,7 +588,7 @@ python3 -m venv .venv
 Antes de enviar cambios:
 
 1. `make build` debe compilar sin errores (C++20).
-2. `make test` debe pasar **18/18**.
+2. `make test` debe pasar los **23** tests (22 + 1 saltado sin libwebrtc).
 3. `pytest` debe pasar la suite de `tests/`.
 4. Si tocas `versions.cmake`, documenta el cambio en el changelog y re-valida el
    preflight contra el tag resultante.

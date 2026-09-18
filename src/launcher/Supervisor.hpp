@@ -3,26 +3,28 @@
 // Proposito:
 //   Corazon del launcher (Proceso 0, spec 3.1): instancia unica, verificacion
 //   de integridad, modo de error, lanzamiento de B y luego A, watchdog
-//   (crash por handle + cuelgue por heartbeat), politica de reinicio con
-//   backoff y circuit breaker, readopt de hijos vivos, y cierre ordenado.
-//   No lleva Qt ni DLLs propias.
+//   (crash por salida del proceso + cuelgue por heartbeat), politica de
+//   reinicio con backoff y circuit breaker, readopt de hijos vivos y cierre
+//   ordenado. Igual en Windows, Linux y macOS: todo lo de SO va por
+//   `ba::platform` (via ChildProcess, ControlChannel y SingleInstance).
 //
 // Modelo de threading:
-//   run() se ejecuta en el thread principal. El loop de vigilancia
-//   (watchdogLoop) vive en ese mismo thread: alterna entre esperar sobre los
-//   handles de proceso y leer los heartbeats de ba_core (HealthBlock). No hay
-//   threads adicionales en esta fase; el polling de 250 ms es suficiente para
-//   la deteccion de cuelgue (umbral de 5 s, spec 3.1.7).
+//   run() se ejecuta en el thread principal. El loop de vigilancia vive en ese
+//   mismo thread y sondea cada 250 ms (el umbral de cuelgue es 5 s, spec
+//   3.1.7). `requestStop()` es async-signal-safe (solo escribe un atomic) y
+//   se puede llamar desde un handler de señal o desde otro thread.
 //
 // Estrategia de errores:
-//   Nunca lanza. Cada fallo (integridad, lanzamiento, dump) se loguea de forma
-//   estructurada (Log) y se traduce en una accion degradada: advertencia,
-//   reinicio con backoff, o modo seguro. Un crash de A con codigo 0 se trata
-//   como cierre ordenado del operador, no como fallo.
+//   Nunca lanza. Cada fallo (integridad, lanzamiento, dump) se loguea y se
+//   traduce en una accion degradada: advertencia, reinicio con backoff o modo
+//   seguro. Que A salga con codigo 0 es el cierre ordenado del operador, no
+//   un fallo.
 
 #pragma once
 
+#include <atomic>
 #include <cstdint>
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -30,6 +32,7 @@
 #include "ControlChannel.hpp"
 #include "Integrity.hpp"
 #include "ipc/HealthBlock.hpp"
+#include "platform/SingleInstance.hpp"
 #include "RecoveryUi.hpp"
 
 namespace ba::launcher {
@@ -39,12 +42,19 @@ class Supervisor {
    public:
     /// Configuracion del supervisor.
     struct Config {
-        std::wstring root;       // raiz del disco (GetModuleFileNameW).
-        std::wstring appExe;     // bin/64bit/ba-app.exe.
-        std::wstring gatewayExe; // bin/64bit/ba-gateway.exe.
-        std::wstring logsDir;    // Logs/ (para dumps).
-        std::uint32_t slotA = 1; // slot de A en BA.Health.
-        std::uint32_t slotB = 0; // slot de B en BA.Health.
+        std::filesystem::path root;           // raiz del bundle (ba::platform::bundleRoot)
+        std::filesystem::path appExe;         // bin/64bit/ba-app(.exe)
+        std::filesystem::path gatewayExe;     // bin/64bit/ba-gateway(.exe)
+        std::filesystem::path logsDir;        // Logs/ (para dumps)
+        std::vector<std::string> appArgs;     // argumentos extra para A
+        std::vector<std::string> gatewayArgs; // argumentos extra para B
+        // Copia sombra (spec 3.1.5): OPCIONAL y desactivada por defecto. Sin
+        // ella A y B corren desde el bundle, donde esta. Se activa con
+        // --shadow (o "shadowCopy": true en Config/launcher.json).
+        bool shadowCopy = false;
+        bool recoveryUi = true;  // dialogo ante fallos (false = reinicio automatico)
+        std::uint32_t slotA = 1; // slot de A en BA.Health
+        std::uint32_t slotB = 0; // slot de B en BA.Health
     };
 
     explicit Supervisor(Config cfg);
@@ -55,39 +65,33 @@ class Supervisor {
     /// :returns: codigo de salida del proceso.
     int run();
 
+    /// Pide el cierre ordenado (Ctrl+C, SIGTERM, fin de sesion).
+    /// Async-signal-safe.
+    static void requestStop();
+
    private:
     // --- Ciclo de vida ------------------------------------------------------
-    /// Reapunta los ejecutables de A y B a la copia sombra, si se pudo crear.
-    ///
-    /// :param execRoot: raiz devuelta por ShadowCopy::prepare (puede ser la
-    ///                  raiz original si la copia fallo: entonces es no-op).
-    void applyExecRoot(const std::wstring& execRoot);
-
-    bool acquireInstance(); // mutex Local\BroadcastAppliance.Instance.
-    void releaseInstance();
-    void setupErrorMode();             // SetErrorMode (spec 3.1.4).
-    IntegrityReport verifyIntegrity(); // manifest.json SHA-256 (spec 3.1.2).
+    void applyExecRoot(const std::filesystem::path& execRoot);
+    IntegrityReport verifyIntegrity();
 
     // --- Hijos --------------------------------------------------------------
-    void launchChildren(bool safeMode);
-    void launchOne(std::uint32_t slot, ChildProcess& child, const std::wstring& exe, const std::wstring& name,
-                   bool safeMode);
-    void relaunch(bool isA);
-    void restartChild(bool isA); // backoff + relaunch (comun a crash/hang).
+    void launchChildren();
+    void launchOne(bool isA);
+    bool startChild(bool isA);
+    void restartChild(bool isA); // backoff + relanzamiento (comun a crash/hang)
     void handleCrash(bool isA);
-    void handleHang(bool isA); // minidump + terminate + restart.
+    void handleHang(bool isA);
 
     // --- Recuperacion (UI) --------------------------------------------------
-    // Muestra la UI de recuperacion con el estado actual de los hijos y la
-    // integridad del disco; devuelve la accion elegida por el operador.
     RecoveryAction presentRecovery(bool appDown, bool appHung, bool gwDown, bool gwHung);
-    // Forzar reinicio: termina todos los hijos, limpia la politica de reinicio
-    // y relanza B y A desde 0.
     void forceRestart();
 
     // --- Vigilancia y cierre ------------------------------------------------
     void watchdogLoop();
     void orderedShutdown();
+    void stopChild(bool isA);
+
+    ChildProcess& child(bool isA) { return isA ? app_ : gateway_; }
 
     // --- Estado -------------------------------------------------------------
     Config cfg_;
@@ -95,19 +99,25 @@ class Supervisor {
     ChildProcess gateway_;
     ba::ipc::HealthBlock health_;
     ControlChannel control_;
-
-    void* hInstance_ = nullptr; // HANDLE del mutex de instancia (Win32).
+    ba::platform::SingleInstance instance_;
     bool shuttingDown_ = false;
 
-    // Politica de reinicio (spec 3.1.8).
-    int appConsecutive_ = 0; // reinicios consecutivos de A (para backoff).
-    int bConsecutive_ = 0;
-    bool appNeedsRestore_ = false;             // A relanzado tras crash arranca con --restore.
-    bool safeMode_ = false;                    // circuit breaker: >5 crashes de A en 2 min.
-    std::vector<std::uint64_t> appCrashTimes_; // epoch ms, para el circuit breaker.
+    static std::atomic<bool> stopRequested_;
 
-    // Cache del reporte de integridad para la UI de recuperacion (evita
-    // re-hashear todo el disco en un loop de crashes).
+    // Momento del ultimo lanzamiento de cada hijo (ms monotonicos): durante el
+    // periodo de gracia de arranque no se evalua el heartbeat (libobs tarda en
+    // cargar modulos y el proceso todavia no late).
+    std::uint64_t launchedAtMs_[2] = {0, 0};
+    bool inStartupGrace(bool isA) const;
+
+    // Politica de reinicio (spec 3.1.8).
+    int appConsecutive_ = 0; // reinicios consecutivos de A (para backoff)
+    int bConsecutive_ = 0;
+    bool appNeedsRestore_ = false;             // A relanzado tras crash arranca con --restore
+    bool safeMode_ = false;                    // circuit breaker: >5 crashes de A en 2 min
+    std::vector<std::uint64_t> appCrashTimes_; // ms monotonicos, para el circuit breaker
+
+    // Cache del reporte de integridad para la UI de recuperacion.
     std::uint64_t lastIntegrityCheckMs_ = 0;
     IntegrityReport lastIntegrityReport_;
     bool hasIntegrityReport_ = false;

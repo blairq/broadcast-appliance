@@ -2,83 +2,47 @@
 // src/gateway/Cloudflared.cpp — implementacion del supervisor de cloudflared
 //
 // Proposito:
-//   Implementa CloudflaredSupervisor (ver el header). En Windows:
-//     - spawn(): CreateProcessW con CREATE_NO_WINDOW, stdout/stderr redirigidos
-//       a Logs/cloudflared.log, token por env TUNNEL_TOKEN (no por CLI), y un
-//       Job Object con KILL_ON_JOB_CLOSE (si B muere, el tunel muere).
-//     - runLoop(): cada 2 s verifica salud (processAlive + probeMetrics) y, si
-//       cae, reinicia con backoff creciente (1 s → 30 s).
-//   En no-Windows (build offline): no-op para que el arbol compile.
+//   Implementa CloudflaredSupervisor (ver el header), igual en Windows, Linux y
+//   macOS, sobre ba::platform::Process:
+//     - spawn(): sin ventana, stdout/stderr agregados a Logs/cloudflared.log,
+//       token por env TUNNEL_TOKEN (no por CLI) y killWithParent (Job Object en
+//       Windows, PDEATHSIG en Linux): si B muere, el tunel muere con el.
+//     - runLoop(): cada 2 s verifica salud (proceso vivo + puerto de metricas)
+//       y, si cae, reinicia con backoff creciente (1 s -> 30 s).
+//   Antes todo esto era Win32 y en el resto un no-op: fuera de Windows no
+//   habia tunel y ningun invitado remoto podia llegar al gateway.
 //
 // Modelo de threading:
 //   - runLoop corre en su thread y se detiene por stop_.
-//   - start()/stop() se llaman desde el thread de control de B.
-//   - `alive_`/`restartCount_` son atomic; `job_`/`proc_` se tocan solo desde
-//     start/stop/kill (thread de control) y desde runLoop (spawn/kill). Para
-//     evitar data race en los handles, spawn/kill se protegen con un mutex
-//     interno (impl_) — ver abajo.
+//   - start()/stop() se llaman desde el thread de control de B; el proceso
+//     solo lo tocan spawn/kill, protegidos por procLock_.
 //
 // Estrategia de errores:
-//   No lanza. Fallos de CreateProcessW / Job Object se loguean y se reintenta
-//   con backoff. El gateway sigue corriendo sin tunel (solo no hay conexiones
-//   nuevas; el medio local sigue).
+//   No lanza. Sin token o sin binario no se lanza nada (se avisa una vez). Un
+//   fallo de lanzamiento se loguea y se reintenta con backoff. El gateway
+//   sigue sin tunel: solo no hay conexiones nuevas desde internet.
 // ============================================================================
 
 #include "Cloudflared.hpp"
 
 #include <chrono>
 #include <cstring>
-#include <mutex>
+#include <filesystem>
 
 #include "Log.hpp"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
-#include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#else
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
 #endif
 
 namespace ba::gateway {
-
-namespace {
-
-#ifdef _WIN32
-/// Construye un bloque de entorno (doble-NUL terminado) que copia el entorno
-/// actual del proceso y AGREGA `TUNNEL_TOKEN=<token>`.
-///
-/// La API Win32 real es `GetEnvironmentStringsW()` (SIN argumentos): devuelve
-/// un LPWCH al bloque NUL-separado con doble NUL final, asignado con LocalAlloc
-/// y a liberar con `FreeEnvironmentStringsW`. Sobre ese bloque se concatena
-/// `TUNNEL_TOKEN=...` y se devuelve un nuevo bloque (tambien LocalAlloc, a
-/// liberar con LocalFree en el caller).
-///
-/// :param token: valor de TUNNEL_TOKEN.
-/// :returns: puntero al bloque (a liberar con LocalFree) o nullptr en fallo.
-wchar_t* buildEnvBlock(const std::string& token) {
-    LPWCH block = GetEnvironmentStringsW();
-    if (!block) return nullptr;
-    // Longitud del bloque en wchars: recorremos hasta el doble NUL final.
-    size_t len = 0;
-    while (block[len] != L'\0' || block[len + 1] != L'\0')
-        ++len;
-    // block[len] y block[len+1] son el doble NUL terminador.
-    const std::wstring envVar = L"TUNNEL_TOKEN=" + std::wstring(token.begin(), token.end());
-    // Nuevo bloque: [original sin el doble NUL final] + TUNNEL_TOKEN=... + doble NUL.
-    const size_t totalW = len + envVar.size() + 2;
-    wchar_t* newBlock = static_cast<wchar_t*>(LocalAlloc(LPTR, totalW * sizeof(wchar_t)));
-    if (newBlock) {
-        std::memcpy(newBlock, block, len * sizeof(wchar_t));
-        std::memcpy(newBlock + len, envVar.data(), envVar.size() * sizeof(wchar_t));
-        newBlock[len + envVar.size()] = L'\0';
-        newBlock[len + envVar.size() + 1] = L'\0';
-    }
-    FreeEnvironmentStringsW(block);
-    return newBlock;
-}
-#endif
-
-} // namespace
 
 CloudflaredSupervisor::CloudflaredSupervisor(std::string cloudflaredPath, std::string tunnelToken,
                                              uint16_t metricsPort, std::string logPath, Log& log)
@@ -88,22 +52,34 @@ CloudflaredSupervisor::CloudflaredSupervisor(std::string cloudflaredPath, std::s
 CloudflaredSupervisor::~CloudflaredSupervisor() { stop(); }
 
 bool CloudflaredSupervisor::start() {
-#ifdef _WIN32
+    // Sin token no hay tunel posible: lanzarlo igual solo generaba un bucle de
+    // reinicios. El gateway queda accesible en la red local.
+    if (tunnelToken_.empty()) {
+        log_.info("cloudflared: sin token de tunel (BA_TUNNEL_TOKEN); sin tunel, solo acceso local");
+        return false;
+    }
+    std::error_code ec;
+    if (!std::filesystem::exists(cloudflaredPath_, ec)) {
+        log_.warn("cloudflared: no esta el binario (" + cloudflaredPath_ +
+                      "); sin tunel. `make deps-cloudflared`",
+                  -1);
+        return false;
+    }
     stop_.store(false);
     if (!spawn()) {
         log_.warn("cloudflared: no se pudo lanzar (se reintentara con backoff)", -1);
     }
     thread_ = std::thread(&CloudflaredSupervisor::runLoop, this);
-    log_.info("cloudflared: supervisor arrancado (metrics=" + std::to_string(metricsPort_) + ")");
+    started_ = true;
+    log_.info("cloudflared: supervisor arrancado (metrics=127.0.0.1:" + std::to_string(metricsPort_) + ")");
     return alive_.load();
-#else
-    (void)metricsPort_;
-    log_.info("cloudflared: no-Windows (no-op)");
-    return false;
-#endif
 }
 
 void CloudflaredSupervisor::stop() {
+    if (!started_) {
+        return; // idempotente (lo llaman main y el destructor)
+    }
+    started_ = false;
     stop_.store(true);
     if (thread_.joinable()) thread_.join();
     kill();
@@ -114,192 +90,124 @@ bool CloudflaredSupervisor::running() const { return alive_.load(); }
 
 int CloudflaredSupervisor::restartCount() const { return restartCount_.load(); }
 
-#ifdef _WIN32
-
 bool CloudflaredSupervisor::spawn() {
-    // Job Object: si B muere, el tunel muere con el (KILL_ON_JOB_CLOSE).
-    if (!job_) {
-        job_ = CreateJobObjectW(nullptr, L"BA.Cloudflared");
-        if (job_) {
-            JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits{};
-            limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-            if (!SetInformationJobObject(job_, JobObjectExtendedLimitInformation, &limits, sizeof(limits))) {
-                log_.warn("cloudflared: fallo SetInformationJobObject", -1);
-            }
-        }
-    }
+    ba::platform::ProcessOptions o;
+    o.exe = cloudflaredPath_;
+    // Flags validos en cloudflared 2024.11.0 (`tunnel run --help`). El de
+    // logging es `--loglevel` (sin guion interno): `--log-level` se rechaza y
+    // el tunel moria en cada arranque. El token NO va aca: va por env.
+    o.args = {"tunnel",     "--no-autoupdate",
+              "--metrics",  "127.0.0.1:" + std::to_string(metricsPort_),
+              "--loglevel", "info",
+              "run"};
+    o.envSet["TUNNEL_TOKEN"] = tunnelToken_;
+    o.killWithParent = true; // si B muere, el tunel muere con el (spec §8.8)
+    o.hideWindow = true;
+    o.outputFile = logPath_;
 
-    // Abre el archivo de log para redirigir stdout/stderr del hijo.
-    // El handle tiene que ser HEREDABLE: se pasa bInheritHandles=TRUE a
-    // CreateProcessW, pero un handle creado sin bInheritHandle=TRUE no se
-    // hereda igual, asi que la redireccion de stdout/stderr no ocurria y el
-    // log del tunel quedaba vacio.
-    SECURITY_ATTRIBUTES logSa{};
-    logSa.nLength = sizeof(logSa);
-    logSa.bInheritHandle = TRUE;
-    logSa.lpSecurityDescriptor = nullptr;
-    // FILE_APPEND_DATA en vez de GENERIC_WRITE: con OPEN_ALWAYS el hijo
-    // escribia desde el offset 0 y pisaba el log de la corrida anterior.
-    // (El "." que se concatenaba al path era un resto; Win32 lo descarta, pero
-    // confundia el nombre del archivo.)
-    HANDLE logFile =
-        CreateFileW(std::wstring(logPath_.begin(), logPath_.end()).c_str(), FILE_APPEND_DATA | SYNCHRONIZE,
-                    FILE_SHARE_READ | FILE_SHARE_WRITE, &logSa, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (logFile == INVALID_HANDLE_VALUE) {
-        // Sin log file, sigue (el hijo heredara los handles del padre).
-        logFile = nullptr;
-    }
-
-    // Linea de comandos (spec §8.8). El token NO va aca: va por env.
-    // Flags validos en cloudflared 2024.11.0 (verificado contra el binario
-    // vendored extern/cloudflared/cloudflared.exe: `tunnel run --help`).
-    // IMPORTANTE: el flag de logging es `--loglevel` (sin guion interno);
-    // `--log-level` es rechazado ("flag provided but not defined"), lo que
-    // haria que el tunel falle en cada spawn y el supervisor quedara en un
-    // loop de reinicio perpetuo. `tunnel run` sin nombre de tunel es correcto
-    // para tunel por token (TUNNEL_TOKEN por env).
-    const std::string cmd =
-        "tunnel --no-autoupdate --metrics 127.0.0.1:" + std::to_string(metricsPort_) + " --loglevel info run";
-    std::wstring cmdLine = L"\"" + std::wstring(cloudflaredPath_.begin(), cloudflaredPath_.end()) + L"\" " +
-                           std::wstring(cmd.begin(), cmd.end());
-
-    // Token por env (no por CLI, spec §8.8).
-    wchar_t* envBlock = buildEnvBlock(tunnelToken_);
-
-    STARTUPINFOW si{};
-    si.cb = sizeof(si);
-    if (logFile) {
-        si.hStdOutput = logFile;
-        si.hStdError = logFile;
-        si.dwFlags = STARTF_USESTDHANDLES;
-    }
-
-    PROCESS_INFORMATION pi{};
-    // CREATE_UNICODE_ENVIRONMENT es OBLIGATORIO al pasar un bloque de entorno
-    // wchar_t*: sin el, CreateProcessW lo interpreta como ANSI y el hijo
-    // arranca con un entorno corrupto, es decir SIN TUNNEL_TOKEN. El tunel
-    // fallaba en cada spawn y el supervisor quedaba en un ciclo de reinicio
-    // perpetuo.
-    //
-    // Antes se agregaba CREATE_NEW_CONSOLE "para que la env tome efecto", que
-    // no es lo que hace: el bloque de entorno no depende de la consola, y ese
-    // flag ANULA a CREATE_NO_WINDOW, de modo que al operador le aparecia una
-    // ventana de consola en pantalla durante la emision.
-    DWORD flags = CREATE_NO_WINDOW;
-    if (envBlock) flags |= CREATE_UNICODE_ENVIRONMENT;
-    const BOOL ok = CreateProcessW(
-        cloudflaredPath_.empty() ? nullptr
-                                 : (std::wstring(cloudflaredPath_.begin(), cloudflaredPath_.end())).c_str(),
-        &cmdLine[0], nullptr, nullptr, logFile != nullptr, flags, envBlock, nullptr, &si, &pi);
-    if (envBlock) LocalFree(envBlock);
-    if (logFile) CloseHandle(logFile);
-
-    if (!ok) {
-        log_.fmt("warn", -1, "cloudflared: CreateProcessW fallo (err=%lu)", GetLastError());
+    std::lock_guard<std::mutex> lock(procLock_);
+    std::string err;
+    if (!ba::platform::Process::spawn(o, proc_, &err)) {
+        log_.warn("cloudflared: no se pudo lanzar: " + err, -1);
         return false;
     }
-
-    if (job_) AssignProcessToJobObject(job_, pi.hProcess);
-    if (pi.hThread) CloseHandle(pi.hThread);
-
-    proc_ = pi.hProcess;
     alive_.store(true);
-    backoffMs_ = 1000; // resetea el backoff en un arranque exitoso
-    log_.info("cloudflared: lanzado (pid=" + std::to_string(pi.dwProcessId) + ")");
+    // El backoff NO se resetea aca: un proceso que arranca y muere enseguida
+    // (token invalido) lo relanzaria cada 2 s para siempre. Se resetea cuando
+    // el tunel queda confirmado arriba (runLoop).
+    log_.info("cloudflared: lanzado (pid=" + std::to_string(proc_.pid()) + ")");
     return true;
 }
 
 void CloudflaredSupervisor::kill() {
-    if (proc_) {
-        TerminateProcess(static_cast<HANDLE>(proc_), 0);
-        CloseHandle(static_cast<HANDLE>(proc_));
-        proc_ = nullptr;
+    std::lock_guard<std::mutex> lock(procLock_);
+    if (proc_.running()) {
+        proc_.terminate();
+        if (!proc_.wait(3000).has_value()) {
+            proc_.kill();
+            proc_.wait(3000);
+        }
     }
-    if (job_) {
-        CloseHandle(static_cast<HANDLE>(job_)); // KILL_ON_JOB_CLOSE mata al hijo
-        job_ = nullptr;
-    }
+    proc_ = ba::platform::Process();
     alive_.store(false);
 }
 
-bool CloudflaredSupervisor::processAlive() const {
-    if (!proc_) return false;
-    return WaitForSingleObject(static_cast<HANDLE>(proc_), 0) != WAIT_OBJECT_0;
+bool CloudflaredSupervisor::processAlive() {
+    std::lock_guard<std::mutex> lock(procLock_);
+    return proc_.running();
 }
 
 bool CloudflaredSupervisor::probeMetrics() const {
-    // Probe TCP a 127.0.0.1:metricsPort: el servidor de metricas de
-    // cloudflared 2024.11.0 sirve Prometheus en /metrics (no hay endpoint
-    // /ready). Un TCP connect al puerto basta para saber que el tunel esta
-    // arriba (spec §8.8).
+    // TCP connect a 127.0.0.1:metricsPort: cloudflared 2024.11.0 sirve
+    // Prometheus en /metrics; que el puerto acepte basta para saber que el
+    // proceso esta sano (spec §8.8).
+#ifdef _WIN32
     WSADATA wsa{};
-    bool wsaInit = (WSAStartup(MAKEWORD(2, 2), &wsa) == 0);
+    const bool wsaInit = (WSAStartup(MAKEWORD(2, 2), &wsa) == 0);
     SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (s == INVALID_SOCKET) {
         if (wsaInit) WSACleanup();
         return false;
     }
+#else
+    const int s = socket(AF_INET, SOCK_STREAM, 0);
+    if (s < 0) return false;
+#endif
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
     addr.sin_port = htons(metricsPort_);
-    addr.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
+    inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
     const int r = connect(s, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
+#ifdef _WIN32
     closesocket(s);
     if (wsaInit) WSACleanup();
+#else
+    close(s);
+#endif
     return r == 0;
 }
 
 void CloudflaredSupervisor::sleepBackoff() {
-    std::this_thread::sleep_for(std::chrono::milliseconds(backoffMs_));
+    // En tramos cortos para que stop() no espere un backoff entero.
+    for (int waited = 0; waited < backoffMs_ && !stop_.load(); waited += 100) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
     if (backoffMs_ < 30000) backoffMs_ *= 2; // 1s,2s,4s,... hasta 30s
 }
 
 void CloudflaredSupervisor::runLoop() {
+    int probeFailures = 0;
     while (!stop_.load(std::memory_order_relaxed)) {
         std::this_thread::sleep_for(std::chrono::seconds(2));
         if (stop_.load(std::memory_order_relaxed)) break;
 
-        const bool up = processAlive() && probeMetrics();
-        if (up) {
-            if (!alive_.load()) {
-                alive_.store(true);
+        const bool alive = processAlive();
+        // El puerto de metricas tarda unos segundos en abrir tras el
+        // arranque: se toleran algunos sondeos fallidos con el proceso vivo.
+        probeFailures = (alive && !probeMetrics()) ? probeFailures + 1 : 0;
+        if (alive && probeFailures < 5) {
+            if (probeFailures == 0 && !loggedUp_) {
+                loggedUp_ = true;
                 backoffMs_ = 1000;
                 log_.info("cloudflared: tunel arriba (metrics ok)");
             }
             continue;
         }
 
-        // Caído: mata el residuo y relanza con backoff.
-        log_.warn("cloudflared: caído; reiniciando con backoff", -1);
+        log_.warn(alive ? "cloudflared: sin metricas; reiniciando con backoff"
+                        : "cloudflared: caido; reiniciando con backoff",
+                  -1);
+        loggedUp_ = false;
+        probeFailures = 0;
         kill();
         sleepBackoff();
         if (stop_.load(std::memory_order_relaxed)) break;
         if (spawn()) {
             ++restartCount_;
-            alive_.store(true);
         }
+        log_.info("cloudflared: proximo reintento en hasta " + std::to_string(backoffMs_ / 1000) +
+                  " s si vuelve a caer");
     }
 }
-
-#else // !WIN32
-
-bool CloudflaredSupervisor::spawn() {
-    log_.info("cloudflared: spawn no-Windows (no-op)");
-    return false;
-}
-void CloudflaredSupervisor::kill() { alive_.store(false); }
-bool CloudflaredSupervisor::processAlive() const { return false; }
-bool CloudflaredSupervisor::probeMetrics() const { return false; }
-void CloudflaredSupervisor::sleepBackoff() {
-    std::this_thread::sleep_for(std::chrono::milliseconds(backoffMs_));
-}
-void CloudflaredSupervisor::runLoop() {
-    // Sin tunel en no-Windows: solo espera a stop_.
-    while (!stop_.load(std::memory_order_relaxed)) {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
-}
-
-#endif // _WIN32
 
 } // namespace ba::gateway

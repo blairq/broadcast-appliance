@@ -1,97 +1,99 @@
 /* ============================================================================
-   Web/guest/app.js — Lógica de la app web del invitado (spec §8.3)
+   Web/guest/app.js — App web del invitado (spec §8.3)
 
    Flujo:
-     1. join(): POST /api/join {room, pin} → {token}.
-     2. checkDevices(): getUserMedia (máx 720p30) + medidor de nivel de mic.
-     3. connect(): WebSocket /ws?token=..&slot=N (señalización WebRTC).
-        El slot N lo asigna el servidor en el paso 1.
-        El invitado es el OFFERER: crea la RTCPeerConnection, agrega sus
-        tracks locales (camara + micro) y envía {type:"offer", sdp}.
-     4. B responde {type:"answer", sdp}; los candidatos ICE fluyen en ambos
-        sentidos ({type:"ice", candidate}).
-     5. Retorno: el video de programa (A→B) se muestra en #remote-video y el
-        audio de la sala suena por #remote-audio.
-     6. Reconexión automática con backoff; indicador "estás al aire".
+     1. join(): POST /api/join {room, pin} -> token de un solo uso.
+     2. Dispositivos: getUserMedia (max 720p30), opcional.
+     3. WebSocket /ws?token=&room=&name= -> la sala responde "hello" con un id
+        y una CLAVE propia del participante, y lo deja en el LOBBY ("lobby",
+        con su posicion) hasta que el operador lo admite ("admitted").
+     4. Admitido: RTCPeerConnection (el invitado es el OFFERER) con camara +
+        micro; compartir pantalla/ventana agrega un segundo track de video y
+        renegocia. Archivos: POST /api/v1/files con la clave (X-BA-Key).
+     5. Reconexion: /ws?resume=<id>&key=<clave>. Id y clave viven en
+        sessionStorage, asi una recarga de la pagina vuelve al mismo lugar.
 
-   Framing: los mensajes de señalización viajan como frames BINARIOS WS que
-   cargan el encoding Frame (4 bytes LE + JSON, spec §4.1). encodeFrame/
-   decodeFrame reusan ese formato (idéntico a ba_core::ipc::Frame).
+   Framing: los mensajes viajan como frames BINARIOS WS con el encoding Frame
+   del proyecto (4 bytes LE + JSON, spec §4.1).
    ========================================================================== */
 
 (function () {
   "use strict";
 
-  // --- Constantes ---------------------------------------------------------
-  // El slot lo ASIGNA EL SERVIDOR y viene en la respuesta de /api/join: es
-  // quien conoce cuales estan ocupados. Antes estaba fijo en 1, asi que el
-  // segundo invitado siempre chocaba con un 409 y la mesa de hasta 4 invitados
-  // no podia existir.
-  const MAX_W = 1280, MAX_H = 720, FPS = 30; // restricción de captura (720p30)
-  const RECONNECT_BASE_MS = 1000;
-  const RECONNECT_MAX_MS = 15000;
+  const MAX_W = 1280, MAX_H = 720, FPS = 30;
+  const RECONNECT_BASE_MS = 1000, RECONNECT_MAX_MS = 15000;
+  const SESSION_KEY = "ba.guest.session";
 
-  // --- Estado -------------------------------------------------------------
   const state = {
-    token: null,
-    room: null,
-    ws: null,
-    pc: null,
-    localStream: null,
-    remoteStream: null,
-    audioCtx: null,
-    analyser: null,
-    levelRaf: 0,
-    slot: null, // lo asigna el servidor en /api/join
-    reconnectDelay: RECONNECT_BASE_MS,
-    reconnectTimer: 0,
-    connecting: false,
-    left: false,
+    token: null, room: null, name: "",
+    id: null, key: null,
+    ws: null, wsOpened: false, pc: null,
+    localStream: null, screenStream: null, screenSender: null,
+    audioCtx: null, analyser: null, levelRaf: 0,
+    admitted: false, slot: 0,
+    mic: true, cam: true, hand: false,
+    maxUploadBytes: 0,
+    reconnectDelay: RECONNECT_BASE_MS, reconnectTimer: 0, resumeFailures: 0,
+    left: false, chatOpen: false, unread: 0,
   };
 
   // --- DOM ----------------------------------------------------------------
   const $ = (id) => document.getElementById(id);
-  const screens = {
-    join: $("screen-join"),
-    check: $("screen-check"),
-    room: $("screen-room"),
-  };
+  const screens = ["join", "check", "lobby", "room", "end"];
   function show(name) {
-    for (const k of Object.keys(screens)) screens[k].classList.toggle("hidden", k !== name);
+    for (const s of screens) $("screen-" + s).classList.toggle("hidden", s !== name);
+    document.body.classList.toggle("in-room", name === "room");
+  }
+  function toast(text, kind) {
+    const el = document.createElement("div");
+    el.className = "toast " + (kind || "");
+    el.textContent = text;
+    $("toasts").appendChild(el);
+    setTimeout(() => el.classList.add("out"), 3500);
+    setTimeout(() => el.remove(), 4000);
   }
 
-  // --- Framing (Frame: 4 bytes LE + JSON, spec §4.1) ----------------------
+  // --- Framing ------------------------------------------------------------
   function encodeFrame(obj) {
     const json = new TextEncoder().encode(JSON.stringify(obj));
     const buf = new Uint8Array(4 + json.length);
-    const dv = new DataView(buf.buffer);
-    dv.setUint32(0, json.length, true); // little-endian
+    new DataView(buf.buffer).setUint32(0, json.length, true);
     buf.set(json, 4);
     return buf;
   }
   function decodeFrame(u8) {
     if (u8.length < 4) return null;
-    const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
-    const len = dv.getUint32(0, true);
+    const len = new DataView(u8.buffer, u8.byteOffset, u8.byteLength).getUint32(0, true);
     if (u8.length < 4 + len) return null;
-    const json = new TextDecoder().decode(u8.subarray(4, 4 + len));
-    try {
-      return JSON.parse(json);
-    } catch (e) {
-      return null;
-    }
+    try { return JSON.parse(new TextDecoder().decode(u8.subarray(4, 4 + len))); } catch (e) { return null; }
+  }
+  function send(obj) {
+    if (state.ws && state.ws.readyState === WebSocket.OPEN) state.ws.send(encodeFrame(obj));
   }
 
-  // --- 1) Join (sala + PIN → token) ---------------------------------------
+  // --- Sesion persistente (sobrevive a una recarga) -----------------------
+  function saveSession() {
+    try {
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify({ id: state.id, key: state.key, room: state.room, name: state.name }));
+    } catch (e) {}
+  }
+  function loadSession() {
+    try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null"); } catch (e) { return null; }
+  }
+  function clearSession() {
+    try { sessionStorage.removeItem(SESSION_KEY); } catch (e) {}
+    state.id = state.key = null;
+  }
+
+  // --- 1) Entrada ---------------------------------------------------------
   async function join() {
+    const name = $("name").value.trim();
     const room = $("room").value.trim();
     const pin = $("pin").value.trim();
-    const errEl = $("join-error");
-    errEl.textContent = "";
-    if (!room || !pin) {
-      errEl.textContent = "Ingresá la sala y el PIN.";
-      return;
-    }
+    const err = $("join-error");
+    err.textContent = "";
+    if (!name) { err.textContent = "Contanos tu nombre."; return; }
+    if (!room || !pin) { err.textContent = "Ingresá la sala y el PIN."; return; }
     $("btn-join").disabled = true;
     try {
       const res = await fetch("/api/join", {
@@ -101,256 +103,463 @@
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) {
-        errEl.textContent =
-          data.error === "pin"
-            ? "PIN incorrecto (o demasiados intentos: esperá un momento)."
-            : data.error === "full"
-            ? "La sala está llena. Probá de nuevo en un momento."
-            : data.error === "rate"
-            ? "Demasiados intentos desde este equipo. Esperá un minuto."
-            : "No se pudo entrar. Revisá la sala y el PIN.";
-        $("btn-join").disabled = false;
+        err.textContent = {
+          pin: "PIN incorrecto.",
+          rate: "Demasiados intentos desde este equipo. Esperá un minuto.",
+          locked: "La sala está cerrada en este momento.",
+        }[data.error] || "No se pudo entrar. Revisá la sala y el PIN.";
         return;
       }
       state.token = data.token;
       state.room = data.room;
-      // El servidor puede devolver 503 con error "full" si no quedan slots;
-      // eso ya se maneja arriba. Si llega ok, `slot` viene con la asignacion.
-      state.slot = data.slot;
-      await checkDevices();
+      state.name = name;
+      state.maxUploadBytes = data.maxUploadBytes || 0;
+      try { localStorage.setItem("ba.guest.name", name); } catch (e) {}
       show("check");
+      await checkDevices();
     } catch (e) {
-      errEl.textContent = "Sin conexión al servidor.";
+      err.textContent = "Sin conexión con el servidor.";
+    } finally {
       $("btn-join").disabled = false;
     }
   }
 
-  // --- 2) Chequeo de dispositivos + medidor de nivel ----------------------
+  // --- 2) Dispositivos ----------------------------------------------------
   async function checkDevices() {
-    const errEl = $("check-error");
-    errEl.textContent = "";
+    const err = $("check-error");
+    err.textContent = "";
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: { ideal: MAX_W }, height: { ideal: MAX_H }, frameRate: { ideal: FPS } },
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
-      state.localStream = stream;
-      $("local-preview").srcObject = stream;
-
-      // Medidor de nivel del micrófono (WebAudio AnalyserNode).
-      try {
-        state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const src = state.audioCtx.createMediaStreamSource(stream);
-        state.analyser = state.audioCtx.createAnalyser();
-        state.analyser.fftSize = 256;
-        src.connect(state.analyser);
-        startLevelMeter();
-      } catch (e) {
-        // Sin medidor sigue (no es crítico).
-      }
-
+      setLocalStream(stream);
       $("cam-state").textContent = "Cámara ✓";
       $("cam-state").classList.add("ok");
       $("mic-state").textContent = "Micrófono ✓";
       $("mic-state").classList.add("ok");
-      $("btn-start").disabled = false;
     } catch (e) {
-      errEl.textContent =
-        "No se pudo acceder a cámara/micrófono. Revisá los permisos del navegador.";
+      err.textContent = "No se pudo usar la cámara o el micrófono. Revisá los permisos, o entrá sin ellos.";
     }
   }
 
-  function startLevelMeter() {
-    const data = new Uint8Array(state.analyser.fftSize);
-    const el = $("level");
-    function tick() {
-      state.analyser.getByteFrequencyData(data);
-      let sum = 0;
-      for (let i = 0; i < data.length; i++) sum += data[i];
-      const avg = sum / data.length / 255; // 0..1
-      el.style.width = Math.min(100, avg * 160) + "%";
-      state.levelRaf = requestAnimationFrame(tick);
-    }
-    tick();
+  function setLocalStream(stream) {
+    state.localStream = stream;
+    $("local-preview").srcObject = stream;
+    $("self-video").srcObject = stream;
+    try {
+      state.audioCtx = state.audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const src = state.audioCtx.createMediaStreamSource(stream);
+      state.analyser = state.audioCtx.createAnalyser();
+      state.analyser.fftSize = 256;
+      src.connect(state.analyser);
+      const data = new Uint8Array(state.analyser.fftSize);
+      const tick = () => {
+        state.analyser.getByteFrequencyData(data);
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) sum += data[i];
+        $("level").style.width = Math.min(100, (sum / data.length / 255) * 160) + "%";
+        state.levelRaf = requestAnimationFrame(tick);
+      };
+      cancelAnimationFrame(state.levelRaf);
+      tick();
+    } catch (e) { /* sin medidor: no es critico */ }
   }
 
-  // --- 3) Conexión WebSocket + señalización WebRTC ------------------------
+  function stopLocalMedia() {
+    for (const s of [state.localStream, state.screenStream]) if (s) s.getTracks().forEach((t) => t.stop());
+    state.localStream = state.screenStream = null;
+    state.screenSender = null;
+    cancelAnimationFrame(state.levelRaf);
+  }
+
+  // --- 3) WebSocket de sala -----------------------------------------------
   function connect() {
-    if (state.connecting) return;
-    state.connecting = true;
+    clearTimeout(state.reconnectTimer);
     const proto = location.protocol === "https:" ? "wss" : "ws";
-    const url = `${proto}://${location.host}/ws?token=${encodeURIComponent(
-      state.token
-    )}&room=${encodeURIComponent(state.room)}&slot=${state.slot}`;
-    const ws = new WebSocket(url);
+    const q = state.id && state.key
+      ? `resume=${encodeURIComponent(state.id)}&key=${encodeURIComponent(state.key)}`
+      : `token=${encodeURIComponent(state.token)}&room=${encodeURIComponent(state.room)}&name=${encodeURIComponent(state.name)}`;
+    const ws = new WebSocket(`${proto}://${location.host}/ws?${q}`);
     ws.binaryType = "arraybuffer";
     state.ws = ws;
-
+    state.wsOpened = false;
     ws.onopen = () => {
+      state.wsOpened = true;
+      state.resumeFailures = 0;
       state.reconnectDelay = RECONNECT_BASE_MS;
       setConn("ok", "Conectado");
-      startPeerConnection();
     };
     ws.onmessage = (ev) => {
       if (ev.data instanceof ArrayBuffer) {
         const msg = decodeFrame(new Uint8Array(ev.data));
-        if (msg) handleSignaling(msg);
+        if (msg) onMessage(msg);
       }
     };
     ws.onclose = () => {
-      state.connecting = false;
+      if (state.ws !== ws) return;
       teardownPeer();
-      if (!state.left) scheduleReconnect();
-    };
-    ws.onerror = () => {
-      /* onclose se encarga de la reconexión */
+      if (state.left) return;
+      if (!state.wsOpened && state.id) {
+        // El reenganche fue rechazado antes del 101: la sesion vencio.
+        if (++state.resumeFailures >= 2) {
+          clearSession();
+          end("Tu lugar en la sala venció", "Pasó demasiado tiempo desconectado. Volvé a entrar.");
+          return;
+        }
+      }
+      if (!state.id) {
+        end("No se pudo entrar", "El ingreso venció. Volvé a intentarlo.");
+        return;
+      }
+      setConn("bad", "Reconectando…");
+      state.reconnectTimer = setTimeout(connect, state.reconnectDelay);
+      state.reconnectDelay = Math.min(state.reconnectDelay * 2, RECONNECT_MAX_MS);
     };
   }
 
-  function handleSignaling(msg) {
-    if (!state.pc) return;
-    if (msg.type === "answer") {
-      state.pc.setRemoteDescription(new RTCSessionDescription(msg)).catch(() => {});
-    } else if (msg.type === "ice") {
-      if (msg.candidate) {
-        state.pc.addIceCandidate(new RTCIceCandidate(msg.candidate)).catch(() => {});
-      }
+  function onMessage(msg) {
+    switch (msg.type) {
+      case "hello":
+        state.id = msg.id;
+        state.key = msg.key;
+        state.name = msg.name || state.name;
+        state.room = msg.room || state.room;
+        saveSession();
+        $("self-label").textContent = state.name;
+        if (!state.admitted) show("lobby");
+        sendMedia();
+        break;
+      case "publish":
+        // La sala nos da lugar para publicar (preview del lobby o adentro).
+        if (!state.pc) startPeer();
+        break;
+      case "busy":
+        toast("La sala no tiene lugar para tu video en este momento", "bad");
+        break;
+      case "talk":
+        $("talk-badge").classList.toggle("hidden", !msg.on);
+        $("lobby-title").textContent = msg.on ? "Estás hablando con el operador" : "Esperando al operador";
+        if (msg.on) toast("El operador te está hablando", "ok");
+        break;
+      case "lobby":
+        state.admitted = false;
+        show("lobby");
+        $("lobby-pos").textContent = msg.position > 1 ? `Hay ${msg.position - 1} persona(s) antes que vos.` : "Sos el próximo.";
+        break;
+      case "admitted":
+        state.admitted = true;
+        state.slot = msg.slot;
+        $("talk-badge").classList.add("hidden");
+        show("room");
+        toast("¡Estás adentro!", "ok");
+        // La MISMA conexion sigue: B solo cambia a donde van tus medios (del
+        // operador al programa). Sin PC todavia (reenganche), se arma.
+        if (!state.pc) startPeer();
+        break;
+      case "rejected":
+        state.left = true;
+        clearSession();
+        end(msg.reason === "locked" ? "La sala está cerrada" : "No pudiste entrar",
+            msg.reason === "locked" ? "El operador cerró la sala a nuevos ingresos." : "El operador no te hizo pasar esta vez.");
+        break;
+      case "kicked":
+        state.left = true;
+        clearSession();
+        end("Saliste de la sala", "El operador te sacó de la sala.");
+        break;
+      case "request":
+        onRequest(msg.what);
+        break;
+      case "chat":
+        addChat(msg.msg);
+        break;
+      case "shared":
+        toast(`Compartiste «${msg.name}»`, "ok");
+        break;
+      case "answer":
+        if (state.pc) state.pc.setRemoteDescription({ type: "answer", sdp: msg.sdp }).catch(() => {});
+        break;
+      case "ice":
+        if (state.pc && msg.candidate) {
+          const c = typeof msg.candidate === "string" ? { candidate: msg.candidate, sdpMLineIndex: 0 } : msg.candidate;
+          state.pc.addIceCandidate(c).catch(() => {});
+        }
+        break;
     }
   }
 
-  function startPeerConnection() {
-    const pc = new RTCPeerConnection({
-      // El medio NO pasa por el túnel (spec §8.4): ICE host + srflx.
-      iceServers: [],
-    });
+  function onRequest(what) {
+    if (what === "mute-mic" && state.mic) { setMic(false); toast("El operador te silenció el micrófono"); }
+    else if (what === "mute-cam" && state.cam) { setCam(false); toast("El operador te pidió apagar la cámara"); }
+    else if (what === "stop-screen" && state.screenStream) { stopScreen(); toast("El operador dejó de mostrar tu pantalla"); }
+    else if (what === "lower-hand" && state.hand) { setHand(false); toast("El operador bajó tu mano"); }
+  }
+
+  function sendMedia() {
+    send({ type: "media", mic: state.mic, cam: state.cam, screen: !!state.screenStream, hand: state.hand });
+  }
+
+  // --- 4) WebRTC ----------------------------------------------------------
+  function startPeer() {
+    teardownPeer();
+    const pc = new RTCPeerConnection({ iceServers: [] }); // el medio NO pasa por el tunel (spec §8.4)
     state.pc = pc;
-
-    // Tracks locales del invitado (cámara + mic) → B los publica en A.
-    if (state.localStream) {
-      for (const track of state.localStream.getTracks()) pc.addTrack(track, state.localStream);
+    if (state.localStream) for (const t of state.localStream.getTracks()) pc.addTrack(t, state.localStream);
+    if (state.screenStream) {
+      const [t] = state.screenStream.getVideoTracks();
+      if (t) state.screenSender = pc.addTrack(t, state.screenStream);
     }
-
-    // Retorno: cuando B nos manda sus tracks remotas (programa + audio de sala),
-    // se conectan a los elementos de la UI.
+    // Sin camara ni micro igual se negocia: se recibe el retorno.
+    if (!state.localStream) {
+      pc.addTransceiver("audio", { direction: "recvonly" });
+      pc.addTransceiver("video", { direction: "recvonly" });
+    }
+    // Lo que manda B: en el lobby, el operador; adentro, el programa. Es el
+    // mismo track (B cambia la fuente), asi que no hay corte al admitirte.
     pc.ontrack = (ev) => {
-      const [track] = ev.tracks;
-      const rs = ev.streams[0] || new MediaStream([track]);
-      state.remoteStream = rs;
-      if (track.kind === "video") $("remote-video").srcObject = rs;
-      if (track.kind === "audio") $("remote-audio").srcObject = rs;
-    };
-
-    // Candidatos ICE locales → B.
-    pc.onicecandidate = (ev) => {
-      if (ev.candidate && state.ws && state.ws.readyState === WebSocket.OPEN) {
-        sendSignaling({ type: "ice", candidate: ev.candidate.toJSON() });
+      const rs = ev.streams[0] || new MediaStream([ev.track]);
+      if (ev.track.kind === "video") {
+        $("remote-video").srcObject = rs;
+        $("lobby-video").srcObject = rs;
+        $("lobby-pulse").classList.add("hidden");
       }
+      if (ev.track.kind === "audio") $("remote-audio").srcObject = rs;
     };
-
-    // Cuando la conexión ICE está arriba, el invitado "está al aire".
+    pc.onicecandidate = (ev) => { if (ev.candidate) send({ type: "ice", candidate: ev.candidate.toJSON() }); };
     pc.onconnectionstatechange = () => {
-      const on = pc.connectionState === "connected" || pc.connectionState === "completed";
+      const on = pc.connectionState === "connected";
       $("onair").classList.toggle("hidden", !on);
-      setConn(on ? "ok" : "bad", on ? "Al aire" : "Reconectando…");
+      if (pc.connectionState === "failed") setConn("bad", "Sin medios");
     };
-
-    // El invitado es el OFFERER: crea el offer y lo envía a B.
+    // Tambien renegocia al sumar/quitar la pantalla compartida.
     pc.onnegotiationneeded = async () => {
       try {
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
-        sendSignaling({ type: "offer", sdp: offer });
-      } catch (e) {
-        /* la reconexión lo reintentará */
-      }
+        send({ type: "offer", sdp: offer.sdp });
+      } catch (e) { /* se reintenta al reconectar */ }
     };
   }
 
-  function sendSignaling(obj) {
-    if (state.ws && state.ws.readyState === WebSocket.OPEN) {
-      state.ws.send(encodeFrame(obj));
-    }
-  }
-
   function teardownPeer() {
-    if (state.pc) {
-      try {
-        state.pc.close();
-      } catch (e) {}
-      state.pc = null;
-    }
+    if (state.pc) { try { state.pc.close(); } catch (e) {} }
+    state.pc = null;
+    state.screenSender = null;
     $("remote-video").srcObject = null;
+    $("lobby-video").srcObject = null;
+    $("lobby-pulse").classList.remove("hidden");
     $("remote-audio").srcObject = null;
     $("onair").classList.add("hidden");
   }
 
-  // --- 6) Reconexión con backoff -----------------------------------------
-  function scheduleReconnect() {
-    setConn("bad", "Reconectando…");
-    clearTimeout(state.reconnectTimer);
-    state.reconnectTimer = setTimeout(() => {
-      connect();
-      state.reconnectDelay = Math.min(state.reconnectDelay * 2, RECONNECT_MAX_MS);
-    }, state.reconnectDelay);
+  // --- Controles ----------------------------------------------------------
+  function setMic(on) {
+    state.mic = on;
+    if (state.localStream) state.localStream.getAudioTracks().forEach((t) => (t.enabled = on));
+    $("btn-mic").classList.toggle("off", !on);
+    sendMedia();
+  }
+  function setCam(on) {
+    state.cam = on;
+    if (state.localStream) state.localStream.getVideoTracks().forEach((t) => (t.enabled = on));
+    $("btn-cam").classList.toggle("off", !on);
+    sendMedia();
+  }
+  function setHand(on) {
+    state.hand = on;
+    $("btn-hand").classList.toggle("active", on);
+    sendMedia();
   }
 
+  async function startScreen() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+      toast("Este navegador no permite compartir pantalla", "bad");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: { ideal: 30 } }, audio: false });
+      const [track] = stream.getVideoTracks();
+      track.contentHint = "detail";
+      track.onended = () => stopScreen(); // "Dejar de compartir" del navegador
+      state.screenStream = stream;
+      $("share-video").srcObject = stream;
+      $("share-tile").classList.remove("hidden");
+      $("btn-screen").classList.add("active");
+      if (state.pc) state.screenSender = state.pc.addTrack(track, stream);
+      sendMedia();
+    } catch (e) { /* el usuario cancelo */ }
+  }
+
+  function stopScreen() {
+    if (!state.screenStream) return;
+    state.screenStream.getTracks().forEach((t) => t.stop());
+    if (state.pc && state.screenSender) { try { state.pc.removeTrack(state.screenSender); } catch (e) {} }
+    state.screenStream = null;
+    state.screenSender = null;
+    $("share-tile").classList.add("hidden");
+    $("btn-screen").classList.remove("active");
+    sendMedia();
+  }
+
+  // --- Archivos -----------------------------------------------------------
+  function uploadFile(file) {
+    if (state.maxUploadBytes && file.size > state.maxUploadBytes) {
+      toast(`«${file.name}» es muy grande (máx. ${Math.round(state.maxUploadBytes / 1048576)} MB)`, "bad");
+      return;
+    }
+    const row = document.createElement("div");
+    row.className = "upload";
+    row.innerHTML = '<span class="uname"></span><div class="bar"><div></div></div><span class="upct">0%</span>';
+    row.querySelector(".uname").textContent = file.name;
+    $("uploads").appendChild(row);
+    const bar = row.querySelector(".bar div"), pct = row.querySelector(".upct");
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/v1/files?name=" + encodeURIComponent(file.name));
+    xhr.setRequestHeader("X-BA-Key", state.key || "");
+    xhr.upload.onprogress = (e) => {
+      if (!e.lengthComputable) return;
+      const p = Math.round((e.loaded / e.total) * 100);
+      bar.style.width = p + "%";
+      pct.textContent = p + "%";
+    };
+    const done = (ok, text) => {
+      row.classList.add(ok ? "ok" : "bad");
+      pct.textContent = text;
+      setTimeout(() => row.remove(), ok ? 2500 : 6000);
+    };
+    xhr.onload = () => {
+      if (xhr.status === 201) return done(true, "✓");
+      done(false, { 413: "muy grande", 415: "tipo no soportado", 429: "límite de archivos", 401: "sin permiso" }[xhr.status] || "error");
+    };
+    xhr.onerror = () => done(false, "sin conexión");
+    xhr.send(file);
+  }
+
+  // --- Chat ---------------------------------------------------------------
+  function addChat(m) {
+    if (!m) return;
+    const mine = m.fromId === state.id;
+    const el = document.createElement("div");
+    el.className = "msg" + (mine ? " mine" : "") + (m.fromId === "host" ? " host" : "");
+    const who = document.createElement("span");
+    who.className = "who";
+    who.textContent = mine ? "Vos" : m.fromName + (m.to !== "all" && !mine ? " (a vos)" : "");
+    const txt = document.createElement("span");
+    txt.className = "txt";
+    txt.textContent = m.text;
+    el.append(who, txt);
+    $("chat-log").appendChild(el);
+    $("chat-log").scrollTop = $("chat-log").scrollHeight;
+    if (!state.chatOpen && !mine) {
+      state.unread++;
+      $("unread").textContent = state.unread;
+      $("unread").classList.remove("hidden");
+      if (m.fromId === "host") toast("Operador: " + m.text);
+    }
+  }
+  function toggleChat(open) {
+    state.chatOpen = open === undefined ? !state.chatOpen : open;
+    $("chat").classList.toggle("hidden", !state.chatOpen);
+    if (state.chatOpen) {
+      state.unread = 0;
+      $("unread").classList.add("hidden");
+      $("chat-input").focus();
+    }
+  }
+
+  // --- Estado / salida ----------------------------------------------------
   function setConn(cls, text) {
     const el = $("conn-state");
-    el.className = "status " + (cls === "ok" ? "ok" : cls === "bad" ? "bad" : "");
+    el.className = "status " + cls;
     el.textContent = text;
   }
 
-  // --- Controles de la sala ----------------------------------------------
-  function toggleMute() {
-    if (!state.localStream) return;
-    const on = state.localStream.getAudioTracks()[0];
-    if (on) {
-      on.enabled = !on.enabled;
-      $("btn-mute").textContent = on.enabled ? "Silenciar mic" : "Activar mic";
-    }
-  }
-  function toggleCam() {
-    if (!state.localStream) return;
-    const on = state.localStream.getVideoTracks()[0];
-    if (on) {
-      on.enabled = !on.enabled;
-      $("btn-cam").textContent = on.enabled ? "Apagar cámara" : "Encender cámara";
-    }
-  }
   function leave() {
     state.left = true;
-    clearTimeout(state.reconnectTimer);
-    if (state.ws) {
-      try {
-        sendSignaling({ type: "bye" });
-        state.ws.close();
-      } catch (e) {}
-    }
+    send({ type: "bye" });
+    try { if (state.ws) state.ws.close(); } catch (e) {}
     teardownPeer();
-    if (state.localStream) state.localStream.getTracks().forEach((t) => t.stop());
-    if (state.levelRaf) cancelAnimationFrame(state.levelRaf);
-    if (state.audioCtx) state.audioCtx.close().catch(() => {});
-    state.token = null;
-    state.room = null;
-    state.slot = null;
-    state.reconnectDelay = RECONNECT_BASE_MS;
-    show("join");
+    clearSession();
+    end("Saliste de la sala", "Gracias por participar.");
+  }
+
+  function end(title, text) {
+    clearTimeout(state.reconnectTimer);
+    teardownPeer();
+    stopLocalMedia();
+    toggleChat(false);
+    state.admitted = false;
+    $("end-title").textContent = title;
+    $("end-text").textContent = text || "";
+    show("end");
   }
 
   // --- Bootstrap ----------------------------------------------------------
   $("btn-join").addEventListener("click", join);
-  $("pin").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") join();
-  });
-  $("btn-start").addEventListener("click", () => {
-    show("room");
+  $("pin").addEventListener("keydown", (e) => { if (e.key === "Enter") join(); });
+  $("btn-start").addEventListener("click", () => { state.left = false; show("lobby"); connect(); });
+  $("btn-nodevices").addEventListener("click", () => {
+    stopLocalMedia();
+    state.mic = state.cam = false;
+    state.left = false;
+    show("lobby");
     connect();
   });
-  $("btn-mute").addEventListener("click", toggleMute);
-  $("btn-cam").addEventListener("click", toggleCam);
+  $("btn-lobby-chat").addEventListener("click", () => toggleChat(true));
+  $("btn-lobby-leave").addEventListener("click", leave);
+  $("btn-mic").addEventListener("click", () => setMic(!state.mic));
+  $("btn-cam").addEventListener("click", () => setCam(!state.cam));
+  $("btn-screen").addEventListener("click", () => (state.screenStream ? stopScreen() : startScreen()));
+  $("btn-file").addEventListener("click", () => $("file-input").click());
+  $("file-input").addEventListener("change", (e) => {
+    for (const f of e.target.files) uploadFile(f);
+    e.target.value = "";
+  });
+  $("btn-hand").addEventListener("click", () => setHand(!state.hand));
+  $("btn-chat").addEventListener("click", () => toggleChat());
+  $("btn-chat-close").addEventListener("click", () => toggleChat(false));
   $("btn-leave").addEventListener("click", leave);
+  $("btn-again").addEventListener("click", () => { state.left = false; show("join"); });
+  $("chat-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const t = $("chat-input").value.trim();
+    if (!t) return;
+    send({ type: "chat", text: t });
+    $("chat-input").value = "";
+  });
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+    $("btn-screen").disabled = true;
+    $("btn-screen").title = "Tu navegador no permite compartir pantalla";
+  }
 
-  // Si el operador cambia la orientación (celular vertical), el video de
-  // retorno se ajusta solo por object-fit: contain (sin recorte).
-  show("join");
+  // Precarga: sala por URL (?room=) y nombre recordado. Un enlace de
+  // invitacion puede traer sala, PIN y nombre en el FRAGMENTO
+  // (#room=..&pin=..&name=..): el fragmento nunca viaja al servidor ni queda en
+  // sus logs. Con go=1 entra directo (camara/micro por defecto).
+  const params = new URLSearchParams(location.search);
+  const hash = new URLSearchParams(location.hash.replace(/^#/, ""));
+  $("room").value = hash.get("room") || params.get("room") || "";
+  $("pin").value = hash.get("pin") || "";
+  try { $("name").value = hash.get("name") || localStorage.getItem("ba.guest.name") || ""; } catch (e) {}
+  if (hash.has("pin")) history.replaceState(null, "", location.pathname + location.search); // no dejar el PIN a la vista
+  const autoGo = hash.get("go") === "1";
+
+  // Recarga de la pagina con una sesion viva: vuelve directo a su lugar.
+  const saved = loadSession();
+  if (saved && saved.id && saved.key) {
+    Object.assign(state, { id: saved.id, key: saved.key, room: saved.room, name: saved.name || "" });
+    show("lobby");
+    $("lobby-text").textContent = "Reconectando con la sala…";
+    const resume = () => connect();
+    navigator.mediaDevices && navigator.mediaDevices.getUserMedia
+      ? navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(setLocalStream, () => {}).finally(resume)
+      : resume();
+  } else {
+    show("join");
+    if (autoGo && $("name").value && $("room").value && $("pin").value) {
+      join().then(() => { if (state.token) { state.left = false; show("lobby"); connect(); } });
+    }
+  }
 })();

@@ -25,14 +25,16 @@ plataforma-gated esperan el entorno correcto.
 ```
 cmake -S . -B build        -> exit 0
 cmake --build build -j4    -> exit 0
-ctest --test-dir build     -> 18/18 Passed
+ctest --test-dir build     -> 23 tests: 22 Passed + 1 Skipped (2026-09-18)
 ```
-Tests verdes: `test_shared_audio_ring`, `test_health_block`,
-`test_control_protocol`, `test_spout_transport`, `test_shadow_copy`,
-`test_channel_strip`, `test_token_service`, `test_snapshot_store`,
-`test_device_match`, `test_automixer`, `test_vst3_host`,
-`test_plugin_deploy`, `test_resampler`, `test_secrets`,
-`test_restore`, `test_diag`, `test_fault`, `test_ring_drift`.
+Tests verdes: `test_platform`, `test_shared_audio_ring`, `test_health_block`,
+`test_ipc_cross_process`, `test_control_protocol`, `test_spout_transport`,
+`test_shadow_copy`, `test_channel_strip`, `test_token_service`,
+`test_snapshot_store`, `test_device_match`, `test_automixer`,
+`test_vst3_host`, `test_plugin_deploy`, `test_resampler`, `test_secrets`,
+`test_restore`, `test_diag`, `test_fault`, `test_ring_drift`,
+`test_ba_sources_real`, `test_gateway_http`.
+Saltado: `test_gateway_integration` (sin libwebrtc).
 
 ## Tablero por fase
 

@@ -28,9 +28,14 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdint>
+#include <cstdlib>
+#include <cwchar>
 #include <filesystem>
 #include <fstream>
+#include <string>
 #include <system_error>
+#include <vector>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -93,8 +98,28 @@ bool tempBase(std::wstring& out) {
     out.assign(buf, n);
     return true;
 #else
-    out = L"/tmp";
-    return true;
+    // Cache POR USUARIO en disco (no /tmp, que es compartido entre usuarios,
+    // ni XDG_RUNTIME_DIR, que es RAM): Linux $XDG_CACHE_HOME o ~/.cache;
+    // macOS ~/Library/Caches.
+    fs::path base;
+#if defined(__APPLE__)
+    if (const char* home = std::getenv("HOME")) {
+        base = fs::path(home) / "Library" / "Caches";
+    }
+#else
+    if (const char* cache = std::getenv("XDG_CACHE_HOME"); cache != nullptr && *cache != '\0') {
+        base = cache;
+    } else if (const char* home = std::getenv("HOME")) {
+        base = fs::path(home) / ".cache";
+    }
+#endif
+    if (base.empty()) {
+        return false;
+    }
+    std::error_code ec;
+    fs::create_directories(base, ec);
+    out = base.wstring();
+    return !ec;
 #endif
 }
 
@@ -137,11 +162,29 @@ bool copyTree(const fs::path& src, const fs::path& dst) {
     while (!ec && it != end) {
         const fs::directory_entry& entry = *it;
         std::error_code ec2;
-        const fs::path rel = fs::relative(entry.path(), src, ec2);
-        if (ec2) {
+        // lexically_relative y no fs::relative: el segundo RESUELVE symlinks
+        // y un libX.so.6 terminaba copiado con el nombre de su destino.
+        const fs::path rel = entry.path().lexically_relative(src);
+        if (rel.empty()) {
             return false;
         }
         const fs::path target = dst / rel;
+        // Symlinks primero y como symlinks: las bibliotecas versionadas de
+        // Linux/macOS son cadenas libX.so.6 -> libX.so.6.6.3. Antes se
+        // saltaban y la copia quedaba sin libQt6Core.so.6 / libobs.so.0: el
+        // enlazador caia a las del SISTEMA (otra version) y A no arrancaba.
+        if (entry.is_symlink(ec2)) {
+            if (!fs::create_directories(target.parent_path(), ec2) && ec2) {
+                return false;
+            }
+            fs::remove(target, ec2);
+            fs::copy_symlink(entry.path(), target, ec2);
+            if (ec2) {
+                return false;
+            }
+            it.increment(ec);
+            continue;
+        }
         if (entry.is_directory()) {
             if (!fs::create_directories(target, ec2) && ec2) {
                 return false;
@@ -243,6 +286,42 @@ void ShadowCopy::cleanup(const std::wstring& shadowRoot) {
         return;
     }
     BA_LOG_INFO("shadow", 0, "copia sombra eliminada: " + p.string());
+}
+
+std::wstring ShadowCopy::versionKey(const std::wstring& root) {
+    // FNV-1a de 64 bits sobre (ruta relativa, tamaño, mtime) en orden estable.
+    std::uint64_t h = 1469598103934665603ULL;
+    auto mix = [&h](const void* data, std::size_t n) {
+        const auto* p = static_cast<const unsigned char*>(data);
+        for (std::size_t i = 0; i < n; ++i) {
+            h ^= p[i];
+            h *= 1099511628211ULL;
+        }
+    };
+    const fs::path rootPath = toPath(root);
+    std::vector<fs::path> files;
+    std::error_code ec;
+    for (const char* sub : {"bin", "obs-plugins", "data"}) {
+        for (fs::recursive_directory_iterator it(rootPath / sub, ec), end; !ec && it != end;
+             it.increment(ec)) {
+            if (it->is_regular_file(ec)) {
+                files.push_back(it->path());
+            }
+        }
+        ec.clear();
+    }
+    std::sort(files.begin(), files.end());
+    for (const auto& f : files) {
+        const std::string rel = f.lexically_relative(rootPath).generic_string();
+        mix(rel.data(), rel.size());
+        const std::uintmax_t size = fs::file_size(f, ec);
+        mix(&size, sizeof(size));
+        const auto mtime = fs::last_write_time(f, ec).time_since_epoch().count();
+        mix(&mtime, sizeof(mtime));
+    }
+    wchar_t buf[17];
+    std::swprintf(buf, 17, L"%016llx", static_cast<unsigned long long>(h));
+    return std::wstring(L"v-") + buf;
 }
 
 } // namespace ba::launcher

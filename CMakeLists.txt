@@ -93,6 +93,7 @@ FetchContent_Declare(argon2
 set(ENABLE_TESTING OFF CACHE BOOL "" FORCE)
 set(ENABLE_PROGRAMS OFF CACHE BOOL "" FORCE)
 set(USE_SHARED_MBEDTLS_LIBRARY OFF CACHE BOOL "" FORCE)
+set(DISABLE_PACKAGE_CONFIG_AND_INSTALL ON CACHE BOOL "" FORCE)
 # libsamplerate trae sus propios tests (misc_test, simple_test, ...) que su
 # CMakeLists registra con CTest cuando BUILD_TESTING está ON. Lo forzamos OFF
 # para que no ensucien la lista de tests del proyecto: ctest debe seguir
@@ -143,7 +144,13 @@ if(EXISTS "${_BA_EXTERN}/argon2/Makefile")
 else()
     message(STATUS "argon2: sin extern/argon2: usando git")
 endif()
+# Las dependencias son ESTATICAS e internas: sus headers/libs no van en el
+# bundle portable. Algunas (mbedtls) instalan include/ y lib/ aunque se les
+# pida que no, asi que sus reglas de install se mandan a un componente propio
+# ("thirdparty") y `make release` instala solo el del producto ("bundle").
+set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME thirdparty)
 FetchContent_MakeAvailable(mbedtls nlohmann_json libsamplerate argon2)
+set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME bundle)
 
 # Target `argon2` a mano (el repo no trae CMakeLists): lib estática con los
 # sources del Makefile oficial. `ref.c` = implementación de referencia (sin
@@ -195,7 +202,9 @@ if(WIN32)
     else()
         message(STATUS "vst3sdk: sin extern/vst3-sdk: usando git")
     endif()
+    set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME thirdparty)
     FetchContent_MakeAvailable(vst3sdk)
+    set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME bundle)
 
     # --- Excluir del build los targets del SDK que NO usamos ------------------
     # Solo enlazamos `base`, `pluginterfaces`, `sdk_hosting` y `sdk_common`
@@ -339,6 +348,9 @@ install(DIRECTORY
 if(BA_HAVE_LIBOBS)
     # Bibliotecas: libobs, libobs-opengl (o las DLL en Windows) -> bin/64bit.
     install(FILES ${BA_LIBOBS_RUNTIME_LIBS} DESTINATION bin/64bit)
+    if(BA_LIBOBS_RUNTIME_PROGRAMS)
+        install(PROGRAMS ${BA_LIBOBS_RUNTIME_PROGRAMS} DESTINATION bin/64bit)
+    endif()
 
     # Plugins de OBS (x264, ffmpeg, rtmp, captura) -> obs-plugins/64bit.
     if(EXISTS "${BA_LIBOBS_PLUGIN_DIR}")
@@ -355,6 +367,20 @@ if(BA_HAVE_LIBOBS)
         install(DIRECTORY "${BA_LIBOBS_DATA_DIR}/obs-plugins/"
             DESTINATION data/obs-plugins)
     endif()
+endif()
+
+# cloudflared (tunel del gateway, spec §8.8) junto a los binarios si se bajo
+# con `make deps-cloudflared` (Windows) / `make deps-cloudflared-host`.
+if(WIN32)
+    set(BA_CLOUDFLARED_BIN "${CMAKE_SOURCE_DIR}/extern/cloudflared/cloudflared.exe")
+else()
+    set(BA_CLOUDFLARED_BIN "${CMAKE_SOURCE_DIR}/extern/cloudflared/cloudflared")
+endif()
+if(EXISTS "${BA_CLOUDFLARED_BIN}")
+    install(PROGRAMS "${BA_CLOUDFLARED_BIN}" DESTINATION bin/64bit)
+    message(STATUS "ba-bundle: cloudflared incluido (${BA_CLOUDFLARED_BIN})")
+else()
+    message(STATUS "ba-bundle: sin cloudflared (sin tunel); 'make deps-cloudflared-host' lo baja")
 endif()
 
 # El paso de rpath va DESPUES de copiar el runtime: reescribe lo ya instalado.
