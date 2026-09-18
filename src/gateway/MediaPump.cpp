@@ -26,6 +26,7 @@
 #include "MediaPump.hpp"
 
 #include <chrono>
+#include <vector>
 
 #include "ipc/HealthBlock.hpp"
 #include "Log.hpp"
@@ -99,11 +100,32 @@ void MediaPump::start() {
     outVideo_.clear();
     audioBuf_.clear();
     audioBufLock_.clear();
+    audioBufPos_.assign(slots, 0);
+    audioResampler_.clear();
+    audioResamplerRate_.assign(slots, 0);
+    audioResampleIn_.clear();
+    audioResampleOut_.clear();
     for (size_t i = 0; i < slots; ++i) {
         outAudio_.emplace_back();
         outVideo_.emplace_back();
         audioBuf_.emplace_back();
         audioBufLock_.emplace_back(std::make_unique<std::mutex>());
+        audioResampler_.emplace_back();
+        audioResampleIn_.emplace_back();
+        audioResampleOut_.emplace_back();
+    }
+
+    // Los vectores de nombres se indexan por slot, con el [0] reservado, asi
+    // que el tamaño esperado es guests+1. Si vienen mas cortos, los slots que
+    // falten se quedan sin canal B→A: se avisa una vez en vez de saltarlos en
+    // silencio (era el sintoma de un desfase de uno dificil de ver en vivo).
+    if (static_cast<int>(cfg_.guestAudioNames.size()) <= guests ||
+        static_cast<int>(cfg_.guestVideoNames.size()) <= guests) {
+        log_.warn("MediaPump: nombres de invitado insuficientes (audio=" +
+                      std::to_string(cfg_.guestAudioNames.size()) +
+                      " video=" + std::to_string(cfg_.guestVideoNames.size()) + ", se esperaban " +
+                      std::to_string(guests + 1) + "); habra slots sin canal B→A",
+                  -1);
     }
 
     for (int s = 1; s <= guests; ++s) {
@@ -153,6 +175,10 @@ void MediaPump::returnAudioThread() {
     SharedAudioRing reader;
     bool open = false;
     auto lastRetry = std::chrono::steady_clock::now();
+    // Buffer de destino de pop(), propiedad de ESTE thread. Se dimensiona una
+    // vez (al primer pop, cuando ya se conoce blockFloats()) y se reutiliza:
+    // el bucle corre cada 10 ms y no debe asignar.
+    std::vector<float> block;
 
     while (!stop_.load(std::memory_order_relaxed)) {
         if (!open) {
@@ -170,10 +196,15 @@ void MediaPump::returnAudioThread() {
             continue;
         }
 
-        // Pop un bloque de 10 ms (480 frames) e inyecta en las sesiones conectadas.
-        PoppedBlock blk = reader.pop();
-        if (blk.samples) {
-            const size_t n = reader.blockFloats();
+        // Pop un bloque de 10 ms (480 frames) e inyecta en las sesiones
+        // conectadas. pop() copia a `block` (buffer de este thread), asi que el
+        // bloque sigue siendo valido mientras se reparte entre las sesiones.
+        const size_t n = reader.blockFloats();
+        if (block.size() < n) {
+            block.resize(n);
+        }
+        PoppedBlock blk;
+        if (reader.pop(block.data(), blk)) {
             for (int s = 1; s <= hub_.guests(); ++s) {
                 if (WebrtcSession* sess = hub_.session(s)) {
                     if (sess->connected()) {
@@ -242,22 +273,59 @@ void MediaPump::forwardAudio(int slot, const float* samples, size_t n, int rate)
     auto& ring = outAudio_[static_cast<size_t>(slot)];
     if (!ring.header()) return; // ring no creado
 
+    const size_t idx = static_cast<size_t>(slot);
     const size_t blockFloats = ring.blockFloats(); // 480 * canales
-    std::lock_guard<std::mutex> lock(*audioBufLock_[static_cast<size_t>(slot)]);
-    auto& buf = audioBuf_[static_cast<size_t>(slot)];
-    buf.insert(buf.end(), samples, samples + n);
+    const int channels = cfg_.audioChannels > 0 ? cfg_.audioChannels : 2;
+    std::lock_guard<std::mutex> lock(*audioBufLock_[idx]);
+    auto& buf = audioBuf_[idx];
 
-    // Re-bloquea a bloques de 480 frames y publica los completos.
-    while (buf.size() >= blockFloats) {
-        const uint64_t qpc = HealthBlock::nowQpc();
-        if (!ring.push(buf.data(), qpc)) {
-            // Overrun: A no llego; se descarta el bloque (no bloquea).
-            buf.erase(buf.begin(), buf.begin() + blockFloats);
-            continue;
+    // --- Conversion de frecuencia si el invitado no entrega a la del ring ---
+    // El ring B→A es de 48 kHz; un navegador puede entregar a 44.1 kHz. Antes
+    // el `rate` se descartaba y esas muestras se publicaban tal cual, lo que
+    // suena desafinado y corrido en el tiempo.
+    if (rate > 0 && rate != cfg_.audioRate) {
+        if (!audioResampler_[idx] || audioResamplerRate_[idx] != rate) {
+            audioResampler_[idx] = std::make_unique<ba::dsp::Resampler>();
+            audioResampler_[idx]->configure(rate, cfg_.audioRate, channels, ba::dsp::Quality::SincMedium);
+            audioResamplerRate_[idx] = rate;
         }
-        buf.erase(buf.begin(), buf.begin() + blockFloats);
+        const size_t inFrames = n / static_cast<size_t>(channels);
+        if (inFrames > 0) {
+            // Margen holgado sobre el ratio para no quedarse corto por redondeo.
+            const size_t maxOut =
+                static_cast<size_t>(static_cast<double>(inFrames) * cfg_.audioRate / rate) + 32;
+            auto& outBuf = audioResampleOut_[idx];
+            if (outBuf.size() < maxOut * static_cast<size_t>(channels)) {
+                outBuf.resize(maxOut * static_cast<size_t>(channels));
+            }
+            size_t outFrames = 0;
+            if (audioResampler_[idx]->resample(samples, inFrames, outBuf.data(), maxOut, &outFrames) &&
+                outFrames > 0) {
+                buf.insert(buf.end(), outBuf.begin(),
+                           outBuf.begin() +
+                               static_cast<std::ptrdiff_t>(outFrames * static_cast<size_t>(channels)));
+            }
+        }
+    } else {
+        buf.insert(buf.end(), samples, samples + n);
     }
-    (void)rate;
+
+    // --- Re-bloqueo a bloques de 480 frames ---
+    // Se avanza un INDICE de lectura en vez de hacer erase() desde el frente:
+    // el erase movia todo el resto del buffer en cada bloque, dentro del
+    // callback de libwebrtc y con el lock tomado.
+    size_t& pos = audioBufPos_[idx];
+    while (buf.size() - pos >= blockFloats) {
+        const uint64_t qpc = HealthBlock::nowQpc();
+        // push() copia el bloque; si hay overrun se descarta igual y se avanza.
+        ring.push(buf.data() + pos, qpc);
+        pos += blockFloats;
+    }
+    // Compactacion diferida: solo cuando lo consumido ya pesa.
+    if (pos > 0 && pos >= blockFloats * 8) {
+        buf.erase(buf.begin(), buf.begin() + static_cast<std::ptrdiff_t>(pos));
+        pos = 0;
+    }
 }
 
 // --- Uplink de VIDEO (invitado→B→A) ----------------------------------------

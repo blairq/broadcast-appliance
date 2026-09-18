@@ -48,14 +48,19 @@ struct Config {
     uint16_t port = 8787;        // puerto de señalización en 127.0.0.1
     uint16_t metricsPort = 9099; // puerto de métricas de cloudflared (loopback)
     std::string room = "sala1";  // sala por defecto
-    std::string pin = "1234";    // PIN de la sala (por defecto; A lo cambia)
-    std::string webroot;         // ruta a Web/guest (se rellena en derivePaths)
-    std::string logsDir;         // ruta a Logs/
-    std::string tunnelToken;     // token de tunel de Cloudflare (env del hijo)
-    long long durationMs = 0;    // 0 = correr hasta señal; >0 = duracion de prueba
-    int audioRate = 48000;       // sample rate del retorno de audio
-    int audioChannels = 2;       // canales del retorno de audio
-    int videoW = 1280;           // resolucion del slot de video (BA.Guest.<n>)
+    // PIN de la sala. VACIO por defecto a proposito: un PIN fijo en el binario
+    // es publico (el bundle es portable). Si queda vacio, main() lo toma de
+    // BA_GATEWAY_PIN o genera uno aleatorio y lo loguea. A lo cambia en
+    // caliente con ChangePin (spec §4.1).
+    std::string pin;
+    bool pinFromCli = false;  // --pin usado: se avisa (visible en `ps`/Tareas)
+    std::string webroot;      // ruta a Web/guest (se rellena en derivePaths)
+    std::string logsDir;      // ruta a Logs/
+    std::string tunnelToken;  // token de tunel de Cloudflare (env del hijo)
+    long long durationMs = 0; // 0 = correr hasta señal; >0 = duracion de prueba
+    int audioRate = 48000;    // sample rate del retorno de audio
+    int audioChannels = 2;    // canales del retorno de audio
+    int videoW = 1280;        // resolucion del slot de video (BA.Guest.<n>)
     int videoH = 720;
     int guestVideoW = 640; // resolucion del retorno de video al invitado
     int guestVideoH = 360;
@@ -95,6 +100,7 @@ struct Config {
                 room = nextStr();
             } else if (arg == "--pin") {
                 pin = nextStr();
+                pinFromCli = !pin.empty();
             } else if (arg == "--webroot") {
                 webroot = nextStr();
             } else if (arg == "--logs") {

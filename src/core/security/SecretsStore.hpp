@@ -57,6 +57,22 @@
 
 namespace ba::security {
 
+/// Genera un secreto aleatorio criptográficamente fuerte, en hexadecimal.
+///
+/// Usa la misma fuente de entropía que la bóveda (mbedTLS). Pensado para los
+/// secretos que NO tienen por qué sobrevivir al proceso: la clave HMAC con la
+/// que el gateway firma los tokens de invitado, por ejemplo, donde el emisor y
+/// el verificador son el mismo proceso y persistirla solo añadiría un secreto
+/// en disco que proteger.
+///
+/// :param nBytes: bytes de entropía a generar (32 = 256 bits, recomendado).
+///                Se acota a [16, 32] (tope de la fuente de entropia).
+/// :param out: recibe el secreto en hex minúscula (2*nBytes caracteres); en
+///             fallo queda vacío.
+/// :returns: true si se generó; false si la fuente de entropía falla (en cuyo
+///           caso el caller NO debe seguir con un secreto por defecto).
+bool randomSecretHex(std::size_t nBytes, std::string& out);
+
 /// Bóveda de secretos cifrada en disco (spec §12, D7).
 ///
 /// Guarda pares clave->valor en memoria y los persiste cifrados

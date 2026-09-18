@@ -100,7 +100,7 @@ clases y namespaces reales:
 - :doc:`modules/app` — `ba-app` (Proceso A, implementado; flag
   `BA_APP_HAVE_QT_OBS`).
 - :doc:`modules/obs-module` — `ba-sources` (módulo libobs, implementado; flag
-  `BA_SOURCES_HAVE_OBS`).
+  `BA_HAVE_LIBOBS`).
 
 Estado
 ------

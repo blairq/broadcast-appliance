@@ -123,11 +123,18 @@ class ChannelStrip {
 
    private:
     // --- HPF: hasta 3 high-pass en cascada (12/18/24 dB/oct) ---
-    Biquad hpf_[3];
+    // UN BIQUAD POR CANAL. Un biquad tiene estado interno (z1/z2): pasar L y R
+    // por la MISMA instancia hace que el filtro vea un flujo L,R,L,R y mezcle
+    // el estado de los dos canales, con lo que la respuesta deja de ser la
+    // pedida y los canales salen distintos entre si. El de-esser ya lo hacia
+    // bien (deEsserBpL_/deEsserBpR_); el HPF y el EQ no.
+    Biquad hpfL_[3];
+    Biquad hpfR_[3];
     int hpfStages_ = 2;
 
     // --- EQ parametrico: 4 biquads fijos ---
-    Biquad eq_[4];
+    Biquad eqL_[4];
+    Biquad eqR_[4];
     bool eqEnabled_[4] = {false, false, false, false};
 
     // --- De-esser: band-pass de sidechain POR CANAL + ganancia de compresion ---

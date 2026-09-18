@@ -57,6 +57,12 @@ class Supervisor {
 
    private:
     // --- Ciclo de vida ------------------------------------------------------
+    /// Reapunta los ejecutables de A y B a la copia sombra, si se pudo crear.
+    ///
+    /// :param execRoot: raiz devuelta por ShadowCopy::prepare (puede ser la
+    ///                  raiz original si la copia fallo: entonces es no-op).
+    void applyExecRoot(const std::wstring& execRoot);
+
     bool acquireInstance(); // mutex Local\BroadcastAppliance.Instance.
     void releaseInstance();
     void setupErrorMode();             // SetErrorMode (spec 3.1.4).

@@ -63,6 +63,12 @@ namespace ba::ipc {
 struct SpoutNullSlot {
     std::vector<std::uint8_t> buffer; // pixeles opacos (en el real: textura)
     std::size_t bufferBytes = 0;      // capacidad del buffer
+    // Resolucion del slot, fijada por el sender al publicar. El receptor la
+    // necesita para saber como interpretar los bytes: sin esto solo sabia
+    // CUANTOS bytes hay, no que forma tienen, y ningun consumidor real podia
+    // armar un frame.
+    int width = 0;
+    int height = 0;
 };
 
 namespace {
@@ -242,6 +248,8 @@ bool SpoutSender::publish(const wchar_t* name, const SlotConfig& cfg) {
     }
     null_->bufferBytes = slotBytes(cfg);
     null_->buffer.assign(null_->bufferBytes, 0);
+    null_->width = cfg.width;
+    null_->height = cfg.height;
 
     // Bloque de metadatos paralelo (spec §4.2): la textura no lleva timestamps.
     SpoutMetaBlock meta;
@@ -341,6 +349,12 @@ bool SpoutReceiver::receive(void* dst, std::size_t cap, FrameMeta& metaOut) {
     lastSeenIndex_ = m.frameIndex;
     return true;
 }
+
+int SpoutReceiver::width() const { return (null_ != nullptr) ? null_->width : 0; }
+
+int SpoutReceiver::height() const { return (null_ != nullptr) ? null_->height : 0; }
+
+std::size_t SpoutReceiver::frameBytes() const { return (null_ != nullptr) ? null_->bufferBytes : 0; }
 
 bool SpoutReceiver::hasData() const {
     if (!subscribed_ || null_ == nullptr) {

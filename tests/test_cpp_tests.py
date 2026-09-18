@@ -112,8 +112,15 @@ def test_discover_cpp_test_binaries(build_dir: Path | None) -> None:
     assert binaries, f"no compiled test_* executables found under {build_dir}"
 
 
+#: Exit code that a C++ test uses to report "skipped" rather than "passed".
+#: It matches CTest's ``SKIP_RETURN_CODE`` property set in the CMake files, so
+#: a suite that cannot run (no libwebrtc, no libobs, no ``fork()``) is reported
+#: as skipped on both sides instead of masquerading as a pass.
+SKIP_EXIT_CODE = 77
+
+
 def test_cpp_binary_runs_clean(build_dir: Path | None, binary: Path | None) -> None:
-    """Every compiled C++ test binary must exit 0 when run directly."""
+    """Every compiled C++ test binary must exit 0 (or 77 = skipped) when run."""
     if build_dir is None:
         pytest.skip("no build/ directory; C++ tests not compiled")
     if binary is None or not binary.is_file():
@@ -124,6 +131,8 @@ def test_cpp_binary_runs_clean(build_dir: Path | None, binary: Path | None) -> N
         text=True,
         timeout=SUBPROCESS_TIMEOUT,
     )
+    if result.returncode == SKIP_EXIT_CODE:
+        pytest.skip(f"{binary.name} reported itself as skipped: {result.stdout.strip()}")
     assert result.returncode == 0, (
         f"{binary.name} exited with {result.returncode}\n"
         f"stdout: {result.stdout}\nstderr: {result.stderr}"

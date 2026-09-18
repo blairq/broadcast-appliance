@@ -10,12 +10,17 @@
 //   fstream) y std::chrono para el timestamp.
 //
 // Modelo de threading:
-//   Camino de CONTROL, NO de RT: no hay locks internos, la seguridad la aporta
-//   el contrato de un solo writer por proceso (el hilo de log de A, B o del
-//   launcher). No esta pensado para ser llamado desde el bucle de audio (RT):
+//   Camino de CONTROL, NO de RT. Thread-safe: un mutex interno serializa
+//   write() y la rotacion, porque los procesos loguean desde varios hilos a la
+//   vez (el gateway lo hace desde el de accept, uno por conexion, los dos de
+//   medios y el del supervisor del tunel). Sin ese lock dos hilos podian rotar
+//   a la vez -- renombres cruzados, archivos perdidos -- y las lineas se
+//   entrelazaban a mitad, justo durante un incidente, que es cuando mas hilos
+//   escriben. No esta pensado para ser llamado desde el bucle de audio (RT):
 //   write() toca el disco (open + write + rename) y puede bloquear, por lo que
 //   debe usarse desde un hilo de control o de un worker, nunca desde el hilo
-//   de render. Cada proceso tiene su propio LogRotator y su propio <dir>.
+//   de render (el lock no lo vuelve apto para RT: sigue tocando disco). Cada
+//   proceso tiene su propio LogRotator y su propio <dir>.
 //
 // Estrategia de errores:
 //   NUNCA lanza. write() es no-fallible: ante un fallo de disco (directorio no
@@ -34,6 +39,7 @@
 #pragma once
 
 #include <cstddef>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -95,6 +101,9 @@ class LogRotator {
 
    private:
     // --- estado -------------------------------------------------------------
+    // Serializa write() y rotate(). `mutable` porque files()/activeSize() son
+    // const y tambien tienen que leer de forma consistente con una rotacion.
+    mutable std::mutex m_;
     std::string dir_;
     std::string activePath_;
     std::size_t maxBytes_;

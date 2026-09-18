@@ -22,8 +22,8 @@
 //   - init() devuelve Status; en fallo deja el objeto vacio.
 //   - push() ante overrun (el lector no llego) incrementa overrunCount y
 //     DESCARTA el bloque (no bloquea, no reescribe datos leidos).
-//   - pop() ante underrun (sin datos) devuelve un bloque de silencio con fade
-//     e incrementa underrunCount.
+//   - pop() ante underrun (sin datos) llena el buffer del llamador de silencio
+//     con fade e incrementa underrunCount.
 //   - Si cambia la generacion del escritor (writerPid/generation distintos de
 //     los cacheados), el lector descarta lo bufferizado, resincroniza
 //     readIndex a writeIndex y aplica un fade-in de 10 ms.
@@ -89,9 +89,9 @@ struct alignas(audio_ring::kCacheLine) RingHeader {
 static_assert(std::atomic_ref<uint64_t>::is_always_lock_free,
               "std::atomic_ref<uint64_t> debe ser lock-free en esta plataforma");
 
-/// Resultado de un pop(): el bloque de audio + metadatos.
+/// Resultado de un pop(): metadatos del bloque copiado al buffer del llamador.
 struct PoppedBlock {
-    const float* samples = nullptr; // interleaved, kBlockFrames*channels floats
+    const float* samples = nullptr; // apunta al `out` del llamador (no al ring)
     uint64_t qpc = 0;               // timestamp QPC del bloque
     bool isSilence = false;         // true si fue un underrun (silencio+fade)
     bool isFadeIn = false;          // true si aplica fade-in de 10 ms
@@ -144,15 +144,25 @@ class SharedAudioRing {
     /// :returns: true si se escribio, false si se descarto por overrun.
     bool push(const float* samples, uint64_t qpc);
 
-    /// Lee el siguiente bloque (lado LECTOR).
+    /// Lee el siguiente bloque COPIANDOLO a `out` (lado LECTOR).
     ///
-    /// Avanza readIndex atomicamente (release). Ante underrun devuelve silencio
-    /// con fade e incrementa underrunCount. Ante cambio de generacion del
+    /// El bloque se copia ANTES de publicar readIndex: mientras el lector aun
+    /// no publico el avance, el escritor ve el slot como ocupado y no lo pisa
+    /// (push() descarta por overrun en vez de sobrescribir). Devolver un
+    /// puntero al interior del ring seria una carrera: el escritor podria
+    /// reclamar ese slot mientras el llamador todavia lee.
+    ///
+    /// Avanza readIndex atomicamente (release). Ante underrun llena `out` de
+    /// silencio e incrementa underrunCount. Ante cambio de generacion del
     /// escritor descarta lo bufferizado, resincroniza readIndex a writeIndex y
     /// aplica fade-in de 10 ms.
     ///
-    /// :returns: PoppedBlock con samples/qpc y banderas isSilence/isFadeIn.
-    PoppedBlock pop();
+    /// :param out: buffer del llamador con al menos blockFloats() floats.
+    /// :param meta: recibe qpc y las banderas isSilence/isFadeIn; `meta.samples`
+    ///              queda apuntando a `out` (los datos ya son del llamador).
+    /// :returns: true si se leyo (con datos o con silencio); false si `out` es
+    ///           nulo o el ring no esta mapeado.
+    bool pop(float* out, PoppedBlock& meta);
 
     /// Tamano de un bloque en floats (kBlockFrames * channels).
     size_t blockFloats() const;

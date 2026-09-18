@@ -411,7 +411,7 @@ int main() {
 // libwebrtc): verifica que el arbol configure y compile con el flag a 0.
 int main() {
     std::printf("SKIP: no libwebrtc\n");
-    return 0;
+    return 77; // 77 = SKIP para CTest
 }
 
 #endif // BA_GATEWAY_HAVE_WEBRTC

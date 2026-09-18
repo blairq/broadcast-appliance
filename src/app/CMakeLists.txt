@@ -32,6 +32,13 @@ file(GLOB_RECURSE BA_APP_SOURCES CONFIGURE_DEPENDS
 )
 
 # WIN32 en MSVC: subsistema GUI (sin consola). En Linux es un ejecutable normal.
+# BroadcastEngine.cpp incluye <obs.h>: sin libobs no puede compilarse, asi que
+# se saca de la lista (el resto del Proceso A sigue compilando headless).
+if(NOT BA_HAVE_LIBOBS)
+    list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/BroadcastEngine\\.cpp$")
+    list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/EngineSelfTest\\.cpp$")
+endif()
+
 if(MSVC)
     add_executable(ba-app WIN32 ${BA_APP_SOURCES})
 else()
@@ -46,6 +53,26 @@ if(WIN32)
 endif()
 
 target_link_libraries(ba-app PRIVATE ba_core)
+
+# --- Motor de emision sobre libobs (spec §6) --------------------------------
+# libobs es cross-platform y el motor tambien: cuando `ba::libobs` existe se
+# compila `BroadcastEngine` en CUALQUIER plataforma, no solo en Windows. Ese
+# acoplamiento (todo lo de obs detras de `_WIN32`) era lo que mantenia el motor
+# sin compilar ni ejecutar en ningun lado.
+if(BA_HAVE_LIBOBS)
+    target_link_libraries(ba-app PRIVATE ba::libobs)
+    target_compile_definitions(ba-app PRIVATE BA_HAVE_LIBOBS=1)
+    # rpath $ORIGIN: el ejecutable busca sus bibliotecas JUNTO A EL dentro del
+    # bundle portable (bin/64bit/), no en el sistema. Es lo que hace que el
+    # bundle corra en una maquina sin nada instalado.
+    if(NOT WIN32)
+        set_target_properties(ba-app PROPERTIES
+            BUILD_RPATH "${BA_OBS_LINUX_PREFIX}/lib"
+            INSTALL_RPATH "$ORIGIN")
+    endif()
+else()
+    target_compile_definitions(ba-app PRIVATE BA_HAVE_LIBOBS=0)
+endif()
 
 # --- Qt 6 + libobs (spec §6) — solo cuando están disponibles ----------------
 # En el build real (Windows) se enlaza Qt 6 Widgets + libobs y se compila la
@@ -109,7 +136,7 @@ if(WIN32)
     #
     # Lo que NO hay en el cross-build es libobs como BUILD INPUT: el runtime de
     # OBS (extern/obs-studio) solo trae DLLs (obs.dll) y el obs.h vendoreado en
-    # src/obs-module/obs/ es el subconjunto de ba-sources (sin obs_startup/
+    # El obs.h real de libobs trae toda la API (sin limitarse a obs_startup/
     # obs_shutdown). La superficie de libobs que el modo completo de la app usa
     # es exactamente obs_startup + obs_shutdown (main.cpp; MainWindow.cpp solo
     # usa Qt), así que se genera un obs.h shadow con esas dos declaraciones y se
@@ -128,9 +155,9 @@ if(WIN32)
 //
 // Declara el ÚNICO subconjunto de la API C de libobs que el modo completo de
 // la app usa (main.cpp): obs_startup + obs_shutdown. No es el header real de
-// libobs (ese vive en src/obs-module/obs/obs.h, subconjunto de ba-sources):
-// existe para que el cross-build MinGW COMPILE el modo completo sin libobs
-// instalada (los símbolos obs_* se resuelven en el enlace contra obs.dll).
+// libobs: existe para que el cross-build MinGW COMPILE el modo completo sin
+// el SDK de libobs presente (los símbolos obs_* se resuelven en el enlace
+// contra obs.dll).
 #pragma once
 
 #ifdef __cplusplus
@@ -164,8 +191,8 @@ void obs_shutdown(void);
                 "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
                 "${CMAKE_CURRENT_SOURCE_DIR}/MainWindow.cpp")
             target_compile_definitions(ba-app-qt-realcheck PRIVATE BA_APP_HAVE_QT_OBS)
-            # El shadow obs.h ANTES de cualquier otra ruta: gana sobre el obs.h de
-            # src/obs-module/obs/ (subconjunto de ba-sources, sin obs_startup).
+            # El shadow obs.h ANTES de cualquier otra ruta: gana sobre el obs.h
+            # real de libobs (el proxy solo necesita dos símbolos, sin obs_startup).
             target_include_directories(ba-app-qt-realcheck BEFORE PRIVATE
                 "${CMAKE_CURRENT_BINARY_DIR}/qt-obs-shadow"
                 "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -195,7 +222,7 @@ exec \"${BA_WINE_EXE}\" \"${BA_QT6_PREFIX}/bin/moc.exe\" \"$@\"
                     "${CMAKE_CURRENT_SOURCE_DIR}/MainWindow.cpp")
                 target_compile_definitions(ba-app-qt-realcheck PRIVATE BA_APP_HAVE_QT_OBS)
                 # El shadow obs.h ANTES de cualquier otra ruta: gana sobre el
-                # obs.h de src/obs-module/obs/ (subconjunto de ba-sources, sin
+                # obs.h real de libobs (el proxy solo necesita dos símbolos, sin
                 # obs_startup).
                 target_include_directories(ba-app-qt-realcheck BEFORE PRIVATE
                     "${CMAKE_CURRENT_BINARY_DIR}/qt-obs-shadow"

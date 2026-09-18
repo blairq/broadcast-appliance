@@ -170,7 +170,10 @@ foreach(test_source ${BA_GATEWAY_TESTS})
     add_executable(${test_name} ${test_source} ${BA_GATEWAY_LIB_SOURCES})
     target_include_directories(${test_name} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_compile_definitions(${test_name} PRIVATE
-        BA_GATEWAY_HAVE_WEBRTC=${BA_GATEWAY_WEBRTC})
+        BA_GATEWAY_HAVE_WEBRTC=${BA_GATEWAY_WEBRTC}
+        # Webroot real (assets/web/guest) para el humo HTTP: sirve el index del
+        # invitado de verdad en vez de un directorio inventado.
+        BA_TEST_WEBROOT="${CMAKE_SOURCE_DIR}/assets/web/guest")
     target_link_libraries(${test_name} PRIVATE ba_core)
     if(WIN32)
         target_link_libraries(${test_name} PRIVATE ws2_32)
@@ -181,6 +184,8 @@ foreach(test_source ${BA_GATEWAY_TESTS})
         target_link_libraries(${test_name} PRIVATE webrtc)
     endif()
     add_test(NAME ${test_name} COMMAND ${test_name})
+    # 77 = saltado (ver src/core/CMakeLists.txt).
+    set_tests_properties(${test_name} PROPERTIES SKIP_RETURN_CODE 77)
 endforeach()
 
 # --- Instalación ------------------------------------------------------------

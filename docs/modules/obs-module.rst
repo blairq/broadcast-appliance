@@ -3,25 +3,23 @@
    ============================================================================
 
 ..
-   Página del componente obs-module (src/obs-module). IMPLEMENTADO:
-   ba_sources.cpp con obs_module_register, una fuente y un filtro basados en
-   ba_core::dsp y presets podium/lavalier/handheld. Feature-flag
-   BA_SOURCES_HAVE_OBS. Stubs locales en src/obs-module/obs/.
+   Página del componente obs-module (src/obs-module). IMPLEMENTADO contra
+   libobs real: ba_module.cpp (ABI obs_module_load), ba_ipc_sources.cpp
+   (ba_guest_audio / ba_guest_video) y ba_dsp_sources.cpp (ba_channel_strip /
+   ba_channel_preset).
 
 ba-sources (módulo libobs)
 =========================
 
-`ba-sources` es el **módulo propio de fuentes libobs**: una **DLL** (shared
-lib) que OBS carga como plugin y que se despliega en `obs-plugins/64bit/`
-(spec §5.1). En Windows se llama `ba-sources.dll` y enlaza libobs (feature-flag
-`BA_SOURCES_HAVE_OBS`); en el cross-build MinGW/Linux se compila contra los
-**stubs locales** vendoreados en `src/obs-module/obs/` (headers mínimos de la
-API de libobs + `obs-stub.cpp` con las definiciones de enlace) para que el
-árbol compile sin libobs instalada. Usa `/MD` (CRT dinámica) por consistencia
-con libobs.
+`ba-sources` es el **módulo propio de fuentes libobs**: una biblioteca
+compartida que OBS carga como plugin y que se despliega en
+`obs-plugins/64bit/` (spec §5.1). Se compila contra libobs **real** en
+cualquier plataforma — libobs es cross-platform, así que el módulo no tiene
+ningún ``#ifdef _WIN32``. Si libobs no está disponible se compila solo un
+esqueleto (``ba_placeholder.cpp``) para que el árbol siga compilando.
 
-Estado actual: **IMPLEMENTADO**. `ba_sources.cpp` registra el módulo
-(`obs_module_register`) y aporta:
+Estado actual: **IMPLEMENTADO**. ``ba_module.cpp`` expone el ABI que libobs
+espera (``obs_module_load``) y registra:
 
 - **Filtro de channel strip**: la cadena nativa `ba::dsp::ChannelStrip`
   (HPF → EQ → de-esser → gate → comp → lim) corriendo como filtro libobs

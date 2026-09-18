@@ -218,6 +218,45 @@ void testGate() {
 }
 
 /// 4) preset-change no-click.
+/// Gate con rango 0 dB y umbral en el piso: no debe producir NaN.
+///
+/// Regresion: `frac = (thrDb - envDb) / rangeDb`. Con rangeDb == 0 y la
+/// envolvente estrictamente bajo el umbral la division da +inf, que el clamp
+/// `frac > 1` absorbe. El caso venenoso es 0/0, y se alcanza cuando linToDb()
+/// SATURA: con la señal en silencio devuelve su piso (kMinDb = -120 dB), asi
+/// que si el umbral tambien esta en -120 resulta (thrDb - envDb) == 0 y, con
+/// rangeDb == 0, 0/0 = NaN. Los clamps `frac < 0` y `frac > 1` son AMBOS
+/// falsos para NaN, de modo que el NaN pasaba a la ganancia del gate y el
+/// one-pole lo propagaba a todas las muestras siguientes: canal mudo de forma
+/// permanente hasta un reset().
+void testGateZeroRangeNoNaN() {
+    const int n = 480;
+    auto params = neutralHpf(10.0);
+    params.gateEnabled = true;
+    params.gateThresholdDb = -120.0; // == el piso de linToDb
+    params.gateRangeDb = 0.0;        // <- el caso degenerado
+    params.gateAttackMs = 1.0;
+    params.gateReleaseMs = 50.0;
+
+    ChannelStrip strip;
+    strip.setParams(params, /*smoothMs=*/0.0);
+
+    // Silencio absoluto: la envolvente queda en 0 y linToDb() satura en su
+    // piso, igualando exactamente al umbral.
+    std::vector<float> buf(static_cast<std::size_t>(2 * n), 0.0f);
+    strip.process(buf.data(), n);
+
+    bool allFinite = true;
+    for (float v : buf) {
+        if (!std::isfinite(v)) {
+            allFinite = false;
+            break;
+        }
+    }
+    CHECK(allFinite);
+    CHECK(std::isfinite(strip.lastGainDb()));
+}
+
 void testNoClickOnPresetChange() {
     const int n = 4800;
     const double amp = dbToLin(-20.0);
@@ -262,6 +301,7 @@ int main() {
     testNoNaN();
     testHpf();
     testGate();
+    testGateZeroRangeNoNaN();
     testNoClickOnPresetChange();
 
     if (g_failures == 0) {

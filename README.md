@@ -111,10 +111,12 @@ núcleo además nativo en Linux). Ya no son esqueletos:
   (HTTP + WebSocket), `Cloudflared` (túnel), `MediaPump` (IPC ↔ WebRTC) y
   `TokenAuth` (sobre `ba_core::security::TokenService`). Sirve `Web/guest/`
   (index.html, app.js, style.css). Feature-flag `BA_GATEWAY_HAVE_WEBRTC`.
-- **`ba-sources`** (módulo libobs): `ba_sources.cpp` con `obs_module_register`,
-  una fuente y un filtro basados en `ba_core::dsp` y presets
-  podium/lavalier/handheld. Stubs locales en `src/obs-module/obs/`.
-  Feature-flag `BA_SOURCES_HAVE_OBS`.
+- **`ba-sources`** (módulo libobs): se compila contra libobs **real** en
+  cualquier plataforma y registra cuatro cosas — `ba_guest_audio` y
+  `ba_guest_video` (traen al invitado remoto a la escena desde el IPC del
+  Proceso B), el filtro `ba_channel_strip` (el DSP nativo de `ba_core::dsp`
+  con presets podium/lavalier/handheld) y `ba_channel_preset` (tono de
+  referencia). Sin libobs se compila solo un esqueleto.
 - **`ba_plugin_host`** (VST3/LSP): `Vst3Host` (load + attachEditor),
   `PluginDeployer` (deploy + manifest) y `scanDirectory`. Feature-flag
   `BA_PLUGIN_HOST_HAVE_VST3`.
@@ -158,6 +160,41 @@ targets individuales `make deps-obs`, `deps-webrtc`, `deps-spout`,
 
 > **Referencia de este host** (Ubuntu 24.04 / noble, donde el verde está
 > verificado): gcc/g++ 13.3.0, CMake 3.28.3, GNU Make 4.3, git 2.43.0.
+
+### Motor de emisión: libobs (Linux)
+
+El **motor de emisión** (`ba::app::BroadcastEngine`) se compila contra libobs.
+En Windows se usa el runtime portable que baja `make deps-obs`; en Linux no
+existe un equivalente prebuilt, así que libobs se **compila desde fuente** en la
+versión fijada en [`versions.cmake`](versions.cmake) (`OBS_STUDIO_TAG`) hacia
+`extern/obs-linux/`:
+
+```bash
+make deps-obs-linux    # clona obs-studio 31.0.0 y lo compila en extern/
+```
+
+El build del proyecto toma libobs **solo** de `extern/` (nunca del sistema) y el
+bundle de `make release` se lleva su propia copia con rpath `$ORIGIN`, de modo
+que corre en una máquina sin nada instalado. Si `extern/obs-linux` no está,
+`ba-app` y `ba-sources` se compilan en modo headless y el árbol sigue verde.
+
+Compilar **libobs** sí requiere bibliotecas de desarrollo del sistema. Son la
+única excepción a la regla de "sin instalaciones globales", en la misma
+categoría que `clang-format` y `ccache`: son toolchain, no dependencias del
+producto. En Ubuntu 24.04:
+
+```bash
+sudo apt install   libavcodec-dev libavformat-dev libavutil-dev libswscale-dev   libswresample-dev libavdevice-dev libx264-dev libjansson-dev zlib1g-dev   libgl1-mesa-dev libegl1-mesa-dev libx11-dev libx11-xcb-dev libxcb1-dev   libxcb-randr0-dev libxcb-shm0-dev libxcb-xfixes0-dev libxcb-xinerama0-dev   libxcb-composite0-dev libxcb-damage0-dev libxcb-present-dev libxcb-xkb-dev   libxcomposite-dev libxinerama-dev libxkbcommon-dev libxss-dev   libpulse-dev libasound2-dev libjack-jackd2-dev libudev-dev libv4l-dev   libwayland-dev libdrm-dev libva-dev libfreetype-dev libfontconfig1-dev   patchelf
+```
+
+`uthash` y `nv-codec-headers` (ambos header-only) **no** se instalan: los
+vendorea `make deps-obs-linux` dentro de `extern/`.
+
+> **Contexto gráfico.** `obs_reset_video()` necesita GL (Linux) o D3D11
+> (Windows). En un servidor headless sin sesión gráfica el pipeline de vídeo no
+> puede inicializarse: `ba-app --engine-selftest` lo detecta y devuelve 77
+> (*saltado*) en vez de error. El resto —carga de módulos, codificadores,
+> salidas, escena, IPC— sí se ejercita headless.
 
 ### Herramientas por tarea (opcionales según lo que hagas)
 
@@ -306,7 +343,7 @@ El flujo completo (build nativo + ctest + pytest + cross Windows) corre en CI
 │   ├── launcher/             # BroadcastAppliance — supervisor + RecoveryUi (Win32, /MT)
 │   ├── app/                  # ba-app — Proceso A (Qt + libobs, flag BA_APP_HAVE_QT_OBS)
 │   ├── gateway/              # ba-gateway — Proceso B (WebRTC, flag BA_GATEWAY_HAVE_WEBRTC)
-│   ├── obs-module/           # ba-sources — módulo libobs (flag BA_SOURCES_HAVE_OBS)
+│   ├── obs-module/           # ba-sources — módulo libobs (fuentes de invitado + DSP)
 │   └── plugin-host/          # ba_plugin_host — host VST3/LSP + PluginDeployer
 ├── assets/                   # assets de despliegue (no se compilan)
 │   ├── web/guest/            #   app web del invitado (la sirve B)

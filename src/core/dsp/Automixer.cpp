@@ -83,10 +83,12 @@ float Automixer::attenuationForOpenCount(int openCount) const {
     if (openCount <= 0) {
         return 1.0f;
     }
-    if (openCount <= maxOpenMics_) {
+    const int maxOpen = maxOpenMics_.load(std::memory_order_relaxed);
+    if (openCount <= maxOpen) {
         return 1.0f;
     }
-    double a = targetSummedGain_ * static_cast<double>(maxOpenMics_) / static_cast<double>(openCount);
+    double a = targetSummedGain_.load(std::memory_order_relaxed) * static_cast<double>(maxOpen) /
+               static_cast<double>(openCount);
     if (a < 0.0) {
         a = 0.0;
     }
@@ -101,38 +103,37 @@ Automixer::Automixer(int maxChannels) {
     // despues. maxChannels <= 0 se toma como 1.
     int cap = (maxChannels > 0) ? maxChannels : 1;
     maxChannels_ = cap;
-    env_ = new std::atomic<float>[static_cast<std::size_t>(cap)];
-    holdUntil_ = new std::atomic<long long>[static_cast<std::size_t>(cap)];
+    env_ = std::make_unique<std::atomic<float>[]>(static_cast<std::size_t>(cap));
+    holdUntil_ = std::make_unique<std::atomic<long long>[]>(static_cast<std::size_t>(cap));
     for (int i = 0; i < cap; ++i) {
         env_[static_cast<std::size_t>(i)].store(0.0f);
         holdUntil_[static_cast<std::size_t>(i)].store(-1);
     }
     tick_.store(0);
     // Coeficientes con los defaults (setParams los recalcula).
-    atk_ = onePole(attackMs_, fs_);
-    rel_ = onePole(releaseMs_, fs_);
-    attFade_ = onePole(5.0, fs_);
+    const double fs = fs_.load(std::memory_order_relaxed);
+    atk_.store(onePole(attackMs_, fs), std::memory_order_relaxed);
+    rel_.store(onePole(releaseMs_, fs), std::memory_order_relaxed);
+    attFade_.store(onePole(5.0, fs), std::memory_order_relaxed);
 }
 
 void Automixer::setParams(const AutomixerParams& p, double smoothMs) {
     // --- Clamps defensivos de parámetros ---
-    double fs = (p.fs > 0.0) ? p.fs : kDefaultFs;
-    fs_ = fs;
+    const double fs = (p.fs > 0.0) ? p.fs : kDefaultFs;
+    fs_.store(fs, std::memory_order_relaxed);
 
-    openThresholdDb_ = p.openThresholdDb;
+    openThresholdDb_.store(p.openThresholdDb, std::memory_order_relaxed);
     attackMs_ = (p.attackMs >= 0.0) ? p.attackMs : 0.0;
     releaseMs_ = (p.releaseMs >= 0.0) ? p.releaseMs : 0.0;
-    holdMs_ = (p.holdMs >= 0.0) ? p.holdMs : 0.0;
-    holdFloorDb_ = p.holdFloorDb;
-    int maxOpen = (p.maxOpenMics >= 1) ? p.maxOpenMics : 1;
-    maxOpenMics_ = maxOpen;
-    double target = (p.targetSummedGain > 0.0) ? p.targetSummedGain : 1.0;
-    targetSummedGain_ = target;
+    holdMs_.store((p.holdMs >= 0.0) ? p.holdMs : 0.0, std::memory_order_relaxed);
+    holdFloorDb_.store(p.holdFloorDb, std::memory_order_relaxed);
+    maxOpenMics_.store((p.maxOpenMics >= 1) ? p.maxOpenMics : 1, std::memory_order_relaxed);
+    targetSummedGain_.store((p.targetSummedGain > 0.0) ? p.targetSummedGain : 1.0, std::memory_order_relaxed);
 
     // --- Coeficientes one-pole (una vez por cambio de preset) ---
-    atk_ = onePole(attackMs_, fs_);
-    rel_ = onePole(releaseMs_, fs_);
-    attFade_ = onePole((smoothMs > 0.0) ? smoothMs : 0.0, fs_);
+    atk_.store(onePole(attackMs_, fs), std::memory_order_relaxed);
+    rel_.store(onePole(releaseMs_, fs), std::memory_order_relaxed);
+    attFade_.store(onePole((smoothMs > 0.0) ? smoothMs : 0.0, fs), std::memory_order_relaxed);
 
     // El objetivo de atenuacion se recalcula cada muestra en setLevel(); no se
     // toca el estado de envolventes para no introducir un click al cambiar de
@@ -146,7 +147,7 @@ void Automixer::reset() {
         holdUntil_[static_cast<std::size_t>(i)].store(-1);
     }
     tick_.store(0);
-    attenuation_ = 1.0f;
+    attenuation_.store(1.0f, std::memory_order_relaxed);
     attenuationTarget_ = 1.0f;
 }
 
@@ -168,12 +169,22 @@ void Automixer::setLevel(int ch, float level) {
 
     // Envolvente one-pole: ataque rapido (sube), liberacion lenta (baja).
     // Mismo estilo que ChannelStrip.
+    // Snapshot de los parametros atomicos al entrar: se usan varias veces mas
+    // abajo y asi el valor es coherente dentro de esta llamada aunque el thread
+    // de control cambie de preset a mitad.
+    const float atk = atk_.load(std::memory_order_relaxed);
+    const float rel = rel_.load(std::memory_order_relaxed);
+    const double fs = fs_.load(std::memory_order_relaxed);
+    const double holdMs = holdMs_.load(std::memory_order_relaxed);
+    const double openThrDb = openThresholdDb_.load(std::memory_order_relaxed);
+    const float attFade = attFade_.load(std::memory_order_relaxed);
+
     const float prev = env_[idx].load();
     float next;
     if (lin > prev) {
-        next = prev + (lin - prev) * atk_;
+        next = prev + (lin - prev) * atk;
     } else {
-        next = prev + (lin - prev) * rel_;
+        next = prev + (lin - prev) * rel;
     }
     env_[idx].store(next);
 
@@ -181,8 +192,8 @@ void Automixer::setLevel(int ch, float level) {
     // El tiempo se mide en ticks de setLevel() (proxy de muestra). holdTicks es
     // la ventana de hold (ms) expresada en ticks.
     const long long tick = tick_.fetch_add(1);
-    const long long holdTicks = static_cast<long long>((holdMs_ / 1000.0) * fs_ + 0.5);
-    const double thrLin = dbToLin(openThresholdDb_);
+    const long long holdTicks = static_cast<long long>((holdMs / 1000.0) * fs + 0.5);
+    const double thrLin = dbToLin(openThrDb);
     if (next > static_cast<float>(thrLin)) {
         // El canal esta abierto: refresca la ventana de hold (se extiende
         // mientras siga abierto).
@@ -201,13 +212,15 @@ void Automixer::setLevel(int ch, float level) {
         }
     }
     attenuationTarget_ = attenuationForOpenCount(openCount);
-    attenuation_ += (attenuationTarget_ - attenuation_) * attFade_;
-    if (attenuation_ < 0.0f) {
-        attenuation_ = 0.0f;
+    float att = attenuation_.load(std::memory_order_relaxed);
+    att += (attenuationTarget_ - att) * attFade;
+    if (att < 0.0f) {
+        att = 0.0f;
     }
-    if (attenuation_ > 1.0f) {
-        attenuation_ = 1.0f;
+    if (att > 1.0f) {
+        att = 1.0f;
     }
+    attenuation_.store(att, std::memory_order_relaxed);
 }
 
 float Automixer::gainFor(int ch) const {
@@ -235,7 +248,7 @@ float Automixer::gainFor(int ch) const {
             gain = 1.0f;
         }
         // Atenuacion por cantidad de micros abiertos (suavizada).
-        gain *= attenuation_;
+        gain *= attenuation_.load(std::memory_order_relaxed);
     }
 
     // Piso de ganancia minima del "ultimo micro abierto": si el canal esta en
@@ -247,7 +260,7 @@ float Automixer::gainFor(int ch) const {
     const long long tick = tick_.load();
     const long long holdUntil = holdUntil_[idx].load();
     if (holdUntil > tick) {
-        const float floor = static_cast<float>(dbToLin(holdFloorDb_));
+        const float floor = static_cast<float>(dbToLin(holdFloorDb_.load(std::memory_order_relaxed)));
         if (gain < floor) {
             gain = floor;
         }

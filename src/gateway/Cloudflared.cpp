@@ -130,9 +130,21 @@ bool CloudflaredSupervisor::spawn() {
     }
 
     // Abre el archivo de log para redirigir stdout/stderr del hijo.
+    // El handle tiene que ser HEREDABLE: se pasa bInheritHandles=TRUE a
+    // CreateProcessW, pero un handle creado sin bInheritHandle=TRUE no se
+    // hereda igual, asi que la redireccion de stdout/stderr no ocurria y el
+    // log del tunel quedaba vacio.
+    SECURITY_ATTRIBUTES logSa{};
+    logSa.nLength = sizeof(logSa);
+    logSa.bInheritHandle = TRUE;
+    logSa.lpSecurityDescriptor = nullptr;
+    // FILE_APPEND_DATA en vez de GENERIC_WRITE: con OPEN_ALWAYS el hijo
+    // escribia desde el offset 0 y pisaba el log de la corrida anterior.
+    // (El "." que se concatenaba al path era un resto; Win32 lo descarta, pero
+    // confundia el nombre del archivo.)
     HANDLE logFile =
-        CreateFileW((std::wstring(logPath_.begin(), logPath_.end()) + L".").c_str(), GENERIC_WRITE,
-                    FILE_SHARE_READ, nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+        CreateFileW(std::wstring(logPath_.begin(), logPath_.end()).c_str(), FILE_APPEND_DATA | SYNCHRONIZE,
+                    FILE_SHARE_READ | FILE_SHARE_WRITE, &logSa, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (logFile == INVALID_HANDLE_VALUE) {
         // Sin log file, sigue (el hijo heredara los handles del padre).
         logFile = nullptr;
@@ -146,8 +158,8 @@ bool CloudflaredSupervisor::spawn() {
     // haria que el tunel falle en cada spawn y el supervisor quedara en un
     // loop de reinicio perpetuo. `tunnel run` sin nombre de tunel es correcto
     // para tunel por token (TUNNEL_TOKEN por env).
-    const std::string cmd = "tunnel --no-autoupdate --metrics 127.0.0.1:" + std::to_string(metricsPort_) +
-                            " --loglevel info run";
+    const std::string cmd =
+        "tunnel --no-autoupdate --metrics 127.0.0.1:" + std::to_string(metricsPort_) + " --loglevel info run";
     std::wstring cmdLine = L"\"" + std::wstring(cloudflaredPath_.begin(), cloudflaredPath_.end()) + L"\" " +
                            std::wstring(cmd.begin(), cmd.end());
 
@@ -163,8 +175,18 @@ bool CloudflaredSupervisor::spawn() {
     }
 
     PROCESS_INFORMATION pi{};
+    // CREATE_UNICODE_ENVIRONMENT es OBLIGATORIO al pasar un bloque de entorno
+    // wchar_t*: sin el, CreateProcessW lo interpreta como ANSI y el hijo
+    // arranca con un entorno corrupto, es decir SIN TUNNEL_TOKEN. El tunel
+    // fallaba en cada spawn y el supervisor quedaba en un ciclo de reinicio
+    // perpetuo.
+    //
+    // Antes se agregaba CREATE_NEW_CONSOLE "para que la env tome efecto", que
+    // no es lo que hace: el bloque de entorno no depende de la consola, y ese
+    // flag ANULA a CREATE_NO_WINDOW, de modo que al operador le aparecia una
+    // ventana de consola en pantalla durante la emision.
     DWORD flags = CREATE_NO_WINDOW;
-    if (envBlock) flags |= CREATE_NEW_CONSOLE; // para que la env tome efecto
+    if (envBlock) flags |= CREATE_UNICODE_ENVIRONMENT;
     const BOOL ok = CreateProcessW(
         cloudflaredPath_.empty() ? nullptr
                                  : (std::wstring(cloudflaredPath_.begin(), cloudflaredPath_.end())).c_str(),

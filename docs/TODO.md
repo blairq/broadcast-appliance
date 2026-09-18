@@ -28,7 +28,7 @@ Documento de arranque para sesiones nuevas. Contiene: qué se hizo, qué falta
 |---|---|---|
 | `BA_APP_HAVE_QT_OBS` | `MainWindow` + `obs_startup` solo se compilan con Qt6+libobs presentes | `src/app/` |
 | `BA_GATEWAY_HAVE_WEBRTC` | Backend real adaptado a los headers M123 reales (`VERIFY` quitados) y gateado a **MSVC** (no solo WIN32): `extern/webrtc/lib/webrtc.lib` es un archive COFF con símbolos C++ mangleados por MSVC y no hay `webrtc.dll`, así que solo enlaza/corre bajo MSVC. En el cross MinGW el gateway shippea el backend NULL (`=0`); el target compile-only `ba-gateway-webrtc-realcheck` compila el real bajo MinGW (con un shadow header generado que neutraliza el static-assert `RTC_EXPORT_TEMPLATE_TEST(MSVC_HACK,…)` que le pilla GCC) como compile-proof. Encendido: `-D BA_GATEWAY_USE_WEBRTC=1` + SDK en `extern/webrtc` + toolchain MSVC. **Solo validado de compilación** (no de ejecución) en este entorno. | `src/gateway/Webrtc.cpp` |
-| `BA_SOURCES_HAVE_OBS` | `obs-stub.cpp` con 10 símbolos no-op; solo se activa con libobs 31 real | `src/obs-module/` |
+| ~~`BA_SOURCES_HAVE_OBS`~~ | RESUELTO: `ba-sources` se compila contra libobs 31 real (`extern/obs-linux`, `make deps-obs-linux`). Los stubs de `src/obs-module/obs/` se eliminaron. | `src/obs-module/` |
 
 Acción: en un entorno con Qt6 + libobs 31 + libwebrtc M123 reales, encender los
 flags y compilar. El path WebRTC ya quedó adaptado a los headers M123 reales
@@ -70,7 +70,7 @@ sobre el bundle portable vía env `BA_DEPLOY_*`, idempotente, respeta el layout
   propios quedaron limpios (`-Wcast-function-type` en `Vst3Host.cpp`,
   `-Wparentheses` en `SignalingServer.cpp`, `-Wunused-function` en `main.cpp`
   vía `[[maybe_unused]]`). Se normalizó el formato de `src/` con el
-  `.clang-format` corregido para 18.1.3 (excluye `src/obs-module/obs/`, que es
+  `.clang-format` corregido para 18.1.3 (excluía `src/obs-module/obs/`, que era
   VENDOR).
 
 ### 2.7 Trivia

@@ -1,10 +1,15 @@
 # ============================================================================
 # CI/CD — Broadcast Appliance Portable v2
 #
-# Tres jobs:
-#   1. `linux`          : build nativo (ccache) + ctest (18) + pytest.
+# Cinco jobs:
+#   1. `linux`          : build nativo (ccache) + ctest + pytest.
 #   2. `windows-cross`  : cross-compile MinGW-w64 (x86_64) desde Ubuntu.
-#   3. `release`        : solo en tags; empaqueta `make release` y lo sube.
+#   3. `lint`           : clang-format con la version fijada en versions.cmake.
+#   4. `sanitizers`     : ASan/UBSan y TSan sobre la suite (el nucleo es
+#                         lock-free; esa clase de fallo no la ve un test
+#                         funcional).
+#   5. `release`        : solo en tags; empaqueta `make release` y lo sube.
+#                         Depende de los cuatro anteriores.
 #
 # El proyecto es C++20 / CMake con un Makefile que envuelve a CMake
 # (targets: build, test, dist, win). Las dependencias de terceros entran
@@ -70,7 +75,9 @@ jobs:
         run: make build
 
       # --- Pruebas C++ (ctest) ---------------------------------------------
-      # `make test` ejecuta ctest; se esperan 18/18.
+      # `make test` ejecuta ctest. Los tests que no pueden correr en este
+      # entorno (sin libwebrtc, sin libobs) devuelven 77 y ctest los reporta
+      # como "skipped", no como aprobados.
       - name: Test C++ (make test / ctest)
         run: make test
 
@@ -199,6 +206,58 @@ jobs:
         run: make lint
 
   # ==========================================================================
+  # JOB 5 — SANITIZERS: ASan/UBSan y TSan sobre la suite de ba_core
+  # ==========================================================================
+  # El nucleo es lock-free: `std::atomic_ref` sobre memoria compartida, un
+  # seqlock escrito a mano, un ring SPSC y un automixer que cruza el hilo de
+  # audio con el de control. Esa clase de codigo falla de forma no determinista
+  # y los tests funcionales no la detectan: hicieron falta sanitizers para ver
+  # una fuga y varias carreras que llevaban meses en el arbol.
+  #
+  # Se corren en dos pasadas porque ASan y TSan son incompatibles entre si.
+  sanitizers:
+    name: "Sanitizers (${{ matrix.name }})"
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "asan+ubsan"
+            flags: "-fsanitize=address,undefined -fno-omit-frame-pointer -g"
+          - name: "tsan"
+            flags: "-fsanitize=thread -fno-omit-frame-pointer -g"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure (${{ matrix.name }})
+        run: |
+          cmake -S . -B build-san \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_CXX_FLAGS="${{ matrix.flags }}" \
+            -DCMAKE_C_FLAGS="${{ matrix.flags }}" \
+            -DCMAKE_EXE_LINKER_FLAGS="${{ matrix.flags }}"
+
+      - name: Build
+        run: cmake --build build-san -j"$(nproc)"
+
+      # `halt_on_error=1` para que el primer hallazgo falle el job en vez de
+      # quedar sepultado en el log.
+      #
+      # `setarch -R` desactiva el ASLR del proceso: los kernels recientes usan
+      # mas bits de aleatorizacion (vm.mmap_rnd_bits) de los que ThreadSanitizer
+      # soporta, y sin esto TSan aborta con "unexpected memory mapping" antes de
+      # ejecutar un solo test. Es inofensivo para ASan y evita tener que tocar
+      # sysctl con sudo en el runner.
+      - name: Test con sanitizers
+        env:
+          ASAN_OPTIONS: "detect_leaks=1:halt_on_error=1:abort_on_error=1"
+          UBSAN_OPTIONS: "halt_on_error=1:print_stacktrace=1"
+          TSAN_OPTIONS: "halt_on_error=1:second_deadlock_stack=1"
+        run: setarch -R ctest --test-dir build-san --output-on-failure
+
+  # ==========================================================================
   # JOB 3 — RELEASE: empaquetado portable (solo en tags)
   # ==========================================================================
   # Corre solo cuando el ref es una tag (refs/tags/*) y depende de que el
@@ -206,7 +265,10 @@ jobs:
   release:
     name: "Release (portable bundle)"
     runs-on: ubuntu-latest
-    needs: linux
+    # Depende de TODOS los jobs de verificacion, no solo del build nativo: con
+    # `needs: linux` a secas se podia publicar un bundle con el cross-build
+    # roto, el formato sin pasar o un sanitizer en rojo.
+    needs: [linux, windows-cross, lint, sanitizers]
     if: startsWith(github.ref, 'refs/tags/')
 
     steps:

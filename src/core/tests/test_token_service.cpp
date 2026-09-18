@@ -129,7 +129,42 @@ void testRateLimitLockout() {
 
 } // namespace
 
+/// Lockout de PIN: tras `maxAttempts` fallos no se emite nada, y al vencer la
+/// ventana se vuelve a emitir.
+///
+/// Este caso no existia porque no se podia escribir: `attemptAllowed()` y
+/// `recordFailure()` leian el reloj del SISTEMA mientras `issue()` recibia el
+/// suyo inyectado, asi que la ventana de bloqueo no era determinista. Ahora
+/// ambos toman el mismo `nowUnix` y el lockout se puede recorrer en el tiempo.
+void testLockoutWindow() {
+    constexpr int kMaxAttempts = 3;
+    constexpr int kLockoutSec = 60;
+    TokenService svc("secret-para-pruebas", kMaxAttempts, kLockoutSec,
+                     [](const std::string& pin) { return pin == "1234"; });
+
+    const int t0 = 1'700'000'000;
+
+    // Tres intentos con el PIN equivocado agotan el presupuesto.
+    for (int i = 0; i < kMaxAttempts; ++i) {
+        CHECK(svc.issue("sala", "mal", 300, t0).empty());
+    }
+    // Con el lockout abierto, ni siquiera el PIN correcto emite.
+    CHECK(svc.issue("sala", "1234", 300, t0).empty());
+    CHECK(!svc.attemptAllowed(t0));
+
+    // Justo antes de que venza la ventana sigue bloqueado.
+    CHECK(!svc.attemptAllowed(t0 + kLockoutSec - 1));
+    CHECK(svc.issue("sala", "1234", 300, t0 + kLockoutSec - 1).empty());
+
+    // Al vencer, el presupuesto se refresca y el PIN correcto vuelve a emitir.
+    CHECK(svc.attemptAllowed(t0 + kLockoutSec));
+    const std::string tok = svc.issue("sala", "1234", 300, t0 + kLockoutSec);
+    CHECK(!tok.empty());
+    CHECK(svc.verify(tok, "sala", t0 + kLockoutSec) == VerifyResult::Ok);
+}
+
 int main() {
+    testLockoutWindow();
     testHmacKAT();
     testIssueThenVerifyOk();
     testTamperedMacBadSignature();

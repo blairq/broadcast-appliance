@@ -254,13 +254,13 @@ std::string TokenService::issue(const std::string& room, const std::string& pin,
         ttlSec = 1;
     }
     // Con lockout activo no se emiten tokens nuevos.
-    if (!attemptAllowed()) {
+    if (!attemptAllowed(nowUnix)) {
         return {};
     }
     // Validar el PIN. Sin validator no se emite (no se adivina el PIN).
     const bool pinOk = pinValidator_ ? pinValidator_(pin) : false;
     if (!pinOk) {
-        recordFailure();
+        recordFailure(nowUnix);
         return {};
     }
 
@@ -338,10 +338,60 @@ TokenService::VerifyResult TokenService::verify(const std::string& token, const 
     return VerifyResult::Ok;
 }
 
+// --- redeem (verificacion + consumo del nonce) ------------------------------
+
+void TokenService::purgeExpiredNonces(int nowUnix) {
+    for (auto it = usedNonces_.begin(); it != usedNonces_.end();) {
+        if (nowUnix >= it->second) {
+            it = usedNonces_.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
+TokenService::VerifyResult TokenService::redeem(const std::string& token, const std::string& room,
+                                                int nowUnix) {
+    // 1) Todas las comprobaciones normales primero: si el token no es valido,
+    //    no hay nada que consumir (y no se ensucia la tabla con basura que un
+    //    atacante pueda inyectar sin conocer el secreto).
+    const VerifyResult base = verify(token, room, nowUnix);
+    if (base != VerifyResult::Ok) {
+        return base;
+    }
+
+    // 2) Extraer nonce y exp del payload (ya autenticado por el HMAC).
+    const auto dot = token.find('.');
+    std::vector<std::uint8_t> payloadBytes;
+    if (dot == std::string::npos || !base64UrlDecode(token.substr(0, dot), payloadBytes)) {
+        return VerifyResult::Malformed;
+    }
+    const std::string payload(payloadBytes.begin(), payloadBytes.end());
+    std::string nonce;
+    std::string expStr;
+    if (!jsonValue(payload, "nonce", nonce) || !jsonValue(payload, "exp", expStr) || nonce.empty()) {
+        return VerifyResult::Malformed;
+    }
+    int exp = 0;
+    try {
+        exp = static_cast<int>(std::stoll(expStr));
+    } catch (...) {
+        return VerifyResult::Malformed;
+    }
+
+    // 3) Consumir. Se purga antes para que la tabla no arrastre vencidos.
+    purgeExpiredNonces(nowUnix);
+    const auto [it, inserted] = usedNonces_.emplace(nonce, exp);
+    (void)it;
+    if (!inserted) {
+        return VerifyResult::Replayed;
+    }
+    return VerifyResult::Ok;
+}
+
 // --- rate-limit / lockout ---------------------------------------------------
 
-bool TokenService::attemptAllowed() {
-    const int now = nowUnix();
+bool TokenService::attemptAllowed(int now) {
     if (lockedUntil_ != 0) {
         if (now < lockedUntil_) {
             return false; // en ventana de lockout
@@ -353,8 +403,7 @@ bool TokenService::attemptAllowed() {
     return true;
 }
 
-void TokenService::recordFailure() {
-    const int now = nowUnix();
+void TokenService::recordFailure(int now) {
     if (lockedUntil_ != 0 && now < lockedUntil_) {
         return; // ya bloqueado
     }

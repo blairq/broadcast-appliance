@@ -99,6 +99,8 @@ foreach(test_source ${BA_PLUGIN_HOST_TESTS})
     add_executable(${test_name} ${test_source})
     target_link_libraries(${test_name} PRIVATE ba_plugin_host)
     add_test(NAME ${test_name} COMMAND ${test_name})
+    # 77 = saltado (ver src/core/CMakeLists.txt).
+    set_tests_properties(${test_name} PROPERTIES SKIP_RETURN_CODE 77)
 endforeach()
 
 # --- Instalación ------------------------------------------------------------

@@ -34,6 +34,7 @@
 #include <cstdint>
 #include <functional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace ba::security {
@@ -83,6 +84,7 @@ class TokenService {
         BadSignature, // el MAC no coincide (token alterado o secret distinto).
         Expired,      // `nowUnix` >= exp.
         WrongRoom,    // firma valida pero la sala del payload no coincide.
+        Replayed,     // token valido pero su nonce ya fue canjeado (solo redeem).
     };
 
     /// Callback que valida el PIN. Recibe el PIN en claro y devuelve true si es
@@ -132,6 +134,29 @@ class TokenService {
     VerifyResult verify(const std::string& token, const std::string& room,
                         int nowUnix = ba::security::nowUnix()) const;
 
+    /// Verifica un token Y CONSUME su nonce (un solo uso).
+    ///
+    /// `verify()` es una consulta pura: se puede llamar tantas veces como se
+    /// quiera y sirve para el endpoint de comprobacion. `redeem()` es la que se
+    /// usa al CANJEAR el token por una sesion real (el handshake WebSocket):
+    /// registra el nonce del payload y rechaza cualquier presentacion
+    /// posterior del mismo token con `Replayed`.
+    ///
+    /// Sin esto el `nonce` que issue() pone en el payload era decorativo: un
+    /// token capturado servia durante todo su TTL y en tantas conexiones
+    /// simultaneas como quisiera quien lo tuviera.
+    ///
+    /// Los nonces consumidos se podan solos: cada uno se recuerda solo hasta el
+    /// `exp` de su propio token, asi que la tabla no crece sin limite (un token
+    /// expirado ya lo rechaza el chequeo de expiracion).
+    ///
+    /// :param token: token emitido por issue().
+    /// :param room: sala esperada.
+    /// :param nowUnix: "ahora" en segundos Unix.
+    /// :returns: VerifyResult::Ok la PRIMERA vez; Replayed en las siguientes.
+    VerifyResult redeem(const std::string& token, const std::string& room,
+                        int nowUnix = ba::security::nowUnix());
+
     /// Indica si se permite un nuevo intento de PIN.
     ///
     /// Devuelve false cuando hay un lockout activo (now < lockedUntil_). Cuando
@@ -139,12 +164,20 @@ class TokenService {
     /// vuelve a permitir. No consume presupuesto por si mismo: el presupuesto
     /// lo agota recordFailure() al alcanzar maxAttempts.
     ///
+    /// :param nowUnix: "ahora" en segundos Unix. Se pasa explicitamente (y no
+    ///                 se toma del reloj del sistema por dentro) para que el
+    ///                 lockout use EL MISMO reloj que issue()/verify(): antes
+    ///                 mezclaba el reloj inyectado con el real, de modo que la
+    ///                 ventana de bloqueo no se podia probar de forma
+    ///                 determinista y no estaba cubierta por ningun test.
     /// :returns: true si se permite un intento; false si hay lockout.
-    bool attemptAllowed();
+    bool attemptAllowed(int nowUnix = ba::security::nowUnix());
 
     /// Registra un intento de PIN fallido. Al alcanzar maxAttempts fallos abre
-    /// la ventana de lockout (lockedUntil_ = nowUnix() + lockoutSec).
-    void recordFailure();
+    /// la ventana de lockout (lockedUntil_ = nowUnix + lockoutSec).
+    ///
+    /// :param nowUnix: "ahora" en segundos Unix (ver attemptAllowed).
+    void recordFailure(int nowUnix = ba::security::nowUnix());
 
     /// Registra un intento exitoso: limpia el contador de fallos y el lockout.
     void recordSuccess();
@@ -165,6 +198,12 @@ class TokenService {
     int failures_ = 0;               // fallos de PIN en la ventana actual
     int lockedUntil_ = 0;            // hasta cuando (seg Unix) dura el lockout; 0 = sin lockout
     std::uint64_t nonceCounter_ = 0; // para generar nonces unicos (no son secreto)
+
+    // Nonces ya canjeados -> `exp` del token al que pertenecen. Se purgan los
+    // vencidos en cada redeem(), de modo que la tabla queda acotada por la
+    // cantidad de tokens emitidos dentro de una ventana de TTL.
+    std::unordered_map<std::string, int> usedNonces_;
+    void purgeExpiredNonces(int nowUnix);
 };
 
 } // namespace ba::security

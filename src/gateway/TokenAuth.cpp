@@ -50,6 +50,27 @@ std::string TokenAuth::issue(const std::string& room, const std::string& pin) {
     return svc_->issue(room, pin, ttlSec_);
 }
 
+namespace {
+/// Mapea el resultado del servicio al codigo estable del gateway.
+int toCode(ba::security::TokenService::VerifyResult r) {
+    using VR = ba::security::TokenService::VerifyResult;
+    switch (r) {
+        case VR::Ok: return static_cast<int>(TokenAuth::VerifyCode::kOk);
+        case VR::Malformed: return static_cast<int>(TokenAuth::VerifyCode::kMalformed);
+        case VR::BadSignature: return static_cast<int>(TokenAuth::VerifyCode::kBadSignature);
+        case VR::Expired: return static_cast<int>(TokenAuth::VerifyCode::kExpired);
+        case VR::WrongRoom: return static_cast<int>(TokenAuth::VerifyCode::kWrongRoom);
+        case VR::Replayed: return static_cast<int>(TokenAuth::VerifyCode::kReplayed);
+    }
+    return static_cast<int>(TokenAuth::VerifyCode::kMalformed);
+}
+} // namespace
+
+int TokenAuth::redeem(const std::string& token, const std::string& room) {
+    std::lock_guard<std::mutex> lock(m_);
+    return toCode(svc_->redeem(token, room));
+}
+
 int TokenAuth::verify(const std::string& token, const std::string& room) const {
     std::lock_guard<std::mutex> lock(m_);
     const auto r = svc_->verify(token, room);
@@ -62,6 +83,8 @@ int TokenAuth::verify(const std::string& token, const std::string& room) const {
         case ba::security::TokenService::VerifyResult::Expired: return static_cast<int>(VerifyCode::kExpired);
         case ba::security::TokenService::VerifyResult::WrongRoom:
             return static_cast<int>(VerifyCode::kWrongRoom);
+        case ba::security::TokenService::VerifyResult::Replayed:
+            return static_cast<int>(VerifyCode::kReplayed);
     }
     return static_cast<int>(VerifyCode::kMalformed);
 }

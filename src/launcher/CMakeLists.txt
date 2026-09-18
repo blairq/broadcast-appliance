@@ -47,6 +47,8 @@ add_executable(test_shadow_copy tests/test_shadow_copy.cpp ShadowCopy.cpp Log.cp
 target_include_directories(test_shadow_copy PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(test_shadow_copy PRIVATE ba_core)
 add_test(NAME test_shadow_copy COMMAND test_shadow_copy)
+# 77 = saltado (ver src/core/CMakeLists.txt).
+set_tests_properties(test_shadow_copy PROPERTIES SKIP_RETURN_CODE 77)
 
 # --- Instalación ------------------------------------------------------------
 # El launcher vive en la RAÍZ del disco (spec §5.1), no en bin/64bit/.

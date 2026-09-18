@@ -135,16 +135,16 @@ test-all:
 # FALA (no se salta en verde): un gate que se omite en silencio no es gate.
 CF := $(shell command -v clang-format 2>/dev/null || command -v clang-format-18 2>/dev/null)
 
-# `src/obs-module/obs/` es VENDOR (subconjunto fiel de la API C de libobs
-# 31.0.0): se excluye para que siga fiel al upstream y no se reformatee con
-# nuestro .clang-format.
+# Ya no hay exclusiones: los headers aproximados que vivian en
+# `src/obs-module/obs/` se eliminaron cuando el modulo paso a compilarse contra
+# libobs real, asi que todo `src/` es codigo propio y se lintea entero.
 lint:
 	@if [ -z "$(CF)" ]; then \
 		echo "ERROR: clang-format no encontrado. Instalarlo con: sudo apt install clang-format" >&2; \
 		exit 1; \
 	fi
-	@echo "Lint: $(CF) sobre src/ (dry-run, -Werror; excluye src/obs-module/obs/ vendored)..."
-	@find src \( -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \) ! -path 'src/obs-module/obs/*' -print0 \
+	@echo "Lint: $(CF) sobre src/ (dry-run, -Werror)..."
+	@find src \( -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \) -print0 \
 		| xargs -0 -r $(CF) --dry-run -Werror
 
 # --- Bundle portable (layout §5.1) ------------------------------------------
@@ -386,6 +386,40 @@ VST3_GUI_TAR  := $(DL_DIR)/vst3-vstgui4-65c353fc.tar.gz
 
 # --- deps (agregado) ---------------------------------------------------------
 deps: deps-obs deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist deps-lsp deps-src
+
+# --- libobs para Linux (compilada desde fuente hacia extern/) ---------------
+# El motor de emision necesita libobs. En Windows se usa el runtime prebuilt
+# que baja `make deps-obs`; en Linux no hay tal cosa, asi que se compila desde
+# el tag fijado en versions.cmake hacia `extern/obs-linux`, que es de donde el
+# build del proyecto la toma (nunca del sistema).
+#
+# Requiere las bibliotecas de desarrollo de terceros listadas en el README
+# ("Requisitos de build"). uthash y nv-codec-headers se vendorean aca mismo.
+# Sin parentesis dentro del $(shell ...): make empareja parentesis y una
+# expresion sed con ellos le corta la llamada a la mitad.
+OBS_TAG := $(shell grep OBS_STUDIO_TAG versions.cmake | head -1 | cut -d'"' -f2)
+
+deps-obs-linux:
+	@echo "==> libobs $(OBS_TAG) desde fuente hacia extern/obs-linux"
+	@test -d extern/obs-src || git clone --depth 1 --branch $(OBS_TAG) \
+		--recurse-submodules --shallow-submodules \
+		https://github.com/obsproject/obs-studio.git extern/obs-src
+	@test -d extern/uthash || git clone --depth 1 --branch v2.3.0 \
+		https://github.com/troydhanson/uthash.git extern/uthash
+	@test -d extern/nv-codec-headers || git clone --depth 1 --branch n12.2.72.0 \
+		https://github.com/FFmpeg/nv-codec-headers.git extern/nv-codec-headers
+	cmake -S extern/obs-src -B extern/obs-build \
+		-DCMAKE_BUILD_TYPE=Release \
+		-DENABLE_UI=OFF -DENABLE_SCRIPTING=OFF -DENABLE_BROWSER=OFF \
+		-DENABLE_WEBSOCKET=OFF -DENABLE_VLC=OFF -DENABLE_VST=OFF \
+		-DENABLE_AJA=OFF -DENABLE_DECKLINK=OFF -DENABLE_PIPEWIRE=OFF \
+		-DENABLE_QSV11=OFF -DENABLE_VIRTUALCAM=OFF -DENABLE_WEBRTC=OFF \
+		-DUthash_INCLUDE_DIR=$(CURDIR)/extern/uthash/include \
+		-DFFnvcodec_INCLUDE_DIR=$(CURDIR)/extern/nv-codec-headers/include \
+		-DCMAKE_INSTALL_PREFIX=$(CURDIR)/extern/obs-linux
+	cmake --build extern/obs-build -j$(JOBS)
+	cmake --install extern/obs-build
+	@echo "==> libobs lista en extern/obs-linux"
 
 deps-obs:
 	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }

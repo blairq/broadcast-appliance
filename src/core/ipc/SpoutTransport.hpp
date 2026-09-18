@@ -310,6 +310,19 @@ class SpoutReceiver {
     ///           false si no hay frame nuevo o el receiver no esta suscrito.
     bool hasData() const;
 
+    /// Ancho del slot en pixeles (0 si no esta suscrito).
+    ///
+    /// La fija el sender al publicar y no cambia en caliente. Un consumidor la
+    /// necesita para interpretar los bytes: sin ella solo se sabe cuantos bytes
+    /// hay, no que forma tienen.
+    int width() const;
+
+    /// Alto del slot en pixeles (0 si no esta suscrito).
+    int height() const;
+
+    /// Tamano en bytes de un frame del slot (0 si no esta suscrito).
+    std::size_t frameBytes() const;
+
    private:
     // Backend NULL: referencia al slot en el registro de proceso.
     std::shared_ptr<SpoutNullSlot> null_;

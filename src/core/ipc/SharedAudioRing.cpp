@@ -185,7 +185,11 @@ bool SharedAudioRing::push(const float* samples, uint64_t qpc) {
     return true;
 }
 
-PoppedBlock SharedAudioRing::pop() {
+bool SharedAudioRing::pop(float* out, PoppedBlock& meta) {
+    meta = PoppedBlock{};
+    if (out == nullptr || region_.data() == nullptr) {
+        return false;
+    }
     auto* h = hdr();
     const uint64_t cap = capacityBlocks();
 
@@ -208,31 +212,37 @@ PoppedBlock SharedAudioRing::pop() {
     const uint64_t write = std::atomic_ref<uint64_t>(h->writeIndex).load(std::memory_order_acquire);
     const uint64_t read = std::atomic_ref<uint64_t>(h->readIndex).load(std::memory_order_relaxed);
 
-    // 2) Underrun: sin datos.
+    const size_t floats = blockFloats();
+
+    // 2) Underrun: sin datos. Se entrega silencio en el buffer del llamador.
     if (read == write) {
         std::atomic_ref<uint64_t>(h->underrunCount).fetch_add(1, std::memory_order_relaxed);
-        PoppedBlock b;
-        b.samples = silenceBuffer();
-        b.qpc = h->lastWriteQpc;
-        b.isSilence = true;
-        b.isFadeIn = pendingFadeIn_;
+        std::memcpy(out, silenceBuffer(), floats * sizeof(float));
+        meta.samples = out;
+        meta.qpc = std::atomic_ref<uint64_t>(h->lastWriteQpc).load(std::memory_order_relaxed);
+        meta.isSilence = true;
+        meta.isFadeIn = pendingFadeIn_;
         pendingFadeIn_ = false;
-        return b;
+        return true;
     }
 
-    // 3) Hay datos: entrega el bloque y avanza readIndex.
-    const float* samples = blockAt(read);
+    // 3) Hay datos: COPIA el bloque y solo entonces avanza readIndex.
+    //
+    // El orden importa: mientras readIndex no avance, el escritor considera el
+    // slot ocupado (push() descarta por overrun antes que pisarlo), asi que la
+    // copia ocurre sobre datos estables. Publicar readIndex antes de copiar
+    // dejaria al escritor libre de reclamar el slot a mitad del memcpy.
     const uint64_t qpc =
         *qpcAt(static_cast<const uint8_t*>(region_.data()) + dataOffset(), read, cap, h->channels);
+    std::memcpy(out, blockAt(read), floats * sizeof(float));
     std::atomic_ref<uint64_t>(h->readIndex).store(read + 1, std::memory_order_release);
 
-    PoppedBlock b;
-    b.samples = samples;
-    b.qpc = qpc;
-    b.isSilence = false;
-    b.isFadeIn = pendingFadeIn_;
+    meta.samples = out;
+    meta.qpc = qpc;
+    meta.isSilence = false;
+    meta.isFadeIn = pendingFadeIn_;
     pendingFadeIn_ = false;
-    return b;
+    return true;
 }
 
 } // namespace ba::ipc

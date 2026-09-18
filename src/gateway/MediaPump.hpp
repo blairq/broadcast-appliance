@@ -50,6 +50,7 @@
 #include <thread>
 #include <vector>
 
+#include "dsp/Resampler.hpp"
 #include "ipc/SharedAudioRing.hpp"
 #include "ipc/SpoutTransport.hpp"
 #include "Webrtc.hpp"
@@ -63,10 +64,14 @@ class MediaPump {
    public:
     /// Configuracion de los nombres de flujos IPC y resolucion.
     struct Cfg {
-        std::wstring returnAudioName;              // BA.Audio.ContentForReturn (A→B)
-        std::wstring programVideoName;             // BA.Program (A→B)
-        std::vector<std::wstring> guestAudioNames; // BA.Audio.Guest.<n> (B→A)
-        std::vector<std::wstring> guestVideoNames; // BA.Guest.<n> (B→A)
+        std::wstring returnAudioName;  // BA.Audio.ContentForReturn (A→B)
+        std::wstring programVideoName; // BA.Program (A→B)
+        // Indexados POR SLOT: el elemento [n] es el nombre del invitado del
+        // slot n (1..guests) y el [0] es un hueco reservado (no hay slot 0).
+        // El tamaño esperado es guests+1; un vector mas corto deja invitados
+        // sin canal (start() lo loguea como warning).
+        std::vector<std::wstring> guestAudioNames; // [n] = BA.Audio.Guest.<n> (B→A)
+        std::vector<std::wstring> guestVideoNames; // [n] = BA.Guest.<n> (B→A)
         int audioRate = 48000;
         int audioChannels = 2;
         int programW = 1280;
@@ -117,6 +122,18 @@ class MediaPump {
 
     // Buffer de re-bloqueo de audio de uplink a bloques de 480 frames, por slot.
     std::vector<std::vector<float>> audioBuf_;
+    // Posicion de lectura dentro de audioBuf_[slot]. Antes cada bloque
+    // publicado hacia un erase() desde el frente, es decir un memmove de todo
+    // el resto, dentro del callback de libwebrtc y bajo el lock del slot. Con
+    // un indice, publicar es O(1) y el buffer se compacta de vez en cuando.
+    std::vector<size_t> audioBufPos_;
+    // Re-muestreador por slot: el invitado puede entregar a 44.1 kHz y el ring
+    // B→A es de 48 kHz fijos. Antes el `rate` se ignoraba (`(void)rate`) y el
+    // audio se publicaba crudo, o sea desafinado y a velocidad equivocada.
+    std::vector<std::unique_ptr<ba::dsp::Resampler>> audioResampler_;
+    std::vector<int> audioResamplerRate_; // rate de entrada configurado
+    std::vector<std::vector<float>> audioResampleIn_;
+    std::vector<std::vector<float>> audioResampleOut_;
     // unique_ptr<mutex>: std::mutex no es copiable ni movible, y cualquier op
     // que haga crecer un std::vector<std::mutex> (emplace_back/resize) debe
     // reubicar los elementos existentes (instantia el move/copy borrado). Detras

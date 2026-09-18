@@ -131,8 +131,8 @@ void writeMinidump(void* handle, std::uint32_t pid, const std::wstring& path) {
     // MiniDumpWriteDump exige un HANDLE a un archivo ABIERTO (LPCVOID FileHandle),
     // no la ruta: se abre el destino con CreateFileW y se pasa ese handle.
     ensureDir(parentDir(path)); // <logsDir>\dumps puede no existir en un deploy fresco.
-    HANDLE hFile = CreateFileW(path.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL,
-                               nullptr);
+    HANDLE hFile =
+        CreateFileW(path.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (hFile == INVALID_HANDLE_VALUE) {
         FreeLibrary(dbghelp);
         BA_LOG_WARN("dump", static_cast<int>(GetLastError()), "no se pudo abrir el destino del minidump");
@@ -199,8 +199,16 @@ int Supervisor::run() {
         BA_LOG_INFO("sup", 0, "operador eligio continuar pese a fallos de integridad");
     }
 
-    // Copia sombra (spec 3.1.5): en esta fase es no-op; devuelve la raiz.
+    // Copia sombra (spec 3.1.5): copia bin/, obs-plugins/ y data/ a una carpeta
+    // temporal y devuelve esa raiz (o la original si algo fallo, fail-safe).
+    //
+    // El resultado se APLICA: antes se calculaba y tres lineas mas abajo se
+    // descartaba con `(void)execRoot`, asi que el launcher pagaba la copia
+    // completa del arbol en cada arranque y despues lanzaba los hijos desde el
+    // disco original, que es justo lo que la copia sombra existe para evitar
+    // (poder actualizar los binarios en disco con la app corriendo).
     const std::wstring execRoot = ShadowCopy::prepare(cfg_.root, L"v1");
+    applyExecRoot(execRoot);
 
     // Bloque de salud: el launcher es el owner (crea); los hijos abren.
     const std::size_t slotCount = std::max(cfg_.slotA, cfg_.slotB) + 1;
@@ -214,8 +222,30 @@ int Supervisor::run() {
     launchChildren(/*safeMode=*/false);
     watchdogLoop();
     orderedShutdown();
-    (void)execRoot;
     return 0;
+}
+
+void Supervisor::applyExecRoot(const std::wstring& execRoot) {
+    if (execRoot.empty() || execRoot == cfg_.root) {
+        // ShadowCopy devolvio la raiz original (no se pudo copiar): se sigue
+        // ejecutando desde el disco, que es el comportamiento fail-safe.
+        BA_LOG_INFO("shadow", 0, "ejecutando desde la raiz original");
+        return;
+    }
+    // Reapunta los ejecutables de A y B a la copia, conservando su ruta
+    // relativa dentro del layout (bin/64bit/...). El workDir sigue siendo la
+    // raiz REAL: Config/, Logs/ y Recordings/ viven en el disco, no en la
+    // copia (spec 3.1.5).
+    auto rebase = [&](const std::wstring& exe) -> std::wstring {
+        if (exe.size() > cfg_.root.size() && exe.compare(0, cfg_.root.size(), cfg_.root) == 0) {
+            return execRoot + exe.substr(cfg_.root.size());
+        }
+        return exe;
+    };
+    cfg_.appExe = rebase(cfg_.appExe);
+    cfg_.gatewayExe = rebase(cfg_.gatewayExe);
+    BA_LOG_INFO("shadow", 0,
+                "ejecutando desde la copia sombra: " + std::string(execRoot.begin(), execRoot.end()));
 }
 
 bool Supervisor::acquireInstance() {

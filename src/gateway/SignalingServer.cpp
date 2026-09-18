@@ -26,15 +26,18 @@
 
 #include <array>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <system_error>
 #include <vector>
 
 #include <nlohmann/json.hpp>
 
 #include "ipc/ControlProtocol.hpp"
 #include "Log.hpp"
-#include "MediaPump.hpp" // tipo completo: se invoca forwardAudio/forwardVideo
+#include "MediaPump.hpp"             // tipo completo: se invoca forwardAudio/forwardVideo
+#include "security/TokenService.hpp" // nowUnix() para el rate-limit por IP
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -48,6 +51,7 @@ static long long toLL(Fd f) { return static_cast<long long>(f); }
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#include <sys/select.h> // select() del bucle de accept con timeout
 #include <sys/socket.h>
 #include <unistd.h>
 typedef int Fd;
@@ -90,13 +94,20 @@ struct Sha1 {
             // Paréntesis explícitos en cada ronda: `&`/`|`/`^` tienen
             // precedencias distintas y el compilador avisa (`-Wparentheses`)
             // al mezclarlas sin agrupar. La aritmética no cambia.
-            if (i < 16) {
+            // Las cuatro rondas de SHA-1 (FIPS 180-4 §6.1.2) duran 20 pasos
+            // cada una: 0-19, 20-39, 40-59, 60-79. Los limites estaban en
+            // 16/32/48, que es el tamaño del message schedule (16 palabras),
+            // no el de las rondas; con eso el digest salia mal para CUALQUIER
+            // entrada y, como este SHA-1 solo alimenta el Sec-WebSocket-Accept
+            // del handshake, ningun cliente que valide ese campo (todos los
+            // navegadores lo hacen) podia completar la conexion.
+            if (i < 20) {
                 f = (b & c) | ((~b) & d);
                 k = 0x5A827999;
-            } else if (i < 32) {
+            } else if (i < 40) {
                 f = (b ^ c) ^ d;
                 k = 0x6ED9EBA1;
-            } else if (i < 48) {
+            } else if (i < 60) {
                 f = (b & c) | (b & d) | (c & d);
                 k = 0x8F1BBCDC;
             } else {
@@ -248,6 +259,51 @@ long long makeListen(uint16_t port) {
     return toLL(s);
 }
 
+/// Espera a que `fd` tenga algo que aceptar/leer, con timeout en ms.
+///
+/// Existe para que el bucle de accept NO se quede bloqueado indefinidamente:
+/// en POSIX cerrar el descriptor desde otro thread no despierta a un accept()
+/// bloqueado (no esta garantizado por el estandar), asi que stop() nunca
+/// lograba hacer join del thread de accept y el proceso quedaba colgado al
+/// cerrar. Con un select acotado, el bucle vuelve cada `ms` y ve `stop_`.
+///
+/// :returns: 1 si hay actividad, 0 si vencio el timeout, -1 en error.
+int waitReadable(long long fd, int ms) {
+    if (fd < 0) return -1;
+    fd_set rd;
+    FD_ZERO(&rd);
+    FD_SET(toFd(fd), &rd);
+    timeval tv;
+    tv.tv_sec = ms / 1000;
+    tv.tv_usec = (ms % 1000) * 1000;
+#ifdef _WIN32
+    // En winsock el primer argumento se ignora.
+    return select(0, &rd, nullptr, nullptr, &tv);
+#else
+    return select(static_cast<int>(fd) + 1, &rd, nullptr, nullptr, &tv);
+#endif
+}
+
+/// Fija (o quita, con ms == 0) el timeout de recepcion y envio de un socket.
+///
+/// Acota la fase HTTP/handshake: una conexion que abre y no manda nada dejaria
+/// su thread bloqueado en recv para siempre, y con el a stop(), que hace join.
+/// Una vez promovida a WebSocket el timeout se quita: un invitado puede estar
+/// legitimamente en silencio, y ahi el desbloqueo lo da stop() cerrando el fd.
+void setSocketTimeout(long long fd, int ms) {
+#ifdef _WIN32
+    DWORD v = static_cast<DWORD>(ms);
+    setsockopt(toFd(fd), SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&v), sizeof(v));
+    setsockopt(toFd(fd), SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<const char*>(&v), sizeof(v));
+#else
+    timeval tv;
+    tv.tv_sec = ms / 1000;
+    tv.tv_usec = (ms % 1000) * 1000;
+    setsockopt(toFd(fd), SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    setsockopt(toFd(fd), SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+#endif
+}
+
 bool setNoDelay(long long fd) {
     int yes = 1;
 #ifdef _WIN32
@@ -294,23 +350,33 @@ bool readHeaders(long long fd, std::string& headers) {
 }
 
 /// Extrae el valor de una cabecera (case-insensitive).
+///
+/// La BUSQUEDA es case-insensitive (RFC 7230 §3.2: los nombres de cabecera no
+/// distinguen mayusculas), pero el VALOR se recorta del buffer original: hay
+/// valores que si distinguen mayusculas y bajarlos romperia el protocolo
+/// (`Sec-WebSocket-Key` es base64 y su SHA-1 entra en el accept del handshake).
+/// Por eso se mantienen dos buffers alineados indice a indice: `hay` (copia en
+/// minusculas, donde se busca) y `orig` (el original, de donde se recorta).
 std::string getHeader(const std::string& headers, const std::string& name) {
-    const std::string lower = "\r\n" + headers;
+    const std::string orig = "\r\n" + headers;
+    std::string hay = orig;
+    for (auto& ch : hay)
+        ch = static_cast<char>(::tolower(static_cast<unsigned char>(ch)));
     std::string needle = "\r\n" + name + ":";
-    // Minúsculas del needle.
     for (auto& ch : needle)
-        ch = static_cast<char>(::tolower(ch));
-    const size_t pos = lower.find(needle);
+        ch = static_cast<char>(::tolower(static_cast<unsigned char>(ch)));
+    const size_t pos = hay.find(needle);
     if (pos == std::string::npos) return "";
     const size_t start = pos + needle.size();
-    // Saltar espacios.
+    // Saltar espacios (OWS, RFC 7230 §3.2.3).
     size_t i = start;
-    while (i < lower.size() && (lower[i] == ' ' || lower[i] == '\t'))
+    while (i < hay.size() && (hay[i] == ' ' || hay[i] == '\t'))
         ++i;
     size_t e = i;
-    while (e < lower.size() && lower[e] != '\r' && lower[e] != '\n')
+    while (e < hay.size() && hay[e] != '\r' && hay[e] != '\n')
         ++e;
-    return lower.substr(i, e - i);
+    // Recorte del ORIGINAL: `hay` solo sirvio para localizar los indices.
+    return orig.substr(i, e - i);
 }
 
 /// Parsea la query string a un map.
@@ -390,6 +456,8 @@ std::string urlDecode(const std::string& s) {
 SignalingServer::SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub, Log& log)
     : cfg_(cfg), auth_(auth), hub_(hub), log_(log) {
     slotBusy_.assign(static_cast<size_t>(cfg_.maxGuests) + 1, false);
+    slotReservedUntil_.assign(static_cast<size_t>(cfg_.maxGuests) + 1, 0);
+    slotReservedIp_.assign(static_cast<size_t>(cfg_.maxGuests) + 1, 0u);
 }
 
 SignalingServer::~SignalingServer() { stop(); }
@@ -414,41 +482,192 @@ bool SignalingServer::start() {
 }
 
 void SignalingServer::stop() {
+    // Idempotente: el destructor llama a stop() y main() tambien.
+    if (listenFd_ < 0 && activeConns_.load() == 0 && !acceptThread_.joinable()) {
+        return;
+    }
     stop_.store(true);
+
+    // 1) El thread de accept sale por `stop_` (su espera es acotada), no por el
+    //    cierre del descriptor: cerrarlo no despierta a un accept() bloqueado.
+    if (acceptThread_.joinable()) acceptThread_.join();
     if (listenFd_ >= 0) {
         closeFdImpl(toFd(listenFd_));
         listenFd_ = -1;
     }
-    if (acceptThread_.joinable()) acceptThread_.join();
-    {
-        std::lock_guard<std::mutex> lock(connThreadsLock_);
-        for (auto& t : connThreads_)
-            if (t.joinable()) t.join();
-        connThreads_.clear();
+
+    // 2) Las conexiones WS pueden estar en un recv sin timeout (un invitado en
+    //    silencio es legitimo). Se les cierra el descriptor para que el recv
+    //    retorne y el thread salga.
+    closeActiveConns();
+
+    // 3) Espera acotada a que los threads detachados terminen. Si alguno no
+    //    sale, se avisa en vez de bloquear el cierre del proceso para siempre.
+    constexpr int kDrainTimeoutMs = 3000;
+    constexpr int kDrainStepMs = 20;
+    int waited = 0;
+    while (activeConns_.load(std::memory_order_relaxed) > 0 && waited < kDrainTimeoutMs) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(kDrainStepMs));
+        waited += kDrainStepMs;
     }
+    const int leftover = activeConns_.load(std::memory_order_relaxed);
+    if (leftover > 0) {
+        log_.warn("senalizacion: " + std::to_string(leftover) + " conexiones sin cerrar tras " +
+                      std::to_string(kDrainTimeoutMs) + " ms",
+                  -1);
+    }
+
     socketCleanup();
     log_.info("senalizacion: detenida");
+}
+
+bool SignalingServer::ipAttemptAllowed(std::uint32_t ip) {
+    const int now = static_cast<int>(ba::security::nowUnix());
+    std::lock_guard<std::mutex> lock(ipAttemptsLock_);
+    auto it = ipAttempts_.find(ip);
+    if (it == ipAttempts_.end()) {
+        return true;
+    }
+    if (it->second.lockedUntilUnix != 0) {
+        if (now < it->second.lockedUntilUnix) {
+            return false;
+        }
+        // Vencio la ventana: presupuesto fresco para esa IP.
+        ipAttempts_.erase(it);
+    }
+    return true;
+}
+
+void SignalingServer::ipRecordFailure(std::uint32_t ip) {
+    const int now = static_cast<int>(ba::security::nowUnix());
+    std::lock_guard<std::mutex> lock(ipAttemptsLock_);
+    // Poda oportunista: sin esto el mapa crece con cada IP que alguna vez
+    // fallo, y es memoria que un atacante puede hacer crecer a voluntad.
+    for (auto it = ipAttempts_.begin(); it != ipAttempts_.end();) {
+        if (it->second.lockedUntilUnix != 0 && now >= it->second.lockedUntilUnix) {
+            it = ipAttempts_.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    auto& a = ipAttempts_[ip];
+    ++a.failures;
+    if (a.failures >= kPinMaxAttemptsPerIp) {
+        a.lockedUntilUnix = now + kPinLockoutSecPerIp;
+    }
+}
+
+void SignalingServer::ipRecordSuccess(std::uint32_t ip) {
+    std::lock_guard<std::mutex> lock(ipAttemptsLock_);
+    ipAttempts_.erase(ip);
+}
+
+void SignalingServer::trackFd(long long fd) {
+    std::lock_guard<std::mutex> lock(activeFdsLock_);
+    activeFds_.insert(fd);
+}
+
+void SignalingServer::untrackFd(long long fd) {
+    std::lock_guard<std::mutex> lock(activeFdsLock_);
+    activeFds_.erase(fd);
+}
+
+void SignalingServer::closeActiveConns() {
+    // shutdown(), no close(): el descriptor es propiedad del thread de conexion,
+    // que lo cerrara al salir. Cerrarlo desde aqui abriria una ventana en la que
+    // ese numero de fd se reutiliza y el thread opera sobre un socket ajeno.
+    // shutdown() solo rompe la conexion: el recv retorna 0 y el thread sale.
+    std::lock_guard<std::mutex> lock(activeFdsLock_);
+    for (long long fd : activeFds_) {
+        if (fd < 0) continue;
+#ifdef _WIN32
+        shutdown(toFd(fd), SD_BOTH);
+#else
+        ::shutdown(toFd(fd), SHUT_RDWR);
+#endif
+    }
 }
 
 bool SignalingServer::running() const { return listenFd_ >= 0; }
 
 void SignalingServer::acceptLoop() {
+    // Periodo con el que el bucle vuelve a mirar `stop_` si no entra nadie.
+    // Es tambien la latencia maxima del cierre ordenado.
+    constexpr int kAcceptPollMs = 200;
+
     while (!stop_.load(std::memory_order_relaxed)) {
+        // Espera acotada en vez de accept() bloqueante: asi el cierre no
+        // depende de que llegue una conexion mas (ver waitReadable).
+        const long long listenFd = listenFd_;
+        if (listenFd < 0) break;
+        const int ready = waitReadable(listenFd, kAcceptPollMs);
+        if (ready == 0) continue; // timeout: solo re-chequea stop_
+        if (ready < 0) {          // error del selector
+            if (stop_.load(std::memory_order_relaxed)) break;
+            // No se reintenta en caliente: un error persistente aqui haria
+            // girar el bucle al 100% de CPU. Se cede el turno.
+            std::this_thread::sleep_for(std::chrono::milliseconds(kAcceptPollMs));
+            continue;
+        }
+
         sockaddr_in cli{};
         socklen_t len = sizeof(cli);
-        Fd c = accept(toFd(listenFd_), reinterpret_cast<sockaddr*>(&cli), &len);
+        Fd c = accept(toFd(listenFd), reinterpret_cast<sockaddr*>(&cli), &len);
         if (c == FD_INVALID) {
             if (stop_.load(std::memory_order_relaxed)) break;
             continue;
         }
-        setNoDelay(toLL(c));
         const long long fd = toLL(c);
-        std::lock_guard<std::mutex> lock(connThreadsLock_);
-        connThreads_.emplace_back(&SignalingServer::handleConnection, this, fd);
+
+        // Tope de concurrencia: por encima se responde 503 y se cierra, en vez
+        // de lanzar un thread mas. Sin esto, abrir conexiones en bucle agota
+        // threads y memoria sin necesidad de autenticarse.
+        if (activeConns_.load(std::memory_order_relaxed) >= kMaxConcurrentConns) {
+            sendResponse(fd, 503, "Service Unavailable", "text/plain", "servidor saturado\n");
+            closeFdImpl(toFd(fd));
+            log_.warn("senalizacion: conexion rechazada, tope de " + std::to_string(kMaxConcurrentConns) +
+                          " conexiones",
+                      -1);
+            continue;
+        }
+
+        setNoDelay(fd);
+        // Acota la fase HTTP/handshake (una conexion muda no puede retener un
+        // thread para siempre). wsHandshake lo quita al promover a WebSocket.
+        setSocketTimeout(fd, kHandshakeTimeoutMs);
+
+        // El contador sube y el fd se registra ANTES de lanzar el thread: si se
+        // hiciera dentro, stop() podria ver 0 conexiones (o no conocer el fd) y
+        // volver mientras el thread todavia arranca.
+        activeConns_.fetch_add(1, std::memory_order_relaxed);
+        trackFd(fd);
+        // La IP de origen alimenta el rate-limit de PIN por cliente.
+#ifdef _WIN32
+        const std::uint32_t clientIp = static_cast<std::uint32_t>(cli.sin_addr.S_un.S_addr);
+#else
+        const std::uint32_t clientIp = static_cast<std::uint32_t>(cli.sin_addr.s_addr);
+#endif
+        std::thread(&SignalingServer::handleConnection, this, fd, clientIp).detach();
     }
 }
 
-void SignalingServer::handleConnection(long long fd) {
+void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp) {
+    // El thread esta detachado: el contador de conexiones vivas DEBE bajar por
+    // cualquier salida de la funcion (hay varios return), porque stop() espera
+    // a que llegue a 0 antes de dejar morir al objeto. Un guard de ambito lo
+    // garantiza sin depender de acordarse en cada rama.
+    struct ConnGuard {
+        SignalingServer* self;
+        long long fd;
+        ~ConnGuard() {
+            self->untrackFd(fd);
+            // El contador baja EL ULTIMO: stop() lo usa como senal de "ya no
+            // queda nadie tocando el objeto", asi que no debe llegar a 0 antes
+            // de que este thread termine de usar `self`.
+            self->activeConns_.fetch_sub(1, std::memory_order_relaxed);
+        }
+    } guard{this, fd};
+
     std::string headers;
     if (!readHeaders(fd, headers)) {
         closeFdImpl(toFd(fd));
@@ -491,8 +710,14 @@ void SignalingServer::handleConnection(long long fd) {
         }
     }
 
-    const std::string upgrade = getHeader(headers, "Upgrade");
-    const bool isWs = (upgrade == "websocket" || upgrade == "WebSocket");
+    // El valor de Upgrade es un token case-insensitive (RFC 6455 §4.2.1: "un
+    // valor que sea un match ASCII case-insensitive de 'websocket'"), y cada
+    // cliente lo escribe a su manera ("websocket", "WebSocket"). Se compara
+    // bajando el valor, no enumerando capitalizaciones.
+    std::string upgrade = getHeader(headers, "Upgrade");
+    for (auto& ch : upgrade)
+        ch = static_cast<char>(::tolower(static_cast<unsigned char>(ch)));
+    const bool isWs = (upgrade == "websocket");
 
     if (isWs && path == "/ws") {
         if (wsHandshake(fd, headers, query)) {
@@ -510,13 +735,13 @@ void SignalingServer::handleConnection(long long fd) {
         return;
     }
 
-    handleHttp(fd, method, path, query, body);
+    handleHttp(fd, method, path, query, body, clientIp);
     closeFdImpl(toFd(fd));
 }
 
 // --- HTTP -------------------------------------------------------------------
 void SignalingServer::handleHttp(long long fd, const std::string& method, const std::string& path,
-                                 const std::string& query, const std::string& body) {
+                                 const std::string& query, const std::string& body, std::uint32_t clientIp) {
     if (path == "/" || path == "/index.html") {
         serveStatic(fd, "index.html");
         return;
@@ -526,7 +751,7 @@ void SignalingServer::handleHttp(long long fd, const std::string& method, const 
         return;
     }
     if (path == "/api/join" && method == "POST") {
-        apiJoin(fd, body);
+        apiJoin(fd, body, clientIp);
         return;
     }
     if (path == "/api/verify") {
@@ -541,12 +766,33 @@ void SignalingServer::handleHttp(long long fd, const std::string& method, const 
 }
 
 bool SignalingServer::serveStatic(long long fd, const std::string& relPath) {
-    // Guarda contra path traversal: rechaza "..".
-    if (relPath.find("..") != std::string::npos) {
+    // Guarda contra path traversal por CANONICALIZACION, no por buscar "..".
+    // La busqueda de subcadena funcionaba solo por accidente (el path nunca se
+    // URL-decodifica), rechazaba nombres legitimos que contuvieran dos puntos
+    // seguidos, y se romperia en silencio el dia que alguien agregue el decode
+    // que el resto del codigo ya aplica a la query. Comparar la ruta resuelta
+    // contra el webroot resuelto es la comprobacion que de verdad importa.
+    std::error_code ec;
+    const std::filesystem::path rootCanon = std::filesystem::weakly_canonical(cfg_.webroot, ec);
+    if (ec) {
+        sendResponse(fd, 404, "Not Found", "text/plain", "no encontrado\n");
+        return true;
+    }
+    const std::filesystem::path target =
+        std::filesystem::weakly_canonical(std::filesystem::path(cfg_.webroot) / relPath, ec);
+    if (ec) {
         sendResponse(fd, 400, "Bad Request", "text/plain", "ruta invalida\n");
         return true;
     }
-    const std::string full = cfg_.webroot + "/" + relPath;
+    // `target` debe quedar DENTRO de rootCanon.
+    const auto rootStr = rootCanon.generic_string();
+    const auto targetStr = target.generic_string();
+    if (targetStr.size() < rootStr.size() || targetStr.compare(0, rootStr.size(), rootStr) != 0 ||
+        (targetStr.size() > rootStr.size() && targetStr[rootStr.size()] != '/')) {
+        sendResponse(fd, 400, "Bad Request", "text/plain", "ruta invalida\n");
+        return true;
+    }
+    const std::string full = target.string();
     std::ifstream f(full, std::ios::binary);
     if (!f) {
         sendResponse(fd, 404, "Not Found", "text/plain", "no encontrado\n");
@@ -570,7 +816,13 @@ bool SignalingServer::serveStatic(long long fd, const std::string& relPath) {
     return true;
 }
 
-void SignalingServer::apiJoin(long long fd, const std::string& body) {
+void SignalingServer::apiJoin(long long fd, const std::string& body, std::uint32_t clientIp) {
+    // Rate-limit por IP ANTES de tocar el validador de PIN: quien agoto sus
+    // intentos recibe 429 y no consume presupuesto del lockout global.
+    if (!ipAttemptAllowed(clientIp)) {
+        sendResponse(fd, 429, "Too Many Requests", "application/json", "{\"ok\":false,\"error\":\"rate\"}");
+        return;
+    }
     json req;
     try {
         req = json::parse(body);
@@ -582,13 +834,25 @@ void SignalingServer::apiJoin(long long fd, const std::string& body) {
     const std::string pin = req.value("pin", "");
     const std::string token = auth_.issue(room, pin);
     if (token.empty()) {
+        ipRecordFailure(clientIp);
         sendResponse(fd, 401, "Unauthorized", "application/json", "{\"ok\":false,\"error\":\"pin\"}");
         return;
     }
+    ipRecordSuccess(clientIp);
+    // El SERVIDOR elige el slot: es quien conoce la ocupacion. El cliente web
+    // lo tenia codificado a 1, de modo que el segundo invitado siempre chocaba
+    // con un 409 y la mesa de hasta 4 invitados era imposible.
+    const int slot = reserveSlotFor(clientIp);
+    if (slot == 0) {
+        sendResponse(fd, 503, "Service Unavailable", "application/json", "{\"ok\":false,\"error\":\"full\"}");
+        return;
+    }
+
     json resp;
     resp["ok"] = true;
     resp["token"] = token;
     resp["room"] = room;
+    resp["slot"] = slot;
     resp["maxGuests"] = cfg_.maxGuests;
     resp["ttlSec"] = auth_.ttlSec();
     sendResponse(fd, 200, "OK", "application/json", resp.dump());
@@ -623,8 +887,11 @@ bool SignalingServer::wsHandshake(long long fd, const std::string& req, const st
     const int slot = static_cast<int>(
         (q.count("slot") && !q.at("slot").empty()) ? parseLong(urlDecode(q.at("slot")), 1) : 1);
 
-    // Auth: verifica el token contra la sala (spec §8.3).
-    const int vcode = auth_.verify(token, room);
+    // Auth: CANJEA el token contra la sala (spec §8.3). Se usa redeem() y no
+    // verify() porque este es el punto donde el token se cambia por una sesion
+    // real: el nonce se consume y una segunda presentacion del mismo token
+    // (replay) se rechaza aunque siga dentro de su TTL.
+    const int vcode = auth_.redeem(token, room);
     if (vcode != 0) {
         log_.fmt("warn", vcode, "ws: token invalido (slot=%d, code=%d)", slot, vcode);
         sendResponse(fd, 401, "Unauthorized", "text/plain", "token invalido\n");
@@ -648,6 +915,11 @@ bool SignalingServer::wsHandshake(long long fd, const std::string& req, const st
         releaseSlot(slot);
         return false;
     }
+    // Promovida a WebSocket: se quita el timeout de la fase de handshake. Un
+    // invitado puede estar legitimamente callado minutos entre mensajes de
+    // senalizacion, y un recv que venciera cerraria su sesion. El desbloqueo en
+    // el cierre lo da stop(), que hace shutdown() de este mismo descriptor.
+    setSocketTimeout(fd, 0);
     log_.fmt("info", 0, "ws: invitado conectado (slot=%d, room=%s)", slot, room.c_str());
     return true;
 }
@@ -766,11 +1038,59 @@ void SignalingServer::unregisterConn(int slot) {
 }
 
 // --- Slots ------------------------------------------------------------------
-bool SignalingServer::tryClaimSlot(int slot) {
+void SignalingServer::expireReservationsLocked(int nowUnix) {
+    for (size_t i = 1; i < slotReservedUntil_.size(); ++i) {
+        if (slotReservedUntil_[i] != 0 && nowUnix >= slotReservedUntil_[i]) {
+            // Pidio token y nunca abrio el WebSocket: el slot vuelve al pool.
+            slotReservedUntil_[i] = 0;
+            slotReservedIp_[i] = 0u;
+            slotBusy_[i] = false;
+        }
+    }
+}
+
+int SignalingServer::reserveSlotFor(std::uint32_t ip) {
+    const int now = static_cast<int>(ba::security::nowUnix());
     std::lock_guard<std::mutex> lock(slotLock_);
+    expireReservationsLocked(now);
+
+    // Si este cliente ya tiene una reserva viva, se la refresca en vez de
+    // quemar otro slot: es el caso de recargar la pagina de ingreso.
+    for (size_t i = 1; i < slotReservedUntil_.size(); ++i) {
+        if (slotReservedUntil_[i] != 0 && slotReservedIp_[i] == ip) {
+            slotReservedUntil_[i] = now + auth_.ttlSec();
+            return static_cast<int>(i);
+        }
+    }
+
+    for (size_t i = 1; i < slotBusy_.size(); ++i) {
+        if (!slotBusy_[i]) {
+            slotBusy_[i] = true;
+            slotReservedUntil_[i] = now + auth_.ttlSec();
+            slotReservedIp_[i] = ip;
+            return static_cast<int>(i);
+        }
+    }
+    return 0; // sala llena
+}
+
+bool SignalingServer::tryClaimSlot(int slot) {
+    const int now = static_cast<int>(ba::security::nowUnix());
+    std::lock_guard<std::mutex> lock(slotLock_);
+    expireReservationsLocked(now);
     if (slot < 1 || slot >= static_cast<int>(slotBusy_.size())) return false;
-    if (slotBusy_[static_cast<size_t>(slot)]) return false;
-    slotBusy_[static_cast<size_t>(slot)] = true;
+    const size_t i = static_cast<size_t>(slot);
+    if (slotBusy_[i]) {
+        // Ocupado: solo se admite si es una RESERVA pendiente. Quien llega aca
+        // ya presento un token valido y de un solo uso, asi que es su dueño.
+        if (slotReservedUntil_[i] == 0) {
+            return false; // hay una sesion activa de verdad
+        }
+        slotReservedUntil_[i] = 0; // reserva -> ocupacion activa
+        slotReservedIp_[i] = 0u;
+        return true;
+    }
+    slotBusy_[i] = true;
     return true;
 }
 
@@ -778,6 +1098,8 @@ void SignalingServer::releaseSlot(int slot) {
     std::lock_guard<std::mutex> lock(slotLock_);
     if (slot < 1 || slot >= static_cast<int>(slotBusy_.size())) return;
     slotBusy_[static_cast<size_t>(slot)] = false;
+    slotReservedUntil_[static_cast<size_t>(slot)] = 0;
+    slotReservedIp_[static_cast<size_t>(slot)] = 0u;
 }
 
 // --- Socket send ------------------------------------------------------------
@@ -797,33 +1119,86 @@ bool SignalingServer::sendResponse(long long fd, int code, const std::string& st
 namespace {
 /// Lee un frame WS (cliente→servidor, enmascarado). Devuelve true si se leyo.
 bool readWsFrame(long long fd, std::string& payload, int& opcode) {
-    uint8_t h[2];
-    if (!readExact(fd, h, 2)) return false;
-    const int op = h[0] & 0x0F;
-    const bool masked = (h[1] & 0x80) != 0;
-    uint64_t len = h[1] & 0x7F;
-    if (len == 126) {
-        uint8_t ext[2];
-        if (!readExact(fd, ext, 2)) return false;
-        len = (uint64_t(ext[0]) << 8) | ext[1];
-    } else if (len == 127) {
-        uint8_t ext[8];
-        if (!readExact(fd, ext, 8)) return false;
-        len = 0;
-        for (int i = 0; i < 8; ++i)
-            len = (len << 8) | ext[i];
+    payload.clear();
+    opcode = 0;
+    // Opcode del mensaje EN CURSO cuando se esta reensamblando una secuencia
+    // fragmentada (0 = todavia no empezo ninguno).
+    int messageOpcode = 0;
+
+    // Un mensaje WebSocket puede llegar partido en varios frames (RFC 6455
+    // §5.4): el primero lleva el opcode real y FIN=0, los siguientes llevan
+    // opcode 0 (continuacion) y el ultimo FIN=1. Antes se ignoraba el bit FIN
+    // y cada fragmento se trataba como un mensaje completo, asi que un SDP
+    // grande -- que los navegadores parten con naturalidad -- llegaba en trozos
+    // y el parseo JSON fallaba. Este bucle reensambla hasta ver FIN.
+    for (;;) {
+        uint8_t h[2];
+        if (!readExact(fd, h, 2)) return false;
+        const bool fin = (h[0] & 0x80) != 0;
+        const int op = h[0] & 0x0F;
+        const bool masked = (h[1] & 0x80) != 0;
+
+        // RFC 6455 §5.1: todo frame de cliente a servidor DEBE venir
+        // enmascarado. Un frame sin mascara es un error de protocolo y la
+        // conexion se cierra en vez de procesarlo.
+        if (!masked) return false;
+
+        uint64_t len = h[1] & 0x7F;
+        if (len == 126) {
+            uint8_t ext[2];
+            if (!readExact(fd, ext, 2)) return false;
+            len = (uint64_t(ext[0]) << 8) | ext[1];
+        } else if (len == 127) {
+            uint8_t ext[8];
+            if (!readExact(fd, ext, 8)) return false;
+            len = 0;
+            for (int i = 0; i < 8; ++i)
+                len = (len << 8) | ext[i];
+        }
+        // El tope se aplica al mensaje REENSAMBLADO, no a cada fragmento: si no,
+        // bastaba con partir un payload enorme para saltarse el limite.
+        if (len > Frame::kMaxPayloadBytes || payload.size() + len > Frame::kMaxPayloadBytes) {
+            return false;
+        }
+
+        uint8_t mask[4] = {0, 0, 0, 0};
+        if (!readExact(fd, mask, 4)) return false;
+
+        const size_t base = payload.size();
+        payload.resize(base + static_cast<size_t>(len));
+        if (len > 0 && !readExact(fd, reinterpret_cast<uint8_t*>(&payload[base]), len)) return false;
+        for (size_t i = 0; i < static_cast<size_t>(len); ++i) {
+            payload[base + i] = static_cast<char>(static_cast<uint8_t>(payload[base + i]) ^ mask[i % 4]);
+        }
+
+        // Los frames de CONTROL (>= 0x8: close, ping, pong) nunca se fragmentan
+        // y pueden intercalarse en medio de un mensaje fragmentado. Se entregan
+        // tal cual al caller, sin tocar el reensamblado en curso.
+        if (op >= 0x8) {
+            if (base != 0) {
+                // Habia un mensaje a medias: no se puede devolver el control y
+                // conservar el parcial con esta API de una sola salida, asi que
+                // se prioriza el frame de control y se descarta el parcial.
+                payload.erase(0, base);
+            }
+            opcode = op;
+            return true;
+        }
+
+        if (op != 0x0) {
+            // Frame inicial de un mensaje: fija el opcode real.
+            messageOpcode = op;
+        } else if (messageOpcode == 0) {
+            // Continuacion sin mensaje empezado: error de protocolo.
+            return false;
+        }
+
+        if (fin) {
+            opcode = messageOpcode;
+            return true;
+        }
+        // FIN=0: seguir leyendo fragmentos.
     }
-    if (len > Frame::kMaxPayloadBytes) return false;
-    uint8_t mask[4] = {0, 0, 0, 0};
-    if (masked && !readExact(fd, mask, 4)) return false;
-    payload.resize(static_cast<size_t>(len));
-    if (len > 0 && !readExact(fd, reinterpret_cast<uint8_t*>(&payload[0]), len)) return false;
-    if (masked) {
-        for (size_t i = 0; i < payload.size(); ++i)
-            payload[i] = static_cast<char>(static_cast<uint8_t>(payload[i]) ^ mask[i % 4]);
-    }
-    opcode = op;
-    return true;
 }
 
 /// Escribe un frame WS (servidor→cliente, sin mascara).

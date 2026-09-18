@@ -50,6 +50,7 @@ class TokenAuth {
         kBadSignature = -2,
         kExpired = -3,
         kWrongRoom = -4,
+        kReplayed = -5,
     };
 
     /// :param secret: clave HMAC que firma/verifica los tokens.
@@ -82,6 +83,14 @@ class TokenAuth {
     /// :returns: VerifyCode::kOk (0) si todo esta bien; si no, el motivo
     ///           (kMalformed/kBadSignature/kExpired/kWrongRoom).
     int verify(const std::string& token, const std::string& room) const;
+
+    /// Verifica y CANJEA el token (un solo uso). Se usa al abrir la sesion
+    /// WebSocket; `verify()` queda para la consulta sin efecto.
+    ///
+    /// :param token: token emitido por issue().
+    /// :param room: sala esperada.
+    /// :returns: 0 si es valido y se canjeo; kReplayed si ya se habia usado.
+    int redeem(const std::string& token, const std::string& room);
 
     /// Vida util configurada de los tokens (segundos).
     int ttlSec() const { return ttlSec_; }

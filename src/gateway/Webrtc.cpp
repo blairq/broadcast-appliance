@@ -90,6 +90,17 @@ struct NullSession {
         cb = c;
         slot = s;
         configured = true;
+        // Reinicio del estado de la sesion: configure() se llama cada vez que
+        // un invitado abre una conexion WebSocket en este slot, incluida la
+        // RECONEXION tras una caida (la app web reconecta sola con backoff).
+        // Sin limpiar `closed`, la sesion quedaba muerta despues del primer
+        // cierre: setRemoteOffer() devolvia false para siempre y el invitado no
+        // podia volver a entrar a ese slot en toda la vida del proceso.
+        closed = false;
+        offerReceived = false;
+        connected = false;
+        localAudioBlocks.store(0, std::memory_order_relaxed);
+        localVideoFrames.store(0, std::memory_order_relaxed);
         return true;
     }
 

@@ -124,6 +124,10 @@ void LogRotator::write(const std::string& line) {
         return; // directorio no creable: no-op
     }
 
+    // Todo el ciclo "mirar tamaño -> rotar -> escribir" va bajo el lock: son
+    // tres pasos que dependen entre si, y dos hilos intercalandolos se pisan
+    // los renombres.
+    std::lock_guard<std::mutex> lock(m_);
     try {
         // Rota si el activo ya llego al umbral (y no esta vacio).
         const std::size_t cur = activeSize();
@@ -147,6 +151,7 @@ void LogRotator::write(const std::string& line) {
 // --- files ------------------------------------------------------------------
 
 std::vector<std::string> LogRotator::files() const {
+    std::lock_guard<std::mutex> lock(m_);
     std::vector<std::string> out;
     if (!active_) {
         return out;

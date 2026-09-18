@@ -55,6 +55,11 @@ target_include_directories(ba_core
 #     tipos de argon2 (solo usa std::string/std::size_t); el include de
 #     <argon2.h> vive solo en SecretsStore.cpp. KDF Argon2id de secrets.json
 #     (spec §12, D7).
+# -fPIC: `ba_core` es estatica, pero el modulo de libobs (`ba-sources`) es una
+# biblioteca COMPARTIDA que la enlaza. Sin codigo independiente de posicion el
+# enlace de ese modulo falla ("can not be used when making a shared object").
+set_target_properties(ba_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 target_link_libraries(ba_core PRIVATE mbedcrypto mbedx509 mbedtls)
 target_link_libraries(ba_core PUBLIC nlohmann_json::nlohmann_json)
 target_link_libraries(ba_core PRIVATE samplerate)
@@ -73,6 +78,10 @@ foreach(test_source ${BA_CORE_TESTS})
     add_executable(${test_name} ${test_source})
     target_link_libraries(${test_name} PRIVATE ba_core)
     add_test(NAME ${test_name} COMMAND ${test_name})
+    # Codigo 77 = "saltado", no "pasado". Sin esto, un test que imprime SKIP y
+    # devuelve 0 lo contaba CTest como PASS, y el verde tapaba que caminos
+    # enteros (libwebrtc, libobs) no se ejercitaban nunca.
+    set_tests_properties(${test_name} PROPERTIES SKIP_RETURN_CODE 77)
 endforeach()
 
 # --- Instalación ------------------------------------------------------------

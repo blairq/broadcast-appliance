@@ -84,12 +84,14 @@ void ChannelStrip::setParams(const StripParams& p, double smoothMs) {
     // --- HPF: cascada de high-pass Butterworth ---
     for (int i = 0; i < 3; ++i) {
         if (i < stages) {
-            hpf_[i].setParams(BiquadType::HighPass, fs, hpfFreq, 0.0, 0.7071);
+            hpfL_[i].setParams(BiquadType::HighPass, fs, hpfFreq, 0.0, 0.7071);
+            hpfR_[i].setParams(BiquadType::HighPass, fs, hpfFreq, 0.0, 0.7071);
         } else {
             // Etapa inactiva: la dejamos en un high-pass muy por debajo del
             // rango audible para que sea (casi) neutra. Con freq clamped a 1 Hz
             // el high-pass pasa practicamente todo.
-            hpf_[i].setParams(BiquadType::HighPass, fs, 1.0, 0.0, 0.7071);
+            hpfL_[i].setParams(BiquadType::HighPass, fs, 1.0, 0.0, 0.7071);
+            hpfR_[i].setParams(BiquadType::HighPass, fs, 1.0, 0.0, 0.7071);
         }
     }
 
@@ -99,10 +101,12 @@ void ChannelStrip::setParams(const StripParams& p, double smoothMs) {
         eqEnabled_[i] = b.enabled;
         double q = (b.q > 0.0) ? b.q : 1.0;
         if (b.enabled) {
-            eq_[i].setParams(b.type, fs, b.freq, b.gainDb, q);
+            eqL_[i].setParams(b.type, fs, b.freq, b.gainDb, q);
+            eqR_[i].setParams(b.type, fs, b.freq, b.gainDb, q);
         } else {
             // Banda desactivada: ganancia 0 dB (neutro) para no alterar.
-            eq_[i].setParams(b.type, fs, b.freq, 0.0, q);
+            eqL_[i].setParams(b.type, fs, b.freq, 0.0, q);
+            eqR_[i].setParams(b.type, fs, b.freq, 0.0, q);
         }
     }
 
@@ -157,10 +161,12 @@ void ChannelStrip::setParams(const StripParams& p, double smoothMs) {
 
 void ChannelStrip::reset() {
     for (int i = 0; i < 3; ++i) {
-        hpf_[i].reset();
+        hpfL_[i].reset();
+        hpfR_[i].reset();
     }
     for (int i = 0; i < 4; ++i) {
-        eq_[i].reset();
+        eqL_[i].reset();
+        eqR_[i].reset();
     }
     deEsserBpL_.reset();
     deEsserBpR_.reset();
@@ -211,15 +217,15 @@ void ChannelStrip::process(float* interleaved, int n) {
 
         // === 1) HPF (cascada) ===
         for (int s = 0; s < hpfStages_; ++s) {
-            *L = hpf_[s].process(*L);
-            *R = hpf_[s].process(*R);
+            *L = hpfL_[s].process(*L);
+            *R = hpfR_[s].process(*R);
         }
 
         // === 2) EQ 4 bandas ===
         for (int b = 0; b < 4; ++b) {
             if (eqEnabled_[b]) {
-                *L = eq_[b].process(*L);
-                *R = eq_[b].process(*R);
+                *L = eqL_[b].process(*L);
+                *R = eqR_[b].process(*R);
             }
         }
 
@@ -272,10 +278,16 @@ void ChannelStrip::process(float* interleaved, int n) {
             // Ganancia: si el nivel esta bajo el umbral, se atenua hasta
             // gateRangeDb. Lineal entre umbral y (umbral - range).
             float g = 1.0f;
-            if (gateEnv_ < gateThrLin) {
+            // rangeDb == 0 significa "gate sin atenuacion": no hay nada que
+            // reducir. Hay que cortocircuitarlo ANTES de dividir: con la
+            // envolvente justo en el umbral la division seria 0/0 = NaN, y los
+            // clamps de abajo son ambos FALSOS para NaN, asi que el NaN llegaba
+            // a gateGain_ y el one-pole lo propagaba para siempre (canal mudo
+            // hasta un reset()).
+            if (gateEnv_ < gateThrLin && rangeDb > static_cast<float>(kEps)) {
                 const float envDb = linToDb(gateEnv_);
                 float frac = (thrDb - envDb) / rangeDb;
-                if (frac < 0.0f) {
+                if (!(frac > 0.0f)) { // cubre tambien NaN
                     frac = 0.0f;
                 }
                 if (frac > 1.0f) {

@@ -44,6 +44,10 @@
 #include <unistd.h> // getcwd (fallback POSIX de moduleDirW)
 #endif
 
+#if BA_HAVE_LIBOBS
+#include "EngineSelfTest.hpp"
+#endif
+
 namespace {
 
 // Directorio del módulo (UTF-16), derivado de GetModuleFileNameW (spec §5.3:
@@ -276,11 +280,24 @@ int main(int argc, char** argv) {
     // En Linux el launcher es un stub (hijo ficticio), pero se parsea igual para
     // que el contrato de argv sea idéntico en las tres rutas.
     bool restore = false;
+    bool engineSelfTest = false;
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--restore") == 0) {
             restore = true;
+        } else if (std::strcmp(argv[i], "--engine-selftest") == 0) {
+            engineSelfTest = true;
         }
     }
+#if BA_HAVE_LIBOBS
+    if (engineSelfTest) {
+        return ba::app::runEngineSelfTest(argc, argv);
+    }
+#else
+    if (engineSelfTest) {
+        std::printf("ba-app: compilado sin libobs; no hay motor de emision que probar\n");
+        return 77; // 77 = saltado, igual que en la suite de CTest
+    }
+#endif
     return runHeadlessSelfTest(restore);
 }
 

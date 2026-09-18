@@ -15,6 +15,9 @@ docs/_build/
 docs/doxygen/
 
 # --- Stray build/test artifacts --------------------------------------------
+# El plugin rtmp-services de OBS actualiza su catalogo de servicios en el cwd
+# al cargarse, asi que correr los tests deja este directorio en la raiz.
+rtmp-services/
 a.out
 Testing/
 ba-app-headless/

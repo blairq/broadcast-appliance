@@ -39,6 +39,7 @@
 
 #include <atomic>
 #include <cstddef>
+#include <memory>
 
 namespace ba::dsp {
 
@@ -132,32 +133,49 @@ class Automixer {
 
    private:
     // --- Capacidad fija (sin heap despues de la construccion) ---
+    // Solo se escribe en el constructor, antes de que exista cualquier otro
+    // thread, por eso es el unico escalar compartido que no necesita ser
+    // atomico.
     int maxChannels_ = 8;
 
     // --- Parametros clamped (valores seguros) ---
-    double fs_ = 48000.0;
-    double openThresholdDb_ = -40.0;
+    //
+    // setParams() corre en el thread de CONTROL y setLevel()/gainFor() en el de
+    // AUDIO, asi que todo parametro que el camino de audio lea tiene que ser
+    // atomico: un `double` plano escrito por un thread y leido por otro es una
+    // carrera de datos (UB), no solo un valor viejo. Se usa memory_order_relaxed
+    // porque no hay invariante ENTRE parametros que proteger: cada uno se aplica
+    // por su cuenta y un cambio de preset puede quedar a medias durante una
+    // muestra sin consecuencia audible (el suavizado one-pole lo absorbe).
+    std::atomic<double> fs_{48000.0};
+    std::atomic<double> openThresholdDb_{-40.0};
+    std::atomic<double> holdMs_{300.0};
+    std::atomic<double> holdFloorDb_{-20.0};
+    std::atomic<int> maxOpenMics_{4};
+    std::atomic<double> targetSummedGain_{1.0};
+
+    // Solo los toca setParams() (control); el camino de audio usa los
+    // coeficientes ya calculados, no estos. No hace falta que sean atomicos.
     double attackMs_ = 5.0;
     double releaseMs_ = 200.0;
-    double holdMs_ = 300.0;
-    double holdFloorDb_ = -20.0;
-    int maxOpenMics_ = 4;
-    double targetSummedGain_ = 1.0;
 
     // --- Coeficientes one-pole (0..1) precalculados en setParams() ---
-    float atk_ = 1.0f;     // ataque de la envolvente (rapido)
-    float rel_ = 0.0f;     // liberacion de la envolvente (lenta)
-    float attFade_ = 1.0f; // fade de la atenuacion (smoothMs)
+    std::atomic<float> atk_{1.0f};     // ataque de la envolvente (rapido)
+    std::atomic<float> rel_{0.0f};     // liberacion de la envolvente (lenta)
+    std::atomic<float> attFade_{1.0f}; // fade de la atenuacion (smoothMs)
 
     // --- Estado dinamico COMPARTIDO (lock-free) ---
     // Energia suavizada por canal (lineal). std::atomic<float> para que
     // gainFor() (lectores) y setLevel() (escritor) no tengan data race.
     // Tamano fijo: se reserva en la construccion.
-    std::atomic<float>* env_ = nullptr;
+    // unique_ptr, no `new[]` crudo: la clase no tenia destructor y ambos arrays
+    // se filtraban en cada instancia. Ademas deja la clase move-only y borra la
+    // copia, que con punteros crudos habria compartido el estado en silencio.
+    std::unique_ptr<std::atomic<float>[]> env_;
 
     // Estado de hold por canal: momento (en "ticks" de setLevel) en que el
     // canal dejo de estar abierto. -1 = nunca / no en hold.
-    std::atomic<long long>* holdUntil_ = nullptr;
+    std::unique_ptr<std::atomic<long long>[]> holdUntil_;
 
     // Tick global: cuenta las llamadas a setLevel() (proxy de tiempo en el
     // dominio del thread de audio). Se usa para el hold sin reloj de sistema.
@@ -166,7 +184,9 @@ class Automixer {
     // --- Atenuacion por cantidad de micros abiertos (suavizada) ---
     // Valor actual (lineal) y objetivo. Se interpola con attFade_ (one-pole
     // sobre smoothMs) para que un cambio de preset no produzca clicks.
-    float attenuation_ = 1.0f;
+    // Atomico: lo escribe setLevel() (audio) y lo lee gainFor() (control/UI).
+    std::atomic<float> attenuation_{1.0f};
+    // Solo lo usa setLevel() como variable de paso; no cruza threads.
     float attenuationTarget_ = 1.0f;
 
     // --- Utilidades internas ---

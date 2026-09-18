@@ -25,6 +25,7 @@
 #include <mbedtls/base64.h>
 #include <mbedtls/entropy.h>
 #include <mbedtls/gcm.h>
+#include <mbedtls/platform_util.h> // mbedtls_platform_zeroize
 
 #include <nlohmann/json.hpp>
 
@@ -32,10 +33,22 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
+#include <filesystem>
 #include <fstream>
 #include <string>
+#include <system_error>
 #include <utility>
 #include <vector>
+
+#if defined(_WIN32)
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#else
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
 
 namespace ba::security {
 
@@ -221,7 +234,113 @@ bool aesGcmDecrypt(const std::array<std::uint8_t, kKeyLen>& key, const std::vect
     return true;
 }
 
+/// Borra el contenido de un buffer de forma que el compilador no pueda
+/// eliminar la escritura por "dead store elimination".
+///
+/// Un `std::fill` sobre un buffer que muere a continuacion es exactamente lo
+/// que un optimizador tiene permitido borrar, de modo que la clave derivada
+/// quedaria en la pila. mbedtls_platform_zeroize existe para este caso.
+void zeroize(void* p, std::size_t n) {
+    if (p != nullptr && n > 0) {
+        mbedtls_platform_zeroize(p, n);
+    }
+}
+
+/// Escribe `content` en `path` de forma ATOMICA y con permisos restrictivos.
+///
+/// El patron es el mismo que ya usa ba::persist::SnapshotStore: se escribe un
+/// temporal en el MISMO directorio y se renombra encima del destino. Escribir
+/// directamente sobre `path` con truncado (lo que se hacia antes) significa
+/// que un corte durante la escritura deja la boveda vacia: se pierden todos
+/// los secretos. Ademas el archivo se crea con permisos de solo-dueño (0600 en
+/// POSIX); antes heredaba el umask y podia quedar legible por todo el sistema.
+///
+/// :returns: true si el archivo quedo escrito y renombrado.
+bool writeFileAtomicPrivate(const std::string& path, const std::string& content) {
+    const std::string tmp = path + ".tmp";
+#if defined(_WIN32)
+    {
+        std::ofstream ofs(tmp, std::ios::binary | std::ios::trunc);
+        if (!ofs) {
+            return false;
+        }
+        ofs << content;
+        ofs.close();
+        if (!ofs.good()) {
+            return false;
+        }
+    }
+    // MoveFileExA con REPLACE_EXISTING es el rename atomico de Win32. La ACL
+    // por defecto de un archivo en el perfil del usuario ya es restrictiva.
+    if (MoveFileExA(tmp.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) == 0) {
+        std::remove(tmp.c_str());
+        return false;
+    }
+    return true;
+#else
+    // O_CREAT|O_EXCL + 0600: el archivo nace privado, sin ventana en la que
+    // otro usuario pueda abrirlo.
+    std::remove(tmp.c_str());
+    const int fd = ::open(tmp.c_str(), O_WRONLY | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
+    if (fd < 0) {
+        return false;
+    }
+    std::size_t off = 0;
+    bool ok = true;
+    while (off < content.size()) {
+        const ssize_t n = ::write(fd, content.data() + off, content.size() - off);
+        if (n <= 0) {
+            ok = false;
+            break;
+        }
+        off += static_cast<std::size_t>(n);
+    }
+    if (ok) {
+        ok = (::fsync(fd) == 0);
+    }
+    ::close(fd);
+    if (!ok) {
+        std::remove(tmp.c_str());
+        return false;
+    }
+    std::error_code ec;
+    std::filesystem::rename(tmp, path, ec);
+    if (ec) {
+        std::remove(tmp.c_str());
+        return false;
+    }
+    return true;
+#endif
+}
+
 } // namespace
+
+// --- randomSecretHex --------------------------------------------------------
+
+bool randomSecretHex(std::size_t nBytes, std::string& out) {
+    out.clear();
+    if (nBytes < 16) {
+        nBytes = 16;
+    }
+    // mbedtls_entropy_func no entrega mas de MBEDTLS_ENTROPY_BLOCK_SIZE bytes
+    // por llamada (32 con SHA-256, el default); pedir mas devolveria error.
+    if (nBytes > 32) {
+        nBytes = 32;
+    }
+    std::vector<std::uint8_t> raw;
+    if (!randomBytes(raw, nBytes)) {
+        return false;
+    }
+    static const char* kHex = "0123456789abcdef";
+    out.reserve(nBytes * 2);
+    for (std::uint8_t b : raw) {
+        out.push_back(kHex[b >> 4]);
+        out.push_back(kHex[b & 0x0F]);
+    }
+    // El buffer crudo no hace falta más allá de este punto.
+    std::fill(raw.begin(), raw.end(), std::uint8_t{0});
+    return true;
+}
 
 // --- SecretsStore -----------------------------------------------------------
 
@@ -285,14 +404,15 @@ bool SecretsStore::save(const std::string& path, const std::string& masterPassph
     doc["header"] = header;
     doc["ciphertext"] = blobB64;
 
-    // 7) Escribir a disco (modo binario, truncando el archivo previo).
-    std::ofstream ofs(path, std::ios::binary | std::ios::trunc);
-    if (!ofs) {
-        return false;
-    }
-    ofs << doc.dump(2);
-    ofs.close();
-    return ofs.good();
+    // 7) Escribir a disco de forma atomica y privada (temp + rename, 0600).
+    const bool written = writeFileAtomicPrivate(path, doc.dump(2));
+
+    // 8) Borrar el material sensible de la memoria: la clave derivada y el
+    //    plaintext serializado. Ambos viven en este marco y su contenido no
+    //    debe sobrevivir a la funcion.
+    zeroize(key.data(), key.size());
+    zeroize(const_cast<char*>(plaintext.data()), plaintext.size());
+    return written;
 }
 
 bool SecretsStore::load(const std::string& path, const std::string& masterPassphrase) {
@@ -373,11 +493,21 @@ bool SecretsStore::load(const std::string& path, const std::string& masterPassph
 
     std::vector<std::pair<std::string, std::string>> next;
     next.reserve(plain.size());
+    bool shapeOk = true;
     for (auto it = plain.begin(); it != plain.end(); ++it) {
         if (!it.value().is_string()) {
-            return false; // formato inesperado (el valor no es string)
+            shapeOk = false; // formato inesperado (el valor no es string)
+            break;
         }
         next.emplace_back(it.key(), it.value().get<std::string>());
+    }
+
+    // El material sensible se borra en TODAS las salidas a partir de aqui, no
+    // solo en la exitosa.
+    zeroize(key.data(), key.size());
+    zeroize(const_cast<char*>(plaintext.data()), plaintext.size());
+    if (!shapeOk) {
+        return false;
     }
     entries_ = std::move(next);
     return true;

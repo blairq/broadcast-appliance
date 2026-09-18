@@ -101,6 +101,8 @@ static void testRingDrift() {
     CHECK(cap == kCapBlocks, "capacidad en bloques coincide con la configurada");
 
     std::vector<float> block(blockFloats);
+    // Buffer de destino de pop(): el bloque se copia aca, no se apunta al ring.
+    std::vector<float> outBlk(blockFloats);
 
     // Contadores logicos (lo que el caller "cree" que paso) vs. contadores del
     // ring (lo que el header dice). La deriva seria una divergencia entre ambos.
@@ -121,7 +123,8 @@ static void testRingDrift() {
         framesProduced += audio_ring::kBlockFrames;
 
         // --- Consumidor ---
-        PoppedBlock pb = reader.pop();
+        PoppedBlock pb;
+        CHECK(reader.pop(outBlk.data(), pb), "pop(out) valido (lockstep)");
         CHECK(!pb.isSilence, "pop con datos (lockstep, sin underrun)");
         if (pb.isSilence) break;
         if (!matchSentinel(pb.samples, blockFloats, i)) {

@@ -21,6 +21,9 @@
 
 #include <cstddef>
 #include <cstdio>
+#if !defined(_WIN32)
+#include <sys/stat.h>
+#endif
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -145,7 +148,45 @@ void testWrongPassphraseFailsCleanly() {
 
 } // namespace
 
+/// La boveda se escribe con permisos de solo-dueño y sin dejar temporales.
+///
+/// Dos invariantes que antes no se cumplian: el archivo se creaba con el umask
+/// del proceso (podia quedar legible por todo el sistema) y se escribia con
+/// truncado directo sobre el destino, asi que un corte a mitad borraba todos
+/// los secretos. Ahora se escribe un temporal privado y se renombra encima.
+void testFilePermissionsAndAtomicity() {
+#if !defined(_WIN32)
+    const std::string path = (std::filesystem::temp_directory_path() / "ba_secrets_perm.json").string();
+    std::remove(path.c_str());
+
+    SecretsStore st;
+    st.set("streamKey", "valor-sensible");
+    CHECK(st.save(path, "passphrase-de-prueba"));
+
+    struct stat sb {};
+    CHECK(::stat(path.c_str(), &sb) == 0);
+    // Ni grupo ni otros deben tener ningun permiso.
+    const mode_t perms = sb.st_mode & 0777;
+    CHECK(perms == (S_IRUSR | S_IWUSR));
+
+    // El temporal de la escritura atomica no debe quedar en el directorio.
+    const std::string tmp = path + ".tmp";
+    struct stat tb {};
+    CHECK(::stat(tmp.c_str(), &tb) != 0);
+
+    // Y el contenido sigue siendo recuperable tras el rename.
+    SecretsStore re;
+    CHECK(re.load(path, "passphrase-de-prueba"));
+    std::string v;
+    CHECK(re.get("streamKey", v));
+    CHECK(v == "valor-sensible");
+
+    std::remove(path.c_str());
+#endif
+}
+
 int main() {
+    testFilePermissionsAndAtomicity();
     testSaveAndEncryptedAtRest();
     testRoundTripFreshStore();
     testWrongPassphraseFailsCleanly();

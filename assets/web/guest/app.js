@@ -4,7 +4,8 @@
    Flujo:
      1. join(): POST /api/join {room, pin} → {token}.
      2. checkDevices(): getUserMedia (máx 720p30) + medidor de nivel de mic.
-     3. connect(): WebSocket /ws?token=..&slot=1 (señalización WebRTC).
+     3. connect(): WebSocket /ws?token=..&slot=N (señalización WebRTC).
+        El slot N lo asigna el servidor en el paso 1.
         El invitado es el OFFERER: crea la RTCPeerConnection, agrega sus
         tracks locales (camara + micro) y envía {type:"offer", sdp}.
      4. B responde {type:"answer", sdp}; los candidatos ICE fluyen en ambos
@@ -22,7 +23,10 @@
   "use strict";
 
   // --- Constantes ---------------------------------------------------------
-  const SLOT = 1; // este invitado usa el slot 1 (el operador asigna el resto)
+  // El slot lo ASIGNA EL SERVIDOR y viene en la respuesta de /api/join: es
+  // quien conoce cuales estan ocupados. Antes estaba fijo en 1, asi que el
+  // segundo invitado siempre chocaba con un 409 y la mesa de hasta 4 invitados
+  // no podia existir.
   const MAX_W = 1280, MAX_H = 720, FPS = 30; // restricción de captura (720p30)
   const RECONNECT_BASE_MS = 1000;
   const RECONNECT_MAX_MS = 15000;
@@ -38,6 +42,7 @@
     audioCtx: null,
     analyser: null,
     levelRaf: 0,
+    slot: null, // lo asigna el servidor en /api/join
     reconnectDelay: RECONNECT_BASE_MS,
     reconnectTimer: 0,
     connecting: false,
@@ -99,12 +104,19 @@
         errEl.textContent =
           data.error === "pin"
             ? "PIN incorrecto (o demasiados intentos: esperá un momento)."
+            : data.error === "full"
+            ? "La sala está llena. Probá de nuevo en un momento."
+            : data.error === "rate"
+            ? "Demasiados intentos desde este equipo. Esperá un minuto."
             : "No se pudo entrar. Revisá la sala y el PIN.";
         $("btn-join").disabled = false;
         return;
       }
       state.token = data.token;
       state.room = data.room;
+      // El servidor puede devolver 503 con error "full" si no quedan slots;
+      // eso ya se maneja arriba. Si llega ok, `slot` viene con la asignacion.
+      state.slot = data.slot;
       await checkDevices();
       show("check");
     } catch (e) {
@@ -169,7 +181,7 @@
     const proto = location.protocol === "https:" ? "wss" : "ws";
     const url = `${proto}://${location.host}/ws?token=${encodeURIComponent(
       state.token
-    )}&room=${encodeURIComponent(state.room)}&slot=${SLOT}`;
+    )}&room=${encodeURIComponent(state.room)}&slot=${state.slot}`;
     const ws = new WebSocket(url);
     ws.binaryType = "arraybuffer";
     state.ws = ws;
@@ -320,6 +332,7 @@
     if (state.audioCtx) state.audioCtx.close().catch(() => {});
     state.token = null;
     state.room = null;
+    state.slot = null;
     state.reconnectDelay = RECONNECT_BASE_MS;
     show("join");
   }

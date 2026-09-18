@@ -276,6 +276,10 @@ include(CTest)
 # Cada subdirectorio declara su target. `ba_core` es la base; el resto enlaza
 # contra ella. El launcher solo existe en Windows (Win32 puro); el resto se
 # configura en ambas plataformas.
+# --- libobs portable (Linux y Windows) --------------------------------------
+# Define el target importado `ba::libobs` y `BA_HAVE_LIBOBS`. Ver el modulo.
+include(${CMAKE_SOURCE_DIR}/cmake/BaLibObs.cmake)
+
 add_subdirectory(src/core)
 add_subdirectory(src/launcher)
 add_subdirectory(src/app)
@@ -326,6 +330,37 @@ install(DIRECTORY
 install(DIRECTORY
     DESTINATION Web/guest
 )
+
+# --- Runtime de libobs dentro del bundle (portable) -------------------------
+# El bundle tiene que correr en una maquina SIN nada instalado (README, "el
+# build es self-contained"). Para eso se lleva su propia libobs, su modulo
+# grafico y los plugins de codificacion/salida/captura, y los binarios los
+# buscan con rpath $ORIGIN, o sea JUNTO A ELLOS, nunca en el sistema.
+if(BA_HAVE_LIBOBS)
+    # Bibliotecas: libobs, libobs-opengl (o las DLL en Windows) -> bin/64bit.
+    install(FILES ${BA_LIBOBS_RUNTIME_LIBS} DESTINATION bin/64bit)
+
+    # Plugins de OBS (x264, ffmpeg, rtmp, captura) -> obs-plugins/64bit.
+    if(EXISTS "${BA_LIBOBS_PLUGIN_DIR}")
+        install(DIRECTORY "${BA_LIBOBS_PLUGIN_DIR}/"
+            DESTINATION obs-plugins/64bit
+            FILES_MATCHING PATTERN "*.so" PATTERN "*.dll")
+    endif()
+
+    # Datos de libobs y de sus plugins (shaders .effect, locales) -> data/.
+    if(EXISTS "${BA_LIBOBS_DATA_DIR}/libobs")
+        install(DIRECTORY "${BA_LIBOBS_DATA_DIR}/libobs/" DESTINATION data/libobs)
+    endif()
+    if(EXISTS "${BA_LIBOBS_DATA_DIR}/obs-plugins")
+        install(DIRECTORY "${BA_LIBOBS_DATA_DIR}/obs-plugins/"
+            DESTINATION data/obs-plugins)
+    endif()
+endif()
+
+# El paso de rpath va DESPUES de copiar el runtime: reescribe lo ya instalado.
+if(BA_HAVE_LIBOBS AND NOT WIN32)
+    include(${CMAKE_SOURCE_DIR}/cmake/BaPortableBundle.cmake)
+endif()
 
 # --- Target de instalación de los ejecutables/DLLs propios ------------------
 # Cada componente declara su propio install(TARGETS ...) en su CMakeLists para

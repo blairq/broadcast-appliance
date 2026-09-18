@@ -352,16 +352,16 @@ bool OperatorEngine::processGuestBlock(float* out, bool& isSilence, bool& isFade
     if (!initialized_ || out == nullptr || guestRing_.header() == nullptr) {
         return false;
     }
-    // Lector: pop() avanza readIndex; ante underrun devuelve silencio+fade.
-    const ba::ipc::PoppedBlock b = guestRing_.pop();
+    // Lector: pop() copia el bloque en `out` y avanza readIndex; ante underrun
+    // llena `out` de silencio+fade. El buffer es del llamador, asi que no hay
+    // ventana en la que el escritor pueda pisar lo que acabamos de leer.
+    ba::ipc::PoppedBlock b;
+    if (!guestRing_.pop(out, b)) {
+        std::fill_n(out, static_cast<std::ptrdiff_t>(guestRing_.blockFloats()), 0.0f);
+        return false;
+    }
     isSilence = b.isSilence;
     isFadeIn = b.isFadeIn;
-    const std::size_t floats = guestRing_.blockFloats();
-    if (b.samples != nullptr) {
-        std::copy_n(b.samples, static_cast<std::ptrdiff_t>(floats), out);
-    } else {
-        std::fill_n(out, static_cast<std::ptrdiff_t>(floats), 0.0f);
-    }
     return true;
 }
 

@@ -43,6 +43,7 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib> // std::getenv (inyeccion de secretos por entorno)
 #include <cstring>
 #include <string>
 #include <thread>
@@ -50,6 +51,7 @@
 
 // ba_core (frozen headers).
 #include "ipc/HealthBlock.hpp"
+#include "security/SecretsStore.hpp" // randomSecretHex (clave HMAC por arranque)
 
 // Componentes del gateway.
 #include "Cloudflared.hpp"
@@ -100,6 +102,50 @@ std::wstring toWide(const std::string& s) {
 #endif
 }
 
+/// Nombre de la variable de entorno con la que el launcher (Proceso 0) puede
+/// inyectar la clave HMAC de los tokens de invitado. Se usa el entorno y no la
+/// linea de comandos a proposito: los argumentos son visibles en la lista de
+/// procesos de la maquina, el entorno de un hijo no.
+constexpr const char* kEnvHmacSecret = "BA_GATEWAY_HMAC_SECRET";
+/// Idem para el PIN de la sala.
+constexpr const char* kEnvRoomPin = "BA_GATEWAY_PIN";
+
+/// Lee una variable de entorno; cadena vacia si no esta definida.
+std::string envOrEmpty(const char* name) {
+    const char* v = std::getenv(name);
+    return (v != nullptr) ? std::string(v) : std::string();
+}
+
+/// Genera un PIN numerico de `digits` digitos con la entropia de ba_core.
+///
+/// Se filtran los nibbles hexadecimales que caen en '0'..'9' (muestreo por
+/// rechazo): cada nibble es uniforme en [0,16) y, condicionado a ser < 10,
+/// uniforme en [0,10). No introduce el sesgo de un modulo 10 sobre un byte.
+///
+/// :param digits: cantidad de digitos del PIN.
+/// :param out: recibe el PIN; vacio si no se pudo generar.
+/// :returns: true si se genero un PIN de `digits` digitos.
+bool randomPin(std::size_t digits, std::string& out) {
+    out.clear();
+    for (int attempt = 0; attempt < 8 && out.size() < digits; ++attempt) {
+        std::string hex;
+        if (!ba::security::randomSecretHex(32, hex)) {
+            return false;
+        }
+        for (char c : hex) {
+            if (c >= '0' && c <= '9') {
+                out.push_back(c);
+                if (out.size() == digits) break;
+            }
+        }
+    }
+    if (out.size() != digits) {
+        out.clear();
+        return false;
+    }
+    return true;
+}
+
 /// Senal de parada (SIGINT en POSIX, CtrlHandler en Windows).
 std::atomic<bool> g_stop{false};
 
@@ -126,6 +172,11 @@ int main(int argc, char** argv) {
     cfg.parseArgs(argc, argv);
     cfg.derivePaths();
     Log log;
+    // Log rotativo en <root>/Logs (spec §11.4). Sin esto el gateway solo
+    // escribia a stderr y en campo no quedaba ningun rastro de B en disco.
+    if (!cfg.logsDir.empty()) {
+        log.openFile(cfg.logsDir);
+    }
 
     log.info("arranque: guests=" + std::to_string(cfg.guests) + " port=" + std::to_string(cfg.port) +
              " room=" + cfg.room + " webroot=" + cfg.webroot +
@@ -162,9 +213,58 @@ int main(int argc, char** argv) {
     health.setState(kHealthSlot, ProcessState::Running);
     log.info("BA.Health slot 0 = Running (pid=" + std::to_string(pid) + ")");
 
-    // --- Auth de invitado (TokenService). La clave HMAC es estable por
-    // instalacion (el launcher la inyectaria; aqui un default determinista).
-    TokenAuth auth("ba-gateway-hmac-secret", cfg.pin, 5, 60, 300);
+    // --- Auth de invitado (TokenService) ------------------------------------
+    //
+    // Clave HMAC: se genera ALEATORIA en cada arranque, salvo que el launcher
+    // inyecte una por entorno. B es a la vez el emisor y el verificador de los
+    // tokens, y estos viven 300 s, asi que una clave por proceso alcanza y
+    // evita tener un secreto en disco que proteger. Una clave fija en el
+    // binario seria equivalente a no tener autenticacion: el bundle es
+    // portable y cualquiera que lo tenga podria firmar tokens validos.
+    //
+    // Fail-closed: si no hay entropia NO se sigue con un valor por defecto; el
+    // proceso aborta, porque arrancar con una clave predecible es peor que no
+    // arrancar.
+    std::string hmacSecret = envOrEmpty(kEnvHmacSecret);
+    if (!hmacSecret.empty()) {
+        log.info("auth: clave HMAC inyectada por el entorno (" + std::string(kEnvHmacSecret) + ")");
+    } else if (ba::security::randomSecretHex(32, hmacSecret)) {
+        log.info("auth: clave HMAC generada para este arranque (256 bits)");
+    } else {
+        log.error("auth: sin fuente de entropia para la clave HMAC; no se arranca", -1);
+        health.setState(kHealthSlot, ProcessState::Terminated);
+        return 1;
+    }
+
+    // PIN de la sala: por entorno, o generado al azar y logueado para que el
+    // operador lo lea. Sin PIN configurado no se emite ningun token (el
+    // validador de TokenAuth rechaza el PIN vacio), asi que la degradacion es
+    // segura, pero un PIN aleatorio deja el gateway usable sin volverlo
+    // adivinable.
+    if (cfg.pinFromCli) {
+        log.warn("auth: --pin llega por linea de comandos y es visible en la lista de procesos; "
+                 "preferir " +
+                     std::string(kEnvRoomPin),
+                 -1);
+    }
+    std::string roomPin = !cfg.pin.empty() ? cfg.pin : envOrEmpty(kEnvRoomPin);
+    if (roomPin.empty()) {
+        if (randomPin(6, roomPin)) {
+            log.info("auth: PIN de sala generado para este arranque: " + roomPin);
+        } else {
+            log.error("auth: no se pudo generar un PIN; la sala queda cerrada hasta un ChangePin", -1);
+        }
+    }
+    // Umbral del lockout GLOBAL del TokenService. El freno real contra la
+    // fuerza bruta es el rate-limit POR IP del servidor de señalizacion (5
+    // intentos / 60 s por origen). Este contador global se deja deliberadamente
+    // alto para que actue solo como tope de ultimo recurso ante un ataque
+    // distribuido: con el valor anterior (5) los fallos de UN solo cliente
+    // cerraban /api/join para todos los invitados, que era una negacion de
+    // servicio trivial contra la sala.
+    constexpr int kGlobalPinAttempts = 100;
+    constexpr int kGlobalLockoutSec = 60;
+    TokenAuth auth(std::move(hmacSecret), roomPin, kGlobalPinAttempts, kGlobalLockoutSec, 300);
 
     // --- Hub de sesiones WebRTC (1..guests).
     WebrtcHub hub(cfg.guests, cfg.guestVideoW, cfg.guestVideoH, cfg.audioRate, cfg.audioChannels);
@@ -173,6 +273,13 @@ int main(int argc, char** argv) {
     MediaPump::Cfg pumpCfg;
     pumpCfg.returnAudioName = toWide("BA.Audio.ContentForReturn");
     pumpCfg.programVideoName = toWide("BA.Program");
+    // Los vectores de nombres se indexan POR SLOT (1..guests): el indice 0 es
+    // un hueco reservado, no un invitado. MediaPump::start() los recorre con el
+    // numero de slot, asi que un vector sin ese hueco desplaza cada invitado un
+    // puesto (el slot 1 publicaria en BA.Audio.Guest.2) y deja al ultimo sin
+    // canal. Ver MediaPump::Cfg.
+    pumpCfg.guestAudioNames.emplace_back(); // indice 0: reservado
+    pumpCfg.guestVideoNames.emplace_back(); // indice 0: reservado
     for (int s = 1; s <= cfg.guests; ++s) {
         pumpCfg.guestAudioNames.push_back(toWide("BA.Audio.Guest." + std::to_string(s)));
         pumpCfg.guestVideoNames.push_back(toWide("BA.Guest." + std::to_string(s)));

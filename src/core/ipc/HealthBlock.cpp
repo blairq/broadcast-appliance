@@ -121,7 +121,13 @@ std::uint64_t HealthBlock::nowQpc() {
     return 0;
 #else
     using namespace std::chrono;
-    return static_cast<std::uint64_t>(steady_clock::now().time_since_epoch().count());
+    // duration_cast explicito a NANOSEGUNDOS: `count()` devuelve ticks en el
+    // period del reloj, que el estandar no fija. En libstdc++ resulta ser ns y
+    // por eso "funcionaba", pero isStale() compara este valor contra un umbral
+    // en ns, asi que con otro period el watchdog declararia procesos colgados
+    // que no lo estan (o no los declararia nunca).
+    return static_cast<std::uint64_t>(
+        duration_cast<nanoseconds>(steady_clock::now().time_since_epoch()).count());
 #endif
 }
 

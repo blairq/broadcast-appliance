@@ -51,6 +51,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <string>
 #include <thread>
 #include <vector>
@@ -106,13 +107,35 @@ class SignalingServer {
 
    private:
     void acceptLoop();
-    void handleConnection(long long clientFd);
+    void handleConnection(long long clientFd, std::uint32_t clientIp);
+
+    // --- Rate-limit de PIN POR IP -------------------------------------------
+    //
+    // El lockout de TokenService es global al proceso: cinco intentos fallidos
+    // de cualquiera cerraban /api/join durante 60 s para TODOS los invitados,
+    // asi que servia de negacion de servicio barata contra la sala. Este
+    // contador es por direccion de origen, de modo que quien falla se bloquea
+    // a si mismo y no a los demas.
+    struct IpAttempts {
+        int failures = 0;
+        int lockedUntilUnix = 0;
+    };
+    static constexpr int kPinMaxAttemptsPerIp = 5;
+    static constexpr int kPinLockoutSecPerIp = 60;
+    std::map<std::uint32_t, IpAttempts> ipAttempts_;
+    std::mutex ipAttemptsLock_;
+    /// :returns: true si esa IP todavia puede intentar un PIN.
+    bool ipAttemptAllowed(std::uint32_t ip);
+    /// Registra un intento fallido de esa IP (y abre su lockout si toca).
+    void ipRecordFailure(std::uint32_t ip);
+    /// Limpia el estado de esa IP tras un intento exitoso.
+    void ipRecordSuccess(std::uint32_t ip);
 
     // HTTP
     void handleHttp(long long fd, const std::string& method, const std::string& path,
-                    const std::string& query, const std::string& body);
+                    const std::string& query, const std::string& body, std::uint32_t clientIp);
     bool serveStatic(long long fd, const std::string& relPath);
-    void apiJoin(long long fd, const std::string& body);
+    void apiJoin(long long fd, const std::string& body, std::uint32_t clientIp);
     void apiVerify(long long fd, const std::string& query);
 
     // WebSocket
@@ -135,6 +158,29 @@ class SignalingServer {
     // Tabla de slots ocupados.
     bool tryClaimSlot(int slot);
     void releaseSlot(int slot);
+    /// Reserva un slot (1..maxGuests) para el cliente `ip` y lo devuelve.
+    ///
+    /// El cliente web tenia el slot codificado a 1, asi que el segundo invitado
+    /// siempre chocaba con un 409 y la "mesa redonda" de hasta 4 invitados no
+    /// podia existir. Ahora el servidor -- que es quien conoce la ocupacion --
+    /// lo elige y lo devuelve junto al token en /api/join.
+    ///
+    /// La reserva existe porque entre el /api/join y el WebSocket pasa un rato
+    /// real: el invitado tiene que dar permiso de camara y microfono. Sin
+    /// reservar, dos invitados que se preparan a la vez reciben el MISMO slot y
+    /// el segundo se lleva un 409.
+    ///
+    /// Va CLAVEADA POR IP para que recargar la pagina no queme un slot nuevo
+    /// cada vez: un segundo join del mismo origen reutiliza su reserva en vez
+    /// de consumir otra. Vence junto con el token (el token es justamente lo
+    /// que habilita a tomarla), asi que una reserva abandonada se recicla sola.
+    ///
+    /// :param ip: direccion de origen del cliente.
+    /// :returns: el slot reservado, o 0 si la sala esta llena.
+    int reserveSlotFor(std::uint32_t ip);
+
+    /// Recicla las reservas vencidas. La llaman reserveSlotFor y tryClaimSlot.
+    void expireReservationsLocked(int nowUnix);
 
     // Utilidades de socket (dual plataforma).
     bool sendAll(long long fd, const void* data, size_t len) const;
@@ -150,8 +196,29 @@ class SignalingServer {
 
     std::atomic<bool> stop_{false};
     std::thread acceptThread_;
-    std::vector<std::thread> connThreads_;
-    mutable std::mutex connThreadsLock_;
+
+    // Conexiones en vuelo. Los threads de conexion se DETACHAN y se cuentan
+    // aqui en vez de guardarse en un vector: el vector solo crecia (nunca se
+    // recolectaba hasta stop()) y un cliente que abriera conexiones en bucle
+    // agotaba memoria y threads. stop() espera a que el contador llegue a 0.
+    std::atomic<int> activeConns_{0};
+    // Tope de conexiones simultaneas. El servidor atiende como mucho unos
+    // pocos invitados (maxGuests <= 4) mas sus peticiones HTTP; por encima de
+    // esto se rechaza en vez de lanzar threads sin limite.
+    static constexpr int kMaxConcurrentConns = 64;
+    // Timeout de la fase HTTP/handshake, en ms (ver setSocketTimeout).
+    static constexpr int kHandshakeTimeoutMs = 15000;
+    // Descriptores de TODAS las conexiones aceptadas que siguen vivas, esten
+    // en la fase HTTP o ya promovidas a WebSocket. stop() les hace shutdown()
+    // para que su recv retorne al instante: sin esto, una conexion en la fase
+    // HTTP solo se desbloqueaba al vencer su timeout, y el drenaje de stop()
+    // se rendia dejando threads detachados vivos sobre un objeto ya destruido.
+    std::set<long long> activeFds_;
+    std::mutex activeFdsLock_;
+    void trackFd(long long fd);
+    void untrackFd(long long fd);
+    // Hace shutdown() de todos los fds vivos para desbloquear sus recv.
+    void closeActiveConns();
 
     // unique_ptr<WsConn>: WsConn tiene un std::mutex (no movible), asi que no
     // puede insertarse por value en el map (invocaria el move-assign borrado).
@@ -159,6 +226,11 @@ class SignalingServer {
     std::mutex connsLock_;
 
     std::vector<bool> slotBusy_;
+    // Reserva pendiente por slot: hasta cuando vale (seg Unix, 0 = ninguna) y
+    // de que cliente es. Una reserva cuenta como ocupado para los demas, pero
+    // su dueño la convierte en ocupacion activa al abrir el WebSocket.
+    std::vector<int> slotReservedUntil_;
+    std::vector<std::uint32_t> slotReservedIp_;
     std::mutex slotLock_;
 };
 

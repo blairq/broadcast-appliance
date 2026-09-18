@@ -107,8 +107,11 @@ static void testConcurrency() {
     uint64_t nextExpected = 0;
     // Timeout de seguridad contra deadlock: si no llega a N en 30 s, algo fallo.
     const auto deadline = std::chrono::steady_clock::now() + 30s;
+    // Buffer de destino de pop(): el bloque se copia aca, no se apunta al ring.
+    std::vector<float> outBlk(blockFloats);
     while (poppedReal < N && std::chrono::steady_clock::now() < deadline) {
-        PoppedBlock pb = reader.pop();
+        PoppedBlock pb;
+        CHECK(reader.pop(outBlk.data(), pb), "pop(out) valido");
         if (pb.isSilence) {
             ++poppedSilence;
             continue;
@@ -166,13 +169,15 @@ static void testWraparound() {
     // Escribimos y leemos de forma entrelazada para forzar el wrap del indice
     // logico sobre la capacidad fisica, verificando el patron en cada paso.
     bool integrityOk = true;
+    std::vector<float> outBlk(blockFloats);
     for (uint64_t i = 0; i < total; ++i) {
         fillSentinel(block.data(), blockFloats, i);
         const bool ok = ring.push(block.data(), nowNs());
         CHECK(ok, "push no descartado en wrap (reader al dia)");
         if (!ok) break;
 
-        PoppedBlock pb = reader.pop();
+        PoppedBlock pb;
+        CHECK(reader.pop(outBlk.data(), pb), "pop(out) valido en wrap");
         CHECK(!pb.isSilence, "pop con datos en wrap");
         if (pb.isSilence) break;
         if (!matchSentinel(pb.samples, blockFloats, i)) {
@@ -220,8 +225,10 @@ static void testWriterRestart() {
     }
 
     // El lector consume los 3 bloques viejos (antes del reinicio).
+    std::vector<float> outBlk(blockFloats);
     for (uint64_t i = 0; i < 3; ++i) {
-        PoppedBlock pb = reader.pop();
+        PoppedBlock pb;
+        CHECK(reader.pop(outBlk.data(), pb), "pop(out) valido fase 1");
         CHECK(!pb.isSilence, "pop fase 1 con datos");
         CHECK(matchSentinel(pb.samples, blockFloats, 1000 + i), "datos fase 1");
     }
@@ -235,7 +242,8 @@ static void testWriterRestart() {
 
     // El lector detecta el cambio de generacion en el proximo pop: descarta lo
     // bufferizado, resincroniza readIndex a writeIndex y aplica fade-in.
-    PoppedBlock resync = reader.pop();
+    PoppedBlock resync;
+    CHECK(reader.pop(outBlk.data(), resync), "pop(out) valido en resync");
     CHECK(resync.isFadeIn, "fade-in aplicado tras cambio de generacion");
 
     // Fase 3: el writer nuevo escribe datos nuevos; el lector los recibe.
@@ -243,7 +251,8 @@ static void testWriterRestart() {
     for (uint64_t i = 0; i < 3; ++i) {
         fillSentinel(block.data(), blockFloats, 2000 + i);
         CHECK(ring2.push(block.data(), nowNs()), "push fase 3");
-        PoppedBlock pb = reader.pop();
+        PoppedBlock pb;
+        CHECK(reader.pop(outBlk.data(), pb), "pop(out) valido fase 3");
         CHECK(!pb.isSilence, "pop fase 3 con datos");
         if (!matchSentinel(pb.samples, blockFloats, 2000 + i)) {
             newDataOk = false;
@@ -292,8 +301,10 @@ static void testCounters() {
         CHECK(s.ok, "openReader(underrun)");
         if (!s.ok) return;
         int silenceCount = 0;
+        std::vector<float> outBlk(reader.blockFloats());
         for (int i = 0; i < 5; ++i) {
-            PoppedBlock pb = reader.pop();
+            PoppedBlock pb;
+            CHECK(reader.pop(outBlk.data(), pb), "pop(out) valido en underrun");
             if (pb.isSilence) ++silenceCount;
         }
         const uint64_t underruns = ring.header()->underrunCount;

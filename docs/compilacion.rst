@@ -45,7 +45,7 @@ El `CMakeLists.txt` raíz añade estos subdirectorios, cada uno con su target:
 - `src/launcher` → `BroadcastAppliance` (ejecutable, solo real en Windows).
 - `src/app` → `ba-app` (ejecutable, implementado; flag `BA_APP_HAVE_QT_OBS`).
 - `src/obs-module` → `ba-sources` (DLL libobs, implementado; flag
-  `BA_SOURCES_HAVE_OBS`).
+  `BA_HAVE_LIBOBS`).
 - `src/gateway` → `ba-gateway` (ejecutable, implementado; flag
   `BA_GATEWAY_HAVE_WEBRTC`).
 - `src/plugin-host` → `ba_plugin_host` (lib estática).

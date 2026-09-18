@@ -21,7 +21,10 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #else
+#include <cerrno>
+#include <fcntl.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #endif
 
@@ -194,26 +197,45 @@ Status SharedMemoryRegion::open(const wchar_t* name, SharedMemoryRegion& out) {
     return Status::success();
 }
 
-#else // anonimo (Linux/macOS)
+#else // POSIX (Linux/macOS): shm_open + mmap(MAP_SHARED)
 
 namespace detail {
 
-// Registro de proceso name -> buffer, para que open() reencuentre lo que
-// create() publico dentro del mismo proceso. Solo se usa en el backend
-// anonimo; no cruza procesos.
-struct NamedBuffer {
-    void* addr = nullptr;
-    size_t size = 0;
-};
+// El backend anterior era mmap(MAP_PRIVATE|MAP_ANONYMOUS) mas un registro
+// name->puntero dentro del proceso. Eso NO compartia nada entre procesos: era
+// un simulacro para que los tests corrieran, con dos consecuencias malas. Una,
+// `open()` devolvia el MISMO puntero que `create()`, asi que cuando el creador
+// se destruia el resto quedaba apuntando a memoria liberada (y el registro
+// seguia publicando la direccion muerta). Dos, y mas importante: los 20 tests
+// validaban una semantica que no era la de produccion, de modo que el ring, el
+// bloque de salud y el seqlock nunca se ejercitaban cruzando un limite de
+// proceso real.
+//
+// Ahora se usa el objeto de memoria compartida POSIX de verdad (shm_open +
+// ftruncate + mmap MAP_SHARED), que es el equivalente directo del
+// CreateFileMappingW/MapViewOfFile de Windows.
 
-inline std::mutex& registryMutex() {
-    static std::mutex m;
-    return m;
-}
-
-inline std::unordered_map<std::wstring, NamedBuffer>& registry() {
-    static std::unordered_map<std::wstring, NamedBuffer> r;
-    return r;
+/// Convierte el nombre logico (UTF-16, estilo Win32) al nombre de un objeto
+/// shm POSIX: "/" + ASCII, sin barras internas y acotado a NAME_MAX.
+///
+/// Los nombres del proyecto son ASCII ("BA.Audio.Guest.1"), asi que la
+/// conversion byte a byte es exacta; cualquier caracter fuera de ASCII o una
+/// barra se sustituyen por '_' para que el nombre sea valido.
+std::string toShmName(const wchar_t* name) {
+    std::string out = "/";
+    for (const wchar_t* p = name; *p != L'\0'; ++p) {
+        const wchar_t c = *p;
+        if (c == L'/' || c == L'\\' || c > 127 || c < 32) {
+            out.push_back('_');
+        } else {
+            out.push_back(static_cast<char>(c));
+        }
+    }
+    // NAME_MAX suele ser 255; se deja margen para el '/' inicial.
+    if (out.size() > 200) {
+        out.resize(200);
+    }
+    return out;
 }
 
 } // namespace detail
@@ -221,7 +243,8 @@ inline std::unordered_map<std::wstring, NamedBuffer>& registry() {
 struct SharedMemoryRegion::Impl {
     void* addr = nullptr;
     size_t size = 0;
-    bool ownsName = false;
+    std::string shmName;   // nombre del objeto POSIX (para shm_unlink)
+    bool ownsName = false; // true solo en el creador: es quien hace unlink
 
     void* viewPtr() const { return addr; }
 
@@ -229,6 +252,13 @@ struct SharedMemoryRegion::Impl {
         if (addr != nullptr) {
             munmap(addr, size);
             addr = nullptr;
+        }
+        // Solo el creador retira el nombre del sistema. Los lectores que sigan
+        // mapeados conservan su mapeo (POSIX mantiene vivo el objeto mientras
+        // haya mapeos), pero ningun open() nuevo lo encontrara.
+        if (ownsName && !shmName.empty()) {
+            shm_unlink(shmName.c_str());
+            ownsName = false;
         }
     }
 };
@@ -241,20 +271,37 @@ Status SharedMemoryRegion::create(const wchar_t* name, size_t bytes, SharedMemor
         return Status::fail(static_cast<int>(ErrorCode::kAlreadyMapped));
     }
 
-    void* addr = mmap(nullptr, bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    const std::string shmName = detail::toShmName(name);
+    // O_EXCL primero para detectar un objeto huerfano de una corrida anterior
+    // (un proceso que murio sin hacer unlink): en ese caso se retira y se
+    // reintenta, en vez de heredar su contenido y su tamaño.
+    int fd = ::shm_open(shmName.c_str(), O_CREAT | O_EXCL | O_RDWR, S_IRUSR | S_IWUSR);
+    if (fd < 0 && errno == EEXIST) {
+        ::shm_unlink(shmName.c_str());
+        fd = ::shm_open(shmName.c_str(), O_CREAT | O_EXCL | O_RDWR, S_IRUSR | S_IWUSR);
+    }
+    if (fd < 0) {
+        return Status::fail(static_cast<int>(ErrorCode::kPlatform));
+    }
+    if (::ftruncate(fd, static_cast<off_t>(bytes)) != 0) {
+        ::close(fd);
+        ::shm_unlink(shmName.c_str());
+        return Status::fail(static_cast<int>(ErrorCode::kPlatform));
+    }
+    void* addr = ::mmap(nullptr, bytes, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    // El descriptor no hace falta despues del mmap: el mapeo mantiene vivo al
+    // objeto por su cuenta.
+    ::close(fd);
     if (addr == MAP_FAILED) {
+        ::shm_unlink(shmName.c_str());
         return Status::fail(static_cast<int>(ErrorCode::kOutOfMemory));
     }
 
     auto impl = new Impl();
     impl->addr = addr;
     impl->size = bytes;
+    impl->shmName = shmName;
     impl->ownsName = true;
-
-    {
-        std::lock_guard<std::mutex> lock(detail::registryMutex());
-        detail::registry()[std::wstring(name)] = detail::NamedBuffer{addr, bytes};
-    }
 
     out.impl_ = impl;
     return Status::success();
@@ -268,20 +315,29 @@ Status SharedMemoryRegion::open(const wchar_t* name, SharedMemoryRegion& out) {
         return Status::fail(static_cast<int>(ErrorCode::kAlreadyMapped));
     }
 
-    detail::NamedBuffer nb;
-    {
-        std::lock_guard<std::mutex> lock(detail::registryMutex());
-        auto it = detail::registry().find(std::wstring(name));
-        if (it == detail::registry().end()) {
-            return Status::fail(static_cast<int>(ErrorCode::kNotFound));
-        }
-        nb = it->second;
+    const std::string shmName = detail::toShmName(name);
+    const int fd = ::shm_open(shmName.c_str(), O_RDWR, 0);
+    if (fd < 0) {
+        return Status::fail(static_cast<int>(ErrorCode::kNotFound));
+    }
+    // El tamaño se toma del objeto, no del caller: el creador es la autoridad.
+    struct stat sb {};
+    if (::fstat(fd, &sb) != 0 || sb.st_size <= 0) {
+        ::close(fd);
+        return Status::fail(static_cast<int>(ErrorCode::kPlatform));
+    }
+    const size_t bytes = static_cast<size_t>(sb.st_size);
+    void* addr = ::mmap(nullptr, bytes, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    ::close(fd);
+    if (addr == MAP_FAILED) {
+        return Status::fail(static_cast<int>(ErrorCode::kPlatform));
     }
 
     auto impl = new Impl();
-    impl->addr = nb.addr;
-    impl->size = nb.size;
-    impl->ownsName = false;
+    impl->addr = addr;
+    impl->size = bytes;
+    impl->shmName = shmName;
+    impl->ownsName = false; // un lector nunca retira el nombre
 
     out.impl_ = impl;
     return Status::success();
