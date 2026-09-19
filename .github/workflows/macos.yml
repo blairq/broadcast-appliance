@@ -1,0 +1,47 @@
+# ============================================================================
+# macOS (Apple Silicon) — en desarrollo
+#
+# Runner macos-14 (M1). Por ahora corre solo en la rama `macos` y a mano
+# (workflow_dispatch): cuando pase entero se suma como job de ci.yml y entra
+# al release.
+#
+# Hito 1: nucleo headless (ba_core, launcher, gateway con backend NULL y la
+# app sin Qt ni libobs) con Apple clang + ctest. Las dependencias de build
+# (mbedTLS, nlohmann, libsamplerate, Argon2) entran por FetchContent fijado.
+# ============================================================================
+name: macOS
+
+on:
+  push:
+    branches: [macos]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  headless:
+    name: "macOS arm64: núcleo headless + ctest"
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Herramientas
+        run: |
+          brew install ninja
+          cmake --version
+          clang --version
+          sw_vers
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build -j"$(sysctl -n hw.ncpu)" -- -k 0
+
+      - name: Tests (ctest)
+        run: ctest --test-dir build --output-on-failure
