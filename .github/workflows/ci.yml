@@ -317,17 +317,22 @@ jobs:
           if (-not (Select-String -Path $log -SimpleMatch "ba-app headless: OK")) { throw "sin el OK del nucleo" }
 
       # 2) El camino que crasheaba: runOperate (el mismo arranque que la GUI,
-      #    setvbuf incluido), con --duration para que termine solo.
-      - name: "Humo: arranque del operador (--no-ui --duration 5)"
+      #    setvbuf incluido), con --duration para que termine solo. Ojo: los
+      #    flags con valor son --clave=valor (argValue en OperateMode.cpp solo
+      #    matchea el prefijo "--clave="); con un espacio el valor se ignora y
+      #    el proceso corre para siempre.
+      - name: "Humo: arranque del operador (--no-ui --duration=5)"
+        timeout-minutes: 5
         run: |
           $log = "$env:RUNNER_TEMP\operate.log"
-          & "$env:BA_DIR\bin\64bit\ba-app.exe" --no-ui --duration 5 *>&1 | Tee-Object $log
+          & "$env:BA_DIR\bin\64bit\ba-app.exe" --no-ui --duration=5 --status-every=2 *>&1 | Tee-Object $log
           $rc = $LASTEXITCODE
           if ($rc -ne 0) {
             "exit 0x{0:X8}" -f $rc
             Get-Content $log -Tail 40
             throw "el operador no arranco (exit $rc)"
           }
+          if (-not (Select-String -Path $log -SimpleMatch "cierre ordenado")) { throw "no cerro ordenado" }
 
       # 3) Motor completo: libobs, x264, AAC y una grabacion real.
       - name: "Humo: motor (--engine-selftest)"
