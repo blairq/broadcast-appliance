@@ -583,7 +583,8 @@ void McpService::registerTools() {
         t.examples = {std::string(R"({"name": "Titulo", "sources": [
   {"type": "color_source_v3", "name": "Fondo azul", "settings": {"color": 4282400832, "width": 1920, "height": 1080}, "layout": "full"},
   {"type": "text_ft2_source_v2", "name": "Titulo principal", "settings": {"text": "Bienvenidos", "font": {"face": ")") +
-                      kDefaultFontFace + R"(", "size": 96}}, "layout": {"x": 0.1, "y": 0.4, "w": 0.8, "h": 0.2}}
+                      kDefaultFontFace +
+                      R"(", "size": 96}}, "layout": {"x": 0.1, "y": 0.4, "w": 0.8, "h": 0.2}}
 ], "switch": true})"};
         t.run = [&rt, persist, sceneExists](const json& a, Done done) {
             const std::string name = a["name"];
