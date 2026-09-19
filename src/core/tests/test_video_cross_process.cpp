@@ -187,7 +187,13 @@ bool openRingWithRetry(SharedAudioRing& ring, const std::wstring& name, int ms) 
 
 void testNoTearing() {
     const std::string name = "BA.Test.Video." + std::to_string(currentPid()) + ".a";
+#if defined(BA_UNDER_SANITIZER)
+    const int frames = 2000; // 5-15x mas lento: mismo chequeo, menos cuadros
+    const auto budget = 60s;
+#else
     const int frames = 20000;
+    const auto budget = 10s;
+#endif
     ba::platform::Process producer;
     CHECK(ba::platform::Process::spawn(childOpts({"produce", name, std::to_string(frames), "0"}), producer));
 
@@ -200,7 +206,7 @@ void testNoTearing() {
     int received = 0;
     int torn = 0;
     bool ordered = true;
-    const auto deadline = std::chrono::steady_clock::now() + 10s;
+    const auto deadline = std::chrono::steady_clock::now() + budget;
     while (lastIndex < static_cast<std::uint64_t>(frames) && std::chrono::steady_clock::now() < deadline) {
         FrameMeta m{};
         if (!rcv.receive(px.data(), px.size(), m)) {
