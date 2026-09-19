@@ -29,6 +29,18 @@
 
 namespace ba::app {
 
+/// Tipografia por defecto de las fuentes de texto (`text_ft2_source_v2`).
+///
+/// "Sans" es un alias generico de fontconfig: se resuelve en Linux, pero en
+/// Windows no existe y FT2 falla ("FT2-text: Failed to load font Sans"),
+/// dejando el texto invisible. "Segoe UI" viene en todo Windows 10+, que es el
+/// minimo que pide el appliance.
+#if defined(_WIN32)
+inline constexpr const char* kDefaultFontFace = "Segoe UI";
+#else
+inline constexpr const char* kDefaultFontFace = "Sans";
+#endif
+
 /// Una escena y sus fuentes (en orden de abajo hacia arriba).
 struct SceneConfig {
     std::string name;
