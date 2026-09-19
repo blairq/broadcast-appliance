@@ -180,9 +180,8 @@ McpCore::McpCore() {
     sec.category = "ayuda";
     sec.readOnly = true;
     sec.description =
-        "Dice si esta sesion leyo contenido escrito por invitados o el publico (chat, nombres, archivos, "
-        "video de "
-        "invitados). Si lo leyo, toda accion que modifica algo espera que el operador la apruebe con un "
+        "Dice si esta sesion leyo contenido de los invitados de la sala (su chat, nombres, archivos o "
+        "video). Si lo leyo, toda accion que modifica algo espera que el operador la apruebe con un "
         "click: es "
         "una regla del servidor, no depende de vos. Para volver a actuar directo hace falta una sesion nueva "
         "(reiniciar el asistente).";
@@ -486,14 +485,15 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
         const char* pol = policy_ == ApprovalPolicy::Always  ? "siempre"
                           : policy_ == ApprovalPolicy::Never ? "nunca"
                                                              : "invitados";
-        finish(ToolResult()
-                   .text(t ? "Esta sesion leyo contenido de invitados/publico: toda accion que modifica algo "
-                             "necesita "
-                             "que el operador la apruebe con un click."
-                           : "Esta sesion no leyo contenido de invitados: las acciones se ejecutan directo "
-                             "(politica: " +
-                                 std::string(pol) + ").")
-                   .data(json{{"policy", pol}, {"session", taintInfo(ctx.session)}}));
+        finish(
+            ToolResult()
+                .text(t ? "Esta sesion leyo contenido de invitados de la sala: toda accion que modifica algo "
+                          "necesita "
+                          "que el operador la apruebe con un click."
+                        : "Esta sesion no leyo contenido de invitados: las acciones se ejecutan directo "
+                          "(politica: " +
+                              std::string(pol) + ").")
+                .data(json{{"policy", pol}, {"session", taintInfo(ctx.session)}}));
         return;
     }
     // Una herramienta que falla por un JSON inesperado no tumba nada: se
@@ -532,7 +532,7 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
     }
     const std::string reason = policy_ == ApprovalPolicy::Always
                                    ? "La politica pide aprobar toda accion del asistente."
-                                   : "El asistente leyo contenido escrito por invitados o el publico (" +
+                                   : "El asistente leyo contenido de invitados de la sala (" +
                                          taint_[session].source +
                                          "): por seguridad, lo que modifica algo necesita tu aprobacion.";
     approver_(*tool, args, reason, [execute, finish, name](bool ok) {

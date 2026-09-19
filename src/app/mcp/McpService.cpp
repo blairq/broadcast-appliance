@@ -217,11 +217,7 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
 
 bool McpService::roomHasUntrusted() {
     const json s = roomSnapshot(vm_);
-    if (!s.value("participants", json::array()).empty()) return true;
-    // Un chat en pantalla muestra texto del publico en las capturas.
-    for (const std::string& n : rt_.engine().sourceNames())
-        if (rt_.engine().sourceTypeId(n) == "ba_chat_overlay") return true;
-    return false;
+    return !s.value("participants", json::array()).empty();
 }
 
 void McpService::applyApprovalPolicy() {
@@ -232,12 +228,14 @@ void McpService::applyApprovalPolicy() {
 }
 
 void McpService::applySecurity() {
-    // Devuelven SIEMPRE texto/archivos de invitados o del publico.
+    // La salvaguarda cubre lo que viene de los invitados de la sala (WebRTC):
+    // lo que escriben, sus nombres y datos, sus archivos y su video. El chat
+    // de YouTube/Twitch/Facebook (y el Chat en vivo en pantalla) NO la dispara:
+    // es texto del publico, que el asistente trata como dato (ver la guia).
+    // Devuelven SIEMPRE archivos de invitados.
     // (chat_history y guest_chat_pending marcan su respuesta solo si traen mensajes.)
-    static const std::set<std::string> kAlways{"share_list", "share_view", "youtube_chat", "twitch_chat",
-                                               "facebook_chat"};
-    // Devuelven nombres, datos o video de invitados cuando hay alguien en la sala
-    // (o texto del publico si hay un chat en pantalla).
+    static const std::set<std::string> kAlways{"share_list", "share_view"};
+    // Devuelven nombres, datos o video de invitados cuando hay alguien en la sala.
     static const std::set<std::string> kWithPeople{"room_status",    "speakers_status",   "capture_program",
                                                    "capture_source", "capture_multiview", "capture_feed",
                                                    "capture_person", "capture_people",    "capture_sequence",
