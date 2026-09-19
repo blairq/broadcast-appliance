@@ -10,6 +10,11 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#elif defined(__APPLE__) && __has_include(<QWindow>)
+#include <QWindow>
+#define BA_CLAP_EDITOR_COCOA 1
+#elif defined(__APPLE__)
+#define BA_CLAP_EDITOR_NONE 1
 #else
 #include <X11/Xatom.h>
 #include <X11/Xlib.h>
@@ -123,6 +128,103 @@ void ClapEditor::resize(uint32_t width, uint32_t height) {
 
 void ClapEditor::raise() {
     if (n_ && n_->hwnd != nullptr) SetForegroundWindow(n_->hwnd);
+}
+
+#elif defined(BA_CLAP_EDITOR_NONE) // macOS sin Qt: sin editor grafico
+
+struct ClapEditor::Native {};
+
+std::unique_ptr<ClapEditor> ClapEditor::open(ClapInstance&, const std::string&, std::string* error) {
+    if (error != nullptr) *error = "el editor grafico necesita la interfaz (Qt)";
+    return nullptr;
+}
+ClapEditor::~ClapEditor() = default;
+void ClapEditor::resize(uint32_t, uint32_t) {}
+void ClapEditor::raise() {}
+
+#elif defined(BA_CLAP_EDITOR_COCOA) // Cocoa: la ventana es una QWindow (winId() = NSView*)
+
+struct ClapEditor::Native {
+    std::unique_ptr<QWindow> win;
+};
+
+std::unique_ptr<ClapEditor> ClapEditor::open(ClapInstance& inst, const std::string& title,
+                                             std::string* error) {
+    const clap_plugin* p = inst.plugin_;
+    const clap_plugin_gui_t* gui = guiOf(p);
+    if (gui == nullptr || !gui->is_api_supported(p, CLAP_WINDOW_API_COCOA, false)) {
+        if (error != nullptr) *error = "este modulo no tiene editor grafico";
+        return nullptr;
+    }
+    if (inst.services_ == nullptr) {
+        if (error != nullptr) *error = "sin servicios de interfaz";
+        return nullptr;
+    }
+    std::unique_ptr<ClapEditor> ed(new ClapEditor());
+    ed->inst_ = &inst;
+    ed->n_ = std::make_unique<Native>();
+    if (!gui->create(p, CLAP_WINDOW_API_COCOA, false)) {
+        if (error != nullptr) *error = "el modulo no pudo crear su editor";
+        return nullptr;
+    }
+    ed->created_ = true;
+    uint32_t w = 800, h = 500;
+    gui->get_size(p, &w, &h);
+    Native& n = *ed->n_;
+    n.win = std::make_unique<QWindow>();
+    n.win->setTitle(QString::fromStdString(title));
+    n.win->resize(static_cast<int>(w), static_cast<int>(h));
+    if (!gui->can_resize(p)) {
+        n.win->setMinimumSize(QSize(static_cast<int>(w), static_cast<int>(h)));
+        n.win->setMaximumSize(QSize(static_cast<int>(w), static_cast<int>(h)));
+    }
+    n.win->create(); // crea el NSView nativo
+    clap_window_t win{};
+    win.api = CLAP_WINDOW_API_COCOA;
+    win.cocoa = reinterpret_cast<void*>(n.win->winId());
+    if (!gui->set_parent(p, &win)) {
+        if (error != nullptr) *error = "el modulo no acepto la ventana";
+        return nullptr;
+    }
+    n.win->show();
+    gui->show(p);
+
+    ClapEditor* self = ed.get();
+    // Cerrar la ventana cierra el editor (el plugin sigue procesando).
+    QObject::connect(n.win.get(), &QWindow::visibleChanged, n.win.get(), [self](bool visible) {
+        if (visible) return;
+        ClapInstance* in = self->inst_;
+        in->services_->runOnMain([in]() { in->closeEditor(); });
+    });
+    // El usuario cambia el tamaño: se le propone al plugin.
+    const auto onResize = [self]() {
+        const clap_plugin* pl = self->inst_->plugin_;
+        const clap_plugin_gui_t* g = guiOf(pl);
+        uint32_t cw = static_cast<uint32_t>(self->n_->win->width());
+        uint32_t ch = static_cast<uint32_t>(self->n_->win->height());
+        if (g->can_resize(pl) && g->adjust_size(pl, &cw, &ch)) g->set_size(pl, cw, ch);
+    };
+    QObject::connect(n.win.get(), &QWindow::widthChanged, n.win.get(), onResize);
+    QObject::connect(n.win.get(), &QWindow::heightChanged, n.win.get(), onResize);
+    return ed;
+}
+
+ClapEditor::~ClapEditor() {
+    if (n_ && n_->win) QObject::disconnect(n_->win.get(), nullptr, nullptr, nullptr);
+    if (created_) guiOf(inst_->plugin_)->destroy(inst_->plugin_);
+    if (n_) n_->win.reset();
+}
+
+void ClapEditor::resize(uint32_t width, uint32_t height) {
+    if (!n_ || !n_->win) return;
+    n_->win->resize(static_cast<int>(width), static_cast<int>(height));
+    guiOf(inst_->plugin_)->set_size(inst_->plugin_, width, height);
+}
+
+void ClapEditor::raise() {
+    if (!n_ || !n_->win) return;
+    n_->win->raise();
+    n_->win->requestActivate();
 }
 
 #else // X11

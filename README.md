@@ -570,6 +570,19 @@ usan el CRT de Microsoft enlazado estático, así que detectan diferencias del C
 real que el de Wine taparía. Lo único que Wine no emula (la exclusividad de
 `FILE_FLAG_FIRST_PIPE_INSTANCE`) se saltea solo bajo Wine.
 
+### (c2) macOS Apple Silicon (nativo, en desarrollo)
+
+Rama `macos`. Se compila en la Mac (Xcode completo + `brew install cmake
+ninja meson pkg-config`):
+
+```bash
+make deps-macos        # libobs 31 con Xcode, Qt, libwebrtc macOS, LSP... -> extern/
+make macos             # compila y corre los tests
+make release-macos     # bundle portable en release/ (verificado con otool, firmado ad-hoc)
+```
+
+Guía completa, qué probar y qué falta: [`docs/MACOS.md`](docs/MACOS.md).
+
 ### (d) Documentación
 
 ```bash

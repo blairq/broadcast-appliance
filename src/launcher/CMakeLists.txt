@@ -25,6 +25,8 @@ if(NOT BA_LAUNCHER_SOURCES)
 endif()
 
 add_executable(BroadcastAppliance ${BA_LAUNCHER_SOURCES})
+include(${CMAKE_SOURCE_DIR}/cmake/BaMacInfoPlist.cmake)
+ba_mac_embed_info_plist(BroadcastAppliance com.legisstudio.broadcastappliance "Broadcast Appliance")
 
 if(MSVC)
     # CRT estática /MT solo en el launcher (spec §14: "/MT solo en el launcher").

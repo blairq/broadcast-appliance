@@ -24,10 +24,13 @@
 
 BUILD_DIR ?= build
 JOBS      ?= $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
+# macOS no trae sha256sum: `shasum -a 256` usa el mismo formato de salida y -c.
+SHA256       := $(shell command -v sha256sum >/dev/null 2>&1 && echo sha256sum || echo "shasum -a 256")
+SHA256_CHECK := $(SHA256) -c --quiet
 PY        ?= .venv/bin/python
 PIP       ?= .venv/bin/pip
 
-.PHONY: deps-lsp-win deps-clap deps-obs-deps-win deps-ndi-src deps-linux test-win deps-win deps-win-toolchain deps-webrtc-win release-win dist-win dist-linux deps-lwip deps-cacert help dev build prod test test-unit pytest test-all lint docs release win deps-cloudflared-host deps-qt-host \
+.PHONY: check-macos-tools deps-macos deps-obs-src deps-obs-macos deps-lsp-macos macos release-macos dist-macos deps-lsp-win deps-clap deps-obs-deps-win deps-ndi-src deps-linux test-win deps-win deps-win-toolchain deps-webrtc-win release-win dist-win dist-linux deps-lwip deps-cacert help dev build prod test test-unit pytest test-all lint docs release win deps-cloudflared-host deps-qt-host \
         clean clean-all \
         deps deps-obs deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist \
         deps-lsp deps-status deps-clean \
@@ -203,9 +206,9 @@ OBS_DEPS_WIN_ZIP = $(DL_DIR)/windows-deps-$(OBS_DEPS_WIN_VER)-x64.zip
 deps-obs-deps-win:
 	@mkdir -p "$(DL_DIR)"
 	@if [ -f "$(EXTERNS_DIR)/obs-deps-win/lib/avcodec.lib" ]; then echo "[deps] obs-deps (Windows): ya presente"; else \
-	  [ -f "$(OBS_DEPS_WIN_ZIP)" ] && [ "$$(sha256sum "$(OBS_DEPS_WIN_ZIP)" | cut -d' ' -f1)" = "$(OBS_DEPS_WIN_SHA)" ] || \
+	  [ -f "$(OBS_DEPS_WIN_ZIP)" ] && [ "$$($(SHA256) "$(OBS_DEPS_WIN_ZIP)" | cut -d' ' -f1)" = "$(OBS_DEPS_WIN_SHA)" ] || \
 	    curl -fL --retry 3 -o "$(OBS_DEPS_WIN_ZIP)" "https://github.com/obsproject/obs-deps/releases/download/$(OBS_DEPS_WIN_VER)/windows-deps-$(OBS_DEPS_WIN_VER)-x64.zip"; \
-	  printf '%s  %s\n' "$(OBS_DEPS_WIN_SHA)" "$(OBS_DEPS_WIN_ZIP)" | sha256sum -c --quiet || { echo "[deps] ERROR obs-deps: hash" >&2; exit 1; }; \
+	  printf '%s  %s\n' "$(OBS_DEPS_WIN_SHA)" "$(OBS_DEPS_WIN_ZIP)" | $(SHA256_CHECK) || { echo "[deps] ERROR obs-deps: hash" >&2; exit 1; }; \
 	  rm -rf "$(EXTERNS_DIR)/obs-deps-win"; \
 	  unzip -q -o "$(OBS_DEPS_WIN_ZIP)" 'include/libavcodec/*' 'include/libavutil/*' 'lib/avcodec.lib' 'lib/avutil.lib' \
 	    -d "$(EXTERNS_DIR)/obs-deps-win"; \
@@ -239,7 +242,7 @@ dist-win: release-win
 	@mkdir -p dist
 	rm -f dist/BroadcastAppliance-$(BA_VERSION)-windows-x64.zip
 	cd $(WIN_RELEASE) && 7z a -tzip -mx=7 -bso0 ../dist/BroadcastAppliance-$(BA_VERSION)-windows-x64.zip .
-	@cd dist && sha256sum BroadcastAppliance-$(BA_VERSION)-windows-x64.zip > BroadcastAppliance-$(BA_VERSION)-windows-x64.zip.sha256
+	@cd dist && $(SHA256) BroadcastAppliance-$(BA_VERSION)-windows-x64.zip > BroadcastAppliance-$(BA_VERSION)-windows-x64.zip.sha256
 	@echo "dist/BroadcastAppliance-$(BA_VERSION)-windows-x64.zip"
 
 # Todo lo que el build completo de Linux necesita (libobs y sus deps desde
@@ -248,6 +251,57 @@ deps-linux: deps-obs-linux deps-qt-host deps-src deps-lwip deps-cacert deps-libv
             deps-clap deps-lsp
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=linux
 
+# --- macOS arm64 (Apple Silicon), nativo -------------------------------------
+# Todo se compila EN la Mac con Apple clang (Xcode completo: libobs lo exige).
+# Mismo layout portable que Linux (bin/64bit, obs-plugins/64bit, data/) y el
+# mismo criterio: nada del sistema salvo los frameworks de macOS.
+#   make deps-macos     -> baja/compila todo lo de terceros en extern/
+#   make macos          -> compila (build/) y corre los tests
+#   make release-macos  -> bundle portable en release/ (verificado con otool)
+#   make dist-macos     -> dist/BroadcastAppliance-<ver>-macos-arm64.tar.gz
+deps-obs-src:
+	@test -d extern/obs-src || git clone --depth 1 --branch $(OBS_TAG) \
+		--recurse-submodules --shallow-submodules \
+		https://github.com/obsproject/obs-studio.git extern/obs-src
+
+deps-obs-macos: check-macos-tools deps-obs-src
+	tools/deps/obs-macos.sh $(JOBS)
+
+deps-lsp-macos:
+	tools/deps/lsp-macos.sh $(JOBS)
+
+check-macos-tools:
+	@[ "$$(uname -s)" = Darwin ] && [ "$$(uname -m)" = arm64 ] || { echo "ERROR: esto es para una Mac Apple Silicon" >&2; exit 1; }
+	@xcodebuild -version >/dev/null 2>&1 || { echo "ERROR: falta Xcode completo (App Store) y: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer" >&2; exit 1; }
+	@missing=""; for t in cmake ninja meson pkg-config git curl python3; do command -v $$t >/dev/null 2>&1 || missing="$$missing $$t"; done; \
+	  if [ -n "$$missing" ]; then echo "ERROR: faltan herramientas de build:$$missing" >&2; \
+	  echo "  brew install cmake ninja meson pkg-config" >&2; exit 1; fi
+	@echo "[macos] herramientas OK ($$(xcodebuild -version | head -1), $$(cmake --version | head -1))"
+
+deps-macos: check-macos-tools deps-obs-macos deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts \
+            deps-cloudflared-host deps-clap
+	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=macos
+	@# LSP (modulos del rack de audio) es opcional en macOS mientras se valida:
+	@# sin el, el rack funciona con el analizador y el generador.
+	-$(MAKE) deps-lsp-macos
+
+macos:
+	cmake -S . -B $(BUILD_DIR) -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 \
+		-DCMAKE_OSX_DEPLOYMENT_TARGET=13.0
+	cmake --build $(BUILD_DIR) -j$(JOBS)
+	ctest --test-dir $(BUILD_DIR) --output-on-failure
+
+release-macos:
+	rm -rf release
+	cmake --install $(BUILD_DIR) --prefix release --component bundle
+	tools/deps/check-portable-macos.sh release
+
+dist-macos: release-macos
+	@mkdir -p dist
+	tar -C release -czf dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64.tar.gz -s ',^\.,BroadcastAppliance,' .
+	@cd dist && $(SHA256) BroadcastAppliance-$(BA_VERSION)-macos-arm64.tar.gz > BroadcastAppliance-$(BA_VERSION)-macos-arm64.tar.gz.sha256
+	@echo "dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64.tar.gz"
+
 dist-linux:
 	cmake -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=Release
 	cmake --build $(BUILD_DIR) -j$(JOBS)
@@ -255,7 +309,7 @@ dist-linux:
 	$(MAKE) release
 	@mkdir -p dist
 	tar -C release -czf dist/BroadcastAppliance-$(BA_VERSION)-linux-x64.tar.gz --transform 's,^\.,BroadcastAppliance,' .
-	@cd dist && sha256sum BroadcastAppliance-$(BA_VERSION)-linux-x64.tar.gz > BroadcastAppliance-$(BA_VERSION)-linux-x64.tar.gz.sha256
+	@cd dist && $(SHA256) BroadcastAppliance-$(BA_VERSION)-linux-x64.tar.gz > BroadcastAppliance-$(BA_VERSION)-linux-x64.tar.gz.sha256
 	@echo "dist/BroadcastAppliance-$(BA_VERSION)-linux-x64.tar.gz"
 
 # ============================================================================
@@ -292,6 +346,8 @@ DL_DIR      := $(EXTERNS_DIR)/.downloads
 # Linux) o windows (`make deps-webrtc-win`, lo usa `make win`).
 ifeq ($(shell uname -s),Linux)
   BA_WEBRTC_TARGET ?= linux
+else ifeq ($(shell uname -s),Darwin)
+  BA_WEBRTC_TARGET ?= macos
 else
   BA_WEBRTC_TARGET ?= windows
 endif
@@ -349,6 +405,14 @@ ifeq ($(BA_WEBRTC_TARGET),linux)
   WEBARC     := $(DL_DIR)/webrtc.ubuntu-22.04_x86_64.tar.gz
   WEB_KIND   := tar
   WEB_LIB    := libwebrtc.a
+else ifeq ($(BA_WEBRTC_TARGET),macos)
+  # macOS arm64: compilado contra la libc++ del sistema (std::__1), se enlaza
+  # directo con Apple clang (src/gateway/CMakeLists.txt, rama APPLE).
+  WEBRTC_URL := https://github.com/shiguredo-webrtc-build/webrtc-build/releases/download/$(WEBRTC_TAG)/webrtc.macos_arm64.tar.gz
+  WEBRTC_SHA := e88e16db18a4b0a6b3d21e332dc2937cb8b63ca52bf0ed6876da67c796be7a1e
+  WEBARC     := $(DL_DIR)/webrtc.macos_arm64.tar.gz
+  WEB_KIND   := tar
+  WEB_LIB    := libwebrtc.a
 else
   WEBRTC_URL := https://github.com/shiguredo-webrtc-build/webrtc-build/releases/download/$(WEBRTC_TAG)/webrtc.windows_x86_64.zip
   WEBRTC_SHA := a56f41f40fb97e7016e5b2d0e0bf0394bcfc3a0833f5de2984eece8951f101c0
@@ -358,6 +422,8 @@ else
 endif
 # Cada SDK en su carpeta: se pueden tener los dos (Linux + cross a Windows).
 ifeq ($(BA_WEBRTC_TARGET),linux)
+  WEB_DEST := $(EXTERNS_DIR)/webrtc
+else ifeq ($(BA_WEBRTC_TARGET),macos)
   WEB_DEST := $(EXTERNS_DIR)/webrtc
 else
   WEB_DEST := $(EXTERNS_DIR)/webrtc-win
@@ -405,8 +471,7 @@ else ifeq ($(CFL_HOST_OS),Darwin)
   CFL_HOST_SHA   := 9be7398e5cfaa8b5883bdd31185acc9931c53be34796a9ba8ef94ab7a8293206
 endif
 CFL_HOST_URL := https://github.com/cloudflare/cloudflared/releases/download/$(CLOUDFLARED_VER)/$(CFL_HOST_ASSET)
-# macOS no trae sha256sum: shasum -a 256 acepta el mismo formato.
-SHA256_CHECK := $(shell command -v sha256sum >/dev/null 2>&1 && echo "sha256sum -c --quiet" || echo "shasum -a 256 -c --quiet")
+
 
 # Redist VC++ (evergreen aka.ms): aporta msvcp140_atomic_wait.dll (requerido
 # por std::atomic::wait de C++20). Es un objetivo MOVIENTE (sin tag), por lo
@@ -429,7 +494,7 @@ LSP_DEST := $(EXTERNS_DIR)/lsp
 # configure con `extern/` poblado sea OFFLINE (cero red): el CMake prefiere la
 # copia vendored y solo cae a git si falta. Son DEPS DE BUILD (entran en el
 # binario), NO assets de runtime como OBS/Qt/Spout. Mismo patrón idempotente:
-# presente+SHA -> skip; si no, curl a <tar>.part, mv, sha256sum -c, y se
+# presente+SHA -> skip; si no, curl a <tar>.part, mv, $(SHA256) -c, y se
 # extrae strippeando el top-dir de codeload.
 # ============================================================================
 
@@ -474,7 +539,7 @@ ARGON2_DEST := $(EXTERNS_DIR)/argon2
 ARGON2_SENT := $(ARGON2_DEST)/Makefile
 
 # Cada target enlaza el bloque idempotente de descarga (presente+sha -> skip;
-# si no, curl a <archivo>.part, mv y verificacion `sha256sum -c`). Se repite
+# si no, curl a <archivo>.part, mv y verificacion `$(SHA256) -c`). Se repite
 # por asset a proposito: es mas robusto y depurable que un macro define/call/
 # eval (este ultimo, dentro de una receta, se interpreta como contenido de
 # makefile y rompe el parseo).
@@ -538,13 +603,13 @@ deps-obs-linux: deps-obs-deps-linux
 deps-obs:
 	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
 	@mkdir -p "$(DL_DIR)" "$(OBS_DEST)"
-	@if [ -f "$(OBS_ZIP)" ] && [ "$$(sha256sum "$(OBS_ZIP)" | cut -d' ' -f1)" = "$(OBS_SHA)" ]; then \
+	@if [ -f "$(OBS_ZIP)" ] && [ "$$($(SHA256) "$(OBS_ZIP)" | cut -d' ' -f1)" = "$(OBS_SHA)" ]; then \
 	  echo "[deps] OBS: ya presente y verificado ($(OBS_ZIP))"; \
 	else \
 	  echo "[deps] OBS: descargando $(OBS_URL)"; \
 	  curl -fL --retry 3 --connect-timeout 30 -o "$(OBS_ZIP).part" "$(OBS_URL)" \
 	    && mv "$(OBS_ZIP).part" "$(OBS_ZIP)" \
-	    && printf '%s  %s\n' "$(OBS_SHA)" "$(OBS_ZIP)" | sha256sum -c --quiet \
+	    && printf '%s  %s\n' "$(OBS_SHA)" "$(OBS_ZIP)" | $(SHA256_CHECK) \
 	    || { echo "[deps] ERROR OBS: fallo de descarga o hash" >&2; rm -f "$(OBS_ZIP).part"; exit 1; }; \
 	fi
 	@# Headers de libobs (el zip trae solo binarios): el arbol de fuentes del tag.
@@ -569,7 +634,7 @@ deps-obs:
 deps-qt:
 	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
 	@mkdir -p "$(QT6_DEST)"
-	@if [ -f "$(QT6_SENTINEL)" ] && [ "$$(sha256sum "$(QT6_SENTINEL)" | cut -d' ' -f1)" = "$(QT6_SHA)" ]; then \
+	@if [ -f "$(QT6_SENTINEL)" ] && [ "$$($(SHA256) "$(QT6_SENTINEL)" | cut -d' ' -f1)" = "$(QT6_SHA)" ]; then \
 	  echo "[deps] Qt6 $(QT6_VER): ya presente y verificado ($(QT6_PREFIX))"; \
 	else \
 	  echo "[deps] Qt6 $(QT6_VER): instalando aqtinstall en el .venv..."; \
@@ -618,13 +683,13 @@ deps-qt-host:
 deps-webrtc:
 	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
 	@mkdir -p "$(DL_DIR)" "$(EXTERNS_DIR)"
-	@if [ -f "$(WEBARC)" ] && [ "$$(sha256sum "$(WEBARC)" | cut -d' ' -f1)" = "$(WEBRTC_SHA)" ]; then \
+	@if [ -f "$(WEBARC)" ] && [ "$$($(SHA256) "$(WEBARC)" | cut -d' ' -f1)" = "$(WEBRTC_SHA)" ]; then \
 	  echo "[deps] libwebrtc-$(BA_WEBRTC_TARGET): ya presente y verificado ($(WEBARC))"; \
 	else \
 	  echo "[deps] libwebrtc-$(BA_WEBRTC_TARGET): descargando $(WEBRTC_URL)"; \
 	  curl -fL --retry 3 --connect-timeout 30 -o "$(WEBARC).part" "$(WEBRTC_URL)" \
 	    && mv "$(WEBARC).part" "$(WEBARC)" \
-	    && printf '%s  %s\n' "$(WEBRTC_SHA)" "$(WEBARC)" | sha256sum -c --quiet \
+	    && printf '%s  %s\n' "$(WEBRTC_SHA)" "$(WEBARC)" | $(SHA256_CHECK) \
 	    || { echo "[deps] ERROR libwebrtc: fallo de descarga o hash" >&2; rm -f "$(WEBARC).part"; exit 1; }; \
 	fi
 	@if [ -f "$(WEB_DEST)/lib/$(WEB_LIB)" ]; then \
@@ -642,23 +707,23 @@ ifeq ($(BA_WEBRTC_TARGET),linux)
 	@# los .h de libc++: se bajan los headers completos y la configuracion de
 	@# Chromium (__config_site/__assertion_handler) en los commits de VERSIONS,
 	@# verificados por hash del CONTENIDO (los tar de gitiles no son byte-estables).
-	@if [ -f "$(WEB_DEST)/libcxx/include/vector" ] && [ "$$(cd $(WEB_DEST)/libcxx/include && find . -type f | LC_ALL=C sort | xargs sha256sum | sha256sum | cut -d' ' -f1)" = "$(LIBCXX_TREE_SHA)" ]; then \
+	@if [ -f "$(WEB_DEST)/libcxx/include/vector" ] && [ "$$(cd $(WEB_DEST)/libcxx/include && find . -type f | LC_ALL=C sort | xargs $(SHA256) | $(SHA256) | cut -d' ' -f1)" = "$(LIBCXX_TREE_SHA)" ]; then \
 	  echo "[deps] libc++ (Chromium): headers ya presentes y verificados"; \
 	else \
 	  echo "[deps] libc++ (Chromium): bajando headers ($(LIBCXX_COMMIT))"; \
 	  rm -rf "$(WEB_DEST)/libcxx"; mkdir -p "$(WEB_DEST)/libcxx/include"; \
 	  curl -fsSL --retry 5 --retry-delay 3 "$(LIBCXX_URL)" | tar xz -C "$(WEB_DEST)/libcxx/include" \
 	    || { echo "[deps] ERROR libc++: fallo de descarga" >&2; exit 1; }; \
-	  test "$$(cd $(WEB_DEST)/libcxx/include && find . -type f | LC_ALL=C sort | xargs sha256sum | sha256sum | cut -d' ' -f1)" = "$(LIBCXX_TREE_SHA)" \
+	  test "$$(cd $(WEB_DEST)/libcxx/include && find . -type f | LC_ALL=C sort | xargs $(SHA256) | $(SHA256) | cut -d' ' -f1)" = "$(LIBCXX_TREE_SHA)" \
 	    || { echo "[deps] ERROR libc++: el contenido no coincide con el hash fijado" >&2; exit 1; }; \
 	fi
 	@mkdir -p "$(WEB_DEST)/buildtools-libcxx"
 	@for f in __config_site:$(LIBCXX_CFG_SHA) __assertion_handler:$(LIBCXX_ASSERT_SHA); do \
 	  n=$${f%%:*}; h=$${f##*:}; d="$(WEB_DEST)/buildtools-libcxx/$$n"; \
-	  if [ -f "$$d" ] && [ "$$(sha256sum "$$d" | cut -d' ' -f1)" = "$$h" ]; then continue; fi; \
+	  if [ -f "$$d" ] && [ "$$($(SHA256) "$$d" | cut -d' ' -f1)" = "$$h" ]; then continue; fi; \
 	  echo "[deps] libc++ (Chromium): bajando $$n ($(BUILDTOOLS_COMMIT))"; \
 	  curl -fsSL --retry 5 --retry-delay 3 "$(BUILDTOOLS_URL)/$$n?format=TEXT" | base64 -d > "$$d.part" \
-	    && [ "$$(sha256sum "$$d.part" | cut -d' ' -f1)" = "$$h" ] && mv "$$d.part" "$$d" \
+	    && [ "$$($(SHA256) "$$d.part" | cut -d' ' -f1)" = "$$h" ] && mv "$$d.part" "$$d" \
 	    || { echo "[deps] ERROR libc++: $$n no coincide con el hash fijado" >&2; rm -f "$$d.part"; exit 1; }; \
 	done
 endif
@@ -672,12 +737,12 @@ LWIP_ZIP := $(DL_DIR)/lwip-2.2.0.zip
 deps-lwip:
 	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
 	@mkdir -p "$(DL_DIR)" "$(EXTERNS_DIR)"
-	@if [ -f "$(LWIP_ZIP)" ] && [ "$$(sha256sum "$(LWIP_ZIP)" | cut -d' ' -f1)" = "$(LWIP_SHA)" ]; then \
+	@if [ -f "$(LWIP_ZIP)" ] && [ "$$($(SHA256) "$(LWIP_ZIP)" | cut -d' ' -f1)" = "$(LWIP_SHA)" ]; then \
 	  echo "[deps] lwIP: ya presente y verificado"; \
 	else \
 	  echo "[deps] lwIP: descargando $(LWIP_URL)"; \
 	  curl -fL --retry 3 -o "$(LWIP_ZIP).part" "$(LWIP_URL)" && mv "$(LWIP_ZIP).part" "$(LWIP_ZIP)" \
-	    && printf '%s  %s\n' "$(LWIP_SHA)" "$(LWIP_ZIP)" | sha256sum -c --quiet \
+	    && printf '%s  %s\n' "$(LWIP_SHA)" "$(LWIP_ZIP)" | $(SHA256_CHECK) \
 	    || { echo "[deps] ERROR lwIP: fallo de descarga o hash" >&2; rm -f "$(LWIP_ZIP).part"; exit 1; }; \
 	fi
 	@if [ -f "$(EXTERNS_DIR)/lwip/src/Filelists.cmake" ]; then \
@@ -702,8 +767,8 @@ deps-libvterm:
 	@mkdir -p "$(DL_DIR)"
 	@if [ -f "$(EXTERNS_DIR)/libvterm/src/vterm.c" ]; then echo "[deps] libvterm: ya presente"; else \
 	  f="$(DL_DIR)/libvterm-0.3.3.tar.gz"; \
-	  [ -f "$$f" ] && [ "$$(sha256sum "$$f" | cut -d' ' -f1)" = "$(LIBVTERM_SHA)" ] || curl -fL --retry 3 -o "$$f" "$(LIBVTERM_URL)"; \
-	  printf '%s  %s\n' "$(LIBVTERM_SHA)" "$$f" | sha256sum -c --quiet || { echo "[deps] ERROR libvterm: hash" >&2; exit 1; }; \
+	  [ -f "$$f" ] && [ "$$($(SHA256) "$$f" | cut -d' ' -f1)" = "$(LIBVTERM_SHA)" ] || curl -fL --retry 3 -o "$$f" "$(LIBVTERM_URL)"; \
+	  printf '%s  %s\n' "$(LIBVTERM_SHA)" "$$f" | $(SHA256_CHECK) || { echo "[deps] ERROR libvterm: hash" >&2; exit 1; }; \
 	  rm -rf "$(EXTERNS_DIR)/libvterm" && mkdir -p "$(EXTERNS_DIR)/libvterm" && tar xzf "$$f" -C "$(EXTERNS_DIR)/libvterm" --strip-components=1; \
 	  echo "[deps] libvterm: listo"; fi
 
@@ -711,8 +776,8 @@ deps-fonts:
 	@mkdir -p "$(DL_DIR)"
 	@if [ -f "$(EXTERNS_DIR)/fonts/JetBrainsMono-Regular.ttf" ]; then echo "[deps] fuentes: ya presentes"; else \
 	  f="$(DL_DIR)/JetBrainsMono-2.304.zip"; \
-	  [ -f "$$f" ] && [ "$$(sha256sum "$$f" | cut -d' ' -f1)" = "$(FONTS_SHA)" ] || curl -fL --retry 3 -o "$$f" "$(FONTS_URL)"; \
-	  printf '%s  %s\n' "$(FONTS_SHA)" "$$f" | sha256sum -c --quiet || { echo "[deps] ERROR fuentes: hash" >&2; exit 1; }; \
+	  [ -f "$$f" ] && [ "$$($(SHA256) "$$f" | cut -d' ' -f1)" = "$(FONTS_SHA)" ] || curl -fL --retry 3 -o "$$f" "$(FONTS_URL)"; \
+	  printf '%s  %s\n' "$(FONTS_SHA)" "$$f" | $(SHA256_CHECK) || { echo "[deps] ERROR fuentes: hash" >&2; exit 1; }; \
 	  mkdir -p "$(EXTERNS_DIR)/fonts" && unzip -j -o -q "$$f" "fonts/ttf/JetBrainsMono-Regular.ttf" "fonts/ttf/JetBrainsMono-Bold.ttf" \
 	    "fonts/ttf/JetBrainsMono-Italic.ttf" "fonts/ttf/JetBrainsMono-BoldItalic.ttf" "OFL.txt" -d "$(EXTERNS_DIR)/fonts"; \
 	  echo "[deps] fuentes: listas"; fi
@@ -722,12 +787,12 @@ CACERT_SHA := f66dff1bdf8f96060b8177976f8b7d9254bc89bc4db933d769f7384d28480bc9
 deps-cacert:
 	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
 	@mkdir -p "$(EXTERNS_DIR)/cacert"
-	@if [ -f "$(EXTERNS_DIR)/cacert/cacert.pem" ] && [ "$$(sha256sum "$(EXTERNS_DIR)/cacert/cacert.pem" | cut -d' ' -f1)" = "$(CACERT_SHA)" ]; then \
+	@if [ -f "$(EXTERNS_DIR)/cacert/cacert.pem" ] && [ "$$($(SHA256) "$(EXTERNS_DIR)/cacert/cacert.pem" | cut -d' ' -f1)" = "$(CACERT_SHA)" ]; then \
 	  echo "[deps] cacert: ya presente y verificado"; \
 	else \
 	  echo "[deps] cacert: descargando $(CACERT_URL)"; \
 	  curl -fL --retry 3 -o "$(EXTERNS_DIR)/cacert/cacert.pem.part" "$(CACERT_URL)" \
-	    && printf '%s  %s\n' "$(CACERT_SHA)" "$(EXTERNS_DIR)/cacert/cacert.pem.part" | sha256sum -c --quiet \
+	    && printf '%s  %s\n' "$(CACERT_SHA)" "$(EXTERNS_DIR)/cacert/cacert.pem.part" | $(SHA256_CHECK) \
 	    && mv "$(EXTERNS_DIR)/cacert/cacert.pem.part" "$(EXTERNS_DIR)/cacert/cacert.pem" \
 	    || { echo "[deps] ERROR cacert: fallo de descarga o hash" >&2; rm -f "$(EXTERNS_DIR)/cacert/cacert.pem.part"; exit 1; }; \
 	fi
@@ -735,13 +800,13 @@ deps-cacert:
 deps-spout:
 	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
 	@mkdir -p "$(DL_DIR)" "$(EXTERNS_DIR)"
-	@if [ -f "$(SPOUT_TAR)" ] && [ "$$(sha256sum "$(SPOUT_TAR)" | cut -d' ' -f1)" = "$(SPOUT_SHA)" ]; then \
+	@if [ -f "$(SPOUT_TAR)" ] && [ "$$($(SHA256) "$(SPOUT_TAR)" | cut -d' ' -f1)" = "$(SPOUT_SHA)" ]; then \
 	  echo "[deps] Spout2: ya presente y verificado ($(SPOUT_TAR))"; \
 	else \
 	  echo "[deps] Spout2: descargando $(SPOUT_URL)"; \
 	  curl -fL --retry 3 --connect-timeout 30 -o "$(SPOUT_TAR).part" "$(SPOUT_URL)" \
 	    && mv "$(SPOUT_TAR).part" "$(SPOUT_TAR)" \
-	    && printf '%s  %s\n' "$(SPOUT_SHA)" "$(SPOUT_TAR)" | sha256sum -c --quiet \
+	    && printf '%s  %s\n' "$(SPOUT_SHA)" "$(SPOUT_TAR)" | $(SHA256_CHECK) \
 	    || { echo "[deps] ERROR Spout2: fallo de descarga o hash" >&2; rm -f "$(SPOUT_TAR).part"; exit 1; }; \
 	fi
 	@if [ -f "$(SPOUT_DEST)/SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX.h" ]; then \
@@ -756,13 +821,13 @@ deps-spout:
 deps-cloudflared:
 	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
 	@mkdir -p "$(dir $(CFL_EXE))"
-	@if [ -f "$(CFL_EXE)" ] && [ "$$(sha256sum "$(CFL_EXE)" | cut -d' ' -f1)" = "$(CFL_SHA)" ]; then \
+	@if [ -f "$(CFL_EXE)" ] && [ "$$($(SHA256) "$(CFL_EXE)" | cut -d' ' -f1)" = "$(CFL_SHA)" ]; then \
 	  echo "[deps] cloudflared: ya presente y verificado ($(CFL_EXE))"; \
 	else \
 	  echo "[deps] cloudflared: descargando $(CFL_URL)"; \
 	  curl -fL --retry 3 --connect-timeout 30 -o "$(CFL_EXE).part" "$(CFL_URL)" \
 	    && mv "$(CFL_EXE).part" "$(CFL_EXE)" \
-	    && printf '%s  %s\n' "$(CFL_SHA)" "$(CFL_EXE)" | sha256sum -c --quiet \
+	    && printf '%s  %s\n' "$(CFL_SHA)" "$(CFL_EXE)" | $(SHA256_CHECK) \
 	    || { echo "[deps] ERROR cloudflared: fallo de descarga o hash" >&2; rm -f "$(CFL_EXE).part"; exit 1; }; \
 	fi
 
@@ -801,13 +866,13 @@ deps-vcredist:
 deps-lsp:
 	@command -v 7z >/dev/null 2>&1 || { echo "[deps] ERROR: falta 7z (p7zip) para LSP" >&2; exit 1; }
 	@mkdir -p "$(DL_DIR)"
-	@if [ -f "$(LSP_7Z)" ] && [ "$$(sha256sum "$(LSP_7Z)" | cut -d' ' -f1)" = "$(LSP_SHA)" ]; then \
+	@if [ -f "$(LSP_7Z)" ] && [ "$$($(SHA256) "$(LSP_7Z)" | cut -d' ' -f1)" = "$(LSP_SHA)" ]; then \
 	  echo "[deps] LSP: ya presente y verificado ($(LSP_7Z))"; \
 	else \
 	  echo "[deps] LSP: descargando $(LSP_URL)"; \
 	  curl -fL --retry 3 --connect-timeout 30 -o "$(LSP_7Z).part" "$(LSP_URL)" \
 	    && mv "$(LSP_7Z).part" "$(LSP_7Z)" \
-	    && printf '%s  %s\n' "$(LSP_SHA)" "$(LSP_7Z)" | sha256sum -c --quiet \
+	    && printf '%s  %s\n' "$(LSP_SHA)" "$(LSP_7Z)" | $(SHA256_CHECK) \
 	    || { echo "[deps] ERROR LSP: fallo de descarga o hash" >&2; rm -f "$(LSP_7Z).part"; exit 1; }; \
 	fi
 	@# Solo el formato CLAP (lo que carga el host) y su licencia.
@@ -832,9 +897,9 @@ deps-clap:
 	@mkdir -p "$(DL_DIR)"
 	@if [ -f "$(EXTERNS_DIR)/clap/include/clap/clap.h" ]; then echo "[deps] CLAP: ya presente"; else \
 	  f="$(DL_DIR)/clap-$(CLAP_VER).tar.gz"; \
-	  [ -f "$$f" ] && [ "$$(sha256sum "$$f" | cut -d' ' -f1)" = "$(CLAP_SHA)" ] || \
+	  [ -f "$$f" ] && [ "$$($(SHA256) "$$f" | cut -d' ' -f1)" = "$(CLAP_SHA)" ] || \
 	    curl -fL --retry 3 -o "$$f" "https://codeload.github.com/free-audio/clap/tar.gz/refs/tags/$(CLAP_VER)"; \
-	  printf '%s  %s\n' "$(CLAP_SHA)" "$$f" | sha256sum -c --quiet || { echo "[deps] ERROR CLAP: hash" >&2; exit 1; }; \
+	  printf '%s  %s\n' "$(CLAP_SHA)" "$$f" | $(SHA256_CHECK) || { echo "[deps] ERROR CLAP: hash" >&2; exit 1; }; \
 	  rm -rf "$(EXTERNS_DIR)/clap" && mkdir -p "$(EXTERNS_DIR)/clap" && tar xzf "$$f" -C "$(EXTERNS_DIR)/clap" --strip-components=1; \
 	  echo "[deps] CLAP $(CLAP_VER): headers en $(EXTERNS_DIR)/clap"; fi
 
@@ -847,13 +912,13 @@ deps-src: deps-mbedtls deps-nlohmann deps-samplerate deps-argon2
 deps-mbedtls:
 	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
 	@mkdir -p "$(DL_DIR)" "$(MBEDTLS_DEST)"
-	@if [ -f "$(MBEDTLS_TAR)" ] && [ "$$(sha256sum "$(MBEDTLS_TAR)" | cut -d' ' -f1)" = "$(MBEDTLS_SHA)" ]; then \
+	@if [ -f "$(MBEDTLS_TAR)" ] && [ "$$($(SHA256) "$(MBEDTLS_TAR)" | cut -d' ' -f1)" = "$(MBEDTLS_SHA)" ]; then \
 	  echo "[deps] mbedtls: ya presente y verificado ($(MBEDTLS_TAR))"; \
 	else \
 	  echo "[deps] mbedtls: descargando $(MBEDTLS_URL)"; \
 	  curl -fL --retry 3 --connect-timeout 30 -o "$(MBEDTLS_TAR).part" "$(MBEDTLS_URL)" \
 	    && mv "$(MBEDTLS_TAR).part" "$(MBEDTLS_TAR)" \
-	    && printf '%s  %s\n' "$(MBEDTLS_SHA)" "$(MBEDTLS_TAR)" | sha256sum -c --quiet \
+	    && printf '%s  %s\n' "$(MBEDTLS_SHA)" "$(MBEDTLS_TAR)" | $(SHA256_CHECK) \
 	    || { echo "[deps] ERROR mbedtls: fallo de descarga o hash" >&2; rm -f "$(MBEDTLS_TAR).part"; exit 1; }; \
 	fi
 	@if [ -f "$(MBEDTLS_SENT)" ]; then \
@@ -868,13 +933,13 @@ deps-mbedtls:
 	# el CMakeLists de mbedtls hace FATAL_ERROR si framework/CMakeLists.txt no
 	# existe, así que se vendorea aparte y se extrae dentro de
 	# extern/mbedtls/framework. Idempotente: sentinel + tar verificado -> skip.
-	@if [ -f "$(MBEDTLS_FW_SENT)" ] && [ -f "$(MBEDTLS_FW_TAR)" ] && [ "$$(sha256sum "$(MBEDTLS_FW_TAR)" | cut -d' ' -f1)" = "$(MBEDTLS_FW_SHA)" ]; then \
+	@if [ -f "$(MBEDTLS_FW_SENT)" ] && [ -f "$(MBEDTLS_FW_TAR)" ] && [ "$$($(SHA256) "$(MBEDTLS_FW_TAR)" | cut -d' ' -f1)" = "$(MBEDTLS_FW_SHA)" ]; then \
 	  echo "[deps] mbedtls-framework: ya presente y verificado ($(MBEDTLS_FW_TAR))"; \
 	else \
 	  echo "[deps] mbedtls-framework: descargando $(MBEDTLS_FW_URL)"; \
 	  curl -fL --retry 3 --connect-timeout 30 -o "$(MBEDTLS_FW_TAR).part" "$(MBEDTLS_FW_URL)" \
 	    && mv "$(MBEDTLS_FW_TAR).part" "$(MBEDTLS_FW_TAR)" \
-	    && printf '%s  %s\n' "$(MBEDTLS_FW_SHA)" "$(MBEDTLS_FW_TAR)" | sha256sum -c --quiet \
+	    && printf '%s  %s\n' "$(MBEDTLS_FW_SHA)" "$(MBEDTLS_FW_TAR)" | $(SHA256_CHECK) \
 	    || { echo "[deps] ERROR mbedtls-framework: fallo de descarga o hash" >&2; rm -f "$(MBEDTLS_FW_TAR).part"; exit 1; }; \
 	  echo "[deps] mbedtls-framework: extrayendo a $(MBEDTLS_FW_DEST)"; \
 	  rm -rf "$(MBEDTLS_FW_DEST)"; \
@@ -885,13 +950,13 @@ deps-mbedtls:
 deps-nlohmann:
 	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
 	@mkdir -p "$(DL_DIR)" "$(NLOHMANN_DEST)"
-	@if [ -f "$(NLOHMANN_TAR)" ] && [ "$$(sha256sum "$(NLOHMANN_TAR)" | cut -d' ' -f1)" = "$(NLOHMANN_SHA)" ]; then \
+	@if [ -f "$(NLOHMANN_TAR)" ] && [ "$$($(SHA256) "$(NLOHMANN_TAR)" | cut -d' ' -f1)" = "$(NLOHMANN_SHA)" ]; then \
 	  echo "[deps] nlohmann: ya presente y verificado ($(NLOHMANN_TAR))"; \
 	else \
 	  echo "[deps] nlohmann: descargando $(NLOHMANN_URL)"; \
 	  curl -fL --retry 3 --connect-timeout 30 -o "$(NLOHMANN_TAR).part" "$(NLOHMANN_URL)" \
 	    && mv "$(NLOHMANN_TAR).part" "$(NLOHMANN_TAR)" \
-	    && printf '%s  %s\n' "$(NLOHMANN_SHA)" "$(NLOHMANN_TAR)" | sha256sum -c --quiet \
+	    && printf '%s  %s\n' "$(NLOHMANN_SHA)" "$(NLOHMANN_TAR)" | $(SHA256_CHECK) \
 	    || { echo "[deps] ERROR nlohmann: fallo de descarga o hash" >&2; rm -f "$(NLOHMANN_TAR).part"; exit 1; }; \
 	fi
 	@if [ -f "$(NLOHMANN_SENT)" ]; then \
@@ -906,13 +971,13 @@ deps-nlohmann:
 deps-samplerate:
 	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
 	@mkdir -p "$(DL_DIR)" "$(SAMPLERATE_DEST)"
-	@if [ -f "$(SAMPLERATE_TAR)" ] && [ "$$(sha256sum "$(SAMPLERATE_TAR)" | cut -d' ' -f1)" = "$(SAMPLERATE_SHA)" ]; then \
+	@if [ -f "$(SAMPLERATE_TAR)" ] && [ "$$($(SHA256) "$(SAMPLERATE_TAR)" | cut -d' ' -f1)" = "$(SAMPLERATE_SHA)" ]; then \
 	  echo "[deps] libsamplerate: ya presente y verificado ($(SAMPLERATE_TAR))"; \
 	else \
 	  echo "[deps] libsamplerate: descargando $(SAMPLERATE_URL)"; \
 	  curl -fL --retry 3 --connect-timeout 30 -o "$(SAMPLERATE_TAR).part" "$(SAMPLERATE_URL)" \
 	    && mv "$(SAMPLERATE_TAR).part" "$(SAMPLERATE_TAR)" \
-	    && printf '%s  %s\n' "$(SAMPLERATE_SHA)" "$(SAMPLERATE_TAR)" | sha256sum -c --quiet \
+	    && printf '%s  %s\n' "$(SAMPLERATE_SHA)" "$(SAMPLERATE_TAR)" | $(SHA256_CHECK) \
 	    || { echo "[deps] ERROR libsamplerate: fallo de descarga o hash" >&2; rm -f "$(SAMPLERATE_TAR).part"; exit 1; }; \
 	fi
 	@if [ -f "$(SAMPLERATE_SENT)" ]; then \
@@ -927,13 +992,13 @@ deps-samplerate:
 deps-argon2:
 	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
 	@mkdir -p "$(DL_DIR)" "$(ARGON2_DEST)"
-	@if [ -f "$(ARGON2_TAR)" ] && [ "$$(sha256sum "$(ARGON2_TAR)" | cut -d' ' -f1)" = "$(ARGON2_SHA)" ]; then \
+	@if [ -f "$(ARGON2_TAR)" ] && [ "$$($(SHA256) "$(ARGON2_TAR)" | cut -d' ' -f1)" = "$(ARGON2_SHA)" ]; then \
 	  echo "[deps] argon2: ya presente y verificado ($(ARGON2_TAR))"; \
 	else \
 	  echo "[deps] argon2: descargando $(ARGON2_URL)"; \
 	  curl -fL --retry 3 --connect-timeout 30 -o "$(ARGON2_TAR).part" "$(ARGON2_URL)" \
 	    && mv "$(ARGON2_TAR).part" "$(ARGON2_TAR)" \
-	    && printf '%s  %s\n' "$(ARGON2_SHA)" "$(ARGON2_TAR)" | sha256sum -c --quiet \
+	    && printf '%s  %s\n' "$(ARGON2_SHA)" "$(ARGON2_TAR)" | $(SHA256_CHECK) \
 	    || { echo "[deps] ERROR argon2: fallo de descarga o hash" >&2; rm -f "$(ARGON2_TAR).part"; exit 1; }; \
 	fi
 	@if [ -f "$(ARGON2_SENT)" ]; then \

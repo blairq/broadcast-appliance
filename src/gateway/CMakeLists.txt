@@ -128,7 +128,34 @@ if(MSVC)
     endif()
 endif()
 
-if(BA_GATEWAY_WEBRTC)
+# macOS: el libwebrtc de Shiguredo (macos_arm64) esta compilado contra la
+# libc++ del sistema (std::__1), la misma de Apple clang: se enlaza directo en
+# este build, sin el sub-build de Linux. Lo baja `make deps-webrtc` en macOS.
+set(BA_GATEWAY_WEBRTC_MAC 0)
+if(APPLE AND EXISTS "${BA_WEBRTC_ROOT}/lib/libwebrtc.a" AND EXISTS "${BA_WEBRTC_ROOT}/include/api/peer_connection_interface.h")
+    set(BA_GATEWAY_WEBRTC_MAC 1)
+    message(STATUS "ba-gateway: libwebrtc REAL (macOS arm64) en ${BA_WEBRTC_ROOT}")
+    add_library(ba_webrtc_mac INTERFACE)
+    target_include_directories(ba_webrtc_mac SYSTEM BEFORE INTERFACE
+        "${BA_WEBRTC_ROOT}/include"
+        "${BA_WEBRTC_ROOT}/include/third_party/abseil-cpp"
+        "${BA_WEBRTC_ROOT}/include/third_party/libyuv/include")
+    target_compile_definitions(ba_webrtc_mac INTERFACE BA_GATEWAY_HAVE_WEBRTC=1 WEBRTC_POSIX WEBRTC_MAC)
+    target_link_libraries(ba_webrtc_mac INTERFACE "${BA_WEBRTC_ROOT}/lib/libwebrtc.a"
+        "-framework Foundation" "-framework CoreFoundation" "-framework CoreAudio" "-framework AudioToolbox"
+        "-framework AudioUnit" "-framework CoreVideo" "-framework CoreMedia" "-framework VideoToolbox"
+        "-framework AVFoundation" "-framework AppKit" "-framework Metal" "-framework MetalKit"
+        "-framework IOSurface" "-framework ApplicationServices" "-framework CoreGraphics"
+        "-framework QuartzCore" "-framework CoreServices" "-framework Security"
+        "-framework SystemConfiguration")
+    # libwebrtc esta compilado sin RTTI.
+    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/Webrtc.cpp" PROPERTIES COMPILE_OPTIONS "-fno-rtti")
+    target_link_libraries(ba-gateway PRIVATE ba_webrtc_mac)
+endif()
+
+if(BA_GATEWAY_WEBRTC_MAC)
+    # (configurado arriba)
+elseif(BA_GATEWAY_WEBRTC)
     message(STATUS "ba-gateway: libwebrtc en ${BA_WEBRTC_ROOT}")
     target_compile_definitions(ba-gateway PRIVATE BA_GATEWAY_HAVE_WEBRTC=1)
     # Binarios precompilados de Shiguredo: webrtc.lib en COFF con símbolos
@@ -259,6 +286,19 @@ if(BA_GATEWAY_WEBRTC AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_webrtc_l
         target_compile_definitions(test_webrtc_loopback PRIVATE BA_HAVE_LWIP=1)
     endif()
     set_source_files_properties(tests/test_webrtc_loopback.cpp PROPERTIES COMPILE_OPTIONS "/GR-")
+    add_test(NAME test_webrtc_loopback COMMAND test_webrtc_loopback)
+    set_tests_properties(test_webrtc_loopback PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+endif()
+if(BA_GATEWAY_WEBRTC_MAC AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_webrtc_loopback.cpp")
+    add_executable(test_webrtc_loopback tests/test_webrtc_loopback.cpp ${BA_GATEWAY_LIB_SOURCES}
+                   "${BA_QRCODEGEN_DIR}/qrcodegen.cpp")
+    target_include_directories(test_webrtc_loopback PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_QRCODEGEN_DIR}")
+    target_link_libraries(test_webrtc_loopback PRIVATE ba_core mbedcrypto ba_webrtc_mac)
+    if(BA_HAVE_LWIP)
+        target_link_libraries(test_webrtc_loopback PRIVATE ba_lwip)
+        target_compile_definitions(test_webrtc_loopback PRIVATE BA_HAVE_LWIP=1)
+    endif()
+    set_source_files_properties(tests/test_webrtc_loopback.cpp PROPERTIES COMPILE_OPTIONS "-fno-rtti")
     add_test(NAME test_webrtc_loopback COMMAND test_webrtc_loopback)
     set_tests_properties(test_webrtc_loopback PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
 endif()

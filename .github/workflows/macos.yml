@@ -1,9 +1,8 @@
 # ============================================================================
 # macOS (Apple Silicon) — en desarrollo
 #
-# Runner macos-14 (M1). Por ahora corre solo en la rama `macos` y a mano
-# (workflow_dispatch): cuando pase entero se suma como job de ci.yml y entra
-# al release.
+# Runner macos-14 (M1), solo a mano (workflow_dispatch). Cuando macOS este
+# validado en una Mac real se suma como job de ci.yml y entra al release.
 #
 # Hito 1: nucleo headless (ba_core, launcher, gateway con backend NULL y la
 # app sin Qt ni libobs) con Apple clang + ctest. Las dependencias de build
@@ -11,9 +10,8 @@
 # ============================================================================
 name: macOS
 
+# Solo a mano: la validacion de macOS se hace en una Mac M1 real.
 on:
-  push:
-    branches: [macos]
   workflow_dispatch:
 
 permissions:

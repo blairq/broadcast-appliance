@@ -24,6 +24,8 @@
 
 #include "RecoveryUi.hpp"
 
+#include <cstdio>
+
 #include "Log.hpp"
 
 #include <string>
@@ -286,6 +288,33 @@ RecoveryAction RecoveryUi::present(const Incident& inc) {
         ctx += "; integridad con fallos";
     }
     BA_LOG_WARN("recovery", 0, ctx);
+#if defined(__APPLE__)
+    // macOS: dialogo nativo con osascript (decision D4). Si nadie contesta en
+    // 5 minutos se reintenta solo: el launcher nunca queda colgado de la UI.
+    std::string msg = "Broadcast Appliance tuvo un problema.";
+    if (inc.childADown) msg += "\\nLa interfaz/motor (A) se cerro.";
+    if (inc.childBDown) msg += "\\nLa sala de invitados (B) se cerro.";
+    if (inc.showIntegrity && !inc.integrity.ok)
+        msg += "\\nHay archivos del programa con fallas de integridad.";
+    std::string safe;
+    for (char ch : msg) {
+        if (ch == '"' || ch == '\'') continue; // sin comillas: va dentro de un literal de AppleScript
+        safe += ch;
+    }
+    const std::string cmd =
+        "osascript -e 'display dialog \"" + safe +
+        "\" with title \"Broadcast Appliance\" buttons {\"Salir\", \"Reiniciar todo\", \"Reintentar\"} "
+        "default button \"Reintentar\" with icon caution giving up after 300' 2>/dev/null";
+    std::string out;
+    if (FILE* f = ::popen(cmd.c_str(), "r")) {
+        char buf[256];
+        while (std::fgets(buf, sizeof(buf), f) != nullptr)
+            out += buf;
+        ::pclose(f);
+    }
+    if (out.find("button returned:Salir") != std::string::npos) return RecoveryAction::Exit;
+    if (out.find("button returned:Reiniciar todo") != std::string::npos) return RecoveryAction::ForceRestart;
+#endif
     return RecoveryAction::Retry;
 }
 
