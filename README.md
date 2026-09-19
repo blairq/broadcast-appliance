@@ -628,13 +628,26 @@ compila desde fuente fijada (con `extern/` en la caché de Actions):
 | Job | Qué hace |
 |---|---|
 | `lint` | clang-format (versión fijada) |
-| `linux` | `make deps-linux` (libobs y sus deps desde fuente, Qt, libwebrtc…), build, ctest, pytest y `make dist-linux` |
+| `linux` | `make deps-linux` (libobs y sus deps desde fuente, Qt, libwebrtc…), build, ctest, pytest, `make dist-linux` y humo del bundle publicado (autotest del motor bajo Xvfb, sin `extern/`) |
 | `windows` | `make win` (clang-cl desde Linux), `make test-win` (Wine) y `make dist-win` |
 | `sanitizers` | ASan/UBSan y TSan sobre la suite |
-| `release` | con un tag `v*`: publica en un GitHub Release el `.tar.gz` de Linux y el `.zip` de Windows con sus `.sha256` |
+| `release` | en **cada push a `master`** con todo en verde (tag automático `v<versión>-build.<n>`) o con un tag `v*`: publica en un GitHub Release el `.tar.gz` de Linux y el `.zip` de Windows con sus `.sha256` |
 
 El job de Windows acepta la licencia de Microsoft del CRT/SDK
-(`BA_ACCEPT_MSVC_LICENSE=1`) en nombre del dueño del repositorio.
+(`BA_ACCEPT_MSVC_LICENSE=1`) en nombre del dueño del repositorio. Un push nuevo
+a la misma rama cancela la corrida anterior.
+
+**Probar el CI en local antes de subir** con [act](https://github.com/nektos/act)
+(fijado por hash, corre en Docker con la imagen de runner de Ubuntu 24.04):
+
+```bash
+tools/ci/act.sh lint          # o sanitizers | linux | windows
+BA_ACT_KEEP=1 tools/ci/act.sh linux   # reusa el extern/ de la corrida anterior
+```
+
+Cada corrida parte de una copia limpia del repo (con los cambios sin commitear)
+en `/tmp/ba-act` y de un `extern/` vacío, como en GitHub; solo reusa los
+tarballs ya verificados de `extern/.downloads`.
 
 ---
 
