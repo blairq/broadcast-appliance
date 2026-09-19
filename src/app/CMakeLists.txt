@@ -78,6 +78,9 @@ if(NOT BA_APP_QT_OK)
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/(GuiMode)\\.cpp$")
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/ui/.*")
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/(term|agent)/.*")
+    # MCP, plataformas y cuentas son Qt (red, JSON, timers): sin Qt no van.
+    list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/(mcp|youtube|twitch|facebook|net)/.*")
+    list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/AccountGuides\\.cpp$")
 endif()
 # Pseudo-terminal: una implementacion por plataforma.
 if(WIN32)
