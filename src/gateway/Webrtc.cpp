@@ -43,6 +43,7 @@
 #include <condition_variable>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
 #include <map>
 #include <mutex>
 #include <string>
@@ -420,6 +421,7 @@ struct Feed {
         rtc::scoped_refptr<ViewerTransformer> tx;
         std::vector<std::pair<std::string, int>> pts; // "VIDEO/VP8" -> payload type del espectador
         bool needKey = true;                          // arranca en un keyframe
+        bool ready = false; // su PeerConnection ya conecto (antes, lo enviado se pierde)
         uint64_t frames = 0;
     };
     std::mutex m;
@@ -429,9 +431,9 @@ struct Feed {
     int64_t lastKeyReqMs = 0;
 
     /// Pide un keyframe al invitado (PLI/FIR por su receptor). Limitado.
-    void requestKeyLocked() {
+    void requestKeyLocked(bool force = false) {
         const int64_t now = steadyMs();
-        if (!source || worker == nullptr || now - lastKeyReqMs < 500) return;
+        if (!source || worker == nullptr || (!force && now - lastKeyReqMs < 500)) return;
         lastKeyReqMs = now;
         rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> src = source;
         worker->PostTask([src]() { src->GenerateKeyFrame(); });
@@ -461,14 +463,26 @@ struct Feed {
         }
     }
     void add(int viewer, rtc::scoped_refptr<ViewerTransformer> tx,
-             std::vector<std::pair<std::string, int>> pts) {
+             std::vector<std::pair<std::string, int>> pts, bool connected) {
         std::lock_guard<std::mutex> lock(m);
         Out o;
         o.viewer = viewer;
         o.tx = std::move(tx);
         o.pts = std::move(pts);
+        o.ready = connected;
         outs.push_back(std::move(o));
-        requestKeyLocked();
+        if (connected) requestKeyLocked(true);
+    }
+    /// La PeerConnection del espectador conecto: desde aca lo enviado llega.
+    /// Arranca en un keyframe nuevo (uno anterior pudo perderse antes de DTLS).
+    void viewerConnected(int viewer) {
+        std::lock_guard<std::mutex> lock(m);
+        for (Out& o : outs) {
+            if (o.viewer != viewer) continue;
+            o.ready = true;
+            o.needKey = true;
+            requestKeyLocked(true);
+        }
     }
     void remove(int viewer) {
         std::lock_guard<std::mutex> lock(m);
@@ -487,6 +501,7 @@ struct Feed {
         webrtc::VideoFrameMetadata meta;
         bool waiting = false;
         for (Out& o : outs) {
+            if (!o.ready) continue;
             if (o.needKey && !key) {
                 waiting = true;
                 continue;
@@ -571,7 +586,7 @@ class SilentVideoSource : public rtc::AdaptedVideoTrackSource {
 
 /// PeerConnection de un espectador (B es el answerer de su offer recvonly).
 struct ViewerPc : public webrtc::PeerConnectionObserver {
-    int id = 0;
+    std::atomic<int> id{0};
     int feedKey = 0;
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> pc;
     rtc::scoped_refptr<ViewerTransformer> tx;
@@ -582,6 +597,7 @@ struct ViewerPc : public webrtc::PeerConnectionObserver {
     std::atomic<int> state{0}; // 0 nuevo, 1 conectado, 2 caido
     std::atomic<int64_t> downSinceMs{0};
     int64_t createdMs = 0;
+    std::function<void()> onConnected; // lo fija openViewer
 
     void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState) override {}
     void OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface>) override {}
@@ -595,8 +611,9 @@ struct ViewerPc : public webrtc::PeerConnectionObserver {
     void OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState s) override {
         using S = webrtc::PeerConnectionInterface::PeerConnectionState;
         if (s == S::kConnected) {
-            state = 1;
+            const bool first = state.exchange(1) != 1;
             downSinceMs = 0;
+            if (first && onConnected) onConnected();
         } else if (s == S::kFailed || s == S::kDisconnected || s == S::kClosed) {
             if (state.exchange(2) != 2) downSinceMs = steadyMs();
         }
@@ -1068,6 +1085,12 @@ int WebrtcHub::openViewer(int session, bool screen, const std::string& offerSdp,
     v->feedKey = session * 2 + (screen ? 1 : 0);
     v->createdMs = steadyMs();
     v->tx = rtc::make_ref_counted<ViewerTransformer>();
+    {
+        // El id se asigna al final: el callback lo lee de v (vive mientras la PC).
+        ViewerPc* raw = v.get();
+        std::shared_ptr<Feed> fd = st->feed(v->feedKey);
+        v->onConnected = [raw, fd]() { fd->viewerConnected(raw->id); };
+    }
     webrtc::PeerConnectionInterface::RTCConfiguration config;
     config.sdp_semantics = webrtc::SdpSemantics::kUnifiedPlan;
     config.bundle_policy = webrtc::PeerConnectionInterface::kBundlePolicyMaxBundle;
@@ -1131,7 +1154,7 @@ int WebrtcHub::openViewer(int session, bool screen, const std::string& offerSdp,
         v->id = id;
         st->viewers[id] = std::move(v);
     }
-    st->feed(vp->feedKey)->add(id, vp->tx, pts);
+    st->feed(vp->feedKey)->add(id, vp->tx, pts, vp->state.load() == 1);
     return id;
 }
 
