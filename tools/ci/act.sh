@@ -14,7 +14,7 @@
 #      tools/ci/act.sh sanitizers
 #      tools/ci/act.sh linux
 #      tools/ci/act.sh windows
-# Variables: BA_ACT_DIR (donde va la copia; default /tmp/ba-act),
+# Variables: BA_ACT_DIR (donde van las copias, una por job; default /tmp/ba-act),
 #            BA_ACT_KEEP=1 (reusar el extern/ de la corrida anterior).
 # El job `release` no se corre en local (publica en GitHub).
 # ============================================================================
@@ -28,7 +28,8 @@ shift
 ACT_VER=0.2.89
 ACT_SHA=0191d6f1f3b716b5c55820032605d05fc3c1cdbf581ebeff655019e5dd1524c0
 IMAGE=ghcr.io/catthehacker/ubuntu:act-24.04
-WORK="${BA_ACT_DIR:-/tmp/ba-act}"
+# Un directorio por job: como en GitHub, cada job tiene su propio extern/.
+WORK="${BA_ACT_DIR:-/tmp/ba-act}/$JOB"
 ACT="$ROOT/extern/.tools/act/act"
 
 if [ "$("$ACT" --version 2>/dev/null)" != "act version $ACT_VER" ]; then
