@@ -254,10 +254,12 @@ bool Process::spawn(const ProcessOptions& opts, Process& out, std::string* err) 
 
     STARTUPINFOEXW si{};
     si.StartupInfo.cb = sizeof(si);
-    if (opts.hideWindow) {
-        si.StartupInfo.dwFlags |= STARTF_USESHOWWINDOW;
-        si.StartupInfo.wShowWindow = SW_HIDE;
-    }
+    // Sin STARTF_USESHOWWINDOW a proposito. Ese campo no es "ocultar la
+    // consola": es el nCmdShow que el hijo hereda, y Windows se lo aplica a la
+    // PRIMERA ventana que muestre. Con SW_HIDE, la ventana de A se creaba bien
+    // (posicionada, showCmd=SW_SHOWNORMAL) pero sin WS_VISIBLE: el dashboard
+    // no aparecia nunca al abrir desde el launcher. La consola la suprime
+    // CREATE_NO_WINDOW, mas abajo, que es lo que `hideWindow` quiere decir.
     if (outFile != nullptr) {
         si.StartupInfo.dwFlags |= STARTF_USESTDHANDLES;
         si.StartupInfo.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
