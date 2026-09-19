@@ -47,7 +47,7 @@ jobs:
     name: "Lint (clang-format)"
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install clang-format (apt, version fijada)
         run: |
           sudo apt-get update
@@ -65,7 +65,7 @@ jobs:
     name: "Linux: deps + build + tests + bundle"
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # El runner trae ~14 GB libres y el job usa mas de 10: se borran SDKs
       # preinstalados que no se usan (Android, .NET, Haskell, CodeQL).
@@ -90,7 +90,7 @@ jobs:
             libpulse-dev libasound2-dev libudev-dev \
             libwayland-dev libdrm-dev libfreetype-dev libfontconfig1-dev
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -98,7 +98,7 @@ jobs:
       # test): la primera corrida compila FFmpeg/libobs y tarda.
       - name: Restaurar extern/ (Linux)
         id: extern-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             extern
@@ -112,7 +112,7 @@ jobs:
 
       - name: Guardar extern/ (Linux)
         if: steps.extern-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             extern
@@ -151,7 +151,7 @@ jobs:
           cd "$GITHUB_WORKSPACE" && mv extern/obs-linux.oculto extern/obs-linux
           grep -q "autotest del motor: OK" "$d/humo.log" || { tail -40 "$d/humo.log"; exit 1; }
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: dist-linux
           path: dist/*
@@ -162,7 +162,7 @@ jobs:
     name: "Windows x64 (clang-cl desde Linux) + tests en Wine + bundle"
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # El runner trae ~14 GB libres y el job usa mas de 10: se borran SDKs
       # preinstalados que no se usan (Android, .NET, Haskell, CodeQL).
@@ -182,13 +182,13 @@ jobs:
           sudo apt-get install -y libsndfile1-dev libcairo2-dev libx11-dev libxrandr-dev \
             libfreetype-dev libfontconfig-dev libgl-dev
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
       - name: Restaurar extern/ (Windows)
         id: extern-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             extern
@@ -203,7 +203,7 @@ jobs:
 
       - name: Guardar extern/ (Windows)
         if: steps.extern-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             extern
@@ -219,7 +219,7 @@ jobs:
       - name: Bundle portable (make dist-win)
         run: make dist-win JOBS=$(nproc) BA_ACCEPT_MSVC_LICENSE=1
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: dist-windows
           path: dist/*
@@ -241,7 +241,7 @@ jobs:
           - name: "tsan"
             flags: "-fsanitize=thread -fno-omit-frame-pointer -g"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install tools (apt)
         run: |
           sudo apt-get update
@@ -273,7 +273,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           path: dist
           merge-multiple: true

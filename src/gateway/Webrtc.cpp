@@ -958,9 +958,7 @@ uint64_t WebrtcSession::localVideoFrames() const {
 // WebrtcHub
 // ============================================================================
 
-WebrtcHub::WebrtcHub(int guests, int videoW, int videoH, int audioRate, int audioChannels)
-    : guests_(guests), videoW_(videoW), videoH_(videoH), audioRate_(audioRate),
-      audioChannels_(audioChannels) {
+WebrtcHub::WebrtcHub(int guests, int videoW, int videoH, int audioRate, int audioChannels) : guests_(guests) {
     sessions_.resize(static_cast<size_t>(guests) + 1);
     for (int s = 1; s <= guests; ++s)
         sessions_[static_cast<size_t>(s)] = WebrtcSession(s, videoW, videoH, audioRate, audioChannels);

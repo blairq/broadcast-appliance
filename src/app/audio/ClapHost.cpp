@@ -239,7 +239,9 @@ struct ClapInstance::Host {
         static const clap_host_latency_t kLatency{latencyChanged};
         static const clap_host_audio_ports_t kPorts{portsFlagSupported, portsRescan};
         static const clap_host_timer_support_t kTimer{registerTimer, unregisterTimer};
+#ifndef _WIN32
         static const clap_host_posix_fd_support_t kFd{registerFd, modifyFd, unregisterFd};
+#endif
         static const clap_host_gui_t kGui{guiResizeHints, guiRequestResize, guiRequestShow, guiRequestHide,
                                           guiClosed};
         if (std::strcmp(id, CLAP_EXT_LOG) == 0) return &kLog;

@@ -27,6 +27,7 @@
 //   No lanza. Sin token o sin binario no se lanza (se avisa). Si el proceso no
 //   arranca o cae, se loguea y se reintenta con backoff (el gateway sigue
 //   corriendo: sin tunel solo no hay conexiones nuevas, el medio local sigue).
+//   Un error permanente (token invalido) no se reintenta: se avisa una vez.
 //   Igual en Windows, Linux y macOS (ba::platform::Process).
 // ============================================================================
 #pragma once
@@ -80,6 +81,8 @@ class CloudflaredSupervisor {
     bool processAlive();
     bool probeMetrics() const;
     void sleepBackoff();
+    /// Lo que cloudflared escribio desde el ultimo arranque (hasta 8 KB).
+    std::string outputSinceSpawn() const;
 
     std::string cloudflaredPath_;
     std::string tunnelToken_;
@@ -94,7 +97,8 @@ class CloudflaredSupervisor {
 
     std::thread thread_;
     bool started_ = false;
-    bool loggedUp_ = false; // solo lo toca runLoop
+    bool loggedUp_ = false;                    // solo lo toca runLoop
+    std::atomic<std::uintmax_t> logOffset_{0}; // tamano del log al lanzar (spawn)
 
     std::mutex procLock_;
     ba::platform::Process proc_; // killWithParent: muere si B muere

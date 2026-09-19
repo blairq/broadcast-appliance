@@ -170,7 +170,8 @@ void TerminalView::paint(QPainter* p) {
                 // con fuentes de reemplazo para simbolos).
                 const auto u = run.toUcs4();
                 for (int i = 0; i < u.size(); ++i)
-                    p->drawText(QPointF(x0 + i * cellW_, y + ascent_), QString::fromUcs4(&u[i], 1));
+                    p->drawText(QPointF(x0 + i * cellW_, y + ascent_),
+                                QString::fromUcs4(reinterpret_cast<const char32_t*>(&u[i]), 1));
             }
             if (first.underline)
                 p->drawLine(QPointF(x0, y + cellH_ - 2), QPointF(pad_ + e * cellW_, y + cellH_ - 2));

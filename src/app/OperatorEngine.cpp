@@ -176,7 +176,7 @@ bool OperatorEngine::init(const std::string& configDir, bool restore) {
     // En la app real (Qt/libobs) se respaldaría sobre el transporte real
     // (named pipe/socket hacia el gateway); aquí el loopback lo hace testeable.
     control_ = std::make_unique<ba::ipc::ControlEndpoint>(loopback_, ba::ipc::ControlEndpoint::kLauncher);
-    control_->onDisconnect([this]() {
+    control_->onDisconnect([]() {
         // Reconexión (spec §4.1): en headless el loopback no se corta, así que
         // solo se registra el evento.
     });

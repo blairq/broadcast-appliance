@@ -227,7 +227,6 @@ class WebrtcHub {
 
    private:
     int guests_;
-    int videoW_, videoH_, audioRate_, audioChannels_;
     std::vector<WebrtcSession> sessions_;
     void* rtcFactory_ = nullptr; // backend real: webrtc::PeerConnectionFactory*
 };

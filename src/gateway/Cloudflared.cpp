@@ -28,6 +28,7 @@
 #include <chrono>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
 
 #include "Log.hpp"
 
@@ -106,6 +107,9 @@ bool CloudflaredSupervisor::spawn() {
     o.outputFile = logPath_;
 
     std::lock_guard<std::mutex> lock(procLock_);
+    std::error_code ec;
+    const auto size = std::filesystem::file_size(logPath_, ec);
+    logOffset_ = ec ? 0 : size;
     std::string err;
     if (!ba::platform::Process::spawn(o, proc_, &err)) {
         log_.warn("cloudflared: no se pudo lanzar: " + err, -1);
@@ -167,6 +171,20 @@ bool CloudflaredSupervisor::probeMetrics() const {
     return r == 0;
 }
 
+std::string CloudflaredSupervisor::outputSinceSpawn() const {
+    std::ifstream in(logPath_, std::ios::binary);
+    if (!in) return {};
+    in.seekg(0, std::ios::end);
+    const std::streamoff end = in.tellg();
+    std::streamoff from = static_cast<std::streamoff>(logOffset_.load());
+    if (from > end) from = 0; // el log se roto o se trunco
+    if (end - from > 8192) from = end - 8192;
+    in.seekg(from);
+    std::string out(static_cast<size_t>(end - from), '\0');
+    in.read(out.data(), static_cast<std::streamsize>(out.size()));
+    return out;
+}
+
 void CloudflaredSupervisor::sleepBackoff() {
     // En tramos cortos para que stop() no espere un backoff entero.
     for (int waited = 0; waited < backoffMs_ && !stop_.load(); waited += 100) {
@@ -194,6 +212,15 @@ void CloudflaredSupervisor::runLoop() {
             continue;
         }
 
+        // Token invalido: reintentar no lo arregla (el log se llenaba de
+        // reinicios para siempre). Se avisa una vez y se deja de supervisar.
+        if (!alive && outputSinceSpawn().find("token is not valid") != std::string::npos) {
+            log_.error("cloudflared: el token del tunel (BA_TUNNEL_TOKEN) no es valido; tunel desactivado "
+                       "hasta corregirlo y reiniciar el gateway",
+                       -1);
+            kill();
+            break;
+        }
         log_.warn(alive ? "cloudflared: sin metricas; reiniciando con backoff"
                         : "cloudflared: caido; reiniciando con backoff",
                   -1);

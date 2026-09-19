@@ -11,6 +11,7 @@
 #include "security/CredentialStore.hpp"
 
 #include <array>
+#include <cerrno>
 #include <chrono>
 #include <cstring>
 #include <filesystem>
@@ -301,14 +302,29 @@ bool TlsTerminator::start() {
     // --- Socket de escucha ------------------------------------------------------
     const SockT s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     int one = 1;
+#ifdef _WIN32
+    // Exclusivo: con SO_REUSEADDR otro proceso podria tomar el mismo puerto.
+    setsockopt(s, SOL_SOCKET, SO_EXCLUSIVEADDRUSE, reinterpret_cast<const char*>(&one), sizeof(one));
+#else
     setsockopt(s, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char*>(&one), sizeof(one));
+#endif
     sockaddr_in a{};
     a.sin_family = AF_INET;
     a.sin_port = htons(cfg_.port);
     inet_pton(AF_INET, cfg_.bindAddress.empty() ? "127.0.0.1" : cfg_.bindAddress.c_str(), &a.sin_addr);
     if (bind(s, reinterpret_cast<sockaddr*>(&a), sizeof(a)) != 0 || listen(s, 32) != 0) {
+#ifdef _WIN32
+        const int code = WSAGetLastError();
+        const std::string why =
+            code == WSAEADDRINUSE ? "el puerto ya esta en uso" : "error " + std::to_string(code);
+#else
+        const int code = errno;
+        const std::string why = code == EADDRINUSE ? "el puerto ya esta en uso" : std::strerror(code);
+#endif
         closeSock(static_cast<long long>(s));
-        if (log_) log_("https: no se pudo escuchar en " + cfg_.bindAddress + ":" + std::to_string(cfg_.port));
+        if (log_)
+            log_("https: no se pudo escuchar en " + cfg_.bindAddress + ":" + std::to_string(cfg_.port) +
+                 " (" + why + ")");
         return false;
     }
     socklen_t len = sizeof(a);

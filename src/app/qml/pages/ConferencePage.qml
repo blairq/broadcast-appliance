@@ -94,6 +94,8 @@ Rectangle {
                             editable: true
                             textFromValue: (v) => "+" + v + " s"
                             valueFromText: (t) => parseInt(t.replace(/[^0-9]/g, "")) || 0
+                            // "+N s" no pasa el IntValidator por defecto (binding loop).
+                            validator: RegularExpressionValidator { regularExpression: /\+?\s*\d{0,3}\s*s?/ }
                             ToolTip.visible: hovered; ToolTip.text: "Margen después de cero antes de rotar"
                             onValueModified: conf.setSpeakerConfig({ graceSec: value })
                         }

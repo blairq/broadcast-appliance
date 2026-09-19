@@ -175,7 +175,7 @@ void YouTubeViewModel::fetchThumbs(const QJsonArray& items, JsonListModel* model
         const QString url = v.toObject().value("thumbnail").toString();
         if (url.isEmpty() || thumbs_.contains(url)) continue;
         thumbs_.insert(url, {}); // en camino
-        client_->download(url, [self, url, model, apply](bool ok, const QByteArray& jpeg) {
+        client_->download(url, [self, url, apply](bool ok, const QByteArray& jpeg) {
             if (!self || !ok) return;
             self->thumbs_.insert(url, "data:image/jpeg;base64," + QString::fromLatin1(jpeg.toBase64()));
             apply(self->thumbs_);

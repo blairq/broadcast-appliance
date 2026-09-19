@@ -294,8 +294,7 @@ void stripDefaults(obs_data_t* settings) { presetDefaults(settings); }
 /// resolverla con dlsym sobre el modulo ya cargado y ejercitar el DSP sin
 /// depender del mezclador de libobs, que necesita el pipeline de video y por
 /// tanto un contexto grafico.
-extern "C" MODULE_EXPORT struct obs_audio_data* ba_channel_strip_filter_audio(void* data,
-                                                                              struct obs_audio_data* audio) {
+MODULE_EXPORT struct obs_audio_data* ba_channel_strip_filter_audio(void* data, struct obs_audio_data* audio) {
     auto* f = static_cast<StripFilter*>(data);
     if (f == nullptr || audio == nullptr || audio->frames == 0 || audio->data[0] == nullptr) {
         return audio;

@@ -58,11 +58,6 @@ std::uint32_t currentPid() {
 constexpr const wchar_t* kReturnAudioName = L"BA.Audio.ContentForReturn";
 constexpr const wchar_t* kProgramVideoName = L"BA.Program";
 
-/// Puntero al motor que tiene instalados los callbacks crudos. libobs los
-/// invoca como funciones C sin contexto de usuario para el video, asi que hace
-/// falta un puntero de archivo. Solo hay un motor por proceso (A es uno solo).
-BroadcastEngine* g_returnFeedOwner = nullptr;
-
 /// Carga los modulos de `binDir` y SOLO esos.
 ///
 /// No se usa `obs_load_all_modules()` porque recorre tambien las rutas por
@@ -108,7 +103,15 @@ int loadBundleModules(const std::string& binDir, const std::string& dataDir) {
         if (obs_init_module(module)) {
             ++loaded;
         } else {
-            blog(LOG_WARNING, "ba-engine: el modulo '%s' fallo al inicializarse", name.c_str());
+            // Los codificadores por hardware no inician sin su GPU (NVENC sin
+            // NVIDIA, QSV sin Intel, AMF sin AMD): es lo esperado, no una falla.
+            const bool hw = name.find("nvenc") != std::string::npos ||
+                            name.find("qsv") != std::string::npos || name.find("amf") != std::string::npos;
+            if (hw) {
+                blog(LOG_INFO, "ba-engine: '%s' no disponible (no hay GPU compatible)", name.c_str());
+            } else {
+                blog(LOG_WARNING, "ba-engine: el modulo '%s' fallo al inicializarse", name.c_str());
+            }
         }
     }
     return loaded;
@@ -325,8 +328,6 @@ bool BroadcastEngine::publishReturnFeeds() {
         return false;
     }
 
-    g_returnFeedOwner = this;
-
     // El retorno al invitado va en BGRA: es lo que el MediaPump del gateway
     // escala y entrega a WebRTC.
     struct video_scale_info vsi = {};
@@ -353,7 +354,6 @@ void BroadcastEngine::stopReturnFeeds() {
     }
     obs_remove_raw_video_callback(rawVideoCallback, this);
     obs_remove_raw_audio_callback(0, rawAudioCallback, this);
-    g_returnFeedOwner = nullptr;
     returnFeedsActive_ = false;
 }
 

@@ -120,7 +120,12 @@ ColumnLayout {
                 enabled: field.enabled
                 Layout.preferredWidth: 150
                 textFromValue: (v) => field.kind === "float" ? (v / 100).toFixed(2) : String(v)
-                valueFromText: (t) => Math.round(Number(t) * factor)
+                valueFromText: (t) => Math.round(Number(String(t).replace(",", ".")) * factor)
+                // El IntValidator por defecto rechaza "0.50" y el texto entra en
+                // un binding loop: validador acorde al formato.
+                validator: RegularExpressionValidator {
+                    regularExpression: field.kind === "float" ? /-?\d*[.,]?\d{0,2}/ : /-?\d*/
+                }
                 onValueModified: field.edited(field.kind === "float" ? value / 100 : value)
             }
             Text { text: field.suffix; color: Theme.textDim; font.pixelSize: 12 }

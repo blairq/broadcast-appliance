@@ -197,7 +197,9 @@ long long makeListen(const std::string& bindAddress, uint16_t port) {
     if (s == FD_INVALID) return -1;
     int yes = 1;
 #ifdef _WIN32
-    setsockopt(s, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char*>(&yes), sizeof(yes));
+    // En Windows SO_REUSEADDR deja que OTRO proceso se enganche al mismo
+    // puerto y reciba conexiones: se pide el puerto en exclusiva.
+    setsockopt(s, SOL_SOCKET, SO_EXCLUSIVEADDRUSE, reinterpret_cast<const char*>(&yes), sizeof(yes));
 #else
     setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
 #endif

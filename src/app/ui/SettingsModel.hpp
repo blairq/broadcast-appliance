@@ -58,7 +58,7 @@ class SettingsModel : public QAbstractListModel {
     Q_INVOKABLE QVariant value(const QString& key) const;
     /// Aplica y guarda. :returns: resumen legible de lo que paso.
     Q_INVOKABLE QString apply();
-    Q_INVOKABLE void revert();
+    Q_INVOKABLE void revert() override;
     /// Vuelve a los valores por defecto la seccion (en el borrador).
     Q_INVOKABLE void resetSection(const QString& section);
 
