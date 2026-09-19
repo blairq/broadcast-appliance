@@ -168,6 +168,8 @@ fi
 # --- compartidas ----------------------------------------------------------------
 if ! done_mark nvcodec; then
   log "nv-codec-headers"
+  [ -d "$ROOT/extern/nv-codec-headers" ] || git clone -q --depth 1 --branch n12.2.72.0 \
+    https://github.com/FFmpeg/nv-codec-headers.git "$ROOT/extern/nv-codec-headers"
   make -C "$ROOT/extern/nv-codec-headers" PREFIX="$PREFIX" install >/dev/null
   mark nvcodec
 fi

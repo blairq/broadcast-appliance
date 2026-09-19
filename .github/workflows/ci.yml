@@ -67,11 +67,12 @@ jobs:
       - name: Install build toolchain (apt)
         run: |
           sudo apt-get update
-          sudo apt-get install -y ccache ninja-build clang patchelf \
+          sudo apt-get install -y ccache ninja-build clang patchelf p7zip-full \
             libgl1-mesa-dev libegl1-mesa-dev libx11-dev libx11-xcb-dev libxcb1-dev \
             libxcb-randr0-dev libxcb-shm0-dev libxcb-xfixes0-dev libxcb-xinerama0-dev \
             libxcb-composite0-dev libxcb-damage0-dev libxcb-present-dev libxcb-xkb-dev \
             libxcomposite-dev libxinerama-dev libxkbcommon-dev libxss-dev \
+            libxext-dev libxrender-dev libxrandr-dev \
             libpulse-dev libasound2-dev libudev-dev \
             libwayland-dev libdrm-dev libfreetype-dev libfontconfig1-dev
 
