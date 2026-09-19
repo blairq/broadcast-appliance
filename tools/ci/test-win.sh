@@ -19,11 +19,13 @@ TC="$ROOT/extern/toolchain"
 DL="$ROOT/extern/.downloads"
 
 WINE_VER=11.17
-WINE_NAME="wine-${WINE_VER}-amd64"
+# wow64: todo de 64 bits (los programas de 32 bits van por el WoW64 de Wine),
+# sin cargador ni bibliotecas i386 en el host (los runners de GitHub no las traen).
+WINE_NAME="wine-${WINE_VER}-amd64-wow64"
 WINE_URL="https://github.com/Kron4ek/Wine-Builds/releases/download/${WINE_VER}/${WINE_NAME}.tar.xz"
-WINE_SHA=652a4ec89201855560941a3551a368ebd431dd96f121f15ee89dae13e4cd7838
+WINE_SHA=3211db09086bc6fbd769c0286f27790b32d6fc6fb0bc610dad6b59796f07d462
 
-if [ "$(cat "$TC/wine/.version" 2>/dev/null)" != "$WINE_VER" ]; then
+if [ "$(cat "$TC/wine/.version" 2>/dev/null)" != "$WINE_NAME" ]; then
     mkdir -p "$DL" "$TC"
     f="$DL/${WINE_NAME}.tar.xz"
     if ! [ -f "$f" ] || [ "$(sha256sum "$f" | cut -d' ' -f1)" != "$WINE_SHA" ]; then
@@ -33,7 +35,8 @@ if [ "$(cat "$TC/wine/.version" 2>/dev/null)" != "$WINE_VER" ]; then
     fi
     rm -rf "$TC/wine" && mkdir -p "$TC/wine"
     tar xJf "$f" -C "$TC/wine" --strip-components=1 --no-same-owner
-    echo "$WINE_VER" >"$TC/wine/.version"
+    rm -rf "$B/wineprefix" # un prefijo de otra variante de Wine no sirve
+    echo "$WINE_NAME" >"$TC/wine/.version"
 fi
 
 export WINEPREFIX="$B/wineprefix" WINEDEBUG=-all WINEDLLOVERRIDES="mscoree,mshtml=" DISPLAY=
