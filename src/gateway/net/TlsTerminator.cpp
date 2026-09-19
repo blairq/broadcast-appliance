@@ -300,7 +300,33 @@ bool TlsTerminator::start() {
     mbedtls_ssl_conf_alpn_protocols(&d.conf, d.alpn);
 
     // --- Socket de escucha ------------------------------------------------------
+#ifdef _WIN32
+    // Winsock se inicializa por proceso y con cuenta de referencias. El
+    // terminador arranca antes que SignalingServer (el otro que lo hace), asi
+    // que necesita la suya: sin esto socket() falla con 10093 y los invitados
+    // se quedaban sin HTTPS. Su WSACleanup va en stop().
+    if (!wsa_) {
+        WSADATA wsa{};
+        if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
+            if (log_) log_("https: no arranco Winsock (WSAStartup)");
+            return false;
+        }
+        wsa_ = true;
+    }
+#endif
     const SockT s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+#ifdef _WIN32
+    if (s == INVALID_SOCKET) {
+        if (log_) log_("https: no se pudo crear el socket (error " + std::to_string(WSAGetLastError()) + ")");
+        releaseWsa();
+        return false;
+    }
+#else
+    if (s < 0) {
+        if (log_) log_("https: no se pudo crear el socket (" + std::string(std::strerror(errno)) + ")");
+        return false;
+    }
+#endif
     int one = 1;
 #ifdef _WIN32
     // Exclusivo: con SO_REUSEADDR otro proceso podria tomar el mismo puerto.
@@ -325,6 +351,7 @@ bool TlsTerminator::start() {
         if (log_)
             log_("https: no se pudo escuchar en " + cfg_.bindAddress + ":" + std::to_string(cfg_.port) +
                  " (" + why + ")");
+        releaseWsa();
         return false;
     }
     socklen_t len = sizeof(a);
@@ -341,6 +368,15 @@ bool TlsTerminator::start() {
     return true;
 }
 
+void TlsTerminator::releaseWsa() {
+#ifdef _WIN32
+    if (wsa_) {
+        WSACleanup();
+        wsa_ = false;
+    }
+#endif
+}
+
 void TlsTerminator::stop() {
     if (!accept_.joinable()) return;
     stop_ = true;
@@ -349,6 +385,7 @@ void TlsTerminator::stop() {
     listenFd_ = -1;
     for (int i = 0; i < 150 && active_.load() > 0; ++i)
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    releaseWsa();
 }
 
 void TlsTerminator::acceptLoop() {
