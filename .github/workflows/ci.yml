@@ -33,6 +33,11 @@ on:
 permissions:
   contents: read
 
+# Un push nuevo a la misma rama cancela la corrida anterior (ahorra minutos).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   JOBS: 4
 
@@ -61,6 +66,14 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+
+      # El runner trae ~14 GB libres y el job usa mas de 10: se borran SDKs
+      # preinstalados que no se usan (Android, .NET, Haskell, CodeQL).
+      - name: Liberar disco
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup \
+            /opt/hostedtoolcache/CodeQL || true
+          df -h /
 
       # Headers de la base del sistema (README, "Requisitos de build"): no
       # viajan en el bundle; son para compilar libobs y la interfaz.
@@ -133,6 +146,14 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+
+      # El runner trae ~14 GB libres y el job usa mas de 10: se borran SDKs
+      # preinstalados que no se usan (Android, .NET, Haskell, CodeQL).
+      - name: Liberar disco
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup \
+            /opt/hostedtoolcache/CodeQL || true
+          df -h /
 
       - name: Install tools (apt)
         run: |
