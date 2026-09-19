@@ -125,11 +125,15 @@ def test_cpp_binary_runs_clean(build_dir: Path | None, binary: Path | None) -> N
         pytest.skip("no build/ directory; C++ tests not compiled")
     if binary is None or not binary.is_file():
         pytest.skip("binary not built yet (build in progress); nothing to run")
+    # Sin sesion grafica (CI): Qt usa la plataforma offscreen, como en ctest.
+    env = os.environ.copy()
+    env.setdefault("QT_QPA_PLATFORM", "offscreen")
     result = subprocess.run(
         [str(binary)],
         capture_output=True,
         text=True,
         timeout=SUBPROCESS_TIMEOUT,
+        env=env,
     )
     if result.returncode == SKIP_EXIT_CODE:
         pytest.skip(f"{binary.name} reported itself as skipped: {result.stdout.strip()}")
