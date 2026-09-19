@@ -33,6 +33,9 @@ on:
 permissions:
   contents: read
 
+# Artefactos en v4 a proposito: el servidor de artefactos de act (tools/ci/act.sh)
+# no acepta el protocolo de upload-artifact v6; GitHub corre la v4 sobre Node 24.
+
 # Un push nuevo a la misma rama cancela la corrida anterior (ahorra minutos).
 concurrency:
   group: ci-${{ github.ref }}
@@ -151,7 +154,7 @@ jobs:
           cd "$GITHUB_WORKSPACE" && mv extern/obs-linux.oculto extern/obs-linux
           grep -q "autotest del motor: OK" "$d/humo.log" || { tail -40 "$d/humo.log"; exit 1; }
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v4
         with:
           name: dist-linux
           path: dist/*
@@ -219,7 +222,7 @@ jobs:
       - name: Bundle portable (make dist-win)
         run: make dist-win JOBS=$(nproc) BA_ACCEPT_MSVC_LICENSE=1
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v4
         with:
           name: dist-windows
           path: dist/*
@@ -273,7 +276,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
