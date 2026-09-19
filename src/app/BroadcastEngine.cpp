@@ -161,8 +161,13 @@ bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video
     //     <root>/data/libobs; sin registrarlos, libobs los busca en la ruta de
     //     instalacion COMPILADA, que en una maquina de destino no existe. Es
     //     uno de los puntos donde un bundle "portable" deja de serlo.
+    //     libobs concatena la ruta y el archivo tal cual: tiene que terminar en
+    //     '/' (sin ella buscaba ".../libobsdefault.effect" y solo andaba en la
+    //     maquina que compilo libobs, por la ruta compilada).
     if (!paths_.obsDataDir.empty()) {
-        obs_add_data_path(paths_.obsDataDir.c_str());
+        std::string dataDir = paths_.obsDataDir;
+        if (dataDir.back() != '/' && dataDir.back() != '\\') dataDir += '/';
+        obs_add_data_path(dataDir.c_str());
     }
 
     // 2) Video. `gpu_conversion` deja la conversion a NV12 en la GPU, que es lo

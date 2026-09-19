@@ -134,6 +134,23 @@ jobs:
       - name: Bundle portable (make dist-linux)
         run: make dist-linux JOBS=$(nproc)
 
+      # Humo del bundle TAL CUAL se publica: extraido en otro lado y sin el
+      # libobs de extern/ (su ruta queda compilada adentro y tapaba errores
+      # de "solo anda en la maquina que compilo"). Motor completo: video por
+      # GL de software (Xvfb + llvmpipe), x264, AAC, RTMP y una grabacion.
+      - name: Humo del bundle (autotest del motor)
+        run: |
+          sudo apt-get install -y xvfb libgl1-mesa-dri
+          d="$RUNNER_TEMP/humo" && rm -rf "$d" && mkdir -p "$d"
+          tar xzf dist/*-linux-x64.tar.gz -C "$d"
+          mv extern/obs-linux extern/obs-linux.oculto
+          cd "$d/BroadcastAppliance"
+          HOME="$d/home" LIBGL_ALWAYS_SOFTWARE=1 timeout 300 \
+            xvfb-run -a -s "-screen 0 1280x720x24" ./bin/64bit/ba-app --engine-selftest 2>&1 | tee "$d/humo.log" \
+            | grep -E '^\s*\[|autotest del motor' || true
+          cd "$GITHUB_WORKSPACE" && mv extern/obs-linux.oculto extern/obs-linux
+          grep -q "autotest del motor: OK" "$d/humo.log" || { tail -40 "$d/humo.log"; exit 1; }
+
       - uses: actions/upload-artifact@v4
         with:
           name: dist-linux
