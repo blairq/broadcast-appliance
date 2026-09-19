@@ -87,21 +87,11 @@ mark_as_advanced(ARGON2_VERSION)
 set(LIBSAMPLERATE_VERSION "0.2.2" CACHE STRING "Versión/tag de libsamplerate")
 mark_as_advanced(LIBSAMPLERATE_VERSION)
 
-# --- VST3 SDK (Steinberg, MIT) ---------------------------------------------
-# SDK VST3 que hace de base del host de plugins (spec D6/§7.5, LSP como
-# componente CORE). Se trae por FetchContent SOLO en Windows (if(WIN32) en el
-# CMakeLists raíz): en Linux el build es OFFLINE y el módulo compila solo con
-# std::filesystem. Tag real verificado en
-# https://github.com/steinbergmedia/vst3sdk.
-set(VST3_SDK_VERSION "v3.7.9_build_61" CACHE STRING "Versión/tag del VST3 SDK")
-mark_as_advanced(VST3_SDK_VERSION)
-
 # --- LSP Plugins (LGPL) -----------------------------------------------------
-# ⚠️  ASSET DE DESPLIEGUE, no se compila: es la versión de LSP de la que se
-# toman los bundles .vst3 que se shippean en assets/audio-plugins/ (spec D6/§7.5).
-# Release real verificado en https://github.com/lsp-plugins/lsp-plugins
-# /releases (1.2.35, con assets .vst3 para Windows/Linux).
-set(LSP_VERSION "1.2.35" CACHE STRING "Versión de LSP Plugins (asset de despliegue)")
+# Modulos de audio del rack por fuente (formato CLAP, host propio en
+# src/app/audio). Linux: el CLAP oficial (`make deps-lsp`); Windows: compilado
+# desde la fuente oficial (tools/deps/lsp-win.sh). Van a plugins/lsp/.
+set(LSP_VERSION "1.2.35" CACHE STRING "Versión de LSP Plugins (CLAP)")
 mark_as_advanced(LSP_VERSION)
 
 # --- clang-format -----------------------------------------------------------
@@ -127,6 +117,5 @@ message(STATUS "  mbedTLS     : ${MBEDTLS_VERSION}")
 message(STATUS "  nlohmann    : ${NLOHMANN_JSON_VERSION}")
 message(STATUS "  Argon2      : ${ARGON2_VERSION} (referencia P-H-C, KDF de secrets.json)")
 message(STATUS "  libsamplerate: ${LIBSAMPLERATE_VERSION}")
-message(STATUS "  VST3 SDK    : ${VST3_SDK_VERSION} (solo Windows)")
-message(STATUS "  LSP Plugins : ${LSP_VERSION} (asset de despliegue)")
+message(STATUS "  LSP Plugins : ${LSP_VERSION} (CLAP)")
 message(STATUS "  clang-format: ${CLANG_FORMAT_VERSION} (herramienta de lint)")

@@ -42,6 +42,7 @@ QString FrameService::label(const QString& key) const {
     if (key.startsWith("guest:")) return nameOr(key.mid(6).toInt(), "Invitado " + key.mid(6));
     if (key.startsWith("share:")) return nameOr(key.mid(6).toInt(), "Invitado " + key.mid(6)) + " — pantalla";
     if (key.startsWith("lobby:")) return "Lobby " + key.mid(6);
+    if (key.startsWith("backstage:")) return "Fila " + key.mid(10);
     return key;
 }
 
@@ -62,6 +63,7 @@ std::wstring FrameService::channelOf(const QString& key) {
     if (key.startsWith("guest:")) return L"BA.Guest." + n;
     if (key.startsWith("share:")) return L"BA.GuestShare." + n;
     if (key.startsWith("lobby:")) return L"BA.Lobby." + n;
+    if (key.startsWith("backstage:")) return L"BA.Backstage." + n;
     return {};
 }
 
@@ -95,6 +97,11 @@ void FrameService::poll() {
     }
     for (int k = 1; k <= lobbySlots_; ++k) {
         wanted.push_back(QString("lobby:%1").arg(k));
+    }
+    // Previews de la fila de oradores (B publica hasta 8; los que no existen
+    // simplemente no se suscriben).
+    for (int k = 1; k <= kBackstageSlots; ++k) {
+        wanted.push_back(QString("backstage:%1").arg(k));
     }
     wanted.push_back("operator");
     for (const QString& key : wanted) {

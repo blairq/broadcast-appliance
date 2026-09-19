@@ -21,6 +21,12 @@
 //      con la buena vuelve a su slot.
 //  11. Sala cerrada -> 423; lobby apagado -> admision directa.
 //  12. Cambio de PIN y login de la consola web con codigo de un solo uso.
+//  13. QR de ingreso (URL local/remota, PIN opcional en el fragmento).
+//  14. Modo oradores: admitir = a la fila (backstage) con info y contacto,
+//      aviso "speaker" al invitado, al aire por la API, foto (JPEG chico,
+//      tipo por contenido, con su clave), tablero con su propia clave (sin la
+//      clave -> 401), enlace del tablero, y un JSON con tipos inesperados no
+//      tumba al gateway.
 
 #include "Log.hpp"
 #include "Room.hpp"
@@ -410,6 +416,7 @@ int main() {
     scfg.adminPort = 0; // idem
     scfg.webroot = BA_TEST_WEBROOT;
     scfg.adminWebroot = BA_TEST_WEBROOT; // alcanza para probar el estatico
+    scfg.boardWebroot = BA_TEST_WEBROOT;
     const std::string kAdmin = "token-de-operador-de-prueba";
     scfg.adminToken = kAdmin;
 
@@ -681,6 +688,147 @@ int main() {
         CHECK(again.find("Set-Cookie") == std::string::npos, "el codigo no sirve dos veces");
         CHECK(statusLine(httpReq(aport, "GET", "/admin/", "")).find("200") != std::string::npos,
               "la consola web se sirve");
+    }
+
+    // --- 13) QR de ingreso --------------------------------------------------
+    {
+        srv.setJoinUrlProvider([](const std::string& target) -> json {
+            if (target == "remote") return {{"error", "remote"}, {"message", "falta el dominio"}};
+            return {{"url", "https://192.168.1.50:8789/#room=sala-test"}};
+        });
+        const json qr = jsonBody(httpReq(aport, "GET", "/api/v1/qr?target=local", bearer));
+        CHECK(qr.value("ok", false) && qr.value("url", "") == "https://192.168.1.50:8789/#room=sala-test",
+              "QR local con la URL de la red local");
+        const int n = qr.value("size", 0);
+        bool square = n >= 21 && qr["modules"].size() == static_cast<size_t>(n);
+        for (const auto& row : qr["modules"])
+            square = square && row.get<std::string>().size() == static_cast<size_t>(n);
+        CHECK(square, "matriz cuadrada de un QR valido (>= 21 modulos)");
+        // Patron de posicion (esquina superior izquierda): borde de 7 modulos.
+        CHECK(square && qr["modules"][0].get<std::string>().substr(0, 7) == "1111111" &&
+                  qr["modules"][6].get<std::string>().substr(0, 7) == "1111111",
+              "tiene los patrones de posicion del estandar");
+        CHECK(qr.value("url", "").find("pin=") == std::string::npos, "sin pedirlo, el PIN NO va en el QR");
+        const json qp = jsonBody(httpReq(aport, "GET", "/api/v1/qr?target=local&pin=1", bearer));
+        const std::string pinNow = jsonBody(httpReq(aport, "GET", "/api/v1/room", bearer)).value("pin", "");
+        CHECK(!pinNow.empty() &&
+                  qp.value("url", "") == "https://192.168.1.50:8789/#room=sala-test&pin=" + pinNow,
+              "con pin=1 el PIN va en el fragmento del enlace");
+        const json rq = jsonBody(httpReq(aport, "GET", "/api/v1/qr?target=remote", bearer));
+        CHECK(!rq.value("ok", true) && rq.value("message", "") == "falta el dominio",
+              "QR remoto sin dominio: explica que falta");
+        CHECK(statusLine(httpReq(aport, "GET", "/api/v1/qr?target=local", "")).find("401") !=
+                  std::string::npos,
+              "el QR tambien pide credenciales");
+    }
+
+    // --- 14) modo oradores ------------------------------------------------------
+    {
+        httpReq(aport, "POST", "/api/v1/room", bearer, R"({"locked":false,"lobby":true})");
+        CHECK(jsonBody(httpReq(aport, "POST", "/api/v1/speakers", bearer,
+                               R"({"enabled":true,"defaultSec":90,"carousel":"manual"})"))
+                  .value("ok", false),
+              "activar el modo oradores");
+        const std::string pinNow = jsonBody(httpReq(aport, "GET", "/api/v1/room", bearer)).value("pin", "");
+        const std::string tok =
+            extractToken(httpPost(port, "/api/join", R"({"room":"sala-test","pin":")" + pinNow + R"("})"));
+        TestFd fd =
+            openWsQuery(port, "token=" + tok + "&room=sala-test&name=Oradora&info=Vecina%20del%20barrio" +
+                                  "&contact=%2B54%2011%205555");
+        CHECK(fd != kFdInvalid, "la oradora entra");
+        const json hello = waitWsType(fd, "hello");
+        const std::string id = hello.value("id", ""), key = hello.value("key", "");
+        json p = findP(jsonBody(httpReq(aport, "GET", "/api/v1/room", bearer)), id);
+        CHECK(p.value("contact", "") == "+54 11 5555" && p.value("info", "") == "Vecina del barrio",
+              "info y contacto cargados al entrar");
+        CHECK(jsonBody(httpReq(aport, "POST", "/api/v1/participants/" + id + "/admit", bearer, "{}"))
+                  .value("ok", false),
+              "admitir con la sala llena de slots: va a la fila");
+        const json spk = waitWsType(fd, "speaker");
+        CHECK(spk.value("state", "") == "queued" && spk.value("allottedSec", 0) == 90,
+              "le avisan su turno y su tiempo");
+        CHECK(jsonBody(
+                  httpReq(aport, "POST", "/api/v1/participants/" + id + "/onair", bearer, R"({"on":true})"))
+                  .value("ok", false),
+              "al aire por la API");
+        bool onAirMsg = false;
+        for (int i = 0; i < 5 && !onAirMsg; ++i)
+            onAirMsg = waitWsType(fd, "speaker").value("state", "") == "onair";
+        CHECK(onAirMsg, "el invitado sabe que esta al aire");
+
+        // Foto: JPEG por contenido, con la clave del participante.
+        const std::string jpeg = std::string("\xFF\xD8\xFF\xE0", 4) + std::string(200, 'x');
+        CHECK(statusLine(httpReq(port, "POST", "/api/v1/avatar", "X-BA-Key: " + key + "\r\n", jpeg))
+                      .find("200") != std::string::npos,
+              "sube su foto");
+        CHECK(statusLine(httpReq(port, "POST", "/api/v1/avatar", "X-BA-Key: " + key + "\r\n", "GIF89a...."))
+                      .find("415") != std::string::npos,
+              "lo que no es JPEG -> 415");
+        CHECK(statusLine(httpReq(port, "POST", "/api/v1/avatar", "X-BA-Key: mala\r\n", jpeg)).find("401") !=
+                  std::string::npos,
+              "sin su clave -> 401");
+        const std::string av = httpReq(aport, "GET", "/api/v1/participants/" + id + "/avatar", bearer);
+        CHECK(statusLine(av).find("200") != std::string::npos && bodyOf(av) == jpeg,
+              "el operador ve la foto");
+
+        // Tablero: clave propia, en el enlace que da la API de control.
+        srv.setJoinUrlProvider(
+            [](const std::string&) { return json{{"url", "https://10.0.0.5:8789/#room=sala-test"}}; });
+        const json link = jsonBody(httpReq(aport, "GET", "/api/v1/board-link?target=local", bearer));
+        const std::string url = link.value("url", "");
+        CHECK(url == "https://10.0.0.5:8789/board/#k=" + srv.boardToken() && link.value("size", 0) >= 21,
+              "enlace + QR del tablero con su clave en el fragmento");
+        CHECK(statusLine(httpReq(port, "GET", "/api/v1/board", "")).find("401") != std::string::npos,
+              "el tablero sin clave -> 401");
+        const json board =
+            jsonBody(httpReq(port, "GET", "/api/v1/board", "X-BA-Board: " + srv.boardToken() + "\r\n"));
+        bool listed = false;
+        for (const auto& o : board["order"])
+            listed = listed || (o.value("id", "") == id && o.value("speaker", "") == "onair");
+        CHECK(listed && board.dump().find(key) == std::string::npos,
+              "el tablero la muestra al aire, sin claves");
+        CHECK(statusLine(httpReq(port, "GET", "/api/v1/board/avatar/" + id + "?k=" + srv.boardToken(), ""))
+                      .find("200") != std::string::npos,
+              "foto en el tablero");
+        CHECK(statusLine(httpReq(port, "GET", "/board/", "")).find("200") != std::string::npos,
+              "la pagina del tablero se sirve");
+
+        // Espectadores (relay): permisos y rutas (sin libwebrtc no hay RTP que
+        // reenviar; el reenvio real lo cubre test_webrtc_loopback).
+        const std::string viewReq = json{{"participant", id}, {"sdp", "v=0\r\n"}}.dump();
+        CHECK(statusLine(httpReq(aport, "POST", "/api/v1/view", "", viewReq)).find("401") !=
+                  std::string::npos,
+              "ver un video pide credenciales");
+        CHECK(statusLine(httpReq(port, "POST", "/api/v1/board/view", "", viewReq)).find("401") !=
+                  std::string::npos,
+              "el tablero sin clave no ve videos");
+        const std::string lobbyReq = json{{"participant", "pnoesta"}, {"sdp", "v=0\r\n"}}.dump();
+        CHECK(statusLine(httpReq(port, "POST", "/api/v1/board/view",
+                                 "X-BA-Board: " + srv.boardToken() + "\r\n", lobbyReq))
+                      .find("404") != std::string::npos,
+              "el tablero solo ve oradores de la fila");
+        const std::string v = statusLine(httpReq(aport, "POST", "/api/v1/view", bearer, viewReq));
+        CHECK(v.find("409") != std::string::npos || v.find("503") != std::string::npos,
+              "sin medios (o sin backend real) la vista reintenta despues");
+        CHECK(statusLine(httpReq(aport, "DELETE", "/api/v1/view/9999", bearer)).find("404") !=
+                  std::string::npos,
+              "cerrar un espectador que no existe -> 404");
+
+        // Tipos inesperados: ni la API ni el WebSocket tumban el proceso.
+        httpReq(aport, "POST", "/api/v1/participants/" + id + "/move", bearer, R"({"index":"primero"})");
+        sendWsJson(fd, json{{"type", "chat"}, {"text", 42}});
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        CHECK(statusLine(roundTrip(port, "GET /healthz HTTP/1.1\r\nHost: x\r\n\r\n")).find("200") !=
+                  std::string::npos,
+              "sigue vivo tras JSON con tipos inesperados");
+        CHECK(jsonBody(
+                  httpReq(aport, "POST", "/api/v1/participants/" + id + "/onair", bearer, R"({"on":false})"))
+                  .value("ok", false),
+              "sacarla del aire");
+        CHECK(findP(jsonBody(httpReq(aport, "GET", "/api/v1/room", bearer)), id).value("state", "") ==
+                  "admitted",
+              "sacarla del aire no la echa");
+        closeTestFd(fd);
     }
 
     closeTestFd(ana.fd);

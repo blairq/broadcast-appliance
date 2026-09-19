@@ -12,11 +12,18 @@
 
 #include "BroadcastEngine.hpp"
 
+#include <graphics/vec4.h>
 #include <obs.h>
 
 #include <algorithm>
 #include <atomic>
 #include <cmath>
+#include <cstring>
+#if !defined(_WIN32)
+#include <dlfcn.h>
+#endif
+#include <chrono>
+#include <thread>
 
 namespace ba::app {
 
@@ -227,6 +234,91 @@ obs_source* BroadcastEngine::ownedSource(const std::string& name) const {
 
 obs_source* BroadcastEngine::sourceHandle(const std::string& name) const { return ownedSource(name); }
 
+bool BroadcastEngine::captureSource(const std::string& name, int maxWidth, std::vector<std::uint8_t>& rgba,
+                                    int& width, int& height) {
+    if (!started_) {
+        setError("captura: el motor no arranco");
+        return false;
+    }
+    const std::string target = name.empty() ? currentScene_ : name;
+    obs_source_t* src = nullptr;
+    if (obs_scene* sc = sceneByName(target)) {
+        src = obs_source_get_ref(obs_scene_get_source(reinterpret_cast<obs_scene_t*>(sc)));
+    } else if (obs_source* own = ownedSource(target)) {
+        src = obs_source_get_ref(reinterpret_cast<obs_source_t*>(own));
+    } else {
+        src = obs_get_source_by_name(target.c_str());
+    }
+    if (src == nullptr) {
+        setError("captura: no existe la fuente o escena '" + target + "'");
+        return false;
+    }
+    const uint32_t cx = obs_source_get_width(src);
+    const uint32_t cy = obs_source_get_height(src);
+    if (cx == 0 || cy == 0) {
+        obs_source_release(src);
+        setError("captura: '" + target + "' no tiene imagen (tamaño 0: sin video, apagada o sin señal)");
+        return false;
+    }
+    uint32_t w = cx;
+    uint32_t h = cy;
+    if (maxWidth > 0 && w > static_cast<uint32_t>(maxWidth)) {
+        w = static_cast<uint32_t>(maxWidth);
+        h = std::max<uint32_t>(1, static_cast<uint32_t>(static_cast<uint64_t>(cy) * w / cx));
+    }
+    bool ok = false;
+    // Las fuentes asincronas (video de red, camaras, reproductores) solo suben
+    // su ultimo cuadro a la GPU mientras se "muestran": si la escena no esta al
+    // aire, se muestra un instante (unos cuadros del thread de video) y recien
+    // ahi se dibuja. Sin esto, en una escena preparada fuera del aire salen vacias.
+    const bool wasShowing = obs_source_showing(src);
+    if (!wasShowing) {
+        obs_source_inc_showing(src);
+        std::this_thread::sleep_for(std::chrono::milliseconds(150));
+    }
+    // Render fuera de pantalla con el contexto grafico tomado (el thread de
+    // render de libobs espera): textura -> superficie de lectura -> RAM.
+    obs_enter_graphics();
+    gs_texrender_t* tr = gs_texrender_create(GS_RGBA, GS_ZS_NONE);
+    gs_stagesurf_t* stage = gs_stagesurface_create(w, h, GS_RGBA);
+    if (tr != nullptr && stage != nullptr && gs_texrender_begin(tr, w, h)) {
+        vec4 clear;
+        vec4_zero(&clear);
+        gs_clear(GS_CLEAR_COLOR, &clear, 0.0f, 0);
+        gs_ortho(0.0f, static_cast<float>(cx), 0.0f, static_cast<float>(cy), -100.0f, 100.0f);
+        gs_blend_state_push();
+        gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
+        obs_source_inc_active(src);
+        obs_source_video_render(src);
+        obs_source_dec_active(src);
+        gs_blend_state_pop();
+        gs_texrender_end(tr);
+        gs_stage_texture(stage, gs_texrender_get_texture(tr));
+        uint8_t* data = nullptr;
+        uint32_t linesize = 0;
+        if (gs_stagesurface_map(stage, &data, &linesize)) {
+            rgba.resize(static_cast<size_t>(w) * h * 4);
+            for (uint32_t y = 0; y < h; ++y)
+                std::memcpy(rgba.data() + static_cast<size_t>(y) * w * 4,
+                            data + static_cast<size_t>(y) * linesize, static_cast<size_t>(w) * 4);
+            gs_stagesurface_unmap(stage);
+            ok = true;
+        }
+    }
+    if (stage != nullptr) gs_stagesurface_destroy(stage);
+    if (tr != nullptr) gs_texrender_destroy(tr);
+    obs_leave_graphics();
+    if (!wasShowing) obs_source_dec_showing(src);
+    obs_source_release(src);
+    if (!ok) {
+        setError("captura: no se pudo leer la imagen de '" + target + "' (GPU)");
+        return false;
+    }
+    width = static_cast<int>(w);
+    height = static_cast<int>(h);
+    return true;
+}
+
 void BroadcastEngine::placeItem(struct obs_scene_item* itemRaw, const CanvasRect& rect) const {
     auto* item = reinterpret_cast<obs_sceneitem_t*>(itemRaw);
     if (item == nullptr) {
@@ -425,6 +517,24 @@ std::string BroadcastEngine::sourceTypeId(const std::string& name) const {
     return src != nullptr ? obs_source_get_id(reinterpret_cast<obs_source_t*>(src)) : "";
 }
 
+void BroadcastEngine::holdShowing(const std::string& name, bool on) {
+    obs_source* src = ownedSource(name);
+    if (src == nullptr) return;
+    if (on)
+        obs_source_inc_showing(reinterpret_cast<obs_source_t*>(src));
+    else
+        obs_source_dec_showing(reinterpret_cast<obs_source_t*>(src));
+}
+
+bool BroadcastEngine::sourceSize(const std::string& name, int& width, int& height) const {
+    width = height = 0;
+    obs_source* src = ownedSource(name);
+    if (src == nullptr) return false;
+    width = static_cast<int>(obs_source_get_width(reinterpret_cast<obs_source_t*>(src)));
+    height = static_cast<int>(obs_source_get_height(reinterpret_cast<obs_source_t*>(src)));
+    return true;
+}
+
 std::string BroadcastEngine::sourceSettingsJson(const std::string& name) const {
     obs_source* src = ownedSource(name);
     if (src == nullptr) {
@@ -526,6 +636,140 @@ bool BroadcastEngine::setSourceVolume(const std::string& name, float mul) {
     }
     obs_source_set_volume(reinterpret_cast<obs_source_t*>(src), std::max(0.0f, mul));
     return true;
+}
+
+std::vector<BroadcastEngine::MediaInfo> BroadcastEngine::mediaSources() const {
+    std::vector<MediaInfo> out;
+    for (const auto& [n, src] : sources_) {
+        auto* s = reinterpret_cast<obs_source_t*>(src);
+        if (s == nullptr || (obs_source_get_output_flags(s) & OBS_SOURCE_CONTROLLABLE_MEDIA) == 0) continue;
+        MediaInfo m;
+        m.name = n;
+        switch (obs_source_media_get_state(s)) {
+            case OBS_MEDIA_STATE_PLAYING: m.state = "playing"; break;
+            case OBS_MEDIA_STATE_OPENING: m.state = "opening"; break;
+            case OBS_MEDIA_STATE_BUFFERING: m.state = "buffering"; break;
+            case OBS_MEDIA_STATE_PAUSED: m.state = "paused"; break;
+            case OBS_MEDIA_STATE_STOPPED: m.state = "stopped"; break;
+            case OBS_MEDIA_STATE_ENDED: m.state = "ended"; break;
+            case OBS_MEDIA_STATE_ERROR: m.state = "error"; break;
+            default: m.state = "none"; break;
+        }
+        m.durationMs = obs_source_media_get_duration(s);
+        m.timeMs = obs_source_media_get_time(s);
+        out.push_back(std::move(m));
+    }
+    return out;
+}
+
+std::vector<std::string> BroadcastEngine::sourceNames() const {
+    std::vector<std::string> out;
+    for (const auto& [n, src] : sources_)
+        if (std::find(out.begin(), out.end(), n) == out.end()) out.push_back(n);
+    return out;
+}
+
+bool BroadcastEngine::sourceTypeExists(const std::string& typeId) const {
+    const char* id = nullptr;
+    for (size_t i = 0; obs_enum_input_types(i, &id); ++i)
+        if (id != nullptr && typeId == id) return true;
+    return false;
+}
+
+std::vector<BroadcastEngine::ListItem>
+BroadcastEngine::sourceTypeListItems(const std::string& typeId, const std::string& prop,
+                                     const std::string& settingsJson) const {
+    std::vector<ListItem> out;
+    if (!started_ || !sourceTypeExists(typeId)) return out;
+    // Algunos plugins (camaras V4L2) arman sus propiedades leyendo su instancia:
+    // se consultan con una instancia privada descartable, creada SIN dispositivo
+    // (no abre ni captura nada); los settings pedidos se aplican solo a las
+    // propiedades, que es lo que llena las listas dependientes.
+    obs_data_t* none = obs_data_create();
+    obs_source_t* probe = obs_source_create_private(typeId.c_str(), "ba-probe", none);
+    obs_data_release(none);
+    obs_properties_t* props = probe != nullptr ? obs_source_properties(probe) : nullptr;
+    if (props == nullptr) {
+        if (probe != nullptr) obs_source_release(probe);
+        return out;
+    }
+    obs_data_t* settings =
+        settingsJson.empty() ? obs_data_create() : obs_data_create_from_json(settingsJson.c_str());
+    if (settings == nullptr) settings = obs_data_create();
+    obs_data_t* defaults = obs_get_source_defaults(typeId.c_str());
+    if (defaults != nullptr) {
+        obs_data_apply(defaults, settings);
+        obs_properties_apply_settings(props, defaults);
+        obs_data_release(defaults);
+    } else {
+        obs_properties_apply_settings(props, settings);
+    }
+    obs_data_release(settings);
+    obs_property_t* p = obs_properties_get(props, prop.c_str());
+    if (p != nullptr && obs_property_get_type(p) == OBS_PROPERTY_LIST) {
+        const obs_combo_format fmt = obs_property_list_format(p);
+        const size_t n = obs_property_list_item_count(p);
+        for (size_t i = 0; i < n; ++i) {
+            ListItem it;
+            const char* nm = obs_property_list_item_name(p, i);
+            it.name = nm != nullptr ? nm : "";
+            if (fmt == OBS_COMBO_FORMAT_STRING) {
+                const char* v = obs_property_list_item_string(p, i);
+                it.value = v != nullptr ? v : "";
+            } else if (fmt == OBS_COMBO_FORMAT_INT) {
+                it.value = std::to_string(obs_property_list_item_int(p, i));
+            } else if (fmt == OBS_COMBO_FORMAT_FLOAT) {
+                it.value = std::to_string(obs_property_list_item_float(p, i));
+            }
+            it.disabled = obs_property_list_item_disabled(p, i);
+            out.push_back(std::move(it));
+        }
+    }
+    obs_properties_destroy(props);
+    obs_source_release(probe);
+    return out;
+}
+
+std::string BroadcastEngine::graphicsDeviceName() const {
+    if (!started_) return {};
+    obs_enter_graphics();
+    const char* n = gs_get_device_name();
+    std::string out = n != nullptr ? n : "";
+#if !defined(_WIN32)
+    // OpenGL: el nombre real de la placa y el driver (GL_RENDERER / GL_VERSION),
+    // del contexto de libobs que esta tomado.
+    using GetString = const unsigned char* (*)(unsigned int);
+    if (auto fn = reinterpret_cast<GetString>(dlsym(RTLD_DEFAULT, "glGetString"))) {
+        const unsigned char* r = fn(0x1F01); // GL_RENDERER
+        const unsigned char* v = fn(0x1F02); // GL_VERSION
+        if (r != nullptr)
+            out = std::string(reinterpret_cast<const char*>(r)) +
+                  (v != nullptr ? " — OpenGL " + std::string(reinterpret_cast<const char*>(v)) : "");
+    }
+#endif
+    obs_leave_graphics();
+    return out;
+}
+
+std::vector<BroadcastEngine::EncoderInfo> BroadcastEngine::videoEncoders() const {
+    std::vector<EncoderInfo> out;
+    const char* id = nullptr;
+    for (size_t i = 0; obs_enum_encoder_types(i, &id); ++i) {
+        if (id == nullptr || obs_get_encoder_type(id) != OBS_ENCODER_VIDEO) continue;
+        if ((obs_get_encoder_caps(id) & OBS_ENCODER_CAP_DEPRECATED) != 0) continue;
+        EncoderInfo e;
+        e.id = id;
+        const char* dn = obs_encoder_get_display_name(id);
+        e.name = dn != nullptr ? dn : id;
+        const char* codec = obs_get_encoder_codec(id);
+        e.codec = codec != nullptr ? codec : "";
+        const std::string lid = e.id;
+        e.hardware = lid.find("nvenc") != std::string::npos || lid.find("vaapi") != std::string::npos ||
+                     lid.find("qsv") != std::string::npos || lid.find("amf") != std::string::npos ||
+                     lid.find("videotoolbox") != std::string::npos || lid.find("mf_") != std::string::npos;
+        out.push_back(std::move(e));
+    }
+    return out;
 }
 
 float BroadcastEngine::sourceVolume(const std::string& name) const {

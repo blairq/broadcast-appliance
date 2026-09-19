@@ -44,6 +44,8 @@
 // backend se elige en compile-time en los .cpp).
 #include "Log.hpp"
 #include "MediaPump.hpp"
+#include "Room.hpp"
+#include "ShareStore.hpp"
 #include "SignalingServer.hpp"
 #include "TokenAuth.hpp"
 #include "Webrtc.hpp"
@@ -62,6 +64,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <filesystem>
 #include <functional>
 #include <string>
 #include <thread>
@@ -259,7 +262,14 @@ int main() {
     SignalingServer::Cfg scfg;
     scfg.room = "test";
     scfg.maxGuests = 1;
-    SignalingServer server(scfg, auth, hub, log);
+    Room::Cfg roomCfg;
+    roomCfg.name = scfg.room;
+    roomCfg.maxGuests = scfg.maxGuests;
+    roomCfg.lobby = false;
+    Room room(roomCfg);
+    ShareStore shares(std::filesystem::temp_directory_path() / "ba-test-gateway-shares",
+                      16ull * 1024ull * 1024ull);
+    SignalingServer server(scfg, auth, hub, room, shares, log);
     server.setPump(&pump);
 
     pump.start();

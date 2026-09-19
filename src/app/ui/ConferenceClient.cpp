@@ -42,7 +42,7 @@ ConferenceClient::~ConferenceClient() {
 }
 
 bool ConferenceClient::loadAdminFile() {
-    const auto dir = ba::platform::runtimeDir();
+    const auto dir = ba::platform::stateDir();
     if (dir.empty()) return false;
     QFile f(QString::fromStdString((dir / "gateway-admin.json").string()));
     if (!f.open(QIODevice::ReadOnly)) return false;
@@ -134,6 +134,22 @@ void ConferenceClient::post(const QString& path, const QJsonObject& body, Done d
 void ConferenceClient::del(const QString& path, Done done) { send("DELETE", path, {}, std::move(done)); }
 
 void ConferenceClient::get(const QString& path, Done done) { send("GET", path, {}, std::move(done)); }
+
+void ConferenceClient::getRaw(const QString& path, std::function<void(bool, const QByteArray&)> done) {
+    if (port_ <= 0 || token_.isEmpty()) {
+        done(false, {});
+        return;
+    }
+    QNetworkRequest req(QUrl(QString("http://127.0.0.1:%1%2").arg(port_).arg(path)));
+    req.setRawHeader("Authorization", "Bearer " + token_.toUtf8());
+    req.setTransferTimeout(5000);
+    QNetworkReply* r = nam_.get(req);
+    connect(r, &QNetworkReply::finished, this, [r, done]() {
+        r->deleteLater();
+        const int status = r->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        done(status == 200, r->readAll());
+    });
+}
 
 void ConferenceClient::send(const QByteArray& verb, const QString& path, const QByteArray& body, Done done) {
     if (port_ <= 0 || token_.isEmpty()) {

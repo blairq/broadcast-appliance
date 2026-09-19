@@ -8,6 +8,8 @@
 
 #include "net/TlsTerminator.hpp"
 
+#include "security/CredentialStore.hpp"
+
 #include <array>
 #include <chrono>
 #include <cstring>
@@ -23,6 +25,7 @@
 #include <mbedtls/error.h>
 #include <mbedtls/net_sockets.h> // MBEDTLS_ERR_NET_SEND_FAILED
 #include <mbedtls/pk.h>
+#include <mbedtls/platform_util.h>
 #include <mbedtls/sha256.h>
 #include <mbedtls/ssl.h>
 #include <mbedtls/x509_crt.h>
@@ -92,27 +95,11 @@ std::string ipText(uint32_t netOrder) {
     return buf;
 }
 
-bool writeFile(const fs::path& p, const std::string& data, bool secret) {
-    std::error_code ec;
-    fs::create_directories(p.parent_path(), ec);
-    {
-        std::ofstream f(p, std::ios::binary | std::ios::trunc);
-        if (!f) return false;
-        f << data;
-    }
-#ifndef _WIN32
-    if (secret) chmod(p.c_str(), 0600);
-#else
-    (void)secret;
-#endif
+/// PEM de una credencial, con el NUL final que piden los parsers de mbedTLS.
+bool readPem(const ba::security::CredentialStore& store, const char* name, std::string& out) {
+    if (!store.read(name, out) || out.empty()) return false;
+    out.push_back('\0');
     return true;
-}
-
-std::string readFile(const fs::path& p) {
-    std::ifstream f(p, std::ios::binary);
-    std::ostringstream ss;
-    ss << f.rdbuf();
-    return ss.str();
 }
 
 int bioSend(void* ctx, const unsigned char* buf, size_t len) {
@@ -182,30 +169,39 @@ bool TlsTerminator::start() {
     }
 
     // --- Certificado ----------------------------------------------------------
-    const fs::path dir(cfg_.certDir);
-    const fs::path userCrt = dir / "cert.pem";
-    const fs::path userKey = dir / "key.pem";
+    const ba::security::CredentialStore store{fs::path(cfg_.credentialsDir)};
     bool loaded = false;
-    if (fs::exists(userCrt) && fs::exists(userKey)) {
-        loaded = mbedtls_x509_crt_parse_file(&d.crt, userCrt.string().c_str()) == 0 &&
-                 mbedtls_pk_parse_keyfile(&d.key, userKey.string().c_str(), nullptr, &Impl::rng, &d) == 0;
-        if (loaded && log_) log_("https: certificado propio (" + userCrt.string() + ")");
-        if (!loaded && log_) log_("https: cert.pem/key.pem invalidos; se usa uno autofirmado");
+    std::string crtPem;
+    std::string keyPem;
+    if (readPem(store, "tls-propio-cert", crtPem) && readPem(store, "tls-propio-clave", keyPem)) {
+        loaded = mbedtls_x509_crt_parse(&d.crt, reinterpret_cast<const unsigned char*>(crtPem.data()),
+                                        crtPem.size()) == 0 &&
+                 mbedtls_pk_parse_key(&d.key, reinterpret_cast<const unsigned char*>(keyPem.data()),
+                                      keyPem.size(), nullptr, 0, &Impl::rng, &d) == 0;
+        if (loaded && log_) log_("https: certificado propio (Credenciales/tls-propio)");
+        if (!loaded && log_) log_("https: el certificado propio es invalido; se usa uno autofirmado");
     }
+    mbedtls_platform_zeroize(keyPem.data(), keyPem.size());
     if (!loaded) {
         selfSigned_ = true;
-        const fs::path sCrt = dir / "selfsigned-cert.pem";
-        const fs::path sKey = dir / "selfsigned-key.pem";
-        const fs::path sNames = dir / "selfsigned-names.txt";
         std::string names;
         for (const auto& n : cfg_.names)
             names += n + "\n";
         // Se reutiliza mientras los nombres no cambien: huella estable, el
         // navegador no vuelve a preguntar.
-        if (fs::exists(sCrt) && fs::exists(sKey) && readFile(sNames) == names) {
+        std::string oldNames;
+        if (store.read("tls-autofirmado-nombres", oldNames) && oldNames == names &&
+            readPem(store, "tls-autofirmado-cert", crtPem) &&
+            readPem(store, "tls-autofirmado-clave", keyPem)) {
+            mbedtls_x509_crt_free(&d.crt);
             mbedtls_x509_crt_init(&d.crt);
-            loaded = mbedtls_x509_crt_parse_file(&d.crt, sCrt.string().c_str()) == 0 &&
-                     mbedtls_pk_parse_keyfile(&d.key, sKey.string().c_str(), nullptr, &Impl::rng, &d) == 0;
+            mbedtls_pk_free(&d.key);
+            mbedtls_pk_init(&d.key);
+            loaded = mbedtls_x509_crt_parse(&d.crt, reinterpret_cast<const unsigned char*>(crtPem.data()),
+                                            crtPem.size()) == 0 &&
+                     mbedtls_pk_parse_key(&d.key, reinterpret_cast<const unsigned char*>(keyPem.data()),
+                                          keyPem.size(), nullptr, 0, &Impl::rng, &d) == 0;
+            mbedtls_platform_zeroize(keyPem.data(), keyPem.size());
         }
         if (!loaded) {
             mbedtls_x509_crt_free(&d.crt);
@@ -260,21 +256,26 @@ bool TlsTerminator::start() {
             ok = ok && mbedtls_x509write_crt_set_subject_alternative_name(&w, &san[0]) == 0;
             std::vector<unsigned char> pem(8192);
             ok = ok && mbedtls_x509write_crt_pem(&w, pem.data(), pem.size(), &Impl::rng, &d) == 0;
-            std::string crtPem(reinterpret_cast<char*>(pem.data()));
+            crtPem = reinterpret_cast<char*>(pem.data());
             mbedtls_x509write_crt_free(&w);
             ok = ok && mbedtls_pk_write_key_pem(&d.key, pem.data(), pem.size()) == 0;
-            const std::string keyPem(reinterpret_cast<char*>(pem.data()));
+            keyPem = reinterpret_cast<char*>(pem.data());
+            mbedtls_platform_zeroize(pem.data(), pem.size());
             ok = ok && mbedtls_x509_crt_parse(&d.crt, reinterpret_cast<const unsigned char*>(crtPem.c_str()),
                                               crtPem.size() + 1) == 0;
             if (!ok) {
                 if (log_) log_("https: no se pudo generar el certificado autofirmado");
                 return false;
             }
-            writeFile(sCrt, crtPem, false);
-            writeFile(sKey, keyPem, true);
-            writeFile(sNames, names, false);
+            const bool saved = store.write("tls-autofirmado-cert", crtPem) &&
+                               store.write("tls-autofirmado-clave", keyPem) &&
+                               store.write("tls-autofirmado-nombres", names);
+            mbedtls_platform_zeroize(keyPem.data(), keyPem.size());
             loaded = true;
-            if (log_) log_("https: certificado autofirmado nuevo en " + sCrt.string());
+            if (log_)
+                log_(saved ? "https: certificado autofirmado nuevo (Credenciales/tls-autofirmado)"
+                           : "https: certificado autofirmado nuevo (no se pudo guardar: cambiara en el "
+                             "proximo arranque)");
         }
     }
     unsigned char h[32];

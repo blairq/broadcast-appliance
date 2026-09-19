@@ -16,6 +16,22 @@
   let snap = null;
   let es = null;
   let pinVisible = false;
+  let clockOffset = 0; // reloj de la sala - reloj local
+  // Video en vivo de los participantes (relay de B, sin re-codificar).
+  const live = window.BALive ? BALive.create({ endpoint: "/api/v1/view", headers: { "X-BA-Admin": "1" } }) : null;
+  let liveIds = new Set();
+  /// Miniatura en vivo si tiene medios; si no, nada.
+  function liveThumb(p, place) {
+    const box = el("div", "thumbv");
+    if (live && p.connected && p.mediaUp) {
+      box.append(live.video(p.id, place));
+      liveIds.add(p.id);
+    } else {
+      box.classList.add("off");
+      box.textContent = (p.name || "?").slice(0, 1).toUpperCase();
+    }
+    return box;
+  }
   const knownLobby = new Set();
 
   // --- API ----------------------------------------------------------------
@@ -29,7 +45,7 @@
     if (res.status === 401) { showLogin(); throw new Error("auth"); }
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const msg = { full: "La sala está llena: sacá a alguien primero", not_found: "Ya no está", state: "No aplica en su estado" }[data.error];
+      const msg = { full: "La sala está llena: sacá a alguien primero", not_found: "Ya no está", state: "No aplica en su estado", empty: "No hay nadie más en la fila" }[data.error];
       toast(msg || "Error: " + (data.error || res.status), "bad");
       throw new Error(data.error || String(res.status));
     }
@@ -93,6 +109,8 @@
   function render(s) {
     const firstRender = snap === null;
     snap = s;
+    liveIds = new Set();
+    if (s.serverNowMs) clockOffset = s.serverNowMs - Date.now();
     $("room-name").textContent = s.room;
     $("guest-url").textContent = s.guestUrl;
     $("guest-url").href = s.guestUrl;
@@ -114,9 +132,12 @@
     lobby.replaceChildren();
     for (const p of waiting) {
       const li = el("li", "row" + (p.connected ? "" : " away") + (p.talk ? " talking" : ""));
+      li.append(liveThumb(p, "lista"));
       const who = el("div", "who");
       who.append(el("strong", "", p.name), el("span", "muted", (p.connected ? "espera hace " : "desconectado · ") + since(p.joinedMs) +
                  (p.lobbySlot ? "" : " · sin lugar de preview")));
+      if (p.info) who.append(el("span", "muted", p.info));
+      if (p.contact) who.append(el("span", "muted", "☎ " + p.contact));
       const acts = el("div", "acts");
       acts.append(btn("Admitir", "go", () => act(p.id, "admit")),
                   btn(p.talk ? "Cortar" : "Hablar", p.talk ? "go" : "", () => act(p.id, "talk", { on: !p.talk }),
@@ -134,9 +155,10 @@
     people.replaceChildren();
     for (const p of inside) {
       const li = el("li", "row person" + (p.connected ? "" : " away"));
+      li.append(liveThumb(p, "lista"));
       const who = el("div", "who");
       const title = el("div", "line");
-      title.append(el("span", "slot", String(p.slot)), el("strong", "", p.name));
+      title.append(el("span", "slot", p.slot ? String(p.slot) : "·"), el("strong", "", p.name));
       if (p.hand) title.append(el("span", "hand", "✋"));
       const badges = el("div", "badges");
       const badge = (on, a, b) => badges.append(el("span", "badge " + (on ? "on" : "off"), on ? a : b));
@@ -184,6 +206,9 @@
     $("shares-count").textContent = s.shares.length;
     $("shares-empty").classList.toggle("hidden", s.shares.length > 0);
 
+    renderSpeakers(s);
+    if (live) live.keep(liveIds);
+
     // Destinos del chat.
     const sel = $("chat-to"), cur = sel.value;
     sel.replaceChildren(new Option("A todos", "all"));
@@ -195,6 +220,140 @@
       for (const m of s.chat) addChat(m, false);
     }
   }
+
+  // --- Oradores -----------------------------------------------------------
+  const fmt = (ms) => {
+    const neg = ms < 0, t = Math.floor(Math.abs(ms) / 1000);
+    return (neg ? "+" : "") + Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0");
+  };
+  const parseTime = (txt) => {
+    // "m:ss", "m" (minutos) o "90s".
+    const t = String(txt).trim();
+    if (/^\d+:\d{1,2}$/.test(t)) { const [m, s] = t.split(":").map(Number); return m * 60 + s; }
+    if (/^\d+s$/.test(t)) return parseInt(t, 10);
+    if (/^\d+([.,]\d+)?$/.test(t)) return Math.round(parseFloat(t.replace(",", ".")) * 60);
+    return 0;
+  };
+  // Tiempo que le queda (negativo = pasado) a quien esta al aire.
+  const leftMs = (p) => p.allottedSec * 1000 - (Date.now() + clockOffset - p.onAirSinceMs);
+  const setIfIdle = (input, v) => { if (document.activeElement !== input) input.value = v; };
+
+  function renderSpeakers(s) {
+    const cfg = s.speakers || {};
+    $("panel-speakers").classList.toggle("spk-off", !cfg.enabled);
+    $("sw-speakers").checked = !!cfg.enabled;
+    setIfIdle($("spk-default"), fmt((cfg.defaultSec || 0) * 1000));
+    setIfIdle($("spk-multi"), cfg.multi ? "1" : "0");
+    setIfIdle($("spk-carousel"), cfg.carousel || "manual");
+    setIfIdle($("spk-grace"), cfg.graceSec || 0);
+    $("spk-grace-l").classList.toggle("hidden", cfg.carousel !== "time");
+    const slotSel = $("spk-slot");
+    if (slotSel.options.length !== s.maxGuests) {
+      slotSel.replaceChildren();
+      for (let i = 1; i <= s.maxGuests; i++) slotSel.append(new Option(String(i), String(i)));
+    }
+    setIfIdle(slotSel, String(cfg.defaultSlot || 1));
+
+    const byId = new Map(s.participants.map((p) => [p.id, p]));
+    const order = (s.order || []).map((id) => byId.get(id)).filter(Boolean);
+    const strip = $("onair-strip"), row = $("spk-row");
+    strip.replaceChildren();
+    row.replaceChildren();
+    const stamp = Math.floor(Date.now() / 5000); // refresca las fotos cada ~5 s
+    let queuedPos = 0;
+    order.forEach((p, i) => {
+      if (p.speaker === "onair") {
+        const oc = el("div", "onair-card");
+        oc.dataset.clock = p.id;
+        const who = el("div", "who");
+        who.append(el("span", "muted", "AL AIRE" + (p.slot ? " · slot " + p.slot : "")), el("strong", "", p.name));
+        oc.append(who, el("div", "clock"), btn("Sacar del aire", "no", () => act(p.id, "onair", { on: false })));
+        strip.append(oc);
+      }
+      const card = el("div", "spk " + p.speaker + (p.connected ? "" : " away"));
+      card.dataset.clock = p.id;
+      const face = el("div", "face", p.hasAvatar ? "" : (p.name || "?").slice(0, 1).toUpperCase());
+      if (p.hasAvatar) face.style.backgroundImage = `url("/api/v1/participants/${encodeURIComponent(p.id)}/avatar?t=${stamp}")`;
+      if (live && p.connected && p.mediaUp) {
+        face.textContent = "";
+        face.append(live.video(p.id, "fila"));
+        liveIds.add(p.id);
+      }
+      const ord = el("span", "ord", p.speaker === "queued" ? String(++queuedPos) : p.speaker === "onair" ? "●" : "✓");
+      const st = el("span", "st", { queued: "en fila", onair: "al aire", done: "habló" }[p.speaker] || p.speaker);
+      if (!p.connected) st.textContent = "desconectado";
+      card.append(face, ord, st, el("div", "name", p.name));
+      if (p.info) card.append(el("div", "info", p.info));
+      if (p.contact) { const ct = el("div", "contact", "☎ " + p.contact); ct.title = p.contact; card.append(ct); }
+      const clock = el("div", "clock");
+      card.append(clock);
+      const acts = el("div", "acts");
+      acts.append(btn("◀", "", () => act(p.id, "move", { index: i - 1 }), "Adelantar en la fila"),
+                  btn("▶", "", () => act(p.id, "move", { index: i + 1 }), "Atrasar en la fila"));
+      if (p.speaker === "onair") acts.append(btn("Sacar", "no", () => act(p.id, "onair", { on: false })));
+      else acts.append(btn("Al aire", "go", () => act(p.id, "onair", { on: true })));
+      if (p.speaker === "done") acts.append(btn("↺", "", () => act(p.id, "requeue"), "Volver a la fila (al final)"));
+      acts.append(btn("✎", "", () => editProfile(p), "Editar datos y tiempo"));
+      card.append(acts);
+      row.append(card);
+    });
+    $("spk-empty").classList.toggle("hidden", order.length > 0);
+    tickClocks();
+  }
+
+  // Los relojes corren sin re-renderizar todo (4 veces por segundo).
+  function tickClocks() {
+    if (!snap) return;
+    const byId = new Map(snap.participants.map((p) => [p.id, p]));
+    for (const node of document.querySelectorAll("[data-clock]")) {
+      const p = byId.get(node.dataset.clock);
+      if (!p) continue;
+      const clock = node.querySelector(".clock");
+      node.classList.remove("warn", "over");
+      if (p.speaker === "onair") {
+        const left = leftMs(p);
+        clock.textContent = left >= 0 ? fmt(Math.ceil(left / 1000) * 1000) : fmt(left);
+        if (left < 0) node.classList.add("over");
+        else if (left <= 10000) node.classList.add("warn");
+      } else if (p.speaker === "done") {
+        clock.textContent = "usó " + fmt(p.usedMs || 0);
+      } else {
+        clock.textContent = fmt(p.allottedSec * 1000);
+      }
+    }
+  }
+  setInterval(tickClocks, 250);
+
+  let editing = null;
+  function editProfile(p) {
+    editing = p.id;
+    $("prof-name").value = p.name || "";
+    $("prof-info").value = p.info || "";
+    $("prof-contact").value = p.contact || "";
+    $("prof-time").value = fmt(p.allottedSec * 1000);
+    $("profdlg").showModal();
+  }
+  $("profdlg").addEventListener("close", async () => {
+    if ($("profdlg").returnValue !== "save" || !editing) return;
+    const id = editing;
+    editing = null;
+    await act(id, "profile", { name: $("prof-name").value, info: $("prof-info").value, contact: $("prof-contact").value });
+    const sec = parseTime($("prof-time").value);
+    if (sec > 0) await act(id, "time", { sec });
+  });
+
+  const spkCfg = (body) => api("POST", "/api/v1/speakers", body).catch(() => {});
+  $("sw-speakers").addEventListener("change", (e) => spkCfg({ enabled: e.target.checked }));
+  $("spk-default").addEventListener("change", (e) => {
+    const sec = parseTime(e.target.value);
+    if (sec > 0) spkCfg({ defaultSec: sec }); else toast("Tiempo inválido (usá m:ss o minutos)", "bad");
+  });
+  $("spk-multi").addEventListener("change", (e) => spkCfg({ multi: e.target.value === "1" }));
+  $("spk-slot").addEventListener("change", (e) => spkCfg({ defaultSlot: parseInt(e.target.value, 10) }));
+  $("spk-carousel").addEventListener("change", (e) => spkCfg({ carousel: e.target.value }));
+  $("spk-grace").addEventListener("change", (e) => spkCfg({ graceSec: parseInt(e.target.value, 10) || 0 }));
+  $("btn-spk-next").addEventListener("click", () =>
+    api("POST", "/api/v1/speakers/next").catch(() => {}));
 
   function view(f) {
     const body = $("viewer-body");
@@ -298,6 +457,62 @@
   $("btn-wg-copy").addEventListener("click", () => navigator.clipboard.writeText($("wg-conf").textContent).then(() => toast("Copiado", "ok")));
   setInterval(refreshNetwork, 5000);
   refreshNetwork();
+
+  // --- QR de ingreso al lobby ---------------------------------------------
+  $("btn-qr").addEventListener("click", (e) => {
+    e.stopPropagation();
+    $("qr-menu").classList.toggle("hidden");
+  });
+  document.addEventListener("click", () => $("qr-menu").classList.add("hidden"));
+  for (const b of $("qr-menu").querySelectorAll("button[data-qr]")) {
+    b.addEventListener("click", () => showQr(b.dataset.qr));
+  }
+  let qrTarget = "local";
+  $("qr-pin").addEventListener("change", () => showQr(qrTarget));
+  $("btn-board").addEventListener("click", (e) => {
+    e.stopPropagation();
+    $("board-menu").classList.toggle("hidden");
+  });
+  document.addEventListener("click", () => $("board-menu").classList.add("hidden"));
+  for (const b of $("board-menu").querySelectorAll("button[data-board]")) {
+    b.addEventListener("click", () => showQr(b.dataset.board, true));
+  }
+  async function showQr(target, board) {
+    $("qr-menu").classList.add("hidden");
+    $("board-menu").classList.add("hidden");
+    $("qr-pin").parentElement.classList.toggle("hidden", !!board);
+    $("qr-title").textContent = board ? "Tablero de oradores (solo lectura) — " + (target === "remote" ? "por internet" : "red local")
+      : target === "remote" ? "QR remoto — por internet (Cloudflare)" : "QR local — misma red";
+    const canvas = $("qr-canvas"), box = canvas.parentElement;
+    canvas.classList.add("hidden");
+    box.classList.add("empty");
+    $("qr-msg").textContent = "Generando…";
+    $("qr-url").textContent = "";
+    if (!$("qrdlg").open) $("qrdlg").showModal();
+    if (!board) qrTarget = target;
+    const withPin = !board && $("qr-pin").checked;
+    $("qr-note").textContent = board ? "Abrilo en la tablet: muestra la fila, las caras y los tiempos. La clave cambia en cada arranque."
+      : withPin ? "Incluye el PIN: quien tenga este QR puede pedir entrar (igual pasa por el lobby)." : "El PIN no va en el QR: pasalo aparte.";
+    const path = board ? "/api/v1/board-link?target=" + target : "/api/v1/qr?target=" + target + (withPin ? "&pin=1" : "");
+    const r = await fetch(path, { credentials: "same-origin" }).then((x) => x.json()).catch(() => null);
+    if (!r || !r.ok) {
+      $("qr-msg").textContent = (r && r.message) || "La sala no responde.";
+      return;
+    }
+    const rows = r.modules, n = rows.length + 8; // zona silenciosa de 4 modulos
+    const cell = Math.floor(canvas.width / n), off = Math.floor((canvas.width - cell * n) / 2) + 4 * cell;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#000";
+    rows.forEach((row, y) => { for (let x = 0; x < row.length; x++) if (row[x] === "1") ctx.fillRect(off + x * cell, off + y * cell, cell, cell); });
+    canvas.classList.remove("hidden");
+    box.classList.remove("empty");
+    $("qr-msg").textContent = r.warning || "";
+    $("qr-url").textContent = r.url;
+    $("qr-url").href = r.url;
+  }
+  $("btn-qr-copy").addEventListener("click", () => navigator.clipboard.writeText($("qr-url").textContent).then(() => toast("Enlace copiado", "ok")));
 
   // Los "hace N s" se refrescan solos.
   setInterval(() => { if (snap) render(snap); }, 15000);

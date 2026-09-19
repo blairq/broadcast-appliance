@@ -101,15 +101,10 @@ sobre el bundle portable vía env `BA_DEPLOY_*`, idempotente, respeta el layout
     -DCMAKE_RC_COMPILER=x86_64-w64-mingw32-windres \
     -DCMAKE_BUILD_TYPE=Release
   ```
-  Reutilizar deps ya descargadas: `-DFETCHCONTENT_SOURCE_DIR_{MBEDTLS,NLOHMANN_JSON,LIBSAMPLERATE,ARGON2}=$PWD/build/_deps/*-src`
-  y `-DFETCHCONTENT_SOURCE_DIR_VST3SDK=/tmp/opencode/vst3sdk-inspect`.
-- **Los samples del VST3 SDK** (`sdk`, `validator`, `moduleinfotool`) están
-  `EXCLUDE_FROM_ALL` en el CMakeLists raíz: `std::aligned_alloc` no existe en
-  el libstdc++ de MinGW. No quitar.
+  Reutilizar deps ya descargadas: `-DFETCHCONTENT_SOURCE_DIR_{MBEDTLS,NLOHMANN_JSON,LIBSAMPLERATE,ARGON2}=$PWD/build/_deps/*-src`.
 - **Ejecutar `ba-app.exe` bajo wine**: copiar `libgcc_s_seh-1.dll`,
   `libstdc++-6.dll`, `libwinpthread-1.dll` (de `/tmp/opencode/mingw/mingw64/bin`)
   junto al `.exe` (wine no busca en el PATH de Unix).
 - **Layout runtime §5.1** (`Web/guest` en el bundle, `/app/Web/guest` en
   Flatpak) NO se renombra: solo la ruta de FUENTE cambió a `assets/web/guest`.
-- Suite de invariantes: `.venv/bin/pytest -q` (22 tests; `test_lsp_bundle.py`
-  mira `assets/audio-plugins/lsp-plugins.vst3`).
+- Suite de invariantes: `.venv/bin/pytest -q`.

@@ -1,0 +1,83 @@
+# ============================================================================
+# tools/deps/linux-baseline.txt — La BASE del sistema que el bundle puede usar
+#
+# Todo lo que NO esta aca tiene que viajar dentro del bundle (bin/64bit/),
+# compilado desde fuente fijada. tools/deps/check-portable.sh lo verifica sobre
+# cada ELF del bundle y `make release` falla si algo se escapa.
+#
+# Criterio (el mismo que usan AppImage y los binarios oficiales de Qt): solo
+# interfaces que TIENEN que ser las del sistema porque hablan con el kernel,
+# los drivers o los servidores de la sesion, y que estan en cualquier Linux de
+# escritorio:
+#   - glibc (C, math, hilos, dlopen, resolver)       -> el kernel/ld.so
+#   - GL/EGL/GLX/Vulkan (cargadores de drivers)     -> los drivers de video
+#   - X11/xcb/Wayland/xkbcommon                     -> el servidor grafico
+#   - ALSA/PulseAudio                               -> el servidor de audio
+#   - udev, drm                                     -> dispositivos del kernel
+#   - fontconfig/freetype                           -> las fuentes del sistema
+#   - glib/gthread/dbus/gssapi, zlib/zstd           -> lo que exige Qt oficial
+# libstdc++/libgcc_s: el bundle lleva los suyos en bin/64bit/cxx/ y el
+# launcher usa el mas nuevo (el del sistema si es igual o mas nuevo).
+# ============================================================================
+ld-linux-x86-64.so.2
+ld-linux-aarch64.so.1
+libc.so.6
+libm.so.6
+libdl.so.2
+libpthread.so.0
+librt.so.1
+libresolv.so.2
+libstdc++.so.6
+libgcc_s.so.1
+libGL.so.1
+libGLX.so.0
+libOpenGL.so.0
+libEGL.so.1
+libGLdispatch.so.0
+libvulkan.so.1
+libgbm.so.1
+libX11.so.6
+libX11-xcb.so.1
+libXext.so.6
+libXfixes.so.3
+libXrandr.so.2
+libXi.so.6
+libXcursor.so.1
+libXrender.so.1
+libxcb.so.1
+libxcb-xfixes.so.0
+libxcb-randr.so.0
+libxcb-shm.so.0
+libxcb-xinerama.so.0
+libxcb-composite.so.0
+libxcb-dri3.so.0
+libxcb-glx.so.0
+libxcb-render.so.0
+libxcb-shape.so.0
+libxcb-xinput.so.0
+libxcb-keysyms.so.1
+libxcb-icccm.so.4
+libxcb-image.so.0
+libxcb-render-util.so.0
+libxcb-sync.so.1
+libxcb-util.so.1
+libxcb-cursor.so.0
+libxcb-xkb.so.1
+libxkbcommon.so.0
+libxkbcommon-x11.so.0
+libwayland-client.so.0
+libwayland-cursor.so.0
+libwayland-egl.so.1
+libasound.so.2
+libpulse.so.0
+libudev.so.1
+libdrm.so.2
+libfontconfig.so.1
+libfreetype.so.6
+libglib-2.0.so.0
+libgthread-2.0.so.0
+libgobject-2.0.so.0
+libdbus-1.so.3
+libgssapi_krb5.so.2
+libz.so.1
+libzstd.so.1

@@ -311,6 +311,17 @@ void testRingProducerRestart() {
     ba::platform::Process second;
     CHECK(ba::platform::Process::spawn(childOpts({"ring", name}), second));
 
+#ifdef _WIN32
+    // Windows: el mapeo con nombre sigue vivo mientras el lector lo tenga
+    // abierto, asi que el productor nuevo escribe en EL MISMO ring (pop()
+    // resincroniza por el cambio de pid/generacion). No hace falta reabrir:
+    // el audio nuevo llega por el mismo ring.
+    CHECK(popData(ring, 5000));
+    second.terminate();
+    second.wait(5000);
+    return;
+#endif
+
     bool detected = false;
     const auto deadline = std::chrono::steady_clock::now() + 5s;
     std::vector<float> out(ring.blockFloats());

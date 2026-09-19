@@ -202,6 +202,19 @@ Rectangle {
                                     onTriggered: { const n = Studio.sources.add(typeId, displayName); if (n) page.selected = n }
                                 }
                             }
+                            MenuSeparator { visible: Studio.sources.guestSlots > 0 }
+                            // Invitados de la sala (WebRTC): camara y pantalla de cada lugar.
+                            Repeater {
+                                model: Studio.sources.guestSlots * 2
+                                delegate: MenuItem {
+                                    required property int index
+                                    readonly property int slot: Math.floor(index / 2) + 1
+                                    readonly property bool share: index % 2 === 1
+                                    readonly property string who: (Studio.conference.slotNames[slot - 1] || "")
+                                    text: "Invitado " + slot + (share ? " — pantalla" : "") + (who ? "  (" + who + ")" : "")
+                                    onTriggered: { const n = Studio.sources.addGuest(slot, share); if (n) page.selected = n }
+                                }
+                            }
                         }
                     }
                 }

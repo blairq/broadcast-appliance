@@ -73,6 +73,11 @@ class SourcesModel : public QAbstractListModel {
     /// Agrega una fuente nueva de tipo `typeId` con nombre unico derivado de
     /// `baseName`. :returns: el nombre final ("" si fallo).
     Q_INVOKABLE QString add(const QString& typeId, const QString& baseName);
+    /// Invitado de la sala (camara o pantalla compartida del slot): reusa la
+    /// fuente si ya existe en otra escena (misma fuente, otra posicion).
+    Q_INVOKABLE QString addGuest(int slot, bool share);
+    Q_PROPERTY(int guestSlots READ guestSlots CONSTANT)
+    int guestSlots() const;
 
    signals:
     void sceneChanged();

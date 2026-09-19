@@ -89,6 +89,17 @@ std::wstring toString(const fs::path& p) {
 // Devuelve la base temporal: GetTempPathW() en Windows, "/tmp" en el resto.
 // Ante un fallo devuelve false y deja out sin modificar.
 bool tempBase(std::wstring& out) {
+    // Portable: si el launcher redirigio las caches al bundle, ahi va.
+    if (const char* own = std::getenv("BA_CACHE_DIR"); own != nullptr && *own != '\0') {
+        const std::string s(own);
+        const fs::path p(std::u8string(s.begin(), s.end()));
+        std::error_code ec;
+        fs::create_directories(p, ec);
+        if (!ec) {
+            out = p.wstring();
+            return true;
+        }
+    }
 #ifdef _WIN32
     wchar_t buf[4096];
     const DWORD n = ::GetTempPathW(ARRAYSIZE(buf), buf);

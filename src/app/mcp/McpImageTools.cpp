@@ -1,0 +1,444 @@
+// ============================================================================
+// src/app/mcp/McpImageTools.cpp — Herramientas de imagen (vision)
+//
+// Todo lo que se puede VER, como imagen para un modelo con vision:
+//   capture_program    el programa (lo que sale al aire), a resolucion completa
+//   capture_source     cualquier fuente o escena (tambien una que NO esta al
+//                      aire: sirve para revisar antes de cambiar)
+//   capture_multiview  todas las escenas en una grilla con su nombre
+//   capture_feed       un video crudo de A (camara de un invitado, lobby, fila,
+//                      pantalla compartida, feed del operador)
+//   capture_person     la imagen de una persona de la sala, por nombre o id
+//   capture_people     todas las personas de la sala, una imagen cada una
+//   capture_sequence   N cuadros separados en el tiempo (analisis de video:
+//                      movimiento, gestos, si alguien habla, cortes)
+//   capture_ui         captura de la propia app (ventana principal y de salida)
+// ============================================================================
+
+#include <QFont>
+#include <QGuiApplication>
+#include <QPainter>
+#include <QPointer>
+#include <QQuickWindow>
+#include <QTimer>
+
+#include <algorithm>
+#include <cmath>
+#include <memory>
+
+#include "AppRuntime.hpp"
+#include "mcp/McpService.hpp"
+#include "mcp/McpToolsCommon.hpp"
+#include "ui/ConferenceClient.hpp"
+#include "ui/ConferenceViewModel.hpp"
+#include "ui/FrameService.hpp"
+#include "ui/StudioViewModel.hpp"
+
+namespace ba::app::mcp {
+
+namespace {
+
+/// Render de libobs (fuente/escena; "" = escena al aire) como QImage.
+bool renderSource(AppRuntime& rt, const std::string& name, int maxWidth, QImage& out, std::string& err) {
+    std::vector<std::uint8_t> rgba;
+    int w = 0;
+    int h = 0;
+    if (!rt.engine().captureSource(name, maxWidth, rgba, w, h)) {
+        err = rt.engine().lastError();
+        return false;
+    }
+    out = QImage(rgba.data(), w, h, w * 4, QImage::Format_RGBA8888).copy();
+    return true;
+}
+
+bool feedImage(StudioViewModel& vm, const std::string& key, QImage& out) {
+    auto* frames = static_cast<FrameService*>(vm.frames());
+    std::uint64_t serial = 0;
+    return frames->latest(QString::fromStdString(key), out, serial) && !out.isNull();
+}
+
+const json kImageProps = {
+    {"maxWidth",
+     {{"type", "integer"}, {"minimum", 64}, {"maximum", 3840}, {"description", "Ancho maximo en px."}}},
+    {"format", {{"type", "string"}, {"enum", {"jpeg", "png"}}, {"default", "jpeg"}}},
+    {"quality", {{"type", "integer"}, {"minimum", 10}, {"maximum", 100}, {"default", 85}}}};
+
+json withImageProps(json props) {
+    for (auto it = kImageProps.begin(); it != kImageProps.end(); ++it)
+        props[it.key()] = it.value();
+    return json{{"type", "object"}, {"properties", props}};
+}
+
+/// Grilla de imagenes con rotulos (para vistas multiples).
+QImage contactSheet(const std::vector<std::pair<QString, QImage>>& items, int cellW, int cols,
+                    const QString& highlight) {
+    const int cellH = cellW * 9 / 16;
+    const int labelH = 28;
+    const int rows = (static_cast<int>(items.size()) + cols - 1) / cols;
+    QImage sheet(cols * cellW, rows * (cellH + labelH), QImage::Format_RGB32);
+    sheet.fill(QColor(12, 12, 14));
+    QPainter p(&sheet);
+    p.setRenderHint(QPainter::SmoothPixmapTransform);
+    QFont f = p.font();
+    f.setPixelSize(16);
+    f.setBold(true);
+    p.setFont(f);
+    for (size_t i = 0; i < items.size(); ++i) {
+        const int cx = static_cast<int>(i) % cols * cellW;
+        const int cy = static_cast<int>(i) / cols * (cellH + labelH);
+        const QImage& img = items[i].second;
+        if (!img.isNull()) {
+            const QImage s = img.scaled(cellW - 8, cellH - 8, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+            p.drawImage(cx + (cellW - s.width()) / 2, cy + (cellH - s.height()) / 2, s);
+        } else {
+            p.setPen(QColor(120, 120, 130));
+            p.drawText(QRect(cx, cy, cellW, cellH), Qt::AlignCenter, "(sin imagen)");
+        }
+        const bool live = items[i].first == highlight;
+        if (live) {
+            p.setPen(QPen(QColor(255, 59, 48), 4));
+            p.drawRect(cx + 2, cy + 2, cellW - 4, cellH - 4);
+        }
+        p.setPen(live ? QColor(255, 90, 80) : QColor(235, 235, 240));
+        p.drawText(QRect(cx + 6, cy + cellH, cellW - 12, labelH), Qt::AlignLeft | Qt::AlignVCenter,
+                   (live ? "● AL AIRE — " : "") + items[i].first);
+    }
+    return sheet;
+}
+
+} // namespace
+
+void McpService::registerImageTools() {
+    core_.addCategory(
+        "imagenes", "Imagenes y video (vision)",
+        "Ver el programa, cualquier fuente o escena, cada persona, la app, y secuencias en el tiempo.");
+    AppRuntime& rt = rt_;
+    StudioViewModel& vm = vm_;
+    auto* self = this;
+
+    {
+        Tool t;
+        t.name = "capture_program";
+        t.title = "Ver el programa";
+        t.category = "imagenes";
+        t.readOnly = true;
+        t.description =
+            "Imagen de lo que esta saliendo al aire ahora (la escena del programa, render completo de "
+            "libobs). Por defecto 1280 px de ancho, JPEG.";
+        t.inputSchema = withImageProps(json::object());
+        t.run = [&rt, &vm](const json& a, Done done) {
+            QImage img;
+            std::string err;
+            if (!renderSource(rt, "", a.value("maxWidth", 1280), img, err) && !feedImage(vm, "program", img))
+                return done(ToolResult::error("No hay imagen del programa: " + err));
+            ToolResult r;
+            r.text("Programa — escena '" + rt.engine().currentScene() + "' (" + std::to_string(img.width()) +
+                   "x" + std::to_string(img.height()) + ")");
+            addImage(r, img, a, 1280);
+            done(r);
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "capture_source";
+        t.title = "Ver una fuente o escena";
+        t.category = "imagenes";
+        t.readOnly = true;
+        t.description =
+            "Imagen actual de una fuente (camara, imagen, texto, invitado...) o de una escena completa, "
+            "este o no al aire. Ideal para revisar una escena antes de cambiarla, o verificar lo que "
+            "armaste con scene_define.";
+        t.inputSchema =
+            withImageProps(json{{"name", {{"type", "string"}, {"description", "Fuente o escena."}}}});
+        t.inputSchema["required"] = {"name"};
+        t.run = [&rt](const json& a, Done done) {
+            QImage img;
+            std::string err;
+            if (!renderSource(rt, a["name"], a.value("maxWidth", 1280), img, err))
+                return done(ToolResult::error(err));
+            ToolResult r;
+            r.text("'" + a["name"].get<std::string>() + "' (" + std::to_string(img.width()) + "x" +
+                   std::to_string(img.height()) + ")");
+            addImage(r, img, a, 1280);
+            done(r);
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "capture_multiview";
+        t.title = "Vista multiple de escenas";
+        t.category = "imagenes";
+        t.readOnly = true;
+        t.description =
+            "Una sola imagen con TODAS las escenas en grilla, cada una con su nombre; la del aire, "
+            "marcada en rojo. Como el multiview de un switcher.";
+        t.inputSchema = withImageProps(
+            json{{"cellWidth", {{"type", "integer"}, {"minimum", 160}, {"maximum", 960}, {"default", 400}}}});
+        t.run = [&rt](const json& a, Done done) {
+            const int cellW = a.value("cellWidth", 400);
+            std::vector<std::pair<QString, QImage>> items;
+            for (const std::string& s : rt.engine().sceneNames()) {
+                QImage img;
+                std::string err;
+                renderSource(rt, s, cellW, img, err);
+                items.emplace_back(QString::fromStdString(s), img);
+            }
+            if (items.empty()) return done(ToolResult::error("No hay escenas."));
+            const int cols =
+                std::max(1, static_cast<int>(std::ceil(std::sqrt(static_cast<double>(items.size())))));
+            ToolResult r;
+            r.text(std::to_string(items.size()) + " escena(s); al aire: " + rt.engine().currentScene());
+            addImage(r, contactSheet(items, cellW, cols, QString::fromStdString(rt.engine().currentScene())),
+                     a, 0);
+            done(r);
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "capture_feed";
+        t.title = "Ver un video de entrada";
+        t.category = "imagenes";
+        t.readOnly = true;
+        t.description =
+            "Ultimo cuadro de un video que llega a la app: program, guest:N (camara del invitado del "
+            "lugar N), share:N (su pantalla), lobby:K (preview del lobby), backstage:K (fila de "
+            "oradores), operator (con lo que te ve el lobby). feeds_list muestra cuales hay.";
+        t.inputSchema = withImageProps(json{{"key", {{"type", "string"}}}});
+        t.inputSchema["required"] = {"key"};
+        t.run = [&vm](const json& a, Done done) {
+            QImage img;
+            if (!feedImage(vm, a["key"], img))
+                return done(
+                    ToolResult::error("Sin imagen en '" + a["key"].get<std::string>() +
+                                      "' (nadie publica ese video ahora). feeds_list muestra los validos."));
+            ToolResult r;
+            r.text(a["key"].get<std::string>() + " (" + std::to_string(img.width()) + "x" +
+                   std::to_string(img.height()) + ")");
+            addImage(r, img, a, 960);
+            done(r);
+        };
+        core_.addTool(std::move(t));
+    }
+
+    // --- Personas ----------------------------------------------------------------
+    // Una persona: su video vivo si A lo recibe; si no, la foto que manda su
+    // navegador (la pide a B).
+    auto personImage =
+        std::make_shared<std::function<void(const json&, int, std::function<void(QImage, std::string)>)>>();
+    *personImage = [&vm](const json& p, int maxW, std::function<void(QImage, std::string)> cb) {
+        (void)maxW;
+        const std::string key = personFeedKey(p);
+        QImage img;
+        if (!key.empty() && feedImage(vm, key, img)) return cb(img, "video en vivo (" + key + ")");
+        if (!p.value("hasAvatar", false)) return cb(QImage(), "sin imagen (camara apagada o sin medios)");
+        auto* conf = static_cast<ConferenceViewModel*>(vm.conference());
+        conf->client().getRaw("/api/v1/participants/" + QString::fromStdString(p.value("id", "")) + "/avatar",
+                              [cb](bool ok, const QByteArray& jpeg) {
+                                  QImage a;
+                                  if (ok) a.loadFromData(jpeg, "JPEG");
+                                  cb(a, ok ? "foto de hace unos segundos (sin video en vivo en la app)"
+                                           : "sin imagen");
+                              });
+    };
+    {
+        Tool t;
+        t.name = "capture_person";
+        t.title = "Ver a una persona";
+        t.category = "imagenes";
+        t.readOnly = true;
+        t.description =
+            "Imagen de una persona de la sala (por nombre o id): su camara en vivo si esta al aire, en "
+            "el lobby o entre los primeros de la fila; si no, la foto reciente de su navegador. Con "
+            "includeScreen tambien su pantalla compartida.";
+        t.inputSchema =
+            withImageProps(json{{"participant", {{"type", "string"}, {"description", "Nombre o id."}}},
+                                {"includeScreen", {{"type", "boolean"}, {"default", false}}}});
+        t.inputSchema["required"] = {"participant"};
+        t.run = [&vm, personImage](const json& a, Done done) {
+            json p;
+            std::string err;
+            if (!resolveParticipant(roomSnapshot(vm), a["participant"], p, err))
+                return done(ToolResult::error(err));
+            (*personImage)(p, a.value("maxWidth", 960), [&vm, a, p, done](QImage img, std::string how) {
+                ToolResult r;
+                r.text(p.value("name", "") + " — " + p.value("state", "") +
+                       (p.value("slot", 0) > 0 ? " (al aire)" : "") + " — " + how);
+                if (!img.isNull()) addImage(r, img, a, 960);
+                if (a.value("includeScreen", false) && p.value("screen", false) && p.value("slot", 0) > 0) {
+                    QImage s;
+                    if (feedImage(vm, "share:" + std::to_string(p.value("slot", 0)), s)) {
+                        r.text("Su pantalla compartida:");
+                        addImage(r, s, a, 1280);
+                    }
+                }
+                if (img.isNull()) r.isError = true;
+                done(r);
+            });
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "capture_people";
+        t.title = "Ver a todas las personas";
+        t.category = "imagenes";
+        t.readOnly = true;
+        t.description =
+            "Una imagen por cada persona de la sala (lobby, adentro y fila de oradores), cada una "
+            "precedida por su nombre, estado y de donde sale la imagen. Default 480 px.";
+        t.inputSchema = withImageProps(json{
+            {"state", {{"type", "string"}, {"enum", {"all", "waiting", "admitted"}}, {"default", "all"}}}});
+        t.run = [&vm, personImage](const json& a, Done done) {
+            const json snap = roomSnapshot(vm);
+            const std::string only = a.value("state", std::string("all"));
+            std::vector<json> people;
+            for (const auto& p : snap.value("participants", json::array()))
+                if (only == "all" || p.value("state", "") == only) people.push_back(p);
+            if (people.empty()) return done(ToolResult::ok("No hay nadie en la sala."));
+            struct Acc {
+                ToolResult r;
+                size_t pending;
+                std::vector<std::pair<std::string, QImage>> got;
+            };
+            auto acc = std::make_shared<Acc>();
+            acc->pending = people.size();
+            acc->got.resize(people.size());
+            for (size_t i = 0; i < people.size(); ++i) {
+                const json p = people[i];
+                (*personImage)(
+                    p, a.value("maxWidth", 480), [acc, i, p, a, done](QImage img, std::string how) {
+                        acc->got[i] = {
+                            p.value("name", "") + " (" + p.value("id", "") + ") — " + p.value("state", "") +
+                                (p.value("slot", 0) > 0
+                                     ? ", al aire en el lugar " + std::to_string(p.value("slot", 0))
+                                     : "") +
+                                " — " + how,
+                            img};
+                        if (--acc->pending > 0) return;
+                        for (const auto& [label, im] : acc->got) {
+                            acc->r.text(label);
+                            if (!im.isNull()) addImage(acc->r, im, a, 480);
+                        }
+                        done(acc->r);
+                    });
+            }
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "capture_sequence";
+        t.title = "Secuencia de cuadros (video)";
+        t.category = "imagenes";
+        t.readOnly = true;
+        t.description =
+            "Toma `frames` imagenes separadas `intervalMs` de: el programa, una fuente/escena, un video "
+            "(clave de feeds_list) o una persona. Para analizar movimiento, si alguien habla o hace "
+            "gestos, si un video avanza, transiciones, congelamientos.";
+        t.inputSchema = withImageProps(json{
+            {"target",
+             {{"type", "string"},
+              {"description", "'program', nombre de fuente/escena, o clave de video (guest:1...)."}}},
+            {"participant", {{"type", "string"}, {"description", "En vez de target: una persona."}}},
+            {"frames", {{"type", "integer"}, {"minimum", 2}, {"maximum", 16}, {"default", 4}}},
+            {"intervalMs", {{"type", "integer"}, {"minimum", 50}, {"maximum", 10000}, {"default", 500}}}});
+        t.run = [&rt, &vm, self](const json& a, Done done) {
+            std::string target = a.value("target", std::string("program"));
+            if (a.contains("participant")) {
+                json p;
+                std::string err;
+                if (!resolveParticipant(roomSnapshot(vm), a["participant"], p, err))
+                    return done(ToolResult::error(err));
+                target = personFeedKey(p);
+                if (target.empty())
+                    return done(ToolResult::error(p.value("name", "") +
+                                                  " no tiene video en vivo en la app ahora "
+                                                  "(capture_person da su foto)."));
+            }
+            const int maxW = a.value("maxWidth", 640);
+            const auto grab = [&rt, &vm, target, maxW](QImage& img, std::string& err) {
+                if (target == "program") return renderSource(rt, "", maxW, img, err);
+                if (target.find(':') != std::string::npos) {
+                    if (feedImage(vm, target, img)) return true;
+                    err = "sin imagen en " + target;
+                    return false;
+                }
+                return renderSource(rt, target, maxW, img, err);
+            };
+            struct Seq {
+                ToolResult r;
+                int left;
+                int n = 0;
+                qint64 t0 = 0;
+            };
+            auto seq = std::make_shared<Seq>();
+            seq->left = a.value("frames", 4);
+            const int interval = a.value("intervalMs", 500);
+            seq->r.text("Secuencia de " + std::to_string(seq->left) + " cuadros de '" + target + "' cada " +
+                        std::to_string(interval) + " ms:");
+            auto step = std::make_shared<std::function<void()>>();
+            QPointer<McpService> guard(self);
+            *step = [seq, step, grab, a, done, interval, maxW, guard]() {
+                if (!guard) return;
+                QImage img;
+                std::string err;
+                const qint64 now = QDateTime::currentMSecsSinceEpoch();
+                if (seq->n == 0) seq->t0 = now;
+                if (grab(img, err)) {
+                    seq->r.text("t=" + std::to_string(now - seq->t0) + " ms");
+                    json args = a;
+                    args["maxWidth"] = maxW;
+                    addImage(seq->r, img, args, maxW);
+                } else {
+                    seq->r.text("t=" + std::to_string(now - seq->t0) + " ms: " + err);
+                }
+                ++seq->n;
+                if (--seq->left <= 0) {
+                    done(seq->r);
+                    *step = nullptr; // corta el ciclo de referencias
+                    return;
+                }
+                QTimer::singleShot(interval, [step]() {
+                    if (*step) (*step)();
+                });
+            };
+            (*step)();
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "capture_ui";
+        t.title = "Captura de la app";
+        t.category = "imagenes";
+        t.readOnly = true;
+        t.description =
+            "Captura de pantalla de la propia aplicacion: la ventana principal (lo que ve el operador) "
+            "y, con window=all, tambien las ventanas de salida abiertas.";
+        t.inputSchema = withImageProps(
+            json{{"window", {{"type", "string"}, {"enum", {"main", "all"}}, {"default", "main"}}}});
+        t.run = [self](const json& a, Done done) {
+            QQuickWindow* main = self->mainWindow_ ? self->mainWindow_() : nullptr;
+            if (main == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
+            ToolResult r;
+            r.text("Ventana principal");
+            addImage(r, main->grabWindow(), a, 1600);
+            if (a.value("window", std::string("main")) == "all") {
+                int n = 1;
+                for (QWindow* w : QGuiApplication::topLevelWindows()) {
+                    auto* q = qobject_cast<QQuickWindow*>(w);
+                    if (q == nullptr || q == main || !q->isVisible()) continue;
+                    r.text("Ventana de salida " + std::to_string(n++) + ": " + q->title().toStdString());
+                    addImage(r, q->grabWindow(), a, 1600);
+                }
+            }
+            done(r);
+        };
+        core_.addTool(std::move(t));
+    }
+}
+
+} // namespace ba::app::mcp

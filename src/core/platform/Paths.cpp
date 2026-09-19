@@ -5,7 +5,11 @@
 #include "platform/Paths.hpp"
 
 #include <cstdlib>
+#ifndef _WIN32
+#include <stdlib.h>
+#endif
 #include <string>
+#include <system_error>
 
 namespace ba::platform {
 
@@ -45,6 +49,52 @@ std::filesystem::path dataRoot() {
         return std::filesystem::path(std::u8string(s.begin(), s.end()));
     }
     return bundleRoot();
+}
+
+namespace {
+std::filesystem::path makeDir(const std::filesystem::path& p) {
+    std::error_code ec;
+    std::filesystem::create_directories(p, ec);
+    if (ec) return {};
+    std::filesystem::permissions(p, std::filesystem::perms::owner_all, std::filesystem::perm_options::replace,
+                                 ec);
+    return p; // sin permisos (FAT): igual sirve
+}
+
+void setEnv(const char* name, const std::filesystem::path& value) {
+    const std::u8string u = value.u8string();
+    const std::string s(u.begin(), u.end());
+#ifdef _WIN32
+    _putenv_s(name, s.c_str());
+#else
+    ::setenv(name, s.c_str(), 1);
+#endif
+}
+} // namespace
+
+std::filesystem::path stateDir() {
+    const std::filesystem::path root = dataRoot();
+    return root.empty() ? std::filesystem::path{} : makeDir(root / "Runtime");
+}
+
+std::filesystem::path cacheDir() {
+    const std::filesystem::path root = dataRoot();
+    return root.empty() ? std::filesystem::path{} : makeDir(root / "Cache");
+}
+
+std::filesystem::path credentialsDir() {
+    const std::filesystem::path root = dataRoot();
+    return root.empty() ? std::filesystem::path{} : makeDir(root / "Credenciales");
+}
+
+void redirectUserDirs() {
+    const std::filesystem::path cache = cacheDir();
+    if (cache.empty()) return;
+    setEnv("BA_CACHE_DIR", cache);
+    setEnv("XDG_CACHE_HOME", cache);                 // Qt, fontconfig, Mesa (Linux)
+    setEnv("QML_DISK_CACHE_PATH", cache / "qml");    // QML compilado (todas las plataformas)
+    setEnv("MESA_SHADER_CACHE_DIR", cache / "mesa"); // por si XDG no alcanza
+    setEnv("__GL_SHADER_DISK_CACHE_PATH", cache / "nvidia");
 }
 
 } // namespace ba::platform

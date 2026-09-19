@@ -10,12 +10,14 @@
 //   invitado). El servidor de la sala no cambia.
 //
 //   Certificado:
-//     - Config/tls/cert.pem + key.pem si existen (p. ej. uno de Let's Encrypt
-//       para el dominio que apunta a la IP publica): sin avisos en el
-//       navegador;
+//     - uno propio si esta en Credenciales/ (tls-propio-cert/-clave; se
+//       importa dejando cert.pem + key.pem en esa carpeta, p. ej. uno de
+//       Let's Encrypt para el dominio que apunta a la IP publica): sin avisos
+//       en el navegador;
 //     - si no, uno autofirmado (ECDSA P-256) generado una vez y reutilizado
-//       (Config/tls/selfsigned-*.pem), con los nombres/IPs pedidos. El
-//       navegador avisa la primera vez; aceptado, la camara funciona.
+//       (tls-autofirmado-*), con los nombres/IPs pedidos. El navegador avisa
+//       la primera vez; aceptado, la camara funciona.
+//   Todo cifrado en Credenciales/ (security/CredentialStore).
 //
 //   Si la conexion viene del puente del tunel (127.0.0.1) con su propia
 //   cabecera PROXY, se respeta la IP original que trae.
@@ -42,7 +44,7 @@ class TlsTerminator {
         std::string bindAddress = "127.0.0.1";
         uint16_t port = 8789;
         uint16_t backendPort = 8787;    ///< servidor HTTP de la sala (127.0.0.1)
-        std::string certDir;            ///< Config/tls
+        std::string credentialsDir;     ///< <datos>/Credenciales
         std::vector<std::string> names; ///< SAN del autofirmado (DNS o IP)
     };
 

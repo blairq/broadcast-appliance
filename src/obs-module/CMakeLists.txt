@@ -25,7 +25,7 @@ file(GLOB_RECURSE BA_SOURCES_SOURCES CONFIGURE_DEPENDS
 )
 
 # Excluir los unit tests del propio lib: son ejecutables, no parte de la DLL
-# (mismo criterio que ba_core y ba_plugin_host).
+# (mismo criterio que ba_core).
 list(FILTER BA_SOURCES_SOURCES EXCLUDE REGEX ".*/tests/.*")
 
 # Con libobs se compila el modulo real; sin ella, solo el esqueleto.
@@ -77,7 +77,7 @@ endif()
 # Cada test_*.cpp en src/obs-module/tests/ se convierte en un ejecutable que
 # enlaza `ba_core` (el DSP nativo que el módulo envuelve) y se registra con
 # add_test. No hay framework externo: cada test es un main() que devuelve 0 si
-# pasa y != 0 si falla (mismo patrón que src/core y src/plugin-host).
+# pasa y != 0 si falla (mismo patrón que src/core).
 #
 # `test_ba_sources_real` carga el módulo en una libobs real y comprueba que el
 # ABI y el registro de fuentes funcionan; solo se compila si libobs está.
@@ -117,7 +117,8 @@ endforeach()
 install(TARGETS ba-sources
     RUNTIME DESTINATION obs-plugins/64bit
     LIBRARY DESTINATION obs-plugins/64bit
-    ARCHIVE DESTINATION obs-plugins/64bit
+    # La lib de importacion (.lib en Windows) no sirve en el bundle.
+    ARCHIVE DESTINATION lib COMPONENT thirdparty
 )
 
 # Datos del modulo en el layout que libobs espera dentro del bundle.

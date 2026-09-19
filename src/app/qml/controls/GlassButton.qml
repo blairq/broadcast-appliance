@@ -9,6 +9,8 @@ Rectangle {
     property bool active: false
     property color activeColor: Theme.accent
     property bool compact: false
+    /// El mouse esta encima (para ToolTip.visible, como en los controles de Qt).
+    readonly property bool hovered: ma.containsMouse
     signal clicked()
 
     implicitHeight: compact ? 30 : 38

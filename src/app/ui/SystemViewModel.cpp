@@ -1,0 +1,105 @@
+// ============================================================================
+// src/app/ui/SystemViewModel.cpp — ver SystemViewModel.hpp
+// ============================================================================
+
+#include "ui/SystemViewModel.hpp"
+
+#include <QDesktopServices>
+#include <QDir>
+#include <QFileInfo>
+#include <QProcess>
+#include <QUrl>
+
+#include <filesystem>
+
+#include "platform/Paths.hpp"
+#include "security/CredentialStore.hpp"
+
+namespace ba::app {
+
+namespace {
+
+#ifdef _WIN32
+const char* kLauncher = "BroadcastAppliance.exe";
+const char* kApp = "bin/64bit/ba-app.exe";
+#else
+const char* kLauncher = "BroadcastAppliance";
+const char* kApp = "bin/64bit/ba-app";
+#endif
+
+QString root() { return QString::fromStdWString(ba::platform::dataRoot().wstring()); }
+
+} // namespace
+
+QString localPath(const QString& folderOrUrl) {
+    const QUrl u(folderOrUrl);
+    return u.isLocalFile() ? u.toLocalFile() : folderOrUrl;
+}
+
+SystemViewModel::SystemViewModel(QObject* parent) : QObject(parent) {}
+
+QString SystemViewModel::dataRoot() const { return QDir::toNativeSeparators(root()); }
+
+QString SystemViewModel::version() const {
+    const QFileInfo fi(root() + "/" + kApp);
+    return fi.exists() ? fi.lastModified().toString("yyyy-MM-dd HH:mm") : QString();
+}
+
+QStringList SystemViewModel::credentials() const {
+    QStringList out;
+    for (const auto& n : ba::security::CredentialStore::bundle().list())
+        out << QString::fromStdString(n);
+    return out;
+}
+
+QVariantList SystemViewModel::backups() const {
+    QVariantList out;
+    QDir d(root() + "/Respaldos");
+    const auto list = d.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name | QDir::Reversed);
+    for (const QFileInfo& fi : list)
+        out << QVariantMap{{"name", fi.fileName()}, {"path", fi.absoluteFilePath()}};
+    return out;
+}
+
+bool SystemViewModel::canRollback() const { return QFileInfo(root() + "/.actualizacion-anterior").isDir(); }
+
+void SystemViewModel::refresh() { emit changed(); }
+
+QString SystemViewModel::checkUpdate(const QString& folder) const {
+    const QString src = QDir::cleanPath(localPath(folder));
+    if (src.isEmpty()) return "Elegi la carpeta de la version nueva.";
+    if (!QFileInfo::exists(src + "/" + kLauncher) || !QFileInfo::exists(src + "/" + kApp))
+        return QString("Esa carpeta no es una version de Broadcast Appliance (tiene que tener %1 y %2).")
+            .arg(kLauncher, kApp);
+    const QString r = QDir::cleanPath(QFileInfo(root()).canonicalFilePath());
+    const QString s = QFileInfo(src).canonicalFilePath();
+    if (s == r || s.startsWith(r + "/"))
+        return "La version nueva tiene que estar fuera de la carpeta del sistema.";
+    return {};
+}
+
+QString SystemViewModel::launch(const QStringList& args) {
+    const QString exe = root() + "/" + kLauncher;
+    if (!QFileInfo::exists(exe)) return "No encuentro el launcher (" + exe + ").";
+    qint64 pid = 0;
+    if (!QProcess::startDetached(exe, args, root(), &pid)) return "No se pudo lanzar el actualizador.";
+    emit quitForUpdate();
+    return {};
+}
+
+QString SystemViewModel::startUpdate(const QString& folder) {
+    const QString err = checkUpdate(folder);
+    if (!err.isEmpty()) return err;
+    return launch({"--update", QDir::cleanPath(localPath(folder)), "--start"});
+}
+
+QString SystemViewModel::startRollback() {
+    if (!canRollback()) return "No hay una version anterior guardada.";
+    return launch({"--update-rollback", "--start"});
+}
+
+void SystemViewModel::openFolder(const QString& sub) const {
+    QDesktopServices::openUrl(QUrl::fromLocalFile(sub.isEmpty() ? root() : root() + "/" + sub));
+}
+
+} // namespace ba::app

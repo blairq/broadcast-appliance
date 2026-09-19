@@ -185,6 +185,11 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
     const json ui = j.value("ui", json::object());
     c.theme = get<std::string>(ui, "theme", "dark");
     c.previewWidth = get(ui, "previewWidth", 960);
+    const json mcp = j.value("mcp", json::object());
+    c.mcpEnabled = get(mcp, "enabled", true);
+    c.mcpPort = std::clamp(get(mcp, "port", 8790), 1024, 65535);
+    c.mcpApproval = get<std::string>(mcp, "approval", "invitados");
+    if (c.mcpApproval != "siempre" && c.mcpApproval != "nunca") c.mcpApproval = "invitados";
 
     if (j.contains("scenes") && j["scenes"].is_array()) {
         c.scenes.clear();
@@ -253,6 +258,7 @@ bool saveAppConfig(const fs::path& path, const AppConfig& c, const fs::path& dat
         {"conference", {{"operatorVideo", c.operatorVideo}, {"operatorAudio", c.operatorAudio}}},
         {"transition", {{"type", c.transition.type}, {"durationMs", c.transition.durationMs}}},
         {"ui", {{"theme", c.theme}, {"previewWidth", c.previewWidth}}},
+        {"mcp", {{"enabled", c.mcpEnabled}, {"port", c.mcpPort}, {"approval", c.mcpApproval}}},
         {"scenes", scenes},
         {"currentScene", c.currentScene},
     };
@@ -268,6 +274,7 @@ GatewaySettings loadGatewaySettings(const fs::path& path) {
     s.bindAddress = get<std::string>(j, "bindAddress", s.bindAddress);
     s.room = get<std::string>(j, "room", s.room);
     s.tunnel = get(j, "tunnel", s.tunnel);
+    s.tunnelHostname = get<std::string>(j, "tunnelHostname", s.tunnelHostname);
     s.metricsPort = get(j, "metricsPort", s.metricsPort);
     s.videoW = get(j, "videoW", s.videoW);
     s.videoH = get(j, "videoH", s.videoH);
@@ -276,6 +283,8 @@ GatewaySettings loadGatewaySettings(const fs::path& path) {
     s.adminPort = get(j, "adminPort", s.adminPort);
     s.lobby = get(j, "lobby", s.lobby);
     s.lobbySlots = std::clamp(get(j, "lobbySlots", s.lobbySlots), 0, 8);
+    s.maxBackstage = std::clamp(get(j, "maxBackstage", s.maxBackstage), 0, 32);
+    s.backstagePreviews = std::clamp(get(j, "backstagePreviews", s.backstagePreviews), 0, 8);
     s.maxUploadMB = get(j, "maxUploadMB", s.maxUploadMB);
     s.https = get(j, "https", s.https);
     s.httpsPort = get(j, "httpsPort", s.httpsPort);
@@ -298,6 +307,7 @@ bool saveGatewaySettings(const fs::path& path, const GatewaySettings& s, std::st
                           {"bindAddress", s.bindAddress},
                           {"room", s.room},
                           {"tunnel", s.tunnel},
+                          {"tunnelHostname", s.tunnelHostname},
                           {"metricsPort", s.metricsPort},
                           {"videoW", s.videoW},
                           {"videoH", s.videoH},
@@ -306,6 +316,8 @@ bool saveGatewaySettings(const fs::path& path, const GatewaySettings& s, std::st
                           {"adminPort", s.adminPort},
                           {"lobby", s.lobby},
                           {"lobbySlots", s.lobbySlots},
+                          {"maxBackstage", s.maxBackstage},
+                          {"backstagePreviews", s.backstagePreviews},
                           {"maxUploadMB", s.maxUploadMB},
                           {"https", s.https},
                           {"httpsPort", s.httpsPort},

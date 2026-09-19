@@ -70,6 +70,7 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent) : QAbstractListMod
         {"gateway.port", "Gateway", "Puerto", "int", {}, 1024, 65535, "", "", "gateway", 8787},
         {"gateway.bind", "Gateway", "Acceso", "choice", choices({{"127.0.0.1","Solo esta maquina (via tunel)"},{"0.0.0.0","Red local (tambien sin tunel)"}}), 0, 0, "", "Red local expone el gateway a la LAN; el PIN y el limite de intentos siguen protegiendo.", "gateway", "127.0.0.1"},
         {"gateway.tunnel", "Gateway", "Tunel de Cloudflare", "bool", {}, 0, 0, "", "Necesita el token en BA_TUNNEL_TOKEN.", "gateway", true},
+        {"gateway.tunnelHost", "Gateway", "Dominio publico (Cloudflare)", "text", {}, 0, 0, "", "El hostname que apunta al tunel en el panel de Cloudflare (p. ej. sala.midominio.com). Lo usa el QR remoto.", "gateway", ""},
         {"gateway.videoW", "Gateway", "Video del invitado: ancho", "int", {}, 320, 3840, "px", "", "gateway", 1280},
         {"gateway.videoH", "Gateway", "Video del invitado: alto", "int", {}, 180, 2160, "px", "", "gateway", 720},
         {"gateway.returnW", "Gateway", "Retorno al invitado: ancho", "int", {}, 320, 1920, "px", "", "gateway", 640},
@@ -77,11 +78,13 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent) : QAbstractListMod
         // --- Sala --------------------------------------------------------------
         {"room.lobby", "Sala", "Lobby de admision", "bool", {}, 0, 0, "", "Cada invitado espera a que lo hagas pasar (y mientras espera solo te ve a vos).", "gateway", true},
         {"room.lobbySlots", "Sala", "Previews del lobby", "int", {}, 0, 8, "", "Cuantos de los que esperan pueden mostrarte su camara a la vez.", "gateway", 4},
+        {"room.maxBackstage", "Sala", "Fila de oradores", "int", {}, 0, 32, "", "Modo oradores: cuantos en la fila pueden ver el programa a la vez (cada uno usa una sesion de video).", "gateway", 12},
+        {"room.backstagePreviews", "Sala", "Previews de la fila", "int", {}, 0, 8, "", "Modo oradores: cuantos de la fila (los primeros) te muestran su camara en la app.", "gateway", 6},
         {"room.maxUploadMB", "Sala", "Tope por archivo compartido", "int", {}, 1, 20480, "MB", "", "gateway", 2048},
         {"room.adminPort", "Sala", "Puerto de la API de control", "int", {}, 1024, 65535, "", "Solo en 127.0.0.1: consola web y esta interfaz.", "gateway", 8788},
         // --- Acceso directo ------------------------------------------------------
         {"direct.https", "Acceso directo", "HTTPS propio", "bool", {}, 0, 0, "", "Los navegadores solo dan camara y microfono en paginas seguras: sin HTTPS, un invitado por la red local o por IP publica no puede usarlos.", "gateway", true},
-        {"direct.httpsPort", "Acceso directo", "Puerto HTTPS", "int", {}, 1024, 65535, "", "Un certificado propio en Config/tls/cert.pem + key.pem evita el aviso del navegador.", "gateway", 8789},
+        {"direct.httpsPort", "Acceso directo", "Puerto HTTPS", "int", {}, 1024, 65535, "", "Un certificado propio evita el aviso del navegador: deja cert.pem + key.pem en Credenciales/ y al reiniciar se importan (cifrados).", "gateway", 8789},
         {"direct.rtcMin", "Acceso directo", "WebRTC: primer puerto UDP", "int", {}, 1024, 65000, "", "Rango fijo para el firewall y la redireccion del servidor.", "gateway", 40000},
         {"direct.rtcMax", "Acceso directo", "WebRTC: ultimo puerto UDP", "int", {}, 1024, 65535, "", "", "gateway", 40099},
         {"wg.enabled", "Acceso directo", "Tunel WireGuard", "bool", {}, 0, 0, "", "Conecta a un servidor propio con IP publica: los invitados entran directo, sin Cloudflare. Sin permisos de administrador ni drivers.", "gateway", false},
@@ -91,9 +94,13 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent) : QAbstractListMod
         {"wg.publicAddress", "Acceso directo", "IP o dominio publico", "text", {}, 0, 0, "", "Por donde entran los invitados; tambien es la que se anuncia para WebRTC.", "gateway", ""},
         {"wg.keepalive", "Acceso directo", "Keepalive", "int", {}, 0, 120, "s", "Mantiene abierto el NAT del lado de este equipo.", "gateway", 25},
         // --- Sistema ---------------------------------------------------------
-        {"launcher.shadow", "Sistema", "Copia sombra", "bool", {}, 0, 0, "", "Ejecutar desde una copia en la cache del usuario (permite actualizar el bundle en caliente).", "restart", false},
+        {"launcher.shadow", "Sistema", "Copia sombra", "bool", {}, 0, 0, "", "Ejecutar desde una copia en Cache/ del propio bundle (permite actualizar el bundle en caliente).", "restart", false},
         {"launcher.recoveryUi", "Sistema", "Dialogo de recuperacion", "bool", {}, 0, 0, "", "Si esta apagado, el supervisor reinicia solo sin preguntar.", "restart", true},
         {"ui.theme", "Sistema", "Tema", "choice", choices({{"dark","Oscuro"},{"light","Claro"}}), 0, 0, "", "", "live", "dark"},
+        // --- Asistente de IA (MCP) ---------------------------------------------
+        {"mcp.enabled", "Asistente (MCP)", "Servidor MCP", "bool", {}, 0, 0, "", "Permite que un asistente de IA (Claude u otro cliente MCP) maneje y vea toda la app. Solo en esta maquina y con token (cifrado en Credenciales/; bin/64bit/ba-mcp --token lo muestra).", "restart", true},
+        {"mcp.port", "Asistente (MCP)", "Puerto MCP", "int", {}, 1024, 65535, "", "http://127.0.0.1:<puerto>/mcp. Para clientes que lanzan un proceso: bin/64bit/ba-mcp.", "restart", 8790},
+        {"mcp.approval", "Asistente (MCP)", "Aprobar acciones del asistente", "choice", choices({{"invitados","Si leyo mensajes/datos de invitados o del publico (recomendado)"},{"siempre","Siempre"},{"nunca","Nunca"}}), 0, 0, "", "Salvaguarda determinista: cuando el asistente leyo algo escrito por invitados o por el publico (chat, nombres, archivos, su video), toda accion que modifica algo espera tu click de aprobacion en la barra de abajo. Asi un invitado no puede hacer que el asistente cambie nada. Solo se cambia desde aca (el asistente no puede).", "live", "invitados"},
     };
     // clang-format on
     load();
@@ -131,12 +138,15 @@ QVariantMap SettingsModel::current() const {
         {"gateway.port", g.port},
         {"gateway.bind", qs(g.bindAddress)},
         {"gateway.tunnel", g.tunnel},
+        {"gateway.tunnelHost", qs(g.tunnelHostname)},
         {"gateway.videoW", g.videoW},
         {"gateway.videoH", g.videoH},
         {"gateway.returnW", g.guestVideoW},
         {"gateway.returnH", g.guestVideoH},
         {"room.lobby", g.lobby},
         {"room.lobbySlots", g.lobbySlots},
+        {"room.maxBackstage", g.maxBackstage},
+        {"room.backstagePreviews", g.backstagePreviews},
         {"room.maxUploadMB", g.maxUploadMB},
         {"room.adminPort", g.adminPort},
         {"direct.https", g.https},
@@ -152,6 +162,9 @@ QVariantMap SettingsModel::current() const {
         {"launcher.shadow", l.shadowCopy},
         {"launcher.recoveryUi", l.recoveryUi},
         {"ui.theme", qs(c.theme)},
+        {"mcp.enabled", c.mcpEnabled},
+        {"mcp.port", c.mcpPort},
+        {"mcp.approval", QString::fromStdString(c.mcpApproval)},
     };
 }
 
@@ -300,6 +313,9 @@ QString SettingsModel::apply() {
     c.guestAudio = b("guests.audio");
     c.guestAudioPreset = s("guests.audioPreset");
     c.theme = s("ui.theme");
+    c.mcpEnabled = b("mcp.enabled");
+    c.mcpPort = i("mcp.port");
+    c.mcpApproval = s("mcp.approval");
     if (changed("transition.")) {
         rt_.setTransition(s("transition.type"), i("transition.ms"));
     }
@@ -312,12 +328,15 @@ QString SettingsModel::apply() {
         g.port = static_cast<std::uint16_t>(i("gateway.port"));
         g.bindAddress = s("gateway.bind");
         g.tunnel = b("gateway.tunnel");
+        g.tunnelHostname = s("gateway.tunnelHost");
         g.videoW = i("gateway.videoW");
         g.videoH = i("gateway.videoH");
         g.guestVideoW = i("gateway.returnW");
         g.guestVideoH = i("gateway.returnH");
         g.lobby = b("room.lobby");
         g.lobbySlots = i("room.lobbySlots");
+        g.maxBackstage = i("room.maxBackstage");
+        g.backstagePreviews = i("room.backstagePreviews");
         g.maxUploadMB = i("room.maxUploadMB");
         g.adminPort = static_cast<std::uint16_t>(i("room.adminPort"));
         g.https = b("direct.https");

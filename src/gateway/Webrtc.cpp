@@ -18,6 +18,14 @@
 //     audio sin dispositivo que tira del mix cada 10 ms en su propio thread.
 //   - Envio: fuentes locales alimentadas por el MediaPump (BGRA -> I420 con
 //     libyuv; audio float32 -> int16).
+//   - Espectadores (relay): cada receptor de video de un invitado lleva un
+//     TapTransformer entre el depacketizador y el decodificador: copia los
+//     bytes CODIFICADOS del cuadro al Feed de esa sesion y deja pasar el
+//     original al decodificador (A sigue recibiendo pixeles). Cada espectador
+//     es una PeerConnection propia cuyo sender tiene un ViewerTransformer en
+//     lugar de encoder: el Feed le inyecta los cuadros reenviados (mismos
+//     bytes, payload type del espectador). La fuente de ese sender no emite
+//     nunca, asi que B no codifica nada para los espectadores.
 //
 // Backend NULL (BA_GATEWAY_HAVE_WEBRTC=0): maquina de estados que completa la
 // senalizacion sin RTP; sirve para testear el servidor sin el SDK.
@@ -32,8 +40,10 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <cstdlib>
 #include <cstring>
+#include <map>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -46,6 +56,7 @@
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
 #include "api/create_peerconnection_factory.h"
+#include "api/frame_transformer_interface.h"
 #include "api/jsep.h"
 #include "api/make_ref_counted.h"
 #include "api/media_stream_interface.h"
@@ -58,6 +69,7 @@
 #include "api/task_queue/default_task_queue_factory.h"
 #include "api/video/i420_buffer.h"
 #include "api/video/video_frame.h"
+#include "api/video/video_frame_metadata.h"
 #include "api/video/video_sink_interface.h"
 #include "api/video_codecs/video_decoder_factory_template.h"
 #include "api/video_codecs/video_decoder_factory_template_dav1d_adapter.h"
@@ -316,6 +328,308 @@ class RemoteAudioSink : public webrtc::AudioTrackSinkInterface {
     std::vector<float> out_;
 };
 
+int64_t steadyMs() {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+               std::chrono::steady_clock::now().time_since_epoch())
+        .count();
+}
+
+std::string upper(std::string s) {
+    for (char& ch : s)
+        ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+    return s;
+}
+
+// --- Relay de video codificado (espectadores) --------------------------------
+
+/// Cuadro reenviado a un espectador: los bytes tal como llegaron del invitado
+/// (compartidos entre todos los espectadores de ese cuadro) y sus metadatos.
+/// Se presenta como cuadro "recibido": el sender lo empaqueta a partir de los
+/// metadatos (RTPVideoHeader::FromMetadata), sin pasar por ningun encoder. El
+/// payload type es el que negocio ESE espectador para el codec.
+class ForwardFrame : public webrtc::TransformableVideoFrameInterface {
+   public:
+    ForwardFrame(std::shared_ptr<const std::vector<uint8_t>> data, webrtc::VideoFrameMetadata meta,
+                 uint8_t pt, uint32_t rtpTs, uint32_t ssrc, bool key, std::string mime)
+        : data_(std::move(data)), meta_(std::move(meta)), pt_(pt), ts_(rtpTs), ssrc_(ssrc), key_(key),
+          mime_(std::move(mime)) {}
+    rtc::ArrayView<const uint8_t> GetData() const override { return {data_->data(), data_->size()}; }
+    void SetData(rtc::ArrayView<const uint8_t> d) override {
+        data_ = std::make_shared<const std::vector<uint8_t>>(d.begin(), d.end());
+    }
+    uint8_t GetPayloadType() const override { return pt_; }
+    uint32_t GetSsrc() const override { return ssrc_; }
+    uint32_t GetTimestamp() const override { return ts_; }
+    void SetRTPTimestamp(uint32_t t) override { ts_ = t; }
+    Direction GetDirection() const override { return Direction::kReceiver; }
+    std::string GetMimeType() const override { return mime_; }
+    bool IsKeyFrame() const override { return key_; }
+    webrtc::VideoFrameMetadata Metadata() const override { return meta_; }
+    void SetMetadata(const webrtc::VideoFrameMetadata& m) override { meta_ = m; }
+
+   private:
+    std::shared_ptr<const std::vector<uint8_t>> data_;
+    webrtc::VideoFrameMetadata meta_;
+    uint8_t pt_;
+    uint32_t ts_;
+    uint32_t ssrc_;
+    bool key_;
+    std::string mime_;
+};
+
+/// En el sender de un espectador: no hay encoder que transformar (su fuente
+/// no emite); solo guarda el callback del empaquetador para inyectarle los
+/// cuadros reenviados.
+class ViewerTransformer : public webrtc::FrameTransformerInterface {
+   public:
+    void Transform(std::unique_ptr<webrtc::TransformableFrameInterface>) override {}
+    void RegisterTransformedFrameCallback(rtc::scoped_refptr<webrtc::TransformedFrameCallback> cb) override {
+        std::lock_guard<std::mutex> lock(m_);
+        cb_ = std::move(cb);
+    }
+    void RegisterTransformedFrameSinkCallback(rtc::scoped_refptr<webrtc::TransformedFrameCallback> cb,
+                                              uint32_t) override {
+        std::lock_guard<std::mutex> lock(m_);
+        cb_ = std::move(cb);
+    }
+    void UnregisterTransformedFrameCallback() override {
+        std::lock_guard<std::mutex> lock(m_);
+        cb_ = nullptr;
+    }
+    void UnregisterTransformedFrameSinkCallback(uint32_t) override {
+        std::lock_guard<std::mutex> lock(m_);
+        cb_ = nullptr;
+    }
+    /// :returns: false si el sender todavia no se engancho (sin SSRC aun).
+    bool push(std::unique_ptr<webrtc::TransformableFrameInterface> f) {
+        std::lock_guard<std::mutex> lock(m_);
+        if (!cb_) return false;
+        cb_->OnTransformedFrame(std::move(f)); // encola en el thread del sender
+        return true;
+    }
+
+   private:
+    std::mutex m_;
+    rtc::scoped_refptr<webrtc::TransformedFrameCallback> cb_;
+};
+
+/// Video de una sesion (camara o pantalla) y sus espectadores.
+struct Feed {
+    struct Out {
+        int viewer = 0;
+        rtc::scoped_refptr<ViewerTransformer> tx;
+        std::vector<std::pair<std::string, int>> pts; // "VIDEO/VP8" -> payload type del espectador
+        bool needKey = true;                          // arranca en un keyframe
+        uint64_t frames = 0;
+    };
+    std::mutex m;
+    std::vector<Out> outs;
+    rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> source; // receptor actual (pedir keyframes)
+    rtc::Thread* worker = nullptr;
+    int64_t lastKeyReqMs = 0;
+
+    /// Pide un keyframe al invitado (PLI/FIR por su receptor). Limitado.
+    void requestKeyLocked() {
+        const int64_t now = steadyMs();
+        if (!source || worker == nullptr || now - lastKeyReqMs < 500) return;
+        lastKeyReqMs = now;
+        rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> src = source;
+        worker->PostTask([src]() { src->GenerateKeyFrame(); });
+    }
+    void requestKey() {
+        std::lock_guard<std::mutex> lock(m);
+        requestKeyLocked();
+    }
+    void setSource(rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> s, rtc::Thread* w) {
+        std::lock_guard<std::mutex> lock(m);
+        source = std::move(s);
+        worker = w;
+        // PeerConnection nueva del invitado (reconexion): cada espectador
+        // vuelve a esperar un keyframe de la nueva.
+        for (Out& o : outs)
+            o.needKey = true;
+        if (!outs.empty()) requestKeyLocked();
+    }
+    /// La PeerConnection del invitado se cerro: se suelta su fuente (es un
+    /// proxy de libwebrtc que debe morir mientras sus threads viven).
+    void clearSource() {
+        rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> old;
+        {
+            std::lock_guard<std::mutex> lock(m);
+            old = std::move(source);
+            source = nullptr;
+        }
+    }
+    void add(int viewer, rtc::scoped_refptr<ViewerTransformer> tx,
+             std::vector<std::pair<std::string, int>> pts) {
+        std::lock_guard<std::mutex> lock(m);
+        Out o;
+        o.viewer = viewer;
+        o.tx = std::move(tx);
+        o.pts = std::move(pts);
+        outs.push_back(std::move(o));
+        requestKeyLocked();
+    }
+    void remove(int viewer) {
+        std::lock_guard<std::mutex> lock(m);
+        outs.erase(
+            std::remove_if(outs.begin(), outs.end(), [viewer](const Out& o) { return o.viewer == viewer; }),
+            outs.end());
+    }
+    /// Un cuadro codificado del invitado: se copia UNA vez y se reparte.
+    void forward(webrtc::TransformableVideoFrameInterface& f) {
+        std::lock_guard<std::mutex> lock(m);
+        if (outs.empty()) return;
+        const bool key = f.IsKeyFrame();
+        const std::string mime = f.GetMimeType();
+        const std::string mimeU = upper(mime);
+        std::shared_ptr<const std::vector<uint8_t>> data;
+        webrtc::VideoFrameMetadata meta;
+        bool waiting = false;
+        for (Out& o : outs) {
+            if (o.needKey && !key) {
+                waiting = true;
+                continue;
+            }
+            int pt = -1;
+            for (const auto& [name, p] : o.pts)
+                if (name == mimeU) pt = p;
+            if (pt < 0) continue; // el espectador no negocio este codec
+            if (!data) {
+                const auto d = f.GetData();
+                data = std::make_shared<const std::vector<uint8_t>>(d.begin(), d.end());
+                meta = f.Metadata();
+            }
+            if (o.tx->push(std::make_unique<ForwardFrame>(data, meta, static_cast<uint8_t>(pt),
+                                                          f.GetTimestamp(), f.GetSsrc(), key, mime))) {
+                o.needKey = false;
+                ++o.frames;
+            }
+        }
+        if (waiting) requestKeyLocked();
+    }
+};
+
+/// Entre el depacketizador y el decodificador del video de un invitado: copia
+/// al Feed y deja pasar el cuadro original (A lo sigue recibiendo decodificado).
+class TapTransformer : public webrtc::FrameTransformerInterface {
+   public:
+    explicit TapTransformer(std::shared_ptr<Feed> feed) : feed_(std::move(feed)) {}
+    void Transform(std::unique_ptr<webrtc::TransformableFrameInterface> f) override {
+        if (!f) return;
+        if (f->GetDirection() == webrtc::TransformableFrameInterface::Direction::kReceiver) {
+            feed_->forward(*static_cast<webrtc::TransformableVideoFrameInterface*>(f.get()));
+        }
+        rtc::scoped_refptr<webrtc::TransformedFrameCallback> cb;
+        {
+            std::lock_guard<std::mutex> lock(m_);
+            const auto it = sinks_.find(f->GetSsrc());
+            if (it != sinks_.end()) {
+                cb = it->second;
+            } else if (any_) {
+                cb = any_;
+            } else if (sinks_.size() == 1) {
+                cb = sinks_.begin()->second;
+            }
+        }
+        if (cb) cb->OnTransformedFrame(std::move(f));
+    }
+    void RegisterTransformedFrameCallback(rtc::scoped_refptr<webrtc::TransformedFrameCallback> cb) override {
+        std::lock_guard<std::mutex> lock(m_);
+        any_ = std::move(cb);
+    }
+    void RegisterTransformedFrameSinkCallback(rtc::scoped_refptr<webrtc::TransformedFrameCallback> cb,
+                                              uint32_t ssrc) override {
+        std::lock_guard<std::mutex> lock(m_);
+        sinks_[ssrc] = std::move(cb);
+    }
+    void UnregisterTransformedFrameCallback() override {
+        std::lock_guard<std::mutex> lock(m_);
+        any_ = nullptr;
+    }
+    void UnregisterTransformedFrameSinkCallback(uint32_t ssrc) override {
+        std::lock_guard<std::mutex> lock(m_);
+        sinks_.erase(ssrc);
+    }
+
+   private:
+    std::shared_ptr<Feed> feed_;
+    std::mutex m_;
+    rtc::scoped_refptr<webrtc::TransformedFrameCallback> any_;
+    std::map<uint32_t, rtc::scoped_refptr<webrtc::TransformedFrameCallback>> sinks_;
+};
+
+/// Fuente del track de un espectador: nunca emite (lo que se envia son los
+/// cuadros reenviados). Existe solo para que el sender tenga un track.
+class SilentVideoSource : public rtc::AdaptedVideoTrackSource {
+   public:
+    SourceState state() const override { return kLive; }
+    bool remote() const override { return false; }
+    bool is_screencast() const override { return false; }
+    absl::optional<bool> needs_denoising() const override { return false; }
+};
+
+/// PeerConnection de un espectador (B es el answerer de su offer recvonly).
+struct ViewerPc : public webrtc::PeerConnectionObserver {
+    int id = 0;
+    int feedKey = 0;
+    rtc::scoped_refptr<webrtc::PeerConnectionInterface> pc;
+    rtc::scoped_refptr<ViewerTransformer> tx;
+    std::mutex m;
+    std::condition_variable cv;
+    bool gathered = false;
+    int described = 0;         // 0 pendiente, 1 ok, -1 error
+    std::atomic<int> state{0}; // 0 nuevo, 1 conectado, 2 caido
+    std::atomic<int64_t> downSinceMs{0};
+    int64_t createdMs = 0;
+
+    void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState) override {}
+    void OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface>) override {}
+    void OnIceCandidate(const webrtc::IceCandidateInterface*) override {}
+    void OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState s) override {
+        if (s != webrtc::PeerConnectionInterface::kIceGatheringComplete) return;
+        std::lock_guard<std::mutex> lock(m);
+        gathered = true;
+        cv.notify_all();
+    }
+    void OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState s) override {
+        using S = webrtc::PeerConnectionInterface::PeerConnectionState;
+        if (s == S::kConnected) {
+            state = 1;
+            downSinceMs = 0;
+        } else if (s == S::kFailed || s == S::kDisconnected || s == S::kClosed) {
+            if (state.exchange(2) != 2) downSinceMs = steadyMs();
+        }
+    }
+};
+
+/// Payload types de video del answer: "VIDEO/<CODEC>" -> pt (el primero de
+/// cada codec; sin rtx/red/fec).
+std::vector<std::pair<std::string, int>> videoPayloadTypes(const std::string& sdp) {
+    std::vector<std::pair<std::string, int>> out;
+    bool inVideo = false;
+    size_t pos = 0;
+    while (pos < sdp.size()) {
+        size_t eol = sdp.find('\n', pos);
+        if (eol == std::string::npos) eol = sdp.size();
+        std::string line = sdp.substr(pos, eol - pos);
+        pos = eol + 1;
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        if (line.rfind("m=", 0) == 0) inVideo = line.rfind("m=video", 0) == 0;
+        if (!inVideo || line.rfind("a=rtpmap:", 0) != 0) continue;
+        const size_t sp = line.find(' ');
+        const size_t slash = line.find('/', sp);
+        if (sp == std::string::npos || slash == std::string::npos) continue;
+        const int pt = std::atoi(line.c_str() + 9);
+        const std::string name = upper(line.substr(sp + 1, slash - sp - 1));
+        if (name == "RTX" || name == "RED" || name == "ULPFEC" || name == "FLEXFEC-03") continue;
+        const std::string key = "VIDEO/" + name;
+        if (std::none_of(out.begin(), out.end(), [&](const auto& e) { return e.first == key; }))
+            out.emplace_back(key, pt);
+    }
+    return out;
+}
+
 /// Estado compartido de la factory (lo guarda el hub como void*).
 struct RtcHubState {
     uint16_t minPort = 0;
@@ -324,6 +638,19 @@ struct RtcHubState {
     std::unique_ptr<rtc::Thread> worker;
     std::unique_ptr<rtc::Thread> signaling;
     rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> factory;
+    // Relay: un Feed por (sesion, camara/pantalla) y los espectadores.
+    std::mutex feedsM;
+    std::map<int, std::shared_ptr<Feed>> feeds; // clave: sesion * 2 + (pantalla ? 1 : 0)
+    std::mutex viewersM;
+    std::map<int, std::unique_ptr<ViewerPc>> viewers;
+    int nextViewer = 1;
+
+    std::shared_ptr<Feed> feed(int key) {
+        std::lock_guard<std::mutex> lock(feedsM);
+        auto& f = feeds[key];
+        if (!f) f = std::make_shared<Feed>();
+        return f;
+    }
 };
 
 template <typename Fn> class SrdObserver : public webrtc::SetRemoteDescriptionObserverInterface {
@@ -490,6 +817,10 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
             t->RemoveSink(s);
         videoAttached.clear();
         audioAttached.clear();
+        if (hub != nullptr) {
+            hub->feed(slot * 2)->clearSource();
+            hub->feed(slot * 2 + 1)->clearSource();
+        }
         p->Close(); // sincronico: despues no llegan mas callbacks de esta PC
         videoSinks.clear();
         audioSinks.clear();
@@ -528,6 +859,15 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
             const bool camera = mid == cameraMid;
             auto sink = std::make_unique<RemoteVideoSink>(camera ? cb.onRemoteVideo : cb.onRemoteScreen);
             auto* video = static_cast<webrtc::VideoTrackInterface*>(track.get());
+            // Relay a espectadores: los cuadros codificados pasan por el Feed de
+            // esta sesion antes del decodificador.
+            if (hub != nullptr) {
+                std::shared_ptr<Feed> feed = hub->feed(slot * 2 + (camera ? 0 : 1));
+                feed->setSource(rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>(video->GetSource()),
+                                hub->worker.get());
+                t->receiver()->SetDepacketizerToDecoderFrameTransformer(
+                    rtc::make_ref_counted<TapTransformer>(feed));
+            }
             video->AddOrUpdateSink(sink.get(), rtc::VideoSinkWants());
             videoAttached.emplace_back(rtc::scoped_refptr<webrtc::VideoTrackInterface>(video), sink.get());
             videoSinks.push_back(std::move(sink));
@@ -654,8 +994,22 @@ WebrtcHub::WebrtcHub(int guests, int videoW, int videoH, int audioRate, int audi
 WebrtcHub::~WebrtcHub() {
     closeAll();
 #if BA_GATEWAY_HAVE_WEBRTC
+    if (auto* st = static_cast<RtcHubState*>(rtcFactory_)) {
+        std::vector<int> ids;
+        {
+            std::lock_guard<std::mutex> lock(st->viewersM);
+            for (const auto& [id, v] : st->viewers)
+                ids.push_back(id);
+        }
+        for (int id : ids)
+            closeViewer(id);
+    }
     sessions_.clear(); // antes que la factory: las PC la referencian
     if (auto* st = static_cast<RtcHubState*>(rtcFactory_)) {
+        {
+            std::lock_guard<std::mutex> lock(st->feedsM);
+            st->feeds.clear(); // sueltan proxies de libwebrtc: con los threads vivos
+        }
         st->factory = nullptr;
         st->signaling->Stop();
         st->worker->Stop();
@@ -694,5 +1048,164 @@ void WebrtcHub::closeAll() {
     for (auto& s : sessions_)
         s.close();
 }
+
+// ============================================================================
+// Espectadores (relay de video codificado)
+// ============================================================================
+
+#if BA_GATEWAY_HAVE_WEBRTC
+int WebrtcHub::openViewer(int session, bool screen, const std::string& offerSdp, std::string& answerSdp) {
+    auto* st = static_cast<RtcHubState*>(rtcFactory_);
+    if (st == nullptr || session < 1 || session > guests_) return 0;
+    reapViewers();
+    if (viewerCount() >= kMaxViewers) return 0;
+    webrtc::SdpParseError err;
+    std::unique_ptr<webrtc::SessionDescriptionInterface> offer =
+        webrtc::CreateSessionDescription(webrtc::SdpType::kOffer, offerSdp, &err);
+    if (!offer) return 0;
+
+    auto v = std::make_unique<ViewerPc>();
+    v->feedKey = session * 2 + (screen ? 1 : 0);
+    v->createdMs = steadyMs();
+    v->tx = rtc::make_ref_counted<ViewerTransformer>();
+    webrtc::PeerConnectionInterface::RTCConfiguration config;
+    config.sdp_semantics = webrtc::SdpSemantics::kUnifiedPlan;
+    config.bundle_policy = webrtc::PeerConnectionInterface::kBundlePolicyMaxBundle;
+    config.rtcp_mux_policy = webrtc::PeerConnectionInterface::kRtcpMuxPolicyRequire;
+    if (st->minPort != 0) {
+        config.port_allocator_config.min_port = st->minPort;
+        config.port_allocator_config.max_port = st->maxPort;
+    }
+    webrtc::PeerConnectionDependencies deps(v.get());
+    auto res = st->factory->CreatePeerConnectionOrError(config, std::move(deps));
+    if (!res.ok()) return 0;
+    v->pc = res.MoveValue();
+
+    // SRD -> track mudo con el ViewerTransformer en su sender -> SLD (answer).
+    ViewerPc* vp = v.get();
+    auto p = v->pc;
+    auto finish = [vp](int result) {
+        std::lock_guard<std::mutex> lock(vp->m);
+        vp->described = result;
+        vp->cv.notify_all();
+    };
+    auto onSld = [finish](webrtc::RTCError e) { finish(e.ok() ? 1 : -1); };
+    auto onSrd = [st, p, vp, finish, onSld](webrtc::RTCError e) {
+        if (!e.ok()) {
+            finish(-1);
+            return;
+        }
+        auto track = st->factory->CreateVideoTrack(rtc::make_ref_counted<SilentVideoSource>(), "ba-relay");
+        auto sender = p->AddTrack(track, {"ba-relay"});
+        if (!sender.ok()) {
+            finish(-1);
+            return;
+        }
+        sender.value()->SetEncoderToPacketizerFrameTransformer(vp->tx);
+        p->SetLocalDescription(rtc::make_ref_counted<SldObserver<decltype(onSld)>>(onSld));
+    };
+    p->SetRemoteDescription(std::move(offer), rtc::make_ref_counted<SrdObserver<decltype(onSrd)>>(onSrd));
+    {
+        std::unique_lock<std::mutex> lock(vp->m);
+        // Answer aplicado y candidatos reunidos (host: instantaneo). Sin goteo:
+        // el answer viaja completo en una sola respuesta HTTP.
+        vp->cv.wait_for(lock, std::chrono::seconds(3), [vp]() { return vp->described != 0; });
+        if (vp->described == 1)
+            vp->cv.wait_for(lock, std::chrono::seconds(2), [vp]() { return vp->gathered; });
+        if (vp->described != 1) {
+            lock.unlock();
+            p->Close();
+            return 0;
+        }
+    }
+    if (p->local_description() == nullptr) {
+        p->Close();
+        return 0;
+    }
+    p->local_description()->ToString(&answerSdp);
+    const auto pts = videoPayloadTypes(answerSdp);
+    int id = 0;
+    {
+        std::lock_guard<std::mutex> lock(st->viewersM);
+        id = st->nextViewer++;
+        v->id = id;
+        st->viewers[id] = std::move(v);
+    }
+    st->feed(vp->feedKey)->add(id, vp->tx, pts);
+    return id;
+}
+
+void WebrtcHub::closeViewer(int viewerId) {
+    auto* st = static_cast<RtcHubState*>(rtcFactory_);
+    if (st == nullptr) return;
+    std::unique_ptr<ViewerPc> v;
+    {
+        std::lock_guard<std::mutex> lock(st->viewersM);
+        const auto it = st->viewers.find(viewerId);
+        if (it == st->viewers.end()) return;
+        v = std::move(it->second);
+        st->viewers.erase(it);
+    }
+    st->feed(v->feedKey)->remove(viewerId);
+    if (v->pc) v->pc->Close(); // sincronico: despues no llegan mas callbacks
+}
+
+void WebrtcHub::closeViewersOf(int session) {
+    auto* st = static_cast<RtcHubState*>(rtcFactory_);
+    if (st == nullptr) return;
+    std::vector<int> ids;
+    {
+        std::lock_guard<std::mutex> lock(st->viewersM);
+        for (const auto& [id, v] : st->viewers)
+            if (v->feedKey / 2 == session) ids.push_back(id);
+    }
+    for (int id : ids)
+        closeViewer(id);
+}
+
+void WebrtcHub::requestKeyFrame(int viewerId) {
+    auto* st = static_cast<RtcHubState*>(rtcFactory_);
+    if (st == nullptr) return;
+    int key = -1;
+    {
+        std::lock_guard<std::mutex> lock(st->viewersM);
+        const auto it = st->viewers.find(viewerId);
+        if (it != st->viewers.end()) key = it->second->feedKey;
+    }
+    if (key >= 0) st->feed(key)->requestKey();
+}
+
+void WebrtcHub::reapViewers() {
+    auto* st = static_cast<RtcHubState*>(rtcFactory_);
+    if (st == nullptr) return;
+    const int64_t now = steadyMs();
+    std::vector<int> ids;
+    {
+        std::lock_guard<std::mutex> lock(st->viewersM);
+        for (const auto& [id, v] : st->viewers) {
+            const int s = v->state.load();
+            if ((s == 2 && now - v->downSinceMs.load() > 10000) || (s == 0 && now - v->createdMs > 20000))
+                ids.push_back(id);
+        }
+    }
+    for (int id : ids)
+        closeViewer(id);
+}
+
+int WebrtcHub::viewerCount() const {
+    auto* st = static_cast<RtcHubState*>(rtcFactory_);
+    if (st == nullptr) return 0;
+    std::lock_guard<std::mutex> lock(st->viewersM);
+    return static_cast<int>(st->viewers.size());
+}
+#else
+// Backend NULL: sin RTP no hay nada que reenviar.
+int WebrtcHub::openViewer(int, bool, const std::string&, std::string&) { return 0; }
+void WebrtcHub::closeViewer(int) {}
+void WebrtcHub::closeViewersOf(int) {}
+void WebrtcHub::requestKeyFrame(int) {}
+void WebrtcHub::reapViewers() {}
+int WebrtcHub::viewerCount() const { return 0; }
+#endif
 
 } // namespace ba::gateway

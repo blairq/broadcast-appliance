@@ -195,6 +195,7 @@ void MediaPump::start() {
     guestVideo_.clear();
     shareVideo_.clear();
     lobbyVideo_.clear();
+    backstageVideo_.clear();
     guestAudio_.clear();
     lobbyAudio_.clear();
     guestVideo_.emplace_back();
@@ -202,6 +203,13 @@ void MediaPump::start() {
     guestAudio_.emplace_back();
     lobbyVideo_.emplace_back();
     lobbyAudio_.emplace_back();
+    backstageVideo_.emplace_back();
+    const size_t backstage = cfg_.backstageVideoNames.empty() ? 0 : cfg_.backstageVideoNames.size() - 1;
+    for (size_t k = 1; k <= backstage; ++k) {
+        backstageVideo_.push_back(
+            makeVideo(name(cfg_.backstageVideoNames, k), cfg_.backstageW, cfg_.backstageH));
+        backstageVideo_.back()->minIntervalNs = 100'000'000; // ~10 fps: es una miniatura
+    }
     for (size_t s = 1; s <= guests; ++s) {
         guestVideo_.push_back(makeVideo(name(cfg_.guestVideoNames, s), cfg_.programW, cfg_.programH));
         shareVideo_.push_back(makeVideo(name(cfg_.shareVideoNames, s), cfg_.programW, cfg_.programH));
@@ -223,7 +231,7 @@ void MediaPump::start() {
     threads_.emplace_back(&MediaPump::operatorVideoThread, this);
     threads_.emplace_back(&MediaPump::plateThread, this);
     log_.info("MediaPump: en marcha (slots=" + std::to_string(guests) + ", lobby=" + std::to_string(lobby) +
-              ", sesiones=" + std::to_string(hub_.sessions()) + ")");
+              ", fila=" + std::to_string(backstage) + ", sesiones=" + std::to_string(hub_.sessions()) + ")");
 }
 
 void MediaPump::stop() {
@@ -289,8 +297,9 @@ void MediaPump::returnAudioThread() {
         if (block.size() < n) block.resize(n);
         PoppedBlock blk;
         if (reader.pop(block.data(), blk)) {
-            for (int s :
-                 sessionsWhere([](const MediaRoute& r) { return r.kind == MediaRoute::Kind::Program; })) {
+            for (int s : sessionsWhere([](const MediaRoute& r) {
+                     return r.kind == MediaRoute::Kind::Program || r.kind == MediaRoute::Kind::Backstage;
+                 })) {
                 if (WebrtcSession* sess = hub_.session(s))
                     sess->pushLocalAudio(blk.samples, n, cfg_.audioRate);
             }
@@ -334,8 +343,9 @@ void MediaPump::returnVideoThread() {
         if (receiver.hasData()) {
             FrameMeta meta{};
             if (receiver.receive(src.data(), src.size(), meta)) {
-                const auto targets =
-                    sessionsWhere([](const MediaRoute& r) { return r.kind == MediaRoute::Kind::Program; });
+                const auto targets = sessionsWhere([](const MediaRoute& r) {
+                    return r.kind == MediaRoute::Kind::Program || r.kind == MediaRoute::Kind::Backstage;
+                });
                 if (!targets.empty()) {
                     scaleBgra(src.data(), srcW, srcH, scaled.data(), cfg_.guestVideoW, cfg_.guestVideoH);
                     for (int s : targets) {
@@ -477,6 +487,9 @@ void MediaPump::forwardVideo(int session, const uint8_t* pixels, size_t bytes, i
     } else if (r.kind == MediaRoute::Kind::Lobby && r.index >= 1 &&
                r.index < static_cast<int>(lobbyVideo_.size())) {
         publishVideo(*lobbyVideo_[static_cast<size_t>(r.index)], pixels, w, h, true);
+    } else if (r.kind == MediaRoute::Kind::Backstage && r.index >= 1 &&
+               r.index < static_cast<int>(backstageVideo_.size())) {
+        publishVideo(*backstageVideo_[static_cast<size_t>(r.index)], pixels, w, h, true);
     }
 }
 
@@ -492,6 +505,10 @@ void MediaPump::forwardScreen(int session, const uint8_t* pixels, size_t bytes, 
 
 void MediaPump::publishVideo(VideoOut& out, const uint8_t* pixels, int w, int h, bool real) {
     if (!out.sender.published()) return;
+    if (out.minIntervalNs != 0) {
+        const uint64_t t = monoNs();
+        if (t - out.lastNs.load(std::memory_order_relaxed) < out.minIntervalNs) return;
+    }
     if (real) out.lastNs.store(monoNs(), std::memory_order_relaxed);
     std::lock_guard<std::mutex> lock(out.lock);
     const uint8_t* frame = pixels;

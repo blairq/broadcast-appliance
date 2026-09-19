@@ -10,7 +10,7 @@
 //
 // Autenticacion:
 //   - `Authorization: Bearer <token>` (la app Qt; el token lo publica B en
-//     <runtime>/gateway-admin.json con permisos solo-usuario), o
+//     Runtime/gateway-admin.json (dentro del bundle) con permisos solo-usuario), o
 //   - cookie `ba_admin` (la consola web). Se obtiene con un codigo de un solo
 //     uso (POST /api/v1/login-code -> GET /admin/login?code=...) o pegando el
 //     token en la consola (POST /api/v1/login).
@@ -22,12 +22,27 @@
 //   GET    /api/v1/room                    estado completo (snapshot)
 //   GET    /api/v1/events                  SSE: "room" (snapshot) y "chat"
 //   GET    /api/v1/network                 HTTPS, tunel WireGuard, IPs y enlaces
+//   GET    /api/v1/qr?target=local|remote[&pin=1]  URL de ingreso (+PIN) + matriz del QR
 //   POST   /api/v1/network/server-config   {endpoint, publicAddress?} -> wg0.conf del servidor
 //   POST   /api/v1/room                    {lobby?, locked?}
 //   POST   /api/v1/pin                     {pin?}  (vacio = generar)
 //   POST   /api/v1/participants/<id>/admit | reject | kick
 //   POST   /api/v1/participants/<id>/request   {what}
 //   POST   /api/v1/participants/<id>/talk      {on}  (lobby: hablarle en privado)
+//   POST   /api/v1/participants/<id>/onair     {on}  modo oradores: al aire / fuera
+//   POST   /api/v1/participants/<id>/move      {index}  lugar en la fila (0 = primero)
+//   POST   /api/v1/participants/<id>/time      {sec}  tiempo propio para hablar
+//   POST   /api/v1/participants/<id>/requeue   vuelve al final de la fila
+//   POST   /api/v1/participants/<id>/profile   {name?, info?, contact?}
+//   GET    /api/v1/participants/<id>/avatar    foto de la tarjeta (JPEG)
+//   POST   /api/v1/speakers                {enabled?, defaultSec?, carousel?, graceSec?,
+//                                           multi?, defaultSlot?}
+//   POST   /api/v1/speakers/next           al aire el siguiente de la fila
+//   GET    /api/v1/board-link?target=local|remote  enlace + QR del tablero (tablet)
+//   POST   /api/v1/view                    {participant, kind?:"camera"|"screen", sdp}
+//                                          -> {viewer, sdp}: video en vivo (relay de B)
+//   POST   /api/v1/view/<id>/keyframe      la vista se congelo
+//   DELETE /api/v1/view/<id>
 //   POST   /api/v1/chat                    {text, to?}
 //   GET    /api/v1/shares/<id>/content     el archivo (vista previa)
 //   DELETE /api/v1/shares/<id>
@@ -45,6 +60,7 @@
 
 #include "HttpIo.hpp"
 #include "Log.hpp"
+#include "qrcodegen.hpp"
 #include "Room.hpp"
 #include "security/SecretsStore.hpp"
 #include "ShareStore.hpp"
@@ -245,6 +261,95 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         sendJson(fd, out.value("ok", false) ? 200 : 400, out);
         return;
     }
+    if (path == "/api/v1/qr" && method == "GET") {
+        // QR de ingreso al lobby: la URL la decide main (red local o dominio
+        // de Cloudflare); aca solo se codifica. Cada vista lo dibuja con la
+        // matriz (filas de '0'/'1'), sin depender de ninguna biblioteca.
+        const auto q = http::parseQuery(query);
+        const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
+        json out = joinUrl_ ? joinUrl_(target) : json{{"error", "sin proveedor de URL"}};
+        if (!out.contains("url")) {
+            // 200 con ok=false: falta configuracion, no es una falla de la
+            // API; la vista muestra `message` en el lugar del QR.
+            out["ok"] = false;
+            sendJson(fd, 200, out);
+            return;
+        }
+        std::string url = out["url"].get<std::string>();
+        // Con pin=1 el PIN viaja en el FRAGMENTO del enlace (no llega a ningun
+        // servidor ni a sus logs; la app del invitado lo toma y lo borra de la
+        // barra de direcciones). Quien tenga el QR entra sin tipear el PIN.
+        const bool withPin = q.count("pin") && q.at("pin") == "1";
+        if (withPin) {
+            const std::string pin = room_.snapshot().value("pin", "");
+            if (!pin.empty()) url += (url.find('#') == std::string::npos ? "#pin=" : "&pin=") + pin;
+            out["url"] = url;
+        }
+        out["withPin"] = withPin;
+        const qrcodegen::QrCode qr =
+            qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
+        json rows = json::array();
+        for (int y = 0; y < qr.getSize(); ++y) {
+            std::string row;
+            for (int x = 0; x < qr.getSize(); ++x)
+                row.push_back(qr.getModule(x, y) ? '1' : '0');
+            rows.push_back(row);
+        }
+        out["ok"] = true;
+        out["target"] = target;
+        out["size"] = qr.getSize();
+        out["modules"] = rows;
+        sendJson(fd, 200, out);
+        return;
+    }
+    if (path == "/api/v1/view" && method == "POST") {
+        apiView(fd, body, false);
+        return;
+    }
+    static const std::string kView = "/api/v1/view/";
+    if (path.rfind(kView, 0) == 0) {
+        apiViewAction(fd, method, path.substr(kView.size()), false);
+        return;
+    }
+    if (path == "/api/v1/speakers" && method == "POST") {
+        sendRoomResult(fd, room_.setSpeakerConfig(req, nowMsA()));
+        return;
+    }
+    if (path == "/api/v1/speakers/next" && method == "POST") {
+        sendRoomResult(fd, room_.nextSpeaker(nowMsA()));
+        return;
+    }
+    if (path == "/api/v1/board-link" && method == "GET") {
+        // Mismo origen que el ingreso de invitados (red local o dominio), con
+        // la clave del tablero en el FRAGMENTO (no viaja en la URL pedida).
+        const auto q = http::parseQuery(query);
+        const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
+        json out = joinUrl_ ? joinUrl_(target) : json{{"error", "sin proveedor de URL"}};
+        if (!out.contains("url")) {
+            out["ok"] = false;
+            sendJson(fd, 200, out);
+            return;
+        }
+        std::string origin = out["url"].get<std::string>();
+        if (const size_t s = origin.find("://"); s != std::string::npos) {
+            const size_t end = origin.find_first_of("/?#", s + 3);
+            if (end != std::string::npos) origin.resize(end);
+        }
+        const std::string url = origin + "/board/#k=" + boardToken();
+        const qrcodegen::QrCode qr =
+            qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
+        json rows = json::array();
+        for (int y = 0; y < qr.getSize(); ++y) {
+            std::string row;
+            for (int x = 0; x < qr.getSize(); ++x)
+                row.push_back(qr.getModule(x, y) ? '1' : '0');
+            rows.push_back(row);
+        }
+        sendJson(
+            fd, 200,
+            json{{"ok", true}, {"target", target}, {"url", url}, {"size", qr.getSize()}, {"modules", rows}});
+        return;
+    }
     if (path == "/api/v1/network" && method == "GET") {
         sendJson(fd, 200, networkStatus_ ? networkStatus_() : json::object());
         return;
@@ -287,6 +392,14 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
 
     // /api/v1/participants/<id>/<accion>
     static const std::string kPart = "/api/v1/participants/";
+    if (path.rfind(kPart, 0) == 0 && method == "GET") {
+        const std::string rest = path.substr(kPart.size());
+        const size_t slash = rest.find('/');
+        if (slash != std::string::npos && rest.substr(slash + 1) == "avatar") {
+            sendAvatar(fd, rest.substr(0, slash));
+            return;
+        }
+    }
     if (path.rfind(kPart, 0) == 0 && method == "POST") {
         const std::string rest = path.substr(kPart.size());
         const size_t slash = rest.find('/');
@@ -306,6 +419,16 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             sendRoomResult(fd, room_.setTalk(id, req.value("on", true)));
         } else if (action == "request") {
             sendRoomResult(fd, room_.request(id, req.value("what", "")));
+        } else if (action == "onair") {
+            sendRoomResult(fd, room_.setOnAir(id, req.value("on", true), nowMsA()));
+        } else if (action == "move") {
+            sendRoomResult(fd, room_.moveSpeaker(id, req.value("index", 0)));
+        } else if (action == "time") {
+            sendRoomResult(fd, room_.setAllotted(id, req.value("sec", 0)));
+        } else if (action == "requeue") {
+            sendRoomResult(fd, room_.requeue(id));
+        } else if (action == "profile") {
+            sendRoomResult(fd, room_.setProfile(id, req));
         } else {
             sendErr(fd, 404, "route");
         }

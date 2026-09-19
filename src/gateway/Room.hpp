@@ -57,6 +57,18 @@ class Room {
     };
 
     enum class State { Waiting, Admitted };
+    /// Modo oradores: en la fila (backstage, ve el programa), al aire, ya hablo.
+    enum class Speaker { None, Queued, OnAir, Done };
+
+    /// Configuracion del modo oradores.
+    struct SpeakerCfg {
+        bool enabled = false;            ///< admitir = entrar a la fila (no al aire)
+        int defaultSec = 180;            ///< tiempo de cada orador al entrar
+        std::string carousel = "manual"; ///< "manual" | "chain" (al sacar entra el siguiente) | "time"
+        int graceSec = 10;               ///< "time": margen despues de cero antes de rotar
+        bool multi = false;              ///< varios al aire a la vez (si no, uno reemplaza al otro)
+        int defaultSlot = 1;             ///< slot del programa para el orador
+    };
 
     struct Participant {
         std::string id;
@@ -64,15 +76,25 @@ class Room {
         std::string name;
         std::string ip;
         State state = State::Waiting;
-        int slot = 0;      ///< 1..maxGuests cuando esta admitido
-        int lobbySlot = 0; ///< 1..lobbySlots mientras espera (su camara la ve el operador)
-        bool talk = false; ///< el operador le esta hablando (conversacion privada del lobby)
+        int slot = 0;          ///< 1..maxGuests cuando esta admitido
+        int lobbySlot = 0;     ///< 1..lobbySlots mientras espera (su camara la ve el operador)
+        int backstageSlot = 0; ///< 1..backstageSlots en la fila de oradores (preview del operador)
+        bool talk = false;     ///< el operador le esta hablando (conversacion privada del lobby)
         bool connected = false;
         bool mediaUp = false; ///< PeerConnection establecida
         bool mic = true;
         bool cam = true;
         bool screen = false; ///< compartiendo pantalla/ventana
         bool hand = false;   ///< mano levantada
+        // --- Ficha (la completa el invitado; el operador puede editarla) ---
+        std::string info;       ///< cargo, tema...
+        std::string contact;    ///< telefono/email: solo produccion (nunca otros invitados)
+        bool hasAvatar = false; ///< mando al menos una foto de su camara
+        // --- Modo oradores ---
+        Speaker speaker = Speaker::None;
+        int allottedSec = 0;      ///< tiempo asignado
+        int64_t onAirSinceMs = 0; ///< al aire desde (0 = no esta al aire)
+        int64_t usedMs = 0;       ///< tiempo ya usado en turnos anteriores
         int64_t joinedMs = 0;
         int64_t admittedMs = 0;
         int64_t lastSeenMs = 0;
@@ -103,10 +125,11 @@ class Room {
     struct Cfg {
         std::string name = "sala1";
         int maxGuests = 2;
-        bool lobby = true;   ///< true: el operador admite a cada uno
-        int graceMs = 30000; ///< cuanto se guarda el lugar de un desconectado
-        int maxWaiting = 16; ///< tope del lobby
-        int lobbySlots = 4;  ///< cuantos del lobby pueden mostrar su camara a la vez
+        bool lobby = true;      ///< true: el operador admite a cada uno
+        int graceMs = 30000;    ///< cuanto se guarda el lugar de un desconectado
+        int maxWaiting = 16;    ///< tope del lobby
+        int lobbySlots = 4;     ///< cuantos del lobby pueden mostrar su camara a la vez
+        int backstageSlots = 6; ///< cuantos de la fila de oradores (los primeros) mandan preview
         size_t chatKeep = 200;
     };
 
@@ -143,7 +166,8 @@ class Room {
     /// Entra a la sala (WebSocket recien abierto con un token valido).
     /// `presetId`: id ya elegido por el servidor (vacio = lo genera la sala).
     Joined connect(const std::string& name, const std::string& ip, int64_t nowMs,
-                   const std::string& presetId = {});
+                   const std::string& presetId = {}, const std::string& info = {},
+                   const std::string& contact = {});
     /// Reengancha a un participante desconectado (recarga, corte de red).
     int resume(const std::string& id, const std::string& key, int64_t nowMs);
     /// Se corto su conexion: conserva el lugar `graceMs`.
@@ -168,6 +192,28 @@ class Room {
     int chatFromHost(const std::string& to, const std::string& text, int64_t nowMs);
     void setLobby(bool on, int64_t nowMs);
     void setLocked(bool on);
+
+    // --- Modo oradores ----------------------------------------------------------
+    /// Aplica los campos presentes de `cfg` (ver SpeakerCfg / API).
+    int setSpeakerConfig(const nlohmann::json& cfg, int64_t nowMs);
+    SpeakerCfg speakerConfig() const;
+    /// Al aire / fuera del aire. Nunca por el reloj salvo carrusel "time".
+    int setOnAir(const std::string& id, bool on, int64_t nowMs);
+    /// Pone al aire al proximo de la fila (el primero conectado en espera).
+    int nextSpeaker(int64_t nowMs);
+    /// Mueve al orador a la posicion `index` (0 = primero) de la fila.
+    int moveSpeaker(const std::string& id, int index);
+    int setAllotted(const std::string& id, int sec);
+    /// "Ya hablo" -> otra vez a la fila (al final).
+    int requeue(const std::string& id);
+    /// Ficha: campos presentes en `fields` (name, info, contact).
+    int setProfile(const std::string& id, const nlohmann::json& fields);
+    void setHasAvatar(const std::string& id);
+    /// Participante por clave (cualquier estado): autoriza la foto de la camara.
+    bool byKey(const std::string& key, Participant& out) const;
+    /// Vista de solo lectura para la tablet: fila, fichas, tiempos (sin claves
+    /// ni IPs ni chat).
+    nlohmann::json boardSnapshot(int64_t nowMs) const;
 
     // --- Archivos compartidos -----------------------------------------------
     /// Registra un archivo ya guardado en disco. :returns: su id.
@@ -211,6 +257,12 @@ class Room {
     Participant* findLocked(const std::string& id);
     const Participant* findLocked(const std::string& id) const;
     int freeSlotLocked() const;
+    bool putOnAirLocked(Participant& p, int64_t nowMs, Out& out);
+    void takeOffAirLocked(Participant& p, int64_t nowMs, Out& out);
+    bool nextSpeakerLocked(int64_t nowMs, Out& out);
+    /// Le avisa a cada orador su estado, posicion, tiempo y ETA.
+    void speakerNotifyLocked(int64_t nowMs, Out& out);
+    nlohmann::json speakerCfgJson() const;
     void admitLocked(Participant& p, int slot, int64_t nowMs, Out& out);
     /// Quita un participante (libera su slot) y reordena el lobby.
     void removeLocked(const std::string& id, Out& out);
@@ -220,6 +272,9 @@ class Room {
     void lobbyPositionsLocked(Out& out);
     /// Reparte los lugares de preview del lobby entre los que esperan.
     void assignLobbySlotsLocked(Out& out);
+    /// Lugares de preview de la fila: para los primeros `backstageSlots`
+    /// (primero los que esperan turno, en orden; despues los que ya hablaron).
+    void assignBackstageSlotsLocked(Out& out);
     static MediaRoute routeFor(const Participant& p);
     void pushChatLocked(ChatMsg msg, Out& out);
     nlohmann::json snapshotLocked() const;
@@ -237,7 +292,9 @@ class Room {
     std::vector<Share> shares_;
     std::deque<ChatMsg> chat_;
     uint64_t chatSeq_ = 0;
-    int64_t lastNowMs_ = 0; // ultimo "ahora" visto (para admisiones sin reloj propio)
+    SpeakerCfg spk_;
+    std::vector<std::string> order_; ///< ids en el orden de la fila de oradores
+    int64_t lastNowMs_ = 0;          // ultimo "ahora" visto (para admisiones sin reloj propio)
 };
 
 } // namespace ba::gateway

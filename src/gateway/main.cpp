@@ -54,6 +54,7 @@
 // ba_core (frozen headers).
 #include "ipc/ControlService.hpp"
 #include "ipc/HealthBlock.hpp"
+#include "security/CredentialStore.hpp"
 #include "security/SecretsStore.hpp" // randomSecretHex (clave HMAC por arranque)
 
 // Componentes del gateway.
@@ -134,7 +135,7 @@ constexpr const char* kEnvTunnelToken = "BA_TUNNEL_TOKEN";
 /// Token de la API de control del operador (si el launcher lo inyecta).
 constexpr const char* kEnvAdminToken = "BA_ADMIN_TOKEN";
 
-/// Publica como encontrar la API de control: <runtime>/gateway-admin.json con
+/// Publica como encontrar la API de control: <bundle>/Runtime/gateway-admin.json con
 /// puerto y token, legible SOLO por el usuario (0600 en POSIX; en Windows el
 /// directorio de runtime cuelga del perfil del usuario). La app Qt lo lee.
 bool writeAdminFile(const std::filesystem::path& file, const std::string& content) {
@@ -158,10 +159,10 @@ bool writeAdminFile(const std::filesystem::path& file, const std::string& conten
     return !ec;
 }
 
-/// Clave privada WireGuard de ESTE equipo: BA_WG_PRIVATE_KEY (base64) o
-/// Config/wireguard.key (se genera la primera vez, solo-usuario). Se guarda en
-/// la carpeta de datos del bundle: el equipo portable lleva su identidad.
-bool loadOrCreateWgKey(const std::filesystem::path& file, ba::gateway::net::Key32& priv, std::string& origin);
+/// Clave privada WireGuard de ESTE equipo: BA_WG_PRIVATE_KEY (base64) o la
+/// credencial "wireguard-key" (cifrada en Credenciales/; se genera la primera
+/// vez). El equipo portable lleva su identidad y una actualizacion no la pisa.
+bool loadOrCreateWgKey(ba::gateway::net::Key32& priv, std::string& origin);
 
 /// Lee una variable de entorno; cadena vacia si no esta definida.
 std::string envOrEmpty(const char* name) {
@@ -199,25 +200,26 @@ bool randomPin(std::size_t digits, std::string& out) {
     return true;
 }
 
-bool loadOrCreateWgKey(const std::filesystem::path& file, ba::gateway::net::Key32& priv,
-                       std::string& origin) {
+bool loadOrCreateWgKey(ba::gateway::net::Key32& priv, std::string& origin) {
     namespace net = ba::gateway::net;
     if (const char* env = std::getenv("BA_WG_PRIVATE_KEY"); env != nullptr && *env != '\0') {
         origin = "BA_WG_PRIVATE_KEY";
         return net::fromBase64(priv, env);
     }
-    std::ifstream in(file);
+    const ba::security::CredentialStore store = ba::security::CredentialStore::bundle();
     std::string b64;
-    if (in >> b64 && net::fromBase64(priv, b64)) {
-        origin = file.string();
-        return true;
+    if (store.read("wireguard-key", b64)) {
+        while (!b64.empty() && (b64.back() == '\n' || b64.back() == '\r' || b64.back() == ' '))
+            b64.pop_back();
+        if (net::fromBase64(priv, b64)) {
+            origin = "Credenciales/wireguard-key";
+            return true;
+        }
     }
     net::Key32 pub{};
     if (!net::x25519Generate(priv, pub)) return false;
-    std::error_code ec;
-    std::filesystem::create_directories(file.parent_path(), ec);
-    origin = file.string() + " (nueva)";
-    return writeAdminFile(file, net::toBase64(priv) + "\n");
+    origin = "Credenciales/wireguard-key (nueva)";
+    return store.write("wireguard-key", net::toBase64(priv));
 }
 
 /// Senal de parada (SIGINT en POSIX, CtrlHandler en Windows).
@@ -242,6 +244,9 @@ void sigHandler(int) { g_stop.store(true); }
 /// :param argv: argumentos (ver Config::parseArgs).
 /// :returns: 0 en cierre ordenado; 1 si no se pudo abrir el HealthBlock.
 int main(int argc, char** argv) {
+    ba::platform::redirectUserDirs(); // portable: nada al perfil del usuario
+    // Credenciales en claro de versiones anteriores -> Credenciales/ cifradas.
+    ba::security::CredentialStore::bundle().importLegacy(ba::platform::dataRoot());
     Config cfg;
     // Config/gateway.json (lo escribe la interfaz de A); la linea de comandos
     // lo pisa.
@@ -347,9 +352,10 @@ int main(int argc, char** argv) {
     TokenAuth auth(std::move(hmacSecret), roomPin, kGlobalPinAttempts, kGlobalLockoutSec, 300);
 
     // --- Hub de sesiones WebRTC (1..guests).
-    // Pool de sesiones: una por participante que publica (adentro o en el lobby).
-    WebrtcHub hub(cfg.guests + cfg.lobbySlots, cfg.guestVideoW, cfg.guestVideoH, cfg.audioRate,
-                  cfg.audioChannels);
+    // Pool de sesiones: una por participante que publica (adentro, en el lobby
+    // o en la fila de oradores, que ve el programa).
+    WebrtcHub hub(cfg.guests + cfg.lobbySlots + cfg.maxBackstage, cfg.guestVideoW, cfg.guestVideoH,
+                  cfg.audioRate, cfg.audioChannels);
 
     // --- Motor de medios (IPC ↔ WebRTC).
     MediaPump::Cfg pumpCfg;
@@ -376,6 +382,9 @@ int main(int argc, char** argv) {
         pumpCfg.lobbyAudioNames.push_back(toWide("BA.Audio.Lobby." + std::to_string(k)));
         pumpCfg.lobbyVideoNames.push_back(toWide("BA.Lobby." + std::to_string(k)));
     }
+    pumpCfg.backstageVideoNames.push_back({});
+    for (int k = 1; k <= cfg.backstagePreviews; ++k)
+        pumpCfg.backstageVideoNames.push_back(toWide("BA.Backstage." + std::to_string(k)));
     pumpCfg.audioRate = cfg.audioRate;
     pumpCfg.audioChannels = cfg.audioChannels;
     pumpCfg.programW = cfg.videoW;
@@ -390,6 +399,7 @@ int main(int argc, char** argv) {
     roomCfg.maxGuests = cfg.guests;
     roomCfg.lobby = cfg.lobby;
     roomCfg.lobbySlots = cfg.lobbySlots;
+    roomCfg.backstageSlots = cfg.backstagePreviews;
     Room room(roomCfg);
     const std::string guestUrl = "http://" +
                                  std::string(cfg.bindAddress == "0.0.0.0" ? "127.0.0.1" : cfg.bindAddress) +
@@ -418,6 +428,11 @@ int main(int argc, char** argv) {
     sigCfg.maxGuests = cfg.guests;
     sigCfg.adminPort = cfg.adminPort;
     sigCfg.adminWebroot = cfg.adminWebroot;
+    {
+        std::filesystem::path guestRoot(cfg.webroot);
+        if (!guestRoot.has_filename()) guestRoot = guestRoot.parent_path(); // "Web/guest/"
+        sigCfg.boardWebroot = (guestRoot.parent_path() / "board").string();
+    }
     sigCfg.adminToken = adminToken;
     SignalingServer server(sigCfg, auth, hub, room, shares, log);
     server.setPump(&pump);
@@ -454,7 +469,7 @@ int main(int argc, char** argv) {
         tc.bindAddress = cfg.bindAddress;
         tc.port = cfg.httpsPort;
         tc.backendPort = cfg.port;
-        tc.certDir = (std::filesystem::path(cfg.configDir) / "tls").string();
+        tc.credentialsDir = ba::platform::credentialsDir().string();
         tc.names = lanIps;
         if (!publicHost.empty()) tc.names.push_back(publicHost);
         if (!publicIp.empty() && publicIp != publicHost) tc.names.push_back(publicIp);
@@ -477,8 +492,7 @@ int main(int argc, char** argv) {
         net::Key32 priv{};
         net::Key32 pub{};
         std::string origin;
-        if (loadOrCreateWgKey(std::filesystem::path(cfg.configDir) / "wireguard.key", priv, origin) &&
-            net::x25519Public(pub, priv)) {
+        if (loadOrCreateWgKey(priv, origin) && net::x25519Public(pub, priv)) {
             wgPublicKey = net::toBase64(pub);
         }
         net::wipe(priv.data(), priv.size());
@@ -490,8 +504,7 @@ int main(int argc, char** argv) {
         std::string keyOrigin;
         uint32_t tunnelIp = 0;
         int prefix = 24;
-        if (!loadOrCreateWgKey(std::filesystem::path(cfg.configDir) / "wireguard.key", wc.privateKey,
-                               keyOrigin)) {
+        if (!loadOrCreateWgKey(wc.privateKey, keyOrigin)) {
             log.error("tunel: sin clave privada WireGuard; tunel deshabilitado", -1);
         } else if (!net::fromBase64(wc.peerPublicKey, cfg.wgServerPublicKey)) {
             log.error("tunel: falta la clave publica del servidor (wireguard.serverPublicKey)", -1);
@@ -600,6 +613,30 @@ int main(int argc, char** argv) {
         return out;
     });
 
+    server.setJoinUrlProvider([&](const std::string& target) -> nlohmann::json {
+        // La sala va en el fragmento (#room=): la app del invitado la precarga
+        // y el fragmento nunca viaja al servidor. El PIN NO va en el QR.
+        const std::string frag = "#room=" + cfg.room;
+        if (target == "remote") {
+            if (!cfg.tunnelHostname.empty()) return {{"url", "https://" + cfg.tunnelHostname + "/" + frag}};
+            if (wg && !publicHost.empty())
+                return {{"url", (tls ? "https://" : "http://") + publicHost + "/" + frag}};
+            return {
+                {"error", "remote"},
+                {"message",
+                 "Falta el dominio del tunel de Cloudflare (Configuracion > Gateway > Dominio publico)."}};
+        }
+        if (cfg.bindAddress == "127.0.0.1" || lanIps.empty()) {
+            return {{"error", "local"},
+                    {"message", "El gateway solo escucha en esta maquina: elegi 'Red local' en Configuracion "
+                                "> Gateway > Acceso."}};
+        }
+        const std::string ip = cfg.bindAddress == "0.0.0.0" ? lanIps.front() : cfg.bindAddress;
+        if (tls) return {{"url", "https://" + ip + ":" + std::to_string(tls->port()) + "/" + frag}};
+        return {{"url", "http://" + ip + ":" + std::to_string(cfg.port) + "/" + frag},
+                {"warning", "Sin HTTPS el navegador no da camara ni microfono por la red local."}};
+    });
+
     server.setNetworkStatus([&]() {
         nlohmann::json st;
         nlohmann::json urls = nlohmann::json::array();
@@ -659,7 +696,7 @@ int main(int argc, char** argv) {
     }
     std::filesystem::path adminFile;
     if (server.adminPort() != 0) {
-        const auto dir = ba::platform::runtimeDir();
+        const auto dir = ba::platform::stateDir(); // dentro del bundle portable
         if (!dir.empty()) {
             adminFile = dir / "gateway-admin.json";
             const nlohmann::json info{{"port", server.adminPort()},
@@ -711,6 +748,7 @@ int main(int argc, char** argv) {
         }
         std::this_thread::sleep_for(beatPeriod);
         health.beat(kHealthSlot);
+        hub.reapViewers(); // espectadores de las vistas web que se fueron sin avisar
         room.tick(std::chrono::duration_cast<std::chrono::milliseconds>(
                       std::chrono::system_clock::now().time_since_epoch())
                       .count());

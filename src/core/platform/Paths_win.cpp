@@ -34,23 +34,9 @@ std::filesystem::path executablePath() {
 }
 
 std::filesystem::path runtimeDir() {
-    wchar_t* local = nullptr;
-    std::size_t len = 0;
-    std::filesystem::path base;
-    if (_wdupenv_s(&local, &len, L"LOCALAPPDATA") == 0 && local != nullptr) {
-        base = local;
-        std::free(local);
-    } else {
-        std::error_code ec;
-        base = std::filesystem::temp_directory_path(ec);
-        if (ec) {
-            return {};
-        }
-    }
-    const std::filesystem::path dir = base / L"BroadcastAppliance";
-    std::error_code ec;
-    std::filesystem::create_directories(dir, ec);
-    return ec ? std::filesystem::path{} : dir;
+    // Portable: nada en %LOCALAPPDATA%. En Windows los canales locales son
+    // pipes y mutex con nombre (sin disco); lo que queda va al bundle.
+    return stateDir();
 }
 
 } // namespace ba::platform

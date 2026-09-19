@@ -16,6 +16,11 @@
 //   6. Pedidos validos/invalidos.
 //   7. Los sinks se llaman SIN el lock tomado (un sink que consulta la sala no
 //      se traba).
+//   9. Modo oradores: admitir = a la fila (backstage, sin slot); al aire en
+//      modo "uno" reemplaza, en "varios" usa el slot por defecto o el primero
+//      libre; reordenar; tiempo propio; el reloj NUNCA saca a nadie en modo
+//      manual (sigue en negativo); carrusel "chain" y "time" (con margen);
+//      perfil editable; tablero sin claves.
 //   8. ShareStore: deteccion por contenido (png, jpeg, mp4, webm, mp3, wav) y
 //      rechazo de lo que no es medio (ejecutable, pdf, heic); guardado en
 //      streaming, tope de tamaño, archivo corto.
@@ -305,6 +310,110 @@ void testLobbyMedia() {
           "el snapshot muestra el lugar de preview");
 }
 
+void testSpeakers() {
+    Room::Cfg cfg;
+    cfg.maxGuests = 3;
+    cfg.backstageSlots = 2; // solo los 2 primeros de la fila mandan preview
+    Room room(cfg);
+    std::vector<std::pair<std::string, ba::gateway::MediaRoute>> routes;
+    Recorder rec;
+    Room::Sinks s;
+    s.toGuest = [&](const std::string& id, const json& m) { rec.guest[id].push_back(m); };
+    s.route = [&](const std::string& id, const ba::gateway::MediaRoute& r) { routes.emplace_back(id, r); };
+    s.slotFreed = [&](int slot, const std::string&) { rec.freed.push_back(slot); };
+    room.setSinks(s);
+    using K = ba::gateway::MediaRoute::Kind;
+
+    CHECK(room.setSpeakerConfig(json{{"enabled", true}, {"defaultSec", 60}, {"defaultSlot", 2}}, 0) ==
+              Room::kOk,
+          "activar el modo oradores");
+    const auto a = room.connect("Ana", "", 0, {}, "Vecina del barrio", "+54 11 5555");
+    const auto b = room.connect("Beto", "", 0);
+    const auto c = room.connect("Caro", "", 0);
+    const auto d = room.connect("Dani", "", 0);
+    for (const auto* p : {&a, &b, &c, &d})
+        CHECK(room.admit(p->id, 10) == Room::kOk, "admitir a la fila no necesita slot (4 > 3 slots)");
+    CHECK(room.routeOf(a.id).kind == K::Backstage, "en la fila ve el programa (backstage)");
+    CHECK(room.slotOf(a.id) == 0, "sin slot mientras espera turno");
+    CHECK(rec.last(b.id, "speaker")["position"] == 2, "sabe su lugar en la fila");
+    CHECK(rec.last(b.id, "speaker")["etaSec"] == 60, "y cuanto falta (el tiempo del de adelante)");
+    json snap = room.snapshot();
+    CHECK(snap["order"].size() == 4 && snap["order"][0] == a.id, "orden de llegada");
+    CHECK(findParticipant(snap, a.id)["contact"] == "+54 11 5555", "contacto cargado al entrar");
+    CHECK(findParticipant(snap, a.id)["allottedSec"] == 60, "tiempo general al entrar");
+
+    const auto bs = [&](const std::string& id) {
+        return findParticipant(room.snapshot(), id)["backstageSlot"];
+    };
+    CHECK(bs(a.id) == 1 && bs(b.id) == 2 && bs(c.id) == 0, "preview de la fila para los 2 primeros");
+    CHECK(room.routeOf(a.id).kind == K::Backstage && room.routeOf(a.id).index == 1,
+          "su ruta sube la camara al preview 1 (y sigue viendo el programa)");
+    CHECK(room.routeOf(c.id).index == 0, "el tercero no sube nada");
+    CHECK(room.moveSpeaker(d.id, 0) == Room::kOk, "reordenar: Dani primero");
+    CHECK(room.snapshot()["order"][0] == d.id, "Dani encabeza la fila");
+    CHECK(bs(d.id) == 2 && bs(a.id) == 1 && bs(b.id) == 0,
+          "al adelantarse Dani toma el preview que suelta Beto (Ana conserva el suyo)");
+    CHECK(room.setAllotted(d.id, 30) == Room::kOk, "tiempo propio de Dani");
+
+    // Uno a la vez (modo por defecto), en el slot por defecto.
+    CHECK(room.nextSpeaker(1000) == Room::kOk, "siguiente: Dani");
+    CHECK(room.slotOf(d.id) == 2 && room.routeOf(d.id).kind == K::Program, "al aire en el slot por defecto");
+    CHECK(bs(d.id) == 0 && bs(b.id) == 2, "al aire suelta el preview de la fila: lo toma el siguiente");
+    CHECK(rec.last(d.id, "speaker")["state"] == "onair" && rec.last(d.id, "speaker")["allottedSec"] == 30,
+          "el invitado recibe su reloj");
+    CHECK(room.setOnAir(a.id, true, 2000) == Room::kOk, "Ana al aire a mano");
+    CHECK(room.slotOf(d.id) == 0 && room.routeOf(d.id).kind == K::Backstage,
+          "Dani sale (uno a la vez) y no se va");
+    CHECK(findParticipant(room.snapshot(), d.id)["speaker"] == "done", "Dani ya hablo");
+    CHECK(findParticipant(room.snapshot(), d.id)["usedMs"] == 1000, "y se registra lo que uso");
+
+    // Manual: el reloj nunca saca a nadie.
+    room.tick(2000 + 600 * 1000);
+    CHECK(room.slotOf(a.id) == 2, "pasado el tiempo sigue al aire (cuenta negativa)");
+    CHECK(room.setOnAir(a.id, false, 700000) == Room::kOk, "el operador la saca");
+    CHECK(room.slotOf(a.id) == 0 && room.routeOf(a.id).kind == K::Backstage,
+          "vuelve a backstage, no se la echa");
+    CHECK(!rec.freed.empty() && rec.freed.back() == 2, "se libera el slot");
+    CHECK(room.slotOf(b.id) == 0, "manual: nadie entra solo");
+
+    // Cadena: al sacar a uno, entra el siguiente.
+    room.setSpeakerConfig(json{{"carousel", "chain"}}, 700000);
+    CHECK(room.nextSpeaker(700000) == Room::kOk && room.slotOf(b.id) == 2, "Beto al aire");
+    room.setOnAir(b.id, false, 710000);
+    CHECK(room.slotOf(c.id) == 2, "cadena: Caro entra al sacar a Beto");
+
+    // Tiempo: pasado cero + margen, rota.
+    room.setSpeakerConfig(json{{"carousel", "time"}, {"graceSec", 5}}, 710000);
+    CHECK(room.requeue(d.id) == Room::kOk, "Dani vuelve a la fila");
+    room.tick(710000 + 64 * 1000);
+    CHECK(room.slotOf(c.id) == 2, "antes del margen sigue");
+    room.tick(710000 + 65 * 1000);
+    CHECK(room.slotOf(c.id) == 0 && room.slotOf(d.id) == 2, "tiempo + margen: rota a Dani");
+    room.tick(800000);
+    room.setSpeakerConfig(json{{"carousel", "manual"}}, 800000);
+
+    // Varios a la vez.
+    room.setSpeakerConfig(json{{"multi", true}}, 800000);
+    room.requeue(a.id);
+    CHECK(room.setOnAir(a.id, true, 800000) == Room::kOk, "Ana al aire junto a quien este");
+    CHECK(room.slotOf(a.id) != 0 && room.slotOf(a.id) != room.slotOf(d.id), "otro slot");
+    CHECK(room.setOnAir(b.id, true, 800000) == Room::kOk, "tercero al aire");
+    CHECK(room.setOnAir(c.id, true, 800000) == Room::kFull, "sin slots libres");
+
+    CHECK(room.setProfile(c.id, json{{"name", "Carolina"}, {"contact", "caro@ej.com"}}) == Room::kOk,
+          "el admin edita el perfil");
+    CHECK(findParticipant(room.snapshot(), c.id)["name"] == "Carolina", "nombre editado");
+    const json board = room.boardSnapshot(0);
+    CHECK(board["order"].size() == 4 && board.dump().find(a.key) == std::string::npos,
+          "tablero: fila sin claves");
+    Room::Participant pa;
+    CHECK(room.byKey(a.key, pa) && pa.id == a.id, "buscar por clave");
+    CHECK(!room.byKey("", pa), "clave vacia no encuentra nada");
+
+    room.kick(a.id);
+    CHECK(room.snapshot()["order"].size() == 3, "al irse sale de la fila");
+}
+
 void testSinksUnlocked() {
     Room room(Room::Cfg{});
     int reentrant = 0;
@@ -450,6 +559,7 @@ int main() {
     testChat();
     testLockAndRequests();
     testLobbyMedia();
+    testSpeakers();
     testSinksUnlocked();
     testShares();
     testSniff();

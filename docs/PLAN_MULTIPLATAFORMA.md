@@ -99,7 +99,7 @@ caliente.**
 | Gateway media WebRTC | libwebrtc solo MSVC, nunca ejecutado | NULL | NULL | **Bloqueante en todas** |
 | cloudflared | spawn Win32 | no-op | no-op | Alto |
 | Dispositivos de audio | cfgmgr32 (en curso), WASAPI (cola) | nada | nada | Alto |
-| Host VST3 | `LoadLibrary` + HWND | stub | stub | Alto |
+| Host de plugins (CLAP) | hecho (Win32) | hecho (X11) | pendiente | Alto |
 | Recovery UI | ventana Win32 | log | log | Medio |
 | Crash dumps | minidump | nada | nada | Medio |
 | DSP | escalar, `double` por muestra, sin SIMD | igual | igual | Rendimiento |
@@ -199,13 +199,16 @@ xsimd/Highway; la elección se hace en la fase 3 con benchmarks, no antes.
 
 `DeviceMatcher` (scoring) ya es portable y no cambia.
 
-### 3.7 Host de plugins VST3
+### 3.7 Host de plugins (CLAP)
+
+Hecho con CLAP en vez de VST3 (`src/app/audio`): un solo host para las tres
+plataformas; solo cambia la ventana del editor.
 
 | Plataforma | Carga | Editor |
 |---|---|---|
-| Windows | `Contents/x86_64-win/*.vst3` | `kPlatformTypeHWND` |
-| Linux | `Contents/x86_64-linux/*.so` | `kPlatformTypeX11EmbedWindowID` + `IRunLoop` propio |
-| macOS | bundle `Contents/MacOS/` | `kPlatformTypeNSView` |
+| Windows | `plugins/lsp/lsp-plugins.clap` (compilado desde fuente) | `CLAP_WINDOW_API_WIN32` — hecho |
+| Linux | `plugins/lsp/lsp-plugins.clap` (release oficial) | `CLAP_WINDOW_API_X11` (XWayland) — hecho |
+| macOS | bundle `.clap` | `CLAP_WINDOW_API_COCOA` — pendiente |
 
 Riesgo: **LSP no publica builds de macOS**. Ver D10.
 

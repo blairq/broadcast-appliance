@@ -19,7 +19,7 @@ PROJECT_BRIEF          = "Appliance de emisión en vivo embebido (libobs + WebRT
 
 # --- Entradas ----------------------------------------------------------------
 # Extraer de src/ (los headers con los docstrings). RECURSIVE para bajar por
-# core/, plugin-host/, launcher/, etc.
+# core/, launcher/, app/, etc.
 INPUT                  = src
 FILE_PATTERNS          = *.hpp *.h *.cpp *.cxx *.cc
 RECURSIVE              = YES

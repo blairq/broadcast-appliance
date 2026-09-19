@@ -63,7 +63,13 @@ ApplicationWindow {
         DashboardPage {}
         ScenesPage {}
         ConferencePage {}
+        YouTubePage {}
+        TwitchPage {}
+        FacebookPage {}
         SettingsPage {}
+        AssistantPage {}
+        InputsPage {}
+        AudioPage {}
     }
 
     // --- Ventanas de salida (una por entrada del modelo) ---------------------------
@@ -91,24 +97,46 @@ ApplicationWindow {
             }
             Item { width: 1; height: 10 }
             Repeater {
-                model: [ { icon: "⌂", tip: "Dashboard" }, { icon: "▦", tip: "Escenas y fuentes" }, { icon: "☎", tip: "Sala (lobby, invitados, chat)" }, { icon: "⚙", tip: "Configuracion" } ]
+                // `page`: indice en el StackLayout (el orden del riel no es el de las paginas).
+                model: [ { icon: "⌂", tip: "Dashboard", page: 0 }, { icon: "▦", tip: "Escenas y fuentes", page: 1 }, { icon: "◉", tip: "Entradas de video (camaras, capturadoras, red)", page: 8 }, { icon: "🎚", tip: "Audio: patchbay de modulos LSP por fuente", page: 9 }, { icon: "☎", tip: "Sala (lobby, invitados, chat)", page: 2 }, { icon: "▶", tip: "YouTube (cuenta, videos, en vivo)", page: 3 }, { icon: "◆", tip: "Twitch (canal, vivo, chat)", page: 4 }, { icon: "f", tip: "Facebook (Paginas, vivos, videos)", page: 5 }, { icon: "⚙", tip: "Configuracion", page: 6 } ]
                 delegate: Rectangle {
                     required property var modelData
-                    required property int index
-                    width: 44; height: 44; radius: 22
-                    color: win.page === index ? "white" : (navMa.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : "transparent")
+                                        width: 44; height: 44; radius: 22
+                    color: win.page === modelData.page ? "white" : (navMa.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : "transparent")
                     border.color: Qt.rgba(1, 1, 1, 0.16)
                     Behavior on color { ColorAnimation { duration: 150 } }
-                    Text { anchors.centerIn: parent; text: modelData.icon; color: win.page === index ? "#111" : Theme.text; font.pixelSize: 18 }
-                    MouseArea { id: navMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.page = index }
+                    Text { anchors.centerIn: parent; text: modelData.icon; color: win.page === modelData.page ? "#111" : Theme.text; font.pixelSize: 18 }
+                    MouseArea { id: navMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.page = modelData.page }
                     ToolTip.visible: navMa.containsMouse
                     ToolTip.text: modelData.tip
                     ToolTip.delay: 400
                 }
             }
         }
+        // Asistente de IA: abajo del todo, separado de las paginas.
+        Rectangle {
+            id: aiBtn
+            anchors { bottom: dots.top; horizontalCenter: parent.horizontalCenter; bottomMargin: 18 }
+            width: 44; height: 44; radius: 22
+            gradient: Gradient {
+                GradientStop { position: 0; color: win.page === 7 ? "#ffffff" : "#ff8a3d" }
+                GradientStop { position: 1; color: win.page === 7 ? "#ffe2cf" : "#c2410c" }
+            }
+            border.color: Qt.rgba(1, 1, 1, 0.3)
+            Text { anchors.centerIn: parent; text: "✦"; color: win.page === 7 ? "#c2410c" : "white"; font.pixelSize: 20 }
+            Rectangle { // corriendo
+                visible: Studio.agent.running
+                width: 10; height: 10; radius: 5; color: Theme.ok; border.color: "#111"
+                anchors { right: parent.right; top: parent.top }
+            }
+            MouseArea { id: aiMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.page = 7 }
+            ToolTip.visible: aiMa.containsMouse
+            ToolTip.text: "Asistente (chat con la IA que maneja la app)"
+            ToolTip.delay: 400
+        }
         // Indicadores rapidos abajo
         Column {
+            id: dots
             anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter; bottomMargin: 18 }
             spacing: 10
             Rectangle { width: 10; height: 10; radius: 5; anchors.horizontalCenter: parent.horizontalCenter
@@ -122,13 +150,31 @@ ApplicationWindow {
         }
     }
 
+    // --- Reloj del orador al aire (modo oradores), visible en todas las paginas ------
+    OnAirTimer {
+        anchors { top: parent.top; horizontalCenter: parent.horizontalCenter; topMargin: 10 }
+        z: 50
+        onClicked: win.page = 2
+    }
+
+    // --- Barra del asistente al operador (mensajes, preguntas, respuestas a invitados) ----
+    OperatorBar {
+        id: opBar
+        anchors { left: parent.left; right: parent.right; bottom: parent.bottom; leftMargin: 92 + 12; rightMargin: 18; bottomMargin: 14 }
+        z: 60
+    }
+
     // --- Avisos (toasts) ------------------------------------------------------------
     Column {
         id: toasts
-        anchors { right: parent.right; bottom: parent.bottom; margins: 22 }
+        anchors { right: parent.right; bottom: opBar.visible ? opBar.top : parent.bottom; margins: 22 }
+        z: 61
         spacing: 8
         width: 380
         function show(message, level) {
+            // El mismo aviso que ya esta en pantalla no se repite (renueva su tiempo).
+            for (let i = 0; i < children.length; ++i)
+                if (children[i].message === message && children[i].opacity > 0) return children[i].renew()
             toastComp.createObject(toasts, { message: message, level: level || "info" })
         }
     }
@@ -138,6 +184,7 @@ ApplicationWindow {
             id: t
             property string message
             property string level
+            function renew() { life.restart() }
             width: 380
             height: tt.implicitHeight + 26
             radius: 16

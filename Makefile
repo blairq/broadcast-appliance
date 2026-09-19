@@ -23,15 +23,15 @@
 # ============================================================================
 
 BUILD_DIR ?= build
-JOBS      ?= $(nproc)
+JOBS      ?= $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
 PY        ?= .venv/bin/python
 PIP       ?= .venv/bin/pip
 
-.PHONY: deps-lwip help dev build prod test test-unit pytest test-all lint docs release win deps-cloudflared-host deps-qt-host \
+.PHONY: deps-lsp-win deps-clap deps-obs-deps-win deps-ndi-src deps-linux test-win deps-win deps-win-toolchain deps-webrtc-win release-win dist-win dist-linux deps-lwip deps-cacert help dev build prod test test-unit pytest test-all lint docs release win deps-cloudflared-host deps-qt-host \
         clean clean-all \
         deps deps-obs deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist \
         deps-lsp deps-status deps-clean \
-        deps-src deps-mbedtls deps-nlohmann deps-samplerate deps-argon2 deps-vst3
+        deps-src deps-mbedtls deps-nlohmann deps-samplerate deps-argon2
 
 # --- Ayuda (target por defecto) ---------------------------------------------
 help:
@@ -45,26 +45,35 @@ help:
 	@echo "  make test-unit  Alias de 'make test'"
 	@echo "  make lint       Revisa el formato con clang-format del sistema (apt)"
 	@echo "  make release    Instala el bundle portable (layout §5.1) en release/"
-	@echo "  make win        Cross-compile MinGW-w64 a build/win (si hay cross-compiler)"
+	@echo "  make win        Windows x64 desde Linux (clang-cl, ABI MSVC): baja todo y compila en build/win"
+	@echo "                  (requiere BA_ACCEPT_MSVC_LICENSE=1 la primera vez: CRT + SDK de Microsoft)"
+	@echo "  make release-win  Bundle portable de Windows en release-win/"
+	@echo "  make dist-win   dist/BroadcastAppliance-<ver>-windows-x64.zip"
+	@echo "  make test-win   Corre los tests de Windows bajo Wine portable"
+	@echo "  make dist-linux dist/BroadcastAppliance-<ver>-linux-x64.tar.gz"
+	@echo "  make deps-linux Todo lo del build completo de Linux (libobs desde fuente, Qt, libwebrtc...)"
 	@echo "  make clean      Borra $(BUILD_DIR)/"
 	@echo "  make clean-all  Borra $(BUILD_DIR)/, release/ y docs/_build/"
 	@echo ""
 	@echo "Dependencias de terceros (extern/, gitignored, idempotente):"
 	@echo "  make deps             Descarga TODO (runtime + fuentes de build)"
-	@echo "  make deps-src         Fuentes de BUILD (mbedtls+nlohmann+samplerate+argon2+vst3) -> extern/"
+	@echo "  make deps-src         Fuentes de BUILD (mbedtls+nlohmann+samplerate+argon2) -> extern/"
 	@echo "  make deps-obs         Runtime OBS 31.0.0 (libobs+CEF+Qt) -> extern/obs-studio"
-	@echo "  make deps-qt          SDK Qt 6.6.3 win64_mingw (build inputs) -> extern/qt6"
+	@echo "  make deps-qt          SDK Qt 6.6.3 win64_msvc2019_64 (build de Windows) -> extern/qt6"
+	@echo "  make deps-win         Todo lo del build de Windows (toolchain, Qt, OBS, libwebrtc...)"
 	@echo "  make deps-webrtc      SDK libwebrtc M123 -> extern/webrtc (BA_WEBRTC_TARGET=windows|linux)"
 	@echo "  make deps-lwip        lwIP 2.2.0 -> extern/lwip (tunel WireGuard del gateway)"
+	@echo "  make deps-cacert      raices de Mozilla (curl.se) -> extern/cacert (HTTPS propio: YouTube)"
 	@echo "  make deps-spout       SDK Spout2 (2.007h) -> extern/Spout2"
 	@echo "  make deps-cloudflared cloudflared 2024.11.0 -> extern/cloudflared"
 	@echo "  make deps-vcredist    Redist VC++ -> extern/vcredist"
-	@echo "  make deps-lsp         Bundles .vst3 de LSP 1.2.35 -> extern/lsp"
+	@echo "  make deps-lsp         Modulos LSP 1.2.35 (CLAP, Linux) -> extern/lsp"
+	@echo "  make deps-lsp-win     Modulos LSP 1.2.35 para Windows (compilados desde fuente) -> extern/lsp"
+	@echo "  make deps-clap        Headers de CLAP 1.2.6 -> extern/clap"
 	@echo "  make deps-mbedtls     mbedtls v3.6.2 (fuente de build) -> extern/mbedtls"
 	@echo "  make deps-nlohmann    nlohmann/json v3.11.3 (fuente de build) -> extern/nlohmann-json"
 	@echo "  make deps-samplerate  libsamplerate 0.2.2 (fuente de build) -> extern/libsamplerate"
 	@echo "  make deps-argon2      argon2 20190702 (fuente de build) -> extern/argon2"
-	@echo "  make deps-vst3        vst3sdk v3.7.9_build_61 (fuente de build) -> extern/vst3-sdk"
 	@echo "  make deps-status      Muestra qué assets hay y su estado"
 	@echo "  make deps-clean       Borra extern/"
 	@echo ""
@@ -153,21 +162,101 @@ lint:
 # obs-plugins, data/libobs, Config, Logs, Recordings, Web/guest).
 release:
 	cmake --install $(BUILD_DIR) --prefix release --component bundle
+	@# Linux: el bundle no puede depender de bibliotecas de terceros del sistema.
+	@if [ "$$(uname -s)" = Linux ]; then tools/deps/check-portable.sh release; fi
 
-# --- Cross-compile MinGW-w64 (Windows desde Linux) --------------------------
-# Solo si el cross-compiler existe; si no, avisa y termina en verde. El
-# cross-build va a build/win (dentro del root de build, aislado por subdirectorio).
-win:
-	@if command -v x86_64-w64-mingw32-g++ >/dev/null 2>&1; then \
-		cmake -S . -B build/win \
-			-DCMAKE_SYSTEM_NAME=Windows \
-			-DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc \
-			-DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++ \
-			-DCMAKE_BUILD_TYPE=Release; \
-		cmake --build build/win -j$(JOBS); \
-	else \
-		echo "MinGW-w64 (x86_64-w64-mingw32-g++) no encontrado; se salta el target win."; \
-	fi
+# --- Windows x64 desde Linux (ABI MSVC: clang-cl + lld-link) ---------------
+# `make win` baja TODO lo necesario (idempotente, con hash) y compila el bundle
+# de Windows en build/win; `make release-win` lo instala en release-win/ y
+# `make dist-win` arma el .zip de distribucion en dist/.
+#
+# El CRT y el Windows SDK son de Microsoft: bajarlos (xwin) implica aceptar la
+# licencia de Visual Studio Build Tools -> BA_ACCEPT_MSVC_LICENSE=1.
+WIN_BUILD_DIR ?= build/win
+WIN_RELEASE   ?= release-win
+WIN_TOOLCHAIN := $(CURDIR)/cmake/toolchains/windows-clang-cl.cmake
+QT6_HOST_PATH = $(CURDIR)/$(EXTERNS_DIR)/qt6-host/$(QT6_VER)/gcc_64
+
+deps-win-toolchain:
+	tools/deps/win-toolchain.sh
+
+deps-webrtc-win:
+	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=windows
+
+# Todo lo que el build de Windows necesita. Qt de Windows (msvc2019_64) mas el
+# Qt del host (moc, rcc, qmlcachegen corren en Linux), OBS (runtime + fuentes
+# para los headers), libwebrtc de Windows y las fuentes compartidas.
+deps-win: deps-win-toolchain deps-qt deps-qt-host deps-obs deps-obs-deps-win deps-ndi-src deps-webrtc-win \
+          deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared deps-clap deps-lsp-win
+
+# Plugins LSP (CLAP) para Windows: compilados desde fuente (tools/deps/lsp-win.sh).
+deps-lsp-win: deps-win-toolchain
+	tools/deps/lsp-win.sh $(JOBS)
+
+# FFmpeg para compilar contra el del runtime de OBS (NDI decodifica SpeedHQ con
+# libavcodec): headers + bibliotecas de importacion del obs-deps OFICIAL que fija
+# el propio OBS (extern/obs-src/buildspec.json, mismo hash). Es FFmpeg n7.0.2,
+# el mismo de las DLL de extern/obs-studio (que son las que viajan).
+OBS_DEPS_WIN_VER := 2024-09-12
+OBS_DEPS_WIN_SHA := d4a4f194591766891ad3c0b267deec3c4b85239c8fe557273559927456aeedbb
+OBS_DEPS_WIN_ZIP = $(DL_DIR)/windows-deps-$(OBS_DEPS_WIN_VER)-x64.zip
+deps-obs-deps-win:
+	@mkdir -p "$(DL_DIR)"
+	@if [ -f "$(EXTERNS_DIR)/obs-deps-win/lib/avcodec.lib" ]; then echo "[deps] obs-deps (Windows): ya presente"; else \
+	  [ -f "$(OBS_DEPS_WIN_ZIP)" ] && [ "$$(sha256sum "$(OBS_DEPS_WIN_ZIP)" | cut -d' ' -f1)" = "$(OBS_DEPS_WIN_SHA)" ] || \
+	    curl -fL --retry 3 -o "$(OBS_DEPS_WIN_ZIP)" "https://github.com/obsproject/obs-deps/releases/download/$(OBS_DEPS_WIN_VER)/windows-deps-$(OBS_DEPS_WIN_VER)-x64.zip"; \
+	  printf '%s  %s\n' "$(OBS_DEPS_WIN_SHA)" "$(OBS_DEPS_WIN_ZIP)" | sha256sum -c --quiet || { echo "[deps] ERROR obs-deps: hash" >&2; exit 1; }; \
+	  rm -rf "$(EXTERNS_DIR)/obs-deps-win"; \
+	  unzip -q -o "$(OBS_DEPS_WIN_ZIP)" 'include/libavcodec/*' 'include/libavutil/*' 'lib/avcodec.lib' 'lib/avutil.lib' \
+	    -d "$(EXTERNS_DIR)/obs-deps-win"; \
+	  echo "[deps] obs-deps (Windows): FFmpeg (headers + .lib) en $(EXTERNS_DIR)/obs-deps-win"; fi
+
+# Recepcion NDI abierta: libNoIDea + libmicrodns por commit fijado.
+deps-ndi-src:
+	tools/deps/ndi-src.sh
+
+win: deps-win
+	cmake -S . -B $(WIN_BUILD_DIR) -G Ninja \
+		-DCMAKE_TOOLCHAIN_FILE=$(WIN_TOOLCHAIN) \
+		-DCMAKE_BUILD_TYPE=Release \
+		-DQT_HOST_PATH=$(QT6_HOST_PATH)
+	cmake --build $(WIN_BUILD_DIR) -j$(JOBS)
+
+# Tests de Windows bajo Wine portable (tools/ci/test-win.sh).
+test-win: win
+	tools/ci/test-win.sh $(WIN_BUILD_DIR)
+
+release-win: win
+	rm -rf $(WIN_RELEASE)
+	cmake --install $(WIN_BUILD_DIR) --prefix $(WIN_RELEASE) --component bundle
+	tools/deps/check-portable-win.sh $(WIN_RELEASE)
+
+# --- Archivos de distribucion (los que sube el CI a un release) --------------
+# dist/BroadcastAppliance-<version>-<plataforma>.{zip,tar.gz}: la carpeta
+# portable completa, lista para descomprimir y usar (o para `--update`).
+BA_VERSION := $(shell awk '/^project\(/,/\)/' CMakeLists.txt | awk '/VERSION/{print $$2; exit}')
+dist-win: release-win
+	@mkdir -p dist
+	rm -f dist/BroadcastAppliance-$(BA_VERSION)-windows-x64.zip
+	cd $(WIN_RELEASE) && 7z a -tzip -mx=7 -bso0 ../dist/BroadcastAppliance-$(BA_VERSION)-windows-x64.zip .
+	@cd dist && sha256sum BroadcastAppliance-$(BA_VERSION)-windows-x64.zip > BroadcastAppliance-$(BA_VERSION)-windows-x64.zip.sha256
+	@echo "dist/BroadcastAppliance-$(BA_VERSION)-windows-x64.zip"
+
+# Todo lo que el build completo de Linux necesita (libobs y sus deps desde
+# fuente, Qt del host, libwebrtc de Linux, fuentes compartidas...).
+deps-linux: deps-obs-linux deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared-host \
+            deps-clap deps-lsp
+	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=linux
+
+dist-linux:
+	cmake -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=Release
+	cmake --build $(BUILD_DIR) -j$(JOBS)
+	rm -rf release
+	$(MAKE) release
+	@mkdir -p dist
+	tar -C release -czf dist/BroadcastAppliance-$(BA_VERSION)-linux-x64.tar.gz --transform 's,^\.,BroadcastAppliance,' .
+	@cd dist && sha256sum BroadcastAppliance-$(BA_VERSION)-linux-x64.tar.gz > BroadcastAppliance-$(BA_VERSION)-linux-x64.tar.gz.sha256
+	@echo "dist/BroadcastAppliance-$(BA_VERSION)-linux-x64.tar.gz"
 
 # ============================================================================
 # Dependencias de terceros (extern/) — descarga reproducible e idempotente
@@ -187,7 +276,7 @@ win:
 #   make deps-spout       -> SDK Spout2 (tag real 2.007h) a extern/Spout2
 #   make deps-cloudflared -> cloudflared 2024.11.0 a extern/cloudflared
 #   make deps-vcredist    -> redist VC++ a extern/vcredist (msvcp140_atomic_wait.dll)
-#   make deps-lsp         -> bundles .vst3 de LSP 1.2.35 a extern/lsp
+#   make deps-lsp         -> modulos LSP 1.2.35 (CLAP, Linux) a extern/lsp
 #   make deps-status      -> muestra qué assets hay y su estado
 #   make deps-clean       -> borra extern/
 #
@@ -199,8 +288,13 @@ win:
 EXTERNS_DIR ?= extern
 DL_DIR      := $(EXTERNS_DIR)/.downloads
 
-# Artefacto de libwebrtc a bajar: windows (default) o linux.
-BA_WEBRTC_TARGET ?= windows
+# Artefacto de libwebrtc a bajar: el del sistema donde se compila (linux en
+# Linux) o windows (`make deps-webrtc-win`, lo usa `make win`).
+ifeq ($(shell uname -s),Linux)
+  BA_WEBRTC_TARGET ?= linux
+else
+  BA_WEBRTC_TARGET ?= windows
+endif
 
 # --- Versiones (sincronizadas con versions.cmake) ---------------------------
 # Se leen de versions.cmake para que el pin sea la única fuente. Si la línea
@@ -232,10 +326,10 @@ OBS_SHA  := 0ea3f71bd4d8a611ef763d2591aaf12b61e6f563284a3a14ddff485621fe4c41
 OBS_ZIP  := $(EXTERNS_DIR)/.downloads/OBS-Studio-$(OBS_TAG)-Windows.zip
 OBS_DEST := $(EXTERNS_DIR)/obs-studio
 
-# Qt 6.6.3 (win64_mingw): SDK de BUILD (headers + import libs + CMake config +
+# Qt 6.6.3 (win64_msvc2019_64): SDK de BUILD (headers + import libs + CMake config +
 # moc), NO el runtime (ese lo trae el zip de OBS en extern/obs-studio/bin/64bit).
 # Se instala con `aqtinstall` (en el .venv local) en lugar de curl: aqt baja el
-# componente exacto y lo deja en extern/qt6/$(QT6_VER)/mingw_64/{include,lib,bin}
+# componente exacto y lo deja en extern/qt6/$(QT6_VER)/msvc2019_64/{include,lib,bin}
 # (incl. lib/cmake/Qt6/Qt6Config.cmake y lib/libQt6Core.a). La ruta oficial de
 # descarga única (qt-opensource-...-mingw_2022-6.6.3.7z) no está disponible en
 # los mirrors actuales (404), por eso aqt es la vía fiable. El SDK es grande
@@ -243,7 +337,7 @@ OBS_DEST := $(EXTERNS_DIR)/obs-studio
 # El hash que se pinnea es el del sentinel (aqt no baja un único archivo con
 # hash conocido): es la verificación de integridad del layout.
 QT6_DEST     := $(EXTERNS_DIR)/qt6
-QT6_PREFIX   := $(QT6_DEST)/$(QT6_VER)/mingw_64
+QT6_PREFIX   := $(QT6_DEST)/$(QT6_VER)/msvc2019_64
 QT6_SENTINEL := $(QT6_PREFIX)/lib/cmake/Qt6/Qt6Config.cmake
 QT6_SHA      := 381542ca9904f8595cccfa3a45a035e188924180f815e44afa77f296a9bee323
 
@@ -262,7 +356,12 @@ else
   WEB_KIND   := zip
   WEB_LIB    := webrtc.lib
 endif
-WEB_DEST := $(EXTERNS_DIR)/webrtc
+# Cada SDK en su carpeta: se pueden tener los dos (Linux + cross a Windows).
+ifeq ($(BA_WEBRTC_TARGET),linux)
+  WEB_DEST := $(EXTERNS_DIR)/webrtc
+else
+  WEB_DEST := $(EXTERNS_DIR)/webrtc-win
+endif
 # libc++ de Chromium para compilar contra libwebrtc de Linux (commits de
 # extern/webrtc/VERSIONS: WEBRTC_SRC_THIRD_PARTY_LIBCXX_SRC_COMMIT y
 # WEBRTC_SRC_BUILDTOOLS_COMMIT).
@@ -315,8 +414,8 @@ SHA256_CHECK := $(shell command -v sha256sum >/dev/null 2>&1 && echo "sha256sum 
 VCREDIST_URL := https://aka.ms/vs/17/release/vc_redist.x64.exe
 VCREDIST_EXE := $(EXTERNS_DIR)/vcredist/VC_redist.x64.exe
 
-# LSP 1.2.35 (asset de despliegue, no se compila): bundles .vst3 a extern/lsp/
-# (el paso de deploy los copia a assets/audio-plugins/). 7z de Linux x86_64.
+# LSP 1.2.35: el CLAP oficial de Linux x86_64 (7z) a extern/lsp/ (el de
+# Windows se compila desde la fuente: deps-lsp-win).
 LSP_URL  := https://github.com/lsp-plugins/lsp-plugins/releases/download/$(LSP_VER)/lsp-plugins-$(LSP_VER)-Linux-x86_64.7z
 LSP_SHA  := 4ef3b2f63b29a522fdaf3a18f879c1c85c82f0bdd1e0b3c849a5f3c4b08d2550
 LSP_7Z   := $(DL_DIR)/lsp-plugins-$(LSP_VER)-Linux-x86_64.7z
@@ -324,9 +423,9 @@ LSP_DEST := $(EXTERNS_DIR)/lsp
 
 # ============================================================================
 # FUENTES DE BUILD (se COMPILEN en el producto) — distinto de los assets de
-# runtime de arriba. Estos 5 son los árboles de código de terceros que el
+# runtime de arriba. Estos 4 son los árboles de código de terceros que el
 # CMakeLists raíz consume vía FetchContent (mbedtls, nlohmann/json,
-# libsamplerate, argon2 y vst3sdk). Se vendorean a `extern/` para que un
+# libsamplerate y argon2). Se vendorean a `extern/` para que un
 # configure con `extern/` poblado sea OFFLINE (cero red): el CMake prefiere la
 # copia vendored y solo cae a git si falta. Son DEPS DE BUILD (entran en el
 # binario), NO assets de runtime como OBS/Qt/Spout. Mismo patrón idempotente:
@@ -374,43 +473,6 @@ ARGON2_TAR  := $(DL_DIR)/argon2-20190702.tar.gz
 ARGON2_DEST := $(EXTERNS_DIR)/argon2
 ARGON2_SENT := $(ARGON2_DEST)/Makefile
 
-# vst3sdk v3.7.9_build_61 (steinbergmedia/vst3sdk). Solo Windows (if(WIN32) en
-# el CMakeLists raíz). CMakeLists en la raíz.
-VST3_URL  := https://codeload.github.com/steinbergmedia/vst3sdk/tar.gz/refs/tags/v3.7.9_build_61
-VST3_SHA  := a9561c9e7ba5a6a076d708d1298d17ffb1f81ba52d1ea06539416f561be59b8a
-VST3_TAR  := $(DL_DIR)/vst3-sdk-v3.7.9_build_61.tar.gz
-VST3_DEST := $(EXTERNS_DIR)/vst3-sdk
-VST3_SENT := $(VST3_DEST)/CMakeLists.txt
-# Submodules del VST3 SDK: codeload NO los incluye (base, cmake, doc,
-# pluginterfaces, public.sdk, tutorials y vstgui4 quedan como dirs vacíos) y el
-# CMakeLists del SDK hace FATAL_ERROR si cmake/modules/SMTG_VST3_SDK.cmake no
-# existe (include(SMTG_VST3_SDK)). Se vendorean los 7 en el commit fijado por
-# cada gitlink del repo vst3sdk@v3.7.9_build_61 (equivale a
-# `git submodule update --init`). ⚠️  vstgui4 apunta al repo `vstgui` (NO
-# `vst3_vstgui`): el url del .gitmodules es `../vstgui`.
-VST3_SUB_SENT := $(VST3_DEST)/cmake/modules/SMTG_VST3_SDK.cmake
-VST3_BASE_URL  := https://codeload.github.com/steinbergmedia/vst3_base/tar.gz/4737789f52b4e2610a99257e9d93dcbe7717e72e
-VST3_BASE_SHA  := a8fe7e69dfbe92dc7b9773aa7c20909627f2c1e28accfaef73d6e5483c21bf48
-VST3_BASE_TAR  := $(DL_DIR)/vst3-base-4737789f.tar.gz
-VST3_CMAKE_URL := https://codeload.github.com/steinbergmedia/vst3_cmake/tar.gz/3ad5b558e8f94a5825c5c4930a7ffd0760d68c43
-VST3_CMAKE_SHA := a6c9e0f443d2fb9b5ce204fac1fbbeb360fc29587aff1dd15423ca6ca2db5243
-VST3_CMAKE_TAR := $(DL_DIR)/vst3-cmake-3ad5b558.tar.gz
-VST3_DOC_URL  := https://codeload.github.com/steinbergmedia/vst3_doc/tar.gz/1a90e37662834a54aa5406eeaa8634027f7801f8
-VST3_DOC_SHA  := 19e1458974bc71843c1e157e18ceada7b61e1758fc5408c39976df354c5e77b3
-VST3_DOC_TAR  := $(DL_DIR)/vst3-doc-1a90e376.tar.gz
-VST3_PI_URL  := https://codeload.github.com/steinbergmedia/vst3_pluginterfaces/tar.gz/f0eeef7ca771f3cac2dfe1922dc5733349766c7b
-VST3_PI_SHA  := 9f72e47cbc037f307aabba6234c34cbb6c9c2ad67cddb13f310b5de52fb1e9a3
-VST3_PI_TAR  := $(DL_DIR)/vst3-pluginterfaces-f0eeef7c.tar.gz
-VST3_PSDK_URL := https://codeload.github.com/steinbergmedia/vst3_public_sdk/tar.gz/e61ee76eb0f8771a05e99018bc4705ac1b603e48
-VST3_PSDK_SHA := 35f55f0284013ad0697d823edd7009c6f5751b3ac6d0e1e08fe2c06603a16433
-VST3_PSDK_TAR := $(DL_DIR)/vst3-public_sdk-e61ee76e.tar.gz
-VST3_TUT_URL  := https://codeload.github.com/steinbergmedia/vst3_tutorials/tar.gz/dc425c8e588a78147bc4c3616857b8918b809dcd
-VST3_TUT_SHA  := d2ee9aafc769f959422fb83cf6d2e2499707040a59313824ccdbb64cf82f0b37
-VST3_TUT_TAR  := $(DL_DIR)/vst3-tutorials-dc425c8e.tar.gz
-VST3_GUI_URL  := https://codeload.github.com/steinbergmedia/vstgui/tar.gz/65c353fcad783dd6baa34a2b9dbe23bb9f88d035
-VST3_GUI_SHA  := 036fba4feed74f88c4802caf1304334d3d1277de59871d3cbcc9afad7eeb5d26
-VST3_GUI_TAR  := $(DL_DIR)/vst3-vstgui4-65c353fc.tar.gz
-
 # Cada target enlaza el bloque idempotente de descarga (presente+sha -> skip;
 # si no, curl a <archivo>.part, mv y verificacion `sha256sum -c`). Se repite
 # por asset a proposito: es mas robusto y depurable que un macro define/call/
@@ -418,7 +480,7 @@ VST3_GUI_TAR  := $(DL_DIR)/vst3-vstgui4-65c353fc.tar.gz
 # makefile y rompe el parseo).
 
 # --- deps (agregado) ---------------------------------------------------------
-deps: deps-obs deps-qt deps-webrtc deps-lwip deps-spout deps-cloudflared deps-vcredist deps-lsp deps-src
+deps: deps-obs deps-qt deps-webrtc deps-lwip deps-cacert deps-libvterm deps-fonts deps-spout deps-cloudflared deps-vcredist deps-lsp deps-src
 
 # --- libobs para Linux (compilada desde fuente hacia extern/) ---------------
 # El motor de emision necesita libobs. En Windows se usa el runtime prebuilt
@@ -432,7 +494,12 @@ deps: deps-obs deps-qt deps-webrtc deps-lwip deps-spout deps-cloudflared deps-vc
 # expresion sed con ellos le corta la llamada a la mitad.
 OBS_TAG := $(shell grep OBS_STUDIO_TAG versions.cmake | head -1 | cut -d'"' -f2)
 
-deps-obs-linux:
+# Dependencias de libobs (FFmpeg, x264, jansson, curl, ...) DESDE FUENTE fijada:
+# el bundle no usa bibliotecas de terceros del sistema.
+deps-obs-deps-linux:
+	tools/deps/obs-deps-linux.sh $(JOBS)
+
+deps-obs-linux: deps-obs-deps-linux
 	@echo "==> libobs $(OBS_TAG) desde fuente hacia extern/obs-linux"
 	@test -d extern/obs-src || git clone --depth 1 --branch $(OBS_TAG) \
 		--recurse-submodules --shallow-submodules \
@@ -441,8 +508,16 @@ deps-obs-linux:
 		https://github.com/troydhanson/uthash.git extern/uthash
 	@test -d extern/nv-codec-headers || git clone --depth 1 --branch n12.2.72.0 \
 		https://github.com/FFmpeg/nv-codec-headers.git extern/nv-codec-headers
+	rm -rf extern/obs-build extern/obs-linux
+	PKG_CONFIG_PATH=$(CURDIR)/extern/obs-deps-linux/lib/pkgconfig \
 	cmake -S extern/obs-src -B extern/obs-build \
 		-DCMAKE_BUILD_TYPE=Release \
+		-DCMAKE_PREFIX_PATH=$(CURDIR)/extern/obs-deps-linux \
+		-DENABLE_NEW_MPEGTS_OUTPUT=OFF -DENABLE_SERVICE_UPDATES=OFF \
+		-DCMAKE_DISABLE_FIND_PACKAGE_Gio=ON -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
+		-DCMAKE_EXE_LINKER_FLAGS="-Wl,-rpath-link,$(CURDIR)/extern/obs-deps-linux/lib" \
+		-DCMAKE_SHARED_LINKER_FLAGS="-Wl,-rpath-link,$(CURDIR)/extern/obs-deps-linux/lib" \
+		-DCMAKE_MODULE_LINKER_FLAGS="-Wl,-rpath-link,$(CURDIR)/extern/obs-deps-linux/lib" \
 		-DENABLE_UI=OFF -DENABLE_SCRIPTING=OFF -DENABLE_BROWSER=OFF \
 		-DENABLE_WEBSOCKET=OFF -DENABLE_VLC=OFF -DENABLE_VST=OFF \
 		-DENABLE_AJA=OFF -DENABLE_DECKLINK=OFF -DENABLE_PIPEWIRE=OFF \
@@ -452,6 +527,12 @@ deps-obs-linux:
 		-DCMAKE_INSTALL_PREFIX=$(CURDIR)/extern/obs-linux
 	cmake --build extern/obs-build -j$(JOBS)
 	cmake --install extern/obs-build
+	@# Uso desde el arbol de build (tests): libobs y sus plugins encuentran las
+	@# dependencias vendoreadas. En el bundle, BaPortableBundle fija $$ORIGIN.
+	@for f in extern/obs-linux/lib/*.so.* extern/obs-linux/bin/obs-ffmpeg-mux; do \
+	  [ -f "$$f" ] && [ ! -L "$$f" ] && patchelf --add-rpath '$$ORIGIN/../../obs-deps-linux/lib' "$$f"; done; true
+	@for f in extern/obs-linux/lib/obs-plugins/*.so; do \
+	  patchelf --add-rpath '$$ORIGIN/../../../obs-deps-linux/lib' "$$f"; done
 	@echo "==> libobs lista en extern/obs-linux"
 
 deps-obs:
@@ -466,6 +547,10 @@ deps-obs:
 	    && printf '%s  %s\n' "$(OBS_SHA)" "$(OBS_ZIP)" | sha256sum -c --quiet \
 	    || { echo "[deps] ERROR OBS: fallo de descarga o hash" >&2; rm -f "$(OBS_ZIP).part"; exit 1; }; \
 	fi
+	@# Headers de libobs (el zip trae solo binarios): el arbol de fuentes del tag.
+	@test -d extern/obs-src || git clone --depth 1 --branch $(OBS_TAG) \
+		--recurse-submodules --shallow-submodules \
+		https://github.com/obsproject/obs-studio.git extern/obs-src
 	@if [ -f "$(OBS_DEST)/obs-plugins/64bit/libcef.dll" ]; then \
 	  echo "[deps] OBS: ya extraído en $(OBS_DEST)"; \
 	else \
@@ -473,9 +558,9 @@ deps-obs:
 	  unzip -q -o "$(OBS_ZIP)" -d "$(OBS_DEST)"; \
 	fi
 
-# Qt 6 (win64_mingw): SDK de BUILD (headers + import libs + CMake config + moc).
+# Qt 6 (win64_msvc2019_64): SDK de BUILD (headers + import libs + CMake config).
 # Vía aqtinstall (en el .venv local): baja el componente exacto y lo deja en
-# extern/qt6/$(QT6_VER)/mingw_64/{include,lib,bin} (incl. lib/cmake/Qt6/
+# extern/qt6/$(QT6_VER)/msvc2019_64/{include,lib,bin} (incl. lib/cmake/Qt6/
 # Qt6Config.cmake y lib/libQt6Core.a). La vía aqt es la fiable aquí: la ruta
 # oficial de descarga única (qt-opensource-...-mingw_2022-6.6.3.7z) devuelve 404
 # en los mirrors actuales. IDEMPOTENTE: si el sentinel (Qt6Config.cmake) ya
@@ -488,11 +573,12 @@ deps-qt:
 	  echo "[deps] Qt6 $(QT6_VER): ya presente y verificado ($(QT6_PREFIX))"; \
 	else \
 	  echo "[deps] Qt6 $(QT6_VER): instalando aqtinstall en el .venv..."; \
+	  test -x "$(PY)" || python3 -m venv .venv; \
 	  "$(PIP)" install -q aqtinstall \
 	    || { echo "[deps] ERROR Qt6: no se pudo instalar aqtinstall" >&2; exit 1; }; \
-	  echo "[deps] Qt6 $(QT6_VER): instalando SDK win64_mingw a $(QT6_PREFIX)"; \
+	  echo "[deps] Qt6 $(QT6_VER): instalando SDK win64_msvc2019_64 a $(QT6_PREFIX)"; \
 	  rm -rf "$(QT6_DEST)"; \
-	  "$(PY)" -m aqt install-qt windows desktop $(QT6_VER) win64_mingw -O "$(QT6_DEST)" \
+	  "$(PY)" -m aqt install-qt windows desktop $(QT6_VER) win64_msvc2019_64 -O "$(QT6_DEST)" \
 	    || { echo "[deps] ERROR Qt6: fallo de aqt" >&2; exit 1; }; \
 	  if [ -f "$(QT6_SENTINEL)" ]; then \
 	    echo "[deps] Qt6 $(QT6_VER): SDK instalado ($(QT6_PREFIX))"; \
@@ -546,8 +632,10 @@ deps-webrtc:
 	else \
 	  echo "[deps] libwebrtc: extrayendo a $(WEB_DEST)"; \
 	  rm -rf "$(WEB_DEST)"; \
-	  if [ "$(WEB_KIND)" = "tar" ]; then tar xzf "$(WEBARC)" -C "$(EXTERNS_DIR)"; \
-	  else unzip -q -o "$(WEBARC)" -d "$(EXTERNS_DIR)"; fi; \
+	  rm -rf "$(EXTERNS_DIR)/.webrtc-x" && mkdir -p "$(EXTERNS_DIR)/.webrtc-x"; \
+	  if [ "$(WEB_KIND)" = "tar" ]; then tar xzf "$(WEBARC)" -C "$(EXTERNS_DIR)/.webrtc-x"; \
+	  else unzip -q -o "$(WEBARC)" -d "$(EXTERNS_DIR)/.webrtc-x"; fi; \
+	  mv "$(EXTERNS_DIR)/.webrtc-x/webrtc" "$(WEB_DEST)" && rm -rf "$(EXTERNS_DIR)/.webrtc-x"; \
 	fi
 ifeq ($(BA_WEBRTC_TARGET),linux)
 	@# libwebrtc de Linux usa la libc++ de Chromium (std::__Cr). El SDK trae solo
@@ -597,6 +685,51 @@ deps-lwip:
 	else \
 	  rm -rf "$(EXTERNS_DIR)/lwip" "$(EXTERNS_DIR)/lwip-2.2.0"; \
 	  unzip -q "$(LWIP_ZIP)" -d "$(EXTERNS_DIR)" && mv "$(EXTERNS_DIR)/lwip-2.2.0" "$(EXTERNS_DIR)/lwip"; \
+	fi
+
+# --- Raices de certificados (HTTPS propio de A: API de YouTube) -----------------
+# El cliente HTTPS usa mbedtls (vendoreado): nada de libssl del sistema. Las
+# raices son las de Mozilla empaquetadas por curl, con fecha y hash fijos.
+# libvterm (MIT): emulador de terminal de la pestaña Asistente (la TUI del
+# agente de IA corre adentro). C puro, se compila estatico en ba-app.
+LIBVTERM_URL := https://launchpad.net/libvterm/trunk/v0.3/+download/libvterm-0.3.3.tar.gz
+LIBVTERM_SHA := 09156f43dd2128bd347cbeebe50d9a571d32c64e0cf18d211197946aff7226e0
+# JetBrains Mono (OFL 1.1): fuente monoespaciada de la terminal.
+FONTS_URL := https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip
+FONTS_SHA := 6f6376c6ed2960ea8a963cd7387ec9d76e3f629125bc33d1fdcd7eb7012f7bbf
+
+deps-libvterm:
+	@mkdir -p "$(DL_DIR)"
+	@if [ -f "$(EXTERNS_DIR)/libvterm/src/vterm.c" ]; then echo "[deps] libvterm: ya presente"; else \
+	  f="$(DL_DIR)/libvterm-0.3.3.tar.gz"; \
+	  [ -f "$$f" ] && [ "$$(sha256sum "$$f" | cut -d' ' -f1)" = "$(LIBVTERM_SHA)" ] || curl -fL --retry 3 -o "$$f" "$(LIBVTERM_URL)"; \
+	  printf '%s  %s\n' "$(LIBVTERM_SHA)" "$$f" | sha256sum -c --quiet || { echo "[deps] ERROR libvterm: hash" >&2; exit 1; }; \
+	  rm -rf "$(EXTERNS_DIR)/libvterm" && mkdir -p "$(EXTERNS_DIR)/libvterm" && tar xzf "$$f" -C "$(EXTERNS_DIR)/libvterm" --strip-components=1; \
+	  echo "[deps] libvterm: listo"; fi
+
+deps-fonts:
+	@mkdir -p "$(DL_DIR)"
+	@if [ -f "$(EXTERNS_DIR)/fonts/JetBrainsMono-Regular.ttf" ]; then echo "[deps] fuentes: ya presentes"; else \
+	  f="$(DL_DIR)/JetBrainsMono-2.304.zip"; \
+	  [ -f "$$f" ] && [ "$$(sha256sum "$$f" | cut -d' ' -f1)" = "$(FONTS_SHA)" ] || curl -fL --retry 3 -o "$$f" "$(FONTS_URL)"; \
+	  printf '%s  %s\n' "$(FONTS_SHA)" "$$f" | sha256sum -c --quiet || { echo "[deps] ERROR fuentes: hash" >&2; exit 1; }; \
+	  mkdir -p "$(EXTERNS_DIR)/fonts" && unzip -j -o -q "$$f" "fonts/ttf/JetBrainsMono-Regular.ttf" "fonts/ttf/JetBrainsMono-Bold.ttf" \
+	    "fonts/ttf/JetBrainsMono-Italic.ttf" "fonts/ttf/JetBrainsMono-BoldItalic.ttf" "OFL.txt" -d "$(EXTERNS_DIR)/fonts"; \
+	  echo "[deps] fuentes: listas"; fi
+
+CACERT_URL := https://curl.se/ca/cacert-2026-08-13.pem
+CACERT_SHA := f66dff1bdf8f96060b8177976f8b7d9254bc89bc4db933d769f7384d28480bc9
+deps-cacert:
+	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
+	@mkdir -p "$(EXTERNS_DIR)/cacert"
+	@if [ -f "$(EXTERNS_DIR)/cacert/cacert.pem" ] && [ "$$(sha256sum "$(EXTERNS_DIR)/cacert/cacert.pem" | cut -d' ' -f1)" = "$(CACERT_SHA)" ]; then \
+	  echo "[deps] cacert: ya presente y verificado"; \
+	else \
+	  echo "[deps] cacert: descargando $(CACERT_URL)"; \
+	  curl -fL --retry 3 -o "$(EXTERNS_DIR)/cacert/cacert.pem.part" "$(CACERT_URL)" \
+	    && printf '%s  %s\n' "$(CACERT_SHA)" "$(EXTERNS_DIR)/cacert/cacert.pem.part" | sha256sum -c --quiet \
+	    && mv "$(EXTERNS_DIR)/cacert/cacert.pem.part" "$(EXTERNS_DIR)/cacert/cacert.pem" \
+	    || { echo "[deps] ERROR cacert: fallo de descarga o hash" >&2; rm -f "$(EXTERNS_DIR)/cacert/cacert.pem.part"; exit 1; }; \
 	fi
 
 deps-spout:
@@ -666,9 +799,8 @@ deps-vcredist:
 	fi
 
 deps-lsp:
-	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
 	@command -v 7z >/dev/null 2>&1 || { echo "[deps] ERROR: falta 7z (p7zip) para LSP" >&2; exit 1; }
-	@mkdir -p "$(DL_DIR)" "$(LSP_DEST)"
+	@mkdir -p "$(DL_DIR)"
 	@if [ -f "$(LSP_7Z)" ] && [ "$$(sha256sum "$(LSP_7Z)" | cut -d' ' -f1)" = "$(LSP_SHA)" ]; then \
 	  echo "[deps] LSP: ya presente y verificado ($(LSP_7Z))"; \
 	else \
@@ -678,19 +810,39 @@ deps-lsp:
 	    && printf '%s  %s\n' "$(LSP_SHA)" "$(LSP_7Z)" | sha256sum -c --quiet \
 	    || { echo "[deps] ERROR LSP: fallo de descarga o hash" >&2; rm -f "$(LSP_7Z).part"; exit 1; }; \
 	fi
-	@if [ -f "$(LSP_DEST)/.deps-lsp-$(LSP_VER)" ]; then \
-	  echo "[deps] LSP: ya extraído en $(LSP_DEST)"; \
+	@# Solo el formato CLAP (lo que carga el host) y su licencia.
+	@if [ -f "$(LSP_DEST)/linux-x86_64/lsp-plugins.clap" ]; then \
+	  echo "[deps] LSP: CLAP de Linux ya extraido en $(LSP_DEST)/linux-x86_64"; \
 	else \
-	  echo "[deps] LSP: extrayendo a $(LSP_DEST)"; \
-	  7z x -y -o"$(LSP_DEST)" "$(LSP_7Z)" >/dev/null \
-	    && touch "$(LSP_DEST)/.deps-lsp-$(LSP_VER)"; \
+	  rm -rf "$(LSP_DEST)/linux-x86_64" "$(LSP_DEST)/.x" && mkdir -p "$(LSP_DEST)/linux-x86_64"; \
+	  7z x -y -o"$(LSP_DEST)/.x" "$(LSP_7Z)" 'lsp-plugins-$(LSP_VER)-Linux-x86_64/CLAP/*' \
+	    'lsp-plugins-$(LSP_VER)-Linux-x86_64/COPYING*.txt' 'lsp-plugins-$(LSP_VER)-Linux-x86_64/LICENSE_OFL.txt' >/dev/null \
+	    && mv "$(LSP_DEST)/.x/lsp-plugins-$(LSP_VER)-Linux-x86_64/CLAP/"* "$(LSP_DEST)/linux-x86_64/" \
+	    && mkdir -p "$(LSP_DEST)/licencias" \
+	    && mv "$(LSP_DEST)/.x/lsp-plugins-$(LSP_VER)-Linux-x86_64/"*.txt "$(LSP_DEST)/licencias/"; \
+	  rm -rf "$(LSP_DEST)/.x"; \
+	  patchelf --set-rpath '$$ORIGIN:$$ORIGIN/../../obs-deps-linux/lib' "$(LSP_DEST)/linux-x86_64/lsp-plugins.clap"; \
+	  echo "[deps] LSP: CLAP de Linux en $(LSP_DEST)/linux-x86_64"; \
 	fi
 
+# CLAP (free-audio/clap, MIT): headers del formato de plugins que carga el host.
+CLAP_VER := 1.2.6
+CLAP_SHA := 6548b5831ad9e92551c752753e535b18fead4001165ef1df8e643efefa7133b7
+deps-clap:
+	@mkdir -p "$(DL_DIR)"
+	@if [ -f "$(EXTERNS_DIR)/clap/include/clap/clap.h" ]; then echo "[deps] CLAP: ya presente"; else \
+	  f="$(DL_DIR)/clap-$(CLAP_VER).tar.gz"; \
+	  [ -f "$$f" ] && [ "$$(sha256sum "$$f" | cut -d' ' -f1)" = "$(CLAP_SHA)" ] || \
+	    curl -fL --retry 3 -o "$$f" "https://codeload.github.com/free-audio/clap/tar.gz/refs/tags/$(CLAP_VER)"; \
+	  printf '%s  %s\n' "$(CLAP_SHA)" "$$f" | sha256sum -c --quiet || { echo "[deps] ERROR CLAP: hash" >&2; exit 1; }; \
+	  rm -rf "$(EXTERNS_DIR)/clap" && mkdir -p "$(EXTERNS_DIR)/clap" && tar xzf "$$f" -C "$(EXTERNS_DIR)/clap" --strip-components=1; \
+	  echo "[deps] CLAP $(CLAP_VER): headers en $(EXTERNS_DIR)/clap"; fi
+
 # --- Fuentes de BUILD (se compilan en el producto) ---------------------------
-# Agrupado: baja y extrae los 5 árboles de código de terceros que el
+# Agrupado: baja y extrae los 4 árboles de código de terceros que el
 # CMakeLists raíz consume vía FetchContent. Con `extern/` poblado, el configure
 # es OFFLINE (prefiere la copia vendored); sin él, cae a git.
-deps-src: deps-mbedtls deps-nlohmann deps-samplerate deps-argon2 deps-vst3
+deps-src: deps-mbedtls deps-nlohmann deps-samplerate deps-argon2
 
 deps-mbedtls:
 	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
@@ -793,66 +945,11 @@ deps-argon2:
 	  tar xzf "$(ARGON2_TAR)" -C "$(ARGON2_DEST)" --strip-components=1; \
 	fi
 
-deps-vst3:
-	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
-	@mkdir -p "$(DL_DIR)" "$(VST3_DEST)"
-	@if [ -f "$(VST3_TAR)" ] && [ "$$(sha256sum "$(VST3_TAR)" | cut -d' ' -f1)" = "$(VST3_SHA)" ]; then \
-	  echo "[deps] vst3sdk: ya presente y verificado ($(VST3_TAR))"; \
-	else \
-	  echo "[deps] vst3sdk: descargando $(VST3_URL)"; \
-	  curl -fL --retry 3 --connect-timeout 30 -o "$(VST3_TAR).part" "$(VST3_URL)" \
-	    && mv "$(VST3_TAR).part" "$(VST3_TAR)" \
-	    && printf '%s  %s\n' "$(VST3_SHA)" "$(VST3_TAR)" | sha256sum -c --quiet \
-	    || { echo "[deps] ERROR vst3sdk: fallo de descarga o hash" >&2; rm -f "$(VST3_TAR).part"; exit 1; }; \
-	fi
-	@if [ -f "$(VST3_SENT)" ]; then \
-	  echo "[deps] vst3sdk: ya extraído en $(VST3_DEST)"; \
-	else \
-	  echo "[deps] vst3sdk: extrayendo a $(VST3_DEST)"; \
-	  rm -rf "$(VST3_DEST)"; \
-	  mkdir -p "$(VST3_DEST)"; \
-	  tar xzf "$(VST3_TAR)" -C "$(VST3_DEST)" --strip-components=1; \
-	fi
-	# Submodules: codeload no los incluye (base, cmake, doc, pluginterfaces,
-	# public.sdk, tutorials y vstgui4 quedan como dirs vacíos) y el CMakeLists
-	# del SDK hace FATAL_ERROR si cmake/modules/SMTG_VST3_SDK.cmake no existe
-	# (include(SMTG_VST3_SDK)). Se vendorean los 7 en el commit fijado por cada
-	# gitlink (equivale a `git submodule update --init`). Idempotente: sentinel
-	# presente -> skip. vstgui4 -> repo `vstgui` (NO `vst3_vstgui`).
-	@if [ -f "$(VST3_SUB_SENT)" ]; then \
-	  echo "[deps] vst3sdk submodules: ya presentes en $(VST3_DEST)"; \
-	else \
-	  echo "[deps] vst3sdk submodules: descargando y extrayendo los 7 submodules"; \
-	  for spec in \
-	    "base $(VST3_BASE_SHA) $(VST3_BASE_URL) $(VST3_BASE_TAR)" \
-	    "cmake $(VST3_CMAKE_SHA) $(VST3_CMAKE_URL) $(VST3_CMAKE_TAR)" \
-	    "doc $(VST3_DOC_SHA) $(VST3_DOC_URL) $(VST3_DOC_TAR)" \
-	    "pluginterfaces $(VST3_PI_SHA) $(VST3_PI_URL) $(VST3_PI_TAR)" \
-	    "public.sdk $(VST3_PSDK_SHA) $(VST3_PSDK_URL) $(VST3_PSDK_TAR)" \
-	    "tutorials $(VST3_TUT_SHA) $(VST3_TUT_URL) $(VST3_TUT_TAR)" \
-	    "vstgui4 $(VST3_GUI_SHA) $(VST3_GUI_URL) $(VST3_GUI_TAR)"; do \
-	    set -- $$spec; \
-	    name=$$1; sha=$$2; url=$$3; tar=$$4; \
-	    if [ -f "$$tar" ] && [ "$$(sha256sum "$$tar" | cut -d' ' -f1)" = "$$sha" ]; then \
-	      echo "[deps] vst3sdk $$name: tar ya verificado"; \
-	    else \
-	      echo "[deps] vst3sdk $$name: descargando $$url"; \
-	      curl -fL --retry 3 --connect-timeout 30 -o "$$tar.part" "$$url" \
-	        && mv "$$tar.part" "$$tar" \
-	        && printf '%s  %s\n' "$$sha" "$$tar" | sha256sum -c --quiet \
-	        || { echo "[deps] ERROR vst3sdk $$name: fallo de descarga o hash" >&2; rm -f "$$tar.part"; exit 1; }; \
-	    fi; \
-	    rm -rf "$(VST3_DEST)/$$name"; \
-	    mkdir -p "$(VST3_DEST)/$$name"; \
-	    tar xzf "$$tar" -C "$(VST3_DEST)/$$name" --strip-components=1; \
-	  done; \
-	fi
-
 # --- Estado / limpieza de dependencias --------------------------------------
 deps-status:
 	@echo "Assets de terceros en $(EXTERNS_DIR)/:"
 	@echo "  OBS $(OBS_TAG)          : $$( [ -f '$(OBS_DEST)/obs-plugins/64bit/libcef.dll' ] && echo OK || echo ausente )"
-	@echo "  Qt6 $(QT6_VER) (win64_mingw): $$( [ -f '$(QT6_SENTINEL)' ] && echo OK || echo ausente )"
+	@echo "  Qt6 $(QT6_VER) (win64_msvc2019_64): $$( [ -f '$(QT6_SENTINEL)' ] && echo OK || echo ausente )"
 	@echo "  libwebrtc M123 ($(BA_WEBRTC_TARGET)): $$( [ -f '$(WEB_DEST)/lib/$(WEB_LIB)' ] && echo OK || echo ausente )"
 	@echo "  Spout2 $(SPOUT2_TAG)          : $$( [ -f '$(SPOUT_DEST)/SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX.h' ] && echo OK || echo ausente )"
 	@echo "  cloudflared $(CLOUDFLARED_VER)     : $$( [ -f '$(CFL_EXE)' ] && echo OK || echo ausente )"
@@ -863,7 +960,6 @@ deps-status:
 	@echo "  nlohmann v3.11.3      : $$( [ -f '$(NLOHMANN_SENT)' ] && echo OK || echo ausente )"
 	@echo "  libsamplerate 0.2.2   : $$( [ -f '$(SAMPLERATE_SENT)' ] && echo OK || echo ausente )"
 	@echo "  argon2 20190702       : $$( [ -f '$(ARGON2_SENT)' ] && echo OK || echo ausente )"
-	@echo "  vst3sdk v3.7.9_build_61: $$( [ -f '$(VST3_SENT)' ] && echo OK || echo ausente )"
 
 deps-clean:
 	@echo "[deps] borrando $(EXTERNS_DIR)/"

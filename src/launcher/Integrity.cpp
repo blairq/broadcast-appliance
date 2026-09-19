@@ -92,7 +92,11 @@ std::wstring join(const std::wstring& a, const std::wstring& b) {
     if (a.back() == L'\\' || a.back() == L'/') {
         return a + b;
     }
+#ifdef _WIN32
     return a + L"\\" + b;
+#else
+    return a + L"/" + b; // en Linux/macOS "\\" es parte del nombre: el manifest nunca se encontraba
+#endif
 }
 
 } // namespace

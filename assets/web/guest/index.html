@@ -38,6 +38,11 @@
           <input id="pin" type="password" inputmode="numeric" autocomplete="off" placeholder="••••••" />
         </div>
       </div>
+      <label for="info">Sobre vos <span class="opt">(opcional)</span></label>
+      <input id="info" type="text" maxlength="200" autocomplete="off" placeholder="De dónde sos, de qué querés hablar…" />
+      <label for="contact">Contacto <span class="opt">(opcional)</span></label>
+      <input id="contact" type="text" maxlength="120" autocomplete="tel" placeholder="Teléfono o e-mail, por si se corta" />
+      <p class="hint">Solo lo ve la producción, para ubicarte si se corta la conexión.</p>
       <button id="btn-join" class="primary">Continuar</button>
       <p id="join-error" class="error" role="alert"></p>
     </div>
@@ -85,6 +90,12 @@
       <div class="status" id="conn-state">Conectando…</div>
       <div class="onair hidden" id="onair">● Estás en la sala</div>
     </header>
+    <!-- Modo oradores: turno en la fila y reloj de tu intervención -->
+    <div class="speaker-bar hidden" id="speaker-bar">
+      <div class="sp-state" id="sp-state"></div>
+      <div class="sp-clock" id="sp-clock"></div>
+      <div class="sp-note" id="sp-note"></div>
+    </div>
     <div class="stage">
       <div class="tile program-tile">
         <video id="remote-video" class="remote" autoplay playsinline></video>

@@ -30,6 +30,7 @@ servidor propio por WireGuard).
 |---|---|---|
 | `Lobby(k)` | cámara → `BA.Lobby.k` (solo el operador) · voz → `BA.Audio.Lobby.k` solo si "hablar" | cámara del operador `BA.Operator` (o placa) · voz del operador solo si "hablar" |
 | `Program(n)` | cámara → `BA.Guest.n` · pantalla → `BA.GuestShare.n` · voz → `BA.Audio.Guest.n` | programa `BA.Program` + retorno de audio |
+| `Backstage(k)` | cámara → `BA.Backstage.k` (preview chico a ~10 fps, solo el operador) si está entre los primeros `backstagePreviews` (6) de la fila; si no, nada | programa `BA.Program` + retorno de audio |
 
   Admitir a alguien **cambia su ruta, no su conexión**: la misma
   PeerConnection pasa de "ve al operador" a "ve el programa", sin cortes.
@@ -63,10 +64,60 @@ servidor propio por WireGuard).
 - Chat (a todos, al operador, o del operador a uno), mano levantada, pedidos
   del operador (silenciar, apagar cámara, cortar pantalla, bajar la mano).
 
+## Modo oradores
+
+Para cuando hay mucha gente que va a hablar por turnos (página Sala →
+**Oradores**, o la consola web).
+
+- Con el modo activo, **admitir** a alguien lo pone en la **fila de oradores**
+  (no necesita slot): mira el programa en vivo (ruta `Backstage`) y su
+  navegador le muestra su lugar y cuánto falta.
+- Cada orador tiene un **tiempo**: el general (se aplica al entrar) o uno propio
+  (✎ en la tarjeta). La fila se **reordena** con ◀ ▶.
+- **Al aire**: *uno a la vez* (el que estaba sale) o *varios*; entra en el
+  **slot por defecto** (o el primero libre). Sacarlo del aire lo devuelve a la
+  fila como "habló", nunca lo echa.
+- El **reloj nunca saca a nadie**: llega a cero y sigue en negativo (`+m:ss`).
+  El invitado lo ve en grande; los últimos 10 s el número crece y late, y
+  pasado el tiempo se pone rojo. El operador lo ve en la tarjeta, en un reloj
+  flotante sobre cualquier página de la app y en la tarjeta "Oradores" del
+  dashboard.
+- **Carrusel**: *manual*; *al sacar, entra el siguiente*; o *automático por
+  tiempo* (pasado cero + un margen configurable, rota solo).
+- Cada tarjeta tiene cara: video en vivo (al aire, el del programa; en la
+  fila, el preview de los primeros de la fila: `BA.Backstage.k`, 320x180 a
+  ~10 fps, que se reasigna al reordenar o al salir al aire) o, sin video, la
+  foto chica que manda el navegador cada 5 s, nombre, **información** y **contacto** (los carga el invitado
+  al entrar, "solo lo ve la producción", para ubicarlo si se corta; el
+  operador los puede editar).
+
+### Tablero para una tablet (solo lectura)
+
+**Tablero ▾** da el enlace y el QR (red local o dominio público). Muestra
+quién está al aire con su reloj grande, la fila con caras en vivo, datos,
+contacto, tiempo de cada uno y cuándo entra cada uno, y quiénes ya hablaron
+(y cuánto se pasaron). La clave viaja en el fragmento del enlace y cambia en
+cada arranque de B.
+
+## Video en vivo en las vistas web (relay)
+
+La consola web y el tablero muestran el video de los invitados. B lo reenvía
+como un **SFU**: toma los paquetes codificados tal como llegan del invitado
+(antes de decodificarlos para A) y los copia a la PeerConnection de cada vista.
+
+- El invitado **sube una sola vez**, sin importar cuántas vistas lo miren.
+- B **no re-codifica**: copia bytes (una copia por cuadro, compartida por
+  todas las vistas); el costo por vista es solo de red.
+- Una vista nueva arranca en un keyframe (se le pide uno al invitado); los
+  NACK los atiende B desde su historial; si una vista se congela, pide otro
+  keyframe.
+- Señalización en un solo pedido HTTP (offer y answer con candidatos). Los
+  espectadores caídos se cierran solos; tope de `kMaxViewers` (48).
+
 ## API de control
 
 Siempre en `127.0.0.1:8788` (nunca por el túnel). Credenciales: `Bearer` con el
-token de `<runtime>/gateway-admin.json` (solo-usuario) o la cookie de la
+token de `Runtime/gateway-admin.json (dentro del bundle)` (solo-usuario) o la cookie de la
 consola web (escrituras con `X-BA-Admin: 1`, defensa CSRF).
 
 | Método | Ruta | |
@@ -79,6 +130,13 @@ consola web (escrituras con `X-BA-Admin: 1`, defensa CSRF).
 | POST | `/api/v1/participants/<id>/talk` | `{on}` hablar en privado (lobby) |
 | POST | `/api/v1/participants/<id>/request` | `{what}` |
 | POST | `/api/v1/chat` | `{text, to?}` |
+| POST | `/api/v1/speakers` | `{enabled?, defaultSec?, carousel?: manual\|chain\|time, graceSec?, multi?, defaultSlot?}` |
+| POST | `/api/v1/speakers/next` | al aire el siguiente de la fila |
+| POST | `/api/v1/participants/<id>/onair` | `{on}` |
+| POST | `/api/v1/participants/<id>/move\|time\|requeue\|profile` | `{index}` · `{sec}` · — · `{name?, info?, contact?}` |
+| GET | `/api/v1/participants/<id>/avatar` | foto de la tarjeta (JPEG) |
+| GET | `/api/v1/board-link?target=local\|remote` | enlace + QR del tablero |
+| POST / DELETE | `/api/v1/view` · `/api/v1/view/<id>` (`/keyframe`) | video en vivo (relay) |
 | GET / DELETE | `/api/v1/shares/<id>/content` · `/api/v1/shares/<id>` | |
 | GET | `/api/v1/network` | HTTPS, túnel, IPs y enlaces |
 | POST | `/api/v1/network/server-config` | `{endpoint, interface?}` → `wg0.conf` del servidor |
@@ -105,8 +163,9 @@ Los navegadores solo dan cámara y micrófono en páginas seguras. B atiende
 HTTPS en `httpsPort` (8789) y reenvía al servidor de la sala con la IP real del
 invitado (PROXY v1).
 
-- Certificado propio: `Config/tls/cert.pem` + `key.pem` (p. ej. Let's Encrypt
-  del dominio público) → sin avisos.
+- Certificado propio: dejar `cert.pem` + `key.pem` en `Credenciales/` (p. ej.
+  Let's Encrypt del dominio público); al arrancar se importan cifrados (y se
+  borran los originales) → sin avisos.
 - Si no hay, uno **autofirmado** (ECDSA P-256) con las IPs de la LAN y la
   dirección pública, reutilizado entre arranques. El navegador avisa la
   primera vez; aceptado, todo funciona.
@@ -136,7 +195,7 @@ Puesta en marcha (página Sala → **Configurar servidor WireGuard…**):
    `systemctl enable --now wg-quick@wg0`. Abrir en el firewall del proveedor:
    UDP 51820, TCP 80/443 y UDP 40000-40099.
 
-La clave privada de este equipo vive en `Config/wireguard.key` (solo-usuario)
+La clave privada de este equipo vive cifrada en `Credenciales/wireguard-key.cred`
 o en `BA_WG_PRIVATE_KEY`; la PSK opcional, en `BA_WG_PSK`.
 
 ## Seguridad

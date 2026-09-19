@@ -300,7 +300,6 @@ bool DiagExport::writeMinidump(const std::string& path) {
 
     // Doble cast via `void*`: GetProcAddress devuelve FARPROC (funcion), y
     // castear directamente funcion->funcion dispara `-Wcast-function-type`.
-    // (Mismo patron que Vst3Host.cpp.)
     auto fn = reinterpret_cast<MiniDumpWriteDumpFn>(
         reinterpret_cast<void*>(::GetProcAddress(dbghelp, "MiniDumpWriteDump")));
     if (!fn) {

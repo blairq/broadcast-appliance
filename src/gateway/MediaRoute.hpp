@@ -12,6 +12,10 @@
 //   Program(n)  sube -> BA.Guest.<n> / BA.Audio.Guest.<n> (+ pantalla en
 //               BA.GuestShare.<n>)
 //               baja <- programa + retorno de audio
+//   Backstage(k) (modo oradores, esperando turno)
+//               sube -> camara a BA.Backstage.<k> si tiene lugar de preview
+//               (chica, solo la vista del operador; nunca el programa)
+//               baja <- programa + retorno de audio
 //   None        nada (desconectado / sin lugar)
 //
 // Asi un invitado del lobby solo ve al operador (nunca a los demas del lobby
@@ -24,13 +28,18 @@
 namespace ba::gateway {
 
 struct MediaRoute {
-    enum class Kind : uint8_t { None, Program, Lobby };
+    /// Backstage: admitido en modo oradores, esperando su turno: RECIBE el
+    /// programa pero lo que manda no va a ningun lado (ni al programa).
+    enum class Kind : uint8_t { None, Program, Lobby, Backstage };
     Kind kind = Kind::None;
     int index = 0;     ///< slot del programa (1..guests) o del lobby (1..lobbySlots)
     bool talk = false; ///< lobby: el operador le habla (le llega su voz)
 
     static MediaRoute program(int slot) { return {Kind::Program, slot, false}; }
     static MediaRoute lobby(int slot, bool talk) { return {Kind::Lobby, slot, talk}; }
+    /// `preview`: lugar de preview de la fila (1..backstageSlots) -> su camara
+    /// sube a BA.Backstage.<k> (chica, solo para la vista del operador); 0 = no sube.
+    static MediaRoute backstage(int preview = 0) { return {Kind::Backstage, preview, false}; }
     bool operator==(const MediaRoute& o) const {
         return kind == o.kind && index == o.index && talk == o.talk;
     }

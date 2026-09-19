@@ -55,6 +55,7 @@ struct Config {
     uint16_t metricsPort = 9099;           // puerto de métricas de cloudflared (loopback)
     std::string bindAddress = "127.0.0.1"; // escucha de la senalizacion
     bool tunnel = true;                    // lanzar cloudflared si hay token
+    std::string tunnelHostname;            // dominio publico del tunel de Cloudflare (sala.midominio.com)
     std::string room = "sala1";            // sala por defecto
     // PIN de la sala. VACIO por defecto a proposito: un PIN fijo en el binario
     // es publico (el bundle es portable). Si queda vacio, main() lo toma de
@@ -76,6 +77,8 @@ struct Config {
     uint16_t adminPort = 8788; // API del operador (siempre 127.0.0.1)
     bool lobby = true;         // el operador admite a cada invitado
     int lobbySlots = 4;        // cuantos del lobby muestran su camara al operador
+    int maxBackstage = 12;     // modo oradores: cuantos en la fila ven el programa
+    int backstagePreviews = 6; // de la fila, cuantos (los primeros) muestran su camara al operador
     int maxUploadMB = 2048;    // tope por archivo compartido
     std::string adminWebroot;  // Web/admin (consola web del operador)
     // --- Acceso directo de invitados ----------------------------------------
@@ -122,6 +125,7 @@ struct Config {
         bindAddress = j.value("bindAddress", bindAddress);
         room = j.value("room", room);
         tunnel = j.value("tunnel", tunnel);
+        tunnelHostname = j.value("tunnelHostname", tunnelHostname);
         metricsPort = j.value("metricsPort", metricsPort);
         videoW = j.value("videoW", videoW);
         videoH = j.value("videoH", videoH);
@@ -130,6 +134,8 @@ struct Config {
         adminPort = j.value("adminPort", adminPort);
         lobby = j.value("lobby", lobby);
         lobbySlots = j.value("lobbySlots", lobbySlots);
+        maxBackstage = j.value("maxBackstage", maxBackstage);
+        backstagePreviews = j.value("backstagePreviews", backstagePreviews);
         https = j.value("https", https);
         httpsPort = j.value("httpsPort", httpsPort);
         rtcPortMin = j.value("rtcPortMin", rtcPortMin);
@@ -213,6 +219,10 @@ struct Config {
         if (maxUploadMB <= 0) maxUploadMB = 2048;
         if (lobbySlots < 0) lobbySlots = 0;
         if (lobbySlots > 8) lobbySlots = 8;
+        if (maxBackstage < 0) maxBackstage = 0;
+        if (maxBackstage > 32) maxBackstage = 32;
+        if (backstagePreviews < 0) backstagePreviews = 0;
+        if (backstagePreviews > 8) backstagePreviews = 8; // A se suscribe a BA.Backstage.1..8
         if (rtcPortMax < rtcPortMin) rtcPortMax = rtcPortMin;
         if (rtcPortMax - rtcPortMin > 150) rtcPortMax = static_cast<uint16_t>(rtcPortMin + 150);
     }

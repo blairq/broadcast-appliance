@@ -15,6 +15,13 @@
 //        GET  /ws?resume=&key=       WebSocket de sala (reconexion)
 //        POST /api/v1/files?name=    subida de un archivo para mostrar
 //                                    (cabecera X-BA-Key; solo admitidos)
+//        POST /api/v1/avatar         foto chica (JPEG <= 64 KB) para las
+//                                    tarjetas de oradores (X-BA-Key)
+//        GET  /board/...             tablero de oradores (solo lectura)
+//        GET  /api/v1/board          estado del tablero (cabecera X-BA-Board)
+//        GET  /api/v1/board/avatar/<id>?k=  foto de una tarjeta del tablero
+//        POST /api/v1/board/view     {participant, sdp} -> video en vivo de
+//                                    un orador (relay, ver Webrtc.hpp)
 //
 //   2) CONTROL DEL OPERADOR — SIEMPRE 127.0.0.1:adminPort (nunca por el
 //      tunel). Es la API de la que cuelgan la vista web (Web/admin) y la vista
@@ -28,7 +35,10 @@
 //   servidor -> invitado:
 //     {type:"hello", id, key, name, room, lobby}   al entrar / reengancharse
 //     {type:"lobby", position}                     sigue esperando
-//     {type:"admitted", slot}                      puede publicar medios
+//     {type:"admitted", slot, backstage}           puede publicar medios
+//     {type:"speaker", state, position?, etaSec?, allottedSec, startedMs,
+//      usedMs, serverNowMs}                        modo oradores: turno y reloj
+//     {type:"profile", name, info, contact}        el operador edito sus datos
 //     {type:"rejected"} / {type:"kicked"}          y se corta la conexion
 //     {type:"request", what}                       pedido del operador
 //     {type:"chat", msg} / {type:"shared", ...}
@@ -37,6 +47,7 @@
 //     {type:"offer", sdp} / {type:"ice", candidate}   (solo admitido)
 //     {type:"media", mic, cam, screen, hand}
 //     {type:"chat", text}
+//     {type:"profile", info, contact}
 //     {type:"bye"}
 //
 // Modelo de threading:
@@ -88,6 +99,7 @@ class SignalingServer {
         std::string adminWebroot;  // Web/admin (consola web)
         std::string adminToken;    // Bearer / cookie de la consola; vacio = sin API de control
         int maxSharesPerGuest = 20;
+        std::string boardWebroot; // Web/board (tablero de oradores)
     };
 
     SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub, Room& room, ShareStore& shares,
@@ -116,6 +128,11 @@ class SignalingServer {
     void setPublicAddress(const std::string& ip) { publicAddress_ = ip; }
     /// Estado de red para la API de control (/api/v1/network).
     void setNetworkStatus(std::function<nlohmann::json()> fn) { networkStatus_ = std::move(fn); }
+    /// URL de ingreso para el QR: target "local" (red local) o "remote"
+    /// (dominio de Cloudflare). Devuelve {url} o {error}.
+    void setJoinUrlProvider(std::function<nlohmann::json(const std::string& target)> fn) {
+        joinUrl_ = std::move(fn);
+    }
     /// Genera la configuracion del servidor WireGuard (/api/v1/network/server-config).
     void setServerConfigGenerator(std::function<nlohmann::json(const nlohmann::json&)> fn) {
         serverConfig_ = std::move(fn);
@@ -124,6 +141,8 @@ class SignalingServer {
     /// Cambia el PIN de la sala (API de control). Vacio = generar uno.
     /// :returns: el PIN vigente, o vacio si no se pudo generar.
     std::string changePin(const std::string& pin);
+    /// Clave del tablero de oradores (aleatoria por arranque).
+    const std::string& boardToken() const { return boardToken_; }
 
    private:
     // --- Conexiones ---------------------------------------------------------
@@ -140,11 +159,27 @@ class SignalingServer {
     void apiJoin(long long fd, const std::string& body, std::uint32_t clientIp);
     void apiVerify(long long fd, const std::string& query);
     void apiUpload(long long fd, const std::string& headers, const std::string& query);
+    void apiAvatarUpload(long long fd, const std::string& headers, const std::string& body);
+    void apiBoard(long long fd, const std::string& method, const std::string& path, const std::string& query,
+                  const std::string& headers, const std::string& body);
+    /// Espectador del video de un participante (relay de B, sin re-codificar).
+    /// `board`: pedido del tablero (solo oradores de la fila, no el lobby).
+    void apiView(long long fd, const std::string& body, bool board);
+    /// POST .../view/<id>/keyframe y DELETE .../view/<id>.
+    void apiViewAction(long long fd, const std::string& method, const std::string& rest, bool board);
+    /// Candidatos del answer de un espectador: loopback -> IP publica del tunel.
+    std::string publicSdp(const std::string& sdp) const;
+    std::map<int, bool> viewerOwners_; // id -> es del tablero
+    std::mutex viewersLock_;
+    /// Foto de un participante (vacio si no hay). Borra las de quien ya no esta.
+    std::string avatarOf(const std::string& id);
+    void sendAvatar(long long fd, const std::string& id);
 
     /// Handshake + alta del participante. :returns: su id, o vacio si fallo.
     std::string wsOpen(long long fd, const std::string& headers, const std::string& query,
                        std::uint32_t clientIp);
     void wsLoop(long long fd, const std::string& pid, uint64_t gen);
+    void handleWsMessage(const std::string& pid, uint64_t gen, const nlohmann::json& msg);
     void handleOffer(const std::string& pid, uint64_t gen, const std::string& sdp);
 
     struct WsConn {
@@ -219,6 +254,10 @@ class SignalingServer {
     std::string publicAddress_;
     std::function<nlohmann::json()> networkStatus_;
     std::function<nlohmann::json(const nlohmann::json&)> serverConfig_;
+    std::function<nlohmann::json(const std::string&)> joinUrl_;
+    std::map<std::string, std::string> avatars_; // pid -> JPEG (solo en memoria)
+    std::mutex avatarsLock_;
+    std::string boardToken_;
     /// Reescribe 127.0.0.1 -> IP publica en un candidato ("candidate:...").
     std::string publicCandidate(const std::string& line) const;
 

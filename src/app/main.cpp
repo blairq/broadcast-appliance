@@ -15,6 +15,8 @@
 // ============================================================================
 
 #include "OperatorEngine.hpp"
+#include "platform/Paths.hpp"
+#include "security/CredentialStore.hpp"
 
 #include <cmath>
 #include <cstdio>
@@ -113,6 +115,10 @@ bool hasFlag(int argc, char** argv, const char* flag) {
 }
 
 int dispatch(int argc, char** argv) {
+    // Portable: caches de Qt/fontconfig/shaders al bundle (antes de Qt y libobs).
+    ba::platform::redirectUserDirs();
+    // Credenciales en claro de versiones anteriores -> Credenciales/ cifradas.
+    ba::security::CredentialStore::bundle().importLegacy(ba::platform::dataRoot());
     // --restore (spec §3.1.8): el launcher lo pasa al relanzar A tras un crash.
     const bool restore = hasFlag(argc, argv, "--restore");
     if (hasFlag(argc, argv, "--headless-selftest")) {

@@ -31,7 +31,7 @@ Tests verdes: `test_platform`, `test_shared_audio_ring`, `test_health_block`,
 `test_ipc_cross_process`, `test_control_protocol`, `test_spout_transport`,
 `test_shadow_copy`, `test_channel_strip`, `test_token_service`,
 `test_snapshot_store`, `test_device_match`, `test_automixer`,
-`test_vst3_host`, `test_plugin_deploy`, `test_resampler`, `test_secrets`,
+`test_resampler`, `test_secrets`,
 `test_restore`, `test_diag`, `test_fault`, `test_ring_drift`,
 `test_ba_sources_real`, `test_gateway_http`.
 Saltado: `test_gateway_integration` (sin libwebrtc).
@@ -80,10 +80,10 @@ Saltado: `test_gateway_integration` (sin libwebrtc).
 | Presets DSP (7.3) como sets de parámetros | `[HECHO]` |
 | Automixer Dugan (7.3 mesa redonda) | `[HECHO]` |
 | Resampling adaptativo (7.4): `ba::dsp::Resampler` (libsamplerate) | `[HECHO]` |
-| Host VST3/LSP (7.5, **AHORA CORE**): scanner de bundles + carga + editor GUI completo | `[HECHO]` (núcleo Linux: `ba_plugin_host` + `scanDirectory`) / `[GATED:Win]` (carga real del `.vst3` + embebido del editor) |
-| Deploy de LSP a `assets/audio-plugins/` (7.5): `PluginDeployer` + `manifest.json` | `[HECHO]` |
+| Módulos LSP (7.5, **CORE**): host CLAP propio + editor gráfico de LSP (X11/Win32), rack por fuente | `[HECHO]` (`src/app/audio`; reemplazó al esqueleto VST3 `ba_plugin_host`, eliminado) |
+| LSP en el bundle (`plugins/lsp/`): Linux oficial, Windows compilado desde fuente | `[HECHO]` |
 | Patch P1 (bus DSP) + buses físicos | `[COLA][GATED:libobs]` |
-| Patchbay (6.7) | `[COLA][GATED:Qt]` |
+| Patchbay (6.7) | `[HECHO]` por fuente (pestaña Audio, módulos LSP + analizador + generador, MCP) |
 
 ### Fase 5 — Operación
 | Tarea | Estado |
@@ -131,3 +131,4 @@ Saltado: `test_gateway_integration` (sin libwebrtc).
 - **Cross-comp Linux/Windows:** el árbol compila en ambos; los includes POSIX (`<unistd.h>`, `<sys/mman.h>`) van guardados con `#if defined(_WIN32)` (p. ej. `getpid()` en tests usa `random_device` en Windows). Los caminos `_WIN32` se validan de compilación en MSVC.
 - **Resampling (7.4) y secrets (12):** resampling → **libsamplerate** (Secret Rabbit Code, MIT; el repo canónico es `libsndfile/libsamplerate`, tag real `0.2.2` — `v2.2.0` no existe) vía `ba::dsp::Resampler`; `secrets.json` → **AES-256-GCM** (mbedTLS) + KDF **Argon2id** (referencia P-H-C, tag `20190702`) vía `ba::security::SecretsStore`. Ambos incondicionales (compilan en Linux y Windows).
 - **LSP/VST3 = CORE (el usuario SOBRESCRIBE la decisión D6 / §7.5):** LSP ya no es opcional ni "fuera de la v1"; es parte del corazón y se usa **con su editor gráfico completo** (no solo parámetros/presets), compilado para Windows. Fundamento: `src/plugin-host/` (`ba_plugin_host`, namespace `ba::plugin`): `scanDirectory()` es C++ puro (`std::filesystem`, cross-platform, testeado en Linux) y la carga real + embebido del editor viven en `#ifdef _WIN32` (LoadLibraryW → `ModuleEntry` → QI de `IAudioProcessor`/controller → `createView`). El **VST3 SDK** (MIT) es la base del host (no se re-implementa el ABI); **LSP** (LGPL) es el asset de despliegue que se empaqueta en `assets/audio-plugins/`. Pins: `VST3_SDK_VERSION=v3.7.9_build_61` (FetchContent, **solo bajo `if(WIN32)`** → Linux queda offline) y `LSP_VERSION=1.2.35` (asset, no se compila).
+  - **Actualización:** el host VST3 (`ba_plugin_host`) quedó reemplazado por un host **CLAP** propio en `src/app/audio` (rack por fuente, pestaña Audio, MCP): LSP publica CLAP para Linux y se compila desde fuente para Windows (`tools/deps/lsp-win.sh`). El VST3 SDK, `src/plugin-host/` y `assets/audio-plugins/` se eliminaron.

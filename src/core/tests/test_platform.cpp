@@ -507,14 +507,28 @@ void testSocketLargeWrite() {
     CHECK(s.read(&b, 1) < 0);
 }
 
+// Wine no respeta FILE_FLAG_FIRST_PIPE_INSTANCE (Windows si): bajo Wine (CI
+// de Windows desde Linux) la prueba de "nombre ocupado" no aplica.
+bool underWine() {
+#ifdef _WIN32
+    HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
+    return ntdll != nullptr && GetProcAddress(ntdll, "wine_get_version") != nullptr;
+#else
+    return false;
+#endif
+}
+
 void testSocketNameInUseAndStale() {
     const std::string name = uniqueName("busy");
     LocalServer a;
     CHECK(LocalServer::listen(name, a));
     LocalServer b;
     std::string err;
-    CHECK(!LocalServer::listen(name, b, &err)); // ocupado por un servidor vivo
-    CHECK(!err.empty());
+    if (!underWine()) {
+        CHECK(!LocalServer::listen(name, b, &err)); // ocupado por un servidor vivo
+        CHECK(!err.empty());
+    }
+    b.close();
     a.close();
     CHECK(LocalServer::listen(name, b, &err)); // liberado
     b.close();
@@ -610,10 +624,15 @@ void testSingleInstance() {
     code = child2.wait(10000);
     CHECK(code.has_value() && *code == 0); // libre: el hijo lo toma
 
+#if defined(__linux__)
+    // Linux: lock en el espacio abstracto; no debe quedar NADA en disco.
+    CHECK(!std::filesystem::exists(runtimeDir() / (name + ".lock")));
+#else
     // El lockfile queda a proposito (borrarlo al soltar abre una carrera con
     // quien ya lo tiene abierto); el test limpia el suyo.
     std::error_code ec;
     std::filesystem::remove(runtimeDir() / (name + ".lock"), ec);
+#endif
 }
 
 } // namespace

@@ -16,6 +16,10 @@
 //      de la camara.
 //   4. Retorno: lo que B empuja con pushLocalVideo/pushLocalAudio llega al
 //      invitado (su track remoto recibe frames y audio).
+//   5. Espectadores (relay): una PeerConnection "espectadora" (recvonly) ve la
+//      CAMARA del invitado (rojo, 640x360: no es el retorno gris de B) y otra
+//      su PANTALLA (1280 de ancho), con los cuadros reenviados codificados
+//      (keyframe pedido aguas arriba al abrir). Cerrar el espectador lo saca.
 //
 // Necesita al menos una interfaz de red (se permite loopback). Sin conexion en
 // el plazo, SKIP (77): en un CI sin red no se puede probar RTP.
@@ -131,6 +135,36 @@ class CountingSink : public rtc::VideoSinkInterface<webrtc::VideoFrame> {
     std::atomic<int> frames{0};
 };
 
+/// Sonda de un espectador: cuenta cuadros y guarda tamaño y color central.
+class ProbeSink : public rtc::VideoSinkInterface<webrtc::VideoFrame> {
+   public:
+    void OnFrame(const webrtc::VideoFrame& f) override {
+        auto i420 = f.video_frame_buffer()->ToI420();
+        w = i420->width();
+        h = i420->height();
+        v = i420->DataV()[(i420->height() / 4) * i420->StrideV() + i420->width() / 4];
+        frames++;
+    }
+    std::atomic<int> frames{0}, w{0}, h{0}, v{0};
+};
+
+/// Espectador: PeerConnection recvonly (como la vista web).
+class Viewer : public webrtc::PeerConnectionObserver {
+   public:
+    rtc::scoped_refptr<webrtc::PeerConnectionInterface> pc;
+    ProbeSink sink;
+    void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState) override {}
+    void OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface>) override {}
+    void OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState) override {}
+    void OnIceCandidate(const webrtc::IceCandidateInterface*) override {}
+    void OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> t) override {
+        auto track = t->receiver()->track();
+        if (track && track->kind() == webrtc::MediaStreamTrackInterface::kVideoKind)
+            static_cast<webrtc::VideoTrackInterface*>(track.get())
+                ->AddOrUpdateSink(&sink, rtc::VideoSinkWants());
+    }
+};
+
 /// Lado navegador: PeerConnection offerer + su observador.
 class Browser : public webrtc::PeerConnectionObserver {
    public:
@@ -183,7 +217,11 @@ bool waitFor(const std::function<bool()>& cond, int ms) {
 
 int main() {
     std::printf("== test_webrtc_loopback (libwebrtc real) ==\n");
+#ifdef _WIN32
+    _putenv_s("BA_WEBRTC_ALLOW_LOOPBACK", "1");
+#else
     ::setenv("BA_WEBRTC_ALLOW_LOOPBACK", "1", 1);
+#endif
 
     // --- Lado B: el hub y una sesion, como en el gateway ------------------------
     WebrtcHub hub(1, 640, 360, 48000, 2);
@@ -369,6 +407,66 @@ int main() {
     const int camBefore = camFrames.load();
     CHECK(waitFor([&]() { return camFrames.load() > camBefore + 10; }, 5000),
           "la camara sigue llegando despues del re-offer");
+
+    // --- Espectadores: relay de lo codificado (sin re-codificar) -----------------
+    auto openViewer = [&](Viewer& vw, bool wantScreen) -> int {
+        auto r = bf->CreatePeerConnectionOrError(cfg, webrtc::PeerConnectionDependencies(&vw));
+        if (!r.ok()) return 0;
+        vw.pc = r.MoveValue();
+        webrtc::RtpTransceiverInit init;
+        init.direction = webrtc::RtpTransceiverDirection::kRecvOnly;
+        vw.pc->AddTransceiver(cricket::MEDIA_TYPE_VIDEO, init);
+        std::atomic<bool> set{false};
+        auto vpc = vw.pc;
+        vpc->CreateOffer(
+            rtc::make_ref_counted<CsdObs<std::function<void(webrtc::SessionDescriptionInterface*)>>>(
+                [&, vpc](webrtc::SessionDescriptionInterface* d) {
+                    vpc->SetLocalDescription(rtc::make_ref_counted<SetObs>().get(), d);
+                    set = true;
+                })
+                .get(),
+            {});
+        waitFor([&]() { return set.load(); }, 5000);
+        // Sin goteo (como la vista web): el offer va con sus candidatos.
+        waitFor(
+            [&]() {
+                return vpc->ice_gathering_state() == webrtc::PeerConnectionInterface::kIceGatheringComplete;
+            },
+            5000);
+        std::string offer, answer;
+        vpc->local_description()->ToString(&offer);
+        const int id = hub.openViewer(1, wantScreen, offer, answer);
+        if (id <= 0) return 0;
+        webrtc::SdpParseError err;
+        auto ans = webrtc::CreateSessionDescription(webrtc::SdpType::kAnswer, answer, &err);
+        if (!ans) return 0;
+        vpc->SetRemoteDescription(rtc::make_ref_counted<SetObs>().get(), ans.release());
+        return id;
+    };
+    Viewer camView, screenView;
+    const int camId = openViewer(camView, false);
+    CHECK(camId > 0, "B abre un espectador de la camara (answer completo, sin goteo)");
+    CHECK(waitFor([&]() { return camView.sink.frames.load() > 10; }, 10000),
+          "el espectador recibe la camara reenviada");
+    std::printf("   espectador: %dx%d V=%d\n", camView.sink.w.load(), camView.sink.h.load(),
+                camView.sink.v.load());
+    CHECK(camView.sink.w == 640 && camView.sink.h == 360 && camView.sink.v > 180,
+          "es la camara del invitado (roja), no el retorno de B");
+    const int screenId = openViewer(screenView, true);
+    CHECK(screenId > 0 && waitFor([&]() { return screenView.sink.frames.load() > 10; }, 10000),
+          "otro espectador ve la pantalla compartida");
+    CHECK(screenView.sink.w == 1280, "con la resolucion de la pantalla");
+    CHECK(hub.viewerCount() == 2, "dos espectadores abiertos");
+    hub.requestKeyFrame(camId); // no debe romper nada
+    hub.closeViewer(camId);
+    CHECK(hub.viewerCount() == 1, "cerrar un espectador lo saca");
+    const int before = screenView.sink.frames.load();
+    CHECK(waitFor([&]() { return screenView.sink.frames.load() > before + 5; }, 5000),
+          "el otro sigue recibiendo");
+    hub.closeViewersOf(1);
+    CHECK(hub.viewerCount() == 0, "al irse el participante se cierran sus espectadores");
+    camView.pc->Close();
+    screenView.pc->Close();
 
     stop = true;
     feeder.join();

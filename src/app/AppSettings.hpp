@@ -64,6 +64,12 @@ struct AppConfig {
     TransitionConfig transition;
     std::string theme = "dark"; ///< "dark" | "light" | "system"
     int previewWidth = 960;
+    bool mcpEnabled = true; ///< servidor MCP (asistente de IA) en 127.0.0.1
+    int mcpPort = 8790;
+    /// Aprobacion humana de acciones del asistente: "invitados" (si leyo
+    /// contenido de invitados/publico), "siempre" o "nunca". Solo se cambia
+    /// desde la interfaz: ninguna herramienta MCP puede tocarla.
+    std::string mcpApproval = "invitados";
 
     // Solo linea de comandos (no se guardan):
     int durationSec = 0;
@@ -78,7 +84,8 @@ struct GatewaySettings {
     std::uint16_t port = 8787;
     std::string bindAddress = "127.0.0.1"; ///< "0.0.0.0" = accesible en la red local
     std::string room = "sala1";
-    bool tunnel = true; ///< usar cloudflared si hay token
+    bool tunnel = true;         ///< usar cloudflared si hay token
+    std::string tunnelHostname; ///< dominio publico del tunel de Cloudflare
     std::uint16_t metricsPort = 9099;
     int videoW = 1280; ///< slot de video del invitado hacia A
     int videoH = 720;
@@ -87,6 +94,8 @@ struct GatewaySettings {
     std::uint16_t adminPort = 8788; ///< API de control de la sala (127.0.0.1)
     bool lobby = true;              ///< el operador admite a cada invitado
     int lobbySlots = 4;             ///< del lobby, cuantos muestran su camara al operador
+    int maxBackstage = 12;          ///< modo oradores: cuantos en la fila ven el programa
+    int backstagePreviews = 6;      ///< de la fila, cuantos muestran su camara al operador
     int maxUploadMB = 2048;         ///< tope por archivo compartido por un invitado
     // --- Acceso directo (sin Cloudflare) --------------------------------------
     bool https = true; ///< HTTPS propio (camara/micro exigen pagina segura)

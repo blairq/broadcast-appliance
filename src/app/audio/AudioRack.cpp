@@ -1,0 +1,886 @@
+// ============================================================================
+// src/app/audio/AudioRack.cpp — ver AudioRack.hpp
+// ============================================================================
+
+#include "audio/AudioRack.hpp"
+
+#include <algorithm>
+#include <cmath>
+#include <cstring>
+#include <deque>
+#include <set>
+
+namespace ba::app::audio {
+
+using json = nlohmann::json;
+
+namespace {
+
+float powDb(float p) { return p > 1e-14f ? 10.f * std::log10(p) : -140.f; }
+
+std::string slug(const std::string& s) {
+    std::string out;
+    for (unsigned char c : s) {
+        if (std::isalnum(c))
+            out += static_cast<char>(std::tolower(c));
+        else if (!out.empty() && out.back() != '-')
+            out += '-';
+    }
+    out = out.substr(0, 24);
+    while (!out.empty() && out.back() == '-')
+        out.pop_back();
+    return out.empty() ? "modulo" : out;
+}
+
+const char kB64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+std::string b64(const std::vector<uint8_t>& d) {
+    std::string out;
+    out.reserve((d.size() + 2) / 3 * 4);
+    for (size_t i = 0; i < d.size(); i += 3) {
+        const uint32_t v =
+            (d[i] << 16) | ((i + 1 < d.size() ? d[i + 1] : 0) << 8) | (i + 2 < d.size() ? d[i + 2] : 0);
+        out += kB64[(v >> 18) & 63];
+        out += kB64[(v >> 12) & 63];
+        out += i + 1 < d.size() ? kB64[(v >> 6) & 63] : '=';
+        out += i + 2 < d.size() ? kB64[v & 63] : '=';
+    }
+    return out;
+}
+
+std::vector<uint8_t> unb64(const std::string& s) {
+    std::vector<uint8_t> out;
+    uint32_t v = 0;
+    int bits = 0;
+    for (char c : s) {
+        const char* p = std::strchr(kB64, c);
+        if (c == '=' || p == nullptr || c == 0) continue;
+        v = (v << 6) | static_cast<uint32_t>(p - kB64);
+        bits += 6;
+        if (bits >= 8) {
+            bits -= 8;
+            out.push_back(static_cast<uint8_t>((v >> bits) & 0xFF));
+        }
+    }
+    return out;
+}
+
+} // namespace
+
+// --- Nodos --------------------------------------------------------------------------------
+
+struct AudioRack::Node {
+    std::string id, kind, label, pluginId;
+    std::unique_ptr<ClapInstance> clap;
+    std::unique_ptr<Analyzer> analyzer;
+    std::unique_ptr<Generator> gen;
+    std::atomic<bool> bypass{false};
+    double x = 0, y = 0; // posicion en el patchbay
+    // Medidores (el audio escribe potencia/pico lineales; se leen en dB).
+    std::atomic<float> inPow{0}, outPow{0}, inPeak{0}, outPeak{0};
+
+    int inputs() const {
+        if (kind == "in" || kind == "generator") return 0;
+        if (kind == "plugin") return static_cast<int>(clap->inputs().size());
+        return 1;
+    }
+    int outputs() const {
+        if (kind == "out") return 0;
+        if (kind == "plugin") return static_cast<int>(clap->outputs().size());
+        return 1;
+    }
+    int channels(int port, bool input) const {
+        if (kind != "plugin") return 2;
+        const auto& ps = input ? clap->inputs() : clap->outputs();
+        return port < static_cast<int>(ps.size())
+                   ? static_cast<int>(std::clamp<uint32_t>(ps[static_cast<size_t>(port)].channels, 1, 2))
+                   : 2;
+    }
+};
+
+// --- Plan (lo que recorre el hilo de audio) -----------------------------------------------
+
+struct AudioRack::Plan {
+    struct Buf {
+        std::vector<float> l, r;
+        float* ch[2];
+        Buf() : l(kMaxFrames, 0.f), r(kMaxFrames, 0.f) {
+            ch[0] = l.data();
+            ch[1] = r.data();
+        }
+    };
+    struct InPort {
+        std::vector<int> srcs; // buffers a sumar
+        int buf = -1;          // lo que lee el nodo
+    };
+    struct Step {
+        Node* n = nullptr;
+        std::vector<InPort> ins;
+        std::vector<int> outs;
+        std::vector<float* const*> inArr, outArr;
+    };
+    std::vector<std::unique_ptr<Buf>> bufs;
+    std::vector<Step> steps;
+    int inBuf = -1;
+    int outRead = -1; // el buffer que termina en la fuente
+    int zero = -1;
+
+    int newBuf() {
+        bufs.push_back(std::make_unique<Buf>());
+        return static_cast<int>(bufs.size()) - 1;
+    }
+};
+
+// --- Construccion -------------------------------------------------------------------------
+
+AudioRack::AudioRack(std::shared_ptr<ClapLibrary> lib, HostServices* services, double sampleRate)
+    : lib_(std::move(lib)), services_(services), sr_(sampleRate) {
+    for (const char* k : {"in", "out"}) {
+        auto n = std::make_unique<Node>();
+        n->id = k;
+        n->kind = k;
+        n->label = std::string(k) == "in" ? "Entrada" : "Salida";
+        n->analyzer = std::make_unique<Analyzer>();
+        n->analyzer->setSampleRate(sr_);
+        n->x = std::string(k) == "in" ? 20 : 280;
+        n->y = 80;
+        nodes_.push_back(std::move(n));
+    }
+    conns_.push_back({"in", 0, "out", 0});
+    rebuild();
+}
+
+AudioRack::~AudioRack() {
+    {
+        std::lock_guard<std::mutex> lk(planLock_);
+        plan_.reset();
+    }
+    nodes_.clear(); // los plugins se detienen sin audio (ya no hay plan)
+}
+
+AudioRack::Node* AudioRack::find(const std::string& id) const {
+    for (const auto& n : nodes_)
+        if (n->id == id) return n.get();
+    return nullptr;
+}
+
+bool AudioRack::has(const std::string& id) const { return find(id) != nullptr; }
+
+std::vector<std::string> AudioRack::nodeIds() const {
+    std::vector<std::string> out;
+    for (const auto& n : nodes_)
+        out.push_back(n->id);
+    return out;
+}
+
+std::string AudioRack::kindOf(const std::string& id) const {
+    const Node* n = find(id);
+    return n != nullptr ? n->kind : std::string();
+}
+
+std::string AudioRack::newId(const std::string& base) const {
+    const std::string b = slug(base);
+    if (find(b) == nullptr) return b;
+    for (int i = 2;; ++i) {
+        const std::string id = b + "-" + std::to_string(i);
+        if (find(id) == nullptr) return id;
+    }
+}
+
+int AudioRack::portIndex(const Node& n, const std::string& port, bool input) const {
+    const int count = input ? n.inputs() : n.outputs();
+    if (port.empty() || port == (input ? "in" : "out")) return count > 0 ? 0 : -1;
+    if (input && port == "sc") return count > 1 ? 1 : -1;
+    // "in2", "out3"...
+    const std::string pre = input ? "in" : "out";
+    if (port.rfind(pre, 0) == 0) {
+        const int k = std::atoi(port.c_str() + pre.size()) - 1;
+        return k >= 0 && k < count ? k : -1;
+    }
+    return -1;
+}
+
+std::string AudioRack::portName(const Node& n, int idx, bool input) const {
+    (void)n;
+    if (idx == 0) return input ? "in" : "out";
+    if (input && idx == 1) return "sc";
+    return (input ? "in" : "out") + std::to_string(idx + 1);
+}
+
+bool AudioRack::wouldCycle(const std::string& from, const std::string& to) const {
+    // ¿Hay camino de `to` a `from`? Entonces from->to cierra un ciclo.
+    std::set<std::string> seen;
+    std::deque<std::string> q{to};
+    while (!q.empty()) {
+        const std::string cur = q.front();
+        q.pop_front();
+        if (cur == from) return true;
+        if (!seen.insert(cur).second) continue;
+        for (const auto& c : conns_)
+            if (c.from == cur) q.push_back(c.to);
+    }
+    return false;
+}
+
+void AudioRack::place(Node& n) {
+    double maxX = 20;
+    for (const auto& o : nodes_)
+        if (o.get() != &n && o->id != "out" && o->kind != "generator") maxX = std::max(maxX, o->x);
+    if (n.kind == "generator") {
+        double gx = 20;
+        for (const auto& o : nodes_)
+            if (o.get() != &n && o->kind == "generator") gx = std::max(gx, o->x + 230);
+        n.x = gx;
+        n.y = 330;
+        return;
+    }
+    n.x = maxX + 262;
+    n.y = 80;
+    if (Node* out = find("out"); out != nullptr && out->x < n.x + 262) out->x = n.x + 262;
+}
+
+void AudioRack::insertInChain(const std::string& id, const std::string& after) {
+    if (after.empty()) {
+        // Justo antes de la salida: lo que llegaba a out ahora llega al nodo.
+        std::vector<Conn> into;
+        for (const auto& c : conns_)
+            if (c.to == "out" && c.toPort == 0) into.push_back(c);
+        conns_.erase(std::remove_if(conns_.begin(), conns_.end(),
+                                    [](const Conn& c) { return c.to == "out" && c.toPort == 0; }),
+                     conns_.end());
+        if (into.empty()) into.push_back({"in", 0, "out", 0});
+        for (const auto& c : into)
+            conns_.push_back({c.from, c.fromPort, id, 0});
+        conns_.push_back({id, 0, "out", 0});
+        return;
+    }
+    std::vector<Conn> outs;
+    for (const auto& c : conns_)
+        if (c.from == after && c.fromPort == 0) outs.push_back(c);
+    conns_.erase(std::remove_if(conns_.begin(), conns_.end(),
+                                [&](const Conn& c) { return c.from == after && c.fromPort == 0; }),
+                 conns_.end());
+    conns_.push_back({after, 0, id, 0});
+    if (outs.empty()) outs.push_back({after, 0, "out", 0});
+    for (const auto& c : outs)
+        conns_.push_back({id, 0, c.to, c.toPort});
+}
+
+std::string AudioRack::addPlugin(const std::string& pluginId, const std::string& label,
+                                 const std::string& after, std::string* error, const std::string& idBase) {
+    if (!after.empty() && (find(after) == nullptr || after == "out")) {
+        if (error != nullptr) *error = "no existe el nodo " + after;
+        return {};
+    }
+    auto inst = ClapInstance::create(lib_, pluginId, services_, error);
+    if (!inst) return {};
+    if (inst->outputs().empty()) {
+        if (error != nullptr) *error = pluginId + " no tiene salida de audio";
+        return {};
+    }
+    if (!inst->activate(sr_, kMaxFrames)) {
+        if (error != nullptr) *error = "no se pudo activar " + pluginId;
+        return {};
+    }
+    auto n = std::make_unique<Node>();
+    n->kind = "plugin";
+    n->pluginId = pluginId;
+    n->label = label.empty() ? inst->desc().name : label;
+    n->id = newId(!idBase.empty() ? idBase : label.empty() ? inst->desc().name : label);
+    n->clap = std::move(inst);
+    const std::string id = n->id;
+    nodes_.push_back(std::move(n));
+    place(*nodes_.back());
+    insertInChain(id, after);
+    rebuild();
+    return id;
+}
+
+std::string AudioRack::addAnalyzer(const std::string& label, const std::string& after) {
+    if (!after.empty() && (find(after) == nullptr || after == "out")) return {};
+    auto n = std::make_unique<Node>();
+    n->kind = "analyzer";
+    n->label = label.empty() ? "Analizador" : label;
+    n->id = newId(label.empty() ? "analizador" : label);
+    n->analyzer = std::make_unique<Analyzer>();
+    n->analyzer->setSampleRate(sr_);
+    const std::string id = n->id;
+    nodes_.push_back(std::move(n));
+    place(*nodes_.back());
+    insertInChain(id, after);
+    rebuild();
+    return id;
+}
+
+std::string AudioRack::addGenerator(const std::string& label) {
+    auto n = std::make_unique<Node>();
+    n->kind = "generator";
+    n->label = label.empty() ? "Generador" : label;
+    n->id = newId(label.empty() ? "generador" : label);
+    n->gen = std::make_unique<Generator>();
+    n->gen->setSampleRate(sr_);
+    Generator::Config silent;
+    silent.kind = Generator::Kind::Silence;
+    n->gen->configure(silent);
+    const std::string id = n->id;
+    nodes_.push_back(std::move(n));
+    place(*nodes_.back());
+    rebuild();
+    return id;
+}
+
+bool AudioRack::remove(const std::string& id, std::string* error) {
+    if (id == "in" || id == "out") {
+        if (error != nullptr) *error = "la entrada y la salida no se quitan";
+        return false;
+    }
+    Node* n = find(id);
+    if (n == nullptr) {
+        if (error != nullptr) *error = "no existe el nodo " + id;
+        return false;
+    }
+    // Puente: lo que entraba por su entrada principal va a donde salia.
+    std::vector<Conn> srcs, dsts;
+    for (const auto& c : conns_) {
+        if (c.to == id && c.toPort == 0) srcs.push_back(c);
+        if (c.from == id && c.fromPort == 0) dsts.push_back(c);
+    }
+    conns_.erase(std::remove_if(conns_.begin(), conns_.end(),
+                                [&](const Conn& c) { return c.from == id || c.to == id; }),
+                 conns_.end());
+    for (const auto& s : srcs)
+        for (const auto& d : dsts) {
+            const bool dup = std::any_of(conns_.begin(), conns_.end(), [&](const Conn& c) {
+                return c.from == s.from && c.fromPort == s.fromPort && c.to == d.to && c.toPort == d.toPort;
+            });
+            if (!dup && !wouldCycle(s.from, d.to)) conns_.push_back({s.from, s.fromPort, d.to, d.toPort});
+        }
+    // Primero sale del audio (plan nuevo), despues se destruye aca.
+    std::unique_ptr<Node> dead;
+    for (auto it = nodes_.begin(); it != nodes_.end(); ++it)
+        if ((*it)->id == id) {
+            dead = std::move(*it);
+            nodes_.erase(it);
+            break;
+        }
+    rebuild();
+    dead.reset();
+    return true;
+}
+
+bool AudioRack::connect(const std::string& from, const std::string& fromPort, const std::string& to,
+                        const std::string& toPort, std::string* error) {
+    Node* a = find(from);
+    Node* b = find(to);
+    if (a == nullptr || b == nullptr) {
+        if (error != nullptr) *error = "no existe " + std::string(a == nullptr ? from : to);
+        return false;
+    }
+    const int pa = portIndex(*a, fromPort, false);
+    const int pb = portIndex(*b, toPort, true);
+    if (pa < 0 || pb < 0) {
+        if (error != nullptr)
+            *error = pa < 0 ? from + " no tiene la salida '" + fromPort + "'"
+                            : to + " no tiene la entrada '" + toPort + "'";
+        return false;
+    }
+    if (from == to || wouldCycle(from, to)) {
+        if (error != nullptr) *error = "ese cable cerraria un ciclo";
+        return false;
+    }
+    for (const auto& c : conns_)
+        if (c.from == from && c.fromPort == pa && c.to == to && c.toPort == pb) return true;
+    conns_.push_back({from, pa, to, pb});
+    rebuild();
+    return true;
+}
+
+bool AudioRack::disconnect(const std::string& from, const std::string& fromPort, const std::string& to,
+                           const std::string& toPort) {
+    Node* a = find(from);
+    Node* b = find(to);
+    if (a == nullptr || b == nullptr) return false;
+    const int pa = portIndex(*a, fromPort, false);
+    const int pb = portIndex(*b, toPort, true);
+    const size_t before = conns_.size();
+    conns_.erase(std::remove_if(conns_.begin(), conns_.end(),
+                                [&](const Conn& c) {
+                                    return c.from == from && c.to == to && (pa < 0 || c.fromPort == pa) &&
+                                           (pb < 0 || c.toPort == pb);
+                                }),
+                 conns_.end());
+    if (conns_.size() == before) return false;
+    rebuild();
+    return true;
+}
+
+bool AudioRack::setBypass(const std::string& id, bool bypass) {
+    Node* n = find(id);
+    if (n == nullptr || n->kind != "plugin") return false;
+    n->bypass = bypass;
+    return true;
+}
+
+bool AudioRack::rename(const std::string& id, const std::string& label) {
+    Node* n = find(id);
+    if (n == nullptr || label.empty()) return false;
+    n->label = label;
+    return true;
+}
+
+bool AudioRack::setPosition(const std::string& id, double x, double y) {
+    Node* n = find(id);
+    if (n == nullptr) return false;
+    n->x = x;
+    n->y = y;
+    return true;
+}
+
+ClapInstance* AudioRack::plugin(const std::string& id) {
+    Node* n = find(id);
+    return n != nullptr && n->kind == "plugin" ? n->clap.get() : nullptr;
+}
+
+Analyzer* AudioRack::analyzer(const std::string& id) {
+    Node* n = find(id);
+    return n != nullptr ? n->analyzer.get() : nullptr;
+}
+
+Generator* AudioRack::generator(const std::string& id) {
+    Node* n = find(id);
+    return n != nullptr ? n->gen.get() : nullptr;
+}
+
+// --- Plan ---------------------------------------------------------------------------------
+
+void AudioRack::rebuild() {
+    auto plan = std::make_unique<Plan>();
+    plan->zero = plan->newBuf();
+    // Orden topologico (Kahn); los nodos sin cables entran igual.
+    std::map<std::string, int> indeg;
+    for (const auto& n : nodes_)
+        indeg[n->id] = 0;
+    for (const auto& c : conns_)
+        ++indeg[c.to];
+    std::deque<Node*> ready;
+    for (const auto& n : nodes_)
+        if (indeg[n->id] == 0) ready.push_back(n.get());
+    std::vector<Node*> order;
+    while (!ready.empty()) {
+        Node* n = ready.front();
+        ready.pop_front();
+        order.push_back(n);
+        for (const auto& c : conns_)
+            if (c.from == n->id && --indeg[c.to] == 0) ready.push_back(find(c.to));
+    }
+    // Buffers de salida de cada nodo.
+    std::map<std::pair<std::string, int>, int> outBuf;
+    for (Node* n : order)
+        for (int p = 0; p < n->outputs(); ++p)
+            outBuf[{n->id, p}] = plan->newBuf();
+    for (Node* n : order) {
+        Plan::Step st;
+        st.n = n;
+        for (int p = 0; p < n->inputs(); ++p) {
+            Plan::InPort ip;
+            for (const auto& c : conns_)
+                if (c.to == n->id && c.toPort == p) {
+                    auto it = outBuf.find({c.from, c.fromPort});
+                    if (it != outBuf.end()) ip.srcs.push_back(it->second);
+                }
+            ip.buf = ip.srcs.empty() ? plan->zero : ip.srcs.size() == 1 ? ip.srcs[0] : plan->newBuf();
+            if (ip.srcs.size() == 1) ip.srcs.clear(); // se lee directo
+            st.ins.push_back(std::move(ip));
+        }
+        for (int p = 0; p < n->outputs(); ++p)
+            st.outs.push_back(outBuf[{n->id, p}]);
+        if (n->kind == "in") plan->inBuf = st.outs[0];
+        if (n->kind == "out") plan->outRead = st.ins[0].buf;
+        plan->steps.push_back(std::move(st));
+    }
+    // Punteros por puerto (los buffers ya no se mueven).
+    for (auto& st : plan->steps) {
+        for (auto& ip : st.ins)
+            st.inArr.push_back(plan->bufs[static_cast<size_t>(ip.buf)]->ch);
+        for (int ob : st.outs)
+            st.outArr.push_back(plan->bufs[static_cast<size_t>(ob)]->ch);
+    }
+    std::unique_ptr<Plan> old;
+    {
+        std::lock_guard<std::mutex> lk(planLock_);
+        old = std::move(plan_);
+        plan_ = std::move(plan);
+    }
+}
+
+namespace {
+
+void meterInto(std::atomic<float>& pow, std::atomic<float>& peak, float* const* ch, uint32_t frames,
+               double alpha) {
+    double sq = 0;
+    float pk = 0;
+    for (int c = 0; c < 2; ++c)
+        for (uint32_t i = 0; i < frames; ++i) {
+            sq += static_cast<double>(ch[c][i]) * ch[c][i];
+            pk = std::max(pk, std::fabs(ch[c][i]));
+        }
+    // AES: el RMS de un seno igual a su pico (x2 en potencia).
+    const float blockPow = static_cast<float>(2.0 * sq / (2.0 * frames));
+    pow.store(static_cast<float>(pow.load() * (1 - alpha) + blockPow * alpha), std::memory_order_relaxed);
+    peak.store(std::max(pk, peak.load() * static_cast<float>(1 - alpha)), std::memory_order_relaxed);
+}
+
+} // namespace
+
+void AudioRack::process(float* const* planes, int channels, uint32_t frames) {
+    std::unique_lock<std::mutex> lk(planLock_, std::try_to_lock);
+    if (!lk.owns_lock() || !plan_ || plan_->inBuf < 0 || plan_->outRead < 0 || channels < 1) return;
+    Plan& P = *plan_;
+    for (uint32_t off = 0; off < frames; off += kMaxFrames) {
+        const uint32_t n = std::min(kMaxFrames, frames - off);
+        const double alpha = std::min(1.0, n / (0.3 * sr_));
+        Plan::Buf& in = *P.bufs[static_cast<size_t>(P.inBuf)];
+        std::memcpy(in.l.data(), planes[0] + off, n * sizeof(float));
+        std::memcpy(in.r.data(), planes[channels > 1 ? 1 : 0] + off, n * sizeof(float));
+        for (auto& st : P.steps) {
+            Node& node = *st.n;
+            for (auto& ip : st.ins) {
+                if (ip.srcs.size() < 2) continue;
+                Plan::Buf& dst = *P.bufs[static_cast<size_t>(ip.buf)];
+                std::memset(dst.l.data(), 0, n * sizeof(float));
+                std::memset(dst.r.data(), 0, n * sizeof(float));
+                for (int s : ip.srcs) {
+                    const Plan::Buf& src = *P.bufs[static_cast<size_t>(s)];
+                    for (uint32_t i = 0; i < n; ++i) {
+                        dst.l[i] += src.l[i];
+                        dst.r[i] += src.r[i];
+                    }
+                }
+            }
+            if (node.kind == "in") {
+                node.analyzer->feed(st.outArr[0], 2, n);
+                meterInto(node.outPow, node.outPeak, st.outArr[0], n, alpha);
+            } else if (node.kind == "out") {
+                node.analyzer->feed(st.inArr[0], 2, n);
+                meterInto(node.inPow, node.inPeak, st.inArr[0], n, alpha);
+            } else if (node.kind == "analyzer") {
+                node.analyzer->feed(st.inArr[0], 2, n);
+                for (int c = 0; c < 2; ++c)
+                    std::memcpy(st.outArr[0][c], st.inArr[0][c], n * sizeof(float));
+                meterInto(node.inPow, node.inPeak, st.inArr[0], n, alpha);
+                meterInto(node.outPow, node.outPeak, st.outArr[0], n, alpha);
+            } else if (node.kind == "generator") {
+                node.gen->render(st.outArr[0], 2, n);
+                meterInto(node.outPow, node.outPeak, st.outArr[0], n, alpha);
+            } else if (node.kind == "plugin") {
+                if (node.bypass.load(std::memory_order_relaxed)) {
+                    for (size_t p = 0; p < st.outArr.size(); ++p)
+                        for (int c = 0; c < 2; ++c) {
+                            if (p == 0 && !st.inArr.empty())
+                                std::memcpy(st.outArr[p][c], st.inArr[0][c], n * sizeof(float));
+                            else
+                                std::memset(st.outArr[p][c], 0, n * sizeof(float));
+                        }
+                } else {
+                    node.clap->process(st.inArr.data(), st.outArr.data(), n);
+                    // Salida mono de un modulo: R = L.
+                    if (node.channels(0, false) == 1)
+                        std::memcpy(st.outArr[0][1], st.outArr[0][0], n * sizeof(float));
+                }
+                if (!st.inArr.empty()) meterInto(node.inPow, node.inPeak, st.inArr[0], n, alpha);
+                meterInto(node.outPow, node.outPeak, st.outArr[0], n, alpha);
+            }
+        }
+        const Plan::Buf& out = *P.bufs[static_cast<size_t>(P.outRead)];
+        std::memcpy(planes[0] + off, out.l.data(), n * sizeof(float));
+        if (channels > 1) std::memcpy(planes[1] + off, out.r.data(), n * sizeof(float));
+    }
+}
+
+// --- Descripcion / persistencia -----------------------------------------------------------
+
+json AudioRack::meters(const std::string& id) const {
+    const Node* n = find(id);
+    if (n == nullptr) return nullptr;
+    auto r1 = [](double v) { return std::round(v * 10) / 10; };
+    json m;
+    const float ip = n->inPow.load(), op = n->outPow.load();
+    if (n->inputs() > 0) {
+        m["entradaDb"] = r1(powDb(ip));
+        m["picoEntradaDb"] = r1(powDb(n->inPeak.load() * n->inPeak.load()));
+    }
+    if (n->outputs() > 0) {
+        m["salidaDb"] = r1(powDb(op));
+        m["picoSalidaDb"] = r1(powDb(n->outPeak.load() * n->outPeak.load()));
+    }
+    if (n->inputs() > 0 && n->outputs() > 0 && ip > 1e-9f)
+        m["cambioDb"] = r1(powDb(op) - powDb(ip)); // negativo = reduccion
+    return m;
+}
+
+json AudioRack::describe() const {
+    json nodes = json::array();
+    for (const auto& n : nodes_) {
+        json j{{"id", n->id}, {"tipo", n->kind}, {"etiqueta", n->label}, {"x", n->x}, {"y", n->y}};
+        json ins = json::array(), outs = json::array();
+        for (int p = 0; p < n->inputs(); ++p)
+            ins.push_back(portName(*n, p, true));
+        for (int p = 0; p < n->outputs(); ++p)
+            outs.push_back(portName(*n, p, false));
+        j["entradas"] = ins;
+        j["salidas"] = outs;
+        if (n->kind == "plugin") {
+            j["modulo"] = n->pluginId;
+            j["nombre"] = n->clap->desc().name;
+            j["bypass"] = n->bypass.load();
+            j["editorAbierto"] = n->clap->editorOpen();
+        }
+        if (n->kind == "generator") {
+            const auto c = n->gen->config();
+            j["senal"] = {
+                {"tipo", Generator::kindName(c.kind)}, {"frecuencia", c.freq}, {"nivelDb", c.levelDb}};
+        }
+        j["medidores"] = meters(n->id);
+        nodes.push_back(std::move(j));
+    }
+    json conns = json::array();
+    for (const auto& c : conns_) {
+        const Node* a = find(c.from);
+        const Node* b = find(c.to);
+        if (a == nullptr || b == nullptr) continue;
+        conns.push_back({{"desde", c.from},
+                         {"salida", portName(*a, c.fromPort, false)},
+                         {"hacia", c.to},
+                         {"entrada", portName(*b, c.toPort, true)}});
+    }
+    return json{{"nodos", nodes}, {"cables", conns}, {"frecuenciaMuestreo", sr_}};
+}
+
+json AudioRack::save() const {
+    json nodes = json::array();
+    for (const auto& n : nodes_) {
+        json j{{"id", n->id}, {"tipo", n->kind}, {"etiqueta", n->label}, {"x", n->x}, {"y", n->y}};
+        if (n->kind == "plugin") {
+            j["modulo"] = n->pluginId;
+            j["bypass"] = n->bypass.load();
+            j["estado"] = b64(n->clap->saveState());
+        }
+        if (n->kind == "generator") {
+            const auto c = n->gen->config();
+            j["senal"] = {{"tipo", Generator::kindName(c.kind)},
+                          {"frecuencia", c.freq},
+                          {"frecuenciaFin", c.freqEnd},
+                          {"segundos", c.seconds},
+                          {"nivelDb", c.levelDb}};
+        }
+        nodes.push_back(std::move(j));
+    }
+    json conns = json::array();
+    for (const auto& c : conns_) {
+        const Node* a = find(c.from);
+        const Node* b = find(c.to);
+        if (a == nullptr || b == nullptr) continue;
+        conns.push_back({{"desde", c.from},
+                         {"salida", portName(*a, c.fromPort, false)},
+                         {"hacia", c.to},
+                         {"entrada", portName(*b, c.toPort, true)}});
+    }
+    return json{{"version", 1}, {"nodos", nodes}, {"cables", conns}};
+}
+
+bool AudioRack::load(const json& j, std::string* error) {
+    if (!j.is_object() || !j.contains("nodos")) {
+        if (error != nullptr) *error = "rack invalido";
+        return false;
+    }
+    // Todo nuevo: se vacia (fuera del audio primero) y se arma de cero.
+    std::vector<std::unique_ptr<Node>> old;
+    for (auto it = nodes_.begin(); it != nodes_.end();) {
+        if ((*it)->kind != "in" && (*it)->kind != "out") {
+            old.push_back(std::move(*it));
+            it = nodes_.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    conns_.clear();
+    rebuild();
+    old.clear();
+    std::string firstError;
+    for (const auto& nj : j["nodos"]) {
+        const std::string kind = nj.value("tipo", "");
+        const std::string id = nj.value("id", "");
+        if (Node* io = find(id); io != nullptr && (kind == "in" || kind == "out")) {
+            io->x = nj.value("x", io->x);
+            io->y = nj.value("y", io->y);
+            continue;
+        }
+        auto n = std::make_unique<Node>();
+        n->id = id.empty() ? newId(kind) : id;
+        n->kind = kind;
+        n->label = nj.value("etiqueta", kind);
+        n->x = nj.value("x", 0.0);
+        n->y = nj.value("y", 0.0);
+        if (kind == "plugin") {
+            std::string e;
+            n->pluginId = nj.value("modulo", "");
+            n->clap = ClapInstance::create(lib_, n->pluginId, services_, &e);
+            if (!n->clap || !n->clap->activate(sr_, kMaxFrames)) {
+                if (firstError.empty()) firstError = n->pluginId + ": " + e;
+                continue;
+            }
+            n->clap->loadState(unb64(nj.value("estado", "")));
+            n->bypass = nj.value("bypass", false);
+        } else if (kind == "analyzer") {
+            n->analyzer = std::make_unique<Analyzer>();
+            n->analyzer->setSampleRate(sr_);
+        } else if (kind == "generator") {
+            n->gen = std::make_unique<Generator>();
+            n->gen->setSampleRate(sr_);
+            Generator::Config c;
+            const json s = nj.value("senal", json::object());
+            Generator::parseKind(s.value("tipo", "silencio"), c.kind);
+            c.freq = s.value("frecuencia", 1000.0);
+            c.freqEnd = s.value("frecuenciaFin", 20000.0);
+            c.seconds = s.value("segundos", 10.0);
+            c.levelDb = s.value("nivelDb", -20.0);
+            n->gen->configure(c);
+        } else {
+            continue;
+        }
+        nodes_.push_back(std::move(n));
+    }
+    for (const auto& cj : j.value("cables", json::array())) {
+        const Node* a = find(cj.value("desde", ""));
+        const Node* b = find(cj.value("hacia", ""));
+        if (a == nullptr || b == nullptr) continue;
+        const int pa = portIndex(*a, cj.value("salida", "out"), false);
+        const int pb = portIndex(*b, cj.value("entrada", "in"), true);
+        if (pa >= 0 && pb >= 0 && !wouldCycle(a->id, b->id)) conns_.push_back({a->id, pa, b->id, pb});
+    }
+    rebuild();
+    if (!firstError.empty() && error != nullptr)
+        *error = "algunos modulos no se pudieron cargar: " + firstError;
+    return true;
+}
+
+// --- Medicion fuera de linea -------------------------------------------------------------
+
+std::vector<std::string> AudioRack::mainChain() const {
+    // De "in" siguiendo el primer cable de la salida principal hasta "out".
+    std::vector<std::string> chain;
+    std::string cur = "in";
+    std::set<std::string> seen;
+    while (cur != "out" && seen.insert(cur).second) {
+        std::string next;
+        for (const auto& c : conns_)
+            if (c.from == cur && c.fromPort == 0 && c.toPort == 0) {
+                next = c.to;
+                break;
+            }
+        if (next.empty()) break;
+        if (next != "out") chain.push_back(next);
+        cur = next;
+    }
+    return chain;
+}
+
+json AudioRack::measure(const std::string& kind, const std::string& node, double levelDb,
+                        std::string* error) {
+    std::vector<std::string> ids = node.empty() ? mainChain() : std::vector<std::string>{node};
+    // Clones de los modulos (mismo estado), sin interfaz ni audio en vivo.
+    std::vector<std::unique_ptr<ClapInstance>> clones;
+    std::vector<std::string> used;
+    for (const auto& id : ids) {
+        Node* n = find(id);
+        if (n == nullptr) {
+            if (error != nullptr) *error = "no existe el nodo " + id;
+            return nullptr;
+        }
+        if (n->kind != "plugin" || n->bypass) continue;
+        std::string e;
+        auto c = ClapInstance::create(lib_, n->pluginId, nullptr, &e);
+        if (!c || !c->activate(sr_, kMaxFrames)) {
+            if (error != nullptr) *error = "no se pudo clonar " + id + ": " + e;
+            return nullptr;
+        }
+        c->loadState(n->clap->saveState());
+        clones.push_back(std::move(c));
+        used.push_back(id);
+    }
+    // Buffers: 2 puertos x 2 canales por etapa (principal + sidechain en silencio).
+    const uint32_t N = kMaxFrames;
+    std::vector<std::vector<float>> mem(8, std::vector<float>(N, 0.f));
+    float* a[2] = {mem[0].data(), mem[1].data()};
+    float* b[2] = {mem[2].data(), mem[3].data()};
+    float* sc[2] = {mem[4].data(), mem[5].data()};
+    float* sco[2] = {mem[6].data(), mem[7].data()};
+    Generator gen;
+    gen.setSampleRate(sr_);
+    // Corre `seconds` de señal por la cadena; devuelve (RMS entrada, RMS salida)
+    // en dBFS AES de los ultimos `tail` segundos.
+    auto run = [&](const Generator::Config& cfg, double seconds, double tail) {
+        gen.configure(cfg);
+        const uint32_t total = static_cast<uint32_t>(seconds * sr_);
+        const uint32_t tailFrom = total - static_cast<uint32_t>(tail * sr_);
+        double sin = 0, sout = 0;
+        uint64_t cnt = 0;
+        for (uint32_t done = 0; done < total; done += N) {
+            gen.render(a, 2, N);
+            double si = 0;
+            for (uint32_t i = 0; i < N; ++i)
+                si += static_cast<double>(a[0][i]) * a[0][i];
+            float** cur = a;
+            float** nxt = b;
+            for (auto& c : clones) {
+                float* const* ins[2] = {cur, sc};
+                float* const* outs[2] = {nxt, sco};
+                c->process(ins, outs, N);
+                std::swap(cur, nxt);
+            }
+            if (done >= tailFrom) {
+                double so = 0;
+                for (uint32_t i = 0; i < N; ++i)
+                    so += static_cast<double>(cur[0][i]) * cur[0][i];
+                sin += si;
+                sout += so;
+                cnt += N;
+            }
+        }
+        const double pin = cnt > 0 ? 2 * sin / cnt : 0, pout = cnt > 0 ? 2 * sout / cnt : 0;
+        return std::make_pair(10 * std::log10(std::max(pin, 1e-14)), 10 * std::log10(std::max(pout, 1e-14)));
+    };
+    json out{{"modulos", used}, {"medicion", kind}};
+    auto r1 = [](double v) { return std::round(v * 10) / 10; };
+    if (kind == "respuesta" || kind == "response") {
+        json pts = json::array();
+        for (float f : Analyzer::bandCenters()) {
+            if (f > sr_ * 0.45) break;
+            Generator::Config cfg;
+            cfg.kind = Generator::Kind::Sine;
+            cfg.freq = f;
+            cfg.levelDb = levelDb;
+            const auto [li, lo] = run(cfg, 0.3, 0.15);
+            pts.push_back({{"hz", f}, {"gananciaDb", r1(lo - li)}});
+        }
+        out["nivelDb"] = levelDb;
+        out["puntos"] = pts;
+    } else if (kind == "curva" || kind == "curve") {
+        json pts = json::array();
+        for (int lv = -80; lv <= 0; lv += 2) {
+            Generator::Config cfg;
+            cfg.kind = Generator::Kind::Sine;
+            cfg.freq = 1000;
+            cfg.levelDb = lv;
+            const auto [li, lo] = run(cfg, 0.5, 0.1);
+            pts.push_back({{"entradaDb", lv}, {"salidaDb", r1(lo)}, {"cambioDb", r1(lo - li)}});
+        }
+        out["puntos"] = pts;
+    } else {
+        if (error != nullptr) *error = "medicion: 'respuesta' o 'curva'";
+        return nullptr;
+    }
+    return out;
+}
+
+} // namespace ba::app::audio

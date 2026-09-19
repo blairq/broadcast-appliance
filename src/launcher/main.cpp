@@ -20,11 +20,14 @@
 
 #include "Log.hpp"
 #include "platform/Paths.hpp"
+#include "security/CredentialStore.hpp"
 #include "Supervisor.hpp"
+#include "Updater.hpp"
 
 #include <nlohmann/json.hpp>
 
 #include <csignal>
+#include <cstdio>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -45,9 +48,52 @@ constexpr const char* kExeSuffix = "";
 #endif
 
 int runLauncher(const std::vector<std::string>& args) {
+    // Portable: caches de librerias al bundle (lo heredan A y B).
+    ba::platform::redirectUserDirs();
     const std::filesystem::path root = ba::platform::bundleRoot();
     const std::filesystem::path bin = root / "bin" / "64bit";
     ba::launcher::Log::init((root / "Logs" / "launcher.log").string());
+
+    // --update <carpeta> / --update-rollback [--start]: reemplaza el programa sin
+    // tocar los datos (ver Updater.hpp).
+    {
+        ba::launcher::UpdateOptions uo;
+        uo.root = root;
+        bool wantUpdate = false;
+        bool start = false;
+        for (std::size_t i = 0; i < args.size(); ++i) {
+            if (args[i] == "--update" && i + 1 < args.size()) {
+                wantUpdate = true;
+                uo.source = std::filesystem::path(std::u8string(args[i + 1].begin(), args[i + 1].end()));
+                ++i;
+            } else if (args[i].rfind("--update=", 0) == 0) {
+                wantUpdate = true;
+                const std::string s = args[i].substr(9);
+                uo.source = std::filesystem::path(std::u8string(s.begin(), s.end()));
+            } else if (args[i] == "--update-rollback") {
+                wantUpdate = true;
+                uo.rollback = true;
+            } else if (args[i] == "--start") {
+                start = true;
+            }
+        }
+        if (wantUpdate) {
+            const ba::launcher::UpdateResult ur = ba::launcher::runUpdate(uo);
+            std::fprintf(ur.ok ? stdout : stderr, "%s\n", ur.message.c_str());
+            BA_LOG_INFO("actualizacion", ur.ok ? 0 : 1, ur.message);
+            if (!ur.ok || !start) {
+                ba::launcher::Log::close();
+                return ur.ok ? 0 : 1;
+            }
+        }
+    }
+    // Credenciales en claro de versiones anteriores (Config/...) -> Credenciales/
+    // cifradas, antes de que arranquen A y B.
+    for (const std::string& name :
+         ba::security::CredentialStore::bundle().importLegacy(ba::platform::dataRoot())) {
+        ba::launcher::Log::write(ba::launcher::Log::Level::Info, "credenciales", 0,
+                                 "importada " + name + " (cifrada en Credenciales/)");
+    }
 
     ba::launcher::Supervisor::Config cfg;
     cfg.root = root;

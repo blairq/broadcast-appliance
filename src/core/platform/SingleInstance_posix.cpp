@@ -1,12 +1,24 @@
 // ============================================================================
-// src/core/platform/SingleInstance_posix.cpp — flock (Linux y macOS)
+// src/core/platform/SingleInstance_posix.cpp — instancia unica (Linux y macOS)
+//
+// Linux: un socket Unix ligado a un nombre ABSTRACTO
+// ("\0broadcast-appliance-<uid>-<name>.lock"): el kernel no deja que dos
+// procesos liguen el mismo nombre y lo libera solo cuando el proceso muere.
+// No escribe nada en disco (el appliance es portable y no deja rastros en la
+// maquina) ni deja lockfiles huerfanos.
+// macOS (sin espacio abstracto): flock sobre runtimeDir()/<name>.lock.
 // ============================================================================
 
 #include "platform/SingleInstance.hpp"
 
 #include <fcntl.h>
 #include <sys/file.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 #include <unistd.h>
+
+#include <cstddef>
+#include <string>
 
 #include <cerrno>
 #include <cstring>
@@ -30,6 +42,34 @@ SingleInstance& SingleInstance::operator=(SingleInstance&& other) noexcept {
 
 bool SingleInstance::acquire(const std::string& name, SingleInstance& out, std::string* err) {
     out.release();
+#if defined(__linux__)
+    if (name.empty() || name.size() > 64 || name.find('/') != std::string::npos) {
+        if (err != nullptr) *err = "nombre de lock invalido: '" + name + "'";
+        return false;
+    }
+    const std::string abs =
+        std::string(1, '\0') + "broadcast-appliance-" + std::to_string(::getuid()) + "-" + name + ".lock";
+    sockaddr_un addr{};
+    addr.sun_family = AF_UNIX;
+    std::memcpy(addr.sun_path, abs.data(), abs.size());
+    const int sfd = ::socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+    if (sfd < 0) {
+        if (err != nullptr) *err = std::string("socket: ") + std::strerror(errno);
+        return false;
+    }
+    if (::bind(sfd, reinterpret_cast<sockaddr*>(&addr),
+               static_cast<socklen_t>(offsetof(sockaddr_un, sun_path) + abs.size())) != 0) {
+        const int e = errno;
+        ::close(sfd);
+        if (err != nullptr) {
+            *err = e == EADDRINUSE ? "ya hay otra instancia en ejecucion"
+                                   : std::string("bind: ") + std::strerror(e);
+        }
+        return false;
+    }
+    out.fd_ = sfd;
+    return true;
+#else
     const std::filesystem::path dir = runtimeDir();
     if (dir.empty() || name.empty() || name.find('/') != std::string::npos) {
         if (err != nullptr) {
@@ -61,6 +101,7 @@ bool SingleInstance::acquire(const std::string& name, SingleInstance& out, std::
     }
     out.fd_ = fd;
     return true;
+#endif
 }
 
 bool SingleInstance::held() const { return fd_ >= 0; }

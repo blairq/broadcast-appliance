@@ -10,6 +10,8 @@
 
 #include "GuiMode.hpp"
 
+#include <QDir>
+#include <QFontDatabase>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
@@ -21,8 +23,12 @@
 #include <csignal>
 #include <cstdio>
 
+#include "agent/AgentViewModel.hpp"
 #include "AppRuntime.hpp"
+#include "mcp/McpService.hpp"
+#include "term/TerminalView.hpp"
 #include "ui/FrameService.hpp"
+#include "ui/InputsViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
 #include "ui/VideoItem.hpp"
 
@@ -66,15 +72,42 @@ int runGui(int argc, char** argv) {
         VideoItem::setService(frames);
         qmlRegisterSingletonInstance("BA", 1, 0, "Studio", &vm);
         qmlRegisterType<VideoItem>("BA", 1, 0, "VideoItem");
+        qmlRegisterType<term::TerminalView>("BA", 1, 0, "TerminalView");
+        // Fuente de la terminal del Asistente (viaja en el bundle: data/fonts).
+        for (const QString& dir : {QString::fromStdWString((rt.dataRoot() / "data" / "fonts").wstring()),
+                                   QCoreApplication::applicationDirPath() + "/../../data/fonts"}) {
+            const QStringList fonts = QDir(dir).entryList({"*.ttf"}, QDir::Files);
+            for (const QString& f : fonts)
+                QFontDatabase::addApplicationFont(dir + "/" + f);
+            if (!fonts.isEmpty()) break;
+        }
         qmlRegisterSingletonType(QUrl("qrc:/qml/Theme.qml"), "BA", 1, 0, "Theme");
 
         QQmlApplicationEngine engine;
+        engine.addImageProvider("inputs", new InputThumbProvider(rt)); // miniaturas de la pagina Entradas
         QObject::connect(&vm, &StudioViewModel::quitRequested, &app, &QGuiApplication::quit);
         engine.load(QUrl("qrc:/qml/Main.qml"));
         if (engine.rootObjects().isEmpty()) {
             std::printf("ba-app: no se pudo cargar la interfaz QML\n");
             rt.stop();
             return 3;
+        }
+        // Servidor MCP: un asistente de IA maneja y ve toda la app (127.0.0.1 + token).
+        mcp::McpService mcpService(rt, vm);
+        mcpService.setMainWindow([&engine]() -> QQuickWindow* {
+            return engine.rootObjects().isEmpty() ? nullptr
+                                                  : qobject_cast<QQuickWindow*>(engine.rootObjects().first());
+        });
+        auto* agentVm = static_cast<agent::AgentViewModel*>(vm.agent());
+        agentVm->setSystemPrompt([&mcpService]() { return mcpService.agentPrompt(); });
+        agentVm->setMcpReady([&mcpService]() { return mcpService.port() != 0; });
+        if (rt.config().mcpEnabled) {
+            if (mcpService.start(static_cast<quint16>(rt.config().mcpPort))) {
+                std::printf("ba-app: servidor MCP en %s (token: bin/64bit/ba-mcp --token; stdio: ba-mcp)\n",
+                            mcpService.url().toLocal8Bit().constData());
+            } else {
+                std::printf("ba-app: el servidor MCP no pudo abrir el puerto %d\n", rt.config().mcpPort);
+            }
         }
         // Diagnostico: --ui-snapshot=<png> guarda una captura a los 6 s
         // (--ui-snapshot-delay=<ms> para cambiarlo).

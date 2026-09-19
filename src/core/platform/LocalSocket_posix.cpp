@@ -13,6 +13,7 @@
 
 #include <cerrno>
 #include <chrono>
+#include <cstddef>
 #include <cstdio>
 #include <cstring>
 #include <thread>
@@ -45,8 +46,18 @@ bool validName(const std::string& name) {
     return true;
 }
 
-/// Ruta del socket para `name`, o vacio si no entra en sun_path.
+/// Direccion del socket para `name`, o vacio si no entra en sun_path.
+///
+/// Linux: espacio de nombres ABSTRACTO ("\0broadcast-appliance-<uid>-<name>"):
+/// no existe en ningun disco (el appliance corre desde un pendrive y no deja
+/// nada en la maquina), desaparece solo cuando muere el proceso (no hay
+/// huerfanos) y el UID en el nombre separa a los usuarios; el control de
+/// acceso real es SO_PEERCRED (peerIsSameUser). macOS no tiene espacio
+/// abstracto: archivo en runtimeDir() ($TMPDIR, por usuario, temporal).
 std::string socketPath(const std::string& name) {
+#if defined(__linux__)
+    return std::string(1, '\0') + "broadcast-appliance-" + std::to_string(::getuid()) + "-" + name;
+#else
     const std::filesystem::path dir = runtimeDir();
     if (dir.empty()) {
         return {};
@@ -56,7 +67,10 @@ std::string socketPath(const std::string& name) {
         return {};
     }
     return p;
+#endif
 }
+
+bool isAbstract(const std::string& path) { return !path.empty() && path[0] == '\0'; }
 
 bool makeAddr(const std::string& path, sockaddr_un& addr) {
     std::memset(&addr, 0, sizeof(addr));
@@ -64,8 +78,14 @@ bool makeAddr(const std::string& path, sockaddr_un& addr) {
     if (path.size() >= sizeof(addr.sun_path)) {
         return false;
     }
-    std::memcpy(addr.sun_path, path.c_str(), path.size() + 1);
+    std::memcpy(addr.sun_path, path.data(), path.size());
     return true;
+}
+
+/// Largo de la direccion: el nombre abstracto es EXACTO (sin ceros de relleno).
+socklen_t addrLen(const std::string& path) {
+    return isAbstract(path) ? static_cast<socklen_t>(offsetof(sockaddr_un, sun_path) + path.size())
+                            : static_cast<socklen_t>(sizeof(sockaddr_un));
 }
 
 /// Socket stream con CLOEXEC y, en macOS, sin SIGPIPE (Linux usa MSG_NOSIGNAL).
@@ -152,7 +172,7 @@ bool LocalStream::connect(const std::string& name, int timeoutMs, LocalStream& o
             setErr(err, sysErr("socket"));
             return false;
         }
-        if (::connect(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == 0) {
+        if (::connect(fd, reinterpret_cast<sockaddr*>(&addr), addrLen(path)) == 0) {
             if (!peerIsSameUser(fd)) {
                 ::close(fd);
                 setErr(err, "el servidor de '" + name + "' no es del mismo usuario");
@@ -285,10 +305,10 @@ bool LocalServer::listen(const std::string& name, LocalServer& out, std::string*
 
     // Un archivo previo puede ser de un servidor vivo (error: el nombre esta
     // en uso) o un huerfano de un proceso que murio (se borra).
-    if (::access(path.c_str(), F_OK) == 0) {
+    if (!isAbstract(path) && ::access(path.c_str(), F_OK) == 0) {
         const int probe = makeSocket();
         if (probe >= 0) {
-            const bool alive = ::connect(probe, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == 0;
+            const bool alive = ::connect(probe, reinterpret_cast<sockaddr*>(&addr), addrLen(path)) == 0;
             ::close(probe);
             if (alive) {
                 setErr(err, "el canal '" + name + "' ya tiene un servidor activo");
@@ -303,15 +323,16 @@ bool LocalServer::listen(const std::string& name, LocalServer& out, std::string*
         setErr(err, sysErr("socket"));
         return false;
     }
-    if (::bind(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) != 0) {
-        setErr(err, sysErr("bind"));
+    if (::bind(fd, reinterpret_cast<sockaddr*>(&addr), addrLen(path)) != 0) {
+        setErr(err,
+               errno == EADDRINUSE ? "el canal '" + name + "' ya tiene un servidor activo" : sysErr("bind"));
         ::close(fd);
         return false;
     }
     if (::listen(fd, 8) != 0) {
         setErr(err, sysErr("listen"));
         ::close(fd);
-        ::unlink(path.c_str());
+        if (!isAbstract(path)) ::unlink(path.c_str());
         return false;
     }
     out.name_ = name;
@@ -364,7 +385,7 @@ void LocalServer::close() {
         fd_ = -1;
     }
     if (!path_.empty()) {
-        ::unlink(path_.c_str());
+        if (!isAbstract(path_)) ::unlink(path_.c_str());
         path_.clear();
     }
 }

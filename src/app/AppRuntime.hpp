@@ -104,9 +104,11 @@ class AppRuntime {
     /// Escuchar por monitoreo a quien ocupa el lugar `slot` del lobby.
     void setLobbyMonitor(int slot, bool on) { operator_.setLobbyMonitor(slot, on); }
 
+    /// La definicion guardada de una fuente en una escena (nullptr si no esta).
+    SourceSpec* findSpec(const std::string& scene, const std::string& name);
+
    private:
     void addGuests();
-    SourceSpec* findSpec(const std::string& scene, const std::string& name);
 
     AppConfig cfg_;
     GatewaySettings gateway_;

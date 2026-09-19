@@ -4,21 +4,44 @@
 
 #include "ui/StudioViewModel.hpp"
 
+#if defined(BA_HAVE_CLAP)
+#include "audio/AudioViewModel.hpp"
+#include "audio/RackManager.hpp"
+#endif
+
+#include <QFile>
 #include <QHostAddress>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QNetworkInterface>
+#include <QStorageInfo>
+#include <QUrl>
 
 #include <util/platform.h>
 
 #include <algorithm>
 #include <cstdlib>
 
+#include "AccountGuides.hpp"
+#include "agent/AgentViewModel.hpp"
+#include "agent/AlertEngine.hpp"
 #include "AppRuntime.hpp"
+#include "net/HttpsClient.hpp"
+#include "ui/ChatOverlayRenderer.hpp"
+#include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/DashboardModel.hpp"
+#include "ui/FacebookViewModel.hpp"
 #include "ui/FrameService.hpp"
+#include "ui/InputsViewModel.hpp"
 #include "ui/ListModels.hpp"
+#include "ui/OperatorMessages.hpp"
 #include "ui/PropertiesModel.hpp"
 #include "ui/SettingsModel.hpp"
+#include "ui/SystemViewModel.hpp"
+#include "ui/TwitchViewModel.hpp"
+#include "ui/YouTubeViewModel.hpp"
+#include <QCoreApplication>
 
 namespace ba::app {
 
@@ -50,6 +73,114 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     props_ = std::make_unique<PropertiesModel>(rt);
     conference_ = std::make_unique<ConferenceViewModel>(rt);
     connect(conference_.get(), &ConferenceViewModel::notify, this, &StudioViewModel::notify);
+    // HTTPS propio (plataformas): raices de certificados del bundle primero.
+    net::HttpsClient::setDefaultCaSearch(
+        {(rt.dataRoot() / "data" / "cacert.pem").string(),
+         (QCoreApplication::applicationDirPath() + "/../../data/cacert.pem").toStdString()});
+    youtube_ = std::make_unique<YouTubeViewModel>(rt);
+    connect(youtube_.get(), &YouTubeViewModel::notify, this, &StudioViewModel::notify);
+    twitch_ = std::make_unique<TwitchViewModel>(rt);
+    connect(twitch_.get(), &TwitchViewModel::notify, this, &StudioViewModel::notify);
+    facebook_ = std::make_unique<FacebookViewModel>(rt);
+    connect(facebook_.get(), &FacebookViewModel::notify, this, &StudioViewModel::notify);
+    system_ = std::make_unique<SystemViewModel>();
+    connect(system_.get(), &SystemViewModel::quitForUpdate, this, [this]() {
+        emit notify("Cerrando para actualizar: el sistema vuelve a abrir solo en unos segundos.", "info");
+        QTimer::singleShot(800, this, [this]() { emit quitRequested(); });
+    });
+    chatOverlay_ = std::make_unique<ChatOverlayRenderer>(*youtube_, *conference_, *twitch_, *facebook_);
+    // Vigilancias (alertas) contra el estado real de la app, y la pestaña Asistente.
+    {
+        agent::AlertInputs in;
+        in.audio = [this]() {
+            std::vector<agent::AlertInputs::Audio> out;
+            for (const std::string& n : rt_.engine().audioSources())
+                out.push_back({n, rt_.engine().sourcePeakDb(n), rt_.engine().sourceMuted(n)});
+            return out;
+        };
+        in.media = [this]() {
+            std::vector<agent::AlertInputs::Media> out;
+            for (const auto& m : rt_.engine().mediaSources())
+                out.push_back({m.name, m.state, m.durationMs, m.timeMs});
+            return out;
+        };
+        in.room = [this]() {
+            return nlohmann::json::parse(
+                QJsonDocument(conference_->client().snapshot()).toJson(QJsonDocument::Compact).toStdString(),
+                nullptr, false);
+        };
+        in.chat = [this]() {
+            std::vector<nlohmann::json> out;
+            for (const auto& m : chatOverlay_->collect())
+                out.push_back({{"key", m.key.toStdString()},
+                               {"platform", m.source.toStdString()},
+                               {"author", m.author.toStdString()},
+                               {"text", m.text.toStdString()}});
+            return out;
+        };
+        in.roomChat = [this]() {
+            return nlohmann::json::parse(
+                QJsonDocument(static_cast<JsonListModel*>(conference_->chat())->items())
+                    .toJson(QJsonDocument::Compact)
+                    .toStdString(),
+                nullptr, false);
+        };
+        in.status = [this]() {
+            const EngineStatus s = rt_.engine().status();
+            return agent::AlertInputs::Status{s.streaming, s.recording, s.droppedFrames, s.totalFrames};
+        };
+        in.diskFreeGb = [this]() {
+            const QStorageInfo si(QString::fromStdWString((rt_.dataRoot() / "Recordings").wstring()));
+            return si.isValid() ? static_cast<double>(si.bytesAvailable()) / 1e9 : -1.0;
+        };
+        alerts_ = std::make_unique<agent::AlertEngine>(std::move(in),
+                                                       (rt.dataRoot() / "Config" / "alertas.json").string());
+        connect(alerts_.get(), &agent::AlertEngine::fired, this, [this](const nlohmann::json& ev) {
+            for (const auto& n : ev.value("notify", nlohmann::json::array()))
+                if (n == "ui") emit notify("⚠ " + QString::fromStdString(ev.value("text", "")), "warn");
+        });
+        alerts_->start(250);
+        agent_ = std::make_unique<agent::AgentViewModel>(rt, *alerts_);
+        connect(agent_.get(), &agent::AgentViewModel::notify, this, &StudioViewModel::notify);
+        // Barra de mensajes del asistente al operador (y respuestas a invitados).
+        messages_ = std::make_unique<OperatorMessages>();
+        messages_->setChatSender([this](const QString& to, const QString& text) {
+            conference_->sendChat(to, text);
+            return QString();
+        });
+        messages_->setCredentialSink([this](const QString& platform, const QVariantMap& values) {
+            return saveAccountCredential(platform, values);
+        });
+        messages_->setLateAnswerSink([this](const nlohmann::json& item) {
+            const std::string kind = item.value("kind", "");
+            const std::string st = item.value("status", "");
+            const QString text = QString::fromStdString(item.value("text", ""));
+            const QString answer = QString::fromStdString(item.value("answer", ""));
+            // Sin el nombre (lo eligio el invitado): solo su id.
+            const QString who = "el invitado " + QString::fromStdString(item.value("participantId", "?"));
+            QString note;
+            if (kind == "question")
+                note = st == "answered" ? "[RESPUESTA DEL OPERADOR] a tu pregunta \"" + text + "\": " + answer
+                                        : "[OPERADOR] descarto tu pregunta \"" + text + "\".";
+            else if (kind == "reply")
+                note = st == "sent" ? "[OPERADOR] le mando a " + who + ": \"" + answer + "\""
+                                    : "[OPERADOR] ignoro el mensaje de " + who + ".";
+            else if (kind == "credential") {
+                const QString p = QString::fromStdString(item.value("platform", ""));
+                note = st == "saved"
+                           ? "[OPERADOR] guardo la credencial de " + p + ". Siguiente paso: " + p + "_login."
+                           : "[OPERADOR] cerro el formulario de credenciales de " + p + " sin guardar.";
+            }
+            if (!note.isEmpty()) agent_->deliverNote(note);
+        });
+    }
+    inputs_ = std::make_unique<InputsViewModel>(rt, *this);
+#if defined(BA_HAVE_CLAP)
+    // Racks de audio (LSP) de cada fuente: se montan los guardados.
+    racks_ = std::make_unique<audio::RackManager>(rt.dataRoot());
+    racks_->restore();
+    audio_ = std::make_unique<audio::AudioViewModel>(*racks_);
+#endif
     // Las etiquetas de video ("Invitado 2") pasan a ser el nombre real.
     connect(conference_.get(), &ConferenceViewModel::roomChanged, this,
             [this]() { frames_->setGuestNames(conference_->slotNames()); });
@@ -172,6 +303,53 @@ QObject* StudioViewModel::settings() const { return settings_.get(); }
 QObject* StudioViewModel::dashboard() const { return dashboard_.get(); }
 QObject* StudioViewModel::frames() const { return frames_.get(); }
 QObject* StudioViewModel::properties() const { return props_.get(); }
+QObject* StudioViewModel::youtube() const { return youtube_.get(); }
+QObject* StudioViewModel::twitch() const { return twitch_.get(); }
+QObject* StudioViewModel::facebook() const { return facebook_.get(); }
+QObject* StudioViewModel::system() const { return system_.get(); }
+QObject* StudioViewModel::agent() const { return agent_.get(); }
+QObject* StudioViewModel::messages() const { return messages_.get(); }
+
+QObject* StudioViewModel::audio() const {
+#if defined(BA_HAVE_CLAP)
+    return audio_.get();
+#else
+    return nullptr;
+#endif
+}
+
+QVariantMap StudioViewModel::accountGuide(const QString& platform) const {
+    const nlohmann::json g = accounts::guide(platform.toStdString(), facebook_->redirectUri().toStdString());
+    return QJsonDocument::fromJson(QByteArray::fromStdString(g.dump())).object().toVariantMap();
+}
+
+QString StudioViewModel::saveAccountCredential(const QString& platform, const QVariantMap& v) {
+    const std::string p = accounts::normalize(platform.toStdString());
+    if (p == "youtube") {
+        QString path = v.value("importFile").toString();
+        if (v.value("fromDownloads").toBool()) {
+            QString why;
+            path = accounts::findGoogleClientJson(&why);
+            if (path.isEmpty()) return why;
+        }
+        if (!path.isEmpty()) {
+            const QUrl u(path);
+            QFile f(u.isLocalFile() ? u.toLocalFile() : path);
+            if (!f.open(QIODevice::ReadOnly)) return "No se pudo leer " + f.fileName() + ".";
+            return youtube_->saveClient(QString::fromUtf8(f.readAll()));
+        }
+        return youtube_->saveClient(v.value("clientId").toString().trimmed(),
+                                    v.value("clientSecret").toString().trimmed());
+    }
+    if (p == "twitch")
+        return twitch_->saveClient(v.value("clientId").toString().trimmed(),
+                                   v.value("clientSecret").toString().trimmed());
+    if (p == "facebook")
+        return facebook_->saveClient(v.value("appId").toString().trimmed(),
+                                     v.value("appSecret").toString().trimmed(), facebook_->client().port());
+    return "Plataforma desconocida: " + platform + ".";
+}
+QObject* StudioViewModel::inputs() const { return inputs_.get(); }
 QObject* StudioViewModel::conference() const { return conference_.get(); }
 
 void StudioViewModel::toggleRecording() {
@@ -251,6 +429,20 @@ void StudioViewModel::save() {
     } else {
         emit notify("No se pudo guardar: " + qs(rt_.lastError()), "error");
     }
+}
+
+void StudioViewModel::refreshModels() {
+    scenes_->reload();
+    scenes_->liveChanged();
+    // Si la escena que mostraba el editor ya no existe, sigue a la del aire.
+    const std::vector<std::string> names = rt_.engine().sceneNames();
+    if (std::find(names.begin(), names.end(), sources_->scene().toStdString()) == names.end()) {
+        sources_->setScene(currentScene());
+    }
+    sources_->reload();
+    mixer_->reload();
+    emit sceneChanged();
+    emit statusChanged();
 }
 
 } // namespace ba::app

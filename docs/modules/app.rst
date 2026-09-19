@@ -50,8 +50,11 @@ Rol (spec §6)
   GATED:Qt/libobs).
 - **Fuentes IPC** en `ba-sources.dll` que consumen los rings de audio, el
   transporte Spout y el canal de control del núcleo (ver :doc:`modules/core`).
-- **Host de plugins** (VST3/LSP): embebe los editores de los bundles `.vst3`
-  vía `ba::plugin::Vst3Host` (ver :doc:`modules/plugin-host`).
+- **Rack de audio** (`src/app/audio`, pestaña Audio): un filtro OBS
+  `ba_audio_rack` por fuente con un grafo de módulos LSP (host CLAP propio,
+  `ClapHost`; la interfaz original de cada módulo en una ventana X11/Win32,
+  `ClapEditor`), medidores por módulo, analizador (LUFS, espectro, piso de
+  ruido) y generador (`Analyzer`). Manejable por MCP (categoría `audio_rack`).
 - **DSP nativo**: channel strip, automixer y presets del núcleo (`ba::dsp`,
   ver :doc:`modules/core`) como filtros libobs RT-safe.
 

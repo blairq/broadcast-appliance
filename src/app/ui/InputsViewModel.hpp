@@ -1,0 +1,95 @@
+// ============================================================================
+// src/app/ui/InputsViewModel.hpp — Pagina Entradas: hardware y red
+//
+// Camaras USB y capturadoras conectadas (con sus modos) y camaras/señales por
+// la red (RTSP, RTMP, SRT, HLS, UDP): agregarlas a una escena, ver si llega
+// imagen (miniatura viva) y quitarlas. Arma las fuentes igual que el MCP
+// (InputSpecs). Mientras la pagina esta visible, las entradas se mantienen
+// "mostrandose" para que sus miniaturas se actualicen aunque no esten al aire.
+// ============================================================================
+#pragma once
+
+#include <QObject>
+#include <QQuickImageProvider>
+#include <QStringList>
+#include <QTimer>
+#include <QVariantList>
+
+#include <set>
+#include <string>
+
+namespace ba::app {
+
+class AppRuntime;
+class StudioViewModel;
+
+class InputsViewModel : public QObject {
+    Q_OBJECT
+    Q_PROPERTY(QVariantList devices READ devices NOTIFY changed)
+    Q_PROPERTY(QVariantList inputs READ inputs NOTIFY changed)
+    Q_PROPERTY(QStringList scenes READ scenes NOTIFY changed)
+    Q_PROPERTY(int stamp READ stamp NOTIFY stampChanged)
+    Q_PROPERTY(bool hardwareAvailable READ hardwareAvailable NOTIFY changed)
+    Q_PROPERTY(bool ndiAvailable READ ndiAvailable CONSTANT)
+    Q_PROPERTY(QVariantList ndiFound READ ndiFound NOTIFY ndiChanged)
+    Q_PROPERTY(bool ndiSearching READ ndiSearching NOTIFY ndiChanged)
+   public:
+    InputsViewModel(AppRuntime& rt, StudioViewModel& vm, QObject* parent = nullptr);
+    ~InputsViewModel() override;
+
+    QVariantList devices() const { return devices_; }
+    QVariantList inputs() const { return inputs_; }
+    QStringList scenes() const;
+    int stamp() const { return stamp_; }
+    bool hardwareAvailable() const;
+    bool ndiAvailable() const;
+    QVariantList ndiFound() const { return ndiFound_; }
+    bool ndiSearching() const { return ndiSearching_; }
+    /// Busca emisores NDI en la red (en segundo plano, unos segundos).
+    Q_INVOKABLE void searchNdi();
+    Q_INVOKABLE QString addNdi(const QString& ndiName, const QString& name, const QString& scene);
+
+    Q_INVOKABLE void refresh();
+    /// Modos de una camara: [{label, pixelformat, resolution, framerate}].
+    Q_INVOKABLE QVariantList modes(const QString& device) const;
+    /// "" o el error.
+    Q_INVOKABLE QString addHardware(const QString& device, const QString& name, const QString& scene,
+                                    const QVariantMap& mode);
+    Q_INVOKABLE QString addNetwork(const QString& url, const QString& name, const QString& scene,
+                                   bool lowLatency);
+    Q_INVOKABLE void remove(const QString& name);
+    /// La pagina esta a la vista (miniaturas vivas).
+    Q_INVOKABLE void setActive(bool on);
+
+   signals:
+    void changed();
+    void stampChanged();
+    void ndiChanged();
+
+   private:
+    void rebuildInputs();
+    void syncHolds();
+
+    AppRuntime& rt_;
+    StudioViewModel& vm_;
+    QVariantList devices_;
+    QVariantList inputs_;
+    int stamp_ = 0;
+    bool active_ = false;
+    std::set<std::string> held_;
+    QTimer tick_;
+    QVariantList ndiFound_;
+    bool ndiSearching_ = false;
+};
+
+/// image://inputs/<nombre>?<stamp>: miniatura de una entrada.
+class InputThumbProvider : public QQuickImageProvider {
+   public:
+    explicit InputThumbProvider(AppRuntime& rt) : QQuickImageProvider(QQuickImageProvider::Image), rt_(rt) {}
+    QImage requestImage(const QString& id, QSize* size, const QSize& requested) override;
+
+   private:
+    AppRuntime& rt_;
+};
+
+} // namespace ba::app

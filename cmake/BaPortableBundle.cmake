@@ -32,7 +32,8 @@ install(CODE "
     set(_bin \"\${CMAKE_INSTALL_PREFIX}/bin/64bit\")
     set(_plug \"\${CMAKE_INSTALL_PREFIX}/obs-plugins/64bit\")
 
-    file(GLOB _libs \"\${_bin}/*.so\" \"\${_bin}/*.so.*\")
+    # Bibliotecas y el helper de grabacion (obs-ffmpeg-mux usa FFmpeg del bundle).
+    file(GLOB _libs \"\${_bin}/*.so\" \"\${_bin}/*.so.*\" \"\${_bin}/obs-ffmpeg-mux\")
     foreach(_lib IN LISTS _libs)
         execute_process(COMMAND \"${BA_PATCHELF}\" --set-rpath \"\\\$ORIGIN\" \"\${_lib}\"
                         RESULT_VARIABLE _rc ERROR_QUIET)
@@ -42,6 +43,14 @@ install(CODE "
     foreach(_p IN LISTS _plugins)
         execute_process(COMMAND \"${BA_PATCHELF}\"
                         --set-rpath \"\\\$ORIGIN:\\\$ORIGIN/../../bin/64bit\" \"\${_p}\"
+                        RESULT_VARIABLE _rc ERROR_QUIET)
+    endforeach()
+
+    # Plugins de audio LSP (CLAP): sus bibliotecas (cairo, libsndfile...) en bin/64bit.
+    file(GLOB _claps \"\${CMAKE_INSTALL_PREFIX}/plugins/lsp/*.clap\")
+    foreach(_c IN LISTS _claps)
+        execute_process(COMMAND \"${BA_PATCHELF}\"
+                        --set-rpath \"\\\$ORIGIN:\\\$ORIGIN/../../bin/64bit\" \"\${_c}\"
                         RESULT_VARIABLE _rc ERROR_QUIET)
     endforeach()
 

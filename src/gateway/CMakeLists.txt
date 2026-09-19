@@ -44,12 +44,18 @@ endif()
 # segundo plano, así que la consola no se muestra.
 if(MSVC)
     add_executable(ba-gateway WIN32 ${BA_GATEWAY_SOURCES})
+    # Sin consola pero con `main(argc, argv)`: el CRT entra por main.
+    target_link_options(ba-gateway PRIVATE /ENTRY:mainCRTStartup)
 else()
     add_executable(ba-gateway ${BA_GATEWAY_SOURCES})
 endif()
 
 target_link_libraries(ba-gateway PRIVATE ba_core mbedcrypto)
 target_include_directories(ba-gateway PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+# QR de ingreso (Nayuki, MIT) en third_party/: codigo ajeno, fuera del lint.
+set(BA_QRCODEGEN_DIR "${CMAKE_SOURCE_DIR}/third_party/qrcodegen")
+target_sources(ba-gateway PRIVATE "${BA_QRCODEGEN_DIR}/qrcodegen.cpp")
+target_include_directories(ba-gateway PRIVATE "${BA_QRCODEGEN_DIR}")
 
 # --- lwIP (pila IP en espacio de usuario para el tunel WireGuard) ------------
 # extern/lwip (make deps-lwip). Sin lwIP el gateway compila igual, sin tunel.
@@ -125,12 +131,32 @@ endif()
 if(BA_GATEWAY_WEBRTC)
     message(STATUS "ba-gateway: libwebrtc en ${BA_WEBRTC_ROOT}")
     target_compile_definitions(ba-gateway PRIVATE BA_GATEWAY_HAVE_WEBRTC=1)
-    target_include_directories(ba-gateway PRIVATE "${BA_WEBRTC_ROOT}/include")
-    target_link_directories(ba-gateway PRIVATE "${BA_WEBRTC_ROOT}/lib")
-    # Binarios precompilados de Shiguredo: webrtc.lib (+ deps) en COFF con
-    # símbolos C++ mangling-MSVC y sin webrtc.dll: solo enlazable bajo MSVC
-    # (de ahí la puerta if(MSVC) de arriba).
-    target_link_libraries(ba-gateway PRIVATE webrtc)
+    # Binarios precompilados de Shiguredo: webrtc.lib en COFF con símbolos
+    # C++ mangling-MSVC, CRT estatica (/MT) y sin webrtc.dll: solo enlazable
+    # bajo MSVC/clang-cl y desde el sub-build /MT (cmake/BaWinStaticPart.cmake).
+    # El SDK se compilo con un clang mas viejo: el clang actual rechaza
+    # [[clang::lifetimebound]] en parametros de funciones void (api/candidate.h).
+    # Se usa una copia de absl/base/attributes.h sin ese atributo (solo son
+    # avisos de analisis; no cambia el codigo ni el ABI), delante del SDK.
+    set(_ba_absl_shadow "${CMAKE_BINARY_DIR}/webrtc-win-shadow")
+    file(READ "${BA_WEBRTC_ROOT}/include/third_party/abseil-cpp/absl/base/attributes.h" _ba_attr)
+    string(REPLACE "#define ABSL_ATTRIBUTE_LIFETIME_BOUND [[clang::lifetimebound]]"
+           "#define ABSL_ATTRIBUTE_LIFETIME_BOUND" _ba_attr "${_ba_attr}")
+    file(WRITE "${_ba_absl_shadow}/absl/base/attributes.h" "${_ba_attr}")
+    add_library(ba_webrtc_win INTERFACE)
+    target_include_directories(ba_webrtc_win SYSTEM BEFORE INTERFACE
+        "${_ba_absl_shadow}"
+        "${BA_WEBRTC_ROOT}/include"
+        "${BA_WEBRTC_ROOT}/include/third_party/abseil-cpp"
+        "${BA_WEBRTC_ROOT}/include/third_party/libyuv/include")
+    target_compile_definitions(ba_webrtc_win INTERFACE BA_GATEWAY_HAVE_WEBRTC=1 WEBRTC_WIN)
+    target_link_libraries(ba_webrtc_win INTERFACE "${BA_WEBRTC_ROOT}/lib/webrtc.lib"
+        winmm secur32 ws2_32 iphlpapi crypt32 dmoguids wmcodecdspuuid msdmo strmiids
+        ole32 oleaut32 d3d11 dxgi advapi32 user32 gdi32 shell32)
+    # libwebrtc esta compilado sin RTTI: las clases que heredan de sus
+    # interfaces no pueden pedir typeinfo de sus bases.
+    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/Webrtc.cpp" PROPERTIES COMPILE_OPTIONS "/GR-")
+    target_link_libraries(ba-gateway PRIVATE ba_webrtc_win)
 else()
     message(STATUS "ba-gateway (GCC): backend NULL para los tests de logica (BA_GATEWAY_HAVE_WEBRTC=0)")
     target_compile_definitions(ba-gateway PRIVATE BA_GATEWAY_HAVE_WEBRTC=0)
@@ -144,7 +170,7 @@ endif()
 # de rtc_base/system/rtc_export_template.h (GCC reescribe __declspec -> __attribute__).
 # Este target OBJECT compila SOLO Webrtc.cpp con BA_GATEWAY_HAVE_WEBRTC=1 (sin
 # enlazar webrtc.lib) como prueba de compilación del path real en toolchains no-MSVC.
-if(BA_GATEWAY_USE_WEBRTC AND DEFINED BA_WEBRTC_ROOT AND EXISTS "${BA_WEBRTC_ROOT}/include")
+if(NOT MSVC AND BA_GATEWAY_USE_WEBRTC AND DEFINED BA_WEBRTC_ROOT AND EXISTS "${BA_WEBRTC_ROOT}/include")
     # Solo UNA de las cuatro llamadas del auto-test falla bajo GCC: la de
     # __declspec(dllexport) (GCC la reescribe a __attribute__ y rompe el
     # token-paste que la mapea a MSVC_HACK). Las otras tres (vacía, __attribute__,
@@ -197,10 +223,13 @@ endif()
 
 foreach(test_source ${BA_GATEWAY_TESTS})
     get_filename_component(test_name ${test_source} NAME_WE)
-    add_executable(${test_name} ${test_source} ${BA_GATEWAY_LIB_SOURCES})
+    add_executable(${test_name} ${test_source} ${BA_GATEWAY_LIB_SOURCES} "${BA_QRCODEGEN_DIR}/qrcodegen.cpp")
+    target_include_directories(${test_name} PRIVATE "${BA_QRCODEGEN_DIR}")
     target_include_directories(${test_name} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    # Tests de LOGICA: siempre con el backend NULL (el SDP de prueba no es un
+    # SDP real). Los medios reales los prueba test_webrtc_loopback.
     target_compile_definitions(${test_name} PRIVATE
-        BA_GATEWAY_HAVE_WEBRTC=${BA_GATEWAY_WEBRTC}
+        BA_GATEWAY_HAVE_WEBRTC=0
         # Webroot real (assets/web/guest) para el humo HTTP: sirve el index del
         # invitado de verdad en vez de un directorio inventado.
         BA_TEST_WEBROOT="${CMAKE_SOURCE_DIR}/assets/web/guest"
@@ -214,15 +243,25 @@ foreach(test_source ${BA_GATEWAY_TESTS})
     if(WIN32)
         target_link_libraries(${test_name} PRIVATE ws2_32)
     endif()
-    if(BA_GATEWAY_WEBRTC)
-        target_include_directories(${test_name} PRIVATE "${BA_WEBRTC_ROOT}/include")
-        target_link_directories(${test_name} PRIVATE "${BA_WEBRTC_ROOT}/lib")
-        target_link_libraries(${test_name} PRIVATE webrtc)
-    endif()
     add_test(NAME ${test_name} COMMAND ${test_name})
     # 77 = saltado (ver src/core/CMakeLists.txt).
     set_tests_properties(${test_name} PROPERTIES SKIP_RETURN_CODE 77)
 endforeach()
+
+# Windows: el test de medios reales (RTP/SRTP sobre UDP local) tambien.
+if(BA_GATEWAY_WEBRTC AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_webrtc_loopback.cpp")
+    add_executable(test_webrtc_loopback tests/test_webrtc_loopback.cpp ${BA_GATEWAY_LIB_SOURCES}
+                   "${BA_QRCODEGEN_DIR}/qrcodegen.cpp")
+    target_include_directories(test_webrtc_loopback PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_QRCODEGEN_DIR}")
+    target_link_libraries(test_webrtc_loopback PRIVATE ba_core mbedcrypto ba_webrtc_win ws2_32)
+    if(BA_HAVE_LWIP)
+        target_link_libraries(test_webrtc_loopback PRIVATE ba_lwip)
+        target_compile_definitions(test_webrtc_loopback PRIVATE BA_HAVE_LWIP=1)
+    endif()
+    set_source_files_properties(tests/test_webrtc_loopback.cpp PROPERTIES COMPILE_OPTIONS "/GR-")
+    add_test(NAME test_webrtc_loopback COMMAND test_webrtc_loopback)
+    set_tests_properties(test_webrtc_loopback PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+endif()
 
 # --- Instalación ------------------------------------------------------------
 # Proceso B va a bin/64bit/ (spec §5.1). La app web del invitado se instala en
@@ -288,5 +327,11 @@ endif()
 if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/admin")
     install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/admin/"
         DESTINATION Web/admin
+    )
+endif()
+# Tablero de oradores (solo lectura, para una tablet; lo sirve B en /board/).
+if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/board")
+    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/board/"
+        DESTINATION Web/board
     )
 endif()

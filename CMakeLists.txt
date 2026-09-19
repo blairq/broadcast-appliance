@@ -27,6 +27,11 @@ project(
     LANGUAGES C CXX
 )
 
+# Windows (MSVC/clang-cl): el launcher y el gateway se compilan con la CRT
+# ESTATICA en un sub-build propio (cmake/BaWinStaticPart.cmake). Con esta
+# opcion en ON, este mismo arbol ES ese sub-build: solo core+launcher+gateway.
+option(BA_WIN_STATIC_PART "Sub-build interno de Windows: launcher y gateway /MT" OFF)
+
 # C++20 es obligatorio en todos los targets.
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -39,8 +44,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 #   - no rompa nada si ccache no existe (find_program deja la variable vacía),
 #   - no anule un launcher que el usuario ya haya fijado a mano
 #     (-DCMAKE_CXX_COMPILER_LAUNCHER=...),
-#   - sea puramente aditivo: no toca FetchContent, el if(WIN32) del VST3 SDK,
-#     los flags de MSVC ni los add_subdirectory de los componentes.
+#   - sea puramente aditivo: no toca FetchContent, los flags de MSVC ni los add_subdirectory de los componentes.
 # Verificar que ccache está activo: `ccache -s` (hits/misses) o la línea STATUS
 # que se imprime en el configure.
 find_program(CCACHE_LAUNCHER ccache)
@@ -71,8 +75,7 @@ FetchContent_Declare(nlohmann_json
     GIT_REPOSITORY https://github.com/nlohmann/json.git
     GIT_TAG ${NLOHMANN_JSON_VERSION})
 # libsamplerate (Secret Rabbit Code, MIT): re-muestreo de audio (spec 7.4).
-# Lib de C pura que compila en Linux y Windows, por eso se trae SIN if(WIN32)
-# (a diferencia del VST3 SDK de más abajo). Target resultante: `samplerate`
+# Lib de C pura que compila en Linux y Windows. Target resultante: `samplerate`
 # (alias `SampleRate::samplerate`).
 FetchContent_Declare(libsamplerate
     GIT_REPOSITORY https://github.com/libsndfile/libsamplerate.git
@@ -165,75 +168,6 @@ add_library(argon2 STATIC
     ${argon2_SOURCE_DIR}/src/blake2/blake2b.c)
 target_include_directories(argon2 PUBLIC ${argon2_SOURCE_DIR}/include)
 
-# --- VST3 SDK (Steinberg, MIT) — SOLO Windows -------------------------------
-# Base del host de plugins (spec D6/§7.5, LSP como componente CORE). Se trae
-# SOLO en Windows: en Linux el build es OFFLINE y el módulo `ba_plugin_host`
-# compila solo con std::filesystem (sin SDK, sin red). Guardado con if(WIN32)
-# para que el configure de Linux no toque la red ni compile el SDK.
-if(WIN32)
-    # El SDK trae, además de las librerías que usamos (base/pluginterfaces/
-    # sdk_hosting), sus ejemplos de hosting. El ejemplo `VST3Inspector` se crea
-    # vía `vstgui_add_executable`, que SOLO crea el target bajo MSVC/LINUX/
-    # CMAKE_HOST_APPLE pero llama a target_link_libraries SIEMPRE: en un
-    # cross-compile MinGW (host=Linux, target=Windows) ninguna de esas ramas
-    # coincide, el target no existe y el configure falla. Solo necesitamos las
-    # librerías del SDK, no sus ejemplos GUI, así que desactivamos el soporte
-    # de VSTGUI (que elimina `vstgui`/`vstgui_standalone` y con ello saltea
-    # `inspectorapp`) y los ejemplos. `validator`/`moduleinfotool` solo enlazan
-    # `sdk_hosting` (no vstgui) y son cross-platform, por lo que siguen bien.
-    set(SMTG_ENABLE_VSTGUI_SUPPORT OFF CACHE BOOL "" FORCE)
-    set(SMTG_ENABLE_VST3_HOSTING_EXAMPLES OFF CACHE BOOL "" FORCE)
-    set(SMTG_ENABLE_VST3_PLUGIN_EXAMPLES OFF CACHE BOOL "" FORCE)
-    # El sample `validator` del SDK arranca su propio binario en POST_BUILD
-    # (-selftest). En un cross-compile MinGW (host=Linux) ese PE no corre bajo
-    # /bin/sh ("Exec format error"), por lo que se desactiva: solo necesitamos
-    # las librerías del SDK, no sus samples ni su selftest.
-    set(SMTG_RUN_VST_VALIDATOR OFF CACHE BOOL "" FORCE)
-    FetchContent_Declare(vst3sdk
-        GIT_REPOSITORY https://github.com/steinbergmedia/vst3sdk.git
-        GIT_TAG ${VST3_SDK_VERSION}
-        GIT_SHALLOW TRUE)
-    # Offline-first (mismo criterio que las 4 nativas de arriba): si extern/
-    # trae el SDK vendored, se usa esa copia y el configure no toca la red;
-    # si no, cae al git de arriba.
-    if(EXISTS "${_BA_EXTERN}/vst3-sdk/CMakeLists.txt")
-        set(FETCHCONTENT_SOURCE_DIR_VST3SDK "${_BA_EXTERN}/vst3-sdk")
-        message(STATUS "vst3sdk: usando vendored en extern/ (offline)")
-    else()
-        message(STATUS "vst3sdk: sin extern/vst3-sdk: usando git")
-    endif()
-    set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME thirdparty)
-    FetchContent_MakeAvailable(vst3sdk)
-    set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME bundle)
-
-    # --- Excluir del build los targets del SDK que NO usamos ------------------
-    # Solo enlazamos `base`, `pluginterfaces`, `sdk_hosting` y `sdk_common`
-    # (ver src/plugin-host). El resto de targets que el SDK crea por defecto
-    # se compilan dentro de `all` y, en un cross-compile MinGW, fallan en
-    # `public.sdk/source/vst/utility/alignedalloc.h:79` (`std::aligned_alloc`
-    # no existe en el libstdc++ de MinGW):
-    #   - `sdk`        : lib completa del SDK; `dataexchange.cpp` usa
-    #                     `Steinberg::Vst::aligned_alloc`. Ningún target de
-    #                     producto la enlaza (solo la usan los samples).
-    #   - `validator`  : test-host de Steinberg (samples/vst-hosting/validator);
-    #                     NO se crea bajo ninguna variable del SDK (audiohost/
-    #                     editorhost/inspectorapp sí respetan
-    #                     SMTG_ENABLE_VST3_HOSTING_EXAMPLES, validator no).
-    #   - `moduleinfotool` : util de samples/vst-utilities; la desactiva
-    #                     `SMTG_ADD_VST3_UTILITIES` (ON por defecto).
-    # `EXCLUDE_FROM_ALL` los saca del target `all` (y de `cmake --build`) sin
-    # borrar su definición, por lo que sigue siendo enlazable si algún día se
-    # quisiera. Solo se aplica en Windows: en Linux el SDK no se trae
-    # (if(WIN32)) y estos targets no existen.
-    foreach(_ba_vst3_excl_target sdk validator moduleinfotool)
-        if(TARGET ${_ba_vst3_excl_target})
-            set_target_properties(${_ba_vst3_excl_target}
-                PROPERTIES EXCLUDE_FROM_ALL ON)
-            message(STATUS "VST3 SDK: target '${_ba_vst3_excl_target}' -> EXCLUDE_FROM_ALL (no lo usamos; evita el fallo de aligned_alloc en cross MinGW)")
-        endif()
-    endforeach()
-endif()
-
 # --- Config por defecto del build -------------------------------------------
 # Si no se pide nada, vamos a Release (el artefacto portable es Release).
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -252,23 +186,16 @@ if(MSVC)
         /utf-8         # fuente y ejecutable en UTF-8
         /EHsc          # excepciones activas, estilo estándar
     )
-    # /MD por defecto (CRT dinámica). El launcher lo anula a /MT localmente.
-    # /Zi garantiza PDBs en todos los configurados.
-    add_compile_options(
-        $<$<CONFIG:Debug>:/MDd>
-        $<$<CONFIG:Release>:/MD>
-        $<$<CONFIG:RelWithDebInfo>:/MD>
-        $<$<CONFIG:MinSizeRel>:/MD>
-        /Zi
-    )
-    # PDBs de enlace siempre.
-    add_link_options(
-        $<$<CONFIG:Debug>:/MDd>
-        $<$<CONFIG:Release>:/MD>
-        $<$<CONFIG:RelWithDebInfo>:/MD>
-        $<$<CONFIG:MinSizeRel>:/MD>
-        /DEBUG
-    )
+    # CRT: /MD por defecto (CMAKE_MSVC_RUNTIME_LIBRARY); el sub-build de
+    # launcher+gateway la pasa a /MT (cmake/BaWinStaticPart.cmake).
+    # /Zi garantiza PDBs en todos los configurados; PDBs de enlace siempre.
+    add_compile_options(/Zi)
+    add_link_options(/DEBUG)
+    # Windows 10+ (ConPTY, WinRT...) y sin min/max de windows.h. NOMINMAX y
+    # WIN32_LEAN_AND_MEAN van VACIOS: identicos al `#define` que ya tienen
+    # varios archivos (redefinirlos igual no es un aviso).
+    add_compile_definitions(_WIN32_WINNT=0x0A00 WINVER=0x0A00 NOMINMAX= WIN32_LEAN_AND_MEAN=
+                            _CRT_SECURE_NO_WARNINGS)
 else()
     # Linux (gcc/clang): advertencias estrictas razonables.
     add_compile_options(-Wall -Wextra)
@@ -287,14 +214,25 @@ include(CTest)
 # configura en ambas plataformas.
 # --- libobs portable (Linux y Windows) --------------------------------------
 # Define el target importado `ba::libobs` y `BA_HAVE_LIBOBS`. Ver el modulo.
+if(BA_WIN_STATIC_PART)
+    add_subdirectory(src/core)
+    add_subdirectory(src/launcher)
+    add_subdirectory(src/gateway)
+    return()
+endif()
+
 include(${CMAKE_SOURCE_DIR}/cmake/BaLibObs.cmake)
 
 add_subdirectory(src/core)
-add_subdirectory(src/launcher)
+if(MSVC)
+    # launcher + gateway: sub-build /MT (ver cmake/BaWinStaticPart.cmake).
+    include(${CMAKE_SOURCE_DIR}/cmake/BaWinStaticPart.cmake)
+else()
+    add_subdirectory(src/launcher)
+    add_subdirectory(src/gateway)
+endif()
 add_subdirectory(src/app)
 add_subdirectory(src/obs-module)
-add_subdirectory(src/gateway)
-add_subdirectory(src/plugin-host)
 
 # --- Reglas de instalación (layout 5.1) -------------------------------------
 # El layout espeja el portable de OBS (spec §5.1). Las rutas de destino son
@@ -337,6 +275,9 @@ install(DIRECTORY
     DESTINATION Recordings
 )
 install(DIRECTORY
+    DESTINATION Media
+)
+install(DIRECTORY
     DESTINATION Web/guest
 )
 
@@ -354,9 +295,16 @@ if(BA_HAVE_LIBOBS)
 
     # Plugins de OBS (x264, ffmpeg, rtmp, captura) -> obs-plugins/64bit.
     if(EXISTS "${BA_LIBOBS_PLUGIN_DIR}")
+        set(_ba_excl "")
+        foreach(_p IN LISTS BA_LIBOBS_PLUGIN_EXCLUDE)
+            list(APPEND _ba_excl PATTERN "${_p}.dll" EXCLUDE)
+        endforeach()
+        # CEF (navegador de OBS): no se usa.
+        list(APPEND _ba_excl PATTERN "libcef.dll" EXCLUDE PATTERN "chrome_elf.dll" EXCLUDE
+             PATTERN "libEGL.dll" EXCLUDE PATTERN "libGLESv2.dll" EXCLUDE PATTERN "locales" EXCLUDE)
         install(DIRECTORY "${BA_LIBOBS_PLUGIN_DIR}/"
             DESTINATION obs-plugins/64bit
-            FILES_MATCHING PATTERN "*.so" PATTERN "*.dll")
+            FILES_MATCHING PATTERN "*.so" PATTERN "*.dll" ${_ba_excl})
     endif()
 
     # Datos de libobs y de sus plugins (shaders .effect, locales) -> data/.
@@ -364,9 +312,26 @@ if(BA_HAVE_LIBOBS)
         install(DIRECTORY "${BA_LIBOBS_DATA_DIR}/libobs/" DESTINATION data/libobs)
     endif()
     if(EXISTS "${BA_LIBOBS_DATA_DIR}/obs-plugins")
+        set(_ba_excl "")
+        foreach(_p IN LISTS BA_LIBOBS_PLUGIN_EXCLUDE)
+            list(APPEND _ba_excl PATTERN "${_p}" EXCLUDE)
+        endforeach()
         install(DIRECTORY "${BA_LIBOBS_DATA_DIR}/obs-plugins/"
-            DESTINATION data/obs-plugins)
+            DESTINATION data/obs-plugins ${_ba_excl})
     endif()
+endif()
+
+# Runtime de C++ del compilador (Linux): bin/64bit/cxx/. El launcher lo usa
+# para A y B solo si es mas nuevo que el del sistema (ver ChildProcess.cpp).
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    foreach(_rt libstdc++.so.6 libgcc_s.so.1)
+        execute_process(COMMAND ${CMAKE_CXX_COMPILER} -print-file-name=${_rt}
+                        OUTPUT_VARIABLE _rt_path OUTPUT_STRIP_TRAILING_WHITESPACE)
+        if(EXISTS "${_rt_path}")
+            get_filename_component(_rt_real "${_rt_path}" REALPATH)
+            install(FILES "${_rt_real}" DESTINATION bin/64bit/cxx RENAME ${_rt})
+        endif()
+    endforeach()
 endif()
 
 # cloudflared (tunel del gateway, spec §8.8) junto a los binarios si se bajo

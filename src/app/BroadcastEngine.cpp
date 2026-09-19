@@ -15,6 +15,10 @@
 // ============================================================================
 
 #include "BroadcastEngine.hpp"
+#include "ChatOverlaySource.hpp"
+#if defined(BA_HAVE_NDI)
+#include "NdiSource.hpp"
+#endif
 
 #include <obs.h>
 
@@ -221,6 +225,11 @@ bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video
         obs_load_all_modules();
     }
     obs_post_load_modules();
+    // Fuentes propias de la app (no son plugins): el chat en vivo.
+    chatoverlay::registerSourceType();
+#if defined(BA_HAVE_NDI)
+    ndi::registerSourceType(); // entrada NDI(R) abierta (libNoIDea)
+#endif
 
     started_ = true;
     lastError_.clear();

@@ -1,7 +1,7 @@
 """Shared fixtures for the legis-studio repo-invariant suite.
 
 This suite verifies repository-level invariants (packaging files, the
-bundled LSP VST3 plugin, documentation) and drives the compiled C++
+documentation, dependency pins) and drives the compiled C++
 test binaries when a CMake build tree is present.
 """
 from __future__ import annotations

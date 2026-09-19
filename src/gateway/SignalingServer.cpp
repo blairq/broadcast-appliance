@@ -87,6 +87,8 @@ SignalingServer::SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub
     // None que la sala emite al sacarlo.
     sinks.route = [this](const std::string& pid, const MediaRoute& r) { applyRoute(pid, r); };
     room_.setSinks(std::move(sinks));
+    // Sin entropia queda vacia y el tablero no abre (401), nunca con clave predecible.
+    if (!ba::security::randomSecretHex(16, boardToken_)) boardToken_.clear();
 }
 
 SignalingServer::~SignalingServer() { stop(); }
@@ -234,7 +236,15 @@ void SignalingServer::acceptLoop(long long listenFd, bool admin) {
 #else
         const std::uint32_t clientIp = static_cast<std::uint32_t>(cli.sin_addr.s_addr);
 #endif
-        std::thread(&SignalingServer::handleConnection, this, fd, clientIp, admin).detach();
+        // Ultima red: un JSON con tipos inesperados (nlohmann lanza) no debe
+        // tumbar el proceso desde un thread detachado.
+        std::thread([this, fd, clientIp, admin] {
+            try {
+                handleConnection(fd, clientIp, admin);
+            } catch (const std::exception& e) {
+                log_.warn(std::string("conexion: excepcion ") + e.what(), -1);
+            }
+        }).detach();
     }
 }
 
@@ -314,6 +324,14 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, boo
         handleAdmin(fd, method, path, query, headers, body);
         return;
     }
+    if (method == "POST" && path == "/api/v1/avatar") {
+        apiAvatarUpload(fd, headers, body);
+        return;
+    }
+    if (path.rfind("/api/v1/board", 0) == 0) {
+        apiBoard(fd, method, path, query, headers, body);
+        return;
+    }
 
     std::string upgrade = http::getHeader(headers, "Upgrade");
     for (auto& ch : upgrade)
@@ -354,6 +372,13 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
     }
     if (path == "/api/verify") {
         apiVerify(fd, query);
+        return;
+    }
+    if (method == "GET" && (path == "/board" || path.rfind("/board/", 0) == 0)) {
+        std::string rel = path.size() > 7 ? path.substr(7) : std::string("index.html");
+        if (rel.empty()) rel = "index.html";
+        if (!cfg_.boardWebroot.empty() && serveStatic(fd, cfg_.boardWebroot, rel)) return;
+        http::sendResponse(fd, 404, "text/plain", "no encontrado\n");
         return;
     }
     if (!path.empty() && path[0] == '/' && method == "GET") {
@@ -493,6 +518,197 @@ void SignalingServer::apiUpload(long long fd, const std::string& headers, const 
 }
 
 // ============================================================================
+// Oradores: fotos de las tarjetas y tablero de solo lectura
+// ============================================================================
+
+void SignalingServer::apiAvatarUpload(long long fd, const std::string& headers, const std::string& body) {
+    // Cualquiera de la sala (tambien el lobby): la tarjeta lo muestra antes de
+    // que hable. Solo JPEG chico: lo arma el navegador con un canvas.
+    Room::Participant who;
+    if (!room_.byKey(http::getHeader(headers, "X-BA-Key"), who)) {
+        http::sendResponse(fd, 401, "application/json", R"({"ok":false,"error":"auth"})");
+        return;
+    }
+    constexpr size_t kMaxAvatar = 64 * 1024;
+    const bool jpeg = body.size() >= 4 && static_cast<uint8_t>(body[0]) == 0xFF &&
+                      static_cast<uint8_t>(body[1]) == 0xD8 && static_cast<uint8_t>(body[2]) == 0xFF;
+    if (!jpeg || body.size() > kMaxAvatar) {
+        http::sendResponse(fd, body.size() > kMaxAvatar ? 413 : 415, "application/json",
+                           R"({"ok":false,"error":"type"})");
+        return;
+    }
+    {
+        std::lock_guard<std::mutex> lock(avatarsLock_);
+        avatars_[who.id] = body;
+        // Limpieza perezosa: las fotos de quien ya no esta en la sala.
+        for (auto it = avatars_.begin(); it != avatars_.end();) {
+            Room::Participant p;
+            it = room_.participant(it->first, p) ? std::next(it) : avatars_.erase(it);
+        }
+    }
+    room_.setHasAvatar(who.id);
+    http::sendResponse(fd, 200, "application/json", R"({"ok":true})");
+}
+
+std::string SignalingServer::avatarOf(const std::string& id) {
+    std::lock_guard<std::mutex> lock(avatarsLock_);
+    const auto it = avatars_.find(id);
+    if (it == avatars_.end()) return {};
+    Room::Participant p;
+    if (!room_.participant(id, p)) {
+        avatars_.erase(it);
+        return {};
+    }
+    return it->second;
+}
+
+void SignalingServer::sendAvatar(long long fd, const std::string& id) {
+    const std::string img = avatarOf(id);
+    if (img.empty()) {
+        http::sendResponse(fd, 404, "text/plain", "sin foto\n");
+        return;
+    }
+    http::sendResponse(fd, 200, "image/jpeg", img, "Cache-Control: private, max-age=10\r\n");
+}
+
+void SignalingServer::apiBoard(long long fd, const std::string& method, const std::string& path,
+                               const std::string& query, const std::string& headers,
+                               const std::string& body) {
+    // Clave por arranque: la muestra la consola del operador (enlace/QR del
+    // tablero). Comparacion en tiempo constante.
+    const auto q = http::parseQuery(query);
+    std::string key = http::getHeader(headers, "X-BA-Board");
+    if (key.empty() && q.count("k")) key = http::urlDecode(q.at("k"));
+    bool ok = !boardToken_.empty() && key.size() == boardToken_.size();
+    unsigned diff = 0;
+    for (size_t i = 0; ok && i < key.size(); ++i)
+        diff |= static_cast<unsigned>(key[i] ^ boardToken_[i]);
+    if (!ok || diff != 0) {
+        http::sendResponse(fd, 401, "application/json", R"({"ok":false,"error":"auth"})");
+        return;
+    }
+    if (path == "/api/v1/board/view" && method == "POST") {
+        apiView(fd, body, true);
+        return;
+    }
+    static const std::string kView = "/api/v1/board/view/";
+    if (path.rfind(kView, 0) == 0) {
+        apiViewAction(fd, method, path.substr(kView.size()), true);
+        return;
+    }
+    if (method != "GET") {
+        http::sendResponse(fd, 405, "application/json", R"({"ok":false,"error":"method"})");
+        return;
+    }
+    if (path == "/api/v1/board") {
+        http::sendResponse(fd, 200, "application/json", room_.boardSnapshot(nowMs()).dump(),
+                           "Cache-Control: no-store\r\n");
+        return;
+    }
+    static const std::string kAv = "/api/v1/board/avatar/";
+    if (path.rfind(kAv, 0) == 0) {
+        sendAvatar(fd, path.substr(kAv.size()));
+        return;
+    }
+    http::sendResponse(fd, 404, "text/plain", "no encontrado\n");
+}
+
+// ============================================================================
+// Espectadores: video en vivo de los participantes para las vistas web
+// ============================================================================
+
+std::string SignalingServer::publicSdp(const std::string& sdp) const {
+    std::string out;
+    size_t pos = 0;
+    while (pos < sdp.size()) {
+        size_t eol = sdp.find('\n', pos);
+        if (eol == std::string::npos) eol = sdp.size();
+        std::string line = sdp.substr(pos, eol - pos + (eol < sdp.size() ? 1 : 0));
+        pos = eol + 1;
+        if (line.rfind("a=candidate:", 0) == 0) {
+            std::string cand = line.substr(2);
+            while (!cand.empty() && (cand.back() == '\n' || cand.back() == '\r'))
+                cand.pop_back();
+            const std::string rewritten = publicCandidate(cand);
+            if (rewritten.empty()) continue; // loopback sin tunel: no le sirve a nadie
+            line = "a=" + rewritten + "\r\n";
+        }
+        out += line;
+    }
+    return out;
+}
+
+void SignalingServer::apiView(long long fd, const std::string& body, bool board) {
+    const json req = json::parse(body, nullptr, false);
+    if (!req.is_object() || !req.contains("participant") || !req["participant"].is_string() ||
+        !req.contains("sdp") || !req["sdp"].is_string()) {
+        http::sendResponse(fd, 400, "application/json", R"({"ok":false,"error":"json"})");
+        return;
+    }
+    const std::string pid = req["participant"].get<std::string>();
+    const bool screen = req.contains("kind") && req["kind"] == "screen";
+    if (board) {
+        // El tablero solo ve a los oradores de la fila: nunca el lobby.
+        const json order = room_.snapshot().value("order", json::array());
+        if (std::find(order.begin(), order.end(), json(pid)) == order.end()) {
+            http::sendResponse(fd, 404, "application/json", R"({"ok":false,"error":"not_found"})");
+            return;
+        }
+    }
+    int idx = 0;
+    {
+        std::lock_guard<std::mutex> lock(sessLock_);
+        const auto it = sessionOf_.find(pid);
+        if (it != sessionOf_.end()) idx = it->second;
+    }
+    if (idx == 0) {
+        // Todavia sin medios (o sin lugar para publicar): la vista reintenta.
+        http::sendResponse(fd, 409, "application/json", R"({"ok":false,"error":"no_media"})");
+        return;
+    }
+    std::string answer;
+    const int viewer = hub_.openViewer(idx, screen, req["sdp"].get<std::string>(), answer);
+    if (viewer <= 0) {
+        http::sendResponse(fd, 503, "application/json", R"({"ok":false,"error":"unavailable"})");
+        return;
+    }
+    {
+        std::lock_guard<std::mutex> lock(viewersLock_);
+        viewerOwners_[viewer] = board;
+    }
+    http::sendResponse(fd, 200, "application/json",
+                       json{{"ok", true}, {"viewer", viewer}, {"sdp", publicSdp(answer)}}.dump());
+}
+
+void SignalingServer::apiViewAction(long long fd, const std::string& method, const std::string& rest,
+                                    bool board) {
+    const size_t slash = rest.find('/');
+    const int viewer = std::atoi(rest.substr(0, slash).c_str());
+    const std::string action = slash == std::string::npos ? "" : rest.substr(slash + 1);
+    bool owned = false;
+    {
+        std::lock_guard<std::mutex> lock(viewersLock_);
+        const auto it = viewerOwners_.find(viewer);
+        // El tablero solo toca sus propios espectadores; el operador, todos.
+        owned = it != viewerOwners_.end() && (!board || it->second);
+        if (owned && method == "DELETE" && action.empty()) viewerOwners_.erase(it);
+    }
+    if (!owned) {
+        http::sendResponse(fd, 404, "application/json", R"({"ok":false,"error":"not_found"})");
+        return;
+    }
+    if (method == "DELETE" && action.empty()) {
+        hub_.closeViewer(viewer);
+    } else if (method == "POST" && action == "keyframe") {
+        hub_.requestKeyFrame(viewer);
+    } else {
+        http::sendResponse(fd, 404, "application/json", R"({"ok":false,"error":"route"})");
+        return;
+    }
+    http::sendResponse(fd, 200, "application/json", R"({"ok":true})");
+}
+
+// ============================================================================
 // WebSocket de sala
 // ============================================================================
 
@@ -565,7 +781,8 @@ std::string SignalingServer::wsOpen(long long fd, const std::string& headers, co
     }
     const std::string newId = "p" + hex.substr(0, 12);
     const uint64_t gen = registerConn(newId, fd);
-    const Room::Joined j = room_.connect(arg("name"), ipText(clientIp), nowMs(), newId);
+    const Room::Joined j =
+        room_.connect(arg("name"), ipText(clientIp), nowMs(), newId, arg("info"), arg("contact"));
     if (j.err != Room::kOk) {
         unregisterConn(newId, gen);
         const char* why = j.err == Room::kLocked      ? "locked"
@@ -647,6 +864,7 @@ void SignalingServer::releaseSession(const std::string& pid, uint64_t gen, bool 
         sessionOf_.erase(it);
     }
     if (pump_ != nullptr) pump_->setRoute(idx, MediaRoute{});
+    hub_.closeViewersOf(idx); // quien lo miraba deja de verlo (la sesion se reusa)
     if (WebrtcSession* s = hub_.session(idx)) s->close();
 }
 
@@ -793,6 +1011,18 @@ void SignalingServer::wsLoop(long long fd, const std::string& pid, uint64_t gen)
         }
         const json msg = json::parse(jsonStr, nullptr, false);
         if (!msg.is_object()) continue;
+        try {
+            handleWsMessage(pid, gen, msg);
+        } catch (const std::exception& e) {
+            log_.warn("ws: mensaje invalido de " + pid + " (" + e.what() + ")", -1);
+            continue;
+        }
+        if (msg.value("type", json()) == "bye") break;
+    }
+}
+
+void SignalingServer::handleWsMessage(const std::string& pid, uint64_t gen, const json& msg) {
+    {
         const std::string type = msg.value("type", "");
         if (type == "offer") {
             // El navegador manda la descripcion entera ({type, sdp}) o solo el sdp.
@@ -819,9 +1049,14 @@ void SignalingServer::wsLoop(long long fd, const std::string& pid, uint64_t gen)
             room_.guestMedia(pid, msg);
         } else if (type == "chat") {
             room_.chatFromGuest(pid, msg.value("text", ""), nowMs());
+        } else if (type == "profile") {
+            // El invitado solo corrige su info y contacto; el nombre lo cambia el operador.
+            json f = json::object();
+            if (msg.contains("info") && msg["info"].is_string()) f["info"] = msg["info"];
+            if (msg.contains("contact") && msg["contact"].is_string()) f["contact"] = msg["contact"];
+            room_.setProfile(pid, f);
         } else if (type == "bye") {
             room_.leave(pid);
-            break;
         }
     }
 }

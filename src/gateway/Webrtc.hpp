@@ -21,6 +21,19 @@
 //     - VIDEO : la camara del invitado -> onRemoteVideo (el hub la publica en
 //               el sender Spout BA.Guest.<n> para A).
 //
+// Espectadores (relay estilo SFU):
+//   Las vistas web (consola del operador, tablero de oradores) ven el video de
+//   los invitados SIN que el invitado suba una copia por espectador y SIN que B
+//   re-codifique: B toma los cuadros CODIFICADOS tal como llegan (antes del
+//   decodificador, que sigue alimentando a A) y reenvia esos mismos bytes a la
+//   PeerConnection de cada espectador (solo cambia el payload type al que
+//   negocio cada uno). El invitado sube una vez; B copia paquetes, no pixeles.
+//     - Un espectador nuevo arranca en un keyframe: hasta que pasa uno se le
+//       saltean los cuadros delta, y se le pide un keyframe al invitado.
+//     - Perdidas: los NACK del espectador los atiende el historial de envio de
+//       B (retransmite lo que ya reenvio). Si igual se congela, la vista pide
+//       un keyframe (requestKeyFrame) y B lo pide aguas arriba (limitado).
+//
 // Backend:
 //   - BA_GATEWAY_HAVE_WEBRTC=1 (Windows + SDK libwebrtc presente): usa
 //     webrtc::PeerConnectionInterface real (AEC3, NetEq, control de congestión).
@@ -192,6 +205,25 @@ class WebrtcHub {
     /// tunel) y si se atiende tambien en 127.0.0.1 (lo usa el puente del tunel
     /// WireGuard, que entrega los medios del invitado en loopback).
     void setNetwork(uint16_t minPort, uint16_t maxPort, bool allowLoopback);
+
+    // --- Espectadores (relay de video codificado, ver arriba) ------------------
+    /// Abre un espectador del video de la sesion `session` (camara, o pantalla
+    /// si `screen`). `offerSdp` es el offer del navegador (recvonly); bloquea
+    /// hasta tener el answer COMPLETO (candidatos incluidos, sin goteo) o
+    /// ~3 s. :returns: id del espectador (> 0), o 0 si no se pudo (sin backend
+    /// real, tope de espectadores, SDP invalido).
+    int openViewer(int session, bool screen, const std::string& offerSdp, std::string& answerSdp);
+    void closeViewer(int viewerId);
+    /// Cierra todos los espectadores de una sesion (el participante se fue).
+    void closeViewersOf(int session);
+    /// La vista se congelo: pedir un keyframe al invitado (limitado a uno cada
+    /// ~500 ms por video).
+    void requestKeyFrame(int viewerId);
+    /// Espectadores caidos (desconectados > 10 s o que nunca conectaron en
+    /// 20 s) se cierran. Llamar seguido (barato).
+    void reapViewers();
+    int viewerCount() const;
+    static constexpr int kMaxViewers = 48;
 
    private:
     int guests_;

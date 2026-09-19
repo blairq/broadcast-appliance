@@ -28,8 +28,9 @@ struct Kind {
     const char* title;
 };
 const Kind kKinds[] = {
-    {"outputs", "Salidas"}, {"scenes", "Escenas"},  {"mixer", "Mezclador"}, {"guests", "Invitados"},
-    {"health", "Sistema"},  {"monitor", "Monitor"}, {"sources", "Fuentes"}, {"lobby", "Sala"},
+    {"outputs", "Salidas"},  {"scenes", "Escenas"}, {"mixer", "Mezclador"},
+    {"guests", "Invitados"}, {"health", "Sistema"}, {"monitor", "Monitor"},
+    {"sources", "Fuentes"},  {"lobby", "Sala"},     {"speakers", "Oradores"},
 };
 
 } // namespace

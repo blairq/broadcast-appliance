@@ -265,6 +265,11 @@ class BroadcastEngine {
 
     /// Settings actuales de la fuente como JSON.
     std::string sourceSettingsJson(const std::string& name) const;
+    /// Mantiene una fuente "mostrandose" (sus cuadros se suben a la GPU aunque
+    /// no este al aire): la pagina Entradas lo usa para sus miniaturas.
+    void holdShowing(const std::string& name, bool on);
+    /// Tamaño actual del video de una fuente (0x0 si todavia no llego imagen).
+    bool sourceSize(const std::string& name, int& width, int& height) const;
 
     /// Reemplaza los settings de la fuente (JSON como en app.json).
     bool updateSourceSettings(const std::string& name, const std::string& settingsJson);
@@ -272,6 +277,13 @@ class BroadcastEngine {
     /// Puntero opaco a la fuente (obs_source_t*) para el editor de propiedades
     /// de la interfaz. Prestado: valido mientras la fuente exista.
     struct obs_source* sourceHandle(const std::string& name) const;
+
+    /// Imagen actual de una fuente o escena (por nombre; "" = la escena al
+    /// aire), renderizada por libobs fuera de pantalla, escalada para que el
+    /// ancho no pase de `maxWidth` (0 = tamaño nativo). RGBA 8 bits.
+    /// Lo mismo que ve el programa de esa fuente (filtros incluidos).
+    bool captureSource(const std::string& name, int maxWidth, std::vector<std::uint8_t>& rgba, int& width,
+                       int& height);
 
     /// Tipos de fuente de entrada disponibles (solo los utilizables).
     std::vector<SourceType> inputTypes() const;
@@ -286,12 +298,47 @@ class BroadcastEngine {
 
     /// Fuentes con audio que maneja el motor (escenas + globales), en orden.
     std::vector<std::string> audioSources() const;
+    /// Todas las fuentes que maneja el motor (de todas las escenas), sin repetir.
+    std::vector<std::string> sourceNames() const;
     bool setSourceVolume(const std::string& name, float mul);
     float sourceVolume(const std::string& name) const;
     bool setSourceMuted(const std::string& name, bool muted);
     bool sourceMuted(const std::string& name) const;
     /// Pico mas reciente de la fuente en dBFS (-100 = silencio).
     float sourcePeakDb(const std::string& name) const;
+
+    // --- Medios (videos/musica que se reproducen) -------------------------------
+    struct MediaInfo {
+        std::string name;
+        std::string state; ///< playing | paused | stopped | ended | opening | buffering | error | none
+        std::int64_t durationMs = 0;
+        std::int64_t timeMs = 0;
+    };
+    /// Fuentes reproducibles (con controles de medio) y su estado.
+    std::vector<MediaInfo> mediaSources() const;
+
+    // --- Descubrir dispositivos y capacidades (sin crear fuentes) ------------------
+    struct ListItem {
+        std::string name;
+        std::string value;
+        bool disabled = false;
+    };
+    /// true si el tipo de fuente esta registrado (el plugin cargo).
+    bool sourceTypeExists(const std::string& typeId) const;
+    /// Opciones de una propiedad-lista de un TIPO de fuente (p. ej. los
+    /// microfonos de "pulse_input_capture"/"device_id"), con `settingsJson`
+    /// aplicado primero para las listas que dependen de otra (las resoluciones
+    /// de una camara dependen de la camara elegida).
+    std::vector<ListItem> sourceTypeListItems(const std::string& typeId, const std::string& prop,
+                                              const std::string& settingsJson = {}) const;
+    /// Nombre del dispositivo grafico (GPU) con el que dibuja libobs.
+    std::string graphicsDeviceName() const;
+    struct EncoderInfo {
+        std::string id, name, codec;
+        bool hardware = false;
+    };
+    /// Codificadores de video registrados (los de hardware marcados).
+    std::vector<EncoderInfo> videoEncoders() const;
 
     // --- Cambios en caliente -------------------------------------------------
 

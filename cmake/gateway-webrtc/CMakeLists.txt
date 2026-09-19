@@ -88,10 +88,12 @@ else()
     set(BA_LWIP_LIB "")
     set(BA_LWIP_DEF BA_HAVE_LWIP=0)
 endif()
+list(APPEND GW_SOURCES "${BA_SRC}/third_party/qrcodegen/qrcodegen.cpp")
 add_library(ba_gateway_rtc STATIC ${GW_SOURCES})
 target_compile_definitions(ba_gateway_rtc PUBLIC ${BA_LWIP_DEF})
 target_include_directories(ba_gateway_rtc PUBLIC
     "${BA_SRC}/src/gateway"
+    "${BA_SRC}/third_party/qrcodegen"
     "${WRTC}/include"
     "${WRTC}/include/third_party/abseil-cpp"
     "${WRTC}/include/third_party/libyuv/include")

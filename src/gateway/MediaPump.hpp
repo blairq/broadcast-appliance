@@ -12,6 +12,8 @@
 //                 pantalla-> BA.GuestShare.<n>   (tamaño del programa)
 //                 audio   -> BA.Audio.Guest.<n>
 //     Lobby(k):   camara  -> BA.Lobby.<k>        (preview chico, solo operador)
+//     Backstage(k): camara -> BA.Backstage.<k>   (fila de oradores: preview
+//                  chico a ~10 fps, solo operador)
 //                 audio   -> BA.Audio.Lobby.<k>  (solo si el operador le habla)
 //   Bajada (A -> B -> participante):
 //     Program(n): BA.Program + BA.Audio.ContentForReturn
@@ -58,17 +60,20 @@ class MediaPump {
         std::wstring operatorVideoName; // BA.Operator (A->B, para el lobby)
         std::wstring operatorAudioName; // BA.Audio.Operator (A->B, para el lobby)
         // Indexados por slot, [0] reservado (tamaño guests+1 / lobbySlots+1).
-        std::vector<std::wstring> guestAudioNames; // BA.Audio.Guest.<n>
-        std::vector<std::wstring> guestVideoNames; // BA.Guest.<n>
-        std::vector<std::wstring> shareVideoNames; // BA.GuestShare.<n>
-        std::vector<std::wstring> lobbyAudioNames; // BA.Audio.Lobby.<k>
-        std::vector<std::wstring> lobbyVideoNames; // BA.Lobby.<k>
+        std::vector<std::wstring> guestAudioNames;     // BA.Audio.Guest.<n>
+        std::vector<std::wstring> guestVideoNames;     // BA.Guest.<n>
+        std::vector<std::wstring> shareVideoNames;     // BA.GuestShare.<n>
+        std::vector<std::wstring> lobbyAudioNames;     // BA.Audio.Lobby.<k>
+        std::vector<std::wstring> lobbyVideoNames;     // BA.Lobby.<k>
+        std::vector<std::wstring> backstageVideoNames; // BA.Backstage.<k>
         int audioRate = 48000;
         int audioChannels = 2;
         int programW = 1280; // tamaño de los canales del programa (camara/pantalla)
         int programH = 720;
         int lobbyW = 640; // preview del lobby
         int lobbyH = 360;
+        int backstageW = 320; // preview de la fila de oradores
+        int backstageH = 180;
         int guestVideoW = 640; // retorno al participante
         int guestVideoH = 360;
     };
@@ -100,6 +105,7 @@ class MediaPump {
         int w = 0;
         int h = 0;
         std::atomic<uint64_t> lastNs{0}; // ultimo frame REAL (no placa)
+        uint64_t minIntervalNs = 0;      // 0 = todos los cuadros; si no, tope de fps
     };
     /// Canal de audio B->A: ring + re-bloqueo a 10 ms + re-muestreo.
     struct AudioOut {
@@ -133,6 +139,7 @@ class MediaPump {
     std::vector<std::unique_ptr<VideoOut>> guestVideo_;
     std::vector<std::unique_ptr<VideoOut>> shareVideo_;
     std::vector<std::unique_ptr<VideoOut>> lobbyVideo_;
+    std::vector<std::unique_ptr<VideoOut>> backstageVideo_;
     std::vector<std::unique_ptr<AudioOut>> guestAudio_;
     std::vector<std::unique_ptr<AudioOut>> lobbyAudio_;
 

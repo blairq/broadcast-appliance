@@ -49,9 +49,47 @@
     </header>
 
     <div class="grid">
+      <section class="panel" id="panel-speakers">
+        <header>
+          <h2>Oradores</h2>
+          <label class="switch"><input type="checkbox" id="sw-speakers" /><span></span> Modo oradores</label>
+          <div class="spk-cfg" id="spk-cfg">
+            <label>Tiempo general <input id="spk-default" type="text" size="5" title="m:ss o minutos" /></label>
+            <label>Al aire
+              <select id="spk-multi"><option value="0">Uno a la vez</option><option value="1">Varios</option></select></label>
+            <label>Slot <select id="spk-slot"></select></label>
+            <label>Carrusel
+              <select id="spk-carousel">
+                <option value="manual">Manual</option>
+                <option value="chain">Al sacar, entra el siguiente</option>
+                <option value="time">Automático por tiempo</option>
+              </select></label>
+            <label id="spk-grace-l">margen <input id="spk-grace" type="number" min="0" max="600" step="5" style="width:70px" /> s</label>
+          </div>
+          <button class="chip go" id="btn-spk-next">Siguiente ▶</button>
+          <div class="dropdown">
+            <button class="chip" id="btn-board">Tablero ▾</button>
+            <div class="menu hidden" id="board-menu">
+              <button data-board="local">Tablero en la red local</button>
+              <button data-board="remote">Tablero por internet</button>
+            </div>
+          </div>
+        </header>
+        <div class="onair-strip" id="onair-strip"></div>
+        <div class="spk-row" id="spk-row"></div>
+        <p class="empty" id="spk-empty">Con el modo oradores, los admitidos pasan a una fila (miran el programa) y vos los ponés al aire por turno, con un reloj que nunca los saca solo.</p>
+      </section>
+
       <section class="panel" id="panel-lobby">
         <header><h2>Lobby</h2><span class="count" id="lobby-count">0</span>
-          <button class="chip" id="btn-admit-all">Admitir a todos</button></header>
+          <button class="chip" id="btn-admit-all">Admitir a todos</button>
+          <div class="dropdown">
+            <button class="chip" id="btn-qr">QR ▾</button>
+            <div class="menu hidden" id="qr-menu">
+              <button data-qr="local">QR local (red local)</button>
+              <button data-qr="remote">QR remoto (Cloudflare)</button>
+            </div>
+          </div></header>
         <ul id="lobby" class="list"></ul>
         <p class="empty" id="lobby-empty">Nadie esperando.</p>
       </section>
@@ -100,12 +138,33 @@
     <form method="dialog"><button class="chip" id="btn-wg-copy" type="button">Copiar</button> <button class="primary small">Cerrar</button></form>
   </dialog>
 
+  <dialog id="qrdlg" class="viewer qr">
+    <h3 id="qr-title">QR</h3>
+    <div class="qrbox"><canvas id="qr-canvas" width="296" height="296"></canvas><p id="qr-msg" class="muted"></p></div>
+    <p><a id="qr-url" target="_blank" rel="noopener"></a></p>
+    <label class="check"><input type="checkbox" id="qr-pin" /> Incluir PIN (entran sin tipearlo)</label>
+    <p class="muted" id="qr-note">El PIN no va en el QR: pasalo aparte.</p>
+    <form method="dialog"><button class="chip" id="btn-qr-copy" type="button">Copiar enlace</button> <button class="primary small">Cerrar</button></form>
+  </dialog>
+
+  <dialog id="profdlg" class="viewer">
+    <h3>Datos del orador</h3>
+    <div class="form">
+      <label>Nombre <input id="prof-name" maxlength="40" /></label>
+      <label>Información <input id="prof-info" maxlength="200" /></label>
+      <label>Contacto <input id="prof-contact" maxlength="120" /></label>
+      <label>Tiempo para hablar <input id="prof-time" placeholder="m:ss" size="6" /></label>
+    </div>
+    <form method="dialog"><button class="chip" value="cancel">Cancelar</button> <button class="primary small" id="btn-prof-save" value="save">Guardar</button></form>
+  </dialog>
+
   <dialog id="viewer" class="viewer">
     <div class="viewer-body" id="viewer-body"></div>
     <form method="dialog"><button class="primary small">Cerrar</button></form>
   </dialog>
 
   <div id="toasts" class="toasts" aria-live="polite"></div>
+  <script src="live.js"></script>
   <script src="admin.js"></script>
 </body>
 </html>

@@ -60,10 +60,35 @@ inline constexpr const char* kDataRootEnv = "BA_DATA_ROOT";
 /// bundle.
 std::filesystem::path dataRoot();
 
-/// Directorio de runtime privado del usuario para sockets y lockfiles.
+/// Estado de ejecucion DENTRO del bundle portable: `<datos>/Runtime/`
+/// (archivos de encuentro con tokens: gateway-admin.json, mcp.json). Nada de
+/// esto va al perfil del usuario ni a la maquina: el appliance corre desde
+/// un pen drive y todo queda ahi. Creado 0700 donde el sistema de archivos
+/// lo permite (FAT/exFAT no tiene permisos Unix).
+std::filesystem::path stateDir();
+
+/// Caches de librerias DENTRO del bundle: `<datos>/Cache/`.
+std::filesystem::path cacheDir();
+
+/// Credenciales del equipo DENTRO del bundle: `<datos>/Credenciales/`.
+/// Carpeta propia, aparte de Config/ y del programa: una actualizacion
+/// (`BroadcastAppliance --update`) nunca la toca y la respalda antes. Ver
+/// security/CredentialStore.hpp.
+std::filesystem::path credentialsDir();
+
+/// Redirige al bundle lo que librerias de terceros escriben en el perfil
+/// del usuario: XDG_CACHE_HOME (Qt, fontconfig, Mesa), QML_DISK_CACHE_PATH,
+/// caches de shaders (MESA_SHADER_CACHE_DIR, __GL_SHADER_DISK_CACHE_PATH) y
+/// BA_CACHE_DIR (copia sombra). Llamar al arrancar cada proceso, ANTES de
+/// crear la aplicacion Qt o cargar libobs. Se heredan a los hijos.
+void redirectUserDirs();
+
+/// Directorio de runtime para sockets locales y lockfiles.
 ///
-/// Windows: `%LOCALAPPDATA%\BroadcastAppliance` (los pipes no lo usan, los
-/// locks si). Linux: `$XDG_RUNTIME_DIR/broadcast-appliance`. macOS:
+/// Windows: `<datos>\Runtime` (los pipes y mutex con nombre no usan disco).
+/// Linux: `$XDG_RUNTIME_DIR/broadcast-appliance` (RAM, se borra al cerrar
+/// la sesion: los sockets Unix no se pueden crear en FAT/exFAT y su ruta
+/// tiene un limite de 108 caracteres, asi que no van al pen drive). macOS:
 /// `$TMPDIR/broadcast-appliance` (TMPDIR es por usuario en macOS). Si la
 /// variable no esta, `/tmp/broadcast-appliance-<uid>`. Se crea con permisos
 /// 0700 en POSIX: el canal de control no debe ser accesible por otros usuarios.

@@ -77,6 +77,7 @@ class FrameService : public QObject {
     std::map<QString, Slot> slots_;
     QStringList names_;
     int lobbySlots_ = 4;
+    static constexpr int kBackstageSlots = 8;
     std::vector<std::uint8_t> programBuf_;
     std::uint64_t programSerial_ = 0;
 };

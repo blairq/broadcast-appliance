@@ -24,7 +24,6 @@ que viven en los headers (comentarios de bloque) son extraíbles con Doxygen
    :caption: Contenido
 
    modules/core
-   modules/plugin-host
    modules/launcher
    modules/gateway
    modules/app
@@ -48,8 +47,8 @@ módulo de fuentes y un host de plugins:
   señalización, túnel (cloudflared) y motor de conversación para invitados.
 - **`ba-sources`** (módulo de fuentes libobs, DLL en `obs-plugins/64bit/`):
   filtros de channel strip, fuentes IPC y automixer.
-- **`ba_plugin_host`** (host VST3): carga los bundles `.vst3` de LSP y embebe
-  su editor gráfico completo.
+- **Rack de audio** (dentro de `ba-app`, `src/app/audio`): host CLAP para los
+  módulos LSP, patchbay por fuente, analizador y generador.
 - **`ba_core`** (núcleo, lib estática): IPC (rings de audio, salud, control,
   Spout), DSP (channel strip, automixer, resampler, presets), persistencia
   (snapshot, restore), seguridad (secrets, tokens), diagnóstico (logs, export),
@@ -93,7 +92,6 @@ clases y namespaces reales:
 
 - :doc:`modules/core` — `ba_core` (dsp, ipc, persist, security, diag, fault,
   crypto, hw).
-- :doc:`modules/plugin-host` — `ba_plugin_host` (host VST3 / LSP).
 - :doc:`modules/launcher` — `BroadcastAppliance` (supervisor + `RecoveryUi`).
 - :doc:`modules/gateway` — `ba-gateway` (Proceso B, implementado; flag
   `BA_GATEWAY_HAVE_WEBRTC`).
@@ -108,10 +106,10 @@ Estado
 Los procesos están **implementados** y compilan (cross MinGW a Windows; el
 núcleo además nativo en Linux). Ya no son esqueletos: `ba-app` (MainWindow +
 OperatorEngine), `ba-gateway` (Webrtc/SignalingServer/Cloudflared/MediaPump/
-TokenAuth), `ba-sources` (módulo libobs) y `ba_plugin_host` (Vst3Host +
-PluginDeployer) están completos, y el launcher suma `RecoveryUi` (ventana
+TokenAuth), `ba-sources` (módulo libobs) y el rack de audio (host CLAP + módulos
+LSP) están completos, y el launcher suma `RecoveryUi` (ventana
 Win32 con `Incident` + `RecoveryAction`). Quedan por hacer los **tests de
-integración** con libobs/libwebrtc reales (hoy el núcleo y el host de plugins
+integración** con libobs/libwebrtc reales (hoy el núcleo y el rack de audio
 tienen unit tests en Linux) y el **packaging** final del bundle portable.
 
 .. _doxygen:

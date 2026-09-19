@@ -80,6 +80,20 @@ class ConferenceViewModel : public QObject {
     Q_PROPERTY(QObject* inside READ inside CONSTANT)
     Q_PROPERTY(QObject* shares READ shares CONSTANT)
     Q_PROPERTY(QObject* chat READ chat CONSTANT)
+    // --- Modo oradores ---------------------------------------------------------
+    /// Configuracion: {enabled, defaultSec, carousel, graceSec, multi, defaultSlot}.
+    Q_PROPERTY(QVariantMap speakerCfg READ speakerCfg NOTIFY roomChanged)
+    Q_PROPERTY(bool speakerMode READ speakerMode NOTIFY roomChanged)
+    /// Fila de oradores en orden (tarjetas): uid, name, info, contact, speaker
+    /// ("queued"|"onair"|"done"), position, allottedSec, onAirSinceMs, usedMs,
+    /// connected, slot, avatar (data: URL o vacio), backstageSlot (preview de
+    /// la fila en BA.Backstage.<k>, 0 = sin preview).
+    Q_PROPERTY(QObject* speakers READ speakers CONSTANT)
+    /// Los que estan al aire ahora: [{uid, name, allottedSec, onAirSinceMs}].
+    Q_PROPERTY(QVariantList onAir READ onAir NOTIFY roomChanged)
+    /// Reloj de la sala - reloj local (ms): los relojes se calculan con
+    /// Date.now() + clockOffset.
+    Q_PROPERTY(double clockOffset READ clockOffset NOTIFY roomChanged)
    public:
     ConferenceViewModel(AppRuntime& rt, QObject* parent = nullptr);
     ~ConferenceViewModel() override;
@@ -103,6 +117,29 @@ class ConferenceViewModel : public QObject {
     QObject* inside() const;
     QObject* shares() const;
     QObject* chat() const;
+    /// Cliente de la API de control de B (lo usa tambien el servidor MCP).
+    ConferenceClient& client() { return *client_; }
+    QVariantMap speakerCfg() const;
+    bool speakerMode() const;
+    QObject* speakers() const;
+    QVariantList onAir() const { return onAir_; }
+    double clockOffset() const { return clockOffset_; }
+
+    /// Cambia los campos presentes (ver speakerCfg).
+    Q_INVOKABLE void setSpeakerConfig(const QVariantMap& cfg);
+    Q_INVOKABLE void speakerOnAir(const QString& id, bool on);
+    Q_INVOKABLE void speakerNext();
+    /// Lugar en la fila (0 = primero).
+    Q_INVOKABLE void speakerMove(const QString& id, int index);
+    Q_INVOKABLE void speakerTime(const QString& id, int sec);
+    Q_INVOKABLE void speakerRequeue(const QString& id);
+    Q_INVOKABLE void setProfile(const QString& id, const QString& name, const QString& info,
+                                const QString& contact);
+    /// "m:ss", "m" (minutos) o "Ns" -> segundos (0 = invalido).
+    Q_INVOKABLE int parseDuration(const QString& text) const;
+    /// Enlace + QR del tablero de oradores (tablet). Responde con qrReady,
+    /// target "board-local" / "board-remote".
+    Q_INVOKABLE void requestBoardLink(const QString& target);
 
     Q_INVOKABLE void admit(const QString& id);
     Q_INVOKABLE void admitAll();
@@ -130,6 +167,9 @@ class ConferenceViewModel : public QObject {
     Q_INVOKABLE void copyToClipboard(const QString& text);
     /// Nombre de un participante por id (para el chat).
     Q_INVOKABLE QString nameOf(const QString& id) const;
+    /// QR de ingreso al lobby: "local" (red local) o "remote" (Cloudflare).
+    /// Responde con qrReady.
+    Q_INVOKABLE void requestQr(const QString& target, bool withPin = false);
     /// Genera claves y wg0.conf para el servidor con IP publica y deja este
     /// equipo configurado (tunel encendido); B se reinicia con la config nueva.
     Q_INVOKABLE void configureDirectAccess(const QString& endpoint, const QString& publicAddress,
@@ -140,6 +180,9 @@ class ConferenceViewModel : public QObject {
     void roomChanged();
     void operatorChanged();
     void networkChanged();
+    /// `modules`: filas de '0'/'1'. Sin url -> `message` explica que falta.
+    void qrReady(const QString& target, const QString& url, const QStringList& modules,
+                 const QString& message);
     /// Configuracion del servidor lista para copiar (o error).
     void serverConfigReady(const QString& config, const QString& error);
     void notify(const QString& message, const QString& level);
@@ -157,6 +200,13 @@ class ConferenceViewModel : public QObject {
     std::unique_ptr<JsonListModel> inside_;
     std::unique_ptr<JsonListModel> shares_;
     std::unique_ptr<JsonListModel> chat_;
+    std::unique_ptr<JsonListModel> speakers_;
+    QVariantList onAir_;
+    double clockOffset_ = 0;
+    QHash<QString, QString> avatars_; // id -> data:image/jpeg;base64,...
+    QTimer avatarPoll_;
+    void pollAvatars();
+    void rebuildSpeakers();
     QStringList knownWaiting_;
     QVariantMap network_;
     QTimer networkPoll_;

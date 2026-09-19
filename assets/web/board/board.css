@@ -1,0 +1,93 @@
+/* ============================================================================
+   Web/board/board.css — Tablero de oradores (tablet, se lee a distancia)
+   ========================================================================== */
+
+:root {
+  --bg: #0c0c0e;
+  --card: rgba(28, 28, 32, 0.8);
+  --line: rgba(255, 255, 255, 0.1);
+  --fg: #f2f2f4;
+  --muted: #9a9aa3;
+  --accent: #ff6b2c;
+  --accent-2: #ff8a55;
+  --ok: #34d399;
+  --err: #f87171;
+}
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  min-height: 100%;
+  background: radial-gradient(1200px 700px at 85% -10%, rgba(255, 107, 44, 0.12), transparent 60%), var(--bg);
+  color: var(--fg);
+  font: 16px/1.35 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+body { padding: 16px; padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
+.hidden { display: none !important; }
+
+.top { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.brand { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; }
+.brand strong { color: var(--fg); text-transform: none; letter-spacing: 0; font-size: 20px; }
+.dot { width: 11px; height: 11px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 12px var(--ok); }
+.dot.off { background: var(--err); box-shadow: 0 0 12px var(--err); }
+.meta { color: var(--muted); font-size: 14px; flex: 1; }
+.now { font-variant-numeric: tabular-nums; font-size: 20px; font-weight: 600; }
+
+h2 { font-size: 15px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 22px 0 10px; display: flex; gap: 10px; align-items: center; }
+.count { background: rgba(255, 255, 255, 0.1); color: var(--fg); border-radius: 99px; padding: 1px 9px; font-size: 13px; }
+.total { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.empty { color: var(--muted); }
+
+.face { background: #000 center / cover no-repeat; border-radius: 14px; display: grid; place-items: center; color: var(--muted); font-weight: 800; flex: none; }
+
+/* --- Al aire -------------------------------------------------------------- */
+.onair { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr)); }
+.onair:empty::before { content: "Nadie al aire"; color: var(--muted); font-size: 18px; padding: 24px; border: 1px dashed var(--line); border-radius: 20px; text-align: center; }
+.hero { display: flex; gap: 18px; align-items: center; padding: 18px; border-radius: 22px; background: rgba(52, 211, 153, 0.1); border: 2px solid rgba(52, 211, 153, 0.55); }
+.hero .face { width: min(40vw, 320px); aspect-ratio: 4 / 3; font-size: 60px; }
+.hero .body { min-width: 0; flex: 1; }
+.hero .tag { color: var(--ok); font-weight: 800; letter-spacing: 0.08em; font-size: 13px; }
+.hero .name { font-size: 30px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hero .info { color: var(--muted); }
+.hero .clock { font-size: 76px; font-weight: 900; font-variant-numeric: tabular-nums; line-height: 1.05; }
+.hero .sub { color: var(--muted); font-size: 14px; }
+.hero.warn { background: rgba(255, 107, 44, 0.14); border-color: var(--accent); }
+.hero.warn .clock { color: var(--accent); animation: pulse 1s ease-in-out infinite; }
+.hero.over { background: rgba(248, 113, 113, 0.14); border-color: var(--err); }
+.hero.over .clock, .hero.over .tag { color: var(--err); }
+.hero.over .clock { animation: pulse 0.8s ease-in-out infinite; }
+@keyframes pulse { 50% { transform: scale(1.06); } }
+@media (prefers-reduced-motion: reduce) { .hero .clock { animation: none !important; } }
+
+/* --- Fila ------------------------------------------------------------------ */
+.cards { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); }
+.card { position: relative; padding: 12px; border-radius: 18px; background: var(--card); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; }
+.card.next { border: 2px solid var(--accent); }
+.card.away { border-style: dashed; opacity: 0.75; }
+.card .face { width: 100%; aspect-ratio: 4 / 3; font-size: 44px; }
+.card .ord { position: absolute; top: 20px; left: 20px; min-width: 34px; height: 34px; padding: 0 8px; border-radius: 10px; background: var(--accent); color: #140a04; font-weight: 900; font-size: 18px; display: grid; place-items: center; }
+.card .badge { position: absolute; top: 20px; right: 20px; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 99px; background: rgba(0, 0, 0, 0.65); }
+.card.next .badge { background: var(--accent); color: #140a04; }
+.card.away .badge { background: var(--err); color: #1a0505; }
+.card .name { font-size: 20px; font-weight: 800; }
+.card .info { color: var(--muted); font-size: 14px; }
+.card .contact { color: var(--accent-2); font-size: 15px; word-break: break-word; }
+.card .times { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; font-size: 14px; color: var(--muted); }
+.card .times strong { color: var(--fg); font-size: 18px; }
+
+/* --- Ya hablaron ------------------------------------------------------------ */
+.rows { display: flex; flex-direction: column; gap: 6px; }
+.row { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 14px; background: rgba(255, 255, 255, 0.04); }
+.row .face { width: 48px; height: 36px; border-radius: 8px; font-size: 18px; }
+.row .name { font-weight: 700; flex: 1; min-width: 0; }
+.row .used { font-variant-numeric: tabular-nums; color: var(--muted); }
+.row .used.over { color: var(--err); }
+.row .contact { color: var(--accent-2); font-size: 14px; }
+
+.blocked { position: fixed; inset: 0; background: rgba(12, 12, 14, 0.96); display: grid; place-items: center; text-align: center; padding: 24px; }
+.blocked p { color: var(--muted); }
+
+/* --- Video en vivo (relay de B) -------------------------------------------- */
+.face { overflow: hidden; }
+video.live { width: 100%; height: 100%; object-fit: cover; display: block; background: #000; }

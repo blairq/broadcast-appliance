@@ -13,8 +13,8 @@ El proyecto se configura con **CMake** (mínimo 3.21) y exige **C++20** en todo
 el árbol (`CMAKE_CXX_STANDARD 20`, `CMAKE_CXX_STANDARD_REQUIRED ON`,
 extensiones off). Las dependencias de terceros se descargan y compilan dentro
 del árbol de build con **FetchContent** (self-contained, sin instalación
-global): `mbedTLS`, `nlohmann/json`, `libsamplerate`, `Argon2` y —solo en
-Windows— el VST3 SDK.
+global): `mbedTLS`, `nlohmann/json`, `libsamplerate` y `Argon2` (con
+``extern/`` poblado por ``make deps`` el configure es offline).
 
 Plataformas
 -----------
@@ -48,7 +48,6 @@ El `CMakeLists.txt` raíz añade estos subdirectorios, cada uno con su target:
   `BA_HAVE_LIBOBS`).
 - `src/gateway` → `ba-gateway` (ejecutable, implementado; flag
   `BA_GATEWAY_HAVE_WEBRTC`).
-- `src/plugin-host` → `ba_plugin_host` (lib estática).
 
 Versiones fijadas
 -----------------

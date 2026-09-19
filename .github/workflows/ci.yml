@@ -1,220 +1,162 @@
 # ============================================================================
 # CI/CD — Broadcast Appliance Portable v2
 #
-# Cinco jobs:
-#   1. `linux`          : build nativo (ccache) + ctest + pytest.
-#   2. `windows-cross`  : cross-compile MinGW-w64 (x86_64) desde Ubuntu.
-#   3. `lint`           : clang-format con la version fijada en versions.cmake.
-#   4. `sanitizers`     : ASan/UBSan y TSan sobre la suite (el nucleo es
-#                         lock-free; esa clase de fallo no la ve un test
-#                         funcional).
-#   5. `release`        : solo en tags; empaqueta `make release` y lo sube.
-#                         Depende de los cuatro anteriores.
+# Usa los MISMOS targets de make que el desarrollo local: todo lo de terceros
+# se descarga (con hash) o se compila desde fuente fijada dentro de extern/.
+# extern/ se guarda en la cache de Actions (clave = hash de los pins), asi que
+# solo la primera corrida compila FFmpeg/libobs y baja Qt/OBS/libwebrtc.
 #
-# El proyecto es C++20 / CMake con un Makefile que envuelve a CMake
-# (targets: build, test, dist, win). Las dependencias de terceros entran
-# por FetchContent, así el configure descarga lo que necesita solo.
+# Jobs:
+#   1. lint        clang-format (version fijada en versions.cmake).
+#   2. linux       deps completas + build + ctest + pytest + dist-linux
+#                  (bundle portable verificado por check-portable.sh).
+#   3. windows     cross desde Linux (clang-cl, ABI MSVC) + tests bajo Wine
+#                  + dist-win (bundle verificado por check-portable-win.sh).
+#   4. sanitizers  ASan/UBSan y TSan sobre la suite.
+#   5. release     solo en tags v*: publica el .tar.gz de Linux y el .zip de
+#                  Windows (con sus .sha256) en un GitHub Release.
+#
+# Licencia de Microsoft: el job de Windows baja el CRT y el Windows SDK con
+# xwin (BA_ACCEPT_MSVC_LICENSE=1), aceptando la licencia de Visual Studio
+# Build Tools en nombre del dueño del repositorio.
 # ============================================================================
 name: CI
 
-# --- Disparadores -----------------------------------------------------------
-#   - push a `master`: CI de integración en la rama protegida.
-#   - pull_request: CI de verificación antes de mergear.
 on:
   push:
     branches: [master]
+    tags: ["v*"]
   pull_request:
 
-# --- Permisos mínimos -------------------------------------------------------
-# Solo lectura de contenido: el workflow no publica releases ni paquetes.
 permissions:
   contents: read
 
+env:
+  JOBS: 4
+
 jobs:
   # ==========================================================================
-  # JOB 1 — LINUX: build nativo + pruebas C++ (ctest) + pruebas Python
-  # ==========================================================================
-  linux:
-    name: "Linux: build + ctest + pytest"
-    runs-on: ubuntu-latest
-
-    steps:
-      # --- Checkout del código ---------------------------------------------
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      # --- Herramientas de build -------------------------------------------
-      # ccache acelera las recompilaciones incrementales entre runs.
-      # En CI es apt-get (no es un host de desarrollo, no aplica la regla
-      # de "sin installs globales" del workspace).
-      - name: Install ccache
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ccache
-
-      # --- Python 3.12 + venv local ----------------------------------------
-      # El proyecto usa un venv local (`.venv/`) con `requirements-dev.lock`.
-      # El lockfile pinna pytest y sus dependencias transitivas a versiones
-      # exactas, así `pytest` corre igual que en dev.
-      - name: Setup Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: "pip"
-
-      - name: Create venv + install dev requirements
-        run: |
-          python -m venv .venv
-          .venv/bin/pip install --upgrade pip
-          .venv/bin/pip install -r requirements-dev.lock
-
-      # --- Build nativo (usa ccache) ---------------------------------------
-      # `make build` envuelve a CMake; el Makefile ya apunta el compilador
-      # a ccache, así que no hay que configurar nada extra.
-      - name: Build (make build)
-        run: make build
-
-      # --- Pruebas C++ (ctest) ---------------------------------------------
-      # `make test` ejecuta ctest. Los tests que no pueden correr en este
-      # entorno (sin libwebrtc, sin libobs) devuelven 77 y ctest los reporta
-      # como "skipped", no como aprobados.
-      - name: Test C++ (make test / ctest)
-        run: make test
-
-      # --- Pruebas Python (pytest) -----------------------------------------
-      # Usamos el venv local para que las dependencias sean idénticas a dev.
-      - name: Test Python (pytest)
-        run: .venv/bin/pytest -q
-
-  # ==========================================================================
-  # JOB 2 — WINDOWS CROSS: cross-compile MinGW-w64 (x86_64) desde Ubuntu
-  # ==========================================================================
-  # Espeja el cross-build MinGW verificado: CMAKE_SYSTEM_NAME=Windows con
-  # los binarios x86_64-w64-mingw32 (gcc/g++/windres).
-  windows-cross:
-    name: "Windows cross (MinGW-w64 x86_64)"
-    runs-on: ubuntu-latest
-
-    steps:
-      # --- Checkout del código ---------------------------------------------
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      # --- Herramienta de cross-compilación --------------------------------
-      # mingw-w64 trae gcc/g++/windres con el prefijo x86_64-w64-mingw32.
-      - name: Install MinGW-w64
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y mingw-w64
-
-      # --- Cross-configure + build -----------------------------------------
-      # Configuramos CMake para Windows con el toolchain MinGW y compilamos
-      # en `build/win` (dentro del root de build, aislado por subdirectorio).
-      - name: Cross-configure (CMake, MinGW)
-        run: |
-          cmake -S . -B build/win \
-            -DCMAKE_SYSTEM_NAME=Windows \
-            -DCMAKE_SYSTEM_PROCESSOR=x86_64 \
-            -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc \
-            -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++ \
-            -DCMAKE_RC_COMPILER=x86_64-w64-mingw32-windres \
-            -DCMAKE_BUILD_TYPE=Release
-
-      - name: Cross-build
-        run: cmake --build build/win --config Release -j"$(nproc)"
-
-      # --- Confirmar artefactos --------------------------------------------
-      # El cross-build es COMPLETO: el CMakeLists raíz añade los 5
-      # subdirectorios sin guardas de plataforma, así que `cmake --build`
-      # compila los 5 targets de producto. Afirmamos la existencia exacta de
-      # los 5 artefactos (no solo "algún .exe/.dll"): si falta alguno, el
-      # configure o el build falló para ese target.
-      #   ba-app           -> .exe   (Proceso A, GUI)
-      #   ba-gateway       -> .exe   (Proceso B)
-      #   ba-sources       -> .dll   (módulo libobs, SHARED)
-      #   ba_plugin_host   -> .a     (host VST3, STATIC)
-      #   BroadcastAppliance -> .exe (Proceso 0, launcher)
-      - name: Verify artifacts
-        run: |
-          artifacts=(
-            "build/win/src/app/ba-app.exe"
-            "build/win/src/gateway/ba-gateway.exe"
-            "build/win/src/obs-module/libba-sources.dll"
-            "build/win/src/plugin-host/libba_plugin_host.a"
-            "build/win/src/launcher/BroadcastAppliance.exe"
-          )
-          echo "Verificando los 5 artefactos de producto (cross-build MinGW):"
-          missing=0
-          for a in "${artifacts[@]}"; do
-            if [ -f "$a" ]; then
-              echo "  OK     $a"
-            else
-              echo "  FALTA  $a" >&2
-              missing=1
-            fi
-          done
-          if [ "$missing" -ne 0 ]; then
-            echo "ERROR: faltan artefactos de producto tras el cross-build" >&2
-            exit 1
-          fi
-          echo "Los 5 artefactos de producto existen."
-
-  # ==========================================================================
-  # JOB 4 — LINT: formato de código con clang-format
-  # ==========================================================================
-  # El formato solo es determinista si el binario de clang-format es
-  # EXACTAMENTE el mismo en CI y en dev. Para eso la versión va FIJADA en
-  # versions.cmake (CLANG_FORMAT_VERSION) y este job corre con `runs-on`
-  # FIJADO a ubuntu-24.04 (noble): ahí `apt install clang-format-18` da
-  # exactamente esa versión (la misma que se instala en el host de dev). Si
-  # `ubuntu-latest` cambia de distro en el futuro, el pin de `runs-on`
-  # mantiene la versión estable.
   lint:
-    name: "Lint (clang-format, apt)"
+    name: "Lint (clang-format)"
     runs-on: ubuntu-24.04
-
     steps:
-      # --- Checkout del código ---------------------------------------------
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      # --- clang-format por apt (versión fijada) ----------------------------
-      # `clang-format-18` es el paquete versionado de noble (18.1.3). El
-      # symlink en /usr/local/bin deja `clang-format` en el PATH para que
-      # `make lint` lo encuentre sin cambios.
-      - name: Install clang-format (apt)
+      - uses: actions/checkout@v4
+      - name: Install clang-format (apt, version fijada)
         run: |
           sudo apt-get update
           sudo apt-get install -y clang-format-18
-          ln -sf /usr/bin/clang-format-18 /usr/local/bin/clang-format
-          clang-format --version
-
-      # --- Asertar la versión fijada ----------------------------------------
-      # Si noble cambia la versión del paquete, el job falla aquí (no con un
-      # diff de formato misterioso).
+          sudo ln -sf /usr/bin/clang-format-18 /usr/local/bin/clang-format
       - name: Assert pinned version
         run: |
           want="$(sed -n 's/^set(CLANG_FORMAT_VERSION //p' versions.cmake | tr -d '"' | cut -d' ' -f1)"
           clang-format --version | grep -q "$want" \
             || { echo "clang-format no es la versión fijada ($want)" >&2; exit 1; }
-
-      # --- Lint (make lint) --------------------------------------------------
-      # El target del Makefile corre `clang-format --dry-run -Werror` sobre
-      # src/ con el .clang-format del repo. Si hay diffs, el job falla y el
-      # log muestra los archivos.
-      - name: Lint (make lint)
-        run: make lint
+      - run: make lint
 
   # ==========================================================================
-  # JOB 5 — SANITIZERS: ASan/UBSan y TSan sobre la suite de ba_core
+  linux:
+    name: "Linux: deps + build + tests + bundle"
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      # Headers de la base del sistema (README, "Requisitos de build"): no
+      # viajan en el bundle; son para compilar libobs y la interfaz.
+      - name: Install build toolchain (apt)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ccache ninja-build clang patchelf \
+            libgl1-mesa-dev libegl1-mesa-dev libx11-dev libx11-xcb-dev libxcb1-dev \
+            libxcb-randr0-dev libxcb-shm0-dev libxcb-xfixes0-dev libxcb-xinerama0-dev \
+            libxcb-composite0-dev libxcb-damage0-dev libxcb-present-dev libxcb-xkb-dev \
+            libxcomposite-dev libxinerama-dev libxkbcommon-dev libxss-dev \
+            libpulse-dev libasound2-dev libudev-dev \
+            libwayland-dev libdrm-dev libfreetype-dev libfontconfig1-dev
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache extern/ (Linux)
+        uses: actions/cache@v4
+        with:
+          path: extern
+          key: extern-linux-${{ hashFiles('Makefile', 'versions.cmake', 'tools/deps/obs-deps-linux.sh') }}
+
+      - name: Dependencias (make deps-linux)
+        run: |
+          python -m venv .venv
+          make deps-linux JOBS=$(nproc)
+
+      - name: Build
+        run: make build JOBS=$(nproc)
+
+      # Los tests que necesitan GPU/sesion grafica devuelven 77 (saltados).
+      - name: Tests C++ (ctest)
+        run: make test
+
+      - name: Tests Python (pytest)
+        run: |
+          .venv/bin/pip install -r requirements-dev.lock
+          .venv/bin/pytest -q
+
+      - name: Bundle portable (make dist-linux)
+        run: make dist-linux JOBS=$(nproc)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-linux
+          path: dist/*
+          if-no-files-found: error
+
   # ==========================================================================
-  # El nucleo es lock-free: `std::atomic_ref` sobre memoria compartida, un
-  # seqlock escrito a mano, un ring SPSC y un automixer que cruza el hilo de
-  # audio con el de control. Esa clase de codigo falla de forma no determinista
-  # y los tests funcionales no la detectan: hicieron falta sanitizers para ver
-  # una fuga y varias carreras que llevaban meses en el arbol.
-  #
-  # Se corren en dos pasadas porque ASan y TSan son incompatibles entre si.
+  windows:
+    name: "Windows x64 (clang-cl desde Linux) + tests en Wine + bundle"
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools (apt)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ccache ninja-build p7zip-full
+          # Solo para las herramientas de build (host) de LSP en tools/deps/lsp-win.sh:
+          # no van al bundle de Windows.
+          sudo apt-get install -y libsndfile1-dev libcairo2-dev libx11-dev libxrandr-dev \
+            libfreetype-dev libfontconfig-dev libgl-dev
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache extern/ (Windows)
+        uses: actions/cache@v4
+        with:
+          path: extern
+          key: extern-win-${{ hashFiles('Makefile', 'versions.cmake', 'tools/deps/win-toolchain.sh', 'tools/deps/ndi-src.sh', 'tools/deps/lsp-win.sh', 'tools/ci/test-win.sh') }}
+
+      # deps-win incluye el Qt del host (moc/rcc/qmlcachegen corren en Linux).
+      - name: Build (make win)
+        run: |
+          python -m venv .venv
+          make win JOBS=$(nproc) BA_ACCEPT_MSVC_LICENSE=1
+
+      - name: Tests de Windows bajo Wine (make test-win)
+        run: make test-win BA_ACCEPT_MSVC_LICENSE=1
+
+      - name: Bundle portable (make dist-win)
+        run: make dist-win JOBS=$(nproc) BA_ACCEPT_MSVC_LICENSE=1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-windows
+          path: dist/*
+          if-no-files-found: error
+
+  # ==========================================================================
+  # El nucleo es lock-free (atomic_ref sobre memoria compartida, seqlock, ring
+  # SPSC): esa clase de fallo no la ve un test funcional. ASan y TSan son
+  # incompatibles entre si: dos pasadas. Compila sin deps (modo headless).
   sanitizers:
     name: "Sanitizers (${{ matrix.name }})"
     runs-on: ubuntu-24.04
@@ -226,11 +168,8 @@ jobs:
             flags: "-fsanitize=address,undefined -fno-omit-frame-pointer -g"
           - name: "tsan"
             flags: "-fsanitize=thread -fno-omit-frame-pointer -g"
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Configure (${{ matrix.name }})
         run: |
           cmake -S . -B build-san \
@@ -238,18 +177,10 @@ jobs:
             -DCMAKE_CXX_FLAGS="${{ matrix.flags }}" \
             -DCMAKE_C_FLAGS="${{ matrix.flags }}" \
             -DCMAKE_EXE_LINKER_FLAGS="${{ matrix.flags }}"
-
       - name: Build
         run: cmake --build build-san -j"$(nproc)"
-
-      # `halt_on_error=1` para que el primer hallazgo falle el job en vez de
-      # quedar sepultado en el log.
-      #
-      # `setarch -R` desactiva el ASLR del proceso: los kernels recientes usan
-      # mas bits de aleatorizacion (vm.mmap_rnd_bits) de los que ThreadSanitizer
-      # soporta, y sin esto TSan aborta con "unexpected memory mapping" antes de
-      # ejecutar un solo test. Es inofensivo para ASan y evita tener que tocar
-      # sysctl con sudo en el runner.
+      # setarch -R: sin ASLR (TSan no soporta los bits de aleatorizacion de
+      # los kernels recientes). halt_on_error: el primer hallazgo falla el job.
       - name: Test con sanitizers
         env:
           ASAN_OPTIONS: "detect_leaks=1:halt_on_error=1:abort_on_error=1"
@@ -258,39 +189,22 @@ jobs:
         run: setarch -R ctest --test-dir build-san --output-on-failure
 
   # ==========================================================================
-  # JOB 3 — RELEASE: empaquetado portable (solo en tags)
-  # ==========================================================================
-  # Corre solo cuando el ref es una tag (refs/tags/*) y depende de que el
-  # job `linux` haya pasado (build + tests verdes).
   release:
-    name: "Release (portable bundle)"
-    runs-on: ubuntu-latest
-    # Depende de TODOS los jobs de verificacion, no solo del build nativo: con
-    # `needs: linux` a secas se podia publicar un bundle con el cross-build
-    # roto, el formato sin pasar o un sanitizer en rojo.
-    needs: [linux, windows-cross, lint, sanitizers]
-    if: startsWith(github.ref, 'refs/tags/')
-
+    name: "Release (GitHub)"
+    runs-on: ubuntu-24.04
+    needs: [lint, linux, windows, sanitizers]
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
     steps:
-      # --- Checkout del código ---------------------------------------------
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      # --- Herramientas de build -------------------------------------------
-      - name: Install ccache
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ccache
-
-      # --- Empaquetado portable --------------------------------------------
-      # `make release` produce el bundle portable en `release`.
-      - name: Build portable bundle (make release)
-        run: make release
-
-      # --- Subir el bundle como artifact -----------------------------------
-      - name: Upload portable bundle
-        uses: actions/upload-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
-          name: portable-bundle
-          path: release
-          if-no-files-found: error
+          path: dist
+          merge-multiple: true
+      - name: Publicar el release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -la dist
+          gh release create "${GITHUB_REF_NAME}" dist/* \
+            --repo "${GITHUB_REPOSITORY}" --title "${GITHUB_REF_NAME}" --generate-notes

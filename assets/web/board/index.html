@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0c0c0e" />
+  <title>Oradores — Tablero</title>
+  <link rel="stylesheet" href="board.css" />
+</head>
+<body>
+  <!-- ================================================================
+       Tablero de oradores (solo lectura). Pensado para una tablet: quien
+       anuncia ve quien esta al aire, cuanto le queda (o cuanto se paso), y
+       la fila con caras, datos y contacto. Lee GET /api/v1/board cada
+       segundo con la clave del tablero (viene en el fragmento #k=... del
+       enlace o QR que muestra la consola del operador).
+       ================================================================ -->
+  <header class="top">
+    <div class="brand"><span class="dot" id="dot"></span> Oradores · <strong id="room">—</strong></div>
+    <div class="meta" id="meta"></div>
+    <div class="now" id="now"></div>
+  </header>
+
+  <main id="main">
+    <section class="onair" id="onair"></section>
+    <section class="queue">
+      <h2>En la fila <span class="count" id="qcount">0</span> <span class="total" id="qtotal"></span></h2>
+      <div class="cards" id="queue"></div>
+      <p class="empty hidden" id="qempty">Nadie esperando turno.</p>
+    </section>
+    <section class="done">
+      <h2>Ya hablaron <span class="count" id="dcount">0</span></h2>
+      <div class="rows" id="done"></div>
+    </section>
+  </main>
+
+  <div class="blocked hidden" id="blocked">
+    <div>
+      <h1>Sin acceso al tablero</h1>
+      <p id="blocked-text">Escaneá de nuevo el QR del tablero desde la consola del operador.</p>
+    </div>
+  </div>
+
+  <script src="live.js"></script>
+  <script src="board.js"></script>
+</body>
+</html>

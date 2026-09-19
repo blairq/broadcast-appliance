@@ -350,10 +350,18 @@ void guestVideoUpdate(void* data, obs_data_t* settings) {
 obs_properties_t* guestVideoProperties(void*) {
     obs_properties_t* props = obs_properties_create();
     addSlotProperty(props);
+    // Que mostrar del invitado ("lobby" no: es solo para la vista del operador).
+    obs_property_t* ch = obs_properties_add_list(props, "channel", obs_module_text("Mostrar"),
+                                                 OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
+    obs_property_list_add_string(ch, obs_module_text("Camara"), "guest");
+    obs_property_list_add_string(ch, obs_module_text("Pantalla compartida"), "share");
     return props;
 }
 
-void guestVideoDefaults(obs_data_t* settings) { obs_data_set_default_int(settings, "slot", kDefaultSlot); }
+void guestVideoDefaults(obs_data_t* settings) {
+    obs_data_set_default_int(settings, "slot", kDefaultSlot);
+    obs_data_set_default_string(settings, "channel", "guest");
+}
 
 } // namespace
 

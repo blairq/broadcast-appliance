@@ -20,10 +20,27 @@
 #include <cstdint>
 #include <memory>
 
+namespace ba::app::agent {
+class AlertEngine;
+class AgentViewModel;
+} // namespace ba::app::agent
+
+namespace ba::app::audio {
+class RackManager;
+class AudioViewModel;
+} // namespace ba::app::audio
+
 namespace ba::app {
 
 class AppRuntime;
 class ConferenceViewModel;
+class YouTubeViewModel;
+class TwitchViewModel;
+class FacebookViewModel;
+class SystemViewModel;
+class OperatorMessages;
+class InputsViewModel;
+class ChatOverlayRenderer;
 class DashboardModel;
 class FrameService;
 class MixerModel;
@@ -69,6 +86,15 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* frames READ frames CONSTANT)
     Q_PROPERTY(QObject* properties READ properties CONSTANT)
     Q_PROPERTY(QObject* conference READ conference CONSTANT)
+    Q_PROPERTY(QObject* youtube READ youtube CONSTANT)
+    Q_PROPERTY(QObject* twitch READ twitch CONSTANT)
+    Q_PROPERTY(QObject* facebook READ facebook CONSTANT)
+    Q_PROPERTY(QObject* system READ system CONSTANT)
+    Q_PROPERTY(QObject* agent READ agent CONSTANT)
+    Q_PROPERTY(QObject* messages READ messages CONSTANT)
+    Q_PROPERTY(QObject* inputs READ inputs CONSTANT)
+    /// Pestaña Audio (patchbay de modulos LSP por fuente); null sin CLAP.
+    Q_PROPERTY(QObject* audio READ audio CONSTANT)
    public:
     explicit StudioViewModel(AppRuntime& rt, QObject* parent = nullptr);
     ~StudioViewModel() override;
@@ -106,8 +132,26 @@ class StudioViewModel : public QObject {
     QObject* frames() const;
     QObject* properties() const;
     QObject* conference() const;
+    QObject* youtube() const;
+    QObject* twitch() const;
+    QObject* facebook() const;
+    QObject* system() const;
+    QObject* agent() const;
+    QObject* messages() const;
+    QObject* inputs() const;
+    QObject* audio() const;
+#if defined(BA_HAVE_CLAP)
+    /// Racks de audio (modulos LSP) de las fuentes. nullptr si no hay libobs/CLAP.
+    audio::RackManager* racks() const { return racks_.get(); }
+#endif
+    agent::AlertEngine& alerts() { return *alerts_; }
 
     // --- Comandos ---------------------------------------------------------------
+    /// Pasos para conectar una plataforma (misma fuente que el MCP: AccountGuides).
+    Q_INVOKABLE QVariantMap accountGuide(const QString& platform) const;
+    /// Guarda la credencial de una plataforma desde el formulario seguro: campos
+    /// del formulario, {"importFile": ruta} o {"fromDownloads": true}. "" o el error.
+    Q_INVOKABLE QString saveAccountCredential(const QString& platform, const QVariantMap& values);
     Q_INVOKABLE void toggleRecording();
     Q_INVOKABLE void startStreaming(const QString& server, const QString& key);
     Q_INVOKABLE void stopStreaming();
@@ -116,6 +160,9 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE void removeScene(const QString& name);
     Q_INVOKABLE void renameScene(const QString& from, const QString& to);
     Q_INVOKABLE void save();
+    /// Relee escenas, fuentes y mezclador del motor (algo los cambio por
+    /// fuera de la vista, p. ej. el servidor MCP).
+    void refreshModels();
 
    signals:
     void statusChanged();
@@ -141,6 +188,19 @@ class StudioViewModel : public QObject {
     std::unique_ptr<FrameService> frames_;
     std::unique_ptr<PropertiesModel> props_;
     std::unique_ptr<ConferenceViewModel> conference_;
+#if defined(BA_HAVE_CLAP)
+    std::unique_ptr<audio::RackManager> racks_;
+    std::unique_ptr<audio::AudioViewModel> audio_;
+#endif
+    std::unique_ptr<YouTubeViewModel> youtube_;
+    std::unique_ptr<TwitchViewModel> twitch_;
+    std::unique_ptr<FacebookViewModel> facebook_;
+    std::unique_ptr<SystemViewModel> system_;
+    std::unique_ptr<agent::AlertEngine> alerts_;
+    std::unique_ptr<agent::AgentViewModel> agent_;
+    std::unique_ptr<OperatorMessages> messages_;
+    std::unique_ptr<InputsViewModel> inputs_;
+    std::unique_ptr<ChatOverlayRenderer> chatOverlay_;
     QTimer tick_;
     QTimer frameTick_;
 

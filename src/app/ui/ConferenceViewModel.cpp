@@ -5,10 +5,12 @@
 #include "ui/ConferenceViewModel.hpp"
 
 #include <QClipboard>
+#include <QDateTime>
 #include <QDesktopServices>
 #include <QGuiApplication>
 #include <QJsonDocument>
 #include <QRegularExpression>
+#include <QSet>
 #include <QUrl>
 
 #include <algorithm>
@@ -70,13 +72,16 @@ void JsonListModel::append(const QJsonObject& item) {
 ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, QObject* parent)
     : QObject(parent), rt_(rt), client_(std::make_unique<ConferenceClient>()),
       waiting_(std::make_unique<JsonListModel>(
-          QStringList{"uid", "name", "connected", "joinedMs", "lobbySlot", "talk"})),
+          QStringList{"uid", "name", "connected", "joinedMs", "lobbySlot", "talk", "info", "contact"})),
       inside_(std::make_unique<JsonListModel>(QStringList{"uid", "name", "slot", "connected", "mediaUp",
                                                           "mic", "cam", "screen", "hand", "admittedMs"})),
       shares_(std::make_unique<JsonListModel>(
           QStringList{"uid", "name", "kind", "mime", "bytes", "participantName", "path", "atMs", "url"})),
       chat_(std::make_unique<JsonListModel>(
-          QStringList{"uid", "fromId", "fromName", "to", "text", "atMs", "mine"})) {
+          QStringList{"uid", "fromId", "fromName", "to", "text", "atMs", "mine"})),
+      speakers_(std::make_unique<JsonListModel>(
+          QStringList{"uid", "name", "info", "contact", "speaker", "position", "allottedSec", "onAirSinceMs",
+                      "usedMs", "connected", "slot", "avatar", "backstageSlot"})) {
     connect(client_.get(), &ConferenceClient::onlineChanged, this, [this]() { emit onlineChanged(); });
     connect(client_.get(), &ConferenceClient::snapshotChanged, this, &ConferenceViewModel::onSnapshot);
     connect(client_.get(), &ConferenceClient::chatReceived, this,
@@ -101,6 +106,9 @@ ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, QObject* parent)
             }
         });
     };
+    // Fotos de las tarjetas de oradores (las renueva el invitado cada 5 s).
+    connect(&avatarPoll_, &QTimer::timeout, this, &ConferenceViewModel::pollAvatars);
+    avatarPoll_.start(5000);
     connect(&networkPoll_, &QTimer::timeout, this, pollNetwork);
     connect(client_.get(), &ConferenceClient::onlineChanged, this, pollNetwork);
     networkPoll_.start(5000);
@@ -120,6 +128,117 @@ QObject* ConferenceViewModel::waiting() const { return waiting_.get(); }
 QObject* ConferenceViewModel::inside() const { return inside_.get(); }
 QObject* ConferenceViewModel::shares() const { return shares_.get(); }
 QObject* ConferenceViewModel::chat() const { return chat_.get(); }
+QObject* ConferenceViewModel::speakers() const { return speakers_.get(); }
+QVariantMap ConferenceViewModel::speakerCfg() const {
+    return client_->snapshot().value("speakers").toObject().toVariantMap();
+}
+bool ConferenceViewModel::speakerMode() const {
+    return client_->snapshot().value("speakers").toObject().value("enabled").toBool();
+}
+
+void ConferenceViewModel::rebuildSpeakers() {
+    const QJsonObject s = client_->snapshot();
+    QHash<QString, QJsonObject> byId;
+    for (const QJsonValue& v : s.value("participants").toArray()) {
+        const QJsonObject p = v.toObject();
+        byId.insert(p.value("id").toString(), p);
+    }
+    QJsonArray rows;
+    QVariantList onAir;
+    int pos = 0;
+    for (const QJsonValue& v : s.value("order").toArray()) {
+        const auto it = byId.constFind(v.toString());
+        if (it == byId.constEnd()) continue;
+        QJsonObject p = *it;
+        p.insert("uid", p.value("id"));
+        const QString st = p.value("speaker").toString();
+        p.insert("position", st == "queued" ? ++pos : 0);
+        p.insert("avatar", avatars_.value(p.value("id").toString()));
+        if (st == "onair") {
+            onAir << QVariantMap{{"uid", p.value("id").toString()},
+                                 {"name", p.value("name").toString()},
+                                 {"allottedSec", p.value("allottedSec").toInt()},
+                                 {"onAirSinceMs", p.value("onAirSinceMs").toDouble()}};
+        }
+        rows.append(p);
+    }
+    speakers_->setItems(rows);
+    onAir_ = onAir;
+}
+
+void ConferenceViewModel::pollAvatars() {
+    if (!client_->online()) return;
+    for (const QJsonValue& v : client_->snapshot().value("participants").toArray()) {
+        const QJsonObject p = v.toObject();
+        if (!p.value("hasAvatar").toBool()) continue;
+        const QString id = p.value("id").toString();
+        client_->getRaw("/api/v1/participants/" + QString::fromUtf8(QUrl::toPercentEncoding(id)) + "/avatar",
+                        [this, id](bool ok, const QByteArray& jpeg) {
+                            if (!ok || jpeg.isEmpty()) return;
+                            const QString url =
+                                "data:image/jpeg;base64," + QString::fromLatin1(jpeg.toBase64());
+                            if (avatars_.value(id) == url) return;
+                            avatars_.insert(id, url);
+                            rebuildSpeakers();
+                        });
+    }
+    // Las de quien ya no esta.
+    QSet<QString> alive;
+    for (const QJsonValue& v : client_->snapshot().value("participants").toArray())
+        alive.insert(v.toObject().value("id").toString());
+    for (auto it = avatars_.begin(); it != avatars_.end();)
+        it = alive.contains(it.key()) ? std::next(it) : avatars_.erase(it);
+}
+
+void ConferenceViewModel::setSpeakerConfig(const QVariantMap& cfg) {
+    client_->post("/api/v1/speakers", QJsonObject::fromVariantMap(cfg));
+}
+void ConferenceViewModel::speakerOnAir(const QString& id, bool on) {
+    participantAction(id, "onair", QJsonObject{{"on", on}});
+}
+void ConferenceViewModel::speakerNext() {
+    client_->post("/api/v1/speakers/next", {}, [this](bool ok, const QJsonObject& r) {
+        Q_UNUSED(r);
+        if (!ok) emit notify("No hay nadie mas en la fila", "info");
+    });
+}
+void ConferenceViewModel::speakerMove(const QString& id, int index) {
+    participantAction(id, "move", QJsonObject{{"index", std::max(0, index)}});
+}
+void ConferenceViewModel::speakerTime(const QString& id, int sec) {
+    if (sec > 0) participantAction(id, "time", QJsonObject{{"sec", sec}});
+}
+void ConferenceViewModel::speakerRequeue(const QString& id) { participantAction(id, "requeue"); }
+void ConferenceViewModel::setProfile(const QString& id, const QString& name, const QString& info,
+                                     const QString& contact) {
+    participantAction(id, "profile", QJsonObject{{"name", name}, {"info", info}, {"contact", contact}});
+}
+
+int ConferenceViewModel::parseDuration(const QString& text) const {
+    const QString t = text.trimmed();
+    static const QRegularExpression mss("^(\\d+):(\\d{1,2})$");
+    static const QRegularExpression secs("^(\\d+)\\s*s$");
+    static const QRegularExpression mins("^(\\d+)([.,](\\d+))?$");
+    if (const auto m = mss.match(t); m.hasMatch()) return m.captured(1).toInt() * 60 + m.captured(2).toInt();
+    if (const auto m = secs.match(t); m.hasMatch()) return m.captured(1).toInt();
+    if (const auto m = mins.match(t); m.hasMatch()) {
+        return static_cast<int>(QString(t).replace(',', '.').toDouble() * 60.0 + 0.5);
+    }
+    return 0;
+}
+
+void ConferenceViewModel::requestBoardLink(const QString& target) {
+    const QString t = target == "remote" ? "remote" : "local";
+    client_->get("/api/v1/board-link?target=" + t, [this, t](bool ok, const QJsonObject& r) {
+        QStringList rows;
+        for (const QJsonValue& v : r.value("modules").toArray())
+            rows << v.toString();
+        QString msg = r.value("message").toString();
+        const bool good = ok && r.value("ok").toBool();
+        if (!good && msg.isEmpty()) msg = "La sala no responde";
+        emit qrReady("board-" + t, good ? r.value("url").toString() : QString(), rows, msg);
+    });
+}
 
 void ConferenceViewModel::onSnapshot() {
     const QJsonObject s = client_->snapshot();
@@ -142,8 +261,8 @@ void ConferenceViewModel::onSnapshot() {
             if (!knownWaiting_.contains(p.value("id").toString()) && !firstSnapshot_) {
                 emit notify(p.value("name").toString() + " espera en el lobby", "info");
             }
-        } else {
-            inside.append(p);
+        } else if (slot > 0) {
+            inside.append(p); // en el programa (la fila de oradores va aparte)
         }
     }
     knownWaiting_ = nowWaiting;
@@ -192,6 +311,11 @@ void ConferenceViewModel::onSnapshot() {
     }
     for (const QJsonValue& v : history)
         onChatMsg(v.toObject(), false);
+    if (s.contains("serverNowMs")) {
+        clockOffset_ =
+            s.value("serverNowMs").toDouble() - static_cast<double>(QDateTime::currentMSecsSinceEpoch());
+    }
+    rebuildSpeakers();
     firstSnapshot_ = false;
     emit roomChanged();
 }
@@ -316,6 +440,21 @@ void ConferenceViewModel::configureDirectAccess(const QString& endpoint, const Q
                                                        : "Tunel configurado (reinicia el gateway)",
                                   "ok");
                   });
+}
+
+void ConferenceViewModel::requestQr(const QString& target, bool withPin) {
+    const QString t = target == "remote" ? "remote" : "local";
+    client_->get("/api/v1/qr?target=" + t + (withPin ? "&pin=1" : ""),
+                 [this, t](bool ok, const QJsonObject& r) {
+                     QStringList rows;
+                     for (const QJsonValue& v : r.value("modules").toArray())
+                         rows << v.toString();
+                     QString msg = r.value("message").toString();
+                     if (msg.isEmpty()) msg = r.value("warning").toString();
+                     const bool good = ok && r.value("ok").toBool();
+                     if (!good && msg.isEmpty()) msg = "La sala no responde";
+                     emit qrReady(t, good ? r.value("url").toString() : QString(), rows, msg);
+                 });
 }
 
 void ConferenceViewModel::admitAll() {

@@ -35,6 +35,8 @@
     maxUploadBytes: 0,
     reconnectDelay: RECONNECT_BASE_MS, reconnectTimer: 0, resumeFailures: 0,
     left: false, chatOpen: false, unread: 0,
+    info: "", contact: "",
+    speaker: null, clockOffset: 0, speakerAt: 0, speakerTimer: 0, avatarTimer: 0,
   };
 
   // --- DOM ----------------------------------------------------------------
@@ -113,8 +115,14 @@
       state.token = data.token;
       state.room = data.room;
       state.name = name;
+      state.info = $("info").value.trim();
+      state.contact = $("contact").value.trim();
       state.maxUploadBytes = data.maxUploadBytes || 0;
-      try { localStorage.setItem("ba.guest.name", name); } catch (e) {}
+      try {
+        localStorage.setItem("ba.guest.name", name);
+        localStorage.setItem("ba.guest.info", state.info);
+        localStorage.setItem("ba.guest.contact", state.contact);
+      } catch (e) {}
       show("check");
       await checkDevices();
     } catch (e) {
@@ -179,7 +187,8 @@
     const proto = location.protocol === "https:" ? "wss" : "ws";
     const q = state.id && state.key
       ? `resume=${encodeURIComponent(state.id)}&key=${encodeURIComponent(state.key)}`
-      : `token=${encodeURIComponent(state.token)}&room=${encodeURIComponent(state.room)}&name=${encodeURIComponent(state.name)}`;
+      : `token=${encodeURIComponent(state.token)}&room=${encodeURIComponent(state.room)}&name=${encodeURIComponent(state.name)}` +
+        `&info=${encodeURIComponent(state.info)}&contact=${encodeURIComponent(state.contact)}`;
     const ws = new WebSocket(`${proto}://${location.host}/ws?${q}`);
     ws.binaryType = "arraybuffer";
     state.ws = ws;
@@ -229,6 +238,7 @@
         $("self-label").textContent = state.name;
         if (!state.admitted) show("lobby");
         sendMedia();
+        startAvatar();
         break;
       case "publish":
         // La sala nos da lugar para publicar (preview del lobby o adentro).
@@ -252,10 +262,17 @@
         state.slot = msg.slot;
         $("talk-badge").classList.add("hidden");
         show("room");
-        toast("¡Estás adentro!", "ok");
+        toast(msg.backstage ? "Estás en la fila de oradores" : "¡Estás adentro!", "ok");
         // La MISMA conexion sigue: B solo cambia a donde van tus medios (del
         // operador al programa). Sin PC todavia (reenganche), se arma.
         if (!state.pc) startPeer();
+        break;
+      case "speaker":
+        onSpeaker(msg);
+        break;
+      case "profile":
+        state.name = msg.name || state.name;
+        $("self-label").textContent = state.name;
         break;
       case "rejected":
         state.left = true;
@@ -469,6 +486,95 @@
     }
   }
 
+  // --- Modo oradores -----------------------------------------------------
+  // La sala manda el turno y el reloj; el cliente solo lo dibuja. El reloj del
+  // servidor manda: se corrige la diferencia con el reloj local.
+  function onSpeaker(msg) {
+    state.speaker = msg;
+    state.speakerAt = Date.now();
+    if (msg.serverNowMs) state.clockOffset = msg.serverNowMs - state.speakerAt;
+    const prev = state.speakerState;
+    state.speakerState = msg.state;
+    if (msg.state === "onair" && prev !== "onair") toast("¡Estás al aire!", "ok");
+    clearInterval(state.speakerTimer);
+    state.speakerTimer = setInterval(renderSpeaker, 200);
+    renderSpeaker();
+  }
+
+  function fmtClock(ms) {
+    const neg = ms < 0;
+    const s = Math.floor(Math.abs(ms) / 1000);
+    const txt = Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+    return (neg ? "+" : "") + txt;
+  }
+
+  function renderSpeaker() {
+    const m = state.speaker;
+    const bar = $("speaker-bar");
+    const visible = !!m && (m.state === "queued" || m.state === "onair" || m.state === "done") && state.admitted;
+    bar.classList.toggle("hidden", !visible);
+    if (!visible) { clearInterval(state.speakerTimer); return; }
+    bar.classList.remove("queued", "onair", "warn", "over", "done");
+    if (m.state === "onair") {
+      const now = Date.now() + state.clockOffset;
+      // Al entrar al aire la cuenta arranca; se pasa de cero, sigue en negativo.
+      const left = m.allottedSec * 1000 - (now - m.startedMs);
+      bar.classList.add("onair");
+      $("sp-state").textContent = left < 0 ? "Te pasaste" : "Estás al aire";
+      // Redondeo hacia arriba mientras queda tiempo: "0:01" hasta el ultimo instante.
+      $("sp-clock").textContent = left >= 0 ? fmtClock(Math.ceil(left / 1000) * 1000) : fmtClock(left);
+      if (left < 0) {
+        bar.classList.add("over");
+        $("sp-note").textContent = "Se terminó tu tiempo. Redondeá, por favor.";
+      } else if (left <= 10000) {
+        bar.classList.add("warn");
+        $("sp-note").textContent = "Últimos segundos.";
+      } else {
+        $("sp-note").textContent = "Tiempo que te queda.";
+      }
+    } else if (m.state === "queued") {
+      bar.classList.add("queued");
+      const eta = Math.max(0, (m.etaSec || 0) * 1000 - (Date.now() - state.speakerAt));
+      $("sp-state").textContent = m.position === 1 ? "Sos el próximo" : `Tu turno: ${m.position}º en la fila`;
+      $("sp-clock").textContent = eta > 0 ? "~" + fmtClock(eta) : "ya";
+      $("sp-note").textContent = `Mirás el programa en vivo. Vas a tener ${fmtClock(m.allottedSec * 1000)} para hablar.`;
+    } else {
+      bar.classList.add("done");
+      $("sp-state").textContent = "Ya hablaste";
+      $("sp-clock").textContent = fmtClock(m.usedMs || 0);
+      $("sp-note").textContent = "¡Gracias! Podés seguir mirando el programa.";
+      clearInterval(state.speakerTimer);
+    }
+  }
+
+  // Foto chica para la tarjeta que ve la produccion (cada 5 s, solo con camara).
+  function startAvatar() {
+    clearInterval(state.avatarTimer);
+    // Video propio fuera de pantalla: el del DOM puede estar oculto (lobby) y
+    // un <video> oculto no siempre avanza de cuadro.
+    const v = document.createElement("video");
+    v.muted = true;
+    v.playsInline = true;
+    const snap = () => {
+      if (!state.key || !state.cam || !state.localStream) return;
+      if (v.srcObject !== state.localStream) { v.srcObject = state.localStream; v.play().catch(() => {}); return; }
+      if (!v.videoWidth) return;
+      const c = document.createElement("canvas");
+      c.width = 160; c.height = 120;
+      const g = c.getContext("2d");
+      // Recorte centrado 4:3.
+      const sw = Math.min(v.videoWidth, v.videoHeight * 4 / 3), sh = sw * 3 / 4;
+      g.drawImage(v, (v.videoWidth - sw) / 2, (v.videoHeight - sh) / 2, sw, sh, 0, 0, 160, 120);
+      c.toBlob((b) => {
+        if (!b) return;
+        fetch("/api/v1/avatar", { method: "POST", headers: { "X-BA-Key": state.key, "Content-Type": "image/jpeg" }, body: b }).catch(() => {});
+      }, "image/jpeg", 0.7);
+    };
+    setTimeout(snap, 300);
+    setTimeout(snap, 1500);
+    state.avatarTimer = setInterval(snap, 5000);
+  }
+
   // --- Estado / salida ----------------------------------------------------
   function setConn(cls, text) {
     const el = $("conn-state");
@@ -490,6 +596,10 @@
     teardownPeer();
     stopLocalMedia();
     toggleChat(false);
+    clearInterval(state.avatarTimer);
+    clearInterval(state.speakerTimer);
+    state.speaker = null;
+    $("speaker-bar").classList.add("hidden");
     state.admitted = false;
     $("end-title").textContent = title;
     $("end-text").textContent = text || "";
@@ -542,7 +652,11 @@
   const hash = new URLSearchParams(location.hash.replace(/^#/, ""));
   $("room").value = hash.get("room") || params.get("room") || "";
   $("pin").value = hash.get("pin") || "";
-  try { $("name").value = hash.get("name") || localStorage.getItem("ba.guest.name") || ""; } catch (e) {}
+  try {
+    $("name").value = hash.get("name") || localStorage.getItem("ba.guest.name") || "";
+    $("info").value = localStorage.getItem("ba.guest.info") || "";
+    $("contact").value = localStorage.getItem("ba.guest.contact") || "";
+  } catch (e) {}
   if (hash.has("pin")) history.replaceState(null, "", location.pathname + location.search); // no dejar el PIN a la vista
   const autoGo = hash.get("go") === "1";
 

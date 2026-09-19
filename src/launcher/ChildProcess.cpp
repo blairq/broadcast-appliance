@@ -9,8 +9,11 @@
 #include "Log.hpp"
 #include "platform/Paths.hpp"
 
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
+#include <iterator>
 
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
@@ -41,6 +44,58 @@ const char* const kDropPosix[] = {
     "DYLD_FALLBACK_LIBRARY_PATH",
     "DYLD_INSERT_LIBRARIES",
 };
+#endif
+
+#if defined(__linux__)
+/// Mayor version GLIBCXX_3.4.N que exporta un libstdc++ (-1 si no se pudo leer).
+int glibcxxLevel(const std::filesystem::path& lib) {
+    std::ifstream in(lib, std::ios::binary);
+    if (!in) return -1;
+    const std::string data((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    int best = -1;
+    static const std::string kTag = "GLIBCXX_3.4.";
+    for (std::size_t p = data.find(kTag); p != std::string::npos; p = data.find(kTag, p + 1)) {
+        int n = 0;
+        std::size_t i = p + kTag.size();
+        bool any = false;
+        while (i < data.size() && data[i] >= '0' && data[i] <= '9') {
+            n = n * 10 + (data[i++] - '0');
+            any = true;
+        }
+        if (any && n > best) best = n;
+    }
+    return best;
+}
+
+/// bin/64bit/cxx si el runtime de C++ que trae el bundle es MAS NUEVO que el
+/// del sistema (o el sistema no tiene): los binarios se compilaron con ese
+/// runtime y con uno viejo no arrancan ("GLIBCXX_3.4.xx not found"). Si el del
+/// sistema es igual o mas nuevo se usa ese (drivers de video como Mesa cargan
+/// el suyo y exigen el mas nuevo). Es lo que hace el "checkrt" de AppImage.
+std::string cxxRuntimeDir(const std::filesystem::path& ownBinDir) {
+    const std::filesystem::path bundled = ownBinDir / "cxx" / "libstdc++.so.6";
+    const int mine = glibcxxLevel(bundled);
+    if (mine < 0) return {};
+    int system = -1;
+    for (const char* d : {"/usr/lib/x86_64-linux-gnu", "/lib/x86_64-linux-gnu", "/usr/lib/aarch64-linux-gnu",
+                          "/lib/aarch64-linux-gnu", "/usr/lib64", "/lib64", "/usr/lib", "/lib"}) {
+        const std::filesystem::path p = std::filesystem::path(d) / "libstdc++.so.6";
+        if (std::filesystem::exists(p)) {
+            system = glibcxxLevel(p);
+            break;
+        }
+    }
+    const bool useBundled = mine > system;
+    static bool logged = false;
+    if (!logged) {
+        logged = true;
+        BA_LOG_INFO("child", 0,
+                    "runtime C++: bundle GLIBCXX_3.4." + std::to_string(mine) + ", sistema " +
+                        (system < 0 ? std::string("ausente") : "GLIBCXX_3.4." + std::to_string(system)) +
+                        " -> " + (useBundled ? "se usa el del bundle" : "se usa el del sistema"));
+    }
+    return useBundled ? (ownBinDir / "cxx").string() : std::string();
+}
 #endif
 
 #if defined(_WIN32)
@@ -85,10 +140,18 @@ void applyEnvPolicy(ba::platform::ProcessOptions& o, const std::filesystem::path
         FreeEnvironmentStringsA(env);
     }
 #else
-    (void)ownBinDir;
     for (const char* n : kDropPosix) {
         o.envRemove.emplace_back(n);
     }
+#if defined(__linux__)
+    if (const std::string cxx = cxxRuntimeDir(ownBinDir); !cxx.empty()) {
+        o.envSet["LD_LIBRARY_PATH"] = cxx;
+        o.envRemove.erase(std::remove(o.envRemove.begin(), o.envRemove.end(), "LD_LIBRARY_PATH"),
+                          o.envRemove.end());
+    }
+#else
+    (void)ownBinDir;
+#endif
 #endif
 }
 

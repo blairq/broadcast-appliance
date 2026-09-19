@@ -37,6 +37,11 @@ if(WIN32)
     set_target_properties(BroadcastAppliance PROPERTIES WIN32_EXECUTABLE ON)
 endif()
 target_link_libraries(BroadcastAppliance PRIVATE ba_core)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    # El launcher arranca en CUALQUIER Linux (aunque su libstdc++ sea viejo):
+    # lleva el runtime de C++ adentro y decide cual usan A y B (bin/64bit/cxx).
+    target_link_options(BroadcastAppliance PRIVATE -static-libstdc++ -static-libgcc)
+endif()
 
 # --- Unit tests del launcher (CTest) ----------------------------------------
 # La copia sombra (spec 3.1.5, decision D3) es portable (std::filesystem), por
@@ -49,6 +54,12 @@ target_link_libraries(test_shadow_copy PRIVATE ba_core)
 add_test(NAME test_shadow_copy COMMAND test_shadow_copy)
 # 77 = saltado (ver src/core/CMakeLists.txt).
 set_tests_properties(test_shadow_copy PROPERTIES SKIP_RETURN_CODE 77)
+
+# El actualizador: reemplaza el programa sin tocar los datos.
+add_executable(test_updater tests/test_updater.cpp Updater.cpp Integrity.cpp Log.cpp)
+target_include_directories(test_updater PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(test_updater PRIVATE ba_core)
+add_test(NAME test_updater COMMAND test_updater)
 
 # --- Instalación ------------------------------------------------------------
 # El launcher vive en la RAÍZ del disco (spec §5.1), no en bin/64bit/.

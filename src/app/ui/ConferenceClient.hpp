@@ -3,7 +3,7 @@
 //
 // Capa de SERVICIO (modelo): habla con la API del operador que expone B en
 // 127.0.0.1 (ver src/gateway/AdminApi.cpp) y no sabe nada de la vista.
-//   - Descubre puerto y token en <runtime>/gateway-admin.json (lo escribe B
+//   - Descubre puerto y token en Runtime/gateway-admin.json (dentro del bundle) (lo escribe B
 //     con permisos solo-usuario). Si B se reinicia el token cambia: ante un
 //     401 o un corte se vuelve a leer el archivo.
 //   - Estado: flujo SSE /api/v1/events. "room" trae el snapshot completo;
@@ -44,6 +44,9 @@ class ConferenceClient : public QObject {
     void post(const QString& path, const QJsonObject& body = {}, Done done = {});
     void del(const QString& path, Done done = {});
     void get(const QString& path, Done done);
+    /// GET de bytes crudos (fotos de las tarjetas). No avisa `failed`: una
+    /// foto que falta no es un error para el operador.
+    void getRaw(const QString& path, std::function<void(bool ok, const QByteArray& body)> done);
 
    signals:
     void onlineChanged(bool online);
