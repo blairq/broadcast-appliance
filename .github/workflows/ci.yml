@@ -12,8 +12,11 @@
 #                  (bundle portable verificado por check-portable.sh).
 #   3. windows     cross desde Linux (clang-cl, ABI MSVC) + tests bajo Wine
 #                  + dist-win (bundle verificado por check-portable-win.sh).
-#   4. sanitizers  ASan/UBSan y TSan sobre la suite.
-#   5. release     en cada push a master (y en tags v*) con todo en verde:
+#   4. windows-smoke  el .zip publicado, corrido en un Windows real: nucleo,
+#                  arranque del operador y motor. Es lo unico que ve los
+#                  fallos que Wine tapa (el CRT de Microsoft es mas estricto).
+#   5. sanitizers  ASan/UBSan y TSan sobre la suite.
+#   6. release     en cada push a master (y en tags v*) con todo en verde:
 #                  publica el .tar.gz de Linux y el .zip de Windows (con sus
 #                  .sha256) en un GitHub Release. En master el tag se arma
 #                  solo: v<version de CMakeLists>-build.<numero de corrida>.
@@ -268,10 +271,85 @@ jobs:
         run: setarch -R ctest --test-dir "build-san-${{ matrix.name }}" --output-on-failure
 
   # ==========================================================================
+  # El job `windows` cross-compila desde Linux y prueba bajo Wine: nadie corria
+  # el bundle en un Windows de verdad. Eso dejo salir un release que no
+  # arrancaba (setvbuf con size=0: valido en glibc, invalid parameter handler
+  # del CRT de Microsoft -> 0xC0000409; el ucrtbase de Wine no valida). Este
+  # job baja el .zip TAL CUAL se publica y lo corre en Windows.
+  windows-smoke:
+    name: "Humo del bundle en Windows real"
+    runs-on: windows-2022
+    needs: [windows]
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist-windows
+          path: dist
+
+      - name: Verificar el .sha256 publicado
+        run: |
+          $zip = (Get-ChildItem dist/*-windows-x64.zip)[0]
+          $want = ((Get-Content "$($zip.FullName).sha256") -split '\s+')[0]
+          $got  = (Get-FileHash $zip.FullName -Algorithm SHA256).Hash.ToLower()
+          if ($want -ne $got) { throw "sha256 no coincide: $want != $got" }
+          "$($zip.Name): sha256 OK"
+          "BA_ZIP=$($zip.FullName)" >> $env:GITHUB_ENV
+
+      # Fuera del workspace y sin nada del build al lado: el bundle tiene que
+      # bastarse solo (es el equivalente de esconder extern/obs-linux en Linux).
+      - name: Extraer el bundle
+        run: |
+          $d = "$env:RUNNER_TEMP\humo"
+          Expand-Archive -Path $env:BA_ZIP -DestinationPath $d -Force
+          "BA_DIR=$d" >> $env:GITHUB_ENV
+          Get-ChildItem $d | Select-Object Name
+
+      # 1) Nucleo sin libobs: no necesita GPU.
+      - name: "Humo: nucleo (--headless-selftest)"
+        run: |
+          $log = "$env:RUNNER_TEMP\headless.log"
+          & "$env:BA_DIR\bin\64bit\ba-app.exe" --headless-selftest *>&1 | Tee-Object $log
+          if ($LASTEXITCODE -ne 0) { throw "--headless-selftest salio con $LASTEXITCODE" }
+          if (-not (Select-String -Path $log -SimpleMatch "ba-app headless: OK")) { throw "sin el OK del nucleo" }
+
+      # 2) El camino que crasheaba: runOperate (el mismo arranque que la GUI,
+      #    setvbuf incluido), con --duration para que termine solo.
+      - name: "Humo: arranque del operador (--no-ui --duration 5)"
+        run: |
+          $log = "$env:RUNNER_TEMP\operate.log"
+          & "$env:BA_DIR\bin\64bit\ba-app.exe" --no-ui --duration 5 *>&1 | Tee-Object $log
+          $rc = $LASTEXITCODE
+          if ($rc -ne 0) {
+            "exit 0x{0:X8}" -f $rc
+            Get-Content $log -Tail 40
+            throw "el operador no arranco (exit $rc)"
+          }
+
+      # 3) Motor completo: libobs, x264, AAC y una grabacion real.
+      - name: "Humo: motor (--engine-selftest)"
+        run: |
+          $log = "$env:RUNNER_TEMP\engine.log"
+          & "$env:BA_DIR\bin\64bit\ba-app.exe" --engine-selftest *>&1 | Tee-Object $log
+          $rc = $LASTEXITCODE
+          if (-not (Select-String -Path $log -SimpleMatch "autotest del motor: OK")) {
+            "exit 0x{0:X8}" -f $rc
+            Get-Content $log -Tail 60
+            throw "el autotest del motor no dio OK"
+          }
+
+      - name: Logs del bundle (si algo fallo)
+        if: failure()
+        run: Get-ChildItem "$env:BA_DIR\Logs" -ErrorAction SilentlyContinue | ForEach-Object { "--- $($_.Name) ---"; Get-Content $_.FullName -Tail 60 }
+
+  # ==========================================================================
   release:
     name: "Release (GitHub)"
     runs-on: ubuntu-24.04
-    needs: [lint, linux, windows, sanitizers]
+    needs: [lint, linux, windows, windows-smoke, sanitizers]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v'))
     permissions:
       contents: write
