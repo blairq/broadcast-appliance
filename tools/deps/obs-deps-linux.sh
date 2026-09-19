@@ -291,4 +291,11 @@ gitpin "$ROOT/extern/libnoidea" "$NOIDEA_URL" "$NOIDEA_COMMIT"
 
 # Las .la de libtool arrastran rutas absolutas; no las usa nadie.
 find "$PREFIX/lib" -name '*.la' -delete
+# RUNPATH = $ORIGIN en todas: las que se arman con make (FFmpeg, x264) reciben
+# el `$ORIGIN` de LDFLAGS expandido por make como "RIGIN" y no encuentran sus
+# vecinas (libva...) salvo que el sistema tenga una igual. Idempotente.
+command -v patchelf >/dev/null || { log "ERROR: falta patchelf"; exit 1; }
+find "$PREFIX/lib" -maxdepth 1 -type f -name '*.so*' | while read -r so; do
+  [ "$(patchelf --print-rpath "$so" 2>/dev/null)" = '$ORIGIN' ] || patchelf --set-rpath '$ORIGIN' "$so"
+done
 log "listo en $PREFIX"
