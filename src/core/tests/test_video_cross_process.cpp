@@ -49,6 +49,14 @@
 using namespace ba::ipc;
 using namespace std::chrono_literals;
 
+#if defined(__SANITIZE_ADDRESS__) || defined(__SANITIZE_THREAD__)
+#define BA_UNDER_SANITIZER 1
+#elif defined(__has_feature)
+#if __has_feature(address_sanitizer) || __has_feature(thread_sanitizer)
+#define BA_UNDER_SANITIZER 1
+#endif
+#endif
+
 namespace {
 
 int g_failures = 0;
@@ -289,8 +297,11 @@ void testThroughput1080p() {
         std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count() / n;
     std::printf("  1080p BGRA: %.2f ms por frame (send + receive, fallback CPU)\n", ms);
     CHECK(got == n);
-    // Presupuesto holgado: a 60 fps hay 16,6 ms por frame en total.
+    // Presupuesto holgado: a 60 fps hay 16,6 ms por frame en total. Con
+    // sanitizers (ASan/TSan) todo corre varias veces mas lento: no se mide.
+#if !defined(BA_UNDER_SANITIZER)
     CHECK(ms < 12.0);
+#endif
 }
 
 // ---------------------------------------------------------------------------

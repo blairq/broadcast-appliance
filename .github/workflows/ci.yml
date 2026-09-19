@@ -67,7 +67,8 @@ jobs:
       - name: Install build toolchain (apt)
         run: |
           sudo apt-get update
-          sudo apt-get install -y ccache ninja-build clang patchelf p7zip-full \
+          sudo apt-get install -y cmake build-essential pkg-config git curl ca-certificates rsync unzip xz-utils file \
+            ccache ninja-build clang patchelf p7zip-full \
             libgl1-mesa-dev libegl1-mesa-dev libx11-dev libx11-xcb-dev libxcb1-dev \
             libxcb-randr0-dev libxcb-shm0-dev libxcb-xfixes0-dev libxcb-xinerama0-dev \
             libxcb-composite0-dev libxcb-damage0-dev libxcb-present-dev libxcb-xkb-dev \
@@ -136,7 +137,8 @@ jobs:
       - name: Install tools (apt)
         run: |
           sudo apt-get update
-          sudo apt-get install -y ccache ninja-build p7zip-full
+          sudo apt-get install -y cmake build-essential pkg-config git curl ca-certificates rsync unzip xz-utils file \
+            ccache ninja-build p7zip-full
           # Solo para las herramientas de build (host) de LSP en tools/deps/lsp-win.sh:
           # no van al bundle de Windows.
           sudo apt-get install -y libsndfile1-dev libcairo2-dev libx11-dev libxrandr-dev \
@@ -202,15 +204,19 @@ jobs:
             flags: "-fsanitize=thread -fno-omit-frame-pointer -g"
     steps:
       - uses: actions/checkout@v4
+      - name: Install tools (apt)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential pkg-config git curl ca-certificates rsync unzip xz-utils file
       - name: Configure (${{ matrix.name }})
         run: |
-          cmake -S . -B build-san \
+          cmake -S . -B "build-san-${{ matrix.name }}" \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_CXX_FLAGS="${{ matrix.flags }}" \
             -DCMAKE_C_FLAGS="${{ matrix.flags }}" \
             -DCMAKE_EXE_LINKER_FLAGS="${{ matrix.flags }}"
       - name: Build
-        run: cmake --build build-san -j"$(nproc)"
+        run: cmake --build "build-san-${{ matrix.name }}" -j"$(nproc)"
       # setarch -R: sin ASLR (TSan no soporta los bits de aleatorizacion de
       # los kernels recientes). halt_on_error: el primer hallazgo falla el job.
       - name: Test con sanitizers
@@ -218,7 +224,7 @@ jobs:
           ASAN_OPTIONS: "detect_leaks=1:halt_on_error=1:abort_on_error=1"
           UBSAN_OPTIONS: "halt_on_error=1:print_stacktrace=1"
           TSAN_OPTIONS: "halt_on_error=1:second_deadlock_stack=1"
-        run: setarch -R ctest --test-dir build-san --output-on-failure
+        run: setarch -R ctest --test-dir "build-san-${{ matrix.name }}" --output-on-failure
 
   # ==========================================================================
   release:

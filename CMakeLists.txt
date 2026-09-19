@@ -97,6 +97,8 @@ set(ENABLE_TESTING OFF CACHE BOOL "" FORCE)
 set(ENABLE_PROGRAMS OFF CACHE BOOL "" FORCE)
 set(USE_SHARED_MBEDTLS_LIBRARY OFF CACHE BOOL "" FORCE)
 set(DISABLE_PACKAGE_CONFIG_AND_INSTALL ON CACHE BOOL "" FORCE)
+# Sin autotests de mbedTLS (ver el archivo: evita una carrera en ecp.c).
+set(MBEDTLS_USER_CONFIG_FILE "${CMAKE_SOURCE_DIR}/cmake/mbedtls_user_config.h" CACHE FILEPATH "" FORCE)
 # libsamplerate trae sus propios tests (misc_test, simple_test, ...) que su
 # CMakeLists registra con CTest cuando BUILD_TESTING está ON. Lo forzamos OFF
 # para que no ensucien la lista de tests del proyecto: ctest debe seguir

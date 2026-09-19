@@ -87,7 +87,22 @@ bool pidAlive(std::uint32_t pid) {
     CloseHandle(h);
     return alive;
 #else
-    return ::kill(static_cast<pid_t>(pid), 0) == 0;
+    if (::kill(static_cast<pid_t>(pid), 0) != 0) {
+        return false;
+    }
+#if defined(__linux__)
+    // Un zombie ya murio: solo espera que alguien lo recoja. Un nieto huerfano
+    // lo recoge el PID 1, que en un contenedor (tail, sh...) puede no hacerlo.
+    std::ifstream st("/proc/" + std::to_string(pid) + "/stat");
+    std::string line;
+    if (std::getline(st, line)) {
+        const auto rp = line.rfind(')');
+        if (rp != std::string::npos && rp + 2 < line.size() && line[rp + 2] == 'Z') {
+            return false;
+        }
+    }
+#endif
+    return true;
 #endif
 }
 
