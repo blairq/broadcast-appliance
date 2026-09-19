@@ -13,8 +13,10 @@
 #   3. windows     cross desde Linux (clang-cl, ABI MSVC) + tests bajo Wine
 #                  + dist-win (bundle verificado por check-portable-win.sh).
 #   4. sanitizers  ASan/UBSan y TSan sobre la suite.
-#   5. release     solo en tags v*: publica el .tar.gz de Linux y el .zip de
-#                  Windows (con sus .sha256) en un GitHub Release.
+#   5. release     en cada push a master (y en tags v*) con todo en verde:
+#                  publica el .tar.gz de Linux y el .zip de Windows (con sus
+#                  .sha256) en un GitHub Release. En master el tag se arma
+#                  solo: v<version de CMakeLists>-build.<numero de corrida>.
 #
 # Licencia de Microsoft: el job de Windows baja el CRT y el Windows SDK con
 # xwin (BA_ACCEPT_MSVC_LICENSE=1), aceptando la licencia de Visual Studio
@@ -77,16 +79,30 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Cache extern/ (Linux)
-        uses: actions/cache@v4
+      # Se guarda apenas terminan las dependencias (aunque despues falle un
+      # test): la primera corrida compila FFmpeg/libobs y tarda.
+      - name: Restaurar extern/ (Linux)
+        id: extern-cache
+        uses: actions/cache/restore@v4
         with:
-          path: extern
+          path: |
+            extern
+            !extern/.build-*
           key: extern-linux-${{ hashFiles('Makefile', 'versions.cmake', 'tools/deps/obs-deps-linux.sh') }}
 
       - name: Dependencias (make deps-linux)
         run: |
           python -m venv .venv
           make deps-linux JOBS=$(nproc)
+
+      - name: Guardar extern/ (Linux)
+        if: steps.extern-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            extern
+            !extern/.build-*
+          key: ${{ steps.extern-cache.outputs.cache-primary-key }}
 
       - name: Build
         run: make build JOBS=$(nproc)
@@ -129,17 +145,32 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Cache extern/ (Windows)
-        uses: actions/cache@v4
+      - name: Restaurar extern/ (Windows)
+        id: extern-cache
+        uses: actions/cache/restore@v4
         with:
-          path: extern
+          path: |
+            extern
+            !extern/.build-*
           key: extern-win-${{ hashFiles('Makefile', 'versions.cmake', 'tools/deps/win-toolchain.sh', 'tools/deps/ndi-src.sh', 'tools/deps/lsp-win.sh', 'tools/ci/test-win.sh') }}
 
       # deps-win incluye el Qt del host (moc/rcc/qmlcachegen corren en Linux).
-      - name: Build (make win)
+      - name: Dependencias (make deps-win)
         run: |
           python -m venv .venv
-          make win JOBS=$(nproc) BA_ACCEPT_MSVC_LICENSE=1
+          make deps-win JOBS=$(nproc) BA_ACCEPT_MSVC_LICENSE=1
+
+      - name: Guardar extern/ (Windows)
+        if: steps.extern-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            extern
+            !extern/.build-*
+          key: ${{ steps.extern-cache.outputs.cache-primary-key }}
+
+      - name: Build (make win)
+        run: make win JOBS=$(nproc) BA_ACCEPT_MSVC_LICENSE=1
 
       - name: Tests de Windows bajo Wine (make test-win)
         run: make test-win BA_ACCEPT_MSVC_LICENSE=1
@@ -193,7 +224,7 @@ jobs:
     name: "Release (GitHub)"
     runs-on: ubuntu-24.04
     needs: [lint, linux, windows, sanitizers]
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v'))
     permissions:
       contents: write
     steps:
@@ -206,5 +237,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           ls -la dist
-          gh release create "${GITHUB_REF_NAME}" dist/* \
-            --repo "${GITHUB_REPOSITORY}" --title "${GITHUB_REF_NAME}" --generate-notes
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            tag="${GITHUB_REF_NAME}"
+          else
+            # Version del proyecto sacada del nombre del bundle (make dist-*).
+            ver="$(ls dist/*-linux-x64.tar.gz | sed -E 's/.*BroadcastAppliance-(.*)-linux-x64\.tar\.gz/\1/')"
+            tag="v${ver}-build.${GITHUB_RUN_NUMBER}"
+          fi
+          gh release create "${tag}" dist/* \
+            --repo "${GITHUB_REPOSITORY}" --target "${GITHUB_SHA}" \
+            --title "${tag}" --generate-notes --latest
