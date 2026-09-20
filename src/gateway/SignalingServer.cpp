@@ -1055,6 +1055,10 @@ void SignalingServer::handleWsMessage(const std::string& pid, uint64_t gen, cons
             if (msg.contains("info") && msg["info"].is_string()) f["info"] = msg["info"];
             if (msg.contains("contact") && msg["contact"].is_string()) f["contact"] = msg["contact"];
             room_.setProfile(pid, f);
+        } else if (type == "ping") {
+            // Latido de la app del invitado: sin respuesta, el cliente da el
+            // socket por muerto (TCP medio abierto tras un cambio de red).
+            sendToGuest(pid, json{{"type", "pong"}});
         } else if (type == "bye") {
             room_.leave(pid);
         }
