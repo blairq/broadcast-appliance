@@ -59,6 +59,8 @@ class AgentViewModel : public QObject {
     Q_PROPERTY(bool autoStart READ autoStart NOTIFY configChanged)
     Q_PROPERTY(int fontSize READ fontSize NOTIFY configChanged)
     Q_PROPERTY(bool installed READ installed NOTIFY installChanged)
+    Q_PROPERTY(bool updateAvailable READ updateAvailable NOTIFY installChanged)
+    Q_PROPERTY(QString installedVersion READ installedVersion NOTIFY installChanged)
     Q_PROPERTY(bool installing READ installing NOTIFY installChanged)
     Q_PROPERTY(double installProgress READ installProgress NOTIFY installChanged)
     Q_PROPERTY(QString installText READ installText NOTIFY installChanged)
@@ -81,6 +83,11 @@ class AgentViewModel : public QObject {
     bool autoStart() const { return autoStart_; }
     int fontSize() const { return fontSize_; }
     bool installed() const;
+    /// Hay un agente usable pero de una version distinta a la que fija esta
+    /// version del sistema: se puede seguir usando y se ofrece actualizarlo.
+    bool updateAvailable() const;
+    /// Version instalada que se va a usar ("" si no hay ninguna).
+    QString installedVersion() const;
     bool installing() const { return installing_; }
     double installProgress() const { return installProgress_; }
     QString installText() const { return installText_; }
@@ -136,7 +143,13 @@ class AgentViewModel : public QObject {
     void onAlert(const nlohmann::json& ev);
     void flushAlerts();
     QString runtimeOf(const QString& provider) const;
+    /// Carpeta DESTINO de una instalacion nueva: la version que fija esta
+    /// version del sistema.
     QString installDir(const QString& runtime) const;
+    /// Carpeta de la instalacion que se va a USAR: la fijada si esta, si no la
+    /// mas nueva que haya quedado de antes. Vacia si no hay ninguna con `.ok`.
+    /// En `exeOut` deja el ejecutable que registro esa instalacion.
+    QString usableDir(const QString& runtime, QString* exeOut = nullptr) const;
     QString platformKey() const;
     /// La entrada de `plataformas` para esta maquina: la variante "-baseline"
     /// si el procesador no tiene AVX2 y el agente la publica.
