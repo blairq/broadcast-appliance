@@ -13,6 +13,8 @@
 #include <QString>
 #include <QTimer>
 
+#include <mutex>
+
 #include <deque>
 #include <memory>
 #include <vector>
@@ -94,6 +96,15 @@ class TerminalSession : public QObject {
 
    private:
     friend struct SessionCallbacks; // callbacks de libvterm (TerminalSession.cpp)
+
+    /// Igual que line(), pero con vtLock_ ya tomado.
+    void lineLocked(int row, int scroll, std::vector<Cell>& out) const;
+
+    /// libvterm y scrollback_ se tocan desde DOS hilos: el de la GUI (entrada
+    /// del PTY, teclado, raton, resize) y el de render de QML (paint -> line()
+    /// y text(), porque TerminalView es un QQuickPaintedItem). Sin esto se leen
+    /// celdas a medio escribir y salen caracteres al azar.
+    mutable std::mutex vtLock_;
     void convert(const void* vtermCell, Cell& out) const;
     void flushOutput();
     void scheduleRepaint();
