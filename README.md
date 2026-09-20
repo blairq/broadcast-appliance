@@ -10,11 +10,19 @@ compilación en Linux, verificándose su comportamiento real en Windows. El rack
 de audio con los módulos **LSP** (host CLAP propio) es parte del núcleo del
 producto, no una opción.
 
-[![CI](https://github.com/actions/workflows/ci.yml/badge.svg)](#tests)
+[![CI](https://github.com/blairq/broadcast-appliance/actions/workflows/ci.yml/badge.svg)](https://github.com/blairq/broadcast-appliance/actions/workflows/ci.yml)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.wikipedia.org/wiki/C%2B%2B)
 [![Licencia](https://img.shields.io/badge/licencia-GPL--3.0-blue.svg)](#licencia)
 
-> La documentación completa (módulos, clases y namespaces reales) está en
+> **¿Querés usarlo, no compilarlo?** Bajá el último
+> [Release](https://github.com/blairq/broadcast-appliance/releases/latest)
+> (`.zip` de Windows o `.tar.gz` de Linux), descomprimilo y abrí
+> `BroadcastAppliance`. Adentro viene un `LEEME.txt`; el
+> [Manual del operador](docs/manual/README.md) y la
+> [Guía del invitado](docs/manual/guia-del-invitado.md) están en `docs/manual/`.
+> Lo que sigue en este README es para quien desarrolla.
+
+> La documentación técnica (módulos, clases y namespaces reales) está en
 > [`docs/`](docs/) — generada con Sphinx y publicada en ReadTheDocs.
 
 ---
@@ -27,7 +35,7 @@ producto, no una opción.
   breaker, shadow-copy y cierre ordenado.
 - **Gateway WebRTC** (`ba-gateway`, Proceso B): señalización segura (tokens HMAC,
   rate-limit, expiración), túnel cloudflared, motor de conversación y app web del
-  invitado. *(plataforma-gated: libwebrtc — Windows.)*
+  invitado (libwebrtc real en Windows y en Linux).
 - **DSP nativo** (canal de audio): **channel strip** HPF → EQ 4 bandas →
   de-esser → gate → compresor → limitador, **automixer** tipo Dugan (mesa
   redonda) y **resampling adaptativo** (`ba::dsp::Resampler` sobre
@@ -59,17 +67,15 @@ dependencias de UI o de libobs.
 - **Proceso 0 — `BroadcastAppliance`** (launcher/supervisor, Win32 puro, CRT
   estática `/MT`): instancia única, verificación de integridad, lanzamiento de B
   y luego A, watchdog (crash por handle + cuelgue por heartbeat), reinicio con
-  backoff y circuit breaker, y cierre ordenado. En Linux compila como stub; el
-  código Win32 real está completo.
+  backoff y circuit breaker, y cierre ordenado. Funciona en Windows y en Linux
+  sobre `ba::platform`.
 - **Proceso A — `ba-app`** (motor de emisión + UI de operación): Qt 6 sobre
-  libobs, escenas, encoding y UI del operador. *(plataforma-gated: Qt + libobs —
-  Windows.)*
+  libobs, escenas, encoding y UI del operador (Windows y Linux).
 - **Proceso B — `ba-gateway`** (gateway WebRTC + conversación + túnel):
   señalización, túnel (cloudflared) y motor de conversación para invitados.
-  *(plataforma-gated: libwebrtc — Windows.)*
 - **`ba-sources`** (módulo de fuentes libobs, DLL en `obs-plugins/64bit/`):
-  filtros de channel strip, fuentes IPC y automixer. *(plataforma-gated: libobs
-  — Windows.)*
+  filtros de channel strip, fuentes IPC y automixer (contra libobs real en
+  cada plataforma).
 - **Rack de audio** (en [`src/app/audio`](src/app/audio/), dentro de `ba-app`):
   host CLAP (`ClapHost`, editor X11/Win32 en `ClapEditor`), grafo de módulos
   (`AudioRack`, un filtro OBS `ba_audio_rack` por fuente vía `RackManager`),
@@ -103,8 +109,8 @@ Reglas de la arquitectura (spec §14, §3, §9):
 
 ## Estado
 
-Los procesos están **implementados** y compilan (cross MinGW a Windows; el
-núcleo además nativo en Linux). Ya no son esqueletos:
+Los procesos están **implementados** y corren en Linux (nativo) y en Windows
+(cross desde Linux con clang-cl, ABI de MSVC):
 
 - **`ba-app`** (Proceso A): `MainWindow` (QMainWindow del operador) +
   `OperatorEngine` (integra `ba_core::dsp` ChannelStrip/Automixer + presets,
@@ -343,8 +349,9 @@ La primera vez, A escribe `release/Config/app.json` con valores por defecto
   a x264 si no hay o si falla al arrancar. Alias: `vaapi` (AMD/Intel en Linux),
   `nvenc`, `qsv`, `amf`, `videotoolbox` (macOS) y `x264`, o un id de libobs
   literal. En una GPU AMD integrada (Ryzen) `auto` usa `ffmpeg_vaapi_tex`.
-- **La clave de transmisión no va en el archivo**: se lee de la variable de
-  entorno que indique `keyEnv` (por defecto `BA_STREAM_KEY`).
+- **La clave de transmisión no va en el archivo**: se tipea al salir al aire
+  (queda cifrada en `Credenciales/`) o se lee de la variable de entorno que
+  indique `keyEnv` (por defecto `BA_STREAM_KEY`).
 
 Opciones de `ba-app` por línea de comandos (pisan el archivo): `--encoder=`,
 `--bitrate=`, `--resolution=WxH`, `--fps=`, `--record`/`--no-record`,
@@ -394,19 +401,19 @@ Detalle completo (arquitectura, lobby, API, servidor, seguridad):
 
 El appliance corre desde cualquier carpeta (un pen drive, por ejemplo) y **todo
 lo que guarda queda adentro de esa carpeta**, nunca en el perfil del usuario
-ni en la maquina:
+ni en la máquina:
 
-| Carpeta | Que guarda |
+| Carpeta | Qué guarda |
 |---|---|
-| `Config/` | configuracion (escenas, ajustes, tablero) |
-| `Credenciales/` | tokens y claves (YouTube, Twitch, Facebook, MCP, WireGuard, HTTPS), **cifrados** con AES-256-GCM; una actualizacion nunca los toca |
-| `Respaldos/` | copia de `Config/` y `Credenciales/` antes de cada actualizacion (quedan 5) |
-| `Runtime/` | archivos de encuentro de la sesion (API de la sala, puerto MCP) |
-| `Cache/` | caches de Qt/QML, fontconfig y shaders de la GPU (se redirigen al arrancar) |
+| `Config/` | configuración (escenas, ajustes, tablero) |
+| `Credenciales/` | tokens y claves (YouTube, Twitch, Facebook, MCP, WireGuard, HTTPS), **cifrados** con AES-256-GCM; una actualización nunca los toca |
+| `Respaldos/` | copia de `Config/` y `Credenciales/` antes de cada actualización (quedan 5) |
+| `Runtime/` | archivos de encuentro de la sesión (API de la sala, puerto MCP) |
+| `Cache/` | cachés de Qt/QML, fontconfig y shaders de la GPU (se redirigen al arrancar) |
 | `Logs/`, `Recordings/`, `Shares/`, `Media/` | registros, grabaciones y archivos |
 
-En Linux el canal de control y el lock de instancia unica usan sockets del
-espacio **abstracto** del kernel: no escriben nada en ningun disco. (En macOS,
+En Linux el canal de control y el lock de instancia única usan sockets del
+espacio **abstracto** del kernel: no escriben nada en ningún disco. (En macOS,
 que no lo tiene, van a `$TMPDIR`, temporal y por usuario.)
 
 **Credenciales sin contraseña.** El equipo arranca solo; el cifrado evita que
@@ -418,13 +425,13 @@ todo en claro en `Config/`: al primer arranque se importa y se borra.
 
 ### Actualizar
 
-Descomprimir la version nueva en otra carpeta y elegirla en **Configuracion →
+Descomprimir la versión nueva en otra carpeta y elegirla en **Configuración →
 Sistema y datos → Actualizar desde una carpeta** (o `BroadcastAppliance
 --update <carpeta> --start`, o la herramienta MCP `system_update`). La app se
 cierra; el launcher respalda `Config/` y `Credenciales/` en `Respaldos/`,
-reemplaza **solo el programa** (todo o nada: si algo falla, queda la version
-anterior entera) y vuelve a abrir. La version anterior queda guardada:
-**Volver a la version anterior** (`--update-rollback`).
+reemplaza **solo el programa** (todo o nada: si algo falla, queda la versión
+anterior entera) y vuelve a abrir. La versión anterior queda guardada:
+**Volver a la versión anterior** (`--update-rollback`).
 
 ### Asistente de IA (MCP)
 
@@ -488,8 +495,9 @@ dev.twitch.tv o developers.facebook.com; ya conectada, administra videos,
 vivos (crear, transmitir desde la app, terminar), canal/Página y chat. La
 fuente de escena **Chat en vivo** mezcla los chats de las tres y el de la sala
 sobre el video. Todo también por MCP. Credenciales y tokens quedan cifrados
-en `Credenciales/` dentro de la carpeta portable; la clave de transmisión,
-solo en memoria. Facebook solo permite transmitir a Páginas (no a perfiles).
+en `Credenciales/` dentro de la carpeta portable, incluida la clave de la
+última salida al aire (`stream-last`: evita tipearla de nuevo y permite retomar
+la emisión tras una caída). Facebook solo permite transmitir a Páginas (no a perfiles).
 
 Secretos por entorno, nunca por línea de comandos (se ven en la lista de
 procesos): `BA_GATEWAY_PIN` (si falta, se genera uno y se muestra en la app),
@@ -592,7 +600,7 @@ Dos suites:
   make test             # o: ctest --test-dir build --output-on-failure
   ```
 
-  **43** tests (42 pasan + 1 saltado): núcleo (`test_platform`,
+  La cantidad exacta la informa `make test`. Incluye: núcleo (`test_platform`,
   `test_shared_audio_ring`, `test_health_block`, `test_ipc_cross_process`,
   `test_control_protocol`, `test_spout_transport`, `test_video_cross_process`,
   `test_channel_strip`, `test_automixer`, `test_resampler`, `test_token_service`,
@@ -663,7 +671,10 @@ tarballs ya verificados de `extern/.downloads`.
   ├── Config/               # configuración del usuario
   ├── Logs/                 # logs rotativos y dumps
   ├── Recordings/           # grabación de respaldo
-  └── Web/guest/            # app web del invitado (la sirve B)
+  ├── Web/guest/            # app web del invitado (la sirve B)
+  ├── LEEME.txt, LICENSE    # instrucciones para quien lo descomprime
+  └── Credenciales/, Respaldos/, Runtime/, Cache/, Shares/, Media/, plugins/
+                            # se crean al usarlo (ver "Todo en la carpeta portable")
   ```
 
   Linux: `make release` → `release/` (verificado por `check-portable.sh`);
@@ -703,7 +714,7 @@ tarballs ya verificados de `extern/.downloads`.
 │   │   ├── fault/            #   inyección de fallas
 │   │   ├── crypto/           #   SHA-256, HMAC
 │   │   ├── hw/               #   identidad de dispositivos de audio
-│   │   └── tests/            #   unit tests (18)
+│   │   └── tests/            #   unit tests
 │   ├── launcher/             # BroadcastAppliance — supervisor + RecoveryUi (Win32, /MT)
 │   ├── app/                  # ba-app — Proceso A (Qt + libobs, flag BA_APP_HAVE_QT_OBS)
 │   ├── gateway/              # ba-gateway — Proceso B (WebRTC, flag BA_GATEWAY_HAVE_WEBRTC)
@@ -734,11 +745,11 @@ compila en Linux y Windows; "plataforma-gated (Windows)" = solo se trae/usa bajo
 | CLAP (headers) | `1.2.6` | MIT | Host de módulos de audio |
 | LSP Plugins | `1.2.35` | LGPL-3.0 | Módulos del rack de audio (`plugins/lsp/`; Windows: compilado desde fuente) |
 | obs-studio (libobs) | `31.0.0` | GPL-2.0 | Motor de emisión (Linux: desde fuente en `extern/obs-linux`; Windows: runtime prebuilt) |
-| Qt 6 | `6.6.3` | LGPL-3.0 (dual) | Plataforma-gated (Windows) |
+| Qt 6 | `6.6.3` | LGPL-3.0 (dual) | Interfaz (vendoreado; Windows y Linux) |
 | CEF (Chromium Embedded) | `119.0.11+chromium-119.0.6045.105` | BSD-3-Clause | Plataforma-gated (Windows) |
 | Spout2 (SDK) | `2.0.0.0` | — | Plataforma-gated (Windows) |
-| libwebrtc | `M123` (`123.0.6312.5`) | BSD-3-Clause | Plataforma-gated (Windows) |
-| cloudflared | `2024.11.0` | — | Plataforma-gated (Windows) |
+| libwebrtc | `M123` (`123.0.6312.5`) | BSD-3-Clause | Gateway (precompilado de Shiguredo; Windows y Linux) |
+| cloudflared | `2024.11.0` | — | Túnel (binario por plataforma) |
 
 > Las 6 primeras son las que el núcleo consume de forma incondicional (o como
 > asset). Las del bloque "plataforma-gated (Windows)" solo se enlazan bajo
@@ -763,7 +774,7 @@ El flujo de desarrollo se basa en CMake + el `Makefile`:
 
 ```bash
 make dev      # build de desarrollo (Debug)
-make test     # corre ctest (18 tests de ba_core)
+make test     # corre ctest (toda la suite C++)
 make lint     # clang-format sobre src/ (requiere clang-format en el sistema)
 ```
 
@@ -778,7 +789,8 @@ python3 -m venv .venv
 Antes de enviar cambios:
 
 1. `make build` debe compilar sin errores (C++20).
-2. `make test` debe pasar los **23** tests (22 + 1 saltado sin libwebrtc).
+2. `make test` debe pasar completo (`test_gateway_integration` se reporta
+   *Skipped*: es el histórico contra el SDK de Windows).
 3. `pytest` debe pasar la suite de `tests/`.
 4. Si tocas `versions.cmake`, documenta el cambio en el changelog y re-valida el
    preflight contra el tag resultante.

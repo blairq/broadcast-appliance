@@ -87,6 +87,7 @@ struct AppConfig {
     int durationSec = 0;
     int statusEverySec = 5;
     bool safeMode = false;
+    bool restore = false; // --restore: el launcher relanzo A tras una caida
     std::filesystem::path configPath;
 };
 

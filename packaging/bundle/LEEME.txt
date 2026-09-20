@@ -1,0 +1,59 @@
+BROADCAST APPLIANCE — LÉEME
+===========================
+
+Transmití y grabá en vivo, con invitados remotos por enlace. Todo corre desde
+esta carpeta (sirve desde un disco o pen drive): no se instala nada.
+
+CÓMO ABRIRLO
+------------
+Windows 10 (1809 o posterior) / 11, 64 bits
+  1. Descomprimí el .zip completo en una carpeta (no lo abras desde adentro del zip).
+  2. Doble clic en BroadcastAppliance.exe.
+  3. Si Windows muestra "Windows protegió su PC": Más información -> Ejecutar de
+     todas formas. Si el firewall pregunta, permití el acceso en redes privadas
+     (hace falta para que entren los invitados).
+
+Linux de 64 bits (escritorio con OpenGL)
+  1. Descomprimí el .tar.gz:  tar xzf BroadcastAppliance-*-linux-x64.tar.gz
+  2. Abrí una terminal en la carpeta y ejecutá:  ./BroadcastAppliance
+     (si dice "permiso denegado":  chmod +x BroadcastAppliance bin/64bit/*)
+  En un pen drive FAT/exFAT Linux no deja ejecutar programas: copiá la carpeta
+  a un disco con formato ext4/NTFS o montá el pen drive con permiso de ejecución.
+
+PRIMEROS PASOS (10 minutos)
+---------------------------
+  1. Entradas (◉): agregá tu cámara y tu micrófono.
+  2. Escenas (▦): armá la escena con la cámara y un título.
+  3. YouTube / Twitch / Facebook: cada pestaña explica paso a paso cómo conectar
+     tu cuenta. Para otro destino, "Salir al aire" pide servidor RTMP y clave
+     (la clave queda guardada cifrada).
+  4. Probá GRABAR un minuto antes del primer vivo: queda en Recordings/.
+  5. Sala (☎): copiá el enlace o mostrá el QR, pasale el PIN a tu invitado y
+     admitilo desde la sala de espera.
+
+DÓNDE QUEDA CADA COSA (todo dentro de esta carpeta)
+---------------------------------------------------
+  Recordings/     grabaciones
+  Config/         tu configuración y escenas
+  Credenciales/   cuentas y claves, cifradas. Quien tenga la carpeta completa
+                  tiene acceso: cuidá el disco.
+  Respaldos/      copia de Config/ y Credenciales/ antes de cada actualización
+  Logs/           registros para soporte (app.log, launcher.log, ba.log)
+  Shares/, Media/ archivos compartidos por invitados y tus medios
+
+ACTUALIZAR
+----------
+Descomprimí la versión nueva en OTRA carpeta y elegila en Configuración ->
+Sistema y datos -> Actualizar desde una carpeta. Tu configuración, credenciales
+y grabaciones no se tocan, y se puede volver a la versión anterior.
+
+SI ALGO FALLA
+-------------
+  - No abre o queda en negro: hace falta un escritorio con aceleración gráfica
+    (driver de video actualizado). Mirá Logs/app.log.
+  - El invitado ve "La conexión no es privada": es normal con el enlace por IP;
+    que toque Avanzado -> Continuar. Hay una guía para pasarle en Web/guest/ayuda.html
+  - Para pedir ayuda, enviá la carpeta Logs/ (no envíes Credenciales/).
+
+Manual completo: docs/manual/ en https://github.com/blairq/broadcast-appliance
+Licencia: GPL-3.0 (ver LICENSE y data/licencias/).

@@ -48,7 +48,15 @@ Rectangle {
                 }
                 GlassButton { text: "Actualizar"; compact: true; onClicked: yt.refresh() }
                 GlassButton { text: "YouTube Studio"; compact: true; onClicked: yt.openUrl("https://studio.youtube.com/channel/" + (yt.account.id || "")) }
-                GlassButton { text: "Desconectar"; compact: true; onClicked: logoutDlg.open() }
+                GlassButton {
+                    text: "Desconectar"; compact: true
+                    onClicked: ApplicationWindow.window.confirm({
+                        title: "¿Desconectar la cuenta de YouTube?",
+                        text: "Se revoca el acceso en Google y se borra el token guardado.",
+                        accept: "Desconectar", reject: "Cancelar",
+                        action: function() { yt.logout() }
+                    })
+                }
             }
         }
 
@@ -193,7 +201,15 @@ Rectangle {
                 spacing: 10
                 GlassButton { visible: !yt.loginPending; text: "Conectar con Google"; icon: "▶"; active: true; activeColor: "#cc0026"; onClicked: yt.login() }
                 GlassButton { visible: yt.loginPending; text: "Cancelar"; onClicked: yt.cancelLogin() }
-                GlassButton { visible: !yt.loginPending; text: "Cambiar credencial"; onClicked: clearDlg.open() }
+                GlassButton {
+                    visible: !yt.loginPending; text: "Cambiar credencial"
+                    onClicked: ApplicationWindow.window.confirm({
+                        title: "¿Cambiar la credencial de Google?",
+                        text: "Se borra el cliente OAuth guardado y vuelven las instrucciones.",
+                        accept: "Cambiar", reject: "Cancelar",
+                        action: function() { yt.clearClient() }
+                    })
+                }
             }
             Text { Layout.alignment: Qt.AlignHCenter; color: Theme.textFaint; font.pixelSize: 11; text: "Cliente: " + yt.clientId }
             Text { Layout.alignment: Qt.AlignHCenter; Layout.maximumWidth: 640; wrapMode: Text.WordWrap; horizontalAlignment: Text.AlignHCenter
@@ -283,7 +299,23 @@ Rectangle {
                             }
                             GlassButton { compact: true; text: "Editar"; onClicked: videoDlg.edit(uid, title, description, privacy) }
                             GlassButton { compact: true; text: "Ver"; onClicked: yt.openUrl(url) }
-                            GlassButton { compact: true; text: "Borrar"; onClicked: { confirmDlg.ask("¿Borrar «" + title + "» de YouTube? No se puede deshacer.", () => yt.deleteVideo(uid)) } }
+                            GlassButton {
+                                compact: true; text: "Borrar"
+                                onClicked: {
+                                    // Si la lista cambia con el dialogo abierto (termina una subida, el asistente crea
+                                    // o borra algo) este delegate se destruye, y desde ahi la accion ya no resuelve sus
+                                    // roles ni 'yt' (nombre de la pagina: se busca por el contexto del delegate, que ya
+                                    // no existe). Por eso va todo copiado a constantes antes de preguntar.
+                                    const api = yt, id = uid, nombre = title
+                                    ApplicationWindow.window.confirm({
+                                        // El titulo de un video llega a 100 caracteres: va en el texto, que corta en lineas.
+                                        title: "¿Borrar este video de YouTube?",
+                                        text: "«" + nombre + "» se borra del canal y no se puede deshacer.",
+                                        accept: "Borrar", reject: "Cancelar",
+                                        action: function() { api.deleteVideo(id) }
+                                    })
+                                }
+                            }
                         }
                     }
                 }
@@ -339,14 +371,37 @@ Rectangle {
                                     }
                                 }
                                 GlassButton { compact: true; visible: status !== "complete" && !fromHere; text: "Transmitir"; active: true; activeColor: "#cc0026"; onClicked: yt.goLive(uid) }
-                                GlassButton { compact: true; visible: status === "live" || status === "testing" || fromHere; text: "Terminar"
-                                              onClicked: confirmDlg.ask("¿Terminar «" + title + "»? El evento se cierra en YouTube.", () => yt.endBroadcast(uid)) }
+                                GlassButton {
+                                    compact: true; visible: status === "live" || status === "testing" || fromHere; text: "Terminar"
+                                    onClicked: {
+                                        // Copias locales, como en «Borrar» de Videos. Sin 'reject', queda «No»: «Cancelar»
+                                        // se leeria como cancelar el evento.
+                                        const api = yt, id = uid, nombre = title
+                                        ApplicationWindow.window.confirm({
+                                            title: "¿Terminar este evento?",
+                                            text: "«" + nombre + "» se cierra en YouTube"
+                                                  + (fromHere ? " y se corta la transmisión que sale de la app." : ".") + " No se puede reanudar.",
+                                            accept: "Terminar",
+                                            action: function() { api.endBroadcast(id) }
+                                        })
+                                    }
+                                }
                                 GlassButton { compact: true; visible: status !== "complete"; text: yt.chatBroadcastId === uid ? "Sin chat" : "Chat"
                                               onClicked: yt.setChatBroadcast(yt.chatBroadcastId === uid ? "" : uid) }
                                 GlassButton { compact: true; text: "Studio"; onClicked: yt.openUrl(studioUrl) }
                                 GlassButton { compact: true; text: "Copiar enlace"; onClicked: yt.copy(url) }
-                                GlassButton { compact: true; visible: status !== "live"; text: "Borrar"
-                                              onClicked: confirmDlg.ask("¿Borrar el evento «" + title + "»?", () => yt.deleteBroadcast(uid)) }
+                                GlassButton {
+                                    compact: true; visible: status !== "live"; text: "Borrar"
+                                    onClicked: {
+                                        const api = yt, id = uid, nombre = title // copias locales, como en «Borrar» de Videos
+                                        ApplicationWindow.window.confirm({
+                                            title: "¿Borrar este evento?",
+                                            text: "«" + nombre + "» se borra de YouTube y no se puede deshacer.",
+                                            accept: "Borrar", reject: "Cancelar",
+                                            action: function() { api.deleteBroadcast(id) }
+                                        })
+                                    }
+                                }
                             }
                         }
                     }
@@ -438,36 +493,7 @@ Rectangle {
     }
 
     // --- Dialogos -----------------------------------------------------------------------------------
-    Dialog {
-        id: confirmDlg
-        property var action: null
-        property string question: ""
-        function ask(q, fn) { question = q; action = fn; open() }
-        anchors.centerIn: parent
-        modal: true
-        title: "Confirmar"
-        standardButtons: Dialog.Yes | Dialog.No
-        onAccepted: if (action) action()
-        Label { text: confirmDlg.question; wrapMode: Text.WordWrap; width: 420 }
-    }
-    Dialog {
-        id: logoutDlg
-        anchors.centerIn: parent
-        modal: true
-        title: "¿Desconectar la cuenta de YouTube?"
-        standardButtons: Dialog.Yes | Dialog.No
-        onAccepted: yt.logout()
-        Label { text: "Se revoca el acceso en Google y se borra el token guardado."; wrapMode: Text.WordWrap; width: 420 }
-    }
-    Dialog {
-        id: clearDlg
-        anchors.centerIn: parent
-        modal: true
-        title: "¿Cambiar la credencial de Google?"
-        standardButtons: Dialog.Yes | Dialog.No
-        onAccepted: yt.clearClient()
-        Label { text: "Se borra el cliente OAuth guardado y vuelven las instrucciones."; wrapMode: Text.WordWrap; width: 420 }
-    }
+    // Las confirmaciones (borrar, terminar, desconectar) van por el confirm() de la ventana.
     Dialog {
         id: videoDlg
         property string vid: ""

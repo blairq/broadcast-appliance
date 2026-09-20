@@ -31,8 +31,12 @@ constexpr int kPollMs = 250;
 constexpr std::uint32_t kProcVersion = 1;
 constexpr std::uint64_t kCircuitWindowMs = 2 * 60 * 1000; // 2 min
 constexpr int kCircuitThreshold = 5;                      // >5 crashes
-constexpr int kGracefulMs = 5000;                         // espera tras el pedido de cierre
-constexpr int kTerminateMs = 3000;                        // espera tras SIGTERM antes de matar
+// El dialogo de recuperacion BLOQUEA el reinicio hasta que alguien hace clic:
+// una caida aislada al aire se reinicia sola; recien con fallas repetidas en
+// la ventana del circuit breaker se le pregunta al operador.
+constexpr int kRecoveryUiAfter = 2; // fallas seguidas que se reinician sin preguntar
+constexpr int kGracefulMs = 5000;   // espera tras el pedido de cierre
+constexpr int kTerminateMs = 3000;  // espera tras SIGTERM antes de matar
 // Gracia de arranque: un hijo recien lanzado todavia no late. Sin esto el
 // watchdog lo declaraba colgado en el mismo milisegundo y lo mataba. Un crash
 // durante el arranque se detecta igual (el proceso sale).
@@ -215,6 +219,8 @@ void Supervisor::launchOne(bool isA) {
     // Readopt (spec 3.1.9): si hay un PID publicado, vivo Y con heartbeat
     // fresco, adoptarlo. El heartbeat es la prueba de que es NUESTRO proceso:
     // un PID viejo podria haber sido reutilizado por cualquier otro programa.
+    // El adoptado sigue escribiendo en su archivo de Logs/, que ya tiene
+    // abierto: no se rota ni se encabeza hasta que haya que relanzarlo.
     const ba::ipc::Snapshot snap = health_.read(slot);
     if (snap.pid != 0 && !health_.isStale(slot) && child(isA).attach(snap.pid, name)) {
         BA_LOG_INFO("sup", 0, "readopt: adoptado " + name + " pid=" + std::to_string(snap.pid));
@@ -236,6 +242,11 @@ bool Supervisor::startChild(bool isA) {
     if (isA && safeMode_) {
         c.args.emplace_back("--safe-mode"); // circuit breaker
     }
+    // Lo que el hijo imprime queda en Logs/ de la raiz REAL. A informa todo por
+    // stdout/stderr y no tiene otro log. B ya deja sus lineas en Logs/ba.log,
+    // pero lo que no pasa por su logger se perdia: libwebrtc, los asertos de
+    // lwIP, un abort() o una biblioteca que no carga.
+    c.outputFile = cfg_.logsDir / (isA ? "app.log" : "gateway-salida.log");
     if (!child(isA).start(c)) {
         return false;
     }
@@ -349,6 +360,7 @@ void Supervisor::forceRestart() {
     health_.setState(cfg_.slotB, ba::ipc::ProcessState::Terminated);
     appConsecutive_ = 0;
     bConsecutive_ = 0;
+    recentFailures_ = 0;
     appCrashTimes_.clear();
     safeMode_ = false;
     appNeedsRestore_ = true;
@@ -376,7 +388,13 @@ void Supervisor::watchdogLoop() {
 
         if (appDown || appHung || gwDown || gwHung) {
             RecoveryAction action = RecoveryAction::Retry;
-            if (cfg_.recoveryUi) {
+            const std::uint64_t failAt = nowMs();
+            if (failAt - lastFailureMs_ > kCircuitWindowMs) {
+                recentFailures_ = 0;
+            }
+            lastFailureMs_ = failAt;
+            ++recentFailures_;
+            if (cfg_.recoveryUi && recentFailures_ > kRecoveryUiAfter) {
                 action = presentRecovery(appDown, appHung, gwDown, gwHung);
             }
             if (action == RecoveryAction::Exit) {

@@ -23,6 +23,9 @@
   const MAX_W = 1280, MAX_H = 720, FPS = 30;
   const RECONNECT_BASE_MS = 1000, RECONNECT_MAX_MS = 15000;
   const SESSION_KEY = "ba.guest.session";
+  const LINK_KEY = "ba.guest.link"; // sala y PIN del enlace: sobreviven a una recarga
+  const PING_MS = 5000, PING_DEAD_MS = 12000; // latido del WebSocket
+  const MEDIA_GRACE_MS = 5000;                // medios caidos antes de rearmar la conexion
 
   const state = {
     token: null, room: null, name: "",
@@ -34,6 +37,7 @@
     mic: true, cam: true, hand: false,
     maxUploadBytes: 0,
     reconnectDelay: RECONNECT_BASE_MS, reconnectTimer: 0, resumeFailures: 0,
+    lastRx: 0, pongSeen: false, pingTimer: 0, mediaTimer: 0, wakeLock: null,
     left: false, chatOpen: false, unread: 0,
     info: "", contact: "",
     speaker: null, clockOffset: 0, speakerAt: 0, speakerTimer: 0, avatarTimer: 0,
@@ -87,6 +91,8 @@
     state.id = state.key = null;
   }
 
+  const LOBBY_TEXT = $("lobby-text").textContent;
+
   // --- 1) Entrada ---------------------------------------------------------
   async function join() {
     const name = $("name").value.trim();
@@ -95,23 +101,33 @@
     const err = $("join-error");
     err.textContent = "";
     if (!name) { err.textContent = "Contanos tu nombre."; return; }
-    if (!room || !pin) { err.textContent = "Ingresá la sala y el PIN."; return; }
-    $("btn-join").disabled = true;
+    if (!pin) { err.textContent = "Ingresá el PIN que te pasó el operador."; return; }
+    const btn = $("btn-join"), btnText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Conectando…";
+    // Con mala red el pedido puede colgarse: se corta a los 10 s.
+    const ctl = new AbortController();
+    const timeout = setTimeout(() => ctl.abort(), 10000);
     try {
+      // Sin sala, el servidor usa la suya (y la devuelve en data.room).
       const res = await fetch("/api/join", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ room, pin }),
+        body: JSON.stringify(room ? { room, pin } : { pin }),
+        signal: ctl.signal,
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) {
         err.textContent = {
-          pin: "PIN incorrecto.",
+          pin: room ? "PIN o sala incorrectos. Revisá los datos que te pasó el operador." : "PIN incorrecto.",
           rate: "Demasiados intentos desde este equipo. Esperá un minuto.",
           locked: "La sala está cerrada en este momento.",
-        }[data.error] || "No se pudo entrar. Revisá la sala y el PIN.";
+        }[data.error] || (res.status === 503
+          ? "El servidor está muy ocupado. Probá de nuevo en un momento."
+          : "No se pudo entrar. Revisá los datos que te pasó el operador.");
         return;
       }
+      resetControls();
       state.token = data.token;
       state.room = data.room;
       state.name = name;
@@ -126,35 +142,101 @@
       show("check");
       await checkDevices();
     } catch (e) {
-      err.textContent = "Sin conexión con el servidor.";
+      err.textContent = "Sin conexión con el servidor. Revisá tu internet y probá de nuevo.";
     } finally {
-      $("btn-join").disabled = false;
+      clearTimeout(timeout);
+      btn.disabled = false;
+      btn.textContent = btnText;
     }
   }
 
+  // Un ingreso nuevo arranca con microfono y camara abiertos y los botones
+  // de acuerdo: si no, al volver a entrar quedaria el boton en rojo con el
+  // microfono abierto.
+  function resetControls() {
+    state.mic = state.cam = true;
+    state.hand = false;
+    paintControls();
+  }
+  function paintControls() {
+    const paint = (id, on, onText, offText) => {
+      const b = $(id);
+      b.classList.toggle("off", !on);
+      b.setAttribute("aria-pressed", on ? "false" : "true");
+      b.title = on ? onText : offText;
+      b.setAttribute("aria-label", b.title);
+    };
+    paint("btn-mic", state.mic, "Silenciar el micrófono", "Micrófono silenciado: tocá para activarlo");
+    paint("btn-cam", state.cam, "Apagar la cámara", "Cámara apagada: tocá para encenderla");
+    $("btn-hand").classList.toggle("active", state.hand);
+  }
+
   // --- 2) Dispositivos ----------------------------------------------------
+  const VIDEO_WANT = { width: { ideal: MAX_W }, height: { ideal: MAX_H }, frameRate: { ideal: FPS } };
+  const AUDIO_WANT = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+
+  // Pide camara y microfono; si juntos fallan (notebook sin camara, camara
+  // tomada por otra app), prueba cada uno por separado: el orador no se queda
+  // sin microfono por un problema de camara. Devuelve {stream, error}.
+  async function acquireMedia() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return { stream: null, error: "unsupported" };
+    let first = null;
+    for (const c of [{ video: VIDEO_WANT, audio: AUDIO_WANT }, { audio: AUDIO_WANT }, { video: VIDEO_WANT }]) {
+      try {
+        return { stream: await navigator.mediaDevices.getUserMedia(c), error: first };
+      } catch (e) {
+        first = first || e.name || "error";
+        if (e.name === "NotAllowedError" || e.name === "SecurityError") break; // permiso negado: no insistir
+      }
+    }
+    return { stream: null, error: first };
+  }
+
+  function mediaErrorText(error, stream) {
+    if (!window.isSecureContext) return "Este enlace no es seguro (http) y el navegador no deja usar la cámara ni el micrófono. Pedile al operador el enlace que empieza con https.";
+    if (error === "unsupported") return "Este navegador no permite usar la cámara ni el micrófono. Probá con Chrome, Edge, Firefox o Safari actualizados.";
+    const have = stream ? (stream.getAudioTracks().length ? "Entrás solo con micrófono. " : "Entrás solo con cámara, sin micrófono. ") : "";
+    if (error === "NotAllowedError" || error === "SecurityError")
+      return "El navegador tiene bloqueado el permiso. Tocá el candado de la barra de direcciones, permití la cámara y el micrófono, y recargá la página. También podés entrar sin ellos.";
+    if (error === "NotFoundError" || error === "OverconstrainedError")
+      return have + (stream ? "No encontramos el otro dispositivo." : "No encontramos ni cámara ni micrófono en este equipo. Podés entrar sin ellos.");
+    if (error === "NotReadableError" || error === "AbortError")
+      return have + "Otra aplicación está usando la cámara o el micrófono (Zoom, Meet, Teams…): cerrala y recargá la página" + (stream ? "." : ", o entrá sin ellos.");
+    return have + (stream ? "" : "No se pudo usar la cámara ni el micrófono. Revisá los permisos, o entrá sin ellos.");
+  }
+
   async function checkDevices() {
     const err = $("check-error");
+    const start = $("btn-start"), startText = start.textContent;
     err.textContent = "";
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: MAX_W }, height: { ideal: MAX_H }, frameRate: { ideal: FPS } },
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-      });
+    // Hasta que el navegador conteste no se puede pedir entrar: si no, se
+    // entraria sin mandar audio ni video y sin darse cuenta.
+    start.disabled = true;
+    start.textContent = "Aceptá el permiso de cámara y micrófono…";
+    const { stream, error } = await acquireMedia();
+    start.disabled = false;
+    start.textContent = startText;
+    if (stream) {
       setLocalStream(stream);
-      $("cam-state").textContent = "Cámara ✓";
-      $("cam-state").classList.add("ok");
-      $("mic-state").textContent = "Micrófono ✓";
-      $("mic-state").classList.add("ok");
-    } catch (e) {
-      err.textContent = "No se pudo usar la cámara o el micrófono. Revisá los permisos, o entrá sin ellos.";
+      const mark = (id, ok, label) => {
+        $(id).textContent = label + (ok ? " ✓" : " ✕");
+        $(id).classList.toggle("ok", ok);
+      };
+      mark("cam-state", stream.getVideoTracks().length > 0, "Cámara");
+      mark("mic-state", stream.getAudioTracks().length > 0, "Micrófono");
     }
+    if (error || !stream) err.textContent = mediaErrorText(error, stream);
   }
 
   function setLocalStream(stream) {
     state.localStream = stream;
+    // El stream nuevo respeta lo que dicen los botones (silenciado = silenciado).
+    stream.getAudioTracks().forEach((t) => (t.enabled = state.mic));
+    stream.getVideoTracks().forEach((t) => (t.enabled = state.cam));
     $("local-preview").srcObject = stream;
     $("self-video").srcObject = stream;
+    // Si la conexion ya estaba armada sin medios, se rearma con ellos.
+    if (state.pc && state.ws && state.ws.readyState === WebSocket.OPEN) startPeer();
     try {
       state.audioCtx = state.audioCtx || new (window.AudioContext || window.webkitAudioContext)();
       const src = state.audioCtx.createMediaStreamSource(stream);
@@ -198,33 +280,105 @@
       state.resumeFailures = 0;
       state.reconnectDelay = RECONNECT_BASE_MS;
       setConn("ok", "Conectado");
+      startPing(ws);
+      keepAwake();
     };
     ws.onmessage = (ev) => {
+      state.lastRx = Date.now();
       if (ev.data instanceof ArrayBuffer) {
         const msg = decodeFrame(new Uint8Array(ev.data));
         if (msg) onMessage(msg);
       }
     };
-    ws.onclose = () => {
-      if (state.ws !== ws) return;
+    let closed = false;
+    ws.onclose = async () => {
+      if (state.ws !== ws || closed) return; // el latido puede forzar este camino antes que el navegador
+      closed = true;
+      clearInterval(state.pingTimer);
       teardownPeer();
       if (state.left) return;
-      if (!state.wsOpened && state.id) {
-        // El reenganche fue rechazado antes del 101: la sesion vencio.
-        if (++state.resumeFailures >= 2) {
-          clearSession();
-          end("Tu lugar en la sala venció", "Pasó demasiado tiempo desconectado. Volvé a entrar.");
-          return;
-        }
-      }
+      const opened = state.wsOpened;
       if (!state.id) {
         end("No se pudo entrar", "El ingreso venció. Volvé a intentarlo.");
         return;
       }
       setConn("bad", "Reconectando…");
+      if (!opened) {
+        // El navegador no distingue "el servidor rechazo el reenganche" de "no
+        // hay red". Solo cuenta como rechazo si el servidor SI responde: sin
+        // red (cambio de wifi a datos) se sigue intentando sin perder el lugar.
+        if (await serverReachable()) {
+          if (state.ws !== ws || state.left) return;
+          if (++state.resumeFailures >= 2) {
+            clearSession();
+            end("Tu lugar en la sala venció", "Pasó demasiado tiempo desconectado. Volvé a entrar.");
+            return;
+          }
+        }
+        if (state.ws !== ws || state.left) return;
+      }
       state.reconnectTimer = setTimeout(connect, state.reconnectDelay);
       state.reconnectDelay = Math.min(state.reconnectDelay * 2, RECONNECT_MAX_MS);
     };
+  }
+
+  async function serverReachable() {
+    if (navigator.onLine === false) return false;
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), 4000);
+    try {
+      await fetch("/healthz", { cache: "no-store", signal: ctl.signal });
+      return true; // cualquier respuesta HTTP: el servidor esta
+    } catch (e) {
+      return false;
+    } finally {
+      clearTimeout(t);
+    }
+  }
+
+  // Latido: un TCP medio abierto (cambio de red) no dispara onclose. Si el
+  // servidor no contesta nada en PING_DEAD_MS, el socket se da por muerto.
+  function startPing(ws) {
+    clearInterval(state.pingTimer);
+    state.lastRx = Date.now();
+    state.pingTimer = setInterval(() => {
+      if (state.ws !== ws) return clearInterval(state.pingTimer);
+      // Solo se exige respuesta a un servidor que ya contesto un latido (uno
+      // anterior a este cambio no lo hace y no hay que cortarle).
+      if (state.pongSeen && Date.now() - state.lastRx > PING_DEAD_MS) {
+        clearInterval(state.pingTimer);
+        try { ws.close(); } catch (e) {}
+        // close() puede tardar en avisar con la red caida: se fuerza el camino.
+        setTimeout(() => { if (state.ws === ws && ws.onclose) ws.onclose(); }, 1500);
+        return;
+      }
+      send({ type: "ping" });
+    }, PING_MS);
+  }
+
+  // Vuelve la red o la pestaña al frente: reintentar YA, sin esperar el backoff.
+  function reconnectNow() {
+    if (state.left || !state.id) return;
+    const ws = state.ws;
+    if (ws && ws.readyState === WebSocket.OPEN) { send({ type: "ping" }); return; }
+    if (ws && ws.readyState === WebSocket.CONNECTING) return;
+    state.reconnectDelay = RECONNECT_BASE_MS;
+    connect();
+  }
+
+  // Pantalla encendida mientras se esta en el lobby o en la sala: un celular
+  // apoyado que se bloquea suspende la pestaña y se pierde el lugar.
+  async function keepAwake() {
+    if (!("wakeLock" in navigator) || state.left || !state.id || document.visibilityState !== "visible") return;
+    try {
+      if (state.wakeLock) return;
+      state.wakeLock = await navigator.wakeLock.request("screen");
+      state.wakeLock.addEventListener("release", () => { state.wakeLock = null; });
+    } catch (e) { /* bateria baja o sin permiso: no es critico */ }
+  }
+  function releaseAwake() {
+    try { if (state.wakeLock) state.wakeLock.release(); } catch (e) {}
+    state.wakeLock = null;
   }
 
   function onMessage(msg) {
@@ -274,12 +428,20 @@
         state.name = msg.name || state.name;
         $("self-label").textContent = state.name;
         break;
-      case "rejected":
+      case "pong":
+        state.pongSeen = true; // latido: ya conto como recibido
+        break;
+      case "rejected": {
         state.left = true;
         clearSession();
-        end(msg.reason === "locked" ? "La sala está cerrada" : "No pudiste entrar",
-            msg.reason === "locked" ? "El operador cerró la sala a nuevos ingresos." : "El operador no te hizo pasar esta vez.");
+        const why = {
+          locked: ["La sala está cerrada", "El operador cerró la sala a nuevos ingresos."],
+          lobby_full: ["Hay mucha gente esperando", "La sala de espera está llena. Probá de nuevo en un minuto."],
+          error: ["No se pudo entrar", "El servidor tuvo un problema. Probá de nuevo en un momento."],
+        }[msg.reason] || ["No pudiste entrar", "El operador no te hizo pasar esta vez."];
+        end(why[0], why[1]);
         break;
+      }
       case "kicked":
         state.left = true;
         clearSession();
@@ -307,7 +469,7 @@
   }
 
   function onRequest(what) {
-    if (what === "mute-mic" && state.mic) { setMic(false); toast("El operador te silenció el micrófono"); }
+    if (what === "mute-mic" && state.mic) { setMic(false); toast("El operador te silenció el micrófono. Tocá 🎙️ para volver a activarlo."); }
     else if (what === "mute-cam" && state.cam) { setCam(false); toast("El operador te pidió apagar la cámara"); }
     else if (what === "stop-screen" && state.screenStream) { stopScreen(); toast("El operador dejó de mostrar tu pantalla"); }
     else if (what === "lower-hand" && state.hand) { setHand(false); toast("El operador bajó tu mano"); }
@@ -341,13 +503,26 @@
         $("lobby-video").srcObject = rs;
         $("lobby-pulse").classList.add("hidden");
       }
-      if (ev.track.kind === "audio") $("remote-audio").srcObject = rs;
+      if (ev.track.kind === "audio") {
+        $("remote-audio").srcObject = rs;
+        playRemoteAudio();
+      }
     };
     pc.onicecandidate = (ev) => { if (ev.candidate) send({ type: "ice", candidate: ev.candidate.toJSON() }); };
     pc.onconnectionstatechange = () => {
-      const on = pc.connectionState === "connected";
-      $("onair").classList.toggle("hidden", !on);
-      if (pc.connectionState === "failed") setConn("bad", "Sin medios");
+      if (state.pc !== pc) return;
+      const cs = pc.connectionState;
+      $("onair").classList.toggle("hidden", cs !== "connected");
+      clearTimeout(state.mediaTimer);
+      if (cs === "connected") { setConn("ok", "Conectado"); return; }
+      if (cs !== "failed" && cs !== "disconnected") return;
+      setConn("bad", "Recuperando audio y video…");
+      // Un corte corto se arregla solo; si no vuelve, se arma una conexion
+      // nueva (el servidor acepta una oferta fresca del mismo participante).
+      state.mediaTimer = setTimeout(() => {
+        if (state.pc !== pc || state.left) return;
+        if (state.ws && state.ws.readyState === WebSocket.OPEN) startPeer();
+      }, cs === "failed" ? 0 : MEDIA_GRACE_MS);
     };
     // Tambien renegocia al sumar/quitar la pantalla compartida.
     pc.onnegotiationneeded = async () => {
@@ -359,7 +534,30 @@
     };
   }
 
+  // El navegador puede bloquear el audio si se llego sin un toque (enlace con
+  // go=1, recarga): se ofrece un boton para destrabarlo.
+  function playRemoteAudio() {
+    const a = $("remote-audio");
+    const p = a.play();
+    if (!p || !p.catch) return;
+    p.catch(() => {
+      if ($("btn-unmute-remote")) return;
+      const b = document.createElement("button");
+      b.id = "btn-unmute-remote";
+      b.className = "primary";
+      b.textContent = "🔊 Tocá para escuchar";
+      b.style.cssText = "position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:50";
+      b.addEventListener("click", () => {
+        a.play().catch(() => {});
+        if (state.audioCtx) state.audioCtx.resume().catch(() => {});
+        b.remove();
+      });
+      document.body.appendChild(b);
+    });
+  }
+
   function teardownPeer() {
+    clearTimeout(state.mediaTimer);
     if (state.pc) { try { state.pc.close(); } catch (e) {} }
     state.pc = null;
     state.screenSender = null;
@@ -371,21 +569,40 @@
   }
 
   // --- Controles ----------------------------------------------------------
-  function setMic(on) {
+  // Encender microfono o camara sin tener el dispositivo tomado (se entro
+  // "sin camara ni microfono", o fallo al principio): se pide ahora.
+  async function ensureTrack(kind) {
+    const have = state.localStream && (kind === "audio" ? state.localStream.getAudioTracks() : state.localStream.getVideoTracks()).length > 0;
+    if (have) return true;
+    const { stream, error } = await acquireMedia();
+    const got = stream && (kind === "audio" ? stream.getAudioTracks() : stream.getVideoTracks()).length > 0;
+    if (!got) {
+      if (stream) stream.getTracks().forEach((t) => t.stop());
+      toast(error ? mediaErrorText(error, null) : (kind === "audio" ? "No encontramos un micrófono en este equipo." : "No encontramos una cámara en este equipo."), "bad");
+      return false;
+    }
+    if (state.localStream) state.localStream.getTracks().forEach((t) => t.stop());
+    setLocalStream(stream);
+    if (!state.pc && state.ws && state.ws.readyState === WebSocket.OPEN) startPeer();
+    return true;
+  }
+  async function setMic(on) {
+    if (on && !(await ensureTrack("audio"))) on = false;
     state.mic = on;
     if (state.localStream) state.localStream.getAudioTracks().forEach((t) => (t.enabled = on));
-    $("btn-mic").classList.toggle("off", !on);
+    paintControls();
     sendMedia();
   }
-  function setCam(on) {
+  async function setCam(on) {
+    if (on && !(await ensureTrack("video"))) on = false;
     state.cam = on;
     if (state.localStream) state.localStream.getVideoTracks().forEach((t) => (t.enabled = on));
-    $("btn-cam").classList.toggle("off", !on);
+    paintControls();
     sendMedia();
   }
   function setHand(on) {
     state.hand = on;
-    $("btn-hand").classList.toggle("active", on);
+    paintControls();
     sendMedia();
   }
 
@@ -580,6 +797,8 @@
     const el = $("conn-state");
     el.className = "status " + cls;
     el.textContent = text;
+    // El lobby no tiene ese cartel: alli el estado va en el texto de espera.
+    if (!state.admitted) $("lobby-text").textContent = cls === "ok" ? LOBBY_TEXT : "Se cortó la conexión. Reconectando con la sala…";
   }
 
   function leave() {
@@ -593,6 +812,10 @@
 
   function end(title, text) {
     clearTimeout(state.reconnectTimer);
+    clearInterval(state.pingTimer);
+    releaseAwake();
+    const u = $("btn-unmute-remote");
+    if (u) u.remove();
     teardownPeer();
     stopLocalMedia();
     toggleChat(false);
@@ -613,6 +836,7 @@
   $("btn-nodevices").addEventListener("click", () => {
     stopLocalMedia();
     state.mic = state.cam = false;
+    paintControls();
     state.left = false;
     show("lobby");
     connect();
@@ -630,7 +854,15 @@
   $("btn-hand").addEventListener("click", () => setHand(!state.hand));
   $("btn-chat").addEventListener("click", () => toggleChat());
   $("btn-chat-close").addEventListener("click", () => toggleChat(false));
-  $("btn-leave").addEventListener("click", leave);
+  // Dentro de la sala, salir pide confirmacion: un toque sin querer obliga a
+  // volver a pasar por el lobby en pleno vivo.
+  $("btn-leave").addEventListener("click", () => { if (window.confirm("¿Salir de la sala?")) leave(); });
+  window.addEventListener("online", reconnectNow);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible") return;
+    reconnectNow();
+    keepAwake();
+  });
   $("btn-again").addEventListener("click", () => { state.left = false; show("join"); });
   $("chat-form").addEventListener("submit", (e) => {
     e.preventDefault();
@@ -650,8 +882,21 @@
   // sus logs. Con go=1 entra directo (camara/micro por defecto).
   const params = new URLSearchParams(location.search);
   const hash = new URLSearchParams(location.hash.replace(/^#/, ""));
-  $("room").value = hash.get("room") || params.get("room") || "";
-  $("pin").value = hash.get("pin") || "";
+  // Sala y PIN del enlace se guardan para esta pestaña: recargar (la reaccion
+  // tipica ante un problema) no deja al invitado sin datos que nunca conocio.
+  let link = {};
+  try { link = JSON.parse(sessionStorage.getItem(LINK_KEY) || "{}") || {}; } catch (e) {}
+  if (hash.get("room") || params.get("room")) link.room = hash.get("room") || params.get("room");
+  if (hash.get("pin")) link.pin = hash.get("pin");
+  try { sessionStorage.setItem(LINK_KEY, JSON.stringify(link)); } catch (e) {}
+  $("room").value = link.room || "";
+  $("pin").value = link.pin || "";
+  // Con la sala en el enlace, el campo sobra (y confunde): se esconde.
+  if (link.room) {
+    $("room").parentElement.classList.add("hidden");
+    $("room").parentElement.parentElement.style.gridTemplateColumns = "1fr";
+  }
+  if (!window.isSecureContext) $("join-error").textContent = "Este enlace no es seguro (http): el navegador no va a dejar usar la cámara ni el micrófono. Pedile al operador el enlace que empieza con https.";
   try {
     $("name").value = hash.get("name") || localStorage.getItem("ba.guest.name") || "";
     $("info").value = localStorage.getItem("ba.guest.info") || "";

@@ -45,7 +45,7 @@ class Supervisor {
         std::filesystem::path root;           // raiz del bundle (ba::platform::bundleRoot)
         std::filesystem::path appExe;         // bin/64bit/ba-app(.exe)
         std::filesystem::path gatewayExe;     // bin/64bit/ba-gateway(.exe)
-        std::filesystem::path logsDir;        // Logs/ (para dumps)
+        std::filesystem::path logsDir;        // Logs/ (dumps y salida de A y B)
         std::vector<std::string> appArgs;     // argumentos extra para A
         std::vector<std::string> gatewayArgs; // argumentos extra para B
         // Copia sombra (spec 3.1.5): OPCIONAL y desactivada por defecto. Sin
@@ -116,6 +116,8 @@ class Supervisor {
     bool appNeedsRestore_ = false;             // A relanzado tras crash arranca con --restore
     bool safeMode_ = false;                    // circuit breaker: >5 crashes de A en 2 min
     std::vector<std::uint64_t> appCrashTimes_; // ms monotonicos, para el circuit breaker
+    std::uint64_t lastFailureMs_ = 0;          // ultima caida/cuelgue de A o B
+    int recentFailures_ = 0;                   // fallas dentro de la ventana (decide el dialogo)
 
     // Cache del reporte de integridad para la UI de recuperacion.
     std::uint64_t lastIntegrityCheckMs_ = 0;

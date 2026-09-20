@@ -49,7 +49,7 @@ Rectangle {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 10
-                    Toggle { checked: conf.speakerMode; onToggled: conf.setSpeakerConfig({ enabled: checked }) }
+                    Toggle { checked: conf.speakerMode; onToggled: (wanted) => conf.setSpeakerConfig({ enabled: wanted }) }
                     Text { text: "Modo oradores"; color: Theme.text; font.pixelSize: 13 }
                     Text { visible: !spkPanel.shown; Layout.fillWidth: true; elide: Text.ElideRight; color: Theme.textFaint; font.pixelSize: 12
                            text: "Los admitidos pasan a una fila (miran el programa) y los ponés al aire por turno, con un reloj que nunca los saca solo." }
@@ -437,7 +437,7 @@ Rectangle {
                         }
                         RowLayout {
                             Layout.fillWidth: true
-                            Toggle { checked: conf.lobby; onToggled: conf.setLobby(!conf.lobby) }
+                            Toggle { checked: conf.lobby; onToggled: (wanted) => conf.setLobby(wanted) }
                             ColumnLayout {
                                 spacing: 0
                                 Layout.fillWidth: true
@@ -447,7 +447,7 @@ Rectangle {
                         }
                         RowLayout {
                             Layout.fillWidth: true
-                            Toggle { checked: conf.locked; onToggled: conf.setLocked(!conf.locked) }
+                            Toggle { checked: conf.locked; onToggled: (wanted) => conf.setLocked(wanted) }
                             ColumnLayout {
                                 spacing: 0
                                 Layout.fillWidth: true

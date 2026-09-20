@@ -33,6 +33,7 @@ Rectangle {
                 anchors.fill: parent
                 spacing: 8
                 ListView {
+                    id: sceneList
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     clip: true
@@ -62,7 +63,24 @@ Rectangle {
                 RowLayout {
                     GlassButton { text: "Nueva"; icon: "+"; compact: true; onClicked: newSceneDlg.open() }
                     GlassButton { text: "Renombrar"; compact: true; onClicked: { renameDlg.from = page.editScene; renameDlg.open() } }
-                    GlassButton { text: "Borrar"; compact: true; onClicked: Studio.removeScene(page.editScene) }
+                    GlassButton {
+                        text: "Borrar"; compact: true
+                        onClicked: {
+                            const escena = page.editScene
+                            // La unica escena no se puede borrar: el motor lo avisa, sin preguntar antes.
+                            if (sceneList.count < 2) { Studio.removeScene(escena); return }
+                            // El motor deja borrar la escena al aire: corta en seco a otra.
+                            const alAire = escena === Studio.currentScene
+                            ApplicationWindow.window.confirm({
+                                title: "¿Borrar la escena «" + escena + "»?",
+                                text: (alAire ? "«" + escena + "» está AL AIRE: al borrarla se corta a otra escena. " : "")
+                                      + "Se pierden su disposición y las fuentes que solo están en ella.",
+                                accept: "Borrar",
+                                reject: "Cancelar",
+                                action: function() { Studio.removeScene(escena) }
+                            })
+                        }
+                    }
                 }
             }
         }
@@ -189,10 +207,34 @@ Rectangle {
                                     Text { text: name; color: Theme.text; elide: Text.ElideRight; Layout.fillWidth: true; font.pixelSize: 12 }
                                     Text { text: typeName; color: Theme.textFaint; elide: Text.ElideRight; Layout.fillWidth: true; font.pixelSize: 9 }
                                 }
-                                Toggle { checked: shown; onToggled: Studio.sources.setVisible(name, checked) }
+                                Toggle { checked: shown; onToggled: (wanted) => Studio.sources.setVisible(name, wanted) }
                                 ToolButton { text: "▲"; onClicked: Studio.sources.move(name, 1) }
                                 ToolButton { text: "▼"; onClicked: Studio.sources.move(name, -1) }
-                                ToolButton { text: "✕"; onClicked: { if (page.selected === name) page.selected = ""; Studio.sources.remove(name) } }
+                                ToolButton {
+                                    text: "✕"
+                                    ToolTip.visible: hovered; ToolTip.text: "Quitar de la escena"; ToolTip.delay: 400
+                                    onClicked: {
+                                        // Copias: este delegate puede no existir cuando el operador conteste.
+                                        const fuente = name
+                                        const escena = page.editScene
+                                        const pagina = page   // el id no resuelve si el delegate ya murio
+                                        // Sale solo de ESTA escena; el motor libera la fuente si no queda en ninguna.
+                                        ApplicationWindow.window.confirm({
+                                            title: "¿Quitar «" + fuente + "» de la escena?",
+                                            text: (escena === Studio.currentScene
+                                                   ? "«" + escena + "» está AL AIRE: la fuente sale del programa al instante. " : "")
+                                                  + "Se quita solo de esta escena; si no está en ninguna otra, se borra con su configuración.",
+                                            accept: "Quitar",
+                                            reject: "Cancelar",
+                                            action: function() {
+                                                // Si mientras tanto el editor paso a otra escena, no se toca nada.
+                                                if (Studio.sources.scene !== escena) return
+                                                if (pagina.selected === fuente) pagina.selected = ""
+                                                Studio.sources.remove(fuente)
+                                            }
+                                        })
+                                    }
+                                }
                             }
                             MouseArea { anchors.fill: parent; z: -1; onClicked: page.selected = name }
                         }

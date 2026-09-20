@@ -115,6 +115,23 @@ bool hasFlag(int argc, char** argv, const char* flag) {
 }
 
 int dispatch(int argc, char** argv) {
+    // El launcher manda stdout y stderr a Logs/app.log. Hacia un archivo el CRT
+    // pasa stdout a buffer completo y en un crash se pierde justo lo ultimo que
+    // se dijo: se vuelca por linea, y se fija aca, antes del primer printf de
+    // CUALQUIER modo (setvbuf solo vale antes de usar el stream; los modos no
+    // lo repiten). stderr ya es sin buffer en todas las plataformas.
+    //
+    // El CRT de Microsoft trata _IOLBF como _IOFBF (buffer completo): en
+    // Windows va sin buffer. El tamaño: 0 es valido en glibc ("elegi vos"),
+    // pero el CRT de Microsoft exige 2 <= size <= INT_MAX: con 0 dispara su
+    // invalid parameter handler y el proceso muere con 0xC0000409 (el ucrtbase
+    // de Wine no valida y el CI no lo veia). Con _IONBF lo ignora, pero un
+    // valor valido no cuesta nada.
+#if defined(_WIN32)
+    std::setvbuf(stdout, nullptr, _IONBF, BUFSIZ);
+#else
+    std::setvbuf(stdout, nullptr, _IOLBF, BUFSIZ);
+#endif
     // Portable: caches de Qt/fontconfig/shaders al bundle (antes de Qt y libobs).
     ba::platform::redirectUserDirs();
     // Credenciales en claro de versiones anteriores -> Credenciales/ cifradas.

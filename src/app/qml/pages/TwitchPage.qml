@@ -37,7 +37,18 @@ Rectangle {
                              dot: tw.stream.live ? Theme.live : Theme.textFaint; pulse: tw.stream.live === true }
                 GlassButton { text: "Actualizar"; compact: true; onClicked: tw.refresh() }
                 GlassButton { text: "Ver canal"; compact: true; onClicked: tw.openUrl("https://twitch.tv/" + (tw.user.login || "")) }
-                GlassButton { text: "Desconectar"; compact: true; onClicked: tw.logout() }
+                GlassButton {
+                    text: "Desconectar"; compact: true
+                    onClicked: ApplicationWindow.window.confirm({
+                        title: "¿Desconectar la cuenta de Twitch?",
+                        // Desconectar no corta la salida: la clave ya esta en uso y el vivo sigue.
+                        text: "Se revoca el acceso en Twitch y se borra el token guardado: para volver a usar Twitch hay que conectar la cuenta de nuevo."
+                              + (tw.streamingHere ? " La transmisión en curso no se corta, pero el chat se apaga." : ""),
+                        accept: "Desconectar",
+                        reject: "Cancelar",
+                        action: function() { tw.logout() }
+                    })
+                }
             }
         }
 
@@ -132,7 +143,16 @@ Rectangle {
                 GlassButton { visible: !tw.loginPending; text: "Conectar con Twitch"; icon: "◆"; active: true; activeColor: page.purple; onClicked: tw.login() }
                 GlassButton { visible: tw.loginPending; text: "Abrir twitch.tv/activate"; onClicked: tw.openUrl(tw.verificationUri) }
                 GlassButton { visible: tw.loginPending; text: "Cancelar"; onClicked: tw.cancelLogin() }
-                GlassButton { visible: !tw.loginPending; text: "Cambiar app"; onClicked: tw.clearClient() }
+                GlassButton {
+                    visible: !tw.loginPending; text: "Cambiar app"
+                    onClicked: ApplicationWindow.window.confirm({
+                        title: "¿Cambiar la app de Twitch?",
+                        text: "Se borra el ID de cliente guardado (y el secreto, si había) y vuelven las instrucciones para registrar la app.",
+                        accept: "Cambiar app",
+                        reject: "Cancelar",
+                        action: function() { tw.clearClient() }
+                    })
+                }
             }
             Text { Layout.alignment: Qt.AlignHCenter; visible: tw.lastError !== ""; color: Theme.live; font.pixelSize: 13; text: tw.lastError }
             Item { Layout.fillHeight: true }
@@ -170,7 +190,16 @@ Rectangle {
                         GlassButton { Layout.alignment: Qt.AlignBottom; text: "Guardar"; onClicked: tw.updateChannel(chTitle.text, chGame.text) }
                         GlassButton { Layout.alignment: Qt.AlignBottom; visible: !tw.streamingHere; text: "Transmitir a Twitch"; icon: "●"; active: true; activeColor: page.purple
                                       onClicked: { tw.updateChannel(chTitle.text, chGame.text); tw.goLive() } }
-                        GlassButton { Layout.alignment: Qt.AlignBottom; visible: tw.streamingHere; text: "Cortar transmisión"; onClicked: tw.stopLive() }
+                        GlassButton {
+                            Layout.alignment: Qt.AlignBottom; visible: tw.streamingHere; text: "Cortar transmisión"
+                            onClicked: ApplicationWindow.window.confirm({
+                                title: "¿Cortar la transmisión a Twitch?",
+                                text: "El vivo en Twitch termina y los espectadores dejan de ver la señal. Para volver al aire hay que transmitir de nuevo.",
+                                accept: "Cortar transmisión",
+                                reject: "Cancelar",
+                                action: function() { tw.stopLive() }
+                            })
+                        }
                     }
                     Flow {
                         Layout.fillWidth: true
@@ -224,14 +253,30 @@ Rectangle {
                                 Text { text: type + "  ·  " + page.day(created_at) + "  ·  " + duration + "  ·  " + views + " vistas"; color: Theme.textFaint; font.pixelSize: 11 }
                             }
                             GlassButton { compact: true; text: "Ver"; onClicked: tw.openUrl(url) }
-                            GlassButton { compact: true; text: "Borrar"; onClicked: tw.deleteVideo(uid) }
+                            GlassButton {
+                                compact: true; text: "Borrar"
+                                onClicked: {
+                                    // Copias: la lista se refresca y este delegate puede no existir cuando el operador conteste.
+                                    const id = uid
+                                    const nombre = title
+                                    const twitch = page.tw
+                                    ApplicationWindow.window.confirm({
+                                        // El titulo de un VOD llega a 140 caracteres: va en el texto, que corta en lineas.
+                                        title: "¿Borrar este VOD de Twitch?",
+                                        text: "«" + nombre + "» se borra del canal de Twitch y no se puede recuperar.",
+                                        accept: "Borrar",
+                                        reject: "Cancelar",
+                                        action: function() { twitch.deleteVideo(id) }
+                                    })
+                                }
+                            }
                         }
                     }
                 }
                 ColumnLayout {
                     spacing: 8
                     RowLayout {
-                        Toggle { checked: tw.chatOn; onToggled: tw.setChatOn(checked) }
+                        Toggle { checked: tw.chatOn; onToggled: (wanted) => tw.setChatOn(wanted) }
                         Text { text: tw.chatOn ? "Leyendo el chat del canal" : "Chat apagado"; color: Theme.textDim; font.pixelSize: 13; Layout.fillWidth: true }
                         Text { text: "Para mostrarlo en el video: fuente «Chat en vivo» en una escena."; color: Theme.textFaint; font.pixelSize: 11 }
                     }

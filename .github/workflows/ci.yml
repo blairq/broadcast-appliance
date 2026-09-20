@@ -305,6 +305,8 @@ jobs:
         run: |
           $d = "$env:RUNNER_TEMP\humo"
           Expand-Archive -Path $env:BA_ZIP -DestinationPath $d -Force
+          # El zip trae una carpeta raiz (BroadcastAppliance\), como el .tar.gz.
+          $d = "$d\BroadcastAppliance"
           "BA_DIR=$d" >> $env:GITHUB_ENV
           Get-ChildItem $d | Select-Object Name
 
@@ -375,6 +377,27 @@ jobs:
             ver="$(ls dist/*-linux-x64.tar.gz | sed -E 's/.*BroadcastAppliance-(.*)-linux-x64\.tar\.gz/\1/')"
             tag="v${ver}-build.${GITHUB_RUN_NUMBER}"
           fi
+          # Notas para quien baja el programa (arriba); el detalle tecnico de
+          # los cambios lo agrega --generate-notes debajo.
+          cat > notas.md <<'NOTAS'
+          ## Qué bajar
+          - **Windows 10 (1809 o posterior) / 11, 64 bits:** `BroadcastAppliance-*-windows-x64.zip`
+          - **Linux 64 bits** (escritorio con OpenGL; compilado en Ubuntu 24.04, necesita una distribución igual o más nueva): `BroadcastAppliance-*-linux-x64.tar.gz`
+          - Los `.sha256` sirven para verificar la descarga (opcional).
+
+          ## Cómo usarlo
+          1. Descomprimí el archivo completo en una carpeta (sirve un disco o pen drive). No se instala nada.
+          2. Abrí `BroadcastAppliance` (`.exe` en Windows; `./BroadcastAppliance` en Linux). En Windows, si aparece "Windows protegió su PC": *Más información → Ejecutar de todas formas*.
+          3. Leé `LEEME.txt`, que viene dentro de la carpeta: primeros pasos, dónde queda cada cosa y qué hacer si algo falla.
+
+          ## Si ya lo tenías
+          Descomprimí esta versión en **otra** carpeta y elegila en *Configuración → Sistema y datos → Actualizar desde una carpeta*. Tu configuración, credenciales y grabaciones no se tocan, y se puede volver a la versión anterior.
+
+          Manual del operador y guía del invitado: carpeta [`docs/manual`](https://github.com/blairq/broadcast-appliance/tree/master/docs/manual).
+
+          ---
+          NOTAS
+          sed -i 's/^          //' notas.md
           gh release create "${tag}" dist/* \
             --repo "${GITHUB_REPOSITORY}" --target "${GITHUB_SHA}" \
-            --title "${tag}" --generate-notes --latest
+            --title "Broadcast Appliance ${tag}" --notes-file notas.md --generate-notes --latest

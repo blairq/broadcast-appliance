@@ -6,6 +6,7 @@
 
 #include "ChildProcess.hpp"
 
+#include "ChildOutput.hpp"
 #include "Log.hpp"
 #include "platform/Paths.hpp"
 
@@ -170,6 +171,25 @@ bool ChildProcess::start(const Config& cfg) {
     // aunque el binario corra desde la copia sombra.
     const std::u8string root = cfg.workDir.u8string();
     o.envSet[ba::platform::kDataRootEnv] = std::string(root.begin(), root.end());
+
+    // Salida del hijo (stdout+stderr) a su archivo de Logs/. Se prepara aca,
+    // con el hijo todavia sin lanzar: es el unico momento en que se puede
+    // rotar. Si el disco no deja, el hijo arranca igual y sin captura: un log
+    // nunca deja al programa sin salir al aire.
+    if (!cfg.outputFile.empty()) {
+        if (prepareChildOutput(cfg.outputFile, name_, cfg.exePath, cfg.args)) {
+            o.outputFile = cfg.outputFile;
+            // Qt, si stderr no es una consola, en Windows manda sus avisos
+            // (qWarning, errores de QML) solo al depurador (OutputDebugString):
+            // con esto los escribe en stderr, o sea en el archivo.
+            o.envSet["QT_FORCE_STDERR_LOGGING"] = "1";
+        } else {
+            const std::u8string out = cfg.outputFile.u8string();
+            BA_LOG_WARN("child", 0,
+                        "no se pudo preparar " + std::string(out.begin(), out.end()) + "; '" + name_ +
+                            "' se lanza sin capturar su salida");
+        }
+    }
 
     std::string err;
     if (!ba::platform::Process::spawn(o, proc_, &err)) {

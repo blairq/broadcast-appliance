@@ -64,6 +64,9 @@ class ConferenceViewModel : public QObject {
     Q_PROPERTY(bool locked READ locked NOTIFY roomChanged)
     Q_PROPERTY(int maxGuests READ maxGuests NOTIFY roomChanged)
     Q_PROPERTY(int slotsFree READ slotsFree NOTIFY roomChanged)
+    /// Todos los conectados a la sala: lobby, programa y fila de oradores. Es lo
+    /// que se pierde si la app se cierra (guardias de cierre y de actualizacion).
+    Q_PROPERTY(int peopleConnected READ peopleConnected NOTIFY roomChanged)
     /// Nombre del invitado de cada slot (indice slot-1; vacio = libre).
     Q_PROPERTY(QStringList slotNames READ slotNames NOTIFY roomChanged)
     /// Destinos del chat: [{label, value}] ("all" + cada participante).
@@ -106,6 +109,7 @@ class ConferenceViewModel : public QObject {
     bool locked() const;
     int maxGuests() const;
     int slotsFree() const;
+    int peopleConnected() const;
     QStringList slotNames() const;
     QVariantList chatTargets() const;
     QString operatorVideo() const;

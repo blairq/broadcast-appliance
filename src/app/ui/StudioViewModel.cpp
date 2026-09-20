@@ -144,6 +144,17 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         connect(agent_.get(), &agent::AgentViewModel::notify, this, &StudioViewModel::notify);
         // Barra de mensajes del asistente al operador (y respuestas a invitados).
         messages_ = std::make_unique<OperatorMessages>();
+        if (rt.config().safeMode) {
+            // El launcher arranco en modo seguro tras varias caidas: que el
+            // operador sepa por que no ve sus escenas.
+            messages_->post(
+                {{"kind", "message"},
+                 {"priority", "critical"},
+                 {"title", "Modo seguro"},
+                 {"text",
+                  "La aplicación se cerró varias veces seguidas y arrancó en modo seguro: tus escenas no "
+                  "se cargaron (no se borraron). Cerrá y volvé a abrir para intentar el arranque normal."}});
+        }
         messages_->setChatSender([this](const QString& to, const QString& text) {
             conference_->sendChat(to, text);
             return QString();
@@ -227,11 +238,35 @@ void StudioViewModel::onTick() {
         lastBytes_ = 0;
         lastBytesAt_ = streamSince_;
     }
+    // Un corte pedido es un aviso corto; uno que nadie pidio (red, servidor,
+    // disco lleno) queda fijo en la barra del operador hasta que lo cierre.
+    const auto dropped = [this](const char* title, const std::string& text) {
+        if (messages_) {
+            messages_->post(
+                {{"kind", "message"}, {"priority", "critical"}, {"title", title}, {"text", text}});
+        } else {
+            emit notify(QString::fromUtf8(title), "error");
+        }
+    };
     if (recording_ && !st.recording) {
-        emit notify("Grabacion detenida", "info");
+        if (rt_.recordStopWanted()) {
+            emit notify("Grabación detenida", "info");
+        } else {
+            rt_.stopRecording(); // ya no hay nada que retomar tras una caida
+            dropped("Se cortó la grabación",
+                    "La grabación se detuvo sola. Revisá el espacio libre en el disco y volvé a grabar.");
+        }
     }
     if (streaming_ && !st.streaming) {
-        emit notify("Transmision detenida", "warn");
+        if (rt_.streamStopWanted()) {
+            emit notify("Transmisión detenida", "warn");
+        } else {
+            rt_.stopStreaming();
+            dropped(
+                "Se cayó la transmisión",
+                "La emisión se cortó sola (internet o el servidor de destino). Revisá la conexión y volvé a "
+                "salir al aire.");
+        }
     }
     recording_ = st.recording;
     streaming_ = st.streaming;
@@ -277,6 +312,7 @@ bool StudioViewModel::streamKeyAvailable() const {
     const char* k = std::getenv(rt_.config().streamKeyEnv.c_str());
     return k != nullptr && *k != '\0';
 }
+bool StudioViewModel::streamKeySaved() const { return rt_.streamKeySaved(); }
 QString StudioViewModel::room() const { return qs(const_cast<AppRuntime&>(rt_).gateway().room); }
 QString StudioViewModel::joinUrl() const {
     const GatewaySettings& g = const_cast<AppRuntime&>(rt_).gateway();

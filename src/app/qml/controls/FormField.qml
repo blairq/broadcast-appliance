@@ -97,11 +97,14 @@ ColumnLayout {
         id: boolC
         Item {
             implicitHeight: 28
+            // `checked` sigue al modelo: los dos (SettingsModel y PropertiesModel)
+            // reflejan el valor editado al instante, asi que el interruptor
+            // muestra el valor pendiente y vuelve solo con "Revertir".
             Toggle {
                 anchors.verticalCenter: parent.verticalCenter
                 checked: !!field.value
                 enabled: field.enabled
-                onToggled: field.edited(checked)
+                onToggled: (wanted) => field.edited(wanted)
             }
         }
     }

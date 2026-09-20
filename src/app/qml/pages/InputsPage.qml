@@ -136,7 +136,8 @@ Rectangle {
                         }
                         TextField { id: netName; Layout.fillWidth: true; placeholderText: "Nombre (opcional)" }
                         RowLayout {
-                            Toggle { id: lowLat; checked: true }
+                            // Estado local (no hay modelo detras): lo mueve el propio handler.
+                            Toggle { id: lowLat; checked: true; onToggled: (wanted) => lowLat.checked = wanted }
                             Text { text: "Latencia baja (desactivar si la señal es inestable)"; color: Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap }
                         }
                         RowLayout {
@@ -206,7 +207,26 @@ Rectangle {
                                 Layout.fillWidth: true
                                 Text { text: modelData.name; color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold } elide: Text.ElideRight; Layout.fillWidth: true }
                                 Text { visible: modelData.receiving; text: modelData.width + "×" + modelData.height; color: Theme.textDim; font.pixelSize: 11 }
-                                GlassButton { compact: true; text: "Quitar"; onClicked: page.inp.remove(modelData.name) }
+                                GlassButton {
+                                    compact: true; text: "Quitar"
+                                    onClicked: {
+                                        // La grilla se rearma cuando cambia el estado de una entrada y este delegate
+                                        // puede morir con el dialogo abierto: la accion usa solo estas copias.
+                                        const inp = page.inp
+                                        const nombre = modelData.name
+                                        const escenas = modelData.scenes.join(", ")
+                                        const alAire = modelData.scenes.indexOf(Studio.currentScene) >= 0
+                                        ApplicationWindow.window.confirm({
+                                            title: "¿Quitar la entrada «" + nombre + "»?",
+                                            text: (alAire ? "Está en la escena al aire: desaparece del aire al instante. " : "")
+                                                  + (escenas !== "" ? "Se saca de todas las escenas donde está (" + escenas + ") y el cambio se guarda."
+                                                                    : "No está en ninguna escena."),
+                                            accept: "Quitar",
+                                            reject: "Cancelar",
+                                            action: function() { inp.remove(nombre) }
+                                        })
+                                    }
+                                }
                             }
                             Text { Layout.fillWidth: true; text: modelData.where; color: Theme.textFaint; font.pixelSize: 11; elide: Text.ElideMiddle }
                             Text { Layout.fillWidth: true; text: modelData.scenes.length > 0 ? "En: " + modelData.scenes.join(", ") : "No está en ninguna escena"

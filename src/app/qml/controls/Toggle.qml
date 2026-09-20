@@ -4,8 +4,11 @@ import BA
 
 Item {
     id: t
+    // Se ENLAZA al estado real del modelo: el control no lo escribe (romperia
+    // el binding). Un clic solo pide el cambio con toggled(wanted); el
+    // interruptor se mueve cuando el modelo lo confirma.
     property bool checked: false
-    signal toggled()
+    signal toggled(bool wanted)
 
     implicitWidth: 42
     implicitHeight: 24
@@ -30,6 +33,6 @@ Item {
     MouseArea {
         anchors.fill: parent
         cursorShape: Qt.PointingHandCursor
-        onClicked: { t.checked = !t.checked; t.toggled() }
+        onClicked: t.toggled(!t.checked)
     }
 }

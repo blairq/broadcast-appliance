@@ -91,6 +91,14 @@ class AppRuntime {
     LauncherSettings& launcher() { return launcher_; }
     BroadcastEngine& engine() { return engine_; }
     const std::string& lastError() const { return lastError_; }
+    /// true si el ultimo corte de la transmision / grabacion lo PIDIO alguien
+    /// (operador, plataforma, MCP). Si la salida se detiene con esto en false,
+    /// se cayo sola (red, servidor, disco lleno) y hay que avisar fuerte.
+    /// Hay una clave guardada (cifrada en Credenciales/) de la ultima salida al
+    /// aire: sirve para no tipearla de nuevo y para retomar tras una caida.
+    bool streamKeySaved() const;
+    bool streamStopWanted() const { return streamStopWanted_; }
+    bool recordStopWanted() const { return recordStopWanted_; }
     const std::filesystem::path& dataRoot() const { return root_; }
     std::uint32_t pid() const;
 
@@ -109,6 +117,10 @@ class AppRuntime {
 
    private:
     void addGuests();
+    /// Runtime/al-aire.json: que salidas estaban activas. Lo lee un arranque
+    /// con --restore para retomar la emision tras una caida.
+    void writeOnAirState() const;
+    void restoreOutputs();
 
     AppConfig cfg_;
     GatewaySettings gateway_;
@@ -120,6 +132,10 @@ class AppRuntime {
     ba::ipc::ControlService control_;
     OperatorFeed operator_; // vive mientras libobs este arriba (ver stop)
     std::string lastError_;
+    bool streamStopWanted_ = true;
+    bool recordStopWanted_ = true;
+    mutable int keySaved_ = -1;   // cache de streamKeySaved (-1 = sin consultar)
+    bool safeBackupDone_ = false; // app.json resguardado antes de guardar en modo seguro
     bool started_ = false;
 };
 

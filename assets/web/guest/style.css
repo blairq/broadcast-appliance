@@ -248,3 +248,4 @@ button.icon { background: none; border: none; padding: 4px 8px; color: var(--mut
 @media (prefers-reduced-motion: reduce) {
   .speaker-bar.warn .sp-clock, .speaker-bar.over .sp-clock { animation: none; }
 }
+.hint a { color: var(--accent); }

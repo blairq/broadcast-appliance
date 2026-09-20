@@ -404,7 +404,9 @@ int main(int argc, char** argv) {
     const std::string guestUrl = "http://" +
                                  std::string(cfg.bindAddress == "0.0.0.0" ? "127.0.0.1" : cfg.bindAddress) +
                                  ":" + std::to_string(cfg.port) + "/";
-    room.setHostInfo(roomPin, guestUrl);
+    // El enlace que copia el operador lleva la sala en el fragmento (#room=),
+    // igual que el QR: el invitado no tiene que tipear un dato que no conoce.
+    room.setHostInfo(roomPin, guestUrl + "#room=" + cfg.room);
 
     // Archivos que comparten los invitados: de B, se limpian en cada arranque
     // (A copia lo que toma a su propia carpeta de medios).
@@ -548,7 +550,7 @@ int main(int argc, char** argv) {
     } else if (tls) {
         bestUrl = "https://127.0.0.1:" + std::to_string(tls->port()) + "/";
     }
-    room.setHostInfo(roomPin, bestUrl);
+    room.setHostInfo(roomPin, bestUrl + "#room=" + cfg.room);
 
     server.setServerConfigGenerator([&](const nlohmann::json& req) {
         // Claves NUEVAS para el servidor + su wg0.conf con las redirecciones

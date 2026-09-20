@@ -37,7 +37,14 @@ json readJson(const fs::path& path, bool& exists) {
     std::ifstream in(path);
     json j = json::parse(in, nullptr, /*allow_exceptions=*/false, /*ignore_comments=*/true);
     if (j.is_discarded() || !j.is_object()) {
-        std::printf("ba-app: %s no es JSON valido; se usan valores por defecto\n", path.string().c_str());
+        // El proximo guardado pisaria el archivo roto con los valores por
+        // defecto: se deja una copia para poder recuperar escenas a mano.
+        std::error_code cec;
+        fs::path backup = path;
+        backup += ".corrupto";
+        fs::copy_file(path, backup, fs::copy_options::overwrite_existing, cec);
+        std::printf("ba-app: %s no es JSON valido; se usan valores por defecto (copia en %s)\n",
+                    path.string().c_str(), backup.string().c_str());
         return json::object();
     }
     return j;

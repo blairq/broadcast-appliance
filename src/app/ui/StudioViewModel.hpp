@@ -72,6 +72,7 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QString canvasLabel READ canvasLabel NOTIFY canvasChanged)
     Q_PROPERTY(QString streamServer READ streamServer NOTIFY statusChanged)
     Q_PROPERTY(bool streamKeyAvailable READ streamKeyAvailable NOTIFY statusChanged)
+    Q_PROPERTY(bool streamKeySaved READ streamKeySaved NOTIFY statusChanged)
     Q_PROPERTY(QString room READ room NOTIFY statusChanged)
     Q_PROPERTY(QString joinUrl READ joinUrl NOTIFY statusChanged)
     Q_PROPERTY(int guests READ guests NOTIFY statusChanged)
@@ -118,6 +119,7 @@ class StudioViewModel : public QObject {
     QString canvasLabel() const;
     QString streamServer() const;
     bool streamKeyAvailable() const;
+    bool streamKeySaved() const;
     QString room() const;
     QString joinUrl() const;
     int guests() const;
