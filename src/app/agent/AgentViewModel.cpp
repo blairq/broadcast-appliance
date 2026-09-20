@@ -618,7 +618,9 @@ QString AgentViewModel::prepareWorkspace(QString* error) {
                      {"command", json::array({bridge})},
                      {"environment", {{"BA_DATA_ROOT", root.toStdString()}}},
                      {"enabled", true}}}}},
-                 {"permission", {{"edit", "deny"}, {"bash", "deny"}}},
+                 // Consola permitida (igual que en Claude Code): el limite lo
+                 // pone el prompt del sistema, no la configuracion del agente.
+                 {"permission", {{"edit", "deny"}, {"bash", "allow"}}},
                  {"instructions", json::array({"AGENTS.md"})}};
         if (!model_.isEmpty()) cfg["model"] = model_.toStdString();
         writeText(ws + "/opencode.json", QByteArray::fromStdString(cfg.dump(2)));
@@ -672,15 +674,21 @@ term::Pty::Options AgentViewModel::launchOptions(QString* error) {
         o.env[prov->envKey] = QString::fromUtf8(key).trimmed();
     }
     if (runtime == "claude") {
+        // El ejecutable sale de la instalacion que HAY (puede ser de otra
+        // version si se actualizo el sistema).
         o.program =
             dir + "/" +
             (exeInstalado.isEmpty() ? QString::fromStdString(plat.value("exe", "claude")) : exeInstalado);
-        // Solo el MCP: nada de consola ni archivos (en Windows la consola es la
-        // herramienta PowerShell, que Claude usa si no hay Git Bash).
-        o.args = {"--mcp-config",   ws + "/mcp.json", "--strict-mcp-config",
-                  "--allowedTools", "mcp__broadcast", "--disallowedTools",
-                  "Bash",           "PowerShell",     "Edit",
-                  "Write",          "NotebookEdit",   "MultiEdit"};
+        // El MCP y la consola del sistema: se le pide arreglar cosas de la
+        // maquina, no solo manejar la emision. En Windows la consola es la
+        // herramienta PowerShell; Bash es la de Linux (y la de Git Bash).
+        // El limite lo pone el prompt del sistema: con el aire encendido, todo
+        // lo que pueda afectarlo se consulta antes (ver McpHelp.cpp).
+        // Edit/Write siguen fuera: los archivos se tocan por consola, que es
+        // donde el operador ve el comando exacto.
+        o.args = {"--mcp-config",   ws + "/mcp.json", "--strict-mcp-config", "--allowedTools",
+                  "mcp__broadcast", "Bash",           "PowerShell",          "--disallowedTools",
+                  "Edit",           "Write",          "NotebookEdit"};
         if (!model_.isEmpty()) o.args << "--model" << model_;
         o.env["CLAUDE_CONFIG_DIR"] = profile;
         o.env["DISABLE_AUTOUPDATER"] = "1";

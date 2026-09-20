@@ -9,6 +9,8 @@
 #include <QProcessEnvironment>
 #include <QRegularExpression>
 
+#include <cstdio>
+
 #include <atomic>
 #include <thread>
 #include <vector>
@@ -82,9 +84,16 @@ bool Pty::start(const Options& opt, QString* error) {
     InitializeProcThreadAttributeList(nullptr, 1, 0, &attrSize);
     std::vector<char> attrBuf(attrSize);
     si.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrBuf.data());
-    InitializeProcThreadAttributeList(si.lpAttributeList, 1, 0, &attrSize);
-    UpdateProcThreadAttribute(si.lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE, d_->pc,
-                              sizeof(d_->pc), nullptr, nullptr);
+    const BOOL initOk = InitializeProcThreadAttributeList(si.lpAttributeList, 1, 0, &attrSize);
+    const DWORD initErr = GetLastError();
+    const BOOL updOk = UpdateProcThreadAttribute(si.lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
+                                                 d_->pc, sizeof(d_->pc), nullptr, nullptr);
+    const DWORD updErr = GetLastError();
+    std::printf("BA_PTY: attrSize=%llu init=%d(err=%lu) update=%d(err=%lu) hpc=%p\n",
+                static_cast<unsigned long long>(attrSize), static_cast<int>(initOk),
+                static_cast<unsigned long>(initErr), static_cast<int>(updOk),
+                static_cast<unsigned long>(updErr), static_cast<void*>(d_->pc));
+    std::fflush(stdout);
 
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
     for (const QString& k : opt.unsetEnv)
