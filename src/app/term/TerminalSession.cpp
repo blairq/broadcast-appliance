@@ -158,7 +158,7 @@ TerminalSession::TerminalSession(QObject* parent) : QObject(parent), pty_(std::m
         {
             const std::lock_guard<std::mutex> lk(vtLock_);
             vterm_input_write(vt_, data.constData(), static_cast<size_t>(data.size()));
-        vterm_screen_flush_damage(screen_);
+            vterm_screen_flush_damage(screen_);
         }
         scheduleRepaint();
     });
@@ -326,7 +326,8 @@ void TerminalSession::submit(const QString& text) {
     if (!running()) return;
     paste(text);
     // Un instante despues del pegado: algunas TUIs procesan el Enter aparte.
-    QTimer::singleShot(120, this, [this]() { const std::lock_guard<std::mutex> lk(vtLock_);
+    QTimer::singleShot(120, this, [this]() {
+        const std::lock_guard<std::mutex> lk(vtLock_);
         vterm_keyboard_key(vt_, VTERM_KEY_ENTER, VTERM_MOD_NONE);
     });
 }
