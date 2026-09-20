@@ -25,6 +25,7 @@
 #include <QSysInfo>
 #include <QTimer>
 #include <QUrl>
+#include <QVersionNumber>
 
 #include <fstream>
 
@@ -366,8 +367,57 @@ QString AgentViewModel::installDir(const QString& runtime) const {
            QString::fromStdString(pin.value("version", std::string("?")));
 }
 
-bool AgentViewModel::installed() const {
-    return QFileInfo::exists(installDir(runtimeOf(provider_)) + "/.ok");
+QString AgentViewModel::usableDir(const QString& runtime, QString* exeOut) const {
+    if (runtime.isEmpty()) return {};
+    const json pin = pins().value(runtime.toStdString(), json::object());
+    const QString base = QString::fromStdWString((rt_.dataRoot() / "Agentes").wstring()) + "/" + runtime;
+    const QString fijada = QString::fromStdString(pin.value("version", std::string()));
+
+    // El `.ok` guarda {version, exe} desde esta version; los viejos tenian solo
+    // una fecha y para esos se cae al `exe` del pin, que es lo que habia.
+    const auto leerOk = [&](const QString& dir, QString* exe) {
+        QFile f(dir + "/.ok");
+        if (!f.open(QIODevice::ReadOnly)) return false;
+        const json j = json::parse(f.readAll().toStdString(), nullptr, false);
+        if (exe != nullptr && j.is_object()) *exe = QString::fromStdString(j.value("exe", std::string()));
+        return true;
+    };
+
+    QString exe;
+    if (!fijada.isEmpty() && leerOk(base + "/" + fijada, &exe)) {
+        if (exeOut != nullptr)
+            *exeOut = exe.isEmpty() ? QString::fromStdString(platformPin(pin).value("exe", "")) : exe;
+        return base + "/" + fijada;
+    }
+    // Quedo una instalacion de otra version (p. ej. se actualizo el sistema):
+    // sirve igual. Se usa la mas nueva por orden de version.
+    QStringList versiones = QDir(base).entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+    std::sort(versiones.begin(), versiones.end(), [](const QString& a, const QString& b) {
+        return QVersionNumber::fromString(a) < QVersionNumber::fromString(b);
+    });
+    for (auto it = versiones.crbegin(); it != versiones.crend(); ++it) {
+        QString e;
+        if (leerOk(base + "/" + *it, &e)) {
+            if (exeOut != nullptr)
+                *exeOut = e.isEmpty() ? QString::fromStdString(platformPin(pin).value("exe", "")) : e;
+            return base + "/" + *it;
+        }
+    }
+    return {};
+}
+
+bool AgentViewModel::installed() const { return !usableDir(runtimeOf(provider_)).isEmpty(); }
+
+QString AgentViewModel::installedVersion() const {
+    const QString d = usableDir(runtimeOf(provider_));
+    return d.isEmpty() ? QString() : QFileInfo(d).fileName();
+}
+
+bool AgentViewModel::updateAvailable() const {
+    const QString v = installedVersion();
+    if (v.isEmpty()) return false;
+    const json pin = pins().value(runtimeOf(provider_).toStdString(), json::object());
+    return v != QString::fromStdString(pin.value("version", std::string()));
 }
 
 void AgentViewModel::install() {
@@ -404,13 +454,25 @@ void AgentViewModel::install() {
     emit installChanged();
     if (installThread_.joinable()) installThread_.join();
     const QString exeName = QString::fromStdString(plat.value("exe", ""));
-    installThread_ = std::thread([this, items, dir, runtime, exeName]() {
+    // Se baja y se descomprime en una carpeta aparte y recien al final se pone
+    // en su lugar: si la descarga falla (sin red, hash que no coincide, se
+    // cancela), la instalacion que YA andaba queda intacta. Antes el camino de
+    // error borraba `dir`, que podia ser una instalacion buena.
+    const QString staging = QFileInfo(dir).absolutePath() + "/.instalando-" + QFileInfo(dir).fileName();
+    installThread_ = std::thread([this, items, dir, staging, runtime, exeName]() {
         QString err;
-        QDir().mkpath(dir);
+        QDir(staging).removeRecursively(); // restos de un intento anterior
+        QDir().mkpath(staging);
         const int n = static_cast<int>(items.size());
         for (int i = 0; i < n && err.isEmpty(); ++i) {
             const Item& it = items[static_cast<std::size_t>(i)];
-            const QString tmp = dir + QString("/.descarga-%1").arg(i);
+            const QString tmp = staging + QString("/.descarga-%1").arg(i);
+            // Los destinos se armaron sobre `dir`: van a la carpeta de staging.
+            const auto enStaging = [&dir, &staging](const std::string& p) {
+                QString d = QString::fromStdString(p);
+                if (d.startsWith(dir)) d.replace(0, dir.size(), staging);
+                return d;
+            };
             net::HttpRequest req;
             req.url = it.url;
             req.responseFile = tmp.toStdString();
@@ -445,7 +507,7 @@ void AgentViewModel::install() {
                 break;
             }
             if (it.kind == "binario") {
-                const QString dest = QString::fromStdString(it.dest);
+                const QString dest = enStaging(it.dest);
                 QFile::remove(dest);
                 if (!QFile::rename(tmp, dest)) err = "No se pudo guardar " + dest;
                 QFile(dest).setPermissions(QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner |
@@ -455,7 +517,7 @@ void AgentViewModel::install() {
                     installText_ = "Descomprimiendo…";
                     emit installChanged();
                 });
-                const QString dest = QString::fromStdString(it.dest);
+                const QString dest = enStaging(it.dest);
                 QDir().mkpath(dest);
                 QProcess tar;
 #ifdef _WIN32
@@ -474,18 +536,32 @@ void AgentViewModel::install() {
         }
         if (err.isEmpty()) {
             // Ejecutable en su lugar (algunos archivos lo traen en una subcarpeta).
-            if (runtime != "gemini" && !QFileInfo::exists(dir + "/" + exeName)) {
-                const QString found = findFile(dir, exeName);
-                if (!found.isEmpty()) QFile::rename(found, dir + "/" + exeName);
+            if (runtime != "gemini" && !QFileInfo::exists(staging + "/" + exeName)) {
+                const QString found = findFile(staging, exeName);
+                if (!found.isEmpty()) QFile::rename(found, staging + "/" + exeName);
             }
-            writeText(dir + "/.ok", QDateTime::currentDateTimeUtc().toString(Qt::ISODate).toUtf8());
-            // Versiones viejas del mismo agente: afuera.
+            // El `.ok` registra que version quedo y con que ejecutable, para
+            // poder seguir usandola si una version nueva del sistema fija otra.
+            const json ok{{"version", QFileInfo(dir).fileName().toStdString()},
+                          {"exe", exeName.toStdString()},
+                          {"fecha", QDateTime::currentDateTimeUtc().toString(Qt::ISODate).toStdString()}};
+            writeText(staging + "/.ok", QByteArray::fromStdString(ok.dump(2)));
+            // Recien ahora se reemplaza lo que hubiera: hasta aca la instalacion
+            // anterior siguio entera.
+            QDir(dir).removeRecursively();
+            if (!QDir().rename(staging, dir)) {
+                QDir(staging).removeRecursively();
+                err = "No se pudo dejar la instalacion en su lugar (" + dir + ").";
+            }
+        }
+        if (!err.isEmpty()) {
+            QDir(staging).removeRecursively(); // nunca se toca `dir`
+        } else {
+            // Versiones viejas del mismo agente: afuera (liberan cientos de MB).
             QDir parent(QFileInfo(dir).absolutePath());
             for (const QString& v : parent.entryList(QDir::Dirs | QDir::NoDotAndDotDot))
                 if (parent.absoluteFilePath(v) != QFileInfo(dir).absoluteFilePath())
                     QDir(parent.absoluteFilePath(v)).removeRecursively();
-        } else {
-            QDir(dir).removeRecursively();
         }
         QMetaObject::invokeMethod(this, [this, err]() {
             installing_ = false;
@@ -575,7 +651,10 @@ term::Pty::Options AgentViewModel::launchOptions(QString* error) {
     const Provider* prov = findProvider(provider_);
     const json pin = pins().value(runtime.toStdString(), json::object());
     const json plat = platformPin(pin);
-    const QString dir = installDir(runtime);
+    // La instalacion que HAY (puede ser de otra version si se actualizo el
+    // sistema), no la que fija esta version.
+    QString exeInstalado;
+    const QString dir = usableDir(runtime, &exeInstalado);
     const QString root = QString::fromStdWString(rt_.dataRoot().wstring());
     const QString profile = root + "/Credenciales/agentes/" + runtime;
     QDir().mkpath(profile);
@@ -595,7 +674,11 @@ term::Pty::Options AgentViewModel::launchOptions(QString* error) {
         o.env[prov->envKey] = QString::fromUtf8(key).trimmed();
     }
     if (runtime == "claude") {
-        o.program = dir + "/" + QString::fromStdString(plat.value("exe", "claude"));
+        // El ejecutable sale de la instalacion que HAY (puede ser de otra
+        // version si se actualizo el sistema).
+        o.program =
+            dir + "/" +
+            (exeInstalado.isEmpty() ? QString::fromStdString(plat.value("exe", "claude")) : exeInstalado);
         // El MCP y la consola del sistema: se le pide arreglar cosas de la
         // maquina, no solo manejar la emision. En Windows la consola es la
         // herramienta PowerShell; Bash es la de Linux (y la de Git Bash).
@@ -610,7 +693,8 @@ term::Pty::Options AgentViewModel::launchOptions(QString* error) {
         o.env["CLAUDE_CONFIG_DIR"] = profile;
         o.env["DISABLE_AUTOUPDATER"] = "1";
     } else if (runtime == "gemini") {
-        o.program = dir + "/node/" + QString::fromStdString(plat.value("exe", ""));
+        o.program = dir + "/node/" +
+                    (exeInstalado.isEmpty() ? QString::fromStdString(plat.value("exe", "")) : exeInstalado);
         o.args = {dir + "/gemini/" +
                   QString::fromStdString(pin.value("paquete", json::object()).value("script", ""))};
         if (!model_.isEmpty()) o.args << "-m" << model_;
@@ -618,7 +702,9 @@ term::Pty::Options AgentViewModel::launchOptions(QString* error) {
         o.env["USERPROFILE"] = profile;
         o.env["NO_UPDATE_NOTIFIER"] = "1";
     } else if (runtime == "opencode") {
-        o.program = dir + "/" + QString::fromStdString(plat.value("exe", "opencode"));
+        o.program =
+            dir + "/" +
+            (exeInstalado.isEmpty() ? QString::fromStdString(plat.value("exe", "opencode")) : exeInstalado);
         o.env["XDG_CONFIG_HOME"] = profile + "/config";
         o.env["XDG_DATA_HOME"] = profile + "/data";
         o.env["XDG_STATE_HOME"] = profile + "/state";

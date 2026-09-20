@@ -317,12 +317,12 @@ void McpService::registerUiTools() {
         t.description =
             "Actualiza el programa desde una carpeta con la version nueva (descomprimida, FUERA de la "
             "carpeta del "
-            "sistema). La app se cierra, el launcher reemplaza SOLO el programa (Config/, Credenciales/, "
-            "Recordings/, Shares/ y Logs/ no se tocan; antes se respaldan) y vuelve a abrir sola: esta "
-            "sesion MCP "
-            "se corta y hay que reconectar en ~20 s. Con check=true solo valida la carpeta. rollback=true "
-            "vuelve "
-            "a la version anterior.";
+            "sistema). La app se cierra, el launcher reemplaza SOLO el programa (los datos no se tocan: "
+            "Config/, Credenciales/, Logs/, Recordings/, Shares/, Runtime/, Cache/, Respaldos/, Agentes/ y "
+            "Media/; Credenciales/ y Config/ ademas se respaldan) y vuelve a abrir sola: esta sesion MCP "
+            "se corta y hay que reconectar en ~20 s. Los agentes ya instalados siguen andando; si esta "
+            "version fija otra, la pestaña Asistente ofrece actualizarlos. Con check=true solo valida la "
+            "carpeta. rollback=true vuelve a la version anterior.";
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"path", {{"type", "string"}}},
