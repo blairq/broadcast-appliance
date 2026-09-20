@@ -23,9 +23,9 @@
 #include <QMetaObject>
 #include <QProcess>
 #include <QSysInfo>
-#include <QVersionNumber>
 #include <QTimer>
 #include <QUrl>
+#include <QVersionNumber>
 
 #include <fstream>
 
@@ -370,8 +370,7 @@ QString AgentViewModel::installDir(const QString& runtime) const {
 QString AgentViewModel::usableDir(const QString& runtime, QString* exeOut) const {
     if (runtime.isEmpty()) return {};
     const json pin = pins().value(runtime.toStdString(), json::object());
-    const QString base =
-        QString::fromStdWString((rt_.dataRoot() / "Agentes").wstring()) + "/" + runtime;
+    const QString base = QString::fromStdWString((rt_.dataRoot() / "Agentes").wstring()) + "/" + runtime;
     const QString fijada = QString::fromStdString(pin.value("version", std::string()));
 
     // El `.ok` guarda {version, exe} desde esta version; los viejos tenian solo
@@ -380,8 +379,7 @@ QString AgentViewModel::usableDir(const QString& runtime, QString* exeOut) const
         QFile f(dir + "/.ok");
         if (!f.open(QIODevice::ReadOnly)) return false;
         const json j = json::parse(f.readAll().toStdString(), nullptr, false);
-        if (exe != nullptr && j.is_object())
-            *exe = QString::fromStdString(j.value("exe", std::string()));
+        if (exe != nullptr && j.is_object()) *exe = QString::fromStdString(j.value("exe", std::string()));
         return true;
     };
 
@@ -674,7 +672,9 @@ term::Pty::Options AgentViewModel::launchOptions(QString* error) {
         o.env[prov->envKey] = QString::fromUtf8(key).trimmed();
     }
     if (runtime == "claude") {
-        o.program = dir + "/" + (exeInstalado.isEmpty() ? QString::fromStdString(plat.value("exe", "claude")) : exeInstalado);
+        o.program =
+            dir + "/" +
+            (exeInstalado.isEmpty() ? QString::fromStdString(plat.value("exe", "claude")) : exeInstalado);
         // Solo el MCP: nada de consola ni archivos (en Windows la consola es la
         // herramienta PowerShell, que Claude usa si no hay Git Bash).
         o.args = {"--mcp-config",   ws + "/mcp.json", "--strict-mcp-config",
@@ -685,7 +685,8 @@ term::Pty::Options AgentViewModel::launchOptions(QString* error) {
         o.env["CLAUDE_CONFIG_DIR"] = profile;
         o.env["DISABLE_AUTOUPDATER"] = "1";
     } else if (runtime == "gemini") {
-        o.program = dir + "/node/" + (exeInstalado.isEmpty() ? QString::fromStdString(plat.value("exe", "")) : exeInstalado);
+        o.program = dir + "/node/" +
+                    (exeInstalado.isEmpty() ? QString::fromStdString(plat.value("exe", "")) : exeInstalado);
         o.args = {dir + "/gemini/" +
                   QString::fromStdString(pin.value("paquete", json::object()).value("script", ""))};
         if (!model_.isEmpty()) o.args << "-m" << model_;
@@ -693,7 +694,9 @@ term::Pty::Options AgentViewModel::launchOptions(QString* error) {
         o.env["USERPROFILE"] = profile;
         o.env["NO_UPDATE_NOTIFIER"] = "1";
     } else if (runtime == "opencode") {
-        o.program = dir + "/" + (exeInstalado.isEmpty() ? QString::fromStdString(plat.value("exe", "opencode")) : exeInstalado);
+        o.program =
+            dir + "/" +
+            (exeInstalado.isEmpty() ? QString::fromStdString(plat.value("exe", "opencode")) : exeInstalado);
         o.env["XDG_CONFIG_HOME"] = profile + "/config";
         o.env["XDG_DATA_HOME"] = profile + "/data";
         o.env["XDG_STATE_HOME"] = profile + "/state";
