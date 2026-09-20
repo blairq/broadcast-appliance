@@ -91,6 +91,11 @@ class AppRuntime {
     LauncherSettings& launcher() { return launcher_; }
     BroadcastEngine& engine() { return engine_; }
     const std::string& lastError() const { return lastError_; }
+    /// true si el ultimo corte de la transmision / grabacion lo PIDIO alguien
+    /// (operador, plataforma, MCP). Si la salida se detiene con esto en false,
+    /// se cayo sola (red, servidor, disco lleno) y hay que avisar fuerte.
+    bool streamStopWanted() const { return streamStopWanted_; }
+    bool recordStopWanted() const { return recordStopWanted_; }
     const std::filesystem::path& dataRoot() const { return root_; }
     std::uint32_t pid() const;
 
@@ -120,6 +125,9 @@ class AppRuntime {
     ba::ipc::ControlService control_;
     OperatorFeed operator_; // vive mientras libobs este arriba (ver stop)
     std::string lastError_;
+    bool streamStopWanted_ = true;
+    bool recordStopWanted_ = true;
+    bool safeBackupDone_ = false; // app.json resguardado antes de guardar en modo seguro
     bool started_ = false;
 };
 

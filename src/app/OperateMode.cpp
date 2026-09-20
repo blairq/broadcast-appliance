@@ -357,10 +357,14 @@ bool AppRuntime::startRecording() {
         return false;
     }
     std::printf("ba-app: grabando en %s\n", cfg_.rec.directory.c_str());
+    recordStopWanted_ = false;
     return true;
 }
 
-void AppRuntime::stopRecording() { engine_.stopRecording(); }
+void AppRuntime::stopRecording() {
+    recordStopWanted_ = true;
+    engine_.stopRecording();
+}
 
 bool AppRuntime::startStreaming(const std::string& server, const std::string& key) {
     StreamConfig sc = cfg_.streamCfg;
@@ -383,10 +387,14 @@ bool AppRuntime::startStreaming(const std::string& server, const std::string& ke
         return false;
     }
     std::printf("ba-app: transmitiendo a %s\n", sc.server.c_str());
+    streamStopWanted_ = false;
     return true;
 }
 
-void AppRuntime::stopStreaming() { engine_.stopStreaming(); }
+void AppRuntime::stopStreaming() {
+    streamStopWanted_ = true;
+    engine_.stopStreaming();
+}
 
 // --- Escenas y fuentes ----------------------------------------------------------
 
@@ -579,6 +587,19 @@ bool AppRuntime::applyEncoder(const EncoderConfig& e) {
 
 bool AppRuntime::save() {
     std::string err;
+    // Modo seguro: las escenas se vaciaron EN MEMORIA para poder arrancar. El
+    // primer guardado pisaria el app.json del operador con escenas vacias: se
+    // guarda una copia antes (una sola vez por corrida).
+    if (cfg_.safeMode && !safeBackupDone_) {
+        safeBackupDone_ = true;
+        std::error_code ec;
+        std::filesystem::path backup = cfg_.configPath;
+        backup += ".antes-del-modo-seguro";
+        if (std::filesystem::exists(cfg_.configPath, ec) && !std::filesystem::exists(backup, ec)) {
+            std::filesystem::copy_file(cfg_.configPath, backup, ec);
+            std::printf("ba-app: modo seguro: copia de la configuracion en %s\n", backup.string().c_str());
+        }
+    }
     gateway_.guests = cfg_.guests; // B lee la cantidad de invitados de A
     if (!saveAppConfig(cfg_.configPath, cfg_, root_, &err) ||
         !saveGatewaySettings(gatewayConfigPath(root_), gateway_, &err) ||

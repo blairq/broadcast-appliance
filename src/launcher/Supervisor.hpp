@@ -116,6 +116,8 @@ class Supervisor {
     bool appNeedsRestore_ = false;             // A relanzado tras crash arranca con --restore
     bool safeMode_ = false;                    // circuit breaker: >5 crashes de A en 2 min
     std::vector<std::uint64_t> appCrashTimes_; // ms monotonicos, para el circuit breaker
+    std::uint64_t lastFailureMs_ = 0;          // ultima caida/cuelgue de A o B
+    int recentFailures_ = 0;                   // fallas dentro de la ventana (decide el dialogo)
 
     // Cache del reporte de integridad para la UI de recuperacion.
     std::uint64_t lastIntegrityCheckMs_ = 0;
