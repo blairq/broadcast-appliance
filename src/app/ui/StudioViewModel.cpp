@@ -252,6 +252,7 @@ void StudioViewModel::onTick() {
         if (rt_.recordStopWanted()) {
             emit notify("Grabación detenida", "info");
         } else {
+            rt_.stopRecording(); // ya no hay nada que retomar tras una caida
             dropped("Se cortó la grabación",
                     "La grabación se detuvo sola. Revisá el espacio libre en el disco y volvé a grabar.");
         }
@@ -260,6 +261,7 @@ void StudioViewModel::onTick() {
         if (rt_.streamStopWanted()) {
             emit notify("Transmisión detenida", "warn");
         } else {
+            rt_.stopStreaming();
             dropped(
                 "Se cayó la transmisión",
                 "La emisión se cortó sola (internet o el servidor de destino). Revisá la conexión y volvé a "
@@ -310,6 +312,7 @@ bool StudioViewModel::streamKeyAvailable() const {
     const char* k = std::getenv(rt_.config().streamKeyEnv.c_str());
     return k != nullptr && *k != '\0';
 }
+bool StudioViewModel::streamKeySaved() const { return rt_.streamKeySaved(); }
 QString StudioViewModel::room() const { return qs(const_cast<AppRuntime&>(rt_).gateway().room); }
 QString StudioViewModel::joinUrl() const {
     const GatewaySettings& g = const_cast<AppRuntime&>(rt_).gateway();

@@ -291,8 +291,11 @@ ApplicationWindow {
             spacing: 10
             Label { text: "Servidor RTMP" }
             TextField { id: srvField; Layout.preferredWidth: 420; placeholderText: "rtmp://a.rtmp.youtube.com/live2" }
-            Label { text: "Clave de transmision (no se guarda)" }
-            TextField { id: keyField; Layout.preferredWidth: 420; echoMode: TextInput.Password }
+            Label { text: "Clave de transmisión (se guarda cifrada en Credenciales/)" }
+            TextField {
+                id: keyField; Layout.preferredWidth: 420; echoMode: TextInput.Password
+                placeholderText: Studio.streamKeySaved ? "Vacío = la clave de la última vez" : ""
+            }
         }
     }
     ConfirmDialog { id: confirmDlg }

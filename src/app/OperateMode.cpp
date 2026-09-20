@@ -22,6 +22,9 @@
 #include "platform/LocalSocket.hpp"
 #include "platform/Paths.hpp"
 #include "platform/Process.hpp"
+#include "security/CredentialStore.hpp"
+
+#include <nlohmann/json.hpp>
 
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
@@ -113,6 +116,7 @@ void applyCli(AppConfig& c, int argc, char** argv, const fs::path& root) {
     }
     c.durationSec = std::atoi(argValue(argc, argv, "--duration", "0").c_str());
     c.statusEverySec = std::atoi(argValue(argc, argv, "--status-every", "5").c_str());
+    c.restore = hasFlag(argc, argv, "--restore");
     c.safeMode = hasFlag(argc, argv, "--safe-mode");
     if (c.safeMode) {
         // Modo seguro (circuit breaker del launcher): lo minimo que funciona.
@@ -300,6 +304,11 @@ int AppRuntime::start() {
     if (cfg_.stream) {
         startStreaming();
     }
+    if (cfg_.restore) {
+        restoreOutputs();
+    } else {
+        writeOnAirState(); // arranque normal: no hereda el estado de otra corrida
+    }
 
     std::string err;
     if (!control_.start("control.app", &err)) {
@@ -338,6 +347,9 @@ void AppRuntime::stop() {
         return;
     }
     started_ = false;
+    // Cierre ordenado: nada que retomar en el proximo arranque.
+    streamStopWanted_ = recordStopWanted_ = true;
+    writeOnAirState();
     std::printf("ba-app: cerrando (salidas, escena, libobs)\n");
     control_.stop();
     operator_.shutdown(); // antes de apagar libobs: suelta vista y fuentes
@@ -358,12 +370,67 @@ bool AppRuntime::startRecording() {
     }
     std::printf("ba-app: grabando en %s\n", cfg_.rec.directory.c_str());
     recordStopWanted_ = false;
+    writeOnAirState();
     return true;
 }
 
 void AppRuntime::stopRecording() {
     recordStopWanted_ = true;
+    writeOnAirState();
     engine_.stopRecording();
+}
+
+namespace {
+// Ultima salida al aire (servidor + clave), cifrada en Credenciales/: evita
+// tipear la clave cada vez y permite retomar la emision tras una caida.
+constexpr const char* kStreamCredential = "stream-last";
+
+bool readLastStream(std::string& server, std::string& key) {
+    std::string raw;
+    if (!ba::security::CredentialStore::bundle().read(kStreamCredential, raw)) {
+        return false;
+    }
+    const nlohmann::json j = nlohmann::json::parse(raw, nullptr, false);
+    if (!j.is_object()) {
+        return false;
+    }
+    server = j.value("server", "");
+    key = j.value("key", "");
+    return !key.empty();
+}
+} // namespace
+
+bool AppRuntime::streamKeySaved() const {
+    if (keySaved_ < 0) { // descifrar cuesta: se consulta una vez
+        std::string server;
+        std::string key;
+        keySaved_ = readLastStream(server, key) ? 1 : 0;
+    }
+    return keySaved_ == 1;
+}
+
+void AppRuntime::writeOnAirState() const {
+    const nlohmann::json j{{"streaming", !streamStopWanted_}, {"recording", !recordStopWanted_}};
+    std::ofstream out(ba::platform::stateDir() / "al-aire.json", std::ios::trunc);
+    out << j.dump();
+}
+
+void AppRuntime::restoreOutputs() {
+    std::ifstream in(ba::platform::stateDir() / "al-aire.json");
+    const nlohmann::json j = nlohmann::json::parse(in, nullptr, false);
+    if (!j.is_object()) {
+        return;
+    }
+    if (j.value("recording", false) && !engine_.status().recording) {
+        std::printf("ba-app: --restore: se retoma la grabacion\n");
+        startRecording();
+    }
+    if (j.value("streaming", false) && !engine_.status().streaming) {
+        std::printf("ba-app: --restore: se retoma la transmision\n");
+        if (!startStreaming()) {
+            std::printf("ba-app: --restore: la transmision no se pudo retomar: %s\n", lastError_.c_str());
+        }
+    }
 }
 
 bool AppRuntime::startStreaming(const std::string& server, const std::string& key) {
@@ -376,6 +443,13 @@ bool AppRuntime::startStreaming(const std::string& server, const std::string& ke
     } else {
         const char* envKey = std::getenv(cfg_.streamKeyEnv.c_str());
         sc.key = envKey != nullptr ? envKey : "";
+        if (sc.key.empty()) {
+            // Sin clave tipeada ni en el entorno: la de la ultima salida al aire.
+            std::string lastServer;
+            if (readLastStream(lastServer, sc.key) && server.empty() && !lastServer.empty()) {
+                sc.server = lastServer;
+            }
+        }
     }
     if (sc.server.empty()) {
         lastError_ = "no hay servidor de transmision configurado";
@@ -388,11 +462,18 @@ bool AppRuntime::startStreaming(const std::string& server, const std::string& ke
     }
     std::printf("ba-app: transmitiendo a %s\n", sc.server.c_str());
     streamStopWanted_ = false;
+    if (!sc.key.empty()) {
+        ba::security::CredentialStore::bundle().write(
+            kStreamCredential, nlohmann::json{{"server", sc.server}, {"key", sc.key}}.dump());
+        keySaved_ = 1;
+    }
+    writeOnAirState();
     return true;
 }
 
 void AppRuntime::stopStreaming() {
     streamStopWanted_ = true;
+    writeOnAirState();
     engine_.stopStreaming();
 }
 
