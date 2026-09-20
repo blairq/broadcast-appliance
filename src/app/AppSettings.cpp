@@ -121,7 +121,8 @@ AppConfig defaultAppConfig(const fs::path& dataRoot) {
     SourceSpec title;
     title.id = "text_ft2_source_v2";
     title.name = "Titulo";
-    title.settingsJson = R"({"text":"Broadcast Appliance","font":{"face":"Sans","size":96}})";
+    title.settingsJson = std::string(R"({"text":"Broadcast Appliance","font":{"face":")") + kDefaultFontFace +
+                         R"(","size":96}})";
     title.rect = CanvasRect{0.05f, 0.05f, 0.6f, 0.12f};
     main.sources.push_back(title);
     c.scenes.push_back(main);
