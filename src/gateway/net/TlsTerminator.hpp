@@ -64,6 +64,7 @@ class TlsTerminator {
     struct Impl;
     void acceptLoop();
     void serve(long long fd, uint32_t peerIp, uint16_t peerPort);
+    void releaseWsa(); // suelta el WSAStartup propio (no-op fuera de Windows)
 
     Config cfg_;
     LogFn log_;
@@ -75,6 +76,9 @@ class TlsTerminator {
     std::atomic<bool> stop_{false};
     std::atomic<int> active_{0};
     std::thread accept_;
+#ifdef _WIN32
+    bool wsa_ = false; // WSAStartup propio (ver TlsTerminator.cpp, "Socket de escucha")
+#endif
 };
 
 } // namespace ba::gateway::net
