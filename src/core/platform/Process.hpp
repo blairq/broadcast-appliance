@@ -53,7 +53,9 @@ struct ProcessOptions {
     /// El hijo muere si el padre muere (y si se destruye el Process). Para A y
     /// B es FALSE: la emision tiene que sobrevivir a un crash del launcher.
     bool killWithParent = true;
-    bool hideWindow = true; ///< Windows: sin ventana de consola
+    /// Windows: sin ventana de consola (CREATE_NO_WINDOW). NO oculta las
+    /// ventanas graficas del hijo: un hijo con interfaz (A) se ve normal.
+    bool hideWindow = true;
     /// Si no esta vacio, stdout y stderr del hijo van a este archivo (se
     /// crea si no existe y se AGREGA al final: no pisa corridas anteriores).
     std::filesystem::path outputFile;
