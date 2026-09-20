@@ -159,6 +159,9 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE void addScene(const QString& name);
     Q_INVOKABLE void removeScene(const QString& name);
     Q_INVOKABLE void renameScene(const QString& from, const QString& to);
+    /// Escena que muestra el lienzo del editor ("" = ninguna). Se renderiza
+    /// aunque no este al aire, asi una escena vacia se ve vacia.
+    Q_INVOKABLE void setScenePreview(const QString& name);
     Q_INVOKABLE void save();
     /// Relee escenas, fuentes y mezclador del motor (algo los cambio por
     /// fuera de la vista, p. ej. el servidor MCP).

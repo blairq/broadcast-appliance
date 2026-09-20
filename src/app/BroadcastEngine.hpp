@@ -424,6 +424,27 @@ class BroadcastEngine {
     /// Desactiva la vista previa y el medidor. Idempotente.
     void disablePreview();
 
+    /// Vista previa CONTINUA de una escena (o fuente) que puede no estar al
+    /// aire: es lo que mira el editor de escenas.
+    ///
+    /// A diferencia de `captureSource`, que es una foto, esta mantiene tomado
+    /// el `inc_showing` mientras dura, asi que las fuentes asincronas (camaras,
+    /// video de red) siguen subiendo cuadros y no hay que esperarlas en cada
+    /// uno. Llamar de nuevo con otro nombre cambia de escena.
+    ///
+    /// :param name: escena o fuente ("" = apaga, igual que disableScenePreview).
+    /// :param maxWidth: ancho maximo del cuadro entregado.
+    bool enableScenePreview(const std::string& name, int maxWidth);
+
+    /// Apaga la vista previa de escena y suelta la fuente. Idempotente.
+    void disableScenePreview();
+
+    /// Renderiza AHORA la escena de `enableScenePreview` y la deja en `dst`.
+    ///
+    /// :param dst: recibe RGBA empaquetado (width*4 por fila).
+    /// :returns: false si no hay vista previa activa o la fuente no da imagen.
+    bool renderScenePreview(std::vector<std::uint8_t>& dst, int& width, int& height);
+
     /// Copia el ultimo frame de vista previa si es mas nuevo que `serial`.
     ///
     /// :param dst: recibe BGRA empaquetado (width*4 bytes por fila).
@@ -531,6 +552,12 @@ class BroadcastEngine {
     int previewH_ = 0;
     std::uint64_t previewSerial_ = 0;
     bool previewActive_ = false;
+
+    // Vista previa del editor de escenas: la fuente queda "mostrandose"
+    // mientras dura (ver enableScenePreview).
+    struct obs_source* scenePreviewSrc_ = nullptr;
+    std::string scenePreviewName_;
+    int scenePreviewMaxW_ = 0;
     // Picos de programa (lineales, 0..1) acumulados entre lecturas.
     std::atomic<float> peakL_{0.0f};
     std::atomic<float> peakR_{0.0f};

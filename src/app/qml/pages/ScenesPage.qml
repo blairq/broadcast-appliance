@@ -12,6 +12,12 @@ Rectangle {
     property string selected: ""
     readonly property string editScene: Studio.sources.scene
 
+    // El motor renderiza la escena que se edita solo mientras esta pagina esta
+    // a la vista: fuera de aca no se gasta GPU en ella.
+    onEditSceneChanged: if (visible) Studio.setScenePreview(editScene)
+    onVisibleChanged: Studio.setScenePreview(visible ? editScene : "")
+    Component.onCompleted: if (visible) Studio.setScenePreview(editScene)
+
     onSelectedChanged: Studio.properties.sourceName = selected
 
     RowLayout {
@@ -70,7 +76,7 @@ Rectangle {
                 Text { text: page.editScene; color: Theme.text; font { pixelSize: 18; weight: Font.DemiBold } }
                 Text {
                     visible: page.editScene !== Studio.currentScene
-                    text: "  (fuera del aire: el lienzo muestra el programa; las capas son de esta escena)"
+                    text: "  (fuera del aire)"
                     color: Theme.textFaint; font.pixelSize: 11
                 }
                 Item { Layout.fillWidth: true }
@@ -88,7 +94,10 @@ Rectangle {
                     color: "black"
                     radius: 8
                     clip: true
-                    VideoItem { anchors.fill: parent; source: "program" }
+                    // La escena que se esta editando, renderizada aunque no este
+                    // al aire: una escena vacia se ve vacia (antes el lienzo
+                    // mostraba el programa y parecia contenido de esta escena).
+                    VideoItem { anchors.fill: parent; source: "scene" }
                     // Capas de la escena editada (solo las de video).
                     Repeater {
                         model: Studio.sources

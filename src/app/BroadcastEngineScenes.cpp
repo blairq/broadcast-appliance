@@ -319,6 +319,97 @@ bool BroadcastEngine::captureSource(const std::string& name, int maxWidth, std::
     return true;
 }
 
+bool BroadcastEngine::enableScenePreview(const std::string& name, int maxWidth) {
+    if (name == scenePreviewName_ && scenePreviewSrc_ != nullptr) {
+        scenePreviewMaxW_ = maxWidth;
+        return true;
+    }
+    disableScenePreview();
+    if (name.empty()) return true;
+    if (!started_) {
+        setError("vista previa de escena: el motor no arranco");
+        return false;
+    }
+    obs_source_t* src = nullptr;
+    if (obs_scene* sc = sceneByName(name)) {
+        src = obs_source_get_ref(obs_scene_get_source(reinterpret_cast<obs_scene_t*>(sc)));
+    } else if (obs_source* own = ownedSource(name)) {
+        src = obs_source_get_ref(reinterpret_cast<obs_source_t*>(own));
+    } else {
+        src = obs_get_source_by_name(name.c_str());
+    }
+    if (src == nullptr) {
+        setError("vista previa de escena: no existe '" + name + "'");
+        return false;
+    }
+    // Se mantiene mientras dure la vista previa: sin esto las camaras y los
+    // videos de red no suben cuadros si la escena no esta al aire.
+    obs_source_inc_showing(src);
+    scenePreviewSrc_ = reinterpret_cast<struct obs_source*>(src);
+    scenePreviewName_ = name;
+    scenePreviewMaxW_ = maxWidth;
+    return true;
+}
+
+void BroadcastEngine::disableScenePreview() {
+    if (scenePreviewSrc_ == nullptr) {
+        scenePreviewName_.clear();
+        return;
+    }
+    auto* src = reinterpret_cast<obs_source_t*>(scenePreviewSrc_);
+    obs_source_dec_showing(src);
+    obs_source_release(src);
+    scenePreviewSrc_ = nullptr;
+    scenePreviewName_.clear();
+}
+
+bool BroadcastEngine::renderScenePreview(std::vector<std::uint8_t>& dst, int& width, int& height) {
+    if (scenePreviewSrc_ == nullptr || !started_) return false;
+    auto* src = reinterpret_cast<obs_source_t*>(scenePreviewSrc_);
+    const uint32_t cx = obs_source_get_width(src);
+    const uint32_t cy = obs_source_get_height(src);
+    if (cx == 0 || cy == 0) return false; // escena vacia o fuente sin señal
+    uint32_t w = cx;
+    uint32_t h = cy;
+    if (scenePreviewMaxW_ > 0 && w > static_cast<uint32_t>(scenePreviewMaxW_)) {
+        w = static_cast<uint32_t>(scenePreviewMaxW_);
+        h = std::max<uint32_t>(1, static_cast<uint32_t>(static_cast<uint64_t>(cy) * w / cx));
+    }
+    bool ok = false;
+    obs_enter_graphics();
+    gs_texrender_t* tr = gs_texrender_create(GS_RGBA, GS_ZS_NONE);
+    gs_stagesurf_t* stage = gs_stagesurface_create(w, h, GS_RGBA);
+    if (tr != nullptr && stage != nullptr && gs_texrender_begin(tr, w, h)) {
+        vec4 clear;
+        vec4_zero(&clear);
+        gs_clear(GS_CLEAR_COLOR, &clear, 0.0f, 0);
+        gs_ortho(0.0f, static_cast<float>(cx), 0.0f, static_cast<float>(cy), -100.0f, 100.0f);
+        gs_blend_state_push();
+        gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
+        obs_source_video_render(src);
+        gs_blend_state_pop();
+        gs_texrender_end(tr);
+        gs_stage_texture(stage, gs_texrender_get_texture(tr));
+        uint8_t* data = nullptr;
+        uint32_t linesize = 0;
+        if (gs_stagesurface_map(stage, &data, &linesize)) {
+            dst.resize(static_cast<size_t>(w) * h * 4);
+            for (uint32_t y = 0; y < h; ++y)
+                std::memcpy(dst.data() + static_cast<size_t>(y) * w * 4,
+                            data + static_cast<size_t>(y) * linesize, static_cast<size_t>(w) * 4);
+            gs_stagesurface_unmap(stage);
+            ok = true;
+        }
+    }
+    if (stage != nullptr) gs_stagesurface_destroy(stage);
+    if (tr != nullptr) gs_texrender_destroy(tr);
+    obs_leave_graphics();
+    if (!ok) return false;
+    width = static_cast<int>(w);
+    height = static_cast<int>(h);
+    return true;
+}
+
 void BroadcastEngine::placeItem(struct obs_scene_item* itemRaw, const CanvasRect& rect) const {
     auto* item = reinterpret_cast<obs_sceneitem_t*>(itemRaw);
     if (item == nullptr) {
