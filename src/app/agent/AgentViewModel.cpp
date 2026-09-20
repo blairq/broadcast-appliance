@@ -603,10 +603,9 @@ term::Pty::Options AgentViewModel::launchOptions(QString* error) {
         // lo que pueda afectarlo se consulta antes (ver McpHelp.cpp).
         // Edit/Write siguen fuera: los archivos se tocan por consola, que es
         // donde el operador ve el comando exacto.
-        o.args = {"--mcp-config",      ws + "/mcp.json", "--strict-mcp-config",
-                  "--allowedTools",    "mcp__broadcast", "Bash",
-                  "PowerShell",        "--disallowedTools", "Edit",
-                  "Write",             "NotebookEdit"};
+        o.args = {"--mcp-config",   ws + "/mcp.json", "--strict-mcp-config", "--allowedTools",
+                  "mcp__broadcast", "Bash",           "PowerShell",          "--disallowedTools",
+                  "Edit",           "Write",          "NotebookEdit"};
         if (!model_.isEmpty()) o.args << "--model" << model_;
         o.env["CLAUDE_CONFIG_DIR"] = profile;
         o.env["DISABLE_AUTOUPDATER"] = "1";
