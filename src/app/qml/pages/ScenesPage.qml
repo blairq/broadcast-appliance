@@ -226,6 +226,29 @@ Rectangle {
                             }
                         }
                     }
+                    // Una camara o capturadora NO se puede abrir dos veces (el
+                    // dispositivo es exclusivo), pero SI puede estar en varias
+                    // escenas: es la MISMA fuente, con otra ubicacion. Asi
+                    // ademas la transicion entre dos encuadres no tiene cortes.
+                    GlassButton {
+                        text: "Reusar fuente"; icon: "⧉"; compact: true
+                        onClicked: { reuseMenu.items = Studio.sources.otherSources(); reuseMenu.popup() }
+                        Menu {
+                            id: reuseMenu
+                            property var items: []
+                            Repeater {
+                                model: reuseMenu.items
+                                delegate: MenuItem {
+                                    required property var modelData
+                                    text: modelData.name + "   (" + modelData.typeName + ")"
+                                    onTriggered: {
+                                        const n = Studio.sources.addExisting(modelData.name)
+                                        if (n) page.selected = n
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
             Panel {
