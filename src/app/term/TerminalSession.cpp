@@ -9,6 +9,7 @@ extern "C" {
 }
 
 #include <algorithm>
+#include <mutex>
 
 namespace ba::app::term {
 
@@ -154,8 +155,11 @@ TerminalSession::TerminalSession(QObject* parent) : QObject(parent), pty_(std::m
     repaint_.setInterval(12);
     connect(&repaint_, &QTimer::timeout, this, &TerminalSession::contentChanged);
     connect(pty_.get(), &Pty::output, this, [this](const QByteArray& data) {
-        vterm_input_write(vt_, data.constData(), static_cast<size_t>(data.size()));
-        vterm_screen_flush_damage(screen_);
+        {
+            const std::lock_guard<std::mutex> lk(vtLock_);
+            vterm_input_write(vt_, data.constData(), static_cast<size_t>(data.size()));
+            vterm_screen_flush_damage(screen_);
+        }
         scheduleRepaint();
     });
     connect(pty_.get(), &Pty::finished, this, [this](int code) {
@@ -174,7 +178,10 @@ TerminalSession::~TerminalSession() {
 bool TerminalSession::start(const Pty::Options& opt, QString* error) {
     stop();
     // Pantalla limpia para la sesion nueva (el historial queda).
-    vterm_screen_reset(screen_, 1);
+    {
+        const std::lock_guard<std::mutex> lk(vtLock_);
+        vterm_screen_reset(screen_, 1);
+    }
     Pty::Options o = opt;
     o.cols = cols_;
     o.rows = rows_;
@@ -194,10 +201,13 @@ void TerminalSession::resize(int cols, int rows) {
     cols = std::max(cols, 20);
     rows = std::max(rows, 5);
     if (cols == cols_ && rows == rows_) return;
-    cols_ = cols;
-    rows_ = rows;
-    vterm_set_size(vt_, rows_, cols_);
-    vterm_screen_flush_damage(screen_);
+    {
+        const std::lock_guard<std::mutex> lk(vtLock_);
+        cols_ = cols;
+        rows_ = rows;
+        vterm_set_size(vt_, rows_, cols_);
+        vterm_screen_flush_damage(screen_);
+    }
     pty_->resize(cols_, rows_);
     scheduleRepaint();
 }
@@ -232,6 +242,11 @@ void TerminalSession::convert(const void* vtermCell, Cell& out) const {
 }
 
 void TerminalSession::line(int row, int scroll, std::vector<Cell>& out) const {
+    const std::lock_guard<std::mutex> lk(vtLock_);
+    lineLocked(row, scroll, out);
+}
+
+void TerminalSession::lineLocked(int row, int scroll, std::vector<Cell>& out) const {
     out.assign(static_cast<std::size_t>(cols_), Cell{U' ', {}, defaultFg_, defaultBg_});
     const int sb = static_cast<int>(scrollback_.size());
     const int virt = row - scroll; // < 0: historial
@@ -253,6 +268,7 @@ void TerminalSession::line(int row, int scroll, std::vector<Cell>& out) const {
 }
 
 QString TerminalSession::text(int r0, int c0, int r1, int c1, int scroll) const {
+    const std::lock_guard<std::mutex> lk(vtLock_);
     if (r1 < r0 || (r1 == r0 && c1 < c0)) {
         std::swap(r0, r1);
         std::swap(c0, c1);
@@ -260,7 +276,7 @@ QString TerminalSession::text(int r0, int c0, int r1, int c1, int scroll) const 
     QString out;
     std::vector<Cell> l;
     for (int r = r0; r <= r1; ++r) {
-        line(r, scroll, l);
+        lineLocked(r, scroll, l);
         const int from = r == r0 ? c0 : 0;
         const int to = r == r1 ? c1 : cols_ - 1;
         QString s;
@@ -286,15 +302,18 @@ void TerminalSession::unichar(char32_t c, int mods) {
 }
 
 void TerminalSession::mouseButton(int row, int col, int button, bool pressed, int mods) {
+    const std::lock_guard<std::mutex> lk(vtLock_);
     vterm_mouse_move(vt_, row, col, static_cast<VTermModifier>(mods));
     vterm_mouse_button(vt_, button, pressed, static_cast<VTermModifier>(mods));
 }
 
 void TerminalSession::mouseMove(int row, int col, int mods) {
+    const std::lock_guard<std::mutex> lk(vtLock_);
     vterm_mouse_move(vt_, row, col, static_cast<VTermModifier>(mods));
 }
 
 void TerminalSession::paste(const QString& text) {
+    const std::lock_guard<std::mutex> lk(vtLock_);
     vterm_keyboard_start_paste(vt_);
     QString t = text;
     t.replace("\r\n", "\r").replace('\n', '\r');
@@ -307,10 +326,14 @@ void TerminalSession::submit(const QString& text) {
     if (!running()) return;
     paste(text);
     // Un instante despues del pegado: algunas TUIs procesan el Enter aparte.
-    QTimer::singleShot(120, this, [this]() { vterm_keyboard_key(vt_, VTERM_KEY_ENTER, VTERM_MOD_NONE); });
+    QTimer::singleShot(120, this, [this]() {
+        const std::lock_guard<std::mutex> lk(vtLock_);
+        vterm_keyboard_key(vt_, VTERM_KEY_ENTER, VTERM_MOD_NONE);
+    });
 }
 
 void TerminalSession::focus(bool in) {
+    const std::lock_guard<std::mutex> lk(vtLock_);
     if (in)
         vterm_state_focus_in(state_);
     else
