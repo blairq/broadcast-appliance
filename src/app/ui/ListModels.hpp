@@ -12,9 +12,9 @@
 
 #pragma once
 
-#include <QVariantList>
 #include <QAbstractListModel>
 #include <QStringList>
+#include <QVariantList>
 
 #include <map>
 #include <string>
