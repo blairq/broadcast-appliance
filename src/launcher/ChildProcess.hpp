@@ -17,6 +17,12 @@
 //     XDG_RUNTIME_DIR, PulseAudio/PipeWire...) quitando lo que puede romper el
 //     bundle: LD_PRELOAD/LD_LIBRARY_PATH, DYLD_*, QT_* y PYTHON*.
 //
+// Salida del hijo:
+//   Con `Config::outputFile`, stdout y stderr del hijo quedan en ese archivo
+//   (Logs/app.log para A), que se rota y se encabeza antes de cada lanzamiento
+//   (ver ChildOutput.hpp). Un hijo adoptado con attach() no se relanza: sigue
+//   escribiendo donde ya escribia y no se rota.
+//
 // Modelo de threading:
 //   Se usa desde el thread del supervisor. No es thread-safe.
 //
@@ -44,6 +50,9 @@ class ChildProcess {
         std::vector<std::string> args; // p. ej. {"--restore"}
         std::filesystem::path workDir; // raiz del bundle
         std::string name;              // nombre logico para logs ("A", "B")
+        // Archivo que recibe stdout+stderr del hijo (vacio = los hereda del
+        // launcher). Si no se puede escribir, el hijo se lanza igual.
+        std::filesystem::path outputFile;
     };
 
     /// Lanza el hijo con el entorno saneado.

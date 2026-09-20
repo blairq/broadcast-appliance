@@ -107,7 +107,16 @@ Item {
                 MenuItem { text: "Mas oscuro"; onTriggered: Studio.dashboard.backgroundDim += 0.1 }
                 MenuItem { text: "Mas claro"; onTriggered: Studio.dashboard.backgroundDim -= 0.1 }
                 MenuSeparator {}
-                MenuItem { text: "Restablecer disposicion"; onTriggered: Studio.dashboard.resetLayout() }
+                MenuItem {
+                    text: "Restablecer disposicion"
+                    onTriggered: ApplicationWindow.window.confirm({
+                        title: "¿Restablecer la disposición del tablero?",
+                        text: "Se pierden las tarjetas que agregaste, cómo las acomodaste y el fondo que elegiste: el tablero vuelve a como vino de fábrica.",
+                        accept: "Restablecer",
+                        reject: "Cancelar",
+                        action: function() { Studio.dashboard.resetLayout() }
+                    })
+                }
             }
         }
     }

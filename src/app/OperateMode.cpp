@@ -620,10 +620,6 @@ int runOperate(int argc, char** argv) {
 #if !defined(_WIN32)
     std::signal(SIGPIPE, SIG_IGN);
 #endif
-    // size=0 es valido en glibc ("elegi vos"), pero el CRT de Microsoft exige
-    // 2 <= size <= INT_MAX: con 0 dispara su invalid parameter handler y el
-    // proceso muere con 0xC0000409 (el ucrtbase de Wine no valida y el CI no lo veia).
-    std::setvbuf(stdout, nullptr, _IOLBF, BUFSIZ);
 
     AppRuntime rt;
     rt.configure(argc, argv);

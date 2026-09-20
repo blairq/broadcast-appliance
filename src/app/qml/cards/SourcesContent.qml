@@ -32,7 +32,7 @@ Item {
                         Text { text: name; color: shown ? Theme.text : Theme.textFaint; elide: Text.ElideRight; Layout.fillWidth: true; font.pixelSize: 12 }
                         Text { text: typeName; color: Theme.textFaint; elide: Text.ElideRight; Layout.fillWidth: true; font.pixelSize: 9 }
                     }
-                    Toggle { checked: shown; onToggled: Studio.sources.setVisible(name, checked) }
+                    Toggle { checked: shown; onToggled: (wanted) => Studio.sources.setVisible(name, wanted) }
                 }
             }
         }

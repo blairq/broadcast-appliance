@@ -215,6 +215,8 @@ void Supervisor::launchOne(bool isA) {
     // Readopt (spec 3.1.9): si hay un PID publicado, vivo Y con heartbeat
     // fresco, adoptarlo. El heartbeat es la prueba de que es NUESTRO proceso:
     // un PID viejo podria haber sido reutilizado por cualquier otro programa.
+    // El adoptado sigue escribiendo en su archivo de Logs/, que ya tiene
+    // abierto: no se rota ni se encabeza hasta que haya que relanzarlo.
     const ba::ipc::Snapshot snap = health_.read(slot);
     if (snap.pid != 0 && !health_.isStale(slot) && child(isA).attach(snap.pid, name)) {
         BA_LOG_INFO("sup", 0, "readopt: adoptado " + name + " pid=" + std::to_string(snap.pid));
@@ -236,6 +238,11 @@ bool Supervisor::startChild(bool isA) {
     if (isA && safeMode_) {
         c.args.emplace_back("--safe-mode"); // circuit breaker
     }
+    // Lo que el hijo imprime queda en Logs/ de la raiz REAL. A informa todo por
+    // stdout/stderr y no tiene otro log. B ya deja sus lineas en Logs/ba.log,
+    // pero lo que no pasa por su logger se perdia: libwebrtc, los asertos de
+    // lwIP, un abort() o una biblioteca que no carga.
+    c.outputFile = cfg_.logsDir / (isA ? "app.log" : "gateway-salida.log");
     if (!child(isA).start(c)) {
         return false;
     }

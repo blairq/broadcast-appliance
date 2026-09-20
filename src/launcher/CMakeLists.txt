@@ -61,6 +61,12 @@ target_include_directories(test_updater PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(test_updater PRIVATE ba_core)
 add_test(NAME test_updater COMMAND test_updater)
 
+# La salida capturada de A y B (Logs/app.log): rotacion y encabezado por corrida.
+add_executable(test_child_output tests/test_child_output.cpp ChildOutput.cpp)
+target_include_directories(test_child_output PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(test_child_output PRIVATE ba_core)
+add_test(NAME test_child_output COMMAND test_child_output)
+
 # --- Instalación ------------------------------------------------------------
 # El launcher vive en la RAÍZ del disco (spec §5.1), no en bin/64bit/.
 install(TARGETS BroadcastAppliance

@@ -48,7 +48,10 @@ TwitchViewModel::TwitchViewModel(AppRuntime& rt, QObject* parent)
                 emit stateChanged();
             });
         }
-        if (!client_->loggedIn()) avatar_.clear();
+        if (!client_->loggedIn()) {
+            avatar_.clear();
+            emit chatChanged(); // desconectar o cambiar de app apagan el chat adentro del cliente
+        }
         emit stateChanged();
     });
     connect(client_.get(), &TwitchClient::chatChanged, this, [this]() {

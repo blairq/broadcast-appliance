@@ -124,6 +124,9 @@ bool ConferenceViewModel::lobby() const { return client_->snapshot().value("lobb
 bool ConferenceViewModel::locked() const { return client_->snapshot().value("locked").toBool(); }
 int ConferenceViewModel::maxGuests() const { return client_->snapshot().value("maxGuests").toInt(); }
 int ConferenceViewModel::slotsFree() const { return client_->snapshot().value("slotsFree").toInt(); }
+int ConferenceViewModel::peopleConnected() const {
+    return static_cast<int>(client_->snapshot().value("participants").toArray().size());
+}
 QObject* ConferenceViewModel::waiting() const { return waiting_.get(); }
 QObject* ConferenceViewModel::inside() const { return inside_.get(); }
 QObject* ConferenceViewModel::shares() const { return shares_.get(); }

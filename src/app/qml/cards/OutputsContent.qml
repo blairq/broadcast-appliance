@@ -61,7 +61,19 @@ Item {
             tone: Theme.accent
             action: Studio.recording ? "Detener" : "Grabar"
             glyph: Studio.recording ? "■" : "●"
-            onTriggered: Studio.toggleRecording()
+            // Grabar arranca directo; detener pide confirmacion (un clic cortaba el respaldo).
+            onTriggered: {
+                if (!Studio.recording) { Studio.toggleRecording(); return }
+                ApplicationWindow.window.confirm({
+                    title: "¿Detener la grabación?",
+                    text: "El archivo se cierra y lo que siga no queda grabado."
+                          + (Studio.streaming ? " La transmisión sigue al aire." : ""),
+                    accept: "Detener",
+                    reject: "Seguir grabando",
+                    // toggleRecording alterna: si ya se detuvo sola con el dialogo abierto, no volver a grabar.
+                    action: function() { if (Studio.recording) Studio.toggleRecording() }
+                })
+            }
         }
     }
 }

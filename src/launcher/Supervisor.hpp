@@ -45,7 +45,7 @@ class Supervisor {
         std::filesystem::path root;           // raiz del bundle (ba::platform::bundleRoot)
         std::filesystem::path appExe;         // bin/64bit/ba-app(.exe)
         std::filesystem::path gatewayExe;     // bin/64bit/ba-gateway(.exe)
-        std::filesystem::path logsDir;        // Logs/ (para dumps)
+        std::filesystem::path logsDir;        // Logs/ (dumps y salida de A y B)
         std::vector<std::string> appArgs;     // argumentos extra para A
         std::vector<std::string> gatewayArgs; // argumentos extra para B
         // Copia sombra (spec 3.1.5): OPCIONAL y desactivada por defecto. Sin

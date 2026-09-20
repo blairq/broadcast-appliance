@@ -142,7 +142,11 @@
       acts.append(btn("Admitir", "go", () => act(p.id, "admit")),
                   btn(p.talk ? "Cortar" : "Hablar", p.talk ? "go" : "", () => act(p.id, "talk", { on: !p.talk }),
                       "Hablarle en privado (su video y su voz se ven y oyen en la app)"),
-                  btn("Rechazar", "no", () => act(p.id, "reject")),
+                  btn("Rechazar", "no", () => {
+                    // El snapshot rearma la lista: se fija a quien antes de preguntar.
+                    const id = p.id, name = p.name;
+                    if (confirm(`¿Rechazar a ${name}? Sale del lobby sin entrar a la sala.`)) act(id, "reject");
+                  }),
                   btn("💬", "", () => dm(p)));
       li.append(who, acts);
       lobby.append(li);
@@ -199,7 +203,11 @@
       info.append(el("strong", "", f.name), el("span", "muted", `${f.participantName} · ${(f.bytes / 1048576).toFixed(1)} MB · hace ${since(f.atMs)}`));
       const acts = el("div", "acts");
       acts.append(btn("Ver", "", () => view(f)),
-                  btn("Borrar", "no", () => api("DELETE", `/api/v1/shares/${f.id}`).catch(() => {})));
+                  btn("Borrar", "no", () => {
+                    const id = f.id, name = f.name;
+                    if (!confirm(`¿Borrar el archivo «${name}»? Se elimina del equipo y no se puede recuperar.`)) return;
+                    api("DELETE", `/api/v1/shares/${id}`).catch(() => {});
+                  }));
       li.append(thumb, info, acts);
       shares.append(li);
     }

@@ -40,7 +40,41 @@ ApplicationWindow {
 
     // Cerrar la ventana principal cierra la aplicacion aunque haya ventanas de
     // salida abiertas (esas se recuerdan y vuelven al proximo arranque).
-    onClosing: Qt.quit()
+    // Con algo en curso (emision, grabacion, gente en la sala) antes se pregunta.
+    property bool quitting: false // el cierre ya esta decidido: la guardia no pregunta
+    // Todos los conectados: lobby, programa y fila de oradores (SettingsPage usa lo mismo).
+    readonly property int peopleConnected: Studio.conference.peopleConnected
+    onClosing: (close) => {
+        if (quitting || !(Studio.streaming || Studio.recording || peopleConnected > 0)) { Qt.quit(); return }
+        close.accepted = false
+        // Diferido: QGuiApplication::quit() tambien cierra las ventanas, asi que
+        // un cierre pedido por la app pasa por aca; su quitRequested llega en
+        // la misma vuelta y askClose() ya no pregunta.
+        Qt.callLater(askClose)
+    }
+    function askClose() {
+        if (quitting) return
+        const n = peopleConnected
+        let what = Studio.streaming && Studio.recording ? "Estás AL AIRE y grabando"
+                 : Studio.streaming ? "Estás AL AIRE" : Studio.recording ? "Estás grabando" : ""
+        if (n > 0) {
+            const g = n === 1 ? "hay 1 persona en la sala" : "hay " + n + " personas en la sala"
+            what = what === "" ? "Hay" + g.substring(3)
+                               : what + (Studio.streaming && Studio.recording ? ", y " : " y ") + g
+        }
+        const lost = []
+        if (Studio.streaming) lost.push("se corta la emisión")
+        if (Studio.recording) lost.push("se detiene la grabación")
+        if (n > 0) lost.push(n === 1 ? "esa persona queda afuera" : "esas personas quedan afuera")
+        const last = lost.pop()
+        confirm({
+            title: "¿Cerrar Broadcast Appliance?",
+            text: what + ". Si cerrás, " + (lost.length > 0 ? lost.join(", ") + " y " : "") + last + ".",
+            accept: "Cerrar",
+            reject: "Cancelar",
+            action: function() { win.quitting = true; Qt.quit() }
+        })
+    }
 
     // --- API para las tarjetas y paginas ------------------------------------------
     function showPage(i) { page = i }
@@ -49,11 +83,28 @@ ApplicationWindow {
         if (Studio.streamServer && Studio.streamKeyAvailable) Studio.startStreaming("", "")
         else streamDlg.open()
     }
-    function confirmStopStream() { stopDlg.open() }
+    function confirm(opts) { confirmDlg.ask(opts) }
+    function confirmStopStream() {
+        confirm({
+            title: "¿Cortar la transmisión?",
+            text: "La emisión en vivo se va a detener.",
+            accept: "Cortar",
+            reject: "Cancelar",
+            action: function() { Studio.stopStreaming() }
+        })
+    }
 
     Connections {
         target: Studio
         function onNotify(message, level) { toasts.show(message, level) }
+        // Cierre pedido por la app (launcher por el canal de control,
+        // actualizacion, MCP): nunca se pregunta. Si la guardia llego a frenar
+        // ese quit, se repite ya sin guardia.
+        function onQuitRequested() {
+            win.quitting = true
+            confirmDlg.close()
+            Qt.quit()
+        }
     }
 
     // --- Paginas ------------------------------------------------------------------
@@ -144,15 +195,38 @@ ApplicationWindow {
                         ToolTip.visible: sMa.containsMouse; ToolTip.text: Studio.streaming ? "Al aire" : "Fuera del aire"
                         MouseArea { id: sMa; anchors.fill: parent; anchors.margins: -6; hoverEnabled: true } }
             Rectangle { width: 10; height: 10; radius: 5; anchors.horizontalCenter: parent.horizontalCenter
-                        color: Studio.recording ? Theme.accent : Theme.textFaint }
+                        color: Studio.recording ? Theme.accent : Theme.textFaint
+                        ToolTip.visible: rMa.containsMouse; ToolTip.text: Studio.recording ? "Grabando" : "Sin grabar"
+                        MouseArea { id: rMa; anchors.fill: parent; anchors.margins: -6; hoverEnabled: true } }
             Rectangle { width: 10; height: 10; radius: 5; anchors.horizontalCenter: parent.horizontalCenter
-                        color: Studio.gatewayAlive ? Theme.ok : Theme.live }
+                        color: Studio.gatewayAlive ? Theme.ok : Theme.live
+                        ToolTip.visible: gMa.containsMouse; ToolTip.text: Studio.gatewayAlive ? "Sala en línea" : "Sala sin conexión"
+                        MouseArea { id: gMa; anchors.fill: parent; anchors.margins: -6; hoverEnabled: true } }
         }
     }
 
+    // --- Estado de emision, visible en todas las paginas ------------------------------
+    // Va en la franja libre de arriba (las paginas arrancan en y = 18 o mas): no
+    // tapa ningun control. El Dashboard ya trae sus pildoras en el encabezado.
+    Item {
+        visible: win.page !== 0
+        anchors { top: parent.top; horizontalCenter: parent.horizontalCenter; topMargin: 1 }
+        z: 50
+        width: airState.width
+        height: airState.height
+        Row {
+            id: airState
+            spacing: 8
+            StatusPill { height: 16; text: Studio.streaming ? "AL AIRE  " + Studio.streamTime : "FUERA DEL AIRE"; dot: Theme.live; on: Studio.streaming; pulse: true }
+            StatusPill { height: 16; visible: Studio.recording; text: "REC  " + Studio.recordTime; dot: Theme.accent; pulse: true }
+        }
+        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: win.page = 0 }
+    }
+
     // --- Reloj del orador al aire (modo oradores), visible en todas las paginas ------
+    // Debajo de la franja del estado de emision, para no taparla.
     OnAirTimer {
-        anchors { top: parent.top; horizontalCenter: parent.horizontalCenter; topMargin: 10 }
+        anchors { top: parent.top; horizontalCenter: parent.horizontalCenter; topMargin: 20 }
         z: 50
         onClicked: win.page = 2
     }
@@ -221,13 +295,5 @@ ApplicationWindow {
             TextField { id: keyField; Layout.preferredWidth: 420; echoMode: TextInput.Password }
         }
     }
-    Dialog {
-        id: stopDlg
-        title: "¿Cortar la transmision?"
-        anchors.centerIn: parent
-        modal: true
-        standardButtons: Dialog.Yes | Dialog.No
-        onAccepted: Studio.stopStreaming()
-        Label { text: "La emision en vivo se va a detener." }
-    }
+    ConfirmDialog { id: confirmDlg }
 }

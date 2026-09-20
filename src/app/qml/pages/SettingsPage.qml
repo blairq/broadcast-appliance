@@ -16,6 +16,41 @@ Rectangle {
     readonly property var sys: Studio.system
     property string updateError: ""
 
+    // Actualizar o volver atras cierra la app: emitiendo, grabando o con gente en
+    // la sala (lobby, programa o fila de oradores) eso corta todo, asi que se advierte y se pide una confirmacion explicita.
+    readonly property bool onAir: Studio.streaming || Studio.recording || Studio.conference.peopleConnected > 0
+    function onAirWarning(what) {
+        const people = Studio.conference.peopleConnected > 0
+        const head = Studio.streaming ? "Estás AL AIRE" : Studio.recording ? "Estás GRABANDO" : "Hay gente en la sala"
+        const lost = []
+        if (Studio.streaming) lost.push("corta la emisión")
+        if (Studio.recording) lost.push("corta la grabación")
+        if (people) lost.push(lost.length > 0 ? "desconecta a quienes están en la sala" : "la desconecta")
+        if (lost.length === 0) return ""
+        const last = lost.pop()
+        return head + ": " + what + " cierra la aplicación y " + (lost.length > 0 ? lost.join(", ") + " y " : "") + last + "."
+    }
+    function confirmUpdate(folder) {
+        ApplicationWindow.window.confirm({
+            title: "¿Actualizar ahora?",
+            text: page.onAirWarning("actualizar"),
+            accept: "Actualizar igual",
+            reject: "Cancelar",
+            action: function() { page.updateError = sys.startUpdate(folder) }
+        })
+    }
+    function confirmRollback() {
+        const data = " Configuración, credenciales, grabaciones y archivos no se tocan."
+        ApplicationWindow.window.confirm({
+            title: "¿Volver a la versión anterior?",
+            text: page.onAir ? page.onAirWarning("volver a la versión anterior") + " Después se restaura el programa anterior y la aplicación vuelve a abrir sola." + data
+                             : "La aplicación se cierra, se restaura el programa anterior y vuelve a abrir sola." + data,
+            accept: "Volver a la anterior",
+            reject: "Cancelar",
+            action: function() { page.updateError = sys.startRollback() }
+        })
+    }
+
     RowLayout {
         anchors { fill: parent; leftMargin: page.leftInset; margins: 20; bottomMargin: Studio.settings.dirty ? 84 : 20 }
         spacing: 16
@@ -110,13 +145,30 @@ Rectangle {
         modal: true
         title: "Actualizar el sistema"
         standardButtons: Dialog.Ok | Dialog.Cancel
-        Label {
+        Column {
             width: 460
-            wrapMode: Text.WordWrap
-            text: "La app se cierra, se reemplaza el programa por el de\n" + updConfirm.folder.toString().replace("file://", "") +
-                  "\ny vuelve a abrir sola. Configuracion, credenciales, grabaciones y archivos NO se tocan (antes se respaldan). Si algo sale mal, podes volver a esta version."
+            spacing: 12
+            Label {
+                width: parent.width
+                wrapMode: Text.WordWrap
+                visible: page.onAir
+                color: Theme.live
+                font { pixelSize: 15; weight: Font.DemiBold }
+                text: page.onAirWarning("actualizar")
+            }
+            Label {
+                width: parent.width
+                wrapMode: Text.WordWrap
+                text: "La app se cierra, se reemplaza el programa por el de\n" + updConfirm.folder.toString().replace("file://", "") +
+                      "\ny vuelve a abrir sola. Configuracion, credenciales, grabaciones y archivos NO se tocan (antes se respaldan). Si algo sale mal, podes volver a esta version."
+            }
         }
-        onAccepted: page.updateError = sys.startUpdate(folder)
+        // Al aire no alcanza con este OK. Se mira recien aca (y no al abrir) porque la
+        // emision pudo empezar, o un invitado entrar, con el dialogo ya abierto.
+        onAccepted: {
+            if (page.onAir) page.confirmUpdate(folder)
+            else page.updateError = sys.startUpdate(folder)
+        }
     }
     Component {
         id: systemComp
@@ -169,7 +221,7 @@ Rectangle {
                        text: "Descomprimi la version nueva en cualquier carpeta (fuera de esta) y elegila. Se reemplaza solo el programa; Config/, Credenciales/, Recordings/, Shares/ y Logs/ quedan como estan." }
                 RowLayout {
                     GlassButton { text: "Actualizar desde una carpeta…"; icon: "⇪"; active: true; onClicked: updateDlg.open() }
-                    GlassButton { text: "Volver a la version anterior"; visible: sys.canRollback; onClicked: page.updateError = sys.startRollback() }
+                    GlassButton { text: "Volver a la version anterior"; visible: sys.canRollback; onClicked: page.confirmRollback() }
                 }
                 Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.live; font.pixelSize: 12; text: page.updateError; visible: text !== "" }
                 Text { visible: sys.backups.length > 0; text: "Respaldos"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }

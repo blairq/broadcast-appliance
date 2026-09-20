@@ -17,6 +17,25 @@ Rectangle {
     function mb(b) { return (b / 1048576).toFixed(1) + " MB" }
     readonly property var statusNames: ({ "LIVE": "EN VIVO", "UNPUBLISHED": "Prueba (sin publicar)", "LIVE_STOPPED": "Detenido", "VOD": "Terminado",
                                           "SCHEDULED_UNPUBLISHED": "Programado", "PROCESSING": "Procesando" })
+    // Confirmaciones. Reciben copias (id, nombre): el delegate que las pide puede destruirse con el dialogo abierto.
+    function askEnd(id, name) {
+        ApplicationWindow.window.confirm({
+            title: name ? "¿Terminar «" + name + "»?" : "¿Terminar el vivo de Facebook?",
+            text: (id === fb.liveId ? "La app deja de transmitir y el vivo se cierra en Facebook." : "El vivo se cierra en Facebook.")
+                  + " Es definitivo: no se puede reanudar.",
+            accept: "Terminar",
+            action: () => fb.endLive(id)
+        })
+    }
+    function askDelete(id, name, what) {
+        ApplicationWindow.window.confirm({
+            title: "¿Borrar " + (name ? "«" + name + "»" : "este " + what) + " de Facebook?",
+            text: "El " + what + " se elimina de la Página. No se puede deshacer.",
+            accept: "Borrar",
+            reject: "Cancelar",
+            action: () => fb.deleteItem(id)
+        })
+    }
 
     ColumnLayout {
         anchors { fill: parent; leftMargin: page.leftInset; margins: 20 }
@@ -45,7 +64,14 @@ Rectangle {
                     onActivated: (i) => fb.selectPage(fb.pages[i].id)
                 }
                 GlassButton { text: "Actualizar"; compact: true; onClicked: fb.refresh() }
-                GlassButton { text: "Desconectar"; compact: true; onClicked: fb.logout() }
+                GlassButton { text: "Desconectar"; compact: true
+                              onClicked: ApplicationWindow.window.confirm({
+                                  title: "¿Desconectar la cuenta de Facebook?",
+                                  text: (fb.liveId !== "" ? "Hay un vivo en curso: desconectar no lo termina, pero se cortan los comentarios en pantalla y ya no vas a poder terminarlo desde acá. " : "")
+                                        + "Se revoca el acceso en Facebook y se borra el token guardado.",
+                                  accept: "Desconectar",
+                                  reject: "Cancelar",
+                                  action: () => fb.logout() }) }
             }
         }
 
@@ -135,7 +161,13 @@ Rectangle {
                 Layout.alignment: Qt.AlignHCenter
                 GlassButton { visible: !fb.loginPending; text: "Conectar con Facebook"; icon: "f"; active: true; activeColor: page.blue; onClicked: fb.login() }
                 GlassButton { visible: fb.loginPending; text: "Cancelar"; onClicked: fb.cancelLogin() }
-                GlassButton { visible: !fb.loginPending; text: "Cambiar app"; onClicked: fb.clearClient() }
+                GlassButton { visible: !fb.loginPending; text: "Cambiar app"
+                              onClicked: ApplicationWindow.window.confirm({
+                                  title: "¿Cambiar la app de Meta?",
+                                  text: "Se borran el identificador y la clave secreta guardados y vuelven las instrucciones para cargar otra app.",
+                                  accept: "Cambiar app",
+                                  reject: "Cancelar",
+                                  action: () => fb.clearClient() }) }
             }
             Text { Layout.alignment: Qt.AlignHCenter; Layout.maximumWidth: 640; wrapMode: Text.WordWrap; visible: fb.lastError !== ""; color: Theme.live; font.pixelSize: 13; text: fb.lastError }
             Item { Layout.fillHeight: true }
@@ -171,7 +203,7 @@ Rectangle {
                                   onClicked: fb.goLive(fbTitle.text || "Transmisión en vivo", fbDesc.text, true) }
                     GlassButton { Layout.alignment: Qt.AlignBottom; visible: fb.liveId === ""; text: "Transmitir en vivo"; icon: "●"; active: true; activeColor: page.blue
                                   onClicked: fb.goLive(fbTitle.text || "Transmisión en vivo", fbDesc.text, false) }
-                    GlassButton { Layout.alignment: Qt.AlignBottom; visible: fb.liveId !== ""; text: "Terminar"; onClicked: fb.endLive(fb.liveId) }
+                    GlassButton { Layout.alignment: Qt.AlignBottom; visible: fb.liveId !== ""; text: "Terminar"; onClicked: page.askEnd(fb.liveId, "") }
                 }
             }
             Rectangle {
@@ -223,10 +255,10 @@ Rectangle {
                             StatusPill { text: page.statusNames[status] || status; dot: status === "LIVE" ? Theme.live : Theme.textFaint; pulse: status === "LIVE" }
                             StatusPill { visible: fb.chatLiveId === uid; text: "comentarios en pantalla"; dot: Theme.accent }
                             GlassButton { compact: true; visible: status === "UNPUBLISHED"; text: "Publicar"; onClicked: fb.publishLive(uid) }
-                            GlassButton { compact: true; visible: status === "LIVE" || status === "UNPUBLISHED"; text: "Terminar"; onClicked: fb.endLive(uid) }
+                            GlassButton { compact: true; visible: status === "LIVE" || status === "UNPUBLISHED"; text: "Terminar"; onClicked: page.askEnd(uid, title) }
                             GlassButton { compact: true; text: fb.chatLiveId === uid ? "Sin comentarios" : "Comentarios"; onClicked: fb.setChatLive(fb.chatLiveId === uid ? "" : uid) }
                             GlassButton { compact: true; text: "Ver"; onClicked: fb.openUrl(url) }
-                            GlassButton { compact: true; visible: status !== "LIVE"; text: "Borrar"; onClicked: fb.deleteItem(uid) }
+                            GlassButton { compact: true; visible: status !== "LIVE" && fb.liveId !== uid; text: "Borrar"; onClicked: page.askDelete(uid, title, "vivo") }
                         }
                     }
                 }
@@ -255,7 +287,7 @@ Rectangle {
                             }
                             GlassButton { compact: true; text: "Editar"; onClicked: fbEdit.edit(uid, title, description) }
                             GlassButton { compact: true; text: "Ver"; onClicked: fb.openUrl(url) }
-                            GlassButton { compact: true; text: "Borrar"; onClicked: fb.deleteItem(uid) }
+                            GlassButton { compact: true; text: "Borrar"; onClicked: page.askDelete(uid, title, "video") }
                         }
                     }
                 }

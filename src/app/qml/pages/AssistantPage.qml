@@ -190,11 +190,11 @@ Rectangle {
                             Text { visible: page.keyError !== ""; text: page.keyError; color: Theme.live; font.pixelSize: 11 }
                         }
                         RowLayout {
-                            Toggle { checked: ag.autoStart; onToggled: ag.setAutoStart(checked) }
+                            Toggle { checked: ag.autoStart; onToggled: (wanted) => ag.setAutoStart(wanted) }
                             Text { text: "Arrancar solo al abrir la app"; color: Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true }
                         }
                         RowLayout {
-                            Toggle { checked: ag.alertsToChat; onToggled: ag.setAlertsToChat(checked) }
+                            Toggle { checked: ag.alertsToChat; onToggled: (wanted) => ag.setAlertsToChat(wanted) }
                             Text { text: "Avisos de las vigilancias al chat"; color: Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap }
                         }
                         GlassButton { compact: true; text: "Carpeta de agentes"; icon: "▸"; onClicked: ag.openAgentsFolder() }
@@ -245,7 +245,7 @@ Rectangle {
                             delegate: RowLayout {
                                 required property var modelData
                                 Layout.fillWidth: true
-                                Toggle { checked: modelData.enabled; onToggled: ag.setAlertEnabled(modelData.id, checked) }
+                                Toggle { checked: modelData.enabled; onToggled: (wanted) => ag.setAlertEnabled(modelData.id, wanted) }
                                 ColumnLayout {
                                     Layout.fillWidth: true
                                     spacing: 0
