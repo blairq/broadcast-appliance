@@ -445,4 +445,9 @@ void StudioViewModel::refreshModels() {
     emit statusChanged();
 }
 
+void StudioViewModel::setScenePreview(const QString& name) {
+    // 960 px de ancho alcanza para el lienzo del editor y no castiga la GPU.
+    rt_.engine().enableScenePreview(name.toStdString(), 960);
+}
+
 } // namespace ba::app

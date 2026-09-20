@@ -190,6 +190,39 @@ QString SourcesModel::add(const QString& typeId, const QString& baseName) {
 
 int SourcesModel::guestSlots() const { return rt_.config().guests; }
 
+QVariantList SourcesModel::otherSources() const {
+    QVariantList out;
+    for (const std::string& n : rt_.engine().sourceNames()) {
+        if (rowOf(n) >= 0) continue; // ya esta en esta escena
+        const std::string type = rt_.engine().sourceTypeId(n);
+        const auto t = types_.find(type);
+        out.push_back(
+            QVariantMap{{"name", qs(n)}, {"typeName", t != types_.end() ? t->second.name : qs(type)}});
+    }
+    return out;
+}
+
+QString SourcesModel::addExisting(const QString& name) {
+    const std::string n = name.toStdString();
+    if (rowOf(n) >= 0) return name; // ya esta
+    SourceSpec spec;
+    spec.id = rt_.engine().sourceTypeId(n);
+    spec.name = n;
+    if (spec.id.empty()) {
+        emit const_cast<SourcesModel*>(this)->error("No existe la fuente '" + name + "'.");
+        return {};
+    }
+    // Sin settings: addSource ve que ya existe una fuente con ese nombre y
+    // agrega LA MISMA a esta escena (no abre el dispositivo otra vez).
+    spec.rect = CanvasRect{0.1f, 0.1f, 0.8f, 0.8f};
+    if (!rt_.addSource(scene_.toStdString(), spec)) {
+        emit error(qs(rt_.lastError()));
+        return {};
+    }
+    reload();
+    return name;
+}
+
 QString SourcesModel::addGuest(int slot, bool share) {
     if (slot < 1 || slot > guestSlots()) return {};
     // Mismos nombres que crea el arranque: si la fuente ya existe se agrega

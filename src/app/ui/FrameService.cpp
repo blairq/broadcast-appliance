@@ -12,6 +12,7 @@ namespace ba::app {
 FrameService::FrameService(BroadcastEngine& engine, int guests, QObject* parent)
     : QObject(parent), engine_(engine) {
     slots_["program"];
+    slots_["scene"];
     setGuests(guests);
 }
 
@@ -85,6 +86,14 @@ void FrameService::poll() {
     if (engine_.latestPreview(programBuf_, w, h, programSerial_)) {
         Slot& s = slots_["program"];
         s.image = QImage(programBuf_.data(), w, h, w * 4, QImage::Format_ARGB32).copy();
+        ++s.serial;
+        any = true;
+    }
+    // Editor de escenas: la escena que se esta editando, renderizada aunque no
+    // este al aire (la activa StudioViewModel::setScenePreview).
+    if (engine_.renderScenePreview(sceneBuf_, w, h)) {
+        Slot& s = slots_["scene"];
+        s.image = QImage(sceneBuf_.data(), w, h, w * 4, QImage::Format_RGBA8888).copy();
         ++s.serial;
         any = true;
     }

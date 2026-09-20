@@ -14,6 +14,7 @@
 
 #include <QAbstractListModel>
 #include <QStringList>
+#include <QVariantList>
 
 #include <map>
 #include <string>
@@ -76,6 +77,14 @@ class SourcesModel : public QAbstractListModel {
     /// Invitado de la sala (camara o pantalla compartida del slot): reusa la
     /// fuente si ya existe en otra escena (misma fuente, otra posicion).
     Q_INVOKABLE QString addGuest(int slot, bool share);
+    /// Fuentes que existen en OTRAS escenas y no estan en esta, como
+    /// [{name, typeName}]. Son candidatas a compartir: una camara o una
+    /// capturadora no se puede abrir dos veces, pero SI puede estar en
+    /// varias escenas siendo la misma fuente.
+    Q_INVOKABLE QVariantList otherSources() const;
+    /// Agrega a esta escena una fuente que YA existe (la misma, compartida).
+    /// :returns: su nombre ("" si fallo).
+    Q_INVOKABLE QString addExisting(const QString& name);
     Q_PROPERTY(int guestSlots READ guestSlots CONSTANT)
     int guestSlots() const;
 
