@@ -66,7 +66,12 @@ Rectangle {
                     GlassButton { compact: true; visible: ag.running; text: "Pegar"; onClicked: term.pasteClipboard() }
                     GlassButton { compact: true; visible: ag.running; text: "Reiniciar"; onClicked: ag.restart() }
                     GlassButton { compact: true; visible: ag.running; text: "Detener"; onClicked: ag.stop() }
-                    GlassButton { compact: true; visible: !ag.running && ag.installed; text: "Iniciar"; icon: "▶"; active: true
+                    // Hay una version usable pero el sistema fija otra: se ofrece,
+                // no se obliga (la instalada sigue andando).
+                GlassButton { compact: true; visible: ag.updateAvailable && !ag.installing
+                              text: "Actualizar a " + (page.cur.version || ""); icon: "⇩"
+                              onClicked: ag.install() }
+                GlassButton { compact: true; visible: !ag.running && ag.installed; text: "Iniciar"; icon: "▶"; active: true
                                   onClicked: { ag.start(); term.forceActiveFocus() } }
                 }
             }
