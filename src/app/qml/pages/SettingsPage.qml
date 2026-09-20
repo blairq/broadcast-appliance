@@ -180,6 +180,8 @@ Rectangle {
                 spacing: 16
                 Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 13
                        text: "Todo el sistema vive en una sola carpeta (sirve desde un pendrive): " + sys.dataRoot }
+                Text { Layout.fillWidth: true; color: Theme.textDim; font.pixelSize: 13; visible: sys.version !== ""
+                       text: "Versión instalada: " + sys.version }
                 GridLayout {
                     Layout.fillWidth: true
                     columns: 2

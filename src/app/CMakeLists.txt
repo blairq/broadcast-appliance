@@ -262,6 +262,8 @@ endif()
 if(BA_APP_QT_OK)
     target_link_libraries(ba-app PRIVATE Qt6::Gui Qt6::Quick Qt6::Qml Qt6::QuickControls2 Qt6::Network)
     target_compile_definitions(ba-app PRIVATE BA_APP_HAVE_QT_OBS=1)
+    # Version visible en Configuracion -> Sistema y datos (soporte).
+    target_compile_definitions(ba-app PRIVATE BA_APP_VERSION="${PROJECT_VERSION}")
     target_include_directories(ba-app PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     set_target_properties(ba-app PROPERTIES AUTOMOC ON)
     # Vista: los .qml viajan como recursos dentro del binario (qrc:/qml/...).

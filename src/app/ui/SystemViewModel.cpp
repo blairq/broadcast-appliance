@@ -42,7 +42,13 @@ QString SystemViewModel::dataRoot() const { return QDir::toNativeSeparators(root
 
 QString SystemViewModel::version() const {
     const QFileInfo fi(root() + "/" + kApp);
-    return fi.exists() ? fi.lastModified().toString("yyyy-MM-dd HH:mm") : QString();
+    const QString built = fi.exists() ? fi.lastModified().toString("yyyy-MM-dd HH:mm") : QString();
+#ifdef BA_APP_VERSION
+    return built.isEmpty() ? QStringLiteral(BA_APP_VERSION)
+                           : QStringLiteral(BA_APP_VERSION " · programa del ") + built;
+#else
+    return built;
+#endif
 }
 
 QStringList SystemViewModel::credentials() const {

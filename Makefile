@@ -238,7 +238,12 @@ BA_VERSION := $(shell awk '/^project\(/,/\)/' CMakeLists.txt | awk '/VERSION/{pr
 dist-win: release-win
 	@mkdir -p dist
 	rm -f dist/BroadcastAppliance-$(BA_VERSION)-windows-x64.zip
-	cd $(WIN_RELEASE) && 7z a -tzip -mx=7 -bso0 ../dist/BroadcastAppliance-$(BA_VERSION)-windows-x64.zip .
+	@# Con carpeta raiz (como el .tar.gz de Linux): "Extraer aqui" no desparrama
+	@# los archivos del programa en la carpeta del usuario.
+	rm -rf dist/.zip-stage && mkdir -p dist/.zip-stage
+	cp -al $(WIN_RELEASE) dist/.zip-stage/BroadcastAppliance 2>/dev/null || cp -a $(WIN_RELEASE) dist/.zip-stage/BroadcastAppliance
+	cd dist/.zip-stage && 7z a -tzip -mx=7 -bso0 ../BroadcastAppliance-$(BA_VERSION)-windows-x64.zip BroadcastAppliance
+	rm -rf dist/.zip-stage
 	@cd dist && sha256sum BroadcastAppliance-$(BA_VERSION)-windows-x64.zip > BroadcastAppliance-$(BA_VERSION)-windows-x64.zip.sha256
 	@echo "dist/BroadcastAppliance-$(BA_VERSION)-windows-x64.zip"
 

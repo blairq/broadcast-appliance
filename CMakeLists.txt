@@ -282,6 +282,8 @@ install(DIRECTORY
 install(DIRECTORY
     DESTINATION Web/guest
 )
+# Lo primero que ve quien descomprime el bundle: instrucciones y licencia.
+install(FILES packaging/bundle/LEEME.txt LICENSE DESTINATION . COMPONENT bundle)
 
 # --- Runtime de libobs dentro del bundle (portable) -------------------------
 # El bundle tiene que correr en una maquina SIN nada instalado (README, "el
