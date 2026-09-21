@@ -24,9 +24,11 @@
 #include "AppRuntime.hpp"
 #include "AppSettings.hpp"
 #include "mcp/McpHttp.hpp"
+#include "mcp/McpEventoTools.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "platform/Paths.hpp"
 #include "ui/ConferenceViewModel.hpp"
+#include "ui/EventoViewModel.hpp"
 #include "ui/ListModels.hpp"
 #include "ui/OperatorMessages.hpp"
 #include "ui/PropertiesModel.hpp"
@@ -366,6 +368,8 @@ void McpService::registerTools() {
     core_.addCategory("salidas", "Salidas", "Transmision (RTMP) y grabacion.");
     core_.addCategory("config", "Configuracion",
                       "Todos los ajustes del appliance (video, codificacion, sala, red...).");
+    // El guion del evento: su propio bloque (ver McpEventoTools.cpp).
+    if (auto* ev = static_cast<EventoViewModel*>(vm_.evento())) registerEventoTools(core_, *ev);
 
     AppRuntime& rt = rt_;
     StudioViewModel& vm = vm_;
