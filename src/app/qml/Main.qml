@@ -124,6 +124,51 @@ ApplicationWindow {
         EventoPage {}
     }
 
+    // --- Pestañas sacadas a su propia ventana --------------------------------------
+    // No se saca la pagina de aca: se abre OTRA VISTA de lo mismo (todas leen
+    // su estado de los Studio.*, asi que se mantienen sincronizadas solas).
+    // Se abre con clic derecho en el riel.
+    Component { id: cmpDashboard;  DashboardPage {} }
+    Component { id: cmpScenes;     ScenesPage {} }
+    Component { id: cmpConference; ConferencePage {} }
+    Component { id: cmpYouTube;    YouTubePage {} }
+    Component { id: cmpTwitch;     TwitchPage {} }
+    Component { id: cmpFacebook;   FacebookPage {} }
+    Component { id: cmpSettings;   SettingsPage {} }
+    Component { id: cmpAssistant;  AssistantPage {} }
+    Component { id: cmpInputs;     InputsPage {} }
+    Component { id: cmpAudio;      AudioPage {} }
+    Component { id: cmpEvento;     EventoPage {} }
+
+    function componenteDePagina(i) {
+        return [cmpDashboard, cmpScenes, cmpConference, cmpYouTube, cmpTwitch, cmpFacebook,
+                cmpSettings, cmpAssistant, cmpInputs, cmpAudio, cmpEvento][i] || null
+    }
+
+    ListModel { id: sueltas }
+
+    function sacarAVentana(i, titulo) {
+        // Si ya esta afuera, se la trae al frente en vez de abrir otra igual.
+        for (let k = 0; k < sueltas.count; ++k) {
+            if (sueltas.get(k).page === i) { toasts.show("«" + titulo + "» ya está en su ventana", "info"); return }
+        }
+        sueltas.append({ page: i, titulo: titulo })
+    }
+
+    Instantiator {
+        model: sueltas
+        delegate: PageWindow {
+            required property int index
+            page: sueltas.get(index) ? sueltas.get(index).page : 0
+            titulo: sueltas.get(index) ? sueltas.get(index).titulo : ""
+            contenido: win.componenteDePagina(page)
+            onCerrada: (p) => {
+                for (let k = 0; k < sueltas.count; ++k)
+                    if (sueltas.get(k).page === p) { sueltas.remove(k); return }
+            }
+        }
+    }
+
     // --- Ventanas de salida (una por entrada del modelo) ---------------------------
     Instantiator {
         model: Studio.dashboard.windows
@@ -158,9 +203,19 @@ ApplicationWindow {
                     border.color: Qt.rgba(1, 1, 1, 0.16)
                     Behavior on color { ColorAnimation { duration: 150 } }
                     Text { anchors.centerIn: parent; text: modelData.icon; color: win.page === modelData.page ? "#111" : Theme.text; font.pixelSize: 18 }
-                    MouseArea { id: navMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.page = modelData.page }
+                    MouseArea {
+                        id: navMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+                        onClicked: (m) => {
+                            if (m.button === Qt.RightButton) win.sacarAVentana(modelData.page, modelData.tip.split(":")[0])
+                            else win.page = modelData.page
+                        }
+                    }
                     ToolTip.visible: navMa.containsMouse
-                    ToolTip.text: modelData.tip
+                    ToolTip.text: modelData.tip + "\n(clic derecho: sacar a su propia ventana)"
                     ToolTip.delay: 400
                 }
             }

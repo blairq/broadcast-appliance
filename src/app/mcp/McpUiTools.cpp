@@ -6,6 +6,8 @@
 #include <QDir>
 #include <QFile>
 #include <QGuiApplication>
+#include <QMetaObject>
+#include <QVariant>
 #include <QQuickWindow>
 #include <QScreen>
 #include <QTimer>
@@ -40,24 +42,64 @@ void McpService::registerUiTools() {
         t.name = "ui_show_page";
         t.title = "Mostrar una pagina";
         t.category = "interfaz";
-        t.description = "Cambia la pagina que ve el operador: dashboard, escenas, entradas, sala, youtube, "
-                        "twitch, facebook, configuracion o asistente.";
+        t.description = "Cambia la pagina que ve el operador: dashboard, escenas, entradas, audio, sala, "
+                        "guion, youtube, twitch, facebook, configuracion o asistente.";
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"page",
                             {{"type", "string"},
                              {"enum",
-                              {"dashboard", "escenas", "entradas", "audio", "sala", "youtube", "twitch",
-                               "facebook", "configuracion", "asistente"}}}}}},
+                              {"dashboard", "escenas", "entradas", "audio", "sala", "guion", "youtube",
+                               "twitch", "facebook", "configuracion", "asistente"}}}}}},
                          {"required", {"page"}}};
         t.run = [self](const json& a, Done done) {
             static const std::map<std::string, int> kPages{
                 {"dashboard", 0}, {"escenas", 1},       {"sala", 2},      {"youtube", 3},  {"twitch", 4},
-                {"facebook", 5},  {"configuracion", 6}, {"asistente", 7}, {"entradas", 8}, {"audio", 9}};
+                {"facebook", 5},  {"configuracion", 6}, {"asistente", 7}, {"entradas", 8}, {"audio", 9},
+                {"guion", 10}};
             QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;
             if (w == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
             w->setProperty("page", kPages.at(a["page"]));
             done(ToolResult::ok("Pagina: " + a["page"].get<std::string>()));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "ui_page_window";
+        t.title = "Sacar una pagina a su ventana";
+        t.category = "interfaz";
+        t.description =
+            "Abre una pagina en su PROPIA ventana, para mandarla a otro monitor.";
+        t.details =
+            "No la saca de la ventana principal: abre otra vista de lo mismo. Las dos se mantienen "
+            "sincronizadas solas (todas las paginas leen su estado del mismo lugar), asi que el operador "
+            "puede tener el guion en un monitor y las escenas en el otro.\n\n"
+            "El operador hace lo mismo con clic derecho en el icono del riel. Si esa pagina ya esta "
+            "afuera, no se abre otra igual.\n\n"
+            "Cerrar la ventana no pierde nada: la pagina sigue en la ventana principal.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"page",
+                            {{"type", "string"},
+                             {"enum",
+                              {"dashboard", "escenas", "entradas", "audio", "sala", "guion", "youtube",
+                               "twitch", "facebook", "configuracion", "asistente"}}}}}},
+                         {"required", {"page"}}};
+        t.run = [self](const json& a, Done done) {
+            static const std::map<std::string, std::pair<int, const char*>> kPages{
+                {"dashboard", {0, "Dashboard"}},   {"escenas", {1, "Escenas"}},
+                {"sala", {2, "Sala"}},             {"youtube", {3, "YouTube"}},
+                {"twitch", {4, "Twitch"}},         {"facebook", {5, "Facebook"}},
+                {"configuracion", {6, "Configuración"}}, {"asistente", {7, "Asistente"}},
+                {"entradas", {8, "Entradas"}},     {"audio", {9, "Audio"}},
+                {"guion", {10, "Guion del evento"}}};
+            QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;
+            if (w == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
+            const auto& [idx, titulo] = kPages.at(a["page"]);
+            QMetaObject::invokeMethod(w, "sacarAVentana", Q_ARG(QVariant, idx),
+                                      Q_ARG(QVariant, QString::fromUtf8(titulo)));
+            done(ToolResult::ok(std::string("\"") + titulo + "\" abierta en su propia ventana."));
         };
         core_.addTool(std::move(t));
     }

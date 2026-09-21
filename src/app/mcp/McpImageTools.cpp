@@ -12,7 +12,7 @@
 //   capture_people     todas las personas de la sala, una imagen cada una
 //   capture_sequence   N cuadros separados en el tiempo (analisis de video:
 //                      movimiento, gestos, si alguien habla, cortes)
-//   capture_ui         captura de la propia app (ventana principal y de salida)
+//   capture_ui         captura de la propia app (principal, salidas y pestañas sueltas)
 // ============================================================================
 
 #include <QFont>
@@ -417,7 +417,8 @@ void McpService::registerImageTools() {
         t.readOnly = true;
         t.description =
             "Captura de pantalla de la propia aplicacion: la ventana principal (lo que ve el operador) "
-            "y, con window=all, tambien las ventanas de salida abiertas.";
+            "y, con window=all, tambien las demas ventanas abiertas: las de salida de video y las "
+            "pestañas que el operador saco a su propio monitor (ver ui_page_window).";
         t.inputSchema = withImageProps(
             json{{"window", {{"type", "string"}, {"enum", {"main", "all"}}, {"default", "main"}}}});
         t.run = [self](const json& a, Done done) {
@@ -431,7 +432,9 @@ void McpService::registerImageTools() {
                 for (QWindow* w : QGuiApplication::topLevelWindows()) {
                     auto* q = qobject_cast<QQuickWindow*>(w);
                     if (q == nullptr || q == main || !q->isVisible()) continue;
-                    r.text("Ventana de salida " + std::to_string(n++) + ": " + q->title().toStdString());
+                    // El titulo dice cual es: no hace falta distinguir aca entre
+                    // una salida de video y una pestaña suelta.
+                    r.text("Ventana " + std::to_string(n++) + ": " + q->title().toStdString());
                     addImage(r, q->grabWindow(), a, 1600);
                 }
             }
