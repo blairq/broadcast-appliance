@@ -383,7 +383,55 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
                            json{{"ok", true}, {"room", cfg_.room}, {"pedirDatos", !room_.intake()}}.dump());
         return;
     }
+    // --- Teleprompter -------------------------------------------------------
+    // La tablet del orador (/prompter) y el control del celular
+    // (/prompter/control) son la misma pagina con distinta vista.
+    if (method == "GET" && (path == "/prompter" || path.rfind("/prompter/", 0) == 0)) {
+        // Sin la barra final, el navegador resuelve "app.js" y "style.css"
+        // contra la RAIZ, y ahi vive la app del invitado: la pagina sale con
+        // el codigo equivocado y sin decir nada. Se redirige, como hace
+        // cualquier servidor con un directorio.
+        if (path == "/prompter") {
+            http::sendResponse(fd, 301, "text/plain", "", "Location: /prompter/\r\n");
+            return;
+        }
+        std::string rel = path.size() > 10 ? path.substr(10) : std::string("index.html");
+        if (rel.empty() || rel == "control") rel = "index.html";
+        if (!cfg_.prompterWebroot.empty() && serveStatic(fd, cfg_.prompterWebroot, rel)) return;
+        http::sendResponse(fd, 404, "text/plain", "no encontrado\n");
+        return;
+    }
+    if (path == "/api/prompter") {
+        if (method == "GET") {
+            // Publico: es el texto que el orador va a decir en voz alta en un
+            // rato. Lo que se protege es CAMBIARLO, no verlo.
+            http::sendResponse(fd, 200, "application/json", prompter_.estado().dump());
+            return;
+        }
+        if (method == "POST") {
+            const json req = json::parse(body, nullptr, false);
+            if (!req.is_object()) {
+                http::sendResponse(fd, 400, "application/json", R"({"ok":false,"error":"json"})");
+                return;
+            }
+            // Sin clave no se comanda: frenarle el texto a alguien en medio de
+            // un discurso, desde cualquier telefono de la LAN, seria un chiste
+            // caro. La clave viaja en el enlace que le pasa el operador.
+            if (cfg_.prompterKey.empty() || req.value("clave", std::string()) != cfg_.prompterKey) {
+                http::sendResponse(fd, 403, "application/json", R"({"ok":false,"error":"clave"})");
+                return;
+            }
+            prompter_.comandar(req);
+            http::sendResponse(fd, 200, "application/json", prompter_.estado().dump());
+            return;
+        }
+    }
+
     if (method == "GET" && (path == "/board" || path.rfind("/board/", 0) == 0)) {
+        if (path == "/board") { // ver el comentario de /prompter
+            http::sendResponse(fd, 301, "text/plain", "", "Location: /board/\r\n");
+            return;
+        }
         std::string rel = path.size() > 7 ? path.substr(7) : std::string("index.html");
         if (rel.empty()) rel = "index.html";
         if (!cfg_.boardWebroot.empty() && serveStatic(fd, cfg_.boardWebroot, rel)) return;

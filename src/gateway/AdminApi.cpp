@@ -22,6 +22,9 @@
 //   GET    /api/v1/room                    estado completo (snapshot)
 //   GET    /api/v1/events                  SSE: "room" (snapshot) y "chat"
 //   GET    /api/v1/network                 HTTPS, tunel WireGuard, IPs y enlaces
+//   GET    /api/v1/prompter                estado del teleprompter (+ la clave del control)
+//   POST   /api/v1/prompter                {texto?, titulo?, panico?, ...comandos}
+//   GET    /api/v1/prompter-link?target=local|remote&vista=control|orador  enlace + QR
 //   GET    /api/v1/qr?target=local|remote[&pin=1]  URL de ingreso (+PIN) + matriz del QR
 //   POST   /api/v1/network/server-config   {endpoint, publicAddress?} -> wg0.conf del servidor
 //   POST   /api/v1/room                    {lobby?, locked?, intake?}
@@ -353,6 +356,67 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             json{{"ok", true}, {"target", target}, {"url", url}, {"size", qr.getSize()}, {"modules", rows}});
         return;
     }
+    // --- Teleprompter -------------------------------------------------------
+    if (path == "/api/v1/prompter") {
+        // A ve siempre la clave del control: la necesita para armar el enlace
+        // que le manda al operador. Por la superficie de invitados no sale.
+        const auto conClave = [this](json e) {
+            e["clave"] = cfg_.prompterKey;
+            return e;
+        };
+        if (method == "GET") {
+            sendJson(fd, 200, conClave(prompter_.estado()));
+            return;
+        }
+        if (method == "POST") {
+            // A comanda sin clave: ya paso por el token de la API de control.
+            if (req.contains("texto") && req["texto"].is_string()) {
+                prompter_.cargar(req.value("titulo", std::string()), req["texto"].get<std::string>());
+            }
+            if (req.value("panico", false)) prompter_.pararEnSeco();
+            prompter_.comandar(req);
+            sendJson(fd, 200, conClave(prompter_.estado()));
+            return;
+        }
+    }
+    if (path == "/api/v1/prompter-link" && method == "GET") {
+        // El enlace del control, con la clave en el FRAGMENTO para que no
+        // viaje en la URL pedida ni quede en los registros del servidor.
+        const auto q = http::parseQuery(query);
+        const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
+        const bool control = !q.count("vista") || http::urlDecode(q.at("vista")) == "control";
+        json out = joinUrl_ ? joinUrl_(target) : json{{"error", "sin proveedor de URL"}};
+        if (!out.contains("url")) {
+            out["ok"] = false;
+            sendJson(fd, 200, out);
+            return;
+        }
+        std::string origin = out["url"].get<std::string>();
+        if (const size_t s = origin.find("://"); s != std::string::npos) {
+            const size_t end = origin.find_first_of("/?#", s + 3);
+            if (end != std::string::npos) origin.resize(end);
+        }
+        // La tablet del orador no lleva clave: solo lee.
+        const std::string url =
+            origin + "/prompter/" + (control ? "#control&k=" + cfg_.prompterKey : "");
+        const qrcodegen::QrCode qr =
+            qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
+        json rows = json::array();
+        for (int y = 0; y < qr.getSize(); ++y) {
+            std::string row;
+            for (int x = 0; x < qr.getSize(); ++x)
+                row.push_back(qr.getModule(x, y) ? '1' : '0');
+            rows.push_back(row);
+        }
+        sendJson(fd, 200,
+                 json{{"ok", true},
+                      {"vista", control ? "control" : "orador"},
+                      {"url", url},
+                      {"size", qr.getSize()},
+                      {"modules", rows}});
+        return;
+    }
+
     if (path == "/api/v1/network" && method == "GET") {
         sendJson(fd, 200, networkStatus_ ? networkStatus_() : json::object());
         return;

@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#000000" />
+  <title>Teleprompter</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!--
+    Dos vistas de lo mismo, servidas por el gateway:
+
+      /prompter           la tablet del orador: solo el texto, grande.
+      /prompter/#control  el celular del operador: arrancar, velocidad, avisos.
+
+    El servidor manda DESDE DONDE y A QUE VELOCIDAD; cada vista calcula sola
+    donde va el texto. Asi un hipo de la red no se ve como un tiron en el
+    renglon que alguien esta leyendo en vivo, y si se corta, el texto sigue.
+  -->
+
+  <!-- ====================== Vista del orador ====================== -->
+  <main id="orador" class="orador">
+    <div id="aviso" class="aviso hidden"></div>
+
+    <div id="lienzo" class="lienzo">
+      <!-- La guia de lectura: el renglon donde hay que tener los ojos. -->
+      <div class="guia" aria-hidden="true"></div>
+      <div id="texto" class="texto"></div>
+    </div>
+
+    <div id="vacio" class="vacio">
+      <h1>Teleprompter</h1>
+      <p>Esperando el discurso.</p>
+      <p class="chico">El operador lo carga desde el guion del evento.</p>
+    </div>
+
+    <!-- Los controles de la tablet son del orador: como VE el texto, no como
+         corre. Arrancarlo y pararlo es del control. -->
+    <div class="propios">
+      <button id="menos" class="redondo" title="Letra más chica">A−</button>
+      <button id="mas" class="redondo" title="Letra más grande">A+</button>
+      <button id="espejo" class="redondo" title="Espejar para el vidrio">⇄</button>
+      <span id="reloj" class="reloj"></span>
+    </div>
+  </main>
+
+  <!-- ====================== Control (celular) ====================== -->
+  <main id="control" class="control hidden">
+    <header>
+      <strong id="c-titulo">Sin discurso</strong>
+      <span id="c-estado" class="estado">—</span>
+    </header>
+
+    <div class="barra-wrap">
+      <input id="c-barra" class="barra" type="range" min="0" max="1000" value="0" step="1"
+             aria-label="Posición en el texto" />
+      <div class="barra-pies"><span id="c-pos">0</span><span id="c-falta"></span></div>
+    </div>
+
+    <!-- El de pánico primero y grande: cuando hace falta, hace falta ya. -->
+    <button id="c-panico" class="panico">PARÁ AHÍ</button>
+
+    <div class="fila">
+      <button id="c-play" class="grande">▶ Arrancar</button>
+    </div>
+
+    <div class="fila">
+      <button id="c-lento" class="grande">− lento</button>
+      <span id="c-ppm" class="ppm">140</span>
+      <button id="c-rapido" class="grande">rápido +</button>
+    </div>
+    <p class="pie">palabras por minuto · <span id="c-dura"></span></p>
+
+    <div class="fila">
+      <button id="c-inicio" class="chico">⏮ Al principio</button>
+      <button id="c-atras" class="chico">◀ Párrafo</button>
+      <button id="c-adelante" class="chico">Párrafo ▶</button>
+    </div>
+
+    <h2>Avisarle al orador</h2>
+    <div class="avisos">
+      <button class="aviso-btn" data-aviso="Redondeá">Redondeá</button>
+      <button class="aviso-btn" data-aviso="Te escuchamos bajo">Se escucha bajo</button>
+      <button class="aviso-btn" data-aviso="Más despacio">Más despacio</button>
+      <button class="aviso-btn" data-aviso="Mirá a cámara">Mirá a cámara</button>
+      <button class="aviso-btn" data-aviso="">Quitar el aviso</button>
+    </div>
+
+    <p id="c-error" class="error"></p>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

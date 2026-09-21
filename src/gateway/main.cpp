@@ -543,7 +543,12 @@ int main(int argc, char** argv) {
         std::filesystem::path guestRoot(cfg.webroot);
         if (!guestRoot.has_filename()) guestRoot = guestRoot.parent_path(); // "Web/guest/"
         sigCfg.boardWebroot = (guestRoot.parent_path() / "board").string();
+        sigCfg.prompterWebroot = (guestRoot.parent_path() / "prompter").string();
     }
+    // Clave del control del teleprompter: nueva en cada arranque. No hace
+    // falta que sobreviva -- el operador manda el enlace (o el QR) cuando va a
+    // usarlo, y una clave que no se guarda en ningun lado no se filtra.
+    if (!ba::security::randomSecretHex(16, sigCfg.prompterKey)) sigCfg.prompterKey.clear();
     sigCfg.adminToken = adminToken;
     SignalingServer server(sigCfg, auth, hub, room, shares, log);
     server.setPump(&pump);

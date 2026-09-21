@@ -75,6 +75,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include "Prompter.hpp"
 #include "MediaRoute.hpp"
 #include "TokenAuth.hpp"
 #include "Webrtc.hpp"
@@ -99,7 +100,13 @@ class SignalingServer {
         std::string adminWebroot;  // Web/admin (consola web)
         std::string adminToken;    // Bearer / cookie de la consola; vacio = sin API de control
         int maxSharesPerGuest = 20;
-        std::string boardWebroot; // Web/board (tablero de oradores)
+        std::string boardWebroot;    // Web/board (tablero de oradores)
+        std::string prompterWebroot; // Web/prompter (teleprompter del orador)
+        /// Clave del control del teleprompter: sin ella cualquiera en la LAN
+        /// podria frenarle el texto al orador en medio del discurso. Viaja en
+        /// el enlace que el operador le pasa (o en el QR). Vacia = sin control
+        /// remoto (la tablet igual muestra el texto).
+        std::string prompterKey;
     };
 
     SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub, Room& room, ShareStore& shares,
@@ -126,6 +133,11 @@ class SignalingServer {
     /// IP publica del tunel WireGuard: los candidatos ICE de loopback (los que
     /// atiende el puente del tunel) se anuncian con esta IP. Vacio = no.
     void setPublicAddress(const std::string& ip) { publicAddress_ = ip; }
+    /// El teleprompter, para que la API de control (A) le cargue discursos y
+    /// lo comande sin pasar por la clave del control remoto.
+    Prompter& prompter() { return prompter_; }
+    const std::string& prompterKey() const { return cfg_.prompterKey; }
+
     /// Estado de red para la API de control (/api/v1/network).
     void setNetworkStatus(std::function<nlohmann::json()> fn) { networkStatus_ = std::move(fn); }
     /// URL de ingreso para el QR: target "local" (red local) o "remote"
@@ -248,6 +260,7 @@ class SignalingServer {
     TokenAuth& auth_;
     WebrtcHub& hub_;
     Room& room_;
+    Prompter prompter_;
     ShareStore& shares_;
     Log& log_;
     MediaPump* pump_ = nullptr;

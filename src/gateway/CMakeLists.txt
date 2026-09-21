@@ -335,3 +335,10 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/board")
         DESTINATION Web/board
     )
 endif()
+# Teleprompter: la tablet del orador (/prompter) y el control del celular
+# (/prompter/#control). Lo sirve B, como el resto de las vistas web.
+if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/prompter")
+    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/prompter/"
+        DESTINATION Web/prompter
+    )
+endif()
