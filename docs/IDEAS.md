@@ -12,16 +12,24 @@ asistente de armado están desglosados aparte: **[EVENTOS.md](EVENTOS.md)**.
 ## Próximo
 
 - **Subir el cupo de invitados para medir de verdad.** La herramienta de carga
-  ya está (`tools/test/carga-sala.py`), pero la sala está en 2 lugares: hay que
-  ponerla en 16 (reinicia el gateway) y repetir. Primeros números con 3
-  clientes en esta misma máquina: 7 % de CPU del gateway y el hilo más cargado
-  (`IncomingVideoStream`, la decodificación) en 20 %. Son ~2 puntos de CPU y
-  ~7 % de un núcleo por invitado, así que 16 deberían entrar — pero hay que
-  verlo, porque esos hilos no escalan todos igual.
-- **La gente del lobby cuesta lo mismo que la de adentro.** Medido: el que
-  espera ya conecta y manda video (vista previa), y se decodifica igual. Si un
-  evento tiene cola larga, el lobby es carga real; convendría bajarle la
-  resolución a la vista previa o pedir el video recién al admitir.
+  ya está (`tools/test/carga-sala.py`), pero la sala está en 2 lugares y no se
+  puede pasar de ahí sin reiniciar el gateway. Lo medido hasta ahora, con 8
+  conectados (6 mandando video: 2 adentro + 4 de lobby) en esta misma máquina:
+  **13 % de CPU** del proceso y el hilo más cargado (`IncomingVideoStream`, la
+  decodificación) en **32 %**. Son ~2 puntos de CPU y ~5 % de un núcleo por
+  cada video que entra. Si escala parejo, 16 videos serían ~35 % de CPU y el
+  hilo al 80 % — o sea que el techo va a ser ese hilo, no la máquina. Hay que
+  confirmarlo con el cupo en 16, y desde otro equipo, porque acá los ocho
+  Chrome le compiten la CPU al gateway.
+- **La gente del lobby también cuesta, pero está acotada.** El que espera
+  conecta y manda video igual que el de adentro; lo que lo contiene es
+  `lobbySlots` (4): del quinto en adelante esperan sin cámara. O sea que una
+  cola larga no dispara el costo. Si algún día se sube ese número, sube la
+  carga en la misma proporción.
+- **La memoria no vuelve.** Subió de 91 MB a 344 MB con las corridas y ahí se
+  quedó cuando los invitados se fueron. Puede ser el asignador que no devuelve
+  al sistema, pero conviene mirarlo antes de un evento largo con gente que
+  entra y sale.
 - **Correr la prueba desde otro equipo.** La herramienta ya trae los dos modos
   (`--solo-medir` acá, `--sin-admin` allá, probado contra el HTTPS propio). Lo
   que falta es el equipo.
