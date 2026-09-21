@@ -11,12 +11,20 @@ asistente de armado están desglosados aparte: **[EVENTOS.md](EVENTOS.md)**.
 
 ## Próximo
 
-- **Prueba de carga con invitados emulados.** Levantar N clientes WebRTC
-  (Chrome headless contra la app web del invitado) para ver cuánto aguanta la
-  sala. Primero en esta máquina; después, desde un servidor por SSH contra este
-  equipo, para que la prueba no compita por CPU con el gateway. Mirar durante
-  la prueba el panel «Uso de la sala»: CPU total y, sobre todo, el hilo más
-  cargado.
+- **Subir el cupo de invitados para medir de verdad.** La herramienta de carga
+  ya está (`tools/test/carga-sala.py`), pero la sala está en 2 lugares: hay que
+  ponerla en 16 (reinicia el gateway) y repetir. Primeros números con 3
+  clientes en esta misma máquina: 7 % de CPU del gateway y el hilo más cargado
+  (`IncomingVideoStream`, la decodificación) en 20 %. Son ~2 puntos de CPU y
+  ~7 % de un núcleo por invitado, así que 16 deberían entrar — pero hay que
+  verlo, porque esos hilos no escalan todos igual.
+- **La gente del lobby cuesta lo mismo que la de adentro.** Medido: el que
+  espera ya conecta y manda video (vista previa), y se decodifica igual. Si un
+  evento tiene cola larga, el lobby es carga real; convendría bajarle la
+  resolución a la vista previa o pedir el video recién al admitir.
+- **Correr la prueba desde otro equipo.** La herramienta ya trae los dos modos
+  (`--solo-medir` acá, `--sin-admin` allá, probado contra el HTTPS propio). Lo
+  que falta es el equipo.
 
 ## Sala y oradores
 
