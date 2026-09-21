@@ -26,10 +26,15 @@ asistente de armado están desglosados aparte: **[EVENTOS.md](EVENTOS.md)**.
   `lobbySlots` (4): del quinto en adelante esperan sin cámara. O sea que una
   cola larga no dispara el costo. Si algún día se sube ese número, sube la
   carga en la misma proporción.
-- **La memoria no vuelve.** Subió de 91 MB a 344 MB con las corridas y ahí se
-  quedó cuando los invitados se fueron. Puede ser el asignador que no devuelve
-  al sistema, pero conviene mirarlo antes de un evento largo con gente que
-  entra y sale.
+- **La memoria del gateway no es una fuga: es un pozo acotado.** Se veía que
+  subía de 91 MB a 345 MB y no volvía. Medido: los buffers de sesión del
+  MediaPump se reservan al usarse por primera vez y quedan reservados, y la
+  cantidad de sesiones la fija la capacidad configurada (con 16 invitados:
+  `slots=16, lobby=4, fila=6, sesiones=32`). Con 36 invitados entrando y
+  saliendo de una sala de 16, la memoria se movió 2 MB (353 → 355 MB) y ahí se
+  quedó. O sea que el techo se puede calcular de antemano y no crece durante el
+  evento. **Lo que falta** es que ese número se vea antes de arrancar, para que
+  nadie configure 16 invitados en una máquina que no los aguanta.
 - **Correr la prueba desde otro equipo.** La herramienta ya trae los dos modos
   (`--solo-medir` acá, `--sin-admin` allá, probado contra el HTTPS propio). Lo
   que falta es el equipo.

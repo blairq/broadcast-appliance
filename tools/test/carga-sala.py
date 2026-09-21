@@ -32,6 +32,10 @@ Dos cosas que confunden si no se saben:
     Invitados; hoy el tope es 16, y cambiarlo reinicia el gateway). Si pedís
     más, el resto queda esperando en el lobby — que igual conecta y manda
     video, o sea que también es carga real.
+  * Los números de CPU solo valen con el sistema ENTERO corriendo. Contra un
+    gateway suelto (sin la app A del otro lado) nadie consume el video que
+    llega, asi que no se decodifica y la CPU da casi cero: se mide la
+    señalizacion, no el trabajo real.
   * Al cortar, los invitados siguen figurando ~30 s: la sala le guarda el lugar
     al que se cae por si vuelve. Entre corrida y corrida, esperar ese rato o
     los lugares van a estar ocupados por fantasmas.
