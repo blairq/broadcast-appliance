@@ -35,11 +35,14 @@ QVariant ScenesModel::data(const QModelIndex& index, int role) const {
     switch (role) {
         case NameRole: return qs(n);
         case LiveRole: return n == rt_.engine().currentScene();
+        case FolderRole: return qs(rt_.sceneFolder(n));
         default: return {};
     }
 }
 
-QHash<int, QByteArray> ScenesModel::roleNames() const { return {{NameRole, "name"}, {LiveRole, "live"}}; }
+QHash<int, QByteArray> ScenesModel::roleNames() const {
+    return {{NameRole, "name"}, {LiveRole, "live"}, {FolderRole, "folder"}};
+}
 
 void ScenesModel::reload() {
     beginResetModel();

@@ -44,6 +44,9 @@ inline constexpr const char* kDefaultFontFace = "Sans";
 /// Una escena y sus fuentes (en orden de abajo hacia arriba).
 struct SceneConfig {
     std::string name;
+    /// Carpeta para ordenar la lista ("" = sin carpeta). Solo organiza la
+    /// vista: el motor no la usa para nada.
+    std::string folder;
     std::vector<SourceSpec> sources;
 };
 

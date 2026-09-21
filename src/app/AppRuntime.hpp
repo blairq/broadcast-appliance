@@ -65,6 +65,12 @@ class AppRuntime {
     bool addScene(const std::string& name);
     bool removeScene(const std::string& name);
     bool renameScene(const std::string& from, const std::string& to);
+    /// Carpeta de una escena ("" si no tiene).
+    std::string sceneFolder(const std::string& name) const;
+    /// Mueve la escena a una carpeta ("" la saca). Devuelve false si no existe.
+    bool setSceneFolder(const std::string& name, const std::string& folder);
+    /// Carpetas que hay, en el orden en que aparecen las escenas.
+    std::vector<std::string> sceneFolders() const;
     bool setScene(const std::string& name);
     bool setTransition(const std::string& type, int durationMs);
     bool addSource(const std::string& scene, const SourceSpec& spec);

@@ -446,6 +446,23 @@ void StudioViewModel::removeScene(const QString& name) {
     rt_.save();
 }
 
+void StudioViewModel::setSceneFolder(const QString& name, const QString& folder) {
+    if (!rt_.setSceneFolder(name.toStdString(), folder.trimmed().toStdString())) {
+        emit notify(qs(rt_.lastError()), "error");
+        return;
+    }
+    scenes_->reload();
+    emit sceneChanged();
+    rt_.save();
+}
+
+QStringList StudioViewModel::sceneFolders() const {
+    QStringList out;
+    for (const auto& f : rt_.sceneFolders())
+        out << qs(f);
+    return out;
+}
+
 void StudioViewModel::renameScene(const QString& from, const QString& to) {
     if (!rt_.renameScene(from.toStdString(), to.trimmed().toStdString())) {
         emit notify(qs(rt_.lastError()), "error");

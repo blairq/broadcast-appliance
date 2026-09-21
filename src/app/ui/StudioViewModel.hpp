@@ -161,6 +161,10 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE void addScene(const QString& name);
     Q_INVOKABLE void removeScene(const QString& name);
     Q_INVOKABLE void renameScene(const QString& from, const QString& to);
+    /// Mueve la escena a una carpeta ("" la saca). Solo ordena la lista.
+    Q_INVOKABLE void setSceneFolder(const QString& name, const QString& folder);
+    /// Carpetas que ya existen (para ofrecerlas al mover una escena).
+    Q_INVOKABLE QStringList sceneFolders() const;
     /// Escena que muestra el lienzo del editor ("" = ninguna). Se renderiza
     /// aunque no este al aire, asi una escena vacia se ve vacia.
     Q_INVOKABLE void setScenePreview(const QString& name);

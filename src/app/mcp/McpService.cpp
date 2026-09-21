@@ -413,15 +413,45 @@ void McpService::registerTools() {
         t.category = "escenas";
         t.readOnly = true;
         t.idempotent = true;
-        t.description = "Todas las escenas con sus fuentes (de abajo hacia arriba) y cual esta al aire.";
+        t.description =
+            "Todas las escenas con sus fuentes (de abajo hacia arriba), cual esta al aire y en que "
+            "carpeta esta cada una (`folder`, \"\" = suelta). Las carpetas solo ordenan la lista de la "
+            "pestaña Escenas: no cambian nada de la emision.";
         t.run = [&rt](const json&, Done done) {
             json scenes = json::array();
             for (const std::string& n : rt.engine().sceneNames()) {
                 scenes.push_back(json{{"name", n},
                                       {"live", n == rt.engine().currentScene()},
+                                      {"folder", rt.sceneFolder(n)},
                                       {"sources", rt.engine().sceneSources(n)}});
             }
-            done(ToolResult().data(json{{"current", rt.engine().currentScene()}, {"scenes", scenes}}));
+            done(ToolResult().data(json{{"current", rt.engine().currentScene()},
+                                        {"folders", rt.sceneFolders()},
+                                        {"scenes", scenes}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "scene_folder";
+        t.title = "Mover una escena a una carpeta";
+        t.category = "escenas";
+        t.description =
+            "QUE ES: las carpetas agrupan escenas en la lista de la pestaña Escenas (arbol que se "
+            "pliega). PARA QUE: ordenar cuando hay muchas (bloques del programa, placas, invitados). "
+            "COMO SE USA: `folder` con el nombre de la carpeta (se crea sola si no existe) o vacio para "
+            "sacar la escena de toda carpeta. No cambia nada de la emision ni del contenido de la "
+            "escena; `scene_list` informa la carpeta de cada una.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"scene", {{"type", "string"}}}, {"folder", {{"type", "string"}}}}},
+                         {"required", {"scene"}}};
+        t.run = [&rt](const json& a, Done done) {
+            if (!rt.setSceneFolder(a.value("scene", ""), a.value("folder", "")))
+                return done(ToolResult::error(rt.lastError()));
+            rt.save();
+            done(ToolResult().data(json{{"scene", a.value("scene", "")},
+                                        {"folder", a.value("folder", "")},
+                                        {"folders", rt.sceneFolders()}}));
         };
         core_.addTool(std::move(t));
     }

@@ -12,6 +12,41 @@ Rectangle {
     property string selected: ""
     readonly property string editScene: Studio.sources.scene
 
+    // --- Carpetas de escenas --------------------------------------------------
+    // Solo ordenan la lista (el motor no las usa). El arbol se arma leyendo el
+    // modelo de escenas, que informa la carpeta de cada una.
+    property var closedFolders: ({})
+    property int folderTick: 0
+    property int scenesTick: 0
+    function folderOpen(f) { folderTick; return !closedFolders[f] }
+    function toggleFolder(f) { closedFolders[f] = !closedFolders[f]; folderTick++ }
+    readonly property var sceneTree: {
+        folderTick; scenesTick
+        const m = Studio.scenes
+        const sueltas = [], carpetas = [], porCarpeta = {}
+        for (let i = 0; i < m.rowCount(); ++i) {
+            const idx = m.index(i, 0)
+            const fila = { fila: "escena",
+                           nombre: m.data(idx, 257),   // NameRole
+                           live: m.data(idx, 258),     // LiveRole
+                           carpeta: m.data(idx, 259) } // FolderRole
+            if (!fila.carpeta) { sueltas.push(fila); continue }
+            if (!porCarpeta[fila.carpeta]) { porCarpeta[fila.carpeta] = []; carpetas.push(fila.carpeta) }
+            porCarpeta[fila.carpeta].push(fila)
+        }
+        const filas = sueltas.slice()
+        for (const c of carpetas) {
+            filas.push({ fila: "carpeta", carpeta: c, cuantas: porCarpeta[c].length })
+            if (folderOpen(c)) for (const f of porCarpeta[c]) filas.push(f)
+        }
+        return filas
+    }
+    Connections {
+        target: Studio.scenes
+        function onModelReset() { page.scenesTick++ }
+        function onDataChanged() { page.scenesTick++ }
+    }
+
     // El motor renderiza la escena que se edita solo mientras esta pagina esta
     // a la vista: fuera de aca no se gasta GPU en ella.
     onEditSceneChanged: if (visible) Studio.setScenePreview(editScene)
@@ -38,31 +73,72 @@ Rectangle {
                     Layout.fillHeight: true
                     clip: true
                     spacing: 6
-                    model: Studio.scenes
-                    delegate: Rectangle {
-                        required property string name
-                        required property bool live
+                    // Arbol: un encabezado por carpeta (se pliega) y debajo sus
+                    // escenas. Las que no tienen carpeta van primero, sueltas.
+                    model: page.sceneTree
+                    delegate: Item {
+                        required property var modelData
                         width: ListView.view.width
-                        height: 46
-                        radius: 12
-                        color: name === page.editScene ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.04)
-                        border.color: live ? Theme.accent : "transparent"
-                        RowLayout {
-                            anchors { fill: parent; leftMargin: 12; rightMargin: 8 }
-                            Rectangle { width: 8; height: 8; radius: 4; color: live ? Theme.live : Theme.textFaint }
-                            Text { text: name; color: Theme.text; Layout.fillWidth: true; elide: Text.ElideRight; font.pixelSize: 13 }
-                            GlassButton { visible: !live; text: "Al aire"; compact: true; onClicked: Studio.takeScene(name) }
+                        height: modelData.fila === "carpeta" ? 28 : 46
+
+                        Rectangle {
+                            anchors.fill: parent
+                            visible: modelData.fila === "carpeta"
+                            color: "transparent"
+                            RowLayout {
+                                anchors { fill: parent; leftMargin: 2; rightMargin: 6 }
+                                spacing: 6
+                                Text {
+                                    text: page.folderOpen(modelData.carpeta) ? "▾" : "▸"
+                                    color: Theme.textFaint; font.pixelSize: 11
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: modelData.carpeta
+                                    color: Theme.textDim
+                                    font { pixelSize: 11; weight: Font.DemiBold; capitalization: Font.AllUppercase; letterSpacing: 0.4 }
+                                    elide: Text.ElideRight
+                                }
+                                Text { text: modelData.cuantas; color: Theme.textFaint; font.pixelSize: 11 }
+                            }
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: page.toggleFolder(modelData.carpeta)
+                            }
                         }
-                        MouseArea {
-                            anchors.fill: parent; z: -1
-                            onClicked: { Studio.sources.scene = name; page.selected = "" }
-                            onDoubleClicked: { renameDlg.from = name; renameDlg.open() }
+
+                        Rectangle {
+                            anchors { fill: parent; leftMargin: modelData.carpeta ? 12 : 0 }
+                            visible: modelData.fila === "escena"
+                            readonly property string name: modelData.nombre || ""
+                            readonly property bool live: !!modelData.live
+                            radius: 12
+                            color: name === page.editScene ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.04)
+                            border.color: live ? Theme.accent : "transparent"
+                            RowLayout {
+                                anchors { fill: parent; leftMargin: 12; rightMargin: 8 }
+                                Rectangle { width: 8; height: 8; radius: 4; color: parent.parent.live ? Theme.live : Theme.textFaint }
+                                Text { text: parent.parent.name; color: Theme.text; Layout.fillWidth: true; elide: Text.ElideRight; font.pixelSize: 13 }
+                                GlassButton { visible: !parent.parent.live; text: "Al aire"; compact: true; onClicked: Studio.takeScene(parent.parent.name) }
+                            }
+                            MouseArea {
+                                anchors.fill: parent; z: -1
+                                onClicked: { Studio.sources.scene = parent.name; page.selected = "" }
+                                onDoubleClicked: { renameDlg.from = parent.name; renameDlg.open() }
+                            }
                         }
                     }
                 }
                 RowLayout {
                     GlassButton { text: "Nueva"; icon: "+"; compact: true; onClicked: newSceneDlg.open() }
                     GlassButton { text: "Renombrar"; compact: true; onClicked: { renameDlg.from = page.editScene; renameDlg.open() } }
+                    GlassButton {
+                        text: "Carpeta"; compact: true
+                        onClicked: { folderDlg.scene = page.editScene; folderDlg.open() }
+                        ToolTip.visible: hovered; ToolTip.delay: 400
+                        ToolTip.text: "Mover la escena elegida a una carpeta (solo ordena la lista)"
+                    }
                     GlassButton {
                         text: "Borrar"; compact: true
                         onClicked: {
@@ -340,6 +416,43 @@ Rectangle {
         TextField { id: newSceneName; width: 280; placeholderText: "Nombre de la escena" }
         onAccepted: { if (newSceneName.text) Studio.addScene(newSceneName.text); newSceneName.text = "" }
     }
+    // Mover una escena a una carpeta (o sacarla, dejando el nombre vacio).
+    Dialog {
+        id: folderDlg
+        property string scene: ""
+        anchors.centerIn: parent
+        modal: true
+        title: "Carpeta de «" + scene + "»"
+        onOpened: folderField.forceActiveFocus()
+        footer: DialogButtonBox {
+            GlassButton { text: "Guardar"; active: true; onClicked: { Studio.setSceneFolder(folderDlg.scene, folderField.text); folderDlg.close() } }
+            GlassButton { text: "Cancelar"; onClicked: folderDlg.close() }
+        }
+        ColumnLayout {
+            spacing: 8
+            Label { text: "Nombre de la carpeta (vacío = sin carpeta)" }
+            TextField {
+                id: folderField
+                Layout.preferredWidth: 320
+                placeholderText: "p. ej. Bloque 1, Invitados, Placas"
+                onAccepted: { Studio.setSceneFolder(folderDlg.scene, text); folderDlg.close() }
+            }
+            Flow {
+                Layout.preferredWidth: 320
+                spacing: 6
+                Repeater {
+                    model: Studio.sceneFolders()
+                    delegate: GlassButton {
+                        required property string modelData
+                        compact: true
+                        text: modelData
+                        onClicked: folderField.text = modelData
+                    }
+                }
+            }
+        }
+    }
+
     Dialog {
         id: renameDlg
         property string from: ""

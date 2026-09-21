@@ -204,6 +204,7 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
         for (const auto& sc : j["scenes"]) {
             SceneConfig scene;
             scene.name = get<std::string>(sc, "name", "Escena");
+            scene.folder = get<std::string>(sc, "folder", "");
             for (const auto& s : sc.value("sources", json::array())) {
                 scene.sources.push_back(sourceFromJson(s));
             }
@@ -246,7 +247,7 @@ bool saveAppConfig(const fs::path& path, const AppConfig& c, const fs::path& dat
         for (const auto& s : sc.sources) {
             sources.push_back(sourceToJson(s));
         }
-        scenes.push_back({{"name", sc.name}, {"sources", sources}});
+        scenes.push_back({{"name", sc.name}, {"folder", sc.folder}, {"sources", sources}});
     }
     const json j{
         {"video",

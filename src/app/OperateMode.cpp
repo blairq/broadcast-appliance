@@ -545,6 +545,29 @@ bool AppRuntime::renameScene(const std::string& from, const std::string& to) {
     return true;
 }
 
+std::string AppRuntime::sceneFolder(const std::string& name) const {
+    const SceneConfig* sc = findScene(const_cast<AppConfig&>(cfg_), name);
+    return sc != nullptr ? sc->folder : std::string();
+}
+
+bool AppRuntime::setSceneFolder(const std::string& name, const std::string& folder) {
+    SceneConfig* sc = findScene(cfg_, name);
+    if (sc == nullptr) {
+        lastError_ = "no existe la escena '" + name + "'";
+        return false;
+    }
+    sc->folder = folder;
+    return true;
+}
+
+std::vector<std::string> AppRuntime::sceneFolders() const {
+    std::vector<std::string> out;
+    for (const auto& sc : cfg_.scenes)
+        if (!sc.folder.empty() && std::find(out.begin(), out.end(), sc.folder) == out.end())
+            out.push_back(sc.folder);
+    return out;
+}
+
 bool AppRuntime::setScene(const std::string& name) {
     if (!engine_.setCurrentScene(name)) {
         lastError_ = engine_.lastError();
