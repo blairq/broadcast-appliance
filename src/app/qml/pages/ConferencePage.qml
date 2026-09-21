@@ -200,7 +200,9 @@ Rectangle {
                                 // Su camara: solo la ves vos (preview privado del lobby).
                                 Rectangle {
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: width * 9 / 16
+                                    // Del ancho de la columna: tomandolo del suyo propio
+                                    // quedaba a medio calcular en el primer armado.
+                                    Layout.preferredHeight: (waitCol.width - 20) * 9 / 16
                                     radius: 10
                                     color: "#000000"
                                     clip: true
@@ -223,13 +225,16 @@ Rectangle {
                                         Text { text: (connected ? "espera hace " : "desconectado · ") + page.since(joinedMs); color: Theme.textFaint; font.pixelSize: 11 }
                                     }
                                 }
-                                RowLayout {
+                                // Flow y no RowLayout: con varios botones ya no
+                                // entraban en el ancho de la tarjeta y la
+                                // descuadraban (el video se salia del marco).
+                                Flow {
+                                    Layout.fillWidth: true
                                     spacing: 6
                                     GlassButton { text: "Admitir"; compact: true; active: true; activeColor: Theme.ok; onClicked: conf.admit(uid) }
                                     GlassButton { text: talk ? "Cortar" : "Hablar"; compact: true; enabled: lobbySlot > 0; active: talk; activeColor: Theme.ok
                                                   onClicked: conf.talk(uid, !talk) }
                                     GlassButton { text: "Rechazar"; compact: true; onClicked: conf.reject(uid) }
-                                    Item { Layout.fillWidth: true }
                                     GlassButton { text: "✉"; compact: true; onClicked: { chatTo.pick(uid); chatInput.forceActiveFocus() } }
                                     GlassButton {
                                         text: "✎"; compact: true
