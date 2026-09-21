@@ -42,6 +42,12 @@ Rectangle {
     property var expanded: ({})
     property int expandTick: 0
     function isExpanded(id) { expandTick; return !!expanded[id] }
+    // Con la tarjeta expandida las filas son mas altas y los puntos L/R mas
+    // grandes: asi se agarran bien y entran los nombres de los puertos.
+    function rowH(id) { return isExpanded(id) ? portH + 14 : portH }
+    function chOff(id) { return isExpanded(id) ? 10 : 5 }   // separacion del centro
+    function chW(id) { return isExpanded(id) ? 22 : 14 }
+    function chH(id) { return isExpanded(id) ? 14 : 8 }
     function toggleExpanded(id) { expanded[id] = !expanded[id]; expandTick++ }
     function snap(v) { return Math.round(v / grid) * grid }
 
@@ -51,7 +57,7 @@ Rectangle {
     }
     function nodeH(n) {
         const rows = Math.max(n.entradas.length, n.salidas.length, 1)
-        return headH + rows * portH + 30 + (isExpanded(n.id) ? rows * 12 : 0)
+        return headH + rows * rowH(n.id) + 30
     }
     function posOf(n) {
         liveTick // dependencia
@@ -67,8 +73,10 @@ Rectangle {
         const i = Math.max(0, list.indexOf(port))
         const p = posOf(n)
         const info = ((isIn ? n.puertosEntrada : n.puertosSalida) || [])[i] || ({})
-        const dy = (info.canales === 2 && ch !== undefined && ch >= 0) ? (ch === 0 ? -5 : 5) : 0
-        return Qt.point(p.x + (isIn ? 0 : nodeW), p.y + headH + i * portH + portH / 2 + dy)
+        const off = chOff(nodeId)
+        const dy = (info.canales === 2 && ch !== undefined && ch >= 0) ? (ch === 0 ? -off : off) : 0
+        const h = rowH(nodeId)
+        return Qt.point(p.x + (isIn ? 0 : nodeW), p.y + headH + i * h + h / 2 + dy)
     }
     function kindColor(t) {
         if (t === "in" || t === "out") return "#64748b"
@@ -570,7 +578,8 @@ Rectangle {
                                         readonly property int targetCh: target ? page.wireTarget.ch : -2
                                         readonly property var info: (nd.modelData.puertosEntrada || [])[index] || ({})
                                         x: -7
-                                        y: page.headH + index * page.portH + page.portH / 2 - 7
+                                        y: page.headH + index * page.rowH(nd.modelData.id)
+                                           + page.rowH(nd.modelData.id) / 2 - 7
                                         width: 14; height: 14
                                         // Halo cuando el cable que se esta tirando va a caer aca.
                                         Rectangle {
@@ -593,20 +602,22 @@ Rectangle {
                                         Column {
                                             visible: parent.info.canales === 2
                                             anchors.centerIn: parent
-                                            spacing: 2
+                                            spacing: 2 * page.chOff(nd.modelData.id) - page.chH(nd.modelData.id)
                                             Repeater {
                                                 model: [0, 1]
                                                 delegate: Rectangle {
                                                     id: inDot
                                                     required property int modelData
-                                                    width: 14; height: 8; radius: 4
+                                                    width: page.chW(nd.modelData.id)
+                                                    height: page.chH(nd.modelData.id)
+                                                    radius: height / 2
                                                     color: parent.parent.targetCh === inDot.modelData ? Theme.ok : "#93c5fd"
                                                     border.color: "white"; border.width: 1
                                                     Text {
                                                         anchors.centerIn: parent
                                                         text: page.chName(inDot.modelData)
                                                         color: "#0b1220"
-                                                        font { pixelSize: 7; weight: Font.Black }
+                                                        font { pixelSize: page.isExpanded(nd.modelData.id) ? 10 : 7; weight: Font.Black }
                                                     }
                                                 }
                                             }
@@ -635,7 +646,8 @@ Rectangle {
                                         required property int index
                                         readonly property var info: (nd.modelData.puertosSalida || [])[index] || ({})
                                         x: page.nodeW - 7
-                                        y: page.headH + index * page.portH + page.portH / 2 - 7
+                                        y: page.headH + index * page.rowH(nd.modelData.id)
+                                           + page.rowH(nd.modelData.id) / 2 - 7
                                         width: 14; height: 14
                                         Column {
                                             anchors { right: parent.left; rightMargin: 4; verticalCenter: parent.verticalCenter }
@@ -661,20 +673,22 @@ Rectangle {
                                         Column {
                                             visible: op.info.canales === 2
                                             anchors.centerIn: parent
-                                            spacing: 2
+                                            spacing: 2 * page.chOff(nd.modelData.id) - page.chH(nd.modelData.id)
                                             Repeater {
                                                 model: [0, 1]
                                                 delegate: Rectangle {
                                                     id: chDot
                                                     required property int modelData
-                                                    width: 14; height: 8; radius: 4
+                                                    width: page.chW(nd.modelData.id)
+                                                    height: page.chH(nd.modelData.id)
+                                                    radius: height / 2
                                                     color: "#86efac"
                                                     border.color: "white"; border.width: 1
                                                     Text {
                                                         anchors.centerIn: parent
                                                         text: page.chName(chDot.modelData)
                                                         color: "#0b1220"
-                                                        font { pixelSize: 7; weight: Font.Black }
+                                                        font { pixelSize: page.isExpanded(nd.modelData.id) ? 10 : 7; weight: Font.Black }
                                                     }
                                                     // Arrastrar desde L o R lleva SOLO ese canal.
                                                     MouseArea {
