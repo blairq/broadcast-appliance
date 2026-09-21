@@ -213,6 +213,15 @@ void ConferenceViewModel::speakerTime(const QString& id, int sec) {
     if (sec > 0) participantAction(id, "time", QJsonObject{{"sec", sec}});
 }
 void ConferenceViewModel::speakerRequeue(const QString& id) { participantAction(id, "requeue"); }
+void ConferenceViewModel::setAutoIntake(bool on) {
+    if (autoIntake_ == on) return;
+    autoIntake_ = on;
+    // Al prenderlo, los que ya estaban esperando tambien se atienden.
+    if (!on) intakeDone_.clear();
+    emit autoIntakeChanged();
+    if (on) onSnapshot();
+}
+
 void ConferenceViewModel::setPresenter(const QString& id, bool on) {
     participantAction(id, "presenter", QJsonObject{{"on", on}});
 }
@@ -268,6 +277,18 @@ void ConferenceViewModel::onSnapshot() {
             if (!knownWaiting_.contains(p.value("id").toString()) && !firstSnapshot_) {
                 emit notify(p.value("name").toString() + " espera en el lobby", "info");
             }
+            // Atencion automatica: se le encarga al asistente una sola vez por
+            // persona (mientras siga esperando).
+            const QString pid = p.value("id").toString();
+            if (autoIntake_ && intakeSink_ && !intakeDone_.contains(pid)) {
+                const QString err = intakeSink_(pid, p.value("name").toString());
+                intakeDone_.insert(pid);
+                if (!err.isEmpty()) {
+                    autoIntake_ = false; // sin asistente no tiene sentido seguir
+                    emit autoIntakeChanged();
+                    emit notify(err, "error");
+                }
+            }
         } else if (slot > 0) {
             inside.append(p); // en el programa (la fila de oradores va aparte)
         } else if (p.value("speaker").toString() == "none") {
@@ -277,6 +298,9 @@ void ConferenceViewModel::onSnapshot() {
             inside.append(p);
         }
     }
+    // Los que ya no esperan se olvidan: si vuelven, se los atiende de nuevo.
+    for (auto it = intakeDone_.begin(); it != intakeDone_.end();)
+        it = nowWaiting.contains(*it) ? std::next(it) : intakeDone_.erase(it);
     knownWaiting_ = nowWaiting;
     slotNames_ = slotNames;
     // Adentro, ordenados por slot (coincide con "Invitado N" de las fuentes).

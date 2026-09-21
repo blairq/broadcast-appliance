@@ -152,6 +152,34 @@ Rectangle {
                 ColumnLayout {
                     anchors.fill: parent
                     spacing: 10
+                    // Que el asistente atienda SOLO a cada uno que llega: les
+                    // pide los datos y despues pregunta si los hacemos pasar.
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        Toggle {
+                            checked: conf.autoIntake
+                            enabled: Studio.agent.running
+                            onToggled: (wanted) => conf.setAutoIntake(wanted)
+                        }
+                        ColumnLayout {
+                            spacing: 0
+                            Layout.fillWidth: true
+                            Text {
+                                text: "✦ Los atiende el asistente"
+                                color: Studio.agent.running ? Theme.text : Theme.textFaint
+                                font.pixelSize: 13
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                wrapMode: Text.WordWrap
+                                text: !Studio.agent.running ? "Prendé el asistente en la pestaña ✦"
+                                      : conf.autoIntake ? "Les pide los datos y te muestra todo junto para admitirlos"
+                                                        : "Cada uno que entra, lo atendés vos"
+                                color: Theme.textFaint; font.pixelSize: 11
+                            }
+                        }
+                    }
                     RowLayout {
                         Layout.fillWidth: true
                         Text { text: conf.waiting.count === 0 ? "Nadie esperando" : conf.waiting.count + " esperando"

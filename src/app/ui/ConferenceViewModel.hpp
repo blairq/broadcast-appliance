@@ -17,11 +17,13 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QObject>
+#include <QSet>
 #include <QStringList>
 #include <QTimer>
 #include <QVariantList>
 #include <QVariantMap>
 
+#include <functional>
 #include <memory>
 
 namespace ba::app {
@@ -86,6 +88,7 @@ class ConferenceViewModel : public QObject {
     // --- Modo oradores ---------------------------------------------------------
     /// Configuracion: {enabled, defaultSec, carousel, graceSec, multi, defaultSlot}.
     Q_PROPERTY(QVariantMap speakerCfg READ speakerCfg NOTIFY roomChanged)
+    Q_PROPERTY(bool autoIntake READ autoIntake NOTIFY autoIntakeChanged)
     Q_PROPERTY(bool speakerMode READ speakerMode NOTIFY roomChanged)
     /// Fila de oradores en orden (tarjetas): uid, name, info, contact, speaker
     /// ("queued"|"onair"|"done"), position, allottedSec, onAirSinceMs, usedMs,
@@ -125,6 +128,7 @@ class ConferenceViewModel : public QObject {
     ConferenceClient& client() { return *client_; }
     QVariantMap speakerCfg() const;
     bool speakerMode() const;
+    bool autoIntake() const { return autoIntake_; }
     QObject* speakers() const;
     QVariantList onAir() const { return onAir_; }
     double clockOffset() const { return clockOffset_; }
@@ -140,6 +144,13 @@ class ConferenceViewModel : public QObject {
     Q_INVOKABLE void speakerRequeue(const QString& id);
     /// Presentador fijo: se queda al aire mientras rotan los oradores.
     Q_INVOKABLE void setPresenter(const QString& id, bool on);
+    /// Atencion automatica: a cada persona que entra al lobby la atiende el
+    /// asistente (le pide los datos y despues pregunta si la hacemos pasar).
+    Q_INVOKABLE void setAutoIntake(bool on);
+    /// Lo engancha StudioViewModel (el encargo vive alla, con el MCP).
+    void setIntakeSink(std::function<QString(const QString&, const QString&)> fn) {
+        intakeSink_ = std::move(fn);
+    }
     Q_INVOKABLE void setProfile(const QString& id, const QString& name, const QString& info,
                                 const QString& contact);
     /// "m:ss", "m" (minutos) o "Ns" -> segundos (0 = invalido).
@@ -185,6 +196,7 @@ class ConferenceViewModel : public QObject {
    signals:
     void onlineChanged();
     void roomChanged();
+    void autoIntakeChanged();
     void operatorChanged();
     void networkChanged();
     /// `modules`: filas de '0'/'1'. Sin url -> `message` explica que falta.
@@ -202,6 +214,12 @@ class ConferenceViewModel : public QObject {
     void participantAction(const QString& id, const QString& action, const QJsonObject& body = {});
 
     AppRuntime& rt_;
+
+    bool autoIntake_ = false;
+
+    std::function<QString(const QString&, const QString&)> intakeSink_;
+
+    QSet<QString> intakeDone_; // a quienes ya se les encargo
     std::unique_ptr<ConferenceClient> client_;
     std::unique_ptr<JsonListModel> waiting_;
     std::unique_ptr<JsonListModel> inside_;

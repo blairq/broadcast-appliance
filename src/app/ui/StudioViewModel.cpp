@@ -72,6 +72,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     frames_->setLobbySlots(rt.gateway().lobbySlots);
     props_ = std::make_unique<PropertiesModel>(rt);
     conference_ = std::make_unique<ConferenceViewModel>(rt);
+    // El encargo al asistente vive aca (necesita el MCP): la sala solo avisa.
+    conference_->setIntakeSink(
+        [this](const QString& id, const QString& name) { return assistantIntake(id, name); });
     connect(conference_.get(), &ConferenceViewModel::notify, this, &StudioViewModel::notify);
     // HTTPS propio (plataformas): raices de certificados del bundle primero.
     net::HttpsClient::setDefaultCaSearch(
