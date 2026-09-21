@@ -299,7 +299,9 @@ void McpService::registerRoomTools() {
             {"properties",
              {{"participant", personProp},
               {"what",
-               {{"type", "string"}, {"enum", {"mute-mic", "mute-cam", "stop-screen", "lower-hand"}}}}}},
+               {{"type", "string"},
+                {"enum",
+                 {"mute-mic", "mute-cam", "unmute-mic", "unmute-cam", "stop-screen", "lower-hand"}}}}}},
             {"required", {"participant", "what"}}};
         t.run = [withPerson, partPath, post](const json& a, Done done) {
             json p;

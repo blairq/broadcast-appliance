@@ -270,6 +270,11 @@ void ConferenceViewModel::onSnapshot() {
             }
         } else if (slot > 0) {
             inside.append(p); // en el programa (la fila de oradores va aparte)
+        } else if (p.value("speaker").toString() == "none") {
+            // Admitido, sin lugar en el programa y fuera de la fila de oradores:
+            // igual esta en la sala y conectado. Se muestra (sin video) para que
+            // nunca quede alguien invisible para el operador.
+            inside.append(p);
         }
     }
     knownWaiting_ = nowWaiting;

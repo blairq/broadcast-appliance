@@ -330,7 +330,8 @@ int Room::setTalk(const std::string& id, bool on) {
 }
 
 int Room::request(const std::string& id, const std::string& what) {
-    static const char* kAllowed[] = {"mute-mic", "mute-cam", "stop-screen", "lower-hand"};
+    static const char* kAllowed[] = {"mute-mic",   "mute-cam",    "unmute-mic",
+                                     "unmute-cam", "stop-screen", "lower-hand"};
     if (std::none_of(std::begin(kAllowed), std::end(kAllowed), [&](const char* a) { return what == a; })) {
         return kBadState;
     }
@@ -923,7 +924,14 @@ int Room::setPresenter(const std::string& id, bool on, int64_t nowMs) {
             }
         } else {
             p->presenter = false;
-            if (p->slot > 0) takeOffAirLocked(*p, nowMs, out);
+            // No puede quedar admitido sin lugar Y fuera de la fila: asi
+            // desaparecia de la vista del operador aunque siguiera conectado.
+            if (spk_.enabled) {
+                if (p->slot > 0) takeOffAirLocked(*p, nowMs, out);
+                p->speaker = Speaker::Queued;
+                if (std::find(order_.begin(), order_.end(), p->id) == order_.end()) order_.push_back(p->id);
+            }
+            // Sin modo oradores se queda en el programa, como cualquier invitado.
         }
         speakerNotifyLocked(nowMs, out);
         out.roomChanged = true;

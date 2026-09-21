@@ -282,7 +282,21 @@ Rectangle {
                                 border.color: presenter ? "#a78bfa" : hand ? Theme.amber : Theme.glassBorder
                                 border.width: presenter || hand ? 2 : 1
                                 // El video que B publica para ese slot (lo mismo que ve el motor).
-                                VideoItem { anchors.fill: parent; source: "guest:" + slot; fillMode: VideoItem.Fit; opacity: connected ? 1 : 0.4 }
+                                // Sin lugar en el programa no hay video que mostrar
+                                // (esta en la sala igual: se lo ve y se lo maneja).
+                                VideoItem {
+                                    anchors.fill: parent
+                                    visible: slot > 0
+                                    source: "guest:" + slot
+                                    fillMode: VideoItem.Fit
+                                    opacity: connected ? 1 : 0.4
+                                }
+                                Text {
+                                    anchors.centerIn: parent
+                                    visible: slot <= 0
+                                    text: "sin lugar en el programa"
+                                    color: Theme.textFaint; font.pixelSize: 12
+                                }
                                 Rectangle {
                                     anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
                                     height: 74
@@ -296,8 +310,8 @@ Rectangle {
                                     spacing: 6
                                     RowLayout {
                                         spacing: 8
-                                        Rectangle { width: 22; height: 22; radius: 7; color: Theme.accent
-                                            Text { anchors.centerIn: parent; text: slot; color: "#140a04"; font { pixelSize: 12; weight: Font.Bold } } }
+                                        Rectangle { width: 22; height: 22; radius: 7; color: slot > 0 ? Theme.accent : Qt.rgba(1, 1, 1, 0.18)
+                                            Text { anchors.centerIn: parent; text: slot > 0 ? slot : "–"; color: slot > 0 ? "#140a04" : "white"; font { pixelSize: 12; weight: Font.Bold } } }
                                         Text { text: name; color: "white"; font.pixelSize: 14; font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.fillWidth: true }
                                         Text { visible: hand; text: "✋"; font.pixelSize: 16 }
                                         StatusPill { text: mic ? "mic" : "mic off"; dot: mic ? Theme.ok : Theme.live }
@@ -310,8 +324,16 @@ Rectangle {
                                     Flow {
                                         Layout.fillWidth: true
                                         spacing: 6
-                                        GlassButton { visible: mic; compact: true; text: "Silenciar"; onClicked: conf.request(uid, "mute-mic") }
-                                        GlassButton { visible: cam; compact: true; text: "Apagar cámara"; onClicked: conf.request(uid, "mute-cam") }
+                                        GlassButton {
+                                            compact: true
+                                            text: mic ? "Silenciar" : "Activar micrófono"
+                                            onClicked: conf.request(uid, mic ? "mute-mic" : "unmute-mic")
+                                        }
+                                        GlassButton {
+                                            compact: true
+                                            text: cam ? "Apagar cámara" : "Encender cámara"
+                                            onClicked: conf.request(uid, cam ? "mute-cam" : "unmute-cam")
+                                        }
                                         GlassButton { visible: screen; compact: true; text: "Cortar pantalla"; onClicked: conf.request(uid, "stop-screen") }
                                         GlassButton { visible: hand; compact: true; text: "Bajar mano"; onClicked: conf.request(uid, "lower-hand") }
                                         // Pasarlo a la fila de oradores o dejarlo de presentador
@@ -445,35 +467,10 @@ Rectangle {
                             spacing: 6
                             GlassButton {
                                 Layout.fillWidth: true
-                                text: "QR red local"; icon: "⬚"; active: true
+                                text: "Invitar con QR"; icon: "⬚"; active: true
                                 onClicked: qrDlg.show("local")
                                 ToolTip.visible: hovered; ToolTip.delay: 400
-                                ToolTip.text: "Para escanear desde un celular en la misma red (wifi) que este equipo."
-                            }
-                            GlassButton {
-                                Layout.fillWidth: true
-                                text: "QR por internet"; icon: "⬚"
-                                onClicked: qrDlg.show("remote")
-                                ToolTip.visible: hovered; ToolTip.delay: 400
-                                ToolTip.text: "Para invitar desde cualquier lugar (túnel de Cloudflare o servidor propio)."
-                            }
-                        }
-                        RowLayout {
-                            Layout.fillWidth: true
-                            TextField {
-                                Layout.fillWidth: true
-                                readOnly: true
-                                text: conf.guestUrl
-                                // Si el gateway todavia no contesto, el enlace no existe:
-                                // que se entienda en vez de quedar un casillero vacio.
-                                placeholderText: conf.online ? "Sin enlace todavía…" : "Esperando al gateway…"
-                                font.pixelSize: 11
-                                selectByMouse: true
-                            }
-                            GlassButton {
-                                text: "Copiar"; compact: true
-                                enabled: conf.guestUrl !== ""
-                                onClicked: conf.copyToClipboard(conf.guestUrl)
+                                ToolTip.text: "Muestra el código para escanear. Adentro se elige red local o internet, y si el PIN va incluido."
                             }
                         }
                         RowLayout {

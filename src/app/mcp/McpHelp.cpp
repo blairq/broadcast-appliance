@@ -160,7 +160,7 @@ La fuente se ajusta dentro del rectangulo conservando su proporcion.
 
 ## Adentro
 - Su camara es la fuente `Invitado N` (N = slot). `guest_source_add` la pone en una escena.
-- `participant_request {"what": "mute-mic"|"mute-cam"|"stop-screen"|"lower-hand"}`, `participant_kick`.
+- `participant_request {"what": "mute-mic"|"mute-cam"|"unmute-mic"|"unmute-cam"|"stop-screen"|"lower-hand"}` (los unmute vuelven a prender lo que se apago), `participant_kick`.
 - `chat_send` (a todos o a una persona), `chat_history`.
 - Archivos que comparten: `share_list`, `share_view` (ver la imagen), `share_take` (a la escena), `share_delete`.
 

@@ -470,6 +470,8 @@
 
   function onRequest(what) {
     if (what === "mute-mic" && state.mic) { setMic(false); toast("El operador te silenció el micrófono. Tocá 🎙️ para volver a activarlo."); }
+    else if (what === "unmute-mic" && !state.mic) { setMic(true); toast("El operador activó tu micrófono", "ok"); }
+    else if (what === "unmute-cam" && !state.cam) { setCam(true); toast("El operador encendió tu cámara", "ok"); }
     else if (what === "mute-cam" && state.cam) { setCam(false); toast("El operador te pidió apagar la cámara"); }
     else if (what === "stop-screen" && state.screenStream) { stopScreen(); toast("El operador dejó de mostrar tu pantalla"); }
     else if (what === "lower-hand" && state.hand) { setHand(false); toast("El operador bajó tu mano"); }
