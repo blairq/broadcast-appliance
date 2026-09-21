@@ -127,6 +127,15 @@ void revision() {
     for (const Reparo& r : rs) CHECK(r.grave, "los tres impiden correr el guion");
     CHECK(rs[0].bloque == 0 && rs[0].cue == 0, "ubica el reparo donde esta");
 
+    // El cue de audio: la accion tiene que ser una de las que se saben hacer.
+    Cue mal = cue(Tipo::Audio, "ca", 1, json{{"accion", "bajar"}, {"fuente", "Default"}});
+    CHECK(mal.queLeFalta().find("no existe") != std::string::npos,
+          "una accion de audio inventada se avisa por nombre");
+    Cue sinFuente = cue(Tipo::Audio, "cb", 1, json{{"accion", "silenciar"}});
+    CHECK(!sinFuente.queLeFalta().empty(), "silenciar necesita saber que fuente");
+    Cue bien = cue(Tipo::Audio, "cc", 1, json{{"accion", "volumen"}, {"fuente", "Default"}});
+    CHECK(bien.queLeFalta().empty(), "con accion y fuente esta completo");
+
     // Parar la musica no necesita archivo: es el mismo tipo de cue.
     Cue parar = cue(Tipo::Musica, "cx", 2, json{{"accion", "parar"}});
     CHECK(parar.queLeFalta().empty(), "parar la musica no necesita archivo");

@@ -172,12 +172,13 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev) {
         t.details =
             "Un cue es una cosa concreta que pasa. Los tipos y lo que necesita cada uno en `datos`:\n\n"
             "  escena        {escena}              pone esa escena al aire\n"
-            "  musica        {archivo, accion}     accion: arrancar (por defecto) o parar\n"
+            "  musica        {archivo, accion, repetir}  accion: arrancar (por defecto) o parar;\n"
+            "                                        el archivo va en Medios/ del evento\n"
             "  video         {archivo, alTerminar}\n"
             "  teleprompter  {discurso}            un archivo de Discursos/\n"
             "  orador        {participante}        ademas necesita duracionSeg > 0\n"
             "  pantalla      {pantalla, contenido}\n"
-            "  audio         {accion, fuente}\n"
+            "  audio         {accion, fuente, db}    accion: silenciar | activar | volumen\n"
             "  pausa         -                     espera lo que diga duracionSeg\n"
             "  espera        -                     frena hasta que el operador confirme\n"
             "  nota          -                     no hace nada: es una indicacion\n\n"
@@ -187,10 +188,10 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev) {
             "algo salga solo cuando no lo esperabas es peor que llegar tarde. La revision avisa si hay "
             "seis automaticos seguidos.\n\n"
             "Sin `cue` agrega uno nuevo al final del bloque. Con `cue` actua sobre ese.\n\n"
-            "Ojo con que se EJECUTA hoy: escena, orador, musica y teleprompter si. Video, pantalla y "
-            "audio todavia no: se pueden dejar escritos en el guion (sirven para los tiempos y para que "
-            "el operador sepa que hacer), pero cuando toquen se anotan como «todavia no se ejecutan» en "
-            "vez de fallar callados.";
+            "Ojo con que se EJECUTA hoy: escena, orador, musica, teleprompter y audio si. Video y "
+            "pantalla todavia no: se pueden dejar escritos en el guion (sirven para los tiempos y para "
+            "que el operador sepa que hacer), pero cuando toquen se anotan como «todavia no se "
+            "ejecutan» en vez de fallar callados.";
         t.inputSchema = {
             {"type", "object"},
             {"properties",

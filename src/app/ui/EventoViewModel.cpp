@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 
 #include <QDateTime>
 #include <QDir>
@@ -86,12 +87,12 @@ struct CampoDeTipo {
 
 constexpr CampoDeTipo kTipos[] = {
     {"escena", "Escena", "Pone una escena al aire.", "escena"},
-    {"musica", "Música", "Arranca o para un tema, con fundido.", "archivo,accion,fundidoSeg"},
+    {"musica", "Música", "Arranca o para un tema de Medios/.", "archivo,accion,repetir"},
     {"video", "Video", "Reproduce un video del evento.", "archivo,alTerminar"},
     {"teleprompter", "Teleprompter", "Carga un discurso y lo deja listo.", "discurso,arrancar"},
     {"orador", "Orador", "Le da la palabra a alguien, con su tiempo.", "participante"},
     {"pantalla", "Pantalla", "Manda contenido a una pantalla.", "pantalla,contenido"},
-    {"audio", "Audio", "Silencia, cambia el rack o baja el ambiente.", "accion,fuente"},
+    {"audio", "Audio", "Silencia una fuente, la activa o le cambia el volumen.", "accion,fuente,db"},
     {"pausa", "Pausa", "Espera los segundos que diga la duración.", ""},
     {"espera", "Espera al operador", "Frena el guion hasta que confirmes.", ""},
     {"nota", "Nota", "No hace nada: es una indicación para vos.", ""},
@@ -754,6 +755,40 @@ void EventoViewModel::ejecutarActual() {
         case evento::Tipo::Pausa:
             anotar(titulo, "info");
             return;
+        case evento::Tipo::Audio: {
+            const std::string accion = c->datos.value("accion", std::string());
+            const QString fuente = QString::fromStdString(c->datos.value("fuente", std::string()));
+            if (fuente.isEmpty()) {
+                anotar("El cue de audio no dice sobre que fuente actuar", "error");
+                return;
+            }
+            const std::string f = fuente.toStdString();
+            if (accion == "silenciar" || accion == "activar") {
+                const bool mudo = accion == "silenciar";
+                if (!rt_.engine().setSourceMuted(f, mudo)) {
+                    anotar("No existe la fuente de audio \"" + fuente + "\"", "error");
+                    emit notify("El cue no se pudo ejecutar: no existe la fuente \"" + fuente + "\"",
+                                "error");
+                    return;
+                }
+                anotar((mudo ? "Silencia " : "Activa ") + fuente, "ok");
+                return;
+            }
+            if (accion == "volumen") {
+                // En dB, que es como piensa el operador. 0 = sin cambio.
+                const double db = c->datos.value("db", 0.0);
+                if (!rt_.engine().setSourceVolume(f, static_cast<float>(std::pow(10.0, db / 20.0)))) {
+                    anotar("No existe la fuente de audio \"" + fuente + "\"", "error");
+                    return;
+                }
+                anotar(fuente + " a " + QString::number(db, 'f', 1) + " dB", "ok");
+                return;
+            }
+            anotar("No sé qué es la acción de audio \"" + QString::fromStdString(accion) +
+                       "\" (silenciar, activar o volumen)",
+                   "error");
+            return;
+        }
         case evento::Tipo::Video:
             // Un video tiene que VERSE, o sea estar en una escena, y las
             // escenas las arma el operador. Meterle una fuente a la escena que

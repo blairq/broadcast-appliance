@@ -87,9 +87,14 @@ std::string Cue::queLeFalta() const {
             if (!tieneTexto(datos, "pantalla")) return "no dice a que pantalla va";
             if (!tieneTexto(datos, "contenido")) return "no dice que mandarle";
             return {};
-        case Tipo::Audio:
+        case Tipo::Audio: {
             if (!tieneTexto(datos, "accion")) return "no dice que hacer con el audio";
+            if (!tieneTexto(datos, "fuente")) return "no dice sobre que fuente de audio actuar";
+            const std::string a = datos.value("accion", std::string());
+            if (a != "silenciar" && a != "activar" && a != "volumen")
+                return "la accion \"" + a + "\" no existe (silenciar, activar o volumen)";
             return {};
+        }
         case Tipo::Pausa:
             if (duracionSeg <= 0) return "una pausa sin duracion no espera nada";
             return {};
