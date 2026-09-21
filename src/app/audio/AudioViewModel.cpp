@@ -259,6 +259,16 @@ QString AudioViewModel::addMonitor() {
     return {};
 }
 
+double AudioViewModel::gridStep() const { return AudioRack::gridStep(); }
+
+void AudioViewModel::tidy() {
+    AudioRack* r = rack();
+    if (r == nullptr) return;
+    r->layoutGrid();
+    mgr_.markDirty();
+    rebuildGraph();
+}
+
 QVariantList AudioViewModel::monitorDevices() const {
     QVariantList out;
     for (const auto& d : mgr_.monitorDevices())

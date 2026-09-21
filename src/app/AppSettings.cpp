@@ -219,6 +219,12 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
         }
         c.scenes.push_back(scene);
     }
+    if (j.contains("audioInputs") && j["audioInputs"].is_array()) {
+        c.audioInputs.clear();
+        for (const auto& s : j["audioInputs"]) {
+            c.audioInputs.push_back(sourceFromJson(s));
+        }
+    }
     if (c.scenes.empty()) {
         c.scenes.push_back(SceneConfig{"Principal", {}});
     }
@@ -230,6 +236,10 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
 }
 
 bool saveAppConfig(const fs::path& path, const AppConfig& c, const fs::path& dataRoot, std::string* err) {
+    json audioIns = json::array();
+    for (const auto& s : c.audioInputs) {
+        audioIns.push_back(sourceToJson(s));
+    }
     json scenes = json::array();
     for (const auto& sc : c.scenes) {
         json sources = json::array();
@@ -268,6 +278,7 @@ bool saveAppConfig(const fs::path& path, const AppConfig& c, const fs::path& dat
         {"ui", {{"theme", c.theme}, {"previewWidth", c.previewWidth}}},
         {"mcp", {{"enabled", c.mcpEnabled}, {"port", c.mcpPort}, {"approval", c.mcpApproval}}},
         {"scenes", scenes},
+        {"audioInputs", audioIns},
         {"currentScene", c.currentScene},
     };
     return writeJson(path, j, err);

@@ -33,6 +33,8 @@ class AudioViewModel : public QObject {
     Q_PROPERTY(QString selected READ selected NOTIFY selectionChanged)
     Q_PROPERTY(QVariantMap detail READ detail NOTIFY detailChanged)
     Q_PROPERTY(QVariantList catalog READ catalog CONSTANT)
+    /// Paso de la grilla del patchbay (posiciones de nodos y calles de cables).
+    Q_PROPERTY(double gridStep READ gridStep CONSTANT)
     /// Salidas de audio del sistema para escuchar el rack: [{id, nombre}].
     Q_PROPERTY(QVariantList monitorDevices READ monitorDevices NOTIFY changed)
     /// Salida elegida ("" = sin escucha aparte).
@@ -50,6 +52,7 @@ class AudioViewModel : public QObject {
     QVariantMap detail() const { return detail_; }
     QVariantList catalog() const;
     QVariantList monitorDevices() const;
+    double gridStep() const;
     QString monitorDevice() const;
 
     Q_INVOKABLE void setActive(bool on);
@@ -63,6 +66,8 @@ class AudioViewModel : public QObject {
     /// Nodo de escucha: se patchea desde donde se quiera oir.
     Q_INVOKABLE QString addMonitor();
     Q_INVOKABLE QString setMonitorDevice(const QString& id);
+    /// Reordena los nodos en la grilla del patchbay.
+    Q_INVOKABLE void tidy();
     Q_INVOKABLE void removeNode(const QString& node);
     Q_INVOKABLE void removeRack();
     Q_INVOKABLE QString connectPorts(const QString& from, const QString& out, const QString& to,

@@ -63,6 +63,10 @@ struct AppConfig {
     StreamConfig streamCfg;
     std::string streamKeyEnv = "BA_STREAM_KEY";
     int guests = 2;
+    /// Entradas de audio del equipo (microfonos, lineas). Como el audio de los
+    /// invitados, van a un canal GLOBAL: suenan en todas las escenas, asi que
+    /// no pertenecen a ninguna.
+    std::vector<SourceSpec> audioInputs;
     bool guestVideo = true;
     bool guestAudio = true;
     std::string guestAudioPreset = "podium"; ///< channel strip de los invitados ("" = sin)

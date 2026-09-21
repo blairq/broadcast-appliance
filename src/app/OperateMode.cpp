@@ -184,6 +184,38 @@ SourceSpec* AppRuntime::findSpec(const std::string& scene, const std::string& na
     return nullptr;
 }
 
+void AppRuntime::addAudioInputs() {
+    // Microfonos y lineas del equipo: canal global, como el audio de los
+    // invitados (suenan en todas las escenas, no son items de escena).
+    for (const auto& spec : cfg_.audioInputs) {
+        if (!engine_.addGlobalAudio(spec))
+            std::printf("ba-app: entrada de audio '%s' omitida: %s\n", spec.name.c_str(),
+                        engine_.lastError().c_str());
+    }
+}
+
+bool AppRuntime::addAudioInput(const SourceSpec& spec) {
+    if (!engine_.addGlobalAudio(spec)) {
+        lastError_ = engine_.lastError();
+        return false;
+    }
+    const auto it = std::find_if(cfg_.audioInputs.begin(), cfg_.audioInputs.end(),
+                                 [&](const SourceSpec& s) { return s.name == spec.name; });
+    if (it == cfg_.audioInputs.end())
+        cfg_.audioInputs.push_back(spec);
+    else
+        *it = spec;
+    return true;
+}
+
+bool AppRuntime::removeAudioInput(const std::string& name) {
+    const bool ok = engine_.removeGlobalAudio(name);
+    cfg_.audioInputs.erase(std::remove_if(cfg_.audioInputs.begin(), cfg_.audioInputs.end(),
+                                          [&](const SourceSpec& s) { return s.name == name; }),
+                           cfg_.audioInputs.end());
+    return ok;
+}
+
 void AppRuntime::addGuests() {
     // Audio de invitados: global (canal propio), siempre en la mezcla.
     for (int slot = 1; slot <= cfg_.guests; ++slot) {
@@ -270,6 +302,7 @@ int AppRuntime::start() {
     started_ = true;
 
     addGuests();
+    addAudioInputs();
     engine_.setTransition(cfg_.transition.type, cfg_.transition.durationMs);
     for (const auto& sc : cfg_.scenes) {
         engine_.createScene(sc.name);

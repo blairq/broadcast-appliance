@@ -32,12 +32,27 @@ Rectangle {
     property int liveTick: 0
     // Cable en construccion: {from, out, x0, y0, x1, y1}
     property var wire: null
+    // Entrada candidata mientras se arrastra un cable: {node, port}
+    property var wireTarget: null
+    // Grilla del patchbay (la misma que usa el rack para ubicar los nodos).
+    readonly property real grid: au ? au.gridStep : 20
+    property bool showGrid: false      // el operador puede dejarla fija
+    property bool draggingNode: false  // mientras se mueve un nodo se ve igual
+    // Tarjetas en modo completo (nombres reales de los puertos, mono/estereo).
+    property var expanded: ({})
+    property int expandTick: 0
+    function isExpanded(id) { expandTick; return !!expanded[id] }
+    function toggleExpanded(id) { expanded[id] = !expanded[id]; expandTick++ }
+    function snap(v) { return Math.round(v / grid) * grid }
 
     function nodeOf(id) {
         for (let i = 0; i < nodes.length; ++i) if (nodes[i].id === id) return nodes[i]
         return null
     }
-    function nodeH(n) { return headH + Math.max(n.entradas.length, n.salidas.length, 1) * portH + 30 }
+    function nodeH(n) {
+        const rows = Math.max(n.entradas.length, n.salidas.length, 1)
+        return headH + rows * portH + 30 + (isExpanded(n.id) ? rows * 12 : 0)
+    }
     function posOf(n) {
         liveTick // dependencia
         const p = livePos[n.id]
@@ -59,9 +74,11 @@ Rectangle {
         return Theme.accent
     }
     function fmtDb(v) { return (v === undefined || v === null || v <= -139) ? "—" : (Math.round(v * 10) / 10).toFixed(1) }
-    // Entrada mas cercana a (x, y) del lienzo, o null.
+    // Entrada a la que iria a parar un cable soltado en (x, y): el puerto mas
+    // cercano (con margen ancho) o, si se solto sobre una tarjeta, su primera
+    // entrada. Asi no hay que apuntarle justo al puntito.
     function inputAt(x, y) {
-        let best = null, bd = 18
+        let best = null, bd = 70
         for (let i = 0; i < nodes.length; ++i) {
             const n = nodes[i]
             for (let k = 0; k < n.entradas.length; ++k) {
@@ -70,7 +87,22 @@ Rectangle {
                 if (d < bd) { bd = d; best = { node: n.id, port: n.entradas[k] } }
             }
         }
-        return best
+        if (best) return best
+        for (let i = 0; i < nodes.length; ++i) {
+            const n = nodes[i]
+            if (n.entradas.length === 0) continue
+            const p = posOf(n)
+            if (x >= p.x && x <= p.x + nodeW && y >= p.y && y <= p.y + nodeH(n))
+                return { node: n.id, port: n.entradas[0] }
+        }
+        return null
+    }
+    // Cable en angulo recto: sale a la derecha, corre por una calle vertical
+    // de la grilla entre las dos tarjetas y entra por la izquierda.
+    function cablePath(a, b) {
+        const lane = snap((a.x + b.x) / 2)
+        const midX = Math.max(a.x + grid, Math.min(lane, b.x - grid))
+        return [a, Qt.point(midX, a.y), Qt.point(midX, b.y), b]
     }
 
     Text {
@@ -123,7 +155,42 @@ Rectangle {
                     }
                     MouseArea { anchors.fill: parent; onClicked: page.au.selectSource(modelData.nombre) }
                 }
-                Text { anchors.centerIn: parent; visible: srcList.count === 0; text: "No hay fuentes con audio."; color: Theme.textFaint }
+                Text {
+                    anchors { centerIn: parent; margins: 10 }
+                    width: parent.width - 20
+                    visible: srcList.count === 0
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
+                    text: "No hay fuentes con audio.\nAgregá un micrófono o una entrada del sistema."
+                    color: Theme.textFaint
+                }
+            }
+        }
+
+        // Micrófonos y entradas de audio del equipo (no aparecen solas: hay
+        // que agregarlas como fuente).
+        GlassButton {
+            Layout.fillWidth: true
+            text: "+ Entrada de audio del sistema"
+            onClicked: { Studio.inputs.refresh(); micMenu.popup() }
+        }
+        Menu {
+            id: micMenu
+            Repeater {
+                model: Studio.inputs.audioDevices
+                delegate: MenuItem {
+                    required property var modelData
+                    text: modelData.name
+                    onTriggered: {
+                        page.msg = Studio.inputs.addAudioInput(modelData.value, "")
+                        if (!page.msg) page.au.selectSource(modelData.name)
+                    }
+                }
+            }
+            MenuItem {
+                enabled: false
+                visible: Studio.inputs.audioDevices.length === 0
+                text: "No se encontraron entradas de audio"
             }
         }
 
@@ -193,6 +260,19 @@ Rectangle {
                     ToolTip.text: "Un destino para escuchar por auriculares: conectale la salida de cualquier módulo (o la entrada). No cambia lo que sale al aire."
                 }
                 GlassButton { compact: true; text: "+ Otro LSP…"; onClicked: lspPopup.open() }
+                Item { width: 12; height: 1 }
+                GlassButton {
+                    compact: true; text: "Ordenar"
+                    onClicked: page.au.tidy()
+                    ToolTip.visible: hovered; ToolTip.delay: 400
+                    ToolTip.text: "Acomoda las tarjetas en la grilla, siguiendo el orden de la cadena"
+                }
+                GlassButton {
+                    compact: true; text: "Grilla"; active: page.showGrid
+                    onClicked: page.showGrid = !page.showGrid
+                    ToolTip.visible: hovered; ToolTip.delay: 400
+                    ToolTip.text: "Dejar la grilla a la vista (si no, aparece sola al mover algo)"
+                }
             }
             Text {
                 Layout.fillWidth: true
@@ -226,6 +306,32 @@ Rectangle {
                         height: flick.contentHeight
                         MouseArea { anchors.fill: parent; onClicked: page.au.select("") }
 
+                        // Grilla: fija con el boton, o mientras se acomoda algo.
+                        Canvas {
+                            anchors.fill: parent
+                            z: -1
+                            visible: opacity > 0
+                            opacity: page.showGrid || page.draggingNode || page.wire !== null ? 1 : 0
+                            Behavior on opacity { NumberAnimation { duration: 140 } }
+                            onWidthChanged: requestPaint()
+                            onHeightChanged: requestPaint()
+                            onPaint: {
+                                const c = getContext("2d")
+                                c.reset()
+                                const g = page.grid
+                                c.lineWidth = 1
+                                for (let x = 0; x < width; x += g) {
+                                    // Cada 5 celdas la linea se ve un poco mas.
+                                    c.strokeStyle = Qt.rgba(1, 1, 1, Math.round(x / g) % 5 === 0 ? 0.10 : 0.04)
+                                    c.beginPath(); c.moveTo(Math.round(x) + 0.5, 0); c.lineTo(Math.round(x) + 0.5, height); c.stroke()
+                                }
+                                for (let y = 0; y < height; y += g) {
+                                    c.strokeStyle = Qt.rgba(1, 1, 1, Math.round(y / g) % 5 === 0 ? 0.10 : 0.04)
+                                    c.beginPath(); c.moveTo(0, Math.round(y) + 0.5); c.lineTo(width, Math.round(y) + 0.5); c.stroke()
+                                }
+                            }
+                        }
+
                         // Cables
                         Repeater {
                             model: page.cables
@@ -234,7 +340,7 @@ Rectangle {
                                 required property var modelData
                                 readonly property point a: page.portPos(modelData.desde, modelData.salida, false)
                                 readonly property point b: page.portPos(modelData.hacia, modelData.entrada, true)
-                                readonly property real dx: Math.max(40, Math.abs(b.x - a.x) / 2)
+                                readonly property var path: page.cablePath(a, b)
                                 anchors.fill: parent
                                 Shape {
                                     anchors.fill: parent
@@ -242,13 +348,10 @@ Rectangle {
                                     ShapePath {
                                         strokeColor: modelData.entrada === "sc" ? "#f59e0b" : Qt.rgba(0.55, 0.75, 1, 0.9)
                                         strokeWidth: 3
+                                        capStyle: ShapePath.RoundCap
+                                        joinStyle: ShapePath.RoundJoin
                                         fillColor: "transparent"
-                                        startX: cab.a.x; startY: cab.a.y
-                                        PathCubic {
-                                            x: cab.b.x; y: cab.b.y
-                                            control1X: cab.a.x + cab.dx; control1Y: cab.a.y
-                                            control2X: cab.b.x - cab.dx; control2Y: cab.b.y
-                                        }
+                                        PathPolyline { path: cab.path }
                                     }
                                 }
                                 Rectangle {
@@ -280,11 +383,13 @@ Rectangle {
                                 strokeWidth: 3
                                 strokeStyle: ShapePath.DashLine
                                 fillColor: "transparent"
-                                startX: page.wire ? page.wire.x0 : 0; startY: page.wire ? page.wire.y0 : 0
-                                PathCubic {
-                                    x: page.wire ? page.wire.x1 : 0; y: page.wire ? page.wire.y1 : 0
-                                    control1X: page.wire ? page.wire.x0 + 60 : 0; control1Y: page.wire ? page.wire.y0 : 0
-                                    control2X: page.wire ? page.wire.x1 - 60 : 0; control2Y: page.wire ? page.wire.y1 : 0
+                                capStyle: ShapePath.RoundCap
+                                joinStyle: ShapePath.RoundJoin
+                                PathPolyline {
+                                    path: page.wire
+                                           ? page.cablePath(Qt.point(page.wire.x0, page.wire.y0),
+                                                            Qt.point(page.wire.x1, page.wire.y1))
+                                           : []
                                 }
                             }
                         }
@@ -318,20 +423,67 @@ Rectangle {
                                     Rectangle { width: 6; height: parent.height - 12; radius: 3; x: 8; anchors.verticalCenter: parent.verticalCenter; color: page.kindColor(nd.modelData.tipo) }
                                     Text {
                                         x: 22
-                                        width: parent.width - 30
+                                        width: parent.width - 52
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: nd.modelData.etiqueta
                                         color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold } elide: Text.ElideRight
                                     }
+                                    // Detalle de la tarjeta: simple o con todos los puertos.
+                                    Rectangle {
+                                        anchors { right: parent.right; rightMargin: 6; verticalCenter: parent.verticalCenter }
+                                        width: 22; height: 22; radius: 11
+                                        color: detMa.containsMouse ? Qt.rgba(1, 1, 1, 0.16) : "transparent"
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: page.isExpanded(nd.modelData.id) ? "⌃" : "⌄"
+                                            color: Theme.textFaint; font.pixelSize: 12
+                                        }
+                                        MouseArea {
+                                            id: detMa
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: page.toggleExpanded(nd.modelData.id)
+                                            ToolTip.visible: containsMouse
+                                            ToolTip.delay: 500
+                                            ToolTip.text: page.isExpanded(nd.modelData.id)
+                                                          ? "Mostrar la tarjeta simple"
+                                                          : "Mostrar los nombres de los puertos y si son mono o estéreo"
+                                        }
+                                    }
                                     MouseArea {
+                                        id: headMa
                                         anchors.fill: parent
+                                        preventStealing: true
+                                        cursorShape: drag.active ? Qt.ClosedHandCursor : Qt.OpenHandCursor
                                         drag.target: nd
                                         drag.minimumX: 0; drag.minimumY: 0
-                                        preventStealing: true
-                                        cursorShape: Qt.OpenHandCursor
+                                        // OJO: no tocar nd.x/nd.y mientras se arrastra. El arrastre
+                                        // calcula la posicion a partir de la actual, asi que el ajuste
+                                        // a la grilla se le sumaba y la tarjeta se escapaba del cursor.
+                                        // Se muestra la celda destino y se encaja al soltar.
+                                        drag.onActiveChanged: {
+                                            page.draggingNode = drag.active
+                                            if (drag.active) return
+                                            nd.x = page.snap(nd.x)
+                                            nd.y = page.snap(nd.y)
+                                            page.au.moveNode(nd.modelData.id, nd.x, nd.y)
+                                        }
                                         onClicked: page.au.select(nd.modelData.id)
-                                        onReleased: if (drag.active || nd.x !== nd.modelData.x || nd.y !== nd.modelData.y) page.au.moveNode(nd.modelData.id, nd.x, nd.y)
                                     }
+                                }
+
+                                // Celda donde va a quedar al soltar.
+                                Rectangle {
+                                    visible: headMa.drag.active
+                                    x: page.snap(nd.x) - nd.x
+                                    y: page.snap(nd.y) - nd.y
+                                    width: nd.width
+                                    height: nd.height
+                                    z: -1
+                                    radius: 12
+                                    color: Qt.rgba(1, 1, 1, 0.05)
+                                    border { color: Theme.accent; width: 2 }
                                 }
 
                                 // Puertos de entrada (izquierda)
@@ -340,11 +492,33 @@ Rectangle {
                                     delegate: Item {
                                         required property string modelData
                                         required property int index
+                                        readonly property bool target: page.wireTarget
+                                                                       && page.wireTarget.node === nd.modelData.id
+                                                                       && page.wireTarget.port === modelData
+                                        readonly property var info: (nd.modelData.puertosEntrada || [])[index] || ({})
                                         x: -7
                                         y: page.headH + index * page.portH + page.portH / 2 - 7
                                         width: 14; height: 14
+                                        // Halo cuando el cable que se esta tirando va a caer aca.
+                                        Rectangle {
+                                            anchors.centerIn: parent
+                                            width: 30; height: 30; radius: 15
+                                            visible: parent.target
+                                            color: Qt.rgba(0.53, 0.94, 0.67, 0.28)
+                                            border.color: Theme.ok; border.width: 2
+                                        }
                                         Rectangle { anchors.fill: parent; radius: 7; color: modelData === "sc" ? "#f59e0b" : "#93c5fd"; border.color: "white"; border.width: 1 }
-                                        Text { x: 18; anchors.verticalCenter: parent.verticalCenter; text: modelData === "sc" ? "sidechain" : "entrada"; color: Theme.textFaint; font.pixelSize: 10 }
+                                        Column {
+                                            x: 18
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            Text { text: modelData === "sc" ? "sidechain" : "entrada"; color: Theme.textFaint; font.pixelSize: 10 }
+                                            Text {
+                                                visible: page.isExpanded(nd.modelData.id)
+                                                text: (parent.parent.info.nombre ? parent.parent.info.nombre + " · " : "")
+                                                      + (parent.parent.info.canales === 1 ? "mono" : "estéreo")
+                                                color: Theme.textFaint; font.pixelSize: 9
+                                            }
+                                        }
                                     }
                                 }
                                 // Puertos de salida (derecha): se arrastran para conectar.
@@ -354,32 +528,54 @@ Rectangle {
                                         id: op
                                         required property string modelData
                                         required property int index
+                                        readonly property var info: (nd.modelData.puertosSalida || [])[index] || ({})
                                         x: page.nodeW - 7
                                         y: page.headH + index * page.portH + page.portH / 2 - 7
                                         width: 14; height: 14
-                                        Text { anchors { right: parent.left; rightMargin: 4; verticalCenter: parent.verticalCenter } text: "salida"; color: Theme.textFaint; font.pixelSize: 10 }
+                                        Column {
+                                            anchors { right: parent.left; rightMargin: 4; verticalCenter: parent.verticalCenter }
+                                            Text { anchors.right: parent.right; text: "salida"; color: Theme.textFaint; font.pixelSize: 10 }
+                                            Text {
+                                                anchors.right: parent.right
+                                                visible: page.isExpanded(nd.modelData.id)
+                                                text: (op.info.nombre ? op.info.nombre + " · " : "")
+                                                      + (op.info.canales === 1 ? "mono" : "estéreo")
+                                                color: Theme.textFaint; font.pixelSize: 9
+                                            }
+                                        }
                                         Rectangle { anchors.fill: parent; radius: 7; color: "#86efac"; border.color: "white"; border.width: 1 }
                                         MouseArea {
                                             anchors.fill: parent
-                                            anchors.margins: -6
+                                            // Agarre generoso: el punto es chico, la zona no.
+                                            anchors.margins: -12
                                             cursorShape: Qt.CrossCursor
                                             preventStealing: true
+                                            ToolTip.visible: containsMouse && !page.wire
+                                            ToolTip.delay: 600
+                                            ToolTip.text: "Arrastrá hasta la tarjeta (o la entrada) que quieras alimentar"
+                                            hoverEnabled: true
                                             onPressed: (ev) => {
                                                 const p = page.portPos(nd.modelData.id, op.modelData, false)
                                                 page.wire = { from: nd.modelData.id, out: op.modelData, x0: p.x, y0: p.y, x1: p.x, y1: p.y }
+                                                page.wireTarget = null
                                             }
                                             onPositionChanged: (ev) => {
                                                 if (!page.wire) return
                                                 const q = mapToItem(canvas, ev.x, ev.y)
-                                                page.wire = Object.assign({}, page.wire, { x1: q.x, y1: q.y })
+                                                // El cable se pega a la entrada candidata: se ve a donde va.
+                                                const t = page.inputAt(q.x, q.y)
+                                                page.wireTarget = t
+                                                const end = t ? page.portPos(t.node, t.port, true) : q
+                                                page.wire = Object.assign({}, page.wire, { x1: end.x, y1: end.y })
                                             }
                                             onReleased: (ev) => {
                                                 if (!page.wire) return
-                                                const q = mapToItem(canvas, ev.x, ev.y)
-                                                const t = page.inputAt(q.x, q.y)
+                                                const t = page.wireTarget
                                                 if (t) page.msg = page.au.connectPorts(page.wire.from, page.wire.out, t.node, t.port)
                                                 page.wire = null
+                                                page.wireTarget = null
                                             }
+                                            onCanceled: { page.wire = null; page.wireTarget = null }
                                         }
                                     }
                                 }

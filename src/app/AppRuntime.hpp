@@ -115,8 +115,13 @@ class AppRuntime {
     /// La definicion guardada de una fuente en una escena (nullptr si no esta).
     SourceSpec* findSpec(const std::string& scene, const std::string& name);
 
+    /// Entrada de audio del equipo (microfono, linea) como fuente global.
+    bool addAudioInput(const SourceSpec& spec);
+    bool removeAudioInput(const std::string& name);
+
    private:
     void addGuests();
+    void addAudioInputs();
     /// Runtime/al-aire.json: que salidas estaban activas. Lo lee un arranque
     /// con --restore para retomar la emision tras una caida.
     void writeOnAirState() const;

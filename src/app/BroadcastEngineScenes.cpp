@@ -31,6 +31,8 @@ namespace {
 
 constexpr std::uint32_t kProgramChannel = 0;
 constexpr std::uint32_t kFirstGuestAudioChannel = 1; // 1..4: invitados
+constexpr std::uint32_t kFirstMicChannel = 5;        // 5..: entradas de audio del equipo
+constexpr std::uint32_t kMaxMicChannels = 8;
 
 /// id de libobs de cada transicion.
 const char* transitionId(const std::string& type) {
@@ -215,6 +217,7 @@ void BroadcastEngine::releaseScenes() {
     }
     sources_.clear();
     globalAudio_.clear();
+    micInputs_.clear();
     currentScene_.clear();
     scene_ = nullptr;
 }
@@ -692,6 +695,63 @@ bool BroadcastEngine::addGuestAudio(int slot) {
     if (std::find(globalAudio_.begin(), globalAudio_.end(), name) == globalAudio_.end()) {
         globalAudio_.push_back(name);
     }
+    return true;
+}
+
+bool BroadcastEngine::addGlobalAudio(const SourceSpec& spec) {
+    const bool known = std::find(micInputs_.begin(), micInputs_.end(), spec.name) != micInputs_.end();
+    if (!known && micInputs_.size() >= kMaxMicChannels) {
+        setError("no entran mas entradas de audio (maximo " + std::to_string(kMaxMicChannels) + ")");
+        return false;
+    }
+    obs_source_t* src = reinterpret_cast<obs_source_t*>(ownedSource(spec.name));
+    if (src == nullptr) {
+        obs_data_t* settings = obs_data_create_from_json(spec.settingsJson.c_str());
+        src = obs_source_create(spec.id.c_str(), spec.name.c_str(), settings, nullptr);
+        if (settings != nullptr) obs_data_release(settings);
+        if (src == nullptr) {
+            setError("no se pudo crear la entrada de audio '" + spec.id + "'");
+            return false;
+        }
+        obs_source_set_volume(src, spec.volume);
+        obs_source_set_muted(src, spec.muted);
+        sources_.emplace_back(spec.name, reinterpret_cast<obs_source*>(src));
+        attachMeter(spec.name, reinterpret_cast<obs_source*>(src));
+    }
+    if (!known) micInputs_.push_back(spec.name);
+    if (std::find(globalAudio_.begin(), globalAudio_.end(), spec.name) == globalAudio_.end())
+        globalAudio_.push_back(spec.name);
+    // Global: suena en cualquier escena (no es un item de escena).
+    const auto idx = static_cast<std::uint32_t>(std::find(micInputs_.begin(), micInputs_.end(), spec.name) -
+                                                micInputs_.begin());
+    obs_set_output_source(kFirstMicChannel + idx, src);
+    return true;
+}
+
+bool BroadcastEngine::removeGlobalAudio(const std::string& name) {
+    const auto it = std::find(micInputs_.begin(), micInputs_.end(), name);
+    if (it == micInputs_.end()) return false;
+    micInputs_.erase(it);
+    globalAudio_.erase(std::remove(globalAudio_.begin(), globalAudio_.end(), name), globalAudio_.end());
+    // Se reasignan los canales de las que quedan (sin huecos).
+    for (std::uint32_t ch = kFirstMicChannel; ch < kFirstMicChannel + kMaxMicChannels; ++ch)
+        obs_set_output_source(ch, nullptr);
+    for (std::size_t i = 0; i < micInputs_.size(); ++i)
+        obs_set_output_source(kFirstMicChannel + static_cast<std::uint32_t>(i),
+                              reinterpret_cast<obs_source_t*>(ownedSource(micInputs_[i])));
+    // Si no quedo en ninguna escena, se libera la fuente (igual que removeSource).
+    for (const auto& [n, other] : scenes_)
+        if (obs_scene_find_source(reinterpret_cast<obs_scene_t*>(other), name.c_str()) != nullptr)
+            return true;
+    meters_.erase(
+        std::remove_if(meters_.begin(), meters_.end(), [&](const auto& m) { return m.first == name; }),
+        meters_.end());
+    for (auto it = sources_.begin(); it != sources_.end(); ++it)
+        if (it->first == name) {
+            obs_source_release(reinterpret_cast<obs_source_t*>(it->second));
+            sources_.erase(it);
+            break;
+        }
     return true;
 }
 

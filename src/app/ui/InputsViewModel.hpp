@@ -26,6 +26,8 @@ class StudioViewModel;
 class InputsViewModel : public QObject {
     Q_OBJECT
     Q_PROPERTY(QVariantList devices READ devices NOTIFY changed)
+    /// Entradas de audio del sistema (microfonos, lineas, interfaces).
+    Q_PROPERTY(QVariantList audioDevices READ audioDevices NOTIFY changed)
     Q_PROPERTY(QVariantList inputs READ inputs NOTIFY changed)
     Q_PROPERTY(QStringList scenes READ scenes NOTIFY changed)
     Q_PROPERTY(int stamp READ stamp NOTIFY stampChanged)
@@ -38,6 +40,7 @@ class InputsViewModel : public QObject {
     ~InputsViewModel() override;
 
     QVariantList devices() const { return devices_; }
+    QVariantList audioDevices() const { return audioDevices_; }
     QVariantList inputs() const { return inputs_; }
     QStringList scenes() const;
     int stamp() const { return stamp_; }
@@ -53,6 +56,8 @@ class InputsViewModel : public QObject {
     /// Modos de una camara: [{label, pixelformat, resolution, framerate}].
     Q_INVOKABLE QVariantList modes(const QString& device) const;
     /// "" o el error.
+    /// Agrega un microfono o entrada de audio del sistema (sin video).
+    Q_INVOKABLE QString addAudioInput(const QString& device, const QString& name = {});
     Q_INVOKABLE QString addHardware(const QString& device, const QString& name, const QString& scene,
                                     const QVariantMap& mode);
     Q_INVOKABLE QString addNetwork(const QString& url, const QString& name, const QString& scene,
@@ -73,6 +78,7 @@ class InputsViewModel : public QObject {
     AppRuntime& rt_;
     StudioViewModel& vm_;
     QVariantList devices_;
+    QVariantList audioDevices_;
     QVariantList inputs_;
     int stamp_ = 0;
     bool active_ = false;

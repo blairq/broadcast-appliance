@@ -291,6 +291,15 @@ class BroadcastEngine {
     /// Invitados: la fuente de video va en escenas; la de AUDIO es global
     /// (siempre en la mezcla, como un microfono): canal de salida 1+slot.
     bool addGuestAudio(int slot);
+
+    /// Entrada de audio del equipo (microfono, linea) como fuente GLOBAL: suena
+    /// en todas las escenas, igual que el audio de los invitados (canales 5+).
+    /// Si ya existe una con ese nombre, la reengancha.
+    bool addGlobalAudio(const SourceSpec& spec);
+    /// Saca la entrada de audio global (libera su canal).
+    bool removeGlobalAudio(const std::string& name);
+    /// Nombres de las entradas de audio del equipo (sin los invitados).
+    std::vector<std::string> globalAudioInputs() const { return micInputs_; }
     bool addGuestVideo(int slot);
     bool addGuestVideo(int slot, const CanvasRect& rect);
 
@@ -504,6 +513,7 @@ class BroadcastEngine {
     int transitionMs_ = 300;
     std::vector<std::pair<std::string, obs_source*>> sources_;
     std::vector<std::string> globalAudio_; // fuentes en canales de salida 1..
+    std::vector<std::string> micInputs_;   // entradas de audio del equipo (canales 5+)
     // Vumetro por fuente: obs_volmeter (opaco) + pico mas reciente en dBFS.
     struct Meter {
         void* vm = nullptr;

@@ -70,8 +70,14 @@ class AudioRack {
                     const std::string& toPort);
     bool setBypass(const std::string& id, bool bypass);
     bool rename(const std::string& id, const std::string& label);
-    /// Posicion del nodo en el patchbay (se guarda con el rack).
+    /// Posicion del nodo en el patchbay (se guarda con el rack). Se redondea
+    /// a la grilla: los nodos quedan alineados entre si.
     bool setPosition(const std::string& id, double x, double y);
+    /// Paso de la grilla del patchbay (para dibujarla en la interfaz).
+    static double gridStep();
+    /// Reordena TODO en la grilla: la cadena principal de izquierda a derecha
+    /// (en varias filas si no entra), y abajo los generadores y la escucha.
+    void layoutGrid();
 
     ClapInstance* plugin(const std::string& id);
     /// "in", "out" o un nodo analizador.
@@ -123,6 +129,8 @@ class AudioRack {
     /// Ubica un nodo nuevo en el patchbay: a la derecha del ultimo (la salida
     /// se corre); los generadores, abajo.
     void place(Node& n);
+    /// Ubica el nodo en la celda `slot` de la grilla (fila = slot / columnas).
+    void setSlot(Node& n, int slot);
     void rebuild();
     std::vector<std::string> mainChain() const;
 

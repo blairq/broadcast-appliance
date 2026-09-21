@@ -132,6 +132,18 @@ struct AudioRack::Plan {
     }
 };
 
+// Grilla del patchbay: los nodos se acomodan en celdas para que queden
+// alineados y los cables puedan correr por calles rectas entre columnas.
+namespace {
+constexpr double kGrid = 20.0;  // paso de la grilla
+constexpr double kColW = 260.0; // 13 celdas: nodo (178) + calle para los cables
+constexpr double kRowH = 260.0;
+constexpr double kOrgX = 20.0, kOrgY = 60.0;
+constexpr int kCols = 5; // columnas antes de saltar de fila
+
+double snapGrid(double v) { return std::round(v / kGrid) * kGrid; }
+} // namespace
+
 // --- Construccion -------------------------------------------------------------------------
 
 AudioRack::AudioRack(std::shared_ptr<ClapLibrary> lib, HostServices* services, double sampleRate)
@@ -225,21 +237,61 @@ bool AudioRack::wouldCycle(const std::string& from, const std::string& to) const
     return false;
 }
 
+double AudioRack::gridStep() { return kGrid; }
+
+namespace {
+int slotOf(double x, double y) {
+    const int col = static_cast<int>(std::lround((x - kOrgX) / kColW));
+    const int row = static_cast<int>(std::lround((y - kOrgY) / kRowH));
+    return std::max(0, row) * kCols + std::clamp(col, 0, kCols - 1);
+}
+} // namespace
+
 void AudioRack::place(Node& n) {
-    double maxX = 20;
-    for (const auto& o : nodes_)
-        if (o.get() != &n && o->id != "out" && o->kind != "generator") maxX = std::max(maxX, o->x);
-    if (n.kind == "generator") {
-        double gx = 20;
+    // Generadores y escucha: fila propia abajo, uno al lado del otro.
+    if (n.kind == "generator" || n.kind == "monitor") {
+        double gx = kOrgX, maxY = kOrgY;
         for (const auto& o : nodes_)
-            if (o.get() != &n && o->kind == "generator") gx = std::max(gx, o->x + 230);
-        n.x = gx;
-        n.y = 330;
+            if (o.get() != &n) maxY = std::max(maxY, o->y);
+        for (const auto& o : nodes_)
+            if (o.get() != &n && (o->kind == "generator" || o->kind == "monitor"))
+                gx = std::max(gx, o->x + kColW);
+        n.x = snapGrid(gx);
+        n.y = snapGrid(maxY + kRowH);
         return;
     }
-    n.x = maxX + 262;
-    n.y = 80;
-    if (Node* out = find("out"); out != nullptr && out->x < n.x + 262) out->x = n.x + 262;
+    // El resto sigue a la cadena: celda siguiente a la ultima ocupada, y la
+    // salida se corre una mas (cuando la fila se llena, sigue en la de abajo).
+    int last = 0;
+    for (const auto& o : nodes_)
+        if (o.get() != &n && o->id != "out" && o->kind != "generator" && o->kind != "monitor")
+            last = std::max(last, slotOf(o->x, o->y));
+    setSlot(n, last + 1);
+    if (Node* out = find("out"); out != nullptr) setSlot(*out, last + 2);
+}
+
+void AudioRack::setSlot(Node& n, int slot) {
+    n.x = snapGrid(kOrgX + kColW * (slot % kCols));
+    n.y = snapGrid(kOrgY + kRowH * (slot / kCols));
+}
+
+void AudioRack::layoutGrid() {
+    // Orden: entrada, la cadena principal, lo que quedo patcheado aparte, salida.
+    std::vector<std::string> seq{"in"};
+    for (const auto& id : mainChain())
+        seq.push_back(id);
+    for (const auto& n : nodes_) {
+        if (n->kind == "in" || n->kind == "out" || n->kind == "generator" || n->kind == "monitor") continue;
+        if (std::find(seq.begin(), seq.end(), n->id) == seq.end()) seq.push_back(n->id);
+    }
+    seq.push_back("out");
+    for (size_t i = 0; i < seq.size(); ++i)
+        if (Node* n = find(seq[i]); n != nullptr) setSlot(*n, static_cast<int>(i));
+    // Generadores y escucha: la fila de abajo.
+    const int row = (static_cast<int>(seq.size()) + kCols - 1) / kCols;
+    int i = 0;
+    for (const auto& n : nodes_)
+        if (n->kind == "generator" || n->kind == "monitor") setSlot(*n, row * kCols + i++);
 }
 
 void AudioRack::insertInChain(const std::string& id, const std::string& after) {
@@ -453,8 +505,8 @@ bool AudioRack::rename(const std::string& id, const std::string& label) {
 bool AudioRack::setPosition(const std::string& id, double x, double y) {
     Node* n = find(id);
     if (n == nullptr) return false;
-    n->x = x;
-    n->y = y;
+    n->x = snapGrid(std::max(0.0, x));
+    n->y = snapGrid(std::max(0.0, y));
     return true;
 }
 
@@ -659,13 +711,29 @@ json AudioRack::describe() const {
     json nodes = json::array();
     for (const auto& n : nodes_) {
         json j{{"id", n->id}, {"tipo", n->kind}, {"etiqueta", n->label}, {"x", n->x}, {"y", n->y}};
-        json ins = json::array(), outs = json::array();
-        for (int p = 0; p < n->inputs(); ++p)
+        // Puertos: el id con el que se cablean, mas el nombre real del modulo
+        // y si son mono o estereo (la interfaz lo muestra en modo completo).
+        json ins = json::array(), outs = json::array(), insInfo = json::array(), outsInfo = json::array();
+        const auto info = [&](int p, bool input) {
+            json d{{"puerto", portName(*n, p, input)}, {"canales", n->channels(p, input)}};
+            if (n->kind == "plugin") {
+                const auto& ps = input ? n->clap->inputs() : n->clap->outputs();
+                if (p < static_cast<int>(ps.size())) d["nombre"] = ps[static_cast<size_t>(p)].name;
+            }
+            return d;
+        };
+        for (int p = 0; p < n->inputs(); ++p) {
             ins.push_back(portName(*n, p, true));
-        for (int p = 0; p < n->outputs(); ++p)
+            insInfo.push_back(info(p, true));
+        }
+        for (int p = 0; p < n->outputs(); ++p) {
             outs.push_back(portName(*n, p, false));
+            outsInfo.push_back(info(p, false));
+        }
         j["entradas"] = ins;
         j["salidas"] = outs;
+        j["puertosEntrada"] = insInfo;
+        j["puertosSalida"] = outsInfo;
         if (n->kind == "plugin") {
             j["modulo"] = n->pluginId;
             j["nombre"] = n->clap->desc().name;
