@@ -111,6 +111,13 @@ class EventoViewModel : public QObject {
     Q_INVOKABLE void parar();
     void setEnsayo(bool on);
 
+    /// Ensayo acelerado: recorre el guion ENTERO de una, sin esperar las
+    /// duraciones y sin tocar nada, y dice de cada cue si se podria ejecutar.
+    /// A diferencia de `revisar`, que mira el guion quieto, esto camina el
+    /// recorrido de verdad: encuentra los bloques que quedan colgados, el
+    /// orden real y los cues que nadie sabe ejecutar todavia.
+    Q_INVOKABLE void ensayoAcelerado();
+
     /// Revision previa completa: la del modelo mas lo que necesita el motor
     /// (que las escenas existan, que los archivos esten, que el orador este
     /// conectado). Se corre a pedido, no sola.

@@ -164,7 +164,19 @@ Rectangle {
                         spacing: 8
                         GlassButton { text: "+ Bloque"; compact: true; onClicked: page.ev.agregarBloque("") }
                         Item { Layout.fillWidth: true }
-                        GlassButton { text: "Revisar"; compact: true; onClicked: page.ev.revisar() }
+                        GlassButton {
+                            text: "Revisar"; compact: true
+                            onClicked: page.ev.revisar()
+                            ToolTip.visible: hovered
+                            ToolTip.text: "Busca lo que impide correr el guion, sin tocar nada"
+                        }
+                        GlassButton {
+                            text: "Ensayo rápido"; compact: true
+                            onClicked: page.ev.ensayoAcelerado()
+                            ToolTip.visible: hovered
+                            ToolTip.text: "Recorre el guion entero de una, sin esperar las duraciones, " +
+                                          "para ver si cada cue se podría ejecutar"
+                        }
                     }
 
                     ScrollView {

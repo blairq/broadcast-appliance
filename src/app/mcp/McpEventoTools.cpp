@@ -16,6 +16,8 @@
 // ============================================================================
 #include "mcp/McpEventoTools.hpp"
 
+#include <algorithm>
+
 #include <QJsonDocument>
 #include <QJsonObject>
 
@@ -295,6 +297,37 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev) {
             }
             done(ToolResult().data(json{{"reparos", out}, {"graves", graves},
                                         {"sePuedeCorrer", graves == 0}}));
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "evento_ensayo_rapido";
+        t.title = "Ensayo acelerado";
+        t.category = "evento";
+        t.description =
+            "Recorre el guion ENTERO de una, sin esperar las duraciones y sin tocar nada, y dice de cada "
+            "cue si se podria ejecutar.";
+        t.details =
+            "La diferencia con evento_revisar es que esto CAMINA el recorrido de verdad: sigue el orden "
+            "real de los cues cruzando de bloque en bloque, asi que ademas de los cues incompletos "
+            "muestra los bloques vacios que nadie pisa y los cues de un tipo que todavia no se ejecuta.\n\n"
+            "No sale al aire nunca, ni siquiera con el ensayo apagado. Es lo que conviene correr despues "
+            "de armar un guion largo, antes de probarlo en tiempo real.\n\n"
+            "El resultado queda en la bitacora, que se devuelve entera.";
+        t.readOnly = true;
+        t.run = [&ev](const json&, Done done) {
+            ev.ensayoAcelerado();
+            json out = json::array();
+            for (const QVariant& v : ev.bitacora()) {
+                const QVariantMap m = v.toMap();
+                out.push_back(json{{"texto", m["texto"].toString().toStdString()},
+                                   {"tipo", m["tipo"].toString().toStdString()}});
+            }
+            // La bitacora se lee de arriba para abajo con lo mas nuevo primero;
+            // para un informe conviene el orden en que paso.
+            std::reverse(out.begin(), out.end());
+            done(ToolResult().data(json{{"recorrido", out}}));
         };
         core.addTool(std::move(t));
     }

@@ -380,6 +380,65 @@ QVariantList EventoViewModel::reparos() const {
     return out;
 }
 
+void EventoViewModel::ensayoAcelerado() {
+    if (e_.cantidadDeCues() == 0) {
+        emit notify("El guion no tiene ningún cue", "error");
+        return;
+    }
+    // Se camina el recorrido de verdad, no la lista: asi se ve el orden real
+    // y quedan a la vista los bloques que nunca se visitan.
+    const std::vector<std::string> escenas = rt_.engine().sceneNames();
+    evento::Guion recorrido(e_);
+    int visitados = 0;
+    int problemas = 0;
+    int sinEjecutar = 0;
+    bitacora_.clear();
+
+    for (evento::Posicion p = recorrido.siguienteDe({}); p.valida(); p = recorrido.siguienteDe(p)) {
+        const evento::Cue& c = e_.bloques[static_cast<std::size_t>(p.bloque)].cues[static_cast<std::size_t>(p.cue)];
+        ++visitados;
+        const QString donde = QString("%1.%2").arg(p.bloque + 1).arg(p.cue + 1);
+        const QString que = c.texto.empty() ? QString::fromStdString(evento::nombreDeTipo(c.tipo))
+                                            : QString::fromStdString(c.texto);
+        const std::string falta = c.queLeFalta();
+        if (!falta.empty()) {
+            ++problemas;
+            anotar(donde + " " + que + " — " + QString::fromStdString(falta), "error");
+            continue;
+        }
+        if (c.tipo == evento::Tipo::Escena) {
+            const std::string escena = c.datos.value("escena", std::string());
+            if (std::find(escenas.begin(), escenas.end(), escena) == escenas.end()) {
+                ++problemas;
+                anotar(donde + " " + que + " — no existe la escena \"" +
+                           QString::fromStdString(escena) + "\"",
+                       "error");
+                continue;
+            }
+        }
+        if (c.tipo != evento::Tipo::Escena && c.tipo != evento::Tipo::Orador &&
+            c.tipo != evento::Tipo::Nota && c.tipo != evento::Tipo::Espera &&
+            c.tipo != evento::Tipo::Pausa) {
+            ++sinEjecutar;
+            anotar(donde + " " + que + " — el guion lo tiene, pero todavía no sé ejecutarlo", "info");
+            continue;
+        }
+        anotar(donde + " " + que + " — listo", "ok");
+    }
+
+    // Bloques que el recorrido nunca pisa: estan escritos pero no pasan.
+    int colgados = 0;
+    for (const evento::Bloque& b : e_.bloques)
+        if (b.cues.empty()) ++colgados;
+
+    QString resumen = QString("Ensayo acelerado: %1 de %2 cues recorridos").arg(visitados).arg(e_.cantidadDeCues());
+    if (colgados > 0) resumen += QString(", %1 bloque(s) vacío(s) que no pasan").arg(colgados);
+    if (sinEjecutar > 0) resumen += QString(", %1 sin ejecución todavía").arg(sinEjecutar);
+    if (problemas > 0) resumen += QString(", %1 con problemas").arg(problemas);
+    anotar(resumen, problemas > 0 ? "error" : "ok");
+    emit notify(resumen, problemas > 0 ? "error" : "ok");
+}
+
 void EventoViewModel::revisar() {
     reparos_ = evento::revisar(e_);
 
