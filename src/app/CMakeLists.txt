@@ -341,6 +341,20 @@ if(BA_APP_QT_OK)
     target_link_libraries(test_operator_messages PRIVATE ba_core Qt6::Core)
     set_target_properties(test_operator_messages PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_operator_messages COMMAND test_operator_messages)
+    # El guion del evento: tiempos, revision previa y el recorrido en vivo.
+    # No depende de Qt ni de libobs (dice QUE hacer, no lo hace), asi que
+    # compila y corre en cualquier lado.
+    add_executable(test_evento tests/test_evento.cpp evento/Evento.cpp)
+    target_include_directories(test_evento PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_evento PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME test_evento COMMAND test_evento)
+
+    # La carpeta del evento: crear, guardar con respaldo, listar.
+    add_executable(test_evento_store tests/test_evento_store.cpp evento/EventoStore.cpp evento/Evento.cpp)
+    target_include_directories(test_evento_store PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_evento_store PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME test_evento_store COMMAND test_evento_store)
+
     # Analizador (LUFS, tercios, piso de ruido) y generador de prueba.
     if(BA_HAVE_CLAP)
         add_executable(test_audio_dsp tests/test_audio_dsp.cpp audio/Analyzer.cpp)
