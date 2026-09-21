@@ -97,12 +97,14 @@ Rectangle {
         }
         return null
     }
-    // Cable en angulo recto: sale a la derecha, corre por una calle vertical
-    // de la grilla entre las dos tarjetas y entra por la izquierda.
-    function cablePath(a, b) {
-        const lane = snap((a.x + b.x) / 2)
-        const midX = Math.max(a.x + grid, Math.min(lane, b.x - grid))
-        return [a, Qt.point(midX, a.y), Qt.point(midX, b.y), b]
+    // Cable curvo: sale hacia la derecha y entra por la izquierda. Los puntos
+    // de control se separan segun la distancia, asi la curva no se aplasta.
+    function cableCtl(a, b) { return Math.max(40, Math.min(160, Math.abs(b.x - a.x) / 2 + 20)) }
+    // Punto medio REAL de la curva (Bezier cubica en t = 0.5): la ✕ tiene que
+    // caer sobre el cable, no en el medio de una recta entre las dos puntas.
+    function cableMid(a, b) {
+        const d = cableCtl(a, b)
+        return Qt.point((a.x + 3 * (a.x + d) + 3 * (b.x - d) + b.x) / 8, (a.y + 3 * a.y + 3 * b.y + b.y) / 8)
     }
 
     // Arbol de fuentes: un encabezado por grupo y debajo sus fuentes, en el
@@ -377,7 +379,8 @@ Rectangle {
                                 required property var modelData
                                 readonly property point a: page.portPos(modelData.desde, modelData.salida, false)
                                 readonly property point b: page.portPos(modelData.hacia, modelData.entrada, true)
-                                readonly property var path: page.cablePath(a, b)
+                                readonly property real ctl: page.cableCtl(a, b)
+                                readonly property point mid: page.cableMid(a, b)
                                 anchors.fill: parent
                                 Shape {
                                     anchors.fill: parent
@@ -386,14 +389,18 @@ Rectangle {
                                         strokeColor: modelData.entrada === "sc" ? "#f59e0b" : Qt.rgba(0.55, 0.75, 1, 0.9)
                                         strokeWidth: 3
                                         capStyle: ShapePath.RoundCap
-                                        joinStyle: ShapePath.RoundJoin
                                         fillColor: "transparent"
-                                        PathPolyline { path: cab.path }
+                                        startX: cab.a.x; startY: cab.a.y
+                                        PathCubic {
+                                            x: cab.b.x; y: cab.b.y
+                                            control1X: cab.a.x + cab.ctl; control1Y: cab.a.y
+                                            control2X: cab.b.x - cab.ctl; control2Y: cab.b.y
+                                        }
                                     }
                                 }
                                 Rectangle {
-                                    x: (cab.a.x + cab.b.x) / 2 - 10
-                                    y: (cab.a.y + cab.b.y) / 2 - 10
+                                    x: cab.mid.x - 10
+                                    y: cab.mid.y - 10
                                     width: 20; height: 20; radius: 10
                                     color: xMa.containsMouse ? Theme.live : Qt.rgba(0.1, 0.12, 0.18, 0.9)
                                     border.color: Qt.rgba(1, 1, 1, 0.3)
@@ -421,12 +428,18 @@ Rectangle {
                                 strokeStyle: ShapePath.DashLine
                                 fillColor: "transparent"
                                 capStyle: ShapePath.RoundCap
-                                joinStyle: ShapePath.RoundJoin
-                                PathPolyline {
-                                    path: page.wire
-                                           ? page.cablePath(Qt.point(page.wire.x0, page.wire.y0),
-                                                            Qt.point(page.wire.x1, page.wire.y1))
-                                           : []
+                                startX: page.wire ? page.wire.x0 : 0
+                                startY: page.wire ? page.wire.y0 : 0
+                                PathCubic {
+                                    readonly property real d: page.wire
+                                        ? page.cableCtl(Qt.point(page.wire.x0, page.wire.y0),
+                                                        Qt.point(page.wire.x1, page.wire.y1)) : 60
+                                    x: page.wire ? page.wire.x1 : 0
+                                    y: page.wire ? page.wire.y1 : 0
+                                    control1X: page.wire ? page.wire.x0 + d : 0
+                                    control1Y: page.wire ? page.wire.y0 : 0
+                                    control2X: page.wire ? page.wire.x1 - d : 0
+                                    control2Y: page.wire ? page.wire.y1 : 0
                                 }
                             }
                         }
@@ -466,7 +479,10 @@ Rectangle {
                                         color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold } elide: Text.ElideRight
                                     }
                                     // Detalle de la tarjeta: simple o con todos los puertos.
+                                    // z por encima del area de arrastre (que se
+                                    // declara despues y si no se come el clic).
                                     Rectangle {
+                                        z: 2
                                         anchors { right: parent.right; rightMargin: 6; verticalCenter: parent.verticalCenter }
                                         width: 22; height: 22; radius: 11
                                         color: detMa.containsMouse ? Qt.rgba(1, 1, 1, 0.16) : "transparent"
@@ -544,13 +560,44 @@ Rectangle {
                                             color: Qt.rgba(0.53, 0.94, 0.67, 0.28)
                                             border.color: Theme.ok; border.width: 2
                                         }
-                                        Rectangle { anchors.fill: parent; radius: 7; color: modelData === "sc" ? "#f59e0b" : "#93c5fd"; border.color: "white"; border.width: 1 }
+                                        // Un punto si el puerto es mono; dos (L y R)
+                                        // si es estereo, para diferenciarlos de un vistazo.
+                                        // El cable sigue siendo del PUERTO entero.
+                                        Rectangle {
+                                            visible: parent.info.canales !== 2
+                                            anchors.fill: parent
+                                            radius: 7
+                                            color: modelData === "sc" ? "#f59e0b" : "#93c5fd"
+                                            border.color: "white"; border.width: 1
+                                        }
+                                        Column {
+                                            visible: parent.info.canales === 2
+                                            anchors.centerIn: parent
+                                            spacing: 2
+                                            Repeater {
+                                                model: ["L", "R"]
+                                                delegate: Rectangle {
+                                                    required property string modelData
+                                                    width: 14; height: 8; radius: 4
+                                                    color: "#93c5fd"
+                                                    border.color: "white"; border.width: 1
+                                                    Text {
+                                                        anchors.centerIn: parent
+                                                        text: parent.modelData
+                                                        color: "#0b1220"
+                                                        font { pixelSize: 7; weight: Font.Black }
+                                                    }
+                                                }
+                                            }
+                                        }
                                         Column {
                                             x: 18
                                             anchors.verticalCenter: parent.verticalCenter
                                             Text { text: modelData === "sc" ? "sidechain" : "entrada"; color: Theme.textFaint; font.pixelSize: 10 }
                                             Text {
                                                 visible: page.isExpanded(nd.modelData.id)
+                                                width: page.nodeW / 2 - 24
+                                                elide: Text.ElideRight
                                                 text: (parent.parent.info.nombre ? parent.parent.info.nombre + " · " : "")
                                                       + (parent.parent.info.canales === 1 ? "mono" : "estéreo")
                                                 color: Theme.textFaint; font.pixelSize: 9
@@ -575,12 +622,41 @@ Rectangle {
                                             Text {
                                                 anchors.right: parent.right
                                                 visible: page.isExpanded(nd.modelData.id)
+                                                width: page.nodeW / 2 - 24
+                                                horizontalAlignment: Text.AlignRight
+                                                elide: Text.ElideRight
                                                 text: (op.info.nombre ? op.info.nombre + " · " : "")
                                                       + (op.info.canales === 1 ? "mono" : "estéreo")
                                                 color: Theme.textFaint; font.pixelSize: 9
                                             }
                                         }
-                                        Rectangle { anchors.fill: parent; radius: 7; color: "#86efac"; border.color: "white"; border.width: 1 }
+                                        Rectangle {
+                                            visible: op.info.canales !== 2
+                                            anchors.fill: parent
+                                            radius: 7
+                                            color: "#86efac"
+                                            border.color: "white"; border.width: 1
+                                        }
+                                        Column {
+                                            visible: op.info.canales === 2
+                                            anchors.centerIn: parent
+                                            spacing: 2
+                                            Repeater {
+                                                model: ["L", "R"]
+                                                delegate: Rectangle {
+                                                    required property string modelData
+                                                    width: 14; height: 8; radius: 4
+                                                    color: "#86efac"
+                                                    border.color: "white"; border.width: 1
+                                                    Text {
+                                                        anchors.centerIn: parent
+                                                        text: parent.modelData
+                                                        color: "#0b1220"
+                                                        font { pixelSize: 7; weight: Font.Black }
+                                                    }
+                                                }
+                                            }
+                                        }
                                         MouseArea {
                                             anchors.fill: parent
                                             // Agarre generoso: el punto es chico, la zona no.

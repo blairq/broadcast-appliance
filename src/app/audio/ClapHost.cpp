@@ -22,6 +22,10 @@
 
 namespace ba::app::audio {
 
+// Puertos de audio que se le leen a un modulo. LSP tiene mezcladores de 16
+// entradas: con el tope viejo (8) la mitad no aparecia en la tarjeta.
+constexpr uint32_t kMaxPorts = 32;
+
 namespace {
 
 thread_local bool tl_audioThread = false;
@@ -316,7 +320,7 @@ std::unique_ptr<ClapInstance> ClapInstance::create(std::shared_ptr<ClapLibrary> 
     for (bool isIn : {true, false}) {
         auto& list = isIn ? inst->inputs_ : inst->outputs_;
         const uint32_t n = ports != nullptr ? ports->count(inst->plugin_, isIn) : 0;
-        for (uint32_t i = 0; i < n && i < 8; ++i) {
+        for (uint32_t i = 0; i < n && i < kMaxPorts; ++i) {
             clap_audio_port_info_t pi{};
             if (!ports->get(inst->plugin_, i, isIn, &pi)) continue;
             list.push_back({pi.name, pi.channel_count, (pi.flags & CLAP_AUDIO_PORT_IS_MAIN) != 0});
@@ -549,8 +553,8 @@ void ClapInstance::process(float* const* const* in, float* const* const* out, ui
     clap_input_events_t inEv{&list, evSize, evGet};
     clap_output_events_t outEv{nullptr, evPush};
 
-    clap_audio_buffer_t ib[8]{};
-    clap_audio_buffer_t ob[8]{};
+    clap_audio_buffer_t ib[kMaxPorts]{};
+    clap_audio_buffer_t ob[kMaxPorts]{};
     for (size_t p = 0; p < inputs_.size(); ++p) {
         ib[p].data32 = const_cast<float**>(in[p]);
         ib[p].channel_count = inputs_[p].channels;

@@ -13,6 +13,7 @@ Rectangle {
     property real leftInset: 92
     readonly property var inp: Studio.inputs
     property string hwError: ""
+    property string micError: ""
     property string netError: ""
     // Miniaturas vivas solo mientras la pagina esta a la vista.
     onVisibleChanged: inp.setActive(visible)
@@ -31,6 +32,46 @@ Rectangle {
             ColumnLayout {
                 width: parent.width
                 spacing: 14
+
+                // Microfonos y lineas: van a un canal global (suenan en todas
+                // las escenas), por eso no piden escena.
+                Panel {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: micCol.implicitHeight + 64
+                    title: "Micrófonos y entradas de audio"
+                    ColumnLayout {
+                        id: micCol
+                        anchors.fill: parent
+                        spacing: 8
+                        Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
+                               text: "Micrófonos, líneas e interfaces de audio de esta máquina. Se escuchan en todas las escenas; su procesamiento se arma en la página Audio." }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            ComboBox {
+                                id: micBox
+                                Layout.fillWidth: true
+                                model: page.inp.audioDevices
+                                textRole: "name"
+                                valueRole: "value"
+                            }
+                            GlassButton { compact: true; text: "↻"; onClicked: page.inp.refresh()
+                                          ToolTip.visible: hovered; ToolTip.text: "Buscar dispositivos de nuevo" }
+                        }
+                        Text { visible: page.inp.audioDevices.length === 0; text: "No se encontraron entradas de audio."; color: Theme.textFaint; font.pixelSize: 12 }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            TextField { id: micName; Layout.fillWidth: true; placeholderText: "Nombre (opcional)" }
+                            GlassButton {
+                                text: "Agregar"; active: true; enabled: micBox.currentIndex >= 0
+                                onClicked: {
+                                    page.micError = page.inp.addAudioInput(micBox.currentValue, micName.text)
+                                    if (page.micError === "") micName.text = ""
+                                }
+                            }
+                        }
+                        Text { visible: page.micError !== ""; text: page.micError; color: Theme.live; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                    }
+                }
 
                 Panel {
                     Layout.fillWidth: true
