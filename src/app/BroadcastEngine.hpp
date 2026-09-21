@@ -326,6 +326,23 @@ class BroadcastEngine {
     /// Fuentes reproducibles (con controles de medio) y su estado.
     std::vector<MediaInfo> mediaSources() const;
 
+    /// Reproduce un archivo como fuente GLOBAL de audio: suena en todas las
+    /// escenas, como un microfono. Es lo que hace falta para la musica de un
+    /// evento (el himno, una cortina), que no tiene por que depender de que
+    /// escena este al aire.
+    ///
+    /// Si ya habia algo sonando con ese `name`, lo reemplaza: dos temas
+    /// encimados es lo peor que puede pasar en vivo.
+    ///
+    /// :param name: nombre de la fuente (se reutiliza entre llamadas).
+    /// :param file: ruta absoluta del archivo.
+    /// :param loop: repetir al terminar.
+    /// :param volume: ganancia lineal (1 = 0 dB).
+    bool playMedia(const std::string& name, const std::string& file, bool loop = false,
+                   float volume = 1.0f);
+    /// Para lo que este sonando y libera la fuente.
+    bool stopMedia(const std::string& name);
+
     // --- Descubrir dispositivos y capacidades (sin crear fuentes) ------------------
     struct ListItem {
         std::string name;

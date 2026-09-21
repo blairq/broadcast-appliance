@@ -13,6 +13,7 @@
 #include "BroadcastEngine.hpp"
 
 #include <graphics/vec4.h>
+#include <nlohmann/json.hpp>
 #include <obs.h>
 
 #include <algorithm>
@@ -789,6 +790,55 @@ bool BroadcastEngine::setSourceVolume(const std::string& name, float mul) {
     }
     obs_source_set_volume(reinterpret_cast<obs_source_t*>(src), std::max(0.0f, mul));
     return true;
+}
+
+bool BroadcastEngine::playMedia(const std::string& name, const std::string& file, bool loop,
+                                float volume) {
+    if (file.empty()) {
+        setError("no se dijo que archivo reproducir");
+        return false;
+    }
+    const nlohmann::json s{{"local_file", file},
+                           {"is_local_file", true},
+                           {"looping", loop},
+                           {"restart_on_activate", false},
+                           {"close_when_inactive", false},
+                           // Al terminar se queda en negro/silencio en vez de
+                           // dejar congelado el ultimo cuadro.
+                           {"clear_on_media_end", true},
+                           {"hw_decode", true}};
+
+    auto* existente = reinterpret_cast<obs_source_t*>(ownedSource(name));
+    if (existente != nullptr) {
+        // Ya existe: se le cambia el archivo y se rebobina. Crear otra fuente
+        // dejaria la anterior sonando por debajo.
+        obs_data_t* d = obs_data_create_from_json(s.dump().c_str());
+        obs_source_update(existente, d);
+        if (d != nullptr) obs_data_release(d);
+        obs_source_set_volume(existente, volume);
+        obs_source_set_muted(existente, false);
+        obs_source_media_restart(existente);
+        return true;
+    }
+
+    SourceSpec spec;
+    spec.id = "ffmpeg_source";
+    spec.name = name;
+    spec.settingsJson = s.dump();
+    spec.volume = volume;
+    if (!addGlobalAudio(spec)) return false;
+    auto* nueva = reinterpret_cast<obs_source_t*>(ownedSource(name));
+    if (nueva != nullptr) obs_source_media_restart(nueva);
+    return true;
+}
+
+bool BroadcastEngine::stopMedia(const std::string& name) {
+    auto* src = reinterpret_cast<obs_source_t*>(ownedSource(name));
+    if (src == nullptr) return false;
+    obs_source_media_stop(src);
+    // Se libera el canal: una fuente parada sigue ocupando uno de los pocos
+    // que hay, y el proximo tema no entraria.
+    return removeGlobalAudio(name);
 }
 
 std::vector<BroadcastEngine::MediaInfo> BroadcastEngine::mediaSources() const {

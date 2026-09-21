@@ -633,19 +633,28 @@ void EventoViewModel::parar() {
     emit relojChanged();
 }
 
-QString EventoViewModel::discursoPath(const QString& rel) const {
+QString EventoViewModel::dentroDelEvento(const QString& sub, const QString& rel) const {
+    if (abierto_.isEmpty() || rel.isEmpty()) return {};
     const QDir carpeta(QString::fromStdString(store_.carpetaDe(abierto_.toStdString()).string()));
-    // "Discursos/x.txt" y "x.txt" valen lo mismo: el operador escribe lo que
-    // le sale y las dos formas apuntan al mismo lado.
+    // "Medios/x.wav" y "x.wav" valen lo mismo: el operador escribe lo que le
+    // sale y las dos formas apuntan al mismo lado.
     QString limpio = rel;
-    if (limpio.startsWith("Discursos/") || limpio.startsWith("Discursos\\"))
-        limpio = limpio.mid(10);
-    const QDir discursos(carpeta.filePath("Discursos"));
-    const QString abs = QDir::cleanPath(discursos.filePath(limpio));
-    // Fuera de Discursos/ no se lee nada: ".." en el guion no sirve para
-    // sacarle archivos al que lo abre.
-    if (!abs.startsWith(QDir::cleanPath(discursos.absolutePath()) + "/")) return {};
+    if (limpio.startsWith(sub + "/") || limpio.startsWith(sub + "\\"))
+        limpio = limpio.mid(sub.size() + 1);
+    const QDir dir(carpeta.filePath(sub));
+    const QString abs = QDir::cleanPath(dir.filePath(limpio));
+    // Fuera de esa subcarpeta no se lee nada: un ".." en un guion que vino de
+    // otro lado no tiene por que sacarle archivos al que lo abre.
+    if (!abs.startsWith(QDir::cleanPath(dir.absolutePath()) + "/")) return {};
     return abs;
+}
+
+QString EventoViewModel::discursoPath(const QString& rel) const {
+    return dentroDelEvento("Discursos", rel);
+}
+
+QString EventoViewModel::medioPath(const QString& rel) const {
+    return dentroDelEvento("Medios", rel);
 }
 
 void EventoViewModel::ejecutarActual() {
@@ -685,6 +694,33 @@ void EventoViewModel::ejecutarActual() {
             anotar("Habla " + quien, "ok");
             return;
         }
+        case evento::Tipo::Musica: {
+            const std::string accion = c->datos.value("accion", std::string("arrancar"));
+            // El nombre es fijo: asi un tema nuevo reemplaza al anterior en vez
+            // de encimarse, que es lo peor que puede pasar en vivo.
+            const std::string kMusica = "Música del evento";
+            if (accion == "parar") {
+                rt_.engine().stopMedia(kMusica);
+                anotar("Música: para", "ok");
+                return;
+            }
+            const QString rel = QString::fromStdString(c->datos.value("archivo", std::string()));
+            const QString ruta = medioPath(rel);
+            if (ruta.isEmpty() || !QFile::exists(ruta)) {
+                anotar("No encontré la música \"" + rel + "\" en Medios/", "error");
+                emit notify("El cue no se pudo ejecutar: falta Medios/" + rel, "error");
+                return;
+            }
+            const bool repetir = c->datos.value("repetir", false);
+            if (!rt_.engine().playMedia(kMusica, ruta.toStdString(), repetir)) {
+                anotar("No se pudo reproducir " + rel + ": " +
+                           QString::fromStdString(rt_.engine().lastError()),
+                       "error");
+                return;
+            }
+            anotar("Música: " + rel + (repetir ? " (en bucle)" : ""), "ok");
+            return;
+        }
         case evento::Tipo::Teleprompter: {
             // El texto vive en Discursos/ de la carpeta del evento, no pegado
             // en la tablet: asi viaja con el evento y el asistente puede
@@ -717,6 +753,14 @@ void EventoViewModel::ejecutarActual() {
         case evento::Tipo::Nota:
         case evento::Tipo::Pausa:
             anotar(titulo, "info");
+            return;
+        case evento::Tipo::Video:
+            // Un video tiene que VERSE, o sea estar en una escena, y las
+            // escenas las arma el operador. Meterle una fuente a la escena que
+            // esta al aire le desarmaria lo que compuso. Hasta que haya una
+            // escena de video propia del evento, se dice que falta.
+            anotar("Todavía no reproduzco videos: armá una escena con el video y usá un cue de escena",
+                   "error");
             return;
         default:
             // Honestidad: el tipo existe en el guion pero todavia no se

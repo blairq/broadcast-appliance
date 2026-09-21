@@ -187,9 +187,10 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev) {
             "algo salga solo cuando no lo esperabas es peor que llegar tarde. La revision avisa si hay "
             "seis automaticos seguidos.\n\n"
             "Sin `cue` agrega uno nuevo al final del bloque. Con `cue` actua sobre ese.\n\n"
-            "Ojo: hoy el sistema solo EJECUTA los cues de escena y de orador. Los demas se pueden dejar "
-            "escritos en el guion (sirven para los tiempos y para que el operador sepa que hacer), pero "
-            "cuando toquen se van a anotar como «todavia no se ejecutan».";
+            "Ojo con que se EJECUTA hoy: escena, orador, musica y teleprompter si. Video, pantalla y "
+            "audio todavia no: se pueden dejar escritos en el guion (sirven para los tiempos y para que "
+            "el operador sepa que hacer), pero cuando toquen se anotan como «todavia no se ejecutan» en "
+            "vez de fallar callados.";
         t.inputSchema = {
             {"type", "object"},
             {"properties",

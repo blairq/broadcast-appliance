@@ -149,6 +149,11 @@ class EventoViewModel : public QObject {
     /// guion escrito por otro no puede hacer que el programa lea cualquier
     /// archivo del disco.
     QString discursoPath(const QString& rel) const;
+    /// Ruta de un medio (musica o video), siempre dentro de Medios/.
+    QString medioPath(const QString& rel) const;
+    /// Ruta de `rel` dentro de `sub` en la carpeta del evento, o vacia si se
+    /// sale de ahi.
+    QString dentroDelEvento(const QString& sub, const QString& rel) const;
     static QVariantMap cueAMap(const evento::Cue& c, int bloque, int cue);
 
     AppRuntime& rt_;
