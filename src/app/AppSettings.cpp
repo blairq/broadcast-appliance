@@ -302,6 +302,7 @@ GatewaySettings loadGatewaySettings(const fs::path& path) {
     s.guestVideoH = get(j, "guestVideoH", s.guestVideoH);
     s.adminPort = get(j, "adminPort", s.adminPort);
     s.lobby = get(j, "lobby", s.lobby);
+    s.autoIntake = get(j, "autoIntake", s.autoIntake);
     s.lobbySlots = std::clamp(get(j, "lobbySlots", s.lobbySlots), 0, 8);
     s.maxBackstage = std::clamp(get(j, "maxBackstage", s.maxBackstage), 0, 32);
     s.backstagePreviews = std::clamp(get(j, "backstagePreviews", s.backstagePreviews), 0, 8);
@@ -335,6 +336,7 @@ bool saveGatewaySettings(const fs::path& path, const GatewaySettings& s, std::st
                           {"guestVideoH", s.guestVideoH},
                           {"adminPort", s.adminPort},
                           {"lobby", s.lobby},
+                          {"autoIntake", s.autoIntake},
                           {"lobbySlots", s.lobbySlots},
                           {"maxBackstage", s.maxBackstage},
                           {"backstagePreviews", s.backstagePreviews},

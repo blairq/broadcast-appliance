@@ -113,6 +113,14 @@ ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, QObject* parent)
     connect(&networkPoll_, &QTimer::timeout, this, pollNetwork);
     connect(client_.get(), &ConferenceClient::onlineChanged, this, pollNetwork);
     networkPoll_.start(5000);
+    // Si el operador lo dejo prendido, sigue prendido al arrancar: es una
+    // decision del evento, no un boton que haya que volver a apretar. Si no
+    // hay asistente, se apaga solo en cuanto lo intenta (ver onSnapshot).
+    autoIntake_ = rt_.gateway().autoIntake;
+    // La sala arranca despues que esto, asi que se le avisa cuando conecta.
+    connect(client_.get(), &ConferenceClient::onlineChanged, this, [this]() {
+        if (client_->online()) client_->post("/api/v1/room", QJsonObject{{"intake", autoIntake_}});
+    });
 }
 
 ConferenceViewModel::~ConferenceViewModel() = default;
@@ -249,6 +257,8 @@ void ConferenceViewModel::setAutoIntake(bool on) {
     // Al prenderlo, los que ya estaban esperando tambien se atienden.
     if (!on) intakeDone_.clear();
     emit autoIntakeChanged();
+    rt_.gateway().autoIntake = on;
+    rt_.save();
     // B tiene que enterarse: con el asistente atendiendo, la pantalla de
     // ingreso del invitado no le pide los datos (se los pregunta el asistente).
     client_->post("/api/v1/room", QJsonObject{{"intake", on}});
@@ -317,8 +327,9 @@ void ConferenceViewModel::onSnapshot() {
                 const QString err = intakeSink_(pid, p.value("name").toString());
                 intakeDone_.insert(pid);
                 if (!err.isEmpty()) {
-                    autoIntake_ = false; // sin asistente no tiene sentido seguir
-                    emit autoIntakeChanged();
+                    // Sin asistente no tiene sentido seguir: se apaga como si
+                    // lo hubiera apagado el operador (se guarda y B se entera).
+                    setAutoIntake(false);
                     emit notify(err, "error");
                 }
             }

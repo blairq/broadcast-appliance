@@ -113,6 +113,7 @@ struct GatewaySettings {
     int guestVideoH = 360;
     std::uint16_t adminPort = 8788; ///< API de control de la sala (127.0.0.1)
     bool lobby = true;              ///< el operador admite a cada invitado
+    bool autoIntake = false;        ///< el asistente atiende solo a los que esperan
     int lobbySlots = 4;             ///< del lobby, cuantos muestran su camara al operador
     int maxBackstage = 12;          ///< modo oradores: cuantos en la fila ven el programa
     int backstagePreviews = 6;      ///< de la fila, cuantos muestran su camara al operador
