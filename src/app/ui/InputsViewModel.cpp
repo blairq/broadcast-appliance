@@ -174,6 +174,20 @@ void InputsViewModel::rebuildInputs() {
             {"state", QString::fromStdString(media.count(n) ? media[n] : std::string())},
             {"scenes", inScenes}};
     }
+    // Entradas de audio del equipo: no son items de escena (van por un canal
+    // global), asi que no salen del recorrido de arriba. Se listan igual: para
+    // el operador son entradas como cualquier otra.
+    for (const std::string& n : e.globalAudioInputs()) {
+        const json s = json::parse(e.sourceSettingsJson(n), nullptr, false);
+        out << QVariantMap{{"name", QString::fromStdString(n)},
+                           {"kind", "audio"},
+                           {"where", QString::fromStdString(s.value(inputs::kAudioInProp, std::string()))},
+                           {"width", 0},
+                           {"height", 0},
+                           {"receiving", true},
+                           {"state", QString()},
+                           {"scenes", QStringList{QStringLiteral("todas (audio)")}}};
+    }
     if (out != inputs_) {
         inputs_ = out;
         emit changed();

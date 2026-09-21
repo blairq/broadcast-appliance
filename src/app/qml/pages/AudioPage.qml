@@ -105,6 +105,33 @@ Rectangle {
         return [a, Qt.point(midX, a.y), Qt.point(midX, b.y), b]
     }
 
+    // Arbol de fuentes: un encabezado por grupo y debajo sus fuentes, en el
+    // orden en que el motor las informa.
+    property var collapsed: ({})
+    property int groupTick: 0
+    function groupOpen(g) { groupTick; return !collapsed[g] }
+    function toggleGroup(g) { collapsed[g] = !collapsed[g]; groupTick++ }
+    readonly property var sourceTree: {
+        groupTick
+        const src = au ? au.sources : []
+        const orden = ["Invitados", "Micrófonos y líneas del equipo", "Audio del equipo (lo que suena)",
+                       "Medios y red", "Otras fuentes"]
+        const porGrupo = {}
+        for (let i = 0; i < src.length; ++i) {
+            const g = src[i].grupo || "Otras fuentes"
+            if (!porGrupo[g]) porGrupo[g] = []
+            porGrupo[g].push(src[i])
+        }
+        const filas = []
+        for (const g of orden) {
+            if (!porGrupo[g]) continue
+            filas.push({ fila: "grupo", grupo: g, cuantas: porGrupo[g].length })
+            if (groupOpen(g))
+                for (const s of porGrupo[g]) filas.push({ fila: "fuente", grupo: g, src: s })
+        }
+        return filas
+    }
+
     Text {
         anchors.centerIn: parent
         visible: !page.au
@@ -132,28 +159,63 @@ Rectangle {
                 anchors.fill: parent
                 clip: true
                 spacing: 6
-                model: page.au ? page.au.sources : []
-                delegate: Rectangle {
+                model: page.sourceTree
+                delegate: Item {
                     required property var modelData
                     width: srcList.width
-                    height: 56
-                    radius: 12
-                    color: page.au && page.au.source === modelData.nombre ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.04)
-                    border.color: page.au && page.au.source === modelData.nombre ? Theme.accent : "transparent"
-                    ColumnLayout {
-                        anchors { fill: parent; margins: 8 }
-                        spacing: 3
+                    height: modelData.fila === "grupo" ? 26 : 56
+
+                    // Encabezado del grupo (se pliega con un clic).
+                    Rectangle {
+                        anchors.fill: parent
+                        visible: modelData.fila === "grupo"
+                        color: "transparent"
                         RowLayout {
-                            Text { text: modelData.nombre; color: Theme.text; font.pixelSize: 13; elide: Text.ElideRight; Layout.fillWidth: true }
-                            Text { visible: modelData.rack; text: "🎚 " + (modelData.modulos || 0); color: Theme.accent; font.pixelSize: 12 }
+                            anchors { fill: parent; leftMargin: 2; rightMargin: 4 }
+                            spacing: 6
+                            Text {
+                                text: page.groupOpen(modelData.grupo) ? "▾" : "▸"
+                                color: Theme.textFaint; font.pixelSize: 11
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                text: modelData.grupo || ""
+                                color: Theme.textDim
+                                font { pixelSize: 11; weight: Font.DemiBold; capitalization: Font.AllUppercase; letterSpacing: 0.4 }
+                                elide: Text.ElideRight
+                            }
+                            Text { text: modelData.cuantas || 0; color: Theme.textFaint; font.pixelSize: 11 }
                         }
-                        LevelMeter {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 6
-                            db: modelData.salida && modelData.salida.salidaDb !== undefined ? modelData.salida.salidaDb : -100
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: page.toggleGroup(modelData.grupo)
                         }
                     }
-                    MouseArea { anchors.fill: parent; onClicked: page.au.selectSource(modelData.nombre) }
+
+                    // Fuente (sangrada, colgando del grupo).
+                    Rectangle {
+                        anchors { fill: parent; leftMargin: 12 }
+                        visible: modelData.fila === "fuente"
+                        radius: 12
+                        readonly property var s: modelData.src || ({})
+                        color: page.au && page.au.source === s.nombre ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.04)
+                        border.color: page.au && page.au.source === s.nombre ? Theme.accent : "transparent"
+                        ColumnLayout {
+                            anchors { fill: parent; margins: 8 }
+                            spacing: 3
+                            RowLayout {
+                                Text { text: parent.parent.parent.s.nombre || ""; color: Theme.text; font.pixelSize: 13; elide: Text.ElideRight; Layout.fillWidth: true }
+                                Text { visible: !!parent.parent.parent.s.rack; text: "🎚 " + (parent.parent.parent.s.modulos || 0); color: Theme.accent; font.pixelSize: 12 }
+                            }
+                            LevelMeter {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 6
+                                db: parent.parent.s.salida && parent.parent.s.salida.salidaDb !== undefined ? parent.parent.s.salida.salidaDb : -100
+                            }
+                        }
+                        MouseArea { anchors.fill: parent; onClicked: page.au.selectSource(parent.s.nombre) }
+                    }
                 }
                 Text {
                     anchors { centerIn: parent; margins: 10 }

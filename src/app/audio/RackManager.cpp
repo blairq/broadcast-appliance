@@ -351,7 +351,19 @@ json RackManager::audioSources() const {
             auto* c = static_cast<Ctx*>(p);
             if ((obs_source_get_output_flags(s) & OBS_SOURCE_AUDIO) == 0) return true;
             const std::string name = obs_source_get_name(s);
-            json j{{"nombre", name}, {"tipo", obs_source_get_id(s)}, {"rack", false}};
+            const std::string type = obs_source_get_id(s);
+            // Grupo para el arbol de la interfaz: por donde entra el audio.
+            std::string group = "Otras fuentes";
+            if (type == "ba_guest_audio") {
+                group = "Invitados";
+            } else if (type.find("_input_capture") != std::string::npos) {
+                group = "Micrófonos y líneas del equipo";
+            } else if (type.find("_output_capture") != std::string::npos) {
+                group = "Audio del equipo (lo que suena)";
+            } else if (type == "ffmpeg_source" || type == "vlc_source" || type == "ba_ndi_input") {
+                group = "Medios y red";
+            }
+            json j{{"nombre", name}, {"tipo", type}, {"grupo", group}, {"rack", false}};
             auto it = c->self->filters_.find(name);
             if (it != c->self->filters_.end()) {
                 j["rack"] = true;

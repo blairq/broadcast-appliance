@@ -196,12 +196,18 @@ Rectangle {
                                     anchors.fill: parent
                                     fillMode: Image.PreserveAspectFit
                                     cache: false
-                                    source: modelData.receiving ? "image://inputs/" + encodeURIComponent(modelData.name) + "?" + page.inp.stamp : ""
+                                    visible: modelData.kind !== "audio"
+                                    source: modelData.receiving && modelData.kind !== "audio"
+                                            ? "image://inputs/" + encodeURIComponent(modelData.name) + "?" + page.inp.stamp : ""
                                 }
-                                Text { anchors.centerIn: parent; visible: !modelData.receiving; color: Theme.textFaint; font.pixelSize: 12
+                                // Una entrada de audio no tiene imagen: se muestra su nivel.
+                                Text { anchors.centerIn: parent; visible: modelData.kind === "audio"
+                                       text: "🎙"; font.pixelSize: 34; color: Theme.textFaint }
+                                Text { anchors.centerIn: parent; visible: !modelData.receiving && modelData.kind !== "audio"; color: Theme.textFaint; font.pixelSize: 12
                                        text: modelData.kind === "red" ? "sin señal (reintentando…)" : "sin imagen" }
                                 StatusPill { anchors { left: parent.left; top: parent.top; margins: 6 }
-                                             text: modelData.kind === "red" ? "RED" : modelData.kind === "ndi" ? "NDI" : "HARDWARE"; dot: modelData.receiving ? Theme.ok : Theme.live }
+                                             text: modelData.kind === "red" ? "RED" : modelData.kind === "ndi" ? "NDI" : modelData.kind === "audio" ? "AUDIO" : "HARDWARE"
+                                             dot: modelData.receiving ? Theme.ok : Theme.live }
                             }
                             RowLayout {
                                 Layout.fillWidth: true
