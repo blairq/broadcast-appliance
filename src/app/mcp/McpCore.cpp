@@ -336,8 +336,10 @@ bool McpCore::intakeAllows(const Tool& t, const nlohmann::json& args) const {
     static const std::set<std::string> kIntakeTools{"chat_send", "participant_profile", "participant_admit",
                                                     "participant_talk"};
     if (kIntakeTools.count(t.name) == 0) return false;
-    // Y solo si la accion apunta a esa persona (por id o por nombre).
+    // Y solo si la accion apunta a esa persona. Lo resuelve quien conoce la
+    // sala (el nombre puede haber cambiado al completar la ficha).
     if (!args.is_object()) return false;
+    if (intakeMatch_ && intakeMatch_(t.name, args)) return true;
     for (const auto& [key, v] : args.items()) {
         if (!v.is_string()) continue;
         const std::string val = v.get<std::string>();

@@ -160,6 +160,12 @@ class McpCore {
     /// La salvaguarda general no se toca: la exencion vale SOLO para esa
     /// persona y para esas herramientas.
     void startIntake(const std::string& id, const std::string& name);
+    /// Como saber si una llamada apunta a una persona atendida: resuelve el
+    /// nombre o id de los argumentos contra la sala (los nombres cambian
+    /// cuando el asistente completa la ficha).
+    void setIntakeMatcher(std::function<bool(const std::string& tool, const nlohmann::json& args)> fn) {
+        intakeMatch_ = std::move(fn);
+    }
     void endIntake(const std::string& id);
     std::vector<std::string> intakes() const;
     bool tainted(const std::string& session) const;
@@ -224,6 +230,7 @@ class McpCore {
     /// id -> nombre de las personas cuya atencion delego el operador.
     std::map<std::string, std::string> intake_;
     bool intakeAllows(const Tool& t, const nlohmann::json& args) const;
+    std::function<bool(const std::string&, const nlohmann::json&)> intakeMatch_;
 };
 
 } // namespace ba::app::mcp

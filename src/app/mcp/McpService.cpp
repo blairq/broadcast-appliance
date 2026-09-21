@@ -284,6 +284,25 @@ void McpService::applySecurity() {
             [this](const QString&) { applyApprovalPolicy(); });
     // La aprobacion la da una persona en la barra de abajo: la tarjeta la arma
     // el servidor con la herramienta y los argumentos exactos.
+    // Atencion delegada: una llamada es "de esa persona" si el nombre o id que
+    // trae resuelve contra la sala al id que el operador delego.
+    core_.setIntakeMatcher([this](const std::string& tool, const json& args) {
+        const std::vector<std::string> ids = core_.intakes();
+        if (ids.empty() || !args.is_object()) return false;
+        static const std::map<std::string, const char*> kArg{{"chat_send", "to"},
+                                                             {"participant_profile", "participant"},
+                                                             {"participant_admit", "participant"},
+                                                             {"participant_talk", "participant"}};
+        const auto it = kArg.find(tool);
+        if (it == kArg.end()) return false;
+        const std::string who = args.value(it->second, std::string());
+        if (who.empty() || who == "all") return false;
+        json p;
+        std::string err;
+        if (!resolveParticipant(roomSnapshot(vm_), who, p, err)) return false;
+        const std::string id = p.value("id", "");
+        return std::find(ids.begin(), ids.end(), id) != ids.end();
+    });
     core_.setApprover(
         [this](const Tool& t, const json& args, const std::string& reason, std::function<void(bool)> decide) {
             auto* msgs = static_cast<OperatorMessages*>(vm_.messages());
