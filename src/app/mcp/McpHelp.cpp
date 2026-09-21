@@ -240,6 +240,23 @@ Cada fuente con audio (microfonos, capturas, videos) puede tener un **rack** tip
 - `audio_sources`: fuentes con audio y si tienen rack. `audio_rack {"source"}`: nodos, cables y medidores.
 - Cada modulo tiene medidores propios: `entradaDb`, `salidaDb` y `cambioDb` (lo que baja o sube AHORA: en un gate/compresor es la reduccion de ganancia).
 - Un rack vacio no cambia el sonido. `audio_module_remove {"node": "*"}` quita el rack entero.
+- En la pestaña, cada tarjeta se acomoda en una grilla (boton "Ordenar" para alinear todo) y su chevron abre el detalle: nombre real de cada puerto del modulo y si es mono o estereo.
+
+## Puertos y canales (L/R)
+Un modulo puede tener varias entradas y salidas: `in` (principal), `sc` (sidechain) y, si tiene mas, `in2`, `in3`... y `out`, `out2`... (`audio_rack` las informa en `entradas`/`salidas`, y en `puertosEntrada`/`puertosSalida` con su nombre real y cuantos canales tiene cada uno). Un mezclador LSP de 16 entradas informa las 16.
+- Por defecto un cable lleva el **puerto entero**: izquierda con izquierda y derecha con derecha.
+- Se puede cablear **un canal suelto** agregando `canalSalida` y `canalEntrada` ("L" o "R") en `audio_patch`: p. ej. llevar la derecha de un modulo a la izquierda de otro, o usar un solo canal y dejar el otro en silencio.
+- Entre los mismos dos puertos no conviven un cable de puerto entero y uno de canal: el ultimo reemplaza al anterior (si no, el audio se sumaria dos veces).
+
+## Escuchar por una salida del equipo (auriculares)
+Sirve para revisar como quedo un punto del rack SIN tocar lo que sale al aire ni la mezcla del programa.
+1. `audio_outputs`: las salidas de esta maquina, agrupadas por placa.
+2. `audio_output_set {"source", "salida": <id>}`: agrega al grafo de esa fuente una tarjeta con el nombre de la salida.
+3. `audio_patch {"source", "conectar": [{"desde": "in", "hacia": "salida-audio"}]}`: recien ahi se oye (se puede enganchar la salida de cualquier modulo, no solo `in`).
+OJO: el motor reproduce por UNA salida a la vez; elegir otra en otra fuente cambia la de todas.
+
+## Microfonos y entradas de audio del equipo
+No aparecen solas: hay que sumarlas. `audio_devices` las lista (`inputs`) y `audio_input_add {"device"}` la agrega. Va a un canal GLOBAL (como el audio de los invitados): suena en TODAS las escenas, no es un item de escena y queda guardada para el proximo arranque. Despues se procesa como cualquier fuente con su rack.
 
 ## Regla de oro: medir, cambiar, volver a medir
 1. `audio_analyze {"source", "punto": "in", "segundos": 5}`: pico, RMS, LUFS, `pisoDeRuidoDbfs`, `nivelActivoDbfs`, `rangoDinamicoDb`, espectro por tercios y por zonas (graves, cuerpo, medios, presencia, sibilancia, aire), recortes y `pistas`. Si dice que no llega audio, la fuente esta muda, inactiva o no hay nadie hablando: pedile a la persona que hable (`operator_ask`).

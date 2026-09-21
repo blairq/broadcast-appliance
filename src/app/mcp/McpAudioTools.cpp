@@ -248,17 +248,23 @@ void McpService::registerAudioTools() {
         t.name = "audio_patch";
         t.title = "Conectar cables";
         t.category = "audio_rack";
-        t.description = "Conecta y/o desconecta cables como en JACK: {desde, salida (\"out\"), hacia, "
-                        "entrada (\"in\" o \"sc\" "
-                        "para sidechain)}. Varios cables a una entrada se suman (ramas en paralelo). No se "
-                        "permiten ciclos. "
-                        "Ojo: si la salida \"out\" queda sin nada conectado, la fuente se calla.";
+        t.description =
+            "Conecta y/o desconecta cables como en JACK: {desde, salida (\"out\"), hacia, entrada "
+            "(\"in\" o \"sc\" para sidechain)}. Varios cables a una entrada se suman (ramas en "
+            "paralelo). No se permiten ciclos. Por CANAL: agregar `canalSalida` y `canalEntrada` con "
+            "\"L\" o \"R\" (p. ej. la derecha de un modulo a la izquierda de otro, o usar un solo "
+            "canal); sin ellos el cable lleva el puerto entero (L->L y R->R). Un cable de puerto entero "
+            "y uno de canal entre los mismos puertos no conviven: el ultimo reemplaza al anterior. "
+            "Ojo: si la salida \"out\" queda sin nada conectado, la fuente se calla.";
+        const json canal{{"type", "string"}, {"enum", {"L", "R", "LR"}}};
         const json cable{{"type", "object"},
                          {"properties",
                           {{"desde", {{"type", "string"}}},
                            {"salida", {{"type", "string"}}},
                            {"hacia", {{"type", "string"}}},
-                           {"entrada", {{"type", "string"}}}}},
+                           {"entrada", {{"type", "string"}}},
+                           {"canalSalida", canal},
+                           {"canalEntrada", canal}}},
                          {"required", {"desde", "hacia"}}};
         t.inputSchema = {{"type", "object"},
                          {"properties",
@@ -271,15 +277,23 @@ void McpService::registerAudioTools() {
             AudioRack* r = mgr()->rack(a.value("source", ""), true, &e);
             if (r == nullptr) return done(ToolResult::error(e));
             json errors = json::array();
+            // "L" = izquierdo, "R" = derecho, ausente o "LR" = el puerto entero.
+            const auto canal = [](const json& c, const char* key) {
+                const std::string v = c.value(key, std::string());
+                if (v == "L" || v == "l") return 0;
+                if (v == "R" || v == "r") return 1;
+                return -1;
+            };
             for (const auto& c : a.value("desconectar", json::array()))
                 if (!r->disconnect(c.value("desde", ""), c.value("salida", ""), c.value("hacia", ""),
-                                   c.value("entrada", "")))
+                                   c.value("entrada", ""), canal(c, "canalSalida"), canal(c, "canalEntrada")))
                     errors.push_back("no habia cable " + c.value("desde", "") + " -> " +
                                      c.value("hacia", ""));
             for (const auto& c : a.value("conectar", json::array())) {
                 std::string ce;
                 if (!r->connect(c.value("desde", ""), c.value("salida", "out"), c.value("hacia", ""),
-                                c.value("entrada", "in"), &ce))
+                                c.value("entrada", "in"), &ce, canal(c, "canalSalida"),
+                                canal(c, "canalEntrada")))
                     errors.push_back(ce);
             }
             mgr()->markDirty();
@@ -583,6 +597,46 @@ void McpService::registerAudioTools() {
             }
             mgr()->markDirty();
             done(ToolResult().data(json{{"nodo", id}, {"rack", r->describe()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "audio_outputs";
+        t.title = "Salidas de audio del equipo";
+        t.category = "audio_rack";
+        t.readOnly = true;
+        t.description =
+            "QUE ES: las salidas fisicas de esta maquina (auriculares, parlantes, HDMI), agrupadas por "
+            "placa. PARA QUE: escuchar aparte lo que pasa por cualquier punto del rack de una fuente, sin "
+            "tocar lo que sale al aire ni a la mezcla del programa. Con `audio_output_set` se agrega al "
+            "grafo una tarjeta con esa salida y despues se le conecta lo que se quiera oir (audio_patch). "
+            "OJO: el motor reproduce por UNA salida a la vez; elegir otra cambia la de todos.";
+        t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
+        t.run = [mgr](const json&, Done done) {
+            done(ToolResult().data(json{{"dispositivos", mgr()->outputDevices()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "audio_output_set";
+        t.title = "Mandar el rack a una salida del equipo";
+        t.category = "audio_rack";
+        t.description =
+            "COMO SE USA: `salida` es el id que informa `audio_outputs`. Agrega (o reapunta) en el grafo "
+            "de esa fuente una tarjeta con el nombre de la salida; el audio recien se oye cuando se le "
+            "conecta algo con `audio_patch` (p. ej. {desde: \"in\", hacia: \"salida-audio\"}). No "
+            "cambia lo que sale al aire.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"source", kSource}, {"salida", {{"type", "string"}}}}},
+                         {"required", {"source", "salida"}}};
+        t.run = [mgr](const json& a, Done done) {
+            const std::string e = mgr()->setOutput(a.value("source", ""), a.value("salida", ""));
+            if (!e.empty()) return done(ToolResult::error(e));
+            std::string re;
+            AudioRack* r = mgr()->rack(a.value("source", ""), false, &re);
+            done(ToolResult().data(r != nullptr ? r->describe() : json::object()));
         };
         core_.addTool(std::move(t));
     }

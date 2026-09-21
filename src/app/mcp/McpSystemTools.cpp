@@ -22,6 +22,7 @@
 #include <thread>
 
 #include "AppRuntime.hpp"
+#include "InputSpecs.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/StudioViewModel.hpp"
@@ -270,6 +271,45 @@ void McpService::registerSystemTools() {
                      {"outputs", listToJson(e.sourceTypeListItems(kAudioOut.type, kAudioOut.prop))},
                      {"inputSourceType", kAudioIn.type},
                      {"outputSourceType", kAudioOut.type}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "audio_input_add";
+        t.title = "Agregar un microfono o entrada de audio";
+        t.category = "equipo";
+        t.description =
+            "QUE ES: suma a la emision una entrada de audio de esta maquina (microfono, linea, interfaz). "
+            "PARA QUE: el audio del lugar, un microfono de mano, una consola. COMO SE USA: `device` es el "
+            "`value` que informa `audio_devices` en `inputs` (\"default\" = la predeterminada del "
+            "sistema). Va a un canal GLOBAL, como el audio de los invitados: suena en TODAS las escenas, "
+            "no es un item de escena y no ocupa lugar en el lienzo. Queda guardada y vuelve al arrancar. "
+            "Para procesarla (gate, compresor, EQ): `audio_rack` y `audio_module_add` con su nombre.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"device", {{"type", "string"}}}, {"name", {{"type", "string"}, {"description", "opcional"}}}}},
+            {"required", {"device"}}};
+        t.run = [&rt](const json& a, Done done) {
+            const std::string dev = a.value("device", "");
+            BroadcastEngine& e = rt.engine();
+            std::string name = a.value("name", "");
+            if (name.empty()) {
+                if (dev == "default") {
+                    name = "Entrada de audio predeterminada";
+                } else {
+                    for (const auto& d : e.sourceTypeListItems(kAudioIn.type, kAudioIn.prop))
+                        if (d.value == dev) name = d.name;
+                }
+            }
+            if (name.empty()) name = "Microfono";
+            SourceSpec spec = ba::app::inputs::audioInputSpec(dev, name);
+            if (!rt.addAudioInput(spec)) return done(ToolResult::error(rt.lastError()));
+            rt.save();
+            done(ToolResult().data(json{{"nombre", name},
+                                        {"dispositivo", dev},
+                                        {"nota", "Suena en todas las escenas (canal global)."}}));
         };
         core_.addTool(std::move(t));
     }
