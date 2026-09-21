@@ -47,31 +47,6 @@ Rectangle {
         }
         return filas
     }
-    // Lo que se ve mientras se arrastra una escena hacia una carpeta.
-    property alias ghost: sceneGhost
-    Item {
-        id: sceneGhost
-        property string escena: ""
-        width: 150
-        height: 28
-        // Solo mientras se arrastra de verdad (si no, podia quedar colgado).
-        visible: Drag.active
-        z: 999
-        Drag.hotSpot { x: 20; y: 14 }
-        Rectangle {
-            anchors.fill: parent
-            radius: 8
-            color: Qt.rgba(0.1, 0.12, 0.18, 0.95)
-            border.color: Theme.accent
-            Text {
-                anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
-                verticalAlignment: Text.AlignVCenter
-                text: "📁 " + sceneGhost.escena
-                color: Theme.text; font.pixelSize: 12; elide: Text.ElideRight
-            }
-        }
-    }
-
     Connections {
         target: Studio.scenes
         function onModelReset() { page.scenesTick++ }
@@ -122,9 +97,16 @@ Rectangle {
                             border.color: dropHere.containsDrag ? Theme.accent : "transparent"
                             DropArea {
                                 id: dropHere
-                                anchors.fill: parent
-                                // Lo lee el fantasma al soltar (ver page.ghost).
+                                // Un poco mas alta que el encabezado: es facil
+                                // pasarse con el mouse.
+                                anchors { fill: parent; topMargin: -6; bottomMargin: -6 }
                                 property string folderName: modelData.carpeta
+                                // El que se solto es el fantasma de la fila (su
+                                // `escena` dice cual es).
+                                onDropped: (ev) => {
+                                    if (ev.source && ev.source.escena !== undefined)
+                                        Studio.setSceneFolder(ev.source.escena, folderName)
+                                }
                             }
                             RowLayout {
                                 anchors { fill: parent; leftMargin: 2; rightMargin: 6 }
@@ -163,27 +145,44 @@ Rectangle {
                                 Text { text: parent.parent.name; color: Theme.text; Layout.fillWidth: true; elide: Text.ElideRight; font.pixelSize: 13 }
                                 GlassButton { visible: !parent.parent.live; text: "Al aire"; compact: true; onClicked: Studio.takeScene(parent.parent.name) }
                             }
+                            // Lo que se ve mientras se lleva la escena a una carpeta.
+                            // `Drag.active` va ATADO al arrastre del MouseArea y el
+                            // destino se resuelve en el `onDropped` de la carpeta: es
+                            // el patron que funciona (leer Drag.target al soltar no,
+                            // porque para entonces ya esta vacio).
+                            Item {
+                                id: rowGhost
+                                property string escena: parent.name
+                                width: 150
+                                height: 28
+                                visible: Drag.active
+                                z: 999
+                                Drag.active: rowMa.drag.active
+                                Drag.hotSpot: Qt.point(20, 14)
+                                Rectangle {
+                                    anchors.fill: parent
+                                    radius: 8
+                                    color: Qt.rgba(0.1, 0.12, 0.18, 0.95)
+                                    border.color: Theme.accent
+                                    Text {
+                                        anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
+                                        verticalAlignment: Text.AlignVCenter
+                                        text: "📁 " + rowGhost.escena
+                                        color: Theme.text; font.pixelSize: 12; elide: Text.ElideRight
+                                    }
+                                }
+                            }
                             MouseArea {
                                 id: rowMa
                                 anchors.fill: parent; z: -1
                                 preventStealing: true
                                 cursorShape: drag.active ? Qt.ClosedHandCursor : Qt.ArrowCursor
-                                drag.target: page.ghost
+                                drag.target: rowGhost
                                 onPressed: (m) => {
-                                    // El fantasma se arrastra por la pagina entera y las
-                                    // carpetas lo reciben con su DropArea.
-                                    const p = mapToItem(page, m.x, m.y)
-                                    page.ghost.escena = parent.name
-                                    page.ghost.x = p.x - 20
-                                    page.ghost.y = p.y - 14
+                                    rowGhost.x = m.x - 20
+                                    rowGhost.y = m.y - 14
                                 }
-                                drag.onActiveChanged: {
-                                    page.ghost.Drag.active = drag.active
-                                    if (drag.active) return
-                                    const destino = page.ghost.Drag.target
-                                    if (destino && destino.folderName !== undefined)
-                                        Studio.setSceneFolder(page.ghost.escena, destino.folderName)
-                                }
+                                onReleased: if (rowGhost.Drag.active) rowGhost.Drag.drop()
                                 onClicked: { Studio.sources.scene = parent.name; page.selected = "" }
                                 onDoubleClicked: { renameDlg.from = parent.name; renameDlg.open() }
                             }
