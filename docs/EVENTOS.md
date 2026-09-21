@@ -1,7 +1,10 @@
 # Eventos: storyboard, oradores y pantallas
 
-Documento de diseño. Todavía no hay nada de esto implementado: es la lista
-desglosada de lo que queremos, para discutirla y después partirla en tandas.
+Documento de diseño y estado. Cada punto dice si ya está hecho o qué falta.
+
+**Hecho al 2026-09-21:** el storyboard mínimo (1.1 a 1.5, menos el modo
+evento), el ensayo (1.4) y el teleprompter (2), con todo expuesto al asistente
+por MCP. Falta lo demás.
 
 La idea de fondo: hoy el sistema sabe **emitir**. Lo que falta es que sepa
 **cómo va a ser el evento** — qué pasa, en qué orden, cuánto dura, quién habla,
@@ -9,7 +12,7 @@ qué suena y qué se ve en cada pantalla — y que eso se pueda ensayar antes.
 
 ---
 
-## 1. El storyboard
+## 1. El storyboard — **hecho**, menos el modo evento
 
 ### 1.1 Qué es
 
@@ -56,7 +59,8 @@ cue depende. Los automáticos encadenan; los manuales esperan el clic.
   la vista, y cuánto falta para el próximo cue automático.
 - Al terminar: comparación previsto contra real, para el evento siguiente.
 
-### 1.4 Ensayo (dry-run)
+### 1.4 Ensayo (dry-run) — **hecho** el ensayo sin aire y el acelerado; la
+revisión previa todavía no mira archivos ni dispositivos
 
 Un **modo ensayo** que corre el guion **sin salir al aire**, porque ya hubo
 problemas y hay que verlos antes:
@@ -70,7 +74,7 @@ problemas y hay que verlos antes:
   validar que cada uno puede ejecutarse.
 - Informe final con lo que falló y un botón para ir al cue problemático.
 
-### 1.5 Mientras corre
+### 1.5 Mientras corre — la vista de conducción está; el **modo evento** no
 
 - Una vista de **conducción**: el cue actual grande, el siguiente, el reloj del
   bloque y el desvío.
@@ -81,7 +85,7 @@ problemas y hay que verlos antes:
 
 ---
 
-## 2. Teleprompter
+## 2. Teleprompter — **hecho**
 
 Una **app web propia**, servida por el gateway, con tres vistas:
 
@@ -410,10 +414,20 @@ Cuando el storyboard exista, que el asistente ayude a **llenarlo**:
 
 Cada punto de acá es entregable por sí solo:
 
-1. **Storyboard mínimo**: modelo de datos, lista de bloques y cues, tiempos
-   calculados, ejecución manual (el operador aprieta «siguiente»).
-2. **Revisión previa y ensayo**, que es lo que evita los problemas del día.
-3. **Teleprompter** (app web + control desde el celular + texto en el sistema).
+1. ~~**Storyboard mínimo**: modelo de datos, lista de bloques y cues, tiempos
+   calculados, ejecución manual (el operador aprieta «siguiente»).~~ **Hecho.**
+   Lo que sigue de este punto es el **modo evento** (1.5) y que los cues de
+   música, video, pantalla y audio se ejecuten de verdad: hoy quedan escritos
+   en el guion, cuentan para los tiempos, y al tocarles el turno el sistema
+   avisa que todavía no los sabe ejecutar en vez de fallar callado.
+2. ~~**Revisión previa y ensayo**~~ **Hecho** lo que se puede saber sin tocar
+   nada (cues incompletos, escenas que no existen) más el ensayo sin aire y el
+   acelerado. **Falta** lo que necesita mirar el disco y los aparatos: que los
+   archivos estén, que los dispositivos respondan, espacio libre, y que los
+   invitados citados estén conectados.
+3. ~~**Teleprompter** (app web + control desde el celular + texto en el
+   sistema).~~ **Hecho.** Falta el modo automático con marcas de ritmo por
+   párrafo (hoy la velocidad es una sola para todo el discurso).
 4. **Vista del orador** en la app del invitado (texto, orden, cara del remoto).
 5. **Cámaras de público** con su audio y el **retardo medido solo** (5.1): es
    de lo que más se nota y hoy se hace a ojo.

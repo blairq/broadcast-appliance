@@ -34,14 +34,26 @@ asistente de armado están desglosados aparte: **[EVENTOS.md](EVENTOS.md)**.
   (`--solo-medir` acá, `--sin-admin` allá, probado contra el HTTPS propio). Lo
   que falta es el equipo.
 
+## Cuidado al probar
+
+- **Nunca dos sistemas a la vez en la misma máquina.** El canal de control
+  (`@broadcast-appliance-<uid>-control.app`) y el bloque de salud `BA.Health`
+  son únicos POR USUARIO, no por carpeta de datos: una segunda instancia —
+  aunque se la lance con `BA_DATA_ROOT` apuntando a otro lado — le roba el
+  canal a la primera, el launcher la da por colgada («heartbeat estancado») y
+  la reinicia en bucle hasta pasarla a modo seguro. Para probar un binario hay
+  que parar el launcher primero.
+- **Después de recompilar e instalar, regenerar el manifiesto**
+  (`tools/deploy --solo-manifest release`): si no, el launcher avisa
+  «integridad: N con hash distinto» en cada arranque. `make release` ya lo
+  hace; `cmake --install` solo, no.
+
 ## Sala y oradores
 
 - **Plantillas de audio.** Guardar un rack con nombre (módulos, cables y
   parámetros), aplicarlo a otra fuente y marcar uno como predeterminado por
   tipo de fuente, para que los invitados lo tomen solos al crearse su rack.
   Guardadas en `Config/audio-plantillas.json` (viajan con la carpeta portable).
-- **El interruptor «Los atiende el asistente» no se guarda** entre arranques:
-  hoy es un control de función. Decidir si va a la configuración.
 
 ## Audio
 
@@ -65,10 +77,6 @@ asistente de armado están desglosados aparte: **[EVENTOS.md](EVENTOS.md)**.
 
 ## Bundle y documentación
 
-- **Ícono del ejecutable** (Windows `.rc`, Linux `.desktop` en el bundle) y
-  acceso directo: hoy sale con el ícono genérico.
-- **`manifest.json` en los dist**, para que la verificación de integridad del
-  launcher tenga algo que verificar (hoy pasa con 0 archivos).
 - **Asistente de primer arranque**: cámara, micrófono, destino y prueba.
 - **«Reconectando…» con la causa** cuando se cae la transmisión: hay que
   conectar las señales de las salidas de libobs.
