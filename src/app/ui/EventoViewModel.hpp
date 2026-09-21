@@ -124,6 +124,20 @@ class EventoViewModel : public QObject {
     /// orden real y los cues que nadie sabe ejecutar todavia.
     Q_INVOKABLE void ensayoAcelerado();
 
+    /// Lo que realmente paso, para el evento siguiente: por bloque y por cue,
+    /// cuanto estaba previsto y cuanto duro de verdad.
+    ///
+    /// Se arma del recorrido que el guion fue guardando, asi que solo tiene
+    /// sentido despues de correrlo (o de ensayarlo). Vacio si no se corrio.
+    ///
+    /// {previstoSeg, realSeg, desvioSeg, bloques: [{nombre, previstoSeg,
+    ///  realSeg, desvioSeg, cues: [{nro, texto, tipo, previstoSeg, realSeg,
+    ///  desvioSeg}]}]}
+    Q_INVOKABLE QVariantMap informe() const;
+    /// Guarda el informe en la carpeta del evento, con la fecha en el nombre.
+    /// Devuelve el archivo escrito, o vacio si no se pudo.
+    Q_INVOKABLE QString guardarInforme();
+
     /// Revision previa completa: la del modelo mas lo que necesita el motor
     /// (que las escenas existan, que los archivos esten, que el orador este
     /// conectado). Se corre a pedido, no sola.
@@ -145,6 +159,7 @@ class EventoViewModel : public QObject {
     void anotar(const QString& texto, const QString& tipo);
     void marcarSucio();
     evento::Cue* cuePtr(int bloque, int cue);
+    const evento::Cue* cuePtrConst(int bloque, int cue) const;
     /// Ruta de un discurso, siempre DENTRO de la carpeta del evento: un
     /// guion escrito por otro no puede hacer que el programa lea cualquier
     /// archivo del disco.

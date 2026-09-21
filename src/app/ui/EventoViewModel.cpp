@@ -10,6 +10,7 @@
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
+#include <QJsonDocument>
 #include <QJsonObject>
 
 #include "AppRuntime.hpp"
@@ -257,6 +258,13 @@ void EventoViewModel::marcarSucio() {
     emit guionChanged();
 }
 
+const evento::Cue* EventoViewModel::cuePtrConst(int bloque, int cue) const {
+    if (bloque < 0 || bloque >= static_cast<int>(e_.bloques.size())) return nullptr;
+    const auto& cues = e_.bloques[static_cast<std::size_t>(bloque)].cues;
+    if (cue < 0 || cue >= static_cast<int>(cues.size())) return nullptr;
+    return &cues[static_cast<std::size_t>(cue)];
+}
+
 evento::Cue* EventoViewModel::cuePtr(int bloque, int cue) {
     if (bloque < 0 || bloque >= static_cast<int>(e_.bloques.size())) return nullptr;
     auto& cues = e_.bloques[static_cast<std::size_t>(bloque)].cues;
@@ -442,6 +450,91 @@ void EventoViewModel::ensayoAcelerado() {
     if (problemas > 0) resumen += QString(", %1 con problemas").arg(problemas);
     anotar(resumen, problemas > 0 ? "error" : "ok");
     emit notify(resumen, problemas > 0 ? "error" : "ok");
+}
+
+QVariantMap EventoViewModel::informe() const {
+    if (!guionCorriendo_) return {};
+    const auto& pasos = guionCorriendo_->recorrido();
+    if (pasos.empty()) return {};
+
+    // Se agrupa por bloque respetando el ORDEN EN QUE PASO, no el del guion:
+    // si el operador salto o repitio, el informe tiene que contarlo.
+    QVariantList bloques;
+    QVariantMap bloqueActual;
+    QVariantList cuesDelBloque;
+    int bloqueIdx = -1;
+    int bPrevisto = 0;
+    int bReal = 0;
+    int totalPrevisto = 0;
+    int totalReal = 0;
+    int nro = 0;
+
+    const auto cerrarBloque = [&]() {
+        if (bloqueIdx < 0) return;
+        bloqueActual["cues"] = cuesDelBloque;
+        bloqueActual["previstoSeg"] = bPrevisto;
+        bloqueActual["realSeg"] = bReal;
+        bloqueActual["desvioSeg"] = bReal - bPrevisto;
+        bloques.append(bloqueActual);
+        cuesDelBloque.clear();
+        bPrevisto = 0;
+        bReal = 0;
+    };
+
+    for (const evento::Guion::Paso& p : pasos) {
+        // El ultimo cue puede seguir corriendo: no tiene duracion real todavia.
+        if (p.hastaMs == 0) continue;
+        if (p.pos.bloque != bloqueIdx) {
+            cerrarBloque();
+            bloqueIdx = p.pos.bloque;
+            const auto bi = static_cast<std::size_t>(bloqueIdx);
+            bloqueActual = QVariantMap{
+                {"nombre", bi < e_.bloques.size() ? QString::fromStdString(e_.bloques[bi].nombre)
+                                                  : QString("(bloque borrado)")}};
+        }
+        const evento::Cue* c = cuePtrConst(p.pos.bloque, p.pos.cue);
+        const int real = p.realSeg();
+        cuesDelBloque.append(QVariantMap{
+            {"nro", ++nro},
+            {"texto", c != nullptr ? QString::fromStdString(c->texto) : QString()},
+            {"tipo", c != nullptr ? QString::fromStdString(evento::nombreDeTipo(c->tipo)) : QString()},
+            {"previstoSeg", p.previstoSeg},
+            {"realSeg", real},
+            {"desvioSeg", real - p.previstoSeg}});
+        bPrevisto += p.previstoSeg;
+        bReal += real;
+        totalPrevisto += p.previstoSeg;
+        totalReal += real;
+    }
+    cerrarBloque();
+
+    return QVariantMap{{"evento", QString::fromStdString(e_.nombre)},
+                       {"ensayo", ensayo_},
+                       {"previstoSeg", totalPrevisto},
+                       {"realSeg", totalReal},
+                       {"desvioSeg", totalReal - totalPrevisto},
+                       {"cues", nro},
+                       {"bloques", bloques}};
+}
+
+QString EventoViewModel::guardarInforme() {
+    const QVariantMap inf = informe();
+    if (inf.isEmpty() || abierto_.isEmpty()) {
+        emit notify("Todavía no hay nada que informar: el guion no se corrió", "error");
+        return {};
+    }
+    const QDir carpeta(QString::fromStdString(store_.carpetaDe(abierto_.toStdString()).string()));
+    const QString nombre =
+        "informe-" + QDateTime::currentDateTime().toString("yyyyMMdd-HHmmss") + ".json";
+    const QString ruta = carpeta.filePath(nombre);
+    QFile f(ruta);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        emit notify("No se pudo escribir el informe en " + ruta, "error");
+        return {};
+    }
+    f.write(QJsonDocument(QJsonObject::fromVariantMap(inf)).toJson());
+    emit notify("Informe guardado en " + nombre, "ok");
+    return ruta;
 }
 
 void EventoViewModel::revisar() {

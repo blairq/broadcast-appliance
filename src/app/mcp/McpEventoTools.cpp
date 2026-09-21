@@ -338,6 +338,40 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev) {
     }
     {
         Tool t;
+        t.name = "evento_informe";
+        t.title = "Informe del evento";
+        t.category = "evento";
+        t.readOnly = true;
+        t.description =
+            "Lo que realmente paso: por bloque y por cue, cuanto estaba previsto y cuanto duro de verdad.";
+        t.details =
+            "Es la materia prima para el evento siguiente: con los desvios reales, las duraciones "
+            "previstas de la proxima vez dejan de ser una adivinanza.\n\n"
+            "Se arma del recorrido que el guion fue guardando, asi que solo tiene sentido despues de "
+            "correrlo (o de ensayarlo, y en ese caso `ensayo` viene en true). Si no se corrio, viene "
+            "vacio.\n\n"
+            "Respeta el ORDEN EN QUE PASO, no el del guion: si el operador salto o repitio un bloque, el "
+            "informe lo cuenta asi.\n\n"
+            "Con `guardar: true` ademas lo escribe en la carpeta del evento con la fecha en el nombre.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"guardar", {{"type", "boolean"}}}}}};
+        t.run = [&ev](const json& a, Done done) {
+            const QVariantMap inf = ev.informe();
+            if (inf.isEmpty())
+                return done(ToolResult::error(
+                    "Todavia no hay nada que informar: el guion no se corrio en esta sesion."));
+            QString archivo;
+            if (a.value("guardar", false)) archivo = ev.guardarInforme();
+            json out = json::parse(
+                QString(QJsonDocument(QJsonObject::fromVariantMap(inf)).toJson()).toStdString(), nullptr,
+                false);
+            if (!archivo.isEmpty()) out["archivo"] = archivo.toStdString();
+            done(ToolResult().data(out));
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "evento_correr";
         t.title = "Correr el guion";
         t.category = "evento";

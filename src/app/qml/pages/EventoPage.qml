@@ -16,6 +16,7 @@ Rectangle {
     readonly property var ev: Studio.evento
 
     // Cue seleccionado para editar (bloque, cue). -1 = ninguno.
+    property var informe: ({})
     property int selB: -1
     property int selC: -1
     readonly property var selCue: {
@@ -465,6 +466,13 @@ Rectangle {
                                 visible: page.ev.estado !== "parado"
                                 onClicked: page.ev.parar()
                             }
+                            GlassButton {
+                                icon: "▤"; compact: true
+                                visible: page.ev.estado !== "parado"
+                                onClicked: { page.informe = page.ev.informe(); informeDlg.open() }
+                                ToolTip.visible: hovered
+                                ToolTip.text: "Ver cuánto duró de verdad cada bloque"
+                            }
                         }
                         RowLayout {
                             Layout.fillWidth: true
@@ -675,6 +683,73 @@ Rectangle {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // --- Informe: previsto contra real ---------------------------------------
+    Dialog {
+        id: informeDlg
+        anchors.centerIn: parent
+        width: Math.min(page.width - 80, 620)
+        modal: true
+        title: "Lo que duró de verdad"
+        standardButtons: Dialog.Close
+
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 8
+
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                color: Theme.textDim
+                font.pixelSize: 12
+                text: page.informe && page.informe.bloques
+                      ? "Previsto " + page.mmss(page.informe.previstoSeg) + " · real " +
+                        page.mmss(page.informe.realSeg) + " · " +
+                        (page.informe.desvioSeg >= 0 ? "nos pasamos " : "sobró ") +
+                        page.mmss(Math.abs(page.informe.desvioSeg)) +
+                        (page.informe.ensayo ? "  (fue un ensayo)" : "")
+                      : "El guion todavía no se corrió."
+            }
+
+            ListView {
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.min(340, 34 * ((page.informe.bloques || []).length + 1))
+                clip: true
+                spacing: 3
+                model: page.informe.bloques || []
+                delegate: RowLayout {
+                    required property var modelData
+                    width: ListView.view.width
+                    spacing: 8
+                    Text {
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                        text: modelData.nombre
+                        color: Theme.text
+                        font.pixelSize: 13
+                    }
+                    Text {
+                        text: page.mmss(modelData.previstoSeg) + " → " + page.mmss(modelData.realSeg)
+                        color: Theme.textDim
+                        font { family: Theme.mono; pixelSize: 12 }
+                    }
+                    Text {
+                        Layout.preferredWidth: 70
+                        horizontalAlignment: Text.AlignRight
+                        text: (modelData.desvioSeg > 0 ? "+" : "") + page.mmss(modelData.desvioSeg)
+                        color: Math.abs(modelData.desvioSeg) < 15 ? Theme.ok
+                               : (Math.abs(modelData.desvioSeg) < 60 ? Theme.amber : Theme.live)
+                        font { family: Theme.mono; pixelSize: 12; weight: Font.DemiBold }
+                    }
+                }
+            }
+
+            GlassButton {
+                text: "Guardar en la carpeta del evento"; compact: true
+                onClicked: page.ev.guardarInforme()
             }
         }
     }
