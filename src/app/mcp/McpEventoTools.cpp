@@ -281,8 +281,11 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev) {
             "nuevo antes de empezar.\n\n"
             "Cada reparo dice donde esta (`bloque`, `cue`) y si es `grave` (asi no se puede correr) o "
             "solo algo para mirar.\n\n"
-            "Todavia no revisa: que existan los archivos de musica y video, que los dispositivos esten "
-            "conectados, ni que los invitados citados esten en la sala.";
+            "Revisa tambien los archivos que el guion nombra: que la musica y los videos esten en "
+            "Medios/, que los discursos esten en Discursos/, que no esten vacios y que ninguno apunte "
+            "fuera de la carpeta del evento.\n\n"
+            "Todavia no revisa: que los dispositivos esten conectados, el espacio en disco, ni que los "
+            "invitados citados esten en la sala.";
         t.run = [&ev](const json&, Done done) {
             ev.revisar();
             json out = json::array();

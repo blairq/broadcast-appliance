@@ -7,6 +7,8 @@
 //   4. Un guion dañado se reporta como tal, no como un evento vacio.
 //   5. Nombres de carpeta: los caracteres que Windows no acepta se sacan.
 //   6. Borrar no se deja llevar fuera de Eventos/.
+//   7. Revisar los archivos: los que faltan, los vacios y los que se escapan
+//      de la carpeta del evento.
 // ============================================================================
 
 #include <chrono>
@@ -159,6 +161,53 @@ void ultimo_tocado() {
     CHECK(s.ultimoTocado() == viejo, "guardar el otro lo pone primero");
 }
 
+void revisar_archivos() {
+    EventoStore s(carpetaDePrueba());
+    const std::string carpeta = s.crear("Acto");
+    const fs::path dir = s.carpetaDe(carpeta);
+
+    Evento e;
+    Bloque b;
+    b.nombre = "Todo";
+    const auto cue = [](Tipo t, const char* clave, const char* valor) {
+        Cue c;
+        c.tipo = t;
+        c.duracionSeg = 10;
+        c.texto = "algo";
+        c.datos = nlohmann::json{{clave, valor}};
+        return c;
+    };
+    b.cues.push_back(cue(Tipo::Musica, "archivo", "himno.wav"));            // 0: existe
+    b.cues.push_back(cue(Tipo::Video, "archivo", "Medios/institucional.mp4")); // 1: falta
+    b.cues.push_back(cue(Tipo::Teleprompter, "discurso", "intendente.txt")); // 2: vacio
+    b.cues.push_back(cue(Tipo::Musica, "archivo", "../../se-escapa.wav"));   // 3: se escapa
+    e.bloques.push_back(b);
+
+    {
+        std::ofstream(dir / "Medios" / "himno.wav") << "no es audio pero pesa";
+        std::ofstream(dir / "Discursos" / "intendente.txt"); // queda vacio
+    }
+
+    const auto rs = revisarArchivos(e, dir);
+    CHECK(rs.size() == 3, "encuentra los tres problemas y deja pasar el que esta");
+    CHECK(rs[0].cue == 1 && rs[0].texto.find("falta el archivo") != std::string::npos,
+          "avisa del archivo que no esta");
+    CHECK(rs[1].cue == 2 && rs[1].texto.find("vacio") != std::string::npos,
+          "un archivo de cero bytes es un problema, no un archivo");
+    CHECK(rs[2].cue == 3 && rs[2].texto.find("fuera de") != std::string::npos,
+          "un guion no puede hacer que se lea fuera de su carpeta");
+    for (const Reparo& r : rs) CHECK(r.grave, "los tres impiden correr el guion");
+
+    // Parar la musica no necesita archivo: no se revisa.
+    Evento e2;
+    Bloque b2;
+    b2.nombre = "Parar";
+    Cue parar = cue(Tipo::Musica, "accion", "parar");
+    b2.cues.push_back(parar);
+    e2.bloques.push_back(b2);
+    CHECK(revisarArchivos(e2, dir).empty(), "parar la musica no busca ningun archivo");
+}
+
 void nombres() {
     CHECK(nombreDeCarpeta("Acto del 25 de mayo") == "Acto-del-25-de-mayo", "los espacios pasan a guiones");
     CHECK(nombreDeCarpeta("Con/barra\\y:dos*puntos") == "Conbarraydospuntos",
@@ -191,6 +240,7 @@ int main() {
     guardar_respalda();
     guion_danado();
     ultimo_tocado();
+    revisar_archivos();
     nombres();
     borrar_no_se_escapa();
     std::error_code ec;

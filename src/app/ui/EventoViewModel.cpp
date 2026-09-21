@@ -462,6 +462,12 @@ void EventoViewModel::revisar() {
             }
         }
     }
+    // Y lo que hay que ir a mirar al disco: los archivos que el guion nombra.
+    if (!abierto_.isEmpty()) {
+        for (const evento::Reparo& r :
+             evento::revisarArchivos(e_, store_.carpetaDe(abierto_.toStdString())))
+            reparos_.push_back(r);
+    }
     emit reparosChanged();
 
     int graves = 0;

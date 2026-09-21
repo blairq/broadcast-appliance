@@ -61,6 +61,75 @@ std::string nombreDeCarpeta(const std::string& nombre) {
     return out;
 }
 
+namespace {
+
+/// Resuelve la ruta de un medio DENTRO de la subcarpeta que le corresponde.
+/// Devuelve vacio si el guion intenta salirse de ahi (un ".." en un evento
+/// que vino de otro lado no tiene por que leer el disco del que lo abre).
+fs::path dentroDe(const fs::path& base, const std::string& sub, std::string rel) {
+    // "Medios/x.wav" y "x.wav" valen lo mismo: el operador escribe lo que le
+    // sale y las dos formas apuntan al mismo lado.
+    const std::string prefijo = sub + "/";
+    if (rel.rfind(prefijo, 0) == 0) rel = rel.substr(prefijo.size());
+    const fs::path dir = base / sub;
+    const fs::path abs = (dir / rel).lexically_normal();
+    const fs::path raiz = dir.lexically_normal();
+    const auto rel2 = abs.lexically_relative(raiz);
+    if (rel2.empty() || rel2.native().rfind("..", 0) == 0) return {};
+    return abs;
+}
+
+} // namespace
+
+std::vector<Reparo> revisarArchivos(const Evento& e, const fs::path& carpeta) {
+    std::vector<Reparo> rs;
+    std::error_code ec;
+    for (std::size_t bi = 0; bi < e.bloques.size(); ++bi) {
+        const Bloque& b = e.bloques[bi];
+        for (std::size_t ci = 0; ci < b.cues.size(); ++ci) {
+            const Cue& c = b.cues[ci];
+            std::string clave;
+            std::string sub;
+            switch (c.tipo) {
+                case Tipo::Musica:
+                    if (c.datos.value("accion", std::string("arrancar")) == "parar") continue;
+                    clave = "archivo";
+                    sub = "Medios";
+                    break;
+                case Tipo::Video:
+                    clave = "archivo";
+                    sub = "Medios";
+                    break;
+                case Tipo::Teleprompter:
+                    clave = "discurso";
+                    sub = "Discursos";
+                    break;
+                default: continue;
+            }
+            const std::string rel = c.datos.value(clave, std::string());
+            if (rel.empty()) continue; // ya lo dijo la revision del guion
+            const int ib = static_cast<int>(bi);
+            const int ic = static_cast<int>(ci);
+            const fs::path p = dentroDe(carpeta, sub, rel);
+            if (p.empty()) {
+                rs.push_back({ib, ic, true, "\"" + rel + "\" apunta fuera de " + sub + "/"});
+                continue;
+            }
+            if (!fs::exists(p, ec)) {
+                rs.push_back({ib, ic, true, "falta el archivo " + sub + "/" + rel});
+                continue;
+            }
+            if (fs::is_directory(p, ec)) {
+                rs.push_back({ib, ic, true, sub + "/" + rel + " es una carpeta, no un archivo"});
+                continue;
+            }
+            if (fs::file_size(p, ec) == 0 && !ec)
+                rs.push_back({ib, ic, true, sub + "/" + rel + " esta vacio"});
+        }
+    }
+    return rs;
+}
+
 EventoStore::EventoStore(fs::path raiz) : raiz_(std::move(raiz)) {
     std::error_code ec;
     fs::create_directories(raiz_, ec);

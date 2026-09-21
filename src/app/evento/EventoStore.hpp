@@ -50,6 +50,14 @@ struct Ficha {
 /// todos los sistemas. Vacío si no queda nada usable.
 std::string nombreDeCarpeta(const std::string& nombre);
 
+/// La otra mitad de la revisión previa: lo que hay que ir a mirar al disco.
+/// Va acá (y no en Evento.cpp) porque necesita saber dónde vive el evento.
+///
+/// Es la parte que más evita problemas el día del acto: un cue que nombra un
+/// archivo que se movió, o un discurso que quedó en la otra máquina, no se ve
+/// hasta que toca — y entonces ya es tarde.
+std::vector<Reparo> revisarArchivos(const Evento& e, const std::filesystem::path& carpeta);
+
 class EventoStore {
   public:
     /// :param raiz: la carpeta Eventos/ (se crea si no está).
