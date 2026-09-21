@@ -189,6 +189,45 @@ de sala, pero para una pantalla secundaria cambia todo.
 - **Reintento**: si la pantalla se apaga o el aparato se reinicia, que vuelva
   solo a la URL. Eso lo maneja la sección de pantallas.
 
+### 4.4 Qué transporte usar (y qué cuesta cada uno)
+
+Para pantallas **de solo mirar** hay opciones más baratas que WebRTC. La clave
+es **codificar una vez y repartir los mismos bytes**, en vez de armarle a cada
+pantalla su propia conexión con su propio codificador.
+
+| Camino | CPU | RAM | Retardo | ¿Lo abre el navegador del Chromecast? |
+|---|---|---|---|---|
+| WebRTC por espectador | 1 codificador **por pantalla** + SRTP | alta (buffers por par) | 100-300 ms | sí (en los nuevos) |
+| **fMP4 por WebSocket + MSE** | **1 codificador para todas** | baja | 200-600 ms | sí |
+| LL-HLS (segmentos) | 1 codificador + servir archivos | baja | 1-3 s | sí |
+| RTP multicast / SRT | 1 codificador, casi sin costo por receptor | mínima | 50-200 ms | **no** (hace falta un reproductor nativo) |
+| MoQ (Media over QUIC) | 1 codificador | baja | bajo | todavía no, y el estándar está en borrador |
+
+**Lo que conviene: fMP4 por WebSocket con MSE.** El motor ya codifica para
+transmitir; con libobs se puede colgar **una segunda salida del mismo
+codificador** (encode once, output twice), fragmentar en fMP4 y mandar los
+mismos bytes a todas las pantallas. Cada pantalla suma un socket y un buffer
+chico, no un codificador. Es más barato que WebRTC en CPU y en memoria, y
+queda por debajo del segundo.
+
+**Y encima sincroniza mejor.** Con MSE la página puede corregir su propio
+desfase moviendo `playbackRate` unas milésimas (0,98 a 1,02) contra un reloj
+común por WebSocket: es justo el actuador que necesita un PID como el que ya
+tenés escrito. Con WebRTC eso no se puede: se puede pedir más o menos buffer
+(`playoutDelayHint`), pero no ajustar la velocidad, así que dos pantallas
+quedan desfasadas y no hay con qué corregirlas.
+
+**Entonces:**
+
+- **Pantallas sincronizadas** (varias mostrando lo mismo, o video estático):
+  fMP4 por WebSocket + MSE, con el PID y el reloj por WebSocket.
+- **Donde hace falta ida y vuelta o el mínimo retardo** (invitados, retorno del
+  orador): WebRTC, que ya está.
+- **Si alguna pantalla no puede con MSE**: LL-HLS como respaldo, con más
+  retardo pero funcionando.
+- **MoQ**: vale seguirlo de lejos. Hoy es borrador y depende de WebTransport en
+  el aparato; no es base para el año que viene.
+
 ---
 
 ## 5. Cámaras de público (y su audio)
