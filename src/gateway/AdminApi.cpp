@@ -24,7 +24,7 @@
 //   GET    /api/v1/network                 HTTPS, tunel WireGuard, IPs y enlaces
 //   GET    /api/v1/qr?target=local|remote[&pin=1]  URL de ingreso (+PIN) + matriz del QR
 //   POST   /api/v1/network/server-config   {endpoint, publicAddress?} -> wg0.conf del servidor
-//   POST   /api/v1/room                    {lobby?, locked?}
+//   POST   /api/v1/room                    {lobby?, locked?, intake?}
 //   POST   /api/v1/pin                     {pin?}  (vacio = generar)
 //   POST   /api/v1/participants/<id>/admit | reject | kick
 //   POST   /api/v1/participants/<id>/request   {what}
@@ -249,6 +249,8 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
                 room_.setLobby(req["lobby"].get<bool>(), nowMsA());
             if (req.contains("locked") && req["locked"].is_boolean())
                 room_.setLocked(req["locked"].get<bool>());
+            if (req.contains("intake") && req["intake"].is_boolean())
+                room_.setIntake(req["intake"].get<bool>());
             sendJson(fd, 200, json{{"ok", true}});
             return;
         }

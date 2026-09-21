@@ -195,6 +195,11 @@ class Room {
     int chatFromHost(const std::string& to, const std::string& text, int64_t nowMs);
     void setLobby(bool on, int64_t nowMs);
     void setLocked(bool on);
+    /// El asistente esta atendiendo el lobby: la app del invitado deja de
+    /// pedirle los datos al entrar, porque se los va a preguntar el asistente
+    /// por chat. Lo prende y apaga el operador desde A.
+    void setIntake(bool on);
+    bool intake() const;
 
     // --- Modo oradores ----------------------------------------------------------
     /// Aplica los campos presentes de `cfg` (ver SpeakerCfg / API).
@@ -297,6 +302,7 @@ class Room {
     Cfg cfg_;
     Sinks sinks_;
     bool locked_ = false;
+    bool intake_ = false;
     std::string pin_;
     std::string guestUrl_;
     std::vector<Participant> people_; // orden de llegada (el lobby es FIFO)

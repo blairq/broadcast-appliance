@@ -374,6 +374,15 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
         apiVerify(fd, query);
         return;
     }
+    if (path == "/api/sala" && method == "GET") {
+        // Lo poco que la pantalla de ingreso necesita saber ANTES de entrar.
+        // Nada de esto es secreto: el nombre de la sala ya viaja en el enlace
+        // y lo otro es si el asistente esta atendiendo, para no pedirle al
+        // invitado datos que le va a preguntar el asistente por chat.
+        http::sendResponse(fd, 200, "application/json",
+                           json{{"ok", true}, {"room", cfg_.room}, {"pedirDatos", !room_.intake()}}.dump());
+        return;
+    }
     if (method == "GET" && (path == "/board" || path.rfind("/board/", 0) == 0)) {
         std::string rel = path.size() > 7 ? path.substr(7) : std::string("index.html");
         if (rel.empty()) rel = "index.html";

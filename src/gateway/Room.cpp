@@ -398,6 +398,22 @@ void Room::setLocked(bool on) {
     flush(out);
 }
 
+void Room::setIntake(bool on) {
+    Out out;
+    {
+        std::lock_guard<std::mutex> lock(m_);
+        if (intake_ == on) return;
+        intake_ = on;
+        out.roomChanged = true;
+    }
+    flush(out);
+}
+
+bool Room::intake() const {
+    std::lock_guard<std::mutex> lock(m_);
+    return intake_;
+}
+
 // --- Archivos ---------------------------------------------------------------
 
 std::string Room::addShare(Share share, int64_t nowMs) {
@@ -710,6 +726,7 @@ json Room::snapshotLocked() const {
     return json{{"room", cfg_.name},
                 {"lobby", cfg_.lobby},
                 {"locked", locked_},
+                {"intake", intake_},
                 {"maxGuests", cfg_.maxGuests},
                 {"slotsFree", cfg_.maxGuests - admitted},
                 {"pin", pin_},

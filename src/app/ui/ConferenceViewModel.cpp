@@ -249,6 +249,9 @@ void ConferenceViewModel::setAutoIntake(bool on) {
     // Al prenderlo, los que ya estaban esperando tambien se atienden.
     if (!on) intakeDone_.clear();
     emit autoIntakeChanged();
+    // B tiene que enterarse: con el asistente atendiendo, la pantalla de
+    // ingreso del invitado no le pide los datos (se los pregunta el asistente).
+    client_->post("/api/v1/room", QJsonObject{{"intake", on}});
     if (on) onSnapshot();
 }
 

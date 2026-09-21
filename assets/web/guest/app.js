@@ -38,7 +38,7 @@
     maxUploadBytes: 0,
     reconnectDelay: RECONNECT_BASE_MS, reconnectTimer: 0, resumeFailures: 0,
     lastRx: 0, pongSeen: false, pingTimer: 0, mediaTimer: 0, wakeLock: null,
-    left: false, chatOpen: false, unread: 0,
+    left: false, chatOpen: false, chatAuto: false, unread: 0,
     info: "", contact: "",
     speaker: null, clockOffset: 0, speakerAt: 0, speakerTimer: 0, avatarTimer: 0,
   };
@@ -415,6 +415,12 @@
         state.admitted = true;
         state.slot = msg.slot;
         $("talk-badge").classList.add("hidden");
+        // El chat que se abrio solo en el lobby se cierra al pasar: adentro
+        // tapa el video, y el que lo abrio a mano se lo queda.
+        if (state.chatAuto) {
+          state.chatAuto = false;
+          toggleChat(false);
+        }
         show("room");
         toast(msg.backstage ? "Estás en la fila de oradores" : "¡Estás adentro!", "ok");
         // La MISMA conexion sigue: B solo cambia a donde van tus medios (del
@@ -689,6 +695,14 @@
     $("chat-log").appendChild(el);
     $("chat-log").scrollTop = $("chat-log").scrollHeight;
     if (!state.chatOpen && !mine) {
+      // Esperando en el lobby no hay nada que tapar, y el mensaje del operador
+      // (o del asistente que atiende) es justo lo que la persona tiene que
+      // ver: se abre el chat en vez de dejarle un globito que no mira nadie.
+      if (m.fromId === "host" && !state.admitted) {
+        state.chatAuto = true;
+        toggleChat(true);
+        return;
+      }
       state.unread++;
       $("unread").textContent = state.unread;
       $("unread").classList.remove("hidden");
@@ -899,6 +913,13 @@
     $("room").parentElement.parentElement.style.gridTemplateColumns = "1fr";
   }
   if (!window.isSecureContext) $("join-error").textContent = "Este enlace no es seguro (http): el navegador no va a dejar usar la cámara ni el micrófono. Pedile al operador el enlace que empieza con https.";
+  // Con el asistente atendiendo el lobby, entrar es solo el nombre: los demas
+  // datos se los pregunta el asistente por chat. No se espera la respuesta:
+  // si el servidor tarda o no contesta, el formulario queda como estaba.
+  fetch("/api/sala")
+    .then((r) => r.json())
+    .then((d) => { if (d && d.ok && d.pedirDatos === false) $("datos").classList.add("hidden"); })
+    .catch(() => {});
   try {
     $("name").value = hash.get("name") || localStorage.getItem("ba.guest.name") || "";
     $("info").value = localStorage.getItem("ba.guest.info") || "";
