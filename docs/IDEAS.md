@@ -4,6 +4,11 @@ Lo que queremos hacer y todavía no está. Se va agregando a medida que aparece,
 para que no se pierda. Cuando algo se hace, se borra de acá (el detalle queda
 en el historial de git).
 
+## Eventos (lo grande)
+
+El storyboard, el teleprompter, las pantallas, las cámaras de público y el
+asistente de armado están desglosados aparte: **[EVENTOS.md](EVENTOS.md)**.
+
 ## Próximo
 
 - **Prueba de carga con invitados emulados.** Levantar N clientes WebRTC
