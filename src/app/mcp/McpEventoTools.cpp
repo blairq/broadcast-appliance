@@ -351,7 +351,10 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev) {
             "  pausar      frena el guion; el tiempo pausado NO cuenta como atraso\n"
             "  reanudar\n"
             "  parar       lo deja parado\n\n"
-            "La respuesta trae el cue actual, el que sigue y el reloj: `desvioSeg` positivo = vamos tarde.";
+            "La respuesta trae el cue actual, el que sigue y el reloj: `desvioSeg` positivo = vamos tarde.\n\n"
+            "Mientras el guion corre sin ensayo, el sistema entra en MODO EVENTO: la app le avisa al "
+            "operador antes de cualquier accion de riesgo, y settings_set queda bloqueado (un ajuste que "
+            "reinicia la sala sacaria a todos los invitados en el peor momento posible).";
         t.inputSchema = {
             {"type", "object"},
             {"properties",

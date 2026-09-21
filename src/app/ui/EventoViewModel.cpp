@@ -488,6 +488,14 @@ QString EventoViewModel::estado() const {
     }
 }
 
+bool EventoViewModel::enVivo() const {
+    if (ensayo_ || !guionCorriendo_) return false;
+    const auto e = guionCorriendo_->estado();
+    // Pausado tambien cuenta: el evento esta pasando, el operador solo freno
+    // el guion un momento.
+    return e == evento::Guion::Estado::Corriendo || e == evento::Guion::Estado::Pausado;
+}
+
 QVariantMap EventoViewModel::actual() const {
     if (!guionCorriendo_) return {};
     const evento::Posicion p = guionCorriendo_->posicion();

@@ -48,6 +48,11 @@ class EventoViewModel : public QObject {
     /// "parado" | "corriendo" | "pausado" | "terminado"
     Q_PROPERTY(QString estado READ estado NOTIFY correChanged)
     Q_PROPERTY(bool ensayo READ ensayo WRITE setEnsayo NOTIFY correChanged)
+    /// El guion esta corriendo DE VERDAD (no en ensayo). Con esto prendido,
+    /// cualquier cosa que se apriete por error sale al aire: la interfaz avisa
+    /// antes de lo peligroso y el asistente no puede tocar la configuracion
+    /// que reinicia el gateway.
+    Q_PROPERTY(bool enVivo READ enVivo NOTIFY correChanged)
     Q_PROPERTY(QVariantMap actual READ actual NOTIFY correChanged)
     Q_PROPERTY(QVariantMap siguiente READ siguiente NOTIFY correChanged)
     /// {desvioSeg, enCueSeg, restanteSeg, cueNro, cuesTotal}: el reloj, que
@@ -69,6 +74,7 @@ class EventoViewModel : public QObject {
     bool sucio() const { return sucio_; }
     QString estado() const;
     bool ensayo() const { return ensayo_; }
+    bool enVivo() const;
     QVariantMap actual() const;
     QVariantMap siguiente() const;
     QVariantMap reloj() const;

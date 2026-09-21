@@ -1228,6 +1228,14 @@ void McpService::registerTools() {
                       R"({"values": {"room.lobby": false}})"};
         SettingsModel* settings = settings_.get();
         t.run = [settings, &vm](const json& a, Done done) {
+            // Modo evento: con el guion corriendo de verdad, un ajuste que
+            // reinicia la sala saca a todos los invitados en el peor momento
+            // posible. El operador puede hacerlo igual desde la app (sabe lo
+            // que hace y ve el aviso); el asistente, no.
+            if (auto* ev = static_cast<EventoViewModel*>(vm.evento()); ev != nullptr && ev->enVivo())
+                return done(ToolResult::error(
+                    "El evento esta corriendo: los ajustes no se tocan hasta que termine. "
+                    "Si de verdad hace falta, lo hace el operador desde la app."));
             // La salvaguarda y el propio servidor MCP solo se tocan desde la
             // interfaz: un asistente (quiza manipulado) no puede aflojarlos.
             if (a.value("resetSection", std::string()) == "Asistente (MCP)")
