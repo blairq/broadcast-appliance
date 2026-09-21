@@ -44,10 +44,10 @@ Rectangle {
     function isExpanded(id) { expandTick; return !!expanded[id] }
     // Con la tarjeta expandida las filas son mas altas y los puntos L/R mas
     // grandes: asi se agarran bien y entran los nombres de los puertos.
-    function rowH(id) { return isExpanded(id) ? portH + 14 : portH }
-    function chOff(id) { return isExpanded(id) ? 10 : 5 }   // separacion del centro
-    function chW(id) { return isExpanded(id) ? 22 : 14 }
-    function chH(id) { return isExpanded(id) ? 14 : 8 }
+    function rowH(id) { return isExpanded(id) ? 48 : 28 }
+    function chOff(id) { return isExpanded(id) ? 14 : 8 }   // separacion del centro
+    function chW(id) { return isExpanded(id) ? 28 : 18 }
+    function chH(id) { return isExpanded(id) ? 18 : 10 }
     function toggleExpanded(id) { expanded[id] = !expanded[id]; expandTick++ }
     function snap(v) { return Math.round(v / grid) * grid }
 
@@ -611,8 +611,24 @@ Rectangle {
                                                     width: page.chW(nd.modelData.id)
                                                     height: page.chH(nd.modelData.id)
                                                     radius: height / 2
-                                                    color: parent.parent.targetCh === inDot.modelData ? Theme.ok : "#93c5fd"
-                                                    border.color: "white"; border.width: 1
+                                                    // Verde si el cable que se arrastra va a caer aca;
+                                                    // mas claro con el mouse encima.
+                                                    color: parent.parent.targetCh === inDot.modelData
+                                                           ? Theme.ok
+                                                           : (inChMa.containsMouse ? Qt.lighter("#93c5fd", 1.35) : "#93c5fd")
+                                                    border.color: inChMa.containsMouse ? Theme.accent : "white"
+                                                    border.width: inChMa.containsMouse ? 2 : 1
+                                                    scale: inChMa.containsMouse ? 1.12 : 1
+                                                    Behavior on scale { NumberAnimation { duration: 90 } }
+                                                    // Solo para el hover: no acepta botones, asi no
+                                                    // interfiere con soltar un cable encima.
+                                                    MouseArea {
+                                                        id: inChMa
+                                                        anchors.fill: parent
+                                                        anchors.margins: -4
+                                                        hoverEnabled: true
+                                                        acceptedButtons: Qt.NoButton
+                                                    }
                                                     Text {
                                                         anchors.centerIn: parent
                                                         text: page.chName(inDot.modelData)
@@ -682,8 +698,11 @@ Rectangle {
                                                     width: page.chW(nd.modelData.id)
                                                     height: page.chH(nd.modelData.id)
                                                     radius: height / 2
-                                                    color: "#86efac"
-                                                    border.color: "white"; border.width: 1
+                                                    color: outChMa.containsMouse ? Qt.lighter("#86efac", 1.25) : "#86efac"
+                                                    border.color: outChMa.containsMouse ? Theme.accent : "white"
+                                                    border.width: outChMa.containsMouse ? 2 : 1
+                                                    scale: outChMa.containsMouse ? 1.12 : 1
+                                                    Behavior on scale { NumberAnimation { duration: 90 } }
                                                     Text {
                                                         anchors.centerIn: parent
                                                         text: page.chName(chDot.modelData)
@@ -692,6 +711,7 @@ Rectangle {
                                                     }
                                                     // Arrastrar desde L o R lleva SOLO ese canal.
                                                     MouseArea {
+                                                        id: outChMa
                                                         anchors.fill: parent
                                                         anchors.margins: -5
                                                         cursorShape: Qt.CrossCursor
