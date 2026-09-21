@@ -34,13 +34,44 @@ Rectangle {
             if (!porCarpeta[fila.carpeta]) { porCarpeta[fila.carpeta] = []; carpetas.push(fila.carpeta) }
             porCarpeta[fila.carpeta].push(fila)
         }
-        const filas = sueltas.slice()
+        const filas = []
+        if (carpetas.length > 0) {
+            filas.push({ fila: "carpeta", carpeta: "", cuantas: sueltas.length })
+            if (folderOpen("")) for (const f of sueltas) filas.push(f)
+        } else {
+            for (const f of sueltas) filas.push(f)
+        }
         for (const c of carpetas) {
             filas.push({ fila: "carpeta", carpeta: c, cuantas: porCarpeta[c].length })
             if (folderOpen(c)) for (const f of porCarpeta[c]) filas.push(f)
         }
         return filas
     }
+    // Lo que se ve mientras se arrastra una escena hacia una carpeta.
+    property alias ghost: sceneGhost
+    Item {
+        id: sceneGhost
+        property string escena: ""
+        width: 150
+        height: 28
+        // Solo mientras se arrastra de verdad (si no, podia quedar colgado).
+        visible: Drag.active
+        z: 999
+        Drag.hotSpot { x: 20; y: 14 }
+        Rectangle {
+            anchors.fill: parent
+            radius: 8
+            color: Qt.rgba(0.1, 0.12, 0.18, 0.95)
+            border.color: Theme.accent
+            Text {
+                anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
+                verticalAlignment: Text.AlignVCenter
+                text: "📁 " + sceneGhost.escena
+                color: Theme.text; font.pixelSize: 12; elide: Text.ElideRight
+            }
+        }
+    }
+
     Connections {
         target: Studio.scenes
         function onModelReset() { page.scenesTick++ }
@@ -82,9 +113,19 @@ Rectangle {
                         height: modelData.fila === "carpeta" ? 28 : 46
 
                         Rectangle {
+                            id: folderRow
                             anchors.fill: parent
                             visible: modelData.fila === "carpeta"
-                            color: "transparent"
+                            radius: 8
+                            // Se ilumina cuando se le arrastra una escena encima.
+                            color: dropHere.containsDrag ? Qt.rgba(1, 0.42, 0.17, 0.18) : "transparent"
+                            border.color: dropHere.containsDrag ? Theme.accent : "transparent"
+                            DropArea {
+                                id: dropHere
+                                anchors.fill: parent
+                                // Lo lee el fantasma al soltar (ver page.ghost).
+                                property string folderName: modelData.carpeta
+                            }
                             RowLayout {
                                 anchors { fill: parent; leftMargin: 2; rightMargin: 6 }
                                 spacing: 6
@@ -94,7 +135,7 @@ Rectangle {
                                 }
                                 Text {
                                     Layout.fillWidth: true
-                                    text: modelData.carpeta
+                                    text: modelData.carpeta || "Sin carpeta"
                                     color: Theme.textDim
                                     font { pixelSize: 11; weight: Font.DemiBold; capitalization: Font.AllUppercase; letterSpacing: 0.4 }
                                     elide: Text.ElideRight
@@ -123,21 +164,42 @@ Rectangle {
                                 GlassButton { visible: !parent.parent.live; text: "Al aire"; compact: true; onClicked: Studio.takeScene(parent.parent.name) }
                             }
                             MouseArea {
+                                id: rowMa
                                 anchors.fill: parent; z: -1
+                                preventStealing: true
+                                cursorShape: drag.active ? Qt.ClosedHandCursor : Qt.ArrowCursor
+                                drag.target: page.ghost
+                                onPressed: (m) => {
+                                    // El fantasma se arrastra por la pagina entera y las
+                                    // carpetas lo reciben con su DropArea.
+                                    const p = mapToItem(page, m.x, m.y)
+                                    page.ghost.escena = parent.name
+                                    page.ghost.x = p.x - 20
+                                    page.ghost.y = p.y - 14
+                                }
+                                drag.onActiveChanged: {
+                                    page.ghost.Drag.active = drag.active
+                                    if (drag.active) return
+                                    const destino = page.ghost.Drag.target
+                                    if (destino && destino.folderName !== undefined)
+                                        Studio.setSceneFolder(page.ghost.escena, destino.folderName)
+                                }
                                 onClicked: { Studio.sources.scene = parent.name; page.selected = "" }
                                 onDoubleClicked: { renameDlg.from = parent.name; renameDlg.open() }
                             }
                         }
                     }
                 }
-                RowLayout {
-                    GlassButton { text: "Nueva"; icon: "+"; compact: true; onClicked: newSceneDlg.open() }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    GlassButton { text: "Escena"; icon: "+"; compact: true; onClicked: newSceneDlg.open() }
                     GlassButton { text: "Renombrar"; compact: true; onClicked: { renameDlg.from = page.editScene; renameDlg.open() } }
                     GlassButton {
-                        text: "Carpeta"; compact: true
+                        text: "Carpeta"; icon: "+"; compact: true
                         onClicked: { folderDlg.scene = page.editScene; folderDlg.open() }
                         ToolTip.visible: hovered; ToolTip.delay: 400
-                        ToolTip.text: "Mover la escena elegida a una carpeta (solo ordena la lista)"
+                        ToolTip.text: "Mover «" + page.editScene + "» a una carpeta (o arrastrala hasta la carpeta)"
                     }
                     GlassButton {
                         text: "Borrar"; compact: true
