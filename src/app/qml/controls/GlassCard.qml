@@ -182,6 +182,11 @@ Item {
         property size startSize
         onPressed: (m) => { start = mapToItem(card.area, m.x, m.y); startSize = Qt.size(card.width, card.height) }
         onPositionChanged: (m) => {
+            // Con hoverEnabled esto tambien llega SIN el boton apretado: sin este
+            // corte la tarjeta se redimensionaba con solo pasar el mouse (con un
+            // `start` de un arrastre anterior), y como la esquina va pegada al
+            // borde, el cursor quedaba encima otra vez y crecia sola.
+            if (!pressed) return
             const p = mapToItem(card.area, m.x, m.y)
             card.width = Math.max(140, startSize.width + p.x - start.x)
             card.height = Math.max(110, startSize.height + p.y - start.y)
