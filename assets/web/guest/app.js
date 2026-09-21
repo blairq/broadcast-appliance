@@ -722,6 +722,90 @@
   // --- Modo oradores -----------------------------------------------------
   // La sala manda el turno y el reloj; el cliente solo lo dibuja. El reloj del
   // servidor manda: se corrige la diferencia con el reloj local.
+
+  // --- Vista del orador ---------------------------------------------------
+  // El que habla no tiene por que mirar la proyeccion que tiene a la espalda:
+  // su texto y los avisos del operador le llegan a su propia pantalla, de
+  // frente. El estado sale del mismo teleprompter que ve la tablet
+  // (GET /api/prompter es publico: es lo que va a decir en voz alta).
+  //
+  // El servidor manda desde donde y a que velocidad; aca se calcula la
+  // posicion igual que en la tablet, asi el texto no salta con la red.
+  const prompter = { texto: "", palabras: [], pos: 0, ppm: 140, corriendo: false,
+                     desdeMs: 0, desfaseMs: 0, aviso: "", version: -1, timer: 0 };
+
+  function prompterPos() {
+    if (!prompter.corriendo) return prompter.pos;
+    const ahora = Date.now() + prompter.desfaseMs;
+    return Math.min(prompter.palabras.length,
+                    prompter.pos + ((ahora - prompter.desdeMs) / 60000) * prompter.ppm);
+  }
+
+  function pintarOrador() {
+    const panel = $("orador-panel");
+    // Solo cuando le toca a esta persona y hay algo que leer. En la fila no:
+    // le taparia el programa que esta mirando.
+    const suTurno = state.speakerState === "onair";
+    if (!suTurno || prompter.palabras.length === 0) {
+      panel.classList.add("hidden");
+      return;
+    }
+    panel.classList.remove("hidden");
+
+    const av = $("orador-aviso");
+    av.textContent = prompter.aviso;
+    av.classList.toggle("hidden", !prompter.aviso);
+
+    // Una ventana de palabras alrededor de donde va: en un celular no entra
+    // el discurso entero y desplazar todo el texto seria caro.
+    const i = Math.floor(prompterPos());
+    const desde = Math.max(0, i - 4);
+    const hasta = Math.min(prompter.palabras.length, i + 45);
+    const cont = $("orador-texto");
+    cont.textContent = "";
+    for (let k = desde; k < hasta; k++) {
+      const s = document.createElement("span");
+      s.textContent = prompter.palabras[k] + " ";
+      if (k < i) s.className = "leido";
+      else if (k === i) s.className = "aqui";
+      cont.appendChild(s);
+    }
+    const faltan = Math.max(0, prompter.palabras.length - prompterPos());
+    $("orador-pie").textContent = prompter.corriendo
+      ? "Quedan " + fmtClock((faltan / prompter.ppm) * 60000) + " de lectura"
+      : "El texto está parado: lo arranca el operador";
+  }
+
+  async function leerPrompter() {
+    try {
+      const d = await (await fetch("/api/prompter", { cache: "no-store" })).json();
+      prompter.desfaseMs = (d.ahoraMs || Date.now()) - Date.now();
+      if (d.texto !== prompter.texto) {
+        prompter.texto = d.texto || "";
+        prompter.palabras = prompter.texto.split(/\s+/).filter((w) => w !== "");
+      }
+      prompter.pos = d.posicion || 0;
+      prompter.ppm = d.ppm || 140;
+      prompter.corriendo = !!d.corriendo;
+      prompter.desdeMs = d.desdeMs || 0;
+      if (d.aviso !== prompter.aviso && d.aviso) toast(d.aviso, "ok");
+      prompter.aviso = d.aviso || "";
+    } catch (e) { /* sin prompter, el panel simplemente no aparece */ }
+  }
+
+  /// Se consulta solo mientras esta en modo oradores: al resto de la sala el
+  /// teleprompter no le importa y no hay por que pedirlo.
+  function seguirPrompter(on) {
+    clearInterval(prompter.timer);
+    if (!on) {
+      prompter.timer = 0;
+      $("orador-panel").classList.add("hidden");
+      return;
+    }
+    leerPrompter().then(pintarOrador);
+    prompter.timer = setInterval(() => { leerPrompter(); }, 1000);
+  }
+
   function onSpeaker(msg) {
     state.speaker = msg;
     state.speakerAt = Date.now();
@@ -732,6 +816,8 @@
     clearInterval(state.speakerTimer);
     state.speakerTimer = setInterval(renderSpeaker, 200);
     renderSpeaker();
+    // El teleprompter se sigue mientras esta al aire o a punto de estarlo.
+    seguirPrompter(msg.state === "onair" || msg.state === "queued");
   }
 
   function fmtClock(ms) {
@@ -742,6 +828,7 @@
   }
 
   function renderSpeaker() {
+    if (prompter.timer) pintarOrador();
     const m = state.speaker;
     const bar = $("speaker-bar");
     const visible = !!m && (m.state === "queued" || m.state === "onair" || m.state === "done") && state.admitted;
