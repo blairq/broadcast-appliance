@@ -30,9 +30,10 @@ namespace ba::app {
 namespace {
 
 constexpr std::uint32_t kProgramChannel = 0;
-constexpr std::uint32_t kFirstGuestAudioChannel = 1; // 1..4: invitados
-constexpr std::uint32_t kFirstMicChannel = 5;        // 5..: entradas de audio del equipo
-constexpr std::uint32_t kMaxMicChannels = 8;
+constexpr std::uint32_t kFirstGuestAudioChannel = 1;  // 1..16: invitados
+constexpr std::uint32_t kMaxGuestAudioChannels = 16;
+constexpr std::uint32_t kFirstMicChannel = 17; // 17..: entradas de audio del equipo
+constexpr std::uint32_t kMaxMicChannels = 8;   // (libobs admite 64 canales)
 
 /// id de libobs de cada transicion.
 const char* transitionId(const std::string& type) {
@@ -200,7 +201,8 @@ bool BroadcastEngine::buildScene() {
 
 void BroadcastEngine::releaseScenes() {
     obs_set_output_source(kProgramChannel, nullptr);
-    for (std::uint32_t ch = kFirstGuestAudioChannel; ch < kFirstGuestAudioChannel + 4; ++ch) {
+    for (std::uint32_t ch = kFirstGuestAudioChannel; ch < kFirstGuestAudioChannel + kMaxGuestAudioChannels;
+         ++ch) {
         obs_set_output_source(ch, nullptr);
     }
     meters_.clear(); // antes que las fuentes: los vumetros las referencian

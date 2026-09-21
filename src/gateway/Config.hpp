@@ -20,7 +20,7 @@
 //   No hay estado mutable tras el parse, por lo que no necesita lock.
 //
 // Estrategia de errores:
-//   No lanza. parseArgs acota los valores a rangos validos (guests 1..4, puertos
+//   No lanza. parseArgs acota los valores a rangos validos (guests 1..kMaxGuests, puertos
 //   1..65535, duracion >= 0). Un argumento desconocido se ignora (tolerante).
 // ============================================================================
 #pragma once
@@ -45,7 +45,10 @@ namespace ba::gateway {
 
 /// Rango de invitados soportado (spec §3.2, §8.2: 1 a 4 invitados).
 inline constexpr int kMinGuests = 1;
-inline constexpr int kMaxGuests = 4;
+// Tope de invitados en el programa. Cada uno es una conexion WebRTC que hay
+// que decodificar: el techo real lo pone la maquina (ver el panel de uso de la
+// sala), no este numero.
+inline constexpr int kMaxGuests = 16;
 
 /// Configuracion del gateway (CLI + rutas). Ver el header para el detalle.
 struct Config {

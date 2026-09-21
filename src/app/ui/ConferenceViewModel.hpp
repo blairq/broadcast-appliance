@@ -81,6 +81,9 @@ class ConferenceViewModel : public QObject {
     Q_PROPERTY(QStringList audioSourceNames READ audioSourceNames NOTIFY operatorChanged)
     /// Estado de red de B: HTTPS, tunel WireGuard, enlaces (GET /api/v1/network).
     Q_PROPERTY(QVariantMap network READ network NOTIFY networkChanged)
+    /// Uso de la sala: cuanta gente hay, cuantos mandan video y cuanto le
+    /// cuesta al gateway (cpuPct, memMb, nucleos). Para ver si nos pasamos.
+    Q_PROPERTY(QVariantMap usage READ usage NOTIFY roomChanged)
     Q_PROPERTY(QObject* waiting READ waiting CONSTANT)
     Q_PROPERTY(QObject* inside READ inside CONSTANT)
     Q_PROPERTY(QObject* shares READ shares CONSTANT)
@@ -120,6 +123,7 @@ class ConferenceViewModel : public QObject {
     QStringList videoSourceNames() const;
     QStringList audioSourceNames() const;
     QVariantMap network() const { return network_; }
+    QVariantMap usage() const;
     QObject* waiting() const;
     QObject* inside() const;
     QObject* shares() const;

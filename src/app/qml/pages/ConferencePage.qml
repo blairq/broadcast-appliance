@@ -517,6 +517,75 @@ Rectangle {
                 Layout.fillHeight: true
                 spacing: 16
 
+                // Uso de la sala: lo que se satura cuando hay mucha gente es el
+                // procesador del gateway (un video por persona que decodificar).
+                Panel {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: usoCol.implicitHeight + 56
+                    title: "Uso de la sala"
+                    ColumnLayout {
+                        id: usoCol
+                        anchors.fill: parent
+                        spacing: 6
+                        readonly property var u: conf.usage
+                        readonly property real cpu: u.cpuPct !== undefined ? u.cpuPct : 0
+                        readonly property bool apretado: cpu >= 70
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 6
+                            StatusPill {
+                                text: (usoCol.u.enSala !== undefined ? usoCol.u.enSala : 0) + "/" +
+                                      (usoCol.u.lugares !== undefined ? usoCol.u.lugares : 0) + " en la sala"
+                                dot: Theme.accent
+                            }
+                            StatusPill {
+                                text: (usoCol.u.conVideo !== undefined ? usoCol.u.conVideo : 0) + " con video"
+                                dot: Theme.ok
+                            }
+                            StatusPill {
+                                visible: (usoCol.u.conectados !== undefined ? usoCol.u.conectados : 0) >
+                                         (usoCol.u.enSala !== undefined ? usoCol.u.enSala : 0)
+                                text: ((usoCol.u.conectados !== undefined ? usoCol.u.conectados : 0) -
+                                       (usoCol.u.enSala !== undefined ? usoCol.u.enSala : 0)) + " esperando"
+                                dot: Theme.amber
+                            }
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text { text: "Procesador del gateway"; color: Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true }
+                            Text {
+                                text: Math.round(usoCol.cpu) + "%"
+                                color: usoCol.apretado ? Theme.live : Theme.text
+                                font { pixelSize: 13; weight: Font.DemiBold }
+                            }
+                        }
+                        Rectangle {
+                            Layout.fillWidth: true
+                            height: 6; radius: 3
+                            color: Qt.rgba(1, 1, 1, 0.10)
+                            Rectangle {
+                                width: parent.width * Math.min(1, usoCol.cpu / 100)
+                                height: parent.height; radius: 3
+                                color: usoCol.cpu >= 85 ? Theme.live : usoCol.cpu >= 70 ? Theme.amber : Theme.ok
+                                Behavior on width { NumberAnimation { duration: 300 } }
+                            }
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            color: usoCol.apretado ? Theme.amber : Theme.textFaint
+                            font.pixelSize: 11
+                            text: usoCol.u.cpuPct === undefined
+                                  ? "Esperando datos del gateway…"
+                                  : usoCol.apretado
+                                    ? "Está apretado: no sumes más invitados con cámara. Pedí que apaguen la suya a quien no esté hablando."
+                                    : "Memoria " + (usoCol.u.memMb !== undefined ? usoCol.u.memMb : 0) + " MB · " +
+                                      (usoCol.u.nucleos !== undefined ? usoCol.u.nucleos : 0) + " núcleos. " +
+                                      "Cada invitado con cámara es un video que hay que decodificar."
+                        }
+                    }
+                }
+
                 Panel {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 352

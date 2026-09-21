@@ -218,6 +218,10 @@ class Room {
     void setHasAvatar(const std::string& id);
     /// Participante por clave (cualquier estado): autoriza la foto de la camara.
     bool byKey(const std::string& key, Participant& out) const;
+    /// Uso del sistema que informa el gateway (lo mide main.cpp y lo deja aca
+    /// para que viaje en el snapshot: el operador lo ve en la pagina Sala).
+    void setUsage(const nlohmann::json& u);
+
     /// Vista de solo lectura para la tablet: fila, fichas, tiempos (sin claves
     /// ni IPs ni chat).
     nlohmann::json boardSnapshot(int64_t nowMs) const;
@@ -300,6 +304,7 @@ class Room {
     std::deque<ChatMsg> chat_;
     uint64_t chatSeq_ = 0;
     SpeakerCfg spk_;
+    nlohmann::json usage_ = nlohmann::json::object();
     std::vector<std::string> order_; ///< ids en el orden de la fila de oradores
     int64_t lastNowMs_ = 0;          // ultimo "ahora" visto (para admisiones sin reloj propio)
 };

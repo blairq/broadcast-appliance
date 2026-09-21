@@ -718,8 +718,14 @@ json Room::snapshotLocked() const {
                 {"shares", shares},
                 {"chat", chat},
                 {"speakers", speakerCfgJson()},
+                {"uso", usage_},
                 {"order", order_},
                 {"serverNowMs", wallNowMs()}};
+}
+
+void Room::setUsage(const json& u) {
+    std::lock_guard<std::mutex> lock(m_);
+    usage_ = u;
 }
 
 json Room::speakerCfgJson() const {

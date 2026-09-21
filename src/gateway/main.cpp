@@ -39,8 +39,10 @@
 // #ifdef _WIN32. No depende de Qt ni de libobs.
 // ============================================================================
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib> // std::getenv (inyeccion de secretos por entorno)
@@ -48,6 +50,7 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <sys/resource.h>
 #include <thread>
 #include <vector>
 
@@ -243,6 +246,55 @@ void sigHandler(int) { g_stop.store(true); }
 /// :param argc: cantidad de argumentos de linea de comandos.
 /// :param argv: argumentos (ver Config::parseArgs).
 /// :returns: 0 en cierre ordenado; 1 si no se pudo abrir el HealthBlock.
+namespace {
+
+/// CPU (porcentaje del total de la maquina desde la vuelta anterior) y memoria
+/// residente del propio proceso. Sin dependencias: /proc en Linux,
+/// GetProcessTimes en Windows, task_info en macOS.
+nlohmann::json processUsage() {
+    static double lastCpuSec = 0;
+    static std::chrono::steady_clock::time_point lastAt{};
+    double cpuSec = 0;
+    double rssMb = 0;
+#if defined(_WIN32)
+    FILETIME c, e, k, u;
+    if (GetProcessTimes(GetCurrentProcess(), &c, &e, &k, &u)) {
+        const auto to100ns = [](const FILETIME& f) {
+            return (static_cast<unsigned long long>(f.dwHighDateTime) << 32) | f.dwLowDateTime;
+        };
+        cpuSec = static_cast<double>(to100ns(k) + to100ns(u)) / 1e7;
+    }
+    PROCESS_MEMORY_COUNTERS pmc{};
+    if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc)))
+        rssMb = static_cast<double>(pmc.WorkingSetSize) / (1024.0 * 1024.0);
+#else
+    rusage ru{};
+    if (getrusage(RUSAGE_SELF, &ru) == 0) {
+        cpuSec = static_cast<double>(ru.ru_utime.tv_sec + ru.ru_stime.tv_sec) +
+                 static_cast<double>(ru.ru_utime.tv_usec + ru.ru_stime.tv_usec) / 1e6;
+#if defined(__APPLE__)
+        rssMb = static_cast<double>(ru.ru_maxrss) / (1024.0 * 1024.0);
+#else
+        rssMb = static_cast<double>(ru.ru_maxrss) / 1024.0; // Linux informa KB
+#endif
+    }
+#endif
+    const auto now = std::chrono::steady_clock::now();
+    double pct = 0;
+    if (lastAt.time_since_epoch().count() != 0) {
+        const double wall = std::chrono::duration<double>(now - lastAt).count();
+        const unsigned cores = std::max(1u, std::thread::hardware_concurrency());
+        if (wall > 0) pct = 100.0 * (cpuSec - lastCpuSec) / (wall * cores);
+    }
+    lastCpuSec = cpuSec;
+    lastAt = now;
+    return nlohmann::json{{"cpuPct", std::round(std::clamp(pct, 0.0, 100.0) * 10) / 10},
+                          {"memMb", std::round(rssMb)},
+                          {"nucleos", std::max(1u, std::thread::hardware_concurrency())}};
+}
+
+} // namespace
+
 int main(int argc, char** argv) {
     ba::platform::redirectUserDirs(); // portable: nada al perfil del usuario
     // Credenciales en claro de versiones anteriores -> Credenciales/ cifradas.
@@ -754,6 +806,10 @@ int main(int argc, char** argv) {
         room.tick(std::chrono::duration_cast<std::chrono::milliseconds>(
                       std::chrono::system_clock::now().time_since_epoch())
                       .count());
+        // Uso del propio proceso: es lo que se satura cuando hay muchos
+        // invitados (cada uno es un video que hay que decodificar). Va en el
+        // snapshot para que el operador lo vea en la pagina Sala.
+        room.setUsage(processUsage());
     }
 
     log.info("parando: deteniendo componentes...");

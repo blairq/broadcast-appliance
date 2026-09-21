@@ -213,6 +213,26 @@ void ConferenceViewModel::speakerTime(const QString& id, int sec) {
     if (sec > 0) participantAction(id, "time", QJsonObject{{"sec", sec}});
 }
 void ConferenceViewModel::speakerRequeue(const QString& id) { participantAction(id, "requeue"); }
+QVariantMap ConferenceViewModel::usage() const {
+    const QJsonObject s = client_->snapshot();
+    QVariantMap u = s.value("uso").toObject().toVariantMap();
+    int conectados = 0;
+    int conVideo = 0;
+    int enSala = 0;
+    for (const QJsonValue& v : s.value("participants").toArray()) {
+        const QJsonObject p = v.toObject();
+        if (!p.value("connected").toBool()) continue;
+        ++conectados;
+        if (p.value("mediaUp").toBool() && p.value("cam").toBool()) ++conVideo;
+        if (p.value("state").toString() == "admitted") ++enSala;
+    }
+    u["conectados"] = conectados;
+    u["conVideo"] = conVideo;
+    u["enSala"] = enSala;
+    u["lugares"] = s.value("maxGuests").toInt();
+    return u;
+}
+
 QString ConferenceViewModel::photoOf(const QString& idOrName) const {
     if (avatars_.contains(idOrName)) return avatars_.value(idOrName);
     for (const QJsonValue& v : client_->snapshot().value("participants").toArray()) {
