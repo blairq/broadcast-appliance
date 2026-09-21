@@ -440,17 +440,41 @@ Rectangle {
                         anchors.fill: parent
                         spacing: 10
                         // Invitar: el QR es lo que se le muestra a la persona.
-                        GlassButton {
+                        RowLayout {
                             Layout.fillWidth: true
-                            text: "Invitar con QR"; icon: "⬚"; active: true
-                            onClicked: qrDlg.show("local")
-                            ToolTip.visible: hovered; ToolTip.delay: 400
-                            ToolTip.text: "Muestra el código para que lo escaneen. Adentro se elige red local o internet, y si el PIN va incluido."
+                            spacing: 6
+                            GlassButton {
+                                Layout.fillWidth: true
+                                text: "QR red local"; icon: "⬚"; active: true
+                                onClicked: qrDlg.show("local")
+                                ToolTip.visible: hovered; ToolTip.delay: 400
+                                ToolTip.text: "Para escanear desde un celular en la misma red (wifi) que este equipo."
+                            }
+                            GlassButton {
+                                Layout.fillWidth: true
+                                text: "QR por internet"; icon: "⬚"
+                                onClicked: qrDlg.show("remote")
+                                ToolTip.visible: hovered; ToolTip.delay: 400
+                                ToolTip.text: "Para invitar desde cualquier lugar (túnel de Cloudflare o servidor propio)."
+                            }
                         }
                         RowLayout {
                             Layout.fillWidth: true
-                            TextField { Layout.fillWidth: true; readOnly: true; text: conf.guestUrl; font.pixelSize: 11; selectByMouse: true }
-                            GlassButton { text: "Copiar"; compact: true; onClicked: conf.copyToClipboard(conf.guestUrl) }
+                            TextField {
+                                Layout.fillWidth: true
+                                readOnly: true
+                                text: conf.guestUrl
+                                // Si el gateway todavia no contesto, el enlace no existe:
+                                // que se entienda en vez de quedar un casillero vacio.
+                                placeholderText: conf.online ? "Sin enlace todavía…" : "Esperando al gateway…"
+                                font.pixelSize: 11
+                                selectByMouse: true
+                            }
+                            GlassButton {
+                                text: "Copiar"; compact: true
+                                enabled: conf.guestUrl !== ""
+                                onClicked: conf.copyToClipboard(conf.guestUrl)
+                            }
                         }
                         RowLayout {
                             Layout.fillWidth: true
