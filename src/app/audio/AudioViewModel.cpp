@@ -133,9 +133,15 @@ void AudioViewModel::rebuildGraph() {
     AudioRack* r = rack();
     json d = r != nullptr ? r->describe() : json::object();
     json meters = json::object();
-    for (auto& n : d.value("nodos", json::array())) {
-        meters[n.value("id", "")] = n.value("medidores", json::object());
-        n.erase("medidores");
+    // OJO: `d.value(...)` devuelve una COPIA. Iterando sobre ella, el erase no
+    // sacaba los medidores de `d`: el grafo "cambiaba" en cada vuelta con audio
+    // vivo, se rehacian los delegados del patchbay y no se podia arrastrar un
+    // nodo (con fuentes en silencio no se notaba, porque el medidor no variaba).
+    if (d.contains("nodos")) {
+        for (auto& n : d["nodos"]) {
+            meters[n.value("id", "")] = n.value("medidores", json::object());
+            n.erase("medidores");
+        }
     }
     const QVariantMap g = toVariant(d).toMap();
     if (g != graph_) {

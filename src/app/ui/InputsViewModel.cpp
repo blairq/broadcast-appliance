@@ -117,13 +117,19 @@ void InputsViewModel::refresh() {
     emit changed();
 }
 
+QString InputsViewModel::audioInputName(const QString& device) const {
+    // El dispositivo "default" se llama "Default": con ese nombre el operador
+    // no sabe que es. El resto ya trae el nombre del equipo.
+    if (device == "default") return QStringLiteral("Entrada de audio predeterminada");
+    for (const QVariant& d : audioDevices_)
+        if (d.toMap().value("value").toString() == device) return d.toMap().value("name").toString();
+    return QStringLiteral("Micrófono");
+}
+
 QString InputsViewModel::addAudioInput(const QString& device, const QString& name) {
     if (device.isEmpty()) return "Elegí una entrada de audio.";
     QString nm = name.trimmed();
-    if (nm.isEmpty())
-        for (const QVariant& d : audioDevices_)
-            if (d.toMap().value("value").toString() == device) nm = d.toMap().value("name").toString();
-    if (nm.isEmpty()) nm = "Micrófono";
+    if (nm.isEmpty()) nm = audioInputName(device);
     const SourceSpec spec = inputs::audioInputSpec(device.toStdString(), nm.toStdString());
     // Canal GLOBAL, como el audio de los invitados: suena en todas las escenas
     // (un microfono no pertenece a una escena).

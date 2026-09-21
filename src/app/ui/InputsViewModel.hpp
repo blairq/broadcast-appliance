@@ -58,6 +58,8 @@ class InputsViewModel : public QObject {
     /// "" o el error.
     /// Agrega un microfono o entrada de audio del sistema (sin video).
     Q_INVOKABLE QString addAudioInput(const QString& device, const QString& name = {});
+    /// Con que nombre queda esa entrada de audio (el de la fuente creada).
+    Q_INVOKABLE QString audioInputName(const QString& device) const;
     Q_INVOKABLE QString addHardware(const QString& device, const QString& name, const QString& scene,
                                     const QVariantMap& mode);
     Q_INVOKABLE QString addNetwork(const QString& url, const QString& name, const QString& scene,
