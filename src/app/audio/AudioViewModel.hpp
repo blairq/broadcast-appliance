@@ -35,10 +35,9 @@ class AudioViewModel : public QObject {
     Q_PROPERTY(QVariantList catalog READ catalog CONSTANT)
     /// Paso de la grilla del patchbay (posiciones de nodos y calles de cables).
     Q_PROPERTY(double gridStep READ gridStep CONSTANT)
-    /// Salidas de audio del sistema para escuchar el rack: [{id, nombre}].
-    Q_PROPERTY(QVariantList monitorDevices READ monitorDevices NOTIFY changed)
-    /// Salida elegida ("" = sin escucha aparte).
-    Q_PROPERTY(QString monitorDevice READ monitorDevice NOTIFY changed)
+    /// Salidas de audio del equipo, agrupadas por dispositivo:
+    /// [{dispositivo, salidas: [{id, nombre}]}].
+    Q_PROPERTY(QVariantList outputDevices READ outputDevices NOTIFY changed)
    public:
     explicit AudioViewModel(RackManager& mgr, QObject* parent = nullptr);
 
@@ -51,9 +50,8 @@ class AudioViewModel : public QObject {
     QString selected() const { return selected_; }
     QVariantMap detail() const { return detail_; }
     QVariantList catalog() const;
-    QVariantList monitorDevices() const;
+    QVariantList outputDevices() const;
     double gridStep() const;
-    QString monitorDevice() const;
 
     Q_INVOKABLE void setActive(bool on);
     Q_INVOKABLE void refresh();
@@ -63,9 +61,9 @@ class AudioViewModel : public QObject {
     Q_INVOKABLE QString addModule(const QString& moduleOrId, const QString& after = {});
     Q_INVOKABLE QString addAnalyzer();
     Q_INVOKABLE QString addGenerator();
-    /// Nodo de escucha: se patchea desde donde se quiera oir.
-    Q_INVOKABLE QString addMonitor();
-    Q_INVOKABLE QString setMonitorDevice(const QString& id);
+    /// Agrega (o reapunta) la salida de audio de esta fuente: una tarjeta mas
+    /// en el grafo, con el nombre del dispositivo elegido.
+    Q_INVOKABLE QString addOutput(const QString& device);
     /// Reordena los nodos en la grilla del patchbay.
     Q_INVOKABLE void tidy();
     Q_INVOKABLE void removeNode(const QString& node);

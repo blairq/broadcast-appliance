@@ -166,23 +166,26 @@ int main() {
     CHECK(after > 0.4f, "sigue pasando audio sin el compresor");
     CHECK(!rack.remove("in", &err), "la entrada no se quita");
 
-    // 5. Escucha: sumidero aparte. Sin cable no junta nada; conectado a la
-    //    entrada copia lo que entra y NO cambia lo que sale al aire.
-    CHECK(rack.addMonitor() == "escucha" && rack.hasMonitor(), "agrega el nodo de escucha");
+    // 5. Salida de audio del equipo: sumidero aparte. Sin cable no junta nada;
+    //    conectado a la entrada copia lo que entra y NO cambia lo que sale al aire.
+    CHECK(rack.addOutput("dev-1", "Auriculares") == "salida-audio" && rack.hasOutput(),
+          "agrega el nodo de salida");
+    CHECK(rack.outputDevice() == "dev-1", "la salida recuerda su dispositivo");
     const float outNoWire = feed(rack, 0.5f, 0.1);
-    CHECK(rack.monitorFrames() == 0, "sin cable, la escucha no junta audio");
-    CHECK(rack.connect("in", "out", "escucha", "in", &err), "se patchea la entrada a la escucha");
+    CHECK(rack.monitorFrames() == 0, "sin cable, la salida no junta audio");
+    CHECK(rack.connect("in", "out", "salida-audio", "in", &err), "se patchea la entrada a la salida");
     const float outWired = feed(rack, 0.5f, 0.1);
-    CHECK(rack.monitorFrames() == 480, "la escucha junta el bloque entero");
+    CHECK(rack.monitorFrames() == 480, "la salida junta el bloque entero");
     float monPeak = 0;
     for (uint32_t i = 0; i < rack.monitorFrames(); ++i)
         monPeak = std::max(monPeak, std::fabs(rack.monitorPlane(0)[i]));
-    CHECK(monPeak > 0.45f && monPeak < 0.55f, "la escucha oye la entrada tal cual");
-    CHECK(std::fabs(outWired - outNoWire) < 0.02f, "la escucha no altera lo que sale al aire");
+    CHECK(monPeak > 0.45f && monPeak < 0.55f, "la salida oye la entrada tal cual");
+    CHECK(std::fabs(outWired - outNoWire) < 0.02f, "la salida no altera lo que sale al aire");
     // Sobrevive a guardar y cargar.
     AudioRack rack3(lib, &svc, 48000);
-    CHECK(rack3.load(rack.save(), &err), "carga un rack con escucha");
-    CHECK(rack3.hasMonitor(), "la escucha vuelve del archivo");
+    CHECK(rack3.load(rack.save(), &err), "carga un rack con salida de audio");
+    CHECK(rack3.hasOutput() && rack3.outputDevice() == "dev-1",
+          "la salida y su dispositivo vuelven del archivo");
     (void)setByName;
 
     if (g_failures == 0) std::printf("test_audio_rack: OK\n");

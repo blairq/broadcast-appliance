@@ -71,6 +71,7 @@ std::vector<uint8_t> unb64(const std::string& s) {
 
 struct AudioRack::Node {
     std::string id, kind, label, pluginId;
+    std::string device; // nodo "monitor": id del dispositivo de salida
     std::unique_ptr<ClapInstance> clap;
     std::unique_ptr<Analyzer> analyzer;
     std::unique_ptr<Generator> gen;
@@ -367,22 +368,33 @@ std::string AudioRack::addAnalyzer(const std::string& label, const std::string& 
     return id;
 }
 
-std::string AudioRack::addMonitor(const std::string& label) {
-    if (Node* e = find("escucha"); e != nullptr) return e->id;
+std::string AudioRack::addOutput(const std::string& device, const std::string& label) {
+    // Una sola por rack: si ya hay, se le cambia el dispositivo destino.
+    if (Node* e = find("salida-audio"); e != nullptr) {
+        e->device = device;
+        e->label = label.empty() ? "Salida de audio" : label;
+        return e->id;
+    }
     auto n = std::make_unique<Node>();
-    n->id = "escucha";
+    n->id = "salida-audio";
     n->kind = "monitor";
-    n->label = label.empty() ? "Escucha" : label;
+    n->device = device;
+    n->label = label.empty() ? "Salida de audio" : label;
     // Debajo de la salida: es el otro destino posible del audio.
     const Node* out = find("out");
     n->x = out != nullptr ? out->x : 280;
     n->y = (out != nullptr ? out->y : 80) + 150;
     nodes_.push_back(std::move(n));
-    rebuild(); // sin cable: lo patchea el operador desde donde quiera escuchar
-    return "escucha";
+    rebuild(); // sin cable: lo patchea el operador desde donde quiera oir
+    return "salida-audio";
 }
 
-bool AudioRack::hasMonitor() const { return find("escucha") != nullptr; }
+bool AudioRack::hasOutput() const { return find("salida-audio") != nullptr; }
+
+std::string AudioRack::outputDevice() const {
+    const Node* n = find("salida-audio");
+    return n != nullptr ? n->device : std::string();
+}
 
 const float* AudioRack::monitorPlane(int ch) const { return ch == 0 ? monL_.data() : monR_.data(); }
 
@@ -745,6 +757,7 @@ json AudioRack::describe() const {
             j["senal"] = {
                 {"tipo", Generator::kindName(c.kind)}, {"frecuencia", c.freq}, {"nivelDb", c.levelDb}};
         }
+        if (n->kind == "monitor") j["dispositivo"] = n->device;
         j["medidores"] = meters(n->id);
         nodes.push_back(std::move(j));
     }
@@ -770,6 +783,7 @@ json AudioRack::save() const {
             j["bypass"] = n->bypass.load();
             j["estado"] = b64(n->clap->saveState());
         }
+        if (n->kind == "monitor") j["dispositivo"] = n->device;
         if (n->kind == "generator") {
             const auto c = n->gen->config();
             j["senal"] = {{"tipo", Generator::kindName(c.kind)},
@@ -840,7 +854,11 @@ bool AudioRack::load(const json& j, std::string* error) {
             n->analyzer = std::make_unique<Analyzer>();
             n->analyzer->setSampleRate(sr_);
         } else if (kind == "monitor") {
-            n->id = "escucha"; // uno solo por rack
+            n->id = "salida-audio"; // una sola por rack
+            n->device = nj.value("dispositivo", "");
+            // Racks guardados por versiones anteriores: el nodo se llamaba
+            // "Escucha" y no tenia dispositivo.
+            if (n->label == "Escucha" || n->label.empty()) n->label = "Salida de audio";
         } else if (kind == "generator") {
             n->gen = std::make_unique<Generator>();
             n->gen->setSampleRate(sr_);

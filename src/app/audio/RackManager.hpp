@@ -53,13 +53,12 @@ class RackManager : public QObject {
     /// Quita el rack de la fuente (el audio vuelve a pasar directo).
     bool removeRack(const std::string& source);
 
-    /// Salidas de audio del sistema: [{id, nombre}]. La primera es "" = no
-    /// escuchar aparte (el audio va solo al programa y al stream).
-    json monitorDevices() const;
-    /// Id del dispositivo de escucha ("" = solo el stream).
-    std::string monitorDevice() const { return monitorId_; }
-    /// Elige la salida de escucha. "" = ninguna. Devuelve el error o "".
-    std::string setMonitorDevice(const std::string& id);
+    /// Salidas de audio del equipo agrupadas por dispositivo:
+    /// [{dispositivo, salidas: [{id, nombre}]}].
+    json outputDevices() const;
+    /// Manda el audio del rack de `source` a la salida `device`. Devuelve el
+    /// error o "". OJO: el motor reproduce por UNA salida a la vez.
+    std::string setOutput(const std::string& source, const std::string& device);
     /// Algo cambio en un rack: se guarda en un momento.
     void markDirty();
     /// Guarda ya (tambien al salir).

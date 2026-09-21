@@ -265,56 +265,88 @@ void RackManager::detach(Filter* f) {
     }
 }
 
-// --- Escucha (salida de audio del sistema) ------------------------------------------------
+// --- Salidas de audio del equipo ------------------------------------------------
 
-json RackManager::monitorDevices() const {
-    json list = json::array();
-    list.push_back({{"id", ""}, {"nombre", "Sin escucha aparte (solo el programa)"}});
+namespace {
+/// Placa a la que pertenece una salida, para agrupar la lista. En PulseAudio el
+/// id es `alsa_output.<placa>.<perfil>__<puerto>__sink`: la placa es el tramo
+/// que sigue al prefijo. Si no se reconoce, la salida queda en su propio grupo.
+std::string deviceGroupOf(const std::string& id, const std::string& name) {
+    const std::size_t dot = id.find('.');
+    if (dot != std::string::npos) {
+        const std::size_t end = id.find('.', dot + 1);
+        if (end != std::string::npos) return id.substr(dot + 1, end - dot - 1);
+    }
+    return name.empty() ? std::string("Otras salidas") : name;
+}
+} // namespace
+
+json RackManager::outputDevices() const {
+    struct Item {
+        std::string id, name;
+    };
+    std::vector<Item> items;
     obs_enum_audio_monitoring_devices(
         [](void* p, const char* name, const char* id) {
-            static_cast<json*>(p)->push_back(
-                {{"id", id != nullptr ? id : ""}, {"nombre", name != nullptr ? name : ""}});
+            static_cast<std::vector<Item>*>(p)->push_back(
+                {id != nullptr ? id : "", name != nullptr ? name : ""});
             return true;
         },
-        &list);
-    return list;
+        &items);
+    std::vector<std::string> order;
+    std::map<std::string, json> byGroup;
+    std::map<std::string, std::string> label;
+    for (const auto& it : items) {
+        const std::string g = deviceGroupOf(it.id, it.name);
+        if (byGroup.find(g) == byGroup.end()) {
+            order.push_back(g);
+            byGroup[g] = json::array();
+            label[g] = it.name; // nombre de la primera salida de esa placa
+        }
+        byGroup[g].push_back({{"id", it.id}, {"nombre", it.name}});
+    }
+    json out = json::array();
+    for (const auto& g : order)
+        out.push_back({{"dispositivo", label[g]}, {"clave", g}, {"salidas", byGroup[g]}});
+    return out;
 }
 
-std::string RackManager::setMonitorDevice(const std::string& id) {
-    std::string name;
-    if (!id.empty()) {
-        struct Ctx {
-            const std::string& id;
-            std::string name;
-            bool found = false;
-        } ctx{id, {}, false};
-        obs_enum_audio_monitoring_devices(
-            [](void* p, const char* n, const char* i) {
-                auto* c = static_cast<Ctx*>(p);
-                if (i != nullptr && c->id == i) {
-                    c->name = n != nullptr ? n : "";
-                    c->found = true;
-                    return false;
-                }
-                return true;
-            },
-            &ctx);
-        if (!ctx.found) return "esa salida de audio ya no esta";
-        name = ctx.name;
-        if (!obs_set_audio_monitoring_device(name.c_str(), id.c_str()))
-            return "no se pudo abrir la salida de audio";
-    }
-    monitorId_ = id;
-    monitorName_ = name;
+std::string RackManager::setOutput(const std::string& source, const std::string& device) {
+    auto it = filters_.find(source);
+    if (it == filters_.end()) return "esa fuente no tiene rack";
+    struct Ctx {
+        const std::string& id;
+        std::string name;
+        bool found = false;
+    } ctx{device, {}, false};
+    obs_enum_audio_monitoring_devices(
+        [](void* p, const char* n, const char* i) {
+            auto* c = static_cast<Ctx*>(p);
+            if (i != nullptr && c->id == i) {
+                c->name = n != nullptr ? n : "";
+                c->found = true;
+                return false;
+            }
+            return true;
+        },
+        &ctx);
+    if (!ctx.found) return "esa salida de audio ya no esta";
+    if (!obs_set_audio_monitoring_device(ctx.name.c_str(), device.c_str()))
+        return "no se pudo abrir la salida de audio";
+    monitorId_ = device;
+    monitorName_ = ctx.name;
+    it->second->rack->addOutput(device, ctx.name);
     syncMonitors();
     saveMonitor();
+    markDirty();
     emit changed();
     return {};
 }
 
 void RackManager::syncMonitors() {
+    // Suena el rack que tiene nodo de salida (y un dispositivo elegido).
     for (auto& [name, f] : filters_)
-        if (f->tap != nullptr) obs_source_set_muted(f->tap, monitorId_.empty());
+        if (f->tap != nullptr) obs_source_set_muted(f->tap, !f->rack->hasOutput() || monitorId_.empty());
 }
 
 void RackManager::saveMonitor() const {

@@ -260,40 +260,6 @@ Rectangle {
             }
         }
 
-        // Salida por la que se escucha el nodo "Escucha" de los racks. No
-        // cambia lo que sale al aire: es solo para los auriculares.
-        Panel {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 124
-            title: "Escuchar por"
-            ColumnLayout {
-                anchors.fill: parent
-                spacing: 6
-                ComboBox {
-                    id: monDev
-                    Layout.fillWidth: true
-                    model: page.au ? page.au.monitorDevices : []
-                    textRole: "nombre"
-                    valueRole: "id"
-                    currentIndex: {
-                        const list = page.au ? page.au.monitorDevices : []
-                        const cur = page.au ? page.au.monitorDevice : ""
-                        for (let i = 0; i < list.length; ++i) if (list[i].id === cur) return i
-                        return 0
-                    }
-                    onActivated: page.msg = page.au.setMonitorDevice(currentValue)
-                }
-                Text {
-                    Layout.fillWidth: true
-                    wrapMode: Text.WordWrap
-                    color: Theme.textFaint
-                    font.pixelSize: 11
-                    text: page.au && page.au.monitorDevice !== ""
-                          ? "Agregá el módulo «Escucha» al rack y conectale la salida que quieras oír."
-                          : "Por defecto el audio va solo al programa y al stream."
-                }
-            }
-        }
         }
 
         // --- Patchbay ---------------------------------------------------------------------
@@ -307,6 +273,17 @@ Rectangle {
                 spacing: 6
                 Text { text: page.au ? page.au.source : ""; color: Theme.text; font { pixelSize: 17; weight: Font.DemiBold } }
                 Item { width: 12; height: 1 }
+                // Primero de la fila: manda el audio de esta fuente a una salida
+                // del equipo (auriculares, parlantes) sin tocar lo que va al aire.
+                GlassButton {
+                    compact: true
+                    text: "+ Salida"
+                    activeColor: "#a78bfa"
+                    active: true
+                    onClicked: outPopup.open()
+                    ToolTip.visible: hovered; ToolTip.delay: 400
+                    ToolTip.text: "Agrega una tarjeta de salida de audio a este grafo: conectale lo que quieras oír."
+                }
                 Repeater {
                     model: page.au ? page.au.catalog : []
                     delegate: GlassButton {
@@ -319,12 +296,6 @@ Rectangle {
                 }
                 GlassButton { compact: true; text: "+ Analizador"; onClicked: page.msg = page.au.addAnalyzer() }
                 GlassButton { compact: true; text: "+ Generador"; onClicked: page.msg = page.au.addGenerator() }
-                GlassButton {
-                    compact: true; text: "+ Escucha"
-                    onClicked: page.msg = page.au.addMonitor()
-                    ToolTip.visible: hovered; ToolTip.delay: 400
-                    ToolTip.text: "Un destino para escuchar por auriculares: conectale la salida de cualquier módulo (o la entrada). No cambia lo que sale al aire."
-                }
                 GlassButton { compact: true; text: "+ Otro LSP…"; onClicked: lspPopup.open() }
                 Item { width: 12; height: 1 }
                 GlassButton {
@@ -886,6 +857,95 @@ Rectangle {
                     }
                 }
             }
+        }
+    }
+
+    // Salidas de audio del equipo, agrupadas por dispositivo.
+    Popup {
+        id: outPopup
+        anchors.centerIn: parent
+        width: 520
+        height: 460
+        modal: true
+        background: Rectangle { radius: 16; color: Theme.panel; border.color: Theme.glassBorder }
+        ColumnLayout {
+            anchors { fill: parent; margins: 16 }
+            spacing: 10
+            Text {
+                text: "Mandar el audio de esta fuente a una salida"
+                color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold }
+            }
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                color: Theme.textDim
+                font.pixelSize: 12
+                text: "Se agrega una tarjeta con el nombre de la salida al grafo de «" +
+                      (page.au ? page.au.source : "") + "». Conectale lo que quieras oír. " +
+                      "No cambia lo que sale al aire. El motor reproduce por una salida a la vez: " +
+                      "si elegís otra, se usa esa."
+            }
+            ListView {
+                id: outList
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                spacing: 4
+                model: {
+                    // Encabezado por dispositivo y debajo sus salidas.
+                    const grupos = page.au ? page.au.outputDevices : []
+                    const filas = []
+                    for (let i = 0; i < grupos.length; ++i) {
+                        filas.push({ fila: "disp", nombre: grupos[i].dispositivo })
+                        const sal = grupos[i].salidas || []
+                        for (let k = 0; k < sal.length; ++k)
+                            filas.push({ fila: "salida", nombre: sal[k].nombre, id: sal[k].id })
+                    }
+                    return filas
+                }
+                delegate: Item {
+                    required property var modelData
+                    width: outList.width
+                    height: modelData.fila === "disp" ? 26 : 34
+                    Text {
+                        visible: modelData.fila === "disp"
+                        anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+                        text: modelData.nombre || ""
+                        color: Theme.textDim
+                        font { pixelSize: 11; weight: Font.DemiBold; capitalization: Font.AllUppercase; letterSpacing: 0.4 }
+                        elide: Text.ElideRight
+                        width: parent.width
+                    }
+                    Rectangle {
+                        visible: modelData.fila === "salida"
+                        anchors { fill: parent; leftMargin: 12 }
+                        radius: 8
+                        color: outMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : "transparent"
+                        Text {
+                            anchors { left: parent.left; leftMargin: 8; right: parent.right; verticalCenter: parent.verticalCenter }
+                            text: modelData.nombre || ""
+                            color: Theme.text; font.pixelSize: 13; elide: Text.ElideRight
+                        }
+                        MouseArea {
+                            id: outMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                page.msg = page.au.addOutput(modelData.id)
+                                outPopup.close()
+                            }
+                        }
+                    }
+                }
+                Text {
+                    anchors.centerIn: parent
+                    visible: outList.count === 0
+                    text: "No se encontraron salidas de audio."
+                    color: Theme.textFaint
+                }
+            }
+            GlassButton { Layout.alignment: Qt.AlignRight; compact: true; text: "Cerrar"; onClicked: outPopup.close() }
         }
     }
 

@@ -9,9 +9,9 @@
 //   plugin     un modulo CLAP (LSP: gate, compresor, de-esser, EQ...)
 //   analyzer   analizador en cualquier punto (pasa el audio tal cual)
 //   generator  señal de prueba (seno, ruido, barrido): solo salida
-//   monitor    escucha: sumidero que copia lo que le llega para mandarlo a una
-//              salida de audio del sistema (auriculares del operador). No toca
-//              lo que sale al aire; se patchea desde cualquier salida.
+//   salida     una salida de audio del equipo (auriculares, parlantes): copia
+//              lo que le llega para mandarlo a ese dispositivo. No toca lo que
+//              sale al aire; se patchea desde donde se quiera oir.
 // Puertos: "in" (entrada principal), "sc" (sidechain, si el modulo tiene) y
 // "out". Varios cables a una entrada se suman. Sin ciclos.
 //
@@ -60,9 +60,12 @@ class AudioRack {
     std::string addAnalyzer(const std::string& label, const std::string& after);
     /// Generador suelto (no se conecta solo: se patchea a mano o se usa para medir).
     std::string addGenerator(const std::string& label);
-    /// Nodo de escucha (uno por rack). Devuelve su id (el existente si ya esta).
-    std::string addMonitor(const std::string& label = {});
-    bool hasMonitor() const;
+    /// Nodo de SALIDA de audio del equipo (uno por rack). `device` es el id del
+    /// dispositivo y `label` su nombre. Si ya hay uno, le cambia el destino.
+    std::string addOutput(const std::string& device, const std::string& label);
+    bool hasOutput() const;
+    /// Id del dispositivo de la salida ("" si no hay nodo de salida).
+    std::string outputDevice() const;
     bool remove(const std::string& id, std::string* error);
     bool connect(const std::string& from, const std::string& fromPort, const std::string& to,
                  const std::string& toPort, std::string* error);
@@ -104,7 +107,7 @@ class AudioRack {
     // --- hilo de audio ---------------------------------------------------------------
     /// `planes`: los canales de la fuente (1..8, se procesan los 2 primeros).
     void process(float* const* planes, int channels, uint32_t frames);
-    /// Lo que capturo el nodo de escucha en el ULTIMO `process()` (planar, 2
+    /// Lo que capturo el nodo de salida en el ULTIMO `process()` (planar, 2
     /// canales). Vale hasta el `process()` siguiente y solo en ese hilo.
     uint32_t monitorFrames() const { return monFrames_; }
     const float* monitorPlane(int ch) const;
