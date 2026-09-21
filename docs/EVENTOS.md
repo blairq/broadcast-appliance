@@ -214,6 +214,34 @@ los espectadores. Una sola codificación para todo.
 | RTP multicast / SRT | 1 codificación, casi nada por receptor | 50-200 ms | **no** (hace falta reproductor nativo) |
 | MoQ (Media over QUIC) | 1 codificación | bajo | todavía no; el estándar está en borrador |
 
+**Decidido: una pantalla es un espectador más.** Como el video ya se codifica
+una vez, sumar una pantalla en la LAN es abrirle una PeerConnection que recibe
+esos mismos bytes. No se codifica de nuevo: lo que paga es el cifrado SRTP y el
+pacing, que es poco. Con eso alcanza.
+
+**¿Hay algo todavía más rápido?** Sí, pero con condiciones, y conviene medir
+antes de escribirlo.
+
+Primero, lo que no se puede: **un navegador no recibe UDP crudo**. Lo más
+parecido es **WebTransport** (datagramas QUIC), que sí llega a una página.
+
+Y lo que agrega retardo en Chrome no suele ser el transporte sino **el
+reproductor**: `<video>` con MSE guarda buffer, y WebRTC mete su jitter buffer
+(se achica con `playoutDelayHint: 0`, pero no desaparece). El camino sin
+ninguno de los dos es:
+
+> **WebTransport (o WebSocket) + WebCodecs pintando en un canvas.** El servidor
+> manda los cuadros ya codificados, la página los mete en un `VideoDecoder` y
+> dibuja cada uno apenas sale: red más un cuadro, decenas de milisegundos.
+
+A cambio hay que resolver a mano lo que WebRTC te da: retransmisiones, control
+de congestión y el audio con su sincronía (nulo si la pantalla va muda, que es
+lo normal cuando el sonido sale por el PA). Y no anda en los Chromecast viejos.
+
+Si la pantalla **no** es un Chromecast sino una mini PC, lo más barato de todo
+es saltear el navegador: **RTP multicast o SRT con un reproductor nativo**
+(mpv, ffplay), una sola codificación y un solo envío para todas.
+
 **Dónde sigue sirviendo MSE:** para **videos estáticos** que tienen que ir
 clavados entre varias pantallas. Ahí la página puede corregir su desfase
 moviendo `playbackRate` unas milésimas contra un reloj común por WebSocket, que
@@ -222,7 +250,10 @@ más o menos buffer (`playoutDelayHint`), pero no ajustar la velocidad.
 
 **Entonces:**
 
-- **Vivo** (programa, cámaras, oradores, retorno): WebRTC.
+- **Vivo** (programa, cámaras, oradores, retorno): WebRTC, que ya está y sirve
+  adentro y afuera de la LAN. Cada pantalla es un espectador más.
+- **Solo si medimos y hace falta menos retardo** en pantallas mudas de la LAN:
+  WebTransport + WebCodecs, con WebRTC de respaldo.
 - **Video pregrabado que tiene que ir sincronizado entre pantallas**: fMP4 por
   WebSocket + MSE, con el PID y el reloj por WebSocket.
 - **Pantalla que no pueda con ninguno de los dos**: LL-HLS, con más retardo.
