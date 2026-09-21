@@ -152,6 +152,16 @@ class McpCore {
     ApprovalPolicy approvalPolicy() const { return policy_; }
     /// Marca la sesion como contaminada (p. ej. al leer un recurso de la sala).
     void taint(const std::string& session, const std::string& source);
+
+    /// Atencion delegada de alguien del lobby. El operador la habilita con un
+    /// click en su tarjeta: mientras dura, el asistente puede hablarle,
+    /// completar su ficha y hacerla pasar SIN pedir aprobacion paso a paso
+    /// (seguiria pidiendola por cada mensaje, que es lo que la hace inusable).
+    /// La salvaguarda general no se toca: la exencion vale SOLO para esa
+    /// persona y para esas herramientas.
+    void startIntake(const std::string& id, const std::string& name);
+    void endIntake(const std::string& id);
+    std::vector<std::string> intakes() const;
     bool tainted(const std::string& session) const;
     /// {session, tainted, source, atMs}
     json taintInfo(const std::string& session) const;
@@ -211,6 +221,9 @@ class McpCore {
         std::int64_t atMs = 0;
     };
     std::map<std::string, Taint> taint_;
+    /// id -> nombre de las personas cuya atencion delego el operador.
+    std::map<std::string, std::string> intake_;
+    bool intakeAllows(const Tool& t, const nlohmann::json& args) const;
 };
 
 } // namespace ba::app::mcp

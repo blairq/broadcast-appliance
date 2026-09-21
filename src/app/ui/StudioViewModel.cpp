@@ -463,6 +463,11 @@ QStringList StudioViewModel::sceneFolders() const {
     return out;
 }
 
+QString StudioViewModel::assistantIntake(const QString& id, const QString& name) {
+    if (!intakeSink_) return "El servidor MCP no está disponible.";
+    return intakeSink_(id, name);
+}
+
 void StudioViewModel::moveScene(const QString& name, const QString& before) {
     if (!rt_.moveScene(name.toStdString(), before.toStdString())) {
         emit notify(qs(rt_.lastError()), "error");

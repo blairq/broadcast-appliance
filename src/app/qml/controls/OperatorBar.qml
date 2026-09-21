@@ -150,9 +150,11 @@ Item {
                         required property int index
                         text: modelData
                         // En una aprobacion, solo "Aprobar" resalta; "Rechazar" queda neutro.
-                        active: !bar.cur.approval || index === 0
-                        activeColor: bar.cur.approval ? "#16a34a" : bar.accent
-                        onClicked: bar.msgs.answer(bar.cur.id, modelData)
+                        // `cur` puede quedar en null justo cuando el mensaje se
+                        // cierra y el delegado todavia existe.
+                        active: !bar.cur || !bar.cur.approval || index === 0
+                        activeColor: bar.cur && bar.cur.approval ? "#16a34a" : bar.accent
+                        onClicked: if (bar.cur) bar.msgs.answer(bar.cur.id, modelData)
                     }
                 }
             }

@@ -18,6 +18,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <functional>
 #include <memory>
 
 namespace ba::app::agent {
@@ -168,6 +169,14 @@ class StudioViewModel : public QObject {
     /// Reordena: deja `name` justo antes de `before` (vacio = al final), en la
     /// carpeta de `before`.
     Q_INVOKABLE void moveScene(const QString& name, const QString& before);
+    /// El operador le encarga al asistente atender a alguien del lobby: que le
+    /// pida sus datos por chat y despues le presente todo junto para admitirlo.
+    /// Devuelve el error o "".
+    Q_INVOKABLE QString assistantIntake(const QString& id, const QString& name);
+    /// Lo engancha McpService (necesita el nucleo MCP, que vive afuera).
+    void setIntakeSink(std::function<QString(const QString&, const QString&)> fn) {
+        intakeSink_ = std::move(fn);
+    }
     /// Escena que muestra el lienzo del editor ("" = ninguna). Se renderiza
     /// aunque no este al aire, asi una escena vacia se ve vacia.
     Q_INVOKABLE void setScenePreview(const QString& name);
@@ -191,6 +200,7 @@ class StudioViewModel : public QObject {
 
    private:
     AppRuntime& rt_;
+    std::function<QString(const QString&, const QString&)> intakeSink_;
     std::unique_ptr<ScenesModel> scenes_;
     std::unique_ptr<SourcesModel> sources_;
     std::unique_ptr<MixerModel> mixer_;

@@ -319,6 +319,34 @@ void McpCore::handle(const json& message, std::function<void(json)> reply, const
     handleOne(message, std::move(reply), ctx);
 }
 
+void McpCore::startIntake(const std::string& id, const std::string& name) { intake_[id] = name; }
+
+void McpCore::endIntake(const std::string& id) { intake_.erase(id); }
+
+std::vector<std::string> McpCore::intakes() const {
+    std::vector<std::string> out;
+    for (const auto& [id, name] : intake_)
+        out.push_back(id);
+    return out;
+}
+
+bool McpCore::intakeAllows(const Tool& t, const nlohmann::json& args) const {
+    if (intake_.empty()) return false;
+    // Solo lo que hace falta para atender a alguien del lobby.
+    static const std::set<std::string> kIntakeTools{"chat_send", "participant_profile", "participant_admit",
+                                                    "participant_talk"};
+    if (kIntakeTools.count(t.name) == 0) return false;
+    // Y solo si la accion apunta a esa persona (por id o por nombre).
+    if (!args.is_object()) return false;
+    for (const auto& [key, v] : args.items()) {
+        if (!v.is_string()) continue;
+        const std::string val = v.get<std::string>();
+        for (const auto& [id, name] : intake_)
+            if (val == id || val == name) return true;
+    }
+    return false;
+}
+
 void McpCore::taint(const std::string& session, const std::string& source) {
     if (taint_.count(session)) return; // se recuerda lo primero que la contamino
     taint_[session] =
@@ -518,8 +546,10 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
     };
     // Salvaguarda: en una sesion contaminada (o con politica "siempre"), una
     // accion que modifica algo espera la aprobacion de una persona.
-    const bool needApproval = mutating(*tool) && (policy_ == ApprovalPolicy::Always ||
-                                                  (policy_ == ApprovalPolicy::Untrusted && tainted(session)));
+    const bool needApproval =
+        mutating(*tool) &&
+        (policy_ == ApprovalPolicy::Always || (policy_ == ApprovalPolicy::Untrusted && tainted(session))) &&
+        !intakeAllows(*tool, args);
     if (!needApproval) {
         execute();
         return;

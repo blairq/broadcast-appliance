@@ -6,6 +6,7 @@
 // ============================================================================
 
 #include "mcp/McpService.hpp"
+#include "agent/AgentViewModel.hpp"
 
 #include <QBuffer>
 #include <QCoreApplication>
@@ -206,6 +207,24 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
     registerFacebookTools();
     registerAlertTools();
     registerAssistantTools();
+    // El operador delega en el asistente la atencion de alguien del lobby: se
+    // habilita la exencion para ESA persona y se le pasa la tarea al agente.
+    vm_.setIntakeSink([this](const QString& id, const QString& name) -> QString {
+        auto* ag = static_cast<agent::AgentViewModel*>(vm_.agent());
+        if (ag == nullptr || !ag->running()) return "El asistente no está corriendo (pestaña ✦).";
+        core_.startIntake(id.toStdString(), name.toStdString());
+        ag->send("Atendé vos a la persona que espera en el lobby (id " + id + ", se anotó como «" + name +
+                 "»). Hablale por chat con `chat_send` usándola como destinatario, presentate en una línea y "
+                 "pedile, de a una pregunta por vez y en español rioplatense: su nombre y apellido tal como "
+                 "quiere que se lea en pantalla, su cargo o de qué va a hablar, cómo quiere que la presenten "
+                 "al aire, y un teléfono o correo de contacto por si se corta. Leé sus respuestas con "
+                 "`chat_history`. A medida que las tengas, completá su ficha con `participant_profile`. "
+                 "Cuando estén los cuatro datos, sacale una foto con `capture_person` y mostrámelos todos "
+                 "juntos con `operator_ask` (opciones: «Hacer pasar» y «Todavía no»), con la foto adjunta. "
+                 "Si contesto «Hacer pasar», admitila con `participant_admit`; si no, dejala esperando y "
+                 "avisale con cortesía. Mientras dure esto no me preguntes nada más: manejate sola.");
+        return {};
+    });
     registerSystemTools();
     registerInputTools();
     registerMediaTools();

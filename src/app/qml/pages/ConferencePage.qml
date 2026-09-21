@@ -184,6 +184,8 @@ Rectangle {
                             required property double joinedMs
                             required property int lobbySlot
                             required property bool talk
+                            required property string info
+                            required property string contact
                             width: ListView.view.width
                             height: waitCol.implicitHeight + 20
                             radius: 14
@@ -229,6 +231,26 @@ Rectangle {
                                     GlassButton { text: "Rechazar"; compact: true; onClicked: conf.reject(uid) }
                                     Item { Layout.fillWidth: true }
                                     GlassButton { text: "✉"; compact: true; onClicked: { chatTo.pick(uid); chatInput.forceActiveFocus() } }
+                                    GlassButton {
+                                        text: "✎"; compact: true
+                                        onClicked: profDlg.editPerson(waitCard.uid, waitCard.name, waitCard.info, waitCard.contact)
+                                        ToolTip.visible: hovered; ToolTip.delay: 400
+                                        ToolTip.text: "Editar nombre, cargo y contacto"
+                                    }
+                                    // Que la atienda el asistente: le pide los datos por
+                                    // chat y despues te muestra todo junto con su foto.
+                                    GlassButton {
+                                        text: "✦ Que lo atienda"; compact: true
+                                        visible: Studio.agent.running
+                                        onClicked: {
+                                            const e = Studio.assistantIntake(waitCard.uid, waitCard.name)
+                                            ApplicationWindow.window.toast(
+                                                e !== "" ? e : "El asistente está hablando con " + waitCard.name,
+                                                e !== "" ? "error" : "ok")
+                                        }
+                                        ToolTip.visible: hovered; ToolTip.delay: 400
+                                        ToolTip.text: "El asistente le pide nombre, cargo, cómo presentarlo y contacto, y te muestra todo junto con su foto para que decidas si pasa."
+                                    }
                                 }
                             }
                         }
@@ -272,6 +294,8 @@ Rectangle {
                             required property bool hand
                             required property bool presenter
                             required property string speaker
+                            required property string info
+                            required property string contact
                             width: grid.cellWidth
                             height: grid.cellHeight
                             Rectangle {
@@ -356,6 +380,12 @@ Rectangle {
                                                                     : "Se queda al aire con su lugar mientras rotan los oradores"
                                         }
                                         GlassButton { compact: true; text: "✉ Mensaje"; onClicked: { chatTo.pick(uid); chatInput.forceActiveFocus() } }
+                                        GlassButton {
+                                            compact: true; text: "✎ Datos"
+                                            onClicked: profDlg.editPerson(uid, name, info, contact)
+                                            ToolTip.visible: hovered; ToolTip.delay: 400
+                                            ToolTip.text: "Editar nombre, cargo y contacto"
+                                        }
                                         GlassButton { compact: true; text: "Sacar"; onClicked: { kickDlg.who = uid; kickDlg.whoName = name; kickDlg.open() } }
                                     }
                                 }
@@ -645,16 +675,27 @@ Rectangle {
         id: profDlg
         anchors.centerIn: parent
         modal: true
-        title: "Datos del orador"
+        title: "Datos de " + (profDlg.whoName !== "" ? "«" + profDlg.whoName + "»" : "la persona")
         standardButtons: Dialog.Save | Dialog.Cancel
         property string who: ""
+        property string whoName: ""
+        property bool withTime: true
         function edit(id, name, info, contact, sec) {
-            who = id; profName.text = name; profInfo.text = info; profContact.text = contact
+            who = id; whoName = name; withTime = true
+            profName.text = name; profInfo.text = info; profContact.text = contact
             profTime.text = page.fmt(sec * 1000)
+            open()
+        }
+        /// Desde el lobby o la sala: los mismos datos, sin el tiempo de orador.
+        function editPerson(id, name, info, contact) {
+            who = id; whoName = name; withTime = false
+            profName.text = name; profInfo.text = info; profContact.text = contact
+            profTime.text = ""
             open()
         }
         onAccepted: {
             conf.setProfile(who, profName.text, profInfo.text, profContact.text)
+            if (!withTime) return
             const s = conf.parseDuration(profTime.text)
             if (s > 0) conf.speakerTime(who, s)
         }
@@ -668,8 +709,8 @@ Rectangle {
             TextField { id: profInfo; Layout.preferredWidth: 300; maximumLength: 200 }
             Text { text: "Contacto"; color: Theme.textDim }
             TextField { id: profContact; Layout.preferredWidth: 300; maximumLength: 120 }
-            Text { text: "Tiempo"; color: Theme.textDim }
-            TextField { id: profTime; Layout.preferredWidth: 90; placeholderText: "m:ss" }
+            Text { text: "Tiempo"; color: Theme.textDim; visible: profDlg.withTime }
+            TextField { id: profTime; Layout.preferredWidth: 90; placeholderText: "m:ss"; visible: profDlg.withTime }
         }
     }
 
