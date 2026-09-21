@@ -439,6 +439,14 @@ Rectangle {
                     ColumnLayout {
                         anchors.fill: parent
                         spacing: 10
+                        // Invitar: el QR es lo que se le muestra a la persona.
+                        GlassButton {
+                            Layout.fillWidth: true
+                            text: "Invitar con QR"; icon: "⬚"; active: true
+                            onClicked: qrDlg.show("local")
+                            ToolTip.visible: hovered; ToolTip.delay: 400
+                            ToolTip.text: "Muestra el código para que lo escaneen. Adentro se elige red local o internet, y si el PIN va incluido."
+                        }
                         RowLayout {
                             Layout.fillWidth: true
                             TextField { Layout.fillWidth: true; readOnly: true; text: conf.guestUrl; font.pixelSize: 11; selectByMouse: true }
@@ -724,10 +732,26 @@ Rectangle {
                     text: qrDlg.loading ? "Generando…" : qrDlg.message
                 }
             }
+            // Donde sirve el QR: se puede cambiar sin cerrar.
+            RowLayout {
+                Layout.alignment: Qt.AlignHCenter
+                visible: !qrDlg.board
+                spacing: 6
+                GlassButton {
+                    compact: true; text: "Red local"
+                    active: qrDlg.target === "local"
+                    onClicked: qrDlg.show("local")
+                }
+                GlassButton {
+                    compact: true; text: "Por internet"
+                    active: qrDlg.target === "remote"
+                    onClicked: qrDlg.show("remote")
+                }
+            }
             CheckBox {
                 id: qrPin
                 visible: !qrDlg.board
-                text: "Incluir PIN (entran sin tipearlo)"
+                text: "Incluir el PIN en el QR (entran sin tipearlo)"
                 onToggled: qrDlg.show(qrDlg.target)
             }
             RowLayout {
