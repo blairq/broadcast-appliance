@@ -110,10 +110,16 @@ struct AudioRack::Plan {
             ch[1] = r.data();
         }
     };
+    /// Una fuente de audio para un canal: de que buffer y de cual de sus canales.
+    struct Src {
+        int buf = -1;
+        int ch = 0;
+    };
     struct InPort {
-        std::vector<int> srcs; // buffers a sumar (vacio si hay 0 o 1: ver rebuild)
+        std::vector<Src> l, r; // que se suma en cada canal (vacio si se lee directo)
         int buf = -1;          // lo que lee el nodo
-        bool wired = false;    // tiene al menos un cable (srcs se vacia con uno solo)
+        bool wired = false;    // tiene al menos un cable
+        bool mix = false;      // hay que mezclar en `buf` (si no, se lee directo)
     };
     struct Step {
         Node* n = nullptr;
@@ -455,7 +461,7 @@ bool AudioRack::remove(const std::string& id, std::string* error) {
 }
 
 bool AudioRack::connect(const std::string& from, const std::string& fromPort, const std::string& to,
-                        const std::string& toPort, std::string* error) {
+                        const std::string& toPort, std::string* error, int fromCh, int toCh) {
     Node* a = find(from);
     Node* b = find(to);
     if (a == nullptr || b == nullptr) {
@@ -474,15 +480,28 @@ bool AudioRack::connect(const std::string& from, const std::string& fromPort, co
         if (error != nullptr) *error = "ese cable cerraria un ciclo";
         return false;
     }
+    // Un cable de puerto entero reemplaza a los de canal sueltos entre los
+    // mismos puertos (y al reves): si no, se sumarian dos veces.
+    const bool whole = fromCh < 0 || toCh < 0;
     for (const auto& c : conns_)
-        if (c.from == from && c.fromPort == pa && c.to == to && c.toPort == pb) return true;
-    conns_.push_back({from, pa, to, pb});
+        if (c.from == from && c.fromPort == pa && c.to == to && c.toPort == pb && c.fromCh == fromCh &&
+            c.toCh == toCh)
+            return true;
+    conns_.erase(std::remove_if(conns_.begin(), conns_.end(),
+                                [&](const Conn& c) {
+                                    if (c.from != from || c.fromPort != pa || c.to != to || c.toPort != pb)
+                                        return false;
+                                    const bool cWhole = c.fromCh < 0 || c.toCh < 0;
+                                    return whole || cWhole || c.toCh == toCh;
+                                }),
+                 conns_.end());
+    conns_.push_back({from, pa, to, pb, whole ? -1 : fromCh, whole ? -1 : toCh});
     rebuild();
     return true;
 }
 
 bool AudioRack::disconnect(const std::string& from, const std::string& fromPort, const std::string& to,
-                           const std::string& toPort) {
+                           const std::string& toPort, int fromCh, int toCh) {
     Node* a = find(from);
     Node* b = find(to);
     if (a == nullptr || b == nullptr) return false;
@@ -492,7 +511,8 @@ bool AudioRack::disconnect(const std::string& from, const std::string& fromPort,
     conns_.erase(std::remove_if(conns_.begin(), conns_.end(),
                                 [&](const Conn& c) {
                                     return c.from == from && c.to == to && (pa < 0 || c.fromPort == pa) &&
-                                           (pb < 0 || c.toPort == pb);
+                                           (pb < 0 || c.toPort == pb) && (fromCh < 0 || c.fromCh == fromCh) &&
+                                           (toCh < 0 || c.toCh == toCh);
                                 }),
                  conns_.end());
     if (conns_.size() == before) return false;
@@ -569,14 +589,35 @@ void AudioRack::rebuild() {
         st.n = n;
         for (int p = 0; p < n->inputs(); ++p) {
             Plan::InPort ip;
-            for (const auto& c : conns_)
-                if (c.to == n->id && c.toPort == p) {
-                    auto it = outBuf.find({c.from, c.fromPort});
-                    if (it != outBuf.end()) ip.srcs.push_back(it->second);
+            for (const auto& c : conns_) {
+                if (c.to != n->id || c.toPort != p) continue;
+                auto it = outBuf.find({c.from, c.fromPort});
+                if (it == outBuf.end()) continue;
+                const int b = it->second;
+                if (c.fromCh < 0 || c.toCh < 0) { // puerto entero: L->L, R->R
+                    ip.l.push_back({b, 0});
+                    ip.r.push_back({b, 1});
+                } else if (c.toCh == 0) {
+                    ip.l.push_back({b, c.fromCh});
+                } else {
+                    ip.r.push_back({b, c.fromCh});
                 }
-            ip.wired = !ip.srcs.empty();
-            ip.buf = ip.srcs.empty() ? plan->zero : ip.srcs.size() == 1 ? ip.srcs[0] : plan->newBuf();
-            if (ip.srcs.size() == 1) ip.srcs.clear(); // se lee directo
+            }
+            ip.wired = !ip.l.empty() || !ip.r.empty();
+            // Un solo cable de puerto entero: se lee el buffer de la fuente sin
+            // copiar (el caso de siempre). Todo lo demas se mezcla aparte.
+            const bool plain = ip.l.size() == 1 && ip.r.size() == 1 && ip.l[0].buf == ip.r[0].buf &&
+                               ip.l[0].ch == 0 && ip.r[0].ch == 1;
+            if (!ip.wired) {
+                ip.buf = plan->zero;
+            } else if (plain) {
+                ip.buf = ip.l[0].buf;
+                ip.l.clear();
+                ip.r.clear();
+            } else {
+                ip.buf = plan->newBuf();
+                ip.mix = true;
+            }
             st.ins.push_back(std::move(ip));
         }
         for (int p = 0; p < n->outputs(); ++p)
@@ -633,17 +674,20 @@ void AudioRack::process(float* const* planes, int channels, uint32_t frames) {
         for (auto& st : P.steps) {
             Node& node = *st.n;
             for (auto& ip : st.ins) {
-                if (ip.srcs.size() < 2) continue;
+                if (!ip.mix) continue;
                 Plan::Buf& dst = *P.bufs[static_cast<size_t>(ip.buf)];
                 std::memset(dst.l.data(), 0, n * sizeof(float));
                 std::memset(dst.r.data(), 0, n * sizeof(float));
-                for (int s : ip.srcs) {
-                    const Plan::Buf& src = *P.bufs[static_cast<size_t>(s)];
-                    for (uint32_t i = 0; i < n; ++i) {
-                        dst.l[i] += src.l[i];
-                        dst.r[i] += src.r[i];
+                const auto add = [&](const std::vector<Plan::Src>& srcs, std::vector<float>& out) {
+                    for (const Plan::Src& s : srcs) {
+                        const Plan::Buf& src = *P.bufs[static_cast<size_t>(s.buf)];
+                        const std::vector<float>& from = s.ch == 0 ? src.l : src.r;
+                        for (uint32_t i = 0; i < n; ++i)
+                            out[i] += from[i];
                     }
-                }
+                };
+                add(ip.l, dst.l);
+                add(ip.r, dst.r);
             }
             if (node.kind == "in") {
                 node.analyzer->feed(st.outArr[0], 2, n);
@@ -769,7 +813,9 @@ json AudioRack::describe() const {
         conns.push_back({{"desde", c.from},
                          {"salida", portName(*a, c.fromPort, false)},
                          {"hacia", c.to},
-                         {"entrada", portName(*b, c.toPort, true)}});
+                         {"entrada", portName(*b, c.toPort, true)},
+                         {"canalSalida", c.fromCh},
+                         {"canalEntrada", c.toCh}});
     }
     return json{{"nodos", nodes}, {"cables", conns}, {"frecuenciaMuestreo", sr_}};
 }
@@ -802,7 +848,9 @@ json AudioRack::save() const {
         conns.push_back({{"desde", c.from},
                          {"salida", portName(*a, c.fromPort, false)},
                          {"hacia", c.to},
-                         {"entrada", portName(*b, c.toPort, true)}});
+                         {"entrada", portName(*b, c.toPort, true)},
+                         {"canalSalida", c.fromCh},
+                         {"canalEntrada", c.toCh}});
     }
     return json{{"version", 1}, {"nodos", nodes}, {"cables", conns}};
 }
@@ -881,7 +929,10 @@ bool AudioRack::load(const json& j, std::string* error) {
         if (a == nullptr || b == nullptr) continue;
         const int pa = portIndex(*a, cj.value("salida", "out"), false);
         const int pb = portIndex(*b, cj.value("entrada", "in"), true);
-        if (pa >= 0 && pb >= 0 && !wouldCycle(a->id, b->id)) conns_.push_back({a->id, pa, b->id, pb});
+        int ca = cj.value("canalSalida", -1);
+        int cb = cj.value("canalEntrada", -1);
+        if (ca < 0 || cb < 0) ca = cb = -1; // puerto entero
+        if (pa >= 0 && pb >= 0 && !wouldCycle(a->id, b->id)) conns_.push_back({a->id, pa, b->id, pb, ca, cb});
     }
     rebuild();
     if (!firstError.empty() && error != nullptr)

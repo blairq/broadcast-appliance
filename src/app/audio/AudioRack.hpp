@@ -67,10 +67,13 @@ class AudioRack {
     /// Id del dispositivo de la salida ("" si no hay nodo de salida).
     std::string outputDevice() const;
     bool remove(const std::string& id, std::string* error);
+    /// Conecta una salida con una entrada. Los canales van en -1 (puerto
+    /// entero), 0 (izquierdo) o 1 (derecho).
     bool connect(const std::string& from, const std::string& fromPort, const std::string& to,
-                 const std::string& toPort, std::string* error);
+                 const std::string& toPort, std::string* error, int fromCh = -1, int toCh = -1);
+    /// Quita el cable. Con los canales en -1 quita cualquiera entre esos puertos.
     bool disconnect(const std::string& from, const std::string& fromPort, const std::string& to,
-                    const std::string& toPort);
+                    const std::string& toPort, int fromCh = -1, int toCh = -1);
     bool setBypass(const std::string& id, bool bypass);
     bool rename(const std::string& id, const std::string& label);
     /// Posicion del nodo en el patchbay (se guarda con el rack). Se redondea
@@ -115,11 +118,16 @@ class AudioRack {
     struct Node;
 
    private:
+    /// Un cable. `fromCh`/`toCh`: -1 = el puerto entero (L->L y R->R), 0 = el
+    /// canal izquierdo, 1 = el derecho. Asi se puede llevar, por ejemplo, la
+    /// derecha de un modulo a la izquierda de otro, o usar un solo canal.
     struct Conn {
         std::string from;
         int fromPort;
         std::string to;
         int toPort;
+        int fromCh = -1;
+        int toCh = -1;
     };
     struct Plan;
 

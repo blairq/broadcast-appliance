@@ -307,11 +307,12 @@ void AudioViewModel::removeRack() {
 }
 
 QString AudioViewModel::connectPorts(const QString& from, const QString& out, const QString& to,
-                                     const QString& in) {
+                                     const QString& in, int outCh, int inCh) {
     AudioRack* r = rack(true);
     if (r == nullptr) return "sin rack";
     std::string e;
-    if (!r->connect(from.toStdString(), out.toStdString(), to.toStdString(), in.toStdString(), &e))
+    if (!r->connect(from.toStdString(), out.toStdString(), to.toStdString(), in.toStdString(), &e, outCh,
+                    inCh))
         return QString::fromStdString(e);
     mgr_.markDirty();
     rebuildGraph();
@@ -319,10 +320,10 @@ QString AudioViewModel::connectPorts(const QString& from, const QString& out, co
 }
 
 void AudioViewModel::disconnectPorts(const QString& from, const QString& out, const QString& to,
-                                     const QString& in) {
+                                     const QString& in, int outCh, int inCh) {
     AudioRack* r = rack();
     if (r == nullptr) return;
-    if (r->disconnect(from.toStdString(), out.toStdString(), to.toStdString(), in.toStdString()))
+    if (r->disconnect(from.toStdString(), out.toStdString(), to.toStdString(), in.toStdString(), outCh, inCh))
         mgr_.markDirty();
     rebuildGraph();
 }

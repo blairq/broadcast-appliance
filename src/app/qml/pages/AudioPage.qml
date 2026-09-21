@@ -58,13 +58,17 @@ Rectangle {
         const p = livePos[n.id]
         return p ? p : Qt.point(n.x, n.y)
     }
-    function portPos(nodeId, port, isIn) {
+    // `ch`: -1 el puerto entero, 0 el punto L, 1 el punto R (los estereo se
+    // dibujan como dos puntitos, 5 px arriba y abajo del centro).
+    function portPos(nodeId, port, isIn, ch) {
         const n = nodeOf(nodeId)
         if (!n) return Qt.point(0, 0)
         const list = isIn ? n.entradas : n.salidas
         const i = Math.max(0, list.indexOf(port))
         const p = posOf(n)
-        return Qt.point(p.x + (isIn ? 0 : nodeW), p.y + headH + i * portH + portH / 2)
+        const info = ((isIn ? n.puertosEntrada : n.puertosSalida) || [])[i] || ({})
+        const dy = (info.canales === 2 && ch !== undefined && ch >= 0) ? (ch === 0 ? -5 : 5) : 0
+        return Qt.point(p.x + (isIn ? 0 : nodeW), p.y + headH + i * portH + portH / 2 + dy)
     }
     function kindColor(t) {
         if (t === "in" || t === "out") return "#64748b"
@@ -82,9 +86,15 @@ Rectangle {
         for (let i = 0; i < nodes.length; ++i) {
             const n = nodes[i]
             for (let k = 0; k < n.entradas.length; ++k) {
-                const p = portPos(n.id, n.entradas[k], true)
-                const d = Math.hypot(p.x - x, p.y - y)
-                if (d < bd) { bd = d; best = { node: n.id, port: n.entradas[k] } }
+                const info = (n.puertosEntrada || [])[k] || ({})
+                // En un puerto estereo se apunta al canal mas cercano; el punto
+                // del medio (sin canal) sigue valiendo para el puerto entero.
+                const opciones = info.canales === 2 ? [-1, 0, 1] : [-1]
+                for (const ch of opciones) {
+                    const p = portPos(n.id, n.entradas[k], true, ch)
+                    const d = Math.hypot(p.x - x, p.y - y)
+                    if (d < bd) { bd = d; best = { node: n.id, port: n.entradas[k], ch: ch } }
+                }
             }
         }
         if (best) return best
@@ -93,10 +103,11 @@ Rectangle {
             if (n.entradas.length === 0) continue
             const p = posOf(n)
             if (x >= p.x && x <= p.x + nodeW && y >= p.y && y <= p.y + nodeH(n))
-                return { node: n.id, port: n.entradas[0] }
+                return { node: n.id, port: n.entradas[0], ch: -1 }
         }
         return null
     }
+    function chName(ch) { return ch === 0 ? "L" : ch === 1 ? "R" : "" }
     // Cable curvo: sale hacia la derecha y entra por la izquierda. Los puntos
     // de control se separan segun la distancia, asi la curva no se aplasta.
     function cableCtl(a, b) { return Math.max(40, Math.min(160, Math.abs(b.x - a.x) / 2 + 20)) }
@@ -377,8 +388,8 @@ Rectangle {
                             delegate: Item {
                                 id: cab
                                 required property var modelData
-                                readonly property point a: page.portPos(modelData.desde, modelData.salida, false)
-                                readonly property point b: page.portPos(modelData.hacia, modelData.entrada, true)
+                                readonly property point a: page.portPos(modelData.desde, modelData.salida, false, modelData.canalSalida)
+                                readonly property point b: page.portPos(modelData.hacia, modelData.entrada, true, modelData.canalEntrada)
                                 readonly property real ctl: page.cableCtl(a, b)
                                 readonly property point mid: page.cableMid(a, b)
                                 anchors.fill: parent
@@ -387,7 +398,8 @@ Rectangle {
                                     preferredRendererType: Shape.CurveRenderer
                                     ShapePath {
                                         strokeColor: modelData.entrada === "sc" ? "#f59e0b" : Qt.rgba(0.55, 0.75, 1, 0.9)
-                                        strokeWidth: 3
+                                        // Un cable de canal suelto se dibuja mas fino que uno de puerto entero.
+                                        strokeWidth: cab.modelData.canalSalida >= 0 ? 2 : 3
                                         capStyle: ShapePath.RoundCap
                                         fillColor: "transparent"
                                         startX: cab.a.x; startY: cab.a.y
@@ -405,12 +417,19 @@ Rectangle {
                                     color: xMa.containsMouse ? Theme.live : Qt.rgba(0.1, 0.12, 0.18, 0.9)
                                     border.color: Qt.rgba(1, 1, 1, 0.3)
                                     Text { anchors.centerIn: parent; text: "✕"; color: "white"; font.pixelSize: 10 }
+                                    // Que canal lleva, cuando no es el puerto entero.
+                                    Text {
+                                        anchors { bottom: parent.top; horizontalCenter: parent.horizontalCenter }
+                                        visible: cab.modelData.canalSalida >= 0
+                                        text: page.chName(cab.modelData.canalSalida) + "→" + page.chName(cab.modelData.canalEntrada)
+                                        color: Theme.textFaint; font { pixelSize: 9; weight: Font.DemiBold }
+                                    }
                                     MouseArea {
                                         id: xMa
                                         anchors.fill: parent
                                         hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
-                                        onClicked: page.au.disconnectPorts(cab.modelData.desde, cab.modelData.salida, cab.modelData.hacia, cab.modelData.entrada)
+                                        onClicked: page.au.disconnectPorts(cab.modelData.desde, cab.modelData.salida, cab.modelData.hacia, cab.modelData.entrada, cab.modelData.canalSalida, cab.modelData.canalEntrada)
                                         ToolTip.visible: containsMouse; ToolTip.text: "Quitar el cable"
                                     }
                                 }
@@ -548,6 +567,7 @@ Rectangle {
                                         readonly property bool target: page.wireTarget
                                                                        && page.wireTarget.node === nd.modelData.id
                                                                        && page.wireTarget.port === modelData
+                                        readonly property int targetCh: target ? page.wireTarget.ch : -2
                                         readonly property var info: (nd.modelData.puertosEntrada || [])[index] || ({})
                                         x: -7
                                         y: page.headH + index * page.portH + page.portH / 2 - 7
@@ -575,15 +595,16 @@ Rectangle {
                                             anchors.centerIn: parent
                                             spacing: 2
                                             Repeater {
-                                                model: ["L", "R"]
+                                                model: [0, 1]
                                                 delegate: Rectangle {
-                                                    required property string modelData
+                                                    id: inDot
+                                                    required property int modelData
                                                     width: 14; height: 8; radius: 4
-                                                    color: "#93c5fd"
+                                                    color: parent.parent.targetCh === inDot.modelData ? Theme.ok : "#93c5fd"
                                                     border.color: "white"; border.width: 1
                                                     Text {
                                                         anchors.centerIn: parent
-                                                        text: parent.modelData
+                                                        text: page.chName(inDot.modelData)
                                                         color: "#0b1220"
                                                         font { pixelSize: 7; weight: Font.Black }
                                                     }
@@ -642,17 +663,52 @@ Rectangle {
                                             anchors.centerIn: parent
                                             spacing: 2
                                             Repeater {
-                                                model: ["L", "R"]
+                                                model: [0, 1]
                                                 delegate: Rectangle {
-                                                    required property string modelData
+                                                    id: chDot
+                                                    required property int modelData
                                                     width: 14; height: 8; radius: 4
                                                     color: "#86efac"
                                                     border.color: "white"; border.width: 1
                                                     Text {
                                                         anchors.centerIn: parent
-                                                        text: parent.modelData
+                                                        text: page.chName(chDot.modelData)
                                                         color: "#0b1220"
                                                         font { pixelSize: 7; weight: Font.Black }
+                                                    }
+                                                    // Arrastrar desde L o R lleva SOLO ese canal.
+                                                    MouseArea {
+                                                        anchors.fill: parent
+                                                        anchors.margins: -5
+                                                        cursorShape: Qt.CrossCursor
+                                                        preventStealing: true
+                                                        hoverEnabled: true
+                                                        ToolTip.visible: containsMouse && !page.wire
+                                                        ToolTip.delay: 600
+                                                        ToolTip.text: "Canal " + page.chName(chDot.modelData) + ": arrastralo a la entrada que quieras"
+                                                        onPressed: (ev) => {
+                                                            const p = page.portPos(nd.modelData.id, op.modelData, false, chDot.modelData)
+                                                            page.wire = { from: nd.modelData.id, out: op.modelData, ch: chDot.modelData,
+                                                                          x0: p.x, y0: p.y, x1: p.x, y1: p.y }
+                                                            page.wireTarget = null
+                                                        }
+                                                        onPositionChanged: (ev) => {
+                                                            if (!page.wire) return
+                                                            const q = mapToItem(canvas, ev.x, ev.y)
+                                                            const t = page.inputAt(q.x, q.y)
+                                                            page.wireTarget = t
+                                                            const end = t ? page.portPos(t.node, t.port, true, t.ch) : q
+                                                            page.wire = Object.assign({}, page.wire, { x1: end.x, y1: end.y })
+                                                        }
+                                                        onReleased: (ev) => {
+                                                            if (!page.wire) return
+                                                            const t = page.wireTarget
+                                                            if (t) page.msg = page.au.connectPorts(page.wire.from, page.wire.out, t.node, t.port,
+                                                                                                   page.wire.ch, t.ch >= 0 ? t.ch : page.wire.ch)
+                                                            page.wire = null
+                                                            page.wireTarget = null
+                                                        }
+                                                        onCanceled: { page.wire = null; page.wireTarget = null }
                                                     }
                                                 }
                                             }
@@ -684,7 +740,10 @@ Rectangle {
                                             onReleased: (ev) => {
                                                 if (!page.wire) return
                                                 const t = page.wireTarget
-                                                if (t) page.msg = page.au.connectPorts(page.wire.from, page.wire.out, t.node, t.port)
+                                                // Soltar en un punto L o R de un puerto estereo manda
+                                                // solo ese canal (el izquierdo de la salida).
+                                                if (t) page.msg = page.au.connectPorts(page.wire.from, page.wire.out, t.node, t.port,
+                                                                                       t.ch >= 0 ? 0 : -1, t.ch)
                                                 page.wire = null
                                                 page.wireTarget = null
                                             }

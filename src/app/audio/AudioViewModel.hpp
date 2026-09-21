@@ -68,10 +68,12 @@ class AudioViewModel : public QObject {
     Q_INVOKABLE void tidy();
     Q_INVOKABLE void removeNode(const QString& node);
     Q_INVOKABLE void removeRack();
+    /// Conecta una salida con una entrada. `outCh`/`inCh`: -1 = el puerto
+    /// entero, 0 = canal izquierdo, 1 = derecho.
     Q_INVOKABLE QString connectPorts(const QString& from, const QString& out, const QString& to,
-                                     const QString& in);
+                                     const QString& in, int outCh = -1, int inCh = -1);
     Q_INVOKABLE void disconnectPorts(const QString& from, const QString& out, const QString& to,
-                                     const QString& in);
+                                     const QString& in, int outCh = -1, int inCh = -1);
     Q_INVOKABLE void moveNode(const QString& node, double x, double y);
     Q_INVOKABLE void setBypass(const QString& node, bool bypass);
     Q_INVOKABLE QString openEditor(const QString& node);
