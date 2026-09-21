@@ -136,10 +136,10 @@ Conviene separarlas desde el diseño, porque tienen latencias muy diferentes:
   **sincronizadas** con lo que pasa en la sala. Lo bueno acá es salida directa
   (una ventana de salida en otro monitor, que ya existe), NDI o SRT con latencia
   baja en la LAN.
-- **Chromecast y similares**: sirven para pantallas secundarias (un hall, otra
-  sala, un bar). **Tienen entre 1 y 5 segundos de retardo** y no se pueden
-  sincronizar con el audio de sala. Hay que decirlo en la interfaz para que
-  nadie espere lo que no puede dar.
+- **Chromecast y similares**: con el reproductor que trae de fábrica (HLS o
+  DASH) el retardo es de 1 a 5 segundos. Pero el receptor de Chromecast **es un
+  navegador**: se le puede pedir que abra una URL nuestra con un reproductor de
+  baja latencia adentro, y ahí el retardo baja a menos de un segundo (ver 4.3).
 
 ### 4.2 Qué hay que armar
 
@@ -151,8 +151,43 @@ Conviene separarlas desde el diseño, porque tienen latencias muy diferentes:
   uno (programa, una escena, una placa fija, un video), y un cue de storyboard
   para cambiarlo.
 - **Chromecast**: descubrimiento por mDNS y control por el protocolo de Google.
-  No hay SDK abierto oficial para emitir: se hace con una app receptora propia
-  apuntando a una URL nuestra (HLS o WebRTC). Es un trabajo en sí mismo.
+
+### 4.3 Chromecast con baja latencia (receptor propio)
+
+El receptor de un Chromecast es una **página web** corriendo en su Chrome: no
+hay que mandarle video, hay que **decirle qué URL abrir**. Y esa URL la
+servimos nosotros, que para eso ya tenemos servidor web y WebRTC.
+
+**Cómo queda la cadena:**
+
+1. El gateway sirve una página receptora (`/cast`) con un reproductor WebRTC.
+2. Esa página se engancha como **espectador** del relay que ya existe (el mismo
+   que alimenta las vistas web), pidiendo el programa o una escena.
+3. Al Chromecast se le manda esa URL por su protocolo; el resto pasa en la LAN.
+
+Latencia esperada: **menos de un segundo**, contra 1 a 5 segundos del
+reproductor de fábrica. Sigue sin servir para sincronizar labios con el audio
+de sala, pero para una pantalla secundaria cambia todo.
+
+**Lo que hay que resolver, sin sorpresas el día del evento:**
+
+- **Cómo se le dice qué URL abrir.** Un receptor propio necesita un *app id*
+  registrado en la consola de Google Cast (cuenta de desarrollador, y el
+  dispositivo dado de alta mientras se prueba). Hay receptores genéricos que
+  aceptan una URL, pero dependen de que sigan publicados: como plan principal
+  conviene el propio.
+- **HTTPS con certificado de verdad.** El Chromecast exige HTTPS para el
+  receptor y **no acepta certificados autofirmados**, que es justo lo que
+  usamos en la LAN. Salidas posibles: servir esa página por el túnel de
+  Cloudflare (certificado válido) aunque el video siga yendo por la red local,
+  o un dominio propio con certificado. Hay que probarlo temprano: es el punto
+  que más tiene para fallar.
+- **Qué tan viejo es el aparato.** Los Chromecast con Google TV traen un Chrome
+  completo y hacen WebRTC bien. Los más viejos (los dongles) tienen un Chrome
+  recortado: si WebRTC no va, el mismo receptor puede caer a HLS de baja
+  latencia, con más retardo pero funcionando.
+- **Reintento**: si la pantalla se apaga o el aparato se reinicia, que vuelva
+  solo a la URL. Eso lo maneja la sección de pantallas.
 
 ---
 
@@ -314,7 +349,9 @@ Cada punto de acá es entregable por sí solo:
 6. **Cliente**: chat abierto, sin preguntas si está el asistente,
    personalización.
 7. **Herramientas del asistente** (descarga de música y video).
-8. **Pantallas**: primero baja latencia en la LAN; Chromecast después.
+8. **Pantallas**: primero el reproductor de baja latencia en la LAN (que sirve
+   para todo), después el receptor de Chromecast que lo abre. Probar temprano
+   lo del certificado, que es lo que puede trabar todo.
 9. **Asistente de armado** del storyboard.
 
 Lo de sacar pestañas a ventanas se puede hacer en cualquier momento: es chico y
