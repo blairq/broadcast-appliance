@@ -372,4 +372,5 @@ F1 cimientos ─┬─► F2 IPC ─┬─► F4 launcher ─┬─► F10 verif
 
 Spec §1 y reglas §14 (`/MT`/`/MD` pasan a ser reglas de Windows), README
 (Estado, Arquitectura, Dependencias con columna por plataforma) y
-`docs/TASKS.md` con columnas Windows / Linux / macOS.
+el tablero de tareas con columnas Windows / Linux / macOS (lo que se lleva hoy
+está en `docs/IDEAS.md`; el tablero viejo quedó en `docs/historia/`).

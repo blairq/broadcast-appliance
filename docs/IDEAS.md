@@ -72,5 +72,3 @@ asistente de armado están desglosados aparte: **[EVENTOS.md](EVENTOS.md)**.
 - **Asistente de primer arranque**: cámara, micrófono, destino y prueba.
 - **«Reconectando…» con la causa** cuando se cae la transmisión: hay que
   conectar las señales de las salidas de libobs.
-- **`docs/TODO.md` y `docs/TASKS.md` están desactualizados**: archivarlos o
-  rehacerlos.
