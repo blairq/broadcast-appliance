@@ -98,6 +98,9 @@ namespace {
 RackManager* g_mgr = nullptr;
 constexpr const char* kFilterId = "ba_audio_rack";
 constexpr const char* kFilterName = "Rack de audio";
+// Fuente privada por rack que lleva el nodo de escucha a los auriculares del
+// operador: MONITOR_ONLY, nunca entra en la mezcla del programa.
+constexpr const char* kTapId = "ba_rack_escucha";
 } // namespace
 
 void QtHostServices::stateDirty() {
@@ -113,6 +116,7 @@ struct RackManager::Filter {
     obs_source_t* self = nullptr;
     std::string source;
     std::unique_ptr<AudioRack> rack;
+    obs_source_t* tap = nullptr; // salida de escucha (puede ser nullptr)
 };
 
 namespace {
@@ -142,8 +146,26 @@ obs_audio_data* filterAudio(void* data, obs_audio_data* audio) {
     auto* f = static_cast<RackManager::Filter*>(data);
     const int ch = static_cast<int>(audio_output_get_channels(obs_get_audio()));
     f->rack->process(reinterpret_cast<float* const*>(audio->data), ch, audio->frames);
+    // Escucha: lo que junto el nodo "monitor" se entrega a su fuente privada,
+    // que libobs reproduce en la salida elegida (no vuelve a la mezcla).
+    const uint32_t mf = f->rack->monitorFrames();
+    if (f->tap != nullptr && mf > 0) {
+        obs_source_audio out{};
+        out.data[0] = reinterpret_cast<const uint8_t*>(f->rack->monitorPlane(0));
+        out.data[1] = reinterpret_cast<const uint8_t*>(f->rack->monitorPlane(1));
+        out.frames = mf;
+        out.speakers = SPEAKERS_STEREO;
+        out.format = AUDIO_FORMAT_FLOAT_PLANAR;
+        out.samples_per_sec = audio_output_get_sample_rate(obs_get_audio());
+        out.timestamp = audio->timestamp;
+        obs_source_output_audio(f->tap, &out);
+    }
     return audio;
 }
+
+const char* tapName(void*) { return "Escucha del rack"; }
+void* tapCreate(obs_data_t*, obs_source_t* self) { return self; }
+void tapDestroy(void*) {}
 
 } // namespace
 
@@ -164,6 +186,15 @@ RackManager::RackManager(fs::path dataRoot, QObject* parent) : QObject(parent), 
         info.destroy = filterDestroy;
         info.filter_audio = filterAudio;
         obs_register_source(&info);
+
+        obs_source_info tap{};
+        tap.id = kTapId;
+        tap.type = OBS_SOURCE_TYPE_INPUT;
+        tap.output_flags = OBS_SOURCE_AUDIO;
+        tap.get_name = tapName;
+        tap.create = tapCreate;
+        tap.destroy = tapDestroy;
+        obs_register_source(&tap);
         registered = true;
     }
     saveTimer_.setSingleShot(true);
@@ -209,7 +240,18 @@ std::shared_ptr<ClapLibrary> RackManager::library(std::string* error) {
     return lib_;
 }
 
-void RackManager::attach(Filter* f) { filters_[f->source] = f; }
+void RackManager::attach(Filter* f) {
+    filters_[f->source] = f;
+    if (f->tap == nullptr) {
+        const std::string name = "ba-escucha-" + f->source;
+        f->tap = obs_source_create_private(kTapId, name.c_str(), nullptr);
+        if (f->tap != nullptr) {
+            // Solo a los auriculares del operador: jamas a la mezcla.
+            obs_source_set_monitoring_type(f->tap, OBS_MONITORING_TYPE_MONITOR_ONLY);
+            obs_source_set_muted(f->tap, monitorId_.empty());
+        }
+    }
+}
 
 void RackManager::detach(Filter* f) {
     for (auto it = filters_.begin(); it != filters_.end(); ++it)
@@ -217,6 +259,86 @@ void RackManager::detach(Filter* f) {
             filters_.erase(it);
             break;
         }
+    if (f->tap != nullptr) {
+        obs_source_release(f->tap);
+        f->tap = nullptr;
+    }
+}
+
+// --- Escucha (salida de audio del sistema) ------------------------------------------------
+
+json RackManager::monitorDevices() const {
+    json list = json::array();
+    list.push_back({{"id", ""}, {"nombre", "Sin escucha aparte (solo el programa)"}});
+    obs_enum_audio_monitoring_devices(
+        [](void* p, const char* name, const char* id) {
+            static_cast<json*>(p)->push_back(
+                {{"id", id != nullptr ? id : ""}, {"nombre", name != nullptr ? name : ""}});
+            return true;
+        },
+        &list);
+    return list;
+}
+
+std::string RackManager::setMonitorDevice(const std::string& id) {
+    std::string name;
+    if (!id.empty()) {
+        struct Ctx {
+            const std::string& id;
+            std::string name;
+            bool found = false;
+        } ctx{id, {}, false};
+        obs_enum_audio_monitoring_devices(
+            [](void* p, const char* n, const char* i) {
+                auto* c = static_cast<Ctx*>(p);
+                if (i != nullptr && c->id == i) {
+                    c->name = n != nullptr ? n : "";
+                    c->found = true;
+                    return false;
+                }
+                return true;
+            },
+            &ctx);
+        if (!ctx.found) return "esa salida de audio ya no esta";
+        name = ctx.name;
+        if (!obs_set_audio_monitoring_device(name.c_str(), id.c_str()))
+            return "no se pudo abrir la salida de audio";
+    }
+    monitorId_ = id;
+    monitorName_ = name;
+    syncMonitors();
+    saveMonitor();
+    emit changed();
+    return {};
+}
+
+void RackManager::syncMonitors() {
+    for (auto& [name, f] : filters_)
+        if (f->tap != nullptr) obs_source_set_muted(f->tap, monitorId_.empty());
+}
+
+void RackManager::saveMonitor() const {
+    const fs::path file = root_ / "Config" / "audio-escucha.json";
+    std::error_code ec;
+    fs::create_directories(file.parent_path(), ec);
+    std::ofstream out(file, std::ios::binary);
+    if (out) out << json{{"id", monitorId_}, {"nombre", monitorName_}}.dump(2);
+}
+
+void RackManager::restoreMonitor() {
+    std::ifstream in(root_ / "Config" / "audio-escucha.json", std::ios::binary);
+    if (!in) return;
+    const json j = json::parse(in, nullptr, false);
+    if (!j.is_object()) return;
+    const std::string id = j.value("id", "");
+    const std::string name = j.value("nombre", "");
+    if (id.empty()) return;
+    // El dispositivo puede no estar (se desenchufo): se queda sin escucha.
+    if (obs_set_audio_monitoring_device(name.c_str(), id.c_str())) {
+        monitorId_ = id;
+        monitorName_ = name;
+    }
+    syncMonitors();
 }
 
 json RackManager::audioSources() const {
@@ -321,6 +443,7 @@ void RackManager::saveNow() {
 }
 
 void RackManager::restore() {
+    restoreMonitor();
     std::ifstream in(root_ / "Config" / "audio-racks.json", std::ios::binary);
     if (!in) return;
     const json all = json::parse(in, nullptr, false);

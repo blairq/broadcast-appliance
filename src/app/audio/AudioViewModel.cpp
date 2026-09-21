@@ -249,6 +249,32 @@ QString AudioViewModel::addGenerator() {
     return {};
 }
 
+QString AudioViewModel::addMonitor() {
+    AudioRack* r = rack(true);
+    if (r == nullptr) return "Elegí una fuente con audio.";
+    const std::string id = r->addMonitor();
+    mgr_.markDirty();
+    select(QString::fromStdString(id));
+    rebuildGraph();
+    return {};
+}
+
+QVariantList AudioViewModel::monitorDevices() const {
+    QVariantList out;
+    for (const auto& d : mgr_.monitorDevices())
+        out << QVariantMap{{"id", QString::fromStdString(d.value("id", ""))},
+                           {"nombre", QString::fromStdString(d.value("nombre", ""))}};
+    return out;
+}
+
+QString AudioViewModel::monitorDevice() const { return QString::fromStdString(mgr_.monitorDevice()); }
+
+QString AudioViewModel::setMonitorDevice(const QString& id) {
+    const std::string e = mgr_.setMonitorDevice(id.toStdString());
+    emit changed();
+    return QString::fromStdString(e);
+}
+
 void AudioViewModel::removeNode(const QString& node) {
     AudioRack* r = rack();
     std::string e;

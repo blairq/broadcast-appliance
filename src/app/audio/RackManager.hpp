@@ -11,7 +11,11 @@
 //     "correr en el principal") con Qt;
 //   - guarda el grafo y el estado de cada rack en Config/audio-racks.json
 //     (por nombre de fuente) y los restaura al arrancar;
-//   - lista las fuentes con audio (tambien videos con sonido, invitados...).
+//   - lista las fuentes con audio (tambien videos con sonido, invitados...);
+//   - la ESCUCHA: el nodo "monitor" de un rack se manda a una salida de audio
+//     del sistema con una fuente privada de OBS en modo MONITOR_ONLY (nunca a
+//     la mezcla). El dispositivo es uno solo para toda la app (asi lo maneja
+//     libobs) y se guarda en Config/audio-escucha.json.
 // Todo en el hilo principal salvo el procesamiento (hilo de audio de OBS).
 // ============================================================================
 #pragma once
@@ -48,6 +52,14 @@ class RackManager : public QObject {
     AudioRack* rack(const std::string& source, bool create, std::string* error = nullptr);
     /// Quita el rack de la fuente (el audio vuelve a pasar directo).
     bool removeRack(const std::string& source);
+
+    /// Salidas de audio del sistema: [{id, nombre}]. La primera es "" = no
+    /// escuchar aparte (el audio va solo al programa y al stream).
+    json monitorDevices() const;
+    /// Id del dispositivo de escucha ("" = solo el stream).
+    std::string monitorDevice() const { return monitorId_; }
+    /// Elige la salida de escucha. "" = ninguna. Devuelve el error o "".
+    std::string setMonitorDevice(const std::string& id);
     /// Algo cambio en un rack: se guarda en un momento.
     void markDirty();
     /// Guarda ya (tambien al salir).
@@ -73,8 +85,15 @@ class RackManager : public QObject {
     std::string libError_;
     bool libTried_ = false;
     std::map<std::string, Filter*> filters_; // por fuente
+    /// Prende o apaga la escucha de cada rack segun el dispositivo elegido.
+    void syncMonitors();
+    void saveMonitor() const;
+    void restoreMonitor();
+
     QTimer saveTimer_;
-    json pending_; // racks guardados de fuentes que todavia no existen
+    std::string monitorId_;   // "" = sin escucha aparte
+    std::string monitorName_; // el nombre que espera libobs junto al id
+    json pending_;            // racks guardados de fuentes que todavia no existen
 };
 
 } // namespace ba::app::audio

@@ -85,7 +85,7 @@ struct AudioRack::Node {
         return 1;
     }
     int outputs() const {
-        if (kind == "out") return 0;
+        if (kind == "out" || kind == "monitor") return 0;
         if (kind == "plugin") return static_cast<int>(clap->outputs().size());
         return 1;
     }
@@ -110,8 +110,9 @@ struct AudioRack::Plan {
         }
     };
     struct InPort {
-        std::vector<int> srcs; // buffers a sumar
+        std::vector<int> srcs; // buffers a sumar (vacio si hay 0 o 1: ver rebuild)
         int buf = -1;          // lo que lee el nodo
+        bool wired = false;    // tiene al menos un cable (srcs se vacia con uno solo)
     };
     struct Step {
         Node* n = nullptr;
@@ -147,6 +148,8 @@ AudioRack::AudioRack(std::shared_ptr<ClapLibrary> lib, HostServices* services, d
         nodes_.push_back(std::move(n));
     }
     conns_.push_back({"in", 0, "out", 0});
+    monL_.assign(kMonitorCap, 0.0f);
+    monR_.assign(kMonitorCap, 0.0f);
     rebuild();
 }
 
@@ -311,6 +314,25 @@ std::string AudioRack::addAnalyzer(const std::string& label, const std::string& 
     rebuild();
     return id;
 }
+
+std::string AudioRack::addMonitor(const std::string& label) {
+    if (Node* e = find("escucha"); e != nullptr) return e->id;
+    auto n = std::make_unique<Node>();
+    n->id = "escucha";
+    n->kind = "monitor";
+    n->label = label.empty() ? "Escucha" : label;
+    // Debajo de la salida: es el otro destino posible del audio.
+    const Node* out = find("out");
+    n->x = out != nullptr ? out->x : 280;
+    n->y = (out != nullptr ? out->y : 80) + 150;
+    nodes_.push_back(std::move(n));
+    rebuild(); // sin cable: lo patchea el operador desde donde quiera escuchar
+    return "escucha";
+}
+
+bool AudioRack::hasMonitor() const { return find("escucha") != nullptr; }
+
+const float* AudioRack::monitorPlane(int ch) const { return ch == 0 ? monL_.data() : monR_.data(); }
 
 std::string AudioRack::addGenerator(const std::string& label) {
     auto n = std::make_unique<Node>();
@@ -488,6 +510,7 @@ void AudioRack::rebuild() {
                     auto it = outBuf.find({c.from, c.fromPort});
                     if (it != outBuf.end()) ip.srcs.push_back(it->second);
                 }
+            ip.wired = !ip.srcs.empty();
             ip.buf = ip.srcs.empty() ? plan->zero : ip.srcs.size() == 1 ? ip.srcs[0] : plan->newBuf();
             if (ip.srcs.size() == 1) ip.srcs.clear(); // se lee directo
             st.ins.push_back(std::move(ip));
@@ -533,6 +556,7 @@ void meterInto(std::atomic<float>& pow, std::atomic<float>& peak, float* const* 
 } // namespace
 
 void AudioRack::process(float* const* planes, int channels, uint32_t frames) {
+    monFrames_ = 0;
     std::unique_lock<std::mutex> lk(planLock_, std::try_to_lock);
     if (!lk.owns_lock() || !plan_ || plan_->inBuf < 0 || plan_->outRead < 0 || channels < 1) return;
     Plan& P = *plan_;
@@ -569,6 +593,19 @@ void AudioRack::process(float* const* planes, int channels, uint32_t frames) {
                     std::memcpy(st.outArr[0][c], st.inArr[0][c], n * sizeof(float));
                 meterInto(node.inPow, node.inPeak, st.inArr[0], n, alpha);
                 meterInto(node.outPow, node.outPeak, st.outArr[0], n, alpha);
+            } else if (node.kind == "monitor") {
+                // Sumidero: copia para la salida de audio del sistema. Lo que
+                // no entre en el buffer se descarta (la escucha es best-effort).
+                // Sin ningun cable no se junta nada: asi la salida de audio no
+                // recibe silencio permanente cuando la escucha esta suelta.
+                const bool wired = !st.ins.empty() && st.ins[0].wired;
+                const uint32_t room = wired && off < kMonitorCap ? std::min(n, kMonitorCap - off) : 0;
+                if (room > 0) {
+                    std::memcpy(monL_.data() + off, st.inArr[0][0], room * sizeof(float));
+                    std::memcpy(monR_.data() + off, st.inArr[0][1], room * sizeof(float));
+                    monFrames_ = off + room;
+                }
+                meterInto(node.inPow, node.inPeak, st.inArr[0], n, alpha);
             } else if (node.kind == "generator") {
                 node.gen->render(st.outArr[0], 2, n);
                 meterInto(node.outPow, node.outPeak, st.outArr[0], n, alpha);
@@ -734,6 +771,8 @@ bool AudioRack::load(const json& j, std::string* error) {
         } else if (kind == "analyzer") {
             n->analyzer = std::make_unique<Analyzer>();
             n->analyzer->setSampleRate(sr_);
+        } else if (kind == "monitor") {
+            n->id = "escucha"; // uno solo por rack
         } else if (kind == "generator") {
             n->gen = std::make_unique<Generator>();
             n->gen->setSampleRate(sr_);

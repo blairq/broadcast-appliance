@@ -33,6 +33,10 @@ class AudioViewModel : public QObject {
     Q_PROPERTY(QString selected READ selected NOTIFY selectionChanged)
     Q_PROPERTY(QVariantMap detail READ detail NOTIFY detailChanged)
     Q_PROPERTY(QVariantList catalog READ catalog CONSTANT)
+    /// Salidas de audio del sistema para escuchar el rack: [{id, nombre}].
+    Q_PROPERTY(QVariantList monitorDevices READ monitorDevices NOTIFY changed)
+    /// Salida elegida ("" = sin escucha aparte).
+    Q_PROPERTY(QString monitorDevice READ monitorDevice NOTIFY changed)
    public:
     explicit AudioViewModel(RackManager& mgr, QObject* parent = nullptr);
 
@@ -45,6 +49,8 @@ class AudioViewModel : public QObject {
     QString selected() const { return selected_; }
     QVariantMap detail() const { return detail_; }
     QVariantList catalog() const;
+    QVariantList monitorDevices() const;
+    QString monitorDevice() const;
 
     Q_INVOKABLE void setActive(bool on);
     Q_INVOKABLE void refresh();
@@ -54,6 +60,9 @@ class AudioViewModel : public QObject {
     Q_INVOKABLE QString addModule(const QString& moduleOrId, const QString& after = {});
     Q_INVOKABLE QString addAnalyzer();
     Q_INVOKABLE QString addGenerator();
+    /// Nodo de escucha: se patchea desde donde se quiera oir.
+    Q_INVOKABLE QString addMonitor();
+    Q_INVOKABLE QString setMonitorDevice(const QString& id);
     Q_INVOKABLE void removeNode(const QString& node);
     Q_INVOKABLE void removeRack();
     Q_INVOKABLE QString connectPorts(const QString& from, const QString& out, const QString& to,

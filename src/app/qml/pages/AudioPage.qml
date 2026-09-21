@@ -54,6 +54,7 @@ Rectangle {
     function kindColor(t) {
         if (t === "in" || t === "out") return "#64748b"
         if (t === "analyzer") return "#0ea5e9"
+        if (t === "monitor") return "#a78bfa"
         if (t === "generator") return "#f59e0b"
         return Theme.accent
     }
@@ -84,9 +85,14 @@ Rectangle {
         anchors { fill: parent; leftMargin: page.leftInset; margins: 18 }
         spacing: 14
 
-        // --- Fuentes con audio --------------------------------------------------------------
-        Panel {
+        // --- Fuentes con audio + salida de escucha -------------------------------------------
+        ColumnLayout {
             Layout.preferredWidth: 250
+            Layout.fillHeight: true
+            spacing: 10
+
+        Panel {
+            Layout.fillWidth: true
             Layout.fillHeight: true
             title: "Fuentes con audio"
             ListView {
@@ -121,6 +127,42 @@ Rectangle {
             }
         }
 
+        // Salida por la que se escucha el nodo "Escucha" de los racks. No
+        // cambia lo que sale al aire: es solo para los auriculares.
+        Panel {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 124
+            title: "Escuchar por"
+            ColumnLayout {
+                anchors.fill: parent
+                spacing: 6
+                ComboBox {
+                    id: monDev
+                    Layout.fillWidth: true
+                    model: page.au ? page.au.monitorDevices : []
+                    textRole: "nombre"
+                    valueRole: "id"
+                    currentIndex: {
+                        const list = page.au ? page.au.monitorDevices : []
+                        const cur = page.au ? page.au.monitorDevice : ""
+                        for (let i = 0; i < list.length; ++i) if (list[i].id === cur) return i
+                        return 0
+                    }
+                    onActivated: page.msg = page.au.setMonitorDevice(currentValue)
+                }
+                Text {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: Theme.textFaint
+                    font.pixelSize: 11
+                    text: page.au && page.au.monitorDevice !== ""
+                          ? "Agregá el módulo «Escucha» al rack y conectale la salida que quieras oír."
+                          : "Por defecto el audio va solo al programa y al stream."
+                }
+            }
+        }
+        }
+
         // --- Patchbay ---------------------------------------------------------------------
         ColumnLayout {
             Layout.fillWidth: true
@@ -144,6 +186,12 @@ Rectangle {
                 }
                 GlassButton { compact: true; text: "+ Analizador"; onClicked: page.msg = page.au.addAnalyzer() }
                 GlassButton { compact: true; text: "+ Generador"; onClicked: page.msg = page.au.addGenerator() }
+                GlassButton {
+                    compact: true; text: "+ Escucha"
+                    onClicked: page.msg = page.au.addMonitor()
+                    ToolTip.visible: hovered; ToolTip.delay: 400
+                    ToolTip.text: "Un destino para escuchar por auriculares: conectale la salida de cualquier módulo (o la entrada). No cambia lo que sale al aire."
+                }
                 GlassButton { compact: true; text: "+ Otro LSP…"; onClicked: lspPopup.open() }
             }
             Text {
