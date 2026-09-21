@@ -26,6 +26,18 @@ endif()
 
 add_executable(BroadcastAppliance ${BA_LAUNCHER_SOURCES})
 
+# --- Ícono y datos del .exe (solo Windows) ----------------------------------
+# El .rc referencia el .ico por nombre: se le agrega assets/icons al camino de
+# inclusión del compilador de recursos en vez de meter una ruta absoluta en el
+# archivo. Sin esto el programa sale con el ícono genérico.
+if(WIN32)
+    enable_language(RC)
+    target_sources(BroadcastAppliance PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/BroadcastAppliance.rc")
+    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/BroadcastAppliance.rc"
+        PROPERTIES COMPILE_OPTIONS "-I;${CMAKE_SOURCE_DIR}/assets/icons"
+    )
+endif()
+
 if(MSVC)
     # CRT estática /MT solo en el launcher (spec §14: "/MT solo en el launcher").
     target_compile_options(BroadcastAppliance PRIVATE /MT)

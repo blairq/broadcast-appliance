@@ -24,11 +24,14 @@
 #   para la autoverificación de integridad.
 #
 # USO
-#   tools/deploy [--strict] [bundle_dir]
+#   tools/deploy [--strict] [--solo-manifest] [bundle_dir]
 #
 #     --strict     Si alguna fuente de terceros está SIN configurar, termina
 #                  con exit 1 (en vez de saltarla y seguir). Útil en CI para
 #                  asegurar que el bundle quedó completo.
+#     --solo-manifest  No copia nada: solo escribe manifest.json sobre un
+#                  bundle ya armado. Es lo que usa Linux, donde el build no
+#                  necesita runtimes de terceros.
 #     bundle_dir   Raíz del bundle a completar. Default: `release`.
 #                  Si no existe, se crea (el esqueleto puede ser vacío).
 #
@@ -88,12 +91,16 @@ sha256_of() {
 
 # --- Parseo de argumentos ---------------------------------------------------
 STRICT=0
+ONLY_MANIFEST=0
 BUNDLE_DIR="release"
 
 for arg in "$@"; do
   case "$arg" in
     --strict)
       STRICT=1
+      ;;
+    --solo-manifest)
+      ONLY_MANIFEST=1
       ;;
     -h|--help)
       usage
@@ -171,6 +178,11 @@ sign_file() {
 B_BIN64="$BUNDLE_DIR/bin/64bit"
 B_PLUGINS="$BUNDLE_DIR/obs-plugins/64bit"
 B_LIBOBS="$BUNDLE_DIR/data/libobs"
+
+# Con --solo-manifest no se copia nada: el bundle ya esta armado (es lo que
+# pasa en Linux, donde el build no necesita runtimes de terceros) y lo unico
+# que falta es el manifest para que el launcher tenga que verificar.
+if [ "$ONLY_MANIFEST" -eq 0 ]; then
 
 mkdir -p "$B_BIN64" "$B_PLUGINS" "$B_LIBOBS"
 
@@ -280,6 +292,8 @@ if [ -n "${BA_DEPLOY_SIGN_CMD:-}" ]; then
   log "firma: OK"
 fi
 
+fi # --- fin del bloque de copiado (ver --solo-manifest) ---------------------
+
 # ============================================================================
 # 6) MANIFEST.JSON  (raíz del bundle)
 # ============================================================================
@@ -307,7 +321,11 @@ json_escape() {
   printf '  "app": "%s",\n' "$APP_NAME"
   printf '  "version": "%s",\n' "$APP_VERSION"
   printf '  "generated_at": "%s",\n' "$GENERATED_AT"
-  printf '  "files": {\n'
+  # Lista de objetos {path, sha256}: es el formato que lee el launcher
+  # (src/launcher/Integrity.cpp busca esas dos claves). Con un objeto
+  # ruta->hash el parser no encontraba ninguna entrada y la verificacion
+  # pasaba siempre, con cero archivos revisados.
+  printf '  "files": [\n'
 
   first=1
   # Recorre el árbol (sin seguir symlink a directorios), ordena por ruta
@@ -318,20 +336,27 @@ json_escape() {
     [ -f "$abs" ] || continue
     # Nunca se incluye a sí mismo.
     [ "$rel" = "manifest.json" ] && continue
+    # Solo lo que NO cambia al usar el programa. Si entraran la configuración,
+    # los registros o las grabaciones, el launcher avisaría de "integridad
+    # rota" en cada arranque después del primero, que es la mejor manera de
+    # que el operador aprenda a ignorar el aviso.
+    case "$rel" in
+      Config/*|Logs/*|Recordings/*|Runtime/*|Credenciales/*|Eventos/*) continue ;;
+    esac
     hash="$(sha256_of "$abs")"
     if [ "$first" -eq 1 ]; then
       first=0
     else
       printf ',\n'
     fi
-    printf '    "%s": "%s"' "$(json_escape "$rel")" "$hash"
+    printf '    {"path": "%s", "sha256": "%s"}' "$(json_escape "$rel")" "$hash"
   done < <(
     ( cd "$BUNDLE_DIR" && find . -type f -print0 ) \
       | sed -z 's|^\./||' \
       | sort -z
   )
 
-  printf '\n  }\n'
+  printf '\n  ]\n'
   printf '}\n'
 } > "$MANIFEST"
 

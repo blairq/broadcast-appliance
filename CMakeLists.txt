@@ -285,6 +285,21 @@ install(DIRECTORY
 # Lo primero que ve quien descomprime el bundle: instrucciones y licencia.
 install(FILES packaging/bundle/LEEME.txt LICENSE DESTINATION . COMPONENT bundle)
 
+# El ícono viaja con el bundle: en Windows ya esta dentro del .exe, pero en
+# Linux lo necesita el acceso directo, que se arma en la maquina donde se
+# enchufa el disco (la ruta cambia en cada una, asi que no puede venir hecho).
+install(FILES
+    assets/icons/broadcast-appliance.png
+    assets/icons/broadcast-appliance.svg
+    assets/icons/broadcast-appliance.ico
+    DESTINATION Recursos COMPONENT bundle
+)
+if(NOT WIN32)
+    install(PROGRAMS packaging/bundle/crear-acceso-directo.sh
+        DESTINATION . COMPONENT bundle
+    )
+endif()
+
 # --- Runtime de libobs dentro del bundle (portable) -------------------------
 # El bundle tiene que correr en una maquina SIN nada instalado (README, "el
 # build es self-contained"). Para eso se lleva su propia libobs, su modulo

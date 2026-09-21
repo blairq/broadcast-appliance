@@ -164,6 +164,9 @@ release:
 	cmake --install $(BUILD_DIR) --prefix release --component bundle
 	@# Linux: el bundle no puede depender de bibliotecas de terceros del sistema.
 	@if [ "$$(uname -s)" = Linux ]; then tools/deps/check-portable.sh release; fi
+	@# Sin manifest el launcher verifica cero archivos y la comprobacion de
+	@# integridad no sirve de nada. Solo lo que no cambia al usar el programa.
+	tools/deploy --solo-manifest release
 
 # --- Windows x64 desde Linux (ABI MSVC: clang-cl + lld-link) ---------------
 # `make win` baja TODO lo necesario (idempotente, con hash) y compila el bundle
