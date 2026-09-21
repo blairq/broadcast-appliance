@@ -75,7 +75,7 @@ ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, QObject* parent)
           QStringList{"uid", "name", "connected", "joinedMs", "lobbySlot", "talk", "info", "contact"})),
       inside_(std::make_unique<JsonListModel>(QStringList{"uid", "name", "slot", "connected", "mediaUp",
                                                           "mic", "cam", "screen", "hand", "admittedMs",
-                                                          "presenter", "speaker"})),
+                                                          "presenter", "speaker", "info", "contact"})),
       shares_(std::make_unique<JsonListModel>(
           QStringList{"uid", "name", "kind", "mime", "bytes", "participantName", "path", "atMs", "url"})),
       chat_(std::make_unique<JsonListModel>(
@@ -213,6 +213,16 @@ void ConferenceViewModel::speakerTime(const QString& id, int sec) {
     if (sec > 0) participantAction(id, "time", QJsonObject{{"sec", sec}});
 }
 void ConferenceViewModel::speakerRequeue(const QString& id) { participantAction(id, "requeue"); }
+QString ConferenceViewModel::photoOf(const QString& idOrName) const {
+    if (avatars_.contains(idOrName)) return avatars_.value(idOrName);
+    for (const QJsonValue& v : client_->snapshot().value("participants").toArray()) {
+        const QJsonObject p = v.toObject();
+        if (p.value("name").toString().compare(idOrName, Qt::CaseInsensitive) == 0)
+            return avatars_.value(p.value("id").toString());
+    }
+    return {};
+}
+
 void ConferenceViewModel::setAutoIntake(bool on) {
     if (autoIntake_ == on) return;
     autoIntake_ = on;

@@ -159,6 +159,17 @@ Item {
                 }
             }
 
+            // Imagen adjunta (p. ej. la foto de quien espera en el lobby).
+            Image {
+                Layout.alignment: Qt.AlignHCenter
+                Layout.preferredWidth: Math.min(260, implicitWidth)
+                Layout.preferredHeight: Layout.preferredWidth * (implicitHeight > 0 ? implicitHeight / implicitWidth : 0.5625)
+                visible: !!bar.cur && bar.cur.image !== ""
+                source: bar.cur && bar.cur.image !== "" ? bar.cur.image : ""
+                fillMode: Image.PreserveAspectFit
+                asynchronous: true
+            }
+
             // Respuestas sugeridas para el invitado
             ColumnLayout {
                 Layout.fillWidth: true

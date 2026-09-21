@@ -67,6 +67,7 @@ int OperatorMessages::post(const json& spec) {
            {"priority", prio},
            {"options", spec.value("options", json::array())},
            {"allowText", spec.value("allowText", kind == "question" && !spec.contains("options"))},
+           {"image", spec.value("image", "")}, // data: URL (p. ej. una captura)
            {"participantId", spec.value("participantId", "")},
            {"participantName", spec.value("participantName", "")},
            {"to", spec.value("to", "")},

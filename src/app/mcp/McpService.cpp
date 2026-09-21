@@ -219,8 +219,9 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
                  "quiere que se lea en pantalla, su cargo o de qué va a hablar, cómo quiere que la presenten "
                  "al aire, y un teléfono o correo de contacto por si se corta. Leé sus respuestas con "
                  "`chat_history`. A medida que las tengas, completá su ficha con `participant_profile`. "
-                 "Cuando estén los cuatro datos, sacale una foto con `capture_person` y mostrámelos todos "
-                 "juntos con `operator_ask` (opciones: «Hacer pasar» y «Todavía no»), con la foto adjunta. "
+                 "Cuando estén los cuatro datos, mostrámelos todos juntos con `operator_ask` "
+                 "(opciones: «Hacer pasar» y «Todavía no») pasando `photoOf` con su nombre, asi la "
+                 "tarjeta lleva su foto. "
                  "Si contesto «Hacer pasar», admitila con `participant_admit`; si no, dejala esperando y "
                  "avisale con cortesía. Mientras dure esto no me preguntes nada más: manejate sola.");
         return {};

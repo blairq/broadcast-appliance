@@ -144,6 +144,9 @@ class ConferenceViewModel : public QObject {
     Q_INVOKABLE void speakerRequeue(const QString& id);
     /// Presentador fijo: se queda al aire mientras rotan los oradores.
     Q_INVOKABLE void setPresenter(const QString& id, bool on);
+    /// Ultima foto que mando la camara de esa persona (id o nombre), como
+    /// data: URL. Vacio si todavia no mando ninguna.
+    Q_INVOKABLE QString photoOf(const QString& idOrName) const;
     /// Atencion automatica: a cada persona que entra al lobby la atiende el
     /// asistente (le pide los datos y despues pregunta si la hacemos pasar).
     Q_INVOKABLE void setAutoIntake(bool on);
