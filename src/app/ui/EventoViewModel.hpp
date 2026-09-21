@@ -139,6 +139,10 @@ class EventoViewModel : public QObject {
     void anotar(const QString& texto, const QString& tipo);
     void marcarSucio();
     evento::Cue* cuePtr(int bloque, int cue);
+    /// Ruta de un discurso, siempre DENTRO de la carpeta del evento: un
+    /// guion escrito por otro no puede hacer que el programa lea cualquier
+    /// archivo del disco.
+    QString discursoPath(const QString& rel) const;
     static QVariantMap cueAMap(const evento::Cue& c, int bloque, int cue);
 
     AppRuntime& rt_;

@@ -7,9 +7,13 @@
 #include <chrono>
 
 #include <QDateTime>
+#include <QDir>
+#include <QFile>
+#include <QJsonObject>
 
 #include "AppRuntime.hpp"
 #include "BroadcastEngine.hpp"
+#include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
 
 namespace ba::app {
@@ -615,6 +619,21 @@ void EventoViewModel::parar() {
     emit relojChanged();
 }
 
+QString EventoViewModel::discursoPath(const QString& rel) const {
+    const QDir carpeta(QString::fromStdString(store_.carpetaDe(abierto_.toStdString()).string()));
+    // "Discursos/x.txt" y "x.txt" valen lo mismo: el operador escribe lo que
+    // le sale y las dos formas apuntan al mismo lado.
+    QString limpio = rel;
+    if (limpio.startsWith("Discursos/") || limpio.startsWith("Discursos\\"))
+        limpio = limpio.mid(10);
+    const QDir discursos(carpeta.filePath("Discursos"));
+    const QString abs = QDir::cleanPath(discursos.filePath(limpio));
+    // Fuera de Discursos/ no se lee nada: ".." en el guion no sirve para
+    // sacarle archivos al que lo abre.
+    if (!abs.startsWith(QDir::cleanPath(discursos.absolutePath()) + "/")) return {};
+    return abs;
+}
+
 void EventoViewModel::ejecutarActual() {
     const evento::Cue* c = guionCorriendo_ ? guionCorriendo_->cueActual() : nullptr;
     if (c == nullptr) return;
@@ -650,6 +669,32 @@ void EventoViewModel::ejecutarActual() {
             if (c->duracionSeg > 0) sala_->speakerTime(quien, c->duracionSeg);
             sala_->speakerOnAir(quien, true);
             anotar("Habla " + quien, "ok");
+            return;
+        }
+        case evento::Tipo::Teleprompter: {
+            // El texto vive en Discursos/ de la carpeta del evento, no pegado
+            // en la tablet: asi viaja con el evento y el asistente puede
+            // ayudar a escribirlo o acortarlo.
+            const QString rel = QString::fromStdString(c->datos.value("discurso", std::string()));
+            if (sala_ == nullptr || rel.isEmpty()) {
+                anotar("No se pudo cargar el discurso: no dice cuál", "error");
+                return;
+            }
+            const QString ruta = discursoPath(rel);
+            QFile f(ruta);
+            if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                anotar("No se pudo abrir el discurso: " + ruta, "error");
+                emit notify("No encontré el discurso \"" + rel + "\" en la carpeta del evento", "error");
+                return;
+            }
+            const QString texto = QString::fromUtf8(f.readAll());
+            QJsonObject cmd{{"titulo", titulo}, {"texto", texto}};
+            // `arrancar` en los datos del cue: por defecto el texto queda
+            // LISTO pero parado, que es lo que se quiere casi siempre (el
+            // orador todavia esta caminando hacia el atril).
+            if (c->datos.value("arrancar", false)) cmd["corriendo"] = true;
+            sala_->client().post("/api/v1/prompter", cmd);
+            anotar("Teleprompter: " + rel, "ok");
             return;
         }
         case evento::Tipo::Espera:
