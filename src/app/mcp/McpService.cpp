@@ -419,7 +419,7 @@ void McpService::registerTools() {
             "pestaña Escenas: no cambian nada de la emision.";
         t.run = [&rt](const json&, Done done) {
             json scenes = json::array();
-            for (const std::string& n : rt.engine().sceneNames()) {
+            for (const std::string& n : rt.orderedSceneNames()) {
                 scenes.push_back(json{{"name", n},
                                       {"live", n == rt.engine().currentScene()},
                                       {"folder", rt.sceneFolder(n)},
@@ -452,6 +452,27 @@ void McpService::registerTools() {
             done(ToolResult().data(json{{"scene", a.value("scene", "")},
                                         {"folder", a.value("folder", "")},
                                         {"folders", rt.sceneFolders()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "scene_move";
+        t.title = "Reordenar una escena";
+        t.category = "escenas";
+        t.description =
+            "QUE ES: cambia el ORDEN de la lista de escenas (y de paso la carpeta). PARA QUE: dejar las "
+            "escenas en el orden del programa. COMO SE USA: `before` es la escena delante de la cual "
+            "queda (vacio = al final); ademas hereda su carpeta. No cambia nada de la emision. El orden "
+            "que informa `scene_list` es el que ve el operador.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"scene", {{"type", "string"}}}, {"before", {{"type", "string"}}}}},
+                         {"required", {"scene"}}};
+        t.run = [&rt](const json& a, Done done) {
+            if (!rt.moveScene(a.value("scene", ""), a.value("before", "")))
+                return done(ToolResult::error(rt.lastError()));
+            rt.save();
+            done(ToolResult().data(json{{"orden", rt.orderedSceneNames()}}));
         };
         core_.addTool(std::move(t));
     }

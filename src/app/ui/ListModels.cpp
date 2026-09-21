@@ -46,7 +46,7 @@ QHash<int, QByteArray> ScenesModel::roleNames() const {
 
 void ScenesModel::reload() {
     beginResetModel();
-    names_ = rt_.engine().sceneNames();
+    names_ = rt_.orderedSceneNames();
     endResetModel();
 }
 

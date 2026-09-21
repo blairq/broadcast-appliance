@@ -568,6 +568,36 @@ std::vector<std::string> AppRuntime::sceneFolders() const {
     return out;
 }
 
+std::vector<std::string> AppRuntime::orderedSceneNames() const {
+    const std::vector<std::string> live = const_cast<AppRuntime*>(this)->engine_.sceneNames();
+    std::vector<std::string> out;
+    for (const auto& sc : cfg_.scenes)
+        if (std::find(live.begin(), live.end(), sc.name) != live.end()) out.push_back(sc.name);
+    for (const auto& n : live)
+        if (std::find(out.begin(), out.end(), n) == out.end()) out.push_back(n);
+    return out;
+}
+
+bool AppRuntime::moveScene(const std::string& name, const std::string& before) {
+    if (name == before) return true;
+    const auto it = std::find_if(cfg_.scenes.begin(), cfg_.scenes.end(),
+                                 [&](const SceneConfig& s) { return s.name == name; });
+    if (it == cfg_.scenes.end()) {
+        lastError_ = "no existe la escena '" + name + "'";
+        return false;
+    }
+    SceneConfig moved = *it;
+    cfg_.scenes.erase(it);
+    auto dst = cfg_.scenes.end();
+    if (!before.empty()) {
+        dst = std::find_if(cfg_.scenes.begin(), cfg_.scenes.end(),
+                           [&](const SceneConfig& s) { return s.name == before; });
+        if (dst != cfg_.scenes.end()) moved.folder = dst->folder; // cae en su misma carpeta
+    }
+    cfg_.scenes.insert(dst, std::move(moved));
+    return true;
+}
+
 bool AppRuntime::setScene(const std::string& name) {
     if (!engine_.setCurrentScene(name)) {
         lastError_ = engine_.lastError();

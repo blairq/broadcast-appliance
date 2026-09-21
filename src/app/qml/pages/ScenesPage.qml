@@ -172,6 +172,24 @@ Rectangle {
                                     }
                                 }
                             }
+                            // Soltar una escena encima de esta la deja justo antes
+                            // (y en la misma carpeta): asi se reordena a mano.
+                            DropArea {
+                                id: dropRow
+                                anchors.fill: parent
+                                onDropped: (ev) => {
+                                    if (ev.source && ev.source.escena !== undefined)
+                                        Studio.moveScene(ev.source.escena, parent.name)
+                                }
+                            }
+                            // Linea que marca donde va a caer.
+                            Rectangle {
+                                anchors { left: parent.left; right: parent.right; top: parent.top }
+                                height: 3
+                                radius: 2
+                                visible: dropRow.containsDrag
+                                color: Theme.accent
+                            }
                             MouseArea {
                                 id: rowMa
                                 anchors.fill: parent; z: -1

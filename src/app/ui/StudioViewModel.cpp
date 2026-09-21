@@ -463,6 +463,16 @@ QStringList StudioViewModel::sceneFolders() const {
     return out;
 }
 
+void StudioViewModel::moveScene(const QString& name, const QString& before) {
+    if (!rt_.moveScene(name.toStdString(), before.toStdString())) {
+        emit notify(qs(rt_.lastError()), "error");
+        return;
+    }
+    scenes_->reload();
+    emit sceneChanged();
+    rt_.save();
+}
+
 void StudioViewModel::renameScene(const QString& from, const QString& to) {
     if (!rt_.renameScene(from.toStdString(), to.trimmed().toStdString())) {
         emit notify(qs(rt_.lastError()), "error");

@@ -71,6 +71,12 @@ class AppRuntime {
     bool setSceneFolder(const std::string& name, const std::string& folder);
     /// Carpetas que hay, en el orden en que aparecen las escenas.
     std::vector<std::string> sceneFolders() const;
+    /// Escenas en el orden en que las ve el operador (el de la configuracion;
+    /// las que solo existan en el motor van al final).
+    std::vector<std::string> orderedSceneNames() const;
+    /// Mueve `name` para que quede JUSTO ANTES de `before` (vacio = al final) y
+    /// le pone la carpeta de `before`. Devuelve false si no existe.
+    bool moveScene(const std::string& name, const std::string& before);
     bool setScene(const std::string& name);
     bool setTransition(const std::string& type, int durationMs);
     bool addSource(const std::string& scene, const SourceSpec& spec);
