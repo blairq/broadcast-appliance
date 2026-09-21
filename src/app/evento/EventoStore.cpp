@@ -85,11 +85,34 @@ std::vector<Ficha> EventoStore::listar() const {
         f.duracionSeg = e.duracionSeg();
         f.bloques = e.bloques.size();
         f.cues = e.cantidadDeCues();
+        const auto cuando = fs::last_write_time(d.path() / kGuion, ec);
+        if (!ec) {
+            f.modificadoTic = static_cast<std::int64_t>(cuando.time_since_epoch().count());
+            f.tieneFecha = true;
+        }
         fichas.push_back(std::move(f));
     }
     std::sort(fichas.begin(), fichas.end(),
               [](const Ficha& a, const Ficha& b) { return a.nombre < b.nombre; });
     return fichas;
+}
+
+std::string EventoStore::ultimoTocado() const {
+    std::string mejor;
+    std::int64_t masReciente = 0;
+    bool hay = false;
+    for (const Ficha& f : listar()) {
+        if (!f.tieneFecha) continue;
+        // Ojo con comparar contra cero o contra -1: estos tics son negativos
+        // en libstdc++ (ver Ficha::modificadoTic). El primero que aparece
+        // marca el piso.
+        if (!hay || f.modificadoTic > masReciente) {
+            masReciente = f.modificadoTic;
+            mejor = f.carpeta;
+            hay = true;
+        }
+    }
+    return mejor;
 }
 
 std::string EventoStore::crear(const std::string& nombre, std::string* err) {

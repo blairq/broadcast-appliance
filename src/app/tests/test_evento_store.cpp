@@ -9,6 +9,7 @@
 //   6. Borrar no se deja llevar fuera de Eventos/.
 // ============================================================================
 
+#include <chrono>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
@@ -137,6 +138,27 @@ void guion_danado() {
     CHECK(s.listar().empty(), "tampoco aparece en la lista como evento sano");
 }
 
+void ultimo_tocado() {
+    EventoStore s(carpetaDePrueba());
+    CHECK(s.ultimoTocado().empty(), "sin eventos no hay ultimo");
+
+    const std::string viejo = s.crear("Acto viejo");
+    // La fecha del archivo tiene la resolucion del sistema: se la fuerza para
+    // que la prueba no dependa de cuanto tarda en correr.
+    std::error_code ec;
+    const auto ahora = fs::last_write_time(s.carpetaDe(viejo) / "evento.json", ec);
+    const std::string nuevo = s.crear("Acto nuevo");
+    fs::last_write_time(s.carpetaDe(viejo) / "evento.json", ahora - std::chrono::hours(48), ec);
+
+    // Ojo: los tics del reloj de archivos son NEGATIVOS en libstdc++ (epoca
+    // 2174). Comparar contra cero o contra -1 hacia que no ganara ninguno y
+    // no se abriera nada.
+    CHECK(s.ultimoTocado() == nuevo, "el ultimo tocado es el que se guardo despues");
+
+    s.guardar(viejo, conUnBloque());
+    CHECK(s.ultimoTocado() == viejo, "guardar el otro lo pone primero");
+}
+
 void nombres() {
     CHECK(nombreDeCarpeta("Acto del 25 de mayo") == "Acto-del-25-de-mayo", "los espacios pasan a guiones");
     CHECK(nombreDeCarpeta("Con/barra\\y:dos*puntos") == "Conbarraydospuntos",
@@ -168,6 +190,7 @@ int main() {
     no_se_pisan();
     guardar_respalda();
     guion_danado();
+    ultimo_tocado();
     nombres();
     borrar_no_se_escapa();
     std::error_code ec;

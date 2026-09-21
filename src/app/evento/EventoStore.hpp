@@ -21,6 +21,7 @@
 // ============================================================================
 #pragma once
 
+#include <cstdint>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -37,6 +38,12 @@ struct Ficha {
     int duracionSeg = 0;
     std::size_t bloques = 0;
     std::size_t cues = 0;
+    /// Cuando se guardo por ultima vez, en los tics del reloj de archivos.
+    /// NO es una fecha: la epoca de ese reloj depende de la biblioteca (en
+    /// libstdc++ es el ano 2174, asi que hoy da NEGATIVO). Solo sirve para
+    /// ordenar entre archivos.
+    std::int64_t modificadoTic = 0;
+    bool tieneFecha = false; ///< false: no se pudo leer la fecha del archivo
 };
 
 /// Convierte un nombre cualquiera en algo que sirva de nombre de carpeta en
@@ -50,6 +57,10 @@ class EventoStore {
 
     const std::filesystem::path& raiz() const { return raiz_; }
     std::filesystem::path carpetaDe(const std::string& carpeta) const { return raiz_ / carpeta; }
+
+    /// El que se guardo mas recientemente: el que se estaba trabajando.
+    /// Vacio si no hay ninguno.
+    std::string ultimoTocado() const;
 
     /// Los eventos que hay, ordenados por nombre.
     std::vector<Ficha> listar() const;

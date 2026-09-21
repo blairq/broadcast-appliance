@@ -22,4 +22,7 @@ QtObject {
     readonly property int radiusSmall: 12
     readonly property int gap: 12
     readonly property string font: "Inter, Noto Sans, DejaVu Sans, Sans"
+    // Para numeros que se leen en columna (tiempos, relojes, contadores): con
+    // ancho fijo no bailan cuando cambian.
+    readonly property string mono: "JetBrains Mono, DejaVu Sans Mono, Consolas, Monospace"
 }

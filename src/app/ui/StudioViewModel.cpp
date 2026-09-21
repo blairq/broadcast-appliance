@@ -29,6 +29,7 @@
 #include "net/HttpsClient.hpp"
 #include "ui/ChatOverlayRenderer.hpp"
 #include "ui/ConferenceClient.hpp"
+#include "ui/EventoViewModel.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/DashboardModel.hpp"
 #include "ui/FacebookViewModel.hpp"
@@ -76,6 +77,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     conference_->setIntakeSink(
         [this](const QString& id, const QString& name) { return assistantIntake(id, name); });
     connect(conference_.get(), &ConferenceViewModel::notify, this, &StudioViewModel::notify);
+    // El guion del evento necesita la sala para los cues de orador.
+    evento_ = std::make_unique<EventoViewModel>(rt, conference_.get());
+    connect(evento_.get(), &EventoViewModel::notify, this, &StudioViewModel::notify);
     // HTTPS propio (plataformas): raices de certificados del bundle primero.
     net::HttpsClient::setDefaultCaSearch(
         {(rt.dataRoot() / "data" / "cacert.pem").string(),
@@ -390,6 +394,7 @@ QString StudioViewModel::saveAccountCredential(const QString& platform, const QV
 }
 QObject* StudioViewModel::inputs() const { return inputs_.get(); }
 QObject* StudioViewModel::conference() const { return conference_.get(); }
+QObject* StudioViewModel::evento() const { return evento_.get(); }
 
 void StudioViewModel::toggleRecording() {
     if (recording_) {

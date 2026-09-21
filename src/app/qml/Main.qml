@@ -121,6 +121,7 @@ ApplicationWindow {
         AssistantPage {}
         InputsPage {}
         AudioPage {}
+        EventoPage {}
     }
 
     // --- Ventanas de salida (una por entrada del modelo) ---------------------------
@@ -149,7 +150,7 @@ ApplicationWindow {
             Item { width: 1; height: 10 }
             Repeater {
                 // `page`: indice en el StackLayout (el orden del riel no es el de las paginas).
-                model: [ { icon: "⌂", tip: "Dashboard", page: 0 }, { icon: "▦", tip: "Escenas y fuentes", page: 1 }, { icon: "◉", tip: "Entradas de video (camaras, capturadoras, red)", page: 8 }, { icon: "🎚", tip: "Audio: patchbay de modulos LSP por fuente", page: 9 }, { icon: "☎", tip: "Sala (lobby, invitados, chat)", page: 2 }, { icon: "▶", tip: "YouTube (cuenta, videos, en vivo)", page: 3 }, { icon: "◆", tip: "Twitch (canal, vivo, chat)", page: 4 }, { icon: "f", tip: "Facebook (Paginas, vivos, videos)", page: 5 }, { icon: "⚙", tip: "Configuracion", page: 6 } ]
+                model: [ { icon: "⌂", tip: "Dashboard", page: 0 }, { icon: "▦", tip: "Escenas y fuentes", page: 1 }, { icon: "◉", tip: "Entradas de video (camaras, capturadoras, red)", page: 8 }, { icon: "🎚", tip: "Audio: patchbay de modulos LSP por fuente", page: 9 }, { icon: "☎", tip: "Sala (lobby, invitados, chat)", page: 2 }, { icon: "≣", tip: "Guion del evento: bloques, cues y tiempos", page: 10 }, { icon: "▶", tip: "YouTube (cuenta, videos, en vivo)", page: 3 }, { icon: "◆", tip: "Twitch (canal, vivo, chat)", page: 4 }, { icon: "f", tip: "Facebook (Paginas, vivos, videos)", page: 5 }, { icon: "⚙", tip: "Configuracion", page: 6 } ]
                 delegate: Rectangle {
                     required property var modelData
                                         width: 44; height: 44; radius: 22
