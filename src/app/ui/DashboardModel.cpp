@@ -16,8 +16,10 @@ namespace ba::app {
 
 namespace {
 
-constexpr double kGridX = 1.0 / 48.0; // grilla fina: 48 x 32
-constexpr double kGridY = 1.0 / 32.0;
+// Grilla de encaje: lo bastante gruesa como para que las tarjetas queden
+// alineadas entre si (y para dibujarla mientras se acomoda el tablero).
+constexpr double kGridX = 1.0 / 24.0; // 24 x 16
+constexpr double kGridY = 1.0 / 16.0;
 constexpr double kGapPx = 12.0;    // separacion entre tarjetas vecinas
 constexpr double kMagnetPx = 18.0; // distancia de "iman"
 constexpr double kMinW = 0.10;
@@ -275,6 +277,9 @@ void DashboardModel::setCardSource(int id, const QString& source) {
     emit dataChanged(index(row), index(row), {SourceRole});
     save();
 }
+
+int DashboardModel::gridCols() const { return static_cast<int>(std::lround(1.0 / kGridX)); }
+int DashboardModel::gridRows() const { return static_cast<int>(std::lround(1.0 / kGridY)); }
 
 QRectF DashboardModel::snap(int id, double x, double y, double w, double h, double aspect) const {
     // Separaciones en fracciones: el mismo numero de pixeles en X y en Y.

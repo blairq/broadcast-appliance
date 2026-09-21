@@ -127,6 +127,34 @@ Item {
         anchors { left: parent.left; right: parent.right; top: top.bottom; bottom: parent.bottom
                   leftMargin: page.leftInset; rightMargin: 12; topMargin: 8; bottomMargin: 12 }
 
+        // Grilla de encaje: solo mientras se mueve o redimensiona una tarjeta.
+        Canvas {
+            id: gridOverlay
+            anchors.fill: parent
+            visible: opacity > 0
+            opacity: snapGuide.visible ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: 140 } }
+            onWidthChanged: requestPaint()
+            onHeightChanged: requestPaint()
+            onPaint: {
+                const c = getContext("2d")
+                c.reset()
+                c.strokeStyle = Qt.rgba(1, 1, 1, 0.10)
+                c.lineWidth = 1
+                const cols = Studio.dashboard.gridCols, rows = Studio.dashboard.gridRows
+                c.beginPath()
+                for (let i = 1; i < cols; ++i) {
+                    const x = Math.round(width * i / cols) + 0.5
+                    c.moveTo(x, 0); c.lineTo(x, height)
+                }
+                for (let j = 1; j < rows; ++j) {
+                    const y = Math.round(height * j / rows) + 0.5
+                    c.moveTo(0, y); c.lineTo(width, y)
+                }
+                c.stroke()
+            }
+        }
+
         // Guia de encaje (se ve mientras se arrastra).
         Rectangle {
             id: snapGuide
