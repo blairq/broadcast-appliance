@@ -600,6 +600,7 @@ Rectangle {
                                             border.color: "white"; border.width: 1
                                         }
                                         Column {
+                                            z: 3
                                             visible: parent.info.canales === 2
                                             anchors.centerIn: parent
                                             spacing: 2 * page.chOff(nd.modelData.id) - page.chH(nd.modelData.id)
@@ -625,7 +626,7 @@ Rectangle {
                                                     MouseArea {
                                                         id: inChMa
                                                         anchors.fill: parent
-                                                        anchors.margins: -4
+                                                        anchors.margins: -3
                                                         hoverEnabled: true
                                                         acceptedButtons: Qt.NoButton
                                                     }
@@ -687,6 +688,10 @@ Rectangle {
                                             border.color: "white"; border.width: 1
                                         }
                                         Column {
+                                            // z por encima del area del puerto entero, que se declara
+                                            // despues: si no, se comia el hover y el clic de los puntos
+                                            // (no se podia agarrar el canal de abajo).
+                                            z: 3
                                             visible: op.info.canales === 2
                                             anchors.centerIn: parent
                                             spacing: 2 * page.chOff(nd.modelData.id) - page.chH(nd.modelData.id)
@@ -698,10 +703,17 @@ Rectangle {
                                                     width: page.chW(nd.modelData.id)
                                                     height: page.chH(nd.modelData.id)
                                                     radius: height / 2
-                                                    color: outChMa.containsMouse ? Qt.lighter("#86efac", 1.25) : "#86efac"
-                                                    border.color: outChMa.containsMouse ? Theme.accent : "white"
-                                                    border.width: outChMa.containsMouse ? 2 : 1
-                                                    scale: outChMa.containsMouse ? 1.12 : 1
+                                                    // Encendido con el mouse encima y mientras se
+                                                    // arrastra SU cable (ahi el hover no se actualiza:
+                                                    // el area tiene agarrado el mouse).
+                                                    readonly property bool lit: outChMa.containsMouse
+                                                        || (page.wire && page.wire.from === nd.modelData.id
+                                                            && page.wire.out === op.modelData
+                                                            && page.wire.ch === chDot.modelData)
+                                                    color: lit ? Qt.lighter("#86efac", 1.25) : "#86efac"
+                                                    border.color: lit ? Theme.accent : "white"
+                                                    border.width: lit ? 2 : 1
+                                                    scale: lit ? 1.12 : 1
                                                     Behavior on scale { NumberAnimation { duration: 90 } }
                                                     Text {
                                                         anchors.centerIn: parent
@@ -713,7 +725,9 @@ Rectangle {
                                                     MouseArea {
                                                         id: outChMa
                                                         anchors.fill: parent
-                                                        anchors.margins: -5
+                                                        // Chico a proposito: el hueco del medio sigue
+                                                        // siendo del puerto entero (los dos canales).
+                                                        anchors.margins: -3
                                                         cursorShape: Qt.CrossCursor
                                                         preventStealing: true
                                                         hoverEnabled: true
