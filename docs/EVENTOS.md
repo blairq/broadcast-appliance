@@ -173,6 +173,63 @@ el rack de audio:
 
 ---
 
+### 5.1 Calibrar el retardo solo (auto-tuning de labios y voz)
+
+Poner el retardo a mano es adivinar. Lo que queremos es **medirlo**, y hacerlo
+antes del evento (entra natural en la revisión previa del punto 1.4).
+
+**El problema.** Una cámara IP llega con 200 ms a 2 s de retardo (codificación
++ red + buffer), mientras que el micrófono por la placa de audio llega en 10 a
+50 ms. Resultado: se escucha antes de que se vean los labios. Hay que **atrasar
+el audio** hasta que coincida — y el número depende de cada cámara, de la red y
+hasta del día.
+
+**Cómo medirlo: el aplauso.** Es el método del claquetazo de toda la vida, pero
+automático:
+
+1. El sistema le pide a alguien que se pare frente a la cámara y aplauda una
+   vez (el asistente puede guiarlo por chat, o sale en pantalla).
+2. En el audio se detecta el **transitorio**: un salto de nivel muy corto y
+   muy por encima del piso de ruido. Eso ya lo puede ver el analizador del rack.
+3. En el video se detecta el **cambio brusco**: diferencia entre cuadros
+   consecutivos, que salta cuando las manos se juntan.
+4. El retardo es la diferencia entre los dos instantes.
+5. Se repite 5 veces y se toma la **mediana**, que es lo que aguanta un
+   aplauso mal detectado.
+
+Después, un ajuste fino a mano con vista previa en vivo, porque el ojo humano
+es el juez final.
+
+**Cómo aplicarlo.** Hay dos caminos y conviene tener los dos:
+
+- `obs_source_set_sync_offset()` de libobs: retardo por fuente, en nanosegundos
+  y con signo. Es el mecanismo estándar y sirve también cuando el audio llega
+  **después** del video.
+- Un módulo de retardo en el rack (LSP trae `comp_delay_stereo`, pensado justo
+  para esto): útil cuando además querés procesar ese audio.
+
+**Dónde vive el número.** Con la cámara de público y su micrófono, en la
+configuración del evento: cada par guarda su retardo medido, cuándo se midió y
+con qué dispersión. Si la dispersión entre aplausos es alta, el sistema lo
+avisa en vez de dar un número que no es.
+
+**Cuándo se corre:**
+
+- En la revisión previa del ensayo, para cada par cámara + micrófono.
+- A pedido, con un botón «Medir de nuevo» (cámara reiniciada, red cambiada).
+- Aviso si el retardo medido se aleja mucho del guardado.
+
+**Lo que hay que mirar con honestidad:**
+
+- Las cámaras IP tienen **jitter**: el retardo no es una constante. La mediana
+  sirve, pero si la dispersión es grande hay que decirlo y no fingir precisión.
+- Con RTSP existe un camino más exacto (los informes RTCP traen marcas de
+  tiempo NTP), pero depende de que la cámara tenga la hora sincronizada. Vale
+  como mejora posterior, no como base.
+- Medir sin aplauso, correlacionando el movimiento de la boca con la envolvente
+  de la voz, es posible pero mucho más ruidoso. Primero el aplauso, que es
+  simple y se entiende.
+
 ## 6. Música y videos del evento
 
 - **Biblioteca del evento**: los temas y videos quedan en `Medios/` de la
@@ -252,7 +309,8 @@ Cada punto de acá es entregable por sí solo:
 2. **Revisión previa y ensayo**, que es lo que evita los problemas del día.
 3. **Teleprompter** (app web + control desde el celular + texto en el sistema).
 4. **Vista del orador** en la app del invitado (texto, orden, cara del remoto).
-5. **Cámaras de público** con su audio y el retardo.
+5. **Cámaras de público** con su audio y el **retardo medido solo** (5.1): es
+   de lo que más se nota y hoy se hace a ojo.
 6. **Cliente**: chat abierto, sin preguntas si está el asistente,
    personalización.
 7. **Herramientas del asistente** (descarga de música y video).
