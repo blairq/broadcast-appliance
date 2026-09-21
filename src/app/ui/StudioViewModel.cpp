@@ -277,6 +277,13 @@ void StudioViewModel::onTick() {
     }
     recording_ = st.recording;
     streaming_ = st.streaming;
+    // Avisar UNA vez por problema, no en cada vuelta del reloj.
+    if (st.reconnecting && !reconnecting_)
+        emit notify("Se cortó la transmisión: reconectando… (" + qs(st.outputProblem) + ")", "error");
+    else if (!st.reconnecting && reconnecting_ && st.streaming)
+        emit notify("Transmisión recuperada", "ok");
+    reconnecting_ = st.reconnecting;
+    outputProblem_ = qs(st.outputProblem);
     fps_ = st.fps;
     encoder_ = qs(st.videoEncoder);
     dropped_ = st.droppedFrames;

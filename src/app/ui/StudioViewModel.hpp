@@ -57,6 +57,10 @@ class StudioViewModel : public QObject {
     // --- Estado ---------------------------------------------------------------
     Q_PROPERTY(bool recording READ recording NOTIFY statusChanged)
     Q_PROPERTY(bool streaming READ streaming NOTIFY statusChanged)
+    /// La transmision se corto y se esta reintentando.
+    Q_PROPERTY(bool reconnecting READ reconnecting NOTIFY statusChanged)
+    /// Por que se corto, en castellano. Vacio si no hubo problema.
+    Q_PROPERTY(QString outputProblem READ outputProblem NOTIFY statusChanged)
     Q_PROPERTY(QString recordTime READ recordTime NOTIFY statusChanged)
     Q_PROPERTY(QString streamTime READ streamTime NOTIFY statusChanged)
     Q_PROPERTY(double fps READ fps NOTIFY statusChanged)
@@ -105,6 +109,8 @@ class StudioViewModel : public QObject {
 
     bool recording() const { return recording_; }
     bool streaming() const { return streaming_; }
+    bool reconnecting() const { return reconnecting_; }
+    QString outputProblem() const { return outputProblem_; }
     QString recordTime() const;
     QString streamTime() const;
     double fps() const { return fps_; }
@@ -232,6 +238,8 @@ class StudioViewModel : public QObject {
 
     bool recording_ = false;
     bool streaming_ = false;
+    bool reconnecting_ = false;
+    QString outputProblem_;
     std::chrono::steady_clock::time_point recSince_{};
     std::chrono::steady_clock::time_point streamSince_{};
     double fps_ = 0;

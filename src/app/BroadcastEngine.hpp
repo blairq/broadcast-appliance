@@ -58,6 +58,7 @@ struct obs_source;
 struct obs_scene_item;
 struct video_data;
 struct audio_data;
+struct calldata;
 
 namespace ba::app {
 
@@ -155,6 +156,14 @@ struct EngineStatus {
     std::uint64_t bytesSent = 0;
     std::string videoEncoder; ///< id de libobs del codificador en uso ("" si ninguno)
     std::string lastError;
+    /// Se corto la transmision y libobs esta reintentando. Mientras esto es
+    /// true, `streaming` puede seguir en true: para libobs la salida sigue
+    /// activa, pero no esta llegando nada.
+    bool reconnecting = false;
+    /// En castellano y con la CAUSA: "Se cortó la conexión con el servidor",
+    /// "El servidor rechazó la clave"... Vacio si no hubo ningun problema.
+    /// Es lo que el operador necesita para saber si esperar o hacer algo.
+    std::string outputProblem;
 };
 
 /// Motor de emision sobre libobs. Ver el header.
@@ -556,6 +565,16 @@ class BroadcastEngine {
     std::vector<std::string> encoderCandidates_;
     std::size_t encoderIndex_ = 0;
     std::string videoEncoderId_;
+    /// Estado de la salida de transmision, escrito desde los callbacks de
+    /// libobs (que llegan en CUALQUIER hilo) y leido desde el de control.
+    mutable std::mutex outputStateLock_;
+    bool reconnecting_ = false;
+    std::string outputProblem_;
+    /// Engancha "reconnect", "reconnect_success" y "stop" de una salida.
+    void watchOutput(obs_output* out);
+    static void onOutputReconnect(void* data, ::calldata* cd);
+    static void onOutputReconnected(void* data, ::calldata* cd);
+    static void onOutputStopped(void* data, ::calldata* cd);
 
     // Canales IPC hacia el Proceso B (el lado PRODUCTOR).
     ba::ipc::SharedAudioRing returnAudio_;

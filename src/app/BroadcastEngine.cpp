@@ -771,6 +771,7 @@ bool BroadcastEngine::startStreaming(const StreamConfig& stream, const EncoderCo
         obs_output_release(reinterpret_cast<obs_output_t*>(streamOutput_));
     }
     streamOutput_ = reinterpret_cast<obs_output*>(out);
+    watchOutput(streamOutput_);
     return true;
 }
 
@@ -842,6 +843,67 @@ void BroadcastEngine::stopRecording() {
 // Estado
 // ============================================================================
 
+// --- Estado de la salida: por que se corto ----------------------------------
+// libobs avisa por señales, en el hilo que se le ocurra. Aca solo se anota que
+// paso, en castellano y con la causa: el operador necesita saber si esperar
+// (se cayo la red y esta reintentando) o hacer algo (la clave es incorrecta).
+
+namespace {
+
+/// Codigos de obs_output (OBS_OUTPUT_*) en palabras que sirvan.
+const char* motivoDeCorte(int code) {
+    switch (code) {
+        case 0: return ""; // OBS_OUTPUT_SUCCESS: cierre normal
+        case -1: return "No se pudo escribir en el destino (ruta o permisos)";
+        case -2: return "No se pudo conectar con el servidor";
+        case -3: return "El servidor rechazó la transmisión (¿la clave es correcta?)";
+        case -4: return "Error en la salida";
+        case -5: return "Se cortó la conexión con el servidor";
+        case -6: return "El servidor no soporta este formato";
+        case -7: return "No queda espacio en el disco";
+        case -8: return "El codificador falló";
+        default: return "La transmisión se cortó";
+    }
+}
+
+} // namespace
+
+void BroadcastEngine::onOutputReconnect(void* data, ::calldata* /*cd*/) {
+    auto* self = static_cast<BroadcastEngine*>(data);
+    std::lock_guard<std::mutex> lock(self->outputStateLock_);
+    self->reconnecting_ = true;
+    if (self->outputProblem_.empty()) self->outputProblem_ = "Se cortó la conexión con el servidor";
+}
+
+void BroadcastEngine::onOutputReconnected(void* data, ::calldata* /*cd*/) {
+    auto* self = static_cast<BroadcastEngine*>(data);
+    std::lock_guard<std::mutex> lock(self->outputStateLock_);
+    self->reconnecting_ = false;
+    self->outputProblem_.clear();
+}
+
+void BroadcastEngine::onOutputStopped(void* data, ::calldata* cd) {
+    auto* self = static_cast<BroadcastEngine*>(data);
+    const long long code = calldata_int(cd, "code");
+    std::lock_guard<std::mutex> lock(self->outputStateLock_);
+    self->reconnecting_ = false;
+    self->outputProblem_ = motivoDeCorte(static_cast<int>(code));
+}
+
+void BroadcastEngine::watchOutput(obs_output* outRaw) {
+    auto* out = reinterpret_cast<obs_output_t*>(outRaw);
+    if (out == nullptr) return;
+    signal_handler_t* sh = obs_output_get_signal_handler(out);
+    if (sh == nullptr) return;
+    signal_handler_connect(sh, "reconnect", &BroadcastEngine::onOutputReconnect, this);
+    signal_handler_connect(sh, "reconnect_success", &BroadcastEngine::onOutputReconnected, this);
+    signal_handler_connect(sh, "stop", &BroadcastEngine::onOutputStopped, this);
+    // Arrancar limpia lo que hubiera quedado del intento anterior.
+    std::lock_guard<std::mutex> lock(outputStateLock_);
+    reconnecting_ = false;
+    outputProblem_.clear();
+}
+
 EngineStatus BroadcastEngine::status() const {
     EngineStatus st;
     st.lastError = lastError_;
@@ -863,6 +925,11 @@ EngineStatus BroadcastEngine::status() const {
     auto* record = reinterpret_cast<obs_output_t*>(recordOutput_);
     if (record != nullptr) {
         st.recording = obs_output_active(record);
+    }
+    {
+        std::lock_guard<std::mutex> lock(outputStateLock_);
+        st.reconnecting = reconnecting_;
+        st.outputProblem = outputProblem_;
     }
     return st;
 }

@@ -273,7 +273,19 @@ ApplicationWindow {
         Row {
             id: airState
             spacing: 8
-            StatusPill { height: 16; text: Studio.streaming ? "AL AIRE  " + Studio.streamTime : "FUERA DEL AIRE"; dot: Theme.live; on: Studio.streaming; pulse: true }
+            // Reconectando gana sobre "al aire": para libobs la salida sigue
+            // activa, pero no esta llegando nada y el operador tiene que saberlo.
+            StatusPill {
+                height: 16
+                text: Studio.reconnecting ? "RECONECTANDO"
+                      : Studio.streaming ? "AL AIRE  " + Studio.streamTime : "FUERA DEL AIRE"
+                dot: Studio.reconnecting ? Theme.amber : Theme.live
+                on: Studio.streaming || Studio.reconnecting
+                pulse: true
+                ToolTip.visible: pillMa.containsMouse && Studio.outputProblem !== ""
+                ToolTip.text: Studio.outputProblem
+                MouseArea { id: pillMa; anchors.fill: parent; hoverEnabled: true }
+            }
             StatusPill { height: 16; visible: Studio.recording; text: "REC  " + Studio.recordTime; dot: Theme.accent; pulse: true }
         }
         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: win.page = 0 }
