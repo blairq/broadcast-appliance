@@ -22,6 +22,7 @@ Rectangle {
     required property string avatar     // data: URL o vacio
     required property int backstageSlot // preview en vivo de la fila (0 = sin lugar)
     required property int index
+    required property bool presenter
     /// Reloj de la sala (ms), lo actualiza la pagina.
     property double now: Date.now()
     signal edit()
@@ -117,6 +118,15 @@ Rectangle {
                 onClicked: card.conf.speakerOnAir(card.uid, !card.onAir)
             }
             GlassButton { visible: card.speaker === "done"; compact: true; text: "↺"; onClicked: card.conf.speakerRequeue(card.uid) }
+            // Ascenderlo a presentador: se queda al aire mientras rotan los demas.
+            GlassButton {
+                compact: true; text: "★"
+                active: card.presenter; activeColor: "#a78bfa"
+                onClicked: card.conf.setPresenter(card.uid, !card.presenter)
+                ToolTip.visible: hovered; ToolTip.delay: 400
+                ToolTip.text: card.presenter ? "Dejar de ser presentador"
+                                             : "Hacerlo presentador: se queda al aire mientras rotan los oradores"
+            }
             GlassButton { compact: true; text: "✎"; onClicked: card.edit() }
         }
     }

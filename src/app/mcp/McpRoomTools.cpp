@@ -687,6 +687,49 @@ void McpService::registerRoomTools() {
     }
     {
         Tool t;
+        t.name = "speaker_queue";
+        t.title = "Mandar a la fila de oradores";
+        t.category = "oradores";
+        t.description =
+            "QUE ES: pone en la FILA de oradores a alguien que ya esta en la sala (o devuelve a la fila a "
+            "quien ya hablo). PARA QUE: en modo oradores todos siguen en la sala y la fila es solo el "
+            "orden en que se los saca al aire. COMO SE USA: `participant` (nombre o id). Sale del aire "
+            "hasta que le toque; `speaker_on_air` o `speaker_next` lo suben. Si era presentador, deja de "
+            "serlo.";
+        t.inputSchema = {
+            {"type", "object"}, {"properties", {{"participant", personProp}}}, {"required", {"participant"}}};
+        t.run = [withPerson, partPath, post](const json& a, Done done) {
+            json p;
+            if (!withPerson(a, "participant", p, done)) return;
+            post(partPath(p, "requeue"), json::object(), "A la fila de oradores.", done);
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "speaker_presenter";
+        t.title = "Presentador fijo";
+        t.category = "oradores";
+        t.description =
+            "QUE ES: marca a una persona como PRESENTADOR: se queda al aire con su propio lugar mientras "
+            "los oradores rotan a su lado. PARA QUE: un conductor remoto fijo con invitados que entran y "
+            "salen. COMO SE USA: `participant` (nombre o id) y `on` (true/false). Hay uno solo a la vez; "
+            "no entra en la fila y la rotacion no lo saca. Con `on=false` deja de serlo y sale del aire "
+            "(despues se lo puede mandar a la fila con `speaker_queue`).";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"participant", personProp}, {"on", {{"type", "boolean"}}}}},
+                         {"required", {"participant"}}};
+        t.run = [withPerson, partPath, post](const json& a, Done done) {
+            json p;
+            if (!withPerson(a, "participant", p, done)) return;
+            const bool on = a.value("on", true);
+            post(partPath(p, "presenter"), json{{"on", on}},
+                 on ? "Presentador fijo." : "Ya no es presentador.", done);
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "speaker_time";
         t.title = "Tiempo de un orador";
         t.category = "oradores";

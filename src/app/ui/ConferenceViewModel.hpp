@@ -136,7 +136,10 @@ class ConferenceViewModel : public QObject {
     /// Lugar en la fila (0 = primero).
     Q_INVOKABLE void speakerMove(const QString& id, int index);
     Q_INVOKABLE void speakerTime(const QString& id, int sec);
+    /// Mete a alguien de la sala a la fila de oradores (o lo devuelve a ella).
     Q_INVOKABLE void speakerRequeue(const QString& id);
+    /// Presentador fijo: se queda al aire mientras rotan los oradores.
+    Q_INVOKABLE void setPresenter(const QString& id, bool on);
     Q_INVOKABLE void setProfile(const QString& id, const QString& name, const QString& info,
                                 const QString& contact);
     /// "m:ss", "m" (minutos) o "Ns" -> segundos (0 = invalido).

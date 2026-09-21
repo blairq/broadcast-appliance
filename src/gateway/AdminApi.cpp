@@ -33,6 +33,7 @@
 //   POST   /api/v1/participants/<id>/move      {index}  lugar en la fila (0 = primero)
 //   POST   /api/v1/participants/<id>/time      {sec}  tiempo propio para hablar
 //   POST   /api/v1/participants/<id>/requeue   vuelve al final de la fila
+//   POST   /api/v1/participants/<id>/presenter  {on} presentador fijo
 //   POST   /api/v1/participants/<id>/profile   {name?, info?, contact?}
 //   GET    /api/v1/participants/<id>/avatar    foto de la tarjeta (JPEG)
 //   POST   /api/v1/speakers                {enabled?, defaultSec?, carousel?, graceSec?,
@@ -427,6 +428,8 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             sendRoomResult(fd, room_.setAllotted(id, req.value("sec", 0)));
         } else if (action == "requeue") {
             sendRoomResult(fd, room_.requeue(id));
+        } else if (action == "presenter") {
+            sendRoomResult(fd, room_.setPresenter(id, req.value("on", true), nowMsA()));
         } else if (action == "profile") {
             sendRoomResult(fd, room_.setProfile(id, req));
         } else {

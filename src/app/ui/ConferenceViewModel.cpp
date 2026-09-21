@@ -74,14 +74,15 @@ ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, QObject* parent)
       waiting_(std::make_unique<JsonListModel>(
           QStringList{"uid", "name", "connected", "joinedMs", "lobbySlot", "talk", "info", "contact"})),
       inside_(std::make_unique<JsonListModel>(QStringList{"uid", "name", "slot", "connected", "mediaUp",
-                                                          "mic", "cam", "screen", "hand", "admittedMs"})),
+                                                          "mic", "cam", "screen", "hand", "admittedMs",
+                                                          "presenter", "speaker"})),
       shares_(std::make_unique<JsonListModel>(
           QStringList{"uid", "name", "kind", "mime", "bytes", "participantName", "path", "atMs", "url"})),
       chat_(std::make_unique<JsonListModel>(
           QStringList{"uid", "fromId", "fromName", "to", "text", "atMs", "mine"})),
       speakers_(std::make_unique<JsonListModel>(
           QStringList{"uid", "name", "info", "contact", "speaker", "position", "allottedSec", "onAirSinceMs",
-                      "usedMs", "connected", "slot", "avatar", "backstageSlot"})) {
+                      "usedMs", "connected", "slot", "avatar", "backstageSlot", "presenter"})) {
     connect(client_.get(), &ConferenceClient::onlineChanged, this, [this]() { emit onlineChanged(); });
     connect(client_.get(), &ConferenceClient::snapshotChanged, this, &ConferenceViewModel::onSnapshot);
     connect(client_.get(), &ConferenceClient::chatReceived, this,
@@ -212,6 +213,9 @@ void ConferenceViewModel::speakerTime(const QString& id, int sec) {
     if (sec > 0) participantAction(id, "time", QJsonObject{{"sec", sec}});
 }
 void ConferenceViewModel::speakerRequeue(const QString& id) { participantAction(id, "requeue"); }
+void ConferenceViewModel::setPresenter(const QString& id, bool on) {
+    participantAction(id, "presenter", QJsonObject{{"on", on}});
+}
 void ConferenceViewModel::setProfile(const QString& id, const QString& name, const QString& info,
                                      const QString& contact) {
     participantAction(id, "profile", QJsonObject{{"name", name}, {"info", info}, {"contact", contact}});

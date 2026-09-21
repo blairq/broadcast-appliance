@@ -91,6 +91,9 @@ class Room {
         std::string contact;    ///< telefono/email: solo produccion (nunca otros invitados)
         bool hasAvatar = false; ///< mando al menos una foto de su camara
         // --- Modo oradores ---
+        /// Presentador: se queda al aire con su lugar propio mientras los
+        /// oradores rotan. No entra en la fila ni lo saca la rotacion.
+        bool presenter = false;
         Speaker speaker = Speaker::None;
         int allottedSec = 0;      ///< tiempo asignado
         int64_t onAirSinceMs = 0; ///< al aire desde (0 = no esta al aire)
@@ -204,8 +207,12 @@ class Room {
     /// Mueve al orador a la posicion `index` (0 = primero) de la fila.
     int moveSpeaker(const std::string& id, int index);
     int setAllotted(const std::string& id, int sec);
-    /// "Ya hablo" -> otra vez a la fila (al final).
+    /// "Ya hablo" -> otra vez a la fila (al final). Tambien sirve para meter a
+    /// la fila a alguien que ya estaba en la sala.
     int requeue(const std::string& id);
+    /// Presentador fijo: queda al aire con su propio lugar mientras rotan los
+    /// oradores. `on=false` lo saca del aire y vuelve a ser uno mas de la sala.
+    int setPresenter(const std::string& id, bool on, int64_t nowMs);
     /// Ficha: campos presentes en `fields` (name, info, contact).
     int setProfile(const std::string& id, const nlohmann::json& fields);
     void setHasAvatar(const std::string& id);

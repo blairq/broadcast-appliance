@@ -131,7 +131,7 @@ Rectangle {
                     Text {
                         anchors.centerIn: parent
                         visible: spkList.count === 0
-                        text: "Nadie en la fila. Admití gente del lobby: entra a la fila con el tiempo general."
+                        text: "Nadie en la fila. Admití gente del lobby, o usá «→ Oradores» en alguien que ya esté en la sala."
                         color: Theme.textFaint; font.pixelSize: 13
                     }
                 }
@@ -270,6 +270,8 @@ Rectangle {
                             required property bool cam
                             required property bool screen
                             required property bool hand
+                            required property bool presenter
+                            required property string speaker
                             width: grid.cellWidth
                             height: grid.cellHeight
                             Rectangle {
@@ -277,8 +279,8 @@ Rectangle {
                                 radius: 16
                                 color: "#000000"
                                 clip: true
-                                border.color: hand ? Theme.amber : Theme.glassBorder
-                                border.width: hand ? 2 : 1
+                                border.color: presenter ? "#a78bfa" : hand ? Theme.amber : Theme.glassBorder
+                                border.width: presenter || hand ? 2 : 1
                                 // El video que B publica para ese slot (lo mismo que ve el motor).
                                 VideoItem { anchors.fill: parent; source: "guest:" + slot; fillMode: VideoItem.Fit; opacity: connected ? 1 : 0.4 }
                                 Rectangle {
@@ -301,6 +303,8 @@ Rectangle {
                                         StatusPill { text: mic ? "mic" : "mic off"; dot: mic ? Theme.ok : Theme.live }
                                         StatusPill { text: cam ? "cámara" : "cámara off"; dot: cam ? Theme.ok : Theme.live }
                                         StatusPill { visible: screen; text: "pantalla"; dot: Theme.accent }
+                                        StatusPill { visible: presenter; text: "PRESENTADOR"; dot: "#a78bfa" }
+                                        StatusPill { visible: speaker === "onair"; text: "ORADOR"; dot: Theme.live }
                                         StatusPill { text: !connected ? "reconectando" : mediaUp ? "en vivo" : "sin medios"; dot: !connected ? Theme.live : mediaUp ? Theme.ok : Theme.amber }
                                     }
                                     Flow {
@@ -310,6 +314,25 @@ Rectangle {
                                         GlassButton { visible: cam; compact: true; text: "Apagar cámara"; onClicked: conf.request(uid, "mute-cam") }
                                         GlassButton { visible: screen; compact: true; text: "Cortar pantalla"; onClicked: conf.request(uid, "stop-screen") }
                                         GlassButton { visible: hand; compact: true; text: "Bajar mano"; onClicked: conf.request(uid, "lower-hand") }
+                                        // Pasarlo a la fila de oradores o dejarlo de presentador
+                                        // fijo: la sala sigue siendo la misma para todos.
+                                        GlassButton {
+                                            visible: !presenter && speaker !== "queued"
+                                            compact: true; text: "→ Oradores"
+                                            onClicked: conf.speakerRequeue(uid)
+                                            ToolTip.visible: hovered; ToolTip.delay: 400
+                                            ToolTip.text: "Lo pone en la fila de oradores (sale del aire hasta que le toque)"
+                                        }
+                                        GlassButton {
+                                            compact: true
+                                            text: presenter ? "Quitar presentador" : "★ Presentador"
+                                            active: presenter
+                                            activeColor: "#a78bfa"
+                                            onClicked: conf.setPresenter(uid, !presenter)
+                                            ToolTip.visible: hovered; ToolTip.delay: 400
+                                            ToolTip.text: presenter ? "Deja de ser presentador y sale del aire"
+                                                                    : "Se queda al aire con su lugar mientras rotan los oradores"
+                                        }
                                         GlassButton { compact: true; text: "✉ Mensaje"; onClicked: { chatTo.pick(uid); chatInput.forceActiveFocus() } }
                                         GlassButton { compact: true; text: "Sacar"; onClicked: { kickDlg.who = uid; kickDlg.whoName = name; kickDlg.open() } }
                                     }
