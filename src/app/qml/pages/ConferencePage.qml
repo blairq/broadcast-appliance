@@ -570,6 +570,23 @@ Rectangle {
                                 Behavior on width { NumberAnimation { duration: 300 } }
                             }
                         }
+                        // Hilo mas cargado: si uno solo se va a 100 mientras el
+                        // total esta bajo, el techo es ese nucleo y no la maquina.
+                        RowLayout {
+                            Layout.fillWidth: true
+                            visible: usoCol.u.hiloTop !== undefined
+                            Text {
+                                Layout.fillWidth: true
+                                text: "Hilo más cargado: " + (usoCol.u.hiloTop || "")
+                                color: Theme.textDim; font.pixelSize: 11; elide: Text.ElideRight
+                            }
+                            Text {
+                                text: Math.round(usoCol.u.hiloPct || 0) + "% de un núcleo"
+                                color: (usoCol.u.hiloPct || 0) >= 85 ? Theme.live
+                                     : (usoCol.u.hiloPct || 0) >= 65 ? Theme.amber : Theme.textFaint
+                                font { pixelSize: 11; weight: Font.DemiBold }
+                            }
+                        }
                         Text {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap

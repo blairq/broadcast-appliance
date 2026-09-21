@@ -724,8 +724,19 @@ json Room::snapshotLocked() const {
 }
 
 void Room::setUsage(const json& u) {
-    std::lock_guard<std::mutex> lock(m_);
-    usage_ = u;
+    Out out;
+    {
+        std::lock_guard<std::mutex> lock(m_);
+        usage_ = u;
+        // El snapshot solo viaja cuando cambia algo de la sala: sin esto el
+        // panel de uso quedaba con la foto del ultimo evento. Se manda uno
+        // cada 2 s (suficiente para una barra, sin inundar a los clientes).
+        if (lastNowMs_ - usageSentMs_ >= 2000) {
+            usageSentMs_ = lastNowMs_;
+            out.roomChanged = true;
+        }
+    }
+    flush(out);
 }
 
 json Room::speakerCfgJson() const {

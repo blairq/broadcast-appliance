@@ -47,8 +47,11 @@
 #include <cstdio>
 #include <cstdlib> // std::getenv (inyeccion de secretos por entorno)
 #include <cstring>
+#include <dirent.h>
 #include <filesystem>
 #include <fstream>
+#include <map>
+#include <sstream>
 #include <string>
 #include <sys/resource.h>
 #include <thread>
@@ -288,9 +291,63 @@ nlohmann::json processUsage() {
     }
     lastCpuSec = cpuSec;
     lastAt = now;
-    return nlohmann::json{{"cpuPct", std::round(std::clamp(pct, 0.0, 100.0) * 10) / 10},
-                          {"memMb", std::round(rssMb)},
-                          {"nucleos", std::max(1u, std::thread::hardware_concurrency())}};
+    nlohmann::json u{{"cpuPct", std::round(std::clamp(pct, 0.0, 100.0) * 10) / 10},
+                     {"memMb", std::round(rssMb)},
+                     {"nucleos", std::max(1u, std::thread::hardware_concurrency())}};
+#if defined(__linux__)
+    // Hilo mas cargado (porcentaje de UN nucleo). libwebrtc reparte la
+    // decodificacion de cada invitado en su propio hilo, pero la red, el worker
+    // y la senalizacion son UNO para todas las conexiones: si ese hilo se va a
+    // 100 el techo no es la maquina sino ese nucleo.
+    static std::map<int, double> lastThread;
+    static std::chrono::steady_clock::time_point lastThreadAt{};
+    const double ticks = static_cast<double>(sysconf(_SC_CLK_TCK));
+    std::map<int, double> nowThread;
+    std::string topName;
+    double topPct = -1; // asi se informa el hilo aunque todos esten en cero
+    const double wallT = lastThreadAt.time_since_epoch().count() == 0
+                             ? 0
+                             : std::chrono::duration<double>(now - lastThreadAt).count();
+    if (DIR* d = opendir("/proc/self/task")) {
+        while (dirent* e = readdir(d)) {
+            const int tid = std::atoi(e->d_name);
+            if (tid <= 0) continue;
+            std::ifstream st("/proc/self/task/" + std::string(e->d_name) + "/stat");
+            std::string line;
+            if (!std::getline(st, line)) continue;
+            // El nombre va entre parentesis y puede traer espacios.
+            const std::size_t close = line.rfind(')');
+            if (close == std::string::npos) continue;
+            std::istringstream rest(line.substr(close + 2));
+            std::string field;
+            double utime = 0;
+            double stime = 0;
+            for (int i = 3; i <= 15 && rest >> field; ++i) {
+                if (i == 14) utime = std::atof(field.c_str());
+                if (i == 15) stime = std::atof(field.c_str());
+            }
+            const double cpu = ticks > 0 ? (utime + stime) / ticks : 0;
+            nowThread[tid] = cpu;
+            const auto prev = lastThread.find(tid);
+            if (wallT > 0 && prev != lastThread.end()) {
+                const double p = 100.0 * (cpu - prev->second) / wallT;
+                if (p > topPct) {
+                    topPct = p;
+                    const std::size_t open = line.find('(');
+                    topName = open != std::string::npos ? line.substr(open + 1, close - open - 1) : "";
+                }
+            }
+        }
+        closedir(d);
+    }
+    lastThread = std::move(nowThread);
+    lastThreadAt = now;
+    if (!topName.empty()) {
+        u["hiloTop"] = topName;
+        u["hiloPct"] = std::round(std::clamp(topPct, 0.0, 100.0) * 10) / 10;
+    }
+#endif
+    return u;
 }
 
 } // namespace

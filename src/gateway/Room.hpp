@@ -305,6 +305,7 @@ class Room {
     uint64_t chatSeq_ = 0;
     SpeakerCfg spk_;
     nlohmann::json usage_ = nlohmann::json::object();
+    int64_t usageSentMs_ = 0;        // ultimo snapshot mandado solo por el uso
     std::vector<std::string> order_; ///< ids en el orden de la fila de oradores
     int64_t lastNowMs_ = 0;          // ultimo "ahora" visto (para admisiones sin reloj propio)
 };
