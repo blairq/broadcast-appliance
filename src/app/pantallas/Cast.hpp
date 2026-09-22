@@ -42,8 +42,11 @@ namespace ba::app::pantallas {
 
 /// El puerto del protocolo Cast, en todos los aparatos.
 constexpr int kPuertoCast = 8009;
-/// La receptora que muestra una URL cualquiera.
-constexpr const char* kAppDashCast = "com.madmod.dashcast";
+/// La receptora que muestra una URL cualquiera. OJO con la diferencia, que
+/// cuesta una tarde: el ID de la aplicacion es el numero, y el namespace por
+/// el que se le habla es el nombre largo. Lanzar el nombre largo devuelve
+/// NOT_FOUND, y el televisor se queda como estaba sin decir mucho mas.
+constexpr const char* kAppDashCast = "84912283";
 constexpr const char* kNsDashCast = "urn:x-cast:com.madmod.dashcast";
 
 /// Un mensaje del canal: de quién, para quién, de qué tema y qué dice.
@@ -98,10 +101,21 @@ struct Estado {
     std::string transportId; ///< el destino de esa aplicación
     double volumen = -1;     ///< 0 a 1; -1 si no se sabe
     bool silenciado = false;
+    /// Si el aparato puede abrir DashCast (o sea, si sabe mostrar una pagina).
+    /// -1 no se pregunto, 0 no, 1 si. Lo llena `consultar`.
+    int puedeMostrar = -1;
 };
 
 /// Abre, pregunta el estado y cierra.
 Estado consultar(const std::string& host, int puerto, int timeoutMs);
+
+/// Si el aparato PUEDE abrir esa aplicacion, sin abrirla. Sirve para avisar
+/// "este televisor no sabe mostrar paginas" antes de intentarlo, en vez de
+/// pisarle lo que este pasando para despues fallar.
+/// `disponible` queda en true/false; el valor de retorno dice si se pudo
+/// preguntar.
+Estado puedeAbrir(const std::string& host, int puerto, const std::string& appId, int timeoutMs,
+                  bool& disponible);
 
 /// Abre, lanza DashCast si hace falta, le manda la URL y cierra.
 /// `recargarSeg`: que la página se recargue sola cada tanto (0 = no).

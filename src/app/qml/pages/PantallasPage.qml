@@ -22,6 +22,11 @@ Rectangle {
     property string tipo: "mensaje"
     property var datos: ({})
 
+    function tituloDe(tipo) {
+        for (let i = 0; i < p.contenidos.length; ++i)
+            if (p.contenidos[i].id === tipo) return p.contenidos[i].titulo
+        return tipo
+    }
     function contenidoActual() {
         for (let i = 0; i < p.contenidos.length; ++i)
             if (p.contenidos[i].id === page.tipo) return p.contenidos[i]
@@ -152,6 +157,21 @@ Rectangle {
                                         elide: Text.ElideRight
                                         Layout.fillWidth: true
                                     }
+                                    // Lo que tiene que mostrar siempre: se ve
+                                    // aunque ahora esté apagada, que es cuando
+                                    // hace falta saberlo.
+                                    Text {
+                                        visible: fila.modelData.fijadoTipo !== ""
+                                        text: "📌 fijo: " + page.tituloDe(fila.modelData.fijadoTipo)
+                                        color: Theme.accentSoft; font.pixelSize: 10
+                                        elide: Text.ElideRight
+                                        Layout.fillWidth: true
+                                    }
+                                    Text {
+                                        visible: fila.modelData.puedeMostrar === 0
+                                        text: "no sabe mostrar páginas (¿es un parlante?)"
+                                        color: Theme.warn; font.pixelSize: 10
+                                    }
                                     Text {
                                         visible: fila.modelData.error !== ""
                                         text: fila.modelData.error
@@ -161,19 +181,51 @@ Rectangle {
                                     }
                                 }
                                 GlassButton {
-                                    compact: true; text: "Ver cómo está"; icon: "⟳"
-                                    visible: raton.containsMouse && !fila.modelData.trabajando
-                                    onClicked: page.p.refrescar(fila.modelData.id)
-                                }
-                                GlassButton {
                                     compact: true; text: "Parar"
                                     visible: fila.modelData.estado === "mostrando"
                                     onClicked: page.p.parar(fila.modelData.id)
                                 }
                                 GlassButton {
-                                    compact: true; text: "Olvidar"
-                                    visible: raton.containsMouse && fila.modelData.fija
-                                    onClicked: page.chequear(page.p.olvidar(fila.modelData.id))
+                                    compact: true; icon: "⋯"
+                                    onClicked: menu.popup()
+                                    ToolTip.visible: hovered; ToolTip.text: "Más cosas para esta pantalla"
+                                }
+                                Menu {
+                                    id: menu
+                                    MenuItem {
+                                        text: "Ver cómo está"
+                                        enabled: !fila.modelData.trabajando
+                                        onTriggered: page.p.refrescar(fila.modelData.id)
+                                    }
+                                    MenuItem {
+                                        text: "Renombrar…"
+                                        onTriggered: { renombrar.id = fila.modelData.id
+                                                       renombrar.actual = fila.modelData.nombre
+                                                       renombrar.open() }
+                                    }
+                                    MenuSeparator {}
+                                    MenuItem {
+                                        text: "Que muestre siempre esto"
+                                        enabled: page.elegida === fila.modelData.id &&
+                                                 page.contenidoActual() && page.contenidoActual().disponible
+                                        onTriggered: page.chequear(
+                                            page.p.fijar(fila.modelData.id, page.tipo, page.datos))
+                                    }
+                                    MenuItem {
+                                        text: "Dejar fijo lo que está mostrando"
+                                        enabled: fila.modelData.estado === "mostrando"
+                                        onTriggered: page.chequear(page.p.fijarLoQueMuestra(fila.modelData.id))
+                                    }
+                                    MenuItem {
+                                        text: "No dejar nada fijo"
+                                        enabled: fila.modelData.fijadoTipo !== ""
+                                        onTriggered: page.chequear(page.p.desfijar(fila.modelData.id))
+                                    }
+                                    MenuSeparator {}
+                                    MenuItem {
+                                        text: "Olvidar esta pantalla"
+                                        onTriggered: page.chequear(page.p.olvidar(fila.modelData.id))
+                                    }
                                 }
                             }
                         }
@@ -279,6 +331,30 @@ Rectangle {
                     }
                 }
             }
+        }
+    }
+
+    Dialog {
+        id: renombrar
+        anchors.centerIn: parent
+        modal: true
+        title: "Renombrar la pantalla"
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        property string id: ""
+        property string actual: ""
+        onOpened: { nuevoNombre.text = actual; nuevoNombre.forceActiveFocus(); nuevoNombre.selectAll() }
+        onAccepted: page.chequear(page.p.renombrar(id, nuevoNombre.text))
+        ColumnLayout {
+            spacing: 8
+            Text {
+                Layout.preferredWidth: 360
+                wrapMode: Text.WordWrap
+                color: Theme.textDim; font.pixelSize: 11
+                text: "El nombre que pongas gana sobre el que anuncia el aparato: «TV del hall» dice " +
+                      "más que «Percee TV»."
+            }
+            TextField { id: nuevoNombre; Layout.preferredWidth: 360; color: Theme.text
+                        onAccepted: renombrar.accept() }
         }
     }
 

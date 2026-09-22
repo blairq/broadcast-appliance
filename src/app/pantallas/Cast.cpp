@@ -339,6 +339,34 @@ Estado consultar(const std::string& host, int puerto, int timeoutMs) {
     Canal c;
     json status;
     if (!arrancar(c, host, puerto, timeoutMs, e, status)) return e;
+    // De paso, en el mismo canal: si sabe mostrar paginas. Preguntar NO abre
+    // nada, asi que se puede avisar "este aparato no sirve para esto" sin
+    // pisarle a nadie lo que este viendo.
+    json r;
+    if (c.pedir(kPlataforma, kNsReceptor,
+                json{{"type", "GET_APP_AVAILABILITY"}, {"appId", json::array({kAppDashCast})}}, timeoutMs,
+                r, nullptr)) {
+        e.puedeMostrar = r.value("availability", json::object()).value(kAppDashCast, "") == "APP_AVAILABLE";
+    }
+    c.cerrar();
+    e.ok = true;
+    return e;
+}
+
+Estado puedeAbrir(const std::string& host, int puerto, const std::string& appId, int timeoutMs,
+                  bool& disponible) {
+    disponible = false;
+    Estado e;
+    Canal c;
+    json status;
+    if (!arrancar(c, host, puerto, timeoutMs, e, status)) return e;
+    json r;
+    if (!c.pedir(kPlataforma, kNsReceptor,
+                 json{{"type", "GET_APP_AVAILABILITY"}, {"appId", json::array({appId})}}, timeoutMs, r,
+                 &e.error))
+        return e;
+    // Contesta {"availability": {"<appId>": "APP_AVAILABLE" | "APP_UNAVAILABLE"}}.
+    disponible = r.value("availability", json::object()).value(appId, "") == "APP_AVAILABLE";
     c.cerrar();
     e.ok = true;
     return e;

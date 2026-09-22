@@ -40,8 +40,15 @@ oírte, corta), `LAUNCH` de la aplicación receptora, y el `transportId` que
 vuelve en el `RECEIVER_STATUS` es el destino de todo lo demás — con su propio
 `CONNECT` antes de hablarle.
 
-**Qué aplicación: DashCast** (`com.madmod.dashcast`), una receptora pública
-cuyo trabajo es mostrar la URL que se le mande. La alternativa era escribir y
+**Qué aplicación: DashCast**, una receptora pública cuyo trabajo es mostrar la
+URL que se le mande. **Ojo con los dos nombres**, que cuesta una tarde: el id de
+la aplicación es `84912283` y el *namespace* por el que se le habla es
+`urn:x-cast:com.madmod.dashcast`. Lanzar el nombre largo devuelve `NOT_FOUND` y
+el televisor se queda como estaba sin explicar mucho más.
+
+Antes de mandar nada se pregunta `GET_APP_AVAILABILITY`: eso dice si el aparato
+puede abrir DashCast **sin abrirla**, así se avisa «este no sabe mostrar
+páginas» en vez de pisarle a alguien lo que está viendo para después fallar. La alternativa era escribir y
 **registrar** una receptora propia en la consola de Google Cast (cuenta de
 desarrollador) y servirla por HTTPS con certificado de verdad. Con DashCast no
 hace falta nada de eso, y ese era el bloqueo que tenía anotado `EVENTOS.md`.
@@ -73,6 +80,26 @@ VPN, WireGuard). Al televisor se le pasa la que está en **su** misma red,
 eligiendo la de prefijo más largo en común. Si no, le mandaríamos una URL que
 no puede alcanzar y la pantalla quedaría en negro sin decir por qué.
 
+## Lo que cada pantalla tiene que estar mostrando
+
+Un televisor de sala se apaga de noche, se reinicia con una actualización, o el
+router le cambia la dirección. Si lo que proyecta viviera solo en la memoria de
+la app, cada mañana habría que volver a mandárselo a mano.
+
+Por eso se puede **fijar** un contenido: queda guardado con la pantalla y se le
+manda solo cada vez que el aparato vuelve a aparecer. Se guarda contra el
+**nombre de servicio mDNS**, no contra la IP — ese id no cambia cuando el DHCP
+le da otra dirección, que es justo el caso que hay que sobrevivir.
+
+La ronda de mantenimiento corre cada 15 s y reintenta con espera creciente
+(hasta una vez cada cinco minutos) para no martillar a un televisor apagado.
+**Nunca pisa una pantalla `ocupada`**: si alguien puso Netflix, lo decide una
+persona.
+
+Además de fijar, cada pantalla tiene sus comandos: consultar cómo está,
+renombrar (el nombre que pone el operador gana sobre el que anuncia el aparato:
+«TV del hall» dice más que «Percee TV»), parar y olvidar.
+
 ## Estados
 
 `libre` (no hay nada corriendo), `mostrando` (lo nuestro), **`ocupada`** (hay
@@ -96,11 +123,24 @@ mismo ViewModel que la pantalla del operador.
   completa. El enlace va por **HTTP y al puerto 8787** (no al de HTTPS): un
   televisor no tiene dónde aceptar nuestro certificado propio.
 
-  *La salvedad*: la pantalla entra a la sala **como una participante más**. Con
-  el lobby prendido hay que hacerla pasar, y ocupa un lugar mientras dure. La
-  página lo dice en vez de quedarse en negro. Que sea una sesión invisible es
-  el paso siguiente, y toca admisión y rutas de medios — donde un error golpea
-  a invitados reales en vivo, así que no se hace a ciegas.
+  **Una pantalla no es un invitado.** Entra por `/ws?pantalla=1` y queda
+  *fuera* de la sala: no tiene nombre, no aparece en la lista, no pasa por el
+  lobby, no ocupa un lugar de invitado y no puede escribir en el chat.
+
+  Y **no puede mandar audio ni video**. Eso no depende de que la página se
+  porte bien: el token viaja hasta el televisor y lo puede tener cualquiera, así
+  que alcanza con abrir esa URL en otra máquina. Lo que lo garantiza es el
+  servidor, en tres capas:
+
+  1. `SignalingServer::soloRecibe` le mira el SDP al offer y **corta la
+     conexión** si alguna pista ofrece subir. Callarse no sirve: en SDP, una
+     sección sin dirección es `sendrecv`, y eso también se rechaza. Tiene su
+     propio test (`test_pantalla`), porque es *la* garantía de que un televisor
+     no sea un micrófono abierto en la sala.
+  2. De sus mensajes solo se miran tres: `offer`, `ice` y `ping`. Un `chat` se
+     descarta y queda en el registro — sin cortar la conexión, que sigue viva.
+  3. Su ruta de medios es `backstage` sin preview: recibe el programa y lo que
+     llegara a subir no va a ningún lado.
 
   Sobre el retardo: con el reproductor de fábrica del Chromecast (HLS/DASH, que
   va por segmentos) son 1 a 5 segundos. Por WebRTC son 100–300 ms. La perilla
@@ -118,6 +158,11 @@ mismo ViewModel que la pantalla del operador.
 
 - **El cue `pantalla` del guion** sigue sin ejecutarse: ahora que existe el
   modelo, es conectarlo.
-- **Aparatos sin pantalla.** Un Google Nest Mini aparece en la lista y acepta
-  el protocolo, pero no tiene dónde mostrar nada. El TXT del mDNS trae un campo
-  `ca` con las capacidades; se podría usar para marcarlos.
+- **Aparatos sin pantalla.** Un Google Nest Mini aparece en la lista, acepta el
+  protocolo **y hasta dice que DashCast está disponible**, pero no tiene dónde
+  mostrar nada. O sea que `GET_APP_AVAILABILITY` no alcanza para distinguirlos.
+  El TXT del mDNS trae un campo `ca` con las capacidades (un bit dice si hay
+  salida de video); ese es el camino.
+- **El primer casteo de verdad.** Con el id corregido, `GET_APP_AVAILABILITY`
+  dice que sí en los dos aparatos de prueba, pero todavía no se mandó una URL a
+  un televisor libre: el de prueba está con YouTube y no se pisa.

@@ -149,6 +149,13 @@ class SignalingServer {
     const std::string& rotulosKey() const { return cfg_.rotulosKey; }
     const std::string& prompterKey() const { return cfg_.prompterKey; }
 
+    /// true si el offer es de SOLO RECEPCION (ninguna pista sube). Lo que
+    /// decide es el SDP, no la buena fe del cliente: el token de ingreso de
+    /// una pantalla lo puede tener cualquiera. Publica porque es LA garantia
+    /// de que un televisor no sea un microfono abierto, y como tal tiene su
+    /// propio test (test_pantalla).
+    static bool soloRecibe(const std::string& sdp);
+
     /// Estado de red para la API de control (/api/v1/network).
     void setNetworkStatus(std::function<nlohmann::json()> fn) { networkStatus_ = std::move(fn); }
     /// URL de ingreso para el QR: target "local" (red local) o "remote"
@@ -176,6 +183,22 @@ class SignalingServer {
     void closeActiveConns();
 
     // --- Superficie de invitados --------------------------------------------
+    // --- Pantallas (solo miran) ----------------------------------------------
+    // Una PANTALLA es un televisor que muestra el programa y nada mas. No es
+    // un participante de la sala: no tiene nombre, no aparece en la lista, no
+    // pasa por el lobby, no puede escribir en el chat y no puede publicar
+    // audio ni video. Eso ULTIMO no depende de que su pagina se porte bien:
+    // el servidor le rechaza el offer si no es de solo recepcion, y su ruta de
+    // medios (backstage sin preview) manda lo que subiera a ningun lado.
+    //
+    // Entra por /ws?pantalla=1&token=..., con el mismo token de ingreso que un
+    // invitado: lo que cambia es TODO lo que puede hacer despues.
+    /// true si ese id es una pantalla (y no un participante de la sala).
+    bool esPantalla(const std::string& pid) const;
+    /// Registra una pantalla nueva y devuelve su id.
+    std::string altaPantalla();
+    void bajaPantalla(const std::string& pid);
+
     void handleGuestHttp(long long fd, const std::string& method, const std::string& path,
                          const std::string& query, const std::string& body, std::uint32_t clientIp);
     bool serveStatic(long long fd, const std::string& root, const std::string& relPath);
@@ -272,6 +295,10 @@ class SignalingServer {
     WebrtcHub& hub_;
     Room& room_;
     Prompter prompter_;
+    /// Ids de las conexiones que son PANTALLAS (ver esPantalla). Aparte de la
+    /// sala a proposito: nada de lo que sabe Room aplica a un televisor.
+    mutable std::mutex pantallasLock_;
+    std::set<std::string> pantallas_;
     Rotulador rotulador_;
     ShareStore& shares_;
     Log& log_;

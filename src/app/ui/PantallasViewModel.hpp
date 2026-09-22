@@ -28,6 +28,17 @@
 // no, le mandaríamos una URL que él no puede alcanzar y la pantalla quedaría
 // en negro sin decir por qué.
 //
+// LO QUE CADA PANTALLA TIENE QUE ESTAR MOSTRANDO. Un televisor de sala se
+// apaga de noche, se reinicia solo con una actualización, o el router le
+// cambia la dirección. Si lo que proyecta viviera solo en la memoria de la
+// app, cada mañana habría que volver a mandárselo a mano. Por eso se puede
+// FIJAR un contenido: queda guardado con la pantalla, y cuando el aparato
+// vuelve a aparecer se le manda solo.
+//
+// Se guarda contra el id del servicio mDNS, no contra la IP: ese id no cambia
+// cuando el DHCP le da otra dirección, que es justo el caso que hay que
+// sobrevivir.
+//
 // Todo lo que habla con un aparato BLOQUEA (TLS, esperas): va en un hilo
 // aparte y vuelve por señales. La interfaz nunca se congela por un televisor
 // apagado.
@@ -77,6 +88,16 @@ class PantallasViewModel : public QObject {
     /// La saca de la lista. Si estaba mostrando algo, no se la toca: sacarla
     /// de la lista es olvidarla, no apagarla.
     Q_INVOKABLE QString olvidar(const QString& id);
+    /// Le cambia el nombre. El que pone el operador gana sobre el que anuncia
+    /// el aparato: "TV del hall" dice más que "Percee TV".
+    Q_INVOKABLE QString renombrar(const QString& id, const QString& nombre);
+    /// Fija lo que esta pantalla tiene que mostrar SIEMPRE. Se le manda ahora
+    /// y cada vez que el aparato vuelva a aparecer.
+    Q_INVOKABLE QString fijar(const QString& id, const QString& tipo, const QVariantMap& datos);
+    /// Fija lo que ya está mostrando (el caso común: se probó y quedó bien).
+    Q_INVOKABLE QString fijarLoQueMuestra(const QString& id);
+    /// Deja de tener algo fijo. No apaga lo que esté mostrando.
+    Q_INVOKABLE QString desfijar(const QString& id);
     /// Le manda un contenido. `datos` son los campos de ese tipo.
     Q_INVOKABLE QString mostrar(const QString& id, const QString& tipo, const QVariantMap& datos);
     /// Deja de mostrar (vuelve a su fondo de pantalla).
@@ -94,6 +115,10 @@ class PantallasViewModel : public QObject {
     void notify(const QString& texto, const QString& tipo);
 
   private:
+    /// Pasada de mantenimiento: a cada pantalla con algo fijo que no lo esté
+    /// mostrando, se lo manda. Con espera creciente por pantalla, para no
+    /// martillar a una que está apagada.
+    void restaurar();
     /// Abrir el canal y mandarle la URL: el final de todos los contenidos.
     void mandarUrl(const QString& id, const QString& url, const QString& tipo, const QString& que);
 

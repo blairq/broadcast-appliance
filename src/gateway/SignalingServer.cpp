@@ -360,9 +360,16 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, boo
         const std::string pid = wsOpen(fd, headers, query, clientIp);
         if (pid.empty()) return;
         const uint64_t gen = registerConn(pid, fd);
+        // La pantalla no espera nada de la sala: se le dice ya que arme su
+        // PeerConnection (un invitado espera a tener lugar).
+        if (esPantalla(pid)) sendToGuest(pid, json{{"type", "hello"}, {"pantalla", true}});
         wsLoop(fd, pid, gen);
         const bool current = unregisterConn(pid, gen);
         releaseSession(pid, gen, false);
+        if (esPantalla(pid)) {
+            bajaPantalla(pid);
+            return;
+        }
         // Solo la conexion VIGENTE informa la desconexion: una vieja que cierra
         // tarde no debe marcar como caido a quien ya se reengancho.
         if (current) room_.disconnect(pid, nowMs());
@@ -886,6 +893,65 @@ void SignalingServer::apiViewAction(long long fd, const std::string& method, con
 // WebSocket de sala
 // ============================================================================
 
+bool SignalingServer::esPantalla(const std::string& pid) const {
+    std::lock_guard<std::mutex> lock(pantallasLock_);
+    return pantallas_.count(pid) != 0;
+}
+
+std::string SignalingServer::altaPantalla() {
+    std::string hex;
+    if (!ba::security::randomSecretHex(16, hex)) return {};
+    // Prefijo propio: los participantes de la sala son "p"+hex, asi que un id
+    // de pantalla no puede chocar con uno de invitado ni pasar por tal.
+    const std::string id = "pantalla-" + hex.substr(0, 12);
+    std::lock_guard<std::mutex> lock(pantallasLock_);
+    pantallas_.insert(id);
+    return id;
+}
+
+void SignalingServer::bajaPantalla(const std::string& pid) {
+    std::lock_guard<std::mutex> lock(pantallasLock_);
+    pantallas_.erase(pid);
+}
+
+/// Un offer es de solo recepcion si NINGUNA de sus pistas sube. En SDP eso se
+/// lee en cada seccion "m=": recvonly o inactive esta bien; sendonly, sendrecv
+/// o que no diga nada (el valor por omision es sendrecv) NO.
+///
+/// Se mira el SDP y no lo que prometa el cliente porque el token de ingreso lo
+/// puede tener cualquiera: alcanza con abrir la URL del televisor en otra
+/// maquina. Lo que garantiza que una pantalla no sea un microfono abierto en
+/// la sala es esto.
+bool SignalingServer::soloRecibe(const std::string& sdp) {
+    bool enSeccion = false;
+    bool direccionVista = false;
+    bool hayMedios = false;
+    size_t pos = 0;
+    while (pos < sdp.size()) {
+        size_t fin = sdp.find('\n', pos);
+        std::string linea = sdp.substr(pos, fin == std::string::npos ? std::string::npos : fin - pos);
+        pos = fin == std::string::npos ? sdp.size() : fin + 1;
+        if (!linea.empty() && linea.back() == '\r') linea.pop_back();
+        if (linea.rfind("m=", 0) == 0) {
+            // La seccion anterior tenia que haber declarado su direccion.
+            if (enSeccion && !direccionVista) return false;
+            enSeccion = true;
+            direccionVista = false;
+            // Solo importan audio y video: los canales de datos no llevan medios.
+            hayMedios = linea.rfind("m=audio", 0) == 0 || linea.rfind("m=video", 0) == 0;
+            if (!hayMedios) direccionVista = true; // no se le exige direccion
+            continue;
+        }
+        if (!enSeccion || !hayMedios) continue;
+        if (linea == "a=recvonly" || linea == "a=inactive") {
+            direccionVista = true;
+        } else if (linea == "a=sendrecv" || linea == "a=sendonly") {
+            return false;
+        }
+    }
+    return !enSeccion || direccionVista;
+}
+
 std::string SignalingServer::wsOpen(long long fd, const std::string& headers, const std::string& query,
                                     std::uint32_t clientIp) {
     const std::string wsKey = http::getHeader(headers, "Sec-WebSocket-Key");
@@ -895,6 +961,31 @@ std::string SignalingServer::wsOpen(long long fd, const std::string& headers, co
     }
     const auto q = http::parseQuery(query);
     const auto arg = [&](const char* k) { return q.count(k) ? http::urlDecode(q.at(k)) : std::string(); };
+
+    // Una PANTALLA entra por su propia puerta: mismo token, pero no se
+    // conecta a la sala. Se resuelve antes que nada para que ninguna de las
+    // ramas de invitado la toque.
+    if (arg("pantalla") == "1") {
+        const std::string room = arg("room").empty() ? cfg_.room : arg("room");
+        if (auth_.redeem(arg("token"), room) != 0) {
+            http::sendResponse(fd, 401, "text/plain", "token invalido\n");
+            return {};
+        }
+        const std::string ok =
+            "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
+            "Sec-WebSocket-Accept: " +
+            http::base64(http::sha1(wsKey + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").data(), 20) +
+            "\r\n\r\n";
+        if (!http::sendAll(fd, ok.data(), ok.size())) return {};
+        http::setSocketTimeout(fd, 0);
+        const std::string id = altaPantalla();
+        if (id.empty()) {
+            http::writeWsFrame(fd, 0x8, "");
+            return {};
+        }
+        log_.info("ws: pantalla " + id + " conectada (solo mira)");
+        return id;
+    }
 
     // Dos formas de entrar: token nuevo (entra al lobby) o reenganche con la
     // clave que la sala le dio al participante en su "hello".
@@ -1074,7 +1165,16 @@ std::string SignalingServer::publicCandidate(const std::string& line) const {
 }
 
 void SignalingServer::handleOffer(const std::string& pid, uint64_t gen, const std::string& sdp) {
-    const MediaRoute route = room_.routeOf(pid);
+    // Una pantalla no tiene ruta en la sala: la suya es backstage SIN preview,
+    // o sea que recibe el programa y lo que mandara no va a ningun lado.
+    const bool pantalla = esPantalla(pid);
+    if (pantalla && !soloRecibe(sdp)) {
+        log_.warn("ws: la pantalla " + pid + " ofrecio mandar medios; se corta", -1);
+        sendToGuest(pid, json{{"type", "rejected"}, {"reason", "solo_mirar"}});
+        dropGuest(pid);
+        return;
+    }
+    const MediaRoute route = pantalla ? MediaRoute::backstage(0) : room_.routeOf(pid);
     if (route.kind == MediaRoute::Kind::None) {
         log_.warn("ws: offer de " + pid + " sin ruta de medios (sin lugar); se ignora", -1);
         return;
@@ -1198,6 +1298,12 @@ void SignalingServer::wsLoop(long long fd, const std::string& pid, uint64_t gen)
 void SignalingServer::handleWsMessage(const std::string& pid, uint64_t gen, const json& msg) {
     {
         const std::string type = msg.value("type", "");
+        // Una pantalla solo negocia su video y late. Nada de chat, ni ficha,
+        // ni estado de medios, ni mano levantada: esas cosas ni se miran.
+        if (esPantalla(pid) && type != "offer" && type != "ice" && type != "ping") {
+            log_.warn("ws: la pantalla " + pid + " mando '" + type + "'; se descarta", -1);
+            return;
+        }
         if (type == "offer") {
             // El navegador manda la descripcion entera ({type, sdp}) o solo el sdp.
             const json& s = msg.contains("sdp") ? msg["sdp"] : json();

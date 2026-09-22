@@ -16,6 +16,22 @@
 #include "ui/StudioViewModel.hpp"
 
 namespace ba::app::mcp {
+namespace {
+
+/// El id de una pantalla por su id o por su NOMBRE, que es como la piensa una
+/// persona ("el televisor del hall").
+QString idDePantalla(PantallasViewModel& p, const QString& quien) {
+    for (const QVariant& v : p.pantallas()) {
+        const QVariantMap m = v.toMap();
+        if (m.value("id").toString() == quien ||
+            m.value("nombre").toString().compare(quien, Qt::CaseInsensitive) == 0)
+            return m.value("id").toString();
+    }
+    return {};
+}
+
+} // namespace
+
 
 void McpService::registerPantallaTools() {
     core_.addCategory("pantallas", "Pantallas externas",
@@ -34,7 +50,10 @@ void McpService::registerPantallaTools() {
                         "no contesta) y que tienen puesto. Tambien que se puede mostrar en ellas.";
         t.details = "`estado` dice mucho: `ocupada` es que el televisor esta con otra aplicacion (Netflix, "
                     "YouTube) y mandarle algo se la va a pisar — avisale al operador antes. `apagada` es "
-                    "que no contesta: puede estar apagado de verdad o en otra red.";
+                    "que no contesta: puede estar apagado de verdad o en otra red.\n\n"
+                    "`sabeMostrarPaginas`: 1 si, 0 no (un parlante sin pantalla contesta el protocolo "
+                    "igual), -1 todavia no se pregunto. `fijo` es lo que tiene que mostrar SIEMPRE: vuelve "
+                    "solo cada vez que el aparato aparece.";
         t.run = [p](const json&, Done done) {
             json ps = json::array();
             for (const QVariant& v : p->pantallas()) {
@@ -45,6 +64,8 @@ void McpService::registerPantallaTools() {
                                   {"host", m.value("host").toString().toStdString()},
                                   {"estado", m.value("estado").toString().toStdString()},
                                   {"muestra", m.value("que").toString().toStdString()},
+                                  {"fijo", m.value("fijadoTipo").toString().toStdString()},
+                                  {"sabeMostrarPaginas", m.value("puedeMostrar").toInt()},
                                   {"error", m.value("error").toString().toStdString()}});
             }
             json cs = json::array();
@@ -102,18 +123,8 @@ void McpService::registerPantallaTools() {
         t.examples = {R"({"pantalla": "TV del hall", "tipo": "mensaje", "texto": "Volvemos en 10 minutos"})",
                       R"({"pantalla": "TV del hall", "tipo": "qr", "texto": "https://...", "pie": "Escaneá para entrar"})"};
         t.run = [p](const json& a, Done done) {
-            // Por id o por nombre: el operador (y el asistente) piensan en
-            // "el televisor del hall", no en un id.
             const QString quien = QString::fromStdString(a["pantalla"].get<std::string>());
-            QString id;
-            for (const QVariant& v : p->pantallas()) {
-                const QVariantMap m = v.toMap();
-                if (m.value("id").toString() == quien ||
-                    m.value("nombre").toString().compare(quien, Qt::CaseInsensitive) == 0) {
-                    id = m.value("id").toString();
-                    break;
-                }
-            }
+            const QString id = idDePantalla(*p, quien);
             if (id.isEmpty()) {
                 done(ToolResult::error("No conozco la pantalla '" + quien.toStdString() +
                                        "'. pantalla_listar dice cuales hay; pantalla_buscar busca de nuevo."));
@@ -133,6 +144,101 @@ void McpService::registerPantallaTools() {
         };
         core_.addTool(std::move(t));
     }
+    // Buscar la pantalla por id o por NOMBRE: el operador (y el asistente)
+    // piensan en "el televisor del hall", no en un id de servicio mDNS.
+    {
+        Tool t;
+        t.name = "pantalla_fijar";
+        t.title = "Que una pantalla muestre siempre lo mismo";
+        t.category = "pantallas";
+        t.description =
+            "Deja fijo lo que esa pantalla tiene que mostrar: se lo manda ahora y CADA VEZ que el aparato "
+            "vuelva a aparecer (se apago de noche, se reinicio, le cambio la direccion). Con `quitar` en "
+            "true deja de tener algo fijo (no apaga lo que este mostrando).";
+        t.details = "Es para las pantallas que viven puestas: la del hall con el QR de la sala, la del "
+                    "fondo con el reloj. Lo fijado se guarda contra el nombre de servicio del aparato, no "
+                    "contra su IP, asi que sobrevive a que el router le de otra direccion.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"required", {"pantalla"}},
+            {"properties",
+             {{"pantalla", {{"type", "string"}}},
+              {"tipo", {{"type", "string"}, {"enum", {"mensaje", "qr", "reloj", "url", "prompter", "programa"}}}},
+              {"texto", {{"type", "string"}}},
+              {"pie", {{"type", "string"}}},
+              {"url", {{"type", "string"}}},
+              {"quitar", {{"type", "boolean"}, {"description", "deja de tener algo fijo"}}}}}};
+        t.run = [p](const json& a, Done done) {
+            const QString id = idDePantalla(*p, QString::fromStdString(a["pantalla"].get<std::string>()));
+            if (id.isEmpty()) {
+                done(ToolResult::error("No conozco la pantalla '" + a["pantalla"].get<std::string>() +
+                                       "'. pantalla_listar dice cuales hay."));
+                return;
+            }
+            if (a.value("quitar", false)) {
+                const QString err = p->desfijar(id);
+                done(err.isEmpty() ? ToolResult::ok("Ya no tiene nada fijo.")
+                                   : ToolResult::error(err.toStdString()));
+                return;
+            }
+            if (!a.contains("tipo")) {
+                done(ToolResult::error("Falta `tipo` (o `quitar`: true)."));
+                return;
+            }
+            QVariantMap datos;
+            for (const char* k : {"texto", "pie", "url"})
+                if (a.contains(k) && a[k].is_string())
+                    datos[k] = QString::fromStdString(a[k].get<std::string>());
+            const QString err = p->fijar(id, QString::fromStdString(a["tipo"].get<std::string>()), datos);
+            done(err.isEmpty()
+                     ? ToolResult::ok("Fijado, y mandado ahora. Va a volver solo cada vez que el aparato "
+                                      "aparezca.")
+                     : ToolResult::error(err.toStdString()));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "pantalla_renombrar";
+        t.title = "Cambiarle el nombre a una pantalla";
+        t.category = "pantallas";
+        t.idempotent = true;
+        t.description = "El nombre que pongas gana sobre el que anuncia el aparato: «TV del hall» dice mas "
+                        "que «Percee TV», y es como la vas a nombrar despues.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"pantalla", "nombre"}},
+                         {"properties", {{"pantalla", {{"type", "string"}}},
+                                         {"nombre", {{"type", "string"}, {"minLength", 1}}}}}};
+        t.run = [p](const json& a, Done done) {
+            const QString id = idDePantalla(*p, QString::fromStdString(a["pantalla"].get<std::string>()));
+            if (id.isEmpty()) {
+                done(ToolResult::error("No conozco la pantalla '" + a["pantalla"].get<std::string>() + "'."));
+                return;
+            }
+            const QString err = p->renombrar(id, QString::fromStdString(a["nombre"].get<std::string>()));
+            done(err.isEmpty() ? ToolResult::ok("Listo.") : ToolResult::error(err.toStdString()));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "pantalla_agregar";
+        t.title = "Agregar una pantalla a mano";
+        t.category = "pantallas";
+        t.description = "Para cuando la busqueda en la red no llega (otra VLAN, el firewall): se agrega con "
+                        "su direccion IP. Tiene que ser un aparato que hable Google Cast.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"host"}},
+                         {"properties", {{"host", {{"type", "string"}, {"description", "192.168.1.50"}}},
+                                         {"nombre", {{"type", "string"}}}}}};
+        t.run = [p](const json& a, Done done) {
+            const QString err = p->agregar(QString::fromStdString(a.value("nombre", "")),
+                                           QString::fromStdString(a["host"].get<std::string>()), 0);
+            done(err.isEmpty() ? ToolResult::ok("Agregada. pantalla_listar dice si contesta.")
+                               : ToolResult::error(err.toStdString()));
+        };
+        core_.addTool(std::move(t));
+    }
     {
         Tool t;
         t.name = "pantalla_parar";
@@ -145,16 +251,13 @@ void McpService::registerPantallaTools() {
                          {"properties", {{"pantalla", {{"type", "string"}}}}}};
         t.run = [p](const json& a, Done done) {
             const QString quien = QString::fromStdString(a["pantalla"].get<std::string>());
-            for (const QVariant& v : p->pantallas()) {
-                const QVariantMap m = v.toMap();
-                if (m.value("id").toString() == quien ||
-                    m.value("nombre").toString().compare(quien, Qt::CaseInsensitive) == 0) {
-                    p->parar(m.value("id").toString());
-                    done(ToolResult::ok("Parando «" + m.value("nombre").toString().toStdString() + "»."));
-                    return;
-                }
+            const QString id = idDePantalla(*p, quien);
+            if (id.isEmpty()) {
+                done(ToolResult::error("No conozco la pantalla '" + quien.toStdString() + "'."));
+                return;
             }
-            done(ToolResult::error("No conozco la pantalla '" + quien.toStdString() + "'."));
+            p->parar(id);
+            done(ToolResult::ok("Parando «" + quien.toStdString() + "»."));
         };
         core_.addTool(std::move(t));
     }

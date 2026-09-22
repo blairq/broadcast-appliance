@@ -1,9 +1,15 @@
 // ============================================================================
 // El programa en vivo, en una pantalla. Ver index.html para el por qué.
 //
-// COMO ENTRA. Por el mismo camino que un invitado: WebSocket /ws con un token,
-// y el servidor le manda el programa por la PeerConnection. No publica nada
-// (ni cámara ni micrófono): solo recibe.
+// COMO ENTRA. Por /ws?pantalla=1 con un token de ingreso. NO es un invitado:
+// no tiene nombre, no aparece en la lista de la sala, no pasa por el lobby y
+// no puede escribir en el chat.
+//
+// Y no puede mandar audio ni video. Eso no depende de que esta página se porte
+// bien —el token viaja hasta el televisor y lo puede tener cualquiera—: el
+// servidor le mira el SDP al offer y le corta la conexión si ofrece subir algo
+// (ver SignalingServer::soloRecibe). Lo que sigue es para que esta página sea
+// coherente con eso, no para que sea seguro.
 //
 // EL RETARDO. WebRTC ya es el camino de baja latencia, pero el navegador por
 // las suyas guarda un colchón (jitter buffer) generoso, pensado para que una
@@ -33,11 +39,8 @@
   const st = {
     ws: null,
     pc: null,
-    id: "",
-    key: "",
     reintento: 0,
     cerrado: false,
-    enLobby: false,
     ultimoCuadro: -1,
     quieto: 0,
   };
@@ -60,9 +63,9 @@
     const proto = location.protocol === "https:" ? "wss" : "ws";
     // Reenganche si ya tenemos sesión: el servidor nos devuelve la misma y no
     // aparecemos dos veces en la sala.
-    const args = st.id
-      ? `resume=${encodeURIComponent(st.id)}&key=${encodeURIComponent(st.key)}`
-      : `token=${encodeURIComponent(token)}&name=${encodeURIComponent(nombre)}`;
+    // Siempre con token: una pantalla no se "reengancha" porque no tiene nada
+    // que retomar (no hay sesión en la sala, no hay lugar guardado).
+    const args = `pantalla=1&token=${encodeURIComponent(token)}`;
     const ws = new WebSocket(`${proto}://${location.host}/ws?${args}`);
     st.ws = ws;
 
@@ -72,27 +75,24 @@
       let m;
       try { m = JSON.parse(ev.data); } catch (e) { return; }
       if (m.type === "hello") {
-        st.id = m.id || st.id;
-        st.key = m.key || st.key;
-        // En el lobby lo que baja es la cámara del operador, no el programa:
-        // esta pantalla ve el programa recién cuando la hacen pasar. Se dice,
-        // porque si no el operador ve una imagen que no esperaba y no sabe
-        // que le falta un clic.
-        st.enLobby = !!m.lobby;
-        avisar(st.enLobby ? "Esperando que me hagan pasar" : "Esperando el programa…",
-               st.enLobby ? "En la sala aparezco como «" + nombre + "»" : "Conectado a la sala");
+        avisar("Esperando el programa…", nombre);
         armarPeer();
-      } else if (m.type === "admitted") {
-        st.enLobby = false;
-        avisar("Esperando el programa…", "Ya estoy adentro");
       } else if (m.type === "answer" && st.pc) {
         st.pc.setRemoteDescription({ type: "answer", sdp: m.sdp }).catch(() => {});
       } else if (m.type === "ice" && st.pc && m.candidate) {
         st.pc.addIceCandidate(m.candidate).catch(() => {});
       } else if (m.type === "rejected") {
-        // Sala cerrada o llena: no se reintenta en loop, se dice por qué.
+        // No se reintenta en loop: se dice por qué y se queda quieta.
         st.cerrado = true;
-        avisar("La sala no me dejó entrar", m.reason === "locked" ? "Está cerrada" : "No hay lugar");
+        if (m.reason === "solo_mirar") {
+          // No debería pasar nunca desde acá: es el servidor diciendo que el
+          // offer ofrecía subir algo. Si aparece, es que esta página cambió.
+          avisar("El servidor me cortó", "Esta pantalla solo puede mirar");
+        } else {
+          avisar("La sala no me dejó entrar", m.reason === "locked" ? "Está cerrada" : "No hay lugar");
+        }
+      } else if (m.type === "busy") {
+        avisar("No hay lugar para otra pantalla", "Probá cerrando alguna");
       }
     };
 
@@ -114,8 +114,9 @@
     const pc = new RTCPeerConnection();
     st.pc = pc;
 
-    // Solo recibir. No se pide cámara ni micrófono: no hay ninguno, y pedirlos
-    // abriría un permiso que en un televisor nadie puede contestar.
+    // Solo recibir, y el servidor lo VERIFICA: si el offer ofreciera subir
+    // algo, corta la conexión. No se pide cámara ni micrófono (no hay, y
+    // pedirlos abriría un permiso que en un televisor nadie puede contestar).
     const vt = pc.addTransceiver("video", { direction: "recvonly" });
     const at = pc.addTransceiver("audio", { direction: "recvonly" });
 
