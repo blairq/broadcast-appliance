@@ -19,6 +19,14 @@ Item {
             keys: Studio.dashboard.background
             layout: Studio.dashboard.backgroundLayout
             gap: 2
+            // ENTERO, sin recortar. La celda de la grilla casi nunca tiene la
+            // proporcion del video, y `Cover` llenaba recortando: al programa
+            // le comia una franja arriba y otra abajo —justo donde suelen ir
+            // el titulo y el zocalo— sin que nada lo dijera. Acá el fondo es
+            // para MIRAR lo que esta pasando, asi que se ve completo aunque
+            // queden bandas; para llenar la pantalla estan las ventanas de
+            // salida, que ahi si conviene `Cover`.
+            fillMode: VideoItem.Fit
         }
         // Oscurecido + viñeta para que las tarjetas se lean sobre cualquier video.
         Rectangle { anchors.fill: parent; color: "black"; opacity: Studio.dashboard.backgroundDim }
