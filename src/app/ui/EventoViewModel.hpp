@@ -30,6 +30,7 @@ namespace ba::app {
 
 class AppRuntime;
 class ConferenceViewModel;
+namespace graficos { class Emisor; }
 
 class EventoViewModel : public QObject {
     Q_OBJECT
@@ -65,7 +66,8 @@ class EventoViewModel : public QObject {
     Q_PROPERTY(QVariantList reparos READ reparos NOTIFY reparosChanged)
 
   public:
-    EventoViewModel(AppRuntime& rt, ConferenceViewModel* sala, QObject* parent = nullptr);
+    EventoViewModel(AppRuntime& rt, ConferenceViewModel* sala,
+                    graficos::Emisor* graficos, QObject* parent = nullptr);
     ~EventoViewModel() override;
 
     QVariantList eventos() const;
@@ -106,6 +108,17 @@ class EventoViewModel : public QObject {
     /// Lo que se puede poner en cada tipo de cue: para armar el formulario sin
     /// que QML tenga que saberse la lista de memoria.
     Q_INVOKABLE QVariantList tiposDeCue() const;
+
+    // --- Cues de grafico ------------------------------------------------------
+    /// Los graficos guardados, por nombre.
+    Q_INVOKABLE QStringList graficosDisponibles() const;
+    /// Las fuentes «Grafico animado» que hay en las escenas, por nombre.
+    Q_INVOKABLE QStringList fuentesDeGrafico() const;
+    /// Los parametros que declara ese grafico, para armar el formulario del cue.
+    Q_INVOKABLE QVariantList parametrosDeGrafico(const QString& grafico) const;
+    /// Cambia UN valor de los parametros de un cue de grafico, sin pisar los
+    /// otros (que es lo que pasaria mandando `datos` entero).
+    Q_INVOKABLE void setValorDeCue(int bloque, int cue, const QString& clave, const QVariant& valor);
 
     // --- Correr ---------------------------------------------------------------
     Q_INVOKABLE void arrancar();
@@ -173,6 +186,7 @@ class EventoViewModel : public QObject {
 
     AppRuntime& rt_;
     ConferenceViewModel* sala_ = nullptr;
+    graficos::Emisor* graficos_ = nullptr;
     evento::EventoStore store_;
     evento::Evento e_;
     std::unique_ptr<evento::Guion> guionCorriendo_;

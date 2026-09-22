@@ -30,6 +30,7 @@
 #include "ui/ChatOverlayRenderer.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/EventoViewModel.hpp"
+#include "graficos/Emisor.hpp"
 #include "ui/GraficoViewModel.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/DashboardModel.hpp"
@@ -78,10 +79,13 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     conference_->setIntakeSink(
         [this](const QString& id, const QString& name) { return assistantIntake(id, name); });
     connect(conference_.get(), &ConferenceViewModel::notify, this, &StudioViewModel::notify);
+    // Un solo renderizador de gráficos para todos los que disparan uno: el
+    // guion, el editor, el rotulador y el asistente.
+    emisor_ = std::make_unique<graficos::Emisor>(rt.dataRoot());
     // El guion del evento necesita la sala para los cues de orador.
-    evento_ = std::make_unique<EventoViewModel>(rt, conference_.get());
+    evento_ = std::make_unique<EventoViewModel>(rt, conference_.get(), emisor_.get());
     connect(evento_.get(), &EventoViewModel::notify, this, &StudioViewModel::notify);
-    grafico_ = std::make_unique<GraficoViewModel>(rt);
+    grafico_ = std::make_unique<GraficoViewModel>(rt, *emisor_);
     connect(grafico_.get(), &GraficoViewModel::notify, this, &StudioViewModel::notify);
     // HTTPS propio (plataformas): raices de certificados del bundle primero.
     net::HttpsClient::setDefaultCaSearch(

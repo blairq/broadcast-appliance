@@ -14,6 +14,7 @@
 #include <QJsonObject>
 
 #include "AppRuntime.hpp"
+#include "graficos/Emisor.hpp"
 #include "graficos/GraficoProceso.hpp"
 #include "graficos/GraficoSource.hpp"
 
@@ -41,7 +42,9 @@ bool escribir(const QString& ruta, const QByteArray& datos) {
 
 struct GraficoViewModel::Impl {
     AppRuntime& rt;
-    graficos::GraficoProceso proc;
+    /// El renderizador es uno solo para toda la app: el editor comparte el
+    /// mismo `ba-grafico` que el guion, el rotulador y el asistente.
+    graficos::Emisor& em;
     QString abierto;
     QString fuente;      ///< lo que está en el editor
     QString fuenteEnDisco;
@@ -52,9 +55,10 @@ struct GraficoViewModel::Impl {
     int duracionMs = 1500;
     int momentoMs = 0;
 
-    explicit Impl(AppRuntime& r) : rt(r) {}
+    Impl(AppRuntime& r, graficos::Emisor& e) : rt(r), em(e) {}
+    graficos::GraficoProceso& proc() const { return em.proceso(); }
 
-    QString raiz() const { return QString::fromStdString((rt.dataRoot() / "Graficos").string()); }
+    QString raiz() const { return em.raiz(); }
     QString carpeta(const QString& n) const { return QDir(raiz()).filePath(n); }
     bool esDeclarativo() const { return ficha.contains("declarativo"); }
 
@@ -79,14 +83,14 @@ struct GraficoViewModel::Impl {
     }
 };
 
-GraficoViewModel::GraficoViewModel(AppRuntime& rt, QObject* parent)
-    : QObject(parent), d_(std::make_unique<Impl>(rt)) {
+GraficoViewModel::GraficoViewModel(AppRuntime& rt, graficos::Emisor& emisor, QObject* parent)
+    : QObject(parent), d_(std::make_unique<Impl>(rt, emisor)) {
     QDir().mkpath(d_->raiz());
 }
 
 GraficoViewModel::~GraficoViewModel() = default;
 
-bool GraficoViewModel::disponible() const { return d_->proc.disponible(); }
+bool GraficoViewModel::disponible() const { return d_->proc().disponible(); }
 QString GraficoViewModel::abierto() const { return d_->abierto; }
 QString GraficoViewModel::fuente() const { return d_->fuente; }
 bool GraficoViewModel::declarativo() const { return d_->esDeclarativo(); }
@@ -269,7 +273,7 @@ void GraficoViewModel::setValor(const QString& clave, const QVariant& valor) {
 }
 
 void GraficoViewModel::redibujar() {
-    if (d_->abierto.isEmpty() || !d_->proc.disponible()) return;
+    if (d_->abierto.isEmpty() || !d_->proc().disponible()) return;
     QString err;
     const QJsonObject p = d_->pedido(&err);
     if (!err.isEmpty()) {
@@ -278,7 +282,7 @@ void GraficoViewModel::redibujar() {
         emit vistaChanged();
         return;
     }
-    d_->vista = d_->proc.dibujar(p, d_->momentoMs, &err);
+    d_->vista = d_->proc().dibujar(p, d_->momentoMs, &err);
     d_->error = err;
     emit vistaChanged();
 }
@@ -293,46 +297,23 @@ QString GraficoViewModel::vistaPreviaUrl() const {
 }
 
 QString GraficoViewModel::mostrarEnEscena(qulonglong fuente, bool repetir) {
-    if (!d_->proc.disponible()) return "el renderizador no está en este bundle";
-    int ancho = 900;
-    int alto = 220;
-    bool existe = false;
-    for (const auto& i : graficos::instancias())
-        if (i.id == fuente) {
-            ancho = i.ancho;
-            alto = i.alto;
-            existe = true;
-        }
-    if (!existe) return "esa fuente ya no está en ninguna escena";
-
+    // Sale al aire lo que hay EN EL EDITOR, no lo que está guardado: probar un
+    // cambio sin guardarlo es media razón de ser del editor. Por eso se arma
+    // el pedido acá y se le pasa ya hecho al emisor, que es quien sabe
+    // dibujarlo entero y reproducirlo.
     QString err;
-    QJsonObject p = d_->pedido(&err);
+    const QJsonObject p = d_->pedido(&err);
     if (!err.isEmpty()) return err;
-    p["ancho"] = ancho;
-    p["alto"] = alto;
-
-    constexpr int kFps = 30;
-    const int total = std::max(1, d_->duracionMs * kFps / 1000);
-    std::vector<QImage> cuadros;
-    for (int desde = 0; desde < total;) {
-        QVector<int> momentos;
-        for (int k = 0; k < 12 && desde < total; ++k, ++desde)
-            momentos.append(desde * 1000 / kFps);
-        const auto parte = d_->proc.tira(p, momentos, &err);
-        if (!err.isEmpty()) return err;
-        for (const auto& c : parte)
-            cuadros.push_back(c.imagen);
-    }
-    if (!graficos::reproducir(fuente, std::move(cuadros), kFps, repetir))
-        return "no se pudo reproducir";
-    emit escenaChanged();
-    return {};
+    const QString e =
+        d_->em.reproducir(p, d_->abierto, d_->valores, fuente, d_->duracionMs, repetir);
+    if (e.isEmpty()) emit escenaChanged();
+    return e;
 }
 
 QString GraficoViewModel::ocultarDeEscena(qulonglong fuente) {
-    if (!graficos::ocultar(fuente)) return "esa fuente ya no está";
-    emit escenaChanged();
-    return {};
+    const QString e = d_->em.ocultar(fuente);
+    if (e.isEmpty()) emit escenaChanged();
+    return e;
 }
 
 } // namespace ba::app

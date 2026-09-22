@@ -28,6 +28,7 @@
 namespace ba::app {
 
 class AppRuntime;
+namespace graficos { class Emisor; }
 
 class GraficoViewModel : public QObject {
     Q_OBJECT
@@ -50,7 +51,7 @@ class GraficoViewModel : public QObject {
     Q_PROPERTY(QVariantList enEscena READ enEscena NOTIFY escenaChanged)
 
   public:
-    explicit GraficoViewModel(AppRuntime& rt, QObject* parent = nullptr);
+    GraficoViewModel(AppRuntime& rt, graficos::Emisor& emisor, QObject* parent = nullptr);
     ~GraficoViewModel() override;
 
     bool disponible() const;

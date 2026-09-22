@@ -22,7 +22,7 @@ constexpr NombreTipo kTipos[] = {
     {Tipo::Escena, "escena"},   {Tipo::Musica, "musica"},   {Tipo::Video, "video"},
     {Tipo::Teleprompter, "teleprompter"}, {Tipo::Orador, "orador"}, {Tipo::Pantalla, "pantalla"},
     {Tipo::Audio, "audio"},     {Tipo::Pausa, "pausa"},     {Tipo::Espera, "espera"},
-    {Tipo::Nota, "nota"},
+    {Tipo::Nota, "nota"},         {Tipo::Grafico, "grafico"},
 };
 
 std::string textoDe(const json& j, const char* clave) {
@@ -82,6 +82,13 @@ std::string Cue::queLeFalta() const {
         case Tipo::Orador:
             if (!tieneTexto(datos, "participante")) return "no dice quien habla";
             if (duracionSeg <= 0) return "no dice cuanto tiempo tiene para hablar";
+            return {};
+        case Tipo::Grafico:
+            // La fuente hace falta siempre: es DONDE se ve. Un grafico sin
+            // fuente no esta en ninguna escena y no lo ve nadie.
+            if (!tieneTexto(datos, "fuente")) return "no dice en que fuente de escena se ve";
+            if (datos.value("accion", std::string("mostrar")) == "ocultar") return {};
+            if (!tieneTexto(datos, "grafico")) return "no dice que grafico sacar al aire";
             return {};
         case Tipo::Pantalla:
             if (!tieneTexto(datos, "pantalla")) return "no dice a que pantalla va";

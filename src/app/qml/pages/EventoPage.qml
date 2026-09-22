@@ -43,6 +43,7 @@ Rectangle {
         switch (tipo) {
         case "escena": return Theme.accent
         case "orador": return "#5aa9e6"
+        case "grafico": return "#c792ea"
         case "musica": return "#b98cf0"
         case "video": return "#b98cf0"
         case "teleprompter": return "#4fc3a1"
@@ -603,6 +604,58 @@ Rectangle {
                                             let d = {}
                                             d[modelData] = text
                                             page.ev.editarCue(page.selB, page.selC, { datos: d })
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Un cue de gráfico lleva ADEMÁS los parámetros del
+                            // gráfico elegido. Se leen de su ficha, así que un
+                            // gráfico nuevo aparece acá sin tocar esta pantalla.
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 6
+                                visible: page.selCue && page.selCue.tipo === "grafico"
+
+                                Text {
+                                    Layout.fillWidth: true
+                                    wrapMode: Text.WordWrap
+                                    color: Theme.textDim
+                                    font.pixelSize: 10
+                                    text: {
+                                        const fs = page.ev.fuentesDeGrafico()
+                                        const gs = page.ev.graficosDisponibles()
+                                        return "Fuentes en las escenas: " + (fs.length ? fs.join(" · ") : "ninguna todavía") +
+                                               "\nGráficos guardados: " + (gs.length ? gs.join(" · ") : "ninguno")
+                                    }
+                                }
+
+                                Repeater {
+                                    model: page.selCue && page.selCue.tipo === "grafico"
+                                           ? page.ev.parametrosDeGrafico(page.selCue.datos.grafico || "") : []
+                                    delegate: ColumnLayout {
+                                        required property var modelData
+                                        Layout.fillWidth: true
+                                        spacing: 2
+                                        Text {
+                                            text: modelData.titulo || modelData.clave
+                                            color: Theme.textDim; font.pixelSize: 11
+                                        }
+                                        TextField {
+                                            Layout.fillWidth: true
+                                            color: Theme.text
+                                            font.pixelSize: 12
+                                            // Vacío = queda el valor por defecto del gráfico, y se
+                                            // muestra como marca de agua para que se sepa cuál es.
+                                            placeholderText: String(modelData.porDefecto !== undefined
+                                                                    ? modelData.porDefecto : "")
+                                            text: {
+                                                const v = page.selCue && page.selCue.datos.valores
+                                                if (!v || v[modelData.clave] === undefined) return ""
+                                                return String(v[modelData.clave])
+                                            }
+                                            onEditingFinished: page.ev.setValorDeCue(page.selB, page.selC,
+                                                                                     modelData.clave, text)
                                         }
                                     }
                                 }

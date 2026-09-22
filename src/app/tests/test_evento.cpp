@@ -131,6 +131,18 @@ void revision() {
     Cue mal = cue(Tipo::Audio, "ca", 1, json{{"accion", "bajar"}, {"fuente", "Default"}});
     CHECK(mal.queLeFalta().find("no existe") != std::string::npos,
           "una accion de audio inventada se avisa por nombre");
+    // El cue de grafico: la FUENTE hace falta siempre, porque es donde se ve.
+    // Un grafico sin fuente no esta en ninguna escena y no lo ve nadie.
+    Cue g = cue(Tipo::Grafico, "cg", 0, json{{"grafico", "zocalo"}});
+    CHECK(g.queLeFalta().find("fuente") != std::string::npos,
+          "un grafico sin fuente de escena no se puede sacar al aire");
+    Cue gOculta = cue(Tipo::Grafico, "cg2", 0, json{{"fuente", "Zócalo"}, {"accion", "ocultar"}});
+    CHECK(gOculta.queLeFalta().empty(), "para ocultar alcanza con saber la fuente");
+    Cue gSinCual = cue(Tipo::Grafico, "cg3", 0, json{{"fuente", "Zócalo"}});
+    CHECK(!gSinCual.queLeFalta().empty(), "para mostrar hace falta decir cual grafico");
+    Cue gOk = cue(Tipo::Grafico, "cg4", 0, json{{"fuente", "Zócalo"}, {"grafico", "zocalo"}});
+    CHECK(gOk.queLeFalta().empty(), "con fuente y grafico esta completo");
+
     Cue sinFuente = cue(Tipo::Audio, "cb", 1, json{{"accion", "silenciar"}});
     CHECK(!sinFuente.queLeFalta().empty(), "silenciar necesita saber que fuente");
     Cue bien = cue(Tipo::Audio, "cc", 1, json{{"accion", "volumen"}, {"fuente", "Default"}});

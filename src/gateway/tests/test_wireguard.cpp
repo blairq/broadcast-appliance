@@ -18,6 +18,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <functional>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -294,14 +297,25 @@ void testInterop() {
 
     // --- C++ inicia, Python responde (el caso real: somos cliente) ----------
     {
-        const int port =
-            30000 + static_cast<int>(std::chrono::steady_clock::now().time_since_epoch().count() % 20000);
-        const std::string cmd = "python3 " + peer + " respond " + std::to_string(port) + " " +
-                                toBase64(pPriv) + " " + toBase64(cPub) + " " + toBase64(psk) +
-                                " 4 >/dev/null 2>&1";
+        // Puerto 0: lo elige la referencia y lo avisa por archivo cuando ya abrio el
+        // socket. Esperar un tiempo fijo fallaba en maquinas cargadas (sanitizers).
+        const std::string ready =
+            (std::filesystem::temp_directory_path() /
+             ("ba_wg_ready_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count())))
+                .string();
+        const std::string cmd = "python3 " + peer + " respond 0 " + toBase64(pPriv) + " " + toBase64(cPub) +
+                                " " + toBase64(psk) + " 10 " + ready + " >/dev/null 2>&1";
         std::atomic<int> rc{-1};
         std::thread py([&] { rc = std::system(cmd.c_str()); });
-        std::this_thread::sleep_for(std::chrono::milliseconds(700)); // que abra el socket
+        int port = 0;
+        waitFor(
+            [&] {
+                std::ifstream f(ready);
+                return static_cast<bool>(f >> port) && port > 0;
+            },
+            15000);
+        std::filesystem::remove(ready);
+        CHECK(port > 0, "la referencia abrio su socket");
         WgConfig c;
         c.privateKey = cPriv;
         c.peerPublicKey = pPub;

@@ -37,6 +37,7 @@ class AppRuntime;
 class ConferenceViewModel;
 class EventoViewModel;
 class GraficoViewModel;
+namespace graficos { class Emisor; }
 class YouTubeViewModel;
 class TwitchViewModel;
 class FacebookViewModel;
@@ -223,6 +224,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<PropertiesModel> props_;
     std::unique_ptr<ConferenceViewModel> conference_;
     std::unique_ptr<EventoViewModel> evento_;
+    std::unique_ptr<graficos::Emisor> emisor_;
     std::unique_ptr<GraficoViewModel> grafico_;
 #if defined(BA_HAVE_CLAP)
     std::unique_ptr<audio::RackManager> racks_;

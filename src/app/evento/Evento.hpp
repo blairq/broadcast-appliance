@@ -50,6 +50,7 @@ enum class Tipo {
     Video,        ///< reproduce un video y qué hacer al terminar
     Teleprompter, ///< carga un texto y lo deja listo o lo arranca
     Orador,       ///< pone a alguien al aire, con su tiempo asignado
+    Grafico,      ///< saca al aire un grafico animado (o lo esconde)
     Pantalla,     ///< manda contenido a una pantalla
     Audio,        ///< cambia el rack, silencia, hace ducking
     Pausa,        ///< espera N segundos

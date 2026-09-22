@@ -177,6 +177,12 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev) {
             "  video         {archivo, alTerminar}\n"
             "  teleprompter  {discurso}            un archivo de Discursos/\n"
             "  orador        {participante}        ademas necesita duracionSeg > 0\n"
+            "  grafico       {fuente, grafico, valores, duracionMs, repetir, accion}\n"
+            "                                        `fuente` es el nombre de la fuente «Grafico\n"
+            "                                        animado» de la escena (DONDE se ve); `grafico` es\n"
+            "                                        cual de los guardados; `valores` son sus parametros\n"
+            "                                        (los que no pongas quedan en el valor por defecto).\n"
+            "                                        accion: mostrar (por defecto) u ocultar.\n"
             "  pantalla      {pantalla, contenido}\n"
             "  audio         {accion, fuente, db}    accion: silenciar | activar | volumen\n"
             "  pausa         -                     espera lo que diga duracionSeg\n"
@@ -188,7 +194,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev) {
             "algo salga solo cuando no lo esperabas es peor que llegar tarde. La revision avisa si hay "
             "seis automaticos seguidos.\n\n"
             "Sin `cue` agrega uno nuevo al final del bloque. Con `cue` actua sobre ese.\n\n"
-            "Ojo con que se EJECUTA hoy: escena, orador, musica, teleprompter y audio si. Video y "
+            "Ojo con que se EJECUTA hoy: escena, orador, musica, teleprompter, grafico y audio si. Video y "
             "pantalla todavia no: se pueden dejar escritos en el guion (sirven para los tiempos y para "
             "que el operador sepa que hacer), pero cuando toquen se anotan como «todavia no se "
             "ejecutan» en vez de fallar callados.";
@@ -198,8 +204,8 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev) {
              {{"bloque", {{"type", "integer"}, {"minimum", 0}}},
               {"cue", {{"type", "integer"}, {"minimum", 0}, {"description", "Cual cue del bloque (base 0)."}}},
               {"tipo", {{"type", "string"},
-                        {"enum", {"escena", "musica", "video", "teleprompter", "orador", "pantalla",
-                                  "audio", "pausa", "espera", "nota"}}}},
+                        {"enum", {"escena", "musica", "video", "teleprompter", "orador", "grafico",
+                                  "pantalla", "audio", "pausa", "espera", "nota"}}}},
               {"texto", {{"type", "string"}, {"description", "Lo que lee el operador."}}},
               {"datos", {{"type", "object"}, {"description", "Lo propio del tipo (ver la ayuda)."}}},
               {"duracionSeg", {{"type", "integer"}, {"minimum", 0}}},

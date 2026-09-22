@@ -32,6 +32,10 @@ Dos cosas que confunden si no se saben:
     Invitados; hoy el tope es 16, y cambiarlo reinicia el gateway). Si pedís
     más, el resto queda esperando en el lobby — que igual conecta y manda
     video, o sea que también es carga real.
+  * Sin `--video`, la cámara falsa de Chrome manda un patrón sintético que se
+    comprime a casi nada: el ancho de banda medido no se parece al de un
+    evento. `tools/test/video-de-prueba.sh` prepara un video real (una persona
+    frente a la cámara) que Chrome reproduce en bucle.
   * Los números de CPU solo valen con el sistema ENTERO corriendo. Contra un
     gateway suelto (sin la app A del otro lado) nadie consume el video que
     llega, asi que no se decodifica y la CPU da casi cero: se mide la
@@ -105,19 +109,28 @@ class Sala:
             pass  # sala llena: se queda esperando, que también es carga
 
 
-def lanzar_invitado(chrome: str, url: str, perfil: str, inseguro: bool) -> subprocess.Popen:
+def lanzar_invitado(chrome: str, url: str, perfil: str, inseguro: bool, video: str = "",
+                    audio: str = "") -> subprocess.Popen:
     args = [
         chrome,
         "--headless=new",
         "--no-sandbox",
         "--disable-gpu",
         "--mute-audio",
-        # Cámara y micrófono falsos: un patrón de video y un tono, sin hardware.
+        # Cámara y micrófono falsos: sin hardware.
         "--use-fake-device-for-media-stream",
         "--use-fake-ui-for-media-stream",
         "--autoplay-policy=no-user-gesture-required",
         f"--user-data-dir={perfil}",
     ]
+    # Con un archivo, la cámara falsa reproduce ESE video en bucle en vez del
+    # patrón sintético. Importa: el patrón es casi todo plano y el codificador
+    # lo resuelve con cuatro bits, así que sin esto la prueba miente justo en
+    # lo que se quiere medir (ancho de banda y trabajo del codificador).
+    if video:
+        args.append(f"--use-file-for-fake-video-capture={video}")
+    if audio:
+        args.append(f"--use-file-for-fake-audio-capture={audio}")
     if inseguro:
         # El gateway sirve HTTPS con certificado propio: sin esto el navegador
         # ni carga la página (y sin HTTPS no hay cámara fuera de localhost).
@@ -148,6 +161,12 @@ def main() -> int:
     p.add_argument("--pin", default="", help="PIN de la sala (con --sin-admin)")
     p.add_argument("--etiqueta", default="",
                    help="prefijo en el nombre de los invitados, para distinguir equipos")
+    p.add_argument("--video", default="",
+                   help="archivo .y4m que la cámara falsa reproduce en bucle "
+                        "(lo prepara tools/test/video-de-prueba.sh). Sin esto, "
+                        "Chrome manda su patrón sintético, que no pesa nada")
+    p.add_argument("--audio", default="",
+                   help="archivo .wav para el micrófono falso")
     a = p.parse_args()
 
     if a.sin_admin and a.solo_medir:
@@ -175,10 +194,20 @@ def main() -> int:
     else:
         chrome = a.chrome or buscar_chrome()
 
+    for ruta, que in ((a.video, "video"), (a.audio, "audio")):
+        if ruta and not os.path.isfile(ruta):
+            sys.exit(f"No encuentro el archivo de {que}: {ruta}")
+    if a.video and not a.video.endswith(".y4m"):
+        sys.exit("La cámara falsa de Chrome solo lee .y4m (video crudo). "
+                 "Usá tools/test/video-de-prueba.sh para prepararlo.")
+
     inseguro = base.startswith("https://")
     print(f"Sala «{cuarto}» en {base} · lugares: {lugares} · "
           + ("midiendo, los clientes vienen de afuera" if a.solo_medir
              else f"invitados a levantar: {a.invitados}"))
+    if a.invitados:
+        print("Cámara: " + (os.path.basename(a.video) if a.video
+                            else "patrón sintético de Chrome (no pesa nada: los números de red no valen)"))
     print("Ctrl+C corta y limpia.\n")
 
     tmp = tempfile.mkdtemp(prefix="ba-carga-")
@@ -209,7 +238,8 @@ def main() -> int:
                 n = len(procesos) + 1
                 sufijo = f"&name=Carga+{a.etiqueta}{n:02d}&go=1"
                 url = f"{base}#room={cuarto}&pin={pin}{sufijo}"
-                procesos.append(lanzar_invitado(chrome, url, os.path.join(tmp, f"p{n}"), inseguro))
+                procesos.append(
+                    lanzar_invitado(chrome, url, os.path.join(tmp, f"p{n}"), inseguro, a.video, a.audio))
                 proximo = t + a.escalonado
 
             if sala is None:

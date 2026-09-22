@@ -7,11 +7,14 @@ ChaCha20-Poly1305. Si las dos implementaciones se entienden, el protocolo esta
 bien implementado (y no solo "consistente consigo mismo").
 
 Uso:
-  wg_reference_peer.py respond  <puerto> <priv_b64> <peer_pub_b64> <psk_b64> <segundos>
+  wg_reference_peer.py respond  <puerto> <priv_b64> <peer_pub_b64> <psk_b64> <segundos> [archivo_listo]
   wg_reference_peer.py initiate <puerto_destino> <priv_b64> <peer_pub_b64> <psk_b64> <segundos>
 
 respond:  espera la iniciacion, contesta, y devuelve cada paquete IPv4/UDP que
           recibe con origen/destino (IP y puerto) intercambiados. Sale con 0.
+          Con <puerto> 0 elige uno libre; si se pasa [archivo_listo], escribe
+          ahi el puerto real una vez abierto el socket (la senal de "listo":
+          el que lo lanza no tiene que adivinar cuanto tarda en arrancar).
 initiate: inicia el handshake, manda un paquete IPv4/UDP con "ping-de-python"
           y espera el eco (IP/puertos intercambiados). Sale 0 si llego bien.
 """
@@ -131,10 +134,15 @@ class Session:
         return DEAD(self.recv_key, ctr, msg[16:], b"")
 
 
-def respond(port, priv, peer_pub, psk, secs):
+def respond(port, priv, peer_pub, psk, secs, ready_file=None):
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.bind(("127.0.0.1", port))
     s.settimeout(secs)
+    if ready_file:
+        # Escritura atomica: el que espera nunca lee un archivo a medias.
+        with open(ready_file + ".tmp", "w") as f:
+            f.write(str(s.getsockname()[1]))
+        os.replace(ready_file + ".tmp", ready_file)
     our_pub = PUB(priv)
     sess = None
     deadline = time.time() + secs
@@ -179,6 +187,7 @@ def respond(port, priv, peer_pub, psk, secs):
             if len(pkt) >= 28 and pkt[0] >> 4 == 4:
                 s.sendto(sess.encrypt(echo_of(pkt)), addr)
                 echoed += 1
+                s.settimeout(0.5)  # ya hubo eco: no esperar el plazo entero
     print(f"respond: {echoed} paquetes devueltos")
     return 0 if echoed > 0 else 1
 
@@ -242,4 +251,5 @@ if __name__ == "__main__":
     port = int(sys.argv[2])
     priv, peer_pub, psk = (base64.b64decode(x) for x in sys.argv[3:6])
     secs = float(sys.argv[6])
-    sys.exit(respond(port, priv, peer_pub, psk, secs) if mode == "respond" else initiate(port, priv, peer_pub, psk, secs))
+    ready_file = sys.argv[7] if len(sys.argv) > 7 else None
+    sys.exit(respond(port, priv, peer_pub, psk, secs, ready_file) if mode == "respond" else initiate(port, priv, peer_pub, psk, secs))

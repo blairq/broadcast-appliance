@@ -14,6 +14,8 @@
 #include <QJsonObject>
 
 #include "AppRuntime.hpp"
+#include "graficos/Emisor.hpp"
+#include "graficos/GraficoSource.hpp"
 #include "BroadcastEngine.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
@@ -92,6 +94,8 @@ constexpr CampoDeTipo kTipos[] = {
     {"video", "Video", "Reproduce un video del evento.", "archivo,alTerminar"},
     {"teleprompter", "Teleprompter", "Carga un discurso y lo deja listo.", "discurso,arrancar"},
     {"orador", "Orador", "Le da la palabra a alguien, con su tiempo.", "participante"},
+    {"grafico", "Gráfico", "Saca al aire un gráfico animado en una fuente de escena.",
+     "fuente,grafico,accion"},
     {"pantalla", "Pantalla", "Manda contenido a una pantalla.", "pantalla,contenido"},
     {"audio", "Audio", "Silencia una fuente, la activa o le cambia el volumen.", "accion,fuente,db"},
     {"pausa", "Pausa", "Espera los segundos que diga la duración.", ""},
@@ -101,8 +105,10 @@ constexpr CampoDeTipo kTipos[] = {
 
 } // namespace
 
-EventoViewModel::EventoViewModel(AppRuntime& rt, ConferenceViewModel* sala, QObject* parent)
-    : QObject(parent), rt_(rt), sala_(sala), store_(rt.dataRoot() / "Eventos") {
+EventoViewModel::EventoViewModel(AppRuntime& rt, ConferenceViewModel* sala,
+                                 graficos::Emisor* graficos, QObject* parent)
+    : QObject(parent), rt_(rt), sala_(sala), graficos_(graficos),
+      store_(rt.dataRoot() / "Eventos") {
     // El reloj del evento va aparte del guion: cambia cada segundo y no tiene
     // sentido redibujar la lista de cues por eso.
     reloj_.setInterval(1000);
@@ -248,6 +254,40 @@ QVariantList EventoViewModel::tiposDeCue() const {
                                {"campos", QString::fromUtf8(t.campos).split(',', Qt::SkipEmptyParts)}});
     }
     return out;
+}
+
+QStringList EventoViewModel::graficosDisponibles() const {
+    return graficos_ == nullptr ? QStringList{} : graficos_->nombres();
+}
+
+QStringList EventoViewModel::fuentesDeGrafico() const {
+    QStringList out;
+    for (const auto& i : app::graficos::instancias()) out << QString::fromStdString(i.nombre);
+    return out;
+}
+
+QVariantList EventoViewModel::parametrosDeGrafico(const QString& grafico) const {
+    QVariantList out;
+    if (graficos_ == nullptr) return out;
+    for (const QJsonValue& v : graficos_->ficha(grafico).value("parametros").toArray()) {
+        const QJsonObject p = v.toObject();
+        out.append(QVariantMap{{"clave", p.value("clave").toString()},
+                               {"titulo", p.value("titulo").toString()},
+                               {"tipo", p.value("tipo").toString("texto")},
+                               {"ayuda", p.value("ayuda").toString()},
+                               {"porDefecto", p.value("porDefecto").toVariant()}});
+    }
+    return out;
+}
+
+void EventoViewModel::setValorDeCue(int bloque, int cue, const QString& clave,
+                                    const QVariant& valor) {
+    evento::Cue* c = cuePtr(bloque, cue);
+    if (c == nullptr || clave.isEmpty()) return;
+    if (!c->datos.contains("valores") || !c->datos["valores"].is_object())
+        c->datos["valores"] = nlohmann::json::object();
+    c->datos["valores"][clave.toStdString()] = valor.toString().toStdString();
+    marcarSucio();
 }
 
 void EventoViewModel::marcarSucio() {
@@ -431,7 +471,7 @@ void EventoViewModel::ensayoAcelerado() {
         }
         if (c.tipo != evento::Tipo::Escena && c.tipo != evento::Tipo::Orador &&
             c.tipo != evento::Tipo::Nota && c.tipo != evento::Tipo::Espera &&
-            c.tipo != evento::Tipo::Pausa) {
+            c.tipo != evento::Tipo::Grafico && c.tipo != evento::Tipo::Pausa) {
             ++sinEjecutar;
             anotar(donde + " " + que + " — el guion lo tiene, pero todavía no sé ejecutarlo", "info");
             continue;
@@ -547,6 +587,20 @@ void EventoViewModel::revisar() {
         const evento::Bloque& b = e_.bloques[bi];
         for (std::size_t ci = 0; ci < b.cues.size(); ++ci) {
             const evento::Cue& c = b.cues[ci];
+            if (c.tipo == evento::Tipo::Grafico && graficos_ != nullptr) {
+                const std::string g = c.datos.value("grafico", std::string());
+                if (!g.empty() && !graficos_->nombres().contains(QString::fromStdString(g)))
+                    reparos_.push_back({static_cast<int>(bi), static_cast<int>(ci), true,
+                                        "no existe un grafico llamado \"" + g + "\""});
+                // La fuente se marca SIN gravedad: es normal escribir el guion
+                // antes de armar las escenas, y se arregla agregando la fuente.
+                const std::string f = c.datos.value("fuente", std::string());
+                if (!f.empty() && graficos_->fuentePorNombre(QString::fromStdString(f)) == 0)
+                    reparos_.push_back({static_cast<int>(bi), static_cast<int>(ci), false,
+                                        "todavia no hay ninguna fuente de grafico llamada \"" + f +
+                                            "\": agregala a la escena donde tiene que verse"});
+                continue;
+            }
             if (c.tipo != evento::Tipo::Escena) continue;
             const std::string nombre = c.datos.value("escena", std::string());
             if (nombre.empty()) continue; // ya lo dijo la revision del modelo
@@ -839,6 +893,49 @@ void EventoViewModel::ejecutarActual() {
             if (c->datos.value("arrancar", false)) cmd["corriendo"] = true;
             sala_->client().post("/api/v1/prompter", cmd);
             anotar("Teleprompter: " + rel, "ok");
+            return;
+        }
+        case evento::Tipo::Grafico: {
+            // El gráfico sale en una FUENTE de escena, que el guion nombra. Si
+            // esa fuente no está en ninguna escena, el gráfico no lo ve nadie:
+            // se dice, en vez de dar el cue por hecho.
+            const QString fuente = QString::fromStdString(c->datos.value("fuente", std::string()));
+            if (graficos_ == nullptr) {
+                anotar("No hay renderizador de gráficos en este bundle", "error");
+                return;
+            }
+            const std::uint64_t id = graficos_->fuentePorNombre(fuente);
+            if (id == 0) {
+                anotar("No hay ninguna fuente de gráfico llamada \"" + fuente + "\" en las escenas",
+                       "error");
+                emit notify("El cue no se pudo ejecutar: falta la fuente de gráfico \"" + fuente + "\"",
+                            "error");
+                return;
+            }
+            if (c->datos.value("accion", std::string("mostrar")) == "ocultar") {
+                const QString err = graficos_->ocultar(id);
+                if (!err.isEmpty()) {
+                    anotar("No se pudo sacar el gráfico: " + err, "error");
+                    return;
+                }
+                anotar("Saca el gráfico de " + fuente, "ok");
+                return;
+            }
+            const QString grafico = QString::fromStdString(c->datos.value("grafico", std::string()));
+            QJsonObject valores;
+            if (c->datos.contains("valores"))
+                valores = QJsonDocument::fromJson(
+                              QByteArray::fromStdString(c->datos["valores"].dump()))
+                              .object();
+            const int dur = c->datos.value("duracionMs", 0);
+            const bool repetir = c->datos.value("repetir", false);
+            const QString err = graficos_->mostrar(grafico, valores, id, dur, repetir);
+            if (!err.isEmpty()) {
+                anotar("No se pudo sacar al aire el gráfico \"" + grafico + "\": " + err, "error");
+                emit notify("El cue de gráfico falló: " + err, "error");
+                return;
+            }
+            anotar("Al aire el gráfico " + grafico + " en " + fuente, "ok");
             return;
         }
         case evento::Tipo::Espera:
