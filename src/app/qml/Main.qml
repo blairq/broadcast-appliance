@@ -113,24 +113,35 @@ ApplicationWindow {
     }
 
     // --- Paginas ------------------------------------------------------------------
+    // --- El lugar que ocupa la barra de navegacion -----------------------------
+    // Todo lo que flota sobre las paginas (el zocalo del asistente, la barra
+    // del operador, los avisos, las pildoras de estado) tiene que esquivarla.
+    // Antes cada uno lo resolvia por su cuenta —uno anclaba a `rail.right`,
+    // otro tenia un 92 escrito a mano— y eso solo funcionaba con la barra a la
+    // izquierda y de 64 px: al moverla, el zocalo del asistente se aplastaba
+    // hasta desaparecer. Ahora salen todos de estas cuatro cuentas.
+    readonly property real rielLugar: Studio.riel.grosor + 28
+    readonly property real libreIzq: Studio.riel.posicion === "izquierda" ? rielLugar : 0
+    readonly property real libreDer: Studio.riel.posicion === "derecha" ? rielLugar : 0
+    readonly property real libreArr: Studio.riel.posicion === "arriba" ? rielLugar : 0
+    readonly property real libreAba: Studio.riel.posicion === "abajo" ? rielLugar : 0
+
     /// Cuanto margen tiene que dejar cada pagina a la izquierda. Con el riel a
     /// la izquierda, el riel FLOTA sobre ese margen; en los otros lados el
     /// lugar ya lo reserva el StackLayout y la pagina solo deja un aire.
-    readonly property real insetPagina:
-        Studio.riel.posicion === "izquierda" ? Studio.riel.grosor + 28 : 14
+    readonly property real insetPagina: win.libreIzq > 0 ? win.libreIzq : 14
 
     StackLayout {
         id: paginas
         anchors.fill: parent
         // Le deja lugar al zocalo del asistente: si no, la barra taparia el
         // ultimo control de cada pagina justo cuando hace falta apretarlo.
-        anchors.bottomMargin: (barraIA.visible ? barraIA.height + 14 : 0) +
-                              (Studio.riel.posicion === "abajo" ? Studio.riel.grosor + 28 : 0)
+        anchors.bottomMargin: (barraIA.visible ? barraIA.height + 14 : 0) + win.libreAba
         // A la izquierda el riel FLOTA sobre el margen que cada pagina ya deja
         // (su `leftInset`); en los otros tres lados hay que reservarle lugar de
         // verdad, porque ahi las paginas no dejan nada.
-        anchors.topMargin: Studio.riel.posicion === "arriba" ? Studio.riel.grosor + 28 : 0
-        anchors.rightMargin: Studio.riel.posicion === "derecha" ? Studio.riel.grosor + 28 : 0
+        anchors.topMargin: win.libreArr
+        anchors.rightMargin: win.libreDer
         currentIndex: win.page
         DashboardPage { leftInset: win.insetPagina }
         ScenesPage { leftInset: win.insetPagina }
@@ -218,6 +229,12 @@ ApplicationWindow {
     // cuatro hijos en las cuatro posiciones.
     Rectangle {
         id: rail
+        // Por encima de TODO lo que flota sobre las paginas (avisos, barra del
+        // operador, pildoras de estado): es como se navega, y una barra tapada
+        // deja al operador sin salida justo cuando necesita cambiar de
+        // pantalla. Lo unico que puede ponerse arriba es un dialogo modal, que
+        // es una interrupcion deliberada y se cierra.
+        z: 100
         readonly property var cfg: Studio.riel
         readonly property bool vert: cfg.vertical
         readonly property int margen: 14
@@ -515,9 +532,15 @@ ApplicationWindow {
         // En la pestaña del Asistente no va: ahi esta el chat de verdad, con
         // su configuracion, y dos cajas para lo mismo confunden.
         visible: win.page !== 7
+        // A la VENTANA, no a la barra: anclarlo a `rail.right` funcionaba solo
+        // con la barra a la izquierda; con la barra a la derecha o arriba,
+        // `rail.right` es el borde de la ventana y el zocalo se aplastaba
+        // hasta desaparecer.
         anchors {
-            left: rail.right; right: parent.right; bottom: parent.bottom
-            leftMargin: 20; rightMargin: 20; bottomMargin: 14
+            left: parent.left; right: parent.right; bottom: parent.bottom
+            leftMargin: win.libreIzq + 20
+            rightMargin: win.libreDer + 20
+            bottomMargin: win.libreAba + 14
         }
         contexto: win.contextoDePagina(win.page)
         sugerencias: win.sugerenciasDePagina(win.page)
@@ -529,7 +552,8 @@ ApplicationWindow {
     // tapa ningun control. El Dashboard ya trae sus pildoras en el encabezado.
     Item {
         visible: win.page !== 0
-        anchors { top: parent.top; horizontalCenter: parent.horizontalCenter; topMargin: 1 }
+        anchors { top: parent.top; horizontalCenter: parent.horizontalCenter
+                  topMargin: win.libreArr + 1 }
         z: 50
         width: airState.width
         height: airState.height
@@ -557,7 +581,8 @@ ApplicationWindow {
     // --- Reloj del orador al aire (modo oradores), visible en todas las paginas ------
     // Debajo de la franja del estado de emision, para no taparla.
     OnAirTimer {
-        anchors { top: parent.top; horizontalCenter: parent.horizontalCenter; topMargin: 20 }
+        anchors { top: parent.top; horizontalCenter: parent.horizontalCenter
+                  topMargin: win.libreArr + 20 }
         z: 50
         onClicked: win.page = 2
     }
@@ -565,14 +590,18 @@ ApplicationWindow {
     // --- Barra del asistente al operador (mensajes, preguntas, respuestas a invitados) ----
     OperatorBar {
         id: opBar
-        anchors { left: parent.left; right: parent.right; bottom: parent.bottom; leftMargin: 92 + 12; rightMargin: 18; bottomMargin: 14 }
+        anchors { left: parent.left; right: parent.right; bottom: parent.bottom
+                  leftMargin: win.libreIzq + 12; rightMargin: win.libreDer + 18
+                  bottomMargin: win.libreAba + 14 }
         z: 60
     }
 
     // --- Avisos (toasts) ------------------------------------------------------------
     Column {
         id: toasts
-        anchors { right: parent.right; bottom: opBar.visible ? opBar.top : parent.bottom; margins: 22 }
+        anchors { right: parent.right; bottom: opBar.visible ? opBar.top : parent.bottom
+                  rightMargin: win.libreDer + 22
+                  bottomMargin: (opBar.visible ? 0 : win.libreAba) + 22 }
         z: 61
         spacing: 8
         width: 380
