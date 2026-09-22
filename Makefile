@@ -233,6 +233,10 @@ release-win: win
 	rm -rf $(WIN_RELEASE)
 	cmake --install $(WIN_BUILD_DIR) --prefix $(WIN_RELEASE) --component bundle
 	tools/deps/check-portable-win.sh $(WIN_RELEASE)
+	@# El manifest, igual que en Linux: sin el, el launcher de Windows verifica
+	@# CERO archivos y la comprobacion de integridad no sirve de nada, sin que
+	@# nada lo avise. El bundle de Windows salia sin manifest desde siempre.
+	tools/deploy --solo-manifest $(WIN_RELEASE)
 
 # --- Archivos de distribucion (los que sube el CI a un release) --------------
 # dist/BroadcastAppliance-<version>-<plataforma>.{zip,tar.gz}: la carpeta

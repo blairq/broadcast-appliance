@@ -138,12 +138,22 @@ QJsonObject atender(Renderizador& r, const QJsonObject& pedido) {
 } // namespace
 
 int main(int argc, char** argv) {
-    // Sin ventana de verdad: se dibuja fuera de pantalla. Si no hay pantalla
-    // (un servidor, CI), Qt igual puede rasterizar.
+    // Sin ventana de verdad: se dibuja a una textura. Aun asi hace falta un
+    // contexto de OpenGL, asi que la plataforma de Qt importa.
+    //
+    // SOLO en X11/Wayland se cae a `offscreen`, y solo cuando NO hay pantalla
+    // (un servidor, el CI): ahi Qt rasteriza igual. En Windows y macOS no se
+    // toca: `DISPLAY` y `WAYLAND_DISPLAY` nunca estan puestas, asi que la
+    // condicion de abajo daria verdadera SIEMPRE y forzaria `offscreen` aunque
+    // el escritorio este ahi. Y la plataforma offscreen de Windows no da
+    // contexto WGL: el renderizador no podria crear el suyo y los graficos no
+    // se dibujarian nunca, sin que nada lo explique.
+#if !defined(_WIN32) && !defined(__APPLE__)
     if (qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM") && qEnvironmentVariableIsEmpty("DISPLAY") &&
         qEnvironmentVariableIsEmpty("WAYLAND_DISPLAY")) {
         qputenv("QT_QPA_PLATFORM", "offscreen");
     }
+#endif
     QGuiApplication app(argc, argv);
 
     // El registro: este proceso lo levanta la app por una tuberia, asi que su
