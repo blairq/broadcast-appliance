@@ -48,6 +48,11 @@ struct SceneConfig {
     /// vista: el motor no la usa para nada.
     std::string folder;
     std::vector<SourceSpec> sources;
+    /// Protegida: no se borra ni se renombra, y la interfaz lo dice. Es para
+    /// la escena base de la que se copian las demas —la que si alguien borra,
+    /// se pierde el trabajo de todos— y para las que no se tocan en vivo.
+    /// Copiarla SI se puede: de eso se trata.
+    bool protegida = false;
 };
 
 /// Transicion entre escenas.

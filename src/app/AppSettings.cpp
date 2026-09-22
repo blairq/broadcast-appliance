@@ -205,6 +205,7 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
             SceneConfig scene;
             scene.name = get<std::string>(sc, "name", "Escena");
             scene.folder = get<std::string>(sc, "folder", "");
+            scene.protegida = get<bool>(sc, "protegida", false);
             for (const auto& s : sc.value("sources", json::array())) {
                 scene.sources.push_back(sourceFromJson(s));
             }
@@ -247,7 +248,10 @@ bool saveAppConfig(const fs::path& path, const AppConfig& c, const fs::path& dat
         for (const auto& s : sc.sources) {
             sources.push_back(sourceToJson(s));
         }
-        scenes.push_back({{"name", sc.name}, {"folder", sc.folder}, {"sources", sources}});
+        json j{{"name", sc.name}, {"folder", sc.folder}, {"sources", sources}};
+        // Solo si esta: un app.json lleno de "protegida": false no dice nada.
+        if (sc.protegida) j["protegida"] = true;
+        scenes.push_back(std::move(j));
     }
     const json j{
         {"video",

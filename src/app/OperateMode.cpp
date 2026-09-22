@@ -521,7 +521,70 @@ bool AppRuntime::addScene(const std::string& name) {
     return true;
 }
 
+bool AppRuntime::copyScene(const std::string& from, const std::string& to) {
+    // `lastError_` es pegajoso: guarda lo ultimo que fallo, de cuando sea. Como
+    // aca se lo usa DESPUES de haber salido bien —para contar que una fuente no
+    // se pudo recrear— hay que limpiarlo al entrar, o la copia informa como
+    // propio un error de otra operacion anterior.
+    lastError_.clear();
+    const SceneConfig* origen = nullptr;
+    for (const SceneConfig& s : cfg_.scenes)
+        if (s.name == from) origen = &s;
+    if (origen == nullptr) {
+        lastError_ = "no existe la escena \"" + from + "\"";
+        return false;
+    }
+    for (const SceneConfig& s : cfg_.scenes)
+        if (s.name == to) {
+            lastError_ = "ya hay una escena llamada \"" + to + "\"";
+            return false;
+        }
+    if (!engine_.createScene(to)) {
+        lastError_ = engine_.lastError();
+        return false;
+    }
+    // Se copia la CONFIGURACION, no las fuentes del motor: una fuente de
+    // libobs pertenece a su escena, y compartirlas haria que mover algo en la
+    // copia moviera el original. Recrearlas desde la especificacion da dos
+    // escenas de verdad independientes, que es lo que uno espera al copiar.
+    SceneConfig copia = *origen;
+    copia.name = to;
+    copia.protegida = false; // la copia se puede tocar: para eso se copio
+    cfg_.scenes.push_back(copia);
+    for (const SourceSpec& spec : origen->sources) {
+        SourceSpec s = spec;
+        if (!addSource(to, s)) {
+            // Lo que no se pudo recrear se dice, pero no se deshace todo: una
+            // escena copiada a medias se arregla a mano; una que desaparecio
+            // sin explicacion, no.
+            lastError_ = "la escena se copio, pero la fuente \"" + spec.name +
+                         "\" no se pudo recrear: " + lastError_;
+        }
+    }
+    return true;
+}
+
+bool AppRuntime::setSceneProtected(const std::string& name, bool protegida) {
+    for (SceneConfig& s : cfg_.scenes)
+        if (s.name == name) {
+            s.protegida = protegida;
+            return true;
+        }
+    lastError_ = "no existe la escena \"" + name + "\"";
+    return false;
+}
+
+bool AppRuntime::sceneProtected(const std::string& name) const {
+    for (const SceneConfig& s : cfg_.scenes)
+        if (s.name == name) return s.protegida;
+    return false;
+}
+
 bool AppRuntime::removeScene(const std::string& name) {
+    if (sceneProtected(name)) {
+        lastError_ = "la escena \"" + name + "\" esta protegida: sacale la proteccion primero";
+        return false;
+    }
     if (!engine_.removeScene(name)) {
         lastError_ = engine_.lastError();
         return false;
@@ -534,6 +597,10 @@ bool AppRuntime::removeScene(const std::string& name) {
 }
 
 bool AppRuntime::renameScene(const std::string& from, const std::string& to) {
+    if (sceneProtected(from)) {
+        lastError_ = "la escena \"" + from + "\" esta protegida: sacale la proteccion primero";
+        return false;
+    }
     if (!engine_.renameScene(from, to)) {
         lastError_ = engine_.lastError();
         return false;

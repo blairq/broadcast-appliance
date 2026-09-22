@@ -27,7 +27,7 @@ class AppRuntime;
 class ScenesModel : public QAbstractListModel {
     Q_OBJECT
    public:
-    enum Roles { NameRole = Qt::UserRole + 1, LiveRole, FolderRole };
+    enum Roles { NameRole = Qt::UserRole + 1, LiveRole, FolderRole, ProtegidaRole };
     explicit ScenesModel(AppRuntime& rt, QObject* parent = nullptr);
     int rowCount(const QModelIndex& = {}) const override;
     QVariant data(const QModelIndex& index, int role) const override;

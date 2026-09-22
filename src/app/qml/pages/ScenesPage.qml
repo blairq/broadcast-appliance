@@ -215,7 +215,36 @@ Rectangle {
                     Layout.fillWidth: true
                     spacing: 6
                     GlassButton { text: "Escena"; icon: "+"; compact: true; onClicked: newSceneDlg.open() }
-                    GlassButton { text: "Renombrar"; compact: true; onClicked: { renameDlg.from = page.editScene; renameDlg.open() } }
+                    GlassButton {
+                        text: "Copiar"; icon: "⧉"; compact: true
+                        // La forma barata de armar escenas parecidas: se hace
+                        // UNA bien y las demás salen de copiarla. El nombre lo
+                        // propone solo; renombrar es un clic más.
+                        onClicked: {
+                            const nueva = Studio.copyScene(page.editScene, "")
+                            if (nueva !== "") page.editScene = nueva
+                        }
+                        ToolTip.visible: hovered; ToolTip.delay: 400
+                        ToolTip.text: "Una escena nueva con todas las fuentes de «" + page.editScene + "»"
+                    }
+                    GlassButton {
+                        text: "Renombrar"; compact: true
+                        enabled: !Studio.sceneProtected(page.editScene)
+                        onClicked: { renameDlg.from = page.editScene; renameDlg.open() }
+                        ToolTip.visible: hovered && !enabled
+                        ToolTip.text: "«" + page.editScene + "» está protegida"
+                    }
+                    GlassButton {
+                        text: Studio.sceneProtected(page.editScene) ? "Protegida" : "Proteger"
+                        icon: Studio.sceneProtected(page.editScene) ? "🔒" : "🔓"
+                        compact: true
+                        active: Studio.sceneProtected(page.editScene)
+                        onClicked: Studio.setSceneProtected(page.editScene,
+                                                            !Studio.sceneProtected(page.editScene))
+                        ToolTip.visible: hovered; ToolTip.delay: 400
+                        ToolTip.text: "Una escena protegida no se borra ni se renombra. Copiarla sí.\n" +
+                                      "Para la escena base de la que salen las demás."
+                    }
                     GlassButton {
                         text: "Carpeta"; icon: "+"; compact: true
                         onClicked: { folderDlg.scene = page.editScene; folderDlg.open() }
@@ -224,6 +253,9 @@ Rectangle {
                     }
                     GlassButton {
                         text: "Borrar"; compact: true
+                        enabled: !Studio.sceneProtected(page.editScene)
+                        ToolTip.visible: hovered && !enabled
+                        ToolTip.text: "«" + page.editScene + "» está protegida: sacale el candado primero"
                         onClicked: {
                             const escena = page.editScene
                             // La unica escena no se puede borrar: el motor lo avisa, sin preguntar antes.

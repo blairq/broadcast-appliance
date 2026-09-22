@@ -64,6 +64,12 @@ class AppRuntime {
     // --- Escenas y fuentes (motor + configuracion) ----------------------------
     bool addScene(const std::string& name);
     bool removeScene(const std::string& name);
+    /// Copia una escena entera con sus fuentes. La copia NO queda protegida
+    /// aunque el original lo este: para eso se copia.
+    bool copyScene(const std::string& from, const std::string& to);
+    /// Una escena protegida no se borra ni se renombra (copiarla si).
+    bool setSceneProtected(const std::string& name, bool protegida);
+    bool sceneProtected(const std::string& name) const;
     bool renameScene(const std::string& from, const std::string& to);
     /// Carpeta de una escena ("" si no tiene).
     std::string sceneFolder(const std::string& name) const;

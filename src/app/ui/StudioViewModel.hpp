@@ -189,6 +189,12 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE void addScene(const QString& name);
     Q_INVOKABLE void removeScene(const QString& name);
     Q_INVOKABLE void renameScene(const QString& from, const QString& to);
+    /// Copia una escena entera con sus fuentes. Devuelve el nombre que le
+    /// quedo (le agrega un numero si el que se pidio ya existia), o vacio si
+    /// no se pudo.
+    Q_INVOKABLE QString copyScene(const QString& from, const QString& to = {});
+    Q_INVOKABLE void setSceneProtected(const QString& name, bool protegida);
+    Q_INVOKABLE bool sceneProtected(const QString& name) const;
     /// Mueve la escena a una carpeta ("" la saca). Solo ordena la lista.
     Q_INVOKABLE void setSceneFolder(const QString& name, const QString& folder);
     /// Carpetas que ya existen (para ofrecerlas al mover una escena).

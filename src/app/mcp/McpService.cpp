@@ -570,6 +570,66 @@ void McpService::registerTools() {
     }
     {
         Tool t;
+        t.name = "scene_copy";
+        t.title = "Copiar una escena";
+        t.category = "escenas";
+        t.description = "Crea una escena nueva con todas las fuentes de otra.";
+        t.details =
+            "Es como se arman las escenas parecidas sin repetir el trabajo: se hace UNA bien —la de "
+            "entrevista, con su camara, su zocalo y su fondo— y las demas salen de copiarla y "
+            "cambiarle lo que difiere.\n\n"
+            "Las fuentes se RECREAN, no se comparten: quedan dos escenas de verdad independientes, y "
+            "mover algo en la copia no mueve el original.\n\n"
+            "La copia nunca queda protegida, aunque el original lo este: para eso se copia. Si "
+            "alguna fuente no se pudo recrear, la escena igual queda creada y se dice cual fallo: "
+            "una escena a medias se arregla a mano, una que desaparecio sin explicacion no.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"from", {{"type", "string"}, {"description", "La escena que se copia."}}},
+                           {"to", {{"type", "string"}, {"description", "Nombre de la copia."}}}}},
+                         {"required", {"from", "to"}}};
+        t.run = [&rt, persist](const json& a, Done done) {
+            const std::string from = a["from"].get<std::string>();
+            const std::string to = a["to"].get<std::string>();
+            if (!rt.copyScene(from, to)) return done(ToolResult::error(rt.lastError()));
+            persist();
+            // `lastError` con la copia hecha = alguna fuente no se pudo
+            // recrear. Se dice, pero no es un error: la escena existe.
+            const std::string aviso = rt.lastError();
+            done(ToolResult::ok("Escena «" + to + "» copiada de «" + from + "»." +
+                                (aviso.empty() ? "" : " Ojo: " + aviso)));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "scene_protect";
+        t.title = "Proteger una escena";
+        t.category = "escenas";
+        t.description = "Una escena protegida no se puede borrar ni renombrar.";
+        t.details =
+            "Para la escena BASE de la que se copian las demas —la que si alguien borra se pierde el "
+            "trabajo de todos— y para las que no se tocan en vivo.\n\n"
+            "Copiarla si se puede, y editar sus fuentes tambien: lo que se protege es que "
+            "desaparezca o cambie de nombre, que es lo que rompe todo lo que la nombra (el guion, "
+            "los vinculos de rotulos, las recetas).";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"scene", {{"type", "string"}}},
+                           {"protected", {{"type", "boolean"}, {"default", true}}}}},
+                         {"required", {"scene"}}};
+        t.run = [&rt, persist](const json& a, Done done) {
+            const std::string s = a["scene"].get<std::string>();
+            const bool p = a.value("protected", true);
+            if (!rt.setSceneProtected(s, p)) return done(ToolResult::error(rt.lastError()));
+            persist();
+            done(ToolResult::ok(p ? "«" + s + "» queda protegida: no se borra ni se renombra."
+                                  : "«" + s + "» ya no esta protegida."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "scene_delete";
         t.title = "Borrar escena";
         t.category = "escenas";

@@ -565,6 +565,49 @@ void StudioViewModel::addScene(const QString& name) {
     rt_.save();
 }
 
+QString StudioViewModel::copyScene(const QString& from, const QString& to) {
+    // Sin nombre, se propone uno libre: copiar tiene que ser un clic, no un
+    // dialogo. Se renombra despues, que es cuando uno ya sabe como llamarla.
+    QString destino = to;
+    if (destino.isEmpty()) {
+        const auto existe = [this](const QString& n) {
+            for (const std::string& s : rt_.orderedSceneNames())
+                if (qs(s) == n) return true;
+            return false;
+        };
+        destino = from + " (copia)";
+        for (int i = 2; existe(destino); ++i) destino = from + " (copia " + QString::number(i) + ")";
+    }
+    if (!rt_.copyScene(from.toStdString(), destino.toStdString())) {
+        emit notify(qs(rt_.lastError()), "error");
+        return {};
+    }
+    scenes_->reload();
+    emit sceneChanged();
+    rt_.save();
+    const std::string aviso = rt_.lastError();
+    emit notify(aviso.empty() ? "Escena copiada: " + destino
+                              : "Escena copiada, pero " + qs(aviso),
+                aviso.empty() ? "ok" : "warn");
+    return destino;
+}
+
+void StudioViewModel::setSceneProtected(const QString& name, bool protegida) {
+    if (!rt_.setSceneProtected(name.toStdString(), protegida)) {
+        emit notify(qs(rt_.lastError()), "error");
+        return;
+    }
+    scenes_->reload();
+    rt_.save();
+    emit notify(protegida ? "«" + name + "» protegida: no se puede borrar ni renombrar"
+                          : "«" + name + "» ya no está protegida",
+                "ok");
+}
+
+bool StudioViewModel::sceneProtected(const QString& name) const {
+    return rt_.sceneProtected(name.toStdString());
+}
+
 void StudioViewModel::removeScene(const QString& name) {
     if (!rt_.removeScene(name.toStdString())) {
         emit notify(qs(rt_.lastError()), "error");
