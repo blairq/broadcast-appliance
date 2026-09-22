@@ -91,7 +91,8 @@ struct CampoDeTipo {
 constexpr CampoDeTipo kTipos[] = {
     {"escena", "Escena", "Pone una escena al aire.", "escena"},
     {"musica", "Música", "Arranca o para un tema de Medios/.", "archivo,accion,repetir"},
-    {"video", "Video", "Reproduce un video del evento.", "archivo,alTerminar"},
+    {"video", "Video", "Reproduce un video de Medios/ en su propia escena.",
+     "archivo,accion,repetir,alAire"},
     {"teleprompter", "Teleprompter", "Carga un discurso y lo deja listo.", "discurso,arrancar"},
     {"orador", "Orador", "Le da la palabra a alguien, con su tiempo.", "participante"},
     {"grafico", "Gráfico", "Saca al aire un gráfico animado en una fuente de escena.",
@@ -471,7 +472,8 @@ void EventoViewModel::ensayoAcelerado() {
         }
         if (c.tipo != evento::Tipo::Escena && c.tipo != evento::Tipo::Orador &&
             c.tipo != evento::Tipo::Nota && c.tipo != evento::Tipo::Espera &&
-            c.tipo != evento::Tipo::Grafico && c.tipo != evento::Tipo::Pausa) {
+            c.tipo != evento::Tipo::Grafico && c.tipo != evento::Tipo::Video &&
+            c.tipo != evento::Tipo::Pausa) {
             ++sinEjecutar;
             anotar(donde + " " + que + " — el guion lo tiene, pero todavía no sé ejecutarlo", "info");
             continue;
@@ -801,6 +803,38 @@ QString EventoViewModel::discursoPath(const QString& rel) const {
     return dentroDelEvento("Discursos", rel);
 }
 
+bool EventoViewModel::prepararEscenaDeVideo() {
+    const auto escenas = rt_.engine().sceneNames();
+    const bool existe = std::find(escenas.begin(), escenas.end(), kEscenaVideo) != escenas.end();
+    if (!existe) {
+        if (!rt_.addScene(kEscenaVideo)) {
+            anotar("No se pudo crear la escena del video: " + QString::fromStdString(rt_.lastError()),
+                   "error");
+            return false;
+        }
+        // Protegida: si alguien la borra, todos los cues de video del guion
+        // dejan de funcionar y no es obvio por qué.
+        rt_.setSceneProtected(kEscenaVideo, true);
+        anotar("Creé la escena «" + QString::fromStdString(kEscenaVideo) + "» para los videos", "info");
+    }
+    // La fuente de video: se crea una vez y después solo se le cambia el
+    // archivo. Ocupa el cuadro entero, que es lo que uno espera de un video.
+    const auto fuentes = rt_.engine().sceneSources(kEscenaVideo);
+    if (std::find(fuentes.begin(), fuentes.end(), kVideo) == fuentes.end()) {
+        SourceSpec spec;
+        spec.id = "ffmpeg_source";
+        spec.name = kVideo;
+        spec.rect = CanvasRect{0.0, 0.0, 1.0, 1.0};
+        spec.settingsJson = R"({"is_local_file":true,"clear_on_media_end":true})";
+        if (!rt_.addSource(kEscenaVideo, spec)) {
+            anotar("No se pudo crear la fuente de video: " + QString::fromStdString(rt_.lastError()),
+                   "error");
+            return false;
+        }
+    }
+    return true;
+}
+
 QString EventoViewModel::medioPath(const QString& rel) const {
     return dentroDelEvento("Medios", rel);
 }
@@ -979,14 +1013,66 @@ void EventoViewModel::ejecutarActual() {
                    "error");
             return;
         }
-        case evento::Tipo::Video:
+        case evento::Tipo::Video: {
             // Un video tiene que VERSE, o sea estar en una escena, y las
-            // escenas las arma el operador. Meterle una fuente a la escena que
-            // esta al aire le desarmaria lo que compuso. Hasta que haya una
-            // escena de video propia del evento, se dice que falta.
-            anotar("Todavía no reproduzco videos: armá una escena con el video y usá un cue de escena",
-                   "error");
+            // escenas las arma el operador: meterle una fuente a la escena que
+            // está al aire le desarmaría lo que compuso.
+            //
+            // Por eso el video del guion tiene SU escena, una sola, que se crea
+            // sola la primera vez y queda PROTEGIDA: es la que el guion llena y
+            // pone al aire. El operador puede componerla como quiera —ponerle
+            // un fondo, un logo— y lo único que el guion le cambia es el
+            // archivo de la fuente de video.
+            const std::string accion = c->datos.value("accion", std::string("arrancar"));
+            if (accion == "parar") {
+                // Sin archivo, la fuente queda en negro. No se la saca de la
+                // escena: recrearla en cada video costaria mas y se veria.
+                rt_.updateSourceSettings(kVideo, R"({"local_file":"","is_local_file":true})");
+                anotar("Video: para", "ok");
+                return;
+            }
+            const QString rel = QString::fromStdString(c->datos.value("archivo", std::string()));
+            const QString ruta = medioPath(rel);
+            if (ruta.isEmpty() || !QFile::exists(ruta)) {
+                anotar("No encontré el video \"" + rel + "\" en Medios/", "error");
+                emit notify("El cue no se pudo ejecutar: falta Medios/" + rel, "error");
+                return;
+            }
+            if (!prepararEscenaDeVideo()) return;
+            const bool repetir = c->datos.value("repetir", false);
+            // Se le cambia el ARCHIVO a la fuente que ya esta en la escena, no
+            // se crea una nueva: `playMedia` sirve para la musica, que va por
+            // un canal global de audio y no se ve.
+            const QJsonObject ajustes{{"local_file", ruta},
+                                      {"is_local_file", true},
+                                      {"looping", repetir},
+                                      {"restart_on_activate", false},
+                                      {"close_when_inactive", false},
+                                      {"clear_on_media_end", true},
+                                      {"hw_decode", true}};
+            if (!rt_.updateSourceSettings(
+                    kVideo,
+                    QJsonDocument(ajustes).toJson(QJsonDocument::Compact).toStdString())) {
+                anotar("No se pudo cargar " + rel + ": " +
+                           QString::fromStdString(rt_.lastError()),
+                       "error");
+                return;
+            }
+            // Y se rebobina: si el archivo es el mismo que ya estaba, libobs no
+            // tiene motivo para volver a empezar y el cue no mostraria nada.
+            rt_.engine().restartMedia(kVideo);
+            // Al aire recién DESPUÉS de que el archivo esté cargado: al revés
+            // se ve un cuadro en negro mientras abre.
+            if (c->datos.value("alAire", true)) {
+                escenaPrevia_ = QString::fromStdString(rt_.engine().currentScene());
+                if (!rt_.engine().setCurrentScene(kEscenaVideo)) {
+                    anotar("No se pudo poner al aire la escena del video", "error");
+                    return;
+                }
+            }
+            anotar("Video: " + rel + (repetir ? " (en bucle)" : ""), "ok");
             return;
+        }
         default:
             // Honestidad: el tipo existe en el guion pero todavia no se
             // ejecuta. Se anota y el guion sigue, en vez de hacer como que

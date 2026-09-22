@@ -851,6 +851,16 @@ bool BroadcastEngine::playMedia(const std::string& name, const std::string& file
     return true;
 }
 
+bool BroadcastEngine::restartMedia(const std::string& name) {
+    auto* src = reinterpret_cast<obs_source_t*>(ownedSource(name));
+    if (src == nullptr) {
+        setError("no existe la fuente de medios \"" + name + "\"");
+        return false;
+    }
+    obs_source_media_restart(src);
+    return true;
+}
+
 bool BroadcastEngine::stopMedia(const std::string& name) {
     auto* src = reinterpret_cast<obs_source_t*>(ownedSource(name));
     if (src == nullptr) return false;

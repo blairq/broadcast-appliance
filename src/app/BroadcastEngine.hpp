@@ -363,6 +363,12 @@ class BroadcastEngine {
                    float volume = 1.0f);
     /// Para lo que este sonando y libera la fuente.
     bool stopMedia(const std::string& name);
+    /// Rebobina y arranca una fuente de medios que YA existe (en una escena o
+    /// global). Hace falta aparte de `playMedia` porque una fuente de video
+    /// vive en su escena —se ve— y cambiarle los ajustes no la rearranca sola:
+    /// si el archivo es el mismo que ya habia, libobs no tiene motivo para
+    /// volver a empezar, y el cue del guion no mostraria nada.
+    bool restartMedia(const std::string& name);
 
     // --- Descubrir dispositivos y capacidades (sin crear fuentes) ------------------
     struct ListItem {

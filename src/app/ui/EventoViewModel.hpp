@@ -181,11 +181,27 @@ class EventoViewModel : public QObject {
     /// archivo del disco.
     QString discursoPath(const QString& rel) const;
     /// Ruta de un medio (musica o video), siempre dentro de Medios/.
+    /// Se asegura de que exista la escena del video con su fuente adentro, y
+    /// la deja protegida. Devuelve false si no se pudo (ya lo anoto).
+    bool prepararEscenaDeVideo();
     QString medioPath(const QString& rel) const;
     /// Ruta de `rel` dentro de `sub` en la carpeta del evento, o vacia si se
     /// sale de ahi.
     QString dentroDelEvento(const QString& sub, const QString& rel) const;
     static QVariantMap cueAMap(const evento::Cue& c, int bloque, int cue);
+
+    /// La escena y la fuente que usa el cue de video. Nombres fijos: asi un
+    /// video nuevo reemplaza al anterior en vez de encimarse, y el operador
+    /// puede componer esa escena una vez y que le sirva para todos.
+    /// OJO con los nombres: en libobs una escena TAMBIEN es una fuente, y los
+    /// nombres son unicos entre todas. Si la fuente se llamara igual que su
+    /// escena, libobs le agrega un « 2» por su cuenta y despues nada la
+    /// encuentra por nombre.
+    static constexpr const char* kEscenaVideo = "Video del evento";
+    static constexpr const char* kVideo = "Video";
+    /// A donde volver cuando el video termina (todavia no se usa: ver el
+    /// comentario de `alTerminar` en el cue).
+    QString escenaPrevia_;
 
     AppRuntime& rt_;
     ConferenceViewModel* sala_ = nullptr;
