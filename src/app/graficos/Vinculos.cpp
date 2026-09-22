@@ -68,6 +68,9 @@ struct Vinculos::Impl {
     explicit Impl(std::filesystem::path a, Emisor& e) : archivo(std::move(a)), em(e) {}
 
     void guardar() const {
+        // Ruta vacia = los vinculos no se leen ni se escriben (los apago el
+        // diario de arranque). No se pisa el archivo: hay que poder mirarlo.
+        if (archivo.empty()) return;
         QDir().mkpath(QString::fromStdString(archivo.parent_path().string()));
         QFile f(QString::fromStdString(archivo.string()) + ".nuevo");
         if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return;
@@ -79,6 +82,7 @@ struct Vinculos::Impl {
     }
 
     void leer() {
+        if (archivo.empty()) return;
         QFile f(QString::fromStdString(archivo.string()));
         if (!f.open(QIODevice::ReadOnly)) return;
         vs = QJsonDocument::fromJson(f.readAll()).object().value("vinculos").toArray();

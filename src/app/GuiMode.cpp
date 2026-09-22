@@ -14,6 +14,10 @@
 #include <QFontDatabase>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
+#include <QQuickWindow>
+
+#include "diag/DiarioDeArranque.hpp"
+#include "diag/Registro.hpp"
 #include <QQmlContext>
 #include <QQuickStyle>
 #include <QQuickWindow>
@@ -91,6 +95,22 @@ int runGui(int argc, char** argv) {
             rt.stop();
             return 3;
         }
+        // El arranque se da por terminado cuando la interfaz DIBUJO, no cuando
+        // termino de construirse: entre una cosa y la otra es donde se cuelga
+        // un QML roto, y eso es justo lo que el diario tiene que agarrar.
+        if (auto* w = qobject_cast<QQuickWindow*>(engine.rootObjects().first())) {
+            QObject::connect(
+                w, &QQuickWindow::frameSwapped, w,
+                []() {
+                    static bool avisado = false;
+                    if (avisado) return;
+                    avisado = true;
+                    ba::diag::diario().arranqueOk();
+                    ba::diag::registro().info("arranque terminado: la interfaz dibujo");
+                },
+                Qt::QueuedConnection);
+        }
+
         // Servidor MCP: un asistente de IA maneja y ve toda la app (127.0.0.1 + token).
         mcp::McpService mcpService(rt, vm);
         mcpService.setMainWindow([&engine]() -> QQuickWindow* {

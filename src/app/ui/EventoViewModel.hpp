@@ -66,8 +66,11 @@ class EventoViewModel : public QObject {
     Q_PROPERTY(QVariantList reparos READ reparos NOTIFY reparosChanged)
 
   public:
-    EventoViewModel(AppRuntime& rt, ConferenceViewModel* sala,
-                    graficos::Emisor* graficos, QObject* parent = nullptr);
+    /// :param sinAbrirUltimo: no abre solo el ultimo evento que se toco. Lo
+    ///        usa el arranque cuando ese evento se llevo puesto el arranque
+    ///        anterior (ver diag/DiarioDeArranque.hpp).
+    EventoViewModel(AppRuntime& rt, ConferenceViewModel* sala, graficos::Emisor* graficos,
+                    bool sinAbrirUltimo = false, QObject* parent = nullptr);
     ~EventoViewModel() override;
 
     QVariantList eventos() const;

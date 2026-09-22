@@ -9,6 +9,7 @@
 #include <QTimer>
 
 #include "AppRuntime.hpp"
+#include "diag/DiarioDeArranque.hpp"
 #include "diag/LectorDeLogs.hpp"
 #include "diag/Registro.hpp"
 
@@ -136,6 +137,24 @@ void RegistroViewModel::setNivelDelProceso(int n) {
 qulonglong RegistroViewModel::descartadas() const { return ba::diag::registro().descartadas(); }
 
 QString RegistroViewModel::carpeta() const { return d_->carpeta(); }
+
+QStringList RegistroViewModel::apagados() const {
+    QStringList out;
+    for (const std::string& s : ba::diag::diario().apagados()) out << QString::fromStdString(s);
+    return out;
+}
+
+QString RegistroViewModel::culpable() const {
+    return QString::fromStdString(ba::diag::diario().culpable());
+}
+
+void RegistroViewModel::prender(const QString& id) {
+    ba::diag::diario().setApagado(id.toStdString(), false);
+    ba::diag::registro().linea(ba::diag::Nivel::Info, "arranque", 0,
+                               "«" + id.toStdString() + "» vuelve a cargarse en el próximo arranque");
+    emit cambio();
+    emit notify("«" + id + "» se va a cargar en el próximo arranque", "ok");
+}
 
 void RegistroViewModel::refrescar() {
     std::vector<ba::diag::Registrado> rs;

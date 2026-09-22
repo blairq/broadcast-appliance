@@ -87,6 +87,50 @@ Rectangle {
             }
         }
 
+        // --- Algo se apagó solo porque rompió el arranque --------------------
+        // Va arriba de todo y en rojo: si algo dejó de cargarse, enterarse es
+        // más urgente que cualquier filtro.
+        Panel {
+            visible: page.r.apagados.length > 0
+            Layout.fillWidth: true
+            implicitHeight: apag.implicitHeight + 24
+            ColumnLayout {
+                id: apag
+                anchors { fill: parent; margins: 12 }
+                spacing: 6
+                Text {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: Theme.live
+                    font { pixelSize: 12; weight: Font.DemiBold }
+                    text: "⚠  No se está cargando: " + page.r.apagados.join(", ")
+                }
+                Text {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: Theme.textDim
+                    font.pixelSize: 11
+                    text: "Se llevó puesto el arranque dos veces seguidas, así que el programa " +
+                          "lo salteó para poder abrir. Buscá su nombre acá abajo para ver qué pasó. " +
+                          "Al prenderlo, se vuelve a cargar en el próximo arranque."
+                }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    Repeater {
+                        model: page.r.apagados
+                        delegate: GlassButton {
+                            required property var modelData
+                            compact: true
+                            icon: "↺"
+                            text: "Prender " + modelData
+                            onClicked: page.r.prender(modelData)
+                        }
+                    }
+                }
+            }
+        }
+
         // --- Filtros ---------------------------------------------------------
         Panel {
             Layout.fillWidth: true

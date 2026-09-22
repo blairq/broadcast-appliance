@@ -434,6 +434,10 @@ void DashboardModel::load() {
 }
 
 void DashboardModel::save() const {
+    // Ruta vacia = esta disposicion no se persiste. Es lo que pide el arranque
+    // cuando ui.json se llevo puesto el arranque anterior: se trabaja con la
+    // disposicion por defecto y NO se pisa el archivo, para poder mirarlo.
+    if (file_.empty()) return;
     QJsonArray cards;
     for (const auto& c : cards_) {
         cards.append(QJsonObject{{"kind", c.kind},

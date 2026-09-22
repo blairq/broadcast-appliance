@@ -30,6 +30,8 @@
 #include "ui/ChatOverlayRenderer.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/EventoViewModel.hpp"
+#include "diag/DiarioDeArranque.hpp"
+#include "diag/Registro.hpp"
 #include "graficos/Emisor.hpp"
 #include "graficos/Vinculos.hpp"
 #include "ui/GraficoViewModel.hpp"
@@ -67,13 +69,29 @@ QString hms(std::chrono::steady_clock::time_point since) {
 } // namespace
 
 StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(parent), rt_(rt) {
+    // Modo seguro (el circuit breaker del launcher, tras varias caidas
+    // seguidas): NADA que venga del disco. Aquel apaga todo; el diario apaga al
+    // culpable. Juntos cubren los dos casos: el que rompe una cosa y el que
+    // rompe algo que no sabemos cual es.
+    if (rt.config().safeMode) {
+        ba::diag::diario().setModoSeguro(true);
+        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
+                                   "modo seguro: no se carga nada del disco en esta corrida");
+    }
     scenes_ = std::make_unique<ScenesModel>(rt);
     sources_ = std::make_unique<SourcesModel>(rt);
     sources_->setScene(currentScene());
     mixer_ = std::make_unique<MixerModel>(rt);
     types_ = std::make_unique<SourceTypesModel>(rt);
     settings_ = std::make_unique<SettingsModel>(rt);
-    dashboard_ = std::make_unique<DashboardModel>(rt.dataRoot() / "Config" / "ui.json");
+    {
+        // La disposicion del dashboard sale de un archivo que se edita solo y
+        // que tambien toca el asistente: si queda roto, no puede impedir que el
+        // programa abra.
+        ba::diag::Cargando c("dashboard");
+        dashboard_ = std::make_unique<DashboardModel>(
+            c.saltear() ? std::filesystem::path{} : rt.dataRoot() / "Config" / "ui.json");
+    }
     frames_ = std::make_unique<FrameService>(rt.engine(), rt.config().guests);
     frames_->setLobbySlots(rt.gateway().lobbySlots);
     props_ = std::make_unique<PropertiesModel>(rt);
@@ -86,7 +104,13 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // guion, el editor, el rotulador y el asistente.
     emisor_ = std::make_unique<graficos::Emisor>(rt.dataRoot());
     // El guion del evento necesita la sala para los cues de orador.
-    evento_ = std::make_unique<EventoViewModel>(rt, conference_.get(), emisor_.get());
+    {
+        // El guion abre solo el ultimo evento que se toco, que es un archivo
+        // del disco y puede venir de cualquier lado.
+        ba::diag::Cargando c("evento");
+        evento_ = std::make_unique<EventoViewModel>(rt, conference_.get(), emisor_.get(),
+                                                    c.saltear());
+    }
     connect(evento_.get(), &EventoViewModel::notify, this, &StudioViewModel::notify);
     grafico_ = std::make_unique<GraficoViewModel>(rt, *emisor_);
     // El rotulador mira la escena que está al aire, así que la sigue.
@@ -98,8 +122,11 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // El contexto se arma acá porque es el único lugar que ve todo junto: la
     // sala sabe quién habla, el guion sabe quién sigue, el motor sabe qué
     // escena está al aire.
-    vinculos_ = std::make_unique<graficos::Vinculos>(rt.dataRoot() / "Config" / "vinculos.json",
-                                                     *emisor_);
+    ba::diag::Cargando cargandoVinculos("vinculos");
+    vinculos_ = std::make_unique<graficos::Vinculos>(
+        cargandoVinculos.saltear() ? std::filesystem::path{}
+                                   : rt.dataRoot() / "Config" / "vinculos.json",
+        *emisor_);
     vinculos_->setContexto([this]() { return contextoDeVinculos(); });
     rotulador_->setVinculos(vinculos_.get());
 

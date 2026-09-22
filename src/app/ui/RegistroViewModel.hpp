@@ -59,6 +59,12 @@ class RegistroViewModel : public QObject {
     /// que nadie confunda «no pasó nada» con «no lo estaba mirando».
     Q_PROPERTY(qulonglong descartadas READ descartadas NOTIFY cambio)
     Q_PROPERTY(QString carpeta READ carpeta CONSTANT)
+    /// Lo que el diario de arranque apagó por haberse llevado puesto el
+    /// arranque. Se muestra en el visor porque si algo dejó de cargarse, el
+    /// operador tiene que enterarse ahí y poder volver a prenderlo.
+    Q_PROPERTY(QStringList apagados READ apagados NOTIFY cambio)
+    /// Lo que rompió el arranque ANTERIOR (vacío si arrancó bien).
+    Q_PROPERTY(QString culpable READ culpable CONSTANT)
 
   public:
     explicit RegistroViewModel(AppRuntime& rt, QObject* parent = nullptr);
@@ -81,6 +87,8 @@ class RegistroViewModel : public QObject {
     void setNivelDelProceso(int n);
     qulonglong descartadas() const;
     QString carpeta() const;
+    QStringList apagados() const;
+    QString culpable() const;
 
     /// Vuelve a leer ahora.
     Q_INVOKABLE void refrescar();
@@ -89,6 +97,9 @@ class RegistroViewModel : public QObject {
     /// Escribe una línea en el registro desde la interfaz. Sirve para dejar
     /// una marca antes de probar algo: después se busca esa marca.
     Q_INVOKABLE void marcar(const QString& texto);
+    /// Vuelve a prender algo que el diario había apagado. Tiene efecto en el
+    /// próximo arranque: lo que no se cargó no se puede cargar a mitad de camino.
+    Q_INVOKABLE void prender(const QString& id);
 
   signals:
     void cambio();

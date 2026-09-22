@@ -106,7 +106,7 @@ constexpr CampoDeTipo kTipos[] = {
 } // namespace
 
 EventoViewModel::EventoViewModel(AppRuntime& rt, ConferenceViewModel* sala,
-                                 graficos::Emisor* graficos, QObject* parent)
+                                 graficos::Emisor* graficos, bool sinAbrirUltimo, QObject* parent)
     : QObject(parent), rt_(rt), sala_(sala), graficos_(graficos),
       store_(rt.dataRoot() / "Eventos") {
     // El reloj del evento va aparte del guion: cambia cada segundo y no tiene
@@ -117,7 +117,7 @@ EventoViewModel::EventoViewModel(AppRuntime& rt, ConferenceViewModel* sala,
     // mismo durante dias, y abrir el programa para encontrarlo vacio es una
     // molestia diaria. No hace falta guardar "el ultimo abierto" en ningun
     // lado: la fecha del archivo ya lo dice.
-    const std::string ultimo = store_.ultimoTocado();
+    const std::string ultimo = sinAbrirUltimo ? std::string() : store_.ultimoTocado();
     if (!ultimo.empty()) abrir(QString::fromStdString(ultimo));
     refrescar();
 }
