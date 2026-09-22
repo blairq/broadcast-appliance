@@ -5,6 +5,8 @@
 
 #include <QJsonArray>
 #include <QJsonValue>
+#include <algorithm>
+
 #include <QRegularExpression>
 
 namespace ba::grafico {
@@ -97,7 +99,31 @@ QString capaBarra(const QJsonObject& c, const QString& id, const QJsonObject& p)
         .arg(posicion(c));
 }
 
+/// Un texto que cruza la pantalla sin parar (un ticker). Se anima el x del
+/// propio texto en bucle: entra por la derecha y sale por la izquierda.
+/// `desplaza` son los píxeles por segundo.
+QString desplazamiento(const QJsonObject& c, const QString& id) {
+    if (!c.contains("desplaza")) return {};
+    const double vel = std::max(10.0, num(c, "desplaza", 120));
+    return QString(R"(    NumberAnimation {
+        target: %1; property: "x"
+        from: raiz.width; to: -%1.implicitWidth
+        duration: Math.max(1000, (raiz.width + %1.implicitWidth) / %2 * 1000)
+        loops: Animation.Infinite
+        running: true
+    }
+)")
+        .arg(id)
+        .arg(vel);
+}
+
 QString capaTexto(const QJsonObject& c, const QString& id, const QJsonObject& p) {
+    // Un texto sin ancho crece en una sola línea. Con «ancho» corta por
+    // palabras, que es lo que hace falta para una pregunta o una bajada larga.
+    QString caja;
+    if (c.contains("ancho"))
+        caja = QString("        width: %1\n        wrapMode: Text.WordWrap\n")
+                   .arg(num(c, "ancho", 400));
     return QString(R"(        Text {
         id: %1
         text: %2
@@ -105,7 +131,7 @@ QString capaTexto(const QJsonObject& c, const QString& id, const QJsonObject& p)
         font { family: %4; pixelSize: %5; weight: %6 }
         renderType: Text.QtRendering
         opacity: %7
-%8    }
+%9%8    }
 )")
         .arg(id)
         .arg(entreComillas(conParametros(c.value("valor").toString(), p)))
@@ -114,7 +140,8 @@ QString capaTexto(const QJsonObject& c, const QString& id, const QJsonObject& p)
         .arg(num(c, "tamano", 28))
         .arg(pesoDeTexto(c.value("peso").toString()))
         .arg(c.contains("aparece") ? 0.0 : 1.0)
-        .arg(posicion(c));
+        .arg(posicion(c))
+        .arg(caja);
 }
 
 QString capaPanel(const QJsonObject& c, const QString& id, const QJsonObject& p) {
@@ -152,7 +179,10 @@ QJsonObject repertorio() {
          QJsonObject{
              {"barra", "Un rectángulo de color. Para la barrita de acento de un zócalo."},
              {"panel", "La caja de fondo. Con «ajustaA» crece con el ancho de los textos que nombre."},
-             {"texto", "Un texto. «valor» acepta {parametros} entre llaves."}}},
+             {"texto",
+              "Un texto. «valor» acepta {parametros} entre llaves. Con «desplaza» (píxeles por "
+              "segundo) cruza la pantalla sin parar, que es un ticker. Con «ancho» corta por "
+              "palabras en vez de crecer en una sola línea."}}},
         {"posicion",
          "Cada capa se ubica con «izquierda» o «derecha» y «arriba» o «abajo», en píxeles desde "
          "ese borde del gráfico."},
@@ -198,6 +228,7 @@ Traduccion traducir(const QJsonObject& d, const QJsonObject& parametros) {
             return t;
         }
         animaciones += apariciónDeCapa(c, id);
+        animaciones += desplazamiento(c, id);
     }
 
     // La entrada y la salida se aplican al EFECTO, que es lo que se dibuja:

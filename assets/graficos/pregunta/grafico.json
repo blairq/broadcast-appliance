@@ -1,0 +1,39 @@
+{
+  "nombre": "Pregunta del público",
+  "descripcion": "La pregunta que llegó por chat, con quién la mandó. El texto corta por palabras, así que aguanta preguntas largas.",
+  "ancho": 1120,
+  "alto": 380,
+  "parametros": [
+    { "clave": "pregunta", "titulo": "La pregunta", "tipo": "texto",
+      "porDefecto": "¿Cómo se hace para que esto entre en el aire sin tocar nada en el momento?",
+      "ayuda": "Corta sola en varios renglones. Más de 180 caracteres se pasa de la caja: recortala antes." },
+    { "clave": "quien", "titulo": "Quién pregunta", "tipo": "texto",
+      "porDefecto": "Alguien del público",
+      "ayuda": "El renglón de abajo. Nombre, o nombre y de dónde escribe." },
+    { "clave": "acento", "titulo": "Color de acento", "tipo": "color",
+      "porDefecto": "#ff6a2b",
+      "ayuda": "La barra vertical de la izquierda y el rótulo." },
+    { "clave": "salidaEn", "titulo": "Cuándo se va", "tipo": "ms",
+      "porDefecto": 8000, "minimo": 0, "maximo": 60000,
+      "ayuda": "Dale tiempo de leerla en voz alta: 8 a 12 segundos." }
+  ],
+  "declarativo": {
+    "ancho": 1120,
+    "alto": 380,
+    "entrada": { "efecto": "desliza-izquierda", "duracion": 460 },
+    "salida": { "efecto": "desenfoca", "duracion": 380 },
+    "capas": [
+      { "tipo": "panel", "izquierda": 0, "arriba": 0,
+        "ancho": 1120, "alto": 380, "color": "#12151a", "opacidad": 0.94 },
+      { "tipo": "barra", "izquierda": 0, "arriba": 0,
+        "ancho": 10, "alto": 380, "color": "{acento}" },
+      { "tipo": "texto", "id": "rotulo", "izquierda": 56, "arriba": 46,
+        "valor": "PREGUNTA", "tamano": 22, "peso": "semi", "color": "{acento}" },
+      { "tipo": "texto", "id": "pregunta", "izquierda": 56, "arriba": 96,
+        "valor": "{pregunta}", "tamano": 40, "peso": "semi", "ancho": 1010 },
+      { "tipo": "texto", "id": "quien", "izquierda": 56, "abajo": 46,
+        "valor": "{quien}", "tamano": 26, "peso": "liviana",
+        "color": "#9aa4b2", "aparece": 420 }
+    ]
+  }
+}

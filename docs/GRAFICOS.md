@@ -110,6 +110,24 @@ ese rectángulo, no el lienzo entero.
 
 ---
 
+## Dos cosas del nivel declarativo que conviene saber
+
+- Un **texto sin `ancho` crece en una sola línea** y se sale del gráfico. En
+  cuanto el texto lo escribe otro —una pregunta del público, el tema de una
+  charla— ponele `ancho` y corta por palabras.
+- **`desplaza`** (píxeles por segundo) hace que un texto cruce la pantalla en
+  bucle: es un ticker. Terminá el texto con un separador («  •  ») para que el
+  reinicio no se lea como un corte, y **no le pongas `izquierda`**: la animación
+  manda sobre la posición y una cosa pelea con la otra.
+
+Los ejemplos que vienen de fábrica (`Graficos/`) cubren un caso de cada forma:
+`zocalo` un texto fijo, `placa-titulo` una placa a pantalla completa,
+`proximo-orador` una tarjeta que entra de costado, `ticker` el bucle, y
+`pregunta` un texto largo que corta solo. Copiar el que más se parezca sale
+mejor que empezar de cero.
+
+---
+
 ## Cómo verificarlo
 
 1. **Validar**: carga el QML y devuelve los errores. Un gráfico que no compila

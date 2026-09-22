@@ -1,0 +1,36 @@
+{
+  "nombre": "Ticker",
+  "descripcion": "La cinta de abajo con un texto que cruza de derecha a izquierda sin parar, y una etiqueta fija a la izquierda. Ocupa el ancho de la pantalla.",
+  "ancho": 1920,
+  "alto": 120,
+  "parametros": [
+    { "clave": "etiqueta", "titulo": "Etiqueta", "tipo": "texto",
+      "porDefecto": "EN VIVO",
+      "ayuda": "La caja de color fija a la izquierda. Una o dos palabras: más no entra." },
+    { "clave": "texto", "titulo": "Texto que corre", "tipo": "texto",
+      "porDefecto": "Este texto cruza la pantalla de derecha a izquierda y vuelve a empezar  •  ",
+      "ayuda": "Se repite en bucle. Terminalo con un separador («  •  ») para que el reinicio no se lea como un corte." },
+    { "clave": "acento", "titulo": "Color de la etiqueta", "tipo": "color",
+      "porDefecto": "#ff6a2b",
+      "ayuda": "El fondo de la caja de la izquierda." },
+    { "clave": "salidaEn", "titulo": "Cuándo se va", "tipo": "ms",
+      "porDefecto": 0, "minimo": 0, "maximo": 60000,
+      "ayuda": "0 = se queda. Un ticker se suele dejar puesto y sacar a mano." }
+  ],
+  "declarativo": {
+    "ancho": 1920,
+    "alto": 120,
+    "entrada": { "efecto": "aparece", "duracion": 400 },
+    "salida": { "efecto": "desaparece", "duracion": 320 },
+    "capas": [
+      { "tipo": "panel", "izquierda": 0, "abajo": 0,
+        "ancho": 1920, "alto": 72, "color": "#0d1014", "opacidad": 0.95 },
+      { "tipo": "texto", "id": "corre", "arriba": 66,
+        "valor": "{texto}", "tamano": 30, "desplaza": 160 },
+      { "tipo": "panel", "izquierda": 0, "abajo": 0,
+        "ancho": 250, "alto": 72, "color": "{acento}" },
+      { "tipo": "texto", "id": "etiqueta", "izquierda": 40, "arriba": 66,
+        "valor": "{etiqueta}", "tamano": 30, "peso": "negrita" }
+    ]
+  }
+}
