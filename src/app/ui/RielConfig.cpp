@@ -20,6 +20,7 @@ namespace {
 /// el orden en que se muestran: el orden de acá es el del riel.
 struct Item {
     int page;
+    const char* id; ///< corto y estable: es como se la pide por MCP
     const char* icon;
     const char* tip;
 };
@@ -31,24 +32,24 @@ struct Grupo {
 const std::vector<Grupo>& catalogo() {
     static const std::vector<Grupo> g = {
         {"Producción",
-         {{0, "⌂", "Dashboard"},
-          {1, "▦", "Escenas y fuentes"},
-          {8, "◉", "Entradas de video (cámaras, capturadoras, red)"},
-          {9, "🎚", "Audio: patchbay de módulos LSP por fuente"}}},
+         {{0, "dashboard", "⌂", "Dashboard"},
+          {1, "escenas", "▦", "Escenas y fuentes"},
+          {8, "entradas", "◉", "Entradas de video (cámaras, capturadoras, red)"},
+          {9, "audio", "🎚", "Audio: patchbay de módulos LSP por fuente"}}},
         {"Contenido",
-         {{2, "☎", "Sala (lobby, invitados, chat)"},
-          {10, "≣", "Guion del evento: bloques, cues y tiempos"},
-          {11, "◈", "Gráficos animados: zócalos, placas y tickers"},
-          {12, "✎", "Rótulos en vivo: los textos de la escena que está al aire"},
-          {15, "▤", "Teleprompter: los discursos y el control del atril"}}},
+         {{2, "sala", "☎", "Sala (lobby, invitados, chat)"},
+          {10, "guion", "≣", "Guion del evento: bloques, cues y tiempos"},
+          {11, "graficos", "◈", "Gráficos animados: zócalos, placas y tickers"},
+          {12, "rotulos", "✎", "Rótulos en vivo: los textos de la escena que está al aire"},
+          {15, "prompter", "▤", "Teleprompter: los discursos y el control del atril"}}},
         {"Publicar",
-         {{3, "▶", "YouTube (cuenta, videos, en vivo)"},
-          {4, "◆", "Twitch (canal, vivo, chat)"},
-          {5, "f", "Facebook (Páginas, vivos, videos)"}}},
+         {{3, "youtube", "▶", "YouTube (cuenta, videos, en vivo)"},
+          {4, "twitch", "◆", "Twitch (canal, vivo, chat)"},
+          {5, "facebook", "f", "Facebook (Páginas, vivos, videos)"}}},
         {"Sistema",
-         {{14, "⚇", "Agentes: los roles automáticos, qué hacen y qué hicieron"},
-          {13, "❑", "Registro: todo lo que pasa, de los tres procesos"},
-          {6, "⚙", "Configuración"}}},
+         {{14, "agentes", "⚇", "Agentes: los roles automáticos, qué hacen y qué hicieron"},
+          {13, "registro", "❑", "Registro: todo lo que pasa, de los tres procesos"},
+          {6, "configuracion", "⚙", "Configuración"}}},
     };
     return g;
 }
@@ -160,6 +161,7 @@ QVariantList RielConfig::grupos() const {
         for (const Item& i : g.items) {
             if (d_->escondidas.count(i.page) > 0) continue;
             items.append(QVariantMap{{"page", i.page},
+                                     {"id", QString::fromUtf8(i.id)},
                                      {"icon", QString::fromUtf8(i.icon)},
                                      {"tip", QString::fromUtf8(i.tip)},
                                      {"titulo", titulo(i.tip)}});
@@ -171,11 +173,41 @@ QVariantList RielConfig::grupos() const {
     return out;
 }
 
+int RielConfig::paginaDeId(const QString& id) const {
+    for (const Grupo& g : catalogo())
+        for (const Item& i : g.items)
+            if (id == QString::fromUtf8(i.id)) return i.page;
+    return -1;
+}
+
+QString RielConfig::idDePagina(int pagina) const {
+    for (const Grupo& g : catalogo())
+        for (const Item& i : g.items)
+            if (i.page == pagina) return QString::fromUtf8(i.id);
+    return {};
+}
+
+QString RielConfig::tituloDePagina(int pagina) const {
+    for (const Grupo& g : catalogo())
+        for (const Item& i : g.items)
+            if (i.page == pagina) return titulo(i.tip);
+    return {};
+}
+
+QStringList RielConfig::idsDePaginas() {
+    QStringList out;
+    for (const Grupo& g : catalogo())
+        for (const Item& i : g.items)
+            out << QString::fromUtf8(i.id);
+    return out;
+}
+
 QVariantList RielConfig::paginas() const {
     QVariantList out;
     for (const Grupo& g : catalogo())
         for (const Item& i : g.items)
             out.append(QVariantMap{{"page", i.page},
+                                   {"id", QString::fromUtf8(i.id)},
                                    {"icon", QString::fromUtf8(i.icon)},
                                    {"tip", QString::fromUtf8(i.tip)},
                                    {"titulo", titulo(i.tip)},

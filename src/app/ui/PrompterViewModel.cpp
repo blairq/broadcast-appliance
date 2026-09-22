@@ -55,25 +55,7 @@ PrompterViewModel::PrompterViewModel(EventoViewModel* evento, ConferenceViewMode
     d_->evento = evento;
     d_->sala = sala;
     d_->reloj.setInterval(kRefrescoMs);
-    connect(&d_->reloj, &QTimer::timeout, this, [this]() {
-        if (d_->sala == nullptr) return;
-        d_->sala->client().get("/api/v1/prompter", [this](bool ok, const QJsonObject& r) {
-            const bool antes = d_->enLinea;
-            d_->enLinea = ok;
-            if (ok) {
-                d_->estado = r.toVariantMap();
-                d_->clave = r.value("clave").toString();
-                d_->conectados.clear();
-                for (const QJsonValue& v : r.value("clientes").toArray())
-                    d_->conectados.append(v.toObject().toVariantMap());
-                // El texto entero viene en cada respuesta y no lo mira nadie
-                // desde acá: la página muestra el título y el avance. Sacarlo
-                // del mapa ahorra copiarlo a QML dos veces por segundo.
-                d_->estado.remove("texto");
-            }
-            if (ok || antes) emit estadoCambio();
-        });
-    });
+    connect(&d_->reloj, &QTimer::timeout, this, [this]() { consultar(); });
     if (evento != nullptr) {
         // Al abrir o cerrar un evento, los discursos son otros.
         connect(evento, &EventoViewModel::guionChanged, this, [this]() { refrescar(); });
@@ -158,6 +140,21 @@ QString PrompterViewModel::guardar() {
     if (!err.isEmpty()) return err;
     d_->enDisco = d_->texto;
     emit editorCambio();
+    refrescar();
+    return {};
+}
+
+QString PrompterViewModel::escribirDoc(const QString& rel, const QString& texto) {
+    if (!d_->docs.listo()) return sinEvento();
+    const QString err = d_->docs.escribir(rel, texto);
+    if (!err.isEmpty()) return err;
+    // Si es el que está abierto, el editor tiene que mostrar lo nuevo: si no,
+    // el operador seguiría viendo lo viejo y al guardar lo pisaría.
+    if (d_->abierto == rel) {
+        d_->texto = texto;
+        d_->enDisco = texto;
+        emit editorCambio();
+    }
     refrescar();
     return {};
 }
@@ -262,9 +259,34 @@ int PrompterViewModel::faltaSeg() const {
 void PrompterViewModel::mirar(bool si) {
     if (si) {
         if (!d_->reloj.isActive()) d_->reloj.start();
+        consultar(); // que la página no arranque en blanco medio segundo
     } else {
         d_->reloj.stop();
     }
+}
+
+void PrompterViewModel::consultar(std::function<void(bool)> cuando) {
+    if (d_->sala == nullptr) {
+        if (cuando) cuando(false);
+        return;
+    }
+    d_->sala->client().get("/api/v1/prompter", [this, cuando](bool ok, const QJsonObject& r) {
+        const bool antes = d_->enLinea;
+        d_->enLinea = ok;
+        if (ok) {
+            d_->estado = r.toVariantMap();
+            d_->clave = r.value("clave").toString();
+            d_->conectados.clear();
+            for (const QJsonValue& v : r.value("clientes").toArray())
+                d_->conectados.append(v.toObject().toVariantMap());
+            // El texto entero viene en cada respuesta y no lo mira nadie desde
+            // acá: la página muestra el título y el avance. Sacarlo del mapa
+            // ahorra copiarlo a QML dos veces por segundo.
+            d_->estado.remove("texto");
+        }
+        if (ok || antes) emit estadoCambio();
+        if (cuando) cuando(ok);
+    });
 }
 
 namespace {

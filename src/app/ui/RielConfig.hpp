@@ -11,6 +11,11 @@
 // Configuración. Repetido, se desincroniza; una página nueva aparecía en un
 // lado y no en el otro. Ahora se declara una vez y las dos pantallas lo leen.
 //
+// Cada página tiene un ID CORTO Y ESTABLE ("dashboard", "prompter"): es el
+// nombre con el que se la pide por MCP y el que se escribe en riel.json. El
+// índice del StackLayout no sirve para eso —cambia si se agrega una página en
+// el medio— y el título tampoco, porque se puede reescribir.
+//
 // Se guarda en Config/riel.json. Es preferencia de interfaz, no configuración
 // del aparato: no reinicia nada y no viaja con el evento.
 // ============================================================================
@@ -20,6 +25,7 @@
 #include <memory>
 
 #include <QObject>
+#include <QStringList>
 #include <QString>
 #include <QVariantList>
 
@@ -61,6 +67,15 @@ class RielConfig : public QObject {
     QVariantList grupos() const;
     QVariantList paginas() const;
     int escondidas() const;
+
+    /// El índice de página de un id ("guion"), o -1 si no existe.
+    Q_INVOKABLE int paginaDeId(const QString& id) const;
+    /// El id de una página por su índice, o vacío.
+    Q_INVOKABLE QString idDePagina(int pagina) const;
+    /// El título corto de una página por su índice, o vacío.
+    Q_INVOKABLE QString tituloDePagina(int pagina) const;
+    /// Todos los ids, en el orden del catálogo. Es lo que ofrece el MCP.
+    static QStringList idsDePaginas();
 
     /// Muestra o esconde una página. La que está a la vista no se puede
     /// esconder desde el propio riel sin dejar al operador sin salida, así que

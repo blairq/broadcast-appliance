@@ -25,6 +25,24 @@
 #include "ui/SystemViewModel.hpp"
 
 namespace ba::app::mcp {
+namespace {
+
+/// Los ids de las paginas, para el `enum` del esquema. Salen del catalogo
+/// (ui/RielConfig.hpp), que es el unico lugar donde estan declaradas: una
+/// pagina nueva aparece aca sin tocar nada.
+json idsDePaginas() {
+    json out = json::array();
+    for (const QString& id : RielConfig::idsDePaginas()) out.push_back(id.toStdString());
+    return out;
+}
+
+/// El indice de pagina de un id, o -1.
+int paginaDeId(StudioViewModel& vm, const std::string& id) {
+    auto* riel = static_cast<RielConfig*>(vm.riel());
+    return riel == nullptr ? -1 : riel->paginaDeId(QString::fromStdString(id));
+}
+
+} // namespace
 
 void McpService::registerUiTools() {
     core_.addCategory(
@@ -43,17 +61,12 @@ void McpService::registerUiTools() {
         t.name = "ui_show_page";
         t.title = "Mostrar una pagina";
         t.category = "interfaz";
-        t.description = "Cambia la pagina que ve el operador: dashboard, escenas, entradas, audio, sala, "
-                        "guion, graficos, rotulos, registro, youtube, twitch, facebook, configuracion o "
-                        "asistente.";
+        t.description = "Cambia la pagina que ve el operador. Las que hay salen del catalogo de la "
+                        "interfaz (ver el enum de `page`): si se agrega una pagina nueva al programa, "
+                        "aparece aca sola.";
         t.inputSchema = {{"type", "object"},
                          {"properties",
-                          {{"page",
-                            {{"type", "string"},
-                             {"enum",
-                              {"dashboard", "escenas", "entradas", "audio", "sala", "guion", "youtube",
-                               "twitch", "facebook", "configuracion", "asistente", "graficos",
-                               "rotulos", "registro"}}}},
+                          {{"page", {{"type", "string"}, {"enum", idsDePaginas()}}},
                            {"seccion",
                             {{"type", "string"},
                              {"description",
@@ -62,13 +75,12 @@ void McpService::registerUiTools() {
                               "navegacion\"). Sin esto queda la que estaba."}}}}},
                          {"required", {"page"}}};
         t.run = [self, &vm](const json& a, Done done) {
-            static const std::map<std::string, int> kPages{
-                {"dashboard", 0}, {"escenas", 1},       {"sala", 2},      {"youtube", 3},  {"twitch", 4},
-                {"facebook", 5},  {"configuracion", 6}, {"asistente", 7}, {"entradas", 8}, {"audio", 9},
-                {"guion", 10}, {"graficos", 11}, {"rotulos", 12}, {"registro", 13}};
             QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;
             if (w == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
-            w->setProperty("page", kPages.at(a["page"]));
+            const int pagina = paginaDeId(vm, a["page"].get<std::string>());
+            if (pagina < 0) return done(ToolResult::error("No conozco la pagina \"" +
+                                                          a["page"].get<std::string>() + "\"."));
+            w->setProperty("page", pagina);
             // Llevarlo a la seccion ANTES de mostrar la pagina haria que se
             // vea un salto; despues, no se nota.
             if (a.contains("seccion") && a["seccion"].is_string())
@@ -96,9 +108,7 @@ void McpService::registerUiTools() {
                           {{"page",
                             {{"type", "string"},
                              {"enum",
-                              {"dashboard", "escenas", "entradas", "audio", "sala", "guion", "youtube",
-                               "twitch", "facebook", "configuracion", "asistente", "graficos",
-                               "rotulos", "registro"}}}},
+                              idsDePaginas()}}},
                            {"seccion",
                             {{"type", "string"},
                              {"description",
@@ -107,21 +117,15 @@ void McpService::registerUiTools() {
                               "navegacion\"). Sin esto queda la que estaba."}}}}},
                          {"required", {"page"}}};
         t.run = [self, &vm](const json& a, Done done) {
-            static const std::map<std::string, std::pair<int, const char*>> kPages{
-                {"dashboard", {0, "Dashboard"}},   {"escenas", {1, "Escenas"}},
-                {"sala", {2, "Sala"}},             {"youtube", {3, "YouTube"}},
-                {"twitch", {4, "Twitch"}},         {"facebook", {5, "Facebook"}},
-                {"configuracion", {6, "Configuración"}}, {"asistente", {7, "Asistente"}},
-                {"entradas", {8, "Entradas"}},     {"audio", {9, "Audio"}},
-                {"guion", {10, "Guion del evento"}},
-                {"graficos", {11, "Gráficos"}},
-                {"rotulos", {12, "Rótulos"}}, {"registro", {13, "Registro"}}};
             QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;
             if (w == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
-            const auto& [idx, titulo] = kPages.at(a["page"]);
-            QMetaObject::invokeMethod(w, "sacarAVentana", Q_ARG(QVariant, idx),
-                                      Q_ARG(QVariant, QString::fromUtf8(titulo)));
-            done(ToolResult::ok(std::string("\"") + titulo + "\" abierta en su propia ventana."));
+            const int idx = paginaDeId(vm, a["page"].get<std::string>());
+            if (idx < 0) return done(ToolResult::error("No conozco la pagina \"" +
+                                                       a["page"].get<std::string>() + "\"."));
+            auto* riel = static_cast<RielConfig*>(vm.riel());
+            const QString titulo = riel->tituloDePagina(idx);
+            QMetaObject::invokeMethod(w, "sacarAVentana", Q_ARG(QVariant, idx), Q_ARG(QVariant, titulo));
+            done(ToolResult::ok("\"" + titulo.toStdString() + "\" abierta en su propia ventana."));
         };
         core_.addTool(std::move(t));
     }
@@ -336,11 +340,6 @@ void McpService::registerUiTools() {
         t.run = [&vm](const json& a, Done done) {
             auto* riel = static_cast<RielConfig*>(vm.riel());
             if (riel == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
-            static const std::map<std::string, int> kPages{
-                {"dashboard", 0}, {"escenas", 1},       {"sala", 2},      {"youtube", 3},  {"twitch", 4},
-                {"facebook", 5},  {"configuracion", 6}, {"asistente", 7}, {"entradas", 8}, {"audio", 9},
-                {"guion", 10}, {"graficos", 11}, {"rotulos", 12}, {"registro", 13}};
-
             if (a.value("restaurar", false)) riel->restaurar();
             if (a.contains("posicion"))
                 riel->setPosicion(QString::fromStdString(a["posicion"].get<std::string>()));
@@ -351,11 +350,11 @@ void McpService::registerUiTools() {
                 const bool ver = std::string(cual) == "mostrar";
                 for (const json& p : a[cual]) {
                     if (!p.is_string()) continue;
-                    const auto it = kPages.find(p.get<std::string>());
-                    if (it == kPages.end())
+                    const int pagina = paginaDeId(vm, p.get<std::string>());
+                    if (pagina < 0)
                         return done(ToolResult::error("No conozco la pagina \"" +
                                                       p.get<std::string>() + "\"."));
-                    riel->setVisible(it->second, ver);
+                    riel->setVisible(pagina, ver);
                 }
             }
 

@@ -84,6 +84,10 @@ Rectangle {
                                 onToggled: (wanted) => page.d.setActivo(fila.modelData.id, wanted)
                             }
                             ColumnLayout {
+                                // Un layout adentro de otro tiene fillWidth en TRUE
+                                // por defecto: sin esto se come el ancho de los
+                                // desplegables de la derecha.
+                                Layout.fillWidth: false
                                 Layout.preferredWidth: 220
                                 spacing: 1
                                 Text { text: fila.modelData.titulo; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }

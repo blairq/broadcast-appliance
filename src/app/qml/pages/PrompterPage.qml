@@ -83,6 +83,7 @@ Rectangle {
 
             // --- Documentos --------------------------------------------------
             Panel {
+                Layout.fillWidth: false
                 Layout.preferredWidth: 300
                 Layout.fillHeight: true
                 ColumnLayout {
@@ -282,7 +283,12 @@ Rectangle {
             }
 
             // --- Control + conectados ----------------------------------------
+            // `fillWidth: false` NO es de adorno: un layout anidado adentro de
+            // otro tiene fillWidth en TRUE por defecto (al revés que un Item
+            // común), así que sin esto esta columna se come todo el ancho y al
+            // editor no le queda nada.
             ColumnLayout {
+                Layout.fillWidth: false
                 Layout.preferredWidth: 300
                 Layout.fillHeight: true
                 spacing: 12

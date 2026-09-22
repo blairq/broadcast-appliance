@@ -28,6 +28,7 @@
 // ============================================================================
 #pragma once
 
+#include <functional>
 #include <memory>
 
 #include <QObject>
@@ -118,6 +119,10 @@ class PrompterViewModel : public QObject {
     Q_INVOKABLE void editar(const QString& texto);
     /// Guarda lo del editor. Devuelve el error, o vacío si salió bien.
     Q_INVOKABLE QString guardar();
+    /// Escribe un documento POR SU RUTA (crea las carpetas que falten y lo
+    /// pisa si existía). `crear` es otra cosa: toma un nombre suelto para la
+    /// carpeta que se está mirando, y le saca las barras.
+    Q_INVOKABLE QString escribirDoc(const QString& rel, const QString& texto);
     /// Crea un documento vacío en la carpeta que se está mirando y lo abre.
     Q_INVOKABLE QString crear(const QString& nombre);
     Q_INVOKABLE QString crearCarpeta(const QString& nombre);
@@ -145,6 +150,10 @@ class PrompterViewModel : public QObject {
     Q_INVOKABLE void panico();
     /// Empieza o deja de preguntar el estado (lo llama la página al mostrarse).
     Q_INVOKABLE void mirar(bool si);
+    /// Una consulta suelta, para quien no está mirando la página: por MCP el
+    /// estado tiene que estar fresco aunque el operador esté en otra pantalla.
+    /// `cuando` corre con la respuesta ya aplicada (o con el fallo).
+    void consultar(std::function<void(bool ok)> cuando = {});
 
     /// Pide el enlace y el QR. `vista` es "control" u "orador"; `target`,
     /// "local" o "remote". Contesta por `qrListo`.

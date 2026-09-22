@@ -13,10 +13,39 @@
 
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
+#include "ui/Discursos.hpp"
 #include "ui/PrompterViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
 
 namespace ba::app::mcp {
+namespace {
+
+/// El estado como lo ve un cliente MCP. Aparte de la herramienta porque se
+/// arma despues de una consulta asincrona.
+json estadoDe(PrompterViewModel& p) {
+    json conectados = json::array();
+    for (const QVariant& v : p.conectados()) {
+        const QVariantMap m = v.toMap();
+        conectados.push_back(json{{"vista", m.value("vista").toString().toStdString()},
+                                  {"nombre", m.value("nombre").toString().toStdString()},
+                                  {"ip", m.value("ip").toString().toStdString()}});
+    }
+    const QVariantMap e = p.estado();
+    return json{{"enLinea", p.enLinea()},
+                {"cargado", p.cargado().toStdString()},
+                {"corriendo", e.value("corriendo", false).toBool()},
+                {"palabras", e.value("palabras", 0).toInt()},
+                {"ppm", e.value("ppm", Discursos::kPpm).toInt()},
+                {"avancePct", static_cast<int>(p.avance() * 100)},
+                {"faltaSeg", p.faltaSeg()},
+                {"duracionSeg", e.value("duracionSeg", 0).toInt()},
+                {"aviso", e.value("aviso").toString().toStdString()},
+                {"conectados", conectados},
+                {"oradores", p.oradores()},
+                {"controles", p.controles()}};
+}
+
+} // namespace
 
 void McpService::registerPrompterTools() {
     core_.addCategory("prompter", "Teleprompter",
@@ -33,28 +62,14 @@ void McpService::registerPrompterTools() {
         t.readOnly = true;
         t.description = "Que discurso esta cargado, si esta corriendo, por donde va, a que velocidad, "
                         "cuanto falta, y que pantallas hay conectadas (atril y control).";
+        t.details = "Antes de que alguien suba al atril, lo que importa es `oradores`: si es 0, la tablet "
+                    "esta apagada o nadie abrio el enlace. Eso conviene decirlo AHORA, no con el orador "
+                    "parado ahi.";
+        // Se le pregunta al gateway ANTES de contestar: la pagina solo consulta
+        // mientras esta a la vista, y por MCP el estado tiene que estar fresco
+        // aunque el operador este mirando otra pantalla.
         t.run = [p](const json&, Done done) {
-            json conectados = json::array();
-            for (const QVariant& v : p->conectados()) {
-                const QVariantMap m = v.toMap();
-                conectados.push_back(json{{"vista", m.value("vista").toString().toStdString()},
-                                          {"nombre", m.value("nombre").toString().toStdString()},
-                                          {"ip", m.value("ip").toString().toStdString()}});
-            }
-            const QVariantMap e = p->estado();
-            done(ToolResult().data(json{
-                {"enLinea", p->enLinea()},
-                {"cargado", p->cargado().toStdString()},
-                {"corriendo", e.value("corriendo", false).toBool()},
-                {"palabras", e.value("palabras", 0).toInt()},
-                {"ppm", e.value("ppm", 140).toInt()},
-                {"avancePct", static_cast<int>(p->avance() * 100)},
-                {"faltaSeg", p->faltaSeg()},
-                {"duracionSeg", e.value("duracionSeg", 0).toInt()},
-                {"aviso", e.value("aviso").toString().toStdString()},
-                {"conectados", conectados},
-                {"oradores", p->oradores()},
-                {"controles", p->controles()}}));
+            p->consultar([p, done](bool) { done(ToolResult().data(estadoDe(*p))); });
         };
         core_.addTool(std::move(t));
     }
@@ -138,28 +153,20 @@ void McpService::registerPrompterTools() {
         t.examples = {R"({"rel": "Apertura/intendente.txt", "texto": "Buenas noches a todos.\n\nGracias por venir."})"};
         t.run = [p](const json& a, Done done) {
             const QString rel = QString::fromStdString(a["rel"].get<std::string>());
-            if (!p->sinEvento().isEmpty()) {
-                done(ToolResult::error(p->sinEvento().toStdString()));
-                return;
-            }
-            // Si no existe, se crea (crear() ya lo abre); si existe, se abre.
-            p->abrir(rel);
-            if (p->abierto() != rel) {
-                const QString err = p->crear(rel);
-                if (!err.isEmpty()) {
-                    done(ToolResult::error(err.toStdString()));
-                    return;
-                }
-            }
-            p->editar(QString::fromStdString(a["texto"].get<std::string>()));
-            const QString err = p->guardar();
+            const QString texto = QString::fromStdString(a["texto"].get<std::string>());
+            // Por RUTA, no por nombre: "Apertura/intendente.txt" crea la
+            // carpeta si falta. (`crear` le sacaria la barra: toma un nombre
+            // suelto para la carpeta que se esta mirando.)
+            const QString err = p->escribirDoc(rel, texto);
             if (!err.isEmpty()) {
                 done(ToolResult::error(err.toStdString()));
                 return;
             }
-            done(ToolResult::ok("Guardado.").data(json{{"rel", p->abierto().toStdString()},
-                                                       {"palabras", p->palabras()},
-                                                       {"duracionSeg", p->duracionSeg()}}));
+            const int palabras = Discursos::contarPalabras(texto);
+            done(ToolResult::ok("Guardado.")
+                     .data(json{{"rel", rel.toStdString()},
+                                {"palabras", palabras},
+                                {"duracionSeg", static_cast<int>(palabras * 60.0 / Discursos::kPpm)}}));
         };
         core_.addTool(std::move(t));
     }
