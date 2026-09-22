@@ -426,6 +426,12 @@ struct Feed {
     };
     std::mutex m;
     std::vector<Out> outs;
+    // Bytes de video que pasaron por aca. Sirven para saber cuanta red esta
+    // usando la sala de verdad, que es lo unico que dice si el limite es el
+    // ancho de banda o la maquina. Son atomicos y van FUERA del lock: se
+    // escriben en el hilo de red, en cada cuadro.
+    std::atomic<uint64_t> bytesEntrada{0}; ///< lo que mandan los invitados
+    std::atomic<uint64_t> bytesSalida{0};  ///< lo reenviado a los espectadores
     rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> source; // receptor actual (pedir keyframes)
     rtc::Thread* worker = nullptr;
     int64_t lastKeyReqMs = 0;
@@ -492,6 +498,10 @@ struct Feed {
     }
     /// Un cuadro codificado del invitado: se copia UNA vez y se reparte.
     void forward(webrtc::TransformableVideoFrameInterface& f) {
+        // Se cuenta SIEMPRE, aunque no haya ningun espectador: el invitado
+        // esta mandando ese video igual y esa red se esta usando.
+        const std::size_t tam = f.GetData().size();
+        bytesEntrada.fetch_add(tam, std::memory_order_relaxed);
         std::lock_guard<std::mutex> lock(m);
         if (outs.empty()) return;
         const bool key = f.IsKeyFrame();
@@ -519,6 +529,7 @@ struct Feed {
                                                           f.GetTimestamp(), f.GetSsrc(), key, mime))) {
                 o.needKey = false;
                 ++o.frames;
+                bytesSalida.fetch_add(tam, std::memory_order_relaxed);
             }
         }
         if (waiting) requestKeyLocked();
@@ -1213,6 +1224,19 @@ void WebrtcHub::reapViewers() {
         closeViewer(id);
 }
 
+WebrtcHub::Trafico WebrtcHub::trafico() const {
+    Trafico out;
+    auto* st = static_cast<RtcHubState*>(rtcFactory_);
+    if (st == nullptr) return out;
+    std::lock_guard<std::mutex> lock(st->feedsM);
+    for (const auto& [clave, f] : st->feeds) {
+        if (!f) continue;
+        out.entrada += f->bytesEntrada.load(std::memory_order_relaxed);
+        out.salida += f->bytesSalida.load(std::memory_order_relaxed);
+    }
+    return out;
+}
+
 int WebrtcHub::viewerCount() const {
     auto* st = static_cast<RtcHubState*>(rtcFactory_);
     if (st == nullptr) return 0;
@@ -1226,6 +1250,8 @@ void WebrtcHub::closeViewer(int) {}
 void WebrtcHub::closeViewersOf(int) {}
 void WebrtcHub::requestKeyFrame(int) {}
 void WebrtcHub::reapViewers() {}
+WebrtcHub::Trafico WebrtcHub::trafico() const { return {}; }
+
 int WebrtcHub::viewerCount() const { return 0; }
 #endif
 

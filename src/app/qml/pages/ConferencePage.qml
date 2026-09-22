@@ -22,6 +22,11 @@ Rectangle {
         return s < 60 ? s + " s" : Math.floor(s / 60) + " min"
     }
     function mb(bytes) { return (bytes / 1048576).toFixed(1) + " MB" }
+    /// kbit/s a algo que se lea de un vistazo.
+    function mbits(kbps) {
+        const k = kbps || 0
+        return k >= 1000 ? (k / 1000).toFixed(1) + " Mb/s" : Math.round(k) + " kb/s"
+    }
     function fmt(ms) {
         const neg = ms < 0
         const t = Math.floor(Math.abs(ms) / 1000)
@@ -568,6 +573,24 @@ Rectangle {
                                 height: parent.height; radius: 3
                                 color: usoCol.cpu >= 85 ? Theme.live : usoCol.cpu >= 70 ? Theme.amber : Theme.ok
                                 Behavior on width { NumberAnimation { duration: 300 } }
+                            }
+                        }
+                        // Ancho de banda: el otro limite posible. Con muchos
+                        // invitados puede sobrar CPU y faltar red, y hasta
+                        // ahora no habia forma de saberlo.
+                        RowLayout {
+                            Layout.fillWidth: true
+                            visible: usoCol.u.kbpsEntrada !== undefined
+                            Text {
+                                Layout.fillWidth: true
+                                text: "Video por la red"
+                                color: Theme.textDim; font.pixelSize: 11
+                            }
+                            Text {
+                                text: "↓ " + page.mbits(usoCol.u.kbpsEntrada) +
+                                      "   ↑ " + page.mbits(usoCol.u.kbpsSalida)
+                                color: Theme.textFaint
+                                font { family: Theme.mono; pixelSize: 11 }
                             }
                         }
                         // Hilo mas cargado: si uno solo se va a 100 mientras el

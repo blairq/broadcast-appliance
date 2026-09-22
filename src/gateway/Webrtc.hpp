@@ -223,6 +223,26 @@ class WebrtcHub {
     /// 20 s) se cierran. Llamar seguido (barato).
     void reapViewers();
     int viewerCount() const;
+
+    /// Bytes de video acumulados desde que arranco el gateway: los que mandan
+    /// los invitados y los que se reenvian a los espectadores.
+    ///
+    /// Es el unico numero que dice si el limite de la sala es la RED y no la
+    /// maquina. No incluye el audio ni el overhead de SRTP/RTP (que es poco):
+    /// es el video codificado, que es lo que pesa.
+    ///
+    /// OJO CON DONDE SE MIDE. Se cuenta en el transformador que va entre el
+    /// depaquetizador y el decodificador, o sea que cuenta el video que el
+    /// gateway PROCESA. Con el sistema entero corriendo eso es todo lo que
+    /// entra (A consume todos los slots), pero contra un gateway suelto -sin
+    /// A del otro lado- nadie consume el video, libwebrtc no desempaqueta y
+    /// esto da CERO aunque los invitados esten mandando. Es el mismo efecto
+    /// que hace que la CPU de casi cero en esa situacion.
+    struct Trafico {
+        uint64_t entrada = 0;
+        uint64_t salida = 0;
+    };
+    Trafico trafico() const;
     static constexpr int kMaxViewers = 48;
 
    private:

@@ -254,7 +254,7 @@ namespace {
 /// CPU (porcentaje del total de la maquina desde la vuelta anterior) y memoria
 /// residente del propio proceso. Sin dependencias: /proc en Linux,
 /// GetProcessTimes en Windows, task_info en macOS.
-nlohmann::json processUsage() {
+nlohmann::json processUsage(const WebrtcHub* hub) {
     static double lastCpuSec = 0;
     static std::chrono::steady_clock::time_point lastAt{};
     double cpuSec = 0;
@@ -294,6 +294,38 @@ nlohmann::json processUsage() {
     nlohmann::json u{{"cpuPct", std::round(std::clamp(pct, 0.0, 100.0) * 10) / 10},
                      {"memMb", std::round(rssMb)},
                      {"nucleos", std::max(1u, std::thread::hardware_concurrency())}};
+
+    // Ancho de banda de video, que es lo unico que dice si el limite de la
+    // sala es la RED y no la maquina. Se informa en kbit/s sobre el intervalo
+    // entre dos llamadas, no el acumulado: lo que interesa es el caudal de
+    // AHORA, no cuanto paso desde que arranco.
+    //
+    // Cuenta el video que el gateway PROCESA (ver WebrtcHub::trafico): con un
+    // gateway suelto, sin A del otro lado, da cero aunque los invitados esten
+    // mandando.
+    if (hub != nullptr) {
+        static uint64_t lastIn = 0;
+        static uint64_t lastOut = 0;
+        static std::chrono::steady_clock::time_point lastNet{};
+        const WebrtcHub::Trafico tr = hub->trafico();
+        const double wallN = lastNet.time_since_epoch().count() == 0
+                                 ? 0
+                                 : std::chrono::duration<double>(now - lastNet).count();
+        if (wallN > 0.2) {
+            // El contador solo sube, pero si alguna vez se reiniciara, restar
+            // daria un numero absurdo: se acota en cero.
+            const auto kbps = [wallN](uint64_t ahora, uint64_t antes) {
+                return ahora < antes ? 0.0 : std::round((ahora - antes) * 8.0 / 1000.0 / wallN);
+            };
+            u["kbpsEntrada"] = kbps(tr.entrada, lastIn);
+            u["kbpsSalida"] = kbps(tr.salida, lastOut);
+        }
+        if (wallN > 0.2 || lastNet.time_since_epoch().count() == 0) {
+            lastIn = tr.entrada;
+            lastOut = tr.salida;
+            lastNet = now;
+        }
+    }
 #if defined(__linux__)
     // Hilo mas cargado (porcentaje de UN nucleo). libwebrtc reparte la
     // decodificacion de cada invitado en su propio hilo, pero la red, el worker
@@ -871,7 +903,7 @@ int main(int argc, char** argv) {
         // Uso del propio proceso: es lo que se satura cuando hay muchos
         // invitados (cada uno es un video que hay que decodificar). Va en el
         // snapshot para que el operador lo vea en la pagina Sala.
-        room.setUsage(processUsage());
+        room.setUsage(processUsage(&hub));
     }
 
     log.info("parando: deteniendo componentes...");
