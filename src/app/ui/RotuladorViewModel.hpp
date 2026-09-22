@@ -34,6 +34,7 @@ class AppRuntime;
 class ConferenceViewModel;
 namespace graficos {
 class Emisor;
+class Vinculos;
 }
 
 class RotuladorViewModel : public QObject {
@@ -44,6 +45,10 @@ class RotuladorViewModel : public QObject {
     Q_PROPERTY(QVariantList fuentes READ fuentes NOTIFY cambio)
     /// Los gráficos guardados, para poder elegir cuál va en cada fuente.
     Q_PROPERTY(QStringList graficos READ graficos NOTIFY cambio)
+    /// Los rótulos que se escriben solos (ver graficos/Vinculos.hpp). Se
+    /// muestran acá para que el operador VEA qué es automático: un texto que
+    /// cambia solo y no se sabe por qué es peor que uno que no cambia.
+    Q_PROPERTY(QVariantList vinculos READ vinculos NOTIFY cambio)
 
   public:
     RotuladorViewModel(AppRuntime& rt, graficos::Emisor& emisor, ConferenceViewModel* sala,
@@ -53,6 +58,8 @@ class RotuladorViewModel : public QObject {
     QString escena() const;
     QVariantList fuentes() const;
     QStringList graficos() const;
+    QVariantList vinculos() const;
+    void setVinculos(graficos::Vinculos* v);
 
     /// Vuelve a mirar qué hay en la escena. Se llama sola cuando cambia la
     /// escena al aire.
@@ -70,6 +77,11 @@ class RotuladorViewModel : public QObject {
     /// `qrListo`. `conClave` mete la clave en el propio QR: comodo si el QR se
     /// lo pasa el operador a alguien, malo si va a quedar pegado en una pared.
     Q_INVOKABLE void pedirQr(const QString& target, bool conClave);
+
+    Q_INVOKABLE void activarVinculo(const QString& id, bool activo);
+    Q_INVOKABLE void quitarVinculo(const QString& id);
+    /// Lo saca al aire a mano, haya cambiado o no.
+    Q_INVOKABLE QString dispararVinculo(const QString& id);
 
   signals:
     void cambio();

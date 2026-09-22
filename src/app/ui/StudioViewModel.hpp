@@ -38,7 +38,7 @@ class ConferenceViewModel;
 class EventoViewModel;
 class GraficoViewModel;
 class RotuladorViewModel;
-namespace graficos { class Emisor; }
+namespace graficos { class Emisor; class Vinculos; }
 class YouTubeViewModel;
 class TwitchViewModel;
 class FacebookViewModel;
@@ -151,6 +151,10 @@ class StudioViewModel : public QObject {
     QObject* evento() const;
     QObject* grafico() const;
     QObject* rotulador() const;
+    /// De donde sacan sus valores los vinculos (ver graficos/Vinculos.hpp):
+    /// la sala, el guion y la escena al aire, todo junto.
+    QJsonObject contextoDeVinculos() const;
+    graficos::Vinculos* vinculos() { return vinculos_.get(); }
     QObject* youtube() const;
     QObject* twitch() const;
     QObject* facebook() const;
@@ -230,6 +234,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<graficos::Emisor> emisor_;
     std::unique_ptr<GraficoViewModel> grafico_;
     std::unique_ptr<RotuladorViewModel> rotulador_;
+    std::unique_ptr<graficos::Vinculos> vinculos_;
 #if defined(BA_HAVE_CLAP)
     std::unique_ptr<audio::RackManager> racks_;
     std::unique_ptr<audio::AudioViewModel> audio_;

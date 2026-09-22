@@ -15,6 +15,7 @@
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "graficos/Emisor.hpp"
+#include "graficos/Vinculos.hpp"
 #include "graficos/GraficoSource.hpp"
 
 namespace ba::app {
@@ -23,6 +24,7 @@ struct RotuladorViewModel::Impl {
     AppRuntime& rt;
     graficos::Emisor& em;
     ConferenceViewModel* sala = nullptr;
+    graficos::Vinculos* vin = nullptr;
     /// El ida y vuelta con el buzon de B: publica lo que hay y se lleva lo que
     /// encargaron desde los celulares. Un viaje por segundo, en los dos
     /// sentidos a la vez (ver Rotulador.hpp en el gateway).
@@ -122,6 +124,32 @@ QVariantList RotuladorViewModel::fuentes() const {
                                {"reproduciendo", i.reproduciendo}});
     }
     return out;
+}
+
+void RotuladorViewModel::setVinculos(graficos::Vinculos* v) {
+    d_->vin = v;
+    if (v != nullptr) connect(v, &graficos::Vinculos::cambio, this, &RotuladorViewModel::cambio);
+    emit cambio();
+}
+
+QVariantList RotuladorViewModel::vinculos() const {
+    if (d_->vin == nullptr) return {};
+    return d_->vin->lista().toVariantList();
+}
+
+void RotuladorViewModel::activarVinculo(const QString& id, bool activo) {
+    if (d_->vin != nullptr) d_->vin->activar(id, activo);
+}
+
+void RotuladorViewModel::quitarVinculo(const QString& id) {
+    if (d_->vin != nullptr) d_->vin->quitar(id);
+}
+
+QString RotuladorViewModel::dispararVinculo(const QString& id) {
+    if (d_->vin == nullptr) return "no hay motor de gráficos";
+    const QString e = d_->vin->disparar(id);
+    if (!e.isEmpty()) emit notify("No se pudo disparar el vínculo: " + e, "error");
+    return e;
 }
 
 void RotuladorViewModel::refrescar() { emit cambio(); }

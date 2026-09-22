@@ -20,6 +20,8 @@
 #include "AppRuntime.hpp"
 #include "graficos/GraficoProceso.hpp"
 #include "graficos/GraficoSource.hpp"
+#include "graficos/Vinculos.hpp"
+#include "ui/StudioViewModel.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 
@@ -322,6 +324,111 @@ void McpService::registerGraficoTools() {
         };
         core_.addTool(std::move(t));
     }
+    // --- Vinculos: que el rotulo se escriba solo ----------------------------
+    auto* vin = vm_.vinculos();
+    const auto aJson = [](const QJsonDocument& d) {
+        return json::parse(d.toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
+    };
+    const auto aQJson = [](const json& j) {
+        return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump())).object();
+    };
+
+    {
+        Tool t;
+        t.name = "rotulo_vinculos";
+        t.title = "Rotulos que se escriben solos";
+        t.category = "graficos";
+        t.readOnly = true;
+        t.description = "Los vinculos que hay y, sobre todo, los ORIGENES que se pueden usar.";
+        t.details =
+            "Un vinculo dice de donde sale cada campo de un grafico, una sola vez, y despues se "
+            "mantiene solo: cuando lo que resuelve cambia (cambio el orador, cambio la escena), el "
+            "grafico vuelve a salir al aire con lo nuevo.\n\n"
+            "`origenes` es lo que se puede poner entre llaves, CON SU VALOR DE AHORA. Miralo antes "
+            "de escribir un vinculo: si el origen que ibas a usar no esta en esa lista, no existe, y "
+            "el vinculo no se va a guardar.\n\n"
+            "De cada vinculo, `resuelve` es lo que daria si se disparara ahora mismo y `problema` "
+            "dice por que no puede. `fuenteExiste` en false significa que esa fuente de escena no "
+            "esta en ninguna escena en este momento: el vinculo se queda quieto hasta que aparezca.";
+        t.run = [vin, aJson](const json&, Done done) {
+            if (vin == nullptr) return done(ToolResult::error("No hay motor de graficos."));
+            done(ToolResult().data(json{{"vinculos", aJson(QJsonDocument(vin->lista()))},
+                                        {"origenes", aJson(QJsonDocument(vin->origenes()))}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "rotulo_vincular";
+        t.title = "Que un rotulo se escriba solo";
+        t.category = "graficos";
+        t.description = "Ata los campos de un grafico a origenes que cambian solos.";
+        t.details =
+            "Ejemplo, el caso tipico —el zocalo del que esta hablando—:\n\n"
+            "    { \"fuente\": \"Zocalo\", \"grafico\": \"zocalo\",\n"
+            "      \"valores\": { \"nombre\": \"{orador.nombre}\", \"cargo\": \"{orador.cargo}\" } }\n\n"
+            "Lo que hay que saber:\n\n"
+            "  * La FUENTE se nombra, no se numera: el id de una fuente de escena lo asigna libobs y "
+            "cambia cada vez que se abre el programa. El nombre no.\n"
+            "  * Un valor es TEXTO con origenes entre llaves, asi que se pueden mezclar: "
+            "\"{orador.nombre} - {escena}\" o \"Nos escribe {invitado2.nombre}\".\n"
+            "  * Un origen que no existe hace fallar el vinculo ACA, al guardarlo, y no en vivo. "
+            "Mira primero rotulo_vinculos.\n"
+            "  * Los campos que no menciones quedan en el valor por defecto del grafico.\n"
+            "  * `dispara` en false lo deja resolviendo pero sin sacar nada al aire: sirve para "
+            "dejarlo escrito y probarlo antes de un evento.\n"
+            "  * Mandar el mismo `id` reemplaza el vinculo entero, que es como se corrige uno.\n\n"
+            "No se redispara si lo que resuelve no cambio: si no, la animacion parpadearia una vez "
+            "por segundo.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"fuente", {{"type", "string"}, {"description", "Nombre de la fuente «Grafico animado» de la escena."}}},
+              {"grafico", {{"type", "string"}, {"description", "Cual de los graficos guardados."}}},
+              {"valores", {{"type", "object"}, {"description", "clave del parametro -> texto con {origenes}."}}},
+              {"dispara", {{"type", "boolean"}, {"description", "Si sale al aire solo. Por defecto si."}}},
+              {"repetir", {{"type", "boolean"}, {"description", "En bucle (para un ticker)."}}},
+              {"id", {{"type", "string"}, {"description", "Para reemplazar uno que ya existe."}}}}},
+            {"required", {"fuente", "grafico", "valores"}}};
+        t.run = [vin, aQJson](const json& a, Done done) {
+            if (vin == nullptr) return done(ToolResult::error("No hay motor de graficos."));
+            QString id;
+            const QString err = vin->poner(aQJson(a), &id);
+            if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
+            done(ToolResult::ok("Vinculo guardado (" + id.toStdString() +
+                                "). Se va a mantener solo de ahora en mas."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "rotulo_desvincular";
+        t.title = "Sacar o apagar un vinculo";
+        t.category = "graficos";
+        t.description = "Quita un vinculo, o lo apaga sin borrarlo.";
+        t.details = "En vivo, APAGARLO es mas seguro que borrarlo: se vuelve a prender con una sola "
+                    "cosa y no hay que acordarse de como estaba escrito. Al prenderlo otra vez sale "
+                    "al aire con lo que haya en ese momento, aunque sea lo mismo de antes.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"id", {{"type", "string"}}},
+                           {"activo", {{"type", "boolean"},
+                                       {"description", "Presente = prende o apaga. Ausente = lo borra."}}}}},
+                         {"required", {"id"}}};
+        t.run = [vin](const json& a, Done done) {
+            if (vin == nullptr) return done(ToolResult::error("No hay motor de graficos."));
+            const QString id = QString::fromStdString(a.value("id", std::string()));
+            if (a.contains("activo")) {
+                const bool act = a["activo"].get<bool>();
+                if (!vin->activar(id, act)) return done(ToolResult::error("No existe ese vinculo."));
+                return done(ToolResult::ok(act ? "Vinculo prendido." : "Vinculo apagado."));
+            }
+            if (!vin->quitar(id)) return done(ToolResult::error("No existe ese vinculo."));
+            done(ToolResult::ok("Vinculo borrado."));
+        };
+        core_.addTool(std::move(t));
+    }
+
     {
         Tool t;
         t.name = "grafico_repertorio";

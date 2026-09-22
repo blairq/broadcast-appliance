@@ -31,6 +31,7 @@
 #include "ui/ConferenceClient.hpp"
 #include "ui/EventoViewModel.hpp"
 #include "graficos/Emisor.hpp"
+#include "graficos/Vinculos.hpp"
 #include "ui/GraficoViewModel.hpp"
 #include "ui/RotuladorViewModel.hpp"
 #include "ui/ConferenceViewModel.hpp"
@@ -91,6 +92,19 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     rotulador_ = std::make_unique<RotuladorViewModel>(rt, *emisor_, conference_.get());
     connect(rotulador_.get(), &RotuladorViewModel::notify, this, &StudioViewModel::notify);
     connect(this, &StudioViewModel::sceneChanged, rotulador_.get(), &RotuladorViewModel::refrescar);
+
+    // Los vínculos: «el nombre del zócalo sale del orador que está al aire».
+    // El contexto se arma acá porque es el único lugar que ve todo junto: la
+    // sala sabe quién habla, el guion sabe quién sigue, el motor sabe qué
+    // escena está al aire.
+    vinculos_ = std::make_unique<graficos::Vinculos>(rt.dataRoot() / "Config" / "vinculos.json",
+                                                     *emisor_);
+    vinculos_->setContexto([this]() { return contextoDeVinculos(); });
+    rotulador_->setVinculos(vinculos_.get());
+    connect(vinculos_.get(), &graficos::Vinculos::actuo, this,
+            [this](const QString&, const QString& texto, bool error) {
+                if (error) emit notify("Un rótulo automático no salió: " + texto, "error");
+            });
     connect(grafico_.get(), &GraficoViewModel::notify, this, &StudioViewModel::notify);
     // HTTPS propio (plataformas): raices de certificados del bundle primero.
     net::HttpsClient::setDefaultCaSearch(
@@ -416,6 +430,63 @@ QObject* StudioViewModel::conference() const { return conference_.get(); }
 QObject* StudioViewModel::evento() const { return evento_.get(); }
 QObject* StudioViewModel::grafico() const { return grafico_.get(); }
 QObject* StudioViewModel::rotulador() const { return rotulador_.get(); }
+
+QJsonObject StudioViewModel::contextoDeVinculos() const {
+    QJsonObject ctx;
+    ctx["escena"] = currentScene();
+
+    // La sala: quién está al aire y quiénes esperan, en el orden en que los
+    // ve el operador. `invitado1`, `invitado2`... son ESE orden, que es lo que
+    // uno tiene delante cuando dice «el invitado 2».
+    const QJsonObject sala = conference_ != nullptr ? conference_->client().snapshot() : QJsonObject{};
+    QHash<QString, QJsonObject> porId;
+    for (const QJsonValue& v : sala.value("participants").toArray())
+        porId.insert(v.toObject().value("id").toString(), v.toObject());
+
+    const auto deParticipante = [](const QJsonObject& p) {
+        return QJsonObject{{"nombre", p.value("name").toString()},
+                           // `info` es lo que el invitado puso de sí mismo al
+                           // entrar: es el cargo o la procedencia.
+                           {"cargo", p.value("info").toString()},
+                           {"contacto", p.value("contact").toString()}};
+    };
+
+    int n = 0;
+    bool hayOrador = false;
+    QJsonObject primeroEnCola;
+    for (const QJsonValue& v : sala.value("order").toArray()) {
+        const auto it = porId.constFind(v.toString());
+        if (it == porId.constEnd()) continue;
+        const QJsonObject p = *it;
+        ctx["invitado" + QString::number(++n)] = deParticipante(p);
+        const QString estado = p.value("speaker").toString();
+        if (estado == "onair" && !hayOrador) {
+            ctx["orador"] = deParticipante(p);
+            hayOrador = true;
+        } else if (estado == "queued" && primeroEnCola.isEmpty()) {
+            primeroEnCola = deParticipante(p);
+        }
+    }
+    if (!primeroEnCola.isEmpty()) ctx["siguiente"] = primeroEnCola;
+
+    // El guion: qué bloque va y qué dice el cue. Si el cue que corre es de
+    // orador, ese es el orador según el guion, que puede no ser el mismo que
+    // el de la sala (alguien que habla desde el estudio, sin conectarse).
+    if (evento_ != nullptr) {
+        const QVariantMap actual = evento_->property("actual").toMap();
+        const QVariantMap sig = evento_->property("siguiente").toMap();
+        QJsonObject guion{{"bloque", actual.value("bloqueNombre").toString()},
+                          {"cue", actual.value("texto").toString()},
+                          {"tipo", actual.value("tipo").toString()},
+                          {"proximo", sig.value("texto").toString()}};
+        const QVariantMap datos = actual.value("datos").toMap();
+        if (actual.value("tipo").toString() == "orador")
+            guion["orador"] = datos.value("participante").toString();
+        ctx["guion"] = guion;
+        ctx["evento"] = QJsonObject{{"nombre", evento_->property("nombre").toString()}};
+    }
+    return ctx;
+}
 
 void StudioViewModel::toggleRecording() {
     if (recording_) {

@@ -62,7 +62,7 @@ Rectangle {
 
         // --- Sin fuentes de gráfico en esta escena ---------------------------
         Panel {
-            visible: page.r.fuentes.length === 0
+            visible: page.r.fuentes.length === 0 && page.r.vinculos.length === 0
             Layout.fillWidth: true
             Layout.fillHeight: true
             Text {
@@ -80,7 +80,7 @@ Rectangle {
 
         // --- Una tarjeta por fuente -----------------------------------------
         ScrollView {
-            visible: page.r.fuentes.length > 0
+            visible: page.r.fuentes.length > 0 || page.r.vinculos.length > 0
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
@@ -205,6 +205,91 @@ Rectangle {
                         }
                     }
                 }
+                // --- Los que se escriben solos ---------------------------
+                // Se muestran aunque su fuente no esté en esta escena: un
+                // rótulo que cambia solo y no se sabe por qué es peor que uno
+                // que no cambia.
+                Panel {
+                    visible: page.r.vinculos.length > 0
+                    Layout.fillWidth: true
+                    implicitHeight: autos.implicitHeight + 28
+                    ColumnLayout {
+                        id: autos
+                        anchors { fill: parent; margins: 14 }
+                        spacing: 8
+                        Text {
+                            text: "Se escriben solos"
+                            color: Theme.text
+                            font { pixelSize: 13; weight: Font.DemiBold }
+                        }
+                        Repeater {
+                            model: page.r.vinculos
+                            delegate: ColumnLayout {
+                                required property var modelData
+                                id: vin
+                                Layout.fillWidth: true
+                                spacing: 1
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 8
+                                    Rectangle {
+                                        Layout.preferredWidth: 8
+                                        Layout.preferredHeight: 8
+                                        radius: 4
+                                        color: !vin.modelData.activo ? Qt.rgba(1, 1, 1, 0.2)
+                                             : vin.modelData.problema !== "" ? Theme.live
+                                             : vin.modelData.fuenteExiste ? Theme.ok : Theme.textDim
+                                    }
+                                    Text {
+                                        Layout.fillWidth: true
+                                        elide: Text.ElideRight
+                                        color: Theme.text
+                                        font.pixelSize: 12
+                                        text: vin.modelData.fuente + " · " + vin.modelData.grafico
+                                    }
+                                    GlassButton {
+                                        text: "Ahora"; compact: true
+                                        onClicked: page.r.dispararVinculo(vin.modelData.id)
+                                    }
+                                    GlassButton {
+                                        text: vin.modelData.activo ? "Apagar" : "Prender"; compact: true
+                                        onClicked: page.r.activarVinculo(vin.modelData.id,
+                                                                         !vin.modelData.activo)
+                                    }
+                                    GlassButton {
+                                        icon: "✕"; compact: true
+                                        onClicked: page.r.quitarVinculo(vin.modelData.id)
+                                    }
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    wrapMode: Text.WordWrap
+                                    font.pixelSize: 10
+                                    color: vin.modelData.problema !== "" ? Theme.live : Theme.textFaint
+                                    text: {
+                                        if (vin.modelData.problema !== "") return vin.modelData.problema
+                                        if (!vin.modelData.fuenteExiste)
+                                            return "esperando a que «" + vin.modelData.fuente +
+                                                   "» aparezca en alguna escena"
+                                        const r = vin.modelData.resuelve
+                                        let ps = []
+                                        for (const k in r) ps.push(k + ": " + r[k])
+                                        return ps.join("   ")
+                                    }
+                                }
+                            }
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            color: Theme.textFaint
+                            font.pixelSize: 10
+                            text: "Se revisan una vez por segundo y salen al aire solos cuando lo que " +
+                                  "dicen cambia. Para armar uno, pedíselo al asistente acá abajo."
+                        }
+                    }
+                }
+
                 Item { Layout.fillWidth: true; implicitHeight: 4 }
             }
         }
