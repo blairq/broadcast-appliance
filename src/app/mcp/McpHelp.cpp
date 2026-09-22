@@ -439,9 +439,12 @@ En vez de consultar cada tanto (mixer_list, speakers_status...), pedile al servi
 | Un invitado no se ve | `room_status` (connected, mediaUp, cam), `capture_person`, `participant_request` no aplica; que su fuente este en la escena (`guest_source_add`) |
 | Sin audio / saturado | `mixer_list` (muted, peakDb) |
 | Cortes en la transmision | `status` (droppedFrames, fps, kbps), bajar `encoder.bitrate` |
-| La sala no responde | `status.gatewayAlive`, `logs_tail {"grep": "gateway"}`, `gateway_restart` |
+| La sala no responde | `status.gatewayAlive`, `log_leer {"modulo": "gateway"}`, `gateway_restart` |
 | Imagen congelada | `capture_sequence` (cuadros iguales) |
-Registros: `logs_tail {"log": "ba.log"|"launcher.log"|"cloudflared.log", "grep": "error"}`.)md"},
+Registros: `log_leer {"minimo": "aviso"}` es por donde se empieza SIEMPRE: trae los tres
+procesos entrelazados por hora, con nivel y modulo. Si no aparece nada, bajar con
+`log_nivel`, hacer que el problema pase otra vez y volver a mirar. `logs_tail` es para
+ver un archivo crudo (cloudflared.log).)md"},
     {"recetas", "Recetas", "Flujos completos de produccion.",
      R"md(## Abrir un programa
 1. `status`, `capture_multiview`.
@@ -642,7 +645,7 @@ void McpService::registerHelp() {
         [](const json& a) {
             return "Diagnostica: " + a.value("problema", std::string("(sin detalle)")) +
                    ". Segui `help {\"topic\": \"diagnostico\"}`: estado, capturas, mezclador, sala y "
-                   "registros (`logs_tail`). Informa la causa probable y proponé el arreglo antes de "
+                   "registros (`log_leer`). Informa la causa probable y proponé el arreglo antes de "
                    "aplicar algo que se vea al aire.";
         }});
 }

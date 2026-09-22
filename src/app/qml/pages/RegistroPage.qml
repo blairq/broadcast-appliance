@@ -50,6 +50,19 @@ Rectangle {
                 font.pixelSize: 11
             }
             Item { Layout.fillWidth: true }
+            TextField {
+                Layout.preferredWidth: 280
+                placeholderText: "Buscar en el texto o en el módulo…"
+                color: Theme.text
+                font.pixelSize: 12
+                text: page.r.busca
+                onTextEdited: buscaDemora.restart()
+                Timer {
+                    id: buscaDemora
+                    interval: 300 // no releer el disco en cada tecla
+                    onTriggered: page.r.busca = parent.text
+                }
+            }
             GlassButton {
                 text: "Marcar"; icon: "⚑"; compact: true
                 onClicked: page.r.marcar("marca del operador")
@@ -104,18 +117,14 @@ Rectangle {
                         }
                     }
                     Item { Layout.fillWidth: true }
-                    TextField {
-                        Layout.preferredWidth: 260
-                        placeholderText: "Buscar en el texto o en el módulo…"
-                        color: Theme.text
-                        font.pixelSize: 12
-                        text: page.r.busca
-                        onTextEdited: buscaDemora.restart()
-                        Timer {
-                            id: buscaDemora
-                            interval: 300 // no releer el disco en cada tecla
-                            onTriggered: page.r.busca = parent.text
-                        }
+                    CheckBox {
+                        checked: page.r.enMemoria
+                        text: "Solo esta corrida"
+                        onToggled: page.r.enMemoria = checked
+                        ToolTip.visible: hovered
+                        ToolTip.text: "Prendido: solo lo de la app, desde que arrancó, sin tocar el disco.\n" +
+                                      "Apagado: los archivos de Logs/, que traen también al gateway, al " +
+                                      "launcher y la corrida anterior."
                     }
                 }
 
@@ -123,34 +132,37 @@ Rectangle {
                     Layout.fillWidth: true
                     spacing: 6
                     Text {
+                        Layout.alignment: Qt.AlignTop
+                        Layout.topMargin: 5
                         text: "Módulo"
                         color: Theme.textDim
                         font.pixelSize: 11
                     }
-                    GlassButton {
-                        compact: true; text: "todos"
-                        active: page.r.modulo === ""
-                        onClicked: page.r.modulo = ""
-                    }
-                    Repeater {
-                        model: page.r.modulos
-                        delegate: GlassButton {
-                            required property var modelData
-                            compact: true
-                            text: modelData
-                            active: page.r.modulo === modelData
-                            onClicked: page.r.modulo = modelData
+                    // Los módulos son muchos y no se sabe cuántos: una fila
+                    // sola se salía de la pantalla. Envuelve.
+                    Item {
+                        Layout.fillWidth: true
+                        implicitHeight: mods.implicitHeight
+                        Flow {
+                            id: mods
+                            width: parent.width
+                            spacing: 5
+                            GlassButton {
+                                compact: true; text: "todos"
+                                active: page.r.modulo === ""
+                                onClicked: page.r.modulo = ""
+                            }
+                            Repeater {
+                                model: page.r.modulos
+                                delegate: GlassButton {
+                                    required property var modelData
+                                    compact: true
+                                    text: modelData
+                                    active: page.r.modulo === modelData
+                                    onClicked: page.r.modulo = modelData
+                                }
+                            }
                         }
-                    }
-                    Item { Layout.fillWidth: true }
-                    CheckBox {
-                        checked: page.r.enMemoria
-                        text: "Solo esta corrida (en memoria)"
-                        onToggled: page.r.enMemoria = checked
-                        ToolTip.visible: hovered
-                        ToolTip.text: "Prendido: solo lo de la app, desde que arrancó, sin tocar el disco.\n" +
-                                      "Apagado: los archivos de Logs/, que traen también al gateway, al " +
-                                      "launcher y la corrida anterior."
                     }
                 }
 

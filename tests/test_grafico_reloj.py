@@ -137,3 +137,39 @@ def test_un_parametro_que_no_existe_es_un_error(repo_root: Path, tmp_path: Path)
     d = json.loads(next(x for x in r.stdout.splitlines() if x.strip()))
     assert not d["ok"]
     assert "noExiste" in d["error"]
+
+
+def test_los_parametros_llegan_al_qml_escrito_a_mano(repo_root: Path) -> None:
+    """Un gráfico QML mandado como TEXTO tiene que recibir sus parámetros.
+
+    Un gráfico viaja de tres formas: archivo (`qml`), texto suelto (`fuente`) o
+    descripción (`declarativo`). Al generado desde una descripción no hay que
+    pasarle los parámetros —ya vienen metidos en el texto y no los declara como
+    propiedades—, pero al escrito a mano SÍ, y también viaja como texto: es lo
+    que manda el editor mientras se escribe y el emisor al sacarlo al aire.
+
+    La condición estaba puesta sobre «vino como texto» en vez de sobre «lo
+    generamos nosotros», así que un zócalo salía al aire siempre con el nombre
+    de ejemplo y sin decir nada. Se comprueba por el lado del error: un
+    parámetro que el gráfico NO declara tiene que fallar, y solo puede fallar
+    si los parámetros de verdad llegaron.
+    """
+    binario = _renderizador(repo_root)
+    fuente = 'import QtQuick\nItem { property string nombre: "x"\n Text { text: parent.nombre } }'
+
+    def validar(parametros: dict) -> dict:
+        pedido = {"op": "validar", "fuente": fuente, "parametros": parametros}
+        p = subprocess.run(
+            [str(binario)],
+            input=json.dumps(pedido) + "\n" + json.dumps({"op": "salir"}) + "\n",
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        return json.loads(p.stdout.strip().splitlines()[0])
+
+    assert validar({"nombre": "Fulano"})["ok"], "un parámetro que el gráfico declara tiene que andar"
+
+    malo = validar({"noExiste": "x"})
+    assert not malo["ok"], "un parámetro que el gráfico no declara tiene que fallar, no perderse"
+    assert "noExiste" in malo["error"]

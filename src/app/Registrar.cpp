@@ -53,11 +53,13 @@ void handlerDeQt(QtMsgType tipo, const QMessageLogContext& c, const QString& msg
         case QtCriticalMsg: n = Nivel::Error; break;
         case QtFatalMsg: n = Nivel::Fatal; break;
     }
-    // La categoría distingue lo de QML de lo del resto de Qt, que es la
-    // separación que de verdad se usa al buscar un problema.
+    // Lo de QML se separa de lo del resto de Qt, que es la division que de
+    // verdad se usa al buscar un problema. No sirve mirar la categoria: los
+    // avisos del motor de QML vienen en la categoria "default". Lo que sí los
+    // distingue es que el archivo es un .qml.
     const std::string cat = c.category != nullptr ? c.category : "";
-    const bool esQml = cat.rfind("qml", 0) == 0 || cat.rfind("qt.qml", 0) == 0 ||
-                       cat.rfind("qt.quick", 0) == 0;
+    const std::string archivo = c.file != nullptr ? c.file : "";
+    const bool esQml = archivo.size() > 4 && archivo.compare(archivo.size() - 4, 4, ".qml") == 0;
     ba::diag::registro().linea(n, esQml ? "qml" : "qt", 0, conOrigen(c, msg));
 }
 #endif

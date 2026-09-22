@@ -43,20 +43,22 @@ void McpService::registerUiTools() {
         t.title = "Mostrar una pagina";
         t.category = "interfaz";
         t.description = "Cambia la pagina que ve el operador: dashboard, escenas, entradas, audio, sala, "
-                        "guion, youtube, twitch, facebook, configuracion o asistente.";
+                        "guion, graficos, rotulos, registro, youtube, twitch, facebook, configuracion o "
+                        "asistente.";
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"page",
                             {{"type", "string"},
                              {"enum",
                               {"dashboard", "escenas", "entradas", "audio", "sala", "guion", "youtube",
-                               "twitch", "facebook", "configuracion", "asistente", "graficos"}}}}}},
+                               "twitch", "facebook", "configuracion", "asistente", "graficos",
+                               "rotulos", "registro"}}}}}},
                          {"required", {"page"}}};
         t.run = [self](const json& a, Done done) {
             static const std::map<std::string, int> kPages{
                 {"dashboard", 0}, {"escenas", 1},       {"sala", 2},      {"youtube", 3},  {"twitch", 4},
                 {"facebook", 5},  {"configuracion", 6}, {"asistente", 7}, {"entradas", 8}, {"audio", 9},
-                {"guion", 10}, {"graficos", 11}};
+                {"guion", 10}, {"graficos", 11}, {"rotulos", 12}, {"registro", 13}};
             QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;
             if (w == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
             w->setProperty("page", kPages.at(a["page"]));
@@ -84,7 +86,8 @@ void McpService::registerUiTools() {
                             {{"type", "string"},
                              {"enum",
                               {"dashboard", "escenas", "entradas", "audio", "sala", "guion", "youtube",
-                               "twitch", "facebook", "configuracion", "asistente", "graficos"}}}}}},
+                               "twitch", "facebook", "configuracion", "asistente", "graficos",
+                               "rotulos", "registro"}}}}}},
                          {"required", {"page"}}};
         t.run = [self](const json& a, Done done) {
             static const std::map<std::string, std::pair<int, const char*>> kPages{
@@ -94,7 +97,8 @@ void McpService::registerUiTools() {
                 {"configuracion", {6, "Configuración"}}, {"asistente", {7, "Asistente"}},
                 {"entradas", {8, "Entradas"}},     {"audio", {9, "Audio"}},
                 {"guion", {10, "Guion del evento"}},
-                {"graficos", {11, "Gráficos"}}};
+                {"graficos", {11, "Gráficos"}},
+                {"rotulos", {12, "Rótulos"}}, {"registro", {13, "Registro"}}};
             QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;
             if (w == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
             const auto& [idx, titulo] = kPages.at(a["page"]);
@@ -290,12 +294,18 @@ void McpService::registerUiTools() {
         t.category = "sistema";
         t.readOnly = true;
         t.description =
-            "Ultimas lineas de un registro (Logs/): ba.log (app y sala), launcher.log (supervisor), "
-            "cloudflared.log (tunel). Con `grep`, solo las lineas que lo contienen.";
+            "Ultimas lineas CRUDAS de un archivo de Logs/, tal como esta escrito.";
+        t.details =
+            "Para diagnosticar, usa `log_leer`: lee los mismos archivos pero ya partidos en hora, "
+            "nivel, modulo y descripcion, entrelazando los tres procesos y con filtros. Esto sirve "
+            "cuando hace falta ver el archivo TAL CUAL, sin interpretar: por ejemplo "
+            "cloudflared.log, que lo escribe un programa de terceros con su propio formato.\n\n"
+            "Los archivos: app.log (Proceso A), gateway.log (Proceso B), graficos.log, "
+            "launcher.log (supervisor) y cloudflared.log (tunel).";
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"log", {{"type", "string"}, {"default", "ba.log"}}},
+             {{"log", {{"type", "string"}, {"default", "app.log"}}},
               {"lines", {{"type", "integer"}, {"minimum", 1}, {"maximum", 2000}, {"default", 80}}},
               {"grep", {{"type", "string"}}}}}};
         t.run = [&rt](const json& a, Done done) {

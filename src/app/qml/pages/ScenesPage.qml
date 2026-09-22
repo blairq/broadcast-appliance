@@ -122,7 +122,11 @@ Rectangle {
                                     font { pixelSize: 11; weight: Font.DemiBold; capitalization: Font.AllUppercase; letterSpacing: 0.4 }
                                     elide: Text.ElideRight
                                 }
-                                Text { text: modelData.cuantas; color: Theme.textFaint; font.pixelSize: 11 }
+                                // `cuantas` puede no venir en una fila recién creada:
+                                // sin el respaldo, Qt avisa «Unable to assign [undefined]
+                                // to QString» en cada redibujo.
+                                Text { text: modelData.cuantas !== undefined ? String(modelData.cuantas) : ""
+                                       color: Theme.textFaint; font.pixelSize: 11 }
                             }
                             MouseArea {
                                 anchors.fill: parent

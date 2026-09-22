@@ -191,42 +191,143 @@ ApplicationWindow {
         color: Qt.rgba(0.06, 0.06, 0.07, 0.72)
         border.color: Theme.glassBorder
 
-        Column {
+        // El logotipo queda fijo arriba: es el unico ancla que no se mueve.
+        Rectangle {
+            id: marca
             anchors { top: parent.top; horizontalCenter: parent.horizontalCenter; topMargin: 14 }
-            spacing: 14
-            Rectangle {
-                width: 44; height: 44; radius: 22
-                color: Theme.accent
-                Text { anchors.centerIn: parent; text: "BA"; color: "white"; font { pixelSize: 15; weight: Font.Black } }
+            width: 44; height: 44; radius: 22
+            color: Theme.accent
+            Text { anchors.centerIn: parent; text: "BA"; color: "white"; font { pixelSize: 15; weight: Font.Black } }
+        }
+
+        // --- Las paginas, AGRUPADAS y desplazables -----------------------------
+        // Con catorce paginas ya no entran en una pantalla de portatil y los
+        // iconos se encimaban. El patron es el de siempre para un riel que se
+        // llena: grupos con un separador fino entre uno y otro —para poder
+        // apuntar a lo que uno busca sin leer los catorce— y la tira que se
+        // desplaza cuando no entra, con un degradado arriba y abajo que avisa
+        // que hay mas. El asistente y los indicadores quedan FIJOS abajo:
+        // son los que se buscan a las apuradas y no pueden moverse de lugar.
+        //
+        // `page` es el indice en el StackLayout, que no es el orden del riel.
+        readonly property var grupos: [
+            { titulo: "Producción", items: [
+                { icon: "⌂", tip: "Dashboard", page: 0 },
+                { icon: "▦", tip: "Escenas y fuentes", page: 1 },
+                { icon: "◉", tip: "Entradas de video (camaras, capturadoras, red)", page: 8 },
+                { icon: "🎚", tip: "Audio: patchbay de modulos LSP por fuente", page: 9 } ] },
+            { titulo: "Contenido", items: [
+                { icon: "☎", tip: "Sala (lobby, invitados, chat)", page: 2 },
+                { icon: "≣", tip: "Guion del evento: bloques, cues y tiempos", page: 10 },
+                { icon: "◈", tip: "Gráficos animados: zócalos, placas y tickers", page: 11 },
+                { icon: "✎", tip: "Rótulos en vivo: los textos de la escena que está al aire", page: 12 } ] },
+            { titulo: "Publicar", items: [
+                { icon: "▶", tip: "YouTube (cuenta, videos, en vivo)", page: 3 },
+                { icon: "◆", tip: "Twitch (canal, vivo, chat)", page: 4 },
+                { icon: "f", tip: "Facebook (Paginas, vivos, videos)", page: 5 } ] },
+            { titulo: "Sistema", items: [
+                { icon: "❑", tip: "Registro: todo lo que pasa, de los tres procesos", page: 13 },
+                { icon: "⚙", tip: "Configuracion", page: 6 } ] }
+        ]
+
+        Flickable {
+            id: tira
+            anchors {
+                top: marca.bottom; topMargin: 12
+                bottom: aiBtn.top; bottomMargin: 12
+                left: parent.left; right: parent.right
             }
-            Item { width: 1; height: 10 }
-            Repeater {
-                // `page`: indice en el StackLayout (el orden del riel no es el de las paginas).
-                model: [ { icon: "⌂", tip: "Dashboard", page: 0 }, { icon: "▦", tip: "Escenas y fuentes", page: 1 }, { icon: "◉", tip: "Entradas de video (camaras, capturadoras, red)", page: 8 }, { icon: "🎚", tip: "Audio: patchbay de modulos LSP por fuente", page: 9 }, { icon: "☎", tip: "Sala (lobby, invitados, chat)", page: 2 }, { icon: "≣", tip: "Guion del evento: bloques, cues y tiempos", page: 10 }, { icon: "◈", tip: "Gráficos animados: zócalos, placas y tickers", page: 11 }, { icon: "✎", tip: "Rótulos en vivo: los textos de la escena que está al aire", page: 12 }, { icon: "▶", tip: "YouTube (cuenta, videos, en vivo)", page: 3 }, { icon: "◆", tip: "Twitch (canal, vivo, chat)", page: 4 }, { icon: "f", tip: "Facebook (Paginas, vivos, videos)", page: 5 }, { icon: "❑", tip: "Registro: todo lo que pasa, de los tres procesos", page: 13 }, { icon: "⚙", tip: "Configuracion", page: 6 } ]
-                delegate: Rectangle {
-                    required property var modelData
-                                        width: 44; height: 44; radius: 22
-                    color: win.page === modelData.page ? "white" : (navMa.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : "transparent")
-                    border.color: Qt.rgba(1, 1, 1, 0.16)
-                    Behavior on color { ColorAnimation { duration: 150 } }
-                    Text { anchors.centerIn: parent; text: modelData.icon; color: win.page === modelData.page ? "#111" : Theme.text; font.pixelSize: 18 }
-                    MouseArea {
-                        id: navMa
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        acceptedButtons: Qt.LeftButton | Qt.RightButton
-                        onClicked: (m) => {
-                            if (m.button === Qt.RightButton) win.sacarAVentana(modelData.page, modelData.tip.split(":")[0])
-                            else win.page = modelData.page
+            clip: true
+            contentHeight: columna.height
+            boundsBehavior: Flickable.StopAtBounds
+            // Sin barra: el riel tiene 64 px de ancho y una barra se comeria
+            // el espacio del icono. Los degradados de los bordes ya dicen que
+            // hay mas, y se desplaza con la rueda.
+            interactive: contentHeight > height
+
+            Column {
+                id: columna
+                width: tira.width
+                spacing: 8
+
+                Repeater {
+                    model: rail.grupos
+                    delegate: Column {
+                        required property var modelData
+                        required property int index
+                        width: columna.width
+                        spacing: 8
+
+                        // Separador entre grupos (en el primero no va).
+                        Item {
+                            width: 1; height: index === 0 ? 0 : 9
+                            visible: index !== 0
+                            Rectangle {
+                                anchors.centerIn: parent
+                                width: 22; height: 1
+                                color: Qt.rgba(1, 1, 1, 0.14)
+                            }
+                        }
+
+                        Repeater {
+                            model: modelData.items
+                            delegate: Rectangle {
+                                required property var modelData
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                width: 42; height: 42; radius: 21
+                                color: win.page === modelData.page ? "white"
+                                     : (navMa.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : "transparent")
+                                border.color: Qt.rgba(1, 1, 1, 0.16)
+                                Behavior on color { ColorAnimation { duration: 150 } }
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: modelData.icon
+                                    color: win.page === modelData.page ? "#111" : Theme.text
+                                    font.pixelSize: 18
+                                }
+                                MouseArea {
+                                    id: navMa
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                    onClicked: (m) => {
+                                        if (m.button === Qt.RightButton)
+                                            win.sacarAVentana(modelData.page, modelData.tip.split(":")[0])
+                                        else win.page = modelData.page
+                                    }
+                                }
+                                ToolTip.visible: navMa.containsMouse
+                                ToolTip.text: modelData.tip + "\n(clic derecho: sacar a su propia ventana)"
+                                ToolTip.delay: 400
+                            }
                         }
                     }
-                    ToolTip.visible: navMa.containsMouse
-                    ToolTip.text: modelData.tip + "\n(clic derecho: sacar a su propia ventana)"
-                    ToolTip.delay: 400
                 }
             }
         }
+
+        // Los degradados que avisan que la tira sigue. Solo cuando hay algo
+        // mas para ese lado: si no, son dos manchas que no dicen nada.
+        Rectangle {
+            anchors { top: tira.top; left: tira.left; right: tira.right }
+            height: 18
+            visible: tira.contentY > 2
+            gradient: Gradient {
+                GradientStop { position: 0; color: Qt.rgba(0.06, 0.06, 0.07, 0.95) }
+                GradientStop { position: 1; color: "transparent" }
+            }
+        }
+        Rectangle {
+            anchors { bottom: tira.bottom; left: tira.left; right: tira.right }
+            height: 18
+            visible: tira.contentHeight - tira.contentY - tira.height > 2
+            gradient: Gradient {
+                GradientStop { position: 0; color: "transparent" }
+                GradientStop { position: 1; color: Qt.rgba(0.06, 0.06, 0.07, 0.95) }
+            }
+        }
+
         // Asistente de IA: abajo del todo, separado de las paginas.
         Rectangle {
             id: aiBtn

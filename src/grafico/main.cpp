@@ -89,11 +89,19 @@ QJsonObject atender(Renderizador& r, const QJsonObject& pedido) {
         if (!pedido.contains("alto") && d.contains("alto"))
             tam.setHeight(d.value("alto").toInt(220));
     }
-    // El QML generado declara sus propios parámetros (ya vienen reemplazados
-    // en el texto), así que no se le pasan de nuevo.
-    const QJsonObject parReales = fuente.isEmpty() ? par : QJsonObject{};
+    // El QML GENERADO a partir de una descripción ya trae los valores metidos
+    // en el texto, así que no se le pasan de nuevo: como no los declara como
+    // propiedades, pasárselos sería un error.
+    //
+    // Ojo con la condición: no es «vino como texto», es «lo generamos
+    // nosotros». Un gráfico escrito a mano también viaja como texto —es lo que
+    // manda el editor mientras se escribe, y también el emisor cuando lo saca
+    // al aire— y ESE sí declara sus parámetros y los necesita. Con la
+    // condición equivocada, un zócalo salía al aire siempre con el nombre de
+    // ejemplo, sin decir nada.
+    const QJsonObject parReales = pedido.contains("declarativo") ? QJsonObject{} : par;
     const auto dibujar = [&](int ms) {
-        return fuente.isEmpty() ? r.dibujar(qml, par, tam, ms)
+        return fuente.isEmpty() ? r.dibujar(qml, parReales, tam, ms)
                                 : r.dibujarFuente(fuente, parReales, tam, ms);
     };
 
