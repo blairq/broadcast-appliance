@@ -39,6 +39,48 @@ asistente de armado están desglosados aparte: **[EVENTOS.md](EVENTOS.md)**.
   (`--solo-medir` acá, `--sin-admin` allá, probado contra el HTTPS propio). Lo
   que falta es el equipo.
 
+## Gráficos animados (zócalos, placas, tickers)
+
+Un motor propio para armar gráficos animados, en dos niveles: **declarativo**
+(un JSON con capas y animaciones de un repertorio fijo, que cubre zócalos,
+placas y tickers sin correr código) y **QML propio** para lo que ese
+repertorio no alcance.
+
+Decidido: QML y no navegador. En el bundle de Linux no hay CEF, traerlo son
+~200 MB y un Chromium por fuente; y sobre todo, los parámetros como
+propiedades no tienen la carrera que tiene mandarlos por HTTP a una página que
+todavía está cargando. Con un cue que dispara a tiempo, esa diferencia es
+todo. El costo es no poder usar los packs de overlays que existen para OBS,
+que son HTML.
+
+Orden: motor con renderizado **fuera de proceso** (que un gráfico roto no
+cuelgue la app, y que sea la caja de arena del nivel 2), después las
+herramientas MCP, y el IDE al final.
+
+Lo que hay que tener en cuenta, ya verificado contra el Qt 6.6.3 vendoreado:
+
+- **`QtQuick.Effects` está** (`MultiEffect`: desenfoque, sombra, máscara).
+  **`Qt5Compat.GraphicalEffects` NO** — y es el que usan casi todos los
+  ejemplos que andan dando vueltas, así que el validador tiene que decirlo
+  claro o la LLM lo va a escribir por inercia.
+- **`qsb` no está**: sin él no hay shaders propios (Qt 6 no acepta GLSL en
+  texto). `MultiEffect` cubre casi todo.
+- **El plugin SVG está en el Qt vendoreado pero no se copia al bundle.**
+  Ojo: en 6.6 un `.svg` como imagen se rasteriza una vez (no hay
+  `VectorImage`, que es de 6.8+). Para formas animables, `PathSvg` acepta el
+  atributo `d` de un SVG tal cual y sigue siendo vector.
+- El reloj de las animaciones se maneja a mano (`QAnimationDriver`): sin eso
+  no hay vista previa reproducible ni barra de tiempo con arrastre.
+- Transparencia: alfa premultiplicado y suavizado de texto en escala de
+  grises, o el texto blanco sale con halo oscuro.
+
+### To-do del IDE
+
+- **Chat con la LLM adentro del IDE**, para pedirle cambios sobre el gráfico
+  que se está editando sin cambiar de pantalla.
+- **Una forma liviana de chatear con la LLM** en general, sin levantar el CLI
+  entero que usamos hoy.
+
 ## Cuidado al probar
 
 - **Nunca dos sistemas a la vez en la misma máquina.** El canal de control
