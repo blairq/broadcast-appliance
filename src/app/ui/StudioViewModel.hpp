@@ -40,6 +40,7 @@ class ConferenceViewModel;
 class EventoViewModel;
 class GraficoViewModel;
 class RotuladorViewModel;
+class PrompterViewModel;
 class RegistroViewModel;
 class ExtensionesModel;
 class RielConfig;
@@ -104,6 +105,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* evento READ evento CONSTANT)
     Q_PROPERTY(QObject* grafico READ grafico CONSTANT)
     Q_PROPERTY(QObject* rotulador READ rotulador CONSTANT)
+    /// El teleprompter: los discursos, quién está conectado y los controles.
+    Q_PROPERTY(QObject* prompter READ prompter CONSTANT)
     Q_PROPERTY(QObject* registro READ registro CONSTANT)
     /// Las tarjetas que vienen de Extensiones/ (ver ExtensionesModel.hpp).
     Q_PROPERTY(QObject* extensiones READ extensiones CONSTANT)
@@ -167,6 +170,7 @@ class StudioViewModel : public QObject {
     QObject* evento() const;
     QObject* grafico() const;
     QObject* rotulador() const;
+    QObject* prompter() const;
     QObject* registro() const;
     QObject* extensiones() const;
     QObject* riel() const;
@@ -268,6 +272,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<graficos::Emisor> emisor_;
     std::unique_ptr<GraficoViewModel> grafico_;
     std::unique_ptr<RotuladorViewModel> rotulador_;
+    std::unique_ptr<PrompterViewModel> prompter_;
     std::unique_ptr<graficos::Vinculos> vinculos_;
     std::unique_ptr<RegistroViewModel> registro_;
     std::unique_ptr<ExtensionesModel> extensiones_;

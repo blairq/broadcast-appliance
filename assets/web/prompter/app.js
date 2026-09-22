@@ -22,6 +22,27 @@
   const esControl = location.hash.includes("control");
   const clave = new URLSearchParams(location.hash.replace(/^#/, "").replace("control&", "")).get("k") || "";
 
+  // QUIEN SOY. El operador necesita ver, antes del discurso, si la tablet del
+  // atril esta prendida. No hace falta un canal aparte: se manda la identidad
+  // en el mismo pedido de estado que ya se hace cada medio segundo. El id se
+  // guarda para que recargar la pagina no aparezca como un aparato nuevo, y el
+  // nombre lo escribe quien la usa ("Atril 1") desde la propia pagina.
+  const vista = esControl ? "control" : "orador";
+  const guardado = (k, v) => {
+    try {
+      if (v !== undefined) localStorage.setItem(k, v);
+      return localStorage.getItem(k) || "";
+    } catch (e) {
+      return ""; // modo privado o storage bloqueado: se anda igual, sin recordar
+    }
+  };
+  let miId = guardado("ba-prompter-id");
+  if (!miId) {
+    miId = Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+    guardado("ba-prompter-id", miId);
+  }
+  let miNombre = guardado("ba-prompter-nombre");
+
   const estado = {
     texto: "",
     titulo: "",
@@ -54,7 +75,10 @@
 
   // --- Conversacion con el servidor ----------------------------------------
   async function leer() {
-    const r = await fetch("/api/prompter", { cache: "no-store" });
+    const quien =
+      "?vista=" + vista + "&id=" + encodeURIComponent(miId) +
+      (miNombre ? "&nombre=" + encodeURIComponent(miNombre) : "");
+    const r = await fetch("/api/prompter" + quien, { cache: "no-store" });
     const d = await r.json();
     aplicar(d);
     return d;
@@ -253,14 +277,28 @@
     $("lienzo").addEventListener("click", () => mandar({ corriendo: !estado.corriendo }).catch(() => {}));
   }
 
+  // El nombre del aparato: se escribe una vez y viaja en cada pedido de
+  // estado. No se manda aparte porque no hace falta: el proximo pedido (medio
+  // segundo) ya lo lleva.
+  function conectarNombre(campo) {
+    if (!campo) return;
+    campo.value = miNombre;
+    campo.addEventListener("change", () => {
+      miNombre = campo.value.trim().slice(0, 40);
+      guardado("ba-prompter-nombre", miNombre);
+    });
+  }
+
   // --- Arranque ---------------------------------------------------------------
   if (esControl) {
     $("orador").classList.add("hidden");
     $("control").classList.remove("hidden");
     document.title = "Control del teleprompter";
     conectarControl();
+    conectarNombre($("c-nombre"));
   } else {
     conectarOrador();
+    conectarNombre($("nombre"));
     // Que la tablet no se apague en medio de un discurso.
     if (navigator.wakeLock) {
       const pedir = () => navigator.wakeLock.request("screen").catch(() => {});

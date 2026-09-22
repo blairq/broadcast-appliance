@@ -403,6 +403,14 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
     }
     if (path == "/api/prompter") {
         if (method == "GET") {
+            // Quien pregunta queda anotado: la pagina manda su id, su vista y
+            // (si alguien lo escribio) su nombre. Es lo que le muestra al
+            // operador que la tablet del atril esta prendida.
+            const auto q = http::parseQuery(query);
+            const auto campo = [&q](const char* k) {
+                return q.count(k) ? http::urlDecode(q.at(k)) : std::string();
+            };
+            prompter_.visto(campo("id"), campo("vista"), campo("nombre"), clientIp);
             // Publico: es el texto que el orador va a decir en voz alta en un
             // rato. Lo que se protege es CAMBIARLO, no verlo.
             http::sendResponse(fd, 200, "application/json", prompter_.estado().dump());

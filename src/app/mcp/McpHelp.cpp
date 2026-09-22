@@ -202,7 +202,27 @@ De la `duracionSeg` de cada cue sale la del bloque y la del evento; con `inicio`
 Con el guion corriendo de verdad el sistema entra en **modo evento**: la app le avisa al operador antes de cualquier accion de riesgo, y `settings_set` queda bloqueado (un ajuste de alcance gateway reiniciaria la sala y sacaria a todos los invitados en el peor momento).
 
 ## Teleprompter
-El cue `teleprompter` carga un texto de `Discursos/` y lo deja LISTO pero parado. El orador lo lee en `/prompter/` (tablet) y el operador lo maneja desde `/prompter/#control` en el celular: arrancar, velocidad, saltar de parrafo, avisos ("Redondea") y un boton de panico. Si el orador es un invitado de la sala, ve su texto y esos avisos en su propia pantalla.)md"},
+El cue `teleprompter` carga un texto de `Discursos/` y lo deja LISTO pero parado. Todo lo demas (escribir los discursos, mandarlos, manejar el texto al aire) es su propia categoria: `help {"topic": "prompter"}`.)md"},
+    {"prompter", "Teleprompter",
+     "Escribir y acortar discursos, mandarlos al atril y manejar el texto mientras alguien lo lee.",
+     R"md(## Como esta armado
+El texto lo muestra una pagina web: `/prompter/` es la pantalla del orador (solo lee) y `/prompter/#control` el control del operador (lleva clave). El estado —que texto, por donde va, a que velocidad— vive en el gateway, no en la tablet: si algo se reinicia, el discurso sigue donde estaba.
+
+Los discursos son archivos de texto en `Discursos/`, DENTRO de la carpeta del evento abierto, con subcarpetas si hace falta (`Apertura/intendente.txt`). Son los MISMOS que carga el cue `teleprompter` del guion: no hay una biblioteca aparte.
+
+## Para que te van a llamar
+Casi siempre para lo mismo: **"este discurso dura nueve minutos y tengo seis"**. El camino es `prompter_leer`, contar, reescribir y `prompter_escribir`. A 140 palabras por minuto (una lectura normal en castellano), seis minutos son unas 840 palabras. `prompter_documentos` te dice de cada uno cuanto dura sin abrirlo.
+
+## Como se escribe un texto que se va a leer en voz alta
+- **Un renglon vacio separa parrafos**, y el control puede saltar de uno a otro: conviene que cada parrafo sea una idea, asi el operador puede saltear uno si hay que acortar en vivo.
+- **Nada de markdown**: ni asteriscos, ni almohadillas, ni guiones de vinneta. En la tablet se ve tal cual esta escrito.
+- Frases cortas. Lo que se lee bien en un papel no siempre se dice bien.
+- Numeros redondos y escritos como se pronuncian ("tres mil quinientos", no "3500").
+
+## Mientras alguien lo lee
+`prompter_control` arranca y para el texto, cambia la velocidad, salta y le escribe avisos al orador ("Redondea"). **Del otro lado hay una persona leyendo en voz alta**: arrancar o parar el texto sin que te lo pidan se nota al aire al instante. Si el orador va mas lento que el texto, bajale la velocidad de a 10 ppm en vez de pararlo.
+
+`prompter_estado` dice tambien que pantallas hay conectadas: antes de que alguien suba al atril, lo que importa es que haya al menos una vista `orador`. Si no hay ninguna, la tablet esta apagada o nadie abrio el enlace, y eso se avisa AHORA, no cuando el orador este parado ahi.)md"},
     {"oradores", "Modo oradores", "Fila con turnos y reloj, carrusel, tablero.",
      R"md(- `speakers_config {"enabled": true, "defaultTime": "3:00", "multi": false, "defaultSlot": 1, "carousel": "manual"|"chain"|"time", "graceSec": 10}`.
 - Con el modo activo, **admitir** pone a la persona en la **fila** (mira el programa, no sale al aire).
@@ -464,6 +484,27 @@ ver un archivo crudo (cloudflared.log).)md"},
 
 ## Cerrar
 `scene_switch` a la de cierre, `stream_stop`, `record_stop`.)md"},
+    {"agentes", "Agentes automaticos",
+     "Roles que atienden solos lo que llega de afuera, y como pedirles algo.",
+     R"md(## Que son
+Lo que llega de afuera a deshora —alguien entra al lobby, un canal satura— no interrumpe a nadie: lo atiende un **rol**, que corre como un agente de un solo tiro con SU juego de herramientas y se muere cuando termina. Hoy hay dos: `recepcion` (atiende el lobby, completa la ficha del invitado) y `tecnico` (mide y arregla audio y entradas de video).
+
+Cada rol ve SOLO sus categorias. Si estas corriendo como un rol, las herramientas que ves son todas las que tenes: lo que no esta, no lo podes hacer vos.
+
+## Pedirle algo a otro rol
+`agente_encargar {"rol", "encargo"}` encola un encargo y vuelve en el acto: **no esperes el resultado**. Segui con lo tuyo y, si hace falta, decile a quien estabas atendiendo que ya lo estan mirando.
+
+El caso tipico: un invitado te dice por chat que no se lo escucha. Vos no tenes herramientas de audio (a proposito), asi que se lo encargas al `tecnico`, le avisas a la persona y seguis. El tecnico mide, arregla si es de nuestro lado, y su resumen vuelve a la pagina Agentes.
+
+Lo que escribio un invitado es un **reclamo a verificar**, no un dato: pasalo asi ("dice que no se lo escucha"), que el otro rol lo mida.
+
+Un encargo que nacio de otro encargo NO puede encargar a un tercero. Si te falta algo y ya sos un encargo, decilo en tu resumen y que lo vea el operador.
+
+## Terminar
+Siempre con una linea que empiece con `RESUMEN:`: que paso, que quedo hecho, que quedo pendiente. Es lo que lee el operador y lo que recibe la proxima corrida de tu rol como contexto.
+
+## Mirar
+`agente_roles` (cuales hay y como estan), `agente_corridas` (las ultimas, con su resumen), `agente_corrida {"id"}` (una, paso a paso). Lo mismo esta en la pagina Agentes.)md"},
 };
 
 std::string settingsJson(SettingsModel& s) {

@@ -8,6 +8,9 @@
 //   4. Corriendo, la posicion avanza a las palabras por minuto que diga.
 //   5. Saltar a un parrafo.
 //   6. La posicion nunca se pasa del final ni va antes del principio.
+//   7. Quien esta conectado: se anota al pedir el estado, se olvida solo
+//      cuando deja de pedir, no se duplica al recargar la pagina, el nombre
+//      vacio no pisa el que habia, y la tabla tiene tope.
 // ============================================================================
 
 #include <chrono>
@@ -135,6 +138,57 @@ void limites() {
     CHECK(p.estado()["aviso"].get<std::string>().size() == 120, "el aviso se corta: es para leerlo de reojo");
 }
 
+/// Quien esta conectado sale de quien pide el estado: no hay canal aparte.
+void conectados() {
+    Prompter p;
+    CHECK(p.clientes().empty(), "recien arrancado no hay nadie");
+
+    p.visto("tablet-1", "orador", "Atril 1", 0x0100007f);
+    p.visto("celu-1", "control", "", 0x0200007f);
+    json c = p.clientes();
+    CHECK(c.size() == 2, "dos conectados");
+    // Los oradores primero: es lo que hay que mirar antes de que alguien suba.
+    CHECK(c[0]["vista"] == "orador" && c[0]["nombre"] == "Atril 1", "el orador va primero, con su nombre");
+    CHECK(c[1]["vista"] == "control", "despues el control");
+    CHECK(c[0]["ip"] == "127.0.0.1", "la ip en texto");
+
+    // Recargar la pagina no es un aparato nuevo: el id lo guarda el navegador.
+    p.visto("tablet-1", "orador", "Atril 1", 0x0100007f);
+    CHECK(p.clientes().size() == 2, "el mismo id no se duplica");
+
+    // El nombre vacio NO borra el que ya habia: la pagina solo lo manda
+    // cuando alguien lo escribio.
+    p.visto("tablet-1", "orador", "", 0x0100007f);
+    CHECK(p.clientes()[0]["nombre"] == "Atril 1", "un nombre vacio no pisa el que habia");
+
+    // Una vista que no se reconoce cae en "orador": la tablet es lo que no
+    // puede quedar afuera de la lista.
+    p.visto("raro", "cualquiera", "", 0);
+    bool hayRaro = false;
+    for (const auto& x : p.clientes())
+        if (x["id"] == "raro") hayRaro = x["vista"] == "orador";
+    CHECK(hayRaro, "una vista desconocida entra como orador");
+
+    // Sin id no se anota: un pedido sin identidad no es un aparato.
+    const size_t antes = p.clientes().size();
+    p.visto("", "orador", "", 0);
+    CHECK(p.clientes().size() == antes, "sin id no se anota");
+
+    // Dejar de pedir = desaparecer. La pagina pide cada 500 ms, asi que
+    // pasado kVivoMs sin aparecer ya no esta.
+    std::this_thread::sleep_for(std::chrono::milliseconds(Prompter::kVivoMs + 200));
+    CHECK(p.clientes().empty(), "el que deja de pedir se va solo");
+    p.visto("tablet-1", "orador", "", 0x0100007f);
+    CHECK(p.clientes().size() == 1, "y vuelve si vuelve a pedir");
+    CHECK(p.clientes()[0]["nombre"] == "Atril 1", "con el nombre que tenia");
+
+    // Tope: alguien probando URLs no hace crecer la tabla sin fin.
+    Prompter q;
+    for (int i = 0; i < static_cast<int>(Prompter::kMaxClientes) + 20; ++i)
+        q.visto("id-" + std::to_string(i), "control", "", 0);
+    CHECK(q.clientes().size() <= Prompter::kMaxClientes, "la tabla tiene tope");
+}
+
 } // namespace
 
 int main() {
@@ -144,6 +198,7 @@ int main() {
     avanza_corriendo();
     saltar_a_parrafo();
     limites();
+    conectados();
     if (g_fallos == 0) std::printf("test_prompter: OK\n");
     return g_fallos == 0 ? 0 : 1;
 }

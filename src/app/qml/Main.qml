@@ -158,6 +158,7 @@ ApplicationWindow {
         RotulosPage { leftInset: win.insetPagina }
         RegistroPage { leftInset: win.insetPagina }
         AgentesPage { leftInset: win.insetPagina }
+        PrompterPage { leftInset: win.insetPagina }
     }
 
     // --- Pestañas sacadas a su propia ventana --------------------------------------
@@ -179,11 +180,12 @@ ApplicationWindow {
     Component { id: cmpRotulos;    RotulosPage {} }
     Component { id: cmpRegistro;   RegistroPage {} }
     Component { id: cmpAgentes;    AgentesPage {} }
+    Component { id: cmpPrompter;   PrompterPage {} }
 
     function componenteDePagina(i) {
         return [cmpDashboard, cmpScenes, cmpConference, cmpYouTube, cmpTwitch, cmpFacebook,
                 cmpSettings, cmpAssistant, cmpInputs, cmpAudio, cmpEvento, cmpGraficos,
-                cmpRotulos, cmpRegistro, cmpAgentes][i] || null
+                cmpRotulos, cmpRegistro, cmpAgentes, cmpPrompter][i] || null
     }
 
     ListModel { id: sueltas }

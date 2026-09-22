@@ -221,3 +221,19 @@ button:active { background: rgba(255, 255, 255, 0.2); }
 .aviso-btn { padding: 13px 8px; font-size: 14px; }
 
 .error { color: var(--peligro); font-size: 13px; min-height: 18px; margin: 0; }
+
+/* El nombre del aparato ("Atril 1"): se escribe una vez y queda guardado acá,
+   para que el operador sepa cuál de las pantallas de la sala es esta. Discreto
+   a propósito: no es algo que se toque durante un discurso. */
+.nombre {
+  width: 150px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--linea);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--texto);
+  font-family: var(--fuente);
+  font-size: 13px;
+}
+.nombre::placeholder { color: var(--tenue); }
+.nombre:focus { outline: none; border-color: rgba(255, 255, 255, 0.4); }

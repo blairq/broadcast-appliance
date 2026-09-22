@@ -40,6 +40,7 @@
 #include "ui/ExtensionesModel.hpp"
 #include "ui/RegistroViewModel.hpp"
 #include "ui/RielConfig.hpp"
+#include "ui/PrompterViewModel.hpp"
 #include "ui/RotuladorViewModel.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/DashboardModel.hpp"
@@ -119,6 +120,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     grafico_ = std::make_unique<GraficoViewModel>(rt, *emisor_);
     // El rotulador mira la escena que está al aire, así que la sigue.
     rotulador_ = std::make_unique<RotuladorViewModel>(rt, *emisor_, conference_.get());
+    // El teleprompter: los discursos son los del evento (los mismos que lee el
+    // cue) y el estado es del gateway, así que necesita a los dos.
+    prompter_ = std::make_unique<PrompterViewModel>(evento_.get(), conference_.get());
+    connect(prompter_.get(), &PrompterViewModel::notify, this, &StudioViewModel::notify);
     connect(rotulador_.get(), &RotuladorViewModel::notify, this, &StudioViewModel::notify);
     connect(this, &StudioViewModel::sceneChanged, rotulador_.get(), &RotuladorViewModel::refrescar);
 
@@ -488,6 +493,7 @@ QObject* StudioViewModel::conference() const { return conference_.get(); }
 QObject* StudioViewModel::evento() const { return evento_.get(); }
 QObject* StudioViewModel::grafico() const { return grafico_.get(); }
 QObject* StudioViewModel::rotulador() const { return rotulador_.get(); }
+QObject* StudioViewModel::prompter() const { return prompter_.get(); }
 QObject* StudioViewModel::registro() const { return registro_.get(); }
 QObject* StudioViewModel::extensiones() const { return extensiones_.get(); }
 QObject* StudioViewModel::riel() const { return riel_.get(); }

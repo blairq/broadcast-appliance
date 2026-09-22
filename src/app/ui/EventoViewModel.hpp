@@ -171,6 +171,15 @@ class EventoViewModel : public QObject {
     void reparosChanged();
     void notify(const QString& texto, const QString& tipo);
 
+  public:
+    /// La carpeta Discursos/ del evento abierto (vacía si no hay ninguno).
+    /// La usa el teleprompter, que lee y escribe los mismos archivos que el
+    /// cue `teleprompter`: una sola verdad, no dos carpetas parecidas.
+    QString carpetaDeDiscursos() const;
+    /// La ruta de un discurso por su nombre relativo, o vacía si se sale de
+    /// la carpeta (un ".." en un guion que vino de otra máquina).
+    QString rutaDeDiscurso(const QString& rel) const { return discursoPathPriv(rel); }
+
   private:
     /// Ejecuta el cue donde esta parado el guion. En ensayo no toca nada.
     void ejecutarActual();
@@ -181,7 +190,7 @@ class EventoViewModel : public QObject {
     /// Ruta de un discurso, siempre DENTRO de la carpeta del evento: un
     /// guion escrito por otro no puede hacer que el programa lea cualquier
     /// archivo del disco.
-    QString discursoPath(const QString& rel) const;
+    QString discursoPathPriv(const QString& rel) const;
     /// Ruta de un medio (musica o video), siempre dentro de Medios/.
     /// Se asegura de que exista la escena del video con su fuente adentro, y
     /// la deja protegida. Devuelve false si no se pudo (ya lo anoto).

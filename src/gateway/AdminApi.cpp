@@ -22,9 +22,9 @@
 //   GET    /api/v1/room                    estado completo (snapshot)
 //   GET    /api/v1/events                  SSE: "room" (snapshot) y "chat"
 //   GET    /api/v1/network                 HTTPS, tunel WireGuard, IPs y enlaces
-//   GET    /api/v1/prompter                estado del teleprompter (+ la clave del control)
+//   GET    /api/v1/prompter                estado del teleprompter (+ la clave y quien esta conectado)
 //   POST   /api/v1/prompter                {texto?, titulo?, panico?, ...comandos}
-//   GET    /api/v1/prompter-link?target=local|remote&vista=control|orador  enlace + QR
+//   GET    /api/v1/prompter-link?target=local|remote&vista=control|orador&conClave=0|1  enlace + QR
 //   GET    /api/v1/rotulos                estado de los rotulos (+ la clave)
 //   POST   /api/v1/rotulos                {estado?, tomar?} publica y se lleva los encargos
 //   GET    /api/v1/rotulos-link?target=local|remote&conClave=0|1  enlace + QR para el celular
@@ -367,6 +367,7 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         // que le manda al operador. Por la superficie de invitados no sale.
         const auto conClave = [this](json e) {
             e["clave"] = cfg_.prompterKey;
+            e["clientes"] = prompter_.clientes();
             return e;
         };
         if (method == "GET") {
@@ -446,6 +447,9 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         const auto q = http::parseQuery(query);
         const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
         const bool control = !q.count("vista") || http::urlDecode(q.at("vista")) == "control";
+        // La clave puede ir DENTRO del enlace (se entra sin tipear) o no: un QR
+        // pegado en una pared no deberia llevarla.
+        const bool conClave = !q.count("conClave") || http::urlDecode(q.at("conClave")) != "0";
         json out = joinUrl_ ? joinUrl_(target) : json{{"error", "sin proveedor de URL"}};
         if (!out.contains("url")) {
             out["ok"] = false;
@@ -457,9 +461,10 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             const size_t end = origin.find_first_of("/?#", s + 3);
             if (end != std::string::npos) origin.resize(end);
         }
-        // La tablet del orador no lleva clave: solo lee.
+        // La tablet del orador no lleva clave nunca: solo lee.
         const std::string url =
-            origin + "/prompter/" + (control ? "#control&k=" + cfg_.prompterKey : "");
+            origin + "/prompter/" +
+            (control ? (conClave ? "#control&k=" + cfg_.prompterKey : "#control") : "");
         const qrcodegen::QrCode qr =
             qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
         json rows = json::array();
@@ -472,6 +477,8 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         sendJson(fd, 200,
                  json{{"ok", true},
                       {"vista", control ? "control" : "orador"},
+                      {"conClave", control && conClave},
+                      {"clave", cfg_.prompterKey},
                       {"url", url},
                       {"size", qr.getSize()},
                       {"modules", rows}});

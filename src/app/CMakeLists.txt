@@ -451,6 +451,12 @@ if(BA_APP_QT_OK)
     target_link_libraries(test_despachador PRIVATE ba_core Qt6::Core)
     set_target_properties(test_despachador PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_despachador COMMAND test_despachador)
+    # Los discursos del teleprompter: carpetas, nombres y que nada salga de la raiz.
+    add_executable(test_discursos tests/test_discursos.cpp ui/Discursos.cpp)
+    target_include_directories(test_discursos PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_discursos PRIVATE Qt6::Core)
+    set_target_properties(test_discursos PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_discursos COMMAND test_discursos)
 
     add_executable(test_twitch tests/test_twitch.cpp twitch/TwitchClient.cpp net/HttpsClient.cpp)
     target_include_directories(test_twitch PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

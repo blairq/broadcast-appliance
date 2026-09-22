@@ -21,12 +21,20 @@
 //
 // El estado es del servidor (no de la tablet) para que el orador pueda
 // recargar la pagina, o que se le apague, y vuelva al mismo lugar.
+//
+// QUIEN ESTA CONECTADO. Las vistas piden el estado cada medio segundo, asi
+// que no hace falta un canal aparte para saber quien hay: se anota quien
+// pidio, cuando y desde donde. Un cliente "esta" si pidio hace poco (ver
+// kVivoMs). Sirve para lo unico que importa antes de un discurso: saber si la
+// tablet del atril esta prendida y si alguien tiene el control en la mano.
 // ============================================================================
 #pragma once
 
 #include <cstdint>
+#include <map>
 #include <mutex>
 #include <string>
+#include <vector>
 
 #include <nlohmann/json.hpp>
 
@@ -37,6 +45,22 @@ class Prompter {
     /// Palabras por minuto de una lectura normal en castellano. Es el valor
     /// con el que se estima cuanto dura un discurso.
     static constexpr int kPpmPorDefecto = 140;
+
+    /// Cuanto vale una visita: las vistas piden cada 500 ms, asi que cuatro
+    /// segundos aguantan un par de pedidos perdidos sin que la lista parpadee.
+    static constexpr std::int64_t kVivoMs = 4000;
+    /// Tope de clientes recordados. Mas que esto es alguien probando URLs.
+    static constexpr std::size_t kMaxClientes = 32;
+
+    /// Anota que una vista pidio el estado. `id` lo genera la pagina y lo
+    /// guarda; `vista` es "orador" o "control"; `nombre` es opcional y lo
+    /// escribe quien la usa ("Atril 1").
+    void visto(const std::string& id, const std::string& vista, const std::string& nombre,
+               std::uint32_t ip);
+
+    /// Los que pidieron hace menos de kVivoMs: [{id, vista, nombre, ip,
+    /// haceMs}], los oradores primero.
+    nlohmann::json clientes() const;
 
     /// Carga un discurso. Reinicia la posicion y lo deja PARADO: que un texto
     /// nuevo arranque a correr solo seria la peor sorpresa posible.
@@ -83,6 +107,13 @@ class Prompter {
     bool espejo_ = false; ///< para el vidrio del teleprompter
     std::string aviso_;   ///< "redondea", "te escuchamos bajo"
     int64_t avisoMs_ = 0;
+    struct Cliente {
+        std::string vista;
+        std::string nombre;
+        std::uint32_t ip = 0;
+        int64_t vistoMs = 0;
+    };
+    std::map<std::string, Cliente> clientes_;
     uint64_t version_ = 0; ///< sube con cada cambio: las vistas detectan saltos
 };
 

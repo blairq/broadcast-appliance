@@ -800,8 +800,13 @@ QString EventoViewModel::dentroDelEvento(const QString& sub, const QString& rel)
     return abs;
 }
 
-QString EventoViewModel::discursoPath(const QString& rel) const {
+QString EventoViewModel::discursoPathPriv(const QString& rel) const {
     return dentroDelEvento("Discursos", rel);
+}
+
+QString EventoViewModel::carpetaDeDiscursos() const {
+    if (abierto_.isEmpty()) return {};
+    return QString::fromStdString((store_.carpetaDe(abierto_.toStdString()) / "Discursos").string());
 }
 
 bool EventoViewModel::prepararEscenaDeVideo() {
@@ -913,7 +918,7 @@ void EventoViewModel::ejecutarActual() {
                 anotar("No se pudo cargar el discurso: no dice cuál", "error");
                 return;
             }
-            const QString ruta = discursoPath(rel);
+            const QString ruta = discursoPathPriv(rel);
             QFile f(ruta);
             if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
                 anotar("No se pudo abrir el discurso: " + ruta, "error");

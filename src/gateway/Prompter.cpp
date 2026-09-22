@@ -13,6 +13,14 @@ namespace {
 
 using nlohmann::json;
 
+/// La IP del cliente, en texto. Es para que el operador reconozca cuál de los
+/// aparatos de la sala es, así que alcanza con el punto decimal.
+std::string ipTexto(std::uint32_t redes) {
+    const auto b = reinterpret_cast<const unsigned char*>(&redes);
+    return std::to_string(b[0]) + "." + std::to_string(b[1]) + "." + std::to_string(b[2]) + "." +
+           std::to_string(b[3]);
+}
+
 int64_t ahoraMs() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
                std::chrono::system_clock::now().time_since_epoch())
@@ -178,6 +186,53 @@ json Prompter::estadoLocked() const {
 json Prompter::estado() const {
     std::lock_guard<std::mutex> lock(m_);
     return estadoLocked();
+}
+
+void Prompter::visto(const std::string& id, const std::string& vista, const std::string& nombre,
+                     std::uint32_t ip) {
+    if (id.empty() || id.size() > 64) return;
+    std::lock_guard<std::mutex> lock(m_);
+    const int64_t ahora = ahoraMs();
+    // Se limpia al anotar (no hay temporizador acá): lo viejo se va solo.
+    for (auto it = clientes_.begin(); it != clientes_.end();)
+        it = ahora - it->second.vistoMs > kVivoMs * 15 ? clientes_.erase(it) : std::next(it);
+    // Con la tabla llena, uno nuevo reemplaza al que hace más que no aparece.
+    if (clientes_.size() >= kMaxClientes && clientes_.find(id) == clientes_.end()) {
+        auto viejo = clientes_.begin();
+        for (auto it = clientes_.begin(); it != clientes_.end(); ++it)
+            if (it->second.vistoMs < viejo->second.vistoMs) viejo = it;
+        clientes_.erase(viejo);
+    }
+    Cliente& c = clientes_[id];
+    c.vista = vista == "control" ? "control" : "orador";
+    // Un nombre vacío no borra el que ya había: la página lo manda solo
+    // cuando alguien lo escribió.
+    if (!nombre.empty()) c.nombre = nombre.substr(0, 40);
+    c.ip = ip;
+    c.vistoMs = ahora;
+}
+
+json Prompter::clientes() const {
+    std::lock_guard<std::mutex> lock(m_);
+    const int64_t ahora = ahoraMs();
+    std::vector<json> vivos;
+    for (const auto& [id, c] : clientes_) {
+        const int64_t hace = ahora - c.vistoMs;
+        if (hace > kVivoMs) continue;
+        vivos.push_back(json{{"id", id},
+                             {"vista", c.vista},
+                             {"nombre", c.nombre},
+                             {"ip", ipTexto(c.ip)},
+                             {"haceMs", hace}});
+    }
+    // Los oradores primero: es lo que hay que mirar antes de que alguien suba
+    // al atril. Dentro de cada grupo, el que apareció hace menos.
+    std::sort(vivos.begin(), vivos.end(), [](const json& a, const json& b) {
+        const bool ao = a["vista"] == "orador", bo = b["vista"] == "orador";
+        if (ao != bo) return ao;
+        return a["haceMs"].get<int64_t>() < b["haceMs"].get<int64_t>();
+    });
+    return json(vivos);
 }
 
 } // namespace ba::gateway

@@ -76,6 +76,7 @@ class McpService : public QObject {
     void registerRegistroTools();
     void registerRecetaTools();
     void registerAgenteTools();
+    void registerPrompterTools();
     /// Marcas de la salvaguarda (contenido no confiable, herramientas mediadas)
     /// y la aprobacion en la barra del operador.
     void applySecurity();

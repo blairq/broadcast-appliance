@@ -41,6 +41,9 @@
       <button id="menos" class="redondo" title="Letra más chica">A−</button>
       <button id="mas" class="redondo" title="Letra más grande">A+</button>
       <button id="espejo" class="redondo" title="Espejar para el vidrio">⇄</button>
+      <!-- Para que el operador sepa cuál de los aparatos de la sala es este.
+           Se guarda en el aparato: se escribe una vez y queda. -->
+      <input id="nombre" class="nombre" type="text" maxlength="40" placeholder="Nombre de este aparato" />
       <span id="reloj" class="reloj"></span>
     </div>
   </main>
@@ -86,6 +89,10 @@
       <button class="aviso-btn" data-aviso="Mirá a cámara">Mirá a cámara</button>
       <button class="aviso-btn" data-aviso="">Quitar el aviso</button>
     </div>
+
+    <p class="pie">
+      <input id="c-nombre" class="nombre" type="text" maxlength="40" placeholder="Nombre de este control" />
+    </p>
 
     <p id="c-error" class="error"></p>
   </main>
