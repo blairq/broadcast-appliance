@@ -46,6 +46,16 @@ target_include_directories(ba-grafico PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 find_package(Qt6 COMPONENTS OpenGL CONFIG PATHS "${_g_qt_prefix}" NO_DEFAULT_PATH QUIET)
 target_link_libraries(ba-grafico PRIVATE Qt6::Gui Qt6::OpenGL Qt6::Qml Qt6::Quick)
 
+# rpath $ORIGIN, igual que ba-app: el bundle es portable y NUNCA usa el Qt del
+# sistema. Sin esto, ba-grafico enlazaba contra el Qt de la maquina y en
+# cualquier equipo con un Qt distinto ni arrancaba ("version Qt_6.6 not
+# found"), que es exactamente lo que el vendoreado viene a evitar.
+if(NOT WIN32)
+    set_target_properties(ba-grafico PROPERTIES
+        BUILD_RPATH "${_g_qt_prefix}/lib"
+        INSTALL_RPATH "$ORIGIN;$ORIGIN/qt/lib")
+endif()
+
 install(TARGETS ba-grafico RUNTIME DESTINATION bin/64bit COMPONENT bundle)
 
 # Los gráficos que vienen de fábrica (zócalos, placas) viajan con el bundle.
