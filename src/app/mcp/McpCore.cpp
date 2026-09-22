@@ -230,12 +230,19 @@ void McpCore::addInstructions(const std::string& mas) {
     instructions_ += mas;
 }
 
-std::string McpCore::mapaDeCategorias() const {
+std::string McpCore::mapaDeCategorias(const std::string& rol) const {
     std::map<std::string, int> cuantas;
-    for (const Tool& t : tools_) ++cuantas[t.category];
-    std::string out = "## Mapa de herramientas\n\nNo te quedes con lo que ves: si algo no "
-                      "aparece, fijate en que categoria caeria y pedi su ayuda con "
-                      "`help {\"topic\": \"<categoria>\"}`.\n\n";
+    for (const Tool& t : tools_)
+        if (permitida(t, rol)) ++cuantas[t.category];
+    std::string out =
+        rol.empty()
+            ? "## Mapa de herramientas\n\nNo te quedes con lo que ves: si algo no "
+              "aparece, fijate en que categoria caeria y pedi su ayuda con "
+              "`help {\"topic\": \"<categoria>\"}`.\n\n"
+            : "## Mapa de herramientas\n\nSos el rol `" + rol +
+                  "`: este es TODO tu juego. Lo que no esta aca no lo podes hacer vos; si el "
+                  "encargo lo necesita, pediselo a otro rol con `agente_encargar` o contalo en tu "
+                  "resumen final para que lo vea el operador.\n\n";
     for (const Category& c : categories_) {
         const auto it = cuantas.find(c.id);
         const int n = it == cuantas.end() ? 0 : it->second;
@@ -255,6 +262,19 @@ void McpCore::setServerInfo(std::string name, std::string version, std::string i
 
 void McpCore::addCategory(const std::string& id, const std::string& title, const std::string& summary) {
     categories_.push_back(Category{id, title, summary});
+}
+
+void McpCore::setRoles(std::map<std::string, std::set<std::string>> categoriasPorRol,
+                       std::set<std::string> comunes) {
+    roles_ = std::move(categoriasPorRol);
+    comunes_ = std::move(comunes);
+}
+
+bool McpCore::permitida(const Tool& t, const std::string& rol) const {
+    if (rol.empty()) return true;
+    if (comunes_.count(t.category) != 0) return true;
+    const auto it = roles_.find(rol);
+    return it != roles_.end() && it->second.count(t.category) != 0;
 }
 
 void McpCore::addTool(Tool tool) { tools_.push_back(std::move(tool)); }
@@ -410,13 +430,13 @@ void McpCore::handleOne(const json& msg, std::function<void(json)> reply, const 
     }
     try {
         if (method == "initialize") {
-            reply(rpcResult(id, initializeResult(params)));
+            reply(rpcResult(id, initializeResult(params, ctx)));
         } else if (method == "ping") {
             reply(rpcResult(id, json::object()));
         } else if (method == "tools/list") {
             json list = json::array();
             for (const Tool& t : tools_)
-                list.push_back(toolListEntry(t));
+                if (permitida(t, ctx.rol)) list.push_back(toolListEntry(t));
             reply(rpcResult(id, json{{"tools", list}}));
         } else if (method == "tools/call") {
             if (!params.contains("name") || !params["name"].is_string()) {
@@ -479,7 +499,7 @@ void McpCore::handleOne(const json& msg, std::function<void(json)> reply, const 
     }
 }
 
-json McpCore::initializeResult(const json& params) const {
+json McpCore::initializeResult(const json& params, const CallContext& ctx) const {
     // Negociacion: la version del cliente si la soportamos; si no, la ultima.
     std::string version = kLatestProtocol;
     const std::string asked = params.value("protocolVersion", "");
@@ -492,7 +512,9 @@ json McpCore::initializeResult(const json& params) const {
                   {"prompts", {{"listChanged", false}}},
                   {"logging", json::object()}}},
                 {"serverInfo", {{"name", name_}, {"title", "Broadcast Appliance"}, {"version", version_}}},
-                {"instructions", instructions_}};
+                // El mapa se arma ACA y no de antemano: es distinto para cada
+                // rol, y para un cliente sin rol es el completo.
+                {"instructions", instructions_ + "\n" + mapaDeCategorias(ctx.rol)}};
 }
 
 json McpCore::toolListEntry(const Tool& t) const {
@@ -531,6 +553,15 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
                                  " `help` lista todas."));
         return;
     }
+    // Fuera del juego del rol: se niega ANTES de validar, explicando de quien
+    // es. La herramienta existe, pero no para este cliente.
+    if (!permitida(*tool, ctx.rol)) {
+        finish(ToolResult::error("La herramienta '" + name + "' (categoria `" + tool->category +
+                                 "`) no esta en el juego del rol `" + ctx.rol +
+                                 "`. Si el encargo la necesita, pediselo a otro rol con `agente_encargar` "
+                                 "o dejalo dicho en tu resumen final."));
+        return;
+    }
     const std::string problem = validate(tool->inputSchema, args);
     if (!problem.empty()) {
         finish(ToolResult::error("Argumentos invalidos para " + name + ": " + problem +
@@ -559,8 +590,10 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
     const std::string session = ctx.session;
     const bool untrustedOut = tool->untrustedOutput;
     const bool modifica = mutating(*tool);
-    const auto execute = [this, tool, args, finish, session, untrustedOut, name, modifica]() {
+    const auto execute = [this, tool, args, finish, session, untrustedOut, name, modifica, ctx]() {
         auto called = std::make_shared<bool>(false);
+        // Quien llama, visible para la herramienta mientras corre `run`.
+        enCurso_ = ctx;
         try {
             tool->run(args, [this, finish, called, session, untrustedOut, name, modifica](ToolResult r) {
                 if (*called) return; // una sola respuesta por pedido
@@ -579,6 +612,7 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
                 finish(ToolResult::error(std::string("La herramienta fallo: ") + e.what()));
             }
         }
+        enCurso_ = CallContext{};
     };
     // Salvaguarda: en una sesion contaminada (o con politica "siempre"), una
     // accion que modifica algo espera la aprobacion de una persona.

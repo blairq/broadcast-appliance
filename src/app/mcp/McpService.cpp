@@ -7,6 +7,8 @@
 
 #include "mcp/McpService.hpp"
 #include "agent/AgentViewModel.hpp"
+#include "agent/Despachador.hpp"
+#include "agent/Roles.hpp"
 
 #include <QBuffer>
 #include <QCoreApplication>
@@ -212,6 +214,18 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
     // El operador delega en el asistente la atencion de alguien del lobby: se
     // habilita la exencion para ESA persona y se le pasa la tarea al agente.
     vm_.setIntakeSink([this](const QString& id, const QString& name) -> QString {
+        // Si la recepcion esta prendida, es de ella: un agente de un tiro con
+        // su juego de herramientas, y el asistente interactivo no se entera.
+        agent::Despachador& d = vm_.despachador();
+        if (const agent::Rol* r = d.roles().porId("recepcion"); r != nullptr && r->activo) {
+            core_.startIntake(id.toStdString(), name.toStdString());
+            std::string err;
+            d.encargar("recepcion",
+                       "El operador te pide que atiendas a la persona que espera en el lobby (id " +
+                           id.toStdString() + ", se anoto como «" + name.toStdString() + "»).",
+                       "lobby:" + id.toStdString(), 0, &err);
+            return QString::fromStdString(err);
+        }
         auto* ag = static_cast<agent::AgentViewModel*>(vm_.agent());
         if (ag == nullptr || !ag->running()) return "El asistente no está corriendo (pestaña ✦).";
         core_.startIntake(id.toStdString(), name.toStdString());
@@ -237,10 +251,10 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
     registerGraficoTools();
     registerRegistroTools();
     registerRecetaTools();
-    // El mapa se arma al final, cuando ya estan todas: antes daria cuentas en
-    // cero. Va en las `instructions` del initialize, o sea que lo ve cualquier
-    // cliente, siempre, y cuesta unos 400 tokens.
-    core_.addInstructions("\n" + core_.mapaDeCategorias());
+    registerAgenteTools();
+    // El mapa de categorias va en las `instructions` del initialize (lo arma
+    // McpCore en cada initialize, porque depende del rol del cliente) y
+    // cuesta unos 400 tokens.
     applySecurity();
 }
 

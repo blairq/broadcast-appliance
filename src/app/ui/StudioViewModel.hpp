@@ -24,6 +24,8 @@
 namespace ba::app::agent {
 class AlertEngine;
 class AgentViewModel;
+class Despachador;
+class Roles;
 } // namespace ba::app::agent
 
 namespace ba::app::audio {
@@ -116,6 +118,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* facebook READ facebook CONSTANT)
     Q_PROPERTY(QObject* system READ system CONSTANT)
     Q_PROPERTY(QObject* agent READ agent CONSTANT)
+    /// Los roles automaticos y sus corridas (pagina Agentes).
+    Q_PROPERTY(QObject* despachador READ despachadorQml CONSTANT)
     Q_PROPERTY(QObject* messages READ messages CONSTANT)
     Q_PROPERTY(QObject* inputs READ inputs CONSTANT)
     /// Pestaña Audio (patchbay de modulos LSP por fuente); null sin CLAP.
@@ -189,6 +193,8 @@ class StudioViewModel : public QObject {
     audio::RackManager* racks() const { return racks_.get(); }
 #endif
     agent::AlertEngine& alerts() { return *alerts_; }
+    agent::Despachador& despachador() { return *despachador_; }
+    QObject* despachadorQml() const;
 
     // --- Comandos ---------------------------------------------------------------
     /// Pasos para conectar una plataforma (misma fuente que el MCP: AccountGuides).
@@ -277,6 +283,8 @@ class StudioViewModel : public QObject {
     std::unique_ptr<SystemViewModel> system_;
     std::unique_ptr<agent::AlertEngine> alerts_;
     std::unique_ptr<agent::AgentViewModel> agent_;
+    std::unique_ptr<agent::Roles> roles_;
+    std::unique_ptr<agent::Despachador> despachador_;
     std::unique_ptr<OperatorMessages> messages_;
     std::unique_ptr<InputsViewModel> inputs_;
     std::unique_ptr<ChatOverlayRenderer> chatOverlay_;

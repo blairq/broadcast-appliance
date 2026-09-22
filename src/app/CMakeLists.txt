@@ -444,6 +444,13 @@ if(BA_APP_QT_OK)
     target_link_libraries(test_alerts PRIVATE ba_core Qt6::Core)
     set_target_properties(test_alerts PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_alerts COMMAND test_alerts)
+    # Roles y despachador de agentes de un tiro, con un motor falso (script).
+    add_executable(test_despachador tests/test_despachador.cpp agent/Despachador.cpp agent/Despachador.hpp
+                   agent/Roles.cpp)
+    target_include_directories(test_despachador PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_despachador PRIVATE ba_core Qt6::Core)
+    set_target_properties(test_despachador PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_despachador COMMAND test_despachador)
 
     add_executable(test_twitch tests/test_twitch.cpp twitch/TwitchClient.cpp net/HttpsClient.cpp)
     target_include_directories(test_twitch PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

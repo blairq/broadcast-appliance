@@ -25,6 +25,8 @@
 #include "AccountGuides.hpp"
 #include "agent/AgentViewModel.hpp"
 #include "agent/AlertEngine.hpp"
+#include "agent/Despachador.hpp"
+#include "agent/Roles.hpp"
 #include "AppRuntime.hpp"
 #include "net/HttpsClient.hpp"
 #include "ui/ChatOverlayRenderer.hpp"
@@ -224,6 +226,12 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         alerts_->start(250);
         agent_ = std::make_unique<agent::AgentViewModel>(rt, *alerts_);
         connect(agent_.get(), &agent::AgentViewModel::notify, this, &StudioViewModel::notify);
+        // Los roles automaticos: un disparo que un rol activo reclama va a un
+        // agente de un tiro y NO al chat del asistente interactivo.
+        roles_ = std::make_unique<agent::Roles>(rt.dataRoot() / "Config" / "roles.json");
+        despachador_ = std::make_unique<agent::Despachador>(*roles_, agent_->motores());
+        connect(despachador_.get(), &agent::Despachador::notify, this, &StudioViewModel::notify);
+        agent_->setReclamado([this](const nlohmann::json& ev) { return despachador_->evento(ev); });
         // Barra de mensajes del asistente al operador (y respuestas a invitados).
         messages_ = std::make_unique<OperatorMessages>();
         if (rt.config().safeMode) {
@@ -433,6 +441,7 @@ QObject* StudioViewModel::twitch() const { return twitch_.get(); }
 QObject* StudioViewModel::facebook() const { return facebook_.get(); }
 QObject* StudioViewModel::system() const { return system_.get(); }
 QObject* StudioViewModel::agent() const { return agent_.get(); }
+QObject* StudioViewModel::despachadorQml() const { return despachador_.get(); }
 QObject* StudioViewModel::messages() const { return messages_.get(); }
 
 QObject* StudioViewModel::audio() const {

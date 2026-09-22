@@ -21,7 +21,14 @@
 // en Credenciales/ y solo en el entorno del proceso del agente.
 //
 // Alertas: cada disparo de una vigilancia (AlertEngine) con "llm" se escribe
-// en el prompt del agente (agrupadas si llegan juntas) y lo despierta.
+// en el prompt del agente (agrupadas si llegan juntas) y lo despierta... salvo
+// que un ROL activo lo reclame (ver Roles/Despachador): entonces lo atiende un
+// agente de un solo tiro y esta conversacion no se entera.
+//
+// Esta clase tambien sabe LANZAR agentes: el interactivo (una terminal) y los
+// de un tiro (`launchOptionsHeadless`: -p, salida en JSON, sin consola), con
+// el mismo motor instalado, las mismas credenciales y el puente ba-mcp con
+// `--rol`. Es el unico lugar que conoce a cada motor.
 // ============================================================================
 #pragma once
 
@@ -37,6 +44,7 @@
 #include <memory>
 #include <thread>
 
+#include "agent/Lanzamiento.hpp"
 #include "term/TerminalSession.hpp"
 
 namespace ba::app {
@@ -128,6 +136,20 @@ class AgentViewModel : public QObject {
     /// Programa, argumentos y entorno con los que se lanza (para los tests).
     term::Pty::Options launchOptions(QString* error);
 
+    /// Un agente de UN SOLO TIRO para un rol: recibe el encargo como
+    /// argumento, escribe eventos JSON por stdout (uno por linea) y termina.
+    /// Sin consola ni edicion de archivos: solo el MCP, con `--rol`.
+    term::Pty::Options launchOptionsHeadless(const Lanzamiento& l, QString* error);
+    /// Lo que el Despachador necesita de esta clase.
+    Motores motores();
+    /// "claude" | "gemini" | "opencode" | "" (proveedor desconocido).
+    static QString runtimeDe(const QString& proveedor);
+    /// Los modelos que ofrece un proveedor (vacio: se escribe a mano).
+    static QStringList modelosDe(const QString& proveedor);
+    /// El Despachador decide si un evento lo atiende un rol: si dice que si,
+    /// esta conversacion no lo recibe.
+    void setReclamado(std::function<bool(const nlohmann::json&)> fn) { reclamado_ = std::move(fn); }
+
    signals:
     void configChanged();
     void installChanged();
@@ -143,6 +165,14 @@ class AgentViewModel : public QObject {
     void onAlert(const nlohmann::json& ev);
     void flushAlerts();
     QString runtimeOf(const QString& provider) const;
+    /// Espacio de trabajo en `ws` para ese proveedor: instrucciones y la
+    /// configuracion del MCP (con los argumentos del puente).
+    QString prepareWorkspaceEn(const QString& ws, const QString& proveedor, const QString& modelo,
+                               const QStringList& bridgeArgs, const QString& prompt, QString* error);
+    /// Programa, entorno y credenciales de un proveedor, sin los argumentos
+    /// del modo (interactivo o de un tiro): eso lo agrega quien la llama.
+    term::Pty::Options baseLaunch(const QString& proveedor, const QString& modelo, const QString& ws,
+                                  QString* error);
     /// Carpeta DESTINO de una instalacion nueva: la version que fija esta
     /// version del sistema.
     QString installDir(const QString& runtime) const;
@@ -175,6 +205,7 @@ class AgentViewModel : public QObject {
     QStringList pendingAlerts_;
     bool flushScheduled_ = false;
     bool expectedStop_ = false; ///< lo detuvimos nosotros: no es un error
+    std::function<bool(const nlohmann::json&)> reclamado_;
 };
 
 } // namespace ba::app::agent

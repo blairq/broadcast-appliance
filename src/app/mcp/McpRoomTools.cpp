@@ -8,6 +8,8 @@
 // ============================================================================
 
 #include <QBuffer>
+#include <QDateTime>
+#include <QTimer>
 #include <QJsonDocument>
 #include <QPainter>
 #include <QUrl>
@@ -15,6 +17,7 @@
 #include <algorithm>
 #include <cctype>
 #include <memory>
+#include <set>
 
 #include "AppRuntime.hpp"
 #include "mcp/McpService.hpp"
@@ -383,6 +386,65 @@ void McpService::registerRoomTools() {
             for (const auto& m : out)
                 if (!m.value("mine", false)) r.untrusted = true; // escrito por un invitado
             done(r);
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        // Para un agente de un tiro que atiende a alguien: una pregunta, un
+        // chat_wait. Sin esto tendria que consultar chat_history cada tanto,
+        // que es caro (cada consulta es un turno) y torpe.
+        Tool t;
+        t.name = "chat_wait";
+        t.title = "Esperar que alguien escriba";
+        t.category = "sala";
+        t.readOnly = true;
+        t.description =
+            "Espera hasta `timeoutSec` (max. 120) a que `participant` escriba en el chat de la sala y devuelve "
+            "sus mensajes nuevos (`timedOut` true y lista vacia si no escribio). Para atender a alguien: una "
+            "pregunta con chat_send, un chat_wait, y asi.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"required", {"participant"}},
+            {"properties",
+             {{"participant", {{"type", "string"}, {"description", "id o nombre"}}},
+              {"timeoutSec", {{"type", "integer"}, {"minimum", 1}, {"maximum", 120}, {"default", 60}}}}}};
+        t.run = [conf, &vm](const json& a, Done done) {
+            json p;
+            std::string err;
+            if (!resolveParticipant(roomSnapshot(vm), a["participant"].get<std::string>(), p, err)) {
+                done(ToolResult::error(err));
+                return;
+            }
+            const std::string id = p.value("id", "");
+            auto* model = static_cast<JsonListModel*>(conf->chat());
+            const auto leer = [model]() {
+                return json::parse(QJsonDocument(model->items()).toJson(QJsonDocument::Compact).toStdString(),
+                                   nullptr, false);
+            };
+            // Lo ya visto se recuerda por uid, no por posicion: la lista se
+            // recorta por arriba y las posiciones se mueven.
+            auto vistos = std::make_shared<std::set<std::string>>();
+            for (const auto& m : leer())
+                if (m.is_object()) vistos->insert(m.value("uid", ""));
+            const std::int64_t vence = QDateTime::currentMSecsSinceEpoch() + a.value("timeoutSec", 60) * 1000;
+            auto* timer = new QTimer(conf);
+            timer->setInterval(400);
+            QObject::connect(timer, &QTimer::timeout, conf, [timer, leer, vistos, id, vence, done]() {
+                json nuevos = json::array();
+                for (const auto& m : leer()) {
+                    if (!m.is_object() || vistos->count(m.value("uid", "")) != 0) continue;
+                    if (m.value("fromId", "") == id && !m.value("mine", false)) nuevos.push_back(m);
+                }
+                const bool vencio = QDateTime::currentMSecsSinceEpoch() >= vence;
+                if (nuevos.empty() && !vencio) return;
+                timer->stop();
+                timer->deleteLater();
+                ToolResult r;
+                r.data(json{{"messages", nuevos}, {"timedOut", nuevos.empty()}});
+                if (!nuevos.empty()) r.untrusted = true; // escrito por un invitado
+                done(r);
+            });
+            timer->start();
         };
         core_.addTool(std::move(t));
     }

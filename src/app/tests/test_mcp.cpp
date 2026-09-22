@@ -18,6 +18,10 @@
 //      400, initialize con Mcp-Session-Id, notificacion 202.
 //   8. Puente ba-mcp: stdin -> HTTP -> stdout (con BA_MCP_URL/TOKEN) y error
 //      explicativo si la app no esta.
+//   9. Roles: con rol se ve solo su juego (y las comunes), llamar a otra se
+//      niega explicando, un rol desconocido ve solo las comunes, sin rol se
+//      ve todo; el mapa del initialize es el del rol; la cabecera X-BA-Rol
+//      llega por HTTP y `ba-mcp --rol` la manda.
 
 #include <QCoreApplication>
 #include <QEventLoop>
@@ -27,6 +31,7 @@
 #include <QTimer>
 
 #include <cstdio>
+#include <set>
 
 #include "mcp/McpCore.hpp"
 #include "mcp/McpHttp.hpp"
@@ -430,6 +435,75 @@ int main(int argc, char** argv) {
         bridge.waitForFinished(5000);
         const QByteArray out = bridge.readAllStandardOutput();
         CHECK(out.contains("\"id\":50") && out.contains("no esta abierto"), "sin la app: error explicativo");
+    }
+
+    // --- 9) roles: un juego de herramientas por identidad -----------------------------------
+    {
+        core.addCategory("otro", "Otro", "Lo que un rol no ve.");
+        Tool t;
+        t.name = "ajeno";
+        t.title = "Ajeno";
+        t.category = "otro";
+        t.description = "No es de la recepcion.";
+        t.run = [](const json&, Done done) { done(ToolResult::ok("hecho")); };
+        core.addTool(std::move(t));
+        core.setRoles({{"rec", {"demo"}}}, {"ayuda"});
+        const auto conRol = [&](const json& msg, const std::string& rol) {
+            json out;
+            core.handle(msg, [&](json r) { out = std::move(r); }, CallContext{"s-" + rol, rol});
+            return out;
+        };
+        const auto nombres = [](const json& lista) {
+            std::set<std::string> n;
+            for (const auto& t : lista["result"]["tools"]) n.insert(t["name"]);
+            return n;
+        };
+        const std::set<std::string> rec = nombres(conRol(req(60, "tools/list"), "rec"));
+        CHECK(rec.count("echo") == 1 && rec.count("help") == 1, "con rol: ve lo suyo y las comunes");
+        CHECK(rec.count("ajeno") == 0, "con rol: no ve lo ajeno");
+        const std::set<std::string> todo = nombres(conRol(req(61, "tools/list"), ""));
+        CHECK(todo.count("ajeno") == 1 && todo.count("echo") == 1, "sin rol: ve todo");
+        const std::set<std::string> nadie = nombres(conRol(req(62, "tools/list"), "inventado"));
+        CHECK(nadie.count("help") == 1 && nadie.count("echo") == 0, "rol desconocido: solo las comunes");
+        const json negada = conRol(req(63, "tools/call", {{"name", "ajeno"}}), "rec");
+        CHECK(negada["result"]["isError"] == true && textOf(negada["result"]).find("juego del rol `rec`") != std::string::npos,
+              "llamar a lo ajeno se niega explicando");
+        const json propia = conRol(req(64, "tools/call", {{"name", "echo"}, {"arguments", {{"text", "ok"}}}}), "rec");
+        CHECK(propia["result"]["isError"] == false, "lo propio corre");
+        const json ini = conRol(req(65, "initialize", {{"protocolVersion", "2025-06-18"}}), "rec");
+        const std::string instr = ini["result"]["instructions"];
+        CHECK(instr.find("Sos el rol `rec`") != std::string::npos && instr.find("**demo**") != std::string::npos &&
+                  instr.find("**otro**") == std::string::npos,
+              "el mapa del initialize es el del rol");
+        const json iniTodo = conRol(req(66, "initialize", {{"protocolVersion", "2025-06-18"}}), "");
+        CHECK(iniTodo["result"]["instructions"].get<std::string>().find("**otro**") != std::string::npos,
+              "sin rol, el mapa es completo");
+        // Por HTTP: la cabecera.
+        const Http h = http(port, "POST", "/mcp", QByteArray::fromStdString(req(67, "tools/list").dump()),
+                            {auth, {"X-BA-Rol", "rec"}});
+        CHECK(h.status == 200 && h.body.contains("\"echo\"") && !h.body.contains("\"ajeno\""),
+              "X-BA-Rol filtra por HTTP");
+        // Por el puente: --rol.
+        QProcess bridge;
+        QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+        env.insert("BA_MCP_URL", QString("http://127.0.0.1:%1/mcp").arg(port));
+        env.insert("BA_MCP_TOKEN", token);
+        bridge.setProcessEnvironment(env);
+        bridge.start(BA_MCP_BRIDGE, {"--rol", "rec"});
+        CHECK(bridge.waitForStarted(5000), "arranca ba-mcp --rol");
+        bridge.write(QByteArray::fromStdString(req(68, "tools/list").dump()) + "\n");
+        bridge.closeWriteChannel();
+        // El servidor HTTP vive en ESTE proceso: hay que girar el event loop.
+        QByteArray out;
+        for (int i = 0; i < 400 && bridge.state() != QProcess::NotRunning; ++i) {
+            QEventLoop loop;
+            QTimer::singleShot(10, &loop, &QEventLoop::quit);
+            loop.exec();
+            out += bridge.readAllStandardOutput();
+        }
+        out += bridge.readAllStandardOutput();
+        CHECK(out.contains("\"echo\"") && !out.contains("\"ajeno\""), "ba-mcp --rol se presenta con el rol");
+        core.setRoles({}, {});
     }
 
     if (g_failures == 0) {

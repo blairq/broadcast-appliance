@@ -588,11 +588,27 @@ QString AgentViewModel::bridgePath() const {
 #endif
 }
 
+QString AgentViewModel::runtimeDe(const QString& proveedor) {
+    const Provider* p = findProvider(proveedor);
+    return p == nullptr ? QString() : QString(p->runtime);
+}
+
+QStringList AgentViewModel::modelosDe(const QString& proveedor) {
+    const Provider* p = findProvider(proveedor);
+    return p == nullptr ? QStringList() : p->models;
+}
+
 QString AgentViewModel::prepareWorkspace(QString* error) {
     const QString root = QString::fromStdWString(rt_.dataRoot().wstring());
-    const QString ws = root + "/Runtime/agente";
-    QDir().mkpath(ws);
     const QString prompt = systemPrompt_ ? systemPrompt_() : QString();
+    return prepareWorkspaceEn(root + "/Runtime/agente", provider_, model_, {}, prompt, error);
+}
+
+QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& proveedor, const QString& modelo,
+                                           const QStringList& bridgeArgs, const QString& prompt,
+                                           QString* error) {
+    const QString root = QString::fromStdWString(rt_.dataRoot().wstring());
+    QDir().mkpath(ws);
     const QByteArray p = prompt.toUtf8();
     for (const char* f : {"CLAUDE.md", "GEMINI.md", "AGENTS.md"})
         if (!writeText(ws + "/" + f, p)) {
@@ -600,29 +616,33 @@ QString AgentViewModel::prepareWorkspace(QString* error) {
             return {};
         }
     const std::string bridge = bridgePath().toStdString();
-    const json mcpStdio{
-        {"command", bridge}, {"args", json::array()}, {"env", {{"BA_DATA_ROOT", root.toStdString()}}}};
-    const QString runtime = runtimeOf(provider_);
-    const Provider* prov = findProvider(provider_);
+    json args = json::array();
+    for (const QString& a : bridgeArgs) args.push_back(a.toStdString());
+    const json mcpStdio{{"command", bridge}, {"args", args}, {"env", {{"BA_DATA_ROOT", root.toStdString()}}}};
+    const QString runtime = runtimeOf(proveedor);
+    const Provider* prov = findProvider(proveedor);
     if (runtime == "claude") {
         json m = mcpStdio;
         m["type"] = "stdio";
         writeText(ws + "/mcp.json",
                   QByteArray::fromStdString(json{{"mcpServers", {{"broadcast", m}}}}.dump(2)));
     } else if (runtime == "opencode") {
+        json cmd = json::array({bridge});
+        for (const auto& a : args) cmd.push_back(a);
         json cfg{{"$schema", "https://opencode.ai/config.json"},
                  {"autoupdate", false},
                  {"mcp",
                   {{"broadcast",
                     {{"type", "local"},
-                     {"command", json::array({bridge})},
+                     {"command", cmd},
                      {"environment", {{"BA_DATA_ROOT", root.toStdString()}}},
                      {"enabled", true}}}}},
                  // Consola permitida (igual que en Claude Code): el limite lo
                  // pone el prompt del sistema, no la configuracion del agente.
-                 {"permission", {{"edit", "deny"}, {"bash", "allow"}}},
+                 // Un agente de un tiro (con rol) no la tiene: solo el MCP.
+                 {"permission", {{"edit", "deny"}, {"bash", bridgeArgs.isEmpty() ? "allow" : "deny"}}},
                  {"instructions", json::array({"AGENTS.md"})}};
-        if (!model_.isEmpty()) cfg["model"] = model_.toStdString();
+        if (!modelo.isEmpty()) cfg["model"] = modelo.toStdString();
         writeText(ws + "/opencode.json", QByteArray::fromStdString(cfg.dump(2)));
     } else if (runtime == "gemini") {
         // Ajustes del usuario de Gemini (en su HOME portable), sin pisar lo que ya tenga.
@@ -645,10 +665,11 @@ QString AgentViewModel::prepareWorkspace(QString* error) {
     return ws;
 }
 
-term::Pty::Options AgentViewModel::launchOptions(QString* error) {
+term::Pty::Options AgentViewModel::baseLaunch(const QString& proveedor, const QString& modelo, const QString& ws,
+                                              QString* error) {
     term::Pty::Options o;
-    const QString runtime = runtimeOf(provider_);
-    const Provider* prov = findProvider(provider_);
+    const QString runtime = runtimeOf(proveedor);
+    const Provider* prov = findProvider(proveedor);
     const json pin = pins().value(runtime.toStdString(), json::object());
     const json plat = platformPin(pin);
     // La instalacion que HAY (puede ser de otra version si se actualizo el
@@ -656,10 +677,10 @@ term::Pty::Options AgentViewModel::launchOptions(QString* error) {
     QString exeInstalado;
     const QString dir = usableDir(runtime, &exeInstalado);
     const QString root = QString::fromStdWString(rt_.dataRoot().wstring());
+    // Las credenciales son POR MOTOR, no por rol: un solo login sirve para el
+    // interactivo y para todos los roles que usen ese motor.
     const QString profile = root + "/Credenciales/agentes/" + runtime;
     QDir().mkpath(profile);
-    const QString ws = prepareWorkspace(error);
-    if (ws.isEmpty()) return o;
     o.workDir = ws;
     o.env["BA_DATA_ROOT"] = root;
     o.env["TERM"] = "xterm-256color";
@@ -679,17 +700,8 @@ term::Pty::Options AgentViewModel::launchOptions(QString* error) {
         o.program =
             dir + "/" +
             (exeInstalado.isEmpty() ? QString::fromStdString(plat.value("exe", "claude")) : exeInstalado);
-        // El MCP y la consola del sistema: se le pide arreglar cosas de la
-        // maquina, no solo manejar la emision. En Windows la consola es la
-        // herramienta PowerShell; Bash es la de Linux (y la de Git Bash).
-        // El limite lo pone el prompt del sistema: con el aire encendido, todo
-        // lo que pueda afectarlo se consulta antes (ver McpHelp.cpp).
-        // Edit/Write siguen fuera: los archivos se tocan por consola, que es
-        // donde el operador ve el comando exacto.
-        o.args = {"--mcp-config",   ws + "/mcp.json", "--strict-mcp-config", "--allowedTools",
-                  "mcp__broadcast", "Bash",           "PowerShell",          "--disallowedTools",
-                  "Edit",           "Write",          "NotebookEdit"};
-        if (!model_.isEmpty()) o.args << "--model" << model_;
+        o.args = {"--mcp-config", ws + "/mcp.json", "--strict-mcp-config"};
+        if (!modelo.isEmpty()) o.args << "--model" << modelo;
         o.env["CLAUDE_CONFIG_DIR"] = profile;
         o.env["DISABLE_AUTOUPDATER"] = "1";
     } else if (runtime == "gemini") {
@@ -697,7 +709,7 @@ term::Pty::Options AgentViewModel::launchOptions(QString* error) {
                     (exeInstalado.isEmpty() ? QString::fromStdString(plat.value("exe", "")) : exeInstalado);
         o.args = {dir + "/gemini/" +
                   QString::fromStdString(pin.value("paquete", json::object()).value("script", ""))};
-        if (!model_.isEmpty()) o.args << "-m" << model_;
+        if (!modelo.isEmpty()) o.args << "-m" << modelo;
         o.env["HOME"] = profile;
         o.env["USERPROFILE"] = profile;
         o.env["NO_UPDATE_NOTIFIER"] = "1";
@@ -710,6 +722,69 @@ term::Pty::Options AgentViewModel::launchOptions(QString* error) {
         o.env["XDG_STATE_HOME"] = profile + "/state";
         o.env["XDG_CACHE_HOME"] = root + "/Cache/opencode";
         o.env["OPENCODE_DISABLE_AUTOUPDATE"] = "1";
+    } else if (error != nullptr) {
+        *error = "Proveedor desconocido: " + proveedor;
+    }
+    return o;
+}
+
+term::Pty::Options AgentViewModel::launchOptions(QString* error) {
+    const QString ws = prepareWorkspace(error);
+    if (ws.isEmpty()) return {};
+    term::Pty::Options o = baseLaunch(provider_, model_, ws, error);
+    if (o.program.isEmpty()) return o;
+    if (runtimeOf(provider_) == "claude") {
+        // El MCP y la consola del sistema: se le pide arreglar cosas de la
+        // maquina, no solo manejar la emision. En Windows la consola es la
+        // herramienta PowerShell; Bash es la de Linux (y la de Git Bash).
+        // El limite lo pone el prompt del sistema: con el aire encendido, todo
+        // lo que pueda afectarlo se consulta antes (ver McpHelp.cpp).
+        // Edit/Write siguen fuera: los archivos se tocan por consola, que es
+        // donde el operador ve el comando exacto.
+        o.args << "--allowedTools" << "mcp__broadcast" << "Bash" << "PowerShell" << "--disallowedTools"
+               << "Edit" << "Write" << "NotebookEdit";
+    }
+    return o;
+}
+
+Motores AgentViewModel::motores() {
+    Motores m;
+    m.lanzar = [this](const Lanzamiento& l, QString* err) { return launchOptionsHeadless(l, err); };
+    m.proveedores = [this]() { return providers(); };
+    m.modelosDe = [](const QString& p) { return modelosDe(p); };
+    return m;
+}
+
+term::Pty::Options AgentViewModel::launchOptionsHeadless(const Lanzamiento& l, QString* error) {
+    const QString proveedor = l.proveedor.isEmpty() ? provider_ : l.proveedor;
+    const QString runtime = runtimeOf(proveedor);
+    if (runtime == "gemini") {
+        // Gemini CLI tiene modo no interactivo, pero no lo probamos con el
+        // MCP ni con su salida: hasta entonces, los roles no lo usan.
+        if (error != nullptr) *error = "Los roles automaticos todavia no pueden usar Gemini.";
+        return {};
+    }
+    if (runtime.isEmpty()) {
+        if (error != nullptr) *error = "Proveedor desconocido: " + proveedor;
+        return {};
+    }
+    const QString root = QString::fromStdWString(rt_.dataRoot().wstring());
+    const QString ws =
+        prepareWorkspaceEn(root + "/Runtime/agentes/" + l.rol, proveedor, l.modelo, {"--rol", l.rol}, l.prompt, error);
+    if (ws.isEmpty()) return {};
+    term::Pty::Options o = baseLaunch(proveedor, l.modelo, ws, error);
+    if (o.program.isEmpty()) return o;
+    if (runtime == "claude") {
+        // Un tiro: el encargo por argumento, cada paso como JSON por stdout
+        // (--verbose es lo que hace que stream-json emita los pasos y no
+        // solo el final). Solo el MCP: sin consola, sin archivos, sin web.
+        o.args << "-p" << l.encargo << "--output-format" << "stream-json" << "--verbose" << "--allowedTools"
+               << "mcp__broadcast" << "--disallowedTools" << "Bash" << "PowerShell" << "Edit" << "Write"
+               << "NotebookEdit" << "WebFetch" << "WebSearch";
+    } else if (runtime == "opencode") {
+        o.args = {"run", "--format", "json"};
+        if (!l.modelo.isEmpty()) o.args << "--model" << l.modelo;
+        o.args << l.encargo;
     }
     return o;
 }
@@ -781,6 +856,9 @@ void AgentViewModel::deleteAlert(const QString& id) {
 
 void AgentViewModel::onAlert(const json& ev) {
     emit alertsChanged();
+    // Si un rol activo lo reclama, lo atiende un agente de un tiro: esta
+    // conversacion no se interrumpe.
+    if (reclamado_ && reclamado_(ev)) return;
     bool llm = false;
     for (const auto& n : ev.value("notify", json::array()))
         if (n == "llm") llm = true;

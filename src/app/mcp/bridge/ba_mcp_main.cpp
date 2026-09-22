@@ -17,6 +17,9 @@
 //      relee en cada mensaje: si la app se reinicia, el puente sigue andando) y
 //      el token cifrado de Credenciales/.
 // `ba-mcp --token` imprime el token (para configurar un cliente por HTTP).
+// `ba-mcp --rol <rol>` se presenta con ese rol en cada pedido (cabecera
+// X-BA-Rol): el servidor le muestra solo el juego de herramientas del rol.
+// Es como lanza la app a sus agentes automaticos (recepcion, tecnico...).
 // ============================================================================
 
 #include <nlohmann/json.hpp>
@@ -138,7 +141,7 @@ std::string lower(std::string s) {
     return s;
 }
 
-HttpReply post(const Target& t, const std::string& session, const std::string& body) {
+HttpReply post(const Target& t, const std::string& session, const std::string& rol, const std::string& body) {
     HttpReply r;
     const socket_t s = ::socket(AF_INET, SOCK_STREAM, 0);
 #ifdef _WIN32
@@ -170,6 +173,7 @@ HttpReply post(const Target& t, const std::string& session, const std::string& b
                       "Authorization: Bearer " +
                       t.token + "\r\n";
     if (!session.empty()) req += "Mcp-Session-Id: " + session + "\r\n";
+    if (!rol.empty()) req += "X-BA-Rol: " + rol + "\r\n";
     req += "Content-Length: " + std::to_string(body.size()) + "\r\nConnection: close\r\n\r\n" + body;
     for (std::size_t sent = 0; sent < req.size();) {
         const auto n = ::send(s, req.data() + sent, static_cast<int>(req.size() - sent), 0);
@@ -233,6 +237,9 @@ int main(int argc, char** argv) {
         std::printf("%s\n", token.c_str());
         return 0;
     }
+    std::string rol;
+    for (int i = 1; i + 1 < argc; ++i)
+        if (std::string(argv[i]) == "--rol") rol = argv[i + 1];
 #ifdef _WIN32
     WSADATA wsa;
     WSAStartup(MAKEWORD(2, 2), &wsa);
@@ -252,7 +259,7 @@ int main(int argc, char** argv) {
             ++pending;
         }
         // Un thread por pedido: una captura lenta no frena a los demas.
-        std::thread([line, &session, &sessionLock, &pending, &pendingLock, &pendingCv]() {
+        std::thread([line, &session, &sessionLock, &pending, &pendingLock, &pendingCv, &rol]() {
             const json doc = json::parse(line, nullptr, false);
             const json id = doc.is_object() && doc.contains("id") ? doc["id"] : json();
             Target t;
@@ -267,7 +274,7 @@ int main(int argc, char** argv) {
                     std::lock_guard<std::mutex> lk(sessionLock);
                     sid = session;
                 }
-                const HttpReply r = post(t, sid, line);
+                const HttpReply r = post(t, sid, rol, line);
                 if (!r.sessionId.empty()) {
                     std::lock_guard<std::mutex> lk(sessionLock);
                     session = r.sessionId;

@@ -37,6 +37,7 @@
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -88,8 +89,14 @@ struct Tool {
 
 /// Quien llama (para la contaminacion por sesion). La sesion la pone el
 /// cliente MCP (cabecera Mcp-Session-Id), no el modelo.
+///
+/// El ROL lo declara el cliente al conectarse (cabecera X-BA-Rol; el puente
+/// la manda con `ba-mcp --rol <rol>`). Con rol, el cliente ve SOLO el juego de
+/// herramientas de ese rol (ver setRoles). Sin rol, ve todo: el asistente
+/// interactivo y los clientes externos siguen como estaban.
 struct CallContext {
     std::string session;
+    std::string rol;
 };
 
 /// Politica de aprobacion de acciones que modifican algo.
@@ -140,7 +147,11 @@ class McpCore {
     /// concluye «esto no se puede hacer» cuando la herramienta esta a una
     /// categoria de distancia. El mapa cuesta unos 400 tokens y hace que eso
     /// no pueda pasar.
-    std::string mapaDeCategorias() const;
+    ///
+    /// Con `rol`, el mapa es el de ESE rol: sus categorias y las comunes. Lo
+    /// que no ve, no aparece, porque un agente automatico no tiene a quien
+    /// pedirle «la otra categoria».
+    std::string mapaDeCategorias(const std::string& rol = {}) const;
     void addCategory(const std::string& id, const std::string& title, const std::string& summary);
     void addTool(Tool tool);
     void addTopic(HelpTopic topic);
@@ -223,6 +234,32 @@ class McpCore {
         for (Tool& t : tools_)
             fn(t);
     }
+    // --- Roles: un juego de herramientas por identidad ---------------------------
+    // Un cliente que se presenta con un rol recibe en tools/list SOLO las
+    // herramientas de sus categorias y de las comunes, y llamar a otra se le
+    // niega con un mensaje que lo explica. Es para que un agente automatico
+    // (recepcion, tecnico...) no pueda tocar por accidente lo que no es suyo,
+    // y para que su contexto sea chico: cada herramienta que no ve son tokens
+    // que no paga en cada pedido.
+    //
+    // NO es una frontera de seguridad: el token del servidor ya da acceso a
+    // todo, y un proceso que lo tiene puede presentarse con el rol que quiera.
+    // Es una barandilla contra el accidente, no contra el ataque.
+    /// `categoriasPorRol`: rol -> categorias que ve. `comunes`: las que ven
+    /// todos los roles (ayuda, estado...). Un rol que no esta en el mapa ve
+    /// solo las comunes: un rol desconocido es un rol sin permisos, no uno
+    /// con todos.
+    void setRoles(std::map<std::string, std::set<std::string>> categoriasPorRol, std::set<std::string> comunes);
+    /// Si el rol puede ver y llamar a la herramienta. Sin rol, siempre.
+    bool permitida(const Tool& t, const std::string& rol) const;
+    bool hayRoles() const { return !roles_.empty(); }
+
+    /// El contexto de la llamada en curso: para herramientas que necesitan
+    /// saber QUIEN las llama (agente_encargar cuenta la profundidad por rol).
+    /// Vale solo mientras `run` no devolvio; una herramienta asincrona lo lee
+    /// a la entrada y se lo guarda.
+    const CallContext& contextoEnCurso() const { return enCurso_; }
+
     /// Valida `args` contra el esquema (requeridos, tipos, enums, rangos).
     /// :returns: vacio si esta bien, o el problema explicado.
     static std::string validate(const json& schema, const json& args);
@@ -238,7 +275,7 @@ class McpCore {
 
    private:
     void handleOne(const json& msg, std::function<void(json)> reply, const CallContext& ctx);
-    json initializeResult(const json& params) const;
+    json initializeResult(const json& params, const CallContext& ctx) const;
     json toolListEntry(const Tool& t) const;
     json resourceList() const;
     json readResource(const std::string& uri, std::string& error) const;
@@ -266,6 +303,9 @@ class McpCore {
     std::map<std::string, std::string> intake_;
     bool intakeAllows(const Tool& t, const nlohmann::json& args) const;
     std::function<bool(const std::string&, const nlohmann::json&)> intakeMatch_;
+    std::map<std::string, std::set<std::string>> roles_;
+    std::set<std::string> comunes_;
+    CallContext enCurso_;
 };
 
 } // namespace ba::app::mcp
