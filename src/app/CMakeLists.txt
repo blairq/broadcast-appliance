@@ -116,6 +116,26 @@ endif()
 # libavcodec/libavutil son las DLL del runtime de OBS (FFmpeg n7.0.2), con los
 # headers y .lib del obs-deps oficial que fija OBS (make deps-obs-deps-win).
 set(BA_MDNS_DIR "${CMAKE_SOURCE_DIR}/extern/libmicrodns")
+
+# --- mDNS para buscar Chromecast (src/app/pantallas) --------------------------
+# La misma libmicrodns que usa NDI, pero como objetivo propio: NDI solo se
+# compila con libobs y en Linux, y buscar televisores tiene que andar igual en
+# las tres plataformas. En Linux se usa el .a de obs-deps si esta; si no (y en
+# macOS), se compila del fuente vendoreado, que es el mismo.
+set(BA_MDNS_OK OFF)
+if(NOT WIN32 AND EXISTS "${BA_OBS_DEPS}/lib/libmicrodns.a")
+    add_library(ba_mdns INTERFACE)
+    target_include_directories(ba_mdns INTERFACE "${BA_OBS_DEPS}/include")
+    target_link_libraries(ba_mdns INTERFACE "${BA_OBS_DEPS}/lib/libmicrodns.a")
+    set(BA_MDNS_OK ON)
+elseif(NOT WIN32 AND EXISTS "${BA_MDNS_DIR}/src/mdns.c")
+    add_library(ba_mdns STATIC "${BA_MDNS_DIR}/src/mdns.c" "${BA_MDNS_DIR}/src/rr.c")
+    target_include_directories(ba_mdns PUBLIC "${BA_MDNS_DIR}/include" PRIVATE "${BA_MDNS_DIR}")
+    target_compile_options(ba_mdns PRIVATE -w)
+    set_target_properties(ba_mdns PROPERTIES C_STANDARD 11 POSITION_INDEPENDENT_CODE ON)
+    set(BA_MDNS_OK ON)
+endif()
+# El enlace con ba-app va mas abajo, cuando el objetivo ya existe.
 set(BA_OBS_DEPS_WIN "${CMAKE_SOURCE_DIR}/extern/obs-deps-win")
 if(BA_HAVE_LIBOBS AND WIN32 AND EXISTS "${BA_NOIDEA_DIR}/src/recv.c" AND EXISTS "${BA_MDNS_DIR}/src/mdns.c"
    AND EXISTS "${BA_OBS_DEPS_WIN}/lib/avcodec.lib")
@@ -217,6 +237,14 @@ if(WIN32)
 endif()
 
 target_link_libraries(ba-app PRIVATE ba_core mbedtls mbedx509 mbedcrypto) # HTTPS propio (net/HttpsClient)
+# Buscar Chromecast en la red (src/app/pantallas/Buscar.cpp).
+if(BA_MDNS_OK)
+    target_link_libraries(ba-app PRIVATE ba_mdns)
+    target_compile_definitions(ba-app PRIVATE BA_HAVE_MDNS=1)
+    message(STATUS "ba-app: busqueda de Chromecast por mDNS")
+else()
+    message(STATUS "ba-app: sin mDNS (los televisores se agregan a mano por IP)")
+endif()
 # Raices de Mozilla para ese HTTPS (make deps-cacert): viajan en el bundle.
 if(EXISTS "${CMAKE_SOURCE_DIR}/extern/cacert/cacert.pem")
     install(FILES "${CMAKE_SOURCE_DIR}/extern/cacert/cacert.pem" DESTINATION data)
@@ -457,6 +485,12 @@ if(BA_APP_QT_OK)
     target_link_libraries(test_discursos PRIVATE Qt6::Core)
     set_target_properties(test_discursos PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_discursos COMMAND test_discursos)
+    # El protocolo Cast: protobuf a mano y el troceo de mensajes.
+    add_executable(test_cast tests/test_cast.cpp pantallas/Cast.cpp)
+    target_include_directories(test_cast PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_cast PRIVATE ba_core Qt6::Core mbedtls mbedx509 mbedcrypto)
+    set_target_properties(test_cast PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_cast COMMAND test_cast)
 
     add_executable(test_twitch tests/test_twitch.cpp twitch/TwitchClient.cpp net/HttpsClient.cpp)
     target_include_directories(test_twitch PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

@@ -40,6 +40,7 @@
 #include "ui/ExtensionesModel.hpp"
 #include "ui/RegistroViewModel.hpp"
 #include "ui/RielConfig.hpp"
+#include "ui/PantallasViewModel.hpp"
 #include "ui/PrompterViewModel.hpp"
 #include "ui/RotuladorViewModel.hpp"
 #include "ui/ConferenceViewModel.hpp"
@@ -124,6 +125,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // cue) y el estado es del gateway, así que necesita a los dos.
     prompter_ = std::make_unique<PrompterViewModel>(evento_.get(), conference_.get());
     connect(prompter_.get(), &PrompterViewModel::notify, this, &StudioViewModel::notify);
+    // Pantallas externas: necesita la sala para saber con qué dirección la ve
+    // un televisor de la red.
+    pantallas_ = std::make_unique<PantallasViewModel>(rt, conference_.get());
+    connect(pantallas_.get(), &PantallasViewModel::notify, this, &StudioViewModel::notify);
     connect(rotulador_.get(), &RotuladorViewModel::notify, this, &StudioViewModel::notify);
     connect(this, &StudioViewModel::sceneChanged, rotulador_.get(), &RotuladorViewModel::refrescar);
 
@@ -494,6 +499,7 @@ QObject* StudioViewModel::evento() const { return evento_.get(); }
 QObject* StudioViewModel::grafico() const { return grafico_.get(); }
 QObject* StudioViewModel::rotulador() const { return rotulador_.get(); }
 QObject* StudioViewModel::prompter() const { return prompter_.get(); }
+QObject* StudioViewModel::pantallas() const { return pantallas_.get(); }
 QObject* StudioViewModel::registro() const { return registro_.get(); }
 QObject* StudioViewModel::extensiones() const { return extensiones_.get(); }
 QObject* StudioViewModel::riel() const { return riel_.get(); }

@@ -109,6 +109,7 @@ class SignalingServer {
         /// remoto (la tablet igual muestra el texto).
         std::string prompterKey;
         std::string rotulosWebroot; // Web/rotulos (los rotulos desde el celular)
+        std::string pantallaWebroot; // Web/pantalla (lo que se manda a un televisor)
         /// Clave de los rotulos. A diferencia del teleprompter, hace falta
         /// TAMBIEN PARA MIRAR: un rotulo suele llevar el nombre del invitado
         /// que todavia no se anuncio. Vacia = la pagina no atiende a nadie.

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Pantalla</title>
+<!--
+  La página que se manda a un televisor.
+
+  Es UNA página para todo lo que se proyecta, y lo que muestra viene en la
+  URL: así agregar algo nuevo para mostrar no es un aparato nuevo ni un
+  protocolo nuevo, es un `tipo` más acá adentro.
+
+    ?tipo=mensaje&texto=...&pie=...    texto grande
+    ?tipo=qr&texto=<lo que codifica>&pie=...   un QR enorme con su pie
+    ?tipo=reloj&pie=...                la hora, grande
+
+  Se ve de lejos y en una pantalla que puede estar mal calibrada: fondo negro,
+  letras blancas y grandes, sin animaciones. Nadie interactúa con esto.
+-->
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main id="caja">
+    <div id="qr" class="qr oculto"><img id="qr-img" alt="" /></div>
+    <div id="texto" class="texto"></div>
+    <div id="pie" class="pie"></div>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

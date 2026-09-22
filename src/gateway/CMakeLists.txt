@@ -335,6 +335,13 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/board")
         DESTINATION Web/board
     )
 endif()
+# Lo que se manda a un televisor (/pantalla/): mensajes, QR y reloj. Una sola
+# pagina para todo lo que se proyecta (ver assets/web/pantalla/index.html).
+if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/pantalla")
+    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/pantalla/"
+        DESTINATION Web/pantalla
+    )
+endif()
 # Teleprompter: la tablet del orador (/prompter) y el control del celular
 # (/prompter/#control). Lo sirve B, como el resto de las vistas web.
 if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/prompter")

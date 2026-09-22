@@ -1,0 +1,41 @@
+/* Una pantalla que se mira de lejos: todo grande, nada que distraiga. */
+:root { color-scheme: dark; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  height: 100%;
+  background: #000;
+  color: #fff;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  overflow: hidden;
+}
+#caja {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4vh;
+  padding: 6vh 6vw;
+  text-align: center;
+}
+/* El QR en blanco: un QR sobre fondo negro no lo lee ningún teléfono. */
+.qr {
+  background: #fff;
+  padding: 2.2vh;
+  border-radius: 1.5vh;
+  line-height: 0;
+}
+.qr img { width: min(58vh, 58vw); height: auto; image-rendering: pixelated; }
+.texto {
+  font-size: clamp(28px, 7vh, 110px);
+  font-weight: 600;
+  line-height: 1.15;
+  max-width: 100%;
+  overflow-wrap: break-word;
+}
+.pie {
+  font-size: clamp(16px, 3vh, 44px);
+  color: #b9b9c2;
+  font-weight: 400;
+}
+.oculto { display: none; }

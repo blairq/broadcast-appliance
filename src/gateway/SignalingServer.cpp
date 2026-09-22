@@ -27,6 +27,7 @@
 #include "security/SecretsStore.hpp" // randomSecretHex (ids de participante)
 #include "security/TokenService.hpp" // nowUnix() para el rate-limit por IP
 #include "ShareStore.hpp"
+#include "qrcodegen.hpp"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -43,6 +44,25 @@ using json = nlohmann::json;
 using ba::ipc::Frame;
 
 namespace {
+
+/// Un QR como SVG, para la pagina que se manda a un televisor. En SVG y no en
+/// PNG porque un QR son cuadraditos: escala sin verse borroso en una pantalla
+/// de 55 pulgadas y pesa menos que la imagen.
+std::string qrSvg(const std::string& texto) {
+    const qrcodegen::QrCode qr = qrcodegen::QrCode::encodeText(texto.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
+    const int n = qr.getSize();
+    const int borde = 2; // zona silenciosa, sin la que muchos lectores no enganchan
+    const int lado = n + borde * 2;
+    std::ostringstream o;
+    o << "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 " << lado << ' ' << lado
+      << "' shape-rendering='crispEdges'>"
+      << "<rect width='100%' height='100%' fill='#fff'/><path fill='#000' d='";
+    for (int y = 0; y < n; ++y)
+        for (int x = 0; x < n; ++x)
+            if (qr.getModule(x, y)) o << "M" << x + borde << ',' << y + borde << "h1v1h-1z";
+    o << "'/></svg>";
+    return o.str();
+}
 
 int64_t nowMs() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -433,6 +453,35 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
             http::sendResponse(fd, 200, "application/json", prompter_.estado().dump());
             return;
         }
+    }
+
+    // --- Lo que se manda a un televisor -------------------------------------
+    // Publico y de solo lectura: es una pagina que MUESTRA lo que dice la URL.
+    // No lleva clave porque no hay nada que proteger (quien la abre ve lo que
+    // ya se esta viendo en una pantalla de la sala) y porque el televisor no
+    // tiene donde guardar una.
+    if (method == "GET" && (path == "/pantalla" || path.rfind("/pantalla/", 0) == 0)) {
+        if (path == "/pantalla") {
+            http::sendResponse(fd, 301, "text/plain", "", "Location: /pantalla/\r\n");
+            return;
+        }
+        std::string rel = path.size() > 10 ? path.substr(10) : std::string("index.html");
+        if (rel.empty()) rel = "index.html";
+        // El QR lo dibuja el servidor: asi la pagina no arrastra una
+        // biblioteca de QR y anda igual en un televisor viejo.
+        if (rel == "qr.svg") {
+            const auto q = http::parseQuery(query);
+            const std::string texto = q.count("texto") ? http::urlDecode(q.at("texto")) : std::string();
+            if (texto.empty() || texto.size() > 1200) {
+                http::sendResponse(fd, 400, "text/plain", "falta `texto` (o es demasiado largo)\n");
+                return;
+            }
+            http::sendResponse(fd, 200, "image/svg+xml", qrSvg(texto));
+            return;
+        }
+        if (!cfg_.pantallaWebroot.empty() && serveStatic(fd, cfg_.pantallaWebroot, rel)) return;
+        http::sendResponse(fd, 404, "text/plain", "no encontrado\n");
+        return;
     }
 
     // --- Rotulos desde el celular -------------------------------------------
