@@ -274,6 +274,7 @@ Crear la app/credencial en Google Cloud, Twitch o Meta lo tiene que hacer la PER
      R"md(## Como esta armado
 Cada fuente con audio (microfonos, capturas, videos) puede tener un **rack** tipo JACK: `in` (la fuente cruda) -> modulos LSP conectados con cables -> `out` (lo que sigue a la mezcla). La persona lo ve en la pestaña **Audio** (patchbay); `audio_show {"source"}` la abre en esa fuente.
 - `audio_sources`: fuentes con audio y si tienen rack. `audio_rack {"source"}`: nodos, cables y medidores.
+- `audio_plantillas`: guardar un rack con nombre y ponerselo a otra fuente. Marcada `porDefecto` para `ba_guest_audio`, los invitados NUEVOS la toman solos al conectarse: es la unica forma de que suenen bien sin armarles nada mientras el evento empieza.
 - Cada modulo tiene medidores propios: `entradaDb`, `salidaDb` y `cambioDb` (lo que baja o sube AHORA: en un gate/compresor es la reduccion de ganancia).
 - Un rack vacio no cambia el sonido. `audio_module_remove {"node": "*"}` quita el rack entero.
 - En la pestaña, cada tarjeta se acomoda en una grilla (boton "Ordenar" para alinear todo) y su chevron abre el detalle: nombre real de cada puerto del modulo y si es mono o estereo.

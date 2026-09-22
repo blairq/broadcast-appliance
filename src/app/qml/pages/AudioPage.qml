@@ -289,8 +289,15 @@ Rectangle {
             Layout.fillHeight: true
             spacing: 10
 
-            Flow {
+            // El Flow va dentro de un Item que el layout dimensiona: si se le
+            // deja a el mismo el Layout.fillWidth, su alto depende del ancho y
+            // el ancho de su alto, y Qt aborta el layout ("polish loop").
+            Item {
                 Layout.fillWidth: true
+                implicitHeight: barra.implicitHeight
+            Flow {
+                id: barra
+                width: parent.width
                 spacing: 6
                 Text { text: page.au ? page.au.source : ""; color: Theme.text; font { pixelSize: 17; weight: Font.DemiBold } }
                 Item { width: 12; height: 1 }
@@ -319,6 +326,17 @@ Rectangle {
                 GlassButton { compact: true; text: "+ Generador"; onClicked: page.msg = page.au.addGenerator() }
                 GlassButton { compact: true; text: "+ Otro LSP…"; onClicked: lspPopup.open() }
                 Item { width: 12; height: 1 }
+                // Un rack armado a mano es media hora de trabajo: guardarlo con
+                // nombre permite ponerselo a otra fuente en un clic.
+                GlassButton {
+                    compact: true
+                    text: "Plantillas"
+                    icon: "▤"
+                    onClicked: plantillasPopup.open()
+                    ToolTip.visible: hovered; ToolTip.delay: 400
+                    ToolTip.text: "Guardar este rack con nombre, o ponerle a esta fuente uno guardado"
+                }
+                Item { width: 12; height: 1 }
                 GlassButton {
                     compact: true; text: "Ordenar"
                     onClicked: page.au.tidy()
@@ -331,6 +349,7 @@ Rectangle {
                     ToolTip.visible: hovered; ToolTip.delay: 400
                     ToolTip.text: "Dejar la grilla a la vista (si no, aparece sola al mover algo)"
                 }
+            }
             }
             Text {
                 Layout.fillWidth: true
@@ -1156,6 +1175,115 @@ Rectangle {
                     onClicked: { page.msg = page.au.addModule(modelData.id, ""); lspPopup.close() }
                 }
             }
+        }
+    }
+
+    // --- Plantillas de rack ---------------------------------------------------
+    Popup {
+        id: plantillasPopup
+        anchors.centerIn: Overlay.overlay
+        width: 520
+        modal: true
+        padding: 16
+        background: Rectangle { color: Theme.panel; radius: Theme.radiusSmall; border.color: Theme.glassBorder }
+
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 10
+
+            Text {
+                text: "Plantillas de rack"
+                color: Theme.text
+                font { family: Theme.font; pixelSize: 16; weight: Font.DemiBold }
+            }
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                color: Theme.textDim
+                font.pixelSize: 12
+                text: "Guardá el rack de esta fuente con un nombre y poneselo a otra en un clic. " +
+                      "Si la marcás como predeterminada de un tipo de fuente, las nuevas de ese tipo " +
+                      "la toman solas al crearse — es lo que hace que un invitado ya suene bien sin " +
+                      "que nadie le arme nada."
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                TextField {
+                    id: nuevoNombre
+                    Layout.fillWidth: true
+                    placeholderText: "Nombre para guardar este rack"
+                    color: Theme.text
+                    font.pixelSize: 13
+                }
+                GlassButton {
+                    text: "Guardar"; compact: true
+                    onClicked: {
+                        page.msg = page.au.guardarPlantilla(nuevoNombre.text)
+                        if (page.msg === "") nuevoNombre.text = ""
+                    }
+                }
+            }
+
+            ListView {
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.min(260, 46 * Math.max(1, (page.au ? page.au.plantillas().length : 0)))
+                clip: true
+                spacing: 4
+                model: page.au ? page.au.plantillas() : []
+                delegate: RowLayout {
+                    required property var modelData
+                    width: ListView.view.width
+                    spacing: 6
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 0
+                        Text {
+                            text: modelData.nombre
+                            color: Theme.text
+                            font { pixelSize: 13; weight: Font.Medium }
+                        }
+                        Text {
+                            text: modelData.modulos + " módulos" +
+                                  (modelData.paraTipo !== "" ? "  ·  predeterminada de " + modelData.paraTipo : "")
+                            color: modelData.paraTipo !== "" ? Theme.accent : Theme.textFaint
+                            font.pixelSize: 11
+                        }
+                    }
+                    GlassButton {
+                        text: "Aplicar"; compact: true
+                        onClicked: { page.msg = page.au.aplicarPlantilla(modelData.nombre); plantillasPopup.close() }
+                        ToolTip.visible: hovered
+                        ToolTip.text: "Reemplaza el rack de « " + (page.au ? page.au.source : "") + " » por este"
+                    }
+                    GlassButton {
+                        text: modelData.paraTipo !== "" ? "Quitar defecto" : "Por defecto"
+                        compact: true
+                        onClicked: page.msg = page.au.plantillaPorDefecto(
+                            modelData.nombre, modelData.paraTipo !== "" ? "" : page.au.tipoDeFuente())
+                        ToolTip.visible: hovered
+                        ToolTip.text: modelData.paraTipo !== ""
+                            ? "Las fuentes nuevas dejan de tomarla"
+                            : "Las fuentes nuevas del mismo tipo que « " + (page.au ? page.au.source : "") + " » la toman solas"
+                    }
+                    GlassButton {
+                        icon: "✕"; compact: true
+                        onClicked: page.msg = page.au.borrarPlantilla(modelData.nombre)
+                    }
+                }
+            }
+
+            Text {
+                visible: page.au && page.au.plantillas().length === 0
+                Layout.fillWidth: true
+                horizontalAlignment: Text.AlignHCenter
+                text: "Todavía no guardaste ninguna."
+                color: Theme.textFaint
+                font.pixelSize: 12
+            }
+
+            GlassButton { text: "Cerrar"; compact: true; onClicked: plantillasPopup.close() }
         }
     }
 }

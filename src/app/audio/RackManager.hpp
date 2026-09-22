@@ -59,6 +59,29 @@ class RackManager : public QObject {
     /// Manda el audio del rack de `source` a la salida `device`. Devuelve el
     /// error o "". OJO: el motor reproduce por UNA salida a la vez.
     std::string setOutput(const std::string& source, const std::string& device);
+    // --- Plantillas -----------------------------------------------------------
+    // Un rack armado a mano (compuerta, compresor, de-esser, sus parametros y
+    // sus cables) es media hora de trabajo. Guardarlo con nombre permite
+    // aplicarselo a otra fuente en un clic, y marcarlo como PREDETERMINADO de
+    // un tipo de fuente hace que los invitados lo tomen solos al conectarse,
+    // que es donde mas se nota: nadie va a armarle el rack a mano a cada uno
+    // mientras el evento empieza.
+    //
+    // Viven en Config/audio-plantillas.json, o sea que viajan con la carpeta
+    // portable.
+
+    /// [{nombre, modulos, paraTipo}] (paraTipo vacio = no es predeterminada).
+    json plantillas() const;
+    /// Guarda el rack de `source` con ese nombre. Si ya existe, lo reemplaza.
+    /// Devuelve el error o "".
+    std::string guardarPlantilla(const std::string& source, const std::string& nombre);
+    /// Le pone a `source` el rack de la plantilla, REEMPLAZANDO el que tenga.
+    std::string aplicarPlantilla(const std::string& nombre, const std::string& source);
+    std::string borrarPlantilla(const std::string& nombre);
+    /// Marca (o desmarca, con `tipo` vacio) la plantilla como la que toman
+    /// solas las fuentes nuevas de ese tipo de libobs.
+    std::string plantillaPorDefecto(const std::string& nombre, const std::string& tipo);
+
     /// Algo cambio en un rack: se guarda en un momento.
     void markDirty();
     /// Guarda ya (tambien al salir).
@@ -90,6 +113,11 @@ class RackManager : public QObject {
     void restoreMonitor();
 
     QTimer saveTimer_;
+    json plantillas_ = json::object(); ///< nombre -> {rack, paraTipo}
+    void cargarPlantillas();
+    void guardarPlantillas() const;
+    /// La plantilla marcada para ese tipo de fuente, o vacio.
+    std::string plantillaDeTipo(const std::string& tipo) const;
     std::string monitorId_;   // "" = sin escucha aparte
     std::string monitorName_; // el nombre que espera libobs junto al id
     json pending_;            // racks guardados de fuentes que todavia no existen

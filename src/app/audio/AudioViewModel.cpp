@@ -277,6 +277,54 @@ QString AudioViewModel::addOutput(const QString& device) {
     return {};
 }
 
+// --- Plantillas -------------------------------------------------------------
+
+QVariantList AudioViewModel::plantillas() const {
+    QVariantList out;
+    for (const auto& p : mgr_.plantillas()) {
+        out.append(QVariantMap{{"nombre", QString::fromStdString(p.value("nombre", std::string()))},
+                               {"modulos", static_cast<int>(p.value("modulos", 0))},
+                               {"paraTipo", QString::fromStdString(p.value("paraTipo", std::string()))}});
+    }
+    return out;
+}
+
+QString AudioViewModel::guardarPlantilla(const QString& nombre) {
+    const std::string e = mgr_.guardarPlantilla(source_.toStdString(), nombre.trimmed().toStdString());
+    if (e.empty()) emit changed();
+    return QString::fromStdString(e);
+}
+
+QString AudioViewModel::aplicarPlantilla(const QString& nombre) {
+    const std::string e = mgr_.aplicarPlantilla(nombre.toStdString(), source_.toStdString());
+    if (e.empty()) {
+        // La plantilla trae otros nodos: lo que estaba elegido ya no existe.
+        selected_.clear();
+        rebuildGraph();
+        emit selectionChanged();
+    }
+    return QString::fromStdString(e);
+}
+
+QString AudioViewModel::borrarPlantilla(const QString& nombre) {
+    const std::string e = mgr_.borrarPlantilla(nombre.toStdString());
+    if (e.empty()) emit changed();
+    return QString::fromStdString(e);
+}
+
+QString AudioViewModel::plantillaPorDefecto(const QString& nombre, const QString& tipo) {
+    const std::string e = mgr_.plantillaPorDefecto(nombre.toStdString(), tipo.toStdString());
+    if (e.empty()) emit changed();
+    return QString::fromStdString(e);
+}
+
+QString AudioViewModel::tipoDeFuente() const {
+    for (const auto& s : mgr_.audioSources())
+        if (s.value("nombre", std::string()) == source_.toStdString())
+            return QString::fromStdString(s.value("tipo", std::string()));
+    return {};
+}
+
 double AudioViewModel::gridStep() const { return AudioRack::gridStep(); }
 
 void AudioViewModel::tidy() {

@@ -64,6 +64,15 @@ class AudioViewModel : public QObject {
     /// Agrega (o reapunta) la salida de audio de esta fuente: una tarjeta mas
     /// en el grafo, con el nombre del dispositivo elegido.
     Q_INVOKABLE QString addOutput(const QString& device);
+
+    // --- Plantillas -------------------------------------------------------------
+    Q_INVOKABLE QVariantList plantillas() const;
+    Q_INVOKABLE QString guardarPlantilla(const QString& nombre);
+    Q_INVOKABLE QString aplicarPlantilla(const QString& nombre);
+    Q_INVOKABLE QString borrarPlantilla(const QString& nombre);
+    Q_INVOKABLE QString plantillaPorDefecto(const QString& nombre, const QString& tipo);
+    /// El tipo de libobs de la fuente elegida (para marcar la predeterminada).
+    Q_INVOKABLE QString tipoDeFuente() const;
     /// Reordena los nodos en la grilla del patchbay.
     Q_INVOKABLE void tidy();
     Q_INVOKABLE void removeNode(const QString& node);

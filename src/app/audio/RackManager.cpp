@@ -439,6 +439,14 @@ AudioRack* RackManager::rack(const std::string& source, bool create, std::string
                 f->rack->load(pending_[source], &e);
             } else {
                 f->rack = std::make_unique<AudioRack>(library(), services_, sampleRate());
+                // Sin rack guardado, se mira si hay una plantilla marcada para
+                // este tipo de fuente: es lo que hace que un invitado que se
+                // conecta ya suene bien sin que nadie le arme nada.
+                const std::string plantilla = plantillaDeTipo(obs_source_get_id(src));
+                if (!plantilla.empty()) {
+                    std::string e;
+                    f->rack->load(plantillas_[plantilla].value("rack", json::object()), &e);
+                }
             }
             obs_source_filter_add(src, filter);
             attach(f);
@@ -468,6 +476,102 @@ bool RackManager::removeRack(const std::string& source) {
     return true;
 }
 
+// --- Plantillas -------------------------------------------------------------
+
+namespace {
+constexpr const char* kPlantillasFile = "audio-plantillas.json";
+}
+
+void RackManager::cargarPlantillas() {
+    std::ifstream in(root_ / "Config" / kPlantillasFile, std::ios::binary);
+    if (!in) return;
+    const json j = json::parse(in, nullptr, false);
+    // Un archivo roto no tiene por que impedir que el audio ande: se ignora y
+    // el operador se entera cuando la lista aparece vacia.
+    if (j.is_object()) plantillas_ = j;
+}
+
+void RackManager::guardarPlantillas() const {
+    const fs::path file = root_ / "Config" / kPlantillasFile;
+    std::error_code ec;
+    fs::create_directories(file.parent_path(), ec);
+    const fs::path tmp = file.string() + ".tmp";
+    {
+        std::ofstream out(tmp, std::ios::binary);
+        if (!out) return;
+        out << plantillas_.dump(2);
+    }
+    fs::rename(tmp, file, ec);
+}
+
+json RackManager::plantillas() const {
+    json out = json::array();
+    for (auto it = plantillas_.begin(); it != plantillas_.end(); ++it) {
+        const json& p = it.value();
+        const json& r = p.value("rack", json::object());
+        out.push_back(json{{"nombre", it.key()},
+                           {"modulos", r.contains("nodos") ? r["nodos"].size() : 0},
+                           {"paraTipo", p.value("paraTipo", std::string())}});
+    }
+    return out;
+}
+
+std::string RackManager::guardarPlantilla(const std::string& source, const std::string& nombre) {
+    if (nombre.empty()) return "la plantilla necesita un nombre";
+    AudioRack* r = rack(source, false);
+    if (r == nullptr) return "'" + source + "' no tiene rack que guardar";
+    // Se conserva el tipo predeterminado si la plantilla ya existia: guardar
+    // encima es actualizarla, no volverla a empezar.
+    const std::string tipo = plantillas_.contains(nombre)
+                                 ? plantillas_[nombre].value("paraTipo", std::string())
+                                 : std::string();
+    plantillas_[nombre] = json{{"rack", r->save()}, {"paraTipo", tipo}};
+    guardarPlantillas();
+    emit changed();
+    return {};
+}
+
+std::string RackManager::aplicarPlantilla(const std::string& nombre, const std::string& source) {
+    if (!plantillas_.contains(nombre)) return "no existe la plantilla '" + nombre + "'";
+    std::string err;
+    AudioRack* r = rack(source, true, &err);
+    if (r == nullptr) return err.empty() ? "no se pudo montar el rack" : err;
+    if (!r->load(plantillas_[nombre].value("rack", json::object()), &err))
+        return "la plantilla no se pudo aplicar: " + err;
+    markDirty();
+    emit changed();
+    return {};
+}
+
+std::string RackManager::borrarPlantilla(const std::string& nombre) {
+    if (!plantillas_.contains(nombre)) return "no existe la plantilla '" + nombre + "'";
+    plantillas_.erase(nombre);
+    guardarPlantillas();
+    emit changed();
+    return {};
+}
+
+std::string RackManager::plantillaPorDefecto(const std::string& nombre, const std::string& tipo) {
+    if (!plantillas_.contains(nombre)) return "no existe la plantilla '" + nombre + "'";
+    // Una sola por tipo: si no, cual toma una fuente nueva seria una moneda.
+    if (!tipo.empty()) {
+        for (auto it = plantillas_.begin(); it != plantillas_.end(); ++it)
+            if (it.key() != nombre && it.value().value("paraTipo", std::string()) == tipo)
+                it.value()["paraTipo"] = "";
+    }
+    plantillas_[nombre]["paraTipo"] = tipo;
+    guardarPlantillas();
+    emit changed();
+    return {};
+}
+
+std::string RackManager::plantillaDeTipo(const std::string& tipo) const {
+    if (tipo.empty()) return {};
+    for (auto it = plantillas_.begin(); it != plantillas_.end(); ++it)
+        if (it.value().value("paraTipo", std::string()) == tipo) return it.key();
+    return {};
+}
+
 void RackManager::markDirty() { saveTimer_.start(); }
 
 void RackManager::saveNow() {
@@ -487,6 +591,7 @@ void RackManager::saveNow() {
 }
 
 void RackManager::restore() {
+    cargarPlantillas();
     restoreMonitor();
     std::ifstream in(root_ / "Config" / "audio-racks.json", std::ios::binary);
     if (!in) return;

@@ -93,6 +93,54 @@ void McpService::registerAudioTools() {
     }
     {
         Tool t;
+        t.name = "audio_plantillas";
+        t.title = "Plantillas de rack";
+        t.category = "audio_rack";
+        t.description =
+            "Guarda el rack de una fuente con nombre, se lo aplica a otra, lo borra, o lo marca como "
+            "predeterminado de un tipo de fuente. Sin argumentos, lista las que hay.";
+        t.details =
+            "Un rack armado a mano (compuerta, compresor, de-esser, sus parametros y sus cables) es media "
+            "hora de trabajo. Guardarlo con nombre permite ponerselo a otra fuente en un clic.\n\n"
+            "Lo que mas sirve es `porDefecto`: marcada para un tipo de fuente (`ba_guest_audio` son los "
+            "invitados), las fuentes NUEVAS de ese tipo la toman solas al crearse. O sea que un invitado "
+            "que se conecta ya suena bien sin que nadie le arme nada mientras el evento empieza. Una sola "
+            "por tipo: si marcas otra, la anterior se desmarca.\n\n"
+            "`aplicar` REEMPLAZA el rack que la fuente tenga: lo que habia se pierde. Si el operador "
+            "armo algo a mano ahi, guardalo antes con `guardar`.\n\n"
+            "Viven en Config/audio-plantillas.json, asi que viajan con la carpeta portable.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"guardar", {{"type", "string"}, {"description", "Nombre con el que guardar el rack de `source`."}}},
+              {"aplicar", {{"type", "string"}, {"description", "Plantilla a ponerle a `source`."}}},
+              {"borrar", {{"type", "string"}}},
+              {"porDefecto", {{"type", "string"}, {"description", "Plantilla a marcar."}}},
+              {"paraTipo",
+               {{"type", "string"},
+                {"description", "Tipo de fuente de libobs para `porDefecto` (vacio = desmarcar)."}}},
+              {"source", {{"type", "string"}, {"description", "La fuente, para guardar o aplicar."}}}}}};
+        t.run = [mgr](const json& a, Done done) {
+            const std::string src = a.value("source", std::string());
+            std::string err;
+            if (a.contains("guardar")) {
+                if (src.empty()) return done(ToolResult::error("Falta `source`: de que fuente guardar el rack."));
+                err = mgr()->guardarPlantilla(src, a["guardar"]);
+            } else if (a.contains("aplicar")) {
+                if (src.empty()) return done(ToolResult::error("Falta `source`: a que fuente aplicarsela."));
+                err = mgr()->aplicarPlantilla(a["aplicar"], src);
+            } else if (a.contains("borrar")) {
+                err = mgr()->borrarPlantilla(a["borrar"]);
+            } else if (a.contains("porDefecto")) {
+                err = mgr()->plantillaPorDefecto(a["porDefecto"], a.value("paraTipo", std::string()));
+            }
+            if (!err.empty()) return done(ToolResult::error(err));
+            done(ToolResult().data(json{{"plantillas", mgr()->plantillas()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "audio_rack";
         t.title = "Rack de una fuente";
         t.category = "audio_rack";
