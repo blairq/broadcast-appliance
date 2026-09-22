@@ -32,6 +32,7 @@
 #include "ui/EventoViewModel.hpp"
 #include "graficos/Emisor.hpp"
 #include "ui/GraficoViewModel.hpp"
+#include "ui/RotuladorViewModel.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/DashboardModel.hpp"
 #include "ui/FacebookViewModel.hpp"
@@ -86,6 +87,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     evento_ = std::make_unique<EventoViewModel>(rt, conference_.get(), emisor_.get());
     connect(evento_.get(), &EventoViewModel::notify, this, &StudioViewModel::notify);
     grafico_ = std::make_unique<GraficoViewModel>(rt, *emisor_);
+    // El rotulador mira la escena que está al aire, así que la sigue.
+    rotulador_ = std::make_unique<RotuladorViewModel>(rt, *emisor_);
+    connect(rotulador_.get(), &RotuladorViewModel::notify, this, &StudioViewModel::notify);
+    connect(this, &StudioViewModel::sceneChanged, rotulador_.get(), &RotuladorViewModel::refrescar);
     connect(grafico_.get(), &GraficoViewModel::notify, this, &StudioViewModel::notify);
     // HTTPS propio (plataformas): raices de certificados del bundle primero.
     net::HttpsClient::setDefaultCaSearch(
@@ -410,6 +415,7 @@ QObject* StudioViewModel::inputs() const { return inputs_.get(); }
 QObject* StudioViewModel::conference() const { return conference_.get(); }
 QObject* StudioViewModel::evento() const { return evento_.get(); }
 QObject* StudioViewModel::grafico() const { return grafico_.get(); }
+QObject* StudioViewModel::rotulador() const { return rotulador_.get(); }
 
 void StudioViewModel::toggleRecording() {
     if (recording_) {

@@ -97,7 +97,11 @@ void McpService::registerGraficoTools() {
             "descripción declarativa adentro de ese mismo archivo, o bien un `grafico.qml` escrito a "
             "mano.\n\n"
             "Antes de inventar uno nuevo, mirá si alguno de estos sirve cambiándole los parámetros: "
-            "casi siempre alcanza.";
+            "casi siempre alcanza.\n\n"
+            "`acciones` son los botones de pedido ya escrito que ese gráfico le ofrece al operador en "
+            "la pantalla de Rótulos. Cuando te llegue uno de esos pedidos vas a recibirlo con el "
+            "contexto puesto (escena, fuente y gráfico). Si un gráfico no tiene ninguno, proponelos: "
+            "se escriben en su `grafico.json` y estan explicados en docs/GRAFICOS.md.";
         t.run = [&rt, proc](const json&, Done done) {
             json out = json::array();
             for (const QString& base : carpetas(rt)) {
@@ -116,6 +120,13 @@ void McpService::registerGraficoTools() {
                                               {"ayuda", p.value("ayuda").toString().toStdString()}});
                     }
                     g["parametros"] = params;
+                    json acts = json::array();
+                    for (const QJsonValue& v : f.value("acciones").toArray()) {
+                        const QJsonObject a = v.toObject();
+                        acts.push_back(json{{"titulo", a.value("titulo").toString().toStdString()},
+                                            {"prompt", a.value("prompt").toString().toStdString()}});
+                    }
+                    g["acciones"] = acts;
                     out.push_back(g);
                 }
             }

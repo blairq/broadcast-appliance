@@ -37,6 +37,7 @@ class AppRuntime;
 class ConferenceViewModel;
 class EventoViewModel;
 class GraficoViewModel;
+class RotuladorViewModel;
 namespace graficos { class Emisor; }
 class YouTubeViewModel;
 class TwitchViewModel;
@@ -97,6 +98,7 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* conference READ conference CONSTANT)
     Q_PROPERTY(QObject* evento READ evento CONSTANT)
     Q_PROPERTY(QObject* grafico READ grafico CONSTANT)
+    Q_PROPERTY(QObject* rotulador READ rotulador CONSTANT)
     Q_PROPERTY(QObject* youtube READ youtube CONSTANT)
     Q_PROPERTY(QObject* twitch READ twitch CONSTANT)
     Q_PROPERTY(QObject* facebook READ facebook CONSTANT)
@@ -148,6 +150,7 @@ class StudioViewModel : public QObject {
     QObject* conference() const;
     QObject* evento() const;
     QObject* grafico() const;
+    QObject* rotulador() const;
     QObject* youtube() const;
     QObject* twitch() const;
     QObject* facebook() const;
@@ -226,6 +229,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<EventoViewModel> evento_;
     std::unique_ptr<graficos::Emisor> emisor_;
     std::unique_ptr<GraficoViewModel> grafico_;
+    std::unique_ptr<RotuladorViewModel> rotulador_;
 #if defined(BA_HAVE_CLAP)
     std::unique_ptr<audio::RackManager> racks_;
     std::unique_ptr<audio::AudioViewModel> audio_;

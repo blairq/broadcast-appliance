@@ -354,6 +354,63 @@ Rectangle {
                                 height: 1
                                 color: Theme.glassBorder
                             }
+                            // Los botones que este gráfico le va a ofrecer al
+                            // operador en la pantalla de Rótulos. Se diseñan
+                            // ACÁ, mientras se diseña la animación, que es
+                            // cuando se sabe para qué sirve cada parámetro.
+                            Text {
+                                text: "Botones que ofrece"
+                                color: Theme.textDim
+                                font { pixelSize: 11; weight: Font.DemiBold }
+                            }
+                            Text {
+                                visible: page.g.acciones.length === 0
+                                Layout.fillWidth: true
+                                wrapMode: Text.WordWrap
+                                text: "Todavía no ofrece ninguno. Un botón es un pedido ya escrito " +
+                                      "(«poné al orador que sigue») que el operador aprieta sin tener " +
+                                      "que explicarle nada al asistente."
+                                color: Theme.textFaint
+                                font.pixelSize: 11
+                            }
+                            Repeater {
+                                model: page.g.acciones
+                                delegate: ColumnLayout {
+                                    required property var modelData
+                                    Layout.fillWidth: true
+                                    spacing: 0
+                                    Text {
+                                        text: modelData.icono + "  " + modelData.titulo
+                                        color: Theme.text
+                                        font.pixelSize: 12
+                                    }
+                                    Text {
+                                        Layout.fillWidth: true
+                                        wrapMode: Text.WordWrap
+                                        text: modelData.prompt
+                                        color: Theme.textFaint
+                                        font.pixelSize: 10
+                                    }
+                                }
+                            }
+                            GlassButton {
+                                text: page.g.acciones.length === 0 ? "Proponer botones" : "Revisar los botones"
+                                compact: true
+                                enabled: pedir.ag.running
+                                onClicked: pedir.mandar(
+                                    "Proponé los botones («acciones») de este gráfico y escribilos en su " +
+                                    "grafico.json: cada uno con «titulo» corto, «icono» de un carácter y " +
+                                    "«prompt» redactado como se lo pediría el operador en vivo. Mirá qué " +
+                                    "parámetros tiene para saber qué le van a querer cambiar, y no pongas " +
+                                    "más de cuatro.")
+                            }
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.topMargin: 6
+                                height: 1
+                                color: Theme.glassBorder
+                            }
                             Text {
                                 text: "Ponerlo en una escena"
                                 color: Theme.textDim

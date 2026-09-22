@@ -55,6 +55,35 @@ que necesita en vez de inventar cómo se le pasan las cosas.
 
 ---
 
+## Los botones que ofrece (`acciones`)
+
+Un gráfico puede traer, en su `grafico.json`, una lista de **pedidos ya
+escritos**:
+
+```json
+"acciones": [
+  { "icono": "◉", "titulo": "El que está hablando",
+    "prompt": "Poné en este zócalo el nombre y el cargo del invitado que está al aire ahora…" }
+]
+```
+
+Cada uno aparece como un botón en la pantalla de **Rótulos**, junto a la fuente
+que muestra ese gráfico, y al apretarlo se le manda ese texto al asistente con
+el contexto puesto (qué escena, qué fuente, qué gráfico). En vivo, eso es la
+diferencia entre apretar un botón y tener que escribirle un párrafo.
+
+- Se escriben **mientras se diseña el gráfico**, que es cuando se sabe para qué
+  sirve cada parámetro. El editor lo pide ahí mismo («Proponer botones»).
+- El `prompt` va redactado **como lo diría el operador**, no como una orden a
+  una máquina: el que lo va a leer es el asistente.
+- **No más de cuatro.** Una fila de botones que no entra en la tarjeta no la
+  mira nadie.
+- Un botón que necesita datos de otro lado (el guion, la sala, el chat) tiene
+  que **decir de dónde sacarlos**: «mirá el guion y buscá el cue de orador que
+  está corriendo» funciona; «poné al que habla» deja al asistente adivinando.
+
+---
+
 ## La transparencia
 
 - El fondo es transparente: el gráfico se compone **sobre el video**. No pintes

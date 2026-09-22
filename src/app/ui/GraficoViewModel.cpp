@@ -96,6 +96,17 @@ QString GraficoViewModel::fuente() const { return d_->fuente; }
 bool GraficoViewModel::declarativo() const { return d_->esDeclarativo(); }
 bool GraficoViewModel::sucio() const { return d_->fuente != d_->fuenteEnDisco; }
 QVariantMap GraficoViewModel::valores() const { return d_->valores.toVariantMap(); }
+QVariantList GraficoViewModel::acciones() const {
+    QVariantList out;
+    for (const QJsonValue& v : d_->ficha.value("acciones").toArray()) {
+        const QJsonObject a = v.toObject();
+        out.append(QVariantMap{{"titulo", a.value("titulo").toString()},
+                               {"prompt", a.value("prompt").toString()},
+                               {"icono", a.value("icono").toString("✦")}});
+    }
+    return out;
+}
+
 QString GraficoViewModel::error() const { return d_->error; }
 int GraficoViewModel::duracionMs() const { return d_->duracionMs; }
 int GraficoViewModel::momentoMs() const { return d_->momentoMs; }
