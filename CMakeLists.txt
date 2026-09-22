@@ -234,6 +234,7 @@ else()
     add_subdirectory(src/gateway)
 endif()
 add_subdirectory(src/app)
+add_subdirectory(src/grafico)
 add_subdirectory(src/obs-module)
 
 # --- Reglas de instalación (layout 5.1) -------------------------------------

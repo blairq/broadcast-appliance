@@ -1,0 +1,75 @@
+// ============================================================================
+// src/grafico/Renderizador.hpp — dibuja un gráfico QML fuera de pantalla
+//
+// Carga un archivo QML, le pone los parámetros que le manden, adelanta el
+// reloj de las animaciones hasta el instante pedido y devuelve la imagen, con
+// transparencia, lista para componer sobre el video.
+//
+// TRANSPARENCIA. El gráfico se va a componer sobre el programa, así que el
+// fondo es transparente y el suavizado del texto tiene que ser en escala de
+// grises, no subpíxel: con subpíxel las letras salen con flecos de color en
+// cuanto hay algo detrás que no es el gris que el sistema supuso.
+//
+// CADA CUADRO ARRANCA DE CERO. Para el instante `t` se carga el gráfico de
+// nuevo y se avanza el reloj de una. Es más caro que dejarlo corriendo, pero
+// garantiza que pedir 0, 400 y 200 ms en ese orden dé exactamente lo mismo que
+// pedirlos ordenados — que es lo que hace que la vista previa sirva.
+// ============================================================================
+#pragma once
+
+#include <memory>
+#include <string>
+
+#include <QImage>
+#include <QJsonObject>
+#include <QSize>
+#include <QString>
+
+QT_BEGIN_NAMESPACE
+class QQmlEngine;
+class QQuickRenderControl;
+class QQuickWindow;
+QT_END_NAMESPACE
+
+namespace ba::grafico {
+
+class RelojAnimaciones;
+
+class Renderizador {
+  public:
+    Renderizador();
+    ~Renderizador();
+
+    Renderizador(const Renderizador&) = delete;
+    Renderizador& operator=(const Renderizador&) = delete;
+
+    /// Lo que salió de dibujar. `error` vacío = salió bien.
+    struct Resultado {
+        QImage imagen;
+        QString error;
+        /// Avisos que no impiden dibujar, pero que conviene arreglar (el
+        /// típico: importar un módulo que en este Qt no existe).
+        QStringList avisos;
+    };
+
+    /// Dibuja el gráfico en el instante `ms` de su animación.
+    ///
+    /// :param qml: ruta del archivo .qml.
+    /// :param parametros: se asignan como propiedades del objeto raíz. Una
+    ///        propiedad que el gráfico no declara es un ERROR, no un silencio:
+    ///        casi siempre es un nombre mal escrito, y descubrirlo al aire es
+    ///        tarde.
+    /// :param tam: tamaño del lienzo.
+    /// :param ms: instante de la animación.
+    Resultado dibujar(const QString& qml, const QJsonObject& parametros, QSize tam, int ms);
+
+    /// Solo carga el gráfico y devuelve los errores, sin dibujar. Es lo que
+    /// corre antes de dejar que un gráfico llegue a una escena.
+    Resultado validar(const QString& qml, const QJsonObject& parametros);
+
+  private:
+    struct Impl;
+    std::unique_ptr<Impl> d_;
+};
+
+} // namespace ba::grafico
