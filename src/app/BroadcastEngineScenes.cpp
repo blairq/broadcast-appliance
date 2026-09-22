@@ -792,6 +792,25 @@ bool BroadcastEngine::setSourceVolume(const std::string& name, float mul) {
     return true;
 }
 
+bool BroadcastEngine::setSourceSyncOffset(const std::string& name, int ms) {
+    auto* src = reinterpret_cast<obs_source_t*>(ownedSource(name));
+    if (src == nullptr) {
+        setError("no existe la fuente '" + name + "'");
+        return false;
+    }
+    // libobs lo quiere en NANOSEGUNDOS y con signo. Se acota a +-5 s: mas que
+    // eso no es una camara con retardo, es un error de quien lo puso.
+    const int64_t acotado = std::clamp(ms, -5000, 5000);
+    obs_source_set_sync_offset(src, acotado * 1000000LL);
+    return true;
+}
+
+int BroadcastEngine::sourceSyncOffset(const std::string& name) const {
+    auto* src = reinterpret_cast<obs_source_t*>(ownedSource(name));
+    if (src == nullptr) return 0;
+    return static_cast<int>(obs_source_get_sync_offset(src) / 1000000LL);
+}
+
 bool BroadcastEngine::playMedia(const std::string& name, const std::string& file, bool loop,
                                 float volume) {
     if (file.empty()) {

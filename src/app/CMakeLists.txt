@@ -349,6 +349,13 @@ if(BA_APP_QT_OK)
     target_link_libraries(test_evento PRIVATE nlohmann_json::nlohmann_json)
     add_test(NAME test_evento COMMAND test_evento)
 
+    # Medir el retardo entre labios y voz con un aplauso. C++ puro: recibe
+    # mediciones ya hechas y devuelve el numero, asi se prueba con señales
+    # inventadas sin pararse a aplaudir frente a una camara.
+    add_executable(test_sincro_labios tests/test_sincro_labios.cpp camaras/SincroLabios.cpp)
+    target_include_directories(test_sincro_labios PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    add_test(NAME test_sincro_labios COMMAND test_sincro_labios)
+
     # La carpeta del evento: crear, guardar con respaldo, listar.
     add_executable(test_evento_store tests/test_evento_store.cpp evento/EventoStore.cpp evento/Evento.cpp)
     target_include_directories(test_evento_store PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

@@ -1113,6 +1113,46 @@ void McpService::registerTools() {
         core_.addTool(std::move(t));
     }
 
+    {
+        Tool t;
+        t.name = "audio_sincro";
+        t.title = "Sincronizar labios y voz";
+        t.category = "audio";
+        t.description =
+            "Atrasa el audio de una fuente para que coincida con su video. Sin `ms`, dice el retardo que "
+            "tiene puesto.";
+        t.details =
+            "Para que sirve: una camara IP llega con 200 ms a 2 s de retardo (codificacion + red + "
+            "buffer), mientras que un microfono por la placa de audio llega casi al instante. Se escucha "
+            "antes de ver los labios, y eso se nota muchisimo.\n\n"
+            "`ms` positivo ATRASA el audio (lo normal con una camara IP); negativo lo adelanta, que sirve "
+            "cuando el audio llega despues que el video. Se acota a +-5 s: mas que eso no es una camara "
+            "con retardo, es un error.\n\n"
+            "Como encontrar el numero: poner un valor, mirar con `capture_program` a alguien hablando y "
+            "corregir. El ojo humano es el juez. Un metodo mas fino -medirlo con un aplauso- esta "
+            "escrito pero todavia no conectado a las fuentes.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"name", {{"type", "string"}}},
+                           {"ms", {{"type", "integer"}, {"minimum", -5000}, {"maximum", 5000}}}}},
+                         {"required", {"name"}}};
+        t.run = [&rt, persist](const json& a, Done done) {
+            const std::string n = a["name"];
+            if (!a.contains("ms")) {
+                if (rt.engine().sourceNames().empty())
+                    return done(ToolResult::error("El motor todavia no tiene fuentes."));
+                return done(ToolResult().data(
+                    json{{"name", n}, {"ms", rt.engine().sourceSyncOffset(n)}}));
+            }
+            if (!rt.engine().setSourceSyncOffset(n, a["ms"].get<int>()))
+                return done(ToolResult::error(rt.engine().lastError()));
+            persist();
+            done(ToolResult::ok("El audio de '" + n + "' va " + std::to_string(a["ms"].get<int>()) +
+                                " ms respecto del video."));
+        };
+        core_.addTool(std::move(t));
+    }
+
     // --- Salidas -------------------------------------------------------------------
     {
         Tool t;

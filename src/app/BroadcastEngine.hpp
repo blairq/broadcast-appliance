@@ -325,6 +325,18 @@ class BroadcastEngine {
     /// Pico mas reciente de la fuente en dBFS (-100 = silencio).
     float sourcePeakDb(const std::string& name) const;
 
+    /// Atrasa el audio de una fuente para que coincida con su video.
+    ///
+    /// Es lo que hace falta con una camara IP: el video llega 200 ms a 2 s
+    /// tarde y el microfono por la placa llega casi al instante, asi que se
+    /// escucha antes de ver los labios. `ms` positivo atrasa el audio; negativo
+    /// lo adelanta (sirve cuando el audio llega DESPUES que el video).
+    ///
+    /// El valor lo puede medir el sistema solo con el metodo del aplauso (ver
+    /// camaras/SincroLabios.hpp), o ponerlo el operador a ojo.
+    bool setSourceSyncOffset(const std::string& name, int ms);
+    int sourceSyncOffset(const std::string& name) const;
+
     // --- Medios (videos/musica que se reproducen) -------------------------------
     struct MediaInfo {
         std::string name;
