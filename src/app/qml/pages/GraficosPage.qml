@@ -23,6 +23,7 @@ Rectangle {
 
     ColumnLayout {
         anchors { fill: parent; leftMargin: page.leftInset; margins: 20 }
+        anchors.bottomMargin: pedir.visible ? 20 + pedir.height + 14 : 20
         spacing: 14
 
         // --- Sin motor -------------------------------------------------------
@@ -397,6 +398,84 @@ Rectangle {
                     }
                 }
             }
+        }
+    }
+
+    // --- Pedirle al asistente ---------------------------------------------
+    // No es otro chat: es la MISMA sesión del Asistente, con el contexto del
+    // gráfico que está abierto ya puesto. La respuesta aparece en la pestaña
+    // Asistente, así que el botón de al lado la saca a otra ventana y podés
+    // tener las dos a la vez.
+    Panel {
+        id: pedir
+        visible: page.g.disponible && page.g.abierto !== ""
+        anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+        anchors { leftMargin: page.leftInset + 20; rightMargin: 20; bottomMargin: 20 }
+        height: 96
+        readonly property var ag: Studio.agent
+
+        ColumnLayout {
+            anchors { fill: parent; margins: 2 }
+            spacing: 6
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                TextField {
+                    id: pedido
+                    Layout.fillWidth: true
+                    enabled: pedir.ag.running
+                    placeholderText: pedir.ag.running
+                        ? "Pedile un cambio al asistente sobre « " + page.g.abierto + " »…"
+                        : "El asistente no está corriendo (pestaña Asistente)"
+                    color: Theme.text
+                    font.pixelSize: 13
+                    onAccepted: pedir.mandar(text)
+                }
+                GlassButton {
+                    text: "Pedir"; compact: true
+                    enabled: pedir.ag.running && pedido.text.trim() !== ""
+                    onClicked: pedir.mandar(pedido.text)
+                }
+                GlassButton {
+                    icon: "⧉"; compact: true
+                    onClicked: ApplicationWindow.window.sacarAVentana(7, "Asistente")
+                    ToolTip.visible: hovered
+                    ToolTip.text: "Abrir el Asistente en otra ventana para ver lo que contesta"
+                }
+            }
+
+            Flow {
+                Layout.fillWidth: true
+                spacing: 6
+                Repeater {
+                    model: [
+                        { t: "Que entre más rápido", p: "hacé que entre más rápido, alrededor de 300 ms" },
+                        { t: "Más chico", p: "achicá el zócalo un 20 % sin que el texto quede apretado" },
+                        { t: "Que se vaya solo", p: "que se vaya solo a los 6 segundos" },
+                        { t: "Probá un nombre largo", p: "probalo con un nombre bien largo y fijate si se sale de la caja" }
+                    ]
+                    delegate: GlassButton {
+                        required property var modelData
+                        compact: true
+                        text: modelData.t
+                        enabled: pedir.ag.running
+                        onClicked: pedir.mandar(modelData.p)
+                    }
+                }
+            }
+        }
+
+        /// Manda el pedido con el contexto puesto: sin esto el asistente no
+        /// sabe sobre cuál de todos los gráficos le están hablando.
+        function mandar(texto) {
+            const t = texto.trim()
+            if (t === "" || !ag.running) return
+            const tipo = page.g.declarativo ? "declarativo (se edita su descripción en grafico.json)"
+                                            : "escrito en QML a mano"
+            ag.send("Estoy editando el gráfico «" + page.g.abierto + "», que es " + tipo + ". " + t +
+                    " Cuando lo cambies, mirálo con grafico_probar antes de darlo por bueno.")
+            pedido.text = ""
         }
     }
 
