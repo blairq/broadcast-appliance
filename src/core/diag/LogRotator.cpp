@@ -137,7 +137,11 @@ void LogRotator::write(const std::string& line) {
             rotate();
         }
 
-        std::ofstream out(activePath_, std::ios::app | std::ios::binary);
+        // `std::filesystem::path` y no `std::string`: en Windows el
+        // constructor narrow de ofstream usa la pagina de codigos del sistema,
+        // asi que una ruta con acentos no se abre y el log se pierde entero,
+        // en silencio. El overload de path usa la API ancha.
+        std::ofstream out(std::filesystem::path(activePath_), std::ios::app | std::ios::binary);
         if (!out) {
             return; // no se pudo abrir: se descarta la linea
         }

@@ -47,15 +47,22 @@
 #include <cstdio>
 #include <cstdlib> // std::getenv (inyeccion de secretos por entorno)
 #include <cstring>
-#include <dirent.h>
 #include <filesystem>
 #include <fstream>
 #include <map>
 #include <sstream>
 #include <string>
-#include <sys/resource.h>
 #include <thread>
 #include <vector>
+
+// Diagnostico del proceso, que es lo unico especifico del sistema que hay en
+// este archivo: el uso de CPU y memoria (getrusage) y el hilo mas cargado
+// (/proc/self/task). En Windows eso lo dan GetProcessTimes y
+// GetProcessMemoryInfo, mas abajo, y el detalle por hilo directamente no esta.
+#if !defined(_WIN32)
+#include <dirent.h>
+#include <sys/resource.h>
+#endif
 
 // ba_core (frozen headers).
 #include "ipc/ControlService.hpp"
@@ -85,6 +92,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <winsock2.h> // getaddrinfo / inet_ntop (LEAN_AND_MEAN: windows.h no trae winsock.h)
+#include <psapi.h>    // PROCESS_MEMORY_COUNTERS (la K32* vive en kernel32)
 #include <ws2tcpip.h>
 #else
 #include <arpa/inet.h>
@@ -260,15 +268,22 @@ nlohmann::json processUsage(const WebrtcHub* hub) {
     double cpuSec = 0;
     double rssMb = 0;
 #if defined(_WIN32)
-    FILETIME c, e, k, u;
-    if (GetProcessTimes(GetCurrentProcess(), &c, &e, &k, &u)) {
+    // Nombres largos a proposito: los cortos (c, e, k, u) tapaban el `u` del
+    // JSON que se arma mas abajo en esta misma funcion, y el compilador de
+    // Windows se quedaba en «redefinition of 'u' with a different type». Con
+    // este archivo compilando solo en Linux, eso no lo veia nadie.
+    FILETIME ftCreacion, ftSalida, ftKernel, ftUsuario;
+    if (GetProcessTimes(GetCurrentProcess(), &ftCreacion, &ftSalida, &ftKernel, &ftUsuario)) {
         const auto to100ns = [](const FILETIME& f) {
             return (static_cast<unsigned long long>(f.dwHighDateTime) << 32) | f.dwLowDateTime;
         };
-        cpuSec = static_cast<double>(to100ns(k) + to100ns(u)) / 1e7;
+        cpuSec = static_cast<double>(to100ns(ftKernel) + to100ns(ftUsuario)) / 1e7;
     }
+    // K32GetProcessMemoryInfo y no GetProcessMemoryInfo: la version K32 esta en
+    // kernel32, que ya se enlaza, y evita tener que arrastrar psapi.lib.
     PROCESS_MEMORY_COUNTERS pmc{};
-    if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc)))
+    pmc.cb = sizeof(pmc);
+    if (K32GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc)) != 0)
         rssMb = static_cast<double>(pmc.WorkingSetSize) / (1024.0 * 1024.0);
 #else
     rusage ru{};

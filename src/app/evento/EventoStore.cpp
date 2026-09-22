@@ -75,7 +75,10 @@ fs::path dentroDe(const fs::path& base, const std::string& sub, std::string rel)
     const fs::path abs = (dir / rel).lexically_normal();
     const fs::path raiz = dir.lexically_normal();
     const auto rel2 = abs.lexically_relative(raiz);
-    if (rel2.empty() || rel2.native().rfind("..", 0) == 0) return {};
+    // `generic_string()` y no `native()`: en Windows `native()` es un wstring
+    // y no se puede comparar con ".." literal, asi que el build cruzado no
+    // pasaba de aca. `generic_string` da std::string en las tres plataformas.
+    if (rel2.empty() || rel2.generic_string().rfind("..", 0) == 0) return {};
     return abs;
 }
 

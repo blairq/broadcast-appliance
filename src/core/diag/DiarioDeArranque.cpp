@@ -135,7 +135,15 @@ struct DiarioDeArranque::Impl {
         o << "]\n}\n";
         const std::string s = o.str();
 
-        std::FILE* f = std::fopen(archivo.string().c_str(), "wb");
+        // Por la ruta ANCHA en Windows: `archivo.string()` la pasa a la
+        // pagina de codigos del sistema y una carpeta con acentos
+        // (C:\Users\Jose...) deja de abrirse. `path::c_str()` ya es wchar_t
+        // ahi y char en el resto.
+#if defined(_WIN32)
+        std::FILE* f = _wfopen(archivo.c_str(), L"wb");
+#else
+        std::FILE* f = std::fopen(archivo.c_str(), "wb");
+#endif
         if (f == nullptr) return;
         std::fwrite(s.data(), 1, s.size(), f);
         std::fflush(f);
