@@ -30,7 +30,7 @@ namespace ba::app {
 
 class AppRuntime;
 class ConferenceViewModel;
-namespace graficos { class Emisor; }
+namespace graficos { class Emisor; class Vinculos; }
 
 class EventoViewModel : public QObject {
     Q_OBJECT
@@ -122,6 +122,8 @@ class EventoViewModel : public QObject {
     /// Cambia UN valor de los parametros de un cue de grafico, sin pisar los
     /// otros (que es lo que pasaria mandando `datos` entero).
     Q_INVOKABLE void setValorDeCue(int bloque, int cue, const QString& clave, const QVariant& valor);
+    /// Los vinculos se crean despues que el guion, asi que se enchufan aparte.
+    void setVinculos(graficos::Vinculos* v) { vinculos_ = v; }
 
     // --- Correr ---------------------------------------------------------------
     Q_INVOKABLE void arrancar();
@@ -206,6 +208,7 @@ class EventoViewModel : public QObject {
     AppRuntime& rt_;
     ConferenceViewModel* sala_ = nullptr;
     graficos::Emisor* graficos_ = nullptr;
+    graficos::Vinculos* vinculos_ = nullptr;
     evento::EventoStore store_;
     evento::Evento e_;
     std::unique_ptr<evento::Guion> guionCorriendo_;

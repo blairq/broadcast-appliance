@@ -70,6 +70,12 @@ Rectangle {
                 ToolTip.text: "Deja una marca acá, para encontrar este momento después"
             }
             GlassButton {
+                text: "Guardar"; icon: "↓"; compact: true
+                onClicked: page.r.exportar()
+                ToolTip.visible: hovered
+                ToolTip.text: "Guarda lo que estás viendo, ya filtrado, en Logs/"
+            }
+            GlassButton {
                 text: "Copiar"; icon: "⧉"; compact: true
                 onClicked: {
                     copiador.text = page.r.comoTexto()

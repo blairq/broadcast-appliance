@@ -143,6 +143,14 @@ void revision() {
     Cue gOk = cue(Tipo::Grafico, "cg4", 0, json{{"fuente", "Zócalo"}, {"grafico", "zocalo"}});
     CHECK(gOk.queLeFalta().empty(), "con fuente y grafico esta completo");
 
+    // Prender o apagar un rotulo automatico no necesita fuente ni grafico: el
+    // vinculo ya sabe donde se ve. Lo que necesita es decir CUAL.
+    Cue gv = cue(Tipo::Grafico, "cg5", 0, json{{"accion", "prender"}});
+    CHECK(gv.queLeFalta().find("vinculo") != std::string::npos,
+          "prender un vinculo sin decir cual no se puede");
+    Cue gvOk = cue(Tipo::Grafico, "cg6", 0, json{{"accion", "apagar"}, {"vinculo", "v1"}});
+    CHECK(gvOk.queLeFalta().empty(), "con el id del vinculo alcanza, sin fuente ni grafico");
+
     Cue sinFuente = cue(Tipo::Audio, "cb", 1, json{{"accion", "silenciar"}});
     CHECK(!sinFuente.queLeFalta().empty(), "silenciar necesita saber que fuente");
     Cue bien = cue(Tipo::Audio, "cc", 1, json{{"accion", "volumen"}, {"fuente", "Default"}});

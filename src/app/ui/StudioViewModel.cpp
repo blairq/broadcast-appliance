@@ -129,6 +129,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         *emisor_);
     vinculos_->setContexto([this]() { return contextoDeVinculos(); });
     rotulador_->setVinculos(vinculos_.get());
+    evento_->setVinculos(vinculos_.get());
 
     registro_ = std::make_unique<RegistroViewModel>(rt);
     connect(registro_.get(), &RegistroViewModel::notify, this, &StudioViewModel::notify);

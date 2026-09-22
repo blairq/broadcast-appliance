@@ -100,6 +100,10 @@ class RegistroViewModel : public QObject {
     /// Vuelve a prender algo que el diario había apagado. Tiene efecto en el
     /// próximo arranque: lo que no se cargó no se puede cargar a mitad de camino.
     Q_INVOKABLE void prender(const QString& id);
+    /// Guarda lo que se esta viendo —ya filtrado— en un archivo de texto al
+    /// lado de los registros, y devuelve la ruta. Para mandarlo por mail sin
+    /// tener que adjuntar cinco megabytes de log crudo.
+    Q_INVOKABLE QString exportar();
 
   signals:
     void cambio();

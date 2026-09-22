@@ -83,13 +83,21 @@ std::string Cue::queLeFalta() const {
             if (!tieneTexto(datos, "participante")) return "no dice quien habla";
             if (duracionSeg <= 0) return "no dice cuanto tiempo tiene para hablar";
             return {};
-        case Tipo::Grafico:
+        case Tipo::Grafico: {
+            const std::string accion = datos.value("accion", std::string("mostrar"));
+            // Prender o apagar un rotulo automatico no necesita fuente: el
+            // vinculo ya sabe en cual se ve.
+            if (accion == "prender" || accion == "apagar") {
+                if (!tieneTexto(datos, "vinculo")) return "no dice que vinculo prender o apagar";
+                return {};
+            }
             // La fuente hace falta siempre: es DONDE se ve. Un grafico sin
             // fuente no esta en ninguna escena y no lo ve nadie.
             if (!tieneTexto(datos, "fuente")) return "no dice en que fuente de escena se ve";
-            if (datos.value("accion", std::string("mostrar")) == "ocultar") return {};
+            if (accion == "ocultar") return {};
             if (!tieneTexto(datos, "grafico")) return "no dice que grafico sacar al aire";
             return {};
+        }
         case Tipo::Pantalla:
             if (!tieneTexto(datos, "pantalla")) return "no dice a que pantalla va";
             if (!tieneTexto(datos, "contenido")) return "no dice que mandarle";

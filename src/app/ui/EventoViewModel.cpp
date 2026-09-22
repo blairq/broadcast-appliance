@@ -16,6 +16,7 @@
 #include "AppRuntime.hpp"
 #include "graficos/Emisor.hpp"
 #include "graficos/GraficoSource.hpp"
+#include "graficos/Vinculos.hpp"
 #include "BroadcastEngine.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
@@ -933,6 +934,25 @@ void EventoViewModel::ejecutarActual() {
             // El gráfico sale en una FUENTE de escena, que el guion nombra. Si
             // esa fuente no está en ninguna escena, el gráfico no lo ve nadie:
             // se dice, en vez de dar el cue por hecho.
+            const std::string accion = c->datos.value("accion", std::string("mostrar"));
+            // Prender o apagar un rotulo que se mantiene solo: «durante las
+            // entrevistas, zocalo automatico; en el cierre, apagado».
+            if (accion == "prender" || accion == "apagar") {
+                if (vinculos_ == nullptr) {
+                    anotar("No hay motor de gráficos para los vínculos", "error");
+                    return;
+                }
+                const QString id = QString::fromStdString(c->datos.value("vinculo", std::string()));
+                if (!vinculos_->activar(id, accion == "prender")) {
+                    anotar("No existe el vínculo \"" + id + "\"", "error");
+                    emit notify("El cue no se pudo ejecutar: no existe el vínculo \"" + id + "\"",
+                                "error");
+                    return;
+                }
+                anotar((accion == "prender" ? "Prende el rótulo automático " : "Apaga el rótulo automático ") + id,
+                       "ok");
+                return;
+            }
             const QString fuente = QString::fromStdString(c->datos.value("fuente", std::string()));
             if (graficos_ == nullptr) {
                 anotar("No hay renderizador de gráficos en este bundle", "error");
@@ -946,7 +966,7 @@ void EventoViewModel::ejecutarActual() {
                             "error");
                 return;
             }
-            if (c->datos.value("accion", std::string("mostrar")) == "ocultar") {
+            if (accion == "ocultar") {
                 const QString err = graficos_->ocultar(id);
                 if (!err.isEmpty()) {
                     anotar("No se pudo sacar el gráfico: " + err, "error");

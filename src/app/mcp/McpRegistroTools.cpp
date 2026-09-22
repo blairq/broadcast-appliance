@@ -14,6 +14,9 @@
 #include "diag/LectorDeLogs.hpp"
 #include "diag/Registro.hpp"
 #include "mcp/McpService.hpp"
+#include "ui/ConferenceClient.hpp"
+#include "ui/ConferenceViewModel.hpp"
+#include "ui/StudioViewModel.hpp"
 #include "mcp/McpToolsCommon.hpp"
 
 namespace ba::app::mcp {
@@ -24,6 +27,7 @@ void McpService::registerRegistroTools() {
                       "registra.");
 
     AppRuntime& rt = rt_;
+    StudioViewModel& vm = vm_;
 
     {
         Tool t;
@@ -111,15 +115,40 @@ void McpService::registerRegistroTools() {
             "llena el disco y hace que lo importante se pierda entre miles de líneas.\n\n"
             "El cambio queda anotado en el propio registro, con quién lo hizo, para que mañana "
             "nadie se pregunte por qué el log está lleno de trazas.\n\n"
-            "Esto afecta solo al Proceso A. El gateway se controla por su propia variable de "
-            "entorno BA_LOG_NIVEL al arrancar.";
+            "`donde` elige el proceso: `app` (por defecto) o `gateway`. El del gateway tambien se "
+            "puede fijar al arrancar con la variable de entorno BA_LOG_NIVEL.";
         t.inputSchema = {
             {"type", "object"},
             {"properties",
              {{"nivel", {{"type", "string"},
                          {"enum", {"traza", "depuracion", "info", "aviso", "error", "fatal"}},
-                         {"description", "Ausente = solo informa el que hay."}}}}}};
-        t.run = [](const json& a, Done done) {
+                         {"description", "Ausente = solo informa el que hay."}}},
+              {"donde", {{"type", "string"}, {"enum", {"app", "gateway"}}, {"default", "app"}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            // El gateway es otro proceso: se le pide por su API de control.
+            if (a.value("donde", std::string("app")) == "gateway") {
+                auto* conf = static_cast<ConferenceViewModel*>(vm.conference());
+                if (conf == nullptr) return done(ToolResult::error("La sala no esta corriendo."));
+                if (!a.contains("nivel")) {
+                    conf->client().get("/api/v1/log-nivel", [done](bool ok, const QJsonObject& r) {
+                        if (!ok) return done(ToolResult::error("La sala no responde."));
+                        done(ToolResult().data(json{{"nivel", r.value("nivel").toString().toStdString()},
+                                                    {"donde", "gateway"}}));
+                    });
+                    return;
+                }
+                const std::string nivel = a["nivel"].get<std::string>();
+                conf->client().post("/api/v1/log-nivel",
+                                    QJsonObject{{"nivel", QString::fromStdString(nivel)}},
+                                    [done, nivel](bool ok, const QJsonObject& r) {
+                                        if (!ok || !r.value("ok").toBool())
+                                            return done(ToolResult::error(
+                                                "No se pudo cambiar el nivel del gateway."));
+                                        done(ToolResult::ok("El gateway ahora registra desde " +
+                                                            nivel + "."));
+                                    });
+                return;
+            }
             auto& reg = ba::diag::registro();
             if (!a.contains("nivel")) {
                 return done(ToolResult().data(json{{"nivel", ba::diag::nombreDeNivel(reg.nivel())}}));

@@ -73,6 +73,8 @@
 #include "ShareStore.hpp"
 #include "SignalingServer.hpp"
 
+#include "diag/Registro.hpp"
+
 namespace ba::gateway {
 
 using json = nlohmann::json;
@@ -476,6 +478,35 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         return;
     }
 
+    // El nivel de registro de B, en vivo. Sin esto solo se podia fijar al
+    // arrancar (BA_LOG_NIVEL), o sea que para ver mas detalle de algo que esta
+    // pasando AHORA habia que reiniciar el gateway y perder lo que se queria
+    // mirar.
+    if (path == "/api/v1/log-nivel") {
+        auto& reg = ba::diag::registro();
+        if (method == "GET") {
+            sendJson(fd, 200, json{{"nivel", ba::diag::nombreDeNivel(reg.nivel())},
+                                   {"descartadas", reg.descartadas()},
+                                   {"registradas", reg.cuenta()}});
+            return;
+        }
+        if (method == "POST") {
+            ba::diag::Nivel n{};
+            if (!req.contains("nivel") || !req["nivel"].is_string() ||
+                !ba::diag::nivelDeNombre(req["nivel"].get<std::string>(), n)) {
+                sendJson(fd, 400, json{{"ok", false}, {"error", "nivel desconocido"}});
+                return;
+            }
+            reg.setNivel(n);
+            // Queda anotado en el propio registro: si manana aparece un log
+            // lleno de trazas, tiene que decir quien lo puso asi.
+            reg.linea(ba::diag::Nivel::Info, "registro", 0,
+                      std::string("nivel cambiado a ") + ba::diag::nombreDeNivel(n) +
+                          " desde la API de control");
+            sendJson(fd, 200, json{{"ok", true}, {"nivel", ba::diag::nombreDeNivel(n)}});
+            return;
+        }
+    }
     if (path == "/api/v1/network" && method == "GET") {
         sendJson(fd, 200, networkStatus_ ? networkStatus_() : json::object());
         return;

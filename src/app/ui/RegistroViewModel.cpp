@@ -6,6 +6,8 @@
 #include <algorithm>
 
 #include <QDateTime>
+#include <QDir>
+#include <QFile>
 #include <QTimer>
 
 #include "AppRuntime.hpp"
@@ -154,6 +156,32 @@ void RegistroViewModel::prender(const QString& id) {
                                "«" + id.toStdString() + "» vuelve a cargarse en el próximo arranque");
     emit cambio();
     emit notify("«" + id + "» se va a cargar en el próximo arranque", "ok");
+}
+
+QString RegistroViewModel::exportar() {
+    const QString nombre =
+        "registro-" + QDateTime::currentDateTime().toString("yyyyMMdd-HHmmss") + ".txt";
+    const QString ruta = QDir(d_->carpeta()).filePath(nombre);
+    QFile f(ruta);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        emit notify("No se pudo escribir " + ruta, "error");
+        return {};
+    }
+    // Con el filtro adelante: quien lo reciba tiene que saber que esta mirando
+    // un recorte y cual.
+    QString cab = "# Registro exportado " +
+                  QDateTime::currentDateTime().toString("dd/MM/yyyy HH:mm:ss") + "\n";
+    cab += "# desde nivel: " + niveles().value(minimo(), "traza");
+    if (!modulo().isEmpty()) cab += "  modulo: " + modulo();
+    if (!busca().isEmpty()) cab += "  busca: " + busca();
+    cab += "  (" + QString::number(d_->lineas.size()) + " lineas)\n\n";
+    f.write(cab.toUtf8());
+    f.write(comoTexto().toUtf8());
+    f.close();
+    ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
+                               "registro exportado a " + nombre.toStdString());
+    emit notify("Registro guardado en Logs/" + nombre, "ok");
+    return ruta;
 }
 
 void RegistroViewModel::refrescar() {
