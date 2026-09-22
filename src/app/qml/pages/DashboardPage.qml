@@ -46,7 +46,15 @@ Item {
         Item { Layout.fillWidth: true }
         StatusPill { text: Studio.streaming ? "AL AIRE  " + Studio.streamTime : "FUERA DEL AIRE"; dot: Theme.live; on: Studio.streaming; pulse: true }
         StatusPill { text: Studio.recording ? "REC  " + Studio.recordTime : "REC"; dot: Theme.accent; on: Studio.recording; pulse: true }
-        StatusPill { text: "CPU " + Math.round(Studio.cpuPercent) + "%"; dot: Studio.cpuPercent > 80 ? Theme.live : Theme.ok }
+        // Se mide por «CPU 100%» y no por su propio texto: si no, al pasar de
+        // una cifra a dos se ensancha y encoge varias veces por segundo,
+        // moviendo todas las pildoras de al lado.
+        StatusPill {
+            text: "CPU " + Math.round(Studio.cpuPercent) + "%"
+            medidaDe: "CPU 100%"
+            pixelSize: 15
+            dot: Studio.cpuPercent > 80 ? Theme.live : Theme.ok
+        }
         Item { width: 8 }
         GlassButton {
             text: "Tarjeta"; icon: "+"
