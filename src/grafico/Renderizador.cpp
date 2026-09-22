@@ -180,6 +180,17 @@ Renderizador::Resultado Renderizador::validar(const QString& qml, const QJsonObj
 
 Renderizador::Resultado Renderizador::dibujar(const QString& qml, const QJsonObject& parametros,
                                               QSize tam, int ms) {
+    return dibujarComun(QUrl::fromLocalFile(qml), {}, parametros, tam, ms);
+}
+
+Renderizador::Resultado Renderizador::dibujarFuente(const QString& fuente,
+                                                    const QJsonObject& parametros, QSize tam, int ms,
+                                                    const QString& nombreParaErrores) {
+    return dibujarComun(QUrl(nombreParaErrores), fuente, parametros, tam, ms);
+}
+
+Renderizador::Resultado Renderizador::dibujarComun(const QUrl& url, const QString& fuente,
+                                                   const QJsonObject& parametros, QSize tam, int ms) {
     Resultado r;
     if (!d_->preparar(r.error)) return r;
 
@@ -190,7 +201,7 @@ Renderizador::Resultado Renderizador::dibujar(const QString& qml, const QJsonObj
     // por proceso.
     if (!d_->calentado) {
         d_->calentado = true;
-        dibujar(qml, parametros, tam, ms);
+        dibujarComun(url, fuente, parametros, tam, ms);
     }
 
     tam = tam.expandedTo(QSize(2, 2)).boundedTo(QSize(3840, 2160));
@@ -210,7 +221,11 @@ Renderizador::Resultado Renderizador::dibujar(const QString& qml, const QJsonObj
     // no hereda ni la caché de componentes ni el estado de la vez anterior.
     QQmlEngine motor;
     motor.setOutputWarningsToStandardError(false);
-    QQmlComponent componente(&motor, QUrl::fromLocalFile(qml));
+    QQmlComponent componente(&motor);
+    if (fuente.isEmpty())
+        componente.loadUrl(url);
+    else
+        componente.setData(fuente.toUtf8(), url);
     if (componente.isError()) {
         r.error = textoDeErrores(componente.errors());
         return r;

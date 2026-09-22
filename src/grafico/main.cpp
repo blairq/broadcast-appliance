@@ -39,6 +39,7 @@
 #include <QJsonObject>
 #include <QQuickWindow>
 
+#include "Declarativo.hpp"
 #include "Renderizador.hpp"
 
 namespace {
@@ -66,15 +67,40 @@ QJsonObject atender(Renderizador& r, const QJsonObject& pedido) {
     const QString op = pedido.value("op").toString();
     const QString qml = pedido.value("qml").toString();
     const QJsonObject par = pedido.value("parametros").toObject();
-    const QSize tam(pedido.value("ancho").toInt(900), pedido.value("alto").toInt(220));
+    QSize tam(pedido.value("ancho").toInt(900), pedido.value("alto").toInt(220));
+
+    if (op == "repertorio") return QJsonObject{{"ok", true}, {"repertorio", ba::grafico::repertorio()}};
+
+    // Un gráfico puede venir de tres lados: un archivo (`qml`), texto suelto
+    // (`fuente`, que usa el IDE mientras se edita) o una descripción
+    // declarativa (`declarativo`), que se traduce a QML acá mismo.
+    QString fuente = pedido.value("fuente").toString();
+    if (pedido.contains("declarativo")) {
+        const QJsonObject d = pedido.value("declarativo").toObject();
+        const ba::grafico::Traduccion tr = ba::grafico::traducir(d, par);
+        if (!tr.error.isEmpty()) return QJsonObject{{"ok", false}, {"error", tr.error}};
+        fuente = tr.qml;
+        // La descripción manda su propio tamaño salvo que se lo pisen.
+        if (!pedido.contains("ancho") && d.contains("ancho"))
+            tam.setWidth(d.value("ancho").toInt(900));
+        if (!pedido.contains("alto") && d.contains("alto"))
+            tam.setHeight(d.value("alto").toInt(220));
+    }
+    // El QML generado declara sus propios parámetros (ya vienen reemplazados
+    // en el texto), así que no se le pasan de nuevo.
+    const QJsonObject parReales = fuente.isEmpty() ? par : QJsonObject{};
+    const auto dibujar = [&](int ms) {
+        return fuente.isEmpty() ? r.dibujar(qml, par, tam, ms)
+                                : r.dibujarFuente(fuente, parReales, tam, ms);
+    };
 
     if (op == "validar") {
-        const Renderizador::Resultado res = r.validar(qml, par);
+        const Renderizador::Resultado res = dibujar(0);
         if (!res.error.isEmpty()) return QJsonObject{{"ok", false}, {"error", res.error}};
         return QJsonObject{{"ok", true}};
     }
     if (op == "dibujar") {
-        const Renderizador::Resultado res = r.dibujar(qml, par, tam, pedido.value("ms").toInt(0));
+        const Renderizador::Resultado res = dibujar(pedido.value("ms").toInt(0));
         if (!res.error.isEmpty()) return QJsonObject{{"ok", false}, {"error", res.error}};
         return QJsonObject{{"ok", true}, {"ms", pedido.value("ms").toInt(0)},
                            {"png", aBase64Png(res.imagen)}};
@@ -89,7 +115,7 @@ QJsonObject atender(Renderizador& r, const QJsonObject& pedido) {
             return QJsonObject{{"ok", false}, {"error", "hasta 12 momentos por tira"}};
         QJsonArray cuadros;
         for (const QJsonValue& m : momentos) {
-            const Renderizador::Resultado res = r.dibujar(qml, par, tam, m.toInt());
+            const Renderizador::Resultado res = dibujar(m.toInt());
             if (!res.error.isEmpty()) return QJsonObject{{"ok", false}, {"error", res.error}};
             cuadros.append(QJsonObject{{"ms", m.toInt()}, {"png", aBase64Png(res.imagen)}});
         }

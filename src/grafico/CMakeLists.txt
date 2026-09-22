@@ -35,6 +35,7 @@ endif()
 
 add_executable(ba-grafico
     main.cpp
+    Declarativo.cpp
     Renderizador.cpp
     # El header va en la lista a proposito: tiene un Q_OBJECT y no tiene .cpp
     # propio, asi que AUTOMOC no lo encontraria solo.

@@ -23,6 +23,7 @@
 #include <QImage>
 #include <QJsonObject>
 #include <QSize>
+#include <QUrl>
 #include <QString>
 
 QT_BEGIN_NAMESPACE
@@ -63,11 +64,22 @@ class Renderizador {
     /// :param ms: instante de la animación.
     Resultado dibujar(const QString& qml, const QJsonObject& parametros, QSize tam, int ms);
 
+    /// Igual, pero con el QML en texto en vez de en un archivo. Es lo que usa
+    /// el nivel declarativo (el QML se genera en el momento) y lo que va a
+    /// usar el IDE mientras se edita, sin escribir a disco en cada tecla.
+    Resultado dibujarFuente(const QString& fuente, const QJsonObject& parametros, QSize tam, int ms,
+                            const QString& nombreParaErrores = "grafico.qml");
+
     /// Solo carga el gráfico y devuelve los errores, sin dibujar. Es lo que
     /// corre antes de dejar que un gráfico llegue a una escena.
     Resultado validar(const QString& qml, const QJsonObject& parametros);
 
   private:
+    /// Los dos `dibujar` son el mismo camino: uno carga de archivo y el otro
+    /// de texto.
+    Resultado dibujarComun(const QUrl& url, const QString& fuente, const QJsonObject& parametros,
+                           QSize tam, int ms);
+
     struct Impl;
     std::unique_ptr<Impl> d_;
 };
