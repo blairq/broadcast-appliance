@@ -31,8 +31,6 @@ namespace {
 // Nombre fijo del archivo activo (spec §11.4: "Logs rotativos por proceso").
 constexpr const char* kActiveName = "ba.log";
 
-// Prefix de la linea rotada: "ba.log." + <indice>.
-constexpr const char* kRotatedPrefix = "ba.log.";
 
 // Formatea un timestamp UTC con milisegundos: AAAA-MM-DDTHH:MM:SS.mmmZ.
 // Usa system_clock (wall clock) porque el objetivo es correlacionar logs de
@@ -61,9 +59,11 @@ std::string timestampUtc() {
 
 // --- constructor ------------------------------------------------------------
 
-LogRotator::LogRotator(std::string dir, std::size_t maxBytes, std::size_t keepFiles)
+LogRotator::LogRotator(std::string dir, std::size_t maxBytes, std::size_t keepFiles,
+                       std::string nombre, bool conSelloDeTiempo)
     : dir_(std::move(dir)), maxBytes_(maxBytes > 0 ? maxBytes : 1),
-      keepFiles_(keepFiles > 0 ? keepFiles : 1) {
+      keepFiles_(keepFiles > 0 ? keepFiles : 1),
+      nombre_(nombre.empty() ? kActiveName : std::move(nombre)), conSello_(conSelloDeTiempo) {
     std::error_code ec;
     std::filesystem::create_directories(dir_, ec);
     if (ec) {
@@ -71,7 +71,7 @@ LogRotator::LogRotator(std::string dir, std::size_t maxBytes, std::size_t keepFi
         active_ = false;
         return;
     }
-    activePath_ = (std::filesystem::path(dir_) / kActiveName).string();
+    activePath_ = (std::filesystem::path(dir_) / nombre_).string();
     active_ = true;
 }
 
@@ -87,7 +87,9 @@ std::size_t LogRotator::activeSize() const {
 }
 
 std::string LogRotator::rotatedPath(std::size_t n) const {
-    return (std::filesystem::path(dir_) / (std::string(kRotatedPrefix) + std::to_string(n))).string();
+    // Los rotados son el nombre del activo mas el indice: app.log.1, app.log.2.
+    // Asi dos procesos que comparten Logs/ no se pisan las rotaciones.
+    return (std::filesystem::path(dir_) / (nombre_ + "." + std::to_string(n))).string();
 }
 
 // --- rotate -----------------------------------------------------------------
@@ -139,7 +141,8 @@ void LogRotator::write(const std::string& line) {
         if (!out) {
             return; // no se pudo abrir: se descarta la linea
         }
-        const std::string stamped = "[" + timestampUtc() + "] " + line + "\n";
+        const std::string stamped =
+            conSello_ ? "[" + timestampUtc() + "] " + line + "\n" : line + "\n";
         out.write(stamped.data(), static_cast<std::streamsize>(stamped.size()));
         // El destructor de `out` cierra y flusha; no se fuerza fsync (control,
         // no RT): un corte de energia puede perder las ultimas lineas, aceptable.

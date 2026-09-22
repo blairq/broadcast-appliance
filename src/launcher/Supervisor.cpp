@@ -246,7 +246,9 @@ bool Supervisor::startChild(bool isA) {
     // stdout/stderr y no tiene otro log. B ya deja sus lineas en Logs/ba.log,
     // pero lo que no pasa por su logger se perdia: libwebrtc, los asertos de
     // lwIP, un abort() o una biblioteca que no carga.
-    c.outputFile = cfg_.logsDir / (isA ? "app.log" : "gateway-salida.log");
+    // Un archivo por proceso, con el nombre del proceso: es lo que el visor
+    // usa para saber de donde salio cada linea.
+    c.outputFile = cfg_.logsDir / (isA ? "app.log" : "gateway.log");
     if (!child(isA).start(c)) {
         return false;
     }

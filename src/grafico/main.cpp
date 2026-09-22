@@ -42,6 +42,9 @@
 #include "Declarativo.hpp"
 #include "Renderizador.hpp"
 
+#include "diag/Registro.hpp"
+#include "platform/Paths.hpp"
+
 namespace {
 
 using ba::grafico::Renderizador;
@@ -135,6 +138,14 @@ int main(int argc, char** argv) {
     }
     QGuiApplication app(argc, argv);
 
+    // El registro: este proceso lo levanta la app por una tuberia, asi que su
+    // stderr no lo lee nadie. Sin archivo propio, un gráfico que revienta no
+    // deja rastro en ningun lado.
+    auto& reg = ba::diag::registro();
+    reg.setComponentePorDefecto("graficos");
+    reg.abrir(ba::platform::dataRoot() / "Logs", "graficos.log");
+    reg.info("renderizador de graficos listo");
+
     Renderizador renderizador;
     std::string linea;
     while (std::getline(std::cin, linea)) {
@@ -145,8 +156,18 @@ int main(int argc, char** argv) {
             responderError("no entendí el pedido: " + err.errorString());
             continue;
         }
-        if (doc.object().value("op").toString() == "salir") break;
-        responder(atender(renderizador, doc.object()));
+        const QJsonObject pedido = doc.object();
+        if (pedido.value("op").toString() == "salir") break;
+        const QJsonObject r = atender(renderizador, pedido);
+        // Lo que sale mal se registra SIEMPRE, aunque el que pidio ya reciba
+        // el error: en vivo, quien pide es la app y el error se muestra un
+        // segundo y se va.
+        if (!r.value("ok").toBool())
+            ba::diag::registro().error(
+                (pedido.value("op").toString() + ": " + r.value("error").toString()).toStdString());
+        else
+            ba::diag::registro().depuracion(pedido.value("op").toString().toStdString() + " ok");
+        responder(r);
     }
     return 0;
 }

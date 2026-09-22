@@ -33,6 +33,7 @@
 #include "graficos/Emisor.hpp"
 #include "graficos/Vinculos.hpp"
 #include "ui/GraficoViewModel.hpp"
+#include "ui/RegistroViewModel.hpp"
 #include "ui/RotuladorViewModel.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/DashboardModel.hpp"
@@ -101,6 +102,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                                                      *emisor_);
     vinculos_->setContexto([this]() { return contextoDeVinculos(); });
     rotulador_->setVinculos(vinculos_.get());
+
+    registro_ = std::make_unique<RegistroViewModel>(rt);
+    connect(registro_.get(), &RegistroViewModel::notify, this, &StudioViewModel::notify);
     connect(vinculos_.get(), &graficos::Vinculos::actuo, this,
             [this](const QString&, const QString& texto, bool error) {
                 if (error) emit notify("Un rótulo automático no salió: " + texto, "error");
@@ -430,6 +434,7 @@ QObject* StudioViewModel::conference() const { return conference_.get(); }
 QObject* StudioViewModel::evento() const { return evento_.get(); }
 QObject* StudioViewModel::grafico() const { return grafico_.get(); }
 QObject* StudioViewModel::rotulador() const { return rotulador_.get(); }
+QObject* StudioViewModel::registro() const { return registro_.get(); }
 
 QJsonObject StudioViewModel::contextoDeVinculos() const {
     QJsonObject ctx;

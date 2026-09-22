@@ -44,7 +44,9 @@ add_executable(ba-grafico
 set_target_properties(ba-grafico PROPERTIES AUTOMOC ON)
 target_include_directories(ba-grafico PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 find_package(Qt6 COMPONENTS OpenGL CONFIG PATHS "${_g_qt_prefix}" NO_DEFAULT_PATH QUIET)
-target_link_libraries(ba-grafico PRIVATE Qt6::Gui Qt6::OpenGL Qt6::Qml Qt6::Quick)
+# ba_core: el registro comun (diag/Registro). Un grafico roto tiene que dejar
+# rastro en Logs/ como cualquier otra cosa, no solo en un stderr que nadie lee.
+target_link_libraries(ba-grafico PRIVATE Qt6::Gui Qt6::OpenGL Qt6::Qml Qt6::Quick ba_core)
 
 # rpath $ORIGIN, igual que ba-app: el bundle es portable y NUNCA usa el Qt del
 # sistema. Sin esto, ba-grafico enlazaba contra el Qt de la maquina y en

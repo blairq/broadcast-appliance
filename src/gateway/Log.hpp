@@ -2,7 +2,11 @@
 // src/gateway/Log.hpp — Logger estructurado del Proceso B (componente "gateway")
 //
 // Proposito:
-//   Logger minimo y thread-safe para el gateway, en el mismo formato que el
+//   Es una CARA del registro comun (core/diag/Registro.hpp) con el componente
+//   "gateway" ya puesto: existe para que el gateway no tenga que nombrar su
+//   propio componente en cada linea, y para no tocar los cientos de llamadas
+//   que ya hay. El formato, los niveles, la rotacion y el anillo en memoria
+//   son los del registro comun, en el mismo formato que el
 //   resto del arbol (spec §3.3: "sin dialogos de sistema; todo el log va a
 //   stderr con el componente"). Formato: `nivel | gateway | codigo | contexto`.
 //   El gateway es headless (sin Qt), asi que stderr es el canal de log y el
@@ -25,7 +29,7 @@
 #include <mutex>
 #include <string>
 
-#include "diag/LogRotator.hpp"
+#include "diag/Registro.hpp"
 
 namespace ba::gateway {
 
@@ -48,10 +52,16 @@ class Log {
     /// :param dir: directorio de logs.
     /// :param maxBytes: tamaño del archivo activo antes de rotar.
     /// :param keepFiles: cuantos archivos rotados se conservan.
-    void openFile(const std::string& dir, std::size_t maxBytes = 2u * 1024u * 1024u,
+    void openFile(const std::string& dir, std::size_t maxBytes = 4u * 1024u * 1024u,
                   std::size_t keepFiles = 5) {
-        std::lock_guard<std::mutex> lock(m_);
-        rotator_ = std::make_unique<ba::diag::LogRotator>(dir, maxBytes, keepFiles);
+        auto& reg = ba::diag::registro();
+        reg.setComponentePorDefecto(kLogComponent);
+        // Si el launcher ya esta capturando stderr a Logs/gateway.log, ESA es
+        // la captura y no se abre otro archivo: si no, cada linea quedaria dos
+        // veces y habria dos escritores rotando el mismo archivo.
+        if (!reg.abrirSegunEntorno(dir, "gateway.log")) return;
+        (void)maxBytes;
+        (void)keepFiles;
     }
 
     /// Registra una linea de info (codigo 0).
@@ -75,21 +85,11 @@ class Log {
     }
 
    private:
-    mutable std::mutex m_;
-    // Rotador opcional: nulo hasta que alguien llame a openFile(). LogRotator
-    // tiene su propio lock, pero se escribe bajo `m_` igual para que la linea
-    // salga en el mismo orden en stderr y en el archivo.
-    std::unique_ptr<ba::diag::LogRotator> rotator_;
 
     void line(const char* level, int code, const std::string& ctx) const {
-        char buf[1200];
-        std::snprintf(buf, sizeof(buf), "%s | %s | %d | %s", level, kLogComponent, code, ctx.c_str());
-        std::lock_guard<std::mutex> lock(m_);
-        std::fprintf(stderr, "%s\n", buf);
-        std::fflush(stderr);
-        if (rotator_) {
-            rotator_->write(buf);
-        }
+        ba::diag::Nivel n = ba::diag::Nivel::Info;
+        ba::diag::nivelDeNombre(level, n);
+        ba::diag::registro().linea(n, kLogComponent, code, ctx);
     }
 };
 

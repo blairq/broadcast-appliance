@@ -38,6 +38,7 @@ class ConferenceViewModel;
 class EventoViewModel;
 class GraficoViewModel;
 class RotuladorViewModel;
+class RegistroViewModel;
 namespace graficos { class Emisor; class Vinculos; }
 class YouTubeViewModel;
 class TwitchViewModel;
@@ -99,6 +100,7 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* evento READ evento CONSTANT)
     Q_PROPERTY(QObject* grafico READ grafico CONSTANT)
     Q_PROPERTY(QObject* rotulador READ rotulador CONSTANT)
+    Q_PROPERTY(QObject* registro READ registro CONSTANT)
     Q_PROPERTY(QObject* youtube READ youtube CONSTANT)
     Q_PROPERTY(QObject* twitch READ twitch CONSTANT)
     Q_PROPERTY(QObject* facebook READ facebook CONSTANT)
@@ -151,6 +153,7 @@ class StudioViewModel : public QObject {
     QObject* evento() const;
     QObject* grafico() const;
     QObject* rotulador() const;
+    QObject* registro() const;
     /// De donde sacan sus valores los vinculos (ver graficos/Vinculos.hpp):
     /// la sala, el guion y la escena al aire, todo junto.
     QJsonObject contextoDeVinculos() const;
@@ -235,6 +238,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<GraficoViewModel> grafico_;
     std::unique_ptr<RotuladorViewModel> rotulador_;
     std::unique_ptr<graficos::Vinculos> vinculos_;
+    std::unique_ptr<RegistroViewModel> registro_;
 #if defined(BA_HAVE_CLAP)
     std::unique_ptr<audio::RackManager> racks_;
     std::unique_ptr<audio::AudioViewModel> audio_;

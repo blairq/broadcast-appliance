@@ -15,6 +15,7 @@
 // ============================================================================
 
 #include "OperatorEngine.hpp"
+#include "Registrar.hpp"
 #include "platform/Paths.hpp"
 #include "security/CredentialStore.hpp"
 
@@ -134,6 +135,9 @@ int dispatch(int argc, char** argv) {
 #endif
     // Portable: caches de Qt/fontconfig/shaders al bundle (antes de Qt y libobs).
     ba::platform::redirectUserDirs();
+    // El registro, ANTES que nada: lo primero que puede fallar es el arranque,
+    // y si el registro se abre despues, eso no queda escrito en ningun lado.
+    ba::app::registrarTodo(ba::platform::dataRoot());
     // Credenciales en claro de versiones anteriores -> Credenciales/ cifradas.
     ba::security::CredentialStore::bundle().importLegacy(ba::platform::dataRoot());
     // --restore (spec §3.1.8): el launcher lo pasa al relanzar A tras un crash.
