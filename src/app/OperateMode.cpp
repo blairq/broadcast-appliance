@@ -121,10 +121,19 @@ void applyCli(AppConfig& c, int argc, char** argv, const fs::path& root) {
     c.safeMode = hasFlag(argc, argv, "--safe-mode");
     if (c.safeMode) {
         // Modo seguro (circuit breaker del launcher): lo minimo que funciona.
+        //
+        // NO se le tocan las escenas a la configuracion. Antes se les vaciaban
+        // las fuentes ACA, en memoria, para arrancar sin ellas; el problema es
+        // que despues cualquier guardado escribia ESA configuracion vacia
+        // encima del app.json del operador y le borraba el trabajo de verdad.
+        // Paso: doce escenas con setenta y ocho fuentes quedaron en cero, y se
+        // recuperaron de la copia .antes-del-modo-seguro de milagro.
+        //
+        // Ahora la configuracion queda INTACTA y lo unico que cambia es que al
+        // armar las escenas no se crean las fuentes (ver `startEngine`). Asi el
+        // modo seguro es lo que tiene que ser: una forma de arrancar, no una
+        // forma de perder datos.
         c.encoder.videoEncoder = "x264";
-        for (auto& sc : c.scenes) {
-            sc.sources.clear();
-        }
     }
     if (c.guests < 0) {
         c.guests = 0;
@@ -307,6 +316,10 @@ int AppRuntime::start() {
     engine_.setTransition(cfg_.transition.type, cfg_.transition.durationMs);
     for (const auto& sc : cfg_.scenes) {
         engine_.createScene(sc.name);
+        // En modo seguro las escenas se crean VACIAS: si una fuente es la que
+        // venia tumbando el arranque, asi no se la toca. La configuracion no
+        // se modifica, o sea que al arrancar normal vuelven todas solas.
+        if (cfg_.safeMode) continue;
         for (const auto& src : sc.sources) {
             // Una fuente rota (camara desenchufada, id mal escrito) no tumba
             // el proceso: se avisa y la emision sigue con el resto.
@@ -854,18 +867,28 @@ bool AppRuntime::applyEncoder(const EncoderConfig& e) {
 
 bool AppRuntime::save() {
     std::string err;
-    // Modo seguro: las escenas se vaciaron EN MEMORIA para poder arrancar. El
-    // primer guardado pisaria el app.json del operador con escenas vacias: se
-    // guarda una copia antes (una sola vez por corrida).
-    if (cfg_.safeMode && !safeBackupDone_) {
-        safeBackupDone_ = true;
-        std::error_code ec;
-        std::filesystem::path backup = cfg_.configPath;
-        backup += ".antes-del-modo-seguro";
-        if (std::filesystem::exists(cfg_.configPath, ec) && !std::filesystem::exists(backup, ec)) {
-            std::filesystem::copy_file(cfg_.configPath, backup, ec);
-            std::printf("ba-app: modo seguro: copia de la configuracion en %s\n", backup.string().c_str());
+    // EN MODO SEGURO NO SE GUARDA. Es un estado degradado y transitorio: lo
+    // que haya en memoria vale para esta corrida y nada mas. Escribirlo seria
+    // hacer permanente una situacion de emergencia, y ya paso una vez
+    // (escenas vaciadas). La copia de seguridad se deja igual, por si alguien
+    // llega hasta aca con el app.json ya dañado de antes.
+    if (cfg_.safeMode) {
+        if (!safeBackupDone_) {
+            safeBackupDone_ = true;
+            std::error_code ec;
+            std::filesystem::path backup = cfg_.configPath;
+            backup += ".antes-del-modo-seguro";
+            if (std::filesystem::exists(cfg_.configPath, ec) &&
+                !std::filesystem::exists(backup, ec)) {
+                std::filesystem::copy_file(cfg_.configPath, backup, ec);
+                std::printf("ba-app: modo seguro: copia de la configuracion en %s\n",
+                            backup.string().c_str());
+            }
         }
+        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "config", 0,
+                                   "modo seguro: NO se guarda la configuracion. Lo que cambies "
+                                   "ahora vale solo hasta que se cierre.");
+        return true;
     }
     gateway_.guests = cfg_.guests; // B lee la cantidad de invitados de A
     if (!saveAppConfig(cfg_.configPath, cfg_, root_, &err) ||
