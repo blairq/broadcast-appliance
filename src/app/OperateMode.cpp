@@ -17,6 +17,7 @@
 
 #include "AppRuntime.hpp"
 #include "BroadcastEngine.hpp"
+#include "diag/Registro.hpp"
 #include "ipc/ControlService.hpp"
 #include "ipc/HealthBlock.hpp"
 #include "platform/LocalSocket.hpp"
@@ -383,6 +384,10 @@ void AppRuntime::stop() {
     // Cierre ordenado: nada que retomar en el proximo arranque.
     streamStopWanted_ = recordStopWanted_ = true;
     writeOnAirState();
+    // Las grabaciones por entrada, ANTES que el resto: cada una tiene su vista
+    // de render y su archivo abierto, y si el cierre las deja vivas el archivo
+    // queda sin cerrar (o sea, sin indice y a veces sin poder abrirse).
+    engine_.stopAllSourceRecordings();
     std::printf("ba-app: cerrando (salidas, escena, libobs)\n");
     control_.stop();
     operator_.shutdown(); // antes de apagar libobs: suelta vista y fuentes
@@ -406,6 +411,34 @@ bool AppRuntime::startRecording() {
     writeOnAirState();
     return true;
 }
+
+bool AppRuntime::startSourceRecording(const std::string& source) {
+    std::error_code ec;
+    // Las individuales van a su propia carpeta: en Recordings/ ya estan las del
+    // programa, y mezclar veinte archivos de entradas con las del evento hace
+    // que despues nadie encuentre nada.
+    const std::string dir = cfg_.rec.directory + "/entradas";
+    fs::create_directories(dir, ec);
+    if (!engine_.startSourceRecording(source, dir, cfg_.encoder)) {
+        lastError_ = engine_.lastError();
+        return false;
+    }
+    ba::diag::registro().linea(ba::diag::Nivel::Info, "grabacion", 0,
+                               "grabando la entrada \"" + source + "\" aparte");
+    return true;
+}
+
+bool AppRuntime::stopSourceRecording(const std::string& source) {
+    if (!engine_.stopSourceRecording(source)) {
+        lastError_ = engine_.lastError();
+        return false;
+    }
+    ba::diag::registro().linea(ba::diag::Nivel::Info, "grabacion", 0,
+                               "para la grabacion aparte de \"" + source + "\"");
+    return true;
+}
+
+void AppRuntime::stopAllSourceRecordings() { engine_.stopAllSourceRecordings(); }
 
 void AppRuntime::stopRecording() {
     recordStopWanted_ = true;

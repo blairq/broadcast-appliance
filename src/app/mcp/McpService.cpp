@@ -236,6 +236,7 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
     registerAudioTools();
     registerGraficoTools();
     registerRegistroTools();
+    registerRecetaTools();
     // El mapa se arma al final, cuando ya estan todas: antes daria cuentas en
     // cero. Va en las `instructions` del initialize, o sea que lo ve cualquier
     // cliente, siempre, y cuesta unos 400 tokens.
@@ -1261,6 +1262,62 @@ void McpService::registerTools() {
             rt.stopStreaming();
             emit vm.statusChanged();
             done(ToolResult::ok("Transmision detenida."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "grabacion_individual";
+        t.title = "Grabar cada entrada por separado";
+        t.category = "salidas";
+        t.description = "Graba una entrada a su propio archivo, ademas del programa.";
+        t.details =
+            "Para un evento que despues hay que EDITAR: el programa sirve para subirlo esa misma "
+            "noche, y los archivos por entrada para armar la version buena sin haber perdido nada.\n\n"
+            "Sin argumentos informa que se esta grabando. Con `arrancar` o `parar` (listas de nombres "
+            "de fuente) lo cambia. `todas: true` con `arrancar` toma todas las fuentes de video de la "
+            "escena que esta al aire.\n\n"
+            "LO QUE CUESTA, y conviene decirlo antes de prender ocho: cada entrada es UNA CODIFICACION "
+            "MAS, con su render propio. Ocho camaras son ocho encodes simultaneos y eso no lo hace "
+            "cualquier maquina; si la CPU se satura, lo primero que se degrada es el programa, que es "
+            "lo que sale al aire. Empeza por las que de verdad vas a editar y mira `status.cpu`.\n\n"
+            "EL AUDIO tiene un limite propio: libobs mezcla en 6 pistas y la 0 es la del programa, asi "
+            "que solo las primeras CINCO entradas con audio graban sonido. De la sexta en adelante se "
+            "graba el video sin audio, y la respuesta lo dice en `audioPropio`.\n\n"
+            "Los archivos van a Recordings/entradas/, con el nombre de la fuente adentro.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"arrancar", {{"type", "array"}, {"items", {{"type", "string"}}}}},
+                           {"parar", {{"type", "array"}, {"items", {{"type", "string"}}}}},
+                           {"todas", {{"type", "boolean"},
+                                      {"description", "Con `arrancar`: todas las de la escena al aire."}}}}}};
+        t.run = [&rt, &vm](const json& a, Done done) {
+            std::vector<std::string> arrancar;
+            if (a.contains("arrancar") && a["arrancar"].is_array())
+                for (const json& s : a["arrancar"])
+                    if (s.is_string()) arrancar.push_back(s.get<std::string>());
+            if (a.value("todas", false))
+                for (const std::string& s : rt.engine().sceneSources(rt.engine().currentScene()))
+                    arrancar.push_back(s);
+
+            json fallaron = json::array();
+            for (const std::string& s : arrancar)
+                if (!rt.startSourceRecording(s))
+                    fallaron.push_back(json{{"fuente", s}, {"motivo", rt.lastError()}});
+            if (a.contains("parar") && a["parar"].is_array())
+                for (const json& s : a["parar"])
+                    if (s.is_string()) rt.stopSourceRecording(s.get<std::string>());
+
+            json grabando = json::array();
+            for (const auto& g : rt.engine().sourceRecordings())
+                grabando.push_back(json{{"fuente", g.source},
+                                        {"archivo", g.path},
+                                        {"audioPropio", g.audioPropio},
+                                        {"activa", g.activa}});
+            emit vm.statusChanged();
+            done(ToolResult().data(json{{"grabando", grabando},
+                                        {"noSePudo", fallaron},
+                                        {"tope", BroadcastEngine::kMaxIndividuales}}));
         };
         core_.addTool(std::move(t));
     }

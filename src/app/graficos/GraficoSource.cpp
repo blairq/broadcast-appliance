@@ -145,6 +145,24 @@ std::vector<InstanciaInfo> instancias() {
     return out;
 }
 
+bool setGrafico(std::uint64_t id, const std::string& grafico) {
+    std::shared_ptr<Instancia> inst;
+    {
+        std::lock_guard<std::mutex> lock(g_lock);
+        const auto it = g_vivas.find(id);
+        if (it == g_vivas.end()) return false;
+        inst = it->second;
+    }
+    inst->info.grafico = grafico;
+    if (inst->source == nullptr) return true;
+    // A los ajustes de la fuente: es lo que libobs persiste con la escena.
+    obs_data_t* d = obs_data_create();
+    obs_data_set_string(d, "grafico", grafico.c_str());
+    obs_source_update(inst->source, d);
+    obs_data_release(d);
+    return true;
+}
+
 bool reproducir(std::uint64_t id, std::vector<QImage> cuadros, int fps, bool repetir) {
     if (cuadros.empty() || fps <= 0) return false;
     std::shared_ptr<Instancia> inst;

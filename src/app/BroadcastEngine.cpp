@@ -33,6 +33,7 @@
 #endif
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
@@ -839,6 +840,202 @@ void BroadcastEngine::stopRecording() {
     }
     obs_output_release(out);
     recordOutput_ = nullptr;
+}
+
+
+// ============================================================================
+// Grabacion POR ENTRADA
+// ============================================================================
+// Ver el comentario del header. Lo unico que conviene repetir aca: cada entrada
+// que se graba es un ENCODE MAS, con su propia vista, su codificador y su
+// salida. Nada de esto se comparte con el programa.
+
+struct BroadcastEngine::SourceRec {
+    std::string source;
+    std::string path;
+    obs_view_t* view = nullptr;
+    video_t* video = nullptr;
+    obs_encoder_t* venc = nullptr;
+    obs_encoder_t* aenc = nullptr;
+    obs_output_t* out = nullptr;
+    int pista = -1;           ///< pista de audio tomada (1..5), -1 = sin audio
+    std::uint32_t mixersAntes = 0; ///< para devolverle a la fuente lo que tenia
+
+    ~SourceRec() {
+        // El orden importa: primero se para la salida, despues se sueltan los
+        // codificadores y por ultimo la vista. Al reves, libobs se queda con la
+        // vista viva y el proximo arranque no consigue GPU.
+        if (out != nullptr) {
+            if (obs_output_active(out)) obs_output_stop(out);
+            obs_output_release(out);
+        }
+        if (venc != nullptr) obs_encoder_release(venc);
+        if (aenc != nullptr) obs_encoder_release(aenc);
+        if (view != nullptr) {
+            obs_view_remove(view);
+            obs_view_set_source(view, 0, nullptr);
+            obs_view_destroy(view);
+        }
+    }
+};
+
+bool BroadcastEngine::startSourceRecording(const std::string& source, const std::string& dir,
+                                           const EncoderConfig& enc) {
+    if (!started_) {
+        setError("startSourceRecording sin startup");
+        return false;
+    }
+    if (sourceRecs_.count(source) > 0) {
+        setError("ya se esta grabando \"" + source + "\" por separado");
+        return false;
+    }
+    if (static_cast<int>(sourceRecs_.size()) >= kMaxIndividuales) {
+        setError("ya hay " + std::to_string(kMaxIndividuales) +
+                 " entradas grabandose por separado, que es el tope");
+        return false;
+    }
+    obs_source_t* src = reinterpret_cast<obs_source_t*>(ownedSource(source));
+    if (src == nullptr) {
+        setError("no existe la fuente \"" + source + "\"");
+        return false;
+    }
+
+    auto rec = std::make_unique<SourceRec>();
+    rec->source = source;
+
+    // 1) La vista: la fuente sola, sin escena ni nada mas. De aca sale un
+    //    `video_t` propio, que es lo que hace que esto sea la ENTRADA y no el
+    //    programa.
+    rec->view = obs_view_create();
+    if (rec->view == nullptr) {
+        setError("no se pudo crear la vista de la entrada");
+        return false;
+    }
+    obs_view_set_source(rec->view, 0, src);
+
+    struct obs_video_info ovi;
+    if (!obs_get_video_info(&ovi)) {
+        setError("no se pudo leer la configuracion de video");
+        return false;
+    }
+    rec->video = obs_view_add2(rec->view, &ovi);
+    if (rec->video == nullptr) {
+        setError("no se pudo abrir el render de la entrada (GPU sin lugar)");
+        return false;
+    }
+
+    // 2) El codificador de video, propio. Se usa x264 y no el de la GPU: los
+    //    codificadores por hardware tienen dos o tres sesiones y hay que
+    //    dejarselas al programa, que es el que sale al aire.
+    obs_data_t* vs = obs_data_create();
+    obs_data_set_int(vs, "bitrate", enc.videoBitrateKbps);
+    obs_data_set_string(vs, "rate_control", enc.rateControl.c_str());
+    obs_data_set_int(vs, "keyint_sec", enc.keyintSec);
+    obs_data_set_string(vs, "preset", enc.preset.c_str());
+    rec->venc = obs_video_encoder_create("obs_x264", ("venc-" + source).c_str(), vs, nullptr);
+    obs_data_release(vs);
+    if (rec->venc == nullptr) {
+        setError("no se pudo crear el codificador de \"" + source + "\"");
+        return false;
+    }
+    obs_encoder_set_video(rec->venc, rec->video);
+
+    // 3) El audio. SIEMPRE hay que ponerle uno: `ffmpeg_muxer` es una salida
+    //    audio+video y sin codificador de audio no arranca —y no dice por que,
+    //    devuelve false con el mensaje vacio, que costo un rato encontrar—.
+    //
+    //    Si la fuente tiene audio propio y queda pista libre, graba EL SUYO:
+    //    libobs mezcla en 6 pistas, la 0 es la del programa, quedan 5. Si no
+    //    (la fuente no tiene audio, o ya se usaron las cinco), graba la del
+    //    PROGRAMA, que igual sirve de referencia para sincronizar al editar.
+    //    Cual de las dos quedo se informa; adivinarlo despues, mirando el
+    //    archivo, es imposible.
+    if ((obs_source_get_output_flags(src) & OBS_SOURCE_AUDIO) != 0) {
+        bool usada[6] = {true, false, false, false, false, false}; // 0 = programa
+        for (const auto& [n, r] : sourceRecs_)
+            if (r->pista > 0 && r->pista < 6) usada[r->pista] = true;
+        for (int p = 1; p < 6 && rec->pista < 0; ++p)
+            if (!usada[p]) rec->pista = p;
+
+        if (rec->pista > 0) {
+            // La fuente pasa a sonar TAMBIEN en su pista: se le suma, no se le
+            // saca la del programa, o dejaria de escucharse al aire.
+            rec->mixersAntes = obs_source_get_audio_mixers(src);
+            obs_source_set_audio_mixers(src, rec->mixersAntes | (1u << rec->pista));
+        }
+    }
+    {
+        const size_t mezcla = rec->pista > 0 ? static_cast<size_t>(rec->pista) : 0;
+        obs_data_t* as = obs_data_create();
+        obs_data_set_int(as, "bitrate", enc.audioBitrateKbps);
+        rec->aenc = obs_audio_encoder_create("ffmpeg_aac", ("aenc-" + source).c_str(), as, mezcla,
+                                             nullptr);
+        obs_data_release(as);
+        if (rec->aenc == nullptr) {
+            setError("no se pudo crear el codificador de audio de \"" + source + "\"");
+            return false;
+        }
+        obs_encoder_set_audio(rec->aenc, obs_get_audio());
+    }
+
+    // 4) La salida a archivo. Nombre con la fuente adentro: despues hay que
+    //    encontrarlo entre veinte archivos y "ba-1758546202.mkv" no ayuda.
+    std::string limpio;
+    for (const char c : source)
+        limpio += (std::isalnum(static_cast<unsigned char>(c)) != 0 || c == '-' || c == '_') ? c : '-';
+    const auto secs = std::chrono::duration_cast<std::chrono::seconds>(
+                          std::chrono::system_clock::now().time_since_epoch())
+                          .count();
+    rec->path = dir + "/entrada-" + limpio + "-" + std::to_string(secs) + ".mkv";
+
+    obs_data_t* os = obs_data_create();
+    obs_data_set_string(os, "path", rec->path.c_str());
+    rec->out = obs_output_create("ffmpeg_muxer", ("rec-" + source).c_str(), os, nullptr);
+    obs_data_release(os);
+    if (rec->out == nullptr) {
+        setError("no se pudo crear la salida de \"" + source + "\"");
+        return false;
+    }
+    obs_output_set_video_encoder(rec->out, rec->venc);
+    obs_output_set_audio_encoder(rec->out, rec->aenc, 0);
+    if (!obs_output_start(rec->out)) {
+        const char* e = obs_output_get_last_error(rec->out);
+        setError("no arranco la grabacion de \"" + source + "\"" +
+                 (e != nullptr && *e != '\0' ? std::string(": ") + e : std::string()));
+        return false;
+    }
+
+    sourceRecs_[source] = std::move(rec);
+    return true;
+}
+
+bool BroadcastEngine::stopSourceRecording(const std::string& source) {
+    const auto it = sourceRecs_.find(source);
+    if (it == sourceRecs_.end()) {
+        setError("no se estaba grabando \"" + source + "\" por separado");
+        return false;
+    }
+    // Se le devuelve a la fuente las pistas que tenia: si no, seguiria sonando
+    // en una pista que ya no graba nadie.
+    if (it->second->pista > 0) {
+        obs_source_t* src = reinterpret_cast<obs_source_t*>(ownedSource(source));
+        if (src != nullptr) obs_source_set_audio_mixers(src, it->second->mixersAntes);
+    }
+    sourceRecs_.erase(it); // el destructor para y libera, en orden
+    return true;
+}
+
+void BroadcastEngine::stopAllSourceRecordings() {
+    while (!sourceRecs_.empty()) stopSourceRecording(sourceRecs_.begin()->first);
+}
+
+std::vector<BroadcastEngine::GrabacionIndividual> BroadcastEngine::sourceRecordings() const {
+    std::vector<GrabacionIndividual> out;
+    out.reserve(sourceRecs_.size());
+    for (const auto& [n, r] : sourceRecs_)
+        out.push_back(GrabacionIndividual{n, r->path, r->pista > 0,
+                                          r->out != nullptr && obs_output_active(r->out)});
+    return out;
 }
 
 // ============================================================================

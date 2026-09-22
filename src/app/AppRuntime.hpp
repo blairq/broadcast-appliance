@@ -57,6 +57,11 @@ class AppRuntime {
     // --- Salidas --------------------------------------------------------------
     bool startRecording();
     void stopRecording();
+    /// Graba una entrada a su propio archivo, ademas del programa. Ver
+    /// BroadcastEngine::startSourceRecording: cada una es un encode mas.
+    bool startSourceRecording(const std::string& source);
+    bool stopSourceRecording(const std::string& source);
+    void stopAllSourceRecordings();
     /// Transmite a `server` con `key`; vacios = los de la configuracion/entorno.
     bool startStreaming(const std::string& server = {}, const std::string& key = {});
     void stopStreaming();

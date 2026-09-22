@@ -38,6 +38,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -448,6 +449,52 @@ class BroadcastEngine {
     /// Detiene la grabacion (no toca la transmision).
     void stopRecording();
 
+    // --- Grabacion POR ENTRADA ------------------------------------------------
+    // Grabar cada camara a su propio archivo, ademas del programa. Es lo que
+    // pide un evento del que despues hay que editar: el programa sirve para
+    // subirlo esa misma noche, y los archivos por entrada para armar la version
+    // buena sin haber perdido nada.
+    //
+    // COMO. libobs no sabe «grabar una fuente»: lo que sabe es rendir una VISTA
+    // (obs_view) con una fuente en el canal 0 y dar un `video_t` propio. De ahi
+    // cuelga un codificador dedicado y una salida a archivo. O sea que cada
+    // entrada que se graba es UN ENCODE MAS: ocho camaras son ocho
+    // codificaciones simultaneas y eso no lo hace cualquier maquina. Por eso
+    // hay tope y por eso se avisa.
+    //
+    // EL AUDIO es mas limitado: libobs mezcla en 6 pistas y la 0 es la del
+    // programa, asi que quedan 5 para darle una propia a cada fuente
+    // (obs_source_set_audio_mixers). A la sexta en adelante, y a las que no
+    // tienen audio, se les graba la del PROGRAMA: sirve de referencia para
+    // sincronizar al editar, y ademas `ffmpeg_muxer` no arranca sin audio.
+    struct GrabacionIndividual {
+        std::string source;  ///< que fuente
+        std::string path;    ///< a que archivo
+        /// true = graba el audio PROPIO de la fuente; false = el del programa
+        /// (que igual sirve de referencia para sincronizar al editar).
+        bool audioPropio = false;
+        bool activa = false;
+    };
+    /// Cuantas se pueden grabar a la vez. No es un limite de libobs: es que
+    /// mas que esto no lo codifica ninguna maquina razonable en vivo.
+    static constexpr int kMaxIndividuales = 8;
+
+    /// Arranca la grabacion individual de esa fuente.
+    ///
+    /// :param source: nombre de la fuente (tiene que existir).
+    /// :param dir: carpeta destino (normalmente Recordings/).
+    /// :param enc: de donde salen bitrate y preset.
+    /// :returns: false y `lastError()` explica (no existe, ya se graba, no hay
+    ///           lugar, no se pudo crear el codificador).
+    bool startSourceRecording(const std::string& source, const std::string& dir,
+                              const EncoderConfig& enc);
+    /// La para y cierra su archivo. false si no se estaba grabando.
+    bool stopSourceRecording(const std::string& source);
+    /// Para todas.
+    void stopAllSourceRecordings();
+    /// Que se esta grabando por entrada, con su archivo.
+    std::vector<GrabacionIndividual> sourceRecordings() const;
+
     /// Recibe un frame de programa ya compuesto (lo llama libobs).
     ///
     /// Corre en el HILO DE RENDER de libobs. Copia el frame al canal
@@ -576,6 +623,11 @@ class BroadcastEngine {
     obs_encoder* audioEncoder_ = nullptr;
     obs_output* streamOutput_ = nullptr;
     obs_output* recordOutput_ = nullptr;
+
+    /// Una por fuente que se graba aparte. Se guarda todo lo que hay que
+    /// liberar: si algo queda vivo, libobs no suelta ni la GPU ni el archivo.
+    struct SourceRec;
+    std::map<std::string, std::unique_ptr<SourceRec>> sourceRecs_;
     obs_service* service_ = nullptr;
 
     // Candidatos de codificador de video (ver EncoderConfig::videoEncoder) y

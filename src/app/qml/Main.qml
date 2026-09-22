@@ -295,10 +295,19 @@ ApplicationWindow {
                 GridLayout {
                     id: filas
                     flow: rail.vert ? GridLayout.TopToBottom : GridLayout.LeftToRight
-                    width: rail.vert ? tira.width : implicitWidth
-                    height: rail.vert ? implicitHeight : tira.height
                     rowSpacing: 8
                     columnSpacing: 8
+                    // El layout se mide solo, y la tira le fija UNICAMENTE el
+                    // lado cruzado. Escribirlo como `width: vert ? tira.width :
+                    // implicitWidth` arma un bucle de bindings (el ancho
+                    // dependia de su propio ancho implicito, que depende de
+                    // como quedaron los hijos, que dependen del ancho). Con
+                    // `Binding on ... when` solo hay una atadura activa por vez
+                    // y al soltarla vuelve sola a medirse.
+                    width: implicitWidth
+                    height: implicitHeight
+                    Binding on width { when: rail.vert; value: tira.width }
+                    Binding on height { when: !rail.vert; value: tira.height }
 
                     Repeater {
                         model: rail.grupos

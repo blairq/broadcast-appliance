@@ -156,6 +156,9 @@ void RotuladorViewModel::refrescar() { emit cambio(); }
 
 void RotuladorViewModel::setGrafico(qulonglong fuente, const QString& grafico) {
     d_->elegido[fuente] = grafico;
+    // Y queda anotado en la propia fuente, que es lo que libobs guarda con la
+    // escena: si no, elegir un grafico valia solo hasta el proximo arranque.
+    graficos::setGrafico(fuente, grafico.toStdString());
     // Los valores que había eran de otro gráfico: no significan nada acá.
     d_->valores.erase(fuente);
     emit cambio();

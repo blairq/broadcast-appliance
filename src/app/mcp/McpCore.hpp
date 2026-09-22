@@ -229,11 +229,17 @@ class McpCore {
 
     static constexpr const char* kLatestProtocol = "2025-06-18";
 
+    /// Ejecuta una herramienta como si la hubiera pedido el cliente: valida los
+    /// argumentos, pide aprobacion si la politica lo exige, refresca la
+    /// interfaz al terminar. Es publica porque las RECETAS (una serie de pasos
+    /// guardada) tienen que pasar por el MISMO camino: si tuvieran uno propio,
+    /// serian una puerta de atras que se saltea la validacion y la aprobacion.
+    void callTool(const json& params, std::function<void(json result)> done, const CallContext& ctx);
+
    private:
     void handleOne(const json& msg, std::function<void(json)> reply, const CallContext& ctx);
     json initializeResult(const json& params) const;
     json toolListEntry(const Tool& t) const;
-    void callTool(const json& params, std::function<void(json result)> done, const CallContext& ctx);
     json resourceList() const;
     json readResource(const std::string& uri, std::string& error) const;
 

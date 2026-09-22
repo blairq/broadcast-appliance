@@ -59,4 +59,14 @@ bool reproducir(std::uint64_t id, std::vector<QImage> cuadros, int fps, bool rep
 /// Saca el gráfico de pantalla (deja de emitir).
 bool ocultar(std::uint64_t id);
 
+/// Deja anotado en la FUENTE qué gráfico muestra.
+///
+/// Se guarda en los ajustes de libobs, o sea que viaja con la escena y
+/// sobrevive a cerrar el programa. Sin esto, elegir un gráfico en Rótulos
+/// valía solo hasta el próximo arranque: la fuente volvía al que tuviera
+/// escrito y había que elegirlo de nuevo cada vez.
+///
+/// :returns: false si esa instancia no existe.
+bool setGrafico(std::uint64_t id, const std::string& grafico);
+
 } // namespace ba::app::graficos
