@@ -379,6 +379,11 @@ void McpService::registerTools() {
         rt.save();
         vm.refreshModels();
     };
+    // La invariante, puesta una vez y para todas: lo que se toca por MCP se ve
+    // en la interfaz. El despachador la aplica a TODA herramienta que modifica
+    // algo, asi ninguna superficie nueva depende de que su autor se acuerde.
+    // Ver McpCore::setSincronizador.
+    core_.setSincronizador(persist);
     const auto sceneOr = [&rt](const json& a) {
         const std::string s = a.value("scene", std::string());
         return s.empty() ? rt.engine().currentScene() : s;

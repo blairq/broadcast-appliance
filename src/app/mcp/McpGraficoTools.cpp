@@ -20,6 +20,7 @@
 #include "AppRuntime.hpp"
 #include "graficos/GraficoProceso.hpp"
 #include "graficos/GraficoSource.hpp"
+#include "graficos/Emisor.hpp"
 #include "graficos/Vinculos.hpp"
 #include "ui/StudioViewModel.hpp"
 #include "mcp/McpService.hpp"
@@ -85,7 +86,12 @@ void McpService::registerGraficoTools() {
                       "Zócalos, placas y tickers: escribirlos, verlos y corregirlos.");
 
     AppRuntime& rt = rt_;
-    auto* proc = new GraficoProceso({}, this);
+    // El MISMO emisor que usan la interfaz, el guion y el rotulador. Tenia el
+    // suyo propio —otro `ba-grafico` y otra memoria de lo ultimo que salio al
+    // aire— y eso hacia justo lo que no puede pasar: el asistente sacaba un
+    // grafico al aire y la tarjeta de Rotulos seguia mostrando lo anterior.
+    auto* em = vm_.emisor();
+    auto* proc = em != nullptr ? &em->proceso() : nullptr;
 
     {
         Tool t;
@@ -230,55 +236,22 @@ void McpService::registerGraficoTools() {
               {"fps", {{"type", "integer"}, {"minimum", 10}, {"maximum", 60}, {"default", 30}}},
               {"repetir", {{"type", "boolean"}, {"default", false}}}}},
             {"required", {"fuente", "nombre"}}};
-        t.run = [&rt, proc](const json& a, Done done) {
-            if (!proc->disponible())
+        t.run = [em](const json& a, Done done) {
+            if (em == nullptr || !em->disponible())
                 return done(ToolResult::error("El renderizador de gráficos no está en este bundle."));
             const auto id = static_cast<std::uint64_t>(a["fuente"].get<long long>());
-            int ancho = 900;
-            int alto = 220;
-            bool existe = false;
-            for (const auto& i : graficos::instancias())
-                if (i.id == id) {
-                    ancho = i.ancho;
-                    alto = i.alto;
-                    existe = true;
-                }
-            if (!existe)
-                return done(ToolResult::error(
-                    "No hay ninguna fuente de gráfico con ese id (grafico_en_escena las lista)."));
-
-            QString err;
-            const QString carpeta =
-                carpetaDe(rt, QString::fromStdString(a["nombre"].get<std::string>()), &err);
-            if (carpeta.isEmpty()) return done(ToolResult::error(err.toStdString()));
             QJsonObject par;
             if (a.contains("parametros"))
                 par = QJsonDocument::fromJson(QByteArray::fromStdString(a["parametros"].dump()))
                           .object();
-            QJsonObject pedido = pedidoDe(carpeta, par, &err);
-            if (pedido.isEmpty()) return done(ToolResult::error(err.toStdString()));
-            pedido["ancho"] = ancho;
-            pedido["alto"] = alto;
-
-            const int fps = std::clamp(a.value("fps", 30), 10, 60);
-            const int dur = std::clamp(a.value("duracionMs", 1500), 100, graficos::kMaxSegundos * 1000);
-            // Se piden los cuadros de a tandas: el protocolo del renderizador
-            // acota cuantos entran en una respuesta.
-            std::vector<QImage> todos;
-            const int total = std::max(1, dur * fps / 1000);
-            for (int desde = 0; desde < total;) {
-                QVector<int> momentos;
-                for (int k = 0; k < 12 && desde < total; ++k, ++desde)
-                    momentos.append(desde * 1000 / fps);
-                const auto parte = proc->tira(pedido, momentos, &err);
-                if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
-                for (const auto& c : parte)
-                    todos.push_back(c.imagen);
-            }
-            if (!graficos::reproducir(id, std::move(todos), fps, a.value("repetir", false)))
-                return done(ToolResult::error("no se pudo reproducir en esa fuente"));
-            done(ToolResult::ok("«" + a["nombre"].get<std::string>() + "» al aire (" +
-                                std::to_string(total) + " cuadros)."));
+            // Por el emisor, no por abajo: asi queda anotado con que valores
+            // salio esta fuente y la tarjeta de Rotulos muestra lo que hay al
+            // aire en vez de lo anterior.
+            const QString err =
+                em->mostrar(QString::fromStdString(a["nombre"].get<std::string>()), par, id,
+                            a.value("duracionMs", 0), a.value("repetir", false));
+            if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
+            done(ToolResult::ok("«" + a["nombre"].get<std::string>() + "» al aire."));
         };
         core_.addTool(std::move(t));
     }
@@ -293,10 +266,11 @@ void McpService::registerGraficoTools() {
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"fuente", {{"type", "integer"}}}}},
                          {"required", {"fuente"}}};
-        t.run = [](const json& a, Done done) {
+        t.run = [em](const json& a, Done done) {
+            if (em == nullptr) return done(ToolResult::error("No hay motor de gráficos."));
             const auto id = static_cast<std::uint64_t>(a["fuente"].get<long long>());
-            if (!graficos::ocultar(id))
-                return done(ToolResult::error("No hay ninguna fuente de gráfico con ese id."));
+            const QString err = em->ocultar(id);
+            if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
             done(ToolResult::ok("Gráfico oculto."));
         };
         core_.addTool(std::move(t));

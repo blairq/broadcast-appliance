@@ -158,6 +158,10 @@ class StudioViewModel : public QObject {
     /// la sala, el guion y la escena al aire, todo junto.
     QJsonObject contextoDeVinculos() const;
     graficos::Vinculos* vinculos() { return vinculos_.get(); }
+    /// El unico emisor de graficos del proceso. Lo usan la interfaz, el guion,
+    /// el rotulador y el MCP: si cada uno tuviera el suyo, lo que uno saca al
+    /// aire no se veria en la pantalla del otro.
+    graficos::Emisor* emisor() { return emisor_.get(); }
     QObject* youtube() const;
     QObject* twitch() const;
     QObject* facebook() const;

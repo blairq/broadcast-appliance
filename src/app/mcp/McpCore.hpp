@@ -148,6 +148,21 @@ class McpCore {
     using Approver = std::function<void(const Tool& tool, const json& args, const std::string& reason,
                                         std::function<void(bool approved)> decide)>;
     void setApprover(Approver fn) { approver_ = std::move(fn); }
+
+    /// Lo que hay que hacer DESPUES de cada herramienta que modifica algo:
+    /// persistir y avisarle a la interfaz.
+    ///
+    /// POR QUE ESTA ACA Y NO EN CADA HERRAMIENTA. Estaba en cada una, como
+    /// convencion: el que escribia una herramienta que modificaba algo tenia
+    /// que acordarse de llamar a `persist()`. De veintisiete mutadores, doce se
+    /// acordaban. Las otras cambiaban el motor por abajo y la interfaz seguia
+    /// mostrando lo anterior hasta que algo la despertara, que es lo peor que
+    /// puede pasar: dos verdades a la vez y ninguna senal de que difieren.
+    ///
+    /// Puesto en el despachador, la invariante deja de depender de la memoria
+    /// de nadie: TODA herramienta que no sea de solo lectura refresca las
+    /// vistas, y una superficie nueva la hereda sin hacer nada.
+    void setSincronizador(std::function<void()> fn) { sincronizar_ = std::move(fn); }
     void setApprovalPolicy(ApprovalPolicy p) { policy_ = p; }
     ApprovalPolicy approvalPolicy() const { return policy_; }
     /// Marca la sesion como contaminada (p. ej. al leer un recurso de la sala).
@@ -221,6 +236,7 @@ class McpCore {
     std::vector<Resource> resources_;
     std::vector<Prompt> prompts_;
     Approver approver_;
+    std::function<void()> sincronizar_;
     ApprovalPolicy policy_ = ApprovalPolicy::Untrusted;
     struct Taint {
         std::string source;

@@ -238,6 +238,83 @@ sistema, y los detalles se piden cuando hacen falta.**
 
 ---
 
+## Lo que se toca por MCP tiene que verse en la interfaz
+
+Es la condición que hace aceptable todo lo anterior. Si una superficie nueva
+—WebRTC, o la que sea— puede cambiar parámetros por abajo y la pantalla sigue
+mostrando lo de antes, quedan **dos verdades a la vez y ninguna señal de que
+difieren**. En vivo eso es peor que no tener la herramienta.
+
+### Cómo está hoy, medido
+
+El mecanismo existía y era correcto, pero era una **convención**:
+
+```cpp
+const auto persist = [&rt, &vm]() { rt.save(); vm.refreshModels(); };
+```
+
+El que escribía una herramienta que modificaba algo tenía que acordarse de
+llamarla. **De 27 mutadores, 12 se acordaban.** Y había un caso peor, con dos
+dueños del mismo estado: las herramientas de gráficos tenían **su propio
+renderizador** y su propia memoria de lo último que salió al aire, así que el
+asistente sacaba un gráfico al aire y la tarjeta de Rótulos seguía mostrando lo
+anterior. Las dos cosas están arregladas.
+
+### Las dos reglas
+
+**1. No hay dos caminos de escritura.** MCP es un cliente de la *misma* capa que
+usa la interfaz, nunca del motor por abajo. Si el asistente puede llamar a algo
+que la interfaz no llama, ese algo va a divergir tarde o temprano.
+
+Ahora está puesto **en el despachador**, no en cada herramienta:
+
+```cpp
+core_.setSincronizador(persist);   // toda herramienta que no sea de solo
+                                   // lectura refresca las vistas, por construcción
+```
+
+La invariante dejó de depender de la memoria de nadie, y **una superficie nueva
+la hereda sin hacer nada**. Se ejecuta *antes* de contestarle al asistente: así
+no hay un instante en que él ya sabe algo que la pantalla todavía no muestra.
+
+**2. No se publica un setter que no tenga vista.** Es la regla más fuerte y la
+que conviene aplicar al diseñar la superficie de WebRTC. Si un parámetro se
+puede cambiar por MCP y no hay ningún lugar de la interfaz donde se vea, hay dos
+salidas honestas: **agregar la vista, o no publicarlo**. La tercera —publicarlo
+igual— fabrica estado invisible, que es justo lo que uno no quiere tener que
+depurar en vivo.
+
+Como efecto lateral bueno: esa regla mantiene la superficie MCP **acotada al
+tamaño de la interfaz**, en vez de dejarla crecer sola.
+
+### Qué significa «MVC o mejor» acá
+
+La aplicación es MVVM: los `ViewModel` exponen `Q_PROPERTY` con `NOTIFY` y QML
+se ata a eso. Pero el nombre del patrón no es lo que da la garantía. Lo que la
+da son tres cosas:
+
+- **Una sola fuente de verdad** por cada cosa (el motor para las escenas, el
+  gateway para la sala, el emisor para lo que hay al aire en un gráfico). El
+  problema de los gráficos no fue el patrón: fue que **había dos dueños**.
+- **Las vistas derivan, no guardan.** Un `ViewModel` que se copia el estado
+  tiene que invalidarlo, y ahí es donde se rompe.
+- **Una sola puerta de escritura**, que es la que emite las señales.
+
+### El caso de WebRTC, y por qué es más fácil
+
+La sala vive en **otro proceso** (el gateway) y se toca por su API de control.
+La interfaz ya lee de ahí (`ConferenceViewModel` con su *snapshot*). Entonces,
+publicarla por MCP es estructuralmente más seguro que lo de los gráficos:
+**las dos caras leen de la misma fuente de verdad**, y la divergencia máxima es
+el tiempo entre una escritura y el próximo *snapshot*. Con el sincronizador
+forzando el refresco después de cada escritura, es un parpadeo.
+
+La deuda honesta que queda: `refreshModels()` es un refresco **grueso** («cambió
+todo»). Funciona y es barato en un camino de control, pero no dice *qué* cambió.
+El día que una vista sea cara de reconstruir, va a haber que afinarlo.
+
+---
+
 ## El arranque a prueba de fallos
 
 Tres líneas de defensa, y **dos ya existen**:

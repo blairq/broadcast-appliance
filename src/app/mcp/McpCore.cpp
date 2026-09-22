@@ -530,13 +530,19 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
     // informa como error de la herramienta.
     const std::string session = ctx.session;
     const bool untrustedOut = tool->untrustedOutput;
-    const auto execute = [this, tool, args, finish, session, untrustedOut, name]() {
+    const bool modifica = mutating(*tool);
+    const auto execute = [this, tool, args, finish, session, untrustedOut, name, modifica]() {
         auto called = std::make_shared<bool>(false);
         try {
-            tool->run(args, [this, finish, called, session, untrustedOut, name](ToolResult r) {
+            tool->run(args, [this, finish, called, session, untrustedOut, name, modifica](ToolResult r) {
                 if (*called) return; // una sola respuesta por pedido
                 *called = true;
                 if (untrustedOut || r.untrusted) taint(session, name);
+                // Si modifico algo y salio bien, las vistas se enteran ANTES de
+                // que se conteste: asi no hay un instante en el que el
+                // asistente ya sabe algo que la pantalla todavia no muestra.
+                // Ver setSincronizador.
+                if (modifica && !r.isError && sincronizar_) sincronizar_();
                 finish(r);
             });
         } catch (const std::exception& e) {
