@@ -23,13 +23,15 @@ Item {
     /// Cuándo empieza a irse, en ms desde el principio. 0 = se queda.
     property int salidaEn: 0
 
+    // El contenido se dibuja a través del efecto, así que este item no se
+    // mueve nunca: quien se desliza es el MultiEffect. Mover el ORIGEN de un
+    // efecto no mueve nada, porque el efecto lo muestrea en su propio
+    // rectángulo — cuesta un rato darse cuenta.
     Item {
         id: contenido
-        // Sin anchors a propósito: un item anclado IGNORA x, así que no se
-        // puede deslizar. El tamaño se le da a mano.
         width: raiz.width
         height: raiz.height
-        y: 0
+        visible: false
 
         // La barra de acento, en vector (Shape): escala sin pixelarse y se le
         // puede animar la forma.
@@ -81,11 +83,13 @@ Item {
         }
     }
 
-    // El desenfoque de salida se aplica sobre todo el conjunto.
+    // Esto es lo que se ve: el contenido pasado por el efecto. Se desliza y se
+    // desvanece ACÁ.
     MultiEffect {
         id: efecto
-        anchors.fill: parent
         source: contenido
+        width: raiz.width
+        height: raiz.height
         blurEnabled: blur > 0
         blurMax: 48
     }
@@ -99,13 +103,13 @@ Item {
         ParallelAnimation {
             // El conjunto entra desde fuera de cuadro, hacia la derecha.
             NumberAnimation {
-                target: contenido; property: "x"
+                target: efecto; property: "x"
                 from: -raiz.width * 0.5; to: 0
                 duration: raiz.duracionEntrada
                 easing.type: Easing.OutCubic
             }
             NumberAnimation {
-                target: contenido; property: "opacity"
+                target: efecto; property: "opacity"
                 from: 0; to: 1
                 duration: Math.round(raiz.duracionEntrada * 0.6)
             }
@@ -133,7 +137,7 @@ Item {
         ParallelAnimation {
             NumberAnimation { target: efecto; property: "blur"; to: 1.0; duration: 320 }
             NumberAnimation {
-                target: contenido; property: "opacity"
+                target: efecto; property: "opacity"
                 to: 0; duration: 320; easing.type: Easing.InQuad
             }
         }

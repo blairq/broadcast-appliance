@@ -1,0 +1,24 @@
+{
+  "nombre": "Zócalo",
+  "descripcion": "El nombre y el cargo de quien habla, abajo a la izquierda.",
+  "ancho": 900,
+  "alto": 220,
+  "duracionEntradaMs": 450,
+  "parametros": [
+    { "clave": "nombre", "titulo": "Nombre", "tipo": "texto",
+      "porDefecto": "Nombre Apellido",
+      "ayuda": "Se ve grande, en blanco. Más de 30 caracteres empieza a quedar apretado." },
+    { "clave": "cargo", "titulo": "Cargo o procedencia", "tipo": "texto",
+      "porDefecto": "Cargo o procedencia",
+      "ayuda": "El renglón chico de abajo. Puede ir vacío." },
+    { "clave": "acento", "titulo": "Color de acento", "tipo": "color",
+      "porDefecto": "#ff6a2b",
+      "ayuda": "La barrita de la izquierda. Conviene el color del evento." },
+    { "clave": "duracionEntrada", "titulo": "Cuánto tarda en entrar", "tipo": "ms",
+      "porDefecto": 450, "minimo": 150, "maximo": 1500,
+      "ayuda": "Menos de 250 ms se lee como un salto; más de 800 se hace lento." },
+    { "clave": "salidaEn", "titulo": "Cuándo se va", "tipo": "ms",
+      "porDefecto": 0, "minimo": 0, "maximo": 60000,
+      "ayuda": "Milisegundos desde que apareció. 0 = se queda hasta que lo saquen." }
+  ]
+}
