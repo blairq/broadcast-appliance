@@ -139,8 +139,24 @@ ba::diag::registro().linea(ba::diag::Nivel::Aviso, "sala", 9, "el invitado no co
 - Un salto de línea adentro del texto se marca con `⏎`: un salto de verdad
   partiría la línea y el visor leería media entrada como si fuera otra.
 
+## El arranque, y quién lo rompió
+
+Antes de cargar cada cosa que viene del disco —la disposición del dashboard,
+los vínculos, el último evento— se anota en el registro **qué se está por
+cargar**, y recién cuando la interfaz **dibujó** se marca el arranque como
+terminado (`Runtime/arranque.json`). Si algo quedó a medias, eso fue lo que se
+llevó puesto el arranque: a la segunda vez queda **apagado**, el programa abre
+sin ello, y el visor lo dice arriba de todo con un botón para volver a
+prenderlo.
+
+Se mide **que el arranque haya terminado**, no que el proceso siga vivo, así
+que agarra igual una caída que un cuelgue. Ver `core/diag/DiarioDeArranque.hpp`.
+
+Modo seguro (el circuit breaker del launcher, tras varias caídas seguidas) no
+carga **nada** del disco, pero no deja antecedentes: salir del modo seguro
+alcanza para volver a la normalidad.
+
 ## Lo que falta
 
-- El nivel del gateway solo se puede fijar al arrancar (`BA_LOG_NIVEL`), no en
-  vivo como el de la app.
-- El visor no exporta a un archivo; por ahora, «Copiar».
+- El visor no muestra cuánto tardó en cargar cada cosa: una extensión que no
+  rompe nada pero hace lento el arranque no se ve.
