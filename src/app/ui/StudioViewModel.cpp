@@ -35,6 +35,7 @@
 #include "graficos/Emisor.hpp"
 #include "graficos/Vinculos.hpp"
 #include "ui/GraficoViewModel.hpp"
+#include "ui/ExtensionesModel.hpp"
 #include "ui/RegistroViewModel.hpp"
 #include "ui/RotuladorViewModel.hpp"
 #include "ui/ConferenceViewModel.hpp"
@@ -130,6 +131,16 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     vinculos_->setContexto([this]() { return contextoDeVinculos(); });
     rotulador_->setVinculos(vinculos_.get());
     evento_->setVinculos(vinculos_.get());
+
+    {
+        // Mirar la carpeta es leer disco y parsear JSON ajeno: si eso se
+        // llevara puesto el arranque, la proxima vez se saltea.
+        ba::diag::Cargando c("extensiones");
+        extensiones_ = std::make_unique<ExtensionesModel>(rt);
+        if (c.saltear()) extensiones_.reset();
+    }
+    if (extensiones_)
+        connect(extensiones_.get(), &ExtensionesModel::notify, this, &StudioViewModel::notify);
 
     registro_ = std::make_unique<RegistroViewModel>(rt);
     connect(registro_.get(), &RegistroViewModel::notify, this, &StudioViewModel::notify);
@@ -463,6 +474,7 @@ QObject* StudioViewModel::evento() const { return evento_.get(); }
 QObject* StudioViewModel::grafico() const { return grafico_.get(); }
 QObject* StudioViewModel::rotulador() const { return rotulador_.get(); }
 QObject* StudioViewModel::registro() const { return registro_.get(); }
+QObject* StudioViewModel::extensiones() const { return extensiones_.get(); }
 
 QJsonObject StudioViewModel::contextoDeVinculos() const {
     QJsonObject ctx;

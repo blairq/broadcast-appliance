@@ -15,6 +15,7 @@
 #include "diag/Registro.hpp"
 #include "mcp/McpService.hpp"
 #include "ui/ConferenceClient.hpp"
+#include "ui/ExtensionesModel.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
 #include "mcp/McpToolsCommon.hpp"
@@ -162,6 +163,67 @@ void McpService::registerRegistroTools() {
                           " desde el asistente");
             done(ToolResult::ok(std::string("Ahora se registra desde ") +
                                 ba::diag::nombreDeNivel(n) + "."));
+        };
+        core_.addTool(std::move(t));
+    }
+
+    // --- Extensiones: UNA familia, no una herramienta por extension ---------
+    // Cien extensiones instaladas cuestan lo mismo que una en el contexto del
+    // modelo. Ver docs/EXTENSIONES.md: reflexion, no inventario.
+    {
+        Tool t;
+        t.name = "ext_listar";
+        t.title = "Tarjetas de extension";
+        t.category = "registro";
+        t.readOnly = true;
+        t.description = "Las tarjetas que viven en Extensiones/, con su estado.";
+        t.details =
+            "Una extension es una carpeta con `extension.json` (nombre, descripcion) y un QML que se "
+            "dibuja como una tarjeta mas del dashboard. Las escribis vos: la carpeta esta en el "
+            "campo `carpeta` de la respuesta.\n\n"
+            "Como se escribe una: mira `Extensiones/reloj-de-aire/tarjeta.qml`, que es el ejemplo de "
+            "referencia y tiene arriba las reglas (la raiz se ajusta sola, `Studio` y `Theme` estan "
+            "disponibles, no importes lo que no esta en el bundle, y NUNCA un bucle largo: corre en "
+            "el hilo de la interfaz).\n\n"
+            "Despues de escribir una, `ext_listar` de nuevo: `problema` dice si le falta algo, y el "
+            "operador la agrega desde «+ Tarjeta» en el dashboard.\n\n"
+            "`apagada` en true significa que se llevo puesto el arranque dos veces y el programa "
+            "dejo de cargarla para poder abrir. Eso NO se arregla escribiendo de nuevo: hay que "
+            "arreglar el QML y prenderla con `ext_prender`.";
+        t.run = [&vm](const json&, Done done) {
+            auto* ex = static_cast<ExtensionesModel*>(vm.extensiones());
+            if (ex == nullptr) return done(ToolResult::error("No hay extensiones en esta corrida."));
+            json out = json::array();
+            for (int i = 0; i < ex->rowCount(); ++i) {
+                const QVariantMap f =
+                    ex->ficha(ex->data(ex->index(i), ExtensionesModel::IdRole).toString());
+                out.push_back(json{{"id", f.value("id").toString().toStdString()},
+                                   {"nombre", f.value("nombre").toString().toStdString()},
+                                   {"descripcion", f.value("descripcion").toString().toStdString()},
+                                   {"problema", f.value("problema").toString().toStdString()},
+                                   {"apagada", f.value("apagada").toBool()}});
+            }
+            done(ToolResult().data(json{{"extensiones", out},
+                                        {"carpeta", ex->carpeta().toStdString()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "ext_prender";
+        t.title = "Prender una extension apagada";
+        t.category = "registro";
+        t.description = "Vuelve a cargar una tarjeta que el arranque habia apagado.";
+        t.details = "Arregla el QML PRIMERO. Si sigue colgando el arranque, se vuelve a apagar sola "
+                    "y vas a haber gastado dos reinicios del programa.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"id", {{"type", "string"}}}}},
+                         {"required", {"id"}}};
+        t.run = [&vm](const json& a, Done done) {
+            auto* ex = static_cast<ExtensionesModel*>(vm.extensiones());
+            if (ex == nullptr) return done(ToolResult::error("No hay extensiones en esta corrida."));
+            ex->prender(QString::fromStdString(a["id"].get<std::string>()));
+            done(ToolResult::ok("Prendida. Se carga de nuevo al reabrir la pagina o el programa."));
         };
         core_.addTool(std::move(t));
     }

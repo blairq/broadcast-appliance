@@ -507,3 +507,14 @@ if(BA_APP_QT_OK AND WIN32)
     " COMPONENT bundle)
     install(SCRIPT "${CMAKE_SOURCE_DIR}/cmake/BaQtDeployWin.cmake" COMPONENT bundle)
 endif()
+
+# --- Extensiones de ejemplo -------------------------------------------------
+# Tarjetas del dashboard que viven en el DISCO, no adentro del binario (ver
+# src/app/ui/ExtensionesModel.hpp). Las de fabrica se instalan como referencia;
+# las que escriba el operador (o el asistente) conviven en la misma carpeta y
+# NO las toca ni el manifest ni --update.
+if(EXISTS "${CMAKE_SOURCE_DIR}/assets/extensiones")
+    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/extensiones/"
+        DESTINATION Extensiones COMPONENT bundle
+    )
+endif()

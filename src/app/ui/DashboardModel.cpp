@@ -217,6 +217,8 @@ QString DashboardModel::kindTitle(const QString& kind) const {
             return k.title;
         }
     }
+    // Las de Extensiones/ las nombra su ficha; aca no se las conoce. Devolver
+    // el kind pelado («ext:reloj») ya es mejor que nada: se ve de donde viene.
     return kind;
 }
 

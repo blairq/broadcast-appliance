@@ -123,8 +123,19 @@ bool isDataEntry(const std::string& name) {
     // Agentes/: los agentes de IA que la persona instalo (cientos de MB): una
     // version nueva del sistema trae sus propias versiones fijadas y la pestaña
     // Asistente ofrece actualizarlos; no se borran al actualizar.
+    //
+    // Graficos/ y Extensiones/ son MIXTAS: traen ejemplos de fabrica y, en la
+    // misma carpeta, lo que escribio el operador (o el asistente). Antes
+    // Graficos/ entraba en el intercambio, o sea que actualizar se llevaba
+    // puestos los graficos propios —quedaban en .anterior/, pero fuera del
+    // programa y sin que nadie lo dijera—. Se conservan.
+    //
+    // El costo, dicho: un ejemplo de fabrica NUEVO no llega por actualizacion,
+    // solo en una instalacion limpia. Perder trabajo propio es mucho peor que
+    // no recibir un ejemplo.
     static const char* kData[] = {"Config",  "Credenciales", "Logs",      "Recordings", "Shares",
-                                  "Runtime", "Cache",        "Respaldos", "Agentes",    "Media"};
+                                  "Runtime", "Cache",        "Respaldos", "Agentes",    "Media",
+                                  "Graficos", "Extensiones", "Eventos"};
     if (name.rfind(".actualizacion", 0) == 0) return true;
     return std::any_of(std::begin(kData), std::end(kData), [&](const char* d) { return name == d; });
 }

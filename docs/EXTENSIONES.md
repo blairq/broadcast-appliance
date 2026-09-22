@@ -88,7 +88,11 @@ Los puntos de inserción, del más barato al más caro:
 | `panel.<pagina>` | Un panel adentro de una página | Medio: hay que marcar los lugares |
 | `pagina` | Una página entera en el riel | Medio: el riel ya está agrupado y se desplaza |
 
-### La tarjeta del dashboard ya es dinámica
+### La tarjeta del dashboard ya es dinámica — **hecho**
+
+> **Estado: funciona.** Ver `src/app/ui/ExtensionesModel.hpp` y el ejemplo de
+> referencia en `Extensiones/reloj-de-aire/`. Lo que sigue es por qué salió
+> barato.
 
 Esto es lo segundo que conviene mirar antes de diseñar nada. El dashboard hoy
 hace esto:
@@ -106,8 +110,27 @@ magnético ya están hechos. Que un `kind` que empiece con `ext:` resuelva a
 esa expresión**, más el `Loader` mirando el estado de error.
 
 No hay que construir un sistema de tarjetas: **hay que dejar que el que ya
-existe lea de otro lado.** Ese es el punto de entrada, y por eso es el primero
-que conviene hacer.
+existe lea de otro lado.** Ese es el punto de entrada, y por eso fue el primero.
+
+**Cómo quedó.** Un `kind` que empieza con `ext:` se resuelve contra
+`Extensiones/<id>/` en el disco; el resto sale de `qrc` como siempre. Aparecen
+en «+ Tarjeta», abajo y separadas, porque son de otra procedencia y conviene
+que se note. Una que no carga **lo dice en su lugar** en vez de quedar en
+blanco —en blanco parece que no hace nada y se busca el problema en otro lado—
+y el error sale en el Registro con el archivo y la línea.
+
+**La red, probada de verdad.** Se le puso un `while(true)` en
+`Component.onCompleted` a la tarjeta del ejemplo:
+
+1. Colgó el hilo de la interfaz. Ningún `try/catch` agarra eso.
+2. El programa dejó de latir en `BA.Health` y el launcher lo reinició.
+3. El diario contó la rotura. A la segunda, la tarjeta quedó **apagada**.
+4. El programa abrió normal, sin ella, diciendo en su lugar por qué.
+5. `ext_prender` (o el botón del Registro) la volvió a habilitar, y como cargó
+   bien, el diario le borró los antecedentes.
+
+Esa es la prueba de que el nivel 3 es sostenible: **lo peor que puede hacer una
+tarjeta es apagarse sola.**
 
 ### Lo que una tarjeta ve
 
@@ -371,9 +394,8 @@ propósito.
    habilita todo lo demás. *No cambia nada visible: es la condición para que el
    resto sea barato.*
 2. **El diario de arranque y modo seguro sin extensiones.** Primero la red.
-3. **Tarjetas en el dashboard desde disco.** El `Loader` ya resuelve por nombre:
-   es el punto de inserción más barato que existe y el que prueba el contrato
-   entero de punta a punta.
+3. ~~**Tarjetas en el dashboard desde disco.**~~ **Hecho**, con su ejemplo de
+   referencia y el ciclo de fallo probado sobre un cuelgue real.
 4. **El mapa de categorías y `enfocar`.** Es independiente de todo lo demás,
    se puede hacer hoy y baja el contexto de 32.000 a unos 4.000 tokens. Empezar
    por el mapa: aunque nunca se enfoque nada, un índice de lo que existe ya

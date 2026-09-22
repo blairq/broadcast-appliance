@@ -341,7 +341,10 @@ json_escape() {
     # rota" en cada arranque después del primero, que es la mejor manera de
     # que el operador aprenda a ignorar el aviso.
     case "$rel" in
-      Config/*|Logs/*|Recordings/*|Runtime/*|Credenciales/*|Eventos/*) continue ;;
+      # Extensiones/: las escribe el operador (o el asistente) y cambian sin
+      # que cambie la version. Verificarlas haria que cada tarjeta nueva
+      # rompiera la comprobacion de integridad.
+      Config/*|Logs/*|Recordings/*|Runtime/*|Credenciales/*|Eventos/*|Extensiones/*) continue ;;
     esac
     hash="$(sha256_of "$abs")"
     if [ "$first" -eq 1 ]; then
