@@ -74,6 +74,8 @@
 #include "Cloudflared.hpp"
 #include "Config.hpp"
 #include "Log.hpp"
+
+#include "diag/Caidas.hpp"
 #include "MediaPump.hpp"
 #include "net/NetUtil.hpp"
 #include "net/TlsTerminator.hpp"
@@ -414,6 +416,8 @@ int main(int argc, char** argv) {
     // escribia a stderr y en campo no quedaba ningun rastro de B en disco.
     if (!cfg.logsDir.empty()) {
         log.openFile(cfg.logsDir);
+        // Y que una caida deje la pila escrita (ver diag/Caidas.hpp).
+        ba::diag::instalarManejadorDeCaidas("gateway");
     }
 
     log.info("arranque: guests=" + std::to_string(cfg.guests) + " port=" + std::to_string(cfg.port) +

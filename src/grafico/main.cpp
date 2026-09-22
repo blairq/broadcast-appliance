@@ -42,6 +42,7 @@
 #include "Declarativo.hpp"
 #include "Renderizador.hpp"
 
+#include "diag/Caidas.hpp"
 #include "diag/Registro.hpp"
 #include "platform/Paths.hpp"
 
@@ -159,6 +160,7 @@ int main(int argc, char** argv) {
     // El registro: este proceso lo levanta la app por una tuberia, asi que su
     // stderr no lo lee nadie. Sin archivo propio, un gráfico que revienta no
     // deja rastro en ningun lado.
+    ba::diag::instalarManejadorDeCaidas("graficos");
     auto& reg = ba::diag::registro();
     reg.setComponentePorDefecto("graficos");
     reg.abrir(ba::platform::dataRoot() / "Logs", "graficos.log");

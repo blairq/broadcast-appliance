@@ -259,6 +259,13 @@ else()
     target_compile_definitions(ba-app PRIVATE BA_HAVE_LIBOBS=0)
 endif()
 
+# -rdynamic: exporta los simbolos al ejecutable para que la pila de una caida
+# salga con NOMBRES y no solo con direcciones (ver core/diag/Caidas.hpp). En
+# Windows no aplica.
+if(NOT WIN32)
+    target_link_options(ba-app PRIVATE -rdynamic)
+endif()
+
 if(BA_APP_QT_OK)
     target_link_libraries(ba-app PRIVATE Qt6::Gui Qt6::Quick Qt6::Qml Qt6::QuickControls2 Qt6::Network)
     target_compile_definitions(ba-app PRIVATE BA_APP_HAVE_QT_OBS=1)

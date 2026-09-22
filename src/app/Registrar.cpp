@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <string>
 
+#include "diag/Caidas.hpp"
 #include "diag/Registro.hpp"
 
 #if BA_APP_HAVE_QT_OBS
@@ -85,6 +86,11 @@ void handlerDeObs(int nivelObs, const char* formato, va_list args, void*) {
 } // namespace
 
 void registrarTodo(const std::filesystem::path& dataRoot, const char* componente) {
+    // Antes que nada: si esto se cae, que deje la pila escrita. Ver
+    // core/diag/Caidas.hpp — paso una vez que A murio con SIGSEGV y en el
+    // registro no quedo ni una linea.
+    ba::diag::instalarManejadorDeCaidas(componente);
+
     auto& reg = ba::diag::registro();
     reg.setComponentePorDefecto(componente);
     // Con el launcher, el archivo lo escribe la captura de stderr; suelto, se
