@@ -68,11 +68,14 @@ const std::vector<Contenido>& catalogo() {
          {{"url", "Dirección", "http://…", false}},
          true, ""},
         {"prompter", "El teleprompter", "La vista del orador: el discurso que esté cargado.", {}, true, ""},
-        // Declarado a propósito aunque no ande: que el operador vea que está
-        // previsto es mejor que preguntarse si se puede.
-        {"programa", "Lo que sale al aire", "El programa en vivo, en la pantalla.", {}, false,
-         "Todavía no: para que el video llegue con poco retardo hace falta una página receptora con "
-         "WebRTC que no está escrita (ver docs/PANTALLAS.md)."},
+        // El programa entra por el mismo camino que un invitado, así que el
+        // enlace lo tiene que acuñar el gateway (lleva un permiso de ingreso):
+        // por eso es el único contenido cuya URL no se arma acá.
+        {"programa", "Lo que sale al aire",
+         "El programa en vivo por WebRTC: unas décimas de retardo, no los segundos del reproductor de "
+         "fábrica del televisor. La pantalla entra a la sala como una más: si el lobby está prendido, "
+         "hay que hacerla pasar, y ocupa un lugar mientras dure.",
+         {}, true, ""},
     };
     return c;
 }
@@ -263,6 +266,9 @@ QString PantallasViewModel::urlDe(const QString& tipo, const QVariantMap& datos,
     const Contenido* c = contenidoPorId(tipo);
     if (c == nullptr || !c->disponible) return {};
     if (tipo == "url") return datos.value("url").toString().trimmed();
+    // El programa lleva un permiso de ingreso que acuña el gateway: la URL no
+    // se puede armar acá. `mostrar` la pide y recién después manda.
+    if (tipo == "programa") return "(la pide el gateway al mandar)";
 
     // La base tiene que ser alcanzable DESDE el televisor: HTTP (el HTTPS es
     // autofirmado y un televisor no tiene dónde aceptarlo) y la IP de esta
@@ -417,6 +423,29 @@ QString PantallasViewModel::mostrar(const QString& id, const QString& tipo, cons
     const Contenido* c = contenidoPorId(tipo);
     if (c == nullptr) return "No sé mostrar «" + tipo + "».";
     if (!c->disponible) return QString::fromUtf8(c->porque);
+    if (tipo == "programa") {
+        if (d_->sala == nullptr) return "La sala no está corriendo: sin ella no hay programa que mandar.";
+        d->trabajando = true;
+        emit cambio();
+        const QString nombre = d->nombre;
+        d_->sala->client().get(
+            "/api/v1/cast-link?target=local&nombre=" + QString::fromUtf8(QUrl::toPercentEncoding(nombre)),
+            [this, id](bool ok, const QJsonObject& r) {
+                Destino* d = d_->porId(id);
+                if (d == nullptr) return;
+                d->trabajando = false;
+                if (!ok || !r.value("ok").toBool()) {
+                    d->estado = "error";
+                    const QString m = r.value("message").toString();
+                    d->error = m.isEmpty() ? "No pude sacar el enlace del programa" : m;
+                    emit notify(d->nombre + ": " + d->error, "error");
+                    emit cambio();
+                    return;
+                }
+                mandarUrl(id, r.value("url").toString(), "programa", "Lo que sale al aire");
+            });
+        return {};
+    }
     const QString url = urlDe(tipo, datos, id);
     if (url.isEmpty())
         return tipo == "url" ? "Poné una dirección."
@@ -433,6 +462,15 @@ QString PantallasViewModel::mostrar(const QString& id, const QString& tipo, cons
         }
     }
 
+    mandarUrl(id, url, tipo, que);
+    return {};
+}
+
+/// Lo que hacen todos los contenidos al final: abrir el canal y mandar la URL.
+void PantallasViewModel::mandarUrl(const QString& id, const QString& url, const QString& tipo,
+                                   const QString& que) {
+    Destino* d = d_->porId(id);
+    if (d == nullptr) return;
     d->trabajando = true;
     d->error.clear();
     emit cambio();
@@ -460,7 +498,6 @@ QString PantallasViewModel::mostrar(const QString& id, const QString& tipo, cons
             emit cambio();
         });
     }).detach();
-    return {};
 }
 
 void PantallasViewModel::parar(const QString& id) {

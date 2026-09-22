@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Programa en vivo</title>
+<!--
+  La pantalla que muestra el PROGRAMA en vivo.
+
+  Es la página del invitado sin las partes de invitado: no manda cámara ni
+  micrófono, no tiene chat, no tiene botones. Se conecta, recibe y muestra a
+  pantalla completa. Del otro lado hay un televisor: nadie va a tocar nada.
+
+  POR QUE WEBRTC Y NO EL REPRODUCTOR DEL CHROMECAST. Con el reproductor de
+  fábrica (HLS/DASH, que va por segmentos) el retardo es de 1 a 5 segundos: el
+  aplauso de la sala llegaría después que el de la pantalla. Por WebRTC son
+  100-300 ms en una red local.
+-->
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <video id="video" autoplay playsinline muted></video>
+  <!-- El audio va aparte del video: el video arranca siempre (está en mudo) y
+       el audio puede quedar trabado por la política del navegador. Así una
+       cosa no se lleva puesta a la otra. -->
+  <audio id="audio" autoplay></audio>
+
+  <div id="aviso" class="aviso">
+    <div class="pulso"></div>
+    <div id="aviso-texto">Conectando…</div>
+    <div id="aviso-pie" class="pie"></div>
+  </div>
+
+  <div id="hud" class="hud oculto"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -54,7 +54,7 @@ install(PROGRAMS "${BA_WIN_MT_DIR}/src/gateway/ba-gateway.exe" DESTINATION bin/6
 # llegan al bundle. O sea que hay que tocar LAS DOS al agregar una vista web.
 # Ya paso: el teleprompter y los rotulos existian en Linux y en Windows no,
 # sin que nada lo avisara (la pagina simplemente daba 404).
-foreach(_web guest admin board prompter rotulos pantalla)
+foreach(_web guest admin board prompter rotulos pantalla cast)
     if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/${_web}")
         install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/${_web}/" DESTINATION Web/${_web} COMPONENT bundle)
     endif()

@@ -90,22 +90,32 @@ mismo ViewModel que la pantalla del operador.
 
 ## Lo que falta
 
-- **El programa en vivo.** Está declarado en el catálogo y marcado como
-  «todavía no», pero está más cerca de lo que parece: el gateway **ya manda el
-  programa por WebRTC a un navegador** (es lo que ve un invitado de la sala
-  mientras espera su turno), y DashCast pone cualquier página en el televisor,
-  así que tampoco hace falta registrar una receptora propia. Lo que falta es
-  escribir `/cast`: la página del invitado sin las partes de invitado — recibe
-  y muestra a pantalla completa, sin micrófono, sin cámara, sin chat.
+- **El programa en vivo ya está**, con una salvedad. `/cast/` es la página del
+  invitado sin las partes de invitado: entra por `/ws` con un token que acuña
+  `/api/v1/cast-link`, no publica nada y muestra lo que le baja, a pantalla
+  completa. El enlace va por **HTTP y al puerto 8787** (no al de HTTPS): un
+  televisor no tiene dónde aceptar nuestro certificado propio.
+
+  *La salvedad*: la pantalla entra a la sala **como una participante más**. Con
+  el lobby prendido hay que hacerla pasar, y ocupa un lugar mientras dure. La
+  página lo dice en vez de quedarse en negro. Que sea una sesión invisible es
+  el paso siguiente, y toca admisión y rutas de medios — donde un error golpea
+  a invitados reales en vivo, así que no se hace a ciegas.
 
   Sobre el retardo: con el reproductor de fábrica del Chromecast (HLS/DASH, que
   va por segmentos) son 1 a 5 segundos. Por WebRTC son 100–300 ms. La perilla
-  concreta es `RTCRtpReceiver.jitterBufferTarget` (antes `playoutDelayHint`):
-  cuántos ms retener antes de reproducir. Cerca de cero saca el colchón, al
-  precio de que un hipo de red se vea como un salto. Y dos cosas que no son
-  opcionales en un televisor: `<video autoplay muted playsinline>` (sin `muted`
-  no arranca solo y ahí no hay nadie para hacer clic) y **H.264**, que estos
-  aparatos decodifican por hardware.
+  concreta es `RTCRtpReceiver.jitterBufferTarget` (antes `playoutDelayHint`, y
+  la página pone las dos porque adentro de un televisor suele haber un Chrome
+  viejo): cuántos ms retener antes de mostrar, 80 por defecto, ajustable con
+  `?buffer=N`. Cerca de cero saca el colchón, al precio de que un hipo de red
+  se vea como un salto. Y dos cosas que no son opcionales en un televisor:
+  `<video autoplay muted playsinline>` —sin `muted` no arranca solo y ahí no
+  hay nadie para hacer clic, así que el audio va en un `<audio>` aparte que se
+  reintenta— y **H.264**, que estos aparatos decodifican por hardware.
+
+  Con `?hud=1` la página muestra fps, pérdidas y el tamaño real del buffer: es
+  lo que hay que mirar la primera vez, contra un televisor de verdad.
+
 - **El cue `pantalla` del guion** sigue sin ejecutarse: ahora que existe el
   modelo, es conectarlo.
 - **Aparatos sin pantalla.** Un Google Nest Mini aparece en la lista y acepta

@@ -335,6 +335,14 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/board")
         DESTINATION Web/board
     )
 endif()
+# El programa en vivo para un televisor (/cast/): la pagina del invitado sin
+# las partes de invitado, por WebRTC (100-300 ms, contra los 1-5 s del
+# reproductor de fabrica del Chromecast).
+if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/cast")
+    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/cast/"
+        DESTINATION Web/cast
+    )
+endif()
 # Lo que se manda a un televisor (/pantalla/): mensajes, QR y reloj. Una sola
 # pagina para todo lo que se proyecta (ver assets/web/pantalla/index.html).
 if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/pantalla")

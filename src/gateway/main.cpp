@@ -597,6 +597,7 @@ int main(int argc, char** argv) {
         sigCfg.prompterWebroot = (guestRoot.parent_path() / "prompter").string();
         sigCfg.rotulosWebroot = (guestRoot.parent_path() / "rotulos").string();
         sigCfg.pantallaWebroot = (guestRoot.parent_path() / "pantalla").string();
+        sigCfg.castWebroot = (guestRoot.parent_path() / "cast").string();
     }
     // Clave del control del teleprompter: nueva en cada arranque. No hace
     // falta que sobreviva -- el operador manda el enlace (o el QR) cuando va a

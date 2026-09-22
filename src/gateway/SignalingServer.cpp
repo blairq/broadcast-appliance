@@ -455,6 +455,22 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
         }
     }
 
+    // --- El programa en vivo, para un televisor ------------------------------
+    // Es la pagina del invitado sin las partes de invitado: entra por /ws con
+    // un token, no publica nada y muestra lo que le baja. Estatica y sin
+    // clave: el token va en la URL que le pasa la app.
+    if (method == "GET" && (path == "/cast" || path.rfind("/cast/", 0) == 0)) {
+        if (path == "/cast") {
+            http::sendResponse(fd, 301, "text/plain", "", "Location: /cast/\r\n");
+            return;
+        }
+        std::string rel = path.size() > 6 ? path.substr(6) : std::string("index.html");
+        if (rel.empty()) rel = "index.html";
+        if (!cfg_.castWebroot.empty() && serveStatic(fd, cfg_.castWebroot, rel)) return;
+        http::sendResponse(fd, 404, "text/plain", "no encontrado\n");
+        return;
+    }
+
     // --- Lo que se manda a un televisor -------------------------------------
     // Publico y de solo lectura: es una pagina que MUESTRA lo que dice la URL.
     // No lleva clave porque no hay nada que proteger (quien la abre ve lo que

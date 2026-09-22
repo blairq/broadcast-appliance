@@ -94,6 +94,9 @@ class PantallasViewModel : public QObject {
     void notify(const QString& texto, const QString& tipo);
 
   private:
+    /// Abrir el canal y mandarle la URL: el final de todos los contenidos.
+    void mandarUrl(const QString& id, const QString& url, const QString& tipo, const QString& que);
+
     struct Impl;
     std::unique_ptr<Impl> d_;
 };

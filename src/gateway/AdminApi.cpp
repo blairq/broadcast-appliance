@@ -25,6 +25,7 @@
 //   GET    /api/v1/prompter                estado del teleprompter (+ la clave y quien esta conectado)
 //   POST   /api/v1/prompter                {texto?, titulo?, panico?, ...comandos}
 //   GET    /api/v1/prompter-link?target=local|remote&vista=control|orador&conClave=0|1  enlace + QR
+//   GET    /api/v1/cast-link?target=local|remote&nombre=  enlace del programa en vivo para una pantalla
 //   GET    /api/v1/rotulos                estado de los rotulos (+ la clave)
 //   POST   /api/v1/rotulos                {estado?, tomar?} publica y se lleva los encargos
 //   GET    /api/v1/rotulos-link?target=local|remote&conClave=0|1  enlace + QR para el celular
@@ -58,6 +59,7 @@
 //   GET    /admin/...                      consola web (estatico)
 // ============================================================================
 
+#include <cctype>
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
@@ -439,6 +441,65 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         sendJson(fd, 200,
                  json{{"ok", true}, {"target", target}, {"url", url}, {"conClave", conClave},
                       {"clave", cfg_.rotulosKey}, {"size", qr.getSize()}, {"modules", rows}});
+        return;
+    }
+    // Lo que no es letra, numero o guion va porcentado: el nombre lo escribe
+    // una persona ("TV del hall") y va en una URL.
+    const auto porcentar = [](const std::string& s) {
+        static const char* hex = "0123456789ABCDEF";
+        std::string o;
+        for (const unsigned char c : s) {
+            if (std::isalnum(c) != 0 || c == '-' || c == '_' || c == '.' || c == '~') {
+                o.push_back(static_cast<char>(c));
+            } else {
+                o.push_back('%');
+                o.push_back(hex[c >> 4]);
+                o.push_back(hex[c & 0xf]);
+            }
+        }
+        return o;
+    };
+    // El enlace del PROGRAMA EN VIVO para una pantalla. Acuña un token de
+    // ingreso (la pantalla entra como un invitado que no publica nada) y arma
+    // la URL de /cast/. Va por HTTP a proposito: un televisor no tiene donde
+    // aceptar nuestro certificado propio, asi que el HTTPS lo rechazaria.
+    if (path == "/api/v1/cast-link" && method == "GET") {
+        const auto q = http::parseQuery(query);
+        const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
+        const std::string nombre = q.count("nombre") ? http::urlDecode(q.at("nombre")) : "Pantalla";
+        if (room_.snapshot().value("locked", false)) {
+            sendJson(fd, 200, json{{"ok", false}, {"message", "La sala esta cerrada: abrila para poder mandarle el programa a una pantalla."}});
+            return;
+        }
+        const std::string token = auth_.issue(cfg_.room, room_.snapshot().value("pin", ""));
+        if (token.empty()) {
+            sendJson(fd, 200, json{{"ok", false}, {"message", "No pude sacar un permiso de ingreso para la pantalla."}});
+            return;
+        }
+        json out = joinUrl_ ? joinUrl_(target) : json{{"error", "sin proveedor de URL"}};
+        if (!out.contains("url")) {
+            out["ok"] = false;
+            sendJson(fd, 200, out);
+            return;
+        }
+        std::string origin = out["url"].get<std::string>();
+        if (const size_t s = origin.find("://"); s != std::string::npos) {
+            const size_t end = origin.find_first_of("/?#", s + 3);
+            if (end != std::string::npos) origin.resize(end);
+        }
+        // Un televisor no tiene donde aceptar un certificado propio, asi que
+        // va por HTTP. Ojo: no alcanza con cambiar el esquema, porque el
+        // enlace de ingreso apunta al puerto de HTTPS y ahi no hay HTTP.
+        if (origin.rfind("https://", 0) == 0) {
+            std::string hostPort = origin.substr(8);
+            const size_t colon = hostPort.rfind(':');
+            const std::string host = colon == std::string::npos ? hostPort : hostPort.substr(0, colon);
+            origin = "http://" + host + ":" + std::to_string(cfg_.port);
+        }
+        sendJson(fd, 200,
+                 json{{"ok", true},
+                      {"url", origin + "/cast/?token=" + token + "&nombre=" + porcentar(nombre)},
+                      {"token", token}});
         return;
     }
     if (path == "/api/v1/prompter-link" && method == "GET") {
