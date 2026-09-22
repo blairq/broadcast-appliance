@@ -349,6 +349,17 @@ if(BA_APP_QT_OK)
     target_link_libraries(test_evento PRIVATE nlohmann_json::nlohmann_json)
     add_test(NAME test_evento COMMAND test_evento)
 
+    # El puente con el renderizador de graficos: que un grafico colgado NO
+    # cuelgue la app es la razon de ser del proceso aparte, asi que se prueba.
+    if(BA_APP_QT_OK)
+        add_executable(test_grafico_proceso tests/test_grafico_proceso.cpp graficos/GraficoProceso.cpp)
+        set_target_properties(test_grafico_proceso PROPERTIES AUTOMOC ON)
+        target_include_directories(test_grafico_proceso PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+        target_link_libraries(test_grafico_proceso PRIVATE Qt6::Core Qt6::Gui)
+        add_test(NAME test_grafico_proceso COMMAND test_grafico_proceso)
+        set_tests_properties(test_grafico_proceso PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 180)
+    endif()
+
     # Medir el retardo entre labios y voz con un aplauso. C++ puro: recibe
     # mediciones ya hechas y devuelve el numero, asi se prueba con señales
     # inventadas sin pararse a aplaudir frente a una camara.
