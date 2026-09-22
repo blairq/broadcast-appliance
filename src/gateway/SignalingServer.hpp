@@ -76,6 +76,7 @@
 #include <nlohmann/json.hpp>
 
 #include "Prompter.hpp"
+#include "Rotulador.hpp"
 #include "MediaRoute.hpp"
 #include "TokenAuth.hpp"
 #include "Webrtc.hpp"
@@ -107,6 +108,11 @@ class SignalingServer {
         /// el enlace que el operador le pasa (o en el QR). Vacia = sin control
         /// remoto (la tablet igual muestra el texto).
         std::string prompterKey;
+        std::string rotulosWebroot; // Web/rotulos (los rotulos desde el celular)
+        /// Clave de los rotulos. A diferencia del teleprompter, hace falta
+        /// TAMBIEN PARA MIRAR: un rotulo suele llevar el nombre del invitado
+        /// que todavia no se anuncio. Vacia = la pagina no atiende a nadie.
+        std::string rotulosKey;
     };
 
     SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub, Room& room, ShareStore& shares,
@@ -136,6 +142,9 @@ class SignalingServer {
     /// El teleprompter, para que la API de control (A) le cargue discursos y
     /// lo comande sin pasar por la clave del control remoto.
     Prompter& prompter() { return prompter_; }
+    /// El buzon de rotulos, que A publica y viene a vaciar.
+    Rotulador& rotulador() { return rotulador_; }
+    const std::string& rotulosKey() const { return cfg_.rotulosKey; }
     const std::string& prompterKey() const { return cfg_.prompterKey; }
 
     /// Estado de red para la API de control (/api/v1/network).
@@ -261,6 +270,7 @@ class SignalingServer {
     WebrtcHub& hub_;
     Room& room_;
     Prompter prompter_;
+    Rotulador rotulador_;
     ShareStore& shares_;
     Log& log_;
     MediaPump* pump_ = nullptr;

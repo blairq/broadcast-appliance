@@ -88,7 +88,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     connect(evento_.get(), &EventoViewModel::notify, this, &StudioViewModel::notify);
     grafico_ = std::make_unique<GraficoViewModel>(rt, *emisor_);
     // El rotulador mira la escena que está al aire, así que la sigue.
-    rotulador_ = std::make_unique<RotuladorViewModel>(rt, *emisor_);
+    rotulador_ = std::make_unique<RotuladorViewModel>(rt, *emisor_, conference_.get());
     connect(rotulador_.get(), &RotuladorViewModel::notify, this, &StudioViewModel::notify);
     connect(this, &StudioViewModel::sceneChanged, rotulador_.get(), &RotuladorViewModel::refrescar);
     connect(grafico_.get(), &GraficoViewModel::notify, this, &StudioViewModel::notify);

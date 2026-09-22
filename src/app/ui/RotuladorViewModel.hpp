@@ -26,9 +26,12 @@
 #include <QVariantList>
 #include <QVariantMap>
 
+QT_FORWARD_DECLARE_CLASS(QJsonObject)
+
 namespace ba::app {
 
 class AppRuntime;
+class ConferenceViewModel;
 namespace graficos {
 class Emisor;
 }
@@ -43,7 +46,8 @@ class RotuladorViewModel : public QObject {
     Q_PROPERTY(QStringList graficos READ graficos NOTIFY cambio)
 
   public:
-    RotuladorViewModel(AppRuntime& rt, graficos::Emisor& emisor, QObject* parent = nullptr);
+    RotuladorViewModel(AppRuntime& rt, graficos::Emisor& emisor, ConferenceViewModel* sala,
+                       QObject* parent = nullptr);
     ~RotuladorViewModel() override;
 
     QString escena() const;
@@ -62,11 +66,26 @@ class RotuladorViewModel : public QObject {
     Q_INVOKABLE QString disparar(qulonglong fuente, bool repetir = false);
     Q_INVOKABLE QString ocultar(qulonglong fuente);
 
+    /// Pide el enlace y el QR para rotular desde el celular. Contesta por
+    /// `qrListo`. `conClave` mete la clave en el propio QR: comodo si el QR se
+    /// lo pasa el operador a alguien, malo si va a quedar pegado en una pared.
+    Q_INVOKABLE void pedirQr(const QString& target, bool conClave);
+
   signals:
     void cambio();
+    /// `modulos` son las filas del QR en unos y ceros; `mensaje` explica por
+    /// que no hay enlace, si no lo hay.
+    void qrListo(const QString& url, const QStringList& modulos, const QString& mensaje,
+                 const QString& clave);
     void notify(const QString& texto, const QString& tipo);
 
   private:
+    /// Publica lo que hay en B y se lleva lo que encargaron desde los
+    /// celulares. Una vez por segundo, en un solo viaje.
+    void sincronizar();
+    /// Ejecuta un encargo que vino del celular.
+    void atender(const QJsonObject& encargo);
+
     struct Impl;
     std::unique_ptr<Impl> d_;
 };

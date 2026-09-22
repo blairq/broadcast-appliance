@@ -427,6 +427,50 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
         }
     }
 
+    // --- Rotulos desde el celular -------------------------------------------
+    // La pagina es estatica y no lleva datos: se sirve sin clave. Los datos
+    // (que es /api/rotulos) SI la piden, para mirar y para cambiar.
+    if (method == "GET" && (path == "/rotulos" || path.rfind("/rotulos/", 0) == 0)) {
+        if (path == "/rotulos") { // ver el comentario de /prompter
+            http::sendResponse(fd, 301, "text/plain", "", "Location: /rotulos/\r\n");
+            return;
+        }
+        std::string rel = path.size() > 9 ? path.substr(9) : std::string("index.html");
+        if (rel.empty()) rel = "index.html";
+        if (!cfg_.rotulosWebroot.empty() && serveStatic(fd, cfg_.rotulosWebroot, rel)) return;
+        http::sendResponse(fd, 404, "text/plain", "no encontrado\n");
+        return;
+    }
+    if (path == "/api/rotulos") {
+        // La clave hace falta para las dos cosas. Sin clave configurada, la
+        // superficie no existe: es preferible que no ande a que ande abierta.
+        const json req = method == "POST" ? json::parse(body, nullptr, false) : json::object();
+        std::string clave;
+        if (method == "GET") {
+            const auto q = http::parseQuery(query);
+            if (q.count("k")) clave = http::urlDecode(q.at("k"));
+        } else if (req.is_object()) {
+            clave = req.value("clave", std::string());
+        }
+        if (cfg_.rotulosKey.empty() || clave != cfg_.rotulosKey) {
+            http::sendResponse(fd, 403, "application/json", R"({"ok":false,"error":"clave"})");
+            return;
+        }
+        if (method == "GET") {
+            http::sendResponse(fd, 200, "application/json", rotulador_.estado().dump());
+            return;
+        }
+        if (method == "POST") {
+            if (!req.is_object() || !rotulador_.encargar(req)) {
+                http::sendResponse(fd, 400, "application/json",
+                                   R"({"ok":false,"error":"falta id de fuente"})");
+                return;
+            }
+            http::sendResponse(fd, 200, "application/json", rotulador_.estado().dump());
+            return;
+        }
+    }
+
     if (method == "GET" && (path == "/board" || path.rfind("/board/", 0) == 0)) {
         if (path == "/board") { // ver el comentario de /prompter
             http::sendResponse(fd, 301, "text/plain", "", "Location: /board/\r\n");

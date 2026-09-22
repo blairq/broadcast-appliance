@@ -342,3 +342,10 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/prompter")
         DESTINATION Web/prompter
     )
 endif()
+
+# Rotulos: escribir el nombre del que habla desde el celular (/rotulos/).
+if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/rotulos")
+    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/rotulos/"
+        DESTINATION Web/rotulos
+    )
+endif()

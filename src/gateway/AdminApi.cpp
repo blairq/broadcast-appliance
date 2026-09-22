@@ -25,6 +25,9 @@
 //   GET    /api/v1/prompter                estado del teleprompter (+ la clave del control)
 //   POST   /api/v1/prompter                {texto?, titulo?, panico?, ...comandos}
 //   GET    /api/v1/prompter-link?target=local|remote&vista=control|orador  enlace + QR
+//   GET    /api/v1/rotulos                estado de los rotulos (+ la clave)
+//   POST   /api/v1/rotulos                {estado?, tomar?} publica y se lleva los encargos
+//   GET    /api/v1/rotulos-link?target=local|remote&conClave=0|1  enlace + QR para el celular
 //   GET    /api/v1/qr?target=local|remote[&pin=1]  URL de ingreso (+PIN) + matriz del QR
 //   POST   /api/v1/network/server-config   {endpoint, publicAddress?} -> wg0.conf del servidor
 //   POST   /api/v1/room                    {lobby?, locked?, intake?}
@@ -378,6 +381,62 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             sendJson(fd, 200, conClave(prompter_.estado()));
             return;
         }
+    }
+    // --- Rotulos ------------------------------------------------------------
+    // El buzon de dos direcciones con la app: A publica lo que hay y se lleva
+    // lo que encargaron desde los celulares. Ver Rotulador.hpp.
+    if (path == "/api/v1/rotulos") {
+        if (method == "GET") {
+            json e = rotulador_.estado();
+            e["clave"] = cfg_.rotulosKey;
+            sendJson(fd, 200, e);
+            return;
+        }
+        if (method == "POST") {
+            if (req.contains("estado")) rotulador_.publicar(req["estado"]);
+            json out{{"ok", true}};
+            // `tomar` en el mismo pedido: A publica y se lleva los encargos de
+            // una, que es un viaje por segundo en vez de dos.
+            if (req.value("tomar", false)) out["encargos"] = rotulador_.tomarEncargos();
+            sendJson(fd, 200, out);
+            return;
+        }
+    }
+    if (path == "/api/v1/rotulos-link" && method == "GET") {
+        const auto q = http::parseQuery(query);
+        const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
+        json out = joinUrl_ ? joinUrl_(target) : json{{"error", "sin proveedor de URL"}};
+        if (!out.contains("url")) {
+            out["ok"] = false;
+            sendJson(fd, 200, out);
+            return;
+        }
+        std::string origin = out["url"].get<std::string>();
+        if (const size_t s = origin.find("://"); s != std::string::npos) {
+            const size_t end = origin.find_first_of("/?#", s + 3);
+            if (end != std::string::npos) origin.resize(end);
+        }
+        // La clave va en el FRAGMENTO: no viaja en la peticion ni queda en los
+        // registros de ningun servidor por el que pase el enlace. `conClave=0`
+        // la deja afuera: el QR entra a la pagina y la clave se la dice el
+        // operador aparte, que es lo que se quiere si el QR va a quedar pegado
+        // en una pared.
+        const bool conClave = !q.count("conClave") || http::urlDecode(q.at("conClave")) != "0";
+        const std::string url =
+            origin + "/rotulos/" + (conClave ? "#k=" + cfg_.rotulosKey : std::string());
+        const qrcodegen::QrCode qr =
+            qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
+        json rows = json::array();
+        for (int y = 0; y < qr.getSize(); ++y) {
+            std::string row;
+            for (int x = 0; x < qr.getSize(); ++x)
+                row.push_back(qr.getModule(x, y) ? '1' : '0');
+            rows.push_back(row);
+        }
+        sendJson(fd, 200,
+                 json{{"ok", true}, {"target", target}, {"url", url}, {"conClave", conClave},
+                      {"clave", cfg_.rotulosKey}, {"size", qr.getSize()}, {"modules", rows}});
+        return;
     }
     if (path == "/api/v1/prompter-link" && method == "GET") {
         // El enlace del control, con la clave en el FRAGMENTO para que no

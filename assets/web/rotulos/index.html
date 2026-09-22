@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0d1014" />
+  <title>Rótulos</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!--
+    Los rótulos desde el celular (/rotulos/#k=<clave>).
+
+    La clave va en el FRAGMENTO del enlace: no viaja en la petición ni queda
+    en los registros de ningún servidor por el que pase. Sin clave, la API no
+    contesta ni para mirar: un rótulo suele llevar el nombre del invitado que
+    todavía no se anunció.
+
+    Esta página no dibuja nada: escribe en un buzón del gateway que la app
+    viene a vaciar una vez por segundo. Por eso un botón dice «mandado» y no
+    «al aire»: lo que sale al aire lo decide la app.
+  -->
+  <header class="barra">
+    <span id="escena" class="escena">…</span>
+    <span id="estado" class="estado"></span>
+  </header>
+
+  <main id="lista" class="lista"></main>
+
+  <div id="pin" class="pin hidden">
+    <div class="caja">
+      <h1>Rótulos</h1>
+      <p id="pinMsg">Este enlace no trae la clave. Pedile al operador el QR o el enlace completo.</p>
+      <input id="pinCampo" type="password" inputmode="numeric" placeholder="Clave" autocomplete="off" />
+      <button id="pinOk">Entrar</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

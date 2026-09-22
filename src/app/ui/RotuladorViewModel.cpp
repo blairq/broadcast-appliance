@@ -7,9 +7,13 @@
 #include <map>
 
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QJsonObject>
+#include <QTimer>
 
 #include "AppRuntime.hpp"
+#include "ui/ConferenceViewModel.hpp"
+#include "ui/ConferenceClient.hpp"
 #include "graficos/Emisor.hpp"
 #include "graficos/GraficoSource.hpp"
 
@@ -18,6 +22,12 @@ namespace ba::app {
 struct RotuladorViewModel::Impl {
     AppRuntime& rt;
     graficos::Emisor& em;
+    ConferenceViewModel* sala = nullptr;
+    /// El ida y vuelta con el buzon de B: publica lo que hay y se lleva lo que
+    /// encargaron desde los celulares. Un viaje por segundo, en los dos
+    /// sentidos a la vez (ver Rotulador.hpp en el gateway).
+    QTimer sincro;
+    QString ultimoPublicado;
     /// Lo que se está escribiendo, por fuente. Sobrevive a un cambio de escena
     /// y vuelta: el operador escribió el nombre, se fue a otra escena y al
     /// volver lo encuentra donde lo dejó.
@@ -25,7 +35,7 @@ struct RotuladorViewModel::Impl {
     /// Qué gráfico eligió el operador para cada fuente.
     std::map<quint64, QString> elegido;
 
-    Impl(AppRuntime& r, graficos::Emisor& e) : rt(r), em(e) {}
+    Impl(AppRuntime& r, graficos::Emisor& e, ConferenceViewModel* s) : rt(r), em(e), sala(s) {}
 
     /// Qué gráfico muestra esa fuente: el que eligieron, o el último que salió
     /// al aire, o el que diga la fuente en sus propiedades.
@@ -38,9 +48,13 @@ struct RotuladorViewModel::Impl {
     }
 };
 
-RotuladorViewModel::RotuladorViewModel(AppRuntime& rt, graficos::Emisor& emisor, QObject* parent)
-    : QObject(parent), d_(std::make_unique<Impl>(rt, emisor)) {
+RotuladorViewModel::RotuladorViewModel(AppRuntime& rt, graficos::Emisor& emisor,
+                                       ConferenceViewModel* sala, QObject* parent)
+    : QObject(parent), d_(std::make_unique<Impl>(rt, emisor, sala)) {
     connect(&emisor, &graficos::Emisor::cambio, this, &RotuladorViewModel::cambio);
+    d_->sincro.setInterval(1000);
+    connect(&d_->sincro, &QTimer::timeout, this, [this]() { sincronizar(); });
+    if (sala != nullptr) d_->sincro.start();
 }
 
 RotuladorViewModel::~RotuladorViewModel() = default;
@@ -149,5 +163,78 @@ QString RotuladorViewModel::disparar(qulonglong fuente, bool repetir) {
 }
 
 QString RotuladorViewModel::ocultar(qulonglong fuente) { return d_->em.ocultar(fuente); }
+
+void RotuladorViewModel::sincronizar() {
+    if (d_->sala == nullptr || !d_->sala->client().online()) return;
+
+    QJsonArray fs;
+    for (const QVariant& f : fuentes()) {
+        const QVariantMap m = f.toMap();
+        fs.append(QJsonObject{{"id", static_cast<double>(m.value("id").toULongLong())},
+                              {"fuente", m.value("fuente").toString()},
+                              {"grafico", m.value("grafico").toString()},
+                              {"titulo", m.value("titulo").toString()},
+                              {"enAire", m.value("enAire").toBool()},
+                              {"campos", QJsonArray::fromVariantList(m.value("campos").toList())},
+                              {"valores", QJsonObject::fromVariantMap(m.value("valores").toMap())}});
+    }
+    const QJsonObject estado{{"escena", escena()}, {"fuentes", fs}};
+
+    // El estado se manda SIEMPRE, aunque no haya cambiado: es tambien el
+    // latido con el que el celular sabe que la app sigue viva (ver `viva` en
+    // Rotulador.hpp). Lo que se evita es redibujar de mas del otro lado, y de
+    // eso se ocupa la pagina con su propia firma.
+    d_->sala->client().post("/api/v1/rotulos", QJsonObject{{"estado", estado}, {"tomar", true}},
+                            [this](bool ok, const QJsonObject& r) {
+                                if (!ok) return;
+                                const QJsonArray es = r.value("encargos").toArray();
+                                if (es.isEmpty()) return;
+                                for (const QJsonValue& e : es) atender(e.toObject());
+                                emit cambio();
+                            });
+}
+
+void RotuladorViewModel::atender(const QJsonObject& e) {
+    const auto fuente = static_cast<quint64>(e.value("id").toDouble());
+    if (fuente == 0) return;
+    const QString accion = e.value("accion").toString("aire");
+
+    if (accion == "sacar") {
+        ocultar(fuente);
+        return;
+    }
+    const QString grafico = e.value("grafico").toString();
+    if (!grafico.isEmpty() && grafico != d_->elegido[fuente]) setGrafico(fuente, grafico);
+    const QJsonObject vs = e.value("valores").toObject();
+    for (auto it = vs.begin(); it != vs.end(); ++it)
+        setValor(fuente, it.key(), it.value().toVariant().toString());
+
+    const QString err = disparar(fuente, accion == "bucle");
+    // Lo que se encargo desde un celular y fallo tiene que verse en la app: el
+    // que lo mando esta mirando la pantalla, no el telefono.
+    if (!err.isEmpty())
+        emit notify("Un rótulo pedido desde el celular no salió: " + err, "error");
+    else
+        emit notify("Rótulo al aire desde el celular", "ok");
+}
+
+void RotuladorViewModel::pedirQr(const QString& target, bool conClave) {
+    if (d_->sala == nullptr) {
+        emit qrListo({}, {}, "La sala no está corriendo", {});
+        return;
+    }
+    const QString t = target == "remote" ? "remote" : "local";
+    d_->sala->client().get(
+        "/api/v1/rotulos-link?target=" + t + "&conClave=" + (conClave ? "1" : "0"),
+        [this](bool ok, const QJsonObject& r) {
+            QStringList filas;
+            for (const QJsonValue& v : r.value("modules").toArray()) filas << v.toString();
+            QString msg = r.value("message").toString();
+            const bool bien = ok && r.value("ok").toBool();
+            if (!bien && msg.isEmpty()) msg = "La sala no responde";
+            emit qrListo(bien ? r.value("url").toString() : QString(), filas, msg,
+                         r.value("clave").toString());
+        });
+}
 
 } // namespace ba::app

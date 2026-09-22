@@ -47,6 +47,12 @@ Rectangle {
             }
             Item { Layout.fillWidth: true }
             GlassButton {
+                icon: "▣"; text: "Desde el celular"; compact: true
+                onClicked: qrDlg.mostrar("local", true)
+                ToolTip.visible: hovered
+                ToolTip.text: "Un QR para rotular desde un teléfono, con su clave"
+            }
+            GlassButton {
                 icon: "↻"; compact: true
                 onClicked: page.r.refrescar()
                 ToolTip.visible: hovered
@@ -101,7 +107,9 @@ Rectangle {
                                 Layout.fillWidth: true
                                 spacing: 10
                                 Rectangle {
-                                    width: 8; height: 8; radius: 4
+                                    Layout.preferredWidth: 8
+                                    Layout.preferredHeight: 8
+                                    radius: 4
                                     color: tarjeta.modelData.enAire ? Theme.live : Qt.rgba(1, 1, 1, 0.2)
                                 }
                                 Text {
@@ -248,6 +256,126 @@ Rectangle {
                 ctx += " Hablo de la fuente de gráfico «" + fuente.fuente + "», que muestra el gráfico «" +
                        fuente.grafico + "» (id " + fuente.id + ")."
             ag.send(ctx + " " + t)
+        }
+    }
+
+    // --- El QR para el celular -----------------------------------------------
+    // La clave puede ir DENTRO del QR (se entra sin tipear nada) o no ir: si el
+    // QR va a quedar pegado en una pared, la clave se dice aparte.
+    Dialog {
+        id: qrDlg
+        anchors.centerIn: parent
+        modal: true
+        standardButtons: Dialog.Close
+        title: "Rotular desde el celular"
+        property string target: "local"
+        property bool conClave: true
+        property string url: ""
+        property string clave: ""
+        property var modulos: []
+        property string mensaje: ""
+        property bool cargando: false
+
+        function mostrar(t, k) {
+            target = t; conClave = k
+            url = ""; modulos = []; mensaje = ""; cargando = true
+            open()
+            page.r.pedirQr(t, k)
+        }
+
+        Connections {
+            target: page.r
+            function onQrListo(url, modulos, mensaje, clave) {
+                qrDlg.cargando = false
+                qrDlg.url = url
+                qrDlg.modulos = modulos
+                qrDlg.mensaje = mensaje
+                qrDlg.clave = clave
+                qrCanvas.requestPaint()
+            }
+        }
+
+        ColumnLayout {
+            spacing: 12
+            Rectangle {
+                Layout.alignment: Qt.AlignHCenter
+                Layout.preferredWidth: 300
+                Layout.preferredHeight: 300
+                radius: 12
+                color: qrDlg.url !== "" ? "white" : Qt.rgba(1, 1, 1, 0.05)
+                Canvas {
+                    id: qrCanvas
+                    anchors.fill: parent
+                    anchors.margins: 12
+                    visible: qrDlg.url !== ""
+                    onPaint: {
+                        const ctx = getContext("2d")
+                        ctx.reset()
+                        const filas = qrDlg.modulos
+                        if (!filas || filas.length === 0) return
+                        const n = filas.length + 8 // zona silenciosa de 4 módulos
+                        const cell = Math.floor(Math.min(width, height) / n)
+                        const off = Math.floor((Math.min(width, height) - cell * n) / 2) + 4 * cell
+                        ctx.fillStyle = "#000000"
+                        for (let y = 0; y < filas.length; ++y)
+                            for (let x = 0; x < filas[y].length; ++x)
+                                if (filas[y][x] === "1") ctx.fillRect(off + x * cell, off + y * cell, cell, cell)
+                    }
+                }
+                Text {
+                    anchors.fill: parent
+                    anchors.margins: 20
+                    visible: qrDlg.url === ""
+                    wrapMode: Text.Wrap
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    color: Theme.textDim; font.pixelSize: 13
+                    text: qrDlg.cargando ? "Generando…" : qrDlg.mensaje
+                }
+            }
+
+            RowLayout {
+                Layout.alignment: Qt.AlignHCenter
+                spacing: 6
+                GlassButton {
+                    compact: true; text: "Red local"
+                    active: qrDlg.target === "local"
+                    onClicked: qrDlg.mostrar("local", qrDlg.conClave)
+                }
+                GlassButton {
+                    compact: true; text: "Por internet"
+                    active: qrDlg.target === "remote"
+                    onClicked: qrDlg.mostrar("remote", qrDlg.conClave)
+                }
+            }
+
+            CheckBox {
+                checked: qrDlg.conClave
+                text: "Incluir la clave en el QR (entra sin tipearla)"
+                onToggled: qrDlg.mostrar(qrDlg.target, checked)
+            }
+
+            Text {
+                Layout.preferredWidth: 300
+                wrapMode: Text.WordWrap
+                color: Theme.textDim
+                font.pixelSize: 11
+                text: qrDlg.conClave
+                    ? "La clave viaja en el fragmento del enlace: no llega al servidor ni queda en " +
+                      "ningún registro. Aun así, el que tenga este QR puede rotular: no lo dejes pegado " +
+                      "en una pared."
+                    : "Sin la clave adentro, el QR abre la página y pide la clave. Decísela vos: " +
+                      (qrDlg.clave === "" ? "" : qrDlg.clave)
+            }
+
+            Text {
+                Layout.preferredWidth: 300
+                wrapMode: Text.WrapAnywhere
+                visible: qrDlg.url !== ""
+                color: Theme.textFaint
+                font.pixelSize: 10
+                text: qrDlg.url
+            }
         }
     }
 }
