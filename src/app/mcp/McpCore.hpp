@@ -128,6 +128,19 @@ class McpCore {
     McpCore();
 
     void setServerInfo(std::string name, std::string version, std::string instructions);
+    /// Le pega texto a las instrucciones que van en el `initialize`.
+    void addInstructions(const std::string& mas);
+
+    /// Un renglon por categoria: id, titulo, cuantas herramientas y para que
+    /// sirve.
+    ///
+    /// POR QUE VA SIEMPRE. El listado de herramientas cuesta ~32.000 tokens EN
+    /// CADA PEDIDO, asi que tarde o temprano hay que mandar menos. Pero mandar
+    /// menos SIN un indice de lo que existe es peor que mandar todo: el modelo
+    /// concluye «esto no se puede hacer» cuando la herramienta esta a una
+    /// categoria de distancia. El mapa cuesta unos 400 tokens y hace que eso
+    /// no pueda pasar.
+    std::string mapaDeCategorias() const;
     void addCategory(const std::string& id, const std::string& title, const std::string& summary);
     void addTool(Tool tool);
     void addTopic(HelpTopic topic);

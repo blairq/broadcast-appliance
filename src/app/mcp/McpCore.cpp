@@ -224,6 +224,29 @@ McpCore::McpCore() {
     addTool(std::move(search));
 }
 
+void McpCore::addInstructions(const std::string& mas) {
+    if (mas.empty()) return;
+    if (!instructions_.empty()) instructions_ += "\n";
+    instructions_ += mas;
+}
+
+std::string McpCore::mapaDeCategorias() const {
+    std::map<std::string, int> cuantas;
+    for (const Tool& t : tools_) ++cuantas[t.category];
+    std::string out = "## Mapa de herramientas\n\nNo te quedes con lo que ves: si algo no "
+                      "aparece, fijate en que categoria caeria y pedi su ayuda con "
+                      "`help {\"topic\": \"<categoria>\"}`.\n\n";
+    for (const Category& c : categories_) {
+        const auto it = cuantas.find(c.id);
+        const int n = it == cuantas.end() ? 0 : it->second;
+        if (n == 0) continue;
+        out += "- **" + c.id + "** (" + std::to_string(n) + "): " + c.title;
+        if (!c.summary.empty()) out += " — " + c.summary;
+        out += "\n";
+    }
+    return out;
+}
+
 void McpCore::setServerInfo(std::string name, std::string version, std::string instructions) {
     name_ = std::move(name);
     version_ = std::move(version);
@@ -475,8 +498,13 @@ json McpCore::initializeResult(const json& params) const {
 json McpCore::toolListEntry(const Tool& t) const {
     json e{
         {"name", t.name}, {"title", t.title}, {"description", t.description}, {"inputSchema", t.inputSchema}};
-    e["annotations"] = json{{"title", t.title},
-                            {"readOnlyHint", t.readOnly},
+    // Las cuatro marcas van SIEMPRE, aunque repitan el valor por defecto: en
+    // el protocolo `destructiveHint` y `openWorldHint` valen true si no estan,
+    // asi que omitirlas no ahorra bytes, les cambia el sentido.
+    //
+    // Lo que si se saca es el titulo repetido adentro de las anotaciones: ya
+    // viaja arriba, y el listado entero se manda en CADA pedido al modelo.
+    e["annotations"] = json{{"readOnlyHint", t.readOnly},
                             {"destructiveHint", t.destructive},
                             {"idempotentHint", t.idempotent},
                             {"openWorldHint", t.openWorld}};

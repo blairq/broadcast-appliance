@@ -236,6 +236,10 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
     registerAudioTools();
     registerGraficoTools();
     registerRegistroTools();
+    // El mapa se arma al final, cuando ya estan todas: antes daria cuentas en
+    // cero. Va en las `instructions` del initialize, o sea que lo ve cualquier
+    // cliente, siempre, y cuesta unos 400 tokens.
+    core_.addInstructions("\n" + core_.mapaDeCategorias());
     applySecurity();
 }
 
