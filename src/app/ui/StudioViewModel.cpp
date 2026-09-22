@@ -37,6 +37,7 @@
 #include "ui/GraficoViewModel.hpp"
 #include "ui/ExtensionesModel.hpp"
 #include "ui/RegistroViewModel.hpp"
+#include "ui/RielConfig.hpp"
 #include "ui/RotuladorViewModel.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/DashboardModel.hpp"
@@ -141,6 +142,11 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     }
     if (extensiones_)
         connect(extensiones_.get(), &ExtensionesModel::notify, this, &StudioViewModel::notify);
+
+    // El riel se lee siempre, tambien en modo seguro: es COMO SE NAVEGA. Si
+    // no se cargara, el operador quedaria sin poder llegar a Configuracion
+    // justo cuando algo anda mal.
+    riel_ = std::make_unique<RielConfig>(rt.dataRoot() / "Config" / "riel.json");
 
     registro_ = std::make_unique<RegistroViewModel>(rt);
     connect(registro_.get(), &RegistroViewModel::notify, this, &StudioViewModel::notify);
@@ -475,6 +481,13 @@ QObject* StudioViewModel::grafico() const { return grafico_.get(); }
 QObject* StudioViewModel::rotulador() const { return rotulador_.get(); }
 QObject* StudioViewModel::registro() const { return registro_.get(); }
 QObject* StudioViewModel::extensiones() const { return extensiones_.get(); }
+QObject* StudioViewModel::riel() const { return riel_.get(); }
+
+void StudioViewModel::setSeccionConfig(const QString& s) {
+    if (s == seccionConfig_) return;
+    seccionConfig_ = s;
+    emit seccionConfigChanged();
+}
 
 QJsonObject StudioViewModel::contextoDeVinculos() const {
     QJsonObject ctx;

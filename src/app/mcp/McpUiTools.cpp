@@ -17,6 +17,7 @@
 
 #include "AppRuntime.hpp"
 #include "mcp/McpService.hpp"
+#include "ui/RielConfig.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/DashboardModel.hpp"
 #include "ui/FrameService.hpp"
@@ -52,9 +53,15 @@ void McpService::registerUiTools() {
                              {"enum",
                               {"dashboard", "escenas", "entradas", "audio", "sala", "guion", "youtube",
                                "twitch", "facebook", "configuracion", "asistente", "graficos",
-                               "rotulos", "registro"}}}}}},
+                               "rotulos", "registro"}}}},
+                           {"seccion",
+                            {{"type", "string"},
+                             {"description",
+                              "Solo con page=configuracion: a que seccion ir (el nombre tal cual lo "
+                              "muestra la lista, p. ej. \"Audio\", \"Gateway\", \"Barra de "
+                              "navegacion\"). Sin esto queda la que estaba."}}}}},
                          {"required", {"page"}}};
-        t.run = [self](const json& a, Done done) {
+        t.run = [self, &vm](const json& a, Done done) {
             static const std::map<std::string, int> kPages{
                 {"dashboard", 0}, {"escenas", 1},       {"sala", 2},      {"youtube", 3},  {"twitch", 4},
                 {"facebook", 5},  {"configuracion", 6}, {"asistente", 7}, {"entradas", 8}, {"audio", 9},
@@ -62,6 +69,10 @@ void McpService::registerUiTools() {
             QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;
             if (w == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
             w->setProperty("page", kPages.at(a["page"]));
+            // Llevarlo a la seccion ANTES de mostrar la pagina haria que se
+            // vea un salto; despues, no se nota.
+            if (a.contains("seccion") && a["seccion"].is_string())
+                vm.setSeccionConfig(QString::fromStdString(a["seccion"].get<std::string>()));
             done(ToolResult::ok("Pagina: " + a["page"].get<std::string>()));
         };
         core_.addTool(std::move(t));
@@ -87,9 +98,15 @@ void McpService::registerUiTools() {
                              {"enum",
                               {"dashboard", "escenas", "entradas", "audio", "sala", "guion", "youtube",
                                "twitch", "facebook", "configuracion", "asistente", "graficos",
-                               "rotulos", "registro"}}}}}},
+                               "rotulos", "registro"}}}},
+                           {"seccion",
+                            {{"type", "string"},
+                             {"description",
+                              "Solo con page=configuracion: a que seccion ir (el nombre tal cual lo "
+                              "muestra la lista, p. ej. \"Audio\", \"Gateway\", \"Barra de "
+                              "navegacion\"). Sin esto queda la que estaba."}}}}},
                          {"required", {"page"}}};
-        t.run = [self](const json& a, Done done) {
+        t.run = [self, &vm](const json& a, Done done) {
             static const std::map<std::string, std::pair<int, const char*>> kPages{
                 {"dashboard", {0, "Dashboard"}},   {"escenas", {1, "Escenas"}},
                 {"sala", {2, "Sala"}},             {"youtube", {3, "YouTube"}},
@@ -287,6 +304,77 @@ void McpService::registerUiTools() {
         };
         core_.addTool(std::move(t));
     }
+    // --- La barra de navegacion ---------------------------------------------
+    // Tiene vista (Configuracion -> Barra de navegacion), asi que se puede
+    // publicar: la regla es que no se expone un setter que no se vea en
+    // ningun lado (ver docs/EXTENSIONES.md).
+    {
+        Tool t;
+        t.name = "ui_barra";
+        t.title = "La barra de navegacion";
+        t.category = "interfaz";
+        t.description = "Donde va la barra lateral, de que tamaño y que paginas muestra.";
+        t.details =
+            "Sin argumentos, informa como esta. Con ellos, cambia lo que se le diga y deja el resto.\n\n"
+            "`posicion`: izquierda (por defecto), derecha, arriba o abajo. Arriba y abajo convienen en "
+            "pantallas anchas y bajas, donde lo que falta es altura.\n\n"
+            "`tamano`: el lado del boton en pixeles, de 30 a 64. 34 es chico, 42 normal, 54 grande.\n\n"
+            "`mostrar` y `esconder`: listas de paginas por nombre, los mismos que toma ui_show_page. "
+            "Esconder una NO la desactiva: la pagina sigue existiendo, el asistente la sigue usando y "
+            "se puede abrir en su propia ventana; lo unico que se esconde es su boton. Configuracion "
+            "no se puede esconder, porque es por donde se vuelve.\n\n"
+            "El cambio se ve al toque y se guarda solo en Config/riel.json.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"posicion", {{"type", "string"}, {"enum", {"izquierda", "derecha", "arriba", "abajo"}}}},
+              {"tamano", {{"type", "integer"}, {"minimum", 30}, {"maximum", 64}}},
+              {"separadores", {{"type", "boolean"}, {"description", "Lineas entre los grupos."}}},
+              {"mostrar", {{"type", "array"}, {"items", {{"type", "string"}}}}},
+              {"esconder", {{"type", "array"}, {"items", {{"type", "string"}}}}},
+              {"restaurar", {{"type", "boolean"}, {"description", "Todo como viene de fabrica."}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            auto* riel = static_cast<RielConfig*>(vm.riel());
+            if (riel == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
+            static const std::map<std::string, int> kPages{
+                {"dashboard", 0}, {"escenas", 1},       {"sala", 2},      {"youtube", 3},  {"twitch", 4},
+                {"facebook", 5},  {"configuracion", 6}, {"asistente", 7}, {"entradas", 8}, {"audio", 9},
+                {"guion", 10}, {"graficos", 11}, {"rotulos", 12}, {"registro", 13}};
+
+            if (a.value("restaurar", false)) riel->restaurar();
+            if (a.contains("posicion"))
+                riel->setPosicion(QString::fromStdString(a["posicion"].get<std::string>()));
+            if (a.contains("tamano")) riel->setTamano(a["tamano"].get<int>());
+            if (a.contains("separadores")) riel->setSeparadores(a["separadores"].get<bool>());
+            for (const char* cual : {"mostrar", "esconder"}) {
+                if (!a.contains(cual) || !a[cual].is_array()) continue;
+                const bool ver = std::string(cual) == "mostrar";
+                for (const json& p : a[cual]) {
+                    if (!p.is_string()) continue;
+                    const auto it = kPages.find(p.get<std::string>());
+                    if (it == kPages.end())
+                        return done(ToolResult::error("No conozco la pagina \"" +
+                                                      p.get<std::string>() + "\"."));
+                    riel->setVisible(it->second, ver);
+                }
+            }
+
+            json paginas = json::array();
+            for (const QVariant& v : riel->paginas()) {
+                const QVariantMap m = v.toMap();
+                paginas.push_back(json{{"titulo", m.value("titulo").toString().toStdString()},
+                                       {"visible", m.value("visible").toBool()},
+                                       {"grupo", m.value("grupo").toString().toStdString()}});
+            }
+            done(ToolResult().data(json{{"posicion", riel->posicion().toStdString()},
+                                        {"tamano", riel->tamano()},
+                                        {"separadores", riel->separadores()},
+                                        {"escondidas", riel->escondidas()},
+                                        {"paginas", paginas}}));
+        };
+        core_.addTool(std::move(t));
+    }
+
     {
         Tool t;
         t.name = "logs_tail";

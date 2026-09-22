@@ -113,26 +113,39 @@ ApplicationWindow {
     }
 
     // --- Paginas ------------------------------------------------------------------
+    /// Cuanto margen tiene que dejar cada pagina a la izquierda. Con el riel a
+    /// la izquierda, el riel FLOTA sobre ese margen; en los otros lados el
+    /// lugar ya lo reserva el StackLayout y la pagina solo deja un aire.
+    readonly property real insetPagina:
+        Studio.riel.posicion === "izquierda" ? Studio.riel.grosor + 28 : 14
+
     StackLayout {
+        id: paginas
         anchors.fill: parent
         // Le deja lugar al zocalo del asistente: si no, la barra taparia el
         // ultimo control de cada pagina justo cuando hace falta apretarlo.
-        anchors.bottomMargin: barraIA.visible ? barraIA.height + 14 : 0
+        anchors.bottomMargin: (barraIA.visible ? barraIA.height + 14 : 0) +
+                              (Studio.riel.posicion === "abajo" ? Studio.riel.grosor + 28 : 0)
+        // A la izquierda el riel FLOTA sobre el margen que cada pagina ya deja
+        // (su `leftInset`); en los otros tres lados hay que reservarle lugar de
+        // verdad, porque ahi las paginas no dejan nada.
+        anchors.topMargin: Studio.riel.posicion === "arriba" ? Studio.riel.grosor + 28 : 0
+        anchors.rightMargin: Studio.riel.posicion === "derecha" ? Studio.riel.grosor + 28 : 0
         currentIndex: win.page
-        DashboardPage {}
-        ScenesPage {}
-        ConferencePage {}
-        YouTubePage {}
-        TwitchPage {}
-        FacebookPage {}
-        SettingsPage {}
-        AssistantPage {}
-        InputsPage {}
-        AudioPage {}
-        EventoPage {}
-        GraficosPage {}
-        RotulosPage {}
-        RegistroPage {}
+        DashboardPage { leftInset: win.insetPagina }
+        ScenesPage { leftInset: win.insetPagina }
+        ConferencePage { leftInset: win.insetPagina }
+        YouTubePage { leftInset: win.insetPagina }
+        TwitchPage { leftInset: win.insetPagina }
+        FacebookPage { leftInset: win.insetPagina }
+        SettingsPage { leftInset: win.insetPagina }
+        AssistantPage { leftInset: win.insetPagina }
+        InputsPage { leftInset: win.insetPagina }
+        AudioPage { leftInset: win.insetPagina }
+        EventoPage { leftInset: win.insetPagina }
+        GraficosPage { leftInset: win.insetPagina }
+        RotulosPage { leftInset: win.insetPagina }
+        RegistroPage { leftInset: win.insetPagina }
     }
 
     // --- Pestañas sacadas a su propia ventana --------------------------------------
@@ -191,189 +204,256 @@ ApplicationWindow {
     }
 
     // --- Riel de navegacion (vidrio flotante) ---------------------------------------
+    // SIN ANCHORS CONDICIONALES, y es la lección cara de este archivo: poner
+    // `anchors.right: cond ? parent.right : undefined` parece que alterna, pero
+    // al volver de horizontal a vertical el ancla vieja no se suelta, el item
+    // queda atado a dos lados opuestos y se estira hasta ocupar la ventana
+    // entera (se vio: el botón del asistente convertido en una mancha naranja
+    // de pared a pared). Para cambiar anclas en vivo hay que usar estados con
+    // AnchorChanges; acá directamente no hacen falta: con x/y/ancho/alto
+    // calculados, cada posición es una cuenta y no hay estado que limpiar.
+    //
+    // Adentro, un solo GridLayout que fluye en un sentido o en el otro: el
+    // logo, la tira de páginas, el asistente y los indicadores son los mismos
+    // cuatro hijos en las cuatro posiciones.
     Rectangle {
         id: rail
-        anchors { left: parent.left; top: parent.top; bottom: parent.bottom; margins: 14 }
-        width: 64
-        radius: 32
+        readonly property var cfg: Studio.riel
+        readonly property bool vert: cfg.vertical
+        readonly property int margen: 14
+
+        x: cfg.posicion === "derecha" ? parent.width - width - margen : margen
+        y: cfg.posicion === "abajo" ? parent.height - height - margen : margen
+        width: vert ? cfg.grosor : parent.width - margen * 2
+        height: vert ? parent.height - margen * 2 : cfg.grosor
+        radius: cfg.grosor / 2
         color: Qt.rgba(0.06, 0.06, 0.07, 0.72)
         border.color: Theme.glassBorder
 
-        // El logotipo queda fijo arriba: es el unico ancla que no se mueve.
-        Rectangle {
-            id: marca
-            anchors { top: parent.top; horizontalCenter: parent.horizontalCenter; topMargin: 14 }
-            width: 44; height: 44; radius: 22
-            color: Theme.accent
-            Text { anchors.centerIn: parent; text: "BA"; color: "white"; font { pixelSize: 15; weight: Font.Black } }
-        }
+        // El catalogo de paginas (cual, que icono, en que grupo) vive en C++
+        // —ver ui/RielConfig.hpp— porque Configuracion tambien lo necesita para
+        // ofrecer que mostrar. Repetido en dos lados se desincroniza.
+        readonly property var grupos: rail.cfg.grupos
 
-        // --- Las paginas, AGRUPADAS y desplazables -----------------------------
-        // Con catorce paginas ya no entran en una pantalla de portatil y los
-        // iconos se encimaban. El patron es el de siempre para un riel que se
-        // llena: grupos con un separador fino entre uno y otro —para poder
-        // apuntar a lo que uno busca sin leer los catorce— y la tira que se
-        // desplaza cuando no entra, con un degradado arriba y abajo que avisa
-        // que hay mas. El asistente y los indicadores quedan FIJOS abajo:
-        // son los que se buscan a las apuradas y no pueden moverse de lugar.
-        //
-        // `page` es el indice en el StackLayout, que no es el orden del riel.
-        readonly property var grupos: [
-            { titulo: "Producción", items: [
-                { icon: "⌂", tip: "Dashboard", page: 0 },
-                { icon: "▦", tip: "Escenas y fuentes", page: 1 },
-                { icon: "◉", tip: "Entradas de video (camaras, capturadoras, red)", page: 8 },
-                { icon: "🎚", tip: "Audio: patchbay de modulos LSP por fuente", page: 9 } ] },
-            { titulo: "Contenido", items: [
-                { icon: "☎", tip: "Sala (lobby, invitados, chat)", page: 2 },
-                { icon: "≣", tip: "Guion del evento: bloques, cues y tiempos", page: 10 },
-                { icon: "◈", tip: "Gráficos animados: zócalos, placas y tickers", page: 11 },
-                { icon: "✎", tip: "Rótulos en vivo: los textos de la escena que está al aire", page: 12 } ] },
-            { titulo: "Publicar", items: [
-                { icon: "▶", tip: "YouTube (cuenta, videos, en vivo)", page: 3 },
-                { icon: "◆", tip: "Twitch (canal, vivo, chat)", page: 4 },
-                { icon: "f", tip: "Facebook (Paginas, vivos, videos)", page: 5 } ] },
-            { titulo: "Sistema", items: [
-                { icon: "❑", tip: "Registro: todo lo que pasa, de los tres procesos", page: 13 },
-                { icon: "⚙", tip: "Configuracion", page: 6 } ] }
-        ]
+        GridLayout {
+            anchors.fill: parent
+            anchors.margins: 11
+            flow: rail.vert ? GridLayout.TopToBottom : GridLayout.LeftToRight
+            columns: rail.vert ? 1 : 4
+            rows: rail.vert ? 4 : 1
+            rowSpacing: 12
+            columnSpacing: 12
 
-        Flickable {
-            id: tira
-            anchors {
-                top: marca.bottom; topMargin: 12
-                bottom: aiBtn.top; bottomMargin: 12
-                left: parent.left; right: parent.right
+            // 1) El logotipo.
+            Rectangle {
+                Layout.preferredWidth: rail.cfg.tamano
+                Layout.preferredHeight: rail.cfg.tamano
+                Layout.alignment: Qt.AlignCenter
+                radius: width / 2
+                color: Theme.accent
+                Text {
+                    anchors.centerIn: parent
+                    text: "BA"
+                    color: "white"
+                    font { pixelSize: Math.round(rail.cfg.tamano * 0.35); weight: Font.Black }
+                }
             }
-            clip: true
-            contentHeight: columna.height
-            boundsBehavior: Flickable.StopAtBounds
-            // Sin barra: el riel tiene 64 px de ancho y una barra se comeria
-            // el espacio del icono. Los degradados de los bordes ya dicen que
-            // hay mas, y se desplaza con la rueda.
-            interactive: contentHeight > height
 
-            Column {
-                id: columna
-                width: tira.width
-                spacing: 8
+            // 2) Las paginas, agrupadas y desplazables. Con catorce ya no
+            // entran en una pantalla de portatil: grupos con un separador fino
+            // —para poder apuntar a lo que uno busca sin leer los catorce— y la
+            // tira que se desplaza cuando no entra, con un degradado que avisa.
+            Flickable {
+                id: tira
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                contentHeight: rail.vert ? filas.implicitHeight : height
+                contentWidth: rail.vert ? width : filas.implicitWidth
+                boundsBehavior: Flickable.StopAtBounds
+                // Sin barra de desplazamiento: el riel es angosto y se comeria
+                // el lugar del icono. Los degradados ya dicen que hay mas.
+                interactive: rail.vert ? contentHeight > height : contentWidth > width
 
-                Repeater {
-                    model: rail.grupos
-                    delegate: Column {
-                        required property var modelData
-                        required property int index
-                        width: columna.width
-                        spacing: 8
+                GridLayout {
+                    id: filas
+                    flow: rail.vert ? GridLayout.TopToBottom : GridLayout.LeftToRight
+                    width: rail.vert ? tira.width : implicitWidth
+                    height: rail.vert ? implicitHeight : tira.height
+                    rowSpacing: 8
+                    columnSpacing: 8
 
-                        // Separador entre grupos (en el primero no va).
-                        Item {
-                            width: 1; height: index === 0 ? 0 : 9
-                            visible: index !== 0
-                            Rectangle {
-                                anchors.centerIn: parent
-                                width: 22; height: 1
-                                color: Qt.rgba(1, 1, 1, 0.14)
-                            }
-                        }
+                    Repeater {
+                        model: rail.grupos
+                        delegate: GridLayout {
+                            id: grupo
+                            required property var modelData
+                            required property int index
+                            flow: rail.vert ? GridLayout.TopToBottom : GridLayout.LeftToRight
+                            rowSpacing: 8
+                            columnSpacing: 8
+                            Layout.fillWidth: rail.vert
+                            Layout.fillHeight: !rail.vert
 
-                        Repeater {
-                            model: modelData.items
-                            delegate: Rectangle {
-                                required property var modelData
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                width: 42; height: 42; radius: 21
-                                color: win.page === modelData.page ? "white"
-                                     : (navMa.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : "transparent")
-                                border.color: Qt.rgba(1, 1, 1, 0.16)
-                                Behavior on color { ColorAnimation { duration: 150 } }
-                                Text {
+                            // Separador entre grupos (en el primero no va).
+                            Item {
+                                visible: grupo.index !== 0 && rail.cfg.separadores
+                                Layout.preferredWidth: rail.vert ? rail.cfg.tamano : (visible ? 9 : 0)
+                                Layout.preferredHeight: rail.vert ? (visible ? 9 : 0) : rail.cfg.tamano
+                                Rectangle {
                                     anchors.centerIn: parent
-                                    text: modelData.icon
-                                    color: win.page === modelData.page ? "#111" : Theme.text
-                                    font.pixelSize: 18
+                                    width: rail.vert ? 22 : 1
+                                    height: rail.vert ? 1 : 22
+                                    color: Qt.rgba(1, 1, 1, 0.14)
                                 }
-                                MouseArea {
-                                    id: navMa
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    acceptedButtons: Qt.LeftButton | Qt.RightButton
-                                    onClicked: (m) => {
-                                        if (m.button === Qt.RightButton)
-                                            win.sacarAVentana(modelData.page, modelData.tip.split(":")[0])
-                                        else win.page = modelData.page
+                            }
+
+                            Repeater {
+                                model: grupo.modelData.items
+                                // La CELDA mide lo mismo que el boton y el
+                                // boton se centra adentro. Todas las celdas de
+                                // todos los grupos miden igual, asi que las
+                                // columnas quedan alineadas: el primer grupo se
+                                // veia corrido porque, al ser el unico sin
+                                // separador visible, su columna medía distinto.
+                                delegate: Item {
+                                    id: celda
+                                    required property var modelData
+                                    Layout.preferredWidth: rail.cfg.tamano
+                                    Layout.preferredHeight: rail.cfg.tamano
+                                    Layout.alignment: Qt.AlignCenter
+
+                                    Rectangle {
+                                        anchors.fill: parent
+                                        radius: width / 2
+                                        color: win.page === celda.modelData.page ? "white"
+                                             : (navMa.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : "transparent")
+                                        border.color: Qt.rgba(1, 1, 1, 0.16)
+                                        Behavior on color { ColorAnimation { duration: 150 } }
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: celda.modelData.icon
+                                            color: win.page === celda.modelData.page ? "#111" : Theme.text
+                                            // El icono acompaña al tamaño del
+                                            // boton: si no, agrandar la barra
+                                            // deja un icono chico en el medio.
+                                            font.pixelSize: Math.round(rail.cfg.tamano * 0.43)
+                                        }
+                                        MouseArea {
+                                            id: navMa
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                            onClicked: (m) => {
+                                                if (m.button === Qt.RightButton)
+                                                    win.sacarAVentana(celda.modelData.page, celda.modelData.titulo)
+                                                else win.page = celda.modelData.page
+                                            }
+                                        }
+                                        ToolTip.visible: navMa.containsMouse
+                                        ToolTip.text: celda.modelData.tip + "\n(clic derecho: sacar a su propia ventana)"
+                                        ToolTip.delay: 400
                                     }
                                 }
-                                ToolTip.visible: navMa.containsMouse
-                                ToolTip.text: modelData.tip + "\n(clic derecho: sacar a su propia ventana)"
-                                ToolTip.delay: 400
                             }
                         }
                     }
                 }
-            }
-        }
 
-        // Los degradados que avisan que la tira sigue. Solo cuando hay algo
-        // mas para ese lado: si no, son dos manchas que no dicen nada.
-        Rectangle {
-            anchors { top: tira.top; left: tira.left; right: tira.right }
-            height: 18
-            visible: tira.contentY > 2
-            gradient: Gradient {
-                GradientStop { position: 0; color: Qt.rgba(0.06, 0.06, 0.07, 0.95) }
-                GradientStop { position: 1; color: "transparent" }
+                // Los degradados que avisan que la tira sigue. Solo cuando hay
+                // algo mas para ese lado: si no, son manchas que no dicen nada.
+                Rectangle {
+                    parent: tira
+                    x: 0; y: 0
+                    width: rail.vert ? tira.width : 18
+                    height: rail.vert ? 18 : tira.height
+                    visible: rail.vert ? tira.contentY > 2 : tira.contentX > 2
+                    gradient: Gradient {
+                        orientation: rail.vert ? Gradient.Vertical : Gradient.Horizontal
+                        GradientStop { position: 0; color: Qt.rgba(0.06, 0.06, 0.07, 0.95) }
+                        GradientStop { position: 1; color: "transparent" }
+                    }
+                }
+                Rectangle {
+                    parent: tira
+                    x: rail.vert ? 0 : tira.width - width
+                    y: rail.vert ? tira.height - height : 0
+                    width: rail.vert ? tira.width : 18
+                    height: rail.vert ? 18 : tira.height
+                    visible: rail.vert ? tira.contentHeight - tira.contentY - tira.height > 2
+                                       : tira.contentWidth - tira.contentX - tira.width > 2
+                    gradient: Gradient {
+                        orientation: rail.vert ? Gradient.Vertical : Gradient.Horizontal
+                        GradientStop { position: 0; color: "transparent" }
+                        GradientStop { position: 1; color: Qt.rgba(0.06, 0.06, 0.07, 0.95) }
+                    }
+                }
             }
-        }
-        Rectangle {
-            anchors { bottom: tira.bottom; left: tira.left; right: tira.right }
-            height: 18
-            visible: tira.contentHeight - tira.contentY - tira.height > 2
-            gradient: Gradient {
-                GradientStop { position: 0; color: "transparent" }
-                GradientStop { position: 1; color: Qt.rgba(0.06, 0.06, 0.07, 0.95) }
-            }
-        }
 
-        // Asistente de IA: abajo del todo, separado de las paginas.
-        Rectangle {
-            id: aiBtn
-            anchors { bottom: dots.top; horizontalCenter: parent.horizontalCenter; bottomMargin: 18 }
-            width: 44; height: 44; radius: 22
-            gradient: Gradient {
-                GradientStop { position: 0; color: win.page === 7 ? "#ffffff" : "#ff8a3d" }
-                GradientStop { position: 1; color: win.page === 7 ? "#ffe2cf" : "#c2410c" }
+            // 3) El asistente. Fijo, fuera de la tira: es el que se busca a las
+            // apuradas y no puede moverse con el desplazamiento.
+            Rectangle {
+                id: aiBtn
+                Layout.preferredWidth: rail.cfg.tamano
+                Layout.preferredHeight: rail.cfg.tamano
+                Layout.alignment: Qt.AlignCenter
+                radius: width / 2
+                gradient: Gradient {
+                    GradientStop { position: 0; color: win.page === 7 ? "#ffffff" : "#ff8a3d" }
+                    GradientStop { position: 1; color: win.page === 7 ? "#ffe2cf" : "#c2410c" }
+                }
+                border.color: Qt.rgba(1, 1, 1, 0.3)
+                Text {
+                    anchors.centerIn: parent
+                    text: "✦"
+                    color: win.page === 7 ? "#c2410c" : "white"
+                    font.pixelSize: Math.round(rail.cfg.tamano * 0.48)
+                }
+                Rectangle { // corriendo
+                    visible: Studio.agent.running
+                    width: 10; height: 10; radius: 5; color: Theme.ok; border.color: "#111"
+                    anchors { right: parent.right; top: parent.top }
+                }
+                MouseArea {
+                    id: aiMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: win.page = 7
+                }
+                ToolTip.visible: aiMa.containsMouse
+                ToolTip.text: "Asistente (chat con la IA que maneja la app)"
+                ToolTip.delay: 400
             }
-            border.color: Qt.rgba(1, 1, 1, 0.3)
-            Text { anchors.centerIn: parent; text: "✦"; color: win.page === 7 ? "#c2410c" : "white"; font.pixelSize: 20 }
-            Rectangle { // corriendo
-                visible: Studio.agent.running
-                width: 10; height: 10; radius: 5; color: Theme.ok; border.color: "#111"
-                anchors { right: parent.right; top: parent.top }
+
+            // 4) Indicadores rapidos: al aire, grabando, sala.
+            Grid {
+                columns: rail.vert ? 1 : 3
+                spacing: 10
+                Layout.alignment: Qt.AlignCenter
+                Repeater {
+                    model: [
+                        { on: Studio.streaming, c: Theme.live,   si: "Al aire",      no: "Fuera del aire" },
+                        { on: Studio.recording, c: Theme.accent, si: "Grabando",     no: "Sin grabar" },
+                        { on: Studio.gatewayAlive, c: Theme.ok,  si: "Sala en línea", no: "Sala sin conexión" }
+                    ]
+                    delegate: Rectangle {
+                        id: punto
+                        required property var modelData
+                        width: 10; height: 10; radius: 5
+                        color: modelData.on ? modelData.c : Theme.textFaint
+                        ToolTip.visible: puntoMa.containsMouse
+                        ToolTip.text: punto.modelData.on ? punto.modelData.si : punto.modelData.no
+                        MouseArea {
+                            id: puntoMa
+                            anchors.fill: parent
+                            anchors.margins: -6
+                            hoverEnabled: true
+                        }
+                    }
+                }
             }
-            MouseArea { id: aiMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.page = 7 }
-            ToolTip.visible: aiMa.containsMouse
-            ToolTip.text: "Asistente (chat con la IA que maneja la app)"
-            ToolTip.delay: 400
-        }
-        // Indicadores rapidos abajo
-        Column {
-            id: dots
-            anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter; bottomMargin: 18 }
-            spacing: 10
-            Rectangle { width: 10; height: 10; radius: 5; anchors.horizontalCenter: parent.horizontalCenter
-                        color: Studio.streaming ? Theme.live : Theme.textFaint
-                        ToolTip.visible: sMa.containsMouse; ToolTip.text: Studio.streaming ? "Al aire" : "Fuera del aire"
-                        MouseArea { id: sMa; anchors.fill: parent; anchors.margins: -6; hoverEnabled: true } }
-            Rectangle { width: 10; height: 10; radius: 5; anchors.horizontalCenter: parent.horizontalCenter
-                        color: Studio.recording ? Theme.accent : Theme.textFaint
-                        ToolTip.visible: rMa.containsMouse; ToolTip.text: Studio.recording ? "Grabando" : "Sin grabar"
-                        MouseArea { id: rMa; anchors.fill: parent; anchors.margins: -6; hoverEnabled: true } }
-            Rectangle { width: 10; height: 10; radius: 5; anchors.horizontalCenter: parent.horizontalCenter
-                        color: Studio.gatewayAlive ? Theme.ok : Theme.live
-                        ToolTip.visible: gMa.containsMouse; ToolTip.text: Studio.gatewayAlive ? "Sala en línea" : "Sala sin conexión"
-                        MouseArea { id: gMa; anchors.fill: parent; anchors.margins: -6; hoverEnabled: true } }
         }
     }
 

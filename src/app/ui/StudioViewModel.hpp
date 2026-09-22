@@ -40,6 +40,7 @@ class GraficoViewModel;
 class RotuladorViewModel;
 class RegistroViewModel;
 class ExtensionesModel;
+class RielConfig;
 namespace graficos { class Emisor; class Vinculos; }
 class YouTubeViewModel;
 class TwitchViewModel;
@@ -104,6 +105,12 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* registro READ registro CONSTANT)
     /// Las tarjetas que vienen de Extensiones/ (ver ExtensionesModel.hpp).
     Q_PROPERTY(QObject* extensiones READ extensiones CONSTANT)
+    /// La barra de navegacion: donde va, de que tamaño y que muestra.
+    Q_PROPERTY(QObject* riel READ riel CONSTANT)
+    /// Que seccion de Configuracion esta abierta. Vive aca y no adentro del
+    /// QML para que se pueda llevar al operador derecho a una seccion ("andá a
+    /// la de audio") en vez de decirle donde tiene que hacer clic.
+    Q_PROPERTY(QString seccionConfig READ seccionConfig WRITE setSeccionConfig NOTIFY seccionConfigChanged)
     Q_PROPERTY(QObject* youtube READ youtube CONSTANT)
     Q_PROPERTY(QObject* twitch READ twitch CONSTANT)
     Q_PROPERTY(QObject* facebook READ facebook CONSTANT)
@@ -158,6 +165,9 @@ class StudioViewModel : public QObject {
     QObject* rotulador() const;
     QObject* registro() const;
     QObject* extensiones() const;
+    QObject* riel() const;
+    QString seccionConfig() const { return seccionConfig_; }
+    void setSeccionConfig(const QString& s);
     /// De donde sacan sus valores los vinculos (ver graficos/Vinculos.hpp):
     /// la sala, el guion y la escena al aire, todo junto.
     QJsonObject contextoDeVinculos() const;
@@ -225,6 +235,7 @@ class StudioViewModel : public QObject {
    signals:
     void statusChanged();
     void sceneChanged();
+    void seccionConfigChanged();
     void canvasChanged();
     void themeChanged();
     /// Aviso para el operador: level = "info" | "ok" | "warn" | "error".
@@ -254,6 +265,8 @@ class StudioViewModel : public QObject {
     std::unique_ptr<graficos::Vinculos> vinculos_;
     std::unique_ptr<RegistroViewModel> registro_;
     std::unique_ptr<ExtensionesModel> extensiones_;
+    std::unique_ptr<RielConfig> riel_;
+    QString seccionConfig_;
 #if defined(BA_HAVE_CLAP)
     std::unique_ptr<audio::RackManager> racks_;
     std::unique_ptr<audio::AudioViewModel> audio_;
