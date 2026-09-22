@@ -8,6 +8,8 @@
 // Los gráficos viven en Graficos/ del bundle (los de fábrica) y en
 // Eventos/<evento>/Graficos/ (los del evento, que viajan con él).
 // ============================================================================
+#include <algorithm>
+
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -17,6 +19,7 @@
 
 #include "AppRuntime.hpp"
 #include "graficos/GraficoProceso.hpp"
+#include "graficos/GraficoSource.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 
@@ -183,6 +186,131 @@ void McpService::registerGraficoTools() {
         core_.addTool(std::move(t));
     }
 
+    {
+        Tool t;
+        t.name = "grafico_mostrar";
+        t.title = "Poner un gráfico al aire";
+        t.category = "graficos";
+        t.description =
+            "Dibuja el gráfico y lo reproduce en una fuente «Gráfico animado» de una escena. "
+            "ESTO SE VE AL AIRE si esa escena está en el programa.";
+        t.details =
+            "Antes de usar esto hay que haber mirado el gráfico con grafico_probar. Una vez que sale, "
+            "lo ve el público.\n\n"
+            "La fuente tiene que existir en una escena: se agrega como cualquier otra, con tipo "
+            "«Gráfico animado» (ba_grafico). `grafico_en_escena` las lista con su id.\n\n"
+            "Los cuadros se dibujan TODOS de antemano y después se reproducen, así que el primer "
+            "disparo tarda un poco (medio segundo para una animación corta) y a partir de ahí no hay "
+            "nada que pueda trabarse. Por eso hay tope de duración: más de unos segundos no es un "
+            "gráfico animado, es un video.\n\n"
+            "Sin `repetir`, el último cuadro queda fijo — que es lo que quiere un zócalo que entra y "
+            "se sostiene. Con `repetir`, vuelve a empezar (un ticker).";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"fuente", {{"type", "integer"}, {"description", "Id de la fuente (grafico_en_escena)."}}},
+              {"nombre", {{"type", "string"}, {"description", "Qué gráfico mostrar."}}},
+              {"parametros", {{"type", "object"}}},
+              {"duracionMs",
+               {{"type", "integer"}, {"minimum", 100}, {"maximum", 15000}, {"default", 1500},
+                {"description", "Cuánta animación dibujar."}}},
+              {"fps", {{"type", "integer"}, {"minimum", 10}, {"maximum", 60}, {"default", 30}}},
+              {"repetir", {{"type", "boolean"}, {"default", false}}}}},
+            {"required", {"fuente", "nombre"}}};
+        t.run = [&rt, proc](const json& a, Done done) {
+            if (!proc->disponible())
+                return done(ToolResult::error("El renderizador de gráficos no está en este bundle."));
+            const auto id = static_cast<std::uint64_t>(a["fuente"].get<long long>());
+            int ancho = 900;
+            int alto = 220;
+            bool existe = false;
+            for (const auto& i : graficos::instancias())
+                if (i.id == id) {
+                    ancho = i.ancho;
+                    alto = i.alto;
+                    existe = true;
+                }
+            if (!existe)
+                return done(ToolResult::error(
+                    "No hay ninguna fuente de gráfico con ese id (grafico_en_escena las lista)."));
+
+            QString err;
+            const QString carpeta =
+                carpetaDe(rt, QString::fromStdString(a["nombre"].get<std::string>()), &err);
+            if (carpeta.isEmpty()) return done(ToolResult::error(err.toStdString()));
+            QJsonObject par;
+            if (a.contains("parametros"))
+                par = QJsonDocument::fromJson(QByteArray::fromStdString(a["parametros"].dump()))
+                          .object();
+            QJsonObject pedido = pedidoDe(carpeta, par, &err);
+            if (pedido.isEmpty()) return done(ToolResult::error(err.toStdString()));
+            pedido["ancho"] = ancho;
+            pedido["alto"] = alto;
+
+            const int fps = std::clamp(a.value("fps", 30), 10, 60);
+            const int dur = std::clamp(a.value("duracionMs", 1500), 100, graficos::kMaxSegundos * 1000);
+            // Se piden los cuadros de a tandas: el protocolo del renderizador
+            // acota cuantos entran en una respuesta.
+            std::vector<QImage> todos;
+            const int total = std::max(1, dur * fps / 1000);
+            for (int desde = 0; desde < total;) {
+                QVector<int> momentos;
+                for (int k = 0; k < 12 && desde < total; ++k, ++desde)
+                    momentos.append(desde * 1000 / fps);
+                const auto parte = proc->tira(pedido, momentos, &err);
+                if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
+                for (const auto& c : parte)
+                    todos.push_back(c.imagen);
+            }
+            if (!graficos::reproducir(id, std::move(todos), fps, a.value("repetir", false)))
+                return done(ToolResult::error("no se pudo reproducir en esa fuente"));
+            done(ToolResult::ok("«" + a["nombre"].get<std::string>() + "» al aire (" +
+                                std::to_string(total) + " cuadros)."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "grafico_ocultar";
+        t.title = "Sacar un gráfico";
+        t.category = "graficos";
+        t.description = "Deja la fuente transparente.";
+        t.details = "No borra la fuente de la escena: la deja vacía. Volver a mostrarla es "
+                    "grafico_mostrar de nuevo.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"fuente", {{"type", "integer"}}}}},
+                         {"required", {"fuente"}}};
+        t.run = [](const json& a, Done done) {
+            const auto id = static_cast<std::uint64_t>(a["fuente"].get<long long>());
+            if (!graficos::ocultar(id))
+                return done(ToolResult::error("No hay ninguna fuente de gráfico con ese id."));
+            done(ToolResult::ok("Gráfico oculto."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "grafico_en_escena";
+        t.title = "Fuentes de gráfico que hay";
+        t.category = "graficos";
+        t.readOnly = true;
+        t.description = "Las fuentes «Gráfico animado» puestas en escenas, con su id y su tamaño.";
+        t.details = "El `id` es lo que piden grafico_mostrar y grafico_ocultar. Si está vacío, hay "
+                    "que agregar una fuente de tipo ba_grafico a alguna escena primero.";
+        t.run = [](const json&, Done done) {
+            json out = json::array();
+            for (const auto& i : graficos::instancias())
+                out.push_back(json{{"id", i.id},
+                                   {"fuente", i.nombre},
+                                   {"grafico", i.grafico},
+                                   {"ancho", i.ancho},
+                                   {"alto", i.alto},
+                                   {"reproduciendo", i.reproduciendo},
+                                   {"cuadros", i.cuadros}});
+            done(ToolResult().data(json{{"fuentes", out}}));
+        };
+        core_.addTool(std::move(t));
+    }
     {
         Tool t;
         t.name = "grafico_repertorio";

@@ -50,13 +50,13 @@ void McpService::registerUiTools() {
                             {{"type", "string"},
                              {"enum",
                               {"dashboard", "escenas", "entradas", "audio", "sala", "guion", "youtube",
-                               "twitch", "facebook", "configuracion", "asistente"}}}}}},
+                               "twitch", "facebook", "configuracion", "asistente", "graficos"}}}}}},
                          {"required", {"page"}}};
         t.run = [self](const json& a, Done done) {
             static const std::map<std::string, int> kPages{
                 {"dashboard", 0}, {"escenas", 1},       {"sala", 2},      {"youtube", 3},  {"twitch", 4},
                 {"facebook", 5},  {"configuracion", 6}, {"asistente", 7}, {"entradas", 8}, {"audio", 9},
-                {"guion", 10}};
+                {"guion", 10}, {"graficos", 11}};
             QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;
             if (w == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
             w->setProperty("page", kPages.at(a["page"]));
@@ -84,7 +84,7 @@ void McpService::registerUiTools() {
                             {{"type", "string"},
                              {"enum",
                               {"dashboard", "escenas", "entradas", "audio", "sala", "guion", "youtube",
-                               "twitch", "facebook", "configuracion", "asistente"}}}}}},
+                               "twitch", "facebook", "configuracion", "asistente", "graficos"}}}}}},
                          {"required", {"page"}}};
         t.run = [self](const json& a, Done done) {
             static const std::map<std::string, std::pair<int, const char*>> kPages{
@@ -93,7 +93,8 @@ void McpService::registerUiTools() {
                 {"twitch", {4, "Twitch"}},         {"facebook", {5, "Facebook"}},
                 {"configuracion", {6, "Configuración"}}, {"asistente", {7, "Asistente"}},
                 {"entradas", {8, "Entradas"}},     {"audio", {9, "Audio"}},
-                {"guion", {10, "Guion del evento"}}};
+                {"guion", {10, "Guion del evento"}},
+                {"graficos", {11, "Gráficos"}}};
             QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;
             if (w == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
             const auto& [idx, titulo] = kPages.at(a["page"]);
