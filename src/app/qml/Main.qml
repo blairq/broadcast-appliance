@@ -79,6 +79,11 @@ ApplicationWindow {
     // --- API para las tarjetas y paginas ------------------------------------------
     function showPage(i) { page = i }
     function toast(message, level) { toasts.show(message, level) }
+
+    /// Le manda un pedido al asistente con el contexto de la pagina que esta a
+    /// la vista ya puesto. Es lo que usan los botones de las paginas (por
+    /// ejemplo los de un grafico) para no tener que armar el contexto cada uno.
+    function pedirAlAsistente(texto) { barraIA.mandar(texto) }
     function openStreamDialog() {
         if (Studio.streamServer && Studio.streamKeyAvailable) Studio.startStreaming("", "")
         else streamDlg.open()
@@ -110,6 +115,9 @@ ApplicationWindow {
     // --- Paginas ------------------------------------------------------------------
     StackLayout {
         anchors.fill: parent
+        // Le deja lugar al zocalo del asistente: si no, la barra taparia el
+        // ultimo control de cada pagina justo cuando hace falta apretarlo.
+        anchors.bottomMargin: barraIA.visible ? barraIA.height + 14 : 0
         currentIndex: win.page
         DashboardPage {}
         ScenesPage {}
@@ -367,6 +375,73 @@ ApplicationWindow {
                         ToolTip.visible: gMa.containsMouse; ToolTip.text: Studio.gatewayAlive ? "Sala en línea" : "Sala sin conexión"
                         MouseArea { id: gMa; anchors.fill: parent; anchors.margins: -6; hoverEnabled: true } }
         }
+    }
+
+    // --- El zocalo para hablarle al asistente, en todas las paginas ------------------
+    // El contexto se arma ACA porque es el unico lugar que sabe que pagina
+    // esta a la vista y puede leer de los Studio.* que esta mirando el
+    // operador. Sin contexto, «achicalo un poco» no quiere decir nada.
+    function contextoDePagina(i) {
+        switch (i) {
+        case 0: return "Estoy en el Dashboard, mirando el programa y las salidas."
+        case 1: return "Estoy en Escenas y fuentes. La escena al aire es «" + Studio.currentScene + "»."
+        case 2: return "Estoy en la Sala (lobby, invitados y chat)."
+        case 3: return "Estoy en la pagina de YouTube (cuenta, videos y vivos)."
+        case 4: return "Estoy en la pagina de Twitch."
+        case 5: return "Estoy en la pagina de Facebook."
+        case 6: return "Estoy en Configuracion."
+        case 8: return "Estoy en Entradas de video (camaras, capturadoras y red)."
+        case 9: return "Estoy en Audio, en el patchbay de modulos por fuente."
+        case 10: return "Estoy en el Guion del evento" +
+                        (Studio.evento.abierto ? " «" + Studio.evento.abierto + "»." : ", sin ningun evento abierto.")
+        case 11: return Studio.grafico.abierto !== ""
+                        ? "Estoy en el editor de Graficos, editando «" + Studio.grafico.abierto + "»" +
+                          (Studio.grafico.declarativo ? " (declarativo: se edita su descripcion en grafico.json)."
+                                                      : " (QML escrito a mano).")
+                        : "Estoy en el editor de Graficos, sin ninguno abierto."
+        case 12: return "Estoy en Rotulos. La escena al aire es «" + Studio.rotulador.escena + "»."
+        case 13: return "Estoy en el visor del Registro."
+        }
+        return ""
+    }
+
+    // Los pedidos ya escritos de cada pagina: lo que uno va a querer pedir
+    // estando ahi. Son los que antes vivian adentro de cada pagina.
+    function sugerenciasDePagina(i) {
+        switch (i) {
+        case 0: return [ { t: "¿Como venimos?", p: "Deci en dos lineas como esta todo ahora: aire, grabacion, sala y alertas." },
+                         { t: "Revisar antes de salir", p: "Revisa todo lo que conviene mirar antes de salir al aire y deci que esta mal." } ]
+        case 1: return [ { t: "Escena nueva", p: "Arma una escena nueva parecida a la que esta al aire y deci como te quedo." },
+                         { t: "¿Que hay en esta escena?", p: "Deci que fuentes tiene la escena al aire y para que sirve cada una." } ]
+        case 2: return [ { t: "¿Quien esta?", p: "Deci quien esta conectado en la sala, quien espera y quien esta al aire." },
+                         { t: "Pasar al que sigue", p: "Pone al aire al siguiente de la cola de oradores." } ]
+        case 9: return [ { t: "Se escucha mal", p: "Mira los niveles de audio y deci que fuente esta mal y que le harias." } ]
+        case 10: return [ { t: "Revisar el guion", p: "Revisa el guion y deci que le falta a cada cue para poder correrlo." },
+                          { t: "¿Como vamos de tiempo?", p: "Deci como vamos de tiempo contra lo previsto." } ]
+        case 11: return [ { t: "Que entre mas rapido", p: "Hace que entre mas rapido, alrededor de 300 ms." },
+                          { t: "Mas chico", p: "Achicalo un 20 % sin que el texto quede apretado." },
+                          { t: "Probar un nombre largo", p: "Probalo con un nombre bien largo y fijate si se sale de la caja." },
+                          { t: "Proponer botones", p: "Propone los botones («acciones») de este grafico y escribilos en su grafico.json: cada uno con titulo corto, icono de un caracter y prompt redactado como se lo pediria el operador en vivo." } ]
+        case 12: return [ { t: "Poner al que habla", p: "Pone en el zocalo de esta escena el nombre y el cargo del que esta al aire, y sacalo al aire." },
+                          { t: "Que se mantenga solo", p: "Ata este rotulo al orador que este al aire, para que se actualice solo cuando cambie." } ]
+        case 13: return [ { t: "¿Que se rompio?", p: "Mira el registro y deci que fallo, cuando y por que. Empeza por los avisos y errores." },
+                          { t: "Mas detalle", p: "Baja el nivel de registro a depuracion asi queda mas detalle de lo que viene." } ]
+        }
+        return []
+    }
+
+    BarraAsistente {
+        id: barraIA
+        // En la pestaña del Asistente no va: ahi esta el chat de verdad, con
+        // su configuracion, y dos cajas para lo mismo confunden.
+        visible: win.page !== 7
+        anchors {
+            left: rail.right; right: parent.right; bottom: parent.bottom
+            leftMargin: 20; rightMargin: 20; bottomMargin: 14
+        }
+        contexto: win.contextoDePagina(win.page)
+        sugerencias: win.sugerenciasDePagina(win.page)
+        onMandado: (texto) => toasts.show("Pedido mandado. La respuesta aparece en el Asistente.", "info")
     }
 
     // --- Estado de emision, visible en todas las paginas ------------------------------

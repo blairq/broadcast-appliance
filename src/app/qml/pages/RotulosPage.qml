@@ -21,7 +21,6 @@ Rectangle {
 
     ColumnLayout {
         anchors { fill: parent; leftMargin: page.leftInset; margins: 20 }
-        anchors.bottomMargin: pedir.visible ? 20 + pedir.height + 14 : 20
         spacing: 14
 
         RowLayout {
@@ -186,7 +185,7 @@ Rectangle {
                             // gráfico ya sabe que le van a querer pedir.
                             Flow {
                                 Layout.fillWidth: true
-                                visible: tarjeta.modelData.acciones.length > 0 && pedir.ag.running
+                                visible: tarjeta.modelData.acciones.length > 0 && Studio.agent.running
                                 spacing: 6
                                 Repeater {
                                     model: tarjeta.modelData.acciones
@@ -195,7 +194,15 @@ Rectangle {
                                         compact: true
                                         icon: modelData.icono
                                         text: modelData.titulo
-                                        onClicked: pedir.mandar(modelData.prompt, tarjeta.modelData)
+                                        onClicked: {
+                                            // El contexto de la barra ya dice la escena; acá se
+                                            // agrega de qué fuente se habla, que es lo que el
+                                            // asistente necesita para no adivinar.
+                                            ApplicationWindow.window.pedirAlAsistente(
+                                                "Hablo de la fuente de gráfico «" + tarjeta.modelData.fuente +
+                                                "», que muestra «" + tarjeta.modelData.grafico + "» (id " +
+                                                tarjeta.modelData.id + "). " + modelData.prompt)
+                                        }
                                         ToolTip.visible: hovered
                                         ToolTip.text: modelData.prompt
                                         ToolTip.delay: 500
@@ -292,55 +299,6 @@ Rectangle {
 
                 Item { Layout.fillWidth: true; implicitHeight: 4 }
             }
-        }
-    }
-
-    // --- Pedirle al asistente que automatice esto ----------------------------
-    Panel {
-        id: pedir
-        anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-        anchors { leftMargin: page.leftInset + 20; rightMargin: 20; bottomMargin: 20 }
-        height: 72
-        readonly property var ag: Studio.agent
-
-        RowLayout {
-            anchors { fill: parent; margins: 12 }
-            spacing: 8
-            TextField {
-                id: pedido
-                Layout.fillWidth: true
-                enabled: pedir.ag.running
-                placeholderText: pedir.ag.running
-                    ? "Pedile al asistente que llene o automatice estos rótulos…"
-                    : "El asistente no está corriendo (pestaña Asistente)"
-                color: Theme.text
-                font.pixelSize: 13
-                onAccepted: { pedir.mandar(text, null); pedido.text = "" }
-            }
-            GlassButton {
-                text: "Pedir"; compact: true
-                enabled: pedir.ag.running && pedido.text.trim() !== ""
-                onClicked: { pedir.mandar(pedido.text, null); pedido.text = "" }
-            }
-            GlassButton {
-                icon: "⧉"; compact: true
-                onClicked: ApplicationWindow.window.sacarAVentana(7, "Asistente")
-                ToolTip.visible: hovered
-                ToolTip.text: "Abrir el Asistente en otra ventana para ver lo que contesta"
-            }
-        }
-
-        /// Manda el pedido con el contexto puesto. Sin esto el asistente no
-        /// sabe de qué escena ni de qué fuente le están hablando, y termina
-        /// preguntando o —peor— adivinando.
-        function mandar(texto, fuente) {
-            const t = String(texto).trim()
-            if (t === "" || !ag.running) return
-            let ctx = "Estoy en la pantalla de Rótulos. La escena al aire es «" + page.r.escena + "»."
-            if (fuente)
-                ctx += " Hablo de la fuente de gráfico «" + fuente.fuente + "», que muestra el gráfico «" +
-                       fuente.grafico + "» (id " + fuente.id + ")."
-            ag.send(ctx + " " + t)
         }
     }
 
