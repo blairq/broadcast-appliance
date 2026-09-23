@@ -59,6 +59,15 @@ Window {
         cursorShape: bar.opacity > 0 ? Qt.ArrowCursor : Qt.BlankCursor
     }
     Timer { id: hide; interval: 2200; onTriggered: bar.opacity = 0 }
+    /// Volver a pantalla completa DESPUES de cambiar de monitor (ver el menu).
+    /// Con una pausa a proposito: el compositor tiene que terminar de sacarla
+    /// antes de que se la pida de nuevo, o ignora el segundo pedido.
+    property bool pedidoFull: false
+    Timer {
+        id: volverAFull
+        interval: 180
+        onTriggered: if (w.pedidoFull) Studio.dashboard.windows.setFullscreen(w.winId, true)
+    }
     Shortcut { sequence: "Esc"; enabled: w.fullscreen; onActivated: Studio.dashboard.windows.setFullscreen(w.winId, false) }
     Shortcut { sequence: "F"; onActivated: Studio.dashboard.windows.setFullscreen(w.winId, !w.fullscreen) }
 
@@ -106,8 +115,19 @@ Window {
                             checkable: true
                             checked: w.screen && w.screen.name === modelData.name
                             onTriggered: {
+                                // ESTANDO EN PANTALLA COMPLETA NO SE MUEVE. El
+                                // compositor recibe «pantalla completa en el
+                                // monitor A» y cambiar de pantalla despues no
+                                // le vuelve a pedir nada, asi que se queda
+                                // donde estaba. Hay que SALIR, cambiar, y
+                                // volver a entrar: ahi si recibe la peticion
+                                // nueva, con el monitor nuevo.
+                                w.pedidoFull = w.fullscreen || !Studio.puedeUbicarVentanas
+                                if (w.fullscreen)
+                                    Studio.dashboard.windows.setFullscreen(w.winId, false)
                                 Studio.dashboard.windows.setScreen(w.winId, modelData.name)
                                 w.screen = modelData
+                                if (w.pedidoFull) volverAFull.restart()
                                 // EN WAYLAND `setScreen` NO MUEVE LA VENTANA, y
                                 // encima no falla: Qt informa la pantalla nueva
                                 // y la ventana se queda donde estaba —el botón
@@ -115,8 +135,6 @@ Window {
                                 // respeta es pantalla completa EN UN MONITOR,
                                 // que además es lo que uno quiere el 95% de las
                                 // veces al mandar un video a la otra pantalla.
-                                if (!Studio.puedeUbicarVentanas)
-                                    Studio.dashboard.windows.setFullscreen(w.winId, true)
                             }
                         }
                     }

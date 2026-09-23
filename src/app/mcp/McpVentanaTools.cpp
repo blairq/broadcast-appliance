@@ -291,6 +291,35 @@ void McpService::registerVentanaTools() {
                 w->setScreen(destino);
                 hecho += " a " + destino->name().toStdString();
             }
+
+            // EL CAMINO QUE SI FUNCIONA. Donde el escritorio no deja ubicar
+            // ventanas, pedir «la pantalla entera del monitor 2» no hacia
+            // nada. Pantalla completa EN UN MONITOR si la respeta —probado:
+            // los carteles de monitor_identificar salen en el monitor que
+            // corresponde—, y es lo mismo que se estaba pidiendo. Se hace, y
+            // se dice: hacerlo callado seria cambiarle el pedido a alguien.
+            const std::string zonaPedida = a.value("zona", std::string());
+            const bool quiereTodoElMonitor = zonaPedida == "completa" ||
+                                             (zonaPedida.empty() && a.contains("monitor") &&
+                                              !a.contains("x") && !a.contains("ancho"));
+            if (!ubicaElPrograma() && quiereTodoElMonitor && !a.contains("estado")) {
+                // CON UNA PAUSA, y no es supersticion. Ya salio de pantalla
+                // completa mas arriba; si se le pide la nueva en el mismo
+                // instante, el compositor todavia esta procesando la salida y
+                // se come el pedido. Eso es exactamente lo que hacia que
+                // mandar a otro monitor una ventana que YA estaba en pantalla
+                // completa no hiciera nada: habia que sacarla a mano primero.
+                const std::string titulo2 = w->title().toStdString();
+                QTimer::singleShot(180, w, [w, done, titulo2, hecho]() {
+                    w->setVisibility(QWindow::FullScreen);
+                    done(ToolResult::ok(
+                        "«" + titulo2 + "»:" + hecho +
+                        ", a pantalla completa. En este escritorio ocupar un monitor entero solo se "
+                        "puede asi (una ventana con marco no se deja colocar); con `estado: \"normal\"` "
+                        "vuelve, pero la ubica el escritorio."));
+                });
+                return;
+            }
             if (acomoda) {
                 // CONTANDO EL MARCO. `setGeometry` ubica el area de CLIENTE, y
                 // lo que una persona llama «la mitad izquierda» incluye la barra
@@ -311,10 +340,21 @@ void McpService::registerVentanaTools() {
 
             if (a.contains("estado")) {
                 const std::string e = a["estado"].get<std::string>();
-                w->setVisibility(e == "pantalla-completa" ? QWindow::FullScreen
-                                 : e == "maximizada"      ? QWindow::Maximized
-                                 : e == "minimizada"      ? QWindow::Minimized
-                                                          : QWindow::Windowed);
+                if (e == "pantalla-completa") {
+                    // Salir y volver a entrar (ver la pausa de mas arriba): si
+                    // ya estaba en pantalla completa en OTRO monitor, pedirla
+                    // de nuevo sin salir no mueve nada.
+                    w->setVisibility(QWindow::Windowed);
+                    const std::string titulo2 = w->title().toStdString();
+                    QTimer::singleShot(180, w, [w, done, titulo2, hecho]() {
+                        w->setVisibility(QWindow::FullScreen);
+                        done(ToolResult::ok("«" + titulo2 + "»:" + hecho + " (pantalla completa)."));
+                    });
+                    return;
+                }
+                w->setVisibility(e == "maximizada"  ? QWindow::Maximized
+                                 : e == "minimizada" ? QWindow::Minimized
+                                                     : QWindow::Windowed);
                 hecho += " (" + e + ")";
             }
             if (a.value("alFrente", false)) {
