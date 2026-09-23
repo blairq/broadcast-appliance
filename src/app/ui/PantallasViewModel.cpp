@@ -17,10 +17,12 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QMetaObject>
+#include <QNetworkInterface>
 #include <QUdpSocket>
 #include <QUrl>
 
 #include "AppRuntime.hpp"
+#include "diag/Registro.hpp"
 #include "pantallas/Buscar.hpp"
 #include "pantallas/Cast.hpp"
 #include "ui/ConferenceClient.hpp"
@@ -122,6 +124,13 @@ struct Destino {
     int puedeMostrar = -1;
 };
 
+/// Todo lo que pasa con una pantalla queda escrito: mandar algo a un televisor
+/// es una acción que se ve en la sala, y cuando algo sale mal (el aparato no
+/// contesta, la página no carga) el registro tiene que poder contarlo después.
+void anotar(diag::Nivel n, const std::string& texto) {
+    diag::registro().linea(n, "pantallas", 0, texto);
+}
+
 /// Un paso de un carrusel: qué mostrar y cuánto.
 struct Paso {
     QString tipo;
@@ -135,31 +144,57 @@ struct Carrusel {
     std::vector<Paso> pasos;
 };
 
-/// La dirección de ESTA máquina con la que el televisor nos ve.
+/// La dirección de ESTA máquina con la que ese aparato nos ve.
 ///
-/// NO SE ADIVINA POR PARECIDO. La primera versión elegía la IP nuestra con el
-/// prefijo más largo en común con la del aparato, y estaba mal: el televisor
-/// de prueba tenía 192.168.1.146 y esta máquina 192.168.1.119, así que elegía
-/// esa... mientras el tráfico salía DE VERDAD por una red superpuesta
-/// (ZeroTier, 192.168.199.x). Le dábamos al televisor una dirección que para
-/// él no existe, y se quedaba cargando para siempre.
+/// SE BUSCA LA INTERFAZ QUE LO TIENE EN SU RED, y NO se le pregunta a la tabla
+/// de rutas. Parece al revés de lo razonable, así que el porqué:
 ///
-/// Lo correcto es preguntarle al sistema, que es el único que sabe: se abre un
-/// socket UDP "conectado" al aparato —lo que NO manda ni un paquete, solo fija
-/// la ruta— y se lee qué dirección local le tocó. Esa es, por definición, la
-/// dirección con la que ese aparato nos ve.
-QString ipParaAlcanzar(const QStringList& mias, const QString& host) {
-    if (!host.isEmpty()) {
-        QUdpSocket s;
-        // El puerto no importa: con UDP, "conectar" solo elige la ruta.
-        s.connectToHost(QHostAddress(host), 9);
-        if (s.state() == QAbstractSocket::ConnectedState || s.waitForConnected(300)) {
-            const QHostAddress local = s.localAddress();
-            if (!local.isNull() && local != QHostAddress::AnyIPv4 && !local.isLoopback())
-                return local.toString();
+/// Una red superpuesta (VPN, ZeroTier, Tailscale) puede instalar una ruta para
+/// un rango privado —192.168.1.0/24, por ejemplo— que TAPA la de la placa de
+/// red local. Pasó tal cual, y se ve en `ip route`:
+///
+///     192.168.1.0/24 via 192.168.199.1 dev zt... proto static metric 5000
+///
+/// Con esa ruta puesta, un televisor que está en la MISMA WiFi que nosotros se
+/// alcanza dando la vuelta por el túnel. Funciona para hablarle —el aparato
+/// contesta— pero nos ve llegar desde una dirección del túnel, y entonces la
+/// URL que le damos apunta a un lugar al que él no puede volver: se queda
+/// «cargando» para siempre, sin decir nada.
+///
+/// Una interfaz cuya red CONTIENE la dirección del aparato está,
+/// necesariamente, en el mismo segmento que él: lo alcanza directo y él nos
+/// puede contestar. Eso no lo puede decir la tabla de rutas, que va a preferir
+/// lo que le hayan metido.
+QString ipEnLaRedDe(const QString& host) {
+    const QHostAddress destino(host);
+    if (destino.isNull()) return {};
+    for (const QNetworkInterface& ifc : QNetworkInterface::allInterfaces()) {
+        const auto f = ifc.flags();
+        if (!f.testFlag(QNetworkInterface::IsUp) || !f.testFlag(QNetworkInterface::IsRunning)) continue;
+        if (f.testFlag(QNetworkInterface::IsLoopBack)) continue;
+        for (const QNetworkAddressEntry& e : ifc.addressEntries()) {
+            if (e.ip().protocol() != QAbstractSocket::IPv4Protocol) continue;
+            if (e.prefixLength() <= 0) continue;
+            if (destino.isInSubnet(e.ip(), e.prefixLength())) return e.ip().toString();
         }
     }
-    // Si el sistema no contesta (el aparato está apagado), lo mejor que hay.
+    return {};
+}
+
+/// La dirección nuestra para hablarle: la de su propia red si la hay; si no,
+/// la que diga el sistema (un aparato que de verdad está del otro lado de un
+/// túnel solo se alcanza así).
+QString ipParaAlcanzar(const QStringList& mias, const QString& host) {
+    const QString propia = ipEnLaRedDe(host);
+    if (!propia.isEmpty()) return propia;
+    if (!host.isEmpty()) {
+        QUdpSocket s;
+        s.connectToHost(QHostAddress(host), 9); // UDP: "conectar" solo elige la ruta
+        if (s.state() == QAbstractSocket::ConnectedState || s.waitForConnected(300)) {
+            const QHostAddress local = s.localAddress();
+            if (!local.isNull() && !local.isLoopback()) return local.toString();
+        }
+    }
     return mias.isEmpty() ? QString() : mias.first();
 }
 
@@ -473,6 +508,8 @@ void PantallasViewModel::buscar() {
                     d->vistaMs = QDateTime::currentMSecsSinceEpoch();
                 }
                 d_->guardar();
+                anotar(diag::Nivel::Info,
+                       "busqueda en la red: " + std::to_string(encontrados.size()) + " encontradas");
                 // Se le pregunta a cada una cómo está, escalonado: una lista
                 // que dice «sin consultar» no sirve de nada, y abrir diez
                 // canales TLS a la vez tampoco.
@@ -734,6 +771,8 @@ void PantallasViewModel::publicar(const QString& id, const QString& hostDestino)
                                  {"titulo", con == nullptr ? p.tipo : QString::fromUtf8(con->titulo)}});
     }
     if (pasos.isEmpty()) return;
+    anotar(diag::Nivel::Info, "publico el carrusel «" + c->nombre.toStdString() + "» (" +
+                                  std::to_string(pasos.size()) + " pasos)");
     d_->sala->client().post("/api/v1/carruseles", QJsonObject{{"id", c->id},
                                                               {"nombre", c->nombre},
                                                               {"transicion", c->transicion},
@@ -771,6 +810,8 @@ QString PantallasViewModel::mostrarCarrusel(const QString& idPantalla, const QSt
         return "Todavía no sé con qué dirección me ve el televisor: probá de nuevo en unos segundos.";
     const QString url = "http://" + ip + ":" + QString::number(d_->puertoWeb) + "/pantalla/carrusel/?id=" +
                         QString::fromUtf8(QUrl::toPercentEncoding(carrusel));
+    anotar(diag::Nivel::Info, "a «" + d->nombre.toStdString() + "»: carrusel «" + c->nombre.toStdString() +
+                                  "» -> " + url.toStdString());
     d->ultimosDatos = QVariantMap{{"carrusel", carrusel}};
     mandarUrl(idPantalla, url, "carrusel:" + carrusel, "Carrusel — " + c->nombre);
     return {};
@@ -809,8 +850,15 @@ void PantallasViewModel::refrescar(const QString& id) {
     emit cambio();
     const QString host = d->host;
     const int puerto = d->puerto;
-    std::thread([this, id, host, puerto]() {
-        const pt::Estado r = pt::consultar(host.toStdString(), puerto, kTimeoutMs);
+    // Se sale por la interfaz que lo tiene en su red, aunque la tabla de
+    // rutas prefiera un túnel (ver ipEnLaRedDe). Vacío = que elija el sistema.
+    // La CONEXION la rutea el sistema, como siempre. Atarla a una interfaz la
+    // rompia: «el aparato rechazo la conexion segura». Es OTRA COSA que la
+    // URL —esa si lleva la direccion de la red del aparato (ipEnLaRedDe)—:
+    // una es como le hablamos nosotros, la otra es como nos encuentra el.
+    const QString desde;
+    std::thread([this, id, host, puerto, desde]() {
+        const pt::Estado r = pt::consultar(host.toStdString(), puerto, kTimeoutMs, desde.toStdString());
         QMetaObject::invokeMethod(this, [this, id, r]() {
             Destino* d = d_->porId(id);
             if (d == nullptr) return;
@@ -898,6 +946,9 @@ QString PantallasViewModel::mostrar(const QString& id, const QString& tipo, cons
     }
 
     d->ultimosDatos = datos;
+    anotar(diag::Nivel::Info,
+           "a «" + d->nombre.toStdString() + "» (" + d->host.toStdString() + "): " + que.toStdString() +
+               " -> " + url.toStdString());
     mandarUrl(id, url, tipo, que);
     return {};
 }
@@ -912,10 +963,18 @@ void PantallasViewModel::mandarUrl(const QString& id, const QString& url, const 
     emit cambio();
     const QString host = d->host;
     const int puerto = d->puerto;
-    std::thread([this, id, host, puerto, url, tipo, que]() {
+    // Se sale por la interfaz que lo tiene en su red, aunque la tabla de
+    // rutas prefiera un túnel (ver ipEnLaRedDe). Vacío = que elija el sistema.
+    // La CONEXION la rutea el sistema, como siempre. Atarla a una interfaz la
+    // rompia: «el aparato rechazo la conexion segura». Es OTRA COSA que la
+    // URL —esa si lleva la direccion de la red del aparato (ipEnLaRedDe)—:
+    // una es como le hablamos nosotros, la otra es como nos encuentra el.
+    const QString desde;
+    std::thread([this, id, host, puerto, desde, url, tipo, que]() {
         // `reload` en 0: la página no se recarga sola. Un QR o un mensaje no
         // cambian, y una recarga en medio de un evento se ve.
-        const pt::Estado r = pt::mostrarUrl(host.toStdString(), puerto, url.toStdString(), 0, kTimeoutMs);
+        const pt::Estado r =
+            pt::mostrarUrl(host.toStdString(), puerto, url.toStdString(), 0, kTimeoutMs, desde.toStdString());
         QMetaObject::invokeMethod(this, [this, id, r, tipo, que]() {
             Destino* d = d_->porId(id);
             if (d == nullptr) return;
@@ -927,10 +986,13 @@ void PantallasViewModel::mandarUrl(const QString& id, const QString& url, const 
                 d->que = que;
                 d->error.clear();
                 d->fallos = 0;
+                anotar(diag::Nivel::Info, "«" + d->nombre.toStdString() + "» acepto: " + que.toStdString());
             } else {
                 d->estado = "error";
                 d->error = QString::fromStdString(r.error);
                 ++d->fallos;
+                anotar(diag::Nivel::Aviso, "«" + d->nombre.toStdString() + "» no pudo: " + r.error +
+                                               " (intento " + std::to_string(d->fallos) + ")");
                 // Un aviso por cada reintento del restaurado seria una lluvia
                 // de avisos por un televisor apagado: solo el primero.
                 if (d->fijadoTipo.isEmpty() || d->fallos == 1)
@@ -948,8 +1010,15 @@ void PantallasViewModel::parar(const QString& id) {
     emit cambio();
     const QString host = d->host;
     const int puerto = d->puerto;
-    std::thread([this, id, host, puerto]() {
-        const pt::Estado r = pt::parar(host.toStdString(), puerto, kTimeoutMs);
+    // Se sale por la interfaz que lo tiene en su red, aunque la tabla de
+    // rutas prefiera un túnel (ver ipEnLaRedDe). Vacío = que elija el sistema.
+    // La CONEXION la rutea el sistema, como siempre. Atarla a una interfaz la
+    // rompia: «el aparato rechazo la conexion segura». Es OTRA COSA que la
+    // URL —esa si lleva la direccion de la red del aparato (ipEnLaRedDe)—:
+    // una es como le hablamos nosotros, la otra es como nos encuentra el.
+    const QString desde;
+    std::thread([this, id, host, puerto, desde]() {
+        const pt::Estado r = pt::parar(host.toStdString(), puerto, kTimeoutMs, desde.toStdString());
         QMetaObject::invokeMethod(this, [this, id, r]() {
             Destino* d = d_->porId(id);
             if (d == nullptr) return;
@@ -975,8 +1044,15 @@ void PantallasViewModel::setVolumen(const QString& id, double nivel) {
     d->trabajando = true;
     const QString host = d->host;
     const int puerto = d->puerto;
-    std::thread([this, id, host, puerto, nivel]() {
-        const pt::Estado r = pt::volumen(host.toStdString(), puerto, nivel, -1, kTimeoutMs);
+    // Se sale por la interfaz que lo tiene en su red, aunque la tabla de
+    // rutas prefiera un túnel (ver ipEnLaRedDe). Vacío = que elija el sistema.
+    // La CONEXION la rutea el sistema, como siempre. Atarla a una interfaz la
+    // rompia: «el aparato rechazo la conexion segura». Es OTRA COSA que la
+    // URL —esa si lleva la direccion de la red del aparato (ipEnLaRedDe)—:
+    // una es como le hablamos nosotros, la otra es como nos encuentra el.
+    const QString desde;
+    std::thread([this, id, host, puerto, desde, nivel]() {
+        const pt::Estado r = pt::volumen(host.toStdString(), puerto, nivel, -1, kTimeoutMs, desde.toStdString());
         QMetaObject::invokeMethod(this, [this, id, r]() {
             Destino* d = d_->porId(id);
             if (d == nullptr) return;
@@ -996,8 +1072,16 @@ void PantallasViewModel::silenciar(const QString& id, bool si) {
     d->trabajando = true;
     const QString host = d->host;
     const int puerto = d->puerto;
-    std::thread([this, id, host, puerto, si]() {
-        const pt::Estado r = pt::volumen(host.toStdString(), puerto, -1, si ? 1 : 0, kTimeoutMs);
+    // Se sale por la interfaz que lo tiene en su red, aunque la tabla de
+    // rutas prefiera un túnel (ver ipEnLaRedDe). Vacío = que elija el sistema.
+    // La CONEXION la rutea el sistema, como siempre. Atarla a una interfaz la
+    // rompia: «el aparato rechazo la conexion segura». Es OTRA COSA que la
+    // URL —esa si lleva la direccion de la red del aparato (ipEnLaRedDe)—:
+    // una es como le hablamos nosotros, la otra es como nos encuentra el.
+    const QString desde;
+    std::thread([this, id, host, puerto, desde, si]() {
+        const pt::Estado r =
+            pt::volumen(host.toStdString(), puerto, -1, si ? 1 : 0, kTimeoutMs, desde.toStdString());
         QMetaObject::invokeMethod(this, [this, id, r]() {
             Destino* d = d_->porId(id);
             if (d == nullptr) return;

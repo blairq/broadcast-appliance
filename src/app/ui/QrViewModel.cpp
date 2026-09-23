@@ -18,6 +18,7 @@
 #include <nlohmann/json.hpp>
 
 #include "AppRuntime.hpp"
+#include "diag/Registro.hpp"
 #include "qr/Iconos.hpp"
 #include "qr/Qr.hpp"
 #include "ui/ConferenceClient.hpp"
@@ -519,6 +520,9 @@ QString QrViewModel::guardar(const QString& nombre) {
     d_->abierto = m["id"].toString();
     d_->nombre = n;
     d_->sucio = false;
+    diag::registro().linea(diag::Nivel::Info, "qr", 0,
+                           "guardado «" + n.toStdString() + "» (" + d_->tipo.toStdString() + ", " +
+                               d_->ambito.toStdString() + ")");
     emit bibliotecaCambio();
     emit editorCambio();
     return {};
@@ -535,6 +539,7 @@ QString QrViewModel::borrar(const QString& id) {
     if (lista.size() == antes) return "No lo encuentro.";
     d_->biblioteca[d_->ambito] = lista;
     d_->guardarArchivo(d_->ambito);
+    diag::registro().linea(diag::Nivel::Info, "qr", 0, "borrado " + id.toStdString());
     if (d_->abierto == id) {
         d_->abierto.clear();
         d_->nombre.clear();
@@ -652,6 +657,7 @@ QString QrViewModel::exportar(const QString& formato, int px) {
         emit notify("No pude escribir el archivo.", "error");
         return {};
     }
+    diag::registro().linea(diag::Nivel::Info, "qr", 0, "exportado a " + ruta.toStdString());
     emit notify("Guardado en " + ruta, "ok");
     return ruta;
 }

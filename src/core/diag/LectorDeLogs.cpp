@@ -85,8 +85,16 @@ std::string componenteDeArchivo(const fs::path& p) {
 bool pasa(const Registrado& r, const Filtro& f, const std::string& buscaMin) {
     if (static_cast<int>(r.nivel) < static_cast<int>(f.minimo)) return false;
     if (f.desdeMs > 0 && r.ms < f.desdeMs) return false;
+    // Un componente que TERMINA EN PUNTO filtra por prefijo: "agente." trae
+    // agente.recepcion y agente.tecnico de una. Sin esto, mirar lo que
+    // hicieron los agentes obligaría a filtrar rol por rol.
+    const auto coincide = [&r](const std::string& c) {
+        if (!c.empty() && c.back() == '.')
+            return r.componente.size() > c.size() && r.componente.compare(0, c.size(), c) == 0;
+        return r.componente == c;
+    };
     if (!f.componentes.empty() &&
-        std::find(f.componentes.begin(), f.componentes.end(), r.componente) == f.componentes.end())
+        std::none_of(f.componentes.begin(), f.componentes.end(), coincide))
         return false;
     if (!buscaMin.empty()) {
         // Se busca en el texto Y en el componente: «sala» tiene que encontrar

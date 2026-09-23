@@ -7,6 +7,16 @@
 #include <chrono>
 #include <cstring>
 
+#if defined(_WIN32)
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#endif
+
 #include <mbedtls/ctr_drbg.h>
 #include <mbedtls/entropy.h>
 #include <mbedtls/net_sockets.h>
@@ -108,6 +118,14 @@ bool leerCastMessage(const std::string& datos, Mensaje& out) {
     return true;
 }
 
+/// Esperar `ms` SIN dejar de atender el canal. Un `sleep` a secas no sirve:
+/// el aparato manda PING cada pocos segundos y si no se le contesta corta la
+/// conexión, justo en el medio de la espera que hace falta.
+void esperarMs(Canal& c, int ms) {
+    Mensaje sobra;
+    c.esperar("nunca-llega", ms, sobra, nullptr);
+}
+
 } // namespace
 
 std::string armar(const Mensaje& m) {
@@ -179,7 +197,57 @@ struct Canal::Impl {
 Canal::Canal() : d_(std::make_unique<Impl>()) {}
 Canal::~Canal() = default;
 
-bool Canal::abrir(const std::string& host, int puerto, int timeoutMs, std::string* error) {
+/// Abre el TCP eligiendo NOSOTROS por dónde sale. `mbedtls_net_connect` deja
+/// que el sistema elija, y cuando una red superpuesta anuncia una ruta que tapa
+/// a la local, elige mal: el aparato termina contestando a una dirección de
+/// otra red. Como `mbedtls_net_context` es solo un descriptor, se arma el
+/// socket a mano y se lo mete ahí.
+/// :returns: 0 si salió bien.
+int conectarDesde(mbedtls_net_context& net, const std::string& host, int puerto,
+                  const std::string& desde) {
+    if (desde.empty()) {
+        const std::string p = std::to_string(puerto);
+        return mbedtls_net_connect(&net, host.c_str(), p.c_str(), MBEDTLS_NET_PROTO_TCP);
+    }
+#if defined(_WIN32)
+    const SOCKET fd = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (fd == INVALID_SOCKET) return -1;
+#else
+    const int fd = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (fd < 0) return -1;
+#endif
+    sockaddr_in local{};
+    local.sin_family = AF_INET;
+    if (::inet_pton(AF_INET, desde.c_str(), &local.sin_addr) != 1 ||
+        ::bind(fd, reinterpret_cast<sockaddr*>(&local), sizeof(local)) != 0) {
+#if defined(_WIN32)
+        ::closesocket(fd);
+#else
+        ::close(fd);
+#endif
+        // Si no se pudo atar a esa dirección, mejor intentar como sea que no
+        // intentar: puede ser que la interfaz se haya caído recién.
+        const std::string p = std::to_string(puerto);
+        return mbedtls_net_connect(&net, host.c_str(), p.c_str(), MBEDTLS_NET_PROTO_TCP);
+    }
+    sockaddr_in destino{};
+    destino.sin_family = AF_INET;
+    destino.sin_port = htons(static_cast<unsigned short>(puerto));
+    if (::inet_pton(AF_INET, host.c_str(), &destino.sin_addr) != 1 ||
+        ::connect(fd, reinterpret_cast<sockaddr*>(&destino), sizeof(destino)) != 0) {
+#if defined(_WIN32)
+        ::closesocket(fd);
+#else
+        ::close(fd);
+#endif
+        return -1;
+    }
+    net.fd = static_cast<int>(fd);
+    return 0;
+}
+
+bool Canal::abrir(const std::string& host, int puerto, int timeoutMs, std::string* error,
+                  const std::string& desde) {
     const auto falla = [error](const std::string& que) {
         if (error != nullptr) *error = que;
         return false;
@@ -187,7 +255,7 @@ bool Canal::abrir(const std::string& host, int puerto, int timeoutMs, std::strin
     const std::string p = std::to_string(puerto);
     if (mbedtls_ctr_drbg_seed(&d_->drbg, mbedtls_entropy_func, &d_->entropia, nullptr, 0) != 0)
         return falla("no se pudo inicializar el azar");
-    if (mbedtls_net_connect(&d_->net, host.c_str(), p.c_str(), MBEDTLS_NET_PROTO_TCP) != 0)
+    if (conectarDesde(d_->net, host, puerto, desde) != 0)
         return falla("no contesta en " + host + ":" + p);
     mbedtls_net_set_nonblock(&d_->net);
     if (mbedtls_ssl_config_defaults(&d_->conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM,
@@ -324,8 +392,9 @@ void leerEstado(const json& r, Estado& e) {
 }
 
 /// Abre el canal y pregunta el estado. Deja el canal abierto para seguir.
-bool arrancar(Canal& c, const std::string& host, int puerto, int timeoutMs, Estado& e, json& status) {
-    if (!c.abrir(host, puerto, timeoutMs, &e.error)) return false;
+bool arrancar(Canal& c, const std::string& host, int puerto, int timeoutMs, Estado& e, json& status,
+              const std::string& desde = {}) {
+    if (!c.abrir(host, puerto, timeoutMs, &e.error, desde)) return false;
     if (!c.pedir(kPlataforma, kNsReceptor, json{{"type", "GET_STATUS"}}, timeoutMs, status, &e.error))
         return false;
     leerEstado(status, e);
@@ -334,11 +403,11 @@ bool arrancar(Canal& c, const std::string& host, int puerto, int timeoutMs, Esta
 
 } // namespace
 
-Estado consultar(const std::string& host, int puerto, int timeoutMs) {
+Estado consultar(const std::string& host, int puerto, int timeoutMs, const std::string& desde) {
     Estado e;
     Canal c;
     json status;
-    if (!arrancar(c, host, puerto, timeoutMs, e, status)) return e;
+    if (!arrancar(c, host, puerto, timeoutMs, e, status, desde)) return e;
     // De paso, en el mismo canal: si sabe mostrar paginas. Preguntar NO abre
     // nada, asi que se puede avisar "este aparato no sirve para esto" sin
     // pisarle a nadie lo que este viendo.
@@ -373,75 +442,84 @@ Estado puedeAbrir(const std::string& host, int puerto, const std::string& appId,
 }
 
 Estado mostrarUrl(const std::string& host, int puerto, const std::string& url, int recargarSeg,
-                  int timeoutMs) {
+                  int timeoutMs, const std::string& desde) {
+    // ESTA SECUENCIA ES LA QUE FUNCIONA, y no es la que uno escribiría solo.
+    // Está copiada de un sistema en producción que castea todos los días:
+    //
+    //     apagar lo que haya  ->  esperar  ->  lanzar  ->  ESPERAR  ->  mandar
+    //
+    // La tentación es saltear pasos: si DashCast ya está corriendo, ¿para qué
+    // apagarlo y volver a abrirlo? Se probó, y no anda: el receptor acepta el
+    // mensaje y no hace nada con él. Y mandar la URL apenas contesta el LAUNCH
+    // tampoco: la aplicación todavía se está armando del otro lado y el
+    // mensaje se pierde sin que nadie avise. Los segundos de espera son el
+    // precio de que aparezca.
     Estado e;
     Canal c;
     json status;
-    if (!arrancar(c, host, puerto, timeoutMs, e, status)) return e;
+    if (!arrancar(c, host, puerto, timeoutMs, e, status, desde)) return e;
 
-    // Si DashCast ya está corriendo no se relanza: relanzar parpadea la
-    // pantalla, y cambiar de URL sobre la que ya está es instantáneo.
-    if (e.appId != kAppDashCast) {
+    // 1. Apagar lo que esté corriendo (incluso DashCast: uno recién abierto
+    //    acepta la URL, uno viejo a veces no).
+    const json apps = status.value("status", json::object()).value("applications", json::array());
+    if (apps.is_array() && !apps.empty() && apps[0].is_object()) {
         json r;
-        // ABRIR UNA APLICACION TARDA. Un televisor que la abre por primera vez
-        // (o que estaba en su fondo de pantalla) se toma varios segundos, y
-        // mucho más que responder un estado. Con el tope normal dábamos por
-        // fallado algo que estaba saliendo bien: el aparato terminaba
-        // mostrando la página y nosotros decíamos que no.
-        const int topeLanzar = std::max(timeoutMs, 25000);
-        if (!c.pedir(kPlataforma, kNsReceptor, json{{"type", "LAUNCH"}, {"appId", kAppDashCast}},
-                     topeLanzar, r, &e.error)) {
-            // Se le pregunta de nuevo antes de rendirse: puede haber abierto
-            // igual y haberse perdido la respuesta.
-            json st;
-            Estado otra;
-            if (c.pedir(kPlataforma, kNsReceptor, json{{"type", "GET_STATUS"}}, timeoutMs, st, nullptr)) {
-                leerEstado(st, otra);
-                if (otra.appId == kAppDashCast) {
-                    e = otra;
-                    e.error.clear();
-                } else {
-                    return e;
-                }
-            } else {
-                return e;
-            }
-        } else {
-            if (r.value("type", "") == "LAUNCH_ERROR") {
-                e.error = "el televisor no pudo abrir DashCast (" + r.value("reason", "sin motivo") + ")";
-                return e;
-            }
-            leerEstado(r, e);
+        c.pedir(kPlataforma, kNsReceptor,
+                json{{"type", "STOP"}, {"sessionId", apps[0].value("sessionId", "")}}, timeoutMs, r,
+                nullptr);
+        esperarMs(c, 2000);
+    }
+
+    // 2. Lanzar. Abrir una aplicación en un televisor tarda: tope propio.
+    json r;
+    const int topeLanzar = std::max(timeoutMs, 25000);
+    if (!c.pedir(kPlataforma, kNsReceptor, json{{"type", "LAUNCH"}, {"appId", kAppDashCast}}, topeLanzar,
+                 r, &e.error)) {
+        // Puede haber abierto igual y habérsenos perdido la respuesta.
+        json st;
+        if (!c.pedir(kPlataforma, kNsReceptor, json{{"type", "GET_STATUS"}}, timeoutMs, st, nullptr))
+            return e;
+        leerEstado(st, e);
+        if (e.appId != kAppDashCast) return e;
+        e.error.clear();
+    } else {
+        if (r.value("type", "") == "LAUNCH_ERROR") {
+            e.error = "el televisor no pudo abrir DashCast (" + r.value("reason", "sin motivo") + ")";
+            return e;
         }
+        leerEstado(r, e);
     }
     if (e.transportId.empty()) {
         e.error = "el televisor no dijo por dónde hablarle a la aplicación";
         return e;
     }
-    // A la aplicación hay que presentarse aparte: el CONNECT del principio era
-    // para la plataforma, no para ella.
-    if (!c.mandar(Mensaje{kYo, e.transportId, kNsConexion, R"({"type":"CONNECT"})"}, &e.error)) return e;
 
+    // 3. Esperar a que la aplicación termine de armarse del otro lado. Sin
+    //    esto, el mensaje llega y se pierde.
+    esperarMs(c, 5000);
+
+    // 4. Presentarse ante la aplicación (el CONNECT del principio era para la
+    //    plataforma, no para ella) y recién ahí mandarle la URL.
+    if (!c.mandar(Mensaje{kYo, e.transportId, kNsConexion, R"({"type":"CONNECT"})"}, &e.error)) return e;
     const json orden{{"url", url},
                      {"force", true},
                      {"reload", recargarSeg > 0},
                      {"reload_time", recargarSeg * 1000}};
     if (!c.mandar(Mensaje{kYo, e.transportId, kNsDashCast, orden.dump()}, &e.error)) return e;
-    // DashCast no contesta nada: se le da un respiro para que el mensaje salga
-    // antes de cerrar el canal.
-    Mensaje sobra;
-    c.esperar("", 400, sobra, nullptr);
+    // DashCast no contesta nada: un respiro para que el mensaje salga antes de
+    // cerrar el canal.
+    esperarMs(c, 800);
     c.cerrar();
     e.ok = true;
     e.appId = kAppDashCast;
     return e;
 }
 
-Estado parar(const std::string& host, int puerto, int timeoutMs) {
+Estado parar(const std::string& host, int puerto, int timeoutMs, const std::string& desde) {
     Estado e;
     Canal c;
     json status;
-    if (!arrancar(c, host, puerto, timeoutMs, e, status)) return e;
+    if (!arrancar(c, host, puerto, timeoutMs, e, status, desde)) return e;
     if (e.appId.empty()) { // ya no había nada corriendo
         c.cerrar();
         e.ok = true;
@@ -460,11 +538,12 @@ Estado parar(const std::string& host, int puerto, int timeoutMs) {
     return e;
 }
 
-Estado volumen(const std::string& host, int puerto, double nivel, int silenciar, int timeoutMs) {
+Estado volumen(const std::string& host, int puerto, double nivel, int silenciar, int timeoutMs,
+               const std::string& desde) {
     Estado e;
     Canal c;
     json status;
-    if (!arrancar(c, host, puerto, timeoutMs, e, status)) return e;
+    if (!arrancar(c, host, puerto, timeoutMs, e, status, desde)) return e;
     json vol = json::object();
     if (nivel >= 0) vol["level"] = nivel < 0 ? 0 : (nivel > 1 ? 1 : nivel);
     if (silenciar >= 0) vol["muted"] = silenciar != 0;

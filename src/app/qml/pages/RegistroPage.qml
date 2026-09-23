@@ -49,6 +49,19 @@ Rectangle {
                 color: Theme.textDim
                 font.pixelSize: 11
             }
+            // Filtros de un clic para lo que más se mira. Leer un log es leer
+            // bajo presión: tener que escribir el nombre del módulo, no.
+            Repeater {
+                model: [{t: "Todo", m: ""}, {t: "MCP", m: "mcp"}, {t: "Agentes", m: "agente."},
+                        {t: "Pantallas", m: "pantallas"}, {t: "QR", m: "qr"}]
+                delegate: GlassButton {
+                    required property var modelData
+                    compact: true
+                    text: modelData.t
+                    active: page.r.modulo === modelData.m
+                    onClicked: page.r.modulo = modelData.m
+                }
+            }
             Item { Layout.fillWidth: true }
             TextField {
                 Layout.preferredWidth: 280

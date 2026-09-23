@@ -6,6 +6,10 @@
 
 #include <chrono>
 
+#include "diag/Registro.hpp"
+
+#include <chrono>
+
 #include <algorithm>
 #include <cctype>
 #include <memory>
@@ -592,12 +596,30 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
     const bool modifica = mutating(*tool);
     const auto execute = [this, tool, args, finish, session, untrustedOut, name, modifica, ctx]() {
         auto called = std::make_shared<bool>(false);
-        // Quien llama, visible para la herramienta mientras corre `run`.
-        enCurso_ = ctx;
+        // TODO lo que entra por MCP queda escrito. Es el plano de control del
+        // aparato —por acá cambian escenas, salidas y pantallas, y a veces lo
+        // maneja un asistente—, asi que «quien hizo que» tiene que poder
+        // contestarse despues. Es el unico lugar por donde pasan todas: las
+        // recetas y los agentes tambien entran por aca.
+        //
+        // Lo que MODIFICA va como info; lo que solo consulta, como depuracion:
+        // un `status` cada dos segundos ahogaria el registro a nivel normal.
+        const auto arranque = std::chrono::steady_clock::now();
+        const std::string quien = ctx.rol.empty() ? std::string() : " [" + ctx.rol + "]";
         try {
-            tool->run(args, [this, finish, called, session, untrustedOut, name, modifica](ToolResult r) {
+            tool->run(args, [this, finish, called, session, untrustedOut, name, modifica, arranque,
+                             quien](ToolResult r) {
                 if (*called) return; // una sola respuesta por pedido
                 *called = true;
+                const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                    std::chrono::steady_clock::now() - arranque)
+                                    .count();
+                ba::diag::registro().linea(r.isError      ? ba::diag::Nivel::Aviso
+                                           : modifica    ? ba::diag::Nivel::Info
+                                                          : ba::diag::Nivel::Depuracion,
+                                           "mcp", 0,
+                                           name + quien + (r.isError ? " FALLO" : "") + " (" +
+                                               std::to_string(ms) + " ms)");
                 if (untrustedOut || r.untrusted) taint(session, name);
                 // Si modifico algo y salio bien, las vistas se enteran ANTES de
                 // que se conteste: asi no hay un instante en el que el
@@ -609,6 +631,8 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
         } catch (const std::exception& e) {
             if (!*called) {
                 *called = true;
+                ba::diag::registro().linea(ba::diag::Nivel::Error, "mcp", 0,
+                                           name + quien + " reviento: " + e.what());
                 finish(ToolResult::error(std::string("La herramienta fallo: ") + e.what()));
             }
         }

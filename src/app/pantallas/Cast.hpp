@@ -75,7 +75,15 @@ class Canal {
     Canal& operator=(const Canal&) = delete;
 
     /// Abre el TLS y manda el CONNECT a la plataforma. `error` explica el fallo.
-    bool abrir(const std::string& host, int puerto, int timeoutMs, std::string* error);
+    ///
+    /// `desde`: la dirección NUESTRA por la que salir. Importa más de lo que
+    /// parece: si otra red (una VPN, una red superpuesta) anuncia una ruta que
+    /// tapa a la local, el sistema manda los paquetes por ahí y el aparato
+    /// contesta a una dirección que no es la de su red. Dándole la de su misma
+    /// red, el tráfico sale por donde el aparato lo espera. Vacío = que
+    /// decida el sistema.
+    bool abrir(const std::string& host, int puerto, int timeoutMs, std::string* error,
+               const std::string& desde = {});
     void cerrar();
 
     bool mandar(const Mensaje& m, std::string* error);
@@ -107,7 +115,7 @@ struct Estado {
 };
 
 /// Abre, pregunta el estado y cierra.
-Estado consultar(const std::string& host, int puerto, int timeoutMs);
+Estado consultar(const std::string& host, int puerto, int timeoutMs, const std::string& desde = {});
 
 /// Si el aparato PUEDE abrir esa aplicacion, sin abrirla. Sirve para avisar
 /// "este televisor no sabe mostrar paginas" antes de intentarlo, en vez de
@@ -120,12 +128,13 @@ Estado puedeAbrir(const std::string& host, int puerto, const std::string& appId,
 /// Abre, lanza DashCast si hace falta, le manda la URL y cierra.
 /// `recargarSeg`: que la página se recargue sola cada tanto (0 = no).
 Estado mostrarUrl(const std::string& host, int puerto, const std::string& url, int recargarSeg,
-                  int timeoutMs);
+                  int timeoutMs, const std::string& desde = {});
 
 /// Abre, para lo que esté corriendo (vuelve al fondo de pantalla) y cierra.
-Estado parar(const std::string& host, int puerto, int timeoutMs);
+Estado parar(const std::string& host, int puerto, int timeoutMs, const std::string& desde = {});
 
 /// Sube o baja el volumen del aparato (0 a 1; -1 para no tocarlo).
-Estado volumen(const std::string& host, int puerto, double nivel, int silenciar, int timeoutMs);
+Estado volumen(const std::string& host, int puerto, double nivel, int silenciar, int timeoutMs,
+               const std::string& desde = {});
 
 } // namespace ba::app::pantallas
