@@ -26,6 +26,9 @@
 #include <QTimer>
 #include <QWindow>
 
+#include <functional>
+#include <memory>
+
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/RielConfig.hpp"
@@ -109,6 +112,69 @@ QRect zonaEn(QScreen* s, const QString& z) {
         return QRect(a.x() + (a.width() - w) / 2, a.y() + (a.height() - h) / 2, w, h);
     }
     return {};
+}
+
+/// Pone el MARCO de `w` exactamente en `objetivo`, midiendo y corrigiendo.
+///
+/// NO SE MODELA AL GESTOR DE VENTANAS, SE LO MIDE. `setGeometry` ubica el area
+/// de cliente, el escritorio le agrega un marco de un grosor que solo el sabe,
+/// y ademas recorta contra su area util. Medido acá: pidiendo la mitad derecha
+/// cae exacta, pidiendo la izquierda cae 66 px corrida, y siempre sobran 32 px
+/// en vertical. Cada gestor tiene su propia mezcla de esas cosas.
+///
+/// Asi que se pide, se MIRA donde quedo, y se vuelve a pedir corrigiendo por
+/// la diferencia. Un intento de correccion alcanza cuando el error es
+/// constante —que es el caso de un marco o un recorte— y cuando el escritorio
+/// directamente ignora la posicion, tampoco sirve insistir: ahi se avisa.
+///
+/// :param luego: recibe `true` si quedo donde se pidio (tolerancia de 4 px).
+void colocarMarco(QWindow* w, const QRect& objetivo, std::function<void(bool)> luego) {
+    const auto aplicar = [w](const QRect& marco) {
+        const QRect cg = w->geometry();
+        const QRect fg = w->frameGeometry();
+        const int ml = cg.x() - fg.x();
+        const int mt = cg.y() - fg.y();
+        const int mr = fg.right() - cg.right();
+        const int mb = fg.bottom() - cg.bottom();
+        w->setGeometry(QRect(marco.x() + ml, marco.y() + mt, std::max(320, marco.width() - ml - mr),
+                             std::max(200, marco.height() - mt - mb)));
+    };
+    const auto cerca = [](const QRect& a, const QRect& b) {
+        return std::abs(a.x() - b.x()) <= 4 && std::abs(a.y() - b.y()) <= 4 &&
+               std::abs(a.width() - b.width()) <= 8 && std::abs(a.height() - b.height()) <= 8;
+    };
+    aplicar(objetivo);
+    QTimer::singleShot(150, w, [w, objetivo, luego, aplicar, cerca]() {
+        const QRect real = w->frameGeometry();
+        if (cerca(real, objetivo)) {
+            luego(true);
+            return;
+        }
+        // UN SOLO REINTENTO, Y NO EMPUJANDO MAS FUERTE. El desvio casi nunca
+        // es un error: es un RECORTE. El escritorio no deja que una ventana se
+        // meta debajo del dock de la izquierda ni de la barra de arriba, y
+        // Qt informa el area del monitor SIN descontarlos —medido aca: 66 px
+        // de dock y 32 de barra—. Pedir -66 para compensar no sirve: vuelve a
+        // topar contra lo mismo.
+        //
+        // Lo que se hace es aceptar donde el escritorio la dejo empezar y
+        // ajustar el TAMAÑO para que el borde de la otra punta caiga donde
+        // tenia que caer. Asi «la mitad izquierda» termina ocupando la mitad
+        // izquierda util, que es lo que uno queria, en vez de sobresalir por
+        // la derecha justo el ancho del dock.
+        const int x = std::max(objetivo.x(), real.x());
+        const int y = std::max(objetivo.y(), real.y());
+        aplicar(QRect(x, y, std::max(320, objetivo.right() - x + 1),
+                      std::max(200, objetivo.bottom() - y + 1)));
+        QTimer::singleShot(150, w, [w, objetivo, luego]() {
+            // Ahora lo que importa es que llegue hasta el borde correcto, no
+            // que empiece en el pixel pedido: la esquina la puso el dock.
+            const QRect q = w->frameGeometry();
+            luego(std::abs(q.right() - objetivo.right()) <= 8 &&
+                  std::abs(q.bottom() - objetivo.bottom()) <= 8 && q.x() >= objetivo.x() - 4 &&
+                  q.y() >= objetivo.y() - 4);
+        });
+    });
 }
 
 const char* kZonas =
@@ -292,47 +358,38 @@ void McpService::registerVentanaTools() {
                 hecho += " a " + destino->name().toStdString();
             }
 
-            // EL CAMINO QUE SI FUNCIONA. Donde el escritorio no deja ubicar
-            // ventanas, pedir «la pantalla entera del monitor 2» no hacia
-            // nada. Pantalla completa EN UN MONITOR si la respeta —probado:
-            // los carteles de monitor_identificar salen en el monitor que
-            // corresponde—, y es lo mismo que se estaba pidiendo. Se hace, y
-            // se dice: hacerlo callado seria cambiarle el pedido a alguien.
-            const std::string zonaPedida = a.value("zona", std::string());
-            const bool quiereTodoElMonitor = zonaPedida == "completa" ||
-                                             (zonaPedida.empty() && a.contains("monitor") &&
-                                              !a.contains("x") && !a.contains("ancho"));
-            if (!ubicaElPrograma() && quiereTodoElMonitor && !a.contains("estado")) {
-                // CON UNA PAUSA, y no es supersticion. Ya salio de pantalla
-                // completa mas arriba; si se le pide la nueva en el mismo
-                // instante, el compositor todavia esta procesando la salida y
-                // se come el pedido. Eso es exactamente lo que hacia que
-                // mandar a otro monitor una ventana que YA estaba en pantalla
-                // completa no hiciera nada: habia que sacarla a mano primero.
+            if (acomoda && !a.contains("estado")) {
+                if (hecho.empty()) hecho = " movida";
                 const std::string titulo2 = w->title().toStdString();
-                QTimer::singleShot(180, w, [w, done, titulo2, hecho]() {
-                    w->setVisibility(QWindow::FullScreen);
-                    done(ToolResult::ok(
-                        "«" + titulo2 + "»:" + hecho +
-                        ", a pantalla completa. En este escritorio ocupar un monitor entero solo se "
-                        "puede asi (una ventana con marco no se deja colocar); con `estado: \"normal\"` "
-                        "vuelve, pero la ubica el escritorio."));
+                const std::string h = hecho;
+                const QRect obj = r;
+                // Se pide, se MIDE donde quedo y se corrige (ver colocarMarco).
+                // Y se dice la verdad: una herramienta que contesta «listo» con
+                // la ventana en otro lado es peor que una que no puede.
+                colocarMarco(w, r, [w, done, titulo2, h, obj](bool ok) {
+                    if (ok)
+                        return done(ToolResult::ok("«" + titulo2 + "»:" + h +
+                                                   ". ventana_listar confirma como quedo."));
+                    const QRect q = w->frameGeometry();
+                    done(ToolResult::error(
+                        "«" + titulo2 + "»:" + h + ", PERO quedo en (" + std::to_string(q.x()) + "," +
+                        std::to_string(q.y()) + ") " + std::to_string(q.width()) + "x" +
+                        std::to_string(q.height()) + " y se habia pedido (" + std::to_string(obj.x()) +
+                        "," + std::to_string(obj.y()) + ") " + std::to_string(obj.width()) + "x" +
+                        std::to_string(obj.height()) + ". " +
+                        (ubicaElPrograma()
+                             ? std::string("El escritorio la ubico por su cuenta.")
+                             : std::string(kSobreWayland))));
                 });
                 return;
             }
             if (acomoda) {
-                // CONTANDO EL MARCO. `setGeometry` ubica el area de CLIENTE, y
-                // lo que una persona llama «la mitad izquierda» incluye la barra
-                // de titulo y los bordes que le pone el escritorio. Sin
-                // descontarlos, la ventana queda corrida hacia abajo y a la
-                // derecha justo el grosor del marco, y sobresale por el otro
-                // lado. Medido: 66 px de lado y 69 de alto en este escritorio.
+                // Con `estado` explicito manda el estado: la geometria se
+                // aplica y no se verifica (pantalla completa la pisa igual).
                 const QRect cg = w->geometry();
                 const QRect fg = w->frameGeometry();
-                const int ml = cg.x() - fg.x();
-                const int mt = cg.y() - fg.y();
-                const int mr = fg.right() - cg.right();
-                const int mb = fg.bottom() - cg.bottom();
+                const int ml = cg.x() - fg.x(), mt = cg.y() - fg.y();
+                const int mr = fg.right() - cg.right(), mb = fg.bottom() - cg.bottom();
                 w->setGeometry(QRect(r.x() + ml, r.y() + mt, std::max(320, r.width() - ml - mr),
                                      std::max(200, r.height() - mt - mb)));
                 if (hecho.empty()) hecho = " movida";
@@ -440,32 +497,15 @@ void McpService::registerVentanaTools() {
             if (sueltas.empty())
                 return done(ToolResult::ok("Solo esta la ventana principal: no hay nada que acomodar."));
 
-            std::string hecho;
-            std::string afuera;
-            if (!ubicaElPrograma()) {
-                // Una por monitor, a pantalla completa. Mas de eso no se puede
-                // sin poder colocar ventanas, y decirlo es mejor que amontonar.
-                for (std::size_t i = 0; i < sueltas.size(); ++i) {
-                    if (i >= static_cast<std::size_t>(pantallas.size())) {
-                        afuera += (afuera.empty() ? "" : ", ") + idDe(sueltas[i]).toStdString();
-                        continue;
-                    }
-                    QWindow* w = sueltas[i];
-                    w->setVisibility(QWindow::Windowed);
-                    w->setScreen(pantallas[static_cast<int>(i)]);
-                    QTimer::singleShot(180, w, [w]() { w->setVisibility(QWindow::FullScreen); });
-                    hecho += (hecho.empty() ? "" : ", ") + idDe(w).toStdString() + " -> " +
-                             pantallas[static_cast<int>(i)]->name().toStdString();
-                }
-                std::string msg = "Acomodadas a pantalla completa: " + hecho + ".";
-                if (!afuera.empty())
-                    msg += " NO entraron (" + afuera +
-                           "): este escritorio no deja poner dos ventanas en un mismo monitor por "
-                           "software, solo una a pantalla completa. Quedaron donde estaban.";
-                return done(ToolResult::ok(msg));
-            }
-
-            // Con ubicacion: se reparten por zonas dentro de cada monitor.
+            // SE INTENTA OCUPAR TODA LA PANTALLA, SIEMPRE. Repartir por
+            // zonas es lo que se pidio: dos ventanas media pantalla cada una,
+            // tres en tercios, cuatro en cuadrantes. Antes esto ni se probaba
+            // en un escritorio «que no deja»: se iba derecho a una sola a
+            // pantalla completa por monitor, que es resignar de entrada.
+            //
+            // Se prueba, se MIDE, y recien si de verdad no quedaron donde se
+            // pidieron se cae a pantalla completa —que es lo unico que ese
+            // escritorio respeta— y se dice cuales no entraron.
             static const char* kPorCantidad[5][4] = {
                 {},
                 {"completa"},
@@ -473,26 +513,75 @@ void McpService::registerVentanaTools() {
                 {"tercio-izq", "tercio-centro", "tercio-der"},
                 {"sup-izq", "sup-der", "inf-izq", "inf-der"},
             };
+            const int nPant = pantallas.size();
             const int porPantalla =
-                static_cast<int>((sueltas.size() + pantallas.size() - 1) / pantallas.size());
-            const int n = std::min(porPantalla, 4);
+                std::min<int>(4, static_cast<int>((sueltas.size() + nPant - 1) / nPant));
+            struct Puesto {
+                QWindow* w;
+                QScreen* p;
+                std::string zona;
+            };
+            auto puestos = std::make_shared<std::vector<Puesto>>();
             for (std::size_t i = 0; i < sueltas.size(); ++i) {
-                QScreen* p = pantallas[static_cast<int>(i / static_cast<std::size_t>(n)) % pantallas.size()];
-                const char* z = kPorCantidad[n][i % static_cast<std::size_t>(n)];
-                QWindow* w = sueltas[i];
-                w->setVisibility(QWindow::Windowed);
-                w->setScreen(p);
-                const QRect r = zonaEn(p, QString::fromUtf8(z));
-                const QRect cg = w->geometry();
-                const QRect fg = w->frameGeometry();
-                const int ml = cg.x() - fg.x(), mt = cg.y() - fg.y();
-                const int mr = fg.right() - cg.right(), mb = fg.bottom() - cg.bottom();
-                w->setGeometry(QRect(r.x() + ml, r.y() + mt, std::max(320, r.width() - ml - mr),
-                                     std::max(200, r.height() - mt - mb)));
-                hecho += (hecho.empty() ? "" : ", ") + idDe(w).toStdString() + " -> " +
-                         p->name().toStdString() + " " + z;
+                QScreen* p = pantallas[static_cast<int>(i / static_cast<std::size_t>(porPantalla)) % nPant];
+                puestos->push_back(Puesto{sueltas[i], p,
+                                          kPorCantidad[porPantalla][i % static_cast<std::size_t>(porPantalla)]});
             }
-            done(ToolResult::ok("Acomodadas: " + hecho + ". ventana_listar confirma como quedo."));
+
+            auto pendientes = std::make_shared<int>(static_cast<int>(puestos->size()));
+            auto fallaron = std::make_shared<std::vector<std::string>>();
+            auto listas = std::make_shared<std::vector<std::string>>();
+            for (const Puesto& q : *puestos) {
+                QWindow* w = q.w;
+                const std::string zona = q.zona;
+                const std::string etiqueta = idDe(w).toStdString() + " -> " +
+                                             q.p->name().toStdString() + " " + zona;
+                w->setVisibility(QWindow::Windowed);
+                w->setScreen(q.p);
+                colocarMarco(w, zonaEn(q.p, QString::fromStdString(zona)),
+                             [w, etiqueta, pendientes, fallaron, listas, done, puestos](bool ok) {
+                                 (ok ? listas : fallaron)->push_back(etiqueta);
+                                 if (--*pendientes > 0) return;
+
+                                 const auto juntar = [](const std::vector<std::string>& v) {
+                                     std::string o;
+                                     for (const std::string& x : v) o += (o.empty() ? "" : ", ") + x;
+                                     return o;
+                                 };
+                                 if (fallaron->empty())
+                                     return done(ToolResult::ok("Acomodadas: " + juntar(*listas) +
+                                                                ". ventana_listar confirma como quedo."));
+                                 // No se pudieron repartir: se hace lo unico
+                                 // que queda, una por monitor a pantalla
+                                 // completa, y se nombra lo que sobro.
+                                 std::string full;
+                                 std::string sobra;
+                                 std::vector<QScreen*> usados;
+                                 for (const Puesto& r2 : *puestos) {
+                                     if (std::find(usados.begin(), usados.end(), r2.p) != usados.end()) {
+                                         sobra += (sobra.empty() ? "" : ", ") + idDe(r2.w).toStdString();
+                                         continue;
+                                     }
+                                     usados.push_back(r2.p);
+                                     QWindow* v = r2.w;
+                                     v->setVisibility(QWindow::Windowed);
+                                     v->setScreen(r2.p);
+                                     QTimer::singleShot(180, v,
+                                                        [v]() { v->setVisibility(QWindow::FullScreen); });
+                                     full += (full.empty() ? "" : ", ") + idDe(v).toStdString() + " -> " +
+                                             r2.p->name().toStdString();
+                                 }
+                                 std::string msg =
+                                     "Este escritorio no dejo repartirlas por zonas (se probo y quedaron "
+                                     "en otro lado), asi que va una por monitor a PANTALLA COMPLETA: " +
+                                     full + ".";
+                                 if (!sobra.empty())
+                                     msg += " NO entraron (" + sobra +
+                                            "): sin poder ubicar ventanas no hay forma de poner dos en "
+                                            "un mismo monitor. Quedaron donde estaban.";
+                                 done(ToolResult::ok(msg));
+                             });
+            }
         };
         core_.addTool(std::move(t));
     }
