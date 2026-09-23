@@ -607,6 +607,23 @@ QString QrViewModel::svgSuelto(const QString& tipo, const QVariantMap& datos,
     return QString::fromStdString(qr::svg(texto.toStdString(), aEstilo(e)));
 }
 
+QVariantMap QrViewModel::paraProyectar(const QString& id) const {
+    for (const QVariant& v : todos()) {
+        const QVariantMap m = v.toMap();
+        if (m.value("id").toString() != id) continue;
+        const QString texto = m.value("contenido").toString();
+        if (texto.isEmpty()) return {};
+        QVariantMap estilo = estiloDeFabrica();
+        const QVariantMap guardado = m.value("estilo").toMap();
+        for (auto it = guardado.constBegin(); it != guardado.constEnd(); ++it)
+            estilo[it.key()] = it.value();
+        return QVariantMap{{"texto", texto},
+                           {"nombre", m.value("nombre")},
+                           {"estilo", QString::fromStdString(qr::aConsulta(aEstilo(estilo)))}};
+    }
+    return {};
+}
+
 QVariantList QrViewModel::todos() const {
     QVariantList out;
     for (const QString& a : {QString("global"), QString("evento")})

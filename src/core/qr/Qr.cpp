@@ -5,7 +5,10 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdio>
+#include <cstdlib>
 #include <sstream>
+#include <string>
 #include <vector>
 
 #include "qr/Iconos.hpp"
@@ -324,6 +327,173 @@ std::string correo(const std::string& direccion, const std::string& asunto, cons
     if (!asunto.empty()) q += "subject=" + asunto;
     if (!cuerpo.empty()) q += (q.empty() ? "" : "&") + std::string("body=") + cuerpo;
     return q.empty() ? u : u + "?" + q;
+}
+
+// ============================================================================
+// El estilo, de ida y de vuelta por una URL (ver el .hpp)
+// ============================================================================
+namespace {
+
+const char* nombreDe(Puntos p) {
+    switch (p) {
+        case Puntos::Redondeados: return "redondeados";
+        case Puntos::Circulos: return "circulos";
+        case Puntos::Separados: return "separados";
+        case Puntos::MuyRedondeados: return "muy-redondeados";
+        default: return "cuadrados";
+    }
+}
+Puntos puntosDe(const std::string& s) {
+    if (s == "redondeados") return Puntos::Redondeados;
+    if (s == "circulos") return Puntos::Circulos;
+    if (s == "separados") return Puntos::Separados;
+    if (s == "muy-redondeados") return Puntos::MuyRedondeados;
+    return Puntos::Cuadrados;
+}
+const char* nombreDe(Ojos o) { return o == Ojos::Redondeados ? "redondeados" : "cuadrados"; }
+Ojos ojosDe(const std::string& s) { return s == "redondeados" ? Ojos::Redondeados : Ojos::Cuadrados; }
+const char* nombreDe(Marco m) {
+    switch (m) {
+        case Marco::Simple: return "simple";
+        case Marco::Redondeado: return "redondeado";
+        default: return "ninguno";
+    }
+}
+Marco marcoDe(const std::string& s) {
+    if (s == "simple") return Marco::Simple;
+    if (s == "redondeado") return Marco::Redondeado;
+    return Marco::Ninguno;
+}
+const char* nombreDe(Correccion c) {
+    switch (c) {
+        case Correccion::Baja: return "baja";
+        case Correccion::Alta: return "alta";
+        case Correccion::Maxima: return "maxima";
+        default: return "media";
+    }
+}
+Correccion correccionDe(const std::string& s) {
+    if (s == "baja") return Correccion::Baja;
+    if (s == "alta") return Correccion::Alta;
+    if (s == "maxima") return Correccion::Maxima;
+    return Correccion::Media;
+}
+
+/// Escapa para una consulta. Se escapa TODO lo que no sea inequívocamente
+/// seguro: un color empieza con '#', que sin escapar corta la dirección y deja
+/// el resto del estilo afuera sin que nada falle.
+std::string escapar(const std::string& v) {
+    static const char* hex = "0123456789ABCDEF";
+    std::string o;
+    for (const unsigned char c : v) {
+        if (std::isalnum(c) != 0 || c == '-' || c == '_' || c == '.' || c == '~') {
+            o.push_back(static_cast<char>(c));
+        } else {
+            o.push_back('%');
+            o.push_back(hex[c >> 4]);
+            o.push_back(hex[c & 0xf]);
+        }
+    }
+    return o;
+}
+
+std::string desescapar(const std::string& v) {
+    std::string o;
+    for (std::size_t i = 0; i < v.size(); ++i) {
+        if (v[i] == '+') {
+            o.push_back(' ');
+        } else if (v[i] == '%' && i + 2 < v.size() && std::isxdigit(static_cast<unsigned char>(v[i + 1])) != 0 &&
+                   std::isxdigit(static_cast<unsigned char>(v[i + 2])) != 0) {
+            o.push_back(static_cast<char>(std::stoi(v.substr(i + 1, 2), nullptr, 16)));
+            i += 2;
+        } else {
+            o.push_back(v[i]);
+        }
+    }
+    return o;
+}
+
+} // namespace
+
+std::string consultaValor(const std::string& query, const std::string& clave) {
+    std::size_t i = 0;
+    while (i < query.size()) {
+        const std::size_t amp = query.find('&', i);
+        const std::string par = query.substr(i, amp == std::string::npos ? std::string::npos : amp - i);
+        const std::size_t eq = par.find('=');
+        if (eq != std::string::npos && par.compare(0, eq, clave) == 0 && eq == clave.size())
+            return desescapar(par.substr(eq + 1));
+        if (amp == std::string::npos) break;
+        i = amp + 1;
+    }
+    return {};
+}
+
+std::string aConsulta(const Estilo& e) {
+    std::string q;
+    const auto poner = [&q](const char* k, const std::string& v) {
+        if (v.empty()) return;
+        q += (q.empty() ? "" : "&");
+        q += k;
+        q += "=";
+        q += escapar(v);
+    };
+    poner("primario", e.primario);
+    poner("secundario", e.secundario);
+    poner("fondo", e.fondo);
+    poner("puntos", nombreDe(e.puntos));
+    poner("ojos", nombreDe(e.ojos));
+    poner("marco", nombreDe(e.marco));
+    poner("correccion", nombreDe(e.correccion));
+    poner("zona", std::to_string(e.zonaSilenciosa));
+    if (e.logo > 0) {
+        // EN MILESIMAS, ENTERO, a proposito. Escribir "%.3f" parece obvio y
+        // esta mal: el punto decimal depende de la configuracion regional del
+        // proceso, asi que la app —que corre en español— manda "0,220" y el
+        // gateway lee hasta la coma, o sea 0, y el hueco del icono desaparece.
+        // Los dos procesos son del mismo programa y aun asi no se entienden.
+        // Un entero no tiene ese problema en ningun idioma.
+        int mil = static_cast<int>(e.logo * 1000.0 + 0.5);
+        if (mil < 0) mil = 0;
+        if (mil > 1000) mil = 1000;
+        poner("logo", std::to_string(mil));
+    }
+    poner("icono", e.logoIcono);
+    poner("iconoColor", e.logoColor);
+    return q;
+}
+
+Estilo desdeConsulta(const std::string& query) {
+    Estilo e;
+    const auto v = [&query](const char* k) { return consultaValor(query, k); };
+    if (const std::string s = v("primario"); !s.empty()) e.primario = s;
+    e.secundario = v("secundario");
+    if (const std::string s = v("fondo"); !s.empty()) e.fondo = s;
+    if (const std::string s = v("puntos"); !s.empty()) e.puntos = puntosDe(s);
+    if (const std::string s = v("ojos"); !s.empty()) e.ojos = ojosDe(s);
+    if (const std::string s = v("marco"); !s.empty()) e.marco = marcoDe(s);
+    if (const std::string s = v("correccion"); !s.empty()) e.correccion = correccionDe(s);
+    if (const std::string s = v("zona"); !s.empty()) {
+        const int z = std::atoi(s.c_str());
+        // Menos de 4 y muchos lectores no enganchan; mas de 16 es solo borde.
+        e.zonaSilenciosa = z < 0 ? 4 : (z > 16 ? 16 : z);
+    }
+    // Milesimas enteras (ver `aConsulta`). Se acepta tambien un decimal con
+    // punto por si alguien escribio la direccion a mano.
+    if (const std::string s = v("logo"); !s.empty()) {
+        if (s.find('.') != std::string::npos) {
+            e.logo = std::strtod(s.c_str(), nullptr);
+        } else {
+            e.logo = static_cast<double>(std::atoi(s.c_str())) / 1000.0;
+        }
+        if (e.logo < 0) e.logo = 0;
+        if (e.logo > 0.30) e.logo = 0.30;
+    }
+    e.logoIcono = v("icono");
+    e.logoColor = v("iconoColor");
+    // Un icono sin hueco no se veria: si pidieron uno, se abre lugar.
+    if (!e.logoIcono.empty() && e.logo <= 0) e.logo = 0.22;
+    return e;
 }
 
 } // namespace ba::qr

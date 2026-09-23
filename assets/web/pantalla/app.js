@@ -12,7 +12,17 @@
   if (tipo === "qr") {
     // El QR lo dibuja el servidor (ya tiene con qué): así esta página no
     // arrastra una biblioteca de QR y anda igual en un televisor viejo.
-    $("qr-img").src = "qr.svg?texto=" + encodeURIComponent(texto);
+    // El estilo viaja en la MISMA dirección y se reenvía tal cual: esta
+    // página no interpreta ni un color, así que agregar una forma de punto
+    // nueva no la toca. El que sabe de estilos es el generador del núcleo.
+    const estilo = [];
+    for (const [k, v] of q) {
+      if (k !== "texto" && k !== "tipo" && k !== "pie") {
+        estilo.push(encodeURIComponent(k) + "=" + encodeURIComponent(v));
+      }
+    }
+    $("qr-img").src = "qr.svg?texto=" + encodeURIComponent(texto) +
+                      (estilo.length ? "&" + estilo.join("&") : "");
     $("qr-img").alt = texto;
     $("qr").classList.remove("oculto");
     $("texto").remove();

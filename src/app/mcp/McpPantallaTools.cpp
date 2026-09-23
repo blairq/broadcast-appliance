@@ -13,6 +13,7 @@
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/PantallasViewModel.hpp"
+#include "ui/QrViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
 
 namespace ba::app::mcp {
@@ -119,12 +120,16 @@ void McpService::registerPantallaTools() {
              {{"pantalla", {{"type", "string"}, {"description", "id o nombre, como lo da pantalla_listar"}}},
               {"tipo", {{"type", "string"}, {"enum", {"mensaje", "qr", "reloj", "url", "prompter", "carrusel", "programa"}}}},
               {"carrusel", {{"type", "string"}, {"description", "su id, con tipo=carrusel"}}},
+              {"qr", {{"type", "string"},
+                      {"description", "con tipo=qr: el id de uno GUARDADO (qr_listar los da), que sale "
+                                      "con el estilo con el que se diseño. Sin esto se usa `texto` y "
+                                      "sale con el estilo de fabrica."}}},
               {"texto", {{"type", "string"}, {"description", "mensaje: lo que dice; qr: lo que codifica"}}},
               {"pie", {{"type", "string"}, {"description", "la linea de abajo, mas chica"}}},
               {"url", {{"type", "string"}, {"description", "solo con tipo=url"}}}}}};
         t.examples = {R"({"pantalla": "TV del hall", "tipo": "mensaje", "texto": "Volvemos en 10 minutos"})",
                       R"({"pantalla": "TV del hall", "tipo": "qr", "texto": "https://...", "pie": "Escaneá para entrar"})"};
-        t.run = [p](const json& a, Done done) {
+        t.run = [p, this](const json& a, Done done) {
             const QString quien = QString::fromStdString(a["pantalla"].get<std::string>());
             const QString id = idDePantalla(*p, quien);
             if (id.isEmpty()) {
@@ -149,6 +154,22 @@ void McpService::registerPantallaTools() {
             for (const char* k : {"texto", "pie", "url"})
                 if (a.contains(k) && a[k].is_string())
                     datos[k] = QString::fromStdString(a[k].get<std::string>());
+            // Un codigo GUARDADO se proyecta con su estilo. Antes solo se podia
+            // mandar `texto`, asi que el codigo que se habia diseñado y el que
+            // salia en el televisor eran distintos y nada lo decia.
+            if (tipo == "qr" && a.contains("qr") && a["qr"].is_string()) {
+                auto* qvm = static_cast<QrViewModel*>(vm_.qr());
+                const QString qid = QString::fromStdString(a["qr"].get<std::string>());
+                const QVariantMap guardado = qvm == nullptr ? QVariantMap() : qvm->paraProyectar(qid);
+                if (guardado.isEmpty()) {
+                    done(ToolResult::error("No tengo guardado un codigo QR con id '" + qid.toStdString() +
+                                           "'. qr_listar los da."));
+                    return;
+                }
+                datos["texto"] = guardado.value("texto");
+                datos["estilo"] = guardado.value("estilo");
+                if (!datos.contains("pie")) datos["pie"] = guardado.value("nombre");
+            }
             const QString err = p->mostrar(id, tipo, datos);
             if (!err.isEmpty()) {
                 done(ToolResult::error(err.toStdString()));

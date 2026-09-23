@@ -119,6 +119,14 @@ class QrViewModel : public QObject {
     /// Un código suelto (ni guardado ni abierto en el editor) como SVG.
     QString svgSuelto(const QString& tipo, const QVariantMap& datos,
                       const QVariantMap& estilo) const;
+    /// Un código guardado, listo para PROYECTAR: `{texto, estilo}`, donde
+    /// `estilo` ya viene como parámetros de consulta (ba::qr::aConsulta). Vacío
+    /// si ese id no existe.
+    ///
+    /// Devuelve las dos cosas juntas porque van juntas: proyectar el texto sin
+    /// el estilo es lo que pasaba antes, y no se nota —sale un QR válido, pero
+    /// no el que se diseñó—.
+    QVariantMap paraProyectar(const QString& id) const;
     /// Lo guardado de los DOS ámbitos, para listarlo de una.
     QVariantList todos() const;
     /// Escribe un SVG en un archivo de Exportado/. Devuelve la ruta o vacío.

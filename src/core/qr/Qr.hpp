@@ -72,6 +72,28 @@ struct Estilo {
 /// entra menos).
 std::string svg(const std::string& texto, const Estilo& e, std::string* error = nullptr);
 
+// --- El estilo, de ida y de vuelta por una URL -------------------------------
+// Un televisor por Chromecast no corre nuestro código: pide una dirección y
+// dibuja lo que le devuelvan. Así que para que el QR que se DISEÑA sea el que
+// SALE, el estilo tiene que viajar en la URL.
+//
+// Las dos mitades viven juntas acá a propósito. Estuvieron separadas —la app
+// armaba la dirección y el gateway la leía por su cuenta— y lo que pasó fue
+// peor que un error: el gateway ni miraba el estilo y dibujaba un QR negro
+// sobre blanco. Se guardaba un código con su ícono y sus esquinas redondeadas,
+// se proyectaba, y salía otro. Un desacuerdo entre dos lados no se nota
+// cuando el resultado sigue siendo un QR válido.
+
+/// El estilo como parámetros de consulta ("&primario=%23000000&puntos=…").
+/// No incluye `texto`: eso lo pone el que arma la dirección.
+std::string aConsulta(const Estilo& e);
+
+/// El estilo leído de los parámetros. `buscar` devuelve el valor de una clave
+/// (ya des-escapada) o vacío si no está. Lo que falte queda en su valor de
+/// fábrica, así una dirección vieja o escrita a mano sigue dando un QR legible.
+std::string consultaValor(const std::string& query, const std::string& clave);
+Estilo desdeConsulta(const std::string& query);
+
 /// Cuántos módulos de lado tiene el código de ese texto (sin la zona
 /// silenciosa), o 0 si no entra. Sirve para avisar "esto va a quedar denso".
 int lado(const std::string& texto, Correccion c);

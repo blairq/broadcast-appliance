@@ -467,6 +467,12 @@ QString PantallasViewModel::urlDe(const QString& tipo, const QVariantMap& datos,
         if (v.isEmpty()) continue;
         url += "&" + QString::fromUtf8(f.clave) + "=" + QString::fromUtf8(QUrl::toPercentEncoding(v));
     }
+    // El estilo de un código guardado viaja ya armado (ba::qr::aConsulta), no
+    // campo por campo: el que sabe qué lleva un estilo es el generador, y si
+    // se copiara la lista acá habría dos listas que mantener de acuerdo. Esa
+    // es exactamente la forma del error que estamos arreglando.
+    const QString estilo = datos.value("estilo").toString();
+    if (!estilo.isEmpty()) url += "&" + estilo;
     return url;
 }
 

@@ -10,6 +10,7 @@
 //   5. Lo que no entra avisa en vez de devolver algo roto.
 //   6. Las cargas: WiFi, vCard, reunion, tel/sms/mail, con el escapado que
 //      hace falta (un ";" en el nombre de la red partiria el codigo).
+#include <clocale>
 #include <cstdio>
 #include <string>
 
@@ -183,6 +184,75 @@ int main() {
         CHECK(sms("+541100") == "sms:+541100", "sms sin texto");
         CHECK(correo("a@b.c", "Hola") == "mailto:a@b.c?subject=Hola", "mail con asunto");
         CHECK(correo("a@b.c") == "mailto:a@b.c", "mail pelado");
+    }
+
+    // --- El estilo tiene que sobrevivir el viaje por la URL ------------------
+    // Un televisor por Chromecast no corre nuestro código: recibe una
+    // dirección y dibuja lo que le devuelvan. Si el estilo no llega entero,
+    // sale un QR VALIDO pero distinto al que se diseñó, y eso no falla en
+    // ningún lado: se descubre mirando el televisor. Por eso se prueba el
+    // viaje completo y no solo que el texto quepa.
+    {
+        Estilo e;
+        e.primario = "#7c3aed";
+        e.secundario = "#00ff88";
+        e.fondo = "#101010";
+        e.puntos = Puntos::MuyRedondeados;
+        e.ojos = Ojos::Redondeados;
+        e.marco = Marco::Redondeado;
+        e.correccion = Correccion::Maxima;
+        e.zonaSilenciosa = 6;
+        e.logoIcono = "wifi";
+        e.logoColor = "#ffffff";
+        e.logo = 0.22;
+
+        const Estilo v = desdeConsulta(aConsulta(e));
+        CHECK(v.primario == e.primario && v.secundario == e.secundario && v.fondo == e.fondo,
+              "los colores vuelven");
+        CHECK(v.puntos == e.puntos && v.ojos == e.ojos && v.marco == e.marco, "las formas vuelven");
+        CHECK(v.correccion == e.correccion && v.zonaSilenciosa == e.zonaSilenciosa, "correccion y zona");
+        CHECK(v.logoIcono == e.logoIcono && v.logoColor == e.logoColor, "el icono vuelve");
+
+        // El '#' de un color, sin escapar, corta la dirección y se lleva puesto
+        // todo lo que venga después sin que nada falle.
+        CHECK(aConsulta(e).find('#') == std::string::npos, "el # va escapado");
+
+        // Y lo que importa de verdad: el dibujo es el MISMO de los dos lados.
+        CHECK(svg("https://ejemplo.com", e) == svg("https://ejemplo.com", v),
+              "el QR que sale es el que se diseño");
+    }
+    {
+        // Una dirección sin estilo (vieja, o escrita a mano) tiene que dar un
+        // código legible, no uno roto.
+        const Estilo v = desdeConsulta("");
+        CHECK(v.primario == "#000000" && v.fondo == "#FFFFFF", "sin estilo, el de fabrica");
+        CHECK(!svg("hola", v).empty(), "y dibuja igual");
+        // Un icono pedido sin hueco se veria tapado por el codigo.
+        CHECK(desdeConsulta("icono=wifi").logo > 0, "un icono abre su hueco solo");
+        CHECK(desdeConsulta("zona=-3").zonaSilenciosa == 4, "una zona absurda no pasa");
+    }
+    {
+        // El numero del logo NO puede llevar punto decimal: el separador
+        // depende del idioma del proceso, y la app corre en español. Con
+        // "%.3f" mandaba "0,220", el gateway leia hasta la coma —cero— y el
+        // hueco del icono desaparecia. Dos procesos del mismo programa sin
+        // entenderse, y sin que nada falle.
+        Estilo e;
+        e.logo = 0.22;
+        const std::string q = aConsulta(e);
+        CHECK(q.find("logo=220") != std::string::npos, "el logo va en milesimas enteras");
+        CHECK(q.find(',') == std::string::npos && q.find("logo=0.") == std::string::npos,
+              "sin separador decimal, que depende del idioma");
+
+        // Y con el idioma puesto en uno que usa coma, tiene que dar lo mismo.
+        const char* antes = std::setlocale(LC_NUMERIC, nullptr);
+        if (std::setlocale(LC_NUMERIC, "es_AR.UTF-8") != nullptr ||
+            std::setlocale(LC_NUMERIC, "de_DE.UTF-8") != nullptr) {
+            CHECK(aConsulta(e) == q, "el mismo estilo da la misma direccion en cualquier idioma");
+            std::setlocale(LC_NUMERIC, antes != nullptr ? antes : "C");
+        }
+        const Estilo v = desdeConsulta(q);
+        CHECK(v.logo > 0.21 && v.logo < 0.23, "y vuelve entero");
     }
 
     if (g_fallos == 0) {
