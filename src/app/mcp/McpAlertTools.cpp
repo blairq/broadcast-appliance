@@ -64,7 +64,7 @@ void McpService::registerAlertTools() {
                {{"type", "string"},
                 {"enum",
                  {"audio_peak", "audio_silence", "media_end", "speaker_time", "lobby", "hand", "guest_drop",
-                  "chat", "guest_message", "stream_health", "disk", "timer"}}}},
+                  "chat", "guest_message", "stream_health", "stream_down", "disk", "timer"}}}},
               {"name", {{"type", "string"}}},
               {"params", {{"type", "object"}}},
               {"message", {{"type", "string"}, {"description", "Texto propio que acompaña al aviso."}}},

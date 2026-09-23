@@ -226,7 +226,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         };
         in.status = [this]() {
             const EngineStatus s = rt_.engine().status();
-            return agent::AlertInputs::Status{s.streaming, s.recording, s.droppedFrames, s.totalFrames};
+            return agent::AlertInputs::Status{s.streaming, s.recording, s.droppedFrames, s.totalFrames,
+                                              s.reconnecting};
         };
         in.diskFreeGb = [this]() {
             const QStorageInfo si(QString::fromStdWString((rt_.dataRoot() / "Recordings").wstring()));

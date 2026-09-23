@@ -235,7 +235,7 @@ const Fila kPropias[] = {
     {"account_check", "probar cuenta verificar que ande"},
 
     // --- Alertas y recetas --------------------------------------------------
-    {"alert_types", "que se puede vigilar eventos disponibles"},
+    {"alert_types", "que se puede vigilar eventos disponibles se cayo la transmision disco lleno"},
     {"alert_create", "avisame cuando crear alerta vigilar"},
     {"alert_list", "que alertas hay configuradas"},
     {"alert_update", "cambiar alerta editar"},

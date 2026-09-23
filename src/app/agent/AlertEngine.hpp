@@ -62,6 +62,10 @@ struct AlertInputs {
         bool recording = false;
         int droppedFrames = 0;
         int totalFrames = 0;
+        /// La salida se corto y esta intentando volver sola. libobs reintenta
+        /// por su cuenta; lo que no hace es avisar cuando lleva un rato sin
+        /// lograrlo, que es justo el momento en el que hay que hacer algo.
+        bool reconnecting = false;
     };
     std::function<std::vector<Audio>()> audio;
     std::function<std::vector<Media>()> media;
