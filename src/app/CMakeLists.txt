@@ -342,13 +342,20 @@ if(BA_APP_QT_OK)
         target_link_options(ba-mcp PRIVATE -static-libstdc++ -static-libgcc)
     endif()
     install(TARGETS ba-mcp RUNTIME DESTINATION bin/64bit)
-    add_executable(test_mcp tests/test_mcp.cpp mcp/McpCore.cpp mcp/McpHttp.cpp)
+    add_executable(test_mcp tests/test_mcp.cpp mcp/McpCore.cpp mcp/McpHttp.cpp mcp/McpIndice.cpp
+                   mcp/McpEtiquetas.cpp)
     target_include_directories(test_mcp PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_mcp PRIVATE ba_core Qt6::Core Qt6::Network)
     target_compile_definitions(test_mcp PRIVATE BA_MCP_BRIDGE="$<TARGET_FILE:ba-mcp>")
     set_target_properties(test_mcp PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_dependencies(test_mcp ba-mcp)
     add_test(NAME test_mcp COMMAND test_mcp)
+
+    # El buscador de herramientas: que el indice encuentre lo que una persona
+    # pediria con SUS palabras, y que ninguna herramienta quede sin etiquetar.
+    add_executable(test_mcp_busqueda tests/test_mcp_busqueda.cpp mcp/McpIndice.cpp mcp/McpEtiquetas.cpp)
+    target_include_directories(test_mcp_busqueda PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    add_test(NAME test_mcp_busqueda COMMAND test_mcp_busqueda)
 
     # YouTube: cliente OAuth + Data API contra un Google falso, y HTTPS real.
     add_executable(test_youtube tests/test_youtube.cpp youtube/YouTubeClient.cpp net/HttpsClient.cpp)

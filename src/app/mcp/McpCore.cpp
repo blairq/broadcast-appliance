@@ -4,6 +4,9 @@
 
 #include "mcp/McpCore.hpp"
 
+#include "mcp/McpEtiquetas.hpp"
+#include "mcp/McpIndice.hpp"
+
 #include <chrono>
 
 #include "diag/Registro.hpp"
@@ -217,7 +220,20 @@ McpCore::McpCore() {
         out << "Coincidencias para \"" << a.value("query", "") << "\":\n";
         for (const auto& h : hits) {
             out << "- [" << h["kind"].get<std::string>() << "] " << h["id"].get<std::string>() << " — "
-                << h["title"].get<std::string>() << "\n";
+                << h["title"].get<std::string>();
+            // Por que salio. Una busqueda que no dice con que palabra enganchó
+            // no se puede corregir: el que pregunta vuelve a probar a ciegas.
+            if (h.contains("porque") && h["porque"].is_array() && !h["porque"].empty()) {
+                out << "  (por: ";
+                bool primero = true;
+                for (const auto& t : h["porque"]) {
+                    if (!primero) out << ", ";
+                    out << t.get<std::string>();
+                    primero = false;
+                }
+                out << ")";
+            }
+            out << "\n";
         }
         out << "\nPara el detalle: help {\"tool\": ...} o help {\"topic\": ...}.";
         ToolResult r;
@@ -784,25 +800,44 @@ std::string McpCore::helpTool(const std::string& name) const {
     return o.str();
 }
 
-json McpCore::search(const std::string& query) const {
-    const std::vector<std::string> q = words(query);
-    std::vector<std::pair<int, json>> hits;
+void McpCore::armarIndice() const {
+    indice_ = std::make_unique<Indice>();
     for (const Tool& t : tools_) {
-        const int s = score(q, t.name + " " + t.title, t.description + " " + t.details);
-        if (s > 0)
-            hits.emplace_back(
-                s, json{{"kind", "herramienta"}, {"id", t.name}, {"title", t.title}, {"score", s}});
+        Documento d;
+        d.id = t.name;
+        d.clase = "herramienta";
+        d.nombre = t.name;
+        d.titulo = t.title;
+        d.etiquetas = etiquetasDe(t.name);
+        d.cuerpo = t.description + " " + t.details;
+        indice_->agregar(std::move(d));
     }
     for (const HelpTopic& t : topics_) {
-        const int s = score(q, t.id + " " + t.title, t.summary + " " + t.body);
-        if (s > 0)
-            hits.emplace_back(s, json{{"kind", "tema"}, {"id", t.id}, {"title", t.title}, {"score", s}});
+        Documento d;
+        d.id = t.id;
+        d.clase = "tema";
+        d.nombre = t.id;
+        d.titulo = t.title;
+        d.cuerpo = t.summary + " " + t.body;
+        indice_->agregar(std::move(d));
     }
-    std::stable_sort(hits.begin(), hits.end(),
-                     [](const auto& a, const auto& b) { return a.first > b.first; });
+    indice_->armar();
+    indiceDe_ = tools_.size() + topics_.size();
+}
+
+json McpCore::search(const std::string& query) const {
+    // Se arma una sola vez, y se rearma si aparecieron herramientas nuevas
+    // (las extensiones se registran despues del arranque).
+    if (!indice_ || indiceDe_ != tools_.size() + topics_.size()) armarIndice();
     json out = json::array();
-    for (size_t i = 0; i < hits.size() && i < 12; ++i)
-        out.push_back(hits[i].second);
+    for (const Resultado& r : indice_->buscar(query, 12)) {
+        const Documento& d = indice_->doc(r.doc);
+        out.push_back(json{{"kind", d.clase},
+                           {"id", d.id},
+                           {"title", d.titulo},
+                           {"score", static_cast<int>(r.puntaje * 10)},
+                           {"porque", r.porque}});
+    }
     return out;
 }
 

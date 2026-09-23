@@ -34,6 +34,10 @@
 // ============================================================================
 #pragma once
 
+#include <memory>
+
+#include "mcp/McpIndice.hpp"
+
 #include <cstdint>
 #include <functional>
 #include <map>
@@ -44,6 +48,7 @@
 #include <nlohmann/json.hpp>
 
 namespace ba::app::mcp {
+
 
 using json = nlohmann::json;
 
@@ -218,6 +223,9 @@ class McpCore {
     std::string helpTopic(const std::string& id) const;
     std::string helpTool(const std::string& name) const;
     /// Coincidencias por palabras: [{kind, id, title, score}].
+    /// Las mejores coincidencias para esa consulta, por el indice invertido
+    /// (ver McpIndice.hpp). Cada una trae `porque`: los terminos que
+    /// engancharon, para poder corregir la busqueda en vez de adivinar.
     json search(const std::string& query) const;
 
     const std::vector<Tool>& tools() const { return tools_; }
@@ -289,6 +297,13 @@ class McpCore {
     std::vector<Category> categories_;
     std::vector<Tool> tools_;
     std::vector<HelpTopic> topics_;
+    /// El indice de busqueda: se arma solo la primera vez que se busca, y de
+    /// nuevo si aparecieron herramientas (las extensiones se registran
+    /// despues del arranque). `mutable` porque `search` es const: buscar no
+    /// cambia nada de lo que se ve desde afuera.
+    mutable std::unique_ptr<Indice> indice_;
+    mutable std::size_t indiceDe_ = 0;
+    void armarIndice() const;
     std::vector<Resource> resources_;
     std::vector<Prompt> prompts_;
     Approver approver_;
