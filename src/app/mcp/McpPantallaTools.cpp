@@ -105,7 +105,8 @@ void McpService::registerPantallaTools() {
         t.category = "pantallas";
         t.description =
             "Le manda un contenido a una pantalla. `tipo`: mensaje (texto grande), qr (un QR a pantalla "
-            "completa), reloj, url (una direccion cualquiera) o prompter (la vista del orador). Los campos "
+            "completa), reloj, url (una direccion cualquiera), prompter (la vista del orador), carrusel "
+            "(una rotacion ya armada) o programa (lo que sale al aire, en vivo por WebRTC). Los campos "
             "de cada tipo salen de pantalla_listar.";
         t.details = "Ojo con la que este `ocupada`: mostrarle algo le pisa lo que estuviera pasando. Si no "
                     "te lo pidieron explicitamente, preguntale al operador con `operator_ask`.\n\n"
@@ -116,7 +117,7 @@ void McpService::registerPantallaTools() {
             {"required", {"pantalla", "tipo"}},
             {"properties",
              {{"pantalla", {{"type", "string"}, {"description", "id o nombre, como lo da pantalla_listar"}}},
-              {"tipo", {{"type", "string"}, {"enum", {"mensaje", "qr", "reloj", "url", "prompter", "carrusel"}}}},
+              {"tipo", {{"type", "string"}, {"enum", {"mensaje", "qr", "reloj", "url", "prompter", "carrusel", "programa"}}}},
               {"carrusel", {{"type", "string"}, {"description", "su id, con tipo=carrusel"}}},
               {"texto", {{"type", "string"}, {"description", "mensaje: lo que dice; qr: lo que codifica"}}},
               {"pie", {{"type", "string"}, {"description", "la linea de abajo, mas chica"}}},
@@ -384,6 +385,100 @@ void McpService::registerPantallaTools() {
             }
             p->parar(id);
             done(ToolResult::ok("Parando «" + quien.toStdString() + "»."));
+        };
+        core_.addTool(std::move(t));
+    }
+
+    // ------------------------------------------------------------------------
+    // El CANAL DE CONTROL. Una pantalla «mostrando» solo quiere decir que el
+    // comando salio bien; que la pagina cargue de verdad es otra cosa, y paso
+    // mas de una vez que el operador viera «mostrando» con el televisor en
+    // blanco. Estas dos herramientas son las que cierran ese agujero: una
+    // pregunta como esta cada superficie SEGUN ELLA MISMA, la otra le cambia
+    // lo que muestra sin volver a castearla (o sea, sin parpadeo).
+    {
+        Tool t;
+        t.name = "superficie_listar";
+        t.title = "Que paginas del aparato estan vivas";
+        t.category = "pantallas";
+        t.readOnly = true;
+        t.description =
+            "Las superficies web que estan ABIERTAS y latiendo ahora mismo (la pantalla de un televisor, "
+            "un carrusel, el teleprompter). Cada una dice que esta mostrando con sus propias palabras.";
+        t.details = "No es lo mismo que pantalla_listar. Ahi `mostrando` significa «el comando salio "
+                    "bien»; aca significa «la pagina contesta». Una pantalla que figura mostrando y NO "
+                    "aparece en esta lista es una pantalla que no cargo: eso es lo que hay que mirar "
+                    "antes de decirle al operador que ya esta.\n\n"
+                    "`que` lo escribe la propia pagina: un carrusel dice «paso 2/3», el programa en vivo "
+                    "dice cuantos cuadros lleva. `desdeSeg` es hace cuanto late.";
+        t.run = [p](const json&, Done done) {
+            p->pedirSuperficies([done](QVariantList sup) {
+                json ss = json::array();
+                for (const QVariant& v : sup) {
+                    const QVariantMap m = v.toMap();
+                    json o = json::object();
+                    for (const QString& k : m.keys()) {
+                        const QVariant val = m.value(k);
+                        if (val.typeId() == QMetaType::Int || val.typeId() == QMetaType::LongLong)
+                            o[k.toStdString()] = val.toLongLong();
+                        else
+                            o[k.toStdString()] = val.toString().toStdString();
+                    }
+                    ss.push_back(o);
+                }
+                done(ToolResult::ok(json{{"superficies", ss}}.dump(2)));
+            });
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "superficie_mostrar";
+        t.title = "Cambiarle la pagina a una superficie viva";
+        t.category = "pantallas";
+        t.description =
+            "Le cambia a una superficie lo que muestra SIN volver a castearla: viaja por el canal de "
+            "control que la propia pagina tiene abierto, asi que el cambio es inmediato y sin parpadeo. "
+            "Con `recargar` en true la hace recargarse en vez de irse a otra direccion.";
+        t.details = "Sin `a`, va a TODAS las superficies de ese `tipo` (y sin `tipo` tampoco, a todas): "
+                    "util para mandar la sala entera a la misma pagina. Los ids y los tipos salen de "
+                    "superficie_listar.\n\n"
+                    "Si la superficie no esta viva no pasa nada y la cuenta vuelve en 0: eso quiere decir "
+                    "que hay que castearla de nuevo con pantalla_mostrar, no empujarle una URL.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"a", {{"type", "string"}, {"description", "id de la superficie; vacio = todas las de `tipo`"}}},
+              {"tipo", {{"type", "string"}, {"description", "pantalla, carrusel, programa, prompter..."}}},
+              {"url", {{"type", "string"}, {"description", "a donde ir"}}},
+              {"recargar", {{"type", "boolean"}, {"description", "que se recargue sola, sin cambiar de pagina"}}}}}};
+        t.examples = {R"({"a": "carrusel-ug465j2w", "url": "http://.../pantalla/?tipo=reloj"})",
+                      R"({"tipo": "carrusel", "recargar": true})"};
+        t.run = [p](const json& a, Done done) {
+            const QString url = a.contains("url") && a["url"].is_string()
+                                    ? QString::fromStdString(a["url"].get<std::string>())
+                                    : QString();
+            const bool recargar = a.value("recargar", false);
+            if (url.isEmpty() && !recargar) {
+                done(ToolResult::error("Hace falta `url` (a donde ir) o `recargar` en true."));
+                return;
+            }
+            p->empujar(a.contains("a") ? QString::fromStdString(a["a"].get<std::string>()) : QString(),
+                       a.contains("tipo") ? QString::fromStdString(a["tipo"].get<std::string>()) : QString(),
+                       url, recargar, [done](bool ok, int cuantas) {
+                           if (!ok) {
+                               done(ToolResult::error("El gateway no acepto la orden."));
+                               return;
+                           }
+                           done(ToolResult::ok(cuantas == 0
+                                                   ? std::string("Ninguna superficie viva la recibio: no "
+                                                                 "hay pagina abierta que escuche. Para "
+                                                                 "que haya una, casteala con "
+                                                                 "pantalla_mostrar.")
+                                                   : "Mandado a " + std::to_string(cuantas) +
+                                                         " superficie(s). Ya cambio: superficie_listar lo "
+                                                         "confirma."));
+                       });
         };
         core_.addTool(std::move(t));
     }

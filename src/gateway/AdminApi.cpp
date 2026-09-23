@@ -462,6 +462,22 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         }
         return o;
     };
+    // EMPUJAR: cambiarle a una superficie lo que muestra, SIN volver a
+    // castearla. Es la mitad que le faltaba al latido: una dice como esta, la
+    // otra la maneja. {a: "<id>"|"" (todas), tipo?: solo las de ese tipo,
+    // url?: que abrir, recargar?: que se recargue sola}.
+    if (path == "/api/v1/superficies/mostrar" && method == "POST") {
+        std::vector<std::string> destinos;
+        if (req.contains("a") && req["a"].is_string() && !req["a"].get<std::string>().empty())
+            destinos.push_back("superficie:" + req["a"].get<std::string>());
+        else
+            destinos = superficies_.conexionesDe(req.value("tipo", ""));
+        json orden{{"type", req.value("recargar", false) ? "recargar" : "mostrar"}};
+        if (req.contains("url")) orden["url"] = req["url"];
+        for (const std::string& pid : destinos) sendToGuest(pid, orden);
+        sendJson(fd, 200, json{{"ok", true}, {"a", destinos.size()}});
+        return;
+    }
     if (path == "/api/v1/superficies" && method == "GET") {
         sendJson(fd, 200, json{{"ok", true}, {"superficies", superficies_.vivas()}});
         return;

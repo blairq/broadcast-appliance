@@ -113,6 +113,7 @@ class SignalingServer {
         std::string rotulosWebroot; // Web/rotulos (los rotulos desde el celular)
         std::string pantallaWebroot; // Web/pantalla (lo que se manda a un televisor)
         std::string castWebroot;     // Web/cast (el programa en vivo, para un televisor)
+        std::string comunWebroot;    // Web/comun (el canal de control, lo usan TODAS)
         /// Clave de los rotulos. A diferencia del teleprompter, hace falta
         /// TAMBIEN PARA MIRAR: un rotulo suele llevar el nombre del invitado
         /// que todavia no se anuncio. Vacia = la pagina no atiende a nadie.
@@ -197,8 +198,13 @@ class SignalingServer {
     // invitado: lo que cambia es TODO lo que puede hacer despues.
     /// true si ese id es una pantalla (y no un participante de la sala).
     bool esPantalla(const std::string& pid) const;
-    /// Registra una pantalla nueva y devuelve su id.
-    std::string altaPantalla();
+    /// Registra una pantalla nueva y devuelve su id. `claveOut` recibe la
+    /// clave de reenganche, que se le manda en el "hello".
+    std::string altaPantalla(std::string& claveOut);
+    /// La clave de reenganche de esa pantalla (vacia si no existe).
+    std::string claveDePantalla(const std::string& pid) const;
+    /// Valida un reenganche. true si ese id existe y la clave coincide.
+    bool reengancharPantalla(const std::string& pid, const std::string& clave);
     void bajaPantalla(const std::string& pid);
 
     void handleGuestHttp(long long fd, const std::string& method, const std::string& path,
@@ -301,10 +307,22 @@ class SignalingServer {
     Carruseles carruseles_;
     /// Quien esta VIVO del otro lado: cada superficie web late (ver Superficies).
     Superficies superficies_;
-    /// Ids de las conexiones que son PANTALLAS (ver esPantalla). Aparte de la
-    /// sala a proposito: nada de lo que sabe Room aplica a un televisor.
+    /// Las conexiones que son PANTALLAS (ver esPantalla), con su clave de
+    /// reenganche. Aparte de la sala a proposito: nada de lo que sabe Room
+    /// aplica a un televisor.
+    ///
+    /// La entrada SOBREVIVE a la desconexion (hasta `kPantallaTtlMs`) porque
+    /// el token de ingreso es de un solo uso: sin esto, un televisor que
+    /// pierde el WebSocket un segundo no puede volver nunca mas y se queda en
+    /// "reconectando" hasta que alguien lo vuelva a castear a mano.
+    struct Pantalla {
+        std::string clave;
+        std::int64_t sueltaMs = 0; ///< cuando se desconecto (0: conectada)
+    };
+    static constexpr std::int64_t kPantallaTtlMs = 12LL * 60 * 60 * 1000;
+    static constexpr std::size_t kMaxPantallas = 32;
     mutable std::mutex pantallasLock_;
-    std::set<std::string> pantallas_;
+    std::map<std::string, Pantalla> pantallas_;
     Rotulador rotulador_;
     ShareStore& shares_;
     Log& log_;

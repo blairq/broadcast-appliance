@@ -43,7 +43,23 @@
     cerrado: false,
     ultimoCuadro: -1,
     quieto: 0,
+    id: "",
+    key: "",
   };
+
+  // La sesion sobrevive a una recarga de la pagina: un televisor se recarga
+  // solo mas seguido de lo que uno cree (memoria, el propio DashCast), y sin
+  // esto cada recarga gastaria un token que ya no tiene.
+  const SESION = "ba-pantalla-sesion";
+  function guardarSesion() {
+    try { sessionStorage.setItem(SESION, JSON.stringify({ id: st.id, key: st.key })); } catch (e) {}
+  }
+  (() => {
+    try {
+      const v = JSON.parse(sessionStorage.getItem(SESION) || "null");
+      if (v && v.id) { st.id = v.id; st.key = v.key || ""; }
+    } catch (e) {}
+  })();
 
   function avisar(texto, pie) {
     $("aviso-texto").textContent = texto;
@@ -55,7 +71,7 @@
   // --- Señalización ---------------------------------------------------------
 
   function enviar(m) {
-    if (st.ws && st.ws.readyState === WebSocket.OPEN) st.ws.send(JSON.stringify(m));
+    if (st.ws && st.ws.readyState === WebSocket.OPEN) st.ws.send(window.BATrama.encode(m));
   }
 
   function conectar() {
@@ -65,16 +81,26 @@
     // aparecemos dos veces en la sala.
     // Siempre con token: una pantalla no se "reengancha" porque no tiene nada
     // que retomar (no hay sesión en la sala, no hay lugar guardado).
-    const args = `pantalla=1&token=${encodeURIComponent(token)}`;
+    // El token de ingreso es de UN SOLO USO. Despues de entrar la primera vez
+    // se vuelve con el id y la clave que mando el servidor en el "hello": si
+    // no, un corte de un segundo dejaria al televisor afuera para siempre.
+    const args = st.id
+      ? `pantalla=1&resume=${encodeURIComponent(st.id)}&key=${encodeURIComponent(st.key)}`
+      : `pantalla=1&token=${encodeURIComponent(token)}`;
     const ws = new WebSocket(`${proto}://${location.host}/ws?${args}`);
+    // Los mensajes del canal van envueltos en un frame binario (ver
+    // ../comun/trama.js): sin esto llegan como Blob y no se leen.
+    ws.binaryType = "arraybuffer";
     st.ws = ws;
 
-    ws.onopen = () => { st.reintento = 0; };
+    let abrio = false;
+    ws.onopen = () => { abrio = true; st.reintento = 0; };
 
     ws.onmessage = (ev) => {
-      let m;
-      try { m = JSON.parse(ev.data); } catch (e) { return; }
+      const m = window.BATrama.decode(ev.data);
+      if (!m) return;
       if (m.type === "hello") {
+        if (m.id) { st.id = m.id; st.key = m.key || ""; guardarSesion(); }
         avisar("Esperando el programa…", nombre);
         armarPeer();
       } else if (m.type === "answer" && st.pc) {
@@ -98,6 +124,14 @@
 
     ws.onclose = () => {
       if (st.cerrado) return;
+      // Ni siquiera llego a abrir con un reenganche: esa sesion ya no existe
+      // (se reinicio el gateway, o se vencio). Se tira y se prueba con el
+      // token, que es lo unico que queda.
+      if (!abrio && st.id) {
+        st.id = "";
+        st.key = "";
+        guardarSesion();
+      }
       // Reintento con espera creciente, con tope: un televisor puede quedar
       // días prendido y no tiene sentido que martille la red.
       st.reintento = Math.min(st.reintento + 1, 6);
@@ -213,6 +247,25 @@
     avisar("Falta el token", "Esta pantalla se abre desde la app, no a mano");
     return;
   }
+  // El canal de control: dice en qué estado está (conectando, sin imagen, al
+  // aire, cuántos cuadros) y acepta que le cambien lo que muestra. Sin esto,
+  // desde la cabina no hay forma de saber si esta pantalla está al aire o
+  // colgada en «conectando» —que es justo lo que pasó—.
+  if (window.BACanal) {
+    window.BACanal.abrir({
+      tipo: "programa",
+      que: () => {
+        const cs = st.pc ? st.pc.connectionState : "sin conexión";
+        const v = $("video");
+        const q = v.getVideoPlaybackQuality ? v.getVideoPlaybackQuality().totalVideoFrames : 0;
+        if (st.cerrado) return "cerrado";
+        if (q > 0) return "al aire · " + q + " cuadros · " + cs;
+        return "sin imagen · " + cs;
+      },
+      onMostrar: (url) => { location.href = url; },
+    });
+  }
+
   avisar("Conectando…");
   conectar();
 })();

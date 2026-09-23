@@ -335,6 +335,12 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/board")
         DESTINATION Web/board
     )
 endif()
+# El canal de control, compartido por TODAS las superficies web (canal.js).
+if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/comun")
+    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/comun/"
+        DESTINATION Web/comun
+    )
+endif()
 # Nota: assets/web/pantalla/ incluye carrusel/ (se copia el directorio entero).
 # El programa en vivo para un televisor (/cast/): la pagina del invitado sin
 # las partes de invitado, por WebRTC (100-300 ms, contra los 1-5 s del

@@ -362,10 +362,20 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, boo
         const uint64_t gen = registerConn(pid, fd);
         // La pantalla no espera nada de la sala: se le dice ya que arme su
         // PeerConnection (un invitado espera a tener lugar).
-        if (esPantalla(pid)) sendToGuest(pid, json{{"type", "hello"}, {"pantalla", true}});
+        if (esPantalla(pid))
+            sendToGuest(pid, json{{"type", "hello"},
+                                  {"pantalla", true},
+                                  {"id", pid},
+                                  // Con esto vuelve sola si se le corta el WS:
+                                  // el token de ingreso ya se gasto.
+                                  {"key", claveDePantalla(pid)}});
         wsLoop(fd, pid, gen);
         const bool current = unregisterConn(pid, gen);
         releaseSession(pid, gen, false);
+        if (pid.rfind("superficie:", 0) == 0) {
+            superficies_.desconectar(pid);
+            return;
+        }
         if (esPantalla(pid)) {
             bajaPantalla(pid);
             return;
@@ -473,6 +483,15 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
         }
         superficies_.latido(r.value("tipo", ""), r.value("id", ""), r.value("que", ""), clientIp);
         http::sendResponse(fd, 200, "application/json", R"({"ok":true})");
+        return;
+    }
+
+    // --- Lo que comparten TODAS las superficies ------------------------------
+    // El canal de control (canal.js). Publico y estatico: es codigo, no datos.
+    if (method == "GET" && path.rfind("/comun/", 0) == 0) {
+        const std::string rel = path.substr(7);
+        if (!rel.empty() && !cfg_.comunWebroot.empty() && serveStatic(fd, cfg_.comunWebroot, rel)) return;
+        http::sendResponse(fd, 404, "text/plain", "no encontrado\n");
         return;
     }
 
@@ -925,23 +944,60 @@ void SignalingServer::apiViewAction(long long fd, const std::string& method, con
 
 bool SignalingServer::esPantalla(const std::string& pid) const {
     std::lock_guard<std::mutex> lock(pantallasLock_);
-    return pantallas_.count(pid) != 0;
+    return pantallas_.find(pid) != pantallas_.end();
 }
 
-std::string SignalingServer::altaPantalla() {
-    std::string hex;
+std::string SignalingServer::altaPantalla(std::string& claveOut) {
+    std::string hex, clave;
     if (!ba::security::randomSecretHex(16, hex)) return {};
+    if (!ba::security::randomSecretHex(16, clave)) return {};
     // Prefijo propio: los participantes de la sala son "p"+hex, asi que un id
     // de pantalla no puede chocar con uno de invitado ni pasar por tal.
     const std::string id = "pantalla-" + hex.substr(0, 12);
     std::lock_guard<std::mutex> lock(pantallasLock_);
-    pantallas_.insert(id);
+    // Se limpian las que hace rato que no vuelven. Se hace aca (y no con un
+    // temporizador) porque es el unico momento en que la tabla crece.
+    const std::int64_t ahora = nowMs();
+    for (auto it = pantallas_.begin(); it != pantallas_.end();)
+        it = (it->second.sueltaMs != 0 && ahora - it->second.sueltaMs > kPantallaTtlMs)
+                 ? pantallas_.erase(it)
+                 : std::next(it);
+    // Con la tabla llena, se desaloja a la que hace mas que esta suelta. Una
+    // conectada no se toca: esa esta mostrando algo ahora mismo.
+    while (pantallas_.size() >= kMaxPantallas) {
+        auto peor = pantallas_.end();
+        for (auto it = pantallas_.begin(); it != pantallas_.end(); ++it)
+            if (it->second.sueltaMs != 0 && (peor == pantallas_.end() || it->second.sueltaMs < peor->second.sueltaMs))
+                peor = it;
+        if (peor == pantallas_.end()) return {}; // todas conectadas: no hay lugar
+        pantallas_.erase(peor);
+    }
+    pantallas_[id] = Pantalla{clave, 0};
+    claveOut = clave;
     return id;
+}
+
+std::string SignalingServer::claveDePantalla(const std::string& pid) const {
+    std::lock_guard<std::mutex> lock(pantallasLock_);
+    const auto it = pantallas_.find(pid);
+    return it == pantallas_.end() ? std::string() : it->second.clave;
+}
+
+bool SignalingServer::reengancharPantalla(const std::string& pid, const std::string& clave) {
+    if (pid.empty() || clave.empty()) return false;
+    std::lock_guard<std::mutex> lock(pantallasLock_);
+    const auto it = pantallas_.find(pid);
+    if (it == pantallas_.end()) return false;
+    if (it->second.clave != clave) return false;
+    it->second.sueltaMs = 0;
+    return true;
 }
 
 void SignalingServer::bajaPantalla(const std::string& pid) {
     std::lock_guard<std::mutex> lock(pantallasLock_);
-    pantallas_.erase(pid);
+    const auto it = pantallas_.find(pid);
+    // No se borra: se marca suelta, para que pueda volver con su clave.
+    if (it != pantallas_.end()) it->second.sueltaMs = nowMs();
 }
 
 /// Un offer es de solo recepcion si NINGUNA de sus pistas sube. En SDP eso se
@@ -992,14 +1048,53 @@ std::string SignalingServer::wsOpen(long long fd, const std::string& headers, co
     const auto q = http::parseQuery(query);
     const auto arg = [&](const char* k) { return q.count(k) ? http::urlDecode(q.at(k)) : std::string(); };
 
+    // UNA SUPERFICIE del aparato (una pantalla, un carrusel, el teleprompter,
+    // los rotulos). Entra sin token: lo que hace por este canal es DECIR que
+    // esta viva y que muestra, y recibir ordenes de que mostrar. No lee ni
+    // toca nada de la sala. Lo que se protege en este aparato es cambiar
+    // cosas, y eso sigue pasando por donde pasaba.
+    if (!arg("superficie").empty()) {
+        const std::string accept =
+            http::base64(http::sha1(wsKey + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").data(), 20);
+        const std::string ok = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\n"
+                               "Connection: Upgrade\r\nSec-WebSocket-Accept: " +
+                               accept + "\r\n\r\n";
+        if (!http::sendAll(fd, ok.data(), ok.size())) return {};
+        http::setSocketTimeout(fd, 0);
+        // El id lo elige la pagina y lo guarda: asi recargarse no la hace
+        // aparecer como una superficie nueva.
+        std::string id = arg("id");
+        if (id.empty() || id.size() > 64) {
+            std::string hex;
+            if (!ba::security::randomSecretHex(8, hex)) return {};
+            id = "sup-" + hex;
+        }
+        const std::string pid = "superficie:" + id;
+        superficies_.conectar(pid, arg("superficie"), id);
+        log_.info("ws: superficie " + arg("superficie") + " (" + id + ") conectada");
+        return pid;
+    }
+
     // Una PANTALLA entra por su propia puerta: mismo token, pero no se
     // conecta a la sala. Se resuelve antes que nada para que ninguna de las
     // ramas de invitado la toque.
     if (arg("pantalla") == "1") {
-        const std::string room = arg("room").empty() ? cfg_.room : arg("room");
-        if (auth_.redeem(arg("token"), room) != 0) {
-            http::sendResponse(fd, 401, "text/plain", "token invalido\n");
-            return {};
+        // Dos formas de entrar: token de ingreso (la primera vez) o reenganche
+        // con la clave que se le dio en el "hello". El token es de UN SOLO
+        // USO, asi que sin el reenganche una pantalla que pierde la conexion
+        // no podria volver jamas.
+        const bool vuelve = !arg("resume").empty();
+        if (vuelve) {
+            if (!reengancharPantalla(arg("resume"), arg("key"))) {
+                http::sendResponse(fd, 401, "text/plain", "reenganche invalido\n");
+                return {};
+            }
+        } else {
+            const std::string room = arg("room").empty() ? cfg_.room : arg("room");
+            if (auth_.redeem(arg("token"), room) != 0) {
+                http::sendResponse(fd, 401, "text/plain", "token invalido\n");
+                return {};
+            }
         }
         const std::string ok =
             "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
@@ -1008,12 +1103,15 @@ std::string SignalingServer::wsOpen(long long fd, const std::string& headers, co
             "\r\n\r\n";
         if (!http::sendAll(fd, ok.data(), ok.size())) return {};
         http::setSocketTimeout(fd, 0);
-        const std::string id = altaPantalla();
-        if (id.empty()) {
-            http::writeWsFrame(fd, 0x8, "");
-            return {};
+        std::string id = arg("resume"), clave;
+        if (!vuelve) {
+            id = altaPantalla(clave);
+            if (id.empty()) {
+                http::writeWsFrame(fd, 0x8, "");
+                return {};
+            }
         }
-        log_.info("ws: pantalla " + id + " conectada (solo mira)");
+        log_.info("ws: pantalla " + id + (vuelve ? " volvio" : " conectada") + " (solo mira)");
         return id;
     }
 
@@ -1287,7 +1385,14 @@ void SignalingServer::handleOffer(const std::string& pid, uint64_t gen, const st
     // Un re-offer (p. ej. al sumar la pantalla compartida) reusa la sesion.
     if (!sess->setRemoteOffer(sdp)) {
         log_.warn("ws: setRemoteOffer fallo (sesion " + std::to_string(idx) + ")", -1);
+        return;
     }
+    // Se anota TAMBIEN cuando sale bien. Antes solo se anotaba el fracaso, asi
+    // que un offer que nunca llegaba al servidor y uno aceptado se veian
+    // igual en el registro: nada. Un televisor en "conectando" no se podia
+    // distinguir de uno al que no se le leyo el mensaje.
+    log_.fmt("info", 0, "ws: offer de %s aceptado (sesion %d, %s%s)", pid.c_str(), idx,
+             pantalla ? "pantalla" : "invitado", fresh ? ", sesion nueva" : "");
 }
 
 void SignalingServer::wsLoop(long long fd, const std::string& pid, uint64_t gen) {
@@ -1328,6 +1433,17 @@ void SignalingServer::wsLoop(long long fd, const std::string& pid, uint64_t gen)
 void SignalingServer::handleWsMessage(const std::string& pid, uint64_t gen, const json& msg) {
     {
         const std::string type = msg.value("type", "");
+        // Una superficie solo dice que esta viva y que muestra. Nada mas: lo
+        // que llega de un televisor es informacion, no ordenes.
+        if (pid.rfind("superficie:", 0) == 0) {
+            if (type == "late") {
+                superficies_.latido(msg.value("tipo", ""), pid.substr(11), msg.value("que", ""), 0);
+                superficies_.dice(pid, msg.value("que", ""));
+            } else if (type == "ping") {
+                sendToGuest(pid, json{{"type", "pong"}});
+            }
+            return;
+        }
         // Una pantalla solo negocia su video y late. Nada de chat, ni ficha,
         // ni estado de medios, ni mano levantada: esas cosas ni se miran.
         if (esPantalla(pid) && type != "offer" && type != "ice" && type != "ping") {

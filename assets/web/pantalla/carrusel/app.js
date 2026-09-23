@@ -120,12 +120,19 @@
     avisar("Falta el carrusel. Esta pantalla se abre desde la app.");
     return;
   }
-  // El latido: lo que convierte «le mandamos la orden» en «se está viendo».
-  if (window.BALatido) {
-    window.BALatido.empezar("carrusel", () => {
-      const paso = st.pasos[st.i];
-      if (!paso) return "sin pasos todavía";
-      return "paso " + (st.i + 1) + "/" + st.pasos.length + ": " + (paso.titulo || paso.url);
+  // El canal: dice cómo está y recibe órdenes. Lo que convierte «le mandamos
+  // la orden» en «se está viendo», y permite cambiarle el contenido sin
+  // volver a castear nada.
+  if (window.BACanal) {
+    window.BACanal.abrir({
+      tipo: "carrusel",
+      que: () => {
+        const paso = st.pasos[st.i];
+        if (!paso) return "sin pasos todavía";
+        return "paso " + (st.i + 1) + "/" + st.pasos.length + ": " + (paso.titulo || paso.url);
+      },
+      // El operador manda otra cosa: se abre esa, sin recargar el carrusel.
+      onMostrar: (url) => { location.href = url; },
     });
   }
   leerLista();

@@ -54,6 +54,8 @@
 // ============================================================================
 #pragma once
 
+#include <functional>
+
 #include <memory>
 
 #include <QObject>
@@ -139,11 +141,31 @@ class PantallasViewModel : public QObject {
     /// Vuelve a publicar la lista: el televisor la toma sin reiniciarse.
     Q_INVOKABLE void publicarCarrusel(const QString& id);
 
+    // --- El canal de control --------------------------------------------------
+    /// Las superficies web vivas: [{id, tipo, que, ip, desdeSeg}]. No es lo
+    /// mismo que `pantallas`: esto es lo que está MOSTRÁNDOSE de verdad, dicho
+    /// por la propia página. Una pantalla puede figurar «mostrando» y no tener
+    /// ninguna superficie viva: eso significa que no cargó.
+    Q_INVOKABLE void pedirSuperficies();
+    /// Igual, pero avisando cuando llego la respuesta: lo usa MCP, que tiene
+    /// que contestar con datos frescos y no con los de la ultima vez que
+    /// alguien miro la pagina.
+    void pedirSuperficies(std::function<void(QVariantList)> luego);
+    Q_PROPERTY(QVariantList superficies READ superficies NOTIFY superficiesCambio)
+    QVariantList superficies() const;
+    /// Le cambia a una superficie lo que muestra SIN volver a castearla.
+    /// `a` vacío = a todas las de `tipo` (o a todas, si también está vacío).
+    Q_INVOKABLE void empujar(const QString& a, const QString& tipo, const QString& url);
+    /// `recargar`: en vez de irse a otra direccion, que se recargue sola.
+    void empujar(const QString& a, const QString& tipo, const QString& url, bool recargar,
+                 std::function<void(bool, int)> luego);
+
     QVariantList carruseles() const;
 
   signals:
     void cambio();
     void carruselesCambio();
+    void superficiesCambio();
     void notify(const QString& texto, const QString& tipo);
 
   private:

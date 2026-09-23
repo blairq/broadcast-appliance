@@ -315,7 +315,11 @@ void MediaPump::returnVideoThread() {
     int srcW = 0;
     int srcH = 0;
     std::vector<uint8_t> src;
-    std::vector<uint8_t> scaled(static_cast<size_t>(cfg_.guestVideoW) * cfg_.guestVideoH * 4u);
+    // El tamaño del retorno se decide recien al saber cuanto mide el programa:
+    // agrandarlo no agrega detalle, solo gasta banda y CPU.
+    int outW = 0;
+    int outH = 0;
+    std::vector<uint8_t> scaled;
     while (!stop_.load(std::memory_order_relaxed)) {
         if (!sub) {
             const auto now = std::chrono::steady_clock::now();
@@ -327,8 +331,16 @@ void MediaPump::returnVideoThread() {
                     srcW = receiver.width();
                     srcH = receiver.height();
                     src.assign(receiver.frameBytes(), 0);
+                    outW = std::min(cfg_.programVideoW, srcW);
+                    outH = std::min(cfg_.programVideoH, srcH);
+                    if (outW <= 0 || outH <= 0) {
+                        outW = srcW;
+                        outH = srcH;
+                    }
+                    scaled.assign(static_cast<size_t>(outW) * outH * 4u, 0);
                     log_.info("retorno video: suscrito a BA.Program (" + std::to_string(srcW) + "x" +
-                              std::to_string(srcH) + ")");
+                              std::to_string(srcH) + ") -> " + std::to_string(outW) + "x" +
+                              std::to_string(outH));
                 }
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -337,6 +349,8 @@ void MediaPump::returnVideoThread() {
         if (receiver.stale()) {
             receiver = SpoutReceiver{};
             sub = false;
+            outW = 0;
+            outH = 0;
             log_.info("retorno video: A cambio o se cerro; resuscribiendo");
             continue;
         }
@@ -346,12 +360,11 @@ void MediaPump::returnVideoThread() {
                 const auto targets = sessionsWhere([](const MediaRoute& r) {
                     return r.kind == MediaRoute::Kind::Program || r.kind == MediaRoute::Kind::Backstage;
                 });
-                if (!targets.empty()) {
-                    scaleBgra(src.data(), srcW, srcH, scaled.data(), cfg_.guestVideoW, cfg_.guestVideoH);
+                if (!targets.empty() && outW > 0 && outH > 0) {
+                    scaleBgra(src.data(), srcW, srcH, scaled.data(), outW, outH);
                     for (int s : targets) {
                         if (WebrtcSession* sess = hub_.session(s)) {
-                            sess->pushLocalVideo(scaled.data(), scaled.size(), cfg_.guestVideoW,
-                                                 cfg_.guestVideoH);
+                            sess->pushLocalVideo(scaled.data(), scaled.size(), outW, outH);
                         }
                     }
                 }

@@ -549,6 +549,8 @@ int main(int argc, char** argv) {
     pumpCfg.audioChannels = cfg.audioChannels;
     pumpCfg.programW = cfg.videoW;
     pumpCfg.programH = cfg.videoH;
+    pumpCfg.programVideoW = cfg.programVideoW;
+    pumpCfg.programVideoH = cfg.programVideoH;
     pumpCfg.guestVideoW = cfg.guestVideoW;
     pumpCfg.guestVideoH = cfg.guestVideoH;
     MediaPump pump(hub, pumpCfg, log);
@@ -598,6 +600,7 @@ int main(int argc, char** argv) {
         sigCfg.rotulosWebroot = (guestRoot.parent_path() / "rotulos").string();
         sigCfg.pantallaWebroot = (guestRoot.parent_path() / "pantalla").string();
         sigCfg.castWebroot = (guestRoot.parent_path() / "cast").string();
+        sigCfg.comunWebroot = (guestRoot.parent_path() / "comun").string();
     }
     // Clave del control del teleprompter: nueva en cada arranque. No hace
     // falta que sobreviva -- el operador manda el enlace (o el QR) cuando va a

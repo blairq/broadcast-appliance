@@ -76,6 +76,12 @@ class MediaPump {
         int backstageH = 180;
         int guestVideoW = 640; // retorno al participante
         int guestVideoH = 360;
+        // El retorno del PROGRAMA va aparte y mas grande. 640x360 alcanza para
+        // el monitor de confianza de alguien que mira su celular, pero la misma
+        // imagen en un televisor de 55" se ve mal, y una pantalla de sala es
+        // justamente eso. Nunca se agranda mas alla del original.
+        int programVideoW = 1280;
+        int programVideoH = 720;
     };
 
     MediaPump(WebrtcHub& hub, const Cfg& cfg, Log& log);

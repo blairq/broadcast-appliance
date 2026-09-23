@@ -215,6 +215,7 @@ struct PantallasViewModel::Impl {
     /// sin esto no se le puede mostrar una pagina NUESTRA a un Chromecast.
     QString origenSeguro;
     std::vector<Carrusel> carruseles;
+    QVariantList superficies;
 
     Carrusel* carrusel(const QString& id) {
         for (Carrusel& c : carruseles)
@@ -815,6 +816,54 @@ QString PantallasViewModel::mostrarCarrusel(const QString& idPantalla, const QSt
     d->ultimosDatos = QVariantMap{{"carrusel", carrusel}};
     mandarUrl(idPantalla, url, "carrusel:" + carrusel, "Carrusel — " + c->nombre);
     return {};
+}
+
+// --- El canal de control ---------------------------------------------------------------
+
+QVariantList PantallasViewModel::superficies() const { return d_->superficies; }
+
+void PantallasViewModel::pedirSuperficies() { pedirSuperficies(nullptr); }
+
+void PantallasViewModel::pedirSuperficies(std::function<void(QVariantList)> luego) {
+    if (d_->sala == nullptr) {
+        if (luego) luego({});
+        return;
+    }
+    d_->sala->client().get("/api/v1/superficies", [this, luego](bool ok, const QJsonObject& r) {
+        if (!ok) {
+            if (luego) luego({});
+            return;
+        }
+        d_->superficies.clear();
+        for (const QJsonValue& v : r.value("superficies").toArray())
+            d_->superficies.append(v.toObject().toVariantMap());
+        emit superficiesCambio();
+        if (luego) luego(d_->superficies);
+    });
+}
+
+void PantallasViewModel::empujar(const QString& a, const QString& tipo, const QString& url) {
+    empujar(a, tipo, url, false, nullptr);
+}
+
+void PantallasViewModel::empujar(const QString& a, const QString& tipo, const QString& url, bool recargar,
+                                 std::function<void(bool, int)> luego) {
+    if (d_->sala == nullptr) {
+        if (luego) luego(false, 0);
+        return;
+    }
+    QJsonObject o;
+    if (!url.isEmpty()) o["url"] = url;
+    if (recargar) o["recargar"] = true;
+    if (!a.isEmpty()) o["a"] = a;
+    if (!tipo.isEmpty()) o["tipo"] = tipo;
+    anotar(diag::Nivel::Info, "empujo a " + (a.isEmpty() ? "todas(" + tipo.toStdString() + ")" : a.toStdString()) +
+                                  ": " + (recargar ? std::string("recargar") : url.toStdString()));
+    d_->sala->client().post("/api/v1/superficies/mostrar", o,
+                            [this, luego](bool ok, const QJsonObject& r) {
+                                pedirSuperficies();
+                                if (luego) luego(ok && r.value("ok").toBool(), r.value("a").toInt());
+                            });
 }
 
 // --- Restaurar lo fijado --------------------------------------------------------------
