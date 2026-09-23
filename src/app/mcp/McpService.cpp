@@ -6,6 +6,11 @@
 // ============================================================================
 
 #include "mcp/McpService.hpp"
+#include <QRandomGenerator>
+#include <QDateTime>
+
+#include "mcp/McpTraza.hpp"
+#include "ui/PersonasViewModel.hpp"
 #include "agent/AgentViewModel.hpp"
 #include "agent/Despachador.hpp"
 #include "agent/Roles.hpp"
@@ -39,6 +44,42 @@
 
 namespace ba::app::mcp {
 
+namespace {
+
+/// Lo que hay que mirar ANTES de preguntarle nada a quien espera.
+///
+/// POR QUE VA PRIMERO. Si el sistema ya sabe quien es, preguntarle el nombre
+/// otra vez es hacerle perder el tiempo a alguien que ya estuvo —y le dice, sin
+/// querer, que aca no lo conoce nadie—. Y si casi lo reconoce, lo que falta no
+/// es una pregunta: es que se ponga de frente a la camara.
+///
+/// Vacio si este equipo no tiene reconocimiento: no tiene sentido mandarle al
+/// asistente instrucciones sobre herramientas que no estan registradas.
+QString reconocerPrimero(const QString& uid) {
+    return "ANTES DE PREGUNTARLE NADA, mira `rostro_lobby` y busca su `uid` (" + uid + "):\n"
+           "- Si viene con `nombre`, YA SABES QUIEN ES: saludala por su nombre, confirmale en UNA "
+           "sola pregunta el cargo que figura en su ficha, y no le vuelvas a preguntar lo que ya "
+           "esta ahi. Preguntarle el nombre a alguien que el sistema reconoce es hacerle perder el "
+           "tiempo.\n"
+           "- Si `parecido` esta cerca del corte (0.40 o mas) pero sin `nombre`, casi seguro ES "
+           "alguien de la libreta y lo que falta es una cara mejor: deciselo por `chat_send` con "
+           "las palabras de `sugerencia` (por ejemplo «mira de frente a la camara»), espera unos "
+           "segundos y volve a mirar `rostro_lobby` ANTES de preguntarle quien es.\n"
+           "- Si no la reconoce, atendela como siempre.\n\n";
+}
+
+/// Y lo que hay que hacer al final, para que la proxima vez ya la conozca.
+QString guardarLaCara(const QString& uid) {
+    return QString(" Al final, cuando tengas su nombre y su cargo, guardale la cara: mira "
+                   "`rostro_lobby` para sacar su `feed` (uid " ) + uid +
+           ") y llama `rostro_guardar {nombre, cargo, feed}` —si ya tenia ficha, `rostro_sumar "
+           "{id, feed}`—. Si `rostro_calidad` dice que la cara no sirve, pedile primero lo que "
+           "diga `sugerencia`. Asi la proxima vez que venga la reconoce sola y no hay que "
+           "preguntarle todo de nuevo.";
+}
+
+} // namespace
+
 // ============================================================================
 // Utilidades
 // ============================================================================
@@ -63,12 +104,59 @@ std::string encodeImage(const QImage& src, const std::string& format, int maxWid
     return bytes.toBase64().toStdString();
 }
 
+/// Quién puede recibir una imagen DENTRO de su conversación.
+///
+/// SOLO EL ROL QUE MIRA. El asistente principal aguanta muy pocas imágenes en
+/// su contexto y, pasadas esas, la sesión se cuelga —no da error: se cuelga, en
+/// el medio de una transmisión—. Una regla en el prompt («no captures si no te
+/// lo piden») no alcanza: se lo vio disparar veinte herramientas de una y meter
+/// una captura al final sin que nadie se la pidiera. Entonces la capacidad no
+/// existe para él: las capturas le vuelven como un archivo, y para mirarlas
+/// está `imagen_analizar`, que se lo encarga a un agente aparte.
+bool puedeVerImagenes(McpCore& core) { return core.contextoEnCurso().rol == "vision"; }
+
+/// Dónde quedan las capturas para que las mire otro. Una por archivo, con un
+/// nombre que no se repite. (Declarada en el header: la usa `imagen_analizar`.)
+QString guardarCaptura(const QImage& img, const std::filesystem::path& raiz, const json& args,
+                       int defaultWidth) {
+    const QString dir = QString::fromStdWString((raiz / "Runtime" / "capturas").wstring());
+    QDir().mkpath(dir);
+    const int maxW = args.value("maxWidth", defaultWidth);
+    QImage e = img;
+    if (maxW > 0 && e.width() > maxW) e = e.scaledToWidth(maxW, Qt::SmoothTransformation);
+    const QString archivo =
+        dir + "/" + QString::number(QDateTime::currentMSecsSinceEpoch()) + "-" +
+        QString::number(QRandomGenerator::global()->bounded(1000, 9999)) + ".jpg";
+    return e.save(archivo, "JPG", args.value("quality", 85)) ? archivo : QString();
+}
+
 void addImage(ToolResult& r, const QImage& img, const json& args, int defaultWidth) {
     std::string mime;
     const int maxW = args.value("maxWidth", defaultWidth);
     const std::string b64 =
         encodeImage(img, args.value("format", std::string("jpeg")), maxW, args.value("quality", 85), mime);
     r.image(b64, mime);
+}
+
+void addImage(ToolResult& r, const QImage& img, const json& args, int defaultWidth, McpCore& core,
+              const std::filesystem::path& raiz) {
+    if (puedeVerImagenes(core)) {
+        addImage(r, img, args, defaultWidth);
+        return;
+    }
+    const QString archivo = guardarCaptura(img, raiz, args, defaultWidth);
+    if (archivo.isEmpty()) {
+        r.text("(no se pudo guardar la captura)");
+        return;
+    }
+    r.text("Captura guardada en " + archivo.toStdString() +
+           " (" + std::to_string(img.width()) + "x" + std::to_string(img.height()) +
+           "). NO te la mando acá: una imagen en esta conversación cuelga la sesión. Para saber "
+           "qué se ve, usá `imagen_analizar` con una pregunta concreta.");
+    if (r.structured.is_null()) r.structured = json::object();
+    json archivos = r.structured.value("capturas", json::array());
+    archivos.push_back(archivo.toStdString());
+    r.structured["capturas"] = archivos;
 }
 
 bool parseLayout(const json& v, float& x, float& y, float& w, float& h, std::string& err) {
@@ -213,7 +301,7 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
     registerAssistantTools();
     // El operador delega en el asistente la atencion de alguien del lobby: se
     // habilita la exencion para ESA persona y se le pasa la tarea al agente.
-    vm_.setIntakeSink([this](const QString& id, const QString& name) -> QString {
+    vm_.setIntakeSink([this](const QString& id, const QString& name, bool yaAdentro) -> QString {
         // Si la recepcion esta prendida, es de ella: un agente de un tiro con
         // su juego de herramientas, y el asistente interactivo no se entera.
         agent::Despachador& d = vm_.despachador();
@@ -221,7 +309,11 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
             core_.startIntake(id.toStdString(), name.toStdString());
             std::string err;
             d.encargar("recepcion",
-                       "El operador te pide que atiendas a la persona que espera en el lobby (id " +
+                       (yaAdentro ? "«" + name.toStdString() + "» YA ENTRO sola (estaba en la "
+                                    "lista de auto-aceptar del evento): no le pidas los datos de "
+                                    "cero, mostrale los que ya tenemos para que confirme. "
+                                  : reconocerPrimero(id).toStdString()) +
+                           "El operador te pide que atiendas a la persona que espera en el lobby (id " +
                            id.toStdString() + ", se anoto como «" + name.toStdString() + "»).",
                        "lobby:" + id.toStdString(), 0, &err);
             return QString::fromStdString(err);
@@ -229,17 +321,40 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
         auto* ag = static_cast<agent::AgentViewModel*>(vm_.agent());
         if (ag == nullptr || !ag->running()) return "El asistente no está corriendo (pestaña ✦).";
         core_.startIntake(id.toStdString(), name.toStdString());
-        ag->send("Atendé vos a la persona que espera en el lobby (id " + id + ", se anotó como «" + name +
+        if (yaAdentro) {
+            // YA ESTA ADENTRO: entro sola porque estaba en la lista del
+            // evento. Pedirle los datos de cero a alguien que el sistema
+            // reconocio y dejo pasar es contradecirse en la misma frase.
+            ag->send("«" + name + "» (id " + id +
+                     ") YA ENTRO A LA SALA sola: el sistema la reconocio y estaba en la lista de "
+                     "auto-aceptar del evento. NO le pidas los datos de cero. Hablale por "
+                     "`chat_send`, saludala por su nombre, deciles que ya esta adentro, y mostrale "
+                     "los datos que ya tenemos de ella (`participant_profile` y `rostro_listar`) "
+                     "para que confirme si siguen bien o si cambio algo —el cargo sobre todo, que "
+                     "es lo que va al aire—. Si te corrige algo, guardalo con `participant_profile` "
+                     "y, si cambio su cargo, tambien con `rostro_guardar {id, nombre, cargo}`. "
+                     "Avisame con `operator_ask` SOLO si algo no cierra. Manejate sola.");
+            return {};
+        }
+        ag->send(reconocerPrimero(id) +
+                 "Atendé vos a la persona que espera en el lobby (id " + id + ", se anotó como «" + name +
                  "»). Hablale por chat con `chat_send` usándola como destinatario, presentate en una línea y "
                  "pedile, de a una pregunta por vez y en español rioplatense: su nombre y apellido tal como "
                  "quiere que se lea en pantalla, su cargo o de qué va a hablar, cómo quiere que la presenten "
                  "al aire, y un teléfono o correo de contacto por si se corta. Leé sus respuestas con "
                  "`chat_history`. A medida que las tengas, completá su ficha con `participant_profile`. "
-                 "Cuando estén los cuatro datos, mostrámelos todos juntos con `operator_ask` "
+                 "Cuando los tengas, ANTES de consultarme a mí, avisale por `chat_send` que ya "
+                 "está: algo como «Listo, ya tengo todo. Se lo paso a producción y te aviso apenas "
+                 "me confirmen». Del otro lado no se ve nada de lo que pasa acá, y quedarse "
+                 "esperando en silencio frente a una cámara, sin saber si alguien lo está "
+                 "mirando, se siente como que lo dejaron colgado. "
+                 "Recién después mostrámelos todos juntos con `operator_ask` "
                  "(opciones: «Hacer pasar» y «Todavía no») pasando `photoOf` con su nombre, asi la "
                  "tarjeta lleva su foto. "
-                 "Si contesto «Hacer pasar», admitila con `participant_admit`; si no, dejala esperando y "
-                 "avisale con cortesía. Mientras dure esto no me preguntes nada más: manejate sola.");
+                 "Si contesto «Hacer pasar», admitila con `participant_admit` Y avisale por chat que "
+                 "ya entra; si no, dejala esperando y avisale con cortesía que todavía no. "
+                 "Contestale SIEMPRE, salga como salga: el silencio es la peor respuesta. Mientras dure esto no me preguntes nada más: manejate sola." +
+                 guardarLaCara(id));
         return {};
     });
     registerSystemTools();
@@ -355,6 +470,9 @@ void McpService::applySecurity() {
 McpService::~McpService() = default;
 
 bool McpService::start(quint16 port) {
+    // La traza completa arranca con el servidor: lo que pase antes no existe
+    // todavia para nadie de afuera.
+    Traza::la().abrir(rt_.dataRoot() / "Logs");
     const QString token =
         loadOrCreateToken(QString::fromStdWString((rt_.dataRoot() / "Credenciales").wstring()));
     if (token.isEmpty()) return false;
@@ -395,7 +513,18 @@ void McpService::registerTools() {
     core_.addCategory("config", "Configuracion",
                       "Todos los ajustes del appliance (video, codificacion, sala, red...).");
     // El guion del evento: su propio bloque (ver McpEventoTools.cpp).
-    if (auto* ev = static_cast<EventoViewModel*>(vm_.evento())) registerEventoTools(core_, *ev);
+    if (auto* ev = static_cast<EventoViewModel*>(vm_.evento())) {
+        registerEventoTools(core_, *ev, [this](const std::string& id) {
+            auto* pv = static_cast<PersonasViewModel*>(vm_.personas());
+            if (pv == nullptr || !pv->disponible()) return std::pair{false, std::string()};
+            for (const QVariant& v : pv->personas()) {
+                const QVariantMap m = v.toMap();
+                if (m.value("id").toString().toStdString() == id)
+                    return std::pair{true, m.value("nombre").toString().toStdString()};
+            }
+            return std::pair{false, std::string()};
+        });
+    }
 
     AppRuntime& rt = rt_;
     StudioViewModel& vm = vm_;
@@ -1223,7 +1352,7 @@ void McpService::registerTools() {
         t.category = "audio";
         t.readOnly = true;
         t.description =
-            "Fuentes de audio con volumen (dB), silencio, si se esta escuchando por el monitor "
+            "SOLO CONSULTA los niveles del mezclador. NO cambia nada: para silenciar, subir o bajar es `audio_set`; para entender que esta pasando, `audio_measure`. Fuentes de audio con volumen (dB), silencio, si se esta escuchando por el monitor "
             "(`escuchando`, ver audio_escuchar) y nivel pico actual (dBFS), mas el nivel del "
             "programa. -100 = silencio; cerca de 0 = saturando.";
         t.run = [&rt, &vm](const json&, Done done) {

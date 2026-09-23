@@ -70,8 +70,57 @@ Te dicen que paso: un canal satura, hay silencio al aire, un invitado dice que n
 Cuando lo mediste, lo arreglaste (o determinaste que no es tuyo) y volviste a medir. El resumen dice que era, que tocaste y como quedo medido.
 )md";
 
+
+const char* kVision = R"md(
+# Rol: mirar una imagen
+
+Sos los OJOS del sistema, y nada mas. Te llega UNA imagen y UNA pregunta
+concreta. Mirás y contestás. No operás nada: no cambiás escenas, no sacás al
+aire, no tocás audio. Tu juego de herramientas no lo permite.
+
+## Por que existis
+El asistente principal no puede recibir imágenes: su contexto aguanta muy pocas
+y, pasadas esas, la sesión se cuelga en el medio de una transmisión en vivo.
+Vos corrés aparte, con una imagen y nada más, y devolvés TEXTO. Si te colgás,
+el que está operando sigue vivo.
+
+## Como contestar
+1. **Contestá exactamente lo que te preguntan**, en dos o tres líneas. Nada de
+   describir la imagen entera si te preguntaron una cosa.
+2. **Decí lo que VES, no lo que suponés.** Si no se ve, la respuesta es «no se
+   ve» o «no puedo determinarlo desde esta imagen». Inventar lo que debería
+   haber es peor que no contestar: del otro lado alguien va a decidir algo
+   con eso.
+3. **Si ves algo grave que no te preguntaron, decilo igual, al final y en una
+   línea**: cuadro negro, pantalla de error, una persona a medio cuadro, un
+   rótulo con el nombre equivocado. Eso es lo que nadie mira hasta que sale al
+   aire.
+4. Nunca devuelvas la imagen ni pidas otra. Una imagen por corrida.
+)md";
+
 std::vector<Rol> deFabrica() {
     std::vector<Rol> r;
+    {
+        // Los ojos del sistema. Ver kVision: existe para que las imagenes NO
+        // entren al hilo del asistente, que aguanta muy pocas y se cuelga.
+        Rol x;
+        x.id = "vision";
+        x.titulo = "Mirar una imagen";
+        x.descripcion = "Mira UNA imagen y contesta UNA pregunta concreta. No opera nada.";
+        // SOLO imagenes. Es la contencion: aunque el modelo quiera hacer otra
+        // cosa, no tiene con que. Un rol que mira no necesita poder tocar.
+        x.categorias = {"imagenes"};
+        x.disparadores = {}; // no se dispara solo: lo llama `imagen_analizar`
+        x.prompt = std::string(kVision) + kComun;
+        // PRENDIDO de fabrica, y es la excepcion a la regla. Los demas roles
+        // arrancan apagados porque actuan solos ante un evento; este no tiene
+        // disparadores: no hace nada hasta que alguien le da una imagen, y lo
+        // unico que puede hacer es mirarla. Apagado, la unica via segura de
+        // analizar una imagen no existiria y el asistente volveria a meterselas
+        // en su propio contexto, que es el problema que esto resuelve.
+        x.activo = true;
+        r.push_back(std::move(x));
+    }
     {
         Rol x;
         x.id = "recepcion";
@@ -101,6 +150,16 @@ std::vector<Rol> deFabrica() {
 }
 
 } // namespace
+
+const std::set<std::string>& Roles::juegoDelAsistente() {
+    // Lo que se usa operando en vivo. Ver el comentario del header.
+    static const std::set<std::string> c{
+        "escenas",   "fuentes",  "imagenes", "sala",     "oradores",  "salidas",
+        "graficos",  "rostros",  "interfaz", "ventanas", "operador",  "media",
+        "recetas",   "audio",    "config",   "sistema",  "alertas",   "pantallas",
+        "evento",    "prompter", "qr",       "youtube",  "twitch",    "facebook"};
+    return c;
+}
 
 const std::set<std::string>& Roles::comunes() {
     static const std::set<std::string> c{"ayuda", "estado", "agentes", "registro"};

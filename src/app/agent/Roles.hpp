@@ -53,6 +53,25 @@ class Roles {
   public:
     explicit Roles(std::filesystem::path archivo);
 
+    /// El juego de herramientas del ASISTENTE INTERACTIVO.
+    ///
+    /// NO ES UN ROL: no se despacha, no tiene disparadores y no aparece en la
+    /// pestaña Agentes. Es solo un nombre para el mismo filtro por categorias
+    /// que ya usan los roles, aplicado al asistente.
+    ///
+    /// POR QUE EXISTE. El asistente veia las 264 herramientas: 154 KB, ~39.000
+    /// tokens de esquemas en CADA pedido, y cada llamada a herramienta es un
+    /// pedido nuevo. Medido contra el modelo local: 14,8 s de prefill en frio
+    /// con todas, 1,3 s con veinte. Y con 264 opciones elige peor —se lo vio
+    /// disparar veinte herramientas juntas para una pregunta simple—.
+    ///
+    /// QUE QUEDA AFUERA, y por que se puede: el rack de audio (que es del rol
+    /// tecnico), las tres plataformas de streaming, el guion del evento, el
+    /// prompter y las pantallas externas. Nada de eso se toca mientras se
+    /// opera, y cuando hace falta se llega por `help_search`, que encuentra
+    /// por sintoma y no solo por nombre.
+    static const std::set<std::string>& juegoDelAsistente();
+
     /// Categorias que ven TODOS los roles: ayuda, estado y las de los propios
     /// agentes (para pedirle algo a otro rol y para dejar constancia).
     static const std::set<std::string>& comunes();

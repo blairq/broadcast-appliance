@@ -17,6 +17,8 @@
 // ============================================================================
 #pragma once
 
+#include <filesystem>
+
 #include <QImage>
 #include <QObject>
 #include <QString>
@@ -108,6 +110,18 @@ std::string encodeImage(const QImage& img, const std::string& format, int maxWid
                         std::string& mime);
 /// Agrega la imagen al resultado (+ una linea con su tamaño).
 void addImage(ToolResult& r, const QImage& img, const json& args, int defaultWidth);
+/// Guarda una captura en Runtime/capturas/ y devuelve su ruta (vacía si no se
+/// pudo). Es a donde van a parar las imágenes que NO se mandan por la
+/// conversación; ver el comentario de `puedeVerImagenes` en el .cpp.
+QString guardarCaptura(const QImage& img, const std::filesystem::path& raiz, const json& args,
+                       int defaultWidth);
+
+/// Igual, pero SOLO le manda la imagen a quien puede recibirla (el rol que
+/// mira). A los demás les deja el archivo y les dice que usen `imagen_analizar`.
+/// Ver el comentario de `puedeVerImagenes` en el .cpp: no es una preferencia,
+/// es que una imagen de más cuelga la sesión del que está operando.
+void addImage(ToolResult& r, const QImage& img, const json& args, int defaultWidth, McpCore& core,
+              const std::filesystem::path& raiz);
 /// Rectangulo en fracciones del lienzo a partir de un preset o {x,y,w,h}.
 /// :returns: false (con `err`) si no se entiende.
 bool parseLayout(const json& v, float& x, float& y, float& w, float& h, std::string& err);
