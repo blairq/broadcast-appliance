@@ -13,6 +13,10 @@
 #include <vector>
 
 #include "ipc/HealthBlock.hpp"
+
+#if BA_GATEWAY_HAVE_WEBRTC
+#include "third_party/libyuv/include/libyuv/scale_argb.h"
+#endif
 #include "Log.hpp"
 
 #ifdef _WIN32
@@ -46,8 +50,24 @@ constexpr uint32_t kGeneration = 1;
 /// :param sw/sh: resolucion de origen.
 /// :param dst: buffer de destino (dw*dh*4 bytes).
 /// :param dw/dh: resolucion de destino.
+/// Escala BGRA. Achicar es lo normal acá: el programa es 1080p y el retorno
+/// 720p.
+///
+/// CON FILTRO, no tomando el píxel más cercano. Achicar 1080p a 720p tirando
+/// dos de cada tres filas deja fuera dos tercios de la imagen: el texto de un
+/// zócalo y los bordes finos titilan, y en un televisor grande se ve como
+/// suciedad. El filtro de caja promedia lo que se descarta, que es la
+/// diferencia entre «más chico» y «peor».
+///
+/// Y es de libyuv, o sea con SIMD. El de antes hacía dos divisiones enteras
+/// por píxel —novecientas mil por cuadro— en C escalar. Donde no hay libyuv
+/// (el backend NULL, el de los tests) queda el de antes: ahí no hay nadie
+/// mirando la imagen, solo se comprueba que los bytes lleguen.
 void scaleBgra(const uint8_t* src, int sw, int sh, uint8_t* dst, int dw, int dh) {
     if (sw <= 0 || sh <= 0 || dw <= 0 || dh <= 0) return;
+#if BA_GATEWAY_HAVE_WEBRTC
+    libyuv::ARGBScale(src, sw * 4, sw, sh, dst, dw * 4, dw, dh, libyuv::kFilterBox);
+#else
     for (int y = 0; y < dh; ++y) {
         const int sy = (y * sh) / dh;
         const uint8_t* srow = src + static_cast<size_t>(sy) * sw * 4;
@@ -62,6 +82,7 @@ void scaleBgra(const uint8_t* src, int sw, int sh, uint8_t* dst, int dw, int dh)
             drow += 4;
         }
     }
+#endif
 }
 
 /// Ajusta (sw x sh) DENTRO de (dw x dh) conservando el aspecto, centrado y

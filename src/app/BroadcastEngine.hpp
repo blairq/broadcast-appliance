@@ -657,6 +657,11 @@ class BroadcastEngine {
     // libobs), por eso no necesita lock.
     std::vector<float> audioAccum_;
     std::uint64_t programFrameIndex_ = 0;
+    /// Para medir cuanto tarda libobs entre componer un cuadro y entregarlo
+    /// (ver onRawVideo). Solo las toca el hilo del callback de video.
+    std::uint64_t programEdadNs_ = 0;
+    std::uint64_t programMedidos_ = 0;
+    std::uint64_t programInformeNs_ = 0;
     // Frame de programa empaquetado cuando libobs entrega filas con relleno
     // (linesize > ancho*4). Solo lo toca el hilo de render.
     std::vector<std::uint8_t> programPacked_;

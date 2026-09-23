@@ -22,6 +22,7 @@
 #endif
 
 #include <obs.h>
+#include <util/platform.h> // os_gettime_ns: el mismo reloj que usa libobs
 
 #include "WindowingPlatform.hpp"
 
@@ -36,12 +37,14 @@
 #include <cctype>
 #include <chrono>
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <string>
 #include <vector>
 
+#include "diag/Registro.hpp"
 #include "ipc/HealthBlock.hpp" // nowQpc() para los timestamps del IPC
 
 namespace ba::app {
@@ -405,6 +408,37 @@ void BroadcastEngine::onRawVideo(struct video_data* frame) {
     meta.frameIndex = ++programFrameIndex_;
     meta.qpc = ba::ipc::HealthBlock::nowQpc();
     programVideo_.send(pixels, bytes, meta);
+
+    // CUANTO TARDA LIBOBS. `frame->timestamp` es de cuando se compuso el
+    // cuadro; esto es de cuando nos lo entrega. La diferencia es todo lo que
+    // pasa adentro de libobs entre componer y soltar: la bajada de la GPU
+    // (que usa dos superficies de apoyo a proposito, o sea un par de cuadros)
+    // y la conversion al formato que le pedimos.
+    //
+    // Es el ultimo tramo del camino que no tenia numero. Los otros ya lo
+    // tienen —la subida del invitado, el salto A->B, el retorno, la red hasta
+    // el televisor— y todos dieron chicos, asi que lo que falta esta aca. Sin
+    // medirlo, «bajar el retardo» es tocar cosas a ver que pasa.
+    const std::uint64_t ahora = os_gettime_ns();
+    if (frame->timestamp != 0 && ahora > frame->timestamp)
+        programEdadNs_ += ahora - frame->timestamp;
+    ++programMedidos_;
+    if (programInformeNs_ == 0) {
+        programInformeNs_ = ahora;
+    } else if (ahora - programInformeNs_ >= 10'000'000'000ull && programMedidos_ > 0) {
+        const double seg = static_cast<double>(ahora - programInformeNs_) / 1e9;
+        // Por el registro propio y no por blog(): lo que libobs manda con
+        // LOG_INFO se guarda como «depuracion» (es MUY hablador) y queda por
+        // debajo del nivel normal, o sea que no se ve. Esto tiene que verse.
+        char linea[128];
+        std::snprintf(linea, sizeof(linea), "programa: %.1f fps, %.1f ms adentro de libobs",
+                      static_cast<double>(programMedidos_) / seg,
+                      static_cast<double>(programEdadNs_) / static_cast<double>(programMedidos_) / 1e6);
+        ba::diag::registro().linea(ba::diag::Nivel::Info, "motor", 0, linea);
+        programEdadNs_ = 0;
+        programMedidos_ = 0;
+        programInformeNs_ = ahora;
+    }
 }
 
 // ============================================================================
