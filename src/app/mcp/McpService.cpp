@@ -256,6 +256,7 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
     registerPantallaTools();
     registerQrTools();
     registerVentanaTools();
+    registerRostroTools();
     // El mapa de categorias va en las `instructions` del initialize (lo arma
     // McpCore en cada initialize, porque depende del rol del cliente) y
     // cuesta unos 400 tokens.

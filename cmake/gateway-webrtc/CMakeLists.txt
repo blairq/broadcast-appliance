@@ -59,6 +59,10 @@ find_package(Threads REQUIRED)
 # --- ba_core (mismo codigo que el del producto, otra STL) --------------------
 file(GLOB_RECURSE CORE_SOURCES CONFIGURE_DEPENDS "${BA_SRC}/src/core/*.cpp")
 list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/tests/.*")
+# El reconocimiento de rostros es de la interfaz (A), no del gateway: B no ve
+# video de camaras, ve sesiones de WebRTC. Sacarlo de aca ademas evita que el
+# gateway arrastre ONNX Runtime por nada.
+list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/rostros/.*")
 if(APPLE)
     list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/platform/.*_(win|linux)\\.cpp$")
     file(GLOB CORE_MM CONFIGURE_DEPENDS "${BA_SRC}/src/core/platform/*_mac.mm")

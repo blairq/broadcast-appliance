@@ -74,10 +74,16 @@ class Motor {
 
     /// Las caras que hay en un cuadro BGRA (ancho*4 bytes por fila).
     ///
-    /// :param minConfianza: descarta lo dudoso (0.9 por defecto). Una cara
-    ///        mal detectada da un vector que no sirve y ensucia la búsqueda.
+    /// :param minConfianza: descarta lo dudoso. Una cara mal detectada da un
+    ///        vector que no sirve y ensucia la búsqueda.
+    ///
+    /// EL 0.7 SALE DE MEDIR, no del ejemplo del modelo. Con 0.9 —que es lo
+    /// que trae la demo— una cara grande y de frente, al aire y perfectamente
+    /// visible, daba 0.87 y se descartaba: el cuadro real llega escalado y
+    /// recomprimido, no como la foto de prueba. Con 0.7 esa misma cara entra
+    /// y un cuadro sin caras sigue dando cero.
     std::vector<Cara> detectar(const std::uint8_t* bgra, int ancho, int alto,
-                               float minConfianza = 0.9f) const;
+                               float minConfianza = 0.7f) const;
 
     /// El vector de 128 números de UNA cara ya detectada. Vacío si falla.
     std::vector<float> describir(const std::uint8_t* bgra, int ancho, int alto,

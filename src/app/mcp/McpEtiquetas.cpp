@@ -48,6 +48,8 @@ const Fila kFamilias[] = {
     {"superficie_", "superficie pagina pantalla web canal control telemetria viva"},
     {"qr_", "qr codigo escanear celular enlace wifi contacto vcard"},
     {"media_", "medio archivo video musica audio cancion tema clip pelicula reproducir"},
+    {"rostro_", "rostro cara persona quien es reconocer identificar nombre cargo libreta "
+                "caras conocidas quien llego quien esta"},
     {"ventana_", "ventana monitor pantalla escritorio mover acomodar ordenar posicion tamaño "
                  "multimonitor dos monitores segundo monitor puesto de trabajo"},
     {"stream_", "transmitir emitir salir al aire vivo directo rtmp stream broadcast"},
@@ -345,6 +347,10 @@ const Fila kPropias[] = {
     {"ventana_mover", "mover ventana a otro monitor acomodar pantalla completa maximizar "
                       "mitad izquierda derecha organizar el escritorio armar el puesto"},
     {"ventana_cerrar", "cerrar ventana quitar sacar de pantalla"},
+    {"rostro_ver", "quien esta en camara quien aparece reconocer a alguien identificar cara"},
+    {"rostro_guardar", "dar de alta una persona ensenarle una cara agregar al sistema corregir ficha"},
+    {"rostro_listar", "que personas hay guardadas libreta conocidas"},
+    {"rostro_borrar", "borrar una persona olvidar una cara sacar de la libreta"},
     {"ventanas_ordenar", "ordenar acomodar las ventanas repartir entre monitores que no se "
                          "amontonen ordena las ventanas armar el puesto"},
     {"monitor_identificar", "identificar pantallas cual es cada monitor numero nombre "
