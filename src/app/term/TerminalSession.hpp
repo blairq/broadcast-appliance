@@ -59,6 +59,11 @@ class TerminalSession : public QObject {
     int cols() const { return cols_; }
     void resize(int cols, int rows);
 
+    /// Borra la pantalla Y el historial. Es para cuando lo que hay en pantalla
+    /// ya no es de nadie: al cambiar de agente, lo que dejó el anterior no es
+    /// «lo de antes», es de otro programa.
+    void limpiar();
+
     /// Mete bytes en el emulador como si los hubiera escrito el programa. Es
     /// para reproducir una pantalla rota a partir de un volcado (BA_TERM_DUMP):
     /// una terminal se rompe por una secuencia puntual entre miles, y mirando

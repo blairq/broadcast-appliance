@@ -87,11 +87,9 @@ Rectangle {
             }
 
             // Sin instalar: tarjeta de instalacion
-            ColumnLayout {
-                anchors.centerIn: parent
-                width: Math.min(parent.width - 60, 560)
+            CapaTerminal {
+                anchors { left: parent.left; right: parent.right; top: bar.bottom; bottom: parent.bottom }
                 visible: !ag.installed
-                spacing: 14
                 Text { Layout.alignment: Qt.AlignHCenter; text: "✦"; color: Theme.accent; font.pixelSize: 44 }
                 Text { Layout.alignment: Qt.AlignHCenter; text: "Instalar " + (page.cur.agentName || "el agente")
                        color: Theme.text; font { pixelSize: 22; weight: Font.DemiBold } }
@@ -117,20 +115,25 @@ Rectangle {
                        text: "El servidor MCP está apagado: activalo en Configuración → Asistente (MCP) y reiniciá la app." }
             }
             // Arrancar (instalado y detenido)
-            ColumnLayout {
-                anchors.centerIn: parent
+            CapaTerminal {
+                anchors { left: parent.left; right: parent.right; top: bar.bottom; bottom: parent.bottom }
                 visible: ag.installed && !ag.running && ag.mcpReady
-                spacing: 12
+                Text { Layout.alignment: Qt.AlignHCenter; text: "✦"; color: Theme.accent; font.pixelSize: 32 }
                 Text { Layout.alignment: Qt.AlignHCenter; text: page.cur.agentName || ""; color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
-                Text { Layout.alignment: Qt.AlignHCenter; Layout.maximumWidth: 520; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
+                Text { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
                        color: Theme.textDim; font.pixelSize: 13; text: page.cur.help || "" }
                 GlassButton { Layout.alignment: Qt.AlignHCenter; text: "Iniciar el asistente"; icon: "▶"; active: true
                               enabled: !page.cur.needsKey || ag.hasKey
                               onClicked: { ag.start(); term.forceActiveFocus() } }
-                Text { Layout.alignment: Qt.AlignHCenter; visible: page.cur.needsKey && !ag.hasKey; color: Theme.warn; font.pixelSize: 12
+                Text { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; visible: page.cur.needsKey && !ag.hasKey
+                       color: Theme.warn; font.pixelSize: 12; wrapMode: Text.WordWrap
                        text: "Falta la clave de API (panel de la derecha)." }
-                Text { Layout.alignment: Qt.AlignHCenter; visible: ag.lastError !== ""; color: Theme.live; font.pixelSize: 12; text: ag.lastError
-                       Layout.maximumWidth: 520; wrapMode: Text.WordWrap; horizontalAlignment: Text.AlignHCenter }
+                // El último error solo si dice algo NUEVO: cuando falta la clave, el
+                // motor devuelve lo mismo que ya está escrito arriba, y el cartel
+                // terminaba repitiendo la misma frase dos veces con otras palabras.
+                Text { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
+                       visible: ag.lastError !== "" && !(page.cur.needsKey && !ag.hasKey)
+                       color: Theme.live; font.pixelSize: 12; text: ag.lastError; wrapMode: Text.WordWrap }
             }
         }
 

@@ -225,6 +225,17 @@ void TerminalSession::resize(int cols, int rows) {
     scheduleRepaint();
 }
 
+void TerminalSession::limpiar() {
+    {
+        const std::lock_guard<std::mutex> lk(vtLock_);
+        vterm_screen_reset(screen_, 1);
+        scrollback_.clear();
+    }
+    cursorRow_ = 0;
+    cursorCol_ = 0;
+    scheduleRepaint();
+}
+
 void TerminalSession::alimentarParaPruebas(const QByteArray& bytes) {
     const std::lock_guard<std::mutex> lk(vtLock_);
     vterm_input_write(vt_, bytes.constData(), static_cast<size_t>(bytes.size()));

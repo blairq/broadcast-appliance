@@ -73,7 +73,14 @@ class AgentViewModel : public QObject {
     Q_PROPERTY(double installProgress READ installProgress NOTIFY installChanged)
     Q_PROPERTY(QString installText READ installText NOTIFY installChanged)
     Q_PROPERTY(bool running READ running NOTIFY runningChanged)
-    Q_PROPERTY(bool mcpReady READ mcpReady NOTIFY runningChanged)
+    /// OJO CON LA SEÑAL. Esto avisaba por `runningChanged`, que es de otra
+    /// cosa: el servidor MCP arranca DESPUES de que la interfaz se dibuja, asi
+    /// que el enlace de QML se evaluaba en false y se quedaba ahi hasta que el
+    /// agente arrancara o parara. Si nunca arrancaba —porque falta la clave,
+    /// por ejemplo— el cartel de «el servidor MCP esta apagado» quedaba puesto
+    /// con el MCP andando. Un estado pegado se ve exactamente igual que uno
+    /// real, y manda a buscar donde no es.
+    Q_PROPERTY(bool mcpReady READ mcpReady NOTIFY mcpReadyChanged)
     Q_PROPERTY(QString lastError READ lastError NOTIFY errorChanged)
     Q_PROPERTY(QVariantList alerts READ alerts NOTIFY alertsChanged)
     Q_PROPERTY(QVariantList events READ events NOTIFY alertsChanged)
@@ -128,7 +135,12 @@ class AgentViewModel : public QObject {
 
     /// Lo conecta GuiMode: prompt del sistema y si el servidor MCP esta arriba.
     void setSystemPrompt(std::function<QString()> fn) { systemPrompt_ = std::move(fn); }
-    void setMcpReady(std::function<bool()> fn) { mcpReady_ = std::move(fn); }
+    void setMcpReady(std::function<bool()> fn) {
+        mcpReady_ = std::move(fn);
+        emit mcpReadyChanged();
+    }
+    /// Lo llama quien prende o apaga el servidor MCP.
+    void avisarMcpCambio() { emit mcpReadyChanged(); }
     /// Ruta del puente ba-mcp (junto a ba-app).
     QString bridgePath() const;
     /// Carpeta de trabajo del agente con su configuracion (para los tests).
@@ -154,6 +166,7 @@ class AgentViewModel : public QObject {
     void configChanged();
     void installChanged();
     void runningChanged();
+    void mcpReadyChanged();
     void errorChanged();
     void alertsChanged();
     void notify(const QString& message, const QString& level);

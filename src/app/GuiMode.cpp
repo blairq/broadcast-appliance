@@ -132,6 +132,10 @@ int runGui(int argc, char** argv) {
                 std::printf("ba-app: el servidor MCP no pudo abrir el puerto %d\n", rt.config().mcpPort);
             }
         }
+        // El servidor arranca DESPUES de que la interfaz se dibujo, asi que hay
+        // que avisar: si no, la pestaña Asistente se queda con el cartel de
+        // «MCP apagado» que evaluo antes de tiempo.
+        agentVm->avisarMcpCambio();
         // Diagnostico: --ui-snapshot=<png> guarda una captura a los 6 s
         // (--ui-snapshot-delay=<ms> para cambiarlo).
         int snapshotDelayMs = 6000;

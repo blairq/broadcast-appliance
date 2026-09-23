@@ -259,8 +259,21 @@ QVariantMap AgentViewModel::current() const {
 
 void AgentViewModel::setProvider(const QString& id) {
     if (findProvider(id) == nullptr || id == provider_) return;
+    // ELEGIR NO ES UN COMANDO. Antes, tocar este desplegable paraba el agente
+    // que estaba corriendo y lo dejaba parado: aparecía el cartel de «Iniciar»
+    // encima de la pantalla del agente anterior, y volver a elegir el de antes
+    // NO lo devolvía —porque ya no estaba corriendo—. O sea que una lista de
+    // opciones hacía algo destructivo y sin vuelta atrás.
+    //
+    // Ahora se conserva el ESTADO: si estaba corriendo, se cambia y arranca el
+    // nuevo. Volver a elegir el anterior vuelve a donde estabas, que es lo que
+    // espera cualquiera que se arrepiente a mitad de camino.
     const bool wasRunning = running();
     if (wasRunning) stop();
+    // Y la pantalla se limpia: lo que dejó el agente anterior no es «lo de
+    // antes», es de otro programa. Verlo ahí, debajo del cartel de arrancar,
+    // hacía parecer que el cambio no había pasado.
+    session_->limpiar();
     provider_ = id;
     std::ifstream in(rt_.dataRoot() / "Config" / "asistente.json");
     const json j = json::parse(in, nullptr, false);
@@ -271,6 +284,9 @@ void AgentViewModel::setProvider(const QString& id) {
     saveConfig();
     emit configChanged();
     emit installChanged();
+    // Arrancar al toque no anda: `stop()` mata el proceso y el hijo tarda en
+    // irse. Es la misma espera que usa `restart()`.
+    if (wasRunning) QTimer::singleShot(300, this, &AgentViewModel::start);
 }
 
 void AgentViewModel::setModel(const QString& model) {
