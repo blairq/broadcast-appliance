@@ -3,8 +3,10 @@
 //   1. `parecido`: el coseno, sus bordes y sus casos degenerados.
 //   2. `enderezar` (via el motor): que los cinco puntos caigan donde el modelo
 //      los espera. Es el paso que decide si esto sirve.
-//   3. Con los modelos presentes: detectar y describir de verdad, y que la
-//      MISMA persona se parezca a sí misma más que a otra.
+//   3. Con los modelos presentes: detectar de verdad, y sobre todo que NO
+//      invente caras donde no hay.
+//   4. La libreta de personas: alta, edición, búsqueda, tope de caras, y que
+//      guardar y volver a leer no pierda nada.
 //
 // SIN MODELOS SE SALTA (código 77), no se pasa: `make deps-rostros` los baja.
 // Un test que dice OK sin haber ejercitado nada es peor que uno que falta.
@@ -13,6 +15,7 @@
 #include <filesystem>
 #include <vector>
 
+#include "rostros/Personas.hpp"
 #include "rostros/Rostros.hpp"
 
 using namespace ba::rostros;
@@ -102,6 +105,73 @@ int main() {
         CHECK(m.detectar(px.data(), 0, 64).empty(), "ancho cero no rompe");
         CHECK(m.describir(px.data(), 64, 64, Cara{}).size() == 128,
               "describir siempre devuelve 128 numeros si el motor esta abierto");
+    }
+
+    // --- 5) la libreta de personas -------------------------------------------
+    {
+        const auto tmp = std::filesystem::temp_directory_path() / "ba-personas-test.json";
+        std::filesystem::remove(tmp);
+        Personas lib;
+        CHECK(lib.leer(tmp.string()), "sin archivo no es un error: todavia no hay libreta");
+        CHECK(lib.todas().empty(), "y queda vacia");
+
+        Persona ana;
+        ana.nombre = "Ana Perez";
+        ana.cargo = "Ministra";
+        const std::string idAna = lib.guardarFicha(ana);
+        CHECK(!idAna.empty(), "crear devuelve un id");
+        Persona beto;
+        beto.nombre = "Beto Gomez";
+        const std::string idBeto = lib.guardarFicha(beto);
+        CHECK(idAna != idBeto, "dos personas, dos ids");
+
+        // Vectores separados a proposito: (1,0..) y (0,1,0..) no se parecen.
+        std::vector<float> vA(128, 0.0f), vB(128, 0.0f), vAcasi(128, 0.0f);
+        vA[0] = 1;
+        vB[1] = 1;
+        vAcasi[0] = 1;
+        vAcasi[5] = 0.1f; // la misma cara, otra toma
+        CHECK(lib.sumarCara(idAna, vA), "se le suma una cara");
+        CHECK(!lib.sumarCara("no-existe", vA), "a quien no existe, no");
+        CHECK(lib.sumarCara(idBeto, vB), "y a la otra la suya");
+
+        const Coincidencia c = lib.buscar(vA);
+        CHECK(c.id == idAna && c.parecido > 0.99f, "se encuentra a si misma");
+        CHECK(lib.buscar(vB).id == idBeto, "y a la otra tambien");
+        CHECK(lib.buscar({}).parecido == 0.0f, "un vector vacio no encuentra a nadie");
+
+        // Casi iguales: no suma otra copia de la misma toma.
+        lib.sumarCara(idAna, vAcasi);
+        CHECK(lib.porId(idAna)->caras.size() == 1, "una toma casi igual no se guarda de nuevo");
+
+        // Editar la ficha NO puede perder las caras: nadie espera que corregir
+        // una tilde obligue a volver a mostrarle la cara al sistema.
+        Persona edit = *lib.porId(idAna);
+        edit.nombre = "Ana Pérez";
+        edit.caras.clear();
+        lib.guardarFicha(edit);
+        CHECK(lib.porId(idAna)->caras.size() == 1, "editar la ficha no borra las caras");
+        CHECK(lib.porId(idAna)->nombre == "Ana Pérez", "pero si cambia el nombre");
+
+        // Tope de caras por persona: se va la mas vieja.
+        for (int i = 0; i < 30; ++i) {
+            std::vector<float> v(128, 0.0f);
+            v[static_cast<std::size_t>(20 + i)] = 1;
+            lib.sumarCara(idAna, v);
+        }
+        CHECK(lib.porId(idAna)->caras.size() == Personas::kMaxCarasPorPersona,
+              "no crece sin limite");
+
+        CHECK(lib.guardar(tmp.string()), "guarda");
+        Personas otra;
+        CHECK(otra.leer(tmp.string()), "y se vuelve a leer");
+        CHECK(otra.todas().size() == 2, "con las dos personas");
+        CHECK(otra.porId(idAna) != nullptr && otra.porId(idAna)->cargo == "Ministra",
+              "con sus datos");
+        CHECK(otra.buscar(vB).id == idBeto, "y sus caras siguen sirviendo");
+        CHECK(otra.borrar(idBeto) && otra.todas().size() == 1, "borrar saca una");
+        CHECK(!otra.borrar("no-existe"), "borrar lo que no hay avisa");
+        std::filesystem::remove(tmp);
     }
 
     if (g_fallos == 0) {
