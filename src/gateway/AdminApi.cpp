@@ -26,6 +26,9 @@
 //   POST   /api/v1/prompter                {texto?, titulo?, panico?, ...comandos}
 //   GET    /api/v1/prompter-link?target=local|remote&vista=control|orador&conClave=0|1  enlace + QR
 //   GET    /api/v1/cast-link?target=local|remote&nombre=  enlace del programa en vivo para una pantalla
+//   GET    /api/v1/carruseles              los publicados
+//   GET    /api/v1/superficies             que paginas estan VIVAS (latido, ver Superficies.hpp)
+//   POST   /api/v1/carruseles              publica uno entero (o {borrar: "<id>"})
 //   GET    /api/v1/rotulos                estado de los rotulos (+ la clave)
 //   POST   /api/v1/rotulos                {estado?, tomar?} publica y se lleva los encargos
 //   GET    /api/v1/rotulos-link?target=local|remote&conClave=0|1  enlace + QR para el celular
@@ -459,6 +462,29 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         }
         return o;
     };
+    if (path == "/api/v1/superficies" && method == "GET") {
+        sendJson(fd, 200, json{{"ok", true}, {"superficies", superficies_.vivas()}});
+        return;
+    }
+    if (path == "/api/v1/carruseles") {
+        if (method == "GET") {
+            sendJson(fd, 200, json{{"ok", true}, {"carruseles", carruseles_.todos()}});
+            return;
+        }
+        if (method == "POST") {
+            if (req.contains("borrar")) {
+                sendJson(fd, 200, json{{"ok", carruseles_.borrar(req["borrar"].get<std::string>())}});
+                return;
+            }
+            if (!carruseles_.publicar(req)) {
+                sendErr(fd, 400, "carrusel");
+                return;
+            }
+            sendJson(fd, 200, json{{"ok", true}});
+            return;
+        }
+    }
+
     // El enlace del PROGRAMA EN VIVO para una pantalla. Acuña un token de
     // ingreso (la pantalla entra como un invitado que no publica nada) y arma
     // la URL de /cast/. Va por HTTP a proposito: un televisor no tiene donde

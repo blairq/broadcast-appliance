@@ -825,6 +825,15 @@ int main(int argc, char** argv) {
         st["urls"] = urls;
         st["bestUrl"] = bestUrl;
         st["lan"] = lanIps;
+        // El origen con certificado DE VERDAD, si lo hay. Importa para los
+        // televisores: un receptor de Chromecast es una pagina HTTPS y el
+        // navegador le prohibe cargar contenido http (mixed content), asi que
+        // nuestro HTTPS autofirmado tampoco le sirve. Sin tunel, no hay forma
+        // de mostrarle una pagina NUESTRA, y conviene decirlo que descubrirlo
+        // con un televisor colgado en "cargando".
+        st["origenSeguro"] = cfg.tunnelHostname.empty()
+                                 ? nlohmann::json()
+                                 : nlohmann::json("https://" + cfg.tunnelHostname);
         st["bindAddress"] = cfg.bindAddress;
         st["rtcPorts"] = {cfg.rtcPortMin, cfg.rtcPortMax};
         st["https"] = tls ? nlohmann::json{{"enabled", true},

@@ -39,6 +39,15 @@
 // cuando el DHCP le da otra dirección, que es justo el caso que hay que
 // sobrevivir.
 //
+// CARRUSELES. Una pantalla también puede mostrar VARIAS cosas, rotando: el QR
+// de la sala, un mensaje, la hora. Un carrusel es una lista de pasos, cada uno
+// con su contenido y cuántos segundos dura.
+//
+// Lo que se le manda al televisor es UNA sola dirección (`/pantalla/carrusel/
+// ?id=X`), y la lista vive en el gateway. Así cambiar un paso no obliga a
+// mandarle una URL nueva —o sea, a reiniciarle la página y que parpadee—: se
+// republica la lista y el televisor la toma solo.
+//
 // Todo lo que habla con un aparato BLOQUEA (TLS, esperas): va en un hilo
 // aparte y vuelve por señales. La interfaz nunca se congela por un televisor
 // apagado.
@@ -69,6 +78,9 @@ class PantallasViewModel : public QObject {
     Q_PROPERTY(QString aviso READ aviso NOTIFY cambio)
     /// Cuántas están mostrando algo.
     Q_PROPERTY(int mostrando READ mostrando NOTIFY cambio)
+    /// Los carruseles: [{id, nombre, pasos:[{tipo, datos, segundos, que}],
+    /// transicion}].
+    Q_PROPERTY(QVariantList carruseles READ carruseles NOTIFY carruselesCambio)
 
   public:
     PantallasViewModel(AppRuntime& rt, ConferenceViewModel* sala, QObject* parent = nullptr);
@@ -110,11 +122,33 @@ class PantallasViewModel : public QObject {
     /// desde un navegador sin tener el televisor a mano.
     Q_INVOKABLE QString urlDe(const QString& tipo, const QVariantMap& datos, const QString& idDestino = {});
 
+    // --- Carruseles -----------------------------------------------------------
+    /// Crea uno vacío y devuelve su id.
+    Q_INVOKABLE QString carruselNuevo(const QString& nombre);
+    Q_INVOKABLE QString carruselBorrar(const QString& id);
+    Q_INVOKABLE QString carruselRenombrar(const QString& id, const QString& nombre);
+    Q_INVOKABLE QString carruselTransicion(const QString& id, const QString& transicion);
+    /// Agrega un paso al final.
+    Q_INVOKABLE QString pasoAgregar(const QString& carrusel, const QString& tipo,
+                                    const QVariantMap& datos, int segundos);
+    Q_INVOKABLE QString pasoQuitar(const QString& carrusel, int indice);
+    Q_INVOKABLE QString pasoMover(const QString& carrusel, int indice, int aIndice);
+    Q_INVOKABLE QString pasoSegundos(const QString& carrusel, int indice, int segundos);
+    /// Lo manda a una pantalla (y lo publica en el gateway si hace falta).
+    Q_INVOKABLE QString mostrarCarrusel(const QString& idPantalla, const QString& carrusel);
+    /// Vuelve a publicar la lista: el televisor la toma sin reiniciarse.
+    Q_INVOKABLE void publicarCarrusel(const QString& id);
+
+    QVariantList carruseles() const;
+
   signals:
     void cambio();
+    void carruselesCambio();
     void notify(const QString& texto, const QString& tipo);
 
   private:
+    /// Resuelve los pasos de un carrusel a URLs y lo publica en el gateway.
+    void publicar(const QString& id, const QString& hostDestino);
     /// Pasada de mantenimiento: a cada pantalla con algo fijo que no lo esté
     /// mostrando, se lo manda. Con espera creciente por pantalla, para no
     /// martillar a una que está apagada.

@@ -75,6 +75,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include "Carruseles.hpp"
+#include "Superficies.hpp"
 #include "Prompter.hpp"
 #include "Rotulador.hpp"
 #include "MediaRoute.hpp"
@@ -295,6 +297,10 @@ class SignalingServer {
     WebrtcHub& hub_;
     Room& room_;
     Prompter prompter_;
+    /// Lo que rota en cada pantalla (lo publica A, lo lee /pantalla/carrusel/).
+    Carruseles carruseles_;
+    /// Quien esta VIVO del otro lado: cada superficie web late (ver Superficies).
+    Superficies superficies_;
     /// Ids de las conexiones que son PANTALLAS (ver esPantalla). Aparte de la
     /// sala a proposito: nada de lo que sabe Room aplica a un televisor.
     mutable std::mutex pantallasLock_;

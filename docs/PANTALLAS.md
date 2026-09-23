@@ -115,6 +115,51 @@ y `pantalla_parar`. Las pantallas se nombran por id **o por nombre** («el
 televisor del hall»), que es como las piensa una persona. Todo pasa por el
 mismo ViewModel que la pantalla del operador.
 
+## Carruseles
+
+Varias cosas rotando en una pantalla. Un carrusel es una lista de pasos, cada
+uno con su contenido y sus segundos.
+
+**Cada paso es una URL, y nada más.** Todo lo proyectable ya es una página, así
+que cualquier cosa que se pueda mostrar se puede poner en un carrusel sin tocar
+la página que lo rota: ella solo sabe rotar. Dos marcos que se turnan, y el que
+entra se carga **escondido**: si se cambiara de golpe se vería el blanco de una
+página a medio cargar en medio del salón.
+
+La lista vive en el gateway (`/pantalla/carrusel.json?id=…`), no en la URL. Así
+cambiar un paso no obliga a mandarle al televisor una dirección nueva —o sea, a
+reiniciarle la página y que parpadee—: se republica y él la toma en la próxima
+vuelta. Como vive en memoria, la app **las republica cada vez que el gateway
+vuelve**; sin eso, un reinicio dejaba las pantallas diciendo «no encuentro ese
+carrusel» (pasó).
+
+## El latido: saber si de verdad se está viendo
+
+Que el aparato acepte la orden **no quiere decir que la página se esté viendo**.
+Pasó tal cual: el televisor aceptó, abrió el receptor y se quedó en «force
+loading» para siempre, mientras del lado del operador todo decía «mostrando».
+Un estado que miente es peor que no tener estado.
+
+Por eso cada superficie web late cada 5 segundos contra `/api/superficie`
+diciendo qué es y **qué está mostrando ahora** (el carrusel manda «paso 2/3:
+Un mensaje»). Si deja de latir, no está. Se lee con `/api/v1/superficies`.
+
+## Por qué hace falta HTTPS de verdad
+
+Un receptor de Chromecast (DashCast) **es una página HTTPS**, y el navegador le
+prohíbe cargar contenido `http://` — *mixed content*. Se queda «cargando» sin
+decir nada. Y el HTTPS propio del gateway tampoco sirve: su certificado no lo
+firma nadie que el televisor conozca.
+
+Comprobado con una prueba de una sola variable: con el túnel apagado,
+`https://example.com` abre en el televisor y nuestra página por http no, con la
+URL correcta en pantalla.
+
+O sea que **para mostrarle una página nuestra a un televisor hace falta el
+túnel** (Configuración → Gateway), que da un origen con certificado real. Sin
+él, la app lo dice y no manda nada, en vez de dejar el televisor colgado.
+Casting de páginas de afuera (`https://…`) funciona igual.
+
 ## Lo que falta
 
 - **El programa en vivo ya está**, con una salvedad. `/cast/` es la página del

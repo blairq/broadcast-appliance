@@ -21,6 +21,14 @@ Rectangle {
     property string elegida: ""
     property string tipo: "mensaje"
     property var datos: ({})
+    property bool modoCarrusel: false
+    property string carrusel: ""
+
+    function carruselActual() {
+        for (let i = 0; i < p.carruseles.length; ++i)
+            if (p.carruseles[i].id === page.carrusel) return p.carruseles[i]
+        return null
+    }
 
     function tituloDe(tipo) {
         for (let i = 0; i < p.contenidos.length; ++i)
@@ -205,6 +213,13 @@ Rectangle {
                                     }
                                     MenuSeparator {}
                                     MenuItem {
+                                        text: "Que muestre siempre este carrusel"
+                                        enabled: page.modoCarrusel && page.elegida === fila.modelData.id &&
+                                                 page.carruselActual() && page.carruselActual().pasos.length > 0
+                                        onTriggered: page.chequear(
+                                            page.p.fijar(fila.modelData.id, "carrusel:" + page.carrusel, ({})))
+                                    }
+                                    MenuItem {
                                         text: "Que muestre siempre esto"
                                         enabled: page.elegida === fila.modelData.id &&
                                                  page.contenidoActual() && page.contenidoActual().disponible
@@ -252,9 +267,142 @@ Rectangle {
                 ColumnLayout {
                     anchors { fill: parent; margins: 12 }
                     spacing: 8
-                    Text { text: "Qué mostrar"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "Qué mostrar"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+                        Item { Layout.fillWidth: true }
+                        GlassButton {
+                            compact: true; text: "Una cosa"
+                            active: !page.modoCarrusel
+                            onClicked: page.modoCarrusel = false
+                        }
+                        GlassButton {
+                            compact: true; text: "Carrusel"
+                            active: page.modoCarrusel
+                            onClicked: page.modoCarrusel = true
+                            ToolTip.visible: hovered
+                            ToolTip.text: "Varias cosas rotando en la misma pantalla"
+                        }
+                    }
 
+                    // --- Un carrusel ------------------------------------------
+                    ColumnLayout {
+                        visible: page.modoCarrusel
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        spacing: 8
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            ComboBox {
+                                Layout.fillWidth: true
+                                model: page.p.carruseles
+                                textRole: "nombre"
+                                enabled: page.p.carruseles.length > 0
+                                displayText: page.p.carruseles.length === 0 ? "Ninguno todavía" : currentText
+                                currentIndex: { for (let i = 0; i < page.p.carruseles.length; ++i) if (page.p.carruseles[i].id === page.carrusel) return i; return 0 }
+                                onActivated: (i) => page.carrusel = page.p.carruseles[i].id
+                            }
+                            GlassButton { compact: true; icon: "+"; onClicked: nuevoCarrusel.open() }
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            visible: page.carruselActual() !== null
+                            text: page.carruselActual()
+                                ? page.carruselActual().pasos.length + " pasos · la vuelta entera dura " +
+                                  Math.floor(page.carruselActual().vueltaSeg / 60) + ":" +
+                                  String(page.carruselActual().vueltaSeg % 60).padStart(2, "0")
+                                : ""
+                            color: Theme.textDim; font.pixelSize: 11
+                        }
+
+                        ListView {
+                            id: pasos
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            clip: true
+                            spacing: 3
+                            model: page.carruselActual() ? page.carruselActual().pasos : []
+                            delegate: Rectangle {
+                                id: paso
+                                required property var modelData
+                                required property int index
+                                width: pasos.width
+                                implicitHeight: 40
+                                radius: 7
+                                color: pasoRaton.containsMouse ? Qt.rgba(1, 1, 1, 0.04) : "transparent"
+                                MouseArea { id: pasoRaton; anchors.fill: parent; hoverEnabled: true }
+                                RowLayout {
+                                    anchors { fill: parent; leftMargin: 8; rightMargin: 6 }
+                                    spacing: 6
+                                    Text {
+                                        text: (paso.index + 1) + "."
+                                        color: Theme.textFaint; font { pixelSize: 10; family: "JetBrains Mono" }
+                                    }
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: paso.modelData.que
+                                        color: Theme.text; font.pixelSize: 11
+                                        elide: Text.ElideRight
+                                    }
+                                    SpinBox {
+                                        from: 3; to: 600; stepSize: 5
+                                        value: paso.modelData.segundos
+                                        implicitWidth: 92
+                                        onValueModified: page.p.pasoSegundos(page.carrusel, paso.index, value)
+                                    }
+                                    GlassButton {
+                                        compact: true; text: "↑"
+                                        visible: pasoRaton.containsMouse && paso.index > 0
+                                        onClicked: page.p.pasoMover(page.carrusel, paso.index, paso.index - 1)
+                                    }
+                                    GlassButton {
+                                        compact: true; text: "✕"
+                                        visible: pasoRaton.containsMouse
+                                        onClicked: page.chequear(page.p.pasoQuitar(page.carrusel, paso.index))
+                                    }
+                                }
+                            }
+                            Text {
+                                anchors.centerIn: parent
+                                visible: pasos.count === 0
+                                width: parent.width - 30
+                                horizontalAlignment: Text.AlignHCenter
+                                wrapMode: Text.WordWrap
+                                color: Theme.textFaint; font.pixelSize: 11
+                                text: page.carrusel === ""
+                                    ? "Creá un carrusel con el +"
+                                    : "Sin pasos. Elegí «Una cosa», armala, y usá «Agregar al carrusel»."
+                            }
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            visible: page.carruselActual() !== null
+                            Text { text: "Transición"; color: Theme.textDim; font.pixelSize: 10 }
+                            Item { Layout.fillWidth: true }
+                            GlassButton {
+                                compact: true; text: "Fundido"
+                                active: page.carruselActual() && page.carruselActual().transicion === "fundido"
+                                onClicked: page.p.carruselTransicion(page.carrusel, "fundido")
+                            }
+                            GlassButton {
+                                compact: true; text: "Corte"
+                                active: page.carruselActual() && page.carruselActual().transicion === "corte"
+                                onClicked: page.p.carruselTransicion(page.carrusel, "corte")
+                            }
+                        }
+                        GlassButton {
+                            Layout.fillWidth: true
+                            text: "Mostrar el carrusel"; icon: "▶"; active: true
+                            enabled: page.elegida !== "" && page.carruselActual() &&
+                                     page.carruselActual().pasos.length > 0
+                            onClicked: page.chequear(page.p.mostrarCarrusel(page.elegida, page.carrusel))
+                        }
+                    }
+
+                    // --- Una cosa sola ----------------------------------------
                     ComboBox {
+                        visible: !page.modoCarrusel
                         Layout.fillWidth: true
                         model: page.p.contenidos
                         textRole: "titulo"
@@ -262,13 +410,14 @@ Rectangle {
                         onActivated: (i) => { page.tipo = page.p.contenidos[i].id; page.datos = ({}) }
                     }
                     Text {
+                        visible: !page.modoCarrusel
                         Layout.fillWidth: true
                         text: page.contenidoActual() ? page.contenidoActual().ayuda : ""
                         color: Theme.textDim; font.pixelSize: 11; wrapMode: Text.WordWrap
                     }
                     Text {
                         Layout.fillWidth: true
-                        visible: page.contenidoActual() && !page.contenidoActual().disponible
+                        visible: !page.modoCarrusel && page.contenidoActual() && !page.contenidoActual().disponible
                         text: "⚠ " + (page.contenidoActual() ? page.contenidoActual().porque : "")
                         color: Theme.warn; font.pixelSize: 11; wrapMode: Text.WordWrap
                     }
@@ -276,7 +425,7 @@ Rectangle {
                     // Los campos salen del catálogo: un contenido nuevo trae
                     // los suyos sin tocar esta pantalla.
                     Repeater {
-                        model: page.contenidoActual() ? page.contenidoActual().campos : []
+                        model: page.modoCarrusel || !page.contenidoActual() ? [] : page.contenidoActual().campos
                         delegate: ColumnLayout {
                             required property var modelData
                             Layout.fillWidth: true
@@ -302,11 +451,11 @@ Rectangle {
                         }
                     }
 
-                    Item { Layout.fillHeight: true }
+                    Item { Layout.fillHeight: true; visible: !page.modoCarrusel }
 
                     Text {
                         Layout.fillWidth: true
-                        visible: page.elegida === ""
+                        visible: !page.modoCarrusel && page.elegida === ""
                         text: "Elegí una pantalla de la izquierda."
                         color: Theme.textFaint; font.pixelSize: 11
                     }
@@ -314,20 +463,32 @@ Rectangle {
                     // probar en un navegador sin tener el televisor a mano.
                     Text {
                         Layout.fillWidth: true
-                        visible: page.elegida !== ""
+                        visible: !page.modoCarrusel && page.elegida !== ""
                         text: page.p.urlDe(page.tipo, page.datos, page.elegida)
                         color: Theme.textFaint; font { pixelSize: 9; family: "JetBrains Mono" }
                         wrapMode: Text.WrapAnywhere
                         maximumLineCount: 2
                         elide: Text.ElideRight
                     }
-                    GlassButton {
+                    RowLayout {
+                        visible: !page.modoCarrusel
                         Layout.fillWidth: true
-                        text: "Mostrar"
-                        icon: "▶"
-                        active: true
-                        enabled: page.elegida !== "" && page.contenidoActual() && page.contenidoActual().disponible
-                        onClicked: page.chequear(page.p.mostrar(page.elegida, page.tipo, page.datos))
+                        spacing: 6
+                        GlassButton {
+                            Layout.fillWidth: true
+                            text: "Mostrar"; icon: "▶"; active: true
+                            enabled: page.elegida !== "" && page.contenidoActual() && page.contenidoActual().disponible
+                            onClicked: page.chequear(page.p.mostrar(page.elegida, page.tipo, page.datos))
+                        }
+                        GlassButton {
+                            text: "Al carrusel"; icon: "+"
+                            enabled: page.carrusel !== "" && page.contenidoActual() && page.contenidoActual().disponible
+                            onClicked: page.chequear(page.p.pasoAgregar(page.carrusel, page.tipo, page.datos, 15),
+                                                     "Agregado al carrusel")
+                            ToolTip.visible: hovered
+                            ToolTip.text: page.carrusel === "" ? "Creá un carrusel primero (pestaña Carrusel)"
+                                                               : "Suma esto como un paso más"
+                        }
                     }
                 }
             }
@@ -355,6 +516,28 @@ Rectangle {
             }
             TextField { id: nuevoNombre; Layout.preferredWidth: 360; color: Theme.text
                         onAccepted: renombrar.accept() }
+        }
+    }
+
+    Dialog {
+        id: nuevoCarrusel
+        anchors.centerIn: parent
+        modal: true
+        title: "Carrusel nuevo"
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        onOpened: { nombreCar.text = ""; nombreCar.forceActiveFocus() }
+        onAccepted: page.carrusel = page.p.carruselNuevo(nombreCar.text)
+        ColumnLayout {
+            spacing: 8
+            Text {
+                Layout.preferredWidth: 340
+                wrapMode: Text.WordWrap
+                color: Theme.textDim; font.pixelSize: 11
+                text: "Un carrusel rota varias cosas en la misma pantalla. Se le agregan pasos desde " +
+                      "«Una cosa», con el botón «Al carrusel»."
+            }
+            TextField { id: nombreCar; Layout.preferredWidth: 340; placeholderText: "Hall"; color: Theme.text
+                        onAccepted: nuevoCarrusel.accept() }
         }
     }
 

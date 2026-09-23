@@ -116,7 +116,8 @@ void McpService::registerPantallaTools() {
             {"required", {"pantalla", "tipo"}},
             {"properties",
              {{"pantalla", {{"type", "string"}, {"description", "id o nombre, como lo da pantalla_listar"}}},
-              {"tipo", {{"type", "string"}, {"enum", {"mensaje", "qr", "reloj", "url", "prompter"}}}},
+              {"tipo", {{"type", "string"}, {"enum", {"mensaje", "qr", "reloj", "url", "prompter", "carrusel"}}}},
+              {"carrusel", {{"type", "string"}, {"description", "su id, con tipo=carrusel"}}},
               {"texto", {{"type", "string"}, {"description", "mensaje: lo que dice; qr: lo que codifica"}}},
               {"pie", {{"type", "string"}, {"description", "la linea de abajo, mas chica"}}},
               {"url", {{"type", "string"}, {"description", "solo con tipo=url"}}}}}};
@@ -130,11 +131,24 @@ void McpService::registerPantallaTools() {
                                        "'. pantalla_listar dice cuales hay; pantalla_buscar busca de nuevo."));
                 return;
             }
+            const QString tipo = QString::fromStdString(a["tipo"].get<std::string>());
+            if (tipo == "carrusel") {
+                if (!a.contains("carrusel")) {
+                    done(ToolResult::error("Con tipo=carrusel hace falta `carrusel` (su id). "
+                                           "carrusel_listar los da."));
+                    return;
+                }
+                const QString err =
+                    p->mostrarCarrusel(id, QString::fromStdString(a["carrusel"].get<std::string>()));
+                done(err.isEmpty() ? ToolResult::ok("Mandado. Tarda un par de segundos.")
+                                   : ToolResult::error(err.toStdString()));
+                return;
+            }
             QVariantMap datos;
             for (const char* k : {"texto", "pie", "url"})
                 if (a.contains(k) && a[k].is_string())
                     datos[k] = QString::fromStdString(a[k].get<std::string>());
-            const QString err = p->mostrar(id, QString::fromStdString(a["tipo"].get<std::string>()), datos);
+            const QString err = p->mostrar(id, tipo, datos);
             if (!err.isEmpty()) {
                 done(ToolResult::error(err.toStdString()));
                 return;
@@ -236,6 +250,118 @@ void McpService::registerPantallaTools() {
                                            QString::fromStdString(a["host"].get<std::string>()), 0);
             done(err.isEmpty() ? ToolResult::ok("Agregada. pantalla_listar dice si contesta.")
                                : ToolResult::error(err.toStdString()));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "carrusel_listar";
+        t.title = "Los carruseles que hay";
+        t.category = "pantallas";
+        t.readOnly = true;
+        t.description = "Un carrusel es una lista de cosas que rotan en una pantalla, cada una con sus "
+                        "segundos. Devuelve los que hay con sus pasos y cuanto dura la vuelta entera.";
+        t.run = [p](const json&, Done done) {
+            json out = json::array();
+            for (const QVariant& v : p->carruseles()) {
+                const QVariantMap m = v.toMap();
+                json pasos = json::array();
+                for (const QVariant& x : m.value("pasos").toList()) {
+                    const QVariantMap pm = x.toMap();
+                    pasos.push_back(json{{"tipo", pm.value("tipo").toString().toStdString()},
+                                         {"segundos", pm.value("segundos").toInt()},
+                                         {"que", pm.value("que").toString().toStdString()}});
+                }
+                out.push_back(json{{"id", m.value("id").toString().toStdString()},
+                                   {"nombre", m.value("nombre").toString().toStdString()},
+                                   {"transicion", m.value("transicion").toString().toStdString()},
+                                   {"vueltaSeg", m.value("vueltaSeg").toInt()},
+                                   {"pasos", pasos}});
+            }
+            done(ToolResult().data(json{{"carruseles", out}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "carrusel_armar";
+        t.title = "Armar o cambiar un carrusel";
+        t.category = "pantallas";
+        t.description =
+            "Crea un carrusel con sus pasos, o le cambia los pasos a uno que ya existe (`id`). Cada paso "
+            "es un `tipo` de contenido (los mismos de pantalla_mostrar) con sus datos y sus `segundos`. "
+            "Con `borrar: true` y un `id`, lo saca.";
+        t.details = "Si la pantalla ya lo esta mostrando, NO hace falta volver a mandarselo: la lista vive "
+                    "en el servidor y el televisor la toma sola en la proxima vuelta. Por eso cambiar un "
+                    "paso no hace parpadear nada.\n\n"
+                    "Duraciones: un QR necesita al menos 15 segundos para que alguien lo saque del "
+                    "bolsillo y lo escanee; un mensaje corto con 8 alcanza.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"id", {{"type", "string"}, {"description", "para cambiar uno que ya existe"}}},
+              {"nombre", {{"type", "string"}}},
+              {"borrar", {{"type", "boolean"}}},
+              {"transicion", {{"type", "string"}, {"enum", {"fundido", "corte"}}}},
+              {"pasos",
+               {{"type", "array"},
+                {"items",
+                 {{"type", "object"},
+                  {"required", {"tipo"}},
+                  {"properties",
+                   {{"tipo", {{"type", "string"}, {"enum", {"mensaje", "qr", "reloj", "url", "prompter", "programa"}}}},
+                    {"texto", {{"type", "string"}}},
+                    {"pie", {{"type", "string"}}},
+                    {"url", {{"type", "string"}}},
+                    {"segundos", {{"type", "integer"}, {"minimum", 3}, {"maximum", 3600}, {"default", 15}}}}}}}}}}}};
+        t.examples = {R"({"nombre": "Hall", "pasos": [{"tipo": "qr", "texto": "https://…", "pie": "Entrá a la sala", "segundos": 20}, {"tipo": "mensaje", "texto": "Empezamos 20:00", "segundos": 10}, {"tipo": "reloj", "segundos": 10}]})"};
+        t.run = [p](const json& a, Done done) {
+            QString id = QString::fromStdString(a.value("id", ""));
+            if (a.value("borrar", false)) {
+                if (id.isEmpty()) {
+                    done(ToolResult::error("Para borrar hace falta el `id`."));
+                    return;
+                }
+                const QString err = p->carruselBorrar(id);
+                done(err.isEmpty() ? ToolResult::ok("Borrado.") : ToolResult::error(err.toStdString()));
+                return;
+            }
+            if (id.isEmpty()) {
+                id = p->carruselNuevo(QString::fromStdString(a.value("nombre", "Carrusel")));
+            } else {
+                // Se vacia: `pasos` describe el carrusel ENTERO, no lo que se
+                // le suma. Asi la misma llamada da siempre el mismo resultado.
+                bool hay = false;
+                for (const QVariant& v : p->carruseles())
+                    if (v.toMap().value("id").toString() == id) {
+                        hay = true;
+                        const int n = v.toMap().value("pasos").toList().size();
+                        for (int i = n - 1; i >= 0; --i) p->pasoQuitar(id, i);
+                    }
+                if (!hay) {
+                    done(ToolResult::error("No existe el carrusel '" + id.toStdString() + "'."));
+                    return;
+                }
+                if (a.contains("nombre"))
+                    p->carruselRenombrar(id, QString::fromStdString(a["nombre"].get<std::string>()));
+            }
+            if (a.contains("transicion"))
+                p->carruselTransicion(id, QString::fromStdString(a["transicion"].get<std::string>()));
+            std::string problemas;
+            for (const json& paso : a.value("pasos", json::array())) {
+                if (!paso.is_object() || !paso.contains("tipo")) continue;
+                QVariantMap datos;
+                for (const char* k : {"texto", "pie", "url"})
+                    if (paso.contains(k) && paso[k].is_string())
+                        datos[k] = QString::fromStdString(paso[k].get<std::string>());
+                const QString err = p->pasoAgregar(id, QString::fromStdString(paso["tipo"].get<std::string>()),
+                                                   datos, paso.value("segundos", 15));
+                if (!err.isEmpty()) problemas += err.toStdString() + " ";
+            }
+            json r{{"id", id.toStdString()}};
+            done(problemas.empty()
+                     ? ToolResult::ok("Listo. Para verlo: pantalla_mostrar con tipo `carrusel`.").data(r)
+                     : ToolResult::error("Algunos pasos no entraron: " + problemas));
         };
         core_.addTool(std::move(t));
     }

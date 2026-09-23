@@ -383,14 +383,36 @@ Estado mostrarUrl(const std::string& host, int puerto, const std::string& url, i
     // pantalla, y cambiar de URL sobre la que ya está es instantáneo.
     if (e.appId != kAppDashCast) {
         json r;
-        if (!c.pedir(kPlataforma, kNsReceptor, json{{"type", "LAUNCH"}, {"appId", kAppDashCast}}, timeoutMs,
-                     r, &e.error))
-            return e;
-        if (r.value("type", "") == "LAUNCH_ERROR") {
-            e.error = "el televisor no pudo abrir DashCast (" + r.value("reason", "sin motivo") + ")";
-            return e;
+        // ABRIR UNA APLICACION TARDA. Un televisor que la abre por primera vez
+        // (o que estaba en su fondo de pantalla) se toma varios segundos, y
+        // mucho más que responder un estado. Con el tope normal dábamos por
+        // fallado algo que estaba saliendo bien: el aparato terminaba
+        // mostrando la página y nosotros decíamos que no.
+        const int topeLanzar = std::max(timeoutMs, 25000);
+        if (!c.pedir(kPlataforma, kNsReceptor, json{{"type", "LAUNCH"}, {"appId", kAppDashCast}},
+                     topeLanzar, r, &e.error)) {
+            // Se le pregunta de nuevo antes de rendirse: puede haber abierto
+            // igual y haberse perdido la respuesta.
+            json st;
+            Estado otra;
+            if (c.pedir(kPlataforma, kNsReceptor, json{{"type", "GET_STATUS"}}, timeoutMs, st, nullptr)) {
+                leerEstado(st, otra);
+                if (otra.appId == kAppDashCast) {
+                    e = otra;
+                    e.error.clear();
+                } else {
+                    return e;
+                }
+            } else {
+                return e;
+            }
+        } else {
+            if (r.value("type", "") == "LAUNCH_ERROR") {
+                e.error = "el televisor no pudo abrir DashCast (" + r.value("reason", "sin motivo") + ")";
+                return e;
+            }
+            leerEstado(r, e);
         }
-        leerEstado(r, e);
     }
     if (e.transportId.empty()) {
         e.error = "el televisor no dijo por dónde hablarle a la aplicación";

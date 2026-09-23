@@ -32,4 +32,8 @@
   else $("pie").remove();
 
   document.title = texto ? texto.slice(0, 60) : "Pantalla";
+
+  // Avisa que está viva: sin esto, una página que no carga se ve igual que
+  // una que sí desde el lado del operador.
+  if (window.BALatido) window.BALatido.empezar("pantalla", () => tipo + (texto ? ": " + texto : ""));
 })();

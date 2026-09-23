@@ -462,6 +462,20 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
         }
     }
 
+    // --- El latido de las superficies web -----------------------------------
+    // Cada pagina del aparato avisa que esta viva y que muestra. Sin esto, que
+    // el comando de mostrar salga bien no dice nada sobre si la pagina cargo.
+    if (path == "/api/superficie" && method == "POST") {
+        const json r = json::parse(body, nullptr, false);
+        if (!r.is_object()) {
+            http::sendResponse(fd, 400, "application/json", R"({"ok":false})");
+            return;
+        }
+        superficies_.latido(r.value("tipo", ""), r.value("id", ""), r.value("que", ""), clientIp);
+        http::sendResponse(fd, 200, "application/json", R"({"ok":true})");
+        return;
+    }
+
     // --- El programa en vivo, para un televisor ------------------------------
     // Es la pagina del invitado sin las partes de invitado: entra por /ws con
     // un token, no publica nada y muestra lo que le baja. Estatica y sin
@@ -489,7 +503,23 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
             return;
         }
         std::string rel = path.size() > 10 ? path.substr(10) : std::string("index.html");
-        if (rel.empty()) rel = "index.html";
+        // Una subcarpeta con barra final ("carrusel/") es su index, no un
+        // directorio: sin esto, /pantalla/carrusel/ daba 404.
+        if (rel.empty() || rel.back() == '/') rel += "index.html";
+        // La lista de un carrusel, para la pagina que lo rota. Publica y de
+        // solo lectura, como el resto de /pantalla/: es lo que ya se esta
+        // viendo en una pantalla de la sala.
+        if (rel == "carrusel.json") {
+            const auto q = http::parseQuery(query);
+            const std::string id = q.count("id") ? http::urlDecode(q.at("id")) : std::string();
+            const json c = carruseles_.uno(id);
+            if (c.is_null()) {
+                http::sendResponse(fd, 404, "application/json", R"({"error":"no existe ese carrusel"})");
+                return;
+            }
+            http::sendResponse(fd, 200, "application/json", c.dump());
+            return;
+        }
         // El QR lo dibuja el servidor: asi la pagina no arrastra una
         // biblioteca de QR y anda igual en un televisor viejo.
         if (rel == "qr.svg") {
