@@ -19,6 +19,7 @@ Window {
     required property bool fullscreen
     required property rect geometry
 
+    objectName: "ba:salida:" + winId // ver PageWindow.qml
     title: "Broadcast Appliance — " + (keys.length === 1 ? Studio.frames.label(keys[0]) : "Salida de video")
     color: "black"
     x: geometry.x; y: geometry.y

@@ -48,6 +48,8 @@ const Fila kFamilias[] = {
     {"superficie_", "superficie pagina pantalla web canal control telemetria viva"},
     {"qr_", "qr codigo escanear celular enlace wifi contacto vcard"},
     {"media_", "medio archivo video musica audio cancion tema clip pelicula reproducir"},
+    {"ventana_", "ventana monitor pantalla escritorio mover acomodar ordenar posicion tamaño "
+                 "multimonitor dos monitores segundo monitor puesto de trabajo"},
     {"stream_", "transmitir emitir salir al aire vivo directo rtmp stream broadcast"},
     {"record_", "grabar grabacion guardar archivo mp4 registro"},
     {"settings_", "configuracion ajuste preferencia opcion parametro"},
@@ -330,6 +332,13 @@ const Fila kPropias[] = {
     {"evento_ensayo_rapido", "ensayo acelerado probar el guion sin tocar el aire"},
     {"evento_informe", "informe del evento tiempos reales cuanto duro"},
     {"evento_correr", "correr el guion arrancar avanzar pausar el evento"},
+
+    // --- Ventanas -------------------------------------------------------------------
+    {"ventana_listar", "que ventanas hay abiertas donde esta cada una en que monitor geometria"},
+    {"ventana_mover", "mover ventana a otro monitor acomodar pantalla completa maximizar "
+                      "mitad izquierda derecha organizar el escritorio armar el puesto"},
+    {"ventana_cerrar", "cerrar ventana quitar sacar de pantalla"},
+    {"monitors", "monitores conectados resolucion cuantas pantallas hay segundo monitor"},
 
     {"settings_list", "que se puede configurar opciones disponibles"},
     {"settings_set", "cambiar una configuracion ajustar opcion"},

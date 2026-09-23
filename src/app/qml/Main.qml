@@ -9,6 +9,7 @@ import "pages"
 
 ApplicationWindow {
     id: win
+    objectName: "ba:principal" // ver PageWindow.qml
     visible: true
     width: 1600
     height: 920
@@ -199,7 +200,7 @@ ApplicationWindow {
         for (let k = 0; k < sueltas.count; ++k) {
             if (sueltas.get(k).page === i) { toasts.show("«" + titulo + "» ya está en su ventana", "info"); return }
         }
-        sueltas.append({ page: i, titulo: titulo })
+        sueltas.append({ page: i, titulo: titulo, idPagina: Studio.riel.idDePagina(i) })
     }
 
     Instantiator {
@@ -208,6 +209,7 @@ ApplicationWindow {
             required property int index
             page: sueltas.get(index) ? sueltas.get(index).page : 0
             titulo: sueltas.get(index) ? sueltas.get(index).titulo : ""
+            idPagina: sueltas.get(index) ? sueltas.get(index).idPagina : ""
             contenido: win.componenteDePagina(page)
             onCerrada: (p) => {
                 for (let k = 0; k < sueltas.count; ++k)
