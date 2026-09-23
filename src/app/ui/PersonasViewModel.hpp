@@ -1,0 +1,184 @@
+// ============================================================================
+// src/app/ui/PersonasViewModel.hpp — la libreta de personas, para la interfaz
+//
+// La misma libreta que usan las herramientas MCP (`rostro_*`): una sola verdad.
+// Lo que se edita acá lo ve el asistente en el acto, y al revés.
+//
+// PARA QUE SIRVE LA PAGINA, que no es obvio: el reconocimiento se da de alta
+// solo cuando alguien DICE quién es. Esta página es donde se dice, se corrige
+// lo que quedó mal, se le suman caras a quien cuesta reconocer, y se borra a
+// quien no tiene que estar. Sin eso el sistema acumula desconocidos.
+//
+// LA FOTO ES PARA MIRAR. El reconocimiento usa los vectores; la foto está para
+// que el operador confirme de un vistazo que la ficha es de quien cree. Un
+// nombre sin cara no se verifica.
+// ============================================================================
+#pragma once
+
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <vector>
+
+#include <QObject>
+#include <QString>
+#include <QVariantList>
+#include <QVariantMap>
+
+#if BA_HAVE_ROSTROS
+#include "ui/Reconocedor.hpp"
+#endif
+
+class QImage;
+
+namespace ba::rostros {
+struct Cara;
+class Motor;
+class Personas;
+}
+
+namespace ba::app {
+
+class AppRuntime;
+class StudioViewModel;
+
+class PersonasViewModel : public QObject {
+    Q_OBJECT
+    /// [{id, nombre, cargo, nota, foto (url), caras, vistaSeg}]
+    Q_PROPERTY(QVariantList personas READ personas NOTIFY cambio)
+    /// Si el reconocimiento está disponible (modelos vendoreados presentes).
+    Q_PROPERTY(bool disponible READ disponible CONSTANT)
+    /// Lo que no se pudo hacer, para mostrarlo donde se pidió.
+    Q_PROPERTY(QString aviso READ aviso NOTIFY cambio)
+    /// El interruptor de ANOTAR SOLA a toda cara nueva que pase por `feedAuto`.
+    /// Ver el comentario largo en el .cpp: lo que hace y lo que NO hace.
+    Q_PROPERTY(bool autoalta READ autoalta WRITE setAutoalta NOTIFY autoaltaCambio)
+    /// Qué cámara mira el anotado automático. La página le pone la que se está
+    /// viendo; si nadie la pone, el programa.
+    Q_PROPERTY(QString feedAuto READ feedAuto WRITE setFeedAuto NOTIFY autoaltaCambio)
+    /// El mismo interruptor, pero mirando EL LOBBY: cada posición de espera,
+    /// por turno. Es el caso real de un evento —la gente llega antes de entrar,
+    /// y ahí es cuando hay tiempo de saber quién es—.
+    Q_PROPERTY(bool lobbyAuto READ lobbyAuto WRITE setLobbyAuto NOTIFY autoaltaCambio)
+    /// Quién hay en cada posición del lobby: {"2": {id, nombre, cargo, foto,
+    /// parecido, caras, sirve, sugerencia}}. La clave es el número de posición
+    /// EN TEXTO, porque un QVariantMap no tiene claves numéricas.
+    Q_PROPERTY(QVariantMap enLobby READ enLobby NOTIFY enLobbyCambio)
+    /// Cuántas fichas están sin nombre esperando que alguien las complete.
+    Q_PROPERTY(int sinNombre READ sinNombre NOTIFY cambio)
+    /// Lo último que se vio: [{id, nombre, parecido, x, y, ancho, alto, cw, ch}].
+    /// Lo llena `mirar()` cuando el otro hilo contesta.
+    Q_PROPERTY(QVariantList vistos READ vistos NOTIFY vistosCambio)
+
+  public:
+    PersonasViewModel(AppRuntime& rt, StudioViewModel& vm, QObject* parent = nullptr);
+    ~PersonasViewModel() override;
+
+    QVariantList personas() const;
+    bool disponible() const;
+    QString aviso() const;
+    bool autoalta() const;
+    void setAutoalta(bool activo);
+    QString feedAuto() const;
+    void setFeedAuto(const QString& feed);
+    int sinNombre() const;
+    QVariantList vistos() const;
+    bool lobbyAuto() const;
+    void setLobbyAuto(bool activo);
+    QVariantMap enLobby() const;
+
+    Q_INVOKABLE void refrescar();
+    /// Crea o corrige. `id` vacío crea. Devuelve el id, o vacío si falló.
+    Q_INVOKABLE QString guardar(const QString& id, const QString& nombre, const QString& cargo,
+                                const QString& nota);
+    Q_INVOKABLE bool borrar(const QString& id);
+
+    /// Le suma la cara que se vea en `feed` (clave de video).
+    ///
+    /// NO DEVUELVE NADA, y no es un descuido: mirar una cara pasa por otro
+    /// hilo (ver Reconocedor.hpp), así que cuando esta función termina todavía
+    /// no hay nada que contestar. Lo que salió sale por `notify`.
+    ///
+    /// `nuevaFoto` reemplaza la foto de la ficha por la de ahora.
+    Q_INVOKABLE void sumarCara(const QString& id, const QString& feed, bool nuevaFoto = false);
+
+    /// Pide mirar quién hay en `feed`. La respuesta llega en `vistos`, más
+    /// tarde: el reconocimiento no corre en el hilo de la interfaz.
+    Q_INVOKABLE void mirar(const QString& feed);
+
+    /// Las claves de video que se pueden mirar, con su etiqueta.
+    Q_INVOKABLE QVariantList fuentes() const;
+    /// El nombre legible de una clave de video ("Programa", "Invitado 2").
+    Q_INVOKABLE QString etiquetaDe(const QString& feed) const;
+
+#if BA_HAVE_ROSTROS
+    /// Las caras de un feed, miradas FUERA del hilo de la interfaz. `luego` se
+    /// llama en el hilo de la interfaz, con el cuadro que se miró (para la
+    /// foto) y el motivo si algo falló.
+    ///
+    /// :param descartable: true para una mirada periódica que se puede saltear
+    ///        si ya hay otra en vuelo; false para lo que alguien espera.
+    using Analisis = std::function<void(std::vector<Reconocedor::Visto>, const QImage&,
+                                        const QString&)>;
+    void pedirAnalisis(const QString& feed, bool descartable, Analisis luego);
+
+    /// La libreta EN USO, para quien tenga que trabajar sobre la misma y no
+    /// sobre otra copia del archivo.
+    ///
+    /// POR QUE SE PRESTAN. Las herramientas MCP tenían su propia libreta leída
+    /// del mismo JSON. Mientras nadie escribía, las dos decían lo mismo y
+    /// parecía que no pasaba nada. Con el anotado automático escribiendo, la
+    /// copia de MCP queda vieja y el primer `rostro_guardar` pisa el archivo
+    /// con una libreta sin las fichas que se acababan de anotar. Una sola
+    /// libreta viva; el archivo es dónde se guarda, no dónde vive.
+    ba::rostros::Personas& libreta();
+    /// Guarda la libreta y avisa a la vista. Lo llama quien la tocó.
+    bool persistir();
+    /// Dónde van las fotos de las fichas.
+    QString carpetaFotos() const;
+#endif
+
+  signals:
+    void cambio();
+    void autoaltaCambio();
+    void vistosCambio();
+    void enLobbyCambio();
+    void notify(const QString& texto, const QString& tipo);
+
+  private:
+    /// El motor de la página: mira `feed`, devuelve quién hay, y si
+    /// `registrar` anota sola a la que no conoce. Lo usan la vista (sin
+    /// registrar, salvo que el interruptor esté puesto en esa misma cámara) y
+    /// la ronda del anotado automático (registrando siempre).
+    /// :param uid: a quién pertenece esa cámara, cuando es del lobby. Viaja
+    ///        CON el pedido y no en un campo compartido: el reconocimiento
+    ///        contesta más tarde y, para entonces, un campo compartido ya fue
+    ///        pisado por la vuelta siguiente —y el resultado de mirar a uno se
+    ///        le atribuye al otro—.
+    void analizar(const QString& feed, bool registrar, const QString& uid = {});
+#if BA_HAVE_ROSTROS
+    /// Lo que se hace con las caras ya descritas: buscarlas en la libreta,
+    /// anotarlas si corresponde y armar la lista para la vista. Todo esto sí
+    /// va en el hilo de la interfaz: es la libreta, y solo ella la toca.
+    void resolver(const QString& feed, const QString& uid, std::vector<Reconocedor::Visto> caras,
+                  const QImage& img, bool registrar);
+    /// La próxima posición del lobby que toca mirar, o "" si no hay ninguna.
+    /// Va rotando: una por vuelta, así el costo no crece con la cantidad de
+    /// gente esperando.
+    /// :param uid,lugar: a quién le toca y en qué posición está.
+    QString proximaDelLobby(QString& uid, int& lugar);
+    /// Si esa persona está en la lista de auto-aceptar del evento abierto, la
+    /// hace pasar y lo avisa. Ver `evento::Invitado`.
+    void dejarPasarSiCorresponde(const QString& uid, const QString& personaId,
+                                 const QString& nombre, float parecido, bool sirve);
+    /// Una cara que no cayó en ninguna ficha. Devuelve el id de la ficha nueva
+    /// cuando la vio las veces suficientes como para creerle, o vacío si
+    /// todavía la está mirando.
+    QString anotarDesconocida(const std::vector<float>& v, const QImage& img,
+                              const ba::rostros::Cara& c, std::int64_t ahora);
+#endif
+    struct Impl;
+    std::unique_ptr<Impl> d_;
+};
+
+} // namespace ba::app

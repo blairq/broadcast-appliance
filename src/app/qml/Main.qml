@@ -162,6 +162,10 @@ ApplicationWindow {
         PrompterPage { leftInset: win.insetPagina }
         PantallasPage { leftInset: win.insetPagina }
         QrPage { leftInset: win.insetPagina }
+        // AL FINAL, y no donde quedaria mas prolijo: el indice de cada pagina
+        // es su posicion en esta lista, y RielConfig los tiene escritos.
+        // Meterla en el medio le cambia el numero a todas las de abajo.
+        PersonasPage { leftInset: win.insetPagina }
     }
 
     // --- Pestañas sacadas a su propia ventana --------------------------------------
@@ -176,6 +180,7 @@ ApplicationWindow {
     Component { id: cmpFacebook;   FacebookPage {} }
     Component { id: cmpSettings;   SettingsPage {} }
     Component { id: cmpAssistant;  AssistantPage {} }
+    Component { id: cmpPersonas;   PersonasPage {} }
     Component { id: cmpInputs;     InputsPage {} }
     Component { id: cmpAudio;      AudioPage {} }
     Component { id: cmpEvento;     EventoPage {} }
@@ -190,7 +195,8 @@ ApplicationWindow {
     function componenteDePagina(i) {
         return [cmpDashboard, cmpScenes, cmpConference, cmpYouTube, cmpTwitch, cmpFacebook,
                 cmpSettings, cmpAssistant, cmpInputs, cmpAudio, cmpEvento, cmpGraficos,
-                cmpRotulos, cmpRegistro, cmpAgentes, cmpPrompter, cmpPantallas, cmpQr][i] || null
+                cmpRotulos, cmpRegistro, cmpAgentes, cmpPrompter, cmpPantallas, cmpQr,
+                cmpPersonas][i] || null
     }
 
     ListModel { id: sueltas }

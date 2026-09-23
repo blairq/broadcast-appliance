@@ -131,9 +131,10 @@ int main() {
         vB[1] = 1;
         vAcasi[0] = 1;
         vAcasi[5] = 0.1f; // la misma cara, otra toma
-        CHECK(lib.sumarCara(idAna, vA), "se le suma una cara");
-        CHECK(!lib.sumarCara("no-existe", vA), "a quien no existe, no");
-        CHECK(lib.sumarCara(idBeto, vB), "y a la otra la suya");
+        using Alta = ba::rostros::Personas::Alta;
+        CHECK(lib.sumarCara(idAna, vA) == Alta::Sumada, "se le suma una cara");
+        CHECK(lib.sumarCara("no-existe", vA) == Alta::NoExiste, "a quien no existe, no");
+        CHECK(lib.sumarCara(idBeto, vB) == Alta::Sumada, "y a la otra la suya");
 
         const Coincidencia c = lib.buscar(vA);
         CHECK(c.id == idAna && c.parecido > 0.99f, "se encuentra a si misma");
@@ -141,7 +142,8 @@ int main() {
         CHECK(lib.buscar({}).parecido == 0.0f, "un vector vacio no encuentra a nadie");
 
         // Casi iguales: no suma otra copia de la misma toma.
-        lib.sumarCara(idAna, vAcasi);
+        CHECK(lib.sumarCara(idAna, vAcasi) == Alta::Repetida,
+              "la casi igual se descarta, y lo dice");
         CHECK(lib.porId(idAna)->caras.size() == 1, "una toma casi igual no se guarda de nuevo");
 
         // Editar la ficha NO puede perder las caras: nadie espera que corregir
@@ -171,6 +173,31 @@ int main() {
         CHECK(otra.buscar(vB).id == idBeto, "y sus caras siguen sirviendo");
         CHECK(otra.borrar(idBeto) && otra.todas().size() == 1, "borrar saca una");
         CHECK(!otra.borrar("no-existe"), "borrar lo que no hay avisa");
+
+        // Fusionar: la misma persona anotada dos veces. Lo que importa es que
+        // la ficha que queda reconozca por las caras de LAS DOS —si perdiera
+        // las de la absorbida, fusionar seria un borrar con mas pasos—.
+        Personas dup;
+        Persona uno;
+        uno.nombre = "Ana";
+        uno.cargo = "Ministra";
+        const std::string idUno = dup.guardarFicha(uno);
+        Persona dos; // la que anoto el alta automatica: sin nombre
+        dos.nota = "entra por la puerta lateral";
+        const std::string idDos = dup.guardarFicha(dos);
+        std::vector<float> vUno(128, 0.0f), vDos(128, 0.0f);
+        vUno[0] = 1;
+        vDos[7] = 1;
+        dup.sumarCara(idUno, vUno);
+        dup.sumarCara(idDos, vDos);
+        CHECK(!dup.fusionar(idUno, idUno), "fusionar una consigo misma no");
+        CHECK(!dup.fusionar(idUno, "no-existe"), "ni con una que no existe");
+        CHECK(dup.fusionar(idUno, idDos), "fusiona");
+        CHECK(dup.todas().size() == 1, "y queda una sola");
+        CHECK(dup.buscar(vDos).id == idUno, "las caras de la absorbida siguen reconociendo");
+        CHECK(dup.porId(idUno)->nombre == "Ana", "el nombre escrito gana");
+        CHECK(dup.porId(idUno)->nota == "entra por la puerta lateral",
+              "y lo que estaba vacio se completa con lo de la otra");
         std::filesystem::remove(tmp);
     }
 

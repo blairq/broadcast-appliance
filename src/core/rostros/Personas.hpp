@@ -12,9 +12,13 @@
 // promediar una cara de frente con una de perfil da un vector que no se parece
 // a ninguna de las dos.
 //
-// NO GUARDA FOTOS. Solo números y datos que alguien escribió. Quien se lleve
-// el archivo no se lleva las caras de nadie. Si se quiere una foto para la
-// ficha, se guarda aparte y porque se pidió.
+// LA FOTO ES APARTE Y ES PARA MIRAR. El reconocimiento usa los vectores, no
+// la imagen; la foto está para que el operador confirme de un vistazo que la
+// ficha es de quien cree —un nombre sin cara no se verifica—. Se guarda como
+// archivo al lado de la libreta y acá queda solo su nombre.
+//
+// Lo que implica, dicho una vez: con foto, esta carpeta contiene caras. Sin
+// ella eran números con los que no se puede reconstruir a nadie.
 //
 // ESTO NO DECIDE NADA SOLO. Devuelve a quién se parece y cuánto; poner un
 // rótulo al aire con ese nombre es decisión de quien llama, y en vivo tiene
@@ -34,6 +38,17 @@ struct Persona {
     std::string nombre;
     std::string cargo;    ///< lo que va en el rótulo ("Ministra de Salud")
     std::string nota;     ///< para el operador ("entra por la puerta lateral")
+    /// Nombre del archivo de su foto, al lado de la libreta ("p3f2a.jpg").
+    /// Vacío = no tiene.
+    ///
+    /// LA FOTO ES PARA LA PERSONA QUE MIRA, no para el reconocimiento: eso
+    /// usa los vectores. Sirve para que el operador confirme de un vistazo
+    /// que la ficha es de quien cree —un nombre sin cara no se verifica—.
+    ///
+    /// Y hay que saber lo que implica: con foto, el archivo de personas SÍ
+    /// contiene caras. Antes solo tenía números con los que no se puede
+    /// reconstruir a nadie. Viaja en la carpeta portable como todo lo demás.
+    std::string foto;
     /// Cuándo se la vio por última vez (ms desde la época, 0 = nunca).
     std::int64_t vistaMs = 0;
     /// Sus vectores de cara. Cada uno de 128 números.
@@ -65,12 +80,37 @@ class Personas {
     std::string guardarFicha(const Persona& p);
     bool borrar(const std::string& id);
 
-    /// Le suma un vector de cara a alguien. Devuelve false si no existe.
+    /// Qué pasó al querer sumarle una cara a alguien.
+    ///
+    /// DICE SI SIRVIÓ, y no solo si no falló. Es la diferencia entre «listo»
+    /// y «esa pose ya la tenía»: lo segundo es lo que hay que contestarle a
+    /// quien está frente a la cámara para que gire un poco y se vuelva a
+    /// intentar. Un booleano no puede decir eso.
+    enum class Alta {
+        NoExiste, ///< no hay ficha con ese id (o el vector vino vacío)
+        Repetida, ///< casi igual a una que ya tenía: no aporta nada
+        Sumada    ///< entró, y el reconocimiento de esa persona mejoró
+    };
+
+    /// Le suma un vector de cara a alguien.
     ///
     /// Descarta los CASI IGUALES a uno que ya tiene: guardar treinta capturas
     /// del mismo segundo no mejora el reconocimiento y hace más lenta cada
     /// búsqueda. Lo que sirve es variedad, no cantidad.
-    bool sumarCara(const std::string& id, const std::vector<float>& vector);
+    Alta sumarCara(const std::string& id, const std::vector<float>& vector);
+
+    /// Funde `otro` dentro de `id`: le pasa las caras que aporten algo y lo
+    /// borra. Devuelve false si falta alguno de los dos o son el mismo.
+    ///
+    /// HACE FALTA PORQUE EL ALTA AUTOMATICA DUPLICA. La misma persona con otra
+    /// luz, de perfil o con barbijo puede no parecerse a sí misma lo bastante
+    /// como para caer en su ficha, y queda anotada dos veces. Borrar una de
+    /// las dos tira las caras que había juntado; fundirlas las aprovecha, y la
+    /// ficha resultante reconoce mejor que cualquiera de las dos sueltas.
+    ///
+    /// Los datos escritos (nombre, cargo, nota, foto) los gana `id`; de `otro`
+    /// solo se toman los que `id` tenga vacíos.
+    bool fusionar(const std::string& id, const std::string& otro);
 
     /// A quién se parece más, de todas. Devuelve `parecido` 0 si no hay nadie.
     ///

@@ -50,6 +50,9 @@ std::string Personas::guardarFicha(const Persona& p) {
         q.nombre = p.nombre;
         q.cargo = p.cargo;
         q.nota = p.nota;
+        // La foto vacía NO borra la que había, por lo mismo que las caras:
+        // editar el cargo no puede costar la foto.
+        if (!p.foto.empty()) q.foto = p.foto;
         return q.id;
     }
     Persona nueva = p;
@@ -66,20 +69,41 @@ bool Personas::borrar(const std::string& id) {
     return true;
 }
 
-bool Personas::sumarCara(const std::string& id, const std::vector<float>& vector) {
-    if (vector.empty()) return false;
+Personas::Alta Personas::sumarCara(const std::string& id, const std::vector<float>& vector) {
+    if (vector.empty()) return Alta::NoExiste;
     for (Persona& p : personas_) {
         if (p.id != id) continue;
         for (const auto& v : p.caras)
-            if (parecido(v, vector) >= kYaLaTengo) return true; // ya la tengo
+            if (parecido(v, vector) >= kYaLaTengo) return Alta::Repetida; // ya la tengo
         p.caras.push_back(vector);
         // Con la tabla llena se va la MÁS VIEJA: las primeras son de cuando se
         // la dio de alta (una foto, una luz) y las nuevas traen la variedad
         // que hace falta.
         if (p.caras.size() > kMaxCarasPorPersona) p.caras.erase(p.caras.begin());
-        return true;
+        return Alta::Sumada;
     }
-    return false;
+    return Alta::NoExiste;
+}
+
+bool Personas::fusionar(const std::string& id, const std::string& otro) {
+    if (id.empty() || otro.empty() || id == otro) return false;
+    const Persona* fuente = porId(otro);
+    if (fuente == nullptr || porId(id) == nullptr) return false;
+    const Persona copia = *fuente; // `sumarCara` puede mover el vector de fichas
+    for (const auto& v : copia.caras) sumarCara(id, v);
+    for (Persona& p : personas_) {
+        if (p.id != id) continue;
+        if (p.nombre.empty()) p.nombre = copia.nombre;
+        if (p.cargo.empty()) p.cargo = copia.cargo;
+        if (p.nota.empty()) p.nota = copia.nota;
+        if (p.foto.empty()) p.foto = copia.foto;
+        p.vistaMs = std::max(p.vistaMs, copia.vistaMs);
+        break;
+    }
+    // Ojo: si la foto se heredó, el archivo NO se borra acá; quien llama sabe
+    // si quedó en uso. Borrarlo sería dejar a la ficha fundida sin cara.
+    borrar(otro);
+    return true;
 }
 
 Coincidencia Personas::buscar(const std::vector<float>& vector) const {
@@ -119,6 +143,7 @@ bool Personas::leer(const std::string& archivo) {
         p.nombre = e.value("nombre", std::string());
         p.cargo = e.value("cargo", std::string());
         p.nota = e.value("nota", std::string());
+        p.foto = e.value("foto", std::string());
         p.vistaMs = e.value("vistaMs", std::int64_t{0});
         if (p.id.empty()) p.id = idNuevo();
         if (const auto it = e.find("caras"); it != e.end() && it->is_array())
@@ -136,6 +161,7 @@ bool Personas::guardar(const std::string& archivo) const {
                          {"nombre", p.nombre},
                          {"cargo", p.cargo},
                          {"nota", p.nota},
+                         {"foto", p.foto},
                          {"vistaMs", p.vistaMs},
                          {"caras", p.caras}});
     std::error_code ec;
