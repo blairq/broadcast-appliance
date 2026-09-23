@@ -218,6 +218,13 @@ ApplicationWindow {
         }
     }
 
+    // Los carteles que dicen cuál monitor es cuál (Studio.identificarPantallas).
+    IdentificarPantallas { id: identificar }
+    Connections {
+        target: Studio
+        function onIdentificarPedido() { identificar.mostrar() }
+    }
+
     // --- Ventanas de salida (una por entrada del modelo) ---------------------------
     Instantiator {
         model: Studio.dashboard.windows

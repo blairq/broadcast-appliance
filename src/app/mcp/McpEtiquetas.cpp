@@ -345,6 +345,8 @@ const Fila kPropias[] = {
     {"ventana_mover", "mover ventana a otro monitor acomodar pantalla completa maximizar "
                       "mitad izquierda derecha organizar el escritorio armar el puesto"},
     {"ventana_cerrar", "cerrar ventana quitar sacar de pantalla"},
+    {"monitor_identificar", "identificar pantallas cual es cada monitor numero nombre "
+                            "cual es el de la izquierda mostrar el numero"},
     {"monitors", "monitores conectados resolucion cuantas pantallas hay segundo monitor"},
 
     {"settings_list", "que se puede configurar opciones disponibles"},

@@ -248,6 +248,20 @@ class StudioViewModel : public QObject {
     /// lista entera en cada corte, y la lista no cambió.
     Q_INVOKABLE QVariantList escenasPorCarpeta() const;
 
+    /// Muestra un cartel grande en CADA monitor con su número y su nombre,
+    /// unos segundos. Es la única forma de saber cuál es «DP-1» sin ponerse a
+    /// mover ventanas a ver cuál se mueve.
+    Q_INVOKABLE void identificarPantallas() { emit identificarPedido(); }
+
+    /// Si en este escritorio un programa puede decir DONDE va una ventana.
+    ///
+    /// En Wayland no: ubicarlas es del compositor. Y lo peor es que pedirlo no
+    /// falla —Qt hasta informa la pantalla nueva— pero la ventana no se mueve.
+    /// Con esto la interfaz puede hacer lo único que sí funciona (pantalla
+    /// completa en un monitor) en vez de un botón que no hace nada.
+    Q_PROPERTY(bool puedeUbicarVentanas READ puedeUbicarVentanas CONSTANT)
+    static bool puedeUbicarVentanas();
+
   private:
     /// Le manda el estado de los buses a las pantallas de tally de la sala.
     /// Se llama en cada cambio de escena y de aire: un tally que llega tarde
@@ -294,6 +308,8 @@ class StudioViewModel : public QObject {
     /// carpeta). Distinta de `sceneChanged`, que es «cambió la que está al
     /// aire»: una pasa cada pocos segundos en vivo y la otra casi nunca.
     void escenasCambiaron();
+    /// Alguien pidió identificar los monitores (ver `identificarPantallas`).
+    void identificarPedido();
     void seccionConfigChanged();
     void canvasChanged();
     void themeChanged();

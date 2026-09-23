@@ -183,7 +183,16 @@ void McpService::registerVentanaTools() {
             }
             json r{{"ventanas", vs}, {"monitores", ms}, {"zonas", kZonas}};
             r["ubicarPorSoftware"] = ubicaElPrograma();
-            if (!ubicaElPrograma()) r["ojo"] = kSobreWayland;
+            if (!ubicaElPrograma()) {
+                r["ojo"] = kSobreWayland;
+                // `monitor` sale de lo que dice Qt, y en Wayland Qt informa la
+                // pantalla que se le PIDIO aunque la ventana no se haya movido.
+                // Decirlo es la diferencia entre un dato y una suposicion.
+                r["ojoMonitor"] =
+                    "En este escritorio `monitor` es lo que cree Qt, no necesariamente donde se ve la "
+                    "ventana: pedir un cambio de monitor no falla y tampoco la mueve. Para mandarla de "
+                    "verdad, pantalla completa (`estado: \"pantalla-completa\"` con `monitor`).";
+            }
             done(ToolResult::ok(r.dump(2)));
         };
         core_.addTool(std::move(t));
@@ -353,6 +362,26 @@ void McpService::registerVentanaTools() {
         core_.addTool(std::move(t));
     }
 
+    {
+        Tool t;
+        t.name = "monitor_identificar";
+        t.title = "Mostrar en cada monitor cual es";
+        t.category = "ventanas";
+        t.description =
+            "Pone unos segundos un cartel grande en CADA monitor con su numero y su nombre. Para saber "
+            "cual es \"DP-1\" sin mandar una ventana a ver adonde va.";
+        t.details = "Usalo antes de acomodar el puesto: los nombres de los monitores no le dicen nada a "
+                    "nadie hasta que se los ve puestos.\n\n"
+                    "Tambien sirve de prueba: aparece con PANTALLA COMPLETA en cada monitor, que es lo "
+                    "unico que un escritorio como GNOME respeta. Si los carteles salen donde tienen que "
+                    "salir, mandar una ventana a pantalla completa a un monitor tambien va a andar.";
+        t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
+        t.run = [this](const json&, Done done) {
+            vm_.identificarPantallas();
+            done(ToolResult::ok("Cartel puesto en cada monitor unos segundos."));
+        };
+        core_.addTool(std::move(t));
+    }
     {
         Tool t;
         t.name = "ventana_cerrar";

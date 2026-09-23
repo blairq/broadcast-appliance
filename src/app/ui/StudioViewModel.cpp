@@ -4,6 +4,8 @@
 
 #include "ui/StudioViewModel.hpp"
 
+#include <QGuiApplication>
+
 #if defined(BA_HAVE_CLAP)
 #include "audio/AudioViewModel.hpp"
 #include "audio/RackManager.hpp"
@@ -665,6 +667,10 @@ void StudioViewModel::take() {
     emit sceneChanged();
     publicarTally();
     rt_.save();
+}
+
+bool StudioViewModel::puedeUbicarVentanas() {
+    return !QGuiApplication::platformName().contains("wayland", Qt::CaseInsensitive);
 }
 
 QVariantList StudioViewModel::escenasPorCarpeta() const {

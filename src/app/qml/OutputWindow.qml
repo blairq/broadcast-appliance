@@ -84,6 +84,20 @@ Window {
                 onClicked: screenMenu.popup()
                 Menu {
                     id: screenMenu
+                    // La barra se esconde sola a los 2,2 s, y un menú cuyo
+                    // ancestro se vuelve invisible se cierra con él. Mientras
+                    // está abierto, la barra se queda.
+                    onAboutToShow: hide.stop()
+                    onClosed: hide.restart()
+
+                    MenuItem {
+                        text: "Identificar pantallas"
+                        // Los nombres («eDP-1», «DP-1») no le dicen nada a
+                        // nadie: para saber cuál es cuál había que mandar una
+                        // ventana y ver adónde iba.
+                        onTriggered: Studio.identificarPantallas()
+                    }
+                    MenuSeparator {}
                     Repeater {
                         model: Qt.application.screens
                         delegate: MenuItem {
@@ -91,8 +105,26 @@ Window {
                             text: modelData.name + "  (" + modelData.width + "x" + modelData.height + ")"
                             checkable: true
                             checked: w.screen && w.screen.name === modelData.name
-                            onTriggered: { Studio.dashboard.windows.setScreen(w.winId, modelData.name); w.screen = modelData }
+                            onTriggered: {
+                                Studio.dashboard.windows.setScreen(w.winId, modelData.name)
+                                w.screen = modelData
+                                // EN WAYLAND `setScreen` NO MUEVE LA VENTANA, y
+                                // encima no falla: Qt informa la pantalla nueva
+                                // y la ventana se queda donde estaba —el botón
+                                // parecía roto—. Lo que el compositor sí
+                                // respeta es pantalla completa EN UN MONITOR,
+                                // que además es lo que uno quiere el 95% de las
+                                // veces al mandar un video a la otra pantalla.
+                                if (!Studio.puedeUbicarVentanas)
+                                    Studio.dashboard.windows.setFullscreen(w.winId, true)
+                            }
                         }
+                    }
+                    MenuItem {
+                        enabled: false
+                        visible: !Studio.puedeUbicarVentanas
+                        height: visible ? implicitHeight : 0
+                        text: "(este escritorio solo deja mandarla a pantalla completa)"
                     }
                 }
             }
