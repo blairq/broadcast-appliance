@@ -336,6 +336,16 @@ bool BroadcastEngine::publishReturnFeeds() {
 
     // El retorno al invitado va en BGRA: es lo que el MediaPump del gateway
     // escala y entrega a WebRTC.
+    // POR QUE BGRA Y NO NV12, que es el formato en el que libobs ya lo tiene
+    // (ovi.output_format). Se midio: pidiendole el cuadro en NV12 —o sea sin
+    // conversion ninguna— libobs lo entrega EN EL MISMO MOMENTO, 44,7 ms
+    // contra 44,7. La conversion no esta en el camino del retardo; esos 44 ms
+    // son la bajada de la GPU, que no depende de lo que le pidamos.
+    //
+    // Asi que cambiar el formato del canal a NV12 ahorraria banda de memoria
+    // (8,3 MB por cuadro contra 3,1) pero NI UN MILISEGUNDO de retardo, y
+    // costaria tocar el contrato del IPC. Queda anotado para que nadie lo
+    // vuelva a proponer como arreglo del retardo: ya se probo.
     struct video_scale_info vsi = {};
     vsi.format = VIDEO_FORMAT_BGRA;
     vsi.width = static_cast<uint32_t>(video_.outputWidth);
