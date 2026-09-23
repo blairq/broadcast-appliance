@@ -802,6 +802,12 @@ std::string McpCore::helpTool(const std::string& name) const {
 
 void McpCore::armarIndice() const {
     indice_ = std::make_unique<Indice>();
+    // Una herramienta sin etiquetas solo se encuentra si alguien adivina las
+    // palabras de su documentacion, que son las de quien ya sabia como se
+    // llamaba. No falla nada: simplemente no aparece nunca en una busqueda.
+    // Por eso se avisa acá, donde se arma el indice, y no en una prueba con
+    // una lista aparte que hay que acordarse de actualizar.
+    std::vector<std::string> sinEtiquetas;
     for (const Tool& t : tools_) {
         Documento d;
         d.id = t.name;
@@ -809,8 +815,17 @@ void McpCore::armarIndice() const {
         d.nombre = t.name;
         d.titulo = t.title;
         d.etiquetas = etiquetasDe(t.name);
+        if (d.etiquetas.empty()) sinEtiquetas.push_back(t.name);
         d.cuerpo = t.description + " " + t.details;
         indice_->agregar(std::move(d));
+    }
+    if (!sinEtiquetas.empty()) {
+        std::string lista;
+        for (const std::string& n : sinEtiquetas) lista += (lista.empty() ? "" : ", ") + n;
+        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "mcp", 0,
+                                   "sin etiquetas (no se van a encontrar buscando; ver "
+                                   "McpEtiquetas.cpp): " +
+                                       lista);
     }
     for (const HelpTopic& t : topics_) {
         Documento d;
