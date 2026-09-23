@@ -66,8 +66,13 @@ if(APPLE)
 else()
     list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/platform/.*_(win|mac)\\.cpp$")
 endif()
+# qrcodegen: el nucleo lo usa para generar QR (src/core/qr/Qr.cpp), asi que
+# esta copia del nucleo tambien lo necesita, con su header a la vista.
+list(APPEND CORE_SOURCES "${BA_SRC}/third_party/qrcodegen/qrcodegen.cpp")
+
 add_library(ba_core_cr STATIC ${CORE_SOURCES})
-target_include_directories(ba_core_cr PUBLIC "${BA_SRC}/src/core" ${BA_C_INCLUDES})
+target_include_directories(ba_core_cr PUBLIC "${BA_SRC}/src/core"
+                           "${BA_SRC}/third_party/qrcodegen" ${BA_C_INCLUDES})
 target_link_libraries(ba_core_cr PUBLIC ${BA_C_LIBS} Threads::Threads)
 
 # --- Gateway ------------------------------------------------------------------
