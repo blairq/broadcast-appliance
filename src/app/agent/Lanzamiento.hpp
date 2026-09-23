@@ -9,6 +9,7 @@
 #include <functional>
 
 #include <QString>
+#include <QStringList>
 #include <QVariantList>
 
 #include "term/Pty.hpp"
@@ -21,6 +22,13 @@ struct Lanzamiento {
     QString modelo;    ///< vacio = el de fabrica
     QString prompt;    ///< instrucciones del rol (CLAUDE.md / AGENTS.md)
     QString encargo;   ///< lo que tiene que hacer esta vez
+    /// Archivos que van ADJUNTOS al encargo (imágenes, sobre todo).
+    ///
+    /// No alcanza con nombrar la ruta en el texto: el agente la lee como texto
+    /// y no tiene con qué abrirla —el rol que mira solo tiene herramientas de
+    /// imagen, a propósito—. Adjuntar es lo que hace que la imagen le llegue
+    /// de verdad (`opencode run -f`).
+    QStringList adjuntos;
 };
 
 /// Los motores, vistos desde el despachador.

@@ -68,6 +68,7 @@ struct Despachador::Corrida {
     std::string rol;
     std::string origen;
     std::string encargo;
+    std::vector<std::string> adjuntos; ///< archivos que van CON el encargo
     std::string estado = "esperando"; ///< esperando | corriendo | ok | error | detenida
     int profundidad = 0;
     std::int64_t creadaMs = 0;
@@ -159,7 +160,7 @@ void Despachador::lanzar(const std::string& rol) {
 }
 
 std::string Despachador::encargar(const std::string& rolId, const std::string& texto, const std::string& origen,
-                                  int profundidad, std::string* error) {
+                                  int profundidad, std::string* error, const std::vector<std::string>& adjuntos) {
     const Rol* rol = roles_.porId(rolId);
     if (rol == nullptr) {
         if (error != nullptr) *error = "no existe el rol `" + rolId + "`";
@@ -191,6 +192,7 @@ std::string Despachador::encargar(const std::string& rolId, const std::string& t
     c->rol = rolId;
     c->origen = origen;
     c->encargo = texto;
+    c->adjuntos = adjuntos;
     c->profundidad = profundidad;
     c->creadaMs = ahoraMs();
     const std::string id = c->id;
@@ -245,6 +247,7 @@ void Despachador::lanzarAhora(Corrida& c) {
     l.modelo = QString::fromStdString(rol->modelo);
     l.prompt = QString::fromStdString(rol->prompt);
     l.encargo = QString::fromStdString(contextoPara(c.rol) + "ENCARGO:\n" + c.encargo);
+    for (const std::string& f : c.adjuntos) l.adjuntos << QString::fromStdString(f);
     QString err;
     const term::Pty::Options o = motores_.lanzar ? motores_.lanzar(l, &err) : term::Pty::Options{};
     if (o.program.isEmpty()) {

@@ -87,7 +87,8 @@ class Despachador : public QObject {
     /// "lobby:<id>", "rol:<otro>"). Devuelve el id de la corrida (o vacio y
     /// el motivo en `error`).
     std::string encargar(const std::string& rol, const std::string& texto, const std::string& origen,
-                         int profundidad = 0, std::string* error = nullptr);
+                         int profundidad = 0, std::string* error = nullptr,
+                         const std::vector<std::string>& adjuntos = {});
     /// Profundidad de la corrida en curso de ese rol, o -1 si no hay.
     int profundidadDe(const std::string& rol) const;
 

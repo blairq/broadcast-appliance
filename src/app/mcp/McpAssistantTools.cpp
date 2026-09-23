@@ -14,6 +14,17 @@
 
 namespace ba::app::mcp {
 
+namespace {
+/// Los ids de proveedor que existen de verdad, para el esquema.
+json idsDeProveedores(agent::AgentViewModel* ag) {
+    json out = json::array();
+    if (ag == nullptr) return out;
+    for (const QVariant& v : ag->providers())
+        out.push_back(v.toMap().value("id").toString().toStdString());
+    return out;
+}
+} // namespace
+
 void McpService::registerAssistantTools() {
     core_.addCategory(
         "asistente", "Pestaña Asistente",
@@ -49,16 +60,18 @@ void McpService::registerAssistantTools() {
         t.title = "Configurar el asistente";
         t.category = "asistente";
         t.description =
-            "Cambia proveedor (claude-cuenta, claude-api, gemini-cuenta, gemini-api, opencode-go, "
-            "openrouter), modelo, arranque automatico y si los avisos de vigilancias van al chat. La "
+            "Cambia proveedor, modelo, arranque automatico y si los avisos de vigilancias van al "
+            "chat. `assistant_status` lista los proveedores que hay y los modelos de cada uno. La "
             "clave de API se carga en la pestaña (no por aca).";
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"provider",
-                            {{"type", "string"},
-                             {"enum",
-                              {"claude-cuenta", "claude-api", "gemini-cuenta", "gemini-api", "opencode-go",
-                               "openrouter"}}}},
+                            // La lista SALE DE LA TABLA, no escrita a mano.
+                            // Escrita a mano se desactualizo en cuanto se
+                            // agrego un proveedor: el nuevo existia en la
+                            // pestaña, aparecia en `assistant_status` y esta
+                            // herramienta lo rechazaba como invalido.
+                            {{"type", "string"}, {"enum", idsDeProveedores(ag)}}},
                            {"model", {{"type", "string"}}},
                            {"autoStart", {{"type", "boolean"}}},
                            {"alertsToChat", {{"type", "boolean"}}}}}};

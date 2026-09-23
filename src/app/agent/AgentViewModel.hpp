@@ -115,6 +115,23 @@ class AgentViewModel : public QObject {
     Q_INVOKABLE void setProvider(const QString& id);
     Q_INVOKABLE void setModel(const QString& model);
     Q_INVOKABLE QString saveKey(const QString& key);
+
+    /// La configuración del modelo propio, para editarla desde la pestaña:
+    /// {url, modelo, canal, nombre, extra (texto JSON), instrucciones, piensa}.
+    /// Vacía si no hay ninguno configurado todavía.
+    Q_INVOKABLE QVariantMap modeloPropio() const;
+    /// La guarda. Devuelve "" si salió bien, o el motivo —por ejemplo que los
+    /// parámetros extra no sean un JSON válido—.
+    /// Le pregunta al servidor propio si está ahí y si la clave sirve.
+    ///
+    /// Contesta por `notify` y no devolviendo: sale por la red, y bloquear la
+    /// interfaz hasta que un servidor que puede no existir conteste es
+    /// exactamente lo que no hay que hacer en un aparato que está al aire.
+    Q_INVOKABLE void probarModeloPropio();
+
+    Q_INVOKABLE QString guardarModeloPropio(const QString& url, const QString& modelo,
+                                            const QString& nombre, const QString& extraJson,
+                                            const QString& instrucciones, bool piensa);
     Q_INVOKABLE void clearKey();
     Q_INVOKABLE void setAlertsToChat(bool on);
     Q_INVOKABLE void setAutoStart(bool on);
@@ -181,7 +198,8 @@ class AgentViewModel : public QObject {
     /// Espacio de trabajo en `ws` para ese proveedor: instrucciones y la
     /// configuracion del MCP (con los argumentos del puente).
     QString prepareWorkspaceEn(const QString& ws, const QString& proveedor, const QString& modelo,
-                               const QStringList& bridgeArgs, const QString& prompt, QString* error);
+                               const QStringList& bridgeArgs, const QString& prompt, QString* error,
+                               bool consola);
     /// Programa, entorno y credenciales de un proveedor, sin los argumentos
     /// del modo (interactivo o de un tiro): eso lo agrega quien la llama.
     term::Pty::Options baseLaunch(const QString& proveedor, const QString& modelo, const QString& ws,

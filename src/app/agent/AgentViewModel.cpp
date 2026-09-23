@@ -4,6 +4,12 @@
 
 #include "agent/AgentViewModel.hpp"
 
+#include <algorithm>
+#include <filesystem>
+#include <thread>
+
+#include "agent/ModeloPropio.hpp"
+
 #if defined(_WIN32)
 #include <intrin.h>
 #elif defined(__x86_64__)
@@ -67,6 +73,20 @@ bool cpuHasAvx2() {
 #else
     return true; // ARM: no aplica
 #endif
+}
+
+/// La carpeta de datos, para las funciones ESTATICAS: la lista de modelos del
+/// modelo propio sale de un archivo, y `modelosDe` no tiene a quien
+/// preguntarle. La deja el constructor; hay un solo AgentViewModel por proceso.
+std::filesystem::path g_raiz;
+
+/// El canal que corresponde a lo elegido ("propio-<id>/<modelo>"), o el
+/// primero si no eligieron ninguno. nullptr si no hay canales.
+const Canal* canalElegido(const ModeloPropio& mp, const QString& modelo) {
+    if (mp.canales.empty()) return nullptr;
+    for (const Canal& c : mp.canales)
+        if (modelo == QString::fromStdString("propio-" + c.id + "/" + mp.modelo)) return &c;
+    return &mp.canales.front();
 }
 
 struct Provider {
@@ -146,6 +166,21 @@ const std::vector<Provider>& providerTable() {
          "Pegá una clave de OpenRouter y elegí el modelo (formato openrouter/<proveedor>/<modelo>).",
          {"openrouter/anthropic/claude-sonnet-4.5", "openrouter/google/gemini-2.5-pro",
           "openrouter/openai/gpt-5"}},
+        // El de la casa: un servidor propio que habla el protocolo de OpenAI.
+        // La direccion, el modelo y los parametros extra no van en esta tabla
+        // —son tuyos y se configuran— sino en Config/modelo-propio.json; ver
+        // ModeloPropio.hpp. Aca solo queda dicho que existe y que usa clave.
+        {"propio",
+         "opencode",
+         "Modelo propio (API compatible con OpenAI)",
+         "api",
+         "modelo-propio-api-key",
+         "BA_MODELO_PROPIO_KEY",
+         "",
+         "Tu propio servidor. Configurale la direccion (baseURL), que modelo pedirle y los "
+         "parametros extra que entienda, y pega su clave. Lo maneja opencode: este aparato no le "
+         "habla al modelo, le arma la configuracion.",
+         {}},
     };
     return t;
 }
@@ -181,6 +216,7 @@ QString findFile(const QString& root, const QString& name) {
 
 AgentViewModel::AgentViewModel(AppRuntime& rt, AlertEngine& alerts, QObject* parent)
     : QObject(parent), rt_(rt), alerts_(alerts), session_(std::make_unique<term::TerminalSession>()) {
+    g_raiz = rt.dataRoot(); // ver g_raiz: `modelosDe` es estatica
     loadConfig();
     connect(session_.get(), &term::TerminalSession::runningChanged, this, &AgentViewModel::runningChanged);
     connect(session_.get(), &term::TerminalSession::finished, this, [this](int code) {
@@ -241,7 +277,10 @@ QVariantList AgentViewModel::providers() const {
                            {"needsKey", QString(p.keyName) != ""},
                            {"keyUrl", p.keyUrl},
                            {"help", p.help},
-                           {"models", p.models}};
+                           // Por `modelosDe` y no por la tabla: el modelo
+                           // propio no tiene una lista escrita, sus modelos
+                           // son los canales que haya configurados.
+                           {"models", modelosDe(p.id)}};
     return out;
 }
 
@@ -300,6 +339,117 @@ bool AgentViewModel::hasKey() const {
     const Provider* p = findProvider(provider_);
     if (p == nullptr || QString(p->keyName).isEmpty()) return true;
     return cred::exists(QString::fromStdWString((rt_.dataRoot() / "Credenciales").wstring()), p->keyName);
+}
+
+QVariantMap AgentViewModel::modeloPropio() const {
+    const ModeloPropio mp = ModeloPropio::leer(rt_.dataRoot() / "Config" / "modelo-propio.json");
+    const Canal* c = canalElegido(mp, model_);
+    QVariantMap m;
+    m["url"] = QString::fromStdString(mp.url);
+    m["modelo"] = QString::fromStdString(mp.modelo);
+    m["canal"] = QString::fromStdString(c != nullptr ? c->id : std::string("broadcast"));
+    m["nombre"] = QString::fromStdString(c != nullptr ? c->nombre : std::string());
+    // Indentado: esto se edita a mano en una caja de texto, y un JSON en una
+    // sola línea no se puede leer ni corregir.
+    m["extra"] = QString::fromStdString(
+        c != nullptr && c->extra.is_object() ? c->extra.dump(2) : std::string("{}"));
+    m["instrucciones"] = QString::fromStdString(c != nullptr ? c->instrucciones : std::string());
+    m["piensa"] = c != nullptr ? c->piensa : true;
+    return m;
+}
+
+void AgentViewModel::probarModeloPropio() {
+    const ModeloPropio mp = ModeloPropio::leer(rt_.dataRoot() / "Config" / "modelo-propio.json");
+    if (mp.url.empty()) {
+        emit notify("Falta la dirección del servidor.", "aviso");
+        return;
+    }
+    QByteArray clave;
+    const QString root = QString::fromStdWString(rt_.dataRoot().wstring());
+    cred::read(root + "/Credenciales", "modelo-propio-api-key", clave);
+
+    // `/models` es lo que toda API compatible con OpenAI contesta, y no gasta
+    // ni un token. Preguntar generando texto para saber si el servidor está
+    // sería pagar por un ping.
+    std::string url = mp.url;
+    while (!url.empty() && url.back() == '/') url.pop_back();
+    url += "/models";
+    const std::string modelo = mp.modelo;
+    const std::string autorizacion = "Bearer " + clave.trimmed().toStdString();
+
+    emit notify("Probando " + QString::fromStdString(url) + "…", "info");
+    // En un hilo suelto: ver el comentario del header.
+    std::thread([this, url, modelo, autorizacion]() {
+        net::HttpRequest req;
+        req.method = "GET";
+        req.url = url;
+        req.headers = {{"Authorization", autorizacion}, {"Accept", "application/json"}};
+        req.timeoutMs = 8000;
+        const net::HttpResponse r = net::HttpsClient::request(req);
+        QString texto;
+        QString nivel = "error";
+        if (r.status == 0) {
+            texto = "No contesta: " + QString::fromStdString(r.error);
+        } else if (r.status == 401 || r.status == 403) {
+            texto = "El servidor contesta, pero rechaza la clave (" + QString::number(r.status) + ").";
+        } else if (r.status >= 400) {
+            texto = "El servidor contestó " + QString::number(r.status) + ".";
+        } else {
+            // Que el modelo que vamos a pedir esté en la lista: un servidor
+            // que anda pero no sirve ESE modelo falla recién al primer pedido,
+            // y ahí el error no dice que el nombre estaba mal escrito.
+            const bool estaEnLaLista = r.body.find("\"" + modelo + "\"") != std::string::npos;
+            texto = estaEnLaLista
+                        ? "Anda: el servidor contesta y sirve «" + QString::fromStdString(modelo) + "»."
+                        : "El servidor contesta y la clave sirve, pero no veo el modelo «" +
+                              QString::fromStdString(modelo) + "» en su lista. Revisá el nombre.";
+            nivel = estaEnLaLista ? "ok" : "aviso";
+        }
+        QMetaObject::invokeMethod(this, [this, texto, nivel]() { emit notify(texto, nivel); },
+                                  Qt::QueuedConnection);
+    }).detach();
+}
+
+QString AgentViewModel::guardarModeloPropio(const QString& url, const QString& modelo,
+                                            const QString& nombre, const QString& extraJson,
+                                            const QString& instrucciones, bool piensa) {
+    if (url.trimmed().isEmpty()) return "Falta la dirección del servidor (baseURL).";
+    if (modelo.trimmed().isEmpty()) return "Falta el nombre del modelo que pide tu servidor.";
+    json extra = json::object();
+    const std::string texto = extraJson.trimmed().toStdString();
+    if (!texto.empty()) {
+        // Se valida ACA y no se deja para cuando arranque el agente: un JSON
+        // roto escrito en la configuración se descubre recién al arrancar, con
+        // un error de opencode que no dice qué campo estaba mal.
+        try {
+            extra = json::parse(texto);
+        } catch (const json::exception& e) {
+            return QString("Los parámetros extra no son un JSON válido: ") + e.what();
+        }
+        if (!extra.is_object()) return "Los parámetros extra tienen que ser un objeto { ... }.";
+    }
+    const std::filesystem::path archivo = rt_.dataRoot() / "Config" / "modelo-propio.json";
+    ModeloPropio mp = ModeloPropio::leer(archivo);
+    mp.url = url.trimmed().toStdString();
+    mp.modelo = modelo.trimmed().toStdString();
+    const Canal* actual = canalElegido(mp, model_);
+    Canal c;
+    c.id = actual != nullptr ? actual->id : std::string("broadcast");
+    c.limite = actual != nullptr ? actual->limite : json::object();
+    c.nombre = nombre.trimmed().toStdString();
+    c.extra = extra;
+    c.instrucciones = instrucciones.toStdString();
+    c.piensa = piensa;
+    bool reemplazado = false;
+    for (Canal& v : mp.canales)
+        if (v.id == c.id) {
+            v = c;
+            reemplazado = true;
+        }
+    if (!reemplazado) mp.canales.push_back(c);
+    if (!mp.guardar(archivo)) return "No se pudo guardar la configuración.";
+    emit configChanged(); // la lista de modelos cambia con los canales
+    return {};
 }
 
 QString AgentViewModel::saveKey(const QString& key) {
@@ -610,6 +760,15 @@ QString AgentViewModel::runtimeDe(const QString& proveedor) {
 }
 
 QStringList AgentViewModel::modelosDe(const QString& proveedor) {
+    // El modelo propio no tiene una lista escrita: sus modelos son los canales
+    // que haya configurados, y eso solo se sabe leyendo su configuración.
+    if (proveedor == "propio") {
+        QStringList out;
+        for (const auto& m : ModeloPropio::leer(g_raiz / "Config" / "modelo-propio.json")
+                                 .comoLosLlamaOpencode())
+            out << QString::fromStdString(m);
+        return out;
+    }
     const Provider* p = findProvider(proveedor);
     return p == nullptr ? QStringList() : p->models;
 }
@@ -617,15 +776,29 @@ QStringList AgentViewModel::modelosDe(const QString& proveedor) {
 QString AgentViewModel::prepareWorkspace(QString* error) {
     const QString root = QString::fromStdWString(rt_.dataRoot().wstring());
     const QString prompt = systemPrompt_ ? systemPrompt_() : QString();
-    return prepareWorkspaceEn(root + "/Runtime/agente", provider_, model_, {}, prompt, error);
+    // Con su juego de herramientas (ver Roles::juegoDelAsistente) y CON
+    // consola: es el asistente del operador, no un agente de un tiro.
+    return prepareWorkspaceEn(root + "/Runtime/agente", provider_, model_, {"--rol", "asistente"},
+                              prompt, error, true);
 }
 
 QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& proveedor, const QString& modelo,
                                            const QStringList& bridgeArgs, const QString& prompt,
-                                           QString* error) {
+                                           QString* error, bool consola) {
     const QString root = QString::fromStdWString(rt_.dataRoot().wstring());
     QDir().mkpath(ws);
-    const QByteArray p = prompt.toUtf8();
+    QByteArray p = prompt.toUtf8();
+    // Lo que este modelo en particular necesita que le digan, al final del
+    // prompt del sistema. Ver `Canal::instrucciones`: un modelo chico suele
+    // necesitar las reglas más cortas y más terminantes que uno grande.
+    if (proveedor == "propio") {
+        const ModeloPropio mp = ModeloPropio::leer(rt_.dataRoot() / "Config" / "modelo-propio.json");
+        const Canal* c = canalElegido(mp, modelo);
+        if (c != nullptr && !c->instrucciones.empty()) {
+            p += "\n\n";
+            p += QByteArray::fromStdString(c->instrucciones);
+        }
+    }
     for (const char* f : {"CLAUDE.md", "GEMINI.md", "AGENTS.md"})
         if (!writeText(ws + "/" + f, p)) {
             if (error != nullptr) *error = "No se pudo escribir " + ws;
@@ -656,9 +829,72 @@ QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& pro
                  // Consola permitida (igual que en Claude Code): el limite lo
                  // pone el prompt del sistema, no la configuracion del agente.
                  // Un agente de un tiro (con rol) no la tiene: solo el MCP.
-                 {"permission", {{"edit", "deny"}, {"bash", bridgeArgs.isEmpty() ? "allow" : "deny"}}},
+                 // La consola se decide APARTE, y no mirando si hay argumentos
+                 // en el puente. Estaba atada a `bridgeArgs.isEmpty()`, asi que
+                 // darle un juego de herramientas al asistente le habria apagado
+                 // la consola de rebote, sin que nadie lo pidiera ni lo notara.
+                 {"permission", {{"edit", "deny"}, {"bash", consola ? "allow" : "deny"}}},
                  {"instructions", json::array({"AGENTS.md"})}};
         if (!modelo.isEmpty()) cfg["model"] = modelo.toStdString();
+        // El modelo de la casa: se le arma a opencode el proveedor compatible
+        // con OpenAI y se le dice que use ESE. Ver ModeloPropio.hpp —este
+        // aparato no le habla al modelo, le escribe la configuración a quien
+        // sí sabe hablarle—.
+        if (proveedor == "propio") {
+            const ModeloPropio mp =
+                ModeloPropio::leer(rt_.dataRoot() / "Config" / "modelo-propio.json");
+            if (mp.completo()) {
+                // UN PROVEEDOR POR CANAL. Los canales son el MISMO modelo del
+                // mismo servidor con otros parámetros, y esos parámetros van
+                // en las opciones del proveedor, no del modelo: para tener
+                // dos juegos hay que declarar dos proveedores. Es lo mismo que
+                // hace a mano cualquiera que use varios canales.
+                json provs = json::object();
+                for (const Canal& c : mp.canales) {
+                    json opciones{{"baseURL", mp.url}};
+                    // La clave va por entorno y no escrita en el archivo: el
+                    // workspace es una carpeta que se puede copiar o mirar, y
+                    // una clave ahí adentro es una clave filtrada.
+                    opciones["apiKey"] = "{env:BA_MODELO_PROPIO_KEY}";
+                    // MEDIDO: `options.extraBody` del proveedor NO llega al
+                    // servidor. Se probó poniendo `max_tokens: 16` ahí y el
+                    // modelo contestó párrafos enteros; con los mismos
+                    // parámetros por curl, el servidor obedece. Los parámetros
+                    // extra viajan en las opciones DEL MODELO, que es lo que
+                    // opencode manda en el cuerpo del pedido. Se deja también
+                    // en el proveedor por si una versión lo usa: sobra, no
+                    // molesta.
+                    if (c.extra.is_object() && !c.extra.empty()) opciones["extraBody"] = c.extra;
+                    json m = json::object();
+                    m["name"] = c.nombre.empty() ? c.id : c.nombre;
+                    // Lo que opencode necesita saber del modelo. `reasoning`
+                    // tiene que coincidir con `enable_thinking`: si dice que
+                    // razona y el servidor no manda pensamiento, la interfaz
+                    // se queda esperando un bloque que no llega.
+                    m["tool_call"] = true;
+                    m["temperature"] = true;
+                    m["reasoning"] = c.piensa;
+                    // Que acepta imágenes: sin esto opencode no le manda
+                    // ninguna, y el agente que mira no tendría qué mirar.
+                    m["attachment"] = true;
+                    m["modalities"] = json{{"input", json::array({"text", "image"})},
+                                           {"output", json::array({"text"})}};
+                    if (c.limite.is_object() && !c.limite.empty()) m["limit"] = c.limite;
+                    if (c.extra.is_object() && !c.extra.empty()) m["options"] = c.extra;
+                    provs["propio-" + c.id] = json{{"npm", "@ai-sdk/openai-compatible"},
+                                                   {"name", c.nombre.empty() ? c.id : c.nombre},
+                                                   {"options", opciones},
+                                                   {"models", {{mp.modelo, m}}}};
+                }
+                cfg["provider"] = provs;
+                // El canal elegido, o el primero si no eligieron ninguno.
+                const std::string pedido = modelo.toStdString();
+                const auto todos = mp.comoLosLlamaOpencode();
+                cfg["model"] = std::find(todos.begin(), todos.end(), pedido) != todos.end()
+                                   ? pedido
+                                   : todos.front();
+            }
+        }
         writeText(ws + "/opencode.json", QByteArray::fromStdString(cfg.dump(2)));
     } else if (runtime == "gemini") {
         // Ajustes del usuario de Gemini (en su HOME portable), sin pisar lo que ya tenga.
@@ -701,7 +937,8 @@ term::Pty::Options AgentViewModel::baseLaunch(const QString& proveedor, const QS
     o.env["BA_DATA_ROOT"] = root;
     o.env["TERM"] = "xterm-256color";
     o.unsetEnv = {"ANTHROPIC_API_KEY",  "ANTHROPIC_AUTH_TOKEN", "GEMINI_API_KEY", "GOOGLE_API_KEY",
-                  "OPENROUTER_API_KEY", "CLAUDECODE",           "LD_LIBRARY_PATH"};
+                  "OPENROUTER_API_KEY", "CLAUDECODE",           "LD_LIBRARY_PATH",
+                  "BA_MODELO_PROPIO_KEY"};
     if (prov != nullptr && !QString(prov->keyName).isEmpty()) {
         QByteArray key;
         if (!cred::read(root + "/Credenciales", prov->keyName, key)) {
@@ -786,7 +1023,8 @@ term::Pty::Options AgentViewModel::launchOptionsHeadless(const Lanzamiento& l, Q
     }
     const QString root = QString::fromStdWString(rt_.dataRoot().wstring());
     const QString ws =
-        prepareWorkspaceEn(root + "/Runtime/agentes/" + l.rol, proveedor, l.modelo, {"--rol", l.rol}, l.prompt, error);
+        prepareWorkspaceEn(root + "/Runtime/agentes/" + l.rol, proveedor, l.modelo, {"--rol", l.rol},
+                           l.prompt, error, false);
     if (ws.isEmpty()) return {};
     term::Pty::Options o = baseLaunch(proveedor, l.modelo, ws, error);
     if (o.program.isEmpty()) return o;
@@ -800,7 +1038,12 @@ term::Pty::Options AgentViewModel::launchOptionsHeadless(const Lanzamiento& l, Q
     } else if (runtime == "opencode") {
         o.args = {"run", "--format", "json"};
         if (!l.modelo.isEmpty()) o.args << "--model" << l.modelo;
+        // El mensaje PRIMERO y los adjuntos al final. `-f` toma una LISTA, así
+        // que si va antes se traga el mensaje como si fuera otro archivo:
+        // medido, `opencode` respondió «File not found: ENCARGO: Mirá la
+        // imagen…». Ver `Lanzamiento::adjuntos`.
         o.args << l.encargo;
+        for (const QString& f : l.adjuntos) o.args << "-f" << f;
     }
     return o;
 }

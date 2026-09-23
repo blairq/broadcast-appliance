@@ -192,6 +192,90 @@ Rectangle {
                             }
                             Text { visible: page.keyError !== ""; text: page.keyError; color: Theme.live; font.pixelSize: 11 }
                         }
+
+                        // --- El modelo propio: lo que solo él necesita -------
+                        // Dirección, qué modelo pedir y los parámetros extra de
+                        // TU servidor. Van acá y no en una tabla del programa
+                        // porque son tuyos: cada servidor propio acepta lo
+                        // suyo, y una lista fija de casillas se queda corta el
+                        // primer día. Lo que se escriba viaja tal cual.
+                        ColumnLayout {
+                            id: propio
+                            Layout.fillWidth: true
+                            visible: page.cur.id === "propio"
+                            spacing: 6
+                            property var cfg: ({})
+                            function recargar() { propio.cfg = ag.modeloPropio()
+                                                  urlF.text = propio.cfg.url || ""
+                                                  modF.text = propio.cfg.modelo || ""
+                                                  nomF.text = propio.cfg.nombre || ""
+                                                  extraF.text = propio.cfg.extra || "{}"
+                                                  instF.text = propio.cfg.instrucciones || ""
+                                                  piensaT.checked = propio.cfg.piensa === true }
+                            Component.onCompleted: recargar()
+                            Connections { target: ag; function onConfigChanged() { propio.recargar() } }
+
+                            Text { text: "Tu servidor"; color: Theme.textDim
+                                   font { pixelSize: 12; weight: Font.DemiBold } }
+                            TextField { id: urlF; Layout.fillWidth: true
+                                        placeholderText: "https://tu-servidor/v1" }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                TextField { id: modF; Layout.fillWidth: true
+                                            placeholderText: "modelo (como lo pide tu servidor)" }
+                                TextField { id: nomF; Layout.preferredWidth: 130
+                                            placeholderText: "cómo mostrarlo" }
+                            }
+                            RowLayout {
+                                Toggle { id: piensaT; onToggled: (w) => checked = w }
+                                Text { text: "Razona antes de contestar"; color: Theme.textDim
+                                       font.pixelSize: 12; Layout.fillWidth: true }
+                            }
+                            Text { text: "Parámetros extra (JSON, tal cual al servidor)"
+                                   color: Theme.textDim; font.pixelSize: 12 }
+                            ScrollView {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 150
+                                clip: true
+                                TextArea { id: extraF; wrapMode: TextEdit.NoWrap; selectByMouse: true
+                                           font { family: "monospace"; pixelSize: 11 } }
+                            }
+                            Text { text: "Instrucciones para este modelo (se suman al prompt)"
+                                   color: Theme.textDim; font.pixelSize: 12 }
+                            ScrollView {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 110
+                                clip: true
+                                TextArea { id: instF; wrapMode: TextEdit.Wrap; selectByMouse: true
+                                           font.pixelSize: 11 }
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                GlassButton {
+                                    compact: true; text: "Guardar"
+                                    onClicked: {
+                                        const e = ag.guardarModeloPropio(urlF.text, modF.text, nomF.text,
+                                                                         extraF.text, instF.text,
+                                                                         piensaT.checked)
+                                        ApplicationWindow.window.toast(
+                                            e === "" ? "Modelo propio guardado" : e,
+                                            e === "" ? "ok" : "error")
+                                    }
+                                }
+                                GlassButton {
+                                    compact: true; text: "Probar"
+                                    // Pregunta a /models: dice si el servidor
+                                    // está, si la clave sirve y si ese modelo
+                                    // existe, sin gastar un token.
+                                    onClicked: ag.probarModeloPropio()
+                                    ToolTip.visible: hovered; ToolTip.delay: 400
+                                    ToolTip.text: "Le pregunta al servidor si está y si la clave sirve"
+                                }
+                                Item { Layout.fillWidth: true }
+                                Text { text: "Los cambios se aplican al reiniciar el asistente."
+                                       color: Theme.textFaint; font.pixelSize: 10 }
+                            }
+                        }
                         RowLayout {
                             Toggle { checked: ag.autoStart; onToggled: (wanted) => ag.setAutoStart(wanted) }
                             Text { text: "Arrancar solo al abrir la app"; color: Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true }
