@@ -59,6 +59,12 @@ struct Estilo {
     /// La imagen del logo, ya lista para incrustar ("data:image/png;base64,…"
     /// o una ruta que el que dibuje sepa resolver). Vacío = solo el hueco.
     std::string logoSrc;
+    /// O un ícono del set propio, por su nombre (ver Iconos.hpp). Se guarda
+    /// POR NOMBRE, así cambiarlo después es cambiar una palabra. Si hay
+    /// ícono, gana sobre `logoSrc`: es lo que se elige en la interfaz.
+    std::string logoIcono;
+    /// El color del ícono. Vacío = el primario del código.
+    std::string logoColor;
 };
 
 /// El QR como SVG, listo para incrustar o servir. Vacío y el motivo en

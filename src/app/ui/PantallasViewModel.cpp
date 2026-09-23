@@ -199,7 +199,10 @@ struct PantallasViewModel::Impl {
             d.puerto = x.value("puerto", pt::kPuertoCast);
             d.fija = x.value("fija", false);
             d.fijadoTipo = QString::fromStdString(x.value("fijadoTipo", ""));
-            for (const auto& [k, v] : x.value("fijadoDatos", json::object()).items())
+            // El json de `value()` es un TEMPORAL: si se itera directo, el
+            // proxy de items() sobrevive al objeto y se lee memoria liberada.
+            const json fijadoDatos = x.value("fijadoDatos", json::object());
+            for (const auto& [k, v] : fijadoDatos.items())
                 if (v.is_string()) d.fijadoDatos[QString::fromStdString(k)] = QString::fromStdString(v);
             if (d.id.isEmpty() || d.host.isEmpty()) continue;
             destinos.push_back(std::move(d));

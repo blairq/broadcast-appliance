@@ -70,7 +70,7 @@ if(BA_HAVE_LIBOBS)
         # la ruta general: el Qt vendoreado va PRIMERO para que ninguno se
         # resuelva contra un Qt del sistema.
         list(PREPEND CMAKE_PREFIX_PATH "${BA_QT_PREFIX}")
-        find_package(Qt6 COMPONENTS Gui Quick Qml QuickControls2 Network CONFIG PATHS "${BA_QT_PREFIX}" NO_DEFAULT_PATH QUIET)
+        find_package(Qt6 COMPONENTS Gui Quick Qml QuickControls2 Network Svg CONFIG PATHS "${BA_QT_PREFIX}" NO_DEFAULT_PATH QUIET)
         set(BA_APP_QT_OK ${Qt6_FOUND})
     endif()
 endif()
@@ -295,7 +295,9 @@ if(NOT WIN32)
 endif()
 
 if(BA_APP_QT_OK)
-    target_link_libraries(ba-app PRIVATE Qt6::Gui Qt6::Quick Qt6::Qml Qt6::QuickControls2 Qt6::Network)
+    # Qt6::Svg: la vista previa y el PNG del generador de QR rasterizan el MISMO
+    # SVG que se exporta (ver ui/QrViewModel.cpp).
+    target_link_libraries(ba-app PRIVATE Qt6::Gui Qt6::Quick Qt6::Qml Qt6::QuickControls2 Qt6::Network Qt6::Svg)
     target_compile_definitions(ba-app PRIVATE BA_APP_HAVE_QT_OBS=1)
     # Version visible en Configuracion -> Sistema y datos (soporte).
     target_compile_definitions(ba-app PRIVATE BA_APP_VERSION="${PROJECT_VERSION}")

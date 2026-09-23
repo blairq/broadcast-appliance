@@ -42,6 +42,7 @@
 #include "ui/RielConfig.hpp"
 #include "ui/PantallasViewModel.hpp"
 #include "ui/PrompterViewModel.hpp"
+#include "ui/QrViewModel.hpp"
 #include "ui/RotuladorViewModel.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/DashboardModel.hpp"
@@ -129,6 +130,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // un televisor de la red.
     pantallas_ = std::make_unique<PantallasViewModel>(rt, conference_.get());
     connect(pantallas_.get(), &PantallasViewModel::notify, this, &StudioViewModel::notify);
+    // Códigos QR: la biblioteca es del aparato y del evento, y los enlaces
+    // propios (sala, prompter, rótulos) se los pide al gateway.
+    qr_ = std::make_unique<QrViewModel>(rt, evento_.get(), conference_.get());
+    connect(qr_.get(), &QrViewModel::notify, this, &StudioViewModel::notify);
     connect(rotulador_.get(), &RotuladorViewModel::notify, this, &StudioViewModel::notify);
     connect(this, &StudioViewModel::sceneChanged, rotulador_.get(), &RotuladorViewModel::refrescar);
 
@@ -500,6 +505,7 @@ QObject* StudioViewModel::grafico() const { return grafico_.get(); }
 QObject* StudioViewModel::rotulador() const { return rotulador_.get(); }
 QObject* StudioViewModel::prompter() const { return prompter_.get(); }
 QObject* StudioViewModel::pantallas() const { return pantallas_.get(); }
+QObject* StudioViewModel::qr() const { return qr_.get(); }
 QObject* StudioViewModel::registro() const { return registro_.get(); }
 QObject* StudioViewModel::extensiones() const { return extensiones_.get(); }
 QObject* StudioViewModel::riel() const { return riel_.get(); }

@@ -28,6 +28,7 @@
 #include <cstdio>
 
 #include "agent/AgentViewModel.hpp"
+#include "ui/QrViewModel.hpp"
 #include "AppRuntime.hpp"
 #include "mcp/McpService.hpp"
 #include "term/TerminalView.hpp"
@@ -88,6 +89,9 @@ int runGui(int argc, char** argv) {
 
         QQmlApplicationEngine engine;
         engine.addImageProvider("inputs", new InputThumbProvider(rt)); // miniaturas de la pagina Entradas
+        // La vista previa del generador de QR: rasteriza el MISMO SVG que se
+        // exporta, asi lo que se ve es exactamente lo que sale.
+        engine.addImageProvider("qr", new QrImageProvider(vm.qrVm()));
         QObject::connect(&vm, &StudioViewModel::quitRequested, &app, &QGuiApplication::quit);
         engine.load(QUrl("qrc:/qml/Main.qml"));
         if (engine.rootObjects().isEmpty()) {

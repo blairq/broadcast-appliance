@@ -8,6 +8,8 @@
 #include <sstream>
 #include <vector>
 
+#include "qr/Iconos.hpp"
+
 #include "qrcodegen.hpp"
 
 namespace ba::qr {
@@ -236,7 +238,19 @@ std::string svg(const std::string& texto, const Estilo& e, std::string* error) {
         if (!fondo.empty())
             o << "<rect x='" << lx - 0.3 << "' y='" << lx - 0.3 << "' width='" << ancho + 0.6
               << "' height='" << ancho + 0.6 << "' rx='" << ancho * 0.15 << "' fill='" << fondo << "'/>";
-        if (!e.logoSrc.empty()) {
+        const Icono* ico = icono(e.logoIcono);
+        if (ico != nullptr) {
+            // El ícono viene en un lienzo de 24x24: se lo lleva al hueco con
+            // un poco de aire para que no toque los módulos de alrededor.
+            const double aire = ancho * 0.16;
+            const double lado24 = ancho - aire * 2;
+            o << "<g transform='translate(" << lx + aire << ',' << lx + aire << ") scale("
+              << lado24 / 24.0 << ")' fill='none' stroke='"
+              << colorSeguro(e.logoColor.empty() ? primario : e.logoColor, primario)
+              << "' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='";
+            escapar(o, ico->trazos);
+            o << "'/></g>";
+        } else if (!e.logoSrc.empty()) {
             o << "<image x='" << lx << "' y='" << lx << "' width='" << ancho << "' height='" << ancho
               << "' preserveAspectRatio='xMidYMid meet' xlink:href='";
             escapar(o, e.logoSrc);
