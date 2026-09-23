@@ -33,7 +33,12 @@
   const token = q.get("token") || "";
   const nombre = q.get("nombre") || "Pantalla";
   const conAudio = q.get("audio") !== "0";
-  const bufferMs = Math.max(0, parseInt(q.get("buffer") || "80", 10) || 0);
+  // 0 por defecto: lo menos que el navegador acepte retener. Era 80 ms, que
+  // en una red cableada ya es holgado, pero «holgado» no es gratis: son 80 ms
+  // que la pantalla va atras de la sala sin que nada este fallando. Con
+  // ?buffer=N se sube si la red del lugar lo pide (wifi cargado, un tele que
+  // entrecorta).
+  const bufferMs = Math.max(0, parseInt(q.get("buffer") || "0", 10) || 0);
   const hud = q.get("hud") === "1";
 
   const st = {
@@ -44,6 +49,7 @@
     ultimoCuadro: -1,
     quieto: 0,
     medida: null,
+    retardoPuesto: null,
     id: "",
     key: "",
   };
@@ -155,18 +161,15 @@
     const vt = pc.addTransceiver("video", { direction: "recvonly" });
     const at = pc.addTransceiver("audio", { direction: "recvonly" });
 
-    // La perilla del retardo. Se pone en los dos sentidos porque el nombre
-    // cambió: `jitterBufferTarget` es el estándar nuevo, `playoutDelayHint` lo
-    // que entienden los Chrome de antes — y adentro de un televisor suele
-    // haber un Chrome de antes.
-    const buffer = (r) => {
-      try { r.jitterBufferTarget = bufferMs; } catch (e) {}
-      try { r.playoutDelayHint = bufferMs / 1000; } catch (e) {}
-    };
-    buffer(vt.receiver);
-    buffer(at.receiver);
+    // La perilla del retardo (ver ../comun/retardo.js).
+    st.retardoPuesto = window.BARetardo.aplicar(vt.receiver, bufferMs);
+    window.BARetardo.aplicar(at.receiver, bufferMs);
 
     pc.ontrack = (ev) => {
+      // De nuevo: segun la version, el valor puesto en el transceiver se
+      // pierde cuando llega el track de verdad.
+      const puesto = window.BARetardo.aTodos(pc, bufferMs);
+      if (puesto !== null) st.retardoPuesto = puesto;
       const s = ev.streams[0] || new MediaStream([ev.track]);
       if (ev.track.kind === "video") {
         $("video").srcObject = s;
@@ -279,8 +282,14 @@
         const m = st.medida;
         // El retardo se dice SIEMPRE que se sepa: «al aire» sin un número al
         // lado no sirve para decidir si la pantalla va con la sala o va atrás.
+        // Se dice si la perilla del retardo EXISTE en este navegador: un
+        // televisor viejo que no la conoce se ve igual que uno que la tiene
+        // puesta, y eso hace perder horas buscando del lado equivocado.
+        const perilla = st.retardoPuesto === null ? " · sin perilla de retardo"
+                                                  : " · pedido " + st.retardoPuesto + " ms";
         const como = m ? " · " + m.fps + " fps · buffer " + m.buffer + " ms · ida y vuelta " +
-                         m.rtt + " ms" + (m.perdidos > 0 ? " · " + m.perdidos + " perdidos" : "")
+                         m.rtt + " ms" + (m.perdidos > 0 ? " · " + m.perdidos + " perdidos" : "") +
+                         perilla
                        : "";
         if (q > 0) return "al aire · " + q + " cuadros · " + cs + como;
         return "sin imagen · " + cs + como;

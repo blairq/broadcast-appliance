@@ -59,6 +59,11 @@
     setTimeout(() => el.remove(), 4000);
   }
 
+  /// Cuanto retener antes de mostrar el retorno (ver ../comun/retardo.js).
+  /// 0 = lo menos que el navegador acepte.
+  const BUFFER_MS = Math.max(
+      0, parseInt(new URLSearchParams(location.search).get("buffer") || "0", 10) || 0);
+
   // --- Framing ------------------------------------------------------------
   function encodeFrame(obj) {
     const json = new TextEncoder().encode(JSON.stringify(obj));
@@ -502,9 +507,18 @@
       pc.addTransceiver("audio", { direction: "recvonly" });
       pc.addTransceiver("video", { direction: "recvonly" });
     }
+    // El retorno se mira para saber si lo que uno dice esta saliendo, asi que
+    // el retardo se nota: con el colchon que el navegador pone por su cuenta,
+    // uno se ve a si mismo un cuarto de segundo tarde. Se pide lo menos
+    // posible; con ?buffer=N se sube si la red del lugar lo pide.
+    state.retardoPuesto = window.BARetardo.aTodos(pc, BUFFER_MS);
     // Lo que manda B: en el lobby, el operador; adentro, el programa. Es el
     // mismo track (B cambia la fuente), asi que no hay corte al admitirte.
     pc.ontrack = (ev) => {
+      // De nuevo: segun la version del navegador, lo puesto en el transceiver
+      // se pierde cuando llega el track de verdad.
+      const puesto = window.BARetardo.aTodos(pc, BUFFER_MS);
+      if (puesto !== null) state.retardoPuesto = puesto;
       const rs = ev.streams[0] || new MediaStream([ev.track]);
       if (ev.track.kind === "video") {
         $("remote-video").srcObject = rs;
