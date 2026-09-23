@@ -50,7 +50,14 @@ if(NOT BA_CORE_SOURCES)
     set(BA_CORE_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/placeholder.cpp")
 endif()
 
+# Generador de QR con estilo (qr/Qr.cpp): qrcodegen vive en third_party y lo
+# comparten el nucleo y el gateway. Un solo generador para todo el sistema,
+# porque el mismo QR sale por la pantalla, por un televisor y por un archivo.
+set(BA_QRCODEGEN "${CMAKE_SOURCE_DIR}/third_party/qrcodegen")
+list(APPEND BA_CORE_SOURCES "${BA_QRCODEGEN}/qrcodegen.cpp")
+
 add_library(ba_core STATIC ${BA_CORE_SOURCES})
+target_include_directories(ba_core PUBLIC "${BA_QRCODEGEN}")
 
 # Incluye públicos: los headers de ba_core se consumen desde tests y desde
 # launcher/app/gateway.
