@@ -5,6 +5,8 @@
 #include "ui/StudioViewModel.hpp"
 
 #include <QGuiApplication>
+#include <QWindow>
+#include <QScreen>
 
 #if defined(BA_HAVE_CLAP)
 #include "audio/AudioViewModel.hpp"
@@ -667,6 +669,15 @@ void StudioViewModel::take() {
     emit sceneChanged();
     publicarTally();
     rt_.save();
+}
+
+QStringList StudioViewModel::ventanasAbiertas() const {
+    QStringList out;
+    for (QWindow* w : QGuiApplication::topLevelWindows()) {
+        if (w == nullptr || !w->isVisible() || !w->objectName().startsWith("ba:")) continue;
+        if (w->screen() != nullptr && !out.contains(w->screen()->name())) out << w->screen()->name();
+    }
+    return out;
 }
 
 bool StudioViewModel::puedeUbicarVentanas() {

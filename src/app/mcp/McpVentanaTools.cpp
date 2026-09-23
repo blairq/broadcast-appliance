@@ -404,6 +404,100 @@ void McpService::registerVentanaTools() {
 
     {
         Tool t;
+        t.name = "ventanas_ordenar";
+        t.title = "Acomodar todas las ventanas en los monitores";
+        t.category = "ventanas";
+        t.description =
+            "Reparte las ventanas abiertas entre los monitores para que no queden una encima de otra. "
+            "La principal se queda donde esta; las sueltas se distribuyen.";
+        t.details =
+            "QUE HACE SEGUN EL ESCRITORIO, porque no todos dejan lo mismo:\n"
+            "  - Si se pueden ubicar ventanas: reparte por zonas (una sola ocupa el monitor entero, dos "
+            "se parten por la mitad, tres en tercios, cuatro en cuadrantes).\n"
+            "  - Si no (GNOME/Wayland): una a PANTALLA COMPLETA por monitor libre, que es lo unico que "
+            "el compositor respeta. Las que sobran quedan donde estan y se dice cuales.\n\n"
+            "`dejarLibre` sirve para no tocar el monitor donde esta lo que se esta mirando.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"dejarLibre",
+               {{"type", "string"},
+                {"description", "nombre de un monitor que no hay que usar (p. ej. el del operador)"}}}}}};
+        t.run = [](const json& a, Done done) {
+            const QString libre = QString::fromStdString(a.value("dejarLibre", std::string()));
+            QList<QScreen*> pantallas;
+            for (QScreen* s : QGuiApplication::screens())
+                if (s->name().compare(libre, Qt::CaseInsensitive) != 0) pantallas.push_back(s);
+            if (pantallas.isEmpty())
+                return done(ToolResult::error("No queda ningun monitor para usar."));
+
+            // La principal no se toca: es donde el operador esta trabajando, y
+            // moverle el piso mientras acomoda lo demas es lo contrario de
+            // ordenar.
+            std::vector<QWindow*> sueltas;
+            for (QWindow* w : ventanas())
+                if (idDe(w) != "principal") sueltas.push_back(w);
+            if (sueltas.empty())
+                return done(ToolResult::ok("Solo esta la ventana principal: no hay nada que acomodar."));
+
+            std::string hecho;
+            std::string afuera;
+            if (!ubicaElPrograma()) {
+                // Una por monitor, a pantalla completa. Mas de eso no se puede
+                // sin poder colocar ventanas, y decirlo es mejor que amontonar.
+                for (std::size_t i = 0; i < sueltas.size(); ++i) {
+                    if (i >= static_cast<std::size_t>(pantallas.size())) {
+                        afuera += (afuera.empty() ? "" : ", ") + idDe(sueltas[i]).toStdString();
+                        continue;
+                    }
+                    QWindow* w = sueltas[i];
+                    w->setVisibility(QWindow::Windowed);
+                    w->setScreen(pantallas[static_cast<int>(i)]);
+                    QTimer::singleShot(180, w, [w]() { w->setVisibility(QWindow::FullScreen); });
+                    hecho += (hecho.empty() ? "" : ", ") + idDe(w).toStdString() + " -> " +
+                             pantallas[static_cast<int>(i)]->name().toStdString();
+                }
+                std::string msg = "Acomodadas a pantalla completa: " + hecho + ".";
+                if (!afuera.empty())
+                    msg += " NO entraron (" + afuera +
+                           "): este escritorio no deja poner dos ventanas en un mismo monitor por "
+                           "software, solo una a pantalla completa. Quedaron donde estaban.";
+                return done(ToolResult::ok(msg));
+            }
+
+            // Con ubicacion: se reparten por zonas dentro de cada monitor.
+            static const char* kPorCantidad[5][4] = {
+                {},
+                {"completa"},
+                {"izquierda", "derecha"},
+                {"tercio-izq", "tercio-centro", "tercio-der"},
+                {"sup-izq", "sup-der", "inf-izq", "inf-der"},
+            };
+            const int porPantalla =
+                static_cast<int>((sueltas.size() + pantallas.size() - 1) / pantallas.size());
+            const int n = std::min(porPantalla, 4);
+            for (std::size_t i = 0; i < sueltas.size(); ++i) {
+                QScreen* p = pantallas[static_cast<int>(i / static_cast<std::size_t>(n)) % pantallas.size()];
+                const char* z = kPorCantidad[n][i % static_cast<std::size_t>(n)];
+                QWindow* w = sueltas[i];
+                w->setVisibility(QWindow::Windowed);
+                w->setScreen(p);
+                const QRect r = zonaEn(p, QString::fromUtf8(z));
+                const QRect cg = w->geometry();
+                const QRect fg = w->frameGeometry();
+                const int ml = cg.x() - fg.x(), mt = cg.y() - fg.y();
+                const int mr = fg.right() - cg.right(), mb = fg.bottom() - cg.bottom();
+                w->setGeometry(QRect(r.x() + ml, r.y() + mt, std::max(320, r.width() - ml - mr),
+                                     std::max(200, r.height() - mt - mb)));
+                hecho += (hecho.empty() ? "" : ", ") + idDe(w).toStdString() + " -> " +
+                         p->name().toStdString() + " " + z;
+            }
+            done(ToolResult::ok("Acomodadas: " + hecho + ". ventana_listar confirma como quedo."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "monitor_identificar";
         t.title = "Mostrar en cada monitor cual es";
         t.category = "ventanas";

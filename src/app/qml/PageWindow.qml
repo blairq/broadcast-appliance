@@ -8,7 +8,9 @@
 //   Esc   cierra la ventana
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Window
 import BA
+import "controls"
 
 Window {
     id: w
@@ -34,6 +36,34 @@ Window {
 
     signal cerrada(int page)
     onClosing: w.cerrada(w.page)
+
+    // AL ABRIRSE, A UN MONITOR LIBRE. Sin esto cada pestaña que se saca nace
+    // encima de la anterior, en el mismo monitor, y hay que acomodarlas una
+    // por una. Se busca uno donde no haya ya una ventana nuestra; si están
+    // todos ocupados, se queda donde el escritorio la ponga —amontonar en un
+    // orden inventado no es mejor que amontonar—.
+    Component.onCompleted: {
+        const pantallas = Qt.application.screens
+        if (pantallas.length < 2) return
+        const ocupados = {}
+        const vs = Studio.ventanasAbiertas()
+        for (let i = 0; i < vs.length; ++i) ocupados[vs[i]] = true
+        for (let k = 0; k < pantallas.length; ++k) {
+            if (ocupados[pantallas[k].name]) continue
+            w.screen = pantallas[k]
+            if (!Studio.puedeUbicarVentanas) w.visibility = Window.FullScreen
+            return
+        }
+    }
+
+    // La misma barra que las ventanas de video: monitor, pantalla completa,
+    // cerrar. Antes no tenían ninguna y había que acomodarlas desde el
+    // escritorio, que en Wayland encima no se puede.
+    BarraVentana {
+        ventana: w
+        z: 100
+        alCerrar: () => w.close()
+    }
 
     Loader {
         anchors.fill: parent

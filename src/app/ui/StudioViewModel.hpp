@@ -253,6 +253,10 @@ class StudioViewModel : public QObject {
     /// mover ventanas a ver cuál se mueve.
     Q_INVOKABLE void identificarPantallas() { emit identificarPedido(); }
 
+    /// Los monitores donde YA hay una ventana nuestra, por nombre. Lo usa una
+    /// ventana que se abre para nacer en uno libre en vez de encima de otra.
+    Q_INVOKABLE QStringList ventanasAbiertas() const;
+
     /// Si en este escritorio un programa puede decir DONDE va una ventana.
     ///
     /// En Wayland no: ubicarlas es del compositor. Y lo peor es que pedirlo no
