@@ -24,6 +24,9 @@ QStringList FrameService::keys() const {
     // pueden mostrar por clave, pero no se ofrecen en los menus.
     QStringList out;
     out << "program";
+    // Segunda, pegada al programa, porque son los dos buses de la mesa: lo que
+    // sale y lo que va a salir. Se miran juntos o no se miran.
+    out << "armada";
     for (int i = 1; i <= guests_; ++i) {
         out << QString("guest:%1").arg(i);
     }
@@ -39,12 +42,22 @@ QString FrameService::label(const QString& key) const {
         return n.isEmpty() ? fallback : n;
     };
     if (key == "program") return "Programa";
+    if (key == "armada") return "Armada (preview)";
     if (key == "operator") return "Tu cámara";
     if (key.startsWith("guest:")) return nameOr(key.mid(6).toInt(), "Invitado " + key.mid(6));
     if (key.startsWith("share:")) return nameOr(key.mid(6).toInt(), "Invitado " + key.mid(6)) + " — pantalla";
     if (key.startsWith("lobby:")) return "Lobby " + key.mid(6);
     if (key.startsWith("backstage:")) return "Fila " + key.mid(10);
     return key;
+}
+
+void FrameService::setArmada(const QString& escena) {
+    if (escena == armada_) return;
+    armada_ = escena;
+    // 960 de ancho: alcanza para un monitor de tablero o un fondo, y no cuesta
+    // como renderizar 1080p de una escena que ni siquiera esta al aire.
+    engine_.enableScenePreview("armada", escena.toStdString(), 960);
+    if (escena.isEmpty()) slots_.erase("armada");
 }
 
 void FrameService::setGuests(int guests) {
@@ -86,6 +99,16 @@ void FrameService::poll() {
     if (engine_.latestPreview(programBuf_, w, h, programSerial_)) {
         Slot& s = slots_["program"];
         s.image = QImage(programBuf_.data(), w, h, w * 4, QImage::Format_ARGB32).copy();
+        ++s.serial;
+        any = true;
+    }
+    // La escena ARMADA: la que va a salir con el proximo take, renderizada
+    // aunque no este al aire. Canal propio del motor, aparte del editor: son
+    // dos escenas distintas al mismo tiempo y con un solo canal se pisaban
+    // —abrir el editor apagaba el monitor del director—.
+    if (!armada_.isEmpty() && engine_.renderScenePreview("armada", armadaBuf_, w, h)) {
+        Slot& s = slots_["armada"];
+        s.image = QImage(armadaBuf_.data(), w, h, w * 4, QImage::Format_RGBA8888).copy();
         ++s.serial;
         any = true;
     }

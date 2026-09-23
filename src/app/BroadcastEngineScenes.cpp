@@ -325,12 +325,14 @@ bool BroadcastEngine::captureSource(const std::string& name, int maxWidth, std::
     return true;
 }
 
-bool BroadcastEngine::enableScenePreview(const std::string& name, int maxWidth) {
-    if (name == scenePreviewName_ && scenePreviewSrc_ != nullptr) {
-        scenePreviewMaxW_ = maxWidth;
+bool BroadcastEngine::enableScenePreview(const std::string& canal, const std::string& name,
+                                         int maxWidth) {
+    VistaPrevia& vp = scenePreviews_[canal];
+    if (name == vp.name && vp.src != nullptr) {
+        vp.maxW = maxWidth;
         return true;
     }
-    disableScenePreview();
+    disableScenePreview(canal);
     if (name.empty()) return true;
     if (!started_) {
         setError("vista previa de escena: el motor no arranco");
@@ -351,34 +353,42 @@ bool BroadcastEngine::enableScenePreview(const std::string& name, int maxWidth) 
     // Se mantiene mientras dure la vista previa: sin esto las camaras y los
     // videos de red no suben cuadros si la escena no esta al aire.
     obs_source_inc_showing(src);
-    scenePreviewSrc_ = reinterpret_cast<struct obs_source*>(src);
-    scenePreviewName_ = name;
-    scenePreviewMaxW_ = maxWidth;
+    VistaPrevia& v = scenePreviews_[canal];
+    v.src = reinterpret_cast<struct obs_source*>(src);
+    v.name = name;
+    v.maxW = maxWidth;
     return true;
 }
 
-void BroadcastEngine::disableScenePreview() {
-    if (scenePreviewSrc_ == nullptr) {
-        scenePreviewName_.clear();
-        return;
+void BroadcastEngine::disableScenePreview(const std::string& canal) {
+    const auto it = scenePreviews_.find(canal);
+    if (it == scenePreviews_.end()) return;
+    if (it->second.src != nullptr) {
+        auto* src = reinterpret_cast<obs_source_t*>(it->second.src);
+        obs_source_dec_showing(src);
+        obs_source_release(src);
     }
-    auto* src = reinterpret_cast<obs_source_t*>(scenePreviewSrc_);
-    obs_source_dec_showing(src);
-    obs_source_release(src);
-    scenePreviewSrc_ = nullptr;
-    scenePreviewName_.clear();
+    scenePreviews_.erase(it);
 }
 
-bool BroadcastEngine::renderScenePreview(std::vector<std::uint8_t>& dst, int& width, int& height) {
-    if (scenePreviewSrc_ == nullptr || !started_) return false;
-    auto* src = reinterpret_cast<obs_source_t*>(scenePreviewSrc_);
+std::string BroadcastEngine::scenePreviewName(const std::string& canal) const {
+    const auto it = scenePreviews_.find(canal);
+    return it == scenePreviews_.end() ? std::string() : it->second.name;
+}
+
+bool BroadcastEngine::renderScenePreview(const std::string& canal, std::vector<std::uint8_t>& dst,
+                                         int& width, int& height) {
+    const auto it = scenePreviews_.find(canal);
+    if (it == scenePreviews_.end() || it->second.src == nullptr || !started_) return false;
+    const int maxW = it->second.maxW;
+    auto* src = reinterpret_cast<obs_source_t*>(it->second.src);
     const uint32_t cx = obs_source_get_width(src);
     const uint32_t cy = obs_source_get_height(src);
     if (cx == 0 || cy == 0) return false; // escena vacia o fuente sin señal
     uint32_t w = cx;
     uint32_t h = cy;
-    if (scenePreviewMaxW_ > 0 && w > static_cast<uint32_t>(scenePreviewMaxW_)) {
-        w = static_cast<uint32_t>(scenePreviewMaxW_);
+    if (maxW > 0 && w > static_cast<uint32_t>(maxW)) {
+        w = static_cast<uint32_t>(maxW);
         h = std::max<uint32_t>(1, static_cast<uint32_t>(static_cast<uint64_t>(cy) * w / cx));
     }
     bool ok = false;

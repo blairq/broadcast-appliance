@@ -640,6 +640,7 @@ void StudioViewModel::armarEscena(const QString& name) {
         return;
     }
     scenes_->setArmada(name);
+    frames_->setArmada(name); // el monitor de armada mira esta
     emit sceneChanged();
     publicarTally();
 }
@@ -658,6 +659,7 @@ void StudioViewModel::take() {
     // El plano que sale del aire queda armado: en una mesa, despues de un take
     // el preview tiene lo anterior y volver es un solo golpe.
     scenes_->setArmada(saliendo);
+    frames_->setArmada(saliendo);
     scenes_->liveChanged();
     sources_->setScene(armada);
     emit sceneChanged();

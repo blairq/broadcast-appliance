@@ -546,18 +546,36 @@ class BroadcastEngine {
     /// video de red) siguen subiendo cuadros y no hay que esperarlas en cada
     /// uno. Llamar de nuevo con otro nombre cambia de escena.
     ///
-    /// :param name: escena o fuente ("" = apaga, igual que disableScenePreview).
+    /// HAY VARIOS CANALES, y no por lujo: el editor de escenas mira la que se
+    /// esta editando y el monitor de ARMADA mira la que va a salir con el
+    /// proximo take. Son dos escenas distintas al mismo tiempo, y con un solo
+    /// canal se pisaban —abrir el editor apagaba el monitor del director, que
+    /// es exactamente cuando mas lo necesita—.
+    ///
+    /// :param canal: quien pide la vista previa ("editor", "armada"...).
+    /// :param name: escena o fuente ("" = apaga ese canal).
     /// :param maxWidth: ancho maximo del cuadro entregado.
-    bool enableScenePreview(const std::string& name, int maxWidth);
+    bool enableScenePreview(const std::string& canal, const std::string& name, int maxWidth);
+    /// Igual, sobre el canal "editor" (el historico).
+    bool enableScenePreview(const std::string& name, int maxWidth) {
+        return enableScenePreview("editor", name, maxWidth);
+    }
 
-    /// Apaga la vista previa de escena y suelta la fuente. Idempotente.
-    void disableScenePreview();
+    /// Apaga un canal de vista previa y suelta su fuente. Idempotente.
+    void disableScenePreview(const std::string& canal);
+    void disableScenePreview() { disableScenePreview("editor"); }
 
     /// Renderiza AHORA la escena de `enableScenePreview` y la deja en `dst`.
     ///
     /// :param dst: recibe RGBA empaquetado (width*4 por fila).
     /// :returns: false si no hay vista previa activa o la fuente no da imagen.
-    bool renderScenePreview(std::vector<std::uint8_t>& dst, int& width, int& height);
+    bool renderScenePreview(const std::string& canal, std::vector<std::uint8_t>& dst, int& width,
+                            int& height);
+    bool renderScenePreview(std::vector<std::uint8_t>& dst, int& width, int& height) {
+        return renderScenePreview("editor", dst, width, height);
+    }
+    /// Que escena esta mirando ese canal ("" = ninguna).
+    std::string scenePreviewName(const std::string& canal) const;
 
     /// Copia el ultimo frame de vista previa si es mas nuevo que `serial`.
     ///
@@ -690,9 +708,13 @@ class BroadcastEngine {
 
     // Vista previa del editor de escenas: la fuente queda "mostrandose"
     // mientras dura (ver enableScenePreview).
-    struct obs_source* scenePreviewSrc_ = nullptr;
-    std::string scenePreviewName_;
-    int scenePreviewMaxW_ = 0;
+    /// Un canal de vista previa: la fuente tomada y a que tamaño se entrega.
+    struct VistaPrevia {
+        struct obs_source* src = nullptr;
+        std::string name;
+        int maxW = 0;
+    };
+    std::map<std::string, VistaPrevia> scenePreviews_;
     // Picos de programa (lineales, 0..1) acumulados entre lecturas.
     std::atomic<float> peakL_{0.0f};
     std::atomic<float> peakR_{0.0f};
