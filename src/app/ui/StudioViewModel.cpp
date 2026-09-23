@@ -665,12 +665,47 @@ void StudioViewModel::take() {
     rt_.save();
 }
 
+QVariantList StudioViewModel::escenasPorCarpeta() const {
+    // MISMO ORDEN QUE LA PESTAÑA ESCENAS: primero las sueltas, después las
+    // carpetas. Agrupando en el orden crudo del modelo, las sueltas quedaban
+    // EN EL MEDIO de dos carpetas y sin título propio, o sea que parecían
+    // parte de la de arriba. Dos vistas de lo mismo con dos ordenes distintos
+    // obligan a leer en vez de reconocer.
+    //
+    // Adentro de cada grupo se respeta el orden que puso el operador:
+    // ordenarlas alfabéticamente sería desordenarlas para el que las acomodó.
+    QVariantList sueltas;
+    QVariantList carpetas;       // [{carpeta, escenas}]
+    QMap<QString, int> donde;    // carpeta -> posicion en `carpetas`
+    for (const std::string& n : rt_.orderedSceneNames()) {
+        const QString carpeta = qs(rt_.sceneFolder(n));
+        if (carpeta.isEmpty()) {
+            sueltas.append(qs(n));
+            continue;
+        }
+        if (!donde.contains(carpeta)) {
+            donde[carpeta] = static_cast<int>(carpetas.size());
+            carpetas.append(QVariantMap{{"carpeta", carpeta}, {"escenas", QVariantList{}}});
+        }
+        QVariantMap g = carpetas[donde[carpeta]].toMap();
+        QVariantList e = g.value("escenas").toList();
+        e.append(qs(n));
+        g["escenas"] = e;
+        carpetas[donde[carpeta]] = g;
+    }
+    QVariantList out;
+    if (!sueltas.isEmpty()) out.append(QVariantMap{{"carpeta", QString()}, {"escenas", sueltas}});
+    out.append(carpetas);
+    return out;
+}
+
 void StudioViewModel::addScene(const QString& name) {
     if (!rt_.addScene(name.trimmed().toStdString())) {
         emit notify(qs(rt_.lastError()), "error");
         return;
     }
     scenes_->reload();
+    emit escenasCambiaron();
     rt_.save();
 }
 
@@ -692,6 +727,7 @@ QString StudioViewModel::copyScene(const QString& from, const QString& to) {
         return {};
     }
     scenes_->reload();
+    emit escenasCambiaron();
     emit sceneChanged();
     rt_.save();
     const std::string aviso = rt_.lastError();
@@ -707,6 +743,7 @@ void StudioViewModel::setSceneProtected(const QString& name, bool protegida) {
         return;
     }
     scenes_->reload();
+    emit escenasCambiaron();
     rt_.save();
     emit notify(protegida ? "«" + name + "» protegida: no se puede borrar ni renombrar"
                           : "«" + name + "» ya no está protegida",
@@ -723,6 +760,7 @@ void StudioViewModel::removeScene(const QString& name) {
         return;
     }
     scenes_->reload();
+    emit escenasCambiaron();
     if (sources_->scene() == name) {
         sources_->setScene(currentScene());
     }
@@ -736,6 +774,7 @@ void StudioViewModel::setSceneFolder(const QString& name, const QString& folder)
         return;
     }
     scenes_->reload();
+    emit escenasCambiaron();
     emit sceneChanged();
     rt_.save();
 }
@@ -758,6 +797,7 @@ void StudioViewModel::moveScene(const QString& name, const QString& before) {
         return;
     }
     scenes_->reload();
+    emit escenasCambiaron();
     emit sceneChanged();
     rt_.save();
 }
@@ -768,6 +808,7 @@ void StudioViewModel::renameScene(const QString& from, const QString& to) {
         return;
     }
     scenes_->reload();
+    emit escenasCambiaron();
     if (sources_->scene() == from) {
         sources_->setScene(to.trimmed());
     }
@@ -785,6 +826,7 @@ void StudioViewModel::save() {
 
 void StudioViewModel::refreshModels() {
     scenes_->reload();
+    emit escenasCambiaron();
     scenes_->liveChanged();
     // Si la escena que mostraba el editor ya no existe, sigue a la del aire.
     const std::vector<std::string> names = rt_.engine().sceneNames();

@@ -238,6 +238,16 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE void take();
     QString escenaArmada() const;
 
+    /// Las escenas AGRUPADAS POR CARPETA, en el orden que puso el operador:
+    /// `[{carpeta: "", escenas: ["a", "b"]}, {carpeta: "Bloque 1", ...}]`.
+    ///
+    /// Esto se arma acá y no en QML porque desde QML no se puede recorrer un
+    /// QAbstractListModel. Devuelve SOLO la agrupación, sin decir cuál está al
+    /// aire ni cuál armada: esas dos salen de `currentScene` y `escenaArmada`,
+    /// que ya avisan cuando cambian. Metiéndolas acá habría que reconstruir la
+    /// lista entera en cada corte, y la lista no cambió.
+    Q_INVOKABLE QVariantList escenasPorCarpeta() const;
+
   private:
     /// Le manda el estado de los buses a las pantallas de tally de la sala.
     /// Se llama en cada cambio de escena y de aire: un tally que llega tarde
@@ -280,6 +290,10 @@ class StudioViewModel : public QObject {
    signals:
     void statusChanged();
     void sceneChanged();
+    /// La LISTA de escenas cambió (se agregó, borró, renombró o cambió de
+    /// carpeta). Distinta de `sceneChanged`, que es «cambió la que está al
+    /// aire»: una pasa cada pocos segundos en vivo y la otra casi nunca.
+    void escenasCambiaron();
     void seccionConfigChanged();
     void canvasChanged();
     void themeChanged();
