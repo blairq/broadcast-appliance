@@ -23,6 +23,8 @@
 //      ve todo; el mapa del initialize es el del rol; la cabecera X-BA-Rol
 //      llega por HTTP y `ba-mcp --rol` la manda.
 
+#include "mcp/McpTraza.hpp"
+
 #include <QCoreApplication>
 #include <QEventLoop>
 #include <QNetworkAccessManager>
@@ -504,6 +506,21 @@ int main(int argc, char** argv) {
         out += bridge.readAllStandardOutput();
         CHECK(out.contains("\"echo\"") && !out.contains("\"ajeno\""), "ba-mcp --rol se presenta con el rol");
         core.setRoles({}, {});
+    }
+
+    // La traza no puede romper lo que registra. Un texto con acentos cortado
+    // en el byte 180 cae en medio de un caracter UTF-8; nlohmann lanza al
+    // serializarlo, y esa excepcion salia por la RESPUESTA del servidor: una
+    // llamada buena contestaba «error interno» porque no se podia escribir el
+    // registro.
+    {
+        std::string largo(178, 'x');
+        largo += "ñáé—…"; // multibyte justo donde cae el corte
+        const std::string r = Traza::resumir(json{{"t", largo}});
+        CHECK(!r.empty(), "resumir un texto con acentos no revienta");
+        CHECK(r.find("no se pudo resumir") == std::string::npos,
+              "y no cae en el camino de emergencia");
+        CHECK(json(r).dump().size() > 0, "lo que sale se puede serializar");
     }
 
     if (g_failures == 0) {

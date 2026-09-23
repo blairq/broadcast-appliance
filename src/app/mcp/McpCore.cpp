@@ -6,6 +6,7 @@
 
 #include "mcp/McpEtiquetas.hpp"
 #include "mcp/McpIndice.hpp"
+#include "mcp/McpTraza.hpp"
 
 #include <chrono>
 
@@ -211,7 +212,7 @@ McpCore::McpCore() {
     search.examples = {R"({"query": "poner un texto en pantalla"})",
                        R"({"query": "ver la camara de un invitado"})"};
     search.run = [this](const json& a, Done done) {
-        const json hits = this->search(a.value("query", ""));
+        const json hits = this->search(a.value("query", ""), enCurso_.rol);
         if (hits.empty()) {
             done(ToolResult::ok("Sin coincidencias. Proba con otras palabras o llama `help` para ver todo."));
             return;
@@ -445,9 +446,34 @@ void McpCore::handleOne(const json& msg, std::function<void(json)> reply, const 
     const json params = msg.value("params", json::object());
     if (!isRequest) {
         // Notificaciones (initialized, cancelled, roots/list_changed...): sin respuesta.
+        Traza::la().anotar("   · " + method + " (aviso) " + Traza::resumir(params));
         reply(json());
         return;
     }
+    // TODO lo que entra y sale queda escrito, con sus argumentos y su
+    // respuesta. Ver McpTraza.hpp: sin esto, «lo acepte y no lo metio a la
+    // sala» no se puede contestar mirando ningun archivo.
+    const std::string quien = ctx.rol.empty() ? std::string() : " [" + ctx.rol + "]";
+    const std::string etiqueta =
+        method + (method == "tools/call" && params.contains("name") && params["name"].is_string()
+                      ? ":" + params["name"].get<std::string>()
+                      : std::string()) +
+        quien;
+    Traza::la().anotar("--> " + etiqueta + " id=" + id.dump() + " " + Traza::resumir(params));
+    const auto arranque = std::chrono::steady_clock::now();
+    reply = [reply, etiqueta, id, arranque](json r) {
+        const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                            std::chrono::steady_clock::now() - arranque)
+                            .count();
+        // `isError` de una herramienta viaja DENTRO del resultado: un fallo de
+        // herramienta es una respuesta valida de JSON-RPC. Si solo se mirara
+        // `error`, la traza diria «OK» de cada herramienta que fallo.
+        const bool fallo = r.contains("error") ||
+                           (r.contains("result") && r["result"].value("isError", false));
+        Traza::la().anotar((fallo ? "<-- FALLO " : "<-- ok    ") + etiqueta + " id=" + id.dump() +
+                           " (" + std::to_string(ms) + " ms) " + Traza::resumir(r));
+        reply(std::move(r));
+    };
     try {
         if (method == "initialize") {
             reply(rpcResult(id, initializeResult(params, ctx)));
@@ -553,6 +579,21 @@ json McpCore::toolListEntry(const Tool& t) const {
     return e;
 }
 
+namespace {
+/// El primer texto de una respuesta, para la linea del registro. Cuando una
+/// herramienta falla, el motivo esta ahi: sin el, el registro dice «FALLO» y
+/// hay que abrir la traza para saber por que.
+std::string primerTexto(const ToolResult& r) {
+    for (const auto& c : r.content)
+        if (c.value("type", "") == "text") {
+            std::string t = c.value("text", std::string());
+            if (t.size() > 200) t = t.substr(0, 200) + "…";
+            return t;
+        }
+    return {};
+}
+} // namespace
+
 void McpCore::callTool(const json& params, std::function<void(json)> done, const CallContext& ctx) {
     const std::string name = params["name"].get<std::string>();
     const json args = params.contains("arguments") && params["arguments"].is_object() ? params["arguments"]
@@ -564,10 +605,18 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
     };
     const Tool* tool = findTool(name);
     if (tool == nullptr) {
-        const json hits = search(name);
+        const json hits = search(name, ctx.rol);
         std::string hint;
         for (const auto& h : hits)
             if (h["kind"] == "herramienta") hint += " " + h["id"].get<std::string>();
+        // Al registro general TAMBIEN, y como aviso: que alguien pida una
+        // herramienta que no existe casi siempre quiere decir que falta
+        // registrarla, no que el que llamo se equivoco. Eso hay que verlo sin
+        // tener que abrir la traza.
+        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "mcp", 0,
+                                   "NO EXISTE la herramienta '" + name + "'" +
+                                       (ctx.rol.empty() ? "" : " [" + ctx.rol + "]") +
+                                       (hint.empty() ? "" : " (parecidas:" + hint + ")"));
         finish(ToolResult::error("No existe la herramienta '" + name + "'." +
                                  (hint.empty() ? "" : " ¿Quisiste decir:" + hint + "?") +
                                  " `help` lista todas."));
@@ -611,6 +660,12 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
     const bool untrustedOut = tool->untrustedOutput;
     const bool modifica = mutating(*tool);
     const auto execute = [this, tool, args, finish, session, untrustedOut, name, modifica, ctx]() {
+        // QUIEN ESTA LLAMANDO, mientras dura la llamada. Se limpiaba al final
+        // pero no se ponia nunca, asi que `contextoEnCurso()` siempre devolvia
+        // vacio: el buscador no filtraba por rol y el cerrojo de imagenes no
+        // dejaba pasar ninguna, ni siquiera al rol que mira. Un campo que solo
+        // se limpia es un campo que no existe.
+        enCurso_ = ctx;
         auto called = std::make_shared<bool>(false);
         // TODO lo que entra por MCP queda escrito. Es el plano de control del
         // aparato —por acá cambian escenas, salidas y pantallas, y a veces lo
@@ -622,9 +677,12 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
         // un `status` cada dos segundos ahogaria el registro a nivel normal.
         const auto arranque = std::chrono::steady_clock::now();
         const std::string quien = ctx.rol.empty() ? std::string() : " [" + ctx.rol + "]";
+        // Los argumentos van en la linea: «audio_set FALLO» sin decir de que
+        // canal ni a que valor no sirve para entender nada despues.
+        const std::string resumenArgs = Traza::resumir(args, 220);
         try {
             tool->run(args, [this, finish, called, session, untrustedOut, name, modifica, arranque,
-                             quien](ToolResult r) {
+                             quien, resumenArgs](ToolResult r) {
                 if (*called) return; // una sola respuesta por pedido
                 *called = true;
                 const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -635,7 +693,8 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
                                                           : ba::diag::Nivel::Depuracion,
                                            "mcp", 0,
                                            name + quien + (r.isError ? " FALLO" : "") + " (" +
-                                               std::to_string(ms) + " ms)");
+                                               std::to_string(ms) + " ms) " + resumenArgs +
+                                               (r.isError ? " -> " + primerTexto(r) : ""));
                 if (untrustedOut || r.untrusted) taint(session, name);
                 // Si modifico algo y salio bien, las vistas se enteran ANTES de
                 // que se conteste: asi no hay un instante en el que el
@@ -840,13 +899,24 @@ void McpCore::armarIndice() const {
     indiceDe_ = tools_.size() + topics_.size();
 }
 
-json McpCore::search(const std::string& query) const {
+json McpCore::search(const std::string& query, const std::string& rol) const {
     // Se arma una sola vez, y se rearma si aparecieron herramientas nuevas
     // (las extensiones se registran despues del arranque).
     if (!indice_ || indiceDe_ != tools_.size() + topics_.size()) armarIndice();
     json out = json::array();
-    for (const Resultado& r : indice_->buscar(query, 12)) {
+    // PRIMERO EL GRUPO, DESPUES LA BUSQUEDA. Buscar sobre todo y despues
+    // contestarle a un rol cosas que no puede llamar es peor que inutil: el rol
+    // `vision` —que solo mira imagenes— recibia `audio_eq` y `audio_module_add`
+    // como respuesta, y si las intentaba rebotaban. Ademas le gasta el lugar a
+    // las que si puede usar, que es justo lo que se esta tratando de cuidar.
+    // Se pide de mas al indice porque el filtro saca de la lista.
+    for (const Resultado& r : indice_->buscar(query, rol.empty() ? 12 : 40)) {
         const Documento& d = indice_->doc(r.doc);
+        if (!rol.empty() && d.clase == "herramienta") {
+            const Tool* t = findTool(d.id);
+            if (t == nullptr || !permitida(*t, rol)) continue;
+        }
+        if (out.size() >= 12) break;
         out.push_back(json{{"kind", d.clase},
                            {"id", d.id},
                            {"title", d.titulo},

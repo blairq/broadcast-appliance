@@ -226,7 +226,10 @@ class McpCore {
     /// Las mejores coincidencias para esa consulta, por el indice invertido
     /// (ver McpIndice.hpp). Cada una trae `porque`: los terminos que
     /// engancharon, para poder corregir la busqueda en vez de adivinar.
-    json search(const std::string& query) const;
+    /// Busca en el indice. Con `rol`, SOLO lo que ese rol puede llamar: ver el
+    /// comentario en el .cpp —contestarle a un rol herramientas que le van a
+    /// rebotar le gasta el lugar a las que si puede usar—.
+    json search(const std::string& query, const std::string& rol = {}) const;
 
     const std::vector<Tool>& tools() const { return tools_; }
     /// (id, titulo) de cada categoria, en orden.

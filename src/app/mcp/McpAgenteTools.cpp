@@ -33,7 +33,8 @@ void McpService::registerAgenteTools() {
         t.title = "Roles automaticos";
         t.category = "agentes";
         t.readOnly = true;
-        t.description = "Los roles con su estado: activo, proveedor y modelo, que categorias ven, que "
+        t.description = "SOLO CONSULTA (no le encarga nada a nadie; para eso es `agente_encargar`). "
+                        "Los roles con su estado: activo, proveedor y modelo, que categorias ven, que "
                         "disparadores atienden, si tienen una corrida en curso o en cola.";
         t.run = [&d](const json&, Done done) {
             json r = d.roles().aJson();
@@ -177,7 +178,11 @@ void McpService::registerAgenteTools() {
     }
 
     // --- El juego de herramientas de cada rol, y lo que el sistema le arma ------
-    core_.setRoles(d.roles().categoriasPorRol(), agent::Roles::comunes());
+    // Con el del asistente interactivo, que NO es un rol despachable: es el
+    // mismo filtro por categorias con otro nombre. Ver Roles::juegoDelAsistente.
+    auto juegos = d.roles().categoriasPorRol();
+    juegos["asistente"] = agent::Roles::juegoDelAsistente();
+    core_.setRoles(std::move(juegos), agent::Roles::comunes());
 
     // Quien esta en la sala, para la recepcion: adentro y esperando, con ids.
     d.setContexto("recepcion", [this]() {

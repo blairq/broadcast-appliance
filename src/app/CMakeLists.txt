@@ -343,7 +343,7 @@ if(BA_APP_QT_OK)
     endif()
     install(TARGETS ba-mcp RUNTIME DESTINATION bin/64bit)
     add_executable(test_mcp tests/test_mcp.cpp mcp/McpCore.cpp mcp/McpHttp.cpp mcp/McpIndice.cpp
-                   mcp/McpEtiquetas.cpp)
+                   mcp/McpEtiquetas.cpp mcp/McpTraza.cpp)
     target_include_directories(test_mcp PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_mcp PRIVATE ba_core Qt6::Core Qt6::Network)
     target_compile_definitions(test_mcp PRIVATE BA_MCP_BRIDGE="$<TARGET_FILE:ba-mcp>")
@@ -355,6 +355,10 @@ if(BA_APP_QT_OK)
     # pediria con SUS palabras, y que ninguna herramienta quede sin etiquetar.
     add_executable(test_mcp_busqueda tests/test_mcp_busqueda.cpp mcp/McpIndice.cpp mcp/McpEtiquetas.cpp)
     target_include_directories(test_mcp_busqueda PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_mcp_busqueda PRIVATE nlohmann_json::nlohmann_json)
+    # El corpus de preguntas lo comparten este test y tools/bateria-modelo.py.
+    target_compile_definitions(test_mcp_busqueda PRIVATE
+        BA_CORPUS_PREGUNTAS="${CMAKE_CURRENT_SOURCE_DIR}/tests/datos/preguntas.json")
     add_test(NAME test_mcp_busqueda COMMAND test_mcp_busqueda)
 
     # YouTube: cliente OAuth + Data API contra un Google falso, y HTTPS real.
