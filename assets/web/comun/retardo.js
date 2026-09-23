@@ -27,28 +27,38 @@
   window.BARetardo = {
     /// :param r: un RTCRtpReceiver.
     /// :param ms: milisegundos a retener (0 = lo menos posible).
-    /// :returns: lo que quedó puesto, o null si el navegador no la conoce.
+    /// :returns: el nombre de la perilla que el navegador SÍ tiene
+    ///           ("jitterBufferTarget" | "playoutDelayHint"), o null si no
+    ///           tiene ninguna.
     aplicar(r, ms) {
       if (!r) return null;
-      try { r.jitterBufferTarget = ms; } catch (e) {}
-      try { r.playoutDelayHint = ms / 1000; } catch (e) {}
-      try {
-        if (typeof r.jitterBufferTarget === "number") return r.jitterBufferTarget;
-        if (typeof r.playoutDelayHint === "number") return r.playoutDelayHint * 1000;
-      } catch (e) {}
-      return null;
+      // OJO CON COMO SE PREGUNTA. Asignarle a un objeto una propiedad que no
+      // conoce no falla: JavaScript se la inventa, y leerla después devuelve
+      // el valor que uno mismo puso. O sea que «asigno y leo de vuelta» le da
+      // que sí a CUALQUIER navegador, incluso a uno que no tiene la perilla.
+      // Eso hizo dar por cerrado un tema que estaba abierto. Hay que
+      // preguntar por la cadena de prototipos ANTES de escribir, que es lo
+      // único que distingue una perilla de verdad de una inventada.
+      let cual = null;
+      if ("jitterBufferTarget" in r) {
+        try { r.jitterBufferTarget = ms; cual = "jitterBufferTarget"; } catch (e) {}
+      }
+      if ("playoutDelayHint" in r) {
+        try { r.playoutDelayHint = ms / 1000; if (!cual) cual = "playoutDelayHint"; } catch (e) {}
+      }
+      return cual;
     },
 
-    /// A todos los receivers de una PeerConnection. Devuelve lo que quedó
-    /// puesto en el último que la conocía (null si ninguno).
+    /// A todos los receivers de una PeerConnection. Devuelve el nombre de la
+    /// perilla que se pudo usar, o null si este navegador no tiene ninguna.
     aTodos(pc, ms) {
-      let puesto = null;
+      let cual = null;
       if (!pc || !pc.getReceivers) return null;
       for (const r of pc.getReceivers()) {
         const v = this.aplicar(r, ms);
-        if (v !== null) puesto = v;
+        if (v !== null) cual = v;
       }
-      return puesto;
+      return cual;
     },
   };
 })();

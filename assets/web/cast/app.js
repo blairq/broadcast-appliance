@@ -239,25 +239,40 @@
     try {
       const stats = await st.pc.getStats();
       let txt = "";
-      const m = { fps: 0, buffer: 0, jitter: 0, perdidos: 0, rtt: 0 };
+      // `null` y `0` NO son lo mismo y confundirlos manda a buscar del lado
+      // equivocado: un televisor que no informa una medida se lee igual que
+      // uno que la informa en cero. Lo que el navegador no diga queda en null
+      // y se muestra como «?».
+      const m = { fps: 0, buffer: null, jitter: 0, perdidos: 0, rtt: null, proceso: null };
+      const prom = (total, cuenta) =>
+          typeof total === "number" && typeof cuenta === "number" && cuenta > 0
+              ? Math.round(1000 * total / cuenta)
+              : null;
       stats.forEach((r) => {
-        if (r.type === "candidate-pair" && r.nominated && r.currentRoundTripTime)
+        if (r.type === "candidate-pair" && r.nominated && typeof r.currentRoundTripTime === "number")
           m.rtt = Math.round(r.currentRoundTripTime * 1000);
         if (r.type !== "inbound-rtp") return;
-        const buffer = 1000 * (r.jitterBufferDelay || 0) / (r.jitterBufferEmittedCount || 1);
+        const buffer = prom(r.jitterBufferDelay, r.jitterBufferEmittedCount);
         if (r.kind === "video") {
           m.fps = r.framesPerSecond || 0;
-          m.buffer = Math.round(buffer);
+          m.buffer = buffer;
           m.jitter = Math.round((r.jitter || 0) * 1000);
           m.perdidos = r.packetsLost || 0;
+          // Lo que tarda ESTE aparato desde que le llega el paquete hasta que
+          // tiene el cuadro listo: decodificar mas lo suyo. Es el unico
+          // numero que separa «llega tarde» de «tarda en mostrarlo», y en un
+          // televisor la diferencia es toda la diferencia.
+          m.proceso = prom(r.totalProcessingDelay, r.framesDecoded);
         }
         txt += `${r.kind}  ${r.framesPerSecond || 0} fps  perdidos ${r.packetsLost || 0}\n` +
-               `  buffer ${buffer.toFixed(0)} ms` +
+               `  buffer ${buffer === null ? "?" : buffer} ms` +
                `  jitter ${((r.jitter || 0) * 1000).toFixed(0)} ms\n`;
       });
       st.medida = m;
       if (hud) {
-        $("hud").textContent = (txt || "sin datos") + `ida y vuelta ${m.rtt} ms\n`;
+        $("hud").textContent = (txt || "sin datos") +
+            `ida y vuelta ${m.rtt === null ? "?" : m.rtt} ms\n` +
+            `proceso del aparato ${m.proceso === null ? "?" : m.proceso} ms\n`;
         $("hud").classList.remove("oculto");
       }
     } catch (e) { /* getStats puede no estar en un televisor viejo */ }
@@ -285,11 +300,14 @@
         // Se dice si la perilla del retardo EXISTE en este navegador: un
         // televisor viejo que no la conoce se ve igual que uno que la tiene
         // puesta, y eso hace perder horas buscando del lado equivocado.
-        const perilla = st.retardoPuesto === null ? " · sin perilla de retardo"
-                                                  : " · pedido " + st.retardoPuesto + " ms";
-        const como = m ? " · " + m.fps + " fps · buffer " + m.buffer + " ms · ida y vuelta " +
-                         m.rtt + " ms" + (m.perdidos > 0 ? " · " + m.perdidos + " perdidos" : "") +
-                         perilla
+        const perilla = st.retardoPuesto === null
+            ? " · SIN perilla de retardo (navegador viejo)"
+            : " · " + st.retardoPuesto + "=" + bufferMs + " ms";
+        const n = (v, u) => (v === null ? "?" : v + " " + u);
+        const como = m ? " · " + m.fps + " fps · buffer " + n(m.buffer, "ms") +
+                         " · proceso " + n(m.proceso, "ms") +
+                         " · ida y vuelta " + n(m.rtt, "ms") +
+                         (m.perdidos > 0 ? " · " + m.perdidos + " perdidos" : "") + perilla
                        : "";
         if (q > 0) return "al aire · " + q + " cuadros · " + cs + como;
         return "sin imagen · " + cs + como;
