@@ -34,9 +34,13 @@ Panel {
     readonly property var ag: Studio.agent
     readonly property bool listo: ag.running
 
-    // Alto fijo: la barra no puede crecer y achicar la pagina cada vez que
-    // se cambia de pantalla. Con sugerencias entran dos filas.
-    implicitHeight: sugerencias.length > 0 && listo ? 104 : 64
+    // El alto SALE DEL CONTENIDO, no de un numero escrito a mano. Estaba en 64
+    // y no cerraba: Panel ya mete su contenido 16 px, esta barra le sumaba 10
+    // mas, y quedaban 26 px arriba de la fila y ninguno abajo —el cuadro de
+    // texto terminaba pegado al borde de abajo—. Dos margenes y un alto fijo
+    // que hay que mantener de acuerdo a mano se desacomodan a la primera.
+    padding: 10
+    implicitHeight: cuerpo.implicitHeight + 2 * padding
 
     signal mandado(string texto)
 
@@ -49,7 +53,8 @@ Panel {
     }
 
     ColumnLayout {
-        anchors { fill: parent; margins: 10 }
+        id: cuerpo
+        anchors.fill: parent // el margen ya lo puso Panel (`padding`)
         spacing: 6
 
         RowLayout {
