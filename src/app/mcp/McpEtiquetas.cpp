@@ -113,6 +113,8 @@ const Fila kPropias[] = {
     {"audio_sincro", "sincronizar labios desfase desfasado desincronizado adelantado atrasado "
                      "delay offset demora retardo la voz no coincide con la imagen"},
     {"audio_sources", "que fuentes de audio hay listar canales"},
+    {"audio_escuchar", "pfl solo escuchar previo monitorear probar un microfono antes de abrirlo "
+                       "auriculares cascos oir sin sacar al aire"},
     {"audio_devices", "placa de sonido microfono dispositivo entrada salida hardware"},
     {"audio_input_add", "agregar microfono entrada de audio linea"},
     {"audio_rack", "rack cadena procesamiento efectos de un canal"},

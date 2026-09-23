@@ -1023,6 +1023,24 @@ bool BroadcastEngine::sourceMuted(const std::string& name) const {
     return src != nullptr && obs_source_muted(reinterpret_cast<obs_source_t*>(src));
 }
 
+bool BroadcastEngine::setSourceMonitoring(const std::string& name, bool on) {
+    obs_source* src = ownedSource(name);
+    if (src == nullptr) {
+        return false;
+    }
+    // MONITOR_AND_OUTPUT y NO MONITOR_ONLY: ver el porque en el .hpp.
+    obs_source_set_monitoring_type(reinterpret_cast<obs_source_t*>(src),
+                                   on ? OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT
+                                      : OBS_MONITORING_TYPE_NONE);
+    return true;
+}
+
+bool BroadcastEngine::sourceMonitoring(const std::string& name) const {
+    obs_source* src = ownedSource(name);
+    return src != nullptr && obs_source_get_monitoring_type(reinterpret_cast<obs_source_t*>(src)) !=
+                                 OBS_MONITORING_TYPE_NONE;
+}
+
 float BroadcastEngine::sourcePeakDb(const std::string& name) const {
     for (const auto& m : meters_) {
         if (m.first == name) {

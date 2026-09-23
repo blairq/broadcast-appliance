@@ -326,6 +326,20 @@ class BroadcastEngine {
     /// Pico mas reciente de la fuente en dBFS (-100 = silencio).
     float sourcePeakDb(const std::string& name) const;
 
+    /// Escuchar una fuente por el monitor del operador (PFL), SIN cambiar lo
+    /// que sale al aire.
+    ///
+    /// OJO CON EL MODO. libobs tiene MONITOR_ONLY, que parece el indicado
+    /// —«solo monitoreo»— y es justo el que no hay que usar: SACA la fuente de
+    /// la mezcla, o sea que escuchar un microfono lo bajaria del aire. Se usa
+    /// MONITOR_AND_OUTPUT: se escucha y lo que sale sigue saliendo. Escuchar
+    /// no puede cambiar lo que se emite; esa es toda la idea de un PFL.
+    ///
+    /// Que se oiga depende de que haya monitor configurado en el sistema de
+    /// audio; sin monitor, esto no falla pero tampoco suena.
+    bool setSourceMonitoring(const std::string& name, bool on);
+    bool sourceMonitoring(const std::string& name) const;
+
     /// Atrasa el audio de una fuente para que coincida con su video.
     ///
     /// Es lo que hace falta con una camara IP: el video llega 200 ms a 2 s

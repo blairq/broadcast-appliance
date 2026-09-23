@@ -1222,7 +1222,8 @@ void McpService::registerTools() {
         t.category = "audio";
         t.readOnly = true;
         t.description =
-            "Fuentes de audio con volumen (dB), silencio y nivel pico actual (dBFS), mas el nivel del "
+            "Fuentes de audio con volumen (dB), silencio, si se esta escuchando por el monitor "
+            "(`escuchando`, ver audio_escuchar) y nivel pico actual (dBFS), mas el nivel del "
             "programa. -100 = silencio; cerca de 0 = saturando.";
         t.run = [&rt, &vm](const json&, Done done) {
             json out = json::array();
@@ -1231,6 +1232,11 @@ void McpService::registerTools() {
                 out.push_back(json{{"name", n},
                                    {"volumeDb", mul > 0 ? 20.0 * std::log10(mul) : -100.0},
                                    {"muted", rt.engine().sourceMuted(n)},
+                                   // Cual se esta escuchando por el monitor
+                                   // (audio_escuchar). Sin esto el PFL es
+                                   // invisible: queda una fuente sonando en
+                                   // los auriculares y nadie sabe cual.
+                                   {"escuchando", rt.engine().sourceMonitoring(n)},
                                    {"peakDb", rt.engine().sourcePeakDb(n)}});
             }
             done(ToolResult().data(
@@ -1264,6 +1270,57 @@ void McpService::registerTools() {
                     ToolResult::error("No existe la fuente de audio '" + n + "' (mixer_list las muestra)."));
             persist();
             done(ToolResult::ok("Audio de '" + n + "' actualizado."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "audio_escuchar";
+        t.title = "Escuchar una fuente por el monitor (PFL), sin tocar el aire";
+        t.category = "audio";
+        t.description =
+            "Manda una fuente de audio al monitor del operador para escucharla. NO cambia lo que sale "
+            "al aire: lo que estaba saliendo sigue saliendo igual.";
+        t.details =
+            "Es el PFL de una consola: antes de abrir un microfono se lo escucha para ver si esta ahi, "
+            "si zumba, si el invitado ya volvio. Sin esto habia que ponerlo al aire para enterarse.\n\n"
+            "Es EXCLUSIVO, como el solo de una mesa: escuchar una apaga la anterior. Sin argumentos "
+            "apaga la que este sonando.\n\n"
+            "OJO: una fuente SILENCIADA (`audio_set muted`) no suena ni por el monitor —en libobs el "
+            "silencio es antes de todo—. Para probar un microfono cerrado hay que quitarle el silencio "
+            "y bajarle el volumen, no silenciarlo.\n\n"
+            "Que se oiga depende de que el equipo tenga un monitor de audio configurado; sin monitor "
+            "esto no falla pero tampoco suena. `audio_sources` dice cual se esta escuchando.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"name", {{"type", "string"}, {"description", "la fuente; vacio o sin esto = apagar"}}},
+              {"escuchar", {{"type", "boolean"}, {"description", "false para apagar esta (por defecto true)"}}}}}};
+        t.examples = {R"({"name": "Microfono del atril"})", R"({})"};
+        t.run = [&rt](const json& a, Done done) {
+            const std::string n = a.value("name", std::string());
+            const bool on = a.value("escuchar", true) && !n.empty();
+            // Exclusivo: se apagan todas y se prende la pedida. Asi «escuchar»
+            // siempre quiere decir lo mismo, y nunca quedan dos sonando juntas
+            // sin que nadie se acuerde de la primera.
+            std::vector<std::string> apagadas;
+            for (const std::string& f : rt.engine().audioSources()) {
+                if (f == n && on) continue;
+                if (rt.engine().sourceMonitoring(f)) {
+                    rt.engine().setSourceMonitoring(f, false);
+                    apagadas.push_back(f);
+                }
+            }
+            if (!on) {
+                return done(ToolResult::ok(apagadas.empty()
+                                               ? "No se estaba escuchando ninguna."
+                                               : "Dejo de escucharse: " + apagadas.front() + "."));
+            }
+            if (!rt.engine().setSourceMonitoring(n, true))
+                return done(ToolResult::error("No existe la fuente de audio '" + n +
+                                              "' (audio_sources las lista)."));
+            done(ToolResult::ok("Escuchando «" + n + "» por el monitor. Lo que sale al aire no cambio." +
+                                (apagadas.empty() ? "" : " (se dejo de escuchar " + apagadas.front() + ")")));
         };
         core_.addTool(std::move(t));
     }
