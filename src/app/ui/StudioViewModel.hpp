@@ -85,6 +85,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(double programPeakR READ programPeakR NOTIFY statusChanged)
     Q_PROPERTY(QString currentScene READ currentScene NOTIFY sceneChanged)
     Q_PROPERTY(QString transitionType READ transitionType NOTIFY sceneChanged)
+    /// La escena ARMADA (la que sale con el proximo TAKE). Vacia = ninguna.
+    Q_PROPERTY(QString escenaArmada READ escenaArmada NOTIFY sceneChanged)
     Q_PROPERTY(double canvasAspect READ canvasAspect NOTIFY canvasChanged)
     Q_PROPERTY(QString canvasLabel READ canvasLabel NOTIFY canvasChanged)
     Q_PROPERTY(QString streamServer READ streamServer NOTIFY statusChanged)
@@ -218,7 +220,23 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE void toggleRecording();
     Q_INVOKABLE void startStreaming(const QString& server, const QString& key);
     Q_INVOKABLE void stopStreaming();
+    // --- Bus de preview y TAKE ------------------------------------------------
+    // Una mesa de switcher tiene DOS buses: lo que esta al aire (programa) y lo
+    // que va a salir (preview). El operador arma el proximo plano, lo MIRA, y
+    // recien ahi hace TAKE. Sin eso, cada cambio de plano es a ciegas y en
+    // vivo: lo que esta roto se descubre cuando ya salio.
+    //
+    // `takeScene` sigue estando y sigue yendo directo al aire: hay momentos en
+    // los que hay que cortar YA y pedir dos pasos seria peor.
     Q_INVOKABLE void takeScene(const QString& name);
+    /// Arma una escena en el bus de preview (NO la pone al aire).
+    Q_INVOKABLE void armarEscena(const QString& name);
+    /// Pone al aire la escena armada, con la transicion configurada.
+    ///
+    /// Y deja armada la que SALIO del aire, como cualquier mesa: despues de un
+    /// take, el bus de preview queda con el plano anterior, listo para volver.
+    Q_INVOKABLE void take();
+    QString escenaArmada() const;
     Q_INVOKABLE void addScene(const QString& name);
     Q_INVOKABLE void removeScene(const QString& name);
     Q_INVOKABLE void renameScene(const QString& from, const QString& to);

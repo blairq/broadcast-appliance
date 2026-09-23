@@ -609,6 +609,39 @@ void StudioViewModel::takeScene(const QString& name) {
     rt_.save();
 }
 
+QString StudioViewModel::escenaArmada() const { return scenes_->armada(); }
+
+void StudioViewModel::armarEscena(const QString& name) {
+    if (name == qs(rt_.engine().currentScene())) {
+        // Armar lo que ya esta al aire deja el TAKE sin sentido (cortaria a lo
+        // mismo). Se avisa en vez de aceptarlo callado.
+        emit notify("«" + name + "» ya está al aire: armá otra para el próximo take.", "aviso");
+        return;
+    }
+    scenes_->setArmada(name);
+    emit sceneChanged();
+}
+
+void StudioViewModel::take() {
+    const QString armada = scenes_->armada();
+    if (armada.isEmpty()) {
+        emit notify("No hay ninguna escena armada: elegí una en el bus de preview.", "aviso");
+        return;
+    }
+    const QString saliendo = qs(rt_.engine().currentScene());
+    if (!rt_.setScene(armada.toStdString())) {
+        emit notify(qs(rt_.lastError()), "error");
+        return;
+    }
+    // El plano que sale del aire queda armado: en una mesa, despues de un take
+    // el preview tiene lo anterior y volver es un solo golpe.
+    scenes_->setArmada(saliendo);
+    scenes_->liveChanged();
+    sources_->setScene(armada);
+    emit sceneChanged();
+    rt_.save();
+}
+
 void StudioViewModel::addScene(const QString& name) {
     if (!rt_.addScene(name.trimmed().toStdString())) {
         emit notify(qs(rt_.lastError()), "error");

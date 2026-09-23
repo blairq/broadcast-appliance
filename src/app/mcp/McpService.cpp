@@ -489,16 +489,21 @@ void McpService::registerTools() {
         t.description =
             "Todas las escenas con sus fuentes (de abajo hacia arriba), cual esta al aire y en que "
             "carpeta esta cada una (`folder`, \"\" = suelta). Las carpetas solo ordenan la lista de la "
-            "pestaña Escenas: no cambian nada de la emision.";
-        t.run = [&rt](const json&, Done done) {
+            "pestaña Escenas: no cambian nada de la emision.\n\n"
+            "`live` es la que esta AL AIRE; `armada` es la del bus de preview, la que sale con el "
+            "proximo `scene_take`. Son los dos buses de una mesa de switcher.";
+        t.run = [&rt, &vm](const json&, Done done) {
+            const QString armada = vm.escenaArmada();
             json scenes = json::array();
             for (const std::string& n : rt.orderedSceneNames()) {
                 scenes.push_back(json{{"name", n},
                                       {"live", n == rt.engine().currentScene()},
+                                      {"armada", QString::fromStdString(n) == armada},
                                       {"folder", rt.sceneFolder(n)},
                                       {"sources", rt.engine().sceneSources(n)}});
             }
             done(ToolResult().data(json{{"current", rt.engine().currentScene()},
+                                        {"armada", armada.toStdString()},
                                         {"folders", rt.sceneFolders()},
                                         {"scenes", scenes}}));
         };
@@ -552,11 +557,16 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "scene_switch";
-        t.title = "Poner una escena al aire";
+        t.title = "Poner una escena al aire (corte directo)";
         t.category = "escenas";
         t.description =
             "Cambia la escena del programa (con la transicion configurada). Lo que se ve y oye en la "
-            "transmision cambia en el acto.";
+            "transmision cambia EN EL ACTO, sin pasar por el bus de preview.";
+        t.details =
+            "Es el corte de urgencia: sale ya. Para lo demas, la forma de trabajar de una mesa es "
+            "`scene_preview` (armar el proximo plano) -> mirarlo con `capture_source` -> `scene_take`. "
+            "Dos pasos parece mas lento y es al reves: lo que esta roto se ve ANTES de salir al aire, "
+            "no despues.";
         t.inputSchema = {
             {"type", "object"},
             {"properties", {{"name", {{"type", "string"}, {"description", "Nombre de la escena."}}}}},
@@ -569,6 +579,61 @@ void McpService::registerTools() {
             if (rt.engine().currentScene() != name)
                 return done(ToolResult::error("No se pudo: " + rt.lastError()));
             done(ToolResult::ok("Al aire: " + name));
+        };
+        core_.addTool(std::move(t));
+    }
+    // --- El bus de preview: armar, mirar, TAKE --------------------------------
+    {
+        Tool t;
+        t.name = "scene_preview";
+        t.title = "Armar la proxima escena (sin sacarla al aire)";
+        t.category = "escenas";
+        t.description =
+            "Pone una escena en el bus de PREVIEW: queda armada para el proximo `scene_take`. NO cambia "
+            "lo que se ve en la transmision.";
+        t.details =
+            "Asi se opera una mesa de switcher: se arma el proximo plano, se MIRA (`capture_source` con "
+            "el mismo nombre da la foto de como va a salir), y recien ahi `scene_take`.\n\n"
+            "Armar la escena que YA esta al aire no tiene sentido (el take cortaria a lo mismo) y se "
+            "rechaza.\n\n"
+            "`scene_list` dice cual esta armada y cual al aire.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"name", {{"type", "string"}}}}},
+                         {"required", {"name"}}};
+        t.examples = {R"({"name": "06 Debate invitados"})"};
+        t.run = [&rt, &vm, sceneExists, noScene](const json& a, Done done) {
+            const std::string name = a["name"];
+            if (!sceneExists(name)) return done(noScene(name));
+            vm.armarEscena(QString::fromStdString(name));
+            if (vm.escenaArmada().toStdString() != name)
+                return done(ToolResult::error("No se armo: «" + name + "» ya esta al aire."));
+            done(ToolResult::ok("Armada: " + name +
+                                ". Mirala con capture_source y sacala con scene_take."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "scene_take";
+        t.title = "TAKE: sacar al aire la escena armada";
+        t.category = "escenas";
+        t.description =
+            "Pone al aire la escena que estaba armada en el bus de preview, con la transicion "
+            "configurada. Deja armada la que salia, para poder volver de un golpe.";
+        t.details = "Sin nada armado no hace nada y lo dice: armar primero con `scene_preview`.\n\n"
+                    "Que el plano que SALE del aire quede armado es como funciona cualquier mesa: "
+                    "despues de un take, volver a lo anterior es un solo take mas.";
+        t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
+        t.run = [&rt, &vm](const json&, Done done) {
+            const QString armada = vm.escenaArmada();
+            if (armada.isEmpty())
+                return done(ToolResult::error(
+                    "No hay nada armado. Arma el proximo plano con scene_preview {\"name\": ...}."));
+            vm.take();
+            if (rt.engine().currentScene() != armada.toStdString())
+                return done(ToolResult::error("No se pudo: " + rt.lastError()));
+            done(ToolResult::ok("AL AIRE: " + armada.toStdString() + ". Queda armada: " +
+                                vm.escenaArmada().toStdString() + "."));
         };
         core_.addTool(std::move(t));
     }

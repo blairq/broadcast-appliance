@@ -2,6 +2,7 @@
 // src/app/ui/DashboardModel.cpp — ver DashboardModel.hpp
 // ============================================================================
 
+#include <QSizeF>
 #include "ui/DashboardModel.hpp"
 
 #include <QFile>
@@ -250,11 +251,27 @@ int DashboardModel::rowOf(int id) const {
     return -1;
 }
 
+/// El tamaño con el que nace cada tarjeta, en fraccion del tablero.
+///
+/// No todas piden lo mismo: «Escenas» tiene los dos buses arriba (al aire /
+/// armada / TAKE) y despues la grilla, asi que con el tamaño generico nace
+/// apretada y lo primero que hay que hacer es agrandarla. Una tarjeta que hay
+/// que acomodar antes de que sirva es una tarjeta mal nacida.
+QSizeF tamanoInicial(const QString& kind) {
+    if (kind == "scenes") return {0.34, 0.42};
+    if (kind == "mixer" || kind == "guests" || kind == "speakers") return {0.30, 0.38};
+    if (kind == "monitor") return {0.28, 0.34};
+    return {0.28, 0.30};
+}
+
 void DashboardModel::addCard(const QString& kind, const QString& source) {
     // Aparece centrada; el operador la lleva a su lugar.
     const int row = rowCount();
+    const QSizeF t = tamanoInicial(kind);
     beginInsertRows({}, row, row);
-    cards_.push_back(Card{nextId_++, kind, QRectF(0.36, 0.30, 0.28, 0.30), source});
+    cards_.push_back(Card{nextId_++, kind,
+                          QRectF(0.5 - t.width() / 2, 0.5 - t.height() / 2, t.width(), t.height()),
+                          source});
     endInsertRows();
     save();
 }

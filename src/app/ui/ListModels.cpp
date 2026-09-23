@@ -37,6 +37,7 @@ QVariant ScenesModel::data(const QModelIndex& index, int role) const {
         case LiveRole: return n == rt_.engine().currentScene();
         case FolderRole: return qs(rt_.sceneFolder(n));
         case ProtegidaRole: return rt_.sceneProtected(n);
+        case ArmadaRole: return qs(n) == armada_;
         default: return {};
     }
 }
@@ -45,7 +46,15 @@ QHash<int, QByteArray> ScenesModel::roleNames() const {
     return {{NameRole, "name"},
             {LiveRole, "live"},
             {FolderRole, "folder"},
-            {ProtegidaRole, "protegida"}};
+            {ProtegidaRole, "protegida"},
+            {ArmadaRole, "armada"}};
+}
+
+void ScenesModel::setArmada(const QString& n) {
+    if (n == armada_) return;
+    armada_ = n;
+    if (rowCount() > 0)
+        emit dataChanged(index(0), index(rowCount() - 1), {ArmadaRole});
 }
 
 void ScenesModel::reload() {

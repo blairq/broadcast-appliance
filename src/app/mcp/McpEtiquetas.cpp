@@ -85,7 +85,10 @@ const Fila kPropias[] = {
 
     // --- Escenas y fuentes ------------------------------------------------
     {"scene_list", "listar cuales hay ver escenas"},
-    {"scene_switch", "cambiar poner al aire pasar a cortar a programa activa"},
+    {"scene_switch", "cambiar poner al aire pasar a cortar a programa activa corte directo urgencia"},
+    {"scene_preview", "armar preparar el proximo plano bus de preview previo antes de sacarlo "
+                      "cuear siguiente escena mesa switcher"},
+    {"scene_take", "take sacar al aire la armada cortar ahora disparar el plano preparado mesa switcher"},
     {"scene_create", "crear nueva agregar escena"},
     {"scene_copy", "copiar duplicar clonar escena"},
     {"scene_delete", "borrar eliminar quitar escena"},

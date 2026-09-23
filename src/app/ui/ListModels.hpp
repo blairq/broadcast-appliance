@@ -27,7 +27,11 @@ class AppRuntime;
 class ScenesModel : public QAbstractListModel {
     Q_OBJECT
    public:
-    enum Roles { NameRole = Qt::UserRole + 1, LiveRole, FolderRole, ProtegidaRole };
+    /// `live` = esta AL AIRE. `armada` = esta en el bus de preview, o sea la
+    /// que va a salir con el proximo TAKE. Son dos cosas distintas y por eso
+    /// son dos roles: una mesa de switcher las muestra en dos filas y el
+    /// operador mira las dos.
+    enum Roles { NameRole = Qt::UserRole + 1, LiveRole, FolderRole, ProtegidaRole, ArmadaRole };
     explicit ScenesModel(AppRuntime& rt, QObject* parent = nullptr);
     int rowCount(const QModelIndex& = {}) const override;
     QVariant data(const QModelIndex& index, int role) const override;
@@ -36,10 +40,15 @@ class ScenesModel : public QAbstractListModel {
     void reload();
     /// Avisa que cambio la escena al aire.
     void liveChanged();
+    /// La escena ARMADA (bus de preview): la que sale con el proximo TAKE.
+    /// Vacia = no hay ninguna armada.
+    QString armada() const { return armada_; }
+    void setArmada(const QString& n);
 
    private:
     AppRuntime& rt_;
     std::vector<std::string> names_;
+    QString armada_;
 };
 
 class SourcesModel : public QAbstractListModel {
