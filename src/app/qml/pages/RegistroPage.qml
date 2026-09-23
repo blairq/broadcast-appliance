@@ -112,10 +112,11 @@ Rectangle {
         Panel {
             visible: page.r.apagados.length > 0
             Layout.fillWidth: true
-            implicitHeight: apag.implicitHeight + 24
+            padding: 12
+            implicitHeight: apag.implicitHeight + 2 * padding
             ColumnLayout {
                 id: apag
-                anchors { fill: parent; margins: 12 }
+                anchors.fill: parent // el margen lo pone Panel (`padding`)
                 spacing: 6
                 Text {
                     Layout.fillWidth: true
@@ -153,11 +154,12 @@ Rectangle {
         // --- Filtros ---------------------------------------------------------
         Panel {
             Layout.fillWidth: true
-            implicitHeight: filtros.implicitHeight + 24
+            padding: 12
+            implicitHeight: filtros.implicitHeight + 2 * padding
 
             ColumnLayout {
                 id: filtros
-                anchors { fill: parent; margins: 12 }
+                anchors.fill: parent // el margen lo pone Panel (`padding`)
                 spacing: 8
 
                 RowLayout {

@@ -95,11 +95,12 @@ Rectangle {
                         required property var modelData
                         id: tarjeta
                         Layout.fillWidth: true
-                        implicitHeight: cuerpo.implicitHeight + 28
+                        padding: 14
+                        implicitHeight: cuerpo.implicitHeight + 2 * padding
 
                         ColumnLayout {
                             id: cuerpo
-                            anchors { fill: parent; margins: 14 }
+                            anchors.fill: parent // el margen lo pone Panel (`padding`)
                             spacing: 10
 
                             RowLayout {
@@ -219,10 +220,11 @@ Rectangle {
                 Panel {
                     visible: page.r.vinculos.length > 0
                     Layout.fillWidth: true
-                    implicitHeight: autos.implicitHeight + 28
+                    padding: 14
+                    implicitHeight: autos.implicitHeight + 2 * padding
                     ColumnLayout {
                         id: autos
-                        anchors { fill: parent; margins: 14 }
+                        anchors.fill: parent // el margen lo pone Panel (`padding`)
                         spacing: 8
                         Text {
                             text: "Se escriben solos"

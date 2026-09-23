@@ -64,10 +64,11 @@ Rectangle {
         // --- Roles ---------------------------------------------------------------
         Panel {
             Layout.fillWidth: true
-            implicitHeight: rolesCol.implicitHeight + 24
+            padding: 12
+            implicitHeight: rolesCol.implicitHeight + 2 * padding
             ColumnLayout {
                 id: rolesCol
-                anchors { fill: parent; margins: 12 }
+                anchors.fill: parent // el margen lo pone Panel (`padding`)
                 spacing: 8
                 Repeater {
                     model: page.d.roles
