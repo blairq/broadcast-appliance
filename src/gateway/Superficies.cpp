@@ -73,4 +73,41 @@ json Superficies::vivas() const {
     return out;
 }
 
+void Superficies::conectar(const std::string& pid, const std::string& tipo, const std::string& id) {
+    if (pid.empty()) return;
+    {
+        std::lock_guard<std::mutex> lock(m_);
+        canal_[pid] = Conectada{pid, corto(tipo, 32), ""};
+    }
+    // Una conectada también late: así aparece en la lista de vivas sin tener
+    // que mirar dos lugares distintos.
+    latido(tipo, id.empty() ? pid : id, "", 0);
+}
+
+void Superficies::desconectar(const std::string& pid) {
+    std::lock_guard<std::mutex> lock(m_);
+    canal_.erase(pid);
+}
+
+void Superficies::dice(const std::string& pid, const std::string& que) {
+    std::lock_guard<std::mutex> lock(m_);
+    const auto it = canal_.find(pid);
+    if (it != canal_.end()) it->second.que = corto(que, 160);
+}
+
+std::string Superficies::conexionDe(const std::string& id) const {
+    std::lock_guard<std::mutex> lock(m_);
+    for (const auto& [pid, c] : canal_)
+        if (pid == id) return pid;
+    return {};
+}
+
+std::vector<std::string> Superficies::conexionesDe(const std::string& tipo) const {
+    std::lock_guard<std::mutex> lock(m_);
+    std::vector<std::string> out;
+    for (const auto& [pid, c] : canal_)
+        if (tipo.empty() || c.tipo == tipo) out.push_back(pid);
+    return out;
+}
+
 } // namespace ba::gateway

@@ -23,6 +23,7 @@
 #include <map>
 #include <mutex>
 #include <string>
+#include <vector>
 
 #include <nlohmann/json.hpp>
 
@@ -35,6 +36,16 @@ class Superficies {
     static constexpr std::int64_t kVivaMs = 15000;
     static constexpr std::size_t kMax = 64;
 
+    /// Una superficie CONECTADA por WebSocket: además de decir que está viva,
+    /// se le puede mandar algo. Es la diferencia entre mirar y poder actuar:
+    /// con el latido solo sabemos que una pantalla está mostrando algo viejo;
+    /// con el canal abierto se le cambia sin volver a castear nada.
+    struct Conectada {
+        std::string pid; ///< la conexión (para mandarle)
+        std::string tipo;
+        std::string que;
+    };
+
     /// Una página dice que está viva. `tipo` es qué es ("carrusel",
     /// "pantalla", "prompter"...), `id` la identifica entre recargas, `que`
     /// es lo que está mostrando ahora mismo.
@@ -42,6 +53,17 @@ class Superficies {
                 std::uint32_t ip);
     /// Las que latieron hace menos de kVivaMs.
     nlohmann::json vivas() const;
+
+    // --- Las que están conectadas por el canal ---------------------------------
+    /// Entra una. `pid` es su conexión.
+    void conectar(const std::string& pid, const std::string& tipo, const std::string& id);
+    void desconectar(const std::string& pid);
+    /// Qué está mostrando (lo dice ella misma por el canal).
+    void dice(const std::string& pid, const std::string& que);
+    /// La conexión de esa superficie por su `id`, o vacío.
+    std::string conexionDe(const std::string& id) const;
+    /// Todas las conexiones de ese tipo (para mandarle a todas las pantallas).
+    std::vector<std::string> conexionesDe(const std::string& tipo) const;
 
   private:
     struct Viva {
@@ -52,6 +74,8 @@ class Superficies {
     };
     mutable std::mutex m_;
     std::map<std::string, Viva> por_;
+    /// pid -> lo conectado por canal.
+    std::map<std::string, Conectada> canal_;
 };
 
 } // namespace ba::gateway

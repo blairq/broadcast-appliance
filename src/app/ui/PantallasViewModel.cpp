@@ -11,10 +11,13 @@
 
 #include <QDateTime>
 #include <QDir>
+#include <QHostAddress>
 #include <QJsonArray>
+#include <QHostAddress>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QMetaObject>
+#include <QUdpSocket>
 #include <QUrl>
 
 #include "AppRuntime.hpp"
@@ -132,28 +135,32 @@ struct Carrusel {
     std::vector<Paso> pasos;
 };
 
-/// La dirección de ESTA máquina que está en la misma red que `host`, para que
-/// la URL que le pasamos al televisor la pueda alcanzar de verdad.
+/// La dirección de ESTA máquina con la que el televisor nos ve.
+///
+/// NO SE ADIVINA POR PARECIDO. La primera versión elegía la IP nuestra con el
+/// prefijo más largo en común con la del aparato, y estaba mal: el televisor
+/// de prueba tenía 192.168.1.146 y esta máquina 192.168.1.119, así que elegía
+/// esa... mientras el tráfico salía DE VERDAD por una red superpuesta
+/// (ZeroTier, 192.168.199.x). Le dábamos al televisor una dirección que para
+/// él no existe, y se quedaba cargando para siempre.
+///
+/// Lo correcto es preguntarle al sistema, que es el único que sabe: se abre un
+/// socket UDP "conectado" al aparato —lo que NO manda ni un paquete, solo fija
+/// la ruta— y se lee qué dirección local le tocó. Esa es, por definición, la
+/// dirección con la que ese aparato nos ve.
 QString ipParaAlcanzar(const QStringList& mias, const QString& host) {
-    if (mias.isEmpty()) return {};
-    const auto partes = [](const QString& ip) { return ip.split('.'); };
-    const QStringList d = partes(host);
-    QString mejor = mias.first();
-    int mejorComun = -1;
-    for (const QString& m : mias) {
-        const QStringList p = partes(m);
-        int comun = 0;
-        const int tope = static_cast<int>(std::min<qsizetype>({p.size(), d.size(), 4}));
-        for (int i = 0; i < tope; ++i) {
-            if (p[i] != d[i]) break;
-            ++comun;
-        }
-        if (comun > mejorComun) {
-            mejorComun = comun;
-            mejor = m;
+    if (!host.isEmpty()) {
+        QUdpSocket s;
+        // El puerto no importa: con UDP, "conectar" solo elige la ruta.
+        s.connectToHost(QHostAddress(host), 9);
+        if (s.state() == QAbstractSocket::ConnectedState || s.waitForConnected(300)) {
+            const QHostAddress local = s.localAddress();
+            if (!local.isNull() && local != QHostAddress::AnyIPv4 && !local.isLoopback())
+                return local.toString();
         }
     }
-    return mejor;
+    // Si el sistema no contesta (el aparato está apagado), lo mejor que hay.
+    return mias.isEmpty() ? QString() : mias.first();
 }
 
 } // namespace
@@ -405,28 +412,10 @@ QString PantallasViewModel::urlDe(const QString& tipo, const QVariantMap& datos,
     // se puede armar acá. `mostrar` la pide y recién después manda.
     if (tipo == "programa") return "(la pide el gateway al mandar)";
 
-    // DE DONDE SALE LA BASE. Un receptor de Chromecast (DashCast) es una
-    // página HTTPS, y el navegador le prohíbe cargar contenido http: se queda
-    // "cargando" para siempre, sin decir nada. Y nuestro HTTPS propio tampoco
-    // sirve, porque el certificado no lo firma nadie que el televisor conozca.
-    //
-    // O sea que a un televisor solo se le puede mostrar una página nuestra si
-    // hay un origen con certificado DE VERDAD: el túnel. Se comprobó: con el
-    // túnel apagado, una página https pública abre y la nuestra por http no.
-    if (!d_->origenSeguro.isEmpty()) {
-        const QString base = d_->origenSeguro;
-        if (tipo == "prompter") return base + "/prompter/";
-        QString url = base + "/pantalla/?tipo=" + tipo;
-        for (const Campo& f : c->campos) {
-            const QString v = datos.value(QString::fromUtf8(f.clave)).toString();
-            if (v.isEmpty()) continue;
-            url += "&" + QString::fromUtf8(f.clave) + "=" + QString::fromUtf8(QUrl::toPercentEncoding(v));
-        }
-        return url;
-    }
-    // Sin túnel se arma igual la de la red local: sirve para probarla en un
-    // navegador, y `mostrar` explica por qué no se le puede mandar a un
-    // televisor en vez de mandarla y que quede colgada.
+    // La base tiene que ser alcanzable DESDE el televisor: HTTP (nuestro HTTPS
+    // es autofirmado y un televisor no tiene dónde aceptarlo) y la dirección
+    // NUESTRA con la que ese aparato nos ve, que la dice el sistema y no se
+    // adivina (ver ipParaAlcanzar).
     QString ip;
     if (const Destino* d = idDestino.isEmpty() ? nullptr : d_->porId(idDestino); d != nullptr)
         ip = ipParaAlcanzar(d_->misIps, d->host);
@@ -772,16 +761,15 @@ QString PantallasViewModel::mostrarCarrusel(const QString& idPantalla, const QSt
     if (c == nullptr) return "No encuentro ese carrusel.";
     if (c->pasos.empty()) return "Ese carrusel no tiene ningún paso todavía.";
     if (d->trabajando) return "Esperá: está ocupada con lo anterior.";
-    if (d_->origenSeguro.isEmpty())
-        return "Un televisor no puede abrir nuestras páginas sin HTTPS con certificado de verdad (el "
-               "receptor del Chromecast bloquea lo que venga por http). Activá el túnel en "
-               "Configuración → Gateway.";
     if (d->puedeMostrar == 0)
         return d->nombre + " no sabe mostrar páginas web.";
     // Primero la lista (con las URLs que ESTE televisor puede alcanzar), y
     // después se lo manda: si fuera al revés, abriría una lista que no está.
     publicar(carrusel, idPantalla);
-    const QString url = d_->origenSeguro + "/pantalla/carrusel/?id=" +
+    const QString ip = ipParaAlcanzar(d_->misIps, d->host);
+    if (ip.isEmpty())
+        return "Todavía no sé con qué dirección me ve el televisor: probá de nuevo en unos segundos.";
+    const QString url = "http://" + ip + ":" + QString::number(d_->puertoWeb) + "/pantalla/carrusel/?id=" +
                         QString::fromUtf8(QUrl::toPercentEncoding(carrusel));
     d->ultimosDatos = QVariantMap{{"carrusel", carrusel}};
     mandarUrl(idPantalla, url, "carrusel:" + carrusel, "Carrusel — " + c->nombre);
@@ -893,11 +881,6 @@ QString PantallasViewModel::mostrar(const QString& id, const QString& tipo, cons
             });
         return {};
     }
-    if (tipo != "url" && d_->origenSeguro.isEmpty())
-        return "Un televisor no puede abrir nuestras páginas sin HTTPS con certificado de verdad: el "
-               "receptor del Chromecast es una página segura y el navegador le bloquea lo que venga por "
-               "http (se queda «cargando» sin decir nada). Activá el túnel en Configuración → Gateway, o "
-               "usá «Una página web» con una dirección https.";
     const QString url = urlDe(tipo, datos, id);
     if (url.isEmpty())
         return tipo == "url" ? "Poné una dirección."
