@@ -103,7 +103,8 @@ void McpService::registerRecetaTools() {
         t.title = "Recetas que hay";
         t.category = "recetas";
         t.readOnly = true;
-        t.description = "Las recetas guardadas, con sus pasos.";
+        t.description = "SOLO CONSULTA (no guarda nada; para guardar una receta es `receta_guardar`, "
+                        "para correrla `receta_correr`). Las recetas guardadas, con sus pasos.";
         t.details = "Antes de armar una nueva, fijate si ya hay una que haga eso: repetidas, "
                     "despues nadie sabe cual es la buena.";
         t.run = [&rt](const json&, Done done) {

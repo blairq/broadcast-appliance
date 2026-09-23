@@ -262,7 +262,7 @@ void McpService::registerSystemTools() {
         t.category = "equipo";
         t.readOnly = true;
         t.description =
-            "Entradas (microfonos, lineas, interfaces) y salidas (parlantes, auriculares) de audio. El "
+            "SOLO CONSULTA los dispositivos de audio del equipo (placas y entradas fisicas). NO sirve para arreglar que algo no se escuche ni para un acople: para eso medi con `audio_measure` y corregi con `audio_set`. Entradas (microfonos, lineas, interfaces) y salidas (parlantes, auriculares) de audio. El "
             "`value` es el que va en la fuente de captura de audio (source_add).";
         t.run = [&rt](const json&, Done done) {
             BroadcastEngine& e = rt.engine();

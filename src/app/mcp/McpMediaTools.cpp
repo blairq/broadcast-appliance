@@ -146,6 +146,7 @@ void McpService::registerMediaTools() {
         t.category = "medios";
         t.readOnly = true;
         t.description =
+            "SOLO BUSCA (no lo pone en ninguna escena; para eso es `media_use`). "
             "Busca por nombre en todas las carpetas de medios (sin importar mayusculas, tildes ni guiones): "
             "\"logo sponsor\" encuentra \"Logo-Sponsor_2026.png\". Los mejores primero; confirma una imagen "
             "con media_view antes de usarla.";

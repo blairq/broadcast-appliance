@@ -80,6 +80,8 @@ void McpService::registerAudioTools() {
         t.category = "audio_rack";
         t.readOnly = true;
         t.description =
+            "SOLO CONSULTA (no toca el audio; para silenciar o cambiar volumen es `audio_set`, "
+            "para medir que esta pasando `audio_measure`). "
             "Todas las fuentes con audio (microfonos, placas, videos con sonido, invitados...), si tienen "
             "rack, cuantos modulos y el nivel de salida.";
         t.run = [mgr](const json&, Done done) {
@@ -514,7 +516,7 @@ void McpService::registerAudioTools() {
         Tool t;
         t.name = "audio_analyze";
         t.title = "Analizar el audio";
-        t.category = "audio_rack";
+        t.category = "audio";
         t.readOnly = true;
         t.description =
             "Analiza el audio en un punto del rack (\"in\" = la fuente cruda, \"out\" = lo que sale, o un "
@@ -565,9 +567,15 @@ void McpService::registerAudioTools() {
     }
     {
         Tool t;
+        // MEDIR NO ES EL RACK. `audio_measure` y `audio_analyze` solo miran: no
+        // tocan una ganancia ni mueven un modulo. Estaban catalogadas en
+        // `audio_rack` porque viven en este archivo, y eso las dejaba fuera del
+        // juego del asistente: ante un acople no podia ni medir, que es lo
+        // primero que hay que hacer. La categoria dice QUE ES la herramienta,
+        // no en que archivo quedo.
         t.name = "audio_measure";
         t.title = "Medir un modulo o la cadena (fuera de linea)";
-        t.category = "audio_rack";
+        t.category = "audio";
         t.readOnly = true;
         t.description =
             "Mide copias de los modulos con señales de prueba SIN tocar lo que sale al aire: `tipo: "

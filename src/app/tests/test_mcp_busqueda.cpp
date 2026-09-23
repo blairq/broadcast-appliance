@@ -14,8 +14,13 @@
 // Por eso cada caso de acá es "esta consulta tiene que traer ESTA herramienta
 // entre las primeras", que es lo único que importa del otro lado.
 #include <cstdio>
+#include <set>
 #include <string>
 #include <vector>
+
+#include <fstream>
+
+#include <nlohmann/json.hpp>
 
 #include "mcp/McpEtiquetas.hpp"
 #include "mcp/McpIndice.hpp"
@@ -93,6 +98,56 @@ const std::pair<const char*, const char*> kHerramientas[] = {
     {"settings_set", "Cambiar una configuracion"},
 };
 
+
+// --- La bateria de preguntas tipicas ----------------------------------------
+//
+// El corpus vive en datos/preguntas.json y lo comparten DOS bancos de prueba:
+// este (el buscador, sin modelo ni red) y tools/bateria-modelo.py (el modelo).
+// Un solo corpus para los dos, o se van separando y dejan de comparar lo mismo.
+//
+// QUE MIDE ESTE. Si la herramienta que hace falta esta entre las primeras que
+// devuelve el buscador. Es lo que decide si se le pueden dar al modelo DIEZ
+// herramientas en vez de 264 —medido: 2.400 tokens contra 36.500, y un acierto
+// mas—. Si el buscador no la trae, el modelo no puede elegirla: no la vio.
+struct Caso {
+    std::string pregunta;
+    std::vector<std::string> herramientas;
+};
+
+std::vector<Caso> leerCorpus(const std::string& archivo, bool& ok) {
+    std::vector<Caso> out;
+    std::ifstream f(archivo);
+    if (!f) {
+        std::printf("  FALLO: no se pudo abrir %s\n", archivo.c_str());
+        ok = false;
+        return out;
+    }
+    nlohmann::json j;
+    try {
+        f >> j;
+    } catch (const std::exception& e) {
+        std::printf("  FALLO: %s no es JSON valido: %s\n", archivo.c_str(), e.what());
+        ok = false;
+        return out;
+    }
+    for (const auto& c : j["casos"]) {
+        Caso k;
+        k.pregunta = c.value("pregunta", "");
+        for (const auto& h : c["herramientas"]) k.herramientas.push_back(h.get<std::string>());
+        if (!k.pregunta.empty() && !k.herramientas.empty()) out.push_back(std::move(k));
+    }
+    return out;
+}
+
+/// El puesto de la PRIMERA aceptable, o -1 si no esta entre `tope`.
+int puestoDeAlguna(const Indice& i, const Caso& c, std::size_t tope) {
+    const auto r = i.buscar(c.pregunta, tope);
+    for (std::size_t n = 0; n < r.size(); ++n)
+        for (const std::string& h : c.herramientas)
+            if (i.doc(r[n].doc).id == h) return static_cast<int>(n);
+    return -1;
+}
+
 Indice armarIndice() {
     Indice i;
     for (const auto& [nombre, titulo] : kHerramientas) {
@@ -104,6 +159,37 @@ Indice armarIndice() {
         d.etiquetas = etiquetasDe(nombre);
         i.agregar(std::move(d));
     }
+    i.armar();
+    return i;
+}
+
+/// El mismo indice, mas las herramientas que nombra el corpus y que la tabla
+/// de arriba no tiene. Sin esto, un caso sobre una herramienta que existe de
+/// verdad pero no esta en la tabla fallaria por una razon que no es la que se
+/// quiere medir.
+Indice armarIndiceCon(const std::vector<Caso>& casos) {
+    Indice i;
+    std::set<std::string> puestas;
+    for (const auto& [nombre, titulo] : kHerramientas) {
+        Documento d;
+        d.id = nombre;
+        d.clase = "herramienta";
+        d.nombre = nombre;
+        d.titulo = titulo;
+        d.etiquetas = etiquetasDe(nombre);
+        i.agregar(std::move(d));
+        puestas.insert(nombre);
+    }
+    for (const Caso& c : casos)
+        for (const std::string& h : c.herramientas) {
+            if (!puestas.insert(h).second) continue;
+            Documento d;
+            d.id = h;
+            d.clase = "herramienta";
+            d.nombre = h;
+            d.etiquetas = etiquetasDe(h);
+            i.agregar(std::move(d));
+        }
     i.armar();
     return i;
 }
@@ -159,6 +245,43 @@ int main() {
     exigir(i, "imprimir un codigo qr", "qr_exportar");
     exigir(i, "que televisores hay", "pantalla_listar");
     exigir(i, "el televisor esta realmente mostrando algo", "superficie_listar", 4);
+
+    // --- Como se queja un operador, que no nombra la herramienta ------------
+    // Una persona en cabina no dice «audio_set»: dice que algo no anda. Estas
+    // son de esa clase, y son las que se le escapaban al buscador.
+    exigir(i, "el invitado no se escucha", "audio_set");
+    exigir(i, "no tengo sonido", "audio_set");
+    exigir(i, "cuanta gente esta esperando para entrar", "room_status");
+    exigir(i, "grabar lo que estamos haciendo", "record_start");
+    exigir(i, "poner el nombre de alguien en pantalla", "rotulo_vincular");
+    exigir(i, "se ve todo negro", "capture_program");
+
+    // --- La bateria del corpus compartido -----------------------------------
+    {
+        bool ok = true;
+        const std::vector<Caso> casos = leerCorpus(BA_CORPUS_PREGUNTAS, ok);
+        if (!ok) ++g_fallos;
+        const Indice ic = armarIndiceCon(casos);
+        int en1 = 0;
+        int en3 = 0;
+        int en8 = 0;
+        std::vector<std::string> perdidas;
+        for (const Caso& c : casos) {
+            const int p = puestoDeAlguna(ic, c, 8);
+            if (p == 0) ++en1;
+            if (p >= 0 && p < 3) ++en3;
+            if (p >= 0) ++en8;
+            else perdidas.push_back(c.pregunta);
+        }
+        const int n = static_cast<int>(casos.size());
+        std::printf("  bateria (%d preguntas): primera %d/%d | primeras 3 %d/%d | primeras 8 %d/%d\n",
+                    n, en1, n, en3, n, en8, n);
+        for (const std::string& q : perdidas) std::printf("    no la encuentra: \"%s\"\n", q.c_str());
+        // El piso es «entre las primeras 8», porque ESO es lo que se le manda
+        // al modelo. Si no esta ahi, el modelo no puede elegirla: no la vio.
+        CHECK(n >= 50, "el corpus tiene suficientes preguntas como para medir algo");
+        CHECK(en8 == n, "todas las preguntas encuentran su herramienta entre las primeras 8");
+    }
 
     // --- El nombre exacto siempre gana --------------------------------------
     for (const auto& [nombre, titulo] : kHerramientas) {

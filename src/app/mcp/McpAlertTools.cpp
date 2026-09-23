@@ -42,7 +42,8 @@ void McpService::registerAlertTools() {
         t.title = "Que se puede vigilar";
         t.category = "alertas";
         t.readOnly = true;
-        t.description = "Tipos de vigilancia con sus parametros y valores por defecto.";
+        t.description = "SOLO CONSULTA (no crea nada; para crear una vigilancia es `alert_create`). "
+                        "Tipos de vigilancia con sus parametros y valores por defecto.";
         t.run = [](const json&, Done done) { done(ToolResult().data(agent::AlertEngine::types())); };
         core_.addTool(std::move(t));
     }

@@ -47,7 +47,8 @@ void McpService::registerPantallaTools() {
         t.title = "Que pantallas hay";
         t.category = "pantallas";
         t.readOnly = true;
-        t.description = "Las pantallas conocidas con su estado (libre, mostrando, ocupada con otra cosa, "
+        t.description = "SOLO CONSULTA (no muestra nada; para poner algo en una pantalla es "
+                        "`pantalla_mostrar`). Las pantallas conocidas con su estado (libre, mostrando, ocupada con otra cosa, "
                         "no contesta) y que tienen puesto. Tambien que se puede mostrar en ellas.";
         t.details = "`estado` dice mucho: `ocupada` es que el televisor esta con otra aplicacion (Netflix, "
                     "YouTube) y mandarle algo se la va a pisar — avisale al operador antes. `apagada` es "

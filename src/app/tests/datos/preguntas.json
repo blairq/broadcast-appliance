@@ -1,0 +1,480 @@
+{
+  "_comentario": [
+    "Lo que un operador PIDE, y con qué herramienta se hace.",
+    "",
+    "PARA QUE SIRVE ESTE ARCHIVO. Es el banco de pruebas de dos cosas distintas",
+    "que conviene medir con el MISMO corpus, o se van separando:",
+    "  1. el buscador (test_mcp_busqueda): sin modelo, sin red, en microsegundos;",
+    "  2. el modelo (tools/bateria-modelo.py): con qué acierto elige la",
+    "     herramienta cuando se le dan las que encontró el buscador.",
+    "Lo segundo es lo que dice si alcanza con un modelo más chico.",
+    "",
+    "COMO SE ESCRIBEN LAS PREGUNTAS: como habla alguien en una cabina. Dice el",
+    "síntoma o la intención, NO el nombre de la herramienta. «No se escucha al",
+    "invitado», no «audio_set». Si las preguntas se escriben con las palabras",
+    "del código, el test pasa siempre y no mide nada.",
+    "",
+    "`herramientas` son las ACEPTABLES, no una sola: varias veces hay más de un",
+    "camino razonable y castigar al que eligió otro bueno es medir mal.",
+    "",
+    "LOS CASOS REACTIVOS son los que más importan y los más difíciles: en vivo,",
+    "el operador no pide una herramienta, grita lo que está saliendo mal —«hay",
+    "acople», «suena un pitido»—. Ahí el asistente tiene que llegar SOLO a medir",
+    "y cortar, sin que nadie le nombre `audio_set`. Si el buscador no resuelve",
+    "estos, el asistente no sirve para lo único que no da tiempo a hacer a mano."
+  ],
+  "casos": [
+    {
+      "pregunta": "cuantas escenas hay",
+      "herramientas": [
+        "scene_list"
+      ]
+    },
+    {
+      "pregunta": "pone al aire la apertura",
+      "herramientas": [
+        "scene_switch"
+      ]
+    },
+    {
+      "pregunta": "corta a la camara 2",
+      "herramientas": [
+        "scene_switch"
+      ]
+    },
+    {
+      "pregunta": "deja preparada la escena del cierre",
+      "herramientas": [
+        "scene_preview"
+      ]
+    },
+    {
+      "pregunta": "saca al aire lo que tengo armado",
+      "herramientas": [
+        "scene_take"
+      ]
+    },
+    {
+      "pregunta": "crea una escena nueva para el bloque de deportes",
+      "herramientas": [
+        "scene_create",
+        "scene_define"
+      ]
+    },
+    {
+      "pregunta": "que hay adentro de la escena que esta al aire",
+      "herramientas": [
+        "source_list"
+      ]
+    },
+    {
+      "pregunta": "agrega la camara del fondo a esta escena",
+      "herramientas": [
+        "source_add"
+      ]
+    },
+    {
+      "pregunta": "que fundido esta puesto entre escenas",
+      "herramientas": [
+        "transition_set"
+      ]
+    },
+    {
+      "pregunta": "el invitado no se escucha",
+      "herramientas": [
+        "audio_measure",
+        "audio_set",
+        "audio_sources"
+      ]
+    },
+    {
+      "pregunta": "no tengo sonido",
+      "herramientas": [
+        "audio_measure",
+        "audio_set",
+        "audio_sources"
+      ]
+    },
+    {
+      "pregunta": "silencia el microfono del invitado 1",
+      "herramientas": [
+        "audio_set",
+        "participant_request"
+      ]
+    },
+    {
+      "pregunta": "subi un poco el volumen de la musica",
+      "herramientas": [
+        "audio_set"
+      ]
+    },
+    {
+      "pregunta": "se escucha desfasado de la imagen",
+      "herramientas": [
+        "audio_sincro"
+      ]
+    },
+    {
+      "pregunta": "los graves suenan mal",
+      "herramientas": [
+        "audio_eq"
+      ]
+    },
+    {
+      "pregunta": "quiero escuchar ese microfono antes de abrirlo",
+      "herramientas": [
+        "audio_escuchar"
+      ]
+    },
+    {
+      "pregunta": "que canales de audio hay",
+      "herramientas": [
+        "audio_sources",
+        "mixer_list"
+      ]
+    },
+    {
+      "pregunta": "quien esta esperando para entrar",
+      "herramientas": [
+        "room_status",
+        "rostro_lobby"
+      ]
+    },
+    {
+      "pregunta": "cuanta gente hay en la sala",
+      "herramientas": [
+        "room_status"
+      ]
+    },
+    {
+      "pregunta": "hace pasar al que esta esperando",
+      "herramientas": [
+        "participant_admit",
+        "participant_admit_all"
+      ]
+    },
+    {
+      "pregunta": "echa a ese tipo de la sala",
+      "herramientas": [
+        "participant_kick",
+        "participant_reject"
+      ]
+    },
+    {
+      "pregunta": "mandale un mensaje al invitado 1",
+      "herramientas": [
+        "chat_send"
+      ]
+    },
+    {
+      "pregunta": "que me dijo el invitado",
+      "herramientas": [
+        "chat_history",
+        "guest_chat_pending"
+      ]
+    },
+    {
+      "pregunta": "pedile que prenda la camara",
+      "herramientas": [
+        "chat_send",
+        "participant_request"
+      ]
+    },
+    {
+      "pregunta": "el link para invitar gente",
+      "herramientas": [
+        "room_link"
+      ]
+    },
+    {
+      "pregunta": "que archivos mandaron los invitados",
+      "herramientas": [
+        "share_list"
+      ]
+    },
+    {
+      "pregunta": "quien habla ahora y cuanto le queda",
+      "herramientas": [
+        "speaker_time",
+        "speakers_status"
+      ]
+    },
+    {
+      "pregunta": "pasa al que sigue",
+      "herramientas": [
+        "speaker_next"
+      ]
+    },
+    {
+      "pregunta": "quien es el que esta en camara",
+      "herramientas": [
+        "rostro_lobby",
+        "rostro_ver"
+      ]
+    },
+    {
+      "pregunta": "no me acuerdo como se llama el que esta esperando",
+      "herramientas": [
+        "rostro_lobby",
+        "rostro_ver"
+      ]
+    },
+    {
+      "pregunta": "guarda la cara de esta persona",
+      "herramientas": [
+        "rostro_guardar",
+        "rostro_sumar"
+      ]
+    },
+    {
+      "pregunta": "pone el nombre y el cargo del que habla en pantalla",
+      "herramientas": [
+        "grafico_mostrar",
+        "rotulo_vincular",
+        "rotulo_vinculos"
+      ]
+    },
+    {
+      "pregunta": "empeza a grabar",
+      "herramientas": [
+        "record_start"
+      ]
+    },
+    {
+      "pregunta": "para la grabacion",
+      "herramientas": [
+        "record_stop"
+      ]
+    },
+    {
+      "pregunta": "salimos al aire",
+      "herramientas": [
+        "stream_start"
+      ]
+    },
+    {
+      "pregunta": "bajanos del aire",
+      "herramientas": [
+        "stream_stop"
+      ]
+    },
+    {
+      "pregunta": "como esta todo",
+      "herramientas": [
+        "status"
+      ]
+    },
+    {
+      "pregunta": "se esta cortando la transmision",
+      "herramientas": [
+        "network_status",
+        "status"
+      ]
+    },
+    {
+      "pregunta": "mostrame como se ve el programa",
+      "herramientas": [
+        "capture_program",
+        "imagen_analizar"
+      ]
+    },
+    {
+      "pregunta": "se ve todo negro",
+      "herramientas": [
+        "capture_program",
+        "imagen_analizar"
+      ]
+    },
+    {
+      "pregunta": "fijate si en camara se ve bien el rotulo",
+      "herramientas": [
+        "capture_program",
+        "imagen_analizar"
+      ]
+    },
+    {
+      "pregunta": "ordena las ventanas en los dos monitores",
+      "herramientas": [
+        "ventanas_ordenar"
+      ]
+    },
+    {
+      "pregunta": "manda el registro al otro monitor",
+      "herramientas": [
+        "ventana_mover"
+      ]
+    },
+    {
+      "pregunta": "que pantalla es cual",
+      "herramientas": [
+        "monitor_identificar",
+        "monitors"
+      ]
+    },
+    {
+      "pregunta": "mostra el qr en el televisor del hall",
+      "herramientas": [
+        "pantalla_mostrar"
+      ]
+    },
+    {
+      "pregunta": "que televisores hay",
+      "herramientas": [
+        "pantalla_listar"
+      ]
+    },
+    {
+      "pregunta": "avisame cuando entre alguien",
+      "herramientas": [
+        "alert_create"
+      ]
+    },
+    {
+      "pregunta": "ver que paso, hubo un error",
+      "herramientas": [
+        "log_leer"
+      ]
+    },
+    {
+      "pregunta": "pone musica de fondo",
+      "herramientas": [
+        "media_list",
+        "media_use"
+      ]
+    },
+    {
+      "pregunta": "que camaras hay conectadas",
+      "herramientas": [
+        "feeds_list",
+        "input_status",
+        "video_devices"
+      ]
+    },
+    {
+      "pregunta": "preguntale al de cabina si lo saco al aire",
+      "herramientas": [
+        "operator_ask"
+      ]
+    },
+    {
+      "pregunta": "encargale esto a otro agente",
+      "herramientas": [
+        "agente_encargar"
+      ]
+    },
+    {
+      "pregunta": "guarda esto como receta para repetirlo",
+      "herramientas": [
+        "receta_guardar"
+      ]
+    },
+    {
+      "pregunta": "que sigue en el guion",
+      "herramientas": [
+        "evento_correr",
+        "evento_ver"
+      ]
+    },
+    {
+      "pregunta": "abri la pestaña de audio",
+      "herramientas": [
+        "ui_show_page"
+      ]
+    },
+    {
+      "pregunta": "hay acople",
+      "herramientas": [
+        "audio_set",
+        "audio_measure",
+        "audio_escuchar"
+      ]
+    },
+    {
+      "pregunta": "se esta acoplando el audio, cortalo",
+      "herramientas": [
+        "audio_set",
+        "audio_measure"
+      ]
+    },
+    {
+      "pregunta": "suena un pitido horrible",
+      "herramientas": [
+        "audio_set",
+        "audio_measure",
+        "audio_analyze"
+      ]
+    },
+    {
+      "pregunta": "esta saturando el audio",
+      "herramientas": [
+        "audio_set",
+        "audio_measure",
+        "audio_limiter",
+        "audio_compressor"
+      ]
+    },
+    {
+      "pregunta": "se escucha un zumbido de fondo",
+      "herramientas": [
+        "audio_measure",
+        "audio_analyze",
+        "audio_eq",
+        "audio_gate"
+      ]
+    },
+    {
+      "pregunta": "el microfono queda abierto y se escucha todo",
+      "herramientas": [
+        "audio_set",
+        "audio_gate"
+      ]
+    },
+    {
+      "pregunta": "no se escucha nada al aire",
+      "herramientas": [
+        "audio_measure",
+        "audio_set",
+        "audio_outputs",
+        "status"
+      ]
+    },
+    {
+      "pregunta": "quedamos sin imagen",
+      "herramientas": [
+        "capture_program",
+        "status",
+        "imagen_analizar"
+      ]
+    },
+    {
+      "pregunta": "se congelo la camara del invitado",
+      "herramientas": [
+        "capture_feed",
+        "room_status",
+        "participant_request"
+      ]
+    },
+    {
+      "pregunta": "se cayo un invitado",
+      "herramientas": [
+        "room_status",
+        "chat_send"
+      ]
+    },
+    {
+      "pregunta": "se corto la transmision",
+      "herramientas": [
+        "status",
+        "network_status",
+        "stream_start"
+      ]
+    },
+    {
+      "pregunta": "se esta llenando el disco",
+      "herramientas": [
+        "system_hardware",
+        "status"
+      ]
+    }
+  ]
+}

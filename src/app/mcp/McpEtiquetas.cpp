@@ -20,7 +20,8 @@ const Fila kFamilias[] = {
     {"evento_", "evento guion rundown escaleta programa del dia bloque cue orden del evento produccion"},
     {"scene_", "escena escenas placa composicion layout toma camara aire vivo obs"},
     {"source_", "fuente fuentes capa elemento objeto imagen video texto navegador captura obs"},
-    {"audio_", "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista"},
+    {"audio_", "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista "
+               "se escucha se oye suena"},
     {"capture_", "captura pantallazo screenshot foto imagen mirar ver revisar vista previa como se ve"},
     {"room_", "sala videollamada reunion conferencia webrtc invitados lobby"},
     {"participant_", "invitado participante persona asistente publico gente lobby entrar admitir"},
@@ -79,7 +80,7 @@ const Fila kPropias[] = {
     {"status", "estado general resumen como esta todo panorama salud"},
     {"security_status", "seguridad contaminacion sesion permisos aprobacion"},
     {"system_info", "version compilacion build acerca de datos del equipo"},
-    {"system_hardware", "hardware placa gpu cpu memoria disco capacidad"},
+    {"system_hardware", "disco lleno se llena el disco espacio libre memoria temperatura hardware placa gpu cpu memoria disco capacidad"},
     {"system_update", "actualizar version nueva upgrade instalar"},
     {"app_quit", "cerrar salir apagar terminar el programa"},
     {"app_save", "guardar persistir escribir configuracion"},
@@ -87,8 +88,14 @@ const Fila kPropias[] = {
 
     // --- Escenas y fuentes ------------------------------------------------
     {"scene_list", "listar cuales hay ver escenas"},
-    {"scene_switch", "cambiar poner al aire pasar a cortar a programa activa corte directo urgencia"},
-    {"scene_preview", "armar preparar el proximo plano bus de preview previo antes de sacarlo "
+    // «Cortá a la cámara 2» es CAMBIAR DE ESCENA: en una cabina las escenas se
+    // llaman por su cámara. Sin la palabra «camara» aca, esa frase se iba a las
+    // doce herramientas que sí la tienen (capture_feed, ndi_sources...) y el
+    // cambio de escena no aparecia por ningun lado.
+    {"scene_switch", "cambiar poner al aire pasar a cortar a programa activa corte directo urgencia "
+                     "cortar a camara pasar a camara ir a camara poner la camara "
+                     "pone al aire la pone al aire poner al aire la escena arranca con"},
+    {"scene_preview", "dejar preparada dejala lista preparar la proxima armar la que sigue armar preparar el proximo plano bus de preview previo antes de sacarlo "
                       "cuear siguiente escena mesa switcher"},
     {"scene_take", "take sacar al aire la armada cortar ahora disparar el plano preparado mesa switcher"},
     {"scene_create", "crear nueva agregar escena"},
@@ -103,7 +110,7 @@ const Fila kPropias[] = {
     {"transition_set", "fundido corte disolvencia stinger duracion transicion"},
     {"source_types", "que tipos de fuente hay disponibles"},
     {"source_list", "listar fuentes de una escena que hay adentro"},
-    {"source_add", "agregar poner sumar fuente camara imagen texto navegador"},
+    {"source_add", "agregar a la escena sumar a la escena meter en la escena poner en la escena agregar poner sumar fuente camara imagen texto navegador"},
     {"source_remove", "quitar sacar borrar fuente"},
     {"source_update", "cambiar editar modificar fuente"},
     {"source_properties", "propiedades opciones parametros de una fuente"},
@@ -111,11 +118,16 @@ const Fila kPropias[] = {
     {"guest_source_add", "poner invitado en escena mostrar participante camara remota"},
 
     // --- Audio -------------------------------------------------------------
-    {"audio_set", "silenciar mutear callar bajar subir volumen ganancia mute solo"},
+    {"audio_set", "acople acoplando pitido cortar el audio bajalo ya urgente ""silenciar mutear callar bajar subir volumen ganancia mute solo "
+                  // Como se queja alguien en cabina: no dice «audio_set», dice
+                  // que no se escucha. Sin estas palabras, «el invitado no se
+                  // escucha» no traia NADA de audio entre los primeros.
+                  "no se escucha no se oye sin sonido no tengo sonido no suena "
+                  "esta mudo quedo mudo no le sale audio mas fuerte mas bajo"},
     {"audio_sincro", "sincronizar labios desfase desfasado desincronizado adelantado atrasado "
                      "delay offset demora retardo la voz no coincide con la imagen"},
     {"audio_sources", "que fuentes de audio hay listar canales"},
-    {"audio_escuchar", "pfl solo escuchar previo monitorear probar un microfono antes de abrirlo "
+    {"audio_escuchar", "acople de donde viene el pitido aislar canal ""pfl solo escuchar previo monitorear probar un microfono antes de abrirlo "
                        "auriculares cascos oir sin sacar al aire"},
     {"audio_devices", "placa de sonido microfono dispositivo entrada salida hardware"},
     {"audio_input_add", "agregar microfono entrada de audio linea"},
@@ -135,7 +147,12 @@ const Fila kPropias[] = {
     {"audio_multiband", "multibanda compresion por bandas"},
     {"audio_limiter", "limitador limite pico clip saturacion proteger"},
     {"audio_analyze", "analizar espectro medir problema ruido zumbido"},
-    {"audio_measure", "medir lufs nivel pico rms loudness normalizar"},
+    // ACOPLE, PITIDO, ZUMBIDO: lo que se grita en cabina. Ninguna de estas
+    // palabras estaba, y «hay acople» no traia NADA de audio. Es el caso que
+    // menos tiempo da para pensar, asi que es el que mejor tiene que andar.
+    {"audio_measure", "acople acoplando acoplamiento microfonia feedback pitido chillido "
+                      "zumbido ruido de fondo satura saturando satura el audio distorsiona "
+                      "medir niveles pico ""medir lufs nivel pico rms loudness normalizar"},
     {"audio_generator", "tono generador prueba ruido rosa senal de test"},
     {"audio_outputs", "salidas de audio a donde sale"},
     {"audio_output_set", "cambiar salida de audio destino"},
@@ -144,7 +161,7 @@ const Fila kPropias[] = {
     {"mixer_list", "consola mesa canales faders niveles"},
 
     // --- Transmision y grabacion -------------------------------------------
-    {"stream_start", "empezar arrancar salir al aire comenzar transmision"},
+    {"stream_start", "salimos al aire salgamos al aire arrancamos la transmision empezar a transmitir empezar arrancar salir al aire comenzar transmision"},
     {"stream_stop", "parar terminar cortar bajar del aire fin de transmision"},
     {"record_start", "empezar a grabar arrancar grabacion rec"},
     {"record_stop", "parar grabacion terminar de grabar"},
@@ -162,7 +179,9 @@ const Fila kPropias[] = {
     {"feeds_list", "que señales hay entrando fuentes de video"},
 
     // --- Sala --------------------------------------------------------------
-    {"room_status", "quien esta en la sala conectados lista de gente"},
+    {"room_status", "se cayo un invitado se desconecto se fue quien quedo quien esta en la sala conectados lista de gente cuanta gente "
+                    "cuantos hay cuantos son quienes estan esperando en el lobby "
+                    "estado de la sala"},
     {"room_set", "configurar sala cupo cerrar abrir limite"},
     {"room_pin", "pin clave codigo de acceso contrasena de la sala"},
     {"room_link", "enlace invitacion link para entrar compartir acceso"},
@@ -172,10 +191,10 @@ const Fila kPropias[] = {
     {"participant_requeue", "devolver al lobby mandar atras volver a la espera"},
     {"participant_admit_all", "dejar entrar a todos admitir todos vaciar lobby"},
     {"participant_talk", "hablarle privado audio al invitado susurrar"},
-    {"participant_request", "pedirle algo pedir camara microfono solicitar"},
+    {"participant_request", "pedile que prenda encienda apague que active su camara su microfono pedirle algo pedir camara microfono solicitar"},
     {"participant_profile", "ficha datos nombre cargo informacion de la persona"},
     {"chat_send", "mandar mensaje escribir al chat avisar por chat"},
-    {"chat_history", "historial conversacion que dijeron leer chat"},
+    {"chat_history", "que me dijo que dijo que escribio leer lo que mandaron que contesto historial conversacion que dijeron leer chat"},
     {"chat_wait", "esperar mensaje quedarse esperando a que escriban"},
     {"chat_overlay_add", "chat en pantalla mostrar comentarios al aire overlay"},
     {"share_list", "que archivos mandaron subidos adjuntos"},
@@ -184,7 +203,7 @@ const Fila kPropias[] = {
     {"share_delete", "borrar archivo subido eliminar adjunto"},
     {"guest_chat_pending", "mensajes sin responder pendientes de invitados"},
     {"guest_reply_suggest", "sugerir respuesta redactar contestacion borrador"},
-    {"network_status", "red internet conexion ancho de banda tunel calidad"},
+    {"network_status", "se esta cortando se corta entrecortado se cae la transmision va lento red internet conexion ancho de banda tunel calidad"},
     {"gateway_restart", "reiniciar sala gateway reiniciar servidor de la sala"},
     {"operator_feed", "camara del operador cabina mi camara"},
 
@@ -199,7 +218,7 @@ const Fila kPropias[] = {
     {"speaker_time", "tiempo cronometro reloj cuanto le queda al orador"},
 
     // --- Interfaz ----------------------------------------------------------
-    {"ui_show_page", "ir a la pestaña abrir seccion navegar mostrar pagina"},
+    {"ui_show_page", "ir a la pestaña abrir seccion navegar mostrar pagina personas rostros"},
     {"ui_page_window", "abrir en ventana aparte sacar a otra ventana"},
     {"ui_notify", "avisar en pantalla toast mensaje al operador"},
     {"ui_barra", "barra lateral menu navegacion"},
@@ -292,7 +311,9 @@ const Fila kPropias[] = {
     {"grafico_en_escena", "grafico dentro de una escena agregar"},
     {"grafico_repertorio", "catalogo de graficos plantillas disponibles"},
     {"rotulo_vinculos", "que rotulos estan vinculados"},
-    {"rotulo_vincular", "vincular rotulo a una persona nombre y cargo"},
+    {"rotulo_vincular", "vincular rotulo a una persona nombre y cargo "
+                        "poner el nombre en pantalla mostrar quien habla "
+                        "identificar a quien esta al aire placa con el nombre"},
     {"rotulo_desvincular", "desvincular rotulo quitar"},
 
     // --- Registro --------------------------------------------------------------
@@ -347,10 +368,28 @@ const Fila kPropias[] = {
     {"ventana_mover", "mover ventana a otro monitor acomodar pantalla completa maximizar "
                       "mitad izquierda derecha organizar el escritorio armar el puesto"},
     {"ventana_cerrar", "cerrar ventana quitar sacar de pantalla"},
+    {"participant_admit", "admitir hacer pasar dejar entrar aceptar al invitado que espera "
+                          "sacarlo del lobby meterlo a la sala"},
+    {"participant_reject", "rechazar no dejar entrar negar la entrada echar del lobby"},
+    {"participant_kick", "echar sacar de la sala expulsar desconectar a alguien que ya entro"},
+    {"evento_invitados", "auto aceptar dejar pasar solo lista de invitados del evento sin "
+                         "preguntar admitir automatico quienes entran directo"},
+    {"imagen_analizar", "mirar la imagen que se ve ahi que hay en camara revisar visualmente "
+                        "analizar captura vision hay alguien cuadro negro se lee el rotulo"},
     {"rostro_ver", "quien esta en camara quien aparece reconocer a alguien identificar cara"},
     {"rostro_guardar", "dar de alta una persona ensenarle una cara agregar al sistema corregir ficha"},
     {"rostro_listar", "que personas hay guardadas libreta conocidas"},
     {"rostro_borrar", "borrar una persona olvidar una cara sacar de la libreta"},
+    {"rostro_calidad", "sirve esta cara que le pido acercarse mirar de frente luz borrosa "
+                       "enfoque alta guiada invitado webrtc no me reconoce"},
+    {"rostro_sumar", "sumarle otra cara pose angulo mejorar el reconocimiento ensenarle mas "
+                     "girar la cabeza que se mueva"},
+    {"rostro_pendientes", "sin nombre desconocidos anotados solos completar fichas quien es este"},
+    {"rostro_fusionar", "juntar dos fichas duplicada misma persona dos veces unir"},
+    {"rostro_autoalta", "anotar solo automatico registrar a todos los que pasen interruptor "
+                        "switch dar de alta sola lobby los que llegan"},
+    {"rostro_lobby", "quien espera quien llego quien esta en el lobby reconocer a los que entran "
+                     "sala de espera admitir invitado identificar antes de que entre"},
     {"ventanas_ordenar", "ordenar acomodar las ventanas repartir entre monitores que no se "
                          "amontonen ordena las ventanas armar el puesto"},
     {"monitor_identificar", "identificar pantallas cual es cada monitor numero nombre "
