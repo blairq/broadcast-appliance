@@ -291,6 +291,11 @@ void readSettings(Ctx* c, obs_data_t* s) {
 void* create(obs_data_t* settings, obs_source_t* source) {
     auto* c = new Ctx();
     c->source = source;
+    // Sin colchon: una camara por NDI es video EN VIVO. El colchon que libobs
+    // le pone por defecto a una fuente asincrona empareja la cadencia a costa
+    // de varios cuadros de retardo, que es lo contrario de lo que se quiere
+    // cuando lo que se ve tiene que ir con lo que pasa en la sala.
+    obs_source_set_async_unbuffered(source, true);
     readSettings(c, settings);
     {
         std::lock_guard<std::mutex> lk(g_liveLock);

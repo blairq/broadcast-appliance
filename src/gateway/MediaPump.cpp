@@ -165,6 +165,7 @@ void MediaPump::start() {
         auto out = std::make_unique<VideoOut>();
         out->w = w;
         out->h = h;
+        out->nombre = narrow(n);
         out->scratch.resize(static_cast<size_t>(w) * h * 4u);
         if (!n.empty()) {
             if (out->sender.publish(n.c_str(), SlotConfig{w, h})) {
@@ -572,6 +573,23 @@ void MediaPump::publishVideo(VideoOut& out, const uint8_t* pixels, int w, int h,
     }
     const uint64_t now = HealthBlock::nowQpc();
     out.sender.send(frame, static_cast<size_t>(out.w) * out.h * 4u, FrameMeta{now, now});
+
+    // A que ritmo llega lo que sube este participante. Solo los canales sin
+    // tope de fps: una miniatura de backstage va a 10 a proposito y decir que
+    // "va a 10" seria ruido.
+    if (real && out.minIntervalNs == 0 && !out.nombre.empty()) {
+        ++out.cuadros;
+        const uint64_t t = monoNs();
+        if (out.informeNs == 0) {
+            out.informeNs = t;
+        } else if (t - out.informeNs >= 10'000'000'000ull) {
+            const double seg = static_cast<double>(t - out.informeNs) / 1e9;
+            log_.fmt("info", 0, "sube %s: %.1f fps (%dx%d)", out.nombre.c_str(),
+                     static_cast<double>(out.cuadros) / seg, w, h);
+            out.cuadros = 0;
+            out.informeNs = t;
+        }
+    }
 }
 
 void MediaPump::publishAudio(AudioOut& out, const float* samples, size_t n, int rate) {

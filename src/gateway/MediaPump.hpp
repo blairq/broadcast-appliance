@@ -112,6 +112,14 @@ class MediaPump {
         int h = 0;
         std::atomic<uint64_t> lastNs{0}; // ultimo frame REAL (no placa)
         uint64_t minIntervalNs = 0;      // 0 = todos los cuadros; si no, tope de fps
+        // A cuantos cuadros por segundo esta LLEGANDO lo que sube el
+        // participante. Es la mitad que faltaba para saber donde se va el
+        // retardo: si el telefono entrega 30 parejos, lo que se ve tarde se
+        // esta tardando mas adelante; si entrega 12 a los tirones, el camino
+        // de subida es el problema y no hay nada que apurar de este lado.
+        std::string nombre;
+        uint64_t informeNs = 0;
+        uint64_t cuadros = 0;
     };
     /// Canal de audio B->A: ring + re-bloqueo a 10 ms + re-muestreo.
     struct AudioOut {

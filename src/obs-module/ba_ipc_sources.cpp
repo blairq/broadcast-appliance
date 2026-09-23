@@ -304,8 +304,13 @@ struct GuestVideoSource {
                     obs_source_output_video(source, &frame);
                 }
             }
-            // ~60 Hz de sondeo: por encima de cualquier cadencia de emision.
-            std::this_thread::sleep_for(std::chrono::milliseconds(16));
+            // Se mira MUY seguido a proposito. Sondear al ritmo del que
+            // publica (o cerca) hace que las dos cadencias batan entre si y se
+            // pierdan cuadros; y aun sin perderlos, cada cuadro espera hasta
+            // un periodo de sondeo antes de salir. En un camino en vivo eso se
+            // acumula con todo lo demas. Mirar y que no haya nada es una carga
+            // atomica: no cuesta nada.
+            std::this_thread::sleep_for(std::chrono::milliseconds(4));
         }
     }
 };
@@ -318,6 +323,15 @@ void* guestVideoCreate(obs_data_t* settings, obs_source_t* source) {
         ctx->source = source;
         ctx->slot = slotFromSettings(settings);
         ctx->channel = channelFromSettings(settings);
+        // SIN COLCHON. Por defecto libobs le guarda cuadros a una fuente
+        // asincrona para que un video con cadencia despareja se vea parejo.
+        // Para un archivo eso esta bien; para alguien que esta hablando en
+        // vivo desde su telefono es justo lo contrario de lo que se quiere:
+        // agrega varios cuadros de retardo a un camino que ya viene largo
+        // (camara -> wifi -> gateway -> aca -> programa -> de vuelta). Se
+        // prefiere un cuadro que llega cuando llega antes que uno prolijo que
+        // llega tarde.
+        obs_source_set_async_unbuffered(source, true);
         ctx->worker = std::thread([ctx] { ctx->run(); });
         return ctx;
     } catch (...) {
