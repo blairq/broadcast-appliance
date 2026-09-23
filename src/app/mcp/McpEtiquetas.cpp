@@ -203,7 +203,8 @@ const Fila kPropias[] = {
     {"ui_barra", "barra lateral menu navegacion"},
     {"output_window", "ventana de salida proyeccion pantalla completa"},
     {"dashboard_list", "tableros que hay tablet"},
-    {"dashboard_card", "boton tarjeta del tablero agregar accion"},
+    {"dashboard_card", "boton tarjeta del tablero agregar accion direccion al aire armada take "
+                       "tiempos del guion desvio"},
     {"dashboard_background", "fondo del tablero imagen color"},
 
     // --- Plataformas -------------------------------------------------------

@@ -31,6 +31,8 @@ struct Kind {
     const char* title;
 };
 const Kind kKinds[] = {
+    // Primera a proposito: es la que se mira todo el tiempo.
+    {"direccion", "Dirección"},
     {"outputs", "Salidas"},  {"scenes", "Escenas"}, {"mixer", "Mezclador"},
     {"guests", "Invitados"}, {"health", "Sistema"}, {"monitor", "Monitor"},
     {"sources", "Fuentes"},  {"lobby", "Sala"},     {"speakers", "Oradores"},
@@ -258,6 +260,7 @@ int DashboardModel::rowOf(int id) const {
 /// apretada y lo primero que hay que hacer es agrandarla. Una tarjeta que hay
 /// que acomodar antes de que sirva es una tarjeta mal nacida.
 QSizeF tamanoInicial(const QString& kind) {
+    if (kind == "direccion") return {0.34, 0.34};
     if (kind == "scenes") return {0.34, 0.42};
     if (kind == "mixer" || kind == "guests" || kind == "speakers") return {0.30, 0.38};
     if (kind == "monitor") return {0.28, 0.34};
