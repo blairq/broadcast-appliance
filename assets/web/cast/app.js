@@ -43,6 +43,7 @@
     cerrado: false,
     ultimoCuadro: -1,
     quieto: 0,
+    medida: null,
     id: "",
     key: "",
   };
@@ -228,18 +229,34 @@
       }
     }
 
-    if (!hud || !st.pc) return;
+    // Las medidas se toman SIEMPRE, no solo con ?hud=1: son las que viajan por
+    // el canal de control, y el retardo de una pantalla de sala hay que poder
+    // verlo desde la cabina sin ir hasta el televisor a mirarle la esquina.
+    if (!st.pc) return;
     try {
       const stats = await st.pc.getStats();
       let txt = "";
+      const m = { fps: 0, buffer: 0, jitter: 0, perdidos: 0, rtt: 0 };
       stats.forEach((r) => {
+        if (r.type === "candidate-pair" && r.nominated && r.currentRoundTripTime)
+          m.rtt = Math.round(r.currentRoundTripTime * 1000);
         if (r.type !== "inbound-rtp") return;
+        const buffer = 1000 * (r.jitterBufferDelay || 0) / (r.jitterBufferEmittedCount || 1);
+        if (r.kind === "video") {
+          m.fps = r.framesPerSecond || 0;
+          m.buffer = Math.round(buffer);
+          m.jitter = Math.round((r.jitter || 0) * 1000);
+          m.perdidos = r.packetsLost || 0;
+        }
         txt += `${r.kind}  ${r.framesPerSecond || 0} fps  perdidos ${r.packetsLost || 0}\n` +
-               `  buffer ${(1000 * (r.jitterBufferDelay || 0) / (r.jitterBufferEmittedCount || 1)).toFixed(0)} ms` +
+               `  buffer ${buffer.toFixed(0)} ms` +
                `  jitter ${((r.jitter || 0) * 1000).toFixed(0)} ms\n`;
       });
-      $("hud").textContent = txt || "sin datos";
-      $("hud").classList.remove("oculto");
+      st.medida = m;
+      if (hud) {
+        $("hud").textContent = (txt || "sin datos") + `ida y vuelta ${m.rtt} ms\n`;
+        $("hud").classList.remove("oculto");
+      }
     } catch (e) { /* getStats puede no estar en un televisor viejo */ }
   }, 1000);
 
@@ -259,8 +276,14 @@
         const v = $("video");
         const q = v.getVideoPlaybackQuality ? v.getVideoPlaybackQuality().totalVideoFrames : 0;
         if (st.cerrado) return "cerrado";
-        if (q > 0) return "al aire · " + q + " cuadros · " + cs;
-        return "sin imagen · " + cs;
+        const m = st.medida;
+        // El retardo se dice SIEMPRE que se sepa: «al aire» sin un número al
+        // lado no sirve para decidir si la pantalla va con la sala o va atrás.
+        const como = m ? " · " + m.fps + " fps · buffer " + m.buffer + " ms · ida y vuelta " +
+                         m.rtt + " ms" + (m.perdidos > 0 ? " · " + m.perdidos + " perdidos" : "")
+                       : "";
+        if (q > 0) return "al aire · " + q + " cuadros · " + cs + como;
+        return "sin imagen · " + cs + como;
       },
       onMostrar: (url) => { location.href = url; },
     });

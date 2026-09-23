@@ -308,6 +308,18 @@ void MediaPump::returnAudioThread() {
     }
 }
 
+/// Cada cuanto se mira si A publico un cuadro nuevo.
+///
+/// MUY por debajo del periodo de un cuadro, a proposito. Mirando cada 33 ms
+/// contra alguien que publica cada 33 ms, las dos cadencias baten entre si y
+/// se pierde casi la mitad de los cuadros: medido, 13,6 fps de 30. Y lo peor
+/// no es la mitad que falta, es que lo que llega llega parejo pero tarde y a
+/// destiempo, asi que el navegador del otro lado ensancha su colchon y la
+/// pantalla se va un segundo atras de la sala. Mirando cada 4 ms el cuadro
+/// sale apenas se publica. Cuesta poco: preparar uno son ~8 ms de un solo
+/// nucleo, y mirar y que no haya nada no cuesta nada.
+constexpr int kMiradaMs = 4;
+
 void MediaPump::returnVideoThread() {
     SpoutReceiver receiver;
     bool sub = false;
@@ -320,6 +332,9 @@ void MediaPump::returnVideoThread() {
     int outW = 0;
     int outH = 0;
     std::vector<uint8_t> scaled;
+    std::int64_t trabajoUs = 0;
+    std::int64_t cuadros = 0;
+    auto ultimoInforme = std::chrono::steady_clock::now();
     while (!stop_.load(std::memory_order_relaxed)) {
         if (!sub) {
             const auto now = std::chrono::steady_clock::now();
@@ -361,16 +376,40 @@ void MediaPump::returnVideoThread() {
                     return r.kind == MediaRoute::Kind::Program || r.kind == MediaRoute::Kind::Backstage;
                 });
                 if (!targets.empty() && outW > 0 && outH > 0) {
+                    const auto t0 = std::chrono::steady_clock::now();
                     scaleBgra(src.data(), srcW, srcH, scaled.data(), outW, outH);
                     for (int s : targets) {
                         if (WebrtcSession* sess = hub_.session(s)) {
                             sess->pushLocalVideo(scaled.data(), scaled.size(), outW, outH);
                         }
                     }
+                    // Cuanto cuesta preparar un cuadro. Importa para el RETARDO:
+                    // si esto pasa del presupuesto (33 ms a 30 fps) la cola se
+                    // va llenando y la pantalla se atrasa sola, sin que nada
+                    // parezca roto. Se avisa cada 10 s, no por cuadro.
+                    trabajoUs += std::chrono::duration_cast<std::chrono::microseconds>(
+                                     std::chrono::steady_clock::now() - t0)
+                                     .count();
+                    ++cuadros;
                 }
             }
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(33));
+        const auto ahora = std::chrono::steady_clock::now();
+        if (ahora - ultimoInforme >= std::chrono::seconds(10)) {
+            if (cuadros > 0) {
+                const double seg =
+                    std::chrono::duration<double>(ahora - ultimoInforme).count();
+                const double medioMs = static_cast<double>(trabajoUs) / cuadros / 1000.0;
+                const double fps = cuadros / seg;
+                log_.fmt(medioMs > 25.0 ? "warn" : "info", 0,
+                         "retorno video: %.1f fps, %.1f ms por cuadro%s", fps, medioMs,
+                         medioMs > 25.0 ? " (no llega: la pantalla se va a atrasar)" : "");
+            }
+            trabajoUs = 0;
+            cuadros = 0;
+            ultimoInforme = ahora;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(kMiradaMs));
     }
 }
 
@@ -473,7 +512,7 @@ void MediaPump::operatorVideoThread() {
                 }
             }
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(33));
+        std::this_thread::sleep_for(std::chrono::milliseconds(kMiradaMs));
     }
 }
 
