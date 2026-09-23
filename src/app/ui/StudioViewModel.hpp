@@ -43,6 +43,7 @@ class RotuladorViewModel;
 class PrompterViewModel;
 class PantallasViewModel;
 class QrViewModel;
+class PersonasViewModel;
 class RegistroViewModel;
 class ExtensionesModel;
 class RielConfig;
@@ -115,6 +116,9 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* pantallas READ pantallas CONSTANT)
     /// La biblioteca de códigos QR y su estudio de diseño.
     Q_PROPERTY(QObject* qr READ qr CONSTANT)
+    /// La libreta de personas (rostros). Existe siempre: sin los modelos
+    /// vendoreados avisa por qué, que es mejor que una lista vacía.
+    Q_PROPERTY(QObject* personas READ personas CONSTANT)
     Q_PROPERTY(QObject* registro READ registro CONSTANT)
     /// Las tarjetas que vienen de Extensiones/ (ver ExtensionesModel.hpp).
     Q_PROPERTY(QObject* extensiones READ extensiones CONSTANT)
@@ -181,6 +185,7 @@ class StudioViewModel : public QObject {
     QObject* prompter() const;
     QObject* pantallas() const;
     QObject* qr() const;
+    QObject* personas() const;
     QrViewModel& qrVm() { return *qr_; }
     QObject* registro() const;
     QObject* extensiones() const;
@@ -292,9 +297,9 @@ class StudioViewModel : public QObject {
     /// El operador le encarga al asistente atender a alguien del lobby: que le
     /// pida sus datos por chat y despues le presente todo junto para admitirlo.
     /// Devuelve el error o "".
-    Q_INVOKABLE QString assistantIntake(const QString& id, const QString& name);
+    Q_INVOKABLE QString assistantIntake(const QString& id, const QString& name, bool yaAdentro);
     /// Lo engancha McpService (necesita el nucleo MCP, que vive afuera).
-    void setIntakeSink(std::function<QString(const QString&, const QString&)> fn) {
+    void setIntakeSink(std::function<QString(const QString&, const QString&, bool)> fn) {
         intakeSink_ = std::move(fn);
     }
     /// Escena que muestra el lienzo del editor ("" = ninguna). Se renderiza
@@ -327,7 +332,7 @@ class StudioViewModel : public QObject {
 
    private:
     AppRuntime& rt_;
-    std::function<QString(const QString&, const QString&)> intakeSink_;
+    std::function<QString(const QString&, const QString&, bool)> intakeSink_;
     std::unique_ptr<ScenesModel> scenes_;
     std::unique_ptr<SourcesModel> sources_;
     std::unique_ptr<MixerModel> mixer_;
@@ -344,6 +349,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<PrompterViewModel> prompter_;
     std::unique_ptr<PantallasViewModel> pantallas_;
     std::unique_ptr<QrViewModel> qr_;
+    std::unique_ptr<PersonasViewModel> personas_;
     std::unique_ptr<graficos::Vinculos> vinculos_;
     std::unique_ptr<RegistroViewModel> registro_;
     std::unique_ptr<ExtensionesModel> extensiones_;

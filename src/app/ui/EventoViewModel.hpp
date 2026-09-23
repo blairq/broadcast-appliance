@@ -108,6 +108,12 @@ class EventoViewModel : public QObject {
     Q_INVOKABLE void moverCue(int deBloque, int deCue, int aBloque, int aCue);
     Q_INVOKABLE bool guardar();
 
+    /// El evento abierto, para quien tenga que leerlo entero (la lista de
+    /// auto-aceptar del lobby). Vacío si no hay ninguno abierto.
+    const evento::Evento& guionAbierto() const { return e_; }
+    /// Cambia la lista de auto-aceptar y guarda. Ver `evento::Invitado`.
+    bool setAutoAceptar(std::vector<evento::Invitado> lista);
+
     /// Lo que se puede poner en cada tipo de cue: para armar el formulario sin
     /// que QML tenga que saberse la lista de memoria.
     Q_INVOKABLE QVariantList tiposDeCue() const;

@@ -17,6 +17,18 @@ Rectangle {
     // Reloj para los "hace N min" (sin tocar el modelo).
     property double now: Date.now()
     Timer { interval: 5000; running: page.visible; repeat: true; onTriggered: page.now = Date.now() }
+    // El hilo de chat que se está leyendo: "" es la sala, o el uid de alguien.
+    // Ver el comentario del TabBar: es también el destinatario de lo que se
+    // escriba, para que no se pueda contestar en público algo privado.
+    property string hiloChat: ""
+    function abrirHilo(uid) {
+        page.hiloChat = uid
+        const h = conf.chatHilos
+        for (let i = 0; i < h.length; ++i)
+            if (h[i].uid === uid) { hilos.currentIndex = i + 1; return }
+        // Todavía no hay hilo con esa persona: el tab aparece solo cuando se
+        // manda el primer mensaje, y hasta entonces se escribe desde acá.
+    }
     function since(ms) {
         const s = Math.max(0, Math.round((page.now - ms) / 1000))
         return s < 60 ? s + " s" : Math.floor(s / 60) + " min"
@@ -185,6 +197,49 @@ Rectangle {
                             }
                         }
                     }
+                    // --- Reconocer a los que llegan ------------------------
+                    // EL LOBBY ES EL MOMENTO: la gente llega antes de entrar y
+                    // se queda quieta frente a su cámara esperando. Es el único
+                    // rato en que hay tiempo de saber quién es sin que nada de
+                    // esto salga al aire.
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        visible: Studio.personas.disponible
+                        Toggle {
+                            checked: Studio.personas.lobbyAuto
+                            onToggled: (wanted) => Studio.personas.lobbyAuto = wanted
+                        }
+                        ColumnLayout {
+                            spacing: 2
+                            Layout.fillWidth: true
+                            // preferredWidth en 0: un Text que envuelve pide,
+                            // como ancho implícito, TODO el renglón sin cortar.
+                            // Sin esto el panel entero se ensanchaba para darle
+                            // ese ancho y el botón «QR ▾» de más abajo terminaba
+                            // fuera del panel. Con 0, el texto se conforma con
+                            // lo que le quede y envuelve, que es lo que se le
+                            // pidió al ponerle WordWrap.
+                            Layout.preferredWidth: 0
+                            Text { text: "☻ Reconocer a los que llegan"
+                                   color: Theme.text; font.pixelSize: 13 }
+                            Text {
+                                Layout.fillWidth: true
+                                Layout.preferredWidth: 0
+                                wrapMode: Text.WordWrap
+                                color: Theme.textFaint; font.pixelSize: 11
+                                text: Studio.personas.lobbyAuto
+                                      ? "Sobre cada cámara dice quién es. Al que no conoce lo anota sin " +
+                                        "nombre, con su foto, para que le pongas quién es."
+                                      : "Mira las cámaras de los que esperan y te dice a quién reconoce."
+                            }
+                            // NO va acá el contador de fichas sin nombre de
+                            // toda la libreta: en el panel del lobby se lee
+                            // como si esa gente estuviera esperando, y puede
+                            // venir de cualquier otra cámara. Ese número vive
+                            // en la página de Personas, que es de donde habla.
+                        }
+                    }
                     RowLayout {
                         Layout.fillWidth: true
                         Text { text: conf.waiting.count === 0 ? "Nadie esperando" : conf.waiting.count + " esperando"
@@ -248,6 +303,48 @@ Rectangle {
                                         color: Theme.textFaint; font.pixelSize: 11
                                     }
                                     StatusPill { anchors.left: parent.left; anchors.top: parent.top; anchors.margins: 6; visible: talk; text: "hablando"; dot: Theme.ok; pulse: true }
+
+                                    // --- Quién es, según el reconocimiento ---
+                                    // Va ENCIMA de su cámara y no al lado del
+                                    // nombre que escribió él: son dos cosas
+                                    // distintas. Lo que escribió es lo que dice
+                                    // ser; esto es a quién se parece. Juntarlas
+                                    // haría pasar una por la otra.
+                                    Rectangle {
+                                        // Por `uid` y no por el número de posición: las posiciones
+                                        // se reciclan y el cartel del anterior le quedaría puesto
+                                        // al siguiente.
+                                        readonly property var quien: Studio.personas.enLobby[uid]
+                                        visible: quien !== undefined
+                                        anchors { left: parent.left; right: parent.right
+                                                  bottom: parent.bottom; margins: 6 }
+                                        height: quienTxt.implicitHeight + 10
+                                        radius: 7
+                                        color: Qt.rgba(0, 0, 0, 0.62)
+                                        border.width: 1
+                                        border.color: !parent.visible || quien === undefined ? "transparent"
+                                                    : quien.nombre !== "" ? Theme.ok
+                                                    : quien.id !== "" ? Theme.accent : Theme.warn
+                                        Text {
+                                            id: quienTxt
+                                            anchors { fill: parent; margins: 5 }
+                                            wrapMode: Text.WordWrap
+                                            font.pixelSize: 11
+                                            color: Theme.text
+                                            text: {
+                                                const q = parent.quien
+                                                if (q === undefined) return ""
+                                                if (q.nombre !== "")
+                                                    return "✓ " + q.nombre +
+                                                           (q.cargo !== "" ? " · " + q.cargo : "") +
+                                                           "  " + Math.round(q.parecido * 100) + "%"
+                                                if (q.id !== "")
+                                                    return "Anotado sin nombre · " + q.caras + " cara(s)"
+                                                return q.sirve ? "No lo tengo en la libreta"
+                                                               : q.sugerencia
+                                            }
+                                        }
+                                    }
                                 }
                                 RowLayout {
                                     spacing: 8
@@ -305,6 +402,12 @@ Rectangle {
                 Panel {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
+                    // Puede achicarse hasta acá. Sin un mínimo explícito, el
+                    // layout no la deja bajar de lo que mide su contenido, y
+                    // lo que no entra se desborda por abajo de la página en vez
+                    // de apretarse: las baldosas de la sala tienen de sobra con
+                    // menos, y quedarse sin Chat visible es peor.
+                    Layout.minimumHeight: 220
                     title: "En la sala"
                     RowLayout {
                         anchors { right: parent.right; top: parent.top; topMargin: -34 }
@@ -417,7 +520,13 @@ Rectangle {
                                             ToolTip.text: presenter ? "Deja de ser presentador y sale del aire"
                                                                     : "Se queda al aire con su lugar mientras rotan los oradores"
                                         }
-                                        GlassButton { compact: true; text: "✉ Mensaje"; onClicked: { chatTo.pick(uid); chatInput.forceActiveFocus() } }
+                                        GlassButton {
+                                            compact: true; text: "✉ Mensaje"
+                                            // Abre SU hilo. Si todavía no hay
+                                            // ninguno con esa persona, el tab
+                                            // aparece con el primer mensaje.
+                                            onClicked: { page.abrirHilo(uid); chatInput.forceActiveFocus() }
+                                        }
                                         GlassButton {
                                             compact: true; text: "✎ Datos"
                                             onClicked: profDlg.editPerson(uid, name, info, contact)
@@ -443,24 +552,55 @@ Rectangle {
                 Panel {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 250
+                    Layout.minimumHeight: 150
                     title: "Chat"
+                    // EL TAB ES EL DESTINATARIO, y eso es el punto. Antes había
+                    // una sola lista con todo mezclado y un selector aparte:
+                    // la charla privada en la que se le piden los datos a
+                    // alguien que llega se leía como si fuera para toda la
+                    // sala, y contestar ahí con el selector en «A todos»
+                    // mandaba a todo el mundo lo que era para uno. Con el
+                    // destinatario pegado al hilo que estás leyendo, ese error
+                    // no se puede cometer.
                     ColumnLayout {
                         anchors.fill: parent
                         spacing: 8
+                        TabBar {
+                            id: hilos
+                            Layout.fillWidth: true
+                            currentIndex: 0
+                            onCurrentIndexChanged: page.hiloChat =
+                                currentIndex === 0 || currentIndex > conf.chatHilos.length
+                                    ? "" : conf.chatHilos[currentIndex - 1].uid
+                            TabButton { text: "Sala"; width: implicitWidth }
+                            Repeater {
+                                model: conf.chatHilos
+                                delegate: TabButton {
+                                    required property var modelData
+                                    text: "✉ " + (modelData.nombre !== "" ? modelData.nombre : "privado")
+                                    width: implicitWidth
+                                }
+                            }
+                        }
                         ListView {
                             id: chatList
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             clip: true
                             spacing: 6
-                            model: conf.chat
+                            // Se nombra `chatRev` para que esto se vuelva a
+                            // pedir cuando llega un mensaje: QML no re-evalúa
+                            // una función porque cambie un modelo que no mira.
+                            model: { conf.chatRev; return conf.chatCon(page.hiloChat) }
                             onCountChanged: Qt.callLater(positionViewAtEnd)
                             delegate: Item {
                                 id: msg
-                                required property string fromName
-                                required property string to
-                                required property string text
-                                required property bool mine
+                                required property var modelData
+                                readonly property string fromName: modelData.fromName
+                                readonly property string to: modelData.to
+                                readonly property string text: modelData.text
+                                readonly property bool mine: modelData.mine === true
+                                                             || modelData.fromId === "host"
                                 width: ListView.view.width
                                 height: bubble.height
                                 Rectangle {
@@ -484,25 +624,18 @@ Rectangle {
                         }
                         RowLayout {
                             Layout.fillWidth: true
-                            ComboBox {
-                                id: chatTo
-                                Layout.preferredWidth: 170
-                                textRole: "label"
-                                valueRole: "value"
-                                model: conf.chatTargets
-                                function pick(uid) {
-                                    const i = indexOfValue(uid)
-                                    currentIndex = i >= 0 ? i : 0
-                                }
-                            }
                             TextField {
                                 id: chatInput
                                 Layout.fillWidth: true
-                                placeholderText: "Escribí un mensaje…"
+                                placeholderText: page.hiloChat === ""
+                                                 ? "Escribí a toda la sala…"
+                                                 : "En privado a " + conf.nameOf(page.hiloChat) + "…"
                                 onAccepted: send()
                                 function send() {
                                     if (text.trim() === "") return
-                                    conf.sendChat(chatTo.currentValue, text)
+                                    // Al hilo que se está leyendo. Ver el
+                                    // comentario del TabBar.
+                                    conf.sendChat(page.hiloChat === "" ? "all" : page.hiloChat, text)
                                     text = ""
                                 }
                             }
@@ -513,13 +646,27 @@ Rectangle {
             }
 
             // --- Acceso + archivos ---------------------------------------------------
-            // fillWidth explicito en false: un ColumnLayout hereda fillWidth de sus
-            // hijos y, sin esto, le disputa el ancho a la columna central.
-            ColumnLayout {
+            // --- Columna derecha, CON SCROLL -----------------------------
+            // Las tarjetas de acá suman más de 1300 px de alto fijo. En una
+            // ventana normal eso no entra: sin scroll, la columna se desbordaba
+            // hacia abajo y lo que sobraba quedaba debajo del zócalo del
+            // asistente —parecía que la barra se superponía, y en realidad era
+            // la página la que se salía de su lugar—. Acá se scrollea, que es
+            // lo que hace cualquier panel lateral que no entra.
+            ScrollView {
+                id: colDer
                 Layout.preferredWidth: 360
                 Layout.maximumWidth: 360
                 Layout.fillWidth: false
                 Layout.fillHeight: true
+                clip: true
+                // Sin barra horizontal: la columna tiene ancho fijo y lo que
+                // sobra es alto. Una barra de abajo acá solo roba 12 px.
+                ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                contentWidth: availableWidth
+
+            ColumnLayout {
+                width: colDer.availableWidth
                 spacing: 16
 
                 // Uso de la sala: lo que se satura cuando hay mucha gente es el
@@ -808,7 +955,8 @@ Rectangle {
                         }
                     }
                 }
-            }
+            } // ColumnLayout de la columna derecha
+            } // ScrollView
         }
     }
 

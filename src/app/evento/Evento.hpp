@@ -90,6 +90,24 @@ struct Bloque {
 };
 
 /// El guion entero.
+/// Alguien que entra SOLO, sin que el operador tenga que aprobarlo.
+///
+/// POR QUE VA EN EL EVENTO Y NO EN UN AJUSTE GENERAL. Los que tienen que
+/// entrar son los de ESTA transmisión. Una lista global haría que el panelista
+/// del programa de ayer entre solo al de mañana, y nadie se acordaría de que
+/// esa lista existía.
+///
+/// SE IDENTIFICA POR LA FICHA DE ROSTRO, no por el nombre que escribe al
+/// entrar: el nombre lo escribe cualquiera, y dejar pasar solo a quien «se
+/// anotó como Ana Pérez» es dejar pasar a cualquiera que sepa escribir eso.
+/// `personaId` es el id en la libreta de personas; el reconocimiento tiene que
+/// decir que es ella con el margen de siempre.
+struct Invitado {
+    std::string personaId; ///< id en la libreta de personas (rostros)
+    std::string nombre;    ///< copia legible, para poder leer la lista
+    std::string nota;      ///< por qué está acá ("panelista", "camarógrafo")
+};
+
 struct Evento {
     std::string nombre;
     /// Hora prevista de arranque, "HH:MM" (vacío = no hay hora fija y los
@@ -97,6 +115,10 @@ struct Evento {
     std::string inicio;
     std::string nota;
     std::vector<Bloque> bloques;
+    /// A quiénes dejar pasar sin preguntar (ver `Invitado`). Vacía = a nadie,
+    /// que es lo que corresponde por defecto: hacer pasar gente sola es una
+    /// decisión que alguien tiene que tomar a propósito.
+    std::vector<Invitado> autoAceptar;
 
     int duracionSeg() const;
     /// Segundos desde el arranque del evento hasta el principio del bloque.

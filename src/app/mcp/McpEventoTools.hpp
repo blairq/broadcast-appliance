@@ -6,6 +6,10 @@
 // ============================================================================
 #pragma once
 
+#include <functional>
+#include <string>
+#include <utility>
+
 namespace ba::app {
 class EventoViewModel;
 namespace mcp {
@@ -13,7 +17,13 @@ namespace mcp {
 class McpCore;
 
 /// Registra la categoria "evento" y sus herramientas en `core`.
-void registerEventoTools(McpCore& core, EventoViewModel& ev);
+/// :param fichaDe: dado un id de la libreta de rostros, si existe y como se
+///        llama. Se pasa de afuera para que este archivo no dependa del
+///        reconocimiento: sin modelos vendoreados, la lista de auto-aceptar
+///        sigue existiendo (vacia) y nada se rompe.
+using FichaDe = std::function<std::pair<bool, std::string>(const std::string& personaId)>;
+
+void registerEventoTools(McpCore& core, EventoViewModel& ev, FichaDe fichaDe);
 
 } // namespace mcp
 } // namespace ba::app

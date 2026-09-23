@@ -175,7 +175,14 @@ json Evento::aJson() const {
         }
         bs.push_back(json{{"id", b.id}, {"nombre", b.nombre}, {"nota", b.nota}, {"cues", cs}});
     }
-    return json{{"nombre", nombre}, {"inicio", inicio}, {"nota", nota}, {"bloques", bs}};
+    json inv = json::array();
+    for (const Invitado& i : autoAceptar)
+        inv.push_back(json{{"personaId", i.personaId}, {"nombre", i.nombre}, {"nota", i.nota}});
+    return json{{"nombre", nombre},
+                {"inicio", inicio},
+                {"nota", nota},
+                {"bloques", bs},
+                {"autoAceptar", inv}};
 }
 
 Evento Evento::deJson(const json& j) {
@@ -184,6 +191,18 @@ Evento Evento::deJson(const json& j) {
     e.nombre = textoDe(j, "nombre");
     e.inicio = textoDe(j, "inicio");
     e.nota = textoDe(j, "nota");
+    if (j.contains("autoAceptar") && j["autoAceptar"].is_array()) {
+        for (const json& ji : j["autoAceptar"]) {
+            if (!ji.is_object()) continue;
+            Invitado i;
+            i.personaId = textoDe(ji, "personaId");
+            i.nombre = textoDe(ji, "nombre");
+            i.nota = textoDe(ji, "nota");
+            // Sin ficha de rostro no se puede reconocer a nadie: una entrada
+            // asi dejaria pasar por nombre, que es justo lo que no se quiere.
+            if (!i.personaId.empty()) e.autoAceptar.push_back(std::move(i));
+        }
+    }
     if (!j.contains("bloques") || !j["bloques"].is_array()) return e;
     for (const json& jb : j["bloques"]) {
         if (!jb.is_object()) continue;

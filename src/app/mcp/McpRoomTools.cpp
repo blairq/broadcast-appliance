@@ -254,6 +254,70 @@ void McpService::registerRoomTools() {
     }
     {
         Tool t;
+        t.name = "participant_admit";
+        t.title = "Hacer pasar a alguien del lobby";
+        t.category = "sala";
+        t.description =
+            "Admite a UNA persona que espera: deja el lobby y entra a la sala, con su camara y su "
+            "microfono.";
+        t.details =
+            "Es el final del camino de la atencion en el lobby: `rostro_lobby` / `chat_send` para "
+            "saber quien es, `participant_profile` para dejarle la ficha, `operator_ask` para que "
+            "el operador decida, y esto cuando dijo que si.\n\n"
+            "Si no hay lugar libre en la sala (`room_status` -> `slotsFree`) el gateway la deja "
+            "esperando: admitir no crea lugares.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"participant", personProp}}},
+                         {"required", {"participant"}}};
+        t.examples = {R"({"participant": "Jorge"})"};
+        t.run = [withPerson, partPath, post](const json& a, Done done) {
+            json p;
+            if (!withPerson(a, "participant", p, done)) return;
+            post(partPath(p, "admit"), json::object(), "Adentro.", done);
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "participant_reject";
+        t.title = "No dejar pasar a alguien del lobby";
+        t.category = "sala";
+        t.destructive = true;
+        t.description = "Le niega la entrada a quien espera: se le cierra la sesion y sale del lobby.";
+        t.details = "Para el que no tiene que estar. Si solo querés que espere un rato mas, no uses "
+                    "esto: dejala en el lobby y avisale por `chat_send`.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"participant", personProp}}},
+                         {"required", {"participant"}}};
+        t.run = [withPerson, partPath, post](const json& a, Done done) {
+            json p;
+            if (!withPerson(a, "participant", p, done)) return;
+            post(partPath(p, "reject"), json::object(), "Afuera.", done);
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "participant_kick";
+        t.title = "Sacar a alguien de la sala";
+        t.category = "sala";
+        t.destructive = true;
+        t.description = "Saca a alguien que YA esta adentro. Si esta al aire, sale al aire que se fue.";
+        t.details = "Mira `room_status` antes: si esa persona esta en una escena al aire, sacarla se "
+                    "ve en la transmision. Pasar el programa a otra escena primero es gratis; "
+                    "deshacer esto no.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"participant", personProp}}},
+                         {"required", {"participant"}}};
+        t.run = [withPerson, partPath, post](const json& a, Done done) {
+            json p;
+            if (!withPerson(a, "participant", p, done)) return;
+            post(partPath(p, "kick"), json::object(), "Listo.", done);
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "participant_admit_all";
         t.title = "Admitir a todos";
         t.category = "sala";

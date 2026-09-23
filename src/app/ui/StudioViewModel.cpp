@@ -45,6 +45,7 @@
 #include "ui/RegistroViewModel.hpp"
 #include "ui/RielConfig.hpp"
 #include "ui/PantallasViewModel.hpp"
+#include "ui/PersonasViewModel.hpp"
 #include "ui/PrompterViewModel.hpp"
 #include "ui/QrViewModel.hpp"
 #include "ui/RotuladorViewModel.hpp"
@@ -109,7 +110,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     conference_ = std::make_unique<ConferenceViewModel>(rt);
     // El encargo al asistente vive aca (necesita el MCP): la sala solo avisa.
     conference_->setIntakeSink(
-        [this](const QString& id, const QString& name) { return assistantIntake(id, name); });
+        [this](const QString& id, const QString& name, bool yaAdentro) {
+            return assistantIntake(id, name, yaAdentro);
+        });
     connect(conference_.get(), &ConferenceViewModel::notify, this, &StudioViewModel::notify);
     // Un solo renderizador de gráficos para todos los que disparan uno: el
     // guion, el editor, el rotulador y el asistente.
@@ -137,6 +140,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // Códigos QR: la biblioteca es del aparato y del evento, y los enlaces
     // propios (sala, prompter, rótulos) se los pide al gateway.
     qr_ = std::make_unique<QrViewModel>(rt, evento_.get(), conference_.get());
+    // Despues de `frames_`: mira los mismos videos que el resto de la interfaz.
+    personas_ = std::make_unique<PersonasViewModel>(rt, *this);
     connect(qr_.get(), &QrViewModel::notify, this, &StudioViewModel::notify);
     connect(rotulador_.get(), &RotuladorViewModel::notify, this, &StudioViewModel::notify);
     connect(this, &StudioViewModel::sceneChanged, rotulador_.get(), &RotuladorViewModel::refrescar);
@@ -516,6 +521,7 @@ QObject* StudioViewModel::rotulador() const { return rotulador_.get(); }
 QObject* StudioViewModel::prompter() const { return prompter_.get(); }
 QObject* StudioViewModel::pantallas() const { return pantallas_.get(); }
 QObject* StudioViewModel::qr() const { return qr_.get(); }
+QObject* StudioViewModel::personas() const { return personas_.get(); }
 QObject* StudioViewModel::registro() const { return registro_.get(); }
 QObject* StudioViewModel::extensiones() const { return extensiones_.get(); }
 QObject* StudioViewModel::riel() const { return riel_.get(); }
@@ -805,9 +811,9 @@ QStringList StudioViewModel::sceneFolders() const {
     return out;
 }
 
-QString StudioViewModel::assistantIntake(const QString& id, const QString& name) {
+QString StudioViewModel::assistantIntake(const QString& id, const QString& name, bool yaAdentro) {
     if (!intakeSink_) return "El servidor MCP no está disponible.";
-    return intakeSink_(id, name);
+    return intakeSink_(id, name, yaAdentro);
 }
 
 void StudioViewModel::moveScene(const QString& name, const QString& before) {

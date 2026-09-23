@@ -1109,4 +1109,10 @@ void EventoViewModel::ejecutarActual() {
     }
 }
 
+bool EventoViewModel::setAutoAceptar(std::vector<evento::Invitado> lista) {
+    if (abierto_.isEmpty()) return false;
+    e_.autoAceptar = std::move(lista);
+    return guardar();
+}
+
 } // namespace ba::app

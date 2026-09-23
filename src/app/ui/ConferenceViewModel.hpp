@@ -73,6 +73,13 @@ class ConferenceViewModel : public QObject {
     Q_PROPERTY(QStringList slotNames READ slotNames NOTIFY roomChanged)
     /// Destinos del chat: [{label, value}] ("all" + cada participante).
     Q_PROPERTY(QVariantList chatTargets READ chatTargets NOTIFY roomChanged)
+    /// Sube con cada mensaje. Es para que la vista sepa que tiene que volver a
+    /// pedir el hilo: `chatCon()` es una funcion, y QML no re-evalua una
+    /// funcion porque cambie un modelo que no esta mirando.
+    Q_PROPERTY(int chatRev READ chatRev NOTIFY chatRevChanged)
+    /// Los hilos privados abiertos: [{uid, nombre}]. El chat de la sala no
+    /// esta aca: ese es el de siempre y va primero.
+    Q_PROPERTY(QVariantList chatHilos READ chatHilos NOTIFY chatRevChanged)
     /// Con que aparece el operador ante el LOBBY (fuentes por nombre).
     Q_PROPERTY(QString operatorVideo READ operatorVideo NOTIFY operatorChanged)
     Q_PROPERTY(QString operatorAudio READ operatorAudio NOTIFY operatorChanged)
@@ -155,9 +162,15 @@ class ConferenceViewModel : public QObject {
     /// asistente (le pide los datos y despues pregunta si la hacemos pasar).
     Q_INVOKABLE void setAutoIntake(bool on);
     /// Lo engancha StudioViewModel (el encargo vive alla, con el MCP).
-    void setIntakeSink(std::function<QString(const QString&, const QString&)> fn) {
+    /// :param yaAdentro: true si esa persona ya entró a la sala sola (estaba
+    ///        en la lista del evento). El encargo es otro: confirmarle los
+    ///        datos que ya tenemos, no pedírselos de cero.
+    void setIntakeSink(std::function<QString(const QString&, const QString&, bool)> fn) {
         intakeSink_ = std::move(fn);
     }
+    /// Da por atendida a esa persona: el asistente no la va a abordar. Lo usa
+    /// el auto-aceptado, que la atiende de otra manera.
+    void marcarAtendido(const QString& id) { intakeDone_.insert(id); }
     Q_INVOKABLE void setProfile(const QString& id, const QString& name, const QString& info,
                                 const QString& contact);
     /// "m:ss", "m" (minutos) o "Ns" -> segundos (0 = invalido).
@@ -192,6 +205,16 @@ class ConferenceViewModel : public QObject {
     Q_INVOKABLE void copyToClipboard(const QString& text);
     /// Nombre de un participante por id (para el chat).
     Q_INVOKABLE QString nameOf(const QString& id) const;
+    /// Los mensajes de UN hilo. `uid` vacio = el de la sala (lo que ve todo el
+    /// mundo); con `uid`, la conversacion privada con esa persona.
+    ///
+    /// POR QUE SEPARADOS. La charla en la que se le piden los datos a alguien
+    /// que llega es privada, y mezclada en el chat de la sala se lee como si
+    /// fuera para todos —y peor: contestarle ahi manda a toda la sala lo que
+    /// era para uno—.
+    Q_INVOKABLE QVariantList chatCon(const QString& uid) const;
+    int chatRev() const { return chatRev_; }
+    QVariantList chatHilos() const;
     /// QR de ingreso al lobby: "local" (red local) o "remote" (Cloudflare).
     /// Responde con qrReady.
     Q_INVOKABLE void requestQr(const QString& target, bool withPin = false);
@@ -204,6 +227,7 @@ class ConferenceViewModel : public QObject {
     void onlineChanged();
     void roomChanged();
     void autoIntakeChanged();
+    void chatRevChanged();
     void operatorChanged();
     void networkChanged();
     /// `modules`: filas de '0'/'1'. Sin url -> `message` explica que falta.
@@ -223,8 +247,9 @@ class ConferenceViewModel : public QObject {
     AppRuntime& rt_;
 
     bool autoIntake_ = false;
+    int chatRev_ = 0;
 
-    std::function<QString(const QString&, const QString&)> intakeSink_;
+    std::function<QString(const QString&, const QString&, bool)> intakeSink_;
 
     QSet<QString> intakeDone_; // a quienes ya se les encargo
     std::unique_ptr<ConferenceClient> client_;

@@ -262,6 +262,30 @@ void recorrido() {
     CHECK(r[1].pos == segundo, "cada renglon sabe de que cue habla");
 }
 
+/// La lista de auto-aceptar del lobby: va y vuelve del JSON, y una entrada sin
+/// ficha de rostro NO sobrevive —dejaria pasar por nombre, que es justo lo que
+/// no se quiere—.
+void auto_aceptar() {
+    ba::evento::Evento e;
+    e.nombre = "Programa";
+    ba::evento::Invitado a;
+    a.personaId = "pf2f1850c1b84";
+    a.nombre = "Ana Perez";
+    a.nota = "panelista";
+    e.autoAceptar.push_back(a);
+    const auto j = e.aJson();
+    const ba::evento::Evento v = ba::evento::Evento::deJson(j);
+    CHECK(v.autoAceptar.size() == 1, "la lista de auto-aceptar vuelve del JSON");
+    CHECK(v.autoAceptar.size() == 1 && v.autoAceptar[0].personaId == "pf2f1850c1b84",
+          "con su ficha de rostro");
+    CHECK(v.autoAceptar.size() == 1 && v.autoAceptar[0].nota == "panelista", "y su nota");
+
+    auto roto = j;
+    roto["autoAceptar"][0].erase("personaId");
+    CHECK(ba::evento::Evento::deJson(roto).autoAceptar.empty(),
+          "una entrada sin ficha de rostro se descarta");
+}
+
 } // namespace
 
 int main() {
@@ -271,6 +295,7 @@ int main() {
     correr();
     desvio();
     recorrido();
+    auto_aceptar();
     if (g_fallos == 0) std::printf("test_evento: OK\n");
     return g_fallos == 0 ? 0 : 1;
 }
