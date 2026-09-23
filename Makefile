@@ -31,7 +31,7 @@ PIP       ?= .venv/bin/pip
         clean clean-all \
         deps deps-obs deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist \
         deps-lsp deps-status deps-clean \
-        deps-src deps-mbedtls deps-nlohmann deps-samplerate deps-argon2
+        deps-src deps-mbedtls deps-nlohmann deps-samplerate deps-argon2 deps-rostros _ba_baja
 
 # --- Ayuda (target por defecto) ---------------------------------------------
 help:
@@ -64,6 +64,7 @@ help:
 	@echo "  make deps-webrtc      SDK libwebrtc M123 -> extern/webrtc (BA_WEBRTC_TARGET=windows|linux)"
 	@echo "  make deps-lwip        lwIP 2.2.0 -> extern/lwip (tunel WireGuard del gateway)"
 	@echo "  make deps-cacert      raices de Mozilla (curl.se) -> extern/cacert (HTTPS propio: YouTube)"
+	@echo "  make deps-rostros     ONNX Runtime + YuNet + SFace -> extern/rostros (reconocer caras)"
 	@echo "  make deps-spout       SDK Spout2 (2.007h) -> extern/Spout2"
 	@echo "  make deps-cloudflared cloudflared 2024.11.0 -> extern/cloudflared"
 	@echo "  make deps-vcredist    Redist VC++ -> extern/vcredist"
@@ -698,6 +699,58 @@ deps-lwip:
 	  rm -rf "$(EXTERNS_DIR)/lwip" "$(EXTERNS_DIR)/lwip-2.2.0"; \
 	  unzip -q "$(LWIP_ZIP)" -d "$(EXTERNS_DIR)" && mv "$(EXTERNS_DIR)/lwip-2.2.0" "$(EXTERNS_DIR)/lwip"; \
 	fi
+
+# --- Reconocimiento de rostros (ONNX Runtime + dos modelos) ---------------------
+# PARA QUE: reconocer a alguien que ya estuvo —que el lobby sepa quien llego,
+# que el rotulo salga con su nombre y su cargo sin tipearlo de nuevo—. Corre
+# EN EL APARATO: rapido, sin red, sin costo por uso y siempre el mismo
+# resultado. Un modelo remoto no sirve para esto: tarda segundos, cuesta en
+# cada consulta y no contesta igual dos veces.
+#
+# LOS ROSTROS NO SALEN DE ACA. Se guarda un vector de numeros (el "embedding"),
+# no la foto, y queda en la carpeta portable junto con lo demas.
+#
+# Todo MIT / Apache-2.0, fijado por hash. Pesa poco para lo que hace:
+#   onnxruntime  1.20.1   6 MB (Linux) / 62 MB el zip de Windows / 7,5 MB macOS
+#   YuNet        detector    228 KB
+#   SFace int8   embedding   9,4 MB   (el fp32 son 37 MB y no hace falta)
+ORT_VER := 1.20.1
+ORT_LINUX_SHA := 67db4dc1561f1e3fd42e619575c82c601ef89849afc7ea85a003abbac1a1a105
+ORT_WIN_SHA   := 78d447051e48bd2e1e778bba378bec4ece11191c9e538cf7b2c4a4565e8f5581
+ORT_MAC_SHA   := b678fc3c2354c771fea4fba420edeccfba205140088334df801e7fc40e83a57a
+ZOO := https://github.com/opencv/opencv_zoo/raw/main/models
+YUNET_URL := $(ZOO)/face_detection_yunet/face_detection_yunet_2023mar.onnx
+YUNET_SHA := 8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4
+SFACE_URL := $(ZOO)/face_recognition_sface/face_recognition_sface_2021dec_int8.onnx
+SFACE_SHA := 2b0e941e6f16cc048c20aee0c8e31f569118f65d702914540f7bfdc14048d78a
+
+# El paquete del runtime segun para donde se compile (BA_ORT_TARGET).
+BA_ORT_TARGET ?= linux
+ifeq ($(BA_ORT_TARGET),windows)
+  ORT_PKG := onnxruntime-win-x64-$(ORT_VER).zip
+  ORT_SHA := $(ORT_WIN_SHA)
+else ifeq ($(BA_ORT_TARGET),macos)
+  ORT_PKG := onnxruntime-osx-arm64-$(ORT_VER).tgz
+  ORT_SHA := $(ORT_MAC_SHA)
+else
+  ORT_PKG := onnxruntime-linux-x64-$(ORT_VER).tgz
+  ORT_SHA := $(ORT_LINUX_SHA)
+endif
+ORT_URL := https://github.com/microsoft/onnxruntime/releases/download/v$(ORT_VER)/$(ORT_PKG)
+
+deps-rostros:
+	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
+	@mkdir -p "$(DL_DIR)" "$(EXTERNS_DIR)/rostros/modelos"
+	@$(MAKE) --no-print-directory _ba_baja ARCHIVO="$(DL_DIR)/$(ORT_PKG)" URL="$(ORT_URL)" SHA="$(ORT_SHA)" QUE="onnxruntime"
+	@$(MAKE) --no-print-directory _ba_baja ARCHIVO="$(EXTERNS_DIR)/rostros/modelos/yunet.onnx" URL="$(YUNET_URL)" SHA="$(YUNET_SHA)" QUE="YuNet (detector)"
+	@$(MAKE) --no-print-directory _ba_baja ARCHIVO="$(EXTERNS_DIR)/rostros/modelos/sface.onnx" URL="$(SFACE_URL)" SHA="$(SFACE_SHA)" QUE="SFace (embedding)"
+	@if [ -d "$(EXTERNS_DIR)/rostros/onnxruntime/include" ]; then 	  echo "[deps] rostros: onnxruntime ya extraido"; 	else 	  rm -rf "$(EXTERNS_DIR)/rostros/onnxruntime" "$(EXTERNS_DIR)/rostros/.tmp"; 	  mkdir -p "$(EXTERNS_DIR)/rostros/.tmp"; 	  case "$(ORT_PKG)" in 	    *.zip) unzip -q "$(DL_DIR)/$(ORT_PKG)" -d "$(EXTERNS_DIR)/rostros/.tmp" ;; 	    *) tar xzf "$(DL_DIR)/$(ORT_PKG)" -C "$(EXTERNS_DIR)/rostros/.tmp" ;; 	  esac; 	  mv "$(EXTERNS_DIR)/rostros/.tmp/"* "$(EXTERNS_DIR)/rostros/onnxruntime"; 	  rmdir "$(EXTERNS_DIR)/rostros/.tmp"; 	fi
+	@echo "[deps] rostros: listo en $(EXTERNS_DIR)/rostros"
+
+# Bajar y verificar, o no dejar nada: un archivo a medias que pasa por bueno
+# es peor que no tenerlo (se descubre al usarlo, lejos de aca).
+_ba_baja:
+	@if [ -f "$(ARCHIVO)" ] && [ "$$(sha256sum "$(ARCHIVO)" | cut -d' ' -f1)" = "$(SHA)" ]; then 	  echo "[deps] $(QUE): ya presente y verificado"; 	else 	  echo "[deps] $(QUE): descargando"; 	  curl -fL --retry 3 -o "$(ARCHIVO).part" "$(URL)" 	    && printf '%s  %s\n' "$(SHA)" "$(ARCHIVO).part" | sha256sum -c --quiet 	    && mv "$(ARCHIVO).part" "$(ARCHIVO)" 	    || { echo "[deps] ERROR $(QUE): fallo de descarga o hash" >&2; rm -f "$(ARCHIVO).part"; exit 1; }; 	fi
 
 # --- Raices de certificados (HTTPS propio de A: API de YouTube) -----------------
 # El cliente HTTPS usa mbedtls (vendoreado): nada de libssl del sistema. Las

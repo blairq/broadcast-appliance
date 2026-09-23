@@ -56,7 +56,36 @@ endif()
 set(BA_QRCODEGEN "${CMAKE_SOURCE_DIR}/third_party/qrcodegen")
 list(APPEND BA_CORE_SOURCES "${BA_QRCODEGEN}/qrcodegen.cpp")
 
+# --- Reconocimiento de rostros (opcional) ------------------------------------
+# Solo si estan los modelos y el runtime vendoreados (`make deps-rostros`).
+# Sin eso, el nucleo compila igual y el resto del sistema no se entera: esto
+# agrega una capacidad, no es un cimiento.
+set(BA_ROSTROS_DIR "${CMAKE_SOURCE_DIR}/extern/rostros")
+set(BA_HAVE_ROSTROS OFF)
+if(EXISTS "${BA_ROSTROS_DIR}/onnxruntime/include/onnxruntime_cxx_api.h"
+   AND EXISTS "${BA_ROSTROS_DIR}/modelos/yunet.onnx")
+    set(BA_HAVE_ROSTROS ON)
+else()
+    list(FILTER BA_CORE_SOURCES EXCLUDE REGEX ".*/rostros/.*")
+endif()
+
 add_library(ba_core STATIC ${BA_CORE_SOURCES})
+if(BA_HAVE_ROSTROS)
+    file(GLOB _ba_ort_lib "${BA_ROSTROS_DIR}/onnxruntime/lib/libonnxruntime.so"
+                          "${BA_ROSTROS_DIR}/onnxruntime/lib/onnxruntime.lib"
+                          "${BA_ROSTROS_DIR}/onnxruntime/lib/libonnxruntime.dylib")
+    list(GET _ba_ort_lib 0 _ba_ort_lib)
+    target_include_directories(ba_core PUBLIC "${BA_ROSTROS_DIR}/onnxruntime/include")
+    target_link_libraries(ba_core PUBLIC "${_ba_ort_lib}")
+    target_compile_definitions(ba_core PUBLIC BA_HAVE_ROSTROS=1)
+    # La biblioteca viaja en el bundle, como todo lo demas.
+    file(GLOB _ba_ort_runtime "${BA_ROSTROS_DIR}/onnxruntime/lib/libonnxruntime.so*"
+                              "${BA_ROSTROS_DIR}/onnxruntime/lib/onnxruntime.dll")
+    install(FILES ${_ba_ort_runtime} DESTINATION bin/64bit)
+    install(DIRECTORY "${BA_ROSTROS_DIR}/modelos/" DESTINATION data/rostros FILES_MATCHING PATTERN "*.onnx")
+    install(FILES "${BA_ROSTROS_DIR}/onnxruntime/LICENSE" DESTINATION data/licencias
+            RENAME onnxruntime-MIT.txt OPTIONAL)
+endif()
 target_include_directories(ba_core PUBLIC "${BA_QRCODEGEN}")
 
 # Incluye públicos: los headers de ba_core se consumen desde tests y desde
