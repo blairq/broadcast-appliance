@@ -375,8 +375,12 @@ if(BA_APP_QT_OK)
         if(NOT APPLE)
             target_link_libraries(test_terminal PRIVATE util)
         endif()
+        target_compile_definitions(test_terminal PRIVATE
+            BA_TEST_TERM_DUMP="${CMAKE_CURRENT_SOURCE_DIR}/tests/datos/claude-code-122x35.bin")
         set_target_properties(test_terminal PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
         add_test(NAME test_terminal COMMAND test_terminal)
+
+
         set_tests_properties(test_terminal PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
     endif()
     # Barra del asistente al operador.

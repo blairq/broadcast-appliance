@@ -49,7 +49,8 @@ const std::vector<Grupo>& catalogo() {
           {4, "twitch", "◆", "Twitch (canal, vivo, chat)"},
           {5, "facebook", "f", "Facebook (Páginas, vivos, videos)"}}},
         {"Sistema",
-         {{14, "agentes", "⚇", "Agentes: los roles automáticos, qué hacen y qué hicieron"},
+         {{7, "asistente", "✦", "Asistente: la terminal del agente que trabaja con vos"},
+          {14, "agentes", "⚇", "Agentes: los roles automáticos, qué hacen y qué hicieron"},
           {13, "registro", "❑", "Registro: todo lo que pasa, de los tres procesos"},
           {6, "configuracion", "⚙", "Configuración"}}},
     };

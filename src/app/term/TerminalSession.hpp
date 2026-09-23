@@ -58,6 +58,12 @@ class TerminalSession : public QObject {
     int rows() const { return rows_; }
     int cols() const { return cols_; }
     void resize(int cols, int rows);
+
+    /// Mete bytes en el emulador como si los hubiera escrito el programa. Es
+    /// para reproducir una pantalla rota a partir de un volcado (BA_TERM_DUMP):
+    /// una terminal se rompe por una secuencia puntual entre miles, y mirando
+    /// el resultado no hay forma de saber cual fue.
+    void alimentarParaPruebas(const QByteArray& bytes);
     /// Fila `row` de la vista con `scroll` lineas de historial hacia arriba
     /// (row < 0 no existe; row >= rows no existe).
     void line(int row, int scroll, std::vector<Cell>& out) const;

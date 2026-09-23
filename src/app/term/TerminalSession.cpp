@@ -9,6 +9,8 @@ extern "C" {
 }
 
 #include <algorithm>
+#include <cstdio>
+#include <cstdlib>
 #include <mutex>
 
 namespace ba::app::term {
@@ -155,6 +157,17 @@ TerminalSession::TerminalSession(QObject* parent) : QObject(parent), pty_(std::m
     repaint_.setInterval(12);
     connect(&repaint_, &QTimer::timeout, this, &TerminalSession::contentChanged);
     connect(pty_.get(), &Pty::output, this, [this](const QByteArray& data) {
+        // Con BA_TERM_DUMP=<archivo> se guarda TAL CUAL lo que escribe el
+        // programa. Es la unica forma de reproducir despues, byte por byte,
+        // lo que hizo que la pantalla quedara mal: una terminal se rompe por
+        // una secuencia puntual entre millones, y mirando el resultado no se
+        // sabe cual fue.
+        if (const char* vol = std::getenv("BA_TERM_DUMP"); vol != nullptr && vol[0] != 0) {
+            if (std::FILE* f = std::fopen(vol, "ab"); f != nullptr) {
+                std::fwrite(data.constData(), 1, static_cast<std::size_t>(data.size()), f);
+                std::fclose(f);
+            }
+        }
         {
             const std::lock_guard<std::mutex> lk(vtLock_);
             vterm_input_write(vt_, data.constData(), static_cast<size_t>(data.size()));
@@ -212,6 +225,12 @@ void TerminalSession::resize(int cols, int rows) {
     scheduleRepaint();
 }
 
+void TerminalSession::alimentarParaPruebas(const QByteArray& bytes) {
+    const std::lock_guard<std::mutex> lk(vtLock_);
+    vterm_input_write(vt_, bytes.constData(), static_cast<size_t>(bytes.size()));
+    vterm_screen_flush_damage(screen_);
+}
+
 void TerminalSession::convert(const void* vtermCell, Cell& out) const {
     VTermScreenCell c = *static_cast<const VTermScreenCell*>(vtermCell);
     // libvterm marca la mitad derecha de un caracter ancho con 0xFFFFFFFF.
@@ -220,8 +239,15 @@ void TerminalSession::convert(const void* vtermCell, Cell& out) const {
     else
         out.ch = c.chars[0] == 0 ? U' ' : c.chars[0];
     out.extra.clear();
-    for (int i = 1; i < VTERM_MAX_CHARS_PER_CELL && c.chars[i] != 0; ++i)
-        out.extra += QString::fromUcs4(reinterpret_cast<const char32_t*>(&c.chars[i]), 1);
+    // Los combinantes cuelgan de un caracter: sin caracter base no hay nada de
+    // que colgar. Ademas de la inicializacion de arriba, esto corta el mismo
+    // error si vuelve a entrar por otro lado (el historial, una version nueva
+    // de libvterm): un cuadrito de basura sobre un espacio en blanco es de las
+    // cosas que cuesta relacionar con su causa.
+    if (c.chars[0] != 0 && c.chars[0] != static_cast<uint32_t>(-1)) {
+        for (int i = 1; i < VTERM_MAX_CHARS_PER_CELL && c.chars[i] != 0; ++i)
+            out.extra += QString::fromUcs4(reinterpret_cast<const char32_t*>(&c.chars[i]), 1);
+    }
     out.width = static_cast<quint8>(c.width <= 0 ? 1 : c.width);
     out.bold = c.attrs.bold;
     out.italic = c.attrs.italic;
@@ -260,7 +286,17 @@ void TerminalSession::lineLocked(int row, int scroll, std::vector<Cell>& out) co
     }
     if (virt >= rows_) return;
     for (int col = 0; col < cols_; ++col) {
-        VTermScreenCell c;
+        // EN CERO ANTES DE PEDIRLA, y no es paranoia. `vterm_screen_get_cell`
+        // copia `chars` solo hasta el primer 0 INCLUSIVE y deja el resto como
+        // estaba: para una celda vacia escribe chars[0]=0 y corta, sin tocar
+        // chars[1..5]. Reusando la misma variable en toda la fila, cada celda
+        // en blanco heredaba los caracteres COMBINANTES de la ultima celda que
+        // si tenia (⚠️ y ⏸️ traen un selector de variacion en chars[1]), y de
+        // ahi en adelante la fila entera se dibujaba con una capa de glifos
+        // encima. Se veia como bandas de basura sobre las zonas vacias, y al
+        // copiarlas salian renglones en blanco —porque el texto ESTABA bien:
+        // lo que sobraba era lo que le colgabamos al dibujar—.
+        VTermScreenCell c{};
         if (vterm_screen_get_cell(screen_, VTermPos{virt, col}, &c)) {
             convert(&c, out[static_cast<std::size_t>(col)]);
         }
