@@ -334,6 +334,7 @@ void MediaPump::returnVideoThread() {
     int outH = 0;
     std::vector<uint8_t> scaled;
     std::int64_t trabajoUs = 0;
+    std::int64_t edadUs = 0;
     std::int64_t cuadros = 0;
     auto ultimoInforme = std::chrono::steady_clock::now();
     while (!stop_.load(std::memory_order_relaxed)) {
@@ -391,6 +392,14 @@ void MediaPump::returnVideoThread() {
                     trabajoUs += std::chrono::duration_cast<std::chrono::microseconds>(
                                      std::chrono::steady_clock::now() - t0)
                                      .count();
+                    // Cuanto hace que A publico este cuadro. `meta.qpc` lo pone
+                    // A al publicar y los dos procesos miden con el mismo reloj
+                    // monotonico, asi que la resta es el SALTO A->B solo: el
+                    // sondeo mas el IPC. Es el unico tramo del camino que no
+                    // tenia numero, y sin el no habia forma de saber si el
+                    // retardo estaba en libobs o en nosotros.
+                    const std::uint64_t ahoraQpc = HealthBlock::nowQpc();
+                    if (meta.qpc != 0 && ahoraQpc > meta.qpc) edadUs += (ahoraQpc - meta.qpc) / 1000;
                     ++cuadros;
                 }
             }
@@ -402,11 +411,14 @@ void MediaPump::returnVideoThread() {
                     std::chrono::duration<double>(ahora - ultimoInforme).count();
                 const double medioMs = static_cast<double>(trabajoUs) / cuadros / 1000.0;
                 const double fps = cuadros / seg;
+                const double edadMs = static_cast<double>(edadUs) / cuadros / 1000.0;
                 log_.fmt(medioMs > 25.0 ? "warn" : "info", 0,
-                         "retorno video: %.1f fps, %.1f ms por cuadro%s", fps, medioMs,
+                         "retorno video: %.1f fps, %.1f ms por cuadro, %.1f ms de A a B%s", fps,
+                         medioMs, edadMs,
                          medioMs > 25.0 ? " (no llega: la pantalla se va a atrasar)" : "");
             }
             trabajoUs = 0;
+            edadUs = 0;
             cuadros = 0;
             ultimoInforme = ahora;
         }

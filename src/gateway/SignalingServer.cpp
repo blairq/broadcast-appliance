@@ -646,7 +646,12 @@ bool SignalingServer::serveStatic(long long fd, const std::string& root, const s
     }
     std::ostringstream ss;
     ss << f.rdbuf();
-    http::sendResponse(fd, 200, contentTypeFor(relPath), ss.str());
+    // `no-cache` NO quiere decir «no guardes»: quiere decir «preguntá antes de
+    // usar lo guardado». Sin esto el navegador decide solo cuanto se queda con
+    // un archivo, y como los nombres no llevan version, un telefono se queda
+    // con el app.js de la actualizacion anterior y lo arreglado no aparece.
+    // Pasa siempre y no se nota: la pagina carga, anda, y anda como antes.
+    http::sendResponse(fd, 200, contentTypeFor(relPath), ss.str(), "Cache-Control: no-cache\r\n");
     return true;
 }
 

@@ -257,6 +257,10 @@ struct GuestVideoSource {
         uint32_t height = 0;
 
         std::string subChannel;
+        std::uint64_t edadUs = 0;
+        std::uint64_t medidos = 0;
+        std::uint64_t informeNs = 0;
+        const auto narrow = [](const std::wstring& w) { return std::string(w.begin(), w.end()); };
         while (!stop.load(std::memory_order_relaxed)) {
             int want;
             std::string wantChannel;
@@ -302,6 +306,27 @@ struct GuestVideoSource {
                     frame.format = VIDEO_FORMAT_BGRA;
                     frame.timestamp = os_gettime_ns();
                     obs_source_output_video(source, &frame);
+
+                    // Cuanto hace que B publico este cuadro: el salto B->A
+                    // solo (sondeo + IPC), medido con el mismo reloj
+                    // monotonico de los dos lados. Es la mitad de ida de lo
+                    // que el gateway ya mide a la vuelta; con las dos se sabe
+                    // cuanto del retardo es nuestro y cuanto es de libobs.
+                    const std::uint64_t ahora = ba::ipc::HealthBlock::nowQpc();
+                    if (meta.qpc != 0 && ahora > meta.qpc) edadUs += (ahora - meta.qpc) / 1000;
+                    ++medidos;
+                    if (informeNs == 0) {
+                        informeNs = ahora;
+                    } else if (ahora - informeNs >= 10'000'000'000ull && medidos > 0) {
+                        const double seg = static_cast<double>(ahora - informeNs) / 1e9;
+                        blog(LOG_INFO, "[ba] %s: %.1f fps, %.1f ms de B a A",
+                             narrow(videoName(subChannel, subSlot)).c_str(),
+                             static_cast<double>(medidos) / seg,
+                             static_cast<double>(edadUs) / medidos / 1000.0);
+                        edadUs = 0;
+                        medidos = 0;
+                        informeNs = ahora;
+                    }
                 }
             }
             // Se mira MUY seguido a proposito. Sondear al ritmo del que
