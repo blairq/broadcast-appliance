@@ -307,7 +307,8 @@ const Fila kPropias[] = {
     // --- Pantallas ---------------------------------------------------------------
     {"pantalla_listar", "que televisores hay pantallas conocidas estado"},
     {"pantalla_buscar", "buscar televisores en la red descubrir chromecast"},
-    {"pantalla_mostrar", "mandar a la tv proyectar castear mostrar en pantalla qr mensaje reloj"},
+    {"pantalla_mostrar", "mandar a la tv proyectar castear mostrar en pantalla qr mensaje reloj "
+                         "tally luz roja camara al aire"},
     {"pantalla_fijar", "dejar fijo que siempre muestre lo mismo permanente"},
     {"pantalla_renombrar", "ponerle nombre a un televisor renombrar"},
     {"pantalla_agregar", "agregar televisor a mano por ip"},

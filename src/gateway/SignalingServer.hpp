@@ -305,6 +305,16 @@ class SignalingServer {
     Prompter prompter_;
     /// Lo que rota en cada pantalla (lo publica A, lo lee /pantalla/carrusel/).
     Carruseles carruseles_;
+    /// EL TALLY: que escena esta al aire, cual armada y que fuentes tiene cada
+    /// una. Lo publica A (es el unico que sabe de escenas) y lo leen las
+    /// pantallas de tally de la sala.
+    ///
+    /// Es un JSON tal cual, sin estructura propia, a proposito: lo que hay
+    /// adentro lo decide quien lo publica, y el gateway solo lo guarda y lo
+    /// sirve. Un tally que se atrasa porque hubo que tocar dos lados para
+    /// agregarle un campo no sirve.
+    mutable std::mutex tallyLock_;
+    nlohmann::json tally_ = nlohmann::json::object();
     /// Quien esta VIVO del otro lado: cada superficie web late (ver Superficies).
     Superficies superficies_;
     /// Las conexiones que son PANTALLAS (ver esPantalla), con su clave de

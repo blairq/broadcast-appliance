@@ -21,6 +21,7 @@
 //     que: () => "paso 2/3",        // qué estoy mostrando (para el operador)
 //     onMostrar: (url) => {...},    // el operador me cambió el contenido
 //     onRecargar: () => location.reload(),
+//     onAviso: (m) => {...},        // cualquier otro mensaje del servidor
 //   });
 // ============================================================================
 (() => {
@@ -89,6 +90,11 @@
           } else if (m.type === "recargar") {
             if (opciones.onRecargar) opciones.onRecargar();
             else location.reload();
+          } else if (opciones.onAviso) {
+            // Cualquier otro mensaje se le pasa tal cual a la página. El canal
+            // no tiene que saber de tally, ni de lo que venga después: solo
+            // entrega. Así una superficie nueva no obliga a tocar esto.
+            opciones.onAviso(m);
           }
         };
 

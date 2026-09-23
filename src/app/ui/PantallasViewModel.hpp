@@ -141,6 +141,15 @@ class PantallasViewModel : public QObject {
     /// Vuelve a publicar la lista: el televisor la toma sin reiniciarse.
     Q_INVOKABLE void publicarCarrusel(const QString& id);
 
+    /// Publica el TALLY en el gateway: que escena esta al aire, cual armada, y
+    /// que fuentes tiene cada una.
+    ///
+    /// Lo llama quien sabe de escenas (StudioViewModel) en cada cambio. Acá
+    /// vive porque acá estan las pantallas y el cliente del gateway; esta clase
+    /// no mira escenas por su cuenta.
+    void publicarTally(const QString& aire, const QString& armada, const QStringList& fuentesAire,
+                       const QStringList& fuentesArmadas, bool transmitiendo, bool grabando);
+
     // --- El canal de control --------------------------------------------------
     /// Las superficies web vivas: [{id, tipo, que, ip, desdeSeg}]. No es lo
     /// mismo que `pantallas`: esto es lo que está MOSTRÁNDOSE de verdad, dicho

@@ -478,6 +478,22 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         sendJson(fd, 200, json{{"ok", true}, {"a", destinos.size()}});
         return;
     }
+    // EL TALLY lo publica A en cada cambio de escena. El gateway no sabe de
+    // escenas ni quiere saber: guarda lo que le dan y lo sirve en
+    // /pantalla/tally.json.
+    if (path == "/api/v1/tally" && method == "POST") {
+        {
+            std::lock_guard<std::mutex> lock(tallyLock_);
+            tally_ = req.is_object() ? req : json::object();
+        }
+        // Y se les avisa a las pantallas de tally que hay algo nuevo, para que
+        // no tengan que preguntar cada medio segundo: un tally que llega tarde
+        // es peor que no tenerlo, porque alguien se confia.
+        for (const std::string& pid : superficies_.conexionesDe("tally"))
+            sendToGuest(pid, json{{"type", "tally"}});
+        sendJson(fd, 200, json{{"ok", true}});
+        return;
+    }
     if (path == "/api/v1/superficies" && method == "GET") {
         sendJson(fd, 200, json{{"ok", true}, {"superficies", superficies_.vivas()}});
         return;

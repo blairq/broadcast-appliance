@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Tally</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Toda la pantalla ES la señal. Un camarógrafo la mira de reojo desde
+       atrás de la cámara: no hay tiempo de leer, tiene que verse el color. -->
+  <!-- Arranca SIN SABER, no en «listo». Un tally apagado se lee como «no
+       estoy al aire», y hasta la primera lectura eso es una suposición: si la
+       cámara ya estaba al aire cuando se prendió la pantalla, decir «listo»
+       es la mentira que hace que alguien se cruce delante. -->
+  <main id="luz" class="caido">
+    <div id="estado">conectando…</div>
+    <div id="quien"></div>
+  </main>
+  <script src="../../comun/trama.js"></script>
+  <script src="../../comun/canal.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

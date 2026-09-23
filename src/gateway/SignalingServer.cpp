@@ -523,6 +523,13 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
         // La lista de un carrusel, para la pagina que lo rota. Publica y de
         // solo lectura, como el resto de /pantalla/: es lo que ya se esta
         // viendo en una pantalla de la sala.
+        // El tally: lo que A publico (ver /api/v1/tally). Publico y de solo
+        // lectura, como el resto de /pantalla/.
+        if (rel == "tally.json") {
+            std::lock_guard<std::mutex> lock(tallyLock_);
+            http::sendResponse(fd, 200, "application/json", tally_.dump());
+            return;
+        }
         if (rel == "carrusel.json") {
             const auto q = http::parseQuery(query);
             const std::string id = q.count("id") ? http::urlDecode(q.at("id")) : std::string();

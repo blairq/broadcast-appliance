@@ -107,8 +107,9 @@ void McpService::registerPantallaTools() {
         t.description =
             "Le manda un contenido a una pantalla. `tipo`: mensaje (texto grande), qr (un QR a pantalla "
             "completa), reloj, url (una direccion cualquiera), prompter (la vista del orador), carrusel "
-            "(una rotacion ya armada) o programa (lo que sale al aire, en vivo por WebRTC). Los campos "
-            "de cada tipo salen de pantalla_listar.";
+            "(una rotacion ya armada), programa (lo que sale al aire, en vivo por WebRTC) o tally (rojo "
+            "si esa camara esta al aire, verde si esta armada). Los campos de cada tipo salen de "
+            "pantalla_listar.";
         t.details = "Ojo con la que este `ocupada`: mostrarle algo le pisa lo que estuviera pasando. Si no "
                     "te lo pidieron explicitamente, preguntale al operador con `operator_ask`.\n\n"
                     "El texto se lee DE LEJOS: frases cortas y pocas palabras. «Volvemos en 10 minutos» "
@@ -118,7 +119,7 @@ void McpService::registerPantallaTools() {
             {"required", {"pantalla", "tipo"}},
             {"properties",
              {{"pantalla", {{"type", "string"}, {"description", "id o nombre, como lo da pantalla_listar"}}},
-              {"tipo", {{"type", "string"}, {"enum", {"mensaje", "qr", "reloj", "url", "prompter", "carrusel", "programa"}}}},
+              {"tipo", {{"type", "string"}, {"enum", {"mensaje", "qr", "reloj", "url", "prompter", "carrusel", "programa", "tally"}}}},
               {"carrusel", {{"type", "string"}, {"description", "su id, con tipo=carrusel"}}},
               {"qr", {{"type", "string"},
                       {"description", "con tipo=qr: el id de uno GUARDADO (qr_listar los da), que sale "
@@ -126,7 +127,11 @@ void McpService::registerPantallaTools() {
                                       "sale con el estilo de fabrica."}}},
               {"texto", {{"type", "string"}, {"description", "mensaje: lo que dice; qr: lo que codifica"}}},
               {"pie", {{"type", "string"}, {"description", "la linea de abajo, mas chica"}}},
-              {"url", {{"type", "string"}, {"description", "solo con tipo=url"}}}}}};
+              {"url", {{"type", "string"}, {"description", "solo con tipo=url"}}},
+              {"fuente",
+               {{"type", "string"},
+                {"description", "con tipo=tally: la camara o escena de esa pantalla (vacio = el estado "
+                                "general, para la cabina)"}}}}}};
         t.examples = {R"({"pantalla": "TV del hall", "tipo": "mensaje", "texto": "Volvemos en 10 minutos"})",
                       R"({"pantalla": "TV del hall", "tipo": "qr", "texto": "https://...", "pie": "Escaneá para entrar"})"};
         t.run = [p, this](const json& a, Done done) {
@@ -151,7 +156,7 @@ void McpService::registerPantallaTools() {
                 return;
             }
             QVariantMap datos;
-            for (const char* k : {"texto", "pie", "url"})
+            for (const char* k : {"texto", "pie", "url", "fuente"})
                 if (a.contains(k) && a[k].is_string())
                     datos[k] = QString::fromStdString(a[k].get<std::string>());
             // Un codigo GUARDADO se proyecta con su estilo. Antes solo se podia
@@ -222,7 +227,7 @@ void McpService::registerPantallaTools() {
                 return;
             }
             QVariantMap datos;
-            for (const char* k : {"texto", "pie", "url"})
+            for (const char* k : {"texto", "pie", "url", "fuente"})
                 if (a.contains(k) && a[k].is_string())
                     datos[k] = QString::fromStdString(a[k].get<std::string>());
             const QString err = p->fijar(id, QString::fromStdString(a["tipo"].get<std::string>()), datos);
@@ -373,7 +378,7 @@ void McpService::registerPantallaTools() {
             for (const json& paso : a.value("pasos", json::array())) {
                 if (!paso.is_object() || !paso.contains("tipo")) continue;
                 QVariantMap datos;
-                for (const char* k : {"texto", "pie", "url"})
+                for (const char* k : {"texto", "pie", "url", "fuente"})
                     if (paso.contains(k) && paso[k].is_string())
                         datos[k] = QString::fromStdString(paso[k].get<std::string>());
                 const QString err = p->pasoAgregar(id, QString::fromStdString(paso["tipo"].get<std::string>()),

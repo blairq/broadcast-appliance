@@ -237,6 +237,14 @@ class StudioViewModel : public QObject {
     /// take, el bus de preview queda con el plano anterior, listo para volver.
     Q_INVOKABLE void take();
     QString escenaArmada() const;
+
+  private:
+    /// Le manda el estado de los buses a las pantallas de tally de la sala.
+    /// Se llama en cada cambio de escena y de aire: un tally que llega tarde
+    /// es peor que no tenerlo, porque alguien se confia.
+    void publicarTally();
+
+  public:
     Q_INVOKABLE void addScene(const QString& name);
     Q_INVOKABLE void removeScene(const QString& name);
     Q_INVOKABLE void renameScene(const QString& from, const QString& to);

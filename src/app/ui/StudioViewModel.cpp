@@ -373,8 +373,13 @@ void StudioViewModel::onTick() {
                 "salir al aire.");
         }
     }
+    // Si cambio el aire o la grabacion, el tally lo tiene que saber: una
+    // pantalla que dice «al aire» con la transmision cortada miente, y es la
+    // clase de mentira por la que alguien se confia.
+    const bool cambioElAire = recording_ != st.recording || streaming_ != st.streaming;
     recording_ = st.recording;
     streaming_ = st.streaming;
+    if (cambioElAire) publicarTally();
     // Avisar UNA vez por problema, no en cada vuelta del reloj.
     if (st.reconnecting && !reconnecting_)
         emit notify("Se cortó la transmisión: reconectando… (" + qs(st.outputProblem) + ")", "error");
@@ -606,10 +611,25 @@ void StudioViewModel::takeScene(const QString& name) {
     scenes_->liveChanged();
     sources_->setScene(name); // el editor de fuentes sigue a la escena al aire
     emit sceneChanged();
+    publicarTally();
     rt_.save();
 }
 
 QString StudioViewModel::escenaArmada() const { return scenes_->armada(); }
+
+void StudioViewModel::publicarTally() {
+    auto* p = qobject_cast<PantallasViewModel*>(pantallas());
+    if (p == nullptr) return;
+    const QString aire = qs(rt_.engine().currentScene());
+    const QString armada = scenes_->armada();
+    const auto fuentesDe = [this](const QString& escena) {
+        QStringList out;
+        if (escena.isEmpty()) return out;
+        for (const std::string& f : rt_.engine().sceneSources(escena.toStdString())) out << qs(f);
+        return out;
+    };
+    p->publicarTally(aire, armada, fuentesDe(aire), fuentesDe(armada), streaming(), recording());
+}
 
 void StudioViewModel::armarEscena(const QString& name) {
     if (name == qs(rt_.engine().currentScene())) {
@@ -620,6 +640,7 @@ void StudioViewModel::armarEscena(const QString& name) {
     }
     scenes_->setArmada(name);
     emit sceneChanged();
+    publicarTally();
 }
 
 void StudioViewModel::take() {
@@ -639,6 +660,7 @@ void StudioViewModel::take() {
     scenes_->liveChanged();
     sources_->setScene(armada);
     emit sceneChanged();
+    publicarTally();
     rt_.save();
 }
 

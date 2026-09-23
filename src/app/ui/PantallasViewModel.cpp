@@ -13,8 +13,6 @@
 #include <QDir>
 #include <QHostAddress>
 #include <QJsonArray>
-#include <QHostAddress>
-#include <QJsonArray>
 #include <QJsonObject>
 #include <QMetaObject>
 #include <QNetworkInterface>
@@ -74,6 +72,12 @@ const std::vector<Contenido>& catalogo() {
          {{"url", "Dirección", "http://…", false}},
          true, ""},
         {"prompter", "El teleprompter", "La vista del orador: el discurso que esté cargado.", {}, true, ""},
+        {"tally", "Tally de cámara",
+         "Rojo si esa cámara está AL AIRE, verde si está armada para el próximo take. Se mira de reojo "
+         "desde atrás de la cámara, así que es la pantalla entera de color. `fuente` es el nombre de la "
+         "cámara o de la escena; vacío muestra el estado general, que sirve para la cabina.",
+         {{"fuente", "Cámara o escena", "Cam 1", false}},
+         true, ""},
         // El programa entra por el mismo camino que un invitado, así que el
         // enlace lo tiene que acuñar el gateway (lleva un permiso de ingreso):
         // por eso es el único contenido cuya URL no se arma acá.
@@ -461,6 +465,13 @@ QString PantallasViewModel::urlDe(const QString& tipo, const QVariantMap& datos,
     const QString base = "http://" + ip + ":" + QString::number(d_->puertoWeb);
 
     if (tipo == "prompter") return base + "/prompter/";
+    // El tally tiene pagina propia: es la pantalla ENTERA de color y no se
+    // parece en nada a las demas.
+    if (tipo == "tally") {
+        const QString f = datos.value("fuente").toString().trimmed();
+        return base + "/pantalla/tally/" +
+               (f.isEmpty() ? QString() : "?fuente=" + QString::fromUtf8(QUrl::toPercentEncoding(f)));
+    }
     QString url = base + "/pantalla/?tipo=" + tipo;
     for (const Campo& f : c->campos) {
         const QString v = datos.value(QString::fromUtf8(f.clave)).toString();
@@ -798,6 +809,26 @@ void PantallasViewModel::publicarCarrusel(const QString& id) {
         }
     if (host.isEmpty() && !d_->destinos.empty()) host = d_->destinos.front().id;
     publicar(id, host);
+}
+
+void PantallasViewModel::publicarTally(const QString& aire, const QString& armada,
+                                       const QStringList& fuentesAire,
+                                       const QStringList& fuentesArmadas, bool transmitiendo,
+                                       bool grabando) {
+    if (d_->sala == nullptr) return;
+    const auto arr = [](const QStringList& l) {
+        QJsonArray a;
+        for (const QString& s : l) a.append(s);
+        return a;
+    };
+    d_->sala->client().post("/api/v1/tally",
+                            QJsonObject{{"aire", aire},
+                                        {"armada", armada},
+                                        {"fuentesAire", arr(fuentesAire)},
+                                        {"fuentesArmadas", arr(fuentesArmadas)},
+                                        {"transmitiendo", transmitiendo},
+                                        {"grabando", grabando}},
+                            [](bool, const QJsonObject&) {});
 }
 
 QString PantallasViewModel::mostrarCarrusel(const QString& idPantalla, const QString& carrusel) {
