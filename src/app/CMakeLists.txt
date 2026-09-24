@@ -425,6 +425,12 @@ if(BA_APP_QT_OK)
     target_link_libraries(test_evento_store PRIVATE nlohmann_json::nlohmann_json)
     add_test(NAME test_evento_store COMMAND test_evento_store)
 
+    # El padron: quien viene, con que papel, por donde y si llego.
+    add_executable(test_padron tests/test_padron.cpp evento/Padron.cpp)
+    target_include_directories(test_padron PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_padron PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME test_padron COMMAND test_padron)
+
     # Analizador (LUFS, tercios, piso de ruido) y generador de prueba.
     if(BA_HAVE_CLAP)
         add_executable(test_audio_dsp tests/test_audio_dsp.cpp audio/Analyzer.cpp)

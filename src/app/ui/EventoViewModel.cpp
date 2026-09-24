@@ -178,6 +178,17 @@ bool EventoViewModel::abrir(const QString& carpeta) {
     sucio_ = false;
     reparos_.clear();
     bitacora_.clear();
+    // El padron viene con el evento. Que no se pueda leer NO impide abrirlo:
+    // el guion es lo que hay que poder correr, y quedarse sin evento por un
+    // padron roto seria perder el acto entero por la lista de invitados.
+    std::string errPadron;
+    bool okPadron = false;
+    padron_ = evento::cargarPadron(store_.carpetaDe(carpeta.toStdString()), &okPadron, &errPadron);
+    if (!okPadron)
+        emit notify("El padron de este evento no se pudo leer: " +
+                        QString::fromStdString(errPadron),
+                    "error");
+    emit padronChanged();
     emit guionChanged();
     emit sucioChanged();
     emit reparosChanged();
@@ -189,9 +200,11 @@ void EventoViewModel::cerrar() {
     if (sucio_) guardar();
     parar();
     e_ = {};
+    padron_ = {};
     abierto_.clear();
     sucio_ = false;
     reparos_.clear();
+    emit padronChanged();
     emit guionChanged();
     emit sucioChanged();
     emit reparosChanged();
@@ -1149,6 +1162,139 @@ bool EventoViewModel::setAutoAceptar(std::vector<evento::Invitado> lista) {
     if (abierto_.isEmpty()) return false;
     e_.autoAceptar = std::move(lista);
     return guardar();
+}
+
+// --- El padron ---------------------------------------------------------------
+// Cada cambio se guarda EN EL MOMENTO. El guion tiene "sin guardar" porque se
+// lo escribe con tiempo y uno quiere poder deshacer; el padron se toca en la
+// puerta, con cola, y ahi nadie se va a acordar de apretar guardar. La escritura
+// es barata y atomica (ver guardarPadron).
+
+namespace {
+
+/// Pasa un mapa de QML/MCP a un asistente, y de paso dice QUE claves vinieron:
+/// no es lo mismo "poner la nota en vacio" que "no tocar la nota".
+evento::Asistente desdeMapa(const QVariantMap& m, std::vector<std::string>& queCampos) {
+    evento::Asistente a;
+    const auto vino = [&m, &queCampos](const char* c) {
+        if (!m.contains(c)) return false;
+        queCampos.emplace_back(c);
+        return true;
+    };
+    if (vino("personaId")) a.personaId = m.value("personaId").toString().toStdString();
+    if (vino("nombre")) a.nombre = m.value("nombre").toString().toStdString();
+    if (vino("contacto")) a.contacto = m.value("contacto").toString().toStdString();
+    if (vino("nota")) a.nota = m.value("nota").toString().toStdString();
+    if (vino("dejarPasarSolo")) a.dejarPasarSolo = m.value("dejarPasarSolo").toBool();
+    if (vino("vota")) a.vota = m.value("vota").toBool();
+    // Una palabra que no se entiende no se ignora en silencio: se saca de la
+    // lista de campos y queda el valor que habia. Si no, "papel: moderdor" con
+    // un dedazo convertiria a un orador en publico sin que nadie lo note.
+    if (vino("papel") && !evento::papelDeNombre(m.value("papel").toString().toStdString(), a.papel))
+        queCampos.pop_back();
+    if (vino("canal") && !evento::canalDeNombre(m.value("canal").toString().toStdString(), a.canal))
+        queCampos.pop_back();
+    if (vino("estado") && !evento::estadoDeNombre(m.value("estado").toString().toStdString(), a.estado))
+        queCampos.pop_back();
+    return a;
+}
+
+QVariantMap aMapa(const evento::Asistente& a) {
+    return QVariantMap{{"id", QString::fromStdString(a.id)},
+                       {"personaId", QString::fromStdString(a.personaId)},
+                       {"nombre", QString::fromStdString(a.nombre)},
+                       {"papel", QString::fromUtf8(evento::nombreDePapel(a.papel))},
+                       {"canal", QString::fromUtf8(evento::nombreDeCanal(a.canal))},
+                       {"estado", QString::fromUtf8(evento::nombreDeEstado(a.estado))},
+                       {"contacto", QString::fromStdString(a.contacto)},
+                       {"nota", QString::fromStdString(a.nota)},
+                       {"dejarPasarSolo", a.dejarPasarSolo},
+                       {"vota", a.vota},
+                       {"llegoMs", static_cast<qint64>(a.llegoMs)},
+                       {"porDonde", QString::fromStdString(a.porDonde)}};
+}
+
+} // namespace
+
+QVariantList EventoViewModel::padron() const {
+    QVariantList out;
+    for (const evento::Asistente& a : padron_.gente()) out.append(aMapa(a));
+    return out;
+}
+
+QVariantMap EventoViewModel::resumenPadron() const {
+    const evento::Resumen r = padron_.resumen();
+    return QVariantMap{{"total", r.total},
+                       {"presentes", r.presentes},
+                       {"presenciales", r.presenciales},
+                       {"enLinea", r.enLinea},
+                       {"confirmados", r.confirmados},
+                       {"faltan", r.faltan},
+                       {"conVoto", r.conVoto},
+                       {"votoPresente", r.votoPresente}};
+}
+
+bool EventoViewModel::guardarPadronAhora() {
+    if (abierto_.isEmpty()) return false;
+    std::string err;
+    if (!evento::guardarPadron(store_.carpetaDe(abierto_.toStdString()), padron_, &err)) {
+        emit notify("No se pudo guardar el padron: " + QString::fromStdString(err), "error");
+        return false;
+    }
+    emit padronChanged();
+    return true;
+}
+
+QString EventoViewModel::anotar(const QVariantMap& datos) {
+    if (abierto_.isEmpty()) return {};
+    std::vector<std::string> queCampos;
+    const evento::Asistente a = desdeMapa(datos, queCampos);
+    if (a.nombre.empty()) {
+        emit notify("Para anotar a alguien hace falta al menos su nombre.", "error");
+        return {};
+    }
+    const QString id = QString::fromStdString(padron_.agregar(a));
+    guardarPadronAhora();
+    return id;
+}
+
+bool EventoViewModel::cambiarAsistente(const QString& id, const QVariantMap& datos) {
+    if (abierto_.isEmpty()) return false;
+    std::vector<std::string> queCampos;
+    const evento::Asistente a = desdeMapa(datos, queCampos);
+    if (!padron_.cambiar(id.toStdString(), a, queCampos)) return false;
+    return guardarPadronAhora();
+}
+
+bool EventoViewModel::quitarAsistente(const QString& id) {
+    if (abierto_.isEmpty()) return false;
+    if (!padron_.quitar(id.toStdString())) return false;
+    return guardarPadronAhora();
+}
+
+bool EventoViewModel::acreditar(const QString& id, const QString& porDonde) {
+    if (abierto_.isEmpty()) return false;
+    const auto ahora = std::chrono::duration_cast<std::chrono::milliseconds>(
+                           std::chrono::system_clock::now().time_since_epoch())
+                           .count();
+    if (!padron_.acreditar(id.toStdString(), porDonde.toStdString(),
+                           static_cast<std::int64_t>(ahora)))
+        return false;
+    return guardarPadronAhora();
+}
+
+bool EventoViewModel::despedir(const QString& id) {
+    if (abierto_.isEmpty()) return false;
+    if (!padron_.despedir(id.toStdString())) return false;
+    return guardarPadronAhora();
+}
+
+QString EventoViewModel::buscarEnPadron(const QString& personaId, const QString& nombre) const {
+    // La ficha de rostro manda sobre el nombre: el nombre lo escribe cualquiera
+    // y hay dos Gonzalez en cualquier lista de cuarenta.
+    const evento::Asistente* a = padron_.porPersona(personaId.toStdString());
+    if (a == nullptr) a = padron_.porNombre(nombre.toStdString());
+    return a == nullptr ? QString() : QString::fromStdString(a->id);
 }
 
 } // namespace ba::app

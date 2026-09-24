@@ -25,6 +25,7 @@
 
 #include "evento/Evento.hpp"
 #include "evento/EventoStore.hpp"
+#include "evento/Padron.hpp"
 
 namespace ba::app {
 
@@ -119,6 +120,33 @@ class EventoViewModel : public QObject {
     Q_INVOKABLE void moverCue(int deBloque, int deCue, int aBloque, int aCue);
     Q_INVOKABLE bool guardar();
 
+    // --- El padron: la gente de este evento ---------------------------------
+    // Vive en la misma carpeta pero en su propio archivo, y con otro ritmo: el
+    // guion se escribe antes y se guarda cuando uno quiere; el padron cambia
+    // durante el evento —cada persona que entra es un cambio— y se guarda
+    // SOLO, en el momento. Por eso no tiene "sin guardar": en la puerta, con
+    // cola, nadie va a acordarse de apretar guardar.
+    /// [{id, personaId, nombre, papel, canal, estado, contacto, nota,
+    ///   dejarPasarSolo, vota, llegoMs, porDonde}]
+    Q_INVOKABLE QVariantList padron() const;
+    /// {total, presentes, presenciales, enLinea, confirmados, faltan,
+    ///  conVoto, votoPresente}
+    Q_INVOKABLE QVariantMap resumenPadron() const;
+    /// Devuelve el id del anotado, o vacio si no hay evento abierto.
+    Q_INVOKABLE QString anotar(const QVariantMap& datos);
+    /// Cambia solo las claves que vengan en el mapa.
+    Q_INVOKABLE bool cambiarAsistente(const QString& id, const QVariantMap& datos);
+    Q_INVOKABLE bool quitarAsistente(const QString& id);
+    /// Marca que llego. `porDonde`: "rostro", "qr", "mostrador", "lobby".
+    Q_INVOKABLE bool acreditar(const QString& id, const QString& porDonde);
+    Q_INVOKABLE bool despedir(const QString& id);
+    /// Busca a alguien por su ficha de rostro o por el nombre tipeado.
+    /// Devuelve el id, o vacio si no esta.
+    Q_INVOKABLE QString buscarEnPadron(const QString& personaId, const QString& nombre) const;
+    /// Escribe el padron al disco. Lo llaman los de arriba; no hace falta
+    /// desde afuera porque cada cambio ya se guarda solo.
+    bool guardarPadronAhora();
+
     /// El evento abierto, para quien tenga que leerlo entero (la lista de
     /// auto-aceptar del lobby). Vacío si no hay ninguno abierto.
     const evento::Evento& guionAbierto() const { return e_; }
@@ -186,6 +214,7 @@ class EventoViewModel : public QObject {
     void relojChanged();
     void bitacoraChanged();
     void reparosChanged();
+    void padronChanged();
     void notify(const QString& texto, const QString& tipo);
 
   public:
@@ -237,6 +266,7 @@ class EventoViewModel : public QObject {
     graficos::Vinculos* vinculos_ = nullptr;
     evento::EventoStore store_;
     evento::Evento e_;
+    evento::Padron padron_;
     std::unique_ptr<evento::Guion> guionCorriendo_;
     QString abierto_;
     bool sucio_ = false;

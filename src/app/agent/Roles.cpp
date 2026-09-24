@@ -126,7 +126,11 @@ std::vector<Rol> deFabrica() {
         x.id = "recepcion";
         x.titulo = "Recepción";
         x.descripcion = "Atiende a quien llega al lobby: completa su ficha y la deja lista para pasar.";
-        x.categorias = {"sala", "oradores", "imagenes", "operador"};
+        // Con `rostros` y `padron`: recibir a alguien es darle ficha y dejar
+        // constancia de que esta. Sin `rostros` no podia completar la ficha que
+        // su propia descripcion promete, y sin `padron` el que entra por la
+        // sala quedaba sin anotar mientras que el que entra por la puerta si.
+        x.categorias = {"sala", "oradores", "imagenes", "operador", "rostros", "padron"};
         x.disparadores = {"lobby", "hand", "guest_drop", "guest_message"};
         x.prompt = std::string(kRecepcion) + kComun;
         x.agruparMs = 0;
@@ -163,7 +167,7 @@ const std::set<std::string>& Roles::juegoDelAsistente() {
         "graficos", "rostros",   "interfaz", "ventanas", "operador", "medios",
         "recetas",  "audio",     "audio_rack", "config", "sistema",  "equipo",
         "entradas", "alertas",   "pantallas", "evento",  "prompter", "qr",
-        "cuentas",  "asistente", "youtube",   "twitch",  "facebook"};
+        "cuentas",  "asistente", "youtube",   "twitch",  "facebook", "padron"};
     return c;
 }
 

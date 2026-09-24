@@ -519,6 +519,72 @@
         "system_hardware",
         "status"
       ]
+    },
+    {
+      "pregunta": "quienes estan en el evento",
+      "herramientas": [
+        "padron_ver"
+      ]
+    },
+    {
+      "pregunta": "cuantos llegaron y cuantos faltan",
+      "herramientas": [
+        "padron_ver"
+      ]
+    },
+    {
+      "pregunta": "hay quorum para votar",
+      "herramientas": [
+        "padron_ver"
+      ]
+    },
+    {
+      "pregunta": "anota a Marta Ruiz como panelista",
+      "herramientas": [
+        "padron_anotar"
+      ]
+    },
+    {
+      "pregunta": "sumalo a la lista de invitados del evento",
+      "herramientas": [
+        "padron_anotar"
+      ]
+    },
+    {
+      "pregunta": "marca que llego Jose Perez",
+      "herramientas": [
+        "padron_acreditar"
+      ]
+    },
+    {
+      "pregunta": "acredita al que acaba de entrar por la puerta",
+      "herramientas": [
+        "padron_acreditar"
+      ]
+    },
+    {
+      "pregunta": "cambiale el papel a orador",
+      "herramientas": [
+        "padron_cambiar"
+      ]
+    },
+    {
+      "pregunta": "sacalo de la lista del evento",
+      "herramientas": [
+        "padron_quitar"
+      ]
+    },
+    {
+      "pregunta": "cuando es el evento",
+      "herramientas": [
+        "evento_ver"
+      ]
+    },
+    {
+      "pregunta": "ponele fecha y hora al evento",
+      "herramientas": [
+        "evento_guardar"
+      ]
     }
   ]
 }

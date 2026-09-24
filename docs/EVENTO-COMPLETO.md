@@ -39,7 +39,7 @@ dos eventos mal pegados, uno de ellos de segunda.
 
 ---
 
-## 1. Fecha y huso — **falta**
+## 1. Fecha y huso — **hecho**
 
 Hoy `Evento::inicio` es `"HH:MM"` y nada más. No hay día y no hay huso.
 
@@ -54,7 +54,13 @@ otra máquina en otro lado tiene que seguir diciendo la misma hora.
 
 Es el arreglo más barato de la lista y destraba todo lo demás. **Va primero.**
 
-## 2. El padrón — **falta**
+**Hecho.** `Evento` tiene `fecha` y `huso`, y de los dos sale `cuando`: el
+arranque como instante absoluto con desfasaje, que es lo único que le sirve al
+que está afuera. Un formato mal escrito se rechaza en vez de guardarse, y la
+validación es de calendario y no de rango —un 31 de abril pasa cualquier
+chequeo de «día entre 1 y 31»—. En `evento_guardar` y en la página del evento.
+
+## 2. El padrón — **hecho el modelo y el MCP**; falta que lo llene la puerta
 
 Lo que hay (`evento_invitados` / `Evento::autoAceptar`) es una lista blanca del
 lobby indexada por rostro. Sirve para *dejar pasar*; no sirve para *organizar*.
@@ -84,6 +90,33 @@ cuál valía.
 
 Sin el padrón, los puntos 3 a 7 no se pueden construir: todos preguntan lo
 mismo, «¿quién es esta persona en este evento?».
+
+**Hecho:** `evento/Padron.{hpp,cpp}` con `Asistente` (papel, canal, estado,
+contacto, si vota, cuándo llegó y por dónde), el archivo `padron.json` al lado
+del guion, y cinco herramientas MCP: `padron_ver` (con el recuento y el
+quórum), `padron_anotar`, `padron_cambiar`, `padron_acreditar` y
+`padron_quitar`. Se busca por ficha de rostro, por id o por nombre tipeado
+—sin acentos, sin mayúsculas, con espacios de más, que es como se tipea en un
+mostrador—.
+
+Tres decisiones que quedaron escritas en el código:
+
+- **Archivo aparte del guion**, porque tienen ritmos distintos: el guion se
+  escribe antes y se guarda cuando uno quiere; el padrón cambia durante y se
+  guarda solo, en el momento. En la puerta, con cola, nadie aprieta guardar.
+- **Acreditar dos veces no pisa la hora.** En la puerta se vuelve a escanear
+  todo el tiempo; pisar la hora convertiría «llegó 18:40» en «llegó 20:15», que
+  es justo el dato que después nadie puede reconstruir.
+- **`dejarPasarSolo` necesita ficha de rostro**, y si se la sacan se apaga
+  solo: dejar pasar a quien *escribió* un nombre es dejar pasar a cualquiera
+  que sepa escribirlo.
+
+**Falta** que se llene solo: hoy hay que anotar y acreditar a mano (o pedírselo
+al asistente). Eso es el punto 3.
+
+**Y falta unificarlo con `Evento::autoAceptar`**, que es la lista blanca vieja
+del lobby y ahora se pisa con `dejarPasarSolo`. Dos listas para lo mismo se
+desincronizan; hay que quedarse con la del padrón y migrar la otra.
 
 ## 3. Acreditación presencial — **falta** (y el 80% ya está escrito)
 
@@ -230,9 +263,9 @@ después hay que tirar. Se hace cuando hay qué llenar.
 
 Por dependencia, no por tamaño:
 
-1. **Fecha y huso** (§1) — chico, destraba el resto.
-2. **Padrón: persona ↔ papel ↔ canal ↔ estado** (§2) — la pieza estructural.
-   Sin esto lo demás son parches sueltos.
+1. ~~**Fecha y huso** (§1)~~ — **hecho**.
+2. ~~**Padrón: persona ↔ papel ↔ canal ↔ estado** (§2)~~ — **hecho** el modelo
+   y el MCP. Falta unificar `autoAceptar` con `dejarPasarSolo`.
 3. **Acreditación presencial reusando el lobby** (§3) — el mayor retorno por
    trabajo. Recién acá el padrón se llena solo y se puede contestar «¿quiénes
    están?» (§4).

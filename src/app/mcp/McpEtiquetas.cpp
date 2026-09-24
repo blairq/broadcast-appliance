@@ -360,14 +360,32 @@ const Fila kPropias[] = {
 
     // --- Evento ---------------------------------------------------------------------
     {"evento_listar", "que eventos hay guiones guardados"},
-    {"evento_ver", "que sigue en el guion que viene ahora proximo bloque proximo cue ver el guion del evento leer rundown"},
+    {"evento_ver", "que sigue en el guion que viene ahora proximo bloque proximo cue ver el guion del "
+                   "evento leer rundown cuando es el evento que dia a que hora arranca"},
     {"evento_abrir", "abrir evento cargar guion"},
     {"evento_bloque", "bloque del guion seccion agregar mover"},
     {"evento_cue", "cue paso accion del guion agregar editar"},
-    {"evento_guardar", "guardar el guion del evento"},
+    {"evento_guardar", "guardar el guion del evento ponerle fecha hora y huso horario cambiarle el titulo"},
     {"evento_revisar", "revisar guion antes buscar problemas validar"},
     {"evento_ensayo_rapido", "ensayo acelerado probar el guion sin tocar el aire"},
     {"evento_informe", "informe del evento tiempos reales cuanto duro"},
+    // --- El padron: la gente del evento -----------------------------------
+    // «Quienes estan» es LA pregunta de un evento hibrido, y las palabras con
+    // que se la hace no se parecen al nombre de la herramienta: se pregunta por
+    // los que llegaron, los que faltan y el quorum, nunca por «el padron».
+    //
+    // Ojo con «invitado»: en la sala un invitado es el que entra por webrtc
+    // (participant_*), y en un evento es el de la lista. Va en las dos, y lo
+    // que desempata son las palabras de al lado —«lista», «evento», «anotar»—.
+    {"padron_ver", "quienes estan cuantos llegaron cuantos faltan quorum lista de asistentes "
+                   "padron del evento presentes ausentes quien vino quien falta invitados del evento"},
+    {"padron_anotar", "anotar a alguien en la lista del evento sumar invitado agregar persona al padron "
+                      "dar de alta un asistente panelista orador prensa"},
+    {"padron_cambiar", "cambiarle los datos a alguien del padron editar asistente papel canal estado "
+                       "engancharle la ficha de rostro"},
+    {"padron_acreditar", "acreditar marcar que llego registrar la entrada de alguien check in "
+                         "llego se fue ya esta aca entro por la puerta salida"},
+    {"padron_quitar", "sacar a alguien de la lista del evento borrar asistente del padron"},
     {"evento_correr", "correr el guion arrancar avanzar pausar el evento"},
 
     // --- Ventanas -------------------------------------------------------------------

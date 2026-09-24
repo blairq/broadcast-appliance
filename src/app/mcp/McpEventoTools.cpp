@@ -44,6 +44,8 @@ QVariantMap aVariantMap(const json& j) {
 
 } // namespace
 
+void registrarPadron(McpCore& core, EventoViewModel& ev);
+
 void registerEventoTools(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
     core.addCategory("evento", "Guion del evento",
                      "El storyboard: bloques, cues, tiempos previstos y el recorrido en vivo.");
@@ -571,6 +573,265 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
                                         {"actual", mapa(ev.actual())},
                                         {"siguiente", mapa(ev.siguiente())},
                                         {"reloj", mapa(ev.reloj())}}));
+        };
+        core.addTool(std::move(t));
+    }
+
+    registrarPadron(core, ev);
+}
+
+// ============================================================================
+// El padron: la gente del evento
+// ============================================================================
+void registrarPadron(McpCore& core, EventoViewModel& ev) {
+    core.addCategory("padron", "La gente del evento",
+                     "Quien viene, con que papel, por donde asiste y si ya llego. Vale para los "
+                     "que entran por la puerta y para los que entran por la sala: es una sola lista.");
+
+    const auto sinEvento = [](Done& done) {
+        done(ToolResult::error("No hay ningun evento abierto: abri uno con evento_abrir."));
+    };
+    const auto aMapaQt = [](const json& j) {
+        QVariantMap m;
+        if (!j.is_object()) return m;
+        for (auto it = j.begin(); it != j.end(); ++it) {
+            const QString k = QString::fromStdString(it.key());
+            if (it->is_string()) m[k] = QString::fromStdString(it->get<std::string>());
+            else if (it->is_boolean()) m[k] = it->get<bool>();
+            else if (it->is_number_integer()) m[k] = static_cast<qint64>(it->get<std::int64_t>());
+        }
+        return m;
+    };
+    const auto listaDe = [](EventoViewModel& vm) {
+        json out = json::array();
+        for (const QVariant& v : vm.padron()) {
+            const QVariantMap m = v.toMap();
+            json o = json::object();
+            for (auto it = m.begin(); it != m.end(); ++it) {
+                const QVariant& val = it.value();
+                if (val.typeId() == QMetaType::Bool) o[it.key().toStdString()] = val.toBool();
+                else if (val.typeId() == QMetaType::LongLong) o[it.key().toStdString()] = val.toLongLong();
+                else o[it.key().toStdString()] = val.toString().toStdString();
+            }
+            out.push_back(o);
+        }
+        return out;
+    };
+    const auto resumenDe = [](EventoViewModel& vm) {
+        json r = json::object();
+        const QVariantMap m = vm.resumenPadron();
+        for (auto it = m.begin(); it != m.end(); ++it) r[it.key().toStdString()] = it.value().toInt();
+        return r;
+    };
+
+    {
+        Tool t;
+        t.name = "padron_ver";
+        t.title = "La gente del evento, y quienes estan";
+        t.category = "padron";
+        t.readOnly = true;
+        t.description =
+            "La lista de quien viene al evento abierto, con su papel y su estado, mas el recuento de "
+            "cuantos llegaron.";
+        t.details =
+            "ESTO CONTESTA \"quienes estan\", que en un evento hibrido es LA pregunta y hasta ahora no "
+            "tenia quien la contestara: los de la sala se veian con participant_* y los que entran por "
+            "la puerta no se veian en ningun lado. El padron es UNO para los dos mundos.\n\n"
+            "Cada persona trae:\n"
+            "- `papel`: orador, panelista, publico, prensa o staff.\n"
+            "- `canal`: presencial, online o sin_definir (que es lo honesto en una lista recien armada).\n"
+            "- `estado`: invitado -> confirmo -> llego -> se_fue.\n"
+            "- `personaId`: su ficha en la libreta de rostros, si tiene. Es lo que permite reconocerla "
+            "en la puerta; sin eso solo se la puede buscar por nombre.\n"
+            "- `vota`: si cuenta para el quorum. NO sale del papel: en una asamblea un propietario es "
+            "publico y vota, y la prensa no.\n"
+            "- `llegoMs` y `porDonde`: cuando se lo acredito y por donde (rostro, qr, mostrador, lobby).\n\n"
+            "`resumen` trae `presentes` (los que llegaron), `presenciales` y `enLinea` (de los "
+            "presentes, por donde), `faltan` y `votoPresente`, que es el QUORUM: cuantos de los que "
+            "votan estan. Sin quorum, lo que se decida en una asamblea no vale.\n\n"
+            "Se puede filtrar por `papel`, `canal` o `estado` para no leer cuarenta renglones cuando se "
+            "buscan tres.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"papel", {{"type", "string"}, {"enum", {"orador", "panelista", "publico", "prensa", "staff"}}}},
+              {"canal", {{"type", "string"}, {"enum", {"presencial", "online", "sin_definir"}}}},
+              {"estado", {{"type", "string"}, {"enum", {"invitado", "confirmo", "llego", "se_fue"}}}}}}};
+        t.run = [&ev, listaDe, resumenDe, sinEvento](const json& a, Done done) {
+            if (ev.abierto().isEmpty()) return sinEvento(done);
+            json gente = json::array();
+            for (const json& p : listaDe(ev)) {
+                for (const char* c : {"papel", "canal", "estado"})
+                    if (a.contains(c) && a[c].is_string() && p.value(c, "") != a[c].get<std::string>())
+                        goto siguiente;
+                gente.push_back(p);
+            siguiente:;
+            }
+            done(ToolResult().data(json{{"evento", ev.abierto().toStdString()},
+                                        {"gente", gente},
+                                        {"resumen", resumenDe(ev)}}));
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "padron_anotar";
+        t.title = "Anotar a alguien en el evento";
+        t.category = "padron";
+        t.description = "Suma a una persona a la lista del evento abierto, con su papel y por donde asiste.";
+        t.details =
+            "Es como se arma la lista ANTES del evento, y tambien como se agrega al que aparece sin "
+            "estar anotado.\n\n"
+            "Lo unico obligatorio es el `nombre`. El resto se puede completar despues con "
+            "padron_cambiar: una lista a medias sirve, una lista que no se pudo empezar no.\n\n"
+            "`personaId` es su ficha en la libreta de rostros (ver rostro_listar). Con ella se la "
+            "reconoce en la puerta y puede entrar sola a la sala; sin ella solo se la busca por nombre.\n\n"
+            "`dejarPasarSolo` NECESITA `personaId`: dejar pasar a quien ESCRIBIO un nombre es dejar "
+            "pasar a cualquiera que sepa escribirlo, asi que sin ficha se apaga solo.\n\n"
+            "Esto NO da de alta a nadie en la libreta de rostros: son dos cosas distintas a proposito. "
+            "La libreta es permanente y el padron caduca con el evento, porque la misma persona es "
+            "panelista en uno y publico en el siguiente.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"required", {"nombre"}},
+            {"properties",
+             {{"nombre", {{"type", "string"}}},
+              {"papel", {{"type", "string"}, {"enum", {"orador", "panelista", "publico", "prensa", "staff"}}}},
+              {"canal", {{"type", "string"}, {"enum", {"presencial", "online", "sin_definir"}}}},
+              {"estado", {{"type", "string"}, {"enum", {"invitado", "confirmo", "llego", "se_fue"}}}},
+              {"personaId", {{"type", "string"}, {"description", "Su ficha en la libreta de rostros."}}},
+              {"contacto", {{"type", "string"}, {"description", "Mail o telefono, para convocar."}}},
+              {"nota", {{"type", "string"}}},
+              {"vota", {{"type", "boolean"}, {"description", "Si cuenta para el quorum."}}},
+              {"dejarPasarSolo",
+               {{"type", "boolean"}, {"description", "Entra a la sala sin que el operador apruebe."}}}}}};
+        t.run = [&ev, aMapaQt, resumenDe, sinEvento](const json& a, Done done) {
+            if (ev.abierto().isEmpty()) return sinEvento(done);
+            const QString id = ev.anotar(aMapaQt(a));
+            if (id.isEmpty())
+                return done(ToolResult::error("No se pudo anotar (hace falta al menos el nombre)."));
+            ToolResult r;
+            r.text("Anotado: " + a.value("nombre", std::string()) + ".");
+            r.structured = json{{"id", id.toStdString()}, {"resumen", resumenDe(ev)}};
+            done(r);
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "padron_cambiar";
+        t.title = "Cambiarle los datos a alguien del padron";
+        t.category = "padron";
+        t.description = "Cambia el papel, el canal, el estado o los datos de una persona ya anotada.";
+        t.details =
+            "Cambia SOLO lo que se le manda y deja el resto. Mandar `nota` en vacio la borra; no "
+            "mandarla la deja como estaba.\n\n"
+            "Es donde se le engancha la ficha de rostro (`personaId`) al que se anoto antes de tenerla, "
+            "que es lo normal: la lista se arma con nombres y las caras aparecen despues.\n\n"
+            "Para marcar que alguien LLEGO no uses esto: usa padron_acreditar, que ademas guarda la "
+            "hora y por donde entro.\n\n"
+            "Una palabra que no se entiende en `papel`, `canal` o `estado` deja el valor que habia en "
+            "vez de cambiarlo por el de fabrica: un dedazo no convierte a un orador en publico.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"required", {"id"}},
+            {"properties",
+             {{"id", {{"type", "string"}, {"description", "El id que devolvio padron_anotar o padron_ver."}}},
+              {"nombre", {{"type", "string"}}},
+              {"papel", {{"type", "string"}, {"enum", {"orador", "panelista", "publico", "prensa", "staff"}}}},
+              {"canal", {{"type", "string"}, {"enum", {"presencial", "online", "sin_definir"}}}},
+              {"estado", {{"type", "string"}, {"enum", {"invitado", "confirmo", "llego", "se_fue"}}}},
+              {"personaId", {{"type", "string"}}},
+              {"contacto", {{"type", "string"}}},
+              {"nota", {{"type", "string"}}},
+              {"vota", {{"type", "boolean"}}},
+              {"dejarPasarSolo", {{"type", "boolean"}}}}}};
+        t.run = [&ev, aMapaQt, sinEvento](const json& a, Done done) {
+            if (ev.abierto().isEmpty()) return sinEvento(done);
+            QVariantMap m = aMapaQt(a);
+            m.remove("id");
+            if (!ev.cambiarAsistente(QString::fromStdString(a.value("id", std::string())), m))
+                return done(ToolResult::error("No hay nadie con ese id en el padron."));
+            done(ToolResult::ok("Cambiado."));
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "padron_acreditar";
+        t.title = "Marcar que alguien llego (o que se fue)";
+        t.category = "padron";
+        t.description =
+            "Deja constancia de que una persona esta en el evento, con la hora y por donde entro.";
+        t.details =
+            "Es la acreditacion, y vale igual para el que entra por la puerta y para el que entra por "
+            "la sala: una sola lista para los dos mundos.\n\n"
+            "Se puede identificar de tres maneras, en este orden de confianza:\n"
+            "- `id`: el del padron, cuando ya se sabe quien es.\n"
+            "- `personaId`: la ficha de rostro, que es como lo dice la camara de la puerta.\n"
+            "- `nombre`: como se tipea en un mostrador. No hace falta que este igual: los acentos, las "
+            "mayusculas y los espacios de mas no importan.\n\n"
+            "La ficha de rostro MANDA sobre el nombre: el nombre lo escribe cualquiera y en una lista "
+            "de cuarenta hay dos Gonzalez.\n\n"
+            "Acreditar dos veces NO es un error y NO mueve la hora: en la puerta se escanea de nuevo "
+            "por las dudas todo el tiempo, y la que importa es la de la primera vez.\n\n"
+            "Con `se_fue` en true se marca la salida, que es lo que saca a alguien del quorum sin "
+            "borrarle que habia llegado.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"id", {{"type", "string"}}},
+              {"personaId", {{"type", "string"}}},
+              {"nombre", {{"type", "string"}}},
+              {"porDonde",
+               {{"type", "string"},
+                {"enum", {"rostro", "qr", "mostrador", "lobby"}},
+                {"description", "Por donde se lo acredito. Sirve para saber en que confiar."}}},
+              {"se_fue", {{"type", "boolean"}, {"description", "Marca la salida en vez de la llegada."}}}}}};
+        t.run = [&ev, resumenDe, sinEvento](const json& a, Done done) {
+            if (ev.abierto().isEmpty()) return sinEvento(done);
+            QString id = QString::fromStdString(a.value("id", std::string()));
+            if (id.isEmpty())
+                id = ev.buscarEnPadron(QString::fromStdString(a.value("personaId", std::string())),
+                                       QString::fromStdString(a.value("nombre", std::string())));
+            if (id.isEmpty())
+                return done(ToolResult::error(
+                    "No encontre a esa persona en el padron. Fijate en padron_ver como esta escrita, o "
+                    "anotala con padron_anotar si no estaba."));
+            const bool seFue = a.value("se_fue", false);
+            const bool hecho = seFue ? ev.despedir(id)
+                                     : ev.acreditar(id, QString::fromStdString(
+                                                            a.value("porDonde", std::string("mostrador"))));
+            if (!hecho) return done(ToolResult::error("No se pudo: esa persona ya no esta en el padron."));
+            ToolResult r;
+            r.text(seFue ? "Marcado que se fue." : "Acreditado.");
+            r.structured = json{{"id", id.toStdString()}, {"resumen", resumenDe(ev)}};
+            done(r);
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "padron_quitar";
+        t.title = "Sacar a alguien del padron";
+        t.category = "padron";
+        t.description = "Borra a una persona de la lista del evento abierto.";
+        t.details =
+            "Es para el que se anoto dos veces o el que no venia a este evento. Para el que aviso que "
+            "no viene, mejor dejarlo con `estado` en invitado: el que no esta en la lista no se "
+            "distingue del que nunca se invito, y eso se nota al armar el evento siguiente.\n\n"
+            "No toca la libreta de rostros: la ficha de la persona queda donde estaba.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"id"}},
+                         {"properties", {{"id", {{"type", "string"}}}}}};
+        t.run = [&ev, resumenDe, sinEvento](const json& a, Done done) {
+            if (ev.abierto().isEmpty()) return sinEvento(done);
+            if (!ev.quitarAsistente(QString::fromStdString(a.value("id", std::string()))))
+                return done(ToolResult::error("No hay nadie con ese id en el padron."));
+            ToolResult r;
+            r.text("Sacado del padron.");
+            r.structured = json{{"resumen", resumenDe(ev)}};
+            done(r);
         };
         core.addTool(std::move(t));
     }
