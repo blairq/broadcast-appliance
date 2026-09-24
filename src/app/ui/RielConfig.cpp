@@ -70,6 +70,10 @@ QString titulo(const char* tip) {
 
 constexpr int kMin = 30;
 constexpr int kMax = 64;
+// Abierta tiene que entrar el nombre mas largo del catalogo sin cortarlo, y no
+// tapar media pantalla: es una barra que se corre, no un panel.
+constexpr int kAnchoMin = 180;
+constexpr int kAnchoMax = 360;
 /// Configuración es la única que NO se puede esconder: es por donde se vuelve.
 /// Sin esto, esconderla dejaría al operador sin manera de arreglarlo.
 constexpr int kPaginaConfig = 6;
@@ -81,6 +85,8 @@ struct RielConfig::Impl {
     QString posicion = "izquierda";
     int tamano = 42;
     bool separadores = true;
+    bool expandir = true;
+    int anchoAbierto = 244;
     std::set<int> escondidas;
 
     void guardar() const {
@@ -91,6 +97,8 @@ struct RielConfig::Impl {
         const QJsonObject o{{"posicion", posicion},
                             {"tamano", tamano},
                             {"separadores", separadores},
+                            {"expandir", expandir},
+                            {"anchoAbierto", anchoAbierto},
                             {"escondidas", esc}};
         QFile f(QString::fromStdString(archivo.string()));
         if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return;
@@ -106,6 +114,8 @@ struct RielConfig::Impl {
         if (p == "izquierda" || p == "derecha" || p == "arriba" || p == "abajo") posicion = p;
         tamano = std::clamp(o.value("tamano").toInt(tamano), kMin, kMax);
         separadores = o.value("separadores").toBool(separadores);
+        expandir = o.value("expandir").toBool(expandir);
+        anchoAbierto = std::clamp(o.value("anchoAbierto").toInt(anchoAbierto), kAnchoMin, kAnchoMax);
         for (const QJsonValue& v : o.value("escondidas").toArray())
             if (v.toInt(-1) != kPaginaConfig) escondidas.insert(v.toInt());
     }
@@ -147,6 +157,25 @@ int RielConfig::grosor() const {
     // El botón más el aire de los costados. El riel flota, así que el margen
     // exterior lo pone quien lo dibuja.
     return d_->tamano + 22;
+}
+
+bool RielConfig::expandir() const { return d_->expandir; }
+
+void RielConfig::setExpandir(bool e) {
+    if (e == d_->expandir) return;
+    d_->expandir = e;
+    d_->guardar();
+    emit cambio();
+}
+
+int RielConfig::anchoAbierto() const { return d_->anchoAbierto; }
+
+void RielConfig::setAnchoAbierto(int px) {
+    const int v = std::clamp(px, kAnchoMin, kAnchoMax);
+    if (v == d_->anchoAbierto) return;
+    d_->anchoAbierto = v;
+    d_->guardar();
+    emit cambio();
 }
 
 bool RielConfig::separadores() const { return d_->separadores; }
@@ -240,6 +269,8 @@ void RielConfig::restaurar() {
     d_->posicion = "izquierda";
     d_->tamano = 42;
     d_->separadores = true;
+    d_->expandir = true;
+    d_->anchoAbierto = 244;
     d_->guardar();
     emit cambio();
 }

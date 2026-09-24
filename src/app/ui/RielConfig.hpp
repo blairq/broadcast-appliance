@@ -43,6 +43,10 @@ class RielConfig : public QObject {
     Q_PROPERTY(int grosor READ grosor NOTIFY cambio)
     /// Si se muestran los rótulos de grupo (solo cuando hay lugar).
     Q_PROPERTY(bool separadores READ separadores WRITE setSeparadores NOTIFY cambio)
+    /// Si la barra se abre en árbol al pasarle el puntero por encima.
+    Q_PROPERTY(bool expandir READ expandir WRITE setExpandir NOTIFY cambio)
+    /// Cuánto mide abierta, en píxeles. Solo aplica en vertical.
+    Q_PROPERTY(int anchoAbierto READ anchoAbierto WRITE setAnchoAbierto NOTIFY cambio)
 
     /// Los grupos con sus páginas: [{ titulo, items: [{page, icon, tip, visible}] }].
     /// Es lo que dibuja el riel Y lo que lista Configuración.
@@ -64,6 +68,10 @@ class RielConfig : public QObject {
     int grosor() const;
     bool separadores() const;
     void setSeparadores(bool s);
+    bool expandir() const;
+    void setExpandir(bool e);
+    int anchoAbierto() const;
+    void setAnchoAbierto(int px);
     QVariantList grupos() const;
     QVariantList paginas() const;
     int escondidas() const;

@@ -229,6 +229,52 @@ Rectangle {
                         font.pixelSize: 13
                     }
                 }
+                RowLayout {
+                    spacing: 10
+                    Toggle {
+                        // Solo en vertical: arriba y abajo lo que falta es
+                        // altura, y un árbol ahí sería un menú colgando.
+                        enabled: Studio.riel.vertical
+                        checked: Studio.riel.expandir
+                        onToggled: (w) => Studio.riel.expandir = w
+                    }
+                    ColumnLayout {
+                        spacing: 1
+                        Text {
+                            text: "Abrir en árbol al pasarle el puntero"
+                            color: Studio.riel.vertical ? Theme.text : Theme.textFaint
+                            font.pixelSize: 13
+                        }
+                        Text {
+                            text: Studio.riel.vertical
+                                  ? "Se eleva y muestra el nombre de cada página. Flota: no corre la página."
+                                  : "Solo con la barra a la izquierda o a la derecha."
+                            color: Theme.textDim
+                            font.pixelSize: 11
+                        }
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+                    visible: Studio.riel.vertical && Studio.riel.expandir
+                    Text {
+                        text: "Ancho abierta"
+                        color: Theme.textDim
+                        font.pixelSize: 12
+                    }
+                    Slider {
+                        Layout.fillWidth: true
+                        from: 180; to: 360; stepSize: 4
+                        value: Studio.riel.anchoAbierto
+                        onMoved: Studio.riel.anchoAbierto = Math.round(value)
+                    }
+                    Text {
+                        text: Studio.riel.anchoAbierto + " px"
+                        color: Theme.textDim
+                        font.pixelSize: 12
+                    }
+                }
 
                 Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
 

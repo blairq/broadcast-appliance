@@ -325,6 +325,12 @@ void McpService::registerUiTools() {
             "`posicion`: izquierda (por defecto), derecha, arriba o abajo. Arriba y abajo convienen en "
             "pantallas anchas y bajas, donde lo que falta es altura.\n\n"
             "`tamano`: el lado del boton en pixeles, de 30 a 64. 34 es chico, 42 normal, 54 grande.\n\n"
+            "`expandir`: si la barra se abre en arbol al pasarle el puntero por encima. En reposo es la "
+            "misma tira de iconos; abierta se eleva del fondo y muestra los grupos con el nombre de "
+            "cada pagina, y la seccion donde uno se apoya se abre sola. Flota sobre la pagina, no la "
+            "corre. Solo aplica con la barra a la izquierda o a la derecha: arriba y abajo lo que falta "
+            "es altura y un arbol seria un menu colgando.\n\n"
+            "`anchoAbierto`: cuanto mide abierta, de 180 a 360 pixeles.\n\n"
             "`mostrar` y `esconder`: listas de paginas por nombre, los mismos que toma ui_show_page. "
             "Esconder una NO la desactiva: la pagina sigue existiendo, el asistente la sigue usando y "
             "se puede abrir en su propia ventana; lo unico que se esconde es su boton. Configuracion "
@@ -336,6 +342,10 @@ void McpService::registerUiTools() {
              {{"posicion", {{"type", "string"}, {"enum", {"izquierda", "derecha", "arriba", "abajo"}}}},
               {"tamano", {{"type", "integer"}, {"minimum", 30}, {"maximum", 64}}},
               {"separadores", {{"type", "boolean"}, {"description", "Lineas entre los grupos."}}},
+              {"expandir",
+               {{"type", "boolean"},
+                {"description", "Que se abra en arbol al pasarle el puntero (solo en vertical)."}}},
+              {"anchoAbierto", {{"type", "integer"}, {"minimum", 180}, {"maximum", 360}}},
               {"mostrar", {{"type", "array"}, {"items", {{"type", "string"}}}}},
               {"esconder", {{"type", "array"}, {"items", {{"type", "string"}}}}},
               {"restaurar", {{"type", "boolean"}, {"description", "Todo como viene de fabrica."}}}}}};
@@ -347,6 +357,8 @@ void McpService::registerUiTools() {
                 riel->setPosicion(QString::fromStdString(a["posicion"].get<std::string>()));
             if (a.contains("tamano")) riel->setTamano(a["tamano"].get<int>());
             if (a.contains("separadores")) riel->setSeparadores(a["separadores"].get<bool>());
+            if (a.contains("expandir")) riel->setExpandir(a["expandir"].get<bool>());
+            if (a.contains("anchoAbierto")) riel->setAnchoAbierto(a["anchoAbierto"].get<int>());
             for (const char* cual : {"mostrar", "esconder"}) {
                 if (!a.contains(cual) || !a[cual].is_array()) continue;
                 const bool ver = std::string(cual) == "mostrar";
@@ -370,6 +382,8 @@ void McpService::registerUiTools() {
             done(ToolResult().data(json{{"posicion", riel->posicion().toStdString()},
                                         {"tamano", riel->tamano()},
                                         {"separadores", riel->separadores()},
+                                        {"expandir", riel->expandir()},
+                                        {"anchoAbierto", riel->anchoAbierto()},
                                         {"escondidas", riel->escondidas()},
                                         {"paginas", paginas}}));
         };
