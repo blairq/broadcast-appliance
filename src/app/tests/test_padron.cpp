@@ -121,6 +121,18 @@ void codigo_de_votante() {
     // la invitacion dejaria de servir.
     const Padron r = Padron::deJson(p.aJson());
     CHECK(r.gente()[0].codigo == p.gente()[0].codigo, "el codigo sobrevive al disco");
+
+    // Un padron escrito ANTES de que el codigo existiera: la persona es la
+    // misma, el archivo es viejo. Sin codigo no podria votar nunca.
+    nlohmann::json vieja = p.aJson();
+    for (nlohmann::json& a : vieja["gente"]) a.erase("codigo");
+    const Padron m = Padron::deJson(vieja);
+    std::set<std::string> nuevos;
+    for (const Asistente& a : m.gente()) {
+        CHECK(!a.codigo.empty(), "una ficha vieja igual recibe codigo");
+        nuevos.insert(a.codigo);
+    }
+    CHECK(nuevos.size() == m.gente().size(), "y los que se dan no chocan entre si");
 }
 
 // --- 2) Dejar pasar solo ----------------------------------------------------

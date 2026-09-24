@@ -302,6 +302,15 @@ Padron Padron::deJson(const json& j) {
         // Una fila sin id no se puede referenciar para nada: se le da uno en vez
         // de tirarla.
         if (a.id.empty()) a.id = nuevoId();
+        // Y sin codigo no podria votar nunca. Pasa con los padrones escritos
+        // antes de que el codigo existiera: el archivo es viejo, la persona no.
+        // Se le da uno acá, cuidando que no choque con los que ya salieron.
+        for (int intento = 0; a.codigo.empty() && intento < 20; ++intento) {
+            const std::string c = nuevoCodigo();
+            if (std::none_of(p.gente_.begin(), p.gente_.end(),
+                             [&c](const Asistente& o) { return o.codigo == c; }))
+                a.codigo = c;
+        }
         p.gente_.push_back(std::move(a));
     }
     return p;

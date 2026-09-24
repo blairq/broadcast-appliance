@@ -1211,6 +1211,7 @@ QVariantMap aMapa(const evento::Asistente& a) {
                        {"nota", QString::fromStdString(a.nota)},
                        {"dejarPasarSolo", a.dejarPasarSolo},
                        {"vota", a.vota},
+                       {"codigo", QString::fromStdString(a.codigo)},
                        {"llegoMs", static_cast<qint64>(a.llegoMs)},
                        {"porDonde", QString::fromStdString(a.porDonde)}};
 }
