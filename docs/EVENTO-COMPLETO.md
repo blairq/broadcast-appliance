@@ -394,12 +394,28 @@ después hay que tirar. Se hace cuando hay qué llenar.
   donde una equivocación cuesta caro y se descubre en vivo. Deja el evento
   escrito para revisar, no lo pone al aire.
 
-**Hecho, y salió casi solo, que era la apuesta.** `evento_armar` crea el evento
-entero —fecha con huso, bloques con tiempos, cues y padrón— en una llamada. No
-es un motor aparte: es el asistente que ya existe usando las herramientas que
-los once puntos anteriores fueron dejando bien descriptas. La guía de cómo
-llevar la conversación está en la ayuda del asistente, y en la página de Evento
-hay un botón **«Armar contándolo»**.
+**Hecho, en tres piezas:**
+
+1. **`evento_armar`** crea el evento entero —fecha con huso, bloques con
+   tiempos, cues y padrón— en una llamada.
+2. **El rol `organizador`**, con su prompt propio: es donde vive lo que no está
+   escrito en ningún otro lado —que un evento híbrido necesita fecha *con
+   huso*, que sin `vota` no hay quórum, que cada punto a votar es un bloque,
+   que la prueba técnica se hace antes y no cuando le dan la palabra— y lo que
+   hay que ofrecer sin que lo pidan.
+3. **La vista** en la página de Evento: se cuenta el evento, se ve correr al
+   agente y queda a la vista lo que armó, con «Verlo» o «Descartarlo».
+
+**Las categorías del rol están acotadas y eso es la mitad del diseño:** lleva
+`evento`, `padron`, `preguntas`, `medios`, `prompter`, `graficos`, `qr`,
+`operador` y `rostros`. **No lleva audio, ni plataformas, ni salidas.** Un rol
+que arma un guion no tiene por qué poder sacar algo al aire, y *no poder
+hacerlo* es la contención — el mismo principio que en `vision`.
+
+Viene prendido de fábrica, como `vision` y por la misma razón: no tiene
+disparadores, así que no hace nada hasta que alguien le encarga algo. Apagado,
+el botón de la página no tendría a quién encargarle, y quien lo aprieta no
+tiene por qué saber que antes hay que ir a prender un rol.
 
 Se le pide al asistente que **muestre antes de armar** y que corra
 `evento_revisar` después. Nunca pisa un guion existente: si ya hay uno con ese

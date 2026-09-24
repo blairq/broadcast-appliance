@@ -26,6 +26,43 @@ Rectangle {
         return (selC < 0 || selC >= cs.length) ? null : cs[selC]
     }
 
+    // --- La vista de armado -------------------------------------------------
+    /// Si se está mostrando la vista de armar contándolo.
+    property bool armando: false
+    /// La corrida del agente Organizador, mientras dura.
+    property string corridaId: ""
+    readonly property var corrida: corridaId === "" ? ({})
+                                                    : Studio.despachador.corridaQml(corridaId)
+    readonly property bool corriendo: corridaId !== "" &&
+                                      (corrida.estado === "esperando" || corrida.estado === "corriendo")
+
+    /// Le encarga el evento al rol `organizador`.
+    ///
+    /// NO se lo manda al asistente general: es un rol con su propia doctrina y
+    /// con SOLO las herramientas del evento, así que no puede sacar nada al
+    /// aire ni tocar el audio aunque el texto se lo pida. Esa contención es la
+    /// mitad de por qué existe el rol.
+    function armar(texto) {
+        const err = Studio.despachador.encargarDesdeUi("organizador", texto)
+        if (err !== "") { ev.notify(err, "error"); return }
+        // `encargarDesdeUi` devuelve el error, no el id: el de la corrida sale
+        // de la más nueva de este rol, que es la que se acaba de encargar.
+        const cs = Studio.despachador.corridas
+        for (let i = 0; i < cs.length; ++i)
+            if (cs[i].rol === "organizador") { corridaId = cs[i].id; break }
+    }
+
+    function descartarLoArmado() {
+        const cual = ev.abierto
+        if (cual === "") return
+        ApplicationWindow.window.confirm({
+            title: "Descartar el evento armado",
+            text: "Se borra «" + cual + "» con su guion y su padrón. No se puede deshacer.",
+            accept: "Descartar", reject: "Dejarlo",
+            action: () => { ev.cerrar(); ev.borrar(cual); corridaId = ""; armando = false }
+        })
+    }
+
     function mmss(s) {
         const neg = s < 0
         const t = Math.abs(Math.round(s))
@@ -95,7 +132,8 @@ Rectangle {
                 // herramientas del evento (ver `evento_armar`).
                 GlassButton {
                     icon: "✦"; text: "Armar contándolo"
-                    onClicked: armarDlg.open()
+                    active: page.armando
+                    onClicked: { page.armando = true; page.corridaId = ""; }
                     ToolTip.visible: hovered
                     ToolTip.delay: 400
                     ToolTip.text: "Contale al asistente cómo va a ser el evento y lo deja escrito"
@@ -138,9 +176,130 @@ Rectangle {
             }
         }
 
+            // --- La vista de armado ------------------------------------------------
+        // Tapa el resto de la página mientras dura: armar un evento es una cosa
+        // por vez, y tener el guion viejo al lado invita a confundir cuál es
+        // cuál. No es un modal porque el armado TARDA —el agente piensa y llama
+        // herramientas— y un modal que no se puede cerrar mientras tanto es una
+        // pantalla trabada.
+        Panel {
+            visible: page.armando
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            title: "Armar el evento contándolo"
+
+            ColumnLayout {
+                anchors.fill: parent
+                spacing: 10
+
+                Text {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: "Contá cómo va a ser: qué pasa, en qué orden, cuánto dura, quién habla y " +
+                          "quién viene. Lo arma el agente Organizador, que lo deja escrito y " +
+                          "revisado. No sale nada al aire."
+                    color: Theme.textDim
+                    font.pixelSize: 12
+                }
+
+                TextArea {
+                    id: contalo
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 120
+                    enabled: !page.corriendo
+                    wrapMode: TextArea.Wrap
+                    color: Theme.text
+                    placeholderText: "Asamblea del consorcio, el jueves 8 de octubre a las 19, dos " +
+                                     "horas, presencial en el salón y por videollamada. Hay que " +
+                                     "votar tres puntos: balance, expensas y el portón. Son 40 " +
+                                     "propietarios y todos votan."
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    GlassButton {
+                        text: page.corriendo ? "Armando…" : "Armar"
+                        enabled: !page.corriendo && contalo.text.trim() !== ""
+                        onClicked: page.armar(contalo.text.trim())
+                    }
+                    GlassButton {
+                        text: page.corriendo ? "Detener" : "Cerrar"
+                        onClicked: {
+                            if (page.corriendo) Studio.despachador.detener(page.corridaId)
+                            else { page.armando = false; page.corridaId = "" }
+                        }
+                    }
+                    Item { Layout.fillWidth: true }
+                    Text {
+                        visible: page.corriendo
+                        text: page.corrida.herramientas !== undefined
+                              ? page.corrida.herramientas + " herramientas · " + page.corrida.duracionS + " s"
+                              : ""
+                        color: Theme.textDim
+                        font.pixelSize: 11
+                    }
+                }
+
+                // Lo que contestó el agente. Su resumen es lo que hay que leer:
+                // dice qué quedó hecho y qué quedó pendiente.
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    visible: page.corridaId !== ""
+                    radius: Theme.radiusSmall
+                    color: Qt.rgba(1, 1, 1, 0.04)
+                    border.color: Theme.glassBorder
+                    Flickable {
+                        anchors.fill: parent
+                        anchors.margins: 12
+                        contentHeight: salida.implicitHeight
+                        clip: true
+                        Text {
+                            id: salida
+                            width: parent.width
+                            wrapMode: Text.WordWrap
+                            color: page.corrida.error ? Theme.live : Theme.text
+                            font { family: Theme.font; pixelSize: 13 }
+                            text: page.corrida.error ? page.corrida.error
+                                : page.corrida.resumen ? page.corrida.resumen
+                                : (page.corriendo ? "Pensando…" : "")
+                        }
+                    }
+                }
+
+                // Y lo que quedó ESCRITO, que es lo que hay que aceptar o tirar.
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: !page.corriendo && page.corridaId !== "" && page.ev.abierto !== ""
+                    spacing: 8
+                    Text {
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        color: Theme.textDim
+                        font.pixelSize: 12
+                        text: "Quedó abierto «" + page.ev.abierto + "»: " +
+                              page.ev.guion.bloques.length + " bloques, " + page.ev.guion.cues +
+                              " cues, " + page.mmss(page.ev.guion.duracionSeg) + "." +
+                              (page.ev.reparos.length > 0
+                               ? " " + page.ev.reparos.length + " cosa(s) para mirar."
+                               : "")
+                    }
+                    GlassButton {
+                        text: "Verlo"
+                        onClicked: { page.armando = false; page.ev.revisar() }
+                    }
+                    GlassButton {
+                        text: "Descartarlo"
+                        onClicked: page.descartarLoArmado()
+                    }
+                }
+            }
+        }
+
         // --- Sin evento abierto ----------------------------------------------
         Panel {
-            visible: page.ev.abierto === ""
+            visible: page.ev.abierto === "" && !page.armando
             Layout.fillWidth: true
             Layout.fillHeight: true
             ColumnLayout {
@@ -838,49 +997,6 @@ Rectangle {
             GlassButton {
                 text: "Guardar en la carpeta del evento"; compact: true
                 onClicked: page.ev.guardarInforme()
-            }
-        }
-    }
-
-    // --- Evento nuevo --------------------------------------------------------
-    Dialog {
-        id: armarDlg
-        anchors.centerIn: parent
-        width: 560
-        modal: true
-        title: "Armar el evento contándolo"
-        standardButtons: Dialog.Ok | Dialog.Cancel
-        onAboutToShow: contalo.text = ""
-        onAccepted: {
-            if (contalo.text.trim() === "") return
-            // Se le pide que MUESTRE antes de armar: armar un evento entero de
-            // una orden es donde una equivocación cuesta caro y se descubre en
-            // vivo.
-            ApplicationWindow.window.pedirAlAsistente(
-                "Armá este evento. Mostrame primero, en dos o tres renglones, los bloques con sus " +
-                "tiempos y cuánta gente; si te falta la fecha o el huso horario, preguntámelos. " +
-                "Después armalo, revisalo y contame lo que salga.\n\n" + contalo.text.trim())
-        }
-        ColumnLayout {
-            anchors.fill: parent
-            spacing: 8
-            Text {
-                Layout.fillWidth: true
-                wrapMode: Text.WordWrap
-                text: "Contá cómo va a ser: qué pasa, en qué orden, cuánto dura, quién habla y " +
-                      "quién viene. Lo deja escrito para revisar; no lo saca al aire."
-                color: Theme.textDim
-                font.pixelSize: 12
-            }
-            TextArea {
-                id: contalo
-                Layout.fillWidth: true
-                Layout.preferredHeight: 130
-                wrapMode: TextArea.Wrap
-                color: Theme.text
-                placeholderText: "Asamblea del consorcio, el jueves 8 a las 19, dos horas, " +
-                                 "presencial en el salón y por videollamada. Hay que votar tres " +
-                                 "puntos. Son 40 propietarios."
             }
         }
     }
