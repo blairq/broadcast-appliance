@@ -44,7 +44,7 @@ QVariantMap aVariantMap(const json& j) {
 
 } // namespace
 
-void registrarPadron(McpCore& core, EventoViewModel& ev);
+void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe);
 
 void registerEventoTools(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
     core.addCategory("evento", "Guion del evento",
@@ -274,90 +274,6 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
     }
     {
         Tool t;
-        t.name = "evento_invitados";
-        t.title = "A quien dejar pasar sola a la sala, en este evento";
-        t.category = "evento";
-        t.description =
-            "La lista de gente que entra al lobby y pasa SOLA, sin que el operador tenga que "
-            "aprobarla. Sin argumentos la muestra; con `agregar` o `quitar` la cambia.";
-        t.details =
-            "SE IDENTIFICA POR LA CARA, no por el nombre que escribe al entrar: el nombre lo "
-            "escribe cualquiera, y dejar pasar a quien «se anoto como Ana Perez» es dejar pasar a "
-            "cualquiera que sepa escribir eso. `persona` es el id de la libreta de rostros "
-            "(`rostro_listar`), y el reconocimiento tiene que decir que es ella con el margen de "
-            "siempre.\n\n"
-            "VA EN EL EVENTO ABIERTO, a proposito: los que tienen que entrar son los de ESTA "
-            "transmision. Una lista global haria que el panelista del programa de ayer entre solo "
-            "al de manana. Sin evento abierto (`evento_abrir`) no hay donde guardarla.\n\n"
-            "Quien esta en la lista entra sin preguntar Y SE AVISA: el operador ve un aviso en "
-            "pantalla y queda en el registro. Que alguien aparezca en la sala sin que nadie lo "
-            "haya decidido en el momento esta bien si estaba en la lista, pero nunca en silencio.";
-        t.inputSchema = {
-            {"type", "object"},
-            {"properties",
-             {{"agregar",
-               {{"type", "string"},
-                {"description", "id de persona de rostro_listar"}}},
-              {"quitar", {{"type", "string"}, {"description", "id de persona a sacar"}}},
-              {"nota", {{"type", "string"}, {"description", "por que esta (\"panelista\")"}}}}}};
-        t.examples = {R"({})", R"({"agregar": "pf2f1850c1b84", "nota": "panelista"})"};
-        t.run = [&ev, fichaDe](const json& a, Done done) {
-            if (ev.abierto().isEmpty())
-                return done(ToolResult::error(
-                    "No hay ningun evento abierto: la lista vive en el evento. Abri uno con "
-                    "`evento_abrir` (o crealo) y volve a intentar."));
-            auto lista = ev.guionAbierto().autoAceptar;
-            std::string hecho;
-            if (a.contains("quitar")) {
-                const std::string id = a["quitar"].get<std::string>();
-                const auto antes = lista.size();
-                lista.erase(std::remove_if(lista.begin(), lista.end(),
-                                           [&](const auto& i) { return i.personaId == id; }),
-                            lista.end());
-                if (lista.size() == antes)
-                    return done(ToolResult::error("'" + id + "' no estaba en la lista."));
-                hecho = "Sacada de la lista. ";
-            }
-            if (a.contains("agregar")) {
-                const std::string id = a["agregar"].get<std::string>();
-                // Contra la libreta de verdad: una entrada con un id que no
-                // existe no deja pasar a nadie y nadie se entera hasta el dia
-                // del evento, cuando esa persona se queda esperando.
-                const auto [existe, nombre] = fichaDe ? fichaDe(id) : std::pair{false, std::string()};
-                if (!existe)
-                    return done(ToolResult::error(
-                        "No hay ninguna ficha con id '" + id +
-                        "' en la libreta de rostros. `rostro_listar` los da; si esa persona "
-                        "todavia no esta, primero hay que darla de alta con su cara."));
-                if (nombre.empty())
-                    return done(ToolResult::error(
-                        "Esa ficha todavia no tiene nombre (la anoto el sistema solo). Ponele "
-                        "quien es con `rostro_guardar {id, nombre}` antes de dejarla entrar sola."));
-                if (std::any_of(lista.begin(), lista.end(),
-                                [&](const auto& i) { return i.personaId == id; }))
-                    return done(ToolResult::error("«" + nombre + "» ya estaba en la lista."));
-                ba::evento::Invitado i;
-                i.personaId = id;
-                i.nombre = nombre;
-                i.nota = a.value("nota", std::string());
-                lista.push_back(std::move(i));
-                hecho += "«" + nombre + "» entra sola. ";
-            }
-            if (!hecho.empty() && !ev.setAutoAceptar(lista))
-                return done(ToolResult::error("No se pudo guardar el evento."));
-            json out = json::array();
-            for (const auto& i : ev.guionAbierto().autoAceptar)
-                out.push_back(json{{"persona", i.personaId}, {"nombre", i.nombre}, {"nota", i.nota}});
-            ToolResult r;
-            r.text(hecho + (out.empty() ? "Nadie entra solo en este evento."
-                                        : std::to_string(out.size()) + " en la lista."));
-            r.structured = json{{"evento", ev.abierto().toStdString()}, {"invitados", out}};
-            done(r);
-        };
-        core.addTool(std::move(t));
-    }
-    {
-        Tool t;
         t.name = "evento_guardar";
         t.title = "Guardar el guion";
         t.category = "evento";
@@ -577,13 +493,13 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
         core.addTool(std::move(t));
     }
 
-    registrarPadron(core, ev);
+    registrarPadron(core, ev, fichaDe);
 }
 
 // ============================================================================
 // El padron: la gente del evento
 // ============================================================================
-void registrarPadron(McpCore& core, EventoViewModel& ev) {
+void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
     core.addCategory("padron", "La gente del evento",
                      "Quien viene, con que papel, por donde asiste y si ya llego. Vale para los "
                      "que entran por la puerta y para los que entran por la sala: es una sola lista.");
@@ -616,6 +532,29 @@ void registrarPadron(McpCore& core, EventoViewModel& ev) {
             out.push_back(o);
         }
         return out;
+    };
+    // Dejar pasar solo a alguien EXIGE que su ficha exista de verdad. Una
+    // entrada con un id que no existe no deja pasar a nadie y nadie se entera
+    // hasta el dia del evento, cuando esa persona se queda esperando en el
+    // lobby y el operador no sabe por que.
+    const auto fichaFalla = [fichaDe](const json& a, std::string& motivo) {
+        if (!a.value("dejarPasarSolo", false)) return false;
+        const std::string id = a.value("personaId", std::string());
+        if (id.empty()) {
+            motivo =
+                "Para que alguien entre solo hace falta su ficha de rostro (`personaId`): sin cara no "
+                "hay con que reconocerlo, y entraria por haber ESCRITO un nombre, que es lo que no se "
+                "quiere. `rostro_listar` da las fichas.";
+            return true;
+        }
+        const auto [existe, nombre] = fichaDe ? fichaDe(id) : std::pair{true, std::string()};
+        if (!existe) {
+            motivo = "No hay ninguna ficha con id '" + id +
+                     "' en la libreta de rostros. `rostro_listar` los da; si esa persona todavia no "
+                     "esta, dale de alta con `rostro_guardar` primero.";
+            return true;
+        }
+        return false;
     };
     const auto resumenDe = [](EventoViewModel& vm) {
         json r = json::object();
@@ -656,7 +595,10 @@ void registrarPadron(McpCore& core, EventoViewModel& ev) {
             {"properties",
              {{"papel", {{"type", "string"}, {"enum", {"orador", "panelista", "publico", "prensa", "staff"}}}},
               {"canal", {{"type", "string"}, {"enum", {"presencial", "online", "sin_definir"}}}},
-              {"estado", {{"type", "string"}, {"enum", {"invitado", "confirmo", "llego", "se_fue"}}}}}}};
+              {"estado", {{"type", "string"}, {"enum", {"invitado", "confirmo", "llego", "se_fue"}}}},
+              {"solos",
+               {{"type", "boolean"},
+                {"description", "Solo los que entran a la sala sin que el operador apruebe."}}}}}};
         t.run = [&ev, listaDe, resumenDe, sinEvento](const json& a, Done done) {
             if (ev.abierto().isEmpty()) return sinEvento(done);
             json gente = json::array();
@@ -664,6 +606,7 @@ void registrarPadron(McpCore& core, EventoViewModel& ev) {
                 for (const char* c : {"papel", "canal", "estado"})
                     if (a.contains(c) && a[c].is_string() && p.value(c, "") != a[c].get<std::string>())
                         goto siguiente;
+                if (a.value("solos", false) && !p.value("dejarPasarSolo", false)) goto siguiente;
                 gente.push_back(p);
             siguiente:;
             }
@@ -704,9 +647,14 @@ void registrarPadron(McpCore& core, EventoViewModel& ev) {
               {"nota", {{"type", "string"}}},
               {"vota", {{"type", "boolean"}, {"description", "Si cuenta para el quorum."}}},
               {"dejarPasarSolo",
-               {{"type", "boolean"}, {"description", "Entra a la sala sin que el operador apruebe."}}}}}};
-        t.run = [&ev, aMapaQt, resumenDe, sinEvento](const json& a, Done done) {
+               {{"type", "boolean"},
+                {"description",
+                 "Entra a la sala sin que el operador apruebe. Exige `personaId`: se lo reconoce por "
+                 "la CARA, no por el nombre que escriba al entrar."}}}}}};
+        t.run = [&ev, aMapaQt, resumenDe, sinEvento, fichaFalla](const json& a, Done done) {
             if (ev.abierto().isEmpty()) return sinEvento(done);
+            std::string motivo;
+            if (fichaFalla(a, motivo)) return done(ToolResult::error(motivo));
             const QString id = ev.anotar(aMapaQt(a));
             if (id.isEmpty())
                 return done(ToolResult::error("No se pudo anotar (hace falta al menos el nombre)."));
@@ -746,8 +694,10 @@ void registrarPadron(McpCore& core, EventoViewModel& ev) {
               {"nota", {{"type", "string"}}},
               {"vota", {{"type", "boolean"}}},
               {"dejarPasarSolo", {{"type", "boolean"}}}}}};
-        t.run = [&ev, aMapaQt, sinEvento](const json& a, Done done) {
+        t.run = [&ev, aMapaQt, sinEvento, fichaFalla](const json& a, Done done) {
             if (ev.abierto().isEmpty()) return sinEvento(done);
+            std::string motivo;
+            if (fichaFalla(a, motivo)) return done(ToolResult::error(motivo));
             QVariantMap m = aMapaQt(a);
             m.remove("id");
             if (!ev.cambiarAsistente(QString::fromStdString(a.value("id", std::string())), m))

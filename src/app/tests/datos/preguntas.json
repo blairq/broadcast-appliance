@@ -585,6 +585,31 @@
       "herramientas": [
         "evento_guardar"
       ]
+    },
+    {
+      "pregunta": "a quien dejo pasar solo sin aprobar",
+      "herramientas": [
+        "padron_ver"
+      ]
+    },
+    {
+      "pregunta": "que entre sola sin que yo apruebe",
+      "herramientas": [
+        "padron_cambiar",
+        "padron_anotar"
+      ]
+    },
+    {
+      "pregunta": "prende la camara de la entrada para acreditar",
+      "herramientas": [
+        "padron_puerta"
+      ]
+    },
+    {
+      "pregunta": "que reconozca a los que llegan al salon",
+      "herramientas": [
+        "padron_puerta"
+      ]
     }
   ]
 }

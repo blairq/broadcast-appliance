@@ -56,6 +56,13 @@ class PersonasViewModel : public QObject {
     /// Qué cámara mira el anotado automático. La página le pone la que se está
     /// viendo; si nadie la pone, el programa.
     Q_PROPERTY(QString feedAuto READ feedAuto WRITE setFeedAuto NOTIFY autoaltaCambio)
+    /// El interruptor de la PUERTA: reconoce a quien entra al lugar por
+    /// `feedPuerta` y lo acredita en el padrón del evento abierto. Es la
+    /// contracara del lobby —el mismo reconocimiento apuntado al mundo físico—
+    /// y es lo que hace que «¿quiénes están?» sepa de las dos mitades.
+    Q_PROPERTY(bool puertaAuto READ puertaAuto WRITE setPuertaAuto NOTIFY autoaltaCambio)
+    /// Qué cámara mira la puerta.
+    Q_PROPERTY(QString feedPuerta READ feedPuerta WRITE setFeedPuerta NOTIFY autoaltaCambio)
     /// El mismo interruptor, pero mirando EL LOBBY: cada posición de espera,
     /// por turno. Es el caso real de un evento —la gente llega antes de entrar,
     /// y ahí es cuando hay tiempo de saber quién es—.
@@ -85,6 +92,10 @@ class PersonasViewModel : public QObject {
     QVariantList vistos() const;
     bool lobbyAuto() const;
     void setLobbyAuto(bool activo);
+    bool puertaAuto() const;
+    void setPuertaAuto(bool activo);
+    QString feedPuerta() const;
+    void setFeedPuerta(const QString& feed);
     QVariantMap enLobby() const;
 
     Q_INVOKABLE void refrescar();
@@ -169,6 +180,8 @@ class PersonasViewModel : public QObject {
     QString proximaDelLobby(QString& uid, int& lugar);
     /// Si esa persona está en la lista de auto-aceptar del evento abierto, la
     /// hace pasar y lo avisa. Ver `evento::Invitado`.
+    /// Deja constancia de que alguien llegó al lugar, si está en el padrón.
+    void acreditarEnLaPuerta(const QString& personaId, const QString& nombre);
     void dejarPasarSiCorresponde(const QString& uid, const QString& personaId,
                                  const QString& nombre, float parecido, bool sirve);
     /// Una cara que no cayó en ninguna ficha. Devuelve el id de la ficha nueva

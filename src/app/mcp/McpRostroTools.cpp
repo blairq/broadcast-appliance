@@ -567,6 +567,60 @@ void McpService::registerRostroTools() {
 
     {
         Tool t;
+        t.name = "padron_puerta";
+        t.title = "La camara de la entrada: acreditar sola a quien llega";
+        t.category = "padron";
+        t.description =
+            "Prende o apaga la camara de la PUERTA: reconoce a quien entra al lugar y lo marca como "
+            "llegado en el padron del evento abierto.";
+        t.details =
+            "Es la acreditacion presencial, y es la contracara del lobby: el mismo reconocimiento, "
+            "apuntado al mundo fisico en vez de al remoto. Con las dos prendidas, «quienes estan» "
+            "sabe de las dos mitades de la gente, que es de lo que se trata un evento hibrido.\n\n"
+            "NO ANOTA A NADIE EN EL PADRON. Si llega alguien que no esta en la lista, lo dice y sigue: "
+            "quien entra sin estar invitado es una decision del que organiza, no del reconocimiento. "
+            "Para sumarlo, `padron_anotar`.\n\n"
+            "Tampoco da de alta fichas de rostro: eso es `rostro_autoalta`, que es otra cosa y se puede "
+            "tener prendida al mismo tiempo. Una llena la LIBRETA (quien es esta cara); esta llena la "
+            "ASISTENCIA (esta persona ya esta aca).\n\n"
+            "Pide la misma seguridad que para abrir la puerta de la sala, y que la cara se vea bien. "
+            "Acreditar al que no es deja a dos personas mal anotadas —una que no vino y otra que si— y "
+            "no se descubre hasta que hay que contar el quorum.\n\n"
+            "Acreditar de nuevo al que ya paso no molesta y no mueve la hora: en una entrada la gente "
+            "se queda parada frente a la camara. El aviso es una sola vez por persona.\n\n"
+            "Necesita un evento abierto: el padron vive en el evento.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"activo", {{"type", "boolean"}}},
+              {"feed",
+               {{"type", "string"},
+                {"description", "que camara mira la entrada (clave de feeds_list)"}}}}}};
+        t.examples = {R"({"activo": true, "feed": "cam:2"})", R"({})"};
+        t.run = [pvDe, preparar](const json& a, Done done) {
+            if (const std::string e = preparar(); !e.empty()) return done(ToolResult::error(e));
+            PersonasViewModel* pv = pvDe();
+            if (a.contains("feed"))
+                pv->setFeedPuerta(QString::fromStdString(a["feed"].get<std::string>()));
+            if (a.contains("activo")) {
+                if (a["activo"].get<bool>() && pv->feedPuerta().isEmpty())
+                    return done(ToolResult::error(
+                        "Falta decir que camara mira la entrada: manda `feed` con una clave de "
+                        "feeds_list."));
+                pv->setPuertaAuto(a["activo"].get<bool>());
+            }
+            ToolResult r;
+            r.text(std::string(pv->puertaAuto() ? "Acreditacion en la puerta PRENDIDA mirando '"
+                                                : "Acreditacion en la puerta apagada (miraria '") +
+                   pv->feedPuerta().toStdString() + "'.");
+            r.structured = json{{"activo", pv->puertaAuto()},
+                                {"feed", pv->feedPuerta().toStdString()}};
+            done(r);
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "rostro_autoalta";
         t.title = "Anotar sola a cada persona nueva que pase por una camara";
         t.category = "rostros";

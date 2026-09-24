@@ -146,11 +146,19 @@ class EventoViewModel : public QObject {
     /// Escribe el padron al disco. Lo llaman los de arriba; no hace falta
     /// desde afuera porque cada cambio ya se guarda solo.
     bool guardarPadronAhora();
+    /// Si esa ficha de rostro tiene permiso para entrar sola a la sala.
+    Q_INVOKABLE bool puedeEntrarSolo(const QString& personaId) const;
+    /// Acredita por ficha de rostro. false si no esta en el padron.
+    Q_INVOKABLE bool acreditarPorPersona(const QString& personaId, const QString& porDonde);
 
     /// El evento abierto, para quien tenga que leerlo entero (la lista de
     /// auto-aceptar del lobby). Vacío si no hay ninguno abierto.
     const evento::Evento& guionAbierto() const { return e_; }
     /// Cambia la lista de auto-aceptar y guarda. Ver `evento::Invitado`.
+    ///
+    /// SOLO PARA MIGRAR. El permiso de entrar solo vive en el padrón
+    /// (`Asistente::dejarPasarSolo`); esto queda para poder leer los eventos
+    /// escritos antes y volcarlos. Ver `migrarAutoAceptar`.
     bool setAutoAceptar(std::vector<evento::Invitado> lista);
 
     /// Lo que se puede poner en cada tipo de cue: para armar el formulario sin
@@ -267,6 +275,8 @@ class EventoViewModel : public QObject {
     evento::EventoStore store_;
     evento::Evento e_;
     evento::Padron padron_;
+    /// Vuelca la lista blanca vieja del lobby al padrón, una sola vez.
+    void migrarAutoAceptar();
     std::unique_ptr<evento::Guion> guionCorriendo_;
     QString abierto_;
     bool sucio_ = false;

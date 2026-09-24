@@ -188,6 +188,7 @@ bool EventoViewModel::abrir(const QString& carpeta) {
         emit notify("El padron de este evento no se pudo leer: " +
                         QString::fromStdString(errPadron),
                     "error");
+    migrarAutoAceptar();
     emit padronChanged();
     emit guionChanged();
     emit sucioChanged();
@@ -1287,6 +1288,60 @@ bool EventoViewModel::despedir(const QString& id) {
     if (abierto_.isEmpty()) return false;
     if (!padron_.despedir(id.toStdString())) return false;
     return guardarPadronAhora();
+}
+
+void EventoViewModel::migrarAutoAceptar() {
+    // La lista blanca vieja del lobby (`Evento::autoAceptar`) y el permiso del
+    // padron (`dejarPasarSolo`) decian lo mismo. Dos listas para lo mismo se
+    // desincronizan —se agrega a alguien en una y el otro dia no entra—, asi
+    // que la vieja se vuelca en el padron y se apaga.
+    //
+    // Se hace al abrir y una sola vez: despues el guion ya no la trae.
+    if (e_.autoAceptar.empty()) return;
+    int movidos = 0;
+    for (const evento::Invitado& i : e_.autoAceptar) {
+        if (i.personaId.empty()) continue;
+        const evento::Asistente* ya = padron_.porPersona(i.personaId);
+        if (ya != nullptr) {
+            evento::Asistente prender;
+            prender.dejarPasarSolo = true;
+            padron_.cambiar(ya->id, prender, {"dejarPasarSolo"});
+        } else {
+            evento::Asistente a;
+            a.personaId = i.personaId;
+            a.nombre = i.nombre;
+            a.nota = i.nota;
+            a.dejarPasarSolo = true;
+            // Estaba en la lista de entrar solo, asi que alguien lo decidio a
+            // proposito: es invitado de verdad, no publico anonimo.
+            a.papel = evento::Papel::Panelista;
+            a.canal = evento::Canal::Online;
+            a.estado = evento::Estado::Confirmo;
+            padron_.agregar(std::move(a));
+        }
+        ++movidos;
+    }
+    e_.autoAceptar.clear();
+    guardarPadronAhora();
+    // El guion se guarda para que la lista vieja no vuelva a aparecer en la
+    // proxima apertura y la migracion se repita para siempre.
+    std::string err;
+    store_.guardar(abierto_.toStdString(), e_, &err);
+    if (movidos > 0)
+        emit notify(QString::number(movidos) +
+                        " de la lista de auto-aceptar pasaron al padrón del evento.",
+                    "info");
+}
+
+bool EventoViewModel::puedeEntrarSolo(const QString& personaId) const {
+    const evento::Asistente* a = padron_.porPersona(personaId.toStdString());
+    return a != nullptr && a->dejarPasarSolo;
+}
+
+bool EventoViewModel::acreditarPorPersona(const QString& personaId, const QString& porDonde) {
+    const evento::Asistente* a = padron_.porPersona(personaId.toStdString());
+    if (a == nullptr) return false;
+    return acreditar(QString::fromStdString(a->id), porDonde);
 }
 
 QString EventoViewModel::buscarEnPadron(const QString& personaId, const QString& nombre) const {

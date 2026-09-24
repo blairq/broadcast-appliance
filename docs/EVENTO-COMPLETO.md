@@ -62,8 +62,8 @@ chequeo de «día entre 1 y 31»—. En `evento_guardar` y en la página del eve
 
 ## 2. El padrón — **hecho el modelo y el MCP**; falta que lo llene la puerta
 
-Lo que hay (`evento_invitados` / `Evento::autoAceptar`) es una lista blanca del
-lobby indexada por rostro. Sirve para *dejar pasar*; no sirve para *organizar*.
+Lo que había (`evento_invitados` / `Evento::autoAceptar`) era una lista blanca
+del lobby indexada por rostro. Sirve para *dejar pasar*; no sirve para *organizar*.
 
 Falta el artefacto central de cualquier organizador: **la lista de la gente**.
 Quién está invitado, con qué papel, por dónde asiste y si confirmó.
@@ -114,11 +114,14 @@ Tres decisiones que quedaron escritas en el código:
 **Falta** que se llene solo: hoy hay que anotar y acreditar a mano (o pedírselo
 al asistente). Eso es el punto 3.
 
-**Y falta unificarlo con `Evento::autoAceptar`**, que es la lista blanca vieja
-del lobby y ahora se pisa con `dejarPasarSolo`. Dos listas para lo mismo se
-desincronizan; hay que quedarse con la del padrón y migrar la otra.
+**Unificado con `Evento::autoAceptar`:** la lista blanca vieja del lobby se
+vuelca al padrón la primera vez que se abre el evento y se apaga. Con ella se
+fue `evento_invitados`, cuya validación —que la ficha de rostro exista de
+verdad— se mudó a donde ahora se otorga el permiso: una entrada con un id que
+no existe no deja pasar a nadie, y nadie se entera hasta que esa persona se
+queda esperando en el lobby.
 
-## 3. Acreditación presencial — **falta** (y el 80% ya está escrito)
+## 3. Acreditación presencial — **hecha**
 
 Es el mayor retorno por trabajo de toda la lista, porque no hay que inventar
 casi nada: el lobby ya hace exactamente esto, solo que apunta a la sala en vez
@@ -136,7 +139,21 @@ aceptar, y un evento no puede depender de que la cámara funcione. El QR de la
 invitación es el otro camino — llega, lo muestra, queda acreditado — y el
 mostrador con el teclado es el tercero. Los tres escriben en el mismo padrón.
 
-## 4. El padrón único de presentes — **falta**
+**Hecho:** el interruptor de la puerta (`padron_puerta`, y en la página de
+Personas) mira una cámara, reconoce y acredita. Comparte la ronda con el lobby
+y se turnan, así que tener las dos prendidas no cuesta el doble: cuesta la
+mitad de rápido cada una. Pide la misma seguridad que para abrir la puerta de
+la sala y que la cara se vea bien, porque acreditar al que no es deja a dos
+personas mal anotadas y no se descubre hasta contar el quórum.
+
+**No anota a nadie en el padrón**: al que llega sin estar en la lista lo avisa
+y sigue. Quien entra sin estar invitado es una decisión del que organiza, no
+del reconocimiento.
+
+El mostrador con teclado ya funciona con `padron_acreditar` por nombre. **Falta
+el camino del QR**, que depende de la invitación (§10).
+
+## 4. El padrón único de presentes — **hecho**
 
 Hoy hay dos mundos que no se hablan: `participant_*` (los de la sala) y
 `rostro_*` (los que ve una cámara). Nadie puede contestar **«¿quiénes
@@ -146,8 +163,10 @@ En un evento híbrido esa es *la* pregunta, y en una reunión formal —asamblea
 consorcio, directorio— es obligatoria: sin presentes no hay quórum, y sin
 quórum lo que se decida no vale.
 
-Sale casi solo una vez que están 2 y 3: el padrón con estado «llegó», alimentado
-por la acreditación de la puerta y por las admisiones del lobby.
+**Hecho**, y salió casi solo una vez que estuvieron 2 y 3: el padrón con estado
+«llegó», alimentado por la acreditación de la puerta y por las admisiones del
+lobby. `padron_ver` trae `presenciales` y `enLinea` por separado y el quórum
+junto. Los dos mundos ya se hablan.
 
 ## 5. Preguntas del público — **falta**
 
@@ -264,8 +283,8 @@ después hay que tirar. Se hace cuando hay qué llenar.
 Por dependencia, no por tamaño:
 
 1. ~~**Fecha y huso** (§1)~~ — **hecho**.
-2. ~~**Padrón: persona ↔ papel ↔ canal ↔ estado** (§2)~~ — **hecho** el modelo
-   y el MCP. Falta unificar `autoAceptar` con `dejarPasarSolo`.
+2. ~~**Padrón: persona ↔ papel ↔ canal ↔ estado** (§2)~~ — **hecho**, con
+   `autoAceptar` ya volcado adentro.
 3. **Acreditación presencial reusando el lobby** (§3) — el mayor retorno por
    trabajo. Recién acá el padrón se llena solo y se puede contestar «¿quiénes
    están?» (§4).

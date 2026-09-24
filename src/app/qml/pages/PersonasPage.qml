@@ -158,6 +158,37 @@ Rectangle {
                             }
                         }
                     }
+                    // --- La acreditación de la puerta -----------------------
+                    // La otra mitad de la gente. El lobby ya recibe al que
+                    // entra por la sala; esto recibe al que entra caminando, y
+                    // los dos caen en el mismo padrón.
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        Toggle {
+                            id: swPuerta
+                            checked: page.pv.puertaAuto
+                            onToggled: (wanted) => { page.pv.feedPuerta = page.fuente
+                                                     page.pv.puertaAuto = wanted }
+                        }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 0
+                            Text { text: "Acreditar a quien llega por esta cámara"
+                                   color: Theme.text; font.pixelSize: 12 }
+                            Text {
+                                Layout.fillWidth: true
+                                wrapMode: Text.WordWrap
+                                color: Theme.textFaint; font.pixelSize: 10
+                                text: swPuerta.checked
+                                      ? "Mirando «" + page.pv.etiquetaDe(page.pv.feedPuerta) +
+                                        "». Al que reconoce lo marca como llegado en el padrón del " +
+                                        "evento. Al que no está en la lista lo avisa y no lo anota."
+                                      : "Para la entrada del lugar: reconoce al que llega y deja " +
+                                        "constancia en el padrón, igual que el lobby con los de la sala."
+                            }
+                        }
+                    }
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.preferredHeight: width * 9 / 16

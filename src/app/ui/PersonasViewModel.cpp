@@ -40,6 +40,12 @@ struct PersonasViewModel::Impl {
     bool autoalta = false;
     bool lobbyAuto = false;
     QString feedAuto = "program";
+    /// La cámara de la PUERTA: reconoce a quien entra al lugar y lo acredita
+    /// en el padrón del evento. Es la contracara del lobby —el mismo
+    /// reconocimiento, apuntado al mundo físico en vez de al remoto— y es lo
+    /// que hace que «¿quiénes están?» sepa de las dos mitades de la gente.
+    bool puertaAuto = false;
+    QString feedPuerta;
 #if BA_HAVE_ROSTROS
     /// El reconocimiento, en su propio hilo. Ver Reconocedor.hpp: en el de la
     /// interfaz colgaba al aparato entero.
@@ -63,6 +69,11 @@ struct PersonasViewModel::Impl {
     int turnoLobby = 0;   ///< por dónde va la rotación entre los que esperan
     QString uidMirado;    ///< a quién se le pidió la última mirada del lobby
     QSet<QString> yaPasaron; ///< a quién ya se hizo pasar sola (una vez c/u)
+    /// A quién ya se acreditó en la puerta. Acreditar de nuevo es inofensivo
+    /// (no mueve la hora), pero AVISAR de nuevo no: alguien parado frente a la
+    /// cámara generaría un aviso por segundo.
+    QSet<QString> avisadosPuerta;
+    bool turnoPuerta = false; ///< alterna lobby / puerta cuando los dos están
     int lugarMirado = 0;  ///< y en qué posición de preview estaba
 #endif
     Impl(AppRuntime& r, StudioViewModel& v) : rt(r), vm(v) {}
@@ -96,6 +107,10 @@ QVariantList PersonasViewModel::fuentes() const { return {}; }
 QString PersonasViewModel::etiquetaDe(const QString& feed) const { return feed; }
 bool PersonasViewModel::autoalta() const { return false; }
 void PersonasViewModel::setAutoalta(bool) {}
+bool PersonasViewModel::puertaAuto() const { return false; }
+void PersonasViewModel::setPuertaAuto(bool) {}
+QString PersonasViewModel::feedPuerta() const { return {}; }
+void PersonasViewModel::setFeedPuerta(const QString&) {}
 bool PersonasViewModel::lobbyAuto() const { return d_->lobbyAuto; }
 
 void PersonasViewModel::setLobbyAuto(bool activo) {
@@ -112,7 +127,7 @@ void PersonasViewModel::setLobbyAuto(bool activo) {
     }
     // Las dos formas de anotar comparten la ronda: la de acá gana, porque el
     // lobby es lo que está pasando ahora.
-    if (activo || d_->autoalta) {
+    if (activo || d_->autoalta || d_->puertaAuto) {
         d_->ronda.start();
     } else {
         d_->ronda.stop();
@@ -274,7 +289,16 @@ PersonasViewModel::PersonasViewModel(AppRuntime& rt, StudioViewModel& vm, QObjec
         // el costo es el mismo haya uno esperando o haya cuatro.
         QString uid;
         int lugar = 0;
-        const QString feed = d_->lobbyAuto ? proximaDelLobby(uid, lugar) : d_->feedAuto;
+        // En un evento híbrido las dos cosas pasan a la vez: gente entrando al
+        // salón y gente entrando a la sala. Se turnan, así que prender las dos
+        // no cuesta el doble: cuesta la mitad de rápido cada una.
+        d_->turnoPuerta = !d_->turnoPuerta;
+        const bool vaLaPuerta = d_->puertaAuto && !d_->feedPuerta.isEmpty() &&
+                                (d_->turnoPuerta || !d_->lobbyAuto);
+        QString feed;
+        if (vaLaPuerta) feed = d_->feedPuerta;
+        else if (d_->lobbyAuto) feed = proximaDelLobby(uid, lugar);
+        else feed = d_->feedAuto;
         if (!feed.isEmpty()) analizar(feed, true, uid);
     });
 }
@@ -326,6 +350,31 @@ void PersonasViewModel::setAutoalta(bool activo) {
     emit autoaltaCambio();
 }
 
+bool PersonasViewModel::puertaAuto() const { return d_->puertaAuto; }
+
+void PersonasViewModel::setPuertaAuto(bool activo) {
+    if (activo == d_->puertaAuto) return;
+    d_->puertaAuto = activo;
+    d_->avisadosPuerta.clear();
+    // Las tres formas de mirar comparten la ronda.
+    if (activo || d_->lobbyAuto || d_->autoalta) d_->ronda.start();
+    else {
+        d_->ronda.stop();
+        d_->libreta.guardar(d_->archivo.toStdString());
+    }
+    emit autoaltaCambio();
+}
+
+QString PersonasViewModel::feedPuerta() const { return d_->feedPuerta; }
+
+void PersonasViewModel::setFeedPuerta(const QString& feed) {
+    if (feed == d_->feedPuerta) return;
+    d_->feedPuerta = feed;
+    // Otra cámara es otra puerta: lo que se avisó de la anterior no vale.
+    d_->avisadosPuerta.clear();
+    emit autoaltaCambio();
+}
+
 bool PersonasViewModel::lobbyAuto() const { return d_->lobbyAuto; }
 
 void PersonasViewModel::setLobbyAuto(bool activo) {
@@ -342,7 +391,7 @@ void PersonasViewModel::setLobbyAuto(bool activo) {
     }
     // Las dos formas de anotar comparten la ronda: la de acá gana, porque el
     // lobby es lo que está pasando ahora.
-    if (activo || d_->autoalta) {
+    if (activo || d_->autoalta || d_->puertaAuto) {
         d_->ronda.start();
     } else {
         d_->ronda.stop();
@@ -545,13 +594,16 @@ void PersonasViewModel::dejarPasarSiCorresponde(const QString& uid, const QStrin
     auto* ev = static_cast<EventoViewModel*>(d_->vm.evento());
     auto* conf = static_cast<ConferenceViewModel*>(d_->vm.conference());
     if (ev == nullptr || conf == nullptr) return;
-    const auto& lista = ev->guionAbierto().autoAceptar;
-    const bool invitada = std::any_of(lista.begin(), lista.end(), [&](const auto& i) {
-        return QString::fromStdString(i.personaId) == personaId;
-    });
-    if (!invitada) return;
+    // El permiso vive en el PADRON del evento (`dejarPasarSolo`). Antes habia
+    // una lista blanca aparte en el guion; dos listas para lo mismo se
+    // desincronizan, asi que quedo una sola (ver EventoViewModel::migrarAutoAceptar).
+    if (!ev->puedeEntrarSolo(personaId)) return;
     d_->yaPasaron.insert(uid);
     conf->admit(uid);
+    // Y QUEDA ANOTADO QUE LLEGO. El que entra por la sala y el que entra por la
+    // puerta van al mismo padron: si no, «quienes estan» solo sabe de la mitad
+    // de la gente, que es el agujero que el padron vino a tapar.
+    ev->acreditarPorPersona(personaId, "lobby");
     // El asistente la atiende DE OTRA MANERA: confirmarle lo que ya sabemos,
     // no preguntarle quién es. `marcarAtendido` evita además que el camino de
     // siempre la aborde con el cuestionario completo.
@@ -561,12 +613,39 @@ void PersonasViewModel::dejarPasarSiCorresponde(const QString& uid, const QStrin
     // el momento está bien si estaba en la lista, pero el operador tiene que
     // enterarse en el acto: es gente que aparece en su sala.
     emit notify((nombre.isEmpty() ? QString("Alguien de la lista del evento") : nombre) +
-                    " entró sola: está en la lista de auto-aceptar del evento.",
+                    " entró sola: tiene permiso en el padrón del evento.",
                 "info");
     ba::diag::registro().linea(ba::diag::Nivel::Info, "rostros", 0,
                                "auto-aceptada del evento: «" + nombre.toStdString() + "» (ficha " +
                                    personaId.toStdString() + ", lobby " + uid.toStdString() +
                                    ", parecido " + std::to_string(parecido) + ")");
+}
+
+void PersonasViewModel::acreditarEnLaPuerta(const QString& personaId, const QString& nombre) {
+    auto* ev = static_cast<EventoViewModel*>(d_->vm.evento());
+    if (ev == nullptr || ev->abierto().isEmpty()) return;
+    // Acreditar de nuevo es inofensivo —no mueve la hora de la primera vez—,
+    // pero AVISAR de nuevo no: alguien parado frente a la camara daria un aviso
+    // por segundo. El aviso es una vez por persona; la constancia, siempre.
+    const bool primera = !d_->avisadosPuerta.contains(personaId);
+    if (!ev->acreditarPorPersona(personaId, "rostro")) {
+        // Esta en la libreta pero no en la lista de este evento. NO se lo anota
+        // solo: quien entra sin estar invitado es una decision del que
+        // organiza, no del reconocimiento. Se avisa una vez y se sigue.
+        if (primera) {
+            d_->avisadosPuerta.insert(personaId);
+            emit notify((nombre.isEmpty() ? QString("Alguien") : nombre) +
+                            " llegó y no está en el padrón del evento.",
+                        "warn");
+        }
+        return;
+    }
+    if (!primera) return;
+    d_->avisadosPuerta.insert(personaId);
+    emit notify((nombre.isEmpty() ? QString("Alguien de la libreta") : nombre) + " llegó.", "info");
+    ba::diag::registro().linea(ba::diag::Nivel::Info, "rostros", 0,
+                               "acreditado en la puerta: «" + nombre.toStdString() + "» (ficha " +
+                                   personaId.toStdString() + ")");
 }
 
 void PersonasViewModel::resolver(const QString& feed, const QString& uid,
@@ -633,6 +712,25 @@ void PersonasViewModel::resolver(const QString& feed, const QString& uid,
         d_->libreta.guardar(d_->archivo.toStdString());
         d_->ultimoGuardado = ahora;
     }
+    // --- La puerta ---------------------------------------------------------
+    // Reconocer a alguien en la entrada del lugar y dejar constancia. Es el
+    // mismo reconocimiento del lobby apuntado al mundo fisico, y es lo que hace
+    // que «quienes estan» sepa de las dos mitades de la gente.
+    if (d_->puertaAuto && !d_->feedPuerta.isEmpty() && feed == d_->feedPuerta) {
+        for (std::size_t i = 0; i < caras.size(); ++i) {
+            const QVariantMap v = out.at(static_cast<int>(i)).toMap();
+            const QString id = v.value("id").toString();
+            if (id.isEmpty()) continue;
+            // El mismo margen que para abrir la puerta de la sala, y por la
+            // misma razon: acreditar al que no es deja a dos personas mal
+            // anotadas —una que no vino y otra que si— y nadie lo descubre
+            // hasta que hay que contar el quorum.
+            if (v.value("parecido").toFloat() < kAbrirLaPuerta) continue;
+            if (!calidadDe(img, caras[i].cara).sirve) continue;
+            acreditarEnLaPuerta(id, v.value("nombre").toString());
+        }
+    }
+
     if (feed.startsWith("lobby:")) {
         // Lo del lobby no va a la lista de la página de Personas: va a la
         // baldosa de quien está esperando, que es donde el operador lo está

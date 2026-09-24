@@ -378,13 +378,17 @@ const Fila kPropias[] = {
     // (participant_*), y en un evento es el de la lista. Va en las dos, y lo
     // que desempata son las palabras de al lado —«lista», «evento», «anotar»—.
     {"padron_ver", "quienes estan cuantos llegaron cuantos faltan quorum lista de asistentes "
-                   "padron del evento presentes ausentes quien vino quien falta invitados del evento"},
+                   "padron del evento presentes ausentes quien vino quien falta invitados del evento "
+                   "a quien dejar pasar solo sin aprobar quienes entran solos"},
     {"padron_anotar", "anotar a alguien en la lista del evento sumar invitado agregar persona al padron "
-                      "dar de alta un asistente panelista orador prensa"},
+                      "dar de alta un asistente panelista orador prensa que entre solo sin aprobar"},
     {"padron_cambiar", "cambiarle los datos a alguien del padron editar asistente papel canal estado "
-                       "engancharle la ficha de rostro"},
+                       "engancharle la ficha de rostro que entre sola sin que yo apruebe darle "
+                       "permiso para entrar solo dejarla pasar sin aprobacion"},
     {"padron_acreditar", "acreditar marcar que llego registrar la entrada de alguien check in "
                          "llego se fue ya esta aca entro por la puerta salida"},
+    {"padron_puerta", "camara de la entrada acreditar solo a quien llega al lugar reconocer a los que "
+                      "llegan al salon puerta acreditacion presencial mostrador de entrada"},
     {"padron_quitar", "sacar a alguien de la lista del evento borrar asistente del padron"},
     {"evento_correr", "correr el guion arrancar avanzar pausar el evento"},
 
@@ -397,8 +401,6 @@ const Fila kPropias[] = {
                           "sacarlo del lobby meterlo a la sala"},
     {"participant_reject", "rechazar no dejar entrar negar la entrada echar del lobby"},
     {"participant_kick", "echar sacar de la sala expulsar desconectar a alguien que ya entro"},
-    {"evento_invitados", "auto aceptar dejar pasar solo lista de invitados del evento sin "
-                         "preguntar admitir automatico quienes entran directo"},
     {"imagen_analizar", "mirar la imagen que se ve ahi que hay en camara revisar visualmente "
                         "analizar captura vision hay alguien cuadro negro se lee el rotulo"},
     {"audio_plugin_buscar", "que filtros hay que plugins tengo hay algun filtro para buscar "
