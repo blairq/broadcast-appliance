@@ -12,6 +12,10 @@
 //   probar     audio_generator (señal de prueba), audio_editor (interfaz LSP)
 // ============================================================================
 
+#include "audio/PluginTerminos.hpp"
+#include <set>
+
+#include "mcp/McpIndice.hpp"
 #include "mcp/McpService.hpp"
 
 #if defined(BA_HAVE_CLAP)
@@ -161,14 +165,20 @@ void McpService::registerAudioTools() {
     {
         Tool t;
         t.name = "audio_modules";
-        t.title = "Modulos disponibles";
+        t.title = "Modulos con interfaz propia";
         t.category = "audio_rack";
         t.readOnly = true;
         t.description =
-            "Los modulos con interfaz propia (gate, compresor, deesser, eq, multibanda, limitador: "
-            "parametros, ayuda y presets) y, con `buscar`, cualquiera de los ~200 plugins LSP.";
-        t.inputSchema = {{"type", "object"}, {"properties", {{"buscar", {{"type", "string"}}}}}};
-        t.run = [mgr](const json& a, Done done) {
+            "Los seis modulos que el aparato maneja con nombre propio —compuerta, compresor, "
+            "deesser, ecualizador, multibanda, limitador— con sus parametros explicados, sus rangos "
+            "y sus presets. Son los que conviene usar cuando alcanzan.";
+        t.details =
+            "Para cualquier otro de los ~200 instalados, `audio_plugin_buscar`: busca en castellano "
+            "y dice para que sirve cada uno. Aca estaba antes ese buscador, haciendo una busqueda "
+            "literal peor y devolviendo el catalogo entero encima —19 KB para leer diez lineas—. "
+            "Dos buscadores para lo mismo es uno de mas.";
+        t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
+        t.run = [](const json&, Done done) {
             json cat = json::array();
             for (const auto& m : audio::moduleCatalog()) {
                 json params = json::array();
@@ -190,28 +200,138 @@ void McpService::registerAudioTools() {
                      {"bandas", m.bandCount > 0 ? json{m.bandFirst, m.bandFirst + m.bandCount - 1} : json()},
                      {"presets", presets}});
             }
-            json out{{"catalogo", cat}};
-            const std::string q = a.value("buscar", "");
-            if (!q.empty()) {
-                std::string e;
-                auto lib = mgr()->library(&e);
-                json found = json::array();
-                if (lib) {
-                    std::string ql = q;
-                    std::transform(ql.begin(), ql.end(), ql.begin(), ::tolower);
-                    for (const auto& p : lib->plugins()) {
-                        std::string h = p.id + " " + p.name + " " + p.description;
-                        std::transform(h.begin(), h.end(), h.begin(), ::tolower);
-                        if (h.find(ql) != std::string::npos && found.size() < 40)
-                            found.push_back(
-                                {{"id", p.id}, {"nombre", p.name}, {"descripcion", p.description}});
-                    }
-                } else {
-                    out["aviso"] = e;
-                }
-                out["lsp"] = found;
+            done(ToolResult().data(json{{"catalogo", cat}}));
+        };
+        core_.addTool(std::move(t));
+    }
+
+    {
+        Tool t;
+        t.name = "audio_plugin_buscar";
+        t.title = "Buscar entre los ~200 plugins de audio instalados";
+        t.category = "audio_rack";
+        t.readOnly = true;
+        t.description =
+            "Busca EN CASTELLANO entre todos los plugins de audio instalados (~200) y devuelve los "
+            "que sirven para lo que pediste, con para que sirve cada uno y cuantos canales maneja. "
+            "El rack no se limita a los seis modulos con interfaz propia.";
+        t.details =
+            "POR QUE HACE FALTA BUSCAR. Los plugins se describen en ingles («performs gating of "
+            "input signal») y son doscientos: ni entran en una lista ni se encuentran pidiendo lo "
+            "que uno quiere. Aca hay un indice hecho a mano con las palabras de una cabina —«que la "
+            "musica baje cuando hablan», «sacale el siseo», «que no pase de cierto volumen»— sobre "
+            "el nombre, la descripcion y las caracteristicas de cada uno.\n\n"
+            "EL `id` QUE DEVUELVE SE USA TAL CUAL en `audio_module_add`. Los seis del catalogo "
+            "(gate, compresor, deesser, eq, multibanda, limitador) tienen ademas parametros con "
+            "nombre y presets: si uno de esos alcanza, es mejor, y `audio_modules` los detalla.\n\n"
+            "`canales` dice si la version es mono, estereo o por bandas: LSP publica el mismo "
+            "aparato varias veces y hay que elegir el que corresponde a la fuente.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"required", {"buscar"}},
+            {"properties",
+             {{"buscar",
+               {{"type", "string"},
+                {"description", "que necesitas, con tus palabras"}}},
+              {"limite", {{"type", "integer"}, {"default", 10}}}}}};
+        t.examples = {R"({"buscar": "que la musica baje cuando hablan"})",
+                      R"({"buscar": "sacarle el siseo a la voz"})",
+                      R"({"buscar": "sincronizar el audio con la imagen"})"};
+        t.run = [mgr](const json& a, Done done) {
+            std::string e;
+            auto lib = mgr()->library(&e);
+            if (!lib)
+                return done(ToolResult::error("No se pudo abrir la biblioteca de plugins: " + e));
+
+            // El MISMO motor que busca herramientas (McpIndice): pesos por
+            // campo, IDF y prefijos. No hay razon para tener dos buscadores.
+            Indice idx;
+            for (const auto& p : lib->plugins()) {
+                Documento d;
+                d.id = p.id;
+                d.clase = "plugin";
+                d.nombre = audio::familiaDe(p.id);
+                d.titulo = p.name;
+                d.etiquetas = audio::terminosDePlugin(p.id);
+                // El para-que en castellano pesa como cuerpo; la descripcion en
+                // ingles tambien entra, que a veces alguien busca por el nombre
+                // tecnico.
+                d.cuerpo = audio::paraQueSirve(p.id) + " " + p.description;
+                for (const std::string& f : p.features) d.cuerpo += " " + f;
+                idx.agregar(std::move(d));
             }
-            done(ToolResult().data(out));
+            idx.armar();
+
+            const int limite = std::max(1, std::min(40, a.value("limite", 10)));
+            // CUANTO DE LO QUE PREGUNTASTE MATCHEO DE VERDAD.
+            //
+            // El puntaje NO alcanza para saber si la respuesta sirve: «auto
+            // tune corregir la afinacion» sacaba 393 —mas que el deesser
+            // correcto, 281— porque «auto» es prefijo de `autogain`,
+            // `automatico` y `automaticamente`. Tres coincidencias de UNA sola
+            // palabra, y las otras tres («tune», «corregir», «afinacion») no
+            // pegaban nada. Contestar eso como si sirviera es peor que decir
+            // que no hay: manda a poner un control de volumen donde pedian un
+            // corrector de tono.
+            //
+            // Entonces se cuenta cuantas PALABRAS DISTINTAS de la pregunta
+            // aparecen entre lo que matcheo. Una sola, habiendo pedido varias,
+            // es un parecido de casualidad.
+            const auto palabras = Indice::terminos(a["buscar"].get<std::string>());
+            // Una palabra CORTA que solo aparece como principio de otra mas
+            // larga no cuenta: «auto» dentro de `autogain` no es haber
+            // encontrado un auto-tune. Una palabra larga que matcheo, si:
+            // «comprimir» trayendo `compresor` es un acierto, y castigarlo por
+            // las palabras de relleno que la acompañan («necesito», «del») era
+            // esconder la respuesta correcta.
+            constexpr std::size_t kPalabraFuerte = 6;
+            const auto cubiertas = [&palabras](const std::vector<std::string>& porque) {
+                std::set<std::string> vistas;
+                for (const std::string& w : palabras)
+                    for (const std::string& t : porque) {
+                        const bool exacta = t == w;
+                        const bool porPrefijo = t.rfind(w, 0) == 0 || w.rfind(t, 0) == 0;
+                        if (exacta || (porPrefijo && w.size() >= kPalabraFuerte)) vistas.insert(w);
+                    }
+                return vistas.size();
+            };
+            json out = json::array();
+            std::size_t mejorCobertura = 0;
+            for (const Resultado& r : idx.buscar(a["buscar"].get<std::string>(),
+                                                 static_cast<std::size_t>(limite))) {
+                const std::string id = idx.doc(r.doc).id;
+                const audio::PluginDesc* d = nullptr;
+                for (const auto& p : lib->plugins())
+                    if (p.id == id) d = &p;
+                if (d == nullptr) continue;
+                const std::size_t cub = cubiertas(r.porque);
+                mejorCobertura = std::max(mejorCobertura, cub);
+                out.push_back(json{{"deLoQuePediste", std::to_string(cub) + "/" +
+                                                          std::to_string(palabras.size())},
+                                   {"id", d->id},
+                                   {"nombre", d->name},
+                                   {"paraQue", audio::paraQueSirve(d->id)},
+                                   {"canales", audio::canalesDe(d->id)},
+                                   {"porque", r.porque},
+                                   {"descripcion", d->description}});
+            }
+            // Con una sola palabra pegada habiendo pedido varias, se dice que
+            // no hay: ofrecer «lo mas parecido» como si sirviera es lo que hace
+            // que alguien termine poniendo un control de volumen donde pidio un
+            // corrector de tono.
+            const bool flojo = out.empty() || mejorCobertura == 0;
+            ToolResult res;
+            if (out.empty())
+                res.text("No hay ningun plugin instalado para eso.");
+            else if (flojo)
+                res.text("NO hay ninguno para eso. Lo unico que se le parece de nombre es " +
+                         out[0]["id"].get<std::string>() +
+                         ", que hace otra cosa: no lo pongas sin leer `paraQue`.");
+            else
+                res.text(std::to_string(out.size()) +
+                         " plugin(s). El `id` va tal cual en `audio_module_add`.");
+            res.structured = json{{"plugins", out}, {"hayAlguno", !flojo}};
+            done(res);
         };
         core_.addTool(std::move(t));
     }

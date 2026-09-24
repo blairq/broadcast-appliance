@@ -383,6 +383,9 @@ const Fila kPropias[] = {
                          "preguntar admitir automatico quienes entran directo"},
     {"imagen_analizar", "mirar la imagen que se ve ahi que hay en camara revisar visualmente "
                         "analizar captura vision hay alguien cuadro negro se lee el rotulo"},
+    {"audio_plugin_buscar", "que filtros hay que plugins tengo hay algun filtro para buscar "
+                            "un efecto autotune reverb eco delay coro que la musica baje cuando "
+                            "hablan ducking siseo sincronizar audio con imagen mas de doscientos"},
     {"rostro_ver", "quien esta en camara quien aparece reconocer a alguien identificar cara"},
     {"rostro_guardar", "dar de alta una persona ensenarle una cara agregar al sistema corregir ficha"},
     {"rostro_listar", "que personas hay guardadas libreta conocidas"},

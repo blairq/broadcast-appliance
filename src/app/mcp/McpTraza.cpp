@@ -29,6 +29,21 @@ bool esSecreta(std::string k) {
     return false;
 }
 
+/// A partir de aca un valor puede ser un secreto. Por debajo es, casi seguro,
+/// un identificador: las claves de API y los tokens no miden ocho letras.
+constexpr std::size_t kSecretoMinimo = 16;
+
+/// Si el VALOR parece un secreto: una tira larga y sin espacios.
+bool pareceSecreto(const json& v) {
+    if (v.is_string()) {
+        const std::string s = v.get<std::string>();
+        return s.size() >= kSecretoMinimo && s.find(' ') == std::string::npos;
+    }
+    // Lo que no es texto (un objeto, un numero) no es una credencial, pero un
+    // objeto puede tener una adentro: se lo deja pasar y se poda por dentro.
+    return !v.is_object() && !v.is_array();
+}
+
 constexpr std::size_t kTextoLargo = 180;  ///< un texto mas largo se recorta
 constexpr std::size_t kListaLarga = 8;    ///< de una lista, los primeros
 
@@ -54,7 +69,12 @@ json podar(const json& j) {
     if (j.is_object()) {
         json out = json::object();
         for (auto it = j.begin(); it != j.end(); ++it) {
-            if (esSecreta(it.key())) {
+            // Y ADEMAS QUE PAREZCA UN SECRETO. En castellano «clave» es tambien
+            // la clave de un catalogo: la traza del rack de audio salia
+            // ilegible, con cada parametro —«gate», «umbral», «ataque»— tapado
+            // como si fuera una contraseña. Un secreto es largo y de una sola
+            // pieza; un identificador de catalogo, no.
+            if (esSecreta(it.key()) && pareceSecreto(it.value())) {
                 out[it.key()] = "«tapado»";
                 continue;
             }
