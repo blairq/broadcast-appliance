@@ -64,11 +64,16 @@ def main():
     p.add_argument("--todas", action="store_true",
                    help="mandarle las 264 en vez de las que encuentra el buscador (para comparar)")
     p.add_argument("--rol", default="", help="filtrar el grupo antes de buscar (ej: asistente)")
+    p.add_argument("--claude", default="",
+                   help="ruta al CLI de claude: usa ese en vez del endpoint. NO le conecta el MCP "
+                        "—ejecutaria las herramientas de verdad y cambiaria el aire—: le pasa las "
+                        "candidatas en el texto y le pide que elija una. Mide la eleccion, no la "
+                        "ejecucion, asi que no es comparable al 100% con el tool-calling nativo.")
     p.add_argument("--bundle", default=str(RAIZ / "release"))
     a = p.parse_args()
 
     clave = os.environ.get(a.clave_env, "")
-    if not clave:
+    if not clave and not a.claude:
         sys.exit(f"falta la clave en ${a.clave_env}")
     token = subprocess.run([a.bundle + "/bin/64bit/ba-mcp", "--token"],
                            capture_output=True, text=True).stdout.strip()
@@ -104,6 +109,25 @@ def main():
                   # tiempo es lo que se esta midiendo.
                   "chat_template_kwargs": {"enable_thinking": False, "reasoning_effort": "low"}}
         t0 = time.time()
+        if a.claude:
+            fichas = "\n".join("- %s: %s" % (h["function"]["name"], h["function"]["description"])
+                                for h in sel)
+            pedido = (SISTEMA + "\n\nHerramientas disponibles:\n" + fichas +
+                      "\n\nPedido del operador: «" + c["pregunta"] + "»\n\n"
+                      "Contesta UNICAMENTE con el nombre exacto de la herramienta que llamarias "
+                      "primero. Nada mas: ni explicacion, ni comillas, ni puntuacion.")
+            # stdin cerrado: si no, el CLI espera 3 s por cada pregunta.
+            r = subprocess.run([a.claude, "-p", pedido], capture_output=True, text=True,
+                               timeout=240, stdin=subprocess.DEVNULL)
+            dt = time.time() - t0
+            tiempos.append(dt)
+            elegida = r.stdout.strip().split()[0].strip(".,`«»\"'") if r.stdout.strip() else "(vacio)"
+            bien = elegida in c["herramientas"]
+            ok += bien
+            if not bien:
+                print(f"  ✗ {c['pregunta'][:44]:46s} -> {elegida}  (se esperaba {'/'.join(c['herramientas'])})")
+                confusion.setdefault((c["herramientas"][0], elegida), []).append(c["pregunta"])
+            continue
         r = subprocess.run(["curl", "-s", "-m", "240", "-H", "Authorization: Bearer " + clave,
                             "-H", "Content-Type: application/json", "-d", json.dumps(cuerpo), a.url],
                            capture_output=True, text=True)
@@ -127,7 +151,8 @@ def main():
 
     n = len(casos)
     print()
-    print(f"  modelo {a.modelo} | {'264 herramientas' if a.todas else f'buscador top {a.top}'}"
+    print(f"  modelo {'claude (CLI, sin MCP)' if a.claude else a.modelo}"
+          f" | {'264 herramientas' if a.todas else f'buscador top {a.top}'}"
           f"{' | rol ' + a.rol if a.rol else ''}")
     print(f"  aciertos: {ok}/{n} ({100*ok//n}%) | {varias} respuestas con más de una herramienta")
     if tokens:

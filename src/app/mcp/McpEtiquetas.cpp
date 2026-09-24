@@ -88,7 +88,7 @@ const Fila kPropias[] = {
     {"monitors", "monitores conectados resolucion"},
 
     // --- Escenas y fuentes ------------------------------------------------
-    {"scene_list", "cuantas escenas hay que escenas tengo listado de escenas listar cuales hay ver escenas"},
+    {"scene_list", "cuantas escenas hay listado de escenas listar cuales hay ver escenas"},
     // «Cortá a la cámara 2» es CAMBIAR DE ESCENA: en una cabina las escenas se
     // llaman por su cámara. Sin la palabra «camara» aca, esa frase se iba a las
     // doce herramientas que sí la tienen (capture_feed, ndi_sources...) y el
@@ -98,7 +98,7 @@ const Fila kPropias[] = {
                      "pone al aire la pone al aire poner al aire la escena arranca con"},
     {"scene_preview", "dejar preparada dejala lista preparar la proxima armar la que sigue armar preparar el proximo plano bus de preview previo antes de sacarlo "
                       "cuear siguiente escena mesa switcher"},
-    {"scene_take", "sacar al aire lo que tengo armado sacar la armada tomar el take ya take sacar al aire la armada cortar ahora disparar el plano preparado mesa switcher"},
+    {"scene_take", "sacar al aire lo armado sacar la armada tomar el take ya take sacar al aire la armada cortar ahora disparar el plano preparado mesa switcher"},
     {"scene_create", "crear nueva agregar escena"},
     {"scene_copy", "copiar duplicar clonar escena"},
     {"scene_delete", "borrar eliminar quitar escena"},
@@ -151,7 +151,7 @@ const Fila kPropias[] = {
     // ACOPLE, PITIDO, ZUMBIDO: lo que se grita en cabina. Ninguna de estas
     // palabras estaba, y «hay acople» no traia NADA de audio. Es el caso que
     // menos tiempo da para pensar, asi que es el que mejor tiene que andar.
-    {"audio_measure", "pitido chillido silbido agudo insoportable suena un pitido no se escucha nada al aire quedamos sin audio acople acoplando acoplamiento microfonia feedback pitido chillido "
+    {"audio_measure", "no tengo sonido sin sonido no sale audio quedamos sin audio pitido chillido silbido agudo insoportable suena un pitido no se escucha nada al aire quedamos sin audio acople acoplando acoplamiento microfonia feedback pitido chillido "
                       "zumbido ruido de fondo satura saturando satura el audio distorsiona "
                       "medir niveles pico ""medir lufs nivel pico rms loudness normalizar"},
     {"audio_generator", "tono generador prueba ruido rosa senal de test"},
@@ -179,7 +179,7 @@ const Fila kPropias[] = {
     {"capture_people", "ver a todos los invitados grilla de personas"},
     {"capture_sequence", "varias capturas seguidas ver que cambia movimiento"},
     {"capture_ui", "ver la interfaz de la app pantalla del operador"},
-    {"feeds_list", "que camaras hay conectadas que camaras tengo que señales llegan que señales hay entrando fuentes de video"},
+    {"feeds_list", "que camaras hay conectadas que señales llegan que señales hay entrando fuentes de video"},
 
     // --- Sala --------------------------------------------------------------
     {"room_status", "se cayo un invitado se desconecto se fue quien quedo quien esta en la sala conectados lista de gente cuanta gente "
@@ -260,7 +260,11 @@ const Fila kPropias[] = {
     {"account_check", "probar cuenta verificar que ande"},
 
     // --- Alertas y recetas --------------------------------------------------
-    {"alert_types", "que se puede vigilar eventos disponibles se cayo la transmision disco lleno"},
+    // SIN LOS SINTOMAS. Tenia «se cayo la transmision» y «disco lleno» como
+    // ejemplos de lo que se puede vigilar, y con eso ganaba las preguntas de
+    // cuando esas cosas ESTAN PASANDO —que son de `status` y `system_hardware`,
+    // no de leer un catalogo de tipos—.
+    {"alert_types", "que se puede vigilar tipos de vigilancia eventos disponibles parametros"},
     {"alert_create", "avisame cuando crear alerta vigilar"},
     {"alert_list", "que alertas hay configuradas"},
     {"alert_update", "cambiar alerta editar"},

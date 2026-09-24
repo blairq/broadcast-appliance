@@ -43,7 +43,11 @@
     "(preposicion) se escriben igual. El modelo lo leia como «destinado a la",
     "grabacion» y elegia `record_start`, que es una lectura legitima de lo que",
     "estaba escrito. El corpus se escribe en castellano correcto; el buscador",
-    "ignora las tildes por su cuenta."
+    "ignora las tildes por su cuenta.",
+    "",
+    "Lo encontro Claude, no yo: para «abri la pestaña de audio», `audio_show` la",
+    "abre DIRECTAMENTE en una fuente, y es mas especifica que la generica",
+    "`ui_show_page`. El corpus la contaba mal."
   ],
   "casos": [
     {
@@ -408,6 +412,7 @@
     {
       "pregunta": "abri la pestaña de audio",
       "herramientas": [
+        "audio_show",
         "ui_show_page"
       ]
     },
