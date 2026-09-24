@@ -153,14 +153,16 @@ std::vector<Ficha> EventoStore::listar() const {
         Ficha f;
         f.carpeta = carpeta;
         f.nombre = e.nombre.empty() ? carpeta : e.nombre;
+        f.fecha = e.fecha;
         f.inicio = e.inicio;
+        f.huso = e.huso;
         f.duracionSeg = e.duracionSeg();
         f.bloques = e.bloques.size();
         f.cues = e.cantidadDeCues();
         const auto cuando = fs::last_write_time(d.path() / kGuion, ec);
         if (!ec) {
             f.modificadoTic = static_cast<std::int64_t>(cuando.time_since_epoch().count());
-            f.tieneFecha = true;
+            f.tieneModificado = true;
         }
         fichas.push_back(std::move(f));
     }
@@ -174,7 +176,7 @@ std::string EventoStore::ultimoTocado() const {
     std::int64_t masReciente = 0;
     bool hay = false;
     for (const Ficha& f : listar()) {
-        if (!f.tieneFecha) continue;
+        if (!f.tieneModificado) continue;
         // Ojo con comparar contra cero o contra -1: estos tics son negativos
         // en libstdc++ (ver Ficha::modificadoTic). El primero que aparece
         // marca el piso.

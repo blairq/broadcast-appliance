@@ -34,7 +34,9 @@ namespace ba::evento {
 struct Ficha {
     std::string carpeta; ///< nombre de la carpeta dentro de Eventos/
     std::string nombre;
+    std::string fecha;  ///< el dia del evento, "YYYY-MM-DD" (vacio = sin fecha)
     std::string inicio;
+    std::string huso;
     int duracionSeg = 0;
     std::size_t bloques = 0;
     std::size_t cues = 0;
@@ -43,7 +45,9 @@ struct Ficha {
     /// libstdc++ es el ano 2174, asi que hoy da NEGATIVO). Solo sirve para
     /// ordenar entre archivos.
     std::int64_t modificadoTic = 0;
-    bool tieneFecha = false; ///< false: no se pudo leer la fecha del archivo
+    /// false: no se pudo leer la marca de modificacion del archivo. No tiene
+    /// nada que ver con `fecha`, que es el dia del evento.
+    bool tieneModificado = false;
 };
 
 /// Convierte un nombre cualquiera en algo que sirva de nombre de carpeta en

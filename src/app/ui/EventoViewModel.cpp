@@ -12,6 +12,7 @@
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QTimeZone>
 
 #include "AppRuntime.hpp"
 #include "graficos/Emisor.hpp"
@@ -133,7 +134,9 @@ QVariantList EventoViewModel::eventos() const {
     for (const evento::Ficha& f : store_.listar()) {
         out.append(QVariantMap{{"carpeta", QString::fromStdString(f.carpeta)},
                                {"nombre", QString::fromStdString(f.nombre)},
+                               {"fecha", QString::fromStdString(f.fecha)},
                                {"inicio", QString::fromStdString(f.inicio)},
+                               {"huso", QString::fromStdString(f.huso)},
                                {"duracionSeg", f.duracionSeg},
                                {"bloques", static_cast<int>(f.bloques)},
                                {"cues", static_cast<int>(f.cues)}});
@@ -240,7 +243,10 @@ QVariantMap EventoViewModel::guion() const {
                               {"cues", cs}});
     }
     return QVariantMap{{"nombre", QString::fromStdString(e_.nombre)},
+                       {"fecha", QString::fromStdString(e_.fecha)},
                        {"inicio", QString::fromStdString(e_.inicio)},
+                       {"huso", QString::fromStdString(e_.huso)},
+                       {"cuando", cuando()},
                        {"nota", QString::fromStdString(e_.nota)},
                        {"duracionSeg", e_.duracionSeg()},
                        {"cues", static_cast<int>(e_.cantidadDeCues())},
@@ -322,6 +328,36 @@ void EventoViewModel::setNombre(const QString& nombre) {
 void EventoViewModel::setInicio(const QString& hhmm) {
     e_.inicio = hhmm.toStdString();
     marcarSucio();
+}
+
+void EventoViewModel::setFecha(const QString& aaaammdd) {
+    e_.fecha = aaaammdd.toStdString();
+    marcarSucio();
+}
+
+void EventoViewModel::setHuso(const QString& iana) {
+    e_.huso = iana.toStdString();
+    marcarSucio();
+}
+
+QString EventoViewModel::husoDelAparato() {
+    return QString::fromUtf8(QTimeZone::systemTimeZoneId());
+}
+
+QString EventoViewModel::cuando() const {
+    if (e_.fecha.empty() || e_.inicio.empty()) return {};
+    if (!evento::fechaValida(e_.fecha) || !evento::horaValida(e_.inicio)) return {};
+    const QDate d = QDate::fromString(QString::fromStdString(e_.fecha), Qt::ISODate);
+    const QTime h = QTime::fromString(QString::fromStdString(e_.inicio), QStringLiteral("HH:mm"));
+    // Sin huso guardado corre el del aparato, que es lo que el operador ve en
+    // la pared. Es un valor por defecto razonable, no una adivinanza: el que
+    // arma el evento esta en el lugar del evento casi siempre.
+    const QTimeZone z = e_.huso.empty() ? QTimeZone::systemTimeZone()
+                                        : QTimeZone(QByteArray::fromStdString(e_.huso));
+    if (!z.isValid()) return {};
+    const QDateTime dt(d, h, z);
+    if (!dt.isValid()) return {};
+    return dt.toString(Qt::ISODate);
 }
 
 QString EventoViewModel::agregarBloque(const QString& nombre) {

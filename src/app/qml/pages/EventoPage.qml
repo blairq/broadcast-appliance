@@ -32,6 +32,17 @@ Rectangle {
         return (neg ? "-" : "") + Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0")
     }
     // La hora prevista de un cue: la de arranque del evento mas su offset.
+    /// El "cuando" para el boton del encabezado: corto, y diciendo lo que
+    /// falta cuando falta.
+    function cuandoCorto() {
+        const f = ev.guion.fecha || ""
+        const h = ev.guion.inicio || ""
+        if (f === "" && h === "") return "Sin fecha"
+        if (f === "") return "Sin fecha · " + h
+        if (h === "") return f + " · sin hora"
+        return f + " · " + h
+    }
+
     function horaDe(offsetSeg) {
         const inicio = ev.guion.inicio || ""
         if (!/^\d{1,2}:\d{2}$/.test(inicio) || offsetSeg < 0) return ""
@@ -83,10 +94,24 @@ Rectangle {
 
                 Text {
                     visible: page.ev.abierto !== ""
-                    text: page.ev.guion.cues + " cues · " + page.mmss(page.ev.guion.duracionSeg) +
-                          (page.ev.guion.inicio !== "" ? " · arranca " + page.ev.guion.inicio : "")
+                    text: page.ev.guion.cues + " cues · " + page.mmss(page.ev.guion.duracionSeg)
                     color: Theme.textDim
                     font.pixelSize: 12
+                }
+                // Cuando es el evento. Sin fecha no se lo puede convocar ni
+                // archivar, asi que cuando falta se ve que falta en vez de no
+                // mostrar nada.
+                GlassButton {
+                    visible: page.ev.abierto !== ""
+                    compact: true
+                    text: page.cuandoCorto()
+                    active: page.ev.guion.fecha === ""
+                    onClicked: cuandoDlg.open()
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
+                    ToolTip.text: page.ev.guion.cuando !== ""
+                                  ? "Arranca " + page.ev.guion.cuando
+                                  : "Poner el dia y la hora del evento"
                 }
                 Text {
                     visible: page.ev.sucio
@@ -808,6 +833,75 @@ Rectangle {
     }
 
     // --- Evento nuevo --------------------------------------------------------
+    // --- Cuando es el evento ------------------------------------------------
+    Dialog {
+        id: cuandoDlg
+        anchors.centerIn: parent
+        width: 460
+        modal: true
+        title: "Cuándo es el evento"
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        onAboutToShow: {
+            fechaCampo.text = page.ev.guion.fecha || ""
+            horaCampo.text = page.ev.guion.inicio || ""
+            husoCampo.text = page.ev.guion.huso || ""
+        }
+        onAccepted: {
+            page.ev.setFecha(fechaCampo.text.trim())
+            page.ev.setInicio(horaCampo.text.trim())
+            page.ev.setHuso(husoCampo.text.trim())
+        }
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 8
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: "De la hora salen las horas previstas de cada bloque. De la fecha con el huso " +
+                      "sale el momento exacto, que es lo único que le sirve al que se conecta desde " +
+                      "otro huso horario."
+                color: Theme.textDim
+                font.pixelSize: 12
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                TextField {
+                    id: fechaCampo
+                    Layout.fillWidth: true
+                    placeholderText: "2026-05-25"
+                    color: Theme.text
+                    onAccepted: cuandoDlg.accept()
+                }
+                TextField {
+                    id: horaCampo
+                    Layout.preferredWidth: 90
+                    placeholderText: "20:00"
+                    color: Theme.text
+                    onAccepted: cuandoDlg.accept()
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                TextField {
+                    id: husoCampo
+                    Layout.fillWidth: true
+                    placeholderText: "America/Argentina/Buenos_Aires"
+                    color: Theme.text
+                    onAccepted: cuandoDlg.accept()
+                }
+                // El del aparato es el valor bueno casi siempre: el que arma
+                // el evento esta en el lugar del evento.
+                GlassButton {
+                    compact: true
+                    text: "El de acá"
+                    onClicked: husoCampo.text = page.ev.husoDelAparato()
+                }
+            }
+        }
+    }
+
     Dialog {
         id: nuevoDlg
         anchors.centerIn: parent

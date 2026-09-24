@@ -20,6 +20,7 @@
 
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QTimeZone>
 
 #include "mcp/McpCore.hpp"
 #include "evento/Evento.hpp"
@@ -54,7 +55,8 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
         t.title = "Eventos que hay";
         t.category = "evento";
         t.readOnly = true;
-        t.description = "Los eventos guardados, con su duracion prevista y cuantos cues tiene cada uno.";
+        t.description =
+            "Los eventos guardados, con su fecha, su duracion prevista y cuantos cues tiene cada uno.";
         t.details =
             "Un evento es el guion de lo que va a pasar: bloques (apertura, discurso, cierre) y dentro "
             "de cada uno los cues concretos (poner una escena, arrancar un tema, dar la palabra).\n\n"
@@ -67,7 +69,9 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
                 const QVariantMap m = v.toMap();
                 out.push_back(json{{"carpeta", m["carpeta"].toString().toStdString()},
                                    {"nombre", m["nombre"].toString().toStdString()},
+                                   {"fecha", m["fecha"].toString().toStdString()},
                                    {"inicio", m["inicio"].toString().toStdString()},
+                                   {"huso", m["huso"].toString().toStdString()},
                                    {"duracionSeg", m["duracionSeg"].toInt()},
                                    {"bloques", m["bloques"].toInt()},
                                    {"cues", m["cues"].toInt()}});
@@ -91,10 +95,14 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
             "un orador sin tiempo, un video sin archivo). Un guion sano tiene todos los `falta` vacios.\n\n"
             "`offsetSeg` de cada cue son los segundos desde el arranque del evento: con `inicio` sale la "
             "hora prevista de cada cosa.\n\n"
+            "`cuando` es el arranque como instante absoluto con desfasaje "
+            "(\"2026-09-24T19:00:00-03:00\"): es lo unico que le sirve a alguien que esta en otro huso. "
+            "Viene vacio si falta la fecha o la hora.\n\n"
             "Si no hay ningun evento abierto, `bloques` viene vacio: abri uno con evento_abrir.";
         t.run = [&ev](const json&, Done done) {
             done(ToolResult().data(json{{"abierto", ev.abierto().toStdString()},
                                         {"sinGuardar", ev.sucio()},
+                                        {"husoDelAparato", EventoViewModel::husoDelAparato().toStdString()},
                                         {"guion", guionDe(ev)}}));
         };
         core.addTool(std::move(t));
@@ -355,15 +363,47 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
         t.details =
             "Guarda en Eventos/<carpeta>/evento.json. El guion anterior queda en Respaldos/ con la fecha, "
             "asi que guardar nunca pierde lo que habia.\n\n"
-            "Tambien se puede cambiar el titulo del evento y su hora de arranque (`inicio`, formato HH:MM). "
-            "Con la hora puesta, el guion calcula la hora prevista de cada bloque y cada cue.";
-        t.inputSchema = {{"type", "object"},
-                         {"properties",
-                          {{"nombre", {{"type", "string"}}},
-                           {"inicio", {{"type", "string"}, {"description", "HH:MM, hora prevista de arranque."}}}}}};
+            "Tambien se puede cambiar el titulo del evento y CUANDO es: `fecha` (YYYY-MM-DD), `inicio` "
+            "(HH:MM) y `huso` (nombre IANA, por ejemplo America/Argentina/Buenos_Aires).\n\n"
+            "Con la hora puesta, el guion calcula la hora prevista de cada bloque y cada cue. Con la "
+            "fecha, el evento se puede convocar y archivar. Y con el huso, el que se conecta desde otro "
+            "lado puede saber que hora es para el: sin eso, \"empieza 19:00\" no lo ubica.\n\n"
+            "El huso se guarda POR NOMBRE y no por desfasaje (-03:00): el desfasaje cambia con el "
+            "horario de verano, asi que uno escrito hoy miente para un evento de dentro de tres meses. "
+            "Si no sabes cual poner, el del aparato es un buen valor: viene en evento_ver.\n\n"
+            "Un formato mal escrito se RECHAZA en vez de guardarse: una fecha que no se entiende no se "
+            "ignora sola, se lee mal.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"nombre", {{"type", "string"}}},
+              {"fecha", {{"type", "string"}, {"description", "YYYY-MM-DD, el dia del evento."}}},
+              {"inicio", {{"type", "string"}, {"description", "HH:MM, hora prevista de arranque."}}},
+              {"huso",
+               {{"type", "string"},
+                {"description", "Nombre IANA del huso, p. ej. America/Argentina/Buenos_Aires."}}}}}};
         t.run = [&ev](const json& a, Done done) {
+            // Se valida ANTES de tocar nada: si la fecha esta mal, el nombre
+            // tampoco se cambia. Guardar a medias deja al operador sin saber
+            // que quedo escrito.
+            if (a.contains("fecha") && a["fecha"].is_string() && !a["fecha"].get<std::string>().empty()
+                && !evento::fechaValida(a["fecha"].get<std::string>()))
+                return done(ToolResult::error(
+                    "La fecha tiene que ser un dia que exista, en formato YYYY-MM-DD (llego: "
+                    + a["fecha"].get<std::string>() + ")."));
+            if (a.contains("inicio") && a["inicio"].is_string() && !a["inicio"].get<std::string>().empty()
+                && !evento::horaValida(a["inicio"].get<std::string>()))
+                return done(ToolResult::error("La hora tiene que estar en formato HH:MM (llego: "
+                                              + a["inicio"].get<std::string>() + ")."));
+            if (a.contains("huso") && a["huso"].is_string() && !a["huso"].get<std::string>().empty()
+                && !QTimeZone(QByteArray::fromStdString(a["huso"].get<std::string>())).isValid())
+                return done(ToolResult::error(
+                    "No conozco ese huso horario: " + a["huso"].get<std::string>()
+                    + ". Va el nombre IANA, como America/Argentina/Buenos_Aires."));
             if (a.contains("nombre")) ev.setNombre(QString::fromStdString(a["nombre"]));
+            if (a.contains("fecha")) ev.setFecha(QString::fromStdString(a["fecha"]));
             if (a.contains("inicio")) ev.setInicio(QString::fromStdString(a["inicio"]));
+            if (a.contains("huso")) ev.setHuso(QString::fromStdString(a["huso"]));
             if (!ev.guardar()) return done(ToolResult::error("No se pudo guardar (¿hay algun evento abierto?)."));
             done(ToolResult::ok("Guion guardado."));
         };

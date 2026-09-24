@@ -110,9 +110,27 @@ struct Invitado {
 
 struct Evento {
     std::string nombre;
+    /// Día previsto, "YYYY-MM-DD" (vacío = no hay día fijo).
+    ///
+    /// Sin esto el evento no se puede convocar ni archivar: "empieza 15:00" no
+    /// ubica a nadie. Y con gente conectándose de otro huso, tampoco alcanza
+    /// la hora sola (ver `huso`).
+    std::string fecha;
     /// Hora prevista de arranque, "HH:MM" (vacío = no hay hora fija y los
     /// tiempos se cuentan desde que se arranca).
     std::string inicio;
+    /// Huso horario del evento: nombre IANA ("America/Argentina/Buenos_Aires").
+    /// Vacío = el del aparato.
+    ///
+    /// SE GUARDA CON EL EVENTO, no se toma del reloj de la máquina. Este
+    /// aparato es portátil y viaja: un evento armado acá y corrido desde otra
+    /// máquina en otro lado tiene que seguir diciendo la misma hora, y el
+    /// invitado remoto tiene que poder saber qué hora es ESO para él.
+    ///
+    /// Se guarda el NOMBRE de la zona y no el desfasaje (-03:00): el desfasaje
+    /// cambia con el horario de verano, así que uno escrito hoy miente para un
+    /// evento de dentro de tres meses.
+    std::string huso;
     std::string nota;
     std::vector<Bloque> bloques;
     /// A quiénes dejar pasar sin preguntar (ver `Invitado`). Vacía = a nadie,
@@ -131,6 +149,12 @@ struct Evento {
     nlohmann::json aJson() const;
     static Evento deJson(const nlohmann::json& j);
 };
+
+/// true si el texto es un día que existe de verdad, en formato "YYYY-MM-DD".
+/// Un vacío NO es válido: quien pregunta ya decidió que hay fecha.
+bool fechaValida(const std::string& s);
+/// true si el texto es "HH:MM" con hora 0-23 y minuto 0-59.
+bool horaValida(const std::string& s);
 
 /// Un problema encontrado en la revisión previa. `bloque`/`cue` ubican dónde
 /// (con -1 para lo que es del evento entero) para poder llevar al operador

@@ -96,6 +96,17 @@ class EventoViewModel : public QObject {
     // --- Editar el guion ------------------------------------------------------
     Q_INVOKABLE void setNombre(const QString& nombre);
     Q_INVOKABLE void setInicio(const QString& hhmm);
+    Q_INVOKABLE void setFecha(const QString& aaaammdd);
+    Q_INVOKABLE void setHuso(const QString& iana);
+    /// El arranque como instante absoluto, ISO-8601 con desfasaje
+    /// ("2026-09-24T19:00:00-03:00"). Vacio si falta la fecha o la hora.
+    ///
+    /// Es lo unico que le sirve al que esta en otro huso: con eso su telefono
+    /// le dice que hora es para el.
+    Q_INVOKABLE QString cuando() const;
+    /// El huso del aparato ahora mismo, en nombre IANA. Para proponerlo como
+    /// valor por defecto al crear un evento.
+    Q_INVOKABLE static QString husoDelAparato();
     Q_INVOKABLE QString agregarBloque(const QString& nombre);
     Q_INVOKABLE void renombrarBloque(int bloque, const QString& nombre);
     Q_INVOKABLE void quitarBloque(int bloque);

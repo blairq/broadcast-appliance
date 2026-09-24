@@ -44,7 +44,9 @@ Cue cue(Tipo t, const std::string& id, int dur, json datos = json::object()) {
 Evento actoDePrueba() {
     Evento e;
     e.nombre = "Acto del 25 de mayo";
+    e.fecha = "2026-05-25";
     e.inicio = "20:00";
+    e.huso = "America/Argentina/Buenos_Aires";
 
     Bloque apertura;
     apertura.id = "b1";
@@ -91,6 +93,8 @@ void ida_y_vuelta() {
     const Evento b = Evento::deJson(a.aJson());
     CHECK(b.nombre == a.nombre, "el nombre sobrevive");
     CHECK(b.inicio == "20:00", "la hora de arranque sobrevive");
+    CHECK(b.fecha == "2026-05-25", "la fecha sobrevive");
+    CHECK(b.huso == "America/Argentina/Buenos_Aires", "el huso sobrevive");
     CHECK(b.bloques.size() == 3, "los bloques sobreviven");
     CHECK(b.duracionSeg() == a.duracionSeg(), "los tiempos dan lo mismo");
     CHECK(b.bloques[1].cues[1].tipo == Tipo::Orador, "el tipo de cue sobrevive");
@@ -110,9 +114,55 @@ void ida_y_vuelta() {
     CHECK(Evento::deJson(json("hola")).nombre.empty(), "un texto tampoco");
 }
 
+// --- 2b) Fechas y horas -----------------------------------------------------
+void fechas_y_horas() {
+    CHECK(fechaValida("2026-05-25"), "una fecha normal");
+    CHECK(fechaValida("2024-02-29"), "el 29 de febrero de un bisiesto existe");
+    CHECK(!fechaValida("2026-02-29"), "el de un ano comun no");
+    CHECK(!fechaValida("2026-04-31"), "abril no tiene 31");
+    CHECK(!fechaValida("2026-13-01"), "no hay mes 13");
+    CHECK(!fechaValida("2026-00-10"), "ni mes 0");
+    CHECK(!fechaValida("2026-05-00"), "ni dia 0");
+    CHECK(!fechaValida("25/05/2026"), "el formato de casa no");
+    CHECK(!fechaValida("2026-5-25"), "ni sin el cero adelante");
+    CHECK(!fechaValida(""), "un vacio no es una fecha");
+    CHECK(!fechaValida("2026-05-25T20:00"), "ni una fecha con cosas pegadas");
+    CHECK(!fechaValida("aaaa-bb-cc"), "ni letras");
+
+    CHECK(horaValida("20:00"), "una hora normal");
+    CHECK(horaValida("00:00"), "la medianoche");
+    CHECK(horaValida("23:59"), "el ultimo minuto");
+    CHECK(!horaValida("24:00"), "no hay hora 24");
+    CHECK(!horaValida("20:60"), "ni minuto 60");
+    CHECK(!horaValida("8:00"), "ni sin el cero adelante");
+    CHECK(!horaValida("8pm"), "ni en el otro idioma");
+    CHECK(!horaValida(""), "un vacio no es una hora");
+}
+
 // --- 3) Revision previa -----------------------------------------------------
 void revision() {
     CHECK(revisar(actoDePrueba()).empty(), "un acto completo no tiene reparos");
+
+    // Cuando es el evento. Sin fecha corre igual, pero no se lo puede
+    // convocar: es aviso, no impedimento.
+    Evento sinCuando = actoDePrueba();
+    sinCuando.fecha.clear();
+    sinCuando.huso.clear();
+    const auto rsc = revisar(sinCuando);
+    CHECK(rsc.size() == 2, "avisa que falta la fecha y que falta el huso");
+    for (const Reparo& r : rsc) CHECK(!r.grave, "no impiden correr el guion");
+
+    // Un formato mal escrito SI es grave: una fecha que no se entiende no se
+    // ignora sola, se lee mal.
+    Evento malaFecha = actoDePrueba();
+    malaFecha.fecha = "25/05/2026";
+    const auto rf = revisar(malaFecha);
+    CHECK(rf.size() == 1 && rf[0].grave, "una fecha mal escrita se rechaza");
+
+    Evento malaHora = actoDePrueba();
+    malaHora.inicio = "8pm";
+    const auto rh = revisar(malaHora);
+    CHECK(rh.size() == 1 && rh[0].grave, "una hora mal escrita se rechaza");
 
     Evento vacio;
     const auto rv = revisar(vacio);
@@ -164,6 +214,11 @@ void revision() {
 
     // Una cadena larga de automaticos se avisa, pero no impide correr.
     Evento enCadena;
+    // Con el cuando puesto, para que el unico reparo sea el que se esta
+    // probando y no los avisos de fecha.
+    enCadena.fecha = "2026-05-25";
+    enCadena.inicio = "20:00";
+    enCadena.huso = "America/Argentina/Buenos_Aires";
     Bloque b;
     b.nombre = "Seguidilla";
     for (int i = 0; i < 8; ++i) {
@@ -291,6 +346,7 @@ void auto_aceptar() {
 int main() {
     tiempos();
     ida_y_vuelta();
+    fechas_y_horas();
     revision();
     correr();
     desvio();

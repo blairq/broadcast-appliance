@@ -189,7 +189,7 @@ Un **evento** es el guion de lo que va a pasar: **bloques** (Apertura, Palabras 
 Los que todavia no se ejecutan igual se pueden dejar escritos: cuentan para los tiempos y le dicen al operador que hacer. Cuando les toca el turno, el sistema lo anota en vez de fallar callado.
 
 ## Tiempos
-De la `duracionSeg` de cada cue sale la del bloque y la del evento; con `inicio` (HH:MM) sale la hora prevista de cada cosa. Mientras corre, lo que importa es el **desvio**: `desvioSeg` positivo = vamos tarde. Lo pausado no cuenta como atraso.
+De la `duracionSeg` de cada cue sale la del bloque y la del evento; con `inicio` (HH:MM) sale la hora prevista de cada cosa, y con `fecha` (YYYY-MM-DD) mas `huso` (nombre IANA) sale `cuando`, el arranque como instante absoluto para el que esta en otro huso. Mientras corre, lo que importa es el **desvio**: `desvioSeg` positivo = vamos tarde. Lo pausado no cuenta como atraso.
 
 ## Antes del evento
 - `evento_revisar`: cues incompletos, escenas que no existen, archivos que faltan o estan vacios.
@@ -565,7 +565,7 @@ Para mejorar como suena una fuente (ruido, voz apagada, eses, volumen) segui `he
 Armar 40 cues a mano es el trabajo aburrido de un evento y es lo que mejor podes hacer vos. De una descripcion («acto por el 25 de mayo, 40 minutos, himno, dos discursos, video institucional, cierre») sale un guion entero:
 1. `evento_abrir {"nombre": "..."}` crea la carpeta del evento y lo deja abierto.
 2. Un `evento_bloque` por tramo (Apertura, Palabras del intendente, Cierre) y un `evento_cue` por cosa que pasa. Mira antes `scene_list`: **los cues de escena tienen que nombrar escenas que existan**, si no la revision los marca.
-3. `evento_guardar {"inicio": "20:00"}` con la hora de arranque: de ahi salen las horas previstas de cada bloque.
+3. `evento_guardar {"fecha": "2026-09-24", "inicio": "20:00", "huso": "America/Argentina/Buenos_Aires"}` con CUANDO es: de la hora salen las horas previstas de cada bloque, y de la fecha con el huso sale el instante absoluto que necesita el que se conecta desde otro lado. El huso del aparato viene en `evento_ver`.
 4. `evento_revisar` SIEMPRE al terminar, y arregla lo que marque antes de dar el guion por hecho.
 
 Como armarlo bien:

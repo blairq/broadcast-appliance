@@ -179,7 +179,9 @@ json Evento::aJson() const {
     for (const Invitado& i : autoAceptar)
         inv.push_back(json{{"personaId", i.personaId}, {"nombre", i.nombre}, {"nota", i.nota}});
     return json{{"nombre", nombre},
+                {"fecha", fecha},
                 {"inicio", inicio},
+                {"huso", huso},
                 {"nota", nota},
                 {"bloques", bs},
                 {"autoAceptar", inv}};
@@ -189,7 +191,9 @@ Evento Evento::deJson(const json& j) {
     Evento e;
     if (!j.is_object()) return e;
     e.nombre = textoDe(j, "nombre");
+    e.fecha = textoDe(j, "fecha");
     e.inicio = textoDe(j, "inicio");
+    e.huso = textoDe(j, "huso");
     e.nota = textoDe(j, "nota");
     if (j.contains("autoAceptar") && j["autoAceptar"].is_array()) {
         for (const json& ji : j["autoAceptar"]) {
@@ -233,6 +237,55 @@ Evento Evento::deJson(const json& j) {
 
 // --- Revision previa (la mitad barata) --------------------------------------
 
+namespace {
+
+/// Lee `n` dígitos y los devuelve como número. `i` avanza. -1 si no eran
+/// dígitos (o si se acabó el texto), que es lo que corta toda validación.
+int digitos(const std::string& s, std::size_t& i, int n) {
+    int v = 0;
+    for (int k = 0; k < n; ++k) {
+        if (i >= s.size() || s[i] < '0' || s[i] > '9') return -1;
+        v = v * 10 + (s[i] - '0');
+        ++i;
+    }
+    return v;
+}
+
+bool bisiesto(int a) { return (a % 4 == 0 && a % 100 != 0) || a % 400 == 0; }
+
+int diasDelMes(int a, int m) {
+    static const int d[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    if (m < 1 || m > 12) return 0;
+    if (m == 2 && bisiesto(a)) return 29;
+    return d[m - 1];
+}
+
+} // namespace
+
+bool fechaValida(const std::string& s) {
+    if (s.size() != 10 || s[4] != '-' || s[7] != '-') return false;
+    std::size_t i = 0;
+    const int a = digitos(s, i, 4);
+    ++i;
+    const int m = digitos(s, i, 2);
+    ++i;
+    const int d = digitos(s, i, 2);
+    if (a < 0 || m < 0 || d < 0) return false;
+    // El día tiene que EXISTIR: un 31 de febrero pasa cualquier chequeo de
+    // rango y después no hay hora prevista que valga.
+    return a >= 1970 && a <= 9999 && d >= 1 && d <= diasDelMes(a, m);
+}
+
+bool horaValida(const std::string& s) {
+    if (s.size() != 5 || s[2] != ':') return false;
+    std::size_t i = 0;
+    const int h = digitos(s, i, 2);
+    ++i;
+    const int m = digitos(s, i, 2);
+    if (h < 0 || m < 0) return false;
+    return h <= 23 && m <= 59;
+}
+
 std::vector<Reparo> revisar(const Evento& e) {
     std::vector<Reparo> rs;
     if (e.bloques.empty()) {
@@ -241,6 +294,21 @@ std::vector<Reparo> revisar(const Evento& e) {
     }
     if (e.duracionSeg() == 0)
         rs.push_back({-1, -1, false, "ningun cue tiene duracion prevista: no se puede calcular el desvio"});
+    // Un formato mal escrito es GRAVE y no un aviso: una fecha que no se
+    // entiende no se ignora sola, se lee mal. "03/09" es el 3 de septiembre
+    // para uno y el 9 de marzo para otro.
+    if (!e.fecha.empty() && !fechaValida(e.fecha))
+        rs.push_back({-1, -1, true, "la fecha no es un dia valido en formato YYYY-MM-DD: " + e.fecha});
+    if (!e.inicio.empty() && !horaValida(e.inicio))
+        rs.push_back({-1, -1, true, "la hora de arranque no esta en formato HH:MM: " + e.inicio});
+    // Lo que sigue son avisos: el evento corre igual, pero no se puede convocar.
+    if (e.fecha.empty())
+        rs.push_back({-1, -1, false, "el evento no tiene fecha: no se lo puede convocar ni archivar"});
+    else if (e.inicio.empty())
+        rs.push_back({-1, -1, false, "hay dia pero no hora de arranque: las horas previstas no se pueden calcular"});
+    if (!e.inicio.empty() && e.huso.empty())
+        rs.push_back({-1, -1, false,
+                      "no hay huso horario: el que se conecta de otro huso no sabe a que hora es"});
 
     for (std::size_t bi = 0; bi < e.bloques.size(); ++bi) {
         const Bloque& b = e.bloques[bi];
