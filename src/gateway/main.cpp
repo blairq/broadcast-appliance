@@ -601,6 +601,7 @@ int main(int argc, char** argv) {
         sigCfg.pantallaWebroot = (guestRoot.parent_path() / "pantalla").string();
         sigCfg.castWebroot = (guestRoot.parent_path() / "cast").string();
         sigCfg.comunWebroot = (guestRoot.parent_path() / "comun").string();
+        sigCfg.publicoWebroot = (guestRoot.parent_path() / "publico").string();
     }
     // Clave del control del teleprompter: nueva en cada arranque. No hace
     // falta que sobreviva -- el operador manda el enlace (o el QR) cuando va a
@@ -609,6 +610,12 @@ int main(int argc, char** argv) {
     // Idem los rotulos, con su propia clave: que el que rotula desde el celular
     // no pueda ademas frenarle el texto al orador.
     if (!ba::security::randomSecretHex(16, sigCfg.rotulosKey)) sigCfg.rotulosKey.clear();
+    // Y la del publico. Esta la tiene TODO el que esta en la sala —viaja en un
+    // QR que se proyecta o se reparte—, asi que no es un secreto fuerte y no
+    // pretende serlo: es lo que evita que la cola de preguntas la llene
+    // cualquiera que pase por el tunel. Nueva en cada arranque, como las otras:
+    // las preguntas del evento de ayer no son las de hoy.
+    if (!ba::security::randomSecretHex(16, sigCfg.publicoKey)) sigCfg.publicoKey.clear();
     sigCfg.adminToken = adminToken;
     SignalingServer server(sigCfg, auth, hub, room, shares, log);
     server.setPump(&pump);

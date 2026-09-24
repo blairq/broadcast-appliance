@@ -47,7 +47,14 @@
     "",
     "Lo encontro Claude, no yo: para «abri la pestaña de audio», `audio_show` la",
     "abre DIRECTAMENTE en una fuente, y es mas especifica que la generica",
-    "`ui_show_page`. El corpus la contaba mal."
+    "`ui_show_page`. El corpus la contaba mal.",
+    "",
+    "LO QUE DEPENDE DEL TURNO ANTERIOR NO VA. El buscador ve UNA frase, no la",
+    "conversacion. «Descarta esa que no sirve» es perfectamente normal dicho en",
+    "voz alta despues de leer la cola, pero sin ese turno previo no hay con que",
+    "resolverla. Hacerla pasar obligaba a poner «sirve» de etiqueta, y ese verbo",
+    "esta en la ayuda de media herramienta: el arreglo ensuciaba diez consultas",
+    "para salvar una. Se escribe con el sustantivo adentro."
   ],
   "casos": [
     {
@@ -609,6 +616,48 @@
       "pregunta": "que reconozca a los que llegan al salon",
       "herramientas": [
         "padron_puerta"
+      ]
+    },
+    {
+      "pregunta": "que pregunto la gente",
+      "herramientas": [
+        "preguntas_ver"
+      ]
+    },
+    {
+      "pregunta": "cual es la proxima pregunta",
+      "herramientas": [
+        "preguntas_ver"
+      ]
+    },
+    {
+      "pregunta": "saca esa pregunta al aire",
+      "herramientas": [
+        "pregunta_moderar"
+      ]
+    },
+    {
+      "pregunta": "descarta esa pregunta",
+      "herramientas": [
+        "pregunta_moderar"
+      ]
+    },
+    {
+      "pregunta": "sumale esta pregunta que vino por youtube",
+      "herramientas": [
+        "pregunta_sumar"
+      ]
+    },
+    {
+      "pregunta": "dame el qr para que el publico pregunte",
+      "herramientas": [
+        "publico_pagina"
+      ]
+    },
+    {
+      "pregunta": "ponele fondo a la pagina del publico",
+      "herramientas": [
+        "publico_pagina"
       ]
     }
   ]

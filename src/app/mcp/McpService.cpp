@@ -32,6 +32,7 @@
 #include "AppSettings.hpp"
 #include "mcp/McpHttp.hpp"
 #include "mcp/McpEventoTools.hpp"
+#include "mcp/McpPreguntaTools.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "platform/Paths.hpp"
 #include "ui/ConferenceViewModel.hpp"
@@ -527,6 +528,10 @@ void McpService::registerTools() {
             return std::pair{false, std::string()};
         });
     }
+
+    // Las preguntas del publico: viven en B, y esto es el lado de A que las
+    // modera (ver McpPreguntaTools.cpp).
+    registerPreguntaTools(core_, vm_);
 
     AppRuntime& rt = rt_;
     StudioViewModel& vm = vm_;

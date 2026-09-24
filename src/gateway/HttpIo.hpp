@@ -63,6 +63,11 @@ std::string urlDecode(const std::string& s);
 
 std::array<uint8_t, 20> sha1(const std::string& s);
 std::string base64(const uint8_t* data, size_t n);
+/// Al reves. Lo que no sea del alfabeto se SALTEA (los saltos de linea de un
+/// base64 partido en renglones son legales), y si lo que queda no cierra en
+/// grupos de cuatro devuelve vacio en vez de bytes a medias: media imagen es
+/// peor que ninguna, porque parece que anduvo.
+std::string deBase64(const std::string& s);
 
 /// Texto de estado estandar ("OK", "Not Found", ...).
 const char* statusText(int code);

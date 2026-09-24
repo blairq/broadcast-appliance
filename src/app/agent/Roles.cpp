@@ -167,7 +167,8 @@ const std::set<std::string>& Roles::juegoDelAsistente() {
         "graficos", "rostros",   "interfaz", "ventanas", "operador", "medios",
         "recetas",  "audio",     "audio_rack", "config", "sistema",  "equipo",
         "entradas", "alertas",   "pantallas", "evento",  "prompter", "qr",
-        "cuentas",  "asistente", "youtube",   "twitch",  "facebook", "padron"};
+        "cuentas",  "asistente", "youtube",   "twitch",  "facebook", "padron",
+        "preguntas"};
     return c;
 }
 

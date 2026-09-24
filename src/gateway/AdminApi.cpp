@@ -86,6 +86,14 @@ using json = nlohmann::json;
 
 namespace {
 
+/// El reloj de pared, para fechar lo que entra por aca.
+inline std::int64_t nowMsAdmin() {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+               std::chrono::system_clock::now().time_since_epoch())
+        .count();
+}
+
+
 int64_t nowMsA() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
                std::chrono::system_clock::now().time_since_epoch())
@@ -444,6 +452,101 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         sendJson(fd, 200,
                  json{{"ok", true}, {"target", target}, {"url", url}, {"conClave", conClave},
                       {"clave", cfg_.rotulosKey}, {"size", qr.getSize()}, {"modules", rows}});
+        return;
+    }
+
+    // --- Las preguntas del publico -------------------------------------------
+    if (path == "/api/v1/preguntas") {
+        if (method == "GET") {
+            sendJson(fd, 200,
+                     json{{"ok", true},
+                          {"preguntas", preguntas_.lista()},
+                          {"recuento", preguntas_.recuento()},
+                          {"proxima", preguntas_.proxima()},
+                          {"clave", cfg_.publicoKey}});
+            return;
+        }
+        if (method == "POST") {
+            const std::string accion = req.value("accion", std::string());
+            const std::string id = req.value("id", std::string());
+            bool ok = false;
+            if (accion == "elegir") ok = preguntas_.elegir(id);
+            else if (accion == "des_elegir") ok = preguntas_.desElegir(id);
+            else if (accion == "al_aire") ok = preguntas_.alAire(id);
+            else if (accion == "responder") ok = preguntas_.responder(id);
+            else if (accion == "descartar") ok = preguntas_.descartar(id);
+            else if (accion == "limpiar") { preguntas_.limpiar(); ok = true; }
+            else if (accion == "vaciar") { preguntas_.vaciar(); ok = true; }
+            else if (accion == "preguntar") {
+                // Para meter en la cola lo que llego por otro lado (el chat de
+                // la sala, o el de YouTube): una sola cola para todos, que es
+                // de lo que se trata.
+                ok = !preguntas_
+                          .preguntar(req.value("nombre", std::string()),
+                                     req.value("texto", std::string()),
+                                     req.value("deDonde", std::string("sala")), std::string(),
+                                     nowMsAdmin())
+                          .empty();
+            } else {
+                sendErr(fd, 400, "accion");
+                return;
+            }
+            sendJson(fd, 200,
+                     json{{"ok", ok},
+                          {"preguntas", preguntas_.lista()},
+                          {"recuento", preguntas_.recuento()},
+                          {"proxima", preguntas_.proxima()}});
+            return;
+        }
+    }
+
+    // Lo que la pagina del publico muestra arriba y de fondo. Lo manda A: es
+    // el unico que sabe que evento esta abierto.
+    if (path == "/api/v1/publico-info" && method == "POST") {
+        if (req.contains("info")) setPublicoInfo(req["info"]);
+        if (req.contains("fondo")) {
+            // Base64 porque viaja en JSON. Vacio = sacar el fondo, que tiene
+            // que poder hacerse sin reiniciar nada.
+            const std::string b64 = req["fondo"].is_string() ? req["fondo"].get<std::string>() : "";
+            setPublicoFondo(b64.empty() ? std::string() : http::deBase64(b64),
+                            req.value("fondoTipo", std::string("image/jpeg")));
+        }
+        sendJson(fd, 200, json{{"ok", true}, {"info", publicoInfo()}});
+        return;
+    }
+
+    if (path == "/api/v1/publico-link" && method == "GET") {
+        const auto q = http::parseQuery(query);
+        const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
+        json out = joinUrl_ ? joinUrl_(target) : json{{"error", "sin proveedor de URL"}};
+        if (!out.contains("url")) {
+            out["ok"] = false;
+            sendJson(fd, 200, out);
+            return;
+        }
+        std::string origin = out["url"].get<std::string>();
+        if (const size_t s = origin.find("://"); s != std::string::npos) {
+            const size_t end = origin.find_first_of("/?#", s + 3);
+            if (end != std::string::npos) origin.resize(end);
+        }
+        // Con la clave adentro casi siempre: este QR se proyecta en una
+        // pantalla o se imprime en el programa, y pedirle a doscientas personas
+        // que tipeen una clave es perder a la mitad.
+        const bool conClave = !q.count("conClave") || http::urlDecode(q.at("conClave")) != "0";
+        const std::string url =
+            origin + "/publico/" + (conClave ? "#k=" + cfg_.publicoKey : std::string());
+        const qrcodegen::QrCode qr =
+            qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
+        json rows = json::array();
+        for (int y = 0; y < qr.getSize(); ++y) {
+            std::string row;
+            for (int x = 0; x < qr.getSize(); ++x)
+                row.push_back(qr.getModule(x, y) ? '1' : '0');
+            rows.push_back(row);
+        }
+        sendJson(fd, 200,
+                 json{{"ok", true}, {"target", target}, {"url", url}, {"conClave", conClave},
+                      {"clave", cfg_.publicoKey}, {"size", qr.getSize()}, {"modules", rows}});
         return;
     }
     // Lo que no es letra, numero o guion va porcentado: el nombre lo escribe

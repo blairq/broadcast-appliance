@@ -78,6 +78,7 @@
 #include "Carruseles.hpp"
 #include "Superficies.hpp"
 #include "Prompter.hpp"
+#include "Preguntas.hpp"
 #include "Rotulador.hpp"
 #include "MediaRoute.hpp"
 #include "TokenAuth.hpp"
@@ -118,6 +119,12 @@ class SignalingServer {
         /// TAMBIEN PARA MIRAR: un rotulo suele llevar el nombre del invitado
         /// que todavia no se anuncio. Vacia = la pagina no atiende a nadie.
         std::string rotulosKey;
+        std::string publicoWebroot; // Web/publico (la pagina del publico)
+        /// Clave de la pagina del publico. Viaja en el QR que se reparte (o se
+        /// proyecta): no es un secreto fuerte y no pretende serlo —lo tiene
+        /// todo el que esta en la sala—, es lo que evita que la cola de
+        /// preguntas la llene cualquiera que pase por el tunel.
+        std::string publicoKey;
     };
 
     SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub, Room& room, ShareStore& shares,
@@ -149,6 +156,17 @@ class SignalingServer {
     Prompter& prompter() { return prompter_; }
     /// El buzon de rotulos, que A publica y viene a vaciar.
     Rotulador& rotulador() { return rotulador_; }
+    Preguntas& preguntas() { return preguntas_; }
+
+    /// Lo que la pagina del publico muestra arriba y de fondo. Lo publica A,
+    /// que es el unico que sabe que evento esta abierto. B solo lo repite.
+    void setPublicoInfo(const nlohmann::json& info);
+    nlohmann::json publicoInfo() const;
+    /// La imagen de fondo, en memoria. Se guarda ACA y no se manda a cada
+    /// telefono dentro del JSON: son doscientos telefonos pidiendo cada tres
+    /// segundos, y una imagen repetida en cada respuesta es el mismo fondo
+    /// mandado mil veces. Asi va una vez y el navegador la cachea.
+    void setPublicoFondo(std::string bytes, std::string tipo);
     const std::string& rotulosKey() const { return cfg_.rotulosKey; }
     const std::string& prompterKey() const { return cfg_.prompterKey; }
 
@@ -334,6 +352,11 @@ class SignalingServer {
     mutable std::mutex pantallasLock_;
     std::map<std::string, Pantalla> pantallas_;
     Rotulador rotulador_;
+    Preguntas preguntas_;
+    mutable std::mutex publicoM_;
+    nlohmann::json publicoInfo_ = nlohmann::json::object();
+    std::string fondoBytes_;
+    std::string fondoTipo_;
     ShareStore& shares_;
     Log& log_;
     MediaPump* pump_ = nullptr;

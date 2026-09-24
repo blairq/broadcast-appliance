@@ -168,7 +168,7 @@ quórum lo que se decida no vale.
 lobby. `padron_ver` trae `presenciales` y `enLinea` por separado y el quórum
 junto. Los dos mundos ya se hablan.
 
-## 5. Preguntas del público — **falta**
+## 5. Preguntas del público — **hecho**
 
 Hay chat de sala y hay chat de las plataformas (`chat_history`,
 `youtube_chat`, `twitch_chat`, `facebook_chat`). **Chat no es cola de
@@ -189,6 +189,28 @@ conductor la lea.
 
 **Una sola cola.** La pregunta del que está en la butaca y la del que mira por
 YouTube entran a la misma lista y se moderan en el mismo lugar.
+
+**Hecho:** `/publico` en el gateway —una página nueva junto a `/board`,
+`/prompter` y `/rotulos`—, la clase `Preguntas` con su recorrido
+(nueva → elegida → al aire → respondida, o descartada), y cuatro herramientas:
+`preguntas_ver`, `pregunta_moderar`, `pregunta_sumar` y `publico_pagina`.
+
+- **El público no entra a la sala.** La página no pide cámara ni micrófono y no
+  abre WebRTC. Era el problema de fondo: con `Waiting`/`Admitted` como únicos
+  estados, doscientas personas en el mismo salón entrando como participantes
+  son un acople garantizado y el ancho de banda tirado.
+- **`elegida` separada de `nueva`** es lo que permite moderar antes en vez de
+  leer en vivo lo primero que llegó.
+- **Los votos ordenan, no deciden.** Se cuentan por navegador, que alcanza para
+  que no sume diez veces el que toca diez veces y no para frenar a alguien
+  decidido. Queda dicho en el código para que nadie construya una urna encima.
+- **El QR va con la clave adentro**: se proyecta o se imprime en el programa, y
+  pedirle a doscientas personas que tipeen una clave es perder a la mitad.
+- **El fondo del evento** se manda una vez a la sala y de ahí lo toman todos los
+  teléfonos, con tope de 2 MB: lo baja cada aparato del salón, por el mismo wifi
+  que suele llevar la transmisión.
+- **El texto es de afuera** y se pinta con `textContent`, nunca como HTML: un
+  `<img onerror>` en una pregunta correría en el teléfono de todos los demás.
 
 ## 6. Votación — **falta**
 
@@ -288,9 +310,10 @@ Por dependencia, no por tamaño:
 3. **Acreditación presencial reusando el lobby** (§3) — el mayor retorno por
    trabajo. Recién acá el padrón se llena solo y se puede contestar «¿quiénes
    están?» (§4).
-4. **Superficie del público** (§5) — un papel nuevo en la sala, por QR, sin
-   cámara ni micrófono. Abre preguntas y votación.
-5. **Preguntas** (§5) y **votación** (§6), en esa superficie.
+4. ~~**Superficie del público** (§5)~~ — **hecha**: `/publico`, por QR, sin
+   cámara ni micrófono.
+5. ~~**Preguntas** (§5)~~ — **hecho**. Falta **votación** (§6), que se apoya
+   en la misma superficie y en el padrón.
 6. **Capítulos de la grabación** (§9) — se puede colar en cualquier momento:
    es chico y se disfruta enseguida.
 7. **Acta** (§8), cuando haya padrón y urna.

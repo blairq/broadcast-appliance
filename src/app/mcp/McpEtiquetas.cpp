@@ -387,6 +387,18 @@ const Fila kPropias[] = {
                        "permiso para entrar solo dejarla pasar sin aprobacion"},
     {"padron_acreditar", "acreditar marcar que llego registrar la entrada de alguien check in "
                          "llego se fue ya esta aca entro por la puerta salida"},
+    // --- Las preguntas del publico ----------------------------------------
+    // Ojo con «pregunta»: el asistente pregunta, el operador pregunta y el
+    // publico pregunta. Lo que desempata son las palabras de al lado —publico,
+    // cola, moderar, al aire— y por eso las etiquetas las llevan siempre.
+    {"preguntas_ver", "preguntas del publico que pregunto la gente cola de preguntas ver las "
+                      "preguntas que mandaron moderar cual sigue cual es la proxima pregunta"},
+    {"pregunta_moderar", "elegir una pregunta sacarla al aire darla por respondida descartar "
+                         "pregunta poner al aire la pregunta siguiente pregunta limpiar la cola"},
+    {"pregunta_sumar", "meter una pregunta en la cola sumar lo que preguntaron por el chat "
+                       "agregar pregunta de youtube del salon a viva voz"},
+    {"publico_pagina", "enlace y qr para que el publico pregunte pagina del publico codigo qr para "
+                       "proyectar titulo y fondo de la pagina del publico"},
     {"padron_puerta", "camara de la entrada acreditar solo a quien llega al lugar reconocer a los que "
                       "llegan al salon puerta acreditacion presencial mostrador de entrada"},
     {"padron_quitar", "sacar a alguien de la lista del evento borrar asistente del padron"},

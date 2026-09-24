@@ -83,6 +83,11 @@ const std::vector<Tipo>& catalogo() {
          {}, true},
         {"prompter", "El teleprompter", "La pantalla del orador (solo lee, no lleva clave).", {}, true},
         {"rotulos", "Rotular desde el celular", "Los textos de la escena al aire, con su clave.", {}, true},
+        // El que se proyecta o se imprime en el programa: lo escanean todos los
+        // que estan en la sala, asi que va con la clave adentro. Pedirle a
+        // doscientas personas que tipeen una clave es perder a la mitad.
+        {"publico", "Preguntas del publico",
+         "La pagina para preguntar y votar desde la butaca, con su clave.", {}, true},
     };
     return t;
 }
@@ -399,7 +404,8 @@ void QrViewModel::resolver() {
     static const Pedido kPedidos[] = {
         {"sala", "/api/v1/qr?target=local&pin=1"},
         {"prompter", "/api/v1/prompter-link?target=local&vista=orador"},
-        {"rotulos", "/api/v1/rotulos-link?target=local&conClave=1"}};
+        {"rotulos", "/api/v1/rotulos-link?target=local&conClave=1"},
+        {"publico", "/api/v1/publico-link?target=local&conClave=1"}};
     for (const Pedido& p : kPedidos) {
         const QString tipo = p.tipo;
         d_->sala->client().get(p.ruta, [this, tipo](bool ok, const QJsonObject& r) {

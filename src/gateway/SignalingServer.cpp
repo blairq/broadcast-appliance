@@ -148,6 +148,22 @@ bool SignalingServer::start() {
     return true;
 }
 
+void SignalingServer::setPublicoInfo(const nlohmann::json& info) {
+    std::lock_guard<std::mutex> g(publicoM_);
+    publicoInfo_ = info.is_object() ? info : nlohmann::json::object();
+}
+
+nlohmann::json SignalingServer::publicoInfo() const {
+    std::lock_guard<std::mutex> g(publicoM_);
+    return publicoInfo_;
+}
+
+void SignalingServer::setPublicoFondo(std::string bytes, std::string tipo) {
+    std::lock_guard<std::mutex> g(publicoM_);
+    fondoBytes_ = std::move(bytes);
+    fondoTipo_ = std::move(tipo);
+}
+
 void SignalingServer::stop() {
     // Idempotente: el destructor llama a stop() y main() tambien.
     if (listenFd_ < 0 && adminListenFd_ < 0 && activeConns_.load() == 0 && !acceptThread_.joinable() &&
@@ -598,6 +614,121 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
                 return;
             }
             http::sendResponse(fd, 200, "application/json", rotulador_.estado().dump());
+            return;
+        }
+    }
+
+    // --- La pagina del publico ----------------------------------------------
+    // El que esta en la butaca, con su telefono. NO entra a la sala: no pide
+    // camara ni microfono y no hay una conexion de video por persona. En un
+    // salon con doscientas personas, entrar como participante seria un acople
+    // garantizado y el ancho de banda tirado.
+    //
+    // La pagina es estatica y se sirve sin clave; los datos (/api/preguntas) SI
+    // la piden.
+    if (method == "GET" && (path == "/publico" || path.rfind("/publico/", 0) == 0)) {
+        if (path == "/publico") { // ver el comentario de /prompter
+            http::sendResponse(fd, 301, "text/plain", "", "Location: /publico/\r\n");
+            return;
+        }
+        std::string rel = path.size() > 9 ? path.substr(9) : std::string("index.html");
+        if (rel.empty()) rel = "index.html";
+        if (!cfg_.publicoWebroot.empty() && serveStatic(fd, cfg_.publicoWebroot, rel)) return;
+        http::sendResponse(fd, 404, "text/plain", "no encontrado\n");
+        return;
+    }
+    // El fondo del evento. Va aparte del JSON a proposito: son doscientos
+    // telefonos pidiendo cada tres segundos, y una imagen repetida en cada
+    // respuesta es el mismo fondo mandado mil veces. Asi va una vez y el
+    // navegador la cachea.
+    if (method == "GET" && path == "/api/publico-fondo") {
+        std::string bytes, tipo;
+        {
+            std::lock_guard<std::mutex> g(publicoM_);
+            bytes = fondoBytes_;
+            tipo = fondoTipo_;
+        }
+        if (bytes.empty()) {
+            http::sendResponse(fd, 404, "text/plain", "sin fondo\n");
+            return;
+        }
+        http::sendResponse(fd, 200, tipo.empty() ? "image/jpeg" : tipo, bytes,
+                           "Cache-Control: max-age=300\r\n");
+        return;
+    }
+    if (method == "GET" && path == "/api/publico-info") {
+        const auto q = http::parseQuery(query);
+        const std::string clave = q.count("k") ? http::urlDecode(q.at("k")) : std::string();
+        if (cfg_.publicoKey.empty() || clave != cfg_.publicoKey) {
+            http::sendResponse(fd, 403, "application/json", R"({"ok":false,"error":"clave"})");
+            return;
+        }
+        json info;
+        bool hayFondo = false;
+        {
+            std::lock_guard<std::mutex> g(publicoM_);
+            info = publicoInfo_;
+            hayFondo = !fondoBytes_.empty();
+        }
+        info["ok"] = true;
+        if (hayFondo) info["fondo"] = "/api/publico-fondo";
+        http::sendResponse(fd, 200, "application/json", info.dump());
+        return;
+    }
+    if (path == "/api/preguntas") {
+        const json req = method == "POST" ? json::parse(body, nullptr, false) : json::object();
+        std::string clave;
+        std::string quien;
+        if (method == "GET") {
+            const auto q = http::parseQuery(query);
+            if (q.count("k")) clave = http::urlDecode(q.at("k"));
+            if (q.count("yo")) quien = http::urlDecode(q.at("yo"));
+        } else if (req.is_object()) {
+            clave = req.value("clave", std::string());
+            quien = req.value("yo", std::string());
+        }
+        if (cfg_.publicoKey.empty() || clave != cfg_.publicoKey) {
+            http::sendResponse(fd, 403, "application/json", R"({"ok":false,"error":"clave"})");
+            return;
+        }
+        // `yo` lo inventa el navegador y se guarda en el telefono. NO es
+        // identidad: sirve para que cada uno vea las suyas y para que un toque
+        // repetido no sume diez votos. Se recorta porque viene de afuera.
+        if (quien.size() > 64) quien.resize(64);
+        if (method == "GET") {
+            http::sendResponse(fd, 200, "application/json",
+                               json{{"ok", true},
+                                    {"preguntas", preguntas_.listaPublica(quien)},
+                                    {"recuento", preguntas_.recuento()}}
+                                   .dump());
+            return;
+        }
+        if (method == "POST") {
+            if (!req.is_object()) {
+                http::sendResponse(fd, 400, "application/json", R"({"ok":false,"error":"json"})");
+                return;
+            }
+            if (req.contains("votar")) {
+                const bool sumo = preguntas_.votar(req["votar"].get<std::string>(), quien);
+                http::sendResponse(fd, 200, "application/json",
+                                   json{{"ok", sumo},
+                                        {"preguntas", preguntas_.listaPublica(quien)}}
+                                       .dump());
+                return;
+            }
+            const std::string id = preguntas_.preguntar(
+                req.value("nombre", std::string()), req.value("texto", std::string()), "publico",
+                quien, nowMs());
+            if (id.empty()) {
+                http::sendResponse(fd, 400, "application/json",
+                                   R"({"ok":false,"error":"la pregunta esta vacia"})");
+                return;
+            }
+            http::sendResponse(fd, 200, "application/json",
+                               json{{"ok", true},
+                                    {"id", id},
+                                    {"preguntas", preguntas_.listaPublica(quien)}}
+                                   .dump());
             return;
         }
     }

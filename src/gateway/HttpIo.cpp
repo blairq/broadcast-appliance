@@ -138,6 +138,38 @@ std::array<uint8_t, 20> sha1(const std::string& s) {
     return out;
 }
 
+std::string deBase64(const std::string& s) {
+    auto valor = [](unsigned char c) -> int {
+        if (c >= 'A' && c <= 'Z') return c - 'A';
+        if (c >= 'a' && c <= 'z') return c - 'a' + 26;
+        if (c >= '0' && c <= '9') return c - '0' + 52;
+        if (c == '+') return 62;
+        if (c == '/') return 63;
+        return -1;
+    };
+    std::string out;
+    out.reserve(s.size() / 4 * 3);
+    uint32_t acc = 0;
+    int bits = 0;
+    size_t grupo = 0;
+    for (const unsigned char c : s) {
+        if (c == '=') break; // el relleno del final: se termino
+        const int v = valor(c);
+        if (v < 0) continue; // saltos de linea y basura, afuera
+        acc = (acc << 6) | static_cast<uint32_t>(v);
+        bits += 6;
+        ++grupo;
+        if (bits >= 8) {
+            bits -= 8;
+            out.push_back(static_cast<char>((acc >> bits) & 0xFF));
+        }
+    }
+    // Un grupo de un solo caracter no representa ningun byte: eso es un base64
+    // roto, no uno con relleno.
+    if (grupo % 4 == 1) return {};
+    return out;
+}
+
 /// Base64 (estandar, con padding) de `n` bytes.
 std::string base64(const uint8_t* data, size_t n) {
     static const char* tbl = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";

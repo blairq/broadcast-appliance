@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0d1014" />
+  <title>Preguntas del público</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!--
+    La página del público (/publico/#k=<clave>).
+
+    Es para el que está en la butaca, con su teléfono. NO entra a la sala: no
+    pide cámara ni micrófono y no abre una conexión de video. En un salón con
+    doscientas personas, entrar como participante sería un acople garantizado y
+    el ancho de banda tirado.
+
+    La clave va en el FRAGMENTO del enlace, como en el resto de las vistas. Acá
+    no es un secreto fuerte y no pretende serlo: la tiene todo el que está en la
+    sala, porque viaja en un QR que se proyecta o se reparte. Lo que evita es
+    que la cola de preguntas la llene cualquiera que pase por el túnel.
+
+    `yo` es un número que se inventa este navegador y se queda en este teléfono.
+    NO es identidad: sirve para que cada uno vea las suyas y para que un toque
+    repetido no sume diez votos. No lo usamos para nada más y no se lo pedimos
+    a nadie.
+  -->
+  <div id="fondo" class="fondo"></div>
+
+  <header class="barra">
+    <div class="titulo">
+      <strong id="evento">Preguntas</strong>
+      <span id="cuando" class="cuando"></span>
+    </div>
+    <span id="estado" class="estado"></span>
+  </header>
+
+  <main class="hoja">
+    <!-- Preguntar es lo primero y lo más grande: es a lo que vino. -->
+    <section class="tarjeta">
+      <label class="rotulo" for="texto">Tu pregunta</label>
+      <textarea id="texto" rows="3" maxlength="400"
+                placeholder="¿Qué querés preguntar?"></textarea>
+      <div class="fila">
+        <input id="nombre" type="text" maxlength="60" placeholder="Tu nombre (opcional)" />
+        <button id="mandar" class="primario">Preguntar</button>
+      </div>
+      <p id="aviso" class="aviso"></p>
+    </section>
+
+    <section id="seccionMias" class="hidden">
+      <h2>Las tuyas</h2>
+      <div id="mias" class="lista"></div>
+    </section>
+
+    <section id="seccionOtras" class="hidden">
+      <h2>Las de los demás</h2>
+      <p class="pie">Tocá la flechita para que suba: las más votadas se preguntan antes.</p>
+      <div id="otras" class="lista"></div>
+    </section>
+  </main>
+
+  <div id="sinClave" class="pin hidden">
+    <p>Este enlace está incompleto: le falta la clave.</p>
+    <p class="pie">Volvé a escanear el código QR del evento.</p>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

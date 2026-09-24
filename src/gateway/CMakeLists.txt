@@ -365,6 +365,14 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/prompter")
     )
 endif()
 
+# Publico: el que esta en la butaca, con su telefono (/publico/). Pregunta y
+# vota; no entra a la sala ni pide camara.
+if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/publico")
+    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/publico/"
+        DESTINATION Web/publico
+    )
+endif()
+
 # Rotulos: escribir el nombre del que habla desde el celular (/rotulos/).
 if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/rotulos")
     install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/rotulos/"
