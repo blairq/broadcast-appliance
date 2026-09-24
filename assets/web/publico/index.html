@@ -37,6 +37,29 @@
   </header>
 
   <main class="hoja">
+    <!--
+      La urna. Solo aparece cuando hay una abierta: una sección vacía que dice
+      «no hay votación» le roba la pantalla a lo que sí hay.
+
+      En una votación FORMAL el teléfono no alcanza —se borra el sitio y se
+      vota de nuevo—, así que hace falta el código que le dieron al acreditarse.
+      En una encuesta no se pide nada.
+    -->
+    <section id="urna" class="tarjeta urna hidden">
+      <div class="marca" id="urnaModo"></div>
+      <h3 id="urnaPregunta"></h3>
+      <div id="urnaCodigo" class="hidden">
+        <label class="rotulo" for="codigo">Tu código de votante</label>
+        <input id="codigo" type="text" maxlength="8" autocapitalize="characters"
+               autocomplete="off" placeholder="Ej.: K7QM" />
+        <p class="pie">Es el que te dieron al acreditarte.</p>
+      </div>
+      <div id="urnaOpciones" class="opciones"></div>
+      <div id="urnaResultado" class="resultado hidden"></div>
+      <p id="urnaAviso" class="aviso"></p>
+    </section>
+
+
     <!-- Preguntar es lo primero y lo más grande: es a lo que vino. -->
     <section class="tarjeta">
       <label class="rotulo" for="texto">Tu pregunta</label>

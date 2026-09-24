@@ -134,3 +134,20 @@ button[disabled] { opacity: 0.5; cursor: default; }
 
 .pin { padding: 40px 20px; text-align: center; color: var(--tenue); }
 .hidden { display: none !important; }
+
+/* --- La urna ------------------------------------------------------------- */
+.urna { margin-bottom: 16px; }
+.urna h3 { margin: 6px 0 12px; font-size: 18px; line-height: 1.3; }
+
+.opciones { display: flex; flex-direction: column; gap: 8px; }
+/* Los botones de votar son grandes y a lo ancho: se aprieta de pie, con una
+   mano, y equivocarse de opción no se puede deshacer después de cerrada. */
+.opciones button { width: 100%; justify-content: flex-start; text-align: left; min-height: 52px; }
+.opciones button.mio { border-color: var(--acento); background: rgba(255, 106, 43, 0.14); }
+.opciones button.mio::before { content: "✓ "; color: var(--acento); font-weight: 700; }
+
+.resultado { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+.barra-voto { display: flex; flex-direction: column; gap: 4px; }
+.barra-voto .fila-voto { display: flex; justify-content: space-between; font-size: 14px; }
+.barra-voto .riel { height: 8px; border-radius: 4px; background: #0f1319; overflow: hidden; }
+.barra-voto .lleno { height: 100%; background: var(--acento); border-radius: 4px; }

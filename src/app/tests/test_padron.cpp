@@ -11,6 +11,7 @@
 // ============================================================================
 #include <cstdio>
 #include <filesystem>
+#include <set>
 #include <fstream>
 #include <string>
 
@@ -87,6 +88,39 @@ void alta_y_busqueda() {
     CHECK(q.quitar(q.gente()[0].id), "se puede quitar a alguien");
     CHECK(q.gente().size() == 3, "y queda uno menos");
     CHECK(!q.quitar("no-existe"), "quitar a quien no esta avisa");
+}
+
+// --- 1b) El codigo de votante -----------------------------------------------
+void codigo_de_votante() {
+    // Se dicta en voz alta: no puede tener O ni 0, ni I ni 1, que al leerlos
+    // son la misma letra.
+    for (int i = 0; i < 200; ++i) {
+        const std::string c = nuevoCodigo();
+        CHECK(c.size() == 4, "cuatro simbolos");
+        for (char ch : c)
+            CHECK(ch != 'O' && ch != '0' && ch != 'I' && ch != '1',
+                  "sin los que se confunden al dictarlos");
+    }
+
+    Padron p = asamblea();
+    for (const Asistente& a : p.gente())
+        CHECK(!a.codigo.empty(), "todos llevan codigo, voten o no: se imprime con la invitacion");
+
+    // Y no se repiten dentro del mismo evento: dos codigos iguales son dos
+    // personas votando como una.
+    std::set<std::string> vistos;
+    Padron q;
+    for (int i = 0; i < 60; ++i) {
+        const std::string id = q.agregar(alguien("N" + std::to_string(i), Papel::Publico,
+                                                 Canal::Presencial));
+        vistos.insert(q.porId(id)->codigo);
+    }
+    CHECK(vistos.size() == 60, "sesenta personas, sesenta codigos distintos");
+
+    // Sobrevive al ida y vuelta: si cambiara al guardar, el codigo impreso en
+    // la invitacion dejaria de servir.
+    const Padron r = Padron::deJson(p.aJson());
+    CHECK(r.gente()[0].codigo == p.gente()[0].codigo, "el codigo sobrevive al disco");
 }
 
 // --- 2) Dejar pasar solo ----------------------------------------------------
@@ -247,6 +281,7 @@ void disco() {
 
 int main() {
     alta_y_busqueda();
+    codigo_de_votante();
     dejar_pasar_solo();
     acreditar();
     quienes_estan();

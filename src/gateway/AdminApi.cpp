@@ -65,6 +65,7 @@
 #include <cctype>
 #include <algorithm>
 #include <chrono>
+#include <map>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
@@ -513,6 +514,56 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         }
         sendJson(fd, 200, json{{"ok", true}, {"info", publicoInfo()}});
         return;
+    }
+
+    // --- La urna, del lado del operador --------------------------------------
+    if (path == "/api/v1/votacion") {
+        if (method == "GET") {
+            sendJson(fd, 200, json{{"ok", true}, {"votacion", votacion_.estado()}});
+            return;
+        }
+        if (method == "POST") {
+            const std::string accion = req.value("accion", std::string());
+            if (accion == "cerrar") {
+                const bool ok = votacion_.cerrar();
+                sendJson(fd, 200, json{{"ok", ok}, {"votacion", votacion_.estado()}});
+                return;
+            }
+            if (accion == "en_vivo") {
+                votacion_.setMostrarEnVivo(req.value("si", false));
+                sendJson(fd, 200, json{{"ok", true}, {"votacion", votacion_.estado()}});
+                return;
+            }
+            if (accion != "abrir") {
+                sendErr(fd, 400, "accion");
+                return;
+            }
+            std::vector<std::string> opciones;
+            if (req.contains("opciones") && req["opciones"].is_array())
+                for (const json& o : req["opciones"])
+                    if (o.is_string()) opciones.push_back(o.get<std::string>());
+            ba::gateway::Votacion::Modo modo = ba::gateway::Votacion::Modo::Encuesta;
+            ba::gateway::Votacion::modoDeNombre(req.value("modo", std::string("encuesta")), modo);
+            // Los habilitados los manda A: es el unico que tiene el padron. B
+            // solo sabe que codigos son validos, ni siquiera de quienes son mas
+            // que el nombre para poder decir quien falta votar.
+            std::map<std::string, std::string> habilitados;
+            if (req.contains("habilitados") && req["habilitados"].is_array())
+                for (const json& h : req["habilitados"])
+                    if (h.is_object() && h.contains("codigo"))
+                        habilitados[h["codigo"].get<std::string>()] =
+                            h.value("nombre", std::string());
+            const bool ok = votacion_.abrir(req.value("pregunta", std::string()), opciones, modo,
+                                            req.value("secreta", false), habilitados,
+                                            req.value("podian", 0), nowMsAdmin());
+            if (!ok) {
+                sendErr(fd, 400, "hace falta una pregunta y al menos dos opciones");
+                return;
+            }
+            votacion_.setMostrarEnVivo(req.value("enVivo", false));
+            sendJson(fd, 200, json{{"ok", true}, {"votacion", votacion_.estado()}});
+            return;
+        }
     }
 
     if (path == "/api/v1/publico-link" && method == "GET") {

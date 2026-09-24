@@ -22,6 +22,7 @@
 
 #include "mcp/McpCore.hpp"
 #include "ui/ConferenceClient.hpp"
+#include "ui/EventoViewModel.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
 
@@ -179,6 +180,130 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm) {
                       {"nombre", QString::fromStdString(a.value("nombre", std::string()))},
                       {"deDonde", QString::fromStdString(a.value("deDonde", std::string("sala")))}},
                   std::move(done), "Sumada a la cola.");
+        };
+        core.addTool(std::move(t));
+    }
+    // --- La urna --------------------------------------------------------------
+    {
+        Tool t;
+        t.name = "votacion_abrir";
+        t.title = "Abrir una votacion o una encuesta";
+        t.category = "preguntas";
+        t.description =
+            "Pone una pregunta a votar en la pagina del publico, con sus opciones.";
+        t.details =
+            "SON DOS COSAS DISTINTAS Y NO SE MEZCLAN:\n\n"
+            "- `modo: encuesta` — vota cualquiera que tenga el enlace, una vez por telefono. Es "
+            "enganche («de que tema quieren que hablemos») y sus numeros son INDICATIVOS. No sirve "
+            "para decidir nada.\n"
+            "- `modo: formal` — vota quien esta en el PADRON con derecho a voto y ya llego, una vez "
+            "cada uno, identificandose con su codigo. Es lo que hace que lo que se decide en una "
+            "asamblea valga.\n\n"
+            "En la formal los habilitados salen solos del padron del evento abierto: los que tienen "
+            "`vota` y estado `llego`. Si no hay ninguno, no se abre y se dice por que — abrir una "
+            "votacion formal donde nadie puede votar es peor que no abrirla, porque el resultado "
+            "parece valido.\n\n"
+            "EL DENOMINADOR IMPORTA. Se manda cuantos tenian derecho segun el padron, asi el "
+            "resultado dice «votaron 12 de 40» y no solo «12»: sin eso, dos a favor y cero en contra "
+            "parece unanime cuando en realidad no vino nadie.\n\n"
+            "`secreta` no quiere decir anonima: se sigue sabiendo QUIEN voto —hace falta para probar "
+            "el quorum— y se deja de guardar QUE voto.\n\n"
+            "`enVivo` muestra el resultado mientras esta abierta. En una formal conviene que NO: ver "
+            "que va perdiendo cambia lo que vota el que todavia no voto.\n\n"
+            "Hay UNA por vez: abrir otra reemplaza a la anterior y no arrastra sus votos.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"required", {"pregunta", "opciones"}},
+            {"properties",
+             {{"pregunta", {{"type", "string"}}},
+              {"opciones",
+               {{"type", "array"},
+                {"items", {{"type", "string"}}},
+                {"description", "de dos a diez; con una sola no hay nada que decidir"}}},
+              {"modo", {{"type", "string"}, {"enum", {"encuesta", "formal"}}}},
+              {"secreta", {{"type", "boolean"}, {"description", "no guardar que voto cada uno"}}},
+              {"enVivo",
+               {{"type", "boolean"}, {"description", "mostrar el resultado mientras esta abierta"}}}}}};
+        t.run = [pedir, &vm](const json& a, Done done) {
+            QJsonArray opciones;
+            if (a.contains("opciones") && a["opciones"].is_array())
+                for (const json& o : a["opciones"])
+                    if (o.is_string()) opciones.append(QString::fromStdString(o.get<std::string>()));
+            if (opciones.size() < 2)
+                return done(ToolResult::error(
+                    "Hacen falta al menos dos opciones: con una sola no hay nada que decidir."));
+
+            QJsonObject cuerpo{
+                {"accion", "abrir"},
+                {"pregunta", QString::fromStdString(a.value("pregunta", std::string()))},
+                {"opciones", opciones},
+                {"modo", QString::fromStdString(a.value("modo", std::string("encuesta")))},
+                {"secreta", a.value("secreta", false)},
+                {"enVivo", a.value("enVivo", false)}};
+
+            if (a.value("modo", std::string("encuesta")) == "formal") {
+                auto* ev = static_cast<EventoViewModel*>(vm.evento());
+                if (ev == nullptr || ev->abierto().isEmpty())
+                    return done(ToolResult::error(
+                        "Una votacion formal necesita el padron, y el padron vive en el evento. Abri "
+                        "uno con `evento_abrir`."));
+                QJsonArray habilitados;
+                int podian = 0;
+                for (const QVariant& v : ev->padron()) {
+                    const QVariantMap m = v.toMap();
+                    if (!m.value("vota").toBool()) continue;
+                    ++podian;
+                    // Solo los PRESENTES votan. El que tiene derecho y no vino
+                    // cuenta para el denominador —para eso esta `podian`— pero
+                    // no puede votar desde su casa.
+                    if (m.value("estado").toString() != "llego") continue;
+                    habilitados.append(QJsonObject{{"codigo", m.value("codigo").toString()},
+                                                   {"nombre", m.value("nombre").toString()}});
+                }
+                if (habilitados.isEmpty())
+                    return done(ToolResult::error(
+                        "No hay nadie con derecho a voto y presente en el padron. Fijate "
+                        "`padron_ver`: hace falta `vota` en true y estado `llego`. Abrir una votacion "
+                        "formal donde nadie puede votar es peor que no abrirla, porque el resultado "
+                        "parece valido."));
+                cuerpo["habilitados"] = habilitados;
+                cuerpo["podian"] = podian;
+            }
+            pedir("POST", "/api/v1/votacion", cuerpo, std::move(done), "Votacion abierta.");
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "votacion_ver";
+        t.title = "Como va la votacion, y cerrarla";
+        t.category = "preguntas";
+        t.description =
+            "El recuento de la votacion o encuesta, quienes votaron y quienes faltan. Con `cerrar` la "
+            "da por terminada.";
+        t.details =
+            "`votaron` y `podian` juntos son el QUORUM: «votaron 12 de 40». En una formal viene "
+            "ademas `quienes` (con que voto cada uno, salvo que sea secreta) y `faltanVotar`, que es "
+            "con lo que se sale a buscar a los que faltan antes de cerrar.\n\n"
+            "`cerrar` deja el resultado firme y lo muestra a todos los telefonos. Los votos NO se "
+            "borran al cerrar: el resultado se sigue mirando despues y es lo que va al acta.\n\n"
+            "`enVivo` prende o apaga que el resultado se vea mientras esta abierta, por si se abrio "
+            "con la decision equivocada.";
+        t.readOnly = false;
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"cerrar", {{"type", "boolean"}}},
+              {"enVivo", {{"type", "boolean"}, {"description", "mostrar el resultado en vivo"}}}}}};
+        t.run = [pedir](const json& a, Done done) {
+            if (a.value("cerrar", false))
+                return pedir("POST", "/api/v1/votacion", QJsonObject{{"accion", "cerrar"}},
+                             std::move(done), "Votacion cerrada.");
+            if (a.contains("enVivo"))
+                return pedir("POST", "/api/v1/votacion",
+                             QJsonObject{{"accion", "en_vivo"}, {"si", a["enVivo"].get<bool>()}},
+                             std::move(done), "Hecho.");
+            pedir("GET", "/api/v1/votacion", {}, std::move(done), {});
         };
         core.addTool(std::move(t));
     }

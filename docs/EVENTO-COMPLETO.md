@@ -212,7 +212,7 @@ YouTube entran a la misma lista y se moderan en el mismo lugar.
 - **El texto es de afuera** y se pinta con `textContent`, nunca como HTML: un
   `<img onerror>` en una pregunta correría en el teléfono de todos los demás.
 
-## 6. Votación — **falta**
+## 6. Votación — **hecho**
 
 Para una conferencia es enganche; para una reunión **es el punto**. Y es el
 mismo problema que las preguntas con el resultado invertido: una urna, no una
@@ -220,6 +220,33 @@ por canal. El voto del presencial y el del remoto tienen que valer lo mismo y
 contarse juntos, con el padrón diciendo quién tiene derecho a votar.
 
 Se apoya en 2 (quién puede) y en 5 (la superficie del público).
+
+**Hecho, y la decisión que lo ordena es que son DOS COSAS y no se mezclan:**
+
+- **Encuesta** — vota cualquiera con el enlace, una vez por teléfono. Es
+  enganche y sus números son *indicativos*.
+- **Votación formal** — vota quien está en el padrón con derecho y ya llegó,
+  una vez cada uno, con un **código** que se le da al acreditarlo. El teléfono
+  no alcanza: se borra el sitio y se vota de nuevo.
+
+Se llaman distinto a propósito. «Una votación con un interruptor de rigor»
+termina en alguien leyendo al aire el resultado de una encuesta como si fuera
+una decisión.
+
+Lo demás que quedó escrito:
+
+- **El denominador es del padrón, no de la urna.** «Votaron 12 de 40», no
+  «12»: sin eso, dos a favor y cero en contra parece unánime cuando en realidad
+  no vino nadie.
+- **Secreta no es anónima.** Se sigue sabiendo *quién* votó —hace falta para
+  probar el quórum— y se deja de guardar *qué* votó.
+- **El resultado no se ve mientras está abierta**, salvo que se decida lo
+  contrario: ver que va perdiendo cambia lo que vota el que todavía no votó.
+- **Volver a votar cambia el voto**, no suma. Cerrar la urna es lo que lo vuelve
+  definitivo.
+- **El código no lleva O ni 0, ni I ni 1**: se dicta en voz alta y ahí son la
+  misma letra.
+- **Una urna por vez**, y abrir otra no arrastra los votos de la anterior.
 
 ## 7. Subtítulos y transcripción — **falta**
 
@@ -312,8 +339,8 @@ Por dependencia, no por tamaño:
    están?» (§4).
 4. ~~**Superficie del público** (§5)~~ — **hecha**: `/publico`, por QR, sin
    cámara ni micrófono.
-5. ~~**Preguntas** (§5)~~ — **hecho**. Falta **votación** (§6), que se apoya
-   en la misma superficie y en el padrón.
+5. ~~**Preguntas** (§5) y **votación** (§6)~~ — **hechas**, sobre la misma
+   superficie y el mismo padrón.
 6. **Capítulos de la grabación** (§9) — se puede colar en cualquier momento:
    es chico y se disfruta enseguida.
 7. **Acta** (§8), cuando haya padrón y urna.

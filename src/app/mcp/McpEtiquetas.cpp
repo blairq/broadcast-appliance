@@ -397,6 +397,14 @@ const Fila kPropias[] = {
                          "pregunta poner al aire la pregunta siguiente pregunta limpiar la cola"},
     {"pregunta_sumar", "meter una pregunta en la cola sumar lo que preguntaron por el chat "
                        "agregar pregunta de youtube del salon a viva voz"},
+    // Votar: «votacion» es formal y «encuesta» es enganche. Las dos palabras
+    // van en las dos herramientas porque quien pide no siempre sabe cual
+    // quiere, y la ayuda de la herramienta se encarga de explicarle la
+    // diferencia.
+    {"votacion_abrir", "abrir una votacion poner algo a votar hacer una encuesta al publico "
+                       "votemos si aprobamos preguntar y que voten levantar la mano"},
+    {"votacion_ver", "como va la votacion resultado de la encuesta cuantos votaron quienes "
+                     "faltan votar cerrar la votacion quorum del voto"},
     {"publico_pagina", "enlace y qr para que el publico pregunte pagina del publico codigo qr para "
                        "proyectar titulo y fondo de la pagina del publico"},
     {"padron_puerta", "camara de la entrada acreditar solo a quien llega al lugar reconocer a los que "

@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <random>
 #include <fstream>
 
 namespace fs = std::filesystem;
@@ -67,6 +68,19 @@ std::string aplanar(const std::string& s) {
 }
 
 } // namespace
+
+std::string nuevoCodigo() {
+    // Sin O ni 0, sin I ni 1: al dictarlos en voz alta son la misma letra, y
+    // este codigo se dicta. Con 32 simbolos y cuatro posiciones hay un millon
+    // de combinaciones, de sobra para cualquier sala y corto de leer.
+    static const char* kAlfabeto = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    static std::mt19937 rng(static_cast<unsigned>(
+        std::chrono::steady_clock::now().time_since_epoch().count()));
+    std::uniform_int_distribution<int> d(0, 31);
+    std::string c;
+    for (int i = 0; i < 4; ++i) c.push_back(kAlfabeto[d(rng)]);
+    return c;
+}
 
 // --- Los nombres de cada cosa -----------------------------------------------
 
@@ -131,6 +145,7 @@ json Asistente::aJson() const {
                 {"nota", nota},
                 {"dejarPasarSolo", dejarPasarSolo},
                 {"vota", vota},
+                {"codigo", codigo},
                 {"llegoMs", llegoMs},
                 {"porDonde", porDonde}};
 }
@@ -151,6 +166,7 @@ Asistente Asistente::deJson(const json& j) {
     a.nota = textoDe(j, "nota");
     a.dejarPasarSolo = boolDe(j, "dejarPasarSolo");
     a.vota = boolDe(j, "vota");
+    a.codigo = textoDe(j, "codigo");
     if (j.contains("llegoMs") && j["llegoMs"].is_number_integer())
         a.llegoMs = j["llegoMs"].get<std::int64_t>();
     a.porDonde = textoDe(j, "porDonde");
@@ -192,6 +208,15 @@ const Asistente* Padron::porNombre(const std::string& nombre) const {
 
 std::string Padron::agregar(Asistente a) {
     if (a.id.empty()) a.id = nuevoId();
+    // Todos llevan codigo aunque hoy no voten: se imprime con la invitacion, y
+    // que alguien pase a tener voto el dia del evento no puede obligar a
+    // reimprimir nada. Se reintenta si salio uno repetido.
+    for (int intento = 0; a.codigo.empty() && intento < 20; ++intento) {
+        const std::string c = nuevoCodigo();
+        if (std::none_of(gente_.begin(), gente_.end(),
+                         [&c](const Asistente& o) { return o.codigo == c; }))
+            a.codigo = c;
+    }
     if (a.personaId.empty()) a.dejarPasarSolo = false;
     const std::string id = a.id;
     gente_.push_back(std::move(a));

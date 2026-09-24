@@ -79,6 +79,7 @@
 #include "Superficies.hpp"
 #include "Prompter.hpp"
 #include "Preguntas.hpp"
+#include "Votacion.hpp"
 #include "Rotulador.hpp"
 #include "MediaRoute.hpp"
 #include "TokenAuth.hpp"
@@ -157,6 +158,7 @@ class SignalingServer {
     /// El buzon de rotulos, que A publica y viene a vaciar.
     Rotulador& rotulador() { return rotulador_; }
     Preguntas& preguntas() { return preguntas_; }
+    Votacion& votacion() { return votacion_; }
 
     /// Lo que la pagina del publico muestra arriba y de fondo. Lo publica A,
     /// que es el unico que sabe que evento esta abierto. B solo lo repite.
@@ -353,6 +355,7 @@ class SignalingServer {
     std::map<std::string, Pantalla> pantallas_;
     Rotulador rotulador_;
     Preguntas preguntas_;
+    Votacion votacion_;
     mutable std::mutex publicoM_;
     nlohmann::json publicoInfo_ = nlohmann::json::object();
     std::string fondoBytes_;

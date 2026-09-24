@@ -659,6 +659,36 @@
       "herramientas": [
         "publico_pagina"
       ]
+    },
+    {
+      "pregunta": "pongamos a votar si aprobamos el balance",
+      "herramientas": [
+        "votacion_abrir"
+      ]
+    },
+    {
+      "pregunta": "hace una encuesta al publico",
+      "herramientas": [
+        "votacion_abrir"
+      ]
+    },
+    {
+      "pregunta": "como va la votacion",
+      "herramientas": [
+        "votacion_ver"
+      ]
+    },
+    {
+      "pregunta": "quienes faltan votar",
+      "herramientas": [
+        "votacion_ver"
+      ]
+    },
+    {
+      "pregunta": "cerra la votacion",
+      "herramientas": [
+        "votacion_ver"
+      ]
     }
   ]
 }

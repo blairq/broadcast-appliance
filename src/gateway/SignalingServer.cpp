@@ -12,6 +12,7 @@
 
 #include "SignalingServer.hpp"
 
+#include <cctype>
 #include <chrono>
 #include <cstdio>
 #include <filesystem>
@@ -674,6 +675,52 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
         if (hayFondo) info["fondo"] = "/api/publico-fondo";
         http::sendResponse(fd, 200, "application/json", info.dump());
         return;
+    }
+    // La urna, del lado del telefono. El `codigo` solo lo manda el que esta en
+    // una votacion formal: en una encuesta no existe.
+    if (path == "/api/votacion") {
+        const json req = method == "POST" ? json::parse(body, nullptr, false) : json::object();
+        std::string clave, quien, codigo;
+        if (method == "GET") {
+            const auto q = http::parseQuery(query);
+            if (q.count("k")) clave = http::urlDecode(q.at("k"));
+            if (q.count("yo")) quien = http::urlDecode(q.at("yo"));
+            if (q.count("codigo")) codigo = http::urlDecode(q.at("codigo"));
+        } else if (req.is_object()) {
+            clave = req.value("clave", std::string());
+            quien = req.value("yo", std::string());
+            codigo = req.value("codigo", std::string());
+        }
+        if (cfg_.publicoKey.empty() || clave != cfg_.publicoKey) {
+            http::sendResponse(fd, 403, "application/json", R"({"ok":false,"error":"clave"})");
+            return;
+        }
+        if (quien.size() > 64) quien.resize(64);
+        // El codigo viene de afuera y se compara contra una tabla: se recorta y
+        // se pasa a mayusculas, porque el que lo tipea en el telefono lo
+        // escribe como le sale.
+        if (codigo.size() > 16) codigo.resize(16);
+        for (char& c : codigo) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+        if (method == "GET") {
+            http::sendResponse(fd, 200, "application/json",
+                               json{{"ok", true},
+                                    {"votacion", votacion_.estadoPublico(quien, codigo)}}
+                                   .dump());
+            return;
+        }
+        if (method == "POST") {
+            const int opcion = req.is_object() && req.contains("opcion") &&
+                                       req["opcion"].is_number_integer()
+                                   ? req["opcion"].get<int>()
+                                   : -1;
+            const std::string motivo = votacion_.votar(quien, codigo, opcion);
+            http::sendResponse(fd, 200, "application/json",
+                               json{{"ok", motivo.empty()},
+                                    {"error", motivo},
+                                    {"votacion", votacion_.estadoPublico(quien, codigo)}}
+                                   .dump());
+            return;
+        }
     }
     if (path == "/api/preguntas") {
         const json req = method == "POST" ? json::parse(body, nullptr, false) : json::object();

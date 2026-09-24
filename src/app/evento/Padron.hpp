@@ -92,6 +92,13 @@ struct Asistente {
     /// Si cuenta para el quórum y puede votar. No sale del papel: en una
     /// asamblea un propietario es «público» y vota, y la prensa no.
     bool vota = false;
+    /// Su código de votante: corto y para leer en voz alta.
+    ///
+    /// EN UNA VOTACIÓN FORMAL EL TELÉFONO NO ALCANZA —se borra el sitio y se
+    /// vota de nuevo—, así que lo que identifica es esto. Se le da al
+    /// acreditarlo. Sin ambigüedades al dictarlo: no lleva O ni 0, ni I ni 1,
+    /// que al leerlos en voz alta son la misma letra.
+    std::string codigo;
     /// Cuándo se lo acreditó (ms desde la época; 0 = no llegó).
     std::int64_t llegoMs = 0;
     /// Por dónde se lo acreditó: "rostro", "qr", "mostrador", "lobby". Sirve
@@ -101,6 +108,9 @@ struct Asistente {
     nlohmann::json aJson() const;
     static Asistente deJson(const nlohmann::json& j);
 };
+
+/// Un código de votante nuevo. Público para poder probarlo.
+std::string nuevoCodigo();
 
 /// Cuántos hay de cada cosa. Es lo que contesta «¿quiénes están?» sin obligar
 /// a contar a mano una lista de cuarenta.

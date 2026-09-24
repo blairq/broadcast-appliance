@@ -180,10 +180,121 @@
     })
     .catch(() => {});
 
+  // --- La urna --------------------------------------------------------------
+  // El codigo de votante se guarda en el telefono: en una asamblea se vota
+  // varios puntos seguidos y tipearlo cada vez es perder gente en el camino.
+  let codigo = '';
+  try { codigo = localStorage.getItem('ba-publico-codigo') || ''; } catch (_) {}
+  $('codigo').value = codigo;
+  $('codigo').addEventListener('input', () => {
+    codigo = $('codigo').value.trim().toUpperCase();
+    $('codigo').value = codigo;
+    try { localStorage.setItem('ba-publico-codigo', codigo); } catch (_) {}
+    pintarUrna(ultimaUrna);
+  });
+
+  let ultimaUrna = null;
+
+  function pintarUrna(v) {
+    ultimaUrna = v;
+    const caja = $('urna');
+    if (!v || !v.hay) { caja.classList.add('hidden'); return; }
+    caja.classList.remove('hidden');
+
+    const formal = v.modo === 'formal';
+    $('urnaModo').textContent = formal
+      ? (v.abierta ? 'Votación · abierta' : 'Votación · cerrada')
+      : (v.abierta ? 'Encuesta · abierta' : 'Encuesta · cerrada');
+    $('urnaModo').className = 'marca' + (v.abierta ? ' aire' : '');
+    $('urnaPregunta').textContent = v.pregunta;
+    // El codigo solo se pide donde hace falta.
+    $('urnaCodigo').classList.toggle('hidden', !formal);
+
+    const cont = $('urnaOpciones');
+    cont.textContent = '';
+    const puedo = v.abierta && (!formal || (codigo && v.puedeVotar !== false));
+    (v.opciones || []).forEach((texto, i) => {
+      const b = document.createElement('button');
+      b.textContent = texto;
+      if (v.miVoto === i) b.classList.add('mio');
+      b.disabled = !puedo;
+      b.addEventListener('click', () => votarOpcion(i));
+      cont.appendChild(b);
+    });
+
+    if (formal && v.abierta && !codigo)
+      decirUrna('Escribí tu código para poder votar.');
+    else if (formal && codigo && v.puedeVotar === false)
+      decirUrna('Ese código no figura entre los que pueden votar.', 'mal');
+    else if (!v.abierta) decirUrna('La votación está cerrada.');
+    else if (v.miVoto >= 0) decirUrna('Tu voto quedó registrado. Podés cambiarlo hasta que cierre.', 'bien');
+    else decirUrna('');
+
+    // El resultado solo si el gateway lo mandó: mientras está abierta, verlo
+    // cambia lo que vota el que todavía no votó, y eso lo decide el operador.
+    const caja2 = $('urnaResultado');
+    caja2.textContent = '';
+    if (!v.resultado) { caja2.classList.add('hidden'); return; }
+    caja2.classList.remove('hidden');
+    const total = v.resultado.reduce((a, o) => a + o.votos, 0) || 1;
+    v.resultado.forEach((o) => {
+      const fila = document.createElement('div');
+      fila.className = 'barra-voto';
+      const arriba = document.createElement('div');
+      arriba.className = 'fila-voto';
+      const n = document.createElement('span');
+      n.textContent = o.opcion;
+      const c = document.createElement('span');
+      c.textContent = o.votos + (o.votos === 1 ? ' voto' : ' votos');
+      arriba.append(n, c);
+      const riel = document.createElement('div');
+      riel.className = 'riel';
+      const lleno = document.createElement('div');
+      lleno.className = 'lleno';
+      lleno.style.width = Math.round((o.votos / total) * 100) + '%';
+      riel.appendChild(lleno);
+      fila.append(arriba, riel);
+      caja2.appendChild(fila);
+    });
+  }
+
+  function decirUrna(texto, clase) {
+    $('urnaAviso').textContent = texto;
+    $('urnaAviso').className = 'aviso' + (clase ? ' ' + clase : '');
+  }
+
+  async function votarOpcion(i) {
+    try {
+      const r = await fetch('/api/votacion', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ clave, yo, codigo, opcion: i }),
+      });
+      const j = await r.json();
+      if (j.votacion) pintarUrna(j.votacion);
+      if (!j.ok && j.error) decirUrna(j.error, 'mal');
+    } catch (_) {
+      decirUrna('No se pudo votar: revisá la conexión.', 'mal');
+    }
+  }
+
+  async function traerUrna() {
+    try {
+      const r = await fetch('/api/votacion?k=' + encodeURIComponent(clave) +
+                            '&yo=' + encodeURIComponent(yo) +
+                            '&codigo=' + encodeURIComponent(codigo), { cache: 'no-store' });
+      const j = await r.json();
+      if (j.votacion) pintarUrna(j.votacion);
+    } catch (_) { /* se deja lo que ya está en pantalla */ }
+  }
+
+  traerUrna();
   traer();
   // Cada tres segundos: alcanza para ver subir los votos y no es nada de
   // tráfico ni de batería. Cuando la página no se está mirando, no se pide:
   // doscientos teléfonos en el bolsillo no tienen por qué preguntar nada.
-  setInterval(() => { if (!document.hidden) traer(); }, 3000);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) traer(); });
+  setInterval(() => { if (!document.hidden) { traer(); traerUrna(); } }, 3000);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) { traer(); traerUrna(); }
+  });
 })();
