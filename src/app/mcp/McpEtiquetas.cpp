@@ -80,24 +80,25 @@ const Fila kPropias[] = {
     {"status", "estado general resumen como esta todo panorama salud"},
     {"security_status", "seguridad contaminacion sesion permisos aprobacion"},
     {"system_info", "version compilacion build acerca de datos del equipo"},
-    {"system_hardware", "disco lleno se llena el disco espacio libre memoria temperatura hardware placa gpu cpu memoria disco capacidad"},
+    {"system_hardware", "llenando llena disco almacenamiento espacio queda lugar se esta llenando el disco disco lleno espacio libre en disco cuanto "
+                        "queda de disco memoria temperatura hardware placa gpu cpu capacidad"},
     {"system_update", "actualizar version nueva upgrade instalar"},
     {"app_quit", "cerrar salir apagar terminar el programa"},
     {"app_save", "guardar persistir escribir configuracion"},
     {"monitors", "monitores conectados resolucion"},
 
     // --- Escenas y fuentes ------------------------------------------------
-    {"scene_list", "listar cuales hay ver escenas"},
+    {"scene_list", "cuantas escenas hay que escenas tengo listado de escenas listar cuales hay ver escenas"},
     // «Cortá a la cámara 2» es CAMBIAR DE ESCENA: en una cabina las escenas se
     // llaman por su cámara. Sin la palabra «camara» aca, esa frase se iba a las
     // doce herramientas que sí la tienen (capture_feed, ndi_sources...) y el
     // cambio de escena no aparecia por ningun lado.
-    {"scene_switch", "cambiar poner al aire pasar a cortar a programa activa corte directo urgencia "
+    {"scene_switch", "corta cortala corte pasa poné pone cambiar poner al aire pasar a cortar a programa activa corte directo urgencia "
                      "cortar a camara pasar a camara ir a camara poner la camara "
                      "pone al aire la pone al aire poner al aire la escena arranca con"},
     {"scene_preview", "dejar preparada dejala lista preparar la proxima armar la que sigue armar preparar el proximo plano bus de preview previo antes de sacarlo "
                       "cuear siguiente escena mesa switcher"},
-    {"scene_take", "take sacar al aire la armada cortar ahora disparar el plano preparado mesa switcher"},
+    {"scene_take", "sacar al aire lo que tengo armado sacar la armada tomar el take ya take sacar al aire la armada cortar ahora disparar el plano preparado mesa switcher"},
     {"scene_create", "crear nueva agregar escena"},
     {"scene_copy", "copiar duplicar clonar escena"},
     {"scene_delete", "borrar eliminar quitar escena"},
@@ -107,10 +108,10 @@ const Fila kPropias[] = {
     {"scene_protect", "proteger bloquear candado no tocar impedir cambios"},
     {"scene_export", "exportar respaldo backup copiar a archivo"},
     {"scene_define", "definir armar escena completa de una plantilla"},
-    {"transition_set", "fundido corte disolvencia stinger duracion transicion"},
+    {"transition_set", "que fundido esta puesto que transicion hay puesta cual es el fundido fundido corte disolvencia stinger duracion transicion"},
     {"source_types", "que tipos de fuente hay disponibles"},
-    {"source_list", "listar fuentes de una escena que hay adentro"},
-    {"source_add", "agregar a la escena sumar a la escena meter en la escena poner en la escena agregar poner sumar fuente camara imagen texto navegador"},
+    {"source_list", "que hay adentro de la escena que tiene la escena que capas tiene contenido de la escena listar fuentes de una escena que hay adentro"},
+    {"source_add", "agrega la camara agrega a esta escena sumar una camara agregar a la escena sumar a la escena meter en la escena poner en la escena agregar poner sumar fuente camara imagen texto navegador"},
     {"source_remove", "quitar sacar borrar fuente"},
     {"source_update", "cambiar editar modificar fuente"},
     {"source_properties", "propiedades opciones parametros de una fuente"},
@@ -124,7 +125,7 @@ const Fila kPropias[] = {
                   // escucha» no traia NADA de audio entre los primeros.
                   "no se escucha no se oye sin sonido no tengo sonido no suena "
                   "esta mudo quedo mudo no le sale audio mas fuerte mas bajo"},
-    {"audio_sincro", "sincronizar labios desfase desfasado desincronizado adelantado atrasado "
+    {"audio_sincro", "desfasado de la imagen no coincide con la imagen labios imagen adelantada sincronizar labios desfase desfasado desincronizado adelantado atrasado "
                      "delay offset demora retardo la voz no coincide con la imagen"},
     {"audio_sources", "que fuentes de audio hay listar canales"},
     {"audio_escuchar", "acople de donde viene el pitido aislar canal ""pfl solo escuchar previo monitorear probar un microfono antes de abrirlo "
@@ -140,7 +141,7 @@ const Fila kPropias[] = {
     {"audio_module_set", "cambiar parametros de un efecto"},
     {"audio_patch", "ruteo patch enviar a donde va matriz"},
     {"audio_bypass", "puentear desactivar saltear efecto comparar"},
-    {"audio_gate", "compuerta gate ruido de fondo silencio respiracion"},
+    {"audio_gate", "el microfono queda abierto se escucha todo lo de alrededor micro abierto compuerta gate ruido de fondo silencio respiracion"},
     {"audio_compressor", "compresor compresion dinamica nivelar parejo"},
     {"audio_deesser", "deesser sibilancia ese silbido"},
     {"audio_eq", "ecualizador eq graves medios agudos tono frecuencia"},
@@ -150,7 +151,7 @@ const Fila kPropias[] = {
     // ACOPLE, PITIDO, ZUMBIDO: lo que se grita en cabina. Ninguna de estas
     // palabras estaba, y «hay acople» no traia NADA de audio. Es el caso que
     // menos tiempo da para pensar, asi que es el que mejor tiene que andar.
-    {"audio_measure", "acople acoplando acoplamiento microfonia feedback pitido chillido "
+    {"audio_measure", "pitido chillido silbido agudo insoportable suena un pitido no se escucha nada al aire quedamos sin audio acople acoplando acoplamiento microfonia feedback pitido chillido "
                       "zumbido ruido de fondo satura saturando satura el audio distorsiona "
                       "medir niveles pico ""medir lufs nivel pico rms loudness normalizar"},
     {"audio_generator", "tono generador prueba ruido rosa senal de test"},
@@ -162,21 +163,23 @@ const Fila kPropias[] = {
 
     // --- Transmision y grabacion -------------------------------------------
     {"stream_start", "salimos al aire salgamos al aire arrancamos la transmision empezar a transmitir empezar arrancar salir al aire comenzar transmision"},
-    {"stream_stop", "parar terminar cortar bajar del aire fin de transmision"},
+    {"stream_stop", "parar terminar cortar bajar del aire bajanos del aire bajalo del aire "
+                    "sacanos del aire cortar la transmision fin de transmision"},
     {"record_start", "empezar a grabar arrancar grabacion rec"},
-    {"record_stop", "parar grabacion terminar de grabar"},
+    {"record_stop", "para frena detene la grabacion cortar de grabar parar grabacion para la grabacion parar de grabar frena la grabacion "
+                    "cortar la grabacion terminar de grabar"},
     {"grabacion_individual", "grabar por separado pista aislada isos cada camara"},
 
     // --- Ver ---------------------------------------------------------------
-    {"capture_program", "que esta al aire que se ve ahora salida programa"},
+    {"capture_program", "quedamos sin imagen no hay imagen pantalla en blanco se fue la imagen que esta al aire que se ve ahora salida programa"},
     {"capture_source", "ver una fuente revisar antes de poner al aire"},
     {"capture_multiview", "todas las escenas de una grilla multiview"},
-    {"capture_feed", "ver una señal entrante feed camara"},
+    {"capture_feed", "se congelo la camara del invitado su camara quedo trabada imagen congelada ver una señal entrante feed camara"},
     {"capture_person", "ver a una persona invitado camara de alguien cara"},
     {"capture_people", "ver a todos los invitados grilla de personas"},
     {"capture_sequence", "varias capturas seguidas ver que cambia movimiento"},
     {"capture_ui", "ver la interfaz de la app pantalla del operador"},
-    {"feeds_list", "que señales hay entrando fuentes de video"},
+    {"feeds_list", "que camaras hay conectadas que camaras tengo que señales llegan que señales hay entrando fuentes de video"},
 
     // --- Sala --------------------------------------------------------------
     {"room_status", "se cayo un invitado se desconecto se fue quien quedo quien esta en la sala conectados lista de gente cuanta gente "
@@ -185,7 +188,7 @@ const Fila kPropias[] = {
     {"room_set", "configurar sala cupo cerrar abrir limite"},
     {"room_pin", "pin clave codigo de acceso contrasena de la sala"},
     {"room_link", "enlace invitacion link para entrar compartir acceso"},
-    {"participant_admit", "dejar entrar aceptar admitir aprobar del lobby"},
+    {"participant_admit", "hace pasar hacelo pasar que pase dejalo entrar adentro dejar entrar aceptar admitir aprobar del lobby"},
     {"participant_reject", "rechazar no dejar entrar negar acceso"},
     {"participant_kick", "echar expulsar sacar desconectar de la sala"},
     {"participant_requeue", "devolver al lobby mandar atras volver a la espera"},
@@ -193,7 +196,7 @@ const Fila kPropias[] = {
     {"participant_talk", "hablarle privado audio al invitado susurrar"},
     {"participant_request", "pedile que prenda encienda apague que active su camara su microfono pedirle algo pedir camara microfono solicitar"},
     {"participant_profile", "ficha datos nombre cargo informacion de la persona"},
-    {"chat_send", "mandar mensaje escribir al chat avisar por chat"},
+    {"chat_send", "mandale un mensaje escribile decile por chat avisale mandar mensaje escribir al chat avisar por chat"},
     {"chat_history", "que me dijo que dijo que escribio leer lo que mandaron que contesto historial conversacion que dijeron leer chat"},
     {"chat_wait", "esperar mensaje quedarse esperando a que escriban"},
     {"chat_overlay_add", "chat en pantalla mostrar comentarios al aire overlay"},
@@ -211,7 +214,7 @@ const Fila kPropias[] = {
     {"speakers_status", "quien esta en la fila estado de oradores"},
     {"speakers_config", "configurar fila de oradores tiempos reglas"},
     {"speaker_on_air", "poner orador al aire darle el aire a quien habla"},
-    {"speaker_next", "siguiente orador pasar al que sigue avanzar la fila"},
+    {"speaker_next", "pasa al que sigue el siguiente orador proximo orador turno siguiente siguiente orador pasar al que sigue avanzar la fila"},
     {"speaker_move", "mover en la fila reordenar oradores"},
     {"speaker_queue", "fila cola de oradores agregar sacar"},
     {"speaker_presenter", "presentador conductor moderador anfitrion"},
@@ -296,11 +299,11 @@ const Fila kPropias[] = {
     {"media_list", "que archivos hay musica videos biblioteca"},
     {"media_find", "buscar archivo cancion video por nombre"},
     {"media_view", "ver miniatura previsualizar archivo"},
-    {"media_use", "poner musica reproducir cancion video al aire cortina"},
+    {"media_use", "musica cancion tema pista de audio video clip poner musica poner musica de fondo musica de fondo poner una cancion un video poner musica reproducir cancion video al aire cortina"},
 
     // --- Operador ------------------------------------------------------------
     {"operator_message", "avisarle al operador decirle mandarle un mensaje"},
-    {"operator_ask", "preguntarle al operador consultar pedir permiso confirmar"},
+    {"operator_ask", "preguntale al de cabina consultale al operador pedile permiso al humano preguntarle al operador consultar pedir permiso confirmar"},
     {"operator_messages", "que dijo el operador leer sus mensajes"},
 
     // --- Graficos y rotulos ---------------------------------------------------
@@ -353,7 +356,7 @@ const Fila kPropias[] = {
 
     // --- Evento ---------------------------------------------------------------------
     {"evento_listar", "que eventos hay guiones guardados"},
-    {"evento_ver", "ver el guion del evento leer rundown"},
+    {"evento_ver", "que sigue en el guion que viene ahora proximo bloque proximo cue ver el guion del evento leer rundown"},
     {"evento_abrir", "abrir evento cargar guion"},
     {"evento_bloque", "bloque del guion seccion agregar mover"},
     {"evento_cue", "cue paso accion del guion agregar editar"},
@@ -389,10 +392,14 @@ const Fila kPropias[] = {
     {"rostro_autoalta", "anotar solo automatico registrar a todos los que pasen interruptor "
                         "switch dar de alta sola lobby los que llegan"},
     {"rostro_lobby", "quien espera quien llego quien esta en el lobby reconocer a los que entran "
-                     "sala de espera admitir invitado identificar antes de que entre"},
+                     "sala de espera identificar antes de que entre "
+                     // Al reescribir su descripcion para que no compitiera con
+                     // admitir, perdio las palabras que la encontraban. Las
+                     // etiquetas no dependen de como quedo redactada.
+                     "no me acuerdo como se llama quien es el que espera como se llama el que llego"},
     {"ventanas_ordenar", "ordenar acomodar las ventanas repartir entre monitores que no se "
                          "amontonen ordena las ventanas armar el puesto"},
-    {"monitor_identificar", "identificar pantallas cual es cada monitor numero nombre "
+    {"monitor_identificar", "que pantalla es cual cual es cada monitor identificar las pantallas identificar pantallas cual es cada monitor numero nombre "
                             "cual es el de la izquierda mostrar el numero"},
     {"monitors", "monitores conectados resolucion cuantas pantallas hay segundo monitor"},
 
@@ -417,7 +424,15 @@ const std::map<std::string, std::vector<std::string>>& tabla() {
             if (!cur.empty()) out.push_back(cur);
             return out;
         };
-        for (const Fila& f : kPropias) m[f.clave] = partir(f.terminos);
+        // SE SUMAN, no se pisan. Estaba con `=`, asi que dos entradas para la
+        // misma herramienta hacian que la segunda BORRARA a la primera, en
+        // silencio: quien agregaba etiquetas creyendo que sumaba, restaba.
+        // (Habia cuatro asi: monitors, participant_admit/reject/kick.)
+        for (const Fila& f : kPropias) {
+            std::vector<std::string> t = partir(f.terminos);
+            auto& dest = m[f.clave];
+            dest.insert(dest.end(), t.begin(), t.end());
+        }
         return m;
     }();
     return t;

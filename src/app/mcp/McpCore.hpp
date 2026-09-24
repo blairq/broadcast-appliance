@@ -261,6 +261,10 @@ class McpCore {
     /// solo las comunes: un rol desconocido es un rol sin permisos, no uno
     /// con todos.
     void setRoles(std::map<std::string, std::set<std::string>> categoriasPorRol, std::set<std::string> comunes);
+    /// Avisa si algun juego nombra una categoria que no usa ninguna
+    /// herramienta. Llamar CUANDO YA ESTAN TODAS REGISTRADAS: antes da falsos
+    /// positivos de las que se registran mas tarde.
+    void verificarJuegos() const;
     /// Si el rol puede ver y llamar a la herramienta. Sin rol, siempre.
     bool permitida(const Tool& t, const std::string& rol) const;
     bool hayRoles() const { return !roles_.empty(); }

@@ -336,7 +336,7 @@ void McpService::registerGraficoTools() {
         t.name = "rotulo_vincular";
         t.title = "Que un rotulo se escriba solo";
         t.category = "graficos";
-        t.description = "Ata los campos de un grafico a origenes que cambian solos.";
+        t.description = "Pone el nombre y el cargo de quien habla en pantalla, y lo mantiene al dia solo. Ata los campos de un grafico a origenes que cambian solos.";
         t.details =
             "Ejemplo, el caso tipico —el zocalo del que esta hablando—:\n\n"
             "    { \"fuente\": \"Zocalo\", \"grafico\": \"zocalo\",\n"

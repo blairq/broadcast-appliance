@@ -147,7 +147,8 @@ void McpService::registerRostroTools() {
         t.category = "rostros";
         t.readOnly = true;
         t.description =
-            "Busca caras en un video (claves de feeds_list: program, armada, guest:N...) y dice a quien "
+            "Solo IDENTIFICA, no pone nada en pantalla. Busca caras en un video "
+            "(claves de feeds_list: program, armada, guest:N...) y dice a quien "
             "se parece cada una, con cuanta confianza.";
         t.details =
             "`parecido` va de 0 a 1. Por encima de 0.45 es la misma persona con bastante margen "
@@ -630,7 +631,7 @@ void McpService::registerRostroTools() {
         t.category = "rostros";
         t.readOnly = true;
         t.description =
-            "Para cada posicion del lobby (la gente que espera para entrar a la sala): a quien "
+            "Solo IDENTIFICA, no deja entrar a nadie. Para cada posicion del lobby: a quien "
             "reconoce, si su camara sirve para guardarle la cara, y que pedirle si no.";
         t.details =
             "EL LOBBY ES EL MOMENTO. La gente llega antes de entrar y se queda quieta frente a su "

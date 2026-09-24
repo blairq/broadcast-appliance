@@ -258,7 +258,7 @@ void McpService::registerRoomTools() {
         t.title = "Hacer pasar a alguien del lobby";
         t.category = "sala";
         t.description =
-            "Admite a UNA persona que espera: deja el lobby y entra a la sala, con su camara y su "
+            "Hace PASAR a alguien que espera en el lobby: entra a la sala. Admite a UNA persona que espera: deja el lobby y entra a la sala, con su camara y su "
             "microfono.";
         t.details =
             "Es el final del camino de la atencion en el lobby: `rostro_lobby` / `chat_send` para "
@@ -633,7 +633,8 @@ void McpService::registerRoomTools() {
         t.title = "Red y acceso de invitados";
         t.category = "sala";
         t.readOnly = true;
-        t.description = "HTTPS, tunel WireGuard, IPs locales, enlaces y puertos WebRTC del gateway.";
+        t.description = "Como se llega por RED al aparato: HTTPS, tunel WireGuard, IPs locales, "
+                        "enlaces y puertos WebRTC del gateway.";
         t.run = [client](const json&, Done done) {
             client->get("/api/v1/network", [done](bool ok, const QJsonObject& r) {
                 done(ok ? ToolResult().data(fromQt(r)) : ToolResult::error("La sala no responde."));
@@ -789,7 +790,7 @@ void McpService::registerRoomTools() {
         t.name = "speaker_next";
         t.title = "Siguiente orador";
         t.category = "oradores";
-        t.description = "Pone al aire al siguiente de la fila (en modo 'uno a la vez', el que estaba sale).";
+        t.description = "Pasa al orador que SIGUE en la fila. Pone al aire al siguiente de la fila (en modo 'uno a la vez', el que estaba sale).";
         t.run = [post](const json&, Done done) {
             post("/api/v1/speakers/next", json::object(), "Siguiente al aire.", done);
         };

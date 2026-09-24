@@ -67,8 +67,23 @@ std::string sinTildes(const std::string& s) {
 std::vector<std::string> Indice::terminos(const std::string& s) {
     std::vector<std::string> out;
     std::string cur;
+    // PALABRAS VACIAS, y no un minimo de tres letras. Las etiquetas se escriben
+    // con frases de como habla una persona («que pantalla ES cual»), y ahi
+    // entran palabras que no distinguen nada; indexadas, buscar «es» traia
+    // media aplicacion, porque entre las etiquetas son raras y el IDF las
+    // premia justamente por eso.
+    //
+    // Subir el minimo a tres letras parecia la solucion y es peor: se lleva
+    // puestos «no» y «se», y en castellano «no se escucha» y «se escucha» son
+    // cosas distintas —justo las que hay que distinguir cuando alguien se
+    // queja—. Por eso van por lista, y «no» y «se» NO estan en ella.
+    static const std::set<std::string> vacias{"el", "la", "lo", "los", "las", "un", "una",
+                                              "unos", "unas", "de", "del", "al", "es", "son",
+                                              "en", "y", "o", "que", "con", "por"};
+    // «para» NO esta: en rioplatense es tambien el imperativo de parar —«para
+    // la grabacion»— y sacarlo dejaba a `record_stop` sin esa frase.
     const auto cerrar = [&] {
-        if (cur.size() >= 2) out.push_back(cur);
+        if (cur.size() >= 2 && vacias.count(cur) == 0) out.push_back(cur);
         cur.clear();
     };
     for (const char c : sinTildes(s)) {

@@ -217,7 +217,8 @@ void McpService::registerVentanaTools() {
         t.category = "ventanas";
         t.readOnly = true;
         t.description =
-            "Todas las ventanas de la app con su id, que tienen adentro, su tamaño y posicion, en que "
+            "El inventario de ventanas abiertas, con su id, "
+            "que tienen adentro, su tamaño y posicion, en que "
             "monitor estan y como estan (normal, maximizada, pantalla completa). Tambien los monitores.";
         t.details =
             "Los `id` son los que piden `ventana_mover` y `ventana_cerrar`:\n"
@@ -270,7 +271,7 @@ void McpService::registerVentanaTools() {
         t.title = "Mover, redimensionar o mandar a otro monitor";
         t.category = "ventanas";
         t.description =
-            "Acomoda una ventana: a otro monitor, a una zona de ese monitor, a un tamaño y posicion "
+            "Manda una ventana de la app a otro MONITOR de esta computadora, o a una zona de la pantalla. Es para acomodar el puesto de trabajo. Acomoda una ventana: a otro monitor, a una zona de ese monitor, a un tamaño y posicion "
             "exactos, o a pantalla completa. Los ids salen de ventana_listar.";
         t.details =
             "USA `zona` SIEMPRE QUE PUEDAS, no x/y/ancho/alto. La zona se calcula contra el area util "

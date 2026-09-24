@@ -154,10 +154,16 @@ std::vector<Rol> deFabrica() {
 const std::set<std::string>& Roles::juegoDelAsistente() {
     // Lo que se usa operando en vivo. Ver el comentario del header.
     static const std::set<std::string> c{
-        "escenas",   "fuentes",  "imagenes", "sala",     "oradores",  "salidas",
-        "graficos",  "rostros",  "interfaz", "ventanas", "operador",  "media",
-        "recetas",   "audio",    "config",   "sistema",  "alertas",   "pantallas",
-        "evento",    "prompter", "qr",       "youtube",  "twitch",    "facebook"};
+        // Los nombres salen de `addCategory`, NO de la intuicion: «media» y
+        // «sistema» parecian razonables y las categorias se llaman «medios» y
+        // «equipo». El asistente se quedo sin poder poner musica ni mirar el
+        // disco, y no fallaba nada: simplemente esas herramientas no existian
+        // para el. Ver el aviso de McpCore::setRoles.
+        "escenas",  "fuentes",   "imagenes", "sala",     "oradores", "salidas",
+        "graficos", "rostros",   "interfaz", "ventanas", "operador", "medios",
+        "recetas",  "audio",     "audio_rack", "config", "sistema",  "equipo",
+        "entradas", "alertas",   "pantallas", "evento",  "prompter", "qr",
+        "cuentas",  "asistente", "youtube",   "twitch",  "facebook"};
     return c;
 }
 

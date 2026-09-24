@@ -103,8 +103,7 @@ void McpService::registerRecetaTools() {
         t.title = "Recetas que hay";
         t.category = "recetas";
         t.readOnly = true;
-        t.description = "SOLO CONSULTA (no guarda nada; para guardar una receta es `receta_guardar`, "
-                        "para correrla `receta_correr`). Las recetas guardadas, con sus pasos.";
+        t.description = "Que recetas hay disponibles para correr, con su nombre.";
         t.details = "Antes de armar una nueva, fijate si ya hay una que haga eso: repetidas, "
                     "despues nadie sabe cual es la buena.";
         t.run = [&rt](const json&, Done done) {
@@ -118,7 +117,7 @@ void McpService::registerRecetaTools() {
         t.name = "receta_guardar";
         t.title = "Guardar una receta";
         t.category = "recetas";
-        t.description = "Guarda (o reemplaza) una serie de pasos con un nombre.";
+        t.description = "GUARDA una receta: una secuencia de pasos para repetirla despues igual. Guarda (o reemplaza) una serie de pasos con un nombre.";
         t.details =
             "Un paso es `{ \"tool\": \"<herramienta>\", \"args\": { ... } }`. Los pasos corren EN "
             "ORDEN y si uno falla la receta se frena ahi.\n\n"

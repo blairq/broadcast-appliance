@@ -80,8 +80,7 @@ void McpService::registerAudioTools() {
         t.category = "audio_rack";
         t.readOnly = true;
         t.description =
-            "SOLO CONSULTA (no toca el audio; para silenciar o cambiar volumen es `audio_set`, "
-            "para medir que esta pasando `audio_measure`). "
+            "El inventario de fuentes con SONIDO. "
             "Todas las fuentes con audio (microfonos, placas, videos con sonido, invitados...), si tienen "
             "rack, cuantos modulos y el nivel de salida.";
         t.run = [mgr](const json&, Done done) {
@@ -477,7 +476,18 @@ void McpService::registerAudioTools() {
         std::string presets;
         for (auto it = type->presets.begin(); it != type->presets.end(); ++it)
             presets += (presets.empty() ? "" : ", ") + it.key();
-        t.description = type->help +
+        // Con las palabras del que se queja, no las del manual. `type->help`
+        // describe el modulo; esto dice CUANDO se usa, que es lo que el modelo
+        // tiene que emparejar con «los graves suenan mal».
+        const std::string cuando =
+            std::string(f.module) == "eq"        ? "Ecualiza: cuando los graves o los agudos suenan mal, "
+                                                   "retumba, suena metalico o apagado. "
+            : std::string(f.module) == "gate"    ? "Compuerta: cierra el microfono cuando nadie habla, "
+                                                   "para que no se escuche todo lo de alrededor. "
+            : std::string(f.module) == "limitador" ? "Limitador: para que no sature ni pase de cierto nivel. "
+            : std::string(f.module) == "compresor" ? "Compresor: empareja lo muy fuerte con lo muy bajo. "
+                                                   : std::string();
+        t.description = cuando + type->help +
                         " Sin parametros solo lee. Devuelve valores y medidores (cambioDb = lo que "
                         "el modulo baja/sube ahora)." +
                         (presets.empty() ? std::string() : " Presets: " + presets + ".");
@@ -519,6 +529,7 @@ void McpService::registerAudioTools() {
         t.category = "audio";
         t.readOnly = true;
         t.description =
+            "Numeros crudos del espectro en un punto del rack, para verificar un ajuste. "
             "Analiza el audio en un punto del rack (\"in\" = la fuente cruda, \"out\" = lo que sale, o un "
             "nodo "
             "analizador) durante `segundos` (0-30; 0 = lo ya medido): pico, RMS, LUFS (momentaneo, corto, "
@@ -578,7 +589,7 @@ void McpService::registerAudioTools() {
         t.category = "audio";
         t.readOnly = true;
         t.description =
-            "Mide copias de los modulos con señales de prueba SIN tocar lo que sale al aire: `tipo: "
+            "Que esta pasando con el audio AHORA: es lo primero ante un acople, un pitido, saturacion, un zumbido, o cuando alguien no se escucha o no se escucha nada al aire. Mide copias de los modulos con señales de prueba SIN tocar lo que sale al aire: `tipo: "
             "respuesta` "
             "(ganancia por tercio de octava con un seno a `nivel_db`: para ver un EQ o un filtro) o `curva` "
             "(salida vs entrada de 1 kHz de -80 a 0 dBFS: para ver donde y cuanto actua un gate/compresor). "

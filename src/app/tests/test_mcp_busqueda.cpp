@@ -277,6 +277,13 @@ int main() {
         std::printf("  bateria (%d preguntas): primera %d/%d | primeras 3 %d/%d | primeras 8 %d/%d\n",
                     n, en1, n, en3, n, en8, n);
         for (const std::string& q : perdidas) std::printf("    no la encuentra: \"%s\"\n", q.c_str());
+        // Las que llegan pero NO primeras: no son un fallo —el modelo recibe
+        // las ocho— pero cuanto mas arriba, mejor elige. Es la lista de trabajo
+        // para las etiquetas.
+        for (const Caso& c : casos) {
+            const int p = puestoDeAlguna(ic, c, 8);
+            if (p > 0) std::printf("    puesto %d: \"%s\"\n", p + 1, c.pregunta.c_str());
+        }
         // El piso es «entre las primeras 8», porque ESO es lo que se le manda
         // al modelo. Si no esta ahi, el modelo no puede elegirla: no la vio.
         CHECK(n >= 50, "el corpus tiene suficientes preguntas como para medir algo");

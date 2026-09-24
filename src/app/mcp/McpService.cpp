@@ -376,6 +376,8 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
     // McpCore en cada initialize, porque depende del rol del cliente) y
     // cuesta unos 400 tokens.
     applySecurity();
+    // Con todas las herramientas ya registradas (ver verificarJuegos).
+    core_.verificarJuegos();
 }
 
 bool McpService::roomHasUntrusted() {
@@ -617,7 +619,9 @@ void McpService::registerTools() {
         t.readOnly = true;
         t.idempotent = true;
         t.description =
-            "Todas las escenas con sus fuentes (de abajo hacia arriba), cual esta al aire y en que "
+            "El listado de escenas que existen: cual esta al aire, en que carpeta esta cada una. "
+            "Para el contenido de UNA escena, capa por capa, no es esta. "
+            "Todas las escenas con sus capas (de abajo hacia arriba), cual esta al aire y en que "
             "carpeta esta cada una (`folder`, \"\" = suelta). Las carpetas solo ordenan la lista de la "
             "pestaña Escenas: no cambian nada de la emision.\n\n"
             "`live` es la que esta AL AIRE; `armada` es la del bus de preview, la que sale con el "
@@ -690,7 +694,7 @@ void McpService::registerTools() {
         t.title = "Poner una escena al aire (corte directo)";
         t.category = "escenas";
         t.description =
-            "Cambia la escena del programa (con la transicion configurada). Lo que se ve y oye en la "
+            "Pone una escena al aire YA, sin pasar por el preview: es «corta a la camara 2», «pone la apertura». Cambia la escena del programa (con la transicion configurada). Lo que se ve y oye en la "
             "transmision cambia EN EL ACTO, sin pasar por el bus de preview.";
         t.details =
             "Es el corte de urgencia: sale ya. Para lo demas, la forma de trabajar de una mesa es "
@@ -1066,7 +1070,7 @@ void McpService::registerTools() {
         t.readOnly = true;
         t.idempotent = true;
         t.description =
-            "Fuentes de una escena (de abajo hacia arriba) con tipo, visibilidad, ubicacion en el "
+            "Lo que hay ADENTRO de una escena: sus capas, una por una. Fuentes de una escena (de abajo hacia arriba) con tipo, visibilidad, ubicacion en el "
             "lienzo, volumen y silencio.";
         t.inputSchema = {{"type", "object"}, {"properties", {{"scene", sceneProp}}}};
         t.run = [&rt, sceneOr, sceneExists, noScene](const json& a, Done done) {
@@ -1352,7 +1356,8 @@ void McpService::registerTools() {
         t.category = "audio";
         t.readOnly = true;
         t.description =
-            "SOLO CONSULTA los niveles del mezclador. NO cambia nada: para silenciar, subir o bajar es `audio_set`; para entender que esta pasando, `audio_measure`. Fuentes de audio con volumen (dB), silencio, si se esta escuchando por el monitor "
+            "Foto de los niveles del mezclador, para leer. "
+            "Fuentes de audio con volumen (dB), silencio, si se esta escuchando por el monitor "
             "(`escuchando`, ver audio_escuchar) y nivel pico actual (dBFS), mas el nivel del "
             "programa. -100 = silencio; cerca de 0 = saturando.";
         t.run = [&rt, &vm](const json&, Done done) {
@@ -1380,7 +1385,7 @@ void McpService::registerTools() {
         t.title = "Volumen / silencio";
         t.category = "audio";
         t.description =
-            "Cambia el volumen (dB, 0 = sin cambio, negativo baja) y/o silencia una fuente de audio.";
+            "Silencia, sube o baja el audio de una fuente. Es con lo que se CORTA un acople, se baja lo que satura, se sube lo que no se escucha o se cierra un microfono que quedo abierto. Cambia el volumen (dB, 0 = sin cambio, negativo baja) y/o silencia una fuente de audio.";
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"name", {{"type", "string"}}},
@@ -1527,7 +1532,7 @@ void McpService::registerTools() {
         t.title = "Cortar la transmision";
         t.category = "salidas";
         t.destructive = true;
-        t.description = "Detiene la transmision en vivo.";
+        t.description = "BAJA del aire: corta la transmision que esta saliendo. Detiene la transmision en vivo.";
         t.run = [&rt, &vm](const json&, Done done) {
             rt.stopStreaming();
             emit vm.statusChanged();
@@ -1596,7 +1601,8 @@ void McpService::registerTools() {
         t.name = "record_start";
         t.title = "Grabar";
         t.category = "salidas";
-        t.description = "Empieza a grabar el programa a disco (carpeta y formato de la configuracion).";
+        t.description = "EMPEZAR a grabar el programa en disco, con la carpeta y el formato de la "
+                        "configuracion. Es para cuando todavia no se esta grabando.";
         t.run = [&rt, &vm](const json&, Done done) {
             if (rt.engine().status().recording) return done(ToolResult::ok("Ya esta grabando."));
             if (!rt.startRecording()) return done(ToolResult::error("No arranco: " + rt.lastError()));
@@ -1610,7 +1616,7 @@ void McpService::registerTools() {
         t.name = "record_stop";
         t.title = "Detener grabacion";
         t.category = "salidas";
-        t.description = "Detiene la grabacion (el archivo se cierra bien).";
+        t.description = "PARA de grabar: cierra el archivo y deja de escribir en disco.";
         t.run = [&rt, &vm](const json&, Done done) {
             rt.stopRecording();
             emit vm.statusChanged();

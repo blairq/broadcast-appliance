@@ -218,7 +218,7 @@ void McpService::registerImageTools() {
         t.category = "imagenes";
         t.readOnly = true;
         t.description =
-            "Imagen de lo que esta saliendo al aire ahora (la escena del programa, render completo de "
+            "Una foto de lo que esta saliendo al aire AHORA: para ver si se ve negro, congelado o mal encuadrado. Imagen de lo que esta saliendo al aire ahora (la escena del programa, render completo de "
             "libobs). Por defecto 1280 px de ancho, JPEG.";
         t.inputSchema = withImageProps(json::object());
         t.run = [&rt, &vm, &core](const json& a, Done done) {
@@ -512,8 +512,8 @@ void McpService::registerImageTools() {
         t.category = "imagenes";
         t.readOnly = true;
         t.description =
-            "Mira UNA imagen (una camara, el programa, una escena o la propia app) y contesta la "
-            "pregunta concreta que le hagas. Devuelve TEXTO, nunca la imagen.";
+            "Mira lo que se VE (una camara, el programa, una escena o la propia app) y contesta la "
+            "pregunta concreta que le hagas. Solo video, nada de audio. Devuelve TEXTO.";
         t.details =
             "ESTA ES LA UNICA FORMA DE MIRAR, y no es un rodeo: tu conversacion aguanta muy pocas "
             "imagenes y, pasadas esas, se cuelga —no da error, se cuelga, en el medio de una "

@@ -47,9 +47,8 @@ void McpService::registerPantallaTools() {
         t.title = "Que pantallas hay";
         t.category = "pantallas";
         t.readOnly = true;
-        t.description = "SOLO CONSULTA (no muestra nada; para poner algo en una pantalla es "
-                        "`pantalla_mostrar`). Las pantallas conocidas con su estado (libre, mostrando, ocupada con otra cosa, "
-                        "no contesta) y que tienen puesto. Tambien que se puede mostrar en ellas.";
+        t.description = "Que televisores conoce el sistema y como esta cada uno: libre, ocupado por nosotros, "
+                        "tomado por otra aplicacion, o sin responder.";
         t.details = "`estado` dice mucho: `ocupada` es que el televisor esta con otra aplicacion (Netflix, "
                     "YouTube) y mandarle algo se la va a pisar — avisale al operador antes. `apagada` es "
                     "que no contesta: puede estar apagado de verdad o en otra red.\n\n"
@@ -106,7 +105,7 @@ void McpService::registerPantallaTools() {
         t.title = "Mostrar algo en una pantalla";
         t.category = "pantallas";
         t.description =
-            "Le manda un contenido a una pantalla. `tipo`: mensaje (texto grande), qr (un QR a pantalla "
+            "MUESTRA algo (un QR, una pagina, un cartel) en un televisor de la red. Le manda un contenido a una pantalla. `tipo`: mensaje (texto grande), qr (un QR a pantalla "
             "completa), reloj, url (una direccion cualquiera), prompter (la vista del orador), carrusel "
             "(una rotacion ya armada), programa (lo que sale al aire, en vivo por WebRTC) o tally (rojo "
             "si esa camara esta al aire, verde si esta armada). Los campos de cada tipo salen de "

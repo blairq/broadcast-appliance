@@ -33,9 +33,8 @@ void McpService::registerAgenteTools() {
         t.title = "Roles automaticos";
         t.category = "agentes";
         t.readOnly = true;
-        t.description = "SOLO CONSULTA (no le encarga nada a nadie; para eso es `agente_encargar`). "
-                        "Los roles con su estado: activo, proveedor y modelo, que categorias ven, que "
-                        "disparadores atienden, si tienen una corrida en curso o en cola.";
+        t.description = "Como esta configurado cada rol: si esta activo, con que proveedor y modelo, que "
+                        "categorias ve, que eventos atiende y si esta trabajando ahora.";
         t.run = [&d](const json&, Done done) {
             json r = d.roles().aJson();
             for (auto& x : r) {
@@ -91,7 +90,7 @@ void McpService::registerAgenteTools() {
         // que es justo el caso para el que existe.
         t.mediated = true;
         t.description =
-            "Encola un encargo para otro rol y vuelve en el acto con el id de la corrida (no espera el "
+            "Le ENCARGA una tarea a otro agente, que la hace solo y contesta. Encola un encargo para otro rol y vuelve en el acto con el id de la corrida (no espera el "
             "resultado: llega a la pagina Agentes y a agente_corrida). Ej.: la recepcion le pide al "
             "tecnico que revise los niveles de un invitado. Un encargo de otro agente NO puede encargar a "
             "un tercero.";

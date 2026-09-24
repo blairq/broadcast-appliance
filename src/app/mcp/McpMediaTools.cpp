@@ -146,7 +146,7 @@ void McpService::registerMediaTools() {
         t.category = "medios";
         t.readOnly = true;
         t.description =
-            "SOLO BUSCA (no lo pone en ninguna escena; para eso es `media_use`). "
+            "Encuentra la RUTA de un archivo por su nombre. "
             "Busca por nombre en todas las carpetas de medios (sin importar mayusculas, tildes ni guiones): "
             "\"logo sponsor\" encuentra \"Logo-Sponsor_2026.png\". Los mejores primero; confirma una imagen "
             "con media_view antes de usarla.";
@@ -243,7 +243,7 @@ void McpService::registerMediaTools() {
         t.title = "Usar un archivo de medios en una escena";
         t.category = "medios";
         t.description =
-            "Pone una imagen (logo, placa, fondo), un video o un audio de las carpetas de medios en una "
+            "PONE un archivo —musica de fondo, un video, una imagen— en una escena. Pone una imagen (logo, placa, fondo), un video o un audio de las carpetas de medios en una "
             "escena, "
             "en la ubicacion pedida (preset como pip-tr = arriba a la derecha, o {x,y,w,h}). Las imagenes "
             "conservan su proporcion dentro del lugar. Verifica con capture_source.";

@@ -21,8 +21,16 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parent.parent
 CORPUS = RAIZ / "src/app/tests/datos/preguntas.json"
 
+# El prompt del banco. MEDIDO: sin la tercera linea el modelo elige una y otra
+# vez la herramienta que LISTA en vez de la que HACE —`receta_listar` cuando le
+# piden guardar una receta—. No es falta de informacion: la correcta le llega
+# primera. Es que ante la duda prefiere mirar antes que actuar, y hay que
+# decirselo.
 SISTEMA = ("Sos el asistente de un estudio de television en vivo. "
-           "Usa la herramienta que corresponda a lo que te piden. Contesta corto.")
+           "Usa la herramienta que corresponda a lo que te piden. Contesta corto. "
+           "Si te piden HACER algo, llama directamente a la herramienta que lo hace: "
+           "no listes catalogos ni inventarios primero. Los listados son para cuando "
+           "te preguntan QUE HAY, no para cuando te piden una accion.")
 
 
 def mcp(bundle, token, metodo, params=None, rol=""):
@@ -72,6 +80,11 @@ def main():
 
     ok = varias = 0
     tiempos, tokens = [], []
+    # QUIEN LE ROBA A QUIEN. La matriz de confusion es el mapa de donde se
+    # solapan los dominios DE VERDAD: no lo que uno cree al leer las fichas,
+    # sino lo que el modelo confunde teniendo las dos al lado. Cada par que
+    # aparece dos o mas veces es un par de descripciones que hay que separar.
+    confusion = {}
     for c in casos:
         if a.todas:
             sel = [como_openai(t) for t in todas.values()]
@@ -110,6 +123,7 @@ def main():
         ok += bien
         if not bien:
             print(f"  ✗ {c['pregunta'][:44]:46s} -> {elegida}  (se esperaba {'/'.join(c['herramientas'])})")
+            confusion.setdefault((c["herramientas"][0], elegida), []).append(c["pregunta"])
 
     n = len(casos)
     print()
@@ -119,6 +133,16 @@ def main():
     if tokens:
         print(f"  prompt_tokens promedio: {sum(tokens)//len(tokens)}")
     print(f"  latencia: mediana {sorted(tiempos)[len(tiempos)//2]:.1f}s  max {max(tiempos):.1f}s")
+    if confusion:
+        print()
+        print("  DONDE SE SOLAPAN (esperada <- la que se la llevo):")
+        ladronas = {}
+        for (esperada, elegida), qs in confusion.items():
+            ladronas.setdefault(elegida, []).extend(qs)
+        for elegida, qs in sorted(ladronas.items(), key=lambda x: -len(x[1])):
+            print(f"    {len(qs)}x  {elegida}")
+            for q in qs:
+                print(f"           «{q}»")
     return 0 if ok == n else 1
 
 

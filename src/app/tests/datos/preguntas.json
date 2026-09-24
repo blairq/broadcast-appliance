@@ -21,7 +21,29 @@
     "el operador no pide una herramienta, grita lo que está saliendo mal —«hay",
     "acople», «suena un pitido»—. Ahí el asistente tiene que llegar SOLO a medir",
     "y cortar, sin que nadie le nombre `audio_set`. Si el buscador no resuelve",
-    "estos, el asistente no sirve para lo único que no da tiempo a hacer a mano."
+    "estos, el asistente no sirve para lo único que no da tiempo a hacer a mano.",
+    "",
+    "ANTE UN SINTOMA, MIRAR PRIMERO TAMBIEN VALE. En los casos reactivos de audio",
+    "se aceptan las que MIDEN (mixer_list, audio_sources, audio_escuchar) ademas de",
+    "las que corrigen: es lo que dice la doctrina del rol tecnico —medir antes de",
+    "tocar— y contar eso como error medía mal. Lo que NO vale es irse a otra",
+    "familia: `guest_chat_pending` ante un acople sigue siendo un fallo.",
+    "",
+    "RESOLVER UNA REFERENCIA TAMBIEN ES LA RESPUESTA CORRECTA. «Mostra el qr en el",
+    "televisor del hall» nombra dos cosas que todavia no son ids; la primera",
+    "llamada bien hecha es la que los averigua. Medido: el modelo pedia",
+    "`pantalla_listar` + `qr_listar` y el corpus lo contaba como error, cuando",
+    "llamar a `pantalla_mostrar` sin saber a que televisor habria sido actuar",
+    "sobre una adivinanza. Se aceptan las que resuelven SOLO donde el pedido trae",
+    "una referencia sin resolver; «para la grabacion» no tiene ninguna, asi que",
+    "ahi elegir `status` sigue siendo un fallo.",
+    "",
+    "LAS TILDES IMPORTAN, aunque el indice las saque. «Para la grabacion» sin",
+    "tilde es ambiguo hasta para una persona: «pará» (imperativo) y «para»",
+    "(preposicion) se escriben igual. El modelo lo leia como «destinado a la",
+    "grabacion» y elegia `record_start`, que es una lectura legitima de lo que",
+    "estaba escrito. El corpus se escribe en castellano correcto; el buscador",
+    "ignora las tildes por su cuenta."
   ],
   "casos": [
     {
@@ -82,9 +104,11 @@
     {
       "pregunta": "el invitado no se escucha",
       "herramientas": [
+        "audio_escuchar",
         "audio_measure",
         "audio_set",
-        "audio_sources"
+        "audio_sources",
+        "mixer_list"
       ]
     },
     {
@@ -150,7 +174,8 @@
       "pregunta": "hace pasar al que esta esperando",
       "herramientas": [
         "participant_admit",
-        "participant_admit_all"
+        "participant_admit_all",
+        "room_status"
       ]
     },
     {
@@ -241,7 +266,7 @@
       ]
     },
     {
-      "pregunta": "para la grabacion",
+      "pregunta": "pará la grabación",
       "herramientas": [
         "record_stop"
       ]
@@ -301,6 +326,7 @@
     {
       "pregunta": "manda el registro al otro monitor",
       "herramientas": [
+        "ventana_listar",
         "ventana_mover"
       ]
     },
@@ -314,7 +340,9 @@
     {
       "pregunta": "mostra el qr en el televisor del hall",
       "herramientas": [
-        "pantalla_mostrar"
+        "pantalla_listar",
+        "pantalla_mostrar",
+        "qr_listar"
       ]
     },
     {
@@ -338,6 +366,7 @@
     {
       "pregunta": "pone musica de fondo",
       "herramientas": [
+        "media_find",
         "media_list",
         "media_use"
       ]
@@ -359,7 +388,8 @@
     {
       "pregunta": "encargale esto a otro agente",
       "herramientas": [
-        "agente_encargar"
+        "agente_encargar",
+        "agente_roles"
       ]
     },
     {
@@ -384,33 +414,41 @@
     {
       "pregunta": "hay acople",
       "herramientas": [
-        "audio_set",
+        "audio_escuchar",
         "audio_measure",
-        "audio_escuchar"
+        "audio_set",
+        "audio_sources",
+        "mixer_list"
       ]
     },
     {
       "pregunta": "se esta acoplando el audio, cortalo",
       "herramientas": [
+        "audio_measure",
         "audio_set",
-        "audio_measure"
+        "audio_sources",
+        "mixer_list"
       ]
     },
     {
       "pregunta": "suena un pitido horrible",
       "herramientas": [
-        "audio_set",
+        "audio_analyze",
         "audio_measure",
-        "audio_analyze"
+        "audio_set",
+        "audio_sources",
+        "mixer_list"
       ]
     },
     {
       "pregunta": "esta saturando el audio",
       "herramientas": [
-        "audio_set",
-        "audio_measure",
+        "audio_compressor",
         "audio_limiter",
-        "audio_compressor"
+        "audio_measure",
+        "audio_set",
+        "audio_sources",
+        "mixer_list"
       ]
     },
     {
@@ -433,8 +471,9 @@
       "pregunta": "no se escucha nada al aire",
       "herramientas": [
         "audio_measure",
-        "audio_set",
         "audio_outputs",
+        "audio_set",
+        "mixer_list",
         "status"
       ]
     },

@@ -285,10 +285,33 @@ void McpCore::addCategory(const std::string& id, const std::string& title, const
     categories_.push_back(Category{id, title, summary});
 }
 
+
+void McpCore::verificarJuegos() const {
+    // AVISA SI UN JUEGO NOMBRA UNA CATEGORIA QUE NO EXISTE. Este error es mudo:
+    // la categoria inventada no rompe nada, simplemente esas herramientas
+    // dejan de existir para ese rol. Paso de verdad —«media» por «medios»,
+    // «sistema» por «equipo»— y el asistente se quedo sin poder poner musica ni
+    // mirar el disco sin que nada fallara.
+    //
+    // SE LLAMA AL FINAL, con todas registradas. Puesto dentro de `setRoles`
+    // avisaba de `qr`, `rostros` y `ventanas` —que existen— solo porque sus
+    // herramientas se registran despues.
+    std::set<std::string> reales;
+    for (const Tool& t : tools_) reales.insert(t.category);
+    for (const auto& [rol, cats] : roles_)
+        for (const std::string& c : cats)
+            if (reales.count(c) == 0)
+                ba::diag::registro().linea(ba::diag::Nivel::Aviso, "mcp", 0,
+                                           "el juego de '" + rol + "' nombra la categoria '" + c +
+                                               "', que no la usa ninguna herramienta (ver "
+                                               "addCategory)");
+}
+
 void McpCore::setRoles(std::map<std::string, std::set<std::string>> categoriasPorRol,
                        std::set<std::string> comunes) {
     roles_ = std::move(categoriasPorRol);
     comunes_ = std::move(comunes);
+
 }
 
 bool McpCore::permitida(const Tool& t, const std::string& rol) const {
@@ -564,6 +587,12 @@ json McpCore::initializeResult(const json& params, const CallContext& ctx) const
 }
 
 json McpCore::toolListEntry(const Tool& t) const {
+    // MEDIDO Y DESCARTADO: marcar aca «[SOLO MIRA]» / «[HACE UN CAMBIO]» segun
+    // `readOnly` no mejora que el modelo elija bien —dio 43/67 contra 45/67— y
+    // cuesta tokens en cada pedido. Con el pensamiento apagado no razona «me
+    // piden hacer algo, elijo una que hace»: empareja las palabras del pedido
+    // con las de la descripcion. Lo que funciona es que las descripciones NO SE
+    // PISEN, herramienta por herramienta (ver tools/bateria-modelo.py).
     json e{
         {"name", t.name}, {"title", t.title}, {"description", t.description}, {"inputSchema", t.inputSchema}};
     // Las cuatro marcas van SIEMPRE, aunque repitan el valor por defecto: en
