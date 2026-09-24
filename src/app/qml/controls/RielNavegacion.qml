@@ -20,10 +20,11 @@
 // ensancha y no dos widgets distintos: el icono queda en la misma x, y el
 // nombre aparece a su derecha, en el lugar que antes no existía.
 //
-// LAS SECCIONES SE ABREN AL RECORRERLA. Con la barra abierta, apoyarse en el
-// título de un grupo abre ese grupo y cierra el anterior: nunca hay diecinueve
-// renglones a la vez. El grupo de la página donde uno está es el que viene
-// abierto, y al soltar la barra se vuelve a él.
+// LOS GRUPOS QUEDAN TODOS ABIERTOS. Se probó lo otro —cerrar los demás al ir
+// recorriendo, para que nunca hubiera diecinueve renglones a la vez— y en la
+// mano no funciona: cerrar un grupo sube de golpe todo lo que tiene debajo, así
+// que el renglón al que ibas se corre justo cuando vas a hacer clic. Los
+// títulos de grupo alcanzan para separar, que era lo que hacía falta.
 //
 // EN HORIZONTAL NO HAY ÁRBOL. Con la barra arriba o abajo lo que sobra es
 // ancho y lo que falta es alto: un árbol ahí sería un menú colgando. En esas
@@ -93,25 +94,11 @@ Item {
     Timer {
         id: cerrarTimer
         interval: 220
-        onTriggered: {
-            riel.abierta = false
-            riel.grupoAbierto = riel.grupoDeLaPagina()
-        }
+        onTriggered: riel.abierta = false
     }
     // Si se apaga la expansión (o se pasa a horizontal) con la barra abierta,
     // se cierra sola: si no, queda ancha para siempre y sin manera de cerrarla.
     onPuedeAbrirChanged: if (!puedeAbrir) abierta = false
-
-    // --- Qué sección está abierta -------------------------------------------
-    property int grupoAbierto: 0
-    function grupoDeLaPagina() {
-        for (let g = 0; g < grupos.length; ++g)
-            for (let i = 0; i < grupos[g].items.length; ++i)
-                if (grupos[g].items[i].page === paginaActual) return g
-        return 0
-    }
-    onPaginaActualChanged: if (!abierta) grupoAbierto = grupoDeLaPagina()
-    Component.onCompleted: grupoAbierto = grupoDeLaPagina()
 
     // --- La elevación --------------------------------------------------------
     // Qt 6.6 no tiene RectangularShadow: la sombra se dibuja con MultiEffect
@@ -146,6 +133,24 @@ Item {
         border.color: riel.abierta ? Qt.rgba(1, 1, 1, 0.20) : Theme.glassBorder
         Behavior on color { ColorAnimation { duration: 170 } }
         Behavior on radius { NumberAnimation { duration: 170 } }
+    }
+
+    // El cepo: se come TODO clic que caiga en la barra y no haya agarrado nadie
+    // más arriba.
+    //
+    // Un Rectangle tapa a la vista pero no al mouse, así que sin esto un clic
+    // en el título de un grupo, en el hueco entre dos renglones o en el aire
+    // que queda abajo atravesaba la barra y apretaba lo que hubiera en la
+    // página de atrás. Abierta tapa un pedazo grande de pantalla, así que
+    // apretabas un botón que ni estabas viendo.
+    //
+    // Va DEBAJO de todo lo demás: los botones de arriba agarran lo suyo
+    // primero y acá cae solo lo que nadie quiso. No escucha el hover, para no
+    // pisarle el abrir y cerrar a los handlers de arriba.
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.AllButtons
+        onWheel: (w) => w.accepted = true
     }
 
     // --- Contenido -----------------------------------------------------------
@@ -232,14 +237,13 @@ Item {
                         id: grupo
                         required property var modelData
                         required property int index
-                        readonly property bool desplegado: !riel.abierta || riel.grupoAbierto === grupo.index
                         Layout.fillWidth: riel.vert
                         Layout.fillHeight: !riel.vert
                         spacing: 0
 
                         // --- El encabezado del grupo --------------------------
                         // Cerrada es el separador fino de siempre; abierta es el
-                        // título, y apoyarse en él abre la sección.
+                        // nombre del grupo. No se aprieta: solo separa.
                         Item {
                             Layout.fillWidth: riel.vert
                             Layout.preferredWidth: riel.vert ? -1 : (visible ? 9 : 0)
@@ -262,43 +266,27 @@ Item {
                                 visible: riel.abierta
                                 spacing: 6
                                 Text {
-                                    // Apunta abajo cuando está desplegado.
-                                    text: "▸"
-                                    color: grupo.desplegado ? Theme.text : Theme.textFaint
-                                    font.pixelSize: 10
-                                    rotation: grupo.desplegado ? 90 : 0
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    Behavior on rotation { NumberAnimation { duration: 140 } }
-                                }
-                                Text {
                                     text: grupo.modelData.titulo
-                                    color: grupo.desplegado ? Theme.text : Theme.textDim
+                                    color: Theme.textDim
                                     font { family: Theme.font; pixelSize: 11; weight: Font.DemiBold
                                            capitalization: Font.AllUppercase; letterSpacing: 0.6 }
                                     anchors.verticalCenter: parent.verticalCenter
                                 }
                             }
-                            HoverHandler {
-                                enabled: riel.abierta
-                                // Al apoyarse, esta sección se abre y la otra se
-                                // cierra: nunca hay diecinueve renglones juntos.
-                                onHoveredChanged: if (hovered) riel.grupoAbierto = grupo.index
-                            }
                         }
 
                         // --- Las páginas del grupo ----------------------------
-                        // Se pliega animando la altura. `clip` es lo que hace
-                        // que al plegarse los renglones se corten en vez de
-                        // asomar por encima del grupo siguiente.
+                        // Todas a la vista, siempre. Se probó cerrando las
+                        // demás al recorrer —para que nunca hubiera diecinueve
+                        // renglones juntos— y en la mano no funciona: cerrar un
+                        // grupo sube de golpe todo lo que tiene debajo, así que
+                        // el renglón al que ibas se corre justo cuando vas a
+                        // hacer clic. Diecinueve renglones quietos se leen
+                        // mejor que ocho que se mueven.
                         Item {
                             Layout.fillWidth: riel.vert
-                            clip: true
                             implicitWidth: items.implicitWidth
-                            implicitHeight: grupo.desplegado ? items.implicitHeight : 0
-                            Behavior on implicitHeight {
-                                enabled: riel.abierta
-                                NumberAnimation { duration: 160; easing.type: Easing.OutCubic }
-                            }
+                            implicitHeight: items.implicitHeight
 
                             GridLayout {
                                 id: items
