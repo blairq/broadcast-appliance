@@ -60,7 +60,7 @@ que está afuera. Un formato mal escrito se rechaza en vez de guardarse, y la
 validación es de calendario y no de rango —un 31 de abril pasa cualquier
 chequeo de «día entre 1 y 31»—. En `evento_guardar` y en la página del evento.
 
-## 2. El padrón — **hecho el modelo y el MCP**; falta que lo llene la puerta
+## 2. El padrón — **hecho**
 
 Lo que había (`evento_invitados` / `Evento::autoAceptar`) era una lista blanca
 del lobby indexada por rostro. Sirve para *dejar pasar*; no sirve para *organizar*.
@@ -111,8 +111,8 @@ Tres decisiones que quedaron escritas en el código:
   solo: dejar pasar a quien *escribió* un nombre es dejar pasar a cualquiera
   que sepa escribirlo.
 
-**Falta** que se llene solo: hoy hay que anotar y acreditar a mano (o pedírselo
-al asistente). Eso es el punto 3.
+Se llena solo desde la puerta y desde el lobby (§3), y a mano o por el
+asistente cuando hace falta.
 
 **Unificado con `Evento::autoAceptar`:** la lista blanca vieja del lobby se
 vuelca al padrón la primera vez que se abre el evento y se apaga. Con ella se
