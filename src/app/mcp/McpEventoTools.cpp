@@ -25,6 +25,7 @@
 #include "mcp/McpCore.hpp"
 #include "evento/Evento.hpp"
 #include "ui/EventoViewModel.hpp"
+#include "ui/StudioViewModel.hpp"
 
 namespace ba::app::mcp {
 namespace {
@@ -46,7 +47,8 @@ QVariantMap aVariantMap(const json& j) {
 
 void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe);
 
-void registerEventoTools(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
+void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm,
+                         FichaDe fichaDe) {
     core.addCategory("evento", "Guion del evento",
                      "El storyboard: bloques, cues, tiempos previstos y el recorrido en vivo.");
 
@@ -493,6 +495,201 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
         core.addTool(std::move(t));
     }
 
+    {
+        Tool t;
+        t.name = "evento_armar";
+        t.title = "Armar un evento entero de una vez";
+        t.category = "evento";
+        t.description =
+            "Crea el evento con su fecha, sus bloques con tiempos y su lista de gente, todo en una "
+            "llamada.";
+        t.details =
+            "ES PARA ARMAR CONVERSANDO. El que organiza cuenta lo que va a pasar —«asamblea del "
+            "consorcio, el jueves 8 a las 19, dos horas, presencial y por videollamada, hay que votar "
+            "tres puntos, son 40 propietarios»— y esto lo deja escrito de una.\n\n"
+            "PROPONE, NO SACA AL AIRE. Deja el evento guardado para revisar. Armar un evento entero "
+            "de una orden es justo el caso donde una equivocacion cuesta caro y se descubre en vivo, "
+            "asi que MOSTRALE AL OPERADOR lo que vas a armar ANTES de llamar a esto, y despues "
+            "corre `evento_revisar` y contale lo que salga.\n\n"
+            "No reemplaza nada: si ya hay un evento con ese nombre, crea otro con un sufijo. Nunca "
+            "pisa un guion existente.\n\n"
+            "Los bloques van en orden, con sus cues. Cada cue necesita lo suyo segun el tipo (una "
+            "escena necesita el nombre de la escena, un video el archivo): lo que falte queda "
+            "marcado y `evento_revisar` lo lista. Un bloque sin cues sirve igual como marcador de "
+            "tramo con su duracion.\n\n"
+            "`gente` arma el padron. Para una asamblea, `vota: true` en los que tienen derecho: sin "
+            "eso no hay quorum y lo que se decida no vale. Las fichas de rostro se enganchan "
+            "despues con `padron_cambiar`.\n\n"
+            "LA FECHA CON SU HUSO no es opcional en un evento hibrido: el que se conecta de otro lado "
+            "no sabe a que hora es. Si no te la dijeron, pregunta antes de armar.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"required", {"nombre"}},
+            {"properties",
+             {{"nombre", {{"type", "string"}}},
+              {"fecha", {{"type", "string"}, {"description", "YYYY-MM-DD"}}},
+              {"inicio", {{"type", "string"}, {"description", "HH:MM"}}},
+              {"huso", {{"type", "string"}, {"description", "nombre IANA"}}},
+              {"nota", {{"type", "string"}}},
+              {"bloques",
+               {{"type", "array"},
+                {"items",
+                 {{"type", "object"},
+                  {"properties",
+                   {{"nombre", {{"type", "string"}}},
+                    {"nota", {{"type", "string"}}},
+                    {"cues",
+                     {{"type", "array"},
+                      {"items",
+                       {{"type", "object"},
+                        {"properties",
+                         {{"tipo",
+                           {{"type", "string"},
+                            {"description", "escena, musica, video, teleprompter, orador, grafico, "
+                                            "pantalla, audio, pausa, espera o nota"}}},
+                          {"texto", {{"type", "string"}, {"description", "lo que lee el operador"}}},
+                          {"duracionSeg", {{"type", "integer"}}},
+                          {"automatico", {{"type", "boolean"}}},
+                          {"datos", {{"type", "object"}, {"description", "lo propio del tipo"}}}}}}}}}}}}}}},
+              {"gente",
+               {{"type", "array"},
+                {"items",
+                 {{"type", "object"},
+                  {"required", {"nombre"}},
+                  {"properties",
+                   {{"nombre", {{"type", "string"}}},
+                    {"papel", {{"type", "string"}}},
+                    {"canal", {{"type", "string"}}},
+                    {"contacto", {{"type", "string"}}},
+                    {"nota", {{"type", "string"}}},
+                    {"vota", {{"type", "boolean"}}}}}}}}}}}};
+        t.run = [&ev](const json& a, Done done) {
+            const std::string nombre = a.value("nombre", std::string());
+            if (nombre.empty()) return done(ToolResult::error("El evento necesita un nombre."));
+            // Se valida ANTES de crear la carpeta: quedarse con un evento a
+            // medias porque la fecha estaba mal escrita es basura en el disco.
+            if (a.contains("fecha") && !a["fecha"].get<std::string>().empty() &&
+                !evento::fechaValida(a["fecha"].get<std::string>()))
+                return done(ToolResult::error("La fecha tiene que ser un dia que exista, YYYY-MM-DD."));
+            if (a.contains("inicio") && !a["inicio"].get<std::string>().empty() &&
+                !evento::horaValida(a["inicio"].get<std::string>()))
+                return done(ToolResult::error("La hora tiene que estar en HH:MM."));
+            if (a.contains("huso") && !a["huso"].get<std::string>().empty() &&
+                !QTimeZone(QByteArray::fromStdString(a["huso"].get<std::string>())).isValid())
+                return done(ToolResult::error("No conozco ese huso: " +
+                                              a["huso"].get<std::string>() + "."));
+
+            const QString carpeta = ev.crear(QString::fromStdString(nombre));
+            if (carpeta.isEmpty())
+                return done(ToolResult::error("No se pudo crear el evento."));
+
+            if (a.contains("fecha")) ev.setFecha(QString::fromStdString(a["fecha"]));
+            if (a.contains("inicio")) ev.setInicio(QString::fromStdString(a["inicio"]));
+            if (a.contains("huso")) ev.setHuso(QString::fromStdString(a["huso"]));
+
+            int nBloques = 0, nCues = 0;
+            if (a.contains("bloques") && a["bloques"].is_array()) {
+                for (const json& b : a["bloques"]) {
+                    if (!b.is_object()) continue;
+                    ev.agregarBloque(QString::fromStdString(b.value("nombre", std::string())));
+                    const int bi = nBloques++;
+                    if (!b.contains("cues") || !b["cues"].is_array()) continue;
+                    int ci = 0;
+                    for (const json& c : b["cues"]) {
+                        if (!c.is_object()) continue;
+                        ev.agregarCue(bi, QString::fromStdString(c.value("tipo", std::string("nota"))));
+                        QVariantMap campos{
+                            {"texto", QString::fromStdString(c.value("texto", std::string()))},
+                            {"duracionSeg", c.value("duracionSeg", 0)},
+                            {"automatico", c.value("automatico", false)}};
+                        if (c.contains("datos") && c["datos"].is_object())
+                            for (auto it = c["datos"].begin(); it != c["datos"].end(); ++it)
+                                campos[QString::fromStdString(it.key())] =
+                                    it->is_string()
+                                        ? QVariant(QString::fromStdString(it->get<std::string>()))
+                                        : QVariant(QString::fromStdString(it->dump()));
+                        ev.editarCue(bi, ci++, campos);
+                        ++nCues;
+                    }
+                }
+            }
+            ev.guardar();
+
+            int nGente = 0;
+            if (a.contains("gente") && a["gente"].is_array())
+                for (const json& g : a["gente"]) {
+                    if (!g.is_object() || g.value("nombre", std::string()).empty()) continue;
+                    QVariantMap m;
+                    for (const char* k : {"nombre", "papel", "canal", "contacto", "nota"})
+                        if (g.contains(k) && g[k].is_string())
+                            m[k] = QString::fromStdString(g[k].get<std::string>());
+                    if (g.contains("vota")) m["vota"] = g["vota"].get<bool>();
+                    if (!ev.anotar(m).isEmpty()) ++nGente;
+                }
+
+            ToolResult r;
+            r.text("Evento «" + nombre + "» armado: " + std::to_string(nBloques) + " bloque(s), " +
+                   std::to_string(nCues) + " cue(s) y " + std::to_string(nGente) +
+                   " persona(s) en el padron. NO esta al aire: revisalo con `evento_revisar` y "
+                   "contale al operador lo que salga.");
+            r.structured = json{{"carpeta", carpeta.toStdString()},
+                                {"bloques", nBloques},
+                                {"cues", nCues},
+                                {"gente", nGente}};
+            done(r);
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "evento_capitulos";
+        t.title = "Los capitulos de la grabacion";
+        t.category = "evento";
+        t.readOnly = true;
+        t.description =
+            "Las marcas de tiempo de cada bloque del evento, listas para pegar en la descripcion del "
+            "video.";
+        t.details =
+            "Salen del recorrido REAL que el guion fue guardando, no de lo previsto: si el operador "
+            "salto o repitio un bloque, las marcas lo reflejan.\n\n"
+            "SE MIDEN DESDE QUE ARRANCO LA GRABACION, no desde el arranque del evento. Casi siempre "
+            "se aprieta grabar antes de empezar, y contar desde el evento dejaria todas las marcas "
+            "corridas. Si no se esta grabando, no hay contra que medir y se dice.\n\n"
+            "UNO POR BLOQUE, no por cue: cuarenta capitulos de quince segundos no le sirven a nadie, "
+            "y los bloques son justamente los tramos con nombre.\n\n"
+            "`texto` viene listo para pegar. Para dejarlo en el video: `youtube_video_update` con la "
+            "descripcion, o `youtube_video_upload` si todavia no se subio.\n\n"
+            "Las reglas de YouTube estan contempladas: el primero tiene que ser 0:00 (si el guion "
+            "arranco despues, se antepone uno), ninguno puede durar menos de diez segundos (los "
+            "pegados se juntan) y tiene que haber al menos tres (si no, `ok` viene en false y "
+            "`motivo` lo dice, en vez de dar una lista que YouTube va a ignorar en silencio).\n\n"
+            "`antesDeGrabar` cuenta los bloques que pasaron antes de apretar grabar: esos no estan en "
+            "el video y no se les inventa una marca.";
+        t.run = [&ev, &vm](const json&, Done done) {
+            const QVariantMap c = ev.capitulos(vm.recordStartMs());
+            if (c.isEmpty())
+                return done(ToolResult::error("No hay evento abierto o el guion no se corrio."));
+            json out = json{{"ok", c.value("ok").toBool()},
+                            {"texto", c.value("texto").toString().toStdString()},
+                            {"antesDeGrabar", c.value("antesDeGrabar").toInt()}};
+            if (!c.value("motivo").toString().isEmpty())
+                out["motivo"] = c.value("motivo").toString().toStdString();
+            json caps = json::array();
+            for (const QVariant& v : c.value("capitulos").toList()) {
+                const QVariantMap m = v.toMap();
+                caps.push_back(json{{"seg", m.value("seg").toInt()},
+                                    {"marca", m.value("marca").toString().toStdString()},
+                                    {"titulo", m.value("titulo").toString().toStdString()}});
+            }
+            out["capitulos"] = caps;
+            ToolResult r;
+            if (!c.value("ok").toBool()) r.text(c.value("motivo").toString().toStdString());
+            r.structured = out;
+            done(r);
+        };
+        core.addTool(std::move(t));
+    }
+
     registrarPadron(core, ev, fichaDe);
 }
 
@@ -760,6 +957,73 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
             r.text(seFue ? "Marcado que se fue." : "Acreditado.");
             r.structured = json{{"id", id.toStdString()}, {"resumen", resumenDe(ev)}};
             done(r);
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "invitacion";
+        t.title = "La invitacion de una persona, con su QR";
+        t.category = "padron";
+        t.readOnly = true;
+        t.description =
+            "El texto de la invitacion de alguien del padron y el enlace con QR que le sirve para "
+            "acreditarse, preguntar y votar.";
+        t.details =
+            "EL SISTEMA GENERA, NO MANDA. No tiene correo ni mensajeria, y es a proposito: esto corre "
+            "portable desde un pendrive y no depende de los servicios de nadie. Se arma la invitacion "
+            "y la manda el que convoca, por donde ya manda todo.\n\n"
+            "EL QR HACE TRES COSAS CON UN SOLO ESCANEO:\n"
+            "1. Lo ACREDITA. Llega, lo mira con el telefono y queda anotado que esta. Es la tercera "
+            "puerta, al lado del reconocimiento de cara y del mostrador: hay gente que no va a "
+            "aceptar que le miren la cara, y un evento no puede depender de que la camara ande.\n"
+            "2. Le abre la pagina donde pregunta y vota.\n"
+            "3. Le deja puesto su codigo de votante, asi no tiene que tipearlo.\n\n"
+            "Por eso el QR de cada persona es DISTINTO y no se comparte: lleva su codigo. El que se "
+            "proyecta para todos es otro (`publico_pagina`) y no acredita a nadie.\n\n"
+            "Sin fecha en el evento la invitacion sale sin fecha y se avisa: una invitacion que no "
+            "dice cuando es no sirve para nada.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"id", {{"type", "string"}, {"description", "el del padron"}}},
+              {"nombre", {{"type", "string"}, {"description", "o su nombre, como esta escrito"}}},
+              {"remoto",
+               {{"type", "boolean"}, {"description", "el enlace por internet en vez del de la red local"}}}}}};
+        t.run = [&ev](const json& a, Done done) {
+            if (ev.abierto().isEmpty())
+                return done(ToolResult::error("No hay evento abierto."));
+            QString id = QString::fromStdString(a.value("id", std::string()));
+            if (id.isEmpty())
+                id = ev.buscarEnPadron({}, QString::fromStdString(a.value("nombre", std::string())));
+            if (id.isEmpty())
+                return done(ToolResult::error(
+                    "No encontre a esa persona en el padron. `padron_ver` las lista."));
+            QVariantMap quien;
+            for (const QVariant& v : ev.padron()) {
+                const QVariantMap m = v.toMap();
+                if (m.value("id").toString() == id) { quien = m; break; }
+            }
+            if (quien.isEmpty()) return done(ToolResult::error("Esa persona ya no esta en el padron."));
+            ev.pedirInvitacion(quien, a.value("remoto", false),
+                               [done, quien](const QVariantMap& r) {
+                                   if (!r.value("ok").toBool())
+                                       return done(ToolResult::error(
+                                           r.value("motivo").toString().toStdString()));
+                                   ToolResult res;
+                                   res.text(r.value("texto").toString().toStdString());
+                                   res.structured =
+                                       json{{"texto", r.value("texto").toString().toStdString()},
+                                            {"url", r.value("url").toString().toStdString()},
+                                            {"codigo", quien.value("codigo").toString().toStdString()},
+                                            {"qr", json::parse(
+                                                       QJsonDocument(QJsonArray::fromVariantList(
+                                                                         r.value("modulos").toList()))
+                                                           .toJson(QJsonDocument::Compact)
+                                                           .toStdString(),
+                                                       nullptr, false)}};
+                                   done(res);
+                               });
         };
         core.addTool(std::move(t));
     }

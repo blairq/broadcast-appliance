@@ -85,6 +85,13 @@ class Votacion {
     /// dejó— cómo va. `codigo` vacío en la encuesta.
     nlohmann::json estadoPublico(const std::string& quien, const std::string& codigo) const;
 
+    /// Todas las votaciones que se cerraron, en orden. Es lo que hace posible
+    /// el acta: una asamblea vota varios puntos y el acta los lleva todos, no
+    /// el último. Se guarda al CERRAR, que es cuando el resultado es firme.
+    nlohmann::json historial() const;
+    /// Vacía el historial. Es para empezar un evento nuevo.
+    void olvidarHistorial();
+
     /// Si el resultado se ve mientras está abierta. En una votación formal
     /// suele NO quererse: ver que va perdiendo cambia lo que vota el que
     /// todavía no votó.
@@ -108,7 +115,13 @@ class Votacion {
     /// (encuesta).
     std::map<std::string, int> votos_;
 
+    std::vector<nlohmann::json> historial_;
+    /// Guarda la que está abierta en el historial. Se llama al cerrar y al
+    /// abrir otra encima: una que se reemplaza sin cerrar igual paso.
+    void archivarSinLock();
+
     nlohmann::json recuentoSinLock() const;
+    nlohmann::json estadoSinLock() const;
 };
 
 } // namespace ba::gateway

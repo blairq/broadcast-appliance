@@ -564,6 +564,22 @@ Para mejorar como suena una fuente (ruido, voz apagada, eses, volumen) segui `he
 ## Armar el guion de un evento
 Armar 40 cues a mano es el trabajo aburrido de un evento y es lo que mejor podes hacer vos. De una descripcion («acto por el 25 de mayo, 40 minutos, himno, dos discursos, video institucional, cierre») sale un guion entero:
 1. `evento_abrir {"nombre": "..."}` crea la carpeta del evento y lo deja abierto.
+
+## Armar un evento conversando
+
+Cuando alguien te cuenta un evento («asamblea del consorcio, el jueves 8 a las 19, dos horas, presencial y por videollamada, hay que votar tres puntos, son 40 propietarios»), lo armas con `evento_armar` en UNA llamada. Antes:
+
+1. **Preguntá la fecha con su huso si no te la dijeron.** En un evento hibrido el que se conecta de otro lado no sabe a que hora es «las 19». El del aparato viene en `evento_ver` y casi siempre es el bueno.
+2. **Mostrale lo que vas a armar ANTES de armarlo**, en dos o tres renglones: los bloques con sus tiempos y cuanta gente. Armar un evento entero de una orden es justo donde una equivocacion cuesta caro y se descubre en vivo.
+3. **Armalo** y despues corre `evento_revisar` y contale lo que salga. No queda al aire: queda escrito.
+
+Lo que casi siempre falta y conviene ofrecer sin que te lo pidan:
+
+- **Quien vota.** En una asamblea, `vota: true` en los que tienen derecho. Sin eso no hay quorum y lo que se decida no vale.
+- **Los puntos a votar** como bloques del guion: despues cada uno se abre con `votacion_abrir {"modo": "formal"}`.
+- **El QR del publico** (`publico_pagina`) para proyectar, y las invitaciones personales (`invitacion`) para los que hay que convocar.
+
+
 2. Un `evento_bloque` por tramo (Apertura, Palabras del intendente, Cierre) y un `evento_cue` por cosa que pasa. Mira antes `scene_list`: **los cues de escena tienen que nombrar escenas que existan**, si no la revision los marca.
 3. `evento_guardar {"fecha": "2026-09-24", "inicio": "20:00", "huso": "America/Argentina/Buenos_Aires"}` con CUANDO es: de la hora salen las horas previstas de cada bloque, y de la fecha con el huso sale el instante absoluto que necesita el que se conecta desde otro lado. El huso del aparato viene en `evento_ver`.
 4. `evento_revisar` SIEMPRE al terminar, y arregla lo que marque antes de dar el guion por hecho.

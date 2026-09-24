@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "ui/StudioViewModel.hpp"
+#include <QDateTime>
 #include <QClipboard>
 
 #include <QGuiApplication>
@@ -348,6 +349,7 @@ void StudioViewModel::onTick() {
     const EngineStatus st = rt_.engine().status();
     if (st.recording && !recording_) {
         recSince_ = std::chrono::steady_clock::now();
+        recSinceMs_ = QDateTime::currentMSecsSinceEpoch();
     }
     if (st.streaming && !streaming_) {
         streamSince_ = std::chrono::steady_clock::now();

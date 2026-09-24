@@ -12,6 +12,7 @@
 
 namespace ba::app {
 class EventoViewModel;
+class StudioViewModel;
 namespace mcp {
 
 class McpCore;
@@ -23,7 +24,8 @@ class McpCore;
 ///        sigue existiendo (vacia) y nada se rompe.
 using FichaDe = std::function<std::pair<bool, std::string>(const std::string& personaId)>;
 
-void registerEventoTools(McpCore& core, EventoViewModel& ev, FichaDe fichaDe);
+void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm,
+                         FichaDe fichaDe);
 
 } // namespace mcp
 } // namespace ba::app

@@ -1,5 +1,8 @@
 # Organizar el evento entero, presencial y online
 
+**Once de los doce puntos están hechos.** El que falta es el de subtítulos
+(§7), que depende de un trabajo que se decidió dejar para más adelante.
+
 Documento de diseño y hoja de ruta. `EVENTOS.md` cubre la mitad que ya existe:
 el **guion** —qué pasa, en qué orden, cuánto dura— y cómo se emite. Esta es la
 otra mitad, la que hoy no está: **la gente**. Quién viene, cómo se lo invita,
@@ -248,13 +251,20 @@ Lo demás que quedó escrito:
   misma letra.
 - **Una urna por vez**, y abrir otra no arrastra los votos de la anterior.
 
-## 7. Subtítulos y transcripción — **falta**
+## 7. Subtítulos y transcripción — **falta, y queda esperando a propósito**
 
 Accesibilidad, gente que no habla el idioma, y de paso el insumo del acta. Sale
 del trabajo de voz que quedó diseñado y guardado en `AUDIO-TTS.md`: el mismo
 reconocimiento, apuntado al programa en vez de al operador.
 
-## 8. El acta — **falta** (hoy hay un informe, que es otra cosa)
+**Es el único punto de esta lista que no se hizo, y no por olvido:** todo su
+trabajo es el de `AUDIO-TTS.md`, que se decidió dejar para más adelante. Sin
+reconocimiento de voz no hay subtítulos, y hacer «medio» reconocimiento de voz
+para tener subtítulos sería construir dos veces lo mismo. Cuando se retome
+aquello, esto sale casi de arriba: el texto ya tiene dónde ir —el acta (§8) lo
+espera— y las pantallas ya saben mostrar cosas.
+
+## 8. El acta — **hecho**
 
 `evento_informe` dice que el bloque 3 se fue cuatro minutos: perfecto para el
 operador, inútil para el que organizó.
@@ -263,7 +273,22 @@ Un acta es **quiénes asistieron, qué se decidió, qué se votó y qué quedó
 pendiente**. Con el padrón (2, 4), la votación (6) y la transcripción (7), es
 sobre todo ensamblar cosas que ya están.
 
-## 9. Capítulos y cortes de la grabación — **falta, y es casi gratis**
+**Hecho:** `evento_acta` la arma y la deja en la carpeta del evento como
+`acta-<fecha>.md`. Texto plano a propósito: se abre en cualquier lado y se pega
+en un correo sin romperse.
+
+- **El quórum va arriba y con sus dos números.** Un acta que dice «se aprobó por
+  8 votos a favor» sin decir cuántos podían votar no prueba nada.
+- **Lleva todas las votaciones del evento, no la última.** Para eso la urna
+  ahora guarda un historial, y una votación que se reemplaza sin cerrar igual
+  queda registrada: para el acta importa que se votó, no que alguien se haya
+  acordado de apretar cerrar.
+- **Dice de cada una si fue formal o encuesta.** Una encuesta leída como
+  decisión es el error que toda esta separación existe para evitar.
+- Si el gateway no contesta, el acta sale igual **pero lo avisa**: un acta a la
+  que le faltan las votaciones y no lo aclara es peor que ninguna.
+
+## 9. Capítulos de la grabación — **hecho**
 
 `Guion::recorrido()` ya guarda, por cada cue ejecutado, desde cuándo hasta
 cuándo — reloj de pared real, no lo previsto. Con eso, cortar la grabación por
@@ -272,7 +297,22 @@ bloque o por orador y subirla con capítulos es ensamblar, no construir.
 Es lo primero que te piden al día siguiente, y hoy se hace a mano mirando el
 video.
 
-## 10. Convocatoria y recordatorios — **a decidir, no a construir**
+**Hecho:** `evento_capitulos` da el texto listo para pegar en la descripción.
+
+- **Se miden desde que arrancó la grabación, no desde el evento.** Casi siempre
+  se aprieta grabar antes de empezar, y contar desde el evento dejaría todas las
+  marcas corridas. Para eso hizo falta guardar el arranque en reloj de pared: el
+  monótono que ya había sirve para contar cuánto lleva grabando, no para
+  compararlo con el recorrido del guion.
+- **Uno por bloque, no por cue.** Cuarenta capítulos de quince segundos no le
+  sirven a nadie.
+- Las reglas de YouTube están contempladas (el primero en 0:00, ninguno de menos
+  de diez segundos, mínimo tres) y cuando no se cumplen lo dice, en vez de dar
+  una lista que YouTube va a ignorar en silencio.
+- Los bloques que pasaron **antes** de apretar grabar se cuentan aparte y no se
+  les inventa una marca: no están en el video.
+
+## 10. Convocatoria — **decidido y hecho**
 
 No hay correo ni mensajería, y puede que esté bien así: esto corre portable
 desde un pendrive, sin depender de servicios de nadie. Los tipos de QR que ya
@@ -280,10 +320,29 @@ existen (`correo`, `sms`, `contacto`, `wifi`) sugieren el camino elegido:
 **generar, no enviar**. El sistema arma la invitación con su enlace y su QR, y
 el que convoca la manda por donde ya manda todo.
 
-Vale la pena que sea una decisión escrita y no una omisión que se descubre
-tarde.
+**Decidido así, y escrito para que no se discuta de nuevo: el sistema genera,
+no manda.** No hay correo ni mensajería y no los va a haber: esto corre portable
+desde un pendrive y no puede depender de los servicios de nadie ni guardar las
+credenciales de un correo. Se arma la invitación y la manda el que convoca, por
+donde ya manda todo.
 
-## 11. Prueba técnica previa con los remotos — **falta**
+**Hecho:** `invitacion` da el texto y el QR personal de cada persona del padrón.
+
+**Y ese QR cierra el camino que faltaba en §3.** Hace tres cosas con un solo
+escaneo: **lo acredita** (llega, lo mira con el teléfono y queda anotado),
+le abre la página donde pregunta y vota, y le deja puesto su código de votante
+para que no tenga que tipearlo.
+
+Por eso el QR de cada persona es distinto y no se comparte; el que se proyecta
+para todos es otro y no acredita a nadie.
+
+Del lado de adentro es un **buzón**, como el de los rótulos: el gateway no tiene
+el padrón —lo tiene la app— así que anota quién llegó y la app lo viene a buscar
+cada dos segundos. Encolar es lo que hace que acreditarse funcione aunque la app
+esté ocupada o reiniciando; una llamada directa a un proceso que no está se
+pierde, y el que se acreditó ya guardó el teléfono.
+
+## 11. Prueba técnica previa con los remotos — **hecho**
 
 `evento_ensayo_rapido` ensaya el guion, no a la gente. La causa número uno de
 que un evento híbrido se caiga es el orador que prueba el micrófono cuando le
@@ -293,9 +352,19 @@ Con el lobby, `rostro_calidad` y `audio_measure` ya está casi todo para un
 autochequeo: entra cuando quiere, y el sistema le dice «la cámara está bien, el
 micrófono está bajo, acercate» sin que haya nadie del otro lado.
 
+**Hecho:** `invitado_chequeo` junta en una respuesta lo que hoy había que ir a
+buscar a tres lados —calidad de la cara, nivel de audio y si está silenciado— y
+devuelve `listo` como respuesta corta y `quedecirle` como la frase para
+mandarle, escrita para que la lea alguien que no sabe de audio: «acercate un
+poco» y no «estás a -42 dBFS».
+
+**Informa, no arregla ni le habla a nadie.** Mandar el mensaje es decisión del
+que opera: el invitado puede estar hablando con otro o todavía no saber que lo
+están mirando.
+
 ---
 
-## 12. El asistente de armado — **falta**, y va al final a propósito
+## 12. El asistente de armado — **hecho**, y fue lo último a propósito
 
 Cuando todo lo anterior exista, **una vista de asistente que arme el evento
 entero conversando**. No un formulario con más campos: el organizador cuenta lo
@@ -325,6 +394,17 @@ después hay que tirar. Se hace cuando hay qué llenar.
   donde una equivocación cuesta caro y se descubre en vivo. Deja el evento
   escrito para revisar, no lo pone al aire.
 
+**Hecho, y salió casi solo, que era la apuesta.** `evento_armar` crea el evento
+entero —fecha con huso, bloques con tiempos, cues y padrón— en una llamada. No
+es un motor aparte: es el asistente que ya existe usando las herramientas que
+los once puntos anteriores fueron dejando bien descriptas. La guía de cómo
+llevar la conversación está en la ayuda del asistente, y en la página de Evento
+hay un botón **«Armar contándolo»**.
+
+Se le pide al asistente que **muestre antes de armar** y que corra
+`evento_revisar` después. Nunca pisa un guion existente: si ya hay uno con ese
+nombre, crea otro.
+
 ---
 
 ## Orden
@@ -341,8 +421,21 @@ Por dependencia, no por tamaño:
    cámara ni micrófono.
 5. ~~**Preguntas** (§5) y **votación** (§6)~~ — **hechas**, sobre la misma
    superficie y el mismo padrón.
-6. **Capítulos de la grabación** (§9) — se puede colar en cualquier momento:
-   es chico y se disfruta enseguida.
-7. **Acta** (§8), cuando haya padrón y urna.
-8. **Subtítulos** (§7), con lo de `AUDIO-TTS.md`.
-9. **Asistente de armado** (§12), cuando haya qué armar.
+6. ~~**Capítulos de la grabación** (§9)~~ — **hecho**.
+7. ~~**Acta** (§8)~~ — **hecha**.
+8. ~~**Convocatoria** (§10) y **prueba técnica previa** (§11)~~ — **hechas**.
+9. ~~**Asistente de armado** (§12)~~ — **hecho**.
+10. **Subtítulos** (§7) — lo único pendiente, y espera a que se retome
+    `AUDIO-TTS.md`.
+
+---
+
+## Dónde quedó
+
+Once de los doce puntos, hechos. El único que falta es el de subtítulos, que
+depende de un trabajo que se decidió dejar para más adelante.
+
+El sistema ya no sabe solamente emitir: sabe **cuándo** es el evento, **quién**
+viene, **quién llegó** —por la puerta, por la sala o escaneando su invitación—,
+**qué pregunta** el público de los dos lados, **qué se votó** y con qué quórum,
+y deja el **acta** y los **capítulos** cuando terminó. Y se arma contándolo.

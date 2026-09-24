@@ -368,7 +368,19 @@ const Fila kPropias[] = {
     {"evento_guardar", "guardar el guion del evento ponerle fecha hora y huso horario cambiarle el titulo"},
     {"evento_revisar", "revisar guion antes buscar problemas validar"},
     {"evento_ensayo_rapido", "ensayo acelerado probar el guion sin tocar el aire"},
-    {"evento_informe", "informe del evento tiempos reales cuanto duro"},
+    // «Informe» y «acta» son dos cosas y el que pide una no quiere la otra: el
+    // informe es de tiempos (para el operador) y el acta es de gente y
+    // decisiones (para el que organizo).
+    {"evento_informe", "informe del evento tiempos reales cuanto duro desvios de cada bloque"},
+    // Sin «quorum» a secas: preguntar si HAY quorum es algo que se pregunta
+    // ANTES de votar y lo contesta el padron. El acta lo lleva adentro, pero
+    // nadie pide un acta para saber si puede empezar.
+    {"evento_acta", "acta de la reunion quienes asistieron que se decidio que se voto "
+                    "minuta del evento documento de la asamblea"},
+    {"evento_armar", "armar un evento entero crear el evento con sus bloques y su gente "
+                     "organizar una asamblea preparar una reunion de cero"},
+    {"evento_capitulos", "capitulos de la grabacion marcas de tiempo para la descripcion del video "
+                         "cortar el video por bloque timestamps de youtube"},
     // --- El padron: la gente del evento -----------------------------------
     // «Quienes estan» es LA pregunta de un evento hibrido, y las palabras con
     // que se la hace no se parecen al nombre de la herramienta: se pregunta por
@@ -407,6 +419,10 @@ const Fila kPropias[] = {
                      "faltan votar cerrar la votacion quorum del voto"},
     {"publico_pagina", "enlace y qr para que el publico pregunte pagina del publico codigo qr para "
                        "proyectar titulo y fondo de la pagina del publico"},
+    {"invitacion", "la invitacion de alguien enlace personal para invitar mandarle el qr a una "
+                   "persona convocar a un invitado su codigo para acreditarse"},
+    {"invitado_chequeo", "estan listos los que esperan probar camara y microfono antes prueba "
+                         "tecnica previa se escucha bien el invitado esta listo para salir"},
     {"padron_puerta", "camara de la entrada acreditar solo a quien llega al lugar reconocer a los que "
                       "llegan al salon puerta acreditacion presencial mostrador de entrada"},
     {"padron_quitar", "sacar a alguien de la lista del evento borrar asistente del padron"},

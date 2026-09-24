@@ -517,7 +517,7 @@ void McpService::registerTools() {
                       "Todos los ajustes del appliance (video, codificacion, sala, red...).");
     // El guion del evento: su propio bloque (ver McpEventoTools.cpp).
     if (auto* ev = static_cast<EventoViewModel*>(vm_.evento())) {
-        registerEventoTools(core_, *ev, [this](const std::string& id) {
+        registerEventoTools(core_, *ev, vm_, [this](const std::string& id) {
             auto* pv = static_cast<PersonasViewModel*>(vm_.personas());
             if (pv == nullptr || !pv->disponible()) return std::pair{false, std::string()};
             for (const QVariant& v : pv->personas()) {
@@ -531,7 +531,7 @@ void McpService::registerTools() {
 
     // Las preguntas del publico: viven en B, y esto es el lado de A que las
     // modera (ver McpPreguntaTools.cpp).
-    registerPreguntaTools(core_, vm_);
+    registerPreguntaTools(core_, vm_, rt_);
 
     AppRuntime& rt = rt_;
     StudioViewModel& vm = vm_;

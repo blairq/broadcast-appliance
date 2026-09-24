@@ -198,6 +198,13 @@ const Asistente* Padron::porPersona(const std::string& personaId) const {
     return nullptr;
 }
 
+const Asistente* Padron::porCodigo(const std::string& codigo) const {
+    if (codigo.empty()) return nullptr;
+    for (const Asistente& a : gente_)
+        if (a.codigo == codigo) return &a;
+    return nullptr;
+}
+
 const Asistente* Padron::porNombre(const std::string& nombre) const {
     const std::string busco = aplanar(nombre);
     if (busco.empty()) return nullptr;

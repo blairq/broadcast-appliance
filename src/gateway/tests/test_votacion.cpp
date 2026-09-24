@@ -157,6 +157,39 @@ void una_por_vez() {
     CHECK(e["resultado"].size() == 3, "con sus propias opciones");
 }
 
+// --- 8) El historial, que es lo que hace posible el acta ---------------------
+void historial() {
+    Votacion v;
+    CHECK(v.historial().empty(), "sin ninguna cerrada, no hay historial");
+
+    v.abrir("¿Punto uno?", kSiNo, Votacion::Modo::Encuesta, false, {}, 0, 1000);
+    v.votar("tel-1", "", 0);
+    CHECK(v.historial().empty(), "una abierta todavia no esta en el historial");
+    v.cerrar();
+    CHECK(v.historial().size() == 1, "al cerrar, entra");
+    CHECK(v.historial()[0]["pregunta"] == "¿Punto uno?", "con su pregunta");
+    CHECK(votosDe(v.historial()[0]["resultado"], "A favor") == 1, "y su resultado");
+
+    // Una asamblea vota varios puntos seguidos: el acta los lleva a TODOS.
+    v.abrir("¿Punto dos?", kSiNo, Votacion::Modo::Encuesta, false, {}, 0, 2000);
+    v.votar("tel-1", "", 1);
+    v.cerrar();
+    CHECK(v.historial().size() == 2, "dos puntos votados, dos en el historial");
+    CHECK(v.historial()[1]["pregunta"] == "¿Punto dos?", "en orden");
+    CHECK(votosDe(v.historial()[1]["resultado"], "En contra") == 1, "cada una con lo suyo");
+
+    // Reemplazar una SIN cerrarla igual la archiva: para el acta importa que se
+    // voto, no que alguien se haya acordado de apretar cerrar.
+    v.abrir("¿Punto tres?", kSiNo, Votacion::Modo::Encuesta, false, {}, 0, 3000);
+    v.votar("tel-1", "", 0);
+    v.abrir("¿Punto cuatro?", kSiNo, Votacion::Modo::Encuesta, false, {}, 0, 4000);
+    CHECK(v.historial().size() == 3, "la que se reemplazo sin cerrar igual quedo");
+    CHECK(v.historial()[2]["pregunta"] == "¿Punto tres?", "y es la que era");
+
+    v.olvidarHistorial();
+    CHECK(v.historial().empty(), "se puede vaciar para el evento siguiente");
+}
+
 } // namespace
 
 int main() {
@@ -165,6 +198,7 @@ int main() {
     formal();
     en_vivo();
     una_por_vez();
+    historial();
     if (g_fallos == 0) std::printf("test_votacion: OK\n");
     return g_fallos == 0 ? 0 : 1;
 }

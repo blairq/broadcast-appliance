@@ -501,6 +501,14 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         }
     }
 
+    // A viene a vaciar el buzon de los que escanearon su invitacion.
+    if (path == "/api/v1/acreditaciones" && method == "GET") {
+        json cs = json::array();
+        for (const std::string& c : tomarAcreditaciones()) cs.push_back(c);
+        sendJson(fd, 200, json{{"ok", true}, {"codigos", cs}});
+        return;
+    }
+
     // Lo que la pagina del publico muestra arriba y de fondo. Lo manda A: es
     // el unico que sabe que evento esta abierto.
     if (path == "/api/v1/publico-info" && method == "POST") {
@@ -519,7 +527,12 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
     // --- La urna, del lado del operador --------------------------------------
     if (path == "/api/v1/votacion") {
         if (method == "GET") {
-            sendJson(fd, 200, json{{"ok", true}, {"votacion", votacion_.estado()}});
+            const auto q = http::parseQuery(query);
+            json out{{"ok", true}, {"votacion", votacion_.estado()}};
+            // El historial solo cuando se pide: en una asamblea larga son
+            // muchas, y quien mira «como va» no las quiere todas.
+            if (q.count("historial")) out["historial"] = votacion_.historial();
+            sendJson(fd, 200, out);
             return;
         }
         if (method == "POST") {
@@ -527,6 +540,11 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             if (accion == "cerrar") {
                 const bool ok = votacion_.cerrar();
                 sendJson(fd, 200, json{{"ok", ok}, {"votacion", votacion_.estado()}});
+                return;
+            }
+            if (accion == "olvidar_historial") {
+                votacion_.olvidarHistorial();
+                sendJson(fd, 200, json{{"ok", true}});
                 return;
             }
             if (accion == "en_vivo") {

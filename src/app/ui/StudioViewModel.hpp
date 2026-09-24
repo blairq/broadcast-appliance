@@ -144,6 +144,9 @@ class StudioViewModel : public QObject {
     ~StudioViewModel() override;
 
     bool recording() const { return recording_; }
+    /// Cuando arranco la grabacion, en ms desde la epoca. 0 = no esta grabando
+    /// (o arranco antes de que la app supiera mirarlo).
+    Q_INVOKABLE qint64 recordStartMs() const { return recording_ ? recSinceMs_ : 0; }
     bool streaming() const { return streaming_; }
     bool reconnecting() const { return reconnecting_; }
     QString outputProblem() const { return outputProblem_; }
@@ -385,6 +388,11 @@ class StudioViewModel : public QObject {
     bool reconnecting_ = false;
     QString outputProblem_;
     std::chrono::steady_clock::time_point recSince_{};
+    /// Lo mismo pero en reloj de PARED. `recSince_` es monotono —sirve para
+    /// contar cuanto lleva grabando y no se mueve si alguien cambia la hora—
+    /// pero no se puede comparar con el recorrido del guion, que va en reloj de
+    /// pared. Para los capitulos hacen falta los dos en la misma escala.
+    qint64 recSinceMs_ = 0;
     std::chrono::steady_clock::time_point streamSince_{};
     double fps_ = 0;
     QString encoder_;

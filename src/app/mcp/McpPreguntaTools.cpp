@@ -23,7 +23,9 @@
 #include "mcp/McpCore.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/EventoViewModel.hpp"
+#include "ui/PersonasViewModel.hpp"
 #include "ui/ConferenceViewModel.hpp"
+#include "AppRuntime.hpp"
 #include "ui/StudioViewModel.hpp"
 
 namespace ba::app::mcp {
@@ -43,7 +45,7 @@ json aJson(const QJsonObject& o) {
 
 } // namespace
 
-void registerPreguntaTools(McpCore& core, StudioViewModel& vm) {
+void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
     core.addCategory("preguntas", "Preguntas del publico",
                      "La cola de lo que pregunta la gente, del salon y de las plataformas, para "
                      "moderarla y sacarla al aire.");
@@ -288,12 +290,17 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm) {
             "`cerrar` deja el resultado firme y lo muestra a todos los telefonos. Los votos NO se "
             "borran al cerrar: el resultado se sigue mirando despues y es lo que va al acta.\n\n"
             "`enVivo` prende o apaga que el resultado se vea mientras esta abierta, por si se abrio "
-            "con la decision equivocada.";
+            "con la decision equivocada.\n\n"
+            "Con `historial` vienen ademas TODAS las que se cerraron en este evento, que es lo que "
+            "va al acta: una asamblea vota varios puntos y el acta los lleva a todos, no al ultimo.";
         t.readOnly = false;
         t.inputSchema = {
             {"type", "object"},
             {"properties",
              {{"cerrar", {{"type", "boolean"}}},
+              {"historial",
+               {{"type", "boolean"},
+                {"description", "ademas, TODAS las que se cerraron en este evento"}}},
               {"enVivo", {{"type", "boolean"}, {"description", "mostrar el resultado en vivo"}}}}}};
         t.run = [pedir](const json& a, Done done) {
             if (a.value("cerrar", false))
@@ -303,7 +310,155 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm) {
                 return pedir("POST", "/api/v1/votacion",
                              QJsonObject{{"accion", "en_vivo"}, {"si", a["enVivo"].get<bool>()}},
                              std::move(done), "Hecho.");
-            pedir("GET", "/api/v1/votacion", {}, std::move(done), {});
+            pedir("GET",
+                  a.value("historial", false) ? "/api/v1/votacion?historial=1" : "/api/v1/votacion",
+                  {}, std::move(done), {});
+        };
+        core.addTool(std::move(t));
+    }
+    // --- La prueba tecnica previa ---------------------------------------------
+    {
+        Tool t;
+        t.name = "invitado_chequeo";
+        t.title = "Si los que esperan estan listos para salir al aire";
+        t.category = "preguntas";
+        t.readOnly = true;
+        t.description =
+            "Para cada persona que espera en el lobby: si su camara y su microfono sirven, y que "
+            "decirle cuando no.";
+        t.details =
+            "LA CAUSA NUMERO UNO DE QUE UN EVENTO HIBRIDO SE CAIGA es el orador que prueba el "
+            "microfono cuando le dan la palabra. Esto es para correrlo ANTES: el invitado entra al "
+            "lobby cuando quiere y se le dice que arreglar mientras hay tiempo.\n\n"
+            "Junta en una sola respuesta lo que hoy hay que ir a buscar a tres lados: la calidad de "
+            "la cara (que tambien decide si el reconocimiento va a funcionar), el nivel de audio de "
+            "su canal y si esta silenciado.\n\n"
+            "`listo` es la respuesta corta. `quedecirle` es la frase para mandarle por "
+            "`participant_talk`, escrita para que la lea alguien que no sabe de audio: «acercate un "
+            "poco» y no «estas a -42 dBFS».\n\n"
+            "NO ARREGLA NADA NI LE HABLA A NADIE: informa. Mandarle el mensaje es una decision del "
+            "que opera, porque el invitado puede estar hablando con otro o todavia no saber que lo "
+            "estan mirando.\n\n"
+            "El audio solo se puede leer si esa persona ya tiene su canal andando; si todavia no "
+            "mando nada, se dice que no se sabe en vez de darlo por bueno.";
+        t.run = [&vm, &rt](const json&, Done done) {
+            auto* pv = static_cast<PersonasViewModel*>(vm.personas());
+            if (pv == nullptr)
+                return done(ToolResult::error("El reconocimiento no esta disponible en esta sesion."));
+            auto* conf = static_cast<ConferenceViewModel*>(vm.conference());
+            if (conf == nullptr) return done(ToolResult::error("La sala no esta disponible."));
+
+
+            const QVariantMap lobby = pv->enLobby();
+            json gente = json::array();
+            for (auto it = lobby.begin(); it != lobby.end(); ++it) {
+                const QVariantMap p = it.value().toMap();
+                const bool caraOk = p.value("sirve").toBool();
+                const QString sugerencia = p.value("sugerencia").toString();
+
+                // El canal de audio del invitado, si ya existe. Se busca por
+                // el numero de lugar, que es como se llama la fuente.
+                std::string canal;
+                for (const std::string& nombre : rt.engine().audioSources())
+                    if (nombre.find(it.key().toStdString()) != std::string::npos) {
+                        canal = nombre;
+                        break;
+                    }
+                const bool hayAudio = !canal.empty();
+                const double pico = hayAudio ? rt.engine().sourcePeakDb(canal) : -100.0;
+                const bool silenciado = hayAudio && rt.engine().sourceMuted(canal);
+                // -45 dBFS es el piso: por debajo de eso, en una sala con
+                // ruido, la voz se pierde contra el ambiente.
+                const bool audioOk = hayAudio && !silenciado && pico > -45.0;
+
+                std::string decirle;
+                if (!caraOk && !sugerencia.isEmpty()) decirle = sugerencia.toStdString();
+                if (!hayAudio) {
+                    if (!decirle.empty()) decirle += " ";
+                    decirle += "Todavia no te escucho: fijate que el navegador tenga permiso para usar el microfono.";
+                } else if (silenciado) {
+                    if (!decirle.empty()) decirle += " ";
+                    decirle += "Tenes el microfono silenciado.";
+                } else if (!audioOk) {
+                    if (!decirle.empty()) decirle += " ";
+                    decirle += "Se te escucha muy bajito: acercate un poco al microfono o subile el volumen.";
+                }
+
+                gente.push_back(json{{"uid", it.key().toStdString()},
+                                     {"nombre", p.value("nombre").toString().toStdString()},
+                                     {"listo", caraOk && audioOk},
+                                     {"camara", caraOk ? "bien" : "no sirve todavia"},
+                                     {"audio", !hayAudio ? "no se sabe"
+                                               : silenciado ? "silenciado"
+                                               : audioOk ? "bien"
+                                                         : "muy bajo"},
+                                     {"picoDb", hayAudio ? pico : -100.0},
+                                     {"quedecirle", decirle}});
+            }
+            ToolResult r;
+            if (gente.empty()) r.text("No hay nadie esperando en el lobby.");
+            r.structured = json{{"gente", gente}};
+            done(r);
+        };
+        core.addTool(std::move(t));
+    }
+
+    // --- El acta ---------------------------------------------------------------
+    {
+        Tool t;
+        t.name = "evento_acta";
+        t.title = "El acta del evento: quienes estuvieron y que se decidio";
+        t.category = "preguntas";
+        t.description =
+            "Arma el acta con el padron de presentes, el quorum y todas las votaciones que se "
+            "cerraron, y la guarda en la carpeta del evento.";
+        t.details =
+            "NO ES `evento_informe`, Y NO SE PARECEN. El informe dice que el bloque 3 se fue cuatro "
+            "minutos: es para el operador. El acta dice QUIENES ASISTIERON, QUE SE VOTO y COMO SALIO: "
+            "es para el que organizo, y en una asamblea es el documento que vale.\n\n"
+            "Sale de tres lados que ya existen: el padron (quienes llegaron, por donde y cuantos "
+            "tenian derecho a voto), el historial de la urna (cada punto votado con su resultado) y "
+            "la fecha del evento.\n\n"
+            "EL QUORUM VA ARRIBA Y CON SUS DOS NUMEROS: «12 de 40». Un acta que dice «se aprobo por "
+            "8 votos a favor» sin decir cuantos podian votar no prueba nada.\n\n"
+            "Se escribe en la carpeta del evento como acta-<fecha>.md. Es texto plano a proposito: "
+            "se abre en cualquier lado y se pega en un correo sin que se rompa nada.\n\n"
+            "Con `soloVer` en true lo devuelve sin escribir el archivo.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"soloVer", {{"type", "boolean"}}}}}};
+        t.run = [salaDe, &vm](const json& a, Done done) {
+            auto* ev = static_cast<EventoViewModel*>(vm.evento());
+            if (ev == nullptr || ev->abierto().isEmpty())
+                return done(ToolResult::error(
+                    "No hay evento abierto: el acta es de un evento. Abri uno con `evento_abrir`."));
+            ConferenceViewModel* conf = salaDe();
+            if (conf == nullptr)
+                return done(ToolResult::error("La sala no esta disponible en esta sesion."));
+
+            const bool soloVer = a.value("soloVer", false);
+            // El historial de la urna vive en B: hay que ir a buscarlo antes de
+            // poder escribir nada.
+            conf->client().get("/api/v1/votacion?historial=1", [ev, done, soloVer](
+                                                                   bool ok, const QJsonObject& r) {
+                const QJsonArray votaciones = ok ? r.value("historial").toArray() : QJsonArray{};
+                const QString texto = ev->acta(votaciones);
+                QString archivo;
+                if (!soloVer) archivo = ev->guardarActa(texto);
+                ToolResult res;
+                res.text(texto.toStdString());
+                json out{{"acta", texto.toStdString()},
+                         {"votaciones", votaciones.size()}};
+                if (!archivo.isEmpty()) out["archivo"] = archivo.toStdString();
+                // Si B no contesto, el acta sale igual PERO se dice: un acta a
+                // la que le faltan las votaciones y no lo aclara es peor que
+                // ninguna.
+                if (!ok)
+                    out["aviso"] =
+                        "No pude hablar con la sala: el acta va SIN las votaciones. Fijate "
+                        "`room_status` y volve a pedirla.";
+                res.structured = out;
+                done(res);
+            });
         };
         core.addTool(std::move(t));
     }

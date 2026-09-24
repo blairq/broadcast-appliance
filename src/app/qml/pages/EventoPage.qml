@@ -90,6 +90,16 @@ Rectangle {
                     icon: "+"; text: "Evento"
                     onClicked: nuevoDlg.open()
                 }
+                // Armar contándolo, en vez de llenando un formulario. No es un
+                // motor aparte: es el asistente que ya existe, usando las
+                // herramientas del evento (ver `evento_armar`).
+                GlassButton {
+                    icon: "✦"; text: "Armar contándolo"
+                    onClicked: armarDlg.open()
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
+                    ToolTip.text: "Contale al asistente cómo va a ser el evento y lo deja escrito"
+                }
                 Item { Layout.fillWidth: true }
 
                 Text {
@@ -833,6 +843,48 @@ Rectangle {
     }
 
     // --- Evento nuevo --------------------------------------------------------
+    Dialog {
+        id: armarDlg
+        anchors.centerIn: parent
+        width: 560
+        modal: true
+        title: "Armar el evento contándolo"
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        onAboutToShow: contalo.text = ""
+        onAccepted: {
+            if (contalo.text.trim() === "") return
+            // Se le pide que MUESTRE antes de armar: armar un evento entero de
+            // una orden es donde una equivocación cuesta caro y se descubre en
+            // vivo.
+            ApplicationWindow.window.pedirAlAsistente(
+                "Armá este evento. Mostrame primero, en dos o tres renglones, los bloques con sus " +
+                "tiempos y cuánta gente; si te falta la fecha o el huso horario, preguntámelos. " +
+                "Después armalo, revisalo y contame lo que salga.\n\n" + contalo.text.trim())
+        }
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 8
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: "Contá cómo va a ser: qué pasa, en qué orden, cuánto dura, quién habla y " +
+                      "quién viene. Lo deja escrito para revisar; no lo saca al aire."
+                color: Theme.textDim
+                font.pixelSize: 12
+            }
+            TextArea {
+                id: contalo
+                Layout.fillWidth: true
+                Layout.preferredHeight: 130
+                wrapMode: TextArea.Wrap
+                color: Theme.text
+                placeholderText: "Asamblea del consorcio, el jueves 8 a las 19, dos horas, " +
+                                 "presencial en el salón y por videollamada. Hay que votar tres " +
+                                 "puntos. Son 40 propietarios."
+            }
+        }
+    }
+
     // --- Cuando es el evento ------------------------------------------------
     Dialog {
         id: cuandoDlg

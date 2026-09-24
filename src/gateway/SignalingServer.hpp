@@ -164,6 +164,14 @@ class SignalingServer {
     /// que es el unico que sabe que evento esta abierto. B solo lo repite.
     void setPublicoInfo(const nlohmann::json& info);
     nlohmann::json publicoInfo() const;
+    /// Los codigos que escanearon su invitacion y todavia no fueron a parar al
+    /// padron. Es un BUZON, como el de los rotulos: B no tiene el padron —lo
+    /// tiene A— asi que anota quien llego y A lo viene a buscar. Encolar es lo
+    /// que hace que acreditarse funcione aunque A este ocupado o reiniciando;
+    /// una llamada directa a un proceso que no esta se pierde, y el que se
+    /// acredito ya guardo el telefono.
+    std::vector<std::string> tomarAcreditaciones();
+
     /// La imagen de fondo, en memoria. Se guarda ACA y no se manda a cada
     /// telefono dentro del JSON: son doscientos telefonos pidiendo cada tres
     /// segundos, y una imagen repetida en cada respuesta es el mismo fondo
@@ -358,6 +366,7 @@ class SignalingServer {
     Votacion votacion_;
     mutable std::mutex publicoM_;
     nlohmann::json publicoInfo_ = nlohmann::json::object();
+    std::vector<std::string> acreditaciones_;
     std::string fondoBytes_;
     std::string fondoTipo_;
     ShareStore& shares_;

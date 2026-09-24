@@ -189,6 +189,13 @@ bool EventoViewModel::abrir(const QString& carpeta) {
                         QString::fromStdString(errPadron),
                     "error");
     migrarAutoAceptar();
+    // Cada dos segundos: el que escanea en la puerta espera mirando el
+    // telefono, y diez segundos ahi parado se sienten eternos.
+    if (buzon_.interval() == 0) {
+        buzon_.setInterval(2000);
+        connect(&buzon_, &QTimer::timeout, this, &EventoViewModel::recogerAcreditaciones);
+    }
+    buzon_.start();
     emit padronChanged();
     emit guionChanged();
     emit sucioChanged();
@@ -200,6 +207,7 @@ bool EventoViewModel::abrir(const QString& carpeta) {
 void EventoViewModel::cerrar() {
     if (sucio_) guardar();
     parar();
+    buzon_.stop();
     e_ = {};
     padron_ = {};
     abierto_.clear();
@@ -543,6 +551,224 @@ void EventoViewModel::ensayoAcelerado() {
     if (problemas > 0) resumen += QString(", %1 con problemas").arg(problemas);
     anotar(resumen, problemas > 0 ? "error" : "ok");
     emit notify(resumen, problemas > 0 ? "error" : "ok");
+}
+
+namespace {
+
+/// "1:23:45" o "4:05". YouTube acepta las dos y la corta es mas legible.
+QString marcaDe(int seg) {
+    const int h = seg / 3600, m = (seg % 3600) / 60, s = seg % 60;
+    return h > 0 ? QString("%1:%2:%3").arg(h).arg(m, 2, 10, QChar('0')).arg(s, 2, 10, QChar('0'))
+                 : QString("%1:%2").arg(m).arg(s, 2, 10, QChar('0'));
+}
+
+} // namespace
+
+QVariantMap EventoViewModel::capitulos(qint64 recInicioMs) const {
+    const auto fallo = [](const QString& motivo) {
+        return QVariantMap{{"ok", false}, {"motivo", motivo}, {"capitulos", QVariantList{}}};
+    };
+    if (!guionCorriendo_) return fallo("El guion no se corrio en esta sesion: no hay de donde sacar los tiempos.");
+    const auto& pasos = guionCorriendo_->recorrido();
+    if (pasos.empty()) return fallo("El guion no avanzo ningun cue todavia.");
+    if (recInicioMs <= 0)
+        return fallo("No se cuando arranco la grabacion. Los capitulos se miden desde ahi, no desde "
+                     "el arranque del evento: si el guion empezo antes, todas las marcas estarian "
+                     "corridas.");
+
+    QVariantList caps;
+    int antesDeGrabar = 0;
+    int bloqueIdx = -1;
+    for (const evento::Guion::Paso& p : pasos) {
+        // Un capitulo por BLOQUE: se toma el primer cue de cada tramo.
+        if (p.pos.bloque == bloqueIdx) continue;
+        bloqueIdx = p.pos.bloque;
+        const auto bi = static_cast<std::size_t>(bloqueIdx);
+        if (bi >= e_.bloques.size()) continue;
+        const int seg = static_cast<int>((p.desdeMs - recInicioMs) / 1000);
+        // Lo que paso ANTES de apretar grabar no esta en el video. Se cuenta y
+        // se avisa, en vez de inventarle un 0:00 a algo que no se grabo.
+        if (seg < 0) { ++antesDeGrabar; continue; }
+        const QString nombre = e_.bloques[bi].nombre.empty()
+                                   ? QString("Bloque %1").arg(bloqueIdx + 1)
+                                   : QString::fromStdString(e_.bloques[bi].nombre);
+        caps.append(QVariantMap{{"seg", seg}, {"marca", marcaDe(seg)}, {"titulo", nombre}});
+    }
+    if (caps.isEmpty())
+        return fallo("Todos los bloques empezaron antes de que arrancara la grabacion.");
+
+    // YouTube pide que el PRIMERO sea 0:00. Si el guion arranco despues de
+    // apretar grabar (lo normal: se graba el ambiente antes), se antepone uno
+    // para lo que haya quedado ahi adelante en vez de mover el resto.
+    QVariantMap primero = caps.first().toMap();
+    if (primero.value("seg").toInt() > 0)
+        caps.prepend(QVariantMap{{"seg", 0}, {"marca", "0:00"}, {"titulo", "Antes de empezar"}});
+
+    // Y que ninguno dure menos de diez segundos, o los ignora a todos. Se
+    // juntan los pegados en vez de devolver una lista que YouTube va a tirar.
+    QVariantList limpios;
+    for (const QVariant& v : caps) {
+        const QVariantMap c = v.toMap();
+        if (!limpios.isEmpty() &&
+            c.value("seg").toInt() - limpios.last().toMap().value("seg").toInt() < 10)
+            continue;
+        limpios.append(c);
+    }
+
+    QString texto;
+    for (const QVariant& v : limpios) {
+        const QVariantMap c = v.toMap();
+        texto += c.value("marca").toString() + " " + c.value("titulo").toString() + "\n";
+    }
+    return QVariantMap{{"ok", limpios.size() >= 3},
+                       {"motivo", limpios.size() >= 3
+                                      ? QString()
+                                      : QString("YouTube ignora las listas de menos de tres "
+                                                "capitulos: quedaron %1.").arg(limpios.size())},
+                       {"capitulos", limpios},
+                       {"texto", texto},
+                       {"antesDeGrabar", antesDeGrabar}};
+}
+
+void EventoViewModel::pedirInvitacion(const QVariantMap& quien, bool remoto,
+                                      std::function<void(const QVariantMap&)> luego) {
+    if (sala_ == nullptr)
+        return luego(QVariantMap{{"ok", false}, {"motivo", "La sala no está disponible."}});
+    const QString ruta =
+        QString("/api/v1/publico-link?target=") + (remoto ? "remote" : "local") + "&conClave=1";
+    const QString codigo = quien.value("codigo").toString();
+    // El nombre y la fecha salen del evento; el enlace, del gateway.
+    const QString nombreEvento =
+        e_.nombre.empty() ? abierto_ : QString::fromStdString(e_.nombre);
+    QString cuandoTexto = QString::fromStdString(e_.fecha);
+    if (!e_.inicio.empty()) cuandoTexto += " a las " + QString::fromStdString(e_.inicio);
+    if (!e_.huso.empty()) cuandoTexto += " (" + QString::fromStdString(e_.huso) + ")";
+    const QString instante = cuando();
+
+    sala_->client().get(ruta, [luego, quien, codigo, nombreEvento, cuandoTexto, instante](
+                                  bool ok, const QJsonObject& r) {
+        if (!ok || !r.value("ok").toBool())
+            return luego(QVariantMap{
+                {"ok", false},
+                {"motivo", "No pude pedirle el enlace a la sala. Fijate `room_status`."}});
+        // El código va en el FRAGMENTO, con la clave: no viaja en la petición
+        // ni queda en los registros de ningún servidor por el que pase.
+        const QString url = r.value("url").toString() + "&c=" + codigo;
+
+        QString t;
+        t += "Te esperamos en " + nombreEvento + ".\n\n";
+        if (cuandoTexto.trimmed().isEmpty())
+            t += "(El evento todavía no tiene fecha en el guion.)\n\n";
+        else
+            t += "Cuándo: " + cuandoTexto.trimmed() + "\n";
+        if (!instante.isEmpty()) t += "En tu huso horario: " + instante + "\n";
+        t += "\nEste es tu enlace personal:\n" + url + "\n\n";
+        t += "Escanealo o abrilo al llegar: queda registrado que llegaste, y desde ahí podés "
+             "preguntar y votar.\n";
+        t += "Tu código, por si te lo piden: " + codigo + "\n";
+        if (!quien.value("nota").toString().isEmpty())
+            t += "\nNota: " + quien.value("nota").toString() + "\n";
+
+        QVariantList modulos;
+        for (const QJsonValue& fila : r.value("modules").toArray()) modulos.append(fila.toString());
+        luego(QVariantMap{{"ok", true}, {"texto", t}, {"url", url}, {"modulos", modulos}});
+    });
+}
+
+QString EventoViewModel::acta(const QJsonArray& votaciones) const {
+    const evento::Resumen r = padron_.resumen();
+    QString t;
+    const QString titulo = e_.nombre.empty() ? abierto_ : QString::fromStdString(e_.nombre);
+    t += "# Acta — " + titulo + "\n\n";
+
+    QString cuandoTexto = QString::fromStdString(e_.fecha);
+    if (!e_.inicio.empty()) cuandoTexto += " " + QString::fromStdString(e_.inicio);
+    if (!e_.huso.empty()) cuandoTexto += " (" + QString::fromStdString(e_.huso) + ")";
+    t += cuandoTexto.trimmed().isEmpty() ? QString("**Fecha:** sin fecha en el guion\n\n")
+                                         : "**Fecha:** " + cuandoTexto.trimmed() + "\n\n";
+
+    // --- El quorum, arriba y con sus DOS numeros ---------------------------
+    // Un acta que dice «se aprobo por 8 votos a favor» sin decir cuantos podian
+    // votar no prueba nada.
+    t += "## Asistencia\n\n";
+    t += QString("- Presentes: **%1** de %2 en el padrón "
+                 "(%3 en el lugar, %4 en línea)\n")
+             .arg(r.presentes).arg(r.total).arg(r.presenciales).arg(r.enLinea);
+    if (r.conVoto > 0)
+        t += QString("- Con derecho a voto presentes: **%1** de %2 — **quórum**\n")
+                 .arg(r.votoPresente).arg(r.conVoto);
+    t += QString("- No llegaron: %1\n\n").arg(r.faltan);
+
+    t += "| Nombre | Papel | Por dónde | Llegó | Voto |\n|---|---|---|---|---|\n";
+    for (const evento::Asistente& a : padron_.gente()) {
+        const bool llego = a.estado == evento::Estado::Llego || a.llegoMs > 0;
+        const QString hora =
+            a.llegoMs > 0
+                ? QDateTime::fromMSecsSinceEpoch(a.llegoMs).toString("HH:mm")
+                : QString("—");
+        t += QString("| %1 | %2 | %3 | %4 | %5 |\n")
+                 .arg(QString::fromStdString(a.nombre).isEmpty()
+                          ? QString("(sin nombre)")
+                          : QString::fromStdString(a.nombre))
+                 .arg(QString::fromUtf8(evento::nombreDePapel(a.papel)))
+                 .arg(llego && !a.porDonde.empty() ? QString::fromStdString(a.porDonde)
+                                                   : QString::fromUtf8(evento::nombreDeCanal(a.canal)))
+                 .arg(hora)
+                 .arg(a.vota ? "sí" : "—");
+    }
+    t += "\n";
+
+    // --- Lo que se decidio --------------------------------------------------
+    t += "## Lo que se votó\n\n";
+    if (votaciones.isEmpty()) {
+        t += "No se votó nada en este evento.\n\n";
+    } else {
+        int n = 0;
+        for (const QJsonValue& vv : votaciones) {
+            const QJsonObject v = vv.toObject();
+            ++n;
+            t += QString("### %1. %2\n\n").arg(n).arg(v.value("pregunta").toString());
+            const bool formal = v.value("modo").toString() == "formal";
+            // Se dice CUAL fue: una encuesta leida como decision es el error
+            // que esta separacion existe para evitar.
+            t += formal ? QString("*Votación formal") : QString("*Encuesta (resultado indicativo)");
+            if (v.value("secreta").toBool()) t += ", secreta";
+            t += "*\n\n";
+            const int votaron = v.value("votaron").toInt();
+            const int podian = v.value("podian").toInt();
+            t += podian > 0 ? QString("Votaron %1 de %2.\n\n").arg(votaron).arg(podian)
+                            : QString("Votaron %1.\n\n").arg(votaron);
+            for (const QJsonValue& oo : v.value("resultado").toArray()) {
+                const QJsonObject o = oo.toObject();
+                t += QString("- %1: **%2**\n")
+                         .arg(o.value("opcion").toString())
+                         .arg(o.value("votos").toInt());
+            }
+            t += "\n";
+            const QJsonArray faltan = v.value("faltanVotar").toArray();
+            if (!faltan.isEmpty()) {
+                QStringList ns;
+                for (const QJsonValue& f : faltan) ns << f.toString();
+                t += "No votaron: " + ns.join(", ") + "\n\n";
+            }
+        }
+    }
+
+    t += "---\n\n_Generada por Broadcast Appliance el " +
+         QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm") + "._\n";
+    return t;
+}
+
+QString EventoViewModel::guardarActa(const QString& texto) const {
+    if (abierto_.isEmpty()) return {};
+    const QString nombre =
+        "acta-" + QDateTime::currentDateTime().toString("yyyy-MM-dd-HHmm") + ".md";
+    const QString ruta =
+        QString::fromStdString((store_.carpetaDe(abierto_.toStdString()) / nombre.toStdString()).string());
+    QFile f(ruta);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return {};
+    f.write(texto.toUtf8());
+    return f.error() == QFile::NoError ? ruta : QString();
 }
 
 QVariantMap EventoViewModel::informe() const {
@@ -1289,6 +1515,34 @@ bool EventoViewModel::despedir(const QString& id) {
     if (abierto_.isEmpty()) return false;
     if (!padron_.despedir(id.toStdString())) return false;
     return guardarPadronAhora();
+}
+
+void EventoViewModel::recogerAcreditaciones() {
+    if (abierto_.isEmpty() || sala_ == nullptr) return;
+    sala_->client().get("/api/v1/acreditaciones", [this](bool ok, const QJsonObject& r) {
+        if (!ok) return;
+        const QJsonArray cs = r.value("codigos").toArray();
+        if (cs.isEmpty()) return;
+        int hechos = 0;
+        QStringList desconocidos;
+        for (const QJsonValue& v : cs) {
+            const std::string codigo = v.toString().toStdString();
+            const evento::Asistente* a = padron_.porCodigo(codigo);
+            // Un codigo que no esta en el padron NO se anota solo: quien entra
+            // sin estar invitado es una decision del que organiza. Pero se
+            // avisa, porque del otro lado hay alguien parado esperando.
+            if (a == nullptr) { desconocidos << QString::fromStdString(codigo); continue; }
+            if (acreditar(QString::fromStdString(a->id), "qr")) ++hechos;
+        }
+        if (hechos > 0)
+            emit notify(QString::number(hechos) + (hechos == 1 ? " persona llegó" : " personas llegaron") +
+                            " (escanearon su invitación).",
+                        "info");
+        if (!desconocidos.isEmpty())
+            emit notify("Escanearon códigos que no están en el padrón: " + desconocidos.join(", ") +
+                            ". Si corresponde, anotalos con el padrón.",
+                        "warn");
+    });
 }
 
 void EventoViewModel::migrarAutoAceptar() {

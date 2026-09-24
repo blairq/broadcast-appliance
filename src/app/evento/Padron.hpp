@@ -140,6 +140,8 @@ class Padron {
     /// El primero que tenga esa ficha de rostro, o nullptr. Es como la puerta
     /// pregunta «¿quién es este?».
     const Asistente* porPersona(const std::string& personaId) const;
+    /// Por su código de votante. Es como llega el que escaneó su invitación.
+    const Asistente* porCodigo(const std::string& codigo) const;
     /// El primero cuyo nombre coincida sin distinguir mayúsculas ni acentos.
     /// Para el mostrador, donde se tipea.
     const Asistente* porNombre(const std::string& nombre) const;

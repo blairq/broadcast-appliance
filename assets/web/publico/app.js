@@ -180,11 +180,37 @@
     })
     .catch(() => {});
 
+  // --- Escanear la invitacion acredita --------------------------------------
+  // El QR de la invitacion trae el codigo de la persona. Con eso, llegar y
+  // mirarlo con el telefono es toda la acreditacion: no hay que hacer cola en
+  // un mostrador ni que nadie le mire la cara a nadie.
+  //
+  // Se manda UNA VEZ por codigo y se recuerda: recargar la pagina no vuelve a
+  // avisar que llego, y al que ya entro no le sirve verlo de nuevo.
+  const codigoDelQr = (frag.get('c') || '').trim().toUpperCase();
+  if (codigoDelQr) {
+    let yaAvise = '';
+    try { yaAvise = localStorage.getItem('ba-publico-acreditado') || ''; } catch (_) {}
+    if (yaAvise !== codigoDelQr) {
+      fetch('/api/acreditar', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ clave, codigo: codigoDelQr }),
+      }).then(() => {
+        try { localStorage.setItem('ba-publico-acreditado', codigoDelQr); } catch (_) {}
+        estado.textContent = 'Llegada registrada';
+      }).catch(() => {});
+    }
+  }
+
   // --- La urna --------------------------------------------------------------
   // El codigo de votante se guarda en el telefono: en una asamblea se vota
   // varios puntos seguidos y tipearlo cada vez es perder gente en el camino.
-  let codigo = '';
-  try { codigo = localStorage.getItem('ba-publico-codigo') || ''; } catch (_) {}
+  let codigo = codigoDelQr;
+  try { codigo = codigoDelQr || localStorage.getItem('ba-publico-codigo') || ''; } catch (_) {}
+  // El del QR manda y se guarda: quien escaneo su invitacion no tiene que
+  // tipear su codigo despues para votar. Es el mismo.
+  if (codigoDelQr) { try { localStorage.setItem('ba-publico-codigo', codigoDelQr); } catch (_) {} }
   $('codigo').value = codigo;
   $('codigo').addEventListener('input', () => {
     codigo = $('codigo').value.trim().toUpperCase();

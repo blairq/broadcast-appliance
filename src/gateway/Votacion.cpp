@@ -59,6 +59,9 @@ bool Votacion::abrir(const std::string& pregunta, const std::vector<std::string>
     if (ops.size() < 2) return false;
 
     std::lock_guard<std::mutex> g(m_);
+    // Una que se reemplaza sin cerrar IGUAL PASO: para el acta importa que se
+    // voto, no que alguien se haya acordado de apretar cerrar.
+    if (abierta_) archivarSinLock();
     abierta_ = true;
     hubo_ = true;
     modo_ = modo;
@@ -74,11 +77,32 @@ bool Votacion::abrir(const std::string& pregunta, const std::vector<std::string>
     return true;
 }
 
+void Votacion::archivarSinLock() {
+    if (!hubo_ || pregunta_.empty()) return;
+    json e = estadoSinLock();
+    e["hastaMs"] = hastaMs_;
+    historial_.push_back(std::move(e));
+}
+
 bool Votacion::cerrar() {
     std::lock_guard<std::mutex> g(m_);
     if (!abierta_) return false;
     abierta_ = false;
+    hastaMs_ = 0;
+    archivarSinLock();
     return true;
+}
+
+json Votacion::historial() const {
+    std::lock_guard<std::mutex> g(m_);
+    json out = json::array();
+    for (const json& v : historial_) out.push_back(v);
+    return out;
+}
+
+void Votacion::olvidarHistorial() {
+    std::lock_guard<std::mutex> g(m_);
+    historial_.clear();
 }
 
 bool Votacion::hayAbierta() const {
@@ -129,6 +153,10 @@ json Votacion::recuentoSinLock() const {
 
 json Votacion::estado() const {
     std::lock_guard<std::mutex> g(m_);
+    return estadoSinLock();
+}
+
+json Votacion::estadoSinLock() const {
     if (!hubo_) return json{{"hubo", false}};
     json e{{"hubo", true},
            {"abierta", abierta_},

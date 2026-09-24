@@ -12,6 +12,7 @@
 
 #include "SignalingServer.hpp"
 
+#include <algorithm>
 #include <cctype>
 #include <chrono>
 #include <cstdio>
@@ -147,6 +148,13 @@ bool SignalingServer::start() {
         }
     }
     return true;
+}
+
+std::vector<std::string> SignalingServer::tomarAcreditaciones() {
+    std::lock_guard<std::mutex> g(publicoM_);
+    std::vector<std::string> out;
+    out.swap(acreditaciones_);
+    return out;
 }
 
 void SignalingServer::setPublicoInfo(const nlohmann::json& info) {
@@ -721,6 +729,38 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
                                    .dump());
             return;
         }
+    }
+    // Escanear la invitacion acredita. El QR lleva el codigo de la persona, y
+    // el que llega no tiene que hacer nada mas que mirarlo con el telefono.
+    if (method == "POST" && path == "/api/acreditar") {
+        const json req = json::parse(body, nullptr, false);
+        const std::string clave = req.is_object() ? req.value("clave", std::string()) : "";
+        if (cfg_.publicoKey.empty() || clave != cfg_.publicoKey) {
+            http::sendResponse(fd, 403, "application/json", R"({"ok":false,"error":"clave"})");
+            return;
+        }
+        std::string codigo = req.value("codigo", std::string());
+        if (codigo.size() > 16) codigo.resize(16);
+        for (char& c : codigo) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+        if (codigo.empty()) {
+            http::sendResponse(fd, 400, "application/json", R"({"ok":false,"error":"sin codigo"})");
+            return;
+        }
+        {
+            std::lock_guard<std::mutex> g(publicoM_);
+            // Tope: el buzon no puede crecer sin fin si A no viene a vaciarlo.
+            // Repetido no molesta —acreditar dos veces no mueve la hora— pero
+            // tampoco hace falta guardarlo dos veces.
+            if (acreditaciones_.size() < 500 &&
+                std::find(acreditaciones_.begin(), acreditaciones_.end(), codigo) ==
+                    acreditaciones_.end())
+                acreditaciones_.push_back(codigo);
+        }
+        // Se contesta que si SIEMPRE: B no sabe si ese codigo existe (el padron
+        // lo tiene A), y decirle «no se» al que acaba de llegar no le sirve.
+        // Si el codigo no esta en el padron, A lo avisa del lado del operador.
+        http::sendResponse(fd, 200, "application/json", R"({"ok":true})");
+        return;
     }
     if (path == "/api/preguntas") {
         const json req = method == "POST" ? json::parse(body, nullptr, false) : json::object();

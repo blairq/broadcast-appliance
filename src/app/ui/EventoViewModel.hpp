@@ -20,6 +20,9 @@
 #include <QObject>
 #include <QString>
 #include <QTimer>
+
+#include <functional>
+#include <QJsonArray>
 #include <QVariantList>
 #include <QVariantMap>
 
@@ -205,6 +208,31 @@ class EventoViewModel : public QObject {
     ///  realSeg, desvioSeg, cues: [{nro, texto, tipo, previstoSeg, realSeg,
     ///  desvioSeg}]}]}
     Q_INVOKABLE QVariantMap informe() const;
+    /// Los capítulos de la grabación, uno por bloque, medidos desde que
+    /// arrancó a grabar (`recInicioMs`, reloj de pared).
+    ///
+    /// {ok, motivo, capitulos: [{seg, marca, titulo}], texto, antesDeGrabar}
+    ///
+    /// UNO POR BLOQUE Y NO POR CUE: cuarenta capítulos de quince segundos no
+    /// le sirven a nadie. Los bloques son justamente los tramos con nombre.
+    Q_INVOKABLE QVariantMap capitulos(qint64 recInicioMs) const;
+
+    /// El acta: quiénes asistieron, el quórum y qué se votó.
+    ///
+    /// NO es `informe()`. El informe dice que el bloque 3 se fue cuatro
+    /// minutos —es para el operador—; el acta dice quiénes estuvieron y qué se
+    /// decidió, que es lo que vale en una asamblea.
+    ///
+    /// `votaciones` es el historial que guarda la urna (vive en el gateway).
+    QString acta(const QJsonArray& votaciones) const;
+    /// La escribe en la carpeta del evento. Devuelve la ruta, o vacío.
+    QString guardarActa(const QString& texto) const;
+
+    /// La invitación de una persona del padrón: el texto, el enlace con su
+    /// código adentro y los módulos del QR. Va al gateway a pedir el enlace,
+    /// así que contesta por `luego`.
+    void pedirInvitacion(const QVariantMap& quien, bool remoto,
+                         std::function<void(const QVariantMap&)> luego);
     /// Guarda el informe en la carpeta del evento, con la fecha en el nombre.
     /// Devuelve el archivo escrito, o vacio si no se pudo.
     Q_INVOKABLE QString guardarInforme();
@@ -277,6 +305,11 @@ class EventoViewModel : public QObject {
     evento::Padron padron_;
     /// Vuelca la lista blanca vieja del lobby al padrón, una sola vez.
     void migrarAutoAceptar();
+    /// Va a buscar al gateway los que escanearon su invitación y los acredita.
+    /// Corre sola mientras hay un evento abierto.
+    void recogerAcreditaciones();
+    /// El reloj de eso. Ver `recogerAcreditaciones`.
+    QTimer buzon_;
     std::unique_ptr<evento::Guion> guionCorriendo_;
     QString abierto_;
     bool sucio_ = false;

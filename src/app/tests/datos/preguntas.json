@@ -689,6 +689,67 @@
       "herramientas": [
         "votacion_ver"
       ]
+    },
+    {
+      "pregunta": "arma el acta de la reunion",
+      "herramientas": [
+        "evento_acta"
+      ]
+    },
+    {
+      "pregunta": "quienes asistieron y que se decidio",
+      "herramientas": [
+        "evento_acta"
+      ]
+    },
+    {
+      "pregunta": "dame los capitulos para la descripcion del video",
+      "herramientas": [
+        "evento_capitulos"
+      ]
+    },
+    {
+      "pregunta": "las marcas de tiempo de cada bloque",
+      "herramientas": [
+        "evento_capitulos"
+      ]
+    },
+    {
+      "pregunta": "mandale la invitacion a Marta",
+      "herramientas": [
+        "invitacion"
+      ]
+    },
+    {
+      "pregunta": "dame el enlace personal de ese invitado",
+      "herramientas": [
+        "invitacion"
+      ]
+    },
+    {
+      "pregunta": "estan listos los que estan esperando",
+      "herramientas": [
+        "invitado_chequeo"
+      ]
+    },
+    {
+      "pregunta": "probale la camara y el microfono al que espera",
+      "herramientas": [
+        "invitado_chequeo"
+      ]
+    },
+    {
+      "pregunta": "armame la asamblea del jueves con tres puntos a votar",
+      "herramientas": [
+        "evento_armar"
+      ]
+    },
+    {
+      "pregunta": "prepara un evento nuevo de cero",
+      "herramientas": [
+        "evento_armar",
+        "evento_listar"
+      ]
     }
   ]
 }
