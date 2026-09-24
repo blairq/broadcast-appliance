@@ -889,7 +889,7 @@ Rectangle {
                             Layout.fillWidth: true
                             TextField { Layout.fillWidth: true; readOnly: true; font.pixelSize: 11
                                         id: bestUrlField; text: direct.net && direct.net.bestUrl ? direct.net.bestUrl : "" }
-                            GlassButton { text: "Copiar"; compact: true; onClicked: conf.copyToClipboard(bestUrlField.text) }
+                            GlassButton { text: "Copiar"; compact: true; onClicked: Studio.copiar(bestUrlField.text) }
                         }
                         GlassButton { text: "Configurar servidor WireGuard…"; compact: true; enabled: conf.online; onClicked: wgDlg.open() }
                     }
@@ -1110,7 +1110,7 @@ Rectangle {
                 visible: qrDlg.url !== ""
                 Layout.preferredWidth: 300
                 TextField { id: qrUrl; Layout.fillWidth: true; readOnly: true; text: qrDlg.url; font.pixelSize: 11 }
-                GlassButton { text: "Copiar"; compact: true; onClicked: conf.copyToClipboard(qrDlg.url) }
+                GlassButton { text: "Copiar"; compact: true; onClicked: Studio.copiar(qrDlg.url) }
             }
             Text {
                 Layout.preferredWidth: 300
@@ -1178,7 +1178,7 @@ Rectangle {
                 Layout.preferredHeight: 260
                 TextArea { readOnly: true; text: wgDlg.config; font.family: "monospace"; font.pixelSize: 11; wrapMode: TextEdit.NoWrap; selectByMouse: true }
             }
-            GlassButton { visible: wgDlg.config !== ""; text: "Copiar configuracion"; compact: true; onClicked: conf.copyToClipboard(wgDlg.config) }
+            GlassButton { visible: wgDlg.config !== ""; text: "Copiar configuracion"; compact: true; onClicked: Studio.copiar(wgDlg.config) }
         }
     }
 

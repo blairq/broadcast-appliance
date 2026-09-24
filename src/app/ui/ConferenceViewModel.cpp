@@ -593,12 +593,6 @@ void ConferenceViewModel::openWebConsole() {
     });
 }
 
-void ConferenceViewModel::copyToClipboard(const QString& text) {
-    if (QClipboard* c = QGuiApplication::clipboard()) {
-        c->setText(text);
-        emit notify("Copiado", "ok");
-    }
-}
 
 void ConferenceViewModel::takeShare(const QString& id) {
     QJsonObject share;

@@ -138,13 +138,33 @@ Dialog {
                                 : dlg.avisoSinClave + " " + (dlg.clave === "" ? "" : dlg.clave))
         }
 
-        Text {
+        // El enlace, PARA PODER USARLO. Estaba como texto muerto: se veía y no
+        // se podía ni seleccionar. No todo el mundo escanea un QR —el que está
+        // en la misma computadora quiere pegar la dirección en su navegador, y
+        // a veces hay que mandarla por mensaje—.
+        RowLayout {
             Layout.preferredWidth: 300
-            wrapMode: Text.WrapAnywhere
             visible: dlg.url !== ""
-            color: Theme.textFaint
-            font.pixelSize: 10
-            text: dlg.url
+            spacing: 6
+            TextField {
+                id: campoUrl
+                Layout.fillWidth: true
+                readOnly: true
+                text: dlg.url
+                font.pixelSize: 11
+                // Que se pueda seleccionar a mano tambien: copiar un pedazo
+                // (solo el host, por ejemplo) es algo que se hace.
+                selectByMouse: true
+            }
+            GlassButton {
+                text: "Copiar"
+                icon: "⧉"
+                compact: true
+                onClicked: { campoUrl.selectAll(); Studio.copiar(dlg.url) }
+                ToolTip.visible: hovered
+                ToolTip.delay: 400
+                ToolTip.text: "Copia el enlace al portapapeles"
+            }
         }
     }
 }

@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "ui/StudioViewModel.hpp"
+#include <QClipboard>
 
 #include <QGuiApplication>
 #include <QWindow>
@@ -809,6 +810,13 @@ QStringList StudioViewModel::sceneFolders() const {
     for (const auto& f : rt_.sceneFolders())
         out << qs(f);
     return out;
+}
+
+void StudioViewModel::copiar(const QString& texto) {
+    if (QClipboard* c = QGuiApplication::clipboard()) {
+        c->setText(texto);
+        emit notify("Copiado", "ok");
+    }
 }
 
 QString StudioViewModel::assistantIntake(const QString& id, const QString& name, bool yaAdentro) {

@@ -298,6 +298,13 @@ class StudioViewModel : public QObject {
     /// pida sus datos por chat y despues le presente todo junto para admitirlo.
     /// Devuelve el error o "".
     Q_INVOKABLE QString assistantIntake(const QString& id, const QString& name, bool yaAdentro);
+
+    /// Copia un texto al portapapeles y lo avisa.
+    ///
+    /// Vive acá y no en la sala: copiar un enlace no tiene nada que ver con una
+    /// videoconferencia. Estaba en ConferenceViewModel y por eso el diálogo de
+    /// QR —que lo usan el teleprompter y los rótulos— no podía copiar nada.
+    Q_INVOKABLE void copiar(const QString& texto);
     /// Lo engancha McpService (necesita el nucleo MCP, que vive afuera).
     void setIntakeSink(std::function<QString(const QString&, const QString&, bool)> fn) {
         intakeSink_ = std::move(fn);
