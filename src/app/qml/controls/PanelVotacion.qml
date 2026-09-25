@@ -161,6 +161,15 @@ Item {
                     Layout.fillWidth: true
                     spacing: 8
                     GlassButton {
+                        visible: raiz.hay
+                        text: "Proyectar"
+                        icon: "⧉"
+                        onClicked: proyectarDlg.open()
+                        ToolTip.visible: hovered
+                        ToolTip.delay: 400
+                        ToolTip.text: "Mandarla a un televisor de la sala, con el QR para votar"
+                    }
+                    GlassButton {
                         visible: raiz.abierta
                         text: "Cerrar la votación"
                         onClicked: raiz.pub.cerrarVotacion()
@@ -295,6 +304,49 @@ Item {
                     }
                     Item { Layout.fillWidth: true }
                 }
+            }
+        }
+    }
+
+    // A que televisor. La lista es la misma de la pagina de Pantallas: el
+    // modelo es uno solo (`Studio.pantallas`) y esto solo elige.
+    Dialog {
+        id: proyectarDlg
+        anchors.centerIn: Overlay.overlay
+        width: 420
+        modal: true
+        title: "Proyectar la votación"
+        standardButtons: Dialog.Close
+        ColumnLayout {
+            spacing: 8
+            Text {
+                Layout.preferredWidth: 380
+                wrapMode: Text.WordWrap
+                text: "Se manda la que esté abierta, con el QR para votar desde el teléfono. El " +
+                      "resultado se ve solo si decidiste mostrarlo."
+                color: Theme.textDim
+                font.pixelSize: 12
+            }
+            Repeater {
+                model: Studio.pantallas.pantallas
+                delegate: GlassButton {
+                    required property var modelData
+                    Layout.preferredWidth: 380
+                    text: modelData.nombre
+                    onClicked: {
+                        const err = Studio.pantallas.mostrar(modelData.id, "votacion", {})
+                        if (err) ApplicationWindow.window.toast(err, "error")
+                        proyectarDlg.close()
+                    }
+                }
+            }
+            Text {
+                Layout.preferredWidth: 380
+                visible: Studio.pantallas.pantallas.length === 0
+                wrapMode: Text.WordWrap
+                text: "No hay ninguna pantalla. Buscalas en la página de Pantallas."
+                color: Theme.textFaint
+                font.pixelSize: 12
             }
         }
     }

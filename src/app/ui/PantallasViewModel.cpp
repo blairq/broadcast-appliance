@@ -72,6 +72,14 @@ const std::vector<Contenido>& catalogo() {
          {{"url", "Dirección", "http://…", false}},
          true, ""},
         {"prompter", "El teleprompter", "La vista del orador: el discurso que esté cargado.", {}, true, ""},
+        // La votación que esté abierta, con su QR para escanear desde la
+        // butaca. No lleva campos: lo que muestra es lo que haya en la urna en
+        // ese momento, y no hay nada que elegir — una urna por vez.
+        {"votacion", "La votación",
+         "La que esté abierta, con las opciones y el QR para votar desde el teléfono. El resultado se "
+         "ve solo cuando corresponde: con la urna cerrada, o abierta si se decidió mostrarlo. Si no "
+         "hay ninguna, dice que no hay.",
+         {}, true, ""},
         {"tally", "Tally de cámara",
          "Rojo si esa cámara está AL AIRE, verde si está armada para el próximo take. Se mira de reojo "
          "desde atrás de la cámara, así que es la pantalla entera de color. `fuente` es el nombre de la "
@@ -465,6 +473,20 @@ QString PantallasViewModel::urlDe(const QString& tipo, const QVariantMap& datos,
     const QString base = "http://" + ip + ":" + QString::number(d_->puertoWeb);
 
     if (tipo == "prompter") return base + "/prompter/";
+    // La votacion tiene pagina propia porque es la unica que CONSULTA: las
+    // demas son estaticas y lo que muestran viaja en la URL. Le van la clave
+    // del publico —para poder leer la urna— y la direccion que va adentro del
+    // QR, que es la misma que escanean los telefonos.
+    if (tipo == "votacion") {
+        QString u = base + "/pantalla/votacion/";
+        const QString clave = datos.value("clavePublico").toString();
+        const QString entrada = datos.value("entrada").toString();
+        if (!clave.isEmpty()) u += "?k=" + clave;
+        if (!entrada.isEmpty())
+            u += (clave.isEmpty() ? "?" : "&") +
+                 QString("entrada=") + QString::fromUtf8(QUrl::toPercentEncoding(entrada));
+        return u;
+    }
     // El tally tiene pagina propia: es la pantalla ENTERA de color y no se
     // parece en nada a las demas.
     if (tipo == "tally") {
@@ -992,6 +1014,33 @@ QString PantallasViewModel::mostrar(const QString& id, const QString& tipo, cons
     if (d->puedeMostrar == 0)
         return d->nombre + " no sabe mostrar páginas web: contesta el protocolo, pero no tiene dónde "
                            "mostrarlas (¿es un parlante?).";
+    // La votacion necesita dos cosas que solo sabe el gateway: la clave con la
+    // que se lee la urna y la direccion que va adentro del QR. Se las pide y
+    // recien despues manda, porque una pantalla con el QR equivocado manda a
+    // toda la sala a un lugar que no existe.
+    if (tipo == "votacion" && datos.value("clavePublico").toString().isEmpty()) {
+        if (d_->sala == nullptr) return "La sala no está corriendo: sin ella no hay urna que mostrar.";
+        d->trabajando = true;
+        emit cambio();
+        d_->sala->client().get(
+            "/api/v1/publico-link?target=local&conClave=1",
+            [this, id, datos](bool ok, const QJsonObject& r) mutable {
+                Destino* d = d_->porId(id);
+                if (d == nullptr) return;
+                d->trabajando = false;
+                if (!ok || !r.value("ok").toBool()) {
+                    d->estado = "error";
+                    d->error = "No pude sacar el enlace del público";
+                    emit notify(d->nombre + ": " + d->error, "error");
+                    emit cambio();
+                    return;
+                }
+                datos["clavePublico"] = r.value("clave").toString();
+                datos["entrada"] = r.value("url").toString();
+                mostrar(id, "votacion", datos);
+            });
+        return {};
+    }
     if (tipo == "programa") {
         if (d_->sala == nullptr) return "La sala no está corriendo: sin ella no hay programa que mandar.";
         d->trabajando = true;

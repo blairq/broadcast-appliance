@@ -49,6 +49,14 @@ void abrir() {
     CHECK(v.abrir("¿Aprobamos el balance?", kSiNo, Votacion::Modo::Encuesta, false, {}, 0, 1000),
           "con pregunta y dos opciones, si");
     CHECK(v.hayAbierta(), "queda abierta");
+    // Las opciones que terminan en acento llegan enteras: «Si» proyectado como
+    // «S» fue un bug de verdad.
+    Votacion a;
+    a.abrir("¿Aprobamos el café?", {"Sí", "No", "Abstención"}, Votacion::Modo::Encuesta, false, {}, 0, 1);
+    const json e = a.estado();
+    CHECK(e["pregunta"] == "¿Aprobamos el café?", "la pregunta con acento al final llega entera");
+    CHECK(e["resultado"][0]["opcion"] == "Sí", "«Sí» sigue siendo «Sí»");
+    CHECK(e["resultado"][2]["opcion"] == "Abstención", "y «Abstención» tampoco se corta");
     CHECK(v.cerrar(), "y se cierra");
     CHECK(!v.hayAbierta(), "queda cerrada");
     CHECK(!v.cerrar(), "cerrar la que ya esta cerrada avisa");

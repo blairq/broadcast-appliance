@@ -42,6 +42,19 @@ void preguntar() {
     CHECK(l[0]["deDonde"] == "publico", "y de donde vino");
     CHECK(l[0]["estado"] == "nueva", "arranca sin moderar");
 
+    // Lo que NO se recorta tiene que llegar entero. Recortar siempre por las
+    // dudas se comia la ultima letra acentuada de todo texto que terminara en
+    // una: «Si» quedaba en «S». Se vio proyectando una votacion.
+    Preguntas q;
+    q.preguntar("José", "¿Vamos al café?", "publico", "n1", 1);
+    CHECK(q.lista()[0]["texto"] == "¿Vamos al café?", "una pregunta que termina en acento llega entera");
+    CHECK(q.lista()[0]["nombre"] == "José", "y el nombre tambien");
+    q.preguntar("", "Sí", "publico", "n2", 2);
+    bool estaSi = false;
+    for (const json& x : q.lista())
+        if (x["texto"] == "Sí") estaSi = true;
+    CHECK(estaSi, "«Sí» no se convierte en «S»");
+
     CHECK(p.preguntar("", "", "publico", "n1", 1).empty(), "un texto vacio no es una pregunta");
     CHECK(p.preguntar("", "   \n\t  ", "publico", "n1", 1).empty(), "solo espacios tampoco");
 

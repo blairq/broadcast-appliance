@@ -16,8 +16,9 @@ std::string recortar(const std::string& s, std::size_t tope) {
     std::string out;
     out.reserve(std::min(s.size(), tope));
     bool espacio = false;
+    bool corto = false; // true si se llego al tope y quedo texto afuera
     for (char c : s) {
-        if (out.size() >= tope) break;
+        if (out.size() >= tope) { corto = true; break; }
         const unsigned char u = static_cast<unsigned char>(c);
         if (u == '\n' || u == '\r' || u == '\t' || c == ' ') {
             if (!out.empty()) espacio = true;
@@ -27,10 +28,14 @@ std::string recortar(const std::string& s, std::size_t tope) {
         if (espacio) { out.push_back(' '); espacio = false; }
         out.push_back(c);
     }
-    // Un recorte a la mitad de un caracter multibyte deja basura: se sueltan
-    // los bytes de continuacion que hayan quedado colgando al final.
-    while (!out.empty() && (static_cast<unsigned char>(out.back()) & 0xC0) == 0x80) out.pop_back();
-    if (!out.empty() && (static_cast<unsigned char>(out.back()) & 0x80) != 0) out.pop_back();
+    // SOLO SI SE CORTO. Un corte a la mitad de un caracter multibyte deja
+    // basura en pantalla, pero hacer esto siempre se come la ultima letra
+    // acentuada de todo texto que termine en una: «Si» quedaba en «S» y «Jose»
+    // en «Jos». Se vio proyectando una votacion.
+    if (corto) {
+        while (!out.empty() && (static_cast<unsigned char>(out.back()) & 0xC0) == 0x80) out.pop_back();
+        if (!out.empty() && (static_cast<unsigned char>(out.back()) & 0x80) != 0) out.pop_back();
+    }
     return out;
 }
 

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Votación</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!--
+    La votación, proyectada en la sala.
+
+    Página propia y no un `tipo` más de /pantalla/: las demás son estáticas —lo
+    que muestran viaja en la URL y no le piden nada a nadie— y esta tiene que
+    seguir la votación mientras pasa. Meterle un caso con consultas a la página
+    estática le habría puesto un reloj a todo lo que hoy no lo necesita.
+
+    NO DECIDE QUÉ MOSTRAR DEL RESULTADO. El gateway manda `resultado` solamente
+    cuando corresponde —con la urna cerrada, o abierta si el operador lo dejó a
+    propósito—, y acá se dibuja lo que venga. Si esta página eligiera por su
+    cuenta, la pantalla de la sala podría estar mostrando el parcial que el
+    operador decidió esconder, que es justo lo que no tiene que pasar: ver que
+    va perdiendo cambia lo que vota el que todavía no votó.
+  -->
+  <main id="hay" class="hidden">
+    <div class="estado" id="estado"></div>
+    <h1 id="pregunta"></h1>
+    <div class="cuerpo">
+      <div class="opciones" id="opciones"></div>
+      <div class="como" id="como">
+        <img id="qr" alt="" />
+        <p class="pie">Escaneá para votar</p>
+        <p class="cuenta" id="cuenta"></p>
+      </div>
+    </div>
+  </main>
+
+  <div id="nada" class="nada">
+    <p>No hay ninguna votación abierta.</p>
+  </div>
+
+  <script src="../latido.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

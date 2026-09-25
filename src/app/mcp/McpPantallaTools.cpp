@@ -105,7 +105,7 @@ void McpService::registerPantallaTools() {
         t.title = "Mostrar algo en una pantalla";
         t.category = "pantallas";
         t.description =
-            "MUESTRA algo (un QR, una pagina, un cartel) en un televisor de la red. Le manda un contenido a una pantalla. `tipo`: mensaje (texto grande), qr (un QR a pantalla "
+            "MUESTRA algo (un QR, una pagina, un cartel, la votacion) en un televisor de la red. Le manda un contenido a una pantalla. `tipo`: mensaje (texto grande), qr (un QR a pantalla "
             "completa), reloj, url (una direccion cualquiera), prompter (la vista del orador), carrusel "
             "(una rotacion ya armada), programa (lo que sale al aire, en vivo por WebRTC) o tally (rojo "
             "si esa camara esta al aire, verde si esta armada). Los campos de cada tipo salen de "
@@ -119,7 +119,7 @@ void McpService::registerPantallaTools() {
             {"required", {"pantalla", "tipo"}},
             {"properties",
              {{"pantalla", {{"type", "string"}, {"description", "id o nombre, como lo da pantalla_listar"}}},
-              {"tipo", {{"type", "string"}, {"enum", {"mensaje", "qr", "reloj", "url", "prompter", "carrusel", "programa", "tally"}}}},
+              {"tipo", {{"type", "string"}, {"enum", {"mensaje", "qr", "reloj", "url", "prompter", "carrusel", "programa", "tally", "votacion"}}}},
               {"carrusel", {{"type", "string"}, {"description", "su id, con tipo=carrusel"}}},
               {"qr", {{"type", "string"},
                       {"description", "con tipo=qr: el id de uno GUARDADO (qr_listar los da), que sale "
