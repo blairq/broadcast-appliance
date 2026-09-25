@@ -750,6 +750,18 @@
         "evento_armar",
         "evento_listar"
       ]
+    },
+    {
+      "pregunta": "sacame las preguntas a otro monitor",
+      "herramientas": [
+        "ui_panel_window"
+      ]
+    },
+    {
+      "pregunta": "poneme el padron en una ventana aparte",
+      "herramientas": [
+        "ui_panel_window"
+      ]
     }
   ]
 }

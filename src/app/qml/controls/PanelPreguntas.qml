@@ -22,6 +22,9 @@ Item {
     id: raiz
 
     readonly property var pub: Studio.publico
+    /// Lo pone en true PanelWindow: ya está en su ventana, no ofrece sacarlo
+    /// de nuevo.
+    property bool enVentana: false
 
     // Prende la consulta al gateway mientras se ve, y la apaga al irse: si no,
     // el aparato le preguntaría cada dos segundos para siempre.
@@ -47,6 +50,15 @@ Item {
             font.pixelSize: 12
         }
         Item { Layout.fillWidth: true }
+        GlassButton {
+            compact: true
+            visible: !raiz.enVentana
+            text: "⧉"
+            onClicked: ApplicationWindow.window.sacarPanel("preguntas", "Preguntas")
+            ToolTip.visible: hovered
+            ToolTip.delay: 400
+            ToolTip.text: "Sacar a su propia ventana, para mandarla a otro monitor"
+        }
         GlassButton {
             compact: true
             text: "Sumar una"

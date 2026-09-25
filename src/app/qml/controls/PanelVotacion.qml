@@ -19,6 +19,8 @@ Item {
     id: raiz
 
     readonly property var pub: Studio.publico
+    /// Lo pone en true PanelWindow (ver PanelPreguntas).
+    property bool enVentana: false
     readonly property var ev: Studio.evento
     readonly property var v: pub.votacion
     readonly property bool hay: v && v.hubo === true
@@ -47,6 +49,20 @@ Item {
     ColumnLayout {
         anchors.fill: parent
         spacing: 10
+
+        RowLayout {
+            Layout.fillWidth: true
+            visible: !raiz.enVentana
+            Item { Layout.fillWidth: true }
+            GlassButton {
+                compact: true
+                text: "⧉"
+                onClicked: ApplicationWindow.window.sacarPanel("votacion", "Votación")
+                ToolTip.visible: hovered
+                ToolTip.delay: 400
+                ToolTip.text: "Sacar a su propia ventana, para mandarla a otro monitor"
+            }
+        }
 
         // --- Lo que está pasando ahora ---------------------------------------
         Rectangle {

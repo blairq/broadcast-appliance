@@ -203,6 +203,45 @@ ApplicationWindow {
 
     ListModel { id: sueltas }
 
+    // --- Paneles sueltos -----------------------------------------------------
+    // Mas fino que sacar una pagina: en un evento, la cola de preguntas en un
+    // monitor y la urna en otro. Ver PanelWindow.qml.
+    ListModel { id: panelesSueltos }
+
+    Component { id: cmpPanelPadron;    PanelPadron {} }
+    Component { id: cmpPanelPreguntas; PanelPreguntas {} }
+    Component { id: cmpPanelVotacion;  PanelVotacion {} }
+
+    function componenteDePanel(id) {
+        return id === "padron" ? cmpPanelPadron
+             : id === "preguntas" ? cmpPanelPreguntas
+             : id === "votacion" ? cmpPanelVotacion : null
+    }
+
+    function sacarPanel(id, titulo) {
+        // Si ya esta afuera, se la trae al frente en vez de abrir otra igual.
+        for (let k = 0; k < panelesSueltos.count; ++k)
+            if (panelesSueltos.get(k).panelId === id) {
+                toasts.show("«" + titulo + "» ya está en su ventana", "info")
+                return
+            }
+        panelesSueltos.append({ panelId: id, titulo: titulo })
+    }
+
+    Instantiator {
+        model: panelesSueltos
+        delegate: PanelWindow {
+            required property int index
+            panelId: panelesSueltos.get(index) ? panelesSueltos.get(index).panelId : ""
+            titulo: panelesSueltos.get(index) ? panelesSueltos.get(index).titulo : ""
+            contenido: win.componenteDePanel(panelId)
+            onCerrada: (cual) => {
+                for (let k = 0; k < panelesSueltos.count; ++k)
+                    if (panelesSueltos.get(k).panelId === cual) { panelesSueltos.remove(k); return }
+            }
+        }
+    }
+
     function sacarAVentana(i, titulo) {
         // Si ya esta afuera, se la trae al frente en vez de abrir otra igual.
         for (let k = 0; k < sueltas.count; ++k) {

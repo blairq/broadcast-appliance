@@ -17,6 +17,8 @@ Item {
     id: raiz
 
     readonly property var ev: Studio.evento
+    /// Lo pone en true PanelWindow (ver PanelPreguntas).
+    property bool enVentana: false
     readonly property var r: ev.resumenPadron
 
     ColumnLayout {
@@ -44,6 +46,15 @@ Item {
                 font { pixelSize: 12; weight: Font.DemiBold }
             }
             Item { Layout.fillWidth: true }
+            GlassButton {
+                compact: true
+                visible: !raiz.enVentana
+                text: "⧉"
+                onClicked: ApplicationWindow.window.sacarPanel("padron", "Padrón")
+                ToolTip.visible: hovered
+                ToolTip.delay: 400
+                ToolTip.text: "Sacar a su propia ventana, para el mostrador de acreditación"
+            }
             GlassButton { compact: true; text: "Anotar"; onClicked: altaDlg.open() }
         }
 

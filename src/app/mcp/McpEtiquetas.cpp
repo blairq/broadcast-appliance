@@ -223,6 +223,8 @@ const Fila kPropias[] = {
     // --- Interfaz ----------------------------------------------------------
     {"ui_show_page", "ir a la pestaña abrir seccion navegar mostrar pagina personas rostros"},
     {"ui_page_window", "abrir en ventana aparte sacar a otra ventana"},
+    {"ui_panel_window", "sacar el padron o las preguntas o la urna a su ventana panel en otro "
+                        "monitor ventana dedicada para moderar"},
     {"ui_notify", "avisar en pantalla toast mensaje al operador"},
     {"ui_barra", "barra lateral menu navegacion"},
     {"output_window", "ventana de salida proyeccion pantalla completa"},
