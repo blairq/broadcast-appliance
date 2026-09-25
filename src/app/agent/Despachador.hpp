@@ -130,6 +130,8 @@ class Despachador : public QObject {
     void terminar(Corrida& c, const std::string& estado, const std::string& error);
     void leerSalida(Corrida& c);
     void procesarLinea(Corrida& c, const std::string& linea);
+    /// Lo de adentro, que puede tirar: `procesarLinea` lo envuelve.
+    void procesarLineaInterna(Corrida& c, const std::string& linea);
     void paso(Corrida& c, json p);
     std::string contextoPara(const std::string& rol) const;
     Corrida* porId(const std::string& id);

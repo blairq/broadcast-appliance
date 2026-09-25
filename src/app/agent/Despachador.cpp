@@ -310,6 +310,25 @@ void Despachador::lanzarAhora(Corrida& c) {
               "corrida " + c.id + " arranca con " + o.program.toStdString() + " (" +
                   (rol->proveedor.empty() ? "proveedor del asistente" : rol->proveedor) +
                   (rol->modelo.empty() ? "" : ", " + rol->modelo) + ")");
+    // EOF EN STDIN, EN CUANTO EL PROCESO EXISTA. Sin esto opencode se queda
+    // esperando que le escriban por la entrada —el encargo va por argumento, no
+    // por stdin— y no arranca nunca: 0 lineas de salida, 0 herramientas,
+    // minutos parado. Su propio aviso lo decia y tardamos en leerlo: «no stdin
+    // data received in 3s... redirect stdin explicitly: < /dev/null to skip».
+    //
+    // El asistente nunca lo sufrio porque no usa QProcess para esto, asi que el
+    // agujero solo aparecia al correr un ROL con el motor opencode. Con claude
+    // tampoco se veia: ese no espera nada por la entrada.
+    //
+    // EN `started` Y NO DESPUES DE `start()`: `start()` es asincrono y cerrarle
+    // el canal a un proceso que todavia no existe aborta el programa entero
+    // (se vio: SIGABRT cuatro segundos despues de encargar, y la app se
+    // reinicio sola perdiendo la corrida).
+    const QString idProc = QString::fromStdString(c.id);
+    connect(c.proc, &QProcess::started, this, [this, idProc]() {
+        Corrida* cc = porId(idProc.toStdString());
+        if (cc != nullptr && cc->proc != nullptr) cc->proc->closeWriteChannel();
+    });
     c.proc->start();
     emit cambio();
 }
@@ -330,7 +349,48 @@ void Despachador::leerSalida(Corrida& c) {
 ///   opencode (--format json):  {type: text|tool_use|..., part: {...}} (se
 ///                              lee a la defensiva: lo que no se entiende se
 ///                              guarda crudo, con su `type`).
+namespace {
+
+/// El texto de una clave, CUALQUIERA sea su tipo. `json::value<std::string>`
+/// con un default de texto TIRA `type_error` si el valor no es texto, y la
+/// salida de un agente no tiene una forma garantizada: opencode manda `error`
+/// como OBJETO ({name, data:{message,...}}) y eso abortaba la app entera.
+std::string textoClave(const json& j, const char* clave) {
+    if (!j.is_object() || !j.contains(clave)) return {};
+    const json& v = j[clave];
+    if (v.is_string()) return v.get<std::string>();
+    if (v.is_null()) return {};
+    // Un objeto o una lista: se busca el mensaje adentro, y si no hay se
+    // devuelve como vino. Perder el motivo de un error es peor que mostrarlo
+    // feo.
+    if (v.is_object()) {
+        for (const char* k : {"message", "error", "text"})
+            if (v.contains(k) && v[k].is_string()) return v[k].get<std::string>();
+        if (v.contains("data") && v["data"].is_object() && v["data"].contains("message") &&
+            v["data"]["message"].is_string())
+            return v["data"]["message"].get<std::string>();
+    }
+    return v.dump();
+}
+
+} // namespace
+
 void Despachador::procesarLinea(Corrida& c, const std::string& linea) {
+    // TODO LO DE ADENTRO ES ENTRADA DE AFUERA. Lo escribe otro programa y su
+    // formato cambia entre versiones: una excepcion de JSON aca se lleva la
+    // aplicacion entera, con el aire encendido. Se vio: opencode informo un
+    // 401, `error` venia como objeto y la app aborto (SIGABRT).
+    try {
+        procesarLineaInterna(c, linea);
+    } catch (const std::exception& e) {
+        paso(c, json{{"tipo", "crudo"},
+                     {"texto", recortar(std::string("no pude leer una linea del motor (") + e.what() +
+                                            "): " + linea,
+                                        300)}});
+    }
+}
+
+void Despachador::procesarLineaInterna(Corrida& c, const std::string& linea) {
     const json j = json::parse(linea, nullptr, false);
     if (!j.is_object()) {
         // Texto suelto (un aviso del motor): se guarda como tal.
@@ -401,7 +461,10 @@ void Despachador::procesarLinea(Corrida& c, const std::string& linea) {
         return;
     }
     if (tipo == "error") {
-        c.error = recortar(j.value("message", j.value("error", "error del motor")), 300);
+        std::string motivo = textoClave(j, "message");
+        if (motivo.empty()) motivo = textoClave(j, "error");
+        if (motivo.empty()) motivo = "error del motor";
+        c.error = recortar(motivo, 300);
         paso(c, json{{"tipo", "crudo"}, {"texto", c.error}});
         return;
     }
