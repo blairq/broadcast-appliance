@@ -48,6 +48,7 @@
 #include "ui/RielConfig.hpp"
 #include "ui/PantallasViewModel.hpp"
 #include "ui/PersonasViewModel.hpp"
+#include "ui/PublicoViewModel.hpp"
 #include "ui/PrompterViewModel.hpp"
 #include "ui/QrViewModel.hpp"
 #include "ui/RotuladorViewModel.hpp"
@@ -144,6 +145,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     qr_ = std::make_unique<QrViewModel>(rt, evento_.get(), conference_.get());
     // Despues de `frames_`: mira los mismos videos que el resto de la interfaz.
     personas_ = std::make_unique<PersonasViewModel>(rt, *this);
+    // Las preguntas del publico y la urna. Viven en B; esto las trae y las
+    // modera. No consulta nada hasta que una vista se muestra (ver `activo`).
+    publico_ = std::make_unique<PublicoViewModel>(conference_.get(), this);
+    connect(publico_.get(), &PublicoViewModel::notify, this, &StudioViewModel::notify);
     connect(qr_.get(), &QrViewModel::notify, this, &StudioViewModel::notify);
     connect(rotulador_.get(), &RotuladorViewModel::notify, this, &StudioViewModel::notify);
     connect(this, &StudioViewModel::sceneChanged, rotulador_.get(), &RotuladorViewModel::refrescar);
@@ -525,6 +530,7 @@ QObject* StudioViewModel::prompter() const { return prompter_.get(); }
 QObject* StudioViewModel::pantallas() const { return pantallas_.get(); }
 QObject* StudioViewModel::qr() const { return qr_.get(); }
 QObject* StudioViewModel::personas() const { return personas_.get(); }
+QObject* StudioViewModel::publico() const { return publico_.get(); }
 QObject* StudioViewModel::registro() const { return registro_.get(); }
 QObject* StudioViewModel::extensiones() const { return extensiones_.get(); }
 QObject* StudioViewModel::riel() const { return riel_.get(); }

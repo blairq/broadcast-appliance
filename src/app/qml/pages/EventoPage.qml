@@ -63,6 +63,14 @@ Rectangle {
         })
     }
 
+    /// Le pide algo al asistente. Los botones de acta, capítulos e
+    /// invitaciones son de una sola vez y su resultado es TEXTO para leer o
+    /// pegar, así que no vale la pena una vista propia: se lo pide y contesta
+    /// donde ya se lee, que es la barra del asistente.
+    function pedirAsistente(texto) {
+        ApplicationWindow.window.pedirAlAsistente(texto)
+    }
+
     function mmss(s) {
         const neg = s < 0
         const t = Math.abs(Math.round(s))
@@ -335,9 +343,109 @@ Rectangle {
             }
         }
 
+        // --- Las pestañas del evento -----------------------------------------
+        // Guion es lo de siempre; Padrón y Público son los MISMOS paneles que
+        // usa la página de Público (controls/Panel*.qml) leyendo el mismo
+        // modelo. Están en los dos lados a propósito: acá mientras se arma el
+        // evento, y allá con el aire encendido, donde hay que poder mirar la
+        // cola sin perder de vista el guion.
+        TabBar {
+            id: pestanas
+            visible: page.ev.abierto !== "" && !page.armando
+            Layout.fillWidth: true
+            TabButton { text: "Guion" }
+            TabButton {
+                text: page.ev.resumenPadron.total > 0
+                      ? "Padrón (" + page.ev.resumenPadron.presentes + "/" +
+                        page.ev.resumenPadron.total + ")"
+                      : "Padrón"
+            }
+            TabButton {
+                text: {
+                    const r = Studio.publico.recuento
+                    return r && r.nuevas > 0 ? "Público (" + r.nuevas + ")" : "Público"
+                }
+            }
+        }
+
+        // ---- Padrón ----------------------------------------------------------
+        Panel {
+            visible: page.ev.abierto !== "" && !page.armando && pestanas.currentIndex === 1
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            title: "Quiénes vienen y quiénes llegaron"
+            ColumnLayout {
+                anchors.fill: parent
+                spacing: 10
+                PanelPadron {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                }
+                // Lo que se hace CON el padrón, que hasta ahora solo estaba en
+                // el asistente: la invitación de cada uno, el acta y los
+                // capítulos de la grabación.
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    GlassButton {
+                        text: "Acta del evento"
+                        icon: "❑"
+                        onClicked: page.pedirAsistente(
+                            "Armá el acta de este evento con `evento_acta` y contame qué quedó.")
+                        ToolTip.visible: hovered
+                        ToolTip.delay: 400
+                        ToolTip.text: "Quiénes asistieron, el quórum y qué se votó"
+                    }
+                    GlassButton {
+                        text: "Capítulos"
+                        icon: "▤"
+                        onClicked: page.pedirAsistente(
+                            "Dame los capítulos de la grabación con `evento_capitulos`, listos para " +
+                            "pegar en la descripción del video.")
+                        ToolTip.visible: hovered
+                        ToolTip.delay: 400
+                        ToolTip.text: "Las marcas de tiempo de cada bloque, para la descripción del video"
+                    }
+                    GlassButton {
+                        text: "Invitaciones"
+                        icon: "✉"
+                        enabled: page.ev.resumenPadron.total > 0
+                        onClicked: page.pedirAsistente(
+                            "Armame las invitaciones de los del padrón con `invitacion`, una por " +
+                            "persona, con su enlace y su código.")
+                        ToolTip.visible: hovered
+                        ToolTip.delay: 400
+                        ToolTip.text: "El enlace personal de cada uno: lo acredita al llegar y le deja el código"
+                    }
+                    Item { Layout.fillWidth: true }
+                }
+            }
+        }
+
+        // ---- Público ---------------------------------------------------------
+        RowLayout {
+            visible: page.ev.abierto !== "" && !page.armando && pestanas.currentIndex === 2
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            spacing: 14
+            Panel {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.minimumWidth: 360
+                title: "Preguntas"
+                PanelPreguntas { anchors.fill: parent }
+            }
+            Panel {
+                Layout.preferredWidth: 460
+                Layout.fillHeight: true
+                title: "Votación"
+                PanelVotacion { anchors.fill: parent }
+            }
+        }
+
         // --- El guion + la conduccion ----------------------------------------
         RowLayout {
-            visible: page.ev.abierto !== ""
+            visible: page.ev.abierto !== "" && !page.armando && pestanas.currentIndex === 0
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: 14

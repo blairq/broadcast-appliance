@@ -44,6 +44,7 @@ class PrompterViewModel;
 class PantallasViewModel;
 class QrViewModel;
 class PersonasViewModel;
+class PublicoViewModel;
 class RegistroViewModel;
 class ExtensionesModel;
 class RielConfig;
@@ -119,6 +120,8 @@ class StudioViewModel : public QObject {
     /// La libreta de personas (rostros). Existe siempre: sin los modelos
     /// vendoreados avisa por qué, que es mejor que una lista vacía.
     Q_PROPERTY(QObject* personas READ personas CONSTANT)
+    /// Las preguntas del publico y la urna (viven en B; esto las trae).
+    Q_PROPERTY(QObject* publico READ publico CONSTANT)
     Q_PROPERTY(QObject* registro READ registro CONSTANT)
     /// Las tarjetas que vienen de Extensiones/ (ver ExtensionesModel.hpp).
     Q_PROPERTY(QObject* extensiones READ extensiones CONSTANT)
@@ -189,6 +192,7 @@ class StudioViewModel : public QObject {
     QObject* pantallas() const;
     QObject* qr() const;
     QObject* personas() const;
+    QObject* publico() const;
     QrViewModel& qrVm() { return *qr_; }
     QObject* registro() const;
     QObject* extensiones() const;
@@ -360,6 +364,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<PantallasViewModel> pantallas_;
     std::unique_ptr<QrViewModel> qr_;
     std::unique_ptr<PersonasViewModel> personas_;
+    std::unique_ptr<PublicoViewModel> publico_;
     std::unique_ptr<graficos::Vinculos> vinculos_;
     std::unique_ptr<RegistroViewModel> registro_;
     std::unique_ptr<ExtensionesModel> extensiones_;

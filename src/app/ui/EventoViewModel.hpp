@@ -130,7 +130,11 @@ class EventoViewModel : public QObject {
     // SOLO, en el momento. Por eso no tiene "sin guardar": en la puerta, con
     // cola, nadie va a acordarse de apretar guardar.
     /// [{id, personaId, nombre, papel, canal, estado, contacto, nota,
-    ///   dejarPasarSolo, vota, llegoMs, porDonde}]
+    ///   dejarPasarSolo, vota, codigo, llegoMs, porDonde}]
+    ///
+    /// PROPIEDAD y no método: como método, QML recibe la función en vez de la
+    /// lista —y no se entera cuando el padrón cambia—. Se vio en la vista: la
+    /// lista salía vacía y el contador de la pestaña no se movía.
     Q_INVOKABLE QVariantList padron() const;
     /// {total, presentes, presenciales, enLinea, confirmados, faltan,
     ///  conVoto, votoPresente}
@@ -241,6 +245,12 @@ class EventoViewModel : public QObject {
     /// (que las escenas existan, que los archivos esten, que el orador este
     /// conectado). Se corre a pedido, no sola.
     Q_INVOKABLE void revisar();
+
+  public:
+    // Las dos de arriba, ademas, como propiedades: es lo que hace que la vista
+    // se redibuje sola cuando alguien llega.
+    Q_PROPERTY(QVariantList padron READ padron NOTIFY padronChanged)
+    Q_PROPERTY(QVariantMap resumenPadron READ resumenPadron NOTIFY padronChanged)
 
   signals:
     void listaChanged();

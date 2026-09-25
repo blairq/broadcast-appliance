@@ -166,6 +166,7 @@ ApplicationWindow {
         // es su posicion en esta lista, y RielConfig los tiene escritos.
         // Meterla en el medio le cambia el numero a todas las de abajo.
         PersonasPage { leftInset: win.insetPagina }
+        PublicoPage { leftInset: win.insetPagina }
     }
 
     // --- Pestañas sacadas a su propia ventana --------------------------------------
@@ -191,12 +192,13 @@ ApplicationWindow {
     Component { id: cmpPrompter;   PrompterPage {} }
     Component { id: cmpPantallas;  PantallasPage {} }
     Component { id: cmpQr;         QrPage {} }
+    Component { id: cmpPublico;    PublicoPage {} }
 
     function componenteDePagina(i) {
         return [cmpDashboard, cmpScenes, cmpConference, cmpYouTube, cmpTwitch, cmpFacebook,
                 cmpSettings, cmpAssistant, cmpInputs, cmpAudio, cmpEvento, cmpGraficos,
                 cmpRotulos, cmpRegistro, cmpAgentes, cmpPrompter, cmpPantallas, cmpQr,
-                cmpPersonas][i] || null
+                cmpPersonas, cmpPublico][i] || null
     }
 
     ListModel { id: sueltas }
