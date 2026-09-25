@@ -13,6 +13,7 @@
 //
 // Por eso cada caso de acá es "esta consulta tiene que traer ESTA herramienta
 // entre las primeras", que es lo único que importa del otro lado.
+#include <chrono>
 #include <cstdio>
 #include <set>
 #include <string>
@@ -214,8 +215,52 @@ void exigir(const Indice& i, const std::string& consulta, const std::string& qui
 
 } // namespace
 
+/// CUANTO TARDA. La busqueda tiene que ser instantanea y no «rapida»: corre
+/// ANTES de que el modelo empiece a pensar, en el camino de un operador que
+/// acaba de gritar «hay acople» con el aire encendido. Si costara decenas de
+/// milisegundos habria que empezar a decidir cuando vale la pena buscar, y esa
+/// decision no la queremos tener.
+///
+/// Se mide con las frases REACTIVAS, que son las peores: varias palabras
+/// comunes, sin el nombre de ninguna herramienta.
+void velocidad(const Indice& i) {
+    static const char* kReactivas[] = {
+        "acopla el microfono",
+        "hay acople",
+        "se esta acoplando el audio, cortalo",
+        "suena un pitido horrible",
+        "esta saturando el audio",
+        "el invitado no se escucha",
+        "no se escucha nada al aire",
+        "se escucha un zumbido de fondo",
+        "el microfono queda abierto y se escucha todo",
+    };
+    constexpr int kVueltas = 200;
+    const auto t0 = std::chrono::steady_clock::now();
+    std::size_t resultados = 0;
+    for (int v = 0; v < kVueltas; ++v)
+        for (const char* q : kReactivas) resultados += i.buscar(q, 8).size();
+    const auto t1 = std::chrono::steady_clock::now();
+    const double us = std::chrono::duration<double, std::micro>(t1 - t0).count();
+    const int cuantas = kVueltas * static_cast<int>(std::size(kReactivas));
+    const double porBusqueda = us / cuantas;
+    std::printf("  velocidad: %.0f us por busqueda (%d busquedas reactivas, %zu resultados)\n",
+                porBusqueda, cuantas, resultados);
+    // Tope generoso a proposito: lo que se vigila es que no se vaya a otro
+    // orden de magnitud, no el numero exacto de esta maquina.
+    if (porBusqueda > 2000.0) {
+        std::printf("FALLO: la busqueda dejo de ser instantanea (%.0f us)\n", porBusqueda);
+        ++g_fallos;
+    }
+    if (resultados == 0) {
+        std::printf("FALLO: ninguna frase reactiva devolvio nada\n");
+        ++g_fallos;
+    }
+}
+
 int main() {
     const Indice i = armarIndice();
+    velocidad(i);
 
     // --- Las que fallaban antes ---------------------------------------------
     exigir(i, "poner musica", "media_use");
