@@ -43,7 +43,15 @@ namespace {
 /// No hace falta la descripción: si el buscador necesita la descripción para
 /// encontrar algo, es que falta una etiqueta, que es justo lo que se prueba.
 const std::pair<const char*, const char*> kHerramientas[] = {
+    // Las que entran por el corpus y NO estan aca se agregan SIN TITULO, y el
+    // titulo pesa 3,0 en el ranking: quedan peor rankeadas que en el aparato de
+    // verdad y el banco las cuenta como perdidas cuando no lo son. Si agregas
+    // un caso al corpus con una herramienta nueva, ponela tambien aca.
     {"help", "Sistema de ayuda"},
+    {"grafico_listar", "Gráficos que hay"},
+    {"grafico_probar", "Ver cómo queda un gráfico"},
+    {"grafico_repertorio", "Qué se puede usar en un gráfico declarativo"},
+    {"agente_configurar", "Prender, apagar o cambiar el motor de un rol"},
     {"help_search", "Buscar en la ayuda"},
     {"status", "Estado general"},
     {"scene_list", "Las escenas"},

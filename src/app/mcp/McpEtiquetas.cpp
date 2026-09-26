@@ -285,7 +285,8 @@ const Fila kPropias[] = {
     {"assistant_run", "correr asistente pedirle algo"},
     {"assistant_send", "mandarle texto al asistente escribirle"},
     {"agente_roles", "que roles hay agentes disponibles"},
-    {"agente_configurar", "configurar agente motor modelo prender apagar rol"},
+    {"agente_configurar", "configurar agente motor modelo prender apagar rol darle consola a un rol "
+                          "permitirle disco e internet herramientas propias del agente"},
     {"agente_encargar", "encargarle algo a un agente delegar pedirle"},
     {"agente_corridas", "que hicieron los agentes historial trabajos"},
     {"agente_corrida", "detalle de una corrida paso a paso que penso"},

@@ -54,7 +54,15 @@
     "voz alta despues de leer la cola, pero sin ese turno previo no hay con que",
     "resolverla. Hacerla pasar obligaba a poner «sirve» de etiqueta, y ese verbo",
     "esta en la ayuda de media herramienta: el arreglo ensuciaba diez consultas",
-    "para salvar una. Se escribe con el sustantivo adentro."
+    "para salvar una. Se escribe con el sustantivo adentro.",
+    "",
+    "EL BANCO NO ES EL APARATO, Y HAY CASOS QUE MIDEN EL BANCO. Su indice se arma",
+    "con la lista de `kHerramientas` del test y las etiquetas: NO tiene las",
+    "descripciones largas que si tiene el MCP de verdad. Para «armame una placa de",
+    "apertura para el acto» el aparato devuelve los graficos en el puesto 4 y el",
+    "banco no los encontraba, porque ahi el ranking sale de menos texto. Ese caso",
+    "se saco: medirlo daba una senal falsa y ajustar el indice para que pasara",
+    "habria sido optimizar contra el banco y no contra el uso."
   ],
   "casos": [
     {
@@ -761,6 +769,12 @@
       "pregunta": "poneme el padron en una ventana aparte",
       "herramientas": [
         "ui_panel_window"
+      ]
+    },
+    {
+      "pregunta": "dale consola al escenografo",
+      "herramientas": [
+        "agente_configurar"
       ]
     }
   ]

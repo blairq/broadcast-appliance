@@ -1023,8 +1023,10 @@ term::Pty::Options AgentViewModel::launchOptionsHeadless(const Lanzamiento& l, Q
     }
     const QString root = QString::fromStdWString(rt_.dataRoot().wstring());
     const QString ws =
+        // La consola (y con ella los archivos y la red) la decide EL ROL, no
+        // esta linea: antes iba `false` fijo para todos.
         prepareWorkspaceEn(root + "/Runtime/agentes/" + l.rol, proveedor, l.modelo, {"--rol", l.rol},
-                           l.prompt, error, false);
+                           l.prompt, error, l.consola);
     if (ws.isEmpty()) return {};
     term::Pty::Options o = baseLaunch(proveedor, l.modelo, ws, error);
     if (o.program.isEmpty()) return o;

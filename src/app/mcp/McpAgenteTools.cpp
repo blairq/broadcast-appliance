@@ -52,15 +52,29 @@ void McpService::registerAgenteTools() {
         t.category = "agentes";
         t.idempotent = true;
         t.description = "Cambia un rol: `activo` (true/false), `proveedor` (id de proveedor, como en el "
-                        "asistente: claude-cuenta, opencode-go, openrouter...), `modelo`. Lo que no se manda "
-                        "no se toca. Un rol apagado no atiende nada ni acepta encargos.";
+                        "asistente: claude-cuenta, opencode-go, openrouter...), `modelo`, `consola`. Lo que "
+                        "no se manda no se toca. Un rol apagado no atiende nada ni acepta encargos.";
+        t.details =
+            "`consola` le da las HERRAMIENTAS PROPIAS DEL AGENTE ademas de su juego MCP: consola, leer "
+            "y escribir archivos, salir a internet.\n\n"
+            "Es OTRA COSA que las categorias. Las categorias son lo que el rol sabe hacer DEL APARATO; "
+            "esto es la maquina entera. Viene apagado: un rol que mide audio o atiende el lobby no "
+            "necesita ninguna, y uno que diseña escenas —que baja una imagen, la convierte y la deja "
+            "en Medios/— las necesita todas.\n\n"
+            "LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval`) cubre "
+            "las herramientas del MCP, NO estas. Un rol con consola toca el disco y la red sin pasar "
+            "por ahi, en la maquina del estudio. Prendelo cuando el trabajo lo pida, no por si acaso.";
         t.inputSchema = {{"type", "object"},
                          {"required", {"rol"}},
                          {"properties",
                           {{"rol", {{"type", "string"}}},
                            {"activo", {{"type", "boolean"}}},
                            {"proveedor", {{"type", "string"}}},
-                           {"modelo", {{"type", "string"}}}}}};
+                           {"modelo", {{"type", "string"}}},
+                           {"consola",
+                            {{"type", "boolean"},
+                             {"description",
+                              "herramientas propias del agente: consola, archivos, internet"}}}}}};
         t.run = [&d](const json& a, Done done) {
             const std::string rol = a["rol"].get<std::string>();
             if (d.roles().porId(rol) == nullptr) {
@@ -70,6 +84,7 @@ void McpService::registerAgenteTools() {
             if (a.contains("proveedor")) d.setProveedor(QString::fromStdString(rol), QString::fromStdString(a["proveedor"]));
             if (a.contains("modelo")) d.setModelo(QString::fromStdString(rol), QString::fromStdString(a["modelo"]));
             if (a.contains("activo")) d.setActivo(QString::fromStdString(rol), a["activo"].get<bool>());
+            if (a.contains("consola")) d.setConsola(QString::fromStdString(rol), a["consola"].get<bool>());
             json r;
             for (const auto& x : d.roles().aJson())
                 if (x.value("id", "") == rol) r = x;

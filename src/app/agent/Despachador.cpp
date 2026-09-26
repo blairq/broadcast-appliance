@@ -246,6 +246,7 @@ void Despachador::lanzarAhora(Corrida& c) {
     l.proveedor = QString::fromStdString(rol->proveedor);
     l.modelo = QString::fromStdString(rol->modelo);
     l.prompt = QString::fromStdString(rol->prompt);
+    l.consola = rol->consola;
     l.encargo = QString::fromStdString(contextoPara(c.rol) + "ENCARGO:\n" + c.encargo);
     for (const std::string& f : c.adjuntos) l.adjuntos << QString::fromStdString(f);
     QString err;
@@ -308,6 +309,7 @@ void Despachador::lanzarAhora(Corrida& c) {
     c.inicioMs = ahoraMs();
     registrar(diag::Nivel::Info, c.rol,
               "corrida " + c.id + " arranca con " + o.program.toStdString() + " (" +
+                  (rol->consola ? "con consola, " : "") +
                   (rol->proveedor.empty() ? "proveedor del asistente" : rol->proveedor) +
                   (rol->modelo.empty() ? "" : ", " + rol->modelo) + ")");
     // EOF EN STDIN, EN CUANTO EL PROCESO EXISTA. Sin esto opencode se queda
@@ -633,6 +635,10 @@ void Despachador::setActivo(const QString& rol, bool activo) {
         emit cambio();
     }
 }
+void Despachador::setConsola(const QString& rol, bool consola) {
+    if (roles_.setConsola(rol.toStdString(), consola)) emit cambio();
+}
+
 void Despachador::setProveedor(const QString& rol, const QString& proveedor) {
     if (roles_.setProveedor(rol.toStdString(), proveedor.toStdString())) emit cambio();
 }

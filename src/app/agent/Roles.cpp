@@ -117,6 +117,59 @@ Deciselo en el resumen, cortito, y hacelo si el encargo alcanza:
 Cuando el evento esta armado, revisado y le dijiste al operador que quedo, que falta y que conviene hacer antes del dia. Si `evento_revisar` marco algo grave que no pudiste arreglar solo, el resumen lo dice primero.
 )md";
 
+const char* kEscenografo = R"md(# Escenografo
+
+Armas COMO SE VE el programa: las escenas, lo que va adentro de cada una, los
+graficos y las placas. No operas la emision: diseñas lo que despues alguien
+saca al aire.
+
+## El encargo
+Te dicen que hace falta ver: «una placa de apertura con el nombre del acto», «la
+escena de dos invitados con el logo abajo a la derecha», «un fondo para el
+bloque de preguntas». A veces te dicen el estilo y a veces no.
+
+## Como trabajar
+1. **Mira que hay antes de inventar.** `scene_list`, `source_types`, `media_list`
+   y `grafico_listar`: casi siempre hay algo parecido que se copia y se ajusta,
+   y una escena copiada arranca con las fuentes bien puestas.
+2. **Armala.** `scene_create` o `scene_copy`, `source_add` y
+   `source_set_property` para ubicar y escalar, `media_use` para los archivos.
+3. **MIRALA.** Es lo que separa diseñar de adivinar: `scene_preview` la deja en
+   el monitor de preview SIN tocar el aire, y con `capture_source` sacas un
+   cuadro y se lo das a `imagen_analizar` para que te digan que se ve. Ajusta y
+   volve a mirar. Una escena que nadie miro no esta terminada.
+4. **Decile al operador que quedo lista**, y que la saque al aire cuando quiera.
+
+## EL TEXTO VA EN GRAFICOS, NO EN UNA IMAGEN
+Un nombre, un cargo, un titulo: eso es un grafico (`grafico_*`, `rotulo_*`), con
+texto de verdad. Es nitido en cualquier tamaño, se corrige en cinco segundos con
+el aire encendido, y se puede vincular para que se escriba solo.
+
+Una imagen con texto adentro es un mapa de bits: si el apellido esta mal
+escrito, hay que hacerla de nuevo. Usa imagenes para lo que NO es texto: un
+fondo, una textura, una ilustracion.
+
+## Tenes consola, archivos e internet
+Para bajar una imagen, convertirla, mirar que pesa y dejarla donde va. Con eso:
+
+- **Los medios del evento viven en `Medios/`.** Ahi los encuentra el resto del
+  sistema; un archivo en otra parte no existe para el aparato.
+- **Antes de bajar algo, decilo.** Traer un archivo de internet a la maquina del
+  estudio no es un detalle de implementacion: mostra de donde y para que, y si
+  el encargo no lo pedia, pregunta con `operator_ask`.
+- **No toques nada que no sea tuyo.** Tus archivos son los del evento y los de
+  Medios. El resto del disco es del aparato.
+- **Nada de instalar ni actualizar.** Si te falta una herramienta, decilo en el
+  resumen.
+
+## Lo que NO haces
+- **El aire no es tuyo.** `scene_preview` si; sacar al aire no, ni aunque la
+  escena sea tuya y este perfecta. Lo decide quien conduce, en su momento.
+- **No borres lo que ya estaba.** Si algo te parece que sobra, deciselo al
+  operador en el resumen; una escena de mas no molesta y una borrada por error
+  se descubre en vivo.
+)md";
+
 const char* kVision = R"md(
 # Rol: mirar una imagen
 
@@ -165,6 +218,26 @@ std::vector<Rol> deFabrica() {
         // analizar una imagen no existiria y el asistente volveria a meterselas
         // en su propio contexto, que es el problema que esto resuelve.
         x.activo = true;
+        r.push_back(std::move(x));
+    }
+    {
+        Rol x;
+        x.id = "escenografo";
+        x.titulo = "Escenógrafo";
+        x.descripcion = "Diseña cómo se ve el programa: escenas, fuentes y gráficos. No sale al aire.";
+        x.categorias = {"escenas",  "fuentes",  "medios", "graficos",
+                        "imagenes", "entradas", "equipo", "operador"};
+        x.disparadores = {}; // no se dispara solo: se le encarga un diseño
+        x.prompt = std::string(kEscenografo) + kComun;
+        // CON las herramientas propias del agente, y es el unico que las lleva:
+        // bajar una imagen, convertirla y dejarla en Medios/ no se puede hacer
+        // con herramientas del aparato. Ver `Rol::consola` para lo que implica.
+        x.consola = true;
+        // Apagado de fabrica, como los demas que actuan: prenderlo es decidir
+        // que un agente puede tocar el disco y la red de esta maquina.
+        x.activo = false;
+        x.agruparMs = 0;
+        x.agruparMax = 1;
         r.push_back(std::move(x));
     }
     {
@@ -270,6 +343,16 @@ bool Roles::setActivo(const std::string& id, bool activo) {
     return true;
 }
 
+bool Roles::setConsola(const std::string& id, bool consola) {
+    auto* r = const_cast<Rol*>(porId(id));
+    if (r == nullptr) return false;
+    if (r->consola != consola) {
+        r->consola = consola;
+        guardar();
+    }
+    return true;
+}
+
 bool Roles::setProveedor(const std::string& id, const std::string& proveedor) {
     auto* r = const_cast<Rol*>(porId(id));
     if (r == nullptr) return false;
@@ -308,6 +391,7 @@ json Roles::aJson() const {
                            {"agruparMs", r.agruparMs},
                            {"agruparMax", r.agruparMax},
                            {"activo", r.activo},
+                           {"consola", r.consola},
                            {"proveedor", r.proveedor},
                            {"modelo", r.modelo}});
     return out;
@@ -325,6 +409,7 @@ void Roles::leer() {
         const json e = o.value(r.id, json::object());
         if (!e.is_object()) continue;
         r.activo = e.value("activo", r.activo);
+        r.consola = e.value("consola", r.consola);
         r.proveedor = e.value("proveedor", r.proveedor);
         r.modelo = e.value("modelo", r.modelo);
     }
@@ -335,7 +420,10 @@ void Roles::guardar() const {
     QDir().mkpath(QString::fromStdString(archivo_.parent_path().string()));
     json o = json::object();
     for (const Rol& r : roles_)
-        o[r.id] = json{{"activo", r.activo}, {"proveedor", r.proveedor}, {"modelo", r.modelo}};
+        o[r.id] = json{{"activo", r.activo},
+                       {"consola", r.consola},
+                       {"proveedor", r.proveedor},
+                       {"modelo", r.modelo}};
     std::ofstream out(archivo_, std::ios::binary | std::ios::trunc);
     out << o.dump(2) << "\n";
 }

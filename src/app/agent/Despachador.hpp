@@ -106,6 +106,8 @@ class Despachador : public QObject {
     QVariantList corridasQml() const;
     QVariantList proveedores() const;
     Q_INVOKABLE void setActivo(const QString& rol, bool activo);
+    /// Las herramientas propias del agente (consola, archivos, internet).
+    Q_INVOKABLE void setConsola(const QString& rol, bool consola);
     Q_INVOKABLE void setProveedor(const QString& rol, const QString& proveedor);
     Q_INVOKABLE void setModelo(const QString& rol, const QString& modelo);
     Q_INVOKABLE QStringList modelosDe(const QString& proveedor) const;

@@ -29,6 +29,9 @@ struct Lanzamiento {
     /// imagen, a propósito—. Adjuntar es lo que hace que la imagen le llegue
     /// de verdad (`opencode run -f`).
     QStringList adjuntos;
+    /// Si el rol lleva las herramientas propias del agente (consola, archivos,
+    /// internet). Ver `Rol::consola`.
+    bool consola = false;
 };
 
 /// Los motores, vistos desde el despachador.

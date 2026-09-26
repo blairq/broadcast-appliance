@@ -98,6 +98,37 @@ Rectangle {
                                     wrapMode: Text.WordWrap
                                 }
                             }
+                            // La libertad de este rol: las herramientas propias
+                            // del agente (consola, archivos, internet) ademas de
+                            // su juego MCP. Se ve de lejos cuando esta prendida
+                            // porque no es un detalle: la salvaguarda de
+                            // aprobaciones no la cubre.
+                            ColumnLayout {
+                                Layout.fillWidth: false
+                                Layout.preferredWidth: 110
+                                spacing: 1
+                                RowLayout {
+                                    spacing: 6
+                                    Toggle {
+                                        checked: fila.modelData.consola === true
+                                        onToggled: (w) => page.d.setConsola(fila.modelData.id, w)
+                                    }
+                                    Text {
+                                        text: "Consola"
+                                        color: fila.modelData.consola === true ? Theme.amber : Theme.textDim
+                                        font.pixelSize: 12
+                                    }
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    visible: fila.modelData.consola === true
+                                    text: "disco e internet"
+                                    color: Theme.amber
+                                    font.pixelSize: 10
+                                    wrapMode: Text.WordWrap
+                                }
+                                ToolTip.visible: false
+                            }
                             ComboBox {
                                 id: provBox
                                 Layout.preferredWidth: 220

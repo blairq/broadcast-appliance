@@ -47,6 +47,20 @@ struct Rol {
     bool activo = false;    ///< apagado de fabrica: nada cambia hasta que alguien lo prende
     std::string proveedor;  ///< id de proveedor (ver AgentViewModel); vacio = el del asistente
     std::string modelo;     ///< vacio = el de fabrica del proveedor
+    /// Si además de su juego MCP tiene las HERRAMIENTAS PROPIAS del agente:
+    /// consola, leer y escribir archivos, salir a internet.
+    ///
+    /// APAGADO DE FÁBRICA, y no por desconfianza sino porque es otra cosa: el
+    /// juego MCP es lo que el rol sabe hacer del aparato, y esto es la máquina
+    /// entera. Un rol que mide audio o atiende el lobby no necesita ni una;
+    /// uno que diseña escenas —que baja una imagen, la convierte, la deja en
+    /// Medios/— las necesita todas.
+    ///
+    /// LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones
+    /// (`mcp.approval`) cubre las herramientas del MCP, no estas. Un rol con
+    /// esto prendido toca el disco y la red sin pasar por ahí, en la máquina
+    /// del estudio.
+    bool consola = false;
 };
 
 class Roles {
@@ -82,6 +96,7 @@ class Roles {
     const Rol* porDisparador(const std::string& tipo) const;
 
     bool setActivo(const std::string& id, bool activo);
+    bool setConsola(const std::string& id, bool consola);
     bool setProveedor(const std::string& id, const std::string& proveedor);
     bool setModelo(const std::string& id, const std::string& modelo);
 
