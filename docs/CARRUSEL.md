@@ -59,10 +59,30 @@ Un orador manda un PDF o un PowerPoint y eso tiene que volverse un carrusel.
   hace bien es LibreOffice: unos 400 MB. En un aparato que se define por caber
   en un pendrive, eso no es un detalle de implementación.
 
-  **La salida barata:** todo PowerPoint exporta a PDF en dos clics, y el
-  resultado es idéntico. Si el evento vive de recibir `.pptx` de gente que no
-  va a exportar nada, hay que bancarse LibreOffice. **Es una decisión del
-  operador, no del programa**, y hay que tomarla a propósito.
+  **Decidido: se carga LibreOffice**, porque el caso real es que alguien traiga
+  sólo el `.pptx` y no haya con quién discutirlo. Pero **no pesa en el
+  pendrive del que no lo necesita**: `make deps-libreoffice` lo baja aparte y
+  el bundle lo incluye sólo si la carpeta existe.
+
+  Medido, y conviene saberlo: **no se puede quedar sólo con Impress.**
+  LibreOffice fusiona el núcleo en `libmergedlo.so`, que sola pesa 85 MB.
+  Sacando Writer (20 MB), Calc (19 MB) y el arte de la interfaz (38 MB, que
+  headless no se usa) se baja de 355 MB a ~280 MB y ahí se termina.
+
+  Se bajan **las dos plataformas** —el `.tar.gz` de `.deb` y el `.msi`— y se
+  extraen sin instalar nada, porque el bundle de Windows se arma desde Linux.
+
+## Y de paso, las tipografías
+
+El tarball oficial de LibreOffice trae un juego de texto decente —Liberation,
+Carlito, Caladea, DejaVu, Noto— y eso tapa el agujero número 2 del escenógrafo:
+hasta ahora **lo único que viajaba era JetBrains Mono**, una monoespaciada de
+programar, y todo lo demás dependía de las fuentes de la máquina. Una escena
+diseñada acá se veía distinta en el equipo de respaldo.
+
+Las fuentes se extraen **aparte** y **viajan aunque no se incluya LibreOffice**:
+son para los gráficos y los rótulos, no para convertir nada. (El paquete de la
+distribución no las trae —verificado, cero archivos—; el oficial sí.)
 
 ## La tarjeta
 
@@ -80,4 +100,4 @@ Un orador manda un PDF o un PowerPoint y eso tiene que volverse un carrusel.
 3. Las etiquetas por `vision` y el filtro instantáneo.
 4. El control 3D.
 5. Traer un PDF (con `mutool` vendoreado).
-6. PowerPoint, si se decide cargar LibreOffice.
+6. PowerPoint con LibreOffice (`make deps-libreoffice`, ya está el vendoreo).

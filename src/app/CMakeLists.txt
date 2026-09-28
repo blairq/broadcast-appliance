@@ -323,6 +323,34 @@ if(BA_APP_QT_OK)
         file(GLOB _ba_fonts "${CMAKE_SOURCE_DIR}/extern/fonts/*.ttf")
         install(FILES ${_ba_fonts} "${CMAKE_SOURCE_DIR}/extern/fonts/OFL.txt" DESTINATION data/fonts COMPONENT bundle)
     endif()
+    # Las tipografias de texto que trae LibreOffice (make deps-libreoffice):
+    # Liberation, Carlito, Caladea, DejaVu, Noto. VIAJAN AUNQUE NO SE INCLUYA
+    # LibreOffice, y es a proposito: son para los graficos y los rotulos, no
+    # para convertir nada. Hasta ahora lo unico que viajaba era JetBrains Mono,
+    # una monoespaciada de programar, y todo lo demas dependia de las fuentes de
+    # la maquina —lo que rompe la portabilidad: una escena diseñada aca se ve
+    # distinta en el equipo de respaldo—.
+    if(EXISTS "${CMAKE_SOURCE_DIR}/extern/libreoffice/fonts")
+        file(GLOB _ba_lo_fonts "${CMAKE_SOURCE_DIR}/extern/libreoffice/fonts/*.ttf")
+        if(_ba_lo_fonts)
+            install(FILES ${_ba_lo_fonts} DESTINATION data/fonts COMPONENT bundle)
+            list(LENGTH _ba_lo_fonts _ba_lo_n)
+            message(STATUS "ba-app: ${_ba_lo_n} tipografias de LibreOffice al bundle")
+        endif()
+    endif()
+    # LibreOffice headless, SOLO si se lo bajo (make deps-libreoffice). Es lo
+    # que convierte un .pptx a PDF para armar un carrusel; el que recibe PDF no
+    # carga ~280 MB para nada. Ver tools/deps/libreoffice.sh.
+    if(WIN32)
+        set(_ba_lo_dir "${CMAKE_SOURCE_DIR}/extern/libreoffice/win")
+    else()
+        set(_ba_lo_dir "${CMAKE_SOURCE_DIR}/extern/libreoffice/linux")
+    endif()
+    if(EXISTS "${_ba_lo_dir}/program")
+        install(DIRECTORY "${_ba_lo_dir}/" DESTINATION bin/libreoffice
+                COMPONENT bundle USE_SOURCE_PERMISSIONS)
+        message(STATUS "ba-app: LibreOffice headless al bundle (${_ba_lo_dir})")
+    endif()
     message(STATUS "ba-app: interfaz grafica con Qt ${Qt6_VERSION} vendoreado (${BA_QT_PREFIX})")
     # Test de la logica de disposicion del dashboard (ViewModel sin interfaz).
     add_executable(test_dashboard_model tests/test_dashboard_model.cpp ui/DashboardModel.cpp)

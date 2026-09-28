@@ -30,7 +30,7 @@ PIP       ?= .venv/bin/pip
 .PHONY: deps-lsp-win deps-clap deps-obs-deps-win deps-ndi-src deps-linux test-win deps-win deps-win-toolchain deps-webrtc-win release-win dist-win dist-linux deps-lwip deps-cacert help dev build prod test test-unit pytest test-all lint docs release win deps-cloudflared-host deps-qt-host \
         clean clean-all \
         deps deps-obs deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist \
-        deps-lsp deps-status deps-clean \
+        deps-lsp deps-status deps-clean deps-libreoffice deps-libreoffice-linux deps-libreoffice-win \
         deps-src deps-mbedtls deps-nlohmann deps-samplerate deps-argon2 deps-rostros _ba_baja
 
 # --- Ayuda (target por defecto) ---------------------------------------------
@@ -71,6 +71,9 @@ help:
 	@echo "  make deps-lsp         Modulos LSP 1.2.35 (CLAP, Linux) -> extern/lsp"
 	@echo "  make deps-lsp-win     Modulos LSP 1.2.35 para Windows (compilados desde fuente) -> extern/lsp"
 	@echo "  make deps-clap        Headers de CLAP 1.2.6 -> extern/clap"
+	@echo "  make deps-libreoffice LibreOffice headless (PowerPoint -> PDF) y sus fuentes"
+	@echo "                        -> extern/libreoffice. OPCIONAL y pesado (~280 MB por"
+	@echo "                        plataforma): solo hace falta si alguien trae .pptx."
 	@echo "  make deps-mbedtls     mbedtls v3.6.2 (fuente de build) -> extern/mbedtls"
 	@echo "  make deps-nlohmann    nlohmann/json v3.11.3 (fuente de build) -> extern/nlohmann-json"
 	@echo "  make deps-samplerate  libsamplerate 0.2.2 (fuente de build) -> extern/libsamplerate"
@@ -893,6 +896,19 @@ deps-lsp:
 # CLAP (free-audio/clap, MIT): headers del formato de plugins que carga el host.
 CLAP_VER := 1.2.6
 CLAP_SHA := 6548b5831ad9e92551c752753e535b18fead4001165ef1df8e643efefa7133b7
+# --- LibreOffice (opcional) --------------------------------------------------
+# Solo para convertir .pptx a PDF y de ahi a imagenes (ver docs/CARRUSEL.md).
+# NO entra en `make deps`: hay que pedirlo, porque son ~280 MB por plataforma y
+# el que recibe PDF no lo necesita. El bundle lo incluye solo si esta.
+deps-libreoffice:
+	tools/deps/libreoffice.sh todo
+
+deps-libreoffice-linux:
+	tools/deps/libreoffice.sh linux
+
+deps-libreoffice-win:
+	tools/deps/libreoffice.sh win
+
 deps-clap:
 	@mkdir -p "$(DL_DIR)"
 	@if [ -f "$(EXTERNS_DIR)/clap/include/clap/clap.h" ]; then echo "[deps] CLAP: ya presente"; else \
