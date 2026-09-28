@@ -48,6 +48,7 @@
 #include "ui/RielConfig.hpp"
 #include "ui/PantallasViewModel.hpp"
 #include "ui/PersonasViewModel.hpp"
+#include "ui/MediosViewModel.hpp"
 #include "ui/PublicoViewModel.hpp"
 #include "ui/PrompterViewModel.hpp"
 #include "ui/QrViewModel.hpp"
@@ -149,6 +150,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // modera. No consulta nada hasta que una vista se muestra (ver `activo`).
     publico_ = std::make_unique<PublicoViewModel>(conference_.get(), this);
     connect(publico_.get(), &PublicoViewModel::notify, this, &StudioViewModel::notify);
+    medios_ = std::make_unique<MediosViewModel>(rt, this);
+    connect(medios_.get(), &MediosViewModel::notify, this, &StudioViewModel::notify);
     connect(qr_.get(), &QrViewModel::notify, this, &StudioViewModel::notify);
     connect(rotulador_.get(), &RotuladorViewModel::notify, this, &StudioViewModel::notify);
     connect(this, &StudioViewModel::sceneChanged, rotulador_.get(), &RotuladorViewModel::refrescar);
@@ -531,6 +534,7 @@ QObject* StudioViewModel::pantallas() const { return pantallas_.get(); }
 QObject* StudioViewModel::qr() const { return qr_.get(); }
 QObject* StudioViewModel::personas() const { return personas_.get(); }
 QObject* StudioViewModel::publico() const { return publico_.get(); }
+QObject* StudioViewModel::medios() const { return medios_.get(); }
 QObject* StudioViewModel::registro() const { return registro_.get(); }
 QObject* StudioViewModel::extensiones() const { return extensiones_.get(); }
 QObject* StudioViewModel::riel() const { return riel_.get(); }

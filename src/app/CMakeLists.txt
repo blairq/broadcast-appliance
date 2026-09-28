@@ -465,6 +465,12 @@ if(BA_APP_QT_OK)
     target_link_libraries(test_carrusel PRIVATE nlohmann_json::nlohmann_json)
     add_test(NAME test_carrusel COMMAND test_carrusel)
 
+    # Los archivos del operador: tipos, busqueda y no salirse de la carpeta.
+    add_executable(test_medios tests/test_medios.cpp medios/Medios.cpp)
+    target_include_directories(test_medios PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_medios PRIVATE Qt6::Core)
+    add_test(NAME test_medios COMMAND test_medios)
+
     # Analizador (LUFS, tercios, piso de ruido) y generador de prueba.
     if(BA_HAVE_CLAP)
         add_executable(test_audio_dsp tests/test_audio_dsp.cpp audio/Analyzer.cpp)

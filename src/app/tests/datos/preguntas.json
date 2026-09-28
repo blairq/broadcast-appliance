@@ -776,6 +776,19 @@
       "herramientas": [
         "agente_configurar"
       ]
+    },
+    {
+      "pregunta": "que archivos de medios tengo",
+      "herramientas": [
+        "media_list"
+      ]
+    },
+    {
+      "pregunta": "donde esta el logo del sponsor",
+      "herramientas": [
+        "media_find",
+        "media_list"
+      ]
     }
   ]
 }
