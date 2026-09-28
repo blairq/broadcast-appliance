@@ -431,6 +431,12 @@ if(BA_APP_QT_OK)
     target_link_libraries(test_padron PRIVATE nlohmann_json::nlohmann_json)
     add_test(NAME test_padron COMMAND test_padron)
 
+    # El carrusel de la escena: la tira, el salto y las etiquetas.
+    add_executable(test_carrusel tests/test_carrusel.cpp carrusel/Carrusel.cpp)
+    target_include_directories(test_carrusel PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_carrusel PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME test_carrusel COMMAND test_carrusel)
+
     # Analizador (LUFS, tercios, piso de ruido) y generador de prueba.
     if(BA_HAVE_CLAP)
         add_executable(test_audio_dsp tests/test_audio_dsp.cpp audio/Analyzer.cpp)
