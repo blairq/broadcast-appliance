@@ -67,29 +67,112 @@ bajar() { # nombre url sha
     mv "$f.parcial" "$f"
 }
 
-# Lo que NO va, y por que: headless no dibuja interfaz, y no abrimos ni textos
-# ni planillas. Son ~75 MB que no hacen nada.
+# Lo que NO va. Medido sobre la instalacion de verdad, no estimado: la primera
+# poda dejaba 563 MB porque miraba solo cuatro carpetas. Esta baja a la mitad.
+#
+# Se usa UNA cosa: `--headless --convert-to pdf` sobre un .pptx. Todo lo que no
+# participa de eso sobra:
+#   - Writer y Calc: no abrimos textos ni planillas.
+#   - help/ y los creditos: headless no muestra ayuda a nadie (29 MB).
+#   - python-core: es para escribir macros, no para convertir (38 MB).
+#   - extensions/ y wizards/: asistentes y plantillas de la interfaz (76 MB).
+#   - classes/: los filtros en Java, que convert-to no usa (8 MB).
+#   - libmwaw: importar formatos de procesadores de texto viejos de Mac.
+#   - share/fonts: se copian APARTE a extern/libreoffice/fonts (ver abajo), asi
+#     que tenerlas dos veces es cargar 54 MB al pedo.
 podar() {
     local dir="$1"
+    # Writer y Calc: no abrimos .docx ni .xlsx, solo diapositivas.
     rm -f  "$dir/program/libswlo.so"  "$dir/program/libsclo.so"  2>/dev/null || true
     rm -f  "$dir/program/swlo.dll"    "$dir/program/sclo.dll"    2>/dev/null || true
-    rm -rf "$dir/share/config" "$dir/share/gallery" "$dir/share/template" 2>/dev/null || true
-    rm -rf "$dir/readmes" "$dir/share/readme" 2>/dev/null || true
+    rm -f  "$dir/program/libmwaw"*    "$dir/program/mwaw"*       2>/dev/null || true
+    rm -rf "$dir/share/gallery" "$dir/share/template" 2>/dev/null || true
+    rm -rf "$dir/share/extensions" "$dir/share/wizards" "$dir/share/basic" 2>/dev/null || true
+    rm -rf "$dir/share/fonts" 2>/dev/null || true
+    rm -rf "$dir/help" "$dir/readmes" "$dir/share/readme" 2>/dev/null || true
+    rm -rf "$dir/program/classes" 2>/dev/null || true
+    rm -f  "$dir/CREDITS.fodt" 2>/dev/null || true
+    # Los juegos de iconos (~70 MB) son para la ventana, que nunca se abre.
+    # OJO: se borran los .zip, NO la carpeta. `share/config` entera se llevaba
+    # puesto el soffice.cfg y entonces NO CARGA NINGUN ARCHIVO, con el mensaje
+    # inutil «source file could not be loaded». Lo mismo pasa si falta
+    # `program/python-core`: aunque no usemos Python, sin el no arranca el
+    # registro de servicios. Los dos se aprendieron rompiendolo.
+    rm -f  "$dir/share/config/images_"*.zip 2>/dev/null || true
+}
+
+# Convertir de verdad, que es lo unico que prueba que la poda no lo rompio.
+# Sin esto un `rm -rf` de mas queda escondido hasta que un operador, en vivo,
+# arrastra un .pptx y no pasa nada.
+convierte() {
+    local dir="$1"
+    local soffice="$dir/program/soffice"
+    [ -x "$soffice" ] || return 1
+    # En Windows no hay como correrlo desde aca: se verifica el arbol nomas.
+    case "$dir" in *"/win") [ -f "$dir/program/soffice.bin" ]; return $? ;; esac
+    local t; t="$(mktemp -d)"
+    cat > "$t/p.fodp" <<'FODP'
+<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+ xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+ xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"
+ office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.presentation">
+ <office:body><office:presentation>
+  <draw:page draw:name="p1"><draw:frame svg:width="20cm" svg:height="4cm" svg:x="2cm" svg:y="6cm">
+   <draw:text-box><text:p>prueba</text:p></draw:text-box></draw:frame></draw:page>
+ </office:presentation></office:body></office:document>
+FODP
+    HOME="$t" "$soffice" --headless --norestore --convert-to pdf --outdir "$t" "$t/p.fodp" >/dev/null 2>&1 || true
+    local ok=1; [ -s "$t/p.pdf" ] && ok=0
+    rm -rf "$t"
+    return $ok
+}
+
+verificar() {
+    convierte "$1" || morir "podado de mas: no convierte a PDF. Revisa podar()"
+    log "verificado: convierte a PDF"
 }
 
 fuentes_aparte() { # dir
     local origen="$1/share/fonts/truetype"
     [ -d "$origen" ] || return 0
     mkdir -p "$OUT/fonts"
-    # Solo las de texto: las simbolicas y las de formulas no le sirven a nadie
-    # que este haciendo un zocalo.
+    # Solo las de ALFABETO LATINO, que es en lo que se transmite aca. Las de
+    # arabe, hebreo, armenio, georgiano, lao y lisu son 13 de los 52 MB y no las
+    # va a usar nadie haciendo un zocalo en castellano. (Si alguna vez hace
+    # falta, estan en el tarball: es sacar una linea de aca.)
     find "$origen" -maxdepth 1 -iname '*.ttf' \
-         ! -iname 'opens___*' ! -iname '*symbol*' -exec cp -n {} "$OUT/fonts/" \; 2>/dev/null || true
+         ! -iname 'opens___*'    ! -iname '*symbol*' \
+         ! -iname 'Noto*Arabic*' ! -iname 'Noto*Hebrew*'   ! -iname 'Noto*Armenian*' \
+         ! -iname 'Noto*Georgian*' ! -iname 'Noto*Lao*'    ! -iname 'Noto*Lisu*' \
+         ! -iname 'Noto*Kufi*'   ! -iname 'Amiri*'         ! -iname 'Scheherazade*' \
+         ! -iname 'ReemKufi*'    ! -iname '*CLM*'          ! -iname 'DavidLibre*' \
+         ! -iname 'DejaVuMath*' \
+         -exec cp -n {} "$OUT/fonts/" \; 2>/dev/null || true
     log "fuentes: $(ls -1 "$OUT/fonts" 2>/dev/null | wc -l) archivos en extern/libreoffice/fonts"
 }
 
 hacer_linux() {
-    [ -x "$OUT/linux/program/soffice" ] && { log "linux ya estaba"; fuentes_aparte "$OUT/linux"; return; }
+    # Si ya estaba, igual SE VUELVE A PODAR: la poda mejora con el tiempo —la
+    # primera version dejaba 563 MB porque miraba cuatro carpetas— y sin esto
+    # el que ya lo tenia no se beneficia nunca. `rm -rf` de lo que no esta no
+    # hace nada, asi que correrlo de nuevo es gratis.
+    if [ -x "$OUT/linux/program/soffice" ]; then
+        log "linux ya estaba; repodando por si la poda mejoro"
+        # Las fuentes PRIMERO: podar borra share/fonts, asi que al reves se
+        # perderian las que todavia no se habian copiado.
+        fuentes_aparte "$OUT/linux"
+        podar "$OUT/linux"
+        # Una poda vieja pudo haberlo dejado sin cargar archivos. Si no
+        # convierte no hay nada que reparar a mano: se baja de nuevo.
+        if convierte "$OUT/linux"; then
+            log "linux: $(du -sh "$OUT/linux" | cut -f1) (verificado)"
+            return
+        fi
+        log "el que estaba no convierte; lo bajo de nuevo"
+        rm -rf "$OUT/linux"
+    fi
     bajar "$LINUX_TGZ" "$BASE/deb/x86_64/$LINUX_TGZ" "$LINUX_SHA"
     local tmp; tmp="$(mktemp -d)"
     trap 'rm -rf "$tmp"' RETURN
@@ -109,14 +192,20 @@ hacer_linux() {
     rm -rf "$OUT/linux"
     mkdir -p "$OUT/linux"
     cp -a "$raiz/." "$OUT/linux/"
+    fuentes_aparte "$OUT/linux"  # antes de podar: podar borra share/fonts
     podar "$OUT/linux"
-    fuentes_aparte "$OUT/linux"
-    [ -x "$OUT/linux/program/soffice" ] || morir "quedo sin soffice ejecutable"
+    verificar "$OUT/linux"
     log "linux listo: $(du -sh "$OUT/linux" | cut -f1)"
 }
 
 hacer_win() {
-    [ -f "$OUT/win/program/soffice.exe" ] && { log "windows ya estaba"; return; }
+    if [ -f "$OUT/win/program/soffice.exe" ]; then
+        log "windows ya estaba; repodando"
+        podar "$OUT/win"
+        verificar "$OUT/win"
+        log "windows: $(du -sh "$OUT/win" | cut -f1)"
+        return
+    fi
     bajar "$WIN_MSI" "$BASE/win/x86_64/$WIN_MSI" "$WIN_SHA"
     command -v msiextract >/dev/null 2>&1 || command -v 7z >/dev/null 2>&1 || \
         morir "para abrir el .msi desde Linux hace falta msitools (msiextract) o 7z"
@@ -136,6 +225,7 @@ hacer_win() {
     mkdir -p "$OUT/win"
     cp -a "$raiz/." "$OUT/win/"
     podar "$OUT/win"
+    verificar "$OUT/win"
     log "windows listo: $(du -sh "$OUT/win" | cut -f1)"
 }
 

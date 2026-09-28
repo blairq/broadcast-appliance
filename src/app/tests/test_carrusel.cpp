@@ -12,7 +12,11 @@
 #include <cstdio>
 #include <string>
 
+#include <filesystem>
+#include <fstream>
+
 #include "carrusel/Carrusel.hpp"
+#include "carrusel/CarruselStore.hpp"
 
 using namespace ba::carrusel;
 using json = nlohmann::json;
@@ -185,6 +189,55 @@ void ida_y_vuelta() {
     CHECK(Carrusel::deJson(json("hola")).vacio(), "un texto tampoco");
 }
 
+// --- 8) La biblioteca -------------------------------------------------------
+void biblioteca() {
+    const std::string dir = (std::filesystem::temp_directory_path() / "ba_test_carruseles").string();
+    std::filesystem::remove_all(dir);
+    const std::string archivo = dir + "/carruseles.json";
+
+    {
+        Store s(archivo);
+        CHECK(s.todos().empty(), "una biblioteca que no existe esta vacia, no rota");
+        CHECK(s.error().empty(), "y eso no es un error");
+
+        Carrusel sinNombre;
+        sinNombre.agregar(lam("/m/1.png"));
+        CHECK(!s.guardar(sinNombre), "uno sin nombre no se guarda: no se podria volver a encontrar");
+
+        CHECK(s.guardar(tresLaminas()), "uno con nombre si");
+        CHECK(s.todos().size() == 1, "queda uno");
+        CHECK(s.porNombre("presentacion") != nullptr, "se lo encuentra sin importar mayusculas");
+        CHECK(s.porNombre("PRESENTACION") != nullptr, "ni al reves");
+        CHECK(s.porNombre("otro") == nullptr, "uno que no esta no aparece");
+
+        // Guardar con el mismo nombre REEMPLAZA: es editar, no duplicar.
+        Carrusel editado = tresLaminas();
+        editado.setAvanceMs(7000);
+        CHECK(s.guardar(editado), "se guarda de nuevo");
+        CHECK(s.todos().size() == 1, "sigue habiendo uno solo");
+        CHECK(s.porNombre("Presentacion")->avanceMs() == 7000, "con lo editado");
+    }
+    {
+        // Otra instancia: lo que se guardo tiene que estar en el disco.
+        Store s(archivo);
+        CHECK(s.todos().size() == 1, "sobrevive a cerrar y abrir");
+        CHECK(s.porNombre("Presentacion")->tamano() == 3, "con sus laminas");
+        CHECK(!std::filesystem::exists(archivo + ".tmp"), "sin dejar el temporal tirado");
+
+        CHECK(s.borrar("presentacion"), "se borra");
+        CHECK(s.todos().empty(), "y queda vacia");
+        CHECK(!s.borrar("no-existe"), "borrar lo que no esta avisa");
+    }
+    {
+        // Un archivo roto SE DICE. Si se hiciera pasar por vacia, el operador
+        // rearma todo sin saber que lo suyo sigue ahi.
+        std::ofstream(archivo) << "{esto no es json";
+        Store s(archivo);
+        CHECK(!s.error().empty(), "una biblioteca rota avisa");
+    }
+    std::filesystem::remove_all(dir);
+}
+
 } // namespace
 
 int main() {
@@ -195,6 +248,7 @@ int main() {
     reordenar();
     etiquetas();
     ida_y_vuelta();
+    biblioteca();
     if (g_fallos == 0) std::printf("test_carrusel: OK\n");
     return g_fallos == 0 ? 0 : 1;
 }
