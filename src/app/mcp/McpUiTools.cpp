@@ -157,7 +157,8 @@ void McpService::registerUiTools() {
             {"type", "object"},
             {"required", {"panel"}},
             {"properties",
-             {{"panel", {{"type", "string"}, {"enum", {"padron", "preguntas", "votacion"}}}}}}};
+             {{"panel",
+               {{"type", "string"}, {"enum", {"padron", "preguntas", "votacion", "carrusel"}}}}}}};
         t.examples = {R"({"panel": "preguntas"})"};
         t.run = [self](const json& a, Done done) {
             QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;
@@ -165,6 +166,7 @@ void McpService::registerUiTools() {
             const std::string id = a["panel"].get<std::string>();
             const QString titulo = id == "padron"    ? "Padrón"
                                  : id == "preguntas" ? "Preguntas"
+                                 : id == "carrusel"  ? "Carrusel"
                                                      : "Votación";
             QMetaObject::invokeMethod(w, "sacarPanel", Q_ARG(QVariant, QString::fromStdString(id)),
                                       Q_ARG(QVariant, titulo));

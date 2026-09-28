@@ -155,6 +155,27 @@ Item {
                     Keys.onEscapePressed: text = ""
                 }
                 GlassButton {
+                    // El buscador de laminas no sirve para nada hasta que
+                    // alguien MIRE las imagenes: un PDF convertido trae
+                    // «lamina-007» de titulo y nada mas. Esto se lo encarga al
+                    // que mira imagenes, que las abre de a una y guarda lo que
+                    // ve. Tarda —es una LLM por lamina— y por eso se pide, no
+                    // se hace solo al importar.
+                    compact: true
+                    visible: !raiz.enVentana && raiz.cc.sinAnalizar > 0
+                    text: "Etiquetar con IA (" + raiz.cc.sinAnalizar + ")"
+                    onClicked: ApplicationWindow.window.pedirAlAsistente(
+                        "Mirá una por una las láminas del carrusel «" + raiz.cc.actual +
+                        "» que todavía no tengan etiquetas y guardá lo que ves. " +
+                        "Usá laminas_sin_analizar para saber cuál sigue, image_view para mirarla " +
+                        "y laminas_etiquetar para guardar. Poné las palabras con las que alguien " +
+                        "apurado la buscaría: qué se ve, qué dice, de qué trata. " +
+                        "Seguí hasta que no quede ninguna.")
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
+                    ToolTip.text: "Para poder buscarlas escribiendo. Tarda: mira una por una."
+                }
+                GlassButton {
                     compact: true
                     visible: raiz.cc.actual !== ""
                     text: "Borrar carrusel"

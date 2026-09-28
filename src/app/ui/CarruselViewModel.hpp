@@ -42,6 +42,10 @@ class CarruselViewModel : public QObject {
     Q_PROPERTY(QString actual READ actual WRITE setActual NOTIFY cambio)
     /// Las láminas del actual: [{archivo, url, titulo, etiquetas, analizada}].
     Q_PROPERTY(QVariantList laminas READ laminas NOTIFY cambio)
+    /// Cuántas láminas del actual todavía no tienen etiquetas. Es lo que deja
+    /// ofrecer «etiquetar» sólo cuando hay algo que etiquetar, en vez de un
+    /// botón que a veces no hace nada.
+    Q_PROPERTY(int sinAnalizar READ sinAnalizar NOTIFY cambio)
     /// Lo que se escribió para filtrar las láminas del actual.
     Q_PROPERTY(QString consulta READ consulta WRITE setConsulta NOTIFY cambio)
 
@@ -61,6 +65,7 @@ class CarruselViewModel : public QObject {
     QString actual() const;
     void setActual(const QString& nombre);
     QVariantList laminas() const;
+    int sinAnalizar() const;
     QString consulta() const;
     void setConsulta(const QString& q);
 

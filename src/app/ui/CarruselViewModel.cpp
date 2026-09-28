@@ -147,6 +147,15 @@ QVariantList CarruselViewModel::laminas() const {
     return out;
 }
 
+int CarruselViewModel::sinAnalizar() const {
+    const carrusel::Carrusel* c = store_->porNombre(actual_.toStdString());
+    if (!c) return 0;
+    int n = 0;
+    for (const carrusel::Lamina& l : c->laminas())
+        if (!l.analizada) ++n;
+    return n;
+}
+
 QString CarruselViewModel::consulta() const { return consulta_; }
 
 void CarruselViewModel::setConsulta(const QString& q) {

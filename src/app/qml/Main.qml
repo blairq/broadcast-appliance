@@ -5,6 +5,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import BA
 import "controls"
+import "cards"
 import "pages"
 
 ApplicationWindow {
@@ -213,11 +214,15 @@ ApplicationWindow {
     Component { id: cmpPanelPadron;    PanelPadron {} }
     Component { id: cmpPanelPreguntas; PanelPreguntas {} }
     Component { id: cmpPanelVotacion;  PanelVotacion {} }
+    // El control del carrusel afuera: en vivo se maneja con una mano mientras
+    // la principal tiene las escenas. Es la misma tarjeta del dashboard.
+    Component { id: cmpPanelCarrusel;  CarruselContent {} }
 
     function componenteDePanel(id) {
         return id === "padron" ? cmpPanelPadron
              : id === "preguntas" ? cmpPanelPreguntas
-             : id === "votacion" ? cmpPanelVotacion : null
+             : id === "votacion" ? cmpPanelVotacion
+             : id === "carrusel" ? cmpPanelCarrusel : null
     }
 
     function sacarPanel(id, titulo) {
