@@ -288,11 +288,12 @@ Item {
         standardButtons: Dialog.Ok | Dialog.Cancel
         onOpened: nombre.forceActiveFocus()
         onAccepted: { if (raiz.cc.crear(nombre.text)) nombre.text = "" }
+        width: 380
         ColumnLayout {
             spacing: 8
             TextField {
                 id: nombre
-                Layout.preferredWidth: 320
+                Layout.preferredWidth: dlgNuevo.availableWidth
                 color: Theme.text
                 placeholderText: "Cómo llamarlo: «Apertura», «Sponsors»…"
                 onAccepted: dlgNuevo.accept()
@@ -309,8 +310,12 @@ Item {
         anchors.centerIn: Overlay.overlay
         standardButtons: Dialog.Yes | Dialog.No
         onAccepted: raiz.cc.borrar(raiz.cc.actual)
+        // El ancho lo pone el dialogo y el texto se acomoda adentro. Al reves
+        // —texto con ancho fijo adentro de un dialogo que se mide por su
+        // contenido— es un bucle de enlace, y Qt lo avisa en cada apertura.
+        width: 420
         Label {
-            width: 360
+            width: dlgBorrar.availableWidth
             wrapMode: Text.WordWrap
             // Se dice qué NO se borra: si no, nadie toca el botón por las dudas.
             text: "Se va «" + raiz.cc.actual + "». Las imágenes quedan donde están: " +

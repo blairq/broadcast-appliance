@@ -225,8 +225,8 @@ std::vector<Rol> deFabrica() {
         x.id = "escenografo";
         x.titulo = "Escenógrafo";
         x.descripcion = "Diseña cómo se ve el programa: escenas, fuentes y gráficos. No sale al aire.";
-        x.categorias = {"escenas",  "fuentes",  "medios", "graficos",
-                        "imagenes", "entradas", "equipo", "operador"};
+        x.categorias = {"escenas",  "fuentes",  "medios",  "graficos", "laminas",
+                        "imagenes", "entradas", "equipo",  "operador"};
         x.disparadores = {}; // no se dispara solo: se le encarga un diseño
         x.prompt = std::string(kEscenografo) + kComun;
         // CON las herramientas propias del agente, y es el unico que las lleva:
@@ -248,8 +248,11 @@ std::vector<Rol> deFabrica() {
         // Lo suyo y nada mas. NO lleva audio, ni plataformas, ni salidas: un rol
         // que arma un guion no tiene por que poder sacar algo al aire, y no
         // poder hacerlo es la contencion — igual que en `vision`.
+        // `laminas` si: la presentacion del orador es parte de armar el evento,
+        // y desarmar el .pptx que alguien mando por mail es de lo primero que
+        // hay que hacer. No saca nada al aire: arma la tira y queda ahi.
         x.categorias = {"evento", "padron", "preguntas", "medios", "prompter",
-                        "graficos", "qr", "operador", "rostros"};
+                        "graficos", "qr", "operador", "rostros", "laminas"};
         x.disparadores = {}; // no se dispara solo: lo llama quien organiza
         x.prompt = std::string(kOrganizador) + kComun;
         // PRENDIDO de fabrica, por la misma razon que `vision`: no tiene

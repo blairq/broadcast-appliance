@@ -8,6 +8,7 @@
 #include <QUrl>
 
 #include "AppRuntime.hpp"
+#include "diag/Registro.hpp"
 #include "carrusel/Carrusel.hpp"
 #include "carrusel/CarruselStore.hpp"
 #include "carrusel/Conversion.hpp"
@@ -15,6 +16,14 @@
 
 namespace ba::app {
 namespace {
+
+/// Desarmar tarda y pasa en otro proceso: cuando sale mal, el aviso de pantalla
+/// se va en diez segundos y despues no queda NADA para saber por que. Esto ya
+/// paso una vez —una conversion que fallaba en silencio— y encontrarlo costo
+/// mas que escribir este renglon.
+void anotar(diag::Nivel n, const std::string& texto) {
+    diag::registro().linea(n, "laminas", 0, texto);
+}
 
 /// Un nombre de carrusel se vuelve un nombre de carpeta. Se sacan los
 /// separadores y lo que Windows no acepta: un carrusel llamado «Apertura 3/4»
@@ -53,7 +62,12 @@ CarruselViewModel::CarruselViewModel(AppRuntime& rt, QObject* parent) : QObject(
             l.archivo = p.toStdString();
             c.agregar(l);
         }
-        store_->guardar(c);
+        if (!store_->guardar(c))
+            anotar(diag::Nivel::Aviso, "no pude guardar el carrusel «" +
+                                           destinoConversion_.toStdString() + "»: " + store_->error());
+        else
+            anotar(diag::Nivel::Info, "«" + destinoConversion_.toStdString() + "»: " +
+                                          std::to_string(imagenes.size()) + " laminas");
         actual_ = destinoConversion_;
         emit cambio();
         emit notify(QString("«%1»: %2 láminas listas").arg(destinoConversion_).arg(imagenes.size()),
@@ -63,6 +77,8 @@ CarruselViewModel::CarruselViewModel(AppRuntime& rt, QObject* parent) : QObject(
         convirtiendo_ = false;
         etapa_.clear();
         emit progreso();
+        anotar(motivo == "cancelado" ? diag::Nivel::Info : diag::Nivel::Aviso,
+               "desarmar «" + destinoConversion_.toStdString() + "»: " + motivo.toStdString());
         // Cancelar lo pidió el operador: no es una falla que haya que anunciar
         // en rojo como si algo se hubiera roto.
         emit notify(motivo == "cancelado" ? "Conversión cancelada" : "No se pudo desarmar: " + motivo,
@@ -261,6 +277,7 @@ void CarruselViewModel::desarmar(const QString& documento, const QString& nombre
     hecho_ = 0;
     total_ = 0;
     emit progreso();
+    anotar(diag::Nivel::Info, "desarmando " + documento.toStdString() + " -> «" + n.toStdString() + "»");
     conv_->convertir(documento, carpetaDe(n));
 }
 

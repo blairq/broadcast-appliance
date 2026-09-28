@@ -64,6 +64,13 @@ QString fixture(const char* nombre) {
 
 int main(int argc, char** argv) {
     QCoreApplication app(argc, argv);
+    // CON ESPACIO, A PROPOSITO. QTemporaryDir nombra la carpeta con el nombre
+    // del programa, y el perfil de LibreOffice vive adentro de ella. El aparato
+    // se llama «Broadcast Appliance»: con la URL del perfil sin codificar,
+    // LibreOffice moria sin decir una palabra y fallaba SOLO adentro del
+    // aparato, porque este test se llamaba test_conversion. Ponerle un espacio
+    // es lo que hace que el test pueda volver a encontrarlo.
+    QCoreApplication::setApplicationName("Prueba De Conversion");
 
     // --- 1. Que sabemos desarmar -------------------------------------------
     CHECK(Conversor::esDocumento("a.pptx"), "pptx es documento");
@@ -102,6 +109,24 @@ int main(int argc, char** argv) {
             CHECK(!img.isNull(), "la lamina es una imagen de verdad");
             CHECK(img.width() == 1920, "sale al ancho pedido");
         }
+    }
+
+    // --- 4. Una ruta con espacios -------------------------------------------
+    // No es rebuscado: la carpeta temporal de LibreOffice se llama como la
+    // app, y la app se llama «Broadcast Appliance». Con la URL del perfil sin
+    // codificar, LibreOffice moria sin decir nada y la conversion fallaba
+    // SOLO adentro del aparato: desde la terminal y desde este mismo test
+    // andaba, porque aca el programa se llama test_conversion.
+    if (!Conversor::soffice().isEmpty()) {
+        QTemporaryDir tmp;
+        const QString conEspacios = tmp.path() + "/Con Espacios Adentro";
+        QDir().mkpath(conEspacios);
+        Conversor c;
+        QString motivo;
+        int h = -1, t2 = -1;
+        const QStringList r = correr(c, fixture("tres-laminas.pptx"), conEspacios, &motivo, &h, &t2);
+        CHECK(motivo.isEmpty(), qPrintable("con espacios fallo: " + motivo));
+        CHECK(r.size() == 3, "tres laminas tambien con espacios en la ruta");
     }
 
     if (g_fallos == 0) std::printf("test_conversion: OK\n");
