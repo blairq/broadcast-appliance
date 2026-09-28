@@ -60,7 +60,10 @@ bajar() { # nombre url sha
         return
     fi
     log "bajando $1 (son cientos de MB, tarda)"
-    curl -fL --retry 3 -o "$f.parcial" "$2" || morir "no se pudo bajar $1"
+    # Sin barra de progreso cuando no hay terminal: en un log de CI son cientos
+    # de renglones de numeros que tapan todo lo demas.
+    local silencio=(); [ -t 2 ] || silencio=(--no-progress-meter)
+    curl -fL --retry 3 "${silencio[@]}" -o "$f.parcial" "$2" || morir "no se pudo bajar $1"
     # Se verifica ANTES de mover: un archivo a medias con el nombre bueno se
     # toma por bueno la proxima vez y falla mucho despues, lejos de la causa.
     echo "$3  $f.parcial" | sha256sum -c --quiet - || morir "el hash de $1 no coincide"
@@ -207,16 +210,17 @@ hacer_win() {
         return
     fi
     bajar "$WIN_MSI" "$BASE/win/x86_64/$WIN_MSI" "$WIN_SHA"
-    command -v msiextract >/dev/null 2>&1 || command -v 7z >/dev/null 2>&1 || \
-        morir "para abrir el .msi desde Linux hace falta msitools (msiextract) o 7z"
+    # SOLO msiextract. 7z «abre» el .msi pero escupe los flujos OLE crudos
+    # (_0001.cfs y asi), sin nombres ni carpetas: el arbol program/ y share/
+    # vive en las tablas Directory y File del instalador, y reconstruirlo es
+    # justo lo que hace msitools. Esto se probo: con 7z quedan 19.496 archivos
+    # sin un solo directorio.
+    command -v msiextract >/dev/null 2>&1 || morir \
+        "para abrir el .msi desde Linux hace falta msitools. En Debian/Ubuntu: sudo apt install msitools"
     local tmp; tmp="$(mktemp -d)"
     trap 'rm -rf "$tmp"' RETURN
     log "extrayendo el .msi"
-    if command -v msiextract >/dev/null 2>&1; then
-        ( cd "$tmp" && msiextract "$DL/$WIN_MSI" >/dev/null )
-    else
-        ( cd "$tmp" && 7z x -y "$DL/$WIN_MSI" >/dev/null )
-    fi
+    ( cd "$tmp" && msiextract "$DL/$WIN_MSI" >/dev/null )
     local raiz
     raiz="$(find "$tmp" -maxdepth 6 -type d -name program | head -1)"
     [ -n "$raiz" ] || morir "no encontre program/ adentro del .msi"

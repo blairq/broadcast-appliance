@@ -70,7 +70,7 @@ if(BA_HAVE_LIBOBS)
         # la ruta general: el Qt vendoreado va PRIMERO para que ninguno se
         # resuelva contra un Qt del sistema.
         list(PREPEND CMAKE_PREFIX_PATH "${BA_QT_PREFIX}")
-        find_package(Qt6 COMPONENTS Gui Quick Qml QuickControls2 Network Svg CONFIG PATHS "${BA_QT_PREFIX}" NO_DEFAULT_PATH QUIET)
+        find_package(Qt6 COMPONENTS Gui Quick Qml QuickControls2 Network Svg Pdf CONFIG PATHS "${BA_QT_PREFIX}" NO_DEFAULT_PATH QUIET)
         set(BA_APP_QT_OK ${Qt6_FOUND})
     endif()
 endif()
@@ -297,7 +297,19 @@ endif()
 if(BA_APP_QT_OK)
     # Qt6::Svg: la vista previa y el PNG del generador de QR rasterizan el MISMO
     # SVG que se exporta (ver ui/QrViewModel.cpp).
-    target_link_libraries(ba-app PRIVATE Qt6::Gui Qt6::Quick Qt6::Qml Qt6::QuickControls2 Qt6::Network Qt6::Svg)
+    # Qt6::Pdf rinde las paginas de un PDF a imagenes (carrusel/Conversion.cpp).
+# Es de Qt, no una dependencia nueva: ver make deps-qt-host (-m qtpdf).
+target_link_libraries(ba-app PRIVATE Qt6::Gui Qt6::Quick Qt6::Qml Qt6::QuickControls2 Qt6::Network Qt6::Svg Qt6::Pdf)
+# Donde esta el LibreOffice de extern/, para poder convertir corriendo desde el
+# directorio de compilacion. En el bundle se lo busca al lado del ejecutable.
+if(WIN32)
+    set(_ba_lo_dir "${CMAKE_SOURCE_DIR}/extern/libreoffice/win")
+else()
+    set(_ba_lo_dir "${CMAKE_SOURCE_DIR}/extern/libreoffice/linux")
+endif()
+if(EXISTS "${_ba_lo_dir}/program")
+    target_compile_definitions(ba-app PRIVATE BA_LIBREOFFICE_DIR="${_ba_lo_dir}")
+endif()
     target_compile_definitions(ba-app PRIVATE BA_APP_HAVE_QT_OBS=1)
     # Version visible en Configuracion -> Sistema y datos (soporte).
     target_compile_definitions(ba-app PRIVATE BA_APP_VERSION="${PROJECT_VERSION}")
@@ -340,12 +352,7 @@ if(BA_APP_QT_OK)
     endif()
     # LibreOffice headless, SOLO si se lo bajo (make deps-libreoffice). Es lo
     # que convierte un .pptx a PDF para armar un carrusel; el que recibe PDF no
-    # carga ~280 MB para nada. Ver tools/deps/libreoffice.sh.
-    if(WIN32)
-        set(_ba_lo_dir "${CMAKE_SOURCE_DIR}/extern/libreoffice/win")
-    else()
-        set(_ba_lo_dir "${CMAKE_SOURCE_DIR}/extern/libreoffice/linux")
-    endif()
+    # carga ~420 MB para nada. Ver tools/deps/libreoffice.sh.
     if(EXISTS "${_ba_lo_dir}/program")
         install(DIRECTORY "${_ba_lo_dir}/" DESTINATION bin/libreoffice
                 COMPONENT bundle USE_SOURCE_PERMISSIONS)
@@ -465,6 +472,20 @@ if(BA_APP_QT_OK)
     target_include_directories(test_carrusel PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_carrusel PRIVATE nlohmann_json::nlohmann_json)
     add_test(NAME test_carrusel COMMAND test_carrusel)
+
+    # De un .pptx a laminas, corriendo el LibreOffice vendoreado de verdad: es
+    # lo unico que avisa si la poda de tools/deps/libreoffice.sh se paso.
+    add_executable(test_conversion tests/test_conversion.cpp carrusel/Conversion.cpp)
+    target_include_directories(test_conversion PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_conversion PRIVATE Qt6::Core Qt6::Gui Qt6::Pdf)
+    target_compile_definitions(test_conversion PRIVATE
+        BA_TEST_DATOS="${CMAKE_CURRENT_SOURCE_DIR}/tests/datos")
+    if(EXISTS "${_ba_lo_dir}/program")
+        target_compile_definitions(test_conversion PRIVATE BA_LIBREOFFICE_DIR="${_ba_lo_dir}")
+    endif()
+    set_target_properties(test_conversion PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_conversion COMMAND test_conversion)
+    set_tests_properties(test_conversion PROPERTIES TIMEOUT 400)
 
     # Los archivos del operador: tipos, busqueda y no salirse de la carpeta.
     add_executable(test_medios tests/test_medios.cpp medios/Medios.cpp)
