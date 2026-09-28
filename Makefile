@@ -585,8 +585,9 @@ deps-obs:
 deps-qt:
 	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
 	@mkdir -p "$(QT6_DEST)"
-	@if [ -f "$(QT6_SENTINEL)" ] && [ "$$(sha256sum "$(QT6_SENTINEL)" | cut -d' ' -f1)" = "$(QT6_SHA)" ]; then \
-	  echo "[deps] Qt6 $(QT6_VER): ya presente y verificado ($(QT6_PREFIX))"; \
+	@if [ -f "$(QT6_SENTINEL)" ] && [ "$$(sha256sum "$(QT6_SENTINEL)" | cut -d' ' -f1)" = "$(QT6_SHA)" ] \
+	    && [ -f "$(QT6_PREFIX)/lib/cmake/Qt6Pdf/Qt6PdfConfig.cmake" ]; then \
+	  echo "[deps] Qt6 $(QT6_VER): ya presente y verificado, con qtpdf ($(QT6_PREFIX))"; \
 	else \
 	  echo "[deps] Qt6 $(QT6_VER): instalando aqtinstall en el .venv..."; \
 	  test -x "$(PY)" || python3 -m venv .venv; \
@@ -594,7 +595,7 @@ deps-qt:
 	    || { echo "[deps] ERROR Qt6: no se pudo instalar aqtinstall" >&2; exit 1; }; \
 	  echo "[deps] Qt6 $(QT6_VER): instalando SDK win64_msvc2019_64 a $(QT6_PREFIX)"; \
 	  rm -rf "$(QT6_DEST)"; \
-	  "$(PY)" -m aqt install-qt windows desktop $(QT6_VER) win64_msvc2019_64 -O "$(QT6_DEST)" \
+	  "$(PY)" -m aqt install-qt windows desktop $(QT6_VER) win64_msvc2019_64 -m qtpdf -O "$(QT6_DEST)" \
 	    || { echo "[deps] ERROR Qt6: fallo de aqt" >&2; exit 1; }; \
 	  if [ -f "$(QT6_SENTINEL)" ]; then \
 	    echo "[deps] Qt6 $(QT6_VER): SDK instalado ($(QT6_PREFIX))"; \
@@ -618,17 +619,26 @@ else
   QT6_HOST_DIR  := gcc_64
 endif
 QT6_HOST_SENTINEL := $(QT6_HOST_DEST)/$(QT6_VER)/$(QT6_HOST_DIR)/lib/cmake/Qt6/Qt6Config.cmake
+# El modulo PDF (qtpdf) se pide APARTE y tiene su PROPIO centinela. El de arriba
+# es Qt6Config.cmake, que NO cambia al agregar un modulo: sin este segundo
+# chequeo, en una maquina que ya tenia Qt el `qtpdf` no se bajaria nunca y nadie
+# se enteraria hasta que un PDF no se pueda abrir.
+# Renderiza las paginas de un PDF a imagen, que es de donde sale un carrusel
+# (ver docs/CARRUSEL.md). Se eligio sobre MuPDF porque usa el mismo vendoreo que
+# ya existe, anda igual en Linux y Windows, y no agrega otro build.
+QT6_HOST_PDF := $(QT6_HOST_DEST)/$(QT6_VER)/$(QT6_HOST_DIR)/lib/cmake/Qt6Pdf/Qt6PdfConfig.cmake
 
 deps-qt-host:
-	@if [ -f "$(QT6_HOST_SENTINEL)" ]; then \
-	  echo "[deps] Qt6 $(QT6_VER) ($(QT6_HOST_ARCH)): ya presente ($(QT6_HOST_DEST))"; \
+	@if [ -f "$(QT6_HOST_SENTINEL)" ] && [ -f "$(QT6_HOST_PDF)" ]; then \
+	  echo "[deps] Qt6 $(QT6_VER) ($(QT6_HOST_ARCH)): ya presente con qtpdf ($(QT6_HOST_DEST))"; \
 	else \
 	  test -x "$(PY)" || python3 -m venv .venv; \
 	  "$(PIP)" install -q aqtinstall || { echo "[deps] ERROR Qt6: no se pudo instalar aqtinstall" >&2; exit 1; }; \
-	  echo "[deps] Qt6 $(QT6_VER): instalando $(QT6_HOST_OS)/$(QT6_HOST_ARCH) en $(QT6_HOST_DEST)"; \
-	  "$(PY)" -m aqt install-qt $(QT6_HOST_OS) desktop $(QT6_VER) $(QT6_HOST_ARCH) -O "$(QT6_HOST_DEST)" \
+	  echo "[deps] Qt6 $(QT6_VER): instalando $(QT6_HOST_OS)/$(QT6_HOST_ARCH) (+qtpdf) en $(QT6_HOST_DEST)"; \
+	  "$(PY)" -m aqt install-qt $(QT6_HOST_OS) desktop $(QT6_VER) $(QT6_HOST_ARCH) -m qtpdf -O "$(QT6_HOST_DEST)" \
 	    || { echo "[deps] ERROR Qt6: fallo de aqt" >&2; exit 1; }; \
 	  test -f "$(QT6_HOST_SENTINEL)" || { echo "[deps] ERROR Qt6: falta $(QT6_HOST_SENTINEL)" >&2; exit 1; }; \
+	  test -f "$(QT6_HOST_PDF)" || { echo "[deps] ERROR Qt6: aqt no dejo el modulo qtpdf" >&2; exit 1; }; \
 	fi
 
 deps-webrtc:

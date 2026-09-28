@@ -52,8 +52,18 @@ que mide **24 µs**: escribir y ver la grilla filtrarse, sin esperar.
 
 Un orador manda un PDF o un PowerPoint y eso tiene que volverse un carrusel.
 
-- **PDF: se resuelve vendoreando `mutool` (MuPDF)** — un binario chico y
-  estático que renderiza páginas a PNG. Entra sin discusión en el bundle.
+- **PDF: lo resuelve Qt**, sin dependencia nueva. Qt 6.6.3 tiene el módulo
+  `qtpdf` (`qt.qt6.663.addons.qtpdf`, verificado que existe) y se pide con el
+  MISMO `aqtinstall` que ya baja Qt. Renderiza las páginas a imagen en el
+  proceso, así que el progreso sale página por página sin inventar nada.
+
+  Se eligió sobre MuPDF —que habría sido compilar un tarball de 69 MB— porque
+  usa el vendoreo que ya existe y anda igual en Linux y en Windows.
+
+  **Cuidado con el centinela:** el de Qt es `Qt6Config.cmake`, que NO cambia al
+  agregar un módulo. Sin un segundo chequeo por `Qt6PdfConfig.cmake`, en una
+  máquina que ya tenía Qt el módulo no se bajaría nunca y nadie se enteraría
+  hasta que un PDF no abriera. Está contemplado en las dos plataformas.
 - **PowerPoint: es otra cosa.** Un `.pptx` es un zip con XML; sacar las
   diapositivas COMO SE VEN necesita un motor de maquetado, y el único que lo
   hace bien es LibreOffice: unos 400 MB. En un aparato que se define por caber
@@ -99,5 +109,5 @@ distribución no las trae —verificado, cero archivos—; el oficial sí.)
 2. La tarjeta con la grilla grande y el salto al tocar.
 3. Las etiquetas por `vision` y el filtro instantáneo.
 4. El control 3D.
-5. Traer un PDF (con `mutool` vendoreado).
+5. Traer un PDF (con el módulo `qtpdf`, ya pedido en el Makefile).
 6. PowerPoint con LibreOffice (`make deps-libreoffice`, ya está el vendoreo).
