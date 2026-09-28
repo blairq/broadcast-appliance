@@ -60,6 +60,13 @@ QString aplanar(const QString& s);
 /// `soloCarpeta` vacio = todas. Ordenado por carpeta y nombre.
 QVector<Archivo> listar(const QString& raiz, const QString& soloCarpeta = {});
 
+/// true si `texto` tiene TODAS las palabras de `consulta`, aplanadas. Consulta
+/// vacia coincide con todo (no es un error pedir todo). Esta aparte para que el
+/// buscador de laminas de un carrusel filtre EXACTAMENTE igual que la grilla de
+/// medios: dos criterios parecidos pero distintos se notan enseguida y no hay
+/// forma de saber cual esta bien.
+bool coincide(const QString& texto, const QString& consulta);
+
 /// Los que coinciden con `consulta`, comparando aplanado contra el nombre y la
 /// ruta. Consulta vacia = todos (no es un error pedir todo).
 QVector<Archivo> filtrar(const QVector<Archivo>& todos, const QString& consulta);

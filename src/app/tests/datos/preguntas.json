@@ -789,6 +789,51 @@
         "media_find",
         "media_list"
       ]
+    },
+    {
+      "pregunta": "volve a la lamina del grafico de barras",
+      "herramientas": [
+        "laminas_ir",
+        "laminas_ver"
+      ]
+    },
+    {
+      "pregunta": "pone la diapositiva 7",
+      "herramientas": [
+        "laminas_ir"
+      ]
+    },
+    {
+      "pregunta": "que presentaciones tengo cargadas",
+      "herramientas": [
+        "laminas_listar"
+      ]
+    },
+    {
+      "pregunta": "convertime este powerpoint en imagenes",
+      "herramientas": [
+        "laminas_desarmar"
+      ]
+    },
+    {
+      "pregunta": "el orador trajo un pdf, armalo para proyectar",
+      "herramientas": [
+        "laminas_desarmar"
+      ]
+    },
+    {
+      "pregunta": "cuantas laminas tiene la presentacion",
+      "herramientas": [
+        "laminas_listar",
+        "laminas_ver"
+      ]
+    },
+    {
+      "pregunta": "mira las laminas y deciles de que tratan",
+      "herramientas": [
+        "laminas_etiquetar",
+        "laminas_sin_analizar"
+      ]
     }
   ]
 }

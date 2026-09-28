@@ -231,6 +231,21 @@ Casi siempre para lo mismo: **"este discurso dura nueve minutos y tengo seis"**.
 - El reloj **nunca saca a nadie** salvo carrusel `time` (pasado cero + margen, rota). Pasado el tiempo cuenta en negativo; el invitado lo ve.
 - `speakers_status`: la fila con lo que le queda al que esta al aire (`remainingSec` negativo = se paso).
 - Tablero para tablet: `room_link {"board": true}`.)md"},
+    {"laminas", "Carruseles de laminas", "La presentacion del orador, lamina por lamina.",
+     R"md(Una tira de imagenes que muestra una escena. **No es el `carrusel_*` de las pantallas**: eso rota mensajes y QR en un televisor secundario. Esto es la presentacion del orador.
+
+## Para que sirve de verdad
+En medio de la charla el orador dice "volve a la del grafico de barras". Con veinte diapositivas y un boton de siguiente son veinte clics y diez segundos de aire perdido. `laminas_ir {"carrusel", "numero"}` es un salto.
+
+## Como se usa
+- `laminas_listar`: que hay. Por aca se empieza; el resto pide el nombre.
+- `laminas_ver {"carrusel"}`: las laminas en orden, con su numero, su titulo y sus etiquetas. El **numero empieza en 1** y es lo que pide `laminas_ir`.
+- `laminas_desarmar {"archivo", "nombre"}`: convierte un PDF o un .pptx en laminas. **Tarda** (segundos por pagina) y no espera: avisa que empezo, y cuando termina aparece en `laminas_listar`. Un .pptx necesita que el equipo traiga LibreOffice; un PDF no.
+
+## Que se busca y como
+El operador escribe "barras" en un cuadro y le queda esa lamina. Eso funciona si alguien miro las imagenes antes: `laminas_sin_analizar {"carrusel"}` da la proxima sin etiquetas, se la mira con `image_view`, y lo que se vio se guarda con `laminas_etiquetar {"carrusel", "numero", "etiquetas"}`. Se hace **una vez por lamina**; si salio vacio queda marcada igual, para no volver a mirarla para siempre.
+
+Las etiquetas son palabras con las que alguien apurado buscaria: que se ve, que dice, de que trata. "grafico barras ventas trimestre", no una descripcion.)md"},
     {"configuracion", "Configuracion", "Leer y cambiar cualquier ajuste.",
      R"md(- `settings_list` (o `{"section": ...}`): clave, valor, tipo, opciones, rango, ayuda y alcance.
 - `settings_set {"values": {"clave": valor, ...}}` aplica y guarda. `{"resetSection": "Video"}` vuelve a los valores por defecto.

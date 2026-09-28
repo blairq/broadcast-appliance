@@ -26,6 +26,12 @@ Rectangle {
     property real leftInset: 92
 
     readonly property var m: Studio.medios
+    readonly property var cc: Studio.carruseles
+    /// 0 = los archivos, 1 = armar carruseles. Los carruseles se arman ACA y no
+    /// adentro de una escena: uno se arma una vez y se aplica en la apertura y
+    /// en el cierre. Y se arman donde están los PDF y los PowerPoint que se
+    /// desarman, que es de donde salen casi siempre.
+    property int solapa: 0
 
     function tamano(bytes) {
         if (bytes < 1024) return bytes + " B"
@@ -40,8 +46,53 @@ Rectangle {
         anchors.rightMargin: 20
         spacing: 12
 
+        // --- Archivos / Carruseles -------------------------------------------
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 8
+            GlassButton {
+                text: "Archivos"
+                active: page.solapa === 0
+                onClicked: page.solapa = 0
+            }
+            GlassButton {
+                text: "Carruseles"
+                active: page.solapa === 1
+                onClicked: page.solapa = 1
+            }
+            Item { Layout.fillWidth: true }
+
+            // La barra de trabajo. Desarmar cincuenta láminas tarda; sin esto
+            // la ventana se queda muda y el operador no sabe si está
+            // trabajando o se colgó, diez minutos antes de empezar.
+            RowLayout {
+                visible: page.cc.convirtiendo
+                spacing: 8
+                Text {
+                    text: page.cc.etapa + (page.cc.total > 0
+                          ? " " + page.cc.hecho + "/" + page.cc.total : "…")
+                    color: Theme.textDim
+                    font.pixelSize: 12
+                }
+                ProgressBar {
+                    Layout.preferredWidth: 180
+                    // LibreOffice no informa progreso: mientras convierte, la
+                    // barra va indeterminada en vez de fingir un número.
+                    indeterminate: page.cc.total <= 0
+                    from: 0; to: Math.max(1, page.cc.total)
+                    value: page.cc.hecho
+                }
+                GlassButton {
+                    compact: true
+                    text: "Cancelar"
+                    onClicked: page.cc.cancelar()
+                }
+            }
+        }
+
         // --- Buscar y filtrar ------------------------------------------------
         Panel {
+            visible: page.solapa === 0
             Layout.fillWidth: true
             ColumnLayout {
                 anchors.fill: parent
@@ -114,6 +165,7 @@ Rectangle {
 
         // --- La grilla --------------------------------------------------------
         Panel {
+            visible: page.solapa === 0
             Layout.fillWidth: true
             Layout.fillHeight: true
 
@@ -234,6 +286,14 @@ Rectangle {
                 }
             }
         }
+
+        // --- Armar carruseles -------------------------------------------------
+        Panel {
+            visible: page.solapa === 1
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            PanelCarruseles { anchors { fill: parent; margins: 10 } }
+        }
     }
 
     /// Lo último que se tocó, para las acciones de abajo.
@@ -268,14 +328,31 @@ Rectangle {
             }
             GlassButton {
                 visible: page.seleccionado && page.seleccionado.desarmable
+                // Lo hace el aparato, no el asistente: es una conversión con
+                // pasos fijos, no algo que haya que pensar. Pedírsela a una
+                // LLM sería esperar unos segundos y gastar tokens para que
+                // termine llamando a esto mismo.
+                enabled: !page.cc.convirtiendo
                 text: "Armar un carrusel"
                 icon: "▦"
-                onClicked: ApplicationWindow.window.pedirAlAsistente(
-                    "Desarmá esta presentación en imágenes y armá un carrusel: " +
-                    page.seleccionado.relativa)
+                onClicked: {
+                    // Se salta a la solapa de carruseles: ahí está la barra de
+                    // trabajo y ahí va a aparecer el resultado.
+                    page.solapa = 1
+                    page.cc.desarmar(page.seleccionado.ruta, "")
+                    page.seleccionado = null
+                }
                 ToolTip.visible: hovered
                 ToolTip.delay: 400
                 ToolTip.text: "Convertir cada página en una lámina de un carrusel"
+            }
+            GlassButton {
+                // Una imagen suelta va al carrusel que esté abierto: es como se
+                // arma uno a mano, sin pasar por ninguna presentación.
+                visible: page.seleccionado && page.seleccionado.tipo === "imagen" &&
+                         page.cc.actual !== ""
+                text: "Sumar a «" + page.cc.actual + "»"
+                onClicked: { page.cc.agregar(page.seleccionado.ruta); page.seleccionado = null }
             }
             GlassButton {
                 text: "✕"

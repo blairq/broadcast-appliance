@@ -361,6 +361,7 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
     registerSystemTools();
     registerInputTools();
     registerMediaTools();
+    registerLaminaTools();
     registerOperatorTools();
     registerAccountTools();
     registerAudioTools();

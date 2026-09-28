@@ -95,22 +95,24 @@ QVector<Archivo> listar(const QString& raiz, const QString& soloCarpeta) {
     return out;
 }
 
-QVector<Archivo> filtrar(const QVector<Archivo>& todos, const QString& consulta) {
+bool coincide(const QString& texto, const QString& consulta) {
     const QString q = aplanar(consulta);
-    if (q.isEmpty()) return todos;
+    if (q.isEmpty()) return true;
     // Todas las palabras tienen que estar, en cualquier orden y en cualquier
-    // parte de la ruta: «logo sponsor» encuentra «Media/sponsors/logo-2.png».
-    // Con una sola palabra que falte no aparece, que es lo que uno espera al
-    // ir agregando palabras para achicar la lista.
-    const QStringList palabras = q.split(' ', Qt::SkipEmptyParts);
+    // parte: «logo sponsor» encuentra «Media/sponsors/logo-2.png». Con una sola
+    // palabra que falte no aparece, que es lo que uno espera al ir agregando
+    // palabras para achicar la lista.
+    const QString heno = aplanar(texto);
+    for (const QString& p : q.split(' ', Qt::SkipEmptyParts))
+        if (!heno.contains(p)) return false;
+    return true;
+}
+
+QVector<Archivo> filtrar(const QVector<Archivo>& todos, const QString& consulta) {
+    if (aplanar(consulta).isEmpty()) return todos;
     QVector<Archivo> out;
-    for (const Archivo& a : todos) {
-        const QString heno = aplanar(a.relativa);
-        bool todas = true;
-        for (const QString& p : palabras)
-            if (!heno.contains(p)) { todas = false; break; }
-        if (todas) out.push_back(a);
-    }
+    for (const Archivo& a : todos)
+        if (coincide(a.relativa, consulta)) out.push_back(a);
     return out;
 }
 

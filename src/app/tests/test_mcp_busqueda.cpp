@@ -48,6 +48,12 @@ const std::pair<const char*, const char*> kHerramientas[] = {
     // verdad y el banco las cuenta como perdidas cuando no lo son. Si agregas
     // un caso al corpus con una herramienta nueva, ponela tambien aca.
     {"help", "Sistema de ayuda"},
+    {"laminas_listar", "Que carruseles de laminas hay"},
+    {"laminas_ver", "Las laminas de un carrusel"},
+    {"laminas_ir", "Saltar a una lamina"},
+    {"laminas_desarmar", "Desarmar un PDF o un PowerPoint"},
+    {"laminas_sin_analizar", "La proxima lamina sin etiquetas"},
+    {"laminas_etiquetar", "Guardar lo que se ve en una lamina"},
     {"grafico_listar", "Gráficos que hay"},
     {"grafico_probar", "Ver cómo queda un gráfico"},
     {"grafico_repertorio", "Qué se puede usar en un gráfico declarativo"},

@@ -45,7 +45,12 @@ const Fila kFamilias[] = {
     {"agente_", "agente automatico rol ia bot trabajador delegar encargar"},
     {"prompter_", "teleprompter prompter apuntador discurso texto orador leer guion"},
     {"pantalla_", "pantalla televisor tv monitor chromecast proyector cartel proyectar castear"},
+    // OJO, son DOS cosas distintas y la palabra «carrusel» lleva a las dos:
+    // carrusel_* rota mensajes y QR en una pantalla secundaria; laminas_* es la
+    // tira de imagenes de una escena (la presentacion del orador).
     {"carrusel_", "carrusel rotacion pasos secuencia pantalla cartelera"},
+    {"laminas_", "lamina diapositiva presentacion powerpoint pptx pdf carrusel imagenes tira "
+                 "slide placa volver atras saltar"},
     {"superficie_", "superficie pagina pantalla web canal control telemetria viva"},
     {"qr_", "qr codigo escanear celular enlace wifi contacto vcard"},
     {"media_", "medio archivo video musica audio cancion tema clip pelicula reproducir"},
@@ -353,6 +358,14 @@ const Fila kPropias[] = {
     {"pantalla_parar", "dejar de mostrar apagar la proyeccion cortar el casteo"},
     {"carrusel_listar", "que carruseles hay rotaciones"},
     {"carrusel_armar", "armar carrusel rotacion de pantallas pasos"},
+    {"laminas_listar", "que carruseles de laminas hay presentaciones cargadas"},
+    {"laminas_ver", "que laminas tiene cuantas diapositivas de que trata cada una"},
+    {"laminas_ir", "volve a la lamina del grafico saltar a la diapositiva numero poner esa placa "
+                   "pone la diapositiva mostrar esa lamina pasar a la"},
+    {"laminas_desarmar", "convertir un powerpoint o pdf en imagenes desarmar presentacion importar "
+                        "el orador trajo un pdf armalo para proyectar cargar la charla"},
+    {"laminas_sin_analizar", "cual falta mirar etiquetar proxima sin analizar"},
+    {"laminas_etiquetar", "guardar lo que se ve en la lamina describir para poder buscarla"},
     {"superficie_listar", "que paginas estan vivas realmente mostrando telemetria retardo"},
     {"superficie_mostrar", "cambiar lo que muestra sin recastear empujar url recargar"},
 

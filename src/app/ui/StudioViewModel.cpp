@@ -48,6 +48,7 @@
 #include "ui/RielConfig.hpp"
 #include "ui/PantallasViewModel.hpp"
 #include "ui/PersonasViewModel.hpp"
+#include "ui/CarruselViewModel.hpp"
 #include "ui/MediosViewModel.hpp"
 #include "ui/PublicoViewModel.hpp"
 #include "ui/PrompterViewModel.hpp"
@@ -152,6 +153,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     connect(publico_.get(), &PublicoViewModel::notify, this, &StudioViewModel::notify);
     medios_ = std::make_unique<MediosViewModel>(rt, this);
     connect(medios_.get(), &MediosViewModel::notify, this, &StudioViewModel::notify);
+    carruseles_ = std::make_unique<CarruselViewModel>(rt, this);
+    connect(carruseles_.get(), &CarruselViewModel::notify, this, &StudioViewModel::notify);
     connect(qr_.get(), &QrViewModel::notify, this, &StudioViewModel::notify);
     connect(rotulador_.get(), &RotuladorViewModel::notify, this, &StudioViewModel::notify);
     connect(this, &StudioViewModel::sceneChanged, rotulador_.get(), &RotuladorViewModel::refrescar);
@@ -535,6 +538,7 @@ QObject* StudioViewModel::qr() const { return qr_.get(); }
 QObject* StudioViewModel::personas() const { return personas_.get(); }
 QObject* StudioViewModel::publico() const { return publico_.get(); }
 QObject* StudioViewModel::medios() const { return medios_.get(); }
+QObject* StudioViewModel::carruseles() const { return carruseles_.get(); }
 QObject* StudioViewModel::registro() const { return registro_.get(); }
 QObject* StudioViewModel::extensiones() const { return extensiones_.get(); }
 QObject* StudioViewModel::riel() const { return riel_.get(); }
