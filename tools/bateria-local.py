@@ -24,8 +24,11 @@ puede inventar una que no exista.
 
   tools/bateria-local.py --modelo extern/modelos/Qwen3-1.7B-Q4_K_M.gguf
 """
-import argparse, json, re, subprocess, sys, time, urllib.request
+import argparse, json, subprocess, sys, time, urllib.request
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import lib_prompt as lp  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 INVENTARIO = RAIZ / "docs" / "mcp.json"
@@ -33,73 +36,9 @@ CORPUS = RAIZ / "src/app/tests/datos/preguntas.json"
 LLAMA = RAIZ / "extern/llamacpp"
 # Lo que se usa cuando algo se rompe en vivo. NO son las 291: el repertorio
 # reactivo es chico y fijo, y por eso se puede cachear entero.
-REACTIVAS = ["audio", "escenas", "fuentes", "sala", "oradores", "imagenes", "estado", "salidas"]
-
-# El prompt TIENE QUE PEDIR LO QUE LA GRAMATICA OBLIGA. Se midio al reves —el
-# sistema pedia JSON y la gramatica solo dejaba escribir el nombre— y el
-# acierto se desplomo de 56% a 16%. No era que el modelo no supiera: era que le
-# pediamos una cosa y lo forzabamos a otra. Es el mismo desajuste que arruina
-# un fine-tune cuando se entrena con una plantilla y se sirve con otra.
-SISTEMA_NOMBRE = """Sos el asistente de un estudio de television EN VIVO. El operador te habla apurado y corto.
-Contestas UNICAMENTE el nombre de la herramienta que corresponde. Una palabra, nada mas.
-Si te piden HACER algo, elegi la que lo HACE. Los listados son para cuando preguntan QUE HAY.
-Ante un problema de audio o de imagen, MEDIR primero tambien vale.
-
-Herramientas:
-"""
-
-SISTEMA = """Sos el asistente de un estudio de television EN VIVO. El operador te habla apurado y corto.
-Contestas UNA llamada a una herramienta, en JSON, sin explicar nada.
-Si te piden HACER algo, llama a la que lo HACE. Los listados son para cuando preguntan QUE HAY.
-Ante un problema de audio o de imagen, primero MEDIR y despues corregir vale como respuesta.
-
-Herramientas:
-"""
-
-
-def fichas(inv):
-    """Las fichas, cortas. Enteras son 7.200 tokens y la mayor parte es prosa
-    que el modelo no necesita para ELEGIR: le alcanza que hace y que pide."""
-    out = []
-    for h in inv["herramientas"]:
-        if h["categoria"] not in REACTIVAS:
-            continue
-        # Primera frase de la descripcion: la que dice que hace.
-        desc = re.split(r"(?<=[.!?])\s", h["descripcion"].replace("\n", " "))[0][:180]
-        req = h["esquema"].get("required", [])
-        props = list((h["esquema"].get("properties") or {}).keys())
-        args = ", ".join(f"{p}*" if p in req else p for p in props[:6])
-        out.append(f"- {h['nombre']}({args}): {desc}")
-    return sorted(out)
-
-
-def gramatica_nombre(nombres):
-    """Solo el nombre de la herramienta, nada mas.
-
-    EL HALLAZGO QUE LA JUSTIFICA: con el prefijo cacheado, leer el prompt sale
-    casi gratis y lo caro es ESCRIBIR. Treinta tokens de JSON a 12 por segundo
-    son dos segundos y medio; el nombre solo son tres o cuatro tokens. Y para
-    un evento inmediato el 90% de la decision es CUAL herramienta: los
-    argumentos de «bajale al microfono del invitado 1» los sabe el aparato,
-    que tiene la lista de canales y el que esta picando.
-    """
-    return 'root ::= ' + " | ".join('"%s"' % n for n in nombres) + "\n"
-
-
-def gramatica(nombres):
-    """GBNF: un objeto con `herramienta` (solo nombres que existen) y `argumentos`."""
-    alt = " | ".join('"\\"%s\\""' % n for n in nombres)
-    return r'''root   ::= "{\"herramienta\": " nombre ", \"argumentos\": " obj "}"
-nombre ::= ''' + alt + r'''
-obj    ::= "{" ws (par (ws "," ws par)*)? ws "}"
-par    ::= str ws ":" ws val
-val    ::= str | num | "true" | "false" | "null"
-str    ::= "\"" ([^"\\] | "\\" ["\\/bfnrt])* "\""
-num    ::= "-"? [0-9]+ ("." [0-9]+)?
-ws     ::= [ ]?
-'''
-
-
+# El prompt lo arma lib_prompt, NO este archivo. Tenerlo en dos lados es como
+# se rompe esto: se entrena con una forma y se sirve con otra. Ver el
+# comentario de tools/lib_prompt.py, que cuenta la vez que paso.
 def pedir(puerto, cuerpo, timeout=180):
     req = urllib.request.Request(f"http://127.0.0.1:{puerto}/completion",
                                  data=json.dumps(cuerpo).encode(),
@@ -118,9 +57,8 @@ def main():
                     help="que conteste solo el nombre de la herramienta, sin argumentos")
     args = ap.parse_args()
 
-    inv = json.loads(INVENTARIO.read_text(encoding="utf-8"))
-    nombres = sorted(h["nombre"] for h in inv["herramientas"] if h["categoria"] in REACTIVAS)
-    prefijo_sistema = (SISTEMA_NOMBRE if args.solo_nombre else SISTEMA) + "\n".join(fichas(inv))
+    inv = lp.inventario()
+    nombres = lp.herramientas_reactivas(inv)
 
     corpus = json.loads(CORPUS.read_text(encoding="utf-8"))["casos"]
     casos = [c for c in corpus if any(t in nombres for t in c["herramientas"])]
@@ -128,9 +66,7 @@ def main():
         casos = casos[:args.casos]
 
     # El prefijo TIENE que ser identico en cada pedido: lo variable va al final.
-    cabeza = f"<|im_start|>system\n{prefijo_sistema}<|im_end|>\n<|im_start|>user\n"
-    # `<think></think>` vacio = modo no-thinking de Qwen3.
-    cola = "<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"
+    cabeza, cola = lp.partes(inv)
 
     env = {"LD_LIBRARY_PATH": str(LLAMA), "PATH": "/usr/bin:/bin"}
     srv = subprocess.Popen(
@@ -147,7 +83,7 @@ def main():
         else:
             sys.exit("el servidor no levanto")
 
-        gram = gramatica_nombre(nombres) if args.solo_nombre else gramatica(nombres)
+        gram = lp.gramatica_nombre(nombres) if args.solo_nombre else gramatica(nombres)
         base = {"n_predict": 80, "temperature": 0.0, "cache_prompt": True, "grammar": gram}
 
         filas, aciertos = [], 0

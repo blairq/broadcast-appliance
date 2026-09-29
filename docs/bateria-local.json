@@ -1,488 +1,108 @@
 {
- "modelo": "Qwen3-1.7B-Q8_0.gguf",
+ "modelo": "Qwen3-1.7B-Q4_K_M.gguf",
  "hilos": 8,
- "aciertos": 30,
- "casos": 48,
+ "aciertos": 6,
+ "casos": 10,
  "filas": [
   {
    "pregunta": "cuantas escenas hay",
    "elegida": "scene_list",
    "ok": true,
    "prompt_n": 2647,
-   "prompt_ms": 28659.2,
+   "prompt_ms": 29791.1,
    "gen_n": 3,
-   "gen_ms": 188.2,
-   "total_ms": 28847.4
+   "gen_ms": 225.4,
+   "total_ms": 30016.5
   },
   {
    "pregunta": "pone al aire la apertura",
-   "elegida": "scene_switch",
-   "ok": true,
+   "elegida": "speaker_on_air",
+   "ok": false,
    "prompt_n": 15,
-   "prompt_ms": 643.2,
-   "gen_n": 3,
-   "gen_ms": 192.9,
-   "total_ms": 836.1
+   "prompt_ms": 987.5,
+   "gen_n": 4,
+   "gen_ms": 336.1,
+   "total_ms": 1323.6
   },
   {
    "pregunta": "corta a la camara 2",
    "elegida": "transition_set",
    "ok": false,
    "prompt_n": 17,
-   "prompt_ms": 834.7,
+   "prompt_ms": 976.8,
    "gen_n": 3,
-   "gen_ms": 222.1,
-   "total_ms": 1056.9
+   "gen_ms": 210.5,
+   "total_ms": 1187.3
   },
   {
    "pregunta": "deja preparada la escena del cierre",
    "elegida": "scene_switch",
    "ok": false,
    "prompt_n": 19,
-   "prompt_ms": 1008.6,
+   "prompt_ms": 1086.6,
    "gen_n": 3,
-   "gen_ms": 240.8,
-   "total_ms": 1249.4
+   "gen_ms": 220.9,
+   "total_ms": 1307.6
   },
   {
    "pregunta": "saca al aire lo que tengo armado",
-   "elegida": "scene_switch",
-   "ok": false,
+   "elegida": "scene_take",
+   "ok": true,
    "prompt_n": 18,
-   "prompt_ms": 844.6,
+   "prompt_ms": 994.8,
    "gen_n": 3,
-   "gen_ms": 206.3,
-   "total_ms": 1050.9
+   "gen_ms": 226.1,
+   "total_ms": 1221.0
   },
   {
    "pregunta": "crea una escena nueva para el bloque de deportes",
    "elegida": "scene_create",
    "ok": true,
    "prompt_n": 21,
-   "prompt_ms": 1049.9,
+   "prompt_ms": 1173.9,
    "gen_n": 3,
    "gen_ms": 217.0,
-   "total_ms": 1266.9
+   "total_ms": 1390.9
   },
   {
    "pregunta": "que hay adentro de la escena que esta al aire",
-   "elegida": "scene_list",
+   "elegida": "capture_source",
    "ok": false,
    "prompt_n": 22,
-   "prompt_ms": 980.3,
+   "prompt_ms": 1193.0,
    "gen_n": 3,
-   "gen_ms": 183.9,
-   "total_ms": 1164.1
+   "gen_ms": 234.7,
+   "total_ms": 1427.8
   },
   {
    "pregunta": "agrega la camara del fondo a esta escena",
    "elegida": "source_add",
    "ok": true,
    "prompt_n": 20,
-   "prompt_ms": 743.6,
+   "prompt_ms": 1211.7,
    "gen_n": 3,
-   "gen_ms": 173.7,
-   "total_ms": 917.3
+   "gen_ms": 257.1,
+   "total_ms": 1468.7
   },
   {
    "pregunta": "que fundido esta puesto entre escenas",
-   "elegida": "imagen_analizar",
-   "ok": false,
+   "elegida": "transition_set",
+   "ok": true,
    "prompt_n": 17,
-   "prompt_ms": 679.1,
-   "gen_n": 5,
-   "gen_ms": 353.9,
-   "total_ms": 1033.0
+   "prompt_ms": 956.8,
+   "gen_n": 3,
+   "gen_ms": 216.1,
+   "total_ms": 1172.9
   },
   {
    "pregunta": "el invitado no se escucha",
    "elegida": "audio_measure",
    "ok": true,
    "prompt_n": 16,
-   "prompt_ms": 596.3,
+   "prompt_ms": 907.9,
    "gen_n": 3,
-   "gen_ms": 170.4,
-   "total_ms": 766.6
-  },
-  {
-   "pregunta": "no tengo sonido",
-   "elegida": "audio_measure",
-   "ok": true,
-   "prompt_n": 13,
-   "prompt_ms": 548.1,
-   "gen_n": 3,
-   "gen_ms": 185.7,
-   "total_ms": 733.8
-  },
-  {
-   "pregunta": "silencia el microfono del invitado 1",
-   "elegida": "audio_set",
-   "ok": true,
-   "prompt_n": 19,
-   "prompt_ms": 772.5,
-   "gen_n": 3,
-   "gen_ms": 258.8,
-   "total_ms": 1031.3
-  },
-  {
-   "pregunta": "subi un poco el volumen de la musica",
-   "elegida": "audio_set",
-   "ok": true,
-   "prompt_n": 19,
-   "prompt_ms": 761.2,
-   "gen_n": 3,
-   "gen_ms": 208.2,
-   "total_ms": 969.4
-  },
-  {
-   "pregunta": "se escucha desfasado de la imagen",
-   "elegida": "audio_sincro",
-   "ok": true,
-   "prompt_n": 18,
-   "prompt_ms": 700.5,
-   "gen_n": 5,
-   "gen_ms": 405.8,
-   "total_ms": 1106.3
-  },
-  {
-   "pregunta": "quiero escuchar ese microfono antes de abrirlo",
-   "elegida": "audio_escuchar",
-   "ok": true,
-   "prompt_n": 20,
-   "prompt_ms": 775.3,
-   "gen_n": 4,
-   "gen_ms": 295.2,
-   "total_ms": 1070.5
-  },
-  {
-   "pregunta": "que canales de audio hay",
-   "elegida": "audio_analyze",
-   "ok": false,
-   "prompt_n": 15,
-   "prompt_ms": 610.8,
-   "gen_n": 4,
-   "gen_ms": 332.8,
-   "total_ms": 943.6
-  },
-  {
-   "pregunta": "quien esta esperando para entrar",
-   "elegida": "participant_reject",
-   "ok": false,
-   "prompt_n": 16,
-   "prompt_ms": 896.8,
-   "gen_n": 4,
-   "gen_ms": 345.7,
-   "total_ms": 1242.5
-  },
-  {
-   "pregunta": "cuanta gente hay en la sala",
-   "elegida": "room_status",
-   "ok": true,
-   "prompt_n": 16,
-   "prompt_ms": 846.5,
-   "gen_n": 3,
-   "gen_ms": 248.2,
-   "total_ms": 1094.6
-  },
-  {
-   "pregunta": "hace pasar al que esta esperando",
-   "elegida": "participant_admit",
-   "ok": true,
-   "prompt_n": 17,
-   "prompt_ms": 1009.1,
-   "gen_n": 4,
-   "gen_ms": 299.6,
-   "total_ms": 1308.7
-  },
-  {
-   "pregunta": "echa a ese tipo de la sala",
-   "elegida": "participant_kick",
-   "ok": true,
-   "prompt_n": 16,
-   "prompt_ms": 677.3,
-   "gen_n": 4,
-   "gen_ms": 270.9,
-   "total_ms": 948.2
-  },
-  {
-   "pregunta": "mandale un mensaje al invitado 1",
-   "elegida": "chat_send",
-   "ok": true,
-   "prompt_n": 18,
-   "prompt_ms": 705.8,
-   "gen_n": 3,
-   "gen_ms": 188.4,
-   "total_ms": 894.2
-  },
-  {
-   "pregunta": "que me dijo el invitado",
-   "elegida": "imagen_analizar",
-   "ok": false,
-   "prompt_n": 15,
-   "prompt_ms": 616.1,
-   "gen_n": 5,
-   "gen_ms": 354.0,
-   "total_ms": 970.1
-  },
-  {
-   "pregunta": "pedile que prenda la camara",
-   "elegida": "audio_set",
-   "ok": false,
-   "prompt_n": 17,
-   "prompt_ms": 676.0,
-   "gen_n": 3,
-   "gen_ms": 195.1,
-   "total_ms": 871.1
-  },
-  {
-   "pregunta": "el link para invitar gente",
-   "elegida": "room_link",
-   "ok": true,
-   "prompt_n": 15,
-   "prompt_ms": 605.8,
-   "gen_n": 3,
-   "gen_ms": 176.5,
-   "total_ms": 782.3
-  },
-  {
-   "pregunta": "que archivos mandaron los invitados",
-   "elegida": "share_list",
-   "ok": true,
-   "prompt_n": 16,
-   "prompt_ms": 593.0,
-   "gen_n": 3,
-   "gen_ms": 176.9,
-   "total_ms": 769.9
-  },
-  {
-   "pregunta": "quien habla ahora y cuanto le queda",
-   "elegida": "speaker_time",
-   "ok": true,
-   "prompt_n": 18,
-   "prompt_ms": 694.9,
-   "gen_n": 3,
-   "gen_ms": 207.8,
-   "total_ms": 902.7
-  },
-  {
-   "pregunta": "pasa al que sigue",
-   "elegida": "speaker_next",
-   "ok": true,
-   "prompt_n": 14,
-   "prompt_ms": 540.7,
-   "gen_n": 3,
-   "gen_ms": 170.2,
-   "total_ms": 710.8
-  },
-  {
-   "pregunta": "empeza a grabar",
-   "elegida": "grabacion_individual",
-   "ok": false,
-   "prompt_n": 15,
-   "prompt_ms": 602.3,
-   "gen_n": 4,
-   "gen_ms": 261.9,
-   "total_ms": 864.2
-  },
-  {
-   "pregunta": "pará la grabación",
-   "elegida": "grabacion_individual",
-   "ok": false,
-   "prompt_n": 14,
-   "prompt_ms": 525.6,
-   "gen_n": 4,
-   "gen_ms": 266.6,
-   "total_ms": 792.2
-  },
-  {
-   "pregunta": "salimos al aire",
-   "elegida": "transition_set",
-   "ok": false,
-   "prompt_n": 13,
-   "prompt_ms": 553.9,
-   "gen_n": 3,
-   "gen_ms": 177.6,
-   "total_ms": 731.5
-  },
-  {
-   "pregunta": "bajanos del aire",
-   "elegida": "stream_stop",
-   "ok": true,
-   "prompt_n": 14,
-   "prompt_ms": 522.8,
-   "gen_n": 3,
-   "gen_ms": 168.9,
-   "total_ms": 691.7
-  },
-  {
-   "pregunta": "como esta todo",
-   "elegida": "status",
-   "ok": true,
-   "prompt_n": 12,
-   "prompt_ms": 468.7,
-   "gen_n": 2,
-   "gen_ms": 92.0,
-   "total_ms": 560.7
-  },
-  {
-   "pregunta": "se esta cortando la transmision",
-   "elegida": "audio_measure",
-   "ok": false,
-   "prompt_n": 17,
-   "prompt_ms": 694.7,
-   "gen_n": 3,
-   "gen_ms": 170.7,
-   "total_ms": 865.4
-  },
-  {
-   "pregunta": "mostrame como se ve el programa",
-   "elegida": "capture_program",
-   "ok": true,
-   "prompt_n": 17,
-   "prompt_ms": 694.8,
-   "gen_n": 3,
-   "gen_ms": 194.6,
-   "total_ms": 889.4
-  },
-  {
-   "pregunta": "se ve todo negro",
-   "elegida": "audio_measure",
-   "ok": false,
-   "prompt_n": 13,
-   "prompt_ms": 557.9,
-   "gen_n": 3,
-   "gen_ms": 197.5,
-   "total_ms": 755.4
-  },
-  {
-   "pregunta": "fijate si en camara se ve bien el rotulo",
-   "elegida": "imagen_analizar",
-   "ok": true,
-   "prompt_n": 22,
-   "prompt_ms": 1095.3,
-   "gen_n": 5,
-   "gen_ms": 467.4,
-   "total_ms": 1562.7
-  },
-  {
-   "pregunta": "hay acople",
-   "elegida": "audio_measure",
-   "ok": true,
-   "prompt_n": 12,
-   "prompt_ms": 527.0,
-   "gen_n": 3,
-   "gen_ms": 179.3,
-   "total_ms": 706.3
-  },
-  {
-   "pregunta": "se esta acoplando el audio, cortalo",
-   "elegida": "audio_measure",
-   "ok": true,
-   "prompt_n": 19,
-   "prompt_ms": 817.8,
-   "gen_n": 3,
-   "gen_ms": 207.1,
-   "total_ms": 1024.9
-  },
-  {
-   "pregunta": "suena un pitido horrible",
-   "elegida": "audio_measure",
-   "ok": true,
-   "prompt_n": 15,
-   "prompt_ms": 650.2,
-   "gen_n": 3,
-   "gen_ms": 176.9,
-   "total_ms": 827.0
-  },
-  {
-   "pregunta": "esta saturando el audio",
-   "elegida": "audio_measure",
-   "ok": true,
-   "prompt_n": 14,
-   "prompt_ms": 519.1,
-   "gen_n": 3,
-   "gen_ms": 176.3,
-   "total_ms": 695.4
-  },
-  {
-   "pregunta": "se escucha un zumbido de fondo",
-   "elegida": "audio_measure",
-   "ok": true,
-   "prompt_n": 18,
-   "prompt_ms": 666.6,
-   "gen_n": 3,
-   "gen_ms": 170.6,
-   "total_ms": 837.2
-  },
-  {
-   "pregunta": "el microfono queda abierto y se escucha todo",
-   "elegida": "audio_set",
-   "ok": true,
-   "prompt_n": 20,
-   "prompt_ms": 744.6,
-   "gen_n": 3,
-   "gen_ms": 188.3,
-   "total_ms": 932.9
-  },
-  {
-   "pregunta": "no se escucha nada al aire",
-   "elegida": "audio_measure",
-   "ok": true,
-   "prompt_n": 16,
-   "prompt_ms": 591.9,
-   "gen_n": 3,
-   "gen_ms": 185.6,
-   "total_ms": 777.5
-  },
-  {
-   "pregunta": "quedamos sin imagen",
-   "elegida": "imagen_analizar",
-   "ok": true,
-   "prompt_n": 14,
-   "prompt_ms": 519.1,
-   "gen_n": 5,
-   "gen_ms": 347.2,
-   "total_ms": 866.3
-  },
-  {
-   "pregunta": "se congelo la camara del invitado",
-   "elegida": "audio_measure",
-   "ok": false,
-   "prompt_n": 18,
-   "prompt_ms": 666.4,
-   "gen_n": 3,
-   "gen_ms": 174.7,
-   "total_ms": 841.1
-  },
-  {
-   "pregunta": "se cayo un invitado",
-   "elegida": "speaker_queue",
-   "ok": false,
-   "prompt_n": 14,
-   "prompt_ms": 609.2,
-   "gen_n": 3,
-   "gen_ms": 204.5,
-   "total_ms": 813.7
-  },
-  {
-   "pregunta": "se corto la transmision",
-   "elegida": "audio_measure",
-   "ok": false,
-   "prompt_n": 15,
-   "prompt_ms": 622.1,
-   "gen_n": 3,
-   "gen_ms": 174.7,
-   "total_ms": 796.9
-  },
-  {
-   "pregunta": "se esta llenando el disco",
-   "elegida": "audio_measure",
-   "ok": false,
-   "prompt_n": 14,
-   "prompt_ms": 526.1,
-   "gen_n": 3,
-   "gen_ms": 168.9,
-   "total_ms": 695.0
+   "gen_ms": 228.2,
+   "total_ms": 1136.1
   }
  ]
 }

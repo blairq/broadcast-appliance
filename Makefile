@@ -31,7 +31,7 @@ PIP       ?= .venv/bin/pip
         clean clean-all \
         deps deps-obs deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist \
         deps-lsp deps-status deps-clean deps-libreoffice deps-libreoffice-linux deps-libreoffice-win \
-        deps-msitools mcp-inventario deps-llamacpp bateria-local \
+        deps-msitools mcp-inventario deps-llamacpp bateria-local corpus-entrenamiento \
         deps-src deps-mbedtls deps-nlohmann deps-samplerate deps-argon2 deps-rostros _ba_baja
 
 # --- Ayuda (target por defecto) ---------------------------------------------
@@ -77,6 +77,7 @@ help:
 	@echo "  make mcp-inventario   docs/mcp.json: todas las herramientas MCP (con el aparato andando)"
 	@echo "  make deps-llamacpp    llama.cpp (CPU) para probar un modelo chico local"
 	@echo "  make bateria-local    cuanto tarda y cuanto acierta ese modelo (prefijo cacheado)"
+	@echo "  make corpus-entrenamiento  arma datos/entrenamiento desde las semillas"
 	@echo "                        -> extern/libreoffice. OPCIONAL y pesado (~280 MB por"
 	@echo "                        plataforma): solo hace falta si alguien trae .pptx."
 	@echo "  make deps-mbedtls     mbedtls v3.6.2 (fuente de build) -> extern/mbedtls"
@@ -955,6 +956,12 @@ deps-llamacpp:
 # Hace falta un .gguf en extern/modelos (no viaja en el repo: son gigas).
 bateria-local:
 	tools/bateria-local.py --modelo extern/modelos/Qwen3-1.7B-Q4_K_M.gguf --solo-nombre
+
+# El conjunto de entrenamiento del modelo chico, desde las semillas escritas a
+# mano. El examen (el corpus de siempre) queda intacto: es el unico numero
+# honesto que hay.
+corpus-entrenamiento:
+	tools/corpus-entrenamiento.py
 
 deps-clap:
 	@mkdir -p "$(DL_DIR)"

@@ -1,0 +1,48 @@
+{"frase": "cuantas escenas hay", "aceptables": ["scene_list"]}
+{"frase": "pone al aire la apertura", "aceptables": ["scene_switch"]}
+{"frase": "corta a la camara 2", "aceptables": ["scene_switch"]}
+{"frase": "deja preparada la escena del cierre", "aceptables": ["scene_preview"]}
+{"frase": "saca al aire lo que tengo armado", "aceptables": ["scene_take"]}
+{"frase": "crea una escena nueva para el bloque de deportes", "aceptables": ["scene_create", "scene_define"]}
+{"frase": "que hay adentro de la escena que esta al aire", "aceptables": ["source_list"]}
+{"frase": "agrega la camara del fondo a esta escena", "aceptables": ["source_add"]}
+{"frase": "que fundido esta puesto entre escenas", "aceptables": ["transition_set"]}
+{"frase": "el invitado no se escucha", "aceptables": ["audio_escuchar", "audio_measure", "audio_set", "audio_sources", "mixer_list"]}
+{"frase": "no tengo sonido", "aceptables": ["audio_measure", "audio_set", "audio_sources"]}
+{"frase": "silencia el microfono del invitado 1", "aceptables": ["audio_set", "participant_request"]}
+{"frase": "subi un poco el volumen de la musica", "aceptables": ["audio_set"]}
+{"frase": "se escucha desfasado de la imagen", "aceptables": ["audio_sincro"]}
+{"frase": "quiero escuchar ese microfono antes de abrirlo", "aceptables": ["audio_escuchar"]}
+{"frase": "que canales de audio hay", "aceptables": ["audio_sources", "mixer_list"]}
+{"frase": "quien esta esperando para entrar", "aceptables": ["room_status", "rostro_lobby"]}
+{"frase": "cuanta gente hay en la sala", "aceptables": ["room_status"]}
+{"frase": "hace pasar al que esta esperando", "aceptables": ["participant_admit", "participant_admit_all", "room_status"]}
+{"frase": "echa a ese tipo de la sala", "aceptables": ["participant_kick", "participant_reject"]}
+{"frase": "mandale un mensaje al invitado 1", "aceptables": ["chat_send"]}
+{"frase": "que me dijo el invitado", "aceptables": ["chat_history", "guest_chat_pending"]}
+{"frase": "pedile que prenda la camara", "aceptables": ["chat_send", "participant_request"]}
+{"frase": "el link para invitar gente", "aceptables": ["room_link"]}
+{"frase": "que archivos mandaron los invitados", "aceptables": ["share_list"]}
+{"frase": "quien habla ahora y cuanto le queda", "aceptables": ["speaker_time", "speakers_status"]}
+{"frase": "pasa al que sigue", "aceptables": ["speaker_next"]}
+{"frase": "empeza a grabar", "aceptables": ["record_start"]}
+{"frase": "pará la grabación", "aceptables": ["record_stop"]}
+{"frase": "salimos al aire", "aceptables": ["stream_start"]}
+{"frase": "bajanos del aire", "aceptables": ["stream_stop"]}
+{"frase": "como esta todo", "aceptables": ["status"]}
+{"frase": "se esta cortando la transmision", "aceptables": ["network_status", "status"]}
+{"frase": "mostrame como se ve el programa", "aceptables": ["capture_program", "imagen_analizar"]}
+{"frase": "se ve todo negro", "aceptables": ["capture_program", "imagen_analizar"]}
+{"frase": "fijate si en camara se ve bien el rotulo", "aceptables": ["capture_program", "imagen_analizar"]}
+{"frase": "hay acople", "aceptables": ["audio_escuchar", "audio_measure", "audio_set", "audio_sources", "mixer_list"]}
+{"frase": "se esta acoplando el audio, cortalo", "aceptables": ["audio_measure", "audio_set", "audio_sources", "mixer_list"]}
+{"frase": "suena un pitido horrible", "aceptables": ["audio_analyze", "audio_measure", "audio_set", "audio_sources", "mixer_list"]}
+{"frase": "esta saturando el audio", "aceptables": ["audio_compressor", "audio_limiter", "audio_measure", "audio_set", "audio_sources", "mixer_list"]}
+{"frase": "se escucha un zumbido de fondo", "aceptables": ["audio_measure", "audio_analyze", "audio_eq", "audio_gate"]}
+{"frase": "el microfono queda abierto y se escucha todo", "aceptables": ["audio_set", "audio_gate"]}
+{"frase": "no se escucha nada al aire", "aceptables": ["audio_measure", "audio_outputs", "audio_set", "mixer_list", "status"]}
+{"frase": "quedamos sin imagen", "aceptables": ["capture_program", "status", "imagen_analizar"]}
+{"frase": "se congelo la camara del invitado", "aceptables": ["capture_feed", "room_status", "participant_request"]}
+{"frase": "se cayo un invitado", "aceptables": ["room_status", "chat_send"]}
+{"frase": "se corto la transmision", "aceptables": ["status", "network_status", "stream_start"]}
+{"frase": "se esta llenando el disco", "aceptables": ["system_hardware", "status"]}

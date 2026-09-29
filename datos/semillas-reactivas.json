@@ -1,0 +1,207 @@
+{
+  "_comentario": [
+    "Como PIDE un operador cada cosa, en cabina, apurado. Escritas a mano.",
+    "",
+    "ESTO ES LA SEMILLA, no el conjunto: tools/corpus-entrenamiento.py le aplica",
+    "encima la variacion que de verdad aparece al hablar y al tipear rapido (sin",
+    "tildes, con el verbo al final, con «che» adelante, con un typo).",
+    "",
+    "REGLAS AL ESCRIBIRLAS, que son las que hacen que sirvan:",
+    "  1. NUNCA se nombra la herramienta. Si la frase dice «audio_set», no",
+    "     prueba nada: el modelo la copia y no aprendio a mapear.",
+    "  2. Se dice el SINTOMA o la INTENCION, como sale en voz alta. «No se",
+    "     escucha al invitado», no «ajustar volumen de la fuente de audio».",
+    "  3. Cortas. En vivo nadie arma una oracion larga.",
+    "  4. Si dos herramientas compiten de verdad (armar contra sacar al aire),",
+    "     se escriben frases que las DISTINGAN, no que las confundan.",
+    "",
+    "`tambien` son las otras respuestas aceptables. Ante un sintoma, MEDIR antes",
+    "de tocar vale: es la doctrina del rol tecnico y contarlo como error medía",
+    "mal. Lo usa la evaluacion, no el entrenamiento (que necesita una sola)."
+  ],
+  "herramientas": {
+    "audio_set": {
+      "frases": ["bajale al invitado 1", "silenciá ese micrófono", "subí la música",
+                 "mutealo", "bajá el volumen del programa", "abrile el micrófono al orador",
+                 "sacale audio a la cámara", "poné la música más bajo que está tapando",
+                 "cerrá el micro del fondo", "subile un poco al que está hablando"],
+      "tambien": ["mixer_list", "audio_measure"]
+    },
+    "audio_measure": {
+      "frases": ["cuánto está picando", "medime el audio", "fijate los niveles",
+                 "cómo viene el nivel del programa", "está saturando?"],
+      "tambien": ["mixer_list", "audio_analyze"]
+    },
+    "audio_analyze": {
+      "frases": ["qué es ese ruido", "analizame el audio a ver qué pasa",
+                 "hay un zumbido raro, mirá qué es", "de dónde sale ese pitido"],
+      "tambien": ["audio_measure"]
+    },
+    "audio_escuchar": {
+      "frases": ["quiero escuchar ese micrófono antes de abrirlo", "dejame oír el canal 2",
+                 "pasame el audio del invitado a los auriculares", "escuchá vos cómo suena eso"],
+      "tambien": []
+    },
+    "audio_sincro": {
+      "frases": ["se escucha desfasado", "el audio va antes que la imagen",
+                 "no coinciden labios y voz", "corregí el retardo del audio"],
+      "tambien": []
+    },
+    "mixer_list": {
+      "frases": ["qué canales de audio hay", "mostrame el mezclador", "qué fuentes con sonido tengo"],
+      "tambien": ["audio_sources"]
+    },
+    "scene_switch": {
+      "frases": ["cortá a la cámara 2", "poné la apertura", "andá al cierre",
+                 "pasá a pantalla completa", "mandá la placa al aire", "cortá al plano general"],
+      "tambien": []
+    },
+    "scene_preview": {
+      "frases": ["dejá preparada la del cierre", "armá la próxima", "prepará el bloque que sigue",
+                 "dejá lista la de los sponsors", "cargá la escena del orador en preview"],
+      "tambien": []
+    },
+    "scene_take": {
+      "frases": ["sacá al aire lo que tengo armado", "dale take", "mandalo",
+                 "tirá la armada", "ahora sí, al aire"],
+      "tambien": []
+    },
+    "scene_list": {
+      "frases": ["qué escenas hay", "cuántas escenas tengo", "listame las escenas"],
+      "tambien": []
+    },
+    "scene_create": {
+      "frases": ["creá una escena para el bloque de deportes", "necesito una escena nueva",
+                 "armame una escena para la entrevista"],
+      "tambien": ["scene_define"]
+    },
+    "transition_set": {
+      "frases": ["qué fundido está puesto", "cambiá la transición a corte",
+                 "poné fundido de medio segundo", "sacá el fundido, quiero corte seco"],
+      "tambien": []
+    },
+    "source_list": {
+      "frases": ["qué hay adentro de esta escena", "qué capas tiene la escena del aire",
+                 "mostrame las fuentes"],
+      "tambien": []
+    },
+    "source_add": {
+      "frases": ["agregá la cámara del fondo a esta escena", "sumale el logo",
+                 "poné una imagen arriba a la derecha", "metele la cámara 3"],
+      "tambien": []
+    },
+    "source_update": {
+      "frases": ["sacá el rótulo", "ocultá el logo", "mostrá de nuevo la placa",
+                 "corré la cámara chica a la izquierda", "agrandá el pip"],
+      "tambien": ["source_set_property"]
+    },
+    "source_remove": {
+      "frases": ["borrá esa capa de la escena", "sacá esa fuente que no va más"],
+      "tambien": []
+    },
+    "capture_program": {
+      "frases": ["mostrame cómo se ve el programa", "se ve todo negro",
+                 "quedamos sin imagen", "fijate si en cámara se ve bien el rótulo",
+                 "sacame una foto de lo que está saliendo", "cómo está saliendo al aire"],
+      "tambien": ["imagen_analizar", "status"]
+    },
+    "capture_source": {
+      "frases": ["mostrame cómo quedó esa fuente", "a ver la cámara 2 sola",
+                 "fijate cómo se ve el logo"],
+      "tambien": []
+    },
+    "capture_feed": {
+      "frases": ["se congeló la cámara del invitado", "mirá si el invitado 2 tiene imagen",
+                 "a ver la cámara del que está esperando"],
+      "tambien": ["room_status"]
+    },
+    "room_status": {
+      "frases": ["cuánta gente hay en la sala", "quién está conectado",
+                 "cuántos lugares quedan", "cómo viene la sala"],
+      "tambien": []
+    },
+    "participant_admit": {
+      "frases": ["hacelo pasar", "dejalo entrar", "admití al que está esperando",
+                 "que pase Marta", "metelo a la sala"],
+      "tambien": ["room_status"]
+    },
+    "participant_reject": {
+      "frases": ["rechazá a ese", "no lo dejes entrar", "sacá a ese del lobby"],
+      "tambien": []
+    },
+    "participant_kick": {
+      "frases": ["echá a ese tipo de la sala", "sacalo ya", "desconectalo"],
+      "tambien": []
+    },
+    "participant_request": {
+      "frases": ["pedile que prenda la cámara", "decile que se acerque al micrófono",
+                 "pedile que se mute", "que encienda el micro"],
+      "tambien": ["chat_send"]
+    },
+    "chat_send": {
+      "frases": ["mandale un mensaje al invitado 1", "escribile que ya sale",
+                 "avisale que arrancamos en dos minutos"],
+      "tambien": []
+    },
+    "chat_history": {
+      "frases": ["qué me dijo el invitado", "qué escribieron en el chat",
+                 "leeme los mensajes"],
+      "tambien": ["chat_wait"]
+    },
+    "room_link": {
+      "frases": ["pasame el link para invitar", "dame el enlace de la sala",
+                 "cómo entra la gente"],
+      "tambien": []
+    },
+    "speaker_next": {
+      "frases": ["que pase el que sigue", "siguiente orador", "dale, el próximo",
+                 "pasá al siguiente"],
+      "tambien": []
+    },
+    "speakers_status": {
+      "frases": ["quién habla ahora y cuánto le queda", "cómo viene la fila",
+                 "cuánto tiempo le queda al que está"],
+      "tambien": ["speaker_time"]
+    },
+    "speaker_time": {
+      "frases": ["dale dos minutos más", "cortale el tiempo a ese",
+                 "ponele cinco minutos al que sigue"],
+      "tambien": []
+    },
+    "speaker_on_air": {
+      "frases": ["sacá al aire a Marta", "poné al orador que está esperando",
+                 "bajá del aire al que está hablando"],
+      "tambien": []
+    },
+    "record_start": {
+      "frases": ["empezá a grabar", "poné a grabar esto", "dale rec"],
+      "tambien": []
+    },
+    "record_stop": {
+      "frases": ["pará la grabación", "cortá el rec", "dejá de grabar"],
+      "tambien": []
+    },
+    "stream_start": {
+      "frases": ["salimos al aire", "arrancá la transmisión", "mandá a youtube"],
+      "tambien": []
+    },
+    "stream_stop": {
+      "frases": ["bajanos del aire", "cortá la transmisión", "sacanos de youtube"],
+      "tambien": []
+    },
+    "status": {
+      "frases": ["cómo está todo", "cómo venimos", "dame un panorama",
+                 "estamos al aire?", "se está cortando la transmisión"],
+      "tambien": ["network_status"]
+    },
+    "network_status": {
+      "frases": ["cómo está la red", "se está yendo la conexión",
+                 "estamos perdiendo cuadros?"],
+      "tambien": ["status"]
+    },
+    "share_list": {
+      "frases": ["qué archivos mandaron", "qué compartieron los invitados"],
+      "tambien": []
+    }
+  }
+}
