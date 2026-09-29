@@ -1,14 +1,14 @@
 {
- "prompt": "03f026481be7e5fe",
- "herramientas": "f0e0d3bfd23e0781",
- "cuantas": 73,
- "tokens_aprox": 2444,
- "ejemplos_entrenar": 1857,
- "herramientas_con_frases": 73,
+ "prompt": "ad94e991409f0652",
+ "herramientas": "162606cdafe31810",
+ "cuantas": 80,
+ "tokens_aprox": 2623,
+ "ejemplos_entrenar": 1996,
+ "herramientas_con_frases": 80,
  "propuestas_automaticas": [],
  "correctivas": {
-  "ejemplos": 497,
-  "porcion": 0.268,
+  "ejemplos": 480,
+  "porcion": 0.24,
   "versiones": [
    "v2"
   ]

@@ -18,7 +18,21 @@ INVENTARIO = RAIZ / "docs" / "mcp.json"
 
 # Lo que se usa cuando algo se rompe en vivo. NO son las 291: el repertorio
 # reactivo es chico y FIJO, y por eso se puede cachear entero.
-REACTIVAS = ["audio", "escenas", "fuentes", "sala", "oradores", "imagenes", "estado", "salidas"]
+REACTIVAS = ["audio", "escenas", "fuentes", "sala", "oradores", "imagenes", "estado", "salidas",
+             # Cambiar un zocalo al aire —«esta mal el apellido»— es de lo mas
+             # frecuente que pasa en vivo, y la categoria entera estaba afuera.
+             "graficos"]
+
+# Herramientas que caen en una categoria reactiva pero son TRABAJO PREVIO. El
+# corte del MCP es administrativo y no coincide con el del oficio: `graficos`
+# mezcla disenar una plantilla (antes, con tiempo) con mostrarla al aire
+# (ahora, a los gritos). Sacarlas achica el espacio donde el modelo se pierde y
+# ademas las vuelve IMPOSIBLES de elegir en vivo, que para las destructivas es
+# lo que corresponde.
+NO_REACTIVAS = {
+    "grafico_probar",      # ver como queda mientras se disena
+    "grafico_repertorio",  # que se puede usar al escribir un grafico
+}
 
 SISTEMA_NOMBRE = """Sos el asistente de un estudio de television EN VIVO. El operador te habla apurado y corto.
 Contestas UNICAMENTE el nombre de la herramienta que corresponde. Una palabra, nada mas.
@@ -35,7 +49,8 @@ def inventario():
 
 def herramientas_reactivas(inv=None):
     inv = inv or inventario()
-    return sorted(h["nombre"] for h in inv["herramientas"] if h["categoria"] in REACTIVAS)
+    return sorted(h["nombre"] for h in inv["herramientas"]
+                  if h["categoria"] in REACTIVAS and h["nombre"] not in NO_REACTIVAS)
 
 
 def fichas(inv=None):
@@ -44,7 +59,7 @@ def fichas(inv=None):
     inv = inv or inventario()
     out = []
     for h in inv["herramientas"]:
-        if h["categoria"] not in REACTIVAS:
+        if h["categoria"] not in REACTIVAS or h["nombre"] in NO_REACTIVAS:
             continue
         desc = re.split(r"(?<=[.!?])\s", h["descripcion"].replace("\n", " "))[0][:180]
         req = h["esquema"].get("required", [])

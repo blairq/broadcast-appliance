@@ -245,9 +245,7 @@
         "ocultá el logo",
         "mostrá de nuevo la placa",
         "corré la cámara chica a la izquierda",
-        "agrandá el pip",
-        "que salga el zocalo ahora",
-        "mostra la placa del orador"
+        "agrandá el pip"
       ],
       "tambien": [
         "source_set_property"
@@ -820,6 +818,85 @@
         "prendi el modo oradores",
         "configurame los tiempos de cada uno",
         "apaga el modo oradores"
+      ],
+      "tambien": []
+    },
+    "grafico_mostrar": {
+      "frases": [
+        "poné el zócalo de Fulano",
+        "levantá el zócalo",
+        "tirá el zócalo",
+        "que salga el GC",
+        "poné la placa de sponsors",
+        "mandá la placa",
+        "poné el nombre del que habla",
+        "sacá el cartel con el cargo",
+        "necesito el zócalo del entrevistado",
+        "poné la gráfica de resultados",
+        "está mal el apellido, corregilo",
+        "cambiale el cargo al zócalo",
+        "el nombre va con zeta, arreglalo",
+        "poné que dice ministro, no secretario",
+        "actualizá el texto del zócalo"
+      ],
+      "tambien": [
+        "rotulo_vincular"
+      ]
+    },
+    "grafico_ocultar": {
+      "frases": [
+        "bajá el zócalo",
+        "sacá el zócalo",
+        "quitá la placa",
+        "bajá el GC",
+        "sacá eso de pantalla",
+        "limpiá la pantalla",
+        "fuera el cartel"
+      ],
+      "tambien": []
+    },
+    "grafico_listar": {
+      "frases": [
+        "qué gráficos tengo",
+        "qué placas hay armadas",
+        "listame los zócalos",
+        "qué arte tengo disponible"
+      ],
+      "tambien": [
+        "grafico_en_escena"
+      ]
+    },
+    "grafico_en_escena": {
+      "frases": [
+        "qué gráficos tiene esta escena",
+        "dónde puedo poner una placa acá",
+        "qué fuentes de gráfico hay en la toma"
+      ],
+      "tambien": []
+    },
+    "rotulo_vincular": {
+      "frases": [
+        "que el zócalo se escriba solo",
+        "atá el nombre al que está hablando",
+        "que el cargo salga automático",
+        "vinculá el rótulo con el orador"
+      ],
+      "tambien": [
+        "grafico_mostrar"
+      ]
+    },
+    "rotulo_vinculos": {
+      "frases": [
+        "qué rótulos se escriben solos",
+        "qué vínculos hay armados"
+      ],
+      "tambien": []
+    },
+    "rotulo_desvincular": {
+      "frases": [
+        "desatá ese rótulo",
+        "que deje de escribirse solo",
+        "apagá el vínculo del zócalo"
       ],
       "tambien": []
     }

@@ -25,6 +25,7 @@
 {"frase": "que archivos mandaron los invitados", "aceptables": ["share_list"]}
 {"frase": "quien habla ahora y cuanto le queda", "aceptables": ["speaker_time", "speakers_status"]}
 {"frase": "pasa al que sigue", "aceptables": ["speaker_next"]}
+{"frase": "pone el nombre y el cargo del que habla en pantalla", "aceptables": ["grafico_mostrar", "rotulo_vincular", "rotulo_vinculos"]}
 {"frase": "empeza a grabar", "aceptables": ["record_start"]}
 {"frase": "pará la grabación", "aceptables": ["record_stop"]}
 {"frase": "salimos al aire", "aceptables": ["stream_start"]}

@@ -94,6 +94,12 @@
       "previo",
       "pvw",
       "el bus previo"
+    ],
+    "gráfico": [
+      "grafico",
+      "placa",
+      "arte",
+      "zocalo"
     ]
   },
   "giros": {
@@ -133,12 +139,9 @@
       "armá la que sigue en pvw"
     ],
     "source_update": [
-      "bajá el GC",
-      "levantá el zócalo",
-      "poné el generador",
-      "que salga el GC",
-      "sacá la placa",
-      "tirá el zócalo"
+      "levantá la capa",
+      "ocultá esa fuente",
+      "mostrá de nuevo esa capa"
     ],
     "audio_set": [
       "levantá el micro del piso",
@@ -192,6 +195,18 @@
       "ponele disolvencia",
       "que sea corte seco",
       "sacá la cortinilla"
+    ],
+    "grafico_mostrar": [
+      "levantá el zócalo",
+      "tirá el GC",
+      "mandá el zócalo",
+      "poné el generador",
+      "que salga el zócalo"
+    ],
+    "grafico_ocultar": [
+      "bajá el zócalo",
+      "bajá el GC",
+      "sacá el generador"
     ]
   }
 }
