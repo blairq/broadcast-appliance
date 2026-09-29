@@ -38,6 +38,8 @@ def main():
     ap.add_argument("--json", default="", help="donde dejar los fallos, para tools/entrenar/fallos.py")
     ap.add_argument("--ejemplos", type=int, default=0,
                     help="pares resueltos en el prefijo (para comparar con el aprendizaje en contexto)")
+    ap.add_argument("--sesgo", type=float, default=0.0,
+                    help="cuanto se le suma al logit de `derivar` (el dial simple)")
     ap.add_argument("--vector", help="vector de control (.gguf) de vector-control.py")
     ap.add_argument("--escala", type=float, default=1.0,
                     help="cuanto se empuja. 0 = como si no estuviera")
@@ -113,6 +115,22 @@ def main():
                 opciones.add(s[len(generado)] if len(s) > len(generado) else fin)
         return sorted(opciones) or [fin]
 
+    # EL DIAL SIMPLE: sesgar el logit de `derivar`.
+    #
+    # Por que esto y no el vector de control. La tarea es elegir UN nombre de
+    # una lista cerrada, asi que lo que decide esta en el logit de un token, no
+    # desparramado en el texto. Sumarle una constante a ese logit mueve el
+    # punto de operacion de forma MONOTONA y sin tocar nada mas: es el dial que
+    # el vector prometia, pero con garantia en vez de esperanza.
+    #
+    # `derivar` empieza con un token que ninguna herramienta comparte, asi que
+    # sesgarlo no arrastra a ninguna otra.
+    tok_derivar = tok(lp.DERIVAR, add_special_tokens=False).input_ids[0]
+    def sesgar(ids, puntajes):
+        if args.sesgo and ids.shape[-1] == largo_prompt[0]:
+            puntajes[:, tok_derivar] += args.sesgo
+        return puntajes
+
     largo_prompt = [0]
     casos = [json.loads(l) for l in EXAMEN.read_text(encoding="utf-8").splitlines() if l.strip()]
     aciertos, fallos, elegidas, t0 = 0, [], {}, time.time()
@@ -122,6 +140,7 @@ def main():
         with torch.no_grad():
             sal = modelo.generate(**ent, max_new_tokens=12, do_sample=False,
                                   prefix_allowed_tokens_fn=permitidos,
+                                  logits_processor=[sesgar] if args.sesgo else None,
                                   pad_token_id=tok.pad_token_id or fin)
         elegida = tok.decode(sal[0][largo_prompt[0]:], skip_special_tokens=True).strip()
         elegidas[c["frase"]] = elegida
@@ -133,7 +152,8 @@ def main():
     for g in ganchos:
         g.remove()
     print(f"\nmodelo: {args.modelo} · ejemplos en contexto: {args.ejemplos}"
-          + (f" · escala {args.escala}" if args.vector else ""))
+          + (f" · escala {args.escala}" if args.vector else "")
+          + (f" · sesgo {args.sesgo:+.1f}" if args.sesgo else ""))
     # EL ACIERTO SOLO YA NO ALCANZA, desde que sabe derivar. Un modelo que
     # deriva todo saca el 28% y parece prudente; uno que no deriva nunca saca
     # 72% y parece mejor de lo que es. Y los dos errores cuestan distinto:
