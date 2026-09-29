@@ -4,10 +4,13 @@
 #include "ui/CarruselViewModel.hpp"
 
 #include <QDir>
+
+#include <algorithm>
 #include <QFileInfo>
 #include <QUrl>
 
 #include "AppRuntime.hpp"
+#include "BroadcastEngine.hpp"
 #include "diag/Registro.hpp"
 #include "carrusel/Carrusel.hpp"
 #include "carrusel/CarruselStore.hpp"
@@ -69,6 +72,7 @@ CarruselViewModel::CarruselViewModel(AppRuntime& rt, QObject* parent) : QObject(
             anotar(diag::Nivel::Info, "«" + destinoConversion_.toStdString() + "»: " +
                                           std::to_string(imagenes.size()) + " laminas");
         actual_ = destinoConversion_;
+        revisarEscena();
         emit cambio();
         emit notify(QString("«%1»: %2 láminas listas").arg(destinoConversion_).arg(imagenes.size()),
                     "ok");
@@ -113,6 +117,7 @@ QString CarruselViewModel::actual() const { return actual_; }
 void CarruselViewModel::setActual(const QString& nombre) {
     if (nombre == actual_) return;
     actual_ = nombre;
+    emit posicionCambio(); // otro carrusel, otra posición
     // El filtro es de las láminas del carrusel abierto: dejarlo puesto al
     // cambiar de carrusel mostraría una grilla medio vacía sin motivo visible.
     consulta_.clear();
@@ -243,13 +248,105 @@ bool CarruselViewModel::ir(int i) {
     carrusel::Carrusel* c = store_->porNombre(actual_.toStdString());
     if (!c || !c->ir(i)) return false;
     store_->persistir();
-    emit cambio();
+    // Y SALE. Esta línea es la razón de todo lo demás: sin ella el carrusel es
+    // una lista de imágenes que no muestra ninguna.
+    empujar(*c);
+    // `posicionCambio` y NO `cambio`: lo segundo rearma la lista de láminas y
+    // la vista recarga las cincuenta imágenes en cada salto. Se notaba: con la
+    // ventana maximizada, el carrusel iba a los tirones.
+    emit posicionCambio();
     return true;
 }
 
 int CarruselViewModel::posicion() const {
     const carrusel::Carrusel* c = store_->porNombre(actual_.toStdString());
     return c ? c->actual() : -1;
+}
+
+QString CarruselViewModel::enEscena() const { return enEscena_; }
+
+void CarruselViewModel::revisarEscena() {
+    const std::string escena = rt_.engine().currentScene();
+    QString hallado;
+    if (!escena.empty()) {
+        const std::vector<std::string> fuentes = rt_.engine().sceneSources(escena);
+        for (const carrusel::Carrusel& c : store_->todos()) {
+            if (c.fuente().empty()) continue;
+            if (std::find(fuentes.begin(), fuentes.end(), c.fuente()) == fuentes.end()) continue;
+            hallado = QString::fromStdString(c.nombre());
+            break; // el primero: dos carruseles en una escena es raro y ambiguo
+        }
+    }
+    if (hallado == enEscena_) return;
+    enEscena_ = hallado;
+    emit enEscenaCambio();
+}
+
+QString CarruselViewModel::fuenteDe(const QString& carrusel) const {
+    const carrusel::Carrusel* c = store_->porNombre(carrusel.toStdString());
+    return c ? QString::fromStdString(c->fuente()) : QString();
+}
+
+void CarruselViewModel::empujar(const carrusel::Carrusel& c) {
+    if (c.fuente().empty()) return;
+    const carrusel::Lamina* l = c.lamina();
+    if (l == nullptr) return;
+    // Se le cambia el archivo a la fuente que ya está en la escena. NO se la
+    // vuelve a crear: recrearla en cada salto haría un parpadeo al aire y
+    // perdería la ubicación que el operador le dio.
+    rt_.updateSourceSettings(c.fuente(), nlohmann::json{{"file", l->archivo}}.dump());
+}
+
+bool CarruselViewModel::aplicarAEscena(const QString& carrusel, const QString& escena) {
+    carrusel::Carrusel* c = store_->porNombre(carrusel.toStdString());
+    if (c == nullptr) {
+        emit notify("No hay ningún carrusel llamado «" + carrusel + "»", "error");
+        return false;
+    }
+    if (c->vacio()) {
+        emit notify("«" + carrusel + "» no tiene láminas todavía", "error");
+        return false;
+    }
+    // El nombre lleva el del carrusel adentro: en la lista de fuentes de la
+    // escena tiene que verse de qué es, y dos carruseles en la misma escena no
+    // pueden compartir fuente.
+    const std::string fuente = "Carrusel · " + carrusel.toStdString();
+    if (c->fuente() != fuente) {
+        SourceSpec spec;
+        spec.id = "image_source";
+        spec.name = fuente;
+        spec.settingsJson = nlohmann::json{{"file", c->laminas().front().archivo}}.dump();
+        spec.rect = CanvasRect{0.0f, 0.0f, 1.0f, 1.0f}; // pantalla completa; se acomoda en Escenas
+        spec.visible = true;
+        if (!rt_.addSource(escena.toStdString(), spec)) {
+            // Puede fallar porque YA existe (el carrusel ya estaba en otra
+            // escena): eso no es un error, es reusar la misma fuente.
+            const QString err = QString::fromStdString(rt_.lastError());
+            if (!err.contains("exist", Qt::CaseInsensitive) && !err.contains("ya", Qt::CaseInsensitive)) {
+                emit notify("No se pudo poner en la escena: " + err, "error");
+                return false;
+            }
+        }
+        c->setFuente(fuente);
+        store_->persistir();
+    }
+    empujar(*c);
+    rt_.save();
+    revisarEscena();
+    emit cambio();
+    emit notify("«" + carrusel + "» quedó en «" + escena + "». Tocá una lámina para ponerla.", "ok");
+    return true;
+}
+
+bool CarruselViewModel::soltarDeEscena(const QString& carrusel) {
+    carrusel::Carrusel* c = store_->porNombre(carrusel.toStdString());
+    if (c == nullptr || c->fuente().empty()) return false;
+    c->setFuente("");
+    store_->persistir();
+    revisarEscena();
+    emit cambio();
+    emit notify("«" + carrusel + "» ya no maneja ninguna fuente. La imagen quedó como estaba.", "info");
+    return true;
 }
 
 bool CarruselViewModel::etiquetar(const QString& carrusel, int i, const QString& etiquetas) {

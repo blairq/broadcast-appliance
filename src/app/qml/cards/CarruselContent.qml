@@ -23,7 +23,49 @@ Item {
     id: tarjeta
 
     readonly property var cc: Studio.carruseles
+    /// La lámina del centro, que es la que Enter pone al aire.
+    readonly property int centrada: tira.currentIndex
+
+    // MIRAR NO ES PONER. Recorrer la tira —con las flechas, con la rueda, con
+    // un clic— sólo mueve el centro; lo que SALE es doble clic, Enter o el
+    // botón. Con la sala mirando, que buscar cambiara lo que se ve sería la
+    // peor sorpresa posible, y es justo lo que uno hace mientras el orador
+    // habla: ir adelantando para tener lista la que sigue.
+    function poner() {
+        if (tira.count === 0) return
+        tarjeta.cc.ir(tarjeta.laminas[tira.currentIndex].indice)
+    }
+
+    // El foco se toma al tocar la tarjeta; de ahí en más el teclado es de
+    // ella. Sin esto las flechas se las lleva la lista de escenas de al lado.
+    focus: true
+    Keys.onLeftPressed: tira.decrementCurrentIndex()
+    Keys.onRightPressed: tira.incrementCurrentIndex()
+    Keys.onReturnPressed: tarjeta.poner()
+    Keys.onEnterPressed: tarjeta.poner()
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.NoButton   // no roba clics: sólo el foco
+        z: -1
+        onPressed: (m) => { tarjeta.forceActiveFocus(); m.accepted = false }
+    }
     readonly property var laminas: cc.laminas
+
+    // SIGUE A LA ESCENA. Al cortar a otra escena, esta tarjeta pasa a manejar
+    // el carrusel que ESA escena tenga; si no tiene ninguno, lo dice. El
+    // operador no tiene que acordarse de elegirlo a mano justo cuando menos
+    // tiempo tiene para acordarse de algo.
+    //
+    // Si igual elige otro en la lista de arriba, manda su elección hasta el
+    // próximo corte: mirar otro carrusel mientras se prepara el bloque que
+    // sigue es legítimo, y pisarle la elección a mitad sería peor.
+    Connections {
+        target: tarjeta.cc
+        function onEnEscenaCambio() {
+            if (tarjeta.cc.enEscena !== "") tarjeta.cc.actual = tarjeta.cc.enEscena
+        }
+    }
+    Component.onCompleted: if (cc.enEscena !== "") cc.actual = cc.enEscena
 
     ColumnLayout {
         anchors.fill: parent
@@ -48,6 +90,35 @@ Item {
                     return -1
                 }
                 onActivated: tarjeta.cc.actual = tarjeta.cc.carruseles[currentIndex].nombre
+            }
+            // Se dice si lo que se está manejando es lo que está en la escena
+            // o algo que el operador eligió a mano: tocar una lámina de un
+            // carrusel que NO está en el aire no cambia nada, y sin este aviso
+            // eso parece que el aparato no responde.
+            Rectangle {
+                Layout.preferredWidth: 10
+                Layout.preferredHeight: 10
+                radius: 5
+                color: tarjeta.cc.actual !== "" && tarjeta.cc.actual === tarjeta.cc.enEscena
+                       ? Theme.accent : Qt.rgba(1, 1, 1, 0.18)
+                ToolTip.visible: ratonPunto.containsMouse
+                ToolTip.text: tarjeta.cc.actual === tarjeta.cc.enEscena
+                              ? "Este carrusel está en la escena al aire"
+                              : "Este carrusel NO está en la escena al aire: tocar una lámina no cambia nada"
+                MouseArea { id: ratonPunto; anchors.fill: parent; anchors.margins: -4; hoverEnabled: true }
+            }
+            GlassButton {
+                compact: true
+                text: "⧉"
+                // La misma tarjeta, en su propia ventana: en vivo el carrusel
+                // se maneja con una mano mientras la principal tiene las
+                // escenas. Ver PanelWindow.qml.
+                visible: typeof ApplicationWindow !== "undefined" &&
+                         ApplicationWindow.window && ApplicationWindow.window.sacarPanel !== undefined
+                onClicked: ApplicationWindow.window.sacarPanel("carrusel", "Carrusel")
+                ToolTip.visible: hovered
+                ToolTip.delay: 400
+                ToolTip.text: "Sacar el carrusel a su propia ventana"
             }
             TextField {
                 id: busca
@@ -106,23 +177,36 @@ Item {
                 delegate: Item {
                     id: hoja
                     required property var modelData
+                    // `index` hay que PEDIRLO: con `required property` en el
+                    // delegate, QML deja de inyectar los nombres sueltos y
+                    // usarlo a secas es un ReferenceError en cada cuadro.
+                    required property int index
                     // PathView entrega los atributos del camino como
                     // propiedades adjuntas; sólo existen mientras el ítem vive
                     // dentro de la vista, de ahí el `?? `.
                     readonly property real giro: PathView.giro ?? 0
                     readonly property real escala: PathView.escala ?? 1
-                    z: PathView.z ?? 0
-                    width: tira.width * 0.36
-                    height: tira.height * 0.9
+                    // REDONDEADO. `z` sale interpolado del camino, asi que sin
+                    // esto cambia en CADA cuadro; y cambiar el z reordena el
+                    // grafo de escena, que es lo que rompe el batching del
+                    // render. Con tres valores enteros el orden se recalcula
+                    // dos veces por giro en vez de sesenta por segundo.
+                    z: Math.round(PathView.z ?? 0)
+                    // Apaisada, como las laminas. Antes era alta y angosta y
+                    // cada lamina quedaba flotando en una franja negra.
+                    width: Math.min(tira.width * 0.42, tira.height * 1.4)
+                    height: Math.min(tira.height * 0.92, width * 0.66)
                     scale: escala
 
+                    // SIN `Behavior` sobre el angulo. PathView ya interpola el
+                    // giro mientras el item recorre el camino: poner una
+                    // animacion encima arranca una animacion NUEVA en cada
+                    // cuadro, y con la ventana maximizada eso se arrastra. Se
+                    // noto enseguida y se saco.
                     transform: Rotation {
                         origin { x: hoja.width / 2; y: hoja.height / 2 }
                         axis { x: 0; y: 1; z: 0 }
                         angle: hoja.giro
-                        // La perspectiva es lo que hace que el giro se lea como
-                        // profundidad y no como un achatamiento raro.
-                        Behavior on angle { NumberAnimation { duration: 180 } }
                     }
 
                     Rectangle {
@@ -161,12 +245,15 @@ Item {
                         MouseArea {
                             anchors.fill: parent
                             cursorShape: Qt.PointingHandCursor
-                            // Un toque la pone. Si no es la del centro, además
-                            // la trae al centro: tocar «la de al lado» y que
-                            // salga al aire sin moverse desorienta.
+                            // Un toque la trae al centro y nada más. La pone el
+                            // DOBLE clic, que es el gesto de «esta».
                             onClicked: {
+                                tarjeta.forceActiveFocus()
+                                tira.currentIndex = hoja.index
+                            }
+                            onDoubleClicked: {
+                                tira.currentIndex = hoja.index
                                 tarjeta.cc.ir(hoja.modelData.indice)
-                                tira.currentIndex = index
                             }
                         }
                     }
@@ -182,7 +269,9 @@ Item {
                 color: Theme.textFaint
                 font.pixelSize: 12
                 text: tarjeta.cc.actual === ""
-                      ? "Elegí un carrusel arriba.\nSe arman en Medios."
+                      ? (tarjeta.cc.enEscena === ""
+                         ? "Esta escena no tiene carrusel.\n\nSe arman en Medios y se ponen en una\nescena desde la pestaña Escenas."
+                         : "Elegí un carrusel arriba.")
                       : busca.text !== "" ? "Ninguna lámina coincide."
                                           : "Este carrusel está vacío."
             }
@@ -214,12 +303,10 @@ Item {
                 text: "Poner"
                 active: true
                 enabled: tira.count > 0
-                // Girar la tira NO saca nada al aire: mirar para decidir es
-                // media operación, y que mirar cambiara lo que se ve sería la
-                // peor sorpresa posible con la sala mirando.
-                onClicked: tarjeta.cc.ir(tarjeta.laminas[tira.currentIndex].indice)
+                onClicked: tarjeta.poner()
                 ToolTip.visible: hovered
-                ToolTip.text: "Pone la lámina del centro. Girar la tira no cambia nada."
+                ToolTip.text: "Pone la lámina del centro (Enter, o doble clic sobre ella).\n" +
+                              "Recorrer la tira no cambia lo que se ve."
             }
         }
     }

@@ -27,6 +27,7 @@
 namespace ba::carrusel {
 class Store;
 class Conversor;
+class Carrusel;
 } // namespace ba::carrusel
 
 namespace ba::app {
@@ -38,10 +39,21 @@ class CarruselViewModel : public QObject {
     /// Todos los de la biblioteca: [{nombre, laminas, tapa}]. `tapa` es la URL
     /// de la primera lámina, que es como se reconoce un carrusel de un vistazo.
     Q_PROPERTY(QVariantList carruseles READ carruseles NOTIFY cambio)
+    /// El carrusel que está EN LA ESCENA AL AIRE, o "" si esa escena no tiene
+    /// ninguno. La tarjeta de control lo sigue: al cambiar de escena pasa a
+    /// manejar el carrusel de la escena nueva, que es lo que uno espera de un
+    /// control que dice «carrusel» y está al lado del botón de TAKE.
+    Q_PROPERTY(QString enEscena READ enEscena NOTIFY enEscenaCambio)
     /// El que se está editando, "" si ninguno.
     Q_PROPERTY(QString actual READ actual WRITE setActual NOTIFY cambio)
     /// Las láminas del actual: [{archivo, url, titulo, etiquetas, analizada}].
+    /// Avisa por `cambio`, que es una señal de cambio ESTRUCTURAL: se agregó,
+    /// se quitó o se reordenó. Saltar de lámina NO la emite —ver `posicion`—
+    /// porque rearmaría la lista entera y la vista recargaría todas las
+    /// imágenes en cada salto, que es justo lo que no puede pasar en vivo.
     Q_PROPERTY(QVariantList laminas READ laminas NOTIFY cambio)
+    /// En qué lámina está parado (0…n-1), con su propia señal.
+    Q_PROPERTY(int posicion READ posicion NOTIFY posicionCambio)
     /// Cuántas láminas del actual todavía no tienen etiquetas. Es lo que deja
     /// ofrecer «etiquetar» sólo cuando hay algo que etiquetar, en vez de un
     /// botón que a veces no hace nada.
@@ -66,6 +78,10 @@ class CarruselViewModel : public QObject {
     void setActual(const QString& nombre);
     QVariantList laminas() const;
     int sinAnalizar() const;
+    QString enEscena() const;
+    /// Vuelve a mirar qué carrusel hay en la escena al aire. Lo llama el
+    /// Studio cuando cambia de escena y cuando cambian las fuentes.
+    Q_INVOKABLE void revisarEscena();
     QString consulta() const;
     void setConsulta(const QString& q);
 
@@ -86,7 +102,21 @@ class CarruselViewModel : public QObject {
     Q_INVOKABLE bool mover(int de, int a);
     /// Salta a una lámina. Es lo que hace el operador tocando una tarjeta.
     Q_INVOKABLE bool ir(int i);
-    Q_INVOKABLE int posicion() const;
+    int posicion() const;
+    /// Pone el carrusel EN UNA ESCENA: crea (o reusa) una fuente de imagen y
+    /// deja anotado que ese carrusel la maneja. A partir de ahí, saltar a una
+    /// lámina le cambia el archivo a esa fuente —y si la escena está al aire,
+    /// sale al aire—. Sin esto el carrusel es una lista linda que no muestra
+    /// nada: era el eslabón que faltaba.
+    /// :returns: false si no existe el carrusel o la escena no acepta la fuente.
+    Q_INVOKABLE bool aplicarAEscena(const QString& carrusel, const QString& escena);
+    /// El nombre de la fuente que maneja ese carrusel, o "" si no está puesto
+    /// en ninguna escena todavía.
+    Q_INVOKABLE QString fuenteDe(const QString& carrusel) const;
+    /// Lo desvincula: la fuente queda donde está, con la lámina que tenía. Se
+    /// saca a mano desde Escenas si además hay que quitarla.
+    Q_INVOKABLE bool soltarDeEscena(const QString& carrusel);
+
     /// Guarda las etiquetas de una lámina de CUALQUIER carrusel (no hace falta
     /// abrirlo): lo llama el que mira imágenes, que trabaja de fondo mientras
     /// el operador tiene otro abierto.
@@ -102,11 +132,16 @@ class CarruselViewModel : public QObject {
 
   signals:
     void cambio();
+    void posicionCambio();
+    void enEscenaCambio();
     void progreso();
     void notify(const QString& texto, const QString& tipo);
 
   private:
     QString carpetaDe(const QString& nombre) const;
+    /// Le pasa a la fuente de la escena la lámina en la que está parado. Es lo
+    /// único que hace que el carrusel se VEA.
+    void empujar(const carrusel::Carrusel& c);
 
     AppRuntime& rt_;
     std::unique_ptr<carrusel::Store> store_;
@@ -119,6 +154,7 @@ class CarruselViewModel : public QObject {
     int total_ = 0;
     /// A qué carrusel van las láminas que salgan de la conversión en curso.
     QString destinoConversion_;
+    QString enEscena_;
 };
 
 } // namespace ba::app

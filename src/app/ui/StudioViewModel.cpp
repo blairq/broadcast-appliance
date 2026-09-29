@@ -155,6 +155,15 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     connect(medios_.get(), &MediosViewModel::notify, this, &StudioViewModel::notify);
     carruseles_ = std::make_unique<CarruselViewModel>(rt, this);
     connect(carruseles_.get(), &CarruselViewModel::notify, this, &StudioViewModel::notify);
+    // La tarjeta de control sigue a la escena: al cortar a otra escena pasa a
+    // manejar el carrusel que esa escena tenga. Sin esto el operador tendria
+    // que acordarse de elegirlo a mano en el peor momento para acordarse de
+    // algo. `sceneChanged` avisa tanto del corte como del cambio de fuentes.
+    connect(this, &StudioViewModel::sceneChanged, carruseles_.get(),
+            &CarruselViewModel::revisarEscena);
+    connect(this, &StudioViewModel::escenasCambiaron, carruseles_.get(),
+            &CarruselViewModel::revisarEscena);
+    carruseles_->revisarEscena();
     connect(qr_.get(), &QrViewModel::notify, this, &StudioViewModel::notify);
     connect(rotulador_.get(), &RotuladorViewModel::notify, this, &StudioViewModel::notify);
     connect(this, &StudioViewModel::sceneChanged, rotulador_.get(), &RotuladorViewModel::refrescar);

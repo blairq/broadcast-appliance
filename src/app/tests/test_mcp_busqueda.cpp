@@ -54,6 +54,7 @@ const std::pair<const char*, const char*> kHerramientas[] = {
     {"laminas_listar", "Que carruseles de laminas hay"},
     {"laminas_ver", "Las laminas de un carrusel"},
     {"laminas_ir", "Saltar a una lamina"},
+    {"laminas_aplicar", "Poner un carrusel en una escena"},
     {"laminas_desarmar", "Desarmar un PDF o un PowerPoint"},
     {"laminas_sin_analizar", "La proxima lamina sin etiquetas"},
     {"laminas_etiquetar", "Guardar lo que se ve en una lamina"},

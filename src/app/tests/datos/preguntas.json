@@ -858,6 +858,18 @@
       "herramientas": [
         "ventana_captura"
       ]
+    },
+    {
+      "pregunta": "poneme la presentacion del orador en esta escena",
+      "herramientas": [
+        "laminas_aplicar"
+      ]
+    },
+    {
+      "pregunta": "agrega el carrusel a la escena de apertura",
+      "herramientas": [
+        "laminas_aplicar"
+      ]
     }
   ]
 }

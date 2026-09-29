@@ -459,6 +459,35 @@ Rectangle {
                             }
                         }
                     }
+                    // Un carrusel no es una fuente mas de la lista: es una tira
+                    // de imagenes que ya esta armada en Medios y que se PONE en
+                    // esta escena. De aca en mas, saltar a una lamina le cambia
+                    // la imagen a esta fuente, y si la escena esta al aire, sale
+                    // al aire. La tarjeta de control del dashboard pasa a
+                    // manejar este carrusel cuando esta escena esta al aire.
+                    GlassButton {
+                        text: "Agregar carrusel"; icon: "▦"; compact: true
+                        visible: Studio.carruseles.carruseles.length > 0
+                        onClicked: carruselMenu.popup()
+                        ToolTip.visible: hovered
+                        ToolTip.delay: 400
+                        ToolTip.text: "Poner en esta escena una tira de imágenes armada en Medios"
+                        Menu {
+                            id: carruselMenu
+                            Repeater {
+                                model: Studio.carruseles.carruseles
+                                delegate: MenuItem {
+                                    required property var modelData
+                                    text: modelData.nombre + "  (" + modelData.laminas + " láminas)" +
+                                          (modelData.fuente !== "" ? "  · ya puesto" : "")
+                                    onTriggered: {
+                                        Studio.carruseles.aplicarAEscena(modelData.nombre, page.editScene)
+                                        page.selected = "Carrusel · " + modelData.nombre
+                                    }
+                                }
+                            }
+                        }
+                    }
                     // Una camara o capturadora NO se puede abrir dos veces (el
                     // dispositivo es exclusivo), pero SI puede estar en varias
                     // escenas: es la MISMA fuente, con otra ubicacion. Asi

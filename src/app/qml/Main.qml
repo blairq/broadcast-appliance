@@ -20,21 +20,23 @@ ApplicationWindow {
     color: Theme.bg
     font.family: Theme.font
 
+    // Los controles de Qt, en oscuro. Los colores salen de Theme porque esta
+    // misma paleta la necesitan las tres ventanas (ver Theme.qml).
     palette {
         window: Theme.panel
         windowText: Theme.text
-        base: "#1b1b1f"
-        alternateBase: "#222226"
+        base: Theme.paletaBase
+        alternateBase: Theme.paletaAlterna
         text: Theme.text
-        button: "#26262b"
+        button: Theme.paletaBoton
         buttonText: Theme.text
         highlight: Theme.accent
         highlightedText: "#ffffff"
-        mid: "#3a3a40"
-        dark: "#101012"
-        light: "#44444b"
+        mid: Theme.paletaMedio
+        dark: Theme.paletaOscura
+        light: Theme.paletaClara
         placeholderText: Theme.textFaint
-        toolTipBase: "#26262b"
+        toolTipBase: Theme.paletaBoton
         toolTipText: Theme.text
     }
 

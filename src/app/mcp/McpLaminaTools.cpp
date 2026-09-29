@@ -19,6 +19,8 @@
 
 #include <QFileInfo>
 
+#include "AppRuntime.hpp"
+#include "BroadcastEngine.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/CarruselViewModel.hpp"
@@ -33,6 +35,7 @@ void McpService::registerLaminaTools() {
                       "lamina cualquiera es instantaneo. Un PDF o un PowerPoint se desarma solo.");
 
     auto* cc = qobject_cast<CarruselViewModel*>(vm_.carruseles());
+    AppRuntime& rt = rt_;
 
     {
         Tool t;
@@ -51,7 +54,10 @@ void McpService::registerLaminaTools() {
                                    {"laminas", m["laminas"].toInt()}});
             }
             done(ToolResult().data(json{{"carruseles", out},
-                                        {"abierto", cc->actual().toStdString()}}));
+                                        {"abierto", cc->actual().toStdString()},
+                                        // El de la escena al aire: es el que el
+                                        // operador esta manejando ahora mismo.
+                                        {"enLaEscenaAlAire", cc->enEscena().toStdString()}}));
         };
         core_.addTool(std::move(t));
     }
@@ -105,7 +111,9 @@ void McpService::registerLaminaTools() {
         t.category = "laminas";
         t.description = "Pone la lamina numero N del carrusel. Es la razon de que el carrusel exista: "
                         "«volve a la del grafico» no son veinte clics de siguiente. Sale al aire si "
-                        "la escena que la muestra esta al aire.";
+                        "la escena que la muestra esta al aire.\n\n"
+                        "OJO: si el carrusel todavia no esta en ninguna escena (`laminas_aplicar`), "
+                        "esto mueve el puntero pero no se ve NADA.";
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"carrusel", {{"type", "string"}}},
@@ -162,6 +170,46 @@ void McpService::registerLaminaTools() {
             // cualquier limite razonable de una herramienta. Se avisa y el que
             // pregunte despues lo ve con laminas_listar.
             done(ToolResult().text("Empece a desarmarlo. Cuando termine aparece en laminas_listar."));
+        };
+        core_.addTool(std::move(t));
+    }
+
+    {
+        Tool t;
+        t.name = "laminas_aplicar";
+        t.title = "Poner un carrusel en una escena";
+        t.category = "laminas";
+        t.description =
+            "Pone la tira en una ESCENA: crea ahi una fuente de imagen llamada «Carrusel · <nombre>» "
+            "y deja anotado que ese carrusel la maneja. Recien a partir de aca `laminas_ir` cambia "
+            "algo que se VE: le cambia el archivo a esa fuente, y si la escena esta al aire, sale al "
+            "aire.\n\n"
+            "Nace a pantalla completa; se acomoda como cualquier otra fuente (source_rect). El mismo "
+            "carrusel puede estar en varias escenas: es la misma fuente reusada.\n\n"
+            "La tarjeta de control del operador sigue a la escena: cuando esta escena esta al aire, "
+            "maneja este carrusel.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"carrusel", {{"type", "string"}}},
+                           {"escena", {{"type", "string"},
+                                       {"description", "por defecto, la que esta al aire"}}}}},
+                         {"required", {"carrusel"}}};
+        t.examples = {R"({"carrusel": "Apertura"})"};
+        t.run = [cc, &rt](const json& a, Done done) {
+            const QString n = QString::fromStdString(a.value("carrusel", std::string()));
+            const std::string escena = a.value("escena", rt.engine().currentScene());
+            if (escena.empty()) {
+                done(ToolResult::error("No hay ninguna escena al aire; deci en cual."));
+                return;
+            }
+            if (!cc->aplicarAEscena(n, QString::fromStdString(escena))) {
+                done(ToolResult::error("No se pudo poner «" + n.toStdString() + "» en «" + escena +
+                                       "». laminas_listar dice cuales hay."));
+                return;
+            }
+            done(ToolResult::ok("«" + n.toStdString() + "» quedo en «" + escena +
+                                "». Ahora laminas_ir cambia lo que se ve. Verifica con "
+                                "capture_source."));
         };
         core_.addTool(std::move(t));
     }

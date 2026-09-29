@@ -28,6 +28,26 @@ Window {
 
     title: "Broadcast Appliance — " + titulo
     color: Theme.bg
+
+    // Los controles de Qt, en oscuro. Los colores salen de Theme porque esta
+    // misma paleta la necesitan las tres ventanas (ver Theme.qml).
+    palette {
+        window: Theme.panel
+        windowText: Theme.text
+        base: Theme.paletaBase
+        alternateBase: Theme.paletaAlterna
+        text: Theme.text
+        button: Theme.paletaBoton
+        buttonText: Theme.text
+        highlight: Theme.accent
+        highlightedText: "#ffffff"
+        mid: Theme.paletaMedio
+        dark: Theme.paletaOscura
+        light: Theme.paletaClara
+        placeholderText: Theme.textFaint
+        toolTipBase: Theme.paletaBoton
+        toolTipText: Theme.text
+    }
     width: 1180
     height: 760
     minimumWidth: 720
