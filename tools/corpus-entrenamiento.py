@@ -310,27 +310,43 @@ def main():
     # cuando no tiene que inventar preferencias. A las flacas se les generan
     # mas variantes de sus propias semillas hasta llegar al minimo; no se
     # inventan frases nuevas, se escribe distinto lo mismo.
+    #
+    # EL PISO SE CUENTA SOBRE LO QUE QUEDA, y esto estaba mal. Se contaba
+    # sobre `filas`, que todavia tiene repetidos y todavia incluye el octavo
+    # que se va a validacion. Una herramienta que llegaba justo a 14 terminaba
+    # con 9 o 10 en entrenar.jsonl. Medido cuando se descubrio: 38 de las 85
+    # herramientas por debajo del minimo, y dos de ellas —laminas_listar con
+    # 10 y laminas_aplicar con 9— eran fallos del examen de v6.
+    #
+    # Asi que el piso se aplica sobre el conteo EFECTIVO: descontando los
+    # repetidos y el corte de validacion.
     minimo = 14
-    por_herr = {}
-    for f in filas:
-        por_herr.setdefault(f["herramienta"], []).append(f)
+    CORTE_VAL = 8  # uno de cada ocho se va a validar
+    objetivo = int(minimo * CORTE_VAL / (CORTE_VAL - 1)) + 1
+
+    def unicas_de(herr, filas_):
+        return len({f["frase"] for f in filas_ if f["herramienta"] == herr})
+
+    flacas = []
     for herr, d_ in sorted(sem.items()):
-        faltan = minimo - len(por_herr.get(herr, []))
         intentos = 0
-        while faltan > 0 and intentos < 200:
+        while unicas_de(herr, filas) < objetivo and intentos < 400:
             intentos += 1
             frase = rnd.choice(d_["frases"] + d_.get("correctivas", []))
             if parecido(frase, prohibidas_tokens):
                 continue
-            for v in variantes(frase, rnd, cuantas=2):
+            for v in variantes(frase, rnd, cuantas=3):
                 if parecido(v, prohibidas_tokens):
                     continue
                 f = ejemplo(cabeza, cola, v, herr)
                 f["arregla"] = d_.get("arregla") or []
                 filas.append(f)
-                faltan -= 1
-                if faltan <= 0:
-                    break
+        if unicas_de(herr, filas) < objetivo:
+            # No se pudo: la herramienta tiene DEMASIADO POCAS semillas y la
+            # variacion mecanica ya no saca frases distintas. Eso no se arregla
+            # generando mas: hay que escribir mas frases a mano.
+            flacas.append((herr, unicas_de(herr, filas),
+                           len(d_["frases"]) + len(d_.get("correctivas", []))))
 
     # Sin repetidos exactos, y barajado: si quedan agrupadas por herramienta,
     # los ultimos pasos de entrenamiento ven una sola clase.
@@ -360,14 +376,29 @@ def main():
 
     # La validacion se parte POR FRASE SEMILLA, no al azar: si la misma
     # intencion queda de los dos lados, validar mide memoria y no aprendizaje.
+    #
+    # Y SE PARTE POR HERRAMIENTA, que es lo que faltaba. Cortando un octavo del
+    # monton entero, a una herramienta con dos semillas le podia tocar que se
+    # fuera una: perdia la mitad de lo que tenia. Asi quedaban herramientas con
+    # nueve ejemplos aunque el piso dijera catorce, y dos de esas —laminas_listar
+    # y laminas_aplicar— fueron fallos medidos de v6.
+    #
+    # Las flacas no donan: una herramienta con menos de ocho semillas se queda
+    # con todas. La validacion sale de las gordas, que es de donde tiene que
+    # salir.
     por_semilla = {}
     for f in unicas:
         por_semilla.setdefault((f["herramienta"], sin_tildes(f["frase"].lower())[:14]), []).append(f)
-    claves = sorted(por_semilla)
-    rnd.shuffle(claves)
-    corte = max(1, len(claves) // 8)
-    val = [f for k in claves[:corte] for f in por_semilla[k]]
-    ent = [f for k in claves[corte:] for f in por_semilla[k]]
+    por_herr_claves = {}
+    for k in sorted(por_semilla):
+        por_herr_claves.setdefault(k[0], []).append(k)
+    claves_val = []
+    for herr, ks in sorted(por_herr_claves.items()):
+        rnd.shuffle(ks)
+        claves_val += ks[:len(ks) // 8]
+    claves_val = set(claves_val)
+    val = [f for k, fs in por_semilla.items() if k in claves_val for f in fs]
+    ent = [f for k, fs in por_semilla.items() if k not in claves_val for f in fs]
 
     SALIDA.mkdir(parents=True, exist_ok=True)
     def escribir(nombre, filas_):
@@ -417,6 +448,11 @@ def main():
               f"{len(corr)} ejemplos, {100*porcion:.0f}% del corpus{aviso}")
     print(f"herramientas cubiertas: {len(porc)} de {len(validas)} del repertorio reactivo")
     print(f"descartadas por parecerse al examen: {chocadas}")
+    if flacas:
+        print(f"\nHERRAMIENTAS QUE NECESITAN MAS SEMILLAS A MANO ({len(flacas)}): no se")
+        print("  llega al piso variando las que hay; las variantes salen repetidas.")
+        for h_, q, sem_ in sorted(flacas, key=lambda x: x[1])[:12]:
+            print(f"    {h_:24s} {q:3d} ejemplos, de {sem_} semilla(s)")
     if semillas_malas:
         print(f"SEMILLAS QUE HAY QUE REESCRIBIR ({len(semillas_malas)}): se parecen a una")
         print("  pregunta del examen, asi que no entran. Decir lo mismo con otras palabras:")
