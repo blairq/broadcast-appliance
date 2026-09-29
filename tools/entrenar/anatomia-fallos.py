@@ -117,17 +117,39 @@ def main():
             puntajes[n] = lp_
         return puntajes, ocultos
 
-    def lente(ocultos, ids_primeros):
-        """Ranking del primer token de cada candidato, capa por capa."""
-        out = []
-        for h in ocultos:
-            x = norma(h) if norma is not None else h
+    def lente(frase, a, b):
+        """En que capa gana `b` sobre `a`, mirando donde los nombres se SEPARAN.
+
+        OJO CON EL PRIMER TOKEN. Si los dos nombres arrancan igual —capture_feed
+        y capture_program comparten `capture`— comparar el primer token es
+        comparar un token consigo mismo, y da siempre empate. La primera
+        version de esto hacia justo eso, y los 6 «nunca estuvo adelante» que
+        informaba eran los 6 pares de la misma familia: un artefacto, no un
+        hallazgo.
+
+        Asi que se busca la primera posicion donde los tokens difieren, se le
+        da al modelo el prompt MAS el prefijo compartido, y recien ahi se mira.
+        Esa es la posicion donde la decision existe de verdad.
+        """
+        ia, ib = secuencias[a], secuencias[b]
+        k = 0
+        while k < min(len(ia), len(ib)) and ia[k] == ib[k]:
+            k += 1
+        if k >= len(ia) or k >= len(ib):
+            return None, k  # uno es prefijo del otro: no hay token que los separe
+        ent = tok(cabeza + frase + cola, return_tensors="pt").to(dev)
+        ids = torch.cat([ent.input_ids, torch.tensor([ia[:k]], device=dev)], dim=1) if k else ent.input_ids
+        with torch.no_grad():
+            sal = modelo(input_ids=ids, output_hidden_states=True)
+        gana = []
+        for i, h in enumerate(sal.hidden_states[1:]):
+            x = h[0, -1, :]
+            x = norma(x) if norma is not None else x
             with torch.no_grad():
                 lg = lm_head(x.unsqueeze(0).to(lm_head.weight.dtype))[0].float()
-            orden = torch.argsort(lg, descending=True)
-            pos = {t: (orden == t).nonzero()[0, 0].item() for t in ids_primeros}
-            out.append(pos)
-        return out
+            if lg[ib[k]] > lg[ia[k]]:
+                gana.append(i + 1)
+        return gana, k
 
     casos = [json.loads(l) for l in EXAMEN.read_text(encoding="utf-8").splitlines() if l.strip()]
     detalle, volados, seguros = [], 0, 0
@@ -145,17 +167,17 @@ def main():
         pe, pa = math.exp(p[elegida]), math.exp(p[mejor_ac])
         margen = pe / (pe + pa)  # 0,5 = volado perfecto
         # en que capa la correcta estuvo por delante de la elegida
-        t_el, t_ac = secuencias[elegida][0], secuencias[mejor_ac][0]
-        rangos = lente(ocultos, [t_el, t_ac])
-        arriba = [i + 1 for i, r in enumerate(rangos) if r[t_ac] < r[t_el]]
+        arriba, donde = lente(c["frase"], elegida, mejor_ac)
+        arriba = arriba or []
         if not ok:
             volados += margen < 0.6
             seguros += margen > 0.9
             print(f"  {c['frase'][:38]:40s} {elegida:20s} vs {mejor_ac:20s}"
                   f" margen {margen:.2f}" +
                   ("  VOLADO" if margen < 0.6 else "  SEGURO Y ERRADO" if margen > 0.9 else "") +
-                  (f"  · la correcta iba adelante hasta la capa {max(arriba)}" if arriba else
-                   "  · la correcta NUNCA estuvo adelante"))
+                  (f"  · ganaba hasta la capa {max(arriba)}/{len(capas)}"
+                   f" (se separan en el token {donde + 1})" if arriba else
+                   f"  · no gano en NINGUNA capa (se separan en el token {donde + 1})"))
         detalle.append({"frase": c["frase"], "elegida": elegida, "correcta": mejor_ac,
                         "acierto": ok, "margen": margen,
                         "capas_con_la_correcta_adelante": arriba})
@@ -164,7 +186,12 @@ def main():
         print(f"\nvolados (margen < 0,60): {volados}/{len(fallos)}")
         print(f"seguro y errado (margen > 0,90): {seguros}/{len(fallos)}")
         nunca = sum(1 for d in fallos if not d["capas_con_la_correcta_adelante"])
-        print(f"la correcta NUNCA estuvo adelante en ninguna capa: {nunca}/{len(fallos)}")
+        tarde = [d for d in fallos if d["capas_con_la_correcta_adelante"]
+                 and max(d["capas_con_la_correcta_adelante"]) >= len(capas) - 8]
+        print(f"la correcta no gano en NINGUNA capa: {nunca}/{len(fallos)}"
+              "  (el modelo nunca la tuvo)")
+        print(f"la correcta ganaba y la perdio en las ultimas 8 capas: {len(tarde)}/{len(fallos)}"
+              "  (estaba, y algo la piso)")
         print("\nLa temperatura no toca nada de esto: se decodifica por argmax y dividir")
         print("todos los logits por igual no cambia cual es el mayor. Muestrear si")
         print("cambiaria, y para mal: los volados pasarian a salir cara o cruz de verdad.")
