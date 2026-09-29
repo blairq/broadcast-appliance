@@ -51,6 +51,7 @@ def dar_vuelta(n):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--modelo", required=True)
+    ap.add_argument("--esquema", help="json escrito a mano {herramienta: etiqueta}")
     ap.add_argument("--proponer", action="store_true", help="buscar etiquetas de UN token")
     ap.add_argument("--salida", help="donde guardar la propuesta (.json)")
     args = ap.parse_args()
@@ -145,6 +146,28 @@ def main():
     puntuar("tal cual", list(nombres))
     puntuar("dado vuelta", [dar_vuelta(n) for n in nombres])
     puntuar("numeros", [str(i + 1) for i in range(len(nombres))])
+
+    if args.esquema:
+        d = json.loads(Path(args.esquema).read_text(encoding="utf-8"))
+        d = d.get("etiquetas", d)
+        faltan = [n for n in nombres if n not in d]
+        if faltan:
+            print(f"\nFALTAN etiquetas para: {', '.join(faltan)}")
+            return
+        etqs = [d[n] for n in nombres]
+        print()
+        # LO PRIMERO: cuales NO son de un token. Es la regla que sostiene todo el
+        # esquema, y una etiqueta de tres tokens la rompe en silencio.
+        multi = [(n, d[n], len(tok(d[n], add_special_tokens=False).input_ids))
+                 for n in nombres if len(tok(d[n], add_special_tokens=False).input_ids) > 1]
+        if multi:
+            print(f"NO son de un solo token ({len(multi)} de {len(nombres)}):")
+            for n, e, k in sorted(multi, key=lambda x: -x[2]):
+                trozos = [tok.decode([t]) for t in tok(e, add_special_tokens=False).input_ids]
+                print(f"   {n:24s} {e:14s} {k} tokens: {trozos}")
+            print()
+        puntuar("a mano", etqs)
+        return
 
     if not args.proponer:
         return
