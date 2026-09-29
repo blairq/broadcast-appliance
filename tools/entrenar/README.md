@@ -118,6 +118,28 @@ del corpus son de segunda mano.
     # …editar datos/semillas-auto.json, mover lo bueno a semillas-reactivas.json…
     make corpus-entrenamiento
 
+## Cómo mejorar (el ciclo)
+
+Medir da un número; **clasificar los fallos da la próxima tarea**. Los fallos
+no son todos iguales y cada tipo se arregla distinto — con más volumen no se
+arregla ninguno.
+
+    tools/bateria-local.py --modelo <gguf> --solo-nombre   # mide y deja el json
+    tools/entrenar/fallos.py docs/bateria-local.json       # los clasifica
+
+Salen en tres grupos, separados con las marcas de `docs/mcp.json` y no a ojo:
+
+- **PELIGROSO** — eligió una herramienta destructiva cuando todo lo aceptable
+  era de sólo lectura: había que **mirar** y fue a **tocar**. Es el tipo que
+  quedó después de entrenar, y el único que importa más que su cuenta.
+  Se arregla con pares *reporte* contra *orden*.
+- **VECINA** — misma categoría, confundida por una palabra de superficie.
+  Se arregla con frases que las distingan, una en cada semilla.
+- **LEJOS** — otra categoría. Falta vocabulario en la esperada.
+
+El informe termina diciendo **a qué semillas meterles mano** y cuántas frases
+tiene cada una hoy. Después: `make corpus-entrenamiento` y reentrenar.
+
 ## Lo que este corpus no es
 
 No es dato real de operación. Las frases son verosímiles, no observadas:

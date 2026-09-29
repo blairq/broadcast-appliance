@@ -53,6 +53,24 @@ gratis del todo: la atención sobre un KV más largo costó 400 ms por pedido.
 
 **Línea de base a superar: 62%.**
 
+## Con el fine-tune
+
+Primer entrenamiento, 1.079 ejemplos, dos configuraciones en paralelo (una 3090
+cada una, ~26 min). Mismo examen de 48 casos.
+
+| | acierto |
+|---|---|
+| Base sin entrenar, bf16 (3090) | 62% |
+| Base sin entrenar, Q8_0 (notebook) | 62% |
+| **v2 entrenado** (r=16, lr 1e-4, 2 épocas), bf16 | **85%** |
+
+Dos cosas que salen de ahí:
+
+- **+23 puntos**, y con la configuración *conservadora* —la que iba «peor» por
+  pérdida de validación—. Más rango y más tasa no es obviamente mejor.
+- **Q8 no pierde nada**: 62% en bf16 y 62% cuantizado. Los 4 puntos que vimos
+  contra Q4 los paga Q4, no la cuantización en general.
+
 ## Dónde se equivoca
 
 Los fallos que miré uno por uno son **todos entre herramientas vecinas**, por
@@ -65,6 +83,52 @@ una palabra de superficie:
 
 Eso no se arregla con volumen. Por eso el corpus tiene pares escritos para
 distinguir vecinas, y no sólo más paráfrasis de lo mismo.
+
+### Y después de entrenar, el error cambia de forma
+
+Los que quedan en v2 ya casi no son entre vecinas. Son otra cosa, peor:
+
+    se está cortando la transmisión  -> stream_stop      (esperaba network_status)
+    se cayó un invitado              -> participant_kick (esperaba room_status)
+    se está llenando el disco        -> record_stop      (esperaba system_hardware)
+
+**Lee el síntoma como una orden.** El operador reporta un problema y el aparato
+lo ejecuta: dice que se está cortando la transmisión y el modelo la corta. En
+una batería cuenta como un error más; en vivo no.
+
+Tiene dos arreglos, y conviene hacer los dos:
+
+1. **En el corpus**: pares *reporte* contra *orden* («se está cortando la
+   transmisión» contra «cortá la transmisión»). Es la misma técnica que ya
+   funcionó para armar contra tomar.
+2. **En el aparato, que es más fuerte**: `docs/mcp.json` ya marca 24
+   herramientas como destructivas. Que una destructiva elegida por el modelo
+   chico pida confirmación convierte esto en una pregunta en vez de un
+   accidente. Hacerlo imposible, no desaconsejarlo.
+
+### El ciclo para mejorar, que es mecánico
+
+`tools/entrenar/fallos.py` clasifica los fallos del examen en tres tipos y dice
+a qué semillas hay que meterles mano. No es una heurística: sale de las marcas
+que ya tiene `docs/mcp.json`.
+
+| tipo | qué pasó | qué escribir |
+|---|---|---|
+| **PELIGROSO** | eligió una destructiva cuando todo lo aceptable era de sólo lectura | pares *reporte* contra *orden* |
+| **VECINA** | misma categoría, se confundió por una palabra | frases que las **distingan** |
+| **LEJOS** | otra categoría | vocabulario que le falta a la esperada |
+
+    tools/bateria-local.py --modelo <gguf> --solo-nombre   # mide
+    tools/entrenar/fallos.py docs/bateria-local.json       # dice qué escribir
+    # …editar datos/semillas-reactivas.json…
+    make corpus-entrenamiento                              # regenera
+    # …reentrenar…
+
+También avisa cuando una respuesta aceptable **está fuera del repertorio
+reactivo**: ahí no faltan frases, el modelo directamente no puede elegirla
+porque la gramática no la permite. Eso se arregla moviendo `REACTIVAS` en
+`lib_prompt.py`, que cambia el prompt y obliga a reentrenar — y
+`corpus-descubrir` lo va a avisar.
 
 ## Un error propio que vale más que cualquier número
 

@@ -94,12 +94,26 @@ def main():
             for h in [f["elegida"]] + f["aceptables"]:
                 if h in porn:
                     tocar.setdefault(h, set()).add(tipo)
-    if tocar:
+    repertorio = set(lp.herramientas_reactivas(inv))
+    dentro = {h: t for h, t in tocar.items() if h in repertorio}
+    afuera = sorted(h for h in tocar if h not in repertorio)
+    if dentro:
         print("SEMILLAS A TOCAR (datos/semillas-reactivas.json):")
-        for h, tipos in sorted(tocar.items()):
+        for h, tipos in sorted(dentro.items()):
             cuantas = len(sem.get(h, {}).get("frases", []))
             print(f"  {h:24s} {cuantas:2d} frases hoy   · por {', '.join(sorted(tipos))}")
         print("\nDespues: make corpus-entrenamiento  y volver a entrenar.")
+    if afuera:
+        # No es que les falten frases: el modelo NO PUEDE elegirlas, la
+        # gramatica solo deja nombres del repertorio reactivo. Aparecen porque
+        # el corpus las acepta como respuesta buena. Si alguna se pide seguido
+        # en vivo, lo que hay que mover es el repertorio (lib_prompt.REACTIVAS),
+        # no las semillas.
+        print(f"\nACEPTABLES QUE ESTAN FUERA DEL REPERTORIO REACTIVO ({len(afuera)}):")
+        print(f"  {', '.join(afuera)}")
+        print("  El modelo no puede elegirlas: la gramatica no las permite. Si hacen falta")
+        print("  en vivo, agregar su categoria a REACTIVAS en tools/lib_prompt.py —lo que")
+        print("  cambia el prompt y obliga a reentrenar, y corpus-descubrir lo va a avisar—.")
 
 
 if __name__ == "__main__":
