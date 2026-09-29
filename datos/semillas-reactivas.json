@@ -253,7 +253,7 @@
     },
     "source_remove": {
       "frases": [
-        "borrá esa capa de la escena",
+        "quitá ese elemento de la escena",
         "sacá esa fuente que no va más",
         "sacá esa capa de la escena, no a la persona"
       ],
@@ -566,7 +566,7 @@
     },
     "capture_multiview": {
       "frases": [
-        "mostrame todas las escenas juntas",
+        "quiero el multiview",
         "dame el multiview",
         "a ver todas las camaras de una"
       ],
@@ -604,7 +604,7 @@
     },
     "chat_wait": {
       "frases": [
-        "avisame cuando escriba algo",
+        "quedate esperando la respuesta del invitado",
         "quedate esperando la respuesta del invitado"
       ],
       "tambien": []
@@ -626,7 +626,7 @@
     },
     "guest_source_add": {
       "frases": [
-        "meti la camara del invitado 1 en esta escena",
+        "sumá al invitado del slot uno",
         "agrega la pantalla que esta compartiendo"
       ],
       "tambien": []
@@ -687,7 +687,7 @@
     },
     "room_set": {
       "frases": [
-        "cambiale el nombre a la sala",
+        "abrí el lobby de admisión",
         "configurame cuantos lugares hay",
         "aumentale los lugares"
       ],
@@ -744,7 +744,7 @@
     },
     "scene_rename": {
       "frases": [
-        "cambiale el nombre a esa escena",
+        "rebautizá esa escena",
         "renombra la escena 4"
       ],
       "tambien": []
@@ -758,7 +758,7 @@
     },
     "share_take": {
       "frases": [
-        "usa el archivo que mando el invitado",
+        "bajá lo que subió y metelo en la escena",
         "traeme eso que compartieron"
       ],
       "tambien": []
@@ -786,7 +786,7 @@
     },
     "source_types": {
       "frases": [
-        "que tipos de fuente puedo agregar",
+        "qué clases de entrada soporta",
         "que se puede meter en una escena"
       ],
       "tambien": []
@@ -870,7 +870,7 @@
     },
     "grafico_en_escena": {
       "frases": [
-        "qué gráficos tiene esta escena",
+        "dónde están puestos los animados",
         "dónde puedo poner una placa acá",
         "qué fuentes de gráfico hay en la toma"
       ],
@@ -898,7 +898,7 @@
       "frases": [
         "desatá ese rótulo",
         "que deje de escribirse solo",
-        "apagá el vínculo del zócalo"
+        "desenganchá ese rótulo"
       ],
       "tambien": []
     },

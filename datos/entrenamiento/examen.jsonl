@@ -35,7 +35,7 @@
 {"frase": "mostrame como se ve el programa", "aceptables": ["capture_program", "imagen_analizar"]}
 {"frase": "se ve todo negro", "aceptables": ["capture_program", "imagen_analizar"]}
 {"frase": "fijate si en camara se ve bien el rotulo", "aceptables": ["capture_program", "imagen_analizar"]}
-{"frase": "hay acople", "aceptables": ["audio_escuchar", "audio_measure", "audio_set", "audio_sources", "mixer_list"]}
+{"frase": "hay acople", "aceptables": ["audio_analyze", "audio_escuchar", "audio_measure", "audio_set", "audio_sources", "mixer_list"]}
 {"frase": "se esta acoplando el audio, cortalo", "aceptables": ["audio_measure", "audio_set", "audio_sources", "mixer_list"]}
 {"frase": "suena un pitido horrible", "aceptables": ["audio_analyze", "audio_measure", "audio_set", "audio_sources", "mixer_list"]}
 {"frase": "esta saturando el audio", "aceptables": ["audio_compressor", "audio_limiter", "audio_measure", "audio_set", "audio_sources", "mixer_list"]}
@@ -57,6 +57,45 @@
 {"frase": "buscame la imagen de los perros en la presentacion", "aceptables": ["laminas_buscar"]}
 {"frase": "esta mal el apellido en el zocalo", "aceptables": ["grafico_mostrar"]}
 {"frase": "baja el zocalo", "aceptables": ["grafico_ocultar"]}
+{"frase": "mostrame todas las escenas juntas en una grilla", "aceptables": ["capture_multiview"]}
+{"frase": "quiero ver a toda la gente que hay en la sala", "aceptables": ["capture_people"]}
+{"frase": "mostrame cómo está saliendo la invitada", "aceptables": ["capture_person"]}
+{"frase": "sacale varios cuadros seguidos al programa, quiero ver si se mueve", "aceptables": ["capture_sequence"]}
+{"frase": "quiero ver cómo quedó la escena de la entrevista antes de ponerla", "aceptables": ["capture_source"]}
+{"frase": "sacá una captura de la pantalla de la aplicación", "aceptables": ["capture_ui"]}
+{"frase": "avisame cuando el invitado escriba algo", "aceptables": ["chat_wait"]}
+{"frase": "la sala no responde, reiniciala", "aceptables": ["gateway_restart"]}
+{"frase": "grabá la cámara del invitado en un archivo aparte", "aceptables": ["grabacion_individual"]}
+{"frase": "qué gráficos animados hay puestos en las escenas", "aceptables": ["grafico_en_escena"]}
+{"frase": "qué gráficos tengo disponibles para usar", "aceptables": ["grafico_listar"]}
+{"frase": "metele la cámara del invitado del lugar dos a esta escena", "aceptables": ["guest_source_add"]}
+{"frase": "con qué imagen me están viendo los que esperan", "aceptables": ["operator_feed"]}
+{"frase": "corregile los datos de contacto a la invitada", "aceptables": ["participant_profile"]}
+{"frase": "mandá de nuevo al final de la fila al que ya habló", "aceptables": ["participant_requeue"]}
+{"frase": "quiero hablarle en privado al que está esperando", "aceptables": ["participant_talk"]}
+{"frase": "cambiá el pin para entrar", "aceptables": ["room_pin"]}
+{"frase": "cerrá la sala, que no entre nadie más", "aceptables": ["room_set"]}
+{"frase": "apagá el vínculo ese del rótulo", "aceptables": ["rotulo_desvincular"]}
+{"frase": "hacé una copia de esta escena", "aceptables": ["scene_copy"]}
+{"frase": "borrá la escena de prueba", "aceptables": ["scene_delete"]}
+{"frase": "exportame la definición de las escenas", "aceptables": ["scene_export"]}
+{"frase": "metela en la carpeta del segundo bloque", "aceptables": ["scene_folder"]}
+{"frase": "subila en la lista, que va antes que esa", "aceptables": ["scene_move"]}
+{"frase": "dejala protegida para que nadie la borre", "aceptables": ["scene_protect"]}
+{"frase": "cambiale el nombre a la escena", "aceptables": ["scene_rename"]}
+{"frase": "borrá el archivo que mandó el invitado", "aceptables": ["share_delete"]}
+{"frase": "poné al aire la foto que compartió el invitado", "aceptables": ["share_take"]}
+{"frase": "quiero ver qué mandó antes de ponerlo", "aceptables": ["share_view"]}
+{"frase": "qué opciones tiene esta fuente", "aceptables": ["source_properties"]}
+{"frase": "sacá esa fuente de la escena", "aceptables": ["source_remove"]}
+{"frase": "refrescá la lista de dispositivos de la cámara", "aceptables": ["source_set_property"]}
+{"frase": "qué tipos de fuente puedo crear acá", "aceptables": ["source_types"]}
+{"frase": "corré el título un poco a la izquierda", "aceptables": ["source_update"]}
+{"frase": "pasá al invitado al primer lugar de la fila", "aceptables": ["speaker_move"]}
+{"frase": "poné al aire al que está primero en la fila", "aceptables": ["speaker_on_air"]}
+{"frase": "dejá fijo al conductor mientras rotan los demás", "aceptables": ["speaker_presenter"]}
+{"frase": "mandá a la fila de oradores al que acaba de entrar", "aceptables": ["speaker_queue"]}
+{"frase": "activá el modo oradores con dos minutos para cada uno", "aceptables": ["speakers_config"]}
 {"frase": "mandale un mail al sponsor", "aceptables": ["derivar"]}
 {"frase": "cargá el padrón", "aceptables": ["derivar"]}
 {"frase": "sacalo", "aceptables": ["derivar"]}

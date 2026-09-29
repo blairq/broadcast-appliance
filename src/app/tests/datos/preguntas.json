@@ -434,6 +434,7 @@
     {
       "pregunta": "hay acople",
       "herramientas": [
+        "audio_analyze",
         "audio_escuchar",
         "audio_measure",
         "audio_set",
@@ -911,6 +912,240 @@
       "pregunta": "baja el zocalo",
       "herramientas": [
         "grafico_ocultar"
+      ]
+    },
+    {
+      "pregunta": "mostrame todas las escenas juntas en una grilla",
+      "herramientas": [
+        "capture_multiview"
+      ]
+    },
+    {
+      "pregunta": "quiero ver a toda la gente que hay en la sala",
+      "herramientas": [
+        "capture_people"
+      ]
+    },
+    {
+      "pregunta": "mostrame cómo está saliendo la invitada",
+      "herramientas": [
+        "capture_person"
+      ]
+    },
+    {
+      "pregunta": "sacale varios cuadros seguidos al programa, quiero ver si se mueve",
+      "herramientas": [
+        "capture_sequence"
+      ]
+    },
+    {
+      "pregunta": "quiero ver cómo quedó la escena de la entrevista antes de ponerla",
+      "herramientas": [
+        "capture_source"
+      ]
+    },
+    {
+      "pregunta": "sacá una captura de la pantalla de la aplicación",
+      "herramientas": [
+        "capture_ui"
+      ]
+    },
+    {
+      "pregunta": "avisame cuando el invitado escriba algo",
+      "herramientas": [
+        "chat_wait"
+      ]
+    },
+    {
+      "pregunta": "la sala no responde, reiniciala",
+      "herramientas": [
+        "gateway_restart"
+      ]
+    },
+    {
+      "pregunta": "grabá la cámara del invitado en un archivo aparte",
+      "herramientas": [
+        "grabacion_individual"
+      ]
+    },
+    {
+      "pregunta": "qué gráficos animados hay puestos en las escenas",
+      "herramientas": [
+        "grafico_en_escena"
+      ]
+    },
+    {
+      "pregunta": "qué gráficos tengo disponibles para usar",
+      "herramientas": [
+        "grafico_listar"
+      ]
+    },
+    {
+      "pregunta": "metele la cámara del invitado del lugar dos a esta escena",
+      "herramientas": [
+        "guest_source_add"
+      ]
+    },
+    {
+      "pregunta": "con qué imagen me están viendo los que esperan",
+      "herramientas": [
+        "operator_feed"
+      ]
+    },
+    {
+      "pregunta": "corregile los datos de contacto a la invitada",
+      "herramientas": [
+        "participant_profile"
+      ]
+    },
+    {
+      "pregunta": "mandá de nuevo al final de la fila al que ya habló",
+      "herramientas": [
+        "participant_requeue"
+      ]
+    },
+    {
+      "pregunta": "quiero hablarle en privado al que está esperando",
+      "herramientas": [
+        "participant_talk"
+      ]
+    },
+    {
+      "pregunta": "cambiá el pin para entrar",
+      "herramientas": [
+        "room_pin"
+      ]
+    },
+    {
+      "pregunta": "cerrá la sala, que no entre nadie más",
+      "herramientas": [
+        "room_set"
+      ]
+    },
+    {
+      "pregunta": "apagá el vínculo ese del rótulo",
+      "herramientas": [
+        "rotulo_desvincular"
+      ]
+    },
+    {
+      "pregunta": "hacé una copia de esta escena",
+      "herramientas": [
+        "scene_copy"
+      ]
+    },
+    {
+      "pregunta": "borrá la escena de prueba",
+      "herramientas": [
+        "scene_delete"
+      ]
+    },
+    {
+      "pregunta": "exportame la definición de las escenas",
+      "herramientas": [
+        "scene_export"
+      ]
+    },
+    {
+      "pregunta": "metela en la carpeta del segundo bloque",
+      "herramientas": [
+        "scene_folder"
+      ]
+    },
+    {
+      "pregunta": "subila en la lista, que va antes que esa",
+      "herramientas": [
+        "scene_move"
+      ]
+    },
+    {
+      "pregunta": "dejala protegida para que nadie la borre",
+      "herramientas": [
+        "scene_protect"
+      ]
+    },
+    {
+      "pregunta": "cambiale el nombre a la escena",
+      "herramientas": [
+        "scene_rename"
+      ]
+    },
+    {
+      "pregunta": "borrá el archivo que mandó el invitado",
+      "herramientas": [
+        "share_delete"
+      ]
+    },
+    {
+      "pregunta": "poné al aire la foto que compartió el invitado",
+      "herramientas": [
+        "share_take"
+      ]
+    },
+    {
+      "pregunta": "quiero ver qué mandó antes de ponerlo",
+      "herramientas": [
+        "share_view"
+      ]
+    },
+    {
+      "pregunta": "qué opciones tiene esta fuente",
+      "herramientas": [
+        "source_properties"
+      ]
+    },
+    {
+      "pregunta": "sacá esa fuente de la escena",
+      "herramientas": [
+        "source_remove"
+      ]
+    },
+    {
+      "pregunta": "refrescá la lista de dispositivos de la cámara",
+      "herramientas": [
+        "source_set_property"
+      ]
+    },
+    {
+      "pregunta": "qué tipos de fuente puedo crear acá",
+      "herramientas": [
+        "source_types"
+      ]
+    },
+    {
+      "pregunta": "corré el título un poco a la izquierda",
+      "herramientas": [
+        "source_update"
+      ]
+    },
+    {
+      "pregunta": "pasá al invitado al primer lugar de la fila",
+      "herramientas": [
+        "speaker_move"
+      ]
+    },
+    {
+      "pregunta": "poné al aire al que está primero en la fila",
+      "herramientas": [
+        "speaker_on_air"
+      ]
+    },
+    {
+      "pregunta": "dejá fijo al conductor mientras rotan los demás",
+      "herramientas": [
+        "speaker_presenter"
+      ]
+    },
+    {
+      "pregunta": "mandá a la fila de oradores al que acaba de entrar",
+      "herramientas": [
+        "speaker_queue"
+      ]
+    },
+    {
+      "pregunta": "activá el modo oradores con dos minutos para cada uno",
+      "herramientas": [
+        "speakers_config"
       ]
     }
   ]
