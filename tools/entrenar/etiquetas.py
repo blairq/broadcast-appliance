@@ -114,7 +114,7 @@ def main():
                 St[i, j] = St[j, i] = v
         return St, ids
 
-    def puntuar(etiqueta, etqs):
+    def puntuar(etiqueta, etqs, detallar=False):
         St, ids = parecido_token(etqs)
         costo = (Sc * St).sum().item() / 2
         prim = {}
@@ -129,6 +129,16 @@ def main():
                     break
             else:
                 pasos.append(len(i))
+        # LA LISTA DE TRABAJO: que etiquetas comparten su primer token. Es lo
+        # que hay que cerrar, porque con gramatica el primer token unico ya
+        # decide todo: lo que sigue queda forzado, hay una sola continuacion
+        # valida. Un token entero es mas rapido, pero no decide mejor.
+        if detallar:
+            for t, v in sorted(prim.items(), key=lambda x: -len(x[1])):
+                if len(v) > 1:
+                    quien = [nombres[etqs.index(e)] for e in v]
+                    print(f"     comparten {tok.decode([t])!r}: "
+                          + ", ".join(f"{a}={b}" for a, b in zip(quien, v)))
         print(f"{etiqueta:16s} costo {costo:9.1f} · primeros tokens distintos"
               f" {len(prim):3d}/{len(etqs)} · comparten el 1ro {tras:3d}"
               f" · tokens hasta decidir: max {max(pasos)}")
@@ -166,7 +176,7 @@ def main():
                 trozos = [tok.decode([t]) for t in tok(e, add_special_tokens=False).input_ids]
                 print(f"   {n:24s} {e:14s} {k} tokens: {trozos}")
             print()
-        puntuar("a mano", etqs)
+        puntuar("a mano", etqs, detallar=True)
         return
 
     if not args.proponer:
