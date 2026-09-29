@@ -59,7 +59,12 @@ def main():
     ap.add_argument("--largo", type=int, default=4096)
     ap.add_argument("--semilla", type=int, default=7)
     ap.add_argument("--gguf", default="q8_0,q4_k_m", help="cuantizaciones a exportar")
-    ap.add_argument("--prueba", action="store_true", help="20 pasos, para ver que arranca")
+    ap.add_argument("--prueba", action="store_true", help="unos pasos nomas, para ver que arranca")
+    ap.add_argument("--pasos", type=int, default=20, help="con --prueba: cuantos")
+    ap.add_argument("--checkpointing", default="unsloth", choices=["unsloth", "no"],
+                    help="recalcular activaciones (ahorra memoria, cuesta tiempo). "
+                         "Un 1.7B entra comodo en una 3090: con `no` va mas rapido.")
+    ap.add_argument("--etiqueta", default="", help="nombre para la corrida, al comparar configuraciones")
     args = ap.parse_args()
 
     from unsloth import FastLanguageModel  # noqa: E402  (tiene que ir antes que transformers)
@@ -82,12 +87,13 @@ def main():
         # que es justo donde estan los errores (armar contra tomar).
         target_modules=["q_proj", "k_proj", "v_proj", "o_proj",
                         "gate_proj", "up_proj", "down_proj"],
-        use_gradient_checkpointing="unsloth", random_state=args.semilla)
+        use_gradient_checkpointing=("unsloth" if args.checkpointing == "unsloth" else False),
+        random_state=args.semilla)
 
     cfg = SFTConfig(
         output_dir=args.salida, per_device_train_batch_size=args.lote,
         gradient_accumulation_steps=args.acumular, warmup_ratio=0.05,
-        num_train_epochs=args.epocas, max_steps=20 if args.prueba else -1,
+        num_train_epochs=args.epocas, max_steps=args.pasos if args.prueba else -1,
         learning_rate=args.lr, lr_scheduler_type="cosine", optim="adamw_8bit",
         weight_decay=0.01, logging_steps=5, seed=args.semilla,
         bf16=True, max_seq_length=args.largo, dataset_text_field="text",
@@ -112,7 +118,16 @@ def main():
     print("la perdida se calcula sobre:", repr(tok.decode(vistos)))
 
     res = entrenador.train()
-    print(json.dumps(res.metrics, indent=1))
+    m = res.metrics
+    # La medida que importa al comparar configuraciones no es el tiempo total
+    # —depende de cuantos pasos se hicieron— sino cuantos ejemplos por segundo.
+    print(f"RESULTADO {args.etiqueta or 'sin-etiqueta'}: "
+          f"{m.get('train_samples_per_second', 0):.2f} ejemplos/s · "
+          f"perdida {m.get('train_loss', 0):.4f} · {m.get('train_runtime', 0):.0f} s")
+    print(json.dumps(m, indent=1))
+    if args.prueba:
+        print("(era una prueba: no se guarda nada)")
+        return
 
     modelo.save_pretrained(args.salida)
     tok.save_pretrained(args.salida)
