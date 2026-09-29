@@ -169,6 +169,33 @@ void applyEnvPolicy(ba::platform::ProcessOptions& o, const std::filesystem::path
     if (std::getenv("QT_QPA_PLATFORM") == nullptr) {
         o.envSet["QT_QPA_PLATFORM"] = "xcb";
     }
+    // Y SIN ESPERAR AL BARRIDO DE PANTALLA, que sobre XWayland es lo que
+    // vuelve inusable cualquier SEGUNDA ventana.
+    //
+    // Medido en una app Qt de veinte lineas, sin nada nuestro adentro: con dos
+    // ventanas abiertas sobre `xcb`, la segunda dibuja a UN cuadro por segundo.
+    // No depende del tamaño, ni de lo que dibuje, ni del bucle de render
+    // (`threaded` y `basic` dan lo mismo). Con Wayland nativo da 60, y con
+    // `vblank_mode=0` sobre xcb tambien da 60.
+    //
+    // Se siente como «la interfaz esta lentisima» y aparece justo cuando el
+    // operador hace lo que este aparato promete: sacar un panel a la otra
+    // pantalla y agrandarlo. Con la ventana principal tapada, TODO el programa
+    // se arrastraba.
+    //
+    // LO QUE SE PAGA: la interfaz puede mostrar algun corte horizontal al
+    // moverse. No toca la salida: el programa se arma adentro de libobs y va
+    // al codificador, no por esta pantalla.
+    //
+    // Son dos variables porque son dos controladores: `vblank_mode` es de Mesa
+    // (Intel y AMD) y `__GL_SYNC_TO_VBLANK` es del de NVIDIA. Poner la que no
+    // corresponde no hace nada. Igual que arriba, quien las exporte manda.
+    if (std::getenv("vblank_mode") == nullptr) {
+        o.envSet["vblank_mode"] = "0";
+    }
+    if (std::getenv("__GL_SYNC_TO_VBLANK") == nullptr) {
+        o.envSet["__GL_SYNC_TO_VBLANK"] = "0";
+    }
     if (const std::string cxx = cxxRuntimeDir(ownBinDir); !cxx.empty()) {
         o.envSet["LD_LIBRARY_PATH"] = cxx;
         o.envRemove.erase(std::remove(o.envRemove.begin(), o.envRemove.end(), "LD_LIBRARY_PATH"),

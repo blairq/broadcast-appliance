@@ -55,6 +55,7 @@ int runGui(int argc, char** argv) {
 #endif
 
     QGuiApplication app(argc, argv);
+
     QGuiApplication::setApplicationName("Broadcast Appliance");
     QQuickStyle::setStyle("Basic"); // controles propios encima; nada nativo que desentone
 
