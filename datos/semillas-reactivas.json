@@ -23,7 +23,25 @@
     "para DISTINGUIRLAS de su vecina (armar contra tomar, parar el rec contra",
     "parar la transmision, sacar una persona contra sacar una capa). Salieron de",
     "mirar los fallos medidos: los cuatro eran entre vecinas, por una palabra de",
-    "superficie. Mas parafrasis de otra cosa no los arregla."
+    "superficie. Mas parafrasis de otra cosa no los arregla.",
+    "",
+    "REPORTE CONTRA ORDEN. El error mas caro del primer modelo entrenado no era",
+    "confundir vecinas: era leer el SINTOMA como una ORDEN. «Se esta cortando la",
+    "transmision» es un reporte —hay que MIRAR— y el modelo cortaba la",
+    "transmision. Lo mismo con «se cayo un invitado» (lo echaba) y «se esta",
+    "llenando el disco» (paraba la grabacion).",
+    "",
+    "Por eso ahora las frases van de a pares: el sintoma a la herramienta que",
+    "mira, y la orden equivalente a la que actua. Sin el par, la palabra «corta»",
+    "queda asociada a cortar y no hay con que distinguir quien la dijo pidiendo.",
+    "",
+    "NINGUNA SEMILLA SE PARECE A UNA PREGUNTA DEL EXAMEN. Se descubrio tarde: 25",
+    "de los 48 casos del examen tenian una frase casi igual adentro del",
+    "entrenamiento —la guarda tiraba las identicas pero dejaba pasar «eh, se",
+    "corto la transmision»— y el 85% del primer modelo entrenado estaba inflado.",
+    "Ahora el generador compara POR PALABRAS COMPARTIDAS y avisa que semilla hay",
+    "que reescribir. Reescribir, no borrar: el pedido tiene que estar, dicho con",
+    "otras palabras. Si el modelo aprendio el concepto, el examen lo mide igual."
   ],
   "herramientas": {
     "audio_set": {
@@ -34,10 +52,13 @@
         "mutealo",
         "bajá el volumen del programa",
         "abrile el micrófono al orador",
-        "sacale audio a la cámara",
         "poné la música más bajo que está tapando",
         "cerrá el micro del fondo",
-        "subile un poco al que está hablando"
+        "subile un poco al que está hablando",
+        "bajale el volumen a ese",
+        "subile a ese que no se escucha",
+        "silencialo al invitado 2",
+        "mutea la fuente del plano fijo"
       ],
       "tambien": [
         "mixer_list",
@@ -50,7 +71,15 @@
         "medime el audio",
         "fijate los niveles",
         "cómo viene el nivel del programa",
-        "está saturando?"
+        "está saturando?",
+        "esta muy bajo lo que sale",
+        "se escucha mal",
+        "cuanto esta llegando",
+        "medime cuanto pica ese canal",
+        "fijate el nivel antes de tocar nada",
+        "no me llega audio de esa persona",
+        "esto esta mudo",
+        "esta saliendo sin audio"
       ],
       "tambien": [
         "mixer_list",
@@ -62,7 +91,10 @@
         "qué es ese ruido",
         "analizame el audio a ver qué pasa",
         "hay un zumbido raro, mirá qué es",
-        "de dónde sale ese pitido"
+        "de dónde sale ese pitido",
+        "que forma tiene ese ruido",
+        "analizame el espectro de ese canal",
+        "de que frecuencia es el pitido"
       ],
       "tambien": [
         "audio_measure"
@@ -70,10 +102,10 @@
     },
     "audio_escuchar": {
       "frases": [
-        "quiero escuchar ese micrófono antes de abrirlo",
         "dejame oír el canal 2",
         "pasame el audio del invitado a los auriculares",
-        "escuchá vos cómo suena eso"
+        "escuchá vos cómo suena eso",
+        "escuchalo vos primero y decime como suena"
       ],
       "tambien": []
     },
@@ -88,9 +120,9 @@
     },
     "mixer_list": {
       "frases": [
-        "qué canales de audio hay",
         "mostrame el mezclador",
-        "qué fuentes con sonido tengo"
+        "qué fuentes con sonido tengo",
+        "listame las pistas de sonido"
       ],
       "tambien": [
         "audio_sources"
@@ -98,56 +130,56 @@
     },
     "scene_switch": {
       "frases": [
-        "cortá a la cámara 2",
-        "poné la apertura",
         "andá al cierre",
         "pasá a pantalla completa",
-        "mandá la placa al aire",
         "cortá al plano general",
         "al aire ya, sin preparar nada",
-        "poné la apertura al aire ahora",
-        "cambia la escena del aire a la camara 2"
+        "pasa al plano dos",
+        "arranca con la de bienvenida",
+        "que salga el zocalo ahora",
+        "quiero la bienvenida saliendo ya",
+        "reemplaza lo que sale por el plano dos"
       ],
       "tambien": []
     },
     "scene_preview": {
       "frases": [
-        "dejá preparada la del cierre",
         "armá la próxima",
         "prepará el bloque que sigue",
         "dejá lista la de los sponsors",
         "cargá la escena del orador en preview",
         "no la saques todavia, solo dejala lista",
         "preparala pero no la tires",
-        "cargala en preview nada mas"
+        "cargala en preview nada mas",
+        "alista la de despedida en el bus previo"
       ],
       "tambien": []
     },
     "scene_take": {
       "frases": [
-        "sacá al aire lo que tengo armado",
         "dale take",
         "mandalo",
         "tirá la armada",
         "ahora sí, al aire",
         "tira la que ya tenia preparada",
-        "dale al take de la armada"
+        "dale al take de la armada",
+        "ejecuta el corte a lo alistado"
       ],
       "tambien": []
     },
     "scene_list": {
       "frases": [
-        "qué escenas hay",
-        "cuántas escenas tengo",
-        "listame las escenas"
+        "listame las escenas",
+        "enumerame las tomas",
+        "cuantas tomas tengo configuradas"
       ],
       "tambien": []
     },
     "scene_create": {
       "frases": [
-        "creá una escena para el bloque de deportes",
         "necesito una escena nueva",
-        "armame una escena para la entrevista"
+        "armame una escena para la entrevista",
+        "necesito una toma nueva para deportes"
       ],
       "tambien": [
         "scene_define"
@@ -155,29 +187,29 @@
     },
     "transition_set": {
       "frases": [
-        "qué fundido está puesto",
         "cambiá la transición a corte",
         "poné fundido de medio segundo",
-        "sacá el fundido, quiero corte seco"
+        "sacá el fundido, quiero corte seco",
+        "con que efecto paso de una toma a otra"
       ],
       "tambien": []
     },
     "source_list": {
       "frases": [
-        "qué hay adentro de esta escena",
         "qué capas tiene la escena del aire",
         "mostrame las fuentes",
         "que capas tiene armada esta escena",
-        "decime que fuentes hay, no me muestres imagen"
+        "decime que fuentes hay, no me muestres imagen",
+        "enumerame las capas de esta toma"
       ],
       "tambien": []
     },
     "source_add": {
       "frases": [
-        "agregá la cámara del fondo a esta escena",
         "sumale el logo",
         "poné una imagen arriba a la derecha",
-        "metele la cámara 3"
+        "metele la cámara 3",
+        "suma el plano trasero a esta toma"
       ],
       "tambien": []
     },
@@ -203,13 +235,15 @@
     },
     "capture_program": {
       "frases": [
-        "mostrame cómo se ve el programa",
-        "se ve todo negro",
-        "quedamos sin imagen",
-        "fijate si en cámara se ve bien el rótulo",
         "sacame una foto de lo que está saliendo",
         "cómo está saliendo al aire",
-        "sacame la imagen de lo que sale, no la lista"
+        "sacame la imagen de lo que sale, no la lista",
+        "se ve raro lo que sale",
+        "pasame una foto del vivo",
+        "esta saliendo en negro",
+        "el vivo no tiene video",
+        "revisa si el zocalo quedo legible",
+        "el vivo salio vacio"
       ],
       "tambien": [
         "imagen_analizar",
@@ -219,16 +253,16 @@
     "capture_source": {
       "frases": [
         "mostrame cómo quedó esa fuente",
-        "a ver la cámara 2 sola",
-        "fijate cómo se ve el logo"
+        "mostrame esa fuente sola",
+        "revisa como quedo el isotipo"
       ],
       "tambien": []
     },
     "capture_feed": {
       "frases": [
-        "se congeló la cámara del invitado",
         "mirá si el invitado 2 tiene imagen",
-        "a ver la cámara del que está esperando"
+        "la imagen del que entro quedo clavada",
+        "mostrame el video del que aguarda"
       ],
       "tambien": [
         "room_status"
@@ -236,20 +270,30 @@
     },
     "room_status": {
       "frases": [
-        "cuánta gente hay en la sala",
         "quién está conectado",
         "cuántos lugares quedan",
-        "cómo viene la sala"
+        "cómo viene la sala",
+        "se desconecto uno",
+        "se fue alguien de la sala",
+        "quien hay en el lobby ahora",
+        "cuantos estan esperando",
+        "cuantos estan conectados ahora",
+        "uno de los participantes perdio la conexion",
+        "hay menos participantes de los que deberia",
+        "el del lugar 2 desaparecio",
+        "a quien tengo aguardando acceso"
       ],
-      "tambien": []
+      "tambien": [
+        "chat_send"
+      ]
     },
     "participant_admit": {
       "frases": [
         "hacelo pasar",
         "dejalo entrar",
-        "admití al que está esperando",
         "que pase Marta",
-        "metelo a la sala"
+        "metelo a la sala",
+        "dale acceso al que aguarda"
       ],
       "tambien": [
         "room_status"
@@ -266,19 +310,23 @@
     },
     "participant_kick": {
       "frases": [
-        "echá a ese tipo de la sala",
         "sacalo ya",
         "desconectalo",
-        "sacalo de la sala a esa persona"
+        "sacalo de la sala a esa persona",
+        "sacalo vos al invitado 2",
+        "desconectalo a ese ya",
+        "expulsa a esa persona",
+        "removelo de la reunion"
       ],
       "tambien": []
     },
     "participant_request": {
       "frases": [
-        "pedile que prenda la cámara",
         "decile que se acerque al micrófono",
         "pedile que se mute",
-        "que encienda el micro"
+        "que encienda el micro",
+        "decile que abra el microfono",
+        "solicitale que active su video"
       ],
       "tambien": [
         "chat_send"
@@ -286,17 +334,19 @@
     },
     "chat_send": {
       "frases": [
-        "mandale un mensaje al invitado 1",
         "escribile que ya sale",
-        "avisale que arrancamos en dos minutos"
+        "avisale que arrancamos en dos minutos",
+        "escribile vos al invitado",
+        "mandale un texto al que se cayo",
+        "escribile algo al del lugar 1"
       ],
       "tambien": []
     },
     "chat_history": {
       "frases": [
-        "qué me dijo el invitado",
         "qué escribieron en el chat",
-        "leeme los mensajes"
+        "leeme los mensajes",
+        "leeme lo que escribio esa persona"
       ],
       "tambien": [
         "chat_wait"
@@ -304,9 +354,11 @@
     },
     "room_link": {
       "frases": [
-        "pasame el link para invitar",
         "dame el enlace de la sala",
-        "cómo entra la gente"
+        "cómo entra la gente",
+        "pasame el enlace para que entren",
+        "dame la direccion de la sala para mandar",
+        "dame la url de acceso"
       ],
       "tambien": []
     },
@@ -321,9 +373,9 @@
     },
     "speakers_status": {
       "frases": [
-        "quién habla ahora y cuánto le queda",
         "cómo viene la fila",
-        "cuánto tiempo le queda al que está"
+        "cuánto tiempo le queda al que está",
+        "como va el tiempo del expositor actual"
       ],
       "tambien": [
         "speaker_time"
@@ -340,55 +392,71 @@
     "speaker_on_air": {
       "frases": [
         "sacá al aire a Marta",
-        "poné al orador que está esperando",
         "bajá del aire al que está hablando",
-        "poné al aire a ese orador, no a la escena"
+        "poné al aire a ese orador, no a la escena",
+        "subi al expositor que aguarda"
       ],
       "tambien": []
     },
     "record_start": {
       "frases": [
-        "empezá a grabar",
         "poné a grabar esto",
-        "dale rec"
+        "dale rec",
+        "arranca el registro en disco"
       ],
       "tambien": []
     },
     "record_stop": {
       "frases": [
-        "pará la grabación",
         "cortá el rec",
         "dejá de grabar",
         "pará el rec pero seguimos al aire",
-        "corta la grabacion, la transmision sigue"
+        "corta la grabacion, la transmision sigue",
+        "corta el rec ya",
+        "dejá de grabar, terminamos",
+        "frena el registro",
+        "detene el archivo ya"
       ],
       "tambien": []
     },
     "stream_start": {
       "frases": [
-        "salimos al aire",
         "arrancá la transmisión",
-        "mandá a youtube"
+        "mandá a youtube",
+        "arranca la transmision de nuevo",
+        "volve a salir al aire",
+        "inicia el envio"
       ],
       "tambien": []
     },
     "stream_stop": {
       "frases": [
-        "bajanos del aire",
         "cortá la transmisión",
         "sacanos de youtube",
         "corta la transmision pero segui grabando",
-        "bajanos del aire, el rec sigue"
+        "bajanos del aire, el rec sigue",
+        "corta la transmision ahora",
+        "dale, sacanos del aire",
+        "terminala, cortá el vivo",
+        "finaliza el envio",
+        "termina el vivo ahora"
       ],
       "tambien": []
     },
     "status": {
       "frases": [
-        "cómo está todo",
         "cómo venimos",
         "dame un panorama",
         "estamos al aire?",
-        "se está cortando la transmisión"
+        "estamos perdiendo cuadros",
+        "no queda espacio para grabar",
+        "la maquina esta lenta",
+        "algo anda mal y no se que",
+        "se traba todo",
+        "dame un resumen general",
+        "el vivo viene entrecortado",
+        "el envio se interrumpio",
+        "queda poco espacio de almacenamiento"
       ],
       "tambien": [
         "network_status"
@@ -397,8 +465,12 @@
     "network_status": {
       "frases": [
         "cómo está la red",
-        "se está yendo la conexión",
-        "estamos perdiendo cuadros?"
+        "estamos perdiendo cuadros?",
+        "se va la conexion",
+        "la subida esta mal",
+        "se entrecorta lo que sale",
+        "anda inestable la red",
+        "el enlace viene flojo"
       ],
       "tambien": [
         "status"
@@ -406,8 +478,8 @@
     },
     "share_list": {
       "frases": [
-        "qué archivos mandaron",
-        "qué compartieron los invitados"
+        "que adjuntos llegaron",
+        "que subieron los participantes"
       ],
       "tambien": []
     },
@@ -626,8 +698,8 @@
     },
     "source_set_property": {
       "frases": [
-        "cambiale la resolucion a la camara",
-        "ponele otro dispositivo a esa fuente"
+        "ponele otro dispositivo a esa fuente",
+        "ajustale el tamaño de captura a esa fuente"
       ],
       "tambien": []
     },

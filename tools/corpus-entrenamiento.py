@@ -86,6 +86,26 @@ def variantes(frase, rnd, cuantas=4):
     return sorted(out)
 
 
+def parecido(frase, prohibidas_tokens, umbral=0.6):
+    """True si la frase se parece DEMASIADO a una del examen.
+
+    POR QUE NO ALCANZA CON LAS EXACTAS, que es como estaba. La guarda tiraba
+    «se corto la transmision» por identica, pero dejaba pasar «eh, se corto la
+    transmision» y «se corto la transmision ya». Medido cuando se descubrio:
+    25 de 48 casos del examen tenian una frase casi igual adentro del
+    entrenamiento. O sea que el modelo se aprendia medio examen y el numero
+    que salia no media nada.
+
+    Se compara por palabras compartidas y no por distancia de letras: lo que
+    importa es que sea OTRA forma de pedir lo mismo, no que cambien dos
+    caracteres.
+    """
+    t = set(sin_tildes(frase.lower()).split())
+    if not t:
+        return True
+    return any(len(t & p) / max(len(t), len(p)) >= umbral for p in prohibidas_tokens if p)
+
+
 def ejemplo(cabeza, cola, frase, herramienta):
     """Un ejemplo con el prompt EXACTO del servidor. El unico campo que
     cambia entre entrenar y servir es que aca viene la respuesta."""
@@ -117,15 +137,28 @@ def main():
     corpus = json.loads(CORPUS.read_text(encoding="utf-8"))["casos"]
     examen = [c for c in corpus if any(t in validas for t in c["herramientas"])]
     prohibidas = {sin_tildes(c["pregunta"].lower()) for c in examen}
+    prohibidas_tokens = [set(p.split()) for p in prohibidas]
+
+    # Las SEMILLAS se revisan primero: si una semilla se parece a una pregunta
+    # del examen, todas sus variantes tambien, y conviene saber cual hay que
+    # reescribir en vez de tirar el resultado en silencio.
+    semillas_malas = []
+    for herr, d in sorted(sem.items()):
+        for frase in d["frases"]:
+            if parecido(frase, prohibidas_tokens):
+                semillas_malas.append((herr, frase))
 
     filas, chocadas = [], 0
     for herr, d in sorted(sem.items()):
         for frase in d["frases"]:
+            if parecido(frase, prohibidas_tokens):
+                chocadas += 1
+                continue
             for v in variantes(frase, rnd):
                 # Si una variante cae encima de una pregunta del examen, se
                 # tira. Entrenar con el examen adentro infla el numero y no
                 # avisa.
-                if sin_tildes(v.lower()) in prohibidas:
+                if parecido(v, prohibidas_tokens):
                     chocadas += 1
                     continue
                 filas.append(ejemplo(cabeza, cola, v, herr))
@@ -145,8 +178,10 @@ def main():
         while faltan > 0 and intentos < 200:
             intentos += 1
             frase = rnd.choice(d_["frases"])
+            if parecido(frase, prohibidas_tokens):
+                continue
             for v in variantes(frase, rnd, cuantas=2):
-                if sin_tildes(v.lower()) in prohibidas:
+                if parecido(v, prohibidas_tokens):
                     continue
                 filas.append(ejemplo(cabeza, cola, v, herr))
                 faltan -= 1
@@ -201,7 +236,12 @@ def main():
         print(f"de segunda mano (propuestas sin revisar): {len(auto)} herramientas")
     print(f"firma del prompt: {huella['prompt']} · {huella['cuantas']} herramientas")
     print(f"herramientas cubiertas: {len(porc)} de {len(validas)} del repertorio reactivo")
-    print(f"descartadas por chocar con el examen: {chocadas}")
+    print(f"descartadas por parecerse al examen: {chocadas}")
+    if semillas_malas:
+        print(f"SEMILLAS QUE HAY QUE REESCRIBIR ({len(semillas_malas)}): se parecen a una")
+        print("  pregunta del examen, asi que no entran. Decir lo mismo con otras palabras:")
+        for herr, f in semillas_malas[:14]:
+            print(f"    {herr:22s} {f!r}")
     print(f"ejemplos por herramienta: {min(porc.values())} a {max(porc.values())}"
           f" (mediana {sorted(porc.values())[len(porc)//2]})")
     print(f"  las mas flacas: {', '.join(f'{h}({n})' for h, n in flojas)}")

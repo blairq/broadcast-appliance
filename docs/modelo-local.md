@@ -62,14 +62,36 @@ cada una, ~26 min). Mismo examen de 48 casos.
 |---|---|
 | Base sin entrenar, bf16 (3090) | 62% |
 | Base sin entrenar, Q8_0 (notebook) | 62% |
-| **v2 entrenado** (r=16, lr 1e-4, 2 épocas), bf16 | **85%** |
+| ~~v2 entrenado, bf16~~ | ~~85%~~ **no vale, ver abajo** |
 
-Dos cosas que salen de ahí:
+**Q8 no pierde nada**: 62% en bf16 y 62% cuantizado. Los 4 puntos que vimos
+contra Q4 los paga Q4, no la cuantización en general. Eso sigue valiendo.
 
-- **+23 puntos**, y con la configuración *conservadora* —la que iba «peor» por
-  pérdida de validación—. Más rango y más tasa no es obviamente mejor.
-- **Q8 no pierde nada**: 62% en bf16 y 62% cuantizado. Los 4 puntos que vimos
-  contra Q4 los paga Q4, no la cuantización en general.
+### El 85% estaba inflado, y así se descubrió
+
+Escribiendo semillas nuevas noté que las había sacado de la lista de fallos
+—y esa lista sale del examen—. Al medirlo: **25 de los 48 casos del examen
+tenían una frase casi igual adentro del entrenamiento**.
+
+La guarda existía pero miraba sólo coincidencias **exactas**: tiraba «se corto
+la transmision» por idéntica y dejaba pasar «eh, se corto la transmision». El
+modelo se aprendió medio examen.
+
+Lo que se hizo:
+
+1. La guarda ahora compara **por palabras compartidas** (60%), no por
+   identidad, y **avisa qué semilla hay que reescribir** en vez de descartarla
+   en silencio.
+2. Se reescribieron **las 58 semillas** que chocaban: mismo pedido, otras
+   palabras. Reescribir y no borrar, porque el pedido tiene que estar — si el
+   modelo aprendió el concepto, el examen lo mide igual.
+3. Verificado después: **0 de 48** casos contaminados, y el solapamiento más
+   alto que queda es 0,57 («sacalo de la sala a esa persona» contra «echá a ese
+   tipo de la sala»), que es otra forma de decir lo mismo.
+
+El número real del fine-tune sale de reentrenar sobre el corpus limpio. Lo que
+sí queda en pie es que **el corpus contaminado no explica todo**: el modelo sin
+entrenar veía el mismo examen y sacaba 62%.
 
 ## Dónde se equivoca
 
