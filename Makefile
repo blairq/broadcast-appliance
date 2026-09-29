@@ -31,7 +31,7 @@ PIP       ?= .venv/bin/pip
         clean clean-all \
         deps deps-obs deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist \
         deps-lsp deps-status deps-clean deps-libreoffice deps-libreoffice-linux deps-libreoffice-win \
-        deps-msitools mcp-inventario \
+        deps-msitools mcp-inventario deps-llamacpp bateria-local \
         deps-src deps-mbedtls deps-nlohmann deps-samplerate deps-argon2 deps-rostros _ba_baja
 
 # --- Ayuda (target por defecto) ---------------------------------------------
@@ -75,6 +75,8 @@ help:
 	@echo "  make deps-libreoffice LibreOffice headless (PowerPoint -> PDF) y sus fuentes"
 	@echo "  make deps-msitools    abrir el .msi de Windows desde Linux (lo pide deps-libreoffice-win)"
 	@echo "  make mcp-inventario   docs/mcp.json: todas las herramientas MCP (con el aparato andando)"
+	@echo "  make deps-llamacpp    llama.cpp (CPU) para probar un modelo chico local"
+	@echo "  make bateria-local    cuanto tarda y cuanto acierta ese modelo (prefijo cacheado)"
 	@echo "                        -> extern/libreoffice. OPCIONAL y pesado (~280 MB por"
 	@echo "                        plataforma): solo hace falta si alguien trae .pptx."
 	@echo "  make deps-mbedtls     mbedtls v3.6.2 (fuente de build) -> extern/mbedtls"
@@ -943,6 +945,16 @@ deps-msitools:
 # obligaria a interpretar literales de C++ partidos en pedazos.
 mcp-inventario:
 	tools/mcp-inventario.py
+
+# llama.cpp (CPU) para medir un modelo chico corriendo ACA. Ver el comentario
+# del script: la GPU no esta libre, se la come libobs.
+deps-llamacpp:
+	tools/deps/llamacpp.sh
+
+# Cuanto tarda y cuanto acierta ese modelo chico, con el prefijo cacheado.
+# Hace falta un .gguf en extern/modelos (no viaja en el repo: son gigas).
+bateria-local:
+	tools/bateria-local.py --modelo extern/modelos/Qwen3-1.7B-Q4_K_M.gguf --solo-nombre
 
 deps-clap:
 	@mkdir -p "$(DL_DIR)"
