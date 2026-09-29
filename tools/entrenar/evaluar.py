@@ -27,6 +27,7 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(RAIZ / "tools"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 EXAMEN = RAIZ / "datos/entrenamiento/examen.jsonl"
 
 
@@ -37,6 +38,9 @@ def main():
     ap.add_argument("--json", default="", help="donde dejar los fallos, para tools/entrenar/fallos.py")
     ap.add_argument("--ejemplos", type=int, default=0,
                     help="pares resueltos en el prefijo (para comparar con el aprendizaje en contexto)")
+    ap.add_argument("--vector", help="vector de control (.gguf) de vector-control.py")
+    ap.add_argument("--escala", type=float, default=1.0,
+                    help="cuanto se empuja. 0 = como si no estuviera")
     args = ap.parse_args()
 
     from unsloth import FastLanguageModel  # noqa: E402
@@ -62,6 +66,40 @@ def main():
     modelo, tok = FastLanguageModel.from_pretrained(
         model_name=args.modelo, max_seq_length=args.largo, load_in_4bit=False, dtype=None)
     FastLanguageModel.for_inference(modelo)
+
+    # EL VECTOR DE CONTROL, aplicado igual que en llama.cpp: se SUMA a la salida
+    # de cada capa, escalado. Se hace aca tambien —y no solo al servir— porque
+    # la escala hay que elegirla mirando la curva de cobertura contra precision,
+    # y esa curva se mide con el mismo evaluador que todo lo demas. Medir en un
+    # lado y servir en el otro es como se pierden cuarenta puntos sin enterarse.
+    ganchos = []
+    if args.vector and args.escala != 0.0:
+        import gguf  # noqa: E402
+        from vector_control_util import capas_del  # noqa: E402
+        lector = gguf.GGUFReader(args.vector)
+        dirs = {}
+        for t in lector.tensors:
+            if t.name.startswith("direction."):
+                dirs[int(t.name.split(".")[1])] = torch.tensor(t.data.copy())
+        capas = capas_del(modelo)
+        if len(dirs) != len(capas):
+            print(f"  OJO: el vector tiene {len(dirs)} capas y el modelo {len(capas)}")
+
+        def enganchar(i):
+            def fn(_mod, _ent, sal):
+                v = dirs[i + 1]
+                if v is None:
+                    return sal
+                hs = sal[0] if isinstance(sal, tuple) else sal
+                hs = hs + args.escala * v.to(hs.device, hs.dtype)
+                return (hs,) + tuple(sal[1:]) if isinstance(sal, tuple) else hs
+            return fn
+
+        for i, capa in enumerate(capas):
+            if (i + 1) in dirs:
+                ganchos.append(capa.register_forward_hook(enganchar(i)))
+        print(f"vector de control: {args.vector} · escala {args.escala} "
+              f"· {len(ganchos)} capas")
 
     # El arbol de continuaciones validas: desde cada prefijo de tokens, que
     # tokens dejan llegar a un nombre que EXISTE. Es la gramatica, en HF.
@@ -92,7 +130,10 @@ def main():
         else:
             fallos.append((c["frase"], elegida, c["aceptables"]))
 
-    print(f"\nmodelo: {args.modelo} · ejemplos en contexto: {args.ejemplos}")
+    for g in ganchos:
+        g.remove()
+    print(f"\nmodelo: {args.modelo} · ejemplos en contexto: {args.ejemplos}"
+          + (f" · escala {args.escala}" if args.vector else ""))
     # EL ACIERTO SOLO YA NO ALCANZA, desde que sabe derivar. Un modelo que
     # deriva todo saca el 28% y parece prudente; uno que no deriva nunca saca
     # 72% y parece mejor de lo que es. Y los dos errores cuestan distinto:

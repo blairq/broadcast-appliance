@@ -147,3 +147,36 @@ enseñan el mapa, no la distribución de lo que de verdad pasa un martes a las
 ocho. Lo real sale de la traza del aparato —qué hizo el operador y en qué
 estado estaba todo— y **todavía no se guarda**. Ese es el próximo paso, y el
 que más va a mover el número.
+
+## El vector de control: empujar a `derivar` sin reentrenar
+
+Idea de Jorge, y es una abliteración con el signo cambiado. Una abliteración
+borra la dirección del rechazo en el espacio de activaciones y apaga el
+comportamiento; esto encuentra la dirección que separa «es mío» de «lo paso al
+grande» y la **empuja**.
+
+    tools/entrenar/venv.sh                       # el entorno, por script
+    make vector-control MODELO=~/entrenamientos/reactivo-v6
+
+Eso hace dos cosas: arma el `.gguf` y después barre la escala sobre el examen.
+
+**Lo que lo distingue de todo lo demás de esta lista: es un dial.** La escala es
+un solo escalar que se aplica al servir, así que el punto de operación se elige
+*después* de entrenar. Cuanto más alta, más deriva.
+
+    llama-cli --control-vector-scaled reactivo-v6-derivar.gguf:1.5
+
+**Cómo se lee la curva.** Precisión es lo que se ve al aire; cobertura es
+velocidad —lo que deriva de más lo resuelve el grande igual, pero tarda—. Se
+elige la escala más baja que deje la precisión donde la quieras. **No** la que
+maximice el acierto total: el acierto total premia derivar de más, que es justo
+lo que no queremos.
+
+**Qué mirar para saber si sirvió.** El script imprime la norma de la dirección
+por capa. Si salen todas parejas, no hay dirección: hay ruido, y el vector no va
+a empujar nada. Lo esperable es que unas pocas capas del medio manden — que es
+lo que el trabajo de interpretabilidad sobre Qwen3 predice, porque ahí la
+incertidumbre es un override disperso de pocos rasgos dedicados.
+
+El vector se calcula desde `entrenar.jsonl`, **nunca desde el examen**: si
+saliera del examen, la curva estaría ajustada a él y no mediría nada.

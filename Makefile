@@ -32,6 +32,7 @@ PIP       ?= .venv/bin/pip
         deps deps-obs deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist \
         deps-lsp deps-status deps-clean deps-libreoffice deps-libreoffice-linux deps-libreoffice-win \
         deps-msitools mcp-inventario deps-llamacpp bateria-local corpus-entrenamiento \
+        venv-entrenar vector-control \
         corpus-descubrir \
         deps-src deps-mbedtls deps-nlohmann deps-samplerate deps-argon2 deps-rostros _ba_baja
 
@@ -79,6 +80,8 @@ help:
 	@echo "  make deps-llamacpp    llama.cpp (CPU) para probar un modelo chico local"
 	@echo "  make bateria-local    cuanto tarda y cuanto acierta ese modelo (prefijo cacheado)"
 	@echo "  make corpus-entrenamiento  arma datos/entrenamiento desde las semillas"
+	@echo "  make venv-entrenar         el entorno para entrenar (torch, unsloth, gguf)"
+	@echo "  make vector-control MODELO=... el vector que empuja a derivar, y su curva"
 	@echo "  make corpus-descubrir      que herramientas nuevas no tienen frases"
 	@echo "                        -> extern/libreoffice. OPCIONAL y pesado (~280 MB por"
 	@echo "                        plataforma): solo hace falta si alguien trae .pptx."
@@ -964,6 +967,19 @@ bateria-local:
 # honesto que hay.
 corpus-entrenamiento:
 	tools/corpus-entrenamiento.py
+
+## El entorno de entrenamiento, por script: nada se instala a mano.
+venv-entrenar:
+	tools/entrenar/venv.sh
+
+## El vector de control y el barrido de su escala. MODELO= el ya entrenado.
+## Sale un .gguf que llama.cpp aplica con --control-vector-scaled.
+vector-control:
+	@test -n "$(MODELO)" || { echo "uso: make vector-control MODELO=<ruta>"; exit 1; }
+	.venv-entrenar/bin/python tools/entrenar/vector-control.py \
+		--modelo "$(MODELO)" --salida "$(MODELO)-derivar.gguf"
+	PYTHON=.venv-entrenar/bin/python tools/entrenar/barrer-escala.sh \
+		"$(MODELO)" "$(MODELO)-derivar.gguf"
 
 # Que herramientas nuevas del MCP no tienen frases, y si el prompt cambio
 # —que es cuando el modelo entrenado quedo viejo aunque las frases esten—.
