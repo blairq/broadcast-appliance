@@ -870,6 +870,24 @@
       "herramientas": [
         "laminas_aplicar"
       ]
+    },
+    {
+      "pregunta": "arma un carrusel con los logos de los sponsors",
+      "herramientas": [
+        "laminas_armar"
+      ]
+    },
+    {
+      "pregunta": "saca esa lamina del carrusel",
+      "herramientas": [
+        "laminas_editar"
+      ]
+    },
+    {
+      "pregunta": "pone la lamina del cierre al final",
+      "herramientas": [
+        "laminas_editar"
+      ]
     }
   ]
 }

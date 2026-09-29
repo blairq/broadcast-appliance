@@ -19,6 +19,8 @@
 
 #include <QFileInfo>
 
+#include "medios/Medios.hpp"
+
 #include "AppRuntime.hpp"
 #include "BroadcastEngine.hpp"
 #include "mcp/McpService.hpp"
@@ -36,6 +38,7 @@ void McpService::registerLaminaTools() {
 
     auto* cc = qobject_cast<CarruselViewModel*>(vm_.carruseles());
     AppRuntime& rt = rt_;
+    const QString root = QString::fromStdWString(rt_.dataRoot().wstring());
 
     {
         Tool t;
@@ -55,6 +58,13 @@ void McpService::registerLaminaTools() {
             }
             done(ToolResult().data(json{{"carruseles", out},
                                         {"abierto", cc->actual().toStdString()},
+                                        // Desarmar tarda y no espera: sin esto
+                                        // el que pregunta no tiene como saber
+                                        // si todavia esta trabajando.
+                                        {"desarmando", cc->convirtiendo()},
+                                        {"etapa", cc->etapa().toStdString()},
+                                        {"hechas", cc->hecho()},
+                                        {"deCuantas", cc->total()},
                                         // El de la escena al aire: es el que el
                                         // operador esta manejando ahora mismo.
                                         {"enLaEscenaAlAire", cc->enEscena().toStdString()}}));
@@ -176,6 +186,116 @@ void McpService::registerLaminaTools() {
 
     {
         Tool t;
+        t.name = "laminas_armar";
+        t.title = "Armar un carrusel a mano";
+        t.category = "laminas";
+        t.description =
+            "Crea un carrusel y le pone las imagenes que se le digan, en ese orden. Para armar uno "
+            "con placas sueltas —logos, fondos, placas institucionales— en vez de desarmar una "
+            "presentacion (para eso esta `laminas_desarmar`).\n\n"
+            "Si el carrusel ya existe, le AGREGA las imagenes al final en vez de pisarlo. Una imagen "
+            "que ya estaba no entra dos veces. Las rutas son las que da `media_list`.\n\n"
+            "Queda armado y nada mas: para que se vea hay que ponerlo en una escena con "
+            "`laminas_aplicar`.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"nombre"}},
+                         {"properties",
+                          {{"nombre", {{"type", "string"}, {"description", "como se llama el carrusel"}}},
+                           {"imagenes", {{"type", "array"}, {"items", {{"type", "string"}}},
+                                         {"description", "rutas, como las da media_list"}}}}}};
+        t.examples = {R"({"nombre": "Sponsors", "imagenes": ["Media/logos/a.png", "Media/logos/b.png"]})"};
+        t.run = [cc, root](const json& a, Done done) {
+            const QString n = QString::fromStdString(a.value("nombre", std::string())).trimmed();
+            if (n.isEmpty()) {
+                done(ToolResult::error("Hace falta un nombre: sin nombre no se lo puede volver a encontrar."));
+                return;
+            }
+            bool nuevo = false;
+            if (cc->fuenteDe(n).isEmpty() && !cc->existe(n)) {
+                if (!cc->crear(n)) {
+                    done(ToolResult::error("No se pudo crear «" + n.toStdString() + "»."));
+                    return;
+                }
+                nuevo = true;
+            }
+            cc->setActual(n);
+            int puestas = 0;
+            std::string rechazadas;
+            for (const auto& v : a.value("imagenes", json::array())) {
+                const QString rel = QString::fromStdString(v.get<std::string>());
+                // Adentro de la carpeta del sistema y nada mas: una ruta de
+                // afuera en una escena se rompe al mover el aparato de maquina.
+                const QString abs = medios::resolverAdentro(root, rel);
+                if (abs.isEmpty() || !QFileInfo::exists(abs)) {
+                    rechazadas += (rechazadas.empty() ? "" : ", ") + rel.toStdString();
+                    continue;
+                }
+                if (cc->agregar(abs)) ++puestas;
+            }
+            std::string txt = (nuevo ? "Carrusel «" : "Ya existia «") + n.toStdString() + "»: " +
+                              std::to_string(puestas) + " laminas agregadas.";
+            if (!rechazadas.empty()) txt += " No encontre (o se salian de la carpeta del sistema): " + rechazadas + ".";
+            txt += " Para que se vea: laminas_aplicar.";
+            done(ToolResult::ok(txt));
+        };
+        core_.addTool(std::move(t));
+    }
+
+    {
+        Tool t;
+        t.name = "laminas_editar";
+        t.title = "Cambiar un carrusel ya armado";
+        t.category = "laminas";
+        t.description =
+            "Quitar una lamina, moverla de lugar, renombrar el carrusel, borrarlo, o soltarlo de la "
+            "escena.\n\n"
+            "`borrar` se lleva el carrusel, NO las imagenes: pueden estar en una escena o ser del "
+            "operador. `soltar` lo desvincula de la fuente y la imagen queda como estaba; la fuente "
+            "se saca desde Escenas si ademas hay que quitarla.\n\n"
+            "Los numeros son los de `laminas_ver`, empezando en 1.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"required", {"carrusel", "accion"}},
+            {"properties",
+             {{"carrusel", {{"type", "string"}}},
+              {"accion", {{"type", "string"}, {"enum", {"quitar", "mover", "renombrar", "borrar", "soltar"}}}},
+              {"numero", {{"type", "integer"}, {"minimum", 1}, {"description", "con quitar y mover"}}},
+              {"hasta", {{"type", "integer"}, {"minimum", 1}, {"description", "con mover: a que puesto va"}}},
+              {"nombre", {{"type", "string"}, {"description", "con renombrar: el nombre nuevo"}}}}}};
+        t.examples = {R"({"carrusel": "Sponsors", "accion": "mover", "numero": 5, "hasta": 1})"};
+        t.run = [cc](const json& a, Done done) {
+            const QString n = QString::fromStdString(a.value("carrusel", std::string()));
+            if (!cc->existe(n)) {
+                done(ToolResult::error("No hay ningun carrusel llamado «" + n.toStdString() +
+                                       "». laminas_listar los da."));
+                return;
+            }
+            const std::string accion = a.value("accion", std::string());
+            bool ok = false;
+            if (accion == "borrar") {
+                ok = cc->borrar(n);
+            } else if (accion == "soltar") {
+                ok = cc->soltarDeEscena(n);
+            } else if (accion == "renombrar") {
+                ok = cc->renombrar(n, QString::fromStdString(a.value("nombre", std::string())));
+            } else {
+                cc->setActual(n);
+                const int numero = a.value("numero", 0);
+                if (accion == "quitar") ok = cc->quitar(numero - 1);
+                else if (accion == "mover") ok = cc->mover(numero - 1, a.value("hasta", 0) - 1);
+            }
+            if (!ok) {
+                done(ToolResult::error("No se pudo: revisa los numeros con laminas_ver (empiezan en 1) "
+                                       "y que el nombre nuevo no este usado."));
+                return;
+            }
+            done(ToolResult::ok("Listo."));
+        };
+        core_.addTool(std::move(t));
+    }
+
+    {
+        Tool t;
         t.name = "laminas_aplicar";
         t.title = "Poner un carrusel en una escena";
         t.category = "laminas";
@@ -222,7 +342,8 @@ void McpService::registerLaminaTools() {
         t.readOnly = true;
         t.description = "Devuelve la ruta de la primera lamina a la que todavia no se le sacaron "
                         "etiquetas. Es por donde entra el que mira imagenes: pedir esta, mirarla con "
-                        "image_view, y guardar lo que vio con laminas_etiquetar. Vacio = no queda "
+                        "imagen_analizar —que es quien sabe mirar; este asistente NO recibe imagenes—, y guardar "
+                        "lo que vio con laminas_etiquetar. Vacio = no queda "
                         "ninguna.";
         t.inputSchema = {{"type", "object"}, {"properties", {{"carrusel", {{"type", "string"}}}}},
                          {"required", {"carrusel"}}};

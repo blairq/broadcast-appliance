@@ -113,6 +113,8 @@ class CarruselViewModel : public QObject {
     /// El nombre de la fuente que maneja ese carrusel, o "" si no está puesto
     /// en ninguna escena todavía.
     Q_INVOKABLE QString fuenteDe(const QString& carrusel) const;
+    /// true si hay un carrusel con ese nombre.
+    Q_INVOKABLE bool existe(const QString& carrusel) const;
     /// Lo desvincula: la fuente queda donde está, con la lámina que tenía. Se
     /// saca a mano desde Escenas si además hay que quitarla.
     Q_INVOKABLE bool soltarDeEscena(const QString& carrusel);

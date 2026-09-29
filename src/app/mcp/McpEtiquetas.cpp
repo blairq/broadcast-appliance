@@ -369,6 +369,10 @@ const Fila kPropias[] = {
                    "pone la diapositiva mostrar esa lamina pasar a la"},
     {"laminas_desarmar", "convertir un powerpoint o pdf en imagenes desarmar presentacion importar "
                         "el orador trajo un pdf armalo para proyectar cargar la charla"},
+    {"laminas_armar", "armar un carrusel con estas imagenes juntar placas sueltas crear carrusel "
+                      "nuevo con los logos"},
+    {"laminas_editar", "sacar una lamina cambiarla de lugar reordenar renombrar el carrusel borrarlo "
+                       "ponela al final al principio cambiar el orden de las laminas adelantar atrasar"},
     {"laminas_aplicar", "poner el carrusel en una escena agregar la presentacion a la escena "
                         "mostrar las laminas al aire vincular"},
     {"laminas_sin_analizar", "cual falta mirar etiquetar proxima sin analizar"},

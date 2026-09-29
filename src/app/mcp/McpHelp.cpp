@@ -240,10 +240,13 @@ En medio de la charla el orador dice "volve a la del grafico de barras". Con vei
 ## Como se usa
 - `laminas_listar`: que hay. Por aca se empieza; el resto pide el nombre.
 - `laminas_ver {"carrusel"}`: las laminas en orden, con su numero, su titulo y sus etiquetas. El **numero empieza en 1** y es lo que pide `laminas_ir`.
+- `laminas_armar {"nombre", "imagenes"}`: armar uno a mano con placas sueltas (logos, fondos). Si ya existe, agrega al final.
+- `laminas_editar {"carrusel", "accion"}`: quitar una lamina, moverla de lugar, renombrar, borrar o soltarlo de la escena. `borrar` se lleva el carrusel, NO las imagenes.
+- `laminas_aplicar {"carrusel", "escena"}`: **es el paso que falta casi siempre**. Hasta que el carrusel no esta EN una escena, `laminas_ir` mueve el puntero y no se ve nada.
 - `laminas_desarmar {"archivo", "nombre"}`: convierte un PDF o un .pptx en laminas. **Tarda** (segundos por pagina) y no espera: avisa que empezo, y cuando termina aparece en `laminas_listar`. Un .pptx necesita que el equipo traiga LibreOffice; un PDF no.
 
 ## Que se busca y como
-El operador escribe "barras" en un cuadro y le queda esa lamina. Eso funciona si alguien miro las imagenes antes: `laminas_sin_analizar {"carrusel"}` da la proxima sin etiquetas, se la mira con `image_view`, y lo que se vio se guarda con `laminas_etiquetar {"carrusel", "numero", "etiquetas"}`. Se hace **una vez por lamina**; si salio vacio queda marcada igual, para no volver a mirarla para siempre.
+El operador escribe "barras" en un cuadro y le queda esa lamina. Eso funciona si alguien miro las imagenes antes: `laminas_sin_analizar {"carrusel"}` da la proxima sin etiquetas, se la mira con `imagen_analizar` (que es quien sabe mirar: el asistente principal NO recibe imagenes), y lo que se vio se guarda con `laminas_etiquetar {"carrusel", "numero", "etiquetas"}`. Se hace **una vez por lamina**; si salio vacio queda marcada igual, para no volver a mirarla para siempre.
 
 Las etiquetas son palabras con las que alguien apurado buscaria: que se ve, que dice, de que trata. "grafico barras ventas trimestre", no una descripcion.)md"},
     {"configuracion", "Configuracion", "Leer y cambiar cualquier ajuste.",
@@ -426,7 +429,17 @@ La API de Facebook solo transmite y administra videos de **Paginas** (no del per
 4. `media_use {"path": ..., "scene": ..., "name": "Logo", "layout": "pip-tr"}` (arriba a la derecha; `pip-tl` arriba a la izquierda; o `{x,y,w,h}`).
 5. `capture_source {"name": escena}` y ajustar con `source_update` (ubicacion, tamaño) hasta que quede bien.
 
-Videos y audios: `media_use` con `loop` para fondos o musica en bucle; `alert_create {"type": "media_end"}` para enterarte cuando terminan.)md"},
+Videos y audios: `media_use` con `loop` para fondos o musica en bucle; `alert_create {"type": "media_end"}` para enterarte cuando terminan.
+
+## Ordenar el disco
+`media_carpetas` dice COMO estan repartidos (el arbol, con cuantos tiene cada carpeta; las vacias aparecen igual, porque son a donde se mueven cosas). `media_ordenar {"accion": "mover"|"renombrar"|"carpeta"|"borrar"}` los acomoda.
+
+**Borrar no borra**: manda a `Papelera/`. Un archivo puede estar en una escena, o ser el unico que quedaba del evento pasado; deshacer tiene que ser sacarlo de una carpeta. Y si en el destino ya hay algo con ese nombre, se numera en vez de pisar.
+
+Las carpetas del sistema (Media, Shares, Recordings) no se mueven ni se borran. El operador ve todo esto en la pestaña Medios, y lo que cambies aca le aparece sin que tenga que refrescar.
+
+## Presentaciones
+Un `.pdf` o un `.pptx` no se "usa" en una escena: se DESARMA en laminas y queda un carrusel, que es lo que deja saltar a cualquiera en vivo. Ver `help {"topic": "laminas"}`.)md"},
     {"operador", "Hablar con el operador", "Barra de mensajes, preguntas y respuestas sugeridas a invitados.",
      R"md(## La barra de abajo
 Todo lo que el asistente le quiere decir al operador sin depender de que mire el chat: aparece abajo de la ventana de la app, con color segun prioridad.

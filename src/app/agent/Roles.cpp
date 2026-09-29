@@ -312,7 +312,7 @@ const std::set<std::string>& Roles::juegoDelAsistente() {
         "recetas",  "audio",     "audio_rack", "config", "sistema",  "equipo",
         "entradas", "alertas",   "pantallas", "evento",  "prompter", "qr",
         "cuentas",  "asistente", "youtube",   "twitch",  "facebook", "padron",
-        "preguntas"};
+        "preguntas", "laminas"};
     return c;
 }
 

@@ -289,6 +289,10 @@ void CarruselViewModel::revisarEscena() {
     emit enEscenaCambio();
 }
 
+bool CarruselViewModel::existe(const QString& carrusel) const {
+    return store_->porNombre(carrusel.toStdString()) != nullptr;
+}
+
 QString CarruselViewModel::fuenteDe(const QString& carrusel) const {
     const carrusel::Carrusel* c = store_->porNombre(carrusel.toStdString());
     return c ? QString::fromStdString(c->fuente()) : QString();
