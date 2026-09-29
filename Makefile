@@ -31,7 +31,7 @@ PIP       ?= .venv/bin/pip
         clean clean-all \
         deps deps-obs deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist \
         deps-lsp deps-status deps-clean deps-libreoffice deps-libreoffice-linux deps-libreoffice-win \
-        deps-msitools \
+        deps-msitools mcp-inventario \
         deps-src deps-mbedtls deps-nlohmann deps-samplerate deps-argon2 deps-rostros _ba_baja
 
 # --- Ayuda (target por defecto) ---------------------------------------------
@@ -74,6 +74,7 @@ help:
 	@echo "  make deps-clap        Headers de CLAP 1.2.6 -> extern/clap"
 	@echo "  make deps-libreoffice LibreOffice headless (PowerPoint -> PDF) y sus fuentes"
 	@echo "  make deps-msitools    abrir el .msi de Windows desde Linux (lo pide deps-libreoffice-win)"
+	@echo "  make mcp-inventario   docs/mcp.json: todas las herramientas MCP (con el aparato andando)"
 	@echo "                        -> extern/libreoffice. OPCIONAL y pesado (~280 MB por"
 	@echo "                        plataforma): solo hace falta si alguien trae .pptx."
 	@echo "  make deps-mbedtls     mbedtls v3.6.2 (fuente de build) -> extern/mbedtls"
@@ -934,6 +935,14 @@ deps-libreoffice-win:
 # COMPILACION: no viaja en el bundle y no se instala en el sistema.
 deps-msitools:
 	tools/deps/msitools.sh
+
+# El inventario del MCP a docs/mcp.json: que herramientas hay, con su ayuda,
+# sus etiquetas de busqueda, en que archivo viven y que roles las pueden usar.
+# NECESITA EL APARATO ANDANDO: la mitad del dato (descripciones y esquemas) sale
+# de preguntarle a el, que es lo que el modelo ve de verdad. Sacarlo del codigo
+# obligaria a interpretar literales de C++ partidos en pedazos.
+mcp-inventario:
+	tools/mcp-inventario.py
 
 deps-clap:
 	@mkdir -p "$(DL_DIR)"

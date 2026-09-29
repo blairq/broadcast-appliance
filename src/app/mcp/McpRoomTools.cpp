@@ -216,39 +216,26 @@ void McpService::registerRoomTools() {
         };
         core_.addTool(std::move(t));
     }
-    // Acciones sobre una persona.
-    struct Act {
-        const char* name;
-        const char* title;
-        const char* action;
-        const char* desc;
-        bool destructive;
-    };
-    static const Act kActs[] = {
-        {"participant_admit", "Admitir", "admit",
-         "Hace pasar a alguien del lobby (en modo oradores, a la fila; si no, a un lugar del programa).",
-         false},
-        {"participant_reject", "Rechazar", "reject", "Rechaza a alguien del lobby (se le avisa y se corta).",
-         true},
-        {"participant_kick", "Sacar de la sala", "kick",
-         "Saca a alguien de la sala (se le avisa y se corta).", true},
-        {"participant_requeue", "Volver a la fila", "requeue",
-         "Orador que ya hablo: vuelve al final de la fila.", false}};
-    for (const Act& act : kActs) {
+    // Volver a la fila. ESTABA EN UNA TABLA junto con admitir, rechazar y
+    // sacar, y esas tres YA se registran una por una mas abajo, con su titulo,
+    // sus detalles y sus ejemplos: se estaban publicando DOS VECES cada una.
+    // El modelo las veia repetidas —dos fichas distintas con el mismo nombre—
+    // y el listado pesaba de mas. Lo encontro el inventario del MCP
+    // (tools/mcp-inventario.py), que cuenta nombres repetidos.
+    {
         Tool t;
-        t.name = act.name;
-        t.title = act.title;
-        t.category = std::string(act.action) == "requeue" ? "oradores" : "sala";
-        t.destructive = act.destructive;
-        t.description = act.desc;
-        t.inputSchema = {
-            {"type", "object"}, {"properties", {{"participant", personProp}}}, {"required", {"participant"}}};
-        const std::string action = act.action;
-        t.run = [withPerson, partPath, post, action](const json& a, Done done) {
+        t.name = "participant_requeue";
+        t.title = "Volver a la fila";
+        t.category = "oradores";
+        t.description = "Orador que ya hablo: vuelve al final de la fila.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"participant", personProp}}},
+                         {"required", {"participant"}}};
+        t.examples = {R"({"participant": "Marta"})"};
+        t.run = [withPerson, partPath, post](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
-            post(partPath(p, action.c_str()), json::object(), "Hecho: " + action + " " + p.value("name", ""),
-                 done);
+            post(partPath(p, "requeue"), json::object(), "Vuelve a la fila.", done);
         };
         core_.addTool(std::move(t));
     }
