@@ -111,6 +111,108 @@ void no_salirse() {
     QDir(raiz).removeRecursively();
 }
 
+// --- 6) El arbol de carpetas ------------------------------------------------
+void arbol_() {
+    const QString raiz = QDir::tempPath() + "/ba_test_medios3";
+    QDir(raiz).removeRecursively();
+    QDir().mkpath(raiz + "/Media/logos/sponsors");
+    QDir().mkpath(raiz + "/Media/musica");
+    QDir().mkpath(raiz + "/Media/vacia");
+    QDir().mkpath(raiz + "/Media/.oculta");
+    tocar(raiz + "/Media/portada.png");
+    tocar(raiz + "/Media/logos/uno.png");
+    tocar(raiz + "/Media/logos/sponsors/dos.png");
+    tocar(raiz + "/Media/logos/sponsors/tres.png");
+
+    const QVector<Archivo> todos = listar(raiz);
+    const QVector<Carpeta> a = arbol(raiz, todos);
+
+    auto buscar = [&](const QString& rel) -> const Carpeta* {
+        for (const Carpeta& c : a)
+            if (c.relativa == rel) return &c;
+        return nullptr;
+    };
+    CHECK(buscar("Media") != nullptr, "la carpeta del sistema esta");
+    CHECK(buscar("Media")->raiz, "y esta marcada como raiz");
+    // Una carpeta vacia TIENE que aparecer: si no, nadie puede arrastrarle
+    // nada para empezar a ordenar.
+    CHECK(buscar("Media/vacia") != nullptr, "una carpeta vacia aparece igual");
+    CHECK(buscar("Media/.oculta") == nullptr, "una carpeta oculta no ensucia el arbol");
+    CHECK(buscar("Media/logos/sponsors") != nullptr, "baja de nivel");
+    CHECK(buscar("Media/logos/sponsors")->nivel == 2, "y sabe a que profundidad esta");
+    // Propios contra total: es la diferencia entre «esta carpeta tiene uno» y
+    // «adentro de esta carpeta hay tres».
+    CHECK(buscar("Media/logos")->propios == 1, "cuenta los suyos");
+    CHECK(buscar("Media/logos")->total == 3, "y los de sus hijas");
+    CHECK(buscar("Media")->total == 4, "la raiz cuenta todo");
+
+    // El orden es el de dibujo: cada carpeta DESPUES de su padre.
+    int iLogos = -1, iSponsors = -1;
+    for (int i = 0; i < a.size(); ++i) {
+        if (a[i].relativa == "Media/logos") iLogos = i;
+        if (a[i].relativa == "Media/logos/sponsors") iSponsors = i;
+    }
+    CHECK(iLogos >= 0 && iSponsors > iLogos, "una hija va despues de su madre");
+
+    QDir(raiz).removeRecursively();
+}
+
+// --- 7) Mover, crear, renombrar, papelera -----------------------------------
+void tocar_archivos() {
+    const QString raiz = QDir::tempPath() + "/ba_test_medios4";
+    QDir(raiz).removeRecursively();
+    QDir().mkpath(raiz + "/Media/logos");
+    tocar(raiz + "/Media/a.png");
+    tocar(raiz + "/Media/logos/a.png"); // mismo nombre a proposito
+    QString err;
+
+    // Lo que NO se puede, que es la mitad del valor de esto.
+    CHECK(!mover(raiz, "../afuera.png", "Media", &err), "no se mueve algo de afuera");
+    CHECK(!mover(raiz, "Media", "Media/logos", &err), "una carpeta del sistema no se mueve");
+    CHECK(!mover(raiz, "Media/logos", "Media/logos", &err), "ni una carpeta adentro de si misma");
+    CHECK(!aPapelera(raiz, "Media", &err), "ni se borra una carpeta del sistema");
+    CHECK(!crearCarpeta(raiz, "Media", "con/barra", &err), "un nombre con barra no vale");
+    CHECK(!crearCarpeta(raiz, "Media", ".oculta", &err), "ni uno que empieza con punto");
+
+    // Un nombre repetido se numera, no pisa: traer dos veces el mismo logo
+    // corregido es normal, perder el anterior no.
+    CHECK(mover(raiz, "Media/a.png", "Media/logos", &err), "mueve");
+    CHECK(QFileInfo::exists(raiz + "/Media/logos/a.png"), "el que estaba sigue");
+    CHECK(QFileInfo::exists(raiz + "/Media/logos/a (2).png"), "y el nuevo entro numerado");
+
+    CHECK(crearCarpeta(raiz, "Media", "nueva", &err), "crea una carpeta");
+    CHECK(!crearCarpeta(raiz, "Media", "nueva", &err), "no dos veces la misma");
+    CHECK(renombrar(raiz, "Media/nueva", "otra", &err), "renombra");
+    CHECK(QDir(raiz + "/Media/otra").exists(), "con el nombre nuevo");
+
+    // Borrar es mover a la papelera: un archivo puede estar en una escena.
+    CHECK(aPapelera(raiz, "Media/logos/a (2).png", &err), "a la papelera");
+    CHECK(!QFileInfo::exists(raiz + "/Media/logos/a (2).png"), "ya no esta donde estaba");
+    CHECK(QFileInfo::exists(raiz + "/Papelera/a (2).png"), "pero no se perdio");
+
+    QDir(raiz).removeRecursively();
+}
+
+// --- 8) Ordenar -------------------------------------------------------------
+void ordenar_() {
+    QVector<Archivo> l;
+    Archivo x;
+    x.nombre = "zeta.png"; x.bytes = 10; x.modificadoMs = 300; x.tipo = Tipo::Imagen; l.push_back(x);
+    x.nombre = "alfa.mp4"; x.bytes = 50; x.modificadoMs = 100; x.tipo = Tipo::Video;  l.push_back(x);
+    x.nombre = "beta.png"; x.bytes = 30; x.modificadoMs = 200; x.tipo = Tipo::Imagen; l.push_back(x);
+
+    QVector<Archivo> a = l;
+    ordenar(a, "nombre");
+    CHECK(a[0].nombre == "alfa.mp4", "por nombre");
+    ordenar(a, "tamano", true);
+    CHECK(a[0].bytes == 50, "por tamaño, el mas grande primero");
+    ordenar(a, "fecha", true);
+    CHECK(a[0].modificadoMs == 300, "por fecha, lo mas nuevo primero");
+    a = l;
+    ordenar(a, "loquesea");
+    CHECK(a[0].nombre == "zeta.png", "un criterio que no existe no revuelve nada");
+}
+
 } // namespace
 
 int main() {
@@ -118,6 +220,9 @@ int main() {
     aplanar_();
     listar_();
     no_salirse();
+    arbol_();
+    tocar_archivos();
+    ordenar_();
     if (g_fallos == 0) std::printf("test_medios: OK\n");
     return g_fallos == 0 ? 0 : 1;
 }

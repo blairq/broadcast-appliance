@@ -76,4 +76,52 @@ QVector<Archivo> filtrar(const QVector<Archivo>& todos, const QString& consulta)
 /// termine siendo una ruta valida.
 QString resolverAdentro(const QString& raiz, const QString& p);
 
+// --- El arbol de carpetas ---------------------------------------------------
+//
+// Con doscientos archivos en una grilla plana no se encuentra nada aunque haya
+// buscador: buscar sirve cuando uno SABE que busca, y la mitad de las veces se
+// esta mirando a ver que hay. Para eso esta el arbol.
+//
+// SE CAMINA EL DISCO, no se deducen las carpetas de las rutas de los archivos.
+// Una carpeta vacia tiene que aparecer: si alguien la crea para ordenar y no la
+// ve hasta poner algo adentro, no puede arrastrar nada hacia ella.
+
+/// Una carpeta del arbol. Viene en una LISTA en orden de dibujo (cada una
+/// despues de su padre) con su profundidad: un arbol de verdad en QML obliga a
+/// un modelo anidado y no se gana nada, porque igual se dibuja una fila por
+/// carpeta.
+struct Carpeta {
+    QString relativa; ///< Media/logos/sponsors — la identidad
+    QString nombre;   ///< sponsors
+    int nivel = 0;    ///< 0 = Media, Shares, Recordings
+    int propios = 0;  ///< archivos directamente adentro
+    int total = 0;    ///< contando las subcarpetas
+    bool raiz = false; ///< una de las carpetas del sistema (no se puede mover ni borrar)
+};
+
+/// El arbol entero. `todos` es la lista de archivos ya leida: las cuentas
+/// salen de ahi en vez de volver a recorrer el disco por cada carpeta.
+QVector<Carpeta> arbol(const QString& raiz, const QVector<Archivo>& todos);
+
+/// Ordena la lista. `criterio`: nombre | fecha | tamano | tipo. Cualquier otra
+/// cosa deja el orden como estaba, que es el de `listar` (carpeta y nombre).
+void ordenar(QVector<Archivo>& lista, const QString& criterio, bool descendente = false);
+
+/// Mueve un archivo o una carpeta adentro de `destino` (una carpeta relativa).
+/// Si ya hay algo con ese nombre, numera en vez de pisar: traer dos veces el
+/// mismo logo corregido es normal, perder el anterior no.
+/// :returns: false y deja el motivo en `error`.
+bool mover(const QString& raiz, const QString& queRel, const QString& destinoRel, QString* error);
+
+/// Crea una carpeta adentro de otra.
+bool crearCarpeta(const QString& raiz, const QString& padreRel, const QString& nombre, QString* error);
+
+/// Le cambia el nombre a un archivo o carpeta, sin moverlo de lugar.
+bool renombrar(const QString& raiz, const QString& queRel, const QString& nombre, QString* error);
+
+/// A la papelera (`Papelera/` en la raiz del sistema), NO se borra. Un archivo
+/// puede estar en una escena, o ser el unico que quedaba del evento pasado:
+/// deshacer tiene que ser sacarlo de una carpeta, no volver a conseguirlo.
+bool aPapelera(const QString& raiz, const QString& queRel, QString* error);
+
 } // namespace ba::app::medios

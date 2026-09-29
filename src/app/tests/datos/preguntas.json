@@ -834,6 +834,30 @@
         "laminas_etiquetar",
         "laminas_sin_analizar"
       ]
+    },
+    {
+      "pregunta": "mete todos los logos en una carpeta",
+      "herramientas": [
+        "media_ordenar"
+      ]
+    },
+    {
+      "pregunta": "borra ese archivo que no sirve",
+      "herramientas": [
+        "media_ordenar"
+      ]
+    },
+    {
+      "pregunta": "como estan ordenadas las carpetas de medios",
+      "herramientas": [
+        "media_carpetas"
+      ]
+    },
+    {
+      "pregunta": "mostrame como se ve la pantalla del aparato",
+      "herramientas": [
+        "ventana_captura"
+      ]
     }
   ]
 }

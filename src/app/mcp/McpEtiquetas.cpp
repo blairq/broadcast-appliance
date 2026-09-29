@@ -352,6 +352,9 @@ const Fila kPropias[] = {
     {"pantalla_buscar", "buscar televisores en la red descubrir chromecast"},
     {"pantalla_mostrar", "mandar a la tv proyectar castear mostrar en pantalla qr mensaje reloj "
                          "tally luz roja camara al aire"},
+    {"media_carpetas", "como estan ordenados los medios que carpetas hay arbol"},
+    {"media_ordenar", "mover archivos a otra carpeta ordenar renombrar crear carpeta borrar "
+                      "limpiar acomodar los medios papelera"},
     {"ventana_captura", "ver la interfaz mirar la pantalla del aparato como se ve la pagina "
                         "captura de la ventana revisar el gui algo se ve mal encimado cortado"},
     {"pantalla_fijar", "dejar fijo que siempre muestre lo mismo permanente"},

@@ -15,6 +15,7 @@
 #include <QFileInfo>
 #include <QImage>
 #include <QImageReader>
+#include <QMetaObject>
 #include <QRegularExpression>
 
 #include <algorithm>
@@ -22,6 +23,7 @@
 #include "AppRuntime.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
+#include "medios/Medios.hpp"
 #include "ui/StudioViewModel.hpp"
 
 namespace ba::app::mcp {
@@ -296,6 +298,90 @@ void McpService::registerMediaTools() {
             vm.refreshModels();
             done(ToolResult::ok("'" + spec.name + "' (" + kind.toStdString() + ") agregada a '" + scene +
                                 "'. Verifica con capture_source {\"name\": \"" + scene + "\"}."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "media_carpetas";
+        t.title = "Como estan ordenados los medios";
+        t.category = "medios";
+        t.readOnly = true;
+        t.description =
+            "El arbol de carpetas de medios, con cuantos archivos tiene cada una (los propios y "
+            "los de sus subcarpetas). Es por donde se empieza para ordenar: `media_list` da los "
+            "archivos, esto da DONDE estan. Las carpetas vacias aparecen igual, porque son a donde "
+            "se mueven cosas.";
+        t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
+        t.run = [root](const json&, Done done) {
+            const QVector<medios::Archivo> todos = medios::listar(root);
+            json out = json::array();
+            for (const medios::Carpeta& c : medios::arbol(root, todos))
+                out.push_back(json{{"carpeta", c.relativa.toStdString()},
+                                   {"nivel", c.nivel},
+                                   {"archivos", c.propios},
+                                   {"conSubcarpetas", c.total},
+                                   {"delSistema", c.raiz}});
+            done(ToolResult().data(json{{"carpetas", out}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "media_ordenar";
+        t.title = "Mover, renombrar, crear carpetas y borrar";
+        t.category = "medios";
+        t.description =
+            "Acomoda los archivos: `mover` (a otra carpeta), `renombrar`, `carpeta` (crear una) y "
+            "`borrar`.\n\n"
+            "BORRAR NO BORRA: manda a `Papelera/`. Un archivo puede estar en una escena, o ser el "
+            "unico que quedaba del evento pasado; deshacer tiene que ser sacarlo de una carpeta.\n\n"
+            "Si en el destino ya hay algo con ese nombre, se numera en vez de pisar. Las carpetas "
+            "del sistema (Media, Shares, Recordings) no se mueven ni se borran.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"required", {"accion"}},
+            {"properties",
+             {{"accion", {{"type", "string"}, {"enum", {"mover", "renombrar", "carpeta", "borrar"}}}},
+              {"que", {{"type", "string"},
+                       {"description", "ruta relativa del archivo o carpeta, como la da media_list"}}},
+              {"destino", {{"type", "string"}, {"description", "con accion=mover: la carpeta a donde va"}}},
+              {"nombre", {{"type", "string"},
+                          {"description", "con renombrar: el nombre nuevo. Con carpeta: como se llama"}}},
+              {"padre", {{"type", "string"}, {"default", "Media"},
+                         {"description", "con carpeta: adentro de cual se crea"}}}}}};
+        t.examples = {R"({"accion": "mover", "que": "Media/logo.png", "destino": "Media/logos"})",
+                      R"({"accion": "carpeta", "padre": "Media", "nombre": "Sponsors"})"};
+        t.run = [root, &vm](const json& a, Done done) {
+            const std::string accion = a.value("accion", std::string());
+            const QString que = QString::fromStdString(a.value("que", std::string()));
+            QString error;
+            bool ok = false;
+            if (accion == "mover") {
+                ok = medios::mover(root, que, QString::fromStdString(a.value("destino", std::string())),
+                                   &error);
+            } else if (accion == "renombrar") {
+                ok = medios::renombrar(root, que, QString::fromStdString(a.value("nombre", std::string())),
+                                       &error);
+            } else if (accion == "carpeta") {
+                ok = medios::crearCarpeta(root, QString::fromStdString(a.value("padre", std::string("Media"))),
+                                          QString::fromStdString(a.value("nombre", std::string())), &error);
+            } else if (accion == "borrar") {
+                ok = medios::aPapelera(root, que, &error);
+            } else {
+                error = "accion desconocida";
+            }
+            if (!ok) {
+                done(ToolResult::error(error.toStdString()));
+                return;
+            }
+            // La pestaña se entera. Antes el disco solo cambiaba porque
+            // alguien copiaba archivos a mano, y por eso refrescar era un
+            // boton; ahora tambien lo cambia esto, y dejar la grilla mostrando
+            // lo que ya no esta es peor que cualquier recorrida de mas.
+            if (QObject* m = vm.medios()) QMetaObject::invokeMethod(m, "refrescar", Qt::QueuedConnection);
+            done(ToolResult::ok(accion == "borrar" ? "A la papelera (Papelera/), no se perdio."
+                                                   : "Listo."));
         };
         core_.addTool(std::move(t));
     }
