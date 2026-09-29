@@ -229,6 +229,11 @@ Item {
                 Loader {
                     id: content
                     anchors.fill: parent
+                    // UN LOADER ES UN AMBITO DE FOCO: sin esto, el foco se
+                    // queda en el marco y las teclas de la tarjeta no llegan
+                    // NUNCA a su contenido. No falla ni avisa: simplemente no
+                    // pasa nada al apretar una flecha.
+                    focus: true
                     readonly property bool esExt: card.kind.startsWith("ext:")
                     readonly property string extId: esExt ? card.kind.slice(4) : ""
                     source: {

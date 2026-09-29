@@ -88,6 +88,9 @@ Window {
         title: w.titulo
         Loader {
             anchors.fill: parent
+            // Ver DashboardPage: un Loader es un ambito de foco y sin esto el
+            // panel suelto no responderia al teclado.
+            focus: true
             sourceComponent: w.contenido
             // El panel ya está en su ventana: que no ofrezca sacarlo otra vez.
             onLoaded: if (item && item.enVentana !== undefined) item.enVentana = true
