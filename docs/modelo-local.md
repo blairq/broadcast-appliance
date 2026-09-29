@@ -304,6 +304,73 @@ decodificación con gramática, no extracción de embeddings. Sacar las dos cosa
 del mismo paso no es gratis. Por eso va último, aunque en el papel sea el más
 barato: el costo no está en entrenarlo, está en el aparato.
 
+### Lo que se midió, y el error que casi lo entierra
+
+**v6** (85 herramientas, jerga, láminas y `derivar`), 67 casos del examen:
+
+| | cobertura | precisión | derivado | acierto |
+|---|---|---|---|---|
+| sin dial | 100 % | 88 % | 5/8 (62 %) | 85 % |
+| sesgo +2 | 100 % | 88 % | **6/8 (75 %)** | 86 % |
+| sesgo +6 | 98 % | 87 % | **7/8 (87 %)** | 86 % |
+| sesgo +8 | 94 % | 87 % | 7/8 | 83 % |
+| sesgo +12 | 72 % | 90 % | 7/8 | 68 % |
+
+Dos cosas importan más que el acierto. Una: **cobertura 100 % sin dial** — no
+deriva ni una sola vez algo que sí es suyo, que era el riesgo que el techo del
+12 % trataba de evitar. Dos: **+2 sale gratis**, sube las derivaciones de 62 %
+a 75 % sin costar un punto de cobertura ni de precisión. `+6` compra el 87 % de
+las derivaciones por un punto de cobertura. De ahí para arriba se paga caro.
+
+Los tres que no deriva sin dial son los difíciles de verdad: «cargá el padrón»,
+«sacalo» y «probá cómo queda este gráfico» —esta última es `grafico_probar`,
+una administrativa cuyo pariente reactivo, `grafico_mostrar`, está a una
+palabra—.
+
+**El vector de control también anda**, y más fuerte de lo previsto:
+
+| escala | cobertura | precisión | derivado |
+|---|---|---|---|
+| 0 | 100 % | 88 % | 5/8 |
+| 0,02 | 93 % | 89 % | 7/8 |
+| 0,05 | **0 %** | — | 8/8 |
+
+O sea que la dirección existe y empuja. Pero entre 0,02 y 0,05 pasa de andar
+bien a derivar absolutamente todo: es un interruptor disfrazado de perilla. Al
+mismo nivel de derivaciones (7/8), el sesgo pierde un punto de cobertura y el
+vector pierde cuatro.
+
+**Conclusión: el dial es el sesgo del logit.** Es monótono, fino, no necesita
+entrenamiento —anda sobre cualquier versión, incluso la base— y llama.cpp ya lo
+trae (`--logit-bias`). El vector queda como resultado interesante y herramienta
+de diagnóstico, no como el mando.
+
+#### El error, que vale más que los números
+
+Las dos primeras corridas de todo esto dieron «0 de 8 derivaciones, en todas
+las escalas», y escribí dos conclusiones sobre esa base: que entrenar la clase
+no instalaba el comportamiento, y que la dirección del vector codificaba *de
+qué habla* el pedido y no la decisión. **Las dos eran falsas.**
+
+`evaluar.py` armaba su propia lista de salidas con `herramientas_reactivas()`
+—las 85, sin `derivar`— y con ella construía el árbol de continuaciones
+válidas. `derivar` era una respuesta **imposible**. El «0 de 8» no medía al
+modelo: medía la lista.
+
+Lo delató el barrido del sesgo: plano hasta +20. Sumarle veinte al logit de un
+token y que no cambie nada es imposible **si ese token pudiera salir**.
+
+Es el mismo error que este proyecto ya se comió con el prompt —el sistema
+pidiendo una cosa y la gramática permitiendo otra, 40 puntos— y por el mismo
+motivo: dos lugares armando lo que tiene que ser uno. Por eso ahora existe
+`lp.nombres_posibles()` y la arma sola. `bateria-local.py` nunca tuvo el
+problema porque pasaba por `gramatica_nombre()`; el que se salió del camino fue
+el evaluador.
+
+La moraleja operativa: **un resultado plano no es un resultado, es un síntoma.**
+Si mover un mando a fondo no cambia nada, lo primero que hay que sospechar no es
+el modelo, es que el mando no esté conectado.
+
 ### Forzar el comportamiento por dirección, como una abliteración al revés
 
 La idea es de Jorge y tiene respaldo. La abliteración funciona porque
@@ -345,13 +412,10 @@ operación sin volver a entrenar**. Para un aparato en vivo es la diferencia ent
 un programa de aire donde conviene que el chico arriesgue y uno donde conviene
 que derive a la primera duda.
 
-**Lo que todavía no está probado, y hay que decirlo.** El resultado de Qwen3 es
-sobre el 4B, no sobre el 1,7B. Y toda esta línea se midió sobre comportamiento
-conversacional —rechazar, expresar duda en palabras—, no sobre un clasificador
-con decodificación por gramática, donde lo único que importa es cómo se reparte
-la masa de probabilidad entre 86 nombres. Que empuje hacia `derivar` sin
-ensuciar la elección entre los otros 85 es plausible, no está medido. Es
-hipótesis con buen respaldo, y se mide barato.
+**Medido después**: la dirección existe y empuja de verdad (0,53 de separación
+relativa en la capa 22, y a escala 0,02 sube las derivaciones de 5/8 a 7/8).
+Pero satura de golpe —a 0,05 deriva el 100 % de todo— y como mando es peor que
+sesgar el logit. Ver «Lo que se midió» más arriba.
 
 ### Sobre derivar: tres papers, y uno nos corrige
 
