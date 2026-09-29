@@ -53,6 +53,8 @@ def main():
     ap.add_argument("--puerto", type=int, default=8099)
     ap.add_argument("--hilos", type=int, default=8)
     ap.add_argument("--casos", type=int, default=0, help="0 = todos los reactivos")
+    ap.add_argument("--ejemplos", type=int, default=0,
+                    help="cuantos pares resueltos meter DENTRO del prefijo cacheado")
     ap.add_argument("--solo-nombre", action="store_true",
                     help="que conteste solo el nombre de la herramienta, sin argumentos")
     args = ap.parse_args()
@@ -66,7 +68,7 @@ def main():
         casos = casos[:args.casos]
 
     # El prefijo TIENE que ser identico en cada pedido: lo variable va al final.
-    cabeza, cola = lp.partes(inv)
+    cabeza, cola = lp.partes(inv, args.ejemplos)
 
     env = {"LD_LIBRARY_PATH": str(LLAMA), "PATH": "/usr/bin:/bin"}
     srv = subprocess.Popen(
@@ -103,7 +105,8 @@ def main():
 
         frio, calientes = filas[0], filas[1:]
         def med(k, xs): return round(sum(x[k] for x in xs) / max(1, len(xs)), 1)
-        print(f"\nmodelo: {Path(args.modelo).name} · {args.hilos} hilos · {len(casos)} casos reactivos")
+        print(f"\nmodelo: {Path(args.modelo).name} · {args.hilos} hilos · {len(casos)} casos reactivos"
+              f" · ejemplos en el prefijo: {args.ejemplos}")
         print(f"fichas: {len(nombres)} herramientas · prefijo: {frio['prompt_n']} tokens")
         print(f"acierto: {aciertos}/{len(casos)}  ({100*aciertos//max(1,len(casos))}%)")
         print(f"\n  PRIMERA (prefijo frio):  prefill {frio['prompt_ms']} ms · generar {frio['gen_ms']} ms"

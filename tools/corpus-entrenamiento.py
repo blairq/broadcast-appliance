@@ -119,6 +119,29 @@ def main():
                     continue
                 filas.append(ejemplo(cabeza, cola, v, herr))
 
+    # EQUILIBRIO. Una herramienta con cinco ejemplos y otra con treinta le
+    # ensenan al modelo a preferir la frecuente cuando duda, que es justo
+    # cuando no tiene que inventar preferencias. A las flacas se les generan
+    # mas variantes de sus propias semillas hasta llegar al minimo; no se
+    # inventan frases nuevas, se escribe distinto lo mismo.
+    minimo = 14
+    por_herr = {}
+    for f in filas:
+        por_herr.setdefault(f["herramienta"], []).append(f)
+    for herr, d_ in sorted(sem.items()):
+        faltan = minimo - len(por_herr.get(herr, []))
+        intentos = 0
+        while faltan > 0 and intentos < 200:
+            intentos += 1
+            frase = rnd.choice(d_["frases"])
+            for v in variantes(frase, rnd, cuantas=2):
+                if sin_tildes(v.lower()) in prohibidas:
+                    continue
+                filas.append(ejemplo(cabeza, cola, v, herr))
+                faltan -= 1
+                if faltan <= 0:
+                    break
+
     # Sin repetidos exactos, y barajado: si quedan agrupadas por herramienta,
     # los ultimos pasos de entrenamiento ven una sola clase.
     vistas, unicas = set(), []
@@ -152,10 +175,14 @@ def main():
     for f in ent:
         porc[f["herramienta"]] = porc.get(f["herramienta"], 0) + 1
     flojas = sorted(porc.items(), key=lambda x: x[1])[:5]
+    gordas = sorted(porc.items(), key=lambda x: -x[1])[:3]
     print(f"entrenar: {len(ent)} · validar: {len(val)} · examen: {len(examen)} (intacto)")
     print(f"herramientas cubiertas: {len(porc)} de {len(validas)} del repertorio reactivo")
     print(f"descartadas por chocar con el examen: {chocadas}")
-    print(f"las menos representadas: {', '.join(f'{h}({n})' for h, n in flojas)}")
+    print(f"ejemplos por herramienta: {min(porc.values())} a {max(porc.values())}"
+          f" (mediana {sorted(porc.values())[len(porc)//2]})")
+    print(f"  las mas flacas: {', '.join(f'{h}({n})' for h, n in flojas)}")
+    print(f"  las mas gordas: {', '.join(f'{h}({n})' for h, n in gordas)}")
     sin = sorted(validas - set(porc))
     if sin:
         print(f"SIN UNA SOLA FRASE ({len(sin)}): {', '.join(sin[:14])}")

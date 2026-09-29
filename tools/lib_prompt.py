@@ -54,20 +54,62 @@ def fichas(inv=None):
     return sorted(out)
 
 
-def prefijo(inv=None):
-    """La parte FIJA: sistema + fichas. Es lo unico que se cachea, asi que
-    tiene que ser identica byte a byte en cada pedido."""
-    return SISTEMA_NOMBRE + "\n".join(fichas(inv))
+def ejemplos_resueltos(cuantos, semilla=11, archivo=None):
+    """Pares «frase -> herramienta» para meter DENTRO del prefijo.
+
+    POR QUE ACA Y NO EN CADA PEDIDO. El prefijo se cachea: estos ejemplos se
+    procesan UNA vez, al arrancar, y despues no cuestan absolutamente nada por
+    pedido. Aprendizaje en contexto a costo cero de latencia, que es una
+    economia rara y conviene aprovecharla.
+
+    COMO SE ELIGEN. Uno por herramienta antes de repetir ninguna: con 73 clases
+    y veinte ejemplos, veinte clases tendrian ejemplo y cincuenta y tres no, y
+    el modelo aprende a preferir las que vio. Dentro de cada herramienta se
+    prefiere la frase MAS CORTA, que es la que mejor muestra la intencion sin
+    ruido de superficie.
+    """
+    import random
+    archivo = archivo or (RAIZ / "datos/entrenamiento/entrenar.jsonl")
+    if cuantos <= 0 or not archivo.exists():
+        return ""
+    porh = {}
+    for linea in archivo.read_text(encoding="utf-8").splitlines():
+        if not linea.strip():
+            continue
+        f = json.loads(linea)
+        porh.setdefault(f["herramienta"], []).append(f["frase"])
+    rnd = random.Random(semilla)
+    for h in porh:
+        porh[h].sort(key=lambda x: (len(x), x))
+    herrs = sorted(porh)
+    rnd.shuffle(herrs)
+    elegidos, vuelta = [], 0
+    while len(elegidos) < cuantos and vuelta < 12:
+        for h in herrs:
+            if vuelta < len(porh[h]):
+                elegidos.append((porh[h][vuelta], h))
+                if len(elegidos) >= cuantos:
+                    break
+        vuelta += 1
+    rnd.shuffle(elegidos)
+    cuerpo = "\n".join(f"{frase} -> {herr}" for frase, herr in elegidos)
+    return "\nEjemplos de como pide el operador:\n" + cuerpo + "\n"
 
 
-def partes(inv=None):
+def prefijo(inv=None, ejemplos=0):
+    """La parte FIJA: sistema + fichas (+ ejemplos). Es lo unico que se
+    cachea, asi que tiene que ser identica byte a byte en cada pedido."""
+    return SISTEMA_NOMBRE + "\n".join(fichas(inv)) + ejemplos_resueltos(ejemplos)
+
+
+def partes(inv=None, ejemplos=0):
     """(cabeza, cola) alrededor de la frase del operador.
 
     Lo variable va DESPUES de lo fijo: el cache es de prefijo. Y `<think>`
     vacio es el modo no-thinking de Qwen3, escrito en el propio prompt para
     que no dependa de una opcion del servidor.
     """
-    cabeza = f"<|im_start|>system\n{prefijo(inv)}<|im_end|>\n<|im_start|>user\n"
+    cabeza = f"<|im_start|>system\n{prefijo(inv, ejemplos)}<|im_end|>\n<|im_start|>user\n"
     cola = "<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"
     return cabeza, cola
 

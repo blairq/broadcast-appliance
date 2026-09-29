@@ -1,0 +1,96 @@
+# Entrenar el modelo chico de eventos inmediatos
+
+Lo que se quiere: que cuando alguien diga **«está acoplando»**, el aparato
+elija `audio_measure` o `audio_set` en menos de lo que tarda el operador en
+darse vuelta. Hoy eso lo decide un modelo de 1.7B corriendo en la notebook, en
+CPU, y **acierta poco**: ese es el problema que este entrenamiento ataca.
+
+## Qué es la tarea, exactamente
+
+No es «usar herramientas». Es **elegir una entre 73**, dada una frase corta de
+cabina. Clasificación con relleno de huecos, no razonamiento — y por eso un
+modelo chico puede servir.
+
+El buscador del aparato (`McpIndice`, 28 µs) ya resuelve la parte de *buscar*
+entre 291. Para los reactivos ni siquiera hace falta: el repertorio es fijo y
+chico, así que van las 73 fichas enteras en el prompt, **cacheadas**.
+
+## Las mediciones que justifican cada decisión
+
+Todas en la notebook (Ryzen 4000/5000, 8 hilos, sin GPU), 48 casos del examen.
+
+| | prefill | generar | total | acierto |
+|---|---|---|---|---|
+| Primera vez (prefijo frío) | 23,0 s | 0,13 s | 23,1 s | |
+| Con el prefijo cacheado | 0,63 s | 0,15 s | **0,79 s** | 58% (Q4) |
+| Q8_0 | | | 0,92 s | 62% |
+| Q4 + 73 ejemplos en contexto | | | 1,62 s | 64% |
+| Q4 + 146 ejemplos en contexto | | | 1,87 s | 62% |
+
+De acá salen cuatro decisiones:
+
+1. **Cachear el prefijo** saca 22 segundos de encima. Sin eso no hay producto.
+2. **Contestar sólo el nombre**, no el JSON: 0,79 s contra 2,8 s, mismo
+   acierto. Los argumentos los pone el aparato, que sabe qué canal está
+   picando.
+3. **Los ejemplos en contexto ayudan poco y se aplanan** (58 → 64 → 62). Sirven
+   como piso, no como solución. Y cacheado no es gratis del todo: la atención
+   sobre un KV más largo costó 400 ms por pedido.
+4. Por lo tanto, **entrenar**. Con el 62% del Q8 como línea de base a superar.
+
+## El método, y por qué cada parte
+
+- **El prompt es el mismo que se sirve**, fichas incluidas, armado por
+  `tools/lib_prompt.py` — un solo módulo para el banco, el corpus y esto. Este
+  proyecto ya se comió el error contrario: con el sistema pidiendo JSON y la
+  gramática dejando escribir sólo el nombre, el acierto cayó de 56% a 16%.
+  Parecía que el modelo no sabía; le pedíamos una cosa y lo forzábamos a otra.
+- **La pérdida, sólo sobre la respuesta.** El prompt son 2.650 tokens idénticos
+  en todos los ejemplos: dejarlo aportar es enseñarle a predecir su propio
+  prompt. El script **imprime sobre qué texto calcula la pérdida** antes de
+  arrancar, porque una máscara mal puesta no falla, entrena mal.
+- **LoRA sobre todas las lineales**, también las del MLP. Con sólo `q,v` el
+  modelo aprende a reconocer palabras pero no a reasignar clases parecidas, y
+  ahí es donde están los errores.
+- **Validación partida por frase semilla**, no al azar: si la misma intención
+  queda de los dos lados, validar mide memoria.
+- **El examen no se toca jamás.** Son las preguntas del corpus de siempre
+  (`src/app/tests/datos/preguntas.json`), escritas antes de que existiera la
+  idea de entrenar. El generador descarta las variantes que caen encima de una
+  de ellas (38 esta vez).
+
+## Dónde están los errores hoy
+
+Los cuatro fallos que miré uno por uno eran **todos entre herramientas
+vecinas**, por una palabra de superficie:
+
+    poné al aire la apertura       -> speaker_on_air   (por «on_air» en el nombre)
+    cortá a la cámara 2            -> transition_set   (por «corta» -> corte)
+    dejá preparada la del cierre   -> scene_switch     (armar contra tomar)
+    qué hay adentro de la escena   -> capture_source
+
+Eso **no se arregla con volumen**. Por eso el corpus tiene pares escritos para
+distinguir a las vecinas, y no sólo más paráfrasis de lo mismo.
+
+## Correrlo
+
+En el servidor con las 3090:
+
+    pip install unsloth trl datasets
+    tools/entrenar/entrenar.py --prueba          # 20 pasos, a ver que arranca
+    tools/entrenar/entrenar.py --salida modelos/reactivo-v1
+
+Un 1.7B entra entero en una 3090, así que no hace falta QLoRA. Con ~1.100
+ejemplos de 2.700 tokens son unos pocos minutos por época.
+
+Después, **en la notebook**, contra el mismo examen:
+
+    tools/bateria-local.py --modelo modelos/reactivo-v1-q8_0/...gguf --solo-nombre
+
+## Lo que este corpus no es
+
+No es dato real de operación. Las frases son verosímiles, no observadas:
+enseñan el mapa, no la distribución de lo que de verdad pasa un martes a las
+ocho. Lo real sale de la traza del aparato —qué hizo el operador y en qué
+estado estaba todo— y **todavía no se guarda**. Ese es el próximo paso, y el
+que más va a mover el número.
