@@ -194,9 +194,28 @@ Item {
                     z: Math.round(PathView.z ?? 0)
                     // Apaisada, como las laminas. Antes era alta y angosta y
                     // cada lamina quedaba flotando en una franja negra.
-                    width: Math.min(tira.width * 0.42, tira.height * 1.4)
+                    //
+                    // CON TECHO. Maximizada, cada tarjeta pasaba de 800 px y
+                    // cinco tarjetas giradas a ese tamaño son mucho relleno de
+                    // pixeles por cuadro: se arrastraba. Mas grande que esto no
+                    // sirve para nada —ya se lee de sobra— y el que quiere
+                    // verla en serio la pone al aire.
+                    width: Math.min(tira.width * 0.42, tira.height * 1.4, 620)
                     height: Math.min(tira.height * 0.92, width * 0.66)
                     scale: escala
+
+                    // CADA TARJETA SE DIBUJA UNA VEZ Y DESPUES SE MUEVE LA
+                    // TEXTURA. Es la aceleracion que le faltaba: sin esto, en
+                    // cada cuadro del giro se vuelven a dibujar la imagen, el
+                    // borde redondeado y el rotulo de las cinco tarjetas. Con
+                    // esto se dibujan cuando CAMBIAN, y girar es mover cinco
+                    // cuadrilateros con textura, que es lo que la placa hace
+                    // sin despeinarse.
+                    layer.enabled: true
+                    layer.smooth: true
+                    // Tamaño FIJO de la textura: atado al de la tarjeta, cada
+                    // cambio de tamaño de la ventana reasigna cinco buffers.
+                    layer.textureSize: Qt.size(620, 410)
 
                     // SIN `Behavior` sobre el angulo. PathView ya interpola el
                     // giro mientras el item recorre el camino: poner una
