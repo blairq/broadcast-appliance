@@ -327,6 +327,8 @@ Item {
                     delegate: Item {
                         id: celda
                         required property var modelData
+                        required property int index
+                        readonly property int indiceEnGrilla: index
                         readonly property bool elegido: raiz.m.seleccion.indexOf(modelData.relativa) >= 0
                         width: grilla.cellWidth - 10
                         height: grilla.cellHeight - 10
@@ -423,6 +425,15 @@ Item {
                                 onClicked: (mouse) => {
                                     if (mouse.button === Qt.RightButton) menuArchivo.popup()
                                 }
+                                // Doble clic lo ABRE. Es lo que uno hace sin
+                                // pensar en cualquier carpeta del mundo, y
+                                // antes de poner algo al aire hay que saber
+                                // que es: la miniatura no dice si el video es
+                                // el corte bueno o el de la prueba.
+                                onDoubleClicked: (mouse) => {
+                                    if (mouse.button !== Qt.LeftButton) return
+                                    visor.abrir(celda.indiceEnGrilla)
+                                }
 
                                 drag.onActiveChanged: {
                                     if (drag.active) {
@@ -468,9 +479,19 @@ Item {
         }
     }
 
+    // El visor: uno solo para toda la grilla, y se le dice por que indice
+    // empezar. Ver VisorMedio.qml.
+    VisorMedio { id: visor }
+
     // --- Qué hacer con lo elegido --------------------------------------------
     Menu {
         id: menuArchivo
+        MenuItem {
+            text: "Abrir"
+            enabled: raiz.m.cuantosElegidos === 1
+            onTriggered: visor.abrir(raiz.m.archivos.findIndex(
+                (a) => a.relativa === raiz.m.seleccion[0]))
+        }
         MenuItem {
             text: "Renombrar…"
             enabled: raiz.m.cuantosElegidos === 1

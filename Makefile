@@ -588,8 +588,9 @@ deps-qt:
 	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
 	@mkdir -p "$(QT6_DEST)"
 	@if [ -f "$(QT6_SENTINEL)" ] && [ "$$(sha256sum "$(QT6_SENTINEL)" | cut -d' ' -f1)" = "$(QT6_SHA)" ] \
-	    && [ -f "$(QT6_PREFIX)/lib/cmake/Qt6Pdf/Qt6PdfConfig.cmake" ]; then \
-	  echo "[deps] Qt6 $(QT6_VER): ya presente y verificado, con qtpdf ($(QT6_PREFIX))"; \
+	    && [ -f "$(QT6_PREFIX)/lib/cmake/Qt6Pdf/Qt6PdfConfig.cmake" ] \
+	    && [ -f "$(QT6_PREFIX)/lib/cmake/Qt6Multimedia/Qt6MultimediaConfig.cmake" ]; then \
+	  echo "[deps] Qt6 $(QT6_VER): ya presente y verificado, con qtpdf y qtmultimedia ($(QT6_PREFIX))"; \
 	else \
 	  echo "[deps] Qt6 $(QT6_VER): instalando aqtinstall en el .venv..."; \
 	  test -x "$(PY)" || python3 -m venv .venv; \
@@ -597,7 +598,7 @@ deps-qt:
 	    || { echo "[deps] ERROR Qt6: no se pudo instalar aqtinstall" >&2; exit 1; }; \
 	  echo "[deps] Qt6 $(QT6_VER): instalando SDK win64_msvc2019_64 a $(QT6_PREFIX)"; \
 	  rm -rf "$(QT6_DEST)"; \
-	  "$(PY)" -m aqt install-qt windows desktop $(QT6_VER) win64_msvc2019_64 -m qtpdf -O "$(QT6_DEST)" \
+	  "$(PY)" -m aqt install-qt windows desktop $(QT6_VER) win64_msvc2019_64 -m qtpdf qtmultimedia -O "$(QT6_DEST)" \
 	    || { echo "[deps] ERROR Qt6: fallo de aqt" >&2; exit 1; }; \
 	  if [ -f "$(QT6_SENTINEL)" ]; then \
 	    echo "[deps] Qt6 $(QT6_VER): SDK instalado ($(QT6_PREFIX))"; \
@@ -629,18 +630,25 @@ QT6_HOST_SENTINEL := $(QT6_HOST_DEST)/$(QT6_VER)/$(QT6_HOST_DIR)/lib/cmake/Qt6/Q
 # (ver docs/CARRUSEL.md). Se eligio sobre MuPDF porque usa el mismo vendoreo que
 # ya existe, anda igual en Linux y Windows, y no agrega otro build.
 QT6_HOST_PDF := $(QT6_HOST_DEST)/$(QT6_VER)/$(QT6_HOST_DIR)/lib/cmake/Qt6Pdf/Qt6PdfConfig.cmake
+# Multimedia (qtmultimedia), con su propio centinela por lo mismo que el PDF.
+# Es para VER un archivo antes de ponerlo al aire: doble clic en la pestaña
+# Medios. Su motor ES ffmpeg —Qt lo trae adentro desde 6.5— asi que no hace
+# falta ni VLC ni un ffmpeg del sistema ni levantar otro proceso: es el mismo
+# vendoreo de Qt que ya usamos, igual en Linux y en Windows.
+QT6_HOST_MM := $(QT6_HOST_DEST)/$(QT6_VER)/$(QT6_HOST_DIR)/lib/cmake/Qt6Multimedia/Qt6MultimediaConfig.cmake
 
 deps-qt-host:
-	@if [ -f "$(QT6_HOST_SENTINEL)" ] && [ -f "$(QT6_HOST_PDF)" ]; then \
-	  echo "[deps] Qt6 $(QT6_VER) ($(QT6_HOST_ARCH)): ya presente con qtpdf ($(QT6_HOST_DEST))"; \
+	@if [ -f "$(QT6_HOST_SENTINEL)" ] && [ -f "$(QT6_HOST_PDF)" ] && [ -f "$(QT6_HOST_MM)" ]; then \
+	  echo "[deps] Qt6 $(QT6_VER) ($(QT6_HOST_ARCH)): ya presente con qtpdf y qtmultimedia ($(QT6_HOST_DEST))"; \
 	else \
 	  test -x "$(PY)" || python3 -m venv .venv; \
 	  "$(PIP)" install -q aqtinstall || { echo "[deps] ERROR Qt6: no se pudo instalar aqtinstall" >&2; exit 1; }; \
-	  echo "[deps] Qt6 $(QT6_VER): instalando $(QT6_HOST_OS)/$(QT6_HOST_ARCH) (+qtpdf) en $(QT6_HOST_DEST)"; \
-	  "$(PY)" -m aqt install-qt $(QT6_HOST_OS) desktop $(QT6_VER) $(QT6_HOST_ARCH) -m qtpdf -O "$(QT6_HOST_DEST)" \
+	  echo "[deps] Qt6 $(QT6_VER): instalando $(QT6_HOST_OS)/$(QT6_HOST_ARCH) (+qtpdf +qtmultimedia) en $(QT6_HOST_DEST)"; \
+	  "$(PY)" -m aqt install-qt $(QT6_HOST_OS) desktop $(QT6_VER) $(QT6_HOST_ARCH) -m qtpdf qtmultimedia -O "$(QT6_HOST_DEST)" \
 	    || { echo "[deps] ERROR Qt6: fallo de aqt" >&2; exit 1; }; \
 	  test -f "$(QT6_HOST_SENTINEL)" || { echo "[deps] ERROR Qt6: falta $(QT6_HOST_SENTINEL)" >&2; exit 1; }; \
 	  test -f "$(QT6_HOST_PDF)" || { echo "[deps] ERROR Qt6: aqt no dejo el modulo qtpdf" >&2; exit 1; }; \
+	  test -f "$(QT6_HOST_MM)" || { echo "[deps] ERROR Qt6: aqt no dejo el modulo qtmultimedia" >&2; exit 1; }; \
 	fi
 
 deps-webrtc:

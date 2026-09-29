@@ -70,7 +70,7 @@ if(BA_HAVE_LIBOBS)
         # la ruta general: el Qt vendoreado va PRIMERO para que ninguno se
         # resuelva contra un Qt del sistema.
         list(PREPEND CMAKE_PREFIX_PATH "${BA_QT_PREFIX}")
-        find_package(Qt6 COMPONENTS Gui Quick Qml QuickControls2 Network Svg Pdf CONFIG PATHS "${BA_QT_PREFIX}" NO_DEFAULT_PATH QUIET)
+        find_package(Qt6 COMPONENTS Gui Quick Qml QuickControls2 Network Svg Pdf Multimedia CONFIG PATHS "${BA_QT_PREFIX}" NO_DEFAULT_PATH QUIET)
         set(BA_APP_QT_OK ${Qt6_FOUND})
     endif()
 endif()
@@ -299,7 +299,11 @@ if(BA_APP_QT_OK)
     # SVG que se exporta (ver ui/QrViewModel.cpp).
     # Qt6::Pdf rinde las paginas de un PDF a imagenes (carrusel/Conversion.cpp).
 # Es de Qt, no una dependencia nueva: ver make deps-qt-host (-m qtpdf).
-target_link_libraries(ba-app PRIVATE Qt6::Gui Qt6::Quick Qt6::Qml Qt6::QuickControls2 Qt6::Network Qt6::Svg Qt6::Pdf)
+# Qt6::Multimedia reproduce el video y el audio del visor de Medios (doble clic
+# en un archivo). SU MOTOR ES FFMPEG y Qt lo trae enlazado ADENTRO del plugin:
+# no hace falta un ffmpeg del sistema, ni VLC, ni levantar otro proceso. Se
+# verifico con ldd: `libffmpegmediaplugin.so` no pide ningun libav*.
+target_link_libraries(ba-app PRIVATE Qt6::Gui Qt6::Quick Qt6::Qml Qt6::QuickControls2 Qt6::Network Qt6::Svg Qt6::Pdf Qt6::Multimedia)
 # Donde esta el LibreOffice de extern/, para poder convertir corriendo desde el
 # directorio de compilacion. En el bundle se lo busca al lado del ejecutable.
 if(WIN32)
@@ -485,6 +489,18 @@ endif()
     endif()
     set_target_properties(test_conversion PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_conversion COMMAND test_conversion)
+
+    # Que el Qt vendoreado DECODIFIQUE de verdad. Ver el comentario del .cpp:
+    # si el plugin de ffmpeg no viaja, no falla al compilar ni al arrancar,
+    # falla cuando alguien hace doble clic en un video en vivo.
+    add_executable(test_multimedia tests/test_multimedia.cpp)
+    target_link_libraries(test_multimedia PRIVATE Qt6::Core Qt6::Multimedia)
+    target_compile_definitions(test_multimedia PRIVATE
+        BA_TEST_DATOS="${CMAKE_CURRENT_SOURCE_DIR}/tests/datos")
+    set_target_properties(test_multimedia PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_multimedia COMMAND test_multimedia)
+    set_tests_properties(test_multimedia PROPERTIES
+        TIMEOUT 60 ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_PLUGIN_PATH=${BA_QT_PREFIX}/plugins")
     set_tests_properties(test_conversion PROPERTIES TIMEOUT 400)
 
     # Los archivos del operador: tipos, busqueda y no salirse de la carpeta.
@@ -620,13 +636,16 @@ if(BA_APP_QT_OK AND UNIX AND NOT APPLE)
     list(APPEND _ba_qt_plugins "platformthemes/libqxdgdesktopportal.so")
     # JPEG: capturas del servidor MCP y fotos de los oradores.
     list(APPEND _ba_qt_plugins "imageformats/libqjpeg.so")
+    # El motor de reproduccion. `gstreamermediaplugin` NO va: pediria GStreamer
+    # del sistema, que es justo lo que no puede pasar en un aparato portable.
+    list(APPEND _ba_qt_plugins "multimedia/libffmpegmediaplugin.so")
     install(CODE "
         set(BA_QT_LIB_DIR \"${BA_QT_PREFIX}/lib\")
         set(BA_QT_PLUGIN_DIR \"${BA_QT_PREFIX}/plugins\")
         set(BA_QT_PLUGINS \"${_ba_qt_plugins}\")
         set(BA_APP_BUILD_EXE \"$<TARGET_FILE:ba-app>\")
         set(BA_QT_QML_DIR \"${BA_QT_PREFIX}/qml\")
-        set(BA_QT_QML_MODULES \"QtQml;QtQuick\")
+        set(BA_QT_QML_MODULES \"QtQml;QtQuick;QtMultimedia\")
     ")
     install(SCRIPT "${CMAKE_SOURCE_DIR}/cmake/BaQtDeploy.cmake")
 endif()
@@ -637,10 +656,10 @@ if(BA_APP_QT_OK AND WIN32)
     install(CODE "
         set(BA_QT_BIN_DIR \"${BA_QT_PREFIX}/bin\")
         set(BA_QT_PLUGIN_DIR \"${BA_QT_PREFIX}/plugins\")
-        set(BA_QT_PLUGINS \"platforms/qwindows.dll;platforms/qoffscreen.dll;imageformats/qjpeg.dll;imageformats/qsvg.dll;imageformats/qico.dll;tls/qschannelbackend.dll;tls/qcertonlybackend.dll;iconengines/qsvgicon.dll\")
+        set(BA_QT_PLUGINS \"platforms/qwindows.dll;platforms/qoffscreen.dll;imageformats/qjpeg.dll;imageformats/qsvg.dll;imageformats/qico.dll;tls/qschannelbackend.dll;tls/qcertonlybackend.dll;iconengines/qsvgicon.dll;multimedia/ffmpegmediaplugin.dll\")
         set(BA_APP_BUILD_EXE \"$<TARGET_FILE:ba-app>\")
         set(BA_QT_QML_DIR \"${BA_QT_PREFIX}/qml\")
-        set(BA_QT_QML_MODULES \"QtQml;QtQuick;QtCore\")
+        set(BA_QT_QML_MODULES \"QtQml;QtQuick;QtCore;QtMultimedia\")
         set(BA_OBJDUMP \"${BA_OBJDUMP_WIN}\")
         set(BA_CRT_REDIST_DIR \"${CMAKE_SOURCE_DIR}/extern/msvc/redist\")
     " COMPONENT bundle)
