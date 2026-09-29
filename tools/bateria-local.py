@@ -110,6 +110,7 @@ def main():
             ok = elegida in c["herramientas"]
             aciertos += ok
             filas.append({"pregunta": c["pregunta"], "elegida": elegida, "ok": ok,
+                          "aceptables": c["herramientas"],
                           "prompt_n": t.get("prompt_n", 0), "prompt_ms": round(t.get("prompt_ms", 0), 1),
                           "gen_n": t.get("predicted_n", 0), "gen_ms": round(t.get("predicted_ms", 0), 1),
                           "total_ms": round(t.get("prompt_ms", 0) + t.get("predicted_ms", 0), 1)})
@@ -134,7 +135,10 @@ def main():
                 print(f"    {f['pregunta']!r} -> {f['elegida']}")
         (RAIZ / "docs" / "bateria-local.json").write_text(
             json.dumps({"modelo": Path(args.modelo).name, "hilos": args.hilos,
-                        "aciertos": aciertos, "casos": len(casos), "filas": filas},
+                        "aciertos": aciertos, "casos": len(casos), "filas": filas,
+                        # Igual que evaluar.py, para que fallos.py lea cualquiera.
+                        "fallos": [{"frase": f["pregunta"], "elegida": f["elegida"],
+                                    "aceptables": f["aceptables"]} for f in filas if not f["ok"]]},
                        ensure_ascii=False, indent=1), encoding="utf-8")
     finally:
         srv.terminate()

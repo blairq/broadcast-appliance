@@ -34,6 +34,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--modelo", required=True)
     ap.add_argument("--largo", type=int, default=4096)
+    ap.add_argument("--json", default="", help="donde dejar los fallos, para tools/entrenar/fallos.py")
     ap.add_argument("--ejemplos", type=int, default=0,
                     help="pares resueltos en el prefijo (para comparar con el aprendizaje en contexto)")
     args = ap.parse_args()
@@ -85,6 +86,12 @@ def main():
         print(f"\nfallos ({len(fallos)}):")
         for f, e, ac in fallos[:20]:
             print(f"  {f[:44]:46s} -> {e:22s} (esperaba {', '.join(ac)})")
+    if args.json:
+        Path(args.json).write_text(json.dumps(
+            {"modelo": args.modelo, "aciertos": aciertos, "casos": len(casos),
+             "fallos": [{"frase": f, "elegida": e, "aceptables": ac} for f, e, ac in fallos]},
+            ensure_ascii=False, indent=1), encoding="utf-8")
+        print(f"\nfallos -> {args.json}  (clasificarlos: tools/entrenar/fallos.py)")
 
 
 if __name__ == "__main__":
