@@ -212,6 +212,104 @@ suyo, precisión de lo que atendió— y cuánto de lo ajeno pasó bien.
 fuera de alcance, es baja confianza, y se resuelve en el momento con un umbral
 sobre la probabilidad del nombre elegido, no con ejemplos.
 
+## Lo que dice la literatura, y qué de eso nos aplica
+
+Buscado en septiembre de 2026, después de tener el método armado. Sirvió para
+confirmar dos decisiones, corregir una y descartar una tercera.
+
+### El fine-tune gemelo confirma el techo del 12 %
+
+Existe un [Qwen3-1.7B afinado para tool calling](https://github.com/pmrccs/qwen3-1.7b-tool-calling-v4)
+sobre la misma base `unsloth/Qwen3-1.7B`: LoRA r=16, 300 pasos, lr 5e-5 coseno.
+Su mezcla de datos es **85 % llamadas a herramientas y 15 % `xlam-irrelevance-7.5k`**,
+un corpus de pedidos que no corresponden a ninguna herramienta.
+
+O sea que el fine-tune público más parecido al nuestro también le reserva a la
+clase «esto no es para mí» una porción de ese orden. Nosotros pusimos techo en
+12 % razonando desde cero. Llegamos al mismo número por caminos distintos.
+
+(Sus números —BFCL v4: 72,6 % Non-Live AST, 58,6 % Live— no comparan con los
+nuestros: ellos generan los argumentos, nosotros elegimos 1 entre 86 con
+gramática, que es mucho más fácil. Lo que compara es el reparto.)
+
+También anotan que los formatos de esquema ausentes del entrenamiento rindieron
+mal. Es lo mismo que medimos acá al agregar 12 herramientas no vistas: 0/3.
+
+### La confianza de un 1,7B no sirve como señal, y eso ordena las prioridades
+
+[Revisiting Uncertainty Estimation and Calibration of LLMs](https://arxiv.org/abs/2505.23854)
+barre la serie Qwen3 de 0,6B a 32B y encuentra que **los chicos —0,6B y 1,7B,
+el nuestro— no producen incertidumbre útil**: los de 14B y 32B los superan
+consistentemente en calibración (ECE) y en clasificación selectiva (AUROC).
+Aparte, Qwen arranca fuertemente sobreconfiado: hace falta un escalado de
+temperatura de T ≈ 4,6 para calibrarlo.
+
+**Consecuencia para el diseño.** `derivar` como clase entrenada es el mecanismo
+PRINCIPAL, no el secundario. Un 1,7B reconoce bastante bien que un pedido no se
+parece a lo suyo, y bastante mal cuánta confianza tiene. Era al revés en el plan
+original, que ponía un umbral sobre la probabilidad como la solución.
+
+Un umbral sigue teniendo lugar para la *duda* dentro de lo suyo, pero **va
+calibrado** (el escalado de temperatura es un parámetro solo, se ajusta sobre
+`validar.jsonl` y es lo más barato que hay), y hay que medir antes de creerle.
+
+### Sobre derivar: tres papers, y uno nos corrige
+
+- [Conformal Cascade](https://arxiv.org/abs/2607.25018) (2026) sostiene que el
+  umbral de confianza está mal como regla de derivación —mal calibrado, hay que
+  ajustarlo por par de modelos y por dominio, no da garantías— y propone usar el
+  **tamaño del conjunto conforme**: se acepta si el conjunto se reduce a una sola
+  respuesta, se deriva si no. No necesita entrenamiento, sólo un set de
+  calibración. Para nosotros es barato porque la gramática nos da una
+  distribución honesta sobre los 86 nombres, no una confianza inventada sobre
+  texto libre. **Pero** asume que el orden de las probabilidades separa aciertos
+  de errores, y el paper de arriba dice que en 1,7B esa separación es floja: si
+  los conjuntos salen grandes, deriva de más. Se mide antes de adoptarlo.
+- [GATEKEEPER](https://arxiv.org/abs/2502.19335) (ICML 2025) es una pérdida que
+  afina al chico para tener **confianza alta cuando acierta y baja cuando no**.
+  Ataca la duda, que es justo lo que la clase `derivar` no cubre. Cambia
+  `entrenar.py` y obliga a re-medir todo.
+- [Signed Rescue Routing](https://arxiv.org/html/2609.07786) (2026) **corrige
+  algo que estaba escrito mal acá**: derivar de más no cuesta sólo segundos. El
+  grande puede elegir otra herramienta y equivocarse. Miden 12,4 % de casos donde
+  el grande rescata y **5,3 % donde empeora**, y derivar el 100 % rindió peor que
+  derivar el 50 %. La señal correcta no es «el chico duda» sino «derivar sirve».
+  El techo del 12 % queda mejor justificado de lo que lo justificamos.
+
+### Cuantización: la caída del Q4 es esperable, y las rotaciones
+
+Nuestra medición fue Q4 58 % contra Q8 62 %. La literatura explica las dos
+mitades: los modelos chicos son más frágiles a la cuantización que los grandes
+—menos parámetros, menos margen para absorber el error numérico— y los modelos
+con **GQA sufren especialmente con Q4**, porque compartir las proyecciones K/V
+entre grupos interactúa mal con cuantizar los pesos. Qwen3-1.7B es GQA. **Va Q8
+al aparato.**
+
+**Rotaciones de Hadamard.** [QuaRot](https://arxiv.org/html/2404.00456) rota los
+estados ocultos con matrices de Hadamard: como la rotación no cambia los
+productos internos, la salida es la misma, pero los *outliers* —que son lo que
+arruina la cuantización— se reparten y desaparecen. [SpinQuant](https://arxiv.org/abs/2405.16406)
+aprende la rotación en vez de fijarla y le saca hasta 16 puntos.
+
+Qué de esto nos toca, que es menos de lo que parece:
+
+- **Del lado de los pesos, nada por ahora.** QuaRot y SpinQuant necesitan cirugía
+  sobre el grafo para absorber las rotaciones en las capas lineales vecinas, y el
+  cuantizador de llama.cpp no hace eso: ataca el mismo problema con **imatrix**,
+  que es lo que ya usa `tools/entrenar/cuantizar.sh`.
+- **Del lado de las activaciones, ya lo tenemos y ni lo sabíamos.** llama.cpp
+  mergeó el 1 de abril de 2026 la rotación de Hadamard de Q/K/V antes de guardar
+  en el caché ([PR #21038](https://github.com/ggml-org/llama.cpp/pull/21038)), y
+  **el build que vendoreamos —b11255— la trae** (se ve el símbolo
+  `LLAMA_ATTN_ROT_DISABLE` en la biblioteca). Mejora q4_0 … q8_0 del caché KV, no
+  hace falta re-cuantizar nada, y pide que la dimensión de cabeza sea múltiplo de
+  64: Qwen3-1.7B tiene 128.
+- **Pero hoy no nos cambia el número**, porque el caché KV lo tenemos en fp16.
+  Donde sí importaría es si algún día hay que achicar el prefijo cacheado —2.650
+  tokens que son lo que hace que conteste en 0,8 s— para que entre en menos
+  memoria: la rotación es lo que vuelve seguro cuantizar ese caché. Anotado para
+  cuando la notebook apriete, no antes.
+
 ## Las piezas
 
 | | |
