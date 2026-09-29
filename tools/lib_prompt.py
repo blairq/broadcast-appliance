@@ -114,6 +114,27 @@ def partes(inv=None, ejemplos=0):
     return cabeza, cola
 
 
+def huella(inv=None, ejemplos=0):
+    """La firma del prompt: si cambia, el modelo entrenado quedo viejo.
+
+    POR QUE HACE FALTA. Agregar una herramienta al MCP cambia las fichas, y las
+    fichas son parte del prompt con el que se entreno. El modelo sigue
+    contestando —no falla nada— pero le estan mostrando algo distinto de lo que
+    vio, y ademas puede elegir una herramienta que nunca aprendio. Es de las
+    degradaciones que no avisan, asi que hay que preguntarle.
+
+    Se guarda junto al conjunto de entrenamiento y la comparan el banco y el
+    entrenador.
+    """
+    import hashlib
+    inv = inv or inventario()
+    pref = prefijo(inv, ejemplos)
+    return {"prompt": hashlib.sha256(pref.encode()).hexdigest()[:16],
+            "herramientas": hashlib.sha256("|".join(herramientas_reactivas(inv)).encode()).hexdigest()[:16],
+            "cuantas": len(herramientas_reactivas(inv)),
+            "tokens_aprox": len(pref) // 4}
+
+
 def gramatica_nombre(nombres):
     """Solo un nombre que exista. No es un pedido: es imposible desviarse."""
     return "root ::= " + " | ".join('"%s"' % n for n in nombres) + "\n"

@@ -36,6 +36,10 @@ import lib_prompt as lp  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 SEMILLAS = RAIZ / "datos/semillas-reactivas.json"
+# Las propuestas automaticas (ver tools/corpus-descubrir.py). Entran al
+# conjunto porque es mejor que una herramienta nueva no exista para el modelo,
+# pero viven aparte para que se vea cuanto del corpus es de segunda mano.
+SEMILLAS_AUTO = RAIZ / "datos/semillas-auto.json"
 CORPUS = RAIZ / "src/app/tests/datos/preguntas.json"
 SALIDA = RAIZ / "datos/entrenamiento"
 
@@ -98,6 +102,13 @@ def main():
     cabeza, cola = lp.partes(inv)
 
     sem = json.loads(SEMILLAS.read_text(encoding="utf-8"))["herramientas"]
+    auto = {}
+    if SEMILLAS_AUTO.exists():
+        auto = json.loads(SEMILLAS_AUTO.read_text(encoding="utf-8"))["herramientas"]
+        # Las escritas a mano MANDAN: si una herramienta tiene las dos, la
+        # propuesta sobra y encima es peor.
+        auto = {k: v for k, v in auto.items() if k not in sem}
+        sem = {**sem, **auto}
     desconocidas = [h for h in sem if h not in validas]
     if desconocidas:
         sys.exit("semillas para herramientas que no estan en el repertorio: " + ", ".join(desconocidas))
@@ -176,7 +187,19 @@ def main():
         porc[f["herramienta"]] = porc.get(f["herramienta"], 0) + 1
     flojas = sorted(porc.items(), key=lambda x: x[1])[:5]
     gordas = sorted(porc.items(), key=lambda x: -x[1])[:3]
+    # La firma del prompt, al lado del conjunto: es lo que despues deja
+    # preguntar «¿el modelo que tengo corresponde a estas fichas?».
+    huella = lp.huella(inv)
+    huella["ejemplos_entrenar"] = len(ent)
+    huella["herramientas_con_frases"] = len(porc)
+    huella["propuestas_automaticas"] = sorted(auto)
+    (SALIDA / "huella.json").write_text(json.dumps(huella, ensure_ascii=False, indent=1) + "\n",
+                                        encoding="utf-8")
+
     print(f"entrenar: {len(ent)} · validar: {len(val)} · examen: {len(examen)} (intacto)")
+    if auto:
+        print(f"de segunda mano (propuestas sin revisar): {len(auto)} herramientas")
+    print(f"firma del prompt: {huella['prompt']} · {huella['cuantas']} herramientas")
     print(f"herramientas cubiertas: {len(porc)} de {len(validas)} del repertorio reactivo")
     print(f"descartadas por chocar con el examen: {chocadas}")
     print(f"ejemplos por herramienta: {min(porc.values())} a {max(porc.values())}"

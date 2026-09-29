@@ -85,6 +85,17 @@ def main():
         else:
             sys.exit("el servidor no levanto")
 
+        # Si el prompt cambio desde que se entreno, el numero que salga de aca
+        # no compara con nada: al modelo le estan mostrando otras fichas.
+        hjson = RAIZ / "datos/entrenamiento/huella.json"
+        if hjson.exists():
+            vieja = json.loads(hjson.read_text(encoding="utf-8"))
+            ahora = lp.huella(inv, args.ejemplos)
+            if vieja.get("prompt") != ahora["prompt"] and args.ejemplos == 0:
+                print(f"\n  OJO: el prompt cambio desde que se armo el conjunto"
+                      f" ({vieja.get('prompt')} -> {ahora['prompt']}).")
+                print("       Si el modelo es uno entrenado, fue con otras fichas.\n")
+
         gram = lp.gramatica_nombre(nombres) if args.solo_nombre else gramatica(nombres)
         base = {"n_predict": 80, "temperature": 0.0, "cache_prompt": True, "grammar": gram}
 

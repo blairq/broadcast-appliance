@@ -32,6 +32,7 @@ PIP       ?= .venv/bin/pip
         deps deps-obs deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist \
         deps-lsp deps-status deps-clean deps-libreoffice deps-libreoffice-linux deps-libreoffice-win \
         deps-msitools mcp-inventario deps-llamacpp bateria-local corpus-entrenamiento \
+        corpus-descubrir \
         deps-src deps-mbedtls deps-nlohmann deps-samplerate deps-argon2 deps-rostros _ba_baja
 
 # --- Ayuda (target por defecto) ---------------------------------------------
@@ -78,6 +79,7 @@ help:
 	@echo "  make deps-llamacpp    llama.cpp (CPU) para probar un modelo chico local"
 	@echo "  make bateria-local    cuanto tarda y cuanto acierta ese modelo (prefijo cacheado)"
 	@echo "  make corpus-entrenamiento  arma datos/entrenamiento desde las semillas"
+	@echo "  make corpus-descubrir      que herramientas nuevas no tienen frases"
 	@echo "                        -> extern/libreoffice. OPCIONAL y pesado (~280 MB por"
 	@echo "                        plataforma): solo hace falta si alguien trae .pptx."
 	@echo "  make deps-mbedtls     mbedtls v3.6.2 (fuente de build) -> extern/mbedtls"
@@ -962,6 +964,12 @@ bateria-local:
 # honesto que hay.
 corpus-entrenamiento:
 	tools/corpus-entrenamiento.py
+
+# Que herramientas nuevas del MCP no tienen frases, y si el prompt cambio
+# —que es cuando el modelo entrenado quedo viejo aunque las frases esten—.
+# Con --generar propone frases desde las etiquetas del buscador, PARA REVISAR.
+corpus-descubrir:
+	tools/corpus-descubrir.py
 
 deps-clap:
 	@mkdir -p "$(DL_DIR)"

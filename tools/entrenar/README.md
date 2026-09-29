@@ -87,6 +87,37 @@ Después, **en la notebook**, contra el mismo examen:
 
     tools/bateria-local.py --modelo modelos/reactivo-v1-q8_0/...gguf --solo-nombre
 
+## Cuando agregás herramientas al MCP
+
+El corpus no se entera solo. Y hay dos cosas distintas que se rompen:
+
+1. **La herramienta nueva no existe para el modelo**: nunca la vio como
+   respuesta, así que no la va a elegir nunca.
+2. **El prompt cambió**: las fichas son parte de lo que se entrenó. Con una
+   ficha más, al modelo le estás mostrando algo distinto de lo que vio —y
+   encima puede elegir una herramienta que no aprendió—.
+
+Lo segundo es peor porque no se nota: el modelo sigue contestando.
+
+    make mcp-inventario      # el aparato andando: refresca docs/mcp.json
+    make corpus-descubrir    # que falta, y si el prompt cambio
+
+`corpus-descubrir` compara la **firma del prompt** contra la que quedó guardada
+con el conjunto (`datos/entrenamiento/huella.json`) y avisa cuando el modelo
+que tenés fue entrenado con otras fichas.
+
+Con `--generar` propone frases para lo nuevo, sacadas de las **etiquetas del
+buscador** —lo más parecido a «cómo lo pediría alguien» que hay escrito—. Pero
+son bolsas de palabras, no frases dichas: salen cosas como `imagen labios
+imagen`. Van a `datos/semillas-auto.json` marcadas como propuestas, entran al
+entrenamiento igual (mejor eso que no existir) y **se corrigen y se promueven a
+mano** a `datos/semillas-reactivas.json`. El generador dice cuántas herramientas
+del corpus son de segunda mano.
+
+    make corpus-descubrir ARGS=--generar   # o: tools/corpus-descubrir.py --generar
+    # …editar datos/semillas-auto.json, mover lo bueno a semillas-reactivas.json…
+    make corpus-entrenamiento
+
 ## Lo que este corpus no es
 
 No es dato real de operación. Las frases son verosímiles, no observadas:
