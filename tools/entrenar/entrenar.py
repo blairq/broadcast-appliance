@@ -131,6 +131,13 @@ def main():
 
     modelo.save_pretrained(args.salida)
     tok.save_pretrained(args.salida)
+    # LA FIRMA DEL PROMPT, GUARDADA CON EL MODELO. Un modelo entrenado sirve
+    # para UN prompt: si despues se agrega una herramienta al MCP, las fichas
+    # cambian y este modelo esta viendo algo que no vio nunca. No falla —sigue
+    # contestando— asi que hay que poder preguntarselo. Lo compara evaluar.py.
+    import lib_prompt as _lp
+    (Path(args.salida) / "huella-prompt.json").write_text(
+        json.dumps(_lp.huella(), ensure_ascii=False, indent=1), encoding="utf-8")
     for q in args.gguf.split(","):
         q = q.strip()
         if q:

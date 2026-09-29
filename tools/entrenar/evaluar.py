@@ -47,6 +47,18 @@ def main():
     nombres = lp.herramientas_reactivas(inv)
     cabeza, cola = lp.partes(inv, args.ejemplos)
 
+    # ¿Este modelo fue entrenado con ESTE prompt? Si no, el numero no compara
+    # con nada: se le estan mostrando otras fichas.
+    hp = Path(args.modelo) / "huella-prompt.json"
+    if hp.exists():
+        vieja = json.loads(hp.read_text(encoding="utf-8"))
+        ahora = lp.huella(inv, args.ejemplos)
+        if vieja.get("prompt") != ahora["prompt"]:
+            print(f"\n  OJO: este modelo se entreno con OTRO prompt.")
+            print(f"       entrenado con {vieja.get('prompt')} ({vieja.get('cuantas')} herramientas)")
+            print(f"       midiendo con  {ahora['prompt']} ({ahora['cuantas']})")
+            print("       El numero que salga no compara con los anteriores.\n")
+
     modelo, tok = FastLanguageModel.from_pretrained(
         model_name=args.modelo, max_seq_length=args.largo, load_in_4bit=False, dtype=None)
     FastLanguageModel.for_inference(modelo)
