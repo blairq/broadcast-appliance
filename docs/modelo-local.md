@@ -304,6 +304,55 @@ decodificación con gramática, no extracción de embeddings. Sacar las dos cosa
 del mismo paso no es gratis. Por eso va último, aunque en el papel sea el más
 barato: el costo no está en entrenarlo, está en el aparato.
 
+### Forzar el comportamiento por dirección, como una abliteración al revés
+
+La idea es de Jorge y tiene respaldo. La abliteración funciona porque
+[el rechazo en una LLM está mediado por una sola dirección](https://arxiv.org/abs/2406.11717)
+(Arditi et al., NeurIPS 2024): se encuentra esa dirección en el espacio de
+activaciones y se la borra. Lo que se propone acá es el signo contrario —en vez
+de borrar la dirección del rechazo, **empujarla**— y esa construcción ya tiene
+nombre y método: vectores de control / adición contrastiva de activaciones
+([CAA](https://arxiv.org/abs/2312.06681)). Se toman pares contrastivos, se
+promedia la diferencia de activaciones capa por capa, y eso es el vector.
+
+**Por qué hay razones para creer que funciona justo acá.** Hay un trabajo de
+interpretabilidad sobre **Qwen3** ([2608.18106](https://arxiv.org/abs/2608.18106))
+que encuentra exactamente la asimetría que explica nuestro problema: la certeza
+sale de *una coalición amplia de rasgos compartidos*, mientras que la
+incertidumbre está implementada como **un override disperso, mediado por un
+grupo chico de rasgos dedicados**. Un grupo chico y dedicado es precisamente lo
+que se puede empujar. Y no se quedaron en la correlación: intervenir sobre esos
+rasgos *causalmente* reduce los errores por exceso de confianza, y el mismo
+conjunto de rasgos generaliza entre idiomas y a una tarea fuera de distribución.
+
+Eso también explica por qué el 1,7B «no produce incertidumbre útil»: no es que
+no tenga el mecanismo, es que por defecto pierde contra la coalición de la
+certeza.
+
+**Y el serving ya lo soporta.** No hace falta nada nuevo en el aparato: el
+llama.cpp que vendoreamos (b11255) acepta `--control-vector`,
+`--control-vector-scaled FNAME:SCALE` y `--control-vector-layer-range`. Se
+aplica en inferencia y no cuesta tiempo.
+
+Los pares contrastivos **ya los tenemos**: el corpus está partido entre pedidos
+que son suyos y pedidos que van a `derivar`. El vector se calcula en la misma
+corrida donde ya pasamos el modelo por el conjunto.
+
+**Lo que lo hace valioso no es sólo que funcione, es que es un dial.** La escala
+es un escalar, se barre sobre el examen y se mira la curva de cobertura contra
+precisión. Eso da algo que ningún método de entrenamiento da: **mover el punto de
+operación sin volver a entrenar**. Para un aparato en vivo es la diferencia entre
+un programa de aire donde conviene que el chico arriesgue y uno donde conviene
+que derive a la primera duda.
+
+**Lo que todavía no está probado, y hay que decirlo.** El resultado de Qwen3 es
+sobre el 4B, no sobre el 1,7B. Y toda esta línea se midió sobre comportamiento
+conversacional —rechazar, expresar duda en palabras—, no sobre un clasificador
+con decodificación por gramática, donde lo único que importa es cómo se reparte
+la masa de probabilidad entre 86 nombres. Que empuje hacia `derivar` sin
+ensuciar la elección entre los otros 85 es plausible, no está medido. Es
+hipótesis con buen respaldo, y se mide barato.
+
 ### Sobre derivar: tres papers, y uno nos corrige
 
 - [Conformal Cascade](https://arxiv.org/abs/2607.25018) (2026) sostiene que el
