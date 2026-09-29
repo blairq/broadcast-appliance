@@ -47,3 +47,9 @@
 {"frase": "se cayo un invitado", "aceptables": ["room_status", "chat_send"]}
 {"frase": "se corto la transmision", "aceptables": ["status", "network_status", "stream_start"]}
 {"frase": "se esta llenando el disco", "aceptables": ["system_hardware", "status"]}
+{"frase": "volve a la lamina del grafico de barras", "aceptables": ["laminas_ir", "laminas_ver"]}
+{"frase": "pone la diapositiva 7", "aceptables": ["laminas_ir"]}
+{"frase": "que presentaciones tengo cargadas", "aceptables": ["laminas_listar"]}
+{"frase": "cuantas laminas tiene la presentacion", "aceptables": ["laminas_listar", "laminas_ver"]}
+{"frase": "poneme la presentacion del orador en esta escena", "aceptables": ["laminas_aplicar"]}
+{"frase": "agrega el carrusel a la escena de apertura", "aceptables": ["laminas_aplicar"]}

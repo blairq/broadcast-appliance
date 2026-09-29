@@ -6,8 +6,8 @@
     "`etiquetas` son las del buscador (McpIndice), no del protocolo: es lo que hace que",
     "«hay acople» llegue a audio_set sin que nadie nombre la herramienta."
   ],
-  "generado": "2026-09-29T11:52:11+00:00",
-  "cuantas": 291,
+  "generado": "2026-09-29T15:32:51+00:00",
+  "cuantas": 292,
   "repetidas": [],
   "categorias": [
     {
@@ -267,6 +267,7 @@
       "herramientas": [
         "laminas_aplicar",
         "laminas_armar",
+        "laminas_buscar",
         "laminas_desarmar",
         "laminas_editar",
         "laminas_etiquetar",
@@ -6600,7 +6601,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLaminaTools.cpp",
-        "linea": 299
+        "linea": 373
       },
       "roles": [
         "asistente",
@@ -6640,7 +6641,44 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLaminaTools.cpp",
-        "linea": 189
+        "linea": 263
+      },
+      "roles": [
+        "asistente",
+        "escenografo",
+        "organizador"
+      ]
+    },
+    {
+      "nombre": "laminas_buscar",
+      "titulo": "Buscar una lamina por lo que dice",
+      "categoria": "laminas",
+      "descripcion": "Las laminas de un carrusel que coinciden con un texto, por su titulo y por las etiquetas que se le sacaron mirandolas. Es lo que hace el cuadro de busqueda de la pestaña Medios, con el MISMO criterio: sin tildes y todas las palabras tienen que estar.\n\nPARA QUE SIRVE DE VERDAD: «volve a la del grafico de barras» con una presentacion de cincuenta laminas. Sin esto habria que listarlas todas y leerlas; con esto vuelven tres y se salta con `laminas_ir`.\n\nSi no encuentra nada puede ser que a esas laminas todavia nadie las miro: `laminas_sin_analizar` lo dice.",
+      "esquema": {
+        "properties": {
+          "carrusel": {
+            "type": "string"
+          },
+          "texto": {
+            "description": "lo que dijo el operador: «grafico barras»",
+            "type": "string"
+          }
+        },
+        "required": [
+          "carrusel",
+          "texto"
+        ],
+        "type": "object"
+      },
+      "soloLectura": true,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": "lamina diapositiva presentacion powerpoint pptx pdf carrusel imagenes tira  slide placa volver atras saltar"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpLaminaTools.cpp",
+        "linea": 179
       },
       "roles": [
         "asistente",
@@ -6677,7 +6715,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLaminaTools.cpp",
-        "linea": 154
+        "linea": 228
       },
       "roles": [
         "asistente",
@@ -6734,7 +6772,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLaminaTools.cpp",
-        "linea": 246
+        "linea": 320
       },
       "roles": [
         "asistente",
@@ -6776,7 +6814,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLaminaTools.cpp",
-        "linea": 375
+        "linea": 449
       },
       "roles": [
         "asistente",
@@ -6794,6 +6832,14 @@
           "carrusel": {
             "type": "string"
           },
+          "hacia": {
+            "description": "en vez de `numero`: la que sigue o la de antes. Da la vuelta al llegar al final.",
+            "enum": [
+              "siguiente",
+              "anterior"
+            ],
+            "type": "string"
+          },
           "numero": {
             "description": "empezando en 1, como los da laminas_ver",
             "minimum": 1,
@@ -6801,8 +6847,7 @@
           }
         },
         "required": [
-          "carrusel",
-          "numero"
+          "carrusel"
         ],
         "type": "object"
       },
@@ -6871,7 +6916,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLaminaTools.cpp",
-        "linea": 339
+        "linea": 413
       },
       "roles": [
         "asistente",

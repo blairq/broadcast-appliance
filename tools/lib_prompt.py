@@ -21,7 +21,10 @@ INVENTARIO = RAIZ / "docs" / "mcp.json"
 REACTIVAS = ["audio", "escenas", "fuentes", "sala", "oradores", "imagenes", "estado", "salidas",
              # Cambiar un zocalo al aire —«esta mal el apellido»— es de lo mas
              # frecuente que pasa en vivo, y la categoria entera estaba afuera.
-             "graficos"]
+             "graficos",
+             # «Volve a la del grafico de barras» es LA razon por la que existe
+             # el carrusel, y la categoria estaba afuera del repertorio en vivo.
+             "laminas"]
 
 # Herramientas que caen en una categoria reactiva pero son TRABAJO PREVIO. El
 # corte del MCP es administrativo y no coincide con el del oficio: `graficos`
@@ -32,6 +35,13 @@ REACTIVAS = ["audio", "escenas", "fuentes", "sala", "oradores", "imagenes", "est
 NO_REACTIVAS = {
     "grafico_probar",      # ver como queda mientras se disena
     "grafico_repertorio",  # que se puede usar al escribir un grafico
+    # De laminas: armar y desarmar una presentacion es trabajo PREVIO, y
+    # desarmar ademas tarda minutos. En vivo se pasa, se salta y se busca.
+    "laminas_armar",
+    "laminas_editar",
+    "laminas_desarmar",
+    "laminas_etiquetar",
+    "laminas_sin_analizar",
 }
 
 SISTEMA_NOMBRE = """Sos el asistente de un estudio de television EN VIVO. El operador te habla apurado y corto.

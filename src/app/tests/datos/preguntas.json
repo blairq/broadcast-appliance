@@ -888,6 +888,30 @@
       "herramientas": [
         "laminas_editar"
       ]
+    },
+    {
+      "pregunta": "pasa a la siguiente lamina",
+      "herramientas": [
+        "laminas_ir"
+      ]
+    },
+    {
+      "pregunta": "buscame la imagen de los perros en la presentacion",
+      "herramientas": [
+        "laminas_buscar"
+      ]
+    },
+    {
+      "pregunta": "esta mal el apellido en el zocalo",
+      "herramientas": [
+        "grafico_mostrar"
+      ]
+    },
+    {
+      "pregunta": "baja el zocalo",
+      "herramientas": [
+        "grafico_ocultar"
+      ]
     }
   ]
 }

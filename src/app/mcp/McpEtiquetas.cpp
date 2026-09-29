@@ -323,8 +323,6 @@ const Fila kPropias[] = {
     // --- Graficos y rotulos ---------------------------------------------------
     {"grafico_listar", "que graficos hay placas disponibles"},
     {"grafico_probar", "probar grafico previsualizar antes de sacarlo"},
-    {"grafico_mostrar", "poner grafico al aire sacar placa zocalo"},
-    {"grafico_ocultar", "sacar grafico bajar placa esconder"},
     {"grafico_en_escena", "grafico dentro de una escena agregar"},
     {"grafico_repertorio", "catalogo de graficos plantillas disponibles"},
     {"rotulo_vinculos", "que rotulos estan vinculados"},
@@ -365,9 +363,19 @@ const Fila kPropias[] = {
     {"carrusel_armar", "armar carrusel rotacion de pantallas pasos"},
     {"laminas_listar", "que carruseles de laminas hay presentaciones cargadas"},
     {"laminas_ver", "que laminas tiene cuantas diapositivas de que trata cada una"},
+    {"grafico_mostrar", "poner grafico al aire zocalo placa GC generador de caracteres rotulo "
+                        "pie de pagina faldon "
+                        "el apellido esta mal corregir el nombre cambiar el cargo poner el nombre "
+                        "del que habla levantar el zocalo tirar la placa"},
+    {"grafico_ocultar", "sacar grafico esconder bajar el zocalo sacar la placa quitar el GC "
+                        "limpiar la pantalla fuera el cartel"},
+    {"laminas_buscar", "buscame la imagen de los perros cual era la del grafico donde esta la "
+                       "lamina que dice buscar adentro de la presentacion por lo que se ve"},
     {"laminas_ir", "volve a la lamina del grafico saltar a la diapositiva numero poner esa placa "
+                   "pasa a la siguiente la que sigue la anterior avanza una atras una "
                    "pone la diapositiva mostrar esa lamina pasar a la"},
-    {"laminas_desarmar", "convertir un powerpoint o pdf en imagenes desarmar presentacion importar "
+    {"laminas_desarmar", "convertime este powerpoint en imagenes convertir un pdf desarmar "
+                        "presentacion importar armar carrusel desde un archivo "
                         "el orador trajo un pdf armalo para proyectar cargar la charla"},
     {"laminas_armar", "armar un carrusel con estas imagenes juntar placas sueltas crear carrusel "
                       "nuevo con los logos"},

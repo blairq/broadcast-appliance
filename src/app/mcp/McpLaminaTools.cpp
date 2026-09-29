@@ -128,8 +128,11 @@ void McpService::registerLaminaTools() {
                          {"properties",
                           {{"carrusel", {{"type", "string"}}},
                            {"numero", {{"type", "integer"}, {"minimum", 1},
-                                       {"description", "empezando en 1, como los da laminas_ver"}}}}},
-                         {"required", {"carrusel", "numero"}}};
+                                       {"description", "empezando en 1, como los da laminas_ver"}}},
+                           {"hacia", {{"type", "string"}, {"enum", {"siguiente", "anterior"}},
+                                      {"description", "en vez de `numero`: la que sigue o la de antes. "
+                                                      "Da la vuelta al llegar al final."}}}}},
+                         {"required", {"carrusel"}}};
         t.run = [cc](const json& a, Done done) {
             const QString n = QString::fromStdString(a.value("carrusel", std::string()));
             cc->setActual(n);
@@ -137,7 +140,29 @@ void McpService::registerLaminaTools() {
                 done(ToolResult::error("No hay ningun carrusel llamado «" + n.toStdString() + "»."));
                 return;
             }
-            const int numero = a.value("numero", 0);
+            // «La que sigue» es lo que mas se pide en vivo, y obligaba a
+            // preguntar en cual estaba para poder sumarle uno.
+            const std::string hacia = a.value("hacia", std::string());
+            int numero = a.value("numero", 0);
+            if (!hacia.empty()) {
+                // SIN el filtro puesto. `laminas()` devuelve lo que pasa el
+                // cuadro de busqueda de la pestaña, y si el operador dejo algo
+                // escrito ahi, «la siguiente» contaria sobre tres laminas en
+                // vez de cincuenta.
+                const QString filtro = cc->consulta();
+                cc->setConsulta("");
+                const int n = cc->laminas().size();
+                cc->setConsulta(filtro);
+                if (n == 0) {
+                    done(ToolResult::error("Ese carrusel esta vacio."));
+                    return;
+                }
+                const int ahora = cc->posicion();
+                numero = ((hacia == "anterior" ? ahora - 1 : ahora + 1) + n) % n + 1;
+            } else if (numero <= 0) {
+                done(ToolResult::error("Deci `numero` o `hacia` (siguiente/anterior)."));
+                return;
+            }
             if (!cc->ir(numero - 1)) {
                 done(ToolResult::error("Ese carrusel no tiene una lamina " + std::to_string(numero) +
                                        ". laminas_ver dice cuantas hay."));
@@ -145,6 +170,55 @@ void McpService::registerLaminaTools() {
             }
             done(ToolResult().text("Puesta la lamina " + std::to_string(numero) + " de «" +
                                    n.toStdString() + "»."));
+        };
+        core_.addTool(std::move(t));
+    }
+
+    {
+        Tool t;
+        t.name = "laminas_buscar";
+        t.title = "Buscar una lamina por lo que dice";
+        t.category = "laminas";
+        t.readOnly = true;
+        t.description =
+            "Las laminas de un carrusel que coinciden con un texto, por su titulo y por las "
+            "etiquetas que se le sacaron mirandolas. Es lo que hace el cuadro de busqueda de la "
+            "pestaña Medios, con el MISMO criterio: sin tildes y todas las palabras tienen que "
+            "estar.\n\n"
+            "PARA QUE SIRVE DE VERDAD: «volve a la del grafico de barras» con una presentacion de "
+            "cincuenta laminas. Sin esto habria que listarlas todas y leerlas; con esto vuelven "
+            "tres y se salta con `laminas_ir`.\n\n"
+            "Si no encuentra nada puede ser que a esas laminas todavia nadie las miro: "
+            "`laminas_sin_analizar` lo dice.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"carrusel", {{"type", "string"}}},
+                           {"texto", {{"type", "string"},
+                                      {"description", "lo que dijo el operador: «grafico barras»"}}}}},
+                         {"required", {"carrusel", "texto"}}};
+        t.examples = {R"({"carrusel": "Apertura", "texto": "grafico de barras"})"};
+        t.run = [cc](const json& a, Done done) {
+            const QString n = QString::fromStdString(a.value("carrusel", std::string()));
+            if (!cc->existe(n)) {
+                done(ToolResult::error("No hay ningun carrusel llamado «" + n.toStdString() +
+                                       "». laminas_listar los da."));
+                return;
+            }
+            const QString antes = cc->actual();
+            const QString consulta = cc->consulta();
+            cc->setActual(n);
+            cc->setConsulta(QString::fromStdString(a.value("texto", std::string())));
+            json out = json::array();
+            for (const QVariant& v : cc->laminas()) {
+                const QVariantMap m = v.toMap();
+                out.push_back(json{{"numero", m["indice"].toInt() + 1},
+                                   {"titulo", m["titulo"].toString().toStdString()},
+                                   {"etiquetas", m["etiquetas"].toString().toStdString()},
+                                   {"puesta", m["actual"].toBool()}});
+            }
+            cc->setActual(antes);
+            cc->setConsulta(consulta);
+            done(ToolResult().data(json{{"carrusel", n.toStdString()}, {"encontradas", out}}));
         };
         core_.addTool(std::move(t));
     }

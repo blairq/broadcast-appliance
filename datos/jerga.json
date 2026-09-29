@@ -100,6 +100,20 @@
       "placa",
       "arte",
       "zocalo"
+    ],
+    "lámina": [
+      "lamina",
+      "diapositiva",
+      "imagen",
+      "placa",
+      "filmina"
+    ],
+    "zócalo": [
+      "zocalo",
+      "pie de pagina",
+      "faldon",
+      "GC",
+      "rotulo"
     ]
   },
   "giros": {
@@ -207,6 +221,19 @@
       "bajá el zócalo",
       "bajá el GC",
       "sacá el generador"
+    ],
+    "laminas_ir": [
+      "la que sigue",
+      "pasá una",
+      "volvé una",
+      "andá a la tres",
+      "dale, la próxima",
+      "atrás, la anterior"
+    ],
+    "laminas_buscar": [
+      "buscame la de los perros",
+      "cuál era la del gráfico",
+      "dónde está la del mapa"
     ]
   }
 }

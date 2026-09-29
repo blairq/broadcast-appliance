@@ -899,6 +899,64 @@
         "apagá el vínculo del zócalo"
       ],
       "tambien": []
+    },
+    "laminas_ir": {
+      "frases": [
+        "pasá a la siguiente",
+        "la que sigue",
+        "seguí",
+        "avanzá una",
+        "volvé a la anterior",
+        "atrás una",
+        "la de antes",
+        "poné la 3",
+        "andá a la lámina 5",
+        "mostrá la cuatro",
+        "volvé a la primera",
+        "poné la última",
+        "pasá de imagen",
+        "cambiá la imagen del carrusel"
+      ],
+      "tambien": []
+    },
+    "laminas_buscar": {
+      "frases": [
+        "buscame la imagen de los perros",
+        "cuál era la del gráfico de barras",
+        "dónde está la lámina del organigrama",
+        "buscá la placa de sponsors en la presentación",
+        "encontrame la del mapa",
+        "en qué número está la de las ventas"
+      ],
+      "tambien": [
+        "laminas_ver"
+      ]
+    },
+    "laminas_ver": {
+      "frases": [
+        "qué láminas tiene",
+        "cuántas diapositivas son",
+        "mostrame la lista de láminas",
+        "en cuál estamos"
+      ],
+      "tambien": [
+        "laminas_listar"
+      ]
+    },
+    "laminas_listar": {
+      "frases": [
+        "qué presentaciones tengo cargadas",
+        "qué carruseles hay armados"
+      ],
+      "tambien": []
+    },
+    "laminas_aplicar": {
+      "frases": [
+        "poné la presentación en esta escena",
+        "metele el carrusel a la toma",
+        "que las láminas salgan en esta escena"
+      ],
+      "tambien": []
     }
   }
 }
