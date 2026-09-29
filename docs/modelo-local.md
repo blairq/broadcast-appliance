@@ -253,6 +253,57 @@ Un umbral sigue teniendo lugar para la *duda* dentro de lo suyo, pero **va
 calibrado** (el escalado de temperatura es un parámetro solo, se ajusta sobre
 `validar.jsonl` y es lo más barato que hay), y hay que medir antes de creerle.
 
+### Cómo se arregla eso desde el entrenamiento
+
+Si la confianza de un 1,7B no sirve como señal, la salida es enseñarle la
+incertidumbre en vez de leérsela. Hay tres caminos, de más a menos aplicable acá.
+
+**R-Tuning** ([NAACL 2024, paper destacado](https://aclanthology.org/2024.naacl-long.394/))
+es el que más nos sirve, y es casi el que ya estamos corriendo sin saberlo. El
+método: se pasa el conjunto de entrenamiento por el modelo, se parte en **lo que
+contesta bien y lo que contesta mal**, y a lo que contesta mal se le cambia la
+etiqueta por la expresión de incertidumbre. O sea que el «no sé» no sale de lo
+que alguien supone que el modelo no sabe, sale de **lo que el modelo demostró no
+saber**. Resultados: mejora el acierto sobre lo que sí contesta *y* la capacidad
+de rechazar, y el rechazo **generaliza a tareas que no vio** — lo tratan como una
+meta-habilidad, no como una lista de casos.
+
+Nosotros ya tenemos las dos piezas: `evaluar.py` mide, `fallos.py` clasifica los
+errores de cada versión. Lo único que falta es la decisión de qué hacer con un
+error, y hoy hacemos siempre lo mismo: escribirle una frase correctiva que le
+enseñe la respuesta buena. R-Tuning dice hacer lo contrario: etiquetarlo
+`derivar`.
+
+**Los dos no se contradicen, se ordenan.** La regla que queda:
+
+- error de **v1** → frase correctiva. Puede que sólo le falte verlo escrito.
+- error que **v2 sigue teniendo** después de habérselo enseñado → `derivar`.
+  Si dos rondas de corrección no lo movieron, no es que le falte un ejemplo: no
+  lo distingue. Y una herramienta equivocada al aire se ve; una derivada, no.
+
+Eso ata `derivar` a lo que el modelo de verdad no sabe, en vez de a las cuatro
+familias que escribí yo a ojo. Es la continuación natural del ciclo que ya está
+armado, y no pide tocar la pérdida ni el serving.
+
+**Calibration-Tuning** ([CT](https://arxiv.org/html/2609.33290)) afina con LoRA
+para que el modelo prediga **si su propia respuesta es correcta**, con una
+pérdida de clasificación más un regularizador de divergencia para no arruinarle
+lo que ya sabía. Es más máquina que R-Tuning y produce un número de confianza
+propio en vez de una etiqueta. Queda para después de medir R-Tuning.
+
+**Sondas sobre los estados ocultos.** El hallazgo repetido en varios trabajos es
+que *los estados ocultos codifican linealmente si la respuesta va a ser correcta*
+— una regresión logística sobre el último estado alcanza, y calibra bastante
+mejor que pedirle al modelo que verbalice su confianza, con un orden de magnitud
+menos de cómputo ([probes](https://arxiv.org/html/2512.22245),
+[CCPS](https://arxiv.org/abs/2505.21772)). Sería lo más barato de todo…
+
+…salvo por dónde servimos. **Acá el problema es llama.cpp, no el método**: la
+sonda necesita el estado oculto de cada pedido, y nuestro camino de servicio es
+decodificación con gramática, no extracción de embeddings. Sacar las dos cosas
+del mismo paso no es gratis. Por eso va último, aunque en el papel sea el más
+barato: el costo no está en entrenarlo, está en el aparato.
+
 ### Sobre derivar: tres papers, y uno nos corrige
 
 - [Conformal Cascade](https://arxiv.org/abs/2607.25018) (2026) sostiene que el
