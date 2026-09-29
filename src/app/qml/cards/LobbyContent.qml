@@ -6,8 +6,47 @@ import QtQuick.Layouts
 import BA
 import "../controls"
 
+// CON EL TECLADO (un clic en la tarjeta y ya):
+//   ↑ ↓      elegir a quien espera
+//   Enter    admitirlo
+//   Supr     rechazarlo
+//
+// Con gente esperando y el evento por empezar, admitir de a uno con el mouse
+// es lo que hace que alguien entre tarde.
 Item {
+    id: tarjeta
+    focus: true
     readonly property var conf: Studio.conference
+    property int elegido: -1
+
+    function mover(paso) {
+        const n = tarjeta.conf.waiting.count
+        if (n === 0) return
+        tarjeta.elegido = tarjeta.elegido < 0 ? 0 : Math.max(0, Math.min(n - 1, tarjeta.elegido + paso))
+    }
+    /// Despues de sacar a alguien de la lista, la posicion elegida apunta al
+    /// que ocupo su lugar; si era el ultimo, al nuevo ultimo.
+    function acomodar() {
+        const n = tarjeta.conf.waiting.count
+        tarjeta.elegido = n === 0 ? -1 : Math.min(tarjeta.elegido, n - 1)
+    }
+
+    Keys.onPressed: (e) => {
+        const p = tarjeta.conf.waiting.fila(tarjeta.elegido)
+        switch (e.key) {
+            case Qt.Key_Up:   tarjeta.mover(-1); e.accepted = true; break
+            case Qt.Key_Down: tarjeta.mover(1);  e.accepted = true; break
+            case Qt.Key_Return:
+            case Qt.Key_Enter:
+                if (p && p.uid !== undefined) { tarjeta.conf.admit(p.uid); tarjeta.acomodar() }
+                e.accepted = true
+                break
+            case Qt.Key_Delete:
+                if (p && p.uid !== undefined) { tarjeta.conf.reject(p.uid); tarjeta.acomodar() }
+                e.accepted = true
+                break
+        }
+    }
 
     ColumnLayout {
         anchors.fill: parent
@@ -34,6 +73,7 @@ Item {
             spacing: 6
             model: conf.waiting
             delegate: Rectangle {
+                required property int index
                 required property string uid
                 required property string name
                 required property bool connected
@@ -42,6 +82,10 @@ Item {
                 radius: 10
                 color: Qt.rgba(1, 1, 1, 0.06)
                 opacity: connected ? 1 : 0.55
+                // Admitir a la persona equivocada se arregla echandola, con la
+                // sala mirando: por eso se marca a quien apunta el teclado.
+                border.width: tarjeta.activeFocus && index === tarjeta.elegido ? 2 : 0
+                border.color: Theme.ok
                 RowLayout {
                     anchors { fill: parent; leftMargin: 10; rightMargin: 6 }
                     spacing: 6

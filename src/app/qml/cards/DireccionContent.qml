@@ -13,7 +13,25 @@ import QtQuick.Layouts
 import BA
 import "../controls"
 
+// CON EL TECLADO (un clic en la tarjeta y ya):
+//   T o Enter   TAKE: saca al aire la escena armada
+//
+// Es la unica tarjeta donde una tecla saca algo al aire, y es a proposito:
+// esta es la tarjeta del que dirige, dice AL AIRE y ARMADA en grande, y el
+// TAKE es lo que se hace mirando eso. En las demas, las teclas eligen y miran;
+// sacar al aire tiene su propio gesto.
+//
+// No hace nada si no hay nada armado: un TAKE al vacio no es una operacion.
 Item {
+    id: direccion
+    focus: true
+    Keys.onPressed: (e) => {
+        if ((e.key === Qt.Key_T || e.key === Qt.Key_Return || e.key === Qt.Key_Enter) &&
+            Studio.escenaArmada !== "") {
+            Studio.take()
+            e.accepted = true
+        }
+    }
     id: tarjeta
     readonly property var ev: Studio.evento
     readonly property var reloj: ev ? ev.reloj : ({})

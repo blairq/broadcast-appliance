@@ -77,6 +77,9 @@ class SourcesModel : public QAbstractListModel {
     void reload();
 
     Q_INVOKABLE bool setVisible(const QString& name, bool visible);
+    /// Una capa por posicion: {nombre, visible}. Vacio si no existe. Igual que
+    /// `MixerModel::canal`: la vista no pide datos por NUMERO de rol.
+    Q_INVOKABLE QVariantMap capa(int fila) const;
     Q_INVOKABLE bool move(const QString& name, int delta);
     Q_INVOKABLE bool remove(const QString& name);
     Q_INVOKABLE bool setRect(const QString& name, double x, double y, double w, double h);
@@ -128,6 +131,12 @@ class MixerModel : public QAbstractListModel {
 
     Q_INVOKABLE bool setVolumeDb(const QString& name, double db);
     Q_INVOKABLE bool setMuted(const QString& name, bool muted);
+    /// Un canal por posicion: {nombre, volumenDb, mudo}. Vacio si no existe.
+    /// Esta aca para que la vista NO tenga que pedir datos por NUMERO de rol:
+    /// los roles son un enum que corre solo al agregar uno, y una vista que
+    /// los escribe a mano se rompe en silencio (pasa: se pidio el pico
+    /// creyendo pedir el volumen).
+    Q_INVOKABLE QVariantMap canal(int fila) const;
 
    private:
     AppRuntime& rt_;

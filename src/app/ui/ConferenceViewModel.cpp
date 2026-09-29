@@ -48,6 +48,14 @@ QHash<int, QByteArray> JsonListModel::roleNames() const {
     return r;
 }
 
+QVariantMap JsonListModel::fila(int i) const {
+    if (i < 0 || i >= items_.size()) return {};
+    const QJsonObject o = items_.at(i).toObject();
+    QVariantMap out;
+    for (const QString& k : keys_) out.insert(k == "id" ? QStringLiteral("uid") : k, o.value(k).toVariant());
+    return out;
+}
+
 void JsonListModel::setItems(const QJsonArray& items) {
     bool sameIds = items.size() == items_.size();
     for (int i = 0; sameIds && i < items.size(); ++i) {

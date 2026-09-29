@@ -147,6 +147,12 @@ void SourcesModel::reload() {
     endResetModel();
 }
 
+QVariantMap SourcesModel::capa(int fila) const {
+    if (fila < 0 || fila >= rowCount()) return {};
+    const QModelIndex i = index(fila, 0);
+    return QVariantMap{{"nombre", data(i, NameRole)}, {"visible", data(i, VisibleRole)}};
+}
+
 bool SourcesModel::setVisible(const QString& name, bool visible) {
     const bool ok = rt_.setSourceVisible(scene_.toStdString(), name.toStdString(), visible);
     const int row = rowOf(name.toStdString());
@@ -302,6 +308,14 @@ void MixerModel::refreshLevels() {
     if (!names_.empty()) {
         emit dataChanged(index(0), index(rowCount() - 1), {PeakDbRole});
     }
+}
+
+QVariantMap MixerModel::canal(int fila) const {
+    if (fila < 0 || fila >= static_cast<int>(names_.size())) return {};
+    const QModelIndex i = index(fila, 0);
+    return QVariantMap{{"nombre", data(i, NameRole)},
+                       {"volumenDb", data(i, VolumeDbRole)},
+                       {"mudo", data(i, MutedRole)}};
 }
 
 bool MixerModel::setVolumeDb(const QString& name, double db) {

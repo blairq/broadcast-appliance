@@ -10,7 +10,11 @@ import QtQuick.Controls
 import QtQuick.Effects
 import BA
 
-Item {
+// FocusScope y no Item: asi el foco ENTRA a la tarjeta y cae en su contenido,
+// que es quien tiene las teclas. Con un Item pelado el foco se quedaba en el
+// marco y las flechas no llegaban a ningun lado. Ademas `activeFocus` pasa a
+// decir «el teclado esta adentro de esta tarjeta», que es lo que pinta el borde.
+FocusScope {
     id: card
 
     property Item area          // contenedor del dashboard (coordenadas)
@@ -109,8 +113,12 @@ Item {
             anchors.fill: parent
             radius: Theme.radius
             color: Theme.glassTint
-            border.color: card.moving ? Qt.rgba(1, 0.55, 0.3, 0.55) : Theme.glassBorder
-            border.width: 1
+            // EL BORDE DICE QUIEN TIENE EL TECLADO. Una tarjeta que responde a
+            // las flechas y no se distingue de las otras es una forma de
+            // apretar teclas a ciegas: en vivo eso sale al aire.
+            border.color: card.moving ? Qt.rgba(1, 0.55, 0.3, 0.55)
+                        : (card.activeFocus ? Theme.accentSoft : Theme.glassBorder)
+            border.width: card.activeFocus ? 2 : 1
             gradient: Gradient {
                 GradientStop { position: 0.0; color: Theme.glassHighlight }
                 GradientStop { position: 0.35; color: Theme.glassTint }
@@ -162,6 +170,17 @@ Item {
             onTranslationChanged: if (active) card.showGhost()
         }
         HoverHandler { cursorShape: Qt.OpenHandCursor }
+    }
+
+    // EL FOCO SE TOMA AL TOCAR LA TARJETA, en cualquier lado. Va como handler y
+    // no como MouseArea a proposito: un MouseArea encima le robaria el clic a
+    // los controles de adentro (los faders del mezclador, los botones), y uno
+    // debajo no se enteraria de los clics que caen sobre ellos. El handler ve
+    // el toque igual y no se queda con el.
+    TapHandler {
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        gesturePolicy: TapHandler.DragThreshold
+        onPressedChanged: if (pressed) card.forceActiveFocus()
     }
 
     // --- Contenido --------------------------------------------------------------

@@ -44,6 +44,10 @@ class JsonListModel : public QAbstractListModel {
     QVariant data(const QModelIndex& index, int role) const override;
     QHash<int, QByteArray> roleNames() const override;
     int count() const { return items_.size(); }
+    /// Una fila por posicion, con sus claves. Vacio si no existe. Es lo que
+    /// deja manejar estas listas CON EL TECLADO sin que la vista tenga que
+    /// pedir datos por numero de rol.
+    Q_INVOKABLE QVariantMap fila(int i) const;
     void setItems(const QJsonArray& items);
     void append(const QJsonObject& item);
     const QJsonArray& items() const { return items_; }

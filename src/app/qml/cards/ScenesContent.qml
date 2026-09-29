@@ -22,8 +22,59 @@ import QtQuick.Layouts
 import BA
 import "../controls"
 
+// CON EL TECLADO (un clic en la tarjeta y ya):
+//   ← → ↑ ↓   recorrer las escenas, sin tocar nada
+//   Enter     ARMAR la elegida (no sale al aire)
+//   T         TAKE: sacar al aire la armada
+//
+// Recorrer NO cambia nada, igual que en el carrusel: mirar para decidir es
+// media operacion. Y el TAKE tiene tecla propia en vez de ser Enter dos veces,
+// porque lo que sale al aire no puede depender de cuantas veces se apreto.
 Item {
     id: tarjeta
+    focus: true
+
+    /// La que recorre el teclado. -1 = todavia ninguna.
+    property int elegida: -1
+    /// Todas las escenas en el orden en que se dibujan, para poder recorrerlas
+    /// de corrido aunque esten repartidas en carpetas.
+    property var planas: []
+
+    function recalcularPlanas() {
+        const out = []
+        for (const g of tarjeta.grupos)
+            for (const e of g.escenas) out.push(e)
+        tarjeta.planas = out
+        if (tarjeta.elegida >= out.length) tarjeta.elegida = out.length - 1
+    }
+    onGruposChanged: tarjeta.recalcularPlanas()
+    Component.onCompleted: tarjeta.recalcularPlanas()
+
+    function mover(paso) {
+        const n = tarjeta.planas.length
+        if (n === 0) return
+        tarjeta.elegida = tarjeta.elegida < 0 ? 0 : Math.max(0, Math.min(n - 1, tarjeta.elegida + paso))
+    }
+
+    Keys.onPressed: (e) => {
+        switch (e.key) {
+            case Qt.Key_Left:
+            case Qt.Key_Up:    tarjeta.mover(-1); e.accepted = true; break
+            case Qt.Key_Right:
+            case Qt.Key_Down:  tarjeta.mover(1);  e.accepted = true; break
+            case Qt.Key_Home:  tarjeta.elegida = 0; e.accepted = true; break
+            case Qt.Key_End:   tarjeta.elegida = tarjeta.planas.length - 1; e.accepted = true; break
+            case Qt.Key_Return:
+            case Qt.Key_Enter:
+                if (tarjeta.elegida >= 0) Studio.armarEscena(tarjeta.planas[tarjeta.elegida])
+                e.accepted = true
+                break
+            case Qt.Key_T:
+                if (Studio.escenaArmada !== "") Studio.take()
+                e.accepted = true
+                break
+        }
+    }
 
     // Se rearma solo cuando cambia la LISTA (se agregó, borró, renombró o
     // cambió de carpeta una escena), no en cada corte: al aire y armada salen
@@ -42,6 +93,10 @@ Item {
             readonly property string nombre: modelData
             readonly property bool live: Studio.currentScene === nombre
             readonly property bool armada: Studio.escenaArmada === nombre
+            /// La que esta recorriendo el teclado. No es ni el aire ni la
+            /// armada: es «donde esta parado el dedo».
+            readonly property bool bajoElDedo: tarjeta.activeFocus && tarjeta.elegida >= 0 &&
+                                               tarjeta.planas[tarjeta.elegida] === nombre
             height: 40
             width: Math.max(104, label.implicitWidth + 28)
             radius: 13
@@ -49,8 +104,10 @@ Item {
                  : (sma.containsMouse ? Qt.rgba(1, 1, 1, 0.14) : Qt.rgba(1, 1, 1, 0.07))
             // El borde verde es la marca del bus de preview: se ve sin
             // competir con el naranja del aire, que manda.
-            border.width: armada ? 2 : 1
-            border.color: armada ? Theme.ok : (live ? Theme.accentSoft : Qt.rgba(1, 1, 1, 0.1))
+            border.width: armada || bajoElDedo ? 2 : 1
+            border.color: armada ? Theme.ok
+                        : bajoElDedo ? Qt.rgba(1, 1, 1, 0.75)
+                        : (live ? Theme.accentSoft : Qt.rgba(1, 1, 1, 0.1))
             Behavior on color { ColorAnimation { duration: 180 } }
             Text {
                 id: label
