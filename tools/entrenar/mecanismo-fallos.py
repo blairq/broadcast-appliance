@@ -71,6 +71,21 @@ def main():
         m = getattr(m, "model", getattr(m, "base_model", m))
     capas = capas_del(modelo)
     n_capas = len(capas)
+    # LA ULTIMA ENTRADA DE hidden_states YA VIENE NORMALIZADA. En transformers,
+    # el modelo hace `hidden_states = self.norm(hidden_states)` y DESPUES la
+    # agrega a la tupla, asi que hidden_states[-1] esta post-norma. Aplicarle la
+    # norma otra vez —lo que hacia la primera version de esto— da norm(norm(h)),
+    # que no es lo que el modelo calcula: la «capa 28» daba 73,6% donde el
+    # decodificador real da 84,9%, y de ahi salio la falsa caida de diez puntos
+    # en las ultimas capas.
+    #
+    # El residual PRE-norma de la ultima capa no esta en la tupla, asi que se
+    # saca con un gancho en la norma final. Con eso las 28 capas se leen igual:
+    # una sola norma, la que el modelo aplica.
+    pre_norma = {}
+    if norma is not None:
+        norma.register_forward_pre_hook(
+            lambda _m, ent: pre_norma.__setitem__("x", ent[0].detach()))
     secuencias = {n: tok(n, add_special_tokens=False).input_ids for n in nombres}
     frec = collections.Counter(json.loads(l)["herramienta"]
                                for l in ENTRENAR.read_text(encoding="utf-8").splitlines() if l.strip())
@@ -133,7 +148,7 @@ def main():
         partes.clear()
         with torch.no_grad():
             sal = modelo(input_ids=ids, output_hidden_states=True)
-        final = sal.hidden_states[-1][0, -1, :].float()
+        final = pre_norma["x"][0, -1, :].float()  # PRE-norma: la suma cierra sobre este
         # La escala de la RMSNorm final, congelada: es lo que vuelve comparable
         # cada contribucion con la diferencia de logit que sale al final.
         # LA NORMA FINAL, bien. RMSNorm no es multiplicar por un escalar: divide

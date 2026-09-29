@@ -68,6 +68,21 @@ def main():
             break
         m = getattr(m, "model", getattr(m, "base_model", m))
     n_capas = len(capas_del(modelo))
+    # LA ULTIMA ENTRADA DE hidden_states YA VIENE NORMALIZADA. En transformers,
+    # el modelo hace `hidden_states = self.norm(hidden_states)` y DESPUES la
+    # agrega a la tupla, asi que hidden_states[-1] esta post-norma. Aplicarle la
+    # norma otra vez —lo que hacia la primera version de esto— da norm(norm(h)),
+    # que no es lo que el modelo calcula: la «capa 28» daba 73,6% donde el
+    # decodificador real da 84,9%, y de ahi salio la falsa caida de diez puntos
+    # en las ultimas capas.
+    #
+    # El residual PRE-norma de la ultima capa no esta en la tupla, asi que se
+    # saca con un gancho en la norma final. Con eso las 28 capas se leen igual:
+    # una sola norma, la que el modelo aplica.
+    pre_norma = {}
+    if norma is not None:
+        norma.register_forward_pre_hook(
+            lambda _m, ent: pre_norma.__setitem__("x", ent[0].detach()))
     secuencias = {n: tok(n, add_special_tokens=False).input_ids for n in nombres}
 
     def logits_por_capa(ocultos):
@@ -90,7 +105,8 @@ def main():
             sal = modelo(**ent, use_cache=True, output_hidden_states=True)
         cache = sal.past_key_values
         # El primer token de cada nombre sale de la ultima posicion del prompt.
-        primeros = logits_por_capa([h[:, -1:, :] for h in sal.hidden_states[1:]])
+        ocultos = list(sal.hidden_states[1:n_capas]) + [pre_norma["x"]]
+        primeros = logits_por_capa([h[:, -1:, :] for h in ocultos])
         puntajes = torch.zeros(n_capas, len(nombres))
         for i, (n, ids) in enumerate(secuencias.items()):
             for L in range(n_capas):
@@ -100,7 +116,7 @@ def main():
                 with torch.no_grad():
                     s2 = modelo(input_ids=t, past_key_values=cache, use_cache=True,
                                 output_hidden_states=True)
-                sig = logits_por_capa(s2.hidden_states[1:])
+                sig = logits_por_capa(list(s2.hidden_states[1:n_capas]) + [pre_norma["x"]])
                 for L in range(n_capas):
                     for k, tid in enumerate(ids[1:]):
                         puntajes[L, i] += sig[L][0, k, tid].item()
