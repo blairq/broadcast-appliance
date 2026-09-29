@@ -26,6 +26,30 @@ Item {
     /// La lámina del centro, que es la que Enter pone al aire.
     readonly property int centrada: tira.currentIndex
 
+    // MIRAR NO ES PONER. Recorrer la tira —con las flechas, con la rueda, con
+    // un clic— sólo mueve el centro; lo que SALE es doble clic, Enter o el
+    // botón. Con la sala mirando, que buscar cambiara lo que se ve sería la
+    // peor sorpresa posible, y es justo lo que uno hace mientras el orador
+    // habla: ir adelantando para tener lista la que sigue.
+    function poner() {
+        if (tira.count === 0) return
+        tarjeta.cc.ir(tarjeta.laminas[tira.currentIndex].indice)
+    }
+
+    // El foco se toma al tocar la tarjeta; de ahí en más el teclado es de
+    // ella. Sin esto las flechas se las lleva la lista de escenas de al lado.
+    focus: true
+    Keys.onLeftPressed: tira.decrementCurrentIndex()
+    Keys.onRightPressed: tira.incrementCurrentIndex()
+    Keys.onReturnPressed: tarjeta.poner()
+    Keys.onEnterPressed: tarjeta.poner()
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.NoButton   // no roba clics: sólo el foco
+        z: -1
+        onPressed: (m) => { tarjeta.forceActiveFocus(); m.accepted = false }
+    }
+    readonly property var laminas: cc.laminas
 
     // SIGUE A LA ESCENA. Al cortar a otra escena, esta tarjeta pasa a manejar
     // el carrusel que ESA escena tenga; si no tiene ninguno, lo dice. El
