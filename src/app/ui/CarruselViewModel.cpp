@@ -279,6 +279,13 @@ void CarruselViewModel::revisarEscena() {
     }
     if (hallado == enEscena_) return;
     enEscena_ = hallado;
+    // Y SE IMPONE LA LAMINA QUE EL CARRUSEL DICE. La fuente guarda su archivo
+    // entre arranques, asi que al abrir el aparato puede estar mostrando una
+    // lamina y la tarjeta marcando otra. Con la sala mirando, una marca que
+    // miente es peor que no tener marca.
+    if (!hallado.isEmpty()) {
+        if (const carrusel::Carrusel* c = store_->porNombre(hallado.toStdString())) empujar(*c);
+    }
     emit enEscenaCambio();
 }
 

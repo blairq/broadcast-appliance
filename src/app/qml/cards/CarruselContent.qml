@@ -23,6 +23,9 @@ Item {
     id: tarjeta
 
     readonly property var cc: Studio.carruseles
+    /// Lo pone en true PanelWindow cuando esta tarjeta vive en su propia
+    /// ventana. Es lo que decide si se muestra el testigo del aire.
+    property bool enVentana: false
     /// La lámina del centro, que es la que Enter pone al aire.
     readonly property int centrada: tira.currentIndex
 
@@ -233,9 +236,24 @@ Item {
                         anchors.margins: 4
                         radius: 8
                         color: "#0b0e12"
-                        border.width: hoja.modelData.actual ? 2 : 1
-                        border.color: hoja.modelData.actual ? Theme.accent : Theme.glassBorder
-                        clip: true
+                        // DOS MARCAS DISTINTAS, porque son dos cosas distintas:
+                        // naranja = la que esta AL AIRE; borde claro = la del
+                        // centro, la que pondria Enter. Con una sola no se sabe
+                        // si lo que se esta mirando ya salio.
+                        //
+                        // Sale de `posicion` y NO del campo `actual` de la
+                        // lista: esa lista solo se rearma cuando cambia la
+                        // tira, asi que la marca se quedaba en la lamina
+                        // anterior mientras el programa ya mostraba la nueva.
+                        // Una marca que miente es peor que no tener marca.
+                        readonly property bool puesta: hoja.modelData.indice === tarjeta.cc.posicion
+                        border.width: puesta ? 3 : (hoja.index === tira.currentIndex ? 2 : 1)
+                        border.color: puesta ? Theme.accent
+                                    : (hoja.index === tira.currentIndex ? Qt.rgba(1, 1, 1, 0.65)
+                                                                        : Theme.glassBorder)
+                        // Sin `clip`: adentro de un item ROTADO obliga a
+                        // stencil, y la imagen va PreserveAspectFit, no se sale.
+                        antialiasing: false
 
                         Image {
                             anchors { fill: parent; margins: 3 }
@@ -300,6 +318,10 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             spacing: 6
+            // El testigo del aire vive en esta esquina: se le deja el lugar en
+            // vez de quedar tapando el boton de poner, que es el que mas se
+            // usa de toda la tarjeta.
+            Layout.rightMargin: testigo.visible ? testigo.width + 12 : 0
             GlassButton {
                 compact: true; text: "◀"
                 enabled: tira.count > 0
@@ -329,4 +351,64 @@ Item {
             }
         }
     }
+
+    // --- El aire, de reojo ---------------------------------------------------
+    //
+    // En su propia ventana la tarjeta suele estar maximizada en el otro
+    // monitor, y ahí el operador PIERDE DE VISTA lo que está saliendo: elige
+    // láminas a ciegas. Este recuadro es lo mínimo para no tener que girar la
+    // cabeza —o peor, poner una y darse cuenta después de que la escena al
+    // aire era otra—.
+    //
+    // Sólo en ventana: adentro del dashboard, el monitor ya está al lado y
+    // taparía media tarjeta para repetir lo mismo.
+    Rectangle {
+        id: testigo
+        visible: tarjeta.enVentana
+        anchors { right: parent.right; bottom: parent.bottom; margins: 14 }
+        // Chico y 16:9. Mas grande le comeria lugar a las laminas, que son lo
+        // que se vino a mirar aca.
+        width: Math.min(320, Math.max(200, tarjeta.width * 0.2))
+        height: Math.round(width * 9 / 16) + rotulo.height
+        radius: 8
+        color: "#000000"
+        border.color: Theme.glassBorder
+        z: 50
+
+        VideoItem {
+            anchors { left: parent.left; right: parent.right; top: parent.top }
+            height: parent.height - rotulo.height
+            source: "program"
+            fillMode: VideoItem.Fit
+        }
+        Item {
+            id: rotulo
+            anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+            height: 20
+            Rectangle {
+                anchors.fill: parent
+                color: Qt.rgba(0, 0, 0, 0.75)
+                radius: 8
+            }
+            Row {
+                anchors { left: parent.left; leftMargin: 8; verticalCenter: parent.verticalCenter }
+                spacing: 6
+                Rectangle {
+                    width: 7; height: 7; radius: 4
+                    anchors.verticalCenter: parent.verticalCenter
+                    // Rojo solo cuando de verdad esta saliendo: en un aparato
+                    // de television, un punto rojo que miente es peor que no
+                    // tener punto.
+                    color: Studio.streaming ? Theme.live : Theme.textFaint
+                }
+                Text {
+                    text: (Studio.streaming ? "AL AIRE · " : "PROGRAMA · ") +
+                          (Studio.currentScene || "—")
+                    color: Theme.text
+                    font { family: Theme.font; pixelSize: 10; weight: Font.DemiBold }
+                }
+            }
+        }
+    }
+
 }
