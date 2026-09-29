@@ -181,6 +181,26 @@ def huella(inv=None, ejemplos=0):
             "tokens_aprox": len(pref) // 4}
 
 
+def nombres_posibles(inv=None):
+    """TODO lo que el modelo puede contestar: las herramientas Y `derivar`.
+
+    Existe porque no tenerla costo una corrida entera. evaluar.py armaba su
+    propia lista con `herramientas_reactivas()` —las 85, sin `derivar`— y con
+    eso construia el arbol de continuaciones validas. O sea que en la
+    evaluacion `derivar` era una respuesta IMPOSIBLE, y el «0 de 8» que salia
+    no medía al modelo: medía la lista.
+
+    Peor: con la respuesta correcta prohibida, el barrido del vector de
+    control tampoco podía dar otra cosa que precision cayendose y cero
+    derivaciones, que es justo lo que interpretamos como «la direccion no
+    apunta ahi». No se sabe: no se midio.
+
+    Es el mismo error que este proyecto ya se comio con el prompt, y por el
+    mismo motivo: dos lugares armando lo que tiene que ser uno.
+    """
+    return list(herramientas_reactivas(inv)) + [DERIVAR]
+
+
 def gramatica_nombre(nombres, con_derivar=True):
     """Solo un nombre que exista. No es un pedido: es imposible desviarse.
 

@@ -50,7 +50,7 @@ def main():
     import lib_prompt as lp  # noqa: E402
 
     inv = lp.inventario()
-    nombres = lp.herramientas_reactivas(inv)
+    nombres = lp.nombres_posibles(inv)  # las herramientas Y `derivar`
     cabeza, cola = lp.partes(inv, args.ejemplos)
 
     # ¿Este modelo fue entrenado con ESTE prompt? Si no, el numero no compara
