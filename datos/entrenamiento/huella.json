@@ -1,20 +1,20 @@
 {
- "prompt": "dac9adf89348ef33",
+ "prompt": "a82244e0d471cb7a",
  "herramientas": "7a7f2b416dcaa7ee",
  "cuantas": 85,
- "tokens_aprox": 2838,
- "ejemplos_entrenar": 2454,
+ "tokens_aprox": 2860,
+ "ejemplos_entrenar": 2453,
  "herramientas_con_frases": 86,
  "propuestas_automaticas": [],
- "abstencion": {
-  "ejemplos": 267,
-  "porcion": 0.109,
+ "derivar": {
+  "ejemplos": 277,
+  "porcion": 0.113,
   "herramientas_fuera_del_repertorio": 207,
   "fuera_con_ejemplos": 105
  },
  "correctivas": {
-  "ejemplos": 490,
-  "porcion": 0.2,
+  "ejemplos": 495,
+  "porcion": 0.202,
   "versiones": [
    "v2"
   ]

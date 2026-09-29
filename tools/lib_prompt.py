@@ -44,19 +44,31 @@ NO_REACTIVAS = {
     "laminas_sin_analizar",
 }
 
-# La respuesta para cuando NO hay respuesta. Tiene que ser un nombre mas: la
-# gramatica solo deja escribir nombres del repertorio, asi que sin esto el
-# modelo esta OBLIGADO a elegir una herramienta aunque le pidan un cafe.
-ABSTENCION = "no_es_mio"
+# LA VALVULA DE ESCAPE. Tiene que ser un nombre mas: la gramatica solo deja
+# escribir nombres del repertorio, asi que sin esto el modelo esta OBLIGADO a
+# elegir una herramienta aunque le pidan un cafe.
+#
+# POR QUE «derivar» Y NO «no_es_mio», que es como estaba. Decir que no es un
+# callejon sin salida: el pedido se pierde y alguien tiene que repetirlo.
+# Derivar RESUELVE: el asistente grande tiene las 292 herramientas, el buscador
+# y el estado del aparato, asi que lo que este chico no sabe hacer, aquel si.
+# El chico no decide si el pedido es imposible —no puede saberlo—, decide si es
+# SUYO. Lo demas lo pasa, con la frase original tal cual la dijeron.
+#
+# Y por eso es UNA sola clase y no dos. Separar «no se puede» de «no me toca»
+# le pide una distincion que va a errar, y errarla del lado malo significa
+# rechazar algo que el grande podia hacer. Esa distincion la hace el grande.
+DERIVAR = "derivar"
 
 SISTEMA_NOMBRE = """Sos el asistente de un estudio de television EN VIVO. El operador te habla apurado y corto.
 Contestas UNICAMENTE el nombre de la herramienta que corresponde. Una palabra, nada mas.
 Si te piden HACER algo, elegi la que lo HACE. Los listados son para cuando preguntan QUE HAY.
 Ante un problema de audio o de imagen, MEDIR primero tambien vale.
 
-Si el pedido NO es de esta lista —es trabajo previo, no es del aparato, le falta
-el objeto («sacalo» a quien) o no es un pedido— contestas no_es_mio. Es mejor
-eso que elegir la mas parecida: alguien se ocupa despues.
+Si el pedido NO es de esta lista —es trabajo de preparacion, es de otra parte del
+aparato, no es del aparato, le falta el objeto («sacalo» a quien) o no es un
+pedido— contestas derivar y lo toma el asistente grande, que tiene todas las
+herramientas. Eso ATIENDE el pedido; elegir la mas parecida lo arruina.
 
 Herramientas:
 """
@@ -169,13 +181,13 @@ def huella(inv=None, ejemplos=0):
             "tokens_aprox": len(pref) // 4}
 
 
-def gramatica_nombre(nombres, con_abstencion=True):
+def gramatica_nombre(nombres, con_derivar=True):
     """Solo un nombre que exista. No es un pedido: es imposible desviarse.
 
-    `no_es_mio` entra como una opcion mas. Sin ella, «pedi un cafe» tiene que
+    `derivar` entra como una opcion mas. Sin ella, «pedi un cafe» tiene que
     salir como alguna herramienta del estudio: no por tonto, por obligado.
     """
-    opciones = list(nombres) + ([ABSTENCION] if con_abstencion else [])
+    opciones = list(nombres) + ([DERIVAR] if con_derivar else [])
     return "root ::= " + " | ".join('"%s"' % n for n in opciones) + "\n"
 
 

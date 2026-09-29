@@ -93,27 +93,28 @@ def main():
             fallos.append((c["frase"], elegida, c["aceptables"]))
 
     print(f"\nmodelo: {args.modelo} · ejemplos en contexto: {args.ejemplos}")
-    # EL ACIERTO SOLO YA NO ALCANZA, desde que sabe decir que no. Un modelo que
-    # contesta «no_es_mio» a todo saca el 28% y parece prudente; uno que nunca
-    # se abstiene saca 72% y parece mejor de lo que es. Hay que mirar las dos
-    # mitades por separado:
-    #   COBERTURA  de lo que SI es suyo, cuanto atendio (abstenerse de mas
-    #              aca es una herramienta que dejo de existir).
-    #   PRECISION  de lo que atendio, cuanto acerto (es lo que se paga al
-    #              aire: una herramienta equivocada en vivo se ve).
-    #   NO         de lo que no es suyo, cuanto rechazo bien.
-    suyos = [c for c in casos if lp.ABSTENCION not in c["aceptables"]]
-    ajenos = [c for c in casos if lp.ABSTENCION in c["aceptables"]]
-    atendidos = [c for c in suyos if elegidas[c["frase"]] != lp.ABSTENCION]
+    # EL ACIERTO SOLO YA NO ALCANZA, desde que sabe derivar. Un modelo que
+    # deriva todo saca el 28% y parece prudente; uno que no deriva nunca saca
+    # 72% y parece mejor de lo que es. Y los dos errores cuestan distinto:
+    # derivar de mas cuesta SEGUNDOS —el grande lo resuelve igual—, elegir mal
+    # cuesta AL AIRE. Por eso van separados:
+    #   COBERTURA  de lo que SI es suyo, cuanto atendio el mismo (lo que
+    #              derivo de mas es velocidad perdida, no pedido perdido).
+    #   PRECISION  de lo que atendio, cuanto acerto (esto es lo que se ve en
+    #              pantalla, y es el numero que no se puede bajar).
+    #   DERIVADO   de lo que no es suyo, cuanto paso bien.
+    suyos = [c for c in casos if lp.DERIVAR not in c["aceptables"]]
+    ajenos = [c for c in casos if lp.DERIVAR in c["aceptables"]]
+    atendidos = [c for c in suyos if elegidas[c["frase"]] != lp.DERIVAR]
     bien = [c for c in atendidos if elegidas[c["frase"]] in c["aceptables"]]
-    rechazados = [c for c in ajenos if elegidas[c["frase"]] == lp.ABSTENCION]
+    rechazados = [c for c in ajenos if elegidas[c["frase"]] == lp.DERIVAR]
     if ajenos:
         print(f"cobertura: {len(atendidos)}/{len(suyos)} "
-              f"({100*len(atendidos)//max(1,len(suyos))}%) de lo suyo lo atendio")
+              f"({100*len(atendidos)//max(1,len(suyos))}%) de lo suyo lo atendio solo")
         print(f"precision: {len(bien)}/{len(atendidos)} "
               f"({100*len(bien)//max(1,len(atendidos))}%) de lo que atendio lo acerto")
-        print(f"decir que no: {len(rechazados)}/{len(ajenos)} "
-              f"({100*len(rechazados)//max(1,len(ajenos))}%) de lo ajeno lo rechazo")
+        print(f"derivado: {len(rechazados)}/{len(ajenos)} "
+              f"({100*len(rechazados)//max(1,len(ajenos))}%) de lo ajeno lo paso al grande")
     print(f"acierto: {aciertos}/{len(casos)}  ({100*aciertos//len(casos)}%)"
           f"  ·  {(time.time()-t0)/len(casos):.2f} s por caso (3090, bf16)")
     if fallos:

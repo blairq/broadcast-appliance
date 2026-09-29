@@ -162,6 +162,56 @@ Es el mismo desajuste que arruina un fine-tune cuando se entrena con una
 plantilla y se sirve con otra, y por eso ahora el prompt lo arma **un solo
 módulo** (`tools/lib_prompt.py`) para el banco, el corpus y el entrenamiento.
 
+## Lo que no es suyo: `derivar`
+
+El repertorio reactivo son 85 herramientas de un MCP de 292. Las otras 207 son
+administrativas —armar una lámina, configurar una cuenta, editar una receta— y
+el modelo chico no las tiene entre sus fichas.
+
+**Sin una salida, no puede no contestar.** La gramática lo obliga a escribir uno
+de los nombres que existen, así que ante un pedido ajeno elige el pariente más
+cercano. Medido: con doce herramientas que no conocía, eligió la vecina **3 de 3
+veces**, siempre con aplomo. Por eso hay un nombre más en la gramática.
+
+**Es `derivar`, no «no puedo».** Decir que no es un callejón sin salida: el
+pedido se pierde y hay que repetirlo. Derivar lo atiende — el asistente grande
+tiene las 292 herramientas, el buscador y el estado del aparato, así que lo que
+el chico no sabe hacer, aquel sí. El chico no decide si el pedido es *imposible*
+(no puede saberlo), decide si es *suyo*.
+
+**Una sola clase, no dos.** Separar «no se puede» de «no me toca» le pide una
+distinción que va a errar, y errarla del lado malo es rechazar algo que el grande
+podía hacer. Esa distinción la hace el grande.
+
+**El contrato al servir:** el chico contesta `derivar` y el aparato le pasa al
+grande la frase **original, tal cual se dijo**. No una interpretación: el chico
+ya demostró que no la entendió.
+
+Los ejemplos salen de dos lados: unas frases escritas a mano para lo que está
+fuera del aparato (el clima, mandar un mail) y lo ambiguo («sacalo» sin decir a
+quién), y las 207 herramientas administrativas, repartidas por categoría —si se
+toman de corrido aprende a rechazar la palabra «agente» en vez de un tipo de
+pedido—. La segunda mitad es la que importa: lo de afuera no se parece a nada
+suyo y lo rechaza casi solo; lo de adentro que no le toca es lo que lo tienta.
+
+Con una guarda al revés: si una frase generada se parece a una del repertorio, no
+entra. Enseñarle a derivar algo que **sí** es suyo no se nota en el número
+general y le saca una herramienta de las manos.
+
+**Con techo del 12 %.** Derivar es la respuesta cómoda: nunca se equivoca de
+herramienta. Si sobran ejemplos, el chico deriva todo y deja de servir para lo
+único que sirve, que es contestar en 0,8 s sin salir de la máquina.
+
+**Y el acierto a secas deja de medir.** Uno que deriva todo saca 28 % y parece
+prudente; uno que no deriva nunca saca 72 % y parece mejor de lo que es. Los dos
+errores además cuestan distinto: derivar de más cuesta segundos, elegir mal
+cuesta al aire. `evaluar.py` informa las dos mitades separadas —cobertura de lo
+suyo, precisión de lo que atendió— y cuánto de lo ajeno pasó bien.
+
+**Lo que esto no entrena:** la *duda*. «Che, eso» con tres escenas posibles no es
+fuera de alcance, es baja confianza, y se resuelve en el momento con un umbral
+sobre la probabilidad del nombre elegido, no con ejemplos.
+
 ## Las piezas
 
 | | |

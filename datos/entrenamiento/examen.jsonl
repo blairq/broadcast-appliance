@@ -57,11 +57,11 @@
 {"frase": "buscame la imagen de los perros en la presentacion", "aceptables": ["laminas_buscar"]}
 {"frase": "esta mal el apellido en el zocalo", "aceptables": ["grafico_mostrar"]}
 {"frase": "baja el zocalo", "aceptables": ["grafico_ocultar"]}
-{"frase": "mandale un mail al sponsor", "aceptables": ["no_es_mio"]}
-{"frase": "cargá el padrón", "aceptables": ["no_es_mio"]}
-{"frase": "sacalo", "aceptables": ["no_es_mio"]}
-{"frase": "mmm", "aceptables": ["no_es_mio"]}
-{"frase": "perfecto", "aceptables": ["no_es_mio"]}
-{"frase": "qué hora es", "aceptables": ["no_es_mio"]}
-{"frase": "probá cómo queda este gráfico", "aceptables": ["no_es_mio"]}
-{"frase": "pedí un café", "aceptables": ["no_es_mio"]}
+{"frase": "mandale un mail al sponsor", "aceptables": ["derivar"]}
+{"frase": "cargá el padrón", "aceptables": ["derivar"]}
+{"frase": "sacalo", "aceptables": ["derivar"]}
+{"frase": "mmm", "aceptables": ["derivar"]}
+{"frase": "perfecto", "aceptables": ["derivar"]}
+{"frase": "qué hora es", "aceptables": ["derivar"]}
+{"frase": "probá cómo queda este gráfico", "aceptables": ["derivar"]}
+{"frase": "pedí un café", "aceptables": ["derivar"]}

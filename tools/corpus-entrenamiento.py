@@ -42,7 +42,7 @@ SEMILLAS = RAIZ / "datos/semillas-reactivas.json"
 SEMILLAS_AUTO = RAIZ / "datos/semillas-auto.json"
 # La jerga del oficio: sinonimos del gremio y giros enteros. Ver datos/jerga.json.
 JERGA = RAIZ / "datos/jerga.json"
-ABSTENCIONES = RAIZ / "datos/abstenciones.json"
+DERIVACIONES = RAIZ / "datos/derivaciones.json"
 CORPUS = RAIZ / "src/app/tests/datos/preguntas.json"
 SALIDA = RAIZ / "datos/entrenamiento"
 
@@ -173,14 +173,14 @@ def main():
     # Las de abstencion se parten ACA, antes de calcular lo prohibido: si se
     # parten despues, sus variantes entran al entrenamiento y el examen mide
     # memoria. Es el mismo error que ya nos costo 25 casos contaminados.
-    abst_examen, abst_entrenar = [], []
-    if ABSTENCIONES.exists():
-        _a = json.loads(ABSTENCIONES.read_text(encoding="utf-8"))
+    der_examen, der_entrenar = [], []
+    if DERIVACIONES.exists():
+        _a = json.loads(DERIVACIONES.read_text(encoding="utf-8"))
         _todas = [f for k, v in _a.items() if not k.startswith("_") for f in v]
         rnd.shuffle(_todas)
         _corte = max(1, len(_todas) // 5)
-        abst_examen, abst_entrenar = _todas[:_corte], _todas[_corte:]
-        examen += [{"pregunta": f, "herramientas": [lp.ABSTENCION]} for f in abst_examen]
+        der_examen, der_entrenar = _todas[:_corte], _todas[_corte:]
+        examen += [{"pregunta": f, "herramientas": [lp.DERIVAR]} for f in der_examen]
 
     prohibidas = {sin_tildes(c["pregunta"].lower()) for c in examen}
     prohibidas_tokens = [set(p.split()) for p in prohibidas]
@@ -228,28 +228,31 @@ def main():
                 filas.append(f)
                 n_correctivas += bool(corrige)
 
-    # DECIR QUE NO. Una parte del corpus ensena a NO elegir ninguna.
+    # PASAR LA PELOTA. Una parte del corpus ensena a NO elegir ninguna y
+    # derivar al asistente grande, que tiene las 292 herramientas.
     #
-    # CON TECHO, y por un motivo distinto al de las correctivas: abstenerse es
-    # la respuesta comoda. Si el modelo ve demasiados ejemplos de «no es mio»
-    # aprende que callarse siempre paga, y un asistente que se abstiene seguido
-    # es igual de inutil que uno que se equivoca —peor, porque parece prudente—.
-    # De donde salen las frases de «no»:
+    # CON TECHO, y por un motivo distinto al de las correctivas: derivar es la
+    # respuesta comoda, porque nunca se equivoca de herramienta. Si el modelo
+    # ve demasiados ejemplos, aprende que pasarla siempre paga, y entonces deja
+    # de servir para lo unico que sirve: contestar en 0,8 s sin salir de la
+    # maquina. Un chico que deriva todo es un rodeo, no un asistente.
+    # De donde salen las frases de derivar:
     #   1. las escritas a mano (datos/abstenciones.json): lo de FUERA del
     #      aparato —el clima, mandar un mail, apagar la luz— y lo ambiguo.
     #   2. las 207 herramientas del MCP que NO estan en el repertorio: armar
-    #      una lamina, configurar una cuenta, editar una receta. Esto lo pidio
-    #      el usuario y es la mitad que faltaba: lo de afuera es facil de
-    #      rechazar, lo de ADENTRO que no le toca es lo que lo tienta.
-    TECHO_ABSTENCION = 0.12
-    n_abst = 0
-    for f in abst_entrenar:
+    #      una lamina, configurar una cuenta, editar una receta. Es la mitad
+    #      que importa: lo de afuera es facil, lo de ADENTRO que no le toca es
+    #      lo que lo tienta, porque se parece a lo suyo. Y es justo donde
+    #      derivar gana: el grande SI tiene esa herramienta.
+    TECHO_DERIVAR = 0.12
+    n_der = 0
+    for f in der_entrenar:
         for v in variantes(f, rnd, cuantas=3):
             if parecido(v, prohibidas_tokens):
                 chocadas += 1
                 continue
-            filas.append(dict(ejemplo(cabeza, cola, v, lp.ABSTENCION), arregla=[]))
-            n_abst += 1
+            filas.append(dict(ejemplo(cabeza, cola, v, lp.DERIVAR), arregla=[]))
+            n_der += 1
 
     # LAS ADMINISTRATIVAS. Las frases salen de las etiquetas del buscador, o
     # sea que son bolsas de palabras: se las mete en un pedido para que suenen
@@ -279,7 +282,7 @@ def main():
             if i < len(por_cat[c]):
                 ronda.append(por_cat[c][i])
     # El cupo sale del techo: lo que ya pusieron las de a mano se descuenta.
-    cupo = int(len(filas) * TECHO_ABSTENCION / (1 - TECHO_ABSTENCION)) - n_abst
+    cupo = int(len(filas) * TECHO_DERIVAR / (1 - TECHO_DERIVAR)) - n_der
     n_admin, tocadas, rechazadas = 0, 0, 0
     for nombre, frs in ronda:
         if n_admin >= cupo:
@@ -296,11 +299,11 @@ def main():
                 if parecido(v, prohibidas_tokens) or parecido(v, suyas, umbral=0.5):
                     chocadas += 1
                     continue
-                filas.append(dict(ejemplo(cabeza, cola, v, lp.ABSTENCION), arregla=[]))
+                filas.append(dict(ejemplo(cabeza, cola, v, lp.DERIVAR), arregla=[]))
                 n_admin += 1
                 puestas += 1
         tocadas += bool(puestas)
-    n_abst += n_admin
+    n_der += n_admin
 
     # EQUILIBRIO. Una herramienta con cinco ejemplos y otra con treinta le
     # ensenan al modelo a preferir la frecuente cuando duda, que es justo
@@ -344,15 +347,15 @@ def main():
     # corto o largo; aca ya esta el conjunto entero y el numero es el que es.
     # Se sacan al azar, con lo cual la mezcla entre las de a mano y las
     # administrativas queda igual.
-    sobran = len([f for f in unicas if f["herramienta"] == lp.ABSTENCION]) \
-        - int(len(unicas) * TECHO_ABSTENCION * 0.9)  # 0.9: el techo se mide
+    sobran = len([f for f in unicas if f["herramienta"] == lp.DERIVAR]) \
+        - int(len(unicas) * TECHO_DERIVAR * 0.9)  # 0.9: el techo se mide
     # despues de partir validacion, y la particion no reparte las de «no» en
     # la misma proporcion. Se recorta un poco de mas y queda abajo siempre.
     if sobran > 0:
-        idx = [i for i, f in enumerate(unicas) if f["herramienta"] == lp.ABSTENCION]
+        idx = [i for i, f in enumerate(unicas) if f["herramienta"] == lp.DERIVAR]
         rnd.shuffle(idx)
         fuera_ = set(idx[:sobran])
-        n_abst -= sobran
+        n_der -= sobran
         unicas = [f for i, f in enumerate(unicas) if i not in fuera_]
 
     # La validacion se parte POR FRASE SEMILLA, no al azar: si la misma
@@ -387,8 +390,8 @@ def main():
     huella["propuestas_automaticas"] = sorted(auto)
     corr = [f for f in ent if f.get("arregla")]
     porcion = len(corr) / max(1, len(ent))
-    n_ab = sum(1 for f in ent if f["herramienta"] == lp.ABSTENCION)
-    huella["abstencion"] = {"ejemplos": n_ab, "porcion": round(n_ab / max(1, len(ent)), 3),
+    n_ab = sum(1 for f in ent if f["herramienta"] == lp.DERIVAR)
+    huella["derivar"] = {"ejemplos": n_ab, "porcion": round(n_ab / max(1, len(ent)), 3),
                             "herramientas_fuera_del_repertorio": len(fuera),
                             "fuera_con_ejemplos": tocadas}
     huella["correctivas"] = {"ejemplos": len(corr), "porcion": round(porcion, 3),
@@ -405,8 +408,8 @@ def main():
                                    "a una del repertorio" if rechazadas else ""))
     if n_ab:
         pab = n_ab / max(1, len(ent))
-        print(f"decir que no: {n_ab} ejemplos, {100*pab:.0f}% del corpus"
-              + ("  OJO: pasa el techo, se va a abstener de mas" if pab > TECHO_ABSTENCION else ""))
+        print(f"derivar al grande: {n_ab} ejemplos, {100*pab:.0f}% del corpus"
+              + ("  OJO: pasa el techo, va a derivar de mas" if pab > TECHO_DERIVAR else ""))
     if corr:
         aviso = "  OJO: pasan el techo, el corpus se esta pareciendo a una lista de casos raros" \
                 if porcion > TECHO_CORRECTIVAS else ""

@@ -1,0 +1,70 @@
+{
+  "_comentario": [
+    "Frases que el modelo chico NO tiene que atender: las pasa al asistente grande",
+    "contestando `derivar`. No es decir que no —el grande tiene las 292 herramientas",
+    "y probablemente pueda—, es reconocer que el pedido no es suyo.",
+    "",
+    "Cuatro familias, y la primera es la que importa:",
+    "  fuera_del_repertorio  es del aparato pero administrativo (armar una lamina,",
+    "                        configurar una cuenta). Es lo que MAS lo tienta, porque",
+    "                        se parece a lo suyo. Se generan solas desde las 207",
+    "                        herramientas que quedan afuera; estas son a mano.",
+    "  fuera_del_aparato     el clima, mandar un mail. Facil: no se parece a nada.",
+    "  ambiguo               «sacalo» sin decir a quien. El grande tiene el estado.",
+    "  no_es_pedido          alguien pensando en voz alta.",
+    "",
+    "OJO CON EL VOLUMEN: derivar es la respuesta comoda, nunca se equivoca de",
+    "herramienta. Si sobran ejemplos, el chico deriva todo y deja de servir para lo",
+    "unico que sirve, que es contestar en 0,8 s. Hay un techo del 12% en el corpus."
+  ],
+  "fuera_del_repertorio": [
+    "desarmá este powerpoint",
+    "convertime el pdf en láminas",
+    "armá un carrusel con estas fotos",
+    "etiquetá las láminas",
+    "armame el evento del jueves",
+    "cargá el padrón",
+    "mandale la invitación a Marta",
+    "hacé el acta de la reunión",
+    "dame los capítulos para youtube",
+    "creá una plantilla de zócalo",
+    "probá cómo queda este gráfico",
+    "configurá la calidad de grabación",
+    "cambiá el bitrate",
+    "conectá la cuenta de twitch"
+  ],
+  "fuera_del_aparato": [
+    "mandale un mail al sponsor",
+    "pedí un café",
+    "qué hora es",
+    "cuánto sale la licencia",
+    "llamá al técnico",
+    "buscá en internet cuánto salió el partido",
+    "imprimí el guión",
+    "reservá la sala para mañana"
+  ],
+  "ambiguo": [
+    "sacalo",
+    "ponelo",
+    "esa",
+    "la otra",
+    "dale a eso",
+    "cambialo",
+    "arreglá eso",
+    "bajalo",
+    "subilo",
+    "mejor no"
+  ],
+  "no_es_pedido": [
+    "gracias",
+    "dale",
+    "ok",
+    "esperá",
+    "no, nada",
+    "listo",
+    "buenísimo",
+    "ahí está",
+    "perfecto",
+    "mmm"
+  ]
+}
