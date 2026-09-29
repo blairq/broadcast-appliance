@@ -86,16 +86,21 @@ def main():
             sal = modelo(**ent, use_cache=True, output_hidden_states=True)
         cache, ultimo = sal.past_key_values, sal.logits[0, -1].float()
         ocultos = [h[0, -1, :] for h in sal.hidden_states[1:]]
+        n_prompt = ent.input_ids.shape[1]
+        base = torch.log_softmax(ultimo, -1)
         puntajes = {}
+        # DE A UN TOKEN, y no de corrido: la ruta de inferencia rapida de
+        # unsloth solo acepta q_len==1 cuando hay cache. Despues se recorta el
+        # cache a lo que media el prompt, que es lo que deja reusarlo para el
+        # nombre siguiente sin volver a leer los 2.650 tokens.
         for n, ids in secuencias.items():
-            lp_ = torch.log_softmax(ultimo, -1)[ids[0]].item()
-            if len(ids) > 1:
-                t = torch.tensor([ids[:-1]], device=dev)
+            lp_ = base[ids[0]].item()
+            for k in range(len(ids) - 1):
+                t = torch.tensor([[ids[k]]], device=dev)
                 with torch.no_grad():
-                    s2 = modelo(input_ids=t, past_key_values=cache, use_cache=False)
-                lg = torch.log_softmax(s2.logits[0].float(), -1)
-                for k, tid in enumerate(ids[1:]):
-                    lp_ += lg[k, tid].item()
+                    s2 = modelo(input_ids=t, past_key_values=cache, use_cache=True)
+                lp_ += torch.log_softmax(s2.logits[0, -1].float(), -1)[ids[k + 1]].item()
+            cache.crop(n_prompt)
             puntajes[n] = lp_
         return puntajes, ocultos
 
