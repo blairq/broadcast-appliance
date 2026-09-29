@@ -38,6 +38,10 @@ def main():
     ap.add_argument("--json", default="", help="donde dejar los fallos, para tools/entrenar/fallos.py")
     ap.add_argument("--ejemplos", type=int, default=0,
                     help="pares resueltos en el prefijo (para comparar con el aprendizaje en contexto)")
+    ap.add_argument("--amortiguar", default="",
+                    help="CAPAS:FACTOR, p.ej. 27,28:0.5 · 0 = como si la capa no estuviera")
+    ap.add_argument("--solo", default="atencion,mlp",
+                    help="que bloques amortiguar: atencion, mlp o los dos")
     ap.add_argument("--sesgo", type=float, default=0.0,
                     help="cuanto se le suma al logit de `derivar` (el dial simple)")
     ap.add_argument("--vector", help="vector de control (.gguf) de vector-control.py")
@@ -75,6 +79,40 @@ def main():
     # y esa curva se mide con el mismo evaluador que todo lo demas. Medir en un
     # lado y servir en el otro es como se pierden cuarenta puntos sin enterarse.
     ganchos = []
+
+    # AMORTIGUAR LAS ULTIMAS CAPAS. Una abliteracion apaga una direccion; esto
+    # baja el VOLUMEN de lo que escriben las capas que pisan la decision. El
+    # acierto leido capa por capa sube hasta la 26 y cae diez puntos en las dos
+    # ultimas: si esa caida es que esas capas escriben algo que estorba, bajarles
+    # el factor tiene que recuperar casos.
+    #
+    # Se mide con el decodificador DE VERDAD —gramatica, token por token— y no
+    # con el logit lens, que ademas de ser una lectura debil favorece a los
+    # nombres cortos. Es la unica forma de que el numero compare con los otros.
+    if args.amortiguar:
+        capas_txt, factor = args.amortiguar.split(":")
+        factor = float(factor)
+        cuales = {int(x) for x in capas_txt.split(",") if x.strip()}
+        bloques = {b.strip() for b in args.solo.split(",")}
+        from vector_control_util import capas_del as _cap
+        capas_m = _cap(modelo)
+
+        def amortiguador(fn_factor):
+            def fn(_m, _e, sal):
+                if isinstance(sal, tuple):
+                    return (sal[0] * fn_factor,) + tuple(sal[1:])
+                return sal * fn_factor
+            return fn
+
+        for i, capa in enumerate(capas_m):
+            if (i + 1) not in cuales:
+                continue
+            if "atencion" in bloques:
+                ganchos.append(capa.self_attn.register_forward_hook(amortiguador(factor)))
+            if "mlp" in bloques:
+                ganchos.append(capa.mlp.register_forward_hook(amortiguador(factor)))
+        print(f"amortiguado: capas {sorted(cuales)} · factor {factor} · bloques {sorted(bloques)}")
+
     if args.vector and args.escala != 0.0:
         import gguf  # noqa: E402
         from vector_control_util import capas_del  # noqa: E402
@@ -153,7 +191,8 @@ def main():
         g.remove()
     print(f"\nmodelo: {args.modelo} · ejemplos en contexto: {args.ejemplos}"
           + (f" · escala {args.escala}" if args.vector else "")
-          + (f" · sesgo {args.sesgo:+.1f}" if args.sesgo else ""))
+          + (f" · sesgo {args.sesgo:+.1f}" if args.sesgo else "")
+          + (f" · amortiguado {args.amortiguar}" if args.amortiguar else ""))
     # EL ACIERTO SOLO YA NO ALCANZA, desde que sabe derivar. Un modelo que
     # deriva todo saca el 28% y parece prudente; uno que no deriva nunca saca
     # 72% y parece mejor de lo que es. Y los dos errores cuestan distinto:

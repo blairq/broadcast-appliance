@@ -136,9 +136,17 @@ def main():
         final = sal.hidden_states[-1][0, -1, :].float()
         # La escala de la RMSNorm final, congelada: es lo que vuelve comparable
         # cada contribucion con la diferencia de logit que sale al final.
-        with torch.no_grad():
-            escala = (norma(final.to(W.dtype)).float().norm() / final.norm()).item() if norma else 1.0
-        d = (W[ib[k]].float() - W[ia[k]].float()) * escala   # + = hacia la CORRECTA
+        # LA NORMA FINAL, bien. RMSNorm no es multiplicar por un escalar: divide
+        # cada vector por su propia rms Y multiplica elemento por elemento por un
+        # peso aprendido. Aproximarla con un escalar —lo que hacia la primera
+        # version— da una auditoria con 12.000% de error, que es como se
+        # descubrio. Congelando la rms del residual final, la diferencia de
+        # logit es lineal en el residual y el vector que hay que proyectar es
+        # (W_correcta - W_elegida) * peso / rms.
+        rms = (final.pow(2).mean().sqrt() + 1e-6).item()
+        peso = norma.weight.float() if norma is not None and hasattr(norma, "weight") \
+            else torch.ones_like(final)
+        d = (W[ib[k]].float() - W[ia[k]].float()) * peso / rms   # + = hacia la CORRECTA
         # LA AUDITORIA, que es lo que separa una atribucion de un numero
         # inventado: la suma de todas las contribuciones MAS el embedding de
         # entrada tiene que dar la diferencia de logit que sale de verdad. Si
