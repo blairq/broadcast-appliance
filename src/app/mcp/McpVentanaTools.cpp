@@ -21,6 +21,9 @@
 // ============================================================================
 
 #include <QGuiApplication>
+#include <QImage>
+#include <QThread>
+#include "AppRuntime.hpp"
 #include <QQuickWindow>
 #include <QScreen>
 #include <QTimer>
@@ -606,6 +609,62 @@ void McpService::registerVentanaTools() {
         };
         core_.addTool(std::move(t));
     }
+    {
+        Tool t;
+        t.name = "ventana_captura";
+        t.title = "Ver la interfaz";
+        t.category = "interfaz";
+        t.readOnly = true;
+        t.description =
+            "Una foto de la INTERFAZ del aparato, no de lo que sale al aire (eso es "
+            "`capture_program`). Es la unica forma de mirar una pagina: si algo se ve mal —una "
+            "tarjeta encima de otra, un texto cortado, un boton que no aparece— esto lo muestra; "
+            "describirlo de memoria no. Por defecto la ventana principal; `ventana_listar` da las "
+            "otras (los paneles sueltos son `panel:<id>`).\n\n"
+            "Para mirar una pagina puntual, primero `ui_show_page` y despues esto.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"ventana", {{"type", "string"}, {"default", "principal"},
+                           {"description", "id de ventana_listar; `principal` si no se dice"}}},
+              {"ancho", {{"type", "integer"}, {"minimum", 320}, {"maximum", 3840},
+                         {"description", "a cuanto achicarla. 1280 si no se dice"}}}}}};
+        t.examples = {R"({})", R"({"ventana": "panel:carrusel"})"};
+        t.run = [this](const json& a, Done done) {
+            const QString id = QString::fromStdString(a.value("ventana", std::string("principal")));
+            QWindow* w = porId(id);
+            if (w == nullptr) {
+                done(ToolResult::error("No hay ninguna ventana «" + id.toStdString() +
+                                       "». `ventana_listar` dice cuales hay."));
+                return;
+            }
+            auto* qw = qobject_cast<QQuickWindow*>(w);
+            if (qw == nullptr) {
+                done(ToolResult::error("Esa ventana no se puede fotografiar."));
+                return;
+            }
+            // grabWindow SOLO corre en el hilo de la interfaz. Si ya estamos en
+            // el, llamarla derecho: una conexion bloqueante a nuestro propio
+            // hilo es un abrazo mortal.
+            QImage img;
+            const auto sacar = [qw, &img]() { img = qw->grabWindow(); };
+            if (QThread::currentThread() == qw->thread()) {
+                sacar();
+            } else {
+                QMetaObject::invokeMethod(qw, sacar, Qt::BlockingQueuedConnection);
+            }
+            if (img.isNull()) {
+                done(ToolResult::error("No se pudo sacar la foto de la ventana."));
+                return;
+            }
+            ToolResult r;
+            r.text("Interfaz de «" + id.toStdString() + "».");
+            addImage(r, img, a, 1280, core_, rt_.dataRoot());
+            done(r);
+        };
+        core_.addTool(std::move(t));
+    }
+
     {
         Tool t;
         t.name = "ventana_cerrar";

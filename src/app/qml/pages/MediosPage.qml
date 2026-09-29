@@ -92,9 +92,18 @@ Rectangle {
 
         // --- Buscar y filtrar ------------------------------------------------
         Panel {
+            id: panelBuscar
             visible: page.solapa === 0
             Layout.fillWidth: true
+            // EL ALTO SE DECLARA. `Panel` es un Rectangle y no tiene
+            // implicitHeight: adentro de un ColumnLayout eso son CERO pixeles.
+            // El buscador se seguia viendo —los hijos desbordan un padre de
+            // alto cero— pero ocupaba un lugar que el layout creia vacio, asi
+            // que la grilla empezaba arriba de todo y al desplazarla las
+            // miniaturas pasaban por encima del buscador.
+            Layout.preferredHeight: filas.implicitHeight + 2 * panelBuscar.padding
             ColumnLayout {
+                id: filas
                 anchors.fill: parent
                 spacing: 8
 
