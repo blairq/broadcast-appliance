@@ -160,11 +160,13 @@
         "al aire ya, sin preparar nada",
         "pasa al plano dos",
         "arranca con la de bienvenida",
-        "que salga el zocalo ahora",
         "quiero la bienvenida saliendo ya",
-        "reemplaza lo que sale por el plano dos"
+        "reemplaza lo que sale por el plano dos",
+        "pasa a la escena de placa",
+        "anda a la toma de graficos"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "scene_preview": {
       "frases": [
@@ -243,7 +245,9 @@
         "ocultá el logo",
         "mostrá de nuevo la placa",
         "corré la cámara chica a la izquierda",
-        "agrandá el pip"
+        "agrandá el pip",
+        "que salga el zocalo ahora",
+        "mostra la placa del orador"
       ],
       "tambien": [
         "source_set_property"

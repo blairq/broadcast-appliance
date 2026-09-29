@@ -40,6 +40,8 @@ SEMILLAS = RAIZ / "datos/semillas-reactivas.json"
 # conjunto porque es mejor que una herramienta nueva no exista para el modelo,
 # pero viven aparte para que se vea cuanto del corpus es de segunda mano.
 SEMILLAS_AUTO = RAIZ / "datos/semillas-auto.json"
+# La jerga del oficio: sinonimos del gremio y giros enteros. Ver datos/jerga.json.
+JERGA = RAIZ / "datos/jerga.json"
 CORPUS = RAIZ / "src/app/tests/datos/preguntas.json"
 SALIDA = RAIZ / "datos/entrenamiento"
 
@@ -62,6 +64,27 @@ def con_typo(s, rnd):
                "n": "m", "m": "n", "l": "k", "c": "v", "t": "y", "u": "y"}
     c = s[i].lower()
     return s[:i] + vecinos.get(c, c) + s[i + 1:]
+
+
+def con_jerga(frase, sinonimos, rnd):
+    """La misma frase con la palabra del gremio.
+
+    Un control no dice «cámara», dice «cam», «plano» o «toma». No es adorno:
+    el modelo fallo en «salimos al aire» —eligio PARAR la transmision— porque
+    nunca habia visto esa construccion. Cambiar el vocabulario ensena mas que
+    mil parafrasis con las mismas palabras.
+
+    Se cambia UN concepto por vez: cambiar tres deja una frase que no dice
+    nadie.
+    """
+    palabras = sorted(sinonimos)
+    rnd.shuffle(palabras)
+    for concepto in palabras:
+        if concepto in frase:
+            reemplazo = rnd.choice(sinonimos[concepto])
+            if reemplazo != concepto:
+                return frase.replace(concepto, reemplazo, 1)
+    return None
 
 
 def variantes(frase, rnd, cuantas=4):
@@ -122,6 +145,16 @@ def main():
     cabeza, cola = lp.partes(inv)
 
     sem = json.loads(SEMILLAS.read_text(encoding="utf-8"))["herramientas"]
+    jerga = json.loads(JERGA.read_text(encoding="utf-8")) if JERGA.exists() else {"sinonimos": {}, "giros": {}}
+    # Los giros entran con peso NORMAL, no como correctivas. Marcarlos como
+    # excepcion llevo el corpus al 48% de «casos raros», y es al reves: la
+    # jerga no es un caso raro, es el REGISTRO EN QUE SE HABLA. Rara es la
+    # frase de manual que escribi yo. Las que si van con peso extra son los
+    # pares que distinguen dos giros parecidos («salir» contra «bajar» del
+    # aire), y esas ya estaban marcadas.
+    for herr, frases in jerga.get("giros", {}).items():
+        if herr in sem:
+            sem[herr]["frases"] = list(dict.fromkeys(sem[herr]["frases"] + frases))
     auto = {}
     if SEMILLAS_AUTO.exists():
         auto = json.loads(SEMILLAS_AUTO.read_text(encoding="utf-8"))["herramientas"]
