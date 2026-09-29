@@ -474,6 +474,106 @@ Qué de esto nos toca, que es menos de lo que parece:
   memoria: la rotación es lo que vuelve seguro cuantizar ese caché. Anotado para
   cuando la notebook apriete, no antes.
 
+## Adónde se decide: la anatomía de los errores de v7
+
+Cuatro instrumentos nuevos y una conclusión que cierra una familia entera de
+ideas. Vale la pena leer el orden en que pasó, porque tres de los cuatro
+instrumentos tuvieron bugs y cada bug fabricó un hallazgo entusiasmante.
+
+### Lo que sí quedó en pie
+
+**Ningún error es un volado.** De 16 fallos, **cero** tienen margen menor a 0,60
+entre la elegida y la correcta; 13 de 16 están por encima de 0,90 y varios en
+1,00. La hipótesis de que los dominios se intersectan tanto que la decisión cae
+de un lado o del otro al azar queda descartada: el modelo está **seguro y
+equivocado**, que es otro problema.
+
+**La temperatura no puede hacer nada.** Se decodifica por argmax y la
+temperatura divide todos los logits por igual: no cambia cuál es el mayor. Es
+una operación nula. Y ahora está la prueba empírica además de la estructural: no
+hay margen chico que sacudir. Muestrear sólo agregaría ruido.
+
+**La decisión se calcula en el último tercio, y la hace la atención.** Con
+atribución directa al logit —descomponer la diferencia de logit en lo que
+aporta cada bloque, con auditoría de que la suma cierre (0,7 % de error
+mediano)—:
+
+| | contribución media |
+|---|---|
+| capas 1 a 18 | **−0,06** |
+| capas 19 a 28 | **−6,47** |
+
+Las primeras dieciocho capas **no participan**. No es que pierdan contra las
+últimas: su aporte a distinguir una herramienta de otra es cero coma cero seis.
+Los que deciden son la atención de las capas 22 (−1,05), 25 (−2,83) y 27
+(−1,80). El único componente que empuja fuerte hacia la respuesta correcta es
+el MLP de la capa 28 (+1,62).
+
+### Por qué eso mata las intervenciones del lado de la lectura
+
+Si no hay una respuesta correcta formada temprano, no hay nada que rescatar. Y
+se probó con el decodificador de verdad —gramática incluida—, no con sondas:
+
+| | acierto |
+|---|---|
+| sin tocar nada | **90/106** |
+| capa 28 amortiguada al 50 % | 90 |
+| capa 28 apagada | 89 |
+| capas 27+28 apagadas | 88 |
+| MLP de la 28 amplificado ×1,5 / ×2 / ×3 | 87 / 84 / 57 |
+| atención de la 25 apagada | 89 |
+| atención de 22+25+27 al 70 % | 89 |
+
+Nada le gana a no tocar nada. **Y el motivo es la lección que importa:** la
+atribución se calculó sobre los 16 fallos, pero esos mismos componentes son los
+que aciertan los otros 90. Una atribución sobre los errores **no es una
+receta**, porque el mecanismo es compartido. Amortiguar lo que se equivoca
+amortigua también lo que funciona.
+
+Eso cierra, para esta tarea: salida temprana, DoLa y contrastes entre capas,
+amortiguar o semi-abliterar las capas finales. La literatura ya avisaba que esos
+métodos son inestables en modelos chicos ([Active Layer-Contrastive
+Decoding](https://arxiv.org/pdf/2505.23657) mide que DoLa incluso degrada en
+algunos Qwen); acá hay además un motivo mecánico y no sólo un experimento
+fallido.
+
+### Los tres bugs, porque cada uno inventó un hallazgo
+
+1. **El logit lens comparaba un token contra sí mismo.** Para los pares de la
+   misma familia —`capture_feed` y `capture_program` comparten `capture`—
+   comparar el *primer* token da siempre empate, y el instrumento informaba «la
+   correcta nunca estuvo adelante» en exactamente los 6 pares de la misma
+   familia. Corregido: busca el token donde los nombres **se separan**.
+
+2. **La atribución elegía el candidato por el primer token.** Informaba 75
+   fallos donde hay 16, y proyectaba sobre una dirección que no era la que el
+   modelo estaba decidiendo. Lo delató que la suma diera **+799 hacia la
+   correcta**: si eso fuera cierto, el modelo la habría elegido. De ahí salió la
+   regla de auditar que la descomposición cierre, que es lo que separa una
+   atribución de un número inventado.
+
+3. **`hidden_states[-1]` ya viene normalizado, y yo lo normalizaba otra vez.**
+   En transformers el modelo hace `self.norm(hidden_states)` y *después* lo
+   agrega a la tupla. Mi «capa 28» era `norm(norm(h))`: daba 73,6 % donde el
+   decodificador real da 84,9 %, y de esa diferencia salió la conclusión —falsa—
+   de que el modelo perdía diez puntos en las dos últimas capas. El residual
+   pre-norma no está en la tupla; ahora se saca con un gancho en la norma final.
+
+El amortiguado fue la única de estas mediciones hecha con el decodificador real
+desde el principio, y fue la única que dio el resultado correcto: no recuperaba
+nada porque no había nada que recuperar. **Cuando una sonda y el decodificador
+se contradicen, tiene razón el decodificador.**
+
+### Lo que queda, entonces
+
+Los errores son genuinos: la atención tardía lee el pedido y elige mal con
+convicción. No hay atajo en la lectura. Queda el lado del entrenamiento —pares
+contrastivos para las vecinas que se confunden— la geometría de las etiquetas
+—los 86 nombres comparten 25 primeros tokens; ver `tokens-nombres.py`— y una
+decisión de producto: de los 16 fallos, varios son casos donde las dos
+herramientas hacen algo razonable para el mismo pedido, y eso el examen lo
+tiene que decir.
+
 ## Las piezas
 
 | | |
