@@ -10,16 +10,27 @@
 #
 #       soffice --headless --convert-to pdf  archivo.pptx
 #
-#   De ahi a imagenes va `mutool` (ver deps-mupdf), que es chico.
+#   De ahi a imagenes rinde Qt6::Pdf, que ya viaja con nosotros: no hace falta
+#   ninguna dependencia mas para la segunda mitad (ver carrusel/Conversion.cpp).
 #
 # NO SE PUEDE QUEDAR SOLO CON IMPRESS, y conviene saberlo antes de esperar
 # milagros: LibreOffice moderno fusiona el nucleo en `libmergedlo.so`, que sola
 # pesa 85 MB. Sacando Writer (20 MB), Calc (19 MB) y el arte de la interfaz
-# (38 MB, que headless no se usa) se baja de ~355 MB a ~280 MB y ahi se termina.
+# (38 MB, que headless no se usa) no alcanza para bajar mucho. Lo que SI baja
+# es sacar los idiomas: el .msi de Windows trae 123 y nosotros convertimos
+# archivos, no le mostramos menus a nadie. Medido: Linux 730 -> 421 MB,
+# Windows 825 -> 470 MB.
 #
 # POR ESO ES OPCIONAL. No lo baja `make deps`: hay que pedirlo. Y el bundle lo
 # incluye solo si esta (ver src/app/CMakeLists.txt). El que recibe PDF y no
-# PowerPoint no carga 280 MB para nada.
+# PowerPoint no carga 420 MB para nada.
+#
+# LA PODA SE VERIFICA. Despues de podar se convierte una diapositiva a PDF de
+# verdad y, si no sale, esto corta. No es prolijidad: una version anterior
+# borraba `share/config` entera y dejaba un LibreOffice que no abria NINGUN
+# archivo, con el mensaje inutil «source file could not be loaded». En Windows
+# no se puede convertir desde Linux, asi que ahi se verifica el arbol y se DICE
+# que es lo que se verifico.
 #
 # Y DE PASO, LAS FUENTES. El tarball oficial trae un juego tipografico decente
 # —Liberation, Carlito, Caladea, DejaVu, Noto— que el aparato no tenia: lo unico
@@ -95,6 +106,29 @@ podar() {
     rm -rf "$dir/help" "$dir/readmes" "$dir/share/readme" 2>/dev/null || true
     rm -rf "$dir/program/classes" 2>/dev/null || true
     rm -f  "$dir/CREDITS.fodt" 2>/dev/null || true
+    # IDIOMAS. El .msi de Windows es el instalador multi-idioma: 123 juegos de
+    # recursos (272 MB) y 124 Langpack (96 MB). Nosotros convertimos archivos,
+    # no le mostramos menus a nadie. Se quedan español e ingles —el ingles
+    # porque el tarball de Linux viene asi y sacarlo lo dejaria sin ninguno—.
+    if [ -d "$dir/program/resource" ]; then
+        local idioma
+        for idioma in "$dir/program/resource"/*; do
+            case "$(basename "$idioma")" in
+                es|en*) ;;
+                *) rm -rf "$idioma" ;;
+            esac
+        done
+    fi
+    local xcd
+    for xcd in "$dir/share/registry"/Langpack-*.xcd \
+               "$dir/share/registry/res"/fcfg_langpack_*.xcd \
+               "$dir/share/registry/res"/registry_*.xcd; do
+        [ -e "$xcd" ] || continue
+        case "$(basename "$xcd")" in
+            *_es.xcd|*_en-US.xcd|Langpack-es.xcd|Langpack-en-US.xcd) ;;
+            *) rm -f "$xcd" ;;
+        esac
+    done
     # Los juegos de iconos (~70 MB) son para la ventana, que nunca se abre.
     # OJO: se borran los .zip, NO la carpeta. `share/config` entera se llevaba
     # puesto el soffice.cfg y entonces NO CARGA NINGUN ARCHIVO, con el mensaje
@@ -109,10 +143,18 @@ podar() {
 # arrastra un .pptx y no pasa nada.
 convierte() {
     local dir="$1"
+    # El arbol de Windows PRIMERO: ahi el binario es soffice.exe y no se puede
+    # correr desde aca, asi que se verifica que este armado y nada mas. Mirar
+    # `soffice` antes daba por podado de mas un arbol que estaba perfecto.
+    case "$dir" in
+        *"/win")
+            [ -f "$dir/program/soffice.exe" ] && [ -f "$dir/program/soffice.bin" ] &&
+                [ -d "$dir/share/registry" ]
+            return $?
+            ;;
+    esac
     local soffice="$dir/program/soffice"
     [ -x "$soffice" ] || return 1
-    # En Windows no hay como correrlo desde aca: se verifica el arbol nomas.
-    case "$dir" in *"/win") [ -f "$dir/program/soffice.bin" ]; return $? ;; esac
     local t; t="$(mktemp -d)"
     cat > "$t/p.fodp" <<'FODP'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -133,8 +175,13 @@ FODP
 }
 
 verificar() {
-    convierte "$1" || morir "podado de mas: no convierte a PDF. Revisa podar()"
-    log "verificado: convierte a PDF"
+    convierte "$1" || morir "podado de mas. Revisa podar()"
+    # Se dice QUE se verifico. En Windows no se puede convertir desde aca y
+    # decir «convierte a PDF» seria mentir sobre la unica prueba que importa.
+    case "$1" in
+        *"/win") log "verificado: el arbol esta completo (no se puede convertir desde Linux)" ;;
+        *)       log "verificado: convierte a PDF" ;;
+    esac
 }
 
 fuentes_aparte() { # dir
@@ -215,12 +262,18 @@ hacer_win() {
     # vive en las tablas Directory y File del instalador, y reconstruirlo es
     # justo lo que hace msitools. Esto se probo: con 7z quedan 19.496 archivos
     # sin un solo directorio.
-    command -v msiextract >/dev/null 2>&1 || morir \
-        "para abrir el .msi desde Linux hace falta msitools. En Debian/Ubuntu: sudo apt install msitools"
+    #
+    # Y viene de extern/, no del sistema: aca no se instala nada a mano. Si no
+    # esta, se lo baja solo (tools/deps/msitools.sh, 884 KB).
+    local MSIEXTRACT="$ROOT/extern/msitools/msiextract"
+    if [ ! -x "$MSIEXTRACT" ]; then
+        log "falta msitools; lo bajo"
+        "$ROOT/tools/deps/msitools.sh" || morir "no pude preparar msitools"
+    fi
     local tmp; tmp="$(mktemp -d)"
     trap 'rm -rf "$tmp"' RETURN
     log "extrayendo el .msi"
-    ( cd "$tmp" && msiextract "$DL/$WIN_MSI" >/dev/null )
+    ( cd "$tmp" && "$MSIEXTRACT" "$DL/$WIN_MSI" >/dev/null )
     local raiz
     raiz="$(find "$tmp" -maxdepth 6 -type d -name program | head -1)"
     [ -n "$raiz" ] || morir "no encontre program/ adentro del .msi"
