@@ -77,7 +77,7 @@ def main():
 
     largo_prompt = [0]
     casos = [json.loads(l) for l in EXAMEN.read_text(encoding="utf-8").splitlines() if l.strip()]
-    aciertos, fallos, t0 = 0, [], time.time()
+    aciertos, fallos, elegidas, t0 = 0, [], {}, time.time()
     for c in casos:
         ent = tok(cabeza + c["frase"] + cola, return_tensors="pt").to(modelo.device)
         largo_prompt[0] = ent.input_ids.shape[1]
@@ -86,12 +86,34 @@ def main():
                                   prefix_allowed_tokens_fn=permitidos,
                                   pad_token_id=tok.pad_token_id or fin)
         elegida = tok.decode(sal[0][largo_prompt[0]:], skip_special_tokens=True).strip()
+        elegidas[c["frase"]] = elegida
         if elegida in c["aceptables"]:
             aciertos += 1
         else:
             fallos.append((c["frase"], elegida, c["aceptables"]))
 
     print(f"\nmodelo: {args.modelo} · ejemplos en contexto: {args.ejemplos}")
+    # EL ACIERTO SOLO YA NO ALCANZA, desde que sabe decir que no. Un modelo que
+    # contesta «no_es_mio» a todo saca el 28% y parece prudente; uno que nunca
+    # se abstiene saca 72% y parece mejor de lo que es. Hay que mirar las dos
+    # mitades por separado:
+    #   COBERTURA  de lo que SI es suyo, cuanto atendio (abstenerse de mas
+    #              aca es una herramienta que dejo de existir).
+    #   PRECISION  de lo que atendio, cuanto acerto (es lo que se paga al
+    #              aire: una herramienta equivocada en vivo se ve).
+    #   NO         de lo que no es suyo, cuanto rechazo bien.
+    suyos = [c for c in casos if lp.ABSTENCION not in c["aceptables"]]
+    ajenos = [c for c in casos if lp.ABSTENCION in c["aceptables"]]
+    atendidos = [c for c in suyos if elegidas[c["frase"]] != lp.ABSTENCION]
+    bien = [c for c in atendidos if elegidas[c["frase"]] in c["aceptables"]]
+    rechazados = [c for c in ajenos if elegidas[c["frase"]] == lp.ABSTENCION]
+    if ajenos:
+        print(f"cobertura: {len(atendidos)}/{len(suyos)} "
+              f"({100*len(atendidos)//max(1,len(suyos))}%) de lo suyo lo atendio")
+        print(f"precision: {len(bien)}/{len(atendidos)} "
+              f"({100*len(bien)//max(1,len(atendidos))}%) de lo que atendio lo acerto")
+        print(f"decir que no: {len(rechazados)}/{len(ajenos)} "
+              f"({100*len(rechazados)//max(1,len(ajenos))}%) de lo ajeno lo rechazo")
     print(f"acierto: {aciertos}/{len(casos)}  ({100*aciertos//len(casos)}%)"
           f"  ·  {(time.time()-t0)/len(casos):.2f} s por caso (3090, bf16)")
     if fallos:

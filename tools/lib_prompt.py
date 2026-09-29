@@ -44,10 +44,19 @@ NO_REACTIVAS = {
     "laminas_sin_analizar",
 }
 
+# La respuesta para cuando NO hay respuesta. Tiene que ser un nombre mas: la
+# gramatica solo deja escribir nombres del repertorio, asi que sin esto el
+# modelo esta OBLIGADO a elegir una herramienta aunque le pidan un cafe.
+ABSTENCION = "no_es_mio"
+
 SISTEMA_NOMBRE = """Sos el asistente de un estudio de television EN VIVO. El operador te habla apurado y corto.
 Contestas UNICAMENTE el nombre de la herramienta que corresponde. Una palabra, nada mas.
 Si te piden HACER algo, elegi la que lo HACE. Los listados son para cuando preguntan QUE HAY.
 Ante un problema de audio o de imagen, MEDIR primero tambien vale.
+
+Si el pedido NO es de esta lista —es trabajo previo, no es del aparato, le falta
+el objeto («sacalo» a quien) o no es un pedido— contestas no_es_mio. Es mejor
+eso que elegir la mas parecida: alguien se ocupa despues.
 
 Herramientas:
 """
@@ -160,6 +169,68 @@ def huella(inv=None, ejemplos=0):
             "tokens_aprox": len(pref) // 4}
 
 
-def gramatica_nombre(nombres):
-    """Solo un nombre que exista. No es un pedido: es imposible desviarse."""
-    return "root ::= " + " | ".join('"%s"' % n for n in nombres) + "\n"
+def gramatica_nombre(nombres, con_abstencion=True):
+    """Solo un nombre que exista. No es un pedido: es imposible desviarse.
+
+    `no_es_mio` entra como una opcion mas. Sin ella, «pedi un cafe» tiene que
+    salir como alguna herramienta del estudio: no por tonto, por obligado.
+    """
+    opciones = list(nombres) + ([ABSTENCION] if con_abstencion else [])
+    return "root ::= " + " | ".join('"%s"' % n for n in opciones) + "\n"
+
+
+# Palabras que aparecen en todas las etiquetas y no distinguen nada.
+VACIAS = {"el", "la", "los", "las", "un", "una", "de", "del", "al", "a", "que",
+          "y", "o", "en", "se", "lo", "le", "por", "para", "con", "sin", "su",
+          "esta", "este", "esa", "ese", "no", "si", "mas", "ya", "hay", "es"}
+
+
+def frases_desde_etiquetas(tags, titulo):
+    """Trozos de 2 a 4 palabras de las etiquetas, como pedidos cortos.
+
+    Se cortan en trozos y no se usa la etiqueta entera porque la etiqueta es
+    una bolsa —«silenciar mutear bajar subir volumen»— y eso nadie lo dice.
+    Un trozo de tres palabras se parece bastante a un pedido de cabina.
+    """
+    palabras = [w for w in re.findall(r"[a-záéíóúñ]+", tags.lower()) if w not in VACIAS and len(w) > 2]
+    out, i = [], 0
+    while i < len(palabras):
+        trozo = palabras[i:i + 3]
+        if len(trozo) >= 2:
+            out.append(" ".join(trozo))
+        i += 3
+    if titulo:
+        out.append(titulo.lower())
+    # Sin repetidas y sin las larguisimas.
+    vistas, limpio = set(), []
+    for f in out:
+        if f not in vistas and len(f) <= 48:
+            vistas.add(f)
+            limpio.append(f)
+    return limpio[:6]
+
+
+def fuera_del_repertorio(inv):
+    """Las herramientas que el modelo chico NO tiene que usar, con sus frases.
+
+    Son las administrativas: armar una lamina, configurar una cuenta, editar
+    una receta. Existen en el aparato pero no se piden al aire, y el modelo
+    chico no las tiene entre sus fichas.
+
+    POR QUE IMPORTAN IGUAL. Si nunca las ve, cuando alguien le pide una elige
+    la pariente mas cercana —medido: con doce herramientas que no conocia,
+    eligio la vecina 3 de 3 veces, siempre con aplomo—. Verlas etiquetadas
+    como «no es mio» es lo que convierte ese reflejo en un no.
+
+    :returns: [(nombre, categoria, [frases])]
+    """
+    repertorio = set(herramientas_reactivas(inv))
+    out = []
+    for h in inv["herramientas"]:
+        if h["nombre"] in repertorio:
+            continue
+        tags = (h["etiquetas"]["propias"] or "") + " " + (h["etiquetas"]["porPrefijo"] or "")
+        fr = frases_desde_etiquetas(tags, h["titulo"])
+        if fr:
+            out.append((h["nombre"], h.get("categoria", ""), fr))
+    return out

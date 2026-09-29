@@ -42,6 +42,7 @@ SEMILLAS = RAIZ / "datos/semillas-reactivas.json"
 SEMILLAS_AUTO = RAIZ / "datos/semillas-auto.json"
 # La jerga del oficio: sinonimos del gremio y giros enteros. Ver datos/jerga.json.
 JERGA = RAIZ / "datos/jerga.json"
+ABSTENCIONES = RAIZ / "datos/abstenciones.json"
 CORPUS = RAIZ / "src/app/tests/datos/preguntas.json"
 SALIDA = RAIZ / "datos/entrenamiento"
 
@@ -169,6 +170,18 @@ def main():
     # El examen primero: sus frases quedan PROHIBIDAS en el entrenamiento.
     corpus = json.loads(CORPUS.read_text(encoding="utf-8"))["casos"]
     examen = [c for c in corpus if any(t in validas for t in c["herramientas"])]
+    # Las de abstencion se parten ACA, antes de calcular lo prohibido: si se
+    # parten despues, sus variantes entran al entrenamiento y el examen mide
+    # memoria. Es el mismo error que ya nos costo 25 casos contaminados.
+    abst_examen, abst_entrenar = [], []
+    if ABSTENCIONES.exists():
+        _a = json.loads(ABSTENCIONES.read_text(encoding="utf-8"))
+        _todas = [f for k, v in _a.items() if not k.startswith("_") for f in v]
+        rnd.shuffle(_todas)
+        _corte = max(1, len(_todas) // 5)
+        abst_examen, abst_entrenar = _todas[:_corte], _todas[_corte:]
+        examen += [{"pregunta": f, "herramientas": [lp.ABSTENCION]} for f in abst_examen]
+
     prohibidas = {sin_tildes(c["pregunta"].lower()) for c in examen}
     prohibidas_tokens = [set(p.split()) for p in prohibidas]
 
@@ -215,6 +228,80 @@ def main():
                 filas.append(f)
                 n_correctivas += bool(corrige)
 
+    # DECIR QUE NO. Una parte del corpus ensena a NO elegir ninguna.
+    #
+    # CON TECHO, y por un motivo distinto al de las correctivas: abstenerse es
+    # la respuesta comoda. Si el modelo ve demasiados ejemplos de «no es mio»
+    # aprende que callarse siempre paga, y un asistente que se abstiene seguido
+    # es igual de inutil que uno que se equivoca —peor, porque parece prudente—.
+    # De donde salen las frases de «no»:
+    #   1. las escritas a mano (datos/abstenciones.json): lo de FUERA del
+    #      aparato —el clima, mandar un mail, apagar la luz— y lo ambiguo.
+    #   2. las 207 herramientas del MCP que NO estan en el repertorio: armar
+    #      una lamina, configurar una cuenta, editar una receta. Esto lo pidio
+    #      el usuario y es la mitad que faltaba: lo de afuera es facil de
+    #      rechazar, lo de ADENTRO que no le toca es lo que lo tienta.
+    TECHO_ABSTENCION = 0.12
+    n_abst = 0
+    for f in abst_entrenar:
+        for v in variantes(f, rnd, cuantas=3):
+            if parecido(v, prohibidas_tokens):
+                chocadas += 1
+                continue
+            filas.append(dict(ejemplo(cabeza, cola, v, lp.ABSTENCION), arregla=[]))
+            n_abst += 1
+
+    # LAS ADMINISTRATIVAS. Las frases salen de las etiquetas del buscador, o
+    # sea que son bolsas de palabras: se las mete en un pedido para que suenen
+    # a alguien pidiendo algo y no a una lista.
+    MARCOS = ["necesito {}", "hacé {}", "podés {}", "quiero {}", "andá a {}",
+              "dale con {}", "{}", "me ayudás con {}"]
+    # LA GUARDA QUE IMPORTA. Una etiqueta administrativa puede decir casi lo
+    # mismo que una frase del repertorio (`grafico_probar` y `grafico_mostrar`
+    # comparten media etiqueta). Ensenarle a decir que no a algo que SI es suyo
+    # es el peor error posible: no se nota en el numero general y le saca una
+    # herramienta. Ante la duda, la frase no entra.
+    suyas = [set(sin_tildes(f.lower()).split())
+             for d in sem.values() for f in d["frases"] + d.get("correctivas", [])]
+    fuera = lp.fuera_del_repertorio(inv)
+    # Repartidas por categoria y no de corrido: si se toman las primeras
+    # doscientas alfabeticamente, el modelo ve `agente_*` cuarenta veces y
+    # `receta_*` ninguna, y aprende a rechazar una palabra en vez de un tipo
+    # de pedido.
+    por_cat = {}
+    for nombre, cat, frs in fuera:
+        por_cat.setdefault(cat, []).append((nombre, frs))
+    for v_ in por_cat.values():
+        rnd.shuffle(v_)
+    ronda, cats = [], sorted(por_cat)
+    for i in range(max(len(v_) for v_ in por_cat.values())):
+        for c in cats:
+            if i < len(por_cat[c]):
+                ronda.append(por_cat[c][i])
+    # El cupo sale del techo: lo que ya pusieron las de a mano se descuenta.
+    cupo = int(len(filas) * TECHO_ABSTENCION / (1 - TECHO_ABSTENCION)) - n_abst
+    n_admin, tocadas, rechazadas = 0, 0, 0
+    for nombre, frs in ronda:
+        if n_admin >= cupo:
+            break
+        puestas = 0
+        for base in frs:
+            if puestas >= 2:
+                break
+            frase = rnd.choice(MARCOS).format(base)
+            if parecido(frase, suyas, umbral=0.5):
+                rechazadas += 1
+                continue
+            for v in variantes(frase, rnd, cuantas=1):
+                if parecido(v, prohibidas_tokens) or parecido(v, suyas, umbral=0.5):
+                    chocadas += 1
+                    continue
+                filas.append(dict(ejemplo(cabeza, cola, v, lp.ABSTENCION), arregla=[]))
+                n_admin += 1
+                puestas += 1
+        tocadas += bool(puestas)
+    n_abst += n_admin
+
     # EQUILIBRIO. Una herramienta con cinco ejemplos y otra con treinta le
     # ensenan al modelo a preferir la frecuente cuando duda, que es justo
     # cuando no tiene que inventar preferencias. A las flacas se les generan
@@ -252,6 +339,22 @@ def main():
             unicas.append(f)
     rnd.shuffle(unicas)
 
+    # EL TECHO SE RESPETA RECORTANDO, no estimando. El cupo de mas arriba se
+    # calcula antes del equilibrio y del deduplicado, asi que siempre queda
+    # corto o largo; aca ya esta el conjunto entero y el numero es el que es.
+    # Se sacan al azar, con lo cual la mezcla entre las de a mano y las
+    # administrativas queda igual.
+    sobran = len([f for f in unicas if f["herramienta"] == lp.ABSTENCION]) \
+        - int(len(unicas) * TECHO_ABSTENCION * 0.9)  # 0.9: el techo se mide
+    # despues de partir validacion, y la particion no reparte las de «no» en
+    # la misma proporcion. Se recorta un poco de mas y queda abajo siempre.
+    if sobran > 0:
+        idx = [i for i, f in enumerate(unicas) if f["herramienta"] == lp.ABSTENCION]
+        rnd.shuffle(idx)
+        fuera_ = set(idx[:sobran])
+        n_abst -= sobran
+        unicas = [f for i, f in enumerate(unicas) if i not in fuera_]
+
     # La validacion se parte POR FRASE SEMILLA, no al azar: si la misma
     # intencion queda de los dos lados, validar mide memoria y no aprendizaje.
     por_semilla = {}
@@ -284,6 +387,10 @@ def main():
     huella["propuestas_automaticas"] = sorted(auto)
     corr = [f for f in ent if f.get("arregla")]
     porcion = len(corr) / max(1, len(ent))
+    n_ab = sum(1 for f in ent if f["herramienta"] == lp.ABSTENCION)
+    huella["abstencion"] = {"ejemplos": n_ab, "porcion": round(n_ab / max(1, len(ent)), 3),
+                            "herramientas_fuera_del_repertorio": len(fuera),
+                            "fuera_con_ejemplos": tocadas}
     huella["correctivas"] = {"ejemplos": len(corr), "porcion": round(porcion, 3),
                              "versiones": sorted({v for f in corr for v in f["arregla"]})}
     (SALIDA / "huella.json").write_text(json.dumps(huella, ensure_ascii=False, indent=1) + "\n",
@@ -293,6 +400,13 @@ def main():
     if auto:
         print(f"de segunda mano (propuestas sin revisar): {len(auto)} herramientas")
     print(f"firma del prompt: {huella['prompt']} · {huella['cuantas']} herramientas")
+    print(f"administrativas que NO son suyas: {tocadas} de {len(fuera)} herramientas, "
+          f"{n_admin} ejemplos" + (f" · {rechazadas} frases no entraron por parecerse "
+                                   "a una del repertorio" if rechazadas else ""))
+    if n_ab:
+        pab = n_ab / max(1, len(ent))
+        print(f"decir que no: {n_ab} ejemplos, {100*pab:.0f}% del corpus"
+              + ("  OJO: pasa el techo, se va a abstener de mas" if pab > TECHO_ABSTENCION else ""))
     if corr:
         aviso = "  OJO: pasan el techo, el corpus se esta pareciendo a una lista de casos raros" \
                 if porcion > TECHO_CORRECTIVAS else ""

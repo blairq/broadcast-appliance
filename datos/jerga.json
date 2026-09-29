@@ -118,7 +118,7 @@
   },
   "giros": {
     "stream_start": [
-      "salimos al aire",
+      "arrancá la emisión",
       "arrancamos el vivo",
       "largamos la señal",
       "al aire en tres",
@@ -126,10 +126,10 @@
       "abrí el vivo"
     ],
     "stream_stop": [
-      "bajamos del aire",
+      "cortá la emisión",
       "cerrá la señal",
       "cortamos el vivo",
-      "sacanos del aire",
+      "terminá la transmisión",
       "terminamos la señal"
     ],
     "scene_switch": [
@@ -211,16 +211,15 @@
       "sacá la cortinilla"
     ],
     "grafico_mostrar": [
-      "levantá el zócalo",
-      "tirá el GC",
-      "mandá el zócalo",
-      "poné el generador",
-      "que salga el zócalo"
+      "levantá el rótulo",
+      "tirá el generador",
+      "mandá la identificación",
+      "poné el GC del invitado"
     ],
     "grafico_ocultar": [
-      "bajá el zócalo",
-      "bajá el GC",
-      "sacá el generador"
+      "apagá el generador de caracteres",
+      "sacá el generador",
+      "quitá la identificación"
     ],
     "laminas_ir": [
       "la que sigue",
@@ -231,7 +230,7 @@
       "atrás, la anterior"
     ],
     "laminas_buscar": [
-      "buscame la de los perros",
+      "ubicame la del mapa",
       "cuál era la del gráfico",
       "dónde está la del mapa"
     ]

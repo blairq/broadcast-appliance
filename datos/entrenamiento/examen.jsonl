@@ -53,3 +53,15 @@
 {"frase": "cuantas laminas tiene la presentacion", "aceptables": ["laminas_listar", "laminas_ver"]}
 {"frase": "poneme la presentacion del orador en esta escena", "aceptables": ["laminas_aplicar"]}
 {"frase": "agrega el carrusel a la escena de apertura", "aceptables": ["laminas_aplicar"]}
+{"frase": "pasa a la siguiente lamina", "aceptables": ["laminas_ir"]}
+{"frase": "buscame la imagen de los perros en la presentacion", "aceptables": ["laminas_buscar"]}
+{"frase": "esta mal el apellido en el zocalo", "aceptables": ["grafico_mostrar"]}
+{"frase": "baja el zocalo", "aceptables": ["grafico_ocultar"]}
+{"frase": "mandale un mail al sponsor", "aceptables": ["no_es_mio"]}
+{"frase": "cargá el padrón", "aceptables": ["no_es_mio"]}
+{"frase": "sacalo", "aceptables": ["no_es_mio"]}
+{"frase": "mmm", "aceptables": ["no_es_mio"]}
+{"frase": "perfecto", "aceptables": ["no_es_mio"]}
+{"frase": "qué hora es", "aceptables": ["no_es_mio"]}
+{"frase": "probá cómo queda este gráfico", "aceptables": ["no_es_mio"]}
+{"frase": "pedí un café", "aceptables": ["no_es_mio"]}

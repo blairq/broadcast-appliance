@@ -173,7 +173,7 @@
         "armá la próxima",
         "prepará el bloque que sigue",
         "dejá lista la de los sponsors",
-        "cargá la escena del orador en preview",
+        "dejame lista la del invitado en pre",
         "no la saques todavia, solo dejala lista",
         "preparala pero no la tires",
         "cargala en preview nada mas",
@@ -824,12 +824,12 @@
     "grafico_mostrar": {
       "frases": [
         "poné el zócalo de Fulano",
-        "levantá el zócalo",
-        "tirá el zócalo",
+        "levantá el rótulo del orador",
+        "tirá el generador",
         "que salga el GC",
         "poné la placa de sponsors",
         "mandá la placa",
-        "poné el nombre del que habla",
+        "identificá a quien está hablando",
         "sacá el cartel con el cargo",
         "necesito el zócalo del entrevistado",
         "poné la gráfica de resultados",
@@ -841,19 +841,21 @@
       ],
       "tambien": [
         "rotulo_vincular"
-      ]
+      ],
+      "correctivas": []
     },
     "grafico_ocultar": {
       "frases": [
-        "bajá el zócalo",
-        "sacá el zócalo",
+        "apagá el generador de caracteres",
+        "sacá el generador de pantalla",
         "quitá la placa",
-        "bajá el GC",
+        "quitá la identificación",
         "sacá eso de pantalla",
         "limpiá la pantalla",
         "fuera el cartel"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "grafico_listar": {
       "frases": [
@@ -902,7 +904,7 @@
     },
     "laminas_ir": {
       "frases": [
-        "pasá a la siguiente",
+        "tirá la que sigue",
         "la que sigue",
         "seguí",
         "avanzá una",
@@ -910,7 +912,7 @@
         "atrás una",
         "la de antes",
         "poné la 3",
-        "andá a la lámina 5",
+        "clavá la número 7",
         "mostrá la cuatro",
         "volvé a la primera",
         "poné la última",
@@ -921,8 +923,8 @@
     },
     "laminas_buscar": {
       "frases": [
-        "buscame la imagen de los perros",
-        "cuál era la del gráfico de barras",
+        "encontrame la foto del estadio",
+        "dónde quedó la de la torta de porcentajes",
         "dónde está la lámina del organigrama",
         "buscá la placa de sponsors en la presentación",
         "encontrame la del mapa",
@@ -945,14 +947,14 @@
     },
     "laminas_listar": {
       "frases": [
-        "qué presentaciones tengo cargadas",
+        "mostrame el repertorio de diapositivas",
         "qué carruseles hay armados"
       ],
       "tambien": []
     },
     "laminas_aplicar": {
       "frases": [
-        "poné la presentación en esta escena",
+        "metele las láminas a esta escena",
         "metele el carrusel a la toma",
         "que las láminas salgan en esta escena"
       ],

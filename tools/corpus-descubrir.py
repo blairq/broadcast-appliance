@@ -35,42 +35,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import lib_prompt as lp  # noqa: E402
+from lib_prompt import frases_desde_etiquetas  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 MANO = RAIZ / "datos/semillas-reactivas.json"
 AUTO = RAIZ / "datos/semillas-auto.json"
 HUELLA = RAIZ / "datos/entrenamiento/huella.json"
-
-# Palabras que aparecen en todas las etiquetas y no distinguen nada.
-VACIAS = {"el", "la", "los", "las", "un", "una", "de", "del", "al", "a", "que",
-          "y", "o", "en", "se", "lo", "le", "por", "para", "con", "sin", "su",
-          "esta", "este", "esa", "ese", "no", "si", "mas", "ya", "hay", "es"}
-
-
-def frases_desde_etiquetas(tags, titulo):
-    """Trozos de 2 a 4 palabras de las etiquetas, como pedidos cortos.
-
-    Se cortan en trozos y no se usa la etiqueta entera porque la etiqueta es
-    una bolsa —«silenciar mutear bajar subir volumen»— y eso nadie lo dice.
-    Un trozo de tres palabras se parece bastante a un pedido de cabina.
-    """
-    palabras = [w for w in re.findall(r"[a-záéíóúñ]+", tags.lower()) if w not in VACIAS and len(w) > 2]
-    out, i = [], 0
-    while i < len(palabras):
-        trozo = palabras[i:i + 3]
-        if len(trozo) >= 2:
-            out.append(" ".join(trozo))
-        i += 3
-    if titulo:
-        out.append(titulo.lower())
-    # Sin repetidas y sin las larguisimas.
-    vistas, limpio = set(), []
-    for f in out:
-        if f not in vistas and len(f) <= 48:
-            vistas.add(f)
-            limpio.append(f)
-    return limpio[:6]
-
 
 def main():
     ap = argparse.ArgumentParser()
