@@ -91,15 +91,32 @@ def main():
     casos = [json.loads(l) for l in EXAMEN.read_text(encoding="utf-8").splitlines() if l.strip()]
     suma = {("atencion", i): 0.0 for i in range(n_capas)}
     suma.update({("mlp", i): 0.0 for i in range(n_capas)})
-    n_fallos, filas, mas_frecuente = 0, [], 0
+    n_fallos, filas, mas_frecuente, cierres = 0, [], 0, []
 
     for c in casos:
         ent = tok(cabeza + c["frase"] + cola, return_tensors="pt").to(dev)
         with torch.no_grad():
-            sal = modelo(**ent)
-        lg = sal.logits[0, -1].float()
-        # Elegida y correcta por el primer token, que es lo que decide la rama.
-        cand = {n: lg[secuencias[n][0]].item() for n in nombres}
+            sal = modelo(**ent, use_cache=True)
+        n_prompt = ent.input_ids.shape[1]
+        cache = sal.past_key_values
+        primeros = torch.log_softmax(sal.logits[0, -1].float(), -1)
+        # POR EL NOMBRE ENTERO, no por el primer token. La primera version de
+        # esto elegia con el primer token y en las familias con prefijo
+        # compartido tomaba un miembro cualquiera: informaba 75 fallos donde
+        # hay 16, y toda la atribucion salia sobre una direccion que no era la
+        # que el modelo estaba decidiendo.
+        cand = {}
+        for n, ids in secuencias.items():
+            v = primeros[ids[0]].item()
+            if len(ids) > 1:
+                t = torch.tensor([ids[:-1]], device=dev)
+                with torch.no_grad():
+                    s2 = modelo(input_ids=t, past_key_values=cache, use_cache=True)
+                lgc = torch.log_softmax(s2.logits[0].float(), -1)
+                for kk, tid in enumerate(ids[1:]):
+                    v += lgc[kk, tid].item()
+                cache.crop(n_prompt)
+            cand[n] = v
         elegida = max(cand, key=cand.get)
         if elegida in c["aceptables"]:
             continue
@@ -122,14 +139,23 @@ def main():
         with torch.no_grad():
             escala = (norma(final.to(W.dtype)).float().norm() / final.norm()).item() if norma else 1.0
         d = (W[ib[k]].float() - W[ia[k]].float()) * escala   # + = hacia la CORRECTA
+        # LA AUDITORIA, que es lo que separa una atribucion de un numero
+        # inventado: la suma de todas las contribuciones MAS el embedding de
+        # entrada tiene que dar la diferencia de logit que sale de verdad. Si
+        # no cierra, la descomposicion esta mal y no hay nada que interpretar.
+        real = (sal.logits[0, -1, ib[k]] - sal.logits[0, -1, ia[k]]).float().item()
+        emb = torch.dot(sal.hidden_states[0][0, -1, :].float(), d).item()
         n_fallos += 1
         mas_frecuente += frec.get(elegida, 0) > frec.get(mejor_ac, 0)
         det = {}
+        atribuido = emb
         for i in range(n_capas):
             for cual in ("atencion", "mlp"):
                 v = torch.dot(partes[(i, cual)], d).item()
+                atribuido += v
                 suma[(cual, i)] += v
                 det[f"{cual}{i+1}"] = v
+        cierres.append((atribuido, real))
         filas.append({"frase": c["frase"], "elegida": elegida, "correcta": mejor_ac,
                       "frec_elegida": frec.get(elegida, 0), "frec_correcta": frec.get(mejor_ac, 0),
                       "contribuciones": det})
@@ -140,6 +166,16 @@ def main():
         print("sin fallos")
         return
 
+    import statistics
+    err = [abs(a - r) / max(1e-6, abs(r)) for a, r in cierres]
+    print(f"AUDITORIA: la suma de contribuciones contra la diferencia de logit real")
+    print(f"  error relativo mediano {statistics.median(err):.1%}"
+          f" · peor {max(err):.1%}")
+    if statistics.median(err) > 0.15:
+        print("  NO CIERRA. La descomposicion esta mal —lo mas probable es la escala de")
+        print("  la norma final— y los numeros de abajo no se pueden interpretar.\n")
+    else:
+        print("  cierra: la descomposicion es fiel.\n")
     print(f"{n_fallos} fallos · contribucion MEDIA a la diferencia de logit")
     print("(+ empuja hacia la CORRECTA, - hacia la que eligio)\n")
     print("  capa   atencion      mlp")
