@@ -155,6 +155,36 @@ def main():
     # su ficha, y se asigna con avidez resolviendo los choques por margen: el
     # que mas pierde si no lo consigue, elige primero.
     print("\nbuscando etiquetas de un token...", file=sys.stderr)
+
+    # LOS CANDIDATOS SALEN DE LA FICHA DE CADA HERRAMIENTA, no del vocabulario
+    # entero. Buscar entre 16.177 palabras por afinidad con la ficha es
+    # demasiado ruidoso: daba `chat_history -> departureday` y
+    # `audio_analyze -> pot`. Las palabras que la herramienta usa PARA
+    # describirse son las que de verdad tienen que ver con ella, y encima
+    # quedan legibles para el que despues lee un log.
+    #
+    # Y gana la mas DISTINTIVA, no la mas frecuente: una palabra que aparece en
+    # cuarenta fichas no distingue nada. Es la idea de tf-idf: cuenta lo que
+    # esta en esta ficha y en pocas mas.
+    import collections
+    palabras_ok = re.compile(r"^[a-záéíóúñ]{3,14}$")
+    fichas, docs = [], collections.Counter()
+    for n in nombres:
+        h = por.get(n)
+        txt = (n.replace("_", " ") if h is None
+               else f"{n.replace('_',' ')} {h['titulo']} {h['descripcion'][:400]}")
+        ws, vistas = [], set()
+        for w in re.findall(r"[a-zA-ZáéíóúñÁÉÍÓÚÑ]+", txt.lower()):
+            if not palabras_ok.match(w) or w in lp.VACIAS:
+                continue
+            if len(tok(w, add_special_tokens=False).input_ids) != 1:
+                continue
+            ws.append(w)
+            if w not in vistas:
+                vistas.add(w)
+                docs[w] += 1
+        fichas.append(collections.Counter(ws))
+
     vocab = tok.get_vocab()
     ok = re.compile(r"^[a-záéíóúñ]{3,14}$")
     cand = []
@@ -172,16 +202,27 @@ def main():
     C = Wn[idx]                                  # [candidatos, dimension]
     afinidad = (V @ C.T).cpu()                   # herramienta x candidato
 
-    orden = sorted(range(len(nombres)),
-                   key=lambda i: -(afinidad[i].max() - afinidad[i].kthvalue(
-                       max(1, afinidad.shape[1] - 5)).values).item())
+    # Preferencias: primero las palabras de la propia ficha, ordenadas por
+    # distintivas; despues, si se agotaron, lo que salga del vocabulario.
+    prefs = []
+    for i, n in enumerate(nombres):
+        propias = sorted(fichas[i], key=lambda w: -(fichas[i][w] / docs[w]))
+        resto = [limpio[j][1] for j in torch.argsort(afinidad[i], descending=True)[:40].tolist()]
+        prefs.append(propias + resto)
+    # Elige primero el que tiene MENOS opciones propias: si empieza el que tiene
+    # veinte, se queda con la que al otro le hacia falta.
+    orden = sorted(range(len(nombres)), key=lambda i: len(fichas[i]))
     tomados, asignado = set(), {}
     for i in orden:
-        for j in torch.argsort(afinidad[i], descending=True).tolist():
-            if limpio[j][1] not in tomados:
-                tomados.add(limpio[j][1])
-                asignado[nombres[i]] = limpio[j][1]
+        for w in prefs[i]:
+            if w not in tomados:
+                tomados.add(w)
+                asignado[nombres[i]] = w
                 break
+        else:
+            asignado[nombres[i]] = nombres[i]
+    de_ficha = sum(1 for i, n in enumerate(nombres) if asignado[n] in fichas[i])
+    print(f"  {de_ficha}/{len(nombres)} etiquetas salen de la propia ficha", file=sys.stderr)
     etqs = [asignado[n] for n in nombres]
     print()
     puntuar("un token", etqs)
