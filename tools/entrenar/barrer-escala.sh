@@ -19,7 +19,7 @@ MODELO="${1:?falta el modelo}"
 VECTOR="${2:?falta el vector (tools/entrenar/vector-control.py)}"
 shift 2
 ESCALAS=("$@")
-[ ${#ESCALAS[@]} -eq 0 ] && ESCALAS=(0 0.25 0.5 1 1.5 2 3)
+[ ${#ESCALAS[@]} -eq 0 ] && ESCALAS=(0 0.05 0.1 0.2 0.35 0.5 0.75 1)
 AQUI="$(cd "$(dirname "$0")" && pwd)"
 PY="${PYTHON:-python3}"
 

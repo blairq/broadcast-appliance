@@ -53,6 +53,8 @@ def main():
     ap.add_argument("--pares", type=int, default=256,
                     help="cuantos ejemplos de cada lado (se equilibran)")
     ap.add_argument("--largo", type=int, default=4096)
+    ap.add_argument("--desde-capa", type=int, default=1,
+                    help="dejar en cero las capas anteriores a esta")
     args = ap.parse_args()
 
     from unsloth import FastLanguageModel  # noqa: E402
@@ -83,6 +85,8 @@ def main():
     n_capas = len(capas_del(modelo))
     n_embd = modelo.config.hidden_size if hasattr(modelo, "config") else None
 
+    normas_act = None
+
     def sumar(filas_):
         """Suma la activacion del ULTIMO token del prompt, capa por capa.
 
@@ -100,6 +104,9 @@ def main():
             # que es exactamente el indice que usa llama.cpp para `direction.i`.
             h = torch.stack([e[0, -1, :].float() for e in sal.hidden_states[1:]])
             acc = h if acc is None else acc + h
+            nonlocal normas_act
+            na = h.norm(dim=1)
+            normas_act = na if normas_act is None else normas_act + na
             del sal
             if (i + 1) % 64 == 0:
                 print(f"  {i+1}/{len(filas_)}", flush=True)
@@ -109,19 +116,41 @@ def main():
     media_suyas = sumar(suyas)
     print("activaciones de los que van a derivar...")
     media_derivar = sumar(derivar)
-    direccion = (media_derivar - media_suyas).cpu().numpy().astype(np.float32)
+    cruda = (media_derivar - media_suyas).cpu().numpy().astype(np.float32)
+    act = (normas_act / (2 * len(suyas))).cpu().numpy().astype(np.float32)
 
-    # Donde esta la senal. Si las normas son parejas en todas las capas, no hay
-    # direccion: hay ruido. Las capas del medio suelen mandar.
-    normas = np.linalg.norm(direccion, axis=1)
-    orden = np.argsort(-normas)[:5]
-    print(f"\ncapas: {n_capas} · dimension: {direccion.shape[1]}")
-    print("las capas donde mas separa: " +
-          ", ".join(f"{int(i)+1} ({normas[i]:.2f})" for i in orden))
-    print(f"norma media {normas.mean():.2f} · minima {normas.min():.2f}")
-    if normas.max() < 2 * normas.min():
-        print("  OJO: las normas son parejas. Eso es lo que se ve cuando NO hay")
-        print("       una direccion clara, y el vector no va a empujar nada.")
+    # NORMALIZAR, y es la parte que la primera version se comio. La diferencia
+    # de medias sale con la magnitud que tenga el flujo residual de cada capa,
+    # que en las ultimas es enorme: sumarla con escala 0,25 no es empujar, es
+    # tapar la activacion con otra cosa. Medido en la corrida que fallo: la
+    # precision se caia de 88% a 44% con 0,25 y a 11% con 0,5, y las
+    # derivaciones no subian NUNCA, que es la firma de estar rompiendo y no
+    # dirigiendo.
+    #
+    # Asi, cada capa queda con norma igual a la activacion tipica de ESA capa,
+    # y entonces la escala significa algo parejo en todas: 0,1 es «mové la
+    # activacion un diez por ciento». Es una unidad que se puede razonar.
+    normas = np.linalg.norm(cruda, axis=1)
+    unit = cruda / np.maximum(normas, 1e-6)[:, None]
+    direccion = (unit * act[:, None]).astype(np.float32)
+    if args.desde_capa > 1:
+        direccion[:args.desde_capa - 1] = 0.0
+        print(f"capas 1..{args.desde_capa - 1} en cero")
+
+    # CUANTO SEPARA, en relacion a lo que hay. Es el numero que importa y el
+    # que la primera version no imprimia: una diferencia de 900 sobre
+    # activaciones de 900 es media activacion de separacion; sobre 9000 no es
+    # nada. La norma sola no dice cual de las dos.
+    rel = normas / np.maximum(act, 1e-6)
+    orden = np.argsort(-rel)[:5]
+    print(f"\ncapas: {n_capas} · dimension: {cruda.shape[1]}")
+    print("las capas donde mas separa (separacion / activacion tipica):")
+    for i in orden:
+        print(f"   capa {int(i)+1:2d}: {rel[i]:.3f}  (dif {normas[i]:.1f} sobre act {act[i]:.1f})")
+    print(f"separacion relativa media {rel.mean():.3f} · maxima {rel.max():.3f}")
+    if rel.max() < 0.05:
+        print("  OJO: la separacion es chica frente a la activacion. Empujar por")
+        print("       ahi va a romper antes de dirigir.")
 
     w = gguf.GGUFWriter(args.salida, "controlvector")
     w.add_uint32("controlvector.layer_count", direccion.shape[0])
