@@ -42,11 +42,12 @@ export LD_LIBRARY_PATH="$LLAMA"
 # porque lo que se quiere calibrar es el modelo leyendo las fichas, que es lo
 # que hace en cada pedido de verdad.
 log "armando el corpus de calibracion (solo el split de entrenamiento)"
-python3 - "$CALIB" <<'PY'
+python3 - "$CALIB" "$RAIZ" <<'PY'
 import json, sys
 from pathlib import Path
-raiz = Path(__file__).resolve().parent if False else Path.cwd()
-ent = Path("datos/entrenamiento/entrenar.jsonl")
+# La raiz llega por argumento: dependia del directorio desde donde se llamara
+# al script, que es una forma tonta de romperse cuando lo corras desde otro lado.
+ent = Path(sys.argv[2]) / "datos/entrenamiento/entrenar.jsonl"
 filas = [json.loads(l) for l in ent.read_text(encoding="utf-8").splitlines() if l.strip()]
 # Una muestra: con el prompt entero repetido mil veces se calibra sobre las
 # fichas y nada mas. Se toma un subconjunto variado de frases.
