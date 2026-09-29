@@ -41,7 +41,16 @@
     "corto la transmision»— y el 85% del primer modelo entrenado estaba inflado.",
     "Ahora el generador compara POR PALABRAS COMPARTIDAS y avisa que semilla hay",
     "que reescribir. Reescribir, no borrar: el pedido tiene que estar, dicho con",
-    "otras palabras. Si el modelo aprendio el concepto, el examen lo mide igual."
+    "otras palabras. Si el modelo aprendio el concepto, el examen lo mide igual.",
+    "",
+    "`arregla` dice de que version salio el fallo que esta frase corrige. Esas",
+    "semillas generan MAS variantes: treinta frases diluidas entre mil trescientas",
+    "no le ensenan nada a nadie. Pero con techo —35% del corpus—: si las dificiles",
+    "se acumulan version tras version sin limite, el corpus termina pareciendose a",
+    "una lista de casos raros y no a lo que un operador dice de verdad.",
+    "",
+    "Y NO SE SACAN NUNCA. Un error arreglado en v1 vuelve en v3 si le quitas las",
+    "frases: funcionan como suite de regresion del corpus."
   ],
   "herramientas": {
     "audio_set": {
@@ -55,14 +64,19 @@
         "poné la música más bajo que está tapando",
         "cerrá el micro del fondo",
         "subile un poco al que está hablando",
-        "bajale el volumen a ese",
-        "subile a ese que no se escucha",
-        "silencialo al invitado 2",
         "mutea la fuente del plano fijo"
       ],
       "tambien": [
         "mixer_list",
         "audio_measure"
+      ],
+      "correctivas": [
+        "bajale el volumen a ese",
+        "subile a ese que no se escucha",
+        "silencialo al invitado 2"
+      ],
+      "arregla": [
+        "v2"
       ]
     },
     "audio_measure": {
@@ -71,19 +85,24 @@
         "medime el audio",
         "fijate los niveles",
         "cómo viene el nivel del programa",
-        "está saturando?",
-        "esta muy bajo lo que sale",
-        "se escucha mal",
-        "cuanto esta llegando",
-        "medime cuanto pica ese canal",
-        "fijate el nivel antes de tocar nada",
-        "no me llega audio de esa persona",
-        "esto esta mudo",
-        "esta saliendo sin audio"
+        "está saturando?"
       ],
       "tambien": [
         "mixer_list",
         "audio_analyze"
+      ],
+      "correctivas": [
+        "no me llega audio de esa persona",
+        "esto esta mudo",
+        "esta saliendo sin audio",
+        "esta muy bajo lo que sale",
+        "se escucha mal",
+        "cuanto esta llegando",
+        "medime cuanto pica ese canal",
+        "fijate el nivel antes de tocar nada"
+      ],
+      "arregla": [
+        "v2"
       ]
     },
     "audio_analyze": {
@@ -91,13 +110,18 @@
         "qué es ese ruido",
         "analizame el audio a ver qué pasa",
         "hay un zumbido raro, mirá qué es",
-        "de dónde sale ese pitido",
+        "de dónde sale ese pitido"
+      ],
+      "tambien": [
+        "audio_measure"
+      ],
+      "correctivas": [
         "que forma tiene ese ruido",
         "analizame el espectro de ese canal",
         "de que frecuencia es el pitido"
       ],
-      "tambien": [
-        "audio_measure"
+      "arregla": [
+        "v2"
       ]
     },
     "audio_escuchar": {
@@ -238,16 +262,21 @@
         "sacame una foto de lo que está saliendo",
         "cómo está saliendo al aire",
         "sacame la imagen de lo que sale, no la lista",
-        "se ve raro lo que sale",
         "pasame una foto del vivo",
-        "esta saliendo en negro",
-        "el vivo no tiene video",
-        "revisa si el zocalo quedo legible",
-        "el vivo salio vacio"
+        "revisa si el zocalo quedo legible"
       ],
       "tambien": [
         "imagen_analizar",
         "status"
+      ],
+      "correctivas": [
+        "esta saliendo en negro",
+        "el vivo no tiene video",
+        "el vivo salio vacio",
+        "se ve raro lo que sale"
+      ],
+      "arregla": [
+        "v2"
       ]
     },
     "capture_source": {
@@ -273,18 +302,23 @@
         "quién está conectado",
         "cuántos lugares quedan",
         "cómo viene la sala",
-        "se desconecto uno",
-        "se fue alguien de la sala",
         "quien hay en el lobby ahora",
         "cuantos estan esperando",
-        "cuantos estan conectados ahora",
+        "cuantos estan conectados ahora"
+      ],
+      "tambien": [
+        "chat_send"
+      ],
+      "correctivas": [
         "uno de los participantes perdio la conexion",
+        "se desconecto uno",
+        "se fue alguien de la sala",
         "hay menos participantes de los que deberia",
         "el del lugar 2 desaparecio",
         "a quien tengo aguardando acceso"
       ],
-      "tambien": [
-        "chat_send"
+      "arregla": [
+        "v2"
       ]
     },
     "participant_admit": {
@@ -312,35 +346,50 @@
       "frases": [
         "sacalo ya",
         "desconectalo",
-        "sacalo de la sala a esa persona",
+        "sacalo de la sala a esa persona"
+      ],
+      "tambien": [],
+      "correctivas": [
         "sacalo vos al invitado 2",
         "desconectalo a ese ya",
         "expulsa a esa persona",
         "removelo de la reunion"
       ],
-      "tambien": []
+      "arregla": [
+        "v2"
+      ]
     },
     "participant_request": {
       "frases": [
         "decile que se acerque al micrófono",
         "pedile que se mute",
-        "que encienda el micro",
-        "decile que abra el microfono",
-        "solicitale que active su video"
+        "que encienda el micro"
       ],
       "tambien": [
         "chat_send"
+      ],
+      "correctivas": [
+        "solicitale que active su video",
+        "decile que abra el microfono"
+      ],
+      "arregla": [
+        "v2"
       ]
     },
     "chat_send": {
       "frases": [
         "escribile que ya sale",
         "avisale que arrancamos en dos minutos",
-        "escribile vos al invitado",
-        "mandale un texto al que se cayo",
         "escribile algo al del lugar 1"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": [
+        "escribile vos al invitado",
+        "mandale un texto al que se cayo"
+      ],
+      "arregla": [
+        "v2"
+      ]
     },
     "chat_history": {
       "frases": [
@@ -355,12 +404,17 @@
     "room_link": {
       "frases": [
         "dame el enlace de la sala",
-        "cómo entra la gente",
+        "cómo entra la gente"
+      ],
+      "tambien": [],
+      "correctivas": [
         "pasame el enlace para que entren",
         "dame la direccion de la sala para mandar",
         "dame la url de acceso"
       ],
-      "tambien": []
+      "arregla": [
+        "v2"
+      ]
     },
     "speaker_next": {
       "frases": [
@@ -412,22 +466,32 @@
         "dejá de grabar",
         "pará el rec pero seguimos al aire",
         "corta la grabacion, la transmision sigue",
+        "dejá de grabar, terminamos"
+      ],
+      "tambien": [],
+      "correctivas": [
         "corta el rec ya",
-        "dejá de grabar, terminamos",
         "frena el registro",
         "detene el archivo ya"
       ],
-      "tambien": []
+      "arregla": [
+        "v2"
+      ]
     },
     "stream_start": {
       "frases": [
         "arrancá la transmisión",
-        "mandá a youtube",
+        "mandá a youtube"
+      ],
+      "tambien": [],
+      "correctivas": [
         "arranca la transmision de nuevo",
         "volve a salir al aire",
         "inicia el envio"
       ],
-      "tambien": []
+      "arregla": [
+        "v2"
+      ]
     },
     "stream_stop": {
       "frases": [
@@ -435,45 +499,60 @@
         "sacanos de youtube",
         "corta la transmision pero segui grabando",
         "bajanos del aire, el rec sigue",
+        "terminala, cortá el vivo"
+      ],
+      "tambien": [],
+      "correctivas": [
         "corta la transmision ahora",
         "dale, sacanos del aire",
-        "terminala, cortá el vivo",
         "finaliza el envio",
         "termina el vivo ahora"
       ],
-      "tambien": []
+      "arregla": [
+        "v2"
+      ]
     },
     "status": {
       "frases": [
         "cómo venimos",
         "dame un panorama",
         "estamos al aire?",
-        "estamos perdiendo cuadros",
-        "no queda espacio para grabar",
-        "la maquina esta lenta",
-        "algo anda mal y no se que",
-        "se traba todo",
-        "dame un resumen general",
-        "el vivo viene entrecortado",
-        "el envio se interrumpio",
-        "queda poco espacio de almacenamiento"
+        "dame un resumen general"
       ],
       "tambien": [
         "network_status"
+      ],
+      "correctivas": [
+        "el vivo viene entrecortado",
+        "el envio se interrumpio",
+        "estamos perdiendo cuadros",
+        "queda poco espacio de almacenamiento",
+        "no queda espacio para grabar",
+        "la maquina esta lenta",
+        "algo anda mal y no se que",
+        "se traba todo"
+      ],
+      "arregla": [
+        "v2"
       ]
     },
     "network_status": {
       "frases": [
         "cómo está la red",
         "estamos perdiendo cuadros?",
-        "se va la conexion",
-        "la subida esta mal",
-        "se entrecorta lo que sale",
-        "anda inestable la red",
-        "el enlace viene flojo"
+        "se va la conexion"
       ],
       "tambien": [
         "status"
+      ],
+      "correctivas": [
+        "el enlace viene flojo",
+        "la subida esta mal",
+        "se entrecorta lo que sale",
+        "anda inestable la red"
+      ],
+      "arregla": [
+        "v2"
       ]
     },
     "share_list": {

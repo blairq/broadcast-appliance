@@ -148,20 +148,39 @@ def main():
             if parecido(frase, prohibidas_tokens):
                 semillas_malas.append((herr, frase))
 
-    filas, chocadas = [], 0
+    # LAS CORRECTIVAS PESAN MAS. Una semilla marcada con `arregla` salio de un
+    # fallo medido de una version anterior: son las que ensenan lo que el
+    # modelo NO sabia. Treinta frases diluidas entre mil trescientas no mueven
+    # nada, asi que se les generan mas variantes.
+    #
+    # PERO CON TECHO, y es importante: si las dificiles se acumulan version
+    # tras version sin limite, el corpus termina pareciendose a una lista de
+    # casos raros y no a lo que un operador dice de verdad. Se entrena para el
+    # examen y se pierde en la cabina.
+    VARIANTES_NORMAL, VARIANTES_CORRECTIVA, TECHO_CORRECTIVAS = 4, 9, 0.35
+
+    filas, chocadas, n_correctivas = [], 0, 0
     for herr, d in sorted(sem.items()):
-        for frase in d["frases"]:
+        # `correctivas` son FRASES, no la herramienta entera: marcar
+        # `audio_set` completa multiplicaba sus 59 frases por un error en tres,
+        # y el corpus se iba al 58% de casos raros.
+        for frase, corrige in ([(f, False) for f in d["frases"]] +
+                               [(f, True) for f in d.get("correctivas", [])]):
+            cuantas = VARIANTES_CORRECTIVA if corrige else VARIANTES_NORMAL
             if parecido(frase, prohibidas_tokens):
                 chocadas += 1
                 continue
-            for v in variantes(frase, rnd):
+            for v in variantes(frase, rnd, cuantas=cuantas):
                 # Si una variante cae encima de una pregunta del examen, se
                 # tira. Entrenar con el examen adentro infla el numero y no
                 # avisa.
                 if parecido(v, prohibidas_tokens):
                     chocadas += 1
                     continue
-                filas.append(ejemplo(cabeza, cola, v, herr))
+                f = ejemplo(cabeza, cola, v, herr)
+                f["arregla"] = (d.get("arregla") or []) if corrige else []
+                filas.append(f)
+                n_correctivas += bool(corrige)
 
     # EQUILIBRIO. Una herramienta con cinco ejemplos y otra con treinta le
     # ensenan al modelo a preferir la frecuente cuando duda, que es justo
@@ -177,13 +196,15 @@ def main():
         intentos = 0
         while faltan > 0 and intentos < 200:
             intentos += 1
-            frase = rnd.choice(d_["frases"])
+            frase = rnd.choice(d_["frases"] + d_.get("correctivas", []))
             if parecido(frase, prohibidas_tokens):
                 continue
             for v in variantes(frase, rnd, cuantas=2):
                 if parecido(v, prohibidas_tokens):
                     continue
-                filas.append(ejemplo(cabeza, cola, v, herr))
+                f = ejemplo(cabeza, cola, v, herr)
+                f["arregla"] = d_.get("arregla") or []
+                filas.append(f)
                 faltan -= 1
                 if faltan <= 0:
                     break
@@ -228,6 +249,10 @@ def main():
     huella["ejemplos_entrenar"] = len(ent)
     huella["herramientas_con_frases"] = len(porc)
     huella["propuestas_automaticas"] = sorted(auto)
+    corr = [f for f in ent if f.get("arregla")]
+    porcion = len(corr) / max(1, len(ent))
+    huella["correctivas"] = {"ejemplos": len(corr), "porcion": round(porcion, 3),
+                             "versiones": sorted({v for f in corr for v in f["arregla"]})}
     (SALIDA / "huella.json").write_text(json.dumps(huella, ensure_ascii=False, indent=1) + "\n",
                                         encoding="utf-8")
 
@@ -235,6 +260,11 @@ def main():
     if auto:
         print(f"de segunda mano (propuestas sin revisar): {len(auto)} herramientas")
     print(f"firma del prompt: {huella['prompt']} · {huella['cuantas']} herramientas")
+    if corr:
+        aviso = "  OJO: pasan el techo, el corpus se esta pareciendo a una lista de casos raros" \
+                if porcion > TECHO_CORRECTIVAS else ""
+        print(f"correctivas (de fallos de {', '.join(huella['correctivas']['versiones'])}): "
+              f"{len(corr)} ejemplos, {100*porcion:.0f}% del corpus{aviso}")
     print(f"herramientas cubiertas: {len(porc)} de {len(validas)} del repertorio reactivo")
     print(f"descartadas por parecerse al examen: {chocadas}")
     if semillas_malas:
