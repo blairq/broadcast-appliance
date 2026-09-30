@@ -44,6 +44,8 @@ def main():
                     help="que bloques amortiguar: atencion, mlp o los dos")
     ap.add_argument("--casos", help="evaluar otro archivo en vez del examen: jsonl con"
                     " {frase, aceptables} o {frase, herramienta} (el banco de orientacion)")
+    ap.add_argument("--salida-casos", help="guardar lo que eligio en CADA caso (jsonl), para"
+                    " comparar modelos frase por frase con comparar-modelos.py")
     ap.add_argument("--confusion", type=int, default=0,
                     help="mostrar los N pares (esperada -> elegida) mas frecuentes")
     ap.add_argument("--sesgo", type=float, default=0.0,
@@ -244,6 +246,11 @@ def main():
 
     for g in ganchos:
         g.remove()
+    if args.salida_casos:
+        Path(args.salida_casos).write_text("".join(
+            json.dumps({"frase": c["frase"], "aceptables": c["aceptables"],
+                        "real": c.get("real"), "elegida": elegidas[c["frase"]]},
+                       ensure_ascii=False) + "\n" for c in casos), encoding="utf-8")
     if args.confusion:
         import collections
         conf = collections.Counter((c["aceptables"][0], elegidas[c["frase"]])
