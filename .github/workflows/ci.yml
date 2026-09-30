@@ -164,6 +164,10 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
+          # Solo sirven para pasarle los archivos al release en la MISMA corrida
+          # (lo publicado queda en el release): 1 dia y no los 90 de siempre, que
+          # llenaban la cuota de almacenamiento de Actions.
+          retention-days: 1
           name: dist-linux
           path: dist/*
           if-no-files-found: error
@@ -232,6 +236,10 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
+          # Solo sirven para pasarle los archivos al release en la MISMA corrida
+          # (lo publicado queda en el release): 1 dia y no los 90 de siempre, que
+          # llenaban la cuota de almacenamiento de Actions.
+          retention-days: 1
           name: dist-windows
           path: dist/*
           if-no-files-found: error
