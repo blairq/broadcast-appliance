@@ -5,9 +5,11 @@
 #include "agent/AgentViewModel.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <thread>
 
+#include "agent/Actualizacion.hpp"
 #include "agent/ModeloPropio.hpp"
 
 #if defined(_WIN32)
@@ -234,6 +236,7 @@ AgentViewModel::AgentViewModel(AppRuntime& rt, AlertEngine& alerts, QObject* par
 AgentViewModel::~AgentViewModel() {
     cancelInstall_ = true;
     if (installThread_.joinable()) installThread_.join();
+    if (checkThread_.joinable()) checkThread_.join();
     session_->stop();
 }
 
@@ -497,10 +500,137 @@ void AgentViewModel::setError(const QString& e) {
 
 // --- Instalacion ---------------------------------------------------------------------
 
-json AgentViewModel::pins() const {
+json AgentViewModel::pinnedPins() const {
     QFile f(":/agent/agentes.json");
     if (!f.open(QIODevice::ReadOnly)) return json::object();
     return json::parse(f.readAll().toStdString(), nullptr, false);
+}
+
+QString AgentViewModel::chosenFile() const {
+    return QString::fromStdWString((rt_.dataRoot() / "Agentes" / "versiones.json").wstring());
+}
+
+json AgentViewModel::pins() const {
+    json out = pinnedPins();
+    // Las elegidas desde la pestaña (checkUpdate + installLatest) pisan a la
+    // fijada, agente por agente. Viven en el bundle, no en el sistema.
+    QFile f(chosenFile());
+    if (out.is_object() && f.open(QIODevice::ReadOnly)) {
+        const json elegidas = json::parse(f.readAll().toStdString(), nullptr, false);
+        if (elegidas.is_object())
+            for (const auto& [k, v] : elegidas.items())
+                if (v.is_object() && v.contains("version") && v.contains("plataformas")) out[k] = v;
+    }
+    return out;
+}
+
+// --- Actualizar desde la fuente oficial ---------------------------------------------------
+//
+// Cada agente publica su ultima version con un hash por plataforma; se arma con
+// eso una entrada con la MISMA forma que agentes.json y la instalacion la
+// verifica igual que a la fijada. Si la fuente no publica hash, no se instala.
+
+json AgentViewModel::fetchLatest(const QString& runtime, const json& base, QString* err) {
+    std::string e;
+    json out = ultimaPublicada(runtime.toStdString(), base, &e);
+    if (err != nullptr) *err = QString::fromStdString(e);
+    return out;
+}
+
+QString AgentViewModel::latestVersion() const {
+    const auto it = latest_.find(runtimeOf(provider_));
+    return it == latest_.end() ? QString() : QString::fromStdString(it->second.value("version", std::string()));
+}
+
+bool AgentViewModel::newerAvailable() const {
+    const QString ultima = latestVersion();
+    if (ultima.isEmpty()) return false;
+    const QString usada = installed() ? installedVersion() : current().value("version").toString();
+    return QVersionNumber::fromString(ultima) > QVersionNumber::fromString(usada);
+}
+
+QString AgentViewModel::pinnedVersion() const {
+    const json pin = pinnedPins().value(runtimeOf(provider_).toStdString(), json::object());
+    return QString::fromStdString(pin.value("version", std::string()));
+}
+
+bool AgentViewModel::usingChosenVersion() const {
+    return current().value("version").toString() != pinnedVersion();
+}
+
+void AgentViewModel::checkUpdate() {
+    if (checking_ || installing_) return;
+    const QString runtime = runtimeOf(provider_);
+    if (runtime.isEmpty()) return;
+    const json base = pinnedPins().value(runtime.toStdString(), json::object());
+    checking_ = true;
+    emit latestChanged();
+    if (checkThread_.joinable()) checkThread_.join();
+    checkThread_ = std::thread([this, runtime, base]() {
+        QString err;
+        json nueva = fetchLatest(runtime, base, &err);
+        QMetaObject::invokeMethod(this, [this, runtime, nueva, err]() {
+            checking_ = false;
+            if (!err.isEmpty() || !nueva.is_object()) {
+                emit latestChanged();
+                setError("No se pudo buscar la actualizacion: " + err);
+                return;
+            }
+            latest_[runtime] = nueva;
+            if (platformPin(nueva).empty()) {
+                latest_.erase(runtime);
+                emit latestChanged();
+                setError("La version nueva no se publico con hash para esta plataforma (" + platformKey() +
+                         "): no se ofrece.");
+                return;
+            }
+            emit latestChanged();
+            const QString v = QString::fromStdString(nueva.value("version", std::string()));
+            if (newerAvailable())
+                emit notify("Hay una version nueva: " + v + ".", "ok");
+            else
+                emit notify("Esta al dia (la ultima publicada es " + v + ").", "ok");
+        });
+    });
+}
+
+void AgentViewModel::installLatest() {
+    if (installing_) return;
+    const QString runtime = runtimeOf(provider_);
+    const auto it = latest_.find(runtime);
+    if (it == latest_.end()) return;
+    // Queda elegida en el bundle y desde ahi la toman install() y usableDir().
+    QFile f(chosenFile());
+    json elegidas = json::object();
+    if (f.open(QIODevice::ReadOnly)) {
+        elegidas = json::parse(f.readAll().toStdString(), nullptr, false);
+        f.close();
+        if (!elegidas.is_object()) elegidas = json::object();
+    }
+    elegidas[runtime.toStdString()] = it->second;
+    QDir().mkpath(QFileInfo(chosenFile()).absolutePath());
+    if (!writeText(chosenFile(), QByteArray::fromStdString(elegidas.dump(2)))) {
+        setError("No se pudo guardar " + chosenFile());
+        return;
+    }
+    emit configChanged();
+    emit latestChanged();
+    install();
+}
+
+void AgentViewModel::revertToPinned() {
+    if (installing_) return;
+    const QString runtime = runtimeOf(provider_);
+    QFile f(chosenFile());
+    if (!f.open(QIODevice::ReadOnly)) return;
+    json elegidas = json::parse(f.readAll().toStdString(), nullptr, false);
+    f.close();
+    if (!elegidas.is_object() || !elegidas.contains(runtime.toStdString())) return;
+    elegidas.erase(runtime.toStdString());
+    writeText(chosenFile(), QByteArray::fromStdString(elegidas.dump(2)));
+    emit configChanged();
+    emit latestChanged();
+    install(); // la fijada: se baja y, cuando esta, reemplaza a la elegida
 }
 
 QString AgentViewModel::runtimeOf(const QString& provider) const {
@@ -597,6 +727,7 @@ void AgentViewModel::install() {
     }
     struct Item {
         std::string url, sha, kind, dest;
+        std::string sha512 = {}; ///< base64, como lo publica npm (si no hay sha256)
     };
     std::vector<Item> items;
     const QString dir = installDir(runtime);
@@ -604,8 +735,8 @@ void AgentViewModel::install() {
         items.push_back(
             {plat.value("url", ""), plat.value("sha256", ""), "archivo", (dir + "/node").toStdString()});
         const json pkg = pin.value("paquete", json::object());
-        items.push_back(
-            {pkg.value("url", ""), pkg.value("sha256", ""), "archivo", (dir + "/gemini").toStdString()});
+        items.push_back({pkg.value("url", ""), pkg.value("sha256", ""), "archivo", (dir + "/gemini").toStdString(),
+                         pkg.value("sha512", "")});
     } else {
         items.push_back({plat.value("url", ""), plat.value("sha256", ""), plat.value("tipo", "archivo"),
                          plat.value("tipo", "") == "binario"
@@ -620,12 +751,18 @@ void AgentViewModel::install() {
     emit installChanged();
     if (installThread_.joinable()) installThread_.join();
     const QString exeName = QString::fromStdString(plat.value("exe", ""));
+    // Gemini corre un script del paquete de npm: si una version nueva lo movio,
+    // que falle la instalacion (y quede la anterior) y no el arranque.
+    const QString geminiScript =
+        runtime == "gemini"
+            ? QString::fromStdString(pin.value("paquete", json::object()).value("script", std::string()))
+            : QString();
     // Se baja y se descomprime en una carpeta aparte y recien al final se pone
     // en su lugar: si la descarga falla (sin red, hash que no coincide, se
     // cancela), la instalacion que YA andaba queda intacta. Antes el camino de
     // error borraba `dir`, que podia ser una instalacion buena.
     const QString staging = QFileInfo(dir).absolutePath() + "/.instalando-" + QFileInfo(dir).fileName();
-    installThread_ = std::thread([this, items, dir, staging, runtime, exeName]() {
+    installThread_ = std::thread([this, items, dir, staging, runtime, exeName, geminiScript]() {
         QString err;
         QDir(staging).removeRecursively(); // restos de un intento anterior
         QDir().mkpath(staging);
@@ -667,8 +804,19 @@ void AgentViewModel::install() {
                 installText_ = "Verificando (SHA-256)…";
                 emit installChanged();
             });
-            if (sha256File(tmp) != QString::fromStdString(it.sha)) {
-                err = "La descarga no coincide con la version fijada (SHA-256). No se instalo nada.";
+            // SHA-256 (agentes.json, GitHub, Claude) o SHA-512 (npm). Sin
+            // ninguno no se instala: nunca un archivo sin verificar.
+            bool coincide = false;
+            if (!it.sha.empty()) {
+                coincide = sha256File(tmp) == QString::fromStdString(it.sha);
+            } else if (!it.sha512.empty()) {
+                QFile bajado(tmp);
+                QCryptographicHash h(QCryptographicHash::Sha512);
+                if (bajado.open(QIODevice::ReadOnly)) h.addData(&bajado);
+                coincide = h.result().toBase64() == QByteArray::fromStdString(it.sha512);
+            }
+            if (!coincide) {
+                err = "La descarga no coincide con el hash publicado. No se instalo nada.";
                 QFile::remove(tmp);
                 break;
             }
@@ -700,6 +848,8 @@ void AgentViewModel::install() {
                 QFile::remove(tmp);
             }
         }
+        if (err.isEmpty() && !geminiScript.isEmpty() && !QFileInfo::exists(staging + "/gemini/" + geminiScript))
+            err = "El paquete de Gemini no trae " + geminiScript + ": no se instalo (queda la version anterior).";
         if (err.isEmpty()) {
             // Ejecutable en su lugar (algunos archivos lo traen en una subcarpeta).
             if (runtime != "gemini" && !QFileInfo::exists(staging + "/" + exeName)) {
@@ -734,6 +884,7 @@ void AgentViewModel::install() {
             installProgress_ = err.isEmpty() ? 1.0 : 0.0;
             installText_ = err.isEmpty() ? "Instalado." : err;
             emit installChanged();
+            emit latestChanged(); // newerAvailable mira la version instalada
             if (!err.isEmpty())
                 setError(err);
             else

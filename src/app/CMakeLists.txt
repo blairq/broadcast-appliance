@@ -461,6 +461,19 @@ endif()
     set_target_properties(test_youtube PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_youtube COMMAND test_youtube)
 
+    # Buscar la ultima version de los agentes en su fuente oficial (con red;
+    # sin red se saltea).
+    add_executable(test_agent_updates tests/test_agent_updates.cpp agent/Actualizacion.cpp net/HttpsClient.cpp)
+    target_include_directories(test_agent_updates PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_agent_updates PRIVATE ba_core Qt6::Core mbedtls mbedx509 mbedcrypto)
+    target_compile_definitions(test_agent_updates PRIVATE
+        BA_TEST_CACERT="${CMAKE_SOURCE_DIR}/extern/cacert/cacert.pem"
+        BA_AGENTES_JSON="${CMAKE_CURRENT_SOURCE_DIR}/agent/agentes.json"
+        BA_TEST_TMP="${CMAKE_CURRENT_BINARY_DIR}")
+    set_target_properties(test_agent_updates PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_agent_updates COMMAND test_agent_updates)
+    set_tests_properties(test_agent_updates PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 180)
+
     # Twitch: login por codigo, Helix y chat IRC contra un Twitch falso.
     # Terminal de la pestaña Asistente (Pty real + libvterm). POSIX.
     if(NOT WIN32)

@@ -71,6 +71,14 @@ Rectangle {
                 GlassButton { compact: true; visible: ag.updateAvailable && !ag.installing
                               text: "Actualizar a " + (page.cur.version || ""); icon: "⇩"
                               onClicked: ag.install() }
+                // La ultima que publico el proveedor (con su hash), sin esperar
+                // una version nueva del sistema. Se instala en Agentes/ del bundle.
+                GlassButton { compact: true; visible: ag.installed && !ag.installing && !ag.newerAvailable && !ag.updateAvailable
+                              text: ag.checkingUpdate ? "Buscando…" : "Buscar actualización"; icon: "↻"
+                              onClicked: if (!ag.checkingUpdate) ag.checkUpdate() }
+                GlassButton { compact: true; visible: ag.newerAvailable && !ag.installing
+                              text: "Actualizar a " + ag.latestVersion; icon: "⇩"; active: true
+                              onClicked: ag.installLatest() }
                 GlassButton { compact: true; visible: !ag.running && ag.installed; text: "Iniciar"; icon: "▶"; active: true
                                   onClicked: { ag.start(); term.forceActiveFocus() } }
                 }
@@ -285,6 +293,11 @@ Rectangle {
                             Text { text: "Avisos de las vigilancias al chat"; color: Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap }
                         }
                         GlassButton { compact: true; text: "Carpeta de agentes"; icon: "▸"; onClicked: ag.openAgentsFolder() }
+                        // Se actualizo desde la pestaña: se puede volver a la que
+                        // fija esta version del sistema (la probada con el aparato).
+                        GlassButton { compact: true; visible: ag.usingChosenVersion && !ag.installing
+                                      text: "Volver a la versión fijada (" + ag.pinnedVersion + ")"; icon: "↺"
+                                      onClicked: ag.revertToPinned() }
                     }
                 }
 
