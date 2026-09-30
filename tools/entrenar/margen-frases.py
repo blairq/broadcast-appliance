@@ -46,6 +46,8 @@ def main():
                     help="uno o varios (checkpoints del mismo entrenamiento): se promedia")
     ap.add_argument("--semillas", default=str(RAIZ / "datos/semillas-reactivas.json"))
     ap.add_argument("--salida", required=True)
+    ap.add_argument("--frases", help="jsonl {herramienta, frase}: medir estas en vez de las semillas"
+                    " (para probar una reescritura antes de ponerla)")
     args = ap.parse_args()
 
     import torch
@@ -56,6 +58,9 @@ def main():
     sem = json.loads(Path(args.semillas).read_text(encoding="utf-8"))["herramientas"]
     items = [(h, f) for h in sorted(sem) if h in nombres
              for f in sem[h].get("frases", []) + sem[h].get("correctivas", [])]
+    if args.frases:
+        items = [(r["herramienta"], r["frase"]) for r in
+                 (json.loads(l) for l in Path(args.frases).read_text(encoding="utf-8").splitlines() if l.strip())]
 
     margenes = {i: [] for i in range(len(items))}
     elegida = {}

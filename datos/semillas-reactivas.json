@@ -57,7 +57,7 @@
       "frases": [
         "bajale al invitado 1",
         "silenciá ese micrófono",
-        "subí la música",
+        "subile 3 dB a la fuente Música",
         "mutealo en la mezcla, que no salga su audio",
         "bajale 4 dB a la fuente Música de fondo",
         "desmuteale el micrófono del orador en la mezcla",
@@ -92,7 +92,8 @@
         "Cortá ese acople, cerrale el micro al del lugar dos",
         "subile a ese que no se escucha",
         "No se escucha al columnista, subile el volumen",
-        "mutealo"
+        "mutealo",
+        "subí la música"
       ]
     },
     "audio_measure": {
@@ -248,12 +249,12 @@
     "mixer_list": {
       "frases": [
         "mostrame el mezclador",
-        "qué fuentes con sonido tengo",
+        "mostrame el mezclador con todas las fuentes de sonido",
         "leeme los niveles de todas las fuentes del mezclador",
-        "cuánto está picando",
+        "mirá en el mezclador cuánto pica cada fuente",
         "fijate los niveles",
-        "cómo viene el nivel del programa",
-        "medime cuanto pica ese canal",
+        "mostrame en el mezclador el nivel del programa",
+        "fijate en el mezclador cuánto pica ese canal",
         "fijate en el mezclador los niveles antes de tocar nada",
         "Leeme en el mezclador el volumen del micrófono de Laura",
         "Pasame la foto del mezclador: volúmenes, silencios y picos",
@@ -263,7 +264,10 @@
         "¿Qué fuentes están muteadas en el mezclador?",
         "Leeme los faders, uno por uno",
         "Pasame los volúmenes de cada fuente y el nivel del programa",
-        "Dame una lectura del mezclador, así veo qué está abierto"
+        "Dame una lectura del mezclador, así veo qué está abierto",
+        "listame las fuentes de audio que hay en el mezclador",
+        "decime el pico en dBFS de cada fuente del mezclador",
+        "leeme del mezclador el pico actual del programa en dBFS"
       ],
       "tambien": [
         "audio_sources"
@@ -272,7 +276,11 @@
       "podadas": [
         "listame las pistas de sonido",
         "fijate el nivel antes de tocar nada",
-        "¿Cuánto marca en dB el micrófono de Laura?"
+        "¿Cuánto marca en dB el micrófono de Laura?",
+        "qué fuentes con sonido tengo",
+        "cuánto está picando",
+        "cómo viene el nivel del programa",
+        "medime cuanto pica ese canal"
       ]
     },
     "scene_switch": {
@@ -352,7 +360,7 @@
         "ahora sí, dale take a la armada",
         "tira la que ya tenia preparada",
         "dale al take de la armada",
-        "ejecuta el corte a lo alistado",
+        "hacé el take de la escena armada en preview",
         "Dale el take ahora",
         "Take de lo armado.",
         "¿Hacés el take de lo que armé en preview?",
@@ -360,7 +368,8 @@
         "Dale take, que entre lo que ya estaba armado",
         "Ya armé el plano en el bus de preview, hacé el take",
         "Ya está lista la escena en previo, hacé el take",
-        "Dale take a lo que está en el bus de preview."
+        "Dale take a lo que está en el bus de preview.",
+        "mandá al aire lo que está armado en preview"
       ],
       "tambien": [],
       "correctivas": [
@@ -376,7 +385,8 @@
         "Listo el preview con el invitado, take cuando te diga, ahora",
         "Take.",
         "Listo el preview con el invitado, dale take ahora",
-        "Mandá al aire lo que está en el bus de preview."
+        "Mandá al aire lo que está en el bus de preview.",
+        "ejecuta el corte a lo alistado"
       ]
     },
     "scene_list": {
@@ -598,11 +608,12 @@
         "Foto del programa ahora, quiero ver el encuadre al aire",
         "¿Qué está saliendo al aire ahora mismo?",
         "Me dicen que la salida está en negro, sacale una foto al programa",
-        "Sacame un fotograma de la señal de programa",
+        "sacame una sola foto de lo que sale al aire",
         "¿Está saliendo negro? Foto del programa a 1920 de ancho",
         "se ve raro lo que sale, sacale una foto al programa",
         "Capturame el programa tal cual sale, quiero chequear el encuadre",
-        "Pasame la imagen del aire en jpeg, a ver si quedó en negro"
+        "Pasame la imagen del aire en jpeg, a ver si quedó en negro",
+        "mostrame una captura única del programa ahora"
       ],
       "tambien": [
         "imagen_analizar",
@@ -619,7 +630,8 @@
       "podadas": [
         "sacame la imagen de lo que sale, no la lista",
         "Mostrame qué está saliendo al aire ya mismo",
-        "se ve raro lo que sale"
+        "se ve raro lo que sale",
+        "Sacame un fotograma de la señal de programa"
       ]
     },
     "capture_source": {
@@ -964,13 +976,14 @@
         "¿Quién sigue en la fila de oradores?",
         "¿Cómo viene de tiempo el orador al aire? Mirá la fila",
         "¿Quién se pasó de tiempo? Dame cuánto usó cada uno",
-        "¿Cómo viene la conexión de los que esperan turno?",
+        "mostrame la fila de oradores con la conexión de cada uno",
         "Mostrame el orden de la fila y quién ya habló",
         "¿Cuántos quedan esperando turno y cuánto usó cada uno?",
         "Estado de la fila de oradores con info y contacto de cada uno",
         "mostrame la fila de oradores",
         "quienes estan esperando para hablar",
-        "Dame el estado de la ronda de oradores"
+        "Dame el estado de la ronda de oradores",
+        "mirá cómo viene la conexión de los oradores en la fila"
       ],
       "tambien": [
         "speaker_time"
@@ -983,7 +996,8 @@
         "como va el tiempo del expositor actual",
         "¿Se pasó de tiempo el que tiene la palabra?",
         "¿El que está al aire ya quedó en negativo?",
-        "Necesito el contacto del próximo en la cola"
+        "Necesito el contacto del próximo en la cola",
+        "¿Cómo viene la conexión de los que esperan turno?"
       ]
     },
     "speaker_time": {
@@ -1048,7 +1062,7 @@
     "record_start": {
       "frases": [
         "poné a grabar esto",
-        "dale rec",
+        "dale rec, empezá a grabar el programa",
         "arrancá a grabar el programa",
         "arrancá la grabación, que ya salimos",
         "Arrancá la grabación, que todavía no estamos grabando",
@@ -1068,7 +1082,8 @@
       "correctivas": [],
       "podadas": [
         "¿No estamos grabando? Poné a grabar ya",
-        "arranca el registro en disco"
+        "arranca el registro en disco",
+        "dale rec"
       ]
     },
     "record_stop": {
@@ -1250,7 +1265,7 @@
         "que subieron los participantes",
         "qué archivos compartieron",
         "listame lo que subieron los invitados",
-        "dejame ver qué subió el invitado",
+        "pasame la lista de lo que subió el invitado",
         "listado de archivos compartidos con nombre y tamaño",
         "listame los compartidos con su id, busco el de Marta",
         "listame los archivos compartidos",
@@ -1268,7 +1283,8 @@
       "tambien": [],
       "correctivas": [],
       "podadas": [
-        "necesito el id del archivo que compartió Marta"
+        "necesito el id del archivo que compartió Marta",
+        "dejame ver qué subió el invitado"
       ]
     },
     "capture_multiview": {
@@ -1467,7 +1483,7 @@
     "grabacion_individual": {
       "frases": [
         "grabame a cada invitado por separado",
-        "quiero pistas separadas de cada camara",
+        "grabá cada cámara en su propio archivo aparte",
         "quiero el audio de cada micrófono en su propio archivo",
         "Grabá cada cámara en su propio archivo, además del programa",
         "además del programa, grabame las fuentes sueltas",
@@ -1480,7 +1496,8 @@
         "Grabá aparte la cámara del conductor, además del programa",
         "Frená la grabación individual de todas las entradas",
         "Grabá separadas todas las entradas que están en el aire",
-        "Cada fuente a su propio archivo, para el editor"
+        "Cada fuente a su propio archivo, para el editor",
+        "arrancá la grabación individual de todas las entradas al aire"
       ],
       "tambien": [],
       "correctivas": [],
@@ -1488,7 +1505,8 @@
         "que quede cada cámara grabada aparte, después edito",
         "necesito los ISO de cada entrada",
         "arrancá a grabar cada cámara aparte del programa, después edito",
-        "prendé el grabado por entrada que hay que reeditar"
+        "prendé el grabado por entrada que hay que reeditar",
+        "quiero pistas separadas de cada camara"
       ]
     },
     "guest_source_add": {
@@ -1576,7 +1594,7 @@
       "frases": [
         "cargale en la información a este invitado: jefe de gabinete de Morón",
         "cambiá la información del invitado Ruiz: concejal de Quilmes",
-        "anotame quien es y de donde viene",
+        "cargale a esa persona en su info de dónde viene",
         "actualizá los datos de contacto del invitado 3",
         "cambiale los datos de contacto a Juan, puso mal el mail",
         "en el tablero figura sin info, agregale que es intendente",
@@ -1589,7 +1607,8 @@
         "el perfil de Andrea dice Andre, corregile el nombre",
         "en el tablero Ramos aparece sin cargo, poné economista en su info",
         "modificá los datos de Luis: nombre completo Luis Ferreyra",
-        "editá el perfil de Tomás, info: vecino de Lanús"
+        "editá el perfil de Tomás, info: vecino de Lanús",
+        "anotá en el perfil del invitado su nombre y procedencia"
       ],
       "tambien": [],
       "correctivas": [],
@@ -1597,7 +1616,8 @@
         "quien es este",
         "dejale la ficha a ese invitado",
         "Completale la ficha a ese invitado: es concejal de Quilmes",
-        "Anotale a este que es el intendente de Morón"
+        "Anotale a este que es el intendente de Morón",
+        "anotame quien es y de donde viene"
       ]
     },
     "participant_requeue": {
@@ -2193,7 +2213,7 @@
         "marcalo como el que lleva el programa",
         "dejalo siempre en pantalla, los demás van pasando",
         "fijá a este que es el que presenta",
-        "quiero que ese tenga lugar propio todo el tiempo",
+        "marcalo como presentador fijo, que no rote con los oradores",
         "Juan conduce desde su casa, dejalo como presentador",
         "La conductora remota no rota, hacela presentadora",
         "Presentador fijo: la licenciada Ruiz",
@@ -2207,11 +2227,14 @@
         "Activá el modo presentador para Rocío",
         "Desactivá presentador en Julián",
         "El conductor remoto es Mauro, ponelo de presentador",
-        "Que Natalia sea la presentadora y los invitados vayan rotando"
+        "Que Natalia sea la presentadora y los invitados vayan rotando",
+        "ponelo de presentador fijo mientras los oradores entran y salen"
       ],
       "tambien": [],
       "correctivas": [],
-      "podadas": []
+      "podadas": [
+        "quiero que ese tenga lugar propio todo el tiempo"
+      ]
     },
     "speaker_queue": {
       "frases": [
