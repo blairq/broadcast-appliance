@@ -232,13 +232,12 @@ def main():
     # casos raros y no a lo que un operador dice de verdad. Se entrena para el
     # examen y se pierde en la cabina.
     #
-    # MENOS VARIANTES DESDE QUE LOS GRUPOS SE AFINARON (30/09). Con 2 o 3 frases
-    # por herramienta, 4 variantes mecanicas por frase eran la unica fuente de
-    # variedad. Con 15 a 20 frases REALES y distintas por herramienta, eso
-    # multiplicaba el corpus por 5 con copias sin tildes o con muletillas
-    # (7.760 ejemplos). Una variante por frase alcanza para que vea la forma
-    # apurada; la variedad la ponen las frases.
-    VARIANTES_NORMAL, VARIANTES_CORRECTIVA, TECHO_CORRECTIVAS = 1, 2, 0.35
+    # SE PROBO UNA VARIANTE POR FRASE (v14, 30/09) y salio peor: el cupo de
+    # derivar es una fraccion del corpus, asi que al achicar el corpus cayo de 681
+    # a 409 ejemplos y cada herramienta administrativa quedo con UNA frase. Las
+    # del rack de audio (compresor, eq, limitador) empezaron a caer en audio_set
+    # y audio_measure. Vuelve a 4.
+    VARIANTES_NORMAL, VARIANTES_CORRECTIVA, TECHO_CORRECTIVAS = 4, 9, 0.35
 
     filas, chocadas, n_correctivas = [], 0, 0
     for herr, d in sorted(sem.items()):
