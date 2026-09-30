@@ -85,7 +85,8 @@ const Fila kPropias[] = {
     {"status", "estado general resumen como esta todo panorama salud"},
     {"security_status", "seguridad contaminacion sesion permisos aprobacion"},
     {"system_info", "version compilacion build acerca de datos del equipo"},
-    {"system_hardware", "llenando llena disco almacenamiento espacio queda lugar se esta llenando el disco disco lleno espacio libre en disco cuanto "
+    {"system_hardware", "llenando llena disco almacenamiento espacio queda lugar se esta llenando el disco "
+                        "disco lleno espacio libre en disco cuanto "
                         "queda de disco memoria temperatura hardware placa gpu cpu capacidad"},
     {"system_update", "actualizar version nueva upgrade instalar"},
     {"app_quit", "cerrar salir apagar terminar el programa"},
@@ -98,42 +99,55 @@ const Fila kPropias[] = {
     // llaman por su cámara. Sin la palabra «camara» aca, esa frase se iba a las
     // doce herramientas que sí la tienen (capture_feed, ndi_sources...) y el
     // cambio de escena no aparecia por ningun lado.
-    {"scene_switch", "corta cortala corte pasa poné pone cambiar poner al aire pasar a cortar a programa activa corte directo urgencia "
+    {"scene_switch", "corta cortala corte pasa poné pone cambiar poner al aire pasar a cortar a programa "
+                     "activa corte directo urgencia "
                      "cortar a camara pasar a camara ir a camara poner la camara "
                      "pone al aire la pone al aire poner al aire la escena arranca con"},
-    {"scene_preview", "dejar preparada dejala lista preparar la proxima armar la que sigue armar preparar el proximo plano bus de preview previo antes de sacarlo "
+    {"scene_preview", "dejar preparada dejala lista preparar la proxima armar la que sigue armar preparar el "
+                      "proximo plano bus de preview previo antes de sacarlo "
                       "cuear siguiente escena mesa switcher"},
-    {"scene_take", "sacar al aire lo armado sacar la armada tomar el take ya take sacar al aire la armada cortar ahora disparar el plano preparado mesa switcher"},
+    {"scene_take", "sacar al aire lo armado sacar la armada tomar el take ya take sacar al aire la armada "
+                   "cortar ahora disparar el plano preparado mesa switcher"},
     {"scene_create", "crear nueva agregar escena"},
     {"scene_copy", "copiar duplicar clonar escena"},
     {"scene_delete", "borrar eliminar quitar escena"},
     {"scene_rename", "renombrar cambiar nombre escena"},
     {"scene_move", "mover ordenar reordenar posicion escena subir bajar en la lista ponerla antes que otra"},
     {"scene_folder", "carpeta agrupar organizar escenas"},
-    {"scene_protect", "proteger bloquear candado no tocar impedir cambios dejarla protegida que nadie la borre ni la renombre"},
+    {"scene_protect", "proteger bloquear candado no tocar impedir cambios dejarla protegida que nadie la "
+                      "borre ni la renombre"},
     {"scene_export", "exportar respaldo backup copiar a archivo"},
     {"scene_define", "definir armar escena completa de una plantilla"},
-    {"transition_set", "que fundido esta puesto que transicion hay puesta cual es el fundido fundido corte disolvencia stinger duracion transicion"},
+    {"transition_set", "que fundido esta puesto que transicion hay puesta cual es el fundido fundido corte "
+                       "disolvencia stinger duracion transicion"},
     {"source_types", "que tipos de fuente hay disponibles"},
-    {"source_list", "que hay adentro de la escena que tiene la escena que capas tiene contenido de la escena listar fuentes de una escena que hay adentro"},
-    {"source_add", "agrega la camara agrega a esta escena sumar una camara agregar a la escena sumar a la escena meter en la escena poner en la escena agregar poner sumar fuente camara imagen texto navegador"},
+    {"source_list", "que hay adentro de la escena que tiene la escena que capas tiene contenido de la escena "
+                    "listar fuentes de una escena que hay adentro"},
+    {"source_add",
+     "agrega la camara agrega a esta escena sumar una camara agregar a la escena sumar a la escena meter en "
+     "la escena poner en la escena agregar poner sumar fuente camara imagen texto navegador"},
     {"source_remove", "quitar sacar borrar fuente"},
-    {"source_update", "cambiar editar modificar fuente correr mover el titulo o el zocalo de lugar posicion tamano"},
+    {"source_update",
+     "cambiar editar modificar fuente correr mover el titulo o el zocalo de lugar posicion tamano"},
     {"source_properties", "propiedades opciones parametros de una fuente"},
-    {"source_set_property", "cambiar una propiedad valor ajuste de fuente refrescar la lista de dispositivos apretar un boton"},
+    {"source_set_property",
+     "cambiar una propiedad valor ajuste de fuente refrescar la lista de dispositivos apretar un boton"},
     {"guest_source_add", "poner invitado en escena mostrar participante camara remota"},
 
     // --- Audio -------------------------------------------------------------
-    {"audio_set", "acople acoplando pitido cortar el audio bajalo ya urgente ""silenciar mutear callar bajar subir volumen ganancia mute solo "
+    {"audio_set", "acople acoplando pitido cortar el audio bajalo ya urgente "
+                  "silenciar mutear callar bajar subir volumen ganancia mute solo "
                   // Como se queja alguien en cabina: no dice «audio_set», dice
                   // que no se escucha. Sin estas palabras, «el invitado no se
                   // escucha» no traia NADA de audio entre los primeros.
                   "no se escucha no se oye sin sonido no tengo sonido no suena "
                   "esta mudo quedo mudo no le sale audio mas fuerte mas bajo"},
-    {"audio_sincro", "desfasado de la imagen no coincide con la imagen labios imagen adelantada sincronizar labios desfase desfasado desincronizado adelantado atrasado "
+    {"audio_sincro", "desfasado de la imagen no coincide con la imagen labios imagen adelantada sincronizar "
+                     "labios desfase desfasado desincronizado adelantado atrasado "
                      "delay offset demora retardo la voz no coincide con la imagen"},
     {"audio_sources", "que fuentes de audio hay listar canales"},
-    {"audio_escuchar", "acople de donde viene el pitido aislar canal ""pfl solo escuchar previo monitorear probar un microfono antes de abrirlo "
+    {"audio_escuchar", "acople de donde viene el pitido aislar canal "
+                       "pfl solo escuchar previo monitorear probar un microfono antes de abrirlo "
                        "auriculares cascos oir sin sacar al aire"},
     {"audio_devices", "placa de sonido microfono dispositivo entrada salida hardware"},
     {"audio_input_add", "agregar microfono entrada de audio linea"},
@@ -146,7 +160,8 @@ const Fila kPropias[] = {
     {"audio_module_set", "cambiar parametros de un efecto"},
     {"audio_patch", "ruteo patch enviar a donde va matriz"},
     {"audio_bypass", "puentear desactivar saltear efecto comparar"},
-    {"audio_gate", "el microfono queda abierto se escucha todo lo de alrededor micro abierto compuerta gate ruido de fondo silencio respiracion"},
+    {"audio_gate", "el microfono queda abierto se escucha todo lo de alrededor micro abierto compuerta gate "
+                   "ruido de fondo silencio respiracion"},
     {"audio_compressor", "compresor compresion dinamica nivelar parejo"},
     {"audio_deesser", "deesser sibilancia ese silbido"},
     {"audio_eq", "ecualizador eq graves medios agudos tono frecuencia"},
@@ -156,9 +171,12 @@ const Fila kPropias[] = {
     // ACOPLE, PITIDO, ZUMBIDO: lo que se grita en cabina. Ninguna de estas
     // palabras estaba, y «hay acople» no traia NADA de audio. Es el caso que
     // menos tiempo da para pensar, asi que es el que mejor tiene que andar.
-    {"audio_measure", "no tengo sonido sin sonido no sale audio quedamos sin audio pitido chillido silbido agudo insoportable suena un pitido no se escucha nada al aire quedamos sin audio acople acoplando acoplamiento microfonia feedback pitido chillido "
+    {"audio_measure", "no tengo sonido sin sonido no sale audio quedamos sin audio pitido chillido silbido "
+                      "agudo insoportable suena un pitido no se escucha nada al aire quedamos sin audio "
+                      "acople acoplando acoplamiento microfonia feedback pitido chillido "
                       "zumbido ruido de fondo satura saturando satura el audio distorsiona "
-                      "medir niveles pico ""medir lufs nivel pico rms loudness normalizar"},
+                      "medir niveles pico "
+                      "medir lufs nivel pico rms loudness normalizar"},
     {"audio_generator", "tono generador prueba ruido rosa senal de test"},
     {"audio_outputs", "salidas de audio a donde sale"},
     {"audio_output_set", "cambiar salida de audio destino"},
@@ -167,42 +185,52 @@ const Fila kPropias[] = {
     {"mixer_list", "consola mesa canales faders niveles"},
 
     // --- Transmision y grabacion -------------------------------------------
-    {"stream_start", "salimos al aire salgamos al aire arrancamos la transmision empezar a transmitir empezar arrancar salir al aire comenzar transmision"},
+    {"stream_start", "salimos al aire salgamos al aire arrancamos la transmision empezar a transmitir "
+                     "empezar arrancar salir al aire comenzar transmision"},
     {"stream_stop", "parar terminar cortar bajar del aire bajanos del aire bajalo del aire "
                     "sacanos del aire cortar la transmision fin de transmision"},
     {"record_start", "empezar a grabar arrancar grabacion rec"},
-    {"record_stop", "para frena detene la grabacion cortar de grabar parar grabacion para la grabacion parar de grabar frena la grabacion "
+    {"record_stop", "para frena detene la grabacion cortar de grabar parar grabacion para la grabacion parar "
+                    "de grabar frena la grabacion "
                     "cortar la grabacion terminar de grabar"},
     {"grabacion_individual", "grabar por separado pista aislada isos cada camara"},
 
     // --- Ver ---------------------------------------------------------------
-    {"capture_program", "quedamos sin imagen no hay imagen pantalla en blanco se fue la imagen que esta al aire que se ve ahora salida programa"},
+    {"capture_program", "quedamos sin imagen no hay imagen pantalla en blanco se fue la imagen que esta al "
+                        "aire que se ve ahora salida programa"},
     {"capture_source", "ver una fuente revisar antes de poner al aire"},
     {"capture_multiview", "todas las escenas de una grilla multiview"},
-    {"capture_feed", "se congelo la camara del invitado su camara quedo trabada imagen congelada ver una señal entrante feed camara"},
+    {"capture_feed", "se congelo la camara del invitado su camara quedo trabada imagen congelada ver una "
+                     "señal entrante feed camara"},
     {"capture_person", "ver a una persona invitado camara de alguien cara"},
-    {"capture_people", "ver a todos los invitados grilla de personas toda la gente que hay quienes estan en la sala"},
+    {"capture_people",
+     "ver a todos los invitados grilla de personas toda la gente que hay quienes estan en la sala"},
     {"capture_sequence", "varias capturas seguidas ver que cambia movimiento"},
     {"capture_ui", "ver la interfaz de la app pantalla del operador"},
     {"feeds_list", "que camaras hay conectadas que señales llegan que señales hay entrando fuentes de video"},
 
     // --- Sala --------------------------------------------------------------
-    {"room_status", "se cayo un invitado se desconecto se fue quien quedo quien esta en la sala conectados lista de gente cuanta gente "
+    {"room_status", "se cayo un invitado se desconecto se fue quien quedo quien esta en la sala conectados "
+                    "lista de gente cuanta gente "
                     "cuantos hay cuantos son quienes estan esperando en el lobby "
                     "estado de la sala"},
     {"room_set", "configurar sala cupo cerrar abrir limite"},
     {"room_pin", "pin clave codigo de acceso contrasena de la sala"},
     {"room_link", "enlace invitacion link para entrar compartir acceso"},
-    {"participant_admit", "hace pasar hacelo pasar que pase dejalo entrar adentro dejar entrar aceptar admitir aprobar del lobby"},
+    {"participant_admit",
+     "hace pasar hacelo pasar que pase dejalo entrar adentro dejar entrar aceptar admitir aprobar del lobby"},
     {"participant_reject", "rechazar no dejar entrar negar acceso"},
     {"participant_kick", "echar expulsar sacar desconectar de la sala"},
     {"participant_requeue", "devolver mandar atras de nuevo al final de la fila el que ya hablo"},
     {"participant_admit_all", "dejar entrar a todos admitir todos vaciar lobby"},
     {"participant_talk", "hablarle privado audio al invitado susurrar"},
-    {"participant_request", "pedile que prenda encienda apague que active su camara su microfono pedirle algo pedir camara microfono solicitar"},
+    {"participant_request", "pedile que prenda encienda apague que active su camara su microfono pedirle "
+                            "algo pedir camara microfono solicitar"},
     {"participant_profile", "ficha datos nombre cargo informacion de la persona"},
-    {"chat_send", "mandale un mensaje escribile decile por chat avisale mandar mensaje escribir al chat avisar por chat"},
-    {"chat_history", "que me dijo que dijo que escribio leer lo que mandaron que contesto historial conversacion que dijeron leer chat"},
+    {"chat_send",
+     "mandale un mensaje escribile decile por chat avisale mandar mensaje escribir al chat avisar por chat"},
+    {"chat_history", "que me dijo que dijo que escribio leer lo que mandaron que contesto historial "
+                     "conversacion que dijeron leer chat"},
     {"chat_wait", "esperar mensaje quedarse esperando a que escriban avisame cuando escriba el invitado"},
     {"chat_overlay_add", "chat en pantalla mostrar comentarios al aire overlay"},
     {"share_list", "que archivos mandaron subidos adjuntos"},
@@ -211,15 +239,20 @@ const Fila kPropias[] = {
     {"share_delete", "borrar archivo subido eliminar adjunto"},
     {"guest_chat_pending", "mensajes sin responder pendientes de invitados"},
     {"guest_reply_suggest", "sugerir respuesta redactar contestacion borrador"},
-    {"network_status", "se esta cortando se corta entrecortado se cae la transmision va lento red internet conexion ancho de banda tunel calidad"},
-    {"gateway_restart", "reiniciar sala gateway reiniciar servidor de la sala la sala no responde esta colgada"},
-    {"operator_feed", "camara del operador cabina mi camara con que imagen me ven y me oyen los que esperan en el lobby"},
+    {"network_status", "se esta cortando se corta entrecortado se cae la transmision va lento red internet "
+                       "conexion ancho de banda tunel calidad"},
+    {"gateway_restart",
+     "reiniciar sala gateway reiniciar servidor de la sala la sala no responde esta colgada"},
+    {"operator_feed",
+     "camara del operador cabina mi camara con que imagen me ven y me oyen los que esperan en el lobby"},
 
     // --- Oradores ----------------------------------------------------------
     {"speakers_status", "quien esta en la fila estado de oradores"},
-    {"speakers_config", "configurar fila de oradores tiempos reglas activar el modo oradores minutos por orador"},
+    {"speakers_config",
+     "configurar fila de oradores tiempos reglas activar el modo oradores minutos por orador"},
     {"speaker_on_air", "poner orador al aire darle el aire a quien habla"},
-    {"speaker_next", "pasa al que sigue el siguiente orador proximo orador turno siguiente siguiente orador pasar al que sigue avanzar la fila"},
+    {"speaker_next", "pasa al que sigue el siguiente orador proximo orador turno siguiente siguiente orador "
+                     "pasar al que sigue avanzar la fila"},
     {"speaker_move", "mover en la fila reordenar oradores pasar a alguien al primer lugar de la fila"},
     {"speaker_queue", "fila cola de oradores agregar sacar"},
     {"speaker_presenter", "presentador conductor moderador anfitrion"},
@@ -313,11 +346,14 @@ const Fila kPropias[] = {
     {"media_list", "que archivos hay musica videos biblioteca"},
     {"media_find", "buscar archivo cancion video por nombre"},
     {"media_view", "ver miniatura previsualizar archivo"},
-    {"media_use", "musica cancion tema pista de audio video clip poner musica poner musica de fondo musica de fondo poner una cancion un video poner musica reproducir cancion video al aire cortina"},
+    {"media_use",
+     "musica cancion tema pista de audio video clip poner musica poner musica de fondo musica de fondo poner "
+     "una cancion un video poner musica reproducir cancion video al aire cortina"},
 
     // --- Operador ------------------------------------------------------------
     {"operator_message", "avisarle al operador decirle mandarle un mensaje"},
-    {"operator_ask", "preguntale al de cabina consultale al operador pedile permiso al humano preguntarle al operador consultar pedir permiso confirmar"},
+    {"operator_ask", "preguntale al de cabina consultale al operador pedile permiso al humano preguntarle al "
+                     "operador consultar pedir permiso confirmar"},
     {"operator_messages", "que dijo el operador leer sus mensajes"},
 
     // --- Graficos y rotulos ---------------------------------------------------
@@ -375,8 +411,8 @@ const Fila kPropias[] = {
                    "pasa a la siguiente la que sigue la anterior avanza una atras una "
                    "pone la diapositiva mostrar esa lamina pasar a la"},
     {"laminas_desarmar", "convertime este powerpoint en imagenes convertir un pdf desarmar "
-                        "presentacion importar armar carrusel desde un archivo "
-                        "el orador trajo un pdf armalo para proyectar cargar la charla"},
+                         "presentacion importar armar carrusel desde un archivo "
+                         "el orador trajo un pdf armalo para proyectar cargar la charla"},
     {"laminas_armar", "armar un carrusel con estas imagenes juntar placas sueltas crear carrusel "
                       "nuevo con los logos"},
     {"laminas_editar", "sacar una lamina cambiarla de lugar reordenar renombrar el carrusel borrarlo "
@@ -499,7 +535,8 @@ const Fila kPropias[] = {
                      "no me acuerdo como se llama quien es el que espera como se llama el que llego"},
     {"ventanas_ordenar", "ordenar acomodar las ventanas repartir entre monitores que no se "
                          "amontonen ordena las ventanas armar el puesto"},
-    {"monitor_identificar", "que pantalla es cual cual es cada monitor identificar las pantallas identificar pantallas cual es cada monitor numero nombre "
+    {"monitor_identificar", "que pantalla es cual cual es cada monitor identificar las pantallas identificar "
+                            "pantallas cual es cada monitor numero nombre "
                             "cual es el de la izquierda mostrar el numero"},
     {"monitors", "monitores conectados resolucion cuantas pantallas hay segundo monitor"},
 
@@ -546,7 +583,7 @@ std::vector<std::string> etiquetasDe(const std::string& nombre) {
         const std::string clave = f.clave;
         if (nombre.compare(0, clave.size(), clave) != 0) continue;
         std::string cur;
-        for (const char* p = f.terminos; ; ++p) {
+        for (const char* p = f.terminos;; ++p) {
             if (*p == ' ' || *p == 0) {
                 if (!cur.empty()) out.push_back(cur);
                 cur.clear();

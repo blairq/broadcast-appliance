@@ -54,15 +54,15 @@ bool enOjo(int x, int y, int n) {
 void redondeado(std::ostringstream& o, double x, double y, double w, double h, double r) {
     r = std::min(r, std::min(w, h) / 2.0);
     o << "M" << x + r << ',' << y << "h" << w - 2 * r << "a" << r << ',' << r << " 0 0 1 " << r << ',' << r
-      << "v" << h - 2 * r << "a" << r << ',' << r << " 0 0 1 " << -r << ',' << r << "h" << -(w - 2 * r)
-      << "a" << r << ',' << r << " 0 0 1 " << -r << ',' << -r << "v" << -(h - 2 * r) << "a" << r << ',' << r
+      << "v" << h - 2 * r << "a" << r << ',' << r << " 0 0 1 " << -r << ',' << r << "h" << -(w - 2 * r) << "a"
+      << r << ',' << r << " 0 0 1 " << -r << ',' << -r << "v" << -(h - 2 * r) << "a" << r << ',' << r
       << " 0 0 1 " << r << ',' << -r << "z";
 }
 
 void circulo(std::ostringstream& o, double cx, double cy, double r) {
     // Dos arcos: un círculo completo no se puede con un solo arco SVG.
-    o << "M" << cx - r << ',' << cy << "a" << r << ',' << r << " 0 1 0 " << 2 * r << ",0"
-      << "a" << r << ',' << r << " 0 1 0 " << -2 * r << ",0z";
+    o << "M" << cx - r << ',' << cy << "a" << r << ',' << r << " 0 1 0 " << 2 * r << ",0" << "a" << r << ','
+      << r << " 0 1 0 " << -2 * r << ",0z";
 }
 
 /// Un módulo del cuerpo, con la forma que pida el estilo.
@@ -70,18 +70,10 @@ void modulo(std::ostringstream& o, Puntos p, int x, int y) {
     const double fx = x;
     const double fy = y;
     switch (p) {
-        case Puntos::Cuadrados:
-            o << "M" << fx << ',' << fy << "h1v1h-1z";
-            break;
-        case Puntos::Redondeados:
-            redondeado(o, fx + 0.04, fy + 0.04, 0.92, 0.92, 0.28);
-            break;
-        case Puntos::MuyRedondeados:
-            redondeado(o, fx + 0.03, fy + 0.03, 0.94, 0.94, 0.47);
-            break;
-        case Puntos::Circulos:
-            circulo(o, fx + 0.5, fy + 0.5, 0.46);
-            break;
+        case Puntos::Cuadrados: o << "M" << fx << ',' << fy << "h1v1h-1z"; break;
+        case Puntos::Redondeados: redondeado(o, fx + 0.04, fy + 0.04, 0.92, 0.92, 0.28); break;
+        case Puntos::MuyRedondeados: redondeado(o, fx + 0.03, fy + 0.03, 0.94, 0.94, 0.47); break;
+        case Puntos::Circulos: circulo(o, fx + 0.5, fy + 0.5, 0.46); break;
         case Puntos::Separados:
             // Separados de verdad: el hueco es lo que se ve.
             o << "M" << fx + 0.12 << ',' << fy + 0.12 << "h0.76v0.76h-0.76z";
@@ -97,8 +89,8 @@ void ojo(std::ostringstream& o, Ojos e, int ox, int oy) {
     const double y = oy;
     if (e == Ojos::Cuadrados) {
         o << "M" << x << ',' << y << "h7v7h-7z";
-        o << "M" << x + 1 << ',' << y + 1 << "v5h5v-5z";  // hueco (sentido inverso)
-        o << "M" << x + 2 << ',' << y + 2 << "h3v3h-3z";  // el punto del centro
+        o << "M" << x + 1 << ',' << y + 1 << "v5h5v-5z"; // hueco (sentido inverso)
+        o << "M" << x + 2 << ',' << y + 2 << "h3v3h-3z"; // el punto del centro
         return;
     }
     // Redondeados, con el radio que se midió que todavía se lee.
@@ -194,14 +186,14 @@ std::string svg(const std::string& texto, const Estilo& e, std::string* error) {
     o << "<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' viewBox='0 0 "
       << lado << ' ' << lado << "' shape-rendering='geometricPrecision'>";
     if (degradado) {
-        o << "<defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>"
-          << "<stop offset='0' stop-color='" << primario << "'/>"
-          << "<stop offset='1' stop-color='" << secundario << "'/></linearGradient></defs>";
+        o << "<defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>" << "<stop offset='0' stop-color='"
+          << primario << "'/>" << "<stop offset='1' stop-color='" << secundario
+          << "'/></linearGradient></defs>";
     }
     if (!fondo.empty()) {
         if (e.marco == Marco::Redondeado)
-            o << "<rect width='" << lado << "' height='" << lado << "' rx='" << z * 0.8 << "' fill='"
-              << fondo << "'/>";
+            o << "<rect width='" << lado << "' height='" << lado << "' rx='" << z * 0.8 << "' fill='" << fondo
+              << "'/>";
         else
             o << "<rect width='100%' height='100%' fill='" << fondo << "'/>";
     }
@@ -239,16 +231,16 @@ std::string svg(const std::string& texto, const Estilo& e, std::string* error) {
         const double lx = huecoDesde + z;
         const double ancho = huecoLado;
         if (!fondo.empty())
-            o << "<rect x='" << lx - 0.3 << "' y='" << lx - 0.3 << "' width='" << ancho + 0.6
-              << "' height='" << ancho + 0.6 << "' rx='" << ancho * 0.15 << "' fill='" << fondo << "'/>";
+            o << "<rect x='" << lx - 0.3 << "' y='" << lx - 0.3 << "' width='" << ancho + 0.6 << "' height='"
+              << ancho + 0.6 << "' rx='" << ancho * 0.15 << "' fill='" << fondo << "'/>";
         const Icono* ico = icono(e.logoIcono);
         if (ico != nullptr) {
             // El ícono viene en un lienzo de 24x24: se lo lleva al hueco con
             // un poco de aire para que no toque los módulos de alrededor.
             const double aire = ancho * 0.16;
             const double lado24 = ancho - aire * 2;
-            o << "<g transform='translate(" << lx + aire << ',' << lx + aire << ") scale("
-              << lado24 / 24.0 << ")' fill='none' stroke='"
+            o << "<g transform='translate(" << lx + aire << ',' << lx + aire << ") scale(" << lado24 / 24.0
+              << ")' fill='none' stroke='"
               << colorSeguro(e.logoColor.empty() ? primario : e.logoColor, primario)
               << "' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='";
             escapar(o, ico->trazos);
@@ -264,9 +256,9 @@ std::string svg(const std::string& texto, const Estilo& e, std::string* error) {
     // --- El marco --------------------------------------------------------
     if (e.marco != Marco::Ninguno) {
         const double g = 0.6; // grosor, en módulos
-        o << "<rect x='" << g / 2 << "' y='" << g / 2 << "' width='" << lado - g << "' height='"
-          << lado - g << "' rx='" << (e.marco == Marco::Redondeado ? z * 0.8 : 0.0)
-          << "' fill='none' stroke='" << pinturaStr << "' stroke-width='" << g << "'/>";
+        o << "<rect x='" << g / 2 << "' y='" << g / 2 << "' width='" << lado - g << "' height='" << lado - g
+          << "' rx='" << (e.marco == Marco::Redondeado ? z * 0.8 : 0.0) << "' fill='none' stroke='"
+          << pinturaStr << "' stroke-width='" << g << "'/>";
     }
     o << "</svg>";
     return o.str();
@@ -402,7 +394,8 @@ std::string desescapar(const std::string& v) {
     for (std::size_t i = 0; i < v.size(); ++i) {
         if (v[i] == '+') {
             o.push_back(' ');
-        } else if (v[i] == '%' && i + 2 < v.size() && std::isxdigit(static_cast<unsigned char>(v[i + 1])) != 0 &&
+        } else if (v[i] == '%' && i + 2 < v.size() &&
+                   std::isxdigit(static_cast<unsigned char>(v[i + 1])) != 0 &&
                    std::isxdigit(static_cast<unsigned char>(v[i + 2])) != 0) {
             o.push_back(static_cast<char>(std::stoi(v.substr(i + 1, 2), nullptr, 16)));
             i += 2;

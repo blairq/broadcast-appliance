@@ -49,14 +49,21 @@ struct Tipo {
 
 const std::vector<Tipo>& catalogo() {
     static const std::vector<Tipo> t = {
-        {"enlace", "Un enlace", "Una dirección web. Lo más usado y lo que menos ocupa.",
-         {{"url", "Dirección", "https://…", false}}, false},
-        {"wifi", "Red WiFi", "El teléfono ofrece conectarse solo, sin tipear la clave.",
+        {"enlace",
+         "Un enlace",
+         "Una dirección web. Lo más usado y lo que menos ocupa.",
+         {{"url", "Dirección", "https://…", false}},
+         false},
+        {"wifi",
+         "Red WiFi",
+         "El teléfono ofrece conectarse solo, sin tipear la clave.",
          {{"red", "Nombre de la red", "Estudio", false},
           {"clave", "Clave", "", false},
           {"seguridad", "Seguridad", "WPA", false}},
          false},
-        {"contacto", "Un contacto", "El teléfono ofrece agregarlo a la agenda (vCard).",
+        {"contacto",
+         "Un contacto",
+         "El teléfono ofrece agregarlo a la agenda (vCard).",
          {{"nombre", "Nombre y apellido", "Ana Pérez", false},
           {"telefono", "Teléfono", "+54 9 11 …", false},
           {"email", "Correo", "ana@…", false},
@@ -64,30 +71,42 @@ const std::vector<Tipo>& catalogo() {
           {"cargo", "Cargo", "", false},
           {"web", "Web", "", false}},
          false},
-        {"reunion", "Una reunión", "Meet, Zoom o Teams. Si ya tenés el enlace entero, pegalo.",
+        {"reunion",
+         "Una reunión",
+         "Meet, Zoom o Teams. Si ya tenés el enlace entero, pegalo.",
          {{"plataforma", "Plataforma", "meet", false},
           {"codigo", "Código o enlace", "abc-defg-hij", false},
           {"clave", "Clave (Zoom)", "", false}},
          false},
-        {"texto", "Un texto", "Lo que sea. El teléfono lo muestra y ofrece copiarlo.",
-         {{"texto", "Texto", "", true}}, false},
-        {"telefono", "Llamar", "Al escanearlo, el teléfono ofrece llamar.",
-         {{"numero", "Número", "+54 9 11 …", false}}, false},
-        {"correo", "Escribir un correo", "Abre el correo con el destinatario puesto.",
+        {"texto",
+         "Un texto",
+         "Lo que sea. El teléfono lo muestra y ofrece copiarlo.",
+         {{"texto", "Texto", "", true}},
+         false},
+        {"telefono",
+         "Llamar",
+         "Al escanearlo, el teléfono ofrece llamar.",
+         {{"numero", "Número", "+54 9 11 …", false}},
+         false},
+        {"correo",
+         "Escribir un correo",
+         "Abre el correo con el destinatario puesto.",
          {{"direccion", "Para", "produccion@…", false},
           {"asunto", "Asunto", "", false},
           {"cuerpo", "Texto", "", true}},
          false},
         // --- Los del aparato: el contenido lo arma el sistema ----------------
-        {"sala", "Entrar a la sala", "El enlace de invitados de esta sala, con su PIN adentro.",
-         {}, true},
+        {"sala", "Entrar a la sala", "El enlace de invitados de esta sala, con su PIN adentro.", {}, true},
         {"prompter", "El teleprompter", "La pantalla del orador (solo lee, no lleva clave).", {}, true},
         {"rotulos", "Rotular desde el celular", "Los textos de la escena al aire, con su clave.", {}, true},
         // El que se proyecta o se imprime en el programa: lo escanean todos los
         // que estan en la sala, asi que va con la clave adentro. Pedirle a
         // doscientas personas que tipeen una clave es perder a la mitad.
-        {"publico", "Preguntas del publico",
-         "La pagina para preguntar y votar desde la butaca, con su clave.", {}, true},
+        {"publico",
+         "Preguntas del publico",
+         "La pagina para preguntar y votar desde la butaca, con su clave.",
+         {},
+         true},
     };
     return t;
 }
@@ -131,7 +150,7 @@ qr::Correccion correccionDe(const QString& s) {
 
 /// El estilo de fábrica: negro sobre blanco, cuadrado. Aburrido y siempre se lee.
 QVariantMap estiloDeFabrica() {
-    return QVariantMap{{"primario", "#000000"}, {"secundario", ""},   {"fondo", "#FFFFFF"},
+    return QVariantMap{{"primario", "#000000"}, {"secundario", ""},    {"fondo", "#FFFFFF"},
                        {"puntos", "cuadrados"}, {"ojos", "cuadrados"}, {"marco", "ninguno"},
                        {"correccion", "media"}, {"zona", 4},           {"logo", 0.0},
                        {"icono", ""},           {"iconoColor", ""}};
@@ -157,8 +176,10 @@ qr::Estilo aEstilo(const QVariantMap& m) {
 
 QString limpiarNombre(QString n) {
     n = n.trimmed();
-    for (const QChar malo : QString(R"(<>:"/\|?*)")) n.remove(malo);
-    while (n.endsWith('.')) n.chop(1);
+    for (const QChar malo : QString(R"(<>:"/\|?*)"))
+        n.remove(malo);
+    while (n.endsWith('.'))
+        n.chop(1);
     return n.trimmed();
 }
 
@@ -179,7 +200,7 @@ struct QrViewModel::Impl {
     QString tipo = "enlace";
     QVariantMap datos;
     QVariantMap estilo = estiloDeFabrica();
-    QString contenido;   ///< el texto ya armado
+    QString contenido; ///< el texto ya armado
     QString aviso;
     int revision = 0;
     bool sucio = false;
@@ -219,9 +240,12 @@ struct QrViewModel::Impl {
                     QVariantMap est = estiloDeFabrica();
                     const json je = x.value("estilo", json::object());
                     for (const auto& [k, v] : je.items()) {
-                        if (v.is_string()) est[QString::fromStdString(k)] = QString::fromStdString(v);
-                        else if (v.is_number_float()) est[QString::fromStdString(k)] = v.get<double>();
-                        else if (v.is_number_integer()) est[QString::fromStdString(k)] = v.get<int>();
+                        if (v.is_string())
+                            est[QString::fromStdString(k)] = QString::fromStdString(v);
+                        else if (v.is_number_float())
+                            est[QString::fromStdString(k)] = v.get<double>();
+                        else if (v.is_number_integer())
+                            est[QString::fromStdString(k)] = v.get<int>();
                     }
                     m["estilo"] = est;
                     if (m["id"].toString().isEmpty()) continue;
@@ -269,8 +293,7 @@ QrViewModel::QrViewModel(AppRuntime& rt, EventoViewModel* evento, ConferenceView
     d_->evento = evento;
     d_->sala = sala;
     refrescar();
-    if (evento != nullptr)
-        connect(evento, &EventoViewModel::guionChanged, this, [this]() { refrescar(); });
+    if (evento != nullptr) connect(evento, &EventoViewModel::guionChanged, this, [this]() { refrescar(); });
     resolver();
 }
 
@@ -352,10 +375,8 @@ QVariantList QrViewModel::iconos() const {
 QString QrViewModel::abierto() const { return d_->abierto; }
 
 QVariantMap QrViewModel::actual() const {
-    return QVariantMap{{"nombre", d_->nombre},
-                       {"tipo", d_->tipo},
-                       {"datos", d_->datos},
-                       {"estilo", d_->estilo}};
+    return QVariantMap{
+        {"nombre", d_->nombre}, {"tipo", d_->tipo}, {"datos", d_->datos}, {"estilo", d_->estilo}};
 }
 
 QString QrViewModel::contenido() const { return d_->contenido; }
@@ -364,9 +385,9 @@ int QrViewModel::revision() const { return d_->revision; }
 bool QrViewModel::sucio() const { return d_->sucio; }
 
 int QrViewModel::modulos() const {
-    return d_->contenido.isEmpty()
-               ? 0
-               : qr::lado(d_->contenido.toStdString(), correccionDe(d_->estilo.value("correccion").toString()));
+    return d_->contenido.isEmpty() ? 0
+                                   : qr::lado(d_->contenido.toStdString(),
+                                              correccionDe(d_->estilo.value("correccion").toString()));
 }
 
 // --- Armar el contenido -----------------------------------------------------
@@ -387,8 +408,7 @@ QString armar(const QString& tipo, const QVariantMap& d) {
         return QString::fromStdString(
             qr::reunion(d.value("plataforma", "meet").toString().toStdString(), v("codigo"), v("clave")));
     if (tipo == "telefono") return QString::fromStdString(qr::telefono(v("numero")));
-    if (tipo == "correo")
-        return QString::fromStdString(qr::correo(v("direccion"), v("asunto"), v("cuerpo")));
+    if (tipo == "correo") return QString::fromStdString(qr::correo(v("direccion"), v("asunto"), v("cuerpo")));
     return {};
 }
 } // namespace
@@ -401,11 +421,10 @@ void QrViewModel::resolver() {
         const char* tipo;
         const char* ruta;
     };
-    static const Pedido kPedidos[] = {
-        {"sala", "/api/v1/qr?target=local&pin=1"},
-        {"prompter", "/api/v1/prompter-link?target=local&vista=orador"},
-        {"rotulos", "/api/v1/rotulos-link?target=local&conClave=1"},
-        {"publico", "/api/v1/publico-link?target=local&conClave=1"}};
+    static const Pedido kPedidos[] = {{"sala", "/api/v1/qr?target=local&pin=1"},
+                                      {"prompter", "/api/v1/prompter-link?target=local&vista=orador"},
+                                      {"rotulos", "/api/v1/rotulos-link?target=local&conClave=1"},
+                                      {"publico", "/api/v1/publico-link?target=local&conClave=1"}};
     for (const Pedido& p : kPedidos) {
         const QString tipo = p.tipo;
         d_->sala->client().get(p.ruta, [this, tipo](bool ok, const QJsonObject& r) {
@@ -590,8 +609,8 @@ QString QrViewModel::svgDe(const QString& id) const {
             if (m.value("id").toString() != id) continue;
             const QString tipo = m.value("tipo").toString();
             const Tipo* t = tipoPorId(tipo);
-            const QString texto =
-                t != nullptr && t->delAparato ? d_->delAparato.value(tipo) : armar(tipo, m.value("datos").toMap());
+            const QString texto = t != nullptr && t->delAparato ? d_->delAparato.value(tipo)
+                                                                : armar(tipo, m.value("datos").toMap());
             if (texto.isEmpty()) return {};
             return QString::fromStdString(qr::svg(texto.toStdString(), aEstilo(m.value("estilo").toMap())));
         }
@@ -609,7 +628,8 @@ QString QrViewModel::svgSuelto(const QString& tipo, const QVariantMap& datos,
     const QString texto = contenidoDe(tipo, datos);
     if (texto.isEmpty()) return {};
     QVariantMap e = estiloDeFabrica();
-    for (auto it = estilo.begin(); it != estilo.end(); ++it) e[it.key()] = it.value();
+    for (auto it = estilo.begin(); it != estilo.end(); ++it)
+        e[it.key()] = it.value();
     return QString::fromStdString(qr::svg(texto.toStdString(), aEstilo(e)));
 }
 
@@ -637,7 +657,8 @@ QVariantList QrViewModel::todos() const {
             QVariantMap m = v.toMap();
             m["ambito"] = a;
             const Tipo* t = tipoPorId(m.value("tipo").toString());
-            m["contenido"] = t == nullptr ? QString()
+            m["contenido"] =
+                t == nullptr ? QString()
                              : (t->delAparato ? d_->delAparato.value(m.value("tipo").toString())
                                               : armar(m.value("tipo").toString(), m.value("datos").toMap()));
             out.append(m);

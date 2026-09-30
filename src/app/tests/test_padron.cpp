@@ -11,8 +11,8 @@
 // ============================================================================
 #include <cstdio>
 #include <filesystem>
-#include <set>
 #include <fstream>
+#include <set>
 #include <string>
 
 #include "evento/Padron.hpp"
@@ -98,8 +98,7 @@ void codigo_de_votante() {
         const std::string c = nuevoCodigo();
         CHECK(c.size() == 4, "cuatro simbolos");
         for (char ch : c)
-            CHECK(ch != 'O' && ch != '0' && ch != 'I' && ch != '1',
-                  "sin los que se confunden al dictarlos");
+            CHECK(ch != 'O' && ch != '0' && ch != 'I' && ch != '1', "sin los que se confunden al dictarlos");
     }
 
     Padron p = asamblea();
@@ -111,8 +110,7 @@ void codigo_de_votante() {
     std::set<std::string> vistos;
     Padron q;
     for (int i = 0; i < 60; ++i) {
-        const std::string id = q.agregar(alguien("N" + std::to_string(i), Papel::Publico,
-                                                 Canal::Presencial));
+        const std::string id = q.agregar(alguien("N" + std::to_string(i), Papel::Publico, Canal::Presencial));
         vistos.insert(q.porId(id)->codigo);
     }
     CHECK(vistos.size() == 60, "sesenta personas, sesenta codigos distintos");
@@ -125,7 +123,8 @@ void codigo_de_votante() {
     // Un padron escrito ANTES de que el codigo existiera: la persona es la
     // misma, el archivo es viejo. Sin codigo no podria votar nunca.
     nlohmann::json vieja = p.aJson();
-    for (nlohmann::json& a : vieja["gente"]) a.erase("codigo");
+    for (nlohmann::json& a : vieja["gente"])
+        a.erase("codigo");
     const Padron m = Padron::deJson(vieja);
     std::set<std::string> nuevos;
     for (const Asistente& a : m.gente()) {

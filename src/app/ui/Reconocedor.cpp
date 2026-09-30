@@ -79,8 +79,7 @@ void Reconocedor::pedir(std::vector<std::uint8_t> bgra, int ancho, int alto, boo
                     v.vector = d_->motor.describir(bgra.data(), ancho, alto, c);
                     vistos.push_back(std::move(v));
                 }
-                if (!d_->motor.error().empty())
-                    error = QString::fromStdString(d_->motor.error());
+                if (!d_->motor.error().empty()) error = QString::fromStdString(d_->motor.error());
             }
             Reconocedor* destino = yo.data();
             if (destino == nullptr) return; // se fue mientras tanto

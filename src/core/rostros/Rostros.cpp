@@ -23,11 +23,11 @@ constexpr int kLadoCara = 112;
 /// hacia otras posiciones da vectores que no se parecen a los del modelo y el
 /// reconocimiento deja de funcionar sin que nada falle.
 constexpr float kDestino[5][2] = {
-    {38.2946f, 51.6963f},  // ojo derecho
-    {73.5318f, 51.5014f},  // ojo izquierdo
-    {56.0252f, 71.7366f},  // nariz
-    {41.5493f, 92.3655f},  // comisura derecha
-    {70.7299f, 92.2041f},  // comisura izquierda
+    {38.2946f, 51.6963f}, // ojo derecho
+    {73.5318f, 51.5014f}, // ojo izquierdo
+    {56.0252f, 71.7366f}, // nariz
+    {41.5493f, 92.3655f}, // comisura derecha
+    {70.7299f, 92.2041f}, // comisura izquierda
 };
 
 /// Enderezar la cara: rotarla, escalarla y centrarla como espera el modelo.
@@ -49,7 +49,10 @@ void enderezar(const std::uint8_t* bgra, int ancho, int alto, const float* punto
         dx += kDestino[i][0];
         dy += kDestino[i][1];
     }
-    sx /= 5; sy /= 5; dx /= 5; dy /= 5;
+    sx /= 5;
+    sy /= 5;
+    dx /= 5;
+    dy /= 5;
 
     // Escala y rotación (Umeyama simplificado: sin reflexión, sin deformar).
     double varOrigen = 0, a = 0, b = 0;
@@ -96,8 +99,8 @@ constexpr int kLadoDet = 640;
 /// sobra y el resto se rellena con negro.
 ///
 /// :param escala,offX,offY: reciben como volver de la imagen chica a la real.
-void encajar(const std::uint8_t* bgra, int ancho, int alto, std::vector<float>& destino,
-             double& escala, int& offX, int& offY) {
+void encajar(const std::uint8_t* bgra, int ancho, int alto, std::vector<float>& destino, double& escala,
+             int& offX, int& offY) {
     escala = std::min(static_cast<double>(kLadoDet) / ancho, static_cast<double>(kLadoDet) / alto);
     const int w = std::max(1, static_cast<int>(ancho * escala));
     const int h = std::max(1, static_cast<int>(alto * escala));
@@ -130,8 +133,8 @@ void encajar(const std::uint8_t* bgra, int ancho, int alto, std::vector<float>& 
 /// Cada escala mira la imagen en una grilla de `alto/s` x `ancho/s`. Cada
 /// celda propone una cara; la confianza es la raiz de (clase x objeto), que
 /// es como la calcula el propio modelo.
-std::vector<Cara> decodificar(const std::vector<std::string>& nombres,
-                              const std::vector<Ort::Value>& salidas, float minConfianza) {
+std::vector<Cara> decodificar(const std::vector<std::string>& nombres, const std::vector<Ort::Value>& salidas,
+                              float minConfianza) {
     const auto buscar = [&](const std::string& n) -> const float* {
         for (std::size_t i = 0; i < nombres.size(); ++i)
             if (nombres[i] == n) return salidas[i].GetTensorData<float>();
@@ -262,8 +265,7 @@ bool Motor::abrir(const std::string& carpetaModelos) {
     return true;
 }
 
-std::vector<Cara> Motor::detectar(const std::uint8_t* bgra, int ancho, int alto,
-                                  float minConfianza) const {
+std::vector<Cara> Motor::detectar(const std::uint8_t* bgra, int ancho, int alto, float minConfianza) const {
     std::vector<Cara> caras;
     if (!abierto() || bgra == nullptr || ancho <= 0 || alto <= 0) return caras;
     try {
@@ -275,7 +277,8 @@ std::vector<Cara> Motor::detectar(const std::uint8_t* bgra, int ancho, int alto,
         Ort::Value t = Ort::Value::CreateTensor<float>(d_->memoria, entrada.data(), entrada.size(),
                                                        forma.data(), forma.size());
         std::vector<const char*> nSal;
-        for (const std::string& s : d_->salidasDet) nSal.push_back(s.c_str());
+        for (const std::string& s : d_->salidasDet)
+            nSal.push_back(s.c_str());
         const char* nEnt[] = {d_->entradaDet.c_str()};
         auto salidas = d_->detector->Run(Ort::RunOptions{nullptr}, nEnt, &t, 1, nSal.data(), nSal.size());
         caras = decodificar(d_->salidasDet, salidas, minConfianza);
@@ -300,8 +303,7 @@ std::vector<Cara> Motor::detectar(const std::uint8_t* bgra, int ancho, int alto,
     return caras;
 }
 
-std::vector<float> Motor::describir(const std::uint8_t* bgra, int ancho, int alto,
-                                    const Cara& cara) const {
+std::vector<float> Motor::describir(const std::uint8_t* bgra, int ancho, int alto, const Cara& cara) const {
     if (!abierto() || bgra == nullptr) return {};
     try {
         std::vector<std::uint8_t> recta;

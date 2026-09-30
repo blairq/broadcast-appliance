@@ -41,7 +41,7 @@
 namespace ba::gateway {
 
 class Prompter {
-  public:
+   public:
     /// Palabras por minuto de una lectura normal en castellano. Es el valor
     /// con el que se estima cuanto dura un discurso.
     static constexpr int kPpmPorDefecto = 140;
@@ -55,8 +55,7 @@ class Prompter {
     /// Anota que una vista pidio el estado. `id` lo genera la pagina y lo
     /// guarda; `vista` es "orador" o "control"; `nombre` es opcional y lo
     /// escribe quien la usa ("Atril 1").
-    void visto(const std::string& id, const std::string& vista, const std::string& nombre,
-               std::uint32_t ip);
+    void visto(const std::string& id, const std::string& vista, const std::string& nombre, std::uint32_t ip);
 
     /// Los que pidieron hace menos de kVivoMs: [{id, vista, nombre, ip,
     /// haceMs}], los oradores primero.
@@ -87,7 +86,7 @@ class Prompter {
     /// Cuantas palabras tiene un texto (la misma cuenta que usa el prompter).
     static int contarPalabras(const std::string& texto);
 
-  private:
+   private:
     nlohmann::json estadoLocked() const;
     /// Congela la posicion calculada hasta ahora (antes de cambiar velocidad,
     /// parar o saltar): si no, cambiar la velocidad moveria el texto.

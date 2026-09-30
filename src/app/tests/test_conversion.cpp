@@ -42,9 +42,18 @@ QStringList correr(Conversor& c, const QString& entrada, const QString& salida, 
                    int* ultimoHecho, int* ultimoTotal) {
     QStringList res;
     bool termino = false;
-    QObject::connect(&c, &Conversor::listo, [&](QStringList l) { res = l; termino = true; });
-    QObject::connect(&c, &Conversor::fallo, [&](QString m) { *motivo = m; termino = true; });
-    QObject::connect(&c, &Conversor::avance, [&](QString, int h, int t) { *ultimoHecho = h; *ultimoTotal = t; });
+    QObject::connect(&c, &Conversor::listo, [&](QStringList l) {
+        res = l;
+        termino = true;
+    });
+    QObject::connect(&c, &Conversor::fallo, [&](QString m) {
+        *motivo = m;
+        termino = true;
+    });
+    QObject::connect(&c, &Conversor::avance, [&](QString, int h, int t) {
+        *ultimoHecho = h;
+        *ultimoTotal = t;
+    });
     c.convertir(entrada, salida);
     // Tope duro: si algo se cuelga, el test tiene que terminar igual.
     QTimer tope;
@@ -56,9 +65,7 @@ QStringList correr(Conversor& c, const QString& entrada, const QString& salida, 
     return res;
 }
 
-QString fixture(const char* nombre) {
-    return QString(BA_TEST_DATOS) + "/" + nombre;
-}
+QString fixture(const char* nombre) { return QString(BA_TEST_DATOS) + "/" + nombre; }
 
 } // namespace
 
@@ -98,8 +105,8 @@ int main(int argc, char** argv) {
         Conversor c;
         QString motivo;
         int hecho = -1, total = -1;
-        const QStringList r = correr(c, fixture("tres-laminas.pptx"), tmp.path() + "/out", &motivo,
-                                     &hecho, &total);
+        const QStringList r =
+            correr(c, fixture("tres-laminas.pptx"), tmp.path() + "/out", &motivo, &hecho, &total);
         CHECK(motivo.isEmpty(), qPrintable("la conversion fallo: " + motivo));
         CHECK(r.size() == 3, "tres laminas del pptx de tres paginas");
         CHECK(hecho == 3 && total == 3, "el avance llego al final");

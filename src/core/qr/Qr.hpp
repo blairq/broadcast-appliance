@@ -104,15 +104,14 @@ int lado(const std::string& texto, Correccion c);
 // suelto en vez de ofrecer "conectarse a la red".
 
 /// "WIFI:S:<red>;T:WPA;P:<clave>;;" — el teléfono ofrece conectarse solo.
-std::string wifi(const std::string& red, const std::string& clave,
-                 const std::string& seguridad = "WPA", bool oculta = false);
+std::string wifi(const std::string& red, const std::string& clave, const std::string& seguridad = "WPA",
+                 bool oculta = false);
 /// Una tarjeta de contacto (vCard 3.0): el teléfono ofrece agregarlo a la agenda.
-std::string contacto(const std::string& nombre, const std::string& telefono,
-                     const std::string& email, const std::string& organizacion = {},
-                     const std::string& cargo = {}, const std::string& web = {});
+std::string contacto(const std::string& nombre, const std::string& telefono, const std::string& email,
+                     const std::string& organizacion = {}, const std::string& cargo = {},
+                     const std::string& web = {});
 /// Una reunión: `plataforma` es "meet", "zoom" o "teams".
-std::string reunion(const std::string& plataforma, const std::string& codigo,
-                    const std::string& clave = {});
+std::string reunion(const std::string& plataforma, const std::string& codigo, const std::string& clave = {});
 std::string telefono(const std::string& numero);
 std::string sms(const std::string& numero, const std::string& texto = {});
 std::string correo(const std::string& direccion, const std::string& asunto = {},

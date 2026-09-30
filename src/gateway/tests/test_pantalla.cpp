@@ -74,14 +74,14 @@ int main() {
     // --- 3) canales de datos ----------------------------------------------------
     {
         // Un m=application no lleva audio ni video: no se le exige direccion.
-        const std::string s = sdp("recvonly", "recvonly") +
-                              "m=application 9 UDP/DTLS/SCTP webrtc-datachannel\r\na=mid:2\r\n";
+        const std::string s =
+            sdp("recvonly", "recvonly") + "m=application 9 UDP/DTLS/SCTP webrtc-datachannel\r\na=mid:2\r\n";
         CHECK(SignalingServer::soloRecibe(s), "un canal de datos no estorba");
     }
     {
         // Pero tampoco sirve para habilitar: si una pista de verdad sube, no.
-        const std::string s = "m=application 9 UDP/DTLS/SCTP webrtc-datachannel\r\na=mid:0\r\n" +
-                              sdp("sendrecv", nullptr);
+        const std::string s =
+            "m=application 9 UDP/DTLS/SCTP webrtc-datachannel\r\na=mid:0\r\n" + sdp("sendrecv", nullptr);
         CHECK(!SignalingServer::soloRecibe(s), "datos + video que sube: NO");
     }
 

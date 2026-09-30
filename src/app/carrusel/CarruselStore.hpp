@@ -26,7 +26,7 @@
 namespace ba::carrusel {
 
 class Store {
-  public:
+   public:
     /// :param archivo: Config/carruseles.json (se crea la carpeta si falta).
     explicit Store(std::filesystem::path archivo);
 
@@ -48,7 +48,7 @@ class Store {
 
     const std::string& error() const { return error_; }
 
-  private:
+   private:
     std::filesystem::path archivo_;
     std::vector<Carrusel> todos_;
     std::string error_;

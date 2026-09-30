@@ -3,9 +3,9 @@
 // ============================================================================
 #include "Declarativo.hpp"
 
+#include <algorithm>
 #include <QJsonArray>
 #include <QJsonValue>
-#include <algorithm>
 
 #include <QRegularExpression>
 
@@ -122,8 +122,7 @@ QString capaTexto(const QJsonObject& c, const QString& id, const QJsonObject& p)
     // palabras, que es lo que hace falta para una pregunta o una bajada larga.
     QString caja;
     if (c.contains("ancho"))
-        caja = QString("        width: %1\n        wrapMode: Text.WordWrap\n")
-                   .arg(num(c, "ancho", 400));
+        caja = QString("        width: %1\n        wrapMode: Text.WordWrap\n").arg(num(c, "ancho", 400));
     return QString(R"(        Text {
         id: %1
         text: %2
@@ -179,18 +178,15 @@ QJsonObject repertorio() {
          QJsonObject{
              {"barra", "Un rectángulo de color. Para la barrita de acento de un zócalo."},
              {"panel", "La caja de fondo. Con «ajustaA» crece con el ancho de los textos que nombre."},
-             {"texto",
-              "Un texto. «valor» acepta {parametros} entre llaves. Con «desplaza» (píxeles por "
-              "segundo) cruza la pantalla sin parar, que es un ticker. Con «ancho» corta por "
-              "palabras en vez de crecer en una sola línea."}}},
-        {"posicion",
-         "Cada capa se ubica con «izquierda» o «derecha» y «arriba» o «abajo», en píxeles desde "
-         "ese borde del gráfico."},
+             {"texto", "Un texto. «valor» acepta {parametros} entre llaves. Con «desplaza» (píxeles por "
+                       "segundo) cruza la pantalla sin parar, que es un ticker. Con «ancho» corta por "
+                       "palabras en vez de crecer en una sola línea."}}},
+        {"posicion", "Cada capa se ubica con «izquierda» o «derecha» y «arriba» o «abajo», en píxeles desde "
+                     "ese borde del gráfico."},
         {"aparece", "Milisegundos desde el principio en que esa capa se funde a la vista."},
-        {"entrada",
-         QJsonObject{{"desliza-izquierda", "Entra desde afuera por la izquierda."},
-                     {"desliza-derecha", "Entra desde afuera por la derecha."},
-                     {"aparece", "Solo se funde, sin moverse."}}},
+        {"entrada", QJsonObject{{"desliza-izquierda", "Entra desde afuera por la izquierda."},
+                                {"desliza-derecha", "Entra desde afuera por la derecha."},
+                                {"aparece", "Solo se funde, sin moverse."}}},
         {"salida", QJsonObject{{"desenfoca", "Se va desenfocándose y desvaneciéndose."},
                                {"desaparece", "Solo se funde."}}}};
 }
@@ -214,8 +210,7 @@ Traduccion traducir(const QJsonObject& d, const QJsonObject& parametros) {
         const QString tipo = c.value("tipo").toString();
         // El id sale del que le pusieron o de la posición: hace falta para
         // poder animarla y para que un panel pueda ajustarse a un texto.
-        const QString id = "cap_" + (c.contains("id") ? c.value("id").toString()
-                                                      : QString("n%1").arg(++n));
+        const QString id = "cap_" + (c.contains("id") ? c.value("id").toString() : QString("n%1").arg(++n));
         if (tipo == "barra") {
             cuerpo += capaBarra(c, id, parametros);
         } else if (tipo == "texto") {
@@ -223,8 +218,8 @@ Traduccion traducir(const QJsonObject& d, const QJsonObject& parametros) {
         } else if (tipo == "panel") {
             cuerpo += capaPanel(c, id, parametros);
         } else {
-            t.error = QString("no sé qué es una capa de tipo «%1». Las que hay: barra, panel, texto.")
-                          .arg(tipo);
+            t.error =
+                QString("no sé qué es una capa de tipo «%1». Las que hay: barra, panel, texto.").arg(tipo);
             return t;
         }
         animaciones += apariciónDeCapa(c, id);
@@ -237,8 +232,10 @@ Traduccion traducir(const QJsonObject& d, const QJsonObject& parametros) {
     const QString efectoEntrada = entrada.value("efecto").toString("desliza-izquierda");
     const double durEntrada = num(entrada, "duracion", 450);
     QString desdeX = "0";
-    if (efectoEntrada == "desliza-izquierda") desdeX = QString("-%1").arg(ancho * 0.5);
-    else if (efectoEntrada == "desliza-derecha") desdeX = QString("%1").arg(ancho * 0.5);
+    if (efectoEntrada == "desliza-izquierda")
+        desdeX = QString("-%1").arg(ancho * 0.5);
+    else if (efectoEntrada == "desliza-derecha")
+        desdeX = QString("%1").arg(ancho * 0.5);
 
     const QJsonObject salida = d.value("salida").toObject();
     const bool desenfocaAlSalir = salida.value("efecto").toString("desenfoca") == "desenfoca";

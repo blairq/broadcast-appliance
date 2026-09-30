@@ -603,8 +603,8 @@ bool AppRuntime::copyScene(const std::string& from, const std::string& to) {
             // Lo que no se pudo recrear se dice, pero no se deshace todo: una
             // escena copiada a medias se arregla a mano; una que desaparecio
             // sin explicacion, no.
-            lastError_ = "la escena se copio, pero la fuente \"" + spec.name +
-                         "\" no se pudo recrear: " + lastError_;
+            lastError_ =
+                "la escena se copio, pero la fuente \"" + spec.name + "\" no se pudo recrear: " + lastError_;
         }
     }
     return true;
@@ -878,8 +878,7 @@ bool AppRuntime::save() {
             std::error_code ec;
             std::filesystem::path backup = cfg_.configPath;
             backup += ".antes-del-modo-seguro";
-            if (std::filesystem::exists(cfg_.configPath, ec) &&
-                !std::filesystem::exists(backup, ec)) {
+            if (std::filesystem::exists(cfg_.configPath, ec) && !std::filesystem::exists(backup, ec)) {
                 std::filesystem::copy_file(cfg_.configPath, backup, ec);
                 std::printf("ba-app: modo seguro: copia de la configuracion en %s\n",
                             backup.string().c_str());

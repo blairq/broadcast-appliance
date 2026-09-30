@@ -68,7 +68,7 @@ bool tipoDeNombre(const std::string& s, Tipo& out);
 struct Cue {
     std::string id;
     Tipo tipo = Tipo::Nota;
-    std::string texto;       ///< lo que lee el operador en la vista de conducción
+    std::string texto; ///< lo que lee el operador en la vista de conducción
     nlohmann::json datos = nlohmann::json::object();
     int duracionSeg = 0;     ///< previsto; 0 = no aporta al cálculo
     bool automatico = false; ///< true: encadena solo con el siguiente
@@ -186,7 +186,7 @@ struct Posicion {
 /// lo previsto. No ejecuta nada — dice qué cue toca y quien sabe hacerlo lo
 /// hace. Eso permite el ENSAYO: el mismo recorrido, sin salir al aire.
 class Guion {
-  public:
+   public:
     enum class Estado { Parado, Corriendo, Pausado, Terminado };
 
     explicit Guion(Evento e) : e_(std::move(e)) {}
@@ -233,7 +233,7 @@ class Guion {
     };
     const std::vector<Paso>& recorrido() const { return recorrido_; }
 
-  private:
+   private:
     void entrarA(Posicion p, int64_t nowMs);
     void cerrarPaso(int64_t nowMs);
 

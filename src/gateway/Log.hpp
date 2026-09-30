@@ -85,7 +85,6 @@ class Log {
     }
 
    private:
-
     void line(const char* level, int code, const std::string& ctx) const {
         ba::diag::Nivel n = ba::diag::Nivel::Info;
         ba::diag::nivelDeNombre(level, n);

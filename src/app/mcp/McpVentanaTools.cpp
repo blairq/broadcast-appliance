@@ -20,12 +20,12 @@
 // titulo es para leer, cambia y se repite.
 // ============================================================================
 
+#include "AppRuntime.hpp"
 #include <QGuiApplication>
 #include <QImage>
-#include <QThread>
-#include "AppRuntime.hpp"
 #include <QQuickWindow>
 #include <QScreen>
+#include <QThread>
 #include <QTimer>
 #include <QWindow>
 
@@ -167,8 +167,8 @@ void colocarMarco(QWindow* w, const QRect& objetivo, std::function<void(bool)> l
         // la derecha justo el ancho del dock.
         const int x = std::max(objetivo.x(), real.x());
         const int y = std::max(objetivo.y(), real.y());
-        aplicar(QRect(x, y, std::max(320, objetivo.right() - x + 1),
-                      std::max(200, objetivo.bottom() - y + 1)));
+        aplicar(
+            QRect(x, y, std::max(320, objetivo.right() - x + 1), std::max(200, objetivo.bottom() - y + 1)));
         QTimer::singleShot(150, w, [w, objetivo, luego]() {
             // Ahora lo que importa es que llegue hasta el borde correcto, no
             // que empiece en el pixel pedido: la esquina la puso el dock.
@@ -180,9 +180,8 @@ void colocarMarco(QWindow* w, const QRect& objetivo, std::function<void(bool)> l
     });
 }
 
-const char* kZonas =
-    "completa, izquierda, derecha, arriba, abajo, sup-izq, sup-der, inf-izq, inf-der, "
-    "tercio-izq, tercio-centro, tercio-der, centro";
+const char* kZonas = "completa, izquierda, derecha, arriba, abajo, sup-izq, sup-der, inf-izq, inf-der, "
+                     "tercio-izq, tercio-centro, tercio-der, centro";
 
 json geom(const QRect& r) {
     return json{{"x", r.x()}, {"y", r.y()}, {"ancho", r.width()}, {"alto", r.height()}};
@@ -237,12 +236,13 @@ void McpService::registerVentanaTools() {
                 // la barra de titulo y los bordes): es lo que se ve y lo que
                 // hay que comparar contra una zona. El area de cliente va
                 // aparte, para cuando haga falta.
-                vs.push_back(json{{"id", idDe(w).toStdString()},
-                                  {"titulo", w->title().toStdString()},
-                                  {"monitor", w->screen() != nullptr ? w->screen()->name().toStdString() : ""},
-                                  {"estado", estadoDe(w)},
-                                  {"geometria", geom(w->frameGeometry())},
-                                  {"interior", geom(w->geometry())}});
+                vs.push_back(
+                    json{{"id", idDe(w).toStdString()},
+                         {"titulo", w->title().toStdString()},
+                         {"monitor", w->screen() != nullptr ? w->screen()->name().toStdString() : ""},
+                         {"estado", estadoDe(w)},
+                         {"geometria", geom(w->frameGeometry())},
+                         {"interior", geom(w->geometry())}});
             }
             json ms = json::array();
             for (QScreen* s : QGuiApplication::screens()) {
@@ -273,9 +273,10 @@ void McpService::registerVentanaTools() {
         t.name = "ventana_mover";
         t.title = "Mover, redimensionar o mandar a otro monitor";
         t.category = "ventanas";
-        t.description =
-            "Manda una ventana de la app a otro MONITOR de esta computadora, o a una zona de la pantalla. Es para acomodar el puesto de trabajo. Acomoda una ventana: a otro monitor, a una zona de ese monitor, a un tamaño y posicion "
-            "exactos, o a pantalla completa. Los ids salen de ventana_listar.";
+        t.description = "Manda una ventana de la app a otro MONITOR de esta computadora, o a una zona de la "
+                        "pantalla. Es para acomodar el puesto de trabajo. Acomoda una ventana: a otro "
+                        "monitor, a una zona de ese monitor, a un tamaño y posicion "
+                        "exactos, o a pantalla completa. Los ids salen de ventana_listar.";
         t.details =
             "USA `zona` SIEMPRE QUE PUEDAS, no x/y/ancho/alto. La zona se calcula contra el area util "
             "del monitor (sin la barra del sistema) y sale bien con monitores de distinto tamaño; "
@@ -293,7 +294,9 @@ void McpService::registerVentanaTools() {
             {"type", "object"},
             {"required", {"ventana"}},
             {"properties",
-             {{"ventana", {{"type", "string"}, {"description", "id de ventana_listar (p. ej. \"principal\", \"pagina:guion\")"}}},
+             {{"ventana",
+               {{"type", "string"},
+                {"description", "id de ventana_listar (p. ej. \"principal\", \"pagina:guion\")"}}},
               {"monitor", {{"type", "string"}, {"description", "nombre o numero del monitor"}}},
               {"zona", {{"type", "string"}, {"description", std::string("una de: ") + kZonas}}},
               {"x", {{"type", "integer"}}},
@@ -329,9 +332,10 @@ void McpService::registerVentanaTools() {
 
             // 2) Salir de pantalla completa o maximizada antes de mover: si no,
             //    la geometria se pide y el gestor de ventanas la ignora.
-            const bool acomoda = a.contains("zona") || a.contains("x") || a.contains("y") ||
-                                 a.contains("ancho") || a.contains("alto") ||
-                                 (a.contains("monitor") && a.value("estado", std::string()) != "pantalla-completa");
+            const bool acomoda =
+                a.contains("zona") || a.contains("x") || a.contains("y") || a.contains("ancho") ||
+                a.contains("alto") ||
+                (a.contains("monitor") && a.value("estado", std::string()) != "pantalla-completa");
             if (acomoda && w->visibility() != QWindow::Windowed) w->setVisibility(QWindow::Windowed);
 
             QRect r = w->geometry();
@@ -378,12 +382,11 @@ void McpService::registerVentanaTools() {
                     done(ToolResult::error(
                         "«" + titulo2 + "»:" + h + ", PERO quedo en (" + std::to_string(q.x()) + "," +
                         std::to_string(q.y()) + ") " + std::to_string(q.width()) + "x" +
-                        std::to_string(q.height()) + " y se habia pedido (" + std::to_string(obj.x()) +
-                        "," + std::to_string(obj.y()) + ") " + std::to_string(obj.width()) + "x" +
+                        std::to_string(q.height()) + " y se habia pedido (" + std::to_string(obj.x()) + "," +
+                        std::to_string(obj.y()) + ") " + std::to_string(obj.width()) + "x" +
                         std::to_string(obj.height()) + ". " +
-                        (ubicaElPrograma()
-                             ? std::string("El escritorio la ubico por su cuenta.")
-                             : std::string(kSobreWayland))));
+                        (ubicaElPrograma() ? std::string("El escritorio la ubico por su cuenta.")
+                                           : std::string(kSobreWayland))));
                 });
                 return;
             }
@@ -413,7 +416,7 @@ void McpService::registerVentanaTools() {
                     });
                     return;
                 }
-                w->setVisibility(e == "maximizada"  ? QWindow::Maximized
+                w->setVisibility(e == "maximizada"   ? QWindow::Maximized
                                  : e == "minimizada" ? QWindow::Minimized
                                                      : QWindow::Windowed);
                 hecho += " (" + e + ")";
@@ -438,15 +441,13 @@ void McpService::registerVentanaTools() {
                 std::string aviso;
                 if (verifica) {
                     const QRect q = w->frameGeometry();
-                    const bool ok = std::abs(q.x() - pedido.x()) <= 8 &&
-                                    std::abs(q.y() - pedido.y()) <= 8;
+                    const bool ok = std::abs(q.x() - pedido.x()) <= 8 && std::abs(q.y() - pedido.y()) <= 8;
                     if (!ok) {
-                        aviso = " PERO quedo en (" + std::to_string(q.x()) + "," +
-                                std::to_string(q.y()) + ") " + std::to_string(q.width()) + "x" +
-                                std::to_string(q.height()) + ", y se habia pedido (" +
-                                std::to_string(pedido.x()) + "," + std::to_string(pedido.y()) + ") " +
-                                std::to_string(pedido.width()) + "x" + std::to_string(pedido.height()) +
-                                ". " +
+                        aviso = " PERO quedo en (" + std::to_string(q.x()) + "," + std::to_string(q.y()) +
+                                ") " + std::to_string(q.width()) + "x" + std::to_string(q.height()) +
+                                ", y se habia pedido (" + std::to_string(pedido.x()) + "," +
+                                std::to_string(pedido.y()) + ") " + std::to_string(pedido.width()) + "x" +
+                                std::to_string(pedido.height()) + ". " +
                                 (ubicaElPrograma()
                                      ? std::string("La ubico el escritorio por su cuenta. Hay gestores de "
                                                    "ventanas —GNOME entre ellos, tambien sobre X11— que "
@@ -489,8 +490,7 @@ void McpService::registerVentanaTools() {
             QList<QScreen*> pantallas;
             for (QScreen* s : QGuiApplication::screens())
                 if (s->name().compare(libre, Qt::CaseInsensitive) != 0) pantallas.push_back(s);
-            if (pantallas.isEmpty())
-                return done(ToolResult::error("No queda ningun monitor para usar."));
+            if (pantallas.isEmpty()) return done(ToolResult::error("No queda ningun monitor para usar."));
 
             // La principal no se toca: es donde el operador esta trabajando, y
             // moverle el piso mientras acomoda lo demas es lo contrario de
@@ -518,8 +518,7 @@ void McpService::registerVentanaTools() {
                 {"sup-izq", "sup-der", "inf-izq", "inf-der"},
             };
             const int nPant = pantallas.size();
-            const int porPantalla =
-                std::min<int>(4, static_cast<int>((sueltas.size() + nPant - 1) / nPant));
+            const int porPantalla = std::min<int>(4, static_cast<int>((sueltas.size() + nPant - 1) / nPant));
             struct Puesto {
                 QWindow* w;
                 QScreen* p;
@@ -528,8 +527,8 @@ void McpService::registerVentanaTools() {
             auto puestos = std::make_shared<std::vector<Puesto>>();
             for (std::size_t i = 0; i < sueltas.size(); ++i) {
                 QScreen* p = pantallas[static_cast<int>(i / static_cast<std::size_t>(porPantalla)) % nPant];
-                puestos->push_back(Puesto{sueltas[i], p,
-                                          kPorCantidad[porPantalla][i % static_cast<std::size_t>(porPantalla)]});
+                puestos->push_back(Puesto{
+                    sueltas[i], p, kPorCantidad[porPantalla][i % static_cast<std::size_t>(porPantalla)]});
             }
 
             auto pendientes = std::make_shared<int>(static_cast<int>(puestos->size()));
@@ -538,8 +537,8 @@ void McpService::registerVentanaTools() {
             for (const Puesto& q : *puestos) {
                 QWindow* w = q.w;
                 const std::string zona = q.zona;
-                const std::string etiqueta = idDe(w).toStdString() + " -> " +
-                                             q.p->name().toStdString() + " " + zona;
+                const std::string etiqueta =
+                    idDe(w).toStdString() + " -> " + q.p->name().toStdString() + " " + zona;
                 w->setVisibility(QWindow::Windowed);
                 w->setScreen(q.p);
                 colocarMarco(w, zonaEn(q.p, QString::fromStdString(zona)),
@@ -549,7 +548,8 @@ void McpService::registerVentanaTools() {
 
                                  const auto juntar = [](const std::vector<std::string>& v) {
                                      std::string o;
-                                     for (const std::string& x : v) o += (o.empty() ? "" : ", ") + x;
+                                     for (const std::string& x : v)
+                                         o += (o.empty() ? "" : ", ") + x;
                                      return o;
                                  };
                                  if (fallaron->empty())
@@ -622,13 +622,17 @@ void McpService::registerVentanaTools() {
             "describirlo de memoria no. Por defecto la ventana principal; `ventana_listar` da las "
             "otras (los paneles sueltos son `panel:<id>`).\n\n"
             "Para mirar una pagina puntual, primero `ui_show_page` y despues esto.";
-        t.inputSchema = {
-            {"type", "object"},
-            {"properties",
-             {{"ventana", {{"type", "string"}, {"default", "principal"},
-                           {"description", "id de ventana_listar; `principal` si no se dice"}}},
-              {"ancho", {{"type", "integer"}, {"minimum", 320}, {"maximum", 3840},
-                         {"description", "a cuanto achicarla. 1280 si no se dice"}}}}}};
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"ventana",
+                            {{"type", "string"},
+                             {"default", "principal"},
+                             {"description", "id de ventana_listar; `principal` si no se dice"}}},
+                           {"ancho",
+                            {{"type", "integer"},
+                             {"minimum", 320},
+                             {"maximum", 3840},
+                             {"description", "a cuanto achicarla. 1280 si no se dice"}}}}}};
         t.examples = {R"({})", R"({"ventana": "panel:carrusel"})"};
         t.run = [this](const json& a, Done done) {
             const QString id = QString::fromStdString(a.value("ventana", std::string("principal")));

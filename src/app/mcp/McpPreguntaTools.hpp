@@ -6,7 +6,7 @@
 namespace ba::app {
 class AppRuntime;
 class StudioViewModel;
-}
+} // namespace ba::app
 
 namespace ba::app::mcp {
 class McpCore;

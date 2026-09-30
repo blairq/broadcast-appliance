@@ -34,14 +34,13 @@ int g_fallos = 0;
         }                                                                                                    \
     } while (0)
 
-const char* kDiscurso =
-    "Buenas tardes a todos.\n"
-    "Gracias por acompanarnos en esta fecha.\n"
-    "\n"
-    "Hace doscientos anos, en esta misma plaza, un grupo de vecinos decidio\n"
-    "que las cosas podian ser de otra manera.\n"
-    "\n"
-    "Muchas gracias.";
+const char* kDiscurso = "Buenas tardes a todos.\n"
+                        "Gracias por acompanarnos en esta fecha.\n"
+                        "\n"
+                        "Hace doscientos anos, en esta misma plaza, un grupo de vecinos decidio\n"
+                        "que las cosas podian ser de otra manera.\n"
+                        "\n"
+                        "Muchas gracias.";
 
 void contar() {
     CHECK(Prompter::contarPalabras("") == 0, "un texto vacio no tiene palabras");
@@ -87,7 +86,8 @@ void avanza_corriendo() {
     Prompter p;
     // Un texto largo para que no se termine durante la prueba.
     std::string largo;
-    for (int i = 0; i < 2000; ++i) largo += "palabra ";
+    for (int i = 0; i < 2000; ++i)
+        largo += "palabra ";
     p.cargar("largo", largo);
     // 300 palabras por minuto es el tope: 5 por segundo. Con 400 ms la
     // posicion tiene que haber avanzado unas 2 palabras, que alcanza para ver

@@ -18,8 +18,7 @@ namespace fs = std::filesystem;
 /// `AAAA-MM-DDTHH:MM:SS.mmmZ` -> época ms. 0 si no tiene esa forma.
 std::int64_t deSelloDeTiempo(const std::string& s) {
     int a = 0, me = 0, d = 0, h = 0, mi = 0, se = 0, ms = 0;
-    if (std::sscanf(s.c_str(), "%4d-%2d-%2dT%2d:%2d:%2d.%3dZ", &a, &me, &d, &h, &mi, &se, &ms) < 6)
-        return 0;
+    if (std::sscanf(s.c_str(), "%4d-%2d-%2dT%2d:%2d:%2d.%3dZ", &a, &me, &d, &h, &mi, &se, &ms) < 6) return 0;
     std::tm tm{};
     tm.tm_year = a - 1900;
     tm.tm_mon = me - 1;
@@ -37,7 +36,8 @@ std::int64_t deSelloDeTiempo(const std::string& s) {
 }
 
 std::string enMinusculas(std::string s) {
-    for (char& c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    for (char& c : s)
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     return s;
 }
 
@@ -93,8 +93,7 @@ bool pasa(const Registrado& r, const Filtro& f, const std::string& buscaMin) {
             return r.componente.size() > c.size() && r.componente.compare(0, c.size(), c) == 0;
         return r.componente == c;
     };
-    if (!f.componentes.empty() &&
-        std::none_of(f.componentes.begin(), f.componentes.end(), coincide))
+    if (!f.componentes.empty() && std::none_of(f.componentes.begin(), f.componentes.end(), coincide))
         return false;
     if (!buscaMin.empty()) {
         // Se busca en el texto Y en el componente: «sala» tiene que encontrar
@@ -121,8 +120,7 @@ std::vector<fs::path> archivosDeLog(const fs::path& dir) {
 
 } // namespace
 
-bool partirLinea(const std::string& linea, const std::string& componentePorDefecto,
-                 Registrado& out) {
+bool partirLinea(const std::string& linea, const std::string& componentePorDefecto, Registrado& out) {
     out = Registrado{};
     out.componente = componentePorDefecto;
     out.texto = recortar(linea);
@@ -180,8 +178,10 @@ std::vector<Registrado> leerLogs(const fs::path& dir, const Filtro& f, std::size
             // Una línea sin hora propia (la salida cruda de libobs, por
             // ejemplo) hereda la de la anterior: así no se va al principio de
             // los tiempos al ordenar y queda donde de verdad pasó.
-            if (r.ms == 0) r.ms = ultimoMs;
-            else ultimoMs = r.ms;
+            if (r.ms == 0)
+                r.ms = ultimoMs;
+            else
+                ultimoMs = r.ms;
             if (pasa(r, f, buscaMin)) todo.push_back(std::move(r));
         }
     }

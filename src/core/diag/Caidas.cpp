@@ -75,7 +75,8 @@ void instalarManejadorDeCaidas(const char* quien) {
     void* calentar[4];
     (void)backtrace(calentar, 4);
 
-    for (const int sig : {SIGSEGV, SIGABRT, SIGBUS, SIGILL, SIGFPE}) signal(sig, manejar);
+    for (const int sig : {SIGSEGV, SIGABRT, SIGBUS, SIGILL, SIGFPE})
+        signal(sig, manejar);
 }
 
 } // namespace ba::diag

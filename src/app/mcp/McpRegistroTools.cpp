@@ -14,11 +14,11 @@
 #include "diag/LectorDeLogs.hpp"
 #include "diag/Registro.hpp"
 #include "mcp/McpService.hpp"
-#include "ui/ConferenceClient.hpp"
-#include "ui/ExtensionesModel.hpp"
-#include "ui/ConferenceViewModel.hpp"
-#include "ui/StudioViewModel.hpp"
 #include "mcp/McpToolsCommon.hpp"
+#include "ui/ConferenceClient.hpp"
+#include "ui/ConferenceViewModel.hpp"
+#include "ui/ExtensionesModel.hpp"
+#include "ui/StudioViewModel.hpp"
 
 namespace ba::app::mcp {
 
@@ -37,33 +37,33 @@ void McpService::registerRegistroTools() {
         t.category = "registro";
         t.readOnly = true;
         t.description = "Las últimas líneas del registro, de los tres procesos, con filtros.";
-        t.details =
-            "Cada línea trae hora (UTC, en milisegundos desde la época), nivel, módulo, código y "
-            "descripción.\n\n"
-            "Los NIVELES, de menos a más grave: traza, depuracion, info, aviso, error, fatal. "
-            "`minimo` filtra de ese para arriba; el que trae por defecto es `aviso`, que es lo que "
-            "conviene mirar primero cuando algo anda mal.\n\n"
-            "Los MÓDULOS que suele haber: `app` (lo que no dice de dónde viene: printf y salida "
-            "cruda), `qml` (lo que se rompe en la interfaz), `qt`, `obs` (el motor de emisión, muy "
-            "hablador), `gateway` (el Proceso B: sala, WebRTC, túnel), `launcher`, `graficos`, "
-            "`registro` y `marca`. `log_leer` sin filtros te devuelve cuáles hay ahora.\n\n"
-            "Cómo usarlo bien cuando algo falla:\n"
-            "  1. Primero sin filtros y con `minimo: \"aviso\"`: si hay un error, está ahí.\n"
-            "  2. Si no aparece nada, `minimo: \"info\"` y el módulo que sospeches.\n"
-            "  3. Si sigue sin aparecer, `log_nivel` a depuracion o traza, hacé que el problema "
-            "pase otra vez, y volvé a leer. Acordate de dejar el nivel como estaba.\n\n"
-            "Ojo: lo que está por DEBAJO del nivel al que el proceso está registrando no se escribe "
-            "en ningún lado, así que no alcanza con pedirlo acá.";
+        t.details = "Cada línea trae hora (UTC, en milisegundos desde la época), nivel, módulo, código y "
+                    "descripción.\n\n"
+                    "Los NIVELES, de menos a más grave: traza, depuracion, info, aviso, error, fatal. "
+                    "`minimo` filtra de ese para arriba; el que trae por defecto es `aviso`, que es lo que "
+                    "conviene mirar primero cuando algo anda mal.\n\n"
+                    "Los MÓDULOS que suele haber: `app` (lo que no dice de dónde viene: printf y salida "
+                    "cruda), `qml` (lo que se rompe en la interfaz), `qt`, `obs` (el motor de emisión, muy "
+                    "hablador), `gateway` (el Proceso B: sala, WebRTC, túnel), `launcher`, `graficos`, "
+                    "`registro` y `marca`. `log_leer` sin filtros te devuelve cuáles hay ahora.\n\n"
+                    "Cómo usarlo bien cuando algo falla:\n"
+                    "  1. Primero sin filtros y con `minimo: \"aviso\"`: si hay un error, está ahí.\n"
+                    "  2. Si no aparece nada, `minimo: \"info\"` y el módulo que sospeches.\n"
+                    "  3. Si sigue sin aparecer, `log_nivel` a depuracion o traza, hacé que el problema "
+                    "pase otra vez, y volvé a leer. Acordate de dejar el nivel como estaba.\n\n"
+                    "Ojo: lo que está por DEBAJO del nivel al que el proceso está registrando no se escribe "
+                    "en ningún lado, así que no alcanza con pedirlo acá.";
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"minimo", {{"type", "string"},
-                          {"enum", {"traza", "depuracion", "info", "aviso", "error", "fatal"}},
-                          {"description", "Desde qué nivel. Por defecto, aviso."}}},
+             {{"minimo",
+               {{"type", "string"},
+                {"enum", {"traza", "depuracion", "info", "aviso", "error", "fatal"}},
+                {"description", "Desde qué nivel. Por defecto, aviso."}}},
               {"modulo", {{"type", "string"}, {"description", "Uno solo. Vacío = todos."}}},
               {"busca", {{"type", "string"}, {"description", "Texto a buscar (sin distinguir mayúsculas)."}}},
-              {"ultimosMin", {{"type", "integer"}, {"minimum", 1},
-                              {"description", "Solo lo de los últimos N minutos."}}},
+              {"ultimosMin",
+               {{"type", "integer"}, {"minimum", 1}, {"description", "Solo lo de los últimos N minutos."}}},
               {"cuantas", {{"type", "integer"}, {"minimum", 1}, {"maximum", 500}}}}}};
         t.run = [&rt](const json& a, Done done) {
             ba::diag::Filtro f;
@@ -92,7 +92,8 @@ void McpService::registerRegistroTools() {
                                       {"codigo", r.codigo},
                                       {"texto", r.texto}});
             json modulos = json::array();
-            for (const std::string& m : ba::diag::componentesEnLogs(dir)) modulos.push_back(m);
+            for (const std::string& m : ba::diag::componentesEnLogs(dir))
+                modulos.push_back(m);
 
             done(ToolResult().data(
                 json{{"lineas", lineas},
@@ -110,20 +111,20 @@ void McpService::registerRegistroTools() {
         t.title = "Cuánto se registra";
         t.category = "registro";
         t.description = "Lee o cambia, en vivo, el nivel desde el que este proceso registra.";
-        t.details =
-            "Bajarlo a `depuracion` o `traza` hace que se escriba MUCHO más (libobs solo ya es muy "
-            "hablador). Sirve para reproducir un problema con detalle, pero no para dejarlo así: "
-            "llena el disco y hace que lo importante se pierda entre miles de líneas.\n\n"
-            "El cambio queda anotado en el propio registro, con quién lo hizo, para que mañana "
-            "nadie se pregunte por qué el log está lleno de trazas.\n\n"
-            "`donde` elige el proceso: `app` (por defecto) o `gateway`. El del gateway tambien se "
-            "puede fijar al arrancar con la variable de entorno BA_LOG_NIVEL.";
+        t.details = "Bajarlo a `depuracion` o `traza` hace que se escriba MUCHO más (libobs solo ya es muy "
+                    "hablador). Sirve para reproducir un problema con detalle, pero no para dejarlo así: "
+                    "llena el disco y hace que lo importante se pierda entre miles de líneas.\n\n"
+                    "El cambio queda anotado en el propio registro, con quién lo hizo, para que mañana "
+                    "nadie se pregunte por qué el log está lleno de trazas.\n\n"
+                    "`donde` elige el proceso: `app` (por defecto) o `gateway`. El del gateway tambien se "
+                    "puede fijar al arrancar con la variable de entorno BA_LOG_NIVEL.";
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"nivel", {{"type", "string"},
-                         {"enum", {"traza", "depuracion", "info", "aviso", "error", "fatal"}},
-                         {"description", "Ausente = solo informa el que hay."}}},
+             {{"nivel",
+               {{"type", "string"},
+                {"enum", {"traza", "depuracion", "info", "aviso", "error", "fatal"}},
+                {"description", "Ausente = solo informa el que hay."}}},
               {"donde", {{"type", "string"}, {"enum", {"app", "gateway"}}, {"default", "app"}}}}}};
         t.run = [&vm](const json& a, Done done) {
             // El gateway es otro proceso: se le pide por su API de control.
@@ -139,15 +140,13 @@ void McpService::registerRegistroTools() {
                     return;
                 }
                 const std::string nivel = a["nivel"].get<std::string>();
-                conf->client().post("/api/v1/log-nivel",
-                                    QJsonObject{{"nivel", QString::fromStdString(nivel)}},
-                                    [done, nivel](bool ok, const QJsonObject& r) {
-                                        if (!ok || !r.value("ok").toBool())
-                                            return done(ToolResult::error(
-                                                "No se pudo cambiar el nivel del gateway."));
-                                        done(ToolResult::ok("El gateway ahora registra desde " +
-                                                            nivel + "."));
-                                    });
+                conf->client().post(
+                    "/api/v1/log-nivel", QJsonObject{{"nivel", QString::fromStdString(nivel)}},
+                    [done, nivel](bool ok, const QJsonObject& r) {
+                        if (!ok || !r.value("ok").toBool())
+                            return done(ToolResult::error("No se pudo cambiar el nivel del gateway."));
+                        done(ToolResult::ok("El gateway ahora registra desde " + nivel + "."));
+                    });
                 return;
             }
             auto& reg = ba::diag::registro();
@@ -161,8 +160,7 @@ void McpService::registerRegistroTools() {
             reg.linea(ba::diag::Nivel::Info, "registro", 0,
                       std::string("nivel de registro cambiado a ") + ba::diag::nombreDeNivel(n) +
                           " desde el asistente");
-            done(ToolResult::ok(std::string("Ahora se registra desde ") +
-                                ba::diag::nombreDeNivel(n) + "."));
+            done(ToolResult::ok(std::string("Ahora se registra desde ") + ba::diag::nombreDeNivel(n) + "."));
         };
         core_.addTool(std::move(t));
     }
@@ -177,34 +175,31 @@ void McpService::registerRegistroTools() {
         t.category = "registro";
         t.readOnly = true;
         t.description = "Las tarjetas que viven en Extensiones/, con su estado.";
-        t.details =
-            "Una extension es una carpeta con `extension.json` (nombre, descripcion) y un QML que se "
-            "dibuja como una tarjeta mas del dashboard. Las escribis vos: la carpeta esta en el "
-            "campo `carpeta` de la respuesta.\n\n"
-            "Como se escribe una: mira `Extensiones/reloj-de-aire/tarjeta.qml`, que es el ejemplo de "
-            "referencia y tiene arriba las reglas (la raiz se ajusta sola, `Studio` y `Theme` estan "
-            "disponibles, no importes lo que no esta en el bundle, y NUNCA un bucle largo: corre en "
-            "el hilo de la interfaz).\n\n"
-            "Despues de escribir una, `ext_listar` de nuevo: `problema` dice si le falta algo, y el "
-            "operador la agrega desde «+ Tarjeta» en el dashboard.\n\n"
-            "`apagada` en true significa que se llevo puesto el arranque dos veces y el programa "
-            "dejo de cargarla para poder abrir. Eso NO se arregla escribiendo de nuevo: hay que "
-            "arreglar el QML y prenderla con `ext_prender`.";
+        t.details = "Una extension es una carpeta con `extension.json` (nombre, descripcion) y un QML que se "
+                    "dibuja como una tarjeta mas del dashboard. Las escribis vos: la carpeta esta en el "
+                    "campo `carpeta` de la respuesta.\n\n"
+                    "Como se escribe una: mira `Extensiones/reloj-de-aire/tarjeta.qml`, que es el ejemplo de "
+                    "referencia y tiene arriba las reglas (la raiz se ajusta sola, `Studio` y `Theme` estan "
+                    "disponibles, no importes lo que no esta en el bundle, y NUNCA un bucle largo: corre en "
+                    "el hilo de la interfaz).\n\n"
+                    "Despues de escribir una, `ext_listar` de nuevo: `problema` dice si le falta algo, y el "
+                    "operador la agrega desde «+ Tarjeta» en el dashboard.\n\n"
+                    "`apagada` en true significa que se llevo puesto el arranque dos veces y el programa "
+                    "dejo de cargarla para poder abrir. Eso NO se arregla escribiendo de nuevo: hay que "
+                    "arreglar el QML y prenderla con `ext_prender`.";
         t.run = [&vm](const json&, Done done) {
             auto* ex = static_cast<ExtensionesModel*>(vm.extensiones());
             if (ex == nullptr) return done(ToolResult::error("No hay extensiones en esta corrida."));
             json out = json::array();
             for (int i = 0; i < ex->rowCount(); ++i) {
-                const QVariantMap f =
-                    ex->ficha(ex->data(ex->index(i), ExtensionesModel::IdRole).toString());
+                const QVariantMap f = ex->ficha(ex->data(ex->index(i), ExtensionesModel::IdRole).toString());
                 out.push_back(json{{"id", f.value("id").toString().toStdString()},
                                    {"nombre", f.value("nombre").toString().toStdString()},
                                    {"descripcion", f.value("descripcion").toString().toStdString()},
                                    {"problema", f.value("problema").toString().toStdString()},
                                    {"apagada", f.value("apagada").toBool()}});
             }
-            done(ToolResult().data(json{{"extensiones", out},
-                                        {"carpeta", ex->carpeta().toStdString()}}));
+            done(ToolResult().data(json{{"extensiones", out}, {"carpeta", ex->carpeta().toStdString()}}));
         };
         core_.addTool(std::move(t));
     }
@@ -216,9 +211,8 @@ void McpService::registerRegistroTools() {
         t.description = "Vuelve a cargar una tarjeta que el arranque habia apagado.";
         t.details = "Arregla el QML PRIMERO. Si sigue colgando el arranque, se vuelve a apagar sola "
                     "y vas a haber gastado dos reinicios del programa.";
-        t.inputSchema = {{"type", "object"},
-                         {"properties", {{"id", {{"type", "string"}}}}},
-                         {"required", {"id"}}};
+        t.inputSchema = {
+            {"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}, {"required", {"id"}}};
         t.run = [&vm](const json& a, Done done) {
             auto* ex = static_cast<ExtensionesModel*>(vm.extensiones());
             if (ex == nullptr) return done(ToolResult::error("No hay extensiones en esta corrida."));
@@ -234,16 +228,13 @@ void McpService::registerRegistroTools() {
         t.title = "Dejar una marca";
         t.category = "registro";
         t.description = "Escribe una línea propia en el registro.";
-        t.details =
-            "Se pone ANTES de probar algo («voy a probar la camara 2»): después se busca esa marca "
-            "y todo lo que sigue es lo que pasó por eso. Es la forma barata de separar lo que "
-            "provocaste de lo que ya estaba pasando.";
-        t.inputSchema = {{"type", "object"},
-                         {"properties", {{"texto", {{"type", "string"}}}}},
-                         {"required", {"texto"}}};
+        t.details = "Se pone ANTES de probar algo («voy a probar la camara 2»): después se busca esa marca "
+                    "y todo lo que sigue es lo que pasó por eso. Es la forma barata de separar lo que "
+                    "provocaste de lo que ya estaba pasando.";
+        t.inputSchema = {
+            {"type", "object"}, {"properties", {{"texto", {{"type", "string"}}}}}, {"required", {"texto"}}};
         t.run = [](const json& a, Done done) {
-            ba::diag::registro().linea(ba::diag::Nivel::Info, "marca", 0,
-                                       a.value("texto", std::string()));
+            ba::diag::registro().linea(ba::diag::Nivel::Info, "marca", 0, a.value("texto", std::string()));
             done(ToolResult::ok("Marca puesta."));
         };
         core_.addTool(std::move(t));

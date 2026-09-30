@@ -28,7 +28,7 @@
 namespace ba::app {
 
 class Discursos {
-  public:
+   public:
     /// Palabras por minuto de una lectura normal en castellano (la misma que
     /// usa el gateway para estimar cuanto dura un discurso).
     static constexpr int kPpm = 140;
@@ -70,7 +70,7 @@ class Discursos {
     QString mover(const QString& rel, const QString& aCarpeta, QString* relOut = nullptr);
     QString borrar(const QString& rel);
 
-  private:
+   private:
     QString raiz_;
 };
 

@@ -128,8 +128,7 @@ QImage GraficoProceso::dibujar(QJsonObject pedido, int ms, QString* error) {
     return dePngBase64(r.value("png").toString());
 }
 
-QVector<Cuadro> GraficoProceso::tira(QJsonObject pedido, const QVector<int>& momentos,
-                                     QString* error) {
+QVector<Cuadro> GraficoProceso::tira(QJsonObject pedido, const QVector<int>& momentos, QString* error) {
     pedido["op"] = "tira";
     QJsonArray ms;
     for (const int m : momentos)

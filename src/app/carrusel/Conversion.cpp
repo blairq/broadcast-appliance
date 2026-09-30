@@ -48,7 +48,11 @@ struct Conversor::Impl {
     bool corriendo = false;
 
     void limpiar() {
-        if (proc) { proc->kill(); proc->deleteLater(); proc = nullptr; }
+        if (proc) {
+            proc->kill();
+            proc->deleteLater();
+            proc = nullptr;
+        }
         pdf.reset();
         temporal.reset();
         corriendo = false;
@@ -62,9 +66,7 @@ Conversor::~Conversor() {
     delete d_;
 }
 
-bool Conversor::esDocumento(const QString& archivo) {
-    return kExtensiones.contains(extension(archivo));
-}
+bool Conversor::esDocumento(const QString& archivo) { return kExtensiones.contains(extension(archivo)); }
 
 bool Conversor::necesitaOffice(const QString& archivo) {
     return esDocumento(archivo) && extension(archivo) != "pdf";
@@ -104,10 +106,22 @@ void Conversor::cancelar() {
 }
 
 void Conversor::convertir(const QString& archivo, const QString& destino, int anchoPx) {
-    if (d_->corriendo) { emit fallo("ya hay una conversión en curso"); return; }
-    if (!QFileInfo::exists(archivo)) { emit fallo("no existe: " + archivo); return; }
-    if (!esDocumento(archivo)) { emit fallo("no sé desarmar " + extension(archivo)); return; }
-    if (!QDir().mkpath(destino)) { emit fallo("no puedo escribir en " + destino); return; }
+    if (d_->corriendo) {
+        emit fallo("ya hay una conversión en curso");
+        return;
+    }
+    if (!QFileInfo::exists(archivo)) {
+        emit fallo("no existe: " + archivo);
+        return;
+    }
+    if (!esDocumento(archivo)) {
+        emit fallo("no sé desarmar " + extension(archivo));
+        return;
+    }
+    if (!QDir().mkpath(destino)) {
+        emit fallo("no puedo escribir en " + destino);
+        return;
+    }
 
     d_->cancelado = false;
     d_->corriendo = true;
@@ -116,7 +130,10 @@ void Conversor::convertir(const QString& archivo, const QString& destino, int an
     d_->ancho = anchoPx > 0 ? anchoPx : 1920;
     d_->pagina = 0;
 
-    if (!necesitaOffice(archivo)) { arrancarPaginas(archivo); return; }
+    if (!necesitaOffice(archivo)) {
+        arrancarPaginas(archivo);
+        return;
+    }
 
     const QString bin = soffice();
     if (bin.isEmpty()) {
@@ -157,17 +174,17 @@ void Conversor::convertir(const QString& archivo, const QString& destino, int an
 #endif
     // El perfil va al temporal: sin esto, dos conversiones a la vez chocan por
     // el mismo ~/.config y la segunda muere sin decir por qué.
-    d_->proc->setArguments({"--headless", "--norestore", "--invisible",
-                            // CODIFICADA. `toString()` deja los espacios tal cual y la
-                            // carpeta temporal lleva el nombre de la app: «Broadcast
-                            // Appliance», con espacio. LibreOffice recibia
-                            // `file:///tmp/Broadcast Appliance-xxxx/perfil`, no podia armar
-                            // el perfil y se moria con un `RuntimeException` de UNO sin decir
-                            // una palabra. Desde una terminal andaba, y el test tambien,
-                            // porque ahi el nombre del programa no tiene espacios.
-                            "-env:UserInstallation=" +
-                                QUrl::fromLocalFile(tmp + "/perfil").toString(QUrl::FullyEncoded),
-                            "--convert-to", "pdf", "--outdir", tmp, archivo});
+    d_->proc->setArguments(
+        {"--headless", "--norestore", "--invisible",
+         // CODIFICADA. `toString()` deja los espacios tal cual y la
+         // carpeta temporal lleva el nombre de la app: «Broadcast
+         // Appliance», con espacio. LibreOffice recibia
+         // `file:///tmp/Broadcast Appliance-xxxx/perfil`, no podia armar
+         // el perfil y se moria con un `RuntimeException` de UNO sin decir
+         // una palabra. Desde una terminal andaba, y el test tambien,
+         // porque ahi el nombre del programa no tiene espacios.
+         "-env:UserInstallation=" + QUrl::fromLocalFile(tmp + "/perfil").toString(QUrl::FullyEncoded),
+         "--convert-to", "pdf", "--outdir", tmp, archivo});
     d_->proc->setProgram(bin);
 
     // ENTORNO LIMPIO, Y A PROPOSITO. El hijo heredaba el de la app entera
@@ -179,9 +196,8 @@ void Conversor::convertir(const QString& archivo, const QString& destino, int an
     // aparato.
     QProcessEnvironment limpio;
     const QProcessEnvironment heredado = QProcessEnvironment::systemEnvironment();
-    for (const QString& k : {QStringLiteral("PATH"), QStringLiteral("HOME"),
-                             QStringLiteral("USER"), QStringLiteral("LOGNAME"),
-                             QStringLiteral("TMPDIR"), QStringLiteral("LANG")})
+    for (const QString& k : {QStringLiteral("PATH"), QStringLiteral("HOME"), QStringLiteral("USER"),
+                             QStringLiteral("LOGNAME"), QStringLiteral("TMPDIR"), QStringLiteral("LANG")})
         if (heredado.contains(k)) limpio.insert(k, heredado.value(k));
     if (!limpio.contains("HOME")) limpio.insert("HOME", tmp);
     // Sin pantalla: es headless y pedirle una X que puede no estar es una

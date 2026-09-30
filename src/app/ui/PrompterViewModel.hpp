@@ -84,7 +84,7 @@ class PrompterViewModel : public QObject {
     /// La clave del control (para dictarla si el QR va sin ella).
     Q_PROPERTY(QString clave READ clave NOTIFY estadoCambio)
 
-  public:
+   public:
     PrompterViewModel(EventoViewModel* evento, ConferenceViewModel* sala, QObject* parent = nullptr);
     ~PrompterViewModel() override;
 
@@ -159,7 +159,7 @@ class PrompterViewModel : public QObject {
     /// "local" o "remote". Contesta por `qrListo`.
     Q_INVOKABLE void pedirQr(const QString& target, const QString& vista, bool conClave);
 
-  signals:
+   signals:
     void documentosCambio();
     void editorCambio();
     void estadoCambio();
@@ -167,7 +167,7 @@ class PrompterViewModel : public QObject {
                  const QString& clave);
     void notify(const QString& texto, const QString& tipo);
 
-  private:
+   private:
     struct Impl;
     std::unique_ptr<Impl> d_;
 };

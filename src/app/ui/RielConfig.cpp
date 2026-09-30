@@ -45,10 +45,8 @@ const std::vector<Grupo>& catalogo() {
           {16, "pantallas", "⧉", "Pantallas externas: televisores de la sala y qué mostrar en cada uno"},
           {17, "qr", "⊞", "Códigos QR: la biblioteca y el estudio de diseño"},
           {18, "personas", "☻", "Personas: quién es quién, para que el sistema los reconozca"},
-          {19, "publico", "☷",
-           "Público: las preguntas de la gente y la urna, para moderar en vivo"},
-          {20, "medios", "♫",
-           "Medios: música, videos, imágenes y presentaciones, con vista previa"}}},
+          {19, "publico", "☷", "Público: las preguntas de la gente y la urna, para moderar en vivo"},
+          {20, "medios", "♫", "Medios: música, videos, imágenes y presentaciones, con vista previa"}}},
         {"Publicar",
          {{3, "youtube", "▶", "YouTube (cuenta, videos, en vivo)"},
           {4, "twitch", "◆", "Twitch (canal, vivo, chat)"},
@@ -97,13 +95,11 @@ struct RielConfig::Impl {
         if (archivo.empty()) return;
         QDir().mkpath(QString::fromStdString(archivo.parent_path().string()));
         QJsonArray esc;
-        for (const int p : escondidas) esc.append(p);
-        const QJsonObject o{{"posicion", posicion},
-                            {"tamano", tamano},
-                            {"separadores", separadores},
-                            {"expandir", expandir},
-                            {"anchoAbierto", anchoAbierto},
-                            {"escondidas", esc}};
+        for (const int p : escondidas)
+            esc.append(p);
+        const QJsonObject o{{"posicion", posicion},         {"tamano", tamano},
+                            {"separadores", separadores},   {"expandir", expandir},
+                            {"anchoAbierto", anchoAbierto}, {"escondidas", esc}};
         QFile f(QString::fromStdString(archivo.string()));
         if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return;
         f.write(QJsonDocument(o).toJson());
@@ -153,9 +149,7 @@ void RielConfig::setTamano(int px) {
     emit cambio();
 }
 
-bool RielConfig::vertical() const {
-    return d_->posicion == "izquierda" || d_->posicion == "derecha";
-}
+bool RielConfig::vertical() const { return d_->posicion == "izquierda" || d_->posicion == "derecha"; }
 
 int RielConfig::grosor() const {
     // El botón más el aire de los costados. El riel flota, así que el margen
@@ -262,8 +256,10 @@ void RielConfig::setVisible(int pagina, bool visible) {
     if (pagina == kPaginaConfig && !visible) return; // por donde se vuelve
     const bool antes = d_->escondidas.count(pagina) == 0;
     if (antes == visible) return;
-    if (visible) d_->escondidas.erase(pagina);
-    else d_->escondidas.insert(pagina);
+    if (visible)
+        d_->escondidas.erase(pagina);
+    else
+        d_->escondidas.insert(pagina);
     d_->guardar();
     emit cambio();
 }

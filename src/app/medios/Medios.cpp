@@ -3,12 +3,12 @@
 // ============================================================================
 #include "medios/Medios.hpp"
 
+#include <algorithm>
 #include <QDateTime>
 #include <QDir>
 #include <QDirIterator>
 #include <QFileInfo>
 #include <QRegularExpression>
-#include <algorithm>
 
 namespace ba::app::medios {
 namespace {
@@ -46,9 +46,7 @@ Tipo tipoDe(const QString& archivo) {
     return Tipo::Desconocido;
 }
 
-bool sePuedeDesarmar(const QString& archivo) {
-    return tipoDe(archivo) == Tipo::Documento;
-}
+bool sePuedeDesarmar(const QString& archivo) { return tipoDe(archivo) == Tipo::Documento; }
 
 const QStringList& carpetas() {
     static const QStringList c{"Media", "Shares", "Recordings"};

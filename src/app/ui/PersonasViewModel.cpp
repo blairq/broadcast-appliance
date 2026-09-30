@@ -4,12 +4,12 @@
 #include "ui/PersonasViewModel.hpp"
 
 #include <QDateTime>
-#include <QTimer>
 #include <QDir>
-#include <QImage>
-#include <QSet>
-#include <QJsonObject>
 #include <QFile>
+#include <QImage>
+#include <QJsonObject>
+#include <QSet>
+#include <QTimer>
 #include <QUrl>
 
 #include <algorithm>
@@ -20,10 +20,10 @@
 #include "ui/StudioViewModel.hpp"
 
 #if BA_HAVE_ROSTROS
+#include "evento/Evento.hpp"
 #include "rostros/Personas.hpp"
 #include "rostros/Rostros.hpp"
 #include "ui/CalidadCara.hpp"
-#include "evento/Evento.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/EventoViewModel.hpp"
 #include "ui/Reconocedor.hpp"
@@ -64,17 +64,17 @@ struct PersonasViewModel::Impl {
     };
     std::vector<Pendiente> pendientes;
     std::int64_t ultimoGuardado = 0;
-    QVariantList vistos; ///< lo último que contestó el otro hilo
-    QVariantMap enLobby;  ///< posición de espera -> quién es
-    int turnoLobby = 0;   ///< por dónde va la rotación entre los que esperan
-    QString uidMirado;    ///< a quién se le pidió la última mirada del lobby
+    QVariantList vistos;     ///< lo último que contestó el otro hilo
+    QVariantMap enLobby;     ///< posición de espera -> quién es
+    int turnoLobby = 0;      ///< por dónde va la rotación entre los que esperan
+    QString uidMirado;       ///< a quién se le pidió la última mirada del lobby
     QSet<QString> yaPasaron; ///< a quién ya se hizo pasar sola (una vez c/u)
     /// A quién ya se acreditó en la puerta. Acreditar de nuevo es inofensivo
     /// (no mueve la hora), pero AVISAR de nuevo no: alguien parado frente a la
     /// cámara generaría un aviso por segundo.
     QSet<QString> avisadosPuerta;
     bool turnoPuerta = false; ///< alterna lobby / puerta cuando los dos están
-    int lugarMirado = 0;  ///< y en qué posición de preview estaba
+    int lugarMirado = 0;      ///< y en qué posición de preview estaba
 #endif
     Impl(AppRuntime& r, StudioViewModel& v) : rt(r), vm(v) {}
 };
@@ -97,9 +97,7 @@ QString PersonasViewModel::guardar(const QString&, const QString&, const QString
     return {};
 }
 bool PersonasViewModel::borrar(const QString&) { return false; }
-void PersonasViewModel::sumarCara(const QString&, const QString&, bool) {
-    emit notify(d_->aviso, "error");
-}
+void PersonasViewModel::sumarCara(const QString&, const QString&, bool) { emit notify(d_->aviso, "error"); }
 void PersonasViewModel::mirar(const QString&) {}
 void PersonasViewModel::analizar(const QString&, bool, const QString&) {}
 QVariantList PersonasViewModel::vistos() const { return {}; }
@@ -195,7 +193,8 @@ QString escribirFoto(const QImage& img, const ba::rostros::Cara& c, const QStrin
     if (r.width() < 16 || r.height() < 16) return {};
     QDir().mkpath(carpeta);
     const QString nombre = id + ".jpg";
-    return img.copy(r).scaled(256, 256, Qt::KeepAspectRatio, Qt::SmoothTransformation)
+    return img.copy(r)
+                   .scaled(256, 256, Qt::KeepAspectRatio, Qt::SmoothTransformation)
                    .save(carpeta + "/" + nombre, "JPG", 88)
                ? nombre
                : QString();
@@ -227,12 +226,15 @@ PersonasViewModel::PersonasViewModel(AppRuntime& rt, StudioViewModel& vm, QObjec
         // salón y gente entrando a la sala. Se turnan, así que prender las dos
         // no cuesta el doble: cuesta la mitad de rápido cada una.
         d_->turnoPuerta = !d_->turnoPuerta;
-        const bool vaLaPuerta = d_->puertaAuto && !d_->feedPuerta.isEmpty() &&
-                                (d_->turnoPuerta || !d_->lobbyAuto);
+        const bool vaLaPuerta =
+            d_->puertaAuto && !d_->feedPuerta.isEmpty() && (d_->turnoPuerta || !d_->lobbyAuto);
         QString feed;
-        if (vaLaPuerta) feed = d_->feedPuerta;
-        else if (d_->lobbyAuto) feed = proximaDelLobby(uid, lugar);
-        else feed = d_->feedAuto;
+        if (vaLaPuerta)
+            feed = d_->feedPuerta;
+        else if (d_->lobbyAuto)
+            feed = proximaDelLobby(uid, lugar);
+        else
+            feed = d_->feedAuto;
         if (!feed.isEmpty()) analizar(feed, true, uid);
     });
 }
@@ -248,11 +250,11 @@ void PersonasViewModel::pedirAnalisis(const QString& feed, bool descartable, Ana
     if (!cuadro(d_->vm, feed, *img, bgra)) return luego({}, QImage(), "No hay imagen en «" + feed + "».");
     const int w = img->width();
     const int h = img->height();
-    d_->rec.pedir(std::move(bgra), w, h, descartable,
-                  [luego = std::move(luego), img](std::vector<Reconocedor::Visto> vistos,
-                                                  const QString& error) {
-                      luego(std::move(vistos), *img, error);
-                  });
+    d_->rec.pedir(
+        std::move(bgra), w, h, descartable,
+        [luego = std::move(luego), img](std::vector<Reconocedor::Visto> vistos, const QString& error) {
+            luego(std::move(vistos), *img, error);
+        });
 }
 
 ba::rostros::Personas& PersonasViewModel::libreta() { return d_->libreta; }
@@ -291,7 +293,8 @@ void PersonasViewModel::setPuertaAuto(bool activo) {
     d_->puertaAuto = activo;
     d_->avisadosPuerta.clear();
     // Las tres formas de mirar comparten la ronda.
-    if (activo || d_->lobbyAuto || d_->autoalta) d_->ronda.start();
+    if (activo || d_->lobbyAuto || d_->autoalta)
+        d_->ronda.start();
     else {
         d_->ronda.stop();
         d_->libreta.guardar(d_->archivo.toStdString());
@@ -363,8 +366,8 @@ QString PersonasViewModel::proximaDelLobby(QString& uid, int& lugar) {
     // muestre el nombre del anterior.
     bool limpie = false;
     for (const QString& uid : d_->enLobby.keys()) {
-        const bool sigue = std::any_of(gente.begin(), gente.end(),
-                                       [&](const auto& g) { return g.first == uid; });
+        const bool sigue =
+            std::any_of(gente.begin(), gente.end(), [&](const auto& g) { return g.first == uid; });
         if (!sigue) {
             d_->enLobby.remove(uid);
             limpie = true;
@@ -405,21 +408,20 @@ QVariantList PersonasViewModel::personas() const {
     QVariantList out;
     const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
     for (const auto& p : d_->libreta.todas()) {
-        const QString foto = p.foto.empty()
-                                 ? QString()
-                                 : QUrl::fromLocalFile(d_->carpetaFotos + "/" +
-                                                       QString::fromStdString(p.foto))
-                                       .toString();
-        out.append(QVariantMap{
-            {"id", QString::fromStdString(p.id)},
-            {"nombre", QString::fromStdString(p.nombre)},
-            {"cargo", QString::fromStdString(p.cargo)},
-            {"nota", QString::fromStdString(p.nota)},
-            {"foto", foto},
-            {"caras", static_cast<int>(p.caras.size())},
-            // En segundos desde que se la vio, -1 = nunca. La página decide
-            // cómo decirlo; acá no se inventa un formato de fecha.
-            {"vistaSeg", p.vistaMs > 0 ? static_cast<int>((ahora - p.vistaMs) / 1000) : -1}});
+        const QString foto =
+            p.foto.empty()
+                ? QString()
+                : QUrl::fromLocalFile(d_->carpetaFotos + "/" + QString::fromStdString(p.foto)).toString();
+        out.append(
+            QVariantMap{{"id", QString::fromStdString(p.id)},
+                        {"nombre", QString::fromStdString(p.nombre)},
+                        {"cargo", QString::fromStdString(p.cargo)},
+                        {"nota", QString::fromStdString(p.nota)},
+                        {"foto", foto},
+                        {"caras", static_cast<int>(p.caras.size())},
+                        // En segundos desde que se la vio, -1 = nunca. La página decide
+                        // cómo decirlo; acá no se inventa un formato de fecha.
+                        {"vistaSeg", p.vistaMs > 0 ? static_cast<int>((ahora - p.vistaMs) / 1000) : -1}});
     }
     return out;
 }
@@ -472,21 +474,18 @@ void PersonasViewModel::sumarCara(const QString& id, const QString& feed, bool n
                   [this, id, nuevaFoto](std::vector<Reconocedor::Visto> vistos, const QImage& img,
                                         const QString& error) {
                       if (!error.isEmpty()) return emit notify(error, "error");
-                      if (vistos.empty())
-                          return emit notify("No se ve ninguna cara ahí.", "aviso");
+                      if (vistos.empty()) return emit notify("No se ve ninguna cara ahí.", "aviso");
                       if (vistos.size() > 1)
-                          return emit notify(
-                              "Hay " + QString::number(vistos.size()) +
-                                  " caras en el cuadro: no adivino cuál es. Elegí una fuente "
-                                  "donde esté sola.",
-                              "aviso");
+                          return emit notify("Hay " + QString::number(vistos.size()) +
+                                                 " caras en el cuadro: no adivino cuál es. Elegí una fuente "
+                                                 "donde esté sola.",
+                                             "aviso");
                       const auto alta = d_->libreta.sumarCara(id.toStdString(), vistos[0].vector);
                       if (alta == ba::rostros::Personas::Alta::NoExiste)
                           return emit notify("No existe esa persona.", "error");
                       const auto* p = d_->libreta.porId(id.toStdString());
                       if (p != nullptr && (p->foto.empty() || nuevaFoto)) {
-                          const QString archivo =
-                              escribirFoto(img, vistos[0].cara, d_->carpetaFotos, id);
+                          const QString archivo = escribirFoto(img, vistos[0].cara, d_->carpetaFotos, id);
                           if (!archivo.isEmpty()) {
                               ba::rostros::Persona conFoto = *p;
                               conFoto.foto = archivo.toStdString();
@@ -512,15 +511,15 @@ void PersonasViewModel::mirar(const QString& feed) {
 
 void PersonasViewModel::analizar(const QString& feed, bool registrar, const QString& uid) {
     pedirAnalisis(feed, true,
-                  [this, feed, uid, registrar](std::vector<Reconocedor::Visto> caras,
-                                               const QImage& img, const QString& error) {
+                  [this, feed, uid, registrar](std::vector<Reconocedor::Visto> caras, const QImage& img,
+                                               const QString& error) {
                       if (!error.isEmpty()) return;
                       resolver(feed, uid, std::move(caras), img, registrar);
                   });
 }
 
 void PersonasViewModel::dejarPasarSiCorresponde(const QString& uid, const QString& personaId,
-                                               const QString& nombre, float parecido, bool sirve) {
+                                                const QString& nombre, float parecido, bool sirve) {
     // Una sola vez por persona que espera: si el operador la rechaza a mano,
     // volver a hacerla pasar en la vuelta siguiente sería pelearle al operador.
     if (d_->yaPasaron.contains(uid)) return;
@@ -551,8 +550,8 @@ void PersonasViewModel::dejarPasarSiCorresponde(const QString& uid, const QStrin
                 "info");
     ba::diag::registro().linea(ba::diag::Nivel::Info, "rostros", 0,
                                "auto-aceptada del evento: «" + nombre.toStdString() + "» (ficha " +
-                                   personaId.toStdString() + ", lobby " + uid.toStdString() +
-                                   ", parecido " + std::to_string(parecido) + ")");
+                                   personaId.toStdString() + ", lobby " + uid.toStdString() + ", parecido " +
+                                   std::to_string(parecido) + ")");
 }
 
 void PersonasViewModel::acreditarEnLaPuerta(const QString& personaId, const QString& nombre) {
@@ -583,19 +582,17 @@ void PersonasViewModel::acreditarEnLaPuerta(const QString& personaId, const QStr
 }
 
 void PersonasViewModel::resolver(const QString& feed, const QString& uid,
-                                 std::vector<Reconocedor::Visto> caras, const QImage& img,
-                                 bool registrar) {
+                                 std::vector<Reconocedor::Visto> caras, const QImage& img, bool registrar) {
     const std::int64_t ahora = QDateTime::currentMSecsSinceEpoch();
 
     // Las pendientes que no volvieron a aparecer se olvidan acá y no dentro
     // del lazo: si no se ve ninguna cara, igual hay que soltarlas.
     if (registrar) {
         auto& ps = d_->pendientes;
-        ps.erase(std::remove_if(ps.begin(), ps.end(),
-                                [&](const Impl::Pendiente& p) {
-                                    return ahora - p.ultimoMs > kOlvidoPendienteMs;
-                                }),
-                 ps.end());
+        ps.erase(
+            std::remove_if(ps.begin(), ps.end(),
+                           [&](const Impl::Pendiente& p) { return ahora - p.ultimoMs > kOlvidoPendienteMs; }),
+            ps.end());
     }
 
     QVariantList out;
@@ -612,8 +609,7 @@ void PersonasViewModel::resolver(const QString& feed, const QString& uid,
                 // La pose de ahora, sumada a la ficha: es lo que hace que la
                 // próxima vez la reconozca de costado, con otra luz o con
                 // anteojos. La libreta descarta las que no aportan.
-                if (d_->libreta.sumarCara(q.id, visto.vector) ==
-                    ba::rostros::Personas::Alta::Sumada)
+                if (d_->libreta.sumarCara(q.id, visto.vector) == ba::rostros::Personas::Alta::Sumada)
                     alta = true;
             } else {
                 const QString nuevo = anotarDesconocida(visto.vector, img, c, ahora);
@@ -693,11 +689,10 @@ void PersonasViewModel::resolver(const QString& feed, const QString& uid,
             const auto* f = id.isEmpty() ? nullptr : d_->libreta.porId(id.toStdString());
             v["cargo"] = f != nullptr ? QString::fromStdString(f->cargo) : QString();
             v["caras"] = f != nullptr ? static_cast<int>(f->caras.size()) : 0;
-            v["foto"] = f != nullptr && !f->foto.empty()
-                            ? QUrl::fromLocalFile(d_->carpetaFotos + "/" +
-                                                  QString::fromStdString(f->foto))
-                                  .toString()
-                            : QString();
+            v["foto"] =
+                f != nullptr && !f->foto.empty()
+                    ? QUrl::fromLocalFile(d_->carpetaFotos + "/" + QString::fromStdString(f->foto)).toString()
+                    : QString();
             // El lugar va ADENTRO: la clave del mapa es la persona, así que
             // sin esto se perdía de qué cámara salió y `lobby:<clave>` daba un
             // feed que no existe.
@@ -705,8 +700,8 @@ void PersonasViewModel::resolver(const QString& feed, const QString& uid,
             v["lugar"] = feed.mid(6).toInt();
             d_->enLobby[uid] = v;
             if (!id.isEmpty())
-                dejarPasarSiCorresponde(uid, id, v.value("nombre").toString(),
-                                        v.value("parecido").toFloat(), q.sirve);
+                dejarPasarSiCorresponde(uid, id, v.value("nombre").toString(), v.value("parecido").toFloat(),
+                                        q.sirve);
         }
         emit enLobbyCambio();
     } else {
@@ -747,8 +742,7 @@ QString PersonasViewModel::anotarDesconocida(const std::vector<float>& v, const 
             conFoto.foto = foto.toStdString();
             d_->libreta.guardarFicha(conFoto);
         }
-        d_->pendientes.erase(d_->pendientes.begin() +
-                             (&p - d_->pendientes.data()));
+        d_->pendientes.erase(d_->pendientes.begin() + (&p - d_->pendientes.data()));
         return QString::fromStdString(id);
     }
     d_->pendientes.push_back(Impl::Pendiente{v, 1, ahora});

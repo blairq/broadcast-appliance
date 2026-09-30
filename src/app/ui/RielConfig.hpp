@@ -25,8 +25,8 @@
 #include <memory>
 
 #include <QObject>
-#include <QStringList>
 #include <QString>
+#include <QStringList>
 #include <QVariantList>
 
 namespace ba::app {
@@ -56,7 +56,7 @@ class RielConfig : public QObject {
     /// Cuántas están escondidas (para poder decirlo sin contar a mano).
     Q_PROPERTY(int escondidas READ escondidas NOTIFY cambio)
 
-  public:
+   public:
     explicit RielConfig(std::filesystem::path archivo, QObject* parent = nullptr);
     ~RielConfig() override;
 
@@ -93,10 +93,10 @@ class RielConfig : public QObject {
     /// Vuelve a como viene de fábrica: todas a la vista, a la izquierda.
     Q_INVOKABLE void restaurar();
 
-  signals:
+   signals:
     void cambio();
 
-  private:
+   private:
     struct Impl;
     std::unique_ptr<Impl> d_;
 };

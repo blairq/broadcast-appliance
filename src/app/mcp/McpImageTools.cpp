@@ -26,19 +26,19 @@
 #include <cmath>
 #include <memory>
 
-#include "AppRuntime.hpp"
-#include <QBuffer>
-#include <thread>
-#include "agent/ModeloPropio.hpp"
-#include "net/Credentials.hpp"
-#include "net/HttpsClient.hpp"
 #include "agent/Despachador.hpp"
+#include "agent/ModeloPropio.hpp"
+#include "AppRuntime.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
+#include "net/Credentials.hpp"
+#include "net/HttpsClient.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/FrameService.hpp"
 #include "ui/StudioViewModel.hpp"
+#include <QBuffer>
+#include <thread>
 
 namespace ba::app::mcp {
 
@@ -114,7 +114,6 @@ QImage contactSheet(const std::vector<std::pair<QString, QImage>>& items, int ce
 
 } // namespace
 
-
 /// Le pregunta a TU servidor por una imagen, directo, sin agente en el medio.
 ///
 /// POR QUE DIRECTO Y NO POR UN AGENTE. La idea era encargarle la mirada a un
@@ -128,8 +127,7 @@ QImage contactSheet(const std::vector<std::pair<QString, QImage>>& items, int ce
 /// Devuelve el texto, o deja el motivo en `error`.
 std::string mirarConElModeloPropio(AppRuntime& rt, const QImage& img, const std::string& que,
                                    std::string& error) {
-    const agent::ModeloPropio mp =
-        agent::ModeloPropio::leer(rt.dataRoot() / "Config" / "modelo-propio.json");
+    const agent::ModeloPropio mp = agent::ModeloPropio::leer(rt.dataRoot() / "Config" / "modelo-propio.json");
     if (!mp.completo()) {
         error = "no hay un modelo propio configurado";
         return {};
@@ -155,25 +153,26 @@ std::string mirarConElModeloPropio(AppRuntime& rt, const QImage& img, const std:
 
     json contenido = json::array();
     contenido.push_back(json{{"type", "text"}, {"text", que}});
-    contenido.push_back(json{{"type", "image_url"},
-                             {"image_url",
-                              {{"url", "data:image/jpeg;base64," + jpg.toBase64().toStdString()}}}});
-    json body{{"model", mp.modelo},
-              {"messages",
-               json::array({json{{"role", "system"},
-                                 {"content",
-                                  "Mirás una imagen y contestás la pregunta, en dos o tres líneas. "
-                                  "Decís lo que VES: si no se ve, decís que no se ve. No inventás "
-                                  "lo que debería haber. No describís el resto."}},
-                            json{{"role", "user"}, {"content", contenido}}})},
-              {"max_tokens", 300},
-              {"temperature", 0}};
+    contenido.push_back(
+        json{{"type", "image_url"},
+             {"image_url", {{"url", "data:image/jpeg;base64," + jpg.toBase64().toStdString()}}}});
+    json body{
+        {"model", mp.modelo},
+        {"messages",
+         json::array({json{{"role", "system"},
+                           {"content", "Mirás una imagen y contestás la pregunta, en dos o tres líneas. "
+                                       "Decís lo que VES: si no se ve, decís que no se ve. No inventás "
+                                       "lo que debería haber. No describís el resto."}},
+                      json{{"role", "user"}, {"content", contenido}}})},
+        {"max_tokens", 300},
+        {"temperature", 0}};
     // Sin pensar: para mirar una imagen no hace falta, y en vivo el tiempo es
     // lo que importa.
     body["chat_template_kwargs"] = json{{"enable_thinking", false}, {"reasoning_effort", "low"}};
 
     std::string url = mp.url;
-    while (!url.empty() && url.back() == '/') url.pop_back();
+    while (!url.empty() && url.back() == '/')
+        url.pop_back();
     net::HttpRequest req;
     req.method = "POST";
     req.url = url + "/chat/completions";
@@ -217,9 +216,10 @@ void McpService::registerImageTools() {
         t.title = "Ver el programa";
         t.category = "imagenes";
         t.readOnly = true;
-        t.description =
-            "Una foto de lo que esta saliendo al aire AHORA: para ver si se ve negro, congelado o mal encuadrado. Imagen de lo que esta saliendo al aire ahora (la escena del programa, render completo de "
-            "libobs). Por defecto 1280 px de ancho, JPEG.";
+        t.description = "Una foto de lo que esta saliendo al aire AHORA: para ver si se ve negro, congelado "
+                        "o mal encuadrado. Imagen de lo que esta saliendo al aire ahora (la escena del "
+                        "programa, render completo de "
+                        "libobs). Por defecto 1280 px de ancho, JPEG.";
         t.inputSchema = withImageProps(json::object());
         t.run = [&rt, &vm, &core](const json& a, Done done) {
             QImage img;
@@ -357,21 +357,23 @@ void McpService::registerImageTools() {
             std::string err;
             if (!resolveParticipant(roomSnapshot(vm), a["participant"], p, err))
                 return done(ToolResult::error(err));
-            (*personImage)(p, a.value("maxWidth", 960), [&vm, &rt, &core, a, p, done](QImage img, std::string how) {
-                ToolResult r;
-                r.text(p.value("name", "") + " — " + p.value("state", "") +
-                       (p.value("slot", 0) > 0 ? " (al aire)" : "") + " — " + how);
-                if (!img.isNull()) addImage(r, img, a, 960, core, rt.dataRoot());
-                if (a.value("includeScreen", false) && p.value("screen", false) && p.value("slot", 0) > 0) {
-                    QImage s;
-                    if (feedImage(vm, "share:" + std::to_string(p.value("slot", 0)), s)) {
-                        r.text("Su pantalla compartida:");
-                        addImage(r, s, a, 1280, core, rt.dataRoot());
-                    }
-                }
-                if (img.isNull()) r.isError = true;
-                done(r);
-            });
+            (*personImage)(p, a.value("maxWidth", 960),
+                           [&vm, &rt, &core, a, p, done](QImage img, std::string how) {
+                               ToolResult r;
+                               r.text(p.value("name", "") + " — " + p.value("state", "") +
+                                      (p.value("slot", 0) > 0 ? " (al aire)" : "") + " — " + how);
+                               if (!img.isNull()) addImage(r, img, a, 960, core, rt.dataRoot());
+                               if (a.value("includeScreen", false) && p.value("screen", false) &&
+                                   p.value("slot", 0) > 0) {
+                                   QImage s;
+                                   if (feedImage(vm, "share:" + std::to_string(p.value("slot", 0)), s)) {
+                                       r.text("Su pantalla compartida:");
+                                       addImage(r, s, a, 1280, core, rt.dataRoot());
+                                   }
+                               }
+                               if (img.isNull()) r.isError = true;
+                               done(r);
+                           });
         };
         core_.addTool(std::move(t));
     }
@@ -403,22 +405,23 @@ void McpService::registerImageTools() {
             acc->got.resize(people.size());
             for (size_t i = 0; i < people.size(); ++i) {
                 const json p = people[i];
-                (*personImage)(
-                    p, a.value("maxWidth", 480), [acc, i, p, a, done, &core, &rt](QImage img, std::string how) {
-                        acc->got[i] = {
-                            p.value("name", "") + " (" + p.value("id", "") + ") — " + p.value("state", "") +
-                                (p.value("slot", 0) > 0
-                                     ? ", al aire en el lugar " + std::to_string(p.value("slot", 0))
-                                     : "") +
-                                " — " + how,
-                            img};
-                        if (--acc->pending > 0) return;
-                        for (const auto& [label, im] : acc->got) {
-                            acc->r.text(label);
-                            if (!im.isNull()) addImage(acc->r, im, a, 480, core, rt.dataRoot());
-                        }
-                        done(acc->r);
-                    });
+                (*personImage)(p, a.value("maxWidth", 480),
+                               [acc, i, p, a, done, &core, &rt](QImage img, std::string how) {
+                                   acc->got[i] = {p.value("name", "") + " (" + p.value("id", "") + ") — " +
+                                                      p.value("state", "") +
+                                                      (p.value("slot", 0) > 0
+                                                           ? ", al aire en el lugar " +
+                                                                 std::to_string(p.value("slot", 0))
+                                                           : "") +
+                                                      " — " + how,
+                                                  img};
+                                   if (--acc->pending > 0) return;
+                                   for (const auto& [label, im] : acc->got) {
+                                       acc->r.text(label);
+                                       if (!im.isNull()) addImage(acc->r, im, a, 480, core, rt.dataRoot());
+                                   }
+                                   done(acc->r);
+                               });
             }
         };
         core_.addTool(std::move(t));
@@ -514,19 +517,18 @@ void McpService::registerImageTools() {
         t.description =
             "Mira lo que se VE (una camara, el programa, una escena o la propia app) y contesta la "
             "pregunta concreta que le hagas. Solo video, nada de audio. Devuelve TEXTO.";
-        t.details =
-            "ESTA ES LA UNICA FORMA DE MIRAR, y no es un rodeo: tu conversacion aguanta muy pocas "
-            "imagenes y, pasadas esas, se cuelga —no da error, se cuelga, en el medio de una "
-            "transmision en vivo—. Por eso las herramientas `capture_*` te devuelven un archivo y "
-            "no la imagen. Aca la mira un agente aparte, con esa imagen y nada mas, y te contesta "
-            "en texto. Si el se cuelga, vos seguis.\n\n"
-            "PREGUNTA CONCRETA. `que` es un contrato: decile exactamente que tiene que mirar y que "
-            "tenes que saber. «¿Se ve a alguien o esta el cuadro en negro?», «¿el rotulo dice "
-            "Ana Perez?», «¿cuantas personas hay?». Un «describime esto» devuelve una descripcion "
-            "que no sirve para decidir nada.\n\n"
-            "UNA IMAGEN POR LLAMADA. Si necesitas comparar dos momentos, llamala dos veces y "
-            "compara vos los dos textos.\n\n"
-            "Tarda: es otro agente pensando. No la uses para mirar cada dos segundos.";
+        t.details = "ESTA ES LA UNICA FORMA DE MIRAR, y no es un rodeo: tu conversacion aguanta muy pocas "
+                    "imagenes y, pasadas esas, se cuelga —no da error, se cuelga, en el medio de una "
+                    "transmision en vivo—. Por eso las herramientas `capture_*` te devuelven un archivo y "
+                    "no la imagen. Aca la mira un agente aparte, con esa imagen y nada mas, y te contesta "
+                    "en texto. Si el se cuelga, vos seguis.\n\n"
+                    "PREGUNTA CONCRETA. `que` es un contrato: decile exactamente que tiene que mirar y que "
+                    "tenes que saber. «¿Se ve a alguien o esta el cuadro en negro?», «¿el rotulo dice "
+                    "Ana Perez?», «¿cuantas personas hay?». Un «describime esto» devuelve una descripcion "
+                    "que no sirve para decidir nada.\n\n"
+                    "UNA IMAGEN POR LLAMADA. Si necesitas comparar dos momentos, llamala dos veces y "
+                    "compara vos los dos textos.\n\n"
+                    "Tarda: es otro agente pensando. No la uses para mirar cada dos segundos.";
         t.inputSchema = {
             {"type", "object"},
             {"required", {"que"}},
@@ -559,8 +561,8 @@ void McpService::registerImageTools() {
                 if (!renderSource(rt, "", 1280, img, err) && !feedImage(vm, "program", img))
                     return done(ToolResult::error("No hay imagen del programa: " + err));
             } else if (!feedImage(vm, fuente, img)) {
-                return done(ToolResult::error("Sin imagen en '" + fuente +
-                                              "'. feeds_list muestra los validos."));
+                return done(
+                    ToolResult::error("Sin imagen en '" + fuente + "'. feeds_list muestra los validos."));
             }
             if (img.isNull()) return done(ToolResult::error("No se pudo tomar la imagen."));
 
@@ -579,8 +581,8 @@ void McpService::registerImageTools() {
                 const std::string texto = mirarConElModeloPropio(rt, copia, que, error);
                 ToolResult r;
                 if (texto.empty()) {
-                    r = ToolResult::error("No pude mirar la imagen (" + error +
-                                          "). La captura quedo en " + archivo.toStdString() + ".");
+                    r = ToolResult::error("No pude mirar la imagen (" + error + "). La captura quedo en " +
+                                          archivo.toStdString() + ".");
                 } else {
                     r.text(texto);
                     r.structured = json{{"miro", donde}, {"captura", archivo.toStdString()}};

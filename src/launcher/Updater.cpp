@@ -133,9 +133,9 @@ bool isDataEntry(const std::string& name) {
     // El costo, dicho: un ejemplo de fabrica NUEVO no llega por actualizacion,
     // solo en una instalacion limpia. Perder trabajo propio es mucho peor que
     // no recibir un ejemplo.
-    static const char* kData[] = {"Config",  "Credenciales", "Logs",      "Recordings", "Shares",
-                                  "Runtime", "Cache",        "Respaldos", "Agentes",    "Media",
-                                  "Graficos", "Extensiones", "Eventos"};
+    static const char* kData[] = {"Config",   "Credenciales", "Logs",      "Recordings", "Shares",
+                                  "Runtime",  "Cache",        "Respaldos", "Agentes",    "Media",
+                                  "Graficos", "Extensiones",  "Eventos"};
     if (name.rfind(".actualizacion", 0) == 0) return true;
     return std::any_of(std::begin(kData), std::end(kData), [&](const char* d) { return name == d; });
 }

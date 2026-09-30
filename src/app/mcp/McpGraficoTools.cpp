@@ -18,13 +18,13 @@
 #include <QJsonObject>
 
 #include "AppRuntime.hpp"
+#include "graficos/Emisor.hpp"
 #include "graficos/GraficoProceso.hpp"
 #include "graficos/GraficoSource.hpp"
-#include "graficos/Emisor.hpp"
 #include "graficos/Vinculos.hpp"
-#include "ui/StudioViewModel.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
+#include "ui/StudioViewModel.hpp"
 
 namespace ba::app::mcp {
 namespace {
@@ -138,8 +138,7 @@ void McpService::registerGraficoTools() {
                     out.push_back(g);
                 }
             }
-            done(ToolResult().data(json{{"graficos", out},
-                                        {"motorDisponible", proc->disponible()}}));
+            done(ToolResult().data(json{{"graficos", out}, {"motorDisponible", proc->disponible()}}));
         };
         core_.addTool(std::move(t));
     }
@@ -150,9 +149,8 @@ void McpService::registerGraficoTools() {
         t.title = "Ver cómo queda un gráfico";
         t.category = "graficos";
         t.readOnly = true;
-        t.description =
-            "Dibuja el gráfico en varios instantes de su animación y devuelve las imágenes. "
-            "No sale al aire.";
+        t.description = "Dibuja el gráfico en varios instantes de su animación y devuelve las imágenes. "
+                        "No sale al aire.";
         t.details =
             "ESTA es la herramienta que hay que usar antes de dar un gráfico por bueno. Una animación "
             "NO se puede juzgar mirando un cuadro: hay que ver la entrada a medio camino, el momento "
@@ -172,9 +170,8 @@ void McpService::registerGraficoTools() {
             R"({"nombre": "zocalo", "parametros": {"nombre": "Jorge Ortega", "cargo": "Intendente"}, "momentos": [0, 150, 300, 450, 900]})"};
         t.run = [&rt, proc](const json& a, Done done) {
             if (!proc->disponible())
-                return done(ToolResult::error(
-                    "El renderizador de gráficos no está en este bundle (" +
-                    proc->binario().toStdString() + ")."));
+                return done(ToolResult::error("El renderizador de gráficos no está en este bundle (" +
+                                              proc->binario().toStdString() + ")."));
             QString err;
             const QString carpeta =
                 carpetaDe(rt, QString::fromStdString(a.value("nombre", std::string())), &err);
@@ -182,8 +179,7 @@ void McpService::registerGraficoTools() {
 
             QJsonObject par;
             if (a.contains("parametros"))
-                par = QJsonDocument::fromJson(QByteArray::fromStdString(a["parametros"].dump()))
-                          .object();
+                par = QJsonDocument::fromJson(QByteArray::fromStdString(a["parametros"].dump())).object();
             QJsonObject pedido = pedidoDe(carpeta, par, &err);
             if (pedido.isEmpty()) return done(ToolResult::error(err.toStdString()));
 
@@ -210,9 +206,8 @@ void McpService::registerGraficoTools() {
         t.name = "grafico_mostrar";
         t.title = "Poner un gráfico al aire";
         t.category = "graficos";
-        t.description =
-            "Dibuja el gráfico y lo reproduce en una fuente «Gráfico animado» de una escena. "
-            "ESTO SE VE AL AIRE si esa escena está en el programa.";
+        t.description = "Dibuja el gráfico y lo reproduce en una fuente «Gráfico animado» de una escena. "
+                        "ESTO SE VE AL AIRE si esa escena está en el programa.";
         t.details =
             "Antes de usar esto hay que haber mirado el gráfico con grafico_probar. Una vez que sale, "
             "lo ve el público.\n\n"
@@ -231,7 +226,10 @@ void McpService::registerGraficoTools() {
               {"nombre", {{"type", "string"}, {"description", "Qué gráfico mostrar."}}},
               {"parametros", {{"type", "object"}}},
               {"duracionMs",
-               {{"type", "integer"}, {"minimum", 100}, {"maximum", 15000}, {"default", 1500},
+               {{"type", "integer"},
+                {"minimum", 100},
+                {"maximum", 15000},
+                {"default", 1500},
                 {"description", "Cuánta animación dibujar."}}},
               {"fps", {{"type", "integer"}, {"minimum", 10}, {"maximum", 60}, {"default", 30}}},
               {"repetir", {{"type", "boolean"}, {"default", false}}}}},
@@ -242,14 +240,12 @@ void McpService::registerGraficoTools() {
             const auto id = static_cast<std::uint64_t>(a["fuente"].get<long long>());
             QJsonObject par;
             if (a.contains("parametros"))
-                par = QJsonDocument::fromJson(QByteArray::fromStdString(a["parametros"].dump()))
-                          .object();
+                par = QJsonDocument::fromJson(QByteArray::fromStdString(a["parametros"].dump())).object();
             // Por el emisor, no por abajo: asi queda anotado con que valores
             // salio esta fuente y la tarjeta de Rotulos muestra lo que hay al
             // aire en vez de lo anterior.
-            const QString err =
-                em->mostrar(QString::fromStdString(a["nombre"].get<std::string>()), par, id,
-                            a.value("duracionMs", 0), a.value("repetir", false));
+            const QString err = em->mostrar(QString::fromStdString(a["nombre"].get<std::string>()), par, id,
+                                            a.value("duracionMs", 0), a.value("repetir", false));
             if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
             done(ToolResult::ok("«" + a["nombre"].get<std::string>() + "» al aire."));
         };
@@ -314,16 +310,15 @@ void McpService::registerGraficoTools() {
         t.category = "graficos";
         t.readOnly = true;
         t.description = "Los vinculos que hay y, sobre todo, los ORIGENES que se pueden usar.";
-        t.details =
-            "Un vinculo dice de donde sale cada campo de un grafico, una sola vez, y despues se "
-            "mantiene solo: cuando lo que resuelve cambia (cambio el orador, cambio la escena), el "
-            "grafico vuelve a salir al aire con lo nuevo.\n\n"
-            "`origenes` es lo que se puede poner entre llaves, CON SU VALOR DE AHORA. Miralo antes "
-            "de escribir un vinculo: si el origen que ibas a usar no esta en esa lista, no existe, y "
-            "el vinculo no se va a guardar.\n\n"
-            "De cada vinculo, `resuelve` es lo que daria si se disparara ahora mismo y `problema` "
-            "dice por que no puede. `fuenteExiste` en false significa que esa fuente de escena no "
-            "esta en ninguna escena en este momento: el vinculo se queda quieto hasta que aparezca.";
+        t.details = "Un vinculo dice de donde sale cada campo de un grafico, una sola vez, y despues se "
+                    "mantiene solo: cuando lo que resuelve cambia (cambio el orador, cambio la escena), el "
+                    "grafico vuelve a salir al aire con lo nuevo.\n\n"
+                    "`origenes` es lo que se puede poner entre llaves, CON SU VALOR DE AHORA. Miralo antes "
+                    "de escribir un vinculo: si el origen que ibas a usar no esta en esa lista, no existe, y "
+                    "el vinculo no se va a guardar.\n\n"
+                    "De cada vinculo, `resuelve` es lo que daria si se disparara ahora mismo y `problema` "
+                    "dice por que no puede. `fuenteExiste` en false significa que esa fuente de escena no "
+                    "esta en ninguna escena en este momento: el vinculo se queda quieto hasta que aparezca.";
         t.run = [vin, aJson](const json&, Done done) {
             if (vin == nullptr) return done(ToolResult::error("No hay motor de graficos."));
             done(ToolResult().data(json{{"vinculos", aJson(QJsonDocument(vin->lista()))},
@@ -336,7 +331,8 @@ void McpService::registerGraficoTools() {
         t.name = "rotulo_vincular";
         t.title = "Que un rotulo se escriba solo";
         t.category = "graficos";
-        t.description = "Pone el nombre y el cargo de quien habla en pantalla, y lo mantiene al dia solo. Ata los campos de un grafico a origenes que cambian solos.";
+        t.description = "Pone el nombre y el cargo de quien habla en pantalla, y lo mantiene al dia solo. "
+                        "Ata los campos de un grafico a origenes que cambian solos.";
         t.details =
             "Ejemplo, el caso tipico —el zocalo del que esta hablando—:\n\n"
             "    { \"fuente\": \"Zocalo\", \"grafico\": \"zocalo\",\n"
@@ -357,9 +353,11 @@ void McpService::registerGraficoTools() {
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"fuente", {{"type", "string"}, {"description", "Nombre de la fuente «Grafico animado» de la escena."}}},
+             {{"fuente",
+               {{"type", "string"}, {"description", "Nombre de la fuente «Grafico animado» de la escena."}}},
               {"grafico", {{"type", "string"}, {"description", "Cual de los graficos guardados."}}},
-              {"valores", {{"type", "object"}, {"description", "clave del parametro -> texto con {origenes}."}}},
+              {"valores",
+               {{"type", "object"}, {"description", "clave del parametro -> texto con {origenes}."}}},
               {"dispara", {{"type", "boolean"}, {"description", "Si sale al aire solo. Por defecto si."}}},
               {"repetir", {{"type", "boolean"}, {"description", "En bucle (para un ticker)."}}},
               {"id", {{"type", "string"}, {"description", "Para reemplazar uno que ya existe."}}}}},
@@ -383,12 +381,13 @@ void McpService::registerGraficoTools() {
         t.details = "En vivo, APAGARLO es mas seguro que borrarlo: se vuelve a prender con una sola "
                     "cosa y no hay que acordarse de como estaba escrito. Al prenderlo otra vez sale "
                     "al aire con lo que haya en ese momento, aunque sea lo mismo de antes.";
-        t.inputSchema = {{"type", "object"},
-                         {"properties",
-                          {{"id", {{"type", "string"}}},
-                           {"activo", {{"type", "boolean"},
-                                       {"description", "Presente = prende o apaga. Ausente = lo borra."}}}}},
-                         {"required", {"id"}}};
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"id", {{"type", "string"}}},
+              {"activo",
+               {{"type", "boolean"}, {"description", "Presente = prende o apaga. Ausente = lo borra."}}}}},
+            {"required", {"id"}}};
         t.run = [vin](const json& a, Done done) {
             if (vin == nullptr) return done(ToolResult::error("No hay motor de graficos."));
             const QString id = QString::fromStdString(a.value("id", std::string()));
@@ -410,11 +409,10 @@ void McpService::registerGraficoTools() {
         t.category = "graficos";
         t.readOnly = true;
         t.description = "Las capas, las formas de ubicarlas y los efectos de entrada y salida.";
-        t.details =
-            "Lo declara el propio motor, así que esto no se desincroniza del código.\n\n"
-            "Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene hacer "
-            "siempre que alcance. Escribir QML a mano solo cuando el repertorio de verdad no dé, "
-            "porque ahí reaparecen las trampas (ver `help {\"topic\": \"graficos\"}`).";
+        t.details = "Lo declara el propio motor, así que esto no se desincroniza del código.\n\n"
+                    "Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene hacer "
+                    "siempre que alcance. Escribir QML a mano solo cuando el repertorio de verdad no dé, "
+                    "porque ahí reaparecen las trampas (ver `help {\"topic\": \"graficos\"}`).";
         t.run = [proc](const json&, Done done) {
             if (!proc->disponible())
                 return done(ToolResult::error("El renderizador de gráficos no está en este bundle."));

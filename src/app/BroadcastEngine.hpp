@@ -374,8 +374,7 @@ class BroadcastEngine {
     /// :param file: ruta absoluta del archivo.
     /// :param loop: repetir al terminar.
     /// :param volume: ganancia lineal (1 = 0 dB).
-    bool playMedia(const std::string& name, const std::string& file, bool loop = false,
-                   float volume = 1.0f);
+    bool playMedia(const std::string& name, const std::string& file, bool loop = false, float volume = 1.0f);
     /// Para lo que este sonando y libera la fuente.
     bool stopMedia(const std::string& name);
     /// Rebobina y arranca una fuente de medios que YA existe (en una escena o
@@ -482,8 +481,8 @@ class BroadcastEngine {
     // tienen audio, se les graba la del PROGRAMA: sirve de referencia para
     // sincronizar al editar, y ademas `ffmpeg_muxer` no arranca sin audio.
     struct GrabacionIndividual {
-        std::string source;  ///< que fuente
-        std::string path;    ///< a que archivo
+        std::string source; ///< que fuente
+        std::string path;   ///< a que archivo
         /// true = graba el audio PROPIO de la fuente; false = el del programa
         /// (que igual sirve de referencia para sincronizar al editar).
         bool audioPropio = false;
@@ -500,8 +499,7 @@ class BroadcastEngine {
     /// :param enc: de donde salen bitrate y preset.
     /// :returns: false y `lastError()` explica (no existe, ya se graba, no hay
     ///           lugar, no se pudo crear el codificador).
-    bool startSourceRecording(const std::string& source, const std::string& dir,
-                              const EncoderConfig& enc);
+    bool startSourceRecording(const std::string& source, const std::string& dir, const EncoderConfig& enc);
     /// La para y cierra su archivo. false si no se estaba grabando.
     bool stopSourceRecording(const std::string& source);
     /// Para todas.

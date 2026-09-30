@@ -49,7 +49,6 @@
 
 namespace ba::app::mcp {
 
-
 using json = nlohmann::json;
 
 /// Resultado de una herramienta (contenido MCP: texto, imagenes, JSON).
@@ -260,7 +259,8 @@ class McpCore {
     /// todos los roles (ayuda, estado...). Un rol que no esta en el mapa ve
     /// solo las comunes: un rol desconocido es un rol sin permisos, no uno
     /// con todos.
-    void setRoles(std::map<std::string, std::set<std::string>> categoriasPorRol, std::set<std::string> comunes);
+    void setRoles(std::map<std::string, std::set<std::string>> categoriasPorRol,
+                  std::set<std::string> comunes);
     /// Avisa si algun juego nombra una categoria que no usa ninguna
     /// herramienta. Llamar CUANDO YA ESTAN TODAS REGISTRADAS: antes da falsos
     /// positivos de las que se registran mas tarde.

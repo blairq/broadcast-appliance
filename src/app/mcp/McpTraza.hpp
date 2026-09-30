@@ -34,7 +34,7 @@
 namespace ba::app::mcp {
 
 class Traza {
-  public:
+   public:
     /// La del proceso. Antes de `abrir` no escribe a ningun lado (no falla).
     static Traza& la();
 
@@ -51,7 +51,7 @@ class Traza {
     ///        «…(+N)» para que se vea que habia mas y no parezca completo.
     static std::string resumir(const nlohmann::json& j, std::size_t tope = 900);
 
-  private:
+   private:
     Traza() = default;
     struct Impl;
     Impl* d_ = nullptr;

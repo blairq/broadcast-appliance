@@ -150,7 +150,8 @@ void revision() {
     sinCuando.huso.clear();
     const auto rsc = revisar(sinCuando);
     CHECK(rsc.size() == 2, "avisa que falta la fecha y que falta el huso");
-    for (const Reparo& r : rsc) CHECK(!r.grave, "no impiden correr el guion");
+    for (const Reparo& r : rsc)
+        CHECK(!r.grave, "no impiden correr el guion");
 
     // Un formato mal escrito SI es grave: una fecha que no se entiende no se
     // ignora sola, se lee mal.
@@ -169,12 +170,13 @@ void revision() {
     CHECK(rv.size() == 1 && rv[0].grave, "un evento sin bloques no se puede correr");
 
     Evento e = actoDePrueba();
-    e.bloques[0].cues[0].datos = json::object();      // escena sin escena
-    e.bloques[1].cues[1].duracionSeg = 0;             // orador sin tiempo
+    e.bloques[0].cues[0].datos = json::object();            // escena sin escena
+    e.bloques[1].cues[1].duracionSeg = 0;                   // orador sin tiempo
     e.bloques[2].cues.push_back(cue(Tipo::Pausa, "c6", 0)); // pausa que no espera nada
     const auto rs = revisar(e);
     CHECK(rs.size() == 3, "encuentra los tres problemas");
-    for (const Reparo& r : rs) CHECK(r.grave, "los tres impiden correr el guion");
+    for (const Reparo& r : rs)
+        CHECK(r.grave, "los tres impiden correr el guion");
     CHECK(rs[0].bloque == 0 && rs[0].cue == 0, "ubica el reparo donde esta");
 
     // El cue de audio: la accion tiene que ser una de las que se saben hacer.

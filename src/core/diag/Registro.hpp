@@ -74,7 +74,7 @@ struct Registrado {
 
 /// El registro del proceso. Uno solo, compartido: `ba::diag::registro()`.
 class Registro {
-  public:
+   public:
     /// Empieza a escribir a `<dir>/<archivo>`, rotando. Idempotente y
     /// no-fallible: si el directorio no se puede crear, se sigue con stderr y
     /// con el anillo, que es mejor que no registrar nada.
@@ -138,7 +138,7 @@ class Registro {
     Registro(const Registro&) = delete;
     Registro& operator=(const Registro&) = delete;
 
-  private:
+   private:
     struct Impl;
     std::unique_ptr<Impl> d_;
 };

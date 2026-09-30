@@ -54,7 +54,9 @@ void McpService::registerAlertTools() {
         t.title = "Crear una vigilancia";
         t.category = "alertas";
         t.description =
-            "AVISAME CUANDO: crea una vigilancia que avisa sola al pasar algo (entra alguien, hay silencio al aire, satura el audio, se cae un invitado). Crea una vigilancia que el servidor evalua sola (cada 250 ms) y dispara un aviso cuando pasa. "
+            "AVISAME CUANDO: crea una vigilancia que avisa sola al pasar algo (entra alguien, hay silencio "
+            "al aire, satura el audio, se cae un invitado). Crea una vigilancia que el servidor evalua sola "
+            "(cada 250 ms) y dispara un aviso cuando pasa. "
             "`notify`: [\"llm\"] = te lo escribe en el chat (despierta al asistente), [\"ui\"] = aviso en "
             "pantalla (por defecto las dos). `actions`: herramientas MCP a ejecutar en el acto al dispararse "
             "(p. ej. bajar un volumen, cambiar de escena). `once`: se apaga despues del primer aviso. "

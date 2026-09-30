@@ -67,7 +67,7 @@ class MediosViewModel : public QObject {
     /// Cuanto pesa lo elegido, para saber antes de mover o borrar.
     Q_PROPERTY(qint64 bytesElegidos READ bytesElegidos NOTIFY seleccionCambio)
 
-  public:
+   public:
     explicit MediosViewModel(AppRuntime& rt, QObject* parent = nullptr);
     ~MediosViewModel() override;
 
@@ -126,12 +126,12 @@ class MediosViewModel : public QObject {
     /// true si de ese archivo se puede sacar un carrusel (pdf, pptx).
     Q_INVOKABLE bool sePuedeDesarmar(const QString& ruta) const;
 
-  signals:
+   signals:
     void cambio();
     void seleccionCambio();
     void notify(const QString& texto, const QString& tipo);
 
-  private:
+   private:
     void recalcular();
 
     AppRuntime& rt_;

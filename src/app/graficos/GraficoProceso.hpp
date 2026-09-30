@@ -41,7 +41,7 @@ struct Cuadro {
 class GraficoProceso : public QObject {
     Q_OBJECT
 
-  public:
+   public:
     /// :param binario: ruta de `ba-grafico`. Vacía = se busca al lado de la
     ///        app (bin/64bit), que es donde lo deja el bundle.
     explicit GraficoProceso(QString binario = {}, QObject* padre = nullptr);
@@ -70,7 +70,7 @@ class GraficoProceso : public QObject {
     /// Cierra el proceso. El pedido siguiente lo vuelve a levantar.
     void detener();
 
-  private:
+   private:
     struct Impl;
     std::unique_ptr<Impl> d_;
 };

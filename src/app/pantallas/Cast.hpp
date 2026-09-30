@@ -68,7 +68,7 @@ bool sacar(std::string& buffer, Mensaje& out);
 /// hace lo que haya que hacer y se cierra. No hay nada que mantener vivo entre
 /// órdenes, y así no hay un hilo por televisor esperando de gusto.
 class Canal {
-  public:
+   public:
     Canal();
     ~Canal();
     Canal(const Canal&) = delete;
@@ -92,10 +92,10 @@ class Canal {
     bool esperar(const std::string& tema, int timeoutMs, Mensaje& out, std::string* error);
 
     /// Un JSON al tema, con `requestId` puesto, y la respuesta que lo traiga.
-    bool pedir(const std::string& destino, const std::string& tema, nlohmann::json cuerpo,
-               int timeoutMs, nlohmann::json& respuesta, std::string* error);
+    bool pedir(const std::string& destino, const std::string& tema, nlohmann::json cuerpo, int timeoutMs,
+               nlohmann::json& respuesta, std::string* error);
 
-  private:
+   private:
     struct Impl;
     std::unique_ptr<Impl> d_;
 };
@@ -127,8 +127,8 @@ Estado puedeAbrir(const std::string& host, int puerto, const std::string& appId,
 
 /// Abre, lanza DashCast si hace falta, le manda la URL y cierra.
 /// `recargarSeg`: que la página se recargue sola cada tanto (0 = no).
-Estado mostrarUrl(const std::string& host, int puerto, const std::string& url, int recargarSeg,
-                  int timeoutMs, const std::string& desde = {});
+Estado mostrarUrl(const std::string& host, int puerto, const std::string& url, int recargarSeg, int timeoutMs,
+                  const std::string& desde = {});
 
 /// Abre, para lo que esté corriendo (vuelve al fondo de pantalla) y cierra.
 Estado parar(const std::string& host, int puerto, int timeoutMs, const std::string& desde = {});

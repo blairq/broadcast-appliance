@@ -76,10 +76,8 @@ const Fila kFamilias[] = {
     {"comp_delay", "Retrasa el audio unos milisegundos para que coincida con la imagen.",
      "sincronizar con la imagen labios desfasado audio adelantado compensar latencia "
      "retardo de compensacion alinear audio y video"},
-    {"art_delay", "Eco a gusto: repeticiones, tiempos, filtros.",
-     "eco delay repeticiones efecto de eco"},
-    {"slap_delay", "Un eco corto, tipo estudio.",
-     "eco corto slapback"},
+    {"art_delay", "Eco a gusto: repeticiones, tiempos, filtros.", "eco delay repeticiones efecto de eco"},
+    {"slap_delay", "Un eco corto, tipo estudio.", "eco corto slapback"},
     {"impulse_reverb", "Reverberacion de una sala real, grabada.",
      "reverberacion reverb ambiente sala iglesia que suene espacioso"},
     {"room_builder", "Arma la reverberacion de una sala imaginaria.",
@@ -88,8 +86,7 @@ const Fila kFamilias[] = {
      "respuesta al impulso simular un equipo un parlante"},
 
     // --- Modulacion ---------------------------------------------------------
-    {"chorus", "Engrosa el sonido, como si fueran varias voces.",
-     "coro engrosar ensanchar chorus"},
+    {"chorus", "Engrosa el sonido, como si fueran varias voces.", "coro engrosar ensanchar chorus"},
     {"flanger", "Efecto de barrido metalico.", "flanger barrido efecto"},
     {"phaser", "Efecto de fase, ondulante.", "phaser fase ondulante efecto"},
     {"ringmod_sc", "Modulacion en anillo con cadena lateral.", "modulacion en anillo efecto raro"},
@@ -129,9 +126,8 @@ std::string minusculas(std::string s) {
 }
 
 /// Los sufijos de canales que LSP le agrega a la misma familia.
-const char* const kSufijos[] = {"_mono", "_stereo", "_lr",  "_ms",  "_x1", "_x2",
-                                "_x4",   "_x8",     "_x12", "_x16", "_x24", "_x32",
-                                "_x48",  "_do"};
+const char* const kSufijos[] = {"_mono", "_stereo", "_lr",  "_ms",  "_x1",  "_x2",  "_x4",
+                                "_x8",   "_x12",    "_x16", "_x24", "_x32", "_x48", "_do"};
 
 const Fila* filaDe(const std::string& familia) {
     for (const Fila& f : kFamilias)
@@ -170,11 +166,9 @@ std::string familiaDe(const std::string& pluginId) {
 std::string canalesDe(const std::string& pluginId) {
     const std::string id = minusculas(pluginId);
     static const std::map<std::string, std::string> kComo{
-        {"_mono", "mono"},   {"_stereo", "estereo"}, {"_lr", "izquierda/derecha"},
-        {"_ms", "medio/lado"}};
+        {"_mono", "mono"}, {"_stereo", "estereo"}, {"_lr", "izquierda/derecha"}, {"_ms", "medio/lado"}};
     for (const auto& [suf, como] : kComo)
-        if (id.size() > suf.size() && id.compare(id.size() - suf.size(), suf.size(), suf) == 0)
-            return como;
+        if (id.size() > suf.size() && id.compare(id.size() - suf.size(), suf.size(), suf) == 0) return como;
     // `_x8`, `_x16`: cuantas bandas o canales tiene.
     const std::size_t x = id.rfind("_x");
     if (x != std::string::npos && x + 2 < id.size() &&

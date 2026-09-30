@@ -29,7 +29,8 @@ std::string idNuevo() {
     static std::mt19937_64 rng{std::random_device{}()};
     static const char* hex = "0123456789abcdef";
     std::string s = "p";
-    for (int i = 0; i < 12; ++i) s += hex[rng() & 0xF];
+    for (int i = 0; i < 12; ++i)
+        s += hex[rng() & 0xF];
     return s;
 }
 
@@ -62,8 +63,8 @@ std::string Personas::guardarFicha(const Persona& p) {
 }
 
 bool Personas::borrar(const std::string& id) {
-    const auto it = std::remove_if(personas_.begin(), personas_.end(),
-                                   [&id](const Persona& p) { return p.id == id; });
+    const auto it =
+        std::remove_if(personas_.begin(), personas_.end(), [&id](const Persona& p) { return p.id == id; });
     if (it == personas_.end()) return false;
     personas_.erase(it, personas_.end());
     return true;
@@ -90,7 +91,8 @@ bool Personas::fusionar(const std::string& id, const std::string& otro) {
     const Persona* fuente = porId(otro);
     if (fuente == nullptr || porId(id) == nullptr) return false;
     const Persona copia = *fuente; // `sumarCara` puede mover el vector de fichas
-    for (const auto& v : copia.caras) sumarCara(id, v);
+    for (const auto& v : copia.caras)
+        sumarCara(id, v);
     for (Persona& p : personas_) {
         if (p.id != id) continue;
         if (p.nombre.empty()) p.nombre = copia.nombre;

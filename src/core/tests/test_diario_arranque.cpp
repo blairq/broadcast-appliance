@@ -22,12 +22,12 @@ using ba::diag::DiarioDeArranque;
 namespace {
 
 int g_fallos = 0;
-#define CHECK(cond, msg)                                                                           \
-    do {                                                                                           \
-        if (!(cond)) {                                                                             \
-            std::printf("FALLO: %s (%s, linea %d)\n", msg, #cond, __LINE__);                       \
-            ++g_fallos;                                                                            \
-        }                                                                                          \
+#define CHECK(cond, msg)                                                                                     \
+    do {                                                                                                     \
+        if (!(cond)) {                                                                                       \
+            std::printf("FALLO: %s (%s, linea %d)\n", msg, #cond, __LINE__);                                 \
+            ++g_fallos;                                                                                      \
+        }                                                                                                    \
     } while (0)
 
 } // namespace

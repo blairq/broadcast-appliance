@@ -13,8 +13,7 @@ Calidad calidadDe(const QImage& img, const ba::rostros::Cara& c) {
     Calidad q;
     q.altoPx = c.alto;
     q.confianza = c.confianza;
-    q.cortada = c.x <= 1 || c.y <= 1 || c.x + c.ancho >= img.width() - 1 ||
-                c.y + c.alto >= img.height() - 1;
+    q.cortada = c.x <= 1 || c.y <= 1 || c.x + c.ancho >= img.width() - 1 || c.y + c.alto >= img.height() - 1;
 
     // Giro e inclinación, de los cinco puntos: ojo der., ojo izq., nariz.
     const double ojoDx = c.puntos[2] - c.puntos[0];

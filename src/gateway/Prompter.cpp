@@ -219,11 +219,8 @@ json Prompter::clientes() const {
     for (const auto& [id, c] : clientes_) {
         const int64_t hace = ahora - c.vistoMs;
         if (hace > kVivoMs) continue;
-        vivos.push_back(json{{"id", id},
-                             {"vista", c.vista},
-                             {"nombre", c.nombre},
-                             {"ip", ipTexto(c.ip)},
-                             {"haceMs", hace}});
+        vivos.push_back(json{
+            {"id", id}, {"vista", c.vista}, {"nombre", c.nombre}, {"ip", ipTexto(c.ip)}, {"haceMs", hace}});
     }
     // Los oradores primero: es lo que hay que mirar antes de que alguien suba
     // al atril. Dentro de cada grupo, el que apareció hace menos.

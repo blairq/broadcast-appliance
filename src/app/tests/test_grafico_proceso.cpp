@@ -23,10 +23,10 @@ namespace {
 int g_fallos = 0;
 #define CHECK(cond, msg)                                                                                     \
     do {                                                                                                     \
-        if (!(cond)) {                                                                                        \
+        if (!(cond)) {                                                                                       \
             std::printf("FALLO: %s (%s, linea %d)\n", msg, #cond, __LINE__);                                 \
-            ++g_fallos;                                                                                       \
-        }                                                                                                     \
+            ++g_fallos;                                                                                      \
+        }                                                                                                    \
     } while (0)
 
 QString escribir(const QTemporaryDir& dir, const QString& nombre, const QString& contenido) {
@@ -86,8 +86,7 @@ int main(int argc, char** argv) {
 
     // --- 4) Se recupera ------------------------------------------------------
     {
-        const QString qml = escribir(dir, "ok2.qml",
-                                     "import QtQuick\nItem { width: 50; height: 50 }\n");
+        const QString qml = escribir(dir, "ok2.qml", "import QtQuick\nItem { width: 50; height: 50 }\n");
         QString err;
         const QImage img = g.dibujar(QJsonObject{{"qml", qml}, {"ancho", 50}, {"alto", 50}}, 0, &err);
         CHECK(err.isEmpty(), "despues de un corte, el pedido siguiente anda");

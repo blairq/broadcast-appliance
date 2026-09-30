@@ -18,14 +18,20 @@ std::string recortar(const std::string& s, std::size_t tope) {
     bool espacio = false;
     bool corto = false; // true si se llego al tope y quedo texto afuera
     for (char c : s) {
-        if (out.size() >= tope) { corto = true; break; }
+        if (out.size() >= tope) {
+            corto = true;
+            break;
+        }
         const unsigned char u = static_cast<unsigned char>(c);
         if (u == '\n' || u == '\r' || u == '\t' || c == ' ') {
             if (!out.empty()) espacio = true;
             continue;
         }
         if (u < 0x20) continue; // otros caracteres de control, fuera
-        if (espacio) { out.push_back(' '); espacio = false; }
+        if (espacio) {
+            out.push_back(' ');
+            espacio = false;
+        }
         out.push_back(c);
     }
     // SOLO SI SE CORTO. Un corte a la mitad de un caracter multibyte deja
@@ -33,7 +39,8 @@ std::string recortar(const std::string& s, std::size_t tope) {
     // acentuada de todo texto que termine en una: «Si» quedaba en «S» y «Jose»
     // en «Jos». Se vio proyectando una votacion.
     if (corto) {
-        while (!out.empty() && (static_cast<unsigned char>(out.back()) & 0xC0) == 0x80) out.pop_back();
+        while (!out.empty() && (static_cast<unsigned char>(out.back()) & 0xC0) == 0x80)
+            out.pop_back();
         if (!out.empty() && (static_cast<unsigned char>(out.back()) & 0x80) != 0) out.pop_back();
     }
     return out;
@@ -41,19 +48,22 @@ std::string recortar(const std::string& s, std::size_t tope) {
 
 } // namespace
 
-const char* Votacion::nombreDeModo(Modo m) {
-    return m == Modo::Formal ? "formal" : "encuesta";
-}
+const char* Votacion::nombreDeModo(Modo m) { return m == Modo::Formal ? "formal" : "encuesta"; }
 
 bool Votacion::modoDeNombre(const std::string& s, Modo& out) {
-    if (s == "formal") { out = Modo::Formal; return true; }
-    if (s == "encuesta") { out = Modo::Encuesta; return true; }
+    if (s == "formal") {
+        out = Modo::Formal;
+        return true;
+    }
+    if (s == "encuesta") {
+        out = Modo::Encuesta;
+        return true;
+    }
     return false;
 }
 
-bool Votacion::abrir(const std::string& pregunta, const std::vector<std::string>& opciones,
-                     Modo modo, bool secreta,
-                     const std::map<std::string, std::string>& habilitados, int cuantosPodian,
+bool Votacion::abrir(const std::string& pregunta, const std::vector<std::string>& opciones, Modo modo,
+                     bool secreta, const std::map<std::string, std::string>& habilitados, int cuantosPodian,
                      std::int64_t ahoraMs) {
     const std::string p = recortar(pregunta, kMaxTexto);
     if (p.empty()) return false;
@@ -104,7 +114,8 @@ bool Votacion::cerrar() {
 json Votacion::historial() const {
     std::lock_guard<std::mutex> g(m_);
     json out = json::array();
-    for (const json& v : historial_) out.push_back(v);
+    for (const json& v : historial_)
+        out.push_back(v);
     return out;
 }
 
@@ -126,8 +137,7 @@ void Votacion::setMostrarEnVivo(bool si) {
 std::string Votacion::votar(const std::string& quien, const std::string& codigo, int opcion) {
     std::lock_guard<std::mutex> g(m_);
     if (!abierta_) return "la votacion no esta abierta";
-    if (opcion < 0 || static_cast<std::size_t>(opcion) >= opciones_.size())
-        return "esa opcion no existe";
+    if (opcion < 0 || static_cast<std::size_t>(opcion) >= opciones_.size()) return "esa opcion no existe";
 
     std::string clave;
     if (modo_ == Modo::Formal) {

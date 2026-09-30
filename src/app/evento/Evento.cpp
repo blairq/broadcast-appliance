@@ -19,10 +19,12 @@ struct NombreTipo {
 // edita gente, no solo el programa: un evento.json tiene que poder abrirse y
 // entenderse con un editor de texto el dia que algo falle.
 constexpr NombreTipo kTipos[] = {
-    {Tipo::Escena, "escena"},   {Tipo::Musica, "musica"},   {Tipo::Video, "video"},
-    {Tipo::Teleprompter, "teleprompter"}, {Tipo::Orador, "orador"}, {Tipo::Pantalla, "pantalla"},
-    {Tipo::Audio, "audio"},     {Tipo::Pausa, "pausa"},     {Tipo::Espera, "espera"},
-    {Tipo::Nota, "nota"},         {Tipo::Grafico, "grafico"},
+    {Tipo::Escena, "escena"},   {Tipo::Musica, "musica"},
+    {Tipo::Video, "video"},     {Tipo::Teleprompter, "teleprompter"},
+    {Tipo::Orador, "orador"},   {Tipo::Pantalla, "pantalla"},
+    {Tipo::Audio, "audio"},     {Tipo::Pausa, "pausa"},
+    {Tipo::Espera, "espera"},   {Tipo::Nota, "nota"},
+    {Tipo::Grafico, "grafico"},
 };
 
 std::string textoDe(const json& j, const char* clave) {
@@ -178,13 +180,8 @@ json Evento::aJson() const {
     json inv = json::array();
     for (const Invitado& i : autoAceptar)
         inv.push_back(json{{"personaId", i.personaId}, {"nombre", i.nombre}, {"nota", i.nota}});
-    return json{{"nombre", nombre},
-                {"fecha", fecha},
-                {"inicio", inicio},
-                {"huso", huso},
-                {"nota", nota},
-                {"bloques", bs},
-                {"autoAceptar", inv}};
+    return json{{"nombre", nombre}, {"fecha", fecha}, {"inicio", inicio},  {"huso", huso},
+                {"nota", nota},     {"bloques", bs},  {"autoAceptar", inv}};
 }
 
 Evento Evento::deJson(const json& j) {
@@ -305,16 +302,16 @@ std::vector<Reparo> revisar(const Evento& e) {
     if (e.fecha.empty())
         rs.push_back({-1, -1, false, "el evento no tiene fecha: no se lo puede convocar ni archivar"});
     else if (e.inicio.empty())
-        rs.push_back({-1, -1, false, "hay dia pero no hora de arranque: las horas previstas no se pueden calcular"});
+        rs.push_back(
+            {-1, -1, false, "hay dia pero no hora de arranque: las horas previstas no se pueden calcular"});
     if (!e.inicio.empty() && e.huso.empty())
-        rs.push_back({-1, -1, false,
-                      "no hay huso horario: el que se conecta de otro huso no sabe a que hora es"});
+        rs.push_back(
+            {-1, -1, false, "no hay huso horario: el que se conecta de otro huso no sabe a que hora es"});
 
     for (std::size_t bi = 0; bi < e.bloques.size(); ++bi) {
         const Bloque& b = e.bloques[bi];
         const int ib = static_cast<int>(bi);
-        if (b.nombre.empty())
-            rs.push_back({ib, -1, false, "el bloque no tiene nombre"});
+        if (b.nombre.empty()) rs.push_back({ib, -1, false, "el bloque no tiene nombre"});
         if (b.cues.empty()) {
             rs.push_back({ib, -1, false, "el bloque esta vacio"});
             continue;
@@ -483,8 +480,8 @@ int Guion::enCueSeg(int64_t nowMs) const {
 
 int Guion::desvioSeg(int64_t nowMs) const {
     if (!pos_.valida()) return 0;
-    const int previsto = e_.offsetDeCueSeg(static_cast<std::size_t>(pos_.bloque),
-                                           static_cast<std::size_t>(pos_.cue));
+    const int previsto =
+        e_.offsetDeCueSeg(static_cast<std::size_t>(pos_.bloque), static_cast<std::size_t>(pos_.cue));
     if (previsto < 0) return 0;
     // El tiempo pausado no cuenta: el operador paro a proposito, no se atraso.
     const int64_t hasta = estado_ == Estado::Pausado ? pausadoDesdeMs_ : nowMs;

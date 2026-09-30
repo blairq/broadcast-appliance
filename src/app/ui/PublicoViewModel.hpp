@@ -45,7 +45,7 @@ class PublicoViewModel : public QObject {
     /// «no sé» en vez de mostrar una cola vacía, que significa otra cosa.
     Q_PROPERTY(bool enLinea READ enLinea NOTIFY cambio)
 
-  public:
+   public:
     explicit PublicoViewModel(ConferenceViewModel* sala, QObject* parent = nullptr);
     ~PublicoViewModel() override;
 
@@ -66,20 +66,19 @@ class PublicoViewModel : public QObject {
 
     /// Abre una votación. `habilitados` son [{codigo, nombre}] y `podian` el
     /// total con derecho según el padrón; en una encuesta van vacíos.
-    Q_INVOKABLE void abrirVotacion(const QString& pregunta, const QStringList& opciones,
-                                   const QString& modo, bool secreta, bool enVivo,
-                                   const QVariantList& habilitados, int podian);
+    Q_INVOKABLE void abrirVotacion(const QString& pregunta, const QStringList& opciones, const QString& modo,
+                                   bool secreta, bool enVivo, const QVariantList& habilitados, int podian);
     Q_INVOKABLE void cerrarVotacion();
     Q_INVOKABLE void mostrarEnVivo(bool si);
     /// Pide el enlace de la página del público (llega por `enlaceCambio`).
     Q_INVOKABLE void pedirEnlace(bool remoto = false);
 
-  signals:
+   signals:
     void cambio();
     void enlaceCambio();
     void notify(const QString& texto, const QString& tipo);
 
-  private:
+   private:
     void consultar();
 
     ConferenceViewModel* sala_ = nullptr;

@@ -28,12 +28,12 @@ using namespace ba::diag;
 namespace {
 
 int g_fallos = 0;
-#define CHECK(cond, msg)                                                                           \
-    do {                                                                                           \
-        if (!(cond)) {                                                                             \
-            std::printf("FALLO: %s (%s, linea %d)\n", msg, #cond, __LINE__);                       \
-            ++g_fallos;                                                                            \
-        }                                                                                          \
+#define CHECK(cond, msg)                                                                                     \
+    do {                                                                                                     \
+        if (!(cond)) {                                                                                       \
+            std::printf("FALLO: %s (%s, linea %d)\n", msg, #cond, __LINE__);                                 \
+            ++g_fallos;                                                                                      \
+        }                                                                                                    \
     } while (0)
 
 void escribir(const fs::path& p, const std::string& contenido) {
@@ -100,7 +100,8 @@ int main() {
 
         // 6. El anillo devuelve lo ultimo.
         reg.setNivel(Nivel::Traza);
-        for (int i = 0; i < 20; ++i) reg.info("linea " + std::to_string(i));
+        for (int i = 0; i < 20; ++i)
+            reg.info("linea " + std::to_string(i));
         const auto u = reg.ultimas(3);
         CHECK(u.size() == 3, "pide tres, da tres");
         CHECK(u.back().texto == "linea 19", "y la ultima es la ultima");
@@ -108,10 +109,9 @@ int main() {
 
     // 5 y 7: los filtros y el entrelazado por hora.
     {
-        escribir(dir / "app.log",
-                 "2026-01-02T03:04:01.000Z info | motor | 0 | escena al aire\n"
-                 "2026-01-02T03:04:03.000Z error | motor | 5 | se cayo la camara\n"
-                 "una linea suelta de libobs\n");
+        escribir(dir / "app.log", "2026-01-02T03:04:01.000Z info | motor | 0 | escena al aire\n"
+                                  "2026-01-02T03:04:03.000Z error | motor | 5 | se cayo la camara\n"
+                                  "una linea suelta de libobs\n");
         escribir(dir / "gateway.log",
                  "2026-01-02T03:04:02.000Z aviso | sala | 9 | el invitado no contesta\n");
 

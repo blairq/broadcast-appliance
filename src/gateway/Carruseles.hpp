@@ -31,7 +31,7 @@
 namespace ba::gateway {
 
 class Carruseles {
-  public:
+   public:
     /// Tope de carruseles guardados. Más que esto es un error de quien
     /// publica, no un caso real: una sala tiene un puñado de pantallas.
     static constexpr std::size_t kMax = 32;
@@ -46,7 +46,7 @@ class Carruseles {
     /// Todos, para que el operador vea qué hay publicado.
     nlohmann::json todos() const;
 
-  private:
+   private:
     mutable std::mutex m_;
     /// id -> carrusel (con su `version`).
     nlohmann::json por_ = nlohmann::json::object();

@@ -42,12 +42,12 @@ namespace ba::app::mcp {
 
 /// Un documento a indexar. Los campos están separados porque pesan distinto.
 struct Documento {
-    std::string id;       ///< el nombre de la herramienta o del tema
-    std::string clase;    ///< "herramienta" | "tema"
+    std::string id;    ///< el nombre de la herramienta o del tema
+    std::string clase; ///< "herramienta" | "tema"
     std::string titulo;
-    std::string nombre;   ///< el identificador, que suele decir mucho
+    std::string nombre; ///< el identificador, que suele decir mucho
     std::vector<std::string> etiquetas;
-    std::string cuerpo;   ///< descripción + detalle
+    std::string cuerpo; ///< descripción + detalle
 };
 
 struct Resultado {
@@ -60,7 +60,7 @@ struct Resultado {
 };
 
 class Indice {
-  public:
+   public:
     /// Agrega un documento. Devuelve su posición (la que traen los Resultado).
     std::size_t agregar(Documento d);
     /// Arma el índice invertido. Hay que llamarlo antes de buscar; agregar
@@ -77,7 +77,7 @@ class Indice {
     /// porque el que etiqueta necesita ver exactamente lo mismo que el índice.
     static std::vector<std::string> terminos(const std::string& s);
 
-  private:
+   private:
     struct Aparicion {
         std::size_t doc;
         double peso;

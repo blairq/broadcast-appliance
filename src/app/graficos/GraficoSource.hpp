@@ -34,8 +34,8 @@ constexpr int kMaxSegundos = 15;
 
 struct InstanciaInfo {
     std::uint64_t id = 0;
-    std::string nombre;   ///< nombre de la fuente en la escena
-    std::string grafico;  ///< qué gráfico muestra
+    std::string nombre;  ///< nombre de la fuente en la escena
+    std::string grafico; ///< qué gráfico muestra
     int ancho = 900;
     int alto = 220;
     bool reproduciendo = false;

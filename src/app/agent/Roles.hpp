@@ -44,9 +44,9 @@ struct Rol {
     int agruparMs = 0;                     ///< 0: una corrida por evento; N: junta lo que llegue en N ms
     int agruparMax = 1;                    ///< tope de eventos por corrida
     // --- Lo que elige el operador --------------------------------------------
-    bool activo = false;    ///< apagado de fabrica: nada cambia hasta que alguien lo prende
-    std::string proveedor;  ///< id de proveedor (ver AgentViewModel); vacio = el del asistente
-    std::string modelo;     ///< vacio = el de fabrica del proveedor
+    bool activo = false;   ///< apagado de fabrica: nada cambia hasta que alguien lo prende
+    std::string proveedor; ///< id de proveedor (ver AgentViewModel); vacio = el del asistente
+    std::string modelo;    ///< vacio = el de fabrica del proveedor
     /// Si además de su juego MCP tiene las HERRAMIENTAS PROPIAS del agente:
     /// consola, leer y escribir archivos, salir a internet.
     ///
@@ -64,7 +64,7 @@ struct Rol {
 };
 
 class Roles {
-  public:
+   public:
     explicit Roles(std::filesystem::path archivo);
 
     /// El juego de herramientas del ASISTENTE INTERACTIVO.
@@ -105,7 +105,7 @@ class Roles {
     /// Todos los roles como JSON (lo que ve la interfaz y `agente_roles`).
     nlohmann::json aJson() const;
 
-  private:
+   private:
     void leer();
     void guardar() const;
 

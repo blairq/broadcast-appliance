@@ -5,8 +5,8 @@
 
 #include <algorithm>
 #include <chrono>
-#include <random>
 #include <fstream>
+#include <random>
 
 namespace fs = std::filesystem;
 
@@ -37,7 +37,10 @@ std::string nuevoId() {
 /// espacios de más. «José Pérez», «jose perez» y « JOSÉ  PÉREZ » son el mismo
 /// señor, y en un mostrador con cola nadie escribe el acento.
 std::string aplanar(const std::string& s) {
-    static const struct { const char* de; char a; } kAcentos[] = {
+    static const struct {
+        const char* de;
+        char a;
+    } kAcentos[] = {
         {"á", 'a'}, {"é", 'e'}, {"í", 'i'}, {"ó", 'o'}, {"ú", 'u'}, {"ü", 'u'}, {"ñ", 'n'},
         {"Á", 'a'}, {"É", 'e'}, {"Í", 'i'}, {"Ó", 'o'}, {"Ú", 'u'}, {"Ü", 'u'}, {"Ñ", 'n'},
     };
@@ -50,7 +53,11 @@ std::string aplanar(const std::string& s) {
         // Los acentos son dos bytes en UTF-8: hay que mirar el par, no el byte.
         if (static_cast<unsigned char>(s[i]) >= 0x80 && i + 1 < s.size()) {
             for (const auto& a : kAcentos)
-                if (s.compare(i, 2, a.de) == 0) { c = a.a; paso = 2; break; }
+                if (s.compare(i, 2, a.de) == 0) {
+                    c = a.a;
+                    paso = 2;
+                    break;
+                }
             if (c == 0) paso = 2; // otro carácter multibyte: se descarta
         } else {
             c = s[i];
@@ -61,7 +68,10 @@ std::string aplanar(const std::string& s) {
             if (!out.empty()) espacioPendiente = true;
             continue;
         }
-        if (espacioPendiente) { out.push_back(' '); espacioPendiente = false; }
+        if (espacioPendiente) {
+            out.push_back(' ');
+            espacioPendiente = false;
+        }
         out.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
     }
     return out;
@@ -74,11 +84,12 @@ std::string nuevoCodigo() {
     // este codigo se dicta. Con 32 simbolos y cuatro posiciones hay un millon
     // de combinaciones, de sobra para cualquier sala y corto de leer.
     static const char* kAlfabeto = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    static std::mt19937 rng(static_cast<unsigned>(
-        std::chrono::steady_clock::now().time_since_epoch().count()));
+    static std::mt19937 rng(
+        static_cast<unsigned>(std::chrono::steady_clock::now().time_since_epoch().count()));
     std::uniform_int_distribution<int> d(0, 31);
     std::string c;
-    for (int i = 0; i < 4; ++i) c.push_back(kAlfabeto[d(rng)]);
+    for (int i = 0; i < 4; ++i)
+        c.push_back(kAlfabeto[d(rng)]);
     return c;
 }
 
@@ -116,19 +127,28 @@ const char* nombreDeEstado(Estado e) {
 
 bool papelDeNombre(const std::string& s, Papel& out) {
     for (Papel p : {Papel::Orador, Papel::Panelista, Papel::Publico, Papel::Prensa, Papel::Staff})
-        if (s == nombreDePapel(p)) { out = p; return true; }
+        if (s == nombreDePapel(p)) {
+            out = p;
+            return true;
+        }
     return false;
 }
 
 bool canalDeNombre(const std::string& s, Canal& out) {
     for (Canal c : {Canal::SinDefinir, Canal::Presencial, Canal::Online})
-        if (s == nombreDeCanal(c)) { out = c; return true; }
+        if (s == nombreDeCanal(c)) {
+            out = c;
+            return true;
+        }
     return false;
 }
 
 bool estadoDeNombre(const std::string& s, Estado& out) {
     for (Estado e : {Estado::Invitado, Estado::Confirmo, Estado::Llego, Estado::SeFue})
-        if (s == nombreDeEstado(e)) { out = e; return true; }
+        if (s == nombreDeEstado(e)) {
+            out = e;
+            return true;
+        }
     return false;
 }
 
@@ -220,8 +240,7 @@ std::string Padron::agregar(Asistente a) {
     // reimprimir nada. Se reintenta si salio uno repetido.
     for (int intento = 0; a.codigo.empty() && intento < 20; ++intento) {
         const std::string c = nuevoCodigo();
-        if (std::none_of(gente_.begin(), gente_.end(),
-                         [&c](const Asistente& o) { return o.codigo == c; }))
+        if (std::none_of(gente_.begin(), gente_.end(), [&c](const Asistente& o) { return o.codigo == c; }))
             a.codigo = c;
     }
     if (a.personaId.empty()) a.dejarPasarSolo = false;
@@ -251,8 +270,8 @@ bool Padron::cambiar(const std::string& id, const Asistente& campos,
 }
 
 bool Padron::quitar(const std::string& id) {
-    const auto it = std::remove_if(gente_.begin(), gente_.end(),
-                                   [&id](const Asistente& a) { return a.id == id; });
+    const auto it =
+        std::remove_if(gente_.begin(), gente_.end(), [&id](const Asistente& a) { return a.id == id; });
     if (it == gente_.end()) return false;
     gente_.erase(it, gente_.end());
     return true;
@@ -289,15 +308,18 @@ Resumen Padron::resumen() const {
         if (a.estado != Estado::Llego) continue;
         ++r.presentes;
         if (a.vota) ++r.votoPresente;
-        if (a.canal == Canal::Presencial) ++r.presenciales;
-        else if (a.canal == Canal::Online) ++r.enLinea;
+        if (a.canal == Canal::Presencial)
+            ++r.presenciales;
+        else if (a.canal == Canal::Online)
+            ++r.enLinea;
     }
     return r;
 }
 
 json Padron::aJson() const {
     json gs = json::array();
-    for (const Asistente& a : gente_) gs.push_back(a.aJson());
+    for (const Asistente& a : gente_)
+        gs.push_back(a.aJson());
     return json{{"gente", gs}};
 }
 

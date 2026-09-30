@@ -22,12 +22,12 @@ using namespace ba::rostros;
 
 namespace {
 int g_fallos = 0;
-#define CHECK(cond, que)                                                                           \
-    do {                                                                                           \
-        if (!(cond)) {                                                                             \
-            std::printf("  FALLO: %s (linea %d)\n", (que), __LINE__);                              \
-            ++g_fallos;                                                                            \
-        }                                                                                          \
+#define CHECK(cond, que)                                                                                     \
+    do {                                                                                                     \
+        if (!(cond)) {                                                                                       \
+            std::printf("  FALLO: %s (linea %d)\n", (que), __LINE__);                                        \
+            ++g_fallos;                                                                                      \
+        }                                                                                                    \
     } while (0)
 
 /// Un cuadro con un degradado y un rectángulo claro: no es una cara, pero
@@ -142,8 +142,7 @@ int main() {
         CHECK(lib.buscar({}).parecido == 0.0f, "un vector vacio no encuentra a nadie");
 
         // Casi iguales: no suma otra copia de la misma toma.
-        CHECK(lib.sumarCara(idAna, vAcasi) == Alta::Repetida,
-              "la casi igual se descarta, y lo dice");
+        CHECK(lib.sumarCara(idAna, vAcasi) == Alta::Repetida, "la casi igual se descarta, y lo dice");
         CHECK(lib.porId(idAna)->caras.size() == 1, "una toma casi igual no se guarda de nuevo");
 
         // Editar la ficha NO puede perder las caras: nadie espera que corregir
@@ -161,15 +160,13 @@ int main() {
             v[static_cast<std::size_t>(20 + i)] = 1;
             lib.sumarCara(idAna, v);
         }
-        CHECK(lib.porId(idAna)->caras.size() == Personas::kMaxCarasPorPersona,
-              "no crece sin limite");
+        CHECK(lib.porId(idAna)->caras.size() == Personas::kMaxCarasPorPersona, "no crece sin limite");
 
         CHECK(lib.guardar(tmp.string()), "guarda");
         Personas otra;
         CHECK(otra.leer(tmp.string()), "y se vuelve a leer");
         CHECK(otra.todas().size() == 2, "con las dos personas");
-        CHECK(otra.porId(idAna) != nullptr && otra.porId(idAna)->cargo == "Ministra",
-              "con sus datos");
+        CHECK(otra.porId(idAna) != nullptr && otra.porId(idAna)->cargo == "Ministra", "con sus datos");
         CHECK(otra.buscar(vB).id == idBeto, "y sus caras siguen sirviendo");
         CHECK(otra.borrar(idBeto) && otra.todas().size() == 1, "borrar saca una");
         CHECK(!otra.borrar("no-existe"), "borrar lo que no hay avisa");

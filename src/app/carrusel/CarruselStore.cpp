@@ -69,8 +69,10 @@ bool Store::guardar(const Carrusel& c) {
         error_ = "un carrusel necesita un nombre";
         return false;
     }
-    if (Carrusel* ya = porNombre(c.nombre()); ya != nullptr) *ya = c;
-    else todos_.push_back(c);
+    if (Carrusel* ya = porNombre(c.nombre()); ya != nullptr)
+        *ya = c;
+    else
+        todos_.push_back(c);
     return persistir();
 }
 
@@ -88,7 +90,8 @@ bool Store::persistir() {
     std::error_code ec;
     fs::create_directories(archivo_.parent_path(), ec);
     json cs = json::array();
-    for (const Carrusel& c : todos_) cs.push_back(c.aJson());
+    for (const Carrusel& c : todos_)
+        cs.push_back(c.aJson());
     // Al lado y renombrar: si se corta la luz en medio, el que estaba sigue
     // entero. Un carrusel a medio escribir es una tira que ya no apunta a
     // ningun archivo.

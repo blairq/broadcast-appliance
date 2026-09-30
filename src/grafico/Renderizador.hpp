@@ -23,8 +23,8 @@
 #include <QImage>
 #include <QJsonObject>
 #include <QSize>
-#include <QUrl>
 #include <QString>
+#include <QUrl>
 
 QT_BEGIN_NAMESPACE
 class QQmlEngine;
@@ -37,7 +37,7 @@ namespace ba::grafico {
 class RelojAnimaciones;
 
 class Renderizador {
-  public:
+   public:
     Renderizador();
     ~Renderizador();
 
@@ -74,11 +74,11 @@ class Renderizador {
     /// corre antes de dejar que un gráfico llegue a una escena.
     Resultado validar(const QString& qml, const QJsonObject& parametros);
 
-  private:
+   private:
     /// Los dos `dibujar` son el mismo camino: uno carga de archivo y el otro
     /// de texto.
-    Resultado dibujarComun(const QUrl& url, const QString& fuente, const QJsonObject& parametros,
-                           QSize tam, int ms);
+    Resultado dibujarComun(const QUrl& url, const QString& fuente, const QJsonObject& parametros, QSize tam,
+                           int ms);
 
     struct Impl;
     std::unique_ptr<Impl> d_;

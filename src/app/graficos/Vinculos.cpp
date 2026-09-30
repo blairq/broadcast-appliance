@@ -6,8 +6,8 @@
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
-#include <QJsonDocument>
 #include <QHash>
+#include <QJsonDocument>
 #include <QRegularExpression>
 #include <QTimer>
 
@@ -47,8 +47,10 @@ QString aTexto(const QJsonValue& v) {
 void aplanar(const QJsonObject& o, const QString& prefijo, QJsonObject& out) {
     for (auto it = o.begin(); it != o.end(); ++it) {
         const QString clave = prefijo.isEmpty() ? it.key() : prefijo + "." + it.key();
-        if (it.value().isObject()) aplanar(it.value().toObject(), clave, out);
-        else out[clave] = it.value();
+        if (it.value().isObject())
+            aplanar(it.value().toObject(), clave, out);
+        else
+            out[clave] = it.value();
     }
 }
 
@@ -132,18 +134,19 @@ QJsonObject Vinculos::resolver(const QJsonObject& v, QString* error) const {
             // Un origen que no existe NO se deja vacío: casi siempre es un
             // nombre mal escrito, y un zócalo sin nombre al aire es peor que
             // un zócalo que no sale.
-            if (origen.isUndefined() || origen.isNull()) faltan << c.captured(1);
-            else texto += aTexto(origen);
+            if (origen.isUndefined() || origen.isNull())
+                faltan << c.captured(1);
+            else
+                texto += aTexto(origen);
             desde = c.capturedEnd();
         }
         texto += plantilla.mid(desde);
         out[it.key()] = texto;
     }
     if (error != nullptr)
-        *error = faltan.isEmpty()
-                     ? QString()
-                     : "no sé de dónde sacar " + faltan.join(", ") +
-                           " (mirá los orígenes que hay, con rotulo_vinculos)";
+        *error = faltan.isEmpty() ? QString()
+                                  : "no sé de dónde sacar " + faltan.join(", ") +
+                                        " (mirá los orígenes que hay, con rotulo_vinculos)";
     return out;
 }
 
@@ -182,8 +185,10 @@ QString Vinculos::poner(const QJsonObject& v, QString* idOut) {
         o["id"] = "v" + QString::number(QDateTime::currentMSecsSinceEpoch(), 36);
 
     const int i = d_->indiceDe(o.value("id").toString());
-    if (i >= 0) d_->vs[i] = o;
-    else d_->vs.append(o);
+    if (i >= 0)
+        d_->vs[i] = o;
+    else
+        d_->vs.append(o);
     d_->guardar();
     if (idOut != nullptr) *idOut = o.value("id").toString();
     emit cambio();
@@ -227,8 +232,7 @@ void Vinculos::revisar() {
         // queda quieto. El problema se ve en la lista.
         if (!err.isEmpty()) continue;
 
-        const QString firma =
-            QString::fromUtf8(QJsonDocument(valores).toJson(QJsonDocument::Compact));
+        const QString firma = QString::fromUtf8(QJsonDocument(valores).toJson(QJsonDocument::Compact));
         if (d_->ultimo.value(id) == firma) continue;
 
         const quint64 fuente = d_->em.fuentePorNombre(o.value("fuente").toString());
@@ -254,8 +258,8 @@ QString Vinculos::disparar(const QString& id) {
     if (fuente == 0)
         return "no hay ninguna fuente de gráfico llamada «" + o.value("fuente").toString() +
                "» en las escenas";
-    const QString e = d_->em.mostrar(o.value("grafico").toString(), valores, fuente, 0,
-                                     o.value("repetir").toBool(false));
+    const QString e =
+        d_->em.mostrar(o.value("grafico").toString(), valores, fuente, 0, o.value("repetir").toBool(false));
     if (e.isEmpty())
         d_->ultimo[id] = QString::fromUtf8(QJsonDocument(valores).toJson(QJsonDocument::Compact));
     return e;

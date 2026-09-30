@@ -70,7 +70,6 @@ Te dicen que paso: un canal satura, hay silencio al aire, un invitado dice que n
 Cuando lo mediste, lo arreglaste (o determinaste que no es tuyo) y volviste a medir. El resumen dice que era, que tocaste y como quedo medido.
 )md";
 
-
 const char* kOrganizador = R"md(# Organizador del evento
 
 Sos quien organiza el evento: no operas la transmision, armas LO QUE VA A PASAR y LA GENTE QUE VIENE. Trabajas en espanol rioplatense, concreto y sin vueltas.
@@ -225,8 +224,8 @@ std::vector<Rol> deFabrica() {
         x.id = "escenografo";
         x.titulo = "Escenógrafo";
         x.descripcion = "Diseña cómo se ve el programa: escenas, fuentes y gráficos. No sale al aire.";
-        x.categorias = {"escenas",  "fuentes",  "medios",  "graficos", "laminas",
-                        "imagenes", "entradas", "equipo",  "operador"};
+        x.categorias = {"escenas",  "fuentes",  "medios", "graficos", "laminas",
+                        "imagenes", "entradas", "equipo", "operador"};
         x.disparadores = {}; // no se dispara solo: se le encarga un diseño
         x.prompt = std::string(kEscenografo) + kComun;
         // CON las herramientas propias del agente, y es el unico que las lleva:
@@ -251,8 +250,8 @@ std::vector<Rol> deFabrica() {
         // `laminas` si: la presentacion del orador es parte de armar el evento,
         // y desarmar el .pptx que alguien mando por mail es de lo primero que
         // hay que hacer. No saca nada al aire: arma la tira y queda ahi.
-        x.categorias = {"evento", "padron", "preguntas", "medios", "prompter",
-                        "graficos", "qr", "operador", "rostros", "laminas"};
+        x.categorias = {"evento",   "padron", "preguntas", "medios",  "prompter",
+                        "graficos", "qr",     "operador",  "rostros", "laminas"};
         x.disparadores = {}; // no se dispara solo: lo llama quien organiza
         x.prompt = std::string(kOrganizador) + kComun;
         // PRENDIDO de fabrica, por la misma razon que `vision`: no tiene
@@ -307,12 +306,10 @@ const std::set<std::string>& Roles::juegoDelAsistente() {
         // «equipo». El asistente se quedo sin poder poner musica ni mirar el
         // disco, y no fallaba nada: simplemente esas herramientas no existian
         // para el. Ver el aviso de McpCore::setRoles.
-        "escenas",  "fuentes",   "imagenes", "sala",     "oradores", "salidas",
-        "graficos", "rostros",   "interfaz", "ventanas", "operador", "medios",
-        "recetas",  "audio",     "audio_rack", "config", "sistema",  "equipo",
-        "entradas", "alertas",   "pantallas", "evento",  "prompter", "qr",
-        "cuentas",  "asistente", "youtube",   "twitch",  "facebook", "padron",
-        "preguntas", "laminas"};
+        "escenas",  "fuentes",   "imagenes", "sala",    "oradores",  "salidas", "graficos",   "rostros",
+        "interfaz", "ventanas",  "operador", "medios",  "recetas",   "audio",   "audio_rack", "config",
+        "sistema",  "equipo",    "entradas", "alertas", "pantallas", "evento",  "prompter",   "qr",
+        "cuentas",  "asistente", "youtube",  "twitch",  "facebook",  "padron",  "preguntas",  "laminas"};
     return c;
 }
 
@@ -379,7 +376,8 @@ bool Roles::setModelo(const std::string& id, const std::string& modelo) {
 
 std::map<std::string, std::set<std::string>> Roles::categoriasPorRol() const {
     std::map<std::string, std::set<std::string>> out;
-    for (const Rol& r : roles_) out[r.id] = std::set<std::string>(r.categorias.begin(), r.categorias.end());
+    for (const Rol& r : roles_)
+        out[r.id] = std::set<std::string>(r.categorias.begin(), r.categorias.end());
     return out;
 }
 
@@ -423,10 +421,8 @@ void Roles::guardar() const {
     QDir().mkpath(QString::fromStdString(archivo_.parent_path().string()));
     json o = json::object();
     for (const Rol& r : roles_)
-        o[r.id] = json{{"activo", r.activo},
-                       {"consola", r.consola},
-                       {"proveedor", r.proveedor},
-                       {"modelo", r.modelo}};
+        o[r.id] = json{
+            {"activo", r.activo}, {"consola", r.consola}, {"proveedor", r.proveedor}, {"modelo", r.modelo}};
     std::ofstream out(archivo_, std::ios::binary | std::ios::trunc);
     out << o.dump(2) << "\n";
 }

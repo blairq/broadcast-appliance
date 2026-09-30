@@ -428,15 +428,13 @@ void MediaPump::returnVideoThread() {
         const auto ahora = std::chrono::steady_clock::now();
         if (ahora - ultimoInforme >= std::chrono::seconds(10)) {
             if (cuadros > 0) {
-                const double seg =
-                    std::chrono::duration<double>(ahora - ultimoInforme).count();
+                const double seg = std::chrono::duration<double>(ahora - ultimoInforme).count();
                 const double medioMs = static_cast<double>(trabajoUs) / cuadros / 1000.0;
                 const double fps = cuadros / seg;
                 const double edadMs = static_cast<double>(edadUs) / cuadros / 1000.0;
                 log_.fmt(medioMs > 25.0 ? "warn" : "info", 0,
-                         "retorno video: %.1f fps, %.1f ms por cuadro, %.1f ms de A a B%s", fps,
-                         medioMs, edadMs,
-                         medioMs > 25.0 ? " (no llega: la pantalla se va a atrasar)" : "");
+                         "retorno video: %.1f fps, %.1f ms por cuadro, %.1f ms de A a B%s", fps, medioMs,
+                         edadMs, medioMs > 25.0 ? " (no llega: la pantalla se va a atrasar)" : "");
             }
             trabajoUs = 0;
             edadUs = 0;

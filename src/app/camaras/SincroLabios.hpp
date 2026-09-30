@@ -69,9 +69,9 @@ struct Medicion {
     /// Cuánto varían las mediciones entre sí (la mitad del rango entre el
     /// primer y el tercer cuartil). Si es grande, el número no es de fiar.
     int dispersionMs = 0;
-    int aplausos = 0;      ///< cuántos se pudieron emparejar
-    std::string problema;  ///< por qué no se pudo, o qué mirar con cuidado
-    bool confiable = false;///< dispersión chica y suficientes aplausos
+    int aplausos = 0;       ///< cuántos se pudieron emparejar
+    std::string problema;   ///< por qué no se pudo, o qué mirar con cuidado
+    bool confiable = false; ///< dispersión chica y suficientes aplausos
 };
 
 /// Empareja los golpes del audio con los del video y saca el retardo.

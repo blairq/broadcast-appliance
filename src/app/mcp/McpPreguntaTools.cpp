@@ -20,12 +20,12 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
+#include "AppRuntime.hpp"
 #include "mcp/McpCore.hpp"
 #include "ui/ConferenceClient.hpp"
+#include "ui/ConferenceViewModel.hpp"
 #include "ui/EventoViewModel.hpp"
 #include "ui/PersonasViewModel.hpp"
-#include "ui/ConferenceViewModel.hpp"
-#include "AppRuntime.hpp"
 #include "ui/StudioViewModel.hpp"
 
 namespace ba::app::mcp {
@@ -39,8 +39,7 @@ using json = nlohmann::json;
 constexpr qint64 kMaxFondo = 2 * 1024 * 1024;
 
 json aJson(const QJsonObject& o) {
-    return json::parse(QJsonDocument(o).toJson(QJsonDocument::Compact).toStdString(), nullptr,
-                       false);
+    return json::parse(QJsonDocument(o).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
 }
 
 } // namespace
@@ -55,12 +54,10 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
     /// Todo pasa por B. Si B no esta, se dice y no se inventa una cola vacia:
     /// «no hay preguntas» y «no puedo ver las preguntas» son cosas muy
     /// distintas para el que esta por salir al aire.
-    const auto pedir = [salaDe](const QString& metodo, const QString& ruta,
-                                const QJsonObject& cuerpo, Done done,
-                                const std::string& textoOk) {
+    const auto pedir = [salaDe](const QString& metodo, const QString& ruta, const QJsonObject& cuerpo,
+                                Done done, const std::string& textoOk) {
         ConferenceViewModel* conf = salaDe();
-        if (conf == nullptr)
-            return done(ToolResult::error("La sala no esta disponible en esta sesion."));
+        if (conf == nullptr) return done(ToolResult::error("La sala no esta disponible en esta sesion."));
         const auto contestar = [done, textoOk](bool ok, const QJsonObject& r) {
             if (!ok)
                 return done(ToolResult::error(
@@ -71,8 +68,10 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
             res.structured = aJson(r);
             done(res);
         };
-        if (metodo == "GET") conf->client().get(ruta, contestar);
-        else conf->client().post(ruta, cuerpo, contestar);
+        if (metodo == "GET")
+            conf->client().get(ruta, contestar);
+        else
+            conf->client().post(ruta, cuerpo, contestar);
     };
 
     {
@@ -132,19 +131,17 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
             {"properties",
              {{"accion",
                {{"type", "string"},
-                {"enum", {"elegir", "des_elegir", "al_aire", "responder", "descartar", "limpiar",
-                          "vaciar"}}}},
+                {"enum",
+                 {"elegir", "des_elegir", "al_aire", "responder", "descartar", "limpiar", "vaciar"}}}},
               {"id", {{"type", "string"}, {"description", "el id que da preguntas_ver"}}}}}};
         t.run = [pedir](const json& a, Done done) {
             const std::string accion = a.value("accion", std::string());
             const std::string id = a.value("id", std::string());
             const bool necesitaId = accion != "limpiar" && accion != "vaciar";
             if (necesitaId && id.empty())
-                return done(ToolResult::error(
-                    "Falta `id`: decime cual. Los ids los da `preguntas_ver`."));
+                return done(ToolResult::error("Falta `id`: decime cual. Los ids los da `preguntas_ver`."));
             pedir("POST", "/api/v1/preguntas",
-                  QJsonObject{{"accion", QString::fromStdString(accion)},
-                              {"id", QString::fromStdString(id)}},
+                  QJsonObject{{"accion", QString::fromStdString(accion)}, {"id", QString::fromStdString(id)}},
                   std::move(done), "Hecho.");
         };
         core.addTool(std::move(t));
@@ -164,23 +161,21 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
             "`deDonde` deja dicho por donde entro, para poder nombrarlo al aire («nos preguntan por "
             "YouTube...»).\\n\\n"
             "El nombre es opcional: mucha gente prefiere preguntar sin dar el nombre y eso esta bien.";
-        t.inputSchema = {
-            {"type", "object"},
-            {"required", {"texto"}},
-            {"properties",
-             {{"texto", {{"type", "string"}}},
-              {"nombre", {{"type", "string"}}},
-              {"deDonde",
-               {{"type", "string"},
-                {"enum", {"sala", "publico", "youtube", "twitch", "facebook"}},
-                {"description", "por donde llego"}}}}}};
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"texto"}},
+                         {"properties",
+                          {{"texto", {{"type", "string"}}},
+                           {"nombre", {{"type", "string"}}},
+                           {"deDonde",
+                            {{"type", "string"},
+                             {"enum", {"sala", "publico", "youtube", "twitch", "facebook"}},
+                             {"description", "por donde llego"}}}}}};
         t.run = [pedir](const json& a, Done done) {
             pedir("POST", "/api/v1/preguntas",
-                  QJsonObject{
-                      {"accion", "preguntar"},
-                      {"texto", QString::fromStdString(a.value("texto", std::string()))},
-                      {"nombre", QString::fromStdString(a.value("nombre", std::string()))},
-                      {"deDonde", QString::fromStdString(a.value("deDonde", std::string("sala")))}},
+                  QJsonObject{{"accion", "preguntar"},
+                              {"texto", QString::fromStdString(a.value("texto", std::string()))},
+                              {"nombre", QString::fromStdString(a.value("nombre", std::string()))},
+                              {"deDonde", QString::fromStdString(a.value("deDonde", std::string("sala")))}},
                   std::move(done), "Sumada a la cola.");
         };
         core.addTool(std::move(t));
@@ -191,28 +186,26 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.name = "votacion_abrir";
         t.title = "Abrir una votacion o una encuesta";
         t.category = "preguntas";
-        t.description =
-            "Pone una pregunta a votar en la pagina del publico, con sus opciones.";
-        t.details =
-            "SON DOS COSAS DISTINTAS Y NO SE MEZCLAN:\n\n"
-            "- `modo: encuesta` — vota cualquiera que tenga el enlace, una vez por telefono. Es "
-            "enganche («de que tema quieren que hablemos») y sus numeros son INDICATIVOS. No sirve "
-            "para decidir nada.\n"
-            "- `modo: formal` — vota quien esta en el PADRON con derecho a voto y ya llego, una vez "
-            "cada uno, identificandose con su codigo. Es lo que hace que lo que se decide en una "
-            "asamblea valga.\n\n"
-            "En la formal los habilitados salen solos del padron del evento abierto: los que tienen "
-            "`vota` y estado `llego`. Si no hay ninguno, no se abre y se dice por que — abrir una "
-            "votacion formal donde nadie puede votar es peor que no abrirla, porque el resultado "
-            "parece valido.\n\n"
-            "EL DENOMINADOR IMPORTA. Se manda cuantos tenian derecho segun el padron, asi el "
-            "resultado dice «votaron 12 de 40» y no solo «12»: sin eso, dos a favor y cero en contra "
-            "parece unanime cuando en realidad no vino nadie.\n\n"
-            "`secreta` no quiere decir anonima: se sigue sabiendo QUIEN voto —hace falta para probar "
-            "el quorum— y se deja de guardar QUE voto.\n\n"
-            "`enVivo` muestra el resultado mientras esta abierta. En una formal conviene que NO: ver "
-            "que va perdiendo cambia lo que vota el que todavia no voto.\n\n"
-            "Hay UNA por vez: abrir otra reemplaza a la anterior y no arrastra sus votos.";
+        t.description = "Pone una pregunta a votar en la pagina del publico, con sus opciones.";
+        t.details = "SON DOS COSAS DISTINTAS Y NO SE MEZCLAN:\n\n"
+                    "- `modo: encuesta` — vota cualquiera que tenga el enlace, una vez por telefono. Es "
+                    "enganche («de que tema quieren que hablemos») y sus numeros son INDICATIVOS. No sirve "
+                    "para decidir nada.\n"
+                    "- `modo: formal` — vota quien esta en el PADRON con derecho a voto y ya llego, una vez "
+                    "cada uno, identificandose con su codigo. Es lo que hace que lo que se decide en una "
+                    "asamblea valga.\n\n"
+                    "En la formal los habilitados salen solos del padron del evento abierto: los que tienen "
+                    "`vota` y estado `llego`. Si no hay ninguno, no se abre y se dice por que — abrir una "
+                    "votacion formal donde nadie puede votar es peor que no abrirla, porque el resultado "
+                    "parece valido.\n\n"
+                    "EL DENOMINADOR IMPORTA. Se manda cuantos tenian derecho segun el padron, asi el "
+                    "resultado dice «votaron 12 de 40» y no solo «12»: sin eso, dos a favor y cero en contra "
+                    "parece unanime cuando en realidad no vino nadie.\n\n"
+                    "`secreta` no quiere decir anonima: se sigue sabiendo QUIEN voto —hace falta para probar "
+                    "el quorum— y se deja de guardar QUE voto.\n\n"
+                    "`enVivo` muestra el resultado mientras esta abierta. En una formal conviene que NO: ver "
+                    "que va perdiendo cambia lo que vota el que todavia no voto.\n\n"
+                    "Hay UNA por vez: abrir otra reemplaza a la anterior y no arrastra sus votos.";
         t.inputSchema = {
             {"type", "object"},
             {"required", {"pregunta", "opciones"}},
@@ -235,13 +228,12 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
                 return done(ToolResult::error(
                     "Hacen falta al menos dos opciones: con una sola no hay nada que decidir."));
 
-            QJsonObject cuerpo{
-                {"accion", "abrir"},
-                {"pregunta", QString::fromStdString(a.value("pregunta", std::string()))},
-                {"opciones", opciones},
-                {"modo", QString::fromStdString(a.value("modo", std::string("encuesta")))},
-                {"secreta", a.value("secreta", false)},
-                {"enVivo", a.value("enVivo", false)}};
+            QJsonObject cuerpo{{"accion", "abrir"},
+                               {"pregunta", QString::fromStdString(a.value("pregunta", std::string()))},
+                               {"opciones", opciones},
+                               {"modo", QString::fromStdString(a.value("modo", std::string("encuesta")))},
+                               {"secreta", a.value("secreta", false)},
+                               {"enVivo", a.value("enVivo", false)}};
 
             if (a.value("modo", std::string("encuesta")) == "formal") {
                 auto* ev = static_cast<EventoViewModel*>(vm.evento());
@@ -283,35 +275,32 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.description =
             "El recuento de la votacion o encuesta, quienes votaron y quienes faltan. Con `cerrar` la "
             "da por terminada.";
-        t.details =
-            "`votaron` y `podian` juntos son el QUORUM: «votaron 12 de 40». En una formal viene "
-            "ademas `quienes` (con que voto cada uno, salvo que sea secreta) y `faltanVotar`, que es "
-            "con lo que se sale a buscar a los que faltan antes de cerrar.\n\n"
-            "`cerrar` deja el resultado firme y lo muestra a todos los telefonos. Los votos NO se "
-            "borran al cerrar: el resultado se sigue mirando despues y es lo que va al acta.\n\n"
-            "`enVivo` prende o apaga que el resultado se vea mientras esta abierta, por si se abrio "
-            "con la decision equivocada.\n\n"
-            "Con `historial` vienen ademas TODAS las que se cerraron en este evento, que es lo que "
-            "va al acta: una asamblea vota varios puntos y el acta los lleva a todos, no al ultimo.";
+        t.details = "`votaron` y `podian` juntos son el QUORUM: «votaron 12 de 40». En una formal viene "
+                    "ademas `quienes` (con que voto cada uno, salvo que sea secreta) y `faltanVotar`, que es "
+                    "con lo que se sale a buscar a los que faltan antes de cerrar.\n\n"
+                    "`cerrar` deja el resultado firme y lo muestra a todos los telefonos. Los votos NO se "
+                    "borran al cerrar: el resultado se sigue mirando despues y es lo que va al acta.\n\n"
+                    "`enVivo` prende o apaga que el resultado se vea mientras esta abierta, por si se abrio "
+                    "con la decision equivocada.\n\n"
+                    "Con `historial` vienen ademas TODAS las que se cerraron en este evento, que es lo que "
+                    "va al acta: una asamblea vota varios puntos y el acta los lleva a todos, no al ultimo.";
         t.readOnly = false;
         t.inputSchema = {
             {"type", "object"},
             {"properties",
              {{"cerrar", {{"type", "boolean"}}},
               {"historial",
-               {{"type", "boolean"},
-                {"description", "ademas, TODAS las que se cerraron en este evento"}}},
+               {{"type", "boolean"}, {"description", "ademas, TODAS las que se cerraron en este evento"}}},
               {"enVivo", {{"type", "boolean"}, {"description", "mostrar el resultado en vivo"}}}}}};
         t.run = [pedir](const json& a, Done done) {
             if (a.value("cerrar", false))
-                return pedir("POST", "/api/v1/votacion", QJsonObject{{"accion", "cerrar"}},
-                             std::move(done), "Votacion cerrada.");
+                return pedir("POST", "/api/v1/votacion", QJsonObject{{"accion", "cerrar"}}, std::move(done),
+                             "Votacion cerrada.");
             if (a.contains("enVivo"))
                 return pedir("POST", "/api/v1/votacion",
                              QJsonObject{{"accion", "en_vivo"}, {"si", a["enVivo"].get<bool>()}},
                              std::move(done), "Hecho.");
-            pedir("GET",
-                  a.value("historial", false) ? "/api/v1/votacion?historial=1" : "/api/v1/votacion",
+            pedir("GET", a.value("historial", false) ? "/api/v1/votacion?historial=1" : "/api/v1/votacion",
                   {}, std::move(done), {});
         };
         core.addTool(std::move(t));
@@ -323,31 +312,28 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.title = "Si los que esperan estan listos para salir al aire";
         t.category = "preguntas";
         t.readOnly = true;
-        t.description =
-            "Para cada persona que espera en el lobby: si su camara y su microfono sirven, y que "
-            "decirle cuando no.";
-        t.details =
-            "LA CAUSA NUMERO UNO DE QUE UN EVENTO HIBRIDO SE CAIGA es el orador que prueba el "
-            "microfono cuando le dan la palabra. Esto es para correrlo ANTES: el invitado entra al "
-            "lobby cuando quiere y se le dice que arreglar mientras hay tiempo.\n\n"
-            "Junta en una sola respuesta lo que hoy hay que ir a buscar a tres lados: la calidad de "
-            "la cara (que tambien decide si el reconocimiento va a funcionar), el nivel de audio de "
-            "su canal y si esta silenciado.\n\n"
-            "`listo` es la respuesta corta. `quedecirle` es la frase para mandarle por "
-            "`participant_talk`, escrita para que la lea alguien que no sabe de audio: «acercate un "
-            "poco» y no «estas a -42 dBFS».\n\n"
-            "NO ARREGLA NADA NI LE HABLA A NADIE: informa. Mandarle el mensaje es una decision del "
-            "que opera, porque el invitado puede estar hablando con otro o todavia no saber que lo "
-            "estan mirando.\n\n"
-            "El audio solo se puede leer si esa persona ya tiene su canal andando; si todavia no "
-            "mando nada, se dice que no se sabe en vez de darlo por bueno.";
+        t.description = "Para cada persona que espera en el lobby: si su camara y su microfono sirven, y que "
+                        "decirle cuando no.";
+        t.details = "LA CAUSA NUMERO UNO DE QUE UN EVENTO HIBRIDO SE CAIGA es el orador que prueba el "
+                    "microfono cuando le dan la palabra. Esto es para correrlo ANTES: el invitado entra al "
+                    "lobby cuando quiere y se le dice que arreglar mientras hay tiempo.\n\n"
+                    "Junta en una sola respuesta lo que hoy hay que ir a buscar a tres lados: la calidad de "
+                    "la cara (que tambien decide si el reconocimiento va a funcionar), el nivel de audio de "
+                    "su canal y si esta silenciado.\n\n"
+                    "`listo` es la respuesta corta. `quedecirle` es la frase para mandarle por "
+                    "`participant_talk`, escrita para que la lea alguien que no sabe de audio: «acercate un "
+                    "poco» y no «estas a -42 dBFS».\n\n"
+                    "NO ARREGLA NADA NI LE HABLA A NADIE: informa. Mandarle el mensaje es una decision del "
+                    "que opera, porque el invitado puede estar hablando con otro o todavia no saber que lo "
+                    "estan mirando.\n\n"
+                    "El audio solo se puede leer si esa persona ya tiene su canal andando; si todavia no "
+                    "mando nada, se dice que no se sabe en vez de darlo por bueno.";
         t.run = [&vm, &rt](const json&, Done done) {
             auto* pv = static_cast<PersonasViewModel*>(vm.personas());
             if (pv == nullptr)
                 return done(ToolResult::error("El reconocimiento no esta disponible en esta sesion."));
             auto* conf = static_cast<ConferenceViewModel*>(vm.conference());
             if (conf == nullptr) return done(ToolResult::error("La sala no esta disponible."));
-
 
             const QVariantMap lobby = pv->enLobby();
             json gente = json::array();
@@ -375,7 +361,8 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
                 if (!caraOk && !sugerencia.isEmpty()) decirle = sugerencia.toStdString();
                 if (!hayAudio) {
                     if (!decirle.empty()) decirle += " ";
-                    decirle += "Todavia no te escucho: fijate que el navegador tenga permiso para usar el microfono.";
+                    decirle += "Todavia no te escucho: fijate que el navegador tenga permiso para usar el "
+                               "microfono.";
                 } else if (silenciado) {
                     if (!decirle.empty()) decirle += " ";
                     decirle += "Tenes el microfono silenciado.";
@@ -388,10 +375,10 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
                                      {"nombre", p.value("nombre").toString().toStdString()},
                                      {"listo", caraOk && audioOk},
                                      {"camara", caraOk ? "bien" : "no sirve todavia"},
-                                     {"audio", !hayAudio ? "no se sabe"
+                                     {"audio", !hayAudio    ? "no se sabe"
                                                : silenciado ? "silenciado"
-                                               : audioOk ? "bien"
-                                                         : "muy bajo"},
+                                               : audioOk    ? "bien"
+                                                            : "muy bajo"},
                                      {"picoDb", hayAudio ? pico : -100.0},
                                      {"quedecirle", decirle}});
             }
@@ -409,9 +396,8 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.name = "evento_acta";
         t.title = "El acta del evento: quienes estuvieron y que se decidio";
         t.category = "preguntas";
-        t.description =
-            "Arma el acta con el padron de presentes, el quorum y todas las votaciones que se "
-            "cerraron, y la guarda en la carpeta del evento.";
+        t.description = "Arma el acta con el padron de presentes, el quorum y todas las votaciones que se "
+                        "cerraron, y la guarda en la carpeta del evento.";
         t.details =
             "NO ES `evento_informe`, Y NO SE PARECEN. El informe dice que el bloque 3 se fue cuatro "
             "minutos: es para el operador. El acta dice QUIENES ASISTIERON, QUE SE VOTO y COMO SALIO: "
@@ -424,41 +410,37 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
             "Se escribe en la carpeta del evento como acta-<fecha>.md. Es texto plano a proposito: "
             "se abre en cualquier lado y se pega en un correo sin que se rompa nada.\n\n"
             "Con `soloVer` en true lo devuelve sin escribir el archivo.";
-        t.inputSchema = {{"type", "object"},
-                         {"properties", {{"soloVer", {{"type", "boolean"}}}}}};
+        t.inputSchema = {{"type", "object"}, {"properties", {{"soloVer", {{"type", "boolean"}}}}}};
         t.run = [salaDe, &vm](const json& a, Done done) {
             auto* ev = static_cast<EventoViewModel*>(vm.evento());
             if (ev == nullptr || ev->abierto().isEmpty())
                 return done(ToolResult::error(
                     "No hay evento abierto: el acta es de un evento. Abri uno con `evento_abrir`."));
             ConferenceViewModel* conf = salaDe();
-            if (conf == nullptr)
-                return done(ToolResult::error("La sala no esta disponible en esta sesion."));
+            if (conf == nullptr) return done(ToolResult::error("La sala no esta disponible en esta sesion."));
 
             const bool soloVer = a.value("soloVer", false);
             // El historial de la urna vive en B: hay que ir a buscarlo antes de
             // poder escribir nada.
-            conf->client().get("/api/v1/votacion?historial=1", [ev, done, soloVer](
-                                                                   bool ok, const QJsonObject& r) {
-                const QJsonArray votaciones = ok ? r.value("historial").toArray() : QJsonArray{};
-                const QString texto = ev->acta(votaciones);
-                QString archivo;
-                if (!soloVer) archivo = ev->guardarActa(texto);
-                ToolResult res;
-                res.text(texto.toStdString());
-                json out{{"acta", texto.toStdString()},
-                         {"votaciones", votaciones.size()}};
-                if (!archivo.isEmpty()) out["archivo"] = archivo.toStdString();
-                // Si B no contesto, el acta sale igual PERO se dice: un acta a
-                // la que le faltan las votaciones y no lo aclara es peor que
-                // ninguna.
-                if (!ok)
-                    out["aviso"] =
-                        "No pude hablar con la sala: el acta va SIN las votaciones. Fijate "
-                        "`room_status` y volve a pedirla.";
-                res.structured = out;
-                done(res);
-            });
+            conf->client().get(
+                "/api/v1/votacion?historial=1", [ev, done, soloVer](bool ok, const QJsonObject& r) {
+                    const QJsonArray votaciones = ok ? r.value("historial").toArray() : QJsonArray{};
+                    const QString texto = ev->acta(votaciones);
+                    QString archivo;
+                    if (!soloVer) archivo = ev->guardarActa(texto);
+                    ToolResult res;
+                    res.text(texto.toStdString());
+                    json out{{"acta", texto.toStdString()}, {"votaciones", votaciones.size()}};
+                    if (!archivo.isEmpty()) out["archivo"] = archivo.toStdString();
+                    // Si B no contesto, el acta sale igual PERO se dice: un acta a
+                    // la que le faltan las votaciones y no lo aclara es peor que
+                    // ninguna.
+                    if (!ok)
+                        out["aviso"] = "No pude hablar con la sala: el acta va SIN las votaciones. Fijate "
+                                       "`room_status` y volve a pedirla.";
+                    res.structured = out;
+                    done(res);
+                });
         };
         core.addTool(std::move(t));
     }
@@ -488,26 +470,21 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
             {"properties",
              {{"titulo", {{"type", "string"}, {"description", "lo que se lee arriba de todo"}}},
               {"cuando", {{"type", "string"}, {"description", "el renglon chico de abajo del titulo"}}},
-              {"fondo",
-               {{"type", "string"},
-                {"description", "ruta de una imagen del disco; vacio la saca"}}},
+              {"fondo", {{"type", "string"}, {"description", "ruta de una imagen del disco; vacio la saca"}}},
               {"remoto",
                {{"type", "boolean"},
                 {"description", "el enlace por internet en vez del de la red local"}}}}}};
         t.run = [pedir, salaDe](const json& a, Done done) {
             ConferenceViewModel* conf = salaDe();
-            if (conf == nullptr)
-                return done(ToolResult::error("La sala no esta disponible en esta sesion."));
+            if (conf == nullptr) return done(ToolResult::error("La sala no esta disponible en esta sesion."));
             const bool cambia = a.contains("titulo") || a.contains("cuando") || a.contains("fondo");
             const QString ruta = QString("/api/v1/publico-link?target=") +
                                  (a.value("remoto", false) ? "remote" : "local") + "&conClave=1";
             if (!cambia) return pedir("GET", ruta, {}, std::move(done), {});
 
             QJsonObject info;
-            if (a.contains("titulo"))
-                info["evento"] = QString::fromStdString(a["titulo"].get<std::string>());
-            if (a.contains("cuando"))
-                info["cuando"] = QString::fromStdString(a["cuando"].get<std::string>());
+            if (a.contains("titulo")) info["evento"] = QString::fromStdString(a["titulo"].get<std::string>());
+            if (a.contains("cuando")) info["cuando"] = QString::fromStdString(a["cuando"].get<std::string>());
             QJsonObject cuerpo{{"info", info}};
             if (a.contains("fondo")) {
                 const std::string ruta = a["fondo"].get<std::string>();
@@ -523,10 +500,9 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
                             "Esa imagen pesa mas de 2 MB. La bajan todos los telefonos del salon: "
                             "achicala antes."));
                     cuerpo["fondo"] = QString::fromLatin1(bytes.toBase64());
-                    cuerpo["fondoTipo"] =
-                        QString::fromStdString(ruta).endsWith(".png", Qt::CaseInsensitive)
-                            ? "image/png"
-                            : "image/jpeg";
+                    cuerpo["fondoTipo"] = QString::fromStdString(ruta).endsWith(".png", Qt::CaseInsensitive)
+                                              ? "image/png"
+                                              : "image/jpeg";
                 }
             }
             pedir("POST", "/api/v1/publico-info", cuerpo,

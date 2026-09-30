@@ -34,7 +34,10 @@ namespace ba::app {
 
 class AppRuntime;
 class ConferenceViewModel;
-namespace graficos { class Emisor; class Vinculos; }
+namespace graficos {
+class Emisor;
+class Vinculos;
+} // namespace graficos
 
 class EventoViewModel : public QObject {
     Q_OBJECT
@@ -69,7 +72,7 @@ class EventoViewModel : public QObject {
     // --- Revision previa ------------------------------------------------------
     Q_PROPERTY(QVariantList reparos READ reparos NOTIFY reparosChanged)
 
-  public:
+   public:
     /// :param sinAbrirUltimo: no abre solo el ultimo evento que se toco. Lo
     ///        usa el arranque cuando ese evento se llevo puesto el arranque
     ///        anterior (ver diag/DiarioDeArranque.hpp).
@@ -246,13 +249,13 @@ class EventoViewModel : public QObject {
     /// conectado). Se corre a pedido, no sola.
     Q_INVOKABLE void revisar();
 
-  public:
+   public:
     // Las dos de arriba, ademas, como propiedades: es lo que hace que la vista
     // se redibuje sola cuando alguien llega.
     Q_PROPERTY(QVariantList padron READ padron NOTIFY padronChanged)
     Q_PROPERTY(QVariantMap resumenPadron READ resumenPadron NOTIFY padronChanged)
 
-  signals:
+   signals:
     void listaChanged();
     void guionChanged();
     void sucioChanged();
@@ -263,7 +266,7 @@ class EventoViewModel : public QObject {
     void padronChanged();
     void notify(const QString& texto, const QString& tipo);
 
-  public:
+   public:
     /// La carpeta Discursos/ del evento abierto (vacía si no hay ninguno).
     /// La usa el teleprompter, que lee y escribe los mismos archivos que el
     /// cue `teleprompter`: una sola verdad, no dos carpetas parecidas.
@@ -272,7 +275,7 @@ class EventoViewModel : public QObject {
     /// la carpeta (un ".." en un guion que vino de otra máquina).
     QString rutaDeDiscurso(const QString& rel) const { return discursoPathPriv(rel); }
 
-  private:
+   private:
     /// Ejecuta el cue donde esta parado el guion. En ensayo no toca nada.
     void ejecutarActual();
     void anotar(const QString& texto, const QString& tipo);

@@ -354,8 +354,8 @@ QVariantMap AgentViewModel::modeloPropio() const {
     m["nombre"] = QString::fromStdString(c != nullptr ? c->nombre : std::string());
     // Indentado: esto se edita a mano en una caja de texto, y un JSON en una
     // sola línea no se puede leer ni corregir.
-    m["extra"] = QString::fromStdString(
-        c != nullptr && c->extra.is_object() ? c->extra.dump(2) : std::string("{}"));
+    m["extra"] =
+        QString::fromStdString(c != nullptr && c->extra.is_object() ? c->extra.dump(2) : std::string("{}"));
     m["instrucciones"] = QString::fromStdString(c != nullptr ? c->instrucciones : std::string());
     m["piensa"] = c != nullptr ? c->piensa : true;
     return m;
@@ -375,7 +375,8 @@ void AgentViewModel::probarModeloPropio() {
     // ni un token. Preguntar generando texto para saber si el servidor está
     // sería pagar por un ping.
     std::string url = mp.url;
-    while (!url.empty() && url.back() == '/') url.pop_back();
+    while (!url.empty() && url.back() == '/')
+        url.pop_back();
     url += "/models";
     const std::string modelo = mp.modelo;
     const std::string autorizacion = "Bearer " + clave.trimmed().toStdString();
@@ -408,14 +409,14 @@ void AgentViewModel::probarModeloPropio() {
                               QString::fromStdString(modelo) + "» en su lista. Revisá el nombre.";
             nivel = estaEnLaLista ? "ok" : "aviso";
         }
-        QMetaObject::invokeMethod(this, [this, texto, nivel]() { emit notify(texto, nivel); },
-                                  Qt::QueuedConnection);
+        QMetaObject::invokeMethod(
+            this, [this, texto, nivel]() { emit notify(texto, nivel); }, Qt::QueuedConnection);
     }).detach();
 }
 
-QString AgentViewModel::guardarModeloPropio(const QString& url, const QString& modelo,
-                                            const QString& nombre, const QString& extraJson,
-                                            const QString& instrucciones, bool piensa) {
+QString AgentViewModel::guardarModeloPropio(const QString& url, const QString& modelo, const QString& nombre,
+                                            const QString& extraJson, const QString& instrucciones,
+                                            bool piensa) {
     if (url.trimmed().isEmpty()) return "Falta la dirección del servidor (baseURL).";
     if (modelo.trimmed().isEmpty()) return "Falta el nombre del modelo que pide tu servidor.";
     json extra = json::object();
@@ -918,8 +919,8 @@ QStringList AgentViewModel::modelosDe(const QString& proveedor) {
     // que haya configurados, y eso solo se sabe leyendo su configuración.
     if (proveedor == "propio") {
         QStringList out;
-        for (const auto& m : ModeloPropio::leer(g_raiz / "Config" / "modelo-propio.json")
-                                 .comoLosLlamaOpencode())
+        for (const auto& m :
+             ModeloPropio::leer(g_raiz / "Config" / "modelo-propio.json").comoLosLlamaOpencode())
             out << QString::fromStdString(m);
         return out;
     }
@@ -932,8 +933,8 @@ QString AgentViewModel::prepareWorkspace(QString* error) {
     const QString prompt = systemPrompt_ ? systemPrompt_() : QString();
     // Con su juego de herramientas (ver Roles::juegoDelAsistente) y CON
     // consola: es el asistente del operador, no un agente de un tiro.
-    return prepareWorkspaceEn(root + "/Runtime/agente", provider_, model_, {"--rol", "asistente"},
-                              prompt, error, true);
+    return prepareWorkspaceEn(root + "/Runtime/agente", provider_, model_, {"--rol", "asistente"}, prompt,
+                              error, true);
 }
 
 QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& proveedor, const QString& modelo,
@@ -960,7 +961,8 @@ QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& pro
         }
     const std::string bridge = bridgePath().toStdString();
     json args = json::array();
-    for (const QString& a : bridgeArgs) args.push_back(a.toStdString());
+    for (const QString& a : bridgeArgs)
+        args.push_back(a.toStdString());
     const json mcpStdio{{"command", bridge}, {"args", args}, {"env", {{"BA_DATA_ROOT", root.toStdString()}}}};
     const QString runtime = runtimeOf(proveedor);
     const Provider* prov = findProvider(proveedor);
@@ -971,7 +973,8 @@ QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& pro
                   QByteArray::fromStdString(json{{"mcpServers", {{"broadcast", m}}}}.dump(2)));
     } else if (runtime == "opencode") {
         json cmd = json::array({bridge});
-        for (const auto& a : args) cmd.push_back(a);
+        for (const auto& a : args)
+            cmd.push_back(a);
         json cfg{{"$schema", "https://opencode.ai/config.json"},
                  {"autoupdate", false},
                  {"mcp",
@@ -995,8 +998,7 @@ QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& pro
         // aparato no le habla al modelo, le escribe la configuración a quien
         // sí sabe hablarle—.
         if (proveedor == "propio") {
-            const ModeloPropio mp =
-                ModeloPropio::leer(rt_.dataRoot() / "Config" / "modelo-propio.json");
+            const ModeloPropio mp = ModeloPropio::leer(rt_.dataRoot() / "Config" / "modelo-propio.json");
             if (mp.completo()) {
                 // UN PROVEEDOR POR CANAL. Los canales son el MISMO modelo del
                 // mismo servidor con otros parámetros, y esos parámetros van
@@ -1031,8 +1033,8 @@ QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& pro
                     // Que acepta imágenes: sin esto opencode no le manda
                     // ninguna, y el agente que mira no tendría qué mirar.
                     m["attachment"] = true;
-                    m["modalities"] = json{{"input", json::array({"text", "image"})},
-                                           {"output", json::array({"text"})}};
+                    m["modalities"] =
+                        json{{"input", json::array({"text", "image"})}, {"output", json::array({"text"})}};
                     if (c.limite.is_object() && !c.limite.empty()) m["limit"] = c.limite;
                     if (c.extra.is_object() && !c.extra.empty()) m["options"] = c.extra;
                     provs["propio-" + c.id] = json{{"npm", "@ai-sdk/openai-compatible"},
@@ -1044,9 +1046,8 @@ QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& pro
                 // El canal elegido, o el primero si no eligieron ninguno.
                 const std::string pedido = modelo.toStdString();
                 const auto todos = mp.comoLosLlamaOpencode();
-                cfg["model"] = std::find(todos.begin(), todos.end(), pedido) != todos.end()
-                                   ? pedido
-                                   : todos.front();
+                cfg["model"] =
+                    std::find(todos.begin(), todos.end(), pedido) != todos.end() ? pedido : todos.front();
             }
         }
         writeText(ws + "/opencode.json", QByteArray::fromStdString(cfg.dump(2)));
@@ -1071,8 +1072,8 @@ QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& pro
     return ws;
 }
 
-term::Pty::Options AgentViewModel::baseLaunch(const QString& proveedor, const QString& modelo, const QString& ws,
-                                              QString* error) {
+term::Pty::Options AgentViewModel::baseLaunch(const QString& proveedor, const QString& modelo,
+                                              const QString& ws, QString* error) {
     term::Pty::Options o;
     const QString runtime = runtimeOf(proveedor);
     const Provider* prov = findProvider(proveedor);
@@ -1090,9 +1091,8 @@ term::Pty::Options AgentViewModel::baseLaunch(const QString& proveedor, const QS
     o.workDir = ws;
     o.env["BA_DATA_ROOT"] = root;
     o.env["TERM"] = "xterm-256color";
-    o.unsetEnv = {"ANTHROPIC_API_KEY",  "ANTHROPIC_AUTH_TOKEN", "GEMINI_API_KEY", "GOOGLE_API_KEY",
-                  "OPENROUTER_API_KEY", "CLAUDECODE",           "LD_LIBRARY_PATH",
-                  "BA_MODELO_PROPIO_KEY"};
+    o.unsetEnv = {"ANTHROPIC_API_KEY",  "ANTHROPIC_AUTH_TOKEN", "GEMINI_API_KEY",  "GOOGLE_API_KEY",
+                  "OPENROUTER_API_KEY", "CLAUDECODE",           "LD_LIBRARY_PATH", "BA_MODELO_PROPIO_KEY"};
     if (prov != nullptr && !QString(prov->keyName).isEmpty()) {
         QByteArray key;
         if (!cred::read(root + "/Credenciales", prov->keyName, key)) {
@@ -1199,7 +1199,8 @@ term::Pty::Options AgentViewModel::launchOptionsHeadless(const Lanzamiento& l, Q
         // medido, `opencode` respondió «File not found: ENCARGO: Mirá la
         // imagen…». Ver `Lanzamiento::adjuntos`.
         o.args << l.encargo;
-        for (const QString& f : l.adjuntos) o.args << "-f" << f;
+        for (const QString& f : l.adjuntos)
+            o.args << "-f" << f;
     }
     return o;
 }

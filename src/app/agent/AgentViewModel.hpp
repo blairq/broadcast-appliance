@@ -147,9 +147,9 @@ class AgentViewModel : public QObject {
     /// exactamente lo que no hay que hacer en un aparato que está al aire.
     Q_INVOKABLE void probarModeloPropio();
 
-    Q_INVOKABLE QString guardarModeloPropio(const QString& url, const QString& modelo,
-                                            const QString& nombre, const QString& extraJson,
-                                            const QString& instrucciones, bool piensa);
+    Q_INVOKABLE QString guardarModeloPropio(const QString& url, const QString& modelo, const QString& nombre,
+                                            const QString& extraJson, const QString& instrucciones,
+                                            bool piensa);
     Q_INVOKABLE void clearKey();
     Q_INVOKABLE void setAlertsToChat(bool on);
     Q_INVOKABLE void setAutoStart(bool on);

@@ -105,8 +105,10 @@ void RegistroViewModel::setSiguiendo(bool s) {
     // Se deja de leer del todo al dejar de seguir: mirar una línea de hace
     // media hora no tiene por qué costar una lectura de disco cada dos
     // segundos, y además la lista se movería sola mientras se lee.
-    if (s) d_->reloj.start();
-    else d_->reloj.stop();
+    if (s)
+        d_->reloj.start();
+    else
+        d_->reloj.stop();
     emit filtroCambio();
 }
 
@@ -119,9 +121,7 @@ void RegistroViewModel::setEnMemoria(bool m) {
     refrescar();
 }
 
-int RegistroViewModel::nivelDelProceso() const {
-    return static_cast<int>(ba::diag::registro().nivel());
-}
+int RegistroViewModel::nivelDelProceso() const { return static_cast<int>(ba::diag::registro().nivel()); }
 
 void RegistroViewModel::setNivelDelProceso(int n) {
     const auto v = static_cast<ba::diag::Nivel>(std::clamp(n, 0, 5));
@@ -130,8 +130,8 @@ void RegistroViewModel::setNivelDelProceso(int n) {
     // Queda anotado en el propio registro: si mañana aparece un log lleno de
     // trazas, tiene que decir quién lo puso así y cuándo.
     ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
-                               std::string("nivel de registro cambiado a ") +
-                                   ba::diag::nombreDeNivel(v) + " desde el visor");
+                               std::string("nivel de registro cambiado a ") + ba::diag::nombreDeNivel(v) +
+                                   " desde el visor");
     emit cambio();
     refrescar();
 }
@@ -142,13 +142,12 @@ QString RegistroViewModel::carpeta() const { return d_->carpeta(); }
 
 QStringList RegistroViewModel::apagados() const {
     QStringList out;
-    for (const std::string& s : ba::diag::diario().apagados()) out << QString::fromStdString(s);
+    for (const std::string& s : ba::diag::diario().apagados())
+        out << QString::fromStdString(s);
     return out;
 }
 
-QString RegistroViewModel::culpable() const {
-    return QString::fromStdString(ba::diag::diario().culpable());
-}
+QString RegistroViewModel::culpable() const { return QString::fromStdString(ba::diag::diario().culpable()); }
 
 void RegistroViewModel::prender(const QString& id) {
     ba::diag::diario().setApagado(id.toStdString(), false);
@@ -159,8 +158,7 @@ void RegistroViewModel::prender(const QString& id) {
 }
 
 QString RegistroViewModel::exportar() {
-    const QString nombre =
-        "registro-" + QDateTime::currentDateTime().toString("yyyyMMdd-HHmmss") + ".txt";
+    const QString nombre = "registro-" + QDateTime::currentDateTime().toString("yyyyMMdd-HHmmss") + ".txt";
     const QString ruta = QDir(d_->carpeta()).filePath(nombre);
     QFile f(ruta);
     if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
@@ -169,8 +167,8 @@ QString RegistroViewModel::exportar() {
     }
     // Con el filtro adelante: quien lo reciba tiene que saber que esta mirando
     // un recorte y cual.
-    QString cab = "# Registro exportado " +
-                  QDateTime::currentDateTime().toString("dd/MM/yyyy HH:mm:ss") + "\n";
+    QString cab =
+        "# Registro exportado " + QDateTime::currentDateTime().toString("dd/MM/yyyy HH:mm:ss") + "\n";
     cab += "# desde nivel: " + niveles().value(minimo(), "traza");
     if (!modulo().isEmpty()) cab += "  modulo: " + modulo();
     if (!busca().isEmpty()) cab += "  busca: " + busca();
@@ -193,14 +191,14 @@ void RegistroViewModel::refrescar() {
         for (const auto& r : ba::diag::registro().ultimas(kTope)) {
             if (static_cast<int>(r.nivel) < static_cast<int>(d_->filtro.minimo)) continue;
             if (!d_->filtro.componentes.empty() &&
-                std::find(d_->filtro.componentes.begin(), d_->filtro.componentes.end(),
-                          r.componente) == d_->filtro.componentes.end())
+                std::find(d_->filtro.componentes.begin(), d_->filtro.componentes.end(), r.componente) ==
+                    d_->filtro.componentes.end())
                 continue;
             if (!busca.empty() &&
                 QString::fromStdString(r.texto).contains(QString::fromStdString(busca),
                                                          Qt::CaseInsensitive) == false &&
-                QString::fromStdString(r.componente).contains(QString::fromStdString(busca),
-                                                              Qt::CaseInsensitive) == false)
+                QString::fromStdString(r.componente)
+                        .contains(QString::fromStdString(busca), Qt::CaseInsensitive) == false)
                 continue;
             rs.push_back(r);
         }

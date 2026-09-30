@@ -99,11 +99,11 @@ void McpService::registerPrompterTools() {
                                     {"cargado", m.value("cargado").toBool()}});
             }
             json carpetas = json::array();
-            for (const QString& c : p->carpetas()) carpetas.push_back(c.toStdString());
+            for (const QString& c : p->carpetas())
+                carpetas.push_back(c.toStdString());
             p->setCarpeta(antes); // la pantalla queda donde estaba el operador
-            done(ToolResult().data(json{{"carpeta", a.value("carpeta", "")},
-                                        {"documentos", docs},
-                                        {"carpetas", carpetas}}));
+            done(ToolResult().data(
+                json{{"carpeta", a.value("carpeta", "")}, {"documentos", docs}, {"carpetas", carpetas}}));
         };
         core_.addTool(std::move(t));
     }
@@ -150,7 +150,8 @@ void McpService::registerPrompterTools() {
         t.inputSchema = {{"type", "object"},
                          {"required", {"rel", "texto"}},
                          {"properties", {{"rel", {{"type", "string"}}}, {"texto", {{"type", "string"}}}}}};
-        t.examples = {R"({"rel": "Apertura/intendente.txt", "texto": "Buenas noches a todos.\n\nGracias por venir."})"};
+        t.examples = {
+            R"({"rel": "Apertura/intendente.txt", "texto": "Buenas noches a todos.\n\nGracias por venir."})"};
         t.run = [p](const json& a, Done done) {
             const QString rel = QString::fromStdString(a["rel"].get<std::string>());
             const QString texto = QString::fromStdString(a["texto"].get<std::string>());
@@ -201,15 +202,14 @@ void McpService::registerPrompterTools() {
                     "o parar el texto sin que lo pida es de las pocas cosas que se notan al aire al "
                     "instante. La velocidad de fabrica (140 ppm) es la de una lectura normal en "
                     "castellano; si el orador va mas lento, bajala de a 10.";
-        t.inputSchema = {
-            {"type", "object"},
-            {"properties",
-             {{"corriendo", {{"type", "boolean"}}},
-              {"ppm", {{"type", "integer"}, {"minimum", 40}, {"maximum", 400}}},
-              {"avancePct", {{"type", "integer"}, {"minimum", 0}, {"maximum", 100}}},
-              {"parrafo", {{"type", "integer"}, {"minimum", 0}}},
-              {"aviso", {{"type", "string"}, {"description", "vacio lo saca"}}},
-              {"panico", {{"type", "boolean"}}}}}};
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"corriendo", {{"type", "boolean"}}},
+                           {"ppm", {{"type", "integer"}, {"minimum", 40}, {"maximum", 400}}},
+                           {"avancePct", {{"type", "integer"}, {"minimum", 0}, {"maximum", 100}}},
+                           {"parrafo", {{"type", "integer"}, {"minimum", 0}}},
+                           {"aviso", {{"type", "string"}, {"description", "vacio lo saca"}}},
+                           {"panico", {{"type", "boolean"}}}}}};
         t.examples = {R"({"aviso": "Redondeá"})", R"({"ppm": 130})"};
         t.run = [p](const json& a, Done done) {
             if (!p->enLinea()) {
@@ -235,15 +235,17 @@ void McpService::registerPrompterTools() {
             }
             if (a.contains("aviso")) {
                 p->avisar(QString::fromStdString(a["aviso"].get<std::string>()));
-                hecho += a["aviso"].get<std::string>().empty() ? "aviso sacado; "
-                                                               : "aviso \"" + a["aviso"].get<std::string>() + "\"; ";
+                hecho += a["aviso"].get<std::string>().empty()
+                             ? "aviso sacado; "
+                             : "aviso \"" + a["aviso"].get<std::string>() + "\"; ";
             }
             if (a.contains("corriendo")) {
                 p->arrancar(a["corriendo"].get<bool>());
                 hecho += a["corriendo"].get<bool>() ? "arrancado; " : "parado; ";
             }
             if (hecho.empty()) {
-                done(ToolResult::error("No mandaste nada que hacer. Ver help {\"tool\": \"prompter_control\"}."));
+                done(ToolResult::error(
+                    "No mandaste nada que hacer. Ver help {\"tool\": \"prompter_control\"}."));
                 return;
             }
             done(ToolResult::ok(hecho));

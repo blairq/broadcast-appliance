@@ -203,8 +203,7 @@ Canal::~Canal() = default;
 /// otra red. Como `mbedtls_net_context` es solo un descriptor, se arma el
 /// socket a mano y se lo mete ahí.
 /// :returns: 0 si salió bien.
-int conectarDesde(mbedtls_net_context& net, const std::string& host, int puerto,
-                  const std::string& desde) {
+int conectarDesde(mbedtls_net_context& net, const std::string& host, int puerto, const std::string& desde) {
     if (desde.empty()) {
         const std::string p = std::to_string(puerto);
         return mbedtls_net_connect(&net, host.c_str(), p.c_str(), MBEDTLS_NET_PROTO_TCP);
@@ -255,8 +254,7 @@ bool Canal::abrir(const std::string& host, int puerto, int timeoutMs, std::strin
     const std::string p = std::to_string(puerto);
     if (mbedtls_ctr_drbg_seed(&d_->drbg, mbedtls_entropy_func, &d_->entropia, nullptr, 0) != 0)
         return falla("no se pudo inicializar el azar");
-    if (conectarDesde(d_->net, host, puerto, desde) != 0)
-        return falla("no contesta en " + host + ":" + p);
+    if (conectarDesde(d_->net, host, puerto, desde) != 0) return falla("no contesta en " + host + ":" + p);
     mbedtls_net_set_nonblock(&d_->net);
     if (mbedtls_ssl_config_defaults(&d_->conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM,
                                     MBEDTLS_SSL_PRESET_DEFAULT) != 0)
@@ -269,8 +267,7 @@ bool Canal::abrir(const std::string& host, int puerto, int timeoutMs, std::strin
     mbedtls_ssl_conf_rng(&d_->conf, mbedtls_ctr_drbg_random, &d_->drbg);
     mbedtls_ssl_conf_read_timeout(&d_->conf, static_cast<std::uint32_t>(timeoutMs));
     if (mbedtls_ssl_setup(&d_->ssl, &d_->conf) != 0) return falla("no se pudo preparar el TLS");
-    mbedtls_ssl_set_bio(&d_->ssl, &d_->net, mbedtls_net_send, mbedtls_net_recv,
-                        mbedtls_net_recv_timeout);
+    mbedtls_ssl_set_bio(&d_->ssl, &d_->net, mbedtls_net_send, mbedtls_net_recv, mbedtls_net_recv_timeout);
 
     const std::int64_t vence = ahoraMs() + timeoutMs;
     for (;;) {
@@ -300,8 +297,8 @@ bool Canal::mandar(const Mensaje& m, std::string* error) {
     const std::string datos = armar(m);
     std::size_t escrito = 0;
     while (escrito < datos.size()) {
-        const int r = mbedtls_ssl_write(&d_->ssl, reinterpret_cast<const unsigned char*>(datos.data()) + escrito,
-                                        datos.size() - escrito);
+        const int r = mbedtls_ssl_write(
+            &d_->ssl, reinterpret_cast<const unsigned char*>(datos.data()) + escrito, datos.size() - escrito);
         if (r > 0) {
             escrito += static_cast<std::size_t>(r);
             continue;
@@ -339,8 +336,7 @@ bool Canal::esperar(const std::string& tema, int timeoutMs, Mensaje& out, std::s
             d_->buffer.append(reinterpret_cast<const char*>(buf), static_cast<std::size_t>(r));
             continue;
         }
-        if (r == MBEDTLS_ERR_SSL_WANT_READ || r == MBEDTLS_ERR_SSL_WANT_WRITE ||
-            r == MBEDTLS_ERR_SSL_TIMEOUT)
+        if (r == MBEDTLS_ERR_SSL_WANT_READ || r == MBEDTLS_ERR_SSL_WANT_WRITE || r == MBEDTLS_ERR_SSL_TIMEOUT)
             continue;
         if (error != nullptr) *error = "el aparato cerró la conexión";
         d_->abierto = false;
@@ -413,8 +409,8 @@ Estado consultar(const std::string& host, int puerto, int timeoutMs, const std::
     // pisarle a nadie lo que este viendo.
     json r;
     if (c.pedir(kPlataforma, kNsReceptor,
-                json{{"type", "GET_APP_AVAILABILITY"}, {"appId", json::array({kAppDashCast})}}, timeoutMs,
-                r, nullptr)) {
+                json{{"type", "GET_APP_AVAILABILITY"}, {"appId", json::array({kAppDashCast})}}, timeoutMs, r,
+                nullptr)) {
         e.puedeMostrar = r.value("availability", json::object()).value(kAppDashCast, "") == "APP_AVAILABLE";
     }
     c.cerrar();
@@ -441,8 +437,8 @@ Estado puedeAbrir(const std::string& host, int puerto, const std::string& appId,
     return e;
 }
 
-Estado mostrarUrl(const std::string& host, int puerto, const std::string& url, int recargarSeg,
-                  int timeoutMs, const std::string& desde) {
+Estado mostrarUrl(const std::string& host, int puerto, const std::string& url, int recargarSeg, int timeoutMs,
+                  const std::string& desde) {
     // ESTA SECUENCIA ES LA QUE FUNCIONA, y no es la que uno escribiría solo.
     // Está copiada de un sistema en producción que castea todos los días:
     //
@@ -465,16 +461,15 @@ Estado mostrarUrl(const std::string& host, int puerto, const std::string& url, i
     if (apps.is_array() && !apps.empty() && apps[0].is_object()) {
         json r;
         c.pedir(kPlataforma, kNsReceptor,
-                json{{"type", "STOP"}, {"sessionId", apps[0].value("sessionId", "")}}, timeoutMs, r,
-                nullptr);
+                json{{"type", "STOP"}, {"sessionId", apps[0].value("sessionId", "")}}, timeoutMs, r, nullptr);
         esperarMs(c, 2000);
     }
 
     // 2. Lanzar. Abrir una aplicación en un televisor tarda: tope propio.
     json r;
     const int topeLanzar = std::max(timeoutMs, 25000);
-    if (!c.pedir(kPlataforma, kNsReceptor, json{{"type", "LAUNCH"}, {"appId", kAppDashCast}}, topeLanzar,
-                 r, &e.error)) {
+    if (!c.pedir(kPlataforma, kNsReceptor, json{{"type", "LAUNCH"}, {"appId", kAppDashCast}}, topeLanzar, r,
+                 &e.error)) {
         // Puede haber abierto igual y habérsenos perdido la respuesta.
         json st;
         if (!c.pedir(kPlataforma, kNsReceptor, json{{"type", "GET_STATUS"}}, timeoutMs, st, nullptr))
@@ -501,10 +496,8 @@ Estado mostrarUrl(const std::string& host, int puerto, const std::string& url, i
     // 4. Presentarse ante la aplicación (el CONNECT del principio era para la
     //    plataforma, no para ella) y recién ahí mandarle la URL.
     if (!c.mandar(Mensaje{kYo, e.transportId, kNsConexion, R"({"type":"CONNECT"})"}, &e.error)) return e;
-    const json orden{{"url", url},
-                     {"force", true},
-                     {"reload", recargarSeg > 0},
-                     {"reload_time", recargarSeg * 1000}};
+    const json orden{
+        {"url", url}, {"force", true}, {"reload", recargarSeg > 0}, {"reload_time", recargarSeg * 1000}};
     if (!c.mandar(Mensaje{kYo, e.transportId, kNsDashCast, orden.dump()}, &e.error)) return e;
     // DashCast no contesta nada: un respiro para que el mensaje salga antes de
     // cerrar el canal.

@@ -18,7 +18,7 @@ using nlohmann::json;
 /// Claves cuyo VALOR no se escribe. Se compara en minusculas y por contenido,
 /// no por igualdad: `apiKey`, `access_token` y `Authorization` tienen que caer
 /// todas, y no vale la pena una lista de cada nombre posible.
-const char* const kSecretas[] = {"token", "pin",    "clave",  "password", "secret",
+const char* const kSecretas[] = {"token", "pin",    "clave",         "password", "secret",
                                  "key",   "cookie", "authorization", "bearer"};
 
 bool esSecreta(std::string k) {
@@ -44,8 +44,8 @@ bool pareceSecreto(const json& v) {
     return !v.is_object() && !v.is_array();
 }
 
-constexpr std::size_t kTextoLargo = 180;  ///< un texto mas largo se recorta
-constexpr std::size_t kListaLarga = 8;    ///< de una lista, los primeros
+constexpr std::size_t kTextoLargo = 180; ///< un texto mas largo se recorta
+constexpr std::size_t kListaLarga = 8;   ///< de una lista, los primeros
 
 /// Recorta a `tope` BYTES sin partir un caracter UTF-8 al medio.
 ///
@@ -59,7 +59,8 @@ std::string recortar(const std::string& s, std::size_t tope) {
     if (s.size() <= tope) return s;
     std::size_t n = tope;
     // Retroceder mientras se este parado sobre un byte de continuacion (10xxxxxx).
-    while (n > 0 && (static_cast<unsigned char>(s[n]) & 0xC0) == 0x80) --n;
+    while (n > 0 && (static_cast<unsigned char>(s[n]) & 0xC0) == 0x80)
+        --n;
     return s.substr(0, n) + "…(+" + std::to_string(s.size() - n) + ")";
 }
 
@@ -85,7 +86,8 @@ json podar(const json& j) {
     if (j.is_array()) {
         json out = json::array();
         const std::size_t n = j.size();
-        for (std::size_t i = 0; i < std::min(n, kListaLarga); ++i) out.push_back(podar(j[i]));
+        for (std::size_t i = 0; i < std::min(n, kListaLarga); ++i)
+            out.push_back(podar(j[i]));
         if (n > kListaLarga) out.push_back("…(+" + std::to_string(n - kListaLarga) + ")");
         return out;
     }
@@ -108,9 +110,8 @@ std::string ahora() {
     gmtime_r(&s, &tm);
 #endif
     char buf[32];
-    std::snprintf(buf, sizeof(buf), "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ", tm.tm_year + 1900,
-                  tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec,
-                  static_cast<int>(ms));
+    std::snprintf(buf, sizeof(buf), "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ", tm.tm_year + 1900, tm.tm_mon + 1,
+                  tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, static_cast<int>(ms));
     return buf;
 }
 

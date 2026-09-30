@@ -127,11 +127,15 @@ void McpService::registerLaminaTools() {
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"carrusel", {{"type", "string"}}},
-                           {"numero", {{"type", "integer"}, {"minimum", 1},
-                                       {"description", "empezando en 1, como los da laminas_ver"}}},
-                           {"hacia", {{"type", "string"}, {"enum", {"siguiente", "anterior"}},
-                                      {"description", "en vez de `numero`: la que sigue o la de antes. "
-                                                      "Da la vuelta al llegar al final."}}}}},
+                           {"numero",
+                            {{"type", "integer"},
+                             {"minimum", 1},
+                             {"description", "empezando en 1, como los da laminas_ver"}}},
+                           {"hacia",
+                            {{"type", "string"},
+                             {"enum", {"siguiente", "anterior"}},
+                             {"description", "en vez de `numero`: la que sigue o la de antes. "
+                                             "Da la vuelta al llegar al final."}}}}},
                          {"required", {"carrusel"}}};
         t.run = [cc](const json& a, Done done) {
             const QString n = QString::fromStdString(a.value("carrusel", std::string()));
@@ -168,8 +172,8 @@ void McpService::registerLaminaTools() {
                                        ". laminas_ver dice cuantas hay."));
                 return;
             }
-            done(ToolResult().text("Puesta la lamina " + std::to_string(numero) + " de «" +
-                                   n.toStdString() + "»."));
+            done(ToolResult().text("Puesta la lamina " + std::to_string(numero) + " de «" + n.toStdString() +
+                                   "»."));
         };
         core_.addTool(std::move(t));
     }
@@ -190,12 +194,12 @@ void McpService::registerLaminaTools() {
             "tres y se salta con `laminas_ir`.\n\n"
             "Si no encuentra nada puede ser que a esas laminas todavia nadie las miro: "
             "`laminas_sin_analizar` lo dice.";
-        t.inputSchema = {{"type", "object"},
-                         {"properties",
-                          {{"carrusel", {{"type", "string"}}},
-                           {"texto", {{"type", "string"},
-                                      {"description", "lo que dijo el operador: «grafico barras»"}}}}},
-                         {"required", {"carrusel", "texto"}}};
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"carrusel", {{"type", "string"}}},
+              {"texto", {{"type", "string"}, {"description", "lo que dijo el operador: «grafico barras»"}}}}},
+            {"required", {"carrusel", "texto"}}};
         t.examples = {R"({"carrusel": "Apertura", "texto": "grafico de barras"})"};
         t.run = [cc](const json& a, Done done) {
             const QString n = QString::fromStdString(a.value("carrusel", std::string()));
@@ -232,11 +236,15 @@ void McpService::registerLaminaTools() {
                         "un carrusel con ellas. Tarda (segundos por pagina) y avisa cuando termina; "
                         "el operador ve la barra de trabajo. Un .pptx necesita que el equipo traiga "
                         "LibreOffice; un PDF no.";
-        t.inputSchema = {{"type", "object"},
-                         {"properties",
-                          {{"archivo", {{"type", "string"}, {"description", "ruta del PDF o .pptx, como la da media_list"}}},
-                           {"nombre", {{"type", "string"}, {"description", "como llamar al carrusel. Vacio = el nombre del archivo"}}}}},
-                         {"required", {"archivo"}}};
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"archivo",
+               {{"type", "string"}, {"description", "ruta del PDF o .pptx, como la da media_list"}}},
+              {"nombre",
+               {{"type", "string"},
+                {"description", "como llamar al carrusel. Vacio = el nombre del archivo"}}}}},
+            {"required", {"archivo"}}};
         t.run = [cc](const json& a, Done done) {
             const QString archivo = QString::fromStdString(a.value("archivo", std::string()));
             if (!QFileInfo::exists(archivo)) {
@@ -275,13 +283,16 @@ void McpService::registerLaminaTools() {
                          {"required", {"nombre"}},
                          {"properties",
                           {{"nombre", {{"type", "string"}, {"description", "como se llama el carrusel"}}},
-                           {"imagenes", {{"type", "array"}, {"items", {{"type", "string"}}},
-                                         {"description", "rutas, como las da media_list"}}}}}};
+                           {"imagenes",
+                            {{"type", "array"},
+                             {"items", {{"type", "string"}}},
+                             {"description", "rutas, como las da media_list"}}}}}};
         t.examples = {R"({"nombre": "Sponsors", "imagenes": ["Media/logos/a.png", "Media/logos/b.png"]})"};
         t.run = [cc, root](const json& a, Done done) {
             const QString n = QString::fromStdString(a.value("nombre", std::string())).trimmed();
             if (n.isEmpty()) {
-                done(ToolResult::error("Hace falta un nombre: sin nombre no se lo puede volver a encontrar."));
+                done(
+                    ToolResult::error("Hace falta un nombre: sin nombre no se lo puede volver a encontrar."));
                 return;
             }
             bool nuevo = false;
@@ -306,9 +317,10 @@ void McpService::registerLaminaTools() {
                 }
                 if (cc->agregar(abs)) ++puestas;
             }
-            std::string txt = (nuevo ? "Carrusel «" : "Ya existia «") + n.toStdString() + "»: " +
-                              std::to_string(puestas) + " laminas agregadas.";
-            if (!rechazadas.empty()) txt += " No encontre (o se salian de la carpeta del sistema): " + rechazadas + ".";
+            std::string txt = (nuevo ? "Carrusel «" : "Ya existia «") + n.toStdString() +
+                              "»: " + std::to_string(puestas) + " laminas agregadas.";
+            if (!rechazadas.empty())
+                txt += " No encontre (o se salian de la carpeta del sistema): " + rechazadas + ".";
             txt += " Para que se vea: laminas_aplicar.";
             done(ToolResult::ok(txt));
         };
@@ -332,7 +344,8 @@ void McpService::registerLaminaTools() {
             {"required", {"carrusel", "accion"}},
             {"properties",
              {{"carrusel", {{"type", "string"}}},
-              {"accion", {{"type", "string"}, {"enum", {"quitar", "mover", "renombrar", "borrar", "soltar"}}}},
+              {"accion",
+               {{"type", "string"}, {"enum", {"quitar", "mover", "renombrar", "borrar", "soltar"}}}},
               {"numero", {{"type", "integer"}, {"minimum", 1}, {"description", "con quitar y mover"}}},
               {"hasta", {{"type", "integer"}, {"minimum", 1}, {"description", "con mover: a que puesto va"}}},
               {"nombre", {{"type", "string"}, {"description", "con renombrar: el nombre nuevo"}}}}}};
@@ -355,8 +368,10 @@ void McpService::registerLaminaTools() {
             } else {
                 cc->setActual(n);
                 const int numero = a.value("numero", 0);
-                if (accion == "quitar") ok = cc->quitar(numero - 1);
-                else if (accion == "mover") ok = cc->mover(numero - 1, a.value("hasta", 0) - 1);
+                if (accion == "quitar")
+                    ok = cc->quitar(numero - 1);
+                else if (accion == "mover")
+                    ok = cc->mover(numero - 1, a.value("hasta", 0) - 1);
             }
             if (!ok) {
                 done(ToolResult::error("No se pudo: revisa los numeros con laminas_ver (empiezan en 1) "
@@ -382,12 +397,12 @@ void McpService::registerLaminaTools() {
             "carrusel puede estar en varias escenas: es la misma fuente reusada.\n\n"
             "La tarjeta de control del operador sigue a la escena: cuando esta escena esta al aire, "
             "maneja este carrusel.";
-        t.inputSchema = {{"type", "object"},
-                         {"properties",
-                          {{"carrusel", {{"type", "string"}}},
-                           {"escena", {{"type", "string"},
-                                       {"description", "por defecto, la que esta al aire"}}}}},
-                         {"required", {"carrusel"}}};
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"carrusel", {{"type", "string"}}},
+              {"escena", {{"type", "string"}, {"description", "por defecto, la que esta al aire"}}}}},
+            {"required", {"carrusel"}}};
         t.examples = {R"({"carrusel": "Apertura"})"};
         t.run = [cc, &rt](const json& a, Done done) {
             const QString n = QString::fromStdString(a.value("carrusel", std::string()));
@@ -414,12 +429,14 @@ void McpService::registerLaminaTools() {
         t.title = "La proxima lamina sin etiquetas";
         t.category = "laminas";
         t.readOnly = true;
-        t.description = "Devuelve la ruta de la primera lamina a la que todavia no se le sacaron "
-                        "etiquetas. Es por donde entra el que mira imagenes: pedir esta, mirarla con "
-                        "imagen_analizar —que es quien sabe mirar; este asistente NO recibe imagenes—, y guardar "
-                        "lo que vio con laminas_etiquetar. Vacio = no queda "
-                        "ninguna.";
-        t.inputSchema = {{"type", "object"}, {"properties", {{"carrusel", {{"type", "string"}}}}},
+        t.description =
+            "Devuelve la ruta de la primera lamina a la que todavia no se le sacaron "
+            "etiquetas. Es por donde entra el que mira imagenes: pedir esta, mirarla con "
+            "imagen_analizar —que es quien sabe mirar; este asistente NO recibe imagenes—, y guardar "
+            "lo que vio con laminas_etiquetar. Vacio = no queda "
+            "ninguna.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"carrusel", {{"type", "string"}}}}},
                          {"required", {"carrusel"}}};
         t.run = [cc](const json& a, Done done) {
             const QString n = QString::fromStdString(a.value("carrusel", std::string()));
@@ -453,18 +470,18 @@ void McpService::registerLaminaTools() {
                         "se ve, lo que dice, de que trata. El operador escribe «barras» en el cuadro "
                         "y le queda esa. Se guarda UNA vez por lamina; si salio vacio igual queda "
                         "marcada, para no volver a mirarla para siempre.";
-        t.inputSchema = {{"type", "object"},
-                         {"properties",
-                          {{"carrusel", {{"type", "string"}}},
-                           {"numero", {{"type", "integer"}, {"minimum", 1}}},
-                           {"etiquetas", {{"type", "string"},
-                                          {"description", "palabras sueltas separadas por espacios o comas"}}}}},
-                         {"required", {"carrusel", "numero", "etiquetas"}}};
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"carrusel", {{"type", "string"}}},
+              {"numero", {{"type", "integer"}, {"minimum", 1}}},
+              {"etiquetas",
+               {{"type", "string"}, {"description", "palabras sueltas separadas por espacios o comas"}}}}},
+            {"required", {"carrusel", "numero", "etiquetas"}}};
         t.run = [cc](const json& a, Done done) {
             const QString n = QString::fromStdString(a.value("carrusel", std::string()));
             const int numero = a.value("numero", 0);
-            if (!cc->etiquetar(n, numero - 1,
-                               QString::fromStdString(a.value("etiquetas", std::string())))) {
+            if (!cc->etiquetar(n, numero - 1, QString::fromStdString(a.value("etiquetas", std::string())))) {
                 done(ToolResult::error("No encontre la lamina " + std::to_string(numero) + " de «" +
                                        n.toStdString() + "»."));
                 return;

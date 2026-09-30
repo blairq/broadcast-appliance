@@ -62,13 +62,13 @@
 //   GET    /admin/...                      consola web (estatico)
 // ============================================================================
 
-#include <cctype>
 #include <algorithm>
+#include <cctype>
 #include <chrono>
-#include <map>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <system_error>
 
 #include "HttpIo.hpp"
@@ -93,7 +93,6 @@ inline std::int64_t nowMsAdmin() {
                std::chrono::system_clock::now().time_since_epoch())
         .count();
 }
-
 
 int64_t nowMsA() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -439,8 +438,7 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         // operador aparte, que es lo que se quiere si el QR va a quedar pegado
         // en una pared.
         const bool conClave = !q.count("conClave") || http::urlDecode(q.at("conClave")) != "0";
-        const std::string url =
-            origin + "/rotulos/" + (conClave ? "#k=" + cfg_.rotulosKey : std::string());
+        const std::string url = origin + "/rotulos/" + (conClave ? "#k=" + cfg_.rotulosKey : std::string());
         const qrcodegen::QrCode qr =
             qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
         json rows = json::array();
@@ -451,8 +449,13 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             rows.push_back(row);
         }
         sendJson(fd, 200,
-                 json{{"ok", true}, {"target", target}, {"url", url}, {"conClave", conClave},
-                      {"clave", cfg_.rotulosKey}, {"size", qr.getSize()}, {"modules", rows}});
+                 json{{"ok", true},
+                      {"target", target},
+                      {"url", url},
+                      {"conClave", conClave},
+                      {"clave", cfg_.rotulosKey},
+                      {"size", qr.getSize()},
+                      {"modules", rows}});
         return;
     }
 
@@ -471,22 +474,29 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             const std::string accion = req.value("accion", std::string());
             const std::string id = req.value("id", std::string());
             bool ok = false;
-            if (accion == "elegir") ok = preguntas_.elegir(id);
-            else if (accion == "des_elegir") ok = preguntas_.desElegir(id);
-            else if (accion == "al_aire") ok = preguntas_.alAire(id);
-            else if (accion == "responder") ok = preguntas_.responder(id);
-            else if (accion == "descartar") ok = preguntas_.descartar(id);
-            else if (accion == "limpiar") { preguntas_.limpiar(); ok = true; }
-            else if (accion == "vaciar") { preguntas_.vaciar(); ok = true; }
-            else if (accion == "preguntar") {
+            if (accion == "elegir")
+                ok = preguntas_.elegir(id);
+            else if (accion == "des_elegir")
+                ok = preguntas_.desElegir(id);
+            else if (accion == "al_aire")
+                ok = preguntas_.alAire(id);
+            else if (accion == "responder")
+                ok = preguntas_.responder(id);
+            else if (accion == "descartar")
+                ok = preguntas_.descartar(id);
+            else if (accion == "limpiar") {
+                preguntas_.limpiar();
+                ok = true;
+            } else if (accion == "vaciar") {
+                preguntas_.vaciar();
+                ok = true;
+            } else if (accion == "preguntar") {
                 // Para meter en la cola lo que llego por otro lado (el chat de
                 // la sala, o el de YouTube): una sola cola para todos, que es
                 // de lo que se trata.
                 ok = !preguntas_
-                          .preguntar(req.value("nombre", std::string()),
-                                     req.value("texto", std::string()),
-                                     req.value("deDonde", std::string("sala")), std::string(),
-                                     nowMsAdmin())
+                          .preguntar(req.value("nombre", std::string()), req.value("texto", std::string()),
+                                     req.value("deDonde", std::string("sala")), std::string(), nowMsAdmin())
                           .empty();
             } else {
                 sendErr(fd, 400, "accion");
@@ -504,7 +514,8 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
     // A viene a vaciar el buzon de los que escanearon su invitacion.
     if (path == "/api/v1/acreditaciones" && method == "GET") {
         json cs = json::array();
-        for (const std::string& c : tomarAcreditaciones()) cs.push_back(c);
+        for (const std::string& c : tomarAcreditaciones())
+            cs.push_back(c);
         sendJson(fd, 200, json{{"ok", true}, {"codigos", cs}});
         return;
     }
@@ -569,11 +580,10 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             if (req.contains("habilitados") && req["habilitados"].is_array())
                 for (const json& h : req["habilitados"])
                     if (h.is_object() && h.contains("codigo"))
-                        habilitados[h["codigo"].get<std::string>()] =
-                            h.value("nombre", std::string());
+                        habilitados[h["codigo"].get<std::string>()] = h.value("nombre", std::string());
             const bool ok = votacion_.abrir(req.value("pregunta", std::string()), opciones, modo,
-                                            req.value("secreta", false), habilitados,
-                                            req.value("podian", 0), nowMsAdmin());
+                                            req.value("secreta", false), habilitados, req.value("podian", 0),
+                                            nowMsAdmin());
             if (!ok) {
                 sendErr(fd, 400, "hace falta una pregunta y al menos dos opciones");
                 return;
@@ -602,8 +612,7 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         // pantalla o se imprime en el programa, y pedirle a doscientas personas
         // que tipeen una clave es perder a la mitad.
         const bool conClave = !q.count("conClave") || http::urlDecode(q.at("conClave")) != "0";
-        const std::string url =
-            origin + "/publico/" + (conClave ? "#k=" + cfg_.publicoKey : std::string());
+        const std::string url = origin + "/publico/" + (conClave ? "#k=" + cfg_.publicoKey : std::string());
         const qrcodegen::QrCode qr =
             qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
         json rows = json::array();
@@ -614,8 +623,13 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             rows.push_back(row);
         }
         sendJson(fd, 200,
-                 json{{"ok", true}, {"target", target}, {"url", url}, {"conClave", conClave},
-                      {"clave", cfg_.publicoKey}, {"size", qr.getSize()}, {"modules", rows}});
+                 json{{"ok", true},
+                      {"target", target},
+                      {"url", url},
+                      {"conClave", conClave},
+                      {"clave", cfg_.publicoKey},
+                      {"size", qr.getSize()},
+                      {"modules", rows}});
         return;
     }
     // Lo que no es letra, numero o guion va porcentado: el nombre lo escribe
@@ -646,7 +660,8 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             destinos = superficies_.conexionesDe(req.value("tipo", ""));
         json orden{{"type", req.value("recargar", false) ? "recargar" : "mostrar"}};
         if (req.contains("url")) orden["url"] = req["url"];
-        for (const std::string& pid : destinos) sendToGuest(pid, orden);
+        for (const std::string& pid : destinos)
+            sendToGuest(pid, orden);
         sendJson(fd, 200, json{{"ok", true}, {"a", destinos.size()}});
         return;
     }
@@ -698,12 +713,17 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
         const std::string nombre = q.count("nombre") ? http::urlDecode(q.at("nombre")) : "Pantalla";
         if (room_.snapshot().value("locked", false)) {
-            sendJson(fd, 200, json{{"ok", false}, {"message", "La sala esta cerrada: abrila para poder mandarle el programa a una pantalla."}});
+            sendJson(fd, 200,
+                     json{{"ok", false},
+                          {"message",
+                           "La sala esta cerrada: abrila para poder mandarle el programa a una pantalla."}});
             return;
         }
         const std::string token = auth_.issue(cfg_.room, room_.snapshot().value("pin", ""));
         if (token.empty()) {
-            sendJson(fd, 200, json{{"ok", false}, {"message", "No pude sacar un permiso de ingreso para la pantalla."}});
+            sendJson(
+                fd, 200,
+                json{{"ok", false}, {"message", "No pude sacar un permiso de ingreso para la pantalla."}});
             return;
         }
         json out = joinUrl_ ? joinUrl_(target) : json{{"error", "sin proveedor de URL"}};
@@ -753,9 +773,8 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             if (end != std::string::npos) origin.resize(end);
         }
         // La tablet del orador no lleva clave nunca: solo lee.
-        const std::string url =
-            origin + "/prompter/" +
-            (control ? (conClave ? "#control&k=" + cfg_.prompterKey : "#control") : "");
+        const std::string url = origin + "/prompter/" +
+                                (control ? (conClave ? "#control&k=" + cfg_.prompterKey : "#control") : "");
         const qrcodegen::QrCode qr =
             qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
         json rows = json::array();
@@ -783,9 +802,10 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
     if (path == "/api/v1/log-nivel") {
         auto& reg = ba::diag::registro();
         if (method == "GET") {
-            sendJson(fd, 200, json{{"nivel", ba::diag::nombreDeNivel(reg.nivel())},
-                                   {"descartadas", reg.descartadas()},
-                                   {"registradas", reg.cuenta()}});
+            sendJson(fd, 200,
+                     json{{"nivel", ba::diag::nombreDeNivel(reg.nivel())},
+                          {"descartadas", reg.descartadas()},
+                          {"registradas", reg.cuenta()}});
             return;
         }
         if (method == "POST") {

@@ -28,7 +28,9 @@
 namespace ba::app {
 
 class AppRuntime;
-namespace graficos { class Emisor; }
+namespace graficos {
+class Emisor;
+}
 
 class GraficoViewModel : public QObject {
     Q_OBJECT
@@ -54,7 +56,7 @@ class GraficoViewModel : public QObject {
     /// Las fuentes «Gráfico animado» que hay en las escenas.
     Q_PROPERTY(QVariantList enEscena READ enEscena NOTIFY escenaChanged)
 
-  public:
+   public:
     GraficoViewModel(AppRuntime& rt, graficos::Emisor& emisor, QObject* parent = nullptr);
     ~GraficoViewModel() override;
 
@@ -91,7 +93,7 @@ class GraficoViewModel : public QObject {
     Q_INVOKABLE QString mostrarEnEscena(qulonglong fuente, bool repetir);
     Q_INVOKABLE QString ocultarDeEscena(qulonglong fuente);
 
-  signals:
+   signals:
     void listaChanged();
     void abiertoChanged();
     void fuenteChanged();
@@ -101,7 +103,7 @@ class GraficoViewModel : public QObject {
     void escenaChanged();
     void notify(const QString& texto, const QString& tipo);
 
-  private:
+   private:
     struct Impl;
     std::unique_ptr<Impl> d_;
 };

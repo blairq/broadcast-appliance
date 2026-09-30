@@ -64,25 +64,27 @@ void McpService::registerAgenteTools() {
             "LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval`) cubre "
             "las herramientas del MCP, NO estas. Un rol con consola toca el disco y la red sin pasar "
             "por ahi, en la maquina del estudio. Prendelo cuando el trabajo lo pida, no por si acaso.";
-        t.inputSchema = {{"type", "object"},
-                         {"required", {"rol"}},
-                         {"properties",
-                          {{"rol", {{"type", "string"}}},
-                           {"activo", {{"type", "boolean"}}},
-                           {"proveedor", {{"type", "string"}}},
-                           {"modelo", {{"type", "string"}}},
-                           {"consola",
-                            {{"type", "boolean"},
-                             {"description",
-                              "herramientas propias del agente: consola, archivos, internet"}}}}}};
+        t.inputSchema = {
+            {"type", "object"},
+            {"required", {"rol"}},
+            {"properties",
+             {{"rol", {{"type", "string"}}},
+              {"activo", {{"type", "boolean"}}},
+              {"proveedor", {{"type", "string"}}},
+              {"modelo", {{"type", "string"}}},
+              {"consola",
+               {{"type", "boolean"},
+                {"description", "herramientas propias del agente: consola, archivos, internet"}}}}}};
         t.run = [&d](const json& a, Done done) {
             const std::string rol = a["rol"].get<std::string>();
             if (d.roles().porId(rol) == nullptr) {
                 done(ToolResult::error("No existe el rol `" + rol + "`: agente_roles los lista."));
                 return;
             }
-            if (a.contains("proveedor")) d.setProveedor(QString::fromStdString(rol), QString::fromStdString(a["proveedor"]));
-            if (a.contains("modelo")) d.setModelo(QString::fromStdString(rol), QString::fromStdString(a["modelo"]));
+            if (a.contains("proveedor"))
+                d.setProveedor(QString::fromStdString(rol), QString::fromStdString(a["proveedor"]));
+            if (a.contains("modelo"))
+                d.setModelo(QString::fromStdString(rol), QString::fromStdString(a["modelo"]));
             if (a.contains("activo")) d.setActivo(QString::fromStdString(rol), a["activo"].get<bool>());
             if (a.contains("consola")) d.setConsola(QString::fromStdString(rol), a["consola"].get<bool>());
             json r;
@@ -105,7 +107,8 @@ void McpService::registerAgenteTools() {
         // que es justo el caso para el que existe.
         t.mediated = true;
         t.description =
-            "Le ENCARGA una tarea a otro agente, que la hace solo y contesta. Encola un encargo para otro rol y vuelve en el acto con el id de la corrida (no espera el "
+            "Le ENCARGA una tarea a otro agente, que la hace solo y contesta. Encola un encargo para otro "
+            "rol y vuelve en el acto con el id de la corrida (no espera el "
             "resultado: llega a la pagina Agentes y a agente_corrida). Ej.: la recepcion le pide al "
             "tecnico que revise los niveles de un invitado. Un encargo de otro agente NO puede encargar a "
             "un tercero.";
@@ -118,7 +121,8 @@ void McpService::registerAgenteTools() {
                          {"properties",
                           {{"rol", {{"type", "string"}, {"description", "id del rol destino"}}},
                            {"encargo", {{"type", "string"}, {"minLength", 1}}}}}};
-        t.examples = {R"({"rol": "tecnico", "encargo": "El invitado id p7 dice que no se lo escucha. Revisa sus niveles y la compuerta; si esta bien de nuestro lado, decilo."})"};
+        t.examples = {
+            R"({"rol": "tecnico", "encargo": "El invitado id p7 dice que no se lo escucha. Revisa sus niveles y la compuerta; si esta bien de nuestro lado, decilo."})"};
         t.run = [this, &d](const json& a, Done done) {
             // Quien llama, por su rol: la profundidad sale de la corrida en
             // curso de ese rol (el operador y el asistente no tienen rol).
@@ -143,12 +147,14 @@ void McpService::registerAgenteTools() {
         t.title = "Corridas recientes";
         t.category = "agentes";
         t.readOnly = true;
-        t.description = "Las ultimas corridas de los roles (la mas nueva primero): rol, origen, estado, "
-                        "duracion, cuantas herramientas uso y el resumen final. Sin los pasos: agente_corrida.";
-        t.inputSchema = {{"type", "object"},
-                         {"properties",
-                          {{"limit", {{"type", "integer"}, {"minimum", 1}, {"maximum", 200}, {"default", 20}}},
-                           {"rol", {{"type", "string"}}}}}};
+        t.description =
+            "Las ultimas corridas de los roles (la mas nueva primero): rol, origen, estado, "
+            "duracion, cuantas herramientas uso y el resumen final. Sin los pasos: agente_corrida.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"limit", {{"type", "integer"}, {"minimum", 1}, {"maximum", 200}, {"default", 20}}},
+              {"rol", {{"type", "string"}}}}}};
         t.run = [&d](const json& a, Done done) {
             done(ToolResult().data(json{{"corridas", d.corridas(a.value("limit", 20), a.value("rol", ""))}}));
         };
@@ -204,8 +210,10 @@ void McpService::registerAgenteTools() {
         std::string adentro, esperando;
         for (const auto& p : s.value("participants", json::array())) {
             const std::string linea = p.value("name", "") + " (id " + p.value("id", "") + ")";
-            if (p.value("state", "") == "waiting") esperando += (esperando.empty() ? "" : ", ") + linea;
-            else adentro += (adentro.empty() ? "" : ", ") + linea;
+            if (p.value("state", "") == "waiting")
+                esperando += (esperando.empty() ? "" : ", ") + linea;
+            else
+                adentro += (adentro.empty() ? "" : ", ") + linea;
         }
         return "En la sala ahora — adentro: " + (adentro.empty() ? "nadie" : adentro) +
                ". Esperando en el lobby: " + (esperando.empty() ? "nadie" : esperando) + ".";

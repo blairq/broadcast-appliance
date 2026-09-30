@@ -256,14 +256,13 @@ std::string McpCore::mapaDeCategorias(const std::string& rol) const {
     for (const Tool& t : tools_)
         if (permitida(t, rol)) ++cuantas[t.category];
     std::string out =
-        rol.empty()
-            ? "## Mapa de herramientas\n\nNo te quedes con lo que ves: si algo no "
-              "aparece, fijate en que categoria caeria y pedi su ayuda con "
-              "`help {\"topic\": \"<categoria>\"}`.\n\n"
-            : "## Mapa de herramientas\n\nSos el rol `" + rol +
-                  "`: este es TODO tu juego. Lo que no esta aca no lo podes hacer vos; si el "
-                  "encargo lo necesita, pediselo a otro rol con `agente_encargar` o contalo en tu "
-                  "resumen final para que lo vea el operador.\n\n";
+        rol.empty() ? "## Mapa de herramientas\n\nNo te quedes con lo que ves: si algo no "
+                      "aparece, fijate en que categoria caeria y pedi su ayuda con "
+                      "`help {\"topic\": \"<categoria>\"}`.\n\n"
+                    : "## Mapa de herramientas\n\nSos el rol `" + rol +
+                          "`: este es TODO tu juego. Lo que no esta aca no lo podes hacer vos; si el "
+                          "encargo lo necesita, pediselo a otro rol con `agente_encargar` o contalo en tu "
+                          "resumen final para que lo vea el operador.\n\n";
     for (const Category& c : categories_) {
         const auto it = cuantas.find(c.id);
         const int n = it == cuantas.end() ? 0 : it->second;
@@ -285,7 +284,6 @@ void McpCore::addCategory(const std::string& id, const std::string& title, const
     categories_.push_back(Category{id, title, summary});
 }
 
-
 void McpCore::verificarJuegos() const {
     // AVISA SI UN JUEGO NOMBRA UNA CATEGORIA QUE NO EXISTE. Este error es mudo:
     // la categoria inventada no rompe nada, simplemente esas herramientas
@@ -297,7 +295,8 @@ void McpCore::verificarJuegos() const {
     // avisaba de `qr`, `rostros` y `ventanas` —que existen— solo porque sus
     // herramientas se registran despues.
     std::set<std::string> reales;
-    for (const Tool& t : tools_) reales.insert(t.category);
+    for (const Tool& t : tools_)
+        reales.insert(t.category);
     for (const auto& [rol, cats] : roles_)
         for (const std::string& c : cats)
             if (reales.count(c) == 0)
@@ -311,7 +310,6 @@ void McpCore::setRoles(std::map<std::string, std::set<std::string>> categoriasPo
                        std::set<std::string> comunes) {
     roles_ = std::move(categoriasPorRol);
     comunes_ = std::move(comunes);
-
 }
 
 bool McpCore::permitida(const Tool& t, const std::string& rol) const {
@@ -478,23 +476,24 @@ void McpCore::handleOne(const json& msg, std::function<void(json)> reply, const 
     // sala» no se puede contestar mirando ningun archivo.
     const std::string quien = ctx.rol.empty() ? std::string() : " [" + ctx.rol + "]";
     const std::string etiqueta =
-        method + (method == "tools/call" && params.contains("name") && params["name"].is_string()
-                      ? ":" + params["name"].get<std::string>()
-                      : std::string()) +
+        method +
+        (method == "tools/call" && params.contains("name") && params["name"].is_string()
+             ? ":" + params["name"].get<std::string>()
+             : std::string()) +
         quien;
     Traza::la().anotar("--> " + etiqueta + " id=" + id.dump() + " " + Traza::resumir(params));
     const auto arranque = std::chrono::steady_clock::now();
     reply = [reply, etiqueta, id, arranque](json r) {
-        const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                            std::chrono::steady_clock::now() - arranque)
-                            .count();
+        const auto ms =
+            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - arranque)
+                .count();
         // `isError` de una herramienta viaja DENTRO del resultado: un fallo de
         // herramienta es una respuesta valida de JSON-RPC. Si solo se mirara
         // `error`, la traza diria «OK» de cada herramienta que fallo.
-        const bool fallo = r.contains("error") ||
-                           (r.contains("result") && r["result"].value("isError", false));
-        Traza::la().anotar((fallo ? "<-- FALLO " : "<-- ok    ") + etiqueta + " id=" + id.dump() +
-                           " (" + std::to_string(ms) + " ms) " + Traza::resumir(r));
+        const bool fallo =
+            r.contains("error") || (r.contains("result") && r["result"].value("isError", false));
+        Traza::la().anotar((fallo ? "<-- FALLO " : "<-- ok    ") + etiqueta + " id=" + id.dump() + " (" +
+                           std::to_string(ms) + " ms) " + Traza::resumir(r));
         reply(std::move(r));
     };
     try {
@@ -710,16 +709,16 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
         // canal ni a que valor no sirve para entender nada despues.
         const std::string resumenArgs = Traza::resumir(args, 220);
         try {
-            tool->run(args, [this, finish, called, session, untrustedOut, name, modifica, arranque,
-                             quien, resumenArgs](ToolResult r) {
+            tool->run(args, [this, finish, called, session, untrustedOut, name, modifica, arranque, quien,
+                             resumenArgs](ToolResult r) {
                 if (*called) return; // una sola respuesta por pedido
                 *called = true;
                 const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                                     std::chrono::steady_clock::now() - arranque)
                                     .count();
-                ba::diag::registro().linea(r.isError      ? ba::diag::Nivel::Aviso
-                                           : modifica    ? ba::diag::Nivel::Info
-                                                          : ba::diag::Nivel::Depuracion,
+                ba::diag::registro().linea(r.isError  ? ba::diag::Nivel::Aviso
+                                           : modifica ? ba::diag::Nivel::Info
+                                                      : ba::diag::Nivel::Depuracion,
                                            "mcp", 0,
                                            name + quien + (r.isError ? " FALLO" : "") + " (" +
                                                std::to_string(ms) + " ms) " + resumenArgs +
@@ -909,7 +908,8 @@ void McpCore::armarIndice() const {
     }
     if (!sinEtiquetas.empty()) {
         std::string lista;
-        for (const std::string& n : sinEtiquetas) lista += (lista.empty() ? "" : ", ") + n;
+        for (const std::string& n : sinEtiquetas)
+            lista += (lista.empty() ? "" : ", ") + n;
         ba::diag::registro().linea(ba::diag::Nivel::Aviso, "mcp", 0,
                                    "sin etiquetas (no se van a encontrar buscando; ver "
                                    "McpEtiquetas.cpp): " +

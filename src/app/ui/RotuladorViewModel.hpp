@@ -35,7 +35,7 @@ class ConferenceViewModel;
 namespace graficos {
 class Emisor;
 class Vinculos;
-}
+} // namespace graficos
 
 class RotuladorViewModel : public QObject {
     Q_OBJECT
@@ -50,7 +50,7 @@ class RotuladorViewModel : public QObject {
     /// cambia solo y no se sabe por qué es peor que uno que no cambia.
     Q_PROPERTY(QVariantList vinculos READ vinculos NOTIFY cambio)
 
-  public:
+   public:
     RotuladorViewModel(AppRuntime& rt, graficos::Emisor& emisor, ConferenceViewModel* sala,
                        QObject* parent = nullptr);
     ~RotuladorViewModel() override;
@@ -83,7 +83,7 @@ class RotuladorViewModel : public QObject {
     /// Lo saca al aire a mano, haya cambiado o no.
     Q_INVOKABLE QString dispararVinculo(const QString& id);
 
-  signals:
+   signals:
     void cambio();
     /// `modulos` son las filas del QR en unos y ceros; `mensaje` explica por
     /// que no hay enlace, si no lo hay.
@@ -91,7 +91,7 @@ class RotuladorViewModel : public QObject {
                  const QString& clave);
     void notify(const QString& texto, const QString& tipo);
 
-  private:
+   private:
     /// Publica lo que hay en B y se lleva lo que encargaron desde los
     /// celulares. Una vez por segundo, en un solo viaje.
     void sincronizar();

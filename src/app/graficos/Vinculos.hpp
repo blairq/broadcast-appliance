@@ -48,7 +48,7 @@ class Emisor;
 class Vinculos : public QObject {
     Q_OBJECT
 
-  public:
+   public:
     /// :param archivo: dónde se guardan (Config/vinculos.json).
     Vinculos(std::filesystem::path archivo, Emisor& emisor, QObject* padre = nullptr);
     ~Vinculos() override;
@@ -82,12 +82,12 @@ class Vinculos : public QObject {
     /// Dispara uno a mano, cambió o no.
     QString disparar(const QString& id);
 
-  signals:
+   signals:
     void cambio();
     /// Un vínculo salió al aire solo, o no pudo.
     void actuo(const QString& id, const QString& texto, bool error);
 
-  private:
+   private:
     struct Impl;
     std::unique_ptr<Impl> d_;
 };

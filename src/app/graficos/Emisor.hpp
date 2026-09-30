@@ -34,7 +34,7 @@ namespace ba::app::graficos {
 class Emisor : public QObject {
     Q_OBJECT
 
-  public:
+   public:
     /// :param raizDatos: el directorio de datos; los gráficos viven en
     ///        `<raizDatos>/Graficos/<nombre>/`.
     explicit Emisor(const std::filesystem::path& raizDatos, QObject* padre = nullptr);
@@ -79,11 +79,11 @@ class Emisor : public QObject {
     /// Qué gráfico se disparó en esa fuente por última vez.
     QString ultimoGrafico(std::uint64_t fuente) const;
 
-  signals:
+   signals:
     /// Algo salió o dejó de estar al aire. El rotulador y la web se refrescan.
     void cambio();
 
-  private:
+   private:
     struct Impl;
     std::unique_ptr<Impl> d_;
 };

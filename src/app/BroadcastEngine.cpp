@@ -467,8 +467,7 @@ void BroadcastEngine::onRawVideo(struct video_data* frame) {
     // el televisor— y todos dieron chicos, asi que lo que falta esta aca. Sin
     // medirlo, «bajar el retardo» es tocar cosas a ver que pasa.
     const std::uint64_t ahora = os_gettime_ns();
-    if (frame->timestamp != 0 && ahora > frame->timestamp)
-        programEdadNs_ += ahora - frame->timestamp;
+    if (frame->timestamp != 0 && ahora > frame->timestamp) programEdadNs_ += ahora - frame->timestamp;
     ++programMedidos_;
     if (programInformeNs_ == 0) {
         programInformeNs_ = ahora;
@@ -923,7 +922,6 @@ void BroadcastEngine::stopRecording() {
     recordOutput_ = nullptr;
 }
 
-
 // ============================================================================
 // Grabacion POR ENTRADA
 // ============================================================================
@@ -939,7 +937,7 @@ struct BroadcastEngine::SourceRec {
     obs_encoder_t* venc = nullptr;
     obs_encoder_t* aenc = nullptr;
     obs_output_t* out = nullptr;
-    int pista = -1;           ///< pista de audio tomada (1..5), -1 = sin audio
+    int pista = -1;                ///< pista de audio tomada (1..5), -1 = sin audio
     std::uint32_t mixersAntes = 0; ///< para devolverle a la fuente lo que tenia
 
     ~SourceRec() {
@@ -1049,8 +1047,7 @@ bool BroadcastEngine::startSourceRecording(const std::string& source, const std:
         const size_t mezcla = rec->pista > 0 ? static_cast<size_t>(rec->pista) : 0;
         obs_data_t* as = obs_data_create();
         obs_data_set_int(as, "bitrate", enc.audioBitrateKbps);
-        rec->aenc = obs_audio_encoder_create("ffmpeg_aac", ("aenc-" + source).c_str(), as, mezcla,
-                                             nullptr);
+        rec->aenc = obs_audio_encoder_create("ffmpeg_aac", ("aenc-" + source).c_str(), as, mezcla, nullptr);
         obs_data_release(as);
         if (rec->aenc == nullptr) {
             setError("no se pudo crear el codificador de audio de \"" + source + "\"");
@@ -1064,9 +1061,9 @@ bool BroadcastEngine::startSourceRecording(const std::string& source, const std:
     std::string limpio;
     for (const char c : source)
         limpio += (std::isalnum(static_cast<unsigned char>(c)) != 0 || c == '-' || c == '_') ? c : '-';
-    const auto secs = std::chrono::duration_cast<std::chrono::seconds>(
-                          std::chrono::system_clock::now().time_since_epoch())
-                          .count();
+    const auto secs =
+        std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch())
+            .count();
     rec->path = dir + "/entrada-" + limpio + "-" + std::to_string(secs) + ".mkv";
 
     obs_data_t* os = obs_data_create();
@@ -1107,15 +1104,16 @@ bool BroadcastEngine::stopSourceRecording(const std::string& source) {
 }
 
 void BroadcastEngine::stopAllSourceRecordings() {
-    while (!sourceRecs_.empty()) stopSourceRecording(sourceRecs_.begin()->first);
+    while (!sourceRecs_.empty())
+        stopSourceRecording(sourceRecs_.begin()->first);
 }
 
 std::vector<BroadcastEngine::GrabacionIndividual> BroadcastEngine::sourceRecordings() const {
     std::vector<GrabacionIndividual> out;
     out.reserve(sourceRecs_.size());
     for (const auto& [n, r] : sourceRecs_)
-        out.push_back(GrabacionIndividual{n, r->path, r->pista > 0,
-                                          r->out != nullptr && obs_output_active(r->out)});
+        out.push_back(
+            GrabacionIndividual{n, r->path, r->pista > 0, r->out != nullptr && obs_output_active(r->out)});
     return out;
 }
 

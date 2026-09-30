@@ -29,12 +29,12 @@
 #include <cstdio>
 
 #include "agent/AgentViewModel.hpp"
-#include "ui/QrViewModel.hpp"
 #include "AppRuntime.hpp"
 #include "mcp/McpService.hpp"
 #include "term/TerminalView.hpp"
 #include "ui/FrameService.hpp"
 #include "ui/InputsViewModel.hpp"
+#include "ui/QrViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
 #include "ui/VideoItem.hpp"
 

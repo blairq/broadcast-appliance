@@ -76,13 +76,13 @@
 #include <nlohmann/json.hpp>
 
 #include "Carruseles.hpp"
-#include "Superficies.hpp"
-#include "Prompter.hpp"
-#include "Preguntas.hpp"
-#include "Votacion.hpp"
-#include "Rotulador.hpp"
 #include "MediaRoute.hpp"
+#include "Preguntas.hpp"
+#include "Prompter.hpp"
+#include "Rotulador.hpp"
+#include "Superficies.hpp"
 #include "TokenAuth.hpp"
+#include "Votacion.hpp"
 #include "Webrtc.hpp"
 
 namespace ba::gateway {
@@ -112,7 +112,7 @@ class SignalingServer {
         /// el enlace que el operador le pasa (o en el QR). Vacia = sin control
         /// remoto (la tablet igual muestra el texto).
         std::string prompterKey;
-        std::string rotulosWebroot; // Web/rotulos (los rotulos desde el celular)
+        std::string rotulosWebroot;  // Web/rotulos (los rotulos desde el celular)
         std::string pantallaWebroot; // Web/pantalla (lo que se manda a un televisor)
         std::string castWebroot;     // Web/cast (el programa en vivo, para un televisor)
         std::string comunWebroot;    // Web/comun (el canal de control, lo usan TODAS)

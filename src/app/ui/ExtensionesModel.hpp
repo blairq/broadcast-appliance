@@ -43,7 +43,7 @@ class ExtensionesModel : public QAbstractListModel {
     /// Cuántas hay (para que la interfaz no muestre el menú vacío).
     Q_PROPERTY(int cuantas READ rowCount NOTIFY cambio)
 
-  public:
+   public:
     /// El prefijo que distingue una tarjeta de extensión de las de fábrica.
     /// Va en el `kind` de la tarjeta del dashboard, así que queda guardado en
     /// ui.json y sobrevive al reinicio.
@@ -53,9 +53,9 @@ class ExtensionesModel : public QAbstractListModel {
         IdRole = Qt::UserRole + 1,
         NombreRole,
         DescripcionRole,
-        VistaRole,     ///< URL del QML, lista para un Loader
-        ProblemaRole,  ///< por qué no se puede usar (vacío = está bien)
-        ApagadaRole,   ///< la apagó el diario de arranque
+        VistaRole,    ///< URL del QML, lista para un Loader
+        ProblemaRole, ///< por qué no se puede usar (vacío = está bien)
+        ApagadaRole,  ///< la apagó el diario de arranque
     };
 
     explicit ExtensionesModel(AppRuntime& rt, QObject* parent = nullptr);
@@ -89,11 +89,11 @@ class ExtensionesModel : public QAbstractListModel {
     /// La carpeta donde viven, para mostrarla y para que el asistente escriba ahí.
     Q_INVOKABLE QString carpeta() const;
 
-  signals:
+   signals:
     void cambio();
     void notify(const QString& texto, const QString& tipo);
 
-  private:
+   private:
     struct Impl;
     std::unique_ptr<Impl> d_;
 };

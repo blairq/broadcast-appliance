@@ -85,10 +85,8 @@ QJsonObject atender(Renderizador& r, const QJsonObject& pedido) {
         if (!tr.error.isEmpty()) return QJsonObject{{"ok", false}, {"error", tr.error}};
         fuente = tr.qml;
         // La descripción manda su propio tamaño salvo que se lo pisen.
-        if (!pedido.contains("ancho") && d.contains("ancho"))
-            tam.setWidth(d.value("ancho").toInt(900));
-        if (!pedido.contains("alto") && d.contains("alto"))
-            tam.setHeight(d.value("alto").toInt(220));
+        if (!pedido.contains("ancho") && d.contains("ancho")) tam.setWidth(d.value("ancho").toInt(900));
+        if (!pedido.contains("alto") && d.contains("alto")) tam.setHeight(d.value("alto").toInt(220));
     }
     // El QML GENERADO a partir de una descripción ya trae los valores metidos
     // en el texto, así que no se le pasan de nuevo: como no los declara como
@@ -114,8 +112,8 @@ QJsonObject atender(Renderizador& r, const QJsonObject& pedido) {
     if (op == "dibujar") {
         const Renderizador::Resultado res = dibujar(pedido.value("ms").toInt(0));
         if (!res.error.isEmpty()) return QJsonObject{{"ok", false}, {"error", res.error}};
-        return QJsonObject{{"ok", true}, {"ms", pedido.value("ms").toInt(0)},
-                           {"png", aBase64Png(res.imagen)}};
+        return QJsonObject{
+            {"ok", true}, {"ms", pedido.value("ms").toInt(0)}, {"png", aBase64Png(res.imagen)}};
     }
     if (op == "tira") {
         const QJsonArray momentos = pedido.value("momentos").toArray();
@@ -123,8 +121,7 @@ QJsonObject atender(Renderizador& r, const QJsonObject& pedido) {
             return QJsonObject{{"ok", false}, {"error", "la tira necesita al menos un momento"}};
         // Un tope: una tira de doscientos cuadros no la mira nadie y llenaria
         // la respuesta de megabytes.
-        if (momentos.size() > 12)
-            return QJsonObject{{"ok", false}, {"error", "hasta 12 momentos por tira"}};
+        if (momentos.size() > 12) return QJsonObject{{"ok", false}, {"error", "hasta 12 momentos por tira"}};
         QJsonArray cuadros;
         for (const QJsonValue& m : momentos) {
             const Renderizador::Resultado res = dibujar(m.toInt());

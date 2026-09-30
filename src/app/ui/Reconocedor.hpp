@@ -43,7 +43,7 @@ namespace ba::app {
 
 class Reconocedor : public QObject {
     Q_OBJECT
-  public:
+   public:
     /// Una cara vista: dónde está y su vector de 128 números.
     struct Visto {
         ba::rostros::Cara cara;
@@ -65,10 +65,9 @@ class Reconocedor : public QObject {
     ///
     /// :param descartable: true si es una mirada periódica que se puede saltear
     ///        cuando ya hay otra en vuelo. false para lo que alguien espera.
-    void pedir(std::vector<std::uint8_t> bgra, int ancho, int alto, bool descartable,
-               Respuesta luego);
+    void pedir(std::vector<std::uint8_t> bgra, int ancho, int alto, bool descartable, Respuesta luego);
 
-  private:
+   private:
     struct Impl;
     std::unique_ptr<Impl> d_;
 };

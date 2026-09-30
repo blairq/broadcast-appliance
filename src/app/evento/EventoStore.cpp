@@ -36,8 +36,8 @@ std::string ahoraParaNombre() {
     localtime_r(&t, &tm);
 #endif
     char buf[32];
-    std::snprintf(buf, sizeof(buf), "%04d%02d%02d-%02d%02d%02d", tm.tm_year + 1900, tm.tm_mon + 1,
-                  tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+    std::snprintf(buf, sizeof(buf), "%04d%02d%02d-%02d%02d%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+                  tm.tm_hour, tm.tm_min, tm.tm_sec);
     return buf;
 }
 
@@ -55,8 +55,10 @@ std::string nombreDeCarpeta(const std::string& nombre) {
         out.push_back(c == ' ' ? '-' : c);
     }
     // Un nombre que termina en punto o espacio no se puede crear en Windows.
-    while (!out.empty() && (out.back() == '.' || out.back() == '-')) out.pop_back();
-    while (!out.empty() && out.front() == '-') out.erase(out.begin());
+    while (!out.empty() && (out.back() == '.' || out.back() == '-'))
+        out.pop_back();
+    while (!out.empty() && out.front() == '-')
+        out.erase(out.begin());
     if (out.size() > 80) out.resize(80);
     return out;
 }

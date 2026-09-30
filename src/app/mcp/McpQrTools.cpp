@@ -39,10 +39,14 @@ QVariantMap aMapa(const json& o) {
     QVariantMap m;
     if (!o.is_object()) return m;
     for (const auto& [k, v] : o.items()) {
-        if (v.is_string()) m[QString::fromStdString(k)] = QString::fromStdString(v);
-        else if (v.is_number_float()) m[QString::fromStdString(k)] = v.get<double>();
-        else if (v.is_number_integer()) m[QString::fromStdString(k)] = v.get<int>();
-        else if (v.is_boolean()) m[QString::fromStdString(k)] = v.get<bool>();
+        if (v.is_string())
+            m[QString::fromStdString(k)] = QString::fromStdString(v);
+        else if (v.is_number_float())
+            m[QString::fromStdString(k)] = v.get<double>();
+        else if (v.is_number_integer())
+            m[QString::fromStdString(k)] = v.get<int>();
+        else if (v.is_boolean())
+            m[QString::fromStdString(k)] = v.get<bool>();
     }
     return m;
 }
@@ -89,7 +93,8 @@ void McpService::registerQrTools() {
                                      {"delAparato", m.value("delAparato").toBool()}});
             }
             json ic = json::array();
-            for (const qr::Icono& i : qr::iconos()) ic.push_back(i.id);
+            for (const qr::Icono& i : qr::iconos())
+                ic.push_back(i.id);
             done(ToolResult().data(json{{"guardados", guardados}, {"tipos", tipos}, {"iconos", ic}}));
         };
         core_.addTool(std::move(t));
@@ -108,13 +113,15 @@ void McpService::registerQrTools() {
                     "OJO CON EL ESTILO: un icono al centro tapa modulos, asi que sube la correccion de "
                     "errores solo. Y no hay ojos circulares porque NO SE LEEN (se midio: un ojo mas "
                     "redondo que `redondeados` deja de escanear).";
-        t.inputSchema = {{"type", "object"},
-                         {"required", {"tipo"}},
-                         {"properties",
-                          {{"tipo", {{"type", "string"}}},
-                           {"datos", {{"type", "object"}, {"description", "los campos del tipo (qr_listar)"}}},
-                           {"estilo", {{"type", "object"}, {"properties", esquemaEstilo()}}}}}};
-        t.examples = {R"({"tipo": "wifi", "datos": {"red": "Estudio", "clave": "…"}, "estilo": {"icono": "wifi", "primario": "#1d4ed8"}})"};
+        t.inputSchema = {
+            {"type", "object"},
+            {"required", {"tipo"}},
+            {"properties",
+             {{"tipo", {{"type", "string"}}},
+              {"datos", {{"type", "object"}, {"description", "los campos del tipo (qr_listar)"}}},
+              {"estilo", {{"type", "object"}, {"properties", esquemaEstilo()}}}}}};
+        t.examples = {
+            R"({"tipo": "wifi", "datos": {"red": "Estudio", "clave": "…"}, "estilo": {"icono": "wifi", "primario": "#1d4ed8"}})"};
         t.run = [q](const json& a, Done done) {
             const QString tipo = QString::fromStdString(a["tipo"].get<std::string>());
             const QVariantMap datos = aMapa(a.value("datos", json::object()));
@@ -130,9 +137,8 @@ void McpService::registerQrTools() {
                 done(ToolResult::error("El texto no entra en un codigo QR: acortalo o baja la correccion."));
                 return;
             }
-            done(ToolResult().data(json{{"dice", texto.toStdString()},
-                                        {"svg", s.toStdString()},
-                                        {"bytes", s.size()}}));
+            done(ToolResult().data(
+                json{{"dice", texto.toStdString()}, {"svg", s.toStdString()}, {"bytes", s.size()}}));
         };
         core_.addTool(std::move(t));
     }
@@ -144,36 +150,39 @@ void McpService::registerQrTools() {
         t.description = "Lo deja guardado para usarlo despues. `ambito`: \"global\" (del aparato, sirve "
                         "para todos los eventos) o \"evento\" (viaja con este). Con `id` de uno que ya "
                         "existe, lo reemplaza.";
-        t.inputSchema = {{"type", "object"},
-                         {"required", {"nombre", "tipo"}},
-                         {"properties",
-                          {{"nombre", {{"type", "string"}, {"minLength", 1}}},
-                           {"tipo", {{"type", "string"}}},
-                           {"ambito", {{"type", "string"}, {"enum", {"global", "evento"}}, {"default", "global"}}},
-                           {"datos", {{"type", "object"}}},
-                           {"estilo", {{"type", "object"}, {"properties", esquemaEstilo()}}},
-                           {"id", {{"type", "string"}, {"description", "para reemplazar uno que ya existe"}}}}}};
+        t.inputSchema = {
+            {"type", "object"},
+            {"required", {"nombre", "tipo"}},
+            {"properties",
+             {{"nombre", {{"type", "string"}, {"minLength", 1}}},
+              {"tipo", {{"type", "string"}}},
+              {"ambito", {{"type", "string"}, {"enum", {"global", "evento"}}, {"default", "global"}}},
+              {"datos", {{"type", "object"}}},
+              {"estilo", {{"type", "object"}, {"properties", esquemaEstilo()}}},
+              {"id", {{"type", "string"}, {"description", "para reemplazar uno que ya existe"}}}}}};
         t.run = [q](const json& a, Done done) {
             // Se arma en el editor y se guarda: el operador ve aparecer lo que
             // el asistente hizo, en la pantalla, sin refrescar nada.
             q->setAmbito(QString::fromStdString(a.value("ambito", "global")));
-            if (a.contains("id")) q->abrir(QString::fromStdString(a["id"].get<std::string>()));
-            else q->nuevo(QString::fromStdString(a["tipo"].get<std::string>()));
+            if (a.contains("id"))
+                q->abrir(QString::fromStdString(a["id"].get<std::string>()));
+            else
+                q->nuevo(QString::fromStdString(a["tipo"].get<std::string>()));
             q->setTipo(QString::fromStdString(a["tipo"].get<std::string>()));
             // Con nombre: el temporal de `value()` muere antes del bucle.
             const json jd = a.value("datos", json::object());
             for (const auto& [k, v] : jd.items())
                 if (v.is_string()) q->setDato(QString::fromStdString(k), QString::fromStdString(v));
             const QVariantMap est = aMapa(a.value("estilo", json::object()));
-            for (auto it = est.begin(); it != est.end(); ++it) q->setEstilo(it.key(), it.value());
+            for (auto it = est.begin(); it != est.end(); ++it)
+                q->setEstilo(it.key(), it.value());
             const QString err = q->guardar(QString::fromStdString(a["nombre"].get<std::string>()));
             if (!err.isEmpty()) {
                 done(ToolResult::error(err.toStdString()));
                 return;
             }
             done(ToolResult::ok("Guardado como «" + a["nombre"].get<std::string>() + "».")
-                     .data(json{{"id", q->abierto().toStdString()},
-                                {"dice", q->contenido().toStdString()}}));
+                     .data(json{{"id", q->abierto().toStdString()}, {"dice", q->contenido().toStdString()}}));
         };
         core_.addTool(std::move(t));
     }
@@ -187,8 +196,9 @@ void McpService::registerQrTools() {
                         "una pantalla.";
         t.inputSchema = {{"type", "object"},
                          {"required", {"id"}},
-                         {"properties", {{"id", {{"type", "string"}}},
-                                         {"ambito", {{"type", "string"}, {"enum", {"global", "evento"}}}}}}};
+                         {"properties",
+                          {{"id", {{"type", "string"}}},
+                           {"ambito", {{"type", "string"}, {"enum", {"global", "evento"}}}}}}};
         t.run = [q](const json& a, Done done) {
             if (a.contains("ambito")) q->setAmbito(QString::fromStdString(a["ambito"].get<std::string>()));
             const QString err = q->borrar(QString::fromStdString(a["id"].get<std::string>()));
@@ -241,7 +251,8 @@ void McpService::registerQrTools() {
                 done(ToolResult::error("No pude escribir el archivo."));
                 return;
             }
-            done(ToolResult::ok("Guardado en " + ruta.toStdString()).data(json{{"ruta", ruta.toStdString()}}));
+            done(
+                ToolResult::ok("Guardado en " + ruta.toStdString()).data(json{{"ruta", ruta.toStdString()}}));
         };
         core_.addTool(std::move(t));
     }

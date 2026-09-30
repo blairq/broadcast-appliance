@@ -3,12 +3,12 @@
 // ============================================================================
 
 #include "ui/StudioViewModel.hpp"
-#include <QDateTime>
 #include <QClipboard>
+#include <QDateTime>
 
 #include <QGuiApplication>
-#include <QWindow>
 #include <QScreen>
+#include <QWindow>
 
 #if defined(BA_HAVE_CLAP)
 #include "audio/AudioViewModel.hpp"
@@ -34,34 +34,34 @@
 #include "agent/Despachador.hpp"
 #include "agent/Roles.hpp"
 #include "AppRuntime.hpp"
-#include "net/HttpsClient.hpp"
-#include "ui/ChatOverlayRenderer.hpp"
-#include "ui/ConferenceClient.hpp"
-#include "ui/EventoViewModel.hpp"
 #include "diag/DiarioDeArranque.hpp"
 #include "diag/Registro.hpp"
 #include "graficos/Emisor.hpp"
 #include "graficos/Vinculos.hpp"
-#include "ui/GraficoViewModel.hpp"
-#include "ui/ExtensionesModel.hpp"
-#include "ui/RegistroViewModel.hpp"
-#include "ui/RielConfig.hpp"
-#include "ui/PantallasViewModel.hpp"
-#include "ui/PersonasViewModel.hpp"
+#include "net/HttpsClient.hpp"
 #include "ui/CarruselViewModel.hpp"
-#include "ui/MediosViewModel.hpp"
-#include "ui/PublicoViewModel.hpp"
-#include "ui/PrompterViewModel.hpp"
-#include "ui/QrViewModel.hpp"
-#include "ui/RotuladorViewModel.hpp"
+#include "ui/ChatOverlayRenderer.hpp"
+#include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/DashboardModel.hpp"
+#include "ui/EventoViewModel.hpp"
+#include "ui/ExtensionesModel.hpp"
 #include "ui/FacebookViewModel.hpp"
 #include "ui/FrameService.hpp"
+#include "ui/GraficoViewModel.hpp"
 #include "ui/InputsViewModel.hpp"
 #include "ui/ListModels.hpp"
+#include "ui/MediosViewModel.hpp"
 #include "ui/OperatorMessages.hpp"
+#include "ui/PantallasViewModel.hpp"
+#include "ui/PersonasViewModel.hpp"
+#include "ui/PrompterViewModel.hpp"
 #include "ui/PropertiesModel.hpp"
+#include "ui/PublicoViewModel.hpp"
+#include "ui/QrViewModel.hpp"
+#include "ui/RegistroViewModel.hpp"
+#include "ui/RielConfig.hpp"
+#include "ui/RotuladorViewModel.hpp"
 #include "ui/SettingsModel.hpp"
 #include "ui/SystemViewModel.hpp"
 #include "ui/TwitchViewModel.hpp"
@@ -106,18 +106,17 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         // que tambien toca el asistente: si queda roto, no puede impedir que el
         // programa abra.
         ba::diag::Cargando c("dashboard");
-        dashboard_ = std::make_unique<DashboardModel>(
-            c.saltear() ? std::filesystem::path{} : rt.dataRoot() / "Config" / "ui.json");
+        dashboard_ = std::make_unique<DashboardModel>(c.saltear() ? std::filesystem::path{}
+                                                                  : rt.dataRoot() / "Config" / "ui.json");
     }
     frames_ = std::make_unique<FrameService>(rt.engine(), rt.config().guests);
     frames_->setLobbySlots(rt.gateway().lobbySlots);
     props_ = std::make_unique<PropertiesModel>(rt);
     conference_ = std::make_unique<ConferenceViewModel>(rt);
     // El encargo al asistente vive aca (necesita el MCP): la sala solo avisa.
-    conference_->setIntakeSink(
-        [this](const QString& id, const QString& name, bool yaAdentro) {
-            return assistantIntake(id, name, yaAdentro);
-        });
+    conference_->setIntakeSink([this](const QString& id, const QString& name, bool yaAdentro) {
+        return assistantIntake(id, name, yaAdentro);
+    });
     connect(conference_.get(), &ConferenceViewModel::notify, this, &StudioViewModel::notify);
     // Un solo renderizador de gráficos para todos los que disparan uno: el
     // guion, el editor, el rotulador y el asistente.
@@ -127,8 +126,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         // El guion abre solo el ultimo evento que se toco, que es un archivo
         // del disco y puede venir de cualquier lado.
         ba::diag::Cargando c("evento");
-        evento_ = std::make_unique<EventoViewModel>(rt, conference_.get(), emisor_.get(),
-                                                    c.saltear());
+        evento_ = std::make_unique<EventoViewModel>(rt, conference_.get(), emisor_.get(), c.saltear());
     }
     connect(evento_.get(), &EventoViewModel::notify, this, &StudioViewModel::notify);
     grafico_ = std::make_unique<GraficoViewModel>(rt, *emisor_);
@@ -159,10 +157,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // manejar el carrusel que esa escena tenga. Sin esto el operador tendria
     // que acordarse de elegirlo a mano en el peor momento para acordarse de
     // algo. `sceneChanged` avisa tanto del corte como del cambio de fuentes.
-    connect(this, &StudioViewModel::sceneChanged, carruseles_.get(),
-            &CarruselViewModel::revisarEscena);
-    connect(this, &StudioViewModel::escenasCambiaron, carruseles_.get(),
-            &CarruselViewModel::revisarEscena);
+    connect(this, &StudioViewModel::sceneChanged, carruseles_.get(), &CarruselViewModel::revisarEscena);
+    connect(this, &StudioViewModel::escenasCambiaron, carruseles_.get(), &CarruselViewModel::revisarEscena);
     carruseles_->revisarEscena();
     connect(qr_.get(), &QrViewModel::notify, this, &StudioViewModel::notify);
     connect(rotulador_.get(), &RotuladorViewModel::notify, this, &StudioViewModel::notify);
@@ -174,8 +170,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // escena está al aire.
     ba::diag::Cargando cargandoVinculos("vinculos");
     vinculos_ = std::make_unique<graficos::Vinculos>(
-        cargandoVinculos.saltear() ? std::filesystem::path{}
-                                   : rt.dataRoot() / "Config" / "vinculos.json",
+        cargandoVinculos.saltear() ? std::filesystem::path{} : rt.dataRoot() / "Config" / "vinculos.json",
         *emisor_);
     vinculos_->setContexto([this]() { return contextoDeVinculos(); });
     rotulador_->setVinculos(vinculos_.get());
@@ -188,8 +183,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         extensiones_ = std::make_unique<ExtensionesModel>(rt);
         if (c.saltear()) extensiones_.reset();
     }
-    if (extensiones_)
-        connect(extensiones_.get(), &ExtensionesModel::notify, this, &StudioViewModel::notify);
+    if (extensiones_) connect(extensiones_.get(), &ExtensionesModel::notify, this, &StudioViewModel::notify);
 
     // El riel se lee siempre, tambien en modo seguro: es COMO SE NAVEGA. Si
     // no se cargara, el operador quedaria sin poder llegar a Configuracion
@@ -662,7 +656,8 @@ void StudioViewModel::publicarTally() {
     const auto fuentesDe = [this](const QString& escena) {
         QStringList out;
         if (escena.isEmpty()) return out;
-        for (const std::string& f : rt_.engine().sceneSources(escena.toStdString())) out << qs(f);
+        for (const std::string& f : rt_.engine().sceneSources(escena.toStdString()))
+            out << qs(f);
         return out;
     };
     p->publicarTally(aire, armada, fuentesDe(aire), fuentesDe(armada), streaming(), recording());
@@ -726,8 +721,8 @@ QVariantList StudioViewModel::escenasPorCarpeta() const {
     // Adentro de cada grupo se respeta el orden que puso el operador:
     // ordenarlas alfabéticamente sería desordenarlas para el que las acomodó.
     QVariantList sueltas;
-    QVariantList carpetas;       // [{carpeta, escenas}]
-    QMap<QString, int> donde;    // carpeta -> posicion en `carpetas`
+    QVariantList carpetas;    // [{carpeta, escenas}]
+    QMap<QString, int> donde; // carpeta -> posicion en `carpetas`
     for (const std::string& n : rt_.orderedSceneNames()) {
         const QString carpeta = qs(rt_.sceneFolder(n));
         if (carpeta.isEmpty()) {
@@ -771,7 +766,8 @@ QString StudioViewModel::copyScene(const QString& from, const QString& to) {
             return false;
         };
         destino = from + " (copia)";
-        for (int i = 2; existe(destino); ++i) destino = from + " (copia " + QString::number(i) + ")";
+        for (int i = 2; existe(destino); ++i)
+            destino = from + " (copia " + QString::number(i) + ")";
     }
     if (!rt_.copyScene(from.toStdString(), destino.toStdString())) {
         emit notify(qs(rt_.lastError()), "error");
@@ -782,8 +778,7 @@ QString StudioViewModel::copyScene(const QString& from, const QString& to) {
     emit sceneChanged();
     rt_.save();
     const std::string aviso = rt_.lastError();
-    emit notify(aviso.empty() ? "Escena copiada: " + destino
-                              : "Escena copiada, pero " + qs(aviso),
+    emit notify(aviso.empty() ? "Escena copiada: " + destino : "Escena copiada, pero " + qs(aviso),
                 aviso.empty() ? "ok" : "warn");
     return destino;
 }
