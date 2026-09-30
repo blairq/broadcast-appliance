@@ -1525,7 +1525,13 @@
         "Contestame mirando el programa: ¿la cara del conductor queda tapada por algo?",
         "¿cuántas personas se ven en el programa ahora?",
         "mirá la cámara del lobby 1 y decime si hay alguien sentado",
-        "Contestame por escrito: ¿se ve el logo del canal en el programa?"
+        "Contestame por escrito: ¿se ve el logo del canal en el programa?",
+        "¿El conductor tiene la corbata torcida en el programa?",
+        "Mirando la app, ¿qué número marca el contador de participantes?",
+        "¿Cuántas personas se ven en la toma armada?",
+        "¿cuántas ventanas de invitados se ven en pantalla?",
+        "¿el del lobby 2 es hombre o mujer? miralo",
+        "¿El invitado 2 está en la calle o adentro de una casa? Decímelo"
       ],
       "tambien": [],
       "correctivas": [],
