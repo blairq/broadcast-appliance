@@ -474,7 +474,8 @@ struct IpStack::Impl {
             }
             u32_t sleep = sys_timeouts_sleeptime();
             if (sleep > 50) sleep = 50;
-            timeval tv{0, static_cast<long>(sleep) * 1000};
+            // tv_usec es long en Linux/Windows e int en macOS.
+            timeval tv{0, static_cast<decltype(timeval::tv_usec)>(sleep * 1000)};
             select(static_cast<int>(maxFd) + 1, &rd, &wr, nullptr, &tv);
 
             if (FD_ISSET(static_cast<SockT>(wakeSock), &rd)) {
@@ -501,7 +502,12 @@ struct IpStack::Impl {
             for (auto& b : bridges) {
                 const bool r = FD_ISSET(static_cast<SockT>(b->sock), &rd);
                 const bool w = FD_ISSET(static_cast<SockT>(b->sock), &wr);
-                serviceBridge(*b, r || (!b->connecting && !b->sockEof), w || !b->toSock.empty());
+                // Mientras conecta, solo vale lo que dijo select(): con datos
+                // pendientes (la cabecera PROXY) se daba por conectado un socket
+                // que no lo estaba. Linux devuelve EAGAIN y lo tapaba; macOS da
+                // ENOTCONN y el puente se caia.
+                const bool writable = b->connecting ? w : (w || !b->toSock.empty());
+                serviceBridge(*b, r || (!b->connecting && !b->sockEof), writable);
             }
             const int64_t now = nowMs();
             for (auto it = udpFlows.begin(); it != udpFlows.end();) {

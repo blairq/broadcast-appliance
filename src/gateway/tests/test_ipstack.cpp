@@ -29,6 +29,7 @@
 #include "net/IpStack.hpp"
 #include "net/WgCrypto.hpp"
 #include "net/WgDevice.hpp"
+#include "platform/Paths.hpp"
 
 #ifndef _WIN32
 #include <arpa/inet.h>
@@ -248,9 +249,10 @@ int main(int argc, char** argv) {
     CHECK(wg.start(), "WireGuard del gateway");
     CHECK(ip.start(), "pila IP del gateway");
 
+    // Antes del fork: /proc/self/exe no existe en macOS.
+    const std::string self = ba::platform::executablePath().string();
     const pid_t pid = fork();
     if (pid == 0) {
-        const std::string self = "/proc/self/exe";
         const std::string port = std::to_string(wg.localPort());
         const std::string rp = toBase64(rPriv);
         const std::string gp = toBase64(gPub);
