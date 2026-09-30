@@ -546,6 +546,10 @@ def main():
     ap.add_argument("--tolerancia", type=float, default=0.05)
     ap.add_argument("--vecinas", type=int, default=5)
     ap.add_argument("--diagnosticar", action="store_true")
+    ap.add_argument("--podar", type=int, default=0,
+                    help="deja las N mejores semillas por herramienta propia (margen"
+                         " sin contarse + juez ciego) y reordena las administrativas")
+    ap.add_argument("--juez", help="jsonl {herramienta, frase, juez}: veredictos del juez ciego")
     ap.add_argument("--limpiar", action="store_true",
                     help="sacar lo que empuja hacia otra herramienta: frases administrativas que"
                          " caen dentro de una propia, y semillas propias del lado ajeno de un par"
@@ -777,6 +781,122 @@ def main():
             {"pares": [{"a": a, "b": b, "peso": n, "motivos": motivo[(a, b)][:6]}
                        for (a, b), n in aristas.most_common()],
              "conjuntos": conjuntos}, ensure_ascii=False, indent=1), encoding="utf-8")
+
+    if args.podar:
+        # PODAR A UN PRESUPUESTO FIJO, viejas y nuevas juntas.
+        # Agregar sin sacar hizo crecer el corpus un 60% (507 -> 853 semillas) y
+        # las viejas malas seguian ahi. Cada semilla propia se puntua con:
+        #   margen   (d_ajeno - d_propio) / (d_ajeno + d_propio): d_propio contra el
+        #            centro de SU grupo SIN ella (si no, se mide contra si misma), y
+        #            d_ajeno contra el centro de cualquier otro grupo.
+        #   juez     -1 si el juez ciego la asigno a OTRA herramienta, -0.3 si dijo
+        #            NINGUNA (ambigua).
+        # y se eligen las K mejores, salteando las casi iguales a una ya elegida
+        # (coseno > 0.97). Las que salen van a «podadas» (el generador no las lee).
+        # ADMINISTRATIVAS: no se borran; se reordenan para que las 3 que el
+        # generador toma (las primeras) sean las mas alejadas de las nubes propias.
+        import lib_prompt as _lp
+        propias = set(_lp.herramientas_reactivas())
+        juez = {}
+        if args.juez and Path(args.juez).exists():
+            for l in Path(args.juez).read_text(encoding="utf-8").splitlines():
+                if l.strip():
+                    r = json.loads(l)
+                    juez[(r["herramienta"], r["frase"])] = r["juez"]
+        d = json.loads(Path(args.semillas).read_text(encoding="utf-8"))
+        podadas, tam = [], []
+        for h in sorted(propias):
+            e = d["herramientas"].get(h)
+            if not e or h not in geo.P:
+                continue
+            mias = e.get("frases", []) + e.get("correctivas", [])
+            if len(mias) <= args.podar:
+                tam.append((h, len(mias), len(mias)))
+                continue
+            P = geo.P[h]
+            n = len(P)
+            suma = P.sum(0)
+            otros = torch.stack([geo.mu[o] for o in geo.hs if o != h])
+            pts = []
+            for i, fr in enumerate(mias):
+                v = P[frases[h].index(fr)]
+                mu_sin = (suma - v) / (n - 1)
+                dp = (v - mu_sin).norm().item()
+                da = (otros - v).norm(dim=1).min().item()
+                s = (da - dp) / (da + dp)
+                j = juez.get((h, fr))
+                if j is not None and j != h:
+                    s -= 1.0 if j != "NINGUNA" else 0.3
+                pts.append((s, fr, v))
+            pts.sort(key=lambda x: -x[0])
+            elegidas, vs = [], []
+            for s, fr, v in pts:
+                vn = v / v.norm()
+                if vs and max((vn @ w).item() for w in vs) > 0.97:
+                    continue
+                elegidas.append(fr)
+                vs.append(vn)
+                if len(elegidas) == args.podar:
+                    break
+            for s, fr, v in pts:                      # si faltan, las mejores que quedan
+                if len(elegidas) == args.podar:
+                    break
+                if fr not in elegidas:
+                    elegidas.append(fr)
+            fuera = [(s, fr) for s, fr, _ in pts if fr not in elegidas]
+            podadas += [(h, fr, s) for s, fr in fuera]
+            tam.append((h, len(mias), len(elegidas)))
+            if args.aceptar:
+                e["frases"] = [f for f in e.get("frases", []) if f in elegidas]
+                e["correctivas"] = [f for f in e.get("correctivas", []) if f in elegidas]
+                e.setdefault("podadas", [])
+                e["podadas"] += [fr for _, fr in fuera if fr not in e["podadas"]]
+        antes = sum(a for _, a, _ in tam)
+        despues = sum(b for _, _, b in tam)
+        print(f"\nSEMILLAS PROPIAS: {antes} -> {despues} (tope {args.podar} por herramienta)")
+        print("  las peor puntuadas que salen:")
+        for h, fr, s in sorted(podadas, key=lambda x: x[2])[:25]:
+            print(f"    {s:+.2f}  {h:22s} «{fr[:60]}»")
+        # administrativas
+        Cp = torch.stack([geo.mu[o] for o in geo.hs if o in propias])
+        filas = [json.loads(l) for l in DERIVACIONES_ADMIN.read_text(encoding="utf-8").splitlines()
+                 if l.strip()]
+        lejos = {}
+        for h in geo.hs:
+            if h in propias or h == "derivar" or h not in frases:
+                continue
+            for i, fr in enumerate(frases[h]):
+                if i < len(geo.P[h]):
+                    lejos[(h, fr)] = (Cp - geo.P[h][i]).norm(dim=1).min().item()
+        por_h = collections.defaultdict(list)
+        for r in filas:
+            por_h[r["herramienta"]].append(r)
+        cambiadas = 0
+        nuevas = []
+        for h, rs in por_h.items():
+            orden = sorted(rs, key=lambda r: -lejos.get((h, r["frase"]), 0.0))
+            cambiadas += orden[:3] != rs[:3]
+            nuevas += orden
+        print(f"\nADMINISTRATIVAS: {len(por_h)} herramientas, {cambiadas} cambian cuales"
+              " 3 entran al corpus (las mas alejadas de las nubes propias)")
+        if args.aceptar:
+            Path(args.semillas).write_text(json.dumps(d, ensure_ascii=False, indent=2),
+                                           encoding="utf-8")
+            DERIVACIONES_ADMIN.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n"
+                                                  for r in nuevas), encoding="utf-8")
+            if args.bitacora:
+                import datetime
+                reg = {"fecha": datetime.datetime.now().isoformat(timespec="seconds"),
+                       "modelo": str(args.modelo), "objetivo": args.objetivo,
+                       "nota": f"poda a {args.podar} semillas por herramienta",
+                       "propuestas_por_herramienta": {}, "aceptadas_por_herramienta": {},
+                       "aprobadas": [],
+                       "quitadas": [{"herramienta": h, "frase": fr} for h, fr, _ in podadas],
+                       "rechazadas": []}
+                with open(args.bitacora, "a", encoding="utf-8") as f:
+                    f.write(json.dumps(reg, ensure_ascii=False) + "\n")
+            print("-> semillas podadas y administrativas reordenadas. Volver a correr"
+                  " `make corpus-entrenamiento`.")
 
     if args.limpiar:
         # SACAR LO QUE EMPUJA HACIA OTRA HERRAMIENTA.
