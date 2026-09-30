@@ -316,11 +316,13 @@ check-macos-tools:
 	@xcodebuild -version >/dev/null 2>&1 || { echo "ERROR: falta Xcode completo (App Store) y: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer" >&2; exit 1; }
 	@missing=""; for t in cmake ninja meson pkg-config git curl python3; do command -v $$t >/dev/null 2>&1 || missing="$$missing $$t"; done; \
 	  if [ -n "$$missing" ]; then echo "ERROR: faltan herramientas de build:$$missing" >&2; \
-	  echo "  brew install cmake ninja meson pkg-config" >&2; exit 1; fi
+	  echo "  brew install cmake ninja meson pkg-config make" >&2; exit 1; fi
 	@echo "[macos] herramientas OK ($$(xcodebuild -version | head -1), $$(cmake --version | head -1))"
 
+# deps-ndi-src: el fuente de libmicrodns (buscar televisores por mDNS); en
+# Linux viene compilada con obs-deps.
 deps-macos: check-macos-tools deps-obs-macos deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts \
-            deps-cloudflared-host deps-clap
+            deps-cloudflared-host deps-clap deps-ndi-src
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=macos
 	@# LSP (modulos del rack de audio) es opcional en macOS mientras se valida:
 	@# sin el, el rack funciona con el analizador y el generador.
@@ -328,7 +330,7 @@ deps-macos: check-macos-tools deps-obs-macos deps-qt-host deps-src deps-lwip dep
 
 macos:
 	cmake -S . -B $(BUILD_DIR) -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 \
-		-DCMAKE_OSX_DEPLOYMENT_TARGET=13.0
+		-DCMAKE_OSX_DEPLOYMENT_TARGET=13.3
 	cmake --build $(BUILD_DIR) -j$(JOBS)
 	ctest --test-dir $(BUILD_DIR) --output-on-failure
 

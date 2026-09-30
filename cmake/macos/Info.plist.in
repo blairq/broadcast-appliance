@@ -11,7 +11,8 @@
     <key>CFBundleVersion</key>
     <string>@PROJECT_VERSION@</string>
     <key>LSMinimumSystemVersion</key>
-    <string>13.0</string>
+    <!-- 13.3: lo que pide el ONNX Runtime oficial de arm64 (reconocer caras). -->
+    <string>13.3</string>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSCameraUsageDescription</key>
@@ -19,10 +20,11 @@
     <key>NSMicrophoneUsageDescription</key>
     <string>Broadcast Appliance usa el micrófono como fuente de audio de la emisión.</string>
     <key>NSLocalNetworkUsageDescription</key>
-    <string>Broadcast Appliance recibe a los invitados y fuentes NDI por la red local.</string>
+    <string>Broadcast Appliance recibe a los invitados y fuentes NDI por la red local, y busca los televisores (Chromecast).</string>
     <key>NSBonjourServices</key>
     <array>
         <string>_ndi._tcp</string>
+        <string>_googlecast._tcp</string>
     </array>
 </dict>
 </plist>

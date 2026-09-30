@@ -133,8 +133,13 @@ if(NOT WIN32 AND EXISTS "${BA_OBS_DEPS}/lib/libmicrodns.a")
     target_link_libraries(ba_mdns INTERFACE "${BA_OBS_DEPS}/lib/libmicrodns.a")
     set(BA_MDNS_OK ON)
 elseif(NOT WIN32 AND EXISTS "${BA_MDNS_DIR}/src/mdns.c")
-    add_library(ba_mdns STATIC "${BA_MDNS_DIR}/src/mdns.c" "${BA_MDNS_DIR}/src/rr.c")
-    target_include_directories(ba_mdns PUBLIC "${BA_MDNS_DIR}/include" PRIVATE "${BA_MDNS_DIR}")
+    # compat.c: os_strerror y compania (en Windows van ademas inet.c y poll.c).
+    add_library(ba_mdns STATIC "${BA_MDNS_DIR}/src/mdns.c" "${BA_MDNS_DIR}/src/rr.c"
+                               "${BA_MDNS_DIR}/compat/compat.c")
+    # config.h: lo que el meson.build de libmicrodns detecta en POSIX.
+    target_include_directories(ba_mdns PUBLIC "${BA_MDNS_DIR}/include"
+                               PRIVATE "${CMAKE_SOURCE_DIR}/cmake/microdns-posix" "${BA_MDNS_DIR}" "${BA_MDNS_DIR}/compat")
+    target_compile_definitions(ba_mdns PRIVATE HAVE_CONFIG_H)
     target_compile_options(ba_mdns PRIVATE -w)
     set_target_properties(ba_mdns PROPERTIES C_STANDARD 11 POSITION_INDEPENDENT_CODE ON)
     set(BA_MDNS_OK ON)
