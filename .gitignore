@@ -35,3 +35,7 @@ extern/
 .codemap/
 .opencode/
 .DS_Store
+
+# Entrenamiento: el venv lo arma tools/entrenar/venv.sh y unsloth deja su cache
+.venv-entrenar/
+unsloth_compiled_cache/
