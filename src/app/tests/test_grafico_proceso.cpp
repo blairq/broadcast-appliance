@@ -40,6 +40,15 @@ QString escribir(const QTemporaryDir& dir, const QString& nombre, const QString&
 } // namespace
 
 int main(int argc, char** argv) {
+    // Sin pantalla (CI, SSH) en Linux, offscreen: el mismo criterio que
+    // src/grafico/main.cpp. Sin esto QGuiApplication aborta al no encontrar
+    // display. En Windows y macOS no se toca: ahi offscreen no da OpenGL.
+#if !defined(_WIN32) && !defined(__APPLE__)
+    if (qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM") && qEnvironmentVariableIsEmpty("DISPLAY") &&
+        qEnvironmentVariableIsEmpty("WAYLAND_DISPLAY")) {
+        qputenv("QT_QPA_PLATFORM", "offscreen");
+    }
+#endif
     QGuiApplication app(argc, argv);
 
     // El binario esta al lado del de este test (build/src/grafico).
