@@ -1553,9 +1553,9 @@
         "mirá la cámara del lobby 1 y decime si hay alguien sentado",
         "Contestame por escrito: ¿se ve el logo del canal en el programa?",
         "¿El conductor tiene la corbata torcida en el programa?",
-        "Mirando la app, ¿qué número marca el contador de participantes?",
+        "Mirá la imagen de la app y decime qué número ves en el contador de participantes",
         "Mirá la toma armada y contame cuántas personas se ven",
-        "¿cuántas ventanas de invitados se ven en pantalla?",
+        "¿Qué se ve en la imagen del programa? Contame cuántas ventanas de invitados hay",
         "¿el que espera en lobby 2 es hombre o mujer? contestame mirándolo",
         "Mirando al invitado 2, ¿el fondo que se ve es calle o una casa?"
       ],
@@ -1571,7 +1571,9 @@
         "fijate en el aire si el zócalo tapa la cara del conductor",
         "¿El invitado 2 está en la calle o adentro de una casa? Decímelo",
         "¿Cuántas personas se ven en la toma armada?",
-        "¿el del lobby 2 es hombre o mujer? miralo"
+        "¿el del lobby 2 es hombre o mujer? miralo",
+        "Mirando la app, ¿qué número marca el contador de participantes?",
+        "¿cuántas ventanas de invitados se ven en pantalla?"
       ]
     },
     "participant_admit_all": {
