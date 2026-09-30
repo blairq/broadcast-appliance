@@ -3,18 +3,18 @@
  "herramientas": "7a7f2b416dcaa7ee",
  "cuantas": 85,
  "tokens_aprox": 2860,
- "ejemplos_entrenar": 2901,
+ "ejemplos_entrenar": 2912,
  "herramientas_con_frases": 86,
  "propuestas_automaticas": [],
  "derivar": {
-  "ejemplos": 315,
-  "porcion": 0.109,
+  "ejemplos": 314,
+  "porcion": 0.108,
   "herramientas_fuera_del_repertorio": 207,
-  "fuera_con_ejemplos": 121
+  "fuera_con_ejemplos": 132
  },
  "correctivas": {
-  "ejemplos": 538,
-  "porcion": 0.185,
+  "ejemplos": 520,
+  "porcion": 0.179,
   "versiones": [
    "v2",
    "v7-pegadas"

@@ -165,6 +165,15 @@ def main():
     for herr, frases in jerga.get("giros", {}).items():
         if herr in sem:
             sem[herr]["frases"] = list(dict.fromkeys(sem[herr]["frases"] + frases))
+    # LO QUE EL BUCLE SACO. tools/entrenar/bucle-corpus.py puede quitar una
+    # semilla que empuja a su herramienta hacia una vecina; si esa semilla venia
+    # de la jerga, la anota en `excluir` y aca se respeta. Si no, cada
+    # regeneracion la volveria a meter.
+    for herr, d_ in sem.items():
+        fuera = set(d_.get("excluir", []))
+        if fuera:
+            d_["frases"] = [f for f in d_["frases"] if f not in fuera]
+            d_["correctivas"] = [f for f in d_.get("correctivas", []) if f not in fuera]
     auto = {}
     if SEMILLAS_AUTO.exists():
         auto = json.loads(SEMILLAS_AUTO.read_text(encoding="utf-8"))["herramientas"]

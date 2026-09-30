@@ -180,3 +180,16 @@ incertidumbre es un override disperso de pocos rasgos dedicados.
 
 El vector se calcula desde `entrenar.jsonl`, **nunca desde el examen**: si
 saliera del examen, la curva estaría ajustada a él y no mediría nada.
+
+## Curar el corpus: el bucle
+
+    tools/entrenar/bucle-corpus.py --modelo <m> --diagnosticar --json diag.json
+    tools/entrenar/bucle-corpus.py --modelo <m> --evaluar candidatas.json --aceptar
+
+Una persona o una LLM grande propone frases; una medicion adentro del modelo
+decide si entran: tienen que caer en su grupo, sumar variedad fuera de los ejes
+hacia las vecinas, y no subir la CDNV direccional de ningun par por encima del
+objetivo. Sirve para cualquier conjunto de herramientas.
+
+**Documentacion completa, con la matematica y lo que salio mal:
+[docs/bucle-corpus.md](../../docs/bucle-corpus.md).**

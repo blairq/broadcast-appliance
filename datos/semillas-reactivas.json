@@ -593,7 +593,9 @@
     "share_list": {
       "frases": [
         "que adjuntos llegaron",
-        "que subieron los participantes"
+        "que subieron los participantes",
+        "qué archivos compartieron",
+        "listame lo que subieron los invitados"
       ],
       "tambien": [],
       "correctivas": []
@@ -610,7 +612,10 @@
     "capture_people": {
       "frases": [
         "mostrame a todos los invitados",
-        "sacales una foto a todos los que estan en la sala"
+        "sacales una foto a todos los que estan en la sala",
+        "mostrame las caras de todos los que están conectados",
+        "una foto de cada participante",
+        "quiero ver a los participantes uno por uno"
       ],
       "tambien": [],
       "correctivas": []
@@ -632,7 +637,8 @@
         "quiero ver varios instantes seguidos, algo se mueve raro",
         "sacame cinco cuadros con medio segundo entre cada uno",
         "necesito una tira de imágenes de esa cámara",
-        "hacele un muestreo en el tiempo a esa fuente"
+        "hacele un muestreo en el tiempo a esa fuente",
+        "sacá capturas a intervalos del programa"
       ],
       "tambien": [],
       "correctivas": []
@@ -649,7 +655,10 @@
     "chat_wait": {
       "frases": [
         "quedate esperando la respuesta del invitado",
-        "quedate esperando la respuesta del invitado"
+        "quedate esperando la respuesta del invitado",
+        "quedate atento al chat hasta que conteste",
+        "esperá su respuesta por escrito",
+        "aguardá el mensaje del entrevistado"
       ],
       "tambien": [],
       "correctivas": []
@@ -679,7 +688,8 @@
     "guest_source_add": {
       "frases": [
         "sumá al invitado del slot uno",
-        "agrega la pantalla que esta compartiendo"
+        "agrega la pantalla que esta compartiendo",
+        "sumá la pantalla que comparte el invitado a esta escena"
       ],
       "tambien": [],
       "correctivas": []
@@ -695,11 +705,13 @@
     },
     "operator_feed": {
       "frases": [
-        "que paso recien",
-        "dame el diario de lo que fue pasando"
+        "con qué cámara me ven los que esperan para entrar"
       ],
       "tambien": [],
-      "correctivas": []
+      "correctivas": [],
+      "_nota": [
+        "Tenia dos semillas de OTRA herramienta —«que paso recien», «dame el diario de lo que fue pasando», que son del registro de eventos— y ninguna propia. Lo encontro bucle-corpus.py: todas las frases correctas para operator_feed caian en otras herramientas porque su grupo estaba centrado en otra cosa."
+      ]
     },
     "participant_admit_all": {
       "frases": [
@@ -740,7 +752,10 @@
     "room_pin": {
       "frases": [
         "ponele clave a la sala",
-        "cambiale el pin de entrada"
+        "cambiale el pin de entrada",
+        "generá un código de acceso nuevo",
+        "renová la clave de ingreso a la sala",
+        "el pin se filtró, cambialo"
       ],
       "tambien": [],
       "correctivas": []
@@ -770,7 +785,8 @@
     "scene_define": {
       "frases": [
         "armame una escena entera con la camara y el logo",
-        "defini la escena del cierre con todo adentro"
+        "defini la escena del cierre con todo adentro",
+        "armá una escena entera con dos cámaras y el logo"
       ],
       "tambien": [],
       "correctivas": []
@@ -778,7 +794,8 @@
     "scene_delete": {
       "frases": [
         "borra esa escena",
-        "elimina la que no usamos"
+        "elimina la que no usamos",
+        "eliminá la escena vieja"
       ],
       "tambien": [],
       "correctivas": []
@@ -786,7 +803,9 @@
     "scene_export": {
       "frases": [
         "exportame las escenas",
-        "sacame una copia de como quedaron las escenas"
+        "sacame una copia de como quedaron las escenas",
+        "pasame la definición de todas las escenas en json",
+        "guardá un respaldo de las escenas"
       ],
       "tambien": [],
       "correctivas": []
@@ -794,7 +813,9 @@
     "scene_folder": {
       "frases": [
         "meti esa escena en la carpeta de deportes",
-        "agrupa estas escenas"
+        "agrupa estas escenas",
+        "agrupá estas escenas en una carpeta",
+        "creá una carpeta para el segundo bloque y metela ahí"
       ],
       "tambien": [],
       "correctivas": []
@@ -807,7 +828,8 @@
         "acomodame el orden, que quedaron desordenadas",
         "bajala al final de la lista",
         "ponela tercera, va después del informe",
-        "reordename las escenas como va el programa"
+        "reordename las escenas como va el programa",
+        "reubicá la escena en el orden del programa"
       ],
       "tambien": [],
       "correctivas": []
@@ -823,7 +845,6 @@
       ],
       "tambien": [],
       "correctivas": [
-        "trabá la de apertura",
         "candado a la de apertura"
       ],
       "arregla": [
@@ -833,7 +854,8 @@
     "scene_rename": {
       "frases": [
         "rebautizá esa escena",
-        "renombra la escena 4"
+        "renombra la escena 4",
+        "ponele otro nombre a esa escena"
       ],
       "tambien": [],
       "correctivas": []
@@ -841,7 +863,8 @@
     "share_delete": {
       "frases": [
         "borra ese archivo que mandaron",
-        "elimina lo que compartio"
+        "elimina lo que compartio",
+        "eliminá el archivo compartido"
       ],
       "tambien": [],
       "correctivas": []
@@ -849,7 +872,8 @@
     "share_take": {
       "frases": [
         "metele a la escena el archivo compartido",
-        "llevá el adjunto del invitado a la toma"
+        "llevá el adjunto del invitado a la toma",
+        "usá en la escena la imagen que mandaron por la sala"
       ],
       "tambien": [],
       "correctivas": [
@@ -907,7 +931,10 @@
     "source_types": {
       "frases": [
         "qué clases de entrada soporta",
-        "que se puede meter en una escena"
+        "que se puede meter en una escena",
+        "qué fuentes se pueden agregar",
+        "qué tipos de entrada soporta el programa",
+        "listame los tipos de fuente"
       ],
       "tambien": [],
       "correctivas": []
@@ -923,8 +950,6 @@
     },
     "speaker_presenter": {
       "frases": [
-        "que sea el presentador fijo",
-        "este es el que conduce",
         "la conductora se queda fija mientras rotan los invitados",
         "marcalo como el que lleva el programa",
         "dejalo siempre en pantalla, los demás van pasando",
@@ -932,14 +957,13 @@
         "quiero que ese tenga lugar propio todo el tiempo"
       ],
       "tambien": [],
-      "correctivas": [
-        "el conductor tiene lugar fijo en pantalla"
-      ]
+      "correctivas": []
     },
     "speaker_queue": {
       "frases": [
         "mostrame la fila de oradores",
-        "quienes estan esperando para hablar"
+        "quienes estan esperando para hablar",
+        "anotalo en la lista de oradores"
       ],
       "tambien": [],
       "correctivas": []
@@ -1007,13 +1031,13 @@
     "grafico_en_escena": {
       "frases": [
         "dónde están puestos los animados",
-        "dónde puedo poner una placa acá",
         "qué fuentes de gráfico hay en la toma",
         "qué placas animadas hay colocadas",
         "listame las fuentes de gráfico que están en las escenas",
         "en qué escenas hay puesto un animado",
         "decime los ids de los gráficos que están en escena",
-        "qué tamaño tiene el gráfico que está puesto"
+        "qué tamaño tiene el gráfico que está puesto",
+        "listame los gráficos colocados con su tamaño"
       ],
       "tambien": [],
       "correctivas": [
@@ -1038,7 +1062,9 @@
     "rotulo_vinculos": {
       "frases": [
         "qué rótulos se escriben solos",
-        "qué vínculos hay armados"
+        "qué vínculos hay armados",
+        "qué rótulos están conectados a datos",
+        "cuáles se actualizan solos"
       ],
       "tambien": [],
       "correctivas": []
@@ -1110,7 +1136,9 @@
         "cuántos carruseles tengo armados",
         "cuántos juegos de diapositivas hay",
         "decime qué presentaciones subí",
-        "qué carruseles de láminas están listos"
+        "qué carruseles de láminas están listos",
+        "cuáles carruseles tengo disponibles",
+        "enumerame los carruseles de diapositivas"
       ],
       "tambien": [],
       "correctivas": []
