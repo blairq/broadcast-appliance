@@ -46,7 +46,9 @@ RAIZ = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(RAIZ / "tools"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 MINIMO, MAXIMO = 15, 20
-TOLERANCIA_Q = 0.02
+TOLERANCIA_Q = 0.02      # una reescritura no puede bajar Q mas que esto
+PASO_ABRIR = 0.05        # una frase nueva no puede bajar Q mas que esto...
+PRESUPUESTO_ABRIR = 0.15  # ...ni el grupo entero mas que esto desde el inicio
 UMBRAL_MALA = -0.01
 
 
@@ -259,13 +261,19 @@ def aplicar(args):
                 if cerca[0] < propio:
                     rechazadas.append((h, fr, f"cae mas cerca de {cerca[1]}"))
                     continue
-                Xn = X / X.norm(dim=1, keepdim=True)
-                if (Xn @ vn).max().item() > 0.97:
+                # casi copia se mira en el TEXTO: en los estados ocultos de un
+                # modelo entrenado, todas las frases de una herramienta colapsan
+                # (coseno > 0.97 casi siempre) y ese criterio rechazaba todo.
+                if cm.parecido(fr, [set(cm.sin_tildes(t.lower()).split()) for t in textos]):
                     rechazadas.append((h, fr, "casi igual a una que ya esta"))
                     continue
                 X2 = g.t.cat([X, v[None, :]])
                 q2 = g.Q(h, X2)[0] if q is not None else None
-                if q is not None and q2 < q * (1 - TOLERANCIA_Q):
+                # ABRIR TIENE UN PRESUPUESTO. Una forma de pedir distinta siempre
+                # ensancha un poco el grupo y baja Q; exigir que no baje nada no
+                # deja abrir nunca un grupo apretado. Se permite hasta un 5% por
+                # frase y un 15% en total desde como estaba el grupo.
+                if q is not None and (q2 < q * (1 - PASO_ABRIR) or q2 < q_ini * (1 - PRESUPUESTO_ABRIR)):
                     rechazadas.append((h, fr, f"corre el grupo (Q {q:.3f}->{q2:.3f})"))
                     continue
                 X, textos = X2, textos + [fr]
