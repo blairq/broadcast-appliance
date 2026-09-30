@@ -201,15 +201,19 @@ if(BA_HAVE_CLAP)
         set(_ba_lsp_dir "${CMAKE_SOURCE_DIR}/extern/lsp/linux-x86_64")
     endif()
     if(APPLE AND IS_DIRECTORY "${_ba_lsp_dir}/lsp-plugins.clap")
-        # macOS: el .clap es un bundle (carpeta).
+        # macOS, si el .clap viene como bundle (carpeta).
         install(DIRECTORY "${_ba_lsp_dir}/lsp-plugins.clap" DESTINATION plugins/lsp USE_SOURCE_PERMISSIONS)
+        file(GLOB _ba_lsp_files "${_ba_lsp_dir}/*.dylib")
+    elseif(APPLE)
+        # macOS: el build de LSP deja el .clap como un Mach-O suelto (y, si hay,
+        # los .dylib de su motor 3D).
+        file(GLOB _ba_lsp_files "${_ba_lsp_dir}/*.clap" "${_ba_lsp_dir}/*.dylib")
+    else()
+        file(GLOB _ba_lsp_files "${_ba_lsp_dir}/*.clap" "${_ba_lsp_dir}/*.dll" "${_ba_lsp_dir}/*.so*")
+    endif()
+    if(APPLE AND IS_DIRECTORY "${_ba_lsp_dir}/lsp-plugins.clap" AND NOT _ba_lsp_files)
         file(GLOB _ba_lsp_lic "${CMAKE_SOURCE_DIR}/extern/lsp/licencias/*")
         install(FILES ${_ba_lsp_lic} DESTINATION data/licencias/lsp-plugins)
-    endif()
-    file(GLOB _ba_lsp_files "${_ba_lsp_dir}/*.clap" "${_ba_lsp_dir}/*.dll" "${_ba_lsp_dir}/*.so*" "${_ba_lsp_dir}/*.dylib")
-    list(FILTER _ba_lsp_files EXCLUDE REGEX ".*\\.clap$") # los bundles ya se instalaron arriba
-    if(NOT APPLE)
-        file(GLOB _ba_lsp_files "${_ba_lsp_dir}/*.clap" "${_ba_lsp_dir}/*.dll" "${_ba_lsp_dir}/*.so*")
     endif()
     if(_ba_lsp_files)
         install(FILES ${_ba_lsp_files} DESTINATION plugins/lsp)

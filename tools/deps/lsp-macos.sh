@@ -9,7 +9,8 @@
 # iconv, CoreFoundation, AudioToolbox y Cocoa son de macOS.
 #
 # Herramientas de build (no viajan): Xcode CLT, cmake, meson, ninja, pkg-config
-#   brew install cmake meson ninja pkg-config
+# y GNU make 4 (gmake)
+#   brew install cmake meson ninja pkg-config make
 #
 # Resultado: extern/lsp/macos-arm64/lsp-plugins.clap (+ licencias)
 # ============================================================================
@@ -41,8 +42,8 @@ if [ "$(cat "$OUT/.version" 2>/dev/null)" = "$LSP_VER" ] && [ -e "$OUT/lsp-plugi
     log "LSP $LSP_VER para macOS: ya presente"
     exit 0
 fi
-for t in cmake meson ninja pkg-config; do
-    command -v "$t" >/dev/null || { log "falta $t (herramienta de build): brew install cmake meson ninja pkg-config"; exit 1; }
+for t in cmake meson ninja pkg-config gmake; do
+    command -v "$t" >/dev/null || { log "falta $t (herramienta de build): brew install cmake meson ninja pkg-config make"; exit 1; }
 done
 
 fetch() { # <nombre> -> imprime la ruta del archivo verificado
@@ -139,11 +140,12 @@ fi
 d="$(unpack lsp)"
 cd "$d"
 log "configurando LSP $LSP_VER (macOS arm64, CLAP + interfaz)"
-make config FEATURES='clap ui' PHP="$PHP" PKG_CONFIG="pkg-config --static" \
+# El build de LSP pide GNU make 4 (el de macOS es 3.81): gmake de Homebrew.
+gmake config FEATURES='clap ui' PHP="$PHP" PKG_CONFIG="pkg-config --static" \
     CFLAGS="$CFLAGS" CXXFLAGS="$CXXFLAGS" >"$SRC/lsp-config.log" 2>&1 ||
     { tail -30 "$SRC/lsp-config.log" >&2; log "ERROR al configurar LSP"; exit 1; }
 log "compilando (unos minutos)"
-make -j"$JOBS" >"$SRC/lsp-build.log" 2>&1 ||
+gmake -j"$JOBS" >"$SRC/lsp-build.log" 2>&1 ||
     { grep -E "error|Error" "$SRC/lsp-build.log" | tail -30 >&2; log "ERROR al compilar LSP (log: $SRC/lsp-build.log)"; exit 1; }
 
 # El CLAP: un bundle .clap (carpeta) o un binario Mach-O; se deja con el
@@ -158,7 +160,12 @@ find .build/target -maxdepth 2 -name 'lsp-r3d-*.dylib' -exec cp {} "$OUT/" \;
 # Solo frameworks y /usr/lib: si algo apunta a Homebrew, el plugin no es portable.
 bin="$OUT/lsp-plugins.clap"
 [ -d "$bin" ] && bin="$(find "$bin/Contents/MacOS" -type f | head -1)"
-if otool -L "$bin" | tail -n +2 | awk '{print $1}' | grep -vE '^(/usr/lib/|/System/|@)'; then
+# El install name trae la ruta de la carpeta de build: se lo cambia por uno
+# relativo (el plugin se abre con dlopen por ruta, nadie lo enlaza por nombre).
+install_name_tool -id "@rpath/$(basename "$bin")" "$bin"
+# otool -L repite el install name propio como primera linea: se saltea.
+self="$(otool -D "$bin" | tail -n +2)"
+if otool -L "$bin" | tail -n +2 | awk '{print $1}' | grep -vxF "$self" | grep -vE '^(/usr/lib/|/System/|@)'; then
     log "ERROR: el plugin depende de bibliotecas de fuera del sistema (arriba)"
     exit 1
 fi
