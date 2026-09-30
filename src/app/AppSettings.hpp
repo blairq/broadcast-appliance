@@ -34,9 +34,12 @@ namespace ba::app {
 /// "Sans" es un alias generico de fontconfig: se resuelve en Linux, pero en
 /// Windows no existe y FT2 falla ("FT2-text: Failed to load font Sans"),
 /// dejando el texto invisible. "Segoe UI" viene en todo Windows 10+, que es el
-/// minimo que pide el appliance.
+/// minimo que pide el appliance. En macOS pasa lo mismo: Helvetica viene en
+/// todas las versiones.
 #if defined(_WIN32)
 inline constexpr const char* kDefaultFontFace = "Segoe UI";
+#elif defined(__APPLE__)
+inline constexpr const char* kDefaultFontFace = "Helvetica";
 #else
 inline constexpr const char* kDefaultFontFace = "Sans";
 #endif
