@@ -85,7 +85,8 @@
         "medime el audio",
         "fijate los niveles",
         "cómo viene el nivel del programa",
-        "está saturando?"
+        "está saturando?",
+        "medime los niveles de la cadena del conductor"
       ],
       "tambien": [
         "mixer_list",
@@ -110,7 +111,9 @@
         "qué es ese ruido",
         "analizame el audio a ver qué pasa",
         "hay un zumbido raro, mirá qué es",
-        "de dónde sale ese pitido"
+        "de dónde sale ese pitido",
+        "analizá qué frecuencia está zumbando",
+        "decime de dónde viene ese ruido"
       ],
       "tambien": [
         "audio_measure"
@@ -638,7 +641,8 @@
         "sacame cinco cuadros con medio segundo entre cada uno",
         "necesito una tira de imágenes de esa cámara",
         "hacele un muestreo en el tiempo a esa fuente",
-        "sacá capturas a intervalos del programa"
+        "sacá capturas a intervalos del programa",
+        "sacale diez cuadros a la cámara de Pedro"
       ],
       "tambien": [],
       "correctivas": []
@@ -829,7 +833,9 @@
         "bajala al final de la lista",
         "ponela tercera, va después del informe",
         "reordename las escenas como va el programa",
-        "reubicá la escena en el orden del programa"
+        "reubicá la escena en el orden del programa",
+        "mové la escena del clima debajo del noticiero",
+        "la de cierre va última en la lista de escenas"
       ],
       "tambien": [],
       "correctivas": []
@@ -841,7 +847,8 @@
         "que esa escena quede de solo lectura",
         "ponele candado a esa",
         "asegurame esa antes de que entre el otro operador",
-        "bloqueá esa escena contra cambios"
+        "bloqueá esa escena contra cambios",
+        "la escena de la entrevista no se puede tocar, bloqueala"
       ],
       "tambien": [],
       "correctivas": [
@@ -1064,7 +1071,8 @@
         "qué rótulos se escriben solos",
         "qué vínculos hay armados",
         "qué rótulos están conectados a datos",
-        "cuáles se actualizan solos"
+        "cuáles se actualizan solos",
+        "listame los rótulos que toman datos automáticos"
       ],
       "tambien": [],
       "correctivas": []
