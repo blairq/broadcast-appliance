@@ -552,3 +552,4 @@
 {"frase": "Mostrame las recetas que hay disponibles", "herramienta": "receta_listar"}
 {"frase": "¿Qué recetas tenemos guardadas para correr?", "herramienta": "receta_listar"}
 {"frase": "No me acuerdo cómo se llamaba la secuencia del cierre, fijate qué recetas hay", "herramienta": "receta_listar"}
+{"frase": "con qué cámara me ven los que esperan para entrar", "herramienta": "operator_feed"}

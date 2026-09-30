@@ -33,6 +33,10 @@ REACTIVAS = ["audio", "escenas", "fuentes", "sala", "oradores", "imagenes", "est
 # ademas las vuelve IMPOSIBLES de elegir en vivo, que para las destructivas es
 # lo que corresponde.
 NO_REACTIVAS = {
+    # Sale del repertorio (decision de Jorge): es configuracion mas que accion
+    # en vivo, y en tres rondas del bucle sus frases cayeron siempre en los
+    # canales de audio y video. 1 de 9 propuestas aceptadas.
+    "operator_feed",
     "grafico_probar",      # ver como queda mientras se disena
     "grafico_repertorio",  # que se puede usar al escribir un grafico
     # De laminas: armar y desarmar una presentacion es trabajo PREVIO, y

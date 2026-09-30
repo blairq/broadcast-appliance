@@ -69,7 +69,6 @@
 {"frase": "qué gráficos animados hay puestos en las escenas", "aceptables": ["grafico_en_escena"]}
 {"frase": "qué gráficos tengo disponibles para usar", "aceptables": ["grafico_listar"]}
 {"frase": "metele la cámara del invitado del lugar dos a esta escena", "aceptables": ["guest_source_add"]}
-{"frase": "con qué imagen me están viendo los que esperan", "aceptables": ["operator_feed"]}
 {"frase": "corregile los datos de contacto a la invitada", "aceptables": ["participant_profile"]}
 {"frase": "mandá de nuevo al final de la fila al que ya habló", "aceptables": ["participant_requeue"]}
 {"frase": "quiero hablarle en privado al que está esperando", "aceptables": ["participant_talk"]}

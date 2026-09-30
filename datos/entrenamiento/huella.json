@@ -1,20 +1,20 @@
 {
- "prompt": "a82244e0d471cb7a",
- "herramientas": "7a7f2b416dcaa7ee",
- "cuantas": 85,
- "tokens_aprox": 2860,
- "ejemplos_entrenar": 3059,
- "herramientas_con_frases": 86,
+ "prompt": "3f9122d8064004c5",
+ "herramientas": "700718b0d81cb718",
+ "cuantas": 84,
+ "tokens_aprox": 2828,
+ "ejemplos_entrenar": 3091,
+ "herramientas_con_frases": 85,
  "propuestas_automaticas": [],
  "derivar": {
-  "ejemplos": 420,
-  "porcion": 0.137,
-  "herramientas_fuera_del_repertorio": 207,
+  "ejemplos": 415,
+  "porcion": 0.134,
+  "herramientas_fuera_del_repertorio": 208,
   "fuera_con_ejemplos": 203
  },
  "correctivas": {
-  "ejemplos": 523,
-  "porcion": 0.171,
+  "ejemplos": 513,
+  "porcion": 0.166,
   "versiones": [
    "v2",
    "v7-pegadas"

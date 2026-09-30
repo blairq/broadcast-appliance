@@ -248,7 +248,9 @@
         "mostrame las fuentes",
         "que capas tiene armada esta escena",
         "decime que fuentes hay, no me muestres imagen",
-        "enumerame las capas de esta toma"
+        "enumerame las capas de esta toma",
+        "qué fuentes tiene la escena Debate",
+        "listame lo que hay en la escena de la entrevista"
       ],
       "tambien": [],
       "correctivas": []
@@ -269,7 +271,8 @@
         "ocultá el logo",
         "mostrá de nuevo la placa",
         "corré la cámara chica a la izquierda",
-        "agrandá el pip"
+        "agrandá el pip",
+        "agrandá el recuadro del invitado"
       ],
       "tambien": [
         "source_set_property"
@@ -334,7 +337,9 @@
         "cómo viene la sala",
         "quien hay en el lobby ahora",
         "cuantos estan esperando",
-        "cuantos estan conectados ahora"
+        "cuantos estan conectados ahora",
+        "quiénes tienen la mano levantada",
+        "decime el estado de cada participante"
       ],
       "tambien": [
         "chat_send"
@@ -484,7 +489,10 @@
         "sacá al aire a Marta",
         "bajá del aire al que está hablando",
         "poné al aire a ese orador, no a la escena",
-        "subi al expositor que aguarda"
+        "subi al expositor que aguarda",
+        "dejalo hablar",
+        "abrile el turno de palabra",
+        "dale la palabra a ese"
       ],
       "tambien": [],
       "correctivas": []
@@ -702,26 +710,18 @@
       "frases": [
         "mira esta imagen y decime que ve",
         "analizame esta foto",
-        "que dice ese cartel de la imagen"
+        "que dice ese cartel de la imagen",
+        "decime qué hay en la imagen de la cámara 1"
       ],
       "tambien": [],
       "correctivas": []
-    },
-    "operator_feed": {
-      "frases": [
-        "con qué cámara me ven los que esperan para entrar"
-      ],
-      "tambien": [],
-      "correctivas": [],
-      "_nota": [
-        "Tenia dos semillas de OTRA herramienta —«que paso recien», «dame el diario de lo que fue pasando», que son del registro de eventos— y ninguna propia. Lo encontro bucle-corpus.py: todas las frases correctas para operator_feed caian en otras herramientas porque su grupo estaba centrado en otra cosa."
-      ]
     },
     "participant_admit_all": {
       "frases": [
         "hacelos pasar a todos",
         "admiti a todos los que estan esperando",
-        "que entren todos"
+        "que entren todos",
+        "dejá entrar a todos juntos"
       ],
       "tambien": [],
       "correctivas": []
@@ -730,7 +730,8 @@
       "frases": [
         "quien es este",
         "dejale la ficha a ese invitado",
-        "anotame quien es y de donde viene"
+        "anotame quien es y de donde viene",
+        "actualizá los datos de contacto del invitado 3"
       ],
       "tambien": [],
       "correctivas": []
@@ -746,12 +747,13 @@
     },
     "participant_talk": {
       "frases": [
-        "dejalo hablar",
-        "abrile el turno de palabra",
-        "dale la palabra a ese"
+        "necesito decirle algo por privado a Laura antes de que entre"
       ],
       "tambien": [],
-      "correctivas": []
+      "correctivas": [],
+      "_nota": [
+        "Sus tres semillas eran de DAR LA PALABRA a un orador («dejalo hablar», «dale la palabra a ese») y esta herramienta es hablar EN PRIVADO con alguien del lobby. Sacaba 0 de 5 en el banco de orientacion. Las tres pasaron a speaker_on_air, que es lo que dicen."
+      ]
     },
     "room_pin": {
       "frases": [
@@ -1130,7 +1132,8 @@
         "qué láminas tiene",
         "cuántas diapositivas son",
         "mostrame la lista de láminas",
-        "en cuál estamos"
+        "en cuál estamos",
+        "qué diapositivas tiene la presentación del informe"
       ],
       "tambien": [
         "laminas_listar"
