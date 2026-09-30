@@ -55,6 +55,15 @@ def main():
     ap.add_argument("--eval-cada", type=int, default=100)
     ap.add_argument("--semilla", type=int, default=7)
     ap.add_argument("--pasos", type=int, default=0, help="cortar a N pasos (prueba)")
+    # PARA LOS MODELOS QUE NO ENTRAN EN 24 GB (Qwen3.5-9B: 17 GB solo los pesos).
+    ap.add_argument("--cuatro-bits", action="store_true",
+                    help="QLoRA: el modelo base en 4 bits (NF4) y el LoRA en bf16 encima")
+    ap.add_argument("--repartir", action="store_true",
+                    help="un solo proceso con el modelo repartido entre las placas visibles (capas"
+                         " 0..k en una, el resto en la otra; las activaciones pasan por P2P). Para"
+                         " modelos que no entran en una placa: el 9B entra en bf16, sin cuantizar")
+    ap.add_argument("--recalcular", action="store_true",
+                    help="no guardar las activaciones del prefijo: se recalculan en el backward")
     args = ap.parse_args()
 
     import torch
@@ -114,8 +123,23 @@ def main():
     ej_ids, ej_n = E[0]
     log("la perdida se calcula sobre:", repr(tok.decode(ej_ids[-ej_n:])))
 
-    modelo = AutoModelForCausalLM.from_pretrained(args.base, dtype=torch.bfloat16,
-                                                  attn_implementation="sdpa").to(dev)
+    if args.cuatro_bits:
+        from transformers import BitsAndBytesConfig
+        q4 = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4",
+                                bnb_4bit_compute_dtype=torch.bfloat16, bnb_4bit_use_double_quant=True)
+        modelo = AutoModelForCausalLM.from_pretrained(args.base, dtype=torch.bfloat16, attn_implementation="sdpa",
+                                                      quantization_config=q4, device_map={"": dev})
+    elif args.repartir:
+        if dist_on:
+            raise SystemExit("--repartir es un solo proceso: correr con python, no con torchrun")
+        # «balanced» reparte las capas parejo; la placa 0 lleva ademas la
+        # entrada y la 1 la cabeza de salida, que con 248k tokens pesa.
+        modelo = AutoModelForCausalLM.from_pretrained(args.base, dtype=torch.bfloat16,
+                                                      attn_implementation="sdpa", device_map="balanced")
+        log("repartido:", sorted({str(d) for d in modelo.hf_device_map.values()}))
+    else:
+        modelo = AutoModelForCausalLM.from_pretrained(args.base, dtype=torch.bfloat16,
+                                                      attn_implementation="sdpa").to(dev)
     modelo.config.use_cache = True
     import cache_hibrido as ch
     hibrido = ch.es_hibrido(modelo)
@@ -142,8 +166,19 @@ def main():
     def perdida(lote, grad=True):
         """Prefijo una vez; sufijos en lote sobre el cache expandido."""
         with torch.autocast("cuda", dtype=torch.bfloat16), torch.set_grad_enabled(grad):
-            kv = DynamicCache(config=modelo.config)
-            modelo(input_ids=ids_pre_t, past_key_values=kv, use_cache=True)
+            if args.recalcular and grad:
+                # El prefijo dentro de un checkpoint: la funcion arma su propio
+                # cache y devuelve solo los tensores del estado, asi el recalculo
+                # del backward no pisa el cache del lote.
+                def prefijo_fn(ids):
+                    k0 = DynamicCache(config=modelo.config)
+                    modelo(input_ids=ids, past_key_values=k0, use_cache=True)
+                    return tuple(ch.tensores(k0))
+                ts = torch.utils.checkpoint.checkpoint(prefijo_fn, ids_pre_t, use_reentrant=False)
+                kv = ch.desde_tensores(modelo.config, list(ts))
+            else:
+                kv = DynamicCache(config=modelo.config)
+                modelo(input_ids=ids_pre_t, past_key_values=kv, use_cache=True)
             if hibrido:
                 ch.repetir(kv, len(lote))
             else:
@@ -162,6 +197,7 @@ def main():
             pos = torch.arange(Lp, Lp + L, device=dev).unsqueeze(0).expand(len(lote), -1)
             lg = modelo(input_ids=ids, attention_mask=mask, position_ids=pos,
                         past_key_values=kv, use_cache=True).logits
+            etq = etq.to(lg.device)  # con --repartir los logits salen en la ultima placa
             suma = F.cross_entropy(lg.float().reshape(-1, lg.shape[-1]), etq.reshape(-1),
                                    ignore_index=-100, reduction="sum")
             return suma, (etq != -100).sum()
@@ -182,7 +218,7 @@ def main():
         s = torch.zeros(2, device=dev)
         for i in range(0, len(mias), 32):
             a, b = perdida(mias[i:i + 32], grad=False)
-            s += torch.stack([a.detach(), b.float()])
+            s += torch.stack([a.detach(), b.float()]).to(dev)
         if dist_on:
             dist.all_reduce(s)
         modelo.train()
@@ -225,7 +261,8 @@ def main():
         opt.step()
         opt.zero_grad(set_to_none=True)
         if yo and paso == 0:
-            print(f"memoria maxima en el primer paso: {torch.cuda.max_memory_allocated(dev) / 2**30:.1f} GiB", flush=True)
+            mem = " + ".join(f"{torch.cuda.max_memory_allocated(i) / 2**30:.1f}" for i in range(torch.cuda.device_count()))
+            print(f"memoria maxima en el primer paso: {mem} GiB", flush=True)
         if yo and (paso + 1) % 10 == 0:
             dt = time.time() - t0
             print(f"paso {paso + 1}/{total} · perdida {(suma / n).item():.4f} · "

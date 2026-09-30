@@ -86,6 +86,33 @@ def repetir(kv, n):
             c.batch_repeat_interleave(n)
 
 
+def tensores(kv):
+    """El estado del cache como lista plana de tensores (para torch.checkpoint)."""
+    out = []
+    for c in kv.layers:
+        if _lineal(c):
+            out += [c.conv_states, c.recurrent_states]
+        else:
+            out += [c.keys, c.values]
+    return out
+
+
+def desde_tensores(config, ts):
+    """Un DynamicCache armado con esos tensores, como si se hubiera llenado solo."""
+    from transformers import DynamicCache
+    kv = DynamicCache(config=config)
+    it = iter(ts)
+    for i, c in enumerate(kv.layers):
+        a, b = next(it), next(it)
+        if _lineal(c):
+            c.lazy_initialization(conv_states=a, recurrent_states=b)
+            c.conv_states, c.recurrent_states = a, b
+            c.has_previous_state = True
+        else:
+            c.update(a, b)
+    return kv
+
+
 def foto(kv):
     return [(c.conv_states.clone(), c.recurrent_states.clone()) if _lineal(c) else None
             for c in kv.layers]
