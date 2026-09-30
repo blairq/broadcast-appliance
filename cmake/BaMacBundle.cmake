@@ -17,6 +17,11 @@ install(CODE [=[
         if(IS_SYMLINK "${_f}")
             continue()
         endif()
+        # Lo que esta adentro de una .app (LibreOffice) se firma con ella, abajo:
+        # firmar sus archivos sueltos rompe el sello de la .app.
+        if(_f MATCHES "\\.app/")
+            continue()
+        endif()
         # Solo Mach-O: dylibs, .so, ejecutables y binarios de frameworks/plugins.
         execute_process(COMMAND file -b "${_f}" OUTPUT_VARIABLE _kind ERROR_QUIET)
         if(_kind MATCHES "Mach-O")
@@ -29,4 +34,16 @@ install(CODE [=[
         endif()
     endforeach()
     message(STATUS "ba-bundle: ${_n} binarios Mach-O firmados ad-hoc")
+    # Cada .app entera (con --deep: sus frameworks y dylibs de adentro).
+    file(GLOB_RECURSE _apps LIST_DIRECTORIES true "${_root}/*.app")
+    foreach(_a IN LISTS _apps)
+        if(IS_DIRECTORY "${_a}" AND _a MATCHES "\\.app$" AND NOT _a MATCHES "\\.app/.*\\.app$")
+            execute_process(COMMAND codesign --force --deep -s - "${_a}" RESULT_VARIABLE _rc OUTPUT_QUIET ERROR_QUIET)
+            if(NOT _rc EQUAL 0)
+                message(WARNING "ba-bundle: no se pudo firmar ${_a}")
+            else()
+                message(STATUS "ba-bundle: firmada ${_a}")
+            endif()
+        endif()
+    endforeach()
 ]=] COMPONENT bundle)

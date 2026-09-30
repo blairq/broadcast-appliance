@@ -47,6 +47,7 @@ Baja (con hash) y compila en `extern/` todo lo de terceros:
 | libwebrtc M123 (macOS arm64) | Shiguredo, mismo tag que Linux/Windows | la salida de make |
 | mbedTLS, nlohmann, libsamplerate, Argon2, lwIP, CLAP, cloudflared (darwin-arm64) | como en Linux | la salida de make |
 | libmicrodns (buscar televisores por mDNS) | fuente fijado por commit (`tools/deps/ndi-src.sh`) | la salida de make |
+| LibreOffice (PowerPoint → láminas del carrusel), **opcional** | `make deps-libreoffice`: el `.dmg` oficial de TDF (hash fijado), montado sin instalar nada y podado a ~450 MB (`tools/deps/libreoffice.sh mac`) | la salida de make |
 | ONNX Runtime + modelos (reconocer caras), **opcional** | `make deps-rostros` (baja el de macOS arm64 solo) | la salida de make |
 | Módulos LSP (rack de audio), **opcional** (con `gmake`) | fuente oficial + cairo/fontconfig/freetype estáticos (`tools/deps/lsp-macos.sh`) | `extern/.build-lsp-macos/lsp-build.log` |
 

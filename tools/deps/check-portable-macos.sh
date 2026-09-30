@@ -29,7 +29,9 @@ trap 'rm -f "$HAVE"' EXIT
 } | sort -u >"$HAVE"
 
 while IFS= read -r f; do
-    file -b "$f" | grep -q "Mach-O" || continue
+    # Solo lo que se carga (ejecutables, dylibs, bundles): un .o suelto (el de
+    # Python de LibreOffice, para compilar extensiones) no se firma ni se carga.
+    file -b "$f" | grep -qE "Mach-O.*(executable|dynamically linked|bundle)" || continue
     count=$((count + 1))
     rel="${f#"$BUNDLE"/}"
     if ! codesign -v "$f" 2>/dev/null; then

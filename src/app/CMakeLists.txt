@@ -347,13 +347,24 @@ target_link_libraries(ba-app PRIVATE Qt6::Gui Qt6::Quick Qt6::Qml Qt6::QuickCont
 if(WIN32)
     set(_ba_lo_dir "${CMAKE_SOURCE_DIR}/extern/libreoffice/win")
 elseif(APPLE)
-    # Todavia no hay LibreOffice para macOS en tools/deps/libreoffice.sh: sin
-    # esta rama se tomaba (y se metia al bundle) el de Linux.
+    # macOS: la .app oficial (tools/deps/libreoffice.sh mac). Sin esta rama se
+    # tomaba (y se metia al bundle) el de Linux.
     set(_ba_lo_dir "${CMAKE_SOURCE_DIR}/extern/libreoffice/macos")
 else()
     set(_ba_lo_dir "${CMAKE_SOURCE_DIR}/extern/libreoffice/linux")
 endif()
-if(EXISTS "${_ba_lo_dir}/program")
+# Esta el LibreOffice de esta plataforma? (en macOS no hay program/: es una .app)
+if(APPLE)
+    set(_ba_lo_ok FALSE)
+    if(EXISTS "${_ba_lo_dir}/LibreOffice.app/Contents/MacOS/soffice")
+        set(_ba_lo_ok TRUE)
+    endif()
+elseif(EXISTS "${_ba_lo_dir}/program")
+    set(_ba_lo_ok TRUE)
+else()
+    set(_ba_lo_ok FALSE)
+endif()
+if(_ba_lo_ok)
     target_compile_definitions(ba-app PRIVATE BA_LIBREOFFICE_DIR="${_ba_lo_dir}")
 endif()
     target_compile_definitions(ba-app PRIVATE BA_APP_HAVE_QT_OBS=1)
@@ -399,7 +410,7 @@ endif()
     # LibreOffice headless, SOLO si se lo bajo (make deps-libreoffice). Es lo
     # que convierte un .pptx a PDF para armar un carrusel; el que recibe PDF no
     # carga ~420 MB para nada. Ver tools/deps/libreoffice.sh.
-    if(EXISTS "${_ba_lo_dir}/program")
+    if(_ba_lo_ok)
         install(DIRECTORY "${_ba_lo_dir}/" DESTINATION bin/libreoffice
                 COMPONENT bundle USE_SOURCE_PERMISSIONS)
         message(STATUS "ba-app: LibreOffice headless al bundle (${_ba_lo_dir})")
@@ -526,7 +537,7 @@ endif()
     target_link_libraries(test_conversion PRIVATE Qt6::Core Qt6::Gui Qt6::Pdf)
     target_compile_definitions(test_conversion PRIVATE
         BA_TEST_DATOS="${CMAKE_CURRENT_SOURCE_DIR}/tests/datos")
-    if(EXISTS "${_ba_lo_dir}/program")
+    if(_ba_lo_ok)
         target_compile_definitions(test_conversion PRIVATE BA_LIBREOFFICE_DIR="${_ba_lo_dir}")
     endif()
     set_target_properties(test_conversion PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")

@@ -78,12 +78,16 @@ QString Conversor::soffice() {
 
     QStringList velas;
     const QString dir = QCoreApplication::applicationDirPath();
+    // En macOS es una .app. SIEMPRE la que viaja con nosotros: nunca la de
+    // /Applications, que en otra Mac puede no estar (el aparato es portable).
     for (const QString& base : {dir + "/libreoffice", dir + "/../libreoffice"})
-        velas << base + "/program/soffice" << base + "/program/soffice.exe";
+        velas << base + "/program/soffice" << base + "/program/soffice.exe"
+              << base + "/LibreOffice.app/Contents/MacOS/soffice";
 #ifdef BA_LIBREOFFICE_DIR
     // El árbol de extern/, para correr desde el directorio de compilación.
     velas << QString(BA_LIBREOFFICE_DIR) + "/program/soffice"
-          << QString(BA_LIBREOFFICE_DIR) + "/program/soffice.exe";
+          << QString(BA_LIBREOFFICE_DIR) + "/program/soffice.exe"
+          << QString(BA_LIBREOFFICE_DIR) + "/LibreOffice.app/Contents/MacOS/soffice";
 #endif
     for (const QString& c : velas)
         if (QFileInfo(c).isExecutable()) return QFileInfo(c).absoluteFilePath();

@@ -39,11 +39,13 @@
 # LibreOffice: son para los graficos y los rotulos. (El paquete de la
 # distribucion NO las trae: depende de las del sistema. El oficial si.)
 #
-# LAS DOS PLATAFORMAS. El bundle se arma para Linux y para Windows desde esta
+# LAS PLATAFORMAS. El bundle se arma para Linux y para Windows desde esta
 # misma maquina (ver deps-win), asi que se bajan las dos y se extraen sin
-# instalar nada: el .tar.gz de .deb y el .msi.
+# instalar nada: el .tar.gz de .deb y el .msi. macOS se arma EN la Mac, con el
+# .dmg oficial (firmado y notarizado por TDF): se monta, se copia la .app y se
+# desmonta; tampoco se instala nada (nada en /Applications).
 #
-# Uso: tools/deps/libreoffice.sh [linux|win|todo]   (idempotente)
+# Uso: tools/deps/libreoffice.sh [linux|win|mac|todo]   (idempotente)
 # ============================================================================
 set -euo pipefail
 
@@ -58,15 +60,26 @@ LINUX_TGZ="LibreOffice_${VER}_Linux_x86-64_deb.tar.gz"
 LINUX_SHA="fd0e8f8f2408dd2e5b90286e60f3f97cf566ba441cd48cfc5bcc68067303e0bc"
 WIN_MSI="LibreOffice_${VER}_Win_x86-64.msi"
 WIN_SHA="f9877032fd908beb9c0ddf06df4af5c2e85f419c42e14876c4cce5aae5fb2660"
+# El que publica TDF junto al .dmg (<dmg>.sha256).
+MAC_DMG="LibreOffice_${VER}_MacOS_aarch64.dmg"
+MAC_SHA="94bb3248df074c225490a8a6d1d9dc87c7d6783dbb7a8e9f0d0c3d94348552af"
 
 log() { printf '\033[36m[libreoffice]\033[0m %s\n' "$*"; }
 morir() { printf '\033[31m[libreoffice] ERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 
 mkdir -p "$DL" "$OUT"
 
+# sha256sum de GNU; en macOS, shasum (el sha256sum que trae macOS 15+ es el de
+# BSD y no acepta -c --quiet).
+if sha256sum --version 2>/dev/null | grep -q GNU; then
+    sha256() { sha256sum "$@"; }
+else
+    sha256() { shasum -a 256 "$@"; }
+fi
+
 bajar() { # nombre url sha
     local f="$DL/$1"
-    if [ -f "$f" ] && [ "$(sha256sum "$f" | cut -d' ' -f1)" = "$3" ]; then
+    if [ -f "$f" ] && [ "$(sha256 "$f" | cut -d' ' -f1)" = "$3" ]; then
         log "$1 ya estaba y el hash coincide"
         return
     fi
@@ -77,7 +90,7 @@ bajar() { # nombre url sha
     curl -fL --retry 3 "${silencio[@]}" -o "$f.parcial" "$2" || morir "no se pudo bajar $1"
     # Se verifica ANTES de mover: un archivo a medias con el nombre bueno se
     # toma por bueno la proxima vez y falla mucho despues, lejos de la causa.
-    echo "$3  $f.parcial" | sha256sum -c --quiet - || morir "el hash de $1 no coincide"
+    echo "$3  $f.parcial" | sha256 -c --quiet - || morir "el hash de $1 no coincide"
     mv "$f.parcial" "$f"
 }
 
@@ -154,6 +167,9 @@ convierte() {
             ;;
     esac
     local soffice="$dir/program/soffice"
+    case "$dir" in
+        *"/macos") soffice="$dir/LibreOffice.app/Contents/MacOS/soffice" ;;
+    esac
     [ -x "$soffice" ] || return 1
     local t; t="$(mktemp -d)"
     cat > "$t/p.fodp" <<'FODP'
@@ -184,8 +200,8 @@ verificar() {
     esac
 }
 
-fuentes_aparte() { # dir
-    local origen="$1/share/fonts/truetype"
+fuentes_aparte() { # dir [carpeta truetype, si no es la de Linux]
+    local origen="${2:-$1/share/fonts/truetype}"
     [ -d "$origen" ] || return 0
     mkdir -p "$OUT/fonts"
     # Solo las de ALFABETO LATINO, que es en lo que se transmite aca. Las de
@@ -286,11 +302,97 @@ hacer_win() {
     log "windows listo: $(du -sh "$OUT/win" | cut -f1)"
 }
 
+# macOS: la misma poda que podar(), con la estructura de una .app. Lo que en
+# Linux es program/ aca es Contents/Frameworks (y Contents/MacOS), y share/ es
+# Contents/Resources. El .dmg viene solo en ingles: no hay idiomas que sacar.
+podar_mac() {
+    local c="$1/LibreOffice.app/Contents"
+    # Writer y Calc. (libmwaw NO: en macOS libmergedlo la enlaza directo y sin
+    # ella no arranca; en Linux se carga aparte y ahi si se saca.)
+    rm -f  "$c/Frameworks/libswlo.dylib" "$c/Frameworks/libsclo.dylib" 2>/dev/null || true
+    # Y en cascada lo que dependia de eso (filtros .doc/.xls, VBA de planillas):
+    # una dylib que apunta a otra que ya no esta es un agujero que el chequeo
+    # del bundle (check-portable-macos) marca, y con razon.
+    local cambio=1 f dep
+    while [ "$cambio" = 1 ]; do
+        cambio=0
+        for f in "$c/Frameworks"/*.dylib; do
+            [ -f "$f" ] || continue
+            for dep in $(otool -L "$f" 2>/dev/null | awk 'NR>1 && $1 ~ /^@loader_path\//{print $1}'); do
+                if [ ! -e "$c/Frameworks/${dep#@loader_path/}" ]; then
+                    rm -f "$f"
+                    cambio=1
+                    break
+                fi
+            done
+        done
+    done
+    rm -rf "$c/Resources/gallery" "$c/Resources/template" 2>/dev/null || true
+    rm -rf "$c/Resources/extensions" "$c/Resources/wizards" "$c/Resources/basic" 2>/dev/null || true
+    rm -rf "$c/Resources/fonts" 2>/dev/null || true
+    rm -rf "$c/Resources/help" "$c/Resources/readmes" 2>/dev/null || true
+    # Los filtros en Java (en Linux, program/classes).
+    rm -rf "$c/Resources/java" 2>/dev/null || true
+    rm -f  "$c/Resources/CREDITS.fodt" 2>/dev/null || true
+    # Los menus traducidos de la ventana (*.lproj): ingles y español.
+    local l
+    for l in "$c/Resources"/*.lproj; do
+        [ -d "$l" ] || continue
+        case "$(basename "$l")" in
+            en.lproj|es.lproj|Base.lproj) ;;
+            *) rm -rf "$l" ;;
+        esac
+    done
+    # Los iconos de la ventana. OJO, igual que en Linux: los .zip, NO config/.
+    rm -f  "$c/Resources/config/images_"*.zip 2>/dev/null || true
+    # El plugin de juegos de caracteres de Firebird (la base de datos de Base):
+    # apunta a una libfbclient que no existe con ese nombre y convertir no lo
+    # usa. Firebird en si queda: libmergedlo enlaza libfbclient directo.
+    rm -rf "$c/Frameworks/intl" 2>/dev/null || true
+    # Podar rompe el sello de la .app (la firma de TDF cubre cada archivo): se
+    # vuelve a firmar entera, ad-hoc. Sin esto, macOS no la da por firmada.
+    codesign --force --deep -s - "$1/LibreOffice.app" >/dev/null 2>&1 ||
+        morir "no pude volver a firmar la .app podada"
+}
+
+hacer_mac() {
+    [ "$(uname -s)" = Darwin ] || morir "el LibreOffice de macOS se arma en la Mac (hdiutil)"
+    local app="$OUT/macos/LibreOffice.app"
+    if [ -x "$app/Contents/MacOS/soffice" ]; then
+        log "macos ya estaba; repodando"
+        podar_mac "$OUT/macos"
+        if convierte "$OUT/macos"; then
+            log "macos: $(du -sh "$OUT/macos" | cut -f1) (verificado)"
+            return
+        fi
+        log "el que estaba no convierte; lo armo de nuevo"
+        rm -rf "$OUT/macos"
+    fi
+    bajar "$MAC_DMG" "$BASE/mac/aarch64/$MAC_DMG" "$MAC_SHA"
+    local mnt; mnt="$(mktemp -d)"
+    log "montando el .dmg (solo lectura, sin instalar nada)"
+    hdiutil attach -nobrowse -readonly -noautoopen -mountpoint "$mnt" "$DL/$MAC_DMG" >/dev/null ||
+        morir "no pude montar $MAC_DMG"
+    rm -rf "$OUT/macos"
+    mkdir -p "$OUT/macos"
+    # ditto conserva enlaces, permisos y atributos de la .app.
+    ditto "$mnt/LibreOffice.app" "$app" || { hdiutil detach -quiet "$mnt"; morir "no pude copiar la .app"; }
+    hdiutil detach -quiet "$mnt" || true
+    rmdir "$mnt" 2>/dev/null || true
+    # Bajado con curl no queda en cuarentena, pero si vino de otro lado si.
+    xattr -dr com.apple.quarantine "$app" 2>/dev/null || true
+    fuentes_aparte "$OUT/macos" "$app/Contents/Resources/fonts/truetype" # antes de podar
+    podar_mac "$OUT/macos"
+    verificar "$OUT/macos"
+    log "macos listo: $(du -sh "$OUT/macos" | cut -f1)"
+}
+
 case "$QUE" in
     linux) hacer_linux ;;
     win)   hacer_win ;;
+    mac)   hacer_mac ;;
     todo)  hacer_linux; hacer_win ;;
-    *)     morir "uso: $0 [linux|win|todo]" ;;
+    *)     morir "uso: $0 [linux|win|mac|todo]" ;;
 esac
 
 log "listo. El bundle lo incluye solo si extern/libreoffice existe."

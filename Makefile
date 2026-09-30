@@ -47,7 +47,7 @@ PIP       ?= .venv/bin/pip
 .PHONY: check-macos-tools deps-macos deps-obs-src deps-obs-macos deps-lsp-macos macos release-macos dist-macos deps-lsp-win deps-clap deps-obs-deps-win deps-ndi-src deps-linux test-win deps-win deps-win-toolchain deps-webrtc-win release-win dist-win dist-linux deps-lwip deps-cacert help dev build prod test test-unit pytest test-all lint docs release win deps-cloudflared-host deps-qt-host \
         clean clean-all \
         deps deps-obs deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist \
-        deps-lsp deps-status deps-clean deps-libreoffice deps-libreoffice-linux deps-libreoffice-win \
+        deps-lsp deps-status deps-clean deps-libreoffice deps-libreoffice-linux deps-libreoffice-win deps-libreoffice-mac \
         deps-msitools mcp-inventario deps-llamacpp bateria-local corpus-entrenamiento \
         venv-entrenar vector-control \
         corpus-descubrir \
@@ -1018,8 +1018,12 @@ CLAP_SHA := 6548b5831ad9e92551c752753e535b18fead4001165ef1df8e643efefa7133b7
 # Solo para convertir .pptx a PDF y de ahi a imagenes (ver docs/CARRUSEL.md).
 # NO entra en `make deps`: hay que pedirlo, porque son ~420 MB por plataforma y
 # el que recibe PDF no lo necesita. El bundle lo incluye solo si esta.
+# En la Mac, el de macOS (el .dmg se monta con hdiutil: solo se arma ahi).
 deps-libreoffice:
-	tools/deps/libreoffice.sh todo
+	@if [ "$$(uname -s)" = Darwin ]; then tools/deps/libreoffice.sh mac; else tools/deps/libreoffice.sh todo; fi
+
+deps-libreoffice-mac:
+	tools/deps/libreoffice.sh mac
 
 deps-libreoffice-linux:
 	tools/deps/libreoffice.sh linux
