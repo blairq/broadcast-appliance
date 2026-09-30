@@ -25,6 +25,8 @@ if(NOT BA_LAUNCHER_SOURCES)
 endif()
 
 add_executable(BroadcastAppliance ${BA_LAUNCHER_SOURCES})
+include(${CMAKE_SOURCE_DIR}/cmake/BaMacInfoPlist.cmake)
+ba_mac_embed_info_plist(BroadcastAppliance com.legisstudio.broadcastappliance "Broadcast Appliance")
 
 # --- Ícono y datos del .exe (solo Windows) ----------------------------------
 # El .rc referencia el .ico por nombre: se le agrega assets/icons al camino de

@@ -7,6 +7,8 @@
 //     si la app corre nativa en Wayland (via XWayland). Los eventos de la
 //     ventana se atienden con el fd de la conexion X (HostServices::addFd).
 //   - Windows: ventana Win32 (HWND padre).
+//   - macOS: una QWindow de Qt, cuyo winId() es el NSView que pide
+//     CLAP_WINDOW_API_COCOA (sin Objective-C propio).
 // Cerrar la ventana cierra el editor; el plugin sigue procesando.
 // ============================================================================
 #pragma once

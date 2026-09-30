@@ -41,12 +41,6 @@ struct Direct : HostServices {
     void removeFd(int) override {}
 };
 
-const ParamInfo* byName(const std::vector<ParamInfo>& ps, const char* name) {
-    for (const auto& p : ps)
-        if (p.name == name) return &p;
-    return nullptr;
-}
-
 // Procesa `blocks` bloques de un tono de 1 kHz a `amp`; devuelve el pico de salida del ultimo.
 float run(ClapInstance& c, float amp, int blocks) {
     const uint32_t N = 512;

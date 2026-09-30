@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>@BA_MAC_BUNDLE_ID@</string>
+    <key>CFBundleName</key>
+    <string>@BA_MAC_NAME@</string>
+    <key>CFBundleShortVersionString</key>
+    <string>@PROJECT_VERSION@</string>
+    <key>CFBundleVersion</key>
+    <string>@PROJECT_VERSION@</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>13.0</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSCameraUsageDescription</key>
+    <string>Broadcast Appliance usa la cámara como fuente de video de la emisión.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Broadcast Appliance usa el micrófono como fuente de audio de la emisión.</string>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>Broadcast Appliance recibe a los invitados y fuentes NDI por la red local.</string>
+    <key>NSBonjourServices</key>
+    <array>
+        <string>_ndi._tcp</string>
+    </array>
+</dict>
+</plist>

@@ -68,6 +68,12 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/versions.cmake")
 # para que los targets `mbedcrypto`/`mbedx50`/`mbedtls` y
 # `nlohmann_json::nlohmann_json` ya existan cuando `ba_core` los enlaza.
 include(FetchContent)
+# CMake 4 ya no acepta cmake_minimum_required < 3.5, que es lo que declaran
+# libsamplerate 0.2.2 y otras de terceros (lo trae Homebrew en macOS y lo van
+# a traer los runners). Se les permite configurar con la politica de 3.5.
+if(NOT DEFINED CMAKE_POLICY_VERSION_MINIMUM)
+    set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+endif()
 FetchContent_Declare(mbedtls
     GIT_REPOSITORY https://github.com/Mbed-TLS/mbedtls.git
     GIT_TAG ${MBEDTLS_VERSION})
@@ -309,12 +315,19 @@ endif()
 if(BA_HAVE_LIBOBS)
     # Bibliotecas: libobs, libobs-opengl (o las DLL en Windows) -> bin/64bit.
     install(FILES ${BA_LIBOBS_RUNTIME_LIBS} DESTINATION bin/64bit)
+    # macOS: libobs.framework es una carpeta (con enlaces simbolicos adentro).
+    foreach(_d IN LISTS BA_LIBOBS_RUNTIME_DIRS)
+        install(DIRECTORY "${_d}" DESTINATION bin/64bit USE_SOURCE_PERMISSIONS)
+    endforeach()
     if(BA_LIBOBS_RUNTIME_PROGRAMS)
         install(PROGRAMS ${BA_LIBOBS_RUNTIME_PROGRAMS} DESTINATION bin/64bit)
     endif()
 
     # Plugins de OBS (x264, ffmpeg, rtmp, captura) -> obs-plugins/64bit.
-    if(EXISTS "${BA_LIBOBS_PLUGIN_DIR}")
+    if(APPLE AND EXISTS "${BA_LIBOBS_PLUGIN_DIR}")
+        # Bundles .plugin enteros (binario + Resources con sus datos).
+        install(DIRECTORY "${BA_LIBOBS_PLUGIN_DIR}/" DESTINATION obs-plugins/64bit USE_SOURCE_PERMISSIONS)
+    elseif(EXISTS "${BA_LIBOBS_PLUGIN_DIR}")
         set(_ba_excl "")
         foreach(_p IN LISTS BA_LIBOBS_PLUGIN_EXCLUDE)
             list(APPEND _ba_excl PATTERN "${_p}.dll" EXCLUDE)
@@ -369,7 +382,7 @@ else()
 endif()
 
 # El paso de rpath va DESPUES de copiar el runtime: reescribe lo ya instalado.
-if(BA_HAVE_LIBOBS AND NOT WIN32)
+if(BA_HAVE_LIBOBS AND NOT WIN32 AND NOT APPLE)
     include(${CMAKE_SOURCE_DIR}/cmake/BaPortableBundle.cmake)
 endif()
 
@@ -377,3 +390,10 @@ endif()
 # Cada componente declara su propio install(TARGETS ...) en su CMakeLists para
 # controlar el directorio de destino exacto. Aquí se centraliza solo la
 # documentación de a dónde va cada cosa.
+
+# macOS: re-firma ad-hoc de todo lo instalado. Va AL FINAL: las reglas de
+# instalacion corren en el orden declarado (CMP0082) y esta tiene que ver
+# todos los binarios ya en su lugar.
+if(APPLE)
+    include(${CMAKE_SOURCE_DIR}/cmake/BaMacBundle.cmake)
+endif()
