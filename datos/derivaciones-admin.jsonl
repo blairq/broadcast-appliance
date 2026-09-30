@@ -858,7 +858,6 @@
 {"frase": "¿Qué le digo al que espera si no le funciona la webcam?", "herramienta": "invitado_chequeo"}
 {"frase": "Poné ruido rosa en el rack y conectalo al analizador", "herramienta": "audio_generator"}
 {"frase": "Armame un barrido de frecuencias como señal de prueba", "herramienta": "audio_generator"}
-{"frase": "Necesito un seno de prueba suelto en el rack", "herramienta": "audio_generator"}
 {"frase": "Poné un techo en -1 dBFS al final de la cadena", "herramienta": "audio_limiter"}
 {"frase": "Que el programa nunca pase de -1, limitalo", "herramienta": "audio_limiter"}
 {"frase": "Ponele un limitador al master, que no clipee jamás", "herramienta": "audio_limiter"}

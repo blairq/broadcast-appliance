@@ -94,7 +94,8 @@
         "fijate los niveles",
         "cómo viene el nivel del programa",
         "está saturando?",
-        "medime los niveles de la cadena del conductor"
+        "medime los niveles de la cadena del conductor",
+        "¿Por qué no se escucha nada al aire? Medí qué pasa con el audio"
       ],
       "tambien": [
         "mixer_list",
@@ -122,7 +123,9 @@
         "de dónde sale ese pitido",
         "analizá qué frecuencia está zumbando",
         "decime de dónde viene ese ruido",
-        "Siento un zumbido en 50 Hz, medí el espectro del in y confirmalo"
+        "Siento un zumbido en 50 Hz, medí el espectro del in y confirmalo",
+        "No me convence cómo suenan los agudos, analizá el espectro en el punto de salida",
+        "Espectro de la fuente cruda, 5 segundos, ya"
       ],
       "tambien": [
         "audio_measure"
@@ -189,7 +192,9 @@
         "Salí al aire con la escena Cierre ahora mismo",
         "Corte directo a la cámara 2, ya mismo al programa",
         "Corte seco a la apertura, sin transición armada ni nada",
-        "Cortá a la general ahora, sale directo"
+        "Cortá a la general ahora, sale directo",
+        "¿Ponés ya la apertura al aire?",
+        "Mandá al programa la escena Cierre de una."
       ],
       "tambien": [],
       "correctivas": [
@@ -227,7 +232,9 @@
         "tira la que ya tenia preparada",
         "dale al take de la armada",
         "ejecuta el corte a lo alistado",
-        "Dale el take ahora"
+        "Dale el take ahora",
+        "Take.",
+        "¿Hacés el take de lo que armé en preview?"
       ],
       "tambien": [],
       "correctivas": [
@@ -300,7 +307,8 @@
         "poné una imagen arriba a la derecha",
         "metele la cámara 3",
         "suma el plano trasero a esta toma",
-        "Sumá el logo del canal arriba de todo en la escena Noticias"
+        "Sumá el logo del canal arriba de todo en la escena Noticias",
+        "Falta la cámara 3 en la escena Entrevista, agregala."
       ],
       "tambien": [],
       "correctivas": []
@@ -748,7 +756,8 @@
         "sacale una foto al que esta hablando",
         "Mostrame la cara de Juan Pérez, quiero ver si tiene buena luz",
         "¿Cómo se ve Martina Gómez ahora? Traeme su imagen",
-        "Pasame la imagen de la invitada Carla, nada más ella"
+        "Pasame la imagen de la invitada Carla, nada más ella",
+        "Imagen de la persona con id 57, rápido"
       ],
       "tambien": [],
       "correctivas": []
@@ -1118,7 +1127,12 @@
         "Fijate qué propiedades expone esa fuente y cuánto valen ahora",
         "¿Qué opciones tiene el dispositivo de captura? Listame todas",
         "¿Qué rango acepta la opción de brillo de la cámara 1?",
-        "¿Qué propiedades expone la placa de captura? Nombre y tipo"
+        "¿Qué propiedades expone la placa de captura? Nombre y tipo",
+        "Mostrame las propiedades de la cámara 2.",
+        "¿Qué opciones expone la fuente Navegador?",
+        "¿Qué valores posibles tiene la fuente Placa de captura 1?",
+        "Quiero ver qué opciones y rangos tiene la fuente NDI del móvil.",
+        "¿Cuál es el valor actual de cada opción de la fuente Media 3?"
       ],
       "tambien": [],
       "correctivas": []
@@ -1202,7 +1216,9 @@
         "prendi el modo oradores",
         "configurame los tiempos de cada uno",
         "apaga el modo oradores",
-        "Cambiá el tiempo general por orador a cinco minutos"
+        "Cambiá el tiempo general por orador a cinco minutos",
+        "El debate arranca ya: prendé el modo oradores y dejá el carrusel manual",
+        "Configurá tres minutos por orador y slot por defecto el 2"
       ],
       "tambien": [],
       "correctivas": []
@@ -1232,7 +1248,8 @@
         "Dispará la placa animada con la encuesta, que entre ya",
         "Terminó el gol, tirá el gráfico animado con el resultado",
         "Hacé correr la animación del gráfico de la cotización del dólar",
-        "Mandá a dibujar el gráfico animado con los datos de la elección"
+        "Mandá a dibujar el gráfico animado con los datos de la elección",
+        "Estamos hablando del dólar, meté al aire el gráfico de cotizaciones."
       ],
       "tambien": [
         "rotulo_vincular"
@@ -1269,7 +1286,8 @@
         "Ya se leyó la encuesta, limpiá el gráfico animado",
         "El gráfico de temperatura quedó colgado, apagalo a transparente",
         "Chau gráfico animado de la cotización, vaciá esa placa",
-        "Terminá el gráfico animado, que no se vea nada ahí"
+        "Terminá el gráfico animado, que no se vea nada ahí",
+        "Dejá transparente el gráfico, que no se vea más."
       ],
       "tambien": [],
       "correctivas": []
@@ -1379,7 +1397,8 @@
         "Andá a la lámina doce sin pasar por las anteriores",
         "El conductor pide la lámina cinco, saltá ya",
         "Volvé a la 3 del carrusel Clima",
-        "Andá directo a la primera del carrusel Mercados"
+        "Andá directo a la primera del carrusel Mercados",
+        "El conductor retrocedió, llevame a la lámina 12 ya."
       ],
       "tambien": [],
       "correctivas": []
@@ -1402,7 +1421,12 @@
         "Buscame la que dice inflación en el carrusel Economía",
         "Encontrame las que tengan la etiqueta mapa en Elecciones",
         "Filtrá por el texto 'desempleo' en el carrusel Informe",
-        "Rastreá 'tormenta' en el carrusel Clima, por título o etiqueta"
+        "Rastreá 'tormenta' en el carrusel Clima, por título o etiqueta",
+        "Buscá la lámina que dice inflación.",
+        "¿Hay alguna lámina que hable del puerto de Rosario?",
+        "No encuentro la lámina del mapa del conurbano, buscala por texto.",
+        "El conductor quiere la de Messi, encontrame qué lámina la tiene.",
+        "Buscá láminas con la palabra encuesta en el carrusel Elecciones."
       ],
       "tambien": [
         "laminas_ver"

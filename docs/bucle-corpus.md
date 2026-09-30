@@ -477,12 +477,33 @@ decodificador. Con eso, cada ronda es:
 |---|---|---|---|
 | inicio | — | — | 138 |
 | 1 | 788 | 435 | 82 |
-| 2 | 324 | 158 | 76 |
+| 2 | 324 | 158 | 76 (29 con la regla corregida) |
+| 3 | 570 | 311 | 21 |
+| 4 | 144 | 36 | 17 |
+| 5 | 160 | 24 | 16 → se para: ya no baja con este modelo |
 
-La ronda 2 rinde poco porque lo que queda está concentrado en dos **sumideros**:
-`source_set_property` (atrae 30 frases ajenas: audio, ventanas, entradas) y
-`grafico_mostrar` (atrae 21: probar un gráfico, caras, rostros). Agregarles
-frases a las vecinas no alcanza.
+**Los «sumideros» eran un error de la medida.** Hasta la ronda 2, `--choques`
+contaba una administrativa como pisada si el centro propio más cercano le quedaba
+más cerca que el centro de `derivar`. Pero `derivar` es multimodal y su centro no
+está cerca de nada: cada administrativa aceptada sumaba un par aunque estuviera
+bien afuera de toda nube propia. Parecía que `source_set_property` y
+`grafico_mostrar` se tragaban todo. Con la regla de `--evaluar` (adentro de la
+nube = a menos del radio típico de un grupo propio), no cae ninguna, y los pares
+reales eran 29.
+
+**Los huecos no se validan con el modelo que no los aprendió.** Lo que queda
+después de la ronda 5 son pares entre propias, y casi todos tocan herramientas
+con 3 a 5 semillas (`audio_escuchar`, `capture_feed`, `laminas_aplicar`,
+`source_remove`, `speakers_config`). Para v9, frases correctas de pre-escucha
+(«pasame el micro a los auriculares en PFL») caen en `audio_input_add`: nunca
+aprendió el concepto, así que no puede aprobar frases del concepto. Ahí el bucle
+se detiene hasta entrenar con lo aceptado y volver a medir con el modelo nuevo.
+Ese es el bucle de afuera: rondas con el modelo N hasta que no baje, entrenar
+N+1, rondas con N+1.
+
+Después de separar se vuelven a elegir las etiquetas (`elegir-etiquetas.py`):
+la dirección que separa dos nubes cambia al cambiar el corpus, y la etiqueta
+tiene que apuntar a la nueva.
 
 **Reemplazar las semillas de un grupo no se puede juzgar con el modelo actual.**
 Se probó reescribir enteros los dos sumideros con frases angostas: los pares
