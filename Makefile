@@ -29,6 +29,18 @@ JOBS      ?= $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 
 # mismo formato de salida y el mismo -c.
 SHA256       := $(shell sha256sum --version 2>/dev/null | grep -q GNU && echo sha256sum || echo "shasum -a 256")
 SHA256_CHECK := $(SHA256) -c --quiet
+# macOS: libobs pide Xcode completo. Si xcode-select apunta a las Command Line
+# Tools pero Xcode esta instalado, se usa ese sin tocar la configuracion del
+# sistema (lo mismo que `sudo xcode-select -s`, solo para este build).
+ifeq ($(shell uname -s),Darwin)
+  ifeq ($(DEVELOPER_DIR),)
+    ifneq ($(shell xcodebuild -version >/dev/null 2>&1 && echo si),si)
+      ifneq ($(wildcard /Applications/Xcode.app/Contents/Developer),)
+        export DEVELOPER_DIR := /Applications/Xcode.app/Contents/Developer
+      endif
+    endif
+  endif
+endif
 PY        ?= .venv/bin/python
 PIP       ?= .venv/bin/pip
 
