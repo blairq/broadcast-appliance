@@ -116,6 +116,24 @@ cd release && BA_GATEWAY_PIN=123456 ./BroadcastAppliance --no-recovery-ui --app-
 Logs: `release/Logs/` (`launcher.log`, `app.log`, `gateway.log`) y la salida
 de la terminal.
 
+## 7. Publicar el `.dmg` en un release de GitHub (`make publicar-macos`)
+
+El CI de GitHub arma y publica Linux y Windows, pero **no macOS**: en un repo
+privado los minutos de un runner de Mac cuentan x10. El `.dmg` se arma en una
+Mac y se suma al mismo release:
+
+```bash
+git checkout master && git pull     # el commit del release
+make publicar-macos                 # al ultimo release (TAG=v... para otro)
+```
+
+Compila, corre los tests, arma `dist/BroadcastAppliance-<ver>-macos-arm64.dmg`
+(la `.app` firmada ad-hoc, con un "Leeme primero" que explica cómo abrirla la
+primera vez) y lo sube con `gh`. Se niega si el release no se hizo con el
+commit que hay en la Mac o si hay cambios sin commitear (`FORZAR=1` saltea los
+dos controles). Para validar en una Mac limpia de GitHub hay un workflow a mano:
+Actions → macOS → Run workflow.
+
 ## Qué está probado (2026-09-30)
 
 - `make macos`: compila todo (núcleo, launcher, gateway con libwebrtc real,

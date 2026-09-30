@@ -44,7 +44,7 @@ endif
 PY        ?= .venv/bin/python
 PIP       ?= .venv/bin/pip
 
-.PHONY: app-macos dmg-macos check-macos-tools deps-macos deps-obs-src deps-obs-macos deps-lsp-macos macos release-macos dist-macos deps-lsp-win deps-clap deps-obs-deps-win deps-ndi-src deps-linux test-win deps-win deps-win-toolchain deps-webrtc-win release-win dist-win dist-linux deps-lwip deps-cacert help dev build prod test test-unit pytest test-all lint docs release win deps-cloudflared-host deps-qt-host \
+.PHONY: publicar-macos app-macos dmg-macos check-macos-tools deps-macos deps-obs-src deps-obs-macos deps-lsp-macos macos release-macos dist-macos deps-lsp-win deps-clap deps-obs-deps-win deps-ndi-src deps-linux test-win deps-win deps-win-toolchain deps-webrtc-win release-win dist-win dist-linux deps-lwip deps-cacert help dev build prod test test-unit pytest test-all lint docs release win deps-cloudflared-host deps-qt-host \
         clean clean-all \
         deps deps-obs deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist \
         deps-lsp deps-status deps-clean deps-libreoffice deps-libreoffice-linux deps-libreoffice-win deps-libreoffice-mac \
@@ -74,6 +74,7 @@ help:
 	@echo "  make deps-macos     Todo lo del build de macOS (en una Mac Apple Silicon)"
 	@echo "  make macos          macOS: compila y corre los tests"
 	@echo "  make dmg-macos      dist/BroadcastAppliance-<ver>-macos-arm64.dmg (la .app)"
+	@echo "  make publicar-macos Arma el .dmg aca y lo sube al ultimo release de GitHub (TAG=... para otro)"
 	@echo "  make deps-linux Todo lo del build completo de Linux (libobs desde fuente, Qt, libwebrtc...)"
 	@echo "  make clean      Borra $(BUILD_DIR)/"
 	@echo "  make clean-all  Borra $(BUILD_DIR)/, release/ y docs/_build/"
@@ -357,6 +358,32 @@ dmg-macos: release-macos
 	tools/deps/app-macos.sh release dist/BroadcastAppliance.app dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64.dmg
 	@cd dist && $(SHA256) BroadcastAppliance-$(BA_VERSION)-macos-arm64.dmg > BroadcastAppliance-$(BA_VERSION)-macos-arm64.dmg.sha256
 	@echo "dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64.dmg"
+
+# Publicar el .dmg en un release de GitHub, armado EN ESTA MAC: el CI no
+# compila macOS (los minutos de Mac cuentan x10 en un repo privado). El release
+# lo crea el CI con Linux y Windows; esto le suma el .dmg.
+#   make publicar-macos            -> al ultimo release
+#   make publicar-macos TAG=v...   -> a ese
+# Se niega si el release no se hizo con el commit que hay aca (el .dmg tiene
+# que ser la misma version que el .zip y el .tar.gz) o si hay cambios sin
+# commitear. FORZAR=1 saltea los dos controles.
+publicar-macos:
+	@command -v gh >/dev/null 2>&1 || { echo "ERROR: falta gh (GitHub CLI): brew install gh && gh auth login" >&2; exit 1; }
+	@tag="$(TAG)"; [ -n "$$tag" ] || tag="$$(gh release view --json tagName -q .tagName)" || exit 1; \
+	  commit="$$(gh release view "$$tag" --json targetCommitish -q .targetCommitish)" || exit 1; \
+	  aca="$$(git rev-parse HEAD)"; \
+	  echo "[publicar-macos] release $$tag (commit $$commit); aca: $$aca"; \
+	  if [ "$$commit" != "$$aca" ] && [ "$(FORZAR)" != 1 ]; then \
+	    echo "ERROR: el release $$tag no es de este commit. Poné el mismo (git checkout $$commit) o usá FORZAR=1." >&2; exit 1; fi; \
+	  if [ -n "$$(git status --porcelain --untracked-files=no)" ] && [ "$(FORZAR)" != 1 ]; then \
+	    echo "ERROR: hay cambios sin commitear: el .dmg no seria la version publicada." >&2; exit 1; fi; \
+	  echo "$$tag" > .publicar-macos-tag
+	$(MAKE) macos
+	$(MAKE) dmg-macos
+	@tag="$$(cat .publicar-macos-tag)"; rm -f .publicar-macos-tag; \
+	  gh release upload "$$tag" dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64.dmg \
+	    dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64.dmg.sha256 --clobber && \
+	  echo "[publicar-macos] publicado en $$tag"
 
 dist-macos: release-macos
 	@mkdir -p dist
