@@ -42,6 +42,10 @@ def main():
                     help="CAPAS:FACTOR, p.ej. 27,28:0.5 · 0 = como si la capa no estuviera")
     ap.add_argument("--solo", default="atencion,mlp",
                     help="que bloques amortiguar: atencion, mlp o los dos")
+    ap.add_argument("--casos", help="evaluar otro archivo en vez del examen: jsonl con"
+                    " {frase, aceptables} o {frase, herramienta} (el banco de orientacion)")
+    ap.add_argument("--confusion", type=int, default=0,
+                    help="mostrar los N pares (esperada -> elegida) mas frecuentes")
     ap.add_argument("--sesgo", type=float, default=0.0,
                     help="cuanto se le suma al logit de `derivar` (el dial simple)")
     ap.add_argument("--vector", help="vector de control (.gguf) de vector-control.py")
@@ -170,7 +174,17 @@ def main():
         return puntajes
 
     largo_prompt = [0]
-    casos = [json.loads(l) for l in EXAMEN.read_text(encoding="utf-8").splitlines() if l.strip()]
+    fuente = Path(args.casos) if args.casos else EXAMEN
+    casos = [json.loads(l) for l in fuente.read_text(encoding="utf-8").splitlines() if l.strip()]
+    # El banco de orientacion viene como {frase, herramienta} y cubre las 292. Para
+    # este modelo, una herramienta que no conoce tiene UNA respuesta correcta,
+    # derivar; se guarda la real en `real` para poder contar por categoria.
+    conocidas = set(nombres)
+    for c in casos:
+        if "aceptables" not in c:
+            h = c["herramienta"]
+            c["real"] = h
+            c["aceptables"] = [h] if h in conocidas else [lp.DERIVAR]
     aciertos, fallos, elegidas, t0 = 0, [], {}, time.time()
     for c in casos:
         ent = tok(cabeza + c["frase"] + cola, return_tensors="pt").to(modelo.device)
@@ -189,6 +203,13 @@ def main():
 
     for g in ganchos:
         g.remove()
+    if args.confusion:
+        import collections
+        conf = collections.Counter((c["aceptables"][0], elegidas[c["frase"]])
+                                   for c in casos if elegidas[c["frase"]] not in c["aceptables"])
+        print(f"\nconfusiones mas frecuentes (esperada -> elegida):")
+        for (a, b), n in conf.most_common(args.confusion):
+            print(f"  {a:24s} -> {b:24s} {n:3d}")
     print(f"\nmodelo: {args.modelo} · ejemplos en contexto: {args.ejemplos}"
           + (f" · escala {args.escala}" if args.vector else "")
           + (f" · sesgo {args.sesgo:+.1f}" if args.sesgo else "")

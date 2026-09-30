@@ -385,6 +385,17 @@ def orientar(geo, med, ori, frases, objetivo, bitacora):
                    decision de producto —fusionar, derivar, aceptar las dos—.
     """
     t = geo.t
+    # DERIVAR NO SE MIDE CON CENTROS. Es una clase de muchos modos —el clima, un
+    # cafe, configurar una cuenta y otras 200 tareas administrativas— y el centro
+    # de todo eso es un promedio que no se parece a ninguna. Con el banco de 1.423
+    # frases, el centro mas cercano daba 38% de acierto global, y casi todo era
+    # «derivar -> X»; el decodificador real, sobre las mismas frases, 53%. El
+    # modelo no decide por centros: su fila de salida es un hiperplano, que
+    # separa una clase de varios modos sin problema. Asi que derivar se mide con
+    # evaluar.py --casos, y aca se deja afuera del triage.
+    multimodal = {"derivar"}
+    n_multi = sum(1 for o in ori if o["herramienta"] in multimodal)
+    ori = [o for o in ori if o["herramienta"] not in multimodal]
     pred = []
     for o in ori:
         v = med.h(o["frase"])
@@ -444,7 +455,7 @@ def orientar(geo, med, ori, frases, objetivo, bitacora):
         r["historial"] = {"propuestas": prop[a], "aceptadas": acep[a]}
 
     return {"acierto_orientacion": ok / max(1, len(pred)), "frases_orientacion": len(pred),
-            "prioridades": prioridades}
+            "prioridades": prioridades, "fuera_del_triage": n_multi}
 
 
 def imprimir_orientacion(o):
@@ -452,6 +463,9 @@ def imprimir_orientacion(o):
           f" {100*o['acierto_orientacion']:.1f}% caen en su grupo"
           + (f" · mitad que confirma {o['frases_confirmacion']} frases,"
              f" {100*o['acierto_confirmacion']:.1f}%" if "acierto_confirmacion" in o else ""))
+    if o.get("fuera_del_triage"):
+        print(f"  ({o['fuera_del_triage']} frases de derivar quedan afuera: es una clase de muchos"
+              f" modos y el centro no la representa. Se miden con evaluar.py --casos.)")
     print("\n  DONDE SE PIERDE (prioridad = errores x CDNV)")
     for r in o["prioridades"][:12]:
         c = "  —  " if r["cdnv"] != r["cdnv"] else f"{r['cdnv']:.3f}"
@@ -627,6 +641,7 @@ def main():
             A = [o for o in ori if mitad(o) == 0]
             B = [o for o in ori if mitad(o) == 1]
             res["orientacion"] = orientar(geo, med, A, frases, args.objetivo, args.bitacora)
+            B = [o for o in B if o["herramienta"] != "derivar"]
             okB = sum(1 for o in B if geo.mas_cercano(med.h(o["frase"])) == o["herramienta"])
             med.guardar()
             res["orientacion"]["acierto_confirmacion"] = okB / max(1, len(B))
