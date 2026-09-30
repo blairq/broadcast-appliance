@@ -53,8 +53,9 @@ def main():
                     help="cuanto se empuja. 0 = como si no estuviera")
     args = ap.parse_args()
 
-    from unsloth import FastLanguageModel  # noqa: E402
     import torch  # noqa: E402
+    from transformers import AutoModelForCausalLM, AutoTokenizer  # noqa: E402
+    from peft import PeftModel  # noqa: E402
     import lib_prompt as lp  # noqa: E402
 
     inv = lp.inventario()
@@ -73,9 +74,16 @@ def main():
             print(f"       midiendo con  {ahora['prompt']} ({ahora['cuantas']})")
             print("       El numero que salga no compara con los anteriores.\n")
 
-    modelo, tok = FastLanguageModel.from_pretrained(
-        model_name=args.modelo, max_seq_length=args.largo, load_in_4bit=False, dtype=None)
-    FastLanguageModel.for_inference(modelo)
+    # TRANSFORMERS PELADO Y EL ADAPTADOR FUSIONADO. La ruta rapida de unsloth
+    # exige un token por vez cuando hay cache, y aca el cache del prefijo es lo
+    # que ahorra el 90% del tiempo. Fusionar el LoRA ademas saca el matmul extra
+    # y la indireccion de Python por capa: 21,4 -> 11,8 ms por forward, medido.
+    cfg = json.loads((Path(args.modelo) / "adapter_config.json").read_text())
+    tok = AutoTokenizer.from_pretrained(args.modelo)
+    modelo = AutoModelForCausalLM.from_pretrained(
+        cfg["base_model_name_or_path"], dtype=torch.bfloat16, device_map="cuda:0")
+    modelo = PeftModel.from_pretrained(modelo, args.modelo).merge_and_unload()
+    modelo.eval()
 
     # EL VECTOR DE CONTROL, aplicado igual que en llama.cpp: se SUMA a la salida
     # de cada capa, escalado. Se hace aca tambien —y no solo al servir— porque
@@ -145,35 +153,62 @@ def main():
         print(f"vector de control: {args.vector} · escala {args.escala} "
               f"· {len(ganchos)} capas")
 
-    # El arbol de continuaciones validas: desde cada prefijo de tokens, que
-    # tokens dejan llegar a un nombre que EXISTE. Es la gramatica, en HF.
-    secuencias = [tok(n, add_special_tokens=False).input_ids for n in nombres]
-    fin = tok.eos_token_id
-    def permitidos(_, ids):
-        generado = ids.tolist()[largo_prompt[0]:]
-        opciones = set()
-        for s in secuencias:
-            if s[:len(generado)] == generado:
-                opciones.add(s[len(generado)] if len(s) > len(generado) else fin)
-        return sorted(opciones) or [fin]
-
-    # EL DIAL SIMPLE: sesgar el logit de `derivar`.
+    # LA GRAMATICA COMO ARBOL, precalculado y con los indices ya en la GPU.
     #
-    # Por que esto y no el vector de control. La tarea es elegir UN nombre de
-    # una lista cerrada, asi que lo que decide esta en el logit de un token, no
-    # desparramado en el texto. Sumarle una constante a ese logit mueve el
-    # punto de operacion de forma MONOTONA y sin tocar nada mas: es el dial que
-    # el vector prometia, pero con garantia en vez de esperanza.
-    #
-    # `derivar` empieza con un token que ninguna herramienta comparte, asi que
-    # sesgarlo no arrastra a ninguna otra.
-    tok_derivar = tok(lp.DERIVAR, add_special_tokens=False).input_ids[0]
-    def sesgar(ids, puntajes):
-        if args.sesgo and ids.shape[-1] == largo_prompt[0]:
-            puntajes[:, tok_derivar] += args.sesgo
-        return puntajes
+    # La version anterior le pasaba a generate() una funcion que en CADA paso
+    # bajaba la secuencia entera de la GPU al CPU —ids.tolist(), mas de 3.000
+    # enteros— y recorria los 86 nombres en Python para ver cuales seguian
+    # siendo posibles. Ahora el arbol se arma una vez: para cada prefijo de
+    # tokens, que tokens siguen y que nombres quedan. Por paso cruza al CPU un
+    # solo numero, el token elegido, que es lo minimo para bajar por el arbol.
+    dev = modelo.device
+    secuencias = {n: tuple(tok(n, add_special_tokens=False).input_ids) for n in nombres}
+    siguientes, quedan = {}, {}
+    for n, sq in secuencias.items():
+        for k in range(len(sq) + 1):
+            quedan.setdefault(sq[:k], set()).add(n)
+            if k < len(sq):
+                siguientes.setdefault(sq[:k], set()).add(sq[k])
+    sig_t = {pre: torch.tensor(sorted(v), device=dev) for pre, v in siguientes.items()}
 
-    largo_prompt = [0]
+    # EL DIAL SIMPLE: sesgar el logit de `derivar`. Mueve el punto de operacion
+    # de forma monotona y sin tocar nada mas. `derivar` empieza con un token que
+    # ninguna herramienta comparte, asi que sesgarlo no arrastra a ninguna otra.
+    tok_derivar = secuencias[lp.DERIVAR][0]
+
+    # EL PREFIJO SE LEE UNA SOLA VEZ. Son 3.140 tokens identicos en todos los
+    # casos, y la version anterior los volvia a procesar en cada uno: eso era
+    # casi todo el tiempo de una evaluacion.
+    ent_cab = tok(cabeza, return_tensors="pt").to(dev)
+    with torch.no_grad():
+        kv = modelo(**ent_cab, use_cache=True).past_key_values
+    n_cab = ent_cab.input_ids.shape[1]
+
+    def elegir(frase):
+        """Decodificacion voraz con gramatica, identica a la de antes pero sin
+        repetir el prefijo. Corta en cuanto queda UN solo nombre posible: desde
+        ahi la gramatica fuerza el resto y seguir no decide nada."""
+        r = tok(frase + cola, add_special_tokens=False, return_tensors="pt").input_ids.to(dev)
+        with torch.no_grad():
+            lg = modelo(input_ids=r, past_key_values=kv, use_cache=True).logits[0, -1]
+        pre = ()
+        try:
+            for paso in range(12):
+                if len(quedan[pre]) == 1:
+                    return next(iter(quedan[pre]))
+                opciones = sig_t[pre]
+                val = lg.index_select(0, opciones).float()
+                if paso == 0 and args.sesgo:
+                    val = val + args.sesgo * (opciones == tok_derivar).float()
+                t = int(opciones[int(val.argmax())])
+                pre = pre + (t,)
+                with torch.no_grad():
+                    lg = modelo(input_ids=torch.tensor([[t]], device=dev),
+                                past_key_values=kv, use_cache=True).logits[0, -1]
+            return next(iter(quedan[pre]))
+        finally:
+            kv.crop(n_cab)
+
     fuente = Path(args.casos) if args.casos else EXAMEN
     casos = [json.loads(l) for l in fuente.read_text(encoding="utf-8").splitlines() if l.strip()]
     # El banco de orientacion viene como {frase, herramienta} y cubre las 292. Para
@@ -185,16 +220,22 @@ def main():
             h = c["herramienta"]
             c["real"] = h
             c["aceptables"] = [h] if h in conocidas else [lp.DERIVAR]
+    # PARTIR EL PROMPT NO TIENE QUE CAMBIAR LA TOKENIZACION. llama.cpp tokeniza
+    # el prompt entero de una vez; aca se tokeniza el prefijo por un lado y el
+    # resto por otro. Si en algun caso la frontera junta o separa tokens
+    # distinto, el evaluador mediria otra cosa que el servidor. Se verifica
+    # caso por caso antes de empezar, y si no coincide, se aborta.
+    base_ids = ent_cab.input_ids[0].tolist()
+    distintos = [c["frase"] for c in casos
+                 if tok(cabeza + c["frase"] + cola).input_ids
+                 != base_ids + tok(c["frase"] + cola, add_special_tokens=False).input_ids]
+    if distintos:
+        sys.exit(f"la tokenizacion partida no coincide con la entera en {len(distintos)} casos,"
+                 f" por ejemplo «{distintos[0]}»: el evaluador no mediria lo mismo que el servidor")
+
     aciertos, fallos, elegidas, t0 = 0, [], {}, time.time()
     for c in casos:
-        ent = tok(cabeza + c["frase"] + cola, return_tensors="pt").to(modelo.device)
-        largo_prompt[0] = ent.input_ids.shape[1]
-        with torch.no_grad():
-            sal = modelo.generate(**ent, max_new_tokens=12, do_sample=False,
-                                  prefix_allowed_tokens_fn=permitidos,
-                                  logits_processor=[sesgar] if args.sesgo else None,
-                                  pad_token_id=tok.pad_token_id or fin)
-        elegida = tok.decode(sal[0][largo_prompt[0]:], skip_special_tokens=True).strip()
+        elegida = elegir(c["frase"])
         elegidas[c["frase"]] = elegida
         if elegida in c["aceptables"]:
             aciertos += 1
