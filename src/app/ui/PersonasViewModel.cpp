@@ -101,7 +101,7 @@ void PersonasViewModel::sumarCara(const QString&, const QString&, bool) {
     emit notify(d_->aviso, "error");
 }
 void PersonasViewModel::mirar(const QString&) {}
-void PersonasViewModel::analizar(const QString&, bool) {}
+void PersonasViewModel::analizar(const QString&, bool, const QString&) {}
 QVariantList PersonasViewModel::vistos() const { return {}; }
 QVariantList PersonasViewModel::fuentes() const { return {}; }
 QString PersonasViewModel::etiquetaDe(const QString& feed) const { return feed; }
@@ -113,77 +113,11 @@ QString PersonasViewModel::feedPuerta() const { return {}; }
 void PersonasViewModel::setFeedPuerta(const QString&) {}
 bool PersonasViewModel::lobbyAuto() const { return d_->lobbyAuto; }
 
+// Sin reconocimiento no hay a quien mirar en el lobby: se avisa, como sumarCara.
 void PersonasViewModel::setLobbyAuto(bool activo) {
-    if (activo == d_->lobbyAuto) return;
-    if (activo && !d_->listo) {
-        emit notify(d_->aviso, "error");
-        return;
-    }
-    d_->lobbyAuto = activo;
-    d_->pendientes.clear();
-    if (!activo) {
-        d_->enLobby.clear();
-        emit enLobbyCambio();
-    }
-    // Las dos formas de anotar comparten la ronda: la de acá gana, porque el
-    // lobby es lo que está pasando ahora.
-    if (activo || d_->autoalta || d_->puertaAuto) {
-        d_->ronda.start();
-    } else {
-        d_->ronda.stop();
-        d_->libreta.guardar(d_->archivo.toStdString());
-    }
-    emit autoaltaCambio();
+    if (activo) emit notify(d_->aviso, "error");
 }
-
-QVariantMap PersonasViewModel::enLobby() const { return d_->enLobby; }
-
-QString PersonasViewModel::proximaDelLobby(QString& uid, int& lugar) {
-    // SE RECORREN PERSONAS, NO CANALES DE VIDEO. Barrer `lobby:1..4` a ciegas
-    // era mirar lo que hubiera en esos canales, que no es lo mismo que mirar a
-    // los que están esperando: un canal puede tener un cuadro viejo de alguien
-    // que ya se fue, o quedar apuntado a otra cosa, y el reconocimiento del
-    // lobby terminaría hablando de quien no está. La lista de espera es la
-    // verdad de quién se está conectando; de ahí sale a quién mirar.
-    auto* conf = static_cast<ConferenceViewModel*>(d_->vm.conference());
-    if (conf == nullptr) return {};
-    auto* espera = static_cast<JsonListModel*>(conf->waiting());
-    if (espera == nullptr) return {};
-
-    // Los que están conectados y tienen una posición de preview asignada. Sin
-    // posición no hay video que mirar (el lobby publica un número acotado).
-    std::vector<std::pair<QString, int>> gente; // uid, lugar
-    for (const auto& v : espera->items()) {
-        const QJsonObject o = v.toObject();
-        const int lugar = o.value("lobbySlot").toInt();
-        const QString uid = o.value("uid").toString();
-        if (lugar > 0 && !uid.isEmpty() && o.value("connected").toBool()) gente.emplace_back(uid, lugar);
-    }
-
-    // Lo que se sabía de quien ya no está esperando deja de valer en el acto:
-    // dejarlo puesto haría que la baldosa del próximo que ocupe su lugar
-    // muestre el nombre del anterior.
-    bool limpie = false;
-    for (const QString& uid : d_->enLobby.keys()) {
-        const bool sigue = std::any_of(gente.begin(), gente.end(),
-                                       [&](const auto& g) { return g.first == uid; });
-        if (!sigue) {
-            d_->enLobby.remove(uid);
-            limpie = true;
-        }
-    }
-    if (limpie) emit enLobbyCambio();
-    if (gente.empty()) return {};
-
-    // Por turno, uno por vuelta: el costo es el mismo haya uno esperando o
-    // haya diez.
-    d_->turnoLobby = (d_->turnoLobby + 1) % static_cast<int>(gente.size());
-    const auto& quien = gente[static_cast<std::size_t>(d_->turnoLobby)];
-    uid = quien.first;
-    lugar = quien.second;
-    return QString("lobby:%1").arg(lugar);
-}
-
+QVariantMap PersonasViewModel::enLobby() const { return {}; }
 QString PersonasViewModel::feedAuto() const { return d_->feedAuto; }
 void PersonasViewModel::setFeedAuto(const QString&) {}
 int PersonasViewModel::sinNombre() const { return 0; }
