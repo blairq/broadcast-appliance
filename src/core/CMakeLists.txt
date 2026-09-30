@@ -80,7 +80,8 @@ if(BA_HAVE_ROSTROS)
     target_compile_definitions(ba_core PUBLIC BA_HAVE_ROSTROS=1)
     # La biblioteca viaja en el bundle, como todo lo demas.
     file(GLOB _ba_ort_runtime "${BA_ROSTROS_DIR}/onnxruntime/lib/libonnxruntime.so*"
-                              "${BA_ROSTROS_DIR}/onnxruntime/lib/onnxruntime.dll")
+                              "${BA_ROSTROS_DIR}/onnxruntime/lib/onnxruntime.dll"
+                              "${BA_ROSTROS_DIR}/onnxruntime/lib/libonnxruntime*.dylib")
     install(FILES ${_ba_ort_runtime} DESTINATION bin/64bit)
     install(DIRECTORY "${BA_ROSTROS_DIR}/modelos/" DESTINATION data/rostros FILES_MATCHING PATTERN "*.onnx")
     install(FILES "${BA_ROSTROS_DIR}/onnxruntime/LICENSE" DESTINATION data/licencias
@@ -136,6 +137,10 @@ endif()
 file(GLOB_RECURSE BA_CORE_TESTS CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_*.cpp"
 )
+# Sin el runtime de rostros, su codigo no esta en ba_core: su test tampoco.
+if(NOT BA_HAVE_ROSTROS)
+    list(FILTER BA_CORE_TESTS EXCLUDE REGEX ".*/test_rostros\\.cpp$")
+endif()
 
 foreach(test_source ${BA_CORE_TESTS})
     get_filename_component(test_name ${test_source} NAME_WE)

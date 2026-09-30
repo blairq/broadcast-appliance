@@ -99,6 +99,13 @@ int loadBundleModules(const std::string& binDir, const std::string& dataDir) {
         found.push_back(
             {bin, name, std::filesystem::is_directory(res, ec) ? res.string() : dataDir + "/" + name});
     }
+    // Y los modulos propios (ba-sources), que son un `.so` suelto como en Linux.
+    for (const auto& entry : std::filesystem::directory_iterator(binDir, ec)) {
+        if (entry.is_regular_file(ec) && entry.path().extension() == ".so") {
+            const std::string name = entry.path().stem().string();
+            found.push_back({entry.path(), name, dataDir + "/" + name});
+        }
+    }
 #else
 #if defined(_WIN32)
     const char* ext = ".dll";

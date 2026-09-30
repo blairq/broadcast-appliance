@@ -81,6 +81,9 @@ if(NOT BA_APP_QT_OK)
     # MCP, plataformas y cuentas son Qt (red, JSON, timers): sin Qt no van.
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/(mcp|youtube|twitch|facebook|net)/.*")
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/AccountGuides\\.cpp$")
+    # Graficos, medios y la conversion del carrusel tambien son Qt.
+    list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/(graficos|medios)/.*")
+    list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/carrusel/Conversion\\.cpp$")
 endif()
 # Pseudo-terminal: una implementacion por plataforma.
 if(WIN32)
@@ -241,6 +244,8 @@ if(MSVC)
 else()
     add_executable(ba-app ${BA_APP_SOURCES})
 endif()
+# Los modulos se incluyen como "evento/Evento.hpp": hace falta tambien sin Qt.
+target_include_directories(ba-app PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 # macOS: permisos de camara/microfono (TCC) en un ejecutable que no es .app.
 include(${CMAKE_SOURCE_DIR}/cmake/BaMacInfoPlist.cmake)
 ba_mac_embed_info_plist(ba-app com.legisstudio.broadcastappliance.app "Broadcast Appliance")
@@ -332,6 +337,10 @@ target_link_libraries(ba-app PRIVATE Qt6::Gui Qt6::Quick Qt6::Qml Qt6::QuickCont
 # directorio de compilacion. En el bundle se lo busca al lado del ejecutable.
 if(WIN32)
     set(_ba_lo_dir "${CMAKE_SOURCE_DIR}/extern/libreoffice/win")
+elseif(APPLE)
+    # Todavia no hay LibreOffice para macOS en tools/deps/libreoffice.sh: sin
+    # esta rama se tomaba (y se metia al bundle) el de Linux.
+    set(_ba_lo_dir "${CMAKE_SOURCE_DIR}/extern/libreoffice/macos")
 else()
     set(_ba_lo_dir "${CMAKE_SOURCE_DIR}/extern/libreoffice/linux")
 endif()
@@ -691,13 +700,16 @@ endif()
 # macOS: frameworks de Qt en bin/64bit/qt. Ver cmake/BaQtDeployMac.cmake.
 if(BA_APP_QT_OK AND APPLE)
     set(_ba_qt_plugins "platforms/libqcocoa.dylib;platforms/libqoffscreen.dylib;imageformats/libqjpeg.dylib;imageformats/libqsvg.dylib;imageformats/libqico.dylib;iconengines/libqsvgicon.dylib;styles/libqmacstyle.dylib;tls/libqsecuretransportbackend.dylib;tls/libqcertonlybackend.dylib")
+    # Reproduccion del visor de Medios: el motor de FFmpeg que Qt trae adentro
+    # (como en Linux) y el nativo de macOS (AVFoundation, sin nada extra).
+    list(APPEND _ba_qt_plugins "multimedia/libffmpegmediaplugin.dylib" "multimedia/libdarwinmediaplugin.dylib")
     install(CODE "
         set(BA_QT_LIB_DIR \"${BA_QT_PREFIX}/lib\")
         set(BA_QT_PLUGIN_DIR \"${BA_QT_PREFIX}/plugins\")
         set(BA_QT_PLUGINS \"${_ba_qt_plugins}\")
         set(BA_APP_BUILD_EXE \"$<TARGET_FILE:ba-app>\")
         set(BA_QT_QML_DIR \"${BA_QT_PREFIX}/qml\")
-        set(BA_QT_QML_MODULES \"QtQml;QtQuick;QtCore\")
+        set(BA_QT_QML_MODULES \"QtQml;QtQuick;QtCore;QtMultimedia\")
     ")
     install(SCRIPT "${CMAKE_SOURCE_DIR}/cmake/BaQtDeployMac.cmake")
 endif()
