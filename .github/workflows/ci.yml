@@ -114,7 +114,7 @@ jobs:
           path: |
             extern
             !extern/.build-*
-          key: extern-linux-${{ hashFiles('Makefile', 'versions.cmake', 'tools/deps/obs-deps-linux.sh') }}
+          key: extern-linux-${{ hashFiles('Makefile', 'versions.cmake', 'tools/deps/obs-deps-linux.sh', 'tools/deps/libreoffice.sh') }}
 
       - name: Dependencias (make deps-linux)
         run: |
@@ -208,7 +208,7 @@ jobs:
           path: |
             extern
             !extern/.build-*
-          key: extern-win-${{ hashFiles('Makefile', 'versions.cmake', 'tools/deps/win-toolchain.sh', 'tools/deps/ndi-src.sh', 'tools/deps/lsp-win.sh', 'tools/ci/test-win.sh') }}
+          key: extern-win-${{ hashFiles('Makefile', 'versions.cmake', 'tools/deps/win-toolchain.sh', 'tools/deps/ndi-src.sh', 'tools/deps/lsp-win.sh', 'tools/ci/test-win.sh', 'tools/deps/libreoffice.sh', 'tools/deps/msitools.sh') }}
 
       # deps-win incluye el Qt del host (moc/rcc/qmlcachegen corren en Linux).
       - name: Dependencias (make deps-win)

@@ -21,9 +21,10 @@
 # archivos, no le mostramos menus a nadie. Medido: Linux 730 -> 421 MB,
 # Windows 825 -> 470 MB.
 #
-# POR ESO ES OPCIONAL. No lo baja `make deps`: hay que pedirlo. Y el bundle lo
-# incluye solo si esta (ver src/app/CMakeLists.txt). El que recibe PDF y no
-# PowerPoint no carga 420 MB para nada.
+# VIAJA EN LOS TRES BUNDLES: lo piden deps-linux, deps-win y deps-macos, asi
+# que los releases convierten PowerPoint sin instalar nada. El build lo
+# incluye solo si esta (ver src/app/CMakeLists.txt): un bundle armado sin el
+# convierte PDF y avisa que falta para PowerPoint.
 #
 # LA PODA SE VERIFICA. Despues de podar se convierte una diapositiva a PDF de
 # verdad y, si no sale, esto corta. No es prolijidad: una version anterior
@@ -149,6 +150,39 @@ podar() {
     # `program/python-core`: aunque no usemos Python, sin el no arranca el
     # registro de servicios. Los dos se aprendieron rompiendolo.
     rm -f  "$dir/share/config/images_"*.zip 2>/dev/null || true
+    podar_linux "$dir"
+}
+
+# Linux: lo que ademas NO participa de --headless --convert-to y pide
+# bibliotecas del escritorio que el bundle no lleva (check-portable.sh las
+# rechaza, y con razon): las ventanas GTK/KDE/Qt (headless usa `svp`, que esta
+# en el nucleo), multimedia (gstreamer), la integracion con KDE, Java,
+# PostgreSQL y el plugin de idiomas de Firebird. En cascada, lo que dependia
+# de Writer/Calc (ya podados arriba). Lo que queda pidiendo algo del sistema es
+# del nucleo y esta en tools/deps/linux-baseline-libreoffice.txt.
+podar_linux() {
+    local p="$1/program"
+    [ -f "$p/libmergedlo.so" ] || return 0 # no es el de Linux
+    rm -f "$p"/libvclplug_gtk*lo.so "$p"/libvclplug_kf5lo.so "$p"/libvclplug_qt*lo.so \
+          "$p"/libvclplug_genlo.so "$p/libkf5be1lo.so" "$p/liblibreofficekitgtk.so" \
+          "$p/lo_kde5filepicker" "$p"/libavmedia*.so "$p/libofficebean.so" \
+          "$p"/libpostgresql-sdbc*.so "$p/liblosessioninstalllo.so" "$p/libucpgio1lo.so" 2>/dev/null || true
+    rm -rf "$p/intl" 2>/dev/null || true
+    command -v readelf >/dev/null 2>&1 || return 0
+    local cambio=1 f dep
+    while [ "$cambio" = 1 ]; do
+        cambio=0
+        for f in "$p"/*.so; do
+            [ -f "$f" ] || continue
+            for dep in $(readelf -d "$f" 2>/dev/null | sed -n 's/.*(NEEDED).*\[\(lib[^]]*lo\.so[^]]*\)\]/\1/p'); do
+                if [ ! -e "$p/$dep" ]; then
+                    rm -f "$f"
+                    cambio=1
+                    break
+                fi
+            done
+        done
+    done
 }
 
 # Convertir de verdad, que es lo unico que prueba que la poda no lo rompio.

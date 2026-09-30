@@ -55,7 +55,6 @@ jobs:
         run: |
           python -m venv .venv
           make deps-macos JOBS=$(sysctl -n hw.ncpu)
-          make deps-libreoffice
 
       - name: Guardar extern/ (macOS)
         if: steps.extern-cache.outputs.cache-hit != 'true'

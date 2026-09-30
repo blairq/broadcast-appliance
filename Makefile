@@ -226,7 +226,8 @@ deps-webrtc-win:
 # Qt del host (moc, rcc, qmlcachegen corren en Linux), OBS (runtime + fuentes
 # para los headers), libwebrtc de Windows y las fuentes compartidas.
 deps-win: deps-win-toolchain deps-qt deps-qt-host deps-obs deps-obs-deps-win deps-ndi-src deps-webrtc-win \
-          deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared deps-clap deps-lsp-win
+          deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared deps-clap deps-lsp-win \
+          deps-libreoffice-win
 
 # Plugins LSP (CLAP) para Windows: compilados desde fuente (tools/deps/lsp-win.sh).
 deps-lsp-win: deps-win-toolchain
@@ -293,7 +294,7 @@ dist-win: release-win
 # Todo lo que el build completo de Linux necesita (libobs y sus deps desde
 # fuente, Qt del host, libwebrtc de Linux, fuentes compartidas...).
 deps-linux: deps-obs-linux deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared-host \
-            deps-clap deps-lsp
+            deps-clap deps-lsp deps-libreoffice-linux
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=linux
 
 # --- macOS arm64 (Apple Silicon), nativo -------------------------------------
@@ -327,7 +328,7 @@ check-macos-tools:
 # deps-ndi-src: el fuente de libmicrodns (buscar televisores por mDNS); en
 # Linux viene compilada con obs-deps.
 deps-macos: check-macos-tools deps-obs-macos deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts \
-            deps-cloudflared-host deps-clap deps-ndi-src
+            deps-cloudflared-host deps-clap deps-ndi-src deps-libreoffice-mac
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=macos
 	@# LSP (modulos del rack de audio) es opcional en macOS mientras se valida:
 	@# sin el, el rack funciona con el analizador y el generador.

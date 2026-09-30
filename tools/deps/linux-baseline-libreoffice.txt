@@ -1,0 +1,32 @@
+# ============================================================================
+# tools/deps/linux-baseline-libreoffice.txt — lo del sistema que puede pedir
+# LibreOffice (y SOLO LibreOffice: bin/libreoffice/ del bundle)
+#
+# El LibreOffice oficial de Linux (el tarball de TDF que baja
+# tools/deps/libreoffice.sh) no es autosuficiente ni en su nucleo:
+# libmergedlo.so enlaza estas bibliotecas del escritorio, que TDF da por
+# presentes en cualquier distribucion con escritorio. No se pueden podar.
+#
+# Se permiten SOLO para bin/libreoffice/ (check-portable.sh): un binario
+# propio que empiece a depender de alguna de estas sigue siendo un error. Y si
+# en una maquina faltara alguna, lo unico que deja de andar es convertir un
+# PowerPoint (el carrusel lo avisa); la emision no se entera.
+# ============================================================================
+libcairo.so.2
+libcups.so.2
+libgio-2.0.so.0
+# NSS (firmas y TLS del nucleo)
+libnspr4.so
+libnss3.so
+libnssutil3.so
+libplc4.so
+libplds4.so
+libsmime3.so
+libssl3.so
+# Presentaciones remotas (Impress) — mDNS
+libavahi-client.so.3
+libavahi-common.so.3
+# El lanzador (oosplash) y el Python embebido
+libXinerama.so.1
+libcrypt.so.2
+libuuid.so.1
