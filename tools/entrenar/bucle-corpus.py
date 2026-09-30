@@ -276,8 +276,19 @@ def cargar_grupos(med, semillas, herramientas, con_derivar, jerga=JERGA):
         if fs:
             frases[h] = fs
     if con_derivar and DERIVACIONES.exists():
+        # EL GRUPO DERIVAR ES EL QUE EL MODELO VIO. Las frases escritas a mano son
+        # casi todas de FUERA del aparato (el clima, un cafe); lo que el modelo
+        # aprendio a derivar son sobre todo pedidos ADMINISTRATIVOS, generados
+        # desde las herramientas que quedan fuera del repertorio y que viven solo
+        # en el corpus generado. Con las de a mano solas, el centro de derivar
+        # quedaba lejos de lo que hay que derivar, y un pedido administrativo
+        # «fallaba» contra un blanco que el modelo nunca tuvo.
         dv = json.loads(DERIVACIONES.read_text(encoding="utf-8"))
-        frases["derivar"] = [f for k, v in dv.items() if not k.startswith("_") for f in v]
+        fs = [f for k, v in dv.items() if not k.startswith("_") for f in v]
+        if ENTRENAR.exists():
+            fs += [json.loads(l)["frase"] for l in ENTRENAR.read_text(encoding="utf-8").splitlines()
+                   if l.strip() and json.loads(l)["herramienta"] == "derivar"]
+        frases["derivar"] = list(dict.fromkeys(fs))
     grupos = {h: [med.h(f) for f in fs] for h, fs in frases.items()}
     med.guardar()
     return frases, grupos
@@ -504,6 +515,10 @@ def main():
     ap.add_argument("--previo", help="diagnostico de la ronda anterior, para comparar")
     ap.add_argument("--orientacion", help="banco de orientacion (jsonl {frase, herramienta}):"
                     " frases escritas SIN ver el corpus, que dicen donde se pierde")
+    ap.add_argument("--fuera-es", default="derivar",
+                    help="con que se cuentan las frases del banco de herramientas que NO estan"
+                         " en el conjunto medido. Para el modelo reactivo de hoy, la respuesta"
+                         " correcta a un pedido administrativo es derivar. Vacio = descartarlas.")
     ap.add_argument("--bitacora", default=str(RAIZ / "datos/bitacora-corpus.jsonl"),
                     help="registro de cada ronda; de ahi sale la tasa de aceptacion por herramienta")
     args = ap.parse_args()
@@ -589,6 +604,18 @@ def main():
         if args.orientacion:
             ori = [json.loads(l) for l in Path(args.orientacion).read_text(encoding="utf-8").splitlines()
                    if l.strip()]
+            # LO QUE NO ES DEL CONJUNTO MEDIDO. El banco cubre las 292 herramientas,
+            # pero el modelo de hoy conoce 85: para el, la respuesta correcta a un
+            # pedido administrativo es derivar. Contarlas asi mide, con cientos de
+            # frases independientes, si de verdad deriva lo que no le toca —hasta
+            # ahora eso se media con 8 casos del examen—.
+            if args.fuera_es and args.fuera_es in geo.P:
+                n_fuera = sum(1 for o in ori if o["herramienta"] not in geo.P)
+                ori = [o if o["herramienta"] in geo.P else
+                       {"frase": o["frase"], "herramienta": args.fuera_es, "real": o["herramienta"]}
+                       for o in ori]
+                print(f"  {n_fuera} frases del banco son de herramientas fuera del conjunto:"
+                      f" se cuentan como {args.fuera_es}", file=sys.stderr)
             ori = [o for o in ori if o["herramienta"] in geo.P]
             # DOS MITADES, partidas por un hash fijo de la frase. La mitad A
             # ORIENTA —de ella salen las prioridades—; la B solo CONFIRMA. Si se
