@@ -89,10 +89,7 @@
     },
     "audio_measure": {
       "frases": [
-        "cuánto está picando",
         "medime el audio",
-        "fijate los niveles",
-        "cómo viene el nivel del programa",
         "está saturando?",
         "medime los niveles de la cadena del conductor",
         "¿Por qué no se escucha nada al aire? Medí qué pasa con el audio",
@@ -100,7 +97,11 @@
         "Se oye un pitido raro, revisá la cadena de audio ya",
         "Se escucha un pitido tremendo en el piso, chequeá los módulos con señal de prueba",
         "Medí el limitador fuera de línea y decime cuántos dB está recortando",
-        "Al conductor no se lo oye en el aire, testeá la cadena de módulos"
+        "Al conductor no se lo oye en el aire, testeá la cadena de módulos",
+        "qué es ese ruido",
+        "hay un zumbido raro, mirá qué es",
+        "de dónde sale ese pitido",
+        "decime de dónde viene ese ruido"
       ],
       "tambien": [
         "mixer_list",
@@ -110,11 +111,8 @@
         "no me llega audio de esa persona",
         "esto esta mudo",
         "esta saliendo sin audio",
-        "esta muy bajo lo que sale",
         "se escucha mal",
-        "cuanto esta llegando",
-        "medime cuanto pica ese canal",
-        "fijate el nivel antes de tocar nada"
+        "cuanto esta llegando"
       ],
       "arregla": [
         "v2",
@@ -123,12 +121,7 @@
     },
     "audio_analyze": {
       "frases": [
-        "qué es ese ruido",
-        "analizame el audio a ver qué pasa",
-        "hay un zumbido raro, mirá qué es",
-        "de dónde sale ese pitido",
         "analizá qué frecuencia está zumbando",
-        "decime de dónde viene ese ruido",
         "Siento un zumbido en 50 Hz, medí el espectro del in y confirmalo",
         "No me convence cómo suenan los agudos, analizá el espectro en el punto de salida",
         "Espectro de la fuente cruda, 5 segundos, ya",
@@ -155,8 +148,6 @@
       "frases": [
         "dejame oír el canal 2",
         "pasame el audio del invitado a los auriculares",
-        "escuchá vos cómo suena eso",
-        "escuchalo vos primero y decime como suena",
         "Poneme en PFL el audio de la placa antes de que entre",
         "Quiero pre-escuchar la cámara dos en el monitor sin sacarla al aire",
         "Quiero escuchar la consola en PFL antes de abrirla",
@@ -192,7 +183,12 @@
       "frases": [
         "mostrame el mezclador",
         "qué fuentes con sonido tengo",
-        "listame las pistas de sonido"
+        "listame las pistas de sonido",
+        "cuánto está picando",
+        "fijate los niveles",
+        "cómo viene el nivel del programa",
+        "medime cuanto pica ese canal",
+        "fijate el nivel antes de tocar nada"
       ],
       "tambien": [
         "audio_sources"
@@ -353,7 +349,6 @@
     "source_update": {
       "frases": [
         "ocultá el logo",
-        "mostrá de nuevo la placa",
         "corré la cámara chica a la izquierda",
         "agrandá el pip",
         "agrandá el recuadro del invitado",
@@ -414,7 +409,8 @@
         "Mostrame qué está saliendo al aire ya mismo",
         "Foto del programa ahora, quiero ver el encuadre al aire",
         "¿Qué está saliendo al aire ahora mismo?",
-        "Me dicen que la salida está en negro, sacale una foto al programa"
+        "Me dicen que la salida está en negro, sacale una foto al programa",
+        "Sacame un fotograma de la señal de programa"
       ],
       "tambien": [
         "imagen_analizar",
@@ -452,7 +448,6 @@
         "¿Cómo me ve el lobby a mí? Traé la señal de operador",
         "¿Qué está compartiendo en su pantalla el del lugar uno? Mostrame el cuadro",
         "Sacame un cuadro del preview del lobby 1, quiero ver cómo llega",
-        "Sacame un fotograma de la señal de programa",
         "¿Cómo me ve el lobby a mí? Dame el cuadro de operador",
         "¿Qué está compartiendo en pantalla el del lugar 2?"
       ],
@@ -546,7 +541,6 @@
     },
     "participant_request": {
       "frases": [
-        "decile que se acerque al micrófono",
         "pedile que se mute",
         "que encienda el micro",
         "pedile al invitado que mutee el micrófono, se le acopla"
@@ -567,7 +561,8 @@
         "escribile que ya sale",
         "avisale que arrancamos en dos minutos",
         "escribile algo al del lugar 1",
-        "escribile a toda la sala que en dos minutos entramos al aire"
+        "escribile a toda la sala que en dos minutos entramos al aire",
+        "decile que se acerque al micrófono"
       ],
       "tambien": [],
       "correctivas": [
@@ -632,7 +627,9 @@
         "¿Cómo viene la conexión de los que esperan turno?",
         "Mostrame el orden de la fila y quién ya habló",
         "¿Cuántos quedan esperando turno y cuánto usó cada uno?",
-        "Necesito el contacto del próximo en la cola"
+        "Necesito el contacto del próximo en la cola",
+        "mostrame la fila de oradores",
+        "quienes estan esperando para hablar"
       ],
       "tambien": [
         "speaker_time"
@@ -750,7 +747,9 @@
         "cómo venimos",
         "dame un panorama",
         "estamos al aire?",
-        "dame un resumen general"
+        "dame un resumen general",
+        "estamos perdiendo cuadros?",
+        "se entrecorta lo que sale"
       ],
       "tambien": [
         "network_status"
@@ -771,7 +770,6 @@
     "network_status": {
       "frases": [
         "cómo está la red",
-        "estamos perdiendo cuadros?",
         "se va la conexion"
       ],
       "tambien": [
@@ -780,7 +778,6 @@
       "correctivas": [
         "el enlace viene flojo",
         "la subida esta mal",
-        "se entrecorta lo que sale",
         "anda inestable la red",
         "cómo está la red para los invitados de afuera",
         "hay buena conexión para que entren desde sus casas?"
@@ -795,7 +792,8 @@
         "que adjuntos llegaron",
         "que subieron los participantes",
         "qué archivos compartieron",
-        "listame lo que subieron los invitados"
+        "listame lo que subieron los invitados",
+        "dejame ver qué subió el invitado"
       ],
       "tambien": [],
       "correctivas": []
@@ -1179,7 +1177,6 @@
         "mostrame lo que mandaron",
         "abrime el archivo del invitado",
         "quiero chequear la foto antes de sacarla al aire",
-        "dejame ver qué subió el invitado",
         "previsualizame el archivo compartido",
         "qué es eso que mandaron, mostrámelo",
         "abrime el adjunto que mandaron",
@@ -1305,8 +1302,6 @@
     },
     "speaker_queue": {
       "frases": [
-        "mostrame la fila de oradores",
-        "quienes estan esperando para hablar",
         "anotalo en la lista de oradores",
         "Metelo en la cola para hablar al del lugar tres"
       ],
@@ -1350,11 +1345,6 @@
         "sacá el cartel con el cargo",
         "necesito el zócalo del entrevistado",
         "poné la gráfica de resultados",
-        "está mal el apellido, corregilo",
-        "cambiale el cargo al zócalo",
-        "el nombre va con zeta, arreglalo",
-        "poné que dice ministro, no secretario",
-        "actualizá el texto del zócalo",
         "levantá la animación de la tabla de posiciones",
         "Tirá el gráfico del clima, que ya estamos en programa",
         "Reproducí la animación de resultados en la fuente gráfica, va al aire",
