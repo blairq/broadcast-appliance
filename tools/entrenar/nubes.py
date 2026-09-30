@@ -114,7 +114,23 @@ def main():
             print(f"  {k+1}/{len(usables)}", flush=True, file=sys.stderr)
 
     hs = sorted(nubes)
-    sec = {n: tok(n, add_special_tokens=False).input_ids[0] for n in nombres}
+    sec = {n: tok(n, add_special_tokens=False).input_ids for n in nombres}
+
+    def direccion_lectura(a, b):
+        """W del token que SEPARA los dos nombres, no del primero.
+
+        Con prefijo compartido (`grafico_mostrar` y `grafico_ocultar`) el primer
+        token es el mismo y la diferencia da cero: la primera version de esto
+        informaba `nan` en todos los pares de la misma familia. Es el mismo error
+        que ya cometi en el logit lens, con el mismo disfraz.
+        """
+        ia, ib = sec[a], sec[b]
+        k = 0
+        while k < min(len(ia), len(ib)) and ia[k] == ib[k]:
+            k += 1
+        if k >= len(ia) or k >= len(ib):
+            return None
+        return (W[ia[k]] - W[ib[k]]).cpu()
     resultados = []
     for i in range(len(hs)):
         for j in range(i + 1, len(hs)):
@@ -137,8 +153,8 @@ def main():
             disp = ((pa.std() ** 2 + pb.std() ** 2) / 2).sqrt().item()
             fisher = abs(pa.mean().item() - pb.mean().item()) / max(1e-6, disp)
             # ¿La lectura mira para donde estan separadas?
-            d = (W[sec[hs[i]]] - W[sec[hs[j]]]).cpu()
-            alineado = torch.dot(w, d / d.norm()).item()
+            d = direccion_lectura(hs[i], hs[j])
+            alineado = float("nan") if d is None else torch.dot(w, d / d.norm()).item()
             resultados.append({"a": hs[i], "b": hs[j], "solapan": mal / total,
                                "fisher": fisher, "alineacion_lectura": alineado})
     resultados.sort(key=lambda r: -r["solapan"])
@@ -153,6 +169,7 @@ def main():
         print(f"  {r['a']:22s} {r['b']:22s} solapan {100*r['solapan']:5.1f}%"
               f" · fisher {r['fisher']:5.2f} · lectura {r['alineacion_lectura']:+.3f}{aviso}")
 
+    resultados = [r for r in resultados if r["alineacion_lectura"] == r["alineacion_lectura"]]
     ali = [r for r in resultados if r["fisher"] > 1.5 and abs(r["alineacion_lectura"]) < 0.1]
     print(f"\npares bien separados que la lectura NO mira: {len(ali)} de {len(resultados)}")
     print("  Esos son los unicos donde cambiar la etiqueta puede dar puntos: la")
@@ -161,9 +178,53 @@ def main():
     print(f"\nsolapamiento medio {100*statistics.mean(r['solapan'] for r in resultados):.1f}%"
           f" · fisher medio {statistics.mean(r['fisher'] for r in resultados):.2f}"
           f" · alineacion media {statistics.mean(abs(r['alineacion_lectura']) for r in resultados):.3f}")
+    # --- Y LO QUE ESTO VUELVE OBLIGATORIO -----------------------------------
+    # Si las nubes de ENTRENAMIENTO estan separadas (fisher medio 21) entonces
+    # los fallos del examen no son de representacion: son de GENERALIZACION. Una
+    # frase nueva cae en el lado equivocado aunque las nubes esten lejos. Se
+    # comprueba proyectando cada caso del examen sobre la direccion que separa a
+    # su herramienta correcta de la que el modelo eligio.
+    EX = RAIZ / "datos/entrenamiento/examen.jsonl"
+    casos = [json.loads(l) for l in EX.read_text(encoding="utf-8").splitlines() if l.strip()]
+    dentro, afuera, sin_nube = 0, 0, 0
+    detalle_ex = []
+    for c in casos:
+        resto = tok(c["frase"] + cola, add_special_tokens=False, return_tensors="pt").to(dev)
+        with torch.no_grad():
+            sal2 = modelo(input_ids=resto.input_ids, past_key_values=cache, use_cache=True)
+        cache.crop(n_cab)
+        x = pre["x"][0, -1, :].float()
+        rms = (x.pow(2).mean().sqrt() + 1e-6)
+        peso = norma.weight.float() if hasattr(norma, "weight") else torch.ones_like(x)
+        hh = ((x / rms) * peso).cpu()
+        lg = sal2.logits[0, -1].float()
+        eleg = max(nombres, key=lambda n: lg[sec[n][0]].item())
+        acs = [a for a in c["aceptables"] if a in nubes]
+        if not acs or eleg not in nubes:
+            sin_nube += 1
+            continue
+        mejor = max(acs, key=lambda a: -float(torch.dist(hh, nubes[a].mean(0))))
+        w = nubes[mejor].mean(0) - nubes[eleg].mean(0)
+        w = w / max(1e-6, w.norm())
+        corte = (nubes[mejor].mean(0) @ w + nubes[eleg].mean(0) @ w) / 2
+        ok = (hh @ w) > corte
+        dentro += bool(ok)
+        afuera += not bool(ok)
+        detalle_ex.append({"frase": c["frase"], "correcta": mejor, "elegida": eleg,
+                           "cae_del_lado_correcto": bool(ok)})
+    print(f"\nLOS CASOS DEL EXAMEN, contra las nubes de entrenamiento:")
+    print(f"  caen del lado de su herramienta:   {dentro}/{dentro+afuera}")
+    print(f"  caen del lado de OTRA:             {afuera}/{dentro+afuera}")
+    if sin_nube:
+        print(f"  sin nube para comparar:            {sin_nube}")
+    print("  Con las nubes de entrenamiento tan separadas, lo que caiga del lado")
+    print("  ajeno es GENERALIZACION, no representacion: la frase es nueva y la")
+    print("  manda a la region equivocada. Eso no lo arregla la etiqueta ni la")
+    print("  lectura: lo arregla una frase mas parecida a la que va a escuchar.")
     if args.json:
-        Path(args.json).write_text(json.dumps(resultados, ensure_ascii=False, indent=1),
-                                   encoding="utf-8")
+        Path(args.json).write_text(json.dumps(
+            {"pares": resultados, "examen": detalle_ex}, ensure_ascii=False, indent=1),
+            encoding="utf-8")
 
 
 if __name__ == "__main__":
