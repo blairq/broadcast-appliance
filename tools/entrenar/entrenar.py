@@ -38,9 +38,9 @@ DATOS = RAIZ / "datos/entrenamiento"
 MARCA_RESPUESTA = "<|im_start|>assistant\n<think>\n\n</think>\n\n"
 
 
-def cargar(nombre):
+def cargar(nombre, carpeta=DATOS):
     filas = []
-    for linea in (DATOS / nombre).read_text(encoding="utf-8").splitlines():
+    for linea in (carpeta / nombre).read_text(encoding="utf-8").splitlines():
         if linea.strip():
             f = json.loads(linea)
             filas.append({"text": f["prompt"] + f["completion"]})
@@ -58,6 +58,9 @@ def main():
     ap.add_argument("--acumular", type=int, default=8)
     ap.add_argument("--largo", type=int, default=4096)
     ap.add_argument("--semilla", type=int, default=7)
+    ap.add_argument("--datos", default=str(DATOS),
+                    help="carpeta con entrenar.jsonl y validar.jsonl. Permite entrenar dos"
+                         " corpus a la vez, uno por placa, sin pisarse")
     ap.add_argument("--gguf", default="q8_0,q4_k_m", help="cuantizaciones a exportar")
     ap.add_argument("--prueba", action="store_true", help="unos pasos nomas, para ver que arranca")
     ap.add_argument("--pasos", type=int, default=20, help="con --prueba: cuantos")
@@ -72,7 +75,7 @@ def main():
     from datasets import Dataset  # noqa: E402
     from trl import SFTTrainer, SFTConfig  # noqa: E402
 
-    ent, val = cargar("entrenar.jsonl"), cargar("validar.jsonl")
+    ent, val = cargar("entrenar.jsonl", Path(args.datos)), cargar("validar.jsonl", Path(args.datos))
     print(f"entrenar {len(ent)} · validar {len(val)} · largo maximo {args.largo}")
 
     modelo, tok = FastLanguageModel.from_pretrained(
