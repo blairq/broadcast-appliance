@@ -24,8 +24,10 @@
 
 BUILD_DIR ?= build
 JOBS      ?= $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
-# macOS no trae sha256sum: `shasum -a 256` usa el mismo formato de salida y -c.
-SHA256       := $(shell command -v sha256sum >/dev/null 2>&1 && echo sha256sum || echo "shasum -a 256")
+# Hace falta el sha256sum de GNU (coreutils): el que trae macOS 15+ es el de
+# BSD y no acepta `-c --quiet`. Si no es GNU, `shasum -a 256`, que usa el
+# mismo formato de salida y el mismo -c.
+SHA256       := $(shell sha256sum --version 2>/dev/null | grep -q GNU && echo sha256sum || echo "shasum -a 256")
 SHA256_CHECK := $(SHA256) -c --quiet
 PY        ?= .venv/bin/python
 PIP       ?= .venv/bin/pip
@@ -822,7 +824,12 @@ SFACE_URL := $(ZOO)/face_recognition_sface/face_recognition_sface_2021dec_int8.o
 SFACE_SHA := 2b0e941e6f16cc048c20aee0c8e31f569118f65d702914540f7bfdc14048d78a
 
 # El paquete del runtime segun para donde se compile (BA_ORT_TARGET).
-BA_ORT_TARGET ?= linux
+# Por defecto, el del sistema donde se compila (make win pasa windows).
+ifeq ($(shell uname -s),Darwin)
+  BA_ORT_TARGET ?= macos
+else
+  BA_ORT_TARGET ?= linux
+endif
 ifeq ($(BA_ORT_TARGET),windows)
   ORT_PKG := onnxruntime-win-x64-$(ORT_VER).zip
   ORT_SHA := $(ORT_WIN_SHA)
