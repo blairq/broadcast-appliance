@@ -185,9 +185,23 @@ def main():
     # casos, y la version anterior los volvia a procesar en cada uno: eso era
     # casi todo el tiempo de una evaluacion.
     ent_cab = tok(cabeza, return_tensors="pt").to(dev)
+    # MODELOS HIBRIDOS (Qwen3.5): las capas de atencion lineal guardan un estado,
+    # no claves; transformers no lo continua con varios tokens y un estado no se
+    # «recorta». Ver cache_hibrido.py: sin esto se mide otro modelo sin avisar.
+    import cache_hibrido as ch
+    hibrido = ch.es_hibrido(modelo)
+    if hibrido:
+        ch.parchear()
     with torch.no_grad():
         kv = modelo(**ent_cab, use_cache=True).past_key_values
     n_cab = ent_cab.input_ids.shape[1]
+    foto_cab = ch.foto(kv) if hibrido else None
+
+    def volver_al_prefijo():
+        if hibrido:
+            ch.volver(kv, foto_cab, n_cab)
+        else:
+            kv.crop(n_cab)
 
     def elegir(frase):
         """Decodificacion voraz con gramatica, identica a la de antes pero sin
@@ -212,7 +226,7 @@ def main():
                                 past_key_values=kv, use_cache=True).logits[0, -1]
             return next(iter(quedan[pre]))
         finally:
-            kv.crop(n_cab)
+            volver_al_prefijo()
 
     fuente = Path(args.casos) if args.casos else EXAMEN
     casos = [json.loads(l) for l in fuente.read_text(encoding="utf-8").splitlines() if l.strip()]

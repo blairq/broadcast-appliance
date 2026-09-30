@@ -27,6 +27,7 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(RAIZ / "tools"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 
 def cargar(ruta, torch):
@@ -37,6 +38,9 @@ def cargar(ruta, torch):
     m = AutoModelForCausalLM.from_pretrained(cfg["base_model_name_or_path"], dtype=torch.bfloat16,
                                              device_map="cuda:0")
     m = PeftModel.from_pretrained(m, ruta).merge_and_unload().eval()
+    import cache_hibrido as ch
+    if ch.es_hibrido(m):
+        ch.parchear()
     return tok, m
 
 
@@ -80,6 +84,17 @@ def main():
         with torch.no_grad():
             kv = modelo(**ent, use_cache=True).past_key_values
         n_cab = ent.input_ids.shape[1]
+        # modelos hibridos (Qwen3.5): el estado de las capas lineales no se
+        # recorta, se restaura de una copia (ver cache_hibrido.py)
+        import cache_hibrido as ch
+        hibrido = ch.es_hibrido(modelo)
+        foto_cab = ch.foto(kv) if hibrido else None
+
+        def volver(n, f):
+            if hibrido:
+                ch.volver(kv, f, n)
+            else:
+                kv.crop(n)
 
         def paso(t):
             with torch.no_grad():
@@ -91,6 +106,7 @@ def main():
             with torch.no_grad():
                 lg0 = modelo(input_ids=r, past_key_values=kv, use_cache=True).logits[0, -1].float()
             n_frase = n_cab + r.shape[1]
+            foto_frase = ch.foto(kv) if hibrido else None
             # el camino del nombre correcto
             lg, pre, m, riv = lg0, (), float("inf"), None
             for t in secuencias[h]:
@@ -108,7 +124,7 @@ def main():
                 lg = paso(t)
             margenes[i].append(m)
             rival[i] = riv
-            kv.crop(n_frase)
+            volver(n_frase, foto_frase)
             # si pierde, que eligiria (decodificacion voraz con la gramatica)
             if m < 0:
                 lg, pre = lg0, ()
@@ -118,7 +134,7 @@ def main():
                     pre = pre + (t,)
                     lg = paso(t)
                 elegida[i] = next(iter(quedan[pre]))
-            kv.crop(n_cab)
+            volver(n_cab, foto_cab)
         del modelo
         torch.cuda.empty_cache()
         print(f"  {ruta}: listo")

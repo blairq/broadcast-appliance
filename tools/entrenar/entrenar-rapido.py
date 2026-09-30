@@ -35,6 +35,7 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(RAIZ / "tools"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 
 def cargar(carpeta, nombre):
@@ -116,9 +117,17 @@ def main():
     modelo = AutoModelForCausalLM.from_pretrained(args.base, dtype=torch.bfloat16,
                                                   attn_implementation="sdpa").to(dev)
     modelo.config.use_cache = True
+    import cache_hibrido as ch
+    hibrido = ch.es_hibrido(modelo)
+    blancos = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+    if hibrido:
+        # Qwen3.5: las capas de atencion lineal tienen otras proyecciones. TODAS
+        # las lineales, como con Qwen3 (in_proj_a/b son de 16 salidas: no suman).
+        ch.parchear()
+        blancos += ["in_proj_qkv", "in_proj_z", "out_proj"]
+    log(f"modelo {type(modelo).__name__} · {'hibrido (atencion lineal + completa)' if hibrido else 'atencion completa'}")
     cfg = LoraConfig(r=args.rango, lora_alpha=args.rango, lora_dropout=0.0, bias="none",
-                     target_modules=["q_proj", "k_proj", "v_proj", "o_proj",
-                                     "gate_proj", "up_proj", "down_proj"], task_type="CAUSAL_LM")
+                     target_modules=blancos, task_type="CAUSAL_LM")
     modelo = get_peft_model(modelo, cfg)
     entrenables = [p for p in modelo.parameters() if p.requires_grad]
     for p in entrenables:
@@ -133,9 +142,12 @@ def main():
     def perdida(lote, grad=True):
         """Prefijo una vez; sufijos en lote sobre el cache expandido."""
         with torch.autocast("cuda", dtype=torch.bfloat16), torch.set_grad_enabled(grad):
-            kv = DynamicCache()
+            kv = DynamicCache(config=modelo.config)
             modelo(input_ids=ids_pre_t, past_key_values=kv, use_cache=True)
-            kv.batch_repeat_interleave(len(lote))
+            if hibrido:
+                ch.repetir(kv, len(lote))
+            else:
+                kv.batch_repeat_interleave(len(lote))
             L = max(len(s) for s, _ in lote)
             ids = torch.full((len(lote), L), tok.pad_token_id or 0, device=dev)
             mask = torch.zeros((len(lote), Lp + L), dtype=torch.long, device=dev)
