@@ -875,6 +875,8 @@ def main():
                 if fr not in elegidas:
                     elegidas.append(fr)
             fuera = [(s, fr) for s, fr, _ in pts if fr not in elegidas]
+            for f_ in informe[h]["frases"]:
+                f_["queda"] = f_["frase"] in elegidas
             podadas += [(h, fr, s) for s, fr in fuera]
             tam.append((h, len(mias), len(elegidas)))
             if args.aceptar:
