@@ -43,6 +43,13 @@ SEMILLAS_AUTO = RAIZ / "datos/semillas-auto.json"
 # La jerga del oficio: sinonimos del gremio y giros enteros. Ver datos/jerga.json.
 JERGA = RAIZ / "datos/jerga.json"
 DERIVACIONES = RAIZ / "datos/derivaciones.json"
+# Pedidos REALES para las herramientas que no son del repertorio: como la gente
+# pide configurar una cuenta o armar una lamina. Reemplazan a las frases armadas
+# con palabras sueltas de las etiquetas del buscador, que es como nadie habla.
+DERIVACIONES_ADMIN = RAIZ / "datos/derivaciones-admin.jsonl"
+# El banco de orientacion: frases de OTRO autor con las que se mide donde se
+# pierde el modelo. No se puede entrenar sobre ellas, ni sobre nada casi igual.
+ORIENTACION = RAIZ / "datos/orientacion.jsonl"
 CORPUS = RAIZ / "src/app/tests/datos/preguntas.json"
 SALIDA = RAIZ / "datos/entrenamiento"
 
@@ -262,7 +269,11 @@ def main():
     #      que importa: lo de afuera es facil, lo de ADENTRO que no le toca es
     #      lo que lo tienta, porque se parece a lo suyo. Y es justo donde
     #      derivar gana: el grande SI tiene esa herramienta.
-    TECHO_DERIVAR = 0.12
+    # 15% y no 12%. El 12% se fijo por miedo a que derivara de mas, y el banco
+    # de orientacion midio lo contrario: v7 deriva solo el 44% de lo que no le
+    # toca. El fine-tune publico mas parecido al nuestro (Qwen3-1.7B, tool
+    # calling) usa 15% de ejemplos de «esto no es para mi».
+    TECHO_DERIVAR = 0.15
     n_der = 0
     for f in der_entrenar:
         for v in variantes(f, rnd, cuantas=3):
@@ -285,13 +296,29 @@ def main():
     suyas = [set(sin_tildes(f.lower()).split())
              for d in sem.values() for f in d["frases"] + d.get("correctivas", [])]
     fuera = lp.fuera_del_repertorio(inv)
+    # Las frases reales, donde las haya. Las armadas con palabras sueltas quedan
+    # solo como respaldo para las herramientas que todavia no tienen pedidos
+    # escritos. Medido con el banco: 569 de los 667 errores de v7 son pedidos
+    # administrativos que no derivo, y sus ejemplos de derivar eran del tipo
+    # «necesito configurar agente motor».
+    reales = {}
+    if DERIVACIONES_ADMIN.exists():
+        for l in DERIVACIONES_ADMIN.read_text(encoding="utf-8").splitlines():
+            if l.strip():
+                r = json.loads(l)
+                reales.setdefault(r["herramienta"], []).append(r["frase"])
+    banco = []
+    if ORIENTACION.exists():
+        banco = [set(sin_tildes(json.loads(l)["frase"].lower()).split())
+                 for l in ORIENTACION.read_text(encoding="utf-8").splitlines() if l.strip()]
+    fuera = [(n, c, reales.get(n) or frs, n in reales) for n, c, frs in fuera]
     # Repartidas por categoria y no de corrido: si se toman las primeras
     # doscientas alfabeticamente, el modelo ve `agente_*` cuarenta veces y
     # `receta_*` ninguna, y aprende a rechazar una palabra en vez de un tipo
     # de pedido.
     por_cat = {}
-    for nombre, cat, frs in fuera:
-        por_cat.setdefault(cat, []).append((nombre, frs))
+    for nombre, cat, frs, es_real in fuera:
+        por_cat.setdefault(cat, []).append((nombre, frs, es_real))
     for v_ in por_cat.values():
         rnd.shuffle(v_)
     ronda, cats = [], sorted(por_cat)
@@ -301,17 +328,27 @@ def main():
                 ronda.append(por_cat[c][i])
     # El cupo sale del techo: lo que ya pusieron las de a mano se descuenta.
     cupo = int(len(filas) * TECHO_DERIVAR / (1 - TECHO_DERIVAR)) - n_der
-    n_admin, tocadas, rechazadas = 0, 0, 0
-    for nombre, frs in ronda:
+    n_admin, rechazadas, n_reales, n_banco = 0, 0, 0, 0
+    # DE A UNA FRASE POR HERRAMIENTA Y POR VUELTA. Tomar hasta tres de cada una
+    # antes de pasar a la siguiente llenaba el cupo con la mitad: medido, 99 de
+    # 207 herramientas. Para aprender a derivar, el modelo tiene que ver TODAS,
+    # aunque sea una vez; recien despues, mas de cada una.
+    tocadas_set = set()
+    for vuelta in range(3):
         if n_admin >= cupo:
             break
-        puestas = 0
-        for base in frs:
-            if puestas >= 2:
+        for nombre, frs, es_real in ronda:
+            if n_admin >= cupo:
                 break
-            frase = rnd.choice(MARCOS).format(base)
+            if vuelta >= len(frs) or (not es_real and vuelta >= 2):
+                continue
+            base = frs[vuelta]
+            frase = base if es_real else rnd.choice(MARCOS).format(base)
             if parecido(frase, suyas, umbral=0.5):
                 rechazadas += 1
+                continue
+            if banco and parecido(frase, banco):
+                n_banco += 1
                 continue
             for v in variantes(frase, rnd, cuantas=1):
                 if parecido(v, prohibidas_tokens) or parecido(v, suyas, umbral=0.5):
@@ -319,8 +356,9 @@ def main():
                     continue
                 filas.append(dict(ejemplo(cabeza, cola, v, lp.DERIVAR), arregla=[]))
                 n_admin += 1
-                puestas += 1
-        tocadas += bool(puestas)
+                n_reales += bool(es_real)
+                tocadas_set.add(nombre)
+    tocadas = len(tocadas_set)
     n_der += n_admin
 
     # EQUILIBRIO. Una herramienta con cinco ejemplos y otra con treinta le
@@ -453,8 +491,9 @@ def main():
         print(f"de segunda mano (propuestas sin revisar): {len(auto)} herramientas")
     print(f"firma del prompt: {huella['prompt']} · {huella['cuantas']} herramientas")
     print(f"administrativas que NO son suyas: {tocadas} de {len(fuera)} herramientas, "
-          f"{n_admin} ejemplos" + (f" · {rechazadas} frases no entraron por parecerse "
-                                   "a una del repertorio" if rechazadas else ""))
+          f"{n_admin} ejemplos ({n_reales} de pedidos reales)"
+          + (f" · {rechazadas} no entraron por parecerse a una del repertorio" if rechazadas else "")
+          + (f" · {n_banco} por parecerse al banco de orientacion" if n_banco else ""))
     if n_ab:
         pab = n_ab / max(1, len(ent))
         print(f"derivar al grande: {n_ab} ejemplos, {100*pab:.0f}% del corpus"
