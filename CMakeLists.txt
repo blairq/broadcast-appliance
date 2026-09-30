@@ -328,7 +328,7 @@ install(FILES
 if(APPLE)
     install(FILES assets/icons/broadcast-appliance.icns DESTINATION Recursos COMPONENT bundle)
 endif()
-if(NOT WIN32)
+if(NOT WIN32 AND NOT APPLE)
     install(PROGRAMS packaging/bundle/crear-acceso-directo.sh
         DESTINATION . COMPONENT bundle
     )

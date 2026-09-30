@@ -285,9 +285,9 @@ void testPaths() {
     CHECK(bundleRootFor(fs::path("/opt/ba/bin/64bit/")) == fs::path("/opt/ba"));
     CHECK(bundleRootFor(fs::path("/opt/ba")) == fs::path("/opt/ba"));
     CHECK(bundleRootFor(fs::path("/Applications/BA.app/Contents/MacOS")) ==
-          fs::path("/Applications/BA.app/Contents"));
-    CHECK(bundleRootFor(fs::path("/Applications/BA.app/Contents/bin/64bit")) ==
-          fs::path("/Applications/BA.app/Contents"));
+          fs::path("/Applications/BA.app/Contents/Resources"));
+    CHECK(bundleRootFor(fs::path("/Applications/BA.app/Contents/Resources/bin/64bit")) ==
+          fs::path("/Applications/BA.app/Contents/Resources"));
     CHECK(bundleRootFor(fs::path("/x/64bit")) == fs::path("/x/64bit")); // sin bin/: no es el layout
     CHECK(bundleRootFor(fs::path()).empty());
 

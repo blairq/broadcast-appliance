@@ -44,7 +44,7 @@ endif
 PY        ?= .venv/bin/python
 PIP       ?= .venv/bin/pip
 
-.PHONY: check-macos-tools deps-macos deps-obs-src deps-obs-macos deps-lsp-macos macos release-macos dist-macos deps-lsp-win deps-clap deps-obs-deps-win deps-ndi-src deps-linux test-win deps-win deps-win-toolchain deps-webrtc-win release-win dist-win dist-linux deps-lwip deps-cacert help dev build prod test test-unit pytest test-all lint docs release win deps-cloudflared-host deps-qt-host \
+.PHONY: app-macos dmg-macos check-macos-tools deps-macos deps-obs-src deps-obs-macos deps-lsp-macos macos release-macos dist-macos deps-lsp-win deps-clap deps-obs-deps-win deps-ndi-src deps-linux test-win deps-win deps-win-toolchain deps-webrtc-win release-win dist-win dist-linux deps-lwip deps-cacert help dev build prod test test-unit pytest test-all lint docs release win deps-cloudflared-host deps-qt-host \
         clean clean-all \
         deps deps-obs deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist \
         deps-lsp deps-status deps-clean deps-libreoffice deps-libreoffice-linux deps-libreoffice-win deps-libreoffice-mac \
@@ -71,6 +71,9 @@ help:
 	@echo "  make dist-win   dist/BroadcastAppliance-<ver>-windows-x64.zip"
 	@echo "  make test-win   Corre los tests de Windows bajo Wine portable"
 	@echo "  make dist-linux dist/BroadcastAppliance-<ver>-linux-x64.tar.gz"
+	@echo "  make deps-macos     Todo lo del build de macOS (en una Mac Apple Silicon)"
+	@echo "  make macos          macOS: compila y corre los tests"
+	@echo "  make dmg-macos      dist/BroadcastAppliance-<ver>-macos-arm64.dmg (la .app)"
 	@echo "  make deps-linux Todo lo del build completo de Linux (libobs desde fuente, Qt, libwebrtc...)"
 	@echo "  make clean      Borra $(BUILD_DIR)/"
 	@echo "  make clean-all  Borra $(BUILD_DIR)/, release/ y docs/_build/"
@@ -300,6 +303,7 @@ deps-linux: deps-obs-linux deps-qt-host deps-src deps-lwip deps-cacert deps-libv
 #   make macos          -> compila (build/) y corre los tests
 #   make release-macos  -> bundle portable en release/ (verificado con otool)
 #   make dist-macos     -> dist/BroadcastAppliance-<ver>-macos-arm64.tar.gz
+#   make dmg-macos      -> dist/BroadcastAppliance-<ver>-macos-arm64.dmg (la .app, lo que publica el release)
 deps-obs-src:
 	@test -d extern/obs-src || git clone --depth 1 --branch $(OBS_TAG) \
 		--recurse-submodules --shallow-submodules \
@@ -341,6 +345,18 @@ release-macos:
 	@# El manifest, como en Linux y Windows: sin el, el launcher verifica cero
 	@# archivos y la comprobacion de integridad no sirve de nada.
 	tools/deploy --solo-manifest release
+
+# La .app (el bundle portable en Contents/) y el .dmg que publica el release.
+# Firma ad-hoc: ver tools/deps/app-macos.sh.
+app-macos: release-macos
+	@mkdir -p dist
+	tools/deps/app-macos.sh release dist/BroadcastAppliance.app
+
+dmg-macos: release-macos
+	@mkdir -p dist
+	tools/deps/app-macos.sh release dist/BroadcastAppliance.app dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64.dmg
+	@cd dist && $(SHA256) BroadcastAppliance-$(BA_VERSION)-macos-arm64.dmg > BroadcastAppliance-$(BA_VERSION)-macos-arm64.dmg.sha256
+	@echo "dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64.dmg"
 
 dist-macos: release-macos
 	@mkdir -p dist
