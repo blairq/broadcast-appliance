@@ -39,4 +39,3 @@ extern/
 # Entrenamiento: el venv lo arma tools/entrenar/venv.sh y unsloth deja su cache
 .venv-entrenar/
 unsloth_compiled_cache/
-.publicar-macos-tag

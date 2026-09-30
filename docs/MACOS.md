@@ -116,23 +116,24 @@ cd release && BA_GATEWAY_PIN=123456 ./BroadcastAppliance --no-recovery-ui --app-
 Logs: `release/Logs/` (`launcher.log`, `app.log`, `gateway.log`) y la salida
 de la terminal.
 
-## 7. Publicar el `.dmg` en un release de GitHub (`make publicar-macos`)
+## 7. Publicar en GitHub desde la Mac (`make publicar-macos`)
 
-El CI de GitHub arma y publica Linux y Windows, pero **no macOS**: en un repo
-privado los minutos de un runner de Mac cuentan x10. El `.dmg` se arma en una
-Mac y se suma al mismo release:
+El CI de GitHub corre **solo a mano** (Actions → CI → Run workflow, con
+"publicar" para que salga el release) y no compila macOS. Lo normal es armar en
+máquinas propias y subir desde ahí:
 
 ```bash
-git checkout master && git pull     # el commit del release
-make publicar-macos                 # al ultimo release (TAG=v... para otro)
+make publicar-macos     # en la Mac:  .dmg
+make publicar-linux     # en Linux:   .tar.gz
+make publicar-win       # en Linux:   .zip (cross con clang-cl)
 ```
 
-Compila, corre los tests, arma `dist/BroadcastAppliance-<ver>-macos-arm64.dmg`
-(la `.app` firmada ad-hoc, con un "Leeme primero" que explica cómo abrirla la
-primera vez) y lo sube con `gh`. Se niega si el release no se hizo con el
-commit que hay en la Mac o si hay cambios sin commitear (`FORZAR=1` saltea los
-dos controles). Para validar en una Mac limpia de GitHub hay un workflow a mano:
-Actions → macOS → Run workflow.
+Cada uno chequea antes de compilar (sin cambios sin commitear, el commit subido
+a GitHub, el release no es de otro commit), compila, corre los tests, arma el
+archivo y lo sube con `gh` (`tools/publicar.sh`). El release sale del commit
+(`v<versión>-<commit>`): lo armado en la Mac y en el Linux desde el mismo commit
+cae en el mismo release. Desde `master` queda como "Latest"; desde otra rama,
+como pre-release. `TAG=...` elige otro release y `FORZAR=1` saltea los controles.
 
 ## Qué está probado (2026-09-30)
 

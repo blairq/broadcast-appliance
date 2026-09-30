@@ -16,15 +16,18 @@
 #                  arranque del operador y motor. Es lo unico que ve los
 #                  fallos que Wine tapa (el CRT de Microsoft es mas estricto).
 #   5. sanitizers  ASan/UBSan y TSan sobre la suite.
-#   6. release     en cada push a master (y en tags v*) con todo en verde:
-#                  publica el .tar.gz de Linux y el .zip de Windows (con sus
-#                  .sha256) en un GitHub Release.
+#   6. release     solo si se pidio "publicar" y se lanzo sobre master: publica
+#                  el .tar.gz de Linux y el .zip de Windows (con sus .sha256)
+#                  en un GitHub Release, tag v<version de CMakeLists>-build.<n>.
 #
-# macOS NO se compila aca: en un repo privado los minutos de Mac cuentan x10.
-# El .dmg se arma en una Mac y se sube al mismo release con
-# `make publicar-macos` (que verifica que sea del mismo commit). El job de
-# macOS completo esta en macos.yml, para correrlo a mano cuando haga falta. En master el tag se arma
-#                  solo: v<version de CMakeLists>-build.<numero de corrida>.
+# SOLO A MANO: Actions -> CI -> Run workflow. Nada corre solo en cada push ni
+# en cada PR (el repo es privado: cada corrida gasta minutos del cupo). Sin
+# "publicar", compila y prueba; con "publicar", ademas sale el release.
+#
+# Tambien se puede compilar en una maquina propia y subir de ahi, sin gastar
+# nada: make publicar-linux / publicar-win (en Linux) y make publicar-macos
+# (en una Mac), ver tools/publicar.sh. macOS no se compila aca (los minutos de
+# Mac cuentan x10): su job completo esta en macos.yml, tambien a mano.
 #
 # Licencia de Microsoft: el job de Windows baja el CRT y el Windows SDK con
 # xwin (BA_ACCEPT_MSVC_LICENSE=1), aceptando la licencia de Visual Studio
@@ -33,10 +36,12 @@
 name: CI
 
 on:
-  push:
-    branches: [master]
-    tags: ["v*"]
-  pull_request:
+  workflow_dispatch:
+    inputs:
+      publicar:
+        description: "Publicar el release (solo sobre master)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -370,10 +375,12 @@ jobs:
     name: "Release (GitHub)"
     runs-on: ubuntu-24.04
     needs: [lint, linux, windows, windows-smoke, sanitizers]
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v'))
+    if: inputs.publicar && github.ref == 'refs/heads/master'
     permissions:
       contents: write
     steps:
+      # Solo por las notas (packaging/notas-release.md).
+      - uses: actions/checkout@v5
       - uses: actions/download-artifact@v4
         with:
           path: dist
@@ -383,36 +390,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           ls -la dist
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            tag="${GITHUB_REF_NAME}"
-          else
-            # Version del proyecto sacada del nombre del bundle (make dist-*).
-            ver="$(ls dist/*-linux-x64.tar.gz | sed -E 's/.*BroadcastAppliance-(.*)-linux-x64\.tar\.gz/\1/')"
-            tag="v${ver}-build.${GITHUB_RUN_NUMBER}"
-          fi
+          # Version del proyecto sacada del nombre del bundle (make dist-*).
+          ver="$(ls dist/*-linux-x64.tar.gz | sed -E 's/.*BroadcastAppliance-(.*)-linux-x64\.tar\.gz/\1/')"
+          tag="v${ver}-build.${GITHUB_RUN_NUMBER}"
           # Notas para quien baja el programa (arriba); el detalle tecnico de
-          # los cambios lo agrega --generate-notes debajo.
-          cat > notas.md <<'NOTAS'
-          ## Qué bajar
-          - **Windows 10 (1809 o posterior) / 11, 64 bits:** `BroadcastAppliance-*-windows-x64.zip`
-          - **Linux 64 bits** (escritorio con OpenGL; compilado en Ubuntu 24.04, necesita una distribución igual o más nueva): `BroadcastAppliance-*-linux-x64.tar.gz`
-          - **macOS 13.3 o más nuevo, Mac con Apple Silicon (M1 en adelante):** `BroadcastAppliance-*-macos-arm64.dmg`
-          - Los `.sha256` sirven para verificar la descarga (opcional).
-
-          ## Cómo usarlo
-          1. Descomprimí el archivo completo en una carpeta (sirve un disco o pen drive). No se instala nada.
-          2. Abrí `BroadcastAppliance` (`.exe` en Windows; `./BroadcastAppliance` en Linux). En Windows, si aparece "Windows protegió su PC": *Más información → Ejecutar de todas formas*.
-             En macOS: abrí el `.dmg`, arrastrá `BroadcastAppliance` a Aplicaciones (o a tu disco) y la **primera vez** abrilo con *clic derecho → Abrir → Abrir* (no está firmado con un certificado de Apple). Adentro del `.dmg` hay un "Leeme primero".
-          3. Leé `LEEME.txt`, que viene dentro de la carpeta: primeros pasos, dónde queda cada cosa y qué hacer si algo falla.
-
-          ## Si ya lo tenías
-          Descomprimí esta versión en **otra** carpeta y elegila en *Configuración → Sistema y datos → Actualizar desde una carpeta*. Tu configuración, credenciales y grabaciones no se tocan, y se puede volver a la versión anterior.
-
-          Manual del operador y guía del invitado: carpeta [`docs/manual`](https://github.com/blairq/broadcast-appliance/tree/master/docs/manual).
-
-          ---
-          NOTAS
-          sed -i 's/^          //' notas.md
+          # los cambios lo agrega --generate-notes debajo. Las mismas que usa
+          # tools/publicar.sh cuando se publica desde una maquina propia.
+          cp packaging/notas-release.md notas.md
           gh release create "${tag}" dist/* \
             --repo "${GITHUB_REPOSITORY}" --target "${GITHUB_SHA}" \
             --title "Broadcast Appliance ${tag}" --notes-file notas.md --generate-notes --latest
