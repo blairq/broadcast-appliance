@@ -277,7 +277,11 @@ def aplicar(args):
                     continue
                 cerca = min(((v - g.mu[o]).norm().item(), o) for o in g.P if o != h)
                 propio = (v - X.mean(0)).norm().item()
-                if cerca[0] < propio:
+                # Con menos de 8 frases el centro del grupo no representa nada (es
+                # un hueco: el modelo no aprendio el concepto) y toda frase nueva
+                # «cae mas cerca» de otro. Paso con imagen_analizar: 4 frases y
+                # 36 rechazos de pedidos correctos. Ahi esta prueba no se aplica.
+                if cerca[0] < propio and len(textos) >= 8:
                     rechazadas.append((h, fr, f"cae mas cerca de {cerca[1]}"))
                     continue
                 # casi copia se mira en el TEXTO: en los estados ocultos de un
@@ -291,8 +295,9 @@ def aplicar(args):
                 # ABRIR TIENE UN PRESUPUESTO. Una forma de pedir distinta siempre
                 # ensancha un poco el grupo y baja Q; exigir que no baje nada no
                 # deja abrir nunca un grupo apretado. Se permite hasta un 5% por
-                # frase y un 15% en total desde como estaba el grupo.
-                if q is not None and (q2 < q * (1 - PASO_ABRIR) or q2 < q_ini * (1 - PRESUPUESTO_ABRIR)):
+                # frase y un 15% en total desde como estaba el grupo. Un hueco (menos
+                # de 8) se deja abrir sin presupuesto hasta llegar a 8.
+                if q is not None and len(textos) >= 8 and (q2 < q * (1 - PASO_ABRIR) or q2 < q_ini * (1 - PRESUPUESTO_ABRIR)):
                     rechazadas.append((h, fr, f"corre el grupo (Q {q:.3f}->{q2:.3f})"))
                     continue
                 X, textos = X2, textos + [fr]
