@@ -141,12 +141,39 @@ def main():
         S = torch.linalg.svdvals(dif.float())
         lam = (S ** 2)
         dim_ef = (lam.sum() ** 2 / (lam ** 2).sum()).item()
-        # La vecina mas cercana y el hueco que queda entre bordes.
-        otras = [(torch.dist(c, cen[o]).item(), o) for o in hs if o != h]
-        dmin, vecina = min(otras)
-        hueco = dmin - radio - torch.dist(Htr[usables[vecina]], cen[vecina]).mean().item()
+        # LA VECINA Y EL HUECO, medido SOBRE LA DIRECCION QUE SEPARA y no con el
+        # radio entero. La primera version restaba los radios completos y daba
+        # hueco negativo en las 86 —media -79,9— contradiciendo el 0,0% de
+        # solapamiento que mide nubes.py. No habia contradiccion: en 2048
+        # dimensiones el radio se reparte entre cientos de direcciones
+        # ortogonales, asi que dos nubes con radios grandes y centros cercanos se
+        # separan perfectamente en la unica direccion que decide. Restar radios
+        # completos mide un volumen que no existe.
+        peor_fisher, vecina, solape = 1e9, None, 0.0
+        for o in hs:
+            if o == h:
+                continue
+            w = c - cen[o]
+            nw = w.norm()
+            if nw < 1e-6:
+                continue
+            w = w / nw
+            pa, pb = P @ w, Htr[usables[o]] @ w
+            disp = ((pa.std() ** 2 + pb.std() ** 2) / 2).sqrt().item()
+            f = abs(pa.mean().item() - pb.mean().item()) / max(1e-6, disp)
+            if f < peor_fisher:
+                corte = (pa.mean() + pb.mean()) / 2
+                peor_fisher = f
+                vecina = o
+                solape = (((pa < corte).sum() + (pb > corte).sum()).item()
+                          / (len(pa) + len(pb)))
+        # RUIDO: que fraccion de sus frases cae mas cerca del centro de otra.
+        cercas = [min(hs, key=lambda o: torch.dist(Htr[k], cen[o]).item())
+                  for k in usables[h]]
+        ruido = sum(1 for x in cercas if x != h) / len(cercas)
         info[h] = {"n": len(usables[h]), "radio": radio, "dim_ef": dim_ef,
-                   "vecina": vecina, "dist_vecina": dmin, "hueco": hueco, "afuera": 0}
+                   "vecina": vecina, "fisher": peor_fisher, "solape": solape,
+                   "ruido": ruido, "afuera": 0}
 
     # Casos del examen que caen mas cerca del centro de otra herramienta.
     for k, c in enumerate(ex):
@@ -158,24 +185,44 @@ def main():
             for a in acs:
                 info[a]["afuera"] += 1
 
-    # Las que tienen nube flaca Y hueco de sobra: ahi conviene escribir.
-    orden = sorted(hs, key=lambda h: (info[h]["dim_ef"] / max(0.1, info[h]["radio"])))
-    print(f"\n{len(hs)} herramientas con nube. Las mas FLACAS primero:")
-    print(f"  {'herramienta':24s} {'n':>4s} {'radio':>7s} {'dim':>5s} {'hueco':>7s}"
-          f" {'afuera':>6s}  vecina")
+    # EL DIAGNOSTICO DE TRES TERMINOS. Una nube sana no esta ni apretada ni
+    # sucia ni pegada a la vecina, y cada defecto se arregla distinto:
+    #
+    #   CONCENTRADA  dimension efectiva baja: hay una sola forma de pedirlo y el
+    #                resto es superficie. Se arregla escribiendo frases NUEVAS,
+    #                no mas variantes —variar engorda la linea, no la nube—.
+    #   RUIDOSA      muchas de sus frases caen mas cerca del centro de otra. O
+    #                estan mal escritas, o son ambiguas de verdad.
+    #   PEGADA       su vecina mas cercana se le encima: fisher bajo. Se arregla
+    #                con pares contrastivos, que ensenan el limite.
+    import statistics
+    dims = [i["dim_ef"] for i in info.values()]
+    d_med = statistics.median(dims)
+    for h, i in info.items():
+        m = []
+        if i["dim_ef"] < 0.6 * d_med:
+            m.append("CONCENTRADA")
+        if i["ruido"] > 0.10:
+            m.append("RUIDOSA")
+        if i["fisher"] < 4.0:
+            m.append("PEGADA a " + i["vecina"])
+        i["diagnostico"] = " + ".join(m) if m else "bien"
+    malas = [h for h in hs if info[h]["diagnostico"] != "bien"]
+    orden = sorted(malas, key=lambda h: (info[h]["fisher"], info[h]["dim_ef"]))
+    print(f"\n{len(malas)} de {len(hs)} herramientas con algo que arreglar:")
+    print(f"  {'herramienta':24s} {'n':>4s} {'dim':>5s} {'fisher':>6s} {'solape':>7s}"
+          f" {'ruido':>6s} {'afuera':>6s}  diagnostico")
     for h in orden[:args.cuantas]:
         i = info[h]
-        marca = "  <- flaca y con lugar" if i["hueco"] > i["radio"] and i["dim_ef"] < 4 else ""
-        print(f"  {h:24s} {i['n']:4d} {i['radio']:7.1f} {i['dim_ef']:5.1f}"
-              f" {i['hueco']:7.1f} {i['afuera']:6d}  {i['vecina']}{marca}")
-
-    import statistics
-    print(f"\n  radio medio {statistics.mean(i['radio'] for i in info.values()):.1f}"
-          f" · dimension efectiva media {statistics.mean(i['dim_ef'] for i in info.values()):.1f}"
-          f" · hueco medio {statistics.mean(i['hueco'] for i in info.values()):.1f}")
-    print("  Dimension efectiva baja con hueco grande = hay lugar para crecer sin")
-    print("  riesgo de tocar a la vecina. Ahi hay que escribir frases nuevas, y")
-    print("  NO mas variantes de las que ya estan: eso engorda la linea, no la nube.")
+        print(f"  {h:24s} {i['n']:4d} {i['dim_ef']:5.1f} {i['fisher']:6.2f}"
+              f" {100*i['solape']:6.1f}% {100*i['ruido']:5.1f}% {i['afuera']:6d}"
+              f"  {i['diagnostico']}")
+    print(f"\n  dimension efectiva: mediana {d_med:.1f} · minima {min(dims):.1f}"
+          f" · maxima {max(dims):.1f}")
+    print(f"  fisher con la vecina mas cercana: mediana"
+          f" {statistics.median(i['fisher'] for i in info.values()):.2f}"
+          f" · minimo {min(i['fisher'] for i in info.values()):.2f}")
+    print(f"  ruido medio {100*statistics.mean(i['ruido'] for i in info.values()):.1f}%")
 
     # --- frases raras -------------------------------------------------------
     raras = []
