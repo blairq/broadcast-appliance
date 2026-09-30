@@ -594,6 +594,34 @@ sobre el corpus separado) contra v12s (el mismo corpus con nombres reales); si
 las etiquetas vuelven a perder, probar etiquetas **legibles** que conserven el
 significado (las `a_mano` de `datos/etiquetas.json`), no fragmentos.
 
+**Lo que dice la literatura nueva (septiembre 2026).**
+
+- *PA-Tool* ([arxiv 2510.07248](https://arxiv.org/abs/2510.07248), abr 2026):
+  en modelos chicos conviene adaptar los nombres de las herramientas al modelo,
+  no el modelo a los nombres. Le piden al propio modelo que nombre cada
+  herramienta muchas veces y eligen el nombre más «picudo» (con más variantes
+  parecidas): hasta +17 % en elección de herramienta y −80 % de nombres
+  inventados. Es la misma lección que v11, dicha al revés. Lo probamos con
+  Qwen3-1.7B (`tools/entrenar/etiquetas-familiares.py`) y a este tamaño no sirve:
+  el pico cae en ecos de la consigna (`funcion_estudio_televisin` para tres
+  herramientas distintas), en el ejemplo de la descripción
+  (`corta_a_la_camara_2`) o en el nombre de otra herramienta. Los nombres reales
+  del MCP ya tienen la forma que el método busca (inglés, snake_case,
+  verbo_objeto), y son los que mejor andan.
+- *Neural Collapse Is Forbidden* ([arxiv 2607.09487](https://arxiv.org/html/2607.09487v1),
+  jul 2026): en modelos de lenguaje la varianza dentro de una clase es
+  información, no ruido a colapsar, y el CDNV puede fabricar tendencias. Se
+  refiere a las clases de tokens del preentrenamiento, no a una cabeza de 85
+  clases como la nuestra, pero confirma la regla que ya seguimos: el CDNV
+  orienta, el banco decide. Y es un argumento contra el filtro «no subir el
+  CDNV» cuando rechaza frases correctas y variadas, como pasó con los huecos.
+- *ToolChoiceConfusion* ([arxiv 2606.06284](https://arxiv.org/abs/2606.06284v1),
+  jun 2026) y *ToolSearcher* ([arxiv 2609.30906](https://arxiv.org/abs/2609.30906),
+  sep 2026): con muchas herramientas, mostrarle al modelo menos opciones por
+  paso (filtrado causal, o discriminación dentro de una categoría) baja las
+  llamadas equivocadas. Para nosotros es una opción de arquitectura: decidir
+  primero la familia (láminas, fuentes, oradores) y después la herramienta.
+
 ## Las piezas
 
 | | |
