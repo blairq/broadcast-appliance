@@ -115,8 +115,8 @@ set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
 # de la lib de terceros falla. mbedtls añade -Werror SOLO cuando
 # MBEDTLS_FATAL_WARNINGS está ON, así que lo desactivamos. Guardado con
 # if(WIN32) para NO tocar el build Linux (ya verde, 18/18), donde el gcc nativo
-# no dispara esa advertencia.
-if(WIN32)
+# no dispara esa advertencia. Apple clang 21 (Xcode 26) la dispara igual.
+if(WIN32 OR APPLE)
     set(MBEDTLS_FATAL_WARNINGS OFF CACHE BOOL "" FORCE)
 endif()
 
@@ -230,6 +230,22 @@ if(BA_WIN_STATIC_PART)
 endif()
 
 include(${CMAKE_SOURCE_DIR}/cmake/BaLibObs.cmake)
+
+# macOS 26 (Xcode 26) ya no trae AGL.framework, pero el FindWrapOpenGL de Qt
+# 6.6 lo enlaza igual ("framework 'AGL' not found"). Qt lo busca en la cache
+# WrapOpenGL_AGL: si el SDK no lo tiene, se le da el de OpenGL (ya enlazado).
+# Se mira el SDK y no el sistema: CMake 4 ya no fija CMAKE_OSX_SYSROOT, y un
+# find_library encuentra el AGL de /System/Library aunque el SDK no lo tenga.
+if(APPLE)
+    set(_ba_sdk "${CMAKE_OSX_SYSROOT}")
+    if(NOT _ba_sdk)
+        execute_process(COMMAND xcrun --sdk macosx --show-sdk-path
+                        OUTPUT_VARIABLE _ba_sdk OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+    endif()
+    if(NOT EXISTS "${_ba_sdk}/System/Library/Frameworks/AGL.framework")
+        set(WrapOpenGL_AGL "-framework OpenGL" CACHE STRING "AGL ya no existe en el SDK" FORCE)
+    endif()
+endif()
 
 add_subdirectory(src/core)
 if(MSVC)

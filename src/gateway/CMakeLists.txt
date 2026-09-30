@@ -135,8 +135,18 @@ set(BA_GATEWAY_WEBRTC_MAC 0)
 if(APPLE AND EXISTS "${BA_WEBRTC_ROOT}/lib/libwebrtc.a" AND EXISTS "${BA_WEBRTC_ROOT}/include/api/peer_connection_interface.h")
     set(BA_GATEWAY_WEBRTC_MAC 1)
     message(STATUS "ba-gateway: libwebrtc REAL (macOS arm64) en ${BA_WEBRTC_ROOT}")
+    # Igual que en Windows (ver abajo): el SDK se compilo con un clang mas
+    # viejo y el de Xcode 26 rechaza [[clang::lifetimebound]] en parametros de
+    # funciones void (api/candidate.h). Copia de absl/base/attributes.h sin
+    # ese atributo delante del SDK (solo avisos de analisis; mismo ABI).
+    set(_ba_absl_shadow "${CMAKE_BINARY_DIR}/webrtc-mac-shadow")
+    file(READ "${BA_WEBRTC_ROOT}/include/third_party/abseil-cpp/absl/base/attributes.h" _ba_attr)
+    string(REPLACE "#define ABSL_ATTRIBUTE_LIFETIME_BOUND [[clang::lifetimebound]]"
+           "#define ABSL_ATTRIBUTE_LIFETIME_BOUND" _ba_attr "${_ba_attr}")
+    file(WRITE "${_ba_absl_shadow}/absl/base/attributes.h" "${_ba_attr}")
     add_library(ba_webrtc_mac INTERFACE)
     target_include_directories(ba_webrtc_mac SYSTEM BEFORE INTERFACE
+        "${_ba_absl_shadow}"
         "${BA_WEBRTC_ROOT}/include"
         "${BA_WEBRTC_ROOT}/include/third_party/abseil-cpp"
         "${BA_WEBRTC_ROOT}/include/third_party/libyuv/include")

@@ -70,8 +70,11 @@ fi
 
 # --- configurar y compilar (Xcode) ---------------------------------------------
 log "configurando libobs $TAG (Xcode, arm64, macOS 13+)"
+# CMake 4 ya no fija CMAKE_OSX_SYSROOT solo, y OBS saca la version del SDK de
+# esa ruta (MacOSX<ver>.sdk): sin ella dice "SDK version () is too low".
+SDK="$(xcrun --sdk macosx --show-sdk-path)"
 cmake -S "$SRC" -B "$BUILD" -G Xcode \
-    -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
+    -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 -DCMAKE_OSX_SYSROOT="$SDK" \
     -DCMAKE_PREFIX_PATH="$DEPS" \
     -DOBS_CODESIGN_IDENTITY="-" -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED=NO \
     -DENABLE_UI=OFF -DENABLE_FRONTEND=OFF -DENABLE_SCRIPTING=OFF -DENABLE_BROWSER=OFF \
@@ -90,18 +93,21 @@ cmake --build "$BUILD" --config Release "${targs[@]}" -- -jobs "$JOBS" >"$BUILD.
 
 # --- juntar el resultado ---------------------------------------------------------
 rm -rf "$OUT" && mkdir -p "$OUT/lib" "$OUT/plugins" "$OUT/bin" "$OUT/data"
-fw="$(find "$BUILD" -type d -name libobs.framework -path '*Release*' | head -1)"
+# Xcode deja stubs .tbd con el mismo nombre (EagerLinkingTBDs) y los .dSYM
+# repiten el nombre del binario: se excluyen para no copiar un framework vacio.
+NOSTUB=(-not -path '*/EagerLinkingTBDs/*' -not -path '*.dSYM/*')
+fw="$(find "$BUILD" -type d -name libobs.framework -path '*Release*' "${NOSTUB[@]}" | head -1)"
 [ -n "$fw" ] || { log "ERROR: no aparecio libobs.framework"; exit 1; }
 cp -R "$fw" "$OUT/lib/"
-gl="$(find "$BUILD" \( -type f -o -type l \) -name 'libobs-opengl*.dylib' -path '*Release*' | head -1)"
+gl="$(find "$BUILD" \( -type f -o -type l \) -name 'libobs-opengl*.dylib' -path '*Release*' "${NOSTUB[@]}" | head -1)"
 [ -n "$gl" ] || { log "ERROR: no aparecio libobs-opengl"; exit 1; }
 # El motor lo abre por ruta como libobs-opengl.so (ver BroadcastEngine).
 cp -L "$gl" "$OUT/lib/libobs-opengl.so"
 for p in "${PLUGINS[@]}"; do
-    b="$(find "$BUILD" -type d -name "$p.plugin" -path '*Release*' | head -1)"
+    b="$(find "$BUILD" -type d -name "$p.plugin" -path '*Release*' "${NOSTUB[@]}" | head -1)"
     if [ -n "$b" ]; then cp -R "$b" "$OUT/plugins/"; else log "aviso: no aparecio $p.plugin"; fi
 done
-mux="$(find "$BUILD" -type f -name obs-ffmpeg-mux -perm -u+x -path '*Release*' | head -1)"
+mux="$(find "$BUILD" -type f -name obs-ffmpeg-mux -perm -u+x -path '*Release*' "${NOSTUB[@]}" | head -1)"
 [ -n "$mux" ] && cp "$mux" "$OUT/bin/"
 cp -R "$SRC/libobs/data" "$OUT/data/libobs"
 # Dylibs de obs-deps que usan libobs y los plugins (se copian con sus enlaces).
