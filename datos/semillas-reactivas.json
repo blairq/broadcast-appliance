@@ -186,7 +186,10 @@
         "Corte seco a la escena Apertura, al toque",
         "Saltá al aire a la escena Móvil ahora mismo, directo",
         "¡Corte a la escena del panel, ya!",
-        "Salí al aire con la escena Cierre ahora mismo"
+        "Salí al aire con la escena Cierre ahora mismo",
+        "Corte directo a la cámara 2, ya mismo al programa",
+        "Corte seco a la apertura, sin transición armada ni nada",
+        "Cortá a la general ahora, sale directo"
       ],
       "tambien": [],
       "correctivas": [
@@ -731,7 +734,9 @@
         "Pasame una foto de cada participante con su nombre y estado",
         "Mostrame las caras de todos los que están en la sala, con nombre",
         "Quiero una foto de cada persona conectada: lobby, adentro y fila",
-        "Pasame un retrato de cada participante y de dónde sale su imagen"
+        "Pasame un retrato de cada participante y de dónde sale su imagen",
+        "Traeme una imagen de cada uno de los que están en la sala, todos",
+        "Pasame las caras de todo el mundo, con estado y de dónde sale cada una"
       ],
       "tambien": [],
       "correctivas": []
@@ -741,7 +746,9 @@
         "mostrame a Marta",
         "a ver la cara del invitado 2",
         "sacale una foto al que esta hablando",
-        "Mostrame la cara de Juan Pérez, quiero ver si tiene buena luz"
+        "Mostrame la cara de Juan Pérez, quiero ver si tiene buena luz",
+        "¿Cómo se ve Martina Gómez ahora? Traeme su imagen",
+        "Pasame la imagen de la invitada Carla, nada más ella"
       ],
       "tambien": [],
       "correctivas": []
@@ -902,7 +909,12 @@
         "Cambiá el PIN de ingreso a 4821",
         "Invalidá el PIN actual y dame otro al azar",
         "Poné un PIN distinto para que los de ayer no entren",
-        "Necesito un PIN fresco para mandarle a los invitados de hoy"
+        "Necesito un PIN fresco para mandarle a los invitados de hoy",
+        "Generá un PIN nuevo, el viejo que no sirva más",
+        "Poné 4821 como PIN de acceso",
+        "El PIN lo tiene gente que no debe, rotalo",
+        "Necesito otra clave numérica para entrar, sacame una al azar",
+        "Invalidá el PIN actual y dame uno fresco"
       ],
       "tambien": [],
       "correctivas": []
@@ -911,7 +923,8 @@
       "frases": [
         "abrí el lobby de admisión",
         "configurame cuantos lugares hay",
-        "aumentale los lugares"
+        "aumentale los lugares",
+        "Trabá el ingreso: nadie nuevo adentro hasta el corte"
       ],
       "tambien": [],
       "correctivas": []
@@ -1102,7 +1115,10 @@
         "¿Qué valores admite la propiedad de resolución de esa fuente?",
         "¿Qué opciones tiene la fuente navegador en el panel de propiedades?",
         "Listame las propiedades de la cámara uno con sus rangos",
-        "Fijate qué propiedades expone esa fuente y cuánto valen ahora"
+        "Fijate qué propiedades expone esa fuente y cuánto valen ahora",
+        "¿Qué opciones tiene el dispositivo de captura? Listame todas",
+        "¿Qué rango acepta la opción de brillo de la cámara 1?",
+        "¿Qué propiedades expone la placa de captura? Nombre y tipo"
       ],
       "tambien": [],
       "correctivas": []
@@ -1119,7 +1135,9 @@
         "poné la cámara 1 en 720p",
         "No aparece la placa nueva, apretá el botón de recargar en sus propiedades",
         "Apretá el botón de refrescar dispositivos en las propiedades de la cámara",
-        "Activá la propiedad de reinicio al hacerse visible de esa fuente"
+        "Activá la propiedad de reinicio al hacerse visible de esa fuente",
+        "La cámara quedó sin señal, dale al botón de reactivar en propiedades",
+        "Seteá el valor de la propiedad device_id en la webcam dos"
       ],
       "tambien": [],
       "correctivas": [
@@ -1209,7 +1227,12 @@
         "levantá la animación de la tabla de posiciones",
         "Tirá el gráfico del clima, que ya estamos en programa",
         "Reproducí la animación de resultados en la fuente gráfica, va al aire",
-        "Dispará ya el gráfico de votos, que lo vea la audiencia"
+        "Dispará ya el gráfico de votos, que lo vea la audiencia",
+        "Lanzá el gráfico animado del marcador ahora",
+        "Dispará la placa animada con la encuesta, que entre ya",
+        "Terminó el gol, tirá el gráfico animado con el resultado",
+        "Hacé correr la animación del gráfico de la cotización del dólar",
+        "Mandá a dibujar el gráfico animado con los datos de la elección"
       ],
       "tambien": [
         "rotulo_vincular"
@@ -1241,7 +1264,12 @@
         "Hacé desaparecer el gráfico de la inflación",
         "El gráfico quedó colgado sobre la cámara, sacalo",
         "Borrá de la imagen el gráfico de resultados, dejalo vacío",
-        "Terminó el segmento de números, quitame el gráfico"
+        "Terminó el segmento de números, quitame el gráfico",
+        "Bajá el gráfico animado, que quede transparente",
+        "Ya se leyó la encuesta, limpiá el gráfico animado",
+        "El gráfico de temperatura quedó colgado, apagalo a transparente",
+        "Chau gráfico animado de la cotización, vaciá esa placa",
+        "Terminá el gráfico animado, que no se vea nada ahí"
       ],
       "tambien": [],
       "correctivas": []
@@ -1349,7 +1377,9 @@
         "cambiá la imagen del carrusel",
         "Pasá al aire la quinta del carrusel ya",
         "Andá a la lámina doce sin pasar por las anteriores",
-        "El conductor pide la lámina cinco, saltá ya"
+        "El conductor pide la lámina cinco, saltá ya",
+        "Volvé a la 3 del carrusel Clima",
+        "Andá directo a la primera del carrusel Mercados"
       ],
       "tambien": [],
       "correctivas": []
@@ -1368,7 +1398,11 @@
         "Encontrame la lámina del dólar blue buscando por texto",
         "Buscá en el carrusel la lámina que habla de las paritarias",
         "¿En qué lámina aparece el mapa del conurbano? Buscala por texto",
-        "Buscame por el texto «resultados» una lámina del carrusel electoral"
+        "Buscame por el texto «resultados» una lámina del carrusel electoral",
+        "Buscame la que dice inflación en el carrusel Economía",
+        "Encontrame las que tengan la etiqueta mapa en Elecciones",
+        "Filtrá por el texto 'desempleo' en el carrusel Informe",
+        "Rastreá 'tormenta' en el carrusel Clima, por título o etiqueta"
       ],
       "tambien": [
         "laminas_ver"
@@ -1402,14 +1436,15 @@
         "qué carruseles hay armados",
         "cuántos carruseles tengo armados",
         "cuántos juegos de diapositivas hay",
-        "decime qué presentaciones subí",
         "qué carruseles de láminas están listos",
         "cuáles carruseles tengo disponibles",
         "enumerame los carruseles de diapositivas",
         "Listame los carruseles y cuántas placas trae cada uno",
         "¿Qué carruseles de láminas hay en la biblioteca?",
         "Pasame todos los carruseles con cuántas láminas tiene cada uno",
-        "Enumerame los carruseles disponibles, que no me acuerdo el nombre"
+        "Enumerame los carruseles disponibles, que no me acuerdo el nombre",
+        "¿Qué carruseles tenemos en la biblioteca?",
+        "Decime todos los carruseles disponibles y cuántas tiene cada uno"
       ],
       "tambien": [],
       "correctivas": []
