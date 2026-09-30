@@ -165,6 +165,8 @@ def diagnosticar(args):
                 break
     # lotes para los agentes: solo los grupos con algo que hacer
     trabajo = [h for h, d in diag.items() if d["malas"] or d["falta"] or d["sobra"] or d["apretado"]]
+    if args.solo_cortos:
+        trabajo = [h for h in trabajo if diag[h]["falta"]]
     Path(args.lotes).mkdir(parents=True, exist_ok=True)
     n_lotes = max(1, min(args.agentes, len(trabajo)))
     lotes = [trabajo[i::n_lotes] for i in range(n_lotes)]
@@ -333,6 +335,7 @@ def main():
     ap.add_argument("--lotes", help="diagnosticar: carpeta donde escribir los lotes")
     ap.add_argument("--agentes", type=int, default=4)
     ap.add_argument("--informe")
+    ap.add_argument("--solo-cortos", action="store_true", help="diagnosticar: lotes solo para los grupos con menos de 15")
     ap.add_argument("--candidatos")
     ap.add_argument("--aceptar", action="store_true")
     args = ap.parse_args()

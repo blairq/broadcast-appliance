@@ -58,7 +58,7 @@
         "bajale al invitado 1",
         "silenciá ese micrófono",
         "subí la música",
-        "mutealo",
+        "mutealo en la mezcla, que no salga su audio",
         "bajale 4 dB a la fuente Música de fondo",
         "desmuteale el micrófono del orador en la mezcla",
         "poné la música más bajo que está tapando",
@@ -91,14 +91,15 @@
         "bajá la música que está en el programa",
         "Cortá ese acople, cerrale el micro al del lugar dos",
         "subile a ese que no se escucha",
-        "No se escucha al columnista, subile el volumen"
+        "No se escucha al columnista, subile el volumen",
+        "mutealo"
       ]
     },
     "audio_measure": {
       "frases": [
-        "medí la respuesta de la cadena del conductor con señal de prueba",
+        "el conductor suena opaco al aire, medí su cadena con señal de prueba",
         "medí la curva del compresor del conductor, parece que satura",
-        "pasale un seno a -20 dB al filtro del conductor y medí la respuesta",
+        "hay un pitido en el micro del conductor, medí su cadena con un seno a -20",
         "No sale nada de audio al aire, medí la cadena con señal de prueba",
         "Entra un zumbido de línea en el programa, probalo con señal de prueba",
         "Se oye un pitido raro, revisá la cadena de audio ya",
@@ -106,9 +107,11 @@
         "Medí el limitador fuera de línea y decime cuántos dB está recortando",
         "Al conductor no se lo oye en el aire, testeá la cadena de módulos",
         "hay un ruido raro en la cadena, medila con señal de prueba",
-        "hay un zumbido raro, mirá qué es",
+        "hay un zumbido raro al aire, medí los módulos con señal de prueba",
         "hay un pitido, medí los módulos de la cadena con un seno de prueba",
-        "decime de dónde viene ese ruido"
+        "entra un ruido feo al aire, testeá módulo por módulo con señal de prueba",
+        "estamos saliendo sin audio, medí la cadena entera con señal de prueba",
+        "se escucha mal al aire, probá la cadena de módulos con tono de prueba"
       ],
       "tambien": [
         "mixer_list",
@@ -116,9 +119,7 @@
       ],
       "correctivas": [
         "no me llega audio de esa persona",
-        "el conductor está mudo al aire, medí su cadena de audio",
-        "esta saliendo sin audio",
-        "se escucha mal"
+        "el conductor está mudo al aire, medí su cadena de audio"
       ],
       "arregla": [
         "v2",
@@ -133,7 +134,13 @@
         "cuanto esta llegando",
         "medime la respuesta de la cadena del conductor con señal de prueba",
         "¿Por qué no se escucha nada al aire? Medí qué pasa con el audio",
-        "de dónde sale ese pitido"
+        "de dónde sale ese pitido",
+        "medí la respuesta de la cadena del conductor con señal de prueba",
+        "pasale un seno a -20 dB al filtro del conductor y medí la respuesta",
+        "hay un zumbido raro, mirá qué es",
+        "decime de dónde viene ese ruido",
+        "esta saliendo sin audio",
+        "se escucha mal"
       ]
     },
     "audio_analyze": {
@@ -147,7 +154,7 @@
         "¿Cómo quedó el espectro en la salida del rack después del ecualizador?",
         "Dame los valores de frecuencias en el nodo analizador, quiero verificar el ajuste",
         "Analizame las frecuencias en el nodo analizador durante veinte segundos",
-        "cuanto esta llegando"
+        "medime cuánto entra crudo al micro de Ana, analizá el in diez segundos"
       ],
       "tambien": [
         "audio_measure"
@@ -163,23 +170,28 @@
       ],
       "podadas": [
         "¿Cómo quedó el espectro en la entrada cruda después del ecualizador?",
-        "que forma tiene ese ruido"
+        "que forma tiene ese ruido",
+        "cuanto esta llegando"
       ]
     },
     "audio_escuchar": {
       "frases": [
         "dejame oír el canal 2",
-        "pasame el audio del invitado a los auriculares",
+        "Poneme en PFL al invitado, que lo escucho yo por el monitor",
         "Mandame al monitor el audio de la capturadora, sin tocar lo que sale",
         "Quiero pre-escuchar la cámara dos en el monitor sin sacarla al aire",
         "Quiero escuchar la consola en PFL antes de abrirla",
-        "Necesito oír en mis auriculares qué trae el enlace, sin tocar la salida",
-        "El corresponsal dice que ya está, dame su audio en cue",
+        "Dejame escuchar el enlace en mi monitor, el aire sigue como está",
+        "Mandame al monitor el retorno del corresponsal, lo escucho antes de darle aire",
         "Quiero escuchar en auriculares la consola antes de meterla",
         "Poneme el mic de Martín en el monitor, que lo escucho yo sin tocar el aire",
         "El mic de Laura suena con zumbido, dejámelo en monitor que lo escucho.",
         "Mandame el micro del invitado al auricular, sólo para mí",
-        "Pasame a PFL el audio de la cámara tres para escucharlo yo"
+        "Pasame a PFL el audio de la cámara tres para escucharlo yo",
+        "Ponele escucha a la consola, sólo en mi monitor",
+        "Quiero oír el móvil por PFL, sin abrirlo al aire",
+        "Pasame a escucha el canal del teléfono, que lo oigo por monitor",
+        "Antes de abrirle el micro a Pablo, ponémelo en escucha"
       ],
       "tambien": [],
       "correctivas": [],
@@ -191,24 +203,34 @@
       ],
       "podadas": [
         "Poneme en PFL el audio de la placa antes de que entre",
-        "Pasame el micrófono del invitado por mis auriculares, en PFL"
+        "Pasame el micrófono del invitado por mis auriculares, en PFL",
+        "pasame el audio del invitado a los auriculares",
+        "Necesito oír en mis auriculares qué trae el enlace, sin tocar la salida",
+        "El corresponsal dice que ya está, dame su audio en cue"
       ]
     },
     "audio_sincro": {
       "frases": [
-        "se escucha desfasado",
+        "la voz de la cámara 3 va desfasada de la imagen, atrasale el audio",
         "el audio va antes que la imagen",
         "la boca de la cámara 1 va atrás de la voz, atrasale el audio",
         "corregí el retardo del audio",
         "El audio de la cámara dos va adelantado a la imagen, atrasalo",
         "Pedro mueve la boca después de que se escucha, sincronizalo",
         "subile a 200 ms el atraso del audio de la PTZ",
-        "la voz del conductor se adelanta a la imagen, demorala 40 ms"
+        "el audio del conductor llega antes que su imagen, retrasalo 40 ms para que den los labios",
+        "no coinciden los labios del invitado con lo que dice, sincronizá su audio",
+        "habla y la boca se mueve después, retrasá el audio de la Cámara 2",
+        "labios desfasados en la cámara de exteriores, corregí con 100 ms",
+        "sincro labial de la cámara del patio, el audio se anticipa",
+        "desincronizado el invitado: primero se oye, después mueve la boca"
       ],
       "tambien": [],
       "correctivas": [],
       "podadas": [
-        "no coinciden labios y voz"
+        "no coinciden labios y voz",
+        "se escucha desfasado",
+        "la voz del conductor se adelanta a la imagen, demorala 40 ms"
       ]
     },
     "mixer_list": {
@@ -220,18 +242,25 @@
         "fijate los niveles",
         "cómo viene el nivel del programa",
         "medime cuanto pica ese canal",
-        "fijate el nivel antes de tocar nada",
-        "¿Cuánto marca en dB el micrófono de Laura?",
+        "fijate en el mezclador los niveles antes de tocar nada",
+        "Leeme en el mezclador el volumen del micrófono de Laura",
         "Pasame la foto del mezclador: volúmenes, silencios y picos",
         "¿Qué fuente tengo en escucha por el monitor? Fijate en el mezclador",
-        "Antes de abrir el bloque, leeme cómo están los volúmenes"
+        "Antes de abrir el bloque, leeme cómo están los volúmenes",
+        "Tirame cómo está el mezclador ahora",
+        "¿Qué fuentes están muteadas en el mezclador?",
+        "Leeme los faders, uno por uno",
+        "Pasame los volúmenes de cada fuente y el nivel del programa",
+        "Dame una lectura del mezclador, así veo qué está abierto"
       ],
       "tambien": [
         "audio_sources"
       ],
       "correctivas": [],
       "podadas": [
-        "listame las pistas de sonido"
+        "listame las pistas de sonido",
+        "fijate el nivel antes de tocar nada",
+        "¿Cuánto marca en dB el micrófono de Laura?"
       ]
     },
     "scene_switch": {
@@ -254,7 +283,7 @@
         "Cortá directo a la escena Cierre, de una",
         "Corte a cámara 3, ya, que el conductor se paró.",
         "Cortá a la escena Doble cuadro y después a la cámara 1.",
-        "¿Podés cortar directo al plano del entrevistado? Está hablando",
+        "Cortá directo al plano del entrevistado",
         "Mandá directo al programa la escena Tanda, sin armar"
       ],
       "tambien": [],
@@ -272,27 +301,33 @@
         "sacá la del cierre al aire ya",
         "poné la de apertura",
         "pasa al plano dos",
-        "Corte directo a la escena de la entrevista, sin pasar por preview"
+        "Corte directo a la escena de la entrevista, sin pasar por preview",
+        "¿Podés cortar directo al plano del entrevistado? Está hablando"
       ]
     },
     "scene_preview": {
       "frases": [
         "armá la próxima",
-        "prepará el bloque que sigue",
+        "armá en el previo la escena que viene, sin sacarla",
         "dejá lista la de los sponsors",
         "dejame lista la del invitado en pre",
         "no la saques todavia, solo dejala lista",
         "preparala pero no la tires",
-        "cargala en preview nada mas",
+        "armala en el bus de preview, no al programa",
         "alista la de despedida en el bus previo",
         "Cargá la escena Entrevista en preview, sin salir",
         "Dejame armada en PVW la escena del invitado",
         "Poné en previo la escena Cierre, que todavía no sale",
-        "Prepará la próxima escena en preview para el take"
+        "Prepará la próxima escena en preview para el take",
+        "armá en preview la escena Tribuna",
+        "subí al preview la escena Panel sin cortar"
       ],
       "tambien": [],
       "correctivas": [],
-      "podadas": []
+      "podadas": [
+        "prepará el bloque que sigue",
+        "cargala en preview nada mas"
+      ]
     },
     "scene_take": {
       "frases": [
@@ -310,7 +345,7 @@
         "Dale take, que entre lo que ya estaba armado",
         "Ya armé el plano en el bus de preview, hacé el take",
         "Ya está lista la escena en previo, hacé el take",
-        "Mandá al aire lo que está en el bus de preview."
+        "Dale take a lo que está en el bus de preview."
       ],
       "tambien": [],
       "correctivas": [
@@ -325,7 +360,8 @@
         "ahora sí, al aire",
         "Listo el preview con el invitado, take cuando te diga, ahora",
         "Take.",
-        "Listo el preview con el invitado, dale take ahora"
+        "Listo el preview con el invitado, dale take ahora",
+        "Mandá al aire lo que está en el bus de preview."
       ]
     },
     "scene_list": {
@@ -336,7 +372,18 @@
         "cómo se llaman las escenas que tengo",
         "listado de escenas, marcame la del aire",
         "no me acuerdo cómo se llama la escena de la entrevista, listalas",
-        "repasemos las escenas: cuál sale al aire y cuál está en espera"
+        "repasemos las escenas: cuál sale al aire y cuál está en espera",
+        "pasame el listado de tomas que tengo",
+        "enumerá las escenas y decime cuál está saliendo",
+        "tirame la lista de escenas",
+        "qué tomas hay creadas en el switcher",
+        "dame el listado de todas las escenas y sus carpetas",
+        "no encuentro la escena del cierre, listame todas",
+        "cuáles son las escenas cargadas",
+        "mostrame la lista de escenas del programa",
+        "repasame los nombres de todas las tomas",
+        "listame las tomas, así veo cuál está en el aire",
+        "enumerame las escenas por carpeta"
       ],
       "tambien": [],
       "correctivas": [],
@@ -346,7 +393,7 @@
       "frases": [
         "necesito una escena nueva",
         "creá una escena vacía que se llame Entrevista",
-        "necesito una toma nueva para deportes",
+        "necesito una escena nueva vacía para deportes",
         "Necesito una escena en blanco nueva, sin nada adentro",
         "Agregá una escena nueva vacía, después la lleno yo",
         "Escena nueva y vacía, ponele Reserva de nombre",
@@ -355,7 +402,12 @@
         "Abrí una escena nueva vacía, después la lleno yo",
         "Nueva escena: Móvil Rosario, en blanco",
         "Hacé una escena Bloque 4 sin nada todavía",
-        "Para el segmento del clima necesito una escena vacía llamada Clima"
+        "Para el segmento del clima necesito una escena vacía llamada Clima",
+        "Creame la escena Previa, vacía por ahora",
+        "Hacé una escena nueva que se llame Tribuna, sin nada",
+        "Sumá una escena vacía, llamala Panel",
+        "Escena en blanco nueva: Resumen",
+        "Creá una escena nueva, Móvil Córdoba, todavía vacía"
       ],
       "tambien": [
         "scene_define"
@@ -363,27 +415,37 @@
       "correctivas": [],
       "podadas": [
         "armame una escena para la entrevista",
-        "Haceme una escena limpia llamada Reserva"
+        "Haceme una escena limpia llamada Reserva",
+        "necesito una toma nueva para deportes"
       ]
     },
     "transition_set": {
       "frases": [
         "cambiá la transición a corte",
-        "poné fundido de medio segundo",
+        "transición fundido de 500 milisegundos",
         "poné la transición en corte, sin fundido",
-        "poné un fundido para pasar de una toma a otra",
+        "cambiá la transición entre escenas a fundido",
         "Cambiá la transición a corte seco",
         "Poné swipe de 800 milisegundos",
         "Para el cierre, transición fade de 1500 ms",
         "Cambiá el tipo de transición a deslizar",
         "Alargá la transición a dos segundos",
-        "Volvé la transición a fundido de 500"
+        "Volvé la transición a fundido de 500",
+        "La transición que sea fade to color, 700 ms",
+        "Acortá la transición a 200 milisegundos",
+        "Sacá el fundido, transición en corte",
+        "Configurá la transición en fade de 300",
+        "Transición tipo slide, rápida, 400 milisegundos",
+        "Hacé más suave la transición: fade de un segundo y medio",
+        "Tipo de transición swipe, duración estándar"
       ],
       "tambien": [],
       "correctivas": [],
       "podadas": [
         "con que efecto paso de una toma a otra",
-        "sacá el fundido, quiero corte seco"
+        "sacá el fundido, quiero corte seco",
+        "poné fundido de medio segundo",
+        "poné un fundido para pasar de una toma a otra"
       ]
     },
     "source_list": {
@@ -393,10 +455,17 @@
         "que capas tiene armada esta escena",
         "decime qué capas tiene la escena Noticias y si están visibles",
         "enumerame las capas de esta toma",
-        "qué fuentes tiene la escena Debate",
-        "listame lo que hay en la escena de la entrevista",
+        "qué capas tiene adentro la escena Debate",
+        "listame capa por capa la escena de la entrevista",
         "¿Qué capas tiene la escena de entrevista?",
-        "Decime el orden de las capas de esta escena, de abajo a arriba"
+        "Decime el orden de las capas de esta escena, de abajo a arriba",
+        "decime las capas de la escena Panel, de abajo para arriba",
+        "mostrame el contenido de la escena Mesa, capa por capa",
+        "qué capas están visibles en esta escena",
+        "desglosame la escena Apertura por capas",
+        "enumerá las fuentes de la escena Cierre en orden",
+        "qué tiene adentro la toma de Entrevista",
+        "pasame las capas de esta toma con su ubicación"
       ],
       "tambien": [],
       "correctivas": [
@@ -407,7 +476,9 @@
       ],
       "podadas": [
         "mostrame las fuentes",
-        "decime que fuentes hay, no me muestres imagen"
+        "decime que fuentes hay, no me muestres imagen",
+        "qué fuentes tiene la escena Debate",
+        "listame lo que hay en la escena de la entrevista"
       ]
     },
     "source_add": {
@@ -419,7 +490,15 @@
         "Agregá una fuente nueva, Logo Canal, en la escena Noticias, en top-right",
         "Falta la cámara 3 en la escena Entrevista, agregala.",
         "Agregá una imagen del sponsor en pip-br en la escena Principal",
-        "Agregá la captura Elgato como fuente nueva en la escena Móvil, en left"
+        "Agregá la captura Elgato como fuente nueva en la escena Móvil, en left",
+        "Sumá una fuente de texto nueva en la escena Cierre, abajo",
+        "Agregá la cámara Cam 2 a la escena Panel, en right",
+        "Metele un logo nuevo a esta escena en pip-tl",
+        "Sumá al invitado 2 como fuente en la escena Entrevista, a la izquierda",
+        "En la escena Deportes agregá una imagen nueva, Escudo, arriba a la izquierda",
+        "Agregá la fuente Cam 1 también en la escena Debate",
+        "Añadí una fuente de video, Cortina, a la escena Apertura en full",
+        "Sumá una fuente de imagen, Placa Sponsor, en bottom-right"
       ],
       "tambien": [],
       "correctivas": [],
@@ -432,7 +511,7 @@
     "source_update": {
       "frases": [
         "ocultá el logo",
-        "corré la cámara chica a la izquierda",
+        "en la escena, mové la cámara chica a pip abajo a la izquierda",
         "agrandá el recuadro chico de la cámara 2 en la escena Mesa",
         "agrandá el recuadro del invitado",
         "Mandá el logo al frente de todas las capas",
@@ -458,14 +537,15 @@
         "hueco-juez"
       ],
       "podadas": [
-        "agrandá el pip"
+        "agrandá el pip",
+        "corré la cámara chica a la izquierda"
       ]
     },
     "source_remove": {
       "frases": [
         "quitá ese elemento de la escena",
         "sacá esa fuente que no va más",
-        "sacá esa capa de la escena, no a la persona",
+        "quitá esa fuente de la escena, en las otras que siga",
         "Sacá la fuente Reloj de la escena Noticiero, en las otras que quede.",
         "Quitá la fuente Invitado de la escena Doble cuadro.",
         "Eliminá la fuente de texto de la escena de noticias",
@@ -473,9 +553,10 @@
         "Quitá el título de la escena Apertura y dejá lo demás.",
         "Eliminá la cámara 3 del armado del debate, ya no va",
         "Quitá el zócalo de la escena Estudio.",
-        "Quitá el zócalo de la escena de cierre",
+        "Eliminá la fuente del zócalo en la escena de cierre",
         "Sobra el zócalo viejo en la apertura, borralo de ahí",
-        "Eliminá la fuente Logo Sponsor de la escena Cierre."
+        "Eliminá la fuente Logo Sponsor de la escena Cierre.",
+        "sacá la cámara 2 de la escena Mesa, nada más de ahí"
       ],
       "tambien": [],
       "correctivas": [
@@ -487,7 +568,9 @@
       ],
       "podadas": [
         "Ya no va más el invitado, quitá su video de la escena Doble cuadro.",
-        "Sobra el logo del sponsor en la escena Cierre, borralo de ahí."
+        "Sobra el logo del sponsor en la escena Cierre, borralo de ahí.",
+        "sacá esa capa de la escena, no a la persona",
+        "Quitá el zócalo de la escena de cierre"
       ]
     },
     "capture_program": {
@@ -496,12 +579,15 @@
         "cómo está saliendo al aire",
         "sacame una foto del programa, sólo lo que sale al aire",
         "pasame una foto del vivo",
-        "Mostrame qué está saliendo al aire ya mismo",
+        "Foto de la salida de programa ya mismo, sólo la escena del aire",
         "Foto del programa ahora, quiero ver el encuadre al aire",
         "¿Qué está saliendo al aire ahora mismo?",
         "Me dicen que la salida está en negro, sacale una foto al programa",
         "Sacame un fotograma de la señal de programa",
-        "¿Está saliendo negro? Foto del programa a 1920 de ancho"
+        "¿Está saliendo negro? Foto del programa a 1920 de ancho",
+        "se ve raro lo que sale, sacale una foto al programa",
+        "Capturame el programa tal cual sale, quiero chequear el encuadre",
+        "Pasame la imagen del aire en jpeg, a ver si quedó en negro"
       ],
       "tambien": [
         "imagen_analizar",
@@ -510,14 +596,15 @@
       "correctivas": [
         "esta saliendo en negro",
         "el vivo no tiene video",
-        "el vivo salio vacio",
-        "se ve raro lo que sale"
+        "el vivo salio vacio"
       ],
       "arregla": [
         "v2"
       ],
       "podadas": [
-        "sacame la imagen de lo que sale, no la lista"
+        "sacame la imagen de lo que sale, no la lista",
+        "Mostrame qué está saliendo al aire ya mismo",
+        "se ve raro lo que sale"
       ]
     },
     "capture_source": {
@@ -526,7 +613,18 @@
         "mostrame esa fuente sola",
         "capturá la fuente Isotipo y pasame cómo se ve",
         "Foto de la cámara 3 en png",
-        "Tirame una imagen de la cámara 1 para chequear el encuadre antes de usarla"
+        "Tirame una imagen de la cámara 1 para chequear el encuadre antes de usarla",
+        "Pasame un cuadro de la fuente Logo para ver cómo quedó",
+        "¿Cómo se ve la fuente Reloj? Mandame la imagen",
+        "Imagen de la escena Doble cuadro, en jpeg chiquito",
+        "A ver la fuente Placa Sponsor, sacale una foto",
+        "Mostrame la fuente Fondo Estudio tal cual está ahora",
+        "Una imagen de la fuente Titular, a ver si se lee",
+        "Sacame un pantallazo de la fuente Mapa",
+        "Fijate cómo luce la fuente Cortina y pasámela",
+        "Una foto de la escena Pronóstico tal como la dejé",
+        "Pasame cómo se ve la fuente Cámara Grúa en este momento",
+        "Imagen actual de la escena Split, a 800 píxeles"
       ],
       "tambien": [],
       "correctivas": [],
@@ -537,14 +635,14 @@
     "capture_feed": {
       "frases": [
         "traeme el cuadro de guest 2, quiero ver si llega video",
-        "Traeme el último cuadro de la cámara del que entró, parece clavada",
+        "Traeme un cuadro de guest 4, la cámara del que acaba de entrar",
         "mostrame el video del que aguarda",
         "Antes de pasarlo, quiero mirar el cuadro de su pantalla compartida del lugar 1",
-        "¿Qué está entrando por la cámara del lugar 3?",
+        "Dame el cuadro de guest 3, quiero ver qué manda su cámara",
         "Mirá el cuadro del preview del lobby, el de la posición uno",
         "Mostrame la señal que entra por guest 3",
         "Traeme el último cuadro de la cámara del invitado del lugar dos",
-        "¿Cómo me ve el lobby a mí? Traé la señal de operador",
+        "Traeme el cuadro del feed operator, a ver con qué imagen me ven",
         "¿Qué está compartiendo en su pantalla el del lugar uno? Mostrame el cuadro",
         "Sacame un cuadro del preview del lobby 1, quiero ver cómo llega",
         "¿Cómo me ve el lobby a mí? Dame el cuadro de operador",
@@ -563,7 +661,10 @@
       ],
       "podadas": [
         "la imagen del que entro quedo clavada",
-        "mirá si el invitado 2 tiene imagen"
+        "mirá si el invitado 2 tiene imagen",
+        "Traeme el último cuadro de la cámara del que entró, parece clavada",
+        "¿Qué está entrando por la cámara del lugar 3?",
+        "¿Cómo me ve el lobby a mí? Traé la señal de operador"
       ]
     },
     "room_status": {
@@ -608,7 +709,10 @@
         "Admití a Carolina, ya la chequeé",
         "Entrá al invitado 3 del lobby a la sala",
         "El que dice Ramiro en el lobby, dejalo pasar",
-        "Admití sólo a Nicolás, los demás siguen esperando"
+        "Hacé pasar a Nicolás del lobby a la sala",
+        "Admití al corresponsal de Rosario, que entre",
+        "Que entre a la sala Hernán",
+        "Abrile la puerta del lobby a Valeria"
       ],
       "tambien": [
         "room_status"
@@ -620,7 +724,8 @@
         "v9-banco"
       ],
       "podadas": [
-        "dale acceso al que aguarda"
+        "dale acceso al que aguarda",
+        "Admití sólo a Nicolás, los demás siguen esperando"
       ]
     },
     "participant_reject": {
@@ -628,18 +733,27 @@
         "rechazá a ese",
         "no lo dejes entrar",
         "negale la entrada al que está esperando en el lobby",
-        "no lo dejes entrar, esta esperando todavia",
+        "al que espera en el lobby no lo admitas, rechazalo",
         "ese que está esperando no es invitado, negale el ingreso",
         "no, a ese no lo quiero adentro, rechazalo en la puerta",
         "El que dice test123 en el lobby, rechazalo",
         "A Martín no lo hagas pasar, cerrale la sesión",
         "Negale el ingreso a Gustavo, hoy no sale",
-        "No admitas a Lucía, rechazale la entrada"
+        "No admitas a Lucía, rechazale la entrada",
+        "Rechazá a Esteban del lobby",
+        "A Carla no la admitas, sacala del lobby",
+        "Ese del lobby no pasa, rechazale el ingreso",
+        "No lo hagas pasar a Ramiro, rechazalo",
+        "Rechazá la solicitud de entrada de Pablo",
+        "Al segundo del lobby rechazalo, no entra",
+        "Ese que espera se equivocó de sala, rechazalo",
+        "No admitas a Tomás, que no pase del lobby"
       ],
       "tambien": [],
       "correctivas": [],
       "podadas": [
-        "sacá a ese del lobby"
+        "sacá a ese del lobby",
+        "no lo dejes entrar, esta esperando todavia"
       ]
     },
     "participant_kick": {
@@ -650,8 +764,13 @@
         "ese invitado ya adentro está molestando, desconectalo",
         "echá de la sala a Pérez, ya estaba adentro",
         "Echá a Juan de la sala, está haciendo lío",
-        "Kickeá a Sofía, ya no tiene que estar",
-        "Afuera Pedro, que se vaya de la sala"
+        "Kickeá a Sofía de la sala, ya no tiene que estar adentro",
+        "Afuera Pedro, que se vaya de la sala",
+        "Rajá a ese de la sala, no es invitado",
+        "Afuera Lucía, sacala de la sala",
+        "Expulsá a Benítez, está adentro y no corresponde",
+        "Tirá afuera de la sala al que entró con el nombre raro",
+        "Sacá de la sala a Acosta, se terminó su participación"
       ],
       "tambien": [],
       "correctivas": [
@@ -663,14 +782,23 @@
         "v2"
       ],
       "podadas": [
-        "sacalo vos al invitado 2"
+        "sacalo vos al invitado 2",
+        "Kickeá a Sofía, ya no tiene que estar"
       ]
     },
     "participant_request": {
       "frases": [
         "pedile que se mute",
         "pedile a Carla que active su micrófono",
-        "pedile al invitado que mutee el micrófono, se le acopla"
+        "pedile al invitado que mutee el micrófono, se le acopla",
+        "pedile a Nico que apague la cámara",
+        "decile que baje la mano",
+        "solicitale a Pedro que baje la mano",
+        "pedile que desmutee el micro",
+        "solicitale a Ana que apague el video",
+        "decile a Gustavo que se mutee",
+        "solicitale al invitado que prenda el micrófono",
+        "pedile al 7 que se silencie"
       ],
       "tambien": [
         "chat_send"
@@ -697,9 +825,11 @@
         "poné en el chat general que hagan silencio",
         "decile a Martín por el chat que prenda la cámara",
         "tirá un mensaje a todos: pausa de cinco minutos",
-        "escribile a Carla que tiene la luz de espaldas",
-        "mandá por chat el link del formulario a toda la sala",
-        "mensaje a la sala: el que no habla, que se mutee"
+        "mandale por chat a Carla: tenés la luz de espaldas",
+        "tirá en el chat para todos: completen el formulario del link",
+        "mensaje a la sala: el que no habla, que se mutee",
+        "escribile a Pablo por chat: estás tercero, preparate",
+        "mandá al chat: gracias a todos, cerramos acá"
       ],
       "tambien": [],
       "correctivas": [
@@ -714,22 +844,35 @@
         "decile que se acerque al micrófono",
         "escribile vos al invitado",
         "mandale un texto al que se cayo",
-        "avisale que arrancamos en dos minutos"
+        "avisale que arrancamos en dos minutos",
+        "escribile a Carla que tiene la luz de espaldas",
+        "mandá por chat el link del formulario a toda la sala"
       ]
     },
     "chat_history": {
       "frases": [
         "qué escribieron en el chat",
         "leeme los mensajes",
-        "leeme lo que escribio esa persona",
+        "leeme los últimos mensajes del chat, quiero ver quién escribió",
         "Repasemos el chat: los últimos diez, de quién y a quién",
-        "Revisá el chat, me parece que me escribieron hace un rato"
+        "Revisá el chat, me parece que me escribieron hace un rato",
+        "Fijate el chat, ¿hay algo nuevo?",
+        "Revisá los mensajes del chat, creo que producción mandó algo",
+        "¿Qué dice el chat? Leeme lo de recién",
+        "Mostrame los mensajes más recientes del chat",
+        "Che, ¿quién escribió último en el chat?",
+        "Pasame las últimas líneas del chat, nada más",
+        "leeme el chat desde arriba, los últimos quince",
+        "Dame un repaso rápido del chat",
+        "A ver el chat, ¿qué se estuvo escribiendo?"
       ],
       "tambien": [
         "chat_wait"
       ],
       "correctivas": [],
-      "podadas": []
+      "podadas": [
+        "leeme lo que escribio esa persona"
+      ]
     },
     "room_link": {
       "frases": [
@@ -737,8 +880,11 @@
         "cómo entra la gente",
         "pasame el link para que entre el invitado, con QR",
         "Pasame el enlace remoto, el del dominio público",
-        "Dame el link local, que están en la misma red",
-        "El invitado está fuera del estudio, pasame el link remoto con PIN"
+        "Pasame el enlace local con QR, que están en la misma red",
+        "El invitado está fuera del estudio, pasame el link remoto con PIN",
+        "Mandame el link de ingreso con su QR",
+        "Dame el enlace de entrada ya con el PIN adentro",
+        "Enlace remoto con PIN incluido, para los de afuera"
       ],
       "tambien": [],
       "correctivas": [
@@ -751,7 +897,9 @@
         "v2",
         "v9-banco"
       ],
-      "podadas": []
+      "podadas": [
+        "Dame el link local, que están en la misma red"
+      ]
     },
     "speaker_next": {
       "frases": [
@@ -763,13 +911,17 @@
         "Terminó, largá al siguiente",
         "Listo este, al aire el próximo de la fila",
         "Dale paso al que viene",
-        "Terminó la concejal, que hable el siguiente anotado",
+        "Terminó la concejal, pasá al que sigue",
         "Rotá al próximo orador de la lista de espera",
-        "Ya se le terminó el tiempo, entrá al siguiente"
+        "Ya se le terminó el tiempo, entrá al siguiente",
+        "Adelante el que viene",
+        "Ya fue, dale al siguiente"
       ],
       "tambien": [],
       "correctivas": [],
-      "podadas": []
+      "podadas": [
+        "Terminó la concejal, que hable el siguiente anotado"
+      ]
     },
     "speakers_status": {
       "frases": [
@@ -779,14 +931,15 @@
         "¿Cómo viene el orden? ¿Quién sigue para hablar?",
         "Parece que alguien se pasó de tiempo, fijate cómo está la ronda",
         "¿Quién sigue en la fila de oradores?",
-        "¿El que está al aire ya quedó en negativo?",
+        "¿Cómo viene de tiempo el orador al aire? Mirá la fila",
         "¿Quién se pasó de tiempo? Dame cuánto usó cada uno",
         "¿Cómo viene la conexión de los que esperan turno?",
         "Mostrame el orden de la fila y quién ya habló",
         "¿Cuántos quedan esperando turno y cuánto usó cada uno?",
-        "Necesito el contacto del próximo en la cola",
+        "Estado de la fila de oradores con info y contacto de cada uno",
         "mostrame la fila de oradores",
-        "quienes estan esperando para hablar"
+        "quienes estan esperando para hablar",
+        "Dame el estado de la ronda de oradores"
       ],
       "tambien": [
         "speaker_time"
@@ -797,7 +950,9 @@
       ],
       "podadas": [
         "como va el tiempo del expositor actual",
-        "¿Se pasó de tiempo el que tiene la palabra?"
+        "¿Se pasó de tiempo el que tiene la palabra?",
+        "¿El que está al aire ya quedó en negativo?",
+        "Necesito el contacto del próximo en la cola"
       ]
     },
     "speaker_time": {
@@ -805,7 +960,7 @@
         "ponele dos minutos más de tiempo para hablar a Pérez",
         "Bajale el tiempo a ese a un minuto",
         "ponele cinco minutos al que sigue",
-        "Dale cuatro minutos a López para hablar",
+        "Ponele 4:00 de tiempo para hablar a López",
         "Asignale tres minutos para hablar al orador Gómez",
         "Dale un minuto y medio más a la oradora que está hablando",
         "Achicale a Laura el tiempo a 1:30",
@@ -813,13 +968,19 @@
         "Que Martínez tenga 2:30 para hablar",
         "Subile el tiempo a Ruiz a diez minutos, es la entrevista central",
         "Seteá 3:00 de tiempo asignado para Paz",
-        "El intendente pidió más, ponele 6:00 en su reloj"
+        "El intendente pidió más, ponele 6:00 en su reloj",
+        "A Vega ponele 2:00 para hablar",
+        "Ajustale el tiempo a Rojas, dejalo en 5:00",
+        "El tiempo de Suárez, ponelo en tres minutos",
+        "Asignale a la doctora siete minutos para hablar",
+        "Sumale un minuto al tiempo de Herrera, que está hablando"
       ],
       "tambien": [],
       "correctivas": [],
       "podadas": [
         "cortale el tiempo a ese",
-        "dale dos minutos más"
+        "dale dos minutos más",
+        "Dale cuatro minutos a López para hablar"
       ]
     },
     "speaker_on_air": {
@@ -830,13 +991,17 @@
         "poné al aire a Marta, que está esperando",
         "ponelo al aire a Ramiro, que hable",
         "poné al aire a Gómez y arrancá su reloj",
-        "dale la palabra a ese",
+        "dale la palabra a ese orador, ponelo al aire",
         "Sacá del aire a Ramiro, que vuelva a esperar",
-        "Que empiece a hablar la diputada, ponela en el aire con su tiempo",
+        "Poné al aire a la diputada como oradora, que corra su reloj",
         "Sacá del aire a la concejal, que vuelva a la fila",
         "Dale la palabra al de Rosario, arranca su cronómetro",
         "ya habló Pérez, bajalo del aire",
-        "poné a Tomás al aire ahora, aunque no sea su turno"
+        "poné a Tomás al aire ahora, aunque no sea su turno",
+        "poné al aire a Ruiz, le toca hablar",
+        "sacá del aire a Gómez, terminó su turno",
+        "ponela al aire a Silvia con su cronómetro",
+        "bajalo del aire a Pereyra, que quede como que habló"
       ],
       "tambien": [],
       "correctivas": [],
@@ -844,14 +1009,16 @@
         "subi al expositor que aguarda",
         "dejalo hablar",
         "abrile el turno de palabra",
-        "Se le acabó el tiempo al orador, sacalo del aire"
+        "Se le acabó el tiempo al orador, sacalo del aire",
+        "dale la palabra a ese",
+        "Que empiece a hablar la diputada, ponela en el aire con su tiempo"
       ]
     },
     "record_start": {
       "frases": [
         "poné a grabar esto",
         "dale rec",
-        "arranca el registro en disco",
+        "arrancá a grabar el programa",
         "arrancá la grabación, que ya salimos",
         "Arrancá la grabación, que todavía no estamos grabando",
         "¿Todavía no arrancó la grabación? Largala ya",
@@ -860,12 +1027,17 @@
         "Iniciá la grabación, la productora quiere el archivo",
         "Largá a grabar antes de la apertura",
         "Empezá a guardar el programa en disco",
-        "El rec no está en rojo, poné a grabar"
+        "El rec no está en rojo, poné a grabar",
+        "Iniciá la grabación ahora",
+        "Poné rec, quiero tener el programa grabado",
+        "Arrancá a grabar desde este bloque",
+        "Necesito que empiece a grabar ya"
       ],
       "tambien": [],
       "correctivas": [],
       "podadas": [
-        "¿No estamos grabando? Poné a grabar ya"
+        "¿No estamos grabando? Poné a grabar ya",
+        "arranca el registro en disco"
       ]
     },
     "record_stop": {
@@ -876,7 +1048,9 @@
         "corta la grabacion, la transmision sigue",
         "dejá de grabar, terminamos",
         "Terminó el acto, dejá de grabar en disco",
-        "stop rec"
+        "stop rec",
+        "cortá lo que se está grabando",
+        "parar grabación"
       ],
       "tambien": [],
       "correctivas": [
@@ -894,22 +1068,29 @@
         "arrancá la transmisión",
         "arrancá la transmisión RTMP con la clave de YouTube",
         "Salimos al aire, arrancá a transmitir por RTMP",
-        "Estamos en hora, mandá la señal al aire ya",
+        "Estamos en hora, arrancá la transmisión",
         "Empezá a emitir por RTMP con lo que está configurado",
         "Dale start al streaming",
-        "Abrí la transmisión, entramos en vivo"
+        "Abrí la transmisión, entramos en vivo",
+        "volvé a arrancar la transmisión",
+        "Salimos en vivo, iniciá la transmisión",
+        "Prendé la transmisión, ya estamos",
+        "Iniciá la transmisión con esta clave nueva",
+        "Es la hora, empezá a emitir",
+        "Iniciá el envío al servidor, salimos"
       ],
       "tambien": [],
       "correctivas": [
         "arranca la transmision de nuevo",
-        "volve a salir al aire",
         "inicia el envio"
       ],
       "arregla": [
         "v2"
       ],
       "podadas": [
-        "mandá a youtube"
+        "mandá a youtube",
+        "Estamos en hora, mandá la señal al aire ya",
+        "volve a salir al aire"
       ]
     },
     "stream_stop": {
@@ -918,14 +1099,14 @@
         "sacanos de youtube",
         "corta la transmision pero segui grabando",
         "bajanos del aire, el rec sigue",
-        "terminala, cortá el vivo",
+        "terminá la transmisión, bajanos del aire",
         "Cortá la transmisión, bajamos del aire",
         "Pará el stream RTMP que está saliendo",
         "Cortá la transmisión ya, bajamos del aire",
         "Cortá la transmisión en vivo, terminamos",
         "Apagá la transmisión, se filtró algo que no va",
         "Detené el envío en vivo a la plataforma",
-        "Cortá la emisión en vivo, que no salga más nada",
+        "Detené la transmisión que está saliendo, que no salga más nada",
         "dale, cortá la transmisión y bajanos del aire",
         "detené la transmisión que está saliendo ahora"
       ],
@@ -939,20 +1120,26 @@
       ],
       "podadas": [
         "dale, sacanos del aire",
-        "termina el vivo ahora"
+        "termina el vivo ahora",
+        "terminala, cortá el vivo",
+        "Cortá la emisión en vivo, que no salga más nada"
       ]
     },
     "status": {
       "frases": [
         "cómo venimos de CPU y fps",
         "dame el estado del equipo: aire, grabación y codificador",
-        "estamos al aire?",
+        "estado general: ¿estamos transmitiendo?",
         "resumen del appliance: qué escena está al aire y cuánto llevamos transmitiendo",
         "estamos perdiendo cuadros?",
         "se entrecorta lo que sale",
-        "¿estamos grabando y hace cuánto?",
+        "dame el estado: grabación, tiempo y escena al aire",
         "cuántos cuadros perdió el codificador hasta ahora",
-        "chequeo general antes de salir: transmisión, grabación, CPU"
+        "chequeo general antes de salir: transmisión, grabación, CPU",
+        "algo anda mal, pasame el estado general del equipo",
+        "se traba todo, fijate CPU y cuadros perdidos",
+        "estado del appliance, rápido",
+        "cómo está todo: aire, rec, CPU"
       ],
       "tambien": [
         "network_status"
@@ -960,9 +1147,7 @@
       "correctivas": [
         "el vivo viene entrecortado",
         "el envio se interrumpio",
-        "la maquina esta lenta",
-        "algo anda mal y no se que",
-        "se traba todo"
+        "la maquina esta lenta"
       ],
       "arregla": [
         "v2"
@@ -972,7 +1157,11 @@
         "no queda espacio para grabar",
         "cómo venimos",
         "dame un panorama",
-        "dame un resumen general"
+        "dame un resumen general",
+        "estamos al aire?",
+        "¿estamos grabando y hace cuánto?",
+        "algo anda mal y no se que",
+        "se traba todo"
       ]
     },
     "network_status": {
@@ -982,7 +1171,16 @@
         "¿Está levantado el túnel WireGuard? Pasame el estado de red del aparato",
         "¿el HTTPS del equipo está andando?",
         "¿el WireGuard está conectado o se cayó?",
-        "estado de red: IPs, túnel y HTTPS"
+        "estado de red: IPs, túnel y HTTPS",
+        "revisá la red del aparato: túnel, HTTPS y enlaces",
+        "pasame el estado del túnel y del HTTPS",
+        "chequeá el acceso por red al aparato",
+        "¿está todo bien con la red para los remotos?",
+        "¿el túnel está levantado y el HTTPS responde?",
+        "estado de red del equipo, con túnel y enlaces",
+        "fijate la red del aparato antes de que entren los invitados",
+        "¿anda el HTTPS o hay que revisar el túnel?",
+        "mirá cómo está el acceso de red de los invitados al gateway"
       ],
       "tambien": [
         "status"
@@ -1013,26 +1211,46 @@
         "listame lo que subieron los invitados",
         "dejame ver qué subió el invitado",
         "listado de archivos compartidos con nombre y tamaño",
-        "necesito el id del archivo que compartió Marta"
+        "listame los compartidos con su id, busco el de Marta",
+        "listame los archivos compartidos",
+        "qué archivos subió la gente de la sala",
+        "listado de lo compartido por los participantes",
+        "fijate qué archivos compartieron hasta ahora",
+        "dame los archivos que compartió la gente, con id",
+        "¿qué adjuntaron los invitados?",
+        "listá lo compartido con quién lo subió",
+        "decime qué subieron los invitados, con tamaño",
+        "archivos compartidos: listámelos",
+        "qué compartieron en la sala hasta ahora",
+        "revisá la lista de archivos que subieron los participantes"
       ],
       "tambien": [],
       "correctivas": [],
-      "podadas": []
+      "podadas": [
+        "necesito el id del archivo que compartió Marta"
+      ]
     },
     "capture_multiview": {
       "frases": [
         "quiero el multiview",
         "dame el multiview",
-        "a ver todas las camaras de una",
+        "a ver todas las escenas en una sola imagen, tipo multiview",
         "Quiero el multiview de todas las escenas con sus nombres",
         "Armame una sola imagen con cada escena en cuadrícula",
         "Tirame el multiview con todas las escenas en grilla",
         "tirame la grilla de escenas en png",
-        "¿cómo quedaron las escenas? una sola imagen con todas"
+        "¿cómo quedaron las escenas? una sola imagen con todas",
+        "sacame el multiview en png",
+        "tirame una imagen con las escenas una al lado de la otra",
+        "multiview de escenas, dale",
+        "capturá el multiview completo",
+        "mandame el multiview así veo cómo están las tomas"
       ],
       "tambien": [],
       "correctivas": [],
-      "podadas": []
+      "podadas": [
+        "a ver todas las camaras de una"
+      ]
     },
     "capture_people": {
       "frases": [
@@ -1048,17 +1266,21 @@
         "Traeme una imagen de cada uno de los que están en la sala, todos",
         "Pasame las caras de todo el mundo, con estado y de dónde sale cada una",
         "Sacame retratos sólo de los que ya están adentro",
-        "Antes de armar el panel quiero ver la cara de cada uno conectado"
+        "Pasame una imagen de todos, uno por uno, con su estado",
+        "Imágenes de toda la gente de la sala, sólo los que esperan",
+        "Quiero la galería completa de personas: lobby, sala y fila",
+        "Mandame una imagen por persona, de todos los que hay"
       ],
       "tambien": [],
       "correctivas": [],
       "podadas": [
-        "mostrame a todos los invitados"
+        "mostrame a todos los invitados",
+        "Antes de armar el panel quiero ver la cara de cada uno conectado"
       ]
     },
     "capture_person": {
       "frases": [
-        "mostrame a Marta",
+        "quiero ver a Marta sola, cómo sale en su cámara ahora",
         "a ver la cara del invitado 2",
         "traeme la imagen de la cámara del invitado Diego, el que habla",
         "Mostrame la cara de Juan Pérez, quiero ver si tiene buena luz",
@@ -1070,7 +1292,9 @@
         "Mostrame a Laura Giménez, quiero verle la cara antes de sacarla",
         "Quiero ver a Martín Gómez, cámara y lo que comparte",
         "¿Cómo se ve Martina Gómez? Traeme su imagen",
-        "¿cómo se ve la cámara de Sofía que está en el lobby?"
+        "¿cómo se ve la cámara de Sofía que está en el lobby?",
+        "Tomás está en el lobby, traeme cómo se lo ve",
+        "dejame ver a Graciela antes de admitirla, su cámara en vivo"
       ],
       "tambien": [],
       "correctivas": [],
@@ -1079,7 +1303,8 @@
       ],
       "podadas": [
         "sacale una foto al que esta hablando",
-        "Imagen de la persona con id 57, rápido"
+        "Imagen de la persona con id 57, rápido",
+        "mostrame a Marta"
       ]
     },
     "capture_sequence": {
@@ -1096,18 +1321,21 @@
         "Sacá una ráfaga de cuadros de Juan a ver si gesticula",
         "¿El clip avanza o está trabado? Capturá unos cuadros separados",
         "Grabame diez cuadros cada medio segundo de la transición",
-        "¿Laura está hablando o se congeló? capturale unos cuadros en el tiempo",
-        "tomá veinte cuadros cada 100 ms de la fuente Cámara 2"
+        "sacale a Laura doce cuadros cada 250 ms, a ver si está congelada",
+        "tomá veinte cuadros cada 100 ms de la fuente Cámara 2",
+        "tirame seis cuadros del programa, uno por segundo, a ver si se tilda",
+        "capturá cuadro a cuadro la transición entre escenas"
       ],
       "tambien": [],
       "correctivas": [],
       "podadas": [
-        "sacame varias fotos seguidas"
+        "sacame varias fotos seguidas",
+        "¿Laura está hablando o se congeló? capturale unos cuadros en el tiempo"
       ]
     },
     "capture_ui": {
       "frases": [
-        "mostrame la pantalla del aparato",
+        "sacale un pantallazo a la ventana del operador de la app",
         "sacale una captura a la pantalla de nuestra app, la ventana del operador",
         "sacale una captura a la ventana principal de la app",
         "Mandame un pantallazo de la ventana principal como la ve el operador",
@@ -1115,13 +1343,21 @@
         "Quiero una imagen de todas las ventanas de la aplicación a la vez",
         "pantallazo de la aplicación en png, quiero ver un botón raro",
         "capturá la app entera, window all, a 1280 de ancho",
-        "screenshot de la aplicación como la veo yo en cabina"
+        "screenshot de la aplicación como la veo yo en cabina",
+        "screenshot de nuestra interfaz, la ventana principal nada más",
+        "quiero ver cómo está la pantalla del operador, sacale captura a la app",
+        "pantallazo de todas las ventanas de nuestra aplicación, window all",
+        "capturá la ventana main de la aplicación en calidad alta",
+        "mandame un screenshot de la app para pasarle a soporte",
+        "necesito una captura de la app, main, en png",
+        "tomá una imagen de la interfaz de la aplicación ahora mismo"
       ],
       "tambien": [],
       "correctivas": [],
       "podadas": [
         "como se ve la pestaña de medios",
-        "sacale una foto a la interfaz"
+        "sacale una foto a la interfaz",
+        "mostrame la pantalla del aparato"
       ]
     },
     "chat_wait": {
@@ -1133,9 +1369,14 @@
         "aguardá el mensaje del entrevistado",
         "Le pregunté a Juan por el chat, esperá su respuesta hasta dos minutos",
         "Esperá el mensaje de la licenciada Ruiz en el chat de la sala",
-        "Ya le mandé la pregunta, ahora esperá a ver qué tipea",
-        "Aguantá hasta que el invitado 3 escriba algo",
-        "Esperá la respuesta escrita del oyente, máximo 120 segundos"
+        "Le pregunté por escrito a Juan, esperá lo que responda",
+        "Esperá la respuesta escrita del invitado 3, hasta 90 segundos",
+        "Esperá la respuesta escrita del oyente, máximo 120 segundos",
+        "Esperá que Martín conteste por escrito, dale 45 segundos",
+        "Aguardá la respuesta de Lucía en la sala, máximo dos minutos",
+        "A ver qué responde por escrito el corresponsal, esperalo",
+        "Esperá hasta 20 segundos a que Ana responda",
+        "Esperá lo que escriba el invitado 1, y traeme sus mensajes"
       ],
       "tambien": [],
       "correctivas": [
@@ -1145,7 +1386,9 @@
         "v9-banco"
       ],
       "podadas": [
-        "quedate esperando la respuesta del invitado"
+        "quedate esperando la respuesta del invitado",
+        "Ya le mandé la pregunta, ahora esperá a ver qué tipea",
+        "Aguantá hasta que el invitado 3 escriba algo"
       ]
     },
     "gateway_restart": {
@@ -1156,13 +1399,24 @@
         "la sala no contesta nada, reiniciá el gateway",
         "el admitir no hace nada, el gateway murió, reinicialo",
         "se trabó la sala de invitados, dale un reinicio",
-        "hay que resetear el gateway, se reconectan solos después",
-        "gateway colgado otra vez, reinicio ya"
+        "el proceso del gateway no contesta, reiniciá la sala",
+        "gateway colgado otra vez, reinicio ya",
+        "reiniciá el gateway, la sala está colgada",
+        "el proceso de la sala no responde, reinicialo",
+        "los invitados no pueden hacer nada, el gateway está muerto, reinicio",
+        "reinicio del proceso del gateway, se tildó",
+        "el gateway dejó de responder, restartealo",
+        "dale un restart al proceso de la sala",
+        "la sala está frizada, reiniciá el gateway que ya vuelven",
+        "hay que reiniciar la sala, el gateway no contesta",
+        "restart del gateway, está clavado",
+        "la sala quedó trabada, reiniciá su proceso"
       ],
       "tambien": [],
       "correctivas": [],
       "podadas": [
-        "reinicia el servidor de invitados"
+        "reinicia el servidor de invitados",
+        "hay que resetear el gateway, se reconectan solos después"
       ]
     },
     "grabacion_individual": {
@@ -1170,22 +1424,26 @@
         "grabame a cada invitado por separado",
         "quiero pistas separadas de cada camara",
         "quiero el audio de cada micrófono en su propio archivo",
-        "arrancá a grabar cada cámara aparte del programa, después edito",
+        "Grabá cada cámara en su propio archivo, además del programa",
         "además del programa, grabame las fuentes sueltas",
         "arrancá la grabación ISO de todas las entradas de la escena al aire",
-        "prendé el grabado por entrada que hay que reeditar",
+        "Prendé el grabado por separado de cada entrada, que hay que reeditar",
         "Quiero una grabación separada de cada entrada, tipo iso",
         "Sacame un archivo propio del invitado uno aparte del programa",
         "Grabá cada entrada por separado para la edición",
         "Pará la grabación por separado del invitado dos",
         "Grabá aparte la cámara del conductor, además del programa",
-        "Frená la grabación individual de todas las entradas"
+        "Frená la grabación individual de todas las entradas",
+        "Grabá separadas todas las entradas que están en el aire",
+        "Cada fuente a su propio archivo, para el editor"
       ],
       "tambien": [],
       "correctivas": [],
       "podadas": [
         "que quede cada cámara grabada aparte, después edito",
-        "necesito los ISO de cada entrada"
+        "necesito los ISO de cada entrada",
+        "arrancá a grabar cada cámara aparte del programa, después edito",
+        "prendé el grabado por entrada que hay que reeditar"
       ]
     },
     "guest_source_add": {
@@ -1193,7 +1451,20 @@
         "sumá al invitado del slot uno",
         "agrega la pantalla que esta compartiendo",
         "sumá la pantalla que comparte el invitado a esta escena",
-        "sumá la cámara del lugar 6 en third-2 de la escena Mesa"
+        "sumá la cámara del lugar 6 en third-2 de la escena Mesa",
+        "meteme la pantalla compartida del lugar 2 en la escena Charla",
+        "la cámara del slot 5, sumala en la escena del aire",
+        "quiero la cámara del lugar 7 en la escena, abajo al centro",
+        "traé la cámara del lugar 8 a esta escena, en el tercio 1",
+        "agregá la pantalla que comparte el del lugar 4, arriba",
+        "sumá la cámara del lugar 1 en pip abajo a la izquierda",
+        "el invitado del lugar 2, sumalo a la escena Noticias a la derecha",
+        "necesito sumar la pantalla compartida del invitado 3 a esta toma",
+        "metele a Debate la cámara del lugar 5, mitad de abajo",
+        "sumá la cámara del lugar 2 en el cuadrante top-right",
+        "que se vea la cámara del slot 3 en la escena Mesa",
+        "la cámara del invitado 1 sumala a la toma Apertura",
+        "colgá la cámara del invitado del lugar 3 en la escena Charla, arriba"
       ],
       "tambien": [],
       "correctivas": [],
@@ -1220,17 +1491,25 @@
       "frases": [
         "hacelos pasar a todos",
         "admiti a todos los que estan esperando",
-        "que entren todos",
+        "hacé pasar a todos, no dejes a nadie esperando",
         "dejá entrar a todos juntos",
-        "admitir a todos"
+        "admitir a todos",
+        "que pasen todos los que están aguardando",
+        "hacé pasar a todo el mundo",
+        "admití a todos de una",
+        "dale paso a todos",
+        "los que esperan, todos para adentro",
+        "admití a todos por orden de llegada"
       ],
       "tambien": [],
       "correctivas": [],
-      "podadas": []
+      "podadas": [
+        "que entren todos"
+      ]
     },
     "participant_profile": {
       "frases": [
-        "Anotale a este que es el intendente de Morón",
+        "cargale en la información a este invitado: jefe de gabinete de Morón",
         "cambiá la información del invitado Ruiz: concejal de Quilmes",
         "anotame quien es y de donde viene",
         "actualizá los datos de contacto del invitado 3",
@@ -1239,14 +1518,21 @@
         "el del lugar 3 figura como Invitado, ponele de nombre Carlos Gómez",
         "en la info de Ramiro poné: periodista de Rosario",
         "corregile el nombre a Gonzalo, lo escribió con s",
-        "sumale en info a la diputada: bloque oficialista, habla segunda"
+        "sumale en info a la diputada: bloque oficialista, habla segunda",
+        "cambiale el nombre a Invitado 4 por Rocío Díaz",
+        "actualizá la info de la senadora: presidenta de la comisión",
+        "el perfil de Andrea dice Andre, corregile el nombre",
+        "en el tablero Ramos aparece sin cargo, poné economista en su info",
+        "modificá los datos de Luis: nombre completo Luis Ferreyra",
+        "editá el perfil de Tomás, info: vecino de Lanús"
       ],
       "tambien": [],
       "correctivas": [],
       "podadas": [
         "quien es este",
         "dejale la ficha a ese invitado",
-        "Completale la ficha a ese invitado: es concejal de Quilmes"
+        "Completale la ficha a ese invitado: es concejal de Quilmes",
+        "Anotale a este que es el intendente de Morón"
       ]
     },
     "participant_requeue": {
@@ -1260,23 +1546,40 @@
         "Sofía ya tuvo su turno, a la cola de nuevo",
         "Terminó Luis, que quede otra vez esperando al final",
         "Ya habló la concejal, reenfilala para una segunda vuelta",
-        "El de la camisa roja ya pasó; que haga fila otra vez"
+        "El de la camisa roja ya habló, devolvelo al fondo de la fila",
+        "Marta ya habló, que quede última otra vez",
+        "Ya tuvo su turno Aguirre, que vuelva a esperar al fondo",
+        "El que ya habló, devolvelo último",
+        "Ya habló el vecino, que espere otra vez al último",
+        "Molina ya usó su turno, devolvelo al fondo",
+        "Ese ya habló, ponelo otra vez al final"
       ],
       "tambien": [],
       "correctivas": [],
       "podadas": [
         "devolvelo a la espera",
-        "mandalo de nuevo a la fila"
+        "mandalo de nuevo a la fila",
+        "El de la camisa roja ya pasó; que haga fila otra vez"
       ]
     },
     "participant_talk": {
       "frases": [
-        "necesito decirle algo por privado a Laura antes de que entre",
+        "conectame en privado con Laura antes de hacerla pasar",
         "quiero una línea privada con el del lobby",
         "hablemos por privado con Nicolás antes de que entre",
         "hablale por monitoreo a Martín mientras espera",
-        "prendeme el talkback con Gustavo, el que espera",
-        "el del lobby no sabe cuándo entra, hablemos en privado"
+        "hablemos por privado con Gustavo mientras espera",
+        "el del lobby no sabe cuándo entra, hablemos en privado",
+        "línea privada con Sebastián antes de que entre",
+        "abrí una charla privada con Ezequiel en el lobby",
+        "necesito hablar con Camila mientras espera, en privado",
+        "hablemos por monitoreo con el invitado que espera",
+        "pasame en privado con Valeria, que todavía no entró",
+        "quiero darle indicaciones por privado a Germán, que espera",
+        "conectame por privado con el del lobby para explicarle cuándo entra",
+        "hablo yo en privado con Micaela antes de que pase",
+        "privado con Fernando, que está esperando para entrar",
+        "dejame hablarle en privado a Luciana en el lobby"
       ],
       "tambien": [],
       "correctivas": [
@@ -1288,7 +1591,10 @@
       "arregla": [
         "v9-banco"
       ],
-      "podadas": []
+      "podadas": [
+        "necesito decirle algo por privado a Laura antes de que entre",
+        "prendeme el talkback con Gustavo, el que espera"
+      ]
     },
     "room_pin": {
       "frases": [
@@ -1300,7 +1606,7 @@
         "generá un PIN distinto, que el viejo deje de servir",
         "Generame un código de acceso nuevo para los invitados",
         "Cambiá el PIN de ingreso a 4821",
-        "Invalidá el PIN actual y dame otro al azar",
+        "Tirá un PIN nuevo al azar para la sala, que el actual caduque",
         "Poné un PIN distinto para que los de ayer no entren",
         "Necesito un PIN fresco para mandarle a los invitados de hoy",
         "Generá un PIN nuevo, el viejo que no sirva más",
@@ -1312,7 +1618,8 @@
       "tambien": [],
       "correctivas": [],
       "podadas": [
-        "Necesito otra clave numérica para entrar, sacame una al azar"
+        "Necesito otra clave numérica para entrar, sacame una al azar",
+        "Invalidá el PIN actual y dame otro al azar"
       ]
     },
     "room_set": {
@@ -1320,17 +1627,29 @@
         "abrí el lobby de admisión",
         "cerrá la sala, que no entre nadie más",
         "activá el lobby, que cada uno espere para entrar",
-        "Trabá el ingreso: nadie nuevo adentro hasta el corte",
-        "Bloqueá la sala, ya están todos los panelistas",
+        "Cerrá la sala: que no pueda entrar nadie nuevo",
+        "Ya entraron todos, poné la sala cerrada",
         "Desbloqueá la sala, falta que entre el columnista",
         "Poné sala cerrada y lobby activado",
-        "Que nadie más pueda entrar a la sala"
+        "Que nadie más pueda entrar a la sala",
+        "Activá el lobby de admisión en la sala",
+        "Poné la sala cerrada, sin lobby",
+        "Apagá el lobby así entran sin esperar",
+        "Cerrá el ingreso a la sala y mantené el lobby",
+        "Sala abierta pero con lobby de admisión",
+        "Bloqueá la entrada de gente nueva a la sala",
+        "Prendé el lobby, que nadie entre directo",
+        "Destrabá la sala y sacá el lobby",
+        "Configurá la sala: lobby sí, cerrada no",
+        "Dejá la sala trabada hasta nuevo aviso"
       ],
       "tambien": [],
       "correctivas": [],
       "podadas": [
         "configurame cuantos lugares hay",
-        "aumentale los lugares"
+        "aumentale los lugares",
+        "Trabá el ingreso: nadie nuevo adentro hasta el corte",
+        "Bloqueá la sala, ya están todos los panelistas"
       ]
     },
     "scene_copy": {
@@ -1338,7 +1657,7 @@
         "copiame esta escena",
         "duplica la de apertura",
         "hacele un clon a la del invitado",
-        "quiero otra igual a esta para modificarla",
+        "copiá esta escena en una nueva para modificarla",
         "duplicá la escena del aire como Aire Copia",
         "copiá la escena Panel en una nueva que se llame Panel 2",
         "antes de tocarla, duplicá la escena Apertura como Apertura vieja",
@@ -1357,7 +1676,8 @@
         "hacele una gemela a la que va saliendo",
         "duplicame la del panel, le cambio una cámara y listo",
         "sacale una copia antes de que la toque",
-        "Quiero otra igual a la de apertura para toquetearla sin romper la original"
+        "Quiero otra igual a la de apertura para toquetearla sin romper la original",
+        "quiero otra igual a esta para modificarla"
       ]
     },
     "scene_define": {
@@ -1366,13 +1686,23 @@
         "armá la escena Cierre con cámara 1, logo y zócalo, todo de una",
         "armá una escena entera con dos cámaras y el logo",
         "Rehacé la escena Noticias entera con estas fuentes en este orden",
-        "Montame la escena Noticias con todas sus fuentes de una sola vez",
-        "rehacé de cero la escena Clima con el mapa y la cámara del presentador"
+        "Armame entera la escena Noticias: fondo, cámara y logo, de una",
+        "rehacé entera la escena Clima: mapa abajo y cámara del presentador arriba",
+        "armame la escena Entrevista entera, con dos cámaras",
+        "armá la escena completa: fondo abajo, cámara, logo arriba",
+        "rehacé la escena Panel entera, en este orden de capas",
+        "armá entera una escena nueva con cámara y placa de fondo",
+        "definime la escena Estudio completa con todas sus fuentes",
+        "armá una escena entera usando la misma cámara de Noticias",
+        "creá la escena Tarde completa: fondo, dos cámaras, logo",
+        "rehacé entera la escena Mesa con las tres cámaras"
       ],
       "tambien": [],
       "correctivas": [],
       "podadas": [
-        "defini la escena del cierre con todo adentro"
+        "defini la escena del cierre con todo adentro",
+        "Montame la escena Noticias con todas sus fuentes de una sola vez",
+        "rehacé de cero la escena Clima con el mapa y la cámara del presentador"
       ]
     },
     "scene_delete": {
@@ -1380,32 +1710,49 @@
         "borra esa escena",
         "borrá la escena Prueba, no la usamos más",
         "eliminá la escena vieja",
-        "Eliminá la escena vieja de la lista de escenas",
+        "Borrá la escena vieja, ya no sirve",
         "Deshacete de la escena Test que armamos ayer",
         "Eliminá la escena Entrevista 2, quedó de más",
         "Chau escena Pronóstico viejo, borrala",
-        "La escena Ensayo ya no va, eliminala",
-        "Hay dos escenas Cierre, borrá la que dice Cierre 2",
-        "Borrame la escena Doble cuadro, no la vamos a usar"
+        "Eliminá la escena Ensayo, no la usamos más",
+        "Borrá la escena Cierre 2, está repetida",
+        "Borrame la escena Doble cuadro, no la vamos a usar",
+        "Sacá del todo la escena Borrador",
+        "Eliminá la escena Split 3, sobra",
+        "Borrá esa escena que armé mal",
+        "Quiero eliminar la escena Piloto",
+        "Borrá la escena Mesa vieja, armamos otra",
+        "Eliminá definitivamente la escena Copia de Apertura",
+        "Esa escena de prueba, borrala"
       ],
       "tambien": [],
       "correctivas": [],
       "podadas": [
-        "elimina la que no usamos"
+        "elimina la que no usamos",
+        "Eliminá la escena vieja de la lista de escenas",
+        "La escena Ensayo ya no va, eliminala",
+        "Hay dos escenas Cierre, borrá la que dice Cierre 2"
       ]
     },
     "scene_export": {
       "frases": [
         "exportame las escenas",
-        "sacame una copia de como quedaron las escenas",
-        "pasame la definición de todas las escenas en json",
+        "volcame la definición de todas las escenas, como quedaron",
+        "exportá todas las escenas en el formato de scene_define",
         "exportá la definición de todas las escenas para respaldo",
         "Pasame en formato de definición todas las escenas para versionarlas",
         "Necesito el export de las escenas para copiarlas a otro equipo",
         "quiero versionar las escenas en git, sacame el export",
         "volcame la definición de la escena Noticiero tal cual está",
         "export de escenas completo, todas",
-        "mañana armamos otro equipo igual, exportame la definición de las escenas"
+        "mañana armamos otro equipo igual, exportame la definición de las escenas",
+        "necesito el export de la escena Debate para versionarla",
+        "exportá la escena Tanda completa",
+        "backup de la definición de escenas antes del cambio",
+        "sacame el export de todas las escenas para guardarlo",
+        "exportame la escena Móvil con su definición completa",
+        "export de la escena Apertura, quiero modificarla a mano",
+        "dame el export completo de escenas para el repo"
       ],
       "tambien": [],
       "correctivas": [
@@ -1416,7 +1763,9 @@
       ],
       "podadas": [
         "exportame la escena Cierre a un archivo",
-        "guardá un respaldo de las escenas"
+        "guardá un respaldo de las escenas",
+        "sacame una copia de como quedaron las escenas",
+        "pasame la definición de todas las escenas en json"
       ]
     },
     "scene_folder": {
@@ -1428,34 +1777,38 @@
         "Agrupá las escenas de invitados en una carpeta propia",
         "La escena Entrevista va dentro de la carpeta Bloque 2",
         "Pasá la escena Cierre a la carpeta de escenas Final",
-        "Sacá la escena Apertura de la carpeta, que quede suelta",
+        "Sacá la escena Apertura de su carpeta en la lista de escenas",
         "Mandá la escena Tanda a la carpeta Placas",
         "Hay mil escenas en la lista, poné las de invitados en su carpeta",
         "Ordená las escenas: Cierre va en la carpeta Final",
-        "La escena Móvil Rosario, a la carpeta Exteriores"
+        "La escena Móvil Rosario, a la carpeta Exteriores",
+        "Armá una carpeta Placas y poné ahí la escena Tanda",
+        "Pasá Deportes a su carpeta, la de Bloque 4",
+        "Metime la escena Sponsors dentro de la carpeta Placas"
       ],
       "tambien": [],
       "correctivas": [],
       "podadas": [
         "agrupa estas escenas",
-        "creá una carpeta para el segundo bloque y metela ahí"
+        "creá una carpeta para el segundo bloque y metela ahí",
+        "Sacá la escena Apertura de la carpeta, que quede suelta"
       ]
     },
     "scene_move": {
       "frases": [
         "subi esa escena en la lista",
         "cambiale el orden a las escenas",
-        "esa va antes del bloque de entrevistas",
+        "en la lista, poné esa escena antes de Entrevistas",
         "acomodá la escena Tanda antes de Cierre en la lista",
-        "bajala al final de la lista",
-        "ponela tercera, va después del informe",
+        "mandá esa escena al final de la lista de escenas",
+        "reordená: la escena Clima va antes de Deportes",
         "reordename las escenas como va el programa",
         "reubicá la escena en el orden del programa",
         "mové la escena del clima debajo del noticiero",
         "la de cierre va última en la lista de escenas",
         "Subí la escena Cierre en la lista, que quede antes de Créditos",
         "Reordená las escenas: Apertura primera de todas",
-        "Ordená las escenas como va el programa: apertura primero",
+        "Mové la escena Apertura arriba de todo en la lista",
         "Reordená las escenas: Cierre tiene que ir última en la lista",
         "Pasá la escena Apertura al principio del listado de escenas",
         "La escena Pronóstico va antes de Cierre en la lista, corregí el orden"
@@ -1463,7 +1816,11 @@
       "tambien": [],
       "correctivas": [],
       "podadas": [
-        "acomodame el orden, que quedaron desordenadas"
+        "acomodame el orden, que quedaron desordenadas",
+        "esa va antes del bloque de entrevistas",
+        "bajala al final de la lista",
+        "ponela tercera, va después del informe",
+        "Ordená las escenas como va el programa: apertura primero"
       ]
     },
     "scene_protect": {
@@ -1473,10 +1830,17 @@
         "protegé esa escena para que nadie la borre ni la renombre",
         "ponele candado a esa",
         "protegé esa escena contra borrado y renombre",
-        "la escena de la entrevista no se puede tocar, bloqueala",
+        "protegé la escena Entrevista, que nadie la borre",
         "Bloqueá la escena Principal contra renombres y borrado",
-        "Sacale la protección a la escena Tanda, la tengo que renombrar",
-        "Que no me toquen el nombre de la escena Noticias: protegida"
+        "Sacale la protección a la escena Tanda",
+        "Protegé la escena Noticias contra borrado y renombre",
+        "Candado a la escena Sponsors, que no la borren",
+        "Desprotegé la escena Móvil, ya no hace falta",
+        "protegé la de deportes",
+        "Que la escena Apertura quede protegida",
+        "Sacale el candado a la escena Clima",
+        "Esa escena es sagrada, ponele candado",
+        "Quitale la protección a Resumen"
       ],
       "tambien": [],
       "correctivas": [
@@ -1488,7 +1852,10 @@
       "podadas": [
         "que esa escena quede de solo lectura",
         "bloqueá esa escena contra cambios",
-        "bloquea la de apertura"
+        "bloquea la de apertura",
+        "la escena de la entrevista no se puede tocar, bloqueala",
+        "Sacale la protección a la escena Tanda, la tengo que renombrar",
+        "Que no me toquen el nombre de la escena Noticias: protegida"
       ]
     },
     "scene_rename": {
@@ -1497,11 +1864,28 @@
         "renombra la escena 4",
         "ponele otro nombre a esa escena",
         "esa escena con nombre raro, llamala Cierre",
-        "le erré al nombre de la escena de deportes, ponele Deportes"
+        "la escena de deportes tiene mal el nombre, renombrala Deportes",
+        "renombrá la escena Escena 2, llamala Móvil",
+        "rebautizá la escena Nueva escena como Estudio",
+        "esa escena, que pase a llamarse Entrevista",
+        "ponele de nombre Tanda a la escena 7",
+        "renombrame la escena del clima",
+        "la escena 3 llamala Mesa central",
+        "quiero cambiar cómo se llama la escena de apertura",
+        "cambiá el nombre de la escena Prueba a Final",
+        "renombrá la escena, ponele Resumen",
+        "a la escena 5 ponele otro nombre: Exteriores",
+        "rebautizame esa escena como Invitados",
+        "renombrá la escena Sin título por Portada",
+        "ponele un nombre más claro a la escena 1",
+        "renombrá la escena Copia de Noticias a Noticias B",
+        "esa escena llamala Panel en vez de Escena 8"
       ],
       "tambien": [],
       "correctivas": [],
-      "podadas": []
+      "podadas": [
+        "le erré al nombre de la escena de deportes, ponele Deportes"
+      ]
     },
     "share_delete": {
       "frases": [
@@ -1510,11 +1894,27 @@
         "eliminá el archivo compartido",
         "eliminá ese archivo compartido, es cualquier cosa",
         "Eliminá el compartido con id 42",
-        "Ese video compartido pesa un montón, borralo"
+        "Ese compartido no va, borralo del todo",
+        "borrá ese compartido",
+        "Volá ese archivo compartido, no lo vamos a usar",
+        "sacá de los compartidos lo que subió ese",
+        "Borrá el compartido que mandaron recién",
+        "Deshacete de ese archivo compartido",
+        "Eliminá lo compartido por el invitado, está repetido",
+        "Ese archivo que compartieron es cualquiera, borralo",
+        "Borrá el compartido número 8",
+        "Chau a ese compartido, eliminalo",
+        "Limpiá los compartidos: borrá el 23",
+        "Eso que compartió no sirve, eliminalo",
+        "Borrame ese archivo de los compartidos",
+        "Ese compartido quedó viejo, eliminalo",
+        "Eliminá el archivo compartido id 5, era de prueba"
       ],
       "tambien": [],
       "correctivas": [],
-      "podadas": []
+      "podadas": [
+        "Ese video compartido pesa un montón, borralo"
+      ]
     },
     "share_take": {
       "frases": [
@@ -1524,8 +1924,12 @@
         "sumá a la escena el audio que compartió el oyente",
         "Tomá el compartido 3 y ponelo en la escena",
         "El audio que compartió el corresponsal, metelo en la escena al aire",
-        "Copiá el compartido a medios y agregalo a la escena",
-        "Sumá el video compartido número 2 a lo que está saliendo"
+        "Traé el archivo compartido y ponelo en la escena al aire",
+        "Poné en la escena el archivo compartido número 2",
+        "Usá el compartido 5 en la escena",
+        "El archivo que compartieron recién, metelo en la escena",
+        "Ese audio compartido, sumalo a la escena",
+        "Del compartido 4 hacé una fuente en la escena"
       ],
       "tambien": [],
       "correctivas": [
@@ -1536,7 +1940,9 @@
         "v7-pegadas"
       ],
       "podadas": [
-        "ponelo al aire, ya lo vi"
+        "ponelo al aire, ya lo vi",
+        "Copiá el compartido a medios y agregalo a la escena",
+        "Sumá el video compartido número 2 a lo que está saliendo"
       ]
     },
     "share_view": {
@@ -1554,7 +1960,7 @@
         "El invitado compartió una foto, revisala antes de ponerla",
         "Abrime el archivo que mandó la entrevistada por el compartir",
         "Chequeá la imagen que nos compartió el del móvil antes de usarla",
-        "Mirá el archivo compartido por el médico, a ver si sirve"
+        "Mostrame la imagen que compartió el médico, a ver si sirve"
       ],
       "tambien": [],
       "correctivas": [
@@ -1565,16 +1971,17 @@
       ],
       "podadas": [
         "mostrame el archivo compartido en la previa",
-        "abrime el archivo del invitado"
+        "abrime el archivo del invitado",
+        "Mirá el archivo compartido por el médico, a ver si sirve"
       ]
     },
     "source_properties": {
       "frases": [
-        "que ajustes tiene esa camara",
-        "mostrame las propiedades de la fuente",
+        "qué propiedades expone la fuente de esa cámara",
+        "mostrame las propiedades de la fuente con sus valores actuales",
         "qué se le puede cambiar a esa fuente",
         "¿qué opciones expone la cámara 1 y cuánto vale cada una?",
-        "qué configuraciones acepta esa entrada",
+        "qué propiedades y rangos tiene la fuente Cámara 2",
         "mostrame qué parámetros tiene ese título",
         "listame las propiedades de la placa de captura con sus rangos",
         "¿Qué valores admite la propiedad de resolución de esa fuente?",
@@ -1605,7 +2012,10 @@
         "¿Qué opciones expone la fuente Navegador?",
         "¿Qué opciones tiene la fuente del navegador en su panel?",
         "Mostrame las propiedades de la cámara 2.",
-        "¿Qué valores posibles tiene la fuente Placa de captura 1?"
+        "¿Qué valores posibles tiene la fuente Placa de captura 1?",
+        "que ajustes tiene esa camara",
+        "mostrame las propiedades de la fuente",
+        "qué configuraciones acepta esa entrada"
       ]
     },
     "source_set_property": {
@@ -1616,7 +2026,7 @@
         "esa cámara está en el dispositivo equivocado, cambiásela",
         "apretale el botón de volver a escanear",
         "ponele otro micrófono a esa entrada",
-        "cambiale el formato de video a la placa de captura",
+        "cambiale la propiedad de formato de video a la fuente Captura",
         "poné la cámara 1 en 720p",
         "No aparece la placa nueva, apretá recargar en la fuente Captura",
         "Apretá el botón de refrescar dispositivos en las propiedades de la cámara",
@@ -1624,15 +2034,15 @@
         "Cámara 3 sin señal: apretá reactivar en esa fuente",
         "Seteá el valor de la propiedad device_id en la webcam dos",
         "Cambiá la propiedad URL de la fuente navegador a la nueva dirección",
-        "La webcam anda a 30 cuadros, subile el frame rate a 60.",
+        "En la fuente Webcam, poné la propiedad de fps en 60",
         "Che, la fuente de la cámara está en 720, subile la resolución a 1080",
         "Apretá refrescar dispositivos en la fuente de captura que no aparece la Elgato",
-        "¿Podés subir a 30 la propiedad de fps del dispositivo de captura?"
+        "¿Podés subir a 30 la propiedad de fps del dispositivo de captura?",
+        "cambiale la propiedad resolución a la fuente Atril, ponela en 1080"
       ],
       "tambien": [],
       "correctivas": [
-        "recargá la página de la fuente del clima",
-        "cambiale la resolución a la captura del atril a 1080"
+        "recargá la página de la fuente del clima"
       ],
       "arregla": [
         "v9-banco",
@@ -1640,17 +2050,29 @@
       ],
       "podadas": [
         "No aparece la placa nueva, apretá el botón de recargar en sus propiedades",
-        "La cámara quedó sin señal, dale al botón de reactivar en propiedades"
+        "La cámara quedó sin señal, dale al botón de reactivar en propiedades",
+        "cambiale el formato de video a la placa de captura",
+        "La webcam anda a 30 cuadros, subile el frame rate a 60.",
+        "cambiale la resolución a la captura del atril a 1080"
       ]
     },
     "source_types": {
       "frases": [
         "qué clases de entrada soporta",
-        "que se puede meter en una escena",
+        "qué clases de fuente existen para crear",
         "qué fuentes se pueden agregar",
         "qué tipos de entrada soporta el programa",
         "listame los tipos de fuente",
-        "¿Qué tipos de fuente puedo crear en esta instalación?"
+        "¿Qué tipos de fuente puedo crear en esta instalación?",
+        "qué tipos de fuente hay disponibles",
+        "¿qué tipos de fuente trae instalados el equipo?",
+        "catálogo de tipos de fuente, pasamelo",
+        "qué tipos de fuente existen, con video o audio",
+        "listame las clases de fuente disponibles con su id",
+        "¿qué fuentes se pueden crear en este equipo?",
+        "qué opciones de tipo de fuente tengo",
+        "mostrame los tipos de fuente que soporta el sistema",
+        "repasame los tipos de fuente que se pueden crear"
       ],
       "tambien": [],
       "correctivas": [
@@ -1659,13 +2081,15 @@
       "arregla": [
         "v9-banco"
       ],
-      "podadas": []
+      "podadas": [
+        "que se puede meter en una escena"
+      ]
     },
     "speaker_move": {
       "frases": [
         "subi a Marta en la fila",
         "cambiale el orden a los oradores",
-        "ponelo primero",
+        "movelo a la posición 1 de la fila",
         "Poné a Lucía en el puesto 2 de la fila",
         "Mové a Gabriela a la posición 4",
         "bajá a Tomás al último puesto de la fila",
@@ -1675,11 +2099,15 @@
         "reordená la fila: Julia a la posición 3",
         "el ministro tiene que irse, subilo al primer lugar de la fila",
         "cambiá de puesto a Mirta, que quede sexta",
-        "el participante 18 pasa al puesto 2"
+        "el participante 18 pasa al puesto 2",
+        "corré a Esteban al segundo lugar de la fila",
+        "bajá a la invitada Paz a la posición 7"
       ],
       "tambien": [],
       "correctivas": [],
-      "podadas": []
+      "podadas": [
+        "ponelo primero"
+      ]
     },
     "speaker_presenter": {
       "frases": [
@@ -1691,7 +2119,17 @@
         "Juan conduce desde su casa, dejalo como presentador",
         "La conductora remota no rota, hacela presentadora",
         "Presentador fijo: la licenciada Ruiz",
-        "Cambiá el presentador: ahora es Sofía"
+        "Cambiá el presentador: ahora es Sofía",
+        "Que Carla quede de presentadora, fija al costado",
+        "Designá presentadora a la periodista remota",
+        "Ya no es presentador Hugo, desmarcalo",
+        "Poné de presentador fijo al que conduce desde Córdoba",
+        "Nombrá presentadora a Valeria para todo el programa",
+        "Presentador: Leandro, con su lugar propio",
+        "Activá el modo presentador para Rocío",
+        "Desactivá presentador en Julián",
+        "El conductor remoto es Mauro, ponelo de presentador",
+        "Que Natalia sea la presentadora y los invitados vayan rotando"
       ],
       "tambien": [],
       "correctivas": [],
@@ -1706,7 +2144,13 @@
         "el vecino de Quilmes pidió la palabra, ponelo en la fila",
         "que Ramiro haga cola para hablar",
         "agregá a Beatriz a los oradores en espera",
-        "a la fila con Paula"
+        "a la fila con Paula",
+        "encolá a Diego para hablar",
+        "sumá a la concejala a la cola de oradores",
+        "Mónica pidió hablar, encolala",
+        "metelo en la fila de los que hablan",
+        "encolá al participante 31",
+        "sumalo a la fila, que hable después"
       ],
       "tambien": [],
       "correctivas": [],
@@ -1724,14 +2168,14 @@
         "Configurá tres minutos por orador y slot por defecto el 2",
         "Desactivá el modo oradores en la configuración",
         "Subí el tiempo general por orador a cinco minutos",
-        "Que roten solos pasado el tiempo más treinta segundos de margen",
+        "Configurá el modo oradores para que rote solo por tiempo, margen treinta segundos",
         "Se terminó el debate, deshabilitá el modo oradores",
         "Permití varios oradores al aire a la vez en la configuración",
         "Cambiá la rotación a automática por tiempo, con treinta segundos de margen",
         "Desactivá el modo oradores, seguimos con charla libre",
-        "¿Ponés que puedan estar varios hablando a la vez en vez de uno solo?",
+        "En la configuración de oradores, permití varios al aire a la vez",
         "Poné que salgan varios a la vez al aire, no uno solo",
-        "Configurá el carrusel en chain: al sacar a uno, entra el siguiente"
+        "Configurá el modo oradores en cadena, que al sacar a uno entre otro"
       ],
       "tambien": [],
       "correctivas": [],
@@ -1742,7 +2186,10 @@
         "configurame los tiempos de cada uno",
         "Apagá el modo oradores, seguimos libre",
         "Desactivá el modo oradores, ya terminó el debate",
-        "¿Podés setear el carrusel en chain? Que al sacar uno entre el siguiente"
+        "¿Podés setear el carrusel en chain? Que al sacar uno entre el siguiente",
+        "Que roten solos pasado el tiempo más treinta segundos de margen",
+        "¿Ponés que puedan estar varios hablando a la vez en vez de uno solo?",
+        "Configurá el carrusel en chain: al sacar a uno, entra el siguiente"
       ]
     },
     "grafico_mostrar": {
@@ -1751,16 +2198,16 @@
         "poné al aire el gráfico del zócalo con el nombre del orador",
         "tirá al aire el GC del invitado",
         "reproducí el gráfico animado de sponsors, que se vea al aire",
-        "dibujá el gráfico de sponsors en la fuente 2",
-        "poné el zócalo con el nombre y cargo de Juan",
+        "animá el gráfico de sponsors en la fuente 2, que lo vea la gente",
+        "dibujá al aire el gráfico del zócalo con nombre y cargo de Juan",
         "necesito el gráfico animado con el zócalo del entrevistado al aire",
         "reproducí la animación de resultados, dos segundos y sin repetir",
-        "levantá la animación de la tabla de posiciones",
+        "reproducí el gráfico de la tabla de posiciones, que salga animado",
         "Tirá el gráfico del clima, que ya estamos en programa",
         "Reproducí la animación de resultados en la fuente gráfica, va al aire",
         "Dispará ya el gráfico de votos, que lo vea la audiencia",
         "Lanzá el gráfico animado del marcador ahora",
-        "Terminó el gol, dibujá la animación del resultado en loop",
+        "Terminó el gol, mostrá el gráfico del resultado repitiendo la animación",
         "Reproducí al aire el gráfico de la elección con los porcentajes por lista",
         "Estamos hablando del dólar, animá el gráfico de cotizaciones a 30 fps",
         "Animá el gráfico de desempleo, cuatro segundos, que lo vea la gente"
@@ -1799,7 +2246,11 @@
         "Poné al aire la tabla de posiciones animada para que la vea la gente",
         "Hacé correr la animación del gráfico de la cotización del dólar",
         "Dispará la placa animada con la encuesta, que entre ya",
-        "Entrá al aire con el GC animado de la invitada, cargo y nombre"
+        "Entrá al aire con el GC animado de la invitada, cargo y nombre",
+        "dibujá el gráfico de sponsors en la fuente 2",
+        "poné el zócalo con el nombre y cargo de Juan",
+        "levantá la animación de la tabla de posiciones",
+        "Terminó el gol, dibujá la animación del resultado en loop"
       ]
     },
     "grafico_ocultar": {
@@ -1807,18 +2258,18 @@
         "Apagá el gráfico animado, dejalo transparente",
         "Sacá el gráfico de pantalla, dejalo transparente",
         "quitá el gráfico animado, dejá la fuente transparente",
-        "Quitá el gráfico animado con la identificación",
+        "Ocultá el gráfico animado de la identificación, fuente transparente",
         "fuera ese gráfico, vaciá la fuente del animado",
         "Ya terminó la votación, retirá el gráfico de pantalla",
-        "Quedó colgado el gráfico del clima, quitalo ya y dejá la capa limpia",
+        "Quedó colgado el gráfico del clima, ocultalo y que la fuente quede transparente",
         "Sacá el gráfico de barras, que quede transparente",
         "El gráfico de la encuesta ya cumplió, dejalo transparente",
         "Basta de gráfico, dejalo transparente hasta el próximo dato",
         "Hacé desaparecer el gráfico de la inflación",
         "Quedó colgado el animado sobre la cámara, dejá esa fuente transparente",
-        "Borrá de la imagen el gráfico de resultados, dejalo vacío",
-        "Terminó el segmento de números, quitame el gráfico",
-        "Chau gráfico animado de la cotización, vaciá esa placa",
+        "Ocultá el gráfico de resultados, que no se vea en pantalla",
+        "Terminó el segmento de números, ocultá el gráfico y dejá la fuente transparente",
+        "Chau gráfico animado de la cotización, dejá su fuente transparente",
         "Terminá el gráfico animado, que no se vea nada ahí",
         "Sigue clavado el gráfico de encuestas al aire, bajalo.",
         "Levantá el gráfico animado del aire",
@@ -1847,34 +2298,48 @@
         "Bajá el gráfico de la encuesta, que quede transparente",
         "El gráfico de temperatura quedó colgado, apagalo a transparente",
         "Ya se leyó la encuesta, limpiá el gráfico animado",
-        "Dejá transparente el gráfico, que no se vea más."
+        "Dejá transparente el gráfico, que no se vea más.",
+        "Quitá el gráfico animado con la identificación",
+        "Quedó colgado el gráfico del clima, quitalo ya y dejá la capa limpia",
+        "Borrá de la imagen el gráfico de resultados, dejalo vacío",
+        "Terminó el segmento de números, quitame el gráfico",
+        "Chau gráfico animado de la cotización, vaciá esa placa"
       ]
     },
     "grafico_listar": {
       "frases": [
-        "qué gráficos tengo",
+        "qué gráficos trae el sistema para usar",
         "qué tipos de gráfico ofrece el sistema, con sus parámetros",
         "¿Qué gráficos tenemos disponibles y qué parámetros lleva cada uno?",
-        "¿Qué modelos de gráfico hay para elegir, aunque no estén en ninguna escena?",
+        "¿Qué gráficos animados existen y qué datos pide cada uno?",
         "Antes de armar nada, decime qué plantillas de gráficos hay",
         "Antes de elegir, decime qué gráficos hay en el sistema",
         "Decime el catálogo de gráficos que se pueden usar",
         "Listame los gráficos que hay y qué campos acepta cada uno",
         "Mostrame la lista completa de gráficos con sus opciones",
-        "Antes de probar uno, decime qué tipos de gráfico hay"
+        "Antes de probar uno, decime qué tipos de gráfico hay",
+        "qué tipos de gráfico animado hay disponibles",
+        "Pasame todos los gráficos disponibles y qué parámetros aceptan",
+        "¿Con qué gráficos cuento? Con sus parámetros, porfa",
+        "Dame el listado de gráficos que ofrece la app",
+        "Enumerame los gráficos que se pueden mostrar, con sus opciones",
+        "¿Qué variedades de gráfico tenemos? Quiero ver los parámetros",
+        "Mostrame qué gráficos hay y cómo se configuran",
+        "Repasame los gráficos disponibles, todos"
       ],
       "tambien": [
         "grafico_en_escena"
       ],
-      "correctivas": [
-        "qué plantillas de gráficos hay cargadas"
-      ],
+      "correctivas": [],
       "arregla": [
         "v9-banco"
       ],
       "podadas": [
         "qué arte tengo disponible",
-        "¿Qué gráficos animados tenemos disponibles?"
+        "¿Qué gráficos animados tenemos disponibles?",
+        "qué gráficos tengo",
+        "¿Qué modelos de gráfico hay para elegir, aunque no estén en ninguna escena?",
+        "qué plantillas de gráficos hay cargadas"
       ]
     },
     "grafico_en_escena": {
@@ -1882,15 +2347,16 @@
         "dónde están puestos los animados",
         "qué fuentes de gráfico hay en la toma",
         "qué placas animadas hay colocadas",
-        "listame las fuentes de gráfico que están en las escenas",
+        "listame las fuentes Gráfico animado metidas en cada escena",
         "en qué escenas hay puesto un animado",
         "decime los ids de los gráficos que están en escena",
-        "decime el id y el tamaño de cada fuente de gráfico en escena",
+        "de las fuentes animadas puestas en las escenas, pasame id y tamaño",
         "listame los gráficos colocados con su tamaño",
         "¿En qué escenas hay fuentes de gráfico animado puestas?",
         "¿ya hay alguna fuente de gráfico animado en la escena Noticias?",
         "antes de mandar el rótulo, fijate qué fuentes de gráfico hay colocadas",
-        "cuántas fuentes Gráfico animado quedaron metidas en las escenas"
+        "cuántas fuentes Gráfico animado quedaron metidas en las escenas",
+        "¿hay alguna fuente de animado puesta en alguna escena?"
       ],
       "tambien": [],
       "correctivas": [
@@ -1900,7 +2366,9 @@
         "v7-pegadas"
       ],
       "podadas": [
-        "qué tamaño tiene el gráfico que está puesto"
+        "qué tamaño tiene el gráfico que está puesto",
+        "listame las fuentes de gráfico que están en las escenas",
+        "decime el id y el tamaño de cada fuente de gráfico en escena"
       ]
     },
     "rotulo_vincular": {
@@ -1908,7 +2376,11 @@
         "atá el rótulo al orador para que el nombre se actualice solo",
         "atá el nombre al que está hablando",
         "que el cargo salga automático",
-        "vinculá el rótulo con el orador"
+        "vinculá el rótulo con el orador",
+        "vinculá el nombre del orador al rótulo de la fuente Zócalo",
+        "ligá el rótulo al que habla, así no lo tipeo",
+        "vinculá nombre y cargo del zócalo al orador en curso",
+        "vinculá el título del gráfico al orador y que dispare solo"
       ],
       "tambien": [
         "grafico_mostrar"
@@ -1926,9 +2398,17 @@
         "qué rótulos tienen vínculo y se actualizan solos",
         "listame los rótulos que toman datos automáticos",
         "¿Qué orígenes de datos puedo usar para un rótulo?",
-        "Listame los vínculos armados y sus orígenes",
+        "qué rótulos tienen vínculo y de qué origen toman el dato",
         "Mostrame los orígenes disponibles antes de vincular nada",
-        "Qué fuentes de datos automáticas hay para los rótulos"
+        "Qué fuentes de datos automáticas hay para los rótulos",
+        "Mostrame los vínculos de rótulos que hay",
+        "¿Qué orígenes hay disponibles para vincular rótulos?",
+        "Decime qué rótulos se llenan automáticamente",
+        "Qué rótulos vinculados tenemos y qué orígenes quedan libres",
+        "¿Cuáles rótulos se actualizan solos ahora?",
+        "Antes de vincular un rótulo, ¿qué orígenes hay?",
+        "Qué vínculos de rótulo están activos",
+        "¿De qué orígenes se puede alimentar un rótulo vinculado?"
       ],
       "tambien": [],
       "correctivas": [
@@ -1938,7 +2418,8 @@
         "v9-banco"
       ],
       "podadas": [
-        "cuáles se actualizan solos"
+        "cuáles se actualizan solos",
+        "Listame los vínculos armados y sus orígenes"
       ]
     },
     "rotulo_desvincular": {
@@ -1950,13 +2431,14 @@
         "que ese zócalo no se actualice más solo, quitá el vínculo",
         "pausá el vínculo del cargo, después lo vuelvo a prender",
         "quitale el vínculo, lo escribo a mano",
-        "soltá ese rótulo del dato",
+        "borrá el vínculo de ese rótulo con el dato",
         "Apagá el vínculo del nombre automático pero no lo borres",
         "El rótulo se sigue cambiando solo con cada orador, cortale ese vínculo",
         "Quitá el vínculo del cargo con el micrófono activo, ya no va",
         "Borrá el vínculo 3, ya no lo usamos",
         "Suspendé un rato el vínculo del nombre, que no cambie con cada orador",
-        "Eliminá la atadura del campo cargo con el dato"
+        "Eliminá la atadura del campo cargo con el dato",
+        "Eliminá el vínculo 5 del rótulo del orador"
       ],
       "tambien": [],
       "correctivas": [],
@@ -1964,7 +2446,8 @@
         "que deje de escribirse solo",
         "desenganchá ese rótulo",
         "ese zócalo ya no se actualiza más solo",
-        "apagale el automático al generador"
+        "apagale el automático al generador",
+        "soltá ese rótulo del dato"
       ]
     },
     "laminas_ir": {
@@ -1988,7 +2471,7 @@
         "Mandá la lámina 1 del carrusel Goles.",
         "Poné la lámina número 5 del carrusel Elecciones.",
         "Poné la diapositiva siete del informe",
-        "Cambiá a la 9 en Informe, sin pasar de a una"
+        "del carrusel Informe, poné la lámina nueve de una"
       ],
       "tambien": [],
       "correctivas": [],
@@ -2001,12 +2484,13 @@
         "la de antes",
         "atrás una",
         "avanzá una",
-        "Poné la número 7 del carrusel Economía"
+        "Poné la número 7 del carrusel Economía",
+        "Cambiá a la 9 en Informe, sin pasar de a una"
       ]
     },
     "laminas_buscar": {
       "frases": [
-        "encontrame la foto del estadio",
+        "buscá la lámina del estadio en el carrusel Deportes",
         "buscá 'torta porcentajes' en el carrusel Encuesta, por título o etiqueta",
         "dónde está la lámina del organigrama",
         "buscá la placa de sponsors en la presentación",
@@ -2045,13 +2529,14 @@
         "No encuentro la lámina del mapa del conurbano, buscala por texto.",
         "¿Cuál tiene el título que menciona Messi? Buscá en Deportes",
         "Encontrame la lámina del dólar blue buscando por texto",
-        "Encontrame la que tenga el gráfico de desempleo"
+        "Encontrame la que tenga el gráfico de desempleo",
+        "encontrame la foto del estadio"
       ]
     },
     "laminas_ver": {
       "frases": [
         "qué láminas tiene",
-        "cuántas diapositivas son",
+        "cuántas láminas trae el carrusel Deportes, listámelas",
         "mostrame la lista de láminas",
         "qué lámina está puesta ahora en el carrusel y cuáles vienen",
         "qué diapositivas tiene la presentación del informe",
@@ -2061,7 +2546,7 @@
         "Repasame las láminas del carrusel de sponsors, una por una",
         "¿Cuántas láminas quedaron en el carrusel y cuál está puesta?",
         "Pasame el índice de títulos del carrusel del clima",
-        "¿En qué número de lámina va el carrusel de política?",
+        "¿cuál lámina está puesta en el carrusel de política? pasame la lista",
         "Listame las láminas del carrusel Economía con su número y título",
         "Mostrame el índice de láminas con número y título del carrusel Goles.",
         "¿Qué contiene el carrusel Elecciones, una por una con título?"
@@ -2079,16 +2564,18 @@
       "podadas": [
         "en cuál estamos",
         "¿En qué número estamos de la presentación del informe?",
-        "Numerame las diapositivas de la presentación de economía"
+        "Numerame las diapositivas de la presentación de economía",
+        "cuántas diapositivas son",
+        "¿En qué número de lámina va el carrusel de política?"
       ]
     },
     "laminas_listar": {
       "frases": [
         "qué carruseles hay en la biblioteca y cuál está abierto",
-        "qué carruseles hay armados",
+        "qué carruseles hay en la biblioteca, con cuántas láminas",
         "listame los carruseles, necesito el nombre para abrir uno",
         "¿cuántos carruseles de láminas hay en total en la biblioteca?",
-        "qué carruseles de láminas están listos",
+        "decime los carruseles que hay y cuántas láminas tiene cada uno",
         "cuáles carruseles tengo disponibles",
         "enumerame los carruseles de diapositivas",
         "Listame los carruseles y cuántas placas trae cada uno",
@@ -2096,14 +2583,19 @@
         "Pasame todos los carruseles con cuántas láminas tiene cada uno",
         "Enumerame los carruseles disponibles, que no me acuerdo el nombre",
         "¿Qué carruseles tenemos en la biblioteca?",
-        "Decime todos los carruseles disponibles y cuántas tiene cada uno"
+        "Decime todos los carruseles disponibles y cuántas tiene cada uno",
+        "Qué carruseles existen, para arrancar a trabajar con uno",
+        "Repasame los carruseles de láminas guardados",
+        "Nombres de los carruseles que hay, con su cantidad de láminas"
       ],
       "tambien": [],
       "correctivas": [],
       "podadas": [
         "mostrame el repertorio de diapositivas",
         "cuántos carruseles tengo armados",
-        "cuántos juegos de diapositivas hay"
+        "cuántos juegos de diapositivas hay",
+        "qué carruseles hay armados",
+        "qué carruseles de láminas están listos"
       ]
     },
     "laminas_aplicar": {
@@ -2112,7 +2604,7 @@
         "metele el carrusel a la toma",
         "que las láminas salgan en esta escena",
         "poné las diapos de la feria en la escena de apertura",
-        "Todavía no se ve el mazo, colgalo en la escena dos",
+        "Poné el carrusel del mazo en la escena dos, así tiene su fuente",
         "Arrancamos el segmento de deportes, instalá el carrusel Goles en la escena Central.",
         "Enganchá el carrusel Placas en la escena Cierre.",
         "Poné el carrusel Deportes en la escena Dúplex, que tenga su fuente",
@@ -2122,7 +2614,7 @@
         "Quiero que la escena Noticias tenga su fuente del carrusel Mercados",
         "Que el carrusel Economía maneje una imagen en la escena Gráficos",
         "Montá el carrusel Economía en la escena Estudio.",
-        "Colocá el carrusel Clima en la escena al aire, a pantalla completa"
+        "Aplicá el carrusel Clima a la escena que está al aire"
       ],
       "tambien": [],
       "correctivas": [],
@@ -2130,7 +2622,9 @@
         "hueco-juez"
       ],
       "podadas": [
-        "El carrusel Deportes no aparece en ninguna escena, asignáselo a Dúplex"
+        "El carrusel Deportes no aparece en ninguna escena, asignáselo a Dúplex",
+        "Todavía no se ve el mazo, colgalo en la escena dos",
+        "Colocá el carrusel Clima en la escena al aire, a pantalla completa"
       ]
     }
   }
