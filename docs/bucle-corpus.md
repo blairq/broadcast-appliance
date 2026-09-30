@@ -501,6 +501,24 @@ se detiene hasta entrenar con lo aceptado y volver a medir con el modelo nuevo.
 Ese es el bucle de afuera: rondas con el modelo N hasta que no baje, entrenar
 N+1, rondas con N+1.
 
+**El juez ciego cubre lo que la geometría no ve.** Un agente sin conexión recibe
+las descripciones de las herramientas y frases sin etiqueta, y asigna cada una a
+una herramienta o a NINGUNA. Sirve para dos cosas:
+
+- **Aprobar huecos.** Las 434 candidatas que v9 rechazó para los pares finales:
+  el juez coincidió en 426. Entran con tope (10 por herramienta con ≤ 6 semillas,
+  5 el resto), marcadas `hueco-juez`. Lo decide el entrenamiento siguiente.
+- **Auditar las semillas existentes.** Sobre las 863 semillas, 105 desacuerdos.
+  La mayoría son pedidos cortos de cabina («avanzá una», «pasá al siguiente»)
+  que el juez marca NINGUNA por prudencia: se dejan, son formas reales. Se mueven
+  las que asigna con claridad a otra herramienta (16) y se sacan las que sirven
+  para dos (10). Varias estaban justo en los pares que no bajaban:
+  «de dónde sale ese pitido» era de `audio_measure`, no de `audio_analyze`.
+
+Después de agregar huecos, `--choques` con el modelo viejo sube (16 → 125): las
+frases de hueco son, por construcción, las que ese modelo ubica en otra nube. No
+es un retroceso; desde ahí sólo mide el modelo entrenado con ellas.
+
 Después de separar se vuelven a elegir las etiquetas (`elegir-etiquetas.py`):
 la dirección que separa dos nubes cambia al cambiar el corpus, y la etiqueta
 tiene que apuntar a la nueva.
