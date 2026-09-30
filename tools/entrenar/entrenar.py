@@ -57,6 +57,9 @@ def main():
     ap.add_argument("--lote", type=int, default=2)
     ap.add_argument("--acumular", type=int, default=8)
     ap.add_argument("--largo", type=int, default=4096)
+    # Cada evaluacion recorre todo validar (~1.000 ejemplos, ~100 s). Cada 25
+    # pasos eran 38 evaluaciones en 968 pasos: una hora de las tres.
+    ap.add_argument("--eval-cada", type=int, default=25)
     ap.add_argument("--semilla", type=int, default=7)
     ap.add_argument("--datos", default=str(DATOS),
                     help="carpeta con entrenar.jsonl y validar.jsonl. Permite entrenar dos"
@@ -103,7 +106,7 @@ def main():
         # Sin empaquetar: los ejemplos son largos y parejos, y empaquetar
         # mezclaria dos pedidos en una secuencia.
         packing=False,
-        eval_strategy="steps", eval_steps=25, save_strategy="steps", save_steps=25,
+        eval_strategy="steps", eval_steps=args.eval_cada, save_strategy="steps", save_steps=args.eval_cada,
         load_best_model_at_end=True, metric_for_best_model="eval_loss",
         greater_is_better=False, save_total_limit=2, report_to="none")
 
