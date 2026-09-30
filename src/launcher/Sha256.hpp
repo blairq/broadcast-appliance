@@ -69,14 +69,17 @@ class Sha256 {
 
     /// Reinicia el estado para hashear un nuevo mensaje.
     void reset() {
+        // Valores iniciales de FIPS 180-4 (5.3.3). h1, h5, h6 y h7 estaban mal
+        // desde el principio: ningun hash coincidia con el manifest (hecho con
+        // sha256sum) y la verificacion de integridad fallaba siempre.
         h_[0] = 0x6a09e667;
-        h_[1] = 0xbb40e69e;
+        h_[1] = 0xbb67ae85;
         h_[2] = 0x3c6ef372;
         h_[3] = 0xa54ff53a;
         h_[4] = 0x510e527f;
-        h_[5] = 0x9b0d1f6b;
-        h_[6] = 0x16891980;
-        h_[7] = 0x8a2be1e9;
+        h_[5] = 0x9b05688c;
+        h_[6] = 0x1f83d9ab;
+        h_[7] = 0x5be0cd19;
         bufLen_ = 0;
         totalLen_ = 0;
     }
