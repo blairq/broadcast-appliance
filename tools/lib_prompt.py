@@ -84,7 +84,11 @@ def etiquetas():
     global _ETIQUETAS
     if _ETIQUETAS is None:
         f = RAIZ / "datos" / "etiquetas.json"
-        _ETIQUETAS = json.loads(f.read_text(encoding="utf-8"))["etiquetas"] if USAR_ETIQUETAS else {}
+        # BA_ETIQUETAS_JUEGO elige el juego dentro del archivo: «etiquetas» (las
+        # optimizadas, por defecto) o «legibles» (palabras del oficio que conservan
+        # el significado; v11 mostró que los fragmentos lo pierden).
+        juego = os.environ.get("BA_ETIQUETAS_JUEGO", "etiquetas")
+        _ETIQUETAS = json.loads(f.read_text(encoding="utf-8"))[juego] if USAR_ETIQUETAS else {}
     return _ETIQUETAS
 
 
