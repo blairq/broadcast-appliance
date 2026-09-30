@@ -529,6 +529,10 @@ def main():
     ap.add_argument("--previo", help="diagnostico de la ronda anterior, para comparar")
     ap.add_argument("--orientacion", help="banco de orientacion (jsonl {frase, herramienta}):"
                     " frases escritas SIN ver el corpus, que dicen donde se pierde")
+    ap.add_argument("--errores", help="lo que eligio el modelo sobre el banco (evaluar.py"
+                    " --salida-casos): habilita las candidatas con \"corrige\"")
+    ap.add_argument("--evidencia-min", type=int, default=2,
+                    help="cuantos errores X->Y en el banco hacen falta para forzar una frase de X")
     ap.add_argument("--fuera-es", default="derivar",
                     help="con que se cuentan las frases del banco de herramientas que NO estan"
                          " en el conjunto medido. Para el modelo reactivo de hoy, la respuesta"
@@ -673,6 +677,13 @@ def main():
                      for l in Path(args.orientacion).read_text(encoding="utf-8").splitlines()
                      if l.strip()]
         cands = json.loads(Path(args.evaluar).read_text(encoding="utf-8"))
+        evidencia = collections.Counter()
+        if args.errores and Path(args.errores).exists():
+            for l in Path(args.errores).read_text(encoding="utf-8").splitlines():
+                if l.strip():
+                    r = json.loads(l)
+                    if r["elegida"] not in r["aceptables"]:
+                        evidencia[(r["aceptables"][0], r["elegida"])] += 1
         aprobadas, rechazadas, quitadas = [], [], []
         for c in cands:
             h, fr = c["herramienta"], c["frase"].strip()
@@ -738,6 +749,28 @@ def main():
             if banco and cm.parecido(fr, banco):
                 rechazadas.append((h, fr, "copia el banco de orientacion"))
                 continue
+            # CORRECCION DE UN ERROR SISTEMATICO. El filtro «cae en su grupo» solo
+            # acepta frases que el modelo YA ubica bien, asi que nunca deja agregar
+            # los ejemplos que corrigen un error sistematico: si v9 manda los
+            # graficos con datos a derivar, rechaza justo «pone el grafico del
+            # partido, van 3 a 0». Es circular.
+            #
+            # Se permite saltearlo, pero solo con evidencia: el DECODIFICADOR REAL,
+            # sobre el banco que escribio otro autor, tiene que haber mandado esa
+            # herramienta a esa vecina al menos --evidencia-min veces. La evidencia
+            # sale de lo que el modelo hizo, no de quien propone. Las guardas
+            # contra el examen, el banco y los duplicados quedan igual.
+            if c.get("corrige"):
+                vec = c["corrige"]
+                n_ev = evidencia.get((h, vec), 0)
+                if n_ev < args.evidencia_min:
+                    rechazadas.append((h, fr, f"sin evidencia de {h}->{vec} ({n_ev} en el banco)"))
+                    continue
+                v = med.h(fr)
+                aprobadas.append((h, fr, -n_ev))
+                geo.agregar(h, v)
+                frases.setdefault(h, []).append(fr)
+                continue
             v = med.h(fr)
             cerca = geo.mas_cercano(v)
             if cerca != h:
@@ -769,7 +802,10 @@ def main():
         med.guardar()
         print(f"\nAPROBADAS {len(aprobadas)} de {len(cands)}")
         for h, fr, nov in aprobadas:
-            print(f"  {h:22s} novedad {nov:.2f}  «{fr}»")
+            if nov < 0:
+                print(f"  {h:22s} CORRIGE ({-int(nov)} errores en el banco)  «{fr}»")
+            else:
+                print(f"  {h:22s} novedad {nov:.2f}  «{fr}»")
         if quitadas:
             print(f"\nQUITADAS {len(quitadas)}")
             for h, fr, a, b in quitadas:
@@ -797,9 +833,16 @@ def main():
                 fb.write(json.dumps(reg, ensure_ascii=False) + "\n")
         if args.aceptar and (aprobadas or quitadas):
             d = json.loads(Path(args.semillas).read_text(encoding="utf-8"))
-            for h, fr, _ in aprobadas:
+            for h, fr, marca in aprobadas:
                 e = d["herramientas"].setdefault(h, {"frases": [], "tambien": []})
-                if fr not in e["frases"]:
+                if marca < 0:
+                    # Las que CORRIGEN un error medido van como correctivas: el
+                    # generador les da mas variantes, con techo. Es como el corpus
+                    # ya trataba las frases que arreglan un fallo de una version.
+                    if fr not in e.setdefault("correctivas", []):
+                        e["correctivas"].append(fr)
+                    e["arregla"] = sorted(set(e.get("arregla", []) + ["banco"]))
+                elif fr not in e["frases"]:
                     e["frases"].append(fr)
             # Una semilla quitada puede estar en frases, en correctivas o venir
             # de la jerga. De los dos primeros se borra; si viene de la jerga, se

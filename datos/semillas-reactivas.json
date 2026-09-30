@@ -253,7 +253,12 @@
         "listame lo que hay en la escena de la entrevista"
       ],
       "tambien": [],
-      "correctivas": []
+      "correctivas": [
+        "qué elementos tiene cargada la escena Clima"
+      ],
+      "arregla": [
+        "v9-banco"
+      ]
     },
     "source_add": {
       "frases": [
@@ -286,7 +291,12 @@
         "sacá esa capa de la escena, no a la persona"
       ],
       "tambien": [],
-      "correctivas": []
+      "correctivas": [
+        "eliminá el título viejo de la escena Mesa"
+      ],
+      "arregla": [
+        "v9-banco"
+      ]
     },
     "capture_program": {
       "frases": [
@@ -328,7 +338,12 @@
       "tambien": [
         "room_status"
       ],
-      "correctivas": []
+      "correctivas": [
+        "mirá cómo llega la cámara del invitado 2"
+      ],
+      "arregla": [
+        "v9-banco"
+      ]
     },
     "room_status": {
       "frases": [
@@ -362,12 +377,20 @@
         "dejalo entrar",
         "que pase Marta",
         "metelo a la sala",
-        "dale acceso al que aguarda"
+        "dale acceso al que aguarda",
+        "dejá pasar a la licenciada Ruiz",
+        "admitilo a Federico, el resto que espere"
       ],
       "tambien": [
         "room_status"
       ],
-      "correctivas": []
+      "correctivas": [
+        "dejá entrar únicamente a Paula",
+        "pasá solo a la señora de rojo"
+      ],
+      "arregla": [
+        "v9-banco"
+      ]
     },
     "participant_reject": {
       "frases": [
@@ -448,10 +471,12 @@
       "correctivas": [
         "pasame el enlace para que entren",
         "dame la direccion de la sala para mandar",
-        "dame la url de acceso"
+        "dame la url de acceso",
+        "mandame el enlace de ingreso para los panelistas"
       ],
       "arregla": [
-        "v2"
+        "v2",
+        "v9-banco"
       ]
     },
     "speaker_next": {
@@ -501,7 +526,8 @@
       "frases": [
         "poné a grabar esto",
         "dale rec",
-        "arranca el registro en disco"
+        "arranca el registro en disco",
+        "arrancá la grabación, que ya salimos"
       ],
       "tambien": [],
       "correctivas": []
@@ -595,10 +621,13 @@
         "el enlace viene flojo",
         "la subida esta mal",
         "se entrecorta lo que sale",
-        "anda inestable la red"
+        "anda inestable la red",
+        "cómo está la red para los invitados de afuera",
+        "hay buena conexión para que entren desde sus casas?"
       ],
       "arregla": [
-        "v2"
+        "v2",
+        "v9-banco"
       ]
     },
     "share_list": {
@@ -673,7 +702,12 @@
         "aguardá el mensaje del entrevistado"
       ],
       "tambien": [],
-      "correctivas": []
+      "correctivas": [
+        "esperá que el invitado responda en el chat"
+      ],
+      "arregla": [
+        "v9-banco"
+      ]
     },
     "gateway_restart": {
       "frases": [
@@ -714,7 +748,13 @@
         "decime qué hay en la imagen de la cámara 1"
       ],
       "tambien": [],
-      "correctivas": []
+      "correctivas": [
+        "cuánta gente se ve en el fondo del estudio?",
+        "hay alguien detrás del conductor en la toma?"
+      ],
+      "arregla": [
+        "v9-banco"
+      ]
     },
     "participant_admit_all": {
       "frases": [
@@ -747,12 +787,19 @@
     },
     "participant_talk": {
       "frases": [
-        "necesito decirle algo por privado a Laura antes de que entre"
+        "necesito decirle algo por privado a Laura antes de que entre",
+        "quiero una línea privada con el del lobby",
+        "hablemos por privado con Nicolás antes de que entre"
       ],
       "tambien": [],
-      "correctivas": [],
+      "correctivas": [
+        "conectame en privado con Julián, que espera"
+      ],
       "_nota": [
         "Sus tres semillas eran de DAR LA PALABRA a un orador («dejalo hablar», «dale la palabra a ese») y esta herramienta es hablar EN PRIVADO con alguien del lobby. Sacaba 0 de 5 en el banco de orientacion. Las tres pasaron a speaker_on_air, que es lo que dicen."
+      ],
+      "arregla": [
+        "v9-banco"
       ]
     },
     "room_pin": {
@@ -814,7 +861,12 @@
         "guardá un respaldo de las escenas"
       ],
       "tambien": [],
-      "correctivas": []
+      "correctivas": [
+        "exportame la escena Cierre a un archivo"
+      ],
+      "arregla": [
+        "v9-banco"
+      ]
     },
     "scene_folder": {
       "frases": [
@@ -932,10 +984,17 @@
         "esa cámara está en el dispositivo equivocado, cambiásela",
         "apretale el botón de volver a escanear",
         "ponele otro micrófono a esa entrada",
-        "cambiale el formato de video a la placa de captura"
+        "cambiale el formato de video a la placa de captura",
+        "poné la cámara 1 en 720p"
       ],
       "tambien": [],
-      "correctivas": []
+      "correctivas": [
+        "recargá la página de la fuente del clima",
+        "cambiale la resolución a la captura del atril a 1080"
+      ],
+      "arregla": [
+        "v9-banco"
+      ]
     },
     "source_types": {
       "frases": [
@@ -946,7 +1005,12 @@
         "listame los tipos de fuente"
       ],
       "tambien": [],
-      "correctivas": []
+      "correctivas": [
+        "qué clases de fuentes se pueden crear"
+      ],
+      "arregla": [
+        "v9-banco"
+      ]
     },
     "speaker_move": {
       "frases": [
@@ -1002,14 +1066,20 @@
         "cambiale el cargo al zócalo",
         "el nombre va con zeta, arreglalo",
         "poné que dice ministro, no secretario",
-        "actualizá el texto del zócalo"
+        "actualizá el texto del zócalo",
+        "levantá la animación de la tabla de posiciones"
       ],
       "tambien": [
         "rotulo_vincular"
       ],
-      "correctivas": [],
+      "correctivas": [
+        "poné el gráfico del partido, van 3 a 0",
+        "al aire la placa del pronóstico, 22 grados y nublado",
+        "mandá la gráfica de la encuesta con los porcentajes"
+      ],
       "arregla": [
-        "v7-pegadas"
+        "v7-pegadas",
+        "v9-banco"
       ]
     },
     "grafico_ocultar": {
@@ -1035,7 +1105,12 @@
       "tambien": [
         "grafico_en_escena"
       ],
-      "correctivas": []
+      "correctivas": [
+        "qué plantillas de gráficos hay cargadas"
+      ],
+      "arregla": [
+        "v9-banco"
+      ]
     },
     "grafico_en_escena": {
       "frases": [
@@ -1077,7 +1152,12 @@
         "listame los rótulos que toman datos automáticos"
       ],
       "tambien": [],
-      "correctivas": []
+      "correctivas": [
+        "qué rótulos están conectados a una planilla"
+      ],
+      "arregla": [
+        "v9-banco"
+      ]
     },
     "rotulo_desvincular": {
       "frases": [
@@ -1138,7 +1218,12 @@
       "tambien": [
         "laminas_listar"
       ],
-      "correctivas": []
+      "correctivas": [
+        "listá las diapositivas del carrusel de la cooperativa"
+      ],
+      "arregla": [
+        "v9-banco"
+      ]
     },
     "laminas_listar": {
       "frases": [
@@ -1158,7 +1243,8 @@
       "frases": [
         "metele las láminas a esta escena",
         "metele el carrusel a la toma",
-        "que las láminas salgan en esta escena"
+        "que las láminas salgan en esta escena",
+        "poné las diapos de la feria en la escena de apertura"
       ],
       "tambien": [],
       "correctivas": []
