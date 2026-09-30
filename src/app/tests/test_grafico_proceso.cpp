@@ -69,6 +69,14 @@ int main(int argc, char** argv) {
                                      "  Rectangle { anchors.fill: parent; color: \"#ff6a2b\" } }\n");
         QString err;
         const QImage img = g.dibujar(QJsonObject{{"qml", qml}, {"ancho", 200}, {"alto", 80}}, 0, &err);
+        // Sin OpenGL (un runner de CI sin drivers) no hay renderizador: se
+        // saltea, como los demas tests que necesitan graficos. Cualquier otro
+        // error es un fallo de verdad y se muestra.
+        if (err.contains("contexto de OpenGL")) {
+            std::printf("SKIP: sin OpenGL en esta maquina (%s)\n", qUtf8Printable(err));
+            return 77;
+        }
+        if (!err.isEmpty()) std::printf("error del renderizador: %s\n", qUtf8Printable(err));
         CHECK(err.isEmpty(), "sin error");
         CHECK(img.width() == 200 && img.height() == 80, "del tamaño pedido");
     }
