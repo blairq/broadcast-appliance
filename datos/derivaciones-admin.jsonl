@@ -492,7 +492,6 @@
 {"frase": "Decime cómo va la votación y quiénes faltan votar", "herramienta": "votacion_ver"}
 {"frase": "¿Ya votaron todos? Si es así cerrá la encuesta", "herramienta": "votacion_ver"}
 {"frase": "Se terminó el tiempo para votar, cerrala y pasame el recuento final", "herramienta": "votacion_ver"}
-{"frase": "Quiero ordenar los medios porque es un lío, primero mostrame el árbol de carpetas", "herramienta": "media_carpetas"}
 {"frase": "¿Dónde está guardado el video de apertura del congreso?", "herramienta": "media_find"}
 {"frase": "Listame los videos e imágenes que tenemos en medios", "herramienta": "media_list"}
 {"frase": "¿Qué grabaciones hay de los últimos días?", "herramienta": "media_list"}
@@ -694,7 +693,6 @@
 {"frase": "Dejá fija la grilla en la tele del hall aunque se reinicie", "herramienta": "pantalla_fijar"}
 {"frase": "Que el monitor de la entrada muestre siempre el carrusel, incluso si se apaga", "herramienta": "pantalla_fijar"}
 {"frase": "Cada vez que prenda la pantalla de la sala, que vuelva a lo mismo", "herramienta": "pantalla_fijar"}
-{"frase": "Quitale lo fijo al televisor del lobby, ya no hace falta", "herramienta": "pantalla_fijar"}
 {"frase": "Borrá a esa persona de la libreta de caras, con todas sus fotos", "herramienta": "rostro_borrar"}
 {"frase": "Eliminá la ficha del ex concejal de la libreta", "herramienta": "rostro_borrar"}
 {"frase": "Anotamos mal a alguien, borralo entero de la libreta de rostros", "herramienta": "rostro_borrar"}
@@ -1021,3 +1019,247 @@
 {"frase": "Mostrame el árbol de carpetas con cuántos archivos tiene cada una", "herramienta": "media_carpetas"}
 {"frase": "Quiero ordenar los videos, ¿en qué carpetas están guardados?", "herramienta": "media_carpetas"}
 {"frase": "No encuentro dónde quedaron los clips subidos, pasame las carpetas de material", "herramienta": "media_carpetas"}
+{"frase": "Borrá la vigilancia que armamos para el nivel del micro", "herramienta": "alert_delete"}
+{"frase": "Sacame todas las vigilancias, ya no hacen falta", "herramienta": "alert_delete"}
+{"frase": "¿Podés eliminar la vigilancia número tres? Salta al pedo", "herramienta": "alert_delete"}
+{"frase": "Me llena de avisos esa vigilancia del stream caído, borrala", "herramienta": "alert_delete"}
+{"frase": "Terminó el programa, liquidá todas las vigilancias activas", "herramienta": "alert_delete"}
+{"frase": "Esa vigilancia de silencio en el aire ya no va, eliminala", "herramienta": "alert_delete"}
+{"frase": "Metele compresor a la voz del conductor, ratio tres a uno", "herramienta": "audio_compressor"}
+{"frase": "El invitado grita y después susurra, comprimilo un poco más", "herramienta": "audio_compressor"}
+{"frase": "¿Cuánto está comprimiendo el compresor del micro dos?", "herramienta": "audio_compressor"}
+{"frase": "Bajale el umbral al compresor que no está agarrando los picos", "herramienta": "audio_compressor"}
+{"frase": "Ataque más rápido en el compresor de la columnista, diez milisegundos", "herramienta": "audio_compressor"}
+{"frase": "Emparejame la dinámica de la voz, que no salte tanto entre fuerte y bajo", "herramienta": "audio_compressor"}
+{"frase": "Las eses de la conductora silban una barbaridad, sacale sibilancia", "herramienta": "audio_deesser"}
+{"frase": "Poné el de-esser en la voz de Martina, arrancá en seis kilos", "herramienta": "audio_deesser"}
+{"frase": "Las ches y las eses pinchan en el micro corbatero, atenualas", "herramienta": "audio_deesser"}
+{"frase": "¿Cuánto está bajando el de-esser en las sibilantes del invitado?", "herramienta": "audio_deesser"}
+{"frase": "Subí la frecuencia de detección del de-esser a siete kilohertz", "herramienta": "audio_deesser"}
+{"frase": "Ecualizá la voz del conductor, suena apagada, levantá agudos", "herramienta": "audio_eq"}
+{"frase": "Suena metálico el corbatero, bajá la banda de tres kilos en el ecualizador", "herramienta": "audio_eq"}
+{"frase": "Metele un notch a 50 hertz que hay zumbido de línea", "herramienta": "audio_eq"}
+{"frase": "¿Qué bandas tiene activas el ecualizador del micro uno?", "herramienta": "audio_eq"}
+{"frase": "Poné un shelf de agudos más dos dB en la voz de la columnista", "herramienta": "audio_eq"}
+{"frase": "Poné una puerta de ruido en el micro del conductor, umbral más alto", "herramienta": "audio_gate"}
+{"frase": "La compuerta corta las primeras sílabas, bajale el umbral", "herramienta": "audio_gate"}
+{"frase": "El aire acondicionado se cuela cuando nadie habla, metele gate", "herramienta": "audio_gate"}
+{"frase": "¿A cuántos dB está el umbral de la compuerta del micro tres?", "herramienta": "audio_gate"}
+{"frase": "Agregá la entrada de línea de la consola de sonido al programa", "herramienta": "audio_input_add"}
+{"frase": "Metele al aire el audio de la interfaz USB, entrada dos", "herramienta": "audio_input_add"}
+{"frase": "Enchufamos un micro nuevo a la compu, sumalo a la mezcla", "herramienta": "audio_input_add"}
+{"frase": "Necesito el audio ambiente del lugar como nueva entrada de audio", "herramienta": "audio_input_add"}
+{"frase": "Agregá el micrófono inalámbrico del receptor como entrada nueva", "herramienta": "audio_input_add"}
+{"frase": "Poné un limitador al final de la cadena, techo en menos uno", "herramienta": "audio_limiter"}
+{"frase": "¿Cuánto está recortando el limitador del master ahora?", "herramienta": "audio_limiter"}
+{"frase": "Bajá el techo del limitador a menos dos, que clipea en los aplausos", "herramienta": "audio_limiter"}
+{"frase": "Que la transmisión nunca pase de cierto nivel, limitalo", "herramienta": "audio_limiter"}
+{"frase": "Sacá el compresor del rack del micro dos, que la cadena siga", "herramienta": "audio_module_remove"}
+{"frase": "Quitá el módulo del de-esser de la cadena del conductor", "herramienta": "audio_module_remove"}
+{"frase": "Ese nodo del ecualizador sobra en el rack, eliminalo", "herramienta": "audio_module_remove"}
+{"frase": "Desarmá el rack entero de la consola, audio directo sin procesar", "herramienta": "audio_module_remove"}
+{"frase": "Sacame el limitador de la cadena, dejá el resto conectado igual", "herramienta": "audio_module_remove"}
+{"frase": "Cambiá los videos de fondo del dashboard por el feed de la cámara del estudio", "herramienta": "dashboard_background"}
+{"frase": "Oscurecé más el fondo del tablero, no se leen las tarjetas", "herramienta": "dashboard_background"}
+{"frase": "¿Qué feeds están de fondo en el dashboard ahora?", "herramienta": "dashboard_background"}
+{"frase": "Poné de fondo del tablero dos videos en mosaico", "herramienta": "dashboard_background"}
+{"frase": "El fondo del tablero está muy brillante, bajale la luz al video", "herramienta": "dashboard_background"}
+{"frase": "Agregá un cue de la entrevista al bloque dos de la escaleta", "herramienta": "evento_cue"}
+{"frase": "Mové el cue del informe del clima antes de la tanda", "herramienta": "evento_cue"}
+{"frase": "Sacá el cue del móvil del bloque tres, se cayó la nota", "herramienta": "evento_cue"}
+{"frase": "Cambiale la duración al cue de apertura, son dos minutos", "herramienta": "evento_cue"}
+{"frase": "Meté un cue nuevo de VTR al final del segundo bloque", "herramienta": "evento_cue"}
+{"frase": "Poné la cortina musical de la carpeta de medios de fondo en la apertura", "herramienta": "media_use"}
+{"frase": "Usá el video institucional del archivo de medios en la escena de tanda", "herramienta": "media_use"}
+{"frase": "Poneme la imagen del sponsor de la carpeta de medios abajo a la izquierda", "herramienta": "media_use"}
+{"frase": "Cargá el mp3 de la música de fondo en la escena de cierre", "herramienta": "media_use"}
+{"frase": "Traé el clip del gol de la carpeta de medios a la escena de repetición", "herramienta": "media_use"}
+{"frase": "¿Qué monitores tiene conectados esta compu y con qué resolución?", "herramienta": "monitors"}
+{"frase": "Listame las pantallas físicas del puesto y cuál es la principal", "herramienta": "monitors"}
+{"frase": "¿A cuántos hercios anda el monitor de la derecha?", "herramienta": "monitors"}
+{"frase": "¿Qué ventanas de salida hay abiertas y en qué monitor están?", "herramienta": "monitors"}
+{"frase": "Necesito saber la escala y la posición de cada monitor en el escritorio", "herramienta": "monitors"}
+{"frase": "¿Se reconoció el monitor nuevo que enchufamos por HDMI?", "herramienta": "monitors"}
+{"frase": "Agregá la cámara IP del estudio por RTSP a la escena principal", "herramienta": "network_input_add"}
+{"frase": "Metele a la escena la señal SRT del móvil en modo caller", "herramienta": "network_input_add"}
+{"frase": "Sumá el enlace RTMP que manda el corresponsal a la escena de exteriores", "herramienta": "network_input_add"}
+{"frase": "Agregá el stream HLS de la otra señal como entrada de red", "herramienta": "network_input_add"}
+{"frase": "Entra una señal UDP de la unidad móvil, metela en la escena", "herramienta": "network_input_add"}
+{"frase": "Cambiá el ajuste de bitrate de salida a seis megas y guardalo", "herramienta": "settings_set"}
+{"frase": "Pasá la configuración del idioma a español y aplicala", "herramienta": "settings_set"}
+{"frase": "Modificá los ajustes de la sala aunque reinicie, los invitados vuelven solos", "herramienta": "settings_set"}
+{"frase": "Guardá en la configuración que arranque en modo oscuro", "herramienta": "settings_set"}
+{"frase": "Tocá el ajuste de puerto del gateway, se aplica al próximo arranque", "herramienta": "settings_set"}
+{"frase": "Pasá la barra de navegación lateral al lado derecho", "herramienta": "ui_barra"}
+{"frase": "Achicá la barra lateral, ocupa media pantalla", "herramienta": "ui_barra"}
+{"frase": "Sacá la página de estadísticas del menú lateral de navegación", "herramienta": "ui_barra"}
+{"frase": "¿Qué páginas tiene hoy la barra lateral de la app?", "herramienta": "ui_barra"}
+{"frase": "Ensanchá la barra de navegación que no se leen los nombres", "herramienta": "ui_barra"}
+{"frase": "Cerrá la ventana suelta del mezclador que saqué como pestaña", "herramienta": "ventana_cerrar"}
+{"frase": "Cerrame la ventana de salida de video del monitor dos", "herramienta": "ventana_cerrar"}
+{"frase": "Esa pestaña despegada del chat, cerrala que molesta", "herramienta": "ventana_cerrar"}
+{"frase": "Cerrá la ventana del multiview que quedó abierta suelta", "herramienta": "ventana_cerrar"}
+{"frase": "Volá la ventana de salida a pantalla completa, terminó el ensayo", "herramienta": "ventana_cerrar"}
+{"frase": "Hay una ventana flotante de escenas de más, cerrala", "herramienta": "ventana_cerrar"}
+{"frase": "Llevá la ventana del mezclador a la mitad derecha del monitor", "herramienta": "ventana_mover"}
+{"frase": "Pasame la ventana de salida al segundo monitor del puesto", "herramienta": "ventana_mover"}
+{"frase": "Acomodá la ventana del chat en el cuarto de abajo del monitor principal", "herramienta": "ventana_mover"}
+{"frase": "Agrandá la ventana de escenas y ponela arriba en el monitor dos", "herramienta": "ventana_mover"}
+{"frase": "Movéme la pestaña suelta de audio al monitor chico del costado", "herramienta": "ventana_mover"}
+{"frase": "Agregá la cámara USB en 720p a 60 fps a la escena de exteriores", "herramienta": "video_input_add"}
+{"frase": "Traé la capturadora de la consola de video a la escena del piso", "herramienta": "video_input_add"}
+{"frase": "Armame un tono de prueba de 1 kHz a menos 18 dBFS en el rack", "herramienta": "audio_generator"}
+{"frase": "Generá un barrido de frecuencias y enchufalo al nodo del ecualizador", "herramienta": "audio_generator"}
+{"frase": "Subile el nivel al generador de seno a menos 12 dB", "herramienta": "audio_generator"}
+{"frase": "¿Podés crear un oscilador de ruido blanco para probar el compresor?", "herramienta": "audio_generator"}
+{"frase": "Cambiale la frecuencia al tono de prueba a 440 Hz", "herramienta": "audio_generator"}
+{"frase": "Agregá un cue de entrevista al bloque dos de la escaleta", "herramienta": "evento_cue"}
+{"frase": "Subí el cue del móvil de exteriores arriba de la pausa en el bloque tres", "herramienta": "evento_cue"}
+{"frase": "Borrá el cue de la nota de deportes, se cayó", "herramienta": "evento_cue"}
+{"frase": "Corregí la duración del cue del informe del clima en la escaleta, son dos minutos", "herramienta": "evento_cue"}
+{"frase": "¿Me sumás un cue de separador musical al final del primer bloque?", "herramienta": "evento_cue"}
+{"frase": "Dame una vista previa del gráfico de resultados en varios cuadros de la animación, sin emitir", "herramienta": "grafico_probar"}
+{"frase": "Quiero ver en privado cómo queda la animación del marcador antes de usarla", "herramienta": "grafico_probar"}
+{"frase": "Renderizame fotogramas de prueba del gráfico de encuesta, que nadie lo vea", "herramienta": "grafico_probar"}
+{"frase": "¿Cómo se ve el gráfico con estos datos? Sacame unas capturas de ensayo", "herramienta": "grafico_probar"}
+{"frase": "Ensayá el gráfico del clima y devolveme imágenes de la animación a mitad y al final", "herramienta": "grafico_probar"}
+{"frase": "No me fío del texto largo, previsualizá el gráfico en borrador y mostrame los cuadros", "herramienta": "grafico_probar"}
+{"frase": "Abrime en miniatura la foto del archivo de medios del intendente para confirmar que es esa", "herramienta": "media_view"}
+{"frase": "¿Esa imagen de la biblioteca de medios es el logo nuevo? Dejame verla y su resolución", "herramienta": "media_view"}
+{"frase": "Previsualizá el archivo de imagen de la mediateca, quiero chequear el tamaño original", "herramienta": "media_view"}
+{"frase": "Antes de usar la foto de la mediateca, mirala vos y decime si es el estadio correcto", "herramienta": "media_view"}
+{"frase": "Hay dos jpg con el mismo nombre en medios, abrime el segundo en chiquito", "herramienta": "media_view"}
+{"frase": "Revisá el archivo de imagen que subió producción a medios, ¿qué resolución tiene?", "herramienta": "media_view"}
+{"frase": "No sé cuál salida de video es DP-1, identificá los monitores con su número", "herramienta": "monitor_identificar"}
+{"frase": "Tirá el cartel con número y nombre en cada monitor de la cabina", "herramienta": "monitor_identificar"}
+{"frase": "¿Cuál de estos monitores es HDMI-2? Numeralos un toque", "herramienta": "monitor_identificar"}
+{"frase": "Recién conecté los monitores, marcame cuál es cuál con el identificador", "herramienta": "monitor_identificar"}
+{"frase": "Identificame los monitores, así sé a qué conector va cada uno", "herramienta": "monitor_identificar"}
+{"frase": "Me perdí con las salidas de video, poné el número grande en cada monitor unos segundos", "herramienta": "monitor_identificar"}
+{"frase": "Prendé la cámara de la puerta para acreditar a los que van llegando", "herramienta": "padron_puerta"}
+{"frase": "Activá la acreditación automática en la entrada, que marque presentes en el padrón", "herramienta": "padron_puerta"}
+{"frase": "Ya entró todo el público, apagá el reconocimiento de la cámara del ingreso", "herramienta": "padron_puerta"}
+{"frase": "¿Podés hacer que la cámara del acceso registre la llegada de los invitados en el padrón?", "herramienta": "padron_puerta"}
+{"frase": "Arranca la asamblea, encendé el control de asistencia por la cámara de la puerta", "herramienta": "padron_puerta"}
+{"frase": "Cortá la acreditación de la entrada, cerramos el padrón del evento", "herramienta": "padron_puerta"}
+{"frase": "Dejá fija la grilla de programación en el televisor de recepción, aunque lo apaguen de noche", "herramienta": "pantalla_fijar"}
+{"frase": "El display del lobby cada mañana arranca en blanco, asignale contenido fijo permanente", "herramienta": "pantalla_fijar"}
+{"frase": "Cuando vuelva a prenderse el televisor del bar, que cargue solo el reloj de siempre", "herramienta": "pantalla_fijar"}
+{"frase": "Liberá la tele del pasillo, que ya no tenga nada fijo asignado", "herramienta": "pantalla_fijar"}
+{"frase": "Al televisor de la sala de espera le cambiaron la IP; que igual vuelva a mostrar lo asignado", "herramienta": "pantalla_fijar"}
+{"frase": "Sumale a la ficha del ministro la pose de perfil que se ve ahora en la cámara dos", "herramienta": "rostro_sumar"}
+{"frase": "Agregale otra toma de cara a la ficha de la conductora con lo que hay en guest 1", "herramienta": "rostro_sumar"}
+{"frase": "El reconocimiento no la agarra de costado, cargale esta pose a su rostro registrado", "herramienta": "rostro_sumar"}
+{"frase": "Enriquecé la ficha facial del diputado con la cara de la armada y decime si aportó", "herramienta": "rostro_sumar"}
+{"frase": "¿Le sirvió esa pose con anteojos a la ficha del invitado o ya la tenía?", "herramienta": "rostro_sumar"}
+{"frase": "Entrená un poco más el rostro del intendente con el primer plano de ahora", "herramienta": "rostro_sumar"}
+{"frase": "¿Quién es el tipo que aparece en la cámara del invitado? Reconocé la cara", "herramienta": "rostro_ver"}
+{"frase": "Identificá las caras del program y decime a quién se parece cada una", "herramienta": "rostro_ver"}
+{"frase": "Pasá reconocimiento facial en la armada, ¿con cuánta confianza es la senadora?", "herramienta": "rostro_ver"}
+{"frase": "No sé quién se sentó en la mesa, reconocé el rostro de la cámara tres", "herramienta": "rostro_ver"}
+{"frase": "Buscame caras en el feed del móvil y decime quiénes son", "herramienta": "rostro_ver"}
+{"frase": "Tirame una notificación en la app que diga que arrancamos en cinco", "herramienta": "ui_notify"}
+{"frase": "Mandá un toast al operador avisando que se cortó el móvil", "herramienta": "ui_notify"}
+{"frase": "¿Me dejás un aviso emergente en la interfaz cuando termine el render?", "herramienta": "ui_notify"}
+{"frase": "Avisale al de consola con una notificación en la app que cambió la escaleta", "herramienta": "ui_notify"}
+{"frase": "Largá un toast en la interfaz: llamar a producción urgente", "herramienta": "ui_notify"}
+{"frase": "Notificación en la app para el operador: el invitado está en maquillaje", "herramienta": "ui_notify"}
+{"frase": "Sacale una foto a la interfaz del aparato, el botón de grabar no aparece", "herramienta": "ventana_captura"}
+{"frase": "Capturá la página de configuración de la app, hay tarjetas encimadas", "herramienta": "ventana_captura"}
+{"frase": "¿Cómo se ve la interfaz de control ahora? Mandame un screenshot de la ventana", "herramienta": "ventana_captura"}
+{"frase": "En la app el texto del menú sale cortado, fotografiá la interfaz y fijate", "herramienta": "ventana_captura"}
+{"frase": "Mirá la página del mezclador en la interfaz y decime si se rompió el diseño", "herramienta": "ventana_captura"}
+{"frase": "Frená la corrida del agente que está resumiendo el chat, no va más", "herramienta": "agente_detener"}
+{"frase": "Matá esa corrida del asistente, se colgó hace diez minutos", "herramienta": "agente_detener"}
+{"frase": "La corrida de los zócalos automáticos sigue en cola, sacala de la cola", "herramienta": "agente_detener"}
+{"frase": "¿Podés abortar la tarea del agente? Está haciendo cualquier cosa", "herramienta": "agente_detener"}
+{"frase": "Detené la corrida número tres del agente, que quede como detenida", "herramienta": "agente_detener"}
+{"frase": "El agente se fue de mambo con esa corrida, pará su ejecución ya", "herramienta": "agente_detener"}
+{"frase": "Las eses de la conductora silban muchísimo, bajale las sibilancias", "herramienta": "audio_deesser"}
+{"frase": "Poné el de-esser a detectar desde los seis kilohertz para el columnista", "herramienta": "audio_deesser"}
+{"frase": "Dejame oír solo las sibilancias que detecta el de-esser para ajustarlo", "herramienta": "audio_deesser"}
+{"frase": "Molestan las ches y las eses del invitado, atenualas un toque", "herramienta": "audio_deesser"}
+{"frase": "¿Cuánto está recortando el de-esser de las sibilancias ahora?", "herramienta": "audio_deesser"}
+{"frase": "Subí la detección del de-esser a siete kilohertz, voz muy aguda", "herramienta": "audio_deesser"}
+{"frase": "Enchufé la consola del salón a la placa de audio, sumala a la emisión", "herramienta": "audio_input_add"}
+{"frase": "Incorporá el micrófono corbatero conectado a la compu como entrada nueva", "herramienta": "audio_input_add"}
+{"frase": "Necesito sumar el audio ambiente del lugar desde la placa de sonido", "herramienta": "audio_input_add"}
+{"frase": "Conecté un micrófono nuevo a la interfaz, dalo de alta como entrada", "herramienta": "audio_input_add"}
+{"frase": "¿Qué claves de video hay disponibles para capturar?", "herramienta": "feeds_list"}
+{"frase": "Enumerame todas las claves de video y cuáles tienen imagen ahora", "herramienta": "feeds_list"}
+{"frase": "¿Qué videos puede capturar la app? Pasame las claves con su etiqueta", "herramienta": "feeds_list"}
+{"frase": "Decime qué claves de video existen: program, armada, invitados, lobby", "herramienta": "feeds_list"}
+{"frase": "¿Cuáles de las claves de video tienen imagen en este momento?", "herramienta": "feeds_list"}
+{"frase": "Inventario de claves de video disponibles, con etiqueta cada una", "herramienta": "feeds_list"}
+{"frase": "¿Qué resolución trae la capturadora HDMI y llega señal?", "herramienta": "input_status"}
+{"frase": "¿El enlace SRT de la calle está reproduciendo o se trabó el buffer?", "herramienta": "input_status"}
+{"frase": "Decime qué dispositivo usa cada cámara física y si entra señal", "herramienta": "input_status"}
+{"frase": "¿La capturadora está recibiendo imagen? ¿De qué tamaño?", "herramienta": "input_status"}
+{"frase": "Chequeá las capturadoras y los enlaces de red: dispositivo, URL y si hay señal", "herramienta": "input_status"}
+{"frase": "¿Los que esperan en el lobby tienen cámara y micrófono andando?", "herramienta": "invitado_chequeo"}
+{"frase": "¿Están listos para salir los invitados del lobby? Qué les falta", "herramienta": "invitado_chequeo"}
+{"frase": "Revisá si a los de la sala de espera les funciona el micrófono y la cámara", "herramienta": "invitado_chequeo"}
+{"frase": "Antes de hacerlos pasar, ¿los del lobby están en condiciones de salir?", "herramienta": "invitado_chequeo"}
+{"frase": "¿Algún invitado en espera tiene el micrófono muteado o sin cámara?", "herramienta": "invitado_chequeo"}
+{"frase": "Mostrame el árbol de carpetas de medios con cuántos archivos tiene cada una", "herramienta": "media_carpetas"}
+{"frase": "¿Qué subcarpetas tiene la carpeta de medios de deportes?", "herramienta": "media_carpetas"}
+{"frase": "Quiero ordenar los medios, ¿cuántas carpetas hay y cuáles están vacías?", "herramienta": "media_carpetas"}
+{"frase": "¿En qué carpeta de medios quedaron los archivos del programa de ayer?", "herramienta": "media_carpetas"}
+{"frase": "Dame la estructura de carpetas de la biblioteca de medios", "herramienta": "media_carpetas"}
+{"frase": "Abrime la imagen fondo_estudio.png de medios, quiero confirmar que es esa", "herramienta": "media_view"}
+{"frase": "Previsualizá el archivo logo_canal.jpg de la biblioteca de medios", "herramienta": "media_view"}
+{"frase": "¿Esa foto de medios es la del intendente? Abrila que la chequeo", "herramienta": "media_view"}
+{"frase": "Traeme en miniatura la imagen de la carpeta de medios placa_final", "herramienta": "media_view"}
+{"frase": "¿Qué tamaño original tiene la imagen mapa_ba.png de medios? Mostrámela", "herramienta": "media_view"}
+{"frase": "Abrí la imagen de la biblioteca de medios que se llama portada_2", "herramienta": "media_view"}
+{"frase": "¿Qué televisores conoce el sistema y cuáles están libres?", "herramienta": "pantalla_listar"}
+{"frase": "¿El televisor del estudio lo tiene tomado otra aplicación?", "herramienta": "pantalla_listar"}
+{"frase": "Pasame los televisores: libres, ocupados por nosotros o sin responder", "herramienta": "pantalla_listar"}
+{"frase": "¿Hay algún televisor libre para mandar la señal de retorno?", "herramienta": "pantalla_listar"}
+{"frase": "¿El tele de la escenografía no responde? Fijate los televisores", "herramienta": "pantalla_listar"}
+{"frase": "Enumerame los televisores del estudio y en qué estado está cada uno", "herramienta": "pantalla_listar"}
+{"frase": "Borrá la vigilancia que armé para el audio, ya no hace falta", "herramienta": "alert_delete"}
+{"frase": "Eliminame todas las vigilancias, arrancamos de cero", "herramienta": "alert_delete"}
+{"frase": "¿Podés borrar esa alerta automática que salta cada dos minutos?", "herramienta": "alert_delete"}
+{"frase": "Me sigue avisando la vigilancia vieja del stream, borrala", "herramienta": "alert_delete"}
+{"frase": "Limpiá todas las alertas programadas antes del próximo bloque", "herramienta": "alert_delete"}
+{"frase": "La conductora silba mucho en las eses, meté el de-esser", "herramienta": "audio_deesser"}
+{"frase": "Las sibilancias del invitado lastiman, atenualas en unos 6 kHz", "herramienta": "audio_deesser"}
+{"frase": "¿Cómo está calibrado el de-esser del micro dos?", "herramienta": "audio_deesser"}
+{"frase": "Cada ese y cada che raspa en el aire, domalas", "herramienta": "audio_deesser"}
+{"frase": "Activá la escucha del de-esser así ajusto qué sibilancia detecta", "herramienta": "audio_deesser"}
+{"frase": "Subí la frecuencia de detección de eses a 7 kHz para esa voz", "herramienta": "audio_deesser"}
+{"frase": "Quitá la tarjeta de medidores del tablero, estorba", "herramienta": "dashboard_card"}
+{"frase": "Volvé el dashboard a la disposición por defecto", "herramienta": "dashboard_card"}
+{"frase": "Sumame una tarjeta nueva en el tablero para ver el invitado uno", "herramienta": "dashboard_card"}
+{"frase": "Sacá del dashboard la tarjeta que agregué recién", "herramienta": "dashboard_card"}
+{"frase": "Resetéame el tablero de tarjetas, quedó un lío", "herramienta": "dashboard_card"}
+{"frase": "¿Le está llegando imagen a la capturadora de la cámara uno?", "herramienta": "input_status"}
+{"frase": "¿En qué resolución entra la señal de la placa HDMI?", "herramienta": "input_status"}
+{"frase": "Revisá las entradas: qué capturadora es cada una y si trae señal", "herramienta": "input_status"}
+{"frase": "La cámara dos está en negro, ¿el dispositivo está entregando video?", "herramienta": "input_status"}
+{"frase": "¿El stream SRT que cargamos como entrada se está reproduciendo?", "herramienta": "input_status"}
+{"frase": "Creá un carrusel nuevo con el logo, el fondo azul y la placa institucional, en ese orden", "herramienta": "laminas_armar"}
+{"frase": "Juntá estas tres imágenes sueltas en un carrusel desde cero", "herramienta": "laminas_armar"}
+{"frase": "Hacé un carrusel a mano con las placas de la carpeta de hoy", "herramienta": "laminas_armar"}
+{"frase": "Necesito un carrusel nuevo: primero la portada, después el mapa y el cierre", "herramienta": "laminas_armar"}
+{"frase": "Con estas fotos sueltas creá un carrusel llamado Invitados", "herramienta": "laminas_armar"}
+{"frase": "Quitá la lámina cuatro del carrusel de sponsors", "herramienta": "laminas_editar"}
+{"frase": "Renombrá el carrusel Economía como Informe Económico", "herramienta": "laminas_editar"}
+{"frase": "Eliminá el carrusel viejo, las imágenes dejalas", "herramienta": "laminas_editar"}
+{"frase": "Pasá la última lámina al tercer lugar del carrusel", "herramienta": "laminas_editar"}
+{"frase": "Dejá fijo el retorno en el monitor de la escenografía, que vuelva solo si se reinicia", "herramienta": "pantalla_fijar"}
+{"frase": "El televisor del fondo se desenchufa de noche; que al volver muestre el logo", "herramienta": "pantalla_fijar"}
+{"frase": "Fijá el monitor del conductor en la cámara del invitado, para siempre", "herramienta": "pantalla_fijar"}
+{"frase": "Liberá la tele del estudio, que ya no tenga nada asignado fijo", "herramienta": "pantalla_fijar"}
+{"frase": "Si el display de la entrada cambia de IP, que igual siga mostrando la escena", "herramienta": "pantalla_fijar"}
+{"frase": "El botón de guardar no aparece en la página, sacale una foto a la interfaz", "herramienta": "ventana_captura"}
+{"frase": "Se ve una tarjeta encima de otra en el panel, fotografiá la interfaz", "herramienta": "ventana_captura"}
+{"frase": "Hay un texto cortado en la pantalla de configuración, mirala", "herramienta": "ventana_captura"}
+{"frase": "Quiero ver cómo quedó el diseño de la página de invitados del aparato", "herramienta": "ventana_captura"}
+{"frase": "Chequeá visualmente si el menú de la página se rompió", "herramienta": "ventana_captura"}
+{"frase": "Cerrame esa pestaña que saqué al segundo monitor", "herramienta": "ventana_cerrar"}
+{"frase": "Hay una ventana flotante de más, cerrala", "herramienta": "ventana_cerrar"}
+{"frase": "Matá la ventana de la salida dos, ya no se usa", "herramienta": "ventana_cerrar"}
+{"frase": "Cerrá la pestaña desprendida del mezclador", "herramienta": "ventana_cerrar"}
+{"frase": "Esa ventana suelta tapa todo, cerrala", "herramienta": "ventana_cerrar"}

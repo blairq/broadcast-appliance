@@ -716,14 +716,24 @@ def main():
                 if c > args.objetivo:
                     aristas[(a, b)] += 1
                     motivo[(a, b)].append(f"CDNV {c:.3f}")
-        destino = [h for h in geo.hs if h in propias or h == "derivar"]
+        # Una administrativa se pisa con una propia si queda ADENTRO de su nube: a
+        # menos del radio tipico de un grupo propio de su centro. Es la misma regla
+        # con que --evaluar la acepta. Compararla contra el centro de derivar no
+        # sirve: derivar es multimodal y su centro no esta cerca de nada, asi que
+        # cada administrativa nueva sumaba un par aunque estuviera bien afuera.
+        destino = [h for h in geo.hs if h in propias]
         Cd = torch.stack([geo.mu[h] for h in destino])
+        radios = [(geo.P[g] - geo.mu[g]).norm(dim=1).mean().item()
+                  for g in destino if len(geo.P[g]) >= 3]
+        radio_propio = sorted(radios)[len(radios) // 2]
         for h in geo.hs:
             if h in propias or h == "derivar":
                 continue
             for i, v in enumerate(geo.P[h]):
-                d = destino[int(torch.argmin((Cd - v).norm(dim=1)))]
-                if d in propias:
+                dist = (Cd - v).norm(dim=1)
+                j = int(torch.argmin(dist))
+                d = destino[j]
+                if dist[j].item() < radio_propio:
                     k = tuple(sorted((h, d)))
                     aristas[k] += 1
                     motivo[k].append(f"frase cae en {d}")
