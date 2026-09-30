@@ -166,7 +166,13 @@
         "anda a la toma de graficos"
       ],
       "tambien": [],
-      "correctivas": []
+      "correctivas": [
+        "poné la de apertura",
+        "sacá la del cierre al aire ya"
+      ],
+      "arregla": [
+        "v7-pegadas"
+      ]
     },
     "scene_preview": {
       "frases": [
@@ -191,7 +197,13 @@
         "dale al take de la armada",
         "ejecuta el corte a lo alistado"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": [
+        "dale take a la que preparé"
+      ],
+      "arregla": [
+        "v7-pegadas"
+      ]
     },
     "scene_list": {
       "frases": [
@@ -590,7 +602,12 @@
     "capture_sequence": {
       "frases": [
         "sacame varias fotos seguidas",
-        "grabame una secuencia de lo que sale"
+        "grabame una secuencia de lo que sale",
+        "tirame una ráfaga de capturas del programa",
+        "quiero ver varios instantes seguidos, algo se mueve raro",
+        "sacame cinco cuadros con medio segundo entre cada uno",
+        "necesito una tira de imágenes de esa cámara",
+        "hacele un muestreo en el tiempo a esa fuente"
       ],
       "tambien": []
     },
@@ -620,7 +637,12 @@
     "grabacion_individual": {
       "frases": [
         "grabame a cada invitado por separado",
-        "quiero pistas separadas de cada camara"
+        "quiero pistas separadas de cada camara",
+        "quiero el audio de cada micrófono en su propio archivo",
+        "que quede cada cámara grabada aparte, después edito",
+        "además del programa, grabame las fuentes sueltas",
+        "necesito los ISO de cada entrada",
+        "prendé el grabado por entrada que hay que reeditar"
       ],
       "tambien": []
     },
@@ -696,7 +718,12 @@
     "scene_copy": {
       "frases": [
         "copiame esta escena",
-        "duplica la de apertura"
+        "duplica la de apertura",
+        "hacele un clon a la del invitado",
+        "quiero otra igual a esta para modificarla",
+        "hacele una gemela a la que va saliendo",
+        "duplicame la del panel, le cambio una cámara y listo",
+        "sacale una copia antes de que la toque"
       ],
       "tambien": []
     },
@@ -731,16 +758,34 @@
     "scene_move": {
       "frases": [
         "subi esa escena en la lista",
-        "cambiale el orden a las escenas"
+        "cambiale el orden a las escenas",
+        "esa va antes del bloque de entrevistas",
+        "acomodame el orden, que quedaron desordenadas",
+        "bajala al final de la lista",
+        "ponela tercera, va después del informe",
+        "reordename las escenas como va el programa"
       ],
       "tambien": []
     },
     "scene_protect": {
       "frases": [
         "protege esa escena para que no la toquen",
-        "bloquea la de apertura"
+        "bloquea la de apertura",
+        "no quiero que nadie me toque la del cierre",
+        "trabala, que ya está armada",
+        "ponele candado a esa",
+        "asegurame esa antes de que entre el otro operador",
+        "esa no se toca más, marcala",
+        "dejala firme que la última vez la borraron"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": [
+        "trabá la de apertura",
+        "protegé la del cierre, no la saques al aire"
+      ],
+      "arregla": [
+        "v7-pegadas"
+      ]
     },
     "scene_rename": {
       "frases": [
@@ -761,26 +806,53 @@
         "bajá lo que subió y metelo en la escena",
         "traeme eso que compartieron"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": [
+        "ponelo al aire, ya lo vi"
+      ],
+      "arregla": [
+        "v7-pegadas"
+      ]
     },
     "share_view": {
       "frases": [
         "mostrame lo que mandaron",
-        "abrime el archivo del invitado"
+        "abrime el archivo del invitado",
+        "quiero chequear la foto antes de sacarla al aire",
+        "dejame ver qué subió el invitado",
+        "previsualizame el archivo compartido",
+        "qué es eso que mandaron, mostrámelo",
+        "revisá el adjunto antes de usarlo"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": [
+        "dejame verlo primero, no lo pongas"
+      ],
+      "arregla": [
+        "v7-pegadas"
+      ]
     },
     "source_properties": {
       "frases": [
         "que ajustes tiene esa camara",
-        "mostrame las propiedades de la fuente"
+        "mostrame las propiedades de la fuente",
+        "qué se le puede cambiar a esa fuente",
+        "abrime el panel de propiedades de la cámara",
+        "qué configuraciones acepta esa entrada",
+        "mostrame qué parámetros tiene ese título",
+        "quiero ver los ajustes disponibles de la placa"
       ],
       "tambien": []
     },
     "source_set_property": {
       "frases": [
         "ponele otro dispositivo a esa fuente",
-        "ajustale el tamaño de captura a esa fuente"
+        "ajustale el tamaño de captura a esa fuente",
+        "cambiale la resolución a esa entrada",
+        "esa cámara está en el dispositivo equivocado, cambiásela",
+        "apretale el botón de volver a escanear",
+        "ponele otro micrófono a esa entrada",
+        "cambiale el formato de video a la placa de captura"
       ],
       "tambien": []
     },
@@ -802,7 +874,13 @@
     "speaker_presenter": {
       "frases": [
         "ponelo de presentador",
-        "este es el que conduce"
+        "este es el que conduce",
+        "la conductora se queda fija mientras rotan los invitados",
+        "marcalo como el que lleva el programa",
+        "dejalo siempre en pantalla, los demás van pasando",
+        "él es el ancla, no lo saques",
+        "fijá a este que es el que presenta",
+        "quiero que ese tenga lugar propio todo el tiempo"
       ],
       "tambien": []
     },
@@ -842,7 +920,12 @@
       "tambien": [
         "rotulo_vincular"
       ],
-      "correctivas": []
+      "correctivas": [
+        "ese animado ponelo ahora, no me lo listes"
+      ],
+      "arregla": [
+        "v7-pegadas"
+      ]
     },
     "grafico_ocultar": {
       "frases": [
@@ -872,9 +955,20 @@
       "frases": [
         "dónde están puestos los animados",
         "dónde puedo poner una placa acá",
-        "qué fuentes de gráfico hay en la toma"
+        "qué fuentes de gráfico hay en la toma",
+        "qué placas animadas hay colocadas",
+        "listame las fuentes de gráfico que están en las escenas",
+        "en qué escenas hay puesto un animado",
+        "decime los ids de los gráficos que están en escena",
+        "qué tamaño tiene el gráfico que está puesto"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": [
+        "qué animados hay, no me los pongas"
+      ],
+      "arregla": [
+        "v7-pegadas"
+      ]
     },
     "rotulo_vincular": {
       "frases": [
@@ -898,7 +992,12 @@
       "frases": [
         "desatá ese rótulo",
         "que deje de escribirse solo",
-        "desenganchá ese rótulo"
+        "desenganchá ese rótulo",
+        "cortá la conexión de ese rótulo con los datos",
+        "ese zócalo ya no se actualiza más solo",
+        "apagale el automático al generador",
+        "quitale el vínculo, lo escribo a mano",
+        "soltá ese rótulo del dato"
       ],
       "tambien": []
     },
@@ -948,7 +1047,11 @@
     "laminas_listar": {
       "frases": [
         "mostrame el repertorio de diapositivas",
-        "qué carruseles hay armados"
+        "qué carruseles hay armados",
+        "cuántos carruseles tengo armados",
+        "listame las presentaciones disponibles",
+        "decime qué presentaciones subí",
+        "decime qué carruseles cargué"
       ],
       "tambien": []
     },
