@@ -114,6 +114,9 @@ def fichas():
     inv = {h["nombre"]: h for h in json.loads((RAIZ / "docs/mcp.json").read_text(encoding="utf-8"))["herramientas"]}
 
     def ficha(t, corta=False):
+        if t not in inv:
+            return (f"  {t} — lo que no es de ninguna herramienta propia: se le pasa al asistente grande"
+                    if t == "derivar" else f"  {t}")
         h = inv[t]
         if corta:
             return f"  {t} — {h['titulo']}: {h['descripcion'][:300]}"
@@ -149,6 +152,17 @@ def diagnosticar(args):
     if args.informe:
         Path(args.informe).write_text(json.dumps(diag, ensure_ascii=False, indent=1), encoding="utf-8")
     ficha = fichas()
+    # lo que se rechazo en la vuelta anterior (el ultimo registro de afinar-grupos
+    # en la bitacora), para que el agente no vuelva a proponer lo mismo
+    previos = collections.defaultdict(list)
+    bit = RAIZ / "datos/bitacora-corpus.jsonl"
+    if bit.exists():
+        for l in reversed(bit.read_text(encoding="utf-8").splitlines()):
+            r = json.loads(l)
+            if "afinar-grupos" in str(r.get("nota", "")):
+                for x in r.get("rechazadas", []):
+                    previos[x["herramienta"]].append((x["frase"], x["motivo"]))
+                break
     # lotes para los agentes: solo los grupos con algo que hacer
     trabajo = [h for h, d in diag.items() if d["malas"] or d["falta"] or d["sobra"] or d["apretado"]]
     Path(args.lotes).mkdir(parents=True, exist_ok=True)
@@ -177,6 +191,9 @@ def diagnosticar(args):
             if d["sobra"]:
                 pide.append(f"el grupo tiene {d['sobra']} de mas: de las que no marcamos, decí cuales son"
                             " casi repetidas (tipo «sobra»)")
+            if previos.get(h):
+                out.append("  RECHAZADAS LA VUELTA ANTERIOR (no repetir el error):")
+                out += [f"    «{fr}» — {m}" for fr, m in previos[h][:8]]
             out.append("  PEDIDO: " + "; ".join(pide))
         (Path(args.lotes) / f"afinar-lote-{k}.txt").write_text("\n".join(out) + "\n", encoding="utf-8")
     print(f"grupos: {len(diag)} · con trabajo: {len(trabajo)} · lotes: {n_lotes}")
