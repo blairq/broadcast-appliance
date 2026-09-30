@@ -455,8 +455,43 @@ acción en otro nivel**: `twitch_live_stop` contra `stream_stop`,
 `carrusel_listar` contra `laminas_listar`, un limitador contra `audio_set`,
 `grafico_probar` contra `grafico_mostrar`. Corregir el apellido de una persona
 (`participant_profile`) cae en `grafico_mostrar` porque en cabina eso también es
-corregir el zócalo. Esto no se arregla con frases: es superposición del diseño
-del MCP, y se decide fusionando, aceptando las dos respuestas o derivando.
+corregir el zócalo. La primera lectura fue que era superposición del diseño del
+MCP. **No lo es: son acciones distintas**, y se separan en el corpus. Ver la
+sección siguiente.
+
+## Separar lo que se pisa, en rondas
+
+`--choques` da los pares que se pisan en todo el MCP: dos propias cuya CDNV pasa
+el objetivo, una administrativa que cae dentro de una propia, y los errores del
+decodificador. Con eso, cada ronda es:
+
+1. Armar lotes por conjunto de choque, con nombre, título y descripción de cada
+   herramienta y la lista de pares. Un conjunto entero va a un mismo agente.
+2. Agentes sin conexión (sólo leen su lote) escriben 4 frases por herramienta.
+   Cada frase nombra lo que distingue a la herramienta de su pareja, sin usar
+   las palabras de la pareja.
+3. `--con-admin --evaluar --orientacion --aceptar`, después `--limpiar --aceptar`.
+4. Volver a correr `--choques` y comparar con la ronda anterior.
+
+| ronda | candidatas | aceptadas | pares que se pisan |
+|---|---|---|---|
+| inicio | — | — | 138 |
+| 1 | 788 | 435 | 82 |
+| 2 | 324 | 158 | 76 |
+
+La ronda 2 rinde poco porque lo que queda está concentrado en dos **sumideros**:
+`source_set_property` (atrae 30 frases ajenas: audio, ventanas, entradas) y
+`grafico_mostrar` (atrae 21: probar un gráfico, caras, rostros). Agregarles
+frases a las vecinas no alcanza.
+
+**Reemplazar las semillas de un grupo no se puede juzgar con el modelo actual.**
+Se probó reescribir enteros los dos sumideros con frases angostas: los pares
+subieron de 76 a 163. No porque las frases sean peores, sino porque el modelo
+que mide (v9) se entrenó con las semillas viejas, que por eso caen compactas; las
+nuevas nunca las vio y quedan dispersas, con un radio mayor que se traga a los
+vecinos. Agregar frases se mide bien con el modelo de hoy (cada frase nueva es
+una muestra no vista de su grupo); **reemplazar** sólo se decide entrenando las
+dos variantes y comparando curvas en el banco.
 
 ## Límites
 
