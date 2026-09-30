@@ -257,7 +257,10 @@ class Geometria:
         self._recalcular()
 
 
-def cargar_grupos(med, semillas, herramientas, con_derivar, jerga=JERGA):
+DERIVACIONES_ADMIN = RAIZ / "datos/derivaciones-admin.jsonl"
+
+
+def cargar_grupos(med, semillas, herramientas, con_derivar, jerga=JERGA, con_admin=False):
     """Las semillas de cada herramienta, como las junta el generador de corpus.
 
     Incluye los GIROS de la jerga: el generador los mezcla con las semillas con
@@ -275,7 +278,24 @@ def cargar_grupos(med, semillas, herramientas, con_derivar, jerga=JERGA):
                                 + giros.get(h, [])))
         if fs:
             frases[h] = fs
-    if con_derivar and DERIVACIONES.exists():
+    if con_admin and DERIVACIONES_ADMIN.exists():
+        # CADA ADMINISTRATIVA COMO GRUPO PROPIO. Para el modelo de hoy todas son
+        # «derivar», pero juntarlas en un solo grupo esconde justo lo que hay que
+        # ver: que «corta Twitch» (twitch_live_stop) cae encima de stream_stop.
+        # Separadas, se mide la CDNV de cada administrativa contra cada propia.
+        for l in DERIVACIONES_ADMIN.read_text(encoding="utf-8").splitlines():
+            if l.strip():
+                r = json.loads(l)
+                frases.setdefault(r["herramienta"], []).append(r["frase"])
+        for h in list(frases):
+            frases[h] = list(dict.fromkeys(frases[h]))
+    if con_derivar and DERIVACIONES.exists() and con_admin:
+        # Con las administrativas separadas, derivar queda solo con lo de FUERA
+        # del aparato y lo ambiguo: si no, las frases administrativas estarian
+        # contadas dos veces.
+        dv = json.loads(DERIVACIONES.read_text(encoding="utf-8"))
+        frases["derivar"] = [f for k, v in dv.items() if not k.startswith("_") for f in v]
+    elif con_derivar and DERIVACIONES.exists():
         # EL GRUPO DERIVAR ES EL QUE EL MODELO VIO. Las frases escritas a mano son
         # casi todas de FUERA del aparato (el clima, un cafe); lo que el modelo
         # aprendio a derivar son sobre todo pedidos ADMINISTRATIVOS, generados
@@ -517,12 +537,21 @@ def main():
     ap.add_argument("--semillas", default=str(SEMILLAS))
     ap.add_argument("--herramientas", help="lista separada por comas, o un archivo con una por linea")
     ap.add_argument("--sin-derivar", action="store_true", help="no incluir el grupo derivar")
+    ap.add_argument("--con-admin", action="store_true",
+                    help="cada herramienta administrativa como grupo propio (de"
+                         " derivaciones-admin.jsonl), para ver cuales pisan a una propia")
     ap.add_argument("--cache", default=str(Path.home() / ".cache/ba-nubes"))
     ap.add_argument("--objetivo", type=float, default=0.028, help="CDNV_dir maxima aceptable")
     ap.add_argument("--novedad-min", type=float, default=0.45)
     ap.add_argument("--tolerancia", type=float, default=0.05)
     ap.add_argument("--vecinas", type=int, default=5)
     ap.add_argument("--diagnosticar", action="store_true")
+    ap.add_argument("--limpiar", action="store_true",
+                    help="sacar lo que empuja hacia otra herramienta: frases administrativas que"
+                         " caen dentro de una propia, y semillas propias del lado ajeno de un par"
+                         " que se pisa. Con --aceptar, lo escribe.")
+    ap.add_argument("--choques", help="listar TODO lo que se pisa y agruparlo en conjuntos"
+                    " de choque (json de salida); pide --con-admin")
     ap.add_argument("--evaluar")
     ap.add_argument("--aceptar", action="store_true")
     ap.add_argument("--json", help="guardar el diagnostico (entrada para quien propone)")
@@ -550,7 +579,8 @@ def main():
 
     med = Medidor(args.modelo, args.cache)
     torch = med.torch
-    frases, grupos = cargar_grupos(med, args.semillas, hs, not args.sin_derivar)
+    frases, grupos = cargar_grupos(med, args.semillas, hs, not args.sin_derivar,
+                                   con_admin=args.con_admin)
     # Los grupos con 1 o 2 semillas ENTRAN a la geometria —sus candidatas se
     # prueban igual, y el filtro que mas importa, «cae en su grupo», funciona con
     # un solo punto— pero no se informan como pares: una varianza con dos puntos
@@ -664,6 +694,160 @@ def main():
         if args.json:
             Path(args.json).write_text(json.dumps(res, ensure_ascii=False, indent=1), encoding="utf-8")
 
+    if args.choques:
+        # LO QUE SE PISA, EN NUMEROS, con la senal que sirve para cada tipo de par.
+        #   propia contra propia:        CDNV del par por encima del objetivo.
+        #   administrativa contra propia: las administrativas tienen 2 o 3 frases,
+        #     y una varianza con tan pocos puntos no mide nada. La senal directa es
+        #     cuantas de sus frases caen mas cerca de una propia que de cualquier
+        #     otro grupo. Se le suma lo que hizo el decodificador real sobre el
+        #     banco (--errores), que es la evidencia mas fuerte.
+        # Despues, CONJUNTOS DE CHOQUE: componentes conexas del grafo de pares que
+        # se pisan. Cada conjunto se reescribe junto, porque separar A de B sin
+        # mirar C puede empujar A encima de C.
+        import lib_prompt as _lp
+        propias = set(_lp.herramientas_reactivas())
+        aristas = collections.Counter()
+        motivo = collections.defaultdict(list)
+        med_ = sorted(h for h in geo.medibles if h in propias)
+        for i, a in enumerate(med_):
+            for b in med_[i + 1:]:
+                c = geo.cdnv(a, b)
+                if c > args.objetivo:
+                    aristas[(a, b)] += 1
+                    motivo[(a, b)].append(f"CDNV {c:.3f}")
+        destino = [h for h in geo.hs if h in propias or h == "derivar"]
+        Cd = torch.stack([geo.mu[h] for h in destino])
+        for h in geo.hs:
+            if h in propias or h == "derivar":
+                continue
+            for i, v in enumerate(geo.P[h]):
+                d = destino[int(torch.argmin((Cd - v).norm(dim=1)))]
+                if d in propias:
+                    k = tuple(sorted((h, d)))
+                    aristas[k] += 1
+                    motivo[k].append(f"frase cae en {d}")
+        if args.errores and Path(args.errores).exists():
+            for l in Path(args.errores).read_text(encoding="utf-8").splitlines():
+                if not l.strip():
+                    continue
+                r = json.loads(l)
+                real = r.get("real") or r["aceptables"][0]
+                e = r["elegida"]
+                if e in r["aceptables"] or e == "derivar" or real == e:
+                    continue
+                if real in propias or e in propias:
+                    k = tuple(sorted((real, e)))
+                    aristas[k] += 2        # el decodificador real pesa doble
+                    motivo[k].append(f"decodificador: {real} -> {e}")
+        # componentes conexas
+        padre = {}
+        def raiz(x):
+            padre.setdefault(x, x)
+            while padre[x] != x:
+                padre[x] = padre[padre[x]]
+                x = padre[x]
+            return x
+        for (a, b) in aristas:
+            padre[raiz(a)] = raiz(b)
+        conj = collections.defaultdict(set)
+        for (a, b) in aristas:
+            conj[raiz(a)] |= {a, b}
+        conjuntos = sorted((sorted(v) for v in conj.values()), key=len, reverse=True)
+        print(f"\n{len(aristas)} pares que se pisan · {len({x for k in aristas for x in k})}"
+              f" herramientas · {len(conjuntos)} conjuntos de choque")
+        for i, cs in enumerate(conjuntos):
+            prop = [x for x in cs if x in propias]
+            print(f"  conjunto {i+1}: {len(cs)} herramientas ({len(prop)} propias):"
+                  f" {', '.join(cs[:10])}{' ...' if len(cs) > 10 else ''}")
+        print("\n  PARES MAS FUERTES")
+        for (a, b), n in aristas.most_common(15):
+            print(f"    {a:24s} {b:24s} {n:3d}  ({motivo[(a, b)][0]})")
+        Path(args.choques).write_text(json.dumps(
+            {"pares": [{"a": a, "b": b, "peso": n, "motivos": motivo[(a, b)][:6]}
+                       for (a, b), n in aristas.most_common()],
+             "conjuntos": conjuntos}, ensure_ascii=False, indent=1), encoding="utf-8")
+
+    if args.limpiar:
+        # SACAR LO QUE EMPUJA HACIA OTRA HERRAMIENTA.
+        #   administrativas: cada frase que cae dentro de una propia le ensena al
+        #     modelo que ESA propia se deriva. Se saca, siempre que la
+        #     administrativa conserve al menos una frase.
+        #   propias: en cada par que se pisa, las semillas del lado ajeno del punto
+        #     medio. Se sacan con el mismo control que una quita a mano: tiene que
+        #     bajar la peor CDNV del grupo, dejarlo con 3 o mas semillas y sin
+        #     perder mas del 20% de su dimension.
+        import lib_prompt as _lp
+        propias = set(_lp.herramientas_reactivas())
+        fuera_admin = []
+        for h in list(geo.hs):
+            if h in propias or h == "derivar" or h not in frases:
+                continue
+            quedan = list(frases[h])
+            for i, v in enumerate(list(geo.P[h])):
+                cerca = geo.mas_cercano(v)
+                if cerca in propias and len(quedan) > 1:
+                    fr = frases[h][i]
+                    if fr in quedan:
+                        quedan.remove(fr)
+                        fuera_admin.append((h, fr, cerca))
+        fuera_prop = []
+        med_ = sorted(g for g in geo.medibles if g in propias)
+        pares = sorted(((geo.cdnv(a, b), a, b) for i, a in enumerate(med_) for b in med_[i + 1:]),
+                       reverse=True)
+        for c, a, b in pares:
+            if c <= args.objetivo:
+                break
+            for lado, otro in ((a, b), (b, a)):
+                u = geo.mu[lado] - geo.mu[otro]
+                if u.norm() < 1e-6:
+                    continue
+                u = u / u.norm()
+                m = ((geo.mu[lado] + geo.mu[otro]) / 2) @ u
+                for i, v in enumerate(list(geo.P[lado])):
+                    if (v @ u - m).item() >= 0 or i >= len(frases.get(lado, [])):
+                        continue
+                    P2 = torch.cat([geo.P[lado][:i], geo.P[lado][i + 1:]])
+                    if len(P2) < 3:
+                        continue
+                    antes, _ = geo.peor_cdnv(lado)
+                    despues, _ = geo.peor_cdnv(lado, Pa=P2)
+                    if despues < antes and geo.dim(lado, P2) >= 0.8 * geo.dim(lado):
+                        fr = frases[lado].pop(i)
+                        geo.P[lado] = P2
+                        geo._recalcular()
+                        fuera_prop.append((lado, fr, otro, antes, despues))
+                        break
+        print(f"\nADMINISTRATIVAS que caen dentro de una propia: {len(fuera_admin)}")
+        for h, fr, cerca in fuera_admin[:15]:
+            print(f"  {h:24s} cae en {cerca:22s} «{fr[:50]}»")
+        print(f"\nSEMILLAS PROPIAS del lado ajeno que conviene sacar: {len(fuera_prop)}")
+        for h, fr, otro, a_, b_ in fuera_prop[:15]:
+            print(f"  {h:22s} hacia {otro:22s} {a_:.3f}->{b_:.3f}  «{fr[:44]}»")
+        if args.aceptar:
+            if fuera_admin:
+                sacar = {(h, fr) for h, fr, _ in fuera_admin}
+                filas = [json.loads(l) for l in DERIVACIONES_ADMIN.read_text(encoding="utf-8").splitlines()
+                         if l.strip()]
+                filas = [r for r in filas if (r["herramienta"], r["frase"]) not in sacar]
+                DERIVACIONES_ADMIN.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n"
+                                                      for r in filas), encoding="utf-8")
+            if fuera_prop:
+                d = json.loads(Path(args.semillas).read_text(encoding="utf-8"))
+                for h, fr, _, _, _ in fuera_prop:
+                    e = d["herramientas"].setdefault(h, {"frases": []})
+                    if fr in e.get("frases", []):
+                        e["frases"].remove(fr)
+                    elif fr in e.get("correctivas", []):
+                        e["correctivas"].remove(fr)
+                    else:
+                        e.setdefault("excluir", [])
+                        if fr not in e["excluir"]:
+                            e["excluir"].append(fr)
+                Path(args.semillas).write_text(json.dumps(d, ensure_ascii=False, indent=2) + "\n",
+                                               encoding="utf-8")
+            print(f"\n-> sacadas {len(fuera_admin)} administrativas y {len(fuera_prop)} propias")
+
     if args.evaluar:
         cm = _corpus_mod()
         examen = json.loads(CORPUS_EXAMEN.read_text(encoding="utf-8"))["casos"]
@@ -677,6 +861,14 @@ def main():
                      for l in Path(args.orientacion).read_text(encoding="utf-8").splitlines()
                      if l.strip()]
         cands = json.loads(Path(args.evaluar).read_text(encoding="utf-8"))
+        import lib_prompt as _lp
+        propias = set(_lp.herramientas_reactivas())
+        # Radio tipico de un grupo propio: una frase administrativa tiene que quedar
+        # MAS LEJOS que eso de cualquier centro propio, o sea claramente afuera.
+        radios = [(geo.P[g] - geo.mu[g]).norm(dim=1).mean().item()
+                  for g in geo.hs if g in propias and len(geo.P[g]) >= 3]
+        radio_propio = sorted(radios)[len(radios) // 2] if radios else 0.0
+        admin_aprobadas = []
         evidencia = collections.Counter()
         if args.errores and Path(args.errores).exists():
             for l in Path(args.errores).read_text(encoding="utf-8").splitlines():
@@ -687,6 +879,41 @@ def main():
         aprobadas, rechazadas, quitadas = [], [], []
         for c in cands:
             h, fr = c["herramienta"], c["frase"].strip()
+            if h not in propias and h != "derivar" and h in hs:
+                # UNA ADMINISTRATIVA. Para el modelo de hoy su respuesta es derivar,
+                # asi que lo que importa no es que caiga en SU grupo (tiene 2 o 3
+                # frases, no hay grupo que medir) sino que NO caiga en ninguna
+                # propia y quede claramente afuera de sus nubes. Es lo que evita que
+                # «corta Twitch» le ensene al modelo que stream_stop se deriva.
+                if c.get("quitar"):
+                    rechazadas.append((h, fr, "las administrativas se limpian con --limpiar"))
+                    continue
+                if fr in frases.get(h, []):
+                    rechazadas.append((h, fr, "ya esta"))
+                    continue
+                if cm.parecido(fr, prohibidas):
+                    rechazadas.append((h, fr, "se parece al examen"))
+                    continue
+                if banco and cm.parecido(fr, banco):
+                    rechazadas.append((h, fr, "copia el banco de orientacion"))
+                    continue
+                v = med.h(fr)
+                cerca = geo.mas_cercano(v)
+                if cerca in propias:
+                    rechazadas.append((h, fr, f"cae en {cerca}"))
+                    continue
+                dprop = min(((geo.mu[g] - v).norm().item(), g) for g in geo.hs if g in propias)
+                if dprop[0] < radio_propio:
+                    rechazadas.append((h, fr, f"muy cerca de {dprop[1]}"))
+                    continue
+                admin_aprobadas.append((h, fr))
+                if h in geo.P:
+                    geo.agregar(h, v)
+                else:
+                    geo.P[h] = v[None, :]
+                    geo._recalcular()
+                frases.setdefault(h, []).append(fr)
+                continue
             if h not in geo.P:
                 # GRUPO VACIO. No hay centro contra el cual decir «cae en su
                 # grupo», asi que la primera frase se acepta solo si NO cae
@@ -800,7 +1027,8 @@ def main():
                 geo.medibles.add(h)
             frases.setdefault(h, []).append(fr)
         med.guardar()
-        print(f"\nAPROBADAS {len(aprobadas)} de {len(cands)}")
+        print(f"\nAPROBADAS {len(aprobadas) + len(admin_aprobadas)} de {len(cands)}"
+              f" ({len(aprobadas)} propias, {len(admin_aprobadas)} administrativas)")
         for h, fr, nov in aprobadas:
             if nov < 0:
                 print(f"  {h:22s} CORRIGE ({-int(nov)} errores en el banco)  «{fr}»")
@@ -831,6 +1059,11 @@ def main():
                                   for h, f, m in rechazadas]}
             with open(args.bitacora, "a", encoding="utf-8") as fb:
                 fb.write(json.dumps(reg, ensure_ascii=False) + "\n")
+        if args.aceptar and admin_aprobadas:
+            with open(DERIVACIONES_ADMIN, "a", encoding="utf-8") as fa:
+                for h, fr in admin_aprobadas:
+                    fa.write(json.dumps({"frase": fr, "herramienta": h}, ensure_ascii=False) + "\n")
+            print(f"-> {len(admin_aprobadas)} frases administrativas agregadas a {DERIVACIONES_ADMIN.name}")
         if args.aceptar and (aprobadas or quitadas):
             d = json.loads(Path(args.semillas).read_text(encoding="utf-8"))
             for h, fr, marca in aprobadas:
