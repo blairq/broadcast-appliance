@@ -191,7 +191,9 @@ void Conversor::convertir(const QString& archivo, const QString& destino, int an
 
     const QString esperado = tmp + "/" + QFileInfo(archivo).completeBaseName() + ".pdf";
     connect(d_->proc, &QProcess::finished, this, [this, esperado](int, QProcess::ExitStatus) {
-        if (d_->cancelado) return;
+        // Sin proceso ya se aviso (se corto por tiempo): leer su salida seria
+        // usar un puntero nulo.
+        if (d_->cancelado || !d_->proc) return;
         // El código de salida miente: LibreOffice contesta 0 aunque no haya
         // escrito nada. Lo que vale es si el PDF está.
         if (!QFileInfo::exists(esperado)) {
@@ -207,8 +209,11 @@ void Conversor::convertir(const QString& archivo, const QString& destino, int an
         }
         arrancarPaginas(esperado);
     });
-    connect(d_->proc, &QProcess::errorOccurred, this, [this](QProcess::ProcessError) {
-        if (d_->cancelado) return;
+    connect(d_->proc, &QProcess::errorOccurred, this, [this](QProcess::ProcessError e) {
+        // Si se cayo, despues llega finished, que avisa con lo que dijo
+        // LibreOffice. Limpiar aca borraba el proceso que finished iba a leer
+        // (se vio con Wine, pero un LibreOffice que se cae tumbaba la app igual).
+        if (d_->cancelado || e == QProcess::Crashed) return;
         d_->limpiar();
         emit fallo("no se pudo arrancar LibreOffice");
     });
