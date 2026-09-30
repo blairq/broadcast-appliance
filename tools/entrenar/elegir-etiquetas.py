@@ -144,6 +144,26 @@ def main():
             cand[t] = tok(t, add_special_tokens=False).input_ids[0]
     print(f"{len(cand)} etiquetas candidatas", file=sys.stderr)
 
+    # LO QUE NO SE PUEDE USAR. Las etiquetas van a reemplazar los nombres reales
+    # del MCP, asi que no alcanza con que no se repitan entre las 86: no pueden
+    # chocar con ninguno de los ~206 nombres restantes. Dos niveles:
+    #
+    #   · exacto: una etiqueta igual al nombre de otra herramienta rompe el
+    #     registro del MCP el dia que se renombre (paso: speakers_status -> status,
+    #     y `status` ya es una herramienta).
+    #   · primer token: si esto anda y se extiende a las 292, una etiqueta que
+    #     comparte primer token con un nombre del resto habria que cambiarla de
+    #     nuevo. Se prohibe desde ahora para no tocarlas dos veces.
+    subset = set(nombres)
+    resto = {h["nombre"] for h in inv["herramientas"]} - subset
+    todos_los_nombres = {h["nombre"] for h in inv["herramientas"]}
+    prohibidos_tok = {tok(o, add_special_tokens=False).input_ids[0] for o in resto}
+    prohibidas_pal = set(todos_los_nombres)
+    print(f"prohibidos: {len(prohibidos_tok)} primeros tokens del resto del MCP"
+          f" y {len(prohibidas_pal)} nombres exactos", file=sys.stderr)
+    cand = {p: t for p, t in cand.items()
+            if t not in prohibidos_tok and p not in prohibidas_pal}
+
     d0 = json.loads(Path(args.esquema).read_text(encoding="utf-8"))
     d0 = d0.get("etiquetas", d0)
     actual = {h: d0[h] for h in hs}
@@ -182,7 +202,14 @@ def main():
     C = Wn[tid_cand]                                  # [cand, dim] normalizadas
     C2 = (C * C).sum(1)                               # |C|^2 = 1, pero explicito
     mejor = dict(actual)
-    usados = {primer(v) for v in actual.values()}
+    # Las que arrancan prohibidas se cambian SI O SI: no se comparan contra su
+    # valor actual, que no es una opcion.
+    forzadas = {h for h in hs
+                if primer(actual[h]) in prohibidos_tok or actual[h] in prohibidas_pal}
+    if forzadas:
+        print(f"a cambiar si o si ({len(forzadas)}): "
+              + ", ".join(f"{h}={actual[h]}" for h in sorted(forzadas)), file=sys.stderr)
+    usados = {primer(v) for h, v in actual.items() if h not in forzadas} | prohibidos_tok
     # Indice de los pares que toca cada herramienta.
     toca = collections.defaultdict(list)
     for k in range(len(pares)):
@@ -216,19 +243,50 @@ def main():
             val = (cos * pesos[ks][None, :]).sum(1)
             # No se puede usar un primer token que ya tenga otra herramienta.
             act = primer(mejor[h])
-            libre = torch.tensor([(t == act) or (t not in usados) for t in tid_cand.tolist()])
+            libre = torch.tensor([(t == act and h not in forzadas) or (t not in usados)
+                                  for t in tid_cand.tolist()])
             val[~libre] = float("-inf")
             j = int(val.argmax())
-            viejo = aporte_actual(mejor, ks)
+            viejo = float("-inf") if h in forzadas else aporte_actual(mejor, ks)
             if float(val[j]) > viejo + 1e-6:
-                usados.discard(act)
+                if h not in forzadas:
+                    usados.discard(act)
                 usados.add(int(tid_cand[j]))
                 mejor[h] = lista_cand[j]
+                forzadas.discard(h)
                 cambios += 1
         mejor_val = objetivo(mejor)
         print(f"  vuelta {vuelta+1}: objetivo {mejor_val:.3f} · {cambios} cambios")
         if cambios == 0:
             break
+
+    # LAS FORZADAS QUE SOBREVIVIERON. El bucle de arriba saltea las herramientas
+    # que no tienen ningun par entre los que entran al objetivo, y si una de esas
+    # arrancaba prohibida se quedaba con su etiqueta prohibida: paso con
+    # chat_history -> chat, que choca con chat_overlay_add. A esas se les da el
+    # candidato libre mas cercano a su propia nube, que es lo mejor que se puede
+    # hacer sin un par que optimizar.
+    for h in sorted(forzadas):
+        cen = torch.nn.functional.normalize(nubes[h].mean(0), dim=0) if h in nubes else None
+        mejor_j, mejor_v = None, float("-inf")
+        for j, t in enumerate(tid_cand.tolist()):
+            if t in usados:
+                continue
+            v = float(torch.dot(C[j], cen)) if cen is not None else 0.0
+            if v > mejor_v:
+                mejor_j, mejor_v = j, v
+        if mejor_j is not None:
+            print(f"  forzada sin par en el objetivo: {h} {mejor[h]!r} -> "
+                  f"{lista_cand[mejor_j]!r}", file=sys.stderr)
+            usados.add(int(tid_cand[mejor_j]))
+            mejor[h] = lista_cand[mejor_j]
+    forzadas.clear()
+
+    sin_nube = [h for h in nombres if h not in ix]
+    for h in sin_nube:
+        if h in d0 and (primer(d0[h]) in prohibidos_tok or d0[h] in prohibidas_pal):
+            print(f"  OJO: {h} no tiene nube y su etiqueta {d0[h]!r} esta prohibida",
+                  file=sys.stderr)
 
     print(f"\nobjetivo: {base:.3f} -> {mejor_val:.3f}  ({100*(mejor_val-base)/abs(base):+.1f}%)")
     dif = [(h, actual[h], mejor[h]) for h in hs if actual[h] != mejor[h]]

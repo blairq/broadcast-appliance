@@ -102,7 +102,16 @@ def variantes(frase, rnd, cuantas=4):
             v = rnd.choice(ADELANTE) + v
         if rnd.random() < 0.3:
             v = v + rnd.choice(ATRAS)
-        if rnd.random() < 0.18:
+        # POCOS TYPOS, y medido por que. Con 0,18 el 34% del corpus tenia un
+        # dedo corrido, y un typo cae en la nube de OTRA herramienta 1,8 veces
+        # mas que una frase limpia (12,6% contra 7,1%, sobre v7). El tokenizador
+        # de Qwen parte el castellano en pedazos, asi que «nandalo» no es
+        # «mandalo» con una letra cambiada: es otra secuencia de tokens entera. Y
+        # v7 vio typos al entrenar y aun asi no generalizo a typos nuevos —el
+        # espacio de dedos corridos es enorme y unos cientos al azar no lo
+        # cubren—. Se dejan algunos, porque en cabina se tipea apurado, pero ya
+        # no son un tercio del corpus.
+        if rnd.random() < 0.06:
             v = con_typo(v, rnd)
         if rnd.random() < 0.25:
             v = v.lower()

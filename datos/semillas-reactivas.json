@@ -131,7 +131,8 @@
         "escuchá vos cómo suena eso",
         "escuchalo vos primero y decime como suena"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "audio_sincro": {
       "frases": [
@@ -140,7 +141,8 @@
         "no coinciden labios y voz",
         "corregí el retardo del audio"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "mixer_list": {
       "frases": [
@@ -150,7 +152,8 @@
       ],
       "tambien": [
         "audio_sources"
-      ]
+      ],
+      "correctivas": []
     },
     "scene_switch": {
       "frases": [
@@ -185,7 +188,8 @@
         "cargala en preview nada mas",
         "alista la de despedida en el bus previo"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "scene_take": {
       "frases": [
@@ -211,7 +215,8 @@
         "enumerame las tomas",
         "cuantas tomas tengo configuradas"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "scene_create": {
       "frases": [
@@ -221,7 +226,8 @@
       ],
       "tambien": [
         "scene_define"
-      ]
+      ],
+      "correctivas": []
     },
     "transition_set": {
       "frases": [
@@ -230,7 +236,8 @@
         "sacá el fundido, quiero corte seco",
         "con que efecto paso de una toma a otra"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "source_list": {
       "frases": [
@@ -240,7 +247,8 @@
         "decime que fuentes hay, no me muestres imagen",
         "enumerame las capas de esta toma"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "source_add": {
       "frases": [
@@ -249,7 +257,8 @@
         "metele la cámara 3",
         "suma el plano trasero a esta toma"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "source_update": {
       "frases": [
@@ -261,7 +270,8 @@
       ],
       "tambien": [
         "source_set_property"
-      ]
+      ],
+      "correctivas": []
     },
     "source_remove": {
       "frases": [
@@ -269,7 +279,8 @@
         "sacá esa fuente que no va más",
         "sacá esa capa de la escena, no a la persona"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "capture_program": {
       "frases": [
@@ -299,7 +310,8 @@
         "mostrame esa fuente sola",
         "revisa como quedo el isotipo"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "capture_feed": {
       "frases": [
@@ -309,7 +321,8 @@
       ],
       "tambien": [
         "room_status"
-      ]
+      ],
+      "correctivas": []
     },
     "room_status": {
       "frases": [
@@ -345,7 +358,8 @@
       ],
       "tambien": [
         "room_status"
-      ]
+      ],
+      "correctivas": []
     },
     "participant_reject": {
       "frases": [
@@ -354,7 +368,8 @@
         "sacá a ese del lobby",
         "no lo dejes entrar, esta esperando todavia"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "participant_kick": {
       "frases": [
@@ -413,7 +428,8 @@
       ],
       "tambien": [
         "chat_wait"
-      ]
+      ],
+      "correctivas": []
     },
     "room_link": {
       "frases": [
@@ -437,7 +453,8 @@
         "dale, el próximo",
         "pasá al siguiente"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "speakers_status": {
       "frases": [
@@ -447,7 +464,8 @@
       ],
       "tambien": [
         "speaker_time"
-      ]
+      ],
+      "correctivas": []
     },
     "speaker_time": {
       "frases": [
@@ -455,7 +473,8 @@
         "cortale el tiempo a ese",
         "ponele cinco minutos al que sigue"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "speaker_on_air": {
       "frases": [
@@ -464,7 +483,8 @@
         "poné al aire a ese orador, no a la escena",
         "subi al expositor que aguarda"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "record_start": {
       "frases": [
@@ -472,7 +492,8 @@
         "dale rec",
         "arranca el registro en disco"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "record_stop": {
       "frases": [
@@ -574,7 +595,8 @@
         "que adjuntos llegaron",
         "que subieron los participantes"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "capture_multiview": {
       "frases": [
@@ -582,14 +604,16 @@
         "dame el multiview",
         "a ver todas las camaras de una"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "capture_people": {
       "frases": [
         "mostrame a todos los invitados",
         "sacales una foto a todos los que estan en la sala"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "capture_person": {
       "frases": [
@@ -597,7 +621,8 @@
         "a ver la cara del invitado 2",
         "sacale una foto al que esta hablando"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "capture_sequence": {
       "frases": [
@@ -609,7 +634,8 @@
         "necesito una tira de imágenes de esa cámara",
         "hacele un muestreo en el tiempo a esa fuente"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "capture_ui": {
       "frases": [
@@ -617,14 +643,16 @@
         "sacale una foto a la interfaz",
         "como se ve la pestaña de medios"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "chat_wait": {
       "frases": [
         "quedate esperando la respuesta del invitado",
         "quedate esperando la respuesta del invitado"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "gateway_restart": {
       "frases": [
@@ -632,7 +660,8 @@
         "el gateway se colgo, levantalo de nuevo",
         "reinicia el servidor de invitados"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "grabacion_individual": {
       "frases": [
@@ -644,14 +673,16 @@
         "necesito los ISO de cada entrada",
         "prendé el grabado por entrada que hay que reeditar"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "guest_source_add": {
       "frases": [
         "sumá al invitado del slot uno",
         "agrega la pantalla que esta compartiendo"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "imagen_analizar": {
       "frases": [
@@ -659,14 +690,16 @@
         "analizame esta foto",
         "que dice ese cartel de la imagen"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "operator_feed": {
       "frases": [
         "que paso recien",
         "dame el diario de lo que fue pasando"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "participant_admit_all": {
       "frases": [
@@ -674,7 +707,8 @@
         "admiti a todos los que estan esperando",
         "que entren todos"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "participant_profile": {
       "frases": [
@@ -682,7 +716,8 @@
         "dejale la ficha a ese invitado",
         "anotame quien es y de donde viene"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "participant_requeue": {
       "frases": [
@@ -690,7 +725,8 @@
         "ese ya hablo, que vuelva atras",
         "devolvelo a la espera"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "participant_talk": {
       "frases": [
@@ -698,14 +734,16 @@
         "abrile el turno de palabra",
         "dale la palabra a ese"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "room_pin": {
       "frases": [
         "ponele clave a la sala",
         "cambiale el pin de entrada"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "room_set": {
       "frases": [
@@ -713,7 +751,8 @@
         "configurame cuantos lugares hay",
         "aumentale los lugares"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "scene_copy": {
       "frases": [
@@ -725,35 +764,40 @@
         "duplicame la del panel, le cambio una cámara y listo",
         "sacale una copia antes de que la toque"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "scene_define": {
       "frases": [
         "armame una escena entera con la camara y el logo",
         "defini la escena del cierre con todo adentro"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "scene_delete": {
       "frases": [
         "borra esa escena",
         "elimina la que no usamos"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "scene_export": {
       "frases": [
         "exportame las escenas",
         "sacame una copia de como quedaron las escenas"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "scene_folder": {
       "frases": [
         "meti esa escena en la carpeta de deportes",
         "agrupa estas escenas"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "scene_move": {
       "frases": [
@@ -765,23 +809,22 @@
         "ponela tercera, va después del informe",
         "reordename las escenas como va el programa"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "scene_protect": {
       "frases": [
         "protege esa escena para que no la toquen",
         "bloquea la de apertura",
-        "no quiero que nadie me toque la del cierre",
-        "trabala, que ya está armada",
+        "que esa escena quede de solo lectura",
         "ponele candado a esa",
         "asegurame esa antes de que entre el otro operador",
-        "esa no se toca más, marcala",
-        "dejala firme que la última vez la borraron"
+        "bloqueá esa escena contra cambios"
       ],
       "tambien": [],
       "correctivas": [
         "trabá la de apertura",
-        "protegé la del cierre, no la saques al aire"
+        "candado a la de apertura"
       ],
       "arregla": [
         "v7-pegadas"
@@ -792,23 +835,26 @@
         "rebautizá esa escena",
         "renombra la escena 4"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "share_delete": {
       "frases": [
         "borra ese archivo que mandaron",
         "elimina lo que compartio"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "share_take": {
       "frases": [
-        "bajá lo que subió y metelo en la escena",
-        "traeme eso que compartieron"
+        "metele a la escena el archivo compartido",
+        "llevá el adjunto del invitado a la toma"
       ],
       "tambien": [],
       "correctivas": [
-        "ponelo al aire, ya lo vi"
+        "ponelo al aire, ya lo vi",
+        "el archivo compartido va a la escena"
       ],
       "arregla": [
         "v7-pegadas"
@@ -822,11 +868,11 @@
         "dejame ver qué subió el invitado",
         "previsualizame el archivo compartido",
         "qué es eso que mandaron, mostrámelo",
-        "revisá el adjunto antes de usarlo"
+        "abrime el adjunto que mandaron"
       ],
       "tambien": [],
       "correctivas": [
-        "dejame verlo primero, no lo pongas"
+        "mostrame el archivo compartido en la previa"
       ],
       "arregla": [
         "v7-pegadas"
@@ -842,7 +888,8 @@
         "mostrame qué parámetros tiene ese título",
         "quiero ver los ajustes disponibles de la placa"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "source_set_property": {
       "frases": [
@@ -854,14 +901,16 @@
         "ponele otro micrófono a esa entrada",
         "cambiale el formato de video a la placa de captura"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "source_types": {
       "frases": [
         "qué clases de entrada soporta",
         "que se puede meter en una escena"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "speaker_move": {
       "frases": [
@@ -869,27 +918,31 @@
         "cambiale el orden a los oradores",
         "ponelo primero"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "speaker_presenter": {
       "frases": [
-        "ponelo de presentador",
+        "que sea el presentador fijo",
         "este es el que conduce",
         "la conductora se queda fija mientras rotan los invitados",
         "marcalo como el que lleva el programa",
         "dejalo siempre en pantalla, los demás van pasando",
-        "él es el ancla, no lo saques",
         "fijá a este que es el que presenta",
         "quiero que ese tenga lugar propio todo el tiempo"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": [
+        "el conductor tiene lugar fijo en pantalla"
+      ]
     },
     "speaker_queue": {
       "frases": [
         "mostrame la fila de oradores",
         "quienes estan esperando para hablar"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "speakers_config": {
       "frases": [
@@ -897,7 +950,8 @@
         "configurame los tiempos de cada uno",
         "apaga el modo oradores"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "grafico_mostrar": {
       "frases": [
@@ -920,9 +974,7 @@
       "tambien": [
         "rotulo_vincular"
       ],
-      "correctivas": [
-        "ese animado ponelo ahora, no me lo listes"
-      ],
+      "correctivas": [],
       "arregla": [
         "v7-pegadas"
       ]
@@ -949,7 +1001,8 @@
       ],
       "tambien": [
         "grafico_en_escena"
-      ]
+      ],
+      "correctivas": []
     },
     "grafico_en_escena": {
       "frases": [
@@ -964,7 +1017,7 @@
       ],
       "tambien": [],
       "correctivas": [
-        "qué animados hay, no me los pongas"
+        "qué animados están colocados en las escenas"
       ],
       "arregla": [
         "v7-pegadas"
@@ -979,14 +1032,16 @@
       ],
       "tambien": [
         "grafico_mostrar"
-      ]
+      ],
+      "correctivas": []
     },
     "rotulo_vinculos": {
       "frases": [
         "qué rótulos se escriben solos",
         "qué vínculos hay armados"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "rotulo_desvincular": {
       "frases": [
@@ -999,7 +1054,8 @@
         "quitale el vínculo, lo escribo a mano",
         "soltá ese rótulo del dato"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "laminas_ir": {
       "frases": [
@@ -1018,7 +1074,8 @@
         "pasá de imagen",
         "cambiá la imagen del carrusel"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "laminas_buscar": {
       "frases": [
@@ -1031,7 +1088,8 @@
       ],
       "tambien": [
         "laminas_ver"
-      ]
+      ],
+      "correctivas": []
     },
     "laminas_ver": {
       "frases": [
@@ -1042,18 +1100,20 @@
       ],
       "tambien": [
         "laminas_listar"
-      ]
+      ],
+      "correctivas": []
     },
     "laminas_listar": {
       "frases": [
         "mostrame el repertorio de diapositivas",
         "qué carruseles hay armados",
         "cuántos carruseles tengo armados",
-        "listame las presentaciones disponibles",
+        "cuántos juegos de diapositivas hay",
         "decime qué presentaciones subí",
-        "decime qué carruseles cargué"
+        "qué carruseles de láminas están listos"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     },
     "laminas_aplicar": {
       "frases": [
@@ -1061,7 +1121,8 @@
         "metele el carrusel a la toma",
         "que las láminas salgan en esta escena"
       ],
-      "tambien": []
+      "tambien": [],
+      "correctivas": []
     }
   }
 }
