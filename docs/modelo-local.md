@@ -574,6 +574,26 @@ decisión de producto: de los 16 fallos, varios son casos donde las dos
 herramientas hacen algo razonable para el mismo pedido, y eso el examen lo
 tiene que decir.
 
+## Lo que midió entrenar dos veces, y las etiquetas (v9b, v11)
+
+**Ruido del entrenamiento.** v9b es el corpus de v9 con otra semilla. A igual
+fracción derivada, acierta entre 8 y 17 frases propias menos que v9 sobre 394
+del banco (2 a 4 puntos); examen 87 % contra 88 %. **Una diferencia menor a
+~4 puntos entre dos modelos no se puede atribuir al corpus.** Se compara con
+réplicas, o no se concluye.
+
+**Etiquetas optimizadas: peor, y por mucho.** v11 es v9 con las etiquetas
+elegidas por `elegir-etiquetas.py` (misma semilla). A igual fracción derivada
+acierta 35 a 50 propias menos que v9, varias veces el ruido; examen 79 % contra
+88 %. Herramientas enteras se caen (`speaker_on_air` 4/4 → 0/4,
+`audio_escuchar` 3/5 → 0/5). La explicación más probable: el nombre real trae
+significado del preentrenamiento (`escuchar`, `speaker`) y el modelo se apoya en
+él; una etiqueta como `ource` o `heets` no trae nada, y el objetivo geométrico
+del optimizador no mide esa pérdida. Lo que sigue: v12 (etiquetas reoptimizadas
+sobre el corpus separado) contra v12s (el mismo corpus con nombres reales); si
+las etiquetas vuelven a perder, probar etiquetas **legibles** que conserven el
+significado (las `a_mano` de `datos/etiquetas.json`), no fragmentos.
+
 ## Las piezas
 
 | | |
