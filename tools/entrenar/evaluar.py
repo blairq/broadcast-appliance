@@ -164,7 +164,10 @@ def main():
     # tokens, que tokens siguen y que nombres quedan. Por paso cruza al CPU un
     # solo numero, el token elegido, que es lo minimo para bajar por el arbol.
     dev = modelo.device
-    secuencias = {n: tuple(tok(n, add_special_tokens=False).input_ids) for n in nombres}
+    # Con el diccionario de etiquetas prendido, el arbol se arma sobre LO QUE EL
+    # MODELO ESCRIBE (la etiqueta), y cada hoja devuelve la herramienta real: la
+    # comparacion con el examen sigue siendo contra nombres del MCP.
+    secuencias = {n: tuple(tok(lp.salida(n), add_special_tokens=False).input_ids) for n in nombres}
     siguientes, quedan = {}, {}
     for n, sq in secuencias.items():
         for k in range(len(sq) + 1):

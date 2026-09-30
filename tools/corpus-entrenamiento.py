@@ -150,7 +150,10 @@ def ejemplo(cabeza, cola, frase, herramienta):
     """Un ejemplo con el prompt EXACTO del servidor. El unico campo que
     cambia entre entrenar y servir es que aca viene la respuesta."""
     return {"prompt": cabeza + frase + cola,
-            "completion": herramienta + "<|im_end|>",
+            # La RESPUESTA es la etiqueta si el diccionario esta prendido
+            # (BA_ETIQUETAS=1); el campo `herramienta` sigue siendo el nombre
+            # real, para poder analizar el conjunto sin traducir.
+            "completion": lp.salida(herramienta) + "<|im_end|>",
             # Sueltos, para poder mirar el conjunto sin desarmar el prompt.
             "frase": frase, "herramienta": herramienta}
 

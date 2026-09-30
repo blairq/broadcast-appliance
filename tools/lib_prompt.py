@@ -10,6 +10,7 @@ Asi que el banco, el generador del corpus y —el dia que exista— el servidor
 llaman todos a estas funciones. Si el prompt cambia, cambia para los tres.
 """
 import json
+import os
 import re
 from pathlib import Path
 
@@ -64,6 +65,40 @@ NO_REACTIVAS = {
 # rechazar algo que el grande podia hacer. Esa distincion la hace el grande.
 DERIVAR = "derivar"
 
+# EL DICCIONARIO DE ETIQUETAS (provisorio, decision de Jorge). La idea es que las
+# etiquetas de datos/etiquetas.json REEMPLACEN a los nombres del MCP en el codigo
+# del aparato; hasta que eso pase, este diccionario traduce en los dos sentidos.
+#
+# Se prende con BA_ETIQUETAS=1 y apagado todo queda identico byte por byte: la
+# firma del prompt no cambia y un modelo entrenado sin etiquetas se sigue
+# evaluando igual. Prendido cambian tres cosas y solo tres: el nombre con que
+# cada herramienta aparece en las fichas, la respuesta que se entrena, y la
+# gramatica del evaluador. Por que etiquetas y no nombres: con los nombres del
+# MCP, 76 de 86 compartian el primer token (scene_* cubria 13) y la gramatica
+# obligaba a elegir la familia antes que el miembro. Ver docs/modelo-local.md.
+USAR_ETIQUETAS = os.environ.get("BA_ETIQUETAS") == "1"
+_ETIQUETAS = None
+
+
+def etiquetas():
+    global _ETIQUETAS
+    if _ETIQUETAS is None:
+        f = RAIZ / "datos" / "etiquetas.json"
+        _ETIQUETAS = json.loads(f.read_text(encoding="utf-8"))["etiquetas"] if USAR_ETIQUETAS else {}
+    return _ETIQUETAS
+
+
+def salida(nombre):
+    """Con que CONTESTA el modelo por esa herramienta. Sin etiquetas, su nombre."""
+    return etiquetas().get(nombre, nombre) if USAR_ETIQUETAS else nombre
+
+
+def entrada(etiqueta):
+    """La herramienta real que corresponde a lo que contesto el modelo."""
+    if not USAR_ETIQUETAS:
+        return etiqueta
+    return {v: k for k, v in etiquetas().items()}.get(etiqueta, etiqueta)
+
 SISTEMA_NOMBRE = """Sos el asistente de un estudio de television EN VIVO. El operador te habla apurado y corto.
 Contestas UNICAMENTE el nombre de la herramienta que corresponde. Una palabra, nada mas.
 Si te piden HACER algo, elegi la que lo HACE. Los listados son para cuando preguntan QUE HAY.
@@ -97,10 +132,17 @@ def fichas(inv=None):
         if h["categoria"] not in REACTIVAS or h["nombre"] in NO_REACTIVAS:
             continue
         desc = re.split(r"(?<=[.!?])\s", h["descripcion"].replace("\n", " "))[0][:180]
+        if USAR_ETIQUETAS:
+            # Las descripciones nombran a OTRAS herramientas por su nombre real
+            # («queda armada para el proximo `scene_take`»). Con el diccionario
+            # prendido el modelo contesta `take`, asi que las fichas tienen que
+            # hablar el mismo idioma que la respuesta.
+            for real in sorted(etiquetas(), key=len, reverse=True):
+                desc = re.sub(rf"\b{re.escape(real)}\b", salida(real), desc)
         req = h["esquema"].get("required", [])
         props = list((h["esquema"].get("properties") or {}).keys())
         args = ", ".join(f"{p}*" if p in req else p for p in props[:6])
-        out.append(f"- {h['nombre']}({args}): {desc}")
+        out.append(f"- {salida(h['nombre'])}({args}): {desc}")
     return sorted(out)
 
 
@@ -142,7 +184,7 @@ def ejemplos_resueltos(cuantos, semilla=11, archivo=None):
                     break
         vuelta += 1
     rnd.shuffle(elegidos)
-    cuerpo = "\n".join(f"{frase} -> {herr}" for frase, herr in elegidos)
+    cuerpo = "\n".join(f"{frase} -> {salida(herr)}" for frase, herr in elegidos)
     return "\nEjemplos de como pide el operador:\n" + cuerpo + "\n"
 
 
