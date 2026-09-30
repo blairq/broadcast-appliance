@@ -17,8 +17,10 @@ PIP="$VENV/bin/pip"
 FALTAN=()
 # Qwen3.5 mezcla atencion lineal (Gated DeltaNet) con atencion completa: sin
 # `fla` (flash-linear-attention, triton) transformers cae a una version en
-# PyTorch puro, lenta y con mucha memoria.
-for m in unsloth:unsloth gguf:gguf numpy:numpy fla:flash-linear-attention causal_conv1d:causal-conv1d; do
+# PyTorch puro, lenta y con mucha memoria. `causal-conv1d` no va: no hay
+# binario para torch 2.12/CUDA 13 y no compila aca; la convolucion es de 4
+# pasos y en PyTorch no pesa (medido: 0,81 s por paso con Qwen3.5-2B).
+for m in unsloth:unsloth gguf:gguf numpy:numpy fla:flash-linear-attention; do
     mod="${m%%:*}"; paq="${m##*:}"
     "$VENV/bin/python" -c "import $mod" 2>/dev/null || FALTAN+=("$paq")
 done
