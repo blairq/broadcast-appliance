@@ -255,6 +255,13 @@ else()
 endif()
 # Los modulos se incluyen como "evento/Evento.hpp": hace falta tambien sin Qt.
 target_include_directories(ba-app PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+# Windows: el logo en el .exe (el mismo .ico que el launcher, ver tools/icono.py).
+if(WIN32)
+    enable_language(RC)
+    target_sources(ba-app PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/ba-app.rc")
+    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/ba-app.rc"
+        PROPERTIES COMPILE_OPTIONS "-I;${CMAKE_SOURCE_DIR}/assets/icons")
+endif()
 # macOS: permisos de camara/microfono (TCC) en un ejecutable que no es .app.
 include(${CMAKE_SOURCE_DIR}/cmake/BaMacInfoPlist.cmake)
 ba_mac_embed_info_plist(ba-app com.legisstudio.broadcastappliance.app "Broadcast Appliance")
@@ -378,6 +385,12 @@ endif()
     qt_add_resources(ba-app "ba_qml" PREFIX "/" FILES ${BA_APP_QML})
     # Versiones fijadas de los agentes de IA (pestaña Asistente).
     qt_add_resources(ba-app "ba_agent" PREFIX "/" FILES agent/agentes.json)
+    # El logo, para el icono de la ventana (tools/icono.py los genera).
+    set(_ba_iconos "")
+    foreach(_lado 16 24 32 48 64 128 256 512)
+        list(APPEND _ba_iconos "${CMAKE_SOURCE_DIR}/assets/icons/broadcast-appliance-${_lado}.png")
+    endforeach()
+    qt_add_resources(ba-app "ba_iconos" PREFIX "/icons" BASE "${CMAKE_SOURCE_DIR}/assets/icons" FILES ${_ba_iconos})
     target_link_libraries(ba-app PRIVATE ba_vterm)
     if(BA_HAVE_CLAP)
         target_include_directories(ba-app PRIVATE "${BA_CLAP_INC}")

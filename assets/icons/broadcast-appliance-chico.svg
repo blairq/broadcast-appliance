@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<defs>
+<linearGradient id="f" x1="0" y1="0" x2="0" y2="1024" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#202025"/><stop offset="1" stop-color="#0a0a0c"/></linearGradient>
+<linearGradient id="b" x1="0" y1="0" x2="0" y2="1024" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ffa45e"/><stop offset="1" stop-color="#ff6a2b"/></linearGradient>
+<filter id="g" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="16"/></filter>
+</defs>
+<rect x="32" y="32" width="960" height="960" rx="220" fill="url(#f)" stroke="#ffffff" stroke-opacity="0.12" stroke-width="6"/>
+<line x1="340" y1="258" x2="340" y2="766" fill="none" stroke="url(#b)" stroke-width="88" stroke-linecap="round"/>
+<path d="M340 258H490A134 134 0 0 1 490 526H340" fill="none" stroke="url(#b)" stroke-width="88"/>
+<path d="M340 526H525A120 120 0 0 1 525 766H340" fill="none" stroke="url(#b)" stroke-width="88"/>
+<circle cx="482" cy="392" r="75" fill="#ff3b30" opacity="0.47" filter="url(#g)"/>
+<circle cx="482" cy="392" r="60" fill="#ff3b30"/>
+</svg>

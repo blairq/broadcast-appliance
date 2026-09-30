@@ -1,0 +1,32 @@
+// Recursos de Windows de ba-app (la interfaz): el ícono del .exe y los datos que el
+// Explorador muestra en Propiedades. Sin esto el programa sale con el ícono
+// genérico y sin nombre, que es lo primero que ve el operador.
+//
+// El ícono es el mismo de assets/icons (se genera con tools/icono.py). La ruta
+// la pasa CMake en BA_ICON_DIR; el recurso 1 es el del ejecutable, porque
+// Windows usa el de menor identificador.
+
+1 ICON "broadcast-appliance.ico"
+
+1 VERSIONINFO
+FILEVERSION 0, 0, 0, 0
+PRODUCTVERSION 0, 0, 0, 0
+FILEOS 0x4L        // VOS_NT_WINDOWS32
+FILETYPE 0x1L      // VFT_APP
+{
+    BLOCK "StringFileInfo"
+    {
+        BLOCK "080A04B0"  // espanol (Argentina), Unicode
+        {
+            VALUE "CompanyName",      "Broadcast Appliance"
+            VALUE "FileDescription",  "Broadcast Appliance - interfaz"
+            VALUE "InternalName",     "ba-app"
+            VALUE "OriginalFilename", "ba-app.exe"
+            VALUE "ProductName",      "Broadcast Appliance"
+        }
+    }
+    BLOCK "VarFileInfo"
+    {
+        VALUE "Translation", 0x080A, 1200
+    }
+}

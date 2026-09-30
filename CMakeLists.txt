@@ -324,6 +324,10 @@ install(FILES
     assets/icons/broadcast-appliance.ico
     DESTINATION Recursos COMPONENT bundle
 )
+# macOS: el .icns (para la .app del .dmg y para el Finder).
+if(APPLE)
+    install(FILES assets/icons/broadcast-appliance.icns DESTINATION Recursos COMPONENT bundle)
+endif()
 if(NOT WIN32)
     install(PROGRAMS packaging/bundle/crear-acceso-directo.sh
         DESTINATION . COMPONENT bundle

@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/icons/logo.png">
+    <img alt="Broadcast Appliance" src="assets/icons/logo-claro.png" width="480">
+  </picture>
+</p>
+
 # Broadcast Appliance Portable v2
 
 Aplicativo de emisión en vivo (broadcast) embebido sobre **obs-studio / libobs**,
