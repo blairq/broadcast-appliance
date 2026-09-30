@@ -393,6 +393,71 @@ en la segunda empeoraron 213 pares contra 266 que mejoraron. Ahí se cortó.
 Son decisiones de producto —fusionar, derivar o aceptar las dos respuestas—, no
 de corpus.
 
+## Lo que enseñó medir con el banco y entrenar (v8)
+
+### Comparar curvas, no puntos
+
+v8 se entrenó con pedidos administrativos reales en lugar de palabras sueltas.
+Sobre el banco, derivar pasó de 44 % a 73 % y el acierto de 52 % a 71 %. Parecía
+un salto. Pero v7 con el sesgo del logit de `derivar` en +4,5 ya daba 72 % de
+derivación, y con más cobertura:
+
+| a igual derivación | v7 cobertura | v8 cobertura | precisión (los dos) |
+|---|---|---|---|
+| 58 % | 95 % | 88 % | 78-79 % |
+| 74 % | 88 % | 80 % | 80-81 % |
+| 86 % | 75 % | 71 % | 84 % |
+
+**Un cambio de corpus puede mover el punto de equilibrio sin hacer un modelo
+mejor.** Más ejemplos de una clase corren el modelo hacia esa clase, que es lo
+mismo que hace el dial. Para saber si el modelo mejoró hay que barrer el dial en
+los dos y comparar las curvas: si la del nuevo queda arriba, mejoró; si sólo se
+corrió a lo largo de la misma curva, no.
+
+Con el evaluador rápido, barrer seis valores sobre el banco son cinco minutos
+con las dos placas.
+
+### Lo que sí aprendió, y lo que perdió
+
+Caso por caso (`comparar-modelos.py`), v8 arregló 365 y rompió 100. Lo
+arreglado es real: la derivación por área administrativa subió 40 o 50 puntos
+(audio avanzado 15 % → 66 %, equipo 12 % → 64 %, rostros 23 % → 71 %). Lo roto
+tiene un patrón: **deriva pedidos propios que traen nombres y detalles
+concretos** («Hacé pasar a Marcela», «¿qué hay en la escena Noticias?»). Las
+semillas propias casi no tenían nombres y los pedidos administrativos nuevos sí,
+así que el modelo aprendió que "detalle concreto" es "de otro".
+
+Remedio: semillas propias con nombres de personas, escenas y carruseles. El
+banco lo venía mostrando: la mayoría de sus frases que fallaban nombraban a
+alguien.
+
+### Dos herramientas más mal etiquetadas
+
+`operator_feed` no era la única. `participant_talk` («hablar en privado con
+alguien del lobby») tenía tres semillas que eran de darle la palabra a un orador:
+«dejalo hablar», «dale la palabra a ese». Sacaba 0 de 5 en el banco. **Una
+herramienta que saca 0 con frases de otro autor es la primera sospechosa de
+etiquetado**, antes que de falta de frases.
+
+### El banco reserva las formas naturales
+
+Con el bucle guiado por el banco, más o menos un tercio de las candidatas se
+rechazó por copiarlo. Para herramientas como `room_link`, las maneras obvias de
+pedirlo («pasame el QR», «el link del tablero») ya están en el banco, justamente
+porque son las naturales. La guarda obliga a escribir formas menos obvias. Es el
+costo de tener un instrumento honesto, y conviene saberlo antes de frustrarse
+con la tasa de aceptación.
+
+### Superposiciones que no son del corpus
+
+Varias administrativas se escapan hacia una reactiva porque **son casi la misma
+acción en otro nivel**: `twitch_live_stop` contra `stream_stop`,
+`carrusel_listar` contra `laminas_listar`, un limitador contra `audio_set`,
+`grafico_probar` contra `grafico_mostrar`. Corregir el apellido de una persona
+(`participant_profile`) cae en `grafico_mostrar` porque en cabina eso también es
+corregir el zócalo. Esto no se arregla con frases: es superposición del diseño
+del MCP, y se decide fusionando, aceptando las dos respuestas o derivando.
+
 ## Límites
 
 - **Mide con un modelo que no vio las frases nuevas.** Dice cómo las interpreta
