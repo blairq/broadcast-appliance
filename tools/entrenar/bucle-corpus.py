@@ -550,6 +550,7 @@ def main():
                     help="deja las N mejores semillas por herramienta propia (margen"
                          " sin contarse + juez ciego) y reordena las administrativas")
     ap.add_argument("--juez", help="jsonl {herramienta, frase, juez}: veredictos del juez ciego")
+    ap.add_argument("--informe", help="con --podar: json con el puntaje de cada frase por grupo")
     ap.add_argument("--limpiar", action="store_true",
                     help="sacar lo que empuja hacia otra herramienta: frases administrativas que"
                          " caen dentro de una propia, y semillas propias del lado ajeno de un par"
@@ -804,30 +805,60 @@ def main():
                     r = json.loads(l)
                     juez[(r["herramienta"], r["frase"])] = r["juez"]
         d = json.loads(Path(args.semillas).read_text(encoding="utf-8"))
+        # CALIDAD DE UN GRUPO, con la norma de Frobenius:
+        #   Q(a) = min_b  ||mu_a - mu_b||^2 / ( ||S_a||_F + ||S_b||_F )
+        # S es la covarianza del grupo; ||S||_F sale de la Gram centrada
+        # (||X^T X||_F = ||X X^T||_F), que es n x n y no d x d. Es un cociente de
+        # Fisher contra el grupo mas peligroso. La CALIDAD DE UNA FRASE es cuanto
+        # cae Q si se la saca (dejando las demas): se mide contra el conjunto.
+        def frob(X):
+            if len(X) < 2:
+                return 0.0
+            Xc = X - X.mean(0)
+            return ((Xc @ Xc.T).norm() / (len(X) - 1)).item()
+        otros_g = [o for o in geo.hs if len(geo.P[o]) >= 3]
+        F_o = {o: frob(geo.P[o]) for o in otros_g}
+
+        def calidad_grupo(Pa, h):
+            mu = Pa.mean(0)
+            fa = frob(Pa)
+            mejor = float("inf")
+            for o in otros_g:
+                if o == h:
+                    continue
+                q = ((mu - geo.mu[o]) ** 2).sum().item() / (fa + F_o[o] + 1e-9)
+                mejor = min(mejor, q)
+            return mejor
+
+        informe = {}
         podadas, tam = [], []
         for h in sorted(propias):
             e = d["herramientas"].get(h)
             if not e or h not in geo.P:
                 continue
             mias = e.get("frases", []) + e.get("correctivas", [])
+            P = geo.P[h]
+            if len(P) < 3:
+                tam.append((h, len(mias), len(mias)))
+                continue
+            q0 = calidad_grupo(P, h)
+            pts = []
+            for fr in mias:
+                i = frases[h].index(fr)
+                P2 = torch.cat([P[:i], P[i + 1:]])
+                # cuanto cae la calidad del grupo si esta frase NO esta:
+                # positivo = la frase lo sostiene; negativo = lo empeora.
+                s = (q0 - calidad_grupo(P2, h)) / q0
+                j = juez.get((h, fr))
+                if args.juez and j is not None and j != h:
+                    s -= 1.0 if j != "NINGUNA" else 0.3
+                pts.append((s, fr, P[i]))
+            informe[h] = {"calidad": q0,
+                          "frases": [{"frase": fr, "puntaje": round(s, 4)} for s, fr, _ in
+                                     sorted(pts, key=lambda x: -x[0])]}
             if len(mias) <= args.podar:
                 tam.append((h, len(mias), len(mias)))
                 continue
-            P = geo.P[h]
-            n = len(P)
-            suma = P.sum(0)
-            otros = torch.stack([geo.mu[o] for o in geo.hs if o != h])
-            pts = []
-            for i, fr in enumerate(mias):
-                v = P[frases[h].index(fr)]
-                mu_sin = (suma - v) / (n - 1)
-                dp = (v - mu_sin).norm().item()
-                da = (otros - v).norm(dim=1).min().item()
-                s = (da - dp) / (da + dp)
-                j = juez.get((h, fr))
-                if j is not None and j != h:
-                    s -= 1.0 if j != "NINGUNA" else 0.3
-                pts.append((s, fr, v))
             pts.sort(key=lambda x: -x[0])
             elegidas, vs = [], []
             for s, fr, v in pts:
@@ -851,6 +882,10 @@ def main():
                 e["correctivas"] = [f for f in e.get("correctivas", []) if f in elegidas]
                 e.setdefault("podadas", [])
                 e["podadas"] += [fr for _, fr in fuera if fr not in e["podadas"]]
+        if args.informe:
+            Path(args.informe).write_text(json.dumps(informe, ensure_ascii=False, indent=1),
+                                          encoding="utf-8")
+            print(f"-> puntaje de cada frase, grupo por grupo, en {args.informe}")
         antes = sum(a for _, a, _ in tam)
         despues = sum(b for _, _, b in tam)
         print(f"\nSEMILLAS PROPIAS: {antes} -> {despues} (tope {args.podar} por herramienta)")
