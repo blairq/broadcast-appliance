@@ -68,7 +68,7 @@
         "Bajale 6 dB al micro de la invitada",
         "Al periodista no se lo escucha, subile el volumen",
         "Hay acople, bajá ya el volumen del micro de la conductora",
-        "Muteá el micrófono del invitado que quedó abierto",
+        "Cerrá el mic abierto del invitado, poné muted en esa fuente",
         "La música satura, bajala 6 dB",
         "Silenciá el audio de la cámara tres de una",
         "hay acople, muteá la fuente del lugar dos de una",
@@ -93,7 +93,8 @@
         "subile a ese que no se escucha",
         "No se escucha al columnista, subile el volumen",
         "mutealo",
-        "subí la música"
+        "subí la música",
+        "Muteá el micrófono del invitado que quedó abierto"
       ]
     },
     "audio_measure": {
@@ -199,7 +200,7 @@
         "Mandame el micro del invitado al auricular, sólo para mí",
         "Pasame a PFL el audio de la cámara tres para escucharlo yo",
         "Ponele escucha a la consola, sólo en mi monitor",
-        "Quiero oír el móvil por PFL, sin abrirlo al aire",
+        "Quiero escuchar el móvil en mi monitor sin cambiar lo que sale",
         "Pasame a escucha el canal del teléfono, que lo oigo por monitor",
         "Antes de abrirle el micro a Pablo, ponémelo en escucha"
       ],
@@ -216,7 +217,8 @@
         "Pasame el micrófono del invitado por mis auriculares, en PFL",
         "pasame el audio del invitado a los auriculares",
         "Necesito oír en mis auriculares qué trae el enlace, sin tocar la salida",
-        "El corresponsal dice que ya está, dame su audio en cue"
+        "El corresponsal dice que ya está, dame su audio en cue",
+        "Quiero oír el móvil por PFL, sin abrirlo al aire"
       ]
     },
     "audio_sincro": {
@@ -258,7 +260,7 @@
         "fijate en el mezclador los niveles antes de tocar nada",
         "Leeme en el mezclador el volumen del micrófono de Laura",
         "Pasame la foto del mezclador: volúmenes, silencios y picos",
-        "¿Qué fuente tengo en escucha por el monitor? Fijate en el mezclador",
+        "Pasame los niveles del mezclador y decime qué fuente está en escucha",
         "Antes de abrir el bloque, leeme cómo están los volúmenes",
         "Tirame cómo está el mezclador ahora",
         "¿Qué fuentes están muteadas en el mezclador?",
@@ -280,19 +282,20 @@
         "qué fuentes con sonido tengo",
         "cuánto está picando",
         "cómo viene el nivel del programa",
-        "medime cuanto pica ese canal"
+        "medime cuanto pica ese canal",
+        "¿Qué fuente tengo en escucha por el monitor? Fijate en el mezclador"
       ]
     },
     "scene_switch": {
       "frases": [
-        "andá al cierre",
+        "cortá directo a la escena de cierre",
         "pasá a la escena Pantalla completa",
         "cortá al plano general",
         "arranca con la de bienvenida",
         "cortá a la escena Bienvenida, ya al aire",
         "reemplaza lo que sale por el plano dos",
         "pasa a la escena de placa",
-        "anda a la toma de graficos",
+        "poné al aire ahora la escena gráficos, corte directo",
         "Cortá directo a la cámara dos, ya, sin preview",
         "Corte seco a la escena Apertura, al toque",
         "Saltá al aire a la escena Móvil ahora mismo, directo",
@@ -322,7 +325,9 @@
         "poné la de apertura",
         "pasa al plano dos",
         "Corte directo a la escena de la entrevista, sin pasar por preview",
-        "¿Podés cortar directo al plano del entrevistado? Está hablando"
+        "¿Podés cortar directo al plano del entrevistado? Está hablando",
+        "andá al cierre",
+        "anda a la toma de graficos"
       ]
     },
     "scene_preview": {
@@ -535,7 +540,7 @@
     },
     "source_update": {
       "frases": [
-        "ocultá el logo",
+        "ocultá el logo cambiando su visibilidad a false",
         "en la escena, mové la cámara chica a pip abajo a la izquierda",
         "agrandá el recuadro chico de la cámara 2 en la escena Mesa",
         "agrandá el recuadro del invitado",
@@ -563,7 +568,8 @@
       ],
       "podadas": [
         "agrandá el pip",
-        "corré la cámara chica a la izquierda"
+        "corré la cámara chica a la izquierda",
+        "ocultá el logo"
       ]
     },
     "source_remove": {
@@ -897,7 +903,7 @@
         "leeme el chat desde arriba, los últimos quince",
         "Dame un repaso rápido del chat",
         "A ver el chat, ¿qué se estuvo escribiendo?",
-        "leeme los mensajes del chat con la hora de cada uno",
+        "leeme los últimos mensajes del chat con quién y a qué hora",
         "fijate en el chat si el director me escribió algo"
       ],
       "tambien": [
@@ -906,7 +912,8 @@
       "correctivas": [],
       "podadas": [
         "leeme lo que escribio esa persona",
-        "Che, ¿quién escribió último en el chat?"
+        "Che, ¿quién escribió último en el chat?",
+        "leeme los mensajes del chat con la hora de cada uno"
       ]
     },
     "room_link": {
@@ -1188,7 +1195,7 @@
         "estado general: ¿estamos transmitiendo?",
         "resumen del appliance: qué escena está al aire y cuánto llevamos transmitiendo",
         "estamos perdiendo cuadros?",
-        "se entrecorta lo que sale",
+        "se traba el aire, pasame el estado general del appliance",
         "dame el estado: grabación, tiempo y escena al aire",
         "cuántos cuadros perdió el codificador hasta ahora",
         "chequeo general antes de salir: transmisión, grabación, CPU",
@@ -1217,7 +1224,8 @@
         "estamos al aire?",
         "¿estamos grabando y hace cuánto?",
         "algo anda mal y no se que",
-        "se traba todo"
+        "se traba todo",
+        "se entrecorta lo que sale"
       ]
     },
     "network_status": {
@@ -1546,10 +1554,10 @@
         "Contestame por escrito: ¿se ve el logo del canal en el programa?",
         "¿El conductor tiene la corbata torcida en el programa?",
         "Mirando la app, ¿qué número marca el contador de participantes?",
-        "¿Cuántas personas se ven en la toma armada?",
+        "Mirá la toma armada y contame cuántas personas se ven",
         "¿cuántas ventanas de invitados se ven en pantalla?",
-        "¿el del lobby 2 es hombre o mujer? miralo",
-        "¿El invitado 2 está en la calle o adentro de una casa? Decímelo"
+        "¿el que espera en lobby 2 es hombre o mujer? contestame mirándolo",
+        "Mirando al invitado 2, ¿el fondo que se ve es calle o una casa?"
       ],
       "tambien": [],
       "correctivas": [],
@@ -1560,7 +1568,10 @@
         "mira esta imagen y decime que ve",
         "analizame esta foto",
         "mirando la cámara del invitado 2, ¿tiene puestos los auriculares?",
-        "fijate en el aire si el zócalo tapa la cara del conductor"
+        "fijate en el aire si el zócalo tapa la cara del conductor",
+        "¿El invitado 2 está en la calle o adentro de una casa? Decímelo",
+        "¿Cuántas personas se ven en la toma armada?",
+        "¿el del lobby 2 es hombre o mujer? miralo"
       ]
     },
     "participant_admit_all": {
@@ -1887,7 +1898,7 @@
       "frases": [
         "subi esa escena en la lista",
         "cambiale el orden a las escenas",
-        "en la lista, poné esa escena antes de Entrevistas",
+        "en el orden de la lista, subí esa escena para que vaya antes de Entrevistas",
         "acomodá la escena Tanda antes de Cierre en la lista",
         "mandá esa escena al final de la lista de escenas",
         "reordená: la escena Clima va antes de Deportes",
@@ -1909,7 +1920,8 @@
         "esa va antes del bloque de entrevistas",
         "bajala al final de la lista",
         "ponela tercera, va después del informe",
-        "Ordená las escenas como va el programa: apertura primero"
+        "Ordená las escenas como va el programa: apertura primero",
+        "en la lista, poné esa escena antes de Entrevistas"
       ]
     },
     "scene_protect": {
@@ -2056,7 +2068,7 @@
         "El invitado compartió una imagen, mostrámela antes de ponerla",
         "Dejame revisar la foto que nos compartió la entrevistada",
         "El invitado compartió una foto, revisala antes de ponerla",
-        "Abrime el archivo que mandó la entrevistada por el compartir",
+        "Mostrame para revisar la imagen que compartió la entrevistada",
         "Chequeá la imagen que nos compartió el del móvil antes de usarla",
         "Mostrame la imagen que compartió el médico, a ver si sirve"
       ],
@@ -2070,7 +2082,8 @@
       "podadas": [
         "mostrame el archivo compartido en la previa",
         "abrime el archivo del invitado",
-        "Mirá el archivo compartido por el médico, a ver si sirve"
+        "Mirá el archivo compartido por el médico, a ver si sirve",
+        "Abrime el archivo que mandó la entrevistada por el compartir"
       ]
     },
     "source_properties": {
@@ -2125,7 +2138,7 @@
         "apretale el botón de volver a escanear",
         "ponele otro micrófono a esa entrada",
         "cambiale la propiedad de formato de video a la fuente Captura",
-        "poné la cámara 1 en 720p",
+        "seteá la fuente cámara 1 con la propiedad resolución en 720p",
         "No aparece la placa nueva, apretá recargar en la fuente Captura",
         "Apretá el botón de refrescar dispositivos en las propiedades de la cámara",
         "Activá la propiedad de reinicio al hacerse visible de esa fuente",
@@ -2151,7 +2164,8 @@
         "La cámara quedó sin señal, dale al botón de reactivar en propiedades",
         "cambiale el formato de video a la placa de captura",
         "La webcam anda a 30 cuadros, subile el frame rate a 60.",
-        "cambiale la resolución a la captura del atril a 1080"
+        "cambiale la resolución a la captura del atril a 1080",
+        "poné la cámara 1 en 720p"
       ]
     },
     "source_types": {
@@ -2210,7 +2224,7 @@
     "speaker_presenter": {
       "frases": [
         "la conductora se queda fija mientras rotan los invitados",
-        "marcalo como el que lleva el programa",
+        "ponelo como presentador: que quede al aire con su lugar propio",
         "dejalo siempre en pantalla, los demás van pasando",
         "fijá a este que es el que presenta",
         "marcalo como presentador fijo, que no rote con los oradores",
@@ -2233,7 +2247,8 @@
       "tambien": [],
       "correctivas": [],
       "podadas": [
-        "quiero que ese tenga lugar propio todo el tiempo"
+        "quiero que ese tenga lugar propio todo el tiempo",
+        "marcalo como el que lleva el programa"
       ]
     },
     "speaker_queue": {
@@ -2580,7 +2595,7 @@
     },
     "laminas_ir": {
       "frases": [
-        "tirá la que sigue",
+        "tirá la lámina que sigue en el carrusel",
         "seguí",
         "volvé a la anterior",
         "poné la 3",
@@ -2613,7 +2628,8 @@
         "atrás una",
         "avanzá una",
         "Poné la número 7 del carrusel Economía",
-        "Cambiá a la 9 en Informe, sin pasar de a una"
+        "Cambiá a la 9 en Informe, sin pasar de a una",
+        "tirá la que sigue"
       ]
     },
     "laminas_buscar": {
@@ -2621,7 +2637,7 @@
         "buscá la lámina del estadio en el carrusel Deportes",
         "buscá 'torta porcentajes' en el carrusel Encuesta, por título o etiqueta",
         "dónde está la lámina del organigrama",
-        "buscá la placa de sponsors en la presentación",
+        "¿qué lámina del carrusel tiene el título sponsors? buscala",
         "encontrame la del mapa",
         "en qué número está la de las ventas",
         "Buscame la lámina que dice inflación en el carrusel de economía",
@@ -2658,7 +2674,8 @@
         "¿Cuál tiene el título que menciona Messi? Buscá en Deportes",
         "Encontrame la lámina del dólar blue buscando por texto",
         "Encontrame la que tenga el gráfico de desempleo",
-        "encontrame la foto del estadio"
+        "encontrame la foto del estadio",
+        "buscá la placa de sponsors en la presentación"
       ]
     },
     "laminas_ver": {
