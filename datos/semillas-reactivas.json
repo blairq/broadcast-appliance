@@ -151,10 +151,17 @@
         "Espectro de la fuente cruda, 5 segundos, ya",
         "Sacame el espectro crudo en el punto out del rack, quiero ver los agudos",
         "Pasame los números del espectro en la salida del rack",
-        "¿Cómo quedó el espectro en la salida del rack después del ecualizador?",
+        "Tirá un análisis de espectro en el punto out, diez segundos, para verificar el ajuste",
         "Dame los valores de frecuencias en el nodo analizador, quiero verificar el ajuste",
         "Analizame las frecuencias en el nodo analizador durante veinte segundos",
-        "medime cuánto entra crudo al micro de Ana, analizá el in diez segundos"
+        "Analizá el espectro del in de Ana diez segundos, números crudos por zonas",
+        "Analizá el nodo analizador del conductor quince segundos y pasame el espectro por zonas",
+        "Dame los números del espectro que ya midió, cero segundos, sin volver a escuchar",
+        "Analizá el espectro por tercios en el out del micro de la columnista",
+        "¿Cuánta sibilancia marca el espectro del in de la invitada? Analizalo ocho segundos",
+        "Correlación y rango dinámico del out del rack de la mesa, analizá veinte segundos",
+        "Analizá si el espectro del out del rack del panelista muestra recortes",
+        "Verificá el ajuste del compresor con un análisis de espectro del out, doce segundos"
       ],
       "tambien": [
         "audio_measure"
@@ -171,7 +178,9 @@
       "podadas": [
         "¿Cómo quedó el espectro en la entrada cruda después del ecualizador?",
         "que forma tiene ese ruido",
-        "cuanto esta llegando"
+        "cuanto esta llegando",
+        "¿Cómo quedó el espectro en la salida del rack después del ecualizador?",
+        "medime cuánto entra crudo al micro de Ana, analizá el in diez segundos"
       ]
     },
     "audio_escuchar": {
@@ -1512,10 +1521,11 @@
         "Mirá la cámara del invitado 1 y decime qué se ve",
         "que dice ese cartel de la imagen",
         "decime qué hay en la imagen de la cámara 1",
-        "mirando la cámara del invitado 2, ¿tiene puestos los auriculares?",
-        "fijate en el aire si el zócalo tapa la cara del conductor",
+        "En la cámara del invitado 2, fijate y contestame: ¿se le ven los auriculares?",
+        "Contestame mirando el programa: ¿la cara del conductor queda tapada por algo?",
         "¿cuántas personas se ven en el programa ahora?",
-        "mirá la cámara del lobby 1 y decime si hay alguien sentado"
+        "mirá la cámara del lobby 1 y decime si hay alguien sentado",
+        "Contestame por escrito: ¿se ve el logo del canal en el programa?"
       ],
       "tambien": [],
       "correctivas": [],
@@ -1524,7 +1534,9 @@
       ],
       "podadas": [
         "mira esta imagen y decime que ve",
-        "analizame esta foto"
+        "analizame esta foto",
+        "mirando la cámara del invitado 2, ¿tiene puestos los auriculares?",
+        "fijate en el aire si el zócalo tapa la cara del conductor"
       ]
     },
     "participant_admit_all": {
@@ -1970,7 +1982,7 @@
     "share_take": {
       "frases": [
         "metele a la escena el archivo compartido",
-        "llevá el adjunto del invitado a la toma",
+        "El adjunto que mandó el invitado, agregalo a la escena que está al aire",
         "copiá la imagen que compartieron en la sala y metela en la escena al aire",
         "sumá a la escena el audio que compartió el oyente",
         "Tomá el compartido 3 y ponelo en la escena",
@@ -1980,7 +1992,13 @@
         "Usá el compartido 5 en la escena",
         "El archivo que compartieron recién, metelo en la escena",
         "Ese audio compartido, sumalo a la escena",
-        "el compartido 4 copialo a medios y agregalo a la escena al aire"
+        "el compartido 4 copialo a medios y agregalo a la escena al aire",
+        "Ese clip compartido del oyente, incorporalo a la escena al aire",
+        "Agregá el compartido 8 a la escena que está saliendo",
+        "Pasá el archivo que compartió el móvil a medios y metelo en escena",
+        "Colgá en la escena la foto compartida del vecino",
+        "Compartido 9 directo a la escena, dale",
+        "Sumá a la escena el video compartido por el panelista"
       ],
       "tambien": [],
       "correctivas": [
@@ -1995,7 +2013,8 @@
         "Copiá el compartido a medios y agregalo a la escena",
         "Sumá el video compartido número 2 a lo que está saliendo",
         "usá en la escena la imagen que mandaron por la sala",
-        "Del compartido 4 hacé una fuente en la escena"
+        "Del compartido 4 hacé una fuente en la escena",
+        "llevá el adjunto del invitado a la toma"
       ]
     },
     "share_view": {
@@ -2190,7 +2209,7 @@
     },
     "speaker_queue": {
       "frases": [
-        "anotalo en la lista de oradores",
+        "Poné a Gustavo en la fila de oradores, que espere su turno fuera del aire",
         "mandá al participante 3 a la fila para hablar",
         "Laura quiere hablar, sumala a la fila",
         "encolá al 22 para el próximo turno",
@@ -2200,17 +2219,25 @@
         "a la fila con Paula",
         "encolá a Diego para hablar",
         "sumá a la concejala a la cola de oradores",
-        "Mónica pidió la palabra, mandala a la fila de oradores",
+        "Mónica está en la sala y quiere hablar, encolala en la fila de oradores",
         "metelo en la fila de los que hablan",
         "encolá al participante 31",
-        "sumalo a la fila, que hable después"
+        "sumalo a la fila, que hable después",
+        "Sumá a Carla a la fila de oradores, todavía no la saques al aire",
+        "Encolá a la del micrófono 4 en la fila para cuando le toque",
+        "Agregá al participante 12 a la fila de los que van a hablar",
+        "Julián levantó la mano, ponelo en la cola de oradores",
+        "Encolá a la docente de Lanús para que hable cuando le toque",
+        "Metela a Romina en la fila, después la subimos"
       ],
       "tambien": [],
       "correctivas": [],
       "podadas": [
         "Metelo en la cola para hablar al del lugar tres",
         "Mónica pidió hablar, encolala",
-        "agregá a Beatriz a los oradores en espera"
+        "agregá a Beatriz a los oradores en espera",
+        "anotalo en la lista de oradores",
+        "Mónica pidió la palabra, mandala a la fila de oradores"
       ]
     },
     "speakers_config": {
