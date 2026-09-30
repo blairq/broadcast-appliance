@@ -130,28 +130,167 @@ su distancia al centro más cercano tiene que superar el radio típico de un gru
 Las aprobadas se aplican en el orden del archivo y **cada una cambia el grupo**:
 la siguiente se mide contra el grupo ya modificado.
 
+## Metodología: arreglar donde se pierde, no donde se ve feo
+
+Las dos primeras rondas se orientaron por la **oferta**: se atacaron los pares con
+peor geometría. Eso tiene dos defectos de método, y los dos se ven en los datos.
+
+**Un par feo al que ningún pedido se acerca no importa, y un par mediano donde se
+pierden pedidos es urgente.** Con el banco de prueba, lo más urgente resultó ser
+`source_set_property → audio_set`, con 5 errores, y ese par no aparecía entre
+los peores por geometría. Si se ordena por lo feo, no se toca nunca.
+
+**Y la vara la movía el propio bucle.** La validación que se usaba
+(`validar.jsonl`) sale de nuestras semillas, la escribió el mismo autor que
+escribe las candidatas y se regenera cada vez que el bucle las toca. Un
+instrumento que el proceso puede mover no mide el proceso.
+
+### Tres conjuntos, tres roles que no se mezclan
+
+| conjunto | quién lo escribe | quién lo lee | para qué |
+|---|---|---|---|
+| **corpus** (`semillas-*.json`) | el que propone | el bucle, el entrenamiento | lo que el modelo aprende; el bucle lo edita |
+| **banco de orientación** (`datos/orientacion.jsonl`) | alguien que **no leyó** el corpus | sólo el bucle | dice dónde se pierde; nunca se entrena |
+| **examen** (`preguntas.json`) | escrito antes de entrenar | sólo la evaluación final | el juez; nadie lo mira durante el bucle |
+
+El banco de orientación es la pieza nueva y la que más importa:
+
+- **Lo escribe otro autor.** Tiene que venir de alguien que no haya visto las
+  semillas: la traza real del aparato cuando exista (la mejor fuente, porque es
+  cómo se pide de verdad), otra persona, o una instancia de LLM a la que se le da
+  sólo el título y la descripción de cada herramienta, con la consigna del
+  registro de cabina, y nunca el corpus. El peor autor posible es el mismo que
+  escribe las candidatas, porque sus sesgos quedan de los dos lados.
+- **Es fijo.** No se regenera: si cambia entre rondas, no hay contra qué comparar.
+- **Nunca se entrena, y no se puede copiar.** El bucle rechaza las candidatas
+  que se parecen a una frase del banco con la misma guarda que usa para el
+  examen. Una semilla calcada de una frase del banco convierte al banco en
+  entrenamiento disfrazado.
+- **Se parte en dos mitades** por un hash fijo de la frase. La mitad A orienta,
+  porque de ella salen las prioridades; la mitad B sólo confirma. Si se orienta
+  muchas rondas contra el mismo banco, el banco se vuelve el objetivo y deja de
+  medir (Goodhart). **Si sube A y no sube B, es sobreajuste al banco**: hay que
+  parar o renovarlo.
+- **Tamaño:** entre 4 y 6 frases por herramienta. Con 86 herramientas son unas
+  400; con 292, unas 1.500.
+
+### El ciclo
+
+```
+1. MEDIR LA DEMANDA   pasar el banco (mitad A) por el modelo; cada frase va al
+                      grupo del centro más cercano; cada error se atribuye al
+                      par (verdadera -> a donde fue)
+
+2. PRIORIZAR          prioridad(par) = errores x CDNV
+                      un par feo sin errores no se toca; uno con errores es
+                      urgente aunque su CDNV sea moderada
+
+3. TRIAGE             cada par priorizado se clasifica por su CAUSA (tabla de
+                      abajo), porque cada causa se arregla distinto
+
+4. PROPONER GUIADO    para cada objetivo, la guía trae lo que hay que cubrir,
+                      las palabras que hay que evitar y las semillas culpables
+
+5. DECIDIR            los filtros de siempre, más la guarda contra el banco
+
+6. REGISTRAR          una línea por ronda en datos/bitacora-corpus.jsonl
+
+7. COMPARAR Y PARAR   sobre los mismos pares, y las dos mitades del banco
+```
+
+### El triage: cuatro causas, cuatro remedios
+
+Confundir las causas fue lo más caro de las primeras rondas: se agregaron
+frases a grupos cuyo problema era otro. Cada causa se reconoce con una prueba
+medible:
+
+| causa | cómo se reconoce | remedio |
+|---|---|---|
+| **etiquetado** | la mitad o más de las semillas del propio grupo caen más cerca de otro: la nube está centrada en otra cosa | **leer**: decidirlo es cosa de una persona. `operator_feed` tenía dos frases del registro de eventos y ninguna propia |
+| **contaminado** | hay semillas del lado ajeno del punto medio en el par | **sacar** o reescribir las culpables (`"quitar": true`). Para un centro de choque, sacar rinde más que agregar |
+| **hueco** | las frases del banco que fallan caen fuera de lo que el grupo cubre (novedad media ≥ 0,5) | **escribir formas nuevas**, guiadas por las frases que fallan. Otras palabras, mismo significado |
+| **inseparable** | con 6 o más frases propuestas, entró el 15 % o menos | **decisión de producto**: fusionar las herramientas, derivar, o aceptar las dos respuestas. Más frases no lo arreglan |
+
+Un par puede tener más de una causa, y se atiende en este orden: primero el
+etiquetado, porque si el grupo está centrado en otra cosa todo lo demás mide mal;
+después la contaminación, porque sacar es más barato que agregar; después el
+hueco. La inseparabilidad se escala: no se sigue insistiendo.
+
+### Proponer guiado
+
+El diagnóstico con `--orientacion --json` trae, para cada par priorizado:
+
+- **`cubrir`**: las frases del banco que se pierden. Muestran **qué significado
+  falta**. No se copian (la guarda lo impide): se escribe *otra* forma de pedir
+  lo mismo.
+- **`evitar`**: las palabras que usa la vecina y el grupo no. Son las que
+  arrastran hacia el lado equivocado: «en pantalla» hacia los gráficos, «al final
+  de la lista» hacia volver a la fila.
+- **`culpables`**: las semillas del lado ajeno, que son candidatas a sacar.
+
+Así, quien propone deja de escribir a ciegas. En las rondas sin guía se aprobó el
+44 % y después el 29 %, y la mayoría de los rechazos fueron «cae en X»: frases
+escritas sin saber hacia dónde había que escribir.
+
+### Cuándo parar
+
+**Por herramienta**, se cierra cuando:
+
+- todas sus frases del banco caen en su grupo y su peor CDNV queda bajo el
+  objetivo, o
+- se clasifica como *inseparable*. En ese caso pasa a decisión de producto y se
+  deja de proponer.
+
+**Por ronda**, se corta el bucle cuando pasa cualquiera de estas cosas:
+
+- la tasa de aceptación cae por debajo del 20 %;
+- sobre los pares comunes, los que empeoran superan el 60 % de los que mejoran
+  (en la ronda 2 fue 213 contra 266, o sea 80 %: ya era hora de cortar);
+- la mitad que confirma no sube en dos rondas seguidas;
+- la mitad que orienta sube y la que confirma no. Esto es sobreajuste, así que se
+  para o se renueva el banco.
+
+**Y siempre:** el examen se mira recién después de entrenar. Si una ronda de
+bucle se evalúa contra el examen, la ronda siguiente ya está optimizando el
+examen.
+
+### El esfuerzo va donde está la prioridad
+
+No se escriben cinco frases por herramienta porque sí. El presupuesto de cada
+ronda se reparte en proporción a la prioridad del par: una herramienta con cinco
+errores en el banco recibe más propuestas que una con uno, y una herramienta sin
+errores y con su peor CDNV bajo el objetivo no recibe ninguna. Eso es lo que
+«orientar el corpus a donde es necesario» quiere decir en la práctica.
+
 ## Cómo se usa
 
 ```bash
 M=~/entrenamientos/reactivo-v7      # un modelo ya entrenado, que mide
 PY=.venv-entrenar/bin/python
+B=datos/orientacion.jsonl           # el banco, escrito por otro autor
 
-# 1. Diagnosticar: pares sobre el objetivo, centros de choque, semillas culpables,
-#    grupos angostos, grupos con menos de 3 semillas. --json es la entrada para
-#    quien propone.
-$PY tools/entrenar/bucle-corpus.py --modelo $M --diagnosticar --json diag-0.json
+# 1. Diagnosticar con el banco: dónde se pierde, por qué causa, y la guía para
+#    proponer (cubrir, evitar, culpables). --json es la entrada para quien propone.
+$PY tools/entrenar/bucle-corpus.py --modelo $M --diagnosticar --orientacion $B --json diag-0.json
 
 # 2. Proponer: escribir candidatas.json a mano o con una LLM, mirando diag-0.json.
 #    [{"herramienta": "scene_move", "frase": "reubicá la escena en el orden del programa"},
 #     {"herramienta": "speaker_presenter", "frase": "este es el que conduce", "quitar": true}]
 
-# 3. Evaluar y aplicar.
-$PY tools/entrenar/bucle-corpus.py --modelo $M --evaluar candidatas.json --aceptar
+# 3. Evaluar y aplicar. Con --orientacion, rechaza también las que copian el
+#    banco. Cada ronda deja una línea en datos/bitacora-corpus.jsonl.
+$PY tools/entrenar/bucle-corpus.py --modelo $M --evaluar candidatas.json --orientacion $B --aceptar
 
-# 4. Regenerar el corpus y comparar contra la ronda anterior.
+# 4. Regenerar el corpus y comparar contra la ronda anterior: los mismos pares y
+#    las dos mitades del banco.
 make corpus-entrenamiento
-$PY tools/entrenar/bucle-corpus.py --modelo $M --diagnosticar --json diag-1.json --previo diag-0.json
+$PY tools/entrenar/bucle-corpus.py --modelo $M --diagnosticar --orientacion $B \
+    --json diag-1.json --previo diag-0.json
 ```
+
+Sin `--orientacion`, el bucle funciona igual pero se orienta por la geometría, o
+sea por la oferta. Sirve para arrancar; para orientar el trabajo hace falta el
+banco.
 
 Y se repite hasta que la tasa de aceptación cae y cada ronda empeora casi tantos
 pares como mejora: ahí lo que queda ya no se arregla con frases.

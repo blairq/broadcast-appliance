@@ -335,6 +335,124 @@ def diagnosticar(geo, objetivo, frases):
     return res
 
 
+def historial(bitacora):
+    """Propuestas y aceptadas por herramienta, a lo largo de todas las rondas."""
+    prop, ok = collections.Counter(), collections.Counter()
+    if bitacora and Path(bitacora).exists():
+        for l in Path(bitacora).read_text(encoding="utf-8").splitlines():
+            if not l.strip():
+                continue
+            r = json.loads(l)
+            for h, n in r.get("propuestas_por_herramienta", {}).items():
+                prop[h] += n
+            for h, n in r.get("aceptadas_por_herramienta", {}).items():
+                ok[h] += n
+    return prop, ok
+
+
+def orientar(geo, med, ori, frases, objetivo, bitacora):
+    """DONDE SE PIERDE, y por que. Es lo que orienta el trabajo.
+
+    Se pasa el banco de orientacion por el modelo y cada frase se asigna al grupo
+    del centro mas cercano. Cada error se atribuye al par (verdadera, predicha).
+
+    La prioridad de un par es errores x CDNV: un par feo al que ningun pedido se
+    acerca no se toca; un par mediano donde se pierden pedidos es urgente. El
+    diagnostico sin banco ordena por lo feo; con banco, por lo que cuesta.
+
+    Despues, el TRIAGE: cada par priorizado se clasifica por su causa, porque
+    cada causa se arregla distinto y confundirlas fue caro:
+
+      etiquetado   las semillas del grupo caen mayormente en OTRO: su nube esta
+                   centrada en otra cosa (operator_feed tenia dos frases del
+                   registro de eventos). Lo decide una persona leyendo.
+      contaminado  hay semillas del lado ajeno del par: SACARLAS o reescribirlas.
+      hueco        las frases del banco que fallan caen fuera de lo que el grupo
+                   cubre: faltan FORMAS de pedirlo. Se escriben guiadas por ellas.
+      inseparable  ya se propusieron varias frases para el grupo y casi ninguna
+                   entro: el modelo no tiene un concepto propio para esto. Es una
+                   decision de producto —fusionar, derivar, aceptar las dos—.
+    """
+    t = geo.t
+    pred = []
+    for o in ori:
+        v = med.h(o["frase"])
+        pred.append((o, geo.mas_cercano(v), v))
+    med.guardar()
+    ok = sum(1 for o, p, _ in pred if p == o["herramienta"])
+    err = collections.Counter((o["herramienta"], p) for o, p, _ in pred if p != o["herramienta"])
+    fallan = collections.defaultdict(list)
+    for o, p, v in pred:
+        if p != o["herramienta"]:
+            fallan[(o["herramienta"], p)].append((o["frase"], v))
+
+    prop, acep = historial(bitacora)
+    prioridades = []
+    for (a, b), n in err.items():
+        c = geo.cdnv(a, b) if a in geo.medibles and b in geo.medibles else float("nan")
+        prioridades.append({"verdadera": a, "va_a": b, "errores": n,
+                            "cdnv": c, "prioridad": n * (c if c == c else 0.1)})
+    prioridades.sort(key=lambda r: -r["prioridad"])
+
+    for r in prioridades:
+        a, b = r["verdadera"], r["va_a"]
+        causas = []
+        # etiquetado: la mayoria de sus propias semillas cae en otro grupo
+        if a in geo.P and len(geo.P[a]) >= 2:
+            ajenas = sum(1 for v in geo.P[a] if geo.mas_cercano(v) != a)
+            if ajenas / len(geo.P[a]) >= 0.5:
+                causas.append("etiquetado")
+        # contaminado: semillas de a del lado de b, o de b del lado de a
+        culp = []
+        if a in geo.P and b in geo.P:
+            u = geo.mu[a] - geo.mu[b]
+            if u.norm() > 1e-6:
+                u = u / u.norm()
+                m = ((geo.mu[a] + geo.mu[b]) / 2) @ u
+                for lado, sg in ((a, 1), (b, -1)):
+                    for i, v in enumerate(geo.P[lado]):
+                        if (v @ u - m).item() * sg < 0 and i < len(frases.get(lado, [])):
+                            culp.append({"herramienta": lado, "frase": frases[lado][i]})
+        if culp:
+            causas.append("contaminado")
+        # hueco: las que fallan caen fuera del subespacio del grupo
+        if a in geo.P:
+            novs = [geo.novedad(a, v) for _, v in fallan[(a, b)]]
+            if novs and sum(novs) / len(novs) >= 0.5:
+                causas.append("hueco")
+        # inseparable: se propuso bastante y casi nada entro
+        if prop[a] >= 6 and acep[a] / prop[a] <= 0.15:
+            causas.append("inseparable")
+        r["causas"] = causas or ["hueco"]
+        r["culpables"] = culp[:6]
+        r["cubrir"] = [f for f, _ in fallan[(a, b)]][:6]
+        # vocabulario que tira hacia b: palabras de b que a no usa
+        pa = collections.Counter(w for f in frases.get(a, []) for w in f.lower().split())
+        pb = collections.Counter(w for f in frases.get(b, []) for w in f.lower().split())
+        r["evitar"] = [w for w, n in pb.most_common(40) if len(w) > 3 and pa[w] == 0][:8]
+        r["historial"] = {"propuestas": prop[a], "aceptadas": acep[a]}
+
+    return {"acierto_orientacion": ok / max(1, len(pred)), "frases_orientacion": len(pred),
+            "prioridades": prioridades}
+
+
+def imprimir_orientacion(o):
+    print(f"\n  BANCO DE ORIENTACION: mitad que orienta {o['frases_orientacion']} frases,"
+          f" {100*o['acierto_orientacion']:.1f}% caen en su grupo"
+          + (f" · mitad que confirma {o['frases_confirmacion']} frases,"
+             f" {100*o['acierto_confirmacion']:.1f}%" if "acierto_confirmacion" in o else ""))
+    print("\n  DONDE SE PIERDE (prioridad = errores x CDNV)")
+    for r in o["prioridades"][:12]:
+        c = "  —  " if r["cdnv"] != r["cdnv"] else f"{r['cdnv']:.3f}"
+        print(f"    {r['verdadera']:22s} -> {r['va_a']:22s} {r['errores']:2d} errores · CDNV {c}"
+              f" · {'+'.join(r['causas'])}")
+    print("\n  QUE HACER, por causa:")
+    print("    etiquetado   leer las semillas: estan centradas en otra cosa")
+    print("    contaminado  sacar las culpables (candidatas con \"quitar\": true)")
+    print("    hueco        escribir formas NUEVAS de pedirlo, guiadas por las que fallan")
+    print("    inseparable  decision de producto: fusionar, derivar o aceptar las dos")
+
+
 def imprimir(res, objetivo):
     print(f"\n{res['pares_medidos']} pares medidos (todos contra todos)")
     print(f"  sobre el objetivo (CDNV_dir > {objetivo:.3f}, Fisher < {1/math.sqrt(objetivo):.1f}):"
@@ -384,6 +502,10 @@ def main():
     ap.add_argument("--aceptar", action="store_true")
     ap.add_argument("--json", help="guardar el diagnostico (entrada para quien propone)")
     ap.add_argument("--previo", help="diagnostico de la ronda anterior, para comparar")
+    ap.add_argument("--orientacion", help="banco de orientacion (jsonl {frase, herramienta}):"
+                    " frases escritas SIN ver el corpus, que dicen donde se pierde")
+    ap.add_argument("--bitacora", default=str(RAIZ / "datos/bitacora-corpus.jsonl"),
+                    help="registro de cada ronda; de ahi sale la tasa de aceptacion por herramienta")
     args = ap.parse_args()
 
     import lib_prompt as lp
@@ -464,6 +586,35 @@ def main():
                     print(f"    dimension mediana (mismos grupos): "
                           f"{statistics.median(prev['dims'][h] for h in dc):.2f} -> "
                           f"{statistics.median(res['dims'][h] for h in dc):.2f}")
+        if args.orientacion:
+            ori = [json.loads(l) for l in Path(args.orientacion).read_text(encoding="utf-8").splitlines()
+                   if l.strip()]
+            ori = [o for o in ori if o["herramienta"] in geo.P]
+            # DOS MITADES, partidas por un hash fijo de la frase. La mitad A
+            # ORIENTA —de ella salen las prioridades—; la B solo CONFIRMA. Si se
+            # orienta muchas rondas contra el mismo banco, el banco se vuelve el
+            # objetivo y deja de medir (Goodhart). Si A sube y B no, se esta
+            # sobreajustando al banco: hay que parar o renovarlo.
+            def mitad(o):
+                return int(hashlib.sha1(o["frase"].encode()).hexdigest(), 16) % 2
+            A = [o for o in ori if mitad(o) == 0]
+            B = [o for o in ori if mitad(o) == 1]
+            res["orientacion"] = orientar(geo, med, A, frases, args.objetivo, args.bitacora)
+            okB = sum(1 for o in B if geo.mas_cercano(med.h(o["frase"])) == o["herramienta"])
+            med.guardar()
+            res["orientacion"]["acierto_confirmacion"] = okB / max(1, len(B))
+            res["orientacion"]["frases_confirmacion"] = len(B)
+            imprimir_orientacion(res["orientacion"])
+            if args.previo and Path(args.previo).exists():
+                pv = json.loads(Path(args.previo).read_text(encoding="utf-8")).get("orientacion")
+                if pv and "acierto_confirmacion" in pv:
+                    da = res["orientacion"]["acierto_orientacion"] - pv["acierto_orientacion"]
+                    db = res["orientacion"]["acierto_confirmacion"] - pv["acierto_confirmacion"]
+                    print(f"\n  CONTRA LA RONDA ANTERIOR: mitad que orienta {100*da:+.1f} puntos"
+                          f" · mitad que confirma {100*db:+.1f} puntos")
+                    if da > 0.01 and db <= 0:
+                        print("    OJO: mejora la mitad que orienta y NO la que confirma. Es"
+                              " sobreajuste al banco: parar, o renovar el banco.")
         if args.json:
             Path(args.json).write_text(json.dumps(res, ensure_ascii=False, indent=1), encoding="utf-8")
 
@@ -471,6 +622,14 @@ def main():
         cm = _corpus_mod()
         examen = json.loads(CORPUS_EXAMEN.read_text(encoding="utf-8"))["casos"]
         prohibidas = [set(cm.sin_tildes(c["pregunta"].lower()).split()) for c in examen]
+        # El banco de orientacion tampoco se puede copiar: si una semilla nueva es
+        # casi igual a una frase del banco, el banco deja de medir y pasa a ser
+        # entrenamiento disfrazado. Se escribe OTRA forma del mismo significado.
+        banco = []
+        if args.orientacion and Path(args.orientacion).exists():
+            banco = [set(cm.sin_tildes(json.loads(l)["frase"].lower()).split())
+                     for l in Path(args.orientacion).read_text(encoding="utf-8").splitlines()
+                     if l.strip()]
         cands = json.loads(Path(args.evaluar).read_text(encoding="utf-8"))
         aprobadas, rechazadas, quitadas = [], [], []
         for c in cands:
@@ -534,6 +693,9 @@ def main():
             if cm.parecido(fr, prohibidas):
                 rechazadas.append((h, fr, "se parece al examen"))
                 continue
+            if banco and cm.parecido(fr, banco):
+                rechazadas.append((h, fr, "copia el banco de orientacion"))
+                continue
             v = med.h(fr)
             cerca = geo.mas_cercano(v)
             if cerca != h:
@@ -573,6 +735,24 @@ def main():
         print(f"\nRECHAZADAS {len(rechazadas)}")
         for h, fr, mot in rechazadas:
             print(f"  {h:22s} {mot:36s} «{fr}»")
+        # LA BITACORA: una linea por ronda, versionada con el corpus. De ahi sale
+        # la tasa de aceptacion por herramienta, que es la senal de «inseparable»:
+        # un grupo al que se le propone y no le entra nada no tiene un concepto
+        # propio en el modelo.
+        if args.aceptar and args.bitacora:
+            import datetime
+            pp = collections.Counter(c["herramienta"] for c in cands if not c.get("quitar"))
+            aa = collections.Counter(h for h, _, _ in aprobadas)
+            reg = {"fecha": datetime.datetime.now().isoformat(timespec="seconds"),
+                   "modelo": str(args.modelo), "objetivo": args.objetivo,
+                   "propuestas_por_herramienta": dict(pp),
+                   "aceptadas_por_herramienta": dict(aa),
+                   "aprobadas": [{"herramienta": h, "frase": f} for h, f, _ in aprobadas],
+                   "quitadas": [{"herramienta": h, "frase": f} for h, f, _, _ in quitadas],
+                   "rechazadas": [{"herramienta": h, "frase": f, "motivo": m}
+                                  for h, f, m in rechazadas]}
+            with open(args.bitacora, "a", encoding="utf-8") as fb:
+                fb.write(json.dumps(reg, ensure_ascii=False) + "\n")
         if args.aceptar and (aprobadas or quitadas):
             d = json.loads(Path(args.semillas).read_text(encoding="utf-8"))
             for h, fr, _ in aprobadas:
