@@ -36,7 +36,14 @@ while IFS= read -r f; do
         echo "SIN FIRMA: $rel"
         fail=1
     fi
-    # Primera linea de otool -L: el propio archivo (en dylibs, su install name).
+    # Solo la porcion arm64 (Qt viene universal y otool imprime un encabezado
+    # "archivo (architecture X):" por cada una). En dylibs, otool -L repite el
+    # propio install name como primera dependencia: se saltea.
+    self="$(otool -arch arm64 -D "$f" 2>/dev/null | grep -v ':$' | head -1)"
+    is_exe=0
+    file -b "$f" | grep -q "Mach-O.*executable" && is_exe=1
+    exe_rpaths=""
+    [ "$is_exe" = 1 ] && exe_rpaths="$(otool -arch arm64 -l "$f" 2>/dev/null | awk '/cmd LC_RPATH/{getline; getline; print $2}')"
     while IFS= read -r dep; do
         case "$dep" in
             /usr/lib/* | /System/Library/*) continue ;;
@@ -53,13 +60,30 @@ while IFS= read -r f; do
                     echo "FALTA: $rel necesita $dep (no esta en el bundle)"
                     fail=1
                 fi
+                # Un ejecutable tiene que poder resolver sus @rpath con sus
+                # propios LC_RPATH (los de una dylib dependen de quien la carga).
+                if [ "$is_exe" = 1 ]; then
+                    if [[ "$dep" == @rpath/* ]]; then
+                        found=0
+                        while IFS= read -r rp; do
+                            [ -n "$rp" ] || continue
+                            rp="${rp//@executable_path/$(dirname "$f")}"
+                            rp="${rp//@loader_path/$(dirname "$f")}"
+                            [ -e "$rp/${dep#@rpath/}" ] && { found=1; break; }
+                        done <<<"$exe_rpaths"
+                        if [ "$found" -ne 1 ]; then
+                            echo "NO RESUELVE: $rel necesita $dep y sus rpath no lo encuentran"
+                            fail=1
+                        fi
+                    fi
+                fi
                 ;;
             *)
                 echo "RUTA DE LA MAQUINA DE BUILD: $rel -> $dep"
                 fail=1
                 ;;
         esac
-    done < <(otool -L "$f" 2>/dev/null | tail -n +2 | awk '{print $1}' | grep -v "^$(basename "$f")$")
+    done < <(otool -arch arm64 -L "$f" 2>/dev/null | grep -v ':$' | awk '{print $1}' | grep -vxF "${self:-/}")
 done < <(find "$BUNDLE" -type f)
 
 echo "Mach-O revisados: $count"

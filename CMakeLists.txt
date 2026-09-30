@@ -209,6 +209,13 @@ else()
     add_compile_options(-Wall -Wextra)
     # Debug info por defecto para poder correr los unit tests con sanitizers.
     add_compile_options($<$<CONFIG:Debug>:-g>)
+    # macOS: el equivalente del --as-needed que Ubuntu usa por defecto. Sin
+    # esto, todo lo que enlaza ba_core arrastra las dylibs de sus dependencias
+    # opcionales (ONNX Runtime) aunque no las use, y el launcher, que no tiene
+    # rpath hacia bin/64bit, ni arranca.
+    if(APPLE)
+        add_link_options(LINKER:-dead_strip_dylibs)
+    endif()
 endif()
 
 # --- Testing ----------------------------------------------------------------

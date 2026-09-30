@@ -324,6 +324,9 @@ release-macos:
 	rm -rf release
 	cmake --install $(BUILD_DIR) --prefix release --component bundle
 	tools/deps/check-portable-macos.sh release
+	@# El manifest, como en Linux y Windows: sin el, el launcher verifica cero
+	@# archivos y la comprobacion de integridad no sirve de nada.
+	tools/deploy --solo-manifest release
 
 dist-macos: release-macos
 	@mkdir -p dist
