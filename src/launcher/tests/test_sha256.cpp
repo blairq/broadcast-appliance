@@ -50,7 +50,8 @@ int main() {
     CHECK(hex("abc") == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
     CHECK(hex("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq") ==
           "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1");
-    CHECK(hex(std::string(1000000, 'a')) == "cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0");
+    CHECK(hex(std::string(1000000, 'a')) ==
+          "cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0");
 
     // hashFile: el camino que usa la verificacion de integridad.
     const auto path = std::filesystem::temp_directory_path() / "ba_test_sha256.bin";
@@ -58,7 +59,8 @@ int main() {
         std::ofstream out(path, std::ios::binary);
         out << "abc";
     }
-    CHECK(Sha256::hashFile(path.wstring()) == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+    CHECK(Sha256::hashFile(path.wstring()) ==
+          "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
     std::filesystem::remove(path);
     CHECK(Sha256::hashFile(path.wstring()).empty()); // ausente -> vacio
 

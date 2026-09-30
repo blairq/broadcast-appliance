@@ -539,7 +539,8 @@ json AgentViewModel::fetchLatest(const QString& runtime, const json& base, QStri
 
 QString AgentViewModel::latestVersion() const {
     const auto it = latest_.find(runtimeOf(provider_));
-    return it == latest_.end() ? QString() : QString::fromStdString(it->second.value("version", std::string()));
+    return it == latest_.end() ? QString()
+                               : QString::fromStdString(it->second.value("version", std::string()));
 }
 
 bool AgentViewModel::newerAvailable() const {
@@ -735,8 +736,8 @@ void AgentViewModel::install() {
         items.push_back(
             {plat.value("url", ""), plat.value("sha256", ""), "archivo", (dir + "/node").toStdString()});
         const json pkg = pin.value("paquete", json::object());
-        items.push_back({pkg.value("url", ""), pkg.value("sha256", ""), "archivo", (dir + "/gemini").toStdString(),
-                         pkg.value("sha512", "")});
+        items.push_back({pkg.value("url", ""), pkg.value("sha256", ""), "archivo",
+                         (dir + "/gemini").toStdString(), pkg.value("sha512", "")});
     } else {
         items.push_back({plat.value("url", ""), plat.value("sha256", ""), plat.value("tipo", "archivo"),
                          plat.value("tipo", "") == "binario"
@@ -848,8 +849,10 @@ void AgentViewModel::install() {
                 QFile::remove(tmp);
             }
         }
-        if (err.isEmpty() && !geminiScript.isEmpty() && !QFileInfo::exists(staging + "/gemini/" + geminiScript))
-            err = "El paquete de Gemini no trae " + geminiScript + ": no se instalo (queda la version anterior).";
+        if (err.isEmpty() && !geminiScript.isEmpty() &&
+            !QFileInfo::exists(staging + "/gemini/" + geminiScript))
+            err = "El paquete de Gemini no trae " + geminiScript +
+                  ": no se instalo (queda la version anterior).";
         if (err.isEmpty()) {
             // Ejecutable en su lugar (algunos archivos lo traen en una subcarpeta).
             if (runtime != "gemini" && !QFileInfo::exists(staging + "/" + exeName)) {
