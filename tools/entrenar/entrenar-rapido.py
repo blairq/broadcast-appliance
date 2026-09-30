@@ -190,7 +190,10 @@ def main():
     modelo.train()
     log(f"pasos {total} · lote {args.lote} ({por_placa} por placa x {mundo}) · calentamiento {calor}")
     for paso in range(total):
-        if not orden:
+        # el resto que no llena un lote se descarta al final de cada epoca (como
+        # hace el entrenador de transformers): con un lote corto, una placa podia
+        # quedarse sin ejemplos y caerse (paso con v15: 7.800 % 16 = 8)
+        if len(orden) < args.lote:
             orden = list(range(len(E)))
             rnd.shuffle(orden)  # misma semilla en las dos placas: mismo orden
         lote_ids = orden[:args.lote]

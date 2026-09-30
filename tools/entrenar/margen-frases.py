@@ -64,6 +64,7 @@ def main():
 
     margenes = {i: [] for i in range(len(items))}
     elegida = {}
+    rival = {}
     for ruta in args.modelo:
         tok, modelo = cargar(ruta, torch)
         dev = modelo.device
@@ -91,17 +92,22 @@ def main():
                 lg0 = modelo(input_ids=r, past_key_values=kv, use_cache=True).logits[0, -1].float()
             n_frase = n_cab + r.shape[1]
             # el camino del nombre correcto
-            lg, pre, m = lg0, (), float("inf")
+            lg, pre, m, riv = lg0, (), float("inf"), None
             for t in secuencias[h]:
                 if len(quedan[pre]) == 1:
                     break
                 ops = sig_t[pre]
                 if len(ops) > 1:
                     otros = ops[ops != t]
-                    m = min(m, (lg[t] - lg.index_select(0, otros).max()).item())
+                    vals = lg.index_select(0, otros)
+                    mm = (lg[t] - vals.max()).item()
+                    if mm < m:
+                        # la rival: una herramienta que sigue viva por el mejor otro token
+                        m, riv = mm, sorted(quedan[pre + (int(otros[int(vals.argmax())]),)])[0]
                 pre = pre + (t,)
                 lg = paso(t)
             margenes[i].append(m)
+            rival[i] = riv
             kv.crop(n_frase)
             # si pierde, que eligiria (decodificacion voraz con la gramatica)
             if m < 0:
@@ -122,7 +128,8 @@ def main():
         ms = margenes[i]
         prom = sum(ms) / len(ms)
         out.setdefault(h, []).append({"frase": f, "margen": round(prom, 3),
-                                      "elegiria": elegida.get(i) if prom < 0 else None})
+                                      "elegiria": elegida.get(i) if prom < 0 else None,
+                                      "rival": rival.get(i)})
     Path(args.salida).write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
     todos = [x for v in out.values() for x in v]
     neg = [x for x in todos if x["margen"] < 0]
