@@ -166,26 +166,66 @@ def main():
 
     base = objetivo(actual)
     print(f"\nobjetivo de partida (etiquetas a mano): {base:.3f}")
-    usados = {primer(v) for v in actual.values()}
+
+    # TODOS LOS CANDIDATOS DE UN SAQUE, y no de a uno. La primera version probaba
+    # candidato por candidato: 86 herramientas x 16.000 palabras x 3 vueltas son
+    # cuatro millones de evaluaciones y una hora de reloj. Pero cambiar la
+    # etiqueta de UNA herramienta solo afecta a los pares donde esa herramienta
+    # aparece, y el coseno se abre en dos productos que son matmuls:
+    #
+    #   cos(w, C - O) = (w.C - w.O) / |C - O|
+    #   |C - O|^2     = |C|^2 + |O|^2 - 2 C.O
+    #
+    # Con eso los 16.000 candidatos salen en dos multiplicaciones de matrices.
+    lista_cand = sorted(cand)
+    tid_cand = torch.tensor([cand[p] for p in lista_cand])
+    C = Wn[tid_cand]                                  # [cand, dim] normalizadas
+    C2 = (C * C).sum(1)                               # |C|^2 = 1, pero explicito
     mejor = dict(actual)
+    usados = {primer(v) for v in actual.values()}
+    # Indice de los pares que toca cada herramienta.
+    toca = collections.defaultdict(list)
+    for k in range(len(pares)):
+        toca[int(ia[k])].append((k, +1))
+        toca[int(jb[k])].append((k, -1))
+
+    def aporte_actual(asig, ks):
+        L = torch.stack([Wn[primer(asig[h])] for h in hs])
+        d = L[ia[ks]] - L[jb[ks]]
+        d = torch.nn.functional.normalize(d, dim=1)
+        return float((pesos[ks] * (Wp[ks] * d).sum(1)).sum())
+
     mejor_val = base
     for vuelta in range(args.vueltas):
         cambios = 0
         for h in hs:
+            mios = toca[ix[h]]
+            if not mios:
+                continue
+            ks = torch.tensor([k for k, _ in mios])
+            signos = torch.tensor([sg for _, sg in mios], dtype=torch.float32)
+            # El OTRO de cada par, y la direccion w con su signo.
+            otros = torch.stack([Wn[primer(mejor[hs[int(jb[k])] if sg > 0 else hs[int(ia[k])]])]
+                                 for k, sg in mios])
+            Wk = Wp[ks] * signos[:, None]      # w orientada hacia esta herramienta
+            wc = Wk @ C.T                      # [pares_h, cand]
+            wo = (Wk * otros).sum(1, keepdim=True)
+            co = C @ otros.T                   # [cand, pares_h]
+            dist2 = (C2[:, None] + (otros * otros).sum(1)[None, :] - 2 * co).clamp(min=1e-9)
+            cos = (wc.T - wo.T) / dist2.sqrt()  # [cand, pares_h]
+            val = (cos * pesos[ks][None, :]).sum(1)
+            # No se puede usar un primer token que ya tenga otra herramienta.
             act = primer(mejor[h])
-            for pal, tid in cand.items():
-                if tid in usados and tid != act:
-                    continue
-                if pal == mejor[h]:
-                    continue
-                prueba = dict(mejor)
-                prueba[h] = pal
-                v = objetivo(prueba)
-                if v > mejor_val + 1e-6:
-                    usados.discard(act)
-                    usados.add(tid)
-                    mejor, mejor_val, act = prueba, v, tid
-                    cambios += 1
+            libre = torch.tensor([(t == act) or (t not in usados) for t in tid_cand.tolist()])
+            val[~libre] = float("-inf")
+            j = int(val.argmax())
+            viejo = aporte_actual(mejor, ks)
+            if float(val[j]) > viejo + 1e-6:
+                usados.discard(act)
+                usados.add(int(tid_cand[j]))
+                mejor[h] = lista_cand[j]
+                cambios += 1
+        mejor_val = objetivo(mejor)
         print(f"  vuelta {vuelta+1}: objetivo {mejor_val:.3f} · {cambios} cambios")
         if cambios == 0:
             break
