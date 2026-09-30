@@ -458,11 +458,15 @@ struct IpStack::Impl {
             fd_set wr;
             FD_ZERO(&rd);
             FD_ZERO(&wr);
+            // Windows avisa un connect() fallido en exceptfds, no en writefds.
+            fd_set ex;
+            FD_ZERO(&ex);
             long long maxFd = wakeSock;
             FD_SET(static_cast<SockT>(wakeSock), &rd);
             for (auto& b : bridges) {
                 if (b->dead) continue;
                 if (b->connecting || !b->toSock.empty()) FD_SET(static_cast<SockT>(b->sock), &wr);
+                if (b->connecting) FD_SET(static_cast<SockT>(b->sock), &ex);
                 if (!b->connecting && b->pcb != nullptr && !b->sockEof && tcp_sndbuf(b->pcb) > 0) {
                     FD_SET(static_cast<SockT>(b->sock), &rd);
                 }
@@ -476,7 +480,7 @@ struct IpStack::Impl {
             if (sleep > 50) sleep = 50;
             // tv_usec es long en Linux/Windows e int en macOS.
             timeval tv{0, static_cast<decltype(timeval::tv_usec)>(sleep * 1000)};
-            select(static_cast<int>(maxFd) + 1, &rd, &wr, nullptr, &tv);
+            select(static_cast<int>(maxFd) + 1, &rd, &wr, &ex, &tv);
 
             if (FD_ISSET(static_cast<SockT>(wakeSock), &rd)) {
                 char b[256];
@@ -502,11 +506,13 @@ struct IpStack::Impl {
             for (auto& b : bridges) {
                 const bool r = FD_ISSET(static_cast<SockT>(b->sock), &rd);
                 const bool w = FD_ISSET(static_cast<SockT>(b->sock), &wr);
-                // Mientras conecta, solo vale lo que dijo select(): con datos
-                // pendientes (la cabecera PROXY) se daba por conectado un socket
-                // que no lo estaba. Linux devuelve EAGAIN y lo tapaba; macOS da
-                // ENOTCONN y el puente se caia.
-                const bool writable = b->connecting ? w : (w || !b->toSock.empty());
+                const bool e = FD_ISSET(static_cast<SockT>(b->sock), &ex);
+                // Mientras conecta, solo vale lo que dijo select() (escribible, o
+                // la excepcion con la que Windows avisa que fallo; serviceBridge
+                // mira SO_ERROR): con datos pendientes (la cabecera PROXY) se daba
+                // por conectado un socket que no lo estaba. Linux devuelve EAGAIN
+                // y lo tapaba; macOS da ENOTCONN y el puente se caia.
+                const bool writable = b->connecting ? (w || e) : (w || !b->toSock.empty());
                 serviceBridge(*b, r || (!b->connecting && !b->sockEof), writable);
             }
             const int64_t now = nowMs();
