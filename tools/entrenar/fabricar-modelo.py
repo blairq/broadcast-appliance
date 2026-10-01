@@ -436,14 +436,10 @@ class Fabrica:
 
     @staticmethod
     def mtp_a_mlx(mtp_f, mlx, base):
-        """La cabeza MTP en el modelo MLX, con el contrato de MTPLX (mtp.safetensors
-        int4 + config + mtplx_runtime.json) y variantes fp16/q8: ver mtp-mlx.py.
-
-        Fuera de model*.safetensors a proposito: mlx-lm (0.31.3, qwen3_5.sanitize)
-        toma la presencia de CUALQUIER peso mtp.* como senal de un checkpoint sin
-        convertir y le suma 1 a todas las normas del modelo. mlx-lm solo lee
-        model*.safetensors; MTPLX encuentra la cabeza por el config."""
-        correr([PY_MLX, E / "mtp-mlx.py", "--entrada", mtp_f, "--salida", mlx, "--base", base])
+        """La cabeza MTP en el modelo MLX como la carga ba-modelo (mlx-swift-lm):
+        mtp.safetensors (fp16) y mtp-q8.safetensors, normas SIN el +1 (lo suma
+        mlx-swift-lm). Ver mtp-mlx.py."""
+        correr([PY_MLX, E / "mtp-mlx.py", "--entrada", mtp_f, "--salida", mlx])
 
     def vision(self):
         """EL MODELO CON VISION. Entrenamos solo la parte de texto (AutoModelForCausalLM)
@@ -627,14 +623,11 @@ del repo del aparato): el prefijo con las fichas se procesa una vez y se reusa e
                                      f" pierde {max(0.0, t['caida_fp16_puntos']):.1f} puntos en el banco"
                                      f" (las GPU M1/M2 no tienen bf16 nativo)."
                            if t else "")(m.get("exportado", {}).get("mlx_dtype"))
-                        + ("\n`mtp.safetensors` (copia en `mtp/weights.safetensors`): la cabeza MTP entrenada con el"
-                           " contrato de [MTPLX](https://mtplx.com): lineales de la capa en int4 (afín, grupos de 64),"
-                           " `mtp.fc`, escalas y normas en fp16 **con el +1 aplicado** (la convención de MLX); el `config.json`"
-                           " la declara (`mlx_lm_extra_tensors`, `mtplx_mtp_contract`) y `mtplx_runtime.json` fija 3"
-                           " borradores. `mtp-fp16.safetensors` (sin cuantizar) y `mtp-q8.safetensors` (lineales en 8"
-                           " bits): variantes para medir; todo en fp16, mismas normas (+1)."
-                           " Van fuera de `model*.safetensors` a propósito: mlx-lm 0.31 tomaría cualquier peso `mtp.*`"
-                           " ahí como un checkpoint sin convertir y correría las normas del modelo." if mtp else ""))
+                        + ("\n`mtp.safetensors` (fp16) y `mtp-q8.safetensors` (lineales en 8 bits, afín, grupos de 64):"
+                           " la cabeza MTP entrenada, como la carga `ba-modelo` (mlx-swift-lm). Normas en la"
+                           " convención de Hugging Face (sin el +1: lo suma mlx-swift-lm al cargarla). Van fuera de"
+                           " `model*.safetensors` a propósito: mlx-lm 0.31 tomaría cualquier peso `mtp.*` ahí como un"
+                           " checkpoint sin convertir y correría las normas del modelo." if mtp else ""))
         else:
             uso = f"""```bash
 llama-server -m {self.gguf_nombre}{' --mmproj mmproj-F16.gguf' if m.get('exportado', {}).get('mmproj') else ''} -c 8192 --cache-reuse 256{' --spec-type draft-mtp --spec-draft-n-max 3' if mtp else ''}
