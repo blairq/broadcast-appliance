@@ -53,3 +53,32 @@ QImage ultimoCuadroLsp() {
     std::lock_guard<std::mutex> l(g_mu);
     return g_ultimo;
 }
+
+/// La clase de la vista que tiene el teclado en la ventana de `nsview`
+/// (para verificar que el editor se lo devuelve al plugin).
+const char* quienTieneElTeclado(void* nsview) {
+    NSView* v = (__bridge NSView*)nsview;
+    NSResponder* r = v.window.firstResponder;
+    return r != nil ? [[r className] UTF8String] : "(nadie)";
+}
+
+/// Un doble click en (x, y) (coordenadas de la ventana, origen arriba a la
+/// izquierda) mandado a la vista del plugin: para probar las interacciones.
+void dobleClick(void* nsview, double x, double y) {
+    NSView* v = (__bridge NSView*)nsview;
+    NSView* plugin = v.subviews.firstObject;
+    if (plugin == nil) return;
+    const NSPoint p = NSMakePoint(x, v.bounds.size.height - y);
+    const NSTimeInterval t0 = [[NSProcessInfo processInfo] systemUptime];
+    for (int k = 0; k < 2; ++k) {
+        const NSTimeInterval t = t0 + k * 0.08;
+        NSEvent* abajo = [NSEvent mouseEventWithType:NSEventTypeLeftMouseDown location:p modifierFlags:0
+                                           timestamp:t windowNumber:v.window.windowNumber context:nil
+                                         eventNumber:2 * k clickCount:k + 1 pressure:1.0];
+        NSEvent* arriba = [NSEvent mouseEventWithType:NSEventTypeLeftMouseUp location:p modifierFlags:0
+                                            timestamp:t + 0.02 windowNumber:v.window.windowNumber context:nil
+                                          eventNumber:2 * k + 1 clickCount:k + 1 pressure:0.0];
+        [plugin mouseDown:abajo];
+        [plugin mouseUp:arriba];
+    }
+}

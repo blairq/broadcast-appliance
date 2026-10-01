@@ -47,7 +47,8 @@
 <ul>
 	<li>
 		<b>Crosspoint</b> - the gain of the input of the row routed to the output of the column.
-		The lowest value of the knob mutes the crosspoint.
+		The lowest value of the knob mutes the crosspoint. Double click on the knob toggles the crosspoint:
+		an audible crosspoint gets muted, a muted one gets back its last gain (0 dB if it never had one).
 	</li>
 </ul>
 <p><b>Output controls:</b></p>

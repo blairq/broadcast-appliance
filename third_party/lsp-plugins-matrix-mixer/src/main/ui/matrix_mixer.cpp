@@ -50,6 +50,9 @@ namespace lsp
         static ui::Factory factory(ui_factory, plugin_uis, 4);
 
 
+        // Two presses on a crosspoint knob closer than this belong to the same double click
+        static constexpr ws::ui_timestamp_t DBL_CLICK_TIME     = 600;
+
         //---------------------------------------------------------------------
         // Plugin UI
         matrix_mixer::matrix_mixer(const meta::plugin_t *meta)
@@ -71,6 +74,10 @@ namespace lsp
             if ((res = add_channels("input_name", "input", "lists.matrix_mixer.input")) != STATUS_OK)
                 return res;
             if ((res = add_channels("output_name", "output", "lists.matrix_mixer.output")) != STATUS_OK)
+                return res;
+
+            // Double click on a crosspoint knob toggles the crosspoint
+            if ((res = add_cells()) != STATUS_OK)
                 return res;
 
             return STATUS_OK;
@@ -104,6 +111,90 @@ namespace lsp
                 }
             }
 
+            return STATUS_OK;
+        }
+
+        status_t matrix_mixer::add_cells()
+        {
+            // Count the channels by the input gain ports
+            size_t channels = 0;
+            while (find_port("cg", channels + 1) != NULL)
+                ++channels;
+
+            // Reserve the memory first: the slots keep pointers to the cells
+            if (!vCells.reserve(channels * channels))
+                return STATUS_NO_MEM;
+
+            LSPString uid;
+            for (size_t i=1; i<=channels; ++i)
+                for (size_t o=1; o<=channels; ++o)
+                {
+                    cell_t *c       = vCells.add();
+                    if (c == NULL)
+                        return STATUS_NO_MEM;
+
+                    c->pUI          = this;
+                    uid.fmt_ascii("mx_%d_%d", int(i), int(o));
+                    c->pGain        = pWrapper->port(&uid);
+                    uid.fmt_ascii("cell_%d_%d", int(i), int(o));
+                    c->wKnob        = pWrapper->controller()->widgets()->get<tk::Knob>(&uid);
+                    c->fLast        = GAIN_AMP_0_DB;
+                    c->fBefore      = GAIN_AMP_M_INF_DB;
+                    c->nLastDown    = 0;
+
+                    if ((c->pGain != NULL) && (c->wKnob != NULL))
+                    {
+                        c->wKnob->slots()->bind(tk::SLOT_MOUSE_DOWN, slot_cell_mouse_down, c);
+                        c->wKnob->slots()->bind(tk::SLOT_MOUSE_DBL_CLICK, slot_cell_dbl_click, c);
+                    }
+                }
+
+            return STATUS_OK;
+        }
+
+        void matrix_mixer::toggle_cell(cell_t *c)
+        {
+            const meta::port_t *meta    = c->pGain->metadata();
+            const float min             = (meta != NULL) ? meta->min : GAIN_AMP_M_INF_DB;
+            // The first click of the double click may already have moved the knob
+            // (a click on the scale sets the value): toggle the value from before it.
+            const float value           = c->fBefore;
+
+            // Audible crosspoint: remember the gain and mute it.
+            // Muted crosspoint: restore the last audible gain (0 dB by default).
+            float next;
+            if (value > min)
+            {
+                c->fLast        = value;
+                next            = min;
+            }
+            else
+                next            = (c->fLast > min) ? c->fLast : GAIN_AMP_0_DB;
+
+            c->pGain->set_value(next);
+            c->pGain->notify_all(ui::PORT_USER_EDIT);
+        }
+
+        status_t matrix_mixer::slot_cell_mouse_down(tk::Widget *sender, void *ptr, void *data)
+        {
+            cell_t *c           = static_cast<cell_t *>(ptr);
+            const ws::event_t *ev = static_cast<const ws::event_t *>(data);
+            if ((c == NULL) || (ev == NULL))
+                return STATUS_OK;
+
+            // A press long after the previous one starts a new (possible) double click
+            if ((ev->nTime - c->nLastDown) > DBL_CLICK_TIME)
+                c->fBefore      = c->pGain->value();
+            c->nLastDown        = ev->nTime;
+
+            return STATUS_OK;
+        }
+
+        status_t matrix_mixer::slot_cell_dbl_click(tk::Widget *sender, void *ptr, void *data)
+        {
+            cell_t *c = static_cast<cell_t *>(ptr);
+            if ((c != NULL) && (c->pUI != NULL))
+                c->pUI->toggle_cell(c);
             return STATUS_OK;
         }
 

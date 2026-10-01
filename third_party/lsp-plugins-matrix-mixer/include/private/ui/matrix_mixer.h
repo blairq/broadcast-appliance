@@ -46,8 +46,19 @@ namespace lsp
                     bool                        bNameChanged;   // Indicator that channel name has changed
                 } channel_t;
 
+                typedef struct cell_t
+                {
+                    matrix_mixer               *pUI;            // Owner
+                    ui::IPort                  *pGain;          // Crosspoint gain port "mx_I_O"
+                    tk::Knob                   *wKnob;          // Crosspoint knob
+                    float                       fLast;          // Last audible gain, restored on toggle
+                    float                       fBefore;        // Gain before the first click of a double click
+                    ws::ui_timestamp_t          nLastDown;      // Time of the last mouse press
+                } cell_t;
+
             protected:
                 lltl::darray<channel_t>     vChannels;          // List of named inputs and outputs
+                lltl::darray<cell_t>        vCells;             // Crosspoints that can be toggled
 
             protected:
                 ui::IPort          *find_port(const char *prefix, size_t id);
@@ -56,11 +67,15 @@ namespace lsp
                 T                  *find_widget(const char *prefix, size_t id);
 
                 status_t            add_channels(const char *widget, const char *prefix, const char *dfl);
+                status_t            add_cells();
+                void                toggle_cell(cell_t *c);
                 void                sync_channel_names(core::KVTStorage *kvt);
                 void                set_channel_name(core::KVTStorage *kvt, const channel_t *c, const char *name);
 
             protected:
                 static status_t     slot_channel_name_updated(tk::Widget *sender, void *ptr, void *data);
+                static status_t     slot_cell_mouse_down(tk::Widget *sender, void *ptr, void *data);
+                static status_t     slot_cell_dbl_click(tk::Widget *sender, void *ptr, void *data);
 
             public:
                 explicit matrix_mixer(const meta::plugin_t *meta);

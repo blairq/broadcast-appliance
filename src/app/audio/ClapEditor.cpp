@@ -15,6 +15,8 @@
 #ifdef _WIN32
 #include <windows.h>
 #elif defined(__APPLE__) && __has_include(<QWindow>)
+#include <objc/message.h>
+#include <objc/runtime.h>
 #include <QGuiApplication>
 #include <QScreen>
 #include <QTimer>
@@ -155,6 +157,26 @@ struct ClapEditor::Native {
     std::unique_ptr<QWindow> win;
 };
 
+namespace {
+/// El teclado a la vista del plugin. LSP se hace «first responder» al colgarse,
+/// pero cada vez que Qt activa la ventana se lo vuelve a quedar su QNSView, y
+/// las teclas no le llegaban al plugin: en el cuadro para escribir un valor
+/// (doble click en un número) no se podía escribir. objc_msgSend para no
+/// tener que compilar este archivo como Objective-C++.
+void tecladoAlPlugin(QWindow* w) {
+    using Msg = id (*)(id, SEL);
+    using MsgObj = BOOL (*)(id, SEL, id);
+    const auto msg = reinterpret_cast<Msg>(objc_msgSend);
+    id vista = reinterpret_cast<id>(w->winId());
+    if (vista == nullptr) return;
+    id hijas = msg(vista, sel_registerName("subviews"));
+    id plugin = hijas != nullptr ? msg(hijas, sel_registerName("firstObject")) : nullptr;
+    id ventana = msg(vista, sel_registerName("window"));
+    if (plugin == nullptr || ventana == nullptr) return;
+    reinterpret_cast<MsgObj>(objc_msgSend)(ventana, sel_registerName("makeFirstResponder:"), plugin);
+}
+} // namespace
+
 std::unique_ptr<ClapEditor> ClapEditor::open(ClapInstance& inst, const std::string& title,
                                              std::string* error) {
     const clap_plugin* p = inst.plugin_;
@@ -262,8 +284,14 @@ std::unique_ptr<ClapEditor> ClapEditor::open(ClapInstance& inst, const std::stri
     QObject::connect(qw, &QWindow::xChanged, qw, [rescatar]() { QTimer::singleShot(0, rescatar); });
     QObject::connect(qw, &QWindow::yChanged, qw, [rescatar]() { QTimer::singleShot(0, rescatar); });
     QTimer::singleShot(300, qw, rescatar);
+    // Cada vez que la ventana se activa, Qt se queda con el teclado: se lo
+    // devuelve al plugin (después de que Qt termine de activarla).
+    QObject::connect(qw, &QWindow::activeChanged, qw, [qw]() {
+        if (qw->isActive()) QTimer::singleShot(0, qw, [qw]() { tecladoAlPlugin(qw); });
+    });
     qw->raise();
     qw->requestActivate();
+    QTimer::singleShot(0, qw, [qw]() { tecladoAlPlugin(qw); });
     qInfo("editor CLAP abierto: %s %dx%d en %d,%d", title.c_str(), qw->width(), qw->height(), qw->x(),
           qw->y());
     return ed;
@@ -285,6 +313,7 @@ void ClapEditor::raise() {
     if (!n_ || !n_->win) return;
     n_->win->raise();
     n_->win->requestActivate();
+    tecladoAlPlugin(n_->win.get());
 }
 
 #else // X11
