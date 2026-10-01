@@ -81,6 +81,18 @@ int main() {
     CHECK(lib->plugins().size() > 50, "LSP trae muchos plugins");
     Direct svc;
 
+    // Para armar el catálogo: id, nombre, descripción y características de todos.
+    if (std::getenv("BA_CLAP_LISTA") != nullptr) {
+        for (const auto& d : lib->plugins()) {
+            std::string f;
+            for (const auto& x : d.features) f += (f.empty() ? "" : ",") + x;
+            std::string desc = d.description;
+            for (char& c : desc)
+                if (c == '\n' || c == '\t' || c == '\r') c = ' ';
+            std::printf("%s\t%s\t%s\t%s\n", d.id.c_str(), d.name.c_str(), desc.c_str(), f.c_str());
+        }
+        return 0;
+    }
     if (const char* dump = std::getenv("BA_CLAP_DUMP")) {
         for (const auto& d : lib->plugins()) {
             if (d.id.find(dump) == std::string::npos) continue;

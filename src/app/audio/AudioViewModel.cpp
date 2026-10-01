@@ -4,6 +4,10 @@
 
 #include "audio/AudioViewModel.hpp"
 
+#include <QFile>
+
+#include <regex>
+
 #include <QJsonDocument>
 #include <QJsonObject>
 
@@ -462,6 +466,72 @@ void AudioViewModel::setGenerator(const QString& node, const QString& kind, doub
     g->configure(c);
     mgr_.markDirty();
     rebuildDetail();
+}
+
+QVariantList AudioViewModel::catalogoLsp() const {
+    QVariantList out;
+    auto lib = const_cast<RackManager&>(mgr_).library();
+    QFile f(":/audio/lsp-catalogo.json");
+    if (!f.open(QIODevice::ReadOnly)) return out;
+    const json cat = json::parse(f.readAll().toStdString(), nullptr, false);
+    if (!cat.is_object()) return out;
+    // La familia de un id: sin «sc_», sin canales (mono/stereo/lr/ms) ni cantidades (x8...).
+    static const std::regex sufijo("_(mono|stereo|lr|ms|x[0-9]+)$");
+    const auto familia = [](std::string b) {
+        if (b.rfind("sc_", 0) == 0) b = b.substr(3);
+        for (int i = 0; i < 4; ++i)
+            b = std::regex_replace(b, sufijo, "");
+        return b;
+    };
+    const auto etiqueta = [](const std::string& b) {
+        QStringList partes;
+        static const std::regex cant("_x([0-9]+)");
+        std::smatch m;
+        if (std::regex_search(b, m, cant)) partes << QString("×%1").arg(QString::fromStdString(m[1]));
+        const auto termina = [&b](const char* s) {
+            const std::string x = s;
+            return b.size() >= x.size() && b.compare(b.size() - x.size(), x.size(), x) == 0;
+        };
+        partes << (termina("_mono")     ? "Mono"
+                   : termina("_lr")     ? "Izq/Der"
+                   : termina("_ms")     ? "Medio/Lados"
+                   : termina("_stereo") ? "Estéreo"
+                                        : "");
+        if (b.rfind("sc_", 0) == 0) partes << "con sidechain";
+        partes.removeAll(QString());
+        return partes.join(" · ");
+    };
+    std::map<std::string, std::vector<PluginDesc>> porFamilia;
+    if (lib)
+        for (const auto& p : lib->plugins()) {
+            const std::string base = p.id.substr(p.id.rfind('.') + 1);
+            porFamilia[familia(base)].push_back(p);
+        }
+    for (const auto& fam : cat.value("familias", json::array())) {
+        const std::string clave = fam.value("clave", std::string());
+        const auto it = porFamilia.find(clave);
+        if (it == porFamilia.end()) continue; // no está en este build de LSP
+        QVariantMap v = toVariant(fam).toMap();
+        QVariantList variantes;
+        std::string original;
+        for (const auto& p : it->second) {
+            const std::string base = p.id.substr(p.id.rfind('.') + 1);
+            const QString e = etiqueta(base);
+            variantes << QVariantMap{{"id", QString::fromStdString(p.id)},
+                                     {"etiqueta", e.isEmpty() ? QString::fromStdString(p.name) : e},
+                                     {"estereo", base.find("_mono") == std::string::npos},
+                                     {"sidechain", base.rfind("sc_", 0) == 0}};
+            if (original.empty()) original = p.description;
+        }
+        v["variantes"] = variantes;
+        v["descripcionOriginal"] = QString::fromStdString(original);
+        v["esFiltro"] = fam.value("categoria", std::string()) != "Instrumentos";
+        // La captura del módulo (assets/lsp-capturas), si la hay.
+        const QString cap = ":/lsp/" + QString::fromStdString(clave) + ".jpg";
+        v["captura"] = QFile::exists(cap) ? "qrc" + cap : QString();
+        out << v;
+    }
+    return out;
 }
 
 QVariantList AudioViewModel::search(const QString& text) const {

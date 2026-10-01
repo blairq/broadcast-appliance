@@ -371,7 +371,8 @@ Rectangle {
                 }
                 GlassButton { compact: true; text: "+ Analizador"; onClicked: page.msg = page.au.addAnalyzer() }
                 GlassButton { compact: true; text: "+ Generador"; onClicked: page.msg = page.au.addGenerator() }
-                GlassButton { compact: true; text: "+ Otro LSP…"; onClicked: lspPopup.open() }
+                GlassButton { compact: true; text: "+ Filtros…"; icon: "⌕"; onClicked: catalogoFiltros.open()
+                              ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Todos los filtros LSP con captura, búsqueda avanzada y para qué sirve cada uno." }
                 Item { width: 12; height: 1 }
                 // Un rack armado a mano es media hora de trabajo: guardarlo con
                 // nombre permite ponerselo a otra fuente en un clic.
@@ -1249,6 +1250,12 @@ Rectangle {
                 }
             }
         }
+    }
+
+    // --- El catálogo de filtros (búsqueda avanzada) ------------------------------
+    CatalogoFiltros {
+        id: catalogoFiltros
+        onElegido: (id) => page.msg = page.au.addModule(id, "")
     }
 
     // --- Plantillas de rack ---------------------------------------------------

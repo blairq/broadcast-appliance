@@ -15,6 +15,7 @@
 #include "ui/StudioViewModel.hpp"
 
 #if defined(BA_HAVE_CLAP)
+#include "audio/AudioViewModel.hpp"
 #include "audio/Matriz.hpp"
 #endif
 
@@ -187,6 +188,61 @@ void McpService::registerMatrizTools() {
                 out.push_back({{"id", v.toMap().value("id").toString().toStdString()},
                                {"nombre", v.toMap().value("nombre").toString().toStdString()}});
             done(ToolResult().data(json{{"dispositivos", out}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "audio_filtros_catalogo";
+        t.title = "Catalogo de filtros de audio (LSP)";
+        t.category = "audio_rack";
+        t.readOnly = true;
+        t.description =
+            "Las familias de filtros LSP (compresor, compuerta, EQ...) en castellano: que hacen, para "
+            "que sirven en vivo, si se recomiendan para vivo y sus variantes (id del plugin, mono/"
+            "estereo, sidechain). `buscar` filtra por palabras (castellano o ingles), `categoria` y "
+            "`solo_vivo`. El id de una variante es el que se agrega al rack de una fuente.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"buscar", {{"type", "string"}}},
+                           {"categoria", {{"type", "string"}}},
+                           {"solo_vivo", {{"type", "boolean"}}}}}};
+        t.examples = {R"({"buscar": "ruido"})", R"({"categoria": "Dinámica", "solo_vivo": true})"};
+        auto* au = static_cast<audio::AudioViewModel*>(vm_.audio());
+        t.run = [au](const json& a, Done done) {
+            if (au == nullptr)
+                return done(ToolResult::error("Esta compilacion no tiene los modulos de audio."));
+            const QString q = QString::fromStdString(a.value("buscar", std::string())).toLower();
+            const QString c = QString::fromStdString(a.value("categoria", std::string()));
+            const bool vivo = a.value("solo_vivo", false);
+            json out = json::array();
+            for (const QVariant& v : au->catalogoLsp()) {
+                const QVariantMap f = v.toMap();
+                if (!f.value("esFiltro").toBool()) continue;
+                if (!c.isEmpty() && f.value("categoria").toString() != c) continue;
+                if (vivo && !f.value("vivo").toBool()) continue;
+                const QString h =
+                    (f.value("nombre").toString() + " " + f.value("clave").toString() + " " +
+                     f.value("etiquetas").toStringList().join(" ") + " " + f.value("descripcion").toString() +
+                     " " + f.value("descripcionOriginal").toString())
+                        .toLower();
+                bool ok = true;
+                for (const QString& p : q.split(' ', Qt::SkipEmptyParts))
+                    if (!h.contains(p)) ok = false;
+                if (!ok) continue;
+                json variantes = json::array();
+                for (const QVariant& x : f.value("variantes").toList())
+                    variantes.push_back({{"id", x.toMap().value("id").toString().toStdString()},
+                                         {"etiqueta", x.toMap().value("etiqueta").toString().toStdString()}});
+                out.push_back({{"familia", f.value("clave").toString().toStdString()},
+                               {"nombre", f.value("nombre").toString().toStdString()},
+                               {"categoria", f.value("categoria").toString().toStdString()},
+                               {"vivo", f.value("vivo").toBool()},
+                               {"descripcion", f.value("descripcion").toString().toStdString()},
+                               {"uso_en_vivo", f.value("usoVivo").toString().toStdString()},
+                               {"variantes", variantes}});
+            }
+            done(ToolResult().data(json{{"familias", out}}));
         };
         core_.addTool(std::move(t));
     }

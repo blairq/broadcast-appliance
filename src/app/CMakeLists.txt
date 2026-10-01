@@ -424,6 +424,15 @@ endif()
     qt_add_resources(ba-app "ba_qml" PREFIX "/" FILES ${BA_APP_QML})
     # Versiones fijadas de los agentes de IA (pestaña Asistente).
     qt_add_resources(ba-app "ba_agent" PREFIX "/" FILES agent/agentes.json)
+    # El catalogo de filtros LSP en castellano (Audio -> filtros).
+    qt_add_resources(ba-app "ba_lsp_catalogo" PREFIX "/audio" BASE "${CMAKE_SOURCE_DIR}/datos"
+                     FILES "${CMAKE_SOURCE_DIR}/datos/lsp-catalogo.json")
+    # Sus capturas (del codigo fuente de LSP, LGPL-3.0: tools/lsp-capturas.sh).
+    file(GLOB _ba_lsp_capturas "${CMAKE_SOURCE_DIR}/assets/lsp-capturas/*.jpg")
+    qt_add_resources(ba-app "ba_lsp_capturas" PREFIX "/lsp" BASE "${CMAKE_SOURCE_DIR}/assets/lsp-capturas"
+                     FILES ${_ba_lsp_capturas})
+    install(FILES "${CMAKE_SOURCE_DIR}/assets/lsp-capturas/LEEME.txt" DESTINATION data/licencias
+            RENAME lsp-capturas-LEEME.txt COMPONENT bundle)
     # Los modelos locales que se ofrecen bajar (los actualiza la fabrica al subir).
     qt_add_resources(ba-app "ba_modelos" PREFIX "/agent" BASE "${CMAKE_SOURCE_DIR}/datos"
                      FILES "${CMAKE_SOURCE_DIR}/datos/modelos-catalogo.json")

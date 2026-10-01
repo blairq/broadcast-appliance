@@ -1,0 +1,4 @@
+Capturas de los plugins LSP (Linux Studio Plugins) 1.2.35, sacadas del código
+fuente oficial (lsp-plugins-src-1.2.35.tar.gz, res/doc/screenshots de cada
+módulo) y achicadas. © Linux Studio Plugins, LGPL-3.0-or-later (COPYING.LESSER).
+https://lsp-plug.in — las genera tools/lsp-capturas.sh.
