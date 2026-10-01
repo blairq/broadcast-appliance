@@ -116,24 +116,29 @@ cd release && BA_GATEWAY_PIN=123456 ./BroadcastAppliance --no-recovery-ui --app-
 Logs: `release/Logs/` (`launcher.log`, `app.log`, `gateway.log`) y la salida
 de la terminal.
 
-## 7. Publicar en GitHub desde la Mac (`make publicar-macos`)
+## 7. Publicar en GitHub (`make publicar`)
 
-El CI de GitHub corre **solo a mano** (Actions → CI → Run workflow, con
-"publicar" para que salga el release) y no compila macOS. Lo normal es armar en
-máquinas propias y subir desde ahí:
+El CI de GitHub corre **solo a mano** (Actions → CI → Run workflow). Lo normal
+es armar y subir desde una máquina propia, con un solo comando:
 
 ```bash
-make publicar-macos     # en la Mac:  .dmg
-make publicar-linux     # en Linux:   .tar.gz
-make publicar-win       # en Linux:   .zip (cross con clang-cl)
+make publicar
 ```
 
-Cada uno chequea antes de compilar (sin cambios sin commitear, el commit subido
-a GitHub, el release no es de otro commit), compila, corre los tests, arma el
-archivo y lo sube con `gh` (`tools/publicar.sh`). El release sale del commit
-(`v<versión>-<commit>`): lo armado en la Mac y en el Linux desde el mismo commit
-cae en el mismo release. Desde `master` queda como "Latest"; desde otra rama,
-como pre-release. `TAG=...` elige otro release y `FORZAR=1` saltea los controles.
+Hace todo: chequea (sin cambios sin commitear, commit subido a GitHub), arma
+Linux y Windows en Docker (`tools/ci/compilar-en-docker.sh`: Ubuntu 24.04
+x86_64, con Rosetta en una Mac), el `.dmg` si es una Mac, y sube todo a un
+release de GitHub verificando tamaño y sha256 (`tools/publicar.sh`).
+
+Por partes: `make dist-linux-docker`, `make dist-win-docker`, `make dmg-macos`
+y `make subir`. Cada archivo de `dist/` lleva al lado su `.sha256` y un
+`.commit` con el commit del que salió: `make subir` no sube nada que no sea del
+commit actual. El release sale del commit (`v<versión>-<commit>`): desde
+`master` queda como "Latest"; desde otra rama, como pre-release. `TAG=...` elige
+otro release y `FORZAR=1` saltea los controles.
+
+En la Mac, los tests de Windows corren bajo Wine sobre Rosetta y alguno falla
+sin que el programa ande mal (en el CI pasan): `make publicar` lo avisa y sigue.
 
 ## Qué está probado (2026-09-30)
 

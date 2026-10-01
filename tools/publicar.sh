@@ -68,11 +68,42 @@ fi
 
 [ "$solo_chequear" = 1 ] && { log "controles OK (commit $corto)"; exit 0; }
 
+# Cada archivo tiene que haber salido de ESTE commit (su .commit lo dice; lo
+# escriben los make dist-*). Sin esto, compilar, commitear algo y subir
+# publicaria archivos viejos con el numero del commit nuevo.
+if [ "$forzar" != 1 ]; then
+    for f in "$@"; do
+        de="$(cat "$f.commit" 2>/dev/null || true)"
+        [ -n "$de" ] || morir "$(basename "$f") no dice de que commit salio (falta $f.commit): volvé a armarlo con make"
+        [ "$de" = "$sha" ] || morir "$(basename "$f") salio de ${de:0:12}, no de $corto: volvé a armarlo"
+    done
+fi
+
 archivos=()
 for f in "$@"; do
     archivos+=("$f")
     [ -f "$f.sha256" ] && archivos+=("$f.sha256")
 done
 gh release upload "$tag" "${archivos[@]}" --clobber
+
+# Que lo que quedo en GitHub sea lo que se armo: mismo tamaño, y el .sha256
+# subido coincide con el archivo de aca (sin bajar cientos de MB).
+remotos="$(gh release view "$tag" --json assets -q '.assets[] | "\(.name) \(.size)"')"
+for f in "${archivos[@]}"; do
+    n="$(basename "$f")"
+    local_sz="$(wc -c <"$f" | tr -d ' ')"
+    remoto_sz="$(echo "$remotos" | awk -v n="$n" '$1==n{print $2}')"
+    [ "$local_sz" = "$remoto_sz" ] || morir "$n quedo distinto en GitHub ($remoto_sz bytes, aca $local_sz)"
+done
+for f in "$@"; do
+    [ -f "$f.sha256" ] || continue
+    if command -v sha256sum >/dev/null 2>&1 && sha256sum --version 2>/dev/null | grep -q GNU; then
+        aca="$(sha256sum "$f" | cut -d' ' -f1)"
+    else
+        aca="$(shasum -a 256 "$f" | cut -d' ' -f1)"
+    fi
+    [ "$aca" = "$(cut -d' ' -f1 <"$f.sha256")" ] || morir "el .sha256 de $(basename "$f") no coincide con el archivo"
+done
+log "verificado en GitHub (tamaño y sha256)"
 log "publicado en $tag: $(printf '%s ' "${archivos[@]##*/}")"
 gh release view "$tag" --json url -q .url

@@ -59,7 +59,7 @@ if [ "$QUE" != win ]; then
     .venv/bin/pip install -q -r requirements-dev.lock
     .venv/bin/pytest -q
     make dist-linux JOBS=$J
-    cp dist/*-linux-x64.tar.gz dist/*-linux-x64.tar.gz.sha256 /salida/
+    cp dist/*-linux-x64.tar.gz dist/*-linux-x64.tar.gz.sha256 dist/*-linux-x64.tar.gz.commit /salida/
 fi
 if [ "$QUE" != linux ]; then
     make deps-win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1
@@ -70,7 +70,7 @@ if [ "$QUE" != linux ]; then
     tests_win=0
     make test-win BA_ACCEPT_MSVC_LICENSE=1 || tests_win=$?
     make dist-win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1
-    cp dist/*-windows-x64.zip dist/*-windows-x64.zip.sha256 /salida/
+    cp dist/*-windows-x64.zip dist/*-windows-x64.zip.sha256 dist/*-windows-x64.zip.commit /salida/
     if [ "$tests_win" != 0 ]; then
         echo "ATENCION: los tests de Windows (bajo Wine) fallaron: ver arriba. El .zip se armo igual." >&2
         exit 3

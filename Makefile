@@ -44,7 +44,7 @@ endif
 PY        ?= .venv/bin/python
 PIP       ?= .venv/bin/pip
 
-.PHONY: publicar-macos publicar-linux publicar-win app-macos dmg-macos check-macos-tools deps-macos deps-obs-src deps-obs-macos deps-lsp-macos macos release-macos dist-macos deps-lsp-win deps-clap deps-obs-deps-win deps-ndi-src deps-linux test-win deps-win deps-win-toolchain deps-webrtc-win release-win dist-win dist-linux deps-lwip deps-cacert help dev build prod test test-unit pytest test-all lint docs release win deps-cloudflared-host deps-qt-host \
+.PHONY: publicar subir dist-linux-docker dist-win-docker publicar-macos publicar-linux publicar-win app-macos dmg-macos check-macos-tools deps-macos deps-obs-src deps-obs-macos deps-lsp-macos macos release-macos dist-macos deps-lsp-win deps-clap deps-obs-deps-win deps-ndi-src deps-linux test-win deps-win deps-win-toolchain deps-webrtc-win release-win dist-win dist-linux deps-lwip deps-cacert help dev build prod test test-unit pytest test-all lint docs release win deps-cloudflared-host deps-qt-host \
         clean clean-all \
         deps deps-obs deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist \
         deps-lsp deps-status deps-clean deps-libreoffice deps-libreoffice-linux deps-libreoffice-win deps-libreoffice-mac \
@@ -74,8 +74,10 @@ help:
 	@echo "  make deps-macos     Todo lo del build de macOS (en una Mac Apple Silicon)"
 	@echo "  make macos          macOS: compila y corre los tests"
 	@echo "  make dmg-macos      dist/BroadcastAppliance-<ver>-macos-arm64.dmg (la .app)"
-	@echo "  make publicar-macos Arma y prueba el .dmg aca y lo sube a GitHub (release del commit; TAG=... otro)"
-	@echo "  make publicar-linux / publicar-win  Lo mismo con el .tar.gz / el .zip (en Linux)"
+	@echo "  make publicar       TODO: Linux y Windows (Docker) + .dmg (en Mac) y los sube a GitHub"
+	@echo "  make dist-linux-docker / dist-win-docker  Un bundle en Docker (con su .sha256)"
+	@echo "  make subir          Sube lo que haya en dist/ y verifica tamaño y sha256 en GitHub"
+	@echo "  make publicar-macos / publicar-linux / publicar-win  Una plataforma, compilando aca"
 	@echo "  make deps-linux Todo lo del build completo de Linux (libobs desde fuente, Qt, libwebrtc...)"
 	@echo "  make clean      Borra $(BUILD_DIR)/"
 	@echo "  make clean-all  Borra $(BUILD_DIR)/, release/ y docs/_build/"
@@ -290,6 +292,7 @@ dist-win: release-win
 	cd dist/.zip-stage && 7z a -tzip -mx=7 -bso0 ../BroadcastAppliance-$(BA_VERSION)-windows-x64.zip BroadcastAppliance
 	rm -rf dist/.zip-stage
 	@cd dist && $(SHA256) BroadcastAppliance-$(BA_VERSION)-windows-x64.zip > BroadcastAppliance-$(BA_VERSION)-windows-x64.zip.sha256
+	@echo "$(ESTE_COMMIT)" > dist/BroadcastAppliance-$(BA_VERSION)-windows-x64.zip.commit
 	@echo "dist/BroadcastAppliance-$(BA_VERSION)-windows-x64.zip"
 
 # Todo lo que el build completo de Linux necesita (libobs y sus deps desde
@@ -359,33 +362,82 @@ dmg-macos: release-macos
 	@mkdir -p dist
 	tools/deps/app-macos.sh release dist/BroadcastAppliance.app dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64.dmg
 	@cd dist && $(SHA256) BroadcastAppliance-$(BA_VERSION)-macos-arm64.dmg > BroadcastAppliance-$(BA_VERSION)-macos-arm64.dmg.sha256
+	@echo "$(ESTE_COMMIT)" > dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64.dmg.commit
 	@echo "dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64.dmg"
 
-# Publicar desde una maquina propia (el CI corre solo a mano y gasta minutos):
-# arma, prueba y sube a un release de GitHub con tools/publicar.sh. El release
-# sale del commit (v<version>-<commit>): Linux y Windows armados en un Linux y
-# el .dmg armado en una Mac desde el MISMO commit caen en el mismo release.
-# Antes de compilar se chequea que no haya cambios sin commitear, que el commit
-# este en GitHub y que el release no sea de otro commit (FORZAR=1 los saltea).
-# TAG=... elige otro release.
+# ============================================================================
+# Releases desde una maquina propia (el CI de GitHub corre solo a mano).
+#
+#   make publicar            TODO: controles, Linux y Windows (en Docker), el
+#                            .dmg si esto es una Mac, y la subida a GitHub.
+#
+# O por partes (cada dist-* deja el archivo y su .sha256 en dist/):
+#   make dist-linux-docker   .tar.gz de Linux, en Docker (Ubuntu 24.04 x86_64)
+#   make dist-win-docker     .zip de Windows, en Docker (cross con clang-cl)
+#   make dmg-macos           .dmg de macOS (solo en una Mac)
+#   make subir               sube lo que haya en dist/ de esta version y verifica
+#                            en GitHub tamaño y sha256 (tools/publicar.sh)
+#
+# El release sale del commit (v<version>-<commit>): lo armado en distintas
+# maquinas desde el mismo commit cae junto. Desde master queda "Latest"; si
+# no, pre-release. Antes de compilar se chequea: sin cambios sin commitear,
+# commit subido a GitHub, release del mismo commit. FORZAR=1 saltea; TAG=...
+# elige otro release.
+#
+# En Linux sin Docker: make publicar-linux / publicar-win (compilan aca).
+# ============================================================================
+# De que commit sale cada archivo de dist/ (su .commit al lado): tools/publicar.sh
+# no sube nada que no sea del commit actual. "-dirty" = habia cambios sin commitear.
+ESTE_COMMIT = $(shell git rev-parse HEAD 2>/dev/null)$(shell git status --porcelain --untracked-files=no 2>/dev/null | grep -q . && echo -dirty)
+DIST_LINUX = dist/BroadcastAppliance-$(BA_VERSION)-linux-x64.tar.gz
+DIST_WIN   = dist/BroadcastAppliance-$(BA_VERSION)-windows-x64.zip
+DIST_MACOS = dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64.dmg
+
+dist-linux-docker:
+	tools/ci/compilar-en-docker.sh linux
+
+# Los tests de Windows corren bajo Wine. En una Mac, Wine va encima de Rosetta
+# y algunos fallan sin que el programa ande mal (en el runner del CI pasan):
+# ahi el fallo se AVISA pero no frena. En un Linux de verdad, frena.
+dist-win-docker:
+	@rc=0; tools/ci/compilar-en-docker.sh win || rc=$$?; \
+	if [ $$rc = 3 ] && [ "$$(uname -s)" = Darwin ]; then \
+	  echo ""; echo "AVISO: tests de Windows bajo Wine fallaron (Wine sobre Rosetta): ver arriba. El .zip se armo." >&2; echo ""; \
+	elif [ $$rc != 0 ]; then exit $$rc; fi
+
+subir:
+	@archivos="$$(ls $(DIST_LINUX) $(DIST_WIN) $(DIST_MACOS) 2>/dev/null)"; \
+	  [ -n "$$archivos" ] || { echo "ERROR: no hay nada armado en dist/ para la version $(BA_VERSION)" >&2; exit 1; }; \
+	  tools/publicar.sh $$archivos
+
+publicar:
+	tools/publicar.sh --solo-chequear
+	rm -f $(DIST_LINUX)* $(DIST_WIN)* $(DIST_MACOS)*
+	$(MAKE) dist-linux-docker
+	$(MAKE) dist-win-docker
+	@if [ "$$(uname -s)" = Darwin ]; then $(MAKE) macos && $(MAKE) dmg-macos; \
+	  else echo "[publicar] esto no es una Mac: el .dmg se suma despues con 'make publicar-macos' en una Mac"; fi
+	$(MAKE) subir
+
+# Una plataforma sola, compilando en ESTA maquina (sin Docker).
 publicar-macos:
 	tools/publicar.sh --solo-chequear
 	$(MAKE) macos
 	$(MAKE) dmg-macos
-	tools/publicar.sh dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64.dmg
+	tools/publicar.sh $(DIST_MACOS)
 
 publicar-linux:
 	tools/publicar.sh --solo-chequear
 	$(MAKE) build
 	$(MAKE) test
 	$(MAKE) dist-linux
-	tools/publicar.sh dist/BroadcastAppliance-$(BA_VERSION)-linux-x64.tar.gz
+	tools/publicar.sh $(DIST_LINUX)
 
 publicar-win:
 	tools/publicar.sh --solo-chequear
 	$(MAKE) test-win BA_ACCEPT_MSVC_LICENSE=1
 	$(MAKE) dist-win BA_ACCEPT_MSVC_LICENSE=1
-	tools/publicar.sh dist/BroadcastAppliance-$(BA_VERSION)-windows-x64.zip
+	tools/publicar.sh $(DIST_WIN)
 
 dist-macos: release-macos
 	@mkdir -p dist
@@ -401,6 +453,7 @@ dist-linux:
 	@mkdir -p dist
 	tar -C release -czf dist/BroadcastAppliance-$(BA_VERSION)-linux-x64.tar.gz --transform 's,^\.,BroadcastAppliance,' .
 	@cd dist && $(SHA256) BroadcastAppliance-$(BA_VERSION)-linux-x64.tar.gz > BroadcastAppliance-$(BA_VERSION)-linux-x64.tar.gz.sha256
+	@echo "$(ESTE_COMMIT)" > dist/BroadcastAppliance-$(BA_VERSION)-linux-x64.tar.gz.commit
 	@echo "dist/BroadcastAppliance-$(BA_VERSION)-linux-x64.tar.gz"
 
 # ============================================================================
