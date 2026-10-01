@@ -48,6 +48,7 @@ import json
 import math
 import random
 import re
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -60,6 +61,13 @@ SISTEMA_TEXTO = ("Sos el asistente de un estudio de television en vivo. Contesta
                  "claro y concreto.")
 PEDIDOS_DOC = ["Resumi en pocas lineas:", "Explicalo con tus palabras:", "Hace una lista con los puntos clave de esto:",
                "Que problema resuelve esto?", "Escribi un mensaje corto para el equipo contando esto:"]
+
+
+PEDIDOS_FRASE = ["{f}. Explicame que haria falta y como se hace.",
+                 "Contame en dos o tres frases que pasa en el estudio si hago esto: {f}",
+                 "{f}. Que tengo que revisar antes de hacerlo?",
+                 "Si un operador nuevo me dice «{f}», como se lo explico?",
+                 "{f}. Que puede salir mal y como lo evito?"]
 
 
 def prompts_texto(n, semilla):
@@ -76,7 +84,9 @@ def prompts_texto(n, semilla):
                 trozos.append(p)
     rnd.shuffle(frases)
     rnd.shuffle(trozos)
-    out = [f"{f}. Explicame que haria falta y como se hace." if i % 2 else f for i, f in enumerate(frases)]
+    # siempre como pedido de explicacion: la frase sola la contesta con un nombre
+    # (2-3 tokens), y eso ya esta en los nombres; aca hace falta prosa
+    out = [rnd.choice(PEDIDOS_FRASE).format(f=f) for f in frases]
     out += [f"{rnd.choice(PEDIDOS_DOC)}\n\n{t}" for t in trozos]
     rnd.shuffle(out)
     return out[:n]
@@ -92,6 +102,10 @@ def main():
     ap.add_argument("--lr", type=float, default=1e-4)
     ap.add_argument("--lote", type=int, default=16, help="ejemplos de nombres por paso")
     ap.add_argument("--lote-texto", type=int, default=8, help="ejemplos de texto por paso")
+    ap.add_argument("--peso-texto", type=float, default=2.0,
+                    help="cuanto pesa el texto en la perdida: los nombres se aprenden enseguida y tiran para su lado")
+    ap.add_argument("--elegir-cada", type=int, default=100,
+                    help="cada cuantos pasos se mide (en una parte aparte de validacion) para quedarse con la mejor")
     ap.add_argument("--pasos-mtp", type=int, default=3, help="borradores en cadena que se entrenan (y miden)")
     ap.add_argument("--texto", type=int, default=2400, help="respuestas de texto a generar (0: solo nombres)")
     ap.add_argument("--largo-texto", type=int, default=160, help="tokens maximos por respuesta generada")
@@ -118,9 +132,10 @@ def main():
     if cfg_m.get("model_type") == "qwen3_5":  # el que se exporto para mlx-lm
         cfg_m["model_type"] = "qwen3_5_text"
         tmp = Path(args.salida).parent / "modelo-hf-mtp-config"
-        tmp.mkdir(parents=True, exist_ok=True)
+        shutil.rmtree(tmp, ignore_errors=True)  # enlaces viejos (a un fusionado que ya no esta) rompen
+        tmp.mkdir(parents=True)
         for f in Path(args.modelo).iterdir():
-            if f.name != "config.json" and not (tmp / f.name).exists():
+            if f.name != "config.json":
                 (tmp / f.name).symlink_to(f.resolve())
         (tmp / "config.json").write_text(json.dumps(cfg_m))
         ruta_modelo = tmp
@@ -405,16 +420,46 @@ def main():
         cab.train()
         return {"aceptados_por_ciclo": suma / max(1, bases), "por_paso": [a / max(1, b) for a, b in por_paso]}
 
-    def informe(etiqueta):
-        r = {"nombres": medir(V, lote_nombres, 32)}
-        if TV:
-            r["texto"] = medir(TV, lote_texto, 8)
+    # validacion en dos partes: una para ELEGIR la mejor cabeza durante el
+    # entrenamiento y otra, que no participa de esa eleccion, para INFORMAR
+    VS, V = V[:300], V[300:]
+    TVS, TV = TV[:len(TV) // 2], TV[len(TV) // 2:]
+
+    def informe(etiqueta, nombres=None, texto=None, callado=False):
+        nombres = V if nombres is None else nombres
+        texto = TV if texto is None else texto
+        r = {"nombres": medir(nombres, lote_nombres, 32)}
+        if texto:
+            r["texto"] = medir(texto, lote_texto, 8)
+        if callado:
+            return r
         for k, v in r.items():
             print(f"{etiqueta} · {k}: {v['aceptados_por_ciclo']:.2f} tokens aceptados por ciclo de {K} · por paso "
                   + " / ".join(f"{100 * x:.1f}%" for x in v["por_paso"]), flush=True)
         return r
 
     antes = informe("cabeza ORIGINAL")
+
+    def puntaje(r):
+        """Tokens aceptados por ciclo en nombres + texto."""
+        return sum(v["aceptados_por_ciclo"] for v in r.values())
+    sel0 = informe("", VS, TVS, callado=True)
+    piso_texto = sel0.get("texto", {}).get("aceptados_por_ciclo", 0.0) - 0.01
+    mejor = {"puntaje": puntaje(sel0), "paso": 0,
+             "pesos": {k: v.detach().clone().cpu() for k, v in cab.state_dict().items()}}
+
+    def elegir(paso):
+        """La MEJOR cabeza hasta ahora: mas tokens aceptados (nombres + texto) sin
+        aceptar menos texto que la original. La original tambien es candidata."""
+        r = informe("", VS, TVS, callado=True)
+        ok = r.get("texto", {}).get("aceptados_por_ciclo", 1.0) >= piso_texto
+        p = puntaje(r)
+        print(f"  eleccion paso {paso}: nombres {r['nombres']['aceptados_por_ciclo']:.2f}"
+              + (f" · texto {r['texto']['aceptados_por_ciclo']:.2f}" if "texto" in r else "")
+              + ("" if ok else " (menos texto que la original: no sirve)"), flush=True)
+        if ok and p > mejor["puntaje"]:
+            mejor.update(puntaje=p, paso=paso,
+                         pesos={k: v.detach().clone().cpu() for k, v in cab.state_dict().items()})
     opt = torch.optim.AdamW([p for p in cab.parameters() if p.requires_grad], lr=args.lr, weight_decay=0.0)
     total = args.pasos or int(len(E) // args.lote * args.epocas)
     rnd = random.Random(args.semilla)
@@ -424,8 +469,12 @@ def main():
             orden = list(range(len(E)))
             rnd.shuffle(orden)
         lote, orden = [E[i] for i in orden[:args.lote]], orden[args.lote:]
+        # calentamiento (5%): el primer golpe a lr pleno tumbaba lo que la cabeza
+        # ya sabia de texto; despues coseno
+        calor = max(1, total // 20)
         for g_ in opt.param_groups:
-            g_["lr"] = args.lr * 0.5 * (1 + math.cos(math.pi * paso / max(1, total)))
+            g_["lr"] = (args.lr * (paso + 1) / calor if paso < calor else
+                        args.lr * 0.5 * (1 + math.cos(math.pi * (paso - calor) / max(1, total - calor))))
         perd, bien = lote_nombres(lote, grad=True)
         # con --repartir la perdida queda en la placa de lm_head, no en la de la cabeza
         n = bien[0][1].sum().clamp(min=1).to(perd.device)
@@ -437,13 +486,17 @@ def main():
             lt, orden_t = [TX[i] for i in orden_t[:args.lote_texto]], orden_t[args.lote_texto:]
             perd_t, bien_t = lote_texto(lt, grad=True)
             n_t = bien_t[0][1].sum().clamp(min=1).to(perd_t.device)
-            (perd_t / n_t).backward()
+            (args.peso_texto * perd_t / n_t).backward()
         opt.step()
         opt.zero_grad(set_to_none=True)
         if (paso + 1) % 50 == 0:
             print(f"paso {paso + 1}/{total} · perdida nombres {(perd / n).item():.3f}"
                   + (f" · texto {(perd_t / n_t).item():.3f}" if TX else "")
                   + f" · {(time.time() - t0) / (paso + 1):.2f} s/paso", flush=True)
+        if (paso + 1) % args.elegir_cada == 0 or paso + 1 == total:
+            elegir(paso + 1)
+    cab.load_state_dict({k: v.to(dev) for k, v in mejor["pesos"].items()})
+    print(f"se queda la cabeza del paso {mejor['paso']} (0 = la original)", flush=True)
     despues = informe("cabeza ENTRENADA")
     # Lo que cuesta cuantizar las lineales de la capa (como MTPLX: int4; o q8),
     # simulado: afin por grupos de 64 como MLX, y se mide igual.
@@ -474,7 +527,7 @@ def main():
         sys.exit(f"no se guardaron {sorted(falta)[:5]}")
     save_file(out, args.salida, metadata={"format": "pt"})
     (Path(args.salida).with_suffix(".json")).write_text(json.dumps(
-        {"pasos_mtp": K, "antes": antes, "despues": despues, "pasos": total,
+        {"pasos_mtp": K, "antes": antes, "despues": despues, "pasos": total, "paso_elegido": mejor["paso"],
          "despues_q8": cuantizadas[8], "despues_q4": cuantizadas[4],
          # lo que lee la tarjeta: el paso 1 en nombres, y ahora el resto
          "aceptacion_antes": antes["nombres"]["por_paso"][0],
