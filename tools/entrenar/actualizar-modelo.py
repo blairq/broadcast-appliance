@@ -51,6 +51,9 @@ def main():
     ap.add_argument("--vueltas", type=int, default=2, help="vueltas del bucle del corpus")
     ap.add_argument("--sin-corpus", action="store_true", help="saltear el bucle del corpus")
     ap.add_argument("--forzar", action="store_true")
+    ap.add_argument("--hf-usuario", help="usuario u organizacion de Hugging Face para subir")
+    ap.add_argument("--subir", action="store_true", help="subir los repos al terminar (privados salvo --publico)")
+    ap.add_argument("--publico", action="store_true")
     args = ap.parse_args()
 
     base_corta = args.base.split("/")[-1].lower().replace(".", "")
@@ -75,8 +78,15 @@ def main():
         paso("corpus", [PY, E / "bucle-corpus-completo.py", "--perfil", args.perfil, "--base", args.base,
                         "--nombre", f"corpus-{sello}", "--trabajo", dir_, "--vueltas", str(args.vueltas)])
     nombre = f"modelo-{sello}"
-    paso("modelo", [PY, E / "fabricar-modelo.py", "--base", args.base, "--perfil", args.perfil,
-                    "--nombre", nombre, "--trabajo", dir_])
+    cmd = [PY, E / "fabricar-modelo.py", "--base", args.base, "--perfil", args.perfil,
+           "--nombre", nombre, "--trabajo", dir_]
+    if args.hf_usuario:
+        cmd += ["--hf-usuario", args.hf_usuario]
+    if args.subir:
+        cmd.append("--subir")
+    if args.publico:
+        cmd.append("--publico")
+    paso("modelo", cmd)
     # la foto queda como «anterior» recien cuando hay modelo nuevo
     paso("foto", [PY, E / "inventario-mcp.py", "--perfil", args.perfil, "--anterior", foto, "--guardar"])
     man = json.loads((dir_ / nombre / "manifiesto.json").read_text())

@@ -51,3 +51,15 @@ unsloth_compiled_cache/
 datos/entrenamiento/
 # Copias de seguridad de datos: el historial de git ya las guarda.
 datos/respaldo/
+
+# MODELOS: nunca al repo (pesan gigas). La fabrica los arma en ~/entrenamientos
+# y se publican en Hugging Face; aca solo queda su tarjeta (docs/modelos/).
+*.gguf
+*.safetensors
+*.safetensors.index.json
+*.pt
+*.pth
+*.ckpt
+adapter_model.*
+checkpoint-*/
+imatrix.dat

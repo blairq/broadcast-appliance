@@ -1188,11 +1188,13 @@ corpus-descubrir:
 ## carpetas con forma de repo de Hugging Face; no sube nada).
 ##   PERFIL: datos/perfiles/<perfil>.json (que herramientas, por categoria)
 ##   BASE:   Qwen/Qwen3.5-2B | -4B | -9B | unsloth/Qwen3.5-4B-MTP-GGUF ... (se detecta sola)
+##   HF_USUARIO=x SUBIR=1: sube los repos (MLX q4 y GGUF) como privados al terminar
 PERFIL ?= reactivo
 BASE ?= Qwen/Qwen3.5-4B
 VUELTAS ?= 2
 modelo: venv-entrenar venv-mlx deps-llamacpp deps-llamacpp-convertir
-	.venv-entrenar/bin/python tools/entrenar/actualizar-modelo.py --perfil $(PERFIL) --base $(BASE) --vueltas $(VUELTAS)
+	.venv-entrenar/bin/python tools/entrenar/actualizar-modelo.py --perfil $(PERFIL) --base $(BASE) --vueltas $(VUELTAS) \
+		$(if $(HF_USUARIO),--hf-usuario $(HF_USUARIO)) $(if $(SUBIR),--subir)
 
 ## Solo la fabrica, con el corpus que hay (NOMBRE= la carpeta en ~/entrenamientos/fabrica).
 modelo-fabricar: venv-entrenar venv-mlx deps-llamacpp deps-llamacpp-convertir

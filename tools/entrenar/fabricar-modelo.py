@@ -23,9 +23,12 @@ ETAPAS
               GGUF Q4_K_M calibrado con
               NUESTRO corpus (imatrix: el examen no entra). Ademas el q4 de MLX
               simulado se mide en el banco: cuanto le cuesta cuantizar.
-  empaquetar  carpetas con forma de repo de Hugging Face (tarjeta del modelo
-              con las medidas, licencia, archivos). NO sube nada: imprime el
-              comando para hacerlo.
+  empaquetar  los repos de Hugging Face (MLX q4 y GGUF): tarjeta del modelo
+              (que hace, como usarlo, curva del banco, examen, costo de
+              cuantizar, cabeza MTP, perfil y herramientas), licencia de la
+              base, firma del prompt y, si hay etiquetas, equivalencias.json.
+              Calcula lo que necesita aunque se reusen etapas.
+  subir       solo con --subir --hf-usuario X; privados salvo --publico.
 
     tools/entrenar/fabricar-modelo.py --base Qwen/Qwen3.5-4B --nombre reactivo-q35-4b
     tools/entrenar/fabricar-modelo.py ... --hasta medir        # parar antes
@@ -50,7 +53,7 @@ PY_MLX = RAIZ / ".venv-mlx/bin/python"
 E = Path(__file__).resolve().parent
 LLAMA = RAIZ / "extern/llamacpp"
 CONV = RAIZ / "extern/llamacpp-convertir"
-ETAPAS = ["inspeccionar", "descargar", "corpus", "entrenar", "medir", "exportar", "empaquetar"]
+ETAPAS = ["inspeccionar", "descargar", "corpus", "entrenar", "medir", "exportar", "empaquetar", "subir"]
 
 # COMO SE ENTRENA CADA BASE en dos RTX 3090 (24 GB) se DECIDE leyendo su config
 # (inspeccionar_base, abajo). Medido el 30/09/2026 con entrenar-rapido.py:
@@ -351,90 +354,267 @@ class Fabrica:
         shutil.rmtree(sim)
         (self.dir / "exportado").write_text("ok")
 
-    def empaquetar(self):
-        rep = self.dir / "repos"
-        rep.mkdir(exist_ok=True)
-        ex = self.man["exportado"]
-        med = self.man.get("medidas", {})
+    # --- empaquetar: el repo de Hugging Face, completo aunque se reusen etapas --------
+    def completar_datos(self):
+        """Lo que la tarjeta necesita, calculado aca: no depende de que las etapas
+        anteriores hayan corrido en esta corrida (una fabrica retomada las saltea)."""
+        sys.path.insert(0, str(RAIZ / "tools"))
+        import lib_prompt as lp
+        if self.corpus.exists():
+            self.man["corpus_firma"] = firma(self.corpus)
+            self.man["corpus_ejemplos"] = sum(1 for _ in open(self.corpus / "entrenar.jsonl"))
+        p = self.man.get("perfil") or {}
+        if not p.get("herramientas"):
+            p = {"nombre": lp.PERFIL, "categorias": lp.REACTIVAS, "entradas": lp.ENTRADAS,
+                 "herramientas": lp.herramientas_reactivas(), "prompt": lp.huella()["prompt"],
+                 "etiquetas": os.environ.get("BA_ETIQUETAS_JUEGO") if lp.USAR_ETIQUETAS else None}
+            if lp.USAR_ETIQUETAS:
+                p["equivalencias"] = {lp.salida(h): h for h in lp.nombres_posibles()}
+            self.man["perfil"] = p
+        base_ruta = Path(self.man.get("base_ruta", "").split("=", 1)[-1])
+        self.man["base_ruta"] = str(base_ruta)
+        lic = base_ruta / "LICENSE"
+        self.man["base_licencia"] = ("apache-2.0" if lic.exists() and "Apache License" in lic.read_text()[:400]
+                                     else "other")
+        if not self.man.get("repo_commit"):
+            self.man["repo_commit"] = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=RAIZ,
+                                                     capture_output=True, text=True).stdout.strip()
+        self.guardar()
 
-        def fila(et, s="0"):
+    def tarjeta(self, formato, repo):
+        m, a = self.man, self.a
+        p, med = m["perfil"], m.get("medidas", {})
+        pct = lambda v: f"{100 * v[0] / v[1]:.1f}%" if v else "–"
+
+        def fila(et, s):
             b = med.get(et, {}).get("banco", {}).get(s, {})
-            x = med.get(et, {}).get("examen", {})
-            pct = lambda v: f"{100*v[0]/v[1]:.1f}%" if v else "-"
-            return (f"| {et} | {pct(b.get('cobertura'))} | {pct(b.get('precision'))} | {pct(b.get('derivado'))} "
-                    f"| {pct(x.get('acierto'))} |")
-
-        def tarjeta(tipo, archivos):
-            base = self.a.base
-            return f"""---
-license: {self.man.get('base_licencia', 'apache-2.0')}
-base_model: {base}
+            return f"| {s} | {pct(b.get('cobertura'))} | {pct(b.get('precision'))} | {pct(b.get('derivado'))} |"
+        curva = "\n".join(fila("bf16", s) for s in ["-4", "-2", "0", "2", "4"] if med.get("bf16", {}).get("banco", {}).get(s))
+        ex16, exq = med.get("bf16", {}).get("examen", {}), med.get("mlx-q4", {}).get("examen", {})
+        b16, bq = med.get("bf16", {}).get("banco", {}).get("0", {}), med.get("mlx-q4", {}).get("banco", {}).get("0", {})
+        mtp = m.get("mtp")
+        etq = p.get("etiquetas")
+        contesta = (f"las etiquetas del juego «{etq}»: traducir con `equivalencias.json` (etiqueta → herramienta del MCP)"
+                    " antes de ejecutar" if etq else "el nombre real de la herramienta del MCP (o `derivar`)")
+        herramientas = ", ".join(f"`{h}`" for h in p.get("herramientas", []))
+        if formato == "mlx":
+            uso = f"""```python
+from mlx_lm import load
+modelo, tok = load("{a.hf_usuario or '<usuario>'}/{repo}")
+# prompt = el MISMO de entrenamiento: fichas de las herramientas + el pedido (ver abajo)
+```
+Elegir con decodificación restringida a los nombres posibles (como `tools/entrenar/evaluar-mlx.py`
+del repo del aparato): el prefijo con las fichas se procesa una vez y se reusa entre pedidos."""
+            archivos = "`model.safetensors`: MLX, 4 bits (afín, grupos de 64). Solo texto (sin la parte de visión)."
+        else:
+            uso = f"""```bash
+llama-server -m {self.gguf_nombre} -c 8192 --cache-reuse 256{' --spec-type draft-mtp --spec-draft-n-max 4' if mtp else ''}
+```
+llama.cpp b11255 o posterior (arquitectura `qwen35`, con atención lineal). Restringir la salida con
+una gramática a los nombres posibles."""
+            archivos = (f"`{self.gguf_nombre}`: Q4_K_M, calibrado con imatrix sobre el propio"
+                        f" corpus (sin el examen){' e incluye la cabeza MTP entrenada' if mtp else ''}.")
+        return f"""---
+license: {m['base_licencia']}
+base_model: {m.get('base')}
 language: [es]
+library_name: {'mlx' if formato == 'mlx' else 'gguf'}
 pipeline_tag: text-generation
-tags: [tool-selection, broadcast, {tipo}, qwen3.5]
+tags: [tool-selection, function-calling, broadcast, live-tv, spanish, qwen3.5{', mlx' if formato == 'mlx' else ', gguf, llama.cpp'}{', mtp' if mtp and formato != 'mlx' else ''}]
 ---
-# {self.a.nombre} ({tipo})
+# {repo}
 
-Modelo chico que, por cada pedido del operador de un estudio de TV en vivo,
-elige la herramienta del aparato que lo resuelve (las del perfil, abajo) o
-contesta `derivar` para pasarlo al asistente grande. Contesta SOLO el nombre.
+**ES** · Modelo chico para un aparato de producción de TV en vivo: por cada pedido del operador de
+cabina («bajale al mic 2», «take a la armada», «¿cuántas personas se ven en el programa?») elige
+**qué herramienta del aparato ejecutar**, o contesta `derivar` para pasarle el pedido al asistente
+grande. No genera texto ni argumentos: contesta solo {contesta}.
 
-- Base: `{base}` (revision `{self.man.get('base_revision', '?')}`), ajuste LoRA r=32
-  fusionado. Solo texto.
-- Perfil `{self.man.get('perfil', {}).get('nombre')}`: {len(self.man.get('perfil', {}).get('herramientas', []))} herramientas
-  de las categorias {', '.join(self.man.get('perfil', {}).get('categorias', []))}.
-- Corpus: firma `{self.man.get('corpus_firma')}`, {self.man.get('corpus_ejemplos')} ejemplos;
-  repo en `{self.man.get('repo_commit')}`.
-- Contesta con {('las etiquetas del juego «' + str(self.man['perfil'].get('etiquetas')) + '»: traducir con `equivalencias.json` (etiqueta -> herramienta del MCP) antes de ejecutar') if self.man.get('perfil', {}).get('etiquetas') else 'los nombres reales de las herramientas del MCP'}.
-- El prompt tiene que ser EXACTAMENTE el de entrenamiento (fichas de las
-  herramientas): ver `huella-prompt.json`. Otro prompt, otro modelo.
+**EN** · Small model for a live-TV production appliance: for each operator request (Rioplatense
+Spanish) it picks **which tool of the appliance to run** among {len(p.get('herramientas', []))}, or answers `derivar` to hand the
+request to a larger assistant. It outputs only the tool name.
 
-## Medidas (banco de orientacion, 1.423 frases, sesgo 0)
+## Medidas
 
-| version | cobertura | precision | derivado | examen |
-|---|---|---|---|---|
-{fila('bf16')}
-{fila('mlx-q4')}
+Banco de orientación: 1.423 frases escritas por agentes independientes (no se usan para entrenar).
+*cobertura*: de lo que es suyo, cuánto atiende solo · *precisión*: de lo que atiende, cuánto acierta
+(lo que se ve al aire) · *derivado*: de lo ajeno, cuánto pasa al grande. El sesgo mueve el punto de
+operación sumándole al logit de `derivar`.
 
-cobertura = de lo suyo, cuanto atendio solo; precision = de lo que atendio,
-cuanto acerto; derivado = de lo ajeno, cuanto paso al grande.
+| sesgo | cobertura | precisión | derivado |
+|---|---|---|---|
+{curva}
 
-{"## Cabeza MTP" + chr(10) + chr(10) + f"Entrenada para este modelo: aceptacion {100*self.man['mtp']['aceptacion_despues']:.1f}% (la original {100*self.man['mtp']['aceptacion_antes']:.1f}%). llama.cpp: `--spec-type draft-mtp`." + chr(10) if self.man.get("mtp") else ""}
+| | bf16 | {'MLX q4' if bq else ''} |
+|---|---|---|
+| precisión (sesgo 0) | {pct(b16.get('precision'))} | {pct(bq.get('precision'))} |
+| derivado (sesgo 0) | {pct(b16.get('derivado'))} | {pct(bq.get('derivado'))} |
+| examen (105 casos) | {pct(ex16.get('acierto'))} | {pct(exq.get('acierto'))} |
+
+{"La cabeza MTP (multi-token prediction) se reentrenó para este modelo: acierta el token siguiente en el " + f"{100 * mtp['aceptacion_despues']:.1f}% de los casos de validación (la original, {100 * mtp['aceptacion_antes']:.1f}%), así que la decodificación especulativa casi siempre acepta el borrador." if mtp else ""}
+
+## Uso
+
+{uso}
+
+**El prompt tiene que ser exactamente el de entrenamiento**: el system con las fichas de las
+herramientas del perfil, el pedido como turno de usuario y el turno del asistente con el bloque de
+razonamiento vacío (`<think>\\n\\n</think>\\n\\n`). Su firma está en `huella-prompt.json` (`{p.get('prompt')}`):
+con otras fichas es otro modelo, aunque siga contestando.
+
+## Entrenamiento
+
+- Base: [`{m.get('base')}`](https://huggingface.co/{m.get('base')}) (revisión `{m.get('base_revision', '?')[:12]}`), LoRA r=32 sobre todas
+  las lineales (también las de atención lineal), fusionado. {m.get('entrenamiento', {}).get('epocas', 2)} épocas, lote 16, lr 2e-4 coseno,
+  pérdida solo sobre la respuesta.
+- Perfil `{p.get('nombre')}`: {len(p.get('herramientas', []))} herramientas de las categorías {', '.join(p.get('categorias', []))}. Lo que no es de
+  ellas va a `derivar`.
+- Corpus: {m.get('corpus_ejemplos')} ejemplos (firma `{m.get('corpus_firma')}`), generado desde frases semilla curadas con un bucle
+  que mide la separación entre herramientas (CDNV, Frobenius), el margen del decodificador (AUM) y
+  revisa el sentido de cada frase contra la ficha real de la herramienta. Código del aparato: commit
+  `{m.get('repo_commit')}`.
+
+## Limitaciones
+
+- Elige la herramienta; los argumentos los completa el aparato o el asistente grande.
+- Entrenado para castellano rioplatense de cabina; otros registros no están medidos.
+- Fuera del perfil no hace nada útil: lo deriva.
+
+## Herramientas del perfil
+
+{herramientas}
+
 ## Archivos
 
-{archivos}
+{archivos} `huella-prompt.json`: firma del prompt. `LICENSE`: la de la base.
 """
-        # MLX q4
-        d = rep / f"{self.a.nombre}-mlx-q4"
-        if d.exists():
-            shutil.rmtree(d)
-        shutil.copytree(ex["mlx_q4"], d)
-        (d / "README.md").write_text(tarjeta("mlx", "Cargar con `mlx_lm.load(...)`; 4 bits, grupos de 64."))
-        # GGUF
-        g = rep / f"{self.a.nombre}-GGUF"
-        if g.exists():
-            shutil.rmtree(g)
-        g.mkdir()
-        shutil.copy(ex["gguf_q4"], g)
+
+    def prompt_para_servir(self):
+        """Todo lo que necesita quien SIRVE el modelo, sin reconstruir el prompt:
+        la app (C++) y el servidor MLX lo leen tal cual. Es el MISMO de
+        entrenamiento: con otras fichas seria otro modelo (ver huella)."""
+        sys.path.insert(0, str(RAIZ / "tools"))
+        import lib_prompt as lp
+        cabeza, cola = lp.partes(lp.inventario(), 0)
+        nombres = lp.nombres_posibles()
+        salidas = {lp.salida(h): h for h in nombres}
+        # frases para «Probar»: de las SEMILLAS de entrenamiento (nunca del banco ni del examen)
+        sem = json.loads((RAIZ / "datos/semillas-reactivas.json").read_text())["herramientas"]
+        prueba = []
+        for h in ("audio_set", "scene_take", "grafico_mostrar", "laminas_ir", "speaker_on_air"):
+            fs = sem.get(h, {}).get("frases", [])
+            if fs and h in nombres:
+                prueba.append({"frase": fs[0], "herramienta": h})
+        prueba.append({"frase": "poneme un cafe con leche", "herramienta": lp.DERIVAR})
+        return {"cabeza": cabeza, "cola": cola, "fin": "<|im_end|>", "salidas": sorted(salidas),
+                "equivalencias": salidas, "derivar": lp.salida(lp.DERIVAR), "gramatica": lp.gramatica_nombre(sorted(salidas), con_derivar=False),
+                "huella": lp.huella()["prompt"], "perfil": lp.PERFIL, "frases_prueba": prueba}
+
+    def actualizar_catalogo(self, subidos):
+        """datos/modelos-catalogo.json: lo que la app ofrece descargar. La app
+        consulta Hugging Face por cada repo y muestra solo los publicos."""
+        cat_f = RAIZ / "datos" / "modelos-catalogo.json"
+        cat = json.loads(cat_f.read_text()) if cat_f.exists() else {
+            "_comentario": "Modelos que la app (Configuracion -> Modelos locales) ofrece bajar de Hugging Face."
+                           " Lo actualiza tools/entrenar/fabricar-modelo.py al subir. La app muestra solo los"
+                           " que existen y son publicos.", "modelos": []}
+        med = self.man.get("medidas", {})
+        for url in subidos:
+            repo = url.split("huggingface.co/", 1)[-1]
+            mlx = repo.endswith("-mlx-q4")
+            et = "mlx-q4" if mlx and med.get("mlx-q4") else "bf16"
+            b = med.get(et, {}).get("banco", {}).get("0", {})
+            x = med.get(et, {}).get("examen", {})
+            pct = lambda v: round(100 * v[0] / v[1], 1) if v else None
+            e = {"repo": repo, "formato": "mlx" if mlx else "gguf",
+                 "plataformas": ["mac-arm64"] if mlx else ["linux-x64", "win-x64"],
+                 "archivo": None if mlx else self.gguf_nombre,
+                 "base": self.man.get("base"), "perfil": self.man["perfil"].get("nombre"),
+                 "herramientas": len(self.man["perfil"].get("herramientas", [])),
+                 "prompt": self.man["perfil"].get("prompt"),
+                 "tamano_gb": self.man.get("exportado", {}).get("tam_gb", {}).get("mlx_q4" if mlx else "gguf_q4"),
+                 "precision": pct(b.get("precision")), "derivado": pct(b.get("derivado")),
+                 "examen": pct(x.get("acierto")), "fecha": datetime.date.today().isoformat()}
+            cat["modelos"] = [m for m in cat["modelos"] if m["repo"] != repo] + [e]
+        cat_f.write_text(json.dumps(cat, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        log(f"catalogo: datos/modelos-catalogo.json ({len(cat['modelos'])} modelos)")
+
+    def empaquetar(self):
+        self.completar_datos()
+        rep = self.dir / "repos"
+        if rep.exists():
+            shutil.rmtree(rep)
+        rep.mkdir()
+        ex = self.man["exportado"]
+        nombre = self.a.repo or f"broadcast-reactivo-{self.man['base'].split('/')[-1].lower()}"
+        self.gguf_nombre = f"{nombre}-Q4_K_M.gguf"
         hp = Path(ex["mlx_q4"]) / "huella-prompt.json"
-        eq = self.man.get("perfil", {}).get("equivalencias")
-        for dd in (d, g):
+        lic = Path(self.man["base_ruta"]) / "LICENSE"
+        eq = self.man["perfil"].get("equivalencias")
+        repos = []
+        for formato in ("mlx", "gguf"):
+            repo = f"{nombre}-{'mlx-q4' if formato == 'mlx' else 'GGUF'}"
+            d = rep / repo
+            if formato == "mlx":
+                shutil.copytree(ex["mlx_q4"], d)
+            else:
+                d.mkdir()
+                shutil.copy(ex["gguf_q4"], d / self.gguf_nombre)
             if hp.exists():
-                shutil.copy(hp, dd)
-            if eq:  # el modelo escribe etiquetas: quien lo sirve las traduce al nombre del MCP
-                (dd / "equivalencias.json").write_text(json.dumps(eq, ensure_ascii=False, indent=1))
-            lic = Path(self.man.get("base_ruta", "")) / "LICENSE"
+                shutil.copy(hp, d)
             if lic.exists():
-                shutil.copy(lic, dd / "LICENSE")
-            (dd / ".gitattributes").write_text("*.safetensors filter=lfs diff=lfs merge=lfs -text\n"
-                                               "*.gguf filter=lfs diff=lfs merge=lfs -text\n")
-        (g / "README.md").write_text(tarjeta("gguf", f"`{Path(ex['gguf_q4']).name}`: Q4_K_M calibrado con el corpus"
-                                                      " (imatrix). llama.cpp b11255 o posterior."))
-        self.man["repos"] = [str(d), str(g)]
+                shutil.copy(lic, d / "LICENSE")
+            if eq:
+                (d / "equivalencias.json").write_text(json.dumps(eq, ensure_ascii=False, indent=1))
+            (d / "prompt.json").write_text(json.dumps(self.prompt_para_servir(), ensure_ascii=False, indent=1))
+            (d / ".gitattributes").write_text("*.safetensors filter=lfs diff=lfs merge=lfs -text\n"
+                                              "*.gguf filter=lfs diff=lfs merge=lfs -text\n")
+            (d / "README.md").write_text(self.tarjeta(formato, repo), encoding="utf-8")
+            repos.append(str(d))
+        self.man["repos"] = repos
+        # LA TARJETA NO SE PIERDE: ademas de ir en cada repo, queda VERSIONADA en
+        # docs/modelos/ (texto chico) con un resumen de lo que define al modelo.
+        # Los pesos no: pesan gigas y van a Hugging Face (.gitignore los excluye).
+        doc = RAIZ / "docs" / "modelos"
+        doc.mkdir(parents=True, exist_ok=True)
+        for d in repos:
+            shutil.copy(Path(d) / "README.md", doc / f"{Path(d).name}.md")
+        resumen = {k: self.man.get(k) for k in ("base", "base_revision", "base_licencia", "corpus_firma",
+                                                 "corpus_ejemplos", "repo_commit", "arquitectura",
+                                                 "entrenamiento", "medidas", "mtp")}
+        resumen["perfil"] = {k: v for k, v in self.man["perfil"].items() if k != "equivalencias"}
+        resumen["repos"] = [Path(d).name for d in repos]
+        (doc / f"{nombre}.json").write_text(json.dumps(resumen, ensure_ascii=False, indent=1))
+        log(f"tarjeta versionada en docs/modelos/{nombre}*")
         (self.dir / "empaquetado").write_text("ok")
-        log("listo para subir (NO se subio nada):")
-        for dd in (d, g):
-            log(f"  .venv-entrenar/bin/hf upload <usuario>/{dd.name} {dd} .")
+        for d in repos:
+            log(f"repo armado: {d}")
+
+    def subir(self):
+        """A Hugging Face, SOLO con --subir y --hf-usuario. Privado salvo --publico:
+        algo publicado no se despublica del todo, eso lo decide una persona."""
+        if not (self.a.subir and self.a.hf_usuario):
+            log("subir: no se pidio (--subir --hf-usuario X)")
+            return
+        hf = RAIZ / ".venv-entrenar/bin/hf"
+        if not hasattr(self, "gguf_nombre"):
+            n = self.a.repo or f"broadcast-reactivo-{self.man['base'].split('/')[-1].lower()}"
+            self.gguf_nombre = f"{n}-Q4_K_M.gguf"
+        subidos = []
+        for d in self.man["repos"]:
+            rid = f"{self.a.hf_usuario}/{Path(d).name}"
+            cmd = [hf, "repo", "create", rid, "--repo-type", "model", "--exist-ok"]
+            if not self.a.publico:
+                cmd.append("--private")
+            subprocess.run([str(c) for c in cmd], cwd=RAIZ, capture_output=True, text=True)
+            correr([hf, "upload", rid, d, ".", "--repo-type", "model",
+                    "--commit-message", f"{self.a.nombre}: corpus {self.man.get('corpus_firma')}"])
+            subidos.append(f"https://huggingface.co/{rid}")
+        self.man["subido"] = {"repos": subidos, "privado": not self.a.publico,
+                              "fecha": datetime.datetime.now().isoformat(timespec="seconds")}
+        (self.dir / "subido").write_text("\n".join(subidos))
+        self.actualizar_catalogo(subidos)
+        for u in subidos:
+            log(f"subido: {u}{' (privado)' if not self.a.publico else ''}")
 
     def correr(self):
         hasta = ETAPAS.index(self.a.hasta)
@@ -444,7 +624,8 @@ cuanto acerto; derivado = de lo ajeno, cuanto paso al grande.
                 ("entrenar", self.entrenar, self.adaptador / "adapter_config.json"),
                 ("medir", self.medir, self.dir / "medido"),
                 ("exportar", self.exportar, self.dir / "exportado"),
-                ("empaquetar", self.empaquetar, self.dir / "empaquetado")]
+                ("empaquetar", self.empaquetar, self.dir / "empaquetado"),
+                ("subir", self.subir, self.dir / "subido")]
         for i, (n, fn, marca) in enumerate(plan):
             if i > hasta:
                 break
@@ -465,7 +646,11 @@ def main():
     ap.add_argument("--trabajo", default="~/entrenamientos/fabrica")
     ap.add_argument("--epocas", type=float, default=2.0)
     ap.add_argument("--semilla", type=int, default=7)
-    ap.add_argument("--hasta", choices=ETAPAS, default="empaquetar")
+    ap.add_argument("--hasta", choices=ETAPAS, default="subir")
+    ap.add_argument("--repo", help="nombre del repo en HF (por defecto broadcast-reactivo-<base>); se le agrega -mlx-q4 / -GGUF")
+    ap.add_argument("--hf-usuario", help="usuario u organizacion de Hugging Face")
+    ap.add_argument("--subir", action="store_true", help="subir los repos (privados salvo --publico)")
+    ap.add_argument("--publico", action="store_true")
     ap.add_argument("--rehacer", choices=ETAPAS, help="rehacer desde esta etapa (las anteriores se reusan)")
     ap.add_argument("--sin-mtp", action="store_true", help="no entrenar la cabeza MTP (usar la de la base)")
     ap.add_argument("--curva-q4", action="store_true", help="medir el q4 en los 5 puntos del dial (si no, solo sesgo 0)")
