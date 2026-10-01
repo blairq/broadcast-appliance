@@ -16,6 +16,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include "agent/ArgumentosLocales.hpp"
 #include "agent/ModelosLocales.hpp"
 #include "AppRuntime.hpp"
 #include "audio/MonitorVoz.hpp"
@@ -345,9 +346,11 @@ QString archivoAjustes(const std::filesystem::path& raiz) { return deRuta(raiz /
 
 // --- Lo dictado, por el modelo local ------------------------------------------------------
 
-void Voz::setHerramientas(Ficha ficha, Ejecutor ejecutor) {
+void Voz::setHerramientas(Ficha ficha, Ejecutor ejecutor, Contexto contexto) {
     ficha_ = std::move(ficha);
     ejecutor_ = std::move(ejecutor);
+    contexto_ = std::move(contexto);
+    sistemaArgs_ = argumentos::sistemaPorDefecto();
 }
 
 void Voz::setUsarModeloLocal(bool on) {
@@ -418,40 +421,91 @@ void Voz::atenderDe(const QString& frase, const QString& origen, const nlohmann:
                 emit dictado(f);
                 return;
             }
-            if (automaticas_.contains(h)) {
-                bitacora(id, "automatica", {{"herramienta", h.toStdString()}});
-                hacer(id, f, h, ficha);
-                return;
-            }
-            propuesta_ = QVariantMap{{"id", id},
-                                     {"frase", f},
-                                     {"herramienta", h},
-                                     {"titulo", ficha.titulo.isEmpty() ? h : ficha.titulo},
-                                     {"prob", j.value("prob", 0.0)},
-                                     {"conDatos", ficha.requiereDatos}};
-            bitacora(id, "propuesta",
-                     {{"herramienta", h.toStdString()},
-                      {"titulo", ficha.titulo.toStdString()},
-                      {"con_datos", ficha.requiereDatos}});
-            emit propuestaCambio();
+            if (ficha.requiereDatos)
+                completar(id, f, h, ficha);
+            else
+                decidir(id, f, h, ficha, nlohmann::json::object(), {}, {});
         });
     });
 }
 
-void Voz::hacer(int id, const QString& frase, const QString& herramienta, const FichaHerramienta& f) {
-    const QString titulo = f.titulo.isEmpty() ? herramienta : f.titulo;
-    if (f.requiereDatos || !ejecutor_) {
-        // Faltan los datos (qué fuente, cuánto): los completa el asistente, con
-        // la herramienta ya elegida para que no tenga que buscarla.
-        const QString texto = frase + " (herramienta: " + herramienta + ")";
-        bitacora(id, "al_asistente",
-                 {{"motivo", "la herramienta pide datos"}, {"texto", texto.toStdString()}});
-        emit dictado(texto);
+void Voz::completar(int id, const QString& frase, const QString& h, const FichaHerramienta& ficha) {
+    if (!contexto_) {
+        decidir(id, frase, h, ficha, nlohmann::json::object(), {},
+                {"no hay estado del aparato para completar los datos"});
         return;
     }
-    bitacora(id, "ejecutar",
-             {{"herramienta", herramienta.toStdString()}, {"argumentos", nlohmann::json::object()}});
-    ejecutor_(herramienta, [this, id, titulo, herramienta](bool ok, const QString& texto) {
+    contexto_([this, id, frase, h, ficha](const nlohmann::json& estado) {
+        const std::string texto =
+            argumentos::prompt(sistemaArgs_, h.toStdString(), ficha.ficha, estado, frase.toStdString());
+        bitacora(id, "modelo_pedido",
+                 {{"op", "generar"}, {"herramienta", h.toStdString()}, {"prompt", texto}});
+        const auto t0 = std::chrono::steady_clock::now();
+        modelos_.generar(
+            QString::fromStdString(texto), false, 96, {},
+            [this, id, frase, h, ficha, estado, t0](const nlohmann::json& j) {
+                const double ms =
+                    std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+                QMetaObject::invokeMethod(this, [this, id, frase, h, ficha, estado, j, ms]() {
+                    const std::string crudo = j.value("texto", std::string());
+                    const nlohmann::json leidos = argumentos::leer(crudo, h.toStdString());
+                    QStringList notas, bloqueos;
+                    nlohmann::json args = nlohmann::json::object();
+                    if (j.contains("error"))
+                        bloqueos << "el modelo no contestó: " +
+                                        QString::fromStdString(j.value("error", std::string()));
+                    else if (!leidos.is_object())
+                        bloqueos << "el modelo no escribió un JSON";
+                    else {
+                        const auto r = argumentos::validar(h.toStdString(), ficha.ficha, leidos, estado);
+                        args = r.args;
+                        for (const auto& n : r.notas)
+                            notas << QString::fromStdString(n);
+                        for (const auto& b : r.bloqueos)
+                            bloqueos << QString::fromStdString(b);
+                    }
+                    bitacora(id, "modelo_respuesta",
+                             {{"op", "generar"},
+                              {"crudo", "{" + crudo},
+                              {"ms_ida_y_vuelta", ms},
+                              {"args", args},
+                              {"notas", notas.join(" | ").toStdString()},
+                              {"bloqueos", bloqueos.join(" | ").toStdString()}});
+                    decidir(id, frase, h, ficha, args, notas, bloqueos);
+                });
+            });
+    });
+}
+
+void Voz::decidir(int id, const QString& frase, const QString& h, const FichaHerramienta& ficha,
+                  const nlohmann::json& args, const QStringList& notas, const QStringList& bloqueos) {
+    const QString titulo = ficha.titulo.isEmpty() ? h : ficha.titulo;
+    // Automática y sin dudas: se hace. Con dudas (un nombre que no existe, un
+    // dato que falta) se propone igual, para que el operador lo vea.
+    if (automaticas_.contains(h) && bloqueos.isEmpty()) {
+        bitacora(id, "automatica", {{"herramienta", h.toStdString()}, {"args", args}});
+        hacer(id, h, titulo, args);
+        return;
+    }
+    propuesta_ = QVariantMap{{"id", id},
+                             {"frase", frase},
+                             {"herramienta", h},
+                             {"titulo", titulo},
+                             {"args", QString::fromStdString(args.dump())},
+                             {"resumen", QString::fromStdString(argumentos::resumen(args))},
+                             {"notas", notas.join(" · ")},
+                             {"bloqueos", bloqueos.join(" · ")},
+                             {"puedeHacer", bloqueos.isEmpty()}};
+    bitacora(
+        id, "propuesta",
+        {{"herramienta", h.toStdString()}, {"args", args}, {"bloqueos", bloqueos.join(" | ").toStdString()}});
+    emit propuestaCambio();
+}
+
+void Voz::hacer(int id, const QString& herramienta, const QString& titulo, const nlohmann::json& args) {
+    if (!ejecutor_) return;
+    bitacora(id, "ejecutar", {{"herramienta", herramienta.toStdString()}, {"argumentos", args}});
+    ejecutor_(herramienta, args, [this, id, titulo, herramienta](bool ok, const QString& texto) {
         bitacora(id, "resultado",
                  {{"herramienta", herramienta.toStdString()}, {"ok", ok}, {"texto", texto.toStdString()}});
         emit notify((ok ? "Hecho: " : "No se pudo: ") + titulo + (texto.isEmpty() ? "" : " — " + texto),
@@ -467,8 +521,13 @@ void Voz::confirmar(bool noVolverAPreguntar) {
     const QString h = p.value("herramienta").toString();
     const int id = p.value("id").toInt();
     bitacora(id, "decision", {{"decision", noVolverAPreguntar ? "hacer_y_no_volver_a_preguntar" : "hacer"}});
+    if (!p.value("puedeHacer").toBool()) {
+        emit notify("No se puede hacer así: " + p.value("bloqueos").toString(), "warn");
+        return;
+    }
     if (noVolverAPreguntar) setAutomatica(h, true);
-    hacer(id, p.value("frase").toString(), h, ficha_ ? ficha_(h) : FichaHerramienta{});
+    hacer(id, h, p.value("titulo").toString(),
+          nlohmann::json::parse(p.value("args").toString().toStdString(), nullptr, false));
 }
 
 void Voz::descartar() {

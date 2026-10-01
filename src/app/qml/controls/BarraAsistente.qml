@@ -92,19 +92,34 @@ Panel {
                     text: "«" + (propuesta.p.frase || "") + "» → ¿<b>" + (propuesta.p.titulo || "") + "</b>?"
                     textFormat: Text.StyledText
                 }
+                // Exactamente lo que se va a hacer (los datos los completó el modelo local).
                 Text {
                     Layout.fillWidth: true
+                    visible: text !== ""
+                    wrapMode: Text.WordWrap
+                    color: Theme.text; font { pixelSize: 12; family: "Menlo" }
+                    text: propuesta.p.resumen || ""
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: !!propuesta.p.notas
                     wrapMode: Text.WordWrap
                     color: Theme.textDim; font.pixelSize: 11
-                    text: "Modelo local · " + Math.round(100 * (propuesta.p.prob || 0)) + " % · " + (propuesta.p.herramienta || "") +
-                          (propuesta.p.conDatos ? " · los datos (qué, cuánto) los completa el asistente" : "")
+                    text: "Ajustado: " + (propuesta.p.notas || "")
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: !!propuesta.p.bloqueos
+                    wrapMode: Text.WordWrap
+                    color: Theme.warn; font.pixelSize: 11
+                    text: "No se puede hacer así: " + (propuesta.p.bloqueos || "") + ". Decilo de nuevo o pasalo al asistente."
                 }
                 Flow {
                     Layout.fillWidth: true
                     spacing: 6
-                    GlassButton { compact: true; text: "Hacer"; active: true; onClicked: barra.voz.confirmar(false) }
+                    GlassButton { compact: true; text: "Hacer"; active: true; enabled: !!propuesta.p.puedeHacer; onClicked: barra.voz.confirmar(false) }
                     GlassButton {
-                        compact: true; text: "Hacer y no volver a preguntar"
+                        compact: true; text: "Hacer y no volver a preguntar"; enabled: !!propuesta.p.puedeHacer
                         ToolTip.visible: hovered; ToolTip.delay: 400
                         ToolTip.text: "«" + (propuesta.p.titulo || "") + "» se va a hacer sola la próxima vez. Se puede quitar en Configuración → Audio y voz."
                         onClicked: barra.voz.confirmar(true)

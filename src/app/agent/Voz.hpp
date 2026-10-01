@@ -97,8 +97,8 @@ class Voz : public QObject {
     /// Lo último transcripto en continuo: [{fuente, texto, hora, segundos}], lo más nuevo al final.
     Q_PROPERTY(QVariantList transcripcion READ transcripcion NOTIFY transcripcionCambio)
     /// Lo que el modelo local propone hacer con lo dictado, esperando que el
-    /// operador confirme: {frase, herramienta, titulo, prob, conDatos}. Vacío si
-    /// no hay nada pendiente.
+    /// operador confirme: {frase, herramienta, titulo, prob, args, resumen,
+    /// notas, bloqueos, puedeHacer}. Vacío si no hay nada pendiente.
     Q_PROPERTY(QVariantMap propuesta READ propuesta NOTIFY propuestaCambio)
     /// Lo dictado pasa primero por el modelo local (si hay uno listo).
     Q_PROPERTY(bool usarModeloLocal READ usarModeloLocal WRITE setUsarModeloLocal NOTIFY cambio)
@@ -163,13 +163,16 @@ class Voz : public QObject {
     struct FichaHerramienta {
         bool existe = false;
         QString titulo;
-        bool requiereDatos = false;
+        bool requiereDatos = false; ///< tiene parámetros (los completa el modelo local)
+        nlohmann::json ficha;       ///< {title, description, inputSchema} como en tools/list
     };
     using Ficha = std::function<FichaHerramienta(const QString& herramienta)>;
-    /// Hace una herramienta sin argumentos: `fin(ok, texto)`.
-    using Ejecutor =
-        std::function<void(const QString& herramienta, std::function<void(bool, const QString&)> fin)>;
-    void setHerramientas(Ficha ficha, Ejecutor ejecutor);
+    /// Hace una herramienta con sus argumentos: `fin(ok, texto)`.
+    using Ejecutor = std::function<void(const QString& herramienta, const nlohmann::json& args,
+                                        std::function<void(bool, const QString&)> fin)>;
+    /// El estado del aparato para completar argumentos (escenas, fuentes, audio…).
+    using Contexto = std::function<void(std::function<void(nlohmann::json)> listo)>;
+    void setHerramientas(Ficha ficha, Ejecutor ejecutor, Contexto contexto);
 
     QVariantMap propuesta() const { return propuesta_; }
     bool usarModeloLocal() const { return usarModeloLocal_; }
@@ -208,8 +211,13 @@ class Voz : public QObject {
     void leerAjustes();
     void guardarAjustes() const;
 
-    /// Hace la herramienta elegida para `frase` (sin preguntar).
-    void hacer(int id, const QString& frase, const QString& herramienta, const FichaHerramienta& f);
+    /// Completa los argumentos con el modelo local (generar) y los valida;
+    /// después decide: hacer (si es automática y válida) o proponer.
+    void completar(int id, const QString& frase, const QString& herramienta, const FichaHerramienta& f);
+    void decidir(int id, const QString& frase, const QString& herramienta, const FichaHerramienta& f,
+                 const nlohmann::json& args, const QStringList& notas, const QStringList& bloqueos);
+    /// Hace la herramienta con sus argumentos (sin preguntar).
+    void hacer(int id, const QString& herramienta, const QString& titulo, const nlohmann::json& args);
     /// Atiende una frase con su origen ("dictado", "manual"…) y lo que se sepa
     /// de ella (fuente, segundos de habla, ms de transcripción).
     void atenderDe(const QString& frase, const QString& origen, const nlohmann::json& meta);
@@ -222,6 +230,8 @@ class Voz : public QObject {
     ModelosLocales& modelos_;
     Ficha ficha_;
     Ejecutor ejecutor_;
+    Contexto contexto_;
+    std::string sistemaArgs_; ///< las reglas para completar argumentos (datos/voz-argumentos.txt)
     QVariantMap propuesta_;
     bool usarModeloLocal_ = true;
     QStringList automaticas_;
