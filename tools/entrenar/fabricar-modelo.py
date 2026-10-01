@@ -294,14 +294,14 @@ class Fabrica:
                                      "lote": 16, "lr": 2e-4, "lora_r": 32,
                                      "fin": (self.dir / "entrenar.log").read_text().strip().splitlines()[-1]}
 
-    def medir(self, modelo=None, etiqueta="bf16", banco_curva=True, margen=True):
+    def medir(self, modelo=None, etiqueta="bf16", banco_curva=True, margen=True, tipo="bf16"):
         modelo = modelo or self.adaptador
         md = self.dir / "medidas"
         md.mkdir(exist_ok=True)
         env = {"BA_ETIQUETAS": "0"}
         res = {}
         log(f"examen ({etiqueta})")
-        out = subprocess.run([str(PY), str(E / "evaluar.py"), "--modelo", str(modelo),
+        out = subprocess.run([str(PY), str(E / "evaluar.py"), "--modelo", str(modelo), "--tipo", tipo,
                               "--salida-casos", str(md / f"{etiqueta}-examen.jsonl")],
                              cwd=RAIZ, env=dict(os.environ, CUDA_VISIBLE_DEVICES="0", **env),
                              capture_output=True, text=True).stdout
@@ -319,7 +319,7 @@ class Fabrica:
         res["banco"] = {}
         for s in (["-4", "-2", "0", "2", "4"] if banco_curva else ["0"]):
             log(f"banco ({etiqueta}) sesgo {s}")
-            cmd = [str(PY), str(E / "evaluar.py"), "--modelo", str(modelo), "--casos",
+            cmd = [str(PY), str(E / "evaluar.py"), "--modelo", str(modelo), "--tipo", tipo, "--casos",
                    str(RAIZ / "datos/orientacion.jsonl"), "--sesgo", s]
             if s == "0":
                 cmd += ["--salida-casos", str(md / f"{etiqueta}-banco.jsonl")]
@@ -463,11 +463,26 @@ class Fabrica:
             completo = ex / "modelo-vl-hf"
             correr([PY, E / "con-vision.py", "--fusionado", hf, "--base", self.man["base_ruta"],
                     "--adaptador", self.adaptador, "--salida", completo], salida=self.dir / "vision.log")
+            # FP16 SI SE PUEDE: las GPU M1/M2 no tienen bf16 nativo, y mezclar la
+            # vision en fp16 con el texto en bf16 obliga a MLX a pasar a fp32. Se
+            # mide el q4 corriendo ENTERO en fp16 (desborda o no) contra el de bf16;
+            # si no pierde mas de 1 punto en el banco, todo el MLX va en fp16.
+            sim = ex / "modelo-q4-simulado-fp16"
+            correr([PY_MLX, E / "simular-q4-mlx.py", "--hf", hf, "--salida", sim], salida=self.dir / "simular.log")
+            self.medir(modelo=sim, etiqueta="mlx-q4-fp16", banco_curva=False, margen=False, tipo="fp16")
+            shutil.rmtree(sim)
+            pct = lambda v: 100 * v[0] / v[1] if v else 0.0
+            ref = self.man["medidas"].get("mlx-q4", {}).get("banco", {}).get("0", {})
+            f16 = self.man["medidas"]["mlx-q4-fp16"]["banco"].get("0", {})
+            caida = max(pct(ref.get(k)) - pct(f16.get(k)) for k in ("precision", "acierto")) if ref else 0.0
+            tipo = "float16" if caida <= 1.0 else "bfloat16"
+            self.man["exportado"]["mlx_dtype"] = {"tipo": tipo, "caida_fp16_puntos": round(caida, 2)}
+            log(f"MLX en {tipo}: corriendo en fp16 el q4 pierde {caida:.1f} puntos en el banco")
             vl = ex / "modelo-vl-q4"
             if vl.exists():
                 shutil.rmtree(vl)
             correr([PY_MLX, "-m", "mlx_vlm.convert", "--hf-path", completo, "--mlx-path", vl, "-q",
-                    "--q-bits", "4", "--q-group-size", "64"], salida=self.dir / "mlx-vlm.log")
+                    "--q-bits", "4", "--q-group-size", "64", "--dtype", tipo], salida=self.dir / "mlx-vlm.log")
             # mlx-vlm 0.7.4 escribe el config SIN la cuantizacion (los pesos si estan
             # cuantizados): sin esto ni mlx-lm ni mlx-vlm lo cargan
             cfg = json.loads((vl / "config.json").read_text())
@@ -606,6 +621,11 @@ del repo del aparato): el prefijo con las fichas se procesa una vez y se reusa e
                         + ("Con la parte de visión (la torre sin cuantizar, igual a la de la base: el ajuste no la"
                            " toca): mlx-vlm lo usa con imágenes y mlx-lm lo carga como texto."
                            if vis else "Solo texto (sin la parte de visión).")
+                        + (lambda t: f" Lo que no está cuantizado (escalas, normas, visión) va en"
+                                     f" **{'fp16' if t['tipo'] == 'float16' else 'bf16'}**: corriendo en fp16 el q4"
+                                     f" pierde {max(0.0, t['caida_fp16_puntos']):.1f} puntos en el banco"
+                                     f"{' (las GPU M1/M2 no tienen bf16 nativo)' if t['tipo'] == 'float16' else ', demasiado: queda en bf16'}."
+                           if t else "")(m.get("exportado", {}).get("mlx_dtype"))
                         + ("\n`mtp.safetensors` (copia en `mtp/weights.safetensors`): la cabeza MTP entrenada con el"
                            " contrato de [MTPLX](https://mtplx.com): lineales de la capa en int4 (afín, grupos de 64),"
                            " `mtp.fc` y normas en bf16 **con el +1 aplicado** (la convención de MLX); el `config.json`"

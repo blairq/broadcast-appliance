@@ -35,6 +35,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--modelo", required=True)
     ap.add_argument("--largo", type=int, default=4096)
+    ap.add_argument("--tipo", choices=["bf16", "fp16"], default="bf16",
+                    help="en que tipo corre el modelo: fp16 para ver si desborda (las GPU M1/M2 no tienen bf16)")
     ap.add_argument("--json", default="", help="donde dejar los fallos, para tools/entrenar/fallos.py")
     ap.add_argument("--ejemplos", type=int, default=0,
                     help="pares resueltos en el prefijo (para comparar con el aprendizaje en contexto)")
@@ -81,15 +83,16 @@ def main():
     # que ahorra el 90% del tiempo. Fusionar el LoRA ademas saca el matmul extra
     # y la indireccion de Python por capa: 21,4 -> 11,8 ms por forward, medido.
     tok = AutoTokenizer.from_pretrained(args.modelo)
+    TIPO = torch.float16 if args.tipo == "fp16" else torch.bfloat16
     if (Path(args.modelo) / "adapter_config.json").exists():
         cfg = json.loads((Path(args.modelo) / "adapter_config.json").read_text())
         modelo = AutoModelForCausalLM.from_pretrained(
-            cfg["base_model_name_or_path"], dtype=torch.bfloat16, device_map="cuda:0")
+            cfg["base_model_name_or_path"], dtype=TIPO, device_map="cuda:0")
         modelo = PeftModel.from_pretrained(modelo, args.modelo).merge_and_unload()
     else:
         # un modelo completo, ya fusionado (p. ej. el q4 de MLX simulado para
         # medir cuanto le cambia la cuantizacion: simular-q4-mlx.py)
-        modelo = AutoModelForCausalLM.from_pretrained(args.modelo, dtype=torch.bfloat16, device_map="cuda:0")
+        modelo = AutoModelForCausalLM.from_pretrained(args.modelo, dtype=TIPO, device_map="cuda:0")
     modelo.eval()
 
     # EL VECTOR DE CONTROL, aplicado igual que en llama.cpp: se SUMA a la salida
