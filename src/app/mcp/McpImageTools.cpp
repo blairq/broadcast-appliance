@@ -28,6 +28,7 @@
 
 #include "agent/Despachador.hpp"
 #include "agent/ModeloPropio.hpp"
+#include "agent/ModelosLocales.hpp"
 #include "AppRuntime.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
@@ -528,7 +529,9 @@ void McpService::registerImageTools() {
                     "que no sirve para decidir nada.\n\n"
                     "UNA IMAGEN POR LLAMADA. Si necesitas comparar dos momentos, llamala dos veces y "
                     "compara vos los dos textos.\n\n"
-                    "Tarda: es otro agente pensando. No la uses para mirar cada dos segundos.";
+                    "QUIEN MIRA. Si hay un modelo local cargado con vision (Configuracion -> Modelos "
+                    "locales), mira el, en esta maquina y en alrededor de un segundo; si no, el modelo "
+                    "propio. No la uses para mirar cada dos segundos.";
         t.inputSchema = {
             {"type", "object"},
             {"required", {"que"}},
@@ -570,27 +573,50 @@ void McpService::registerImageTools() {
             if (archivo.isEmpty())
                 return done(ToolResult::error("No se pudo guardar la captura para que la miren."));
 
-            // Directo al servidor propio, en un hilo aparte (el cliente HTTPS
-            // bloquea y esto corre en el hilo de la interfaz). Ver
-            // `mirarConElModeloPropio`.
             const std::string donde =
                 fuente == "interfaz" ? "la pantalla de la aplicacion" : "el video de '" + fuente + "'";
             const QImage copia = img;
-            std::thread([&rt, copia, que, donde, archivo, done]() {
-                std::string error;
-                const std::string texto = mirarConElModeloPropio(rt, copia, que, error);
+            // Al servidor propio, en un hilo aparte (el cliente HTTPS bloquea y
+            // esto corre en el hilo de la interfaz). Ver `mirarConElModeloPropio`.
+            const auto conElPropio = [&rt, copia, que, donde, archivo, done](const std::string& antes) {
+                std::thread([&rt, copia, que, donde, archivo, done, antes]() {
+                    std::string error;
+                    const std::string texto = mirarConElModeloPropio(rt, copia, que, error);
+                    ToolResult r;
+                    if (texto.empty()) {
+                        r = ToolResult::error("No pude mirar la imagen (" + antes + error +
+                                              "). La captura quedo en " + archivo.toStdString() + ".");
+                    } else {
+                        r.text(texto);
+                        r.structured = json{
+                            {"miro", donde}, {"con", "modelo propio"}, {"captura", archivo.toStdString()}};
+                    }
+                    // La respuesta vuelve al hilo de la interfaz: `done` termina
+                    // contestando un pedido MCP, que vive alla.
+                    QMetaObject::invokeMethod(qApp, [done, r]() { done(r); }, Qt::QueuedConnection);
+                }).detach();
+            };
+            // Primero el modelo local, si esta cargado y trae la torre de vision:
+            // mira en la GPU de esta maquina, sin red, en un segundo. Si falla, el
+            // servidor propio como siempre.
+            agent::ModelosLocales* ml = vm.modelosLocales();
+            if (ml == nullptr || !ml->listo() || !ml->conVision()) return conElPropio("");
+            const QString pregunta =
+                QString::fromStdString(que) +
+                "\nContesta en castellano, concreto, en una o dos oraciones. Si no se ve, decilo.";
+            ml->ver(archivo, pregunta, 160, {}, [conElPropio, donde, archivo, done](const json& j) {
+                const std::string texto = j.value("texto", std::string());
+                if (j.contains("error") || texto.empty())
+                    return conElPropio("modelo local: " + j.value("error", std::string("sin respuesta")) +
+                                       "; ");
                 ToolResult r;
-                if (texto.empty()) {
-                    r = ToolResult::error("No pude mirar la imagen (" + error + "). La captura quedo en " +
-                                          archivo.toStdString() + ".");
-                } else {
-                    r.text(texto);
-                    r.structured = json{{"miro", donde}, {"captura", archivo.toStdString()}};
-                }
-                // La respuesta vuelve al hilo de la interfaz: `done` termina
-                // contestando un pedido MCP, que vive alla.
-                QMetaObject::invokeMethod(qApp, [done, r]() { done(r); }, Qt::QueuedConnection);
-            }).detach();
+                r.text(texto);
+                r.structured = json{{"miro", donde},
+                                    {"con", "modelo local"},
+                                    {"ms", j.value("ms_imagen", 0.0)},
+                                    {"captura", archivo.toStdString()}};
+                done(r);
+            });
         };
         core_.addTool(std::move(t));
     }

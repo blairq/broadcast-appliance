@@ -32,6 +32,7 @@
 #include "agent/AgentViewModel.hpp"
 #include "agent/AlertEngine.hpp"
 #include "agent/Despachador.hpp"
+#include "agent/ModelosLocales.hpp"
 #include "agent/Roles.hpp"
 #include "AppRuntime.hpp"
 #include "diag/DiarioDeArranque.hpp"
@@ -273,6 +274,11 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         despachador_ = std::make_unique<agent::Despachador>(*roles_, agent_->motores());
         connect(despachador_.get(), &agent::Despachador::notify, this, &StudioViewModel::notify);
         agent_->setReclamado([this](const nlohmann::json& ev) { return despachador_->evento(ev); });
+        // El modelo local: sus archivos en Modelos/ (portable), el motor junto a ba-app.
+        modelos_ =
+            std::make_unique<agent::ModelosLocales>(rt.dataRoot(), QCoreApplication::applicationDirPath());
+        connect(modelos_.get(), &agent::ModelosLocales::notify, this, &StudioViewModel::notify);
+        QTimer::singleShot(0, modelos_.get(), [m = modelos_.get()]() { m->arrancarSiCorresponde(); });
         // Barra de mensajes del asistente al operador (y respuestas a invitados).
         messages_ = std::make_unique<OperatorMessages>();
         if (rt.config().safeMode) {
@@ -488,6 +494,7 @@ QObject* StudioViewModel::twitch() const { return twitch_.get(); }
 QObject* StudioViewModel::facebook() const { return facebook_.get(); }
 QObject* StudioViewModel::system() const { return system_.get(); }
 QObject* StudioViewModel::agent() const { return agent_.get(); }
+QObject* StudioViewModel::modelos() const { return modelos_.get(); }
 QObject* StudioViewModel::despachadorQml() const { return despachador_.get(); }
 QObject* StudioViewModel::messages() const { return messages_.get(); }
 

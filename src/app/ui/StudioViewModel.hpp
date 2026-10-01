@@ -25,6 +25,7 @@ namespace ba::app::agent {
 class AlertEngine;
 class AgentViewModel;
 class Despachador;
+class ModelosLocales;
 class Roles;
 } // namespace ba::app::agent
 
@@ -146,6 +147,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* facebook READ facebook CONSTANT)
     Q_PROPERTY(QObject* system READ system CONSTANT)
     Q_PROPERTY(QObject* agent READ agent CONSTANT)
+    /// El modelo local (Configuración -> Modelos locales): ver agent/ModelosLocales.hpp.
+    Q_PROPERTY(QObject* modelos READ modelos CONSTANT)
     /// Los roles automaticos y sus corridas (pagina Agentes).
     Q_PROPERTY(QObject* despachador READ despachadorQml CONSTANT)
     Q_PROPERTY(QObject* messages READ messages CONSTANT)
@@ -224,6 +227,8 @@ class StudioViewModel : public QObject {
     QObject* facebook() const;
     QObject* system() const;
     QObject* agent() const;
+    QObject* modelos() const;
+    agent::ModelosLocales* modelosLocales() const { return modelos_.get(); }
     QObject* messages() const;
     QObject* inputs() const;
     QObject* audio() const;
@@ -396,6 +401,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<agent::AgentViewModel> agent_;
     std::unique_ptr<agent::Roles> roles_;
     std::unique_ptr<agent::Despachador> despachador_;
+    std::unique_ptr<agent::ModelosLocales> modelos_;
     std::unique_ptr<OperatorMessages> messages_;
     std::unique_ptr<InputsViewModel> inputs_;
     std::unique_ptr<ChatOverlayRenderer> chatOverlay_;

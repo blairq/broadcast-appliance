@@ -408,6 +408,31 @@ else()
     message(STATUS "ba-bundle: sin cloudflared (sin tunel); 'make deps-cloudflared-host' lo baja")
 endif()
 
+# ba-modelo (el modelo local en la Mac: MLX, ver src/modelo-mac) si se compilo
+# con `make modelo-mac`. Va con su mlx-swift_Cmlx.bundle al lado: ahi esta el
+# default.metallib (los kernels de Metal) y MLX lo busca junto al ejecutable.
+if(APPLE)
+    set(BA_MODELO_MAC_DIR "${CMAKE_SOURCE_DIR}/build/modelo-mac/Build/Products/Release")
+    if(EXISTS "${BA_MODELO_MAC_DIR}/ba-modelo")
+        install(PROGRAMS "${BA_MODELO_MAC_DIR}/ba-modelo" DESTINATION bin/64bit COMPONENT bundle)
+        install(DIRECTORY "${BA_MODELO_MAC_DIR}/mlx-swift_Cmlx.bundle" DESTINATION bin/64bit COMPONENT bundle)
+        # Swift 6.2 en macOS < 26: la compatibilidad de Span no viene con el
+        # sistema y ba-modelo la busca junto a el (@executable_path).
+        execute_process(COMMAND xcrun --find swiftc OUTPUT_VARIABLE _ba_swiftc OUTPUT_STRIP_TRAILING_WHITESPACE)
+        get_filename_component(_ba_tc "${_ba_swiftc}" DIRECTORY)
+        file(GLOB _ba_span "${_ba_tc}/../lib/swift-*/macosx/libswiftCompatibilitySpan.dylib")
+        if(_ba_span)
+            list(GET _ba_span 0 _ba_span)
+            install(FILES "${_ba_span}" DESTINATION bin/64bit COMPONENT bundle)
+        else()
+            message(WARNING "ba-bundle: no encontre libswiftCompatibilitySpan.dylib en el toolchain")
+        endif()
+        message(STATUS "ba-bundle: ba-modelo incluido (modelo local con MLX)")
+    else()
+        message(STATUS "ba-bundle: sin ba-modelo (sin modelo local); 'make modelo-mac' lo compila")
+    endif()
+endif()
+
 # El paso de rpath va DESPUES de copiar el runtime: reescribe lo ya instalado.
 if(BA_HAVE_LIBOBS AND NOT WIN32 AND NOT APPLE)
     include(${CMAKE_SOURCE_DIR}/cmake/BaPortableBundle.cmake)

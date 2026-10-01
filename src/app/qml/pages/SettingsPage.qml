@@ -19,6 +19,8 @@ Rectangle {
         : (Studio.settings.sections.length > 0 ? Studio.settings.sections[0] : "")
     readonly property string systemSection: "Sistema y datos"
     readonly property string rielSection: "Barra de navegación"
+    readonly property string modelosSection: "Modelos locales"
+    readonly property var ml: Studio.modelos
     readonly property var sys: Studio.system
     property string updateError: ""
 
@@ -69,7 +71,7 @@ Rectangle {
             ListView {
                 anchors.fill: parent
                 spacing: 4
-                model: Studio.settings.sections.concat([page.rielSection, page.systemSection])
+                model: Studio.settings.sections.concat([page.rielSection, page.modelosSection, page.systemSection])
                 delegate: Rectangle {
                     required property string modelData
                     width: ListView.view.width
@@ -92,6 +94,7 @@ Rectangle {
                 clip: true
                 contentWidth: availableWidth
                 visible: page.section !== page.systemSection && page.section !== page.rielSection
+                         && page.section !== page.modelosSection
                 ColumnLayout {
                     width: parent.width
                     spacing: 14
@@ -134,6 +137,309 @@ Rectangle {
                 anchors.fill: parent
                 active: page.section === page.rielSection
                 sourceComponent: rielComp
+            }
+            Loader {
+                anchors.fill: parent
+                active: page.section === page.modelosSection
+                sourceComponent: modelosComp
+            }
+        }
+    }
+
+    // --- Modelos locales -----------------------------------------------------------
+    // El modelo chico que corre en la máquina (agent/ModelosLocales.hpp): se baja
+    // de Hugging Face a Modelos/ (portable, verificado), se activa y se prueba
+    // acá mismo. Como la barra, se aplica al toque y se guarda solo.
+    Component {
+        id: modelosComp
+        ScrollView {
+            clip: true
+            contentWidth: availableWidth
+            ColumnLayout {
+                width: parent.width
+                spacing: 14
+
+                // Estado del motor y del modelo cargado
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+                    Rectangle {
+                        width: 10; height: 10; radius: 5
+                        color: ml.estado === "listo" ? Theme.ok
+                             : ml.estado === "cargando" ? Theme.amber
+                             : ml.estado === "error" ? Theme.live : Theme.textFaint
+                    }
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 1
+                        Text {
+                            text: ml.estado === "listo" ? "Modelo listo"
+                                : ml.estado === "cargando" ? "Cargando…"
+                                : ml.estado === "error" ? "El modelo no anda"
+                                : "Apagado"
+                            color: Theme.text
+                            font { pixelSize: 15; weight: Font.DemiBold }
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            text: (ml.detalle !== "" ? ml.detalle + " · " : "") + "Motor: " + ml.motor
+                            color: ml.estado === "error" ? Theme.live : Theme.textDim
+                            font.pixelSize: 11
+                        }
+                    }
+                    GlassButton {
+                        compact: true
+                        visible: ml.estado === "listo" || ml.estado === "cargando"
+                        text: "Apagar"
+                        onClicked: ml.apagar()
+                    }
+                    GlassButton { compact: true; text: "Carpeta"; icon: "📁"; onClicked: ml.abrirCarpeta() }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: Theme.textFaint
+                    font.pixelSize: 11
+                    text: "Elige la herramienta para una frase corta de cabina en una fracción de segundo, sin salir " +
+                          "de la máquina. Lo que no es suyo lo deriva al asistente grande, con la frase tal cual."
+                }
+
+                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
+
+                // Catálogo
+                Text { text: "Modelos para esta máquina"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+                Text {
+                    visible: ml.catalogo.length === 0
+                    text: "No hay modelos publicados para esta plataforma."
+                    color: Theme.textDim; font.pixelSize: 12
+                }
+                Repeater {
+                    model: ml.catalogo
+                    delegate: Rectangle {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        implicitHeight: fila.implicitHeight + 20
+                        radius: Theme.radiusSmall
+                        color: modelData.activo ? Qt.rgba(1, 0.42, 0.17, 0.12) : Theme.field
+                        border.color: modelData.activo ? Theme.accent : "transparent"
+                        RowLayout {
+                            id: fila
+                            anchors { fill: parent; margins: 10 }
+                            spacing: 10
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 2
+                                Text {
+                                    Layout.fillWidth: true
+                                    elide: Text.ElideMiddle
+                                    text: modelData.repo
+                                    color: Theme.text; font.pixelSize: 13
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    wrapMode: Text.WordWrap
+                                    text: modelData.formato.toUpperCase() + " · " + modelData.tamano_gb + " GB · " +
+                                          modelData.herramientas + " herramientas · precisión " + modelData.precision +
+                                          "% · examen " + modelData.examen + "% · " + modelData.fecha
+                                    color: Theme.textDim; font.pixelSize: 11
+                                }
+                            }
+                            Text {
+                                visible: modelData.instalado
+                                text: modelData.activo ? "activo" : "bajado"
+                                color: modelData.activo ? Theme.accent : Theme.ok
+                                font.pixelSize: 11
+                            }
+                            GlassButton {
+                                compact: true
+                                visible: !modelData.instalado
+                                enabled: !ml.descargando
+                                text: "Bajar"; icon: "⇩"
+                                onClicked: ml.descargar(modelData.repo)
+                            }
+                            GlassButton {
+                                compact: true
+                                visible: modelData.instalado && ml.hayMotor
+                                         && !(modelData.activo && (ml.estado === "listo" || ml.estado === "cargando"))
+                                text: "Activar"; active: true
+                                onClicked: ml.activar(modelData.repo)
+                            }
+                            GlassButton {
+                                compact: true
+                                visible: modelData.instalado
+                                enabled: !ml.descargando
+                                text: "Actualizar"
+                                onClicked: ml.descargar(modelData.repo)
+                            }
+                            GlassButton {
+                                compact: true
+                                visible: modelData.instalado
+                                text: "Borrar"
+                                onClicked: ApplicationWindow.window.confirm({
+                                    title: "¿Borrar el modelo?",
+                                    text: modelData.repo + " (" + modelData.tamano_gb + " GB). Se puede volver a bajar.",
+                                    accept: "Borrar", reject: "Cancelar",
+                                    action: function() { ml.borrar(modelData.repo) }
+                                })
+                            }
+                        }
+                    }
+                }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    visible: ml.descargando || ml.textoDescarga !== ""
+                    spacing: 4
+                    ProgressBar { Layout.fillWidth: true; visible: ml.descargando; from: 0; to: 1; value: ml.progreso }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text {
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            text: ml.textoDescarga
+                            color: Theme.textDim; font.pixelSize: 12
+                        }
+                        GlassButton { compact: true; visible: ml.descargando; text: "Cancelar"; onClicked: ml.cancelarDescarga() }
+                    }
+                }
+
+                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
+
+                // Ajustes
+                Text { text: "Cuánto deriva"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+                    Text { text: "atiende más"; color: Theme.textDim; font.pixelSize: 11 }
+                    Slider {
+                        Layout.fillWidth: true
+                        from: -4; to: 4; stepSize: 0.5
+                        value: ml.sesgo
+                        onMoved: ml.sesgo = value
+                    }
+                    Text { text: "deriva más"; color: Theme.textDim; font.pixelSize: 11 }
+                    Text { text: (ml.sesgo > 0 ? "+" : "") + ml.sesgo.toFixed(1); color: Theme.text; font.pixelSize: 12 }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: Theme.textFaint
+                    font.pixelSize: 11
+                    text: "Derivar de más cuesta segundos; elegir mal cuesta al aire. Con +2 pasa al asistente grande " +
+                          "más de 9 de cada 10 pedidos que no son suyos, y atiende un poco menos de lo propio."
+                }
+
+                Text { text: "Cabeza MTP (texto rápido)"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+                RowLayout {
+                    spacing: 6
+                    Repeater {
+                        model: [ { v: "auto", t: "Automática" }, { v: "q8", t: "8 bits" },
+                                 { v: "fp16", t: "fp16" }, { v: "no", t: "Sin MTP" } ]
+                        delegate: GlassButton {
+                            required property var modelData
+                            compact: true
+                            text: modelData.t
+                            active: ml.mtp === modelData.v
+                            onClicked: ml.mtp = modelData.v
+                        }
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: Theme.textFaint
+                    font.pixelSize: 11
+                    text: "La decodificación especulativa con la cabeza del propio modelo. Si acepta poco, el motor deja " +
+                          "de usarla solo. Se aplica la próxima vez que se activa el modelo."
+                }
+                RowLayout {
+                    spacing: 10
+                    Toggle { checked: ml.alArrancar; onToggled: (w) => ml.alArrancar = w }
+                    Text { text: "Cargar el modelo activo al abrir la aplicación"; color: Theme.text; font.pixelSize: 13 }
+                }
+
+                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
+
+                // Probar
+                Text { text: "Probar"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+                RowLayout {
+                    Layout.fillWidth: true
+                    TextField {
+                        id: fraseF
+                        Layout.fillWidth: true
+                        enabled: ml.estado === "listo"
+                        placeholderText: ml.estado === "listo" ? "una frase de cabina: «bajale al mic 2»" : "activá un modelo para probar"
+                        onAccepted: { ml.probar(text); text = "" }
+                    }
+                    GlassButton {
+                        compact: true; text: "Elegir"; active: true
+                        enabled: ml.estado === "listo" && fraseF.text.trim() !== ""
+                        onClicked: { ml.probar(fraseF.text); fraseF.text = "" }
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: ml.estado === "listo" && ml.info.vision === true
+                    TextField {
+                        id: preguntaF
+                        Layout.fillWidth: true
+                        placeholderText: "pregunta sobre una imagen: «¿cuántas personas hay?»"
+                    }
+                    GlassButton {
+                        compact: true; text: "Elegir imagen…"; icon: "🖼"
+                        onClicked: imagenDlg.open()
+                    }
+                    FileDialog {
+                        id: imagenDlg
+                        title: "Imagen para el modelo local"
+                        nameFilters: ["Imágenes (*.png *.jpg *.jpeg *.webp *.bmp)"]
+                        onAccepted: ml.probarVision(selectedFile, preguntaF.text)
+                    }
+                }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    visible: ml.estado === "listo"
+                    Repeater {
+                        model: ml.info.pruebas || []
+                        delegate: GlassButton {
+                            required property var modelData
+                            compact: true
+                            text: modelData.frase
+                            onClicked: ml.probar(modelData.frase)
+                        }
+                    }
+                }
+                Repeater {
+                    model: ml.pruebas
+                    delegate: RowLayout {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        spacing: 10
+                        Text {
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
+                            text: "«" + modelData.frase + "»"
+                            color: Theme.textDim; font.pixelSize: 12
+                        }
+                        Text {
+                            Layout.maximumWidth: modelData.vision ? parent.width * 0.6 : implicitWidth
+                            wrapMode: modelData.vision ? Text.WordWrap : Text.NoWrap
+                            text: modelData.error !== undefined ? modelData.error
+                                : modelData.vision ? modelData.texto
+                                : modelData.derivar ? "→ derivar al grande" : "→ " + modelData.herramienta
+                            color: modelData.error !== undefined ? Theme.live
+                                 : modelData.derivar ? Theme.amber : Theme.ok
+                            font { pixelSize: 12; family: Theme.mono }
+                        }
+                        Text {
+                            visible: modelData.prob !== undefined || modelData.vision === true
+                            text: modelData.vision ? Math.round(modelData.ms_imagen || 0) + " ms"
+                                : Math.round((modelData.prob || 0) * 100) + "% · " + Math.round(modelData.ms || 0) + " ms"
+                            color: Theme.textFaint; font.pixelSize: 11
+                        }
+                    }
+                }
             }
         }
     }
