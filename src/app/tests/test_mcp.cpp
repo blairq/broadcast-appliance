@@ -427,6 +427,12 @@ int main(int argc, char** argv) {
         for (const auto& l : lines)
             sawEcho = sawEcho || l.contains("eco: por stdio");
         CHECK(sawEcho, "la herramienta responde por stdio");
+        if (lines.size() != 2 || !sawEcho) {
+            // Para poder diagnosticarlo: que devolvio y como termino ba-mcp.
+            std::printf("  ba-mcp: estado %d, salida %d, stdout: %s\n  stderr: %s\n", int(bridge.state()),
+                        bridge.exitCode(), out.left(400).constData(),
+                        bridge.readAllStandardError().left(400).constData());
+        }
     }
     {
         QProcess bridge;
