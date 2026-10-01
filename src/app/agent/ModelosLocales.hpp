@@ -92,7 +92,7 @@ class ModelosLocales : public QObject {
     Q_PROPERTY(QVariantMap info READ info NOTIFY cambio)
     /// El dial de derivar (se suma al logit de `derivar`): + deriva más.
     Q_PROPERTY(double sesgo READ sesgo WRITE setSesgo NOTIFY cambio)
-    /// La cabeza MTP: auto | q8 | fp16 | no (se aplica al próximo arranque).
+    /// La cabeza MTP: no | auto | q8 | fp16 (se aplica al próximo arranque).
     Q_PROPERTY(QString mtp READ mtp WRITE setMtp NOTIFY cambio)
     /// Arrancar el modelo activo al abrir la app.
     Q_PROPERTY(bool alArrancar READ alArrancar WRITE setAlArrancar NOTIFY cambio)
@@ -144,7 +144,12 @@ class ModelosLocales : public QObject {
     /// Texto corto (con MTP si rinde): `delta` va llegando, `fin` al final.
     void generar(const QString& texto, bool conPrefijo, int maxTokens,
                  std::function<void(const QString&)> delta, Respuesta fin);
+    /// Una imagen (ruta local) y una pregunta, si el modelo trae la torre de
+    /// visión (info().vision). Mismo formato que generar.
+    void ver(const QString& imagen, const QString& pregunta, int maxTokens,
+             std::function<void(const QString&)> delta, Respuesta fin);
     bool listo() const { return estado_ == "listo"; }
+    bool conVision() const { return info_.value("vision").toBool(); }
 
     /// Arranca el activo si así se configuró. Lo llama la app al abrir.
     void arrancarSiCorresponde();
@@ -177,7 +182,7 @@ class ModelosLocales : public QObject {
     QString detalleError_; ///< lo último que dijo el motor por stderr
     QVariantMap info_;
     double sesgo_ = 0.0;
-    QString mtp_ = "auto";
+    QString mtp_ = "no"; ///< la cabeza todavía no rinde: sin MTP hasta reentrenarla
     bool alArrancar_ = false;
     QVariantList pruebas_;
 

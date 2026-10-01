@@ -192,7 +192,7 @@ void ModelosLocales::leerAjustes() {
     if (!j.is_object()) return;
     activo_ = QString::fromStdString(j.value("activo", std::string()));
     sesgo_ = j.value("sesgo", 0.0);
-    mtp_ = QString::fromStdString(j.value("mtp", std::string("auto")));
+    mtp_ = QString::fromStdString(j.value("mtp", std::string("no")));
     alArrancar_ = j.value("al_arrancar", false);
     if (!instalado(activo_)) activo_.clear();
 }
@@ -458,6 +458,7 @@ void ModelosLocales::linea(const QByteArray& l) {
                         .arg(j.value("ms_prefijo", 0.0) / 1000.0, 0, 'f', 1);
         const std::string m = j.value("mtp", std::string("no"));
         d += m == "no" ? " · sin MTP" : " · cabeza MTP " + QString::fromStdString(m);
+        d += j.value("vision", false) ? " · con visión" : " · solo texto";
         setEstado("listo", d);
         return;
     }
@@ -508,6 +509,19 @@ void ModelosLocales::generar(const QString& texto, bool conPrefijo, int maxToken
     pedir(
         json{{"op", "generar"}, {"texto", texto.toStdString()}, {"prefijo", conPrefijo}, {"max", maxTokens}},
         std::move(fin), std::move(delta));
+}
+
+void ModelosLocales::ver(const QString& imagen, const QString& pregunta, int maxTokens,
+                         std::function<void(const QString&)> delta, Respuesta fin) {
+    if (listo() && !conVision()) {
+        if (fin) fin(json{{"error", "el modelo activo no trae visión"}});
+        return;
+    }
+    pedir(json{{"op", "ver"},
+               {"imagen", imagen.toStdString()},
+               {"texto", pregunta.toStdString()},
+               {"max", maxTokens}},
+          std::move(fin), std::move(delta));
 }
 
 void ModelosLocales::probar(const QString& frase) {

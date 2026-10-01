@@ -1,7 +1,7 @@
 // ============================================================================
 // ba-modelo — el modelo local en la Mac: MLX, con la cabeza MTP si la hay
 //
-//   ba-modelo --modelo <carpeta> [--mtp auto|fp16|q8|no] [--prueba]
+//   ba-modelo --modelo <carpeta> [--mtp no|auto|fp16|q8] [--prueba]
 //
 // La carpeta es la del repo de Hugging Face tal cual (model.safetensors,
 // tokenizer, prompt.json y, si vienen, mtp.safetensors / mtp-q8.safetensors).
@@ -17,6 +17,8 @@
 //     -> {"id":1,"herramienta":"audio_set","etiqueta":"audio_set","prob":0.97,"ms":120}
 //   {"id":2,"op":"generar","texto":"...","prefijo":true,"max":64,"mtp":true}
 //     -> {"id":2,"delta":"..."} ... {"id":2,"fin":true,"texto":"...","tokens":n,...}
+//   {"id":3,"op":"ver","imagen":"/ruta/foto.jpg","texto":"¿cuántas personas hay?","max":96}
+//     -> igual que generar (si el modelo trae la torre de visión)
 //   {"op":"salir"}
 //
 // ELEGIR es el contrato de entrenamiento: el prompt exacto (cabeza + frase +
@@ -32,6 +34,7 @@ import Foundation
 import MLX
 import MLXLLM
 import MLXLMCommon
+import MLXVLM
 import Tokenizers
 
 // MARK: - salida
@@ -96,19 +99,19 @@ struct Cargador: TokenizerLoader {
 // MARK: - argumentos
 
 var carpeta: String?
-var modoMtp = "auto"
+var modoMtp = "no" // la cabeza todavía no rinde (ver «si la cabeza MTP rinde»)
 var prueba = false
 var silencioso = false // sin los delta (la prueba solo quiere los tiempos)
 var args = CommandLine.arguments.dropFirst().makeIterator()
 while let a = args.next() {
     switch a {
     case "--modelo": carpeta = args.next()
-    case "--mtp": modoMtp = args.next() ?? "auto"
+    case "--mtp": modoMtp = args.next() ?? "no"
     case "--prueba": prueba = true
     default: morir("argumento desconocido: \(a)")
     }
 }
-guard let carpeta else { morir("uso: ba-modelo --modelo <carpeta> [--mtp auto|fp16|q8|no] [--prueba]") }
+guard let carpeta else { morir("uso: ba-modelo --modelo <carpeta> [--mtp no|auto|fp16|q8] [--prueba]") }
 let dir = URL(fileURLWithPath: carpeta)
 
 // MARK: - prompt.json: lo que hace falta para servir, sin reconstruir nada
@@ -189,10 +192,22 @@ func carpetaDrafter() -> URL? {
 
 // MARK: - carga
 
+// Con la torre de visión (config.json con vision_config) se carga el modelo
+// multimodal: el mismo modelo de lenguaje, más la visión y su procesador de
+// imágenes. Sin ella, solo texto.
+let conVision: Bool = {
+    guard let d = try? Data(contentsOf: dir.appending(component: "config.json")),
+        let j = try? JSONSerialization.jsonObject(with: d) as? [String: Any]
+    else { return false }
+    return j["vision_config"] != nil
+}()
 let tCarga = Date()
 let ctx: ModelContext
 do {
-    ctx = try await LLMModelFactory.shared.load(from: dir, using: Cargador())
+    ctx =
+        conVision
+        ? try await VLMModelFactory.shared.load(from: dir, using: Cargador())
+        : try await LLMModelFactory.shared.load(from: dir, using: Cargador())
 } catch {
     morir("no se pudo cargar el modelo: \(error)")
 }
@@ -201,7 +216,7 @@ let tok = ctx.tokenizer
 
 var drafter: (any MTPDrafterModel)?
 var varianteMtp = "no"
-if let d = carpetaDrafter() {
+if !conVision, let d = carpetaDrafter() {
     await Qwen35TextMTPRegistration.register()
     do {
         drafter = try await MTPDrafterModelFactory.shared.load(from: d, using: Cargador()).model
@@ -216,9 +231,14 @@ func ids(_ s: String) -> [Int] { tok.encode(text: s, addSpecialTokens: false) }
 func arr(_ v: [Int]) -> MLXArray { MLXArray(v.map { Int32($0) }) }
 
 /// Los logits de la ÚLTIMA posición, después de pasar `tokens` por el modelo.
-func adelante(_ tokens: [Int], _ cache: [KVCache]) -> MLXArray {
-    let out = modelo(arr(tokens)[.newAxis], cache: cache)
-    return out[0, out.dim(1) - 1].asType(.float32)
+/// (La forma general, LMInput.Text -> LMOutput: el modelo multimodal no
+/// implementa la llamada directa con un MLXArray.)
+/// El `state` que devuelve cada llamada (en el multimodal: los «rope deltas»)
+/// tiene que acompañar a la siguiente sobre la misma caché.
+func adelante(_ tokens: [Int], _ cache: [KVCache], _ estado: inout LMOutput.State?) -> MLXArray {
+    let r = modelo(LMInput.Text(tokens: arr(tokens))[text: .newAxis], cache: cache, state: estado)
+    estado = r.state
+    return r.logits[0, r.logits.dim(1) - 1].asType(.float32)
 }
 
 // MARK: - el prefijo, una vez
@@ -231,7 +251,8 @@ do {
 } catch {
     morir("no se pudo crear la caché: \(error)")
 }
-_ = modelo(arr(idsCabeza)[.newAxis], cache: cachePrefijo)
+var estadoPrefijo: LMOutput.State? = nil
+_ = adelante(idsCabeza, cachePrefijo, &estadoPrefijo)
 eval(cachePrefijo)
 let msPrefijo = ms(tPrefijo)
 
@@ -264,7 +285,8 @@ let arbol: Arbol = {
 
 func elegir(_ frase: String, sesgo: Float) -> (etiqueta: String, prob: Double) {
     let c = copiaDelPrefijo()
-    var lg = adelante(ids(frase + prompt.cola), c)
+    var estado = estadoPrefijo
+    var lg = adelante(ids(frase + prompt.cola), c, &estado)
     var pre: [Int] = []
     var prob = 1.0
     for paso in 0..<16 {
@@ -280,7 +302,7 @@ func elegir(_ frase: String, sesgo: Float) -> (etiqueta: String, prob: Double) {
         prob *= Double(p[k].item(Float.self))
         pre.append(ops[k])
         if (arbol.quedan[pre]?.count ?? 0) <= 1 { break }
-        lg = adelante([ops[k]], c)
+        lg = adelante([ops[k]], c, &estado)
     }
     return (arbol.quedan[pre]?.first ?? prompt.derivar, prob)
 }
@@ -295,9 +317,30 @@ let idFin: Set<Int> = {
 }()
 
 func generar(id: Any, texto: String, prefijo: Bool, max: Int, usarMtp: Bool) throws -> [String: Any] {
-    let t0 = Date()
     let cache = prefijo ? copiaDelPrefijo() : try modelo.newCache(parameters: nil)
-    let entrada = LMInput(tokens: arr(ids(texto)))
+    return try generar(
+        id: id, entrada: LMInput(tokens: arr(ids(texto))), cache: cache, estado: prefijo ? estadoPrefijo : nil,
+        max: max, usarMtp: usarMtp)
+}
+
+/// Una imagen y una pregunta, con la plantilla de chat del modelo (sin pensar).
+func ver(id: Any, imagen: String, texto: String, max: Int) async throws -> [String: Any] {
+    guard conVision else { throw NSError(domain: "ba-modelo", code: 1, userInfo: [NSLocalizedDescriptionKey: "este modelo no trae la torre de visión"]) }
+    let t0 = Date()
+    let entrada = UserInput(
+        chat: [.user(texto, images: [.init(source: .url(URL(fileURLWithPath: imagen)))])],
+        additionalContext: ["enable_thinking": false])
+    let lm = try await ctx.processor.prepare(input: entrada)
+    var r = try generar(
+        id: id, entrada: lm, cache: try modelo.newCache(parameters: nil), estado: nil, max: max, usarMtp: false)
+    r["ms_imagen"] = ms(t0)
+    return r
+}
+
+func generar(
+    id: Any, entrada: LMInput, cache: [KVCache], estado: LMOutput.State?, max: Int, usarMtp: Bool
+) throws -> [String: Any] {
+    let t0 = Date()
     var p = GenerateParameters(maxTokens: max, temperature: 0)
     p.prefill.stepSize = 512
     var salida: [Int] = []
@@ -326,7 +369,7 @@ func generar(id: Any, texto: String, prefijo: Bool, max: Int, usarMtp: Bool) thr
         aceptados = it.acceptedCount
         propuestos = it.proposedCount
     } else {
-        var it = try TokenIterator(input: entrada, model: modelo, cache: cache, parameters: p)
+        var it = try TokenIterator(input: entrada, model: modelo, cache: cache, state: estado, parameters: p)
         consumir(&it)
     }
     let total = ms(t0)
@@ -381,6 +424,7 @@ func registrarAceptacion(_ a: Double) {
 emitir([
     "ev": "listo", "ms_carga": msCarga, "ms_prefijo": msPrefijo, "tokens_prefijo": idsCabeza.count,
     "mtp": varianteMtp, "huella": prompt.huella, "salidas": prompt.salidas.count,
+    "dispositivo": "\(Device.defaultDevice())", "vision": conVision,
     "pruebas": prompt.pruebas.map { ["frase": $0.frase, "herramienta": $0.herramienta] },
 ])
 
@@ -459,6 +503,19 @@ while let linea = readLine(strippingNewline: true) {
                     id: id, texto: texto, prefijo: pedido["prefijo"] as? Bool ?? false,
                     max: (pedido["max"] as? NSNumber)?.intValue ?? 128,
                     usarMtp: pedido["mtp"] as? Bool ?? mtpRinde))
+        } catch {
+            emitir(["id": id, "error": "\(error)"])
+        }
+    case "ver":
+        guard let imagen = pedido["imagen"] as? String else {
+            emitir(["id": id, "error": "falta imagen"])
+            continue
+        }
+        do {
+            emitir(
+                try await ver(
+                    id: id, imagen: imagen, texto: pedido["texto"] as? String ?? "Describí la imagen.",
+                    max: (pedido["max"] as? NSNumber)?.intValue ?? 128))
         } catch {
             emitir(["id": id, "error": "\(error)"])
         }
