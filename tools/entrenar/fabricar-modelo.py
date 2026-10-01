@@ -195,7 +195,11 @@ class Fabrica:
         sys.path.insert(0, str(RAIZ / "tools"))
         import lib_prompt as lp
         self.man["perfil"] = {"nombre": lp.PERFIL, "categorias": lp.REACTIVAS, "entradas": lp.ENTRADAS,
-                              "herramientas": lp.herramientas_reactivas(), "prompt": lp.huella()["prompt"]}
+                              "herramientas": lp.herramientas_reactivas(), "prompt": lp.huella()["prompt"],
+                              # el juego de etiquetas: lo que el modelo ESCRIBE por cada herramienta
+                              "etiquetas": os.environ.get("BA_ETIQUETAS_JUEGO") if lp.USAR_ETIQUETAS else None}
+        if lp.USAR_ETIQUETAS:
+            self.man["perfil"]["equivalencias"] = {lp.salida(h): h for h in lp.nombres_posibles()}
         self.man["corpus_ejemplos"] = sum(1 for _ in open(self.corpus / "entrenar.jsonl"))
         self.man["repo_commit"] = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=RAIZ,
                                                  capture_output=True, text=True).stdout.strip()
@@ -381,6 +385,7 @@ contesta `derivar` para pasarlo al asistente grande. Contesta SOLO el nombre.
   de las categorias {', '.join(self.man.get('perfil', {}).get('categorias', []))}.
 - Corpus: firma `{self.man.get('corpus_firma')}`, {self.man.get('corpus_ejemplos')} ejemplos;
   repo en `{self.man.get('repo_commit')}`.
+- Contesta con {('las etiquetas del juego «' + str(self.man['perfil'].get('etiquetas')) + '»: traducir con `equivalencias.json` (etiqueta -> herramienta del MCP) antes de ejecutar') if self.man.get('perfil', {}).get('etiquetas') else 'los nombres reales de las herramientas del MCP'}.
 - El prompt tiene que ser EXACTAMENTE el de entrenamiento (fichas de las
   herramientas): ver `huella-prompt.json`. Otro prompt, otro modelo.
 
@@ -412,9 +417,12 @@ cuanto acerto; derivado = de lo ajeno, cuanto paso al grande.
         g.mkdir()
         shutil.copy(ex["gguf_q4"], g)
         hp = Path(ex["mlx_q4"]) / "huella-prompt.json"
+        eq = self.man.get("perfil", {}).get("equivalencias")
         for dd in (d, g):
             if hp.exists():
                 shutil.copy(hp, dd)
+            if eq:  # el modelo escribe etiquetas: quien lo sirve las traduce al nombre del MCP
+                (dd / "equivalencias.json").write_text(json.dumps(eq, ensure_ascii=False, indent=1))
             lic = Path(self.man.get("base_ruta", "")) / "LICENSE"
             if lic.exists():
                 shutil.copy(lic, dd / "LICENSE")
