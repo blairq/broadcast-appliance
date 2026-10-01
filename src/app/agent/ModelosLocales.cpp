@@ -152,6 +152,19 @@ nlohmann::json ModelosLocales::entradaCatalogo(const QString& repo) const {
     return json::object();
 }
 
+std::filesystem::path ModelosLocales::carpetaInstalada(const QString& repo) const {
+    return instalado(repo) ? carpetaDe(repo) : fs::path();
+}
+
+QString ModelosLocales::instaladoDeTipo(const QString& tipo) const {
+    for (const QVariant& v : catalogo()) {
+        const QVariantMap m = v.toMap();
+        if (m.value("tipo").toString() == tipo && m.value("instalado").toBool())
+            return m.value("repo").toString();
+    }
+    return {};
+}
+
 QVariantList ModelosLocales::catalogo() const {
     QVariantList out;
     const std::string plat = plataformaCatalogo();
@@ -159,6 +172,7 @@ QVariantList ModelosLocales::catalogo() const {
         const json plats = m.value("plataformas", json::array());
         if (std::find(plats.begin(), plats.end(), plat) == plats.end()) continue;
         QVariantMap v = aVariant(m);
+        if (!v.contains("tipo")) v["tipo"] = "reactivo"; // los de la fábrica
         const QString repo = QString::fromStdString(m.value("repo", std::string()));
         v["instalado"] = instalado(repo);
         v["activo"] = repo == activo_;
@@ -246,8 +260,26 @@ void ModelosLocales::descargar(const QString& repo) {
         return;
     }
     // GGUF: un repo puede traer varias cuantizaciones; se baja la del catálogo.
-    const std::string soloGguf =
+    const std::string archivo =
         entrada.value("archivo", json()).is_string() ? entrada["archivo"].get<std::string>() : "";
+    const std::string soloGguf = entrada.contains("url") ? std::string() : archivo;
+    // Modelos de terceros (los de voz): fijados por commit y solo los archivos
+    // que hacen falta, o un archivo suelto por URL con su sha256.
+    const std::string revision = entrada.value("revision", std::string());
+    std::vector<std::string> soloArchivos;
+    for (const json& a : entrada.value("archivos", json::array()))
+        if (a.is_string()) soloArchivos.push_back(a.get<std::string>());
+    ArchivoHf directo;
+    if (entrada.contains("url")) {
+        directo.nombre = archivo;
+        directo.url = entrada.value("url", std::string());
+        directo.sha256 = entrada.value("sha256", std::string());
+        directo.tamano = entrada.value("bytes", std::uint64_t{0});
+        if (directo.nombre.empty() || directo.sha256.size() != 64 || directo.tamano == 0) {
+            emit notify("La entrada del catálogo no trae archivo, sha256 y bytes: no se baja.", "error");
+            return;
+        }
+    }
     descargando_ = true;
     cancelar_ = false;
     progreso_ = 0;
@@ -258,7 +290,7 @@ void ModelosLocales::descargar(const QString& repo) {
     const fs::path staging = carpetaModelos() / (".bajando-" + carpetaDeRepo(repo.toStdString()));
     const std::string r = repo.toStdString();
 
-    hiloDescarga_ = std::thread([this, r, soloGguf, destino, staging]() {
+    hiloDescarga_ = std::thread([this, r, soloGguf, revision, soloArchivos, directo, destino, staging]() {
         const auto avisar = [this](double p, const QString& t) {
             QMetaObject::invokeMethod(this, [this, p, t]() {
                 progreso_ = p;
@@ -268,9 +300,13 @@ void ModelosLocales::descargar(const QString& repo) {
         };
         QString err;
         RepoHf repo;
-        {
+        if (!directo.url.empty()) {
+            repo.commit = "url";
+            repo.archivos = {directo};
+        } else {
             net::HttpRequest req;
-            req.url = "https://huggingface.co/api/models/" + r + "?blobs=true";
+            req.url = "https://huggingface.co/api/models/" + r +
+                      (revision.empty() ? "" : "/revision/" + revision) + "?blobs=true";
             req.timeoutMs = 30000;
             const net::HttpResponse res = net::HttpsClient::request(req);
             if (!res.error.empty())
@@ -283,6 +319,8 @@ void ModelosLocales::descargar(const QString& repo) {
                 repo = leerRepoHf(res.body);
             if (err.isEmpty() && (repo.commit.empty() || repo.archivos.empty()))
                 err = "No se entendió la respuesta de Hugging Face.";
+            if (err.isEmpty() && !revision.empty() && repo.commit != revision)
+                err = "Hugging Face no devolvió el commit fijado en el catálogo.";
         }
         std::vector<ArchivoHf> archivos;
         std::uint64_t total = 0;
@@ -290,9 +328,17 @@ void ModelosLocales::descargar(const QString& repo) {
             if (a.nombre == ".gitattributes") continue;
             const bool gguf = a.nombre.size() > 5 && a.nombre.substr(a.nombre.size() - 5) == ".gguf";
             if (gguf && !soloGguf.empty() && a.nombre != soloGguf) continue;
+            if (!soloArchivos.empty() &&
+                std::find(soloArchivos.begin(), soloArchivos.end(), a.nombre) == soloArchivos.end())
+                continue;
             archivos.push_back(a);
             total += a.tamano;
         }
+        if (err.isEmpty())
+            for (const std::string& f : soloArchivos)
+                if (std::none_of(archivos.begin(), archivos.end(),
+                                 [&f](const ArchivoHf& a) { return a.nombre == f; }))
+                    err = "Al repo le falta " + QString::fromStdString(f) + " (en el commit fijado).";
         std::error_code ec;
         fs::remove_all(staging, ec);
         fs::create_directories(staging, ec);
@@ -314,7 +360,9 @@ void ModelosLocales::descargar(const QString& repo) {
             }
             net::HttpRequest req;
             // Por commit, no por «main»: todos los archivos de la MISMA versión.
-            req.url = "https://huggingface.co/" + r + "/resolve/" + repo.commit + "/" + a.nombre;
+            req.url = !a.url.empty()
+                          ? a.url
+                          : "https://huggingface.co/" + r + "/resolve/" + repo.commit + "/" + a.nombre;
             req.responseFile = final.string() + ".parte";
             req.timeoutMs = 60000;
             req.cancel = &cancelar_;
@@ -391,6 +439,8 @@ void ModelosLocales::setEstado(const QString& estado, const QString& detalle) {
 }
 
 void ModelosLocales::activar(const QString& repo) {
+    if (entradaCatalogo(repo).value("tipo", std::string("reactivo")) != "reactivo")
+        return; // la voz se usa sola
     if (!instalado(repo)) {
         emit notify("Primero hay que bajar el modelo.", "error");
         return;

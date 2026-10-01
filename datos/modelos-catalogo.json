@@ -1,5 +1,5 @@
 {
- "_comentario": "Modelos que la app (Configuracion -> Modelos locales) ofrece bajar de Hugging Face. Lo actualiza tools/entrenar/fabricar-modelo.py al subir. La app muestra solo los que existen y son publicos.",
+ "_comentario": "Modelos que la app (Configuracion -> Modelos locales) ofrece bajar de Hugging Face. Lo actualiza tools/entrenar/fabricar-modelo.py al subir. La app muestra solo los que existen y son publicos. Los de voz (tipo voz/vad) son de terceros: fijados por commit o por URL y sha256, se agregan a mano.",
  "modelos": [
   {
    "repo": "BlairQ/broadcast-reactivo-qwen3.5-4b-mlx-q4",
@@ -69,6 +69,48 @@
    "precision": 94.2,
    "derivado": 83.9,
    "examen": 85.7,
+   "fecha": "2026-10-01"
+  },
+  {
+   "repo": "csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8",
+   "tipo": "voz",
+   "formato": "onnx",
+   "plataformas": [
+    "mac-arm64",
+    "linux-x64",
+    "win-x64"
+   ],
+   "revision": "2bda32ec70b097a55adaa07d9a7173915b43cc78",
+   "archivos": [
+    "encoder.int8.onnx",
+    "decoder.int8.onnx",
+    "joiner.int8.onnx",
+    "tokens.txt"
+   ],
+   "base": "nvidia/parakeet-tdt-0.6b-v3",
+   "nombre": "Parakeet TDT 0.6B v3 (int8)",
+   "idiomas": "25 idiomas europeos, con castellano",
+   "wer_es_fleurs": 3.5,
+   "licencia": "CC-BY-4.0",
+   "tamano_gb": 0.62,
+   "fecha": "2026-10-01"
+  },
+  {
+   "repo": "k2-fsa/silero-vad",
+   "tipo": "vad",
+   "formato": "onnx",
+   "plataformas": [
+    "mac-arm64",
+    "linux-x64",
+    "win-x64"
+   ],
+   "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx",
+   "archivo": "silero_vad.onnx",
+   "sha256": "9e2449e1087496d8d4caba907f23e0bd3f78d91fa552479bb9c23ac09cbb1fd6",
+   "bytes": 643854,
+   "nombre": "Silero VAD",
+   "licencia": "MIT",
+   "tamano_gb": 0.001,
    "fecha": "2026-10-01"
   }
  ]

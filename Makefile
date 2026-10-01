@@ -52,7 +52,7 @@ PIP       ?= .venv/bin/pip
         venv-entrenar vector-control venv-mlx deps-llamacpp-convertir modelo modelo-fabricar \
         modelo-corpus modelo-inventario modelo-etiquetas \
         corpus-descubrir \
-        deps-src deps-mbedtls deps-nlohmann deps-samplerate deps-argon2 deps-rostros _ba_baja
+        deps-src deps-mbedtls deps-nlohmann deps-samplerate deps-argon2 deps-rostros deps-sherpa-onnx _ba_baja
 
 # --- Ayuda (target por defecto) ---------------------------------------------
 help:
@@ -93,6 +93,7 @@ help:
 	@echo "  make deps-lwip        lwIP 2.2.0 -> extern/lwip (tunel WireGuard del gateway)"
 	@echo "  make deps-cacert      raices de Mozilla (curl.se) -> extern/cacert (HTTPS propio: YouTube)"
 	@echo "  make deps-rostros     ONNX Runtime + YuNet + SFace -> extern/rostros (reconocer caras)"
+	@echo "  make deps-sherpa-onnx sherpa-onnx (voz: reconocer, VAD, hablar) -> extern/sherpa-onnx"
 	@echo "  make deps-spout       SDK Spout2 (2.007h) -> extern/Spout2"
 	@echo "  make deps-cloudflared cloudflared 2024.11.0 -> extern/cloudflared"
 	@echo "  make deps-vcredist    Redist VC++ -> extern/vcredist"
@@ -302,7 +303,7 @@ dist-win: release-win
 # Todo lo que el build completo de Linux necesita (libobs y sus deps desde
 # fuente, Qt del host, libwebrtc de Linux, fuentes compartidas...).
 deps-linux: deps-obs-linux deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared-host \
-            deps-clap deps-lsp deps-libreoffice-linux
+            deps-clap deps-lsp deps-libreoffice-linux deps-sherpa-onnx
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=linux
 
 # --- macOS arm64 (Apple Silicon), nativo -------------------------------------
@@ -336,7 +337,7 @@ check-macos-tools:
 # deps-ndi-src: el fuente de libmicrodns (buscar televisores por mDNS); en
 # Linux viene compilada con obs-deps.
 deps-macos: check-macos-tools deps-obs-macos deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts \
-            deps-cloudflared-host deps-clap deps-ndi-src deps-libreoffice-mac
+            deps-cloudflared-host deps-clap deps-ndi-src deps-libreoffice-mac deps-sherpa-onnx
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=macos
 	@# LSP (modulos del rack de audio) es opcional en macOS mientras se valida:
 	@# sin el, el rack funciona con el analizador y el generador.
@@ -981,6 +982,11 @@ else
   ORT_SHA := $(ORT_LINUX_SHA)
 endif
 ORT_URL := https://github.com/microsoft/onnxruntime/releases/download/v$(ORT_VER)/$(ORT_PKG)
+
+# La voz (docs/AUDIO-TTS.md): sherpa-onnx contra el MISMO ONNX Runtime de los
+# rostros. Los modelos de voz NO: se bajan a pedido desde la app.
+deps-sherpa-onnx: deps-rostros
+	tools/deps/sherpa-onnx.sh
 
 deps-rostros:
 	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }

@@ -233,13 +233,18 @@ Rectangle {
                                 Text {
                                     Layout.fillWidth: true
                                     elide: Text.ElideMiddle
-                                    text: modelData.repo
+                                    text: modelData.nombre !== undefined ? modelData.nombre + "  ·  " + modelData.repo : modelData.repo
                                     color: Theme.text; font.pixelSize: 13
                                 }
                                 Text {
                                     Layout.fillWidth: true
                                     wrapMode: Text.WordWrap
-                                    text: modelData.formato.toUpperCase() + " · " + modelData.tamano_gb + " GB · " +
+                                    text: modelData.tipo === "voz"
+                                          ? "Voz a texto · " + modelData.idiomas + " · " + modelData.tamano_gb + " GB · " +
+                                            "error en castellano " + modelData.wer_es_fleurs + "% (FLEURS) · " + modelData.licencia
+                                        : modelData.tipo === "vad"
+                                          ? "Detector de voz (recorta los silencios) · " + modelData.licencia
+                                        : modelData.formato.toUpperCase() + " · " + modelData.tamano_gb + " GB · " +
                                           modelData.herramientas + " herramientas · precisión " + modelData.precision +
                                           "% · examen " + modelData.examen + "% · " + modelData.fecha
                                     color: Theme.textDim; font.pixelSize: 11
@@ -247,7 +252,7 @@ Rectangle {
                             }
                             Text {
                                 visible: modelData.instalado
-                                text: modelData.activo ? "activo" : "bajado"
+                                text: modelData.activo ? "activo" : modelData.tipo !== "reactivo" ? "listo" : "bajado"
                                 color: modelData.activo ? Theme.accent : Theme.ok
                                 font.pixelSize: 11
                             }
@@ -260,7 +265,7 @@ Rectangle {
                             }
                             GlassButton {
                                 compact: true
-                                visible: modelData.instalado && ml.hayMotor
+                                visible: modelData.tipo === "reactivo" && modelData.instalado && ml.hayMotor
                                          && !(modelData.activo && (ml.estado === "listo" || ml.estado === "cargando"))
                                 text: "Activar"; active: true
                                 onClicked: ml.activar(modelData.repo)
@@ -300,6 +305,24 @@ Rectangle {
                             color: Theme.textDim; font.pixelSize: 12
                         }
                         GlassButton { compact: true; visible: ml.descargando; text: "Cancelar"; onClicked: ml.cancelarDescarga() }
+                    }
+                }
+
+                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
+
+                // La voz: el estado, con lo que falta
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: Studio.voz.disponible
+                    spacing: 10
+                    Text { text: "🎙"; font.pixelSize: 16 }
+                    Text {
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        text: "Hablarle al asistente: " + Studio.voz.estado +
+                              (Studio.voz.ultimo !== "" ? "  ·  último: «" + Studio.voz.ultimo + "»" : "")
+                        color: Studio.voz.lista ? Theme.text : Theme.textDim
+                        font.pixelSize: 12
                     }
                 }
 

@@ -248,10 +248,45 @@ if(BA_APP_QT_OK)
     endif()
 endif()
 
+# --- La voz (opcional): sherpa-onnx (`make deps-sherpa-onnx`) ---------------
+# Va contra el ONNX Runtime de los rostros, asi que hace falta ese tambien. Sin
+# los dos, la app compila igual y la voz no aparece (BA_HAVE_VOZ). Los modelos
+# de voz no viajan: se bajan a pedido.
+set(BA_SHERPA_DIR "${CMAKE_SOURCE_DIR}/extern/sherpa-onnx")
+set(BA_HAVE_VOZ OFF)
+if(EXISTS "${BA_SHERPA_DIR}/.ok" AND EXISTS "${CMAKE_SOURCE_DIR}/extern/rostros/onnxruntime/include/onnxruntime_cxx_api.h")
+    set(BA_HAVE_VOZ ON)
+else()
+    list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/audio/Escucha\\.cpp$")
+endif()
+
 if(MSVC)
     add_executable(ba-app WIN32 ${BA_APP_SOURCES})
 else()
     add_executable(ba-app ${BA_APP_SOURCES})
+endif()
+if(BA_HAVE_VOZ)
+    # Orden de enlace: de las APIs hacia abajo (son estaticas).
+    set(BA_SHERPA_LIBS)
+    foreach(_l sherpa-onnx-cxx-api sherpa-onnx-c-api sherpa-onnx-core kaldi-decoder-core sherpa-onnx-kaldifst-core
+               sherpa-onnx-fstfar sherpa-onnx-fst kaldi-native-fbank-core piper_phonemize espeak-ng ucd
+               kissfft-float ssentencepiece_core)
+        if(MSVC)
+            list(APPEND BA_SHERPA_LIBS "${BA_SHERPA_DIR}/lib/${_l}.lib")
+        else()
+            list(APPEND BA_SHERPA_LIBS "${BA_SHERPA_DIR}/lib/lib${_l}.a")
+        endif()
+    endforeach()
+    target_include_directories(ba-app PRIVATE "${BA_SHERPA_DIR}/include")
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        target_link_libraries(ba-app PRIVATE -Wl,--start-group ${BA_SHERPA_LIBS} -Wl,--end-group)
+    else()
+        target_link_libraries(ba-app PRIVATE ${BA_SHERPA_LIBS})
+    endif()
+    target_compile_definitions(ba-app PRIVATE BA_HAVE_VOZ=1)
+    install(FILES "${BA_SHERPA_DIR}/LICENSE" DESTINATION data/licencias RENAME sherpa-onnx-Apache-2.0.txt
+            COMPONENT bundle OPTIONAL)
+    message(STATUS "ba-app: con voz (sherpa-onnx)")
 endif()
 # Los modulos se incluyen como "evento/Evento.hpp": hace falta tambien sin Qt.
 target_include_directories(ba-app PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -485,6 +520,19 @@ endif()
     target_compile_definitions(test_youtube PRIVATE BA_TEST_CACERT="${CMAKE_SOURCE_DIR}/extern/cacert/cacert.pem")
     set_target_properties(test_youtube PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_youtube COMMAND test_youtube)
+
+    # La voz: Escucha con modelos de verdad (si estan; si no, se saltea).
+    if(BA_HAVE_VOZ)
+        add_executable(test_escucha tests/test_escucha.cpp audio/Escucha.cpp)
+        target_include_directories(test_escucha PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_SHERPA_DIR}/include")
+        if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+            target_link_libraries(test_escucha PRIVATE -Wl,--start-group ${BA_SHERPA_LIBS} -Wl,--end-group ba_core)
+        else()
+            target_link_libraries(test_escucha PRIVATE ${BA_SHERPA_LIBS} ba_core)
+        endif()
+        add_test(NAME test_escucha COMMAND test_escucha)
+        set_tests_properties(test_escucha PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 180)
+    endif()
 
     # Modelos locales: leer la API de Hugging Face y verificar lo bajado (sin red).
     add_executable(test_modelos_locales tests/test_modelos_locales.cpp agent/ModelosLocales.cpp net/HttpsClient.cpp)

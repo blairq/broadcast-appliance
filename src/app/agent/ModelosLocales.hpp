@@ -55,6 +55,7 @@ struct ArchivoHf {
     std::uint64_t tamano = 0;
     std::string sha256; ///< el de LFS (archivos grandes); vacío si no es LFS
     std::string blob;   ///< sha1 de blob de git (los chicos)
+    std::string url;    ///< si no es de un repo: de dónde se baja (con sha256)
 };
 
 /// Lo que dice la API de un repo: su commit y sus archivos.
@@ -152,6 +153,12 @@ class ModelosLocales : public QObject {
              std::function<void(const QString&)> delta, Respuesta fin);
     bool listo() const { return estado_ == "listo"; }
     bool conVision() const { return info_.value("vision").toBool(); }
+
+    /// La carpeta de un modelo bajado (o vacía si no está instalado).
+    std::filesystem::path carpetaInstalada(const QString& repo) const;
+    /// El primer modelo instalado de un tipo del catálogo para esta plataforma
+    /// ("voz", "vad"...; los de lenguaje son "reactivo"). Vacío si no hay.
+    QString instaladoDeTipo(const QString& tipo) const;
 
     /// Arranca el activo si así se configuró. Lo llama la app al abrir.
     void arrancarSiCorresponde();
