@@ -6,8 +6,10 @@ que declara el config.json; asi lo arma su forja (ver el repo
 Youssofal/Qwen3.5-4B-MTPLX-Optimized-Speed, revision de julio de 2026):
 
   mtp.safetensors       nombres mtp.* de Hugging Face; las lineales de la capa
-                        (atencion y MLP) en int4 afin, grupos de 64; mtp.fc y
-                        las normas en bf16. Copia en mtp/weights.safetensors.
+                        (atencion y MLP) en int4 afin, grupos de 64; mtp.fc,
+                        escalas y normas en FP16 (MTPLX publica bf16; aca todo
+                        va en fp16: el aparato es una M1, sin bf16 nativo).
+                        Copia en mtp/weights.safetensors.
   config.json           mlx_lm_extra_tensors.mtp_file, mtplx_mtp_contract y
                         mtplx_mtp_quantization.
   mtplx_runtime.json    arquitectura, contrato y profundidad (3 borradores).
@@ -76,7 +78,7 @@ def main():
         raise SystemExit(f"un peso de la cabeza ({maximo}) no entra en fp16")
     sal = Path(args.salida)
     meta = {"format": "mlx"}
-    mx.save_safetensors(str(sal / "mtp.safetensors"), armar(w, mx.bfloat16, 4), metadata=meta)
+    mx.save_safetensors(str(sal / "mtp.safetensors"), armar(w, mx.float16, 4), metadata=meta)
     (sal / "mtp").mkdir(exist_ok=True)
     shutil.copy(sal / "mtp.safetensors", sal / "mtp" / "weights.safetensors")
     mx.save_safetensors(str(sal / "mtp-fp16.safetensors"), armar(w, mx.float16, 0), metadata=meta)
@@ -88,8 +90,8 @@ def main():
     cfg["mtplx_mtp_contract"] = CONTRATO
     cfg["mtplx_mtp_quantization"] = {
         "bits": 4, "group_size": GRUPO, "mode": "affine", "policy": "prequantized-int4", "prequantized": True,
-        "description": "MTP layer-0 attention/MLP linears quantized to MLX affine INT4 group64; mtp.fc and norms "
-                       "stay BF16 (final +1.0 convention). Head retrained for this fine-tuned model."}
+        "description": "MTP layer-0 attention/MLP linears quantized to MLX affine INT4 group64; mtp.fc, scales and "
+                       "norms in FP16 (final +1.0 convention). Head retrained for this fine-tuned model."}
     cfg_f.write_text(json.dumps(cfg, indent=2))
     (sal / "mtplx_runtime.json").write_text(json.dumps({
         "arch_id": "qwen3-next-mtp", "artifact_role": "forge-local", "base_trunk": args.base,

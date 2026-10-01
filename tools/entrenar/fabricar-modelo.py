@@ -463,10 +463,10 @@ class Fabrica:
             completo = ex / "modelo-vl-hf"
             correr([PY, E / "con-vision.py", "--fusionado", hf, "--base", self.man["base_ruta"],
                     "--adaptador", self.adaptador, "--salida", completo], salida=self.dir / "vision.log")
-            # FP16 SI SE PUEDE: las GPU M1/M2 no tienen bf16 nativo, y mezclar la
-            # vision en fp16 con el texto en bf16 obliga a MLX a pasar a fp32. Se
-            # mide el q4 corriendo ENTERO en fp16 (desborda o no) contra el de bf16;
-            # si no pierde mas de 1 punto en el banco, todo el MLX va en fp16.
+            # TODO EN FP16 (decision: el aparato es una M1, sin bf16 nativo; y mezclar
+            # vision en fp16 con texto en bf16 obliga a MLX a pasar a fp32). Se mide
+            # igual el q4 corriendo ENTERO en fp16 contra el de bf16, para saber si
+            # desborda: queda en el manifiesto y en la tarjeta, y avisa si pierde.
             sim = ex / "modelo-q4-simulado-fp16"
             correr([PY_MLX, E / "simular-q4-mlx.py", "--hf", hf, "--salida", sim], salida=self.dir / "simular.log")
             self.medir(modelo=sim, etiqueta="mlx-q4-fp16", banco_curva=False, margen=False, tipo="fp16")
@@ -475,9 +475,10 @@ class Fabrica:
             ref = self.man["medidas"].get("mlx-q4", {}).get("banco", {}).get("0", {})
             f16 = self.man["medidas"]["mlx-q4-fp16"]["banco"].get("0", {})
             caida = max(pct(ref.get(k)) - pct(f16.get(k)) for k in ("precision", "acierto")) if ref else 0.0
-            tipo = "float16" if caida <= 1.0 else "bfloat16"
+            tipo = "float16"
             self.man["exportado"]["mlx_dtype"] = {"tipo": tipo, "caida_fp16_puntos": round(caida, 2)}
-            log(f"MLX en {tipo}: corriendo en fp16 el q4 pierde {caida:.1f} puntos en el banco")
+            log(f"MLX en fp16: corriendo en fp16 el q4 pierde {caida:.1f} puntos en el banco"
+                + ("  <-- OJO: desborda, revisar" if caida > 1.0 else ""))
             vl = ex / "modelo-vl-q4"
             if vl.exists():
                 shutil.rmtree(vl)
@@ -624,14 +625,14 @@ del repo del aparato): el prefijo con las fichas se procesa una vez y se reusa e
                         + (lambda t: f" Lo que no está cuantizado (escalas, normas, visión) va en"
                                      f" **{'fp16' if t['tipo'] == 'float16' else 'bf16'}**: corriendo en fp16 el q4"
                                      f" pierde {max(0.0, t['caida_fp16_puntos']):.1f} puntos en el banco"
-                                     f"{' (las GPU M1/M2 no tienen bf16 nativo)' if t['tipo'] == 'float16' else ', demasiado: queda en bf16'}."
+                                     f" (las GPU M1/M2 no tienen bf16 nativo)."
                            if t else "")(m.get("exportado", {}).get("mlx_dtype"))
                         + ("\n`mtp.safetensors` (copia en `mtp/weights.safetensors`): la cabeza MTP entrenada con el"
                            " contrato de [MTPLX](https://mtplx.com): lineales de la capa en int4 (afín, grupos de 64),"
-                           " `mtp.fc` y normas en bf16 **con el +1 aplicado** (la convención de MLX); el `config.json`"
+                           " `mtp.fc`, escalas y normas en fp16 **con el +1 aplicado** (la convención de MLX); el `config.json`"
                            " la declara (`mlx_lm_extra_tensors`, `mtplx_mtp_contract`) y `mtplx_runtime.json` fija 3"
-                           " borradores. `mtp-fp16.safetensors` (sin pérdida) y `mtp-q8.safetensors` (lineales en 8"
-                           " bits): variantes para medir en M1/M2, que no tienen bf16 nativo; mismas normas (+1)."
+                           " borradores. `mtp-fp16.safetensors` (sin cuantizar) y `mtp-q8.safetensors` (lineales en 8"
+                           " bits): variantes para medir; todo en fp16, mismas normas (+1)."
                            " Van fuera de `model*.safetensors` a propósito: mlx-lm 0.31 tomaría cualquier peso `mtp.*`"
                            " ahí como un checkpoint sin convertir y correría las normas del modelo." if mtp else ""))
         else:
