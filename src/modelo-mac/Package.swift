@@ -33,6 +33,9 @@ let package = Package(
                 .product(name: "Tokenizers", package: "swift-transformers"),
             ],
             path: "Sources/ba-modelo",
-            swiftSettings: [.swiftLanguageMode(.v5)]),
+            swiftSettings: [.swiftLanguageMode(.v5)],
+            // libswiftCompatibilitySpan.dylib (Swift 6.2 en macOS < 26) viaja
+            // junto al ejecutable: en macOS 26 la da el sistema (/usr/lib/swift).
+            linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path"])]),
     ]
 )

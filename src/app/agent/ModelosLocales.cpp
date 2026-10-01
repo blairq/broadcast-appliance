@@ -524,6 +524,20 @@ void ModelosLocales::ver(const QString& imagen, const QString& pregunta, int max
           std::move(fin), std::move(delta));
 }
 
+void ModelosLocales::probarVision(const QString& imagen, const QString& pregunta) {
+    const QString ruta = imagen.startsWith("file:") ? QUrl(imagen).toLocalFile() : imagen;
+    const QString p = pregunta.trimmed().isEmpty() ? "¿Qué se ve? Una o dos oraciones." : pregunta.trimmed();
+    ver(ruta, p, 160, {}, [this, ruta, p](const json& j) {
+        QVariantMap v = aVariant(j);
+        v["frase"] = "🖼 " + QFileInfo(ruta).fileName() + ": " + p;
+        v["vision"] = true;
+        pruebas_.prepend(v);
+        while (pruebas_.size() > kPruebasGuardadas)
+            pruebas_.removeLast();
+        emit pruebasCambio();
+    });
+}
+
 void ModelosLocales::probar(const QString& frase) {
     const QString f = frase.trimmed();
     if (f.isEmpty()) return;

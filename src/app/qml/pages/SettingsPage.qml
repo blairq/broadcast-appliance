@@ -377,6 +377,25 @@ Rectangle {
                         onClicked: { ml.probar(fraseF.text); fraseF.text = "" }
                     }
                 }
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: ml.estado === "listo" && ml.info.vision === true
+                    TextField {
+                        id: preguntaF
+                        Layout.fillWidth: true
+                        placeholderText: "pregunta sobre una imagen: «¿cuántas personas hay?»"
+                    }
+                    GlassButton {
+                        compact: true; text: "Elegir imagen…"; icon: "🖼"
+                        onClicked: imagenDlg.open()
+                    }
+                    FileDialog {
+                        id: imagenDlg
+                        title: "Imagen para el modelo local"
+                        nameFilters: ["Imágenes (*.png *.jpg *.jpeg *.webp *.bmp)"]
+                        onAccepted: ml.probarVision(selectedFile, preguntaF.text)
+                    }
+                }
                 Flow {
                     Layout.fillWidth: true
                     spacing: 6
@@ -404,15 +423,19 @@ Rectangle {
                             color: Theme.textDim; font.pixelSize: 12
                         }
                         Text {
+                            Layout.maximumWidth: modelData.vision ? parent.width * 0.6 : implicitWidth
+                            wrapMode: modelData.vision ? Text.WordWrap : Text.NoWrap
                             text: modelData.error !== undefined ? modelData.error
+                                : modelData.vision ? modelData.texto
                                 : modelData.derivar ? "→ derivar al grande" : "→ " + modelData.herramienta
                             color: modelData.error !== undefined ? Theme.live
                                  : modelData.derivar ? Theme.amber : Theme.ok
                             font { pixelSize: 12; family: Theme.mono }
                         }
                         Text {
-                            visible: modelData.prob !== undefined
-                            text: Math.round((modelData.prob || 0) * 100) + "% · " + Math.round(modelData.ms || 0) + " ms"
+                            visible: modelData.prob !== undefined || modelData.vision === true
+                            text: modelData.vision ? Math.round(modelData.ms_imagen || 0) + " ms"
+                                : Math.round((modelData.prob || 0) * 100) + "% · " + Math.round(modelData.ms || 0) + " ms"
                             color: Theme.textFaint; font.pixelSize: 11
                         }
                     }

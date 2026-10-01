@@ -135,6 +135,8 @@ class ModelosLocales : public QObject {
     Q_INVOKABLE void apagar();
     /// Elegir con una frase, para ver qué hace: el resultado va a `pruebas`.
     Q_INVOKABLE void probar(const QString& frase);
+    /// Preguntarle algo de una imagen (ruta o file:// URL): va a `pruebas`.
+    Q_INVOKABLE void probarVision(const QString& imagen, const QString& pregunta);
     Q_INVOKABLE void abrirCarpeta() const;
 
     /// Para el resto de la app: qué herramienta atiende la frase. Contesta
