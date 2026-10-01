@@ -1,0 +1,308 @@
+diff --git a/Libraries/MLXLLM/Models/Qwen35.swift b/Libraries/MLXLLM/Models/Qwen35.swift
+index 630c078..8f87078 100644
+--- a/Libraries/MLXLLM/Models/Qwen35.swift
++++ b/Libraries/MLXLLM/Models/Qwen35.swift
+@@ -334,17 +334,22 @@ final class Qwen35GatedDeltaNet: Module {
+     ) -> MLXArray {
+         let convState =
+             cache?[0] ?? zeroStates(batch: inputs.dim(0), dtype: inputs.dtype).conv
+-        let (out, newConvState, newRecState, checkpoint) = forward(
++        let (out, newConvState, newRecState, checkpoints) = forward(
+             inputs, convState: convState, recState: cache?[1], mask: mask,
+             checkpointAfter: checkpointAfter)
+         if let cache {
+             cache[0] = newConvState
+             cache[1] = newRecState
+-            if let checkpoint, let checkpointAfter {
++            // One checkpoint per verified position from `checkpointAfter` on
++            // (MTP depth > 1): a rejection at any of them restores the state
++            // right after the last accepted token.
++            cache.discardSpeculativeCheckpoint()
++            for checkpoint in checkpoints {
+                 cache.saveSpeculativeCheckpoint(
+                     convState: checkpoint.conv,
+                     recurrentState: checkpoint.recurrent,
+-                    advancedBy: checkpointAfter)
++                    advancedBy: checkpoint.advancedBy,
++                    rewinding: inputs.dim(1) - checkpoint.advancedBy)
+             }
+             cache.advance(inputs.dim(1))
+         }
+@@ -373,7 +378,7 @@ final class Qwen35GatedDeltaNet: Module {
+         output: MLXArray,
+         convState: MLXArray,
+         recurrentState: MLXArray,
+-        checkpoint: (conv: MLXArray, recurrent: MLXArray)?
++        checkpoints: [(conv: MLXArray, recurrent: MLXArray, advancedBy: Int)]
+     ) {
+         let B = x.dim(0)
+         let S = x.dim(1)
+@@ -408,45 +413,45 @@ final class Qwen35GatedDeltaNet: Module {
+ 
+         let out: MLXArray
+         let newRecState: MLXArray
+-        let checkpoint: (conv: MLXArray, recurrent: MLXArray)?
++        var checkpoints = [(conv: MLXArray, recurrent: MLXArray, advancedBy: Int)]()
+         if let split = checkpointAfter, split > 0, split < S {
+-            let prefixMask = mask.map { $0[0..., ..<split] }
+-            let suffixMask = mask.map { $0[0..., split...] }
+-            let (prefixOut, prefixState) = gatedDeltaUpdate(
+-                q: qNormed[0..., ..<split, 0..., 0...],
+-                k: kNormed[0..., ..<split, 0..., 0...],
+-                v: v[0..., ..<split, 0..., 0...],
+-                a: a[0..., ..<split, 0...],
+-                b: b[0..., ..<split, 0...],
+-                aLog: aLog,
+-                dtBias: dtBias,
+-                state: recState,
+-                mask: prefixMask,
+-                useKernel: !training)
+-            let (suffixOut, suffixState) = gatedDeltaUpdate(
+-                q: qNormed[0..., split..., 0..., 0...],
+-                k: kNormed[0..., split..., 0..., 0...],
+-                v: v[0..., split..., 0..., 0...],
+-                a: a[0..., split..., 0...],
+-                b: b[0..., split..., 0...],
+-                aLog: aLog,
+-                dtBias: dtBias,
+-                state: prefixState,
+-                mask: suffixMask,
+-                useKernel: !training)
+-            out = concatenated([prefixOut, suffixOut], axis: 1)
+-            newRecState = suffixState
+-
+-            let checkpointConv: MLXArray
+-            if convKernelSize > 1 {
+-                let convInput = concatenated([convState, qkv], axis: 1)
+-                checkpointConv = contiguous(
+-                    convInput[
+-                        0..., split ..< (split + convKernelSize - 1), 0...])
+-            } else {
+-                checkpointConv = MLXArray.zeros([B, 0, convDim], dtype: qkv.dtype)
++            // Segments [0, split), then one position at a time, keeping the
++            // recurrent state after each: those are the states a rejection can
++            // fall back to (after the bonus, after draft 1, after draft 2...).
++            var bounds = [0, split]
++            for p in (split + 1) ..< (S + 1) { bounds.append(p) }
++            var outs = [MLXArray]()
++            var state = recState
++            let convInput = convKernelSize > 1 ? concatenated([convState, qkv], axis: 1) : nil
++            for i in 0 ..< (bounds.count - 1) {
++                let lo = bounds[i]
++                let hi = bounds[i + 1]
++                let (segOut, segState) = gatedDeltaUpdate(
++                    q: qNormed[0..., lo ..< hi, 0..., 0...],
++                    k: kNormed[0..., lo ..< hi, 0..., 0...],
++                    v: v[0..., lo ..< hi, 0..., 0...],
++                    a: a[0..., lo ..< hi, 0...],
++                    b: b[0..., lo ..< hi, 0...],
++                    aLog: aLog,
++                    dtBias: dtBias,
++                    state: state,
++                    mask: mask.map { $0[0..., lo ..< hi] },
++                    useKernel: !training)
++                outs.append(segOut)
++                state = segState
++                if hi < S {
++                    let checkpointConv: MLXArray
++                    if let convInput {
++                        checkpointConv = contiguous(
++                            convInput[0..., hi ..< (hi + convKernelSize - 1), 0...])
++                    } else {
++                        checkpointConv = MLXArray.zeros([B, 0, convDim], dtype: qkv.dtype)
++                    }
++                    checkpoints.append((checkpointConv, segState, hi))
++                }
+             }
+-            checkpoint = (checkpointConv, prefixState)
++            out = concatenated(outs, axis: 1)
++            newRecState = state!
+         } else {
+             (out, newRecState) = gatedDeltaUpdate(
+                 q: qNormed,
+@@ -459,11 +464,10 @@ final class Qwen35GatedDeltaNet: Module {
+                 state: recState,
+                 mask: mask,
+                 useKernel: !training)
+-            checkpoint = nil
+         }
+ 
+         let gated = norm(out, gate: z)
+-        return (outProj(gated.reshaped(B, S, -1)), newConvState, newRecState, checkpoint)
++        return (outProj(gated.reshaped(B, S, -1)), newConvState, newRecState, checkpoints)
+     }
+ 
+     /// The S == 1 depthwise conv as elementwise multiply-adds, so `compile`
+@@ -1217,7 +1221,9 @@ extension Qwen35TextModel: LoRAModel {
+ }
+ 
+ extension Qwen35TextModel: SpeculativeCacheRewindModel {
+-    public var maximumNativeTargetCacheRewind: Int { 1 }
++    /// GatedDeltaNet layers keep one checkpoint per verified position, so a
++    /// round of up to `qwen35MaximumMTPDrafts` drafts rewinds natively.
++    public var maximumNativeTargetCacheRewind: Int { qwen35MaximumMTPDrafts }
+ }
+ 
+ // MARK: - Top-level Model
+@@ -1281,9 +1287,12 @@ extension Qwen35Model: LoRAModel {
+ }
+ 
+ extension Qwen35Model: SpeculativeCacheRewindModel {
+-    public var maximumNativeTargetCacheRewind: Int { 1 }
++    public var maximumNativeTargetCacheRewind: Int { qwen35MaximumMTPDrafts }
+ }
+ 
++/// How many MTP drafts per round the Qwen3.5 target can verify and rewind.
++public let qwen35MaximumMTPDrafts = 3
++
+ // MARK: - Chat conventions
+ 
+ // `Qwen35MoEModel` subclasses `Qwen35Model` and inherits both declarations.
+diff --git a/Libraries/MLXLLM/Models/Qwen35MTP.swift b/Libraries/MLXLLM/Models/Qwen35MTP.swift
+index 4665b0b..387ed4e 100644
+--- a/Libraries/MLXLLM/Models/Qwen35MTP.swift
++++ b/Libraries/MLXLLM/Models/Qwen35MTP.swift
+@@ -67,7 +67,7 @@ final class Qwen35MTPPredictor: Module {
+ 
+ public final class Qwen35MTPDraftModel: Module, StatefulMTPDrafterModel {
+     public let configuration: Qwen35TextConfiguration
+-    public let maximumBlockSize: Int? = 2
++    public let maximumBlockSize: Int? = qwen35MaximumMTPDrafts + 1
+     public let requiresSharedTargetKV = false
+     public let requiresPromptPrefill = true
+     public let requiresGreedySampling = true
+@@ -165,10 +165,34 @@ public final class Qwen35MTPDraftModel: Module, StatefulMTPDrafterModel {
+         let inputEmbedding = mtp.embedTokens ?? targetEmbedTokens
+ 
+         if let seed = state.seedToken {
++            let seedHidden = state.seedHidden
+             state.seedToken = nil
+             state.seedHidden = nil
+             state.proposalAppended = 0
+-            return seed
++            guard blockSize > 2, let seedHidden else { return seed }
++            // Depth > 1: the seed is draft 1 (the commit already computed it);
++            // chain the head on its own output for the rest of the round.
++            let seedColumn = normalizedMTPColumn(seed)
++            let more = draftMTPTokenBlock(
++                targetEmbedTokens: targetEmbedTokens,
++                lmHead: lmHead,
++                inputEmbedding: inputEmbedding,
++                lastToken: seedColumn,
++                lastHidden: seedHidden,
++                queryOffset: state.nextPosition,
++                blockSize: blockSize - 1,
++                sampler: sampler,
++                cache: state.cache
++            ) { inputsEmbeds, hiddenStates, cache, positionOffset in
++                mtp(
++                    inputsEmbeds: inputsEmbeds,
++                    hiddenStates: hiddenStates,
++                    cache: cache,
++                    positionOffset: positionOffset)
++            }
++            state.proposalAppended = blockSize - 2
++            state.nextPosition += state.proposalAppended
++            return concatenated([seedColumn, more], axis: 1)
+         }
+ 
+         state.proposalAppended = blockSize - 1
+diff --git a/Libraries/MLXLMCommon/KVCache.swift b/Libraries/MLXLMCommon/KVCache.swift
+index 42dd2f0..0802d93 100644
+--- a/Libraries/MLXLMCommon/KVCache.swift
++++ b/Libraries/MLXLMCommon/KVCache.swift
+@@ -1585,20 +1585,23 @@ public class MambaCache: ArraysCache {
+         var lengths: MLXArray?
+     }
+ 
+-    private var speculativeCheckpoint: SpeculativeCheckpoint?
++    /// Keyed by how many trailing positions restoring it takes back (1 = the
++    /// last verified token). MTP depth N keeps N of them per round.
++    private var speculativeCheckpoints: [Int: SpeculativeCheckpoint] = [:]
+ 
+     public init(leftPadding: [Int]? = nil) {
+         super.init(size: 2, leftPadding: leftPadding)
+     }
+ 
+-    /// Save the recurrent state at the last unconditionally committed token
+-    /// inside a speculative verification pass.
++    /// Save the recurrent state after `tokenCount` tokens of a speculative
++    /// verification pass, restorable by rewinding `rewinding` positions.
+     package func saveSpeculativeCheckpoint(
+         convState: MLXArray,
+         recurrentState: MLXArray,
+-        advancedBy tokenCount: Int
++        advancedBy tokenCount: Int,
++        rewinding: Int = 1
+     ) {
+-        speculativeCheckpoint = SpeculativeCheckpoint(
++        speculativeCheckpoints[rewinding] = SpeculativeCheckpoint(
+             state: [convState, recurrentState],
+             offset: offset,
+             leftPadding: leftPadding.map { $0 - tokenCount },
+@@ -1606,22 +1609,26 @@ public class MambaCache: ArraysCache {
+     }
+ 
+     package var hasSpeculativeCheckpoint: Bool {
+-        speculativeCheckpoint != nil
++        !speculativeCheckpoints.isEmpty
++    }
++
++    package func hasSpeculativeCheckpoint(rewinding n: Int) -> Bool {
++        speculativeCheckpoints[n] != nil
+     }
+ 
+     @discardableResult
+-    package func restoreSpeculativeCheckpoint() -> Bool {
+-        guard let checkpoint = speculativeCheckpoint else { return false }
++    package func restoreSpeculativeCheckpoint(rewinding n: Int = 1) -> Bool {
++        guard let checkpoint = speculativeCheckpoints[n] else { return false }
+         cache = checkpoint.state
+         offset = checkpoint.offset
+         leftPadding = checkpoint.leftPadding
+         lengths = checkpoint.lengths
+-        speculativeCheckpoint = nil
++        speculativeCheckpoints.removeAll()
+         return true
+     }
+ 
+     package func discardSpeculativeCheckpoint() {
+-        speculativeCheckpoint = nil
++        speculativeCheckpoints.removeAll()
+     }
+ 
+     public override func copy() -> any KVCache {
+@@ -2465,19 +2472,19 @@ public func trimPromptCache(_ cache: [KVCache], numTokens: Int) -> Int {
+     return cache.first?.trim(numTokens) ?? 0
+ }
+ 
+-/// Rewind a one-token speculative tail in a hybrid attention/recurrent cache.
+-/// Attention entries trim normally; Mamba entries restore the checkpoint the
+-/// model captured after the round's committed bonus token.
++/// Rewind a speculative tail of `numTokens` in a hybrid attention/recurrent
++/// cache. Attention entries trim normally; Mamba entries restore the
++/// checkpoint the model captured after the last accepted token.
+ @discardableResult
+ package func rewindSpeculativePromptCache(
+     _ cache: [KVCache], numTokens: Int
+ ) -> Int {
+-    guard numTokens == 1,
++    guard numTokens >= 1,
+         cache.allSatisfy({ entry in
+             if entry.isTrimmable {
+                 return entry.offset >= numTokens
+             }
+-            return (entry as? MambaCache)?.hasSpeculativeCheckpoint == true
++            return (entry as? MambaCache)?.hasSpeculativeCheckpoint(rewinding: numTokens) == true
+         })
+     else { return 0 }
+ 
+@@ -2487,7 +2494,7 @@ package func rewindSpeculativePromptCache(
+                 preconditionFailure("Speculative cache validation and rewind diverged")
+             }
+         } else {
+-            guard (entry as? MambaCache)?.restoreSpeculativeCheckpoint() == true else {
++            guard (entry as? MambaCache)?.restoreSpeculativeCheckpoint(rewinding: numTokens) == true else {
+                 preconditionFailure("Missing recurrent speculative checkpoint")
+             }
+         }

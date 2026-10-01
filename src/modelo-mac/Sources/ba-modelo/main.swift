@@ -321,7 +321,7 @@ func generar(id: Any, texto: String, prefijo: Bool, max: Int, usarMtp: Bool) thr
     if especulativo, let drafter {
         var it = try MTPSpeculativeTokenIterator(
             input: entrada, mainModel: modelo, drafter: drafter, mainCache: cache,
-            parameters: p, blockSize: 4)
+            parameters: p, blockSize: profundidadMtp + 1)
         consumir(&it)
         aceptados = it.acceptedCount
         propuestos = it.proposedCount
@@ -347,12 +347,16 @@ func generar(id: Any, texto: String, prefijo: Bool, max: Int, usarMtp: Bool) thr
 
 // MARK: - si la cabeza MTP rinde
 //
-// El borrador de Qwen3.5 propone UN token por ronda: con poca aceptación la
-// verificación cuesta más de lo que ahorra (medido en una M1 Pro: con 0,4 de
-// aceptación, 26 tok/s contra 50 sin MTP). Se lleva un promedio móvil y, si
+// La cabeza propone `profundidadMtp` tokens por ronda y el modelo los verifica
+// juntos: con poca aceptación la verificación cuesta más de lo que ahorra
+// (medido en una M1 Pro con UN borrador y 0,4 de aceptación: 26 tok/s contra
+// 50 sin MTP). Se lleva un promedio móvil y, si
 // queda abajo del umbral, los pedidos que no dicen nada van sin MTP. Un pedido
 // con "mtp": true lo fuerza igual (para seguir midiendo).
 
+/// Borradores por ronda: la cabeza se encadena sobre su propia salida. Con el
+/// parche de extern/mlx-swift-lm el modelo verifica y deshace hasta 3.
+let profundidadMtp = 3
 let umbralMtp = 0.55
 var aceptacionMedia: Double?
 var mtpRinde = true

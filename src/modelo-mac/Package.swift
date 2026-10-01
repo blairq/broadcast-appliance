@@ -16,11 +16,11 @@ let package = Package(
     name: "ba-modelo",
     platforms: [.macOS(.v14)],
     dependencies: [
-        // Sin el trait FoundationModelsIntegration: pide el SDK de macOS 27.
-        .package(
-            url: "https://github.com/ml-explore/mlx-swift-lm",
-            revision: "ac6f5651a423b6ad9005332eed583dd336e59a53",
-            traits: []),
+        // mlx-swift-lm en extern/, en el commit ac6f565 y con los parches de
+        // parches/ (la cabeza MTP de Qwen3.5 con 3 borradores por ronda): lo
+        // arma `make deps-mlx-swift-lm`. Sin el trait FoundationModelsIntegration:
+        // pide el SDK de macOS 27.
+        .package(path: "../../extern/mlx-swift-lm", traits: []),
         .package(url: "https://github.com/huggingface/swift-transformers", from: "1.3.0"),
     ],
     targets: [

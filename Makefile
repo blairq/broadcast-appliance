@@ -44,7 +44,7 @@ endif
 PY        ?= .venv/bin/python
 PIP       ?= .venv/bin/pip
 
-.PHONY: modelo-mac publicar subir dist-linux-docker dist-win-docker publicar-macos publicar-linux publicar-win app-macos dmg-macos check-macos-tools deps-macos deps-obs-src deps-obs-macos deps-lsp-macos macos release-macos dist-macos deps-lsp-win deps-clap deps-obs-deps-win deps-ndi-src deps-linux test-win deps-win deps-win-toolchain deps-webrtc-win release-win dist-win dist-linux deps-lwip deps-cacert help dev build prod test test-unit pytest test-all lint docs release win deps-cloudflared-host deps-qt-host \
+.PHONY: modelo-mac deps-mlx-swift-lm publicar subir dist-linux-docker dist-win-docker publicar-macos publicar-linux publicar-win app-macos dmg-macos check-macos-tools deps-macos deps-obs-src deps-obs-macos deps-lsp-macos macos release-macos dist-macos deps-lsp-win deps-clap deps-obs-deps-win deps-ndi-src deps-linux test-win deps-win deps-win-toolchain deps-webrtc-win release-win dist-win dist-linux deps-lwip deps-cacert help dev build prod test test-unit pytest test-all lint docs release win deps-cloudflared-host deps-qt-host \
         clean clean-all \
         deps deps-obs deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist \
         deps-lsp deps-status deps-clean deps-libreoffice deps-libreoffice-linux deps-libreoffice-win deps-libreoffice-mac \
@@ -350,9 +350,20 @@ macos: modelo-mac
 
 # ba-modelo: el modelo local con MLX (src/modelo-mac). xcodebuild y no `swift
 # build`: este no compila los shaders de Metal de MLX. Las dependencias de
-# Swift quedan fijadas en src/modelo-mac/Package.resolved. Necesita el
+# Swift quedan fijadas en src/modelo-mac/Package.resolved; mlx-swift-lm va en
+# extern/ con los parches de src/modelo-mac/parches/ (deps-mlx-swift-lm). Necesita el
 # componente Metal de Xcode (xcodebuild -downloadComponent MetalToolchain).
-modelo-mac:
+MLX_SWIFT_LM_REV := ac6f5651a423b6ad9005332eed583dd336e59a53
+deps-mlx-swift-lm:
+	@set -e; d=extern/mlx-swift-lm; sello=$$d/.parches-$$(cat src/modelo-mac/parches/*.patch | $(SHA256) | cut -c1-12); \
+	if [ -f "$$sello" ]; then echo "[mlx-swift-lm] al dia ($$sello)"; exit 0; fi; \
+	[ -d $$d/.git ] || git clone -q https://github.com/ml-explore/mlx-swift-lm $$d; \
+	git -C $$d fetch -q origin $(MLX_SWIFT_LM_REV) 2>/dev/null || true; \
+	git -C $$d checkout -q -f $(MLX_SWIFT_LM_REV); git -C $$d clean -qfd; \
+	for p in src/modelo-mac/parches/*.patch; do git -C $$d apply "$(CURDIR)/$$p"; echo "[mlx-swift-lm] $$p"; done; \
+	touch "$$sello"
+
+modelo-mac: deps-mlx-swift-lm
 	@xcrun metal --version >/dev/null 2>&1 || { echo "ERROR: falta el compilador de Metal: xcodebuild -downloadComponent MetalToolchain" >&2; exit 1; }
 	cd src/modelo-mac && xcodebuild -scheme ba-modelo -destination 'platform=macOS,arch=arm64' \
 		-configuration Release -derivedDataPath $(CURDIR)/build/modelo-mac \
