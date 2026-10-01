@@ -99,10 +99,10 @@ def main():
     ap.add_argument("--datos", required=True)
     ap.add_argument("--salida", required=True)
     ap.add_argument("--epocas", type=float, default=1.0)
-    ap.add_argument("--lr", type=float, default=1e-4)
+    ap.add_argument("--lr", type=float, default=5e-5)
     ap.add_argument("--lote", type=int, default=16, help="ejemplos de nombres por paso")
     ap.add_argument("--lote-texto", type=int, default=8, help="ejemplos de texto por paso")
-    ap.add_argument("--peso-texto", type=float, default=2.0,
+    ap.add_argument("--peso-texto", type=float, default=4.0,
                     help="cuanto pesa el texto en la perdida: los nombres se aprenden enseguida y tiran para su lado")
     ap.add_argument("--elegir-cada", type=int, default=100,
                     help="cada cuantos pasos se mide (en una parte aparte de validacion) para quedarse con la mejor")
