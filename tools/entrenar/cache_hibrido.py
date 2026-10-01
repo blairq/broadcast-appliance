@@ -150,3 +150,61 @@ def volver(kv, f, n_prefijo):
     for c, e in zip(kv.layers, f):
         if e is not None:
             c.conv_states, c.recurrent_states = e[0].clone(), e[1].clone()
+
+
+# RECALCULAR EL PREFIJO CAPA POR CAPA (--recalcular, para el 9B).
+#
+# Meter el prefijo entero en UN checkpoint no baja el pico: en el backward se
+# recalcula todo junto y vuelven todas las activaciones de sus ~3.000 tokens a
+# la vez (con el 9B no entran en dos placas de 24 GB). Capa por capa, se guarda
+# solo la entrada de cada una y en el backward se recalcula UNA por vez.
+#
+# El problema es el cache: la capa lo escribe al correr, y al recalcularse lo
+# escribiria otra vez (la atencion completa CONCATENA: quedaria el doble; la
+# lineal seguiria desde su propio estado final). Como el prefijo arranca siempre
+# de un cache vacio, antes de cada corrida se vacia la capa de ese cache: la
+# recalculada hace exactamente la misma cuenta. Los tensores que el lote ya uso
+# siguen en el grafo; la capa vaciada recibe tensores nuevos (no se pisan).
+_recalcular = {"activo": False}
+
+
+def _vaciar(c):
+    if _lineal(c):
+        c.conv_states = c.recurrent_states = None
+        c.is_conv_states_initialized = c.is_recurrent_states_initialized = False
+        c.has_previous_state = False
+    if hasattr(c, "keys"):
+        c.keys = c.values = None
+        c.is_initialized = False
+
+
+def recalcular_por_capa(modelo):
+    """Instala el recalculo en cada capa (apagado hasta `recalculando()`)."""
+    from torch.utils.checkpoint import checkpoint
+    capas = [m for m in modelo.modules() if type(m).__name__.endswith("DecoderLayer")]
+    for i, capa in enumerate(capas):
+        # con --repartir, accelerate envuelve forward y llama a _old_forward
+        attr = "_old_forward" if hasattr(capa, "_old_forward") else "forward"
+        orig = getattr(capa, attr)
+        idx = getattr(capa, "layer_idx", i)
+
+        def envuelto(hidden_states, *a, _orig=orig, _idx=idx, **kw):
+            if not (_recalcular["activo"] and torch.is_grad_enabled()):
+                return _orig(hidden_states, *a, **kw)
+            kv = kw.get("past_key_values")
+
+            def f(h):
+                if kv is not None:
+                    _vaciar(kv.layers[_idx])
+                return _orig(h, *a, **kw)
+            return checkpoint(f, hidden_states, use_reentrant=False)
+        setattr(capa, attr, envuelto)
+    return len(capas)
+
+
+class recalculando:
+    def __enter__(self):
+        _recalcular["activo"] = True
+
+    def __exit__(self, *e):
+        _recalcular["activo"] = False

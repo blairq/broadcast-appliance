@@ -63,7 +63,7 @@ def main():
                          " 0..k en una, el resto en la otra; las activaciones pasan por P2P). Para"
                          " modelos que no entran en una placa: el 9B entra en bf16, sin cuantizar")
     ap.add_argument("--recalcular", action="store_true",
-                    help="no guardar las activaciones del prefijo: se recalculan en el backward")
+                    help="no guardar las activaciones del prefijo: se recalculan en el backward, capa por capa")
     args = ap.parse_args()
 
     import torch
@@ -153,6 +153,8 @@ def main():
     cfg = LoraConfig(r=args.rango, lora_alpha=args.rango, lora_dropout=0.0, bias="none",
                      target_modules=blancos, task_type="CAUSAL_LM")
     modelo = get_peft_model(modelo, cfg)
+    if args.recalcular:
+        log(f"recalcular el prefijo capa por capa: {ch.recalcular_por_capa(modelo)} capas")
     entrenables = [p for p in modelo.parameters() if p.requires_grad]
     for p in entrenables:
         p.data = p.data.float()
@@ -167,15 +169,10 @@ def main():
         """Prefijo una vez; sufijos en lote sobre el cache expandido."""
         with torch.autocast("cuda", dtype=torch.bfloat16), torch.set_grad_enabled(grad):
             if args.recalcular and grad:
-                # El prefijo dentro de un checkpoint: la funcion arma su propio
-                # cache y devuelve solo los tensores del estado, asi el recalculo
-                # del backward no pisa el cache del lote.
-                def prefijo_fn(ids):
-                    k0 = DynamicCache(config=modelo.config)
-                    modelo(input_ids=ids, past_key_values=k0, use_cache=True)
-                    return tuple(ch.tensores(k0))
-                ts = torch.utils.checkpoint.checkpoint(prefijo_fn, ids_pre_t, use_reentrant=False)
-                kv = ch.desde_tensores(modelo.config, list(ts))
+                # el prefijo se recalcula capa por capa en el backward (cache_hibrido)
+                kv = DynamicCache(config=modelo.config)
+                with ch.recalculando():
+                    modelo(input_ids=ids_pre_t, past_key_values=kv, use_cache=True)
             else:
                 kv = DynamicCache(config=modelo.config)
                 modelo(input_ids=ids_pre_t, past_key_values=kv, use_cache=True)
