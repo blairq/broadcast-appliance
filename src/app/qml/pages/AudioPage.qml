@@ -164,8 +164,10 @@ Rectangle {
         color: Theme.textDim; font.pixelSize: 15
     }
 
-    // Racks | Matriz
+    // Racks | Matriz, en su propia franja arriba (las vistas empiezan debajo).
+    readonly property int franjaSelector: selectorVista.visible ? selectorVista.height + 14 + 10 : 18
     Row {
+        id: selectorVista
         visible: !!page.au && !!Studio.matriz
         z: 10
         anchors { top: parent.top; right: parent.right; topMargin: 14; rightMargin: 22 }
@@ -175,12 +177,13 @@ Rectangle {
     }
     MatrizAudio {
         visible: !!page.au && !!Studio.matriz && page.vista === "matriz" && page.visible
-        anchors { fill: parent; leftMargin: page.leftInset; margins: 18 }
+        // Debajo de la franja del selector Racks | Matriz: nunca se pisan.
+        anchors { fill: parent; leftMargin: page.leftInset; margins: 18; topMargin: page.franjaSelector }
     }
 
     RowLayout {
         visible: !!page.au && page.vista === "racks"
-        anchors { fill: parent; leftMargin: page.leftInset; margins: 18 }
+        anchors { fill: parent; leftMargin: page.leftInset; margins: 18; topMargin: page.franjaSelector }
         spacing: 14
 
         // --- Fuentes con audio + salida de escucha -------------------------------------------

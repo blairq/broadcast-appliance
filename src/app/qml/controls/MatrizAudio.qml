@@ -94,6 +94,8 @@ Item {
             Item { Layout.fillWidth: true }
             Row {
                 spacing: 14
+                // En ventanas angostas la leyenda se esconde antes que pisar los botones.
+                visible: mx.width > 1150
                 Repeater {
                     model: [ { c: "#ef4444", t: "programa" }, { c: "#f59e0b", t: "pistas (nativo, sin retardo)" },
                              { c: "#a78bfa", t: "salida virtual" }, { c: "#14b8a6", t: "entrada virtual (~25 ms)" } ]
