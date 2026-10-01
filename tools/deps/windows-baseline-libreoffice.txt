@@ -17,3 +17,6 @@ HTTPAPI.dll
 WSOCK32.dll
 urlmon.dll
 wer.dll
+# Skia (dibujo del nucleo): tipografias y escritura compleja
+FONTSUB.dll
+USP10.dll

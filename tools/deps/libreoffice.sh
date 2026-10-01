@@ -153,15 +153,16 @@ podar() {
     podar_win "$dir"
 }
 
-# Windows: el puente de .NET (cli_*), el control ActiveX y el backend de
-# usuarios de Active Directory no participan de convertir. En cascada, lo que
+# Windows: el puente de .NET (cli_*), el control ActiveX, el backend de
+# usuarios de Active Directory y el componente Java (officebean) no participan
+# de convertir. En cascada, lo que
 # dependia de Writer/Calc (podados arriba), leyendo las importaciones con
 # objdump (o el llvm-objdump de la toolchain de Windows).
 podar_win() {
     local p="$1/program"
     [ -f "$p/mergedlo.dll" ] || return 0 # no es el de Windows
     rm -f "$p"/cli_*.dll "$p"/policy.*.cli_*.dll "$p"/policy.*.cli_*.config "$p"/so_activex*.dll \
-          "$p/WinUserInfoBelo.dll" 2>/dev/null || true
+          "$p/WinUserInfoBelo.dll" "$p/officebean.dll" 2>/dev/null || true
     local od=""
     command -v objdump >/dev/null 2>&1 && od=objdump
     [ -x "$ROOT/extern/toolchain/llvm/bin/llvm-objdump" ] && od="$ROOT/extern/toolchain/llvm/bin/llvm-objdump"
