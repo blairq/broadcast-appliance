@@ -11,6 +11,8 @@
 #include <QSocketNotifier>
 #include <QThread>
 
+#include <atomic>
+
 #include <obs.h>
 
 #include <cstdlib>
@@ -37,21 +39,29 @@ class QtHostServices : public HostServices {
     void runOnMain(std::function<void()> fn) override {
         QMetaObject::invokeMethod(owner_, [fn]() { fn(); }, Qt::QueuedConnection);
     }
+    // Los timers viven en el hilo principal aunque se pidan desde otro: los
+    // racks que OBS restaura de la escena se crean en un hilo de OBS, y un
+    // QTimer nacido ahí (sin bucle de eventos) nunca dispara; la interfaz de
+    // LSP, que se dibuja y atiende el mouse en su timer, quedaba congelada.
     int addTimer(int periodMs, std::function<void()> fn) override {
-        auto* t = new QTimer();
-        t->setInterval(periodMs);
-        QObject::connect(t, &QTimer::timeout, owner_, [fn]() { fn(); });
-        t->start();
         const int id = ++next_;
-        timers_[id] = t;
+        enMain([this, id, periodMs, fn]() {
+            auto* t = new QTimer();
+            t->setInterval(periodMs);
+            QObject::connect(t, &QTimer::timeout, owner_, [fn]() { fn(); });
+            t->start();
+            timers_[id] = t;
+        });
         return id;
     }
     void removeTimer(int id) override {
-        auto it = timers_.find(id);
-        if (it == timers_.end()) return;
-        it->second->stop();
-        it->second->deleteLater();
-        timers_.erase(it);
+        enMain([this, id]() {
+            auto it = timers_.find(id);
+            if (it == timers_.end()) return;
+            it->second->stop();
+            it->second->deleteLater();
+            timers_.erase(it);
+        });
     }
     bool addFd(int fd, uint32_t flags, std::function<void(uint32_t)> fn) override {
 #ifdef _WIN32
@@ -61,35 +71,47 @@ class QtHostServices : public HostServices {
         return false;
 #else
         removeFd(fd);
-        auto& list = fds_[fd];
-        if (flags & 1u) {
-            auto* n = new QSocketNotifier(fd, QSocketNotifier::Read);
-            QObject::connect(n, &QSocketNotifier::activated, owner_, [fn]() { fn(1u); });
-            list.push_back(n);
-        }
-        if (flags & 2u) {
-            auto* n = new QSocketNotifier(fd, QSocketNotifier::Write);
-            QObject::connect(n, &QSocketNotifier::activated, owner_, [fn]() { fn(2u); });
-            list.push_back(n);
-        }
+        // Como los timers: los QSocketNotifier, en el hilo principal.
+        enMain([this, fd, flags, fn]() {
+            auto& list = fds_[fd];
+            if (flags & 1u) {
+                auto* n = new QSocketNotifier(fd, QSocketNotifier::Read);
+                QObject::connect(n, &QSocketNotifier::activated, owner_, [fn]() { fn(1u); });
+                list.push_back(n);
+            }
+            if (flags & 2u) {
+                auto* n = new QSocketNotifier(fd, QSocketNotifier::Write);
+                QObject::connect(n, &QSocketNotifier::activated, owner_, [fn]() { fn(2u); });
+                list.push_back(n);
+            }
+        });
         return true;
 #endif
     }
     void removeFd(int fd) override {
-        auto it = fds_.find(fd);
-        if (it == fds_.end()) return;
-        for (auto* n : it->second) {
-            n->setEnabled(false);
-            n->deleteLater();
-        }
-        fds_.erase(it);
+        enMain([this, fd]() {
+            auto it = fds_.find(fd);
+            if (it == fds_.end()) return;
+            for (auto* n : it->second) {
+                n->setEnabled(false);
+                n->deleteLater();
+            }
+            fds_.erase(it);
+        });
     }
 
     void stateDirty() override;
 
    private:
+    /// Ya, si es el hilo principal; si no, encolado en él (en orden).
+    void enMain(std::function<void()> fn) {
+        if (QThread::currentThread() == owner_->thread())
+            fn();
+        else
+            QMetaObject::invokeMethod(owner_, std::move(fn), Qt::QueuedConnection);
+    }
     QObject* owner_;
-    int next_ = 0;
+    std::atomic<int> next_{0};
     std::map<int, QTimer*> timers_;
     std::map<int, std::vector<QSocketNotifier*>> fds_;
 };
