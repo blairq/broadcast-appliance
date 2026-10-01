@@ -30,6 +30,20 @@ ETAPAS
               Calcula lo que necesita aunque se reusen etapas.
   subir       solo con --subir --hf-usuario X; privados salvo --publico.
 
+LOS -MTP-GGUF DE UNSLOTH (unsloth/Qwen3.5-4B-MTP-GGUF, -9B-MTP-GGUF) no traen
+pesos para entrenar: son cuantizaciones de Qwen/Qwen3.5-4B y -9B con la cabeza
+MTP adentro. Pedidos como --base, se entrena todo sobre su base (el modelo y la
+cabeza MTP) y lo que se toma de ellos es la RECETA de cuantizacion «UD» (que
+tipo lleva cada tensor), leida de la cabecera de su UD-Q4_K_XL sin bajarlo
+entero. Se aplica a NUESTROS pesos con NUESTRA imatrix: el GGUF sale como
+<repo>-UD-Q4_K_XL.gguf.
+
+ESPACIO EN DISCO. Antes de cada etapa se calcula lo que va a ocupar (por el
+tamano de la base) y si no entra con un margen de 10 GB, para y dice cuanto
+falta. Al terminar exportar se borran los intermedios grandes (fusionado bf16
+y GGUF bf16; --conservar para dejarlos) y los repos usan enlaces duros a los
+archivos exportados: no se duplican gigas.
+
     tools/entrenar/fabricar-modelo.py --base Qwen/Qwen3.5-4B --nombre reactivo-q35-4b
     tools/entrenar/fabricar-modelo.py ... --hasta medir        # parar antes
     tools/entrenar/fabricar-modelo.py ... --rehacer entrenar   # rehacer desde ahi
@@ -64,6 +78,24 @@ ETAPAS = ["inspeccionar", "descargar", "corpus", "entrenar", "medir", "exportar"
 # prefijo de ~3.000 tokens con gradiente; hasta ~5 GB de pesos entra.
 PARALELO_HASTA_GB = 5.5
 REPARTIDO_HASTA_GB = 12.0
+MARGEN_GB = 10.0
+RECETA_UNSLOTH = "UD-Q4_K_XL"
+
+
+def libre_gb(p):
+    return shutil.disk_usage(p).free / 1e9
+
+
+def enlazar(src, dst):
+    """Enlace duro para lo grande (no duplica gigas); copia para lo chico, que
+    despues se puede sobrescribir (README) sin tocar el original."""
+    if os.path.getsize(src) > 50 * 2**20:
+        try:
+            os.link(src, dst)
+            return dst
+        except OSError:
+            pass
+    return shutil.copy2(src, dst)
 
 
 def log(*a):
@@ -107,6 +139,8 @@ class Fabrica:
         self.man_f = self.dir / "manifiesto.json"
         self.man = json.loads(self.man_f.read_text()) if self.man_f.exists() else {
             "nombre": args.nombre, "base": args.base, "creado": datetime.datetime.now().isoformat(timespec="seconds")}
+        if self.man.get("repo_pedido") == args.base:
+            args.base = self.man["base"]  # se retoma: lo que se entrena es su base
         self.adaptador = self.dir / "adaptador"
         self.corpus = self.dir / "corpus"
 
@@ -118,10 +152,41 @@ class Fabrica:
             return False
         return Path(marca).exists()
 
+    def base_en_cache(self):
+        try:
+            from huggingface_hub import snapshot_download
+            snapshot_download(self.a.base, revision=self.a.revision, local_files_only=True)
+            return True
+        except Exception:
+            return False
+
+    def necesita_gb(self, etapa):
+        """Lo que la etapa deja en disco (en el pico), por el tamano de la base."""
+        gb = self.man.get("arquitectura", {}).get("pesos_gb", 0)
+        return {"descargar": 0 if self.base_en_cache() else gb * 1.1 + 1,
+                "corpus": 0.5, "entrenar": 3, "medir": 1,
+                # en el pico: fusionado bf16 + GGUF bf16 + q4 simulado (+ los cuantizados)
+                "exportar": gb * 3.4 + 2, "empaquetar": 0.2}.get(etapa, 0)
+
+    def controlar_espacio(self, etapas):
+        """Para ANTES de empezar si no entra: mejor que morir a mitad de un GGUF."""
+        pico = max((self.necesita_gb(e) for e in etapas), default=0)
+        if "descargar" in etapas and "exportar" in etapas:
+            pico = max(pico, self.necesita_gb("descargar") + self.necesita_gb("exportar"))
+        libre = libre_gb(self.dir)
+        log(f"disco: {libre:.0f} GB libres, se necesitan ~{pico:.0f} GB (+{MARGEN_GB:.0f} de margen)")
+        if libre < pico + MARGEN_GB:
+            grandes = sorted(((sum(f.stat().st_size for f in d.rglob("*") if f.is_file()) / 1e9, d)
+                              for d in self.dir.parent.glob("*/export")), reverse=True)[:5]
+            sys.exit(f"[fabricar] no hay espacio: faltan ~{pico + MARGEN_GB - libre:.0f} GB.\n"
+                     + "".join(f"  {g:.0f} GB en {d}\n" for g, d in grandes)
+                     + "Liberar espacio (p. ej. exportados de otras corridas ya subidas) y volver a correr.")
+
     def etapa(self, nombre, fn, marca):
         if self.hecho(nombre, marca):
             log(f"{nombre}: ya estaba")
             return
+        self.controlar_espacio([nombre])
         t = datetime.datetime.now()
         log(f"=== {nombre} ===")
         fn()
@@ -285,7 +350,7 @@ class Fabrica:
         hf_conv = ex / "modelo-hf-conv"  # el conversor quiere el model_type de transformers
         if hf_conv.exists():
             shutil.rmtree(hf_conv)
-        shutil.copytree(hf, hf_conv)
+        shutil.copytree(hf, hf_conv, copy_function=enlazar)  # enlaces: solo cambia el config
         if cfg.get("model_type") == "qwen3_5":
             cfg["model_type"] = "qwen3_5_text"
             (hf_conv / "config.json").write_text(json.dumps(cfg, indent=2))
@@ -341,10 +406,14 @@ class Fabrica:
         env = {"LD_LIBRARY_PATH": str(LLAMA)}
         correr([LLAMA / "llama-imatrix", "-m", bf16, "-f", calib, "-o", gg / "imatrix.dat", "--chunks", "64",
                 "-t", str(os.cpu_count() or 8)], env=env, salida=self.dir / "imatrix.log")
-        q4 = gg / f"{self.a.nombre}-Q4_K_M.gguf"
-        correr([LLAMA / "llama-quantize", "--imatrix", gg / "imatrix.dat", bf16, q4, "Q4_K_M"],
-               env=env, salida=self.dir / "quantize.log")
-        self.man["exportado"] = {"mlx_q4": str(mlx), "gguf_q4": str(q4), "gguf_bf16": str(bf16),
+        receta = self.receta_unsloth(bf16, gg) if self.man.get("repo_pedido") else None
+        cuant = RECETA_UNSLOTH if receta else "Q4_K_M"
+        q4 = gg / f"{self.a.nombre}-{cuant}.gguf"
+        cmd = [LLAMA / "llama-quantize", "--imatrix", gg / "imatrix.dat"]
+        if receta:
+            cmd += ["--tensor-type-file", receta]
+        correr(cmd + [bf16, q4, "Q4_K_M"], env=env, salida=self.dir / "quantize.log")
+        self.man["exportado"] = {"mlx_q4": str(mlx), "gguf_q4": str(q4), "gguf_bf16": str(bf16), "cuant": cuant,
                                  "tam_gb": {"mlx_q4": round(sum(f.stat().st_size for f in mlx.rglob("*") if f.is_file()) / 2**30, 2),
                                             "gguf_q4": round(q4.stat().st_size / 2**30, 2)}}
         # cuanto cuesta el q4 de MLX: sus pesos exactos, medidos en el banco
@@ -352,7 +421,67 @@ class Fabrica:
         correr([PY_MLX, E / "simular-q4-mlx.py", "--hf", hf, "--salida", sim], salida=self.dir / "simular.log")
         self.medir(modelo=sim, etiqueta="mlx-q4", banco_curva=self.a.curva_q4, margen=False)
         shutil.rmtree(sim)
+        if not self.a.conservar:  # los intermedios grandes: se rehacen con --rehacer exportar
+            shutil.rmtree(hf, ignore_errors=True)
+            bf16.unlink(missing_ok=True)
+            self.man["exportado"]["gguf_bf16"] = None
+            log(f"intermedios borrados (fusionado y GGUF bf16); libres {libre_gb(self.dir):.0f} GB")
         (self.dir / "exportado").write_text("ok")
+
+    def receta_unsloth(self, bf16, gg):
+        """La receta UD de unsloth: que tipo lleva cada tensor en su UD-Q4_K_XL.
+
+        Solo hace falta la CABECERA del GGUF (nombres, formas y tipos; los pesos
+        vienen despues): se baja el principio con un pedido por rango a un
+        archivo disperso del tamano real y gguf-py lo lee como si estuviera
+        entero. Sale un archivo para llama-quantize --tensor-type-file, con el
+        nombre exacto de cada tensor anclado (^...$: la busqueda es regex y
+        «blk.1.» tambien encontraria «blk.10.»)."""
+        import urllib.request
+        sys.path.insert(0, str(CONV / "gguf-py"))
+        from gguf import GGUFReader, GGMLQuantizationType as T
+        repo = self.man["repo_pedido"]
+        info = json.loads(urllib.request.urlopen(f"https://huggingface.co/api/models/{repo}?blobs=true").read())
+        arch = [s for s in info["siblings"] if s["rfilename"].endswith(f"-{RECETA_UNSLOTH}.gguf")]
+        if not arch:
+            sys.exit(f"{repo} no tiene un {RECETA_UNSLOTH}.gguf para copiar la receta")
+        nom, tam = arch[0]["rfilename"], arch[0]["size"]
+        cab = gg / f"cabecera-{nom}"
+        for mb in (64, 256):
+            req = urllib.request.Request(f"https://huggingface.co/{repo}/resolve/main/{nom}",
+                                         headers={"Range": f"bytes=0-{mb * 2**20 - 1}"})
+            datos = urllib.request.urlopen(req).read()
+            with open(cab, "wb") as f:
+                f.truncate(tam)
+                f.write(datos)
+            try:
+                suyos = {t.name: t.tensor_type for t in GGUFReader(cab).tensors}
+                break
+            except Exception as e:  # la cabecera no entro en los primeros MB
+                suyos, err = None, e
+        cab.unlink()
+        if suyos is None:
+            sys.exit(f"no se pudo leer la cabecera de {nom}: {err}")
+        nuestros = [t.name for t in GGUFReader(bf16).tensors]
+        texto = {T.F32: None, T.F16: "f16", T.BF16: "bf16"}
+        lineas, faltan, tipos = [], [], {}
+        for n in nuestros:
+            if n not in suyos:
+                faltan.append(n)
+                continue
+            t = suyos[n]
+            nombre_t = texto[t] if t in texto else t.name.lower()
+            if nombre_t is None:  # F32 (normas, sesgos): llama-quantize no los toca
+                continue
+            lineas.append(f"^{re.escape(n)}$={nombre_t}")
+            tipos[nombre_t] = tipos.get(nombre_t, 0) + 1
+        receta = gg / "receta-unsloth.txt"
+        receta.write_text("\n".join(lineas) + "\n")
+        self.man["receta_unsloth"] = {"repo": repo, "archivo": nom, "tensores": len(lineas),
+                                      "sin_par": faltan[:20], "sin_par_total": len(faltan), "tipos": tipos}
+        log(f"receta {RECETA_UNSLOTH} de {repo}: {len(lineas)} tensores {tipos}"
+            + (f"; {len(faltan)} sin par (van por Q4_K_M): {faltan[:5]}" if faltan else ""))
+        return receta
 
     # --- empaquetar: el repo de Hugging Face, completo aunque se reusen etapas --------
     def completar_datos(self):
@@ -412,7 +541,10 @@ llama-server -m {self.gguf_nombre} -c 8192 --cache-reuse 256{' --spec-type draft
 ```
 llama.cpp b11255 o posterior (arquitectura `qwen35`, con atención lineal). Restringir la salida con
 una gramática a los nombres posibles."""
-            archivos = (f"`{self.gguf_nombre}`: Q4_K_M, calibrado con imatrix sobre el propio"
+            ru = m.get("receta_unsloth")
+            cuant = (f"{RECETA_UNSLOTH} (la receta «UD» de [{ru['repo']}](https://huggingface.co/{ru['repo']}):"
+                     f" el mismo tipo por tensor que su `{ru['archivo']}`, aplicado a estos pesos)") if ru else "Q4_K_M"
+            archivos = (f"`{self.gguf_nombre}`: {cuant}, calibrado con imatrix sobre el propio"
                         f" corpus (sin el examen){' e incluye la cabeza MTP entrenada' if mtp else ''}.")
         return f"""---
 license: {m['base_licencia']}
@@ -538,6 +670,11 @@ con otras fichas es otro modelo, aunque siga contestando.
         cat_f.write_text(json.dumps(cat, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
         log(f"catalogo: datos/modelos-catalogo.json ({len(cat['modelos'])} modelos)")
 
+    def nombre_repo(self):
+        n = self.a.repo or f"broadcast-reactivo-{self.man['base'].split('/')[-1].lower()}"
+        # el de la receta de unsloth es otro GGUF: no pisar el repo del Q4_K_M
+        return n + ("-mtp-ud" if self.man.get("repo_pedido") and not self.a.repo else "")
+
     def empaquetar(self):
         self.completar_datos()
         rep = self.dir / "repos"
@@ -545,8 +682,8 @@ con otras fichas es otro modelo, aunque siga contestando.
             shutil.rmtree(rep)
         rep.mkdir()
         ex = self.man["exportado"]
-        nombre = self.a.repo or f"broadcast-reactivo-{self.man['base'].split('/')[-1].lower()}"
-        self.gguf_nombre = f"{nombre}-Q4_K_M.gguf"
+        nombre = self.nombre_repo()
+        self.gguf_nombre = f"{nombre}-{ex.get('cuant', 'Q4_K_M')}.gguf"
         hp = Path(ex["mlx_q4"]) / "huella-prompt.json"
         lic = Path(self.man["base_ruta"]) / "LICENSE"
         eq = self.man["perfil"].get("equivalencias")
@@ -555,10 +692,10 @@ con otras fichas es otro modelo, aunque siga contestando.
             repo = f"{nombre}-{'mlx-q4' if formato == 'mlx' else 'GGUF'}"
             d = rep / repo
             if formato == "mlx":
-                shutil.copytree(ex["mlx_q4"], d)
+                shutil.copytree(ex["mlx_q4"], d, copy_function=enlazar)
             else:
                 d.mkdir()
-                shutil.copy(ex["gguf_q4"], d / self.gguf_nombre)
+                enlazar(ex["gguf_q4"], d / self.gguf_nombre)
             if hp.exists():
                 shutil.copy(hp, d)
             if lic.exists():
@@ -597,8 +734,7 @@ con otras fichas es otro modelo, aunque siga contestando.
             return
         hf = RAIZ / ".venv-entrenar/bin/hf"
         if not hasattr(self, "gguf_nombre"):
-            n = self.a.repo or f"broadcast-reactivo-{self.man['base'].split('/')[-1].lower()}"
-            self.gguf_nombre = f"{n}-Q4_K_M.gguf"
+            self.gguf_nombre = f"{self.nombre_repo()}-{self.man['exportado'].get('cuant', 'Q4_K_M')}.gguf"
         subidos = []
         for d in self.man["repos"]:
             rid = f"{self.a.hf_usuario}/{Path(d).name}"
@@ -618,6 +754,13 @@ con otras fichas es otro modelo, aunque siga contestando.
 
     def correr(self):
         hasta = ETAPAS.index(self.a.hasta)
+        if "arquitectura" not in self.man:
+            self.etapa("inspeccionar", self.inspeccionar, self.dir / "inspeccionado")
+        pendientes = [e for e in ETAPAS[:hasta + 1] if not self.hecho(e, self.dir / {
+            "inspeccionar": "inspeccionado", "descargar": "descargado", "corpus": "corpus/entrenar.jsonl",
+            "entrenar": "adaptador/adapter_config.json", "medir": "medido", "exportar": "exportado",
+            "empaquetar": "empaquetado", "subir": "subido"}[e])]
+        self.controlar_espacio(pendientes)
         plan = [("inspeccionar", self.inspeccionar, self.dir / "inspeccionado"),
                 ("descargar", self.descargar, self.dir / "descargado"),
                 ("corpus", self.hacer_corpus, self.corpus / "entrenar.jsonl"),
@@ -653,6 +796,7 @@ def main():
     ap.add_argument("--publico", action="store_true")
     ap.add_argument("--rehacer", choices=ETAPAS, help="rehacer desde esta etapa (las anteriores se reusan)")
     ap.add_argument("--sin-mtp", action="store_true", help="no entrenar la cabeza MTP (usar la de la base)")
+    ap.add_argument("--conservar", action="store_true", help="no borrar el fusionado ni el GGUF bf16 al exportar")
     ap.add_argument("--curva-q4", action="store_true", help="medir el q4 en los 5 puntos del dial (si no, solo sesgo 0)")
     args = ap.parse_args()
     # el perfil viaja por el entorno a TODO lo que corre debajo (corpus,
