@@ -129,7 +129,8 @@ class Fabrica:
         r = subprocess.run([str(c) for c in cmd], cwd=RAIZ, capture_output=True, text=True)
         if r.returncode:
             sys.exit(f"no se pudo bajar {self.a.base}: {r.stderr[-400:]}")
-        ruta = Path(r.stdout.strip().splitlines()[-1])
+        # `hf download` termina con la ruta, a veces como «path=/...»
+        ruta = Path(r.stdout.strip().splitlines()[-1].split("=", 1)[-1].strip())
         self.man["base_ruta"] = str(ruta)
         self.man["base_revision"] = ruta.name
         lic = ruta / "LICENSE"
@@ -234,6 +235,29 @@ class Fabrica:
         if cfg.get("model_type") == "qwen3_5":
             cfg["model_type"] = "qwen3_5_text"
             (hf_conv / "config.json").write_text(json.dumps(cfg, indent=2))
+        # LA CABEZA MTP. El config de Qwen3.5 declara una capa de multi-token
+        # prediction y el conversor la espera (blk.N), pero transformers la
+        # descarta al cargar y el modelo fusionado se guarda sin ella:
+        # llama.cpp no lo carga. Se copia la ORIGINAL de la base (no la
+        # entrenamos): completa el GGUF y deja disponible la decodificacion
+        # especulativa (--spec-type draft-mtp).
+        if cfg.get("mtp_num_hidden_layers"):
+            from safetensors import safe_open
+            from safetensors.torch import save_file
+            mtp = {}
+            for f in sorted(Path(self.man["base_ruta"]).glob("*.safetensors")):
+                with safe_open(str(f), "pt") as st:
+                    for k in st.keys():
+                        if k.startswith("mtp."):
+                            mtp[k] = st.get_tensor(k)
+            if mtp:
+                save_file(mtp, str(hf_conv / "model-mtp.safetensors"), metadata={"format": "pt"})
+                idx = hf_conv / "model.safetensors.index.json"
+                if idx.exists():
+                    ix = json.loads(idx.read_text())
+                    ix["weight_map"].update({k: "model-mtp.safetensors" for k in mtp})
+                    idx.write_text(json.dumps(ix, indent=2))
+                log(f"cabeza MTP de la base: {len(mtp)} tensores")
         bf16 = gg / f"{self.a.nombre}-bf16.gguf"
         correr([PY, CONV / "convert_hf_to_gguf.py", hf_conv, "--outtype", "bf16", "--outfile", bf16],
                env={"PYTHONPATH": str(CONV / "gguf-py")}, salida=self.dir / "gguf.log")
