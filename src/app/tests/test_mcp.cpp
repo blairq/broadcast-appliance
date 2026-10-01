@@ -411,7 +411,10 @@ int main(int argc, char** argv) {
         bridge.closeWriteChannel();
         // El servidor HTTP vive en ESTE proceso: hay que girar el event loop.
         QByteArray out;
-        for (int i = 0; i < 400 && bridge.state() != QProcess::NotRunning; ++i) {
+        // Hasta 30 s: termina apenas sale ba-mcp. Con 4 s alcanzaba en una
+        // maquina normal, pero bajo Wine en una CPU emulada (Rosetta) solo
+        // lanzar el proceso tarda eso y el test fallaba sin que nada anduviera mal.
+        for (int i = 0; i < 3000 && bridge.state() != QProcess::NotRunning; ++i) {
             QEventLoop loop;
             QTimer::singleShot(10, &loop, &QEventLoop::quit);
             loop.exec();
@@ -500,7 +503,10 @@ int main(int argc, char** argv) {
         bridge.closeWriteChannel();
         // El servidor HTTP vive en ESTE proceso: hay que girar el event loop.
         QByteArray out;
-        for (int i = 0; i < 400 && bridge.state() != QProcess::NotRunning; ++i) {
+        // Hasta 30 s: termina apenas sale ba-mcp. Con 4 s alcanzaba en una
+        // maquina normal, pero bajo Wine en una CPU emulada (Rosetta) solo
+        // lanzar el proceso tarda eso y el test fallaba sin que nada anduviera mal.
+        for (int i = 0; i < 3000 && bridge.state() != QProcess::NotRunning; ++i) {
             QEventLoop loop;
             QTimer::singleShot(10, &loop, &QEventLoop::quit);
             loop.exec();
