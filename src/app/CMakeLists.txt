@@ -426,6 +426,15 @@ endif()
     if(_ba_lo_ok)
         install(DIRECTORY "${_ba_lo_dir}/" DESTINATION bin/libreoffice
                 COMPONENT bundle USE_SOURCE_PERMISSIONS)
+        if(WIN32)
+            # El .msi instala el runtime de Visual C++ en el SISTEMA, no en
+            # program/: extraido a mano queda afuera, y en un Windows sin el
+            # Redistributable soffice.exe no arrancaria. Va el mismo CRT de
+            # MSVC que usan nuestros .exe, junto a soffice (Windows busca las
+            # DLL en la carpeta del programa, no en bin/64bit).
+            file(GLOB _ba_crt_lo "${CMAKE_SOURCE_DIR}/extern/msvc/redist/*.dll")
+            install(FILES ${_ba_crt_lo} DESTINATION bin/libreoffice/program COMPONENT bundle)
+        endif()
         message(STATUS "ba-app: LibreOffice headless al bundle (${_ba_lo_dir})")
     endif()
     message(STATUS "ba-app: interfaz grafica con Qt ${Qt6_VERSION} vendoreado (${BA_QT_PREFIX})")

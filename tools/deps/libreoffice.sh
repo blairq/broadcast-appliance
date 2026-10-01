@@ -113,7 +113,6 @@ podar() {
     # Writer y Calc: no abrimos .docx ni .xlsx, solo diapositivas.
     rm -f  "$dir/program/libswlo.so"  "$dir/program/libsclo.so"  2>/dev/null || true
     rm -f  "$dir/program/swlo.dll"    "$dir/program/sclo.dll"    2>/dev/null || true
-    rm -f  "$dir/program/libmwaw"*    "$dir/program/mwaw"*       2>/dev/null || true
     rm -rf "$dir/share/gallery" "$dir/share/template" 2>/dev/null || true
     rm -rf "$dir/share/extensions" "$dir/share/wizards" "$dir/share/basic" 2>/dev/null || true
     rm -rf "$dir/share/fonts" 2>/dev/null || true
@@ -151,6 +150,36 @@ podar() {
     # registro de servicios. Los dos se aprendieron rompiendolo.
     rm -f  "$dir/share/config/images_"*.zip 2>/dev/null || true
     podar_linux "$dir"
+    podar_win "$dir"
+}
+
+# Windows: el puente de .NET (cli_*), el control ActiveX y el backend de
+# usuarios de Active Directory no participan de convertir. En cascada, lo que
+# dependia de Writer/Calc (podados arriba), leyendo las importaciones con
+# objdump (o el llvm-objdump de la toolchain de Windows).
+podar_win() {
+    local p="$1/program"
+    [ -f "$p/mergedlo.dll" ] || return 0 # no es el de Windows
+    rm -f "$p"/cli_*.dll "$p"/policy.*.cli_*.dll "$p"/policy.*.cli_*.config "$p"/so_activex*.dll \
+          "$p/WinUserInfoBelo.dll" 2>/dev/null || true
+    local od=""
+    command -v objdump >/dev/null 2>&1 && od=objdump
+    [ -x "$ROOT/extern/toolchain/llvm/bin/llvm-objdump" ] && od="$ROOT/extern/toolchain/llvm/bin/llvm-objdump"
+    [ -n "$od" ] || return 0
+    local cambio=1 f dep
+    while [ "$cambio" = 1 ]; do
+        cambio=0
+        for f in "$p"/*.dll; do
+            [ -f "$f" ] || continue
+            for dep in $("$od" -p "$f" 2>/dev/null | awk '/DLL Name:/{print $3}' | grep -iE 'lo\.dll$'); do
+                if ! ls "$p" | grep -qixF "$dep"; then
+                    rm -f "$f"
+                    cambio=1
+                    break
+                fi
+            done
+        done
+    done
 }
 
 # Linux: lo que ademas NO participa de --headless --convert-to y pide
@@ -163,6 +192,9 @@ podar() {
 podar_linux() {
     local p="$1/program"
     [ -f "$p/libmergedlo.so" ] || return 0 # no es el de Linux
+    # libmwaw (procesadores de texto viejos de Mac): en Linux se carga aparte.
+    # (En Windows y macOS el nucleo la enlaza directo: ahi se queda.)
+    rm -f "$p"/libmwaw* 2>/dev/null || true
     rm -f "$p"/libvclplug_gtk*lo.so "$p"/libvclplug_kf5lo.so "$p"/libvclplug_qt*lo.so \
           "$p"/libvclplug_genlo.so "$p/libkf5be1lo.so" "$p/liblibreofficekitgtk.so" \
           "$p/lo_kde5filepicker" "$p"/libavmedia*.so "$p/libofficebean.so" \
