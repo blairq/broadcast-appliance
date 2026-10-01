@@ -8,6 +8,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QKeyEvent>
+#include <QTime>
 
 #include <algorithm>
 
@@ -16,6 +17,9 @@
 #include "agent/ModelosLocales.hpp"
 #include "AppRuntime.hpp"
 #include "audio/MonitorVoz.hpp"
+#if defined(BA_HAVE_CLAP)
+#include "audio/RackManager.hpp"
+#endif
 #if defined(BA_HAVE_VOZ)
 #include "audio/Escucha.hpp"
 #include "audio/Habla.hpp"
@@ -34,6 +38,20 @@ Voz::Voz(AppRuntime& rt, ModelosLocales& modelos, QObject* parent)
     habla_ = std::make_unique<audio::Habla>();
     monitor_ = std::make_unique<audio::MonitorVoz>();
     leerAjustes();
+    // Las frases de la transcripción continua (llegan en el hilo de Escucha).
+    escucha_->setFrase([this](const std::string& fuente, const audio::Escucha::Resultado& r) {
+        QMetaObject::invokeMethod(this, [this, fuente, r]() {
+            const QString f = QString::fromStdString(fuente), t = QString::fromStdString(r.texto);
+            transcripcion_.push_back(QVariantMap{{"fuente", f},
+                                                 {"texto", t},
+                                                 {"hora", QTime::currentTime().toString("HH:mm:ss")},
+                                                 {"segundos", r.segundosDeAudio}});
+            while (transcripcion_.size() > 200)
+                transcripcion_.removeFirst();
+            emit transcripcionCambio();
+            emit frase(f, t);
+        });
+    });
     connect(&modelos_, &ModelosLocales::cambio, this, &Voz::revisarModelos);
     connect(&modelos_, &ModelosLocales::cambio, this, &Voz::revisarVoz);
     qApp->installEventFilter(this);
@@ -45,6 +63,9 @@ Voz::Voz(AppRuntime& rt, ModelosLocales& modelos, QObject* parent)
 }
 
 Voz::~Voz() {
+#if defined(BA_HAVE_VOZ) && defined(BA_HAVE_CLAP)
+    if (racks_ != nullptr) audio::RackManager::setTextoSink({}); // el audio ya no llama acá
+#endif
 #if defined(BA_HAVE_VOZ)
     if (habla_) habla_->callar();
     habla_.reset(); // antes que el monitor: su hilo le escribe
@@ -109,14 +130,31 @@ void Voz::apretar() {
         return;
     }
     OperatorFeed& feed = rt_.operatorFeed();
-    if (!feed.hayMicrofono()) {
-        emit notify("No hay micrófono del operador: elegilo en Sala (la voz del operador).", "warn");
+    // ¿Hay fuentes con voz a texto en modo dictado? Si no, se le pone solo al
+    // micrófono del operador (así funciona sin pasos extra).
+    bool porRack = false;
+    if (racks_ != nullptr) {
+        for (const auto& f : racks_->fuentesConTexto())
+            if (f.value("modo", std::string()) == "dictado") porRack = true;
+        const QString mic = microfono();
+        if (!porRack && !mic.isEmpty() && racks_->setTexto(mic.toStdString(), "dictado").empty())
+            porRack = true;
+    }
+    if (!porRack && !feed.hayMicrofono()) {
+        emit notify("No hay micrófono del operador: elegilo en Configuración → Audio y voz.", "warn");
         return;
     }
     callar(); // el operador habla: el asistente se calla
-    escucha_->empezar();
-    audio::Escucha* e = escucha_.get();
-    feed.setDictado([e](const float* m, std::size_t n, std::uint32_t f) { e->alimentar(m, n, f); });
+    {
+        std::lock_guard<std::mutex> l(tomasLock_);
+        tomas_.clear();
+    }
+    // Sin racks: el micrófono del operador, directo de OperatorFeed.
+    if (!porRack)
+        feed.setDictado([this](const float* m, std::size_t n, std::uint32_t f) {
+            alAudio("micrófono del operador", 1, m, static_cast<std::uint32_t>(n), f);
+        });
+    tomando_ = true;
     feed.setPushToTalk(true); // desde acá el lobby ya no oye al operador
     grabando_ = true;
     setEstado("Escuchando… (soltá para mandar)");
@@ -126,39 +164,173 @@ void Voz::apretar() {
 void Voz::soltar() {
 #if defined(BA_HAVE_VOZ)
     if (!grabando_) return;
+    tomando_ = false;
     OperatorFeed& feed = rt_.operatorFeed();
     feed.setPushToTalk(false); // el lobby vuelve a oírlo
     feed.setDictado({});
     grabando_ = false;
+    // La fuente donde más se habló (si hay dos micrófonos con dictado, el
+    // otro solo trajo ruido de fondo).
+    Toma elegida;
+    std::string de;
+    {
+        std::lock_guard<std::mutex> l(tomasLock_);
+        for (auto& [fuente, t] : tomas_)
+            if (t.energia > elegida.energia) {
+                elegida = std::move(t);
+                de = fuente;
+            }
+        tomas_.clear();
+    }
+    if (elegida.audio.empty()) {
+        setEstado("Lista · no llegó audio (¿el micrófono está muteado o sin señal?)");
+        emit notify("Voz: no llegó audio del micrófono.", "warn");
+        return;
+    }
     transcribiendo_ = true;
     setEstado("Transcribiendo…");
-    escucha_->terminar([this](const audio::Escucha::Resultado& r) {
-        QMetaObject::invokeMethod(this, [this, r]() {
-            transcribiendo_ = false;
-            if (!r.error.empty()) {
-                setEstado("Lista · " + QString::fromStdString(r.error));
-                emit notify("Voz: " + QString::fromStdString(r.error), "warn");
-                return;
-            }
-            ultimo_ = QString::fromStdString(r.texto);
-            setEstado(QString("Lista · %1 s de habla en %2 ms")
-                          .arg(r.segundosDeAudio, 0, 'f', 1)
-                          .arg(r.ms, 0, 'f', 0));
-            emit dictado(ultimo_);
-        });
-    });
+    escucha_->transcribir(std::move(elegida.audio), elegida.frecuencia,
+                          [this, de](const audio::Escucha::Resultado& r) {
+                              QMetaObject::invokeMethod(this, [this, r, de]() {
+                                  transcribiendo_ = false;
+                                  if (!r.error.empty()) {
+                                      setEstado("Lista · " + QString::fromStdString(r.error));
+                                      emit notify("Voz: " + QString::fromStdString(r.error), "warn");
+                                      return;
+                                  }
+                                  ultimo_ = QString::fromStdString(r.texto);
+                                  setEstado(QString("Lista · %1 s de habla (%2) en %3 ms")
+                                                .arg(r.segundosDeAudio, 0, 'f', 1)
+                                                .arg(QString::fromStdString(de))
+                                                .arg(r.ms, 0, 'f', 0));
+                                  emit dictado(ultimo_);
+                              });
+                          });
 #endif
 }
 
 void Voz::cancelar() {
 #if defined(BA_HAVE_VOZ)
     if (!grabando_) return;
+    tomando_ = false;
     rt_.operatorFeed().setPushToTalk(false);
     rt_.operatorFeed().setDictado({});
-    escucha_->cancelar();
+    {
+        std::lock_guard<std::mutex> l(tomasLock_);
+        tomas_.clear();
+    }
     grabando_ = false;
     setEstado("Lista · cancelado");
 #endif
+}
+
+void Voz::alAudio(const std::string& fuente, int modo, const float* m, std::uint32_t n, std::uint32_t f) {
+#if defined(BA_HAVE_VOZ)
+    if (modo == 2) {
+        escucha_->alimentarContinuo(fuente, m, n, f);
+        return;
+    }
+    if (modo != 1 || !tomando_) return;
+    std::lock_guard<std::mutex> l(tomasLock_);
+    Toma& t = tomas_[fuente];
+    if (t.audio.size() > static_cast<std::size_t>(audio::Escucha::kMaxSegundos * f)) return;
+    t.frecuencia = f;
+    t.audio.insert(t.audio.end(), m, m + n);
+    for (std::uint32_t i = 0; i < n; ++i)
+        t.energia += static_cast<double>(m[i]) * m[i];
+#else
+    Q_UNUSED(fuente);
+    Q_UNUSED(modo);
+    Q_UNUSED(m);
+    Q_UNUSED(n);
+    Q_UNUSED(f);
+#endif
+}
+
+// --- Micrófono y transcripción ------------------------------------------------------
+
+void Voz::setRacks(audio::RackManager* racks) {
+#if defined(BA_HAVE_VOZ) && defined(BA_HAVE_CLAP)
+    racks_ = racks;
+    if (racks_ == nullptr) return;
+    audio::RackManager::setTextoSink([this](const std::string& fuente, int modo, const float* m,
+                                            std::uint32_t n,
+                                            std::uint32_t f) { alAudio(fuente, modo, m, n, f); });
+    connect(racks_, &audio::RackManager::changed, this, [this]() {
+        revisarCorrientes();
+        emit cambio();
+    });
+    revisarCorrientes();
+#else
+    Q_UNUSED(racks);
+#endif
+}
+
+void Voz::revisarCorrientes() {
+#if defined(BA_HAVE_VOZ) && defined(BA_HAVE_CLAP)
+    if (racks_ == nullptr) return;
+    std::set<std::string> ahora;
+    for (const auto& f : racks_->fuentesConTexto())
+        if (f.value("modo", std::string()) == "continuo") ahora.insert(f.value("fuente", std::string()));
+    for (const auto& c : continuas_)
+        if (!ahora.contains(c)) escucha_->cerrarContinuo(c);
+    for (const auto& c : ahora)
+        if (!continuas_.contains(c)) escucha_->abrirContinuo(c);
+    continuas_ = std::move(ahora);
+#endif
+}
+
+QString Voz::microfono() const { return QString::fromStdString(rt_.config().operatorAudio); }
+
+QString Voz::setMicrofono(const QString& fuente) {
+    if (!rt_.setOperatorFeed(rt_.config().operatorVideo, fuente.toStdString()))
+        return "No existe la fuente «" + fuente + "».";
+    emit cambio();
+    return {};
+}
+
+QVariantList Voz::fuentesTexto() const {
+    QVariantList out;
+#if defined(BA_HAVE_CLAP)
+    if (racks_ != nullptr)
+        for (const auto& f : racks_->fuentesConTexto())
+            out.push_back(QVariantMap{{"fuente", QString::fromStdString(f.value("fuente", std::string()))},
+                                      {"modo", QString::fromStdString(f.value("modo", std::string()))}});
+#endif
+    return out;
+}
+
+QString Voz::setTexto(const QString& fuente, const QString& modo) {
+#if defined(BA_HAVE_CLAP)
+    if (racks_ == nullptr) return "Esta compilación no tiene racks de audio.";
+    if (modo.isEmpty()) {
+        audio::AudioRack* r = racks_->rack(fuente.toStdString(), false);
+        if (r == nullptr) return {};
+        std::string e;
+        r->remove("voz-a-texto", &e);
+        racks_->markDirty();
+        emit racks_->changed();
+        return {};
+    }
+    if (modo != "dictado" && modo != "continuo") return "El modo es «dictado» o «continuo».";
+    return QString::fromStdString(racks_->setTexto(fuente.toStdString(), modo.toStdString()));
+#else
+    Q_UNUSED(fuente);
+    Q_UNUSED(modo);
+    return "Esta compilación no tiene racks de audio.";
+#endif
+}
+
+QVariantList Voz::transcripcionDe(const QString& fuente, int n) const {
+    QVariantList out;
+    for (auto it = transcripcion_.crbegin(); it != transcripcion_.crend() && out.size() < n; ++it)
+        if (fuente.isEmpty() || it->toMap().value("fuente").toString() == fuente) out.prepend(*it);
+    return out;
+}
+
+void Voz::borrarTranscripcion() {
+    transcripcion_.clear();
+    emit transcripcionCambio();
 }
 
 // --- Contestar hablando ----------------------------------------------------------

@@ -282,6 +282,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         QTimer::singleShot(0, modelos_.get(), [m = modelos_.get()]() { m->arrancarSiCorresponde(); });
         voz_ = std::make_unique<agent::Voz>(rt, *modelos_);
         connect(voz_.get(), &agent::Voz::notify, this, &StudioViewModel::notify);
+        // El micrófono del operador se cambia en Configuración: Sala lo muestra.
+        connect(voz_.get(), &agent::Voz::cambio, conference_.get(), &ConferenceViewModel::operatorChanged);
         // Barra de mensajes del asistente al operador (y respuestas a invitados).
         messages_ = std::make_unique<OperatorMessages>();
         if (rt.config().safeMode) {
@@ -331,6 +333,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     racks_ = std::make_unique<audio::RackManager>(rt.dataRoot());
     racks_->restore();
     audio_ = std::make_unique<audio::AudioViewModel>(*racks_);
+    if (voz_) voz_->setRacks(racks_.get()); // la voz sale de los nodos «Voz a texto»
 #endif
     // Las etiquetas de video ("Invitado 2") pasan a ser el nombre real.
     connect(conference_.get(), &ConferenceViewModel::roomChanged, this,

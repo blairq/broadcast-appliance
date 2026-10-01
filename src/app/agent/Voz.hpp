@@ -10,6 +10,16 @@
 // operador (OperatorFeed) va al reconocedor y el lobby recibe silencio: el
 // invitado no puede oír lo que se le pide al asistente. Al soltarla, vuelve.
 //
+// DE DONDE SALE LA VOZ: de las fuentes con un nodo «Voz a texto» en modo
+// dictado (sección Audio, como una salida). Al apretar se junta lo de todas y
+// se transcribe la que más habló. Si ninguna tiene el nodo, se le pone solo al
+// micrófono del operador (Configuración -> Audio y voz). Sin racks de audio,
+// se toma el micrófono del operador directo.
+//
+// TRANSCRIPCIÓN CONTINUA: las fuentes con el nodo en modo «continuo» se
+// transcriben sin parar (subtítulos, acta): frase por frase, 1-3 s después.
+// Lo último queda en `transcripcion` y por MCP.
+//
 // LA TECLA. F9 por defecto, mientras la ventana de la app tiene el foco, y el
 // botón del micrófono de la barra (mantener apretado). Se atrapa con un filtro
 // de eventos de la aplicación: anda en cualquier página sin pelear con el foco
@@ -29,7 +39,14 @@
 #include <QString>
 #include <QVariantList>
 
+#include <atomic>
+#include <cstdint>
+#include <map>
 #include <memory>
+#include <mutex>
+#include <set>
+#include <string>
+#include <vector>
 
 namespace ba::app {
 class AppRuntime;
@@ -37,6 +54,7 @@ namespace audio {
 class Escucha;
 class Habla;
 class MonitorVoz;
+class RackManager;
 } // namespace audio
 } // namespace ba::app
 
@@ -67,6 +85,13 @@ class Voz : public QObject {
     Q_PROPERTY(double velocidad READ velocidad WRITE setVelocidad NOTIFY cambio)
     Q_PROPERTY(bool vozLista READ vozLista NOTIFY cambio)
     Q_PROPERTY(bool hablando READ hablando NOTIFY cambio)
+    // --- Micrófono y transcripción ----------------------------------------------
+    /// El micrófono del operador (la misma fuente que oye el lobby).
+    Q_PROPERTY(QString microfono READ microfono NOTIFY cambio)
+    /// Fuentes con voz a texto: [{fuente, modo}].
+    Q_PROPERTY(QVariantList fuentesTexto READ fuentesTexto NOTIFY cambio)
+    /// Lo último transcripto en continuo: [{fuente, texto, hora, segundos}], lo más nuevo al final.
+    Q_PROPERTY(QVariantList transcripcion READ transcripcion NOTIFY transcripcionCambio)
 
    public:
     Voz(AppRuntime& rt, ModelosLocales& modelos, QObject* parent = nullptr);
@@ -101,8 +126,24 @@ class Voz : public QObject {
     Q_INVOKABLE void probarVoz();
     Q_INVOKABLE void callar();
 
+    /// Los racks de audio (si esta compilación los tiene): de ahí sale la voz.
+    void setRacks(audio::RackManager* racks);
+    QString microfono() const;
+    /// Elegir el micrófono del operador entre las fuentes con audio. Devuelve el error o "".
+    Q_INVOKABLE QString setMicrofono(const QString& fuente);
+    QVariantList fuentesTexto() const;
+    /// Poner o quitar voz a texto en una fuente: modo "dictado", "continuo" o "" (quitar).
+    Q_INVOKABLE QString setTexto(const QString& fuente, const QString& modo);
+    QVariantList transcripcion() const { return transcripcion_; }
+    /// Lo transcripto de una fuente (o de todas, vacío), las últimas `n` frases.
+    QVariantList transcripcionDe(const QString& fuente, int n) const;
+    Q_INVOKABLE void borrarTranscripcion();
+
    signals:
     void cambio();
+    void transcripcionCambio();
+    /// Una frase nueva de la transcripción continua.
+    void frase(const QString& fuente, const QString& texto);
     /// Lo que dijo el operador, para la barra del asistente.
     void dictado(const QString& texto);
     void notify(const QString& text, const QString& kind);
@@ -113,6 +154,9 @@ class Voz : public QObject {
    private:
     void revisarModelos();
     void revisarVoz();
+    void revisarCorrientes();
+    /// Lo que manda el rack (hilo de audio).
+    void alAudio(const std::string& fuente, int modo, const float* m, std::uint32_t n, std::uint32_t f);
     void setEstado(const QString& e);
     void leerAjustes();
     void guardarAjustes() const;
@@ -137,6 +181,18 @@ class Voz : public QObject {
     bool vozLista_ = false;
     bool hablando_ = false;
     int pendientes_ = 0; ///< frases encargadas que todavía no terminaron
+
+    audio::RackManager* racks_ = nullptr;
+    std::atomic<bool> tomando_{false}; ///< el hilo de audio lo lee
+    std::mutex tomasLock_;
+    struct Toma {
+        std::vector<float> audio;
+        std::uint32_t frecuencia = 48000;
+        double energia = 0;
+    };
+    std::map<std::string, Toma> tomas_; ///< por fuente, mientras la tecla está apretada
+    std::set<std::string> continuas_;   ///< las corrientes abiertas
+    QVariantList transcripcion_;
 };
 
 } // namespace ba::app::agent

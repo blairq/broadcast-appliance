@@ -25,6 +25,7 @@
 #include <cstdint>
 #include <deque>
 #include <functional>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -75,10 +76,28 @@ class Escucha {
     /// Tecla suelta sin querer transcribir (se canceló).
     void cancelar();
     bool grabando() const { return grabando_; }
+    /// Transcribe una toma ya juntada afuera (el dictado desde los nodos del
+    /// rack). Mismo resultado y mismo hilo que `terminar`.
+    void transcribir(std::vector<float> audio, std::uint32_t frecuencia, Listo listo);
+
+    // --- Transcripción continua (subtítulos, acta) ------------------------------
+    // Una «corriente» por fuente: el audio llega sin parar, su VAD corta las
+    // frases y cada una se transcribe apenas termina (1-3 s de retraso). Usa
+    // el MISMO reconocedor que el dictado (un solo modelo en memoria).
+    using Frase = std::function<void(const std::string& clave, const Resultado& r)>;
+    /// A dónde van las frases (en el hilo de Escucha).
+    void setFrase(Frase f);
+    void abrirContinuo(const std::string& clave);
+    void cerrarContinuo(const std::string& clave);
+    /// Desde el hilo de audio: copia y vuelve. Sin corriente abierta no hace nada.
+    void alimentarContinuo(const std::string& clave, const float* muestras, std::size_t n,
+                           std::uint32_t frecuencia);
 
    private:
-    struct Motor; // sherpa-onnx: solo existe en el hilo de trabajo
+    struct Motor;     // sherpa-onnx: solo existe en el hilo de trabajo
+    struct Corriente; // VAD y remuestreo de una fuente (hilo de trabajo)
     void bucle();
+    void atenderCorrientes();
     void encolar(std::function<void()> trabajo);
     Resultado transcribir(std::vector<float> audio, std::uint32_t frecuencia);
 
@@ -89,6 +108,18 @@ class Escucha {
     std::mutex tomaLock_;
     std::vector<float> toma_;
     std::uint32_t frecuencia_ = 48000;
+
+    // Lo que llegó de cada corriente y todavía no se procesó.
+    struct Pendiente {
+        std::vector<float> audio;
+        std::uint32_t frecuencia = 48000;
+        bool abierta = true;
+    };
+    std::mutex contLock_;
+    std::map<std::string, Pendiente> pendientes_;
+    std::map<std::string, std::unique_ptr<Corriente>> corrientes_; // solo el hilo de trabajo
+    Frase frase_;
+    std::string vadModelo_;
 
     std::mutex colaLock_;
     std::condition_variable colaCv_;

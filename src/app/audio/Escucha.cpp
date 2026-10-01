@@ -26,6 +26,13 @@ struct Escucha::Motor {
     std::int32_t ventanaVad = 512;
 };
 
+struct Escucha::Corriente {
+    std::optional<so::VoiceActivityDetector> vad;
+    std::optional<so::LinearResampler> rs;
+    std::uint32_t frecuencia = 0;
+    std::vector<float> resto; // muestras a 16 kHz que no completan una ventana del VAD
+};
+
 Escucha::Escucha() : hilo_([this]() { bucle(); }) {}
 
 Escucha::~Escucha() {
@@ -50,13 +57,19 @@ void Escucha::bucle() {
         std::function<void()> trabajo;
         {
             std::unique_lock<std::mutex> l(colaLock_);
-            colaCv_.wait(l, [this]() { return salir_ || !cola_.empty(); });
+            // Con corrientes abiertas se despierta solo cada 200 ms a atenderlas.
+            colaCv_.wait_for(l, std::chrono::milliseconds(200),
+                             [this]() { return salir_ || !cola_.empty(); });
             if (salir_ && cola_.empty()) break;
-            trabajo = std::move(cola_.front());
-            cola_.pop_front();
+            if (!cola_.empty()) {
+                trabajo = std::move(cola_.front());
+                cola_.pop_front();
+            }
         }
-        trabajo();
+        if (trabajo) trabajo();
+        atenderCorrientes();
     }
+    corrientes_.clear();
     motor_.reset(); // los modelos se liberan en el hilo que los creó
 }
 
@@ -91,6 +104,11 @@ void Escucha::cargar(const Modelos& m, std::function<void(const std::string&)> l
             motor->ventanaVad = v.silero_vad.window_size;
         }
         motor_ = std::move(motor);
+        corrientes_.clear(); // se rearman con el VAD nuevo
+        {
+            std::lock_guard<std::mutex> l(contLock_);
+            vadModelo_ = m.vad;
+        }
         cargado_ = true;
         if (listo)
             listo(m.vad.empty() || motor_->conVad ? std::string()
@@ -132,6 +150,112 @@ void Escucha::terminar(Listo listo) {
         const Resultado r = transcribir(std::move(audio), frecuencia);
         if (listo) listo(r);
     });
+}
+
+void Escucha::transcribir(std::vector<float> audio, std::uint32_t frecuencia, Listo listo) {
+    encolar([this, audio = std::move(audio), frecuencia, listo = std::move(listo)]() mutable {
+        const Resultado r = transcribir(std::move(audio), frecuencia);
+        if (listo) listo(r);
+    });
+}
+
+void Escucha::setFrase(Frase f) {
+    std::lock_guard<std::mutex> l(contLock_);
+    frase_ = std::move(f);
+}
+
+void Escucha::abrirContinuo(const std::string& clave) {
+    std::lock_guard<std::mutex> l(contLock_);
+    pendientes_[clave].abierta = true;
+}
+
+void Escucha::cerrarContinuo(const std::string& clave) {
+    std::lock_guard<std::mutex> l(contLock_);
+    if (auto it = pendientes_.find(clave); it != pendientes_.end()) it->second.abierta = false;
+}
+
+void Escucha::alimentarContinuo(const std::string& clave, const float* muestras, std::size_t n,
+                                std::uint32_t frecuencia) {
+    if (muestras == nullptr || n == 0) return;
+    std::lock_guard<std::mutex> l(contLock_);
+    const auto it = pendientes_.find(clave);
+    if (it == pendientes_.end() || !it->second.abierta) return;
+    Pendiente& p = it->second;
+    // Tope: si el hilo se atrasa (una transcripción larga), no crece sin fin.
+    if (p.audio.size() > static_cast<std::size_t>(frecuencia) * 10) return;
+    p.frecuencia = frecuencia;
+    p.audio.insert(p.audio.end(), muestras, muestras + n);
+}
+
+void Escucha::atenderCorrientes() {
+    std::map<std::string, Pendiente> lote;
+    Frase frase;
+    std::string vadModelo;
+    {
+        std::lock_guard<std::mutex> l(contLock_);
+        for (auto it = pendientes_.begin(); it != pendientes_.end();) {
+            if (!it->second.abierta) {
+                corrientes_.erase(it->first);
+                it = pendientes_.erase(it);
+                continue;
+            }
+            if (!it->second.audio.empty()) {
+                Pendiente& p = lote[it->first];
+                p.frecuencia = it->second.frecuencia;
+                p.audio.swap(it->second.audio);
+            }
+            ++it;
+        }
+        frase = frase_;
+        vadModelo = vadModelo_;
+    }
+    if (lote.empty() || !cargado_ || !motor_ || vadModelo.empty()) return;
+    for (auto& [clave, p] : lote) {
+        auto& c = corrientes_[clave];
+        if (!c) {
+            c = std::make_unique<Corriente>();
+            so::VadModelConfig v;
+            v.silero_vad.model = vadModelo;
+            v.silero_vad.min_silence_duration = 0.5f;
+            v.silero_vad.max_speech_duration = 15.0f; // una frase larga se corta igual
+            v.sample_rate = kFrecuenciaModelo;
+            c->vad.emplace(so::VoiceActivityDetector::Create(v, 30.0f));
+            if (!c->vad->Get()) continue;
+        }
+        if (c->frecuencia != p.frecuencia) {
+            c->frecuencia = p.frecuencia;
+            c->rs.reset();
+            if (p.frecuencia != static_cast<std::uint32_t>(kFrecuenciaModelo))
+                c->rs.emplace(so::LinearResampler::Create(static_cast<std::int32_t>(p.frecuencia),
+                                                          kFrecuenciaModelo, 0.99f * 0.5f * kFrecuenciaModelo,
+                                                          6));
+        }
+        std::vector<float> a16 =
+            c->rs ? c->rs->Resample(p.audio.data(), static_cast<std::int32_t>(p.audio.size()), false)
+                  : p.audio;
+        c->resto.insert(c->resto.end(), a16.begin(), a16.end());
+        const std::size_t w = 512;
+        std::size_t usado = 0;
+        for (; usado + w <= c->resto.size(); usado += w)
+            c->vad->AcceptWaveform(c->resto.data() + usado, w);
+        c->resto.erase(c->resto.begin(), c->resto.begin() + static_cast<std::ptrdiff_t>(usado));
+        while (!c->vad->IsEmpty()) {
+            const so::SpeechSegment seg = c->vad->Front();
+            c->vad->Pop();
+            const auto t0 = std::chrono::steady_clock::now();
+            Resultado r;
+            r.segundosDeAudio = static_cast<double>(seg.samples.size()) / kFrecuenciaModelo;
+            so::OfflineStream s = motor_->reconocedor->CreateStream();
+            s.AcceptWaveform(kFrecuenciaModelo, seg.samples.data(),
+                             static_cast<std::int32_t>(seg.samples.size()));
+            motor_->reconocedor->Decode(&s);
+            r.texto = motor_->reconocedor->GetResult(&s).text;
+            const auto ini = r.texto.find_first_not_of(' ');
+            r.texto = ini == std::string::npos ? std::string() : r.texto.substr(ini);
+            r.ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+            if (!r.texto.empty() && frase) frase(clave, r);
+        }
+    }
 }
 
 Escucha::Resultado Escucha::transcribir(std::vector<float> audio, std::uint32_t frecuencia) {

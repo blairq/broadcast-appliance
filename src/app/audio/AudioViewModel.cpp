@@ -186,6 +186,17 @@ void AudioViewModel::rebuildDetail() {
             rep["bandas"] = bands;
             j["analisis"] = rep;
         }
+        if (r->kindOf(id) == "texto") {
+            j["modo"] = r->textoModo();
+            j["ayuda"] =
+                r->textoModo() == "continuo"
+                    ? "Transcribe sin parar lo que le llega (subtítulos, acta): frase por frase, 1 a 3 s "
+                      "después. El texto se ve abajo y por MCP (voz_transcripcion). No toca lo que sale al "
+                      "aire."
+                    : "Dictado al asistente: mientras se aprieta F9 (o el micrófono de la barra), lo que le "
+                      "llega se transcribe y va a la barra del asistente. Si hay varias fuentes con dictado, "
+                      "se usa la que más habló.";
+        }
         if (Generator* g = r->generator(id)) {
             const auto c = g->config();
             j["senal"] = {
@@ -230,6 +241,16 @@ QString AudioViewModel::addModule(const QString& moduleOrId, const QString& afte
     selected_ = QString::fromStdString(id);
     emit selectionChanged();
     refresh();
+    return {};
+}
+
+QString AudioViewModel::addTexto(const QString& modo) {
+    if (rack(true) == nullptr) return "Elegí una fuente con audio.";
+    const std::string e = mgr_.setTexto(source_.toStdString(), modo.toStdString());
+    if (!e.empty()) return QString::fromStdString(e);
+    select("voz-a-texto");
+    rebuildGraph();
+    rebuildDetail();
     return {};
 }
 

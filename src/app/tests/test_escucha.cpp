@@ -131,6 +131,27 @@ int main() {
     e.cancelar();
     CHECK(!e.grabando(), "cancelar");
 
+    // Continuo: la misma toma como corriente, sin apretar nada. El VAD corta
+    // la frase cuando vuelve el silencio y la transcribe sola.
+    std::string continuo;
+    bool llego = false;
+    e.setFrase([&](const std::string& clave, const Escucha::Resultado& x) {
+        std::lock_guard<std::mutex> l(mu);
+        continuo += (continuo.empty() ? "" : " ") + x.texto;
+        llego = clave == "programa";
+        cv.notify_all();
+    });
+    e.abrirContinuo("programa");
+    for (std::size_t i = 0; i < toma.size(); i += bloque)
+        e.alimentarContinuo("programa", toma.data() + i, std::min(bloque, toma.size() - i), f);
+    {
+        std::unique_lock<std::mutex> l(mu);
+        cv.wait_for(l, std::chrono::seconds(30), [&] { return llego; });
+    }
+    std::printf("   continuo: «%s»\n", continuo.c_str());
+    CHECK(llego && continuo.find("hacer") != std::string::npos, "transcripcion continua de una corriente");
+    e.cerrarContinuo("programa");
+
     std::printf(g_failures == 0 ? "test_escucha: OK\n" : "test_escucha: %d fallos\n", g_failures);
     return g_failures == 0 ? 0 : 1;
 }

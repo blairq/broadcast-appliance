@@ -4,6 +4,8 @@
 
 #include "audio/RackManager.hpp"
 
+#include <mutex>
+
 #include <QCoreApplication>
 #include <QMetaObject>
 #include <QSocketNotifier>
@@ -142,6 +144,9 @@ void filterDestroy(void* data) {
         delete f;
 }
 
+std::mutex g_textoLock;
+RackManager::TextoSink g_texto;
+
 obs_audio_data* filterAudio(void* data, obs_audio_data* audio) {
     auto* f = static_cast<RackManager::Filter*>(data);
     const int ch = static_cast<int>(audio_output_get_channels(obs_get_audio()));
@@ -159,6 +164,14 @@ obs_audio_data* filterAudio(void* data, obs_audio_data* audio) {
         out.samples_per_sec = audio_output_get_sample_rate(obs_get_audio());
         out.timestamp = audio->timestamp;
         obs_source_output_audio(f->tap, &out);
+    }
+    // Voz a texto: lo que junto su nodo va al reconocedor (copia y vuelve).
+    const uint32_t tf = f->rack->textoFrames();
+    if (tf > 0) {
+        std::lock_guard<std::mutex> l(g_textoLock);
+        if (g_texto)
+            g_texto(f->source, f->rack->textoModoAudio(), f->rack->textoData(), tf,
+                    audio_output_get_sample_rate(obs_get_audio()));
     }
     return audio;
 }
@@ -410,6 +423,31 @@ json RackManager::audioSources() const {
         },
         &ctx);
     return ctx.list;
+}
+
+void RackManager::setTextoSink(TextoSink sink) {
+    std::lock_guard<std::mutex> l(g_textoLock);
+    g_texto = std::move(sink);
+}
+
+std::string RackManager::setTexto(const std::string& source, const std::string& modo) {
+    std::string e;
+    AudioRack* r = rack(source, true, &e);
+    if (r == nullptr) return e;
+    r->addTexto(modo);
+    markDirty();
+    emit changed();
+    return {};
+}
+
+RackManager::json RackManager::fuentesConTexto() const {
+    json out = json::array();
+    for (const auto& [nombre, f] : filters_)
+        if (f != nullptr && f->rack) {
+            const std::string m = f->rack->textoModo();
+            if (!m.empty()) out.push_back({{"fuente", nombre}, {"modo", m}});
+        }
+    return out;
 }
 
 AudioRack* RackManager::rack(const std::string& source, bool create, std::string* error) {
