@@ -1,0 +1,6 @@
+{
+	"matrix_mixer": {
+		"description": "Leitet jeden Eingang an jeden Ausgang mit einer eigenen Verstärkung für jeden Kreuzungspunkt.",
+		"name": "Matrixmischer"
+	}
+}

@@ -1,0 +1,6 @@
+{
+	"matrix_mixer": {
+		"input": "Ingresso #{@id}",
+		"output": "Uscita #{@id}"
+	}
+}

@@ -38,7 +38,9 @@ PKGS=(
 )
 
 [ "$(uname -s)" = Darwin ] && [ "$(uname -m)" = arm64 ] || { log "esto se corre en una Mac Apple Silicon"; exit 1; }
-if [ "$(cat "$OUT/.version" 2>/dev/null)" = "$LSP_VER" ] && [ -e "$OUT/lsp-plugins.clap" ]; then
+# La versión de LSP más la huella de nuestro módulo (si cambia, se recompila).
+SELLO="$LSP_VER+$("$ROOT/tools/deps/lsp-modulo-propio.sh" --huella)"
+if [ "$(cat "$OUT/.version" 2>/dev/null)" = "$SELLO" ] && [ -e "$OUT/lsp-plugins.clap" ]; then
     log "LSP $LSP_VER para macOS: ya presente"
     exit 0
 fi
@@ -139,6 +141,8 @@ fi
 # --- LSP ---------------------------------------------------------------------------
 d="$(unpack lsp)"
 cd "$d"
+# Nuestro módulo (Matrix Mixer), con las convenciones de LSP.
+"$ROOT/tools/deps/lsp-modulo-propio.sh" "$d"
 log "configurando LSP $LSP_VER (macOS arm64, CLAP + interfaz)"
 # El build de LSP pide GNU make 4 (el de macOS es 3.81): gmake de Homebrew.
 gmake config FEATURES='clap ui' PHP="$PHP" PKG_CONFIG="pkg-config --static" \
@@ -174,5 +178,5 @@ find "$OUT" -name '*.dylib' -exec codesign -f -s - {} \; 2>/dev/null || true
 mkdir -p "$ROOT/extern/lsp/licencias"
 cp COPYING "$ROOT/extern/lsp/licencias/COPYING.txt"
 cp COPYING.LESSER "$ROOT/extern/lsp/licencias/COPYING.LESSER.txt"
-echo "$LSP_VER" >"$OUT/.version"
+echo "$SELLO" >"$OUT/.version"
 log "listo: $OUT"

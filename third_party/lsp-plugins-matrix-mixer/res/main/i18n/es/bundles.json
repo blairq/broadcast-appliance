@@ -1,0 +1,6 @@
+{
+	"matrix_mixer": {
+		"description": "Envía cada entrada a cada salida con una ganancia propia en cada cruce.",
+		"name": "Mezclador matricial"
+	}
+}

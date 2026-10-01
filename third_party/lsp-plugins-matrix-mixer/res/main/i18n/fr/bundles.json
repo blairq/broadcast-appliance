@@ -1,0 +1,6 @@
+{
+	"matrix_mixer": {
+		"description": "Achemine chaque entrée vers chaque sortie avec un gain propre à chaque point de croisement.",
+		"name": "Mélangeur matriciel"
+	}
+}

@@ -1,0 +1,12 @@
+{
+	"launcher": {
+		"matrix_mixer_x4_mono": "x4 Mono",
+		"matrix_mixer_x4_stereo": "x4 Stereo",
+		"matrix_mixer_x8_mono": "x8 Mono",
+		"matrix_mixer_x8_stereo": "x8 Stereo"
+	},
+	"matrix_mixer": {
+		"description": "Routes each input to each output with an individual gain for every crosspoint.",
+		"name": "Matrix Mixer"
+	}
+}

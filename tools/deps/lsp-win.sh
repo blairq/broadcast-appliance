@@ -39,7 +39,9 @@ LSP_SHA=2c95ec7bb219d561ea3db36051b6c732133bcd76426fb836b1dd850dc4b5bb6c
 PHP_VER=8.4.23
 PHP_SHA=1aeed5bc7967977ca5b1da7163acd91bf9ba3ac56037045d4e91ee2ff2712bb7
 
-if [ "$(cat "$OUT/.version" 2>/dev/null)" = "$LSP_VER" ] && [ -f "$OUT/lsp-plugins.clap" ]; then
+# La versión de LSP más la huella de nuestro módulo (si cambia, se recompila).
+SELLO="$LSP_VER+$("$ROOT/tools/deps/lsp-modulo-propio.sh" --huella)"
+if [ "$(cat "$OUT/.version" 2>/dev/null)" = "$SELLO" ] && [ -f "$OUT/lsp-plugins.clap" ]; then
     log "LSP $LSP_VER para Windows: ya presente"
     exit 0
 fi
@@ -108,6 +110,8 @@ f="$DL/lsp-plugins-src-$LSP_VER.tar.gz"
 fetch "https://github.com/lsp-plugins/lsp-plugins/releases/download/$LSP_VER/lsp-plugins-src-$LSP_VER.tar.gz" "$f" "$LSP_SHA"
 rm -rf "$SRC" && mkdir -p "$SRC" && tar xzf "$f" -C "$SRC"
 cd "$SRC/lsp-plugins"
+# Nuestro módulo (Matrix Mixer), con las convenciones de LSP.
+"$ROOT/tools/deps/lsp-modulo-propio.sh" "$SRC/lsp-plugins"
 
 # Herramientas del HOST: libsndfile/cairo vendoreados si estan.
 HOSTINC="-DUSE_LIBSNDFILE"
@@ -142,5 +146,5 @@ cp .build/target/lsp-r3d-wgl-lib/lsp-r3d-wgl-lib-*.dll "$OUT/"
 mkdir -p "$ROOT/extern/lsp/licencias"
 cp COPYING "$ROOT/extern/lsp/licencias/COPYING.txt"
 cp COPYING.LESSER "$ROOT/extern/lsp/licencias/COPYING.LESSER.txt"
-echo "$LSP_VER" >"$OUT/.version"
+echo "$SELLO" >"$OUT/.version"
 log "listo: $OUT"

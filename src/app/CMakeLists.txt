@@ -712,6 +712,28 @@ endif()
         endif()
         add_test(NAME test_clap_host COMMAND test_clap_host)
         set_tests_properties(test_clap_host PROPERTIES SKIP_RETURN_CODE 77)
+        # Herramienta (no test, solo Mac): captura la interfaz de un plugin CLAP
+        # (las capturas y los iconos del Matrix Mixer: tools/lsp-matrix-mixer-doc.py).
+        if(APPLE)
+            add_executable(capturar_lsp tools/capturar_lsp.cpp tools/capturar_vista_mac.mm audio/ClapHost.cpp
+                audio/ClapEditor.cpp)
+            target_include_directories(capturar_lsp PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_CLAP_INC}")
+            target_compile_definitions(capturar_lsp PRIVATE _USE_MATH_DEFINES)
+            target_link_libraries(capturar_lsp PRIVATE ${_ba_clap_ui_libs} Qt6::Gui "-framework AppKit")
+            set_target_properties(capturar_lsp PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
+        endif()
+        # El Matrix Mixer (nuestro modulo LSP, third_party/lsp-plugins-matrix-mixer) con audio.
+        add_executable(test_matrix_mixer tests/test_matrix_mixer.cpp audio/ClapHost.cpp audio/ClapEditor.cpp)
+        target_include_directories(test_matrix_mixer PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_CLAP_INC}")
+        target_compile_definitions(test_matrix_mixer PRIVATE BA_TEST_LSP_CLAP="${BA_LSP_CLAP}")
+        target_link_libraries(test_matrix_mixer PRIVATE ${_ba_clap_ui_libs})
+        if(APPLE)
+            set_target_properties(test_matrix_mixer PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
+        elseif(NOT WIN32)
+            set_target_properties(test_matrix_mixer PROPERTIES BUILD_RPATH "${BA_OBS_DEPS}/lib")
+        endif()
+        add_test(NAME test_matrix_mixer COMMAND test_matrix_mixer)
+        set_tests_properties(test_matrix_mixer PROPERTIES SKIP_RETURN_CODE 77)
         add_executable(test_audio_rack tests/test_audio_rack.cpp audio/AudioRack.cpp audio/Analyzer.cpp
                                        audio/ClapHost.cpp audio/ClapEditor.cpp)
         target_include_directories(test_audio_rack PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_CLAP_INC}")
