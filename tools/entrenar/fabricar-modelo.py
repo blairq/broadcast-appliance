@@ -23,6 +23,9 @@ ETAPAS
               GGUF Q4_K_M calibrado con
               NUESTRO corpus (imatrix: el examen no entra). Ademas el q4 de MLX
               simulado se mide en el banco: cuanto le cuesta cuantizar.
+  vision      el modelo CON vision: checkpoint completo (base + modulos
+              ajustados, con-vision.py), MLX con vision (mlx_vlm.convert, la torre
+              sin cuantizar; reemplaza al de solo texto) y mmproj para llama.cpp.
   empaquetar  los repos de Hugging Face (MLX q4 y GGUF): tarjeta del modelo
               (que hace, como usarlo, curva del banco, examen, costo de
               cuantizar, cabeza MTP, perfil y herramientas), licencia de la
@@ -67,7 +70,7 @@ PY_MLX = RAIZ / ".venv-mlx/bin/python"
 E = Path(__file__).resolve().parent
 LLAMA = RAIZ / "extern/llamacpp"
 CONV = RAIZ / "extern/llamacpp-convertir"
-ETAPAS = ["inspeccionar", "descargar", "corpus", "entrenar", "medir", "exportar", "empaquetar", "subir"]
+ETAPAS = ["inspeccionar", "descargar", "corpus", "entrenar", "medir", "exportar", "vision", "empaquetar", "subir"]
 
 # COMO SE ENTRENA CADA BASE en dos RTX 3090 (24 GB) se DECIDE leyendo su config
 # (inspeccionar_base, abajo). Medido el 30/09/2026 con entrenar-rapido.py:
@@ -166,7 +169,9 @@ class Fabrica:
         return {"descargar": 0 if self.base_en_cache() else gb * 1.1 + 1,
                 "corpus": 0.5, "entrenar": 3, "medir": 1,
                 # en el pico: fusionado bf16 + GGUF bf16 + q4 simulado (+ los cuantizados)
-                "exportar": gb * 3.4 + 2, "empaquetar": 0.2}.get(etapa, 0)
+                "exportar": gb * 3.4 + 2,
+                # fusionado (si hay que rehacerlo) + el completo con vision + MLX + mmproj
+                "vision": gb * 2.5 + 2, "empaquetar": 0.2}.get(etapa, 0)
 
     def controlar_espacio(self, etapas):
         """Para ANTES de empezar si no entra: mejor que morir a mitad de un GGUF."""
@@ -423,11 +428,10 @@ class Fabrica:
         correr([PY_MLX, E / "simular-q4-mlx.py", "--hf", hf, "--salida", sim], salida=self.dir / "simular.log")
         self.medir(modelo=sim, etiqueta="mlx-q4", banco_curva=self.a.curva_q4, margen=False)
         shutil.rmtree(sim)
-        if not self.a.conservar:  # los intermedios grandes: se rehacen con --rehacer exportar
-            shutil.rmtree(hf, ignore_errors=True)
-            bf16.unlink(missing_ok=True)
+        if not self.a.conservar:  # el GGUF bf16 se rehace con --rehacer exportar; el fusionado
+            bf16.unlink(missing_ok=True)  # lo usa la etapa vision, que lo borra al terminar
             self.man["exportado"]["gguf_bf16"] = None
-            log(f"intermedios borrados (fusionado y GGUF bf16); libres {libre_gb(self.dir):.0f} GB")
+            log(f"intermedio borrado (GGUF bf16); libres {libre_gb(self.dir):.0f} GB")
         (self.dir / "exportado").write_text("ok")
 
     @staticmethod
@@ -440,6 +444,56 @@ class Fabrica:
         convertir y le suma 1 a todas las normas del modelo. mlx-lm solo lee
         model*.safetensors; MTPLX encuentra la cabeza por el config."""
         correr([PY_MLX, E / "mtp-mlx.py", "--entrada", mtp_f, "--salida", mlx, "--base", base])
+
+    def vision(self):
+        """EL MODELO CON VISION. Entrenamos solo la parte de texto (AutoModelForCausalLM)
+        y el fusionado sale sin la torre de vision; el LoRA no la toca, asi que se
+        arma el checkpoint completo (con-vision.py: base + modulos ajustados) y de
+        ahi salen el MLX con vision (mlx_vlm.convert; la torre sin cuantizar) y el
+        mmproj de llama.cpp. El MLX con vision REEMPLAZA al de solo texto: mlx-lm
+        lo carga igual (ignora la vision) y mlx-vlm lo usa con imagenes."""
+        ex = self.dir / "export"
+        hf = ex / "modelo-hf"
+        if not self.man["arquitectura"].get("vision"):
+            log("la base no tiene vision")
+        else:
+            if not (hf / "config.json").exists():
+                correr([PY, E / "exportar-mlx.py", "--modelo", self.adaptador, "--salida", ex / "modelo",
+                        "--solo-fusionar"], env={"CUDA_VISIBLE_DEVICES": "0"}, salida=self.dir / "fusionar.log")
+            completo = ex / "modelo-vl-hf"
+            correr([PY, E / "con-vision.py", "--fusionado", hf, "--base", self.man["base_ruta"],
+                    "--adaptador", self.adaptador, "--salida", completo], salida=self.dir / "vision.log")
+            vl = ex / "modelo-vl-q4"
+            if vl.exists():
+                shutil.rmtree(vl)
+            correr([PY_MLX, "-m", "mlx_vlm.convert", "--hf-path", completo, "--mlx-path", vl, "-q",
+                    "--q-bits", "4", "--q-group-size", "64"], salida=self.dir / "mlx-vlm.log")
+            # mlx-vlm 0.7.4 escribe el config SIN la cuantizacion (los pesos si estan
+            # cuantizados): sin esto ni mlx-lm ni mlx-vlm lo cargan
+            cfg = json.loads((vl / "config.json").read_text())
+            q = {"group_size": 64, "bits": 4, "mode": "affine"}
+            cfg.setdefault("quantization", q)
+            cfg.setdefault("quantization_config", q)
+            (vl / "config.json").write_text(json.dumps(cfg, indent=2))
+            if (ex / "mtp.safetensors").exists():
+                self.mtp_a_mlx(ex / "mtp.safetensors", vl, self.man["base"])
+            correr([PY_MLX, "-c", f"from mlx_lm import load; load({str(vl)!r}); "
+                                  f"from mlx_vlm import load as v; v({str(vl)!r}); print('carga: mlx-lm y mlx-vlm')"],
+                   salida=self.dir / "vision-carga.log")
+            mmproj = ex / "gguf" / "mmproj-F16.gguf"
+            correr([PY, CONV / "convert_hf_to_gguf.py", completo, "--mmproj", "--outtype", "f16", "--outfile", mmproj],
+                   env={"PYTHONPATH": str(CONV / "gguf-py")}, salida=self.dir / "mmproj.log")
+            self.man["exportado"].update({
+                "mlx_q4": str(vl), "mmproj": str(mmproj), "vision": True})
+            self.man["exportado"]["tam_gb"]["mlx_q4"] = round(
+                sum(f.stat().st_size for f in vl.rglob("*") if f.is_file()) / 2**30, 2)
+            self.man["exportado"]["tam_gb"]["mmproj"] = round(mmproj.stat().st_size / 2**30, 2)
+            if not self.a.conservar:
+                shutil.rmtree(completo, ignore_errors=True)
+            log(f"con vision: {vl.name} ({self.man['exportado']['tam_gb']['mlx_q4']} GB) y {mmproj.name}")
+        if not self.a.conservar:
+            shutil.rmtree(hf, ignore_errors=True)
+        (self.dir / "vision-hecha").write_text("ok")
 
     def receta_unsloth(self, bf16, gg):
         """La receta UD de unsloth: que tipo lleva cada tensor en su UD-Q4_K_XL.
@@ -547,7 +601,11 @@ modelo, tok = load("{a.hf_usuario or '<usuario>'}/{repo}")
 ```
 Elegir con decodificación restringida a los nombres posibles (como `tools/entrenar/evaluar-mlx.py`
 del repo del aparato): el prefijo con las fichas se procesa una vez y se reusa entre pedidos."""
-            archivos = ("`model.safetensors`: MLX, 4 bits (afín, grupos de 64). Solo texto (sin la parte de visión)."
+            vis = m.get("exportado", {}).get("vision")
+            archivos = ("`model.safetensors`: MLX, 4 bits (afín, grupos de 64). "
+                        + ("Con la parte de visión (la torre sin cuantizar, igual a la de la base: el ajuste no la"
+                           " toca): mlx-vlm lo usa con imágenes y mlx-lm lo carga como texto."
+                           if vis else "Solo texto (sin la parte de visión).")
                         + ("\n`mtp.safetensors` (copia en `mtp/weights.safetensors`): la cabeza MTP entrenada con el"
                            " contrato de [MTPLX](https://mtplx.com): lineales de la capa en int4 (afín, grupos de 64),"
                            " `mtp.fc` y normas en bf16 **con el +1 aplicado** (la convención de MLX); el `config.json`"
@@ -558,7 +616,7 @@ del repo del aparato): el prefijo con las fichas se procesa una vez y se reusa e
                            " ahí como un checkpoint sin convertir y correría las normas del modelo." if mtp else ""))
         else:
             uso = f"""```bash
-llama-server -m {self.gguf_nombre} -c 8192 --cache-reuse 256{' --spec-type draft-mtp --spec-draft-n-max 3' if mtp else ''}
+llama-server -m {self.gguf_nombre}{' --mmproj mmproj-F16.gguf' if m.get('exportado', {}).get('mmproj') else ''} -c 8192 --cache-reuse 256{' --spec-type draft-mtp --spec-draft-n-max 3' if mtp else ''}
 ```
 llama.cpp b11255 o posterior (arquitectura `qwen35`, con atención lineal). Restringir la salida con
 una gramática a los nombres posibles."""
@@ -566,13 +624,15 @@ una gramática a los nombres posibles."""
             cuant = (f"{RECETA_UNSLOTH} (la receta «UD» de [{ru['repo']}](https://huggingface.co/{ru['repo']}):"
                      f" el mismo tipo por tensor que su `{ru['archivo']}`, aplicado a estos pesos)") if ru else "Q4_K_M"
             archivos = (f"`{self.gguf_nombre}`: {cuant}, calibrado con imatrix sobre el propio"
-                        f" corpus (sin el examen){' e incluye la cabeza MTP entrenada' if mtp else ''}.")
+                        f" corpus (sin el examen){' e incluye la cabeza MTP entrenada' if mtp else ''}."
+                        + ("\n`mmproj-F16.gguf`: la parte de visión para llama.cpp (`--mmproj`), igual a la de la"
+                           " base." if m.get("exportado", {}).get("mmproj") else ""))
         return f"""---
 license: {m['base_licencia']}
 base_model: {m.get('base')}
 language: [es]
 library_name: {'mlx' if formato == 'mlx' else 'gguf'}
-pipeline_tag: text-generation
+pipeline_tag: {'image-text-to-text' if m.get('exportado', {}).get('vision') else 'text-generation'}
 tags: [tool-selection, function-calling, broadcast, live-tv, spanish, qwen3.5{', mlx' if formato == 'mlx' else ', gguf, llama.cpp'}{', mtp' if mtp and formato != 'mlx' else ''}]
 ---
 # {repo}
@@ -743,6 +803,8 @@ con otras fichas es otro modelo, aunque siga contestando.
             else:
                 d.mkdir()
                 enlazar(ex["gguf_q4"], d / self.gguf_nombre)
+                if ex.get("mmproj") and Path(ex["mmproj"]).exists():
+                    enlazar(ex["mmproj"], d / "mmproj-F16.gguf")
             if hp.exists():
                 shutil.copy(hp, d)
             if lic.exists():
@@ -806,7 +868,7 @@ con otras fichas es otro modelo, aunque siga contestando.
         pendientes = [e for e in ETAPAS[:hasta + 1] if not self.hecho(e, self.dir / {
             "inspeccionar": "inspeccionado", "descargar": "descargado", "corpus": "corpus/entrenar.jsonl",
             "entrenar": "adaptador/adapter_config.json", "medir": "medido", "exportar": "exportado",
-            "empaquetar": "empaquetado", "subir": "subido"}[e])]
+            "vision": "vision-hecha", "empaquetar": "empaquetado", "subir": "subido"}[e])]
         self.controlar_espacio(pendientes)
         plan = [("inspeccionar", self.inspeccionar, self.dir / "inspeccionado"),
                 ("descargar", self.descargar, self.dir / "descargado"),
@@ -814,6 +876,7 @@ con otras fichas es otro modelo, aunque siga contestando.
                 ("entrenar", self.entrenar, self.adaptador / "adapter_config.json"),
                 ("medir", self.medir, self.dir / "medido"),
                 ("exportar", self.exportar, self.dir / "exportado"),
+                ("vision", self.vision, self.dir / "vision-hecha"),
                 ("empaquetar", self.empaquetar, self.dir / "empaquetado"),
                 ("subir", self.subir, self.dir / "subido")]
         for i, (n, fn, marca) in enumerate(plan):

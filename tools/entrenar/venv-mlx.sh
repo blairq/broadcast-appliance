@@ -17,6 +17,9 @@ VENV="$RAIZ/.venv-mlx"
 # (models/qwen3_5.py, con la atencion lineal).
 MLX_VER="0.32.3"
 MLX_LM_VER="0.31.3"
+# mlx-vlm: el modelo CON vision (la torre de Qwen3.5) y su borrador MTP. 0.7.4
+# es la que trae models/qwen3_5 y lee la cabeza con el contrato de MTPLX.
+MLX_VLM_VER="0.7.4"
 [ -d "$VENV" ] || python3 -m venv "$VENV"
 "$VENV/bin/pip" install -q --upgrade pip
 if [ "$(uname -s)" = Darwin ]; then
@@ -26,5 +29,7 @@ else
 fi
 "$VENV/bin/python" -c "import mlx_lm, sys; sys.exit(mlx_lm.__version__ != '$MLX_LM_VER')" 2>/dev/null \
     || "$VENV/bin/pip" install "$PAQ_MLX" "mlx-lm==$MLX_LM_VER"
+"$VENV/bin/python" -c "import mlx_vlm, sys; sys.exit(mlx_vlm.__version__ != '$MLX_VLM_VER')" 2>/dev/null \
+    || "$VENV/bin/pip" install "mlx-vlm==$MLX_VLM_VER" "$PAQ_MLX" "mlx-lm==$MLX_LM_VER"
 echo "listo: $VENV"
 "$VENV/bin/python" -c "import mlx.core as mx, mlx_lm; print('mlx', mx.__version__, '· mlx-lm', mlx_lm.__version__, '·', mx.default_device())"
