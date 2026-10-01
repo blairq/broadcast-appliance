@@ -24,6 +24,7 @@
 #include <dlfcn.h>
 #endif
 #include <chrono>
+#include <future>
 #include <thread>
 
 namespace ba::app {
@@ -710,17 +711,41 @@ bool BroadcastEngine::addGuestAudio(int slot) {
     return true;
 }
 
+namespace {
+/// Cuánto se espera a que el sistema abra un dispositivo de audio antes de
+/// seguir sin él (ver addGlobalAudio).
+constexpr auto kEsperaAudio = std::chrono::milliseconds(4000);
+} // namespace
+
 bool BroadcastEngine::addGlobalAudio(const SourceSpec& spec) {
     const bool known = std::find(micInputs_.begin(), micInputs_.end(), spec.name) != micInputs_.end();
     if (!known && micInputs_.size() >= kMaxMicChannels) {
         setError("no entran mas entradas de audio (maximo " + std::to_string(kMaxMicChannels) + ")");
         return false;
     }
+    for (const auto& p : pendingAudio_)
+        if (p.first.name == spec.name) return true; // ya se está creando
     obs_source_t* src = reinterpret_cast<obs_source_t*>(ownedSource(spec.name));
     if (src == nullptr) {
-        obs_data_t* settings = obs_data_create_from_json(spec.settingsJson.c_str());
-        src = obs_source_create(spec.id.c_str(), spec.name.c_str(), settings, nullptr);
-        if (settings != nullptr) obs_data_release(settings);
+        // En otro hilo: abrir el dispositivo puede quedar esperando al sistema.
+        auto promesa = std::make_shared<std::promise<obs_source*>>();
+        std::shared_future<obs_source*> futuro = promesa->get_future().share();
+        std::thread([promesa, spec]() {
+            obs_data_t* settings = obs_data_create_from_json(spec.settingsJson.c_str());
+            obs_source_t* creada = obs_source_create(spec.id.c_str(), spec.name.c_str(), settings, nullptr);
+            if (settings != nullptr) obs_data_release(settings);
+            promesa->set_value(reinterpret_cast<obs_source*>(creada));
+        }).detach();
+        if (futuro.wait_for(kEsperaAudio) != std::future_status::ready) {
+            pendingAudio_.emplace_back(spec, futuro);
+            setError("el audio del sistema no responde: '" + spec.name + "' se agrega cuando responda");
+            std::printf(
+                "ba-app: la entrada de audio '%s' tarda en abrirse (el audio del sistema no responde); "
+                "se agrega cuando responda\n",
+                spec.name.c_str());
+            return true;
+        }
+        src = reinterpret_cast<obs_source_t*>(futuro.get());
         if (src == nullptr) {
             setError("no se pudo crear la entrada de audio '" + spec.id + "'");
             return false;
@@ -730,6 +755,13 @@ bool BroadcastEngine::addGlobalAudio(const SourceSpec& spec) {
         sources_.emplace_back(spec.name, reinterpret_cast<obs_source*>(src));
         attachMeter(spec.name, reinterpret_cast<obs_source*>(src));
     }
+    registerGlobalAudio(spec, reinterpret_cast<obs_source*>(src));
+    return true;
+}
+
+void BroadcastEngine::registerGlobalAudio(const SourceSpec& spec, obs_source* s) {
+    obs_source_t* src = reinterpret_cast<obs_source_t*>(s);
+    const bool known = std::find(micInputs_.begin(), micInputs_.end(), spec.name) != micInputs_.end();
     if (!known) micInputs_.push_back(spec.name);
     if (std::find(globalAudio_.begin(), globalAudio_.end(), spec.name) == globalAudio_.end())
         globalAudio_.push_back(spec.name);
@@ -737,7 +769,36 @@ bool BroadcastEngine::addGlobalAudio(const SourceSpec& spec) {
     const auto idx = static_cast<std::uint32_t>(std::find(micInputs_.begin(), micInputs_.end(), spec.name) -
                                                 micInputs_.begin());
     obs_set_output_source(kFirstMicChannel + idx, src);
-    return true;
+}
+
+int BroadcastEngine::adoptPendingAudio() {
+    int n = 0;
+    for (auto it = pendingAudio_.begin(); it != pendingAudio_.end();) {
+        if (it->second.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
+            ++it;
+            continue;
+        }
+        const SourceSpec spec = it->first;
+        obs_source_t* src = reinterpret_cast<obs_source_t*>(it->second.get());
+        it = pendingAudio_.erase(it);
+        if (src == nullptr) {
+            std::printf("ba-app: la entrada de audio '%s' no se pudo crear\n", spec.name.c_str());
+            continue;
+        }
+        if (micInputs_.size() >= kMaxMicChannels &&
+            std::find(micInputs_.begin(), micInputs_.end(), spec.name) == micInputs_.end()) {
+            obs_source_release(src);
+            continue;
+        }
+        obs_source_set_volume(src, spec.volume);
+        obs_source_set_muted(src, spec.muted);
+        sources_.emplace_back(spec.name, reinterpret_cast<obs_source*>(src));
+        attachMeter(spec.name, reinterpret_cast<obs_source*>(src));
+        registerGlobalAudio(spec, reinterpret_cast<obs_source*>(src));
+        std::printf("ba-app: entrada de audio '%s' enganchada (el sistema respondió)\n", spec.name.c_str());
+        ++n;
+    }
+    return n;
 }
 
 bool BroadcastEngine::removeGlobalAudio(const std::string& name) {

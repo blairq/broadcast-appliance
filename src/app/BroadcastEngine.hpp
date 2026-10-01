@@ -38,6 +38,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <future>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -305,7 +306,18 @@ class BroadcastEngine {
     /// Entrada de audio del equipo (microfono, linea) como fuente GLOBAL: suena
     /// en todas las escenas, igual que el audio de los invitados (canales 5+).
     /// Si ya existe una con ese nombre, la reengancha.
+    ///
+    /// Crear la fuente abre el dispositivo, y en la Mac eso espera a que
+    /// conteste el servicio de audio del sistema (coreaudiod). Si no contesta
+    /// (pasa: queda colgado un rato después de cerrar mal una app que tenía el
+    /// micrófono), la app entera quedaba trabada al arrancar. Ahora se crea en
+    /// otro hilo y se espera hasta `kEsperaAudioMs`: si no llega, queda
+    /// pendiente (devuelve true, con el aviso en lastError) y la engancha
+    /// adoptPendingAudio() cuando llegue.
     bool addGlobalAudio(const SourceSpec& spec);
+    /// Engancha las entradas de audio que tardaron en crearse (hilo principal,
+    /// periódicamente). Devuelve cuántas enganchó.
+    int adoptPendingAudio();
     /// Saca la entrada de audio global (libera su canal).
     bool removeGlobalAudio(const std::string& name);
     /// Nombres de las entradas de audio del equipo (sin los invitados).
@@ -635,6 +647,9 @@ class BroadcastEngine {
     std::vector<std::pair<std::string, obs_source*>> sources_;
     std::vector<std::string> globalAudio_; // fuentes en canales de salida 1..
     std::vector<std::string> micInputs_;   // entradas de audio del equipo (canales 5+)
+    /// Entradas de audio que se están creando en otro hilo (ver addGlobalAudio).
+    std::vector<std::pair<SourceSpec, std::shared_future<obs_source*>>> pendingAudio_;
+    void registerGlobalAudio(const SourceSpec& spec, obs_source* src);
     // Vumetro por fuente: obs_volmeter (opaco) + pico mas reciente en dBFS.
     struct Meter {
         void* vm = nullptr;
