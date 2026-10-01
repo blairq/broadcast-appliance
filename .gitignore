@@ -38,4 +38,5 @@ extern/
 
 # Entrenamiento: el venv lo arma tools/entrenar/venv.sh y unsloth deja su cache
 .venv-entrenar/
+.venv-mlx/
 unsloth_compiled_cache/
