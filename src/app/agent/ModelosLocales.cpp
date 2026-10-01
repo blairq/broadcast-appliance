@@ -31,6 +31,15 @@ constexpr int kPruebasGuardadas = 20;
 
 QString deRuta(const fs::path& p) { return QString::fromStdWString(p.wstring()); }
 
+/// Un nombre de archivo del repo dentro de una URL: cada tramo codificado
+/// (las voces de piper traen cosas como «espeak-ng-data/voices/!v/Mr (serious)»).
+std::string enUrl(const std::string& nombre) {
+    QStringList tramos = QString::fromStdString(nombre).split('/');
+    for (QString& t : tramos)
+        t = QString::fromLatin1(QUrl::toPercentEncoding(t));
+    return tramos.join('/').toStdString();
+}
+
 /// Un nombre UTF-8 (de la API) como ruta, también en Windows.
 fs::path desdeUtf8(const std::string& s) { return fs::path(QString::fromStdString(s).toStdWString()); }
 
@@ -362,7 +371,7 @@ void ModelosLocales::descargar(const QString& repo) {
             // Por commit, no por «main»: todos los archivos de la MISMA versión.
             req.url = !a.url.empty()
                           ? a.url
-                          : "https://huggingface.co/" + r + "/resolve/" + repo.commit + "/" + a.nombre;
+                          : "https://huggingface.co/" + r + "/resolve/" + repo.commit + "/" + enUrl(a.nombre);
             req.responseFile = final.string() + ".parte";
             req.timeoutMs = 60000;
             req.cancel = &cancelar_;
