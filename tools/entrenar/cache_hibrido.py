@@ -68,8 +68,34 @@ def parchear():
         out = self.norm(out.reshape(-1, self.head_v_dim), z.reshape(-1, self.head_v_dim))
         return self.out_proj(out.reshape(B, L, -1))
 
-    q.Qwen3_5GatedDeltaNet.forward = forward
+    # Con el modelo repartido entre placas (--repartir), los kernels de triton
+    # de la atencion lineal se lanzan en la placa ACTIVA, no en la del tensor, y
+    # el autoajuste de triton revienta. Cada capa corre con su placa activa.
+    def forward_en_su_placa(self, hidden_states, cache_params=None, attention_mask=None):
+        with torch.cuda.device(hidden_states.device):
+            return forward(self, hidden_states, cache_params=cache_params, attention_mask=attention_mask)
+
+    q.Qwen3_5GatedDeltaNet.forward = forward_en_su_placa
     q.Qwen3_5GatedDeltaNet._parche_prefijo = True
+
+    # Y en el backward, autograd usa un hilo POR PLACA: los dos llegan a la vez
+    # al autoajuste de triton (los kernels de fla), que no es seguro entre
+    # hilos y revienta ('NoneType' is not a mapping). Se serializa con un
+    # candado: solo el lanzamiento, que de todos modos es asincronico.
+    try:
+        import threading
+        import triton.runtime.autotuner as at
+        if not getattr(at.Autotuner, "_con_candado", False):
+            candado = threading.RLock()
+            run_original = at.Autotuner.run
+
+            def run(self, *a, **k):
+                with candado:
+                    return run_original(self, *a, **k)
+            at.Autotuner.run = run
+            at.Autotuner._con_candado = True
+    except ImportError:
+        pass
 
 
 def _lineal(c):
