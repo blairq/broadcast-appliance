@@ -1,0 +1,36 @@
+--- a/include/lsp-plug.in/shared/meta/developers.h
++++ b/include/lsp-plug.in/shared/meta/developers.h
+@@ -80,6 +80,7 @@
+ #define LSP_LADSPA_RINGMOD_SC_BASE          (LSP_LADSPA_BASE + 270)
+ #define LSP_LADSPA_MB_RINGMOD_SC_BASE       (LSP_LADSPA_BASE + 280)
+ #define LSP_LADSPA_DEESSER_BASE             (LSP_LADSPA_BASE + 290)
++#define LSP_LADSPA_MATRIX_MIXER_BASE        (LSP_LADSPA_BASE + 300)
+ 
+ 
+ namespace lsp
+@@ -88,6 +89,7 @@
+     {
+         extern const meta::person_t         v_sadovnikov;
+         extern const meta::person_t         s_tronci;
++        extern const meta::person_t         j_ortega;
+     } /* namespace developers */
+ } /* namespace lsp */
+ 
+--- a/src/main/meta/developers.cpp
++++ b/src/main/meta/developers.cpp
+@@ -43,6 +43,15 @@
+             "https://thecrocoduckspond.wordpress.com/"
+         };
+ 
++        const meta::person_t j_ortega =
++        {
++            "j_ortega",
++            "BlairQ",
++            "Jorge Ortega",
++            "ortegajorge@gmail.com",
++            "https://github.com/blairq"
++        };
++
+     }
+ }
+ 

@@ -10,7 +10,8 @@
 #
 # Una por familia (la estéreo si hay), achicada a 760 px en JPEG, en
 # assets/lsp-capturas/<familia>.jpg (se versionan: ~3 MB). Familias según
-# datos/lsp-catalogo.json.
+# datos/lsp-catalogo.json. La del Matrix Mixer sale de nuestro módulo
+# (third_party/lsp-plugins-matrix-mixer/res/doc/screenshots).
 #
 # Uso: tools/lsp-capturas.sh      (en una Mac: usa sips para achicar)
 # ============================================================================
@@ -32,6 +33,8 @@ command -v sips >/dev/null || { log "falta sips (correr en una Mac)"; exit 1; }
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 tar xzf "$TAR" -C "$TMP" --wildcards '*/res/doc/screenshots/*.png' 2>/dev/null || tar xzf "$TAR" -C "$TMP"
+# Y las de nuestro módulo (third_party/lsp-plugins-matrix-mixer: tools/lsp-matrix-mixer-doc.py).
+mkdir -p "$TMP/propios" && cp -R "$ROOT/third_party/lsp-plugins-matrix-mixer/res" "$TMP/propios/"
 mkdir -p "$OUT"
 n=0
 for clave in $(python3 -c "import json;print(' '.join(f['clave'] for f in json.load(open('$ROOT/datos/lsp-catalogo.json'))['familias']))"); do
@@ -52,6 +55,8 @@ cat >"$OUT/LEEME.txt" <<TXT
 Capturas de los plugins LSP (Linux Studio Plugins) $VER, sacadas del código
 fuente oficial (lsp-plugins-src-$VER.tar.gz, res/doc/screenshots de cada
 módulo) y achicadas. © Linux Studio Plugins, LGPL-3.0-or-later (COPYING.LESSER).
+matrix_mixer.jpg es de nuestro módulo (third_party/lsp-plugins-matrix-mixer),
+con la misma licencia.
 https://lsp-plug.in — las genera tools/lsp-capturas.sh.
 TXT
 log "$n capturas en $OUT ($(du -sh "$OUT" | cut -f1))"

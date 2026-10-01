@@ -576,6 +576,23 @@
    ]
   },
   {
+   "clave": "matrix_mixer",
+   "nombre": "Matriz de mezcla",
+   "categoria": "Utilidades",
+   "ilustracion": "util",
+   "vivo": true,
+   "descripcion": "Cada entrada a cada salida con su propia ganancia (4 u 8, mono o estéreo): mezclas de monitoreo, mix-minus y envíos en un solo plugin. Módulo propio, con el estilo de LSP.",
+   "usoVivo": "En una entrada virtual, para sacar un mix-minus para una llamada o un monitoreo distinto del programa.",
+   "etiquetas": [
+    "matriz",
+    "mezcla",
+    "mixer",
+    "ruteo",
+    "mix-minus",
+    "monitoreo"
+   ]
+  },
+  {
    "clave": "send",
    "nombre": "Envío",
    "categoria": "Utilidades",

@@ -1,0 +1,25 @@
+--- a/modules.mk
++++ b/modules.mk
+@@ -267,6 +267,12 @@
+ LSP_PLUGINS_MATCHER_TYPE                := plug
+ LSP_PLUGINS_MATCHER_URL_RO              := https://github.com/lsp-plugins/$(LSP_PLUGINS_MATCHER_NAME).git
+ LSP_PLUGINS_MATCHER_URL_RW              := git@github.com:lsp-plugins/$(LSP_PLUGINS_MATCHER_NAME).git
++
++LSP_PLUGINS_MATRIX_MIXER_VERSION        := 1.0.0
++LSP_PLUGINS_MATRIX_MIXER_NAME           := lsp-plugins-matrix-mixer
++LSP_PLUGINS_MATRIX_MIXER_TYPE           := plug
++LSP_PLUGINS_MATRIX_MIXER_URL_RO         := https://github.com/lsp-plugins/$(LSP_PLUGINS_MATRIX_MIXER_NAME).git
++LSP_PLUGINS_MATRIX_MIXER_URL_RW         := git@github.com:lsp-plugins/$(LSP_PLUGINS_MATRIX_MIXER_NAME).git
+ 
+ LSP_PLUGINS_MB_CLIPPER_VERSION          := 1.0.19
+ LSP_PLUGINS_MB_CLIPPER_NAME             := lsp-plugins-mb-clipper
+--- a/plugins.mk
++++ b/plugins.mk
+@@ -48,6 +48,7 @@
+   LSP_PLUGINS_LIMITER \
+   LSP_PLUGINS_LOUD_COMP \
+   LSP_PLUGINS_MATCHER \
++  LSP_PLUGINS_MATRIX_MIXER \
+   LSP_PLUGINS_MB_CLIPPER \
+   LSP_PLUGINS_MB_COMPRESSOR \
+   LSP_PLUGINS_MB_DYNA_PROCESSOR \
