@@ -43,3 +43,13 @@ unsloth_compiled_cache/
 
 # Logs sueltos en la raiz (corridas de entrenamiento, etc.): no van al repo.
 /*.log
+
+# El corpus de entrenamiento GENERADO (make corpus-entrenamiento): 50-90 MB por
+# version, cada fila repite el prompt entero. Se regenera igual desde las
+# semillas (datos/semillas-reactivas.json, que si se versiona). El examen
+# (examen.jsonl) sigue versionado: es chico y es la medida honesta.
+datos/entrenamiento/entrenar.jsonl
+datos/entrenamiento/validar.jsonl
+datos/entrenamiento/huella.json
+# Copias de seguridad de datos: el historial de git ya las guarda.
+datos/respaldo/
