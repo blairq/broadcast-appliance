@@ -180,12 +180,126 @@
      ]
     }
    }
+  },
+  "mlx-q4-fp16": {
+   "examen": {
+    "cobertura": [
+     92,
+     97
+    ],
+    "precision": [
+     81,
+     92
+    ],
+    "derivado": [
+     7,
+     8
+    ],
+    "acierto": [
+     88,
+     105
+    ]
+   },
+   "banco": {
+    "0": {
+     "cobertura": [
+      379,
+      394
+     ],
+     "precision": [
+      352,
+      379
+     ],
+     "derivado": [
+      872,
+      1029
+     ],
+     "acierto": [
+      1224,
+      1423
+     ]
+    }
+   }
   }
  },
  "mtp": {
+  "pasos_mtp": 3,
+  "antes": {
+   "nombres": {
+    "aceptados_por_ciclo": 1.5941068139963168,
+    "por_paso": [
+     0.9351749539594844,
+     0.8819212808539026,
+     0.813588850174216
+    ]
+   },
+   "texto": {
+    "aceptados_por_ciclo": 1.5179437439379244,
+    "por_paso": [
+     0.7419980601357905,
+     0.653252850435949,
+     0.6666666666666666
+    ]
+   }
+  },
+  "despues": {
+   "nombres": {
+    "aceptados_por_ciclo": 1.8335174953959483,
+    "por_paso": [
+     0.9988950276243094,
+     1.0,
+     1.0
+    ]
+   },
+   "texto": {
+    "aceptados_por_ciclo": 1.489815712900097,
+    "por_paso": [
+     0.7172647914645974,
+     0.6671280276816609,
+     0.6756176154672395
+    ]
+   }
+  },
+  "pasos": 487,
+  "despues_q8": {
+   "nombres": {
+    "aceptados_por_ciclo": 1.8335174953959483,
+    "por_paso": [
+     0.9988950276243094,
+     1.0,
+     1.0
+    ]
+   },
+   "texto": {
+    "aceptados_por_ciclo": 1.4903006789524733,
+    "por_paso": [
+     0.7172647914645974,
+     0.6685121107266436,
+     0.6730975348338692
+    ]
+   }
+  },
+  "despues_q4": {
+   "nombres": {
+    "aceptados_por_ciclo": 1.8335174953959483,
+    "por_paso": [
+     0.9988950276243094,
+     1.0,
+     1.0
+    ]
+   },
+   "texto": {
+    "aceptados_por_ciclo": 1.4893307468477206,
+    "por_paso": [
+     0.7167798254122212,
+     0.6694386694386695,
+     0.6720257234726688
+    ]
+   }
+  },
   "aceptacion_antes": 0.9351749539594844,
   "aceptacion_despues": 0.9988950276243094,
-  "pasos": 487
+  "texto_respuestas": 459
  },
  "perfil": {
   "nombre": "reactivo",

@@ -3,7 +3,7 @@ license: apache-2.0
 base_model: Qwen/Qwen3.5-4B
 language: [es]
 library_name: mlx
-pipeline_tag: text-generation
+pipeline_tag: image-text-to-text
 tags: [tool-selection, function-calling, broadcast, live-tv, spanish, qwen3.5, mlx]
 ---
 # broadcast-reactivo-qwen3.5-4b-mtp-ud-mlx-q4
@@ -38,7 +38,20 @@ operación sumándole al logit de `derivar`.
 | derivado (sesgo 0) | 83.9% | 85.0% |
 | examen (105 casos) | 85.7% | 83.8% |
 
-La cabeza MTP (multi-token prediction) se reentrenó para este modelo: acierta el token siguiente en el 99.9% de los casos de validación (la original, 93.5%), así que la decodificación especulativa casi siempre acepta el borrador.
+## Cabeza MTP
+
+Reentrenada para este modelo, con 3 borradores EN CADENA (cada paso recibe la salida del anterior, como se usa en vivo) y con nombres y texto escrito por el propio modelo. Medido en validación: tokens aceptados por ciclo (de 3) y acierto de cada paso dado que los anteriores acertaron.
+
+| datos | cabeza | aceptados por ciclo | por paso |
+|---|---|---|---|
+| nombres de herramienta | original | 1.59 | 94% / 88% / 81% |
+| nombres de herramienta | entrenada | 1.83 | 100% / 100% / 100% |
+| nombres de herramienta | entrenada, lineales q8 | 1.83 | 100% / 100% / 100% |
+| nombres de herramienta | entrenada, lineales q4 | 1.83 | 100% / 100% / 100% |
+| texto libre | original | 1.52 | 74% / 65% / 67% |
+| texto libre | entrenada | 1.49 | 72% / 67% / 68% |
+| texto libre | entrenada, lineales q8 | 1.49 | 72% / 67% / 67% |
+| texto libre | entrenada, lineales q4 | 1.49 | 72% / 67% / 67% |
 
 ## Uso
 
@@ -79,4 +92,5 @@ con otras fichas es otro modelo, aunque siga contestando.
 
 ## Archivos
 
-`model.safetensors`: MLX, 4 bits (afín, grupos de 64). Solo texto (sin la parte de visión). `huella-prompt.json`: firma del prompt. `LICENSE`: la de la base.
+`model.safetensors`: MLX, 4 bits (afín, grupos de 64). Con la parte de visión (la torre sin cuantizar, igual a la de la base: el ajuste no la toca): mlx-vlm lo usa con imágenes y mlx-lm lo carga como texto. Lo que no está cuantizado (escalas, normas, visión) va en **fp16**: corriendo en fp16 el q4 pierde 0.1 puntos en el banco (las GPU M1/M2 no tienen bf16 nativo).
+`mtp.safetensors` (fp16) y `mtp-q8.safetensors` (lineales en 8 bits, afín, grupos de 64): la cabeza MTP entrenada, como la carga `ba-modelo` (mlx-swift-lm). Normas en la convención de Hugging Face (sin el +1: lo suma mlx-swift-lm al cargarla). Van fuera de `model*.safetensors` a propósito: mlx-lm 0.31 tomaría cualquier peso `mtp.*` ahí como un checkpoint sin convertir y correría las normas del modelo. `huella-prompt.json`: firma del prompt. `LICENSE`: la de la base.

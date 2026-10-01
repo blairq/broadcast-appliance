@@ -3,7 +3,7 @@ license: apache-2.0
 base_model: Qwen/Qwen3.5-4B
 language: [es]
 library_name: gguf
-pipeline_tag: text-generation
+pipeline_tag: image-text-to-text
 tags: [tool-selection, function-calling, broadcast, live-tv, spanish, qwen3.5, gguf, llama.cpp, mtp]
 ---
 # broadcast-reactivo-qwen3.5-4b-mtp-ud-GGUF
@@ -38,12 +38,25 @@ operación sumándole al logit de `derivar`.
 | derivado (sesgo 0) | 83.9% | 85.0% |
 | examen (105 casos) | 85.7% | 83.8% |
 
-La cabeza MTP (multi-token prediction) se reentrenó para este modelo: acierta el token siguiente en el 99.9% de los casos de validación (la original, 93.5%), así que la decodificación especulativa casi siempre acepta el borrador.
+## Cabeza MTP
+
+Reentrenada para este modelo, con 3 borradores EN CADENA (cada paso recibe la salida del anterior, como se usa en vivo) y con nombres y texto escrito por el propio modelo. Medido en validación: tokens aceptados por ciclo (de 3) y acierto de cada paso dado que los anteriores acertaron.
+
+| datos | cabeza | aceptados por ciclo | por paso |
+|---|---|---|---|
+| nombres de herramienta | original | 1.59 | 94% / 88% / 81% |
+| nombres de herramienta | entrenada | 1.83 | 100% / 100% / 100% |
+| nombres de herramienta | entrenada, lineales q8 | 1.83 | 100% / 100% / 100% |
+| nombres de herramienta | entrenada, lineales q4 | 1.83 | 100% / 100% / 100% |
+| texto libre | original | 1.52 | 74% / 65% / 67% |
+| texto libre | entrenada | 1.49 | 72% / 67% / 68% |
+| texto libre | entrenada, lineales q8 | 1.49 | 72% / 67% / 67% |
+| texto libre | entrenada, lineales q4 | 1.49 | 72% / 67% / 67% |
 
 ## Uso
 
 ```bash
-llama-server -m broadcast-reactivo-qwen3.5-4b-mtp-ud-UD-Q4_K_XL.gguf -c 8192 --cache-reuse 256 --spec-type draft-mtp --spec-draft-n-max 4
+llama-server -m broadcast-reactivo-qwen3.5-4b-mtp-ud-UD-Q4_K_XL.gguf --mmproj mmproj-F16.gguf -c 8192 --cache-reuse 256 --spec-type draft-mtp --spec-draft-n-max 3
 ```
 llama.cpp b11255 o posterior (arquitectura `qwen35`, con atención lineal). Restringir la salida con
 una gramática a los nombres posibles.
@@ -77,4 +90,5 @@ con otras fichas es otro modelo, aunque siga contestando.
 
 ## Archivos
 
-`broadcast-reactivo-qwen3.5-4b-mtp-ud-UD-Q4_K_XL.gguf`: UD-Q4_K_XL (la receta «UD» de [unsloth/Qwen3.5-4B-MTP-GGUF](https://huggingface.co/unsloth/Qwen3.5-4B-MTP-GGUF): el mismo tipo por tensor que su `Qwen3.5-4B-UD-Q4_K_XL.gguf`, aplicado a estos pesos), calibrado con imatrix sobre el propio corpus (sin el examen) e incluye la cabeza MTP entrenada. `huella-prompt.json`: firma del prompt. `LICENSE`: la de la base.
+`broadcast-reactivo-qwen3.5-4b-mtp-ud-UD-Q4_K_XL.gguf`: UD-Q4_K_XL (la receta «UD» de [unsloth/Qwen3.5-4B-MTP-GGUF](https://huggingface.co/unsloth/Qwen3.5-4B-MTP-GGUF): el mismo tipo por tensor que su `Qwen3.5-4B-UD-Q4_K_XL.gguf`, aplicado a estos pesos), calibrado con imatrix sobre el propio corpus (sin el examen) e incluye la cabeza MTP entrenada.
+`mmproj-F16.gguf`: la parte de visión para llama.cpp (`--mmproj`), igual a la de la base. `huella-prompt.json`: firma del prompt. `LICENSE`: la de la base.

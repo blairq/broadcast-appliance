@@ -427,7 +427,8 @@ def main():
         for g_ in opt.param_groups:
             g_["lr"] = args.lr * 0.5 * (1 + math.cos(math.pi * paso / max(1, total)))
         perd, bien = lote_nombres(lote, grad=True)
-        n = bien[0][1].sum().clamp(min=1)
+        # con --repartir la perdida queda en la placa de lm_head, no en la de la cabeza
+        n = bien[0][1].sum().clamp(min=1).to(perd.device)
         (perd / n).backward()
         if TX:
             if len(orden_t) < args.lote_texto:
@@ -435,7 +436,7 @@ def main():
                 rnd.shuffle(orden_t)
             lt, orden_t = [TX[i] for i in orden_t[:args.lote_texto]], orden_t[args.lote_texto:]
             perd_t, bien_t = lote_texto(lt, grad=True)
-            n_t = bien_t[0][1].sum().clamp(min=1)
+            n_t = bien_t[0][1].sum().clamp(min=1).to(perd_t.device)
             (perd_t / n_t).backward()
         opt.step()
         opt.zero_grad(set_to_none=True)
