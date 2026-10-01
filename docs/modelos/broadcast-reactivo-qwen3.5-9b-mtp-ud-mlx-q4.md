@@ -80,4 +80,4 @@ con otras fichas es otro modelo, aunque siga contestando.
 ## Archivos
 
 `model.safetensors`: MLX, 4 bits (afín, grupos de 64). Solo texto (sin la parte de visión).
-`mtp.safetensors`: la cabeza MTP entrenada (bf16, nombres `mtp.*` de Hugging Face), aparte a propósito: mlx-lm no la lee (si un peso `mtp.*` estuviera en `model*.safetensors`, mlx-lm 0.31 lo tomaría como un checkpoint sin convertir y correría las normas). Un motor con MTP la carga desde este archivo. `huella-prompt.json`: firma del prompt. `LICENSE`: la de la base.
+`mtp.safetensors` (fp16) y `mtp-q8.safetensors` (lineales en 8 bits, afín, grupos de 64): la cabeza MTP entrenada, en dos variantes para medir (las GPU M1/M2 no tienen bf16 nativo). Nombres `mtp.*` y normas en la convención de Hugging Face (sin el +1 que mlx-lm aplica al convertir). Van aparte a propósito: si un peso `mtp.*` estuviera en `model*.safetensors`, mlx-lm 0.31 lo tomaría como un checkpoint sin convertir y correría las normas del modelo. Un motor con MTP los carga desde estos archivos. `huella-prompt.json`: firma del prompt. `LICENSE`: la de la base.

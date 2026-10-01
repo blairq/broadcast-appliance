@@ -390,7 +390,8 @@ class Fabrica:
                     ix["weight_map"].update({k: "model-mtp.safetensors" for k in mtp})
                     idx.write_text(json.dumps(ix, indent=2))
                 log(f"cabeza MTP ({'entrenada' if not self.a.sin_mtp else 'de la base'}): {len(mtp)} tensores")
-                self.mtp_a_mlx(mtp, mlx)
+                if not self.a.sin_mtp:
+                    self.mtp_a_mlx(mtp_f, mlx)
         bf16 = gg / f"{self.a.nombre}-bf16.gguf"
         correr([PY, CONV / "convert_hf_to_gguf.py", hf_conv, "--outtype", "bf16", "--outfile", bf16],
                env={"PYTHONPATH": str(CONV / "gguf-py")}, salida=self.dir / "gguf.log")
@@ -430,21 +431,17 @@ class Fabrica:
         (self.dir / "exportado").write_text("ok")
 
     @staticmethod
-    def mtp_a_mlx(mtp, mlx):
-        """La cabeza MTP en el modelo MLX, como ARCHIVO APARTE (mtp.safetensors,
-        bf16, nombres de Hugging Face: mtp.*), fuera del indice.
+    def mtp_a_mlx(mtp_f, mlx):
+        """La cabeza MTP en el modelo MLX, como ARCHIVOS APARTE, fuera del indice:
+        mtp.safetensors (fp16) y mtp-q8.safetensors (8 bits). Ver mtp-mlx.py.
 
         No va dentro de model*.safetensors a proposito: mlx-lm (0.31.3,
         qwen3_5.sanitize) toma la presencia de CUALQUIER peso mtp.* como senal de
         un checkpoint sin convertir y le suma 1 a todas las normas: el modelo ya
         convertido quedaria roto sin avisar. mlx-lm solo lee model*.safetensors,
-        asi que este archivo no lo toca; un motor con MTP lo carga aparte (y lo
-        cuantiza si quiere: en bf16 no se pierde nada de la cabeza entrenada)."""
-        from safetensors.torch import save_file
-        dst = Path(mlx) / "mtp.safetensors"
-        save_file({k: v.contiguous() for k, v in mtp.items() if k.startswith("mtp.")}, str(dst),
-                  metadata={"format": "pt"})
-        log(f"cabeza MTP en el MLX: {dst.name} ({dst.stat().st_size / 2**20:.0f} MB)")
+        asi que estos archivos no los toca; un motor con MTP los carga aparte.
+        fp16 y no bf16: las GPU de M1/M2 no tienen bf16 nativo."""
+        correr([PY_MLX, E / "mtp-mlx.py", "--entrada", mtp_f, "--salida", mlx])
 
     def receta_unsloth(self, bf16, gg):
         """La receta UD de unsloth: que tipo lleva cada tensor en su UD-Q4_K_XL.
@@ -553,10 +550,12 @@ modelo, tok = load("{a.hf_usuario or '<usuario>'}/{repo}")
 Elegir con decodificación restringida a los nombres posibles (como `tools/entrenar/evaluar-mlx.py`
 del repo del aparato): el prefijo con las fichas se procesa una vez y se reusa entre pedidos."""
             archivos = ("`model.safetensors`: MLX, 4 bits (afín, grupos de 64). Solo texto (sin la parte de visión)."
-                        + ("\n`mtp.safetensors`: la cabeza MTP entrenada (bf16, nombres `mtp.*` de Hugging Face),"
-                           " aparte a propósito: mlx-lm no la lee (si un peso `mtp.*` estuviera en `model*.safetensors`,"
-                           " mlx-lm 0.31 lo tomaría como un checkpoint sin convertir y correría las normas). Un motor con"
-                           " MTP la carga desde este archivo." if mtp else ""))
+                        + ("\n`mtp.safetensors` (fp16) y `mtp-q8.safetensors` (lineales en 8 bits, afín, grupos de 64):"
+                           " la cabeza MTP entrenada, en dos variantes para medir (las GPU M1/M2 no tienen bf16 nativo)."
+                           " Nombres `mtp.*` y normas en la convención de Hugging Face (sin el +1 que mlx-lm aplica al"
+                           " convertir). Van aparte a propósito: si un peso `mtp.*` estuviera en `model*.safetensors`,"
+                           " mlx-lm 0.31 lo tomaría como un checkpoint sin convertir y correría las normas del modelo."
+                           " Un motor con MTP los carga desde estos archivos." if mtp else ""))
         else:
             uso = f"""```bash
 llama-server -m {self.gguf_nombre} -c 8192 --cache-reuse 256{' --spec-type draft-mtp --spec-draft-n-max 4' if mtp else ''}
