@@ -7,14 +7,20 @@ que define el resultado queda en manifiesto.json: base y revision exacta,
 firma del corpus, commit del repo, parametros, tiempos y medidas.
 
 ETAPAS
+  inspeccionar  lee SOLO los config y la tarjeta de la base y decide: tamano
+              (de ahi el modo de entrenar), atencion lineal, cabeza MTP,
+              vision. Si el repo es solo GGUF (los -MTP-GGUF de unsloth) se
+              entrena la base que declara.
   descargar   la base de Hugging Face, con la revision fijada (--revision).
   corpus      make corpus-entrenamiento; se guarda una copia y su firma.
   entrenar    entrenar-rapido.py. Elige solo: las dos placas en paralelo si el
               modelo entra en una (cada una hace la mitad del lote), o el
-              modelo repartido entre las dos si no (MODOS, abajo).
+              modelo repartido entre las dos si no (lo decide inspeccionar).
   medir       examen, curva del banco (5 puntos del dial de derivar) y test de
               margen (AUM) sobre todas las semillas.
-  exportar    fusionado (bf16), MLX q4, GGUF bf16 y GGUF Q4_K_M calibrado con
+  exportar    fusionado (bf16); si la base tiene cabeza MTP, se la entrena para
+              nuestro modelo (entrenar-mtp.py) y va al GGUF; MLX q4, GGUF bf16 y
+              GGUF Q4_K_M calibrado con
               NUESTRO corpus (imatrix: el examen no entra). Ademas el q4 de MLX
               simulado se mide en el banco: cuanto le cuesta cuantizar.
   empaquetar  carpetas con forma de repo de Hugging Face (tarjeta del modelo
@@ -44,19 +50,17 @@ PY_MLX = RAIZ / ".venv-mlx/bin/python"
 E = Path(__file__).resolve().parent
 LLAMA = RAIZ / "extern/llamacpp"
 CONV = RAIZ / "extern/llamacpp-convertir"
-ETAPAS = ["descargar", "corpus", "entrenar", "medir", "exportar", "empaquetar"]
+ETAPAS = ["inspeccionar", "descargar", "corpus", "entrenar", "medir", "exportar", "empaquetar"]
 
-# Como se entrena cada base en dos RTX 3090 (24 GB). Medido el 30/09/2026:
-#   2B  paralelo  0,87 s/paso, 15 GB por placa
-#   4B  repartido 2,0 s/paso, 16,9 + 21,1 GB (en paralelo no entra: 24 GB)
-#   9B  repartido + recalcular: sin medir todavia
-MODOS = {
-    "Qwen/Qwen3-1.7B": {"modo": "paralelo"},
-    "unsloth/Qwen3-1.7B": {"modo": "paralelo"},
-    "Qwen/Qwen3.5-2B": {"modo": "paralelo"},
-    "Qwen/Qwen3.5-4B": {"modo": "repartir"},
-    "Qwen/Qwen3.5-9B": {"modo": "repartir", "extra": ["--recalcular"]},
-}
+# COMO SE ENTRENA CADA BASE en dos RTX 3090 (24 GB) se DECIDE leyendo su config
+# (inspeccionar_base, abajo). Medido el 30/09/2026 con entrenar-rapido.py:
+#   Qwen3.5-2B  4,3 GB de pesos  paralelo   0,87 s/paso, 15 GB por placa
+#   Qwen3.5-4B  8,8 GB           repartido  2,0 s/paso, 16,9 + 21,1 GB
+#   Qwen3.5-9B  19 GB            repartido + recalcular (sin medir todavia)
+# El limite sale de eso: en paralelo cada placa carga el modelo entero y el
+# prefijo de ~3.000 tokens con gradiente; hasta ~5 GB de pesos entra.
+PARALELO_HASTA_GB = 5.5
+REPARTIDO_HASTA_GB = 12.0
 
 
 def log(*a):
@@ -122,6 +126,49 @@ class Fabrica:
         self.guardar()
 
     # --- etapas -----------------------------------------------------------
+    def inspeccionar(self):
+        """Que base es y como se entrena: leyendo SOLO sus config y su tarjeta.
+
+        Los repos que son solo GGUF (p. ej. unsloth/Qwen3.5-4B-MTP-GGUF) no se
+        entrenan: se toma la base que declaran (base_model) y se entrena esa."""
+        hf = RAIZ / ".venv-entrenar/bin/hf"
+        def bajar(repo, *pat):
+            cmd = [str(hf), "download", repo] + [x for p in pat for x in ("--include", p)]
+            if self.a.revision and repo == self.a.base:
+                cmd += ["--revision", self.a.revision]
+            r = subprocess.run(cmd, cwd=RAIZ, capture_output=True, text=True)
+            if r.returncode:
+                sys.exit(f"no se pudo leer {repo}: {r.stderr[-300:]}")
+            return Path(r.stdout.strip().splitlines()[-1].split("=", 1)[-1].strip())
+        repo = self.a.base
+        ruta = bajar(repo, "*.json", "README.md")
+        if not (ruta / "config.json").exists():
+            tarjeta = (ruta / "README.md").read_text(errors="ignore") if (ruta / "README.md").exists() else ""
+            m = re.search(r"^base_model:\s*\n?\s*-?\s*([\w.\-]+/[\w.\-]+)", tarjeta, re.M)
+            if not m:
+                sys.exit(f"{repo} no tiene config.json ni declara base_model: no se puede entrenar")
+            log(f"{repo} es solo para servir (sin config): se entrena su base {m.group(1)}")
+            self.man["repo_pedido"] = repo
+            self.a.base = repo = m.group(1)
+            self.man["base"] = repo
+            ruta = bajar(repo, "*.json", "README.md")
+        cfg = json.loads((ruta / "config.json").read_text())
+        txt = cfg.get("text_config", cfg)
+        idx = ruta / "model.safetensors.index.json"
+        gb = (json.loads(idx.read_text()).get("metadata", {}).get("total_size", 0) / 1e9) if idx.exists() else 0
+        if not gb:  # sin indice: una estimacion por las dimensiones (bf16)
+            H, L, I, Vv = (txt.get(k, 0) for k in ("hidden_size", "num_hidden_layers", "intermediate_size", "vocab_size"))
+            gb = 2 * (Vv * H + L * (4 * H * H + 3 * H * I)) / 1e9
+        modo = "paralelo" if gb <= PARALELO_HASTA_GB else "repartir"
+        extra = ["--recalcular"] if gb > REPARTIDO_HASTA_GB else []
+        self.man["arquitectura"] = {
+            "tipo": cfg.get("model_type"), "pesos_gb": round(gb, 1), "capas": txt.get("num_hidden_layers"),
+            "atencion_lineal": "linear_attention" in (txt.get("layer_types") or []),
+            "mtp": txt.get("mtp_num_hidden_layers", 0), "vision": "vision_config" in cfg,
+            "modo": modo, "extra": extra}
+        log("base:", self.man["arquitectura"])
+        (self.dir / "inspeccionado").write_text(repo)
+
     def descargar(self):
         cmd = [RAIZ / ".venv-entrenar/bin/hf", "download", self.a.base]
         if self.a.revision:
@@ -154,10 +201,10 @@ class Fabrica:
                                                  capture_output=True, text=True).stdout.strip()
 
     def entrenar(self):
-        cfg = MODOS.get(self.a.base, {"modo": "paralelo"})
+        cfg = self.man["arquitectura"]
         comun = ["--base", self.a.base, "--datos", self.corpus, "--salida", self.adaptador,
                  "--epocas", str(self.a.epocas), "--eval-cada", "100", "--semilla", str(self.a.semilla)]
-        comun += cfg.get("extra", [])
+        comun += cfg["extra"]
         env = {"PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True", "BA_ETIQUETAS": "0"}
         if self.adaptador.exists():
             shutil.rmtree(self.adaptador)
@@ -244,8 +291,21 @@ class Fabrica:
         if cfg.get("mtp_num_hidden_layers"):
             from safetensors import safe_open
             from safetensors.torch import save_file
+            # la cabeza ENTRENADA para nuestro modelo (entrenar-mtp.py), o la de
+            # la base si se pidio --sin-mtp
+            mtp_f = ex / "mtp.safetensors"
+            if not self.a.sin_mtp:
+                cmd = [PY, E / "entrenar-mtp.py", "--modelo", hf, "--base-ruta", self.man["base_ruta"],
+                       "--datos", self.corpus, "--salida", mtp_f]
+                if self.man["arquitectura"]["modo"] == "repartir":
+                    cmd.append("--repartir")
+                correr(cmd, salida=self.dir / "mtp.log")
+                self.man["mtp"] = json.loads(mtp_f.with_suffix(".json").read_text())
+                fuentes = [mtp_f]
+            else:
+                fuentes = sorted(Path(self.man["base_ruta"]).glob("*.safetensors"))
             mtp = {}
-            for f in sorted(Path(self.man["base_ruta"]).glob("*.safetensors")):
+            for f in fuentes:
                 with safe_open(str(f), "pt") as st:
                     for k in st.keys():
                         if k.startswith("mtp."):
@@ -257,7 +317,7 @@ class Fabrica:
                     ix = json.loads(idx.read_text())
                     ix["weight_map"].update({k: "model-mtp.safetensors" for k in mtp})
                     idx.write_text(json.dumps(ix, indent=2))
-                log(f"cabeza MTP de la base: {len(mtp)} tensores")
+                log(f"cabeza MTP ({'entrenada' if not self.a.sin_mtp else 'de la base'}): {len(mtp)} tensores")
         bf16 = gg / f"{self.a.nombre}-bf16.gguf"
         correr([PY, CONV / "convert_hf_to_gguf.py", hf_conv, "--outtype", "bf16", "--outfile", bf16],
                env={"PYTHONPATH": str(CONV / "gguf-py")}, salida=self.dir / "gguf.log")
@@ -334,6 +394,7 @@ contesta `derivar` para pasarlo al asistente grande. Contesta SOLO el nombre.
 cobertura = de lo suyo, cuanto atendio solo; precision = de lo que atendio,
 cuanto acerto; derivado = de lo ajeno, cuanto paso al grande.
 
+{"## Cabeza MTP" + chr(10) + chr(10) + f"Entrenada para este modelo: aceptacion {100*self.man['mtp']['aceptacion_despues']:.1f}% (la original {100*self.man['mtp']['aceptacion_antes']:.1f}%). llama.cpp: `--spec-type draft-mtp`." + chr(10) if self.man.get("mtp") else ""}
 ## Archivos
 
 {archivos}
@@ -369,7 +430,8 @@ cuanto acerto; derivado = de lo ajeno, cuanto paso al grande.
 
     def correr(self):
         hasta = ETAPAS.index(self.a.hasta)
-        plan = [("descargar", self.descargar, self.dir / "descargado"),
+        plan = [("inspeccionar", self.inspeccionar, self.dir / "inspeccionado"),
+                ("descargar", self.descargar, self.dir / "descargado"),
                 ("corpus", self.hacer_corpus, self.corpus / "entrenar.jsonl"),
                 ("entrenar", self.entrenar, self.adaptador / "adapter_config.json"),
                 ("medir", self.medir, self.dir / "medido"),
@@ -397,6 +459,7 @@ def main():
     ap.add_argument("--semilla", type=int, default=7)
     ap.add_argument("--hasta", choices=ETAPAS, default="empaquetar")
     ap.add_argument("--rehacer", choices=ETAPAS, help="rehacer desde esta etapa (las anteriores se reusan)")
+    ap.add_argument("--sin-mtp", action="store_true", help="no entrenar la cabeza MTP (usar la de la base)")
     ap.add_argument("--curva-q4", action="store_true", help="medir el q4 en los 5 puntos del dial (si no, solo sesgo 0)")
     args = ap.parse_args()
     # el perfil viaja por el entorno a TODO lo que corre debajo (corpus,
