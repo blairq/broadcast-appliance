@@ -111,6 +111,9 @@ int main() {
     }
     CHECK(!comp->inputs().empty() && comp->inputs()[0].channels == 2, "entrada principal estereo");
     CHECK(comp->activate(48000, 1024), "se activa");
+    // La interfaz del modulo: en cada plataforma con SU tipo de ventana (en la
+    // Mac, Cocoa; antes se preguntaba por X11 y el boton quedaba apagado).
+    CHECK(comp->hasEditor(), "el modulo tiene interfaz para esta plataforma");
     const auto ps = comp->params();
     CHECK(ps.size() > 10, "tiene parametros");
     // Unidades reales: LSP convierte texto a valor (muchos parametros son 0..1

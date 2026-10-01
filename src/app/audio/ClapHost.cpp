@@ -614,6 +614,10 @@ bool ClapInstance::hasEditor() const {
     if (gui == nullptr) return false;
 #ifdef _WIN32
     return gui->is_api_supported(plugin_, CLAP_WINDOW_API_WIN32, false);
+#elif defined(__APPLE__)
+    // La Mac: ventana Cocoa (ClapEditor la cuelga de un NSView de Qt). Antes se
+    // preguntaba por X11 y el botón «Interfaz LSP» quedaba deshabilitado.
+    return gui->is_api_supported(plugin_, CLAP_WINDOW_API_COCOA, false);
 #else
     return gui->is_api_supported(plugin_, CLAP_WINDOW_API_X11, false);
 #endif
