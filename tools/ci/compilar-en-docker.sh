@@ -63,9 +63,18 @@ if [ "$QUE" != win ]; then
 fi
 if [ "$QUE" != linux ]; then
     make deps-win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1
-    make test-win BA_ACCEPT_MSVC_LICENSE=1
+    # Los tests de Windows corren bajo Wine. En una Mac, Wine va encima de
+    # Rosetta y se cae de vez en cuando (rc 133) en tests que en el runner del
+    # CI pasan: cada corrida, uno distinto. Por eso un fallo aca NO frena el
+    # .zip, pero se informa y la corrida termina con error: no es verde.
+    tests_win=0
+    make test-win BA_ACCEPT_MSVC_LICENSE=1 || tests_win=$?
     make dist-win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1
     cp dist/*-windows-x64.zip dist/*-windows-x64.zip.sha256 /salida/
+    if [ "$tests_win" != 0 ]; then
+        echo "ATENCION: los tests de Windows (bajo Wine) fallaron: ver arriba. El .zip se armo igual." >&2
+        exit 3
+    fi
 fi
 '
 log "listo: $(ls "$ROOT"/dist/*-linux-x64.tar.gz "$ROOT"/dist/*-windows-x64.zip 2>/dev/null | xargs -n1 basename | tr '\n' ' ')"
