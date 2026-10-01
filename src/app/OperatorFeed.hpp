@@ -24,6 +24,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <functional>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -66,6 +67,19 @@ class OperatorFeed {
     /// Escuchar (o no) a quien ocupa el lugar `slot` del lobby.
     void setLobbyMonitor(int slot, bool on);
 
+    // --- Push-to-talk (docs/AUDIO-TTS.md) -------------------------------------
+    /// Mono en float con su frecuencia: el oído del control por voz.
+    using Dictado = std::function<void(const float* mono, std::size_t frames, std::uint32_t frecuencia)>;
+    /// A dónde va la voz mientras la tecla está apretada (thread-safe).
+    void setDictado(Dictado d);
+    /// Tecla apretada: la voz va al dictado y el lobby recibe SILENCIO en su
+    /// lugar. Por construcción, el invitado no puede oír lo que se le pide al
+    /// asistente: no es una casilla que alguien pueda olvidar.
+    void setPushToTalk(bool on) { ptt_ = on; }
+    bool pushToTalk() const { return ptt_; }
+    /// Si hay un micrófono del operador elegido (Sala): sin él no hay dictado.
+    bool hayMicrofono() const { return audioSrc_ != nullptr; }
+
     const std::string& videoSource() const { return videoName_; }
     const std::string& audioSource() const { return audioName_; }
 
@@ -90,6 +104,10 @@ class OperatorFeed {
     std::mutex audioLock_;
     std::vector<float> audioBuf_; // estereo intercalado pendiente de bloque
     std::string audioName_;
+    std::uint32_t frecuencia_ = 48000;
+    std::atomic<bool> ptt_{false};
+    std::mutex dictadoLock_;
+    Dictado dictado_;
 
     // Monitoreo del lobby
     std::vector<struct obs_source*> lobbyMonitors_;

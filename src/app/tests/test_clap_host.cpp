@@ -81,6 +81,19 @@ int main() {
     CHECK(lib->plugins().size() > 50, "LSP trae muchos plugins");
     Direct svc;
 
+    // Para armar el catálogo: id, nombre, descripción y características de todos.
+    if (std::getenv("BA_CLAP_LISTA") != nullptr) {
+        for (const auto& d : lib->plugins()) {
+            std::string f;
+            for (const auto& x : d.features)
+                f += (f.empty() ? "" : ",") + x;
+            std::string desc = d.description;
+            for (char& c : desc)
+                if (c == '\n' || c == '\t' || c == '\r') c = ' ';
+            std::printf("%s\t%s\t%s\t%s\n", d.id.c_str(), d.name.c_str(), desc.c_str(), f.c_str());
+        }
+        return 0;
+    }
     if (const char* dump = std::getenv("BA_CLAP_DUMP")) {
         for (const auto& d : lib->plugins()) {
             if (d.id.find(dump) == std::string::npos) continue;
@@ -111,6 +124,9 @@ int main() {
     }
     CHECK(!comp->inputs().empty() && comp->inputs()[0].channels == 2, "entrada principal estereo");
     CHECK(comp->activate(48000, 1024), "se activa");
+    // La interfaz del modulo: en cada plataforma con SU tipo de ventana (en la
+    // Mac, Cocoa; antes se preguntaba por X11 y el boton quedaba apagado).
+    CHECK(comp->hasEditor(), "el modulo tiene interfaz para esta plataforma");
     const auto ps = comp->params();
     CHECK(ps.size() > 10, "tiene parametros");
     // Unidades reales: LSP convierte texto a valor (muchos parametros son 0..1

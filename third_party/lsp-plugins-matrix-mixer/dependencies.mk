@@ -1,0 +1,156 @@
+#
+# Copyright (C) 2026 Linux Studio Plugins Project <https://lsp-plug.in/>
+#           (C) 2026 Vladimir Sadovnikov <sadko4u@gmail.com>
+#
+# This file is part of lsp-plugins-matrix-mixer
+#
+# lsp-plugins-matrix-mixer is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# any later version.
+#
+# lsp-plugins-matrix-mixer is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with lsp-plugins-matrix-mixer.  If not, see <https://www.gnu.org/licenses/>.
+#
+
+#------------------------------------------------------------------------------
+# List of all dependencies
+DEPENDENCIES = \
+  LSP_3RD_PARTY \
+  LSP_COMMON_LIB \
+  LSP_AUDIO_IFACE \
+  LSP_DSP_LIB \
+  LSP_DSP_UNITS \
+  LSP_LLTL_LIB \
+  LSP_PLUGIN_FW \
+  LSP_PLUGINS_SHARED \
+  LSP_R3D_BASE_LIB \
+  LSP_R3D_IFACE \
+  LSP_RUNTIME_LIB \
+  LSP_TK_LIB \
+  LSP_WS_LIB
+
+TEST_DEPENDENCIES = \
+  LSP_TEST_FW
+
+DEFAULT_FEATURES = clap doc ladspa lv2 ui vst2 vst3
+
+#------------------------------------------------------------------------------
+# Linux dependencies
+LINUX_DEPENDENCIES = \
+  LIBCAIRO \
+  LIBDL \
+  LIBFONTCONFIG \
+  LIBFREETYPE \
+  LIBGL \
+  LIBGSTREAMER_AUDIO \
+  LIBJACK \
+  LIBPIPEWIRE \
+  LIBPTHREAD \
+  LIBRT \
+  LIBSNDFILE \
+  LIBX11 \
+  LIBXRANDR \
+  LSP_AUDIO_JACK_LIB \
+  LSP_AUDIO_PIPEWIRE_LIB \
+  LSP_R3D_GLX_LIB
+
+LINUX_TEST_DEPENDENCIES =
+
+ifeq ($(PLATFORM),Linux)
+  DEPENDENCIES             += $(LINUX_DEPENDENCIES)
+  TEST_DEPENDENCIES        += $(LINUX_TEST_DEPENDENCIES)
+  DEFAULT_FEATURES         += standalone gst xdg jack pipewire
+endif
+
+#------------------------------------------------------------------------------
+# BSD dependencies
+BSD_DEPENDENCIES = \
+  LIBCAIRO \
+  LIBDL \
+  LIBFONTCONFIG \
+  LIBFREETYPE \
+  LIBGL \
+  LIBGSTREAMER_AUDIO \
+  LIBICONV \
+  LIBJACK \
+  LIBPIPEWIRE \
+  LIBPTHREAD \
+  LIBRT \
+  LIBSNDFILE \
+  LIBX11 \
+  LIBXRANDR \
+  LSP_AUDIO_JACK_LIB \
+  LSP_AUDIO_PIPEWIRE_LIB \
+  LSP_R3D_GLX_LIB
+
+BSD_TEST_DEPENDENCIES = 
+
+ifeq ($(PLATFORM),BSD)
+  DEPENDENCIES             += $(BSD_DEPENDENCIES)
+  TEST_DEPENDENCIES        += $(BSD_TEST_DEPENDENCIES)
+  DEFAULT_FEATURES         += standalone gst xdg jack pipewire
+endif
+
+#------------------------------------------------------------------------------
+# Windows dependencies
+WINDOWS_DEPENDENCIES = \
+  LIBD2D1 \
+  LIBDWRITE \
+  LIBGDI32 \
+  LIBMPR \
+  LIBMSACM \
+  LIBOLE \
+  LIBOPENGL32 \
+  LIBSHLWAPI \
+  LIBUUID \
+  LIBWINCODEC \
+  LIBWINMM \
+  LSP_R3D_WGL_LIB
+
+WINDOWS_TEST_DEPENDENCIES = 
+
+ifeq ($(PLATFORM),Windows)
+  DEPENDENCIES             += $(WINDOWS_DEPENDENCIES)
+  TEST_DEPENDENCIES        += $(WINDOWS_TEST_DEPENDENCIES)
+  DEFAULT_FEATURES         += 
+endif
+
+#------------------------------------------------------------------------------
+# MacOS dependencies
+MACOS_DEPENDENCIES = \
+  LIBAUDIOTOOLBOX \
+  LIBCAIRO \
+  LIBCOCOA \
+  LIBCOREFOUNDATION \
+  LIBFONTCONFIG \
+  LIBFREETYPE \
+  LIBICONV
+
+MACOS_TEST_DEPENDENCIES =
+
+ifeq ($(PLATFORM),MacOS)
+  DEPENDENCIES             += $(MACOS_DEPENDENCIES)
+  TEST_DEPENDENCIES        += $(MACOS_TEST_DEPENDENCIES)
+  DEFAULT_FEATURES         += 
+endif
+
+#------------------------------------------------------------------------------
+# All possible dependencies
+ALL_DEPENDENCIES = \
+  $(DEPENDENCIES) \
+  $(LINUX_DEPENDENCIES) \
+  $(BSD_DEPENDENCIES) \
+  $(WINDOWS_DEPENDENCIES) \
+  $(MACOS_DEPENDENCIES) \
+  $(TEST_DEPENDENCIES) \
+  $(LINUX_TEST_DEPENDENCIES) \
+  $(BSD_TEST_DEPENDENCIES) \
+  $(WINDOWS_TEST_DEPENDENCIES) \
+  $(MACOS_TEST_DEPENDENCIES)
+  

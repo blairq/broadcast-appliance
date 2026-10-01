@@ -100,6 +100,8 @@ bool OperatorFeed::configure(BroadcastEngine& engine, const std::string& videoSo
                                                    ring_);
                 }
                 audioSrc_ = obs_source_get_ref(src);
+                obs_audio_info ai{};
+                if (obs_get_audio_info(&ai) && ai.samples_per_sec > 0) frecuencia_ = ai.samples_per_sec;
                 obs_source_add_audio_capture_callback(audioSrc_, &OperatorFeed::onAudio, this);
             }
         }
@@ -161,21 +163,36 @@ void OperatorFeed::onVideo(void* param, video_data* frame) {
     self->sender_.send(px, row * kHeight, meta);
 }
 
+void OperatorFeed::setDictado(Dictado d) {
+    std::lock_guard<std::mutex> lock(dictadoLock_);
+    dictado_ = std::move(d);
+}
+
 void OperatorFeed::onAudio(void* param, obs_source_t*, const audio_data* data, bool muted) {
     auto* self = static_cast<OperatorFeed*>(param);
-    if (data == nullptr || data->frames == 0 || !self->ring_.header()) return;
+    if (data == nullptr || data->frames == 0) return;
     // libobs entrega float planar (un plano por canal); el ring es estereo
     // intercalado a 48 kHz en bloques de 10 ms.
     const auto* l = reinterpret_cast<const float*>(data->data[0]);
     const auto* r = data->data[1] != nullptr ? reinterpret_cast<const float*>(data->data[1]) : l;
+    // Push-to-talk: la voz va al dictado (el canal izquierdo: un micrófono es
+    // mono) y al lobby le llega silencio.
+    const bool ptt = self->ptt_;
+    if (ptt && l != nullptr) {
+        std::lock_guard<std::mutex> lock(self->dictadoLock_);
+        if (self->dictado_) self->dictado_(l, data->frames, self->frecuencia_);
+    }
+    if (!self->ring_.header()) return;
     std::lock_guard<std::mutex> lock(self->audioLock_);
     auto& buf = self->audioBuf_;
     const std::size_t base = buf.size();
     buf.resize(base + static_cast<std::size_t>(data->frames) * 2);
     for (std::uint32_t i = 0; i < data->frames; ++i) {
-        // Microfono silenciado en la app = silencio tambien para el lobby.
-        buf[base + i * 2] = (muted || l == nullptr) ? 0.0f : l[i];
-        buf[base + i * 2 + 1] = (muted || r == nullptr) ? 0.0f : r[i];
+        // Microfono silenciado en la app (o hablándole al asistente) =
+        // silencio tambien para el lobby.
+        const bool callado = muted || ptt;
+        buf[base + i * 2] = (callado || l == nullptr) ? 0.0f : l[i];
+        buf[base + i * 2 + 1] = (callado || r == nullptr) ? 0.0f : r[i];
     }
     std::size_t pos = 0;
     while (buf.size() - pos >= kBlockFrames * 2) {

@@ -12,6 +12,7 @@
 
 #if defined(BA_HAVE_CLAP)
 #include "audio/AudioViewModel.hpp"
+#include "audio/Matriz.hpp"
 #include "audio/RackManager.hpp"
 #endif
 
@@ -34,6 +35,7 @@
 #include "agent/Despachador.hpp"
 #include "agent/ModelosLocales.hpp"
 #include "agent/Roles.hpp"
+#include "agent/Voz.hpp"
 #include "AppRuntime.hpp"
 #include "diag/DiarioDeArranque.hpp"
 #include "diag/Registro.hpp"
@@ -279,6 +281,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             std::make_unique<agent::ModelosLocales>(rt.dataRoot(), QCoreApplication::applicationDirPath());
         connect(modelos_.get(), &agent::ModelosLocales::notify, this, &StudioViewModel::notify);
         QTimer::singleShot(0, modelos_.get(), [m = modelos_.get()]() { m->arrancarSiCorresponde(); });
+        voz_ = std::make_unique<agent::Voz>(rt, *modelos_);
+        connect(voz_.get(), &agent::Voz::notify, this, &StudioViewModel::notify);
+        // El micrófono del operador se cambia en Configuración: Sala lo muestra.
+        connect(voz_.get(), &agent::Voz::cambio, conference_.get(), &ConferenceViewModel::operatorChanged);
         // Barra de mensajes del asistente al operador (y respuestas a invitados).
         messages_ = std::make_unique<OperatorMessages>();
         if (rt.config().safeMode) {
@@ -328,6 +334,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     racks_ = std::make_unique<audio::RackManager>(rt.dataRoot());
     racks_->restore();
     audio_ = std::make_unique<audio::AudioViewModel>(*racks_);
+    if (voz_) voz_->setRacks(racks_.get()); // la voz sale de los nodos «Voz a texto»
+    matriz_ = std::make_unique<audio::Matriz>(rt.dataRoot());
 #endif
     // Las etiquetas de video ("Invitado 2") pasan a ser el nombre real.
     connect(conference_.get(), &ConferenceViewModel::roomChanged, this,
@@ -495,6 +503,14 @@ QObject* StudioViewModel::facebook() const { return facebook_.get(); }
 QObject* StudioViewModel::system() const { return system_.get(); }
 QObject* StudioViewModel::agent() const { return agent_.get(); }
 QObject* StudioViewModel::modelos() const { return modelos_.get(); }
+QObject* StudioViewModel::voz() const { return voz_.get(); }
+QObject* StudioViewModel::matriz() const {
+#if defined(BA_HAVE_CLAP)
+    return matriz_.get();
+#else
+    return nullptr;
+#endif
+}
 QObject* StudioViewModel::despachadorQml() const { return despachador_.get(); }
 QObject* StudioViewModel::messages() const { return messages_.get(); }
 

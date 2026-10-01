@@ -74,6 +74,15 @@ void vivo(const char* binarios, const char* repo) {
     std::printf("   %s\n", m.textoDescarga().toUtf8().constData());
     CHECK(fs::exists(destino / ".ok"), "el modelo queda instalado y verificado");
 
+    // Los de voz no se activan: se bajan y los usa la Voz.
+    bool esVoz = false;
+    for (const QVariant& v : m.catalogo())
+        if (v.toMap().value("repo").toString() == QString::fromLocal8Bit(repo))
+            esVoz = v.toMap().value("tipo").toString() != "reactivo";
+    if (esVoz) {
+        CHECK(!m.carpetaInstalada(QString::fromLocal8Bit(repo)).empty(), "modelo de voz instalado");
+        return;
+    }
     m.activar(QString::fromLocal8Bit(repo));
     CHECK(esperar([&] { return m.estado() == "listo" || m.estado() == "error"; }, 5 * 60 * 1000) &&
               m.estado() == "listo",

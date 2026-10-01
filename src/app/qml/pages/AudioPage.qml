@@ -18,6 +18,9 @@ Rectangle {
     property real leftInset: 92
     readonly property var au: Studio.audio
     property string msg: ""
+    // Dos vistas: los racks de filtros de cada fuente, y la matriz de mezcla
+    // (que rutea la SALIDA de esos filtros).
+    property string vista: "racks"
     onVisibleChanged: if (au) au.setActive(visible)
     Component.onCompleted: if (au) au.setActive(visible)
 
@@ -82,6 +85,7 @@ Rectangle {
         if (t === "in" || t === "out") return "#64748b"
         if (t === "analyzer") return "#0ea5e9"
         if (t === "monitor") return "#a78bfa"
+        if (t === "texto") return "#22c55e"
         if (t === "generator") return "#f59e0b"
         return Theme.accent
     }
@@ -160,9 +164,26 @@ Rectangle {
         color: Theme.textDim; font.pixelSize: 15
     }
 
+    // Racks | Matriz, en su propia franja arriba (las vistas empiezan debajo).
+    readonly property int franjaSelector: selectorVista.visible ? selectorVista.height + 14 + 10 : 18
+    Row {
+        id: selectorVista
+        visible: !!page.au && !!Studio.matriz
+        z: 10
+        anchors { top: parent.top; right: parent.right; topMargin: 14; rightMargin: 22 }
+        spacing: 4
+        GlassButton { compact: true; text: "Racks"; active: page.vista === "racks"; onClicked: page.vista = "racks" }
+        GlassButton { compact: true; text: "Matriz"; icon: "▦"; active: page.vista === "matriz"; onClicked: page.vista = "matriz" }
+    }
+    MatrizAudio {
+        visible: !!page.au && !!Studio.matriz && page.vista === "matriz" && page.visible
+        // Debajo de la franja del selector Racks | Matriz: nunca se pisan.
+        anchors { fill: parent; leftMargin: page.leftInset; margins: 18; topMargin: page.franjaSelector }
+    }
+
     RowLayout {
-        visible: !!page.au
-        anchors { fill: parent; leftMargin: page.leftInset; margins: 18 }
+        visible: !!page.au && page.vista === "racks"
+        anchors { fill: parent; leftMargin: page.leftInset; margins: 18; topMargin: page.franjaSelector }
         spacing: 14
 
         // --- Fuentes con audio + salida de escucha -------------------------------------------
@@ -312,6 +333,35 @@ Rectangle {
                     ToolTip.visible: hovered; ToolTip.delay: 400
                     ToolTip.text: "Agrega una tarjeta de salida de audio a este grafo: conectale lo que quieras oír."
                 }
+                // Voz a texto: como una salida, pero al reconocedor (dictado al
+                // asistente o transcripción continua).
+                GlassButton {
+                    compact: true
+                    visible: Studio.voz.disponible
+                    text: "+ Voz a texto"
+                    activeColor: "#22c55e"
+                    active: true
+                    onClicked: textoPopup.open()
+                    ToolTip.visible: hovered; ToolTip.delay: 400
+                    ToolTip.text: "Transcribe lo que le llega: para dictarle al asistente o para subtítulos y acta."
+                    Popup {
+                        id: textoPopup
+                        y: parent.height + 4
+                        padding: 8
+                        background: Rectangle { color: Theme.panel; radius: Theme.radiusSmall; border.color: Theme.glassBorder }
+                        ColumnLayout {
+                            spacing: 6
+                            GlassButton {
+                                Layout.fillWidth: true; compact: true; text: "Dictado al asistente (F9)"
+                                onClicked: { page.msg = page.au.addTexto("dictado"); textoPopup.close() }
+                            }
+                            GlassButton {
+                                Layout.fillWidth: true; compact: true; text: "Transcripción continua"
+                                onClicked: { page.msg = page.au.addTexto("continuo"); textoPopup.close() }
+                            }
+                        }
+                    }
+                }
                 Repeater {
                     model: page.au ? page.au.catalog : []
                     delegate: GlassButton {
@@ -324,7 +374,8 @@ Rectangle {
                 }
                 GlassButton { compact: true; text: "+ Analizador"; onClicked: page.msg = page.au.addAnalyzer() }
                 GlassButton { compact: true; text: "+ Generador"; onClicked: page.msg = page.au.addGenerator() }
-                GlassButton { compact: true; text: "+ Otro LSP…"; onClicked: lspPopup.open() }
+                GlassButton { compact: true; text: "+ Filtros…"; icon: "⌕"; onClicked: catalogoFiltros.open()
+                              ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Todos los filtros LSP con captura, búsqueda avanzada y para qué sirve cada uno." }
                 Item { width: 12; height: 1 }
                 // Un rack armado a mano es media hora de trabajo: guardarlo con
                 // nombre permite ponerselo a otra fuente en un clic.
@@ -888,6 +939,32 @@ Rectangle {
                         visible: parent.d.tipo === "analyzer" || parent.d.tipo === "generator"
                         GlassButton { compact: true; text: "Quitar"; onClicked: page.au.removeNode(page.au.selected) }
                     }
+                    // Voz a texto: el modo, y lo que va transcribiendo
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: 6
+                        visible: parent.d.tipo === "texto"
+                        GlassButton { compact: true; text: "Dictado"; active: parent.parent.d.modo === "dictado"; onClicked: page.msg = page.au.addTexto("dictado") }
+                        GlassButton { compact: true; text: "Continuo"; active: parent.parent.d.modo === "continuo"; onClicked: page.msg = page.au.addTexto("continuo") }
+                        GlassButton { compact: true; text: "Quitar"; onClicked: page.au.removeNode(page.au.selected) }
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        visible: parent.d.tipo === "texto" && parent.d.modo === "dictado"
+                        text: Studio.voz.ultimo !== "" ? "Último dictado: «" + Studio.voz.ultimo + "»" : Studio.voz.estado
+                        color: Theme.textDim; font.pixelSize: 12; wrapMode: Text.WordWrap
+                    }
+                    Repeater {
+                        model: parent.d.tipo === "texto" && parent.d.modo === "continuo"
+                               ? Studio.voz.transcripcion.filter(x => x.fuente === page.au.source).slice(-12) : []
+                        delegate: Text {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            text: "<font color='" + Theme.textFaint + "'>" + modelData.hora + "</font>  " + modelData.texto
+                            textFormat: Text.StyledText
+                            color: Theme.text; font.pixelSize: 12; wrapMode: Text.WordWrap
+                        }
+                    }
                     Text {
                         Layout.fillWidth: true
                         visible: !!parent.d.ayuda
@@ -1176,6 +1253,12 @@ Rectangle {
                 }
             }
         }
+    }
+
+    // --- El catálogo de filtros (búsqueda avanzada) ------------------------------
+    CatalogoFiltros {
+        id: catalogoFiltros
+        onElegido: (id) => page.msg = page.au.addModule(id, "")
     }
 
     // --- Plantillas de rack ---------------------------------------------------

@@ -123,6 +123,8 @@ class AppRuntime {
     bool streamStopWanted() const { return streamStopWanted_; }
     bool recordStopWanted() const { return recordStopWanted_; }
     const std::filesystem::path& dataRoot() const { return root_; }
+    /// El feed del operador (lobby): de ahí sale el micrófono del push-to-talk.
+    OperatorFeed& operatorFeed() { return operator_; }
     std::uint32_t pid() const;
 
     /// Salud del gateway (B): true si su latido esta fresco.

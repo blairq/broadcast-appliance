@@ -64,6 +64,13 @@ class AudioViewModel : public QObject {
     /// Agrega (o reapunta) la salida de audio de esta fuente: una tarjeta mas
     /// en el grafo, con el nombre del dispositivo elegido.
     Q_INVOKABLE QString addOutput(const QString& device);
+    /// Nodo de voz a texto en esta fuente ("dictado" o "continuo"; si ya hay, cambia el modo).
+    Q_INVOKABLE QString addTexto(const QString& modo);
+    /// El catálogo de filtros LSP por familia (datos/lsp-catalogo.json, en
+    /// castellano) con sus variantes reales: [{clave, nombre, categoria,
+    /// ilustracion, vivo, esFiltro, descripcion, usoVivo, etiquetas,
+    /// descripcionOriginal, variantes: [{id, etiqueta, estereo, sidechain}]}].
+    Q_INVOKABLE QVariantList catalogoLsp() const;
 
     // --- Plantillas -------------------------------------------------------------
     Q_INVOKABLE QVariantList plantillas() const;

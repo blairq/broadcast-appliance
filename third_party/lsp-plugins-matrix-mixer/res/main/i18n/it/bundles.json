@@ -1,0 +1,6 @@
+{
+	"matrix_mixer": {
+		"description": "Instrada ogni ingresso verso ogni uscita con un guadagno individuale per ogni punto di incrocio.",
+		"name": "Mixer a matrice"
+	}
+}

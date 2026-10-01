@@ -23,7 +23,9 @@
 #include <QObject>
 #include <QTimer>
 
+#include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
@@ -59,6 +61,19 @@ class RackManager : public QObject {
     /// Manda el audio del rack de `source` a la salida `device`. Devuelve el
     /// error o "". OJO: el motor reproduce por UNA salida a la vez.
     std::string setOutput(const std::string& source, const std::string& device);
+
+    // --- Voz a texto ----------------------------------------------------------
+    /// Pone (o cambia de modo) el nodo de voz a texto en el rack de `source`,
+    /// montando el rack si no tiene. `modo`: "dictado" o "continuo".
+    std::string setTexto(const std::string& source, const std::string& modo);
+    /// Las fuentes con nodo de voz a texto: [{fuente, modo}].
+    json fuentesConTexto() const;
+    /// A dónde va el audio de esos nodos: (fuente, modo 1=dictado 2=continuo,
+    /// mono, frames, frecuencia). Se llama EN EL HILO DE AUDIO de OBS: tiene
+    /// que copiar y volver. Una sola para toda la app (la Voz).
+    using TextoSink = std::function<void(const std::string& fuente, int modo, const float* mono, uint32_t n,
+                                         uint32_t frecuencia)>;
+    static void setTextoSink(TextoSink sink);
     // --- Plantillas -----------------------------------------------------------
     // Un rack armado a mano (compuerta, compresor, de-esser, sus parametros y
     // sus cables) es media hora de trabajo. Guardarlo con nombre permite

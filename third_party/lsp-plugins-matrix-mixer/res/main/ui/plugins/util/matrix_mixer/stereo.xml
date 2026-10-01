@@ -1,0 +1,81 @@
+<plugin resizable="true">
+	<ui:set id="channels" value="${(ex :cg_8) ? 8 : 4}"/>
+	<ui:set id="has_solo" value="
+	    :cs_1 or :cs_2 or :cs_3 or :cs_4 or
+	    ((ex :cs_8) ? :cs_5 or :cs_6 or :cs_7 or :cs_8 : false)
+	"/>
+
+	<grid rows="${:channels + 4}" cols="${:channels + 2}" bg.color="bg_schema">
+		<!-- Row 1: the names of the outputs -->
+		<vbox pad.h="6" pad.v="4">
+			<label text="labels.chan.output" text.halign="1" hfill="true"/>
+			<label text="labels.chan.input" text.halign="-1" hfill="true"/>
+		</vbox>
+		<cell rows="${:channels + 4}" bg.color="bg" pad.h="2" hreduce="true" hexpand="false">
+			<vsep/>
+		</cell>
+		<ui:for id="o" first="1" count=":channels">
+			<edit ui:id="output_name_${o}" pad.v="4" pad.h="4" width.min="64" valign="1" bright=":om_${o} ? 0.75 : 1.0" bg.bright=":om_${o} ? :const_bg_darken : 1.0"/>
+		</ui:for>
+
+		<!-- Row 2: separator -->
+		<cell bg.color="bg" pad.v="2" vreduce="true" vexpand="false">
+			<hsep/>
+		</cell>
+		<cell cols="${:channels}" bg.color="bg" pad.v="2" vreduce="true" vexpand="false">
+			<hsep/>
+		</cell>
+
+		<!-- Rows 3..N+2: one row per input, the input strip and its crosspoints -->
+		<ui:for id="i" first="1" count=":channels">
+			<ui:with bright="(:cm_${i} or ((${has_solo}) and !:cs_${i})) ? 0.75 : 1.0" bg.bright="(:cm_${i} or ((${has_solo}) and !:cs_${i})) ? :const_bg_darken : 1.0">
+				<hbox pad.h="6" pad.v="4" spacing="4">
+					<edit ui:id="input_name_${i}" width.min="80" hfill="true"/>
+					<button id="cs_${i}" text="labels.chan.S_olo" ui:inject="Button_green_8" font.size="8" hfill="true" expand="false"/>
+					<button id="cm_${i}" text="labels.chan.M_ute" ui:inject="Button_red_8" font.size="8" hfill="true" expand="false"/>
+					<button id="ci_${i}" text="labels.chan.P_hase" ui:inject="Button_yellow_8" font.size="8" hfill="true" expand="false"/>
+					<knob id="cg_${i}" size="16" pad.l="2" scolor="!(:cm_${i} or ((${has_solo}) and !:cs_${i})) ? 'kscale' : 'kscale_inactive'"/>
+					<value id="cg_${i}" sline="true" width.min="48"/>
+					<ledmeter angle="0" height.min="128" hexpand="true" bright="(:cm_${i} or ((${has_solo}) and !:cs_${i})) ? :const_led_darken : 1.0">
+						<ledchannel id="il_${i}l" min="-72 db" max="12 db" log="true" type="rms_peak" peak.visibility="true" value.color="!(:cm_${i} or ((${has_solo}) and !:cs_${i})) ? 'left_in' : 'cycle_inactive'" yellow.color="!(:cm_${i} or ((${has_solo}) and !:cs_${i})) ? 'meter_yellow' : 'cycle_inactive'" red.color="!(:cm_${i} or ((${has_solo}) and !:cs_${i})) ? 'meter_red' : 'cycle_inactive'"/>
+						<ledchannel id="il_${i}r" min="-72 db" max="12 db" log="true" type="rms_peak" peak.visibility="true" value.color="!(:cm_${i} or ((${has_solo}) and !:cs_${i})) ? 'right_in' : 'cycle_inactive'" yellow.color="!(:cm_${i} or ((${has_solo}) and !:cs_${i})) ? 'meter_yellow' : 'cycle_inactive'" red.color="!(:cm_${i} or ((${has_solo}) and !:cs_${i})) ? 'meter_red' : 'cycle_inactive'"/>
+					</ledmeter>
+				</hbox>
+				<ui:for id="o" first="1" count=":channels">
+					<ui:with bright="((:cm_${i} or ((${has_solo}) and !:cs_${i})) or :om_${o}) ? 0.75 : 1.0" bg.bright="((:cm_${i} or ((${has_solo}) and !:cs_${i})) or :om_${o}) ? :const_bg_darken : 1.0">
+						<vbox>
+							<knob id="mx_${i}_${o}" size="16" pad.t="4" pad.h="4" scolor="((:mx_${i}_${o} gt 0.0) and !(:cm_${i} or ((${has_solo}) and !:cs_${i})) and !:om_${o}) ? 'kscale' : 'kscale_inactive'"/>
+							<value id="mx_${i}_${o}" sline="true" width.min="48" pad.b="4" pad.h="4"/>
+						</vbox>
+					</ui:with>
+				</ui:for>
+			</ui:with>
+		</ui:for>
+
+		<!-- Row N+3: separator -->
+		<cell bg.color="bg" pad.v="2" vreduce="true" vexpand="false">
+			<hsep/>
+		</cell>
+		<cell cols="${:channels}" bg.color="bg" pad.v="2" vreduce="true" vexpand="false">
+			<hsep/>
+		</cell>
+
+		<!-- Row N+4: the output strips -->
+		<label text="labels.chan.output" text.halign="-1" text.valign="-1" fill="true" pad.h="6" pad.v="8"/>
+		<ui:for id="o" first="1" count=":channels">
+			<ui:with bright=":om_${o} ? 0.75 : 1.0" bg.bright=":om_${o} ? :const_bg_darken : 1.0">
+				<vbox pad.h="4" pad.v="4" spacing="2">
+					<button id="om_${o}" text="labels.chan.M_ute" ui:inject="Button_red_8" font.size="8" hfill="true"/>
+					<knob id="ob_${o}" size="16" balance="0" scolor="!:om_${o} ? 'kscale' : 'kscale_inactive'"/>
+					<value id="ob_${o}" sline="true" width.min="48"/>
+					<knob id="og_${o}" size="20" scolor="!:om_${o} ? 'kscale' : 'kscale_inactive'"/>
+					<value id="og_${o}" sline="true" width.min="48"/>
+					<ledmeter height.min="96" vexpand="true" angle="1" bright=":om_${o} ? :const_led_darken : 1.0">
+						<ledchannel id="ol_${o}l" min="-72 db" max="12 db" log="true" type="rms_peak" peak.visibility="true" value.color="!:om_${o} ? 'left' : 'cycle_inactive'" yellow.color="!:om_${o} ? 'meter_yellow' : 'cycle_inactive'" red.color="!:om_${o} ? 'meter_red' : 'cycle_inactive'"/>
+						<ledchannel id="ol_${o}r" min="-72 db" max="12 db" log="true" type="rms_peak" peak.visibility="true" value.color="!:om_${o} ? 'right' : 'cycle_inactive'" yellow.color="!:om_${o} ? 'meter_yellow' : 'cycle_inactive'" red.color="!:om_${o} ? 'meter_red' : 'cycle_inactive'"/>
+					</ledmeter>
+				</vbox>
+			</ui:with>
+		</ui:for>
+	</grid>
+</plugin>

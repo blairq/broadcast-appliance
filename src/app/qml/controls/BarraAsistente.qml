@@ -33,6 +33,18 @@ Panel {
 
     readonly property var ag: Studio.agent
     readonly property bool listo: ag.running
+    readonly property var voz: Studio.voz
+
+    // Lo dictado entra como lo escrito: con el contexto de la página y por
+    // el mismo camino (agent/Voz.hpp). Si el asistente no corre, queda en el
+    // campo para que no se pierda.
+    Connections {
+        target: barra.voz
+        function onDictado(texto) {
+            if (barra.listo) barra.mandar(texto)
+            else campo.text = texto
+        }
+    }
 
     // El alto SALE DEL CONTENIDO, no de un numero escrito a mano. Estaba en 64
     // y no cerraba: Panel ya mete su contenido 16 px, esta barra le sumaba 10
@@ -79,6 +91,26 @@ Panel {
                 onAccepted: barra.mandar(text)
             }
 
+            // Mantener apretado para hablar (o la tecla, en cualquier página).
+            GlassButton {
+                visible: barra.voz.disponible
+                compact: true
+                icon: barra.voz.grabando ? "●" : barra.voz.transcribiendo ? "…" : "🎙"
+                active: barra.voz.grabando
+                activeColor: Theme.live
+                enabled: barra.voz.lista || barra.voz.grabando
+                ToolTip.visible: hovered
+                ToolTip.text: barra.voz.lista
+                    ? "Mantené apretado (o " + barra.voz.tecla + ") y hablá. Mientras tanto el lobby no te oye."
+                    : barra.voz.estado
+                MouseArea {
+                    anchors.fill: parent
+                    enabled: parent.enabled
+                    onPressed: barra.voz.apretar()
+                    onReleased: barra.voz.soltar()
+                    onCanceled: barra.voz.cancelar()
+                }
+            }
             GlassButton {
                 text: "Pedir"; compact: true
                 enabled: barra.listo && campo.text.trim() !== ""

@@ -1,7 +1,7 @@
 # Hablarle al aparato (y que conteste)
 
-**Sin empezar.** Esto es el diseño y las mediciones, para retomarlo cuando
-toque. Nada de acá está construido todavía.
+**Escuchar: hecho** (push-to-talk → texto → barra del asistente). **Contestar
+hablando: falta.** Lo construido está en «Lo que hay» al final.
 
 En una cabina las manos están ocupadas y los ojos están en el programa. Poder
 decir «pasá a la escena 4» o «¿quién está esperando?» y que conteste al oído es
@@ -53,10 +53,21 @@ programa, no que haya una casilla destildada.
 
 ## Las piezas
 
-Todo local y vendoreado, como el resto del aparato: tiene que andar desde un
-pendrive, sin internet.
+Todo local: corre en la máquina, sin internet. Pero **los modelos de voz no
+viajan en el bundle**: se bajan a pedido, si la persona lo va a usar, como el
+modelo de lenguaje (Configuración → Modelos locales), fijados por commit o por
+sha256 y verificados. Lo único que viaja es el ONNX de rostros.
 
-### Escuchar: `transcribe.cpp`
+### Escuchar: sherpa-onnx (antes: `transcribe.cpp`)
+
+**Lo que se eligió al construirlo:** sherpa-onnx compilado contra el MISMO ONNX
+Runtime de los rostros (estático, `make deps-sherpa-onnx`), con
+**Parakeet-TDT-0.6B-v3 int8** (CC-BY-4.0, error en castellano 3,1–3,5 % en
+FLEURS) y **Silero VAD** para recortar el silencio. Con push-to-talk la toma ya
+está delimitada, así que no hace falta streaming. Medido en una M1 Pro: 5,3 s
+de habla en ~0,25 s de CPU, con puntuación y acentos. El texto de abajo es el
+diseño original con transcribe.cpp, que queda como alternativa para los
+subtítulos (streaming).
 
 Una biblioteca de C/C++ sobre ggml, MIT, de handy-computer. **Se enlaza
 directo, igual que ONNX Runtime**: no entra Node en el bundle.
@@ -124,8 +135,8 @@ sirve en una cabina o es una demo bonita.
 
 ## Lo que queda por decidir
 
-- Qué tecla, y si se puede apretar desde el tablero de la tablet además del
-  teclado.
+- La tecla quedó en **F9** (con la ventana de la app enfocada) y el botón del
+  micrófono de la barra. Falta: configurable, y desde el tablero de la tablet.
 - Si la respuesta hablada es siempre o solo cuando no hay nadie mirando la
   pantalla (hablar de más molesta).
 - Si conviene cortar el reconocimiento mientras se está al aire y hay silencio
@@ -138,3 +149,18 @@ Si alguna vez el asistente interactivo pasa de opencode a pi,
 `pi install npm:@earendil-works/pi-voice` da dictado con push-to-talk sin
 escribir una línea. Pero es **dictado en una TUI**: escribe texto en el chat,
 no controla el aparato. Es otra cosa que lo de arriba y no lo reemplaza.
+
+## Lo que hay
+
+| | |
+|---|---|
+| `tools/deps/sherpa-onnx.sh` | sherpa-onnx v1.13.8 contra el ORT de `extern/rostros`, estático (Mac y Linux; Windows falta) |
+| `src/app/audio/Escucha` | el hilo dueño del reconocedor y el VAD: empezar / alimentar / terminar |
+| `src/app/OperatorFeed` | push-to-talk: con la tecla apretada, el micrófono va al dictado y el lobby recibe silencio |
+| `src/app/agent/Voz` | F9 y el botón: carga los modelos bajados, junta todo, manda el texto a la barra |
+| nodo «Voz a texto» del rack | en Audio, en cualquier fuente, como una salida: **dictado** (F9 al asistente; si hay varias, la que más habló) o **continuo** (subtítulos, acta; frase por frase con VAD, 1–3 s). Sin ninguno, F9 se lo pone al micrófono del operador |
+| Configuración → Audio y voz | el micrófono del operador (antes en Sala), dónde hay voz a texto, la voz que contesta y lo transcripto |
+| `audio/Habla` + `audio/MonitorVoz` | contesta hablando: piper frase por frase, solo al monitoreo (fuente privada MONITOR_ONLY) |
+| MCP | `voz_microfono`, `voz_texto`, `voz_transcripcion`, `voz_decir`, `voz_ajustes` |
+| `datos/modelos-catalogo.json` | Parakeet (fijado por commit) y Silero VAD (por URL y sha256), tipos `voz` y `vad` |
+| `test_escucha` | con modelos de verdad: wav a 22 kHz con silencio, el VAD lo recorta y el texto sale bien |

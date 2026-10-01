@@ -12,6 +12,10 @@
 //   salida     una salida de audio del equipo (auriculares, parlantes): copia
 //              lo que le llega para mandarlo a ese dispositivo. No toca lo que
 //              sale al aire; se patchea desde donde se quiera oir.
+//   texto      VOZ A TEXTO (uno por rack): copia lo que le llega para el
+//              reconocedor. Modo «dictado» (push-to-talk al asistente) o
+//              «continuo» (transcripción: subtítulos, acta). Tampoco toca lo que
+//              sale al aire.
 // Puertos: "in" (entrada principal), "sc" (sidechain, si el modulo tiene) y
 // "out". Varios cables a una entrada se suman. Sin ciclos.
 //
@@ -63,6 +67,12 @@ class AudioRack {
     /// Nodo de SALIDA de audio del equipo (uno por rack). `device` es el id del
     /// dispositivo y `label` su nombre. Si ya hay uno, le cambia el destino.
     std::string addOutput(const std::string& device, const std::string& label);
+    /// Nodo de VOZ A TEXTO (uno por rack): `modo` "dictado" o "continuo". Si
+    /// ya hay uno, le cambia el modo. Nuevo, se conecta solo a lo que va a la
+    /// mezcla (el final de la cadena); después se patchea donde se quiera.
+    std::string addTexto(const std::string& modo);
+    /// "" (sin nodo), "dictado" o "continuo".
+    std::string textoModo() const;
     bool hasOutput() const;
     /// Id del dispositivo de la salida ("" si no hay nodo de salida).
     std::string outputDevice() const;
@@ -114,6 +124,12 @@ class AudioRack {
     /// canales). Vale hasta el `process()` siguiente y solo en ese hilo.
     uint32_t monitorFrames() const { return monFrames_; }
     const float* monitorPlane(int ch) const;
+    /// Lo que junto el nodo de voz a texto en el ULTIMO `process()` (mono).
+    /// Mismo contrato que el monitor: solo en el hilo de audio.
+    uint32_t textoFrames() const { return txtFrames_; }
+    const float* textoData() const { return txt_.data(); }
+    /// 0 = sin nodo, 1 = dictado, 2 = continuo (se puede leer desde el audio).
+    int textoModoAudio() const { return txtModo_.load(std::memory_order_relaxed); }
 
     struct Node;
 
@@ -155,6 +171,9 @@ class AudioRack {
     static constexpr uint32_t kMonitorCap = 8192;
     std::vector<float> monL_, monR_;
     uint32_t monFrames_ = 0;
+    std::vector<float> txt_;
+    uint32_t txtFrames_ = 0;
+    std::atomic<int> txtModo_{0};
 
     std::mutex planLock_;
     std::unique_ptr<Plan> plan_;

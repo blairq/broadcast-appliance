@@ -838,15 +838,20 @@ Rectangle {
                                 onPressedChanged: if (pressed) conf.refreshSources()
                             }
                         }
+                        // El micrófono del operador se elige en Configuración -> Audio y voz:
+                        // es el mismo para el lobby y para dictarle al asistente.
                         RowLayout {
                             Layout.fillWidth: true
                             Text { text: "Te oyen con"; color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 78 }
-                            ComboBox {
+                            Text {
                                 Layout.fillWidth: true
-                                model: ["(sin voz)"].concat(conf.audioSourceNames)
-                                currentIndex: Math.max(0, model.indexOf(conf.operatorAudio))
-                                onActivated: (i) => conf.setOperatorFeed(conf.operatorVideo, i === 0 ? "" : model[i])
-                                onPressedChanged: if (pressed) conf.refreshSources()
+                                text: conf.operatorAudio !== "" ? conf.operatorAudio : "(sin micrófono elegido)"
+                                color: conf.operatorAudio !== "" ? Theme.text : Theme.textFaint
+                                font.pixelSize: 13; elide: Text.ElideRight
+                            }
+                            GlassButton {
+                                compact: true; text: "Cambiar…"
+                                onClicked: { Studio.seccionConfig = "Audio y voz"; ApplicationWindow.window.showPage(6) }
                             }
                         }
                         GlassButton { text: "Abrir consola web"; icon: "↗"; compact: true; enabled: conf.online; onClicked: conf.openWebConsole() }

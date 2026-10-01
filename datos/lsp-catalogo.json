@@ -1,0 +1,710 @@
+{
+ "_comentario": "Catálogo de los filtros LSP en castellano, por familia (las variantes salen del plugin). Las ilustraciones se dibujan en la app (no se usan las capturas de lsp-plug.in: todos los derechos reservados).",
+ "categorias": [
+  "Dinámica",
+  "Ecualizadores",
+  "Multibanda",
+  "Retardo",
+  "Reverberación",
+  "Modulación",
+  "Análisis",
+  "Utilidades",
+  "Generadores",
+  "Instrumentos"
+ ],
+ "familias": [
+  {
+   "clave": "compressor",
+   "nombre": "Compresor",
+   "categoria": "Dinámica",
+   "ilustracion": "comp",
+   "vivo": true,
+   "descripcion": "Baja el nivel de lo que pasa de un umbral para emparejar la voz: lo fuerte se acerca a lo suave. Hacia abajo, hacia arriba o en paralelo, con sidechain y anticipación.",
+   "usoVivo": "El más usado en voz: ratio 3:1, ataque 10 ms, devolución 100 ms. Que no baje más de 6 dB.",
+   "etiquetas": [
+    "compresion",
+    "nivel",
+    "voz",
+    "dinamica"
+   ]
+  },
+  {
+   "clave": "gate",
+   "nombre": "Compuerta (gate)",
+   "categoria": "Dinámica",
+   "ilustracion": "gate",
+   "vivo": true,
+   "descripcion": "Cierra el paso cuando la señal cae debajo de un umbral: saca el ruido de fondo entre frase y frase. Con histéresis y sidechain.",
+   "usoVivo": "En micrófonos abiertos de panel: que cierre a -45 dB y abra rápido para no comerse el principio de las palabras.",
+   "etiquetas": [
+    "ruido",
+    "compuerta",
+    "silencio"
+   ]
+  },
+  {
+   "clave": "expander",
+   "nombre": "Expansor",
+   "categoria": "Dinámica",
+   "ilustracion": "exp",
+   "vivo": true,
+   "descripcion": "Como una compuerta suave: en vez de cerrar, baja de a poco lo que está debajo del umbral.",
+   "usoVivo": "Para bajar el ruido de sala sin el corte brusco de una compuerta.",
+   "etiquetas": [
+    "ruido",
+    "expansion"
+   ]
+  },
+  {
+   "clave": "limiter",
+   "nombre": "Limitador",
+   "categoria": "Dinámica",
+   "ilustracion": "lim",
+   "vivo": true,
+   "descripcion": "Un techo que la señal no pasa nunca, con anticipación para que no se note.",
+   "usoVivo": "Al final de la cadena del programa: techo en -1 dBTP para que nada recorte al aire.",
+   "etiquetas": [
+    "techo",
+    "pico",
+    "true peak",
+    "masterizacion"
+   ]
+  },
+  {
+   "clave": "clipper",
+   "nombre": "Recortador (clipper)",
+   "categoria": "Dinámica",
+   "ilustracion": "lim",
+   "vivo": false,
+   "descripcion": "Recorta los picos de golpe (con curvas suaves), antes de un limitador, para ganar volumen.",
+   "usoVivo": "Poco para vivo: mejor un limitador.",
+   "etiquetas": [
+    "picos",
+    "saturacion"
+   ]
+  },
+  {
+   "clave": "deesser",
+   "nombre": "De-esser",
+   "categoria": "Dinámica",
+   "ilustracion": "deess",
+   "vivo": true,
+   "descripcion": "Baja solo las «eses» y sibilancias cuando se disparan, sin oscurecer toda la voz.",
+   "usoVivo": "En voces con mucha s, sobre todo con micrófonos de condensador cerca de la boca.",
+   "etiquetas": [
+    "sibilancia",
+    "ese",
+    "voz"
+   ]
+  },
+  {
+   "clave": "dyna_processor",
+   "nombre": "Procesador de dinámica",
+   "categoria": "Dinámica",
+   "ilustracion": "comp",
+   "vivo": false,
+   "descripcion": "Una curva de dinámica a medida: compresor, expansor y compuerta en uno, con varios puntos.",
+   "usoVivo": "Para casos raros: si alcanza un compresor, mejor el compresor.",
+   "etiquetas": [
+    "curva",
+    "dinamica"
+   ]
+  },
+  {
+   "clave": "beat_breather",
+   "nombre": "Beat Breather",
+   "categoria": "Dinámica",
+   "ilustracion": "mb",
+   "vivo": false,
+   "descripcion": "Le devuelve aire a los golpes (baterías, percusión) separando el ataque del cuerpo.",
+   "usoVivo": "Música en vivo, no voz.",
+   "etiquetas": [
+    "bateria",
+    "transitorios"
+   ]
+  },
+  {
+   "clave": "autogain",
+   "nombre": "Ganancia automática",
+   "categoria": "Utilidades",
+   "ilustracion": "loud",
+   "vivo": true,
+   "descripcion": "Sostiene la sonoridad (LUFS) en un nivel objetivo subiendo y bajando sola, despacio.",
+   "usoVivo": "Para invitados remotos que llegan muy altos o muy bajos: los emparejan solos.",
+   "etiquetas": [
+    "lufs",
+    "sonoridad",
+    "nivel",
+    "invitados"
+   ]
+  },
+  {
+   "clave": "mb_compressor",
+   "nombre": "Compresor multibanda",
+   "categoria": "Multibanda",
+   "ilustracion": "mb",
+   "vivo": true,
+   "descripcion": "Un compresor por banda de frecuencia (hasta 8): controla graves sin tocar agudos y al revés.",
+   "usoVivo": "En el programa, para que una voz con mucho grave no empuje todo.",
+   "etiquetas": [
+    "multibanda",
+    "compresion"
+   ]
+  },
+  {
+   "clave": "mb_expander",
+   "nombre": "Expansor multibanda",
+   "categoria": "Multibanda",
+   "ilustracion": "mb",
+   "vivo": false,
+   "descripcion": "Expansor por bandas: baja el ruido solo donde está.",
+   "usoVivo": "Ruido de aire acondicionado (grave) sin tocar la voz.",
+   "etiquetas": [
+    "multibanda",
+    "ruido"
+   ]
+  },
+  {
+   "clave": "mb_gate",
+   "nombre": "Compuerta multibanda",
+   "categoria": "Multibanda",
+   "ilustracion": "mb",
+   "vivo": false,
+   "descripcion": "Compuerta por bandas de frecuencia.",
+   "usoVivo": "Casos especiales de ruido.",
+   "etiquetas": [
+    "multibanda",
+    "compuerta"
+   ]
+  },
+  {
+   "clave": "mb_limiter",
+   "nombre": "Limitador multibanda",
+   "categoria": "Multibanda",
+   "ilustracion": "mb",
+   "vivo": false,
+   "descripcion": "Limitador por bandas, para masterizar.",
+   "usoVivo": "Más para música que para vivo.",
+   "etiquetas": [
+    "multibanda",
+    "techo"
+   ]
+  },
+  {
+   "clave": "mb_clipper",
+   "nombre": "Recortador multibanda",
+   "categoria": "Multibanda",
+   "ilustracion": "mb",
+   "vivo": false,
+   "descripcion": "Recortador por bandas.",
+   "usoVivo": "Masterizado musical.",
+   "etiquetas": [
+    "multibanda",
+    "picos"
+   ]
+  },
+  {
+   "clave": "mb_dyna_processor",
+   "nombre": "Dinámica multibanda",
+   "categoria": "Multibanda",
+   "ilustracion": "mb",
+   "vivo": false,
+   "descripcion": "Procesador de dinámica completo por bandas.",
+   "usoVivo": "Casos especiales.",
+   "etiquetas": [
+    "multibanda",
+    "dinamica"
+   ]
+  },
+  {
+   "clave": "gott_compressor",
+   "nombre": "Compresor GOTT",
+   "categoria": "Multibanda",
+   "ilustracion": "mb",
+   "vivo": false,
+   "descripcion": "Compresor multibanda de 4 bandas, rápido de configurar, inspirado en un clásico de masterizado.",
+   "usoVivo": "Una alternativa simple al multibanda completo.",
+   "etiquetas": [
+    "multibanda",
+    "masterizacion"
+   ]
+  },
+  {
+   "clave": "para_equalizer",
+   "nombre": "Ecualizador paramétrico",
+   "categoria": "Ecualizadores",
+   "ilustracion": "eq",
+   "vivo": true,
+   "descripcion": "Hasta 32 filtros con frecuencia, ganancia y Q, con analizador de espectro encima.",
+   "usoVivo": "El caballo de batalla: pasa-altos en 80 Hz para la voz y sacar resonancias de la sala.",
+   "etiquetas": [
+    "eq",
+    "ecualizador",
+    "frecuencia",
+    "graves",
+    "agudos"
+   ]
+  },
+  {
+   "clave": "graph_equalizer",
+   "nombre": "Ecualizador gráfico",
+   "categoria": "Ecualizadores",
+   "ilustracion": "geq",
+   "vivo": false,
+   "descripcion": "Bandas fijas (16 o 32) con un fader cada una, como el de una consola.",
+   "usoVivo": "Para retoques rápidos de oído.",
+   "etiquetas": [
+    "eq",
+    "grafico",
+    "bandas"
+   ]
+  },
+  {
+   "clave": "filter",
+   "nombre": "Filtro",
+   "categoria": "Ecualizadores",
+   "ilustracion": "hpf",
+   "vivo": true,
+   "descripcion": "Un solo filtro (pasa-altos, pasa-bajos, banda...), simple y liviano.",
+   "usoVivo": "Pasa-altos a 80-100 Hz en todos los micrófonos de voz: saca golpes y zumbidos.",
+   "etiquetas": [
+    "filtro",
+    "pasa altos",
+    "graves"
+   ]
+  },
+  {
+   "clave": "surge_filter",
+   "nombre": "Filtro anti-golpes",
+   "categoria": "Ecualizadores",
+   "ilustracion": "hpf",
+   "vivo": true,
+   "descripcion": "Corta los golpes y transitorios bruscos (enchufar un cable, un micrófono que se cae).",
+   "usoVivo": "Delante de todo en micrófonos que se tocan o se mueven.",
+   "etiquetas": [
+    "golpe",
+    "proteccion"
+   ]
+  },
+  {
+   "clave": "matcher",
+   "nombre": "Igualador (matcher)",
+   "categoria": "Ecualizadores",
+   "ilustracion": "eq",
+   "vivo": false,
+   "descripcion": "Hace que una señal suene como otra de referencia, copiando su curva.",
+   "usoVivo": "Para que dos micrófonos distintos suenen parecido.",
+   "etiquetas": [
+    "referencia",
+    "igualar"
+   ]
+  },
+  {
+   "clave": "loud_comp",
+   "nombre": "Compensación de sonoridad",
+   "categoria": "Ecualizadores",
+   "ilustracion": "eq",
+   "vivo": false,
+   "descripcion": "Corrige la curva de igual sonoridad al escuchar bajo.",
+   "usoVivo": "Monitoreo, no aire.",
+   "etiquetas": [
+    "loudness",
+    "fletcher"
+   ]
+  },
+  {
+   "clave": "crossover",
+   "nombre": "Divisor de bandas (crossover)",
+   "categoria": "Utilidades",
+   "ilustracion": "mb",
+   "vivo": false,
+   "descripcion": "Parte la señal en bandas de frecuencia con salidas separadas.",
+   "usoVivo": "Para armar procesamiento por bandas a mano.",
+   "etiquetas": [
+    "bandas",
+    "division"
+   ]
+  },
+  {
+   "clave": "art_delay",
+   "nombre": "Delay artístico",
+   "categoria": "Retardo",
+   "ilustracion": "delay",
+   "vivo": false,
+   "descripcion": "Hasta 16 líneas de retardo con tempo, para efectos creativos.",
+   "usoVivo": "Efectos, no voz hablada.",
+   "etiquetas": [
+    "eco",
+    "delay"
+   ]
+  },
+  {
+   "clave": "comp_delay",
+   "nombre": "Retardo de compensación",
+   "categoria": "Retardo",
+   "ilustracion": "delay",
+   "vivo": true,
+   "descripcion": "Atrasa una señal unos milisegundos para alinearla con otra.",
+   "usoVivo": "Para sincronizar un micrófono con el video cuando la cámara llega tarde.",
+   "etiquetas": [
+    "sincronizacion",
+    "latencia",
+    "alinear"
+   ]
+  },
+  {
+   "clave": "slap_delay",
+   "nombre": "Slapback",
+   "categoria": "Retardo",
+   "ilustracion": "delay",
+   "vivo": false,
+   "descripcion": "Ecos cortos y pocos, el clásico eco de rockabilly.",
+   "usoVivo": "Efecto musical.",
+   "etiquetas": [
+    "eco",
+    "slap"
+   ]
+  },
+  {
+   "clave": "impulse_reverb",
+   "nombre": "Reverb por convolución",
+   "categoria": "Reverberación",
+   "ilustracion": "reverb",
+   "vivo": false,
+   "descripcion": "Reverberación a partir de una respuesta impulsiva real (archivo).",
+   "usoVivo": "Ambientes de audio, poco en voz.",
+   "etiquetas": [
+    "reverb",
+    "convolucion"
+   ]
+  },
+  {
+   "clave": "impulse_responses",
+   "nombre": "Respuestas impulsivas",
+   "categoria": "Reverberación",
+   "ilustracion": "reverb",
+   "vivo": false,
+   "descripcion": "Aplica respuestas impulsivas (salas, gabinetes) a la señal.",
+   "usoVivo": "Simulación de espacios.",
+   "etiquetas": [
+    "convolucion",
+    "ir"
+   ]
+  },
+  {
+   "clave": "room_builder",
+   "nombre": "Constructor de salas",
+   "categoria": "Reverberación",
+   "ilustracion": "reverb",
+   "vivo": false,
+   "descripcion": "Arma una reverberación simulando una sala 3D.",
+   "usoVivo": "Diseño sonoro.",
+   "etiquetas": [
+    "reverb",
+    "sala",
+    "3d"
+   ]
+  },
+  {
+   "clave": "chorus",
+   "nombre": "Chorus",
+   "categoria": "Modulación",
+   "ilustracion": "mod",
+   "vivo": false,
+   "descripcion": "Duplica la señal con pequeñas variaciones de tiempo: la engorda.",
+   "usoVivo": "Efecto musical.",
+   "etiquetas": [
+    "modulacion",
+    "chorus"
+   ]
+  },
+  {
+   "clave": "flanger",
+   "nombre": "Flanger",
+   "categoria": "Modulación",
+   "ilustracion": "mod",
+   "vivo": false,
+   "descripcion": "Efecto de barrido metálico por retardo modulado.",
+   "usoVivo": "Efecto musical.",
+   "etiquetas": [
+    "modulacion",
+    "flanger"
+   ]
+  },
+  {
+   "clave": "phaser",
+   "nombre": "Phaser",
+   "categoria": "Modulación",
+   "ilustracion": "mod",
+   "vivo": false,
+   "descripcion": "Barrido de fase clásico.",
+   "usoVivo": "Efecto musical.",
+   "etiquetas": [
+    "modulacion",
+    "phaser"
+   ]
+  },
+  {
+   "clave": "ringmod_sc",
+   "nombre": "Modulador en anillo",
+   "categoria": "Modulación",
+   "ilustracion": "mod",
+   "vivo": false,
+   "descripcion": "Multiplica la señal por otra (sidechain): voces robóticas.",
+   "usoVivo": "Efectos especiales.",
+   "etiquetas": [
+    "robot",
+    "anillo"
+   ]
+  },
+  {
+   "clave": "mb_ringmod_sc",
+   "nombre": "Modulador en anillo multibanda",
+   "categoria": "Modulación",
+   "ilustracion": "mod",
+   "vivo": false,
+   "descripcion": "Modulación en anillo por bandas.",
+   "usoVivo": "Efectos especiales.",
+   "etiquetas": [
+    "robot",
+    "multibanda"
+   ]
+  },
+  {
+   "clave": "spectrum_analyzer",
+   "nombre": "Analizador de espectro",
+   "categoria": "Análisis",
+   "ilustracion": "spec",
+   "vivo": true,
+   "descripcion": "Muestra el espectro de la señal en tiempo real, sin tocarla.",
+   "usoVivo": "Para encontrar el zumbido o la resonancia que hay que sacar con el EQ.",
+   "etiquetas": [
+    "espectro",
+    "analisis",
+    "frecuencia"
+   ]
+  },
+  {
+   "clave": "oscilloscope",
+   "nombre": "Osciloscopio",
+   "categoria": "Análisis",
+   "ilustracion": "osc",
+   "vivo": false,
+   "descripcion": "Ve la forma de onda en el tiempo.",
+   "usoVivo": "Diagnóstico.",
+   "etiquetas": [
+    "onda",
+    "osciloscopio"
+   ]
+  },
+  {
+   "clave": "phase_detector",
+   "nombre": "Detector de fase",
+   "categoria": "Análisis",
+   "ilustracion": "osc",
+   "vivo": false,
+   "descripcion": "Mide el desfasaje entre dos señales.",
+   "usoVivo": "Para alinear dos micrófonos de la misma fuente.",
+   "etiquetas": [
+    "fase",
+    "alinear"
+   ]
+  },
+  {
+   "clave": "latency_meter",
+   "nombre": "Medidor de latencia",
+   "categoria": "Análisis",
+   "ilustracion": "osc",
+   "vivo": false,
+   "descripcion": "Mide la latencia de una cadena con una señal de prueba.",
+   "usoVivo": "Diagnóstico de retardos.",
+   "etiquetas": [
+    "latencia",
+    "medicion"
+   ]
+  },
+  {
+   "clave": "profiler",
+   "nombre": "Perfilador",
+   "categoria": "Análisis",
+   "ilustracion": "spec",
+   "vivo": false,
+   "descripcion": "Mide la respuesta de un sistema (parlante, sala) con un barrido.",
+   "usoVivo": "Medición de equipos.",
+   "etiquetas": [
+    "medicion",
+    "respuesta"
+   ]
+  },
+  {
+   "clave": "referencer",
+   "nombre": "Referencias",
+   "categoria": "Análisis",
+   "ilustracion": "spec",
+   "vivo": false,
+   "descripcion": "Compara la mezcla con temas de referencia, con medidores.",
+   "usoVivo": "Producción musical.",
+   "etiquetas": [
+    "referencia",
+    "comparar"
+   ]
+  },
+  {
+   "clave": "ab_tester",
+   "nombre": "Prueba A/B",
+   "categoria": "Utilidades",
+   "ilustracion": "util",
+   "vivo": false,
+   "descripcion": "Compara varias señales a ciegas.",
+   "usoVivo": "Para elegir entre dos cadenas sin sugestión.",
+   "etiquetas": [
+    "comparar",
+    "ciego"
+   ]
+  },
+  {
+   "clave": "mixer",
+   "nombre": "Mezclador",
+   "categoria": "Utilidades",
+   "ilustracion": "util",
+   "vivo": false,
+   "descripcion": "Mezcla varias entradas del rack en una salida (4, 8 o 16).",
+   "usoVivo": "Dentro de una entrada virtual, para armar la submezcla a mano.",
+   "etiquetas": [
+    "mezcla",
+    "mixer"
+   ]
+  },
+  {
+   "clave": "matrix_mixer",
+   "nombre": "Matriz de mezcla",
+   "categoria": "Utilidades",
+   "ilustracion": "util",
+   "vivo": true,
+   "descripcion": "Cada entrada a cada salida con su propia ganancia (4 u 8, mono o estéreo): mezclas de monitoreo, mix-minus y envíos en un solo plugin. Módulo propio, con el estilo de LSP.",
+   "usoVivo": "En una entrada virtual, para sacar un mix-minus para una llamada o un monitoreo distinto del programa.",
+   "etiquetas": [
+    "matriz",
+    "mezcla",
+    "mixer",
+    "ruteo",
+    "mix-minus",
+    "monitoreo"
+   ]
+  },
+  {
+   "clave": "send",
+   "nombre": "Envío",
+   "categoria": "Utilidades",
+   "ilustracion": "util",
+   "vivo": false,
+   "descripcion": "Manda la señal a un retorno (otro rack).",
+   "usoVivo": "Ruteos avanzados entre racks.",
+   "etiquetas": [
+    "envio",
+    "ruteo"
+   ]
+  },
+  {
+   "clave": "return",
+   "nombre": "Retorno",
+   "categoria": "Utilidades",
+   "ilustracion": "util",
+   "vivo": false,
+   "descripcion": "Recibe lo que manda un envío.",
+   "usoVivo": "Ruteos avanzados entre racks.",
+   "etiquetas": [
+    "retorno",
+    "ruteo"
+   ]
+  },
+  {
+   "clave": "noise_generator",
+   "nombre": "Generador de ruido",
+   "categoria": "Generadores",
+   "ilustracion": "gen",
+   "vivo": false,
+   "descripcion": "Ruido blanco, rosa, marrón... para pruebas.",
+   "usoVivo": "Para probar niveles y la sala.",
+   "etiquetas": [
+    "ruido",
+    "prueba"
+   ]
+  },
+  {
+   "clave": "oscillator",
+   "nombre": "Oscilador",
+   "categoria": "Generadores",
+   "ilustracion": "gen",
+   "vivo": false,
+   "descripcion": "Tono de prueba (seno, cuadrada...).",
+   "usoVivo": "Tono de 1 kHz para alinear niveles.",
+   "etiquetas": [
+    "tono",
+    "prueba",
+    "1khz"
+   ]
+  },
+  {
+   "clave": "sampler",
+   "nombre": "Sampler",
+   "categoria": "Instrumentos",
+   "ilustracion": "pads",
+   "vivo": false,
+   "descripcion": "Dispara muestras de audio.",
+   "usoVivo": "No es un filtro: va en otra parte.",
+   "etiquetas": [
+    "sampler"
+   ]
+  },
+  {
+   "clave": "multisampler",
+   "nombre": "Multisampler",
+   "categoria": "Instrumentos",
+   "ilustracion": "pads",
+   "vivo": false,
+   "descripcion": "Sampler de varias muestras.",
+   "usoVivo": "No es un filtro.",
+   "etiquetas": [
+    "sampler"
+   ]
+  },
+  {
+   "clave": "multisampler_do",
+   "nombre": "Multisampler (salidas directas)",
+   "categoria": "Instrumentos",
+   "ilustracion": "pads",
+   "vivo": false,
+   "descripcion": "Multisampler con salidas separadas.",
+   "usoVivo": "No es un filtro.",
+   "etiquetas": [
+    "sampler"
+   ]
+  },
+  {
+   "clave": "trigger",
+   "nombre": "Disparador",
+   "categoria": "Instrumentos",
+   "ilustracion": "pads",
+   "vivo": false,
+   "descripcion": "Dispara muestras con la señal de entrada (reemplazo de bombo, por ejemplo).",
+   "usoVivo": "Música en vivo.",
+   "etiquetas": [
+    "trigger"
+   ]
+  },
+  {
+   "clave": "trigger_midi",
+   "nombre": "Disparador MIDI",
+   "categoria": "Instrumentos",
+   "ilustracion": "pads",
+   "vivo": false,
+   "descripcion": "Convierte golpes en notas MIDI.",
+   "usoVivo": "Música en vivo.",
+   "etiquetas": [
+    "midi",
+    "trigger"
+   ]
+  }
+ ]
+}

@@ -6,11 +6,17 @@
 
 #include <clap/clap.h>
 
+#include <algorithm>
+#include <cstdio>
+#include <cstdlib>
+
 #include "audio/ClapHost.hpp"
 
 #ifdef _WIN32
 #include <windows.h>
 #elif defined(__APPLE__) && __has_include(<QWindow>)
+#include <QGuiApplication>
+#include <QScreen>
 #include <QWindow>
 #define BA_CLAP_EDITOR_COCOA 1
 #elif defined(__APPLE__)
@@ -170,6 +176,21 @@ std::unique_ptr<ClapEditor> ClapEditor::open(ClapInstance& inst, const std::stri
     ed->created_ = true;
     uint32_t w = 800, h = 500;
     gui->get_size(p, &w, &h);
+    // Que entre en la pantalla. Si la ventana (con su barra de título) no
+    // entra, macOS la achica al mostrarla, LSP se reacomoda solo y la deja en 0
+    // de alto: invisible (el EQ paramétrico x8 estéreo pide 881x848 y no baja
+    // de ahí). Se achica la interfaz con la escala del host (CLAP set_scale,
+    // que LSP respeta), en pasos de 5 %, hasta que entre.
+    if (QScreen* sc = QGuiApplication::primaryScreen(); sc != nullptr) {
+        const QRect libre = sc->availableGeometry();
+        const int maxW = libre.width() - 20, maxH = libre.height() - 40; // 40: la barra de título y aire
+        double escala = 1.0;
+        while ((static_cast<int>(w) > maxW || static_cast<int>(h) > maxH) && escala > 0.55) {
+            escala -= 0.05;
+            if (!gui->set_scale(p, escala)) break;
+            gui->get_size(p, &w, &h);
+        }
+    }
     Native& n = *ed->n_;
     n.win = std::make_unique<QWindow>();
     n.win->setTitle(QString::fromStdString(title));
@@ -177,6 +198,12 @@ std::unique_ptr<ClapEditor> ClapEditor::open(ClapInstance& inst, const std::stri
     if (!gui->can_resize(p)) {
         n.win->setMinimumSize(QSize(static_cast<int>(w), static_cast<int>(h)));
         n.win->setMaximumSize(QSize(static_cast<int>(w), static_cast<int>(h)));
+    }
+    // Centrada en el área libre (sin la barra de menú ni el Dock).
+    if (QScreen* sc = QGuiApplication::primaryScreen(); sc != nullptr) {
+        const QRect libre = sc->availableGeometry();
+        n.win->setPosition(libre.x() + std::max(0, (libre.width() - static_cast<int>(w)) / 2),
+                           libre.y() + std::max(0, (libre.height() - static_cast<int>(h)) / 2));
     }
     n.win->create(); // crea el NSView nativo
     clap_window_t win{};
@@ -200,9 +227,17 @@ std::unique_ptr<ClapEditor> ClapEditor::open(ClapInstance& inst, const std::stri
     const auto onResize = [self]() {
         const clap_plugin* pl = self->inst_->plugin_;
         const clap_plugin_gui_t* g = guiOf(pl);
-        uint32_t cw = static_cast<uint32_t>(self->n_->win->width());
-        uint32_t ch = static_cast<uint32_t>(self->n_->win->height());
-        if (g->can_resize(pl) && g->adjust_size(pl, &cw, &ch)) g->set_size(pl, cw, ch);
+        const int ww = self->n_->win->width(), wh = self->n_->win->height();
+        if (ww <= 0 || wh <= 0 || !g->can_resize(pl)) return;
+        uint32_t cw = static_cast<uint32_t>(ww), ch = static_cast<uint32_t>(wh);
+        // Solo si el plugin acepta ese tamaño tal cual. Si pide otro (el EQ x8
+        // estéreo no baja de 848 de alto y macOS, con el Dock, deja 842), no se
+        // lo fuerza: LSP se acomoda moviendo la ventana desde sus coordenadas y
+        // la deja en 0 de alto (invisible). Queda recortado por abajo y listo.
+        if (!g->adjust_size(pl, &cw, &ch) || cw != static_cast<uint32_t>(ww) ||
+            ch != static_cast<uint32_t>(wh))
+            return;
+        g->set_size(pl, cw, ch);
     };
     QObject::connect(n.win.get(), &QWindow::widthChanged, n.win.get(), onResize);
     QObject::connect(n.win.get(), &QWindow::heightChanged, n.win.get(), onResize);

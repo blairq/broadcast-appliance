@@ -15,6 +15,10 @@
 // ============================================================================
 
 #include "BroadcastEngine.hpp"
+#if defined(BA_HAVE_CLAP)
+#include "audio/Matriz.hpp"
+#include "audio/MonitorVoz.hpp"
+#endif
 
 #include "ChatOverlaySource.hpp"
 #include "graficos/GraficoSource.hpp"
@@ -278,6 +282,10 @@ bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video
     // Fuentes propias de la app (no son plugins): el chat en vivo.
     chatoverlay::registerSourceType();
     graficos::registerSourceType();
+#if defined(BA_HAVE_CLAP)
+    audio::registrarMonitorVoz();     // la voz del asistente, solo a los auriculares
+    audio::registrarEntradaVirtual(); // las entradas virtuales de la matriz de mezcla
+#endif
 #if defined(BA_HAVE_NDI)
     ndi::registerSourceType(); // entrada NDI(R) abierta (libNoIDea)
 #endif

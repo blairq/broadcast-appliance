@@ -27,10 +27,12 @@ class AgentViewModel;
 class Despachador;
 class ModelosLocales;
 class Roles;
+class Voz;
 } // namespace ba::app::agent
 
 namespace ba::app::audio {
 class RackManager;
+class Matriz;
 class AudioViewModel;
 } // namespace ba::app::audio
 
@@ -149,6 +151,10 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* agent READ agent CONSTANT)
     /// El modelo local (Configuración -> Modelos locales): ver agent/ModelosLocales.hpp.
     Q_PROPERTY(QObject* modelos READ modelos CONSTANT)
+    /// Hablarle al asistente (push-to-talk): ver agent/Voz.hpp.
+    Q_PROPERTY(QObject* voz READ voz CONSTANT)
+    /// La matriz de mezcla (fuentes × pistas y buses virtuales): audio/Matriz.hpp.
+    Q_PROPERTY(QObject* matriz READ matriz CONSTANT)
     /// Los roles automaticos y sus corridas (pagina Agentes).
     Q_PROPERTY(QObject* despachador READ despachadorQml CONSTANT)
     Q_PROPERTY(QObject* messages READ messages CONSTANT)
@@ -228,6 +234,8 @@ class StudioViewModel : public QObject {
     QObject* system() const;
     QObject* agent() const;
     QObject* modelos() const;
+    QObject* voz() const;
+    QObject* matriz() const;
     agent::ModelosLocales* modelosLocales() const { return modelos_.get(); }
     QObject* messages() const;
     QObject* inputs() const;
@@ -391,6 +399,7 @@ class StudioViewModel : public QObject {
     QString seccionConfig_;
 #if defined(BA_HAVE_CLAP)
     std::unique_ptr<audio::RackManager> racks_;
+    std::unique_ptr<audio::Matriz> matriz_;
     std::unique_ptr<audio::AudioViewModel> audio_;
 #endif
     std::unique_ptr<YouTubeViewModel> youtube_;
@@ -402,6 +411,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<agent::Roles> roles_;
     std::unique_ptr<agent::Despachador> despachador_;
     std::unique_ptr<agent::ModelosLocales> modelos_;
+    std::unique_ptr<agent::Voz> voz_;
     std::unique_ptr<OperatorMessages> messages_;
     std::unique_ptr<InputsViewModel> inputs_;
     std::unique_ptr<ChatOverlayRenderer> chatOverlay_;
