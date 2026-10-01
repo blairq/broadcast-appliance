@@ -35,6 +35,41 @@
    "derivado": 88.9,
    "examen": 88.6,
    "fecha": "2026-10-01"
+  },
+  {
+   "repo": "BlairQ/broadcast-reactivo-qwen3.5-4b-mtp-ud-mlx-q4",
+   "formato": "mlx",
+   "plataformas": [
+    "mac-arm64"
+   ],
+   "archivo": null,
+   "base": "Qwen/Qwen3.5-4B",
+   "perfil": "reactivo",
+   "herramientas": 84,
+   "prompt": "3f9122d8064004c5",
+   "tamano_gb": 2.22,
+   "precision": 92.6,
+   "derivado": 85.0,
+   "examen": 83.8,
+   "fecha": "2026-10-01"
+  },
+  {
+   "repo": "BlairQ/broadcast-reactivo-qwen3.5-4b-mtp-ud-GGUF",
+   "formato": "gguf",
+   "plataformas": [
+    "linux-x64",
+    "win-x64"
+   ],
+   "archivo": "broadcast-reactivo-qwen3.5-4b-mtp-ud-UD-Q4_K_XL.gguf",
+   "base": "Qwen/Qwen3.5-4B",
+   "perfil": "reactivo",
+   "herramientas": 84,
+   "prompt": "3f9122d8064004c5",
+   "tamano_gb": 2.77,
+   "precision": 94.2,
+   "derivado": 83.9,
+   "examen": 85.7,
+   "fecha": "2026-10-01"
   }
  ]
 }
