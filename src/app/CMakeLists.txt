@@ -385,6 +385,9 @@ endif()
     qt_add_resources(ba-app "ba_qml" PREFIX "/" FILES ${BA_APP_QML})
     # Versiones fijadas de los agentes de IA (pestaña Asistente).
     qt_add_resources(ba-app "ba_agent" PREFIX "/" FILES agent/agentes.json)
+    # Los modelos locales que se ofrecen bajar (los actualiza la fabrica al subir).
+    qt_add_resources(ba-app "ba_modelos" PREFIX "/agent" BASE "${CMAKE_SOURCE_DIR}/datos"
+                     FILES "${CMAKE_SOURCE_DIR}/datos/modelos-catalogo.json")
     # El logo, para el icono de la ventana (tools/icono.py los genera).
     set(_ba_iconos "")
     foreach(_lado 16 24 32 48 64 128 256 512)
@@ -482,6 +485,17 @@ endif()
     target_compile_definitions(test_youtube PRIVATE BA_TEST_CACERT="${CMAKE_SOURCE_DIR}/extern/cacert/cacert.pem")
     set_target_properties(test_youtube PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_youtube COMMAND test_youtube)
+
+    # Modelos locales: leer la API de Hugging Face y verificar lo bajado (sin red).
+    add_executable(test_modelos_locales tests/test_modelos_locales.cpp agent/ModelosLocales.cpp net/HttpsClient.cpp)
+    target_include_directories(test_modelos_locales PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_modelos_locales PRIVATE ba_core Qt6::Core Qt6::Gui mbedtls mbedx509 mbedcrypto)
+    target_compile_definitions(test_modelos_locales PRIVATE BA_TEST_TMP="${CMAKE_CURRENT_BINARY_DIR}"
+        BA_TEST_CACERT="${CMAKE_SOURCE_DIR}/extern/cacert/cacert.pem")
+    set_target_properties(test_modelos_locales PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    qt_add_resources(test_modelos_locales "ba_modelos_test" PREFIX "/agent" BASE "${CMAKE_SOURCE_DIR}/datos"
+                     FILES "${CMAKE_SOURCE_DIR}/datos/modelos-catalogo.json")
+    add_test(NAME test_modelos_locales COMMAND test_modelos_locales)
 
     # Buscar la ultima version de los agentes en su fuente oficial (con red;
     # sin red se saltea).
