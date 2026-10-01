@@ -44,7 +44,7 @@ endif
 PY        ?= .venv/bin/python
 PIP       ?= .venv/bin/pip
 
-.PHONY: publicar subir dist-linux-docker dist-win-docker publicar-macos publicar-linux publicar-win app-macos dmg-macos check-macos-tools deps-macos deps-obs-src deps-obs-macos deps-lsp-macos macos release-macos dist-macos deps-lsp-win deps-clap deps-obs-deps-win deps-ndi-src deps-linux test-win deps-win deps-win-toolchain deps-webrtc-win release-win dist-win dist-linux deps-lwip deps-cacert help dev build prod test test-unit pytest test-all lint docs release win deps-cloudflared-host deps-qt-host \
+.PHONY: modelo-mac publicar subir dist-linux-docker dist-win-docker publicar-macos publicar-linux publicar-win app-macos dmg-macos check-macos-tools deps-macos deps-obs-src deps-obs-macos deps-lsp-macos macos release-macos dist-macos deps-lsp-win deps-clap deps-obs-deps-win deps-ndi-src deps-linux test-win deps-win deps-win-toolchain deps-webrtc-win release-win dist-win dist-linux deps-lwip deps-cacert help dev build prod test test-unit pytest test-all lint docs release win deps-cloudflared-host deps-qt-host \
         clean clean-all \
         deps deps-obs deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist \
         deps-lsp deps-status deps-clean deps-libreoffice deps-libreoffice-linux deps-libreoffice-win deps-libreoffice-mac \
@@ -342,11 +342,21 @@ deps-macos: check-macos-tools deps-obs-macos deps-qt-host deps-src deps-lwip dep
 	@# sin el, el rack funciona con el analizador y el generador.
 	-$(MAKE) deps-lsp-macos
 
-macos:
+macos: modelo-mac
 	cmake -S . -B $(BUILD_DIR) -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 \
 		-DCMAKE_OSX_DEPLOYMENT_TARGET=13.3
 	cmake --build $(BUILD_DIR) -j$(JOBS)
 	ctest --test-dir $(BUILD_DIR) --output-on-failure
+
+# ba-modelo: el modelo local con MLX (src/modelo-mac). xcodebuild y no `swift
+# build`: este no compila los shaders de Metal de MLX. Las dependencias de
+# Swift quedan fijadas en src/modelo-mac/Package.resolved. Necesita el
+# componente Metal de Xcode (xcodebuild -downloadComponent MetalToolchain).
+modelo-mac:
+	@xcrun metal --version >/dev/null 2>&1 || { echo "ERROR: falta el compilador de Metal: xcodebuild -downloadComponent MetalToolchain" >&2; exit 1; }
+	cd src/modelo-mac && xcodebuild -scheme ba-modelo -destination 'platform=macOS,arch=arm64' \
+		-configuration Release -derivedDataPath $(CURDIR)/build/modelo-mac \
+		-skipPackagePluginValidation -skipMacroValidation -quiet build
 
 release-macos:
 	rm -rf release

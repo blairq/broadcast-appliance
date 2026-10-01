@@ -408,6 +408,20 @@ else()
     message(STATUS "ba-bundle: sin cloudflared (sin tunel); 'make deps-cloudflared-host' lo baja")
 endif()
 
+# ba-modelo (el modelo local en la Mac: MLX, ver src/modelo-mac) si se compilo
+# con `make modelo-mac`. Va con su mlx-swift_Cmlx.bundle al lado: ahi esta el
+# default.metallib (los kernels de Metal) y MLX lo busca junto al ejecutable.
+if(APPLE)
+    set(BA_MODELO_MAC_DIR "${CMAKE_SOURCE_DIR}/build/modelo-mac/Build/Products/Release")
+    if(EXISTS "${BA_MODELO_MAC_DIR}/ba-modelo")
+        install(PROGRAMS "${BA_MODELO_MAC_DIR}/ba-modelo" DESTINATION bin/64bit COMPONENT bundle)
+        install(DIRECTORY "${BA_MODELO_MAC_DIR}/mlx-swift_Cmlx.bundle" DESTINATION bin/64bit COMPONENT bundle)
+        message(STATUS "ba-bundle: ba-modelo incluido (modelo local con MLX)")
+    else()
+        message(STATUS "ba-bundle: sin ba-modelo (sin modelo local); 'make modelo-mac' lo compila")
+    endif()
+endif()
+
 # El paso de rpath va DESPUES de copiar el runtime: reescribe lo ya instalado.
 if(BA_HAVE_LIBOBS AND NOT WIN32 AND NOT APPLE)
     include(${CMAKE_SOURCE_DIR}/cmake/BaPortableBundle.cmake)
