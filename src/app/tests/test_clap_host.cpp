@@ -85,7 +85,8 @@ int main() {
     if (std::getenv("BA_CLAP_LISTA") != nullptr) {
         for (const auto& d : lib->plugins()) {
             std::string f;
-            for (const auto& x : d.features) f += (f.empty() ? "" : ",") + x;
+            for (const auto& x : d.features)
+                f += (f.empty() ? "" : ",") + x;
             std::string desc = d.description;
             for (char& c : desc)
                 if (c == '\n' || c == '\t' || c == '\r') c = ' ';
