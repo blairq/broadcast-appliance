@@ -12,6 +12,7 @@
 
 #if defined(BA_HAVE_CLAP)
 #include "audio/AudioViewModel.hpp"
+#include "audio/Matriz.hpp"
 #include "audio/RackManager.hpp"
 #endif
 
@@ -334,6 +335,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     racks_->restore();
     audio_ = std::make_unique<audio::AudioViewModel>(*racks_);
     if (voz_) voz_->setRacks(racks_.get()); // la voz sale de los nodos «Voz a texto»
+    matriz_ = std::make_unique<audio::Matriz>(rt.dataRoot());
 #endif
     // Las etiquetas de video ("Invitado 2") pasan a ser el nombre real.
     connect(conference_.get(), &ConferenceViewModel::roomChanged, this,
@@ -502,6 +504,13 @@ QObject* StudioViewModel::system() const { return system_.get(); }
 QObject* StudioViewModel::agent() const { return agent_.get(); }
 QObject* StudioViewModel::modelos() const { return modelos_.get(); }
 QObject* StudioViewModel::voz() const { return voz_.get(); }
+QObject* StudioViewModel::matriz() const {
+#if defined(BA_HAVE_CLAP)
+    return matriz_.get();
+#else
+    return nullptr;
+#endif
+}
 QObject* StudioViewModel::despachadorQml() const { return despachador_.get(); }
 QObject* StudioViewModel::messages() const { return messages_.get(); }
 

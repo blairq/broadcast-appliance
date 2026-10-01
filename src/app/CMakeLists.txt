@@ -255,7 +255,10 @@ endif()
 # de voz no viajan: se bajan a pedido.
 set(BA_SHERPA_DIR "${CMAKE_SOURCE_DIR}/extern/sherpa-onnx")
 set(BA_HAVE_VOZ OFF)
-if(EXISTS "${BA_SHERPA_DIR}/.ok" AND EXISTS "${CMAKE_SOURCE_DIR}/extern/rostros/onnxruntime/include/onnxruntime_cxx_api.h")
+# (y los racks de audio: Escucha, Habla y MonitorVoz viven en audio/, que sin
+# CLAP no se compila)
+if(BA_HAVE_CLAP AND EXISTS "${BA_SHERPA_DIR}/.ok"
+   AND EXISTS "${CMAKE_SOURCE_DIR}/extern/rostros/onnxruntime/include/onnxruntime_cxx_api.h")
     set(BA_HAVE_VOZ ON)
 else()
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/audio/(Escucha|Habla)\\.cpp$")

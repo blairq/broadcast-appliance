@@ -18,6 +18,9 @@ Rectangle {
     property real leftInset: 92
     readonly property var au: Studio.audio
     property string msg: ""
+    // Dos vistas: los racks de filtros de cada fuente, y la matriz de mezcla
+    // (que rutea la SALIDA de esos filtros).
+    property string vista: "racks"
     onVisibleChanged: if (au) au.setActive(visible)
     Component.onCompleted: if (au) au.setActive(visible)
 
@@ -161,8 +164,22 @@ Rectangle {
         color: Theme.textDim; font.pixelSize: 15
     }
 
+    // Racks | Matriz
+    Row {
+        visible: !!page.au && !!Studio.matriz
+        z: 10
+        anchors { top: parent.top; right: parent.right; topMargin: 14; rightMargin: 22 }
+        spacing: 4
+        GlassButton { compact: true; text: "Racks"; active: page.vista === "racks"; onClicked: page.vista = "racks" }
+        GlassButton { compact: true; text: "Matriz"; icon: "▦"; active: page.vista === "matriz"; onClicked: page.vista = "matriz" }
+    }
+    MatrizAudio {
+        visible: !!page.au && !!Studio.matriz && page.vista === "matriz" && page.visible
+        anchors { fill: parent; leftMargin: page.leftInset; margins: 18 }
+    }
+
     RowLayout {
-        visible: !!page.au
+        visible: !!page.au && page.vista === "racks"
         anchors { fill: parent; leftMargin: page.leftInset; margins: 18 }
         spacing: 14
 
