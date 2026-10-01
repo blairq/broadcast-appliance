@@ -773,6 +773,10 @@ void AudioRack::process(float* const* planes, int channels, uint32_t frames) {
                 meterInto(node.outPow, node.outPeak, st.outArr[0], n, alpha);
             } else if (node.kind == "plugin") {
                 if (node.bypass.load(std::memory_order_relaxed)) {
+                    // Anulado: el modulo igual procesa (su interfaz, si esta
+                    // abierta, muestra el audio que entra: sin esto quedaba
+                    // quieta), pero lo que sale es la entrada tal cual.
+                    node.clap->process(st.inArr.data(), st.outArr.data(), n);
                     for (size_t p = 0; p < st.outArr.size(); ++p)
                         for (int c = 0; c < 2; ++c) {
                             if (p == 0 && !st.inArr.empty())

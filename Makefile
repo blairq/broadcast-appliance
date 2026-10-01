@@ -371,6 +371,9 @@ modelo-mac: deps-mlx-swift-lm
 		-skipPackagePluginValidation -skipMacroValidation -quiet build
 
 release-macos:
+	@# Compila primero: sin esto se empaquetaba el ultimo build que hubiera en
+	@# $(BUILD_DIR), y los cambios de la app no llegaban a la .app.
+	cmake --build $(BUILD_DIR) -j$(JOBS)
 	rm -rf release
 	cmake --install $(BUILD_DIR) --prefix release --component bundle
 	tools/deps/check-portable-macos.sh release
