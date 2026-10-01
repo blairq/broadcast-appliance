@@ -79,4 +79,5 @@ con otras fichas es otro modelo, aunque siga contestando.
 
 ## Archivos
 
-`model.safetensors`: MLX, 4 bits (afín, grupos de 64). Solo texto (sin la parte de visión). `huella-prompt.json`: firma del prompt. `LICENSE`: la de la base.
+`model.safetensors`: MLX, 4 bits (afín, grupos de 64). Solo texto (sin la parte de visión).
+`mtp.safetensors`: la cabeza MTP entrenada (bf16, nombres `mtp.*` de Hugging Face), aparte a propósito: mlx-lm no la lee (si un peso `mtp.*` estuviera en `model*.safetensors`, mlx-lm 0.31 lo tomaría como un checkpoint sin convertir y correría las normas). Un motor con MTP la carga desde este archivo. `huella-prompt.json`: firma del prompt. `LICENSE`: la de la base.

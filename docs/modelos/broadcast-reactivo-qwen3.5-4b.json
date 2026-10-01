@@ -286,7 +286,7 @@
   "etiquetas": null
  },
  "repos": [
-  "broadcast-reactivo-qwen3.5-4b-GGUF",
-  "broadcast-reactivo-qwen3.5-4b-mlx-q4"
+  "broadcast-reactivo-qwen3.5-4b-mlx-q4",
+  "broadcast-reactivo-qwen3.5-4b-GGUF"
  ]
 }
