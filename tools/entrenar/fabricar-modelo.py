@@ -391,7 +391,7 @@ class Fabrica:
                     idx.write_text(json.dumps(ix, indent=2))
                 log(f"cabeza MTP ({'entrenada' if not self.a.sin_mtp else 'de la base'}): {len(mtp)} tensores")
                 if not self.a.sin_mtp:
-                    self.mtp_a_mlx(mtp_f, mlx)
+                    self.mtp_a_mlx(mtp_f, mlx, self.man["base"])
         bf16 = gg / f"{self.a.nombre}-bf16.gguf"
         correr([PY, CONV / "convert_hf_to_gguf.py", hf_conv, "--outtype", "bf16", "--outfile", bf16],
                env={"PYTHONPATH": str(CONV / "gguf-py")}, salida=self.dir / "gguf.log")
@@ -431,17 +431,15 @@ class Fabrica:
         (self.dir / "exportado").write_text("ok")
 
     @staticmethod
-    def mtp_a_mlx(mtp_f, mlx):
-        """La cabeza MTP en el modelo MLX, como ARCHIVOS APARTE, fuera del indice:
-        mtp.safetensors (fp16) y mtp-q8.safetensors (8 bits). Ver mtp-mlx.py.
+    def mtp_a_mlx(mtp_f, mlx, base):
+        """La cabeza MTP en el modelo MLX, con el contrato de MTPLX (mtp.safetensors
+        int4 + config + mtplx_runtime.json) y variantes fp16/q8: ver mtp-mlx.py.
 
-        No va dentro de model*.safetensors a proposito: mlx-lm (0.31.3,
-        qwen3_5.sanitize) toma la presencia de CUALQUIER peso mtp.* como senal de
-        un checkpoint sin convertir y le suma 1 a todas las normas: el modelo ya
-        convertido quedaria roto sin avisar. mlx-lm solo lee model*.safetensors,
-        asi que estos archivos no los toca; un motor con MTP los carga aparte.
-        fp16 y no bf16: las GPU de M1/M2 no tienen bf16 nativo."""
-        correr([PY_MLX, E / "mtp-mlx.py", "--entrada", mtp_f, "--salida", mlx])
+        Fuera de model*.safetensors a proposito: mlx-lm (0.31.3, qwen3_5.sanitize)
+        toma la presencia de CUALQUIER peso mtp.* como senal de un checkpoint sin
+        convertir y le suma 1 a todas las normas del modelo. mlx-lm solo lee
+        model*.safetensors; MTPLX encuentra la cabeza por el config."""
+        correr([PY_MLX, E / "mtp-mlx.py", "--entrada", mtp_f, "--salida", mlx, "--base", base])
 
     def receta_unsloth(self, bf16, gg):
         """La receta UD de unsloth: que tipo lleva cada tensor en su UD-Q4_K_XL.
@@ -550,15 +548,17 @@ modelo, tok = load("{a.hf_usuario or '<usuario>'}/{repo}")
 Elegir con decodificación restringida a los nombres posibles (como `tools/entrenar/evaluar-mlx.py`
 del repo del aparato): el prefijo con las fichas se procesa una vez y se reusa entre pedidos."""
             archivos = ("`model.safetensors`: MLX, 4 bits (afín, grupos de 64). Solo texto (sin la parte de visión)."
-                        + ("\n`mtp.safetensors` (fp16) y `mtp-q8.safetensors` (lineales en 8 bits, afín, grupos de 64):"
-                           " la cabeza MTP entrenada, en dos variantes para medir (las GPU M1/M2 no tienen bf16 nativo)."
-                           " Nombres `mtp.*` y normas en la convención de Hugging Face (sin el +1 que mlx-lm aplica al"
-                           " convertir). Van aparte a propósito: si un peso `mtp.*` estuviera en `model*.safetensors`,"
-                           " mlx-lm 0.31 lo tomaría como un checkpoint sin convertir y correría las normas del modelo."
-                           " Un motor con MTP los carga desde estos archivos." if mtp else ""))
+                        + ("\n`mtp.safetensors` (copia en `mtp/weights.safetensors`): la cabeza MTP entrenada con el"
+                           " contrato de [MTPLX](https://mtplx.com): lineales de la capa en int4 (afín, grupos de 64),"
+                           " `mtp.fc` y normas en bf16 **con el +1 aplicado** (la convención de MLX); el `config.json`"
+                           " la declara (`mlx_lm_extra_tensors`, `mtplx_mtp_contract`) y `mtplx_runtime.json` fija 3"
+                           " borradores. `mtp-fp16.safetensors` (sin pérdida) y `mtp-q8.safetensors` (lineales en 8"
+                           " bits): variantes para medir en M1/M2, que no tienen bf16 nativo; mismas normas (+1)."
+                           " Van fuera de `model*.safetensors` a propósito: mlx-lm 0.31 tomaría cualquier peso `mtp.*`"
+                           " ahí como un checkpoint sin convertir y correría las normas del modelo." if mtp else ""))
         else:
             uso = f"""```bash
-llama-server -m {self.gguf_nombre} -c 8192 --cache-reuse 256{' --spec-type draft-mtp --spec-draft-n-max 4' if mtp else ''}
+llama-server -m {self.gguf_nombre} -c 8192 --cache-reuse 256{' --spec-type draft-mtp --spec-draft-n-max 3' if mtp else ''}
 ```
 llama.cpp b11255 o posterior (arquitectura `qwen35`, con atención lineal). Restringir la salida con
 una gramática a los nombres posibles."""
@@ -603,7 +603,7 @@ operación sumándole al logit de `derivar`.
 | derivado (sesgo 0) | {pct(b16.get('derivado'))} | {pct(bq.get('derivado'))} |
 | examen (105 casos) | {pct(ex16.get('acierto'))} | {pct(exq.get('acierto'))} |
 
-{"La cabeza MTP (multi-token prediction) se reentrenó para este modelo: acierta el token siguiente en el " + f"{100 * mtp['aceptacion_despues']:.1f}% de los casos de validación (la original, {100 * mtp['aceptacion_antes']:.1f}%), así que la decodificación especulativa casi siempre acepta el borrador." if mtp else ""}
+{self.texto_mtp(mtp)}
 
 ## Uso
 
@@ -690,6 +690,32 @@ con otras fichas es otro modelo, aunque siga contestando.
             cat["modelos"] = [m for m in cat["modelos"] if m["repo"] != repo] + [e]
         cat_f.write_text(json.dumps(cat, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
         log(f"catalogo: datos/modelos-catalogo.json ({len(cat['modelos'])} modelos)")
+
+    @staticmethod
+    def texto_mtp(mtp):
+        """La seccion de la cabeza MTP: tokens aceptados por ciclo y por paso,
+        en nombres y en texto, la original contra la entrenada (y cuantizada)."""
+        if not mtp:
+            return ""
+        if "despues" not in mtp:  # cabezas viejas: solo el paso 1 en nombres
+            return (f"La cabeza MTP se reentrenó para este modelo: acierta el token siguiente en el "
+                    f"{100 * mtp['aceptacion_despues']:.1f}% de los casos de validación (la original, "
+                    f"{100 * mtp['aceptacion_antes']:.1f}%).")
+        K = mtp["pasos_mtp"]
+        filas = []
+        for clase, nombre in (("nombres", "nombres de herramienta"), ("texto", "texto libre")):
+            for et, d in (("original", mtp["antes"]), ("entrenada", mtp["despues"]),
+                          ("entrenada, lineales q8", mtp.get("despues_q8")),
+                          ("entrenada, lineales q4", mtp.get("despues_q4"))):
+                r = (d or {}).get(clase)
+                if r:
+                    filas.append(f"| {nombre} | {et} | {r['aceptados_por_ciclo']:.2f} | "
+                                 + " / ".join(f"{100 * x:.0f}%" for x in r["por_paso"]) + " |")
+        return (f"## Cabeza MTP\n\nReentrenada para este modelo, con {K} borradores EN CADENA (cada paso recibe la salida"
+                f" del anterior, como se usa en vivo) y con nombres y texto escrito por el propio modelo. Medido en"
+                f" validación: tokens aceptados por ciclo (de {K}) y acierto de cada paso dado que los anteriores"
+                f" acertaron.\n\n| datos | cabeza | aceptados por ciclo | por paso |\n|---|---|---|---|\n"
+                + "\n".join(filas))
 
     def nombre_repo(self):
         n = self.a.repo or f"broadcast-reactivo-{self.man['base'].split('/')[-1].lower()}"

@@ -1,27 +1,43 @@
 #!/usr/bin/env python3
 """Entrenar la cabeza MTP (multi-token prediction) de Qwen3.5 para NUESTRO modelo ajustado.
 
-POR QUE. llama.cpp la usa para la decodificacion especulativa (--spec-type
-draft-mtp): la cabeza adivina el token siguiente al siguiente y el modelo lo
-verifica de una. Rinde tanto como acierte. La de fabrica adivina lo que contesta
-el modelo DE FABRICA; despues de nuestro ajuste el modelo contesta otra cosa (un
-nombre de herramienta), y la cabeza vieja acierta menos. Se la reentrena con el
-modelo principal CONGELADO para que adivine lo que contesta el ajustado.
+POR QUE. llama.cpp (y un servidor MLX con MTP) la usa para la decodificacion
+especulativa: la cabeza adivina varios tokens por delante y el modelo los
+verifica de una. Rinde tanto como acierte, y la de fabrica adivina lo que
+contesta el modelo DE FABRICA. Se la reentrena con el modelo principal
+CONGELADO para que adivine lo que contesta el ajustado.
 
-QUE ES, igual que en llama.cpp (src/models/qwen35.cpp, b11255):
-  h(t)   el estado del modelo en la posicion t, DESPUES de la norma final
-  x      = mtp.fc( [ RMSNorm_e(emb(token t+1)) , RMSNorm_h(h(t)) ] )
+QUE ES, igual que en llama.cpp (src/models/qwen35.cpp y common/speculative.cpp, b11255):
+  h      el estado del modelo DESPUES de la norma final
+  x      = mtp.fc( [ RMSNorm_e(emb(token)) , RMSNorm_h(h) ] )
   x      una capa de atencion completa de Qwen3.5 (con su propio cache)
-  logits = lm_head( mtp.norm(x) )         -> el token t+2
-Aca: un Qwen3_5TextModel de UNA capa (trae mascara, mRoPE y cache) cuya norma
-final es mtp.norm, mas mtp.fc y las dos normas de entrada. El embedding y la
-cabeza de salida son los del modelo (compartidos, congelados).
+  salida = mtp.norm(x);  logits = lm_head(salida)
+Borrador 1: h del modelo en la posicion i y el token i+1 -> el token i+2.
+Borrador k>1: EN CADENA. La cabeza recibe SU PROPIA salida del paso anterior
+(como h) y el token que acaba de adivinar, en la posicion siguiente.
 
-QUE SE ENTRENA: solo la cabeza. La perdida va donde la cabeza trabaja en vivo:
-dado el primer token de la respuesta (que pone el modelo), los siguientes del
-nombre y el fin. Prefijo compartido como en entrenar-rapido.py, tambien para la
-capa MTP. Se mide la ACEPTACION (top-1 de la cabeza sobre esos tokens) en
-validacion, antes y despues.
+LO QUE ESTABA MAL (version anterior): se entrenaba solo el borrador 1, y solo
+sobre los tokens del nombre de herramienta. En vivo, con 3 borradores, los
+pasos 2 y 3 reciben una entrada que la cabeza nunca vio en el entrenamiento; y
+en texto libre la cabeza, ajustada solo a nombres, adivinaba peor que la de
+fabrica. Ahora:
+
+  EN CADENA (como EAGLE-3, «training-time test»): los pasos 1..--pasos-mtp se
+  entrenan juntos. Cada paso k ve EXACTAMENTE el contexto que tendria en vivo:
+  las entradas del paso 1 hasta la base de la cadena, mas las de los pasos
+  2..k-1 de esa misma cadena (una mascara de atencion arma eso para todas las
+  posiciones a la vez). Peso 0,8^(k-1) por paso.
+
+  CON TEXTO: ademas de los nombres (con el prefijo de las fichas, compartido),
+  texto escrito por el PROPIO modelo ajustado (greedy) respondiendo frases del
+  operador y pedidos sobre fragmentos de docs/. Lo que la cabeza tiene que
+  adivinar es lo que el modelo va a escribir, asi que el texto sale de el. Se
+  genera una vez y queda en <salida>-texto.jsonl.
+
+MEDIDA: tokens aceptados por ciclo (cuantos borradores seguidos acierta, de 0 a
+--pasos-mtp) y la tasa por paso (dado que los anteriores acertaron), en
+validacion, por separado en nombres y en texto: con la cabeza de fabrica y con
+la entrenada.
 
     tools/entrenar/entrenar-mtp.py --modelo <fusionado-hf> --base-ruta <snapshot de la base> \\
         --datos <corpus> --salida mtp.safetensors [--epocas 1] [--repartir]
@@ -31,6 +47,7 @@ import copy
 import json
 import math
 import random
+import re
 import sys
 import time
 from pathlib import Path
@@ -38,6 +55,31 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(RAIZ / "tools"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+SISTEMA_TEXTO = ("Sos el asistente de un estudio de television en vivo. Contestale al operador en espanol, "
+                 "claro y concreto.")
+PEDIDOS_DOC = ["Resumi en pocas lineas:", "Explicalo con tus palabras:", "Hace una lista con los puntos clave de esto:",
+               "Que problema resuelve esto?", "Escribi un mensaje corto para el equipo contando esto:"]
+
+
+def prompts_texto(n, semilla):
+    """Pedidos variados para que el modelo escriba: frases del operador (las
+    SEMILLAS de entrenamiento; nunca el banco ni el examen) y fragmentos de docs/."""
+    rnd = random.Random(semilla)
+    sem = json.loads((RAIZ / "datos/semillas-reactivas.json").read_text())["herramientas"]
+    frases = [f for v in sem.values() for f in v.get("frases", [])]
+    trozos = []
+    for f in sorted((RAIZ / "docs").rglob("*.md")):
+        for p in re.split(r"\n\s*\n", f.read_text(errors="ignore")):
+            p = p.strip()
+            if 250 <= len(p) <= 1200 and not p.startswith(("|", "```")):
+                trozos.append(p)
+    rnd.shuffle(frases)
+    rnd.shuffle(trozos)
+    out = [f"{f}. Explicame que haria falta y como se hace." if i % 2 else f for i, f in enumerate(frases)]
+    out += [f"{rnd.choice(PEDIDOS_DOC)}\n\n{t}" for t in trozos]
+    rnd.shuffle(out)
+    return out[:n]
 
 
 def main():
@@ -48,7 +90,12 @@ def main():
     ap.add_argument("--salida", required=True)
     ap.add_argument("--epocas", type=float, default=1.0)
     ap.add_argument("--lr", type=float, default=1e-4)
-    ap.add_argument("--lote", type=int, default=16)
+    ap.add_argument("--lote", type=int, default=16, help="ejemplos de nombres por paso")
+    ap.add_argument("--lote-texto", type=int, default=8, help="ejemplos de texto por paso")
+    ap.add_argument("--pasos-mtp", type=int, default=3, help="borradores en cadena que se entrenan (y miden)")
+    ap.add_argument("--texto", type=int, default=2400, help="respuestas de texto a generar (0: solo nombres)")
+    ap.add_argument("--largo-texto", type=int, default=160, help="tokens maximos por respuesta generada")
+    ap.add_argument("--pasos", type=int, default=0, help="cortar a N pasos (prueba)")
     ap.add_argument("--repartir", action="store_true", help="el modelo principal entre las dos placas")
     ap.add_argument("--semilla", type=int, default=7)
     args = ap.parse_args()
@@ -63,6 +110,8 @@ def main():
     import cache_hibrido as ch
 
     torch.manual_seed(args.semilla)
+    K = args.pasos_mtp
+    PESO = [0.8 ** k for k in range(K)]
     tok = AutoTokenizer.from_pretrained(args.modelo)
     dm = "balanced" if args.repartir else {"": "cuda:0"}
     cfg_m = json.loads((Path(args.modelo) / "config.json").read_text())
@@ -81,14 +130,40 @@ def main():
                                                   attn_implementation="sdpa").eval()
     for p in modelo.parameters():
         p.requires_grad_(False)
-    if ch.es_hibrido(modelo):
-        ch.parchear()
-    texto, cabeza, emb = modelo.model, modelo.lm_head, modelo.model.embed_tokens
+    hibrido = ch.es_hibrido(modelo)
+    texto_m, cabeza, emb = modelo.model, modelo.lm_head, modelo.model.embed_tokens
     dev_out = cabeza.weight.device
     cfg = modelo.config
     n_mtp = getattr(cfg, "mtp_num_hidden_layers", 0)
     if n_mtp != 1:
         sys.exit(f"este modelo declara {n_mtp} capas MTP; se soporta 1 (como llama.cpp)")
+    dev = emb.weight.device
+    fin_tok = tok.convert_tokens_to_ids("<|im_end|>")
+
+    # --- el texto: lo escribe el propio modelo (antes del parche del cache) ---
+    texto_f = Path(str(args.salida).replace(".safetensors", "") + "-texto.jsonl")
+    if args.texto and not texto_f.exists():
+        pedidos = prompts_texto(args.texto, args.semilla)
+        tok.padding_side = "left"
+        filas, t0 = [], time.time()
+        for i in range(0, len(pedidos), 32):
+            ps = [f"<|im_start|>system\n{SISTEMA_TEXTO}<|im_end|>\n<|im_start|>user\n{p}<|im_end|>\n"
+                  f"<|im_start|>assistant\n<think>\n\n</think>\n\n" for p in pedidos[i:i + 32]]
+            enc = tok(ps, return_tensors="pt", padding=True, add_special_tokens=False).to(dev)
+            with torch.no_grad():
+                gen = modelo.generate(**enc, max_new_tokens=args.largo_texto, do_sample=False,
+                                      pad_token_id=tok.pad_token_id or fin_tok)
+            for j in range(len(ps)):
+                ids_p = enc.input_ids[j][enc.attention_mask[j].bool()].tolist()
+                r = gen[j, enc.input_ids.shape[1]:].tolist()
+                r = r[:r.index(fin_tok) + 1] if fin_tok in r else r
+                if len(r) >= 8:
+                    filas.append({"prompt": ids_p, "respuesta": r})
+            print(f"texto: {len(filas)} respuestas · {time.time() - t0:.0f} s", flush=True)
+        texto_f.write_text("\n".join(json.dumps(f) for f in filas))
+        tok.padding_side = "right"
+    if hibrido:
+        ch.parchear()
 
     # LA CABEZA: una capa de atencion completa con su norma final, mas fc y normas de entrada
     cfg1 = copy.deepcopy(cfg)
@@ -98,21 +173,86 @@ def main():
     class Cabeza(nn.Module):
         def __init__(self):
             super().__init__()
-            self.capa = q.Qwen3_5TextModel(cfg1)
+            self.capa = q.Qwen3_5TextModel(cfg1)  # da los nombres de los pesos, la mRoPE y mtp.norm
             self.capa.embed_tokens = None  # usa el del modelo
-            # una capa sola de atencion completa: no hay mascara de atencion lineal
-            # que armar (y el cache, sin capas lineales, no acepta la pregunta)
-            self.capa._update_linear_attn_mask = lambda attention_mask, past_key_values: None
             self.fc = nn.Linear(2 * H, H, bias=False)
             self.enorm = q.Qwen3_5RMSNorm(H, eps=cfg.rms_norm_eps)
             self.hnorm = q.Qwen3_5RMSNorm(H, eps=cfg.rms_norm_eps)
 
-        def forward(self, h, e, kv, pos, mask=None):
-            x = self.fc(torch.cat([self.enorm(e), self.hnorm(h)], dim=-1))
-            return self.capa(inputs_embeds=x, position_ids=pos, attention_mask=mask,
-                             past_key_values=kv, use_cache=True).last_hidden_state
+        def entrada(self, h, e):
+            return self.fc(torch.cat([self.enorm(e), self.hnorm(h)], dim=-1))
+
+        def qkv(self, x, pos):
+            """La primera mitad de la capa: norma, proyecciones, q/k_norm y mRoPE
+            (como Qwen3_5Attention.forward, sin el cache)."""
+            lay = self.capa.layers[0]
+            at = lay.self_attn
+            B, N, _ = x.shape
+            d = at.head_dim
+            y = lay.input_layernorm(x)
+            qq, gate = torch.chunk(at.q_proj(y).view(B, N, -1, 2 * d), 2, dim=-1)
+            gate = gate.reshape(B, N, -1)
+            qq = at.q_norm(qq).transpose(1, 2)
+            kk = at.k_norm(at.k_proj(y).view(B, N, -1, d)).transpose(1, 2)
+            vv = at.v_proj(y).view(B, N, -1, d).transpose(1, 2)
+            cos, sin = self.capa.rotary_emb(y, pos[None, None].expand(3, B, N))
+            qq, kk = q.apply_rotary_pos_emb(qq, kk, cos, sin)
+            return qq, kk, vv, gate
+
+        def fin(self, x, a, gate):
+            lay = self.capa.layers[0]
+            B, N, _ = x.shape
+            a = a.transpose(1, 2).reshape(B, N, -1) * torch.sigmoid(gate)
+            x = x + lay.self_attn.o_proj(a)
+            x = x + lay.mlp(lay.post_attention_layernorm(x))
+            return self.capa.norm(x)
+
+    escala = None
+
+    def cadena(cab, h1, e, g, val, pasos, pre=None):
+        """Los `pasos` borradores en cadena para todas las posiciones a la vez.
+
+        h1, e: [B,N,H] el h del modelo y el embedding del token que entra, por
+        posicion; g: [N] su indice global (tambien la posicion de mRoPE); val:
+        [B,N] posiciones reales (no relleno). pre: (K,V,g,salida_ultima) del
+        paso 1 sobre un prefijo compartido. El paso k en la posicion g es la
+        cadena con base b = g-k+1: ve el paso 1 hasta b y los pasos 2..k-1 de
+        esa cadena (el paso m en b+m-1); y a si mismo siempre (sin filas vacias)."""
+        B, N, _ = h1.shape
+        Ks, Vs, outs = [], [], []
+        gq = g[:, None]
+        diag = torch.eye(N, dtype=torch.bool, device=g.device)[None]
+        for k in range(1, pasos + 1):
+            if k == 1:
+                hin = h1
+            else:
+                primero = (pre[3] if pre is not None else outs[-1][:, :1]).expand(B, 1, -1)
+                hin = torch.cat([primero, outs[-1][:, :-1]], dim=1)
+            x = cab.entrada(hin, e)
+            qq, kk, vv, gate = cab.qkv(x, g)
+            Ks.append(kk)
+            Vs.append(vv)
+            mk, kt, vt = [], [], []
+            if pre is not None:
+                mk.append((pre[2][None, :] <= gq - k + 1)[None].expand(B, -1, -1))
+                kt.append(pre[0].expand(B, -1, -1, -1))
+                vt.append(pre[1].expand(B, -1, -1, -1))
+            for m in range(1, k + 1):
+                regla = (g[None, :] <= gq - k + 1) if m == 1 else (g[None, :] == gq - k + m)
+                regla = regla[None] & val[:, None, :]
+                if m == k:
+                    regla = regla | diag
+                mk.append(regla)
+                kt.append(Ks[m - 1])
+                vt.append(Vs[m - 1])
+            a = F.scaled_dot_product_attention(qq, torch.cat(kt, 2), torch.cat(vt, 2),
+                                               attn_mask=torch.cat(mk, 2)[:, None], enable_gqa=True,
+                                               scale=escala)
+            outs.append(cab.fin(x, a, gate))
+        return outs
 
     cab = Cabeza()
+    escala = cab.capa.layers[0].self_attn.scaling
     nombres = {"mtp.fc.weight": "fc.weight", "mtp.pre_fc_norm_embedding.weight": "enorm.weight",
                "mtp.pre_fc_norm_hidden.weight": "hnorm.weight", "mtp.norm.weight": "capa.norm.weight"}
     pesos = {}
@@ -131,10 +271,9 @@ def main():
     reales = [m for m in falta.missing_keys if "rotary" not in m]
     if reales or falta.unexpected_keys:
         sys.exit(f"la cabeza no calza con los pesos: faltan {reales[:5]} · sobran {falta.unexpected_keys[:5]}")
-    dev = emb.weight.device
     cab = cab.to(dev).float()
 
-    # los datos, como entrenar-rapido: prefijo comun + sufijo + respuesta
+    # --- los datos ---
     cargar = lambda n: [json.loads(l) for l in (Path(args.datos) / n).read_text().splitlines() if l.strip()]
     ent, val = cargar("entrenar.jsonl"), cargar("validar.jsonl")
     marca = "<|im_start|>user\n"
@@ -148,79 +287,179 @@ def main():
             a = tok(f["prompt"][len(prefijo):], add_special_tokens=False).input_ids
             b = tok(f["completion"], add_special_tokens=False).input_ids
             if len(b) >= 2:
-                out.append((a + b, len(b)))
+                out.append((a + b, len(a)))
         return out
     E, V = armar(ent), armar(val)
+    TX, TV = [], []
+    if texto_f.exists():
+        tx = [json.loads(l) for l in texto_f.read_text().splitlines() if l.strip()]
+        tx = [(f["prompt"] + f["respuesta"], len(f["prompt"])) for f in tx]
+        corte = max(1, len(tx) // 10)
+        TV, TX = tx[:corte], tx[corte:]
+    print(f"nombres: {len(E)} entrenar / {len(V)} validar · texto: {len(TX)} / {len(TV)}", flush=True)
     Lp = len(ids_pre)
     pre_t = torch.tensor([ids_pre], device=dev)
 
-    def lote_perdida(lote, grad):
+    def objetivos(outs, tgt, base_ok):
+        """Perdida (con peso por paso) y aciertos por cadena.
+
+        tgt: [B,N] el token que se adivina en cada posicion (-100 si no hay);
+        base_ok: [B,N] si una cadena puede EMPEZAR ahi (el modelo acaba de poner
+        un token de la respuesta). El paso k en n es de la cadena con base n-k+1.
+        Devuelve por paso (acierto, hay), alineados por BASE."""
+        B, N = tgt.shape
+        perd = 0.0
+        bien = []
+        for k, out in enumerate(outs, start=1):
+            sel = torch.zeros_like(base_ok)
+            sel[:, k - 1:] = base_ok[:, :N - k + 1]
+            sel &= tgt != -100
+            acierto = torch.zeros_like(sel)
+            if sel.any():
+                lg = cabeza(out[sel].to(dev_out).to(cabeza.weight.dtype)).float()
+                t = tgt[sel].to(dev_out)
+                perd = perd + PESO[k - 1] * F.cross_entropy(lg, t, reduction="sum")
+                acierto[sel] = (lg.argmax(-1) == t).to(sel.device)
+            por_base, hay = torch.zeros_like(sel), torch.zeros_like(sel)
+            por_base[:, :N - k + 1] = acierto[:, k - 1:]
+            hay[:, :N - k + 1] = sel[:, k - 1:]
+            bien.append((por_base, hay))
+        return perd, bien
+
+    def lote_nombres(lote, grad):
+        """Prefijo de las fichas compartido (la parte del modelo y el paso 1 de la cabeza)."""
         B = len(lote)
         L = max(len(s) for s, _ in lote)
         ids = torch.zeros((B, L), dtype=torch.long, device=dev)
         mask = torch.zeros((B, Lp + L), dtype=torch.long, device=dev)
         mask[:, :Lp] = 1
-        etq = torch.full((B, L), -100, dtype=torch.long, device=dev_out)
-        for i, (s, n) in enumerate(lote):
+        tgt = torch.full((B, L), -100, dtype=torch.long, device=dev)
+        base_ok = torch.zeros((B, L), dtype=torch.bool, device=dev)
+        for i, (s, a0) in enumerate(lote):
             ids[i, :len(s)] = torch.tensor(s, device=dev)
             mask[i, Lp:Lp + len(s)] = 1
-            # posicion j del sufijo: la cabeza ve h(Lp-1+j) y el token s[j] y adivina s[j+1].
-            # Trabaja en vivo desde el primer token de la respuesta (j = len-n) hasta el penultimo.
-            for j in range(len(s) - n, len(s) - 1):
-                etq[i, j] = s[j + 1]
+            # en la posicion n entra el token s[n] y se adivina s[n+1]; una cadena
+            # empieza donde el modelo acaba de poner un token de la respuesta
+            tgt[i, :len(s) - 1] = torch.tensor(s[1:], device=dev)
+            base_ok[i, a0:len(s) - 1] = True
         with torch.no_grad(), torch.autocast("cuda", dtype=torch.bfloat16):
             kv = DynamicCache(config=cfg)
-            hp = texto(input_ids=pre_t, past_key_values=kv, use_cache=True).last_hidden_state
-            ch.repetir(kv, B) if ch.es_hibrido(modelo) else kv.batch_repeat_interleave(B)
+            hp = texto_m(input_ids=pre_t, past_key_values=kv, use_cache=True).last_hidden_state
+            ch.repetir(kv, B) if hibrido else kv.batch_repeat_interleave(B)
             pos = torch.arange(Lp, Lp + L, device=dev).unsqueeze(0).expand(B, -1)
-            hs = texto(input_ids=ids, attention_mask=mask, position_ids=pos, past_key_values=kv,
-                       use_cache=True).last_hidden_state
+            hs = texto_m(input_ids=ids, attention_mask=mask, position_ids=pos, past_key_values=kv,
+                         use_cache=True).last_hidden_state
             e_pre, e_suf = emb(pre_t[:, 1:]), emb(ids)
         with torch.set_grad_enabled(grad), torch.autocast("cuda", dtype=torch.bfloat16):
-            # la parte del prefijo de la cabeza (posiciones 0..Lp-2), una vez
-            kvm = DynamicCache(config=cfg1)
-            cab(hp[:, :-1].to(dev), e_pre, kvm, torch.arange(0, Lp - 1, device=dev).unsqueeze(0))
-            kvm.batch_repeat_interleave(B)
-            h_in = torch.cat([hp[:, -1:].expand(B, -1, -1), hs[:, :-1]], dim=1).to(dev)
-            pos_m = torch.arange(Lp - 1, Lp - 1 + L, device=dev).unsqueeze(0).expand(B, -1)
-            mask_m = torch.cat([torch.ones((B, Lp - 1), dtype=torch.long, device=dev), mask[:, Lp:]], dim=1)
-            out = cab(h_in, e_suf, kvm, pos_m, mask_m)
-            lg = cabeza(out.to(dev_out).to(cabeza.weight.dtype)).float()
-            perd = F.cross_entropy(lg.reshape(-1, lg.shape[-1]), etq.reshape(-1), ignore_index=-100, reduction="sum")
-            ok = ((lg.argmax(-1) == etq) & (etq != -100)).sum()
-        return perd, ok, (etq != -100).sum()
+            g_pre = torch.arange(0, Lp - 1, device=dev)
+            x = cab.entrada(hp[:, :-1].to(dev), e_pre)
+            qq, kk, vv, gate = cab.qkv(x, g_pre)
+            a = F.scaled_dot_product_attention(qq, kk, vv, is_causal=True, enable_gqa=True, scale=escala)
+            out_pre = cab.fin(x, a, gate)
+            pre = (kk, vv, g_pre, out_pre[:, -1:])
+            h1 = torch.cat([hp[:, -1:].expand(B, -1, -1), hs[:, :-1]], dim=1).to(dev)
+            g = torch.arange(Lp - 1, Lp - 1 + L, device=dev)
+            outs = cadena(cab, h1, e_suf, g, mask[:, Lp:].bool(), K, pre)
+            return objetivos(outs, tgt, base_ok)
 
-    def aceptacion():
+    def lote_texto(lote, grad):
+        """Cada respuesta con su propio pedido, entera (sin prefijo compartido)."""
+        B = len(lote)
+        T = max(len(s) for s, _ in lote)
+        ids = torch.zeros((B, T), dtype=torch.long, device=dev)
+        mask = torch.zeros((B, T), dtype=torch.long, device=dev)
+        for i, (s, _) in enumerate(lote):
+            ids[i, :len(s)] = torch.tensor(s, device=dev)
+            mask[i, :len(s)] = 1
+        with torch.no_grad(), torch.autocast("cuda", dtype=torch.bfloat16):
+            hs = texto_m(input_ids=ids, attention_mask=mask).last_hidden_state
+            e = emb(ids[:, 1:])
+        # posicion n (0..T-2): h del modelo en n y el token n+1 -> el token n+2
+        N = T - 1
+        tgt = torch.full((B, N), -100, dtype=torch.long, device=dev)
+        base_ok = torch.zeros((B, N), dtype=torch.bool, device=dev)
+        for i, (s, a0) in enumerate(lote):
+            tgt[i, :len(s) - 2] = torch.tensor(s[2:], device=dev)
+            base_ok[i, a0 - 1:len(s) - 2] = True     # entra (n+1) un token de la respuesta
+        with torch.set_grad_enabled(grad), torch.autocast("cuda", dtype=torch.bfloat16):
+            outs = cadena(cab, hs[:, :-1].to(dev), e, torch.arange(N, device=dev), mask[:, 1:].bool(), K)
+            return objetivos(outs, tgt, base_ok)
+
+    def medir(filas, fn, tam):
+        """Tokens aceptados por ciclo (borradores seguidos acertados) y la tasa
+        de cada paso dado que los anteriores acertaron."""
         cab.eval()
-        a = n = 0
-        for i in range(0, len(V), 32):
-            _, ok, m = lote_perdida(V[i:i + 32], grad=False)
-            a, n = a + ok.item(), n + m.item()
+        suma = bases = 0
+        por_paso = [[0, 0] for _ in range(K)]
+        for i in range(0, len(filas), tam):
+            _, bien = fn(filas[i:i + tam], grad=False)
+            seguido = None
+            for k, (ok, hay) in enumerate(bien):
+                cond = hay if seguido is None else hay & seguido
+                if seguido is None:
+                    bases += hay.sum().item()
+                por_paso[k][0] += (ok & cond).sum().item()
+                por_paso[k][1] += cond.sum().item()
+                seguido = ok & cond
+                suma += seguido.sum().item()
         cab.train()
-        return a / max(1, n)
+        return {"aceptados_por_ciclo": suma / max(1, bases), "por_paso": [a / max(1, b) for a, b in por_paso]}
 
-    antes = aceptacion()
-    print(f"aceptacion de la cabeza ORIGINAL en validacion: {100 * antes:.1f}%", flush=True)
+    def informe(etiqueta):
+        r = {"nombres": medir(V, lote_nombres, 32)}
+        if TV:
+            r["texto"] = medir(TV, lote_texto, 8)
+        for k, v in r.items():
+            print(f"{etiqueta} · {k}: {v['aceptados_por_ciclo']:.2f} tokens aceptados por ciclo de {K} · por paso "
+                  + " / ".join(f"{100 * x:.1f}%" for x in v["por_paso"]), flush=True)
+        return r
+
+    antes = informe("cabeza ORIGINAL")
     opt = torch.optim.AdamW([p for p in cab.parameters() if p.requires_grad], lr=args.lr, weight_decay=0.0)
-    total = int(len(E) // args.lote * args.epocas)
+    total = args.pasos or int(len(E) // args.lote * args.epocas)
     rnd = random.Random(args.semilla)
-    orden, t0 = [], time.time()
+    orden, orden_t, t0 = [], [], time.time()
     for paso in range(total):
         if len(orden) < args.lote:
             orden = list(range(len(E)))
             rnd.shuffle(orden)
         lote, orden = [E[i] for i in orden[:args.lote]], orden[args.lote:]
-        for g in opt.param_groups:
-            g["lr"] = args.lr * 0.5 * (1 + math.cos(math.pi * paso / max(1, total)))
-        perd, ok, n = lote_perdida(lote, grad=True)
+        for g_ in opt.param_groups:
+            g_["lr"] = args.lr * 0.5 * (1 + math.cos(math.pi * paso / max(1, total)))
+        perd, bien = lote_nombres(lote, grad=True)
+        n = bien[0][1].sum().clamp(min=1)
         (perd / n).backward()
+        if TX:
+            if len(orden_t) < args.lote_texto:
+                orden_t = list(range(len(TX)))
+                rnd.shuffle(orden_t)
+            lt, orden_t = [TX[i] for i in orden_t[:args.lote_texto]], orden_t[args.lote_texto:]
+            perd_t, bien_t = lote_texto(lt, grad=True)
+            n_t = bien_t[0][1].sum().clamp(min=1)
+            (perd_t / n_t).backward()
         opt.step()
         opt.zero_grad(set_to_none=True)
         if (paso + 1) % 50 == 0:
-            print(f"paso {paso + 1}/{total} · perdida {(perd / n).item():.3f} · acierto del lote "
-                  f"{100 * ok.item() / n.item():.0f}% · {(time.time() - t0) / (paso + 1):.2f} s/paso", flush=True)
-    despues = aceptacion()
-    print(f"aceptacion de la cabeza ENTRENADA en validacion: {100 * despues:.1f}% (antes {100 * antes:.1f}%)")
+            print(f"paso {paso + 1}/{total} · perdida nombres {(perd / n).item():.3f}"
+                  + (f" · texto {(perd_t / n_t).item():.3f}" if TX else "")
+                  + f" · {(time.time() - t0) / (paso + 1):.2f} s/paso", flush=True)
+    despues = informe("cabeza ENTRENADA")
+    # Lo que cuesta cuantizar las lineales de la capa (como MTPLX: int4; o q8),
+    # simulado: afin por grupos de 64 como MLX, y se mide igual.
+    def cuantizar_falso(w, bits):
+        W = w.float().reshape(-1, 64)
+        mn, mx_ = W.min(1, keepdim=True).values, W.max(1, keepdim=True).values
+        esc = (mx_ - mn).clamp(min=1e-8) / (2 ** bits - 1)
+        return (torch.round((W - mn) / esc).clamp(0, 2 ** bits - 1) * esc + mn).reshape(w.shape).to(w.dtype)
+    lineales = [m for m in cab.capa.layers[0].modules() if isinstance(m, nn.Linear)]
+    originales = [m.weight.data.clone() for m in lineales]
+    cuantizadas = {}
+    for bits in (8, 4):
+        for m, w0 in zip(lineales, originales):
+            m.weight.data = cuantizar_falso(w0, bits)
+        cuantizadas[bits] = informe(f"cabeza ENTRENADA, lineales q{bits}")
+    for m, w0 in zip(lineales, originales):
+        m.weight.data = w0
     inv = {v: k for k, v in nombres.items()}
     out = {}
     for k, v in cab.state_dict().items():
@@ -234,7 +473,12 @@ def main():
         sys.exit(f"no se guardaron {sorted(falta)[:5]}")
     save_file(out, args.salida, metadata={"format": "pt"})
     (Path(args.salida).with_suffix(".json")).write_text(json.dumps(
-        {"aceptacion_antes": antes, "aceptacion_despues": despues, "pasos": total}, indent=1))
+        {"pasos_mtp": K, "antes": antes, "despues": despues, "pasos": total,
+         "despues_q8": cuantizadas[8], "despues_q4": cuantizadas[4],
+         # lo que lee la tarjeta: el paso 1 en nombres, y ahora el resto
+         "aceptacion_antes": antes["nombres"]["por_paso"][0],
+         "aceptacion_despues": despues["nombres"]["por_paso"][0],
+         "texto_respuestas": len(TX) + len(TV)}, indent=1))
     print(f"-> {args.salida} ({len(out)} tensores)")
 
 

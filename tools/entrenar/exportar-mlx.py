@@ -34,6 +34,7 @@ def main():
     ap.add_argument("--salida", required=True)
     ap.add_argument("--bits", type=int, default=4)
     ap.add_argument("--grupo", type=int, default=64)
+    ap.add_argument("--solo-fusionar", action="store_true", help="dejar solo <salida>-hf (sin MLX)")
     args = ap.parse_args()
 
     import torch
@@ -60,6 +61,8 @@ def main():
         shutil.copy(Path(args.modelo) / "huella-prompt.json", hf)
     del m
     print(f"fusionado: {hf}")
+    if args.solo_fusionar:
+        return
 
     conv = RAIZ / ".venv-mlx/bin/mlx_lm.convert"
     if not conv.exists():
