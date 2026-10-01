@@ -1,0 +1,31 @@
+{
+ "descripcion": "Lo que se usa cuando algo se rompe en vivo: el repertorio con el que se entrenaron v7 a v15q4. Las excluidas son TRABAJO PREVIO (disenar un grafico, armar laminas) o configuracion.",
+ "categorias": [
+  "audio",
+  "escenas",
+  "fuentes",
+  "sala",
+  "oradores",
+  "imagenes",
+  "estado",
+  "salidas",
+  "graficos",
+  "laminas"
+ ],
+ "incluir": [],
+ "excluir": [
+  "grafico_probar",
+  "grafico_repertorio",
+  "laminas_armar",
+  "laminas_desarmar",
+  "laminas_editar",
+  "laminas_etiquetar",
+  "laminas_sin_analizar",
+  "operator_feed"
+ ],
+ "entradas": [
+  "pedidos"
+ ],
+ "etiquetas": null,
+ "_etiquetas": "juego de datos/etiquetas.json con el que contesta el modelo; null = los nombres reales del MCP (lo que mejor midio: v12s/v12l empataron, las etiquetas-fragmento perdieron)"
+}

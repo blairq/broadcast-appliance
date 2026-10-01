@@ -80,11 +80,16 @@ def main():
     # exige un token por vez cuando hay cache, y aca el cache del prefijo es lo
     # que ahorra el 90% del tiempo. Fusionar el LoRA ademas saca el matmul extra
     # y la indireccion de Python por capa: 21,4 -> 11,8 ms por forward, medido.
-    cfg = json.loads((Path(args.modelo) / "adapter_config.json").read_text())
     tok = AutoTokenizer.from_pretrained(args.modelo)
-    modelo = AutoModelForCausalLM.from_pretrained(
-        cfg["base_model_name_or_path"], dtype=torch.bfloat16, device_map="cuda:0")
-    modelo = PeftModel.from_pretrained(modelo, args.modelo).merge_and_unload()
+    if (Path(args.modelo) / "adapter_config.json").exists():
+        cfg = json.loads((Path(args.modelo) / "adapter_config.json").read_text())
+        modelo = AutoModelForCausalLM.from_pretrained(
+            cfg["base_model_name_or_path"], dtype=torch.bfloat16, device_map="cuda:0")
+        modelo = PeftModel.from_pretrained(modelo, args.modelo).merge_and_unload()
+    else:
+        # un modelo completo, ya fusionado (p. ej. el q4 de MLX simulado para
+        # medir cuanto le cambia la cuantizacion: simular-q4-mlx.py)
+        modelo = AutoModelForCausalLM.from_pretrained(args.modelo, dtype=torch.bfloat16, device_map="cuda:0")
     modelo.eval()
 
     # EL VECTOR DE CONTROL, aplicado igual que en llama.cpp: se SUMA a la salida

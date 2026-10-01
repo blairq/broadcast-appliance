@@ -1,0 +1,16 @@
+{
+ "descripcion": "Ejemplo de perfil por grupos: solo audio y el rack (para un modelo de sonido). Lo demas se deriva.",
+ "categorias": [
+  "audio",
+  "audio_rack"
+ ],
+ "incluir": [
+  "mixer_list"
+ ],
+ "excluir": [],
+ "entradas": [
+  "pedidos"
+ ],
+ "etiquetas": null,
+ "_etiquetas": "juego de datos/etiquetas.json con el que contesta el modelo; null = los nombres reales del MCP (lo que mejor midio: v12s/v12l empataron, las etiquetas-fragmento perdieron)"
+}

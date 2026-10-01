@@ -49,6 +49,36 @@ NO_REACTIVAS = {
     "laminas_sin_analizar",
 }
 
+# PERFILES: sobre que herramientas del MCP se entrena, agrupadas por categoria.
+# BA_PERFIL=<nombre> lee datos/perfiles/<nombre>.json y reemplaza las dos
+# listas de arriba. El perfil «reactivo» es EXACTAMENTE esas listas: sin
+# BA_PERFIL, o con el reactivo, el prompt queda identico byte por byte y los
+# modelos ya entrenados siguen valiendo.
+#   {"categorias": [...], "incluir": [...], "excluir": [...], "entradas": ["pedidos"]}
+# `incluir` suma herramientas sueltas de otras categorias; `entradas` es lo que
+# el modelo ve: «pedidos» del operador hoy, «eventos» del aparato despues.
+PERFIL = os.environ.get("BA_PERFIL") or "reactivo"
+INCLUIR = set()
+ENTRADAS = ["pedidos"]
+_perfil = RAIZ / "datos" / "perfiles" / f"{PERFIL}.json"
+if _perfil.exists():
+    _p = json.loads(_perfil.read_text(encoding="utf-8"))
+    REACTIVAS = list(_p.get("categorias", REACTIVAS))
+    NO_REACTIVAS = set(_p.get("excluir", []))
+    INCLUIR = set(_p.get("incluir", []))
+    ENTRADAS = list(_p.get("entradas", ["pedidos"]))
+    # el juego de etiquetas del perfil, salvo que se pida otro a mano
+    if _p.get("etiquetas") and "BA_ETIQUETAS" not in os.environ:
+        os.environ["BA_ETIQUETAS"] = "1"
+        os.environ.setdefault("BA_ETIQUETAS_JUEGO", _p["etiquetas"])
+elif PERFIL != "reactivo":
+    raise SystemExit(f"no existe el perfil {PERFIL} ({_perfil})")
+
+
+def en_perfil(h):
+    """Si una herramienta del inventario entra en el perfil."""
+    return h["nombre"] in INCLUIR or (h["categoria"] in REACTIVAS and h["nombre"] not in NO_REACTIVAS)
+
 # LA VALVULA DE ESCAPE. Tiene que ser un nombre mas: la gramatica solo deja
 # escribir nombres del repertorio, asi que sin esto el modelo esta OBLIGADO a
 # elegir una herramienta aunque le pidan un cafe.
@@ -124,7 +154,7 @@ def inventario():
 def herramientas_reactivas(inv=None):
     inv = inv or inventario()
     return sorted(h["nombre"] for h in inv["herramientas"]
-                  if h["categoria"] in REACTIVAS and h["nombre"] not in NO_REACTIVAS)
+                  if en_perfil(h))
 
 
 def fichas(inv=None):
@@ -133,7 +163,7 @@ def fichas(inv=None):
     inv = inv or inventario()
     out = []
     for h in inv["herramientas"]:
-        if h["categoria"] not in REACTIVAS or h["nombre"] in NO_REACTIVAS:
+        if not en_perfil(h):
             continue
         desc = re.split(r"(?<=[.!?])\s", h["descripcion"].replace("\n", " "))[0][:180]
         if USAR_ETIQUETAS:
