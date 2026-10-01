@@ -35,12 +35,16 @@
 // ============================================================================
 #pragma once
 
+#include <nlohmann/json.hpp>
+
 #include <QObject>
 #include <QString>
 #include <QVariantList>
+#include <QVariantMap>
 
 #include <atomic>
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -92,6 +96,14 @@ class Voz : public QObject {
     Q_PROPERTY(QVariantList fuentesTexto READ fuentesTexto NOTIFY cambio)
     /// Lo último transcripto en continuo: [{fuente, texto, hora, segundos}], lo más nuevo al final.
     Q_PROPERTY(QVariantList transcripcion READ transcripcion NOTIFY transcripcionCambio)
+    /// Lo que el modelo local propone hacer con lo dictado, esperando que el
+    /// operador confirme: {frase, herramienta, titulo, prob, conDatos}. Vacío si
+    /// no hay nada pendiente.
+    Q_PROPERTY(QVariantMap propuesta READ propuesta NOTIFY propuestaCambio)
+    /// Lo dictado pasa primero por el modelo local (si hay uno listo).
+    Q_PROPERTY(bool usarModeloLocal READ usarModeloLocal WRITE setUsarModeloLocal NOTIFY cambio)
+    /// Las herramientas que se hacen sin preguntar: [{herramienta, titulo}].
+    Q_PROPERTY(QVariantList automaticas READ automaticas NOTIFY cambio)
 
    public:
     Voz(AppRuntime& rt, ModelosLocales& modelos, QObject* parent = nullptr);
@@ -139,6 +151,40 @@ class Voz : public QObject {
     QVariantList transcripcionDe(const QString& fuente, int n) const;
     Q_INVOKABLE void borrarTranscripcion();
 
+    // --- Lo dictado, por el modelo local ---------------------------------------------
+    // El modelo local elige la herramienta (no sus datos). Lo que elige se le
+    // propone al operador; lo que el operador dejó «sin volver a preguntar» se
+    // hace solo, como en los arneses de agentes. Sin datos, se hace acá mismo;
+    // con datos (qué fuente, cuánto), el asistente recibe la frase con la
+    // herramienta ya elegida y solo los completa. `derivar`, o sin modelo, va
+    // al asistente como antes.
+
+    /// La ficha de una herramienta del MCP (la pone McpService).
+    struct FichaHerramienta {
+        bool existe = false;
+        QString titulo;
+        bool requiereDatos = false;
+    };
+    using Ficha = std::function<FichaHerramienta(const QString& herramienta)>;
+    /// Hace una herramienta sin argumentos: `fin(ok, texto)`.
+    using Ejecutor =
+        std::function<void(const QString& herramienta, std::function<void(bool, const QString&)> fin)>;
+    void setHerramientas(Ficha ficha, Ejecutor ejecutor);
+
+    QVariantMap propuesta() const { return propuesta_; }
+    bool usarModeloLocal() const { return usarModeloLocal_; }
+    void setUsarModeloLocal(bool on);
+    QVariantList automaticas() const;
+    /// Hacer lo propuesto; con `noVolverAPreguntar`, la herramienta pasa a automática.
+    Q_INVOKABLE void confirmar(bool noVolverAPreguntar);
+    /// No hacer nada con lo propuesto.
+    Q_INVOKABLE void descartar();
+    /// Que lo resuelva el asistente (la frase tal cual, sin la propuesta).
+    Q_INVOKABLE void alAsistente();
+    Q_INVOKABLE void setAutomatica(const QString& herramienta, bool on);
+    /// Lo que hace con una frase dictada (también sirve para probar escribiendo).
+    Q_INVOKABLE void atender(const QString& frase);
+
    signals:
     void cambio();
     void transcripcionCambio();
@@ -147,6 +193,7 @@ class Voz : public QObject {
     /// Lo que dijo el operador, para la barra del asistente.
     void dictado(const QString& texto);
     void notify(const QString& text, const QString& kind);
+    void propuestaCambio();
 
    protected:
     bool eventFilter(QObject* obj, QEvent* ev) override;
@@ -161,8 +208,24 @@ class Voz : public QObject {
     void leerAjustes();
     void guardarAjustes() const;
 
+    /// Hace la herramienta elegida para `frase` (sin preguntar).
+    void hacer(int id, const QString& frase, const QString& herramienta, const FichaHerramienta& f);
+    /// Atiende una frase con su origen ("dictado", "manual"…) y lo que se sepa
+    /// de ella (fuente, segundos de habla, ms de transcripción).
+    void atenderDe(const QString& frase, const QString& origen, const nlohmann::json& meta);
+    /// Una línea en Logs/voz-modelo.jsonl: cada paso de una frase (lo
+    /// reconocido, lo pedido al modelo, lo que contestó, lo propuesto, lo
+    /// decidido, lo hecho), con el mismo `id`, para analizarlo después.
+    void bitacora(int id, const std::string& evento, nlohmann::json datos) const;
+
     AppRuntime& rt_;
     ModelosLocales& modelos_;
+    Ficha ficha_;
+    Ejecutor ejecutor_;
+    QVariantMap propuesta_;
+    bool usarModeloLocal_ = true;
+    QStringList automaticas_;
+    int ultimoId_ = 0; ///< el `id` de la última frase atendida (bitácora)
     std::unique_ptr<audio::Escucha> escucha_;
     QString cargados_; ///< los repos con los que se cargó (para recargar si cambian)
     bool lista_ = false;

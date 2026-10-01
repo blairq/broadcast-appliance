@@ -426,6 +426,11 @@ QString AudioViewModel::openEditor(const QString& node) {
     return {};
 }
 
+QString AudioViewModel::restablecerInterfazLsp() {
+    rebuildDetail();
+    return QString::fromStdString(mgr_.restablecerInterfazLsp());
+}
+
 QString AudioViewModel::setParam(const QString& node, const QString& key, const QVariant& value, int band) {
     AudioRack* r = rack();
     ClapInstance* c = r != nullptr ? r->plugin(node.toStdString()) : nullptr;

@@ -376,6 +376,14 @@ Rectangle {
                 GlassButton { compact: true; text: "+ Generador"; onClicked: page.msg = page.au.addGenerator() }
                 GlassButton { compact: true; text: "+ Filtros…"; icon: "⌕"; onClicked: catalogoFiltros.open()
                               ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Todos los filtros LSP con captura, búsqueda avanzada y para qué sirve cada uno." }
+                // Si una ventana LSP no aparece (casi siempre: el zoom de su menú
+                // la hizo más grande que la pantalla), esto la vuelve a la normalidad.
+                GlassButton {
+                    compact: true; text: "Restablecer interfaz LSP"; icon: "↺"
+                    onClicked: page.msg = page.au.restablecerInterfazLsp()
+                    ToolTip.visible: hovered; ToolTip.delay: 400
+                    ToolTip.text: "Cierra las ventanas LSP y vuelve su zoom, escala y letra a lo de fábrica (guarda una copia). Para cuando la interfaz de un filtro no aparece."
+                }
                 Item { width: 12; height: 1 }
                 // Un rack armado a mano es media hora de trabajo: guardarlo con
                 // nombre permite ponerselo a otra fuente en un clic.

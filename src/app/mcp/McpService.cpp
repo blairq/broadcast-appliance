@@ -12,6 +12,7 @@
 #include "agent/AgentViewModel.hpp"
 #include "agent/Despachador.hpp"
 #include "agent/Roles.hpp"
+#include "agent/Voz.hpp"
 #include "mcp/McpTraza.hpp"
 #include "ui/PersonasViewModel.hpp"
 
@@ -301,6 +302,38 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
     registerFacebookTools();
     registerAlertTools();
     registerAssistantTools();
+    // Lo dictado pasa por el modelo local: necesita saber qué es cada
+    // herramienta (título, si pide datos) y poder hacer las que no piden nada.
+    if (auto* voz = qobject_cast<agent::Voz*>(vm_.voz()); voz != nullptr) {
+        voz->setHerramientas(
+            [this](const QString& nombre) {
+                agent::Voz::FichaHerramienta f;
+                const Tool* t = core_.findTool(nombre.toStdString());
+                if (t == nullptr) return f;
+                f.existe = true;
+                f.titulo = QString::fromStdString(t->title);
+                // Cualquier parámetro cuenta, no solo los «required»: muchas
+                // herramientas no los marcan y, llamadas vacías, no hacen lo pedido.
+                const json props = t->inputSchema.value("properties", json::object());
+                f.requiereDatos = props.is_object() && !props.empty();
+                return f;
+            },
+            [this, voz](const QString& nombre, std::function<void(bool, const QString&)> fin) {
+                const json pedido{{"name", nombre.toStdString()}, {"arguments", json::object()}};
+                core_.callTool(
+                    pedido,
+                    [voz, fin](const json& r) {
+                        std::string texto;
+                        for (const auto& c : r.value("content", json::array()))
+                            if (c.value("type", "") == "text") texto += c.value("text", "");
+                        if (texto.size() > 160) texto = texto.substr(0, 157) + "...";
+                        const bool ok = !r.value("isError", false);
+                        QMetaObject::invokeMethod(
+                            voz, [fin, ok, texto]() { fin(ok, QString::fromStdString(texto)); });
+                    },
+                    CallContext{"voz-modelo-local", ""});
+            });
+    }
     // El operador delega en el asistente la atencion de alguien del lobby: se
     // habilita la exencion para ESA persona y se le pasa la tarea al agente.
     vm_.setIntakeSink([this](const QString& id, const QString& name, bool yaAdentro) -> QString {

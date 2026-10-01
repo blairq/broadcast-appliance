@@ -69,6 +69,52 @@ Panel {
         anchors.fill: parent // el margen ya lo puso Panel (`padding`)
         spacing: 6
 
+        // Lo que el modelo local propone con lo dictado: nada sale al aire sin
+        // un click, salvo lo que el operador dejó «sin volver a preguntar»
+        // (Configuración → Audio y voz).
+        Rectangle {
+            id: propuesta
+            readonly property var p: barra.voz.propuesta || ({})
+            visible: !!p.herramienta
+            Layout.fillWidth: true
+            implicitHeight: filaPropuesta.implicitHeight + 16
+            radius: 10
+            color: Qt.rgba(1, 0.42, 0.17, 0.10)
+            border.color: Qt.rgba(1, 0.42, 0.17, 0.45)
+            ColumnLayout {
+                id: filaPropuesta
+                anchors { fill: parent; margins: 8 }
+                spacing: 6
+                Text {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: Theme.text; font.pixelSize: 13
+                    text: "«" + (propuesta.p.frase || "") + "» → ¿<b>" + (propuesta.p.titulo || "") + "</b>?"
+                    textFormat: Text.StyledText
+                }
+                Text {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: Theme.textDim; font.pixelSize: 11
+                    text: "Modelo local · " + Math.round(100 * (propuesta.p.prob || 0)) + " % · " + (propuesta.p.herramienta || "") +
+                          (propuesta.p.conDatos ? " · los datos (qué, cuánto) los completa el asistente" : "")
+                }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    GlassButton { compact: true; text: "Hacer"; active: true; onClicked: barra.voz.confirmar(false) }
+                    GlassButton {
+                        compact: true; text: "Hacer y no volver a preguntar"
+                        ToolTip.visible: hovered; ToolTip.delay: 400
+                        ToolTip.text: "«" + (propuesta.p.titulo || "") + "» se va a hacer sola la próxima vez. Se puede quitar en Configuración → Audio y voz."
+                        onClicked: barra.voz.confirmar(true)
+                    }
+                    GlassButton { compact: true; text: "Al asistente"; onClicked: barra.voz.alAsistente() }
+                    GlassButton { compact: true; text: "No"; onClicked: barra.voz.descartar() }
+                }
+            }
+        }
+
         RowLayout {
             Layout.fillWidth: true
             spacing: 8

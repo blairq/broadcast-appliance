@@ -591,6 +591,16 @@ ClapInstance* AudioRack::plugin(const std::string& id) {
     return n != nullptr && n->kind == "plugin" ? n->clap.get() : nullptr;
 }
 
+int AudioRack::cerrarEditores() {
+    int n = 0;
+    for (auto& node : nodes_)
+        if (node->clap && node->clap->editorOpen()) {
+            node->clap->closeEditor();
+            ++n;
+        }
+    return n;
+}
+
 Analyzer* AudioRack::analyzer(const std::string& id) {
     Node* n = find(id);
     return n != nullptr ? n->analyzer.get() : nullptr;

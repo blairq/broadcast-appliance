@@ -7,7 +7,11 @@
 #include <mutex>
 
 #include <QCoreApplication>
+#include <QDateTime>
+#include <QDir>
+#include <QFile>
 #include <QMetaObject>
+#include <QRegularExpression>
 #include <QSocketNotifier>
 #include <QThread>
 
@@ -650,6 +654,70 @@ void RackManager::saveNow() {
         out << all.dump(2);
     }
     fs::rename(tmp, file, ec);
+}
+
+std::string RackManager::restablecerInterfazLsp(bool* ok) {
+    if (ok != nullptr) *ok = false;
+    // Primero las ventanas: LSP guarda su configuración al tocarla, y una
+    // abierta podría volver a escribir lo que se restablece.
+    int cerradas = 0;
+    for (auto& [src, f] : filters_)
+        if (f != nullptr && f->rack) cerradas += f->rack->cerrarEditores();
+
+            // Donde la busca LSP (lsp-runtime-lib, system::get_user_config_path).
+#ifdef _WIN32
+    QString base = qEnvironmentVariable("LOCALAPPDATA");
+    if (base.isEmpty()) base = qEnvironmentVariable("APPDATA");
+    if (base.isEmpty()) base = QDir::homePath() + "/.config";
+#else
+    QString base = qEnvironmentVariable("XDG_CONFIG_HOME");
+    if (base.isEmpty()) base = QDir::homePath() + "/.config";
+#endif
+    const QString ruta = base + "/lsp-plugins/lsp-plugins.cfg";
+    QFile f(ruta);
+    if (!f.exists()) {
+        if (ok != nullptr) *ok = true;
+        return cerradas > 0
+                   ? "Ventanas LSP cerradas; LSP todavía no tenía configuración propia (ya está de fábrica)."
+                   : "LSP todavía no tenía configuración propia: ya está de fábrica.";
+    }
+    if (!f.open(QIODevice::ReadOnly)) return "No se pudo leer " + ruta.toStdString();
+    const QString antes = QString::fromUtf8(f.readAll());
+    f.close();
+
+    // Lo que hace que una ventana no entre en la pantalla (o no se vea):
+    static const std::vector<std::pair<QRegularExpression, QString>> reglas = {
+        {QRegularExpression("^ui_scaling\\s*=.*$", QRegularExpression::MultilineOption),
+         "ui_scaling = 100.00000"},
+        {QRegularExpression("^ui_scaling_host\\s*=.*$", QRegularExpression::MultilineOption),
+         "ui_scaling_host = true"},
+        {QRegularExpression("^font_scaling\\s*=.*$", QRegularExpression::MultilineOption),
+         "font_scaling = 100.00000"},
+        // El zoom por plugin («<plugin>_ui_scaling»): 0 = usar el general.
+        {QRegularExpression("^(\\w+)_ui_scaling\\s*=.*$", QRegularExpression::MultilineOption),
+         "\\1_ui_scaling = 0.00000"},
+    };
+    QString despues = antes;
+    for (const auto& [re, valor] : reglas)
+        despues.replace(re, valor);
+    if (despues == antes) {
+        if (ok != nullptr) *ok = true;
+        return std::string(cerradas > 0 ? "Ventanas LSP cerradas. " : "") +
+               "La configuración de LSP ya estaba de fábrica (zoom 100 %, escala del host).";
+    }
+
+    // Una copia, por si había algo que valía la pena.
+    const QString copia = ruta + ".respaldo-" + QDateTime::currentDateTime().toString("yyyyMMdd-HHmmss");
+    if (!QFile::copy(ruta, copia)) return "No se pudo hacer la copia de " + ruta.toStdString();
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate))
+        return "No se pudo escribir " + ruta.toStdString();
+    f.write(despues.toUtf8());
+    f.close();
+    if (ok != nullptr) *ok = true;
+    return std::string(cerradas > 0 ? "Ventanas LSP cerradas. " : "") +
+           "Interfaz LSP restablecida: zoom 100 %, escala del host, letra 100 %. Copia del archivo "
+           "anterior: " +
+           copia.toStdString();
 }
 
 void RackManager::restore() {

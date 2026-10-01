@@ -545,6 +545,45 @@ Rectangle {
 
                 Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
 
+                // Lo dictado, por el modelo local: qué se hace sin preguntar
+                Text { text: "Lo dictado y el modelo local"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+                    Toggle { checked: Studio.voz.usarModeloLocal; onToggled: (w) => Studio.voz.usarModeloLocal = w }
+                    Text {
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        color: Theme.text; font.pixelSize: 13
+                        text: "Pasar lo dictado por el modelo local: elige la acción al instante y la propone en la " +
+                              "barra del asistente para que la confirmes. Lo que no es suyo, o sin modelo listo, va " +
+                              "al asistente como siempre."
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: Theme.textDim; font.pixelSize: 12
+                    text: Studio.voz.automaticas.length === 0
+                          ? "Todavía no hay acciones que se hagan sin preguntar. Se agregan con «Hacer y no volver a " +
+                            "preguntar» al confirmar una."
+                          : "Se hacen sin preguntar (las que piden datos los completa el asistente):"
+                }
+                Repeater {
+                    model: Studio.voz.automaticas
+                    delegate: RowLayout {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        spacing: 10
+                        Text { text: "⚡"; color: Theme.accent; font.pixelSize: 12 }
+                        Text { Layout.fillWidth: true; text: modelData.titulo; color: Theme.text; font.pixelSize: 13; elide: Text.ElideRight }
+                        Text { text: modelData.herramienta; color: Theme.textFaint; font.pixelSize: 11 }
+                        GlassButton { compact: true; text: "Volver a preguntar"; onClicked: Studio.voz.setAutomatica(modelData.herramienta, false) }
+                    }
+                }
+
+                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
+
                 // La voz que contesta (solo por los auriculares del operador)
                 Text {
                     visible: Studio.voz.disponible

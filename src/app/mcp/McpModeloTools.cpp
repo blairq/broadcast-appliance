@@ -14,6 +14,7 @@
 
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QTimer>
 
 #include "agent/ModelosLocales.hpp"
 #include "agent/Voz.hpp"
@@ -387,6 +388,65 @@ void McpService::registerModeloTools() {
                                   {"texto", m.value("texto").toString().toStdString()}});
             }
             done(ToolResult().data(json{{"frases", frases}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "voz_atender";
+        t.title = "Tratar una frase como dictada";
+        t.category = "agentes";
+        t.description =
+            "Hace con `frase` lo mismo que con lo dictado por el operador: el modelo local elige la accion y "
+            "la propone en la barra del asistente (o la hace sola si el operador la dejo automatica); "
+            "`derivar` o sin modelo, va al asistente. Devuelve lo que quedo propuesto.";
+        t.details = "Para probar el modelo local sin microfono. Lo que se hace solo es lo que el operador "
+                    "permitio (voz_automaticas).";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"frase", {{"type", "string"}}}}},
+                         {"required", json::array({"frase"})}};
+        t.run = [voz](const json& a, Done done) {
+            voz->atender(QString::fromStdString(a.value("frase", std::string())));
+            // El modelo contesta en milisegundos: se mira la propuesta un rato despues.
+            QTimer::singleShot(1500, voz, [voz, done]() {
+                const QVariantMap p = voz->propuesta();
+                if (p.isEmpty())
+                    return done(ToolResult::ok("Sin propuesta pendiente: se hizo sola (automatica) o fue al "
+                                               "asistente (derivar, o sin modelo listo)."));
+                done(ToolResult().data(json{{"herramienta", p.value("herramienta").toString().toStdString()},
+                                            {"titulo", p.value("titulo").toString().toStdString()},
+                                            {"prob", p.value("prob").toDouble()},
+                                            {"conDatos", p.value("conDatos").toBool()}}));
+            });
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "voz_automaticas";
+        t.title = "Acciones de voz sin confirmar";
+        t.category = "agentes";
+        t.description =
+            "Las acciones que el modelo local hace sin preguntar al operador. Sin argumentos, las lista. "
+            "Con `herramienta` y `automatica` (true/false), la agrega o la saca. `modelo_local` "
+            "(true/false) prende o apaga el paso de lo dictado por el modelo local.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"herramienta", {{"type", "string"}}},
+                           {"automatica", {{"type", "boolean"}}},
+                           {"modelo_local", {{"type", "boolean"}}}}}};
+        t.run = [voz](const json& a, Done done) {
+            if (a.contains("modelo_local")) voz->setUsarModeloLocal(a.value("modelo_local", true));
+            if (a.contains("herramienta"))
+                voz->setAutomatica(QString::fromStdString(a.value("herramienta", std::string())),
+                                   a.value("automatica", true));
+            json lista = json::array();
+            for (const QVariant& v : voz->automaticas()) {
+                const QVariantMap m = v.toMap();
+                lista.push_back({{"herramienta", m.value("herramienta").toString().toStdString()},
+                                 {"titulo", m.value("titulo").toString().toStdString()}});
+            }
+            done(ToolResult().data(json{{"modelo_local", voz->usarModeloLocal()}, {"automaticas", lista}}));
         };
         core_.addTool(std::move(t));
     }

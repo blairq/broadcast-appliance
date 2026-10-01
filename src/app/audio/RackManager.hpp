@@ -103,6 +103,12 @@ class RackManager : public QObject {
     void saveNow();
     /// Restaura los racks guardados de las fuentes que existan.
     void restore();
+    /// «Restablecer interfaz LSP»: cierra las ventanas LSP abiertas y vuelve la
+    /// configuración global de LSP (la de su menú: zoom, escala del host,
+    /// letra, zoom por plugin) a lo de fábrica, con una copia del archivo.
+    /// Arregla las ventanas que no aparecen (más grandes que la pantalla).
+    /// Devuelve qué hizo, o el error.
+    std::string restablecerInterfazLsp(bool* ok = nullptr);
     double sampleRate() const;
 
     /// Servicios del hilo principal para los plugins.
