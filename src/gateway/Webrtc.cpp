@@ -430,8 +430,8 @@ struct Feed {
     // usando la sala de verdad, que es lo unico que dice si el limite es el
     // ancho de banda o la maquina. Son atomicos y van FUERA del lock: se
     // escriben en el hilo de red, en cada cuadro.
-    std::atomic<uint64_t> bytesEntrada{0}; ///< lo que mandan los invitados
-    std::atomic<uint64_t> bytesSalida{0};  ///< lo reenviado a los espectadores
+    std::atomic<uint64_t> bytesEntrada{0};                        ///< lo que mandan los invitados
+    std::atomic<uint64_t> bytesSalida{0};                         ///< lo reenviado a los espectadores
     rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> source; // receptor actual (pedir keyframes)
     rtc::Thread* worker = nullptr;
     int64_t lastKeyReqMs = 0;

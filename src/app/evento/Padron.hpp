@@ -116,7 +116,7 @@ std::string nuevoCodigo();
 /// a contar a mano una lista de cuarenta.
 struct Resumen {
     int total = 0;
-    int presentes = 0;   ///< estado Llego
+    int presentes = 0;    ///< estado Llego
     int presenciales = 0; ///< de los presentes, por la puerta
     int enLinea = 0;      ///< de los presentes, por la sala
     int confirmados = 0;
@@ -126,14 +126,13 @@ struct Resumen {
 };
 
 class Padron {
-  public:
+   public:
     const std::vector<Asistente>& gente() const { return gente_; }
 
     /// Agrega a alguien y devuelve su id (se genera si viene vacío).
     std::string agregar(Asistente a);
     /// Cambia lo que venga con valor. Devuelve false si no existe ese id.
-    bool cambiar(const std::string& id, const Asistente& campos,
-                 const std::vector<std::string>& queCampos);
+    bool cambiar(const std::string& id, const Asistente& campos, const std::vector<std::string>& queCampos);
     bool quitar(const std::string& id);
 
     const Asistente* porId(const std::string& id) const;
@@ -160,7 +159,7 @@ class Padron {
     nlohmann::json aJson() const;
     static Padron deJson(const nlohmann::json& j);
 
-  private:
+   private:
     std::vector<Asistente> gente_;
     Asistente* buscar(const std::string& id);
 };
@@ -168,12 +167,10 @@ class Padron {
 /// Lee `padron.json` de la carpeta del evento. Si no está —que es lo normal
 /// hasta que alguien anota al primero— devuelve uno vacío con `ok` en true:
 /// no tener padrón todavía no es un error.
-Padron cargarPadron(const std::filesystem::path& carpeta, bool* ok = nullptr,
-                    std::string* err = nullptr);
+Padron cargarPadron(const std::filesystem::path& carpeta, bool* ok = nullptr, std::string* err = nullptr);
 /// Lo escribe. Sin respaldos, a diferencia del guion: esto se escribe muchas
 /// veces por minuto durante el evento y un respaldo por acreditación llenaría
 /// la carpeta de ruido.
-bool guardarPadron(const std::filesystem::path& carpeta, const Padron& p,
-                   std::string* err = nullptr);
+bool guardarPadron(const std::filesystem::path& carpeta, const Padron& p, std::string* err = nullptr);
 
 } // namespace ba::evento

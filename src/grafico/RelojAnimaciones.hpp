@@ -26,7 +26,7 @@ namespace ba::grafico {
 class RelojAnimaciones : public QAnimationDriver {
     Q_OBJECT
 
-  public:
+   public:
     explicit RelojAnimaciones(QObject* padre = nullptr) : QAnimationDriver(padre) {}
 
     /// Adelanta el tiempo `ms` y deja que Qt recalcule las animaciones.
@@ -49,7 +49,7 @@ class RelojAnimaciones : public QAnimationDriver {
     // --- QAnimationDriver -----------------------------------------------------
     qint64 elapsed() const override { return ahora_; }
 
-  private:
+   private:
     qint64 ahora_ = 0;
 };
 

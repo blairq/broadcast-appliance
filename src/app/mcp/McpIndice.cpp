@@ -42,14 +42,15 @@ constexpr std::size_t kPrefijoMinimo = 4;
 constexpr double kFraccionInutil = 0.4;
 
 std::string minuscula(std::string s) {
-    for (char& c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    for (char& c : s)
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     return s;
 }
 
 /// Quita tildes y la eñe: quien busca desde un teclado apurado no las pone.
 std::string sinTildes(const std::string& s) {
-    static const std::pair<const char*, char> kMapa[] = {
-        {"á", 'a'}, {"é", 'e'}, {"í", 'i'}, {"ó", 'o'}, {"ú", 'u'}, {"ü", 'u'}, {"ñ", 'n'}};
+    static const std::pair<const char*, char> kMapa[] = {{"á", 'a'}, {"é", 'e'}, {"í", 'i'}, {"ó", 'o'},
+                                                         {"ú", 'u'}, {"ü", 'u'}, {"ñ", 'n'}};
     std::string out = minuscula(s);
     for (const auto& [de, a] : kMapa) {
         const std::string f = de;
@@ -77,9 +78,9 @@ std::vector<std::string> Indice::terminos(const std::string& s) {
     // puestos «no» y «se», y en castellano «no se escucha» y «se escucha» son
     // cosas distintas —justo las que hay que distinguir cuando alguien se
     // queja—. Por eso van por lista, y «no» y «se» NO estan en ella.
-    static const std::set<std::string> vacias{"el", "la", "lo", "los", "las", "un", "una",
-                                              "unos", "unas", "de", "del", "al", "es", "son",
-                                              "en", "y", "o", "que", "con", "por"};
+    static const std::set<std::string> vacias{"el",   "la",   "lo", "los", "las", "un", "una",
+                                              "unos", "unas", "de", "del", "al",  "es", "son",
+                                              "en",   "y",    "o",  "que", "con", "por"};
     // «para» NO esta: en rioplatense es tambien el imperativo de parar —«para
     // la grabacion»— y sacarlo dejaba a `record_stop` sin esa frase.
     const auto cerrar = [&] {
@@ -89,8 +90,10 @@ std::vector<std::string> Indice::terminos(const std::string& s) {
     for (const char c : sinTildes(s)) {
         // El guion bajo SEPARA: "scene_switch" tiene que encontrarse buscando
         // "escena" o "switch" sueltos, que es como la nombra una persona.
-        if (std::isalnum(static_cast<unsigned char>(c)) != 0) cur.push_back(c);
-        else cerrar();
+        if (std::isalnum(static_cast<unsigned char>(c)) != 0)
+            cur.push_back(c);
+        else
+            cerrar();
     }
     cerrar();
     return out;
@@ -111,13 +114,16 @@ void Indice::armar() {
         // un texto largo gana por repetir, no por venir al caso.
         std::unordered_map<std::string, double> peso;
         const auto sumar = [&peso](const std::vector<std::string>& ts, double p) {
-            for (const std::string& t : ts) peso[t] = std::max(peso[t], p);
+            for (const std::string& t : ts)
+                peso[t] = std::max(peso[t], p);
         };
         sumar(terminos(d.nombre), kPesoNombre);
-        for (const std::string& e : d.etiquetas) sumar(terminos(e), kPesoEtiqueta);
+        for (const std::string& e : d.etiquetas)
+            sumar(terminos(e), kPesoEtiqueta);
         sumar(terminos(d.titulo), kPesoTitulo);
         sumar(terminos(d.cuerpo), kPesoCuerpo);
-        for (const auto& [t, p] : peso) invertido_[t].push_back(Aparicion{i, p});
+        for (const auto& [t, p] : peso)
+            invertido_[t].push_back(Aparicion{i, p});
     }
     armado_ = true;
 }

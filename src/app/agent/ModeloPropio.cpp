@@ -66,7 +66,8 @@ bool ModeloPropio::guardar(const std::filesystem::path& archivo) const {
 
 std::vector<std::string> ModeloPropio::comoLosLlamaOpencode() const {
     std::vector<std::string> out;
-    for (const Canal& c : canales) out.push_back("propio-" + c.id + "/" + modelo);
+    for (const Canal& c : canales)
+        out.push_back("propio-" + c.id + "/" + modelo);
     return out;
 }
 

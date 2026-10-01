@@ -51,7 +51,8 @@ bool Rotulador::encargar(const json& orden) {
 json Rotulador::tomarEncargos() {
     std::lock_guard<std::mutex> g(m_);
     json out = json::array();
-    for (const json& e : encargos_) out.push_back(e);
+    for (const json& e : encargos_)
+        out.push_back(e);
     encargos_.clear();
     return out;
 }

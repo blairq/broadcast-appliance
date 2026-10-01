@@ -30,7 +30,7 @@
 namespace ba::gateway {
 
 class Superficies {
-  public:
+   public:
     /// Cuánto vale un latido. Las páginas laten cada 5 s, así que 15 aguanta
     /// dos perdidos sin declarar muerta una que está bien.
     static constexpr std::int64_t kVivaMs = 15000;
@@ -49,8 +49,7 @@ class Superficies {
     /// Una página dice que está viva. `tipo` es qué es ("carrusel",
     /// "pantalla", "prompter"...), `id` la identifica entre recargas, `que`
     /// es lo que está mostrando ahora mismo.
-    void latido(const std::string& tipo, const std::string& id, const std::string& que,
-                std::uint32_t ip);
+    void latido(const std::string& tipo, const std::string& id, const std::string& que, std::uint32_t ip);
     /// Las que latieron hace menos de kVivaMs.
     nlohmann::json vivas() const;
 
@@ -65,7 +64,7 @@ class Superficies {
     /// Todas las conexiones de ese tipo (para mandarle a todas las pantallas).
     std::vector<std::string> conexionesDe(const std::string& tipo) const;
 
-  private:
+   private:
     struct Viva {
         std::string tipo, que, ip;
         std::int64_t desdeMs = 0; ///< cuándo se la vio por primera vez

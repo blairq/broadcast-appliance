@@ -38,13 +38,15 @@ QString Discursos::limpiarNombre(QString n, bool conExtension) {
     n = n.trimmed();
     // Lo que Windows no admite en un nombre de archivo (Linux solo prohíbe la
     // barra, pero esto tiene que andar en los dos).
-    for (const QChar malo : QString(R"(<>:"/\|?*)")) n.remove(malo);
+    for (const QChar malo : QString(R"(<>:"/\|?*)"))
+        n.remove(malo);
     for (QChar& c : n)
         if (c.unicode() < 32) c = ' ';
     n = n.trimmed();
     // Un punto al final: Windows lo tira en silencio y el archivo queda con
     // otro nombre que el que se pidió.
-    while (n.endsWith('.')) n.chop(1);
+    while (n.endsWith('.'))
+        n.chop(1);
     n = n.trimmed();
     if (n.isEmpty()) return {};
     if (conExtension && !esDiscurso(n)) n += ".txt";

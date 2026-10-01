@@ -41,9 +41,7 @@ struct ExtensionesModel::Impl {
 
     explicit Impl(AppRuntime& r) : rt(r) {}
 
-    QString raiz() const {
-        return QString::fromStdString((rt.dataRoot() / "Extensiones").string());
-    }
+    QString raiz() const { return QString::fromStdString((rt.dataRoot() / "Extensiones").string()); }
 };
 
 ExtensionesModel::ExtensionesModel(AppRuntime& rt, QObject* parent)
@@ -106,9 +104,7 @@ void ExtensionesModel::refrescar() {
     emit cambio();
 }
 
-int ExtensionesModel::rowCount(const QModelIndex&) const {
-    return static_cast<int>(d_->ext.size());
-}
+int ExtensionesModel::rowCount(const QModelIndex&) const { return static_cast<int>(d_->ext.size()); }
 
 QVariant ExtensionesModel::data(const QModelIndex& index, int role) const {
     if (index.row() < 0 || index.row() >= rowCount()) return {};
@@ -125,8 +121,8 @@ QVariant ExtensionesModel::data(const QModelIndex& index, int role) const {
 }
 
 QHash<int, QByteArray> ExtensionesModel::roleNames() const {
-    return {{IdRole, "id"},         {NombreRole, "nombre"},   {DescripcionRole, "descripcion"},
-            {VistaRole, "vista"},   {ProblemaRole, "problema"}, {ApagadaRole, "apagada"}};
+    return {{IdRole, "id"},       {NombreRole, "nombre"},     {DescripcionRole, "descripcion"},
+            {VistaRole, "vista"}, {ProblemaRole, "problema"}, {ApagadaRole, "apagada"}};
 }
 
 QVariantMap ExtensionesModel::ficha(const QString& id) const {
@@ -182,8 +178,7 @@ void ExtensionesModel::cargada(const QString& id, bool bien, const QString& erro
     // dibuja, y apagarla obligaría a prenderla a mano después de cada error de
     // tipeo. Se registra con el archivo y la línea, que es lo que se arregla.
     ba::diag::registro().linea(ba::diag::Nivel::Aviso, "extensiones", 0,
-                               "la tarjeta «" + id.toStdString() + "» no cargó: " +
-                                   error.toStdString());
+                               "la tarjeta «" + id.toStdString() + "» no cargó: " + error.toStdString());
     emit const_cast<ExtensionesModel*>(this)->notify(
         "La tarjeta «" + id + "» tiene un error (mirá el Registro)", "error");
 }

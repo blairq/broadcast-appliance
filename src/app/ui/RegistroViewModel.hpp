@@ -66,7 +66,7 @@ class RegistroViewModel : public QObject {
     /// Lo que rompió el arranque ANTERIOR (vacío si arrancó bien).
     Q_PROPERTY(QString culpable READ culpable CONSTANT)
 
-  public:
+   public:
     explicit RegistroViewModel(AppRuntime& rt, QObject* parent = nullptr);
     ~RegistroViewModel() override;
 
@@ -105,12 +105,12 @@ class RegistroViewModel : public QObject {
     /// tener que adjuntar cinco megabytes de log crudo.
     Q_INVOKABLE QString exportar();
 
-  signals:
+   signals:
     void cambio();
     void filtroCambio();
     void notify(const QString& texto, const QString& tipo);
 
-  private:
+   private:
     struct Impl;
     std::unique_ptr<Impl> d_;
 };

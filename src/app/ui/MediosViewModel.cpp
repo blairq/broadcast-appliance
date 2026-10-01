@@ -13,15 +13,11 @@
 
 namespace ba::app {
 
-MediosViewModel::MediosViewModel(AppRuntime& rt, QObject* parent) : QObject(parent), rt_(rt) {
-    refrescar();
-}
+MediosViewModel::MediosViewModel(AppRuntime& rt, QObject* parent) : QObject(parent), rt_(rt) { refrescar(); }
 
 MediosViewModel::~MediosViewModel() = default;
 
-QString MediosViewModel::raiz() const {
-    return QString::fromStdWString(rt_.dataRoot().wstring());
-}
+QString MediosViewModel::raiz() const { return QString::fromStdWString(rt_.dataRoot().wstring()); }
 
 QString MediosViewModel::carpetaDeMedios() const {
     return QDir(QString::fromStdWString(rt_.dataRoot().wstring())).absoluteFilePath("Media");
@@ -56,8 +52,8 @@ void MediosViewModel::recalcular() {
         for (const medios::Archivo& a : visibles_) {
             const int corte = a.relativa.lastIndexOf('/');
             const QString suya = corte < 0 ? QString() : a.relativa.left(corte);
-            const bool adentro = conSub_ ? (suya == carpeta_ || suya.startsWith(carpeta_ + "/"))
-                                         : suya == carpeta_;
+            const bool adentro =
+                conSub_ ? (suya == carpeta_ || suya.startsWith(carpeta_ + "/")) : suya == carpeta_;
             if (adentro) out.push_back(a);
         }
         visibles_ = out;
@@ -74,19 +70,18 @@ QVariantList MediosViewModel::archivos() const {
     QVariantList out;
     out.reserve(visibles_.size());
     for (const medios::Archivo& a : visibles_)
-        out.append(QVariantMap{
-            {"ruta", a.ruta},
-            {"relativa", a.relativa},
-            {"nombre", a.nombre},
-            {"carpeta", a.carpeta},
-            {"tipo", QString::fromUtf8(medios::nombreDeTipo(a.tipo))},
-            {"bytes", a.bytes},
-            {"modificadoMs", a.modificadoMs},
-            // La vista previa se dibuja desde el disco: es una URL de archivo,
-            // no una copia en memoria. Con doscientas imagenes, copiarlas seria
-            // llenar la memoria con lo que el disco ya tiene.
-            {"url", QUrl::fromLocalFile(a.ruta).toString()},
-            {"desarmable", medios::sePuedeDesarmar(a.nombre)}});
+        out.append(QVariantMap{{"ruta", a.ruta},
+                               {"relativa", a.relativa},
+                               {"nombre", a.nombre},
+                               {"carpeta", a.carpeta},
+                               {"tipo", QString::fromUtf8(medios::nombreDeTipo(a.tipo))},
+                               {"bytes", a.bytes},
+                               {"modificadoMs", a.modificadoMs},
+                               // La vista previa se dibuja desde el disco: es una URL de archivo,
+                               // no una copia en memoria. Con doscientas imagenes, copiarlas seria
+                               // llenar la memoria con lo que el disco ya tiene.
+                               {"url", QUrl::fromLocalFile(a.ruta).toString()},
+                               {"desarmable", medios::sePuedeDesarmar(a.nombre)}});
     return out;
 }
 
@@ -115,7 +110,10 @@ QVariantList MediosViewModel::arbol() const {
         // vez, y no en cada fila de la vista.
         bool visible = true;
         for (const QString& cerrada : cerradas_)
-            if (c.relativa.startsWith(cerrada + "/")) { visible = false; break; }
+            if (c.relativa.startsWith(cerrada + "/")) {
+                visible = false;
+                break;
+            }
         out.append(QVariantMap{{"relativa", c.relativa},
                                {"nombre", c.nombre},
                                {"nivel", c.nivel},
@@ -162,8 +160,10 @@ void MediosViewModel::setOrdenDescendente(bool v) {
 }
 
 void MediosViewModel::plegar(const QString& relativa) {
-    if (cerradas_.contains(relativa)) cerradas_.remove(relativa);
-    else cerradas_.insert(relativa);
+    if (cerradas_.contains(relativa))
+        cerradas_.remove(relativa);
+    else
+        cerradas_.insert(relativa);
     emit cambio();
 }
 
@@ -188,14 +188,14 @@ qint64 MediosViewModel::bytesElegidos() const {
     return n;
 }
 
-bool MediosViewModel::estaElegido(const QString& relativa) const {
-    return seleccion_.contains(relativa);
-}
+bool MediosViewModel::estaElegido(const QString& relativa) const { return seleccion_.contains(relativa); }
 
 void MediosViewModel::elegir(const QString& relativa, const QString& modo) {
     if (modo == "sumar") {
-        if (seleccion_.contains(relativa)) seleccion_.removeAll(relativa);
-        else seleccion_ << relativa;
+        if (seleccion_.contains(relativa))
+            seleccion_.removeAll(relativa);
+        else
+            seleccion_ << relativa;
         ancla_ = relativa;
     } else if (modo == "hasta" && !ancla_.isEmpty()) {
         // El rango es sobre lo que se VE, en el orden en que se ve: con otro
@@ -223,7 +223,8 @@ void MediosViewModel::elegir(const QString& relativa, const QString& modo) {
 
 void MediosViewModel::elegirTodo() {
     seleccion_.clear();
-    for (const medios::Archivo& a : visibles_) seleccion_ << a.relativa;
+    for (const medios::Archivo& a : visibles_)
+        seleccion_ << a.relativa;
     emit seleccionCambio();
 }
 
@@ -239,8 +240,10 @@ int MediosViewModel::moverElegidos(const QString& destino) {
     QString ultimoError;
     for (const QString& r : seleccion_) {
         QString e;
-        if (medios::mover(raiz(), r, destino, &e)) ++n;
-        else ultimoError = e;
+        if (medios::mover(raiz(), r, destino, &e))
+            ++n;
+        else
+            ultimoError = e;
     }
     // Se avisa SIEMPRE, aunque haya salido bien: mover cuarenta archivos sin
     // que pase nada visible deja a cualquiera dudando de si hizo algo.
@@ -280,11 +283,12 @@ int MediosViewModel::borrarElegidos() {
     QString ultimoError;
     for (const QString& r : seleccion_) {
         QString e;
-        if (medios::aPapelera(raiz(), r, &e)) ++n;
-        else ultimoError = e;
+        if (medios::aPapelera(raiz(), r, &e))
+            ++n;
+        else
+            ultimoError = e;
     }
-    if (n > 0)
-        emit notify(QString("%1 a la papelera. Están en Papelera/, no se perdieron.").arg(n), "ok");
+    if (n > 0) emit notify(QString("%1 a la papelera. Están en Papelera/, no se perdieron.").arg(n), "ok");
     if (!ultimoError.isEmpty()) emit notify("No se pudo borrar todo: " + ultimoError, "error");
     noElegirNada();
     refrescar();
@@ -307,8 +311,6 @@ QString MediosViewModel::rutaAbsoluta(const QString& relativa) const {
     return medios::resolverAdentro(raiz(), relativa);
 }
 
-bool MediosViewModel::sePuedeDesarmar(const QString& ruta) const {
-    return medios::sePuedeDesarmar(ruta);
-}
+bool MediosViewModel::sePuedeDesarmar(const QString& ruta) const { return medios::sePuedeDesarmar(ruta); }
 
 } // namespace ba::app

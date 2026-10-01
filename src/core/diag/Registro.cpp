@@ -43,9 +43,8 @@ std::string selloDeTiempo(std::int64_t ms) {
     gmtime_r(&s, &tm);
 #endif
     char buf[40];
-    std::snprintf(buf, sizeof(buf), "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ", tm.tm_year + 1900,
-                  tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec,
-                  static_cast<int>(ms % 1000));
+    std::snprintf(buf, sizeof(buf), "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ", tm.tm_year + 1900, tm.tm_mon + 1,
+                  tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, static_cast<int>(ms % 1000));
     return buf;
 }
 
@@ -58,8 +57,7 @@ std::string enUnaLinea(const std::string& s) {
     out.reserve(s.size());
     for (const char c : s) {
         if (c == '\n' || c == '\r') {
-            if (!out.empty() && out.compare(out.size() >= 3 ? out.size() - 3 : 0, 3, "⏎") == 0)
-                continue;
+            if (!out.empty() && out.compare(out.size() >= 3 ? out.size() - 3 : 0, 3, "⏎") == 0) continue;
             out += "⏎";
         } else {
             out += c;
@@ -93,13 +91,14 @@ const char* nombreDeNivel(Nivel n) {
 }
 
 bool nivelDeNombre(const std::string& s, Nivel& out) {
-    struct { const char* n; Nivel v; } kTabla[] = {
-        {"traza", Nivel::Traza},        {"trace", Nivel::Traza},
-        {"depuracion", Nivel::Depuracion}, {"debug", Nivel::Depuracion},
-        {"info", Nivel::Info},          {"aviso", Nivel::Aviso},
-        {"warn", Nivel::Aviso},         {"warning", Nivel::Aviso},
-        {"error", Nivel::Error},        {"fatal", Nivel::Fatal},
-        {"critical", Nivel::Fatal},
+    struct {
+        const char* n;
+        Nivel v;
+    } kTabla[] = {
+        {"traza", Nivel::Traza},      {"trace", Nivel::Traza},    {"depuracion", Nivel::Depuracion},
+        {"debug", Nivel::Depuracion}, {"info", Nivel::Info},      {"aviso", Nivel::Aviso},
+        {"warn", Nivel::Aviso},       {"warning", Nivel::Aviso},  {"error", Nivel::Error},
+        {"fatal", Nivel::Fatal},      {"critical", Nivel::Fatal},
     };
     for (const auto& e : kTabla) {
         if (s == e.n) {
@@ -139,13 +138,12 @@ Registro::Registro() : d_(std::make_unique<Impl>()) {
 
 Registro::~Registro() = default;
 
-void Registro::abrir(const std::filesystem::path& dir, const std::string& archivo,
-                     std::size_t maxBytes, std::size_t archivos) {
+void Registro::abrir(const std::filesystem::path& dir, const std::string& archivo, std::size_t maxBytes,
+                     std::size_t archivos) {
     std::lock_guard<std::mutex> g(d_->m);
     // Sin el sello del rotador: la linea que se le pasa YA trae su hora (ver
     // Registrado::aLinea). Con los dos, cada linea sale con la hora repetida.
-    d_->rotador =
-        std::make_unique<LogRotator>(dir.string(), maxBytes, archivos, archivo, false);
+    d_->rotador = std::make_unique<LogRotator>(dir.string(), maxBytes, archivos, archivo, false);
 }
 
 bool Registro::abrirSegunEntorno(const std::filesystem::path& dir, const std::string& archivo) {
@@ -173,8 +171,7 @@ void Registro::setOyente(std::function<void(const Registrado&)> fn) {
     d_->oyente = std::move(fn);
 }
 
-void Registro::linea(Nivel n, const std::string& componente, int codigo,
-                     const std::string& texto) {
+void Registro::linea(Nivel n, const std::string& componente, int codigo, const std::string& texto) {
     if (!registra(n)) {
         d_->descartadas.fetch_add(1);
         return;
@@ -211,8 +208,7 @@ void Registro::linea(Nivel n, const std::string& componente, int codigo,
 std::vector<Registrado> Registro::ultimas(std::size_t cuantas) const {
     std::lock_guard<std::mutex> g(d_->m);
     const std::size_t n = std::min(cuantas, d_->anillo.size());
-    return std::vector<Registrado>(d_->anillo.end() - static_cast<std::ptrdiff_t>(n),
-                                   d_->anillo.end());
+    return std::vector<Registrado>(d_->anillo.end() - static_cast<std::ptrdiff_t>(n), d_->anillo.end());
 }
 
 std::uint64_t Registro::cuenta() const { return d_->cuenta.load(); }

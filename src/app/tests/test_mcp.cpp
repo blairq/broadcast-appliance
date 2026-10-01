@@ -411,7 +411,10 @@ int main(int argc, char** argv) {
         bridge.closeWriteChannel();
         // El servidor HTTP vive en ESTE proceso: hay que girar el event loop.
         QByteArray out;
-        for (int i = 0; i < 400 && bridge.state() != QProcess::NotRunning; ++i) {
+        // Hasta 30 s: termina apenas sale ba-mcp. Con 4 s alcanzaba en una
+        // maquina normal, pero bajo Wine en una CPU emulada (Rosetta) solo
+        // lanzar el proceso tarda eso y el test fallaba sin que nada anduviera mal.
+        for (int i = 0; i < 3000 && bridge.state() != QProcess::NotRunning; ++i) {
             QEventLoop loop;
             QTimer::singleShot(10, &loop, &QEventLoop::quit);
             loop.exec();
@@ -424,6 +427,12 @@ int main(int argc, char** argv) {
         for (const auto& l : lines)
             sawEcho = sawEcho || l.contains("eco: por stdio");
         CHECK(sawEcho, "la herramienta responde por stdio");
+        if (lines.size() != 2 || !sawEcho) {
+            // Para poder diagnosticarlo: que devolvio y como termino ba-mcp.
+            std::printf("  ba-mcp: estado %d, salida %d, stdout: %s\n  stderr: %s\n", int(bridge.state()),
+                        bridge.exitCode(), out.left(400).constData(),
+                        bridge.readAllStandardError().left(400).constData());
+        }
     }
     {
         QProcess bridge;
@@ -457,7 +466,8 @@ int main(int argc, char** argv) {
         };
         const auto nombres = [](const json& lista) {
             std::set<std::string> n;
-            for (const auto& t : lista["result"]["tools"]) n.insert(t["name"]);
+            for (const auto& t : lista["result"]["tools"])
+                n.insert(t["name"]);
             return n;
         };
         const std::set<std::string> rec = nombres(conRol(req(60, "tools/list"), "rec"));
@@ -468,14 +478,16 @@ int main(int argc, char** argv) {
         const std::set<std::string> nadie = nombres(conRol(req(62, "tools/list"), "inventado"));
         CHECK(nadie.count("help") == 1 && nadie.count("echo") == 0, "rol desconocido: solo las comunes");
         const json negada = conRol(req(63, "tools/call", {{"name", "ajeno"}}), "rec");
-        CHECK(negada["result"]["isError"] == true && textOf(negada["result"]).find("juego del rol `rec`") != std::string::npos,
+        CHECK(negada["result"]["isError"] == true &&
+                  textOf(negada["result"]).find("juego del rol `rec`") != std::string::npos,
               "llamar a lo ajeno se niega explicando");
-        const json propia = conRol(req(64, "tools/call", {{"name", "echo"}, {"arguments", {{"text", "ok"}}}}), "rec");
+        const json propia =
+            conRol(req(64, "tools/call", {{"name", "echo"}, {"arguments", {{"text", "ok"}}}}), "rec");
         CHECK(propia["result"]["isError"] == false, "lo propio corre");
         const json ini = conRol(req(65, "initialize", {{"protocolVersion", "2025-06-18"}}), "rec");
         const std::string instr = ini["result"]["instructions"];
-        CHECK(instr.find("Sos el rol `rec`") != std::string::npos && instr.find("**demo**") != std::string::npos &&
-                  instr.find("**otro**") == std::string::npos,
+        CHECK(instr.find("Sos el rol `rec`") != std::string::npos &&
+                  instr.find("**demo**") != std::string::npos && instr.find("**otro**") == std::string::npos,
               "el mapa del initialize es el del rol");
         const json iniTodo = conRol(req(66, "initialize", {{"protocolVersion", "2025-06-18"}}), "");
         CHECK(iniTodo["result"]["instructions"].get<std::string>().find("**otro**") != std::string::npos,
@@ -497,7 +509,10 @@ int main(int argc, char** argv) {
         bridge.closeWriteChannel();
         // El servidor HTTP vive en ESTE proceso: hay que girar el event loop.
         QByteArray out;
-        for (int i = 0; i < 400 && bridge.state() != QProcess::NotRunning; ++i) {
+        // Hasta 30 s: termina apenas sale ba-mcp. Con 4 s alcanzaba en una
+        // maquina normal, pero bajo Wine en una CPU emulada (Rosetta) solo
+        // lanzar el proceso tarda eso y el test fallaba sin que nada anduviera mal.
+        for (int i = 0; i < 3000 && bridge.state() != QProcess::NotRunning; ++i) {
             QEventLoop loop;
             QTimer::singleShot(10, &loop, &QEventLoop::quit);
             loop.exec();
@@ -518,8 +533,7 @@ int main(int argc, char** argv) {
         largo += "ñáé—…"; // multibyte justo donde cae el corte
         const std::string r = Traza::resumir(json{{"t", largo}});
         CHECK(!r.empty(), "resumir un texto con acentos no revienta");
-        CHECK(r.find("no se pudo resumir") == std::string::npos,
-              "y no cae en el camino de emergencia");
+        CHECK(r.find("no se pudo resumir") == std::string::npos, "y no cae en el camino de emergencia");
         CHECK(json(r).dump().size() > 0, "lo que sale se puede serializar");
     }
 

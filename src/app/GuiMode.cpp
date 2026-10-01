@@ -13,6 +13,7 @@
 #include <QDir>
 #include <QFontDatabase>
 #include <QGuiApplication>
+#include <QIcon>
 #include <QQmlApplicationEngine>
 #include <QQuickWindow>
 
@@ -28,12 +29,12 @@
 #include <cstdio>
 
 #include "agent/AgentViewModel.hpp"
-#include "ui/QrViewModel.hpp"
 #include "AppRuntime.hpp"
 #include "mcp/McpService.hpp"
 #include "term/TerminalView.hpp"
 #include "ui/FrameService.hpp"
 #include "ui/InputsViewModel.hpp"
+#include "ui/QrViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
 #include "ui/VideoItem.hpp"
 
@@ -57,6 +58,14 @@ int runGui(int argc, char** argv) {
     QGuiApplication app(argc, argv);
 
     QGuiApplication::setApplicationName("Broadcast Appliance");
+    // El logo en la barra de tareas, el Dock y el selector de ventanas. Varios
+    // tamaños: el sistema elige (los chicos son el dibujo sin las ondas).
+    {
+        QIcon icono;
+        for (int lado : {16, 24, 32, 48, 64, 128, 256, 512})
+            icono.addFile(QString(":/icons/broadcast-appliance-%1.png").arg(lado), QSize(lado, lado));
+        QGuiApplication::setWindowIcon(icono);
+    }
     QQuickStyle::setStyle("Basic"); // controles propios encima; nada nativo que desentone
 
     AppRuntime rt;

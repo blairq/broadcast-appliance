@@ -7,20 +7,20 @@
 #include <QFile>
 #include <QGuiApplication>
 #include <QMetaObject>
-#include <QVariant>
 #include <QQuickWindow>
 #include <QScreen>
 #include <QTimer>
+#include <QVariant>
 
 #include <algorithm>
 #include <deque>
 
 #include "AppRuntime.hpp"
 #include "mcp/McpService.hpp"
-#include "ui/RielConfig.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/DashboardModel.hpp"
 #include "ui/FrameService.hpp"
+#include "ui/RielConfig.hpp"
 #include "ui/StudioViewModel.hpp"
 #include "ui/SystemViewModel.hpp"
 
@@ -32,7 +32,8 @@ namespace {
 /// pagina nueva aparece aca sin tocar nada.
 json idsDePaginas() {
     json out = json::array();
-    for (const QString& id : RielConfig::idsDePaginas()) out.push_back(id.toStdString());
+    for (const QString& id : RielConfig::idsDePaginas())
+        out.push_back(id.toStdString());
     return out;
 }
 
@@ -64,22 +65,23 @@ void McpService::registerUiTools() {
         t.description = "Cambia la pagina que ve el operador. Las que hay salen del catalogo de la "
                         "interfaz (ver el enum de `page`): si se agrega una pagina nueva al programa, "
                         "aparece aca sola.";
-        t.inputSchema = {{"type", "object"},
-                         {"properties",
-                          {{"page", {{"type", "string"}, {"enum", idsDePaginas()}}},
-                           {"seccion",
-                            {{"type", "string"},
-                             {"description",
-                              "Solo con page=configuracion: a que seccion ir (el nombre tal cual lo "
-                              "muestra la lista, p. ej. \"Audio\", \"Gateway\", \"Barra de "
-                              "navegacion\"). Sin esto queda la que estaba."}}}}},
-                         {"required", {"page"}}};
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"page", {{"type", "string"}, {"enum", idsDePaginas()}}},
+              {"seccion",
+               {{"type", "string"},
+                {"description", "Solo con page=configuracion: a que seccion ir (el nombre tal cual lo "
+                                "muestra la lista, p. ej. \"Audio\", \"Gateway\", \"Barra de "
+                                "navegacion\"). Sin esto queda la que estaba."}}}}},
+            {"required", {"page"}}};
         t.run = [self, &vm](const json& a, Done done) {
             QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;
             if (w == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
             const int pagina = paginaDeId(vm, a["page"].get<std::string>());
-            if (pagina < 0) return done(ToolResult::error("No conozco la pagina \"" +
-                                                          a["page"].get<std::string>() + "\"."));
+            if (pagina < 0)
+                return done(
+                    ToolResult::error("No conozco la pagina \"" + a["page"].get<std::string>() + "\"."));
             w->setProperty("page", pagina);
             // Llevarlo a la seccion ANTES de mostrar la pagina haria que se
             // vea un salto; despues, no se nota.
@@ -94,8 +96,7 @@ void McpService::registerUiTools() {
         t.name = "ui_page_window";
         t.title = "Sacar una pagina a su ventana";
         t.category = "interfaz";
-        t.description =
-            "Abre una pagina en su PROPIA ventana, para mandarla a otro monitor.";
+        t.description = "Abre una pagina en su PROPIA ventana, para mandarla a otro monitor.";
         t.details =
             "No la saca de la ventana principal: abre otra vista de lo mismo. Las dos se mantienen "
             "sincronizadas solas (todas las paginas leen su estado del mismo lugar), asi que el operador "
@@ -103,25 +104,23 @@ void McpService::registerUiTools() {
             "El operador hace lo mismo con clic derecho en el icono del riel. Si esa pagina ya esta "
             "afuera, no se abre otra igual.\n\n"
             "Cerrar la ventana no pierde nada: la pagina sigue en la ventana principal.";
-        t.inputSchema = {{"type", "object"},
-                         {"properties",
-                          {{"page",
-                            {{"type", "string"},
-                             {"enum",
-                              idsDePaginas()}}},
-                           {"seccion",
-                            {{"type", "string"},
-                             {"description",
-                              "Solo con page=configuracion: a que seccion ir (el nombre tal cual lo "
-                              "muestra la lista, p. ej. \"Audio\", \"Gateway\", \"Barra de "
-                              "navegacion\"). Sin esto queda la que estaba."}}}}},
-                         {"required", {"page"}}};
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"page", {{"type", "string"}, {"enum", idsDePaginas()}}},
+              {"seccion",
+               {{"type", "string"},
+                {"description", "Solo con page=configuracion: a que seccion ir (el nombre tal cual lo "
+                                "muestra la lista, p. ej. \"Audio\", \"Gateway\", \"Barra de "
+                                "navegacion\"). Sin esto queda la que estaba."}}}}},
+            {"required", {"page"}}};
         t.run = [self, &vm](const json& a, Done done) {
             QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;
             if (w == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
             const int idx = paginaDeId(vm, a["page"].get<std::string>());
-            if (idx < 0) return done(ToolResult::error("No conozco la pagina \"" +
-                                                       a["page"].get<std::string>() + "\"."));
+            if (idx < 0)
+                return done(
+                    ToolResult::error("No conozco la pagina \"" + a["page"].get<std::string>() + "\"."));
             auto* riel = static_cast<RielConfig*>(vm.riel());
             const QString titulo = riel->tituloDePagina(idx);
             QMetaObject::invokeMethod(w, "sacarAVentana", Q_ARG(QVariant, idx), Q_ARG(QVariant, titulo));
@@ -137,42 +136,39 @@ void McpService::registerUiTools() {
         t.description =
             "Abre el padron, la cola de preguntas o la urna en su PROPIA ventana, para mandarla a "
             "otro monitor.";
-        t.details =
-            "MAS FINO QUE `ui_page_window`, que saca una pagina entera. En un evento esa es la "
-            "diferencia entre tener «Publico» en el segundo monitor y tener la cola de preguntas en "
-            "uno y la urna en otro: cuando hay alguien moderando y alguien conduciendo, cada uno "
-            "mira lo suyo.\n\n"
-            "Los tres:\n"
-            "- `padron`: quienes vienen y quienes llegaron. Es el que va en el mostrador de la "
-            "entrada.\n"
-            "- `preguntas`: la cola del publico, para moderarla.\n"
-            "- `votacion`: la urna, para abrirla y cerrarla en vivo.\n\n"
-            "No saca nada de la ventana principal: abre otra vista de lo mismo, y las dos se "
-            "mantienen sincronizadas solas. Cerrarla no pierde nada.\n\n"
-            "Despues se la manda al monitor que corresponda con `ventana_mover`: la ventana se llama "
-            "`ba:panel:<id>` y `ventana_listar` la muestra. Si ese panel ya esta afuera, no se abre "
-            "otro igual.\n\n"
-            "El operador hace lo mismo con el boton ⧉ del panel.";
+        t.details = "MAS FINO QUE `ui_page_window`, que saca una pagina entera. En un evento esa es la "
+                    "diferencia entre tener «Publico» en el segundo monitor y tener la cola de preguntas en "
+                    "uno y la urna en otro: cuando hay alguien moderando y alguien conduciendo, cada uno "
+                    "mira lo suyo.\n\n"
+                    "Los tres:\n"
+                    "- `padron`: quienes vienen y quienes llegaron. Es el que va en el mostrador de la "
+                    "entrada.\n"
+                    "- `preguntas`: la cola del publico, para moderarla.\n"
+                    "- `votacion`: la urna, para abrirla y cerrarla en vivo.\n\n"
+                    "No saca nada de la ventana principal: abre otra vista de lo mismo, y las dos se "
+                    "mantienen sincronizadas solas. Cerrarla no pierde nada.\n\n"
+                    "Despues se la manda al monitor que corresponda con `ventana_mover`: la ventana se llama "
+                    "`ba:panel:<id>` y `ventana_listar` la muestra. Si ese panel ya esta afuera, no se abre "
+                    "otro igual.\n\n"
+                    "El operador hace lo mismo con el boton ⧉ del panel.";
         t.inputSchema = {
             {"type", "object"},
             {"required", {"panel"}},
             {"properties",
-             {{"panel",
-               {{"type", "string"}, {"enum", {"padron", "preguntas", "votacion", "carrusel"}}}}}}};
+             {{"panel", {{"type", "string"}, {"enum", {"padron", "preguntas", "votacion", "carrusel"}}}}}}};
         t.examples = {R"({"panel": "preguntas"})"};
         t.run = [self](const json& a, Done done) {
             QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;
             if (w == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
             const std::string id = a["panel"].get<std::string>();
-            const QString titulo = id == "padron"    ? "Padrón"
-                                 : id == "preguntas" ? "Preguntas"
-                                 : id == "carrusel"  ? "Carrusel"
-                                                     : "Votación";
+            const QString titulo = id == "padron"      ? "Padrón"
+                                   : id == "preguntas" ? "Preguntas"
+                                   : id == "carrusel"  ? "Carrusel"
+                                                       : "Votación";
             QMetaObject::invokeMethod(w, "sacarPanel", Q_ARG(QVariant, QString::fromStdString(id)),
                                       Q_ARG(QVariant, titulo));
-            done(ToolResult::ok("\"" + titulo.toStdString() +
-                                "\" abierto en su propia ventana (ba:panel:" + id +
-                                "). Con `ventana_mover` se la manda al monitor que corresponda."));
+            done(ToolResult::ok("\"" + titulo.toStdString() + "\" abierto en su propia ventana (ba:panel:" +
+                                id + "). Con `ventana_mover` se la manda al monitor que corresponda."));
         };
         core_.addTool(std::move(t));
     }
@@ -413,8 +409,8 @@ void McpService::registerUiTools() {
                     if (!p.is_string()) continue;
                     const int pagina = paginaDeId(vm, p.get<std::string>());
                     if (pagina < 0)
-                        return done(ToolResult::error("No conozco la pagina \"" +
-                                                      p.get<std::string>() + "\"."));
+                        return done(
+                            ToolResult::error("No conozco la pagina \"" + p.get<std::string>() + "\"."));
                     riel->setVisible(pagina, ver);
                 }
             }
@@ -443,15 +439,13 @@ void McpService::registerUiTools() {
         t.title = "Registros";
         t.category = "sistema";
         t.readOnly = true;
-        t.description =
-            "Ultimas lineas CRUDAS de un archivo de Logs/, tal como esta escrito.";
-        t.details =
-            "Para diagnosticar, usa `log_leer`: lee los mismos archivos pero ya partidos en hora, "
-            "nivel, modulo y descripcion, entrelazando los tres procesos y con filtros. Esto sirve "
-            "cuando hace falta ver el archivo TAL CUAL, sin interpretar: por ejemplo "
-            "cloudflared.log, que lo escribe un programa de terceros con su propio formato.\n\n"
-            "Los archivos: app.log (Proceso A), gateway.log (Proceso B), graficos.log, "
-            "launcher.log (supervisor) y cloudflared.log (tunel).";
+        t.description = "Ultimas lineas CRUDAS de un archivo de Logs/, tal como esta escrito.";
+        t.details = "Para diagnosticar, usa `log_leer`: lee los mismos archivos pero ya partidos en hora, "
+                    "nivel, modulo y descripcion, entrelazando los tres procesos y con filtros. Esto sirve "
+                    "cuando hace falta ver el archivo TAL CUAL, sin interpretar: por ejemplo "
+                    "cloudflared.log, que lo escribe un programa de terceros con su propio formato.\n\n"
+                    "Los archivos: app.log (Proceso A), gateway.log (Proceso B), graficos.log, "
+                    "launcher.log (supervisor) y cloudflared.log (tunel).";
         t.inputSchema = {
             {"type", "object"},
             {"properties",

@@ -105,8 +105,8 @@ struct DiarioDeArranque::Impl {
     mutable std::mutex m;
     fs::path archivo;
     int arranque = 1;
-    std::string cargando;  ///< lo que se está cargando AHORA
-    std::string culpable;  ///< lo que quedó a medias la vez anterior
+    std::string cargando; ///< lo que se está cargando AHORA
+    std::string culpable; ///< lo que quedó a medias la vez anterior
     std::map<std::string, int> roturas;
     std::set<std::string> apagados;
     bool modoSeguro = false; ///< transitorio: NO se escribe

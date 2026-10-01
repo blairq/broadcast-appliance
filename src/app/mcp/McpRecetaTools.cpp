@@ -67,8 +67,8 @@ json conParametros(const json& v, const json& par) {
         std::string s = v.get<std::string>();
         for (auto it = par.begin(); it != par.end(); ++it) {
             const std::string marca = "{" + it.key() + "}";
-            const std::string valor = it.value().is_string() ? it.value().get<std::string>()
-                                                             : it.value().dump();
+            const std::string valor =
+                it.value().is_string() ? it.value().get<std::string>() : it.value().dump();
             for (std::size_t p = s.find(marca); p != std::string::npos; p = s.find(marca, p))
                 s.replace(p, marca.size(), valor);
         }
@@ -76,12 +76,14 @@ json conParametros(const json& v, const json& par) {
     }
     if (v.is_object()) {
         json o = json::object();
-        for (auto it = v.begin(); it != v.end(); ++it) o[it.key()] = conParametros(it.value(), par);
+        for (auto it = v.begin(); it != v.end(); ++it)
+            o[it.key()] = conParametros(it.value(), par);
         return o;
     }
     if (v.is_array()) {
         json a = json::array();
-        for (const json& e : v) a.push_back(conParametros(e, par));
+        for (const json& e : v)
+            a.push_back(conParametros(e, par));
         return a;
     }
     return v;
@@ -106,9 +108,7 @@ void McpService::registerRecetaTools() {
         t.description = "Que recetas hay disponibles para correr, con su nombre.";
         t.details = "Antes de armar una nueva, fijate si ya hay una que haga eso: repetidas, "
                     "despues nadie sabe cual es la buena.";
-        t.run = [&rt](const json&, Done done) {
-            done(ToolResult().data(json{{"recetas", leer(rt)}}));
-        };
+        t.run = [&rt](const json&, Done done) { done(ToolResult().data(json{{"recetas", leer(rt)}})); };
         core_.addTool(std::move(t));
     }
 
@@ -117,26 +117,29 @@ void McpService::registerRecetaTools() {
         t.name = "receta_guardar";
         t.title = "Guardar una receta";
         t.category = "recetas";
-        t.description = "GUARDA una receta: una secuencia de pasos para repetirla despues igual. Guarda (o reemplaza) una serie de pasos con un nombre.";
-        t.details =
-            "Un paso es `{ \"tool\": \"<herramienta>\", \"args\": { ... } }`. Los pasos corren EN "
-            "ORDEN y si uno falla la receta se frena ahi.\n\n"
-            "Los textos de `args` aceptan `{parametros}` entre llaves, que se reemplazan al "
-            "correrla: asi una misma receta sirve para todos los casos en vez de una por orador.\n\n"
-            "Ejemplo, la apertura de un bloque:\n\n"
-            "    pasos: [\n"
-            "      { \"tool\": \"scene_switch\",   \"args\": { \"name\": \"Camara 1\" } },\n"
-            "      { \"tool\": \"grafico_mostrar\", \"args\": { \"fuente\": 1, \"nombre\": \"placa-titulo\",\n"
-            "                                                \"parametros\": { \"titulo\": \"{titulo}\" } } },\n"
-            "      { \"tool\": \"record_start\",    \"args\": {} }\n"
-            "    ]\n\n"
-            "NO hay condiciones, bucles ni recetas que llamen a recetas: eso ya es un programa, y un "
-            "programa que corre en vivo no lo depura nadie a las ocho de la noche. Si hay que "
-            "decidir algo, decidilo vos y despues llama a la receta que corresponda.";
+        t.description = "GUARDA una receta: una secuencia de pasos para repetirla despues igual. Guarda (o "
+                        "reemplaza) una serie de pasos con un nombre.";
+        t.details = "Un paso es `{ \"tool\": \"<herramienta>\", \"args\": { ... } }`. Los pasos corren EN "
+                    "ORDEN y si uno falla la receta se frena ahi.\n\n"
+                    "Los textos de `args` aceptan `{parametros}` entre llaves, que se reemplazan al "
+                    "correrla: asi una misma receta sirve para todos los casos en vez de una por orador.\n\n"
+                    "Ejemplo, la apertura de un bloque:\n\n"
+                    "    pasos: [\n"
+                    "      { \"tool\": \"scene_switch\",   \"args\": { \"name\": \"Camara 1\" } },\n"
+                    "      { \"tool\": \"grafico_mostrar\", \"args\": { \"fuente\": 1, \"nombre\": "
+                    "\"placa-titulo\",\n"
+                    "                                                \"parametros\": { \"titulo\": "
+                    "\"{titulo}\" } } },\n"
+                    "      { \"tool\": \"record_start\",    \"args\": {} }\n"
+                    "    ]\n\n"
+                    "NO hay condiciones, bucles ni recetas que llamen a recetas: eso ya es un programa, y un "
+                    "programa que corre en vivo no lo depura nadie a las ocho de la noche. Si hay que "
+                    "decidir algo, decidilo vos y despues llama a la receta que corresponda.";
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"id", {{"type", "string"}, {"description", "Corto y sin espacios. Si ya existe, la reemplaza."}}},
+             {{"id",
+               {{"type", "string"}, {"description", "Corto y sin espacios. Si ya existe, la reemplaza."}}},
               {"nombre", {{"type", "string"}}},
               {"descripcion", {{"type", "string"}, {"description", "Que hace y cuando conviene usarla."}}},
               {"pasos", {{"type", "array"}, {"items", {{"type", "object"}}}}}}},
@@ -150,7 +153,8 @@ void McpService::registerRecetaTools() {
             // paso no existe en vivo, a mitad de la receta, es el peor momento.
             for (const json& p : a["pasos"]) {
                 if (!p.is_object() || !p.contains("tool") || !p["tool"].is_string())
-                    return done(ToolResult::error("Cada paso necesita `tool` con el nombre de una herramienta."));
+                    return done(
+                        ToolResult::error("Cada paso necesita `tool` con el nombre de una herramienta."));
                 const std::string n = p["tool"].get<std::string>();
                 if (n.rfind("receta_", 0) == 0)
                     return done(ToolResult::error(
@@ -173,8 +177,8 @@ void McpService::registerRecetaTools() {
                 }
             if (!reemplazo) recetas.push_back(nueva);
             if (!escribir(rt, recetas)) return done(ToolResult::error("No se pudo guardar."));
-            done(ToolResult::ok((reemplazo ? "Receta reemplazada: " : "Receta guardada: ") + id +
-                                " (" + std::to_string(a["pasos"].size()) + " pasos)."));
+            done(ToolResult::ok((reemplazo ? "Receta reemplazada: " : "Receta guardada: ") + id + " (" +
+                                std::to_string(a["pasos"].size()) + " pasos)."));
         };
         core_.addTool(std::move(t));
     }
@@ -186,9 +190,8 @@ void McpService::registerRecetaTools() {
         t.category = "recetas";
         t.destructive = true;
         t.description = "Saca una receta de la lista.";
-        t.inputSchema = {{"type", "object"},
-                         {"properties", {{"id", {{"type", "string"}}}}},
-                         {"required", {"id"}}};
+        t.inputSchema = {
+            {"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}, {"required", {"id"}}};
         t.run = [&rt](const json& a, Done done) {
             const std::string id = a["id"].get<std::string>();
             json recetas = leer(rt);
@@ -209,17 +212,14 @@ void McpService::registerRecetaTools() {
         t.title = "Correr una receta";
         t.category = "recetas";
         t.description = "Ejecuta los pasos de una receta, en orden.";
-        t.details =
-            "Si un paso falla, SE FRENA AHI y te dice cual y por que: en vivo, seguir dejaria el "
-            "sistema a mitad de camino y sin que nadie sepa donde.\n\n"
-            "`parametros` reemplaza los `{...}` de los pasos.\n\n"
-            "Cada paso pasa por el mismo camino que si lo llamaras vos: se validan los argumentos, "
-            "se pide aprobacion humana si la politica lo exige y la interfaz se entera. Una receta "
-            "no puede hacer nada que no puedas hacer paso a paso.";
+        t.details = "Si un paso falla, SE FRENA AHI y te dice cual y por que: en vivo, seguir dejaria el "
+                    "sistema a mitad de camino y sin que nadie sepa donde.\n\n"
+                    "`parametros` reemplaza los `{...}` de los pasos.\n\n"
+                    "Cada paso pasa por el mismo camino que si lo llamaras vos: se validan los argumentos, "
+                    "se pide aprobacion humana si la politica lo exige y la interfaz se entera. Una receta "
+                    "no puede hacer nada que no puedas hacer paso a paso.";
         t.inputSchema = {{"type", "object"},
-                         {"properties",
-                          {{"id", {{"type", "string"}}},
-                           {"parametros", {{"type", "object"}}}}},
+                         {"properties", {{"id", {{"type", "string"}}}, {"parametros", {{"type", "object"}}}}},
                          {"required", {"id"}}};
         t.run = [&rt, &core](const json& a, Done done) {
             const std::string id = a["id"].get<std::string>();
@@ -228,9 +228,8 @@ void McpService::registerRecetaTools() {
                 if (r.value("id", std::string()) == id) receta = r;
             if (receta.is_null()) return done(ToolResult::error("No existe la receta \"" + id + "\"."));
 
-            const json par = a.contains("parametros") && a["parametros"].is_object()
-                                 ? a["parametros"]
-                                 : json::object();
+            const json par =
+                a.contains("parametros") && a["parametros"].is_object() ? a["parametros"] : json::object();
             auto pasos = std::make_shared<json>(receta["pasos"]);
             auto hechos = std::make_shared<json>(json::array());
             auto i = std::make_shared<std::size_t>(0);
@@ -250,25 +249,24 @@ void McpService::registerRecetaTools() {
                 json args = paso.contains("args") ? conParametros(paso["args"], par) : json::object();
                 const std::size_t nro = *i + 1;
                 ++(*i);
-                core.callTool(json{{"name", tool}, {"arguments", args}},
-                              [hechos, nro, tool, id, done, siguiente](json r) {
-                                  const bool malo = r.value("isError", false);
-                                  std::string texto;
-                                  if (r.contains("content") && r["content"].is_array() &&
-                                      !r["content"].empty())
-                                      texto = r["content"][0].value("text", std::string());
-                                  hechos->push_back(json{{"paso", nro}, {"tool", tool},
-                                                         {"ok", !malo}, {"dijo", texto}});
-                                  if (malo) {
-                                      done(ToolResult::error(
-                                          "La receta \"" + id + "\" se freno en el paso " +
-                                          std::to_string(nro) + " (" + tool + "): " + texto +
-                                          ". Lo anterior YA se hizo."));
-                                      return;
-                                  }
-                                  (*siguiente)();
-                              },
-                              CallContext{});
+                core.callTool(
+                    json{{"name", tool}, {"arguments", args}},
+                    [hechos, nro, tool, id, done, siguiente](json r) {
+                        const bool malo = r.value("isError", false);
+                        std::string texto;
+                        if (r.contains("content") && r["content"].is_array() && !r["content"].empty())
+                            texto = r["content"][0].value("text", std::string());
+                        hechos->push_back(
+                            json{{"paso", nro}, {"tool", tool}, {"ok", !malo}, {"dijo", texto}});
+                        if (malo) {
+                            done(ToolResult::error("La receta \"" + id + "\" se freno en el paso " +
+                                                   std::to_string(nro) + " (" + tool + "): " + texto +
+                                                   ". Lo anterior YA se hizo."));
+                            return;
+                        }
+                        (*siguiente)();
+                    },
+                    CallContext{});
             };
             (*siguiente)();
         };

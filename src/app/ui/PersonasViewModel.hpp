@@ -35,7 +35,7 @@ namespace ba::rostros {
 struct Cara;
 class Motor;
 class Personas;
-}
+} // namespace ba::rostros
 
 namespace ba::app {
 
@@ -77,7 +77,7 @@ class PersonasViewModel : public QObject {
     /// Lo llena `mirar()` cuando el otro hilo contesta.
     Q_PROPERTY(QVariantList vistos READ vistos NOTIFY vistosCambio)
 
-  public:
+   public:
     PersonasViewModel(AppRuntime& rt, StudioViewModel& vm, QObject* parent = nullptr);
     ~PersonasViewModel() override;
 
@@ -129,8 +129,7 @@ class PersonasViewModel : public QObject {
     ///
     /// :param descartable: true para una mirada periódica que se puede saltear
     ///        si ya hay otra en vuelo; false para lo que alguien espera.
-    using Analisis = std::function<void(std::vector<Reconocedor::Visto>, const QImage&,
-                                        const QString&)>;
+    using Analisis = std::function<void(std::vector<Reconocedor::Visto>, const QImage&, const QString&)>;
     void pedirAnalisis(const QString& feed, bool descartable, Analisis luego);
 
     /// La libreta EN USO, para quien tenga que trabajar sobre la misma y no
@@ -149,14 +148,14 @@ class PersonasViewModel : public QObject {
     QString carpetaFotos() const;
 #endif
 
-  signals:
+   signals:
     void cambio();
     void autoaltaCambio();
     void vistosCambio();
     void enLobbyCambio();
     void notify(const QString& texto, const QString& tipo);
 
-  private:
+   private:
     /// El motor de la página: mira `feed`, devuelve quién hay, y si
     /// `registrar` anota sola a la que no conoce. Lo usan la vista (sin
     /// registrar, salvo que el interruptor esté puesto en esa misma cámara) y
@@ -182,13 +181,13 @@ class PersonasViewModel : public QObject {
     /// hace pasar y lo avisa. Ver `evento::Invitado`.
     /// Deja constancia de que alguien llegó al lugar, si está en el padrón.
     void acreditarEnLaPuerta(const QString& personaId, const QString& nombre);
-    void dejarPasarSiCorresponde(const QString& uid, const QString& personaId,
-                                 const QString& nombre, float parecido, bool sirve);
+    void dejarPasarSiCorresponde(const QString& uid, const QString& personaId, const QString& nombre,
+                                 float parecido, bool sirve);
     /// Una cara que no cayó en ninguna ficha. Devuelve el id de la ficha nueva
     /// cuando la vio las veces suficientes como para creerle, o vacío si
     /// todavía la está mirando.
-    QString anotarDesconocida(const std::vector<float>& v, const QImage& img,
-                              const ba::rostros::Cara& c, std::int64_t ahora);
+    QString anotarDesconocida(const std::vector<float>& v, const QImage& img, const ba::rostros::Cara& c,
+                              std::int64_t ahora);
 #endif
     struct Impl;
     std::unique_ptr<Impl> d_;

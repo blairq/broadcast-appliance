@@ -14,6 +14,7 @@
 // ============================================================================
 
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <string>
 #include <thread>
@@ -34,14 +35,13 @@ int g_fallos = 0;
         }                                                                                                    \
     } while (0)
 
-const char* kDiscurso =
-    "Buenas tardes a todos.\n"
-    "Gracias por acompanarnos en esta fecha.\n"
-    "\n"
-    "Hace doscientos anos, en esta misma plaza, un grupo de vecinos decidio\n"
-    "que las cosas podian ser de otra manera.\n"
-    "\n"
-    "Muchas gracias.";
+const char* kDiscurso = "Buenas tardes a todos.\n"
+                        "Gracias por acompanarnos en esta fecha.\n"
+                        "\n"
+                        "Hace doscientos anos, en esta misma plaza, un grupo de vecinos decidio\n"
+                        "que las cosas podian ser de otra manera.\n"
+                        "\n"
+                        "Muchas gracias.";
 
 void contar() {
     CHECK(Prompter::contarPalabras("") == 0, "un texto vacio no tiene palabras");
@@ -73,13 +73,20 @@ void cambiar_velocidad_no_mueve() {
     p.cargar("x", kDiscurso);
     p.comandar(json{{"posicion", 10.0}});
     p.comandar(json{{"corriendo", true}});
-    // Cambiar la velocidad sin haber corrido nada no debe mover el texto.
+    // Cambiar la velocidad sin haber corrido nada no debe mover el texto. El
+    // prompter corre con el reloj real: entre un comando y el otro pasan unos
+    // ms (muchos mas con los sanitizers) y el texto avanza lo que corresponde a
+    // ese tiempo. Lo que se prueba es que NO SALTE: una palabra de margen es
+    // unos 300 ms a 200 ppm, y un salto seria de decenas.
+    const auto cerca = [](double pos) { return std::fabs(pos - 10.0) < 1.0; };
     p.comandar(json{{"ppm", 200}});
-    CHECK(p.estado()["posicion"].get<double>() == 10.0, "cambiar la velocidad deja el texto donde estaba");
+    CHECK(cerca(p.estado()["posicion"].get<double>()), "cambiar la velocidad deja el texto donde estaba");
     p.comandar(json{{"corriendo", false}});
-    CHECK(p.estado()["posicion"].get<double>() == 10.0, "parar tampoco lo mueve");
+    const double parado = p.estado()["posicion"].get<double>();
+    CHECK(cerca(parado), "parar tampoco lo mueve");
+    // Parado ya no corre el reloj: desde aca la posicion tiene que ser exacta.
     p.pararEnSeco();
-    CHECK(p.estado()["posicion"].get<double>() == 10.0, "el boton de panico lo deja donde esta");
+    CHECK(p.estado()["posicion"].get<double>() == parado, "el boton de panico lo deja donde esta");
     CHECK(p.estado()["corriendo"].get<bool>() == false, "y parado");
 }
 
@@ -87,7 +94,8 @@ void avanza_corriendo() {
     Prompter p;
     // Un texto largo para que no se termine durante la prueba.
     std::string largo;
-    for (int i = 0; i < 2000; ++i) largo += "palabra ";
+    for (int i = 0; i < 2000; ++i)
+        largo += "palabra ";
     p.cargar("largo", largo);
     // 300 palabras por minuto es el tope: 5 por segundo. Con 400 ms la
     // posicion tiene que haber avanzado unas 2 palabras, que alcanza para ver

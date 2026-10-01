@@ -21,7 +21,8 @@ constexpr int kRondaMs = 2000;
 
 QVariantList aLista(const QJsonArray& a) {
     QVariantList out;
-    for (const QJsonValue& v : a) out.append(v.toVariant());
+    for (const QJsonValue& v : a)
+        out.append(v.toVariant());
     return out;
 }
 
@@ -80,11 +81,9 @@ void PublicoViewModel::consultar() {
 
 void PublicoViewModel::moderar(const QString& accion, const QString& id) {
     if (sala_ == nullptr) return;
-    sala_->client().post("/api/v1/preguntas",
-                         QJsonObject{{"accion", accion}, {"id", id}},
+    sala_->client().post("/api/v1/preguntas", QJsonObject{{"accion", accion}, {"id", id}},
                          [this](bool ok, const QJsonObject& r) {
-                             if (!ok)
-                                 return emit notify("No pude hablar con la sala.", "error");
+                             if (!ok) return emit notify("No pude hablar con la sala.", "error");
                              preguntas_ = aLista(r.value("preguntas").toArray());
                              recuento_ = r.value("recuento").toObject().toVariantMap();
                              emit cambio();
@@ -123,8 +122,8 @@ void PublicoViewModel::abrirVotacion(const QString& pregunta, const QStringList&
     QJsonArray hs;
     for (const QVariant& h : habilitados) {
         const QVariantMap m = h.toMap();
-        hs.append(QJsonObject{{"codigo", m.value("codigo").toString()},
-                              {"nombre", m.value("nombre").toString()}});
+        hs.append(
+            QJsonObject{{"codigo", m.value("codigo").toString()}, {"nombre", m.value("nombre").toString()}});
     }
     sala_->client().post("/api/v1/votacion",
                          QJsonObject{{"accion", "abrir"},
@@ -155,8 +154,7 @@ void PublicoViewModel::cerrarVotacion() {
 
 void PublicoViewModel::mostrarEnVivo(bool si) {
     if (sala_ == nullptr) return;
-    sala_->client().post("/api/v1/votacion",
-                         QJsonObject{{"accion", "en_vivo"}, {"si", si}},
+    sala_->client().post("/api/v1/votacion", QJsonObject{{"accion", "en_vivo"}, {"si", si}},
                          [this](bool ok, const QJsonObject& r) {
                              if (!ok) return;
                              votacion_ = r.value("votacion").toObject().toVariantMap();

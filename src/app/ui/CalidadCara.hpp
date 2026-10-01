@@ -34,11 +34,11 @@ namespace ba::app {
 // que cuenta es cuánto detalle le llega al modelo.
 struct Calidad {
     int altoPx = 0;
-    double nitidez = 0;   ///< varianza del laplaciano, a 112 px
-    double luz = 0;       ///< brillo medio 0..255
-    double giro = 0;      ///< 0 de frente; |giro| > 0.25 ya está girada
+    double nitidez = 0;     ///< varianza del laplaciano, a 112 px
+    double luz = 0;         ///< brillo medio 0..255
+    double giro = 0;        ///< 0 de frente; |giro| > 0.25 ya está girada
     double inclinacion = 0; ///< grados de la línea de los ojos
-    bool cortada = false; ///< el recuadro toca el borde del cuadro
+    bool cortada = false;   ///< el recuadro toca el borde del cuadro
     float confianza = 0;
     std::string sugerencia; ///< qué pedirle, en palabras que se le puedan decir
     bool sirve = false;

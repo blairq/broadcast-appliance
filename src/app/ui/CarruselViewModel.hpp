@@ -69,7 +69,7 @@ class CarruselViewModel : public QObject {
     Q_PROPERTY(int hecho READ hecho NOTIFY progreso)
     Q_PROPERTY(int total READ total NOTIFY progreso)
 
-  public:
+   public:
     explicit CarruselViewModel(AppRuntime& rt, QObject* parent = nullptr);
     ~CarruselViewModel() override;
 
@@ -132,14 +132,14 @@ class CarruselViewModel : public QObject {
     /// .pptx sólo si el bundle trae LibreOffice.
     Q_INVOKABLE bool sePuedeDesarmar(const QString& archivo) const;
 
-  signals:
+   signals:
     void cambio();
     void posicionCambio();
     void enEscenaCambio();
     void progreso();
     void notify(const QString& texto, const QString& tipo);
 
-  private:
+   private:
     QString carpetaDe(const QString& nombre) const;
     /// Le pasa a la fuente de la escena la lámina en la que está parado. Es lo
     /// único que hace que el carrusel se VEA.

@@ -41,9 +41,9 @@ namespace ba::app::agent {
 /// se ofrece como si fuera un modelo distinto, que es como se elige en la
 /// interfaz y por rol.
 struct Canal {
-    std::string id;       ///< corto, para el nombre del proveedor ("primary")
-    std::string nombre;   ///< cómo mostrarlo (vacío = el id)
-    nlohmann::json extra; ///< las opciones, tal cual, al proveedor de opencode
+    std::string id;        ///< corto, para el nombre del proveedor ("primary")
+    std::string nombre;    ///< cómo mostrarlo (vacío = el id)
+    nlohmann::json extra;  ///< las opciones, tal cual, al proveedor de opencode
     nlohmann::json limite; ///< {context, output}, si tu servidor los declara
     /// Lo que hay que decirle A ESTE modelo, además del prompt del sistema.
     ///

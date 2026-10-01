@@ -48,7 +48,11 @@ struct Conversor::Impl {
     bool corriendo = false;
 
     void limpiar() {
-        if (proc) { proc->kill(); proc->deleteLater(); proc = nullptr; }
+        if (proc) {
+            proc->kill();
+            proc->deleteLater();
+            proc = nullptr;
+        }
         pdf.reset();
         temporal.reset();
         corriendo = false;
@@ -62,9 +66,7 @@ Conversor::~Conversor() {
     delete d_;
 }
 
-bool Conversor::esDocumento(const QString& archivo) {
-    return kExtensiones.contains(extension(archivo));
-}
+bool Conversor::esDocumento(const QString& archivo) { return kExtensiones.contains(extension(archivo)); }
 
 bool Conversor::necesitaOffice(const QString& archivo) {
     return esDocumento(archivo) && extension(archivo) != "pdf";
@@ -78,12 +80,16 @@ QString Conversor::soffice() {
 
     QStringList velas;
     const QString dir = QCoreApplication::applicationDirPath();
+    // En macOS es una .app. SIEMPRE la que viaja con nosotros: nunca la de
+    // /Applications, que en otra Mac puede no estar (el aparato es portable).
     for (const QString& base : {dir + "/libreoffice", dir + "/../libreoffice"})
-        velas << base + "/program/soffice" << base + "/program/soffice.exe";
+        velas << base + "/program/soffice" << base + "/program/soffice.exe"
+              << base + "/LibreOffice.app/Contents/MacOS/soffice";
 #ifdef BA_LIBREOFFICE_DIR
     // El árbol de extern/, para correr desde el directorio de compilación.
     velas << QString(BA_LIBREOFFICE_DIR) + "/program/soffice"
-          << QString(BA_LIBREOFFICE_DIR) + "/program/soffice.exe";
+          << QString(BA_LIBREOFFICE_DIR) + "/program/soffice.exe"
+          << QString(BA_LIBREOFFICE_DIR) + "/LibreOffice.app/Contents/MacOS/soffice";
 #endif
     for (const QString& c : velas)
         if (QFileInfo(c).isExecutable()) return QFileInfo(c).absoluteFilePath();
@@ -100,10 +106,22 @@ void Conversor::cancelar() {
 }
 
 void Conversor::convertir(const QString& archivo, const QString& destino, int anchoPx) {
-    if (d_->corriendo) { emit fallo("ya hay una conversión en curso"); return; }
-    if (!QFileInfo::exists(archivo)) { emit fallo("no existe: " + archivo); return; }
-    if (!esDocumento(archivo)) { emit fallo("no sé desarmar " + extension(archivo)); return; }
-    if (!QDir().mkpath(destino)) { emit fallo("no puedo escribir en " + destino); return; }
+    if (d_->corriendo) {
+        emit fallo("ya hay una conversión en curso");
+        return;
+    }
+    if (!QFileInfo::exists(archivo)) {
+        emit fallo("no existe: " + archivo);
+        return;
+    }
+    if (!esDocumento(archivo)) {
+        emit fallo("no sé desarmar " + extension(archivo));
+        return;
+    }
+    if (!QDir().mkpath(destino)) {
+        emit fallo("no puedo escribir en " + destino);
+        return;
+    }
 
     d_->cancelado = false;
     d_->corriendo = true;
@@ -112,7 +130,10 @@ void Conversor::convertir(const QString& archivo, const QString& destino, int an
     d_->ancho = anchoPx > 0 ? anchoPx : 1920;
     d_->pagina = 0;
 
-    if (!necesitaOffice(archivo)) { arrancarPaginas(archivo); return; }
+    if (!necesitaOffice(archivo)) {
+        arrancarPaginas(archivo);
+        return;
+    }
 
     const QString bin = soffice();
     if (bin.isEmpty()) {
@@ -153,17 +174,17 @@ void Conversor::convertir(const QString& archivo, const QString& destino, int an
 #endif
     // El perfil va al temporal: sin esto, dos conversiones a la vez chocan por
     // el mismo ~/.config y la segunda muere sin decir por qué.
-    d_->proc->setArguments({"--headless", "--norestore", "--invisible",
-                            // CODIFICADA. `toString()` deja los espacios tal cual y la
-                            // carpeta temporal lleva el nombre de la app: «Broadcast
-                            // Appliance», con espacio. LibreOffice recibia
-                            // `file:///tmp/Broadcast Appliance-xxxx/perfil`, no podia armar
-                            // el perfil y se moria con un `RuntimeException` de UNO sin decir
-                            // una palabra. Desde una terminal andaba, y el test tambien,
-                            // porque ahi el nombre del programa no tiene espacios.
-                            "-env:UserInstallation=" +
-                                QUrl::fromLocalFile(tmp + "/perfil").toString(QUrl::FullyEncoded),
-                            "--convert-to", "pdf", "--outdir", tmp, archivo});
+    d_->proc->setArguments(
+        {"--headless", "--norestore", "--invisible",
+         // CODIFICADA. `toString()` deja los espacios tal cual y la
+         // carpeta temporal lleva el nombre de la app: «Broadcast
+         // Appliance», con espacio. LibreOffice recibia
+         // `file:///tmp/Broadcast Appliance-xxxx/perfil`, no podia armar
+         // el perfil y se moria con un `RuntimeException` de UNO sin decir
+         // una palabra. Desde una terminal andaba, y el test tambien,
+         // porque ahi el nombre del programa no tiene espacios.
+         "-env:UserInstallation=" + QUrl::fromLocalFile(tmp + "/perfil").toString(QUrl::FullyEncoded),
+         "--convert-to", "pdf", "--outdir", tmp, archivo});
     d_->proc->setProgram(bin);
 
     // ENTORNO LIMPIO, Y A PROPOSITO. El hijo heredaba el de la app entera
@@ -175,9 +196,8 @@ void Conversor::convertir(const QString& archivo, const QString& destino, int an
     // aparato.
     QProcessEnvironment limpio;
     const QProcessEnvironment heredado = QProcessEnvironment::systemEnvironment();
-    for (const QString& k : {QStringLiteral("PATH"), QStringLiteral("HOME"),
-                             QStringLiteral("USER"), QStringLiteral("LOGNAME"),
-                             QStringLiteral("TMPDIR"), QStringLiteral("LANG")})
+    for (const QString& k : {QStringLiteral("PATH"), QStringLiteral("HOME"), QStringLiteral("USER"),
+                             QStringLiteral("LOGNAME"), QStringLiteral("TMPDIR"), QStringLiteral("LANG")})
         if (heredado.contains(k)) limpio.insert(k, heredado.value(k));
     if (!limpio.contains("HOME")) limpio.insert("HOME", tmp);
     // Sin pantalla: es headless y pedirle una X que puede no estar es una
@@ -191,7 +211,9 @@ void Conversor::convertir(const QString& archivo, const QString& destino, int an
 
     const QString esperado = tmp + "/" + QFileInfo(archivo).completeBaseName() + ".pdf";
     connect(d_->proc, &QProcess::finished, this, [this, esperado](int, QProcess::ExitStatus) {
-        if (d_->cancelado) return;
+        // Sin proceso ya se aviso (se corto por tiempo): leer su salida seria
+        // usar un puntero nulo.
+        if (d_->cancelado || !d_->proc) return;
         // El código de salida miente: LibreOffice contesta 0 aunque no haya
         // escrito nada. Lo que vale es si el PDF está.
         if (!QFileInfo::exists(esperado)) {
@@ -207,8 +229,11 @@ void Conversor::convertir(const QString& archivo, const QString& destino, int an
         }
         arrancarPaginas(esperado);
     });
-    connect(d_->proc, &QProcess::errorOccurred, this, [this](QProcess::ProcessError) {
-        if (d_->cancelado) return;
+    connect(d_->proc, &QProcess::errorOccurred, this, [this](QProcess::ProcessError e) {
+        // Si se cayo, despues llega finished, que avisa con lo que dijo
+        // LibreOffice. Limpiar aca borraba el proceso que finished iba a leer
+        // (se vio con Wine, pero un LibreOffice que se cae tumbaba la app igual).
+        if (d_->cancelado || e == QProcess::Crashed) return;
         d_->limpiar();
         emit fallo("no se pudo arrancar LibreOffice");
     });

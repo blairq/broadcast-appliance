@@ -44,8 +44,7 @@ void abrir() {
     CHECK(!v.abrir("", kSiNo, Votacion::Modo::Encuesta, false, {}, 0, 1), "sin pregunta no abre");
     CHECK(!v.abrir("¿Aprobamos?", {"Solo una"}, Votacion::Modo::Encuesta, false, {}, 0, 1),
           "con una sola opcion no hay nada que decidir");
-    CHECK(!v.abrir("¿Aprobamos?", {}, Votacion::Modo::Encuesta, false, {}, 0, 1),
-          "sin opciones tampoco");
+    CHECK(!v.abrir("¿Aprobamos?", {}, Votacion::Modo::Encuesta, false, {}, 0, 1), "sin opciones tampoco");
     CHECK(v.abrir("¿Aprobamos el balance?", kSiNo, Votacion::Modo::Encuesta, false, {}, 0, 1000),
           "con pregunta y dos opciones, si");
     CHECK(v.hayAbierta(), "queda abierta");
@@ -70,8 +69,7 @@ void encuesta() {
     CHECK(v.votar("tel-2", "", 1).empty(), "vota otro");
     json e = v.estado();
     CHECK(e["votaron"] == 2, "votaron dos");
-    CHECK(votosDe(e["resultado"], "Uno") == 1 && votosDe(e["resultado"], "Dos") == 1,
-          "uno por lado");
+    CHECK(votosDe(e["resultado"], "Uno") == 1 && votosDe(e["resultado"], "Dos") == 1, "uno por lado");
 
     // Volver a votar CAMBIA, no suma: el que se equivoco de boton tiene que
     // poder arreglarlo.

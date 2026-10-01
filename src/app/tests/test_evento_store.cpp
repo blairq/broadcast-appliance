@@ -177,10 +177,10 @@ void revisar_archivos() {
         c.datos = nlohmann::json{{clave, valor}};
         return c;
     };
-    b.cues.push_back(cue(Tipo::Musica, "archivo", "himno.wav"));            // 0: existe
+    b.cues.push_back(cue(Tipo::Musica, "archivo", "himno.wav"));               // 0: existe
     b.cues.push_back(cue(Tipo::Video, "archivo", "Medios/institucional.mp4")); // 1: falta
-    b.cues.push_back(cue(Tipo::Teleprompter, "discurso", "intendente.txt")); // 2: vacio
-    b.cues.push_back(cue(Tipo::Musica, "archivo", "../../se-escapa.wav"));   // 3: se escapa
+    b.cues.push_back(cue(Tipo::Teleprompter, "discurso", "intendente.txt"));   // 2: vacio
+    b.cues.push_back(cue(Tipo::Musica, "archivo", "../../se-escapa.wav"));     // 3: se escapa
     e.bloques.push_back(b);
 
     {
@@ -196,7 +196,8 @@ void revisar_archivos() {
           "un archivo de cero bytes es un problema, no un archivo");
     CHECK(rs[2].cue == 3 && rs[2].texto.find("fuera de") != std::string::npos,
           "un guion no puede hacer que se lea fuera de su carpeta");
-    for (const Reparo& r : rs) CHECK(r.grave, "los tres impiden correr el guion");
+    for (const Reparo& r : rs)
+        CHECK(r.grave, "los tres impiden correr el guion");
 
     // Parar la musica no necesita archivo: no se revisa.
     Evento e2;

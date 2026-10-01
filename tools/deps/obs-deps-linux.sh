@@ -25,6 +25,8 @@
 # Uso: tools/deps/obs-deps-linux.sh [JOBS]   (idempotente: centinelas por paquete)
 # ============================================================================
 set -euo pipefail
+# macOS no trae sha256sum (shasum -a 256 da el mismo formato).
+command -v sha256sum >/dev/null 2>&1 || sha256sum() { shasum -a 256 "$@"; }
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 DL="$ROOT/extern/.downloads"

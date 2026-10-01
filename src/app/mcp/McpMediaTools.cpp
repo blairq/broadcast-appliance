@@ -245,7 +245,8 @@ void McpService::registerMediaTools() {
         t.title = "Usar un archivo de medios en una escena";
         t.category = "medios";
         t.description =
-            "PONE un archivo —musica de fondo, un video, una imagen— en una escena. Pone una imagen (logo, placa, fondo), un video o un audio de las carpetas de medios en una "
+            "PONE un archivo —musica de fondo, un video, una imagen— en una escena. Pone una imagen (logo, "
+            "placa, fondo), un video o un audio de las carpetas de medios en una "
             "escena, "
             "en la ubicacion pedida (preset como pip-tr = arriba a la derecha, o {x,y,w,h}). Las imagenes "
             "conservan su proporcion dentro del lugar. Verifica con capture_source.";
@@ -343,13 +344,17 @@ void McpService::registerMediaTools() {
             {"required", {"accion"}},
             {"properties",
              {{"accion", {{"type", "string"}, {"enum", {"mover", "renombrar", "carpeta", "borrar"}}}},
-              {"que", {{"type", "string"},
-                       {"description", "ruta relativa del archivo o carpeta, como la da media_list"}}},
+              {"que",
+               {{"type", "string"},
+                {"description", "ruta relativa del archivo o carpeta, como la da media_list"}}},
               {"destino", {{"type", "string"}, {"description", "con accion=mover: la carpeta a donde va"}}},
-              {"nombre", {{"type", "string"},
-                          {"description", "con renombrar: el nombre nuevo. Con carpeta: como se llama"}}},
-              {"padre", {{"type", "string"}, {"default", "Media"},
-                         {"description", "con carpeta: adentro de cual se crea"}}}}}};
+              {"nombre",
+               {{"type", "string"},
+                {"description", "con renombrar: el nombre nuevo. Con carpeta: como se llama"}}},
+              {"padre",
+               {{"type", "string"},
+                {"default", "Media"},
+                {"description", "con carpeta: adentro de cual se crea"}}}}}};
         t.examples = {R"({"accion": "mover", "que": "Media/logo.png", "destino": "Media/logos"})",
                       R"({"accion": "carpeta", "padre": "Media", "nombre": "Sponsors"})"};
         t.run = [root, &vm](const json& a, Done done) {
@@ -364,8 +369,9 @@ void McpService::registerMediaTools() {
                 ok = medios::renombrar(root, que, QString::fromStdString(a.value("nombre", std::string())),
                                        &error);
             } else if (accion == "carpeta") {
-                ok = medios::crearCarpeta(root, QString::fromStdString(a.value("padre", std::string("Media"))),
-                                          QString::fromStdString(a.value("nombre", std::string())), &error);
+                ok =
+                    medios::crearCarpeta(root, QString::fromStdString(a.value("padre", std::string("Media"))),
+                                         QString::fromStdString(a.value("nombre", std::string())), &error);
             } else if (accion == "borrar") {
                 ok = medios::aPapelera(root, que, &error);
             } else {
@@ -380,8 +386,7 @@ void McpService::registerMediaTools() {
             // boton; ahora tambien lo cambia esto, y dejar la grilla mostrando
             // lo que ya no esta es peor que cualquier recorrida de mas.
             if (QObject* m = vm.medios()) QMetaObject::invokeMethod(m, "refrescar", Qt::QueuedConnection);
-            done(ToolResult::ok(accion == "borrar" ? "A la papelera (Papelera/), no se perdio."
-                                                   : "Listo."));
+            done(ToolResult::ok(accion == "borrar" ? "A la papelera (Papelera/), no se perdio." : "Listo."));
         };
         core_.addTool(std::move(t));
     }

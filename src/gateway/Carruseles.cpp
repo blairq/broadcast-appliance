@@ -54,7 +54,8 @@ json Carruseles::uno(const std::string& id) const {
 json Carruseles::todos() const {
     std::lock_guard<std::mutex> lock(m_);
     json out = json::array();
-    for (const auto& [id, c] : por_.items()) out.push_back(c);
+    for (const auto& [id, c] : por_.items())
+        out.push_back(c);
     return out;
 }
 

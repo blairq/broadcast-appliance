@@ -31,7 +31,6 @@ namespace {
 // Nombre fijo del archivo activo (spec §11.4: "Logs rotativos por proceso").
 constexpr const char* kActiveName = "ba.log";
 
-
 // Formatea un timestamp UTC con milisegundos: AAAA-MM-DDTHH:MM:SS.mmmZ.
 // Usa system_clock (wall clock) porque el objetivo es correlacionar logs de
 // varios procesos por hora real, no medir duraciones.
@@ -59,10 +58,9 @@ std::string timestampUtc() {
 
 // --- constructor ------------------------------------------------------------
 
-LogRotator::LogRotator(std::string dir, std::size_t maxBytes, std::size_t keepFiles,
-                       std::string nombre, bool conSelloDeTiempo)
-    : dir_(std::move(dir)), maxBytes_(maxBytes > 0 ? maxBytes : 1),
-      keepFiles_(keepFiles > 0 ? keepFiles : 1),
+LogRotator::LogRotator(std::string dir, std::size_t maxBytes, std::size_t keepFiles, std::string nombre,
+                       bool conSelloDeTiempo)
+    : dir_(std::move(dir)), maxBytes_(maxBytes > 0 ? maxBytes : 1), keepFiles_(keepFiles > 0 ? keepFiles : 1),
       nombre_(nombre.empty() ? kActiveName : std::move(nombre)), conSello_(conSelloDeTiempo) {
     std::error_code ec;
     std::filesystem::create_directories(dir_, ec);
@@ -145,8 +143,7 @@ void LogRotator::write(const std::string& line) {
         if (!out) {
             return; // no se pudo abrir: se descarta la linea
         }
-        const std::string stamped =
-            conSello_ ? "[" + timestampUtc() + "] " + line + "\n" : line + "\n";
+        const std::string stamped = conSello_ ? "[" + timestampUtc() + "] " + line + "\n" : line + "\n";
         out.write(stamped.data(), static_cast<std::streamsize>(stamped.size()));
         // El destructor de `out` cierra y flusha; no se fuerza fsync (control,
         // no RT): un corte de energia puede perder las ultimas lineas, aceptable.

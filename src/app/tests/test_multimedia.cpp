@@ -43,8 +43,14 @@ int main(int argc, char** argv) {
             std::printf("FALLO: duracion rara: %lld ms\n", p.duration());
             ++fallos;
         }
-        if (!p.hasVideo()) { std::printf("FALLO: no ve la imagen\n"); ++fallos; }
-        if (!p.hasAudio()) { std::printf("FALLO: no oye el sonido\n"); ++fallos; }
+        if (!p.hasVideo()) {
+            std::printf("FALLO: no ve la imagen\n");
+            ++fallos;
+        }
+        if (!p.hasAudio()) {
+            std::printf("FALLO: no oye el sonido\n");
+            ++fallos;
+        }
         app.quit();
     });
     QObject::connect(&p, &QMediaPlayer::errorOccurred, [&](QMediaPlayer::Error, const QString& t) {

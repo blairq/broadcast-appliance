@@ -79,8 +79,7 @@ QJsonObject Emisor::valoresPorDefecto(const QString& grafico) const {
     return out;
 }
 
-QJsonObject Emisor::pedido(const QString& grafico, const QJsonObject& valores,
-                           QString* error) const {
+QJsonObject Emisor::pedido(const QString& grafico, const QJsonObject& valores, QString* error) const {
     const auto falla = [error](const QString& m) {
         if (error != nullptr) *error = m;
         return QJsonObject{};
@@ -91,7 +90,8 @@ QJsonObject Emisor::pedido(const QString& grafico, const QJsonObject& valores,
     // Los valores que no vengan se completan con los de la ficha: el guion
     // suele traer solo el nombre del orador, no los cinco parámetros.
     QJsonObject v = valoresPorDefecto(grafico);
-    for (auto it = valores.begin(); it != valores.end(); ++it) v[it.key()] = it.value();
+    for (auto it = valores.begin(); it != valores.end(); ++it)
+        v[it.key()] = it.value();
 
     QJsonObject p{{"parametros", v}};
     if (f.contains("declarativo")) {
@@ -149,7 +149,8 @@ QString Emisor::reproducir(QJsonObject p, const QString& grafico, const QJsonObj
         QString err;
         const auto parte = d_->proc.tira(p, momentos, &err);
         if (!err.isEmpty()) return err;
-        for (const auto& c : parte) cuadros.push_back(c.imagen);
+        for (const auto& c : parte)
+            cuadros.push_back(c.imagen);
     }
     if (!graficos::reproducir(fuente, std::move(cuadros), kFps, repetir))
         return "no se pudo reproducir en esa fuente";

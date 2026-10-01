@@ -34,10 +34,10 @@
 namespace ba::rostros {
 
 struct Persona {
-    std::string id;       ///< estable; no cambia aunque se renombre
+    std::string id; ///< estable; no cambia aunque se renombre
     std::string nombre;
-    std::string cargo;    ///< lo que va en el rótulo ("Ministra de Salud")
-    std::string nota;     ///< para el operador ("entra por la puerta lateral")
+    std::string cargo; ///< lo que va en el rótulo ("Ministra de Salud")
+    std::string nota;  ///< para el operador ("entra por la puerta lateral")
     /// Nombre del archivo de su foto, al lado de la libreta ("p3f2a.jpg").
     /// Vacío = no tiene.
     ///
@@ -59,14 +59,14 @@ struct Persona {
 struct Coincidencia {
     std::string id;
     std::string nombre;
-    float parecido = 0;   ///< 0..1; ver kMismaPersona en Rostros.hpp
+    float parecido = 0; ///< 0..1; ver kMismaPersona en Rostros.hpp
 };
 
 /// La libreta. Se guarda en un JSON al lado de la configuración.
 ///
 /// No lanza: `leer`/`guardar` devuelven false y dejan el motivo en `error()`.
 class Personas {
-  public:
+   public:
     /// Lee el archivo. Si no existe, queda vacía y devuelve true: no tener
     /// libreta todavía no es un error.
     bool leer(const std::string& archivo);
@@ -128,7 +128,7 @@ class Personas {
     /// casi siempre repeticiones del mismo momento.
     static constexpr std::size_t kMaxCarasPorPersona = 12;
 
-  private:
+   private:
     std::vector<Persona> personas_;
     mutable std::string error_;
 };

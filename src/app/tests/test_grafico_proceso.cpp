@@ -23,10 +23,10 @@ namespace {
 int g_fallos = 0;
 #define CHECK(cond, msg)                                                                                     \
     do {                                                                                                     \
-        if (!(cond)) {                                                                                        \
+        if (!(cond)) {                                                                                       \
             std::printf("FALLO: %s (%s, linea %d)\n", msg, #cond, __LINE__);                                 \
-            ++g_fallos;                                                                                       \
-        }                                                                                                     \
+            ++g_fallos;                                                                                      \
+        }                                                                                                    \
     } while (0)
 
 QString escribir(const QTemporaryDir& dir, const QString& nombre, const QString& contenido) {
@@ -40,6 +40,15 @@ QString escribir(const QTemporaryDir& dir, const QString& nombre, const QString&
 } // namespace
 
 int main(int argc, char** argv) {
+    // Sin pantalla (CI, SSH) en Linux, offscreen: el mismo criterio que
+    // src/grafico/main.cpp. Sin esto QGuiApplication aborta al no encontrar
+    // display. En Windows y macOS no se toca: ahi offscreen no da OpenGL.
+#if !defined(_WIN32) && !defined(__APPLE__)
+    if (qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM") && qEnvironmentVariableIsEmpty("DISPLAY") &&
+        qEnvironmentVariableIsEmpty("WAYLAND_DISPLAY")) {
+        qputenv("QT_QPA_PLATFORM", "offscreen");
+    }
+#endif
     QGuiApplication app(argc, argv);
 
     // El binario esta al lado del de este test (build/src/grafico).
@@ -60,6 +69,14 @@ int main(int argc, char** argv) {
                                      "  Rectangle { anchors.fill: parent; color: \"#ff6a2b\" } }\n");
         QString err;
         const QImage img = g.dibujar(QJsonObject{{"qml", qml}, {"ancho", 200}, {"alto", 80}}, 0, &err);
+        // Sin OpenGL (un runner de CI sin drivers) no hay renderizador: se
+        // saltea, como los demas tests que necesitan graficos. Cualquier otro
+        // error es un fallo de verdad y se muestra.
+        if (err.contains("contexto de OpenGL")) {
+            std::printf("SKIP: sin OpenGL en esta maquina (%s)\n", qUtf8Printable(err));
+            return 77;
+        }
+        if (!err.isEmpty()) std::printf("error del renderizador: %s\n", qUtf8Printable(err));
         CHECK(err.isEmpty(), "sin error");
         CHECK(img.width() == 200 && img.height() == 80, "del tamaño pedido");
     }
@@ -86,8 +103,7 @@ int main(int argc, char** argv) {
 
     // --- 4) Se recupera ------------------------------------------------------
     {
-        const QString qml = escribir(dir, "ok2.qml",
-                                     "import QtQuick\nItem { width: 50; height: 50 }\n");
+        const QString qml = escribir(dir, "ok2.qml", "import QtQuick\nItem { width: 50; height: 50 }\n");
         QString err;
         const QImage img = g.dibujar(QJsonObject{{"qml", qml}, {"ancho", 50}, {"alto", 50}}, 0, &err);
         CHECK(err.isEmpty(), "despues de un corte, el pedido siguiente anda");

@@ -57,9 +57,17 @@ template <class F> bool esperar(F cond, int ms = 8000) {
     return cond();
 }
 
-json evento(const std::string& tipo, const json& notify = json::array({"llm"}), const json& data = json::object()) {
-    return json{{"id", 1},   {"ruleId", "a1"}, {"type", tipo},  {"text", "texto"}, {"llmText", "texto seguro"},
-                {"data", data}, {"atMs", 0},      {"notify", notify}, {"actions", json::array()}};
+json evento(const std::string& tipo, const json& notify = json::array({"llm"}),
+            const json& data = json::object()) {
+    return json{{"id", 1},
+                {"ruleId", "a1"},
+                {"type", tipo},
+                {"text", "texto"},
+                {"llmText", "texto seguro"},
+                {"data", data},
+                {"atMs", 0},
+                {"notify", notify},
+                {"actions", json::array()}};
 }
 
 std::string leer(const QString& path) {
@@ -107,15 +115,24 @@ int main(int argc, char** argv) {
         s << "#!/bin/sh\n"
              "printf '%s' \"$1\" > \"$PWD/encargo.txt\"\n"
              "[ -n \"$MOTOR_LENTO\" ] && sleep 30\n"
-             "printf '%s\\n' '{\"type\":\"system\",\"subtype\":\"init\",\"model\":\"falso-1\",\"tools\":[\"a\",\"b\"]}'\n"
-             "printf '%s\\n' '{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"Voy a mirar.\"},"
+             "printf '%s\\n' "
+             "'{\"type\":\"system\",\"subtype\":\"init\",\"model\":\"falso-1\",\"tools\":[\"a\",\"b\"]}'\n"
+             "printf '%s\\n' "
+             "'{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"Voy a "
+             "mirar.\"},"
              "{\"type\":\"tool_use\",\"name\":\"mcp__broadcast__room_status\",\"input\":{\"x\":1}}]}}'\n"
-             "printf '%s\\n' '{\"type\":\"user\",\"message\":{\"content\":[{\"type\":\"tool_result\",\"content\":[{\"type\":\"text\","
+             "printf '%s\\n' "
+             "'{\"type\":\"user\",\"message\":{\"content\":[{\"type\":\"tool_result\",\"content\":[{\"type\":"
+             "\"text\","
              "\"text\":\"todo bien\"}]}]}}'\n"
              "[ -n \"$MOTOR_FALLA\" ] && exit 3\n"
-             "printf '%s\\n' '{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"Listo.\\nRESUMEN: atendi a "
+             "printf '%s\\n' "
+             "'{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"Listo."
+             "\\nRESUMEN: atendi a "
              "Juan y quedo esperando.\"}]}}'\n"
-             "printf '%s\\n' '{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"Listo.\\nRESUMEN: atendi a "
+             "printf '%s\\n' "
+             "'{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"Listo.\\nRESUMEN:"
+             " atendi a "
              "Juan y quedo esperando.\",\"num_turns\":2,\"duration_ms\":10}'\n";
     }
     QFile::setPermissions(motor, QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner);
@@ -155,18 +172,22 @@ int main(int argc, char** argv) {
     CHECK(d.corridas().empty() && tomados == 0, "nada corrio");
     {
         std::string err;
-        CHECK(d.encargar("tecnico", "hola", "operador", 0, &err).empty() && err.find("apagado") != std::string::npos,
+        CHECK(d.encargar("tecnico", "hola", "operador", 0, &err).empty() &&
+                  err.find("apagado") != std::string::npos,
               "encargar a un rol apagado explica");
-        CHECK(d.encargar("nadie", "hola", "operador", 0, &err).empty() && err.find("no existe") != std::string::npos,
+        CHECK(d.encargar("nadie", "hola", "operador", 0, &err).empty() &&
+                  err.find("no existe") != std::string::npos,
               "rol inexistente");
-        CHECK(d.encargar("recepcion", "x", "rol:otro", 2, &err).empty() && err.find("profundidad") != std::string::npos,
+        CHECK(d.encargar("recepcion", "x", "rol:otro", 2, &err).empty() &&
+                  err.find("profundidad") != std::string::npos,
               "profundidad 2: no");
     }
 
     // --- Una corrida completa ----------------------------------------------------------
     d.setContexto("recepcion", []() { return std::string("En la sala: nadie."); });
-    CHECK(d.evento(evento("lobby", json::array({"llm", "ui"}), json{{"participant", "p1"}, {"name", "Juan"}})),
-          "lobby reclamado");
+    CHECK(
+        d.evento(evento("lobby", json::array({"llm", "ui"}), json{{"participant", "p1"}, {"name", "Juan"}})),
+        "lobby reclamado");
     CHECK(tomados == 1, "eventoTomado");
     CHECK(d.corridas().size() == 1 && d.corridas()[0]["origen"] == "vigilancia:lobby", "una corrida");
     CHECK(d.profundidadDe("recepcion") == 0, "en curso, profundidad 0");
@@ -183,7 +204,8 @@ int main(int argc, char** argv) {
               "pasos leidos del stream-json");
         CHECK(lanzados.size() == 1 && lanzados[0].rol == "recepcion", "se lanzo con el rol");
         const std::string enc = leer(dir + "/encargo.txt");
-        CHECK(enc.find("En la sala: nadie.") != std::string::npos, "el encargo lleva el contexto del sistema");
+        CHECK(enc.find("En la sala: nadie.") != std::string::npos,
+              "el encargo lleva el contexto del sistema");
         CHECK(enc.find("ENCARGO:") != std::string::npos && enc.find("texto seguro") != std::string::npos,
               "el encargo lleva el texto seguro del evento");
         CHECK(enc.find("Lo que paso antes") == std::string::npos, "primera corrida: sin memoria previa");
@@ -219,14 +241,17 @@ int main(int argc, char** argv) {
     {
         d.setActivo("tecnico", true);
         const std::size_t antes = d.corridas().size();
-        for (int i = 0; i < 5; ++i) CHECK(d.evento(evento("audio_peak")), "pico reclamado");
+        for (int i = 0; i < 5; ++i)
+            CHECK(d.evento(evento("audio_peak")), "pico reclamado");
         CHECK(d.corridas().size() == antes + 1, "cinco eventos, una corrida (tope de agrupacion)");
         const std::string id = d.corridas()[0]["id"];
         CHECK(d.corridas()[0]["rol"] == "tecnico", "es del tecnico");
         CHECK(esperar([&]() { return d.corrida(id)["estado"] == "ok"; }), "termina");
         const std::string enc = leer(dir + "/encargo.txt");
         std::size_t n = 0;
-        for (std::size_t p = enc.find("tipo audio_peak"); p != std::string::npos; p = enc.find("tipo audio_peak", p + 1)) ++n;
+        for (std::size_t p = enc.find("tipo audio_peak"); p != std::string::npos;
+             p = enc.find("tipo audio_peak", p + 1))
+            ++n;
         CHECK(n == 5, "el encargo lleva los cinco");
     }
 
@@ -235,7 +260,8 @@ int main(int argc, char** argv) {
         ambiente = "MOTOR_FALLA";
         const std::string id = d.encargar("tecnico", "falla", "operador");
         CHECK(esperar([&]() { return d.corrida(id)["estado"] == "error"; }), "codigo 3 -> error");
-        CHECK(d.corrida(id)["error"].get<std::string>().find("codigo 3") != std::string::npos, "el error dice el codigo");
+        CHECK(d.corrida(id)["error"].get<std::string>().find("codigo 3") != std::string::npos,
+              "el error dice el codigo");
         CHECK(d.corrida(id)["herramientas"] == 1, "lo que alcanzo a hacer queda");
         CHECK(errores >= 1, "avisa a la interfaz");
         ambiente.clear();

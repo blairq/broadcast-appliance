@@ -18,14 +18,20 @@ std::string recortar(const std::string& s, std::size_t tope) {
     bool espacio = false;
     bool corto = false; // true si se llego al tope y quedo texto afuera
     for (char c : s) {
-        if (out.size() >= tope) { corto = true; break; }
+        if (out.size() >= tope) {
+            corto = true;
+            break;
+        }
         const unsigned char u = static_cast<unsigned char>(c);
         if (u == '\n' || u == '\r' || u == '\t' || c == ' ') {
             if (!out.empty()) espacio = true;
             continue;
         }
         if (u < 0x20) continue; // otros caracteres de control, fuera
-        if (espacio) { out.push_back(' '); espacio = false; }
+        if (espacio) {
+            out.push_back(' ');
+            espacio = false;
+        }
         out.push_back(c);
     }
     // SOLO SI SE CORTO. Un corte a la mitad de un caracter multibyte deja
@@ -33,7 +39,8 @@ std::string recortar(const std::string& s, std::size_t tope) {
     // acentuada de todo texto que termine en una: «Si» quedaba en «S» y «Jose»
     // en «Jos». Se vio proyectando una votacion.
     if (corto) {
-        while (!out.empty() && (static_cast<unsigned char>(out.back()) & 0xC0) == 0x80) out.pop_back();
+        while (!out.empty() && (static_cast<unsigned char>(out.back()) & 0xC0) == 0x80)
+            out.pop_back();
         if (!out.empty() && (static_cast<unsigned char>(out.back()) & 0x80) != 0) out.pop_back();
     }
     return out;
@@ -53,9 +60,11 @@ const char* Preguntas::nombreDeEstado(Estado e) {
 }
 
 bool Preguntas::estadoDeNombre(const std::string& s, Estado& out) {
-    for (Estado e : {Estado::Nueva, Estado::Elegida, Estado::AlAire, Estado::Respondida,
-                     Estado::Descartada})
-        if (s == nombreDeEstado(e)) { out = e; return true; }
+    for (Estado e : {Estado::Nueva, Estado::Elegida, Estado::AlAire, Estado::Respondida, Estado::Descartada})
+        if (s == nombreDeEstado(e)) {
+            out = e;
+            return true;
+        }
     return false;
 }
 
@@ -78,15 +87,13 @@ void Preguntas::hacerLugar() {
     }
     // Si TODAS estan esperando, se va la mas vieja sin votos; y si todas tienen
     // votos, la mas vieja a secas.
-    const auto sinVotos = std::find_if(ps_.begin(), ps_.end(), [](const Pregunta& p) {
-        return p.estado == Estado::Nueva && p.votos == 0;
-    });
+    const auto sinVotos = std::find_if(
+        ps_.begin(), ps_.end(), [](const Pregunta& p) { return p.estado == Estado::Nueva && p.votos == 0; });
     ps_.erase(sinVotos != ps_.end() ? sinVotos : ps_.begin());
 }
 
 std::string Preguntas::preguntar(const std::string& nombre, const std::string& texto,
-                                 const std::string& deDonde, const std::string& quien,
-                                 std::int64_t ahoraMs) {
+                                 const std::string& deDonde, const std::string& quien, std::int64_t ahoraMs) {
     const std::string t = recortar(texto, kMaxTexto);
     if (t.empty()) return {};
     std::lock_guard<std::mutex> g(m_);
@@ -211,7 +218,8 @@ json Preguntas::lista() const {
     std::lock_guard<std::mutex> g(m_);
     std::vector<const Pregunta*> orden;
     orden.reserve(ps_.size());
-    for (const Pregunta& p : ps_) orden.push_back(&p);
+    for (const Pregunta& p : ps_)
+        orden.push_back(&p);
     std::sort(orden.begin(), orden.end(), [](const Pregunta* a, const Pregunta* b) {
         const int ra = rango(a->estado), rb = rango(b->estado);
         if (ra != rb) return ra < rb;
@@ -220,7 +228,8 @@ json Preguntas::lista() const {
         return a->cuandoMs < b->cuandoMs;
     });
     json out = json::array();
-    for (const Pregunta* p : orden) out.push_back(aJson(*p));
+    for (const Pregunta* p : orden)
+        out.push_back(aJson(*p));
     return out;
 }
 
@@ -229,9 +238,8 @@ json Preguntas::listaPublica(const std::string& quien) const {
     json mias = json::array();
     json otras = json::array();
     for (const Pregunta& p : ps_) {
-        const bool esMia =
-            !quien.empty() && std::find(votos_.begin(), votos_.end(),
-                                        std::make_pair(quien, p.id)) != votos_.end();
+        const bool esMia = !quien.empty() && std::find(votos_.begin(), votos_.end(),
+                                                       std::make_pair(quien, p.id)) != votos_.end();
         if (esMia) {
             // La suya SI con su estado: saber que la eligieron es la mitad de
             // la gracia de haber preguntado.
@@ -257,7 +265,7 @@ json Preguntas::listaPublica(const std::string& quien) const {
 
 json Preguntas::recuento() const {
     std::lock_guard<std::mutex> g(m_);
-    json r = json{{"nuevas", 0}, {"elegidas", 0}, {"al_aire", 0},
+    json r = json{{"nuevas", 0},      {"elegidas", 0},    {"al_aire", 0},
                   {"respondidas", 0}, {"descartadas", 0}, {"total", ps_.size()}};
     for (const Pregunta& p : ps_) {
         switch (p.estado) {
@@ -276,8 +284,7 @@ std::size_t Preguntas::limpiar() {
     const std::size_t antes = ps_.size();
     ps_.erase(std::remove_if(ps_.begin(), ps_.end(),
                              [](const Pregunta& p) {
-                                 return p.estado == Estado::Respondida ||
-                                        p.estado == Estado::Descartada;
+                                 return p.estado == Estado::Respondida || p.estado == Estado::Descartada;
                              }),
               ps_.end());
     return antes - ps_.size();

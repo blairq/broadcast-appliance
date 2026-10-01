@@ -52,15 +52,13 @@ std::vector<Registrado> leerLogs(const std::filesystem::path& dir, const Filtro&
 
 /// Los componentes que aparecen en los logs, para poder ofrecerlos en el visor
 /// sin que nadie los escriba a mano en ningún lado.
-std::vector<std::string> componentesEnLogs(const std::filesystem::path& dir,
-                                           std::size_t porArchivoKiB = 128);
+std::vector<std::string> componentesEnLogs(const std::filesystem::path& dir, std::size_t porArchivoKiB = 128);
 
 /// Parte una línea. Devuelve false si no tiene la forma del Registro; en ese
 /// caso `out` igual queda usable (nivel info, el texto entero).
 ///
 /// :param componentePorDefecto: el que se le pone a una línea sin estructura
 ///        (normalmente, el nombre del archivo del que salió).
-bool partirLinea(const std::string& linea, const std::string& componentePorDefecto,
-                 Registrado& out);
+bool partirLinea(const std::string& linea, const std::string& componentePorDefecto, Registrado& out);
 
 } // namespace ba::diag

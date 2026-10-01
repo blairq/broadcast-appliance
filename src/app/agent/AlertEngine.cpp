@@ -104,8 +104,7 @@ json AlertEngine::types() {
         {{"type", "stream_down"},
          {"summary", "La transmision se cayo y no vuelve: lleva N segundos reintentando, o el "
                      "reintento se dio por vencido."},
-         {"params",
-          {{"forSec", "segundos reintentando antes de avisar (por defecto 20)"}}},
+         {"params", {{"forSec", "segundos reintentando antes de avisar (por defecto 20)"}}},
          {"cooldownSec", 60}},
         {{"type", "disk"},
          {"summary", "Queda poco disco mientras se graba."},

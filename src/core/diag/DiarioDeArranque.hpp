@@ -32,7 +32,7 @@
 namespace ba::diag {
 
 class DiarioDeArranque {
-  public:
+   public:
     /// Cuántos arranques seguidos puede romper algo antes de quedar apagado
     /// para siempre (hasta que alguien lo prenda a mano). Dos: el primero
     /// puede ser mala suerte, el segundo ya es un patrón.
@@ -78,7 +78,7 @@ class DiarioDeArranque {
     /// Nº de arranque, para poder cruzarlo con el registro.
     int arranque() const;
 
-  private:
+   private:
     struct Impl;
     std::unique_ptr<Impl> d_;
 };
@@ -93,13 +93,13 @@ void abrirDiario(const std::filesystem::path& archivo);
 ///
 ///     { ba::diag::Cargando c("vinculos"); leerVinculos(); }
 class Cargando {
-  public:
+   public:
     explicit Cargando(std::string id);
     ~Cargando();
     /// true si NO hay que cargarlo (está apagado por haber roto el arranque).
     bool saltear() const { return saltear_; }
 
-  private:
+   private:
     std::string id_;
     bool saltear_ = false;
 };

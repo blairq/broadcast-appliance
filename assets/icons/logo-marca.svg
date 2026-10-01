@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<defs>
+<linearGradient id="f" x1="0" y1="0" x2="0" y2="1024" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#202025"/><stop offset="1" stop-color="#0a0a0c"/></linearGradient>
+<linearGradient id="b" x1="0" y1="0" x2="0" y2="1024" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ffa45e"/><stop offset="1" stop-color="#ff6a2b"/></linearGradient>
+<filter id="g" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="16"/></filter>
+</defs>
+<line x1="324" y1="258" x2="324" y2="766" fill="none" stroke="url(#b)" stroke-width="88" stroke-linecap="round"/>
+<path d="M324 258H474A134 134 0 0 1 474 526H324" fill="none" stroke="url(#b)" stroke-width="88"/>
+<path d="M324 526H509A120 120 0 0 1 509 766H324" fill="none" stroke="url(#b)" stroke-width="88"/>
+<circle cx="466" cy="392" r="75" fill="#ff3b30" opacity="0.47" filter="url(#g)"/>
+<circle cx="466" cy="392" r="60" fill="#ff3b30"/>
+<path d="M616.0 132.2A300 300 0 0 1 747.9 289.4" fill="none" stroke="#f5b83d" stroke-opacity="1" stroke-width="36"/>
+<path d="M655.0 64.6A378 378 0 0 1 821.2 262.7" fill="none" stroke="#f5b83d" stroke-opacity="0.59" stroke-width="36"/>
+</svg>

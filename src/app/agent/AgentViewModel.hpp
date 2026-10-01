@@ -41,6 +41,7 @@
 
 #include <atomic>
 #include <functional>
+#include <map>
 #include <memory>
 #include <thread>
 
@@ -72,6 +73,13 @@ class AgentViewModel : public QObject {
     Q_PROPERTY(bool installing READ installing NOTIFY installChanged)
     Q_PROPERTY(double installProgress READ installProgress NOTIFY installChanged)
     Q_PROPERTY(QString installText READ installText NOTIFY installChanged)
+    // Actualizar desde la fuente oficial (sin esperar una version nueva del
+    // sistema). Ver checkUpdate().
+    Q_PROPERTY(bool checkingUpdate READ checkingUpdate NOTIFY latestChanged)
+    Q_PROPERTY(QString latestVersion READ latestVersion NOTIFY latestChanged)
+    Q_PROPERTY(bool newerAvailable READ newerAvailable NOTIFY latestChanged)
+    Q_PROPERTY(bool usingChosenVersion READ usingChosenVersion NOTIFY configChanged)
+    Q_PROPERTY(QString pinnedVersion READ pinnedVersion NOTIFY configChanged)
     Q_PROPERTY(bool running READ running NOTIFY runningChanged)
     /// OJO CON LA SEÑAL. Esto avisaba por `runningChanged`, que es de otra
     /// cosa: el servidor MCP arranca DESPUES de que la interfaz se dibuja, asi
@@ -106,6 +114,16 @@ class AgentViewModel : public QObject {
     bool installing() const { return installing_; }
     double installProgress() const { return installProgress_; }
     QString installText() const { return installText_; }
+    bool checkingUpdate() const { return checking_; }
+    /// La ultima version publicada del agente actual, si ya se consulto ("" si no).
+    QString latestVersion() const;
+    /// La publicada es mas nueva que la que se usa.
+    bool newerAvailable() const;
+    /// Se usa una version elegida desde la pestaña (Agentes/versiones.json) y
+    /// no la que fija esta version del sistema.
+    bool usingChosenVersion() const;
+    /// La que fija esta version del sistema (agentes.json, compilado).
+    QString pinnedVersion() const;
     bool running() const { return session_->running(); }
     bool mcpReady() const { return mcpReady_ ? mcpReady_() : false; }
     QString lastError() const { return lastError_; }
@@ -129,15 +147,25 @@ class AgentViewModel : public QObject {
     /// exactamente lo que no hay que hacer en un aparato que está al aire.
     Q_INVOKABLE void probarModeloPropio();
 
-    Q_INVOKABLE QString guardarModeloPropio(const QString& url, const QString& modelo,
-                                            const QString& nombre, const QString& extraJson,
-                                            const QString& instrucciones, bool piensa);
+    Q_INVOKABLE QString guardarModeloPropio(const QString& url, const QString& modelo, const QString& nombre,
+                                            const QString& extraJson, const QString& instrucciones,
+                                            bool piensa);
     Q_INVOKABLE void clearKey();
     Q_INVOKABLE void setAlertsToChat(bool on);
     Q_INVOKABLE void setAutoStart(bool on);
     Q_INVOKABLE void setFontSize(int px);
     Q_INVOKABLE void install();
     Q_INVOKABLE void cancelInstall();
+    /// Pregunta a la fuente OFICIAL del agente actual cual es su ultima
+    /// version, con la URL y el SHA-256 (o SHA-512 de npm) que publica para
+    /// cada plataforma. No instala nada.
+    Q_INVOKABLE void checkUpdate();
+    /// Instala la version que trajo checkUpdate(): queda elegida en
+    /// Agentes/versiones.json (dentro del bundle) y se verifica igual que la
+    /// fijada. La instalacion anterior sigue andando hasta que la nueva esta.
+    Q_INVOKABLE void installLatest();
+    /// Vuelve a la version que fija esta version del sistema.
+    Q_INVOKABLE void revertToPinned();
     Q_INVOKABLE void start();
     Q_INVOKABLE void stop();
     Q_INVOKABLE void restart();
@@ -182,6 +210,7 @@ class AgentViewModel : public QObject {
    signals:
     void configChanged();
     void installChanged();
+    void latestChanged();
     void runningChanged();
     void mcpReadyChanged();
     void errorChanged();
@@ -215,7 +244,15 @@ class AgentViewModel : public QObject {
     /// La entrada de `plataformas` para esta maquina: la variante "-baseline"
     /// si el procesador no tiene AVX2 y el agente la publica.
     nlohmann::json platformPin(const nlohmann::json& pin) const;
+    /// Las versiones de agentes.json, con las elegidas desde la pestaña
+    /// (Agentes/versiones.json) encima.
     nlohmann::json pins() const;
+    /// Solo las de agentes.json, compiladas.
+    nlohmann::json pinnedPins() const;
+    QString chosenFile() const;
+    /// La entrada nueva de `runtime` armada con lo que publica su fuente
+    /// oficial. Corre en otro hilo (bloquea en la red). Vacia + `err` si falla.
+    static nlohmann::json fetchLatest(const QString& runtime, const nlohmann::json& base, QString* err);
 
     AppRuntime& rt_;
     AlertEngine& alerts_;
@@ -230,6 +267,9 @@ class AgentViewModel : public QObject {
     QString installText_;
     std::atomic<bool> cancelInstall_{false};
     std::thread installThread_;
+    bool checking_ = false;
+    std::thread checkThread_;
+    std::map<QString, nlohmann::json> latest_; ///< runtime -> entrada nueva
     QString lastError_;
     std::function<QString()> systemPrompt_;
     std::function<bool()> mcpReady_;

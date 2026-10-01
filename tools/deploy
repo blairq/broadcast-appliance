@@ -85,8 +85,13 @@ usage() {
 }
 
 # sha256 de un archivo → solo el hex (64 chars).
+# macOS < 15 no trae sha256sum: `shasum -a 256` da la misma salida.
 sha256_of() {
-  sha256sum "$1" | awk '{print $1}'
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{print $1}'
+  else
+    shasum -a 256 "$1" | awk '{print $1}'
+  fi
 }
 
 # --- Parseo de argumentos ---------------------------------------------------
@@ -332,6 +337,7 @@ json_escape() {
   # relativa y emite una entrada por archivo. Las rutas van separadas por NUL
   # (-d '') para soportar nombres con espacios o caracteres raros.
   while IFS= read -r -d '' rel; do
+    rel="${rel#./}"
     abs="$BUNDLE_DIR/$rel"
     [ -f "$abs" ] || continue
     # Nunca se incluye a sí mismo.
@@ -354,8 +360,9 @@ json_escape() {
     fi
     printf '    {"path": "%s", "sha256": "%s"}' "$(json_escape "$rel")" "$hash"
   done < <(
+    # El "./" inicial se saca en el bucle: `sed -z` no existe en macOS. Como
+    # todas las rutas lo comparten, ordenar con o sin el da el mismo orden.
     ( cd "$BUNDLE_DIR" && find . -type f -print0 ) \
-      | sed -z 's|^\./||' \
       | sort -z
   )
 

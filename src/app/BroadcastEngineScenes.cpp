@@ -31,7 +31,7 @@ namespace ba::app {
 namespace {
 
 constexpr std::uint32_t kProgramChannel = 0;
-constexpr std::uint32_t kFirstGuestAudioChannel = 1;  // 1..16: invitados
+constexpr std::uint32_t kFirstGuestAudioChannel = 1; // 1..16: invitados
 constexpr std::uint32_t kMaxGuestAudioChannels = 16;
 constexpr std::uint32_t kFirstMicChannel = 17; // 17..: entradas de audio del equipo
 constexpr std::uint32_t kMaxMicChannels = 8;   // (libobs admite 64 canales)
@@ -325,8 +325,7 @@ bool BroadcastEngine::captureSource(const std::string& name, int maxWidth, std::
     return true;
 }
 
-bool BroadcastEngine::enableScenePreview(const std::string& canal, const std::string& name,
-                                         int maxWidth) {
+bool BroadcastEngine::enableScenePreview(const std::string& canal, const std::string& name, int maxWidth) {
     VistaPrevia& vp = scenePreviews_[canal];
     if (name == vp.name && vp.src != nullptr) {
         vp.maxW = maxWidth;
@@ -376,8 +375,8 @@ std::string BroadcastEngine::scenePreviewName(const std::string& canal) const {
     return it == scenePreviews_.end() ? std::string() : it->second.name;
 }
 
-bool BroadcastEngine::renderScenePreview(const std::string& canal, std::vector<std::uint8_t>& dst,
-                                         int& width, int& height) {
+bool BroadcastEngine::renderScenePreview(const std::string& canal, std::vector<std::uint8_t>& dst, int& width,
+                                         int& height) {
     const auto it = scenePreviews_.find(canal);
     if (it == scenePreviews_.end() || it->second.src == nullptr || !started_) return false;
     const int maxW = it->second.maxW;
@@ -821,8 +820,7 @@ int BroadcastEngine::sourceSyncOffset(const std::string& name) const {
     return static_cast<int>(obs_source_get_sync_offset(src) / 1000000LL);
 }
 
-bool BroadcastEngine::playMedia(const std::string& name, const std::string& file, bool loop,
-                                float volume) {
+bool BroadcastEngine::playMedia(const std::string& name, const std::string& file, bool loop, float volume) {
     if (file.empty()) {
         setError("no se dijo que archivo reproducir");
         return false;
@@ -1040,15 +1038,14 @@ bool BroadcastEngine::setSourceMonitoring(const std::string& name, bool on) {
     }
     // MONITOR_AND_OUTPUT y NO MONITOR_ONLY: ver el porque en el .hpp.
     obs_source_set_monitoring_type(reinterpret_cast<obs_source_t*>(src),
-                                   on ? OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT
-                                      : OBS_MONITORING_TYPE_NONE);
+                                   on ? OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT : OBS_MONITORING_TYPE_NONE);
     return true;
 }
 
 bool BroadcastEngine::sourceMonitoring(const std::string& name) const {
     obs_source* src = ownedSource(name);
-    return src != nullptr && obs_source_get_monitoring_type(reinterpret_cast<obs_source_t*>(src)) !=
-                                 OBS_MONITORING_TYPE_NONE;
+    return src != nullptr &&
+           obs_source_get_monitoring_type(reinterpret_cast<obs_source_t*>(src)) != OBS_MONITORING_TYPE_NONE;
 }
 
 float BroadcastEngine::sourcePeakDb(const std::string& name) const {

@@ -53,8 +53,7 @@ QHash<int, QByteArray> ScenesModel::roleNames() const {
 void ScenesModel::setArmada(const QString& n) {
     if (n == armada_) return;
     armada_ = n;
-    if (rowCount() > 0)
-        emit dataChanged(index(0), index(rowCount() - 1), {ArmadaRole});
+    if (rowCount() > 0) emit dataChanged(index(0), index(rowCount() - 1), {ArmadaRole});
 }
 
 void ScenesModel::reload() {
@@ -313,9 +312,8 @@ void MixerModel::refreshLevels() {
 QVariantMap MixerModel::canal(int fila) const {
     if (fila < 0 || fila >= static_cast<int>(names_.size())) return {};
     const QModelIndex i = index(fila, 0);
-    return QVariantMap{{"nombre", data(i, NameRole)},
-                       {"volumenDb", data(i, VolumeDbRole)},
-                       {"mudo", data(i, MutedRole)}};
+    return QVariantMap{
+        {"nombre", data(i, NameRole)}, {"volumenDb", data(i, VolumeDbRole)}, {"mudo", data(i, MutedRole)}};
 }
 
 bool MixerModel::setVolumeDb(const QString& name, double db) {

@@ -24,11 +24,31 @@
 
 #include "carrusel/Conversion.hpp"
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
+
 using namespace ba::carrusel;
 
 namespace {
 
 int g_fallos = 0;
+
+/// Bajo Wine (los tests de Windows se corren asi desde Linux) el LibreOffice de
+/// Windows no convierte: eso se prueba en un Windows de verdad. Wine se
+/// reconoce por `wine_get_version`, que solo exporta su ntdll.
+bool bajoWine() {
+#ifdef _WIN32
+    HMODULE ntdll = GetModuleHandleA("ntdll.dll");
+    return ntdll != nullptr && GetProcAddress(ntdll, "wine_get_version") != nullptr;
+#else
+    return false;
+#endif
+}
+
+/// Hay un LibreOffice que se pueda correr aca.
+bool hayOffice() { return !Conversor::soffice().isEmpty() && !bajoWine(); }
 #define CHECK(cond, msg)                                                                                     \
     do {                                                                                                     \
         if (!(cond)) {                                                                                       \
@@ -42,9 +62,18 @@ QStringList correr(Conversor& c, const QString& entrada, const QString& salida, 
                    int* ultimoHecho, int* ultimoTotal) {
     QStringList res;
     bool termino = false;
-    QObject::connect(&c, &Conversor::listo, [&](QStringList l) { res = l; termino = true; });
-    QObject::connect(&c, &Conversor::fallo, [&](QString m) { *motivo = m; termino = true; });
-    QObject::connect(&c, &Conversor::avance, [&](QString, int h, int t) { *ultimoHecho = h; *ultimoTotal = t; });
+    QObject::connect(&c, &Conversor::listo, [&](QStringList l) {
+        res = l;
+        termino = true;
+    });
+    QObject::connect(&c, &Conversor::fallo, [&](QString m) {
+        *motivo = m;
+        termino = true;
+    });
+    QObject::connect(&c, &Conversor::avance, [&](QString, int h, int t) {
+        *ultimoHecho = h;
+        *ultimoTotal = t;
+    });
     c.convertir(entrada, salida);
     // Tope duro: si algo se cuelga, el test tiene que terminar igual.
     QTimer tope;
@@ -56,9 +85,7 @@ QStringList correr(Conversor& c, const QString& entrada, const QString& salida, 
     return res;
 }
 
-QString fixture(const char* nombre) {
-    return QString(BA_TEST_DATOS) + "/" + nombre;
-}
+QString fixture(const char* nombre) { return QString(BA_TEST_DATOS) + "/" + nombre; }
 
 } // namespace
 
@@ -91,15 +118,16 @@ int main(int argc, char** argv) {
     }
 
     // --- 2. El .pptx entero -------------------------------------------------
-    if (Conversor::soffice().isEmpty()) {
-        std::printf("SALTEADO: no hay extern/libreoffice en este equipo\n");
+    if (!hayOffice()) {
+        std::printf(bajoWine() ? "SALTEADO: bajo Wine el LibreOffice de Windows no convierte\n"
+                               : "SALTEADO: no hay extern/libreoffice en este equipo\n");
     } else {
         QTemporaryDir tmp;
         Conversor c;
         QString motivo;
         int hecho = -1, total = -1;
-        const QStringList r = correr(c, fixture("tres-laminas.pptx"), tmp.path() + "/out", &motivo,
-                                     &hecho, &total);
+        const QStringList r =
+            correr(c, fixture("tres-laminas.pptx"), tmp.path() + "/out", &motivo, &hecho, &total);
         CHECK(motivo.isEmpty(), qPrintable("la conversion fallo: " + motivo));
         CHECK(r.size() == 3, "tres laminas del pptx de tres paginas");
         CHECK(hecho == 3 && total == 3, "el avance llego al final");
@@ -117,7 +145,7 @@ int main(int argc, char** argv) {
     // codificar, LibreOffice moria sin decir nada y la conversion fallaba
     // SOLO adentro del aparato: desde la terminal y desde este mismo test
     // andaba, porque aca el programa se llama test_conversion.
-    if (!Conversor::soffice().isEmpty()) {
+    if (hayOffice()) {
         QTemporaryDir tmp;
         const QString conEspacios = tmp.path() + "/Con Espacios Adentro";
         QDir().mkpath(conEspacios);

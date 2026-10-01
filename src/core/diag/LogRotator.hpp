@@ -86,8 +86,8 @@ class LogRotator {
     ///        Con false, la linea se escribe tal cual: es lo que hace falta
     ///        cuando quien llama ya arma la linea entera con su hora (ver
     ///        Registro.hpp), para no terminar con dos horas por linea.
-    LogRotator(std::string dir, std::size_t maxBytes, std::size_t keepFiles,
-               std::string nombre = {}, bool conSelloDeTiempo = true);
+    LogRotator(std::string dir, std::size_t maxBytes, std::size_t keepFiles, std::string nombre = {},
+               bool conSelloDeTiempo = true);
 
     /// Escribe una linea con timestamp al archivo activo, rotando si hace falta.
     ///

@@ -68,6 +68,12 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/versions.cmake")
 # para que los targets `mbedcrypto`/`mbedx50`/`mbedtls` y
 # `nlohmann_json::nlohmann_json` ya existan cuando `ba_core` los enlaza.
 include(FetchContent)
+# CMake 4 ya no acepta cmake_minimum_required < 3.5, que es lo que declaran
+# libsamplerate 0.2.2 y otras de terceros (lo trae Homebrew en macOS y lo van
+# a traer los runners). Se les permite configurar con la politica de 3.5.
+if(NOT DEFINED CMAKE_POLICY_VERSION_MINIMUM)
+    set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+endif()
 FetchContent_Declare(mbedtls
     GIT_REPOSITORY https://github.com/Mbed-TLS/mbedtls.git
     GIT_TAG ${MBEDTLS_VERSION})
@@ -109,8 +115,8 @@ set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
 # de la lib de terceros falla. mbedtls añade -Werror SOLO cuando
 # MBEDTLS_FATAL_WARNINGS está ON, así que lo desactivamos. Guardado con
 # if(WIN32) para NO tocar el build Linux (ya verde, 18/18), donde el gcc nativo
-# no dispara esa advertencia.
-if(WIN32)
+# no dispara esa advertencia. Apple clang 21 (Xcode 26) la dispara igual.
+if(WIN32 OR APPLE)
     set(MBEDTLS_FATAL_WARNINGS OFF CACHE BOOL "" FORCE)
 endif()
 
@@ -203,6 +209,13 @@ else()
     add_compile_options(-Wall -Wextra)
     # Debug info por defecto para poder correr los unit tests con sanitizers.
     add_compile_options($<$<CONFIG:Debug>:-g>)
+    # macOS: el equivalente del --as-needed que Ubuntu usa por defecto. Sin
+    # esto, todo lo que enlaza ba_core arrastra las dylibs de sus dependencias
+    # opcionales (ONNX Runtime) aunque no las use, y el launcher, que no tiene
+    # rpath hacia bin/64bit, ni arranca.
+    if(APPLE)
+        add_link_options(LINKER:-dead_strip_dylibs)
+    endif()
 endif()
 
 # --- Testing ----------------------------------------------------------------
@@ -224,6 +237,22 @@ if(BA_WIN_STATIC_PART)
 endif()
 
 include(${CMAKE_SOURCE_DIR}/cmake/BaLibObs.cmake)
+
+# macOS 26 (Xcode 26) ya no trae AGL.framework, pero el FindWrapOpenGL de Qt
+# 6.6 lo enlaza igual ("framework 'AGL' not found"). Qt lo busca en la cache
+# WrapOpenGL_AGL: si el SDK no lo tiene, se le da el de OpenGL (ya enlazado).
+# Se mira el SDK y no el sistema: CMake 4 ya no fija CMAKE_OSX_SYSROOT, y un
+# find_library encuentra el AGL de /System/Library aunque el SDK no lo tenga.
+if(APPLE)
+    set(_ba_sdk "${CMAKE_OSX_SYSROOT}")
+    if(NOT _ba_sdk)
+        execute_process(COMMAND xcrun --sdk macosx --show-sdk-path
+                        OUTPUT_VARIABLE _ba_sdk OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+    endif()
+    if(NOT EXISTS "${_ba_sdk}/System/Library/Frameworks/AGL.framework")
+        set(WrapOpenGL_AGL "-framework OpenGL" CACHE STRING "AGL ya no existe en el SDK" FORCE)
+    endif()
+endif()
 
 add_subdirectory(src/core)
 if(MSVC)
@@ -295,7 +324,11 @@ install(FILES
     assets/icons/broadcast-appliance.ico
     DESTINATION Recursos COMPONENT bundle
 )
-if(NOT WIN32)
+# macOS: el .icns (para la .app del .dmg y para el Finder).
+if(APPLE)
+    install(FILES assets/icons/broadcast-appliance.icns DESTINATION Recursos COMPONENT bundle)
+endif()
+if(NOT WIN32 AND NOT APPLE)
     install(PROGRAMS packaging/bundle/crear-acceso-directo.sh
         DESTINATION . COMPONENT bundle
     )
@@ -309,12 +342,19 @@ endif()
 if(BA_HAVE_LIBOBS)
     # Bibliotecas: libobs, libobs-opengl (o las DLL en Windows) -> bin/64bit.
     install(FILES ${BA_LIBOBS_RUNTIME_LIBS} DESTINATION bin/64bit)
+    # macOS: libobs.framework es una carpeta (con enlaces simbolicos adentro).
+    foreach(_d IN LISTS BA_LIBOBS_RUNTIME_DIRS)
+        install(DIRECTORY "${_d}" DESTINATION bin/64bit USE_SOURCE_PERMISSIONS)
+    endforeach()
     if(BA_LIBOBS_RUNTIME_PROGRAMS)
         install(PROGRAMS ${BA_LIBOBS_RUNTIME_PROGRAMS} DESTINATION bin/64bit)
     endif()
 
     # Plugins de OBS (x264, ffmpeg, rtmp, captura) -> obs-plugins/64bit.
-    if(EXISTS "${BA_LIBOBS_PLUGIN_DIR}")
+    if(APPLE AND EXISTS "${BA_LIBOBS_PLUGIN_DIR}")
+        # Bundles .plugin enteros (binario + Resources con sus datos).
+        install(DIRECTORY "${BA_LIBOBS_PLUGIN_DIR}/" DESTINATION obs-plugins/64bit USE_SOURCE_PERMISSIONS)
+    elseif(EXISTS "${BA_LIBOBS_PLUGIN_DIR}")
         set(_ba_excl "")
         foreach(_p IN LISTS BA_LIBOBS_PLUGIN_EXCLUDE)
             list(APPEND _ba_excl PATTERN "${_p}.dll" EXCLUDE)
@@ -369,7 +409,7 @@ else()
 endif()
 
 # El paso de rpath va DESPUES de copiar el runtime: reescribe lo ya instalado.
-if(BA_HAVE_LIBOBS AND NOT WIN32)
+if(BA_HAVE_LIBOBS AND NOT WIN32 AND NOT APPLE)
     include(${CMAKE_SOURCE_DIR}/cmake/BaPortableBundle.cmake)
 endif()
 
@@ -377,3 +417,10 @@ endif()
 # Cada componente declara su propio install(TARGETS ...) en su CMakeLists para
 # controlar el directorio de destino exacto. Aquí se centraliza solo la
 # documentación de a dónde va cada cosa.
+
+# macOS: re-firma ad-hoc de todo lo instalado. Va AL FINAL: las reglas de
+# instalacion corren en el orden declarado (CMP0082) y esta tiene que ver
+# todos los binarios ya en su lugar.
+if(APPLE)
+    include(${CMAKE_SOURCE_DIR}/cmake/BaMacBundle.cmake)
+endif()

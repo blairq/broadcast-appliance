@@ -11,10 +11,10 @@
 
 #include "AppRuntime.hpp"
 #include "BroadcastEngine.hpp"
-#include "diag/Registro.hpp"
 #include "carrusel/Carrusel.hpp"
 #include "carrusel/CarruselStore.hpp"
 #include "carrusel/Conversion.hpp"
+#include "diag/Registro.hpp"
 #include "medios/Medios.hpp"
 
 namespace ba::app {
@@ -24,9 +24,7 @@ namespace {
 /// se va en diez segundos y despues no queda NADA para saber por que. Esto ya
 /// paso una vez —una conversion que fallaba en silencio— y encontrarlo costo
 /// mas que escribir este renglon.
-void anotar(diag::Nivel n, const std::string& texto) {
-    diag::registro().linea(n, "laminas", 0, texto);
-}
+void anotar(diag::Nivel n, const std::string& texto) { diag::registro().linea(n, "laminas", 0, texto); }
 
 /// Un nombre de carrusel se vuelve un nombre de carpeta. Se sacan los
 /// separadores y lo que Windows no acepta: un carrusel llamado «Apertura 3/4»
@@ -48,13 +46,12 @@ CarruselViewModel::CarruselViewModel(AppRuntime& rt, QObject* parent) : QObject(
         emit notify(QString::fromStdString("Carruseles: " + store_->error()), "error");
 
     conv_ = std::make_unique<carrusel::Conversor>(this);
-    connect(conv_.get(), &carrusel::Conversor::avance, this,
-            [this](QString etapa, int hecho, int total) {
-                etapa_ = etapa;
-                hecho_ = hecho;
-                total_ = total;
-                emit progreso();
-            });
+    connect(conv_.get(), &carrusel::Conversor::avance, this, [this](QString etapa, int hecho, int total) {
+        etapa_ = etapa;
+        hecho_ = hecho;
+        total_ = total;
+        emit progreso();
+    });
     connect(conv_.get(), &carrusel::Conversor::listo, this, [this](QStringList imagenes) {
         convirtiendo_ = false;
         emit progreso();
@@ -66,16 +63,15 @@ CarruselViewModel::CarruselViewModel(AppRuntime& rt, QObject* parent) : QObject(
             c.agregar(l);
         }
         if (!store_->guardar(c))
-            anotar(diag::Nivel::Aviso, "no pude guardar el carrusel «" +
-                                           destinoConversion_.toStdString() + "»: " + store_->error());
+            anotar(diag::Nivel::Aviso, "no pude guardar el carrusel «" + destinoConversion_.toStdString() +
+                                           "»: " + store_->error());
         else
-            anotar(diag::Nivel::Info, "«" + destinoConversion_.toStdString() + "»: " +
-                                          std::to_string(imagenes.size()) + " laminas");
+            anotar(diag::Nivel::Info, "«" + destinoConversion_.toStdString() +
+                                          "»: " + std::to_string(imagenes.size()) + " laminas");
         actual_ = destinoConversion_;
         revisarEscena();
         emit cambio();
-        emit notify(QString("«%1»: %2 láminas listas").arg(destinoConversion_).arg(imagenes.size()),
-                    "ok");
+        emit notify(QString("«%1»: %2 láminas listas").arg(destinoConversion_).arg(imagenes.size()), "ok");
     });
     connect(conv_.get(), &carrusel::Conversor::fallo, this, [this](QString motivo) {
         convirtiendo_ = false;
@@ -100,10 +96,10 @@ QString CarruselViewModel::carpetaDe(const QString& nombre) const {
 QVariantList CarruselViewModel::carruseles() const {
     QVariantList out;
     for (const carrusel::Carrusel& c : store_->todos()) {
-        const QString tapa = c.laminas().empty()
-                                 ? QString()
-                                 : QUrl::fromLocalFile(QString::fromStdString(c.laminas().front().archivo))
-                                       .toString();
+        const QString tapa =
+            c.laminas().empty()
+                ? QString()
+                : QUrl::fromLocalFile(QString::fromStdString(c.laminas().front().archivo)).toString();
         out.append(QVariantMap{{"nombre", QString::fromStdString(c.nombre())},
                                {"laminas", int(c.tamano())},
                                {"fuente", QString::fromStdString(c.fuente())},
@@ -133,8 +129,8 @@ QVariantList CarruselViewModel::laminas() const {
     for (const carrusel::Lamina& l : c->laminas()) {
         ++i;
         const QString archivo = QString::fromStdString(l.archivo);
-        const QString titulo = l.titulo.empty() ? QFileInfo(archivo).completeBaseName()
-                                                : QString::fromStdString(l.titulo);
+        const QString titulo =
+            l.titulo.empty() ? QFileInfo(archivo).completeBaseName() : QString::fromStdString(l.titulo);
         if (!q.isEmpty()) {
             // Se busca sobre el título Y las etiquetas, con el mismo aplanado
             // de tildes que la grilla de medios: «grafico» encuentra «gráfico».
@@ -385,7 +381,8 @@ void CarruselViewModel::desarmar(const QString& documento, const QString& nombre
     // presentación corregida es lo normal, y perder la anterior no.
     if (store_->porNombre(n.toStdString())) {
         int i = 2;
-        while (store_->porNombre((n + " (" + QString::number(i) + ")").toStdString())) ++i;
+        while (store_->porNombre((n + " (" + QString::number(i) + ")").toStdString()))
+            ++i;
         n = n + " (" + QString::number(i) + ")";
     }
     destinoConversion_ = n;

@@ -69,7 +69,7 @@ struct Despachador::Corrida {
     std::string origen;
     std::string encargo;
     std::vector<std::string> adjuntos; ///< archivos que van CON el encargo
-    std::string estado = "esperando"; ///< esperando | corriendo | ok | error | detenida
+    std::string estado = "esperando";  ///< esperando | corriendo | ok | error | detenida
     int profundidad = 0;
     std::int64_t creadaMs = 0;
     std::int64_t inicioMs = 0;
@@ -150,17 +150,20 @@ void Despachador::lanzar(const std::string& rol) {
     if (it == agrupando_.end() || !it->second || it->second->eventos.empty()) return;
     std::string texto;
     for (const json& ev : it->second->eventos)
-        texto += "[" + hora(ev.value("atMs", std::int64_t{0})) + "] " + ev.value("llmText", ev.value("text", "")) +
-                 " (vigilancia " + ev.value("ruleId", "") + ", tipo " + ev.value("type", "") + ")\n";
+        texto += "[" + hora(ev.value("atMs", std::int64_t{0})) + "] " +
+                 ev.value("llmText", ev.value("text", "")) + " (vigilancia " + ev.value("ruleId", "") +
+                 ", tipo " + ev.value("type", "") + ")\n";
     const std::size_t n = it->second->eventos.size();
     it->second->eventos.clear();
     std::string err;
-    if (encargar(rol, texto, n == 1 ? "vigilancia" : "vigilancias (" + std::to_string(n) + ")", 0, &err).empty())
+    if (encargar(rol, texto, n == 1 ? "vigilancia" : "vigilancias (" + std::to_string(n) + ")", 0, &err)
+            .empty())
         registrar(diag::Nivel::Aviso, rol, "no se pudo encargar: " + err);
 }
 
-std::string Despachador::encargar(const std::string& rolId, const std::string& texto, const std::string& origen,
-                                  int profundidad, std::string* error, const std::vector<std::string>& adjuntos) {
+std::string Despachador::encargar(const std::string& rolId, const std::string& texto,
+                                  const std::string& origen, int profundidad, std::string* error,
+                                  const std::vector<std::string>& adjuntos) {
     const Rol* rol = roles_.porId(rolId);
     if (rol == nullptr) {
         if (error != nullptr) *error = "no existe el rol `" + rolId + "`";
@@ -204,8 +207,10 @@ std::string Despachador::encargar(const std::string& rolId, const std::string& t
         corridas_.pop_back();
     }
     registrar(diag::Nivel::Info, rolId, "encargo " + id + " (" + origen + "): " + recortar(texto, 160));
-    if (enCursoDe(rolId) == nullptr) lanzarAhora(*porId(id));
-    else cola_[rolId].push_back(id);
+    if (enCursoDe(rolId) == nullptr)
+        lanzarAhora(*porId(id));
+    else
+        cola_[rolId].push_back(id);
     emit cambio();
     return id;
 }
@@ -229,7 +234,8 @@ std::string Despachador::contextoPara(const std::string& rol) const {
     }
     if (!previos.empty()) {
         out += "Lo que paso antes hoy con tu rol (mas reciente primero):\n";
-        for (const auto& p : previos) out += p + "\n";
+        for (const auto& p : previos)
+            out += p + "\n";
         out += "\n";
     }
     return out;
@@ -248,7 +254,8 @@ void Despachador::lanzarAhora(Corrida& c) {
     l.prompt = QString::fromStdString(rol->prompt);
     l.consola = rol->consola;
     l.encargo = QString::fromStdString(contextoPara(c.rol) + "ENCARGO:\n" + c.encargo);
-    for (const std::string& f : c.adjuntos) l.adjuntos << QString::fromStdString(f);
+    for (const std::string& f : c.adjuntos)
+        l.adjuntos << QString::fromStdString(f);
     QString err;
     const term::Pty::Options o = motores_.lanzar ? motores_.lanzar(l, &err) : term::Pty::Options{};
     if (o.program.isEmpty()) {
@@ -258,8 +265,10 @@ void Despachador::lanzarAhora(Corrida& c) {
     c.proc = new QProcess(this);
     c.proc->setWorkingDirectory(o.workDir);
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
-    for (const QString& k : o.unsetEnv) env.remove(k);
-    for (auto it = o.env.begin(); it != o.env.end(); ++it) env.insert(it.key(), it.value());
+    for (const QString& k : o.unsetEnv)
+        env.remove(k);
+    for (auto it = o.env.begin(); it != o.env.end(); ++it)
+        env.insert(it.key(), it.value());
     c.proc->setProcessEnvironment(env);
     c.proc->setProgram(o.program);
     c.proc->setArguments(o.args);
@@ -271,7 +280,8 @@ void Despachador::lanzarAhora(Corrida& c) {
         Corrida* cc = porId(id);
         if (cc == nullptr || cc->proc == nullptr) return;
         cc->stderrTail += cc->proc->readAllStandardError().toStdString();
-        if (cc->stderrTail.size() > 2000) cc->stderrTail = cc->stderrTail.substr(cc->stderrTail.size() - 2000);
+        if (cc->stderrTail.size() > 2000)
+            cc->stderrTail = cc->stderrTail.substr(cc->stderrTail.size() - 2000);
     });
     connect(c.proc, &QProcess::finished, this, [this, id](int code, QProcess::ExitStatus st) {
         Corrida* cc = porId(id);
@@ -386,9 +396,9 @@ void Despachador::procesarLinea(Corrida& c, const std::string& linea) {
         procesarLineaInterna(c, linea);
     } catch (const std::exception& e) {
         paso(c, json{{"tipo", "crudo"},
-                     {"texto", recortar(std::string("no pude leer una linea del motor (") + e.what() +
-                                            "): " + linea,
-                                        300)}});
+                     {"texto",
+                      recortar(std::string("no pude leer una linea del motor (") + e.what() + "): " + linea,
+                               300)}});
     }
 }
 
@@ -405,7 +415,8 @@ void Despachador::procesarLineaInterna(Corrida& c, const std::string& linea) {
         if (j.value("subtype", "") == "init")
             paso(c, json{{"tipo", "inicio"},
                          {"texto", "modelo " + j.value("model", "?") + ", " +
-                                       std::to_string(j.value("tools", json::array()).size()) + " herramientas"}});
+                                       std::to_string(j.value("tools", json::array()).size()) +
+                                       " herramientas"}});
         return;
     }
     if (tipo == "assistant" || tipo == "user") {
@@ -436,7 +447,8 @@ void Despachador::procesarLineaInterna(Corrida& c, const std::string& linea) {
         const std::string r = j.value("result", "");
         if (!r.empty()) c.resultado = r;
         if (j.value("is_error", false)) c.error = recortar(r.empty() ? "el agente informo un error" : r, 300);
-        json fin{{"tipo", "fin"}, {"turnos", j.value("num_turns", 0)}, {"duracionMs", j.value("duration_ms", 0)}};
+        json fin{
+            {"tipo", "fin"}, {"turnos", j.value("num_turns", 0)}, {"duracionMs", j.value("duration_ms", 0)}};
         if (j.contains("total_cost_usd")) fin["costoUsd"] = j["total_cost_usd"];
         paso(c, fin);
         return;
@@ -456,8 +468,10 @@ void Despachador::procesarLineaInterna(Corrida& c, const std::string& linea) {
         json p{{"tipo", "herramienta"},
                {"herramienta", sinPrefijo(part.value("tool", j.value("name", j.value("tool", ""))))}};
         const json st = part.value("state", json::object());
-        if (st.contains("input")) p["args"] = st["input"];
-        else if (j.contains("input")) p["args"] = j["input"];
+        if (st.contains("input"))
+            p["args"] = st["input"];
+        else if (j.contains("input"))
+            p["args"] = j["input"];
         if (st.contains("output")) p["resultado"] = recortar(textoDe(st["output"]));
         paso(c, p);
         return;
@@ -470,7 +484,8 @@ void Despachador::procesarLineaInterna(Corrida& c, const std::string& linea) {
         paso(c, json{{"tipo", "crudo"}, {"texto", c.error}});
         return;
     }
-    if (tipo == "step_start" || tipo == "step_finish" || tipo == "step-start" || tipo == "step-finish") return;
+    if (tipo == "step_start" || tipo == "step_finish" || tipo == "step-start" || tipo == "step-finish")
+        return;
     paso(c, json{{"tipo", "crudo"}, {"texto", recortar(tipo.empty() ? linea : tipo + ": " + linea, 300)}});
 }
 
@@ -478,7 +493,8 @@ void Despachador::paso(Corrida& c, json p) {
     p["t"] = hora(ahoraMs());
     if (p.value("tipo", "") == "herramienta")
         registrar(diag::Nivel::Depuracion, c.rol,
-                  c.id + " llama " + p.value("herramienta", "") + " " + recortar(p.value("args", json::object()).dump(), 200));
+                  c.id + " llama " + p.value("herramienta", "") + " " +
+                      recortar(p.value("args", json::object()).dump(), 200));
     c.pasos.push_back(std::move(p));
     emit cambio();
 }
@@ -500,16 +516,19 @@ void Despachador::terminar(Corrida& c, const std::string& estado, const std::str
     // final de lo que dijo.
     const auto r = c.resultado.rfind("RESUMEN:");
     c.resumen = r != std::string::npos ? c.resultado.substr(r + 8) : c.resultado;
-    while (!c.resumen.empty() && (c.resumen.front() == ' ' || c.resumen.front() == '\n')) c.resumen.erase(0, 1);
+    while (!c.resumen.empty() && (c.resumen.front() == ' ' || c.resumen.front() == '\n'))
+        c.resumen.erase(0, 1);
     c.resumen = recortar(c.resumen, 600);
-    const std::string dur = c.inicioMs > 0 ? std::to_string((c.finMs - c.inicioMs) / 1000) + " s" : "sin arrancar";
+    const std::string dur =
+        c.inicioMs > 0 ? std::to_string((c.finMs - c.inicioMs) / 1000) + " s" : "sin arrancar";
     if (estado == "ok")
         registrar(diag::Nivel::Info, c.rol,
                   "corrida " + c.id + " termino bien (" + dur + ", " + std::to_string(c.herramientas) +
                       " herramientas): " + recortar(c.resumen, 200));
     else
         registrar(diag::Nivel::Aviso, c.rol, "corrida " + c.id + " " + estado + " (" + dur + "): " + error);
-    if (estado == "error") emit notify(QString::fromStdString("Agente " + c.rol + ": " + recortar(error, 120)), "error");
+    if (estado == "error")
+        emit notify(QString::fromStdString("Agente " + c.rol + ": " + recortar(error, 120)), "error");
     const std::string rol = c.rol;
     const std::string id = c.id;
     const bool ok = estado == "ok";
@@ -627,7 +646,9 @@ QVariantList Despachador::corridasQml() const {
     return aLista(r);
 }
 
-QVariantList Despachador::proveedores() const { return motores_.proveedores ? motores_.proveedores() : QVariantList(); }
+QVariantList Despachador::proveedores() const {
+    return motores_.proveedores ? motores_.proveedores() : QVariantList();
+}
 
 void Despachador::setActivo(const QString& rol, bool activo) {
     if (roles_.setActivo(rol.toStdString(), activo)) {

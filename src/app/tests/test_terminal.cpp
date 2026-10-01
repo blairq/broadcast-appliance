@@ -187,7 +187,8 @@ int main(int argc, char** argv) {
 
         s.line(1, 0, l);
         QString cab;
-        for (const Cell& c : l) cab += QString::fromUcs4(&c.ch, 1);
+        for (const Cell& c : l)
+            cab += QString::fromUcs4(&c.ch, 1);
         CHECK(cab.contains("Claude Code"), "la cabecera se lee");
         s.line(15, 0, l);
         bool vacia = true;

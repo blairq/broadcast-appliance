@@ -217,8 +217,8 @@ int main(int argc, char** argv) {
     CHECK(fired.empty(), "reintentar unos segundos todavia no avisa");
     step(20000);
     CHECK(fired.size() == 1 && fired[0]["type"] == "stream_down", "lleva rato sin volver: avisa");
-    CHECK(fired.size() == 1 && fired[0]["text"].get<std::string>().find("sin poder volver") !=
-                                   std::string::npos,
+    CHECK(fired.size() == 1 &&
+              fired[0]["text"].get<std::string>().find("sin poder volver") != std::string::npos,
           "y dice cuanto lleva");
 
     // Vuelve: se olvida, para que el proximo corte se cuente de cero.

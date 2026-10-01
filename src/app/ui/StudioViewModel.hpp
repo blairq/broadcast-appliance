@@ -50,7 +50,10 @@ class MediosViewModel;
 class RegistroViewModel;
 class ExtensionesModel;
 class RielConfig;
-namespace graficos { class Emisor; class Vinculos; }
+namespace graficos {
+class Emisor;
+class Vinculos;
+} // namespace graficos
 class YouTubeViewModel;
 class TwitchViewModel;
 class FacebookViewModel;
@@ -287,13 +290,13 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(bool puedeUbicarVentanas READ puedeUbicarVentanas CONSTANT)
     static bool puedeUbicarVentanas();
 
-  private:
+   private:
     /// Le manda el estado de los buses a las pantallas de tally de la sala.
     /// Se llama en cada cambio de escena y de aire: un tally que llega tarde
     /// es peor que no tenerlo, porque alguien se confia.
     void publicarTally();
 
-  public:
+   public:
     Q_INVOKABLE void addScene(const QString& name);
     Q_INVOKABLE void removeScene(const QString& name);
     Q_INVOKABLE void renameScene(const QString& from, const QString& to);

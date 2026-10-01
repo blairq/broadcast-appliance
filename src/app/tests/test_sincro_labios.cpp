@@ -74,7 +74,8 @@ void retardo_conocido() {
     // La camara llega 320 ms tarde. Cinco aplausos.
     const std::vector<int> cuando{500, 1200, 2000, 2800, 3600};
     std::vector<int> conRetardo;
-    for (const int t : cuando) conRetardo.push_back(t + 320);
+    for (const int t : cuando)
+        conRetardo.push_back(t + 320);
 
     const auto ga = buscarGolpes(senal(4500, -55, 45, cuando), 20);
     const auto gv = buscarGolpes(senal(4500, 2, 60, conRetardo), 20);
@@ -117,8 +118,7 @@ void jitter() {
 
 void cuando_no_se_puede() {
     CHECK(!medirRetardo({}, {{100, 5}}).ok, "sin audio no hay nada que medir");
-    CHECK(medirRetardo({}, {{100, 5}}).problema.find("escuchó") != std::string::npos,
-          "y se dice cual falto");
+    CHECK(medirRetardo({}, {{100, 5}}).problema.find("escuchó") != std::string::npos, "y se dice cual falto");
     CHECK(medirRetardo({{100, 5}}, {}).problema.find("vio") != std::string::npos, "del otro lado igual");
 
     // Aplausos de los dos lados pero separados por mas de lo posible: no son

@@ -30,6 +30,19 @@ def _renderizador(repo_root: Path) -> Path:
     pytest.skip("ba-grafico no está compilado")
 
 
+def _respuesta(stdout: str) -> dict:
+    """La primera respuesta del renderizador. Sin OpenGL (un runner de CI o un
+    contenedor sin drivers) no hay renderizador: se saltea, como los demas
+    tests que necesitan graficos. Cualquier otro error queda para el test."""
+    linea = next((x for x in stdout.splitlines() if x.strip()), "")
+    if not linea:
+        return {}
+    d = json.loads(linea)
+    if not d.get("ok") and "contexto de OpenGL" in str(d.get("error", "")):
+        pytest.skip("sin OpenGL en esta maquina: " + d["error"])
+    return d
+
+
 def _tira(binario: Path, qml: Path, momentos: list[int]) -> dict[int, "Image.Image"]:
     Image = pytest.importorskip("PIL.Image", reason="hace falta Pillow para mirar los cuadros")
     pedido = {
@@ -47,9 +60,8 @@ def _tira(binario: Path, qml: Path, momentos: list[int]) -> dict[int, "Image.Ima
         text=True,
         timeout=180,
     )
-    linea = next((x for x in r.stdout.splitlines() if x.strip()), "")
-    assert linea, f"el renderizador no respondió nada. stderr: {r.stderr[:400]}"
-    d = json.loads(linea)
+    d = _respuesta(r.stdout)
+    assert d, f"el renderizador no respondió nada. stderr: {r.stderr[:400]}"
     assert d.get("ok"), d.get("error")
     return {
         c["ms"]: Image.open(io.BytesIO(base64.b64decode(c["png"]))).convert("RGBA")
@@ -116,7 +128,7 @@ def test_un_qml_roto_se_explica(repo_root: Path, tmp_path: Path) -> None:
         text=True,
         timeout=120,
     )
-    d = json.loads(next(x for x in r.stdout.splitlines() if x.strip()))
+    d = _respuesta(r.stdout)
     assert not d["ok"]
     # El consejo va pegado al error: el módulo de Qt 5 es el que la LLM va a
     # escribir por inercia, y el error de Qt solo no ayuda a nadie.
@@ -134,7 +146,7 @@ def test_un_parametro_que_no_existe_es_un_error(repo_root: Path, tmp_path: Path)
         text=True,
         timeout=120,
     )
-    d = json.loads(next(x for x in r.stdout.splitlines() if x.strip()))
+    d = _respuesta(r.stdout)
     assert not d["ok"]
     assert "noExiste" in d["error"]
 
@@ -166,7 +178,7 @@ def test_los_parametros_llegan_al_qml_escrito_a_mano(repo_root: Path) -> None:
             text=True,
             timeout=120,
         )
-        return json.loads(p.stdout.strip().splitlines()[0])
+        return _respuesta(p.stdout)
 
     assert validar({"nombre": "Fulano"})["ok"], "un parámetro que el gráfico declara tiene que andar"
 

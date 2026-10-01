@@ -12,6 +12,8 @@
 # Uso: tools/ci/test-win.sh [build/win]
 # ============================================================================
 set -uo pipefail
+# macOS no trae sha256sum (shasum -a 256 da el mismo formato).
+command -v sha256sum >/dev/null 2>&1 || sha256sum() { shasum -a 256 "$@"; }
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 B="$(cd "${1:-$ROOT/build/win}" && pwd)"

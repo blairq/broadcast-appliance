@@ -9,9 +9,9 @@
 
 #include <QBuffer>
 #include <QDateTime>
-#include <QTimer>
 #include <QJsonDocument>
 #include <QPainter>
+#include <QTimer>
 #include <QUrl>
 
 #include <algorithm>
@@ -228,9 +228,8 @@ void McpService::registerRoomTools() {
         t.title = "Volver a la fila";
         t.category = "oradores";
         t.description = "Orador que ya hablo: vuelve al final de la fila.";
-        t.inputSchema = {{"type", "object"},
-                         {"properties", {{"participant", personProp}}},
-                         {"required", {"participant"}}};
+        t.inputSchema = {
+            {"type", "object"}, {"properties", {{"participant", personProp}}}, {"required", {"participant"}}};
         t.examples = {R"({"participant": "Marta"})"};
         t.run = [withPerson, partPath, post](const json& a, Done done) {
             json p;
@@ -244,18 +243,16 @@ void McpService::registerRoomTools() {
         t.name = "participant_admit";
         t.title = "Hacer pasar a alguien del lobby";
         t.category = "sala";
-        t.description =
-            "Hace PASAR a alguien que espera en el lobby: entra a la sala. Admite a UNA persona que espera: deja el lobby y entra a la sala, con su camara y su "
-            "microfono.";
-        t.details =
-            "Es el final del camino de la atencion en el lobby: `rostro_lobby` / `chat_send` para "
-            "saber quien es, `participant_profile` para dejarle la ficha, `operator_ask` para que "
-            "el operador decida, y esto cuando dijo que si.\n\n"
-            "Si no hay lugar libre en la sala (`room_status` -> `slotsFree`) el gateway la deja "
-            "esperando: admitir no crea lugares.";
-        t.inputSchema = {{"type", "object"},
-                         {"properties", {{"participant", personProp}}},
-                         {"required", {"participant"}}};
+        t.description = "Hace PASAR a alguien que espera en el lobby: entra a la sala. Admite a UNA persona "
+                        "que espera: deja el lobby y entra a la sala, con su camara y su "
+                        "microfono.";
+        t.details = "Es el final del camino de la atencion en el lobby: `rostro_lobby` / `chat_send` para "
+                    "saber quien es, `participant_profile` para dejarle la ficha, `operator_ask` para que "
+                    "el operador decida, y esto cuando dijo que si.\n\n"
+                    "Si no hay lugar libre en la sala (`room_status` -> `slotsFree`) el gateway la deja "
+                    "esperando: admitir no crea lugares.";
+        t.inputSchema = {
+            {"type", "object"}, {"properties", {{"participant", personProp}}}, {"required", {"participant"}}};
         t.examples = {R"({"participant": "Jorge"})"};
         t.run = [withPerson, partPath, post](const json& a, Done done) {
             json p;
@@ -273,9 +270,8 @@ void McpService::registerRoomTools() {
         t.description = "Le niega la entrada a quien espera: se le cierra la sesion y sale del lobby.";
         t.details = "Para el que no tiene que estar. Si solo querés que espere un rato mas, no uses "
                     "esto: dejala en el lobby y avisale por `chat_send`.";
-        t.inputSchema = {{"type", "object"},
-                         {"properties", {{"participant", personProp}}},
-                         {"required", {"participant"}}};
+        t.inputSchema = {
+            {"type", "object"}, {"properties", {{"participant", personProp}}}, {"required", {"participant"}}};
         t.run = [withPerson, partPath, post](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
@@ -293,9 +289,8 @@ void McpService::registerRoomTools() {
         t.details = "Mira `room_status` antes: si esa persona esta en una escena al aire, sacarla se "
                     "ve en la transmision. Pasar el programa a otra escena primero es gratis; "
                     "deshacer esto no.";
-        t.inputSchema = {{"type", "object"},
-                         {"properties", {{"participant", personProp}}},
-                         {"required", {"participant"}}};
+        t.inputSchema = {
+            {"type", "object"}, {"properties", {{"participant", personProp}}}, {"required", {"participant"}}};
         t.run = [withPerson, partPath, post](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
@@ -450,7 +445,8 @@ void McpService::registerRoomTools() {
         t.category = "sala";
         t.readOnly = true;
         t.description =
-            "Espera hasta `timeoutSec` (max. 120) a que `participant` escriba en el chat de la sala y devuelve "
+            "Espera hasta `timeoutSec` (max. 120) a que `participant` escriba en el chat de la sala y "
+            "devuelve "
             "sus mensajes nuevos (`timedOut` true y lista vacia si no escribio). Para atender a alguien: una "
             "pregunta con chat_send, un chat_wait, y asi.";
         t.inputSchema = {
@@ -777,7 +773,8 @@ void McpService::registerRoomTools() {
         t.name = "speaker_next";
         t.title = "Siguiente orador";
         t.category = "oradores";
-        t.description = "Pasa al orador que SIGUE en la fila. Pone al aire al siguiente de la fila (en modo 'uno a la vez', el que estaba sale).";
+        t.description = "Pasa al orador que SIGUE en la fila. Pone al aire al siguiente de la fila (en modo "
+                        "'uno a la vez', el que estaba sale).";
         t.run = [post](const json&, Done done) {
             post("/api/v1/speakers/next", json::object(), "Siguiente al aire.", done);
         };

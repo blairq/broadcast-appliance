@@ -67,9 +67,9 @@ void listar_() {
     tocar(raiz + "/Media/logos/Logo_Camión.png");
     tocar(raiz + "/Media/musica/tema.mp3");
     tocar(raiz + "/Media/charla.pdf");
-    tocar(raiz + "/Media/notas.txt");          // no es medio
+    tocar(raiz + "/Media/notas.txt"); // no es medio
     tocar(raiz + "/Shares/de-un-invitado.jpg");
-    tocar(raiz + "/AfueraDeTodo/x.png");       // fuera de las carpetas de medios
+    tocar(raiz + "/AfueraDeTodo/x.png"); // fuera de las carpetas de medios
 
     const auto todos = listar(raiz);
     CHECK(todos.size() == 4, "encuentra los cuatro medios y deja el resto");
@@ -197,9 +197,21 @@ void tocar_archivos() {
 void ordenar_() {
     QVector<Archivo> l;
     Archivo x;
-    x.nombre = "zeta.png"; x.bytes = 10; x.modificadoMs = 300; x.tipo = Tipo::Imagen; l.push_back(x);
-    x.nombre = "alfa.mp4"; x.bytes = 50; x.modificadoMs = 100; x.tipo = Tipo::Video;  l.push_back(x);
-    x.nombre = "beta.png"; x.bytes = 30; x.modificadoMs = 200; x.tipo = Tipo::Imagen; l.push_back(x);
+    x.nombre = "zeta.png";
+    x.bytes = 10;
+    x.modificadoMs = 300;
+    x.tipo = Tipo::Imagen;
+    l.push_back(x);
+    x.nombre = "alfa.mp4";
+    x.bytes = 50;
+    x.modificadoMs = 100;
+    x.tipo = Tipo::Video;
+    l.push_back(x);
+    x.nombre = "beta.png";
+    x.bytes = 30;
+    x.modificadoMs = 200;
+    x.tipo = Tipo::Imagen;
+    l.push_back(x);
 
     QVector<Archivo> a = l;
     ordenar(a, "nombre");

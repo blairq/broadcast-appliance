@@ -29,12 +29,12 @@
 using namespace ba::app::mcp;
 
 int g_fallos = 0;
-#define CHECK(cond, que)                                                                           \
-    do {                                                                                           \
-        if (!(cond)) {                                                                             \
-            std::printf("  FALLO: %s\n", (que));                                                   \
-            ++g_fallos;                                                                            \
-        }                                                                                          \
+#define CHECK(cond, que)                                                                                     \
+    do {                                                                                                     \
+        if (!(cond)) {                                                                                       \
+            std::printf("  FALLO: %s\n", (que));                                                             \
+            ++g_fallos;                                                                                      \
+        }                                                                                                    \
     } while (0)
 
 namespace {
@@ -120,7 +120,6 @@ const std::pair<const char*, const char*> kHerramientas[] = {
     {"settings_set", "Cambiar una configuracion"},
 };
 
-
 // --- La bateria de preguntas tipicas ----------------------------------------
 //
 // El corpus vive en datos/preguntas.json y lo comparten DOS bancos de prueba:
@@ -155,7 +154,8 @@ std::vector<Caso> leerCorpus(const std::string& archivo, bool& ok) {
     for (const auto& c : j["casos"]) {
         Caso k;
         k.pregunta = c.value("pregunta", "");
-        for (const auto& h : c["herramientas"]) k.herramientas.push_back(h.get<std::string>());
+        for (const auto& h : c["herramientas"])
+            k.herramientas.push_back(h.get<std::string>());
         if (!k.pregunta.empty() && !k.herramientas.empty()) out.push_back(std::move(k));
     }
     return out;
@@ -231,7 +231,8 @@ void exigir(const Indice& i, const std::string& consulta, const std::string& qui
     std::printf("  FALLO: \"%s\" no trajo %s entre los primeros %d (puesto %d)\n", consulta.c_str(),
                 quien.c_str(), dentroDe, p);
     const std::vector<Resultado> r = i.buscar(consulta, 5);
-    for (const Resultado& x : r) std::printf("         trajo: %s\n", i.doc(x.doc).id.c_str());
+    for (const Resultado& x : r)
+        std::printf("         trajo: %s\n", i.doc(x.doc).id.c_str());
 }
 
 } // namespace
@@ -260,13 +261,14 @@ void velocidad(const Indice& i) {
     const auto t0 = std::chrono::steady_clock::now();
     std::size_t resultados = 0;
     for (int v = 0; v < kVueltas; ++v)
-        for (const char* q : kReactivas) resultados += i.buscar(q, 8).size();
+        for (const char* q : kReactivas)
+            resultados += i.buscar(q, 8).size();
     const auto t1 = std::chrono::steady_clock::now();
     const double us = std::chrono::duration<double, std::micro>(t1 - t0).count();
     const int cuantas = kVueltas * static_cast<int>(std::size(kReactivas));
     const double porBusqueda = us / cuantas;
-    std::printf("  velocidad: %.0f us por busqueda (%d busquedas reactivas, %zu resultados)\n",
-                porBusqueda, cuantas, resultados);
+    std::printf("  velocidad: %.0f us por busqueda (%d busquedas reactivas, %zu resultados)\n", porBusqueda,
+                cuantas, resultados);
     // Tope generoso a proposito: lo que se vigila es que no se vaya a otro
     // orden de magnitud, no el numero exacto de esta maquina.
     if (porBusqueda > 2000.0) {
@@ -336,13 +338,16 @@ int main() {
             const int p = puestoDeAlguna(ic, c, 8);
             if (p == 0) ++en1;
             if (p >= 0 && p < 3) ++en3;
-            if (p >= 0) ++en8;
-            else perdidas.push_back(c.pregunta);
+            if (p >= 0)
+                ++en8;
+            else
+                perdidas.push_back(c.pregunta);
         }
         const int n = static_cast<int>(casos.size());
-        std::printf("  bateria (%d preguntas): primera %d/%d | primeras 3 %d/%d | primeras 8 %d/%d\n",
-                    n, en1, n, en3, n, en8, n);
-        for (const std::string& q : perdidas) std::printf("    no la encuentra: \"%s\"\n", q.c_str());
+        std::printf("  bateria (%d preguntas): primera %d/%d | primeras 3 %d/%d | primeras 8 %d/%d\n", n, en1,
+                    n, en3, n, en8, n);
+        for (const std::string& q : perdidas)
+            std::printf("    no la encuentra: \"%s\"\n", q.c_str());
         // Las que llegan pero NO primeras: no son un fallo —el modelo recibe
         // las ocho— pero cuanto mas arriba, mejor elige. Es la lista de trabajo
         // para las etiquetas.

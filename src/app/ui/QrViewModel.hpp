@@ -67,7 +67,7 @@ class QrViewModel : public QObject {
     Q_PROPERTY(int revision READ revision NOTIFY editorCambio)
     Q_PROPERTY(bool sucio READ sucio NOTIFY editorCambio)
 
-  public:
+   public:
     QrViewModel(AppRuntime& rt, EventoViewModel* evento, ConferenceViewModel* sala,
                 QObject* parent = nullptr);
     ~QrViewModel() override;
@@ -117,8 +117,7 @@ class QrViewModel : public QObject {
     /// operador esté diseñando.
     QString contenidoDe(const QString& tipo, const QVariantMap& datos) const;
     /// Un código suelto (ni guardado ni abierto en el editor) como SVG.
-    QString svgSuelto(const QString& tipo, const QVariantMap& datos,
-                      const QVariantMap& estilo) const;
+    QString svgSuelto(const QString& tipo, const QVariantMap& datos, const QVariantMap& estilo) const;
     /// Un código guardado, listo para PROYECTAR: `{texto, estilo}`, donde
     /// `estilo` ya viene como parámetros de consulta (ba::qr::aConsulta). Vacío
     /// si ese id no existe.
@@ -130,15 +129,14 @@ class QrViewModel : public QObject {
     /// Lo guardado de los DOS ámbitos, para listarlo de una.
     QVariantList todos() const;
     /// Escribe un SVG en un archivo de Exportado/. Devuelve la ruta o vacío.
-    QString escribir(const QString& svgTexto, const QString& nombre, const QString& formato,
-                     int px) const;
+    QString escribir(const QString& svgTexto, const QString& nombre, const QString& formato, int px) const;
 
-  signals:
+   signals:
     void bibliotecaCambio();
     void editorCambio();
     void notify(const QString& texto, const QString& tipo);
 
-  private:
+   private:
     struct Impl;
     std::unique_ptr<Impl> d_;
 };
@@ -146,12 +144,11 @@ class QrViewModel : public QObject {
 /// Dibuja la vista previa: `image://qr/actual?rev=N` o `image://qr/<id>?rev=N`.
 /// Rasteriza el MISMO SVG que se exporta, así lo que se ve es lo que sale.
 class QrImageProvider : public QQuickImageProvider {
-  public:
-    explicit QrImageProvider(QrViewModel& vm)
-        : QQuickImageProvider(QQuickImageProvider::Image), vm_(vm) {}
+   public:
+    explicit QrImageProvider(QrViewModel& vm) : QQuickImageProvider(QQuickImageProvider::Image), vm_(vm) {}
     QImage requestImage(const QString& id, QSize* size, const QSize& pedido) override;
 
-  private:
+   private:
     QrViewModel& vm_;
 };
 

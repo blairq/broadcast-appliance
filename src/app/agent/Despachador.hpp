@@ -65,7 +65,7 @@ class Despachador : public QObject {
     /// Los proveedores que se pueden elegir por rol (los mismos del asistente).
     Q_PROPERTY(QVariantList proveedores READ proveedores CONSTANT)
 
-  public:
+   public:
     using json = nlohmann::json;
 
     static constexpr int kProfundidadMax = 1;
@@ -116,7 +116,7 @@ class Despachador : public QObject {
     Q_INVOKABLE void detener(const QString& id);
     Q_INVOKABLE QVariantMap corridaQml(const QString& id) const;
 
-  signals:
+   signals:
     void cambio();
     /// Un evento fue asignado a un rol (antes de lanzar): para que el sistema
     /// prepare lo que haga falta (la exencion de aprobacion de esa persona).
@@ -124,7 +124,7 @@ class Despachador : public QObject {
     void corridaTerminada(const QString& id, bool ok);
     void notify(const QString& message, const QString& level);
 
-  private:
+   private:
     struct Corrida;
     struct Pendiente;
     void lanzar(const std::string& rol);

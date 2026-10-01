@@ -35,7 +35,7 @@
 namespace ba::gateway {
 
 class Rotulador {
-  public:
+   public:
     /// Cuantos encargos se guardan si A no viene a buscarlos. Mas que esto es
     /// que A no esta: encolar cien no lo va a resucitar, y el ultimo es
     /// siempre el que importa.
@@ -59,7 +59,7 @@ class Rotulador {
     /// Cuantos hay esperando (para la vista, que muestra «mandado»).
     std::size_t pendientes() const;
 
-  private:
+   private:
     mutable std::mutex m_;
     nlohmann::json estado_ = nlohmann::json::object();
     std::int64_t publicadoMs_ = 0;

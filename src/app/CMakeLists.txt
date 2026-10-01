@@ -81,6 +81,9 @@ if(NOT BA_APP_QT_OK)
     # MCP, plataformas y cuentas son Qt (red, JSON, timers): sin Qt no van.
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/(mcp|youtube|twitch|facebook|net)/.*")
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/AccountGuides\\.cpp$")
+    # Graficos, medios y la conversion del carrusel tambien son Qt.
+    list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/(graficos|medios)/.*")
+    list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/carrusel/Conversion\\.cpp$")
 endif()
 # Pseudo-terminal: una implementacion por plataforma.
 if(WIN32)
@@ -95,7 +98,8 @@ endif()
 set(BA_NOIDEA_DIR "${CMAKE_SOURCE_DIR}/extern/libnoidea")
 set(BA_OBS_DEPS "${CMAKE_SOURCE_DIR}/extern/obs-deps-linux")
 set(BA_HAVE_NDI OFF)
-if(BA_HAVE_LIBOBS AND NOT WIN32 AND EXISTS "${BA_NOIDEA_DIR}/src/recv.c" AND EXISTS "${BA_OBS_DEPS}/lib/libmicrodns.a")
+# (macOS: pendiente; sin NDI hasta armar libmicrodns + FFmpeg de obs-deps-macos.)
+if(BA_HAVE_LIBOBS AND NOT WIN32 AND NOT APPLE AND EXISTS "${BA_NOIDEA_DIR}/src/recv.c" AND EXISTS "${BA_OBS_DEPS}/lib/libmicrodns.a")
     add_library(ba_noidea STATIC "${BA_NOIDEA_DIR}/src/recv.c" "${BA_NOIDEA_DIR}/src/scramble.c"
                                  "${BA_NOIDEA_DIR}/extensions/discovery.c")
     target_include_directories(ba_noidea PUBLIC "${BA_NOIDEA_DIR}/include" "${BA_OBS_DEPS}/include")
@@ -129,8 +133,13 @@ if(NOT WIN32 AND EXISTS "${BA_OBS_DEPS}/lib/libmicrodns.a")
     target_link_libraries(ba_mdns INTERFACE "${BA_OBS_DEPS}/lib/libmicrodns.a")
     set(BA_MDNS_OK ON)
 elseif(NOT WIN32 AND EXISTS "${BA_MDNS_DIR}/src/mdns.c")
-    add_library(ba_mdns STATIC "${BA_MDNS_DIR}/src/mdns.c" "${BA_MDNS_DIR}/src/rr.c")
-    target_include_directories(ba_mdns PUBLIC "${BA_MDNS_DIR}/include" PRIVATE "${BA_MDNS_DIR}")
+    # compat.c: os_strerror y compania (en Windows van ademas inet.c y poll.c).
+    add_library(ba_mdns STATIC "${BA_MDNS_DIR}/src/mdns.c" "${BA_MDNS_DIR}/src/rr.c"
+                               "${BA_MDNS_DIR}/compat/compat.c")
+    # config.h: lo que el meson.build de libmicrodns detecta en POSIX.
+    target_include_directories(ba_mdns PUBLIC "${BA_MDNS_DIR}/include"
+                               PRIVATE "${CMAKE_SOURCE_DIR}/cmake/microdns-posix" "${BA_MDNS_DIR}" "${BA_MDNS_DIR}/compat")
+    target_compile_definitions(ba_mdns PRIVATE HAVE_CONFIG_H)
     target_compile_options(ba_mdns PRIVATE -w)
     set_target_properties(ba_mdns PROPERTIES C_STANDARD 11 POSITION_INDEPENDENT_CODE ON)
     set(BA_MDNS_OK ON)
@@ -186,10 +195,26 @@ endif()
 if(BA_HAVE_CLAP)
     if(WIN32)
         set(_ba_lsp_dir "${CMAKE_SOURCE_DIR}/extern/lsp/windows-x86_64")
+    elseif(APPLE)
+        set(_ba_lsp_dir "${CMAKE_SOURCE_DIR}/extern/lsp/macos-arm64")
     else()
         set(_ba_lsp_dir "${CMAKE_SOURCE_DIR}/extern/lsp/linux-x86_64")
     endif()
-    file(GLOB _ba_lsp_files "${_ba_lsp_dir}/*.clap" "${_ba_lsp_dir}/*.dll" "${_ba_lsp_dir}/*.so*")
+    if(APPLE AND IS_DIRECTORY "${_ba_lsp_dir}/lsp-plugins.clap")
+        # macOS, si el .clap viene como bundle (carpeta).
+        install(DIRECTORY "${_ba_lsp_dir}/lsp-plugins.clap" DESTINATION plugins/lsp USE_SOURCE_PERMISSIONS)
+        file(GLOB _ba_lsp_files "${_ba_lsp_dir}/*.dylib")
+    elseif(APPLE)
+        # macOS: el build de LSP deja el .clap como un Mach-O suelto (y, si hay,
+        # los .dylib de su motor 3D).
+        file(GLOB _ba_lsp_files "${_ba_lsp_dir}/*.clap" "${_ba_lsp_dir}/*.dylib")
+    else()
+        file(GLOB _ba_lsp_files "${_ba_lsp_dir}/*.clap" "${_ba_lsp_dir}/*.dll" "${_ba_lsp_dir}/*.so*")
+    endif()
+    if(APPLE AND IS_DIRECTORY "${_ba_lsp_dir}/lsp-plugins.clap" AND NOT _ba_lsp_files)
+        file(GLOB _ba_lsp_lic "${CMAKE_SOURCE_DIR}/extern/lsp/licencias/*")
+        install(FILES ${_ba_lsp_lic} DESTINATION data/licencias/lsp-plugins)
+    endif()
     if(_ba_lsp_files)
         install(FILES ${_ba_lsp_files} DESTINATION plugins/lsp)
         file(GLOB _ba_lsp_lic "${CMAKE_SOURCE_DIR}/extern/lsp/licencias/*")
@@ -199,6 +224,8 @@ endif()
 # LSP para los tests (en el bundle: plugins/lsp/).
 if(WIN32)
     set(BA_LSP_CLAP "${CMAKE_SOURCE_DIR}/extern/lsp/windows-x86_64/lsp-plugins.clap")
+elseif(APPLE)
+    set(BA_LSP_CLAP "${CMAKE_SOURCE_DIR}/extern/lsp/macos-arm64/lsp-plugins.clap")
 else()
     set(BA_LSP_CLAP "${CMAKE_SOURCE_DIR}/extern/lsp/linux-x86_64/lsp-plugins.clap")
 endif()
@@ -226,6 +253,18 @@ if(MSVC)
 else()
     add_executable(ba-app ${BA_APP_SOURCES})
 endif()
+# Los modulos se incluyen como "evento/Evento.hpp": hace falta tambien sin Qt.
+target_include_directories(ba-app PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+# Windows: el logo en el .exe (el mismo .ico que el launcher, ver tools/icono.py).
+if(WIN32)
+    enable_language(RC)
+    target_sources(ba-app PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/ba-app.rc")
+    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/ba-app.rc"
+        PROPERTIES COMPILE_OPTIONS "-I;${CMAKE_SOURCE_DIR}/assets/icons")
+endif()
+# macOS: permisos de camara/microfono (TCC) en un ejecutable que no es .app.
+include(${CMAKE_SOURCE_DIR}/cmake/BaMacInfoPlist.cmake)
+ba_mac_embed_info_plist(ba-app com.legisstudio.broadcastappliance.app "Broadcast Appliance")
 
 # MinGW GUI: subsistema GUI (sin consola), igual que el launcher. Sin esto,
 # MinGW enlaza como consola y el CRT espera `main` en vez de `WinMain`/
@@ -277,7 +316,13 @@ if(BA_HAVE_LIBOBS)
     # rpath $ORIGIN: el ejecutable busca sus bibliotecas JUNTO A EL dentro del
     # bundle portable (bin/64bit/), no en el sistema. Es lo que hace que el
     # bundle corra en una maquina sin nada instalado.
-    if(NOT WIN32)
+    if(APPLE)
+        # macOS: lo mismo con @executable_path (libobs.framework, dylibs de
+        # obs-deps y libobs-opengl.so viven junto a ba-app en bin/64bit).
+        set_target_properties(ba-app PROPERTIES
+            BUILD_RPATH "${BA_OBS_MAC_PREFIX}/lib;${BA_QT_PREFIX}/lib"
+            INSTALL_RPATH "@executable_path;@executable_path/qt/lib")
+    elseif(NOT WIN32)
         set_target_properties(ba-app PROPERTIES
             BUILD_RPATH "${BA_OBS_LINUX_PREFIX}/lib"
             # qt/lib: el Qt vendoreado que viaja en el bundle (BaQtDeploy.cmake).
@@ -308,10 +353,25 @@ target_link_libraries(ba-app PRIVATE Qt6::Gui Qt6::Quick Qt6::Qml Qt6::QuickCont
 # directorio de compilacion. En el bundle se lo busca al lado del ejecutable.
 if(WIN32)
     set(_ba_lo_dir "${CMAKE_SOURCE_DIR}/extern/libreoffice/win")
+elseif(APPLE)
+    # macOS: la .app oficial (tools/deps/libreoffice.sh mac). Sin esta rama se
+    # tomaba (y se metia al bundle) el de Linux.
+    set(_ba_lo_dir "${CMAKE_SOURCE_DIR}/extern/libreoffice/macos")
 else()
     set(_ba_lo_dir "${CMAKE_SOURCE_DIR}/extern/libreoffice/linux")
 endif()
-if(EXISTS "${_ba_lo_dir}/program")
+# Esta el LibreOffice de esta plataforma? (en macOS no hay program/: es una .app)
+if(APPLE)
+    set(_ba_lo_ok FALSE)
+    if(EXISTS "${_ba_lo_dir}/LibreOffice.app/Contents/MacOS/soffice")
+        set(_ba_lo_ok TRUE)
+    endif()
+elseif(EXISTS "${_ba_lo_dir}/program")
+    set(_ba_lo_ok TRUE)
+else()
+    set(_ba_lo_ok FALSE)
+endif()
+if(_ba_lo_ok)
     target_compile_definitions(ba-app PRIVATE BA_LIBREOFFICE_DIR="${_ba_lo_dir}")
 endif()
     target_compile_definitions(ba-app PRIVATE BA_APP_HAVE_QT_OBS=1)
@@ -325,6 +385,12 @@ endif()
     qt_add_resources(ba-app "ba_qml" PREFIX "/" FILES ${BA_APP_QML})
     # Versiones fijadas de los agentes de IA (pestaña Asistente).
     qt_add_resources(ba-app "ba_agent" PREFIX "/" FILES agent/agentes.json)
+    # El logo, para el icono de la ventana (tools/icono.py los genera).
+    set(_ba_iconos "")
+    foreach(_lado 16 24 32 48 64 128 256 512)
+        list(APPEND _ba_iconos "${CMAKE_SOURCE_DIR}/assets/icons/broadcast-appliance-${_lado}.png")
+    endforeach()
+    qt_add_resources(ba-app "ba_iconos" PREFIX "/icons" BASE "${CMAKE_SOURCE_DIR}/assets/icons" FILES ${_ba_iconos})
     target_link_libraries(ba-app PRIVATE ba_vterm)
     if(BA_HAVE_CLAP)
         target_include_directories(ba-app PRIVATE "${BA_CLAP_INC}")
@@ -357,9 +423,18 @@ endif()
     # LibreOffice headless, SOLO si se lo bajo (make deps-libreoffice). Es lo
     # que convierte un .pptx a PDF para armar un carrusel; el que recibe PDF no
     # carga ~420 MB para nada. Ver tools/deps/libreoffice.sh.
-    if(EXISTS "${_ba_lo_dir}/program")
+    if(_ba_lo_ok)
         install(DIRECTORY "${_ba_lo_dir}/" DESTINATION bin/libreoffice
                 COMPONENT bundle USE_SOURCE_PERMISSIONS)
+        if(WIN32)
+            # El .msi instala el runtime de Visual C++ en el SISTEMA, no en
+            # program/: extraido a mano queda afuera, y en un Windows sin el
+            # Redistributable soffice.exe no arrancaria. Va el mismo CRT de
+            # MSVC que usan nuestros .exe, junto a soffice (Windows busca las
+            # DLL en la carpeta del programa, no en bin/64bit).
+            file(GLOB _ba_crt_lo "${CMAKE_SOURCE_DIR}/extern/msvc/redist/*.dll")
+            install(FILES ${_ba_crt_lo} DESTINATION bin/libreoffice/program COMPONENT bundle)
+        endif()
         message(STATUS "ba-app: LibreOffice headless al bundle (${_ba_lo_dir})")
     endif()
     message(STATUS "ba-app: interfaz grafica con Qt ${Qt6_VERSION} vendoreado (${BA_QT_PREFIX})")
@@ -407,6 +482,19 @@ endif()
     target_compile_definitions(test_youtube PRIVATE BA_TEST_CACERT="${CMAKE_SOURCE_DIR}/extern/cacert/cacert.pem")
     set_target_properties(test_youtube PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_youtube COMMAND test_youtube)
+
+    # Buscar la ultima version de los agentes en su fuente oficial (con red;
+    # sin red se saltea).
+    add_executable(test_agent_updates tests/test_agent_updates.cpp agent/Actualizacion.cpp net/HttpsClient.cpp)
+    target_include_directories(test_agent_updates PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_agent_updates PRIVATE ba_core Qt6::Core mbedtls mbedx509 mbedcrypto)
+    target_compile_definitions(test_agent_updates PRIVATE
+        BA_TEST_CACERT="${CMAKE_SOURCE_DIR}/extern/cacert/cacert.pem"
+        BA_AGENTES_JSON="${CMAKE_CURRENT_SOURCE_DIR}/agent/agentes.json"
+        BA_TEST_TMP="${CMAKE_CURRENT_BINARY_DIR}")
+    set_target_properties(test_agent_updates PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_agent_updates COMMAND test_agent_updates)
+    set_tests_properties(test_agent_updates PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 180)
 
     # Twitch: login por codigo, Helix y chat IRC contra un Twitch falso.
     # Terminal de la pestaña Asistente (Pty real + libvterm). POSIX.
@@ -484,7 +572,7 @@ endif()
     target_link_libraries(test_conversion PRIVATE Qt6::Core Qt6::Gui Qt6::Pdf)
     target_compile_definitions(test_conversion PRIVATE
         BA_TEST_DATOS="${CMAKE_CURRENT_SOURCE_DIR}/tests/datos")
-    if(EXISTS "${_ba_lo_dir}/program")
+    if(_ba_lo_ok)
         target_compile_definitions(test_conversion PRIVATE BA_LIBREOFFICE_DIR="${_ba_lo_dir}")
     endif()
     set_target_properties(test_conversion PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
@@ -516,13 +604,25 @@ endif()
         target_link_libraries(test_audio_dsp PRIVATE nlohmann_json::nlohmann_json)
         add_test(NAME test_audio_dsp COMMAND test_audio_dsp)
     endif()
-    # Host CLAP contra los plugins LSP reales (sin interfaz grafica).
+    # Host CLAP contra los plugins LSP reales (sin interfaz grafica). Lo que
+    # pide ClapEditor.cpp para enlazar: X11 (Linux) o Qt Gui (macOS, QWindow).
+    set(_ba_clap_ui_libs "")
+    if(APPLE)
+        if(TARGET Qt6::Gui)
+            set(_ba_clap_ui_libs Qt6::Gui)
+        endif()
+    elseif(NOT WIN32)
+        find_package(X11 REQUIRED)
+        set(_ba_clap_ui_libs X11::X11 ${CMAKE_DL_LIBS})
+    endif()
     if(BA_HAVE_CLAP)
         add_executable(test_clap_host tests/test_clap_host.cpp audio/ClapHost.cpp audio/ClapEditor.cpp)
         target_include_directories(test_clap_host PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_CLAP_INC}")
         target_compile_definitions(test_clap_host PRIVATE BA_TEST_LSP_CLAP="${BA_LSP_CLAP}" _USE_MATH_DEFINES)
-        if(NOT WIN32)
-            target_link_libraries(test_clap_host PRIVATE X11::X11 ${CMAKE_DL_LIBS})
+        target_link_libraries(test_clap_host PRIVATE ${_ba_clap_ui_libs})
+        if(APPLE)
+            set_target_properties(test_clap_host PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
+        elseif(NOT WIN32)
             set_target_properties(test_clap_host PROPERTIES BUILD_RPATH "${BA_OBS_DEPS}/lib")
         endif()
         add_test(NAME test_clap_host COMMAND test_clap_host)
@@ -532,16 +632,18 @@ endif()
         target_include_directories(test_audio_rack PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_CLAP_INC}")
         target_compile_definitions(test_audio_rack PRIVATE BA_TEST_LSP_CLAP="${BA_LSP_CLAP}" _USE_MATH_DEFINES)
         target_link_libraries(test_audio_rack PRIVATE nlohmann_json::nlohmann_json)
-        if(NOT WIN32)
-            target_link_libraries(test_audio_rack PRIVATE X11::X11 ${CMAKE_DL_LIBS})
+        target_link_libraries(test_audio_rack PRIVATE ${_ba_clap_ui_libs})
+        if(APPLE)
+            set_target_properties(test_audio_rack PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
         endif()
         add_executable(test_audio_modules tests/test_audio_modules.cpp audio/Modules.cpp audio/AudioRack.cpp
                                           audio/Analyzer.cpp audio/ClapHost.cpp audio/ClapEditor.cpp)
         target_include_directories(test_audio_modules PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_CLAP_INC}")
         target_compile_definitions(test_audio_modules PRIVATE BA_TEST_LSP_CLAP="${BA_LSP_CLAP}")
         target_link_libraries(test_audio_modules PRIVATE nlohmann_json::nlohmann_json)
-        if(NOT WIN32)
-            target_link_libraries(test_audio_modules PRIVATE X11::X11 ${CMAKE_DL_LIBS})
+        target_link_libraries(test_audio_modules PRIVATE ${_ba_clap_ui_libs})
+        if(APPLE)
+            set_target_properties(test_audio_modules PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
         endif()
         add_test(NAME test_audio_modules COMMAND test_audio_modules)
         set_tests_properties(test_audio_modules PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 300)
@@ -648,6 +750,23 @@ if(BA_APP_QT_OK AND UNIX AND NOT APPLE)
         set(BA_QT_QML_MODULES \"QtQml;QtQuick;QtMultimedia\")
     ")
     install(SCRIPT "${CMAKE_SOURCE_DIR}/cmake/BaQtDeploy.cmake")
+endif()
+
+# macOS: frameworks de Qt en bin/64bit/qt. Ver cmake/BaQtDeployMac.cmake.
+if(BA_APP_QT_OK AND APPLE)
+    set(_ba_qt_plugins "platforms/libqcocoa.dylib;platforms/libqoffscreen.dylib;imageformats/libqjpeg.dylib;imageformats/libqsvg.dylib;imageformats/libqico.dylib;iconengines/libqsvgicon.dylib;styles/libqmacstyle.dylib;tls/libqsecuretransportbackend.dylib;tls/libqcertonlybackend.dylib")
+    # Reproduccion del visor de Medios: el motor de FFmpeg que Qt trae adentro
+    # (como en Linux) y el nativo de macOS (AVFoundation, sin nada extra).
+    list(APPEND _ba_qt_plugins "multimedia/libffmpegmediaplugin.dylib" "multimedia/libdarwinmediaplugin.dylib")
+    install(CODE "
+        set(BA_QT_LIB_DIR \"${BA_QT_PREFIX}/lib\")
+        set(BA_QT_PLUGIN_DIR \"${BA_QT_PREFIX}/plugins\")
+        set(BA_QT_PLUGINS \"${_ba_qt_plugins}\")
+        set(BA_APP_BUILD_EXE \"$<TARGET_FILE:ba-app>\")
+        set(BA_QT_QML_DIR \"${BA_QT_PREFIX}/qml\")
+        set(BA_QT_QML_MODULES \"QtQml;QtQuick;QtCore;QtMultimedia\")
+    ")
+    install(SCRIPT "${CMAKE_SOURCE_DIR}/cmake/BaQtDeployMac.cmake")
 endif()
 
 # Windows: Qt (DLLs junto a ba-app) + CRT de MSVC. Ver cmake/BaQtDeployWin.cmake.

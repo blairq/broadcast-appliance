@@ -82,7 +82,7 @@ class FrameService : public QObject {
     int lobbySlots_ = 4;
     static constexpr int kBackstageSlots = 8;
     std::vector<std::uint8_t> programBuf_;
-    std::vector<std::uint8_t> sceneBuf_; ///< vista previa del editor de escenas
+    std::vector<std::uint8_t> sceneBuf_;  ///< vista previa del editor de escenas
     std::vector<std::uint8_t> armadaBuf_; ///< vista previa de la escena ARMADA
     QString armada_;
     std::uint64_t programSerial_ = 0;

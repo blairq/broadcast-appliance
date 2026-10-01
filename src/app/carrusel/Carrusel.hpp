@@ -44,7 +44,7 @@ struct Lamina {
 };
 
 class Carrusel {
-  public:
+   public:
     /// Cuántas láminas se admiten. Una presentación larga tiene cincuenta; mil
     /// es que alguien apuntó a la carpeta equivocada.
     static constexpr std::size_t kMax = 500;
@@ -95,7 +95,7 @@ class Carrusel {
     nlohmann::json aJson() const;
     static Carrusel deJson(const nlohmann::json& j);
 
-  private:
+   private:
     std::string nombre_;
     std::string fuente_;
     std::vector<Lamina> laminas_;

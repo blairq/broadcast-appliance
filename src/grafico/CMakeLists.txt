@@ -52,7 +52,12 @@ target_link_libraries(ba-grafico PRIVATE Qt6::Gui Qt6::OpenGL Qt6::Qml Qt6::Quic
 # sistema. Sin esto, ba-grafico enlazaba contra el Qt de la maquina y en
 # cualquier equipo con un Qt distinto ni arrancaba ("version Qt_6.6 not
 # found"), que es exactamente lo que el vendoreado viene a evitar.
-if(NOT WIN32)
+if(APPLE)
+    # macOS no entiende $ORIGIN: el equivalente es @executable_path.
+    set_target_properties(ba-grafico PROPERTIES
+        BUILD_RPATH "${_g_qt_prefix}/lib"
+        INSTALL_RPATH "@executable_path;@executable_path/qt/lib")
+elseif(NOT WIN32)
     set_target_properties(ba-grafico PROPERTIES
         BUILD_RPATH "${_g_qt_prefix}/lib"
         INSTALL_RPATH "$ORIGIN;$ORIGIN/qt/lib")

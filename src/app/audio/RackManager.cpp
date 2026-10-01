@@ -522,9 +522,8 @@ std::string RackManager::guardarPlantilla(const std::string& source, const std::
     if (r == nullptr) return "'" + source + "' no tiene rack que guardar";
     // Se conserva el tipo predeterminado si la plantilla ya existia: guardar
     // encima es actualizarla, no volverla a empezar.
-    const std::string tipo = plantillas_.contains(nombre)
-                                 ? plantillas_[nombre].value("paraTipo", std::string())
-                                 : std::string();
+    const std::string tipo =
+        plantillas_.contains(nombre) ? plantillas_[nombre].value("paraTipo", std::string()) : std::string();
     plantillas_[nombre] = json{{"rack", r->save()}, {"paraTipo", tipo}};
     guardarPlantillas();
     emit changed();

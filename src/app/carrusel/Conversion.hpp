@@ -33,7 +33,7 @@ namespace ba::carrusel {
 
 class Conversor : public QObject {
     Q_OBJECT
-  public:
+   public:
     explicit Conversor(QObject* parent = nullptr);
     ~Conversor() override;
 
@@ -51,7 +51,7 @@ class Conversor : public QObject {
     void cancelar();
     bool ocupado() const;
 
-  signals:
+   signals:
     /// :param etapa: qué está haciendo, tal cual para mostrar.
     /// :param hecho: páginas listas. Durante LibreOffice es 0 de 0: no informa
     ///     progreso, así que la barra va indeterminada y no finge saber.
@@ -59,7 +59,7 @@ class Conversor : public QObject {
     void listo(QStringList imagenes);
     void fallo(QString motivo);
 
-  private:
+   private:
     /// Del PDF (propio o recién hecho) a las láminas.
     void arrancarPaginas(const QString& rutaPdf);
     /// Una página y vuelve al bucle de eventos. Ver el .cpp.

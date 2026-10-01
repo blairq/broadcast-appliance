@@ -25,8 +25,9 @@
 #
 # DE glibc Y glib NO NOS HACEMOS CARGO. libc6 y libglib2.0 estan en cualquier
 # Linux con entorno grafico y vendorearlas seria arrastrar medio sistema para
-# una herramienta que corre una vez. Se vendorean las dos que NO estan siempre:
-# libmsi y libgcab.
+# una herramienta que corre una vez. Se vendorean las que NO estan siempre:
+# libmsi, libgcab y libgsf (esta ultima viene con GNOME, pero no en un servidor
+# como el runner del CI, y sin ella msiextract no arranca).
 #
 # Uso: tools/deps/msitools.sh          (idempotente)
 #      extern/msitools/msiextract ...  (envoltorio con su LD_LIBRARY_PATH)
@@ -46,6 +47,7 @@ PAQUETES=(
   "msitools_0.103+repack-1build3_amd64.deb|$BASE/universe/m/msitools/msitools_0.103%2brepack-1build3_amd64.deb|a524b4ee9abc2d7d1d3cb0fd4a7629510285eb5c5271acab73c5c69e21eb1f58"
   "libmsi-1.0-0_0.103+repack-1build3_amd64.deb|$BASE/universe/m/msitools/libmsi-1.0-0_0.103%2brepack-1build3_amd64.deb|e6187a2eb31f595e61a3c864d83400060f06ff13517774dcc37e65d6730ff754"
   "libgcab-1.0-0_1.6-1build2_amd64.deb|$BASE/universe/g/gcab/libgcab-1.0-0_1.6-1build2_amd64.deb|b2ad7b79882a6c15192b88b039eac9ee29c94cd24197baa1caa8acb1169008fa"
+  "libgsf-1-114_1.14.51-2ubuntu0.1_amd64.deb|$BASE/main/libg/libgsf/libgsf-1-114_1.14.51-2ubuntu0.1_amd64.deb|fa61257611e56ecbf75f42de477016fbb3792bfce9c837232254bdb0a2820b26"
 )
 
 bajar() { # nombre url sha
@@ -66,7 +68,8 @@ bajar() { # nombre url sha
 # Convertir de verdad es lo unico que prueba que quedo usable.
 verificar() {
     [ -x "$OUT/msiextract" ] || morir "quedo sin msiextract"
-    "$OUT/msiextract" --version >/dev/null 2>&1 || morir "msiextract no corre (¿falta glib?)"
+    local salida
+    salida="$("$OUT/msiextract" --version 2>&1)" || morir "msiextract no corre: $(echo "$salida" | head -3)"
     log "verificado: $("$OUT/msiextract" --version 2>&1 | head -1)"
 }
 

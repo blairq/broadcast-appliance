@@ -51,8 +51,8 @@
 #include "AppRuntime.hpp"
 #include "rostros/Personas.hpp"
 #include "rostros/Rostros.hpp"
-#include "ui/FrameService.hpp"
 #include "ui/CalidadCara.hpp"
+#include "ui/FrameService.hpp"
 #include "ui/PersonasViewModel.hpp"
 #endif
 
@@ -71,20 +71,13 @@ namespace {
 /// y el primer `rostro_guardar` pisa el archivo con una libreta a la que le
 /// faltan las fichas recién anotadas —trabajo perdido sin un solo error—.
 /// Además los modelos se cargan una vez y no dos.
-PersonasViewModel* libretaViva(StudioViewModel& vm) {
-    return static_cast<PersonasViewModel*>(vm.personas());
-}
+PersonasViewModel* libretaViva(StudioViewModel& vm) { return static_cast<PersonasViewModel*>(vm.personas()); }
 
 std::int64_t ahoraMs() { return QDateTime::currentMSecsSinceEpoch(); }
 
 json fichaJson(const ba::rostros::Persona& p) {
-    return json{{"id", p.id},
-                {"nombre", p.nombre},
-                {"cargo", p.cargo},
-                {"nota", p.nota},
-                {"foto", p.foto},
-                {"caras", p.caras.size()},
-                {"vistaMs", p.vistaMs}};
+    return json{{"id", p.id},     {"nombre", p.nombre},      {"cargo", p.cargo},    {"nota", p.nota},
+                {"foto", p.foto}, {"caras", p.caras.size()}, {"vistaMs", p.vistaMs}};
 }
 
 /// Guarda el recorte de la cara como foto de la ficha. Devuelve el nombre del
@@ -109,7 +102,6 @@ QString guardarFoto(const QImage& img, const ba::rostros::Cara& c, const QString
     const QImage recorte = img.copy(r).scaled(256, 256, Qt::KeepAspectRatio, Qt::SmoothTransformation);
     return recorte.save(carpeta + "/" + nombre, "JPG", 88) ? nombre : QString();
 }
-
 
 json calidadJson(const Calidad& q) {
     return json{{"sirve", q.sirve},
@@ -146,16 +138,14 @@ void McpService::registerRostroTools() {
         t.title = "Quien aparece en una camara";
         t.category = "rostros";
         t.readOnly = true;
-        t.description =
-            "Solo IDENTIFICA, no pone nada en pantalla. Busca caras en un video "
-            "(claves de feeds_list: program, armada, guest:N...) y dice a quien "
-            "se parece cada una, con cuanta confianza.";
-        t.details =
-            "`parecido` va de 0 a 1. Por encima de 0.45 es la misma persona con bastante margen "
-            "—medido: la misma cara da ~0.86 y dos personas distintas ~0.13—. Abajo de eso viene "
-            "`nombre` vacio: es «no se», no «no es nadie».\n\n"
-            "NO PONE ROTULOS. Dice quien esta; sacarlo al aire lo pide una persona.\n\n"
-            "Si alguien no esta en la libreta, `rostro_guardar` lo da de alta con esa misma cara.";
+        t.description = "Solo IDENTIFICA, no pone nada en pantalla. Busca caras en un video "
+                        "(claves de feeds_list: program, armada, guest:N...) y dice a quien "
+                        "se parece cada una, con cuanta confianza.";
+        t.details = "`parecido` va de 0 a 1. Por encima de 0.45 es la misma persona con bastante margen "
+                    "—medido: la misma cara da ~0.86 y dos personas distintas ~0.13—. Abajo de eso viene "
+                    "`nombre` vacio: es «no se», no «no es nadie».\n\n"
+                    "NO PONE ROTULOS. Dice quien esta; sacarlo al aire lo pide una persona.\n\n"
+                    "Si alguien no esta en la libreta, `rostro_guardar` lo da de alta con esa misma cara.";
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -165,30 +155,26 @@ void McpService::registerRostroTools() {
             if (const std::string e = preparar(); !e.empty()) return done(ToolResult::error(e));
             PersonasViewModel* pv = pvDe();
             const QString feed = QString::fromStdString(a.value("feed", std::string("program")));
-            pv->pedirAnalisis(feed, false,
-                              [pv, feed, done](std::vector<Reconocedor::Visto> caras,
-                                               const QImage&, const QString& error) {
-                                  if (!error.isEmpty())
-                                      return done(ToolResult::error(error.toStdString()));
-                                  json out = json::array();
-                                  for (const auto& visto : caras) {
-                                      const ba::rostros::Cara& c = visto.cara;
-                                      const auto q = pv->libreta().buscar(visto.vector);
-                                      const bool seguro = q.parecido >= ba::rostros::kMismaPersona;
-                                      if (seguro) pv->libreta().vistaAhora(q.id, ahoraMs());
-                                      out.push_back(json{
-                                          {"id", seguro ? q.id : ""},
-                                          {"nombre", seguro ? q.nombre : ""},
-                                          {"parecido", q.parecido},
-                                          {"donde",
-                                           json{{"x", c.x}, {"y", c.y}, {"ancho", c.ancho},
-                                                {"alto", c.alto}}},
-                                          {"confianza", c.confianza}});
-                                  }
-                                  if (!caras.empty()) pv->persistir();
-                                  done(ToolResult().data(
-                                      json{{"feed", feed.toStdString()}, {"caras", out}}));
-                              });
+            pv->pedirAnalisis(
+                feed, false,
+                [pv, feed, done](std::vector<Reconocedor::Visto> caras, const QImage&, const QString& error) {
+                    if (!error.isEmpty()) return done(ToolResult::error(error.toStdString()));
+                    json out = json::array();
+                    for (const auto& visto : caras) {
+                        const ba::rostros::Cara& c = visto.cara;
+                        const auto q = pv->libreta().buscar(visto.vector);
+                        const bool seguro = q.parecido >= ba::rostros::kMismaPersona;
+                        if (seguro) pv->libreta().vistaAhora(q.id, ahoraMs());
+                        out.push_back(json{
+                            {"id", seguro ? q.id : ""},
+                            {"nombre", seguro ? q.nombre : ""},
+                            {"parecido", q.parecido},
+                            {"donde", json{{"x", c.x}, {"y", c.y}, {"ancho", c.ancho}, {"alto", c.alto}}},
+                            {"confianza", c.confianza}});
+                    }
+                    if (!caras.empty()) pv->persistir();
+                    done(ToolResult().data(json{{"feed", feed.toStdString()}, {"caras", out}}));
+                });
         };
         core_.addTool(std::move(t));
     }
@@ -239,8 +225,8 @@ void McpService::registerRostroTools() {
                     return done(ToolResult::error("No se pudo guardar: " + pv->libreta().error()));
                 const auto* f = pv->libreta().porId(id);
                 ToolResult r;
-                r.text("Guardada «" + (f != nullptr ? f->nombre : std::string()) + "» (id " + id +
-                       ")." + extra);
+                r.text("Guardada «" + (f != nullptr ? f->nombre : std::string()) + "» (id " + id + ")." +
+                       extra);
                 r.structured = f != nullptr ? fichaJson(*f) : json::object();
                 done(r);
             };
@@ -250,14 +236,12 @@ void McpService::registerRostroTools() {
             const bool nuevaFoto = a.value("nuevaFoto", false);
             pv->pedirAnalisis(
                 feed, false,
-                [pv, id, feed, nuevaFoto, contestar](std::vector<Reconocedor::Visto> caras,
-                                                     const QImage& img, const QString& error) {
+                [pv, id, feed, nuevaFoto, contestar](std::vector<Reconocedor::Visto> caras, const QImage& img,
+                                                     const QString& error) {
                     if (!error.isEmpty())
-                        return contestar(" (" + error.toStdString() +
-                                         ": la ficha quedo sin cara)");
+                        return contestar(" (" + error.toStdString() + ": la ficha quedo sin cara)");
                     if (caras.empty())
-                        return contestar(" (no se vio ninguna cara en '" + feed.toStdString() +
-                                         "')");
+                        return contestar(" (no se vio ninguna cara en '" + feed.toStdString() + "')");
                     if (caras.size() > 1)
                         return contestar(" (hay " + std::to_string(caras.size()) +
                                          " caras en el cuadro: no adivino cual es. Usa una camara "
@@ -269,8 +253,8 @@ void McpService::registerRostroTools() {
                     // que quedaría es la última, no la mejor.
                     const auto* f0 = pv->libreta().porId(id);
                     if (f0 != nullptr && (f0->foto.empty() || nuevaFoto)) {
-                        const QString archivo = guardarFoto(img, caras[0].cara, pv->carpetaFotos(),
-                                                            QString::fromStdString(id));
+                        const QString archivo =
+                            guardarFoto(img, caras[0].cara, pv->carpetaFotos(), QString::fromStdString(id));
                         if (!archivo.isEmpty()) {
                             ba::rostros::Persona conFoto = *f0;
                             conFoto.foto = archivo.toStdString();
@@ -278,9 +262,8 @@ void McpService::registerRostroTools() {
                         }
                     }
                     const auto* f = pv->libreta().porId(id);
-                    contestar(" Con su cara (" +
-                              std::to_string(f != nullptr ? f->caras.size() : 0) + " guardada(s))" +
-                              (f != nullptr && !f->foto.empty() ? " y su foto." : "."));
+                    contestar(" Con su cara (" + std::to_string(f != nullptr ? f->caras.size() : 0) +
+                              " guardada(s))" + (f != nullptr && !f->foto.empty() ? " y su foto." : "."));
                 });
         };
         core_.addTool(std::move(t));
@@ -300,7 +283,8 @@ void McpService::registerRostroTools() {
             if (const std::string e = preparar(); !e.empty()) return done(ToolResult::error(e));
             PersonasViewModel* pv = pvDe();
             json out = json::array();
-            for (const auto& p : pv->libreta().todas()) out.push_back(fichaJson(p));
+            for (const auto& p : pv->libreta().todas())
+                out.push_back(fichaJson(p));
             done(ToolResult().data(json{{"personas", out}}));
         };
         core_.addTool(std::move(t));
@@ -314,9 +298,8 @@ void McpService::registerRostroTools() {
         t.destructive = true;
         t.description = "Borra la ficha y TODAS sus caras. No se puede deshacer: hay que darla de alta "
                         "de nuevo y volver a mostrarle la cara al sistema.";
-        t.inputSchema = {{"type", "object"},
-                         {"required", {"id"}},
-                         {"properties", {{"id", {{"type", "string"}}}}}};
+        t.inputSchema = {
+            {"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
         t.run = [pvDe, preparar](const json& a, Done done) {
             if (const std::string e = preparar(); !e.empty()) return done(ToolResult::error(e));
             PersonasViewModel* pv = pvDe();
@@ -346,18 +329,17 @@ void McpService::registerRostroTools() {
         t.description =
             "Mide cada cara que se ve en un video y dice si sirve para guardarla, y si no sirve, QUE "
             "pedirle a la persona (que se acerque, que mire de frente, que prenda una luz).";
-        t.details =
-            "ESTA ES LA HERRAMIENTA DEL ALTA GUIADA de un invitado que entra por WebRTC. El lazo:\n\n"
-            "  1. `rostro_calidad {feed}` -> mira `sugerencia`\n"
-            "  2. si `sirve` es false, deci esa frase por `chat_send` al invitado y volve al 1\n"
-            "  3. cuando `sirve` es true, `rostro_guardar` (alta) o `rostro_sumar` (una pose mas)\n"
-            "  4. repetilo pidiendole que gire un poco la cabeza: con varias poses lo reconoce\n"
-            "     despues aunque se mueva, cambie la luz o se saque los anteojos\n\n"
-            "`giro` es 0 de frente y se va a +-0.5 de perfil. `nitidez` se mide al tamano que ve el "
-            "modelo (112 px), no al que tiene en el cuadro: lo que importa es cuanto detalle le "
-            "llega, no que la cara sea grande.\n\n"
-            "Tambien dice a quien se parece cada cara, asi que sirve para saber si hay que dar de "
-            "alta o solo sumarle una pose a alguien que ya esta.";
+        t.details = "ESTA ES LA HERRAMIENTA DEL ALTA GUIADA de un invitado que entra por WebRTC. El lazo:\n\n"
+                    "  1. `rostro_calidad {feed}` -> mira `sugerencia`\n"
+                    "  2. si `sirve` es false, deci esa frase por `chat_send` al invitado y volve al 1\n"
+                    "  3. cuando `sirve` es true, `rostro_guardar` (alta) o `rostro_sumar` (una pose mas)\n"
+                    "  4. repetilo pidiendole que gire un poco la cabeza: con varias poses lo reconoce\n"
+                    "     despues aunque se mueva, cambie la luz o se saque los anteojos\n\n"
+                    "`giro` es 0 de frente y se va a +-0.5 de perfil. `nitidez` se mide al tamano que ve el "
+                    "modelo (112 px), no al que tiene en el cuadro: lo que importa es cuanto detalle le "
+                    "llega, no que la cara sea grande.\n\n"
+                    "Tambien dice a quien se parece cada cara, asi que sirve para saber si hay que dar de "
+                    "alta o solo sumarle una pose a alguien que ya esta.";
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -376,8 +358,7 @@ void McpService::registerRostroTools() {
                         ToolResult r;
                         r.text("No se ve ninguna cara en '" + feed.toStdString() +
                                "'. Pedile que se ponga de frente a la camara.");
-                        r.structured =
-                            json{{"feed", feed.toStdString()}, {"caras", json::array()}};
+                        r.structured = json{{"feed", feed.toStdString()}, {"caras", json::array()}};
                         return done(r);
                     }
                     json out = json::array();
@@ -389,8 +370,7 @@ void McpService::registerRostroTools() {
                         j["id"] = seguro ? q.id : "";
                         j["nombre"] = seguro ? q.nombre : "";
                         j["parecido"] = q.parecido;
-                        j["donde"] = json{
-                            {"x", c.x}, {"y", c.y}, {"ancho", c.ancho}, {"alto", c.alto}};
+                        j["donde"] = json{{"x", c.x}, {"y", c.y}, {"ancho", c.ancho}, {"alto", c.alto}};
                         out.push_back(j);
                     }
                     ToolResult r;
@@ -412,15 +392,14 @@ void McpService::registerRostroTools() {
         t.description =
             "Le suma a una ficha la cara que se vea ahora en un video. Dice si la pose APORTO algo o "
             "si ya la tenia, que es lo que hay que saber para pedir otra.";
-        t.details =
-            "PARA QUE SIRVE SUMAR VARIAS. Una sola cara reconoce a esa persona con esa luz y ese "
-            "angulo. Cuatro o cinco —de frente, de tres cuartos a cada lado, con anteojos y sin— "
-            "aguantan el dia real. Se guardan hasta 12.\n\n"
-            "`aporto` en false quiere decir que la pose era casi igual a una que ya tenia: no es un "
-            "error, es «pedile que gire un poco la cabeza y proba de nuevo». Sumar treinta capturas "
-            "del mismo segundo no mejora nada.\n\n"
-            "Mira `rostro_calidad` ANTES: una cara borrosa o de perfil sumada a la ficha ensucia el "
-            "reconocimiento en vez de mejorarlo. Por eso esta herramienta la rechaza sola.";
+        t.details = "PARA QUE SIRVE SUMAR VARIAS. Una sola cara reconoce a esa persona con esa luz y ese "
+                    "angulo. Cuatro o cinco —de frente, de tres cuartos a cada lado, con anteojos y sin— "
+                    "aguantan el dia real. Se guardan hasta 12.\n\n"
+                    "`aporto` en false quiere decir que la pose era casi igual a una que ya tenia: no es un "
+                    "error, es «pedile que gire un poco la cabeza y proba de nuevo». Sumar treinta capturas "
+                    "del mismo segundo no mejora nada.\n\n"
+                    "Mira `rostro_calidad` ANTES: una cara borrosa o de perfil sumada a la ficha ensucia el "
+                    "reconocimiento en vez de mejorarlo. Por eso esta herramienta la rechaza sola.";
         t.inputSchema = {
             {"type", "object"},
             {"required", {"id", "feed"}},
@@ -429,8 +408,7 @@ void McpService::registerRostroTools() {
               {"feed", {{"type", "string"}}},
               {"nuevaFoto", {{"type", "boolean"}, {"description", "ademas, cambiarle la foto"}}},
               {"igual",
-               {{"type", "boolean"},
-                {"description", "sumarla aunque la calidad no de (por defecto no)"}}}}}};
+               {{"type", "boolean"}, {"description", "sumarla aunque la calidad no de (por defecto no)"}}}}}};
         t.examples = {R"({"id": "p20921624be7f", "feed": "guest:1"})"};
         t.run = [pvDe, preparar](const json& a, Done done) {
             if (const std::string e = preparar(); !e.empty()) return done(ToolResult::error(e));
@@ -447,8 +425,8 @@ void McpService::registerRostroTools() {
                                                        const QImage& img, const QString& error) {
                     if (!error.isEmpty()) return done(ToolResult::error(error.toStdString()));
                     if (caras.empty())
-                        return done(ToolResult::error("No se ve ninguna cara en '" +
-                                                      feed.toStdString() + "'."));
+                        return done(
+                            ToolResult::error("No se ve ninguna cara en '" + feed.toStdString() + "'."));
                     if (caras.size() > 1)
                         return done(ToolResult::error(
                             "Hay " + std::to_string(caras.size()) +
@@ -464,8 +442,8 @@ void McpService::registerRostroTools() {
                     const auto alta = pv->libreta().sumarCara(id, caras[0].vector);
                     const auto* f = pv->libreta().porId(id);
                     if (f != nullptr && (f->foto.empty() || nuevaFoto)) {
-                        const QString archivo = guardarFoto(img, caras[0].cara, pv->carpetaFotos(),
-                                                            QString::fromStdString(id));
+                        const QString archivo =
+                            guardarFoto(img, caras[0].cara, pv->carpetaFotos(), QString::fromStdString(id));
                         if (!archivo.isEmpty()) {
                             ba::rostros::Persona conFoto = *f;
                             conFoto.foto = archivo.toStdString();
@@ -476,12 +454,10 @@ void McpService::registerRostroTools() {
                     const bool aporto = alta == ba::rostros::Personas::Alta::Sumada;
                     const auto* fin = pv->libreta().porId(id);
                     ToolResult r;
-                    r.text(aporto
-                               ? "Sumada. Ahora tiene " +
-                                     std::to_string(fin != nullptr ? fin->caras.size() : 0) +
-                                     " cara(s)."
-                               : "Esa pose ya la tenia. Pedile que gire un poco la cabeza o que "
-                                 "cambie de angulo, y proba de nuevo.");
+                    r.text(aporto ? "Sumada. Ahora tiene " +
+                                        std::to_string(fin != nullptr ? fin->caras.size() : 0) + " cara(s)."
+                                  : "Esa pose ya la tenia. Pedile que gire un poco la cabeza o que "
+                                    "cambie de angulo, y proba de nuevo.");
                     json j = calidadJson(q);
                     j["aporto"] = aporto;
                     j["caras"] = fin != nullptr ? fin->caras.size() : 0;
@@ -498,9 +474,8 @@ void McpService::registerRostroTools() {
         t.title = "Las fichas sin nombre, esperando que alguien diga quien es";
         t.category = "rostros";
         t.readOnly = true;
-        t.description =
-            "Las personas que el sistema anoto solo (interruptor `rostro_autoalta`) y todavia no "
-            "tienen nombre. Son las que hay que completar con `rostro_guardar {id, nombre}`.";
+        t.description = "Las personas que el sistema anoto solo (interruptor `rostro_autoalta`) y todavia no "
+                        "tienen nombre. Son las que hay que completar con `rostro_guardar {id, nombre}`.";
         t.details = "Cada una trae su foto en `foto` (archivo al lado de la libreta) para que alguien "
                     "pueda mirarla y decir quien es. Sin nombre no rotulan nada.";
         t.run = [pvDe, preparar](const json&, Done done) {
@@ -524,9 +499,8 @@ void McpService::registerRostroTools() {
         t.title = "Juntar dos fichas de la misma persona";
         t.category = "rostros";
         t.destructive = true;
-        t.description =
-            "Pasa las caras de `otro` a `id` y borra `otro`. Para cuando la misma persona quedo "
-            "anotada dos veces.";
+        t.description = "Pasa las caras de `otro` a `id` y borra `otro`. Para cuando la misma persona quedo "
+                        "anotada dos veces.";
         t.details =
             "PASA, Y NO ES UNA FALLA. La misma persona con otra luz, de perfil o con barbijo puede no "
             "parecerse a si misma lo suficiente, y el alta automatica le abre una ficha nueva. "
@@ -547,13 +521,12 @@ void McpService::registerRostroTools() {
             const auto* b = pv->libreta().porId(otro);
             const QString fotoOtro = b != nullptr ? QString::fromStdString(b->foto) : QString();
             if (!pv->libreta().fusionar(id, otro))
-                return done(ToolResult::error(
-                    "No pude fusionar: revisa que los dos ids existan y sean distintos."));
+                return done(
+                    ToolResult::error("No pude fusionar: revisa que los dos ids existan y sean distintos."));
             const auto* f = pv->libreta().porId(id);
             // La foto de la absorbida se borra solo si la fusionada no se quedo
             // con ella (pasa cuando la que queda no tenia foto).
-            if (!fotoOtro.isEmpty() &&
-                (f == nullptr || QString::fromStdString(f->foto) != fotoOtro))
+            if (!fotoOtro.isEmpty() && (f == nullptr || QString::fromStdString(f->foto) != fotoOtro))
                 QFile::remove(pv->carpetaFotos() + "/" + fotoOtro);
             pv->persistir();
             ToolResult r;
@@ -594,14 +567,12 @@ void McpService::registerRostroTools() {
             {"properties",
              {{"activo", {{"type", "boolean"}}},
               {"feed",
-               {{"type", "string"},
-                {"description", "que camara mira la entrada (clave de feeds_list)"}}}}}};
+               {{"type", "string"}, {"description", "que camara mira la entrada (clave de feeds_list)"}}}}}};
         t.examples = {R"({"activo": true, "feed": "cam:2"})", R"({})"};
         t.run = [pvDe, preparar](const json& a, Done done) {
             if (const std::string e = preparar(); !e.empty()) return done(ToolResult::error(e));
             PersonasViewModel* pv = pvDe();
-            if (a.contains("feed"))
-                pv->setFeedPuerta(QString::fromStdString(a["feed"].get<std::string>()));
+            if (a.contains("feed")) pv->setFeedPuerta(QString::fromStdString(a["feed"].get<std::string>()));
             if (a.contains("activo")) {
                 if (a["activo"].get<bool>() && pv->feedPuerta().isEmpty())
                     return done(ToolResult::error(
@@ -613,8 +584,7 @@ void McpService::registerRostroTools() {
             r.text(std::string(pv->puertaAuto() ? "Acreditacion en la puerta PRENDIDA mirando '"
                                                 : "Acreditacion en la puerta apagada (miraria '") +
                    pv->feedPuerta().toStdString() + "'.");
-            r.structured = json{{"activo", pv->puertaAuto()},
-                                {"feed", pv->feedPuerta().toStdString()}};
+            r.structured = json{{"activo", pv->puertaAuto()}, {"feed", pv->feedPuerta().toStdString()}};
             done(r);
         };
         core_.addTool(std::move(t));
@@ -628,51 +598,45 @@ void McpService::registerRostroTools() {
             "Prende o apaga el anotado automatico: con el puesto, cada cara que pase por la camara "
             "elegida y no este en la libreta queda anotada SIN NOMBRE y con su foto, y a las que ya "
             "conoce les suma la pose nueva.";
-        t.details =
-            "QUE NO HACE: no le pone nombre a nadie ni saca nada al aire. Una ficha sin nombre no "
-            "rotula. Despues `rostro_pendientes` las lista y `rostro_guardar {id, nombre}` las "
-            "completa.\n\n"
-            "Anota recien despues de ver la misma cara tres pasadas seguidas: un reflejo o media "
-            "cara que entra y sale llenarian la libreta de fichas de nada.\n\n"
-            "Llegando a 500 fichas se apaga solo y lo dice. Sin `activo` solo informa como esta.";
-        t.inputSchema = {
-            {"type", "object"},
-            {"properties",
-             {{"activo", {{"type", "boolean"}}},
-              {"feed",
-               {{"type", "string"},
-                {"description",
-                 "que camara mirar (clave de feeds_list), o \"lobby\" para todas las posiciones "
-                 "de espera por turno"}}}}}};
-        t.examples = {R"({"activo": true, "feed": "lobby"})",
-                      R"({"activo": true, "feed": "guest:1"})", R"({})"};
+        t.details = "QUE NO HACE: no le pone nombre a nadie ni saca nada al aire. Una ficha sin nombre no "
+                    "rotula. Despues `rostro_pendientes` las lista y `rostro_guardar {id, nombre}` las "
+                    "completa.\n\n"
+                    "Anota recien despues de ver la misma cara tres pasadas seguidas: un reflejo o media "
+                    "cara que entra y sale llenarian la libreta de fichas de nada.\n\n"
+                    "Llegando a 500 fichas se apaga solo y lo dice. Sin `activo` solo informa como esta.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"activo", {{"type", "boolean"}}},
+                           {"feed",
+                            {{"type", "string"},
+                             {"description",
+                              "que camara mirar (clave de feeds_list), o \"lobby\" para todas las posiciones "
+                              "de espera por turno"}}}}}};
+        t.examples = {R"({"activo": true, "feed": "lobby"})", R"({"activo": true, "feed": "guest:1"})",
+                      R"({})"};
         t.run = [pvDe, preparar](const json& a, Done done) {
             if (const std::string e = preparar(); !e.empty()) return done(ToolResult::error(e));
             PersonasViewModel* pv = pvDe();
             // `feed: "lobby"` no es una camara: es TODAS las posiciones de
             // espera, por turno. Es el modo que se usa en un evento.
-            const bool esLobby =
-                a.contains("feed") && a["feed"].get<std::string>() == "lobby";
+            const bool esLobby = a.contains("feed") && a["feed"].get<std::string>() == "lobby";
             if (a.contains("feed") && !esLobby)
                 pv->setFeedAuto(QString::fromStdString(a["feed"].get<std::string>()));
             if (a.contains("activo")) {
-                if (esLobby || pv->lobbyAuto())
-                    pv->setLobbyAuto(a["activo"].get<bool>());
+                if (esLobby || pv->lobbyAuto()) pv->setLobbyAuto(a["activo"].get<bool>());
                 if (!esLobby) pv->setAutoalta(a["activo"].get<bool>());
             }
             ToolResult r;
-            const std::string donde =
-                pv->lobbyAuto() ? "el lobby (todas las posiciones de espera)"
-                                : "'" + pv->feedAuto().toStdString() + "'";
-            r.text(std::string(pv->autoalta() || pv->lobbyAuto()
-                                   ? "Anotado automatico PRENDIDO mirando "
-                                   : "Anotado automatico apagado (miraria ") +
+            const std::string donde = pv->lobbyAuto() ? "el lobby (todas las posiciones de espera)"
+                                                      : "'" + pv->feedAuto().toStdString() + "'";
+            r.text(std::string(pv->autoalta() || pv->lobbyAuto() ? "Anotado automatico PRENDIDO mirando "
+                                                                 : "Anotado automatico apagado (miraria ") +
                    donde + ". " + std::to_string(pv->sinNombre()) + " ficha(s) sin nombre.");
-            r.structured = json{{"activo", pv->autoalta() || pv->lobbyAuto()},
-                                {"lobby", pv->lobbyAuto()},
-                                {"feed", pv->lobbyAuto() ? std::string("lobby")
-                                                         : pv->feedAuto().toStdString()},
-                                {"sinNombre", pv->sinNombre()}};
+            r.structured =
+                json{{"activo", pv->autoalta() || pv->lobbyAuto()},
+                     {"lobby", pv->lobbyAuto()},
+                     {"feed", pv->lobbyAuto() ? std::string("lobby") : pv->feedAuto().toStdString()},
+                     {"sinNombre", pv->sinNombre()}};
             done(r);
         };
         core_.addTool(std::move(t));
@@ -684,9 +648,8 @@ void McpService::registerRostroTools() {
         t.title = "Quien es cada uno de los que estan esperando";
         t.category = "rostros";
         t.readOnly = true;
-        t.description =
-            "Solo IDENTIFICA, no deja entrar a nadie. Para cada posicion del lobby: a quien "
-            "reconoce, si su camara sirve para guardarle la cara, y que pedirle si no.";
+        t.description = "Solo IDENTIFICA, no deja entrar a nadie. Para cada posicion del lobby: a quien "
+                        "reconoce, si su camara sirve para guardarle la cara, y que pedirle si no.";
         t.details =
             "EL LOBBY ES EL MOMENTO. La gente llega antes de entrar y se queda quieta frente a su "
             "camara esperando: es el unico rato en que hay tiempo de saber quien es sin que nada de "

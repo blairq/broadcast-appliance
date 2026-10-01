@@ -12,11 +12,11 @@
 #include <QTimer>
 
 #include "AppRuntime.hpp"
-#include "ui/ConferenceViewModel.hpp"
-#include "ui/ConferenceClient.hpp"
 #include "graficos/Emisor.hpp"
-#include "graficos/Vinculos.hpp"
 #include "graficos/GraficoSource.hpp"
+#include "graficos/Vinculos.hpp"
+#include "ui/ConferenceClient.hpp"
+#include "ui/ConferenceViewModel.hpp"
 
 namespace ba::app {
 
@@ -50,8 +50,8 @@ struct RotuladorViewModel::Impl {
     }
 };
 
-RotuladorViewModel::RotuladorViewModel(AppRuntime& rt, graficos::Emisor& emisor,
-                                       ConferenceViewModel* sala, QObject* parent)
+RotuladorViewModel::RotuladorViewModel(AppRuntime& rt, graficos::Emisor& emisor, ConferenceViewModel* sala,
+                                       QObject* parent)
     : QObject(parent), d_(std::make_unique<Impl>(rt, emisor, sala)) {
     connect(&emisor, &graficos::Emisor::cambio, this, &RotuladorViewModel::cambio);
     d_->sincro.setInterval(1000);
@@ -61,9 +61,7 @@ RotuladorViewModel::RotuladorViewModel(AppRuntime& rt, graficos::Emisor& emisor,
 
 RotuladorViewModel::~RotuladorViewModel() = default;
 
-QString RotuladorViewModel::escena() const {
-    return QString::fromStdString(d_->rt.engine().currentScene());
-}
+QString RotuladorViewModel::escena() const { return QString::fromStdString(d_->rt.engine().currentScene()); }
 
 QStringList RotuladorViewModel::graficos() const { return d_->em.nombres(); }
 
@@ -87,12 +85,15 @@ QVariantList RotuladorViewModel::fuentes() const {
         for (const QJsonValue& v : ficha.value("parametros").toArray()) {
             const QString clave = v.toObject().value("clave").toString();
             if (clave.isEmpty()) continue;
-            if (ultimos.contains(clave)) valores[clave] = ultimos.value(clave).toVariant();
-            else valores[clave] = v.toObject().value("porDefecto").toVariant();
+            if (ultimos.contains(clave))
+                valores[clave] = ultimos.value(clave).toVariant();
+            else
+                valores[clave] = v.toObject().value("porDefecto").toVariant();
         }
         const auto it = d_->valores.find(i.id);
         if (it != d_->valores.end())
-            for (auto v = it->second.begin(); v != it->second.end(); ++v) valores[v.key()] = v.value();
+            for (auto v = it->second.begin(); v != it->second.end(); ++v)
+                valores[v.key()] = v.value();
 
         QVariantList campos;
         for (const QJsonValue& v : ficha.value("parametros").toArray()) {
@@ -220,7 +221,8 @@ void RotuladorViewModel::sincronizar() {
                                 if (!ok) return;
                                 const QJsonArray es = r.value("encargos").toArray();
                                 if (es.isEmpty()) return;
-                                for (const QJsonValue& e : es) atender(e.toObject());
+                                for (const QJsonValue& e : es)
+                                    atender(e.toObject());
                                 emit cambio();
                             });
 }
@@ -255,17 +257,17 @@ void RotuladorViewModel::pedirQr(const QString& target, bool conClave) {
         return;
     }
     const QString t = target == "remote" ? "remote" : "local";
-    d_->sala->client().get(
-        "/api/v1/rotulos-link?target=" + t + "&conClave=" + (conClave ? "1" : "0"),
-        [this](bool ok, const QJsonObject& r) {
-            QStringList filas;
-            for (const QJsonValue& v : r.value("modules").toArray()) filas << v.toString();
-            QString msg = r.value("message").toString();
-            const bool bien = ok && r.value("ok").toBool();
-            if (!bien && msg.isEmpty()) msg = "La sala no responde";
-            emit qrListo(bien ? r.value("url").toString() : QString(), filas, msg,
-                         r.value("clave").toString());
-        });
+    d_->sala->client().get("/api/v1/rotulos-link?target=" + t + "&conClave=" + (conClave ? "1" : "0"),
+                           [this](bool ok, const QJsonObject& r) {
+                               QStringList filas;
+                               for (const QJsonValue& v : r.value("modules").toArray())
+                                   filas << v.toString();
+                               QString msg = r.value("message").toString();
+                               const bool bien = ok && r.value("ok").toBool();
+                               if (!bien && msg.isEmpty()) msg = "La sala no responde";
+                               emit qrListo(bien ? r.value("url").toString() : QString(), filas, msg,
+                                            r.value("clave").toString());
+                           });
 }
 
 } // namespace ba::app

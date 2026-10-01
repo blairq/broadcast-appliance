@@ -91,11 +91,11 @@ QString resolverAdentro(const QString& raiz, const QString& p);
 /// un modelo anidado y no se gana nada, porque igual se dibuja una fila por
 /// carpeta.
 struct Carpeta {
-    QString relativa; ///< Media/logos/sponsors — la identidad
-    QString nombre;   ///< sponsors
-    int nivel = 0;    ///< 0 = Media, Shares, Recordings
-    int propios = 0;  ///< archivos directamente adentro
-    int total = 0;    ///< contando las subcarpetas
+    QString relativa;  ///< Media/logos/sponsors — la identidad
+    QString nombre;    ///< sponsors
+    int nivel = 0;     ///< 0 = Media, Shares, Recordings
+    int propios = 0;   ///< archivos directamente adentro
+    int total = 0;     ///< contando las subcarpetas
     bool raiz = false; ///< una de las carpetas del sistema (no se puede mover ni borrar)
 };
 

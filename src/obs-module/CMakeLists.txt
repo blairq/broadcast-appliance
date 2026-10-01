@@ -54,7 +54,14 @@ if(BA_HAVE_LIBOBS)
     target_link_libraries(ba-sources PRIVATE ba::libobs)
     target_compile_definitions(ba-sources PRIVATE BA_HAVE_LIBOBS=1)
     set_target_properties(ba-sources PROPERTIES PREFIX "")
-    if(NOT WIN32)
+    if(APPLE)
+        # macOS: `.so` como en Linux (no `.dylib`), que es lo que busca el
+        # motor junto a los bundles .plugin; rpath con @loader_path.
+        set_target_properties(ba-sources PROPERTIES
+            SUFFIX ".so"
+            BUILD_RPATH "${BA_OBS_MAC_PREFIX}/lib"
+            INSTALL_RPATH "@loader_path;@loader_path/../../bin/64bit")
+    elseif(NOT WIN32)
         set_target_properties(ba-sources PROPERTIES
             BUILD_RPATH "${BA_OBS_LINUX_PREFIX}/lib"
             INSTALL_RPATH "$ORIGIN:$ORIGIN/../../bin/64bit")

@@ -60,9 +60,7 @@ std::string nombreCorto(const std::string& completo) {
     return completo;
 }
 
-bool parar(void* cookie) {
-    return ahoraMs() > static_cast<Busqueda*>(cookie)->vence;
-}
+bool parar(void* cookie) { return ahoraMs() > static_cast<Busqueda*>(cookie)->vence; }
 
 void recibir(void* cookie, int status, const struct rr_entry* entries) {
     if (status < 0) return;
@@ -82,16 +80,15 @@ void recibir(void* cookie, int status, const struct rr_entry* entries) {
                 for (const rr_data_txt* t = e->data.TXT; t != nullptr; t = t->next) {
                     const std::string kv = t->txt;
                     // "fn=TV del living" (friendly name), "md=Chromecast" (modelo).
-                    if (kv.rfind("fn=", 0) == 0) p.nombre = kv.substr(3);
-                    else if (kv.rfind("md=", 0) == 0) p.modelo = kv.substr(3);
+                    if (kv.rfind("fn=", 0) == 0)
+                        p.nombre = kv.substr(3);
+                    else if (kv.rfind("md=", 0) == 0)
+                        p.modelo = kv.substr(3);
                 }
                 break;
             }
-            case RR_A:
-                b->ips[nombre] = e->data.A.addr_str;
-                break;
-            default:
-                break; // el PTR no aporta nada que no traigan los otros
+            case RR_A: b->ips[nombre] = e->data.A.addr_str; break;
+            default: break; // el PTR no aporta nada que no traigan los otros
         }
     }
 }

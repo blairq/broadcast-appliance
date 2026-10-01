@@ -43,7 +43,7 @@
 namespace ba::gateway {
 
 class Preguntas {
-  public:
+   public:
     /// Cuántas se guardan. Pasado el tope entran igual, y se van las más
     /// viejas QUE YA NO IMPORTAN (respondidas y descartadas) antes que ninguna
     /// que todavía esté esperando: perder una pregunta sin contestar porque
@@ -60,9 +60,9 @@ class Preguntas {
 
     struct Pregunta {
         std::string id;
-        std::string nombre;   ///< como se presentó; puede venir vacío
+        std::string nombre; ///< como se presentó; puede venir vacío
         std::string texto;
-        std::string deDonde;  ///< "publico", "sala", "youtube", "twitch", "facebook"
+        std::string deDonde; ///< "publico", "sala", "youtube", "twitch", "facebook"
         Estado estado = Estado::Nueva;
         std::int64_t cuandoMs = 0;
         int votos = 0;
@@ -72,9 +72,8 @@ class Preguntas {
 
     /// Alguien pregunta. Devuelve el id, o vacío si el texto no dice nada.
     /// `quien` es el navegador que la manda: sirve para el tope por persona.
-    std::string preguntar(const std::string& nombre, const std::string& texto,
-                          const std::string& deDonde, const std::string& quien,
-                          std::int64_t ahoraMs);
+    std::string preguntar(const std::string& nombre, const std::string& texto, const std::string& deDonde,
+                          const std::string& quien, std::int64_t ahoraMs);
 
     /// Suma un voto. Un mismo `quien` no suma dos veces la misma pregunta.
     /// :returns: false si no existe, o si ese navegador ya la había votado.
@@ -106,7 +105,7 @@ class Preguntas {
     /// Borra TODAS. Es para empezar un evento nuevo.
     void vaciar();
 
-  private:
+   private:
     mutable std::mutex m_;
     std::vector<Pregunta> ps_;
     /// Quién votó qué, para no sumar dos veces.

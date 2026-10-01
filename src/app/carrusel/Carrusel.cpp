@@ -59,7 +59,10 @@ bool Carrusel::mover(std::size_t de, std::size_t a) {
     laminas_.insert(laminas_.begin() + static_cast<std::ptrdiff_t>(a), std::move(l));
     if (!enAire.empty())
         for (std::size_t i = 0; i < laminas_.size(); ++i)
-            if (laminas_[i].archivo == enAire) { actual_ = static_cast<int>(i); break; }
+            if (laminas_[i].archivo == enAire) {
+                actual_ = static_cast<int>(i);
+                break;
+            }
     return true;
 }
 
@@ -130,8 +133,7 @@ Carrusel Carrusel::deJson(const json& j) {
     if (!j.is_object()) return c;
     c.nombre_ = textoDe(j, "nombre");
     c.fuente_ = textoDe(j, "fuente");
-    if (j.contains("avanceMs") && j["avanceMs"].is_number_integer())
-        c.setAvanceMs(j["avanceMs"].get<int>());
+    if (j.contains("avanceMs") && j["avanceMs"].is_number_integer()) c.setAvanceMs(j["avanceMs"].get<int>());
     if (j.contains("laminas") && j["laminas"].is_array())
         for (const json& jl : j["laminas"]) {
             if (!jl.is_object()) continue;

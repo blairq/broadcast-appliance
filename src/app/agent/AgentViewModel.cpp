@@ -5,9 +5,11 @@
 #include "agent/AgentViewModel.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <thread>
 
+#include "agent/Actualizacion.hpp"
 #include "agent/ModeloPropio.hpp"
 
 #if defined(_WIN32)
@@ -234,6 +236,7 @@ AgentViewModel::AgentViewModel(AppRuntime& rt, AlertEngine& alerts, QObject* par
 AgentViewModel::~AgentViewModel() {
     cancelInstall_ = true;
     if (installThread_.joinable()) installThread_.join();
+    if (checkThread_.joinable()) checkThread_.join();
     session_->stop();
 }
 
@@ -351,8 +354,8 @@ QVariantMap AgentViewModel::modeloPropio() const {
     m["nombre"] = QString::fromStdString(c != nullptr ? c->nombre : std::string());
     // Indentado: esto se edita a mano en una caja de texto, y un JSON en una
     // sola línea no se puede leer ni corregir.
-    m["extra"] = QString::fromStdString(
-        c != nullptr && c->extra.is_object() ? c->extra.dump(2) : std::string("{}"));
+    m["extra"] =
+        QString::fromStdString(c != nullptr && c->extra.is_object() ? c->extra.dump(2) : std::string("{}"));
     m["instrucciones"] = QString::fromStdString(c != nullptr ? c->instrucciones : std::string());
     m["piensa"] = c != nullptr ? c->piensa : true;
     return m;
@@ -372,7 +375,8 @@ void AgentViewModel::probarModeloPropio() {
     // ni un token. Preguntar generando texto para saber si el servidor está
     // sería pagar por un ping.
     std::string url = mp.url;
-    while (!url.empty() && url.back() == '/') url.pop_back();
+    while (!url.empty() && url.back() == '/')
+        url.pop_back();
     url += "/models";
     const std::string modelo = mp.modelo;
     const std::string autorizacion = "Bearer " + clave.trimmed().toStdString();
@@ -405,14 +409,14 @@ void AgentViewModel::probarModeloPropio() {
                               QString::fromStdString(modelo) + "» en su lista. Revisá el nombre.";
             nivel = estaEnLaLista ? "ok" : "aviso";
         }
-        QMetaObject::invokeMethod(this, [this, texto, nivel]() { emit notify(texto, nivel); },
-                                  Qt::QueuedConnection);
+        QMetaObject::invokeMethod(
+            this, [this, texto, nivel]() { emit notify(texto, nivel); }, Qt::QueuedConnection);
     }).detach();
 }
 
-QString AgentViewModel::guardarModeloPropio(const QString& url, const QString& modelo,
-                                            const QString& nombre, const QString& extraJson,
-                                            const QString& instrucciones, bool piensa) {
+QString AgentViewModel::guardarModeloPropio(const QString& url, const QString& modelo, const QString& nombre,
+                                            const QString& extraJson, const QString& instrucciones,
+                                            bool piensa) {
     if (url.trimmed().isEmpty()) return "Falta la dirección del servidor (baseURL).";
     if (modelo.trimmed().isEmpty()) return "Falta el nombre del modelo que pide tu servidor.";
     json extra = json::object();
@@ -497,10 +501,138 @@ void AgentViewModel::setError(const QString& e) {
 
 // --- Instalacion ---------------------------------------------------------------------
 
-json AgentViewModel::pins() const {
+json AgentViewModel::pinnedPins() const {
     QFile f(":/agent/agentes.json");
     if (!f.open(QIODevice::ReadOnly)) return json::object();
     return json::parse(f.readAll().toStdString(), nullptr, false);
+}
+
+QString AgentViewModel::chosenFile() const {
+    return QString::fromStdWString((rt_.dataRoot() / "Agentes" / "versiones.json").wstring());
+}
+
+json AgentViewModel::pins() const {
+    json out = pinnedPins();
+    // Las elegidas desde la pestaña (checkUpdate + installLatest) pisan a la
+    // fijada, agente por agente. Viven en el bundle, no en el sistema.
+    QFile f(chosenFile());
+    if (out.is_object() && f.open(QIODevice::ReadOnly)) {
+        const json elegidas = json::parse(f.readAll().toStdString(), nullptr, false);
+        if (elegidas.is_object())
+            for (const auto& [k, v] : elegidas.items())
+                if (v.is_object() && v.contains("version") && v.contains("plataformas")) out[k] = v;
+    }
+    return out;
+}
+
+// --- Actualizar desde la fuente oficial ---------------------------------------------------
+//
+// Cada agente publica su ultima version con un hash por plataforma; se arma con
+// eso una entrada con la MISMA forma que agentes.json y la instalacion la
+// verifica igual que a la fijada. Si la fuente no publica hash, no se instala.
+
+json AgentViewModel::fetchLatest(const QString& runtime, const json& base, QString* err) {
+    std::string e;
+    json out = ultimaPublicada(runtime.toStdString(), base, &e);
+    if (err != nullptr) *err = QString::fromStdString(e);
+    return out;
+}
+
+QString AgentViewModel::latestVersion() const {
+    const auto it = latest_.find(runtimeOf(provider_));
+    return it == latest_.end() ? QString()
+                               : QString::fromStdString(it->second.value("version", std::string()));
+}
+
+bool AgentViewModel::newerAvailable() const {
+    const QString ultima = latestVersion();
+    if (ultima.isEmpty()) return false;
+    const QString usada = installed() ? installedVersion() : current().value("version").toString();
+    return QVersionNumber::fromString(ultima) > QVersionNumber::fromString(usada);
+}
+
+QString AgentViewModel::pinnedVersion() const {
+    const json pin = pinnedPins().value(runtimeOf(provider_).toStdString(), json::object());
+    return QString::fromStdString(pin.value("version", std::string()));
+}
+
+bool AgentViewModel::usingChosenVersion() const {
+    return current().value("version").toString() != pinnedVersion();
+}
+
+void AgentViewModel::checkUpdate() {
+    if (checking_ || installing_) return;
+    const QString runtime = runtimeOf(provider_);
+    if (runtime.isEmpty()) return;
+    const json base = pinnedPins().value(runtime.toStdString(), json::object());
+    checking_ = true;
+    emit latestChanged();
+    if (checkThread_.joinable()) checkThread_.join();
+    checkThread_ = std::thread([this, runtime, base]() {
+        QString err;
+        json nueva = fetchLatest(runtime, base, &err);
+        QMetaObject::invokeMethod(this, [this, runtime, nueva, err]() {
+            checking_ = false;
+            if (!err.isEmpty() || !nueva.is_object()) {
+                emit latestChanged();
+                setError("No se pudo buscar la actualizacion: " + err);
+                return;
+            }
+            latest_[runtime] = nueva;
+            if (platformPin(nueva).empty()) {
+                latest_.erase(runtime);
+                emit latestChanged();
+                setError("La version nueva no se publico con hash para esta plataforma (" + platformKey() +
+                         "): no se ofrece.");
+                return;
+            }
+            emit latestChanged();
+            const QString v = QString::fromStdString(nueva.value("version", std::string()));
+            if (newerAvailable())
+                emit notify("Hay una version nueva: " + v + ".", "ok");
+            else
+                emit notify("Esta al dia (la ultima publicada es " + v + ").", "ok");
+        });
+    });
+}
+
+void AgentViewModel::installLatest() {
+    if (installing_) return;
+    const QString runtime = runtimeOf(provider_);
+    const auto it = latest_.find(runtime);
+    if (it == latest_.end()) return;
+    // Queda elegida en el bundle y desde ahi la toman install() y usableDir().
+    QFile f(chosenFile());
+    json elegidas = json::object();
+    if (f.open(QIODevice::ReadOnly)) {
+        elegidas = json::parse(f.readAll().toStdString(), nullptr, false);
+        f.close();
+        if (!elegidas.is_object()) elegidas = json::object();
+    }
+    elegidas[runtime.toStdString()] = it->second;
+    QDir().mkpath(QFileInfo(chosenFile()).absolutePath());
+    if (!writeText(chosenFile(), QByteArray::fromStdString(elegidas.dump(2)))) {
+        setError("No se pudo guardar " + chosenFile());
+        return;
+    }
+    emit configChanged();
+    emit latestChanged();
+    install();
+}
+
+void AgentViewModel::revertToPinned() {
+    if (installing_) return;
+    const QString runtime = runtimeOf(provider_);
+    QFile f(chosenFile());
+    if (!f.open(QIODevice::ReadOnly)) return;
+    json elegidas = json::parse(f.readAll().toStdString(), nullptr, false);
+    f.close();
+    if (!elegidas.is_object() || !elegidas.contains(runtime.toStdString())) return;
+    elegidas.erase(runtime.toStdString());
+    writeText(chosenFile(), QByteArray::fromStdString(elegidas.dump(2)));
+    emit configChanged();
+    emit latestChanged();
+    install(); // la fijada: se baja y, cuando esta, reemplaza a la elegida
 }
 
 QString AgentViewModel::runtimeOf(const QString& provider) const {
@@ -597,6 +729,7 @@ void AgentViewModel::install() {
     }
     struct Item {
         std::string url, sha, kind, dest;
+        std::string sha512 = {}; ///< base64, como lo publica npm (si no hay sha256)
     };
     std::vector<Item> items;
     const QString dir = installDir(runtime);
@@ -604,8 +737,8 @@ void AgentViewModel::install() {
         items.push_back(
             {plat.value("url", ""), plat.value("sha256", ""), "archivo", (dir + "/node").toStdString()});
         const json pkg = pin.value("paquete", json::object());
-        items.push_back(
-            {pkg.value("url", ""), pkg.value("sha256", ""), "archivo", (dir + "/gemini").toStdString()});
+        items.push_back({pkg.value("url", ""), pkg.value("sha256", ""), "archivo",
+                         (dir + "/gemini").toStdString(), pkg.value("sha512", "")});
     } else {
         items.push_back({plat.value("url", ""), plat.value("sha256", ""), plat.value("tipo", "archivo"),
                          plat.value("tipo", "") == "binario"
@@ -620,12 +753,18 @@ void AgentViewModel::install() {
     emit installChanged();
     if (installThread_.joinable()) installThread_.join();
     const QString exeName = QString::fromStdString(plat.value("exe", ""));
+    // Gemini corre un script del paquete de npm: si una version nueva lo movio,
+    // que falle la instalacion (y quede la anterior) y no el arranque.
+    const QString geminiScript =
+        runtime == "gemini"
+            ? QString::fromStdString(pin.value("paquete", json::object()).value("script", std::string()))
+            : QString();
     // Se baja y se descomprime en una carpeta aparte y recien al final se pone
     // en su lugar: si la descarga falla (sin red, hash que no coincide, se
     // cancela), la instalacion que YA andaba queda intacta. Antes el camino de
     // error borraba `dir`, que podia ser una instalacion buena.
     const QString staging = QFileInfo(dir).absolutePath() + "/.instalando-" + QFileInfo(dir).fileName();
-    installThread_ = std::thread([this, items, dir, staging, runtime, exeName]() {
+    installThread_ = std::thread([this, items, dir, staging, runtime, exeName, geminiScript]() {
         QString err;
         QDir(staging).removeRecursively(); // restos de un intento anterior
         QDir().mkpath(staging);
@@ -667,8 +806,19 @@ void AgentViewModel::install() {
                 installText_ = "Verificando (SHA-256)…";
                 emit installChanged();
             });
-            if (sha256File(tmp) != QString::fromStdString(it.sha)) {
-                err = "La descarga no coincide con la version fijada (SHA-256). No se instalo nada.";
+            // SHA-256 (agentes.json, GitHub, Claude) o SHA-512 (npm). Sin
+            // ninguno no se instala: nunca un archivo sin verificar.
+            bool coincide = false;
+            if (!it.sha.empty()) {
+                coincide = sha256File(tmp) == QString::fromStdString(it.sha);
+            } else if (!it.sha512.empty()) {
+                QFile bajado(tmp);
+                QCryptographicHash h(QCryptographicHash::Sha512);
+                if (bajado.open(QIODevice::ReadOnly)) h.addData(&bajado);
+                coincide = h.result().toBase64() == QByteArray::fromStdString(it.sha512);
+            }
+            if (!coincide) {
+                err = "La descarga no coincide con el hash publicado. No se instalo nada.";
                 QFile::remove(tmp);
                 break;
             }
@@ -700,6 +850,10 @@ void AgentViewModel::install() {
                 QFile::remove(tmp);
             }
         }
+        if (err.isEmpty() && !geminiScript.isEmpty() &&
+            !QFileInfo::exists(staging + "/gemini/" + geminiScript))
+            err = "El paquete de Gemini no trae " + geminiScript +
+                  ": no se instalo (queda la version anterior).";
         if (err.isEmpty()) {
             // Ejecutable en su lugar (algunos archivos lo traen en una subcarpeta).
             if (runtime != "gemini" && !QFileInfo::exists(staging + "/" + exeName)) {
@@ -734,6 +888,7 @@ void AgentViewModel::install() {
             installProgress_ = err.isEmpty() ? 1.0 : 0.0;
             installText_ = err.isEmpty() ? "Instalado." : err;
             emit installChanged();
+            emit latestChanged(); // newerAvailable mira la version instalada
             if (!err.isEmpty())
                 setError(err);
             else
@@ -764,8 +919,8 @@ QStringList AgentViewModel::modelosDe(const QString& proveedor) {
     // que haya configurados, y eso solo se sabe leyendo su configuración.
     if (proveedor == "propio") {
         QStringList out;
-        for (const auto& m : ModeloPropio::leer(g_raiz / "Config" / "modelo-propio.json")
-                                 .comoLosLlamaOpencode())
+        for (const auto& m :
+             ModeloPropio::leer(g_raiz / "Config" / "modelo-propio.json").comoLosLlamaOpencode())
             out << QString::fromStdString(m);
         return out;
     }
@@ -778,8 +933,8 @@ QString AgentViewModel::prepareWorkspace(QString* error) {
     const QString prompt = systemPrompt_ ? systemPrompt_() : QString();
     // Con su juego de herramientas (ver Roles::juegoDelAsistente) y CON
     // consola: es el asistente del operador, no un agente de un tiro.
-    return prepareWorkspaceEn(root + "/Runtime/agente", provider_, model_, {"--rol", "asistente"},
-                              prompt, error, true);
+    return prepareWorkspaceEn(root + "/Runtime/agente", provider_, model_, {"--rol", "asistente"}, prompt,
+                              error, true);
 }
 
 QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& proveedor, const QString& modelo,
@@ -806,7 +961,8 @@ QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& pro
         }
     const std::string bridge = bridgePath().toStdString();
     json args = json::array();
-    for (const QString& a : bridgeArgs) args.push_back(a.toStdString());
+    for (const QString& a : bridgeArgs)
+        args.push_back(a.toStdString());
     const json mcpStdio{{"command", bridge}, {"args", args}, {"env", {{"BA_DATA_ROOT", root.toStdString()}}}};
     const QString runtime = runtimeOf(proveedor);
     const Provider* prov = findProvider(proveedor);
@@ -817,7 +973,8 @@ QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& pro
                   QByteArray::fromStdString(json{{"mcpServers", {{"broadcast", m}}}}.dump(2)));
     } else if (runtime == "opencode") {
         json cmd = json::array({bridge});
-        for (const auto& a : args) cmd.push_back(a);
+        for (const auto& a : args)
+            cmd.push_back(a);
         json cfg{{"$schema", "https://opencode.ai/config.json"},
                  {"autoupdate", false},
                  {"mcp",
@@ -841,8 +998,7 @@ QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& pro
         // aparato no le habla al modelo, le escribe la configuración a quien
         // sí sabe hablarle—.
         if (proveedor == "propio") {
-            const ModeloPropio mp =
-                ModeloPropio::leer(rt_.dataRoot() / "Config" / "modelo-propio.json");
+            const ModeloPropio mp = ModeloPropio::leer(rt_.dataRoot() / "Config" / "modelo-propio.json");
             if (mp.completo()) {
                 // UN PROVEEDOR POR CANAL. Los canales son el MISMO modelo del
                 // mismo servidor con otros parámetros, y esos parámetros van
@@ -877,8 +1033,8 @@ QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& pro
                     // Que acepta imágenes: sin esto opencode no le manda
                     // ninguna, y el agente que mira no tendría qué mirar.
                     m["attachment"] = true;
-                    m["modalities"] = json{{"input", json::array({"text", "image"})},
-                                           {"output", json::array({"text"})}};
+                    m["modalities"] =
+                        json{{"input", json::array({"text", "image"})}, {"output", json::array({"text"})}};
                     if (c.limite.is_object() && !c.limite.empty()) m["limit"] = c.limite;
                     if (c.extra.is_object() && !c.extra.empty()) m["options"] = c.extra;
                     provs["propio-" + c.id] = json{{"npm", "@ai-sdk/openai-compatible"},
@@ -890,9 +1046,8 @@ QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& pro
                 // El canal elegido, o el primero si no eligieron ninguno.
                 const std::string pedido = modelo.toStdString();
                 const auto todos = mp.comoLosLlamaOpencode();
-                cfg["model"] = std::find(todos.begin(), todos.end(), pedido) != todos.end()
-                                   ? pedido
-                                   : todos.front();
+                cfg["model"] =
+                    std::find(todos.begin(), todos.end(), pedido) != todos.end() ? pedido : todos.front();
             }
         }
         writeText(ws + "/opencode.json", QByteArray::fromStdString(cfg.dump(2)));
@@ -917,8 +1072,8 @@ QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& pro
     return ws;
 }
 
-term::Pty::Options AgentViewModel::baseLaunch(const QString& proveedor, const QString& modelo, const QString& ws,
-                                              QString* error) {
+term::Pty::Options AgentViewModel::baseLaunch(const QString& proveedor, const QString& modelo,
+                                              const QString& ws, QString* error) {
     term::Pty::Options o;
     const QString runtime = runtimeOf(proveedor);
     const Provider* prov = findProvider(proveedor);
@@ -936,9 +1091,8 @@ term::Pty::Options AgentViewModel::baseLaunch(const QString& proveedor, const QS
     o.workDir = ws;
     o.env["BA_DATA_ROOT"] = root;
     o.env["TERM"] = "xterm-256color";
-    o.unsetEnv = {"ANTHROPIC_API_KEY",  "ANTHROPIC_AUTH_TOKEN", "GEMINI_API_KEY", "GOOGLE_API_KEY",
-                  "OPENROUTER_API_KEY", "CLAUDECODE",           "LD_LIBRARY_PATH",
-                  "BA_MODELO_PROPIO_KEY"};
+    o.unsetEnv = {"ANTHROPIC_API_KEY",  "ANTHROPIC_AUTH_TOKEN", "GEMINI_API_KEY",  "GOOGLE_API_KEY",
+                  "OPENROUTER_API_KEY", "CLAUDECODE",           "LD_LIBRARY_PATH", "BA_MODELO_PROPIO_KEY"};
     if (prov != nullptr && !QString(prov->keyName).isEmpty()) {
         QByteArray key;
         if (!cred::read(root + "/Credenciales", prov->keyName, key)) {
@@ -1045,7 +1199,8 @@ term::Pty::Options AgentViewModel::launchOptionsHeadless(const Lanzamiento& l, Q
         // medido, `opencode` respondió «File not found: ENCARGO: Mirá la
         // imagen…». Ver `Lanzamiento::adjuntos`.
         o.args << l.encargo;
-        for (const QString& f : l.adjuntos) o.args << "-f" << f;
+        for (const QString& f : l.adjuntos)
+            o.args << "-f" << f;
     }
     return o;
 }

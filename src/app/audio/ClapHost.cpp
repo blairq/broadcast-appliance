@@ -14,6 +14,8 @@
 
 #include "audio/ClapEditor.hpp"
 
+#include <filesystem>
+
 #ifdef _WIN32
 #include <windows.h>
 #else
@@ -40,7 +42,25 @@ void* openLib(const std::string& path, std::string* error) {
         *error = "LoadLibrary fallo (" + std::to_string(GetLastError()) + ")";
     return reinterpret_cast<void*>(h);
 #else
-    void* h = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
+    std::string bin = path;
+#if defined(__APPLE__)
+    // macOS: un .clap es un bundle (carpeta) con el binario en Contents/MacOS.
+    std::error_code ec;
+    if (std::filesystem::is_directory(path, ec)) {
+        const std::filesystem::path macos = std::filesystem::path(path) / "Contents" / "MacOS";
+        const std::filesystem::path named = macos / std::filesystem::path(path).stem();
+        if (std::filesystem::exists(named, ec)) {
+            bin = named.string();
+        } else {
+            for (const auto& e : std::filesystem::directory_iterator(macos, ec))
+                if (e.is_regular_file(ec)) {
+                    bin = e.path().string();
+                    break;
+                }
+        }
+    }
+#endif
+    void* h = dlopen(bin.c_str(), RTLD_NOW | RTLD_LOCAL);
     if (h == nullptr && error != nullptr) *error = dlerror();
     return h;
 #endif

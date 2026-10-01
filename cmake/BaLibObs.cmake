@@ -143,6 +143,35 @@ static __inline unsigned __int64 _udiv128(unsigned __int64 high, unsigned __int6
             set(BA_LIBOBS_DATA_DIR "${BA_OBS_WIN_RUNTIME}/data")
         endif()
     endif()
+elseif(APPLE)
+    # --- macOS: libobs.framework + plugins compilados con Xcode ---------------
+    # `tools/deps/obs-macos.sh` (make deps-obs-macos) deja en extern/obs-macos
+    # el framework, el modulo grafico, los dylibs de obs-deps y los .plugin.
+    # Headers: los del arbol de fuentes (el framework se copia sin ellos).
+    set(BA_OBS_MAC_PREFIX "${CMAKE_SOURCE_DIR}/extern/obs-macos" CACHE PATH
+        "libobs para macOS (tools/deps/obs-macos.sh)")
+    set(_ba_obs_fw "${BA_OBS_MAC_PREFIX}/lib/libobs.framework")
+    if(EXISTS "${BA_OBS_SRC_DIR}/libobs/obs.h" AND EXISTS "${_ba_obs_fw}/libobs")
+        set(_ba_obs_gen "${CMAKE_BINARY_DIR}/libobs-gen")
+        file(WRITE "${_ba_obs_gen}/obsconfig.h"
+             "#pragma once\n#define OBS_DATA_PATH \"../../data\"\n"
+             "#define OBS_PLUGIN_PATH \"../../obs-plugins/64bit\"\n"
+             "#define OBS_PLUGIN_DESTINATION \"obs-plugins/64bit\"\n"
+             "#define OBS_RELEASE_CANDIDATE 0\n#define OBS_BETA 0\n")
+        add_library(ba::libobs SHARED IMPORTED GLOBAL)
+        set_target_properties(ba::libobs PROPERTIES
+            IMPORTED_LOCATION "${_ba_obs_fw}/libobs"
+            INTERFACE_INCLUDE_DIRECTORIES "${BA_OBS_SRC_DIR}/libobs;${_ba_obs_gen}")
+        set(BA_HAVE_LIBOBS 1)
+        # Al bundle: los dylibs sueltos y el modulo grafico (FILES) y el
+        # framework (DIRECTORY, con sus enlaces simbolicos).
+        file(GLOB BA_LIBOBS_RUNTIME_LIBS "${BA_OBS_MAC_PREFIX}/lib/*.dylib" "${BA_OBS_MAC_PREFIX}/lib/*.so")
+        set(BA_LIBOBS_RUNTIME_DIRS "${_ba_obs_fw}")
+        file(GLOB BA_LIBOBS_RUNTIME_PROGRAMS "${BA_OBS_MAC_PREFIX}/bin/obs-ffmpeg-mux")
+        # Los .plugin traen sus datos adentro (Contents/Resources).
+        set(BA_LIBOBS_PLUGIN_DIR "${BA_OBS_MAC_PREFIX}/plugins")
+        set(BA_LIBOBS_DATA_DIR "${BA_OBS_MAC_PREFIX}/data")
+    endif()
 else()
     # --- Linux: prefijo de instalacion de libobs compilada desde fuente -----
     set(BA_OBS_LINUX_PREFIX "${CMAKE_SOURCE_DIR}/extern/obs-linux" CACHE PATH
@@ -192,4 +221,5 @@ if(BA_HAVE_LIBOBS)
 else()
     message(STATUS "ba-libobs: ausente; ba-app y ba-sources se compilan headless")
     message(STATUS "           Linux: 'make deps-obs-linux' compila libobs en extern/obs-linux")
+    message(STATUS "           macOS: 'make deps-obs-macos' compila libobs en extern/obs-macos")
 endif()

@@ -25,11 +25,11 @@
 #include "ipc/ControlProtocol.hpp"
 #include "Log.hpp"
 #include "MediaPump.hpp"
+#include "qr/Qr.hpp"
 #include "Room.hpp"
 #include "security/SecretsStore.hpp" // randomSecretHex (ids de participante)
 #include "security/TokenService.hpp" // nowUnix() para el rate-limit por IP
 #include "ShareStore.hpp"
-#include "qr/Qr.hpp"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -708,17 +708,16 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
         // se pasa a mayusculas, porque el que lo tipea en el telefono lo
         // escribe como le sale.
         if (codigo.size() > 16) codigo.resize(16);
-        for (char& c : codigo) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+        for (char& c : codigo)
+            c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
         if (method == "GET") {
-            http::sendResponse(fd, 200, "application/json",
-                               json{{"ok", true},
-                                    {"votacion", votacion_.estadoPublico(quien, codigo)}}
-                                   .dump());
+            http::sendResponse(
+                fd, 200, "application/json",
+                json{{"ok", true}, {"votacion", votacion_.estadoPublico(quien, codigo)}}.dump());
             return;
         }
         if (method == "POST") {
-            const int opcion = req.is_object() && req.contains("opcion") &&
-                                       req["opcion"].is_number_integer()
+            const int opcion = req.is_object() && req.contains("opcion") && req["opcion"].is_number_integer()
                                    ? req["opcion"].get<int>()
                                    : -1;
             const std::string motivo = votacion_.votar(quien, codigo, opcion);
@@ -741,7 +740,8 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
         }
         std::string codigo = req.value("codigo", std::string());
         if (codigo.size() > 16) codigo.resize(16);
-        for (char& c : codigo) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+        for (char& c : codigo)
+            c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
         if (codigo.empty()) {
             http::sendResponse(fd, 400, "application/json", R"({"ok":false,"error":"sin codigo"})");
             return;
@@ -752,8 +752,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
             // Repetido no molesta —acreditar dos veces no mueve la hora— pero
             // tampoco hace falta guardarlo dos veces.
             if (acreditaciones_.size() < 500 &&
-                std::find(acreditaciones_.begin(), acreditaciones_.end(), codigo) ==
-                    acreditaciones_.end())
+                std::find(acreditaciones_.begin(), acreditaciones_.end(), codigo) == acreditaciones_.end())
                 acreditaciones_.push_back(codigo);
         }
         // Se contesta que si SIEMPRE: B no sabe si ese codigo existe (el padron
@@ -798,24 +797,20 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
             if (req.contains("votar")) {
                 const bool sumo = preguntas_.votar(req["votar"].get<std::string>(), quien);
                 http::sendResponse(fd, 200, "application/json",
-                                   json{{"ok", sumo},
-                                        {"preguntas", preguntas_.listaPublica(quien)}}
-                                       .dump());
+                                   json{{"ok", sumo}, {"preguntas", preguntas_.listaPublica(quien)}}.dump());
                 return;
             }
-            const std::string id = preguntas_.preguntar(
-                req.value("nombre", std::string()), req.value("texto", std::string()), "publico",
-                quien, nowMs());
+            const std::string id =
+                preguntas_.preguntar(req.value("nombre", std::string()), req.value("texto", std::string()),
+                                     "publico", quien, nowMs());
             if (id.empty()) {
                 http::sendResponse(fd, 400, "application/json",
                                    R"({"ok":false,"error":"la pregunta esta vacia"})");
                 return;
             }
-            http::sendResponse(fd, 200, "application/json",
-                               json{{"ok", true},
-                                    {"id", id},
-                                    {"preguntas", preguntas_.listaPublica(quien)}}
-                                   .dump());
+            http::sendResponse(
+                fd, 200, "application/json",
+                json{{"ok", true}, {"id", id}, {"preguntas", preguntas_.listaPublica(quien)}}.dump());
             return;
         }
     }
@@ -1184,15 +1179,15 @@ std::string SignalingServer::altaPantalla(std::string& claveOut) {
     // temporizador) porque es el unico momento en que la tabla crece.
     const std::int64_t ahora = nowMs();
     for (auto it = pantallas_.begin(); it != pantallas_.end();)
-        it = (it->second.sueltaMs != 0 && ahora - it->second.sueltaMs > kPantallaTtlMs)
-                 ? pantallas_.erase(it)
-                 : std::next(it);
+        it = (it->second.sueltaMs != 0 && ahora - it->second.sueltaMs > kPantallaTtlMs) ? pantallas_.erase(it)
+                                                                                        : std::next(it);
     // Con la tabla llena, se desaloja a la que hace mas que esta suelta. Una
     // conectada no se toca: esa esta mostrando algo ahora mismo.
     while (pantallas_.size() >= kMaxPantallas) {
         auto peor = pantallas_.end();
         for (auto it = pantallas_.begin(); it != pantallas_.end(); ++it)
-            if (it->second.sueltaMs != 0 && (peor == pantallas_.end() || it->second.sueltaMs < peor->second.sueltaMs))
+            if (it->second.sueltaMs != 0 &&
+                (peor == pantallas_.end() || it->second.sueltaMs < peor->second.sueltaMs))
                 peor = it;
         if (peor == pantallas_.end()) return {}; // todas conectadas: no hay lugar
         pantallas_.erase(peor);
@@ -1324,8 +1319,7 @@ std::string SignalingServer::wsOpen(long long fd, const std::string& headers, co
         const std::string ok =
             "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
             "Sec-WebSocket-Accept: " +
-            http::base64(http::sha1(wsKey + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").data(), 20) +
-            "\r\n\r\n";
+            http::base64(http::sha1(wsKey + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").data(), 20) + "\r\n\r\n";
         if (!http::sendAll(fd, ok.data(), ok.size())) return {};
         http::setSocketTimeout(fd, 0);
         std::string id = arg("resume"), clave;

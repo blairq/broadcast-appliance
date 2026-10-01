@@ -92,9 +92,9 @@
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
+#include <psapi.h> // PROCESS_MEMORY_COUNTERS (la K32* vive en kernel32)
 #include <windows.h>
 #include <winsock2.h> // getaddrinfo / inet_ntop (LEAN_AND_MEAN: windows.h no trae winsock.h)
-#include <psapi.h>    // PROCESS_MEMORY_COUNTERS (la K32* vive en kernel32)
 #include <ws2tcpip.h>
 #else
 #include <arpa/inet.h>
@@ -841,9 +841,8 @@ int main(int argc, char** argv) {
         // nuestro HTTPS autofirmado tampoco le sirve. Sin tunel, no hay forma
         // de mostrarle una pagina NUESTRA, y conviene decirlo que descubrirlo
         // con un televisor colgado en "cargando".
-        st["origenSeguro"] = cfg.tunnelHostname.empty()
-                                 ? nlohmann::json()
-                                 : nlohmann::json("https://" + cfg.tunnelHostname);
+        st["origenSeguro"] =
+            cfg.tunnelHostname.empty() ? nlohmann::json() : nlohmann::json("https://" + cfg.tunnelHostname);
         st["bindAddress"] = cfg.bindAddress;
         st["rtcPorts"] = {cfg.rtcPortMin, cfg.rtcPortMax};
         st["https"] = tls ? nlohmann::json{{"enabled", true},

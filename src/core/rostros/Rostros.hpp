@@ -61,7 +61,7 @@ constexpr float kMismaPersona = 0.45f;
 /// No lanza. `abrir` devuelve false y deja el motivo en `error()`; con el
 /// motor cerrado, `detectar` y `describir` devuelven vacío.
 class Motor {
-  public:
+   public:
     Motor();
     ~Motor();
     Motor(const Motor&) = delete;
@@ -86,10 +86,9 @@ class Motor {
                                float minConfianza = 0.7f) const;
 
     /// El vector de 128 números de UNA cara ya detectada. Vacío si falla.
-    std::vector<float> describir(const std::uint8_t* bgra, int ancho, int alto,
-                                 const Cara& cara) const;
+    std::vector<float> describir(const std::uint8_t* bgra, int ancho, int alto, const Cara& cara) const;
 
-  private:
+   private:
     struct Impl;
     std::unique_ptr<Impl> d_;
 };

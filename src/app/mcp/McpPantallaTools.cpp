@@ -33,7 +33,6 @@ QString idDePantalla(PantallasViewModel& p, const QString& quien) {
 
 } // namespace
 
-
 void McpService::registerPantallaTools() {
     core_.addCategory("pantallas", "Pantallas externas",
                       "Televisores y proyectores de la sala (Chromecast): cuales hay y que mostrar en "
@@ -47,8 +46,9 @@ void McpService::registerPantallaTools() {
         t.title = "Que pantallas hay";
         t.category = "pantallas";
         t.readOnly = true;
-        t.description = "Que televisores conoce el sistema y como esta cada uno: libre, ocupado por nosotros, "
-                        "tomado por otra aplicacion, o sin responder.";
+        t.description =
+            "Que televisores conoce el sistema y como esta cada uno: libre, ocupado por nosotros, "
+            "tomado por otra aplicacion, o sin responder.";
         t.details = "`estado` dice mucho: `ocupada` es que el televisor esta con otra aplicacion (Netflix, "
                     "YouTube) y mandarle algo se la va a pisar — avisale al operador antes. `apagada` es "
                     "que no contesta: puede estar apagado de verdad o en otra red.\n\n"
@@ -105,7 +105,8 @@ void McpService::registerPantallaTools() {
         t.title = "Mostrar algo en una pantalla";
         t.category = "pantallas";
         t.description =
-            "MUESTRA algo (un QR, una pagina, un cartel, la votacion) en un televisor de la red. Le manda un contenido a una pantalla. `tipo`: mensaje (texto grande), qr (un QR a pantalla "
+            "MUESTRA algo (un QR, una pagina, un cartel, la votacion) en un televisor de la red. Le manda un "
+            "contenido a una pantalla. `tipo`: mensaje (texto grande), qr (un QR a pantalla "
             "completa), reloj, url (una direccion cualquiera), prompter (la vista del orador), carrusel "
             "(una rotacion ya armada), programa (lo que sale al aire, en vivo por WebRTC) o tally (rojo "
             "si esa camara esta al aire, verde si esta armada). Los campos de cada tipo salen de "
@@ -119,12 +120,17 @@ void McpService::registerPantallaTools() {
             {"required", {"pantalla", "tipo"}},
             {"properties",
              {{"pantalla", {{"type", "string"}, {"description", "id o nombre, como lo da pantalla_listar"}}},
-              {"tipo", {{"type", "string"}, {"enum", {"mensaje", "qr", "reloj", "url", "prompter", "carrusel", "programa", "tally", "votacion"}}}},
+              {"tipo",
+               {{"type", "string"},
+                {"enum",
+                 {"mensaje", "qr", "reloj", "url", "prompter", "carrusel", "programa", "tally",
+                  "votacion"}}}},
               {"carrusel", {{"type", "string"}, {"description", "su id, con tipo=carrusel"}}},
-              {"qr", {{"type", "string"},
-                      {"description", "con tipo=qr: el id de uno GUARDADO (qr_listar los da), que sale "
-                                      "con el estilo con el que se diseño. Sin esto se usa `texto` y "
-                                      "sale con el estilo de fabrica."}}},
+              {"qr",
+               {{"type", "string"},
+                {"description", "con tipo=qr: el id de uno GUARDADO (qr_listar los da), que sale "
+                                "con el estilo con el que se diseño. Sin esto se usa `texto` y "
+                                "sale con el estilo de fabrica."}}},
               {"texto", {{"type", "string"}, {"description", "mensaje: lo que dice; qr: lo que codifica"}}},
               {"pie", {{"type", "string"}, {"description", "la linea de abajo, mas chica"}}},
               {"url", {{"type", "string"}, {"description", "solo con tipo=url"}}},
@@ -132,14 +138,16 @@ void McpService::registerPantallaTools() {
                {{"type", "string"},
                 {"description", "con tipo=tally: la camara o escena de esa pantalla (vacio = el estado "
                                 "general, para la cabina)"}}}}}};
-        t.examples = {R"({"pantalla": "TV del hall", "tipo": "mensaje", "texto": "Volvemos en 10 minutos"})",
-                      R"({"pantalla": "TV del hall", "tipo": "qr", "texto": "https://...", "pie": "Escaneá para entrar"})"};
+        t.examples = {
+            R"({"pantalla": "TV del hall", "tipo": "mensaje", "texto": "Volvemos en 10 minutos"})",
+            R"({"pantalla": "TV del hall", "tipo": "qr", "texto": "https://...", "pie": "Escaneá para entrar"})"};
         t.run = [p, this](const json& a, Done done) {
             const QString quien = QString::fromStdString(a["pantalla"].get<std::string>());
             const QString id = idDePantalla(*p, quien);
             if (id.isEmpty()) {
-                done(ToolResult::error("No conozco la pantalla '" + quien.toStdString() +
-                                       "'. pantalla_listar dice cuales hay; pantalla_buscar busca de nuevo."));
+                done(
+                    ToolResult::error("No conozco la pantalla '" + quien.toStdString() +
+                                      "'. pantalla_listar dice cuales hay; pantalla_buscar busca de nuevo."));
                 return;
             }
             const QString tipo = QString::fromStdString(a["tipo"].get<std::string>());
@@ -204,7 +212,8 @@ void McpService::registerPantallaTools() {
             {"required", {"pantalla"}},
             {"properties",
              {{"pantalla", {{"type", "string"}}},
-              {"tipo", {{"type", "string"}, {"enum", {"mensaje", "qr", "reloj", "url", "prompter", "programa"}}}},
+              {"tipo",
+               {{"type", "string"}, {"enum", {"mensaje", "qr", "reloj", "url", "prompter", "programa"}}}},
               {"texto", {{"type", "string"}}},
               {"pie", {{"type", "string"}}},
               {"url", {{"type", "string"}}},
@@ -246,10 +255,11 @@ void McpService::registerPantallaTools() {
         t.idempotent = true;
         t.description = "El nombre que pongas gana sobre el que anuncia el aparato: «TV del hall» dice mas "
                         "que «Percee TV», y es como la vas a nombrar despues.";
-        t.inputSchema = {{"type", "object"},
-                         {"required", {"pantalla", "nombre"}},
-                         {"properties", {{"pantalla", {{"type", "string"}}},
-                                         {"nombre", {{"type", "string"}, {"minLength", 1}}}}}};
+        t.inputSchema = {
+            {"type", "object"},
+            {"required", {"pantalla", "nombre"}},
+            {"properties",
+             {{"pantalla", {{"type", "string"}}}, {"nombre", {{"type", "string"}, {"minLength", 1}}}}}};
         t.run = [p](const json& a, Done done) {
             const QString id = idDePantalla(*p, QString::fromStdString(a["pantalla"].get<std::string>()));
             if (id.isEmpty()) {
@@ -270,8 +280,9 @@ void McpService::registerPantallaTools() {
                         "su direccion IP. Tiene que ser un aparato que hable Google Cast.";
         t.inputSchema = {{"type", "object"},
                          {"required", {"host"}},
-                         {"properties", {{"host", {{"type", "string"}, {"description", "192.168.1.50"}}},
-                                         {"nombre", {{"type", "string"}}}}}};
+                         {"properties",
+                          {{"host", {{"type", "string"}, {"description", "192.168.1.50"}}},
+                           {"nombre", {{"type", "string"}}}}}};
         t.run = [p](const json& a, Done done) {
             const QString err = p->agregar(QString::fromStdString(a.value("nombre", "")),
                                            QString::fromStdString(a["host"].get<std::string>()), 0);
@@ -336,12 +347,16 @@ void McpService::registerPantallaTools() {
                  {{"type", "object"},
                   {"required", {"tipo"}},
                   {"properties",
-                   {{"tipo", {{"type", "string"}, {"enum", {"mensaje", "qr", "reloj", "url", "prompter", "programa"}}}},
+                   {{"tipo",
+                     {{"type", "string"},
+                      {"enum", {"mensaje", "qr", "reloj", "url", "prompter", "programa"}}}},
                     {"texto", {{"type", "string"}}},
                     {"pie", {{"type", "string"}}},
                     {"url", {{"type", "string"}}},
-                    {"segundos", {{"type", "integer"}, {"minimum", 3}, {"maximum", 3600}, {"default", 15}}}}}}}}}}}};
-        t.examples = {R"({"nombre": "Hall", "pasos": [{"tipo": "qr", "texto": "https://…", "pie": "Entrá a la sala", "segundos": 20}, {"tipo": "mensaje", "texto": "Empezamos 20:00", "segundos": 10}, {"tipo": "reloj", "segundos": 10}]})"};
+                    {"segundos",
+                     {{"type", "integer"}, {"minimum", 3}, {"maximum", 3600}, {"default", 15}}}}}}}}}}}};
+        t.examples = {
+            R"({"nombre": "Hall", "pasos": [{"tipo": "qr", "texto": "https://…", "pie": "Entrá a la sala", "segundos": 20}, {"tipo": "mensaje", "texto": "Empezamos 20:00", "segundos": 10}, {"tipo": "reloj", "segundos": 10}]})"};
         t.run = [p](const json& a, Done done) {
             QString id = QString::fromStdString(a.value("id", ""));
             if (a.value("borrar", false)) {
@@ -363,7 +378,8 @@ void McpService::registerPantallaTools() {
                     if (v.toMap().value("id").toString() == id) {
                         hay = true;
                         const int n = v.toMap().value("pasos").toList().size();
-                        for (int i = n - 1; i >= 0; --i) p->pasoQuitar(id, i);
+                        for (int i = n - 1; i >= 0; --i)
+                            p->pasoQuitar(id, i);
                     }
                 if (!hay) {
                     done(ToolResult::error("No existe el carrusel '" + id.toStdString() + "'."));
@@ -381,8 +397,9 @@ void McpService::registerPantallaTools() {
                 for (const char* k : {"texto", "pie", "url", "fuente"})
                     if (paso.contains(k) && paso[k].is_string())
                         datos[k] = QString::fromStdString(paso[k].get<std::string>());
-                const QString err = p->pasoAgregar(id, QString::fromStdString(paso["tipo"].get<std::string>()),
-                                                   datos, paso.value("segundos", 15));
+                const QString err =
+                    p->pasoAgregar(id, QString::fromStdString(paso["tipo"].get<std::string>()), datos,
+                                   paso.value("segundos", 15));
                 if (!err.isEmpty()) problemas += err.toStdString() + " ";
             }
             json r{{"id", id.toStdString()}};
@@ -474,10 +491,12 @@ void McpService::registerPantallaTools() {
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"a", {{"type", "string"}, {"description", "id de la superficie; vacio = todas las de `tipo`"}}},
+             {{"a",
+               {{"type", "string"}, {"description", "id de la superficie; vacio = todas las de `tipo`"}}},
               {"tipo", {{"type", "string"}, {"description", "pantalla, carrusel, programa, prompter..."}}},
               {"url", {{"type", "string"}, {"description", "a donde ir"}}},
-              {"recargar", {{"type", "boolean"}, {"description", "que se recargue sola, sin cambiar de pagina"}}}}}};
+              {"recargar",
+               {{"type", "boolean"}, {"description", "que se recargue sola, sin cambiar de pagina"}}}}}};
         t.examples = {R"({"a": "carrusel-ug465j2w", "url": "http://.../pantalla/?tipo=reloj"})",
                       R"({"tipo": "carrusel", "recargar": true})"};
         t.run = [p](const json& a, Done done) {

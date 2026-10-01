@@ -31,9 +31,11 @@ std::filesystem::path bundleRootFor(const std::filesystem::path& exeDir) {
     if (norm.filename() == "64bit" && norm.parent_path().filename() == "bin") {
         return norm.parent_path().parent_path();
     }
-    // <X>.app/Contents/MacOS/<exe>  -> root = Contents
+    // <X>.app/Contents/MacOS/<exe>  -> root = Contents/Resources. El layout va
+    // en Resources porque en Contents/ solo pueden ir las carpetas estandar de
+    // una .app: cualquier otra cosa hace que codesign la rechace.
     if (norm.filename() == "MacOS" && norm.parent_path().filename() == "Contents") {
-        return norm.parent_path();
+        return norm.parent_path() / "Resources";
     }
     // <root>/<exe> (launcher en la raiz del bundle)
     return norm;

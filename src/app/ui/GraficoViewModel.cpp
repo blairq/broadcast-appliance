@@ -46,7 +46,7 @@ struct GraficoViewModel::Impl {
     /// mismo `ba-grafico` que el guion, el rotulador y el asistente.
     graficos::Emisor& em;
     QString abierto;
-    QString fuente;      ///< lo que está en el editor
+    QString fuente; ///< lo que está en el editor
     QString fuenteEnDisco;
     QJsonObject ficha;   ///< grafico.json
     QJsonObject valores; ///< valores actuales de los parámetros
@@ -222,23 +222,23 @@ QString GraficoViewModel::crear(const QString& nombre, bool declarativo) {
                                                             {"porDefecto", "Hola"},
                                                             {"ayuda", "Lo que dice el gráfico."}}}}};
     if (declarativo) {
-        ficha["declarativo"] = QJsonObject{
-            {"ancho", 900},
-            {"alto", 220},
-            {"capas", QJsonArray{QJsonObject{{"tipo", "panel"},
-                                             {"izquierda", 0},
-                                             {"abajo", 30},
-                                             {"alto", 100},
-                                             {"ancho", 500},
-                                             {"color", "#12151a"}},
-                                 QJsonObject{{"tipo", "texto"},
-                                             {"id", "t"},
-                                             {"valor", "{texto}"},
-                                             {"tamano", 40},
-                                             {"izquierda", 28},
-                                             {"abajo", 60},
-                                             {"aparece", 200}}}},
-            {"entrada", QJsonObject{{"efecto", "desliza-izquierda"}, {"duracion", 450}}}};
+        ficha["declarativo"] =
+            QJsonObject{{"ancho", 900},
+                        {"alto", 220},
+                        {"capas", QJsonArray{QJsonObject{{"tipo", "panel"},
+                                                         {"izquierda", 0},
+                                                         {"abajo", 30},
+                                                         {"alto", 100},
+                                                         {"ancho", 500},
+                                                         {"color", "#12151a"}},
+                                             QJsonObject{{"tipo", "texto"},
+                                                         {"id", "t"},
+                                                         {"valor", "{texto}"},
+                                                         {"tamano", 40},
+                                                         {"izquierda", 28},
+                                                         {"abajo", 60},
+                                                         {"aparece", 200}}}},
+                        {"entrada", QJsonObject{{"efecto", "desliza-izquierda"}, {"duracion", 450}}}};
     } else {
         escribir(QDir(c).filePath("grafico.qml"),
                  "import QtQuick\n\nItem {\n    id: raiz\n    width: 900\n    height: 220\n\n"
@@ -262,8 +262,7 @@ bool GraficoViewModel::guardar() {
         QJsonParseError pe{};
         const QJsonDocument doc = QJsonDocument::fromJson(d_->fuente.toUtf8(), &pe);
         if (!doc.isObject()) {
-            emit notify("No se guardó: la descripción no es JSON válido (" + pe.errorString() + ")",
-                        "error");
+            emit notify("No se guardó: la descripción no es JSON válido (" + pe.errorString() + ")", "error");
             return false;
         }
         d_->ficha["declarativo"] = doc.object();
@@ -315,8 +314,7 @@ QString GraficoViewModel::mostrarEnEscena(qulonglong fuente, bool repetir) {
     QString err;
     const QJsonObject p = d_->pedido(&err);
     if (!err.isEmpty()) return err;
-    const QString e =
-        d_->em.reproducir(p, d_->abierto, d_->valores, fuente, d_->duracionMs, repetir);
+    const QString e = d_->em.reproducir(p, d_->abierto, d_->valores, fuente, d_->duracionMs, repetir);
     if (e.isEmpty()) emit escenaChanged();
     return e;
 }

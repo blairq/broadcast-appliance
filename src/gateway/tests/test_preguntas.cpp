@@ -61,7 +61,8 @@ void preguntar() {
     // Un texto larguisimo se recorta y NO queda cortado a la mitad de una letra
     // con acento, que deja basura en la pantalla.
     std::string largo;
-    for (int i = 0; i < 300; ++i) largo += "ñ";
+    for (int i = 0; i < 300; ++i)
+        largo += "ñ";
     const std::string idLargo = p.preguntar("", largo, "publico", "n2", 2);
     CHECK(!idLargo.empty(), "la larga entra");
     const std::string t = p.lista()[0]["texto"].get<std::string>();
@@ -99,7 +100,8 @@ void recorrido() {
     CHECK(p.alAire(a), "sale la otra");
     json l = p.lista();
     int alAire = 0;
-    for (const json& q : l) if (q["estado"] == "al_aire") ++alAire;
+    for (const json& q : l)
+        if (q["estado"] == "al_aire") ++alAire;
     CHECK(alAire == 1, "una sola al aire por vez");
     for (const json& q : l)
         if (q["id"] == b) CHECK(q["estado"] == "respondida", "la anterior queda respondida");
@@ -163,9 +165,8 @@ void el_tope() {
     const std::string importante = p.preguntar("", "esta no se puede perder", "publico", "n0", 1);
     // Y muchas ya respondidas.
     for (std::size_t i = 0; i < Preguntas::kMax + 20; ++i) {
-        const std::string id =
-            p.preguntar("", "relleno " + std::to_string(i), "publico", "n" + std::to_string(i),
-                        static_cast<std::int64_t>(100 + i));
+        const std::string id = p.preguntar("", "relleno " + std::to_string(i), "publico",
+                                           "n" + std::to_string(i), static_cast<std::int64_t>(100 + i));
         p.responder(id);
     }
     CHECK(p.lista().size() <= Preguntas::kMax, "no crece sin fin");

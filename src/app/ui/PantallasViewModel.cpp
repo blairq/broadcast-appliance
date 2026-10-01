@@ -57,43 +57,63 @@ struct Contenido {
 
 const std::vector<Contenido>& catalogo() {
     static const std::vector<Contenido> c = {
-        {"mensaje", "Un mensaje", "Texto grande, para que se lea desde el fondo de la sala.",
+        {"mensaje",
+         "Un mensaje",
+         "Texto grande, para que se lea desde el fondo de la sala.",
          {{"texto", "Texto", "Empezamos en 5 minutos", true},
           {"pie", "Abajo, más chico", "Sala principal", false}},
-         true, ""},
-        {"qr", "Un código QR", "El QR ocupa la pantalla entera: se escanea desde lejos.",
+         true,
+         ""},
+        {"qr",
+         "Un código QR",
+         "El QR ocupa la pantalla entera: se escanea desde lejos.",
          {{"texto", "Qué codifica", "https://…", false},
           {"pie", "Abajo, más chico", "Escaneá para entrar a la sala", false}},
-         true, ""},
-        {"reloj", "La hora", "La hora, grande. Para el fondo del escenario.",
+         true,
+         ""},
+        {"reloj",
+         "La hora",
+         "La hora, grande. Para el fondo del escenario.",
          {{"pie", "Abajo, más chico", "", false}},
-         true, ""},
-        {"url", "Una página web", "Cualquier dirección. Tiene que ser alcanzable DESDE el televisor.",
+         true,
+         ""},
+        {"url",
+         "Una página web",
+         "Cualquier dirección. Tiene que ser alcanzable DESDE el televisor.",
          {{"url", "Dirección", "http://…", false}},
-         true, ""},
+         true,
+         ""},
         {"prompter", "El teleprompter", "La vista del orador: el discurso que esté cargado.", {}, true, ""},
         // La votación que esté abierta, con su QR para escanear desde la
         // butaca. No lleva campos: lo que muestra es lo que haya en la urna en
         // ese momento, y no hay nada que elegir — una urna por vez.
-        {"votacion", "La votación",
+        {"votacion",
+         "La votación",
          "La que esté abierta, con las opciones y el QR para votar desde el teléfono. El resultado se "
          "ve solo cuando corresponde: con la urna cerrada, o abierta si se decidió mostrarlo. Si no "
          "hay ninguna, dice que no hay.",
-         {}, true, ""},
-        {"tally", "Tally de cámara",
+         {},
+         true,
+         ""},
+        {"tally",
+         "Tally de cámara",
          "Rojo si esa cámara está AL AIRE, verde si está armada para el próximo take. Se mira de reojo "
          "desde atrás de la cámara, así que es la pantalla entera de color. `fuente` es el nombre de la "
          "cámara o de la escena; vacío muestra el estado general, que sirve para la cabina.",
          {{"fuente", "Cámara o escena", "Cam 1", false}},
-         true, ""},
+         true,
+         ""},
         // El programa entra por el mismo camino que un invitado, así que el
         // enlace lo tiene que acuñar el gateway (lleva un permiso de ingreso):
         // por eso es el único contenido cuya URL no se arma acá.
-        {"programa", "Lo que sale al aire",
+        {"programa",
+         "Lo que sale al aire",
          "El programa en vivo por WebRTC: unas décimas de retardo, no los segundos del reproductor de "
          "fábrica del televisor. La pantalla entra a la sala como una más: si el lobby está prendido, "
          "hay que hacerla pasar, y ocupa un lugar mientras dure.",
-         {}, true, ""},
+         {},
+         true,
+         ""},
     };
     return c;
 }
@@ -117,10 +137,10 @@ struct Destino {
     /// que se guardara su IP, que es justo lo que no hay que hacer—.
     bool nombrePropio = false;
     // --- lo que sabemos de cómo está (no se guarda) ---
-    QString estado = "?"; ///< ? | libre | mostrando | apagada | error | ocupada
-    QString contenido;    ///< el tipo que le mandamos
+    QString estado = "?";     ///< ? | libre | mostrando | apagada | error | ocupada
+    QString contenido;        ///< el tipo que le mandamos
     QVariantMap ultimosDatos; ///< con qué se lo mandamos (para poder fijarlo)
-    QString que;          ///< legible: "QR — https://…"
+    QString que;              ///< legible: "QR — https://…"
     QString error;
     double volumen = -1;
     bool silenciado = false;
@@ -139,9 +159,7 @@ struct Destino {
 /// Todo lo que pasa con una pantalla queda escrito: mandar algo a un televisor
 /// es una acción que se ve en la sala, y cuando algo sale mal (el aparato no
 /// contesta, la página no carga) el registro tiene que poder contarlo después.
-void anotar(diag::Nivel n, const std::string& texto) {
-    diag::registro().linea(n, "pantallas", 0, texto);
-}
+void anotar(diag::Nivel n, const std::string& texto) { diag::registro().linea(n, "pantallas", 0, texto); }
 
 /// Un paso de un carrusel: qué mostrar y cuánto.
 struct Paso {
@@ -279,9 +297,8 @@ struct PantallasViewModel::Impl {
                 json datos = json::object();
                 for (auto it = p.datos.begin(); it != p.datos.end(); ++it)
                     datos[it.key().toStdString()] = it.value().toString().toStdString();
-                pasos.push_back(json{{"tipo", p.tipo.toStdString()},
-                                     {"datos", datos},
-                                     {"segundos", p.segundos}});
+                pasos.push_back(
+                    json{{"tipo", p.tipo.toStdString()}, {"datos", datos}, {"segundos", p.segundos}});
             }
             car.push_back(json{{"id", c.id.toStdString()},
                                {"nombre", c.nombre.toStdString()},
@@ -362,7 +379,8 @@ PantallasViewModel::PantallasViewModel(AppRuntime& rt, ConferenceViewModel* sala
     if (sala != nullptr) {
         connect(&sala->client(), &ConferenceClient::onlineChanged, this, [this](bool online) {
             if (!online) return;
-            for (const Carrusel& c : d_->carruseles) publicarCarrusel(c.id);
+            for (const Carrusel& c : d_->carruseles)
+                publicarCarrusel(c.id);
         });
     }
 
@@ -377,7 +395,8 @@ PantallasViewModel::PantallasViewModel(AppRuntime& rt, ConferenceViewModel* sala
     // Al arrancar: si el gateway ya estaba en linea, el aviso de arriba no va
     // a llegar nunca, asi que se publica igual.
     QTimer::singleShot(2500, this, [this]() {
-        for (const Carrusel& c : d_->carruseles) publicarCarrusel(c.id);
+        for (const Carrusel& c : d_->carruseles)
+            publicarCarrusel(c.id);
     });
 
     // Las direcciones de esta máquina, para armar URLs que el televisor pueda
@@ -386,7 +405,8 @@ PantallasViewModel::PantallasViewModel(AppRuntime& rt, ConferenceViewModel* sala
         sala->client().get("/api/v1/network", [this](bool ok, const QJsonObject& r) {
             if (!ok) return;
             d_->misIps.clear();
-            for (const QJsonValue& v : r.value("lan").toArray()) d_->misIps << v.toString();
+            for (const QJsonValue& v : r.value("lan").toArray())
+                d_->misIps << v.toString();
             d_->origenSeguro = r.value("origenSeguro").toString();
             emit cambio();
         });
@@ -401,23 +421,24 @@ QVariantList PantallasViewModel::pantallas() const {
     QVariantList out;
     const std::int64_t ahora = QDateTime::currentMSecsSinceEpoch();
     for (const Destino& d : d_->destinos)
-        out.append(QVariantMap{{"id", d.id},
-                               {"nombre", d.nombre},
-                               {"modelo", d.modelo},
-                               {"host", d.host},
-                               {"puerto", d.puerto},
-                               {"fija", d.fija},
-                               {"estado", d.estado},
-                               {"contenido", d.contenido},
-                               {"que", d.que},
-                               {"error", d.error},
-                               {"volumen", d.volumen},
-                               {"silenciado", d.silenciado},
-                               {"trabajando", d.trabajando},
-                               {"puedeMostrar", d.puedeMostrar},
-                               {"fijadoTipo", d.fijadoTipo},
-                               {"fijadoDatos", d.fijadoDatos},
-                               {"vistaHace", static_cast<int>(d.vistaMs > 0 ? (ahora - d.vistaMs) / 1000 : -1)}});
+        out.append(
+            QVariantMap{{"id", d.id},
+                        {"nombre", d.nombre},
+                        {"modelo", d.modelo},
+                        {"host", d.host},
+                        {"puerto", d.puerto},
+                        {"fija", d.fija},
+                        {"estado", d.estado},
+                        {"contenido", d.contenido},
+                        {"que", d.que},
+                        {"error", d.error},
+                        {"volumen", d.volumen},
+                        {"silenciado", d.silenciado},
+                        {"trabajando", d.trabajando},
+                        {"puedeMostrar", d.puedeMostrar},
+                        {"fijadoTipo", d.fijadoTipo},
+                        {"fijadoDatos", d.fijadoDatos},
+                        {"vistaHace", static_cast<int>(d.vistaMs > 0 ? (ahora - d.vistaMs) / 1000 : -1)}});
     return out;
 }
 
@@ -483,8 +504,8 @@ QString PantallasViewModel::urlDe(const QString& tipo, const QVariantMap& datos,
         const QString entrada = datos.value("entrada").toString();
         if (!clave.isEmpty()) u += "?k=" + clave;
         if (!entrada.isEmpty())
-            u += (clave.isEmpty() ? "?" : "&") +
-                 QString("entrada=") + QString::fromUtf8(QUrl::toPercentEncoding(entrada));
+            u += (clave.isEmpty() ? "?" : "&") + QString("entrada=") +
+                 QString::fromUtf8(QUrl::toPercentEncoding(entrada));
         return u;
     }
     // El tally tiene pagina propia: es la pantalla ENTERA de color y no se
@@ -518,7 +539,8 @@ void PantallasViewModel::buscar() {
         d_->sala->client().get("/api/v1/network", [this](bool ok, const QJsonObject& r) {
             if (!ok) return;
             d_->misIps.clear();
-            for (const QJsonValue& v : r.value("lan").toArray()) d_->misIps << v.toString();
+            for (const QJsonValue& v : r.value("lan").toArray())
+                d_->misIps << v.toString();
             d_->origenSeguro = r.value("origenSeguro").toString();
         });
     }
@@ -561,12 +583,12 @@ void PantallasViewModel::buscar() {
                 // Un aparato que vuelve a aparecer (prendido de nuevo, o con
                 // otra IP) retoma lo suyo enseguida, sin esperar la ronda. Va
                 // después de las consultas: así ya se sabe si puede mostrar.
-                for (Destino& d : d_->destinos) d.proximoIntentoMs = 0;
+                for (Destino& d : d_->destinos)
+                    d.proximoIntentoMs = 0;
                 QTimer::singleShot(300 * n + 1500, this, [this]() { restaurar(); });
-                emit notify(encontrados.empty()
-                                ? "No encontré ningún televisor en la red"
-                                : "Encontré " + QString::number(encontrados.size()) +
-                                      (encontrados.size() == 1 ? " pantalla" : " pantallas"),
+                emit notify(encontrados.empty() ? "No encontré ningún televisor en la red"
+                                                : "Encontré " + QString::number(encontrados.size()) +
+                                                      (encontrados.size() == 1 ? " pantalla" : " pantallas"),
                             encontrados.empty() ? "warn" : "ok");
             }
             emit cambio();
@@ -594,8 +616,8 @@ QString PantallasViewModel::agregar(const QString& nombre, const QString& host, 
 }
 
 QString PantallasViewModel::olvidar(const QString& id) {
-    const auto it = std::find_if(d_->destinos.begin(), d_->destinos.end(),
-                                 [&](const Destino& d) { return d.id == id; });
+    const auto it =
+        std::find_if(d_->destinos.begin(), d_->destinos.end(), [&](const Destino& d) { return d.id == id; });
     if (it == d_->destinos.end()) return "No la encuentro.";
     if (it->trabajando) return "Esperá a que termine lo que está haciendo.";
     d_->destinos.erase(it);
@@ -644,8 +666,7 @@ QString PantallasViewModel::fijar(const QString& id, const QString& tipo, const 
 QString PantallasViewModel::fijarLoQueMuestra(const QString& id) {
     Destino* d = d_->porId(id);
     if (d == nullptr) return "No la encuentro.";
-    if (d->contenido.isEmpty())
-        return "Esta pantalla no está mostrando nada nuestro: mandale algo primero.";
+    if (d->contenido.isEmpty()) return "Esta pantalla no está mostrando nada nuestro: mandale algo primero.";
     d->fijadoTipo = d->contenido;
     d->fijadoDatos = d->ultimosDatos;
     d->fallos = 0;
@@ -682,13 +703,12 @@ QVariantList PantallasViewModel::carruseles() const {
                         break;
                     }
                 }
-            pasos.append(QVariantMap{{"tipo", p.tipo},
-                                     {"datos", p.datos},
-                                     {"segundos", p.segundos},
-                                     {"que", que}});
+            pasos.append(
+                QVariantMap{{"tipo", p.tipo}, {"datos", p.datos}, {"segundos", p.segundos}, {"que", que}});
         }
         int total = 0;
-        for (const Paso& p : c.pasos) total += p.segundos;
+        for (const Paso& p : c.pasos)
+            total += p.segundos;
         out.append(QVariantMap{{"id", c.id},
                                {"nombre", c.nombre},
                                {"transicion", c.transicion},
@@ -716,8 +736,7 @@ QString PantallasViewModel::carruselBorrar(const QString& id) {
     d_->guardar();
     // Se lo saca del gateway también: una pantalla que lo estuviera mostrando
     // va a decir que no existe, que es la verdad.
-    if (d_->sala != nullptr)
-        d_->sala->client().post("/api/v1/carruseles", QJsonObject{{"borrar", id}});
+    if (d_->sala != nullptr) d_->sala->client().post("/api/v1/carruseles", QJsonObject{{"borrar", id}});
     emit carruselesCambio();
     return {};
 }
@@ -813,10 +832,9 @@ void PantallasViewModel::publicar(const QString& id, const QString& hostDestino)
     if (pasos.isEmpty()) return;
     anotar(diag::Nivel::Info, "publico el carrusel «" + c->nombre.toStdString() + "» (" +
                                   std::to_string(pasos.size()) + " pasos)");
-    d_->sala->client().post("/api/v1/carruseles", QJsonObject{{"id", c->id},
-                                                              {"nombre", c->nombre},
-                                                              {"transicion", c->transicion},
-                                                              {"pasos", pasos}});
+    d_->sala->client().post(
+        "/api/v1/carruseles",
+        QJsonObject{{"id", c->id}, {"nombre", c->nombre}, {"transicion", c->transicion}, {"pasos", pasos}});
 }
 
 void PantallasViewModel::publicarCarrusel(const QString& id) {
@@ -834,13 +852,13 @@ void PantallasViewModel::publicarCarrusel(const QString& id) {
 }
 
 void PantallasViewModel::publicarTally(const QString& aire, const QString& armada,
-                                       const QStringList& fuentesAire,
-                                       const QStringList& fuentesArmadas, bool transmitiendo,
-                                       bool grabando) {
+                                       const QStringList& fuentesAire, const QStringList& fuentesArmadas,
+                                       bool transmitiendo, bool grabando) {
     if (d_->sala == nullptr) return;
     const auto arr = [](const QStringList& l) {
         QJsonArray a;
-        for (const QString& s : l) a.append(s);
+        for (const QString& s : l)
+            a.append(s);
         return a;
     };
     d_->sala->client().post("/api/v1/tally",
@@ -860,16 +878,15 @@ QString PantallasViewModel::mostrarCarrusel(const QString& idPantalla, const QSt
     if (c == nullptr) return "No encuentro ese carrusel.";
     if (c->pasos.empty()) return "Ese carrusel no tiene ningún paso todavía.";
     if (d->trabajando) return "Esperá: está ocupada con lo anterior.";
-    if (d->puedeMostrar == 0)
-        return d->nombre + " no sabe mostrar páginas web.";
+    if (d->puedeMostrar == 0) return d->nombre + " no sabe mostrar páginas web.";
     // Primero la lista (con las URLs que ESTE televisor puede alcanzar), y
     // después se lo manda: si fuera al revés, abriría una lista que no está.
     publicar(carrusel, idPantalla);
     const QString ip = ipParaAlcanzar(d_->misIps, d->host);
     if (ip.isEmpty())
         return "Todavía no sé con qué dirección me ve el televisor: probá de nuevo en unos segundos.";
-    const QString url = "http://" + ip + ":" + QString::number(d_->puertoWeb) + "/pantalla/carrusel/?id=" +
-                        QString::fromUtf8(QUrl::toPercentEncoding(carrusel));
+    const QString url = "http://" + ip + ":" + QString::number(d_->puertoWeb) +
+                        "/pantalla/carrusel/?id=" + QString::fromUtf8(QUrl::toPercentEncoding(carrusel));
     anotar(diag::Nivel::Info, "a «" + d->nombre.toStdString() + "»: carrusel «" + c->nombre.toStdString() +
                                   "» -> " + url.toStdString());
     d->ultimosDatos = QVariantMap{{"carrusel", carrusel}};
@@ -916,13 +933,13 @@ void PantallasViewModel::empujar(const QString& a, const QString& tipo, const QS
     if (recargar) o["recargar"] = true;
     if (!a.isEmpty()) o["a"] = a;
     if (!tipo.isEmpty()) o["tipo"] = tipo;
-    anotar(diag::Nivel::Info, "empujo a " + (a.isEmpty() ? "todas(" + tipo.toStdString() + ")" : a.toStdString()) +
+    anotar(diag::Nivel::Info, "empujo a " +
+                                  (a.isEmpty() ? "todas(" + tipo.toStdString() + ")" : a.toStdString()) +
                                   ": " + (recargar ? std::string("recargar") : url.toStdString()));
-    d_->sala->client().post("/api/v1/superficies/mostrar", o,
-                            [this, luego](bool ok, const QJsonObject& r) {
-                                pedirSuperficies();
-                                if (luego) luego(ok && r.value("ok").toBool(), r.value("a").toInt());
-                            });
+    d_->sala->client().post("/api/v1/superficies/mostrar", o, [this, luego](bool ok, const QJsonObject& r) {
+        pedirSuperficies();
+        if (luego) luego(ok && r.value("ok").toBool(), r.value("a").toInt());
+    });
 }
 
 // --- Restaurar lo fijado --------------------------------------------------------------
@@ -944,8 +961,10 @@ void PantallasViewModel::restaurar() {
         // La espera crece con los fallos: un televisor apagado se reintenta
         // cada vez menos, hasta una vez cada cinco minutos.
         d.proximoIntentoMs = ahora + std::min<std::int64_t>(15000LL * (1 + d.fallos), 300000LL);
-        if (esCarrusel) mostrarCarrusel(id, tipo.mid(9));
-        else mostrar(id, tipo, datos);
+        if (esCarrusel)
+            mostrarCarrusel(id, tipo.mid(9));
+        else
+            mostrar(id, tipo, datos);
     }
 }
 
@@ -1022,23 +1041,22 @@ QString PantallasViewModel::mostrar(const QString& id, const QString& tipo, cons
         if (d_->sala == nullptr) return "La sala no está corriendo: sin ella no hay urna que mostrar.";
         d->trabajando = true;
         emit cambio();
-        d_->sala->client().get(
-            "/api/v1/publico-link?target=local&conClave=1",
-            [this, id, datos](bool ok, const QJsonObject& r) mutable {
-                Destino* d = d_->porId(id);
-                if (d == nullptr) return;
-                d->trabajando = false;
-                if (!ok || !r.value("ok").toBool()) {
-                    d->estado = "error";
-                    d->error = "No pude sacar el enlace del público";
-                    emit notify(d->nombre + ": " + d->error, "error");
-                    emit cambio();
-                    return;
-                }
-                datos["clavePublico"] = r.value("clave").toString();
-                datos["entrada"] = r.value("url").toString();
-                mostrar(id, "votacion", datos);
-            });
+        d_->sala->client().get("/api/v1/publico-link?target=local&conClave=1",
+                               [this, id, datos](bool ok, const QJsonObject& r) mutable {
+                                   Destino* d = d_->porId(id);
+                                   if (d == nullptr) return;
+                                   d->trabajando = false;
+                                   if (!ok || !r.value("ok").toBool()) {
+                                       d->estado = "error";
+                                       d->error = "No pude sacar el enlace del público";
+                                       emit notify(d->nombre + ": " + d->error, "error");
+                                       emit cambio();
+                                       return;
+                                   }
+                                   datos["clavePublico"] = r.value("clave").toString();
+                                   datos["entrada"] = r.value("url").toString();
+                                   mostrar(id, "votacion", datos);
+                               });
         return {};
     }
     if (tipo == "programa") {
@@ -1081,9 +1099,8 @@ QString PantallasViewModel::mostrar(const QString& id, const QString& tipo, cons
     }
 
     d->ultimosDatos = datos;
-    anotar(diag::Nivel::Info,
-           "a «" + d->nombre.toStdString() + "» (" + d->host.toStdString() + "): " + que.toStdString() +
-               " -> " + url.toStdString());
+    anotar(diag::Nivel::Info, "a «" + d->nombre.toStdString() + "» (" + d->host.toStdString() +
+                                  "): " + que.toStdString() + " -> " + url.toStdString());
     mandarUrl(id, url, tipo, que);
     return {};
 }
@@ -1187,7 +1204,8 @@ void PantallasViewModel::setVolumen(const QString& id, double nivel) {
     // una es como le hablamos nosotros, la otra es como nos encuentra el.
     const QString desde;
     std::thread([this, id, host, puerto, desde, nivel]() {
-        const pt::Estado r = pt::volumen(host.toStdString(), puerto, nivel, -1, kTimeoutMs, desde.toStdString());
+        const pt::Estado r =
+            pt::volumen(host.toStdString(), puerto, nivel, -1, kTimeoutMs, desde.toStdString());
         QMetaObject::invokeMethod(this, [this, id, r]() {
             Destino* d = d_->porId(id);
             if (d == nullptr) return;

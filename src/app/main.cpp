@@ -14,10 +14,10 @@
 // puede arrancar sin contexto grafico).
 // ============================================================================
 
-#include "OperatorEngine.hpp"
-#include "Registrar.hpp"
 #include "diag/DiarioDeArranque.hpp"
+#include "OperatorEngine.hpp"
 #include "platform/Paths.hpp"
+#include "Registrar.hpp"
 #include "security/CredentialStore.hpp"
 
 #include <cmath>

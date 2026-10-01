@@ -40,3 +40,6 @@ extern/
 .venv-entrenar/
 .venv-mlx/
 unsloth_compiled_cache/
+
+# Logs sueltos en la raiz (corridas de entrenamiento, etc.): no van al repo.
+/*.log

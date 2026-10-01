@@ -44,7 +44,7 @@
 namespace ba::gateway {
 
 class Votacion {
-  public:
+   public:
     /// Tope de opciones. Más que esto no entra en la pantalla de un teléfono
     /// ni se puede leer al aire.
     static constexpr std::size_t kMaxOpciones = 10;
@@ -62,9 +62,9 @@ class Votacion {
     /// :param cuantosPodian: cuántos tenían derecho, según el padrón. Es lo que
     ///     permite decir «votaron 12 de 40» en vez de solo «12».
     /// :returns: false si no hay pregunta o no hay al menos dos opciones.
-    bool abrir(const std::string& pregunta, const std::vector<std::string>& opciones, Modo modo,
-               bool secreta, const std::map<std::string, std::string>& habilitados,
-               int cuantosPodian, std::int64_t ahoraMs);
+    bool abrir(const std::string& pregunta, const std::vector<std::string>& opciones, Modo modo, bool secreta,
+               const std::map<std::string, std::string>& habilitados, int cuantosPodian,
+               std::int64_t ahoraMs);
 
     /// Cierra la que esté abierta. Los votos quedan: el resultado se sigue
     /// mirando después, y el acta se arma con eso.
@@ -97,7 +97,7 @@ class Votacion {
     /// todavía no votó.
     void setMostrarEnVivo(bool si);
 
-  private:
+   private:
     mutable std::mutex m_;
     bool abierta_ = false;
     bool hubo_ = false; ///< false hasta que se abrió una por primera vez

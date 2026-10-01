@@ -22,8 +22,8 @@
 #include <QJsonObject>
 #include <QTimeZone>
 
-#include "mcp/McpCore.hpp"
 #include "evento/Evento.hpp"
+#include "mcp/McpCore.hpp"
 #include "ui/EventoViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
 
@@ -34,8 +34,8 @@ namespace {
 /// mismo que el operador (incluido lo que le falta a cada cue).
 json guionDe(EventoViewModel& ev) {
     const QVariantMap g = ev.guion();
-    return json::parse(QString(QJsonDocument(QJsonObject::fromVariantMap(g)).toJson()).toStdString(),
-                       nullptr, false);
+    return json::parse(QString(QJsonDocument(QJsonObject::fromVariantMap(g)).toJson()).toStdString(), nullptr,
+                       false);
 }
 
 QVariantMap aVariantMap(const json& j) {
@@ -47,8 +47,7 @@ QVariantMap aVariantMap(const json& j) {
 
 void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe);
 
-void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm,
-                         FichaDe fichaDe) {
+void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm, FichaDe fichaDe) {
     core.addCategory("evento", "Guion del evento",
                      "El storyboard: bloques, cues, tiempos previstos y el recorrido en vivo.");
 
@@ -80,8 +79,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                                    {"bloques", m["bloques"].toInt()},
                                    {"cues", m["cues"].toInt()}});
             }
-            done(ToolResult().data(json{{"eventos", out},
-                                        {"abierto", ev.abierto().toStdString()}}));
+            done(ToolResult().data(json{{"eventos", out}, {"abierto", ev.abierto().toStdString()}}));
         };
         core.addTool(std::move(t));
     }
@@ -122,10 +120,11 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "Con `nombre` crea uno nuevo con ese titulo y lo deja abierto; si ya hay uno con ese nombre "
             "NO lo pisa, crea otro al lado.\n\n"
             "Lo que se este editando sin guardar se guarda antes de cambiar de evento.";
-        t.inputSchema = {{"type", "object"},
-                         {"properties",
-                          {{"carpeta", {{"type", "string"}, {"description", "Un evento que ya existe."}}},
-                           {"nombre", {{"type", "string"}, {"description", "Crear uno nuevo con este titulo."}}}}}};
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"carpeta", {{"type", "string"}, {"description", "Un evento que ya existe."}}},
+              {"nombre", {{"type", "string"}, {"description", "Crear uno nuevo con este titulo."}}}}}};
         t.run = [&ev](const json& a, Done done) {
             if (a.contains("nombre")) {
                 const QString c = ev.crear(QString::fromStdString(a["nombre"].get<std::string>()));
@@ -133,9 +132,11 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                 return done(ToolResult::ok("Evento creado y abierto: " + c.toStdString()));
             }
             const std::string c = a.value("carpeta", std::string());
-            if (c.empty()) return done(ToolResult::error("Pasa `carpeta` (uno que exista) o `nombre` (uno nuevo)."));
+            if (c.empty())
+                return done(ToolResult::error("Pasa `carpeta` (uno que exista) o `nombre` (uno nuevo)."));
             if (!ev.abrir(QString::fromStdString(c)))
-                return done(ToolResult::error("No se pudo abrir '" + c + "' (evento_listar muestra los que hay)."));
+                return done(
+                    ToolResult::error("No se pudo abrir '" + c + "' (evento_listar muestra los que hay)."));
             done(ToolResult::ok("Evento abierto: " + c));
         };
         core.addTool(std::move(t));
@@ -225,10 +226,13 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             {"type", "object"},
             {"properties",
              {{"bloque", {{"type", "integer"}, {"minimum", 0}}},
-              {"cue", {{"type", "integer"}, {"minimum", 0}, {"description", "Cual cue del bloque (base 0)."}}},
-              {"tipo", {{"type", "string"},
-                        {"enum", {"escena", "musica", "video", "teleprompter", "orador", "grafico",
-                                  "pantalla", "audio", "pausa", "espera", "nota"}}}},
+              {"cue",
+               {{"type", "integer"}, {"minimum", 0}, {"description", "Cual cue del bloque (base 0)."}}},
+              {"tipo",
+               {{"type", "string"},
+                {"enum",
+                 {"escena", "musica", "video", "teleprompter", "orador", "grafico", "pantalla", "audio",
+                  "pausa", "espera", "nota"}}}},
               {"texto", {{"type", "string"}, {"description", "Lo que lee el operador."}}},
               {"datos", {{"type", "object"}, {"description", "Lo propio del tipo (ver la ayuda)."}}},
               {"duracionSeg", {{"type", "integer"}, {"minimum", 0}}},
@@ -240,8 +244,10 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.run = [&ev](const json& a, Done done) {
             const int b = a["bloque"].get<int>();
             if (!a.contains("cue")) {
-                const QString id = ev.agregarCue(b, QString::fromStdString(a.value("tipo", std::string("nota"))));
-                if (id.isEmpty()) return done(ToolResult::error("No existe el bloque " + std::to_string(b) + "."));
+                const QString id =
+                    ev.agregarCue(b, QString::fromStdString(a.value("tipo", std::string("nota"))));
+                if (id.isEmpty())
+                    return done(ToolResult::error("No existe el bloque " + std::to_string(b) + "."));
                 // Recien creado: es el ultimo del bloque.
                 const QVariantMap g = ev.guion();
                 const QVariantList bs = g["bloques"].toList();
@@ -306,25 +312,25 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             // Se valida ANTES de tocar nada: si la fecha esta mal, el nombre
             // tampoco se cambia. Guardar a medias deja al operador sin saber
             // que quedo escrito.
-            if (a.contains("fecha") && a["fecha"].is_string() && !a["fecha"].get<std::string>().empty()
-                && !evento::fechaValida(a["fecha"].get<std::string>()))
+            if (a.contains("fecha") && a["fecha"].is_string() && !a["fecha"].get<std::string>().empty() &&
+                !evento::fechaValida(a["fecha"].get<std::string>()))
                 return done(ToolResult::error(
-                    "La fecha tiene que ser un dia que exista, en formato YYYY-MM-DD (llego: "
-                    + a["fecha"].get<std::string>() + ")."));
-            if (a.contains("inicio") && a["inicio"].is_string() && !a["inicio"].get<std::string>().empty()
-                && !evento::horaValida(a["inicio"].get<std::string>()))
-                return done(ToolResult::error("La hora tiene que estar en formato HH:MM (llego: "
-                                              + a["inicio"].get<std::string>() + ")."));
-            if (a.contains("huso") && a["huso"].is_string() && !a["huso"].get<std::string>().empty()
-                && !QTimeZone(QByteArray::fromStdString(a["huso"].get<std::string>())).isValid())
-                return done(ToolResult::error(
-                    "No conozco ese huso horario: " + a["huso"].get<std::string>()
-                    + ". Va el nombre IANA, como America/Argentina/Buenos_Aires."));
+                    "La fecha tiene que ser un dia que exista, en formato YYYY-MM-DD (llego: " +
+                    a["fecha"].get<std::string>() + ")."));
+            if (a.contains("inicio") && a["inicio"].is_string() && !a["inicio"].get<std::string>().empty() &&
+                !evento::horaValida(a["inicio"].get<std::string>()))
+                return done(ToolResult::error("La hora tiene que estar en formato HH:MM (llego: " +
+                                              a["inicio"].get<std::string>() + ")."));
+            if (a.contains("huso") && a["huso"].is_string() && !a["huso"].get<std::string>().empty() &&
+                !QTimeZone(QByteArray::fromStdString(a["huso"].get<std::string>())).isValid())
+                return done(ToolResult::error("No conozco ese huso horario: " + a["huso"].get<std::string>() +
+                                              ". Va el nombre IANA, como America/Argentina/Buenos_Aires."));
             if (a.contains("nombre")) ev.setNombre(QString::fromStdString(a["nombre"]));
             if (a.contains("fecha")) ev.setFecha(QString::fromStdString(a["fecha"]));
             if (a.contains("inicio")) ev.setInicio(QString::fromStdString(a["inicio"]));
             if (a.contains("huso")) ev.setHuso(QString::fromStdString(a["huso"]));
-            if (!ev.guardar()) return done(ToolResult::error("No se pudo guardar (¿hay algun evento abierto?)."));
+            if (!ev.guardar())
+                return done(ToolResult::error("No se pudo guardar (¿hay algun evento abierto?)."));
             done(ToolResult::ok("Guion guardado."));
         };
         core.addTool(std::move(t));
@@ -361,8 +367,8 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                                    {"grave", m["grave"].toBool()},
                                    {"texto", m["texto"].toString().toStdString()}});
             }
-            done(ToolResult().data(json{{"reparos", out}, {"graves", graves},
-                                        {"sePuedeCorrer", graves == 0}}));
+            done(ToolResult().data(
+                json{{"reparos", out}, {"graves", graves}, {"sePuedeCorrer", graves == 0}}));
         };
         core.addTool(std::move(t));
     }
@@ -414,8 +420,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "Respeta el ORDEN EN QUE PASO, no el del guion: si el operador salto o repitio un bloque, el "
             "informe lo cuenta asi.\n\n"
             "Con `guardar: true` ademas lo escribe en la carpeta del evento con la fecha en el nombre.";
-        t.inputSchema = {{"type", "object"},
-                         {"properties", {{"guardar", {{"type", "boolean"}}}}}};
+        t.inputSchema = {{"type", "object"}, {"properties", {{"guardar", {{"type", "boolean"}}}}}};
         t.run = [&ev](const json& a, Done done) {
             const QVariantMap inf = ev.informe();
             if (inf.isEmpty())
@@ -423,9 +428,9 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                     "Todavia no hay nada que informar: el guion no se corrio en esta sesion."));
             QString archivo;
             if (a.value("guardar", false)) archivo = ev.guardarInforme();
-            json out = json::parse(
-                QString(QJsonDocument(QJsonObject::fromVariantMap(inf)).toJson()).toStdString(), nullptr,
-                false);
+            json out =
+                json::parse(QString(QJsonDocument(QJsonObject::fromVariantMap(inf)).toJson()).toStdString(),
+                            nullptr, false);
             if (!archivo.isEmpty()) out["archivo"] = archivo.toStdString();
             done(ToolResult().data(out));
         };
@@ -436,9 +441,8 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.name = "evento_correr";
         t.title = "Correr el guion";
         t.category = "evento";
-        t.description =
-            "Arranca el guion, avanza al cue siguiente, vuelve atras, salta a uno, pausa o para. "
-            "Con `ensayo` recorre todo SIN salir al aire.";
+        t.description = "Arranca el guion, avanza al cue siguiente, vuelve atras, salta a uno, pausa o para. "
+                        "Con `ensayo` recorre todo SIN salir al aire.";
         t.details =
             "Esto SALE AL AIRE salvo que `ensayo` este prendido: los cues de escena cambian lo que se ve "
             "y los de orador le dan la palabra a alguien de verdad. Por eso no es de solo lectura y "
@@ -451,15 +455,17 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "  pausar      frena el guion; el tiempo pausado NO cuenta como atraso\n"
             "  reanudar\n"
             "  parar       lo deja parado\n\n"
-            "La respuesta trae el cue actual, el que sigue y el reloj: `desvioSeg` positivo = vamos tarde.\n\n"
+            "La respuesta trae el cue actual, el que sigue y el reloj: `desvioSeg` positivo = vamos "
+            "tarde.\n\n"
             "Mientras el guion corre sin ensayo, el sistema entra en MODO EVENTO: la app le avisa al "
             "operador antes de cualquier accion de riesgo, y settings_set queda bloqueado (un ajuste que "
             "reinicia la sala sacaria a todos los invitados en el peor momento posible).";
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"accion", {{"type", "string"},
-                          {"enum", {"arrancar", "siguiente", "atras", "ir", "pausar", "reanudar", "parar"}}}},
+             {{"accion",
+               {{"type", "string"},
+                {"enum", {"arrancar", "siguiente", "atras", "ir", "pausar", "reanudar", "parar"}}}},
               {"bloque", {{"type", "integer"}, {"minimum", 0}}},
               {"cue", {{"type", "integer"}, {"minimum", 0}}},
               {"ensayo", {{"type", "boolean"}, {"description", "Recorrer sin salir al aire."}}}}},
@@ -467,22 +473,33 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.run = [&ev](const json& a, Done done) {
             if (a.contains("ensayo")) ev.setEnsayo(a["ensayo"].get<bool>());
             const std::string accion = a["accion"];
-            if (accion == "arrancar") ev.arrancar();
-            else if (accion == "siguiente") ev.avanzar();
-            else if (accion == "atras") ev.retroceder();
-            else if (accion == "ir") ev.irA(a.value("bloque", 0), a.value("cue", 0));
-            else if (accion == "pausar") ev.pausar();
-            else if (accion == "reanudar") ev.reanudar();
-            else if (accion == "parar") ev.parar();
-            else return done(ToolResult::error("Accion desconocida: " + accion));
+            if (accion == "arrancar")
+                ev.arrancar();
+            else if (accion == "siguiente")
+                ev.avanzar();
+            else if (accion == "atras")
+                ev.retroceder();
+            else if (accion == "ir")
+                ev.irA(a.value("bloque", 0), a.value("cue", 0));
+            else if (accion == "pausar")
+                ev.pausar();
+            else if (accion == "reanudar")
+                ev.reanudar();
+            else if (accion == "parar")
+                ev.parar();
+            else
+                return done(ToolResult::error("Accion desconocida: " + accion));
 
             const auto mapa = [](const QVariantMap& m) {
                 json o = json::object();
                 for (auto it = m.begin(); it != m.end(); ++it) {
                     const QVariant& v = it.value();
-                    if (v.typeId() == QMetaType::Int) o[it.key().toStdString()] = v.toInt();
-                    else if (v.typeId() == QMetaType::Bool) o[it.key().toStdString()] = v.toBool();
-                    else if (v.typeId() == QMetaType::QString) o[it.key().toStdString()] = v.toString().toStdString();
+                    if (v.typeId() == QMetaType::Int)
+                        o[it.key().toStdString()] = v.toInt();
+                    else if (v.typeId() == QMetaType::Bool)
+                        o[it.key().toStdString()] = v.toBool();
+                    else if (v.typeId() == QMetaType::QString)
+                        o[it.key().toStdString()] = v.toString().toStdString();
                 }
                 return o;
             };
@@ -576,12 +593,10 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                 return done(ToolResult::error("La hora tiene que estar en HH:MM."));
             if (a.contains("huso") && !a["huso"].get<std::string>().empty() &&
                 !QTimeZone(QByteArray::fromStdString(a["huso"].get<std::string>())).isValid())
-                return done(ToolResult::error("No conozco ese huso: " +
-                                              a["huso"].get<std::string>() + "."));
+                return done(ToolResult::error("No conozco ese huso: " + a["huso"].get<std::string>() + "."));
 
             const QString carpeta = ev.crear(QString::fromStdString(nombre));
-            if (carpeta.isEmpty())
-                return done(ToolResult::error("No se pudo crear el evento."));
+            if (carpeta.isEmpty()) return done(ToolResult::error("No se pudo crear el evento."));
 
             if (a.contains("fecha")) ev.setFecha(QString::fromStdString(a["fecha"]));
             if (a.contains("inicio")) ev.setInicio(QString::fromStdString(a["inicio"]));
@@ -598,16 +613,14 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                     for (const json& c : b["cues"]) {
                         if (!c.is_object()) continue;
                         ev.agregarCue(bi, QString::fromStdString(c.value("tipo", std::string("nota"))));
-                        QVariantMap campos{
-                            {"texto", QString::fromStdString(c.value("texto", std::string()))},
-                            {"duracionSeg", c.value("duracionSeg", 0)},
-                            {"automatico", c.value("automatico", false)}};
+                        QVariantMap campos{{"texto", QString::fromStdString(c.value("texto", std::string()))},
+                                           {"duracionSeg", c.value("duracionSeg", 0)},
+                                           {"automatico", c.value("automatico", false)}};
                         if (c.contains("datos") && c["datos"].is_object())
                             for (auto it = c["datos"].begin(); it != c["datos"].end(); ++it)
                                 campos[QString::fromStdString(it.key())] =
-                                    it->is_string()
-                                        ? QVariant(QString::fromStdString(it->get<std::string>()))
-                                        : QVariant(QString::fromStdString(it->dump()));
+                                    it->is_string() ? QVariant(QString::fromStdString(it->get<std::string>()))
+                                                    : QVariant(QString::fromStdString(it->dump()));
                         ev.editarCue(bi, ci++, campos);
                         ++nCues;
                     }
@@ -667,8 +680,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "el video y no se les inventa una marca.";
         t.run = [&ev, &vm](const json&, Done done) {
             const QVariantMap c = ev.capitulos(vm.recordStartMs());
-            if (c.isEmpty())
-                return done(ToolResult::error("No hay evento abierto o el guion no se corrio."));
+            if (c.isEmpty()) return done(ToolResult::error("No hay evento abierto o el guion no se corrio."));
             json out = json{{"ok", c.value("ok").toBool()},
                             {"texto", c.value("texto").toString().toStdString()},
                             {"antesDeGrabar", c.value("antesDeGrabar").toInt()}};
@@ -709,9 +721,12 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
         if (!j.is_object()) return m;
         for (auto it = j.begin(); it != j.end(); ++it) {
             const QString k = QString::fromStdString(it.key());
-            if (it->is_string()) m[k] = QString::fromStdString(it->get<std::string>());
-            else if (it->is_boolean()) m[k] = it->get<bool>();
-            else if (it->is_number_integer()) m[k] = static_cast<qint64>(it->get<std::int64_t>());
+            if (it->is_string())
+                m[k] = QString::fromStdString(it->get<std::string>());
+            else if (it->is_boolean())
+                m[k] = it->get<bool>();
+            else if (it->is_number_integer())
+                m[k] = static_cast<qint64>(it->get<std::int64_t>());
         }
         return m;
     };
@@ -722,9 +737,12 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
             json o = json::object();
             for (auto it = m.begin(); it != m.end(); ++it) {
                 const QVariant& val = it.value();
-                if (val.typeId() == QMetaType::Bool) o[it.key().toStdString()] = val.toBool();
-                else if (val.typeId() == QMetaType::LongLong) o[it.key().toStdString()] = val.toLongLong();
-                else o[it.key().toStdString()] = val.toString().toStdString();
+                if (val.typeId() == QMetaType::Bool)
+                    o[it.key().toStdString()] = val.toBool();
+                else if (val.typeId() == QMetaType::LongLong)
+                    o[it.key().toStdString()] = val.toLongLong();
+                else
+                    o[it.key().toStdString()] = val.toString().toStdString();
             }
             out.push_back(o);
         }
@@ -738,10 +756,9 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
         if (!a.value("dejarPasarSolo", false)) return false;
         const std::string id = a.value("personaId", std::string());
         if (id.empty()) {
-            motivo =
-                "Para que alguien entre solo hace falta su ficha de rostro (`personaId`): sin cara no "
-                "hay con que reconocerlo, y entraria por haber ESCRITO un nombre, que es lo que no se "
-                "quiere. `rostro_listar` da las fichas.";
+            motivo = "Para que alguien entre solo hace falta su ficha de rostro (`personaId`): sin cara no "
+                     "hay con que reconocerlo, y entraria por haber ESCRITO un nombre, que es lo que no se "
+                     "quiere. `rostro_listar` da las fichas.";
             return true;
         }
         const auto [existe, nombre] = fichaDe ? fichaDe(id) : std::pair{true, std::string()};
@@ -756,7 +773,8 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
     const auto resumenDe = [](EventoViewModel& vm) {
         json r = json::object();
         const QVariantMap m = vm.resumenPadron();
-        for (auto it = m.begin(); it != m.end(); ++it) r[it.key().toStdString()] = it.value().toInt();
+        for (auto it = m.begin(); it != m.end(); ++it)
+            r[it.key().toStdString()] = it.value().toInt();
         return r;
     };
 
@@ -793,7 +811,8 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"papel", {{"type", "string"}, {"enum", {"orador", "panelista", "publico", "prensa", "staff"}}}},
+             {{"papel",
+               {{"type", "string"}, {"enum", {"orador", "panelista", "publico", "prensa", "staff"}}}},
               {"canal", {{"type", "string"}, {"enum", {"presencial", "online", "sin_definir"}}}},
               {"estado", {{"type", "string"}, {"enum", {"invitado", "confirmo", "llego", "se_fue"}}}},
               {"solos",
@@ -810,9 +829,8 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
                 gente.push_back(p);
             siguiente:;
             }
-            done(ToolResult().data(json{{"evento", ev.abierto().toStdString()},
-                                        {"gente", gente},
-                                        {"resumen", resumenDe(ev)}}));
+            done(ToolResult().data(
+                json{{"evento", ev.abierto().toStdString()}, {"gente", gente}, {"resumen", resumenDe(ev)}}));
         };
         core.addTool(std::move(t));
     }
@@ -839,7 +857,8 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
             {"required", {"nombre"}},
             {"properties",
              {{"nombre", {{"type", "string"}}},
-              {"papel", {{"type", "string"}, {"enum", {"orador", "panelista", "publico", "prensa", "staff"}}}},
+              {"papel",
+               {{"type", "string"}, {"enum", {"orador", "panelista", "publico", "prensa", "staff"}}}},
               {"canal", {{"type", "string"}, {"enum", {"presencial", "online", "sin_definir"}}}},
               {"estado", {{"type", "string"}, {"enum", {"invitado", "confirmo", "llego", "se_fue"}}}},
               {"personaId", {{"type", "string"}, {"description", "Su ficha en la libreta de rostros."}}},
@@ -886,7 +905,8 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
             {"properties",
              {{"id", {{"type", "string"}, {"description", "El id que devolvio padron_anotar o padron_ver."}}},
               {"nombre", {{"type", "string"}}},
-              {"papel", {{"type", "string"}, {"enum", {"orador", "panelista", "publico", "prensa", "staff"}}}},
+              {"papel",
+               {{"type", "string"}, {"enum", {"orador", "panelista", "publico", "prensa", "staff"}}}},
               {"canal", {{"type", "string"}, {"enum", {"presencial", "online", "sin_definir"}}}},
               {"estado", {{"type", "string"}, {"enum", {"invitado", "confirmo", "llego", "se_fue"}}}},
               {"personaId", {{"type", "string"}}},
@@ -949,9 +969,10 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
                     "No encontre a esa persona en el padron. Fijate en padron_ver como esta escrita, o "
                     "anotala con padron_anotar si no estaba."));
             const bool seFue = a.value("se_fue", false);
-            const bool hecho = seFue ? ev.despedir(id)
-                                     : ev.acreditar(id, QString::fromStdString(
-                                                            a.value("porDonde", std::string("mostrador"))));
+            const bool hecho =
+                seFue
+                    ? ev.despedir(id)
+                    : ev.acreditar(id, QString::fromStdString(a.value("porDonde", std::string("mostrador"))));
             if (!hecho) return done(ToolResult::error("No se pudo: esa persona ya no esta en el padron."));
             ToolResult r;
             r.text(seFue ? "Marcado que se fue." : "Acreditado.");
@@ -989,41 +1010,40 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
              {{"id", {{"type", "string"}, {"description", "el del padron"}}},
               {"nombre", {{"type", "string"}, {"description", "o su nombre, como esta escrito"}}},
               {"remoto",
-               {{"type", "boolean"}, {"description", "el enlace por internet en vez del de la red local"}}}}}};
+               {{"type", "boolean"},
+                {"description", "el enlace por internet en vez del de la red local"}}}}}};
         t.run = [&ev](const json& a, Done done) {
-            if (ev.abierto().isEmpty())
-                return done(ToolResult::error("No hay evento abierto."));
+            if (ev.abierto().isEmpty()) return done(ToolResult::error("No hay evento abierto."));
             QString id = QString::fromStdString(a.value("id", std::string()));
             if (id.isEmpty())
                 id = ev.buscarEnPadron({}, QString::fromStdString(a.value("nombre", std::string())));
             if (id.isEmpty())
-                return done(ToolResult::error(
-                    "No encontre a esa persona en el padron. `padron_ver` las lista."));
+                return done(
+                    ToolResult::error("No encontre a esa persona en el padron. `padron_ver` las lista."));
             QVariantMap quien;
             for (const QVariant& v : ev.padron()) {
                 const QVariantMap m = v.toMap();
-                if (m.value("id").toString() == id) { quien = m; break; }
+                if (m.value("id").toString() == id) {
+                    quien = m;
+                    break;
+                }
             }
             if (quien.isEmpty()) return done(ToolResult::error("Esa persona ya no esta en el padron."));
-            ev.pedirInvitacion(quien, a.value("remoto", false),
-                               [done, quien](const QVariantMap& r) {
-                                   if (!r.value("ok").toBool())
-                                       return done(ToolResult::error(
-                                           r.value("motivo").toString().toStdString()));
-                                   ToolResult res;
-                                   res.text(r.value("texto").toString().toStdString());
-                                   res.structured =
-                                       json{{"texto", r.value("texto").toString().toStdString()},
-                                            {"url", r.value("url").toString().toStdString()},
-                                            {"codigo", quien.value("codigo").toString().toStdString()},
-                                            {"qr", json::parse(
-                                                       QJsonDocument(QJsonArray::fromVariantList(
-                                                                         r.value("modulos").toList()))
-                                                           .toJson(QJsonDocument::Compact)
-                                                           .toStdString(),
-                                                       nullptr, false)}};
-                                   done(res);
-                               });
+            ev.pedirInvitacion(quien, a.value("remoto", false), [done, quien](const QVariantMap& r) {
+                if (!r.value("ok").toBool())
+                    return done(ToolResult::error(r.value("motivo").toString().toStdString()));
+                ToolResult res;
+                res.text(r.value("texto").toString().toStdString());
+                res.structured = json{
+                    {"texto", r.value("texto").toString().toStdString()},
+                    {"url", r.value("url").toString().toStdString()},
+                    {"codigo", quien.value("codigo").toString().toStdString()},
+                    {"qr", json::parse(QJsonDocument(QJsonArray::fromVariantList(r.value("modulos").toList()))
+                                           .toJson(QJsonDocument::Compact)
+                                           .toStdString(),
+                                       nullptr, false)}};
+                done(res);
+            });
         };
         core.addTool(std::move(t));
     }
@@ -1038,9 +1058,8 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
             "no viene, mejor dejarlo con `estado` en invitado: el que no esta en la lista no se "
             "distingue del que nunca se invito, y eso se nota al armar el evento siguiente.\n\n"
             "No toca la libreta de rostros: la ficha de la persona queda donde estaba.";
-        t.inputSchema = {{"type", "object"},
-                         {"required", {"id"}},
-                         {"properties", {{"id", {{"type", "string"}}}}}};
+        t.inputSchema = {
+            {"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
         t.run = [&ev, resumenDe, sinEvento](const json& a, Done done) {
             if (ev.abierto().isEmpty()) return sinEvento(done);
             if (!ev.quitarAsistente(QString::fromStdString(a.value("id", std::string()))))

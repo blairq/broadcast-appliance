@@ -6,12 +6,12 @@
 
 #include <QClipboard>
 #include <QDateTime>
-#include <QTimer>
 #include <QDesktopServices>
 #include <QGuiApplication>
 #include <QJsonDocument>
 #include <QRegularExpression>
 #include <QSet>
+#include <QTimer>
 #include <QUrl>
 
 #include <algorithm>
@@ -52,7 +52,8 @@ QVariantMap JsonListModel::fila(int i) const {
     if (i < 0 || i >= items_.size()) return {};
     const QJsonObject o = items_.at(i).toObject();
     QVariantMap out;
-    for (const QString& k : keys_) out.insert(k == "id" ? QStringLiteral("uid") : k, o.value(k).toVariant());
+    for (const QString& k : keys_)
+        out.insert(k == "id" ? QStringLiteral("uid") : k, o.value(k).toVariant());
     return out;
 }
 
@@ -354,8 +355,8 @@ void ConferenceViewModel::onSnapshot() {
                     if (!intakeDone_.contains(pid)) return;
                     const QString err = intakeSink_(pid, nombre, false);
                     if (!err.isEmpty()) {
-                    // Sin asistente no tiene sentido seguir: se apaga como si
-                    // lo hubiera apagado el operador (se guarda y B se entera).
+                        // Sin asistente no tiene sentido seguir: se apaga como si
+                        // lo hubiera apagado el operador (se guarda y B se entera).
                         setAutoIntake(false);
                         emit notify(err, "error");
                     }
@@ -600,7 +601,6 @@ void ConferenceViewModel::openWebConsole() {
         emit notify("No se pudo abrir la consola web", "error");
     });
 }
-
 
 void ConferenceViewModel::takeShare(const QString& id) {
     QJsonObject share;

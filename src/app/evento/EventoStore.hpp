@@ -34,7 +34,7 @@ namespace ba::evento {
 struct Ficha {
     std::string carpeta; ///< nombre de la carpeta dentro de Eventos/
     std::string nombre;
-    std::string fecha;  ///< el dia del evento, "YYYY-MM-DD" (vacio = sin fecha)
+    std::string fecha; ///< el dia del evento, "YYYY-MM-DD" (vacio = sin fecha)
     std::string inicio;
     std::string huso;
     int duracionSeg = 0;
@@ -63,7 +63,7 @@ std::string nombreDeCarpeta(const std::string& nombre);
 std::vector<Reparo> revisarArchivos(const Evento& e, const std::filesystem::path& carpeta);
 
 class EventoStore {
-  public:
+   public:
     /// :param raiz: la carpeta Eventos/ (se crea si no está).
     explicit EventoStore(std::filesystem::path raiz);
 
@@ -92,7 +92,7 @@ class EventoStore {
     /// Borra la carpeta entera. Es lo único que borra: se pide explícito.
     bool borrar(const std::string& carpeta, std::string* err = nullptr) const;
 
-  private:
+   private:
     std::filesystem::path raiz_;
 };
 

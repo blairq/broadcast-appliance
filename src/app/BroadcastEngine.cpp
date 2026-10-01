@@ -15,8 +15,10 @@
 // ============================================================================
 
 #include "BroadcastEngine.hpp"
+
 #include "ChatOverlaySource.hpp"
 #include "graficos/GraficoSource.hpp"
+#include "platform/Paths.hpp"
 #if defined(BA_HAVE_NDI)
 #include "NdiSource.hpp"
 #endif
@@ -72,29 +74,59 @@ constexpr const wchar_t* kProgramVideoName = L"BA.Program";
 /// ("Duplicate library?") y en cualquier otra podria levantar plugins ajenos
 /// al bundle. Aca el conjunto de modulos es exactamente el del bundle.
 ///
-/// :param binDir: directorio con los `.so`/`.dll` de los plugins.
+/// :param binDir: directorio con los `.so`/`.dll` (macOS: bundles `.plugin`).
 /// :param dataDir: raiz de los datos de los plugins; cada modulo recibe
 ///                 `<dataDir>/<nombre>` (locale, efectos).
 /// :returns: cantidad de modulos cargados.
 int loadBundleModules(const std::string& binDir, const std::string& dataDir) {
+    std::error_code ec;
+    // (binario, nombre, datos) de cada plugin.
+    struct Found {
+        std::filesystem::path bin;
+        std::string name;
+        std::string data;
+    };
+    std::vector<Found> found;
+#if defined(__APPLE__)
+    // macOS: cada plugin es un bundle X.plugin con el binario en
+    // Contents/MacOS/X y sus datos (locale, efectos) en Contents/Resources.
+    for (const auto& entry : std::filesystem::directory_iterator(binDir, ec)) {
+        if (!entry.is_directory(ec) || entry.path().extension() != ".plugin") continue;
+        const std::string name = entry.path().stem().string();
+        const auto bin = entry.path() / "Contents" / "MacOS" / name;
+        if (!std::filesystem::exists(bin, ec)) continue;
+        const auto res = entry.path() / "Contents" / "Resources";
+        found.push_back(
+            {bin, name, std::filesystem::is_directory(res, ec) ? res.string() : dataDir + "/" + name});
+    }
+    // Y los modulos propios (ba-sources), que son un `.so` suelto como en Linux.
+    for (const auto& entry : std::filesystem::directory_iterator(binDir, ec)) {
+        if (entry.is_regular_file(ec) && entry.path().extension() == ".so") {
+            const std::string name = entry.path().stem().string();
+            found.push_back({entry.path(), name, dataDir + "/" + name});
+        }
+    }
+#else
 #if defined(_WIN32)
     const char* ext = ".dll";
 #else
     const char* ext = ".so";
 #endif
-    std::error_code ec;
-    std::vector<std::filesystem::path> files;
     for (const auto& entry : std::filesystem::directory_iterator(binDir, ec)) {
         if (entry.is_regular_file(ec) && entry.path().extension() == ext) {
-            files.push_back(entry.path());
+            const std::string name = entry.path().stem().string();
+            found.push_back({entry.path(), name, dataDir + "/" + name});
         }
     }
-    std::sort(files.begin(), files.end()); // orden estable entre corridas
+#endif
+    // Orden estable entre corridas.
+    std::sort(found.begin(), found.end(), [](const Found& a, const Found& b) { return a.name < b.name; });
 
     int loaded = 0;
-    for (const auto& file : files) {
-        const std::string name = file.stem().string();
-        const std::string data = dataDir + "/" + name;
+    for (const auto& f : found) {
+        const std::filesystem::path& file = f.bin;
+        const std::string& name = f.name;
+        const std::string& data = f.data;
         obs_module_t* module = nullptr;
         const int rc = obs_open_module(&module, file.string().c_str(), data.c_str());
         if (rc != MODULE_SUCCESS) {
@@ -135,6 +167,11 @@ BroadcastEngine::~BroadcastEngine() { shutdown(); }
 const char* BroadcastEngine::defaultGraphicsModule() {
 #if defined(_WIN32)
     return "libobs-d3d11";
+#elif defined(__APPLE__)
+    // macOS: dlopen de un nombre suelto no busca junto al ejecutable (solo
+    // DYLD_* y el cwd): se le da la ruta absoluta del modulo del bundle.
+    static const std::string path = (ba::platform::executableDir() / "libobs-opengl.so").string();
+    return path.c_str();
 #else
     return "libobs-opengl";
 #endif
@@ -430,8 +467,7 @@ void BroadcastEngine::onRawVideo(struct video_data* frame) {
     // el televisor— y todos dieron chicos, asi que lo que falta esta aca. Sin
     // medirlo, «bajar el retardo» es tocar cosas a ver que pasa.
     const std::uint64_t ahora = os_gettime_ns();
-    if (frame->timestamp != 0 && ahora > frame->timestamp)
-        programEdadNs_ += ahora - frame->timestamp;
+    if (frame->timestamp != 0 && ahora > frame->timestamp) programEdadNs_ += ahora - frame->timestamp;
     ++programMedidos_;
     if (programInformeNs_ == 0) {
         programInformeNs_ = ahora;
@@ -886,7 +922,6 @@ void BroadcastEngine::stopRecording() {
     recordOutput_ = nullptr;
 }
 
-
 // ============================================================================
 // Grabacion POR ENTRADA
 // ============================================================================
@@ -902,7 +937,7 @@ struct BroadcastEngine::SourceRec {
     obs_encoder_t* venc = nullptr;
     obs_encoder_t* aenc = nullptr;
     obs_output_t* out = nullptr;
-    int pista = -1;           ///< pista de audio tomada (1..5), -1 = sin audio
+    int pista = -1;                ///< pista de audio tomada (1..5), -1 = sin audio
     std::uint32_t mixersAntes = 0; ///< para devolverle a la fuente lo que tenia
 
     ~SourceRec() {
@@ -1012,8 +1047,7 @@ bool BroadcastEngine::startSourceRecording(const std::string& source, const std:
         const size_t mezcla = rec->pista > 0 ? static_cast<size_t>(rec->pista) : 0;
         obs_data_t* as = obs_data_create();
         obs_data_set_int(as, "bitrate", enc.audioBitrateKbps);
-        rec->aenc = obs_audio_encoder_create("ffmpeg_aac", ("aenc-" + source).c_str(), as, mezcla,
-                                             nullptr);
+        rec->aenc = obs_audio_encoder_create("ffmpeg_aac", ("aenc-" + source).c_str(), as, mezcla, nullptr);
         obs_data_release(as);
         if (rec->aenc == nullptr) {
             setError("no se pudo crear el codificador de audio de \"" + source + "\"");
@@ -1027,9 +1061,9 @@ bool BroadcastEngine::startSourceRecording(const std::string& source, const std:
     std::string limpio;
     for (const char c : source)
         limpio += (std::isalnum(static_cast<unsigned char>(c)) != 0 || c == '-' || c == '_') ? c : '-';
-    const auto secs = std::chrono::duration_cast<std::chrono::seconds>(
-                          std::chrono::system_clock::now().time_since_epoch())
-                          .count();
+    const auto secs =
+        std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch())
+            .count();
     rec->path = dir + "/entrada-" + limpio + "-" + std::to_string(secs) + ".mkv";
 
     obs_data_t* os = obs_data_create();
@@ -1070,15 +1104,16 @@ bool BroadcastEngine::stopSourceRecording(const std::string& source) {
 }
 
 void BroadcastEngine::stopAllSourceRecordings() {
-    while (!sourceRecs_.empty()) stopSourceRecording(sourceRecs_.begin()->first);
+    while (!sourceRecs_.empty())
+        stopSourceRecording(sourceRecs_.begin()->first);
 }
 
 std::vector<BroadcastEngine::GrabacionIndividual> BroadcastEngine::sourceRecordings() const {
     std::vector<GrabacionIndividual> out;
     out.reserve(sourceRecs_.size());
     for (const auto& [n, r] : sourceRecs_)
-        out.push_back(GrabacionIndividual{n, r->path, r->pista > 0,
-                                          r->out != nullptr && obs_output_active(r->out)});
+        out.push_back(
+            GrabacionIndividual{n, r->path, r->pista > 0, r->out != nullptr && obs_output_active(r->out)});
     return out;
 }
 

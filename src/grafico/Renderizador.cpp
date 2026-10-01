@@ -52,8 +52,7 @@ constexpr Reemplazo kModulosQueNoEstan[] = {
     {"QtGraphicalEffects",
      "ese módulo es de Qt 5 y acá no está. Usá «import QtQuick.Effects» con MultiEffect "
      "(desenfoque, sombra, máscara)."},
-    {"Qt5Compat.GraphicalEffects",
-     "no viaja en este bundle. Usá «import QtQuick.Effects» con MultiEffect."},
+    {"Qt5Compat.GraphicalEffects", "no viaja en este bundle. Usá «import QtQuick.Effects» con MultiEffect."},
     {"QtQuick.VectorImage",
      "es de Qt 6.8 y acá hay 6.6. Para vector animable usá Shape con PathSvg, que acepta el "
      "atributo «d» de un SVG tal cual."},
@@ -160,9 +159,8 @@ struct Renderizador::Impl {
         f.setAttachment(QOpenGLFramebufferObject::CombinedDepthStencil);
         fbo = std::make_unique<QOpenGLFramebufferObject>(tam, f);
         if (!fbo->isValid()) {
-            error = QString("no se pudo crear el destino de dibujo de %1x%2")
-                        .arg(tam.width())
-                        .arg(tam.height());
+            error =
+                QString("no se pudo crear el destino de dibujo de %1x%2").arg(tam.width()).arg(tam.height());
             fbo.reset();
             return false;
         }
@@ -178,14 +176,13 @@ Renderizador::Resultado Renderizador::validar(const QString& qml, const QJsonObj
     return dibujar(qml, parametros, QSize(64, 64), 0);
 }
 
-Renderizador::Resultado Renderizador::dibujar(const QString& qml, const QJsonObject& parametros,
-                                              QSize tam, int ms) {
+Renderizador::Resultado Renderizador::dibujar(const QString& qml, const QJsonObject& parametros, QSize tam,
+                                              int ms) {
     return dibujarComun(QUrl::fromLocalFile(qml), {}, parametros, tam, ms);
 }
 
-Renderizador::Resultado Renderizador::dibujarFuente(const QString& fuente,
-                                                    const QJsonObject& parametros, QSize tam, int ms,
-                                                    const QString& nombreParaErrores) {
+Renderizador::Resultado Renderizador::dibujarFuente(const QString& fuente, const QJsonObject& parametros,
+                                                    QSize tam, int ms, const QString& nombreParaErrores) {
     return dibujarComun(QUrl(nombreParaErrores), fuente, parametros, tam, ms);
 }
 

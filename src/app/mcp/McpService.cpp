@@ -6,14 +6,14 @@
 // ============================================================================
 
 #include "mcp/McpService.hpp"
-#include <QRandomGenerator>
 #include <QDateTime>
+#include <QRandomGenerator>
 
-#include "mcp/McpTraza.hpp"
-#include "ui/PersonasViewModel.hpp"
 #include "agent/AgentViewModel.hpp"
 #include "agent/Despachador.hpp"
 #include "agent/Roles.hpp"
+#include "mcp/McpTraza.hpp"
+#include "ui/PersonasViewModel.hpp"
 
 #include <QBuffer>
 #include <QCoreApplication>
@@ -30,8 +30,8 @@
 
 #include "AppRuntime.hpp"
 #include "AppSettings.hpp"
-#include "mcp/McpHttp.hpp"
 #include "mcp/McpEventoTools.hpp"
+#include "mcp/McpHttp.hpp"
 #include "mcp/McpPreguntaTools.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "platform/Paths.hpp"
@@ -57,7 +57,8 @@ namespace {
 /// Vacio si este equipo no tiene reconocimiento: no tiene sentido mandarle al
 /// asistente instrucciones sobre herramientas que no estan registradas.
 QString reconocerPrimero(const QString& uid) {
-    return "ANTES DE PREGUNTARLE NADA, mira `rostro_lobby` y busca su `uid` (" + uid + "):\n"
+    return "ANTES DE PREGUNTARLE NADA, mira `rostro_lobby` y busca su `uid` (" + uid +
+           "):\n"
            "- Si viene con `nombre`, YA SABES QUIEN ES: saludala por su nombre, confirmale en UNA "
            "sola pregunta el cargo que figura en su ficha, y no le vuelvas a preguntar lo que ya "
            "esta ahi. Preguntarle el nombre a alguien que el sistema reconoce es hacerle perder el "
@@ -72,7 +73,8 @@ QString reconocerPrimero(const QString& uid) {
 /// Y lo que hay que hacer al final, para que la proxima vez ya la conozca.
 QString guardarLaCara(const QString& uid) {
     return QString(" Al final, cuando tengas su nombre y su cargo, guardale la cara: mira "
-                   "`rostro_lobby` para sacar su `feed` (uid " ) + uid +
+                   "`rostro_lobby` para sacar su `feed` (uid ") +
+           uid +
            ") y llama `rostro_guardar {nombre, cargo, feed}` —si ya tenia ficha, `rostro_sumar "
            "{id, feed}`—. Si `rostro_calidad` dice que la cara no sirve, pedile primero lo que "
            "diga `sugerencia`. Asi la proxima vez que venga la reconoce sola y no hay que "
@@ -125,9 +127,8 @@ QString guardarCaptura(const QImage& img, const std::filesystem::path& raiz, con
     const int maxW = args.value("maxWidth", defaultWidth);
     QImage e = img;
     if (maxW > 0 && e.width() > maxW) e = e.scaledToWidth(maxW, Qt::SmoothTransformation);
-    const QString archivo =
-        dir + "/" + QString::number(QDateTime::currentMSecsSinceEpoch()) + "-" +
-        QString::number(QRandomGenerator::global()->bounded(1000, 9999)) + ".jpg";
+    const QString archivo = dir + "/" + QString::number(QDateTime::currentMSecsSinceEpoch()) + "-" +
+                            QString::number(QRandomGenerator::global()->bounded(1000, 9999)) + ".jpg";
     return e.save(archivo, "JPG", args.value("quality", 85)) ? archivo : QString();
 }
 
@@ -150,8 +151,8 @@ void addImage(ToolResult& r, const QImage& img, const json& args, int defaultWid
         r.text("(no se pudo guardar la captura)");
         return;
     }
-    r.text("Captura guardada en " + archivo.toStdString() +
-           " (" + std::to_string(img.width()) + "x" + std::to_string(img.height()) +
+    r.text("Captura guardada en " + archivo.toStdString() + " (" + std::to_string(img.width()) + "x" +
+           std::to_string(img.height()) +
            "). NO te la mando acá: una imagen en esta conversación cuelga la sesión. Para saber "
            "qué se ve, usá `imagen_analizar` con una pregunta concreta.");
     if (r.structured.is_null()) r.structured = json::object();
@@ -310,9 +311,10 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
             core_.startIntake(id.toStdString(), name.toStdString());
             std::string err;
             d.encargar("recepcion",
-                       (yaAdentro ? "«" + name.toStdString() + "» YA ENTRO sola (estaba en la "
-                                    "lista de auto-aceptar del evento): no le pidas los datos de "
-                                    "cero, mostrale los que ya tenemos para que confirme. "
+                       (yaAdentro ? "«" + name.toStdString() +
+                                        "» YA ENTRO sola (estaba en la "
+                                        "lista de auto-aceptar del evento): no le pidas los datos de "
+                                        "cero, mostrale los que ya tenemos para que confirme. "
                                   : reconocerPrimero(id).toStdString()) +
                            "El operador te pide que atiendas a la persona que espera en el lobby (id " +
                            id.toStdString() + ", se anoto como «" + name.toStdString() + "»).",
@@ -337,8 +339,8 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
                      "Avisame con `operator_ask` SOLO si algo no cierra. Manejate sola.");
             return {};
         }
-        ag->send(reconocerPrimero(id) +
-                 "Atendé vos a la persona que espera en el lobby (id " + id + ", se anotó como «" + name +
+        ag->send(reconocerPrimero(id) + "Atendé vos a la persona que espera en el lobby (id " + id +
+                 ", se anotó como «" + name +
                  "»). Hablale por chat con `chat_send` usándola como destinatario, presentate en una línea y "
                  "pedile, de a una pregunta por vez y en español rioplatense: su nombre y apellido tal como "
                  "quiere que se lea en pantalla, su cargo o de qué va a hablar, cómo quiere que la presenten "
@@ -354,7 +356,8 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
                  "tarjeta lleva su foto. "
                  "Si contesto «Hacer pasar», admitila con `participant_admit` Y avisale por chat que "
                  "ya entra; si no, dejala esperando y avisale con cortesía que todavía no. "
-                 "Contestale SIEMPRE, salga como salga: el silencio es la peor respuesta. Mientras dure esto no me preguntes nada más: manejate sola." +
+                 "Contestale SIEMPRE, salga como salga: el silencio es la peor respuesta. Mientras dure esto "
+                 "no me preguntes nada más: manejate sola." +
                  guardarLaCara(id));
         return {};
     });
@@ -699,9 +702,10 @@ void McpService::registerTools() {
         t.name = "scene_switch";
         t.title = "Poner una escena al aire (corte directo)";
         t.category = "escenas";
-        t.description =
-            "Pone una escena al aire YA, sin pasar por el preview: es «corta a la camara 2», «pone la apertura». Cambia la escena del programa (con la transicion configurada). Lo que se ve y oye en la "
-            "transmision cambia EN EL ACTO, sin pasar por el bus de preview.";
+        t.description = "Pone una escena al aire YA, sin pasar por el preview: es «corta a la camara 2», "
+                        "«pone la apertura». Cambia la escena del programa (con la transicion configurada). "
+                        "Lo que se ve y oye en la "
+                        "transmision cambia EN EL ACTO, sin pasar por el bus de preview.";
         t.details =
             "Es el corte de urgencia: sale ya. Para lo demas, la forma de trabajar de una mesa es "
             "`scene_preview` (armar el proximo plano) -> mirarlo con `capture_source` -> `scene_take`. "
@@ -737,9 +741,8 @@ void McpService::registerTools() {
             "Armar la escena que YA esta al aire no tiene sentido (el take cortaria a lo mismo) y se "
             "rechaza.\n\n"
             "`scene_list` dice cual esta armada y cual al aire.";
-        t.inputSchema = {{"type", "object"},
-                         {"properties", {{"name", {{"type", "string"}}}}},
-                         {"required", {"name"}}};
+        t.inputSchema = {
+            {"type", "object"}, {"properties", {{"name", {{"type", "string"}}}}}, {"required", {"name"}}};
         t.examples = {R"({"name": "06 Debate invitados"})"};
         t.run = [&rt, &vm, sceneExists, noScene](const json& a, Done done) {
             const std::string name = a["name"];
@@ -747,8 +750,7 @@ void McpService::registerTools() {
             vm.armarEscena(QString::fromStdString(name));
             if (vm.escenaArmada().toStdString() != name)
                 return done(ToolResult::error("No se armo: «" + name + "» ya esta al aire."));
-            done(ToolResult::ok("Armada: " + name +
-                                ". Mirala con capture_source y sacala con scene_take."));
+            done(ToolResult::ok("Armada: " + name + ". Mirala con capture_source y sacala con scene_take."));
         };
         core_.addTool(std::move(t));
     }
@@ -757,9 +759,8 @@ void McpService::registerTools() {
         t.name = "scene_take";
         t.title = "TAKE: sacar al aire la escena armada";
         t.category = "escenas";
-        t.description =
-            "Pone al aire la escena que estaba armada en el bus de preview, con la transicion "
-            "configurada. Deja armada la que salia, para poder volver de un golpe.";
+        t.description = "Pone al aire la escena que estaba armada en el bus de preview, con la transicion "
+                        "configurada. Deja armada la que salia, para poder volver de un golpe.";
         t.details = "Sin nada armado no hace nada y lo dice: armar primero con `scene_preview`.\n\n"
                     "Que el plano que SALE del aire quede armado es como funciona cualquier mesa: "
                     "despues de un take, volver a lo anterior es un solo take mas.";
@@ -772,8 +773,8 @@ void McpService::registerTools() {
             vm.take();
             if (rt.engine().currentScene() != armada.toStdString())
                 return done(ToolResult::error("No se pudo: " + rt.lastError()));
-            done(ToolResult::ok("AL AIRE: " + armada.toStdString() + ". Queda armada: " +
-                                vm.escenaArmada().toStdString() + "."));
+            done(ToolResult::ok("AL AIRE: " + armada.toStdString() +
+                                ". Queda armada: " + vm.escenaArmada().toStdString() + "."));
         };
         core_.addTool(std::move(t));
     }
@@ -798,15 +799,14 @@ void McpService::registerTools() {
         t.title = "Copiar una escena";
         t.category = "escenas";
         t.description = "Crea una escena nueva con todas las fuentes de otra.";
-        t.details =
-            "Es como se arman las escenas parecidas sin repetir el trabajo: se hace UNA bien —la de "
-            "entrevista, con su camara, su zocalo y su fondo— y las demas salen de copiarla y "
-            "cambiarle lo que difiere.\n\n"
-            "Las fuentes se RECREAN, no se comparten: quedan dos escenas de verdad independientes, y "
-            "mover algo en la copia no mueve el original.\n\n"
-            "La copia nunca queda protegida, aunque el original lo este: para eso se copia. Si "
-            "alguna fuente no se pudo recrear, la escena igual queda creada y se dice cual fallo: "
-            "una escena a medias se arregla a mano, una que desaparecio sin explicacion no.";
+        t.details = "Es como se arman las escenas parecidas sin repetir el trabajo: se hace UNA bien —la de "
+                    "entrevista, con su camara, su zocalo y su fondo— y las demas salen de copiarla y "
+                    "cambiarle lo que difiere.\n\n"
+                    "Las fuentes se RECREAN, no se comparten: quedan dos escenas de verdad independientes, y "
+                    "mover algo en la copia no mueve el original.\n\n"
+                    "La copia nunca queda protegida, aunque el original lo este: para eso se copia. Si "
+                    "alguna fuente no se pudo recrear, la escena igual queda creada y se dice cual fallo: "
+                    "una escena a medias se arregla a mano, una que desaparecio sin explicacion no.";
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"from", {{"type", "string"}, {"description", "La escena que se copia."}}},
@@ -831,17 +831,16 @@ void McpService::registerTools() {
         t.title = "Proteger una escena";
         t.category = "escenas";
         t.description = "Una escena protegida no se puede borrar ni renombrar.";
-        t.details =
-            "Para la escena BASE de la que se copian las demas —la que si alguien borra se pierde el "
-            "trabajo de todos— y para las que no se tocan en vivo.\n\n"
-            "Copiarla si se puede, y editar sus fuentes tambien: lo que se protege es que "
-            "desaparezca o cambie de nombre, que es lo que rompe todo lo que la nombra (el guion, "
-            "los vinculos de rotulos, las recetas).";
-        t.inputSchema = {{"type", "object"},
-                         {"properties",
-                          {{"scene", {{"type", "string"}}},
-                           {"protected", {{"type", "boolean"}, {"default", true}}}}},
-                         {"required", {"scene"}}};
+        t.details = "Para la escena BASE de la que se copian las demas —la que si alguien borra se pierde el "
+                    "trabajo de todos— y para las que no se tocan en vivo.\n\n"
+                    "Copiarla si se puede, y editar sus fuentes tambien: lo que se protege es que "
+                    "desaparezca o cambie de nombre, que es lo que rompe todo lo que la nombra (el guion, "
+                    "los vinculos de rotulos, las recetas).";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"scene", {{"type", "string"}}}, {"protected", {{"type", "boolean"}, {"default", true}}}}},
+            {"required", {"scene"}}};
         t.run = [&rt, persist](const json& a, Done done) {
             const std::string s = a["scene"].get<std::string>();
             const bool p = a.value("protected", true);
@@ -1075,9 +1074,9 @@ void McpService::registerTools() {
         t.category = "fuentes";
         t.readOnly = true;
         t.idempotent = true;
-        t.description =
-            "Lo que hay ADENTRO de una escena: sus capas, una por una. Fuentes de una escena (de abajo hacia arriba) con tipo, visibilidad, ubicacion en el "
-            "lienzo, volumen y silencio.";
+        t.description = "Lo que hay ADENTRO de una escena: sus capas, una por una. Fuentes de una escena (de "
+                        "abajo hacia arriba) con tipo, visibilidad, ubicacion en el "
+                        "lienzo, volumen y silencio.";
         t.inputSchema = {{"type", "object"}, {"properties", {{"scene", sceneProp}}}};
         t.run = [&rt, sceneOr, sceneExists, noScene](const json& a, Done done) {
             const std::string scene = sceneOr(a);
@@ -1361,11 +1360,10 @@ void McpService::registerTools() {
         t.title = "Mezclador";
         t.category = "audio";
         t.readOnly = true;
-        t.description =
-            "Foto de los niveles del mezclador, para leer. "
-            "Fuentes de audio con volumen (dB), silencio, si se esta escuchando por el monitor "
-            "(`escuchando`, ver audio_escuchar) y nivel pico actual (dBFS), mas el nivel del "
-            "programa. -100 = silencio; cerca de 0 = saturando.";
+        t.description = "Foto de los niveles del mezclador, para leer. "
+                        "Fuentes de audio con volumen (dB), silencio, si se esta escuchando por el monitor "
+                        "(`escuchando`, ver audio_escuchar) y nivel pico actual (dBFS), mas el nivel del "
+                        "programa. -100 = silencio; cerca de 0 = saturando.";
         t.run = [&rt, &vm](const json&, Done done) {
             json out = json::array();
             for (const std::string& n : rt.engine().audioSources()) {
@@ -1391,7 +1389,9 @@ void McpService::registerTools() {
         t.title = "Volumen / silencio";
         t.category = "audio";
         t.description =
-            "Silencia, sube o baja el audio de una fuente. Es con lo que se CORTA un acople, se baja lo que satura, se sube lo que no se escucha o se cierra un microfono que quedo abierto. Cambia el volumen (dB, 0 = sin cambio, negativo baja) y/o silencia una fuente de audio.";
+            "Silencia, sube o baja el audio de una fuente. Es con lo que se CORTA un acople, se baja lo que "
+            "satura, se sube lo que no se escucha o se cierra un microfono que quedo abierto. Cambia el "
+            "volumen (dB, 0 = sin cambio, negativo baja) y/o silencia una fuente de audio.";
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"name", {{"type", "string"}}},
@@ -1436,7 +1436,8 @@ void McpService::registerTools() {
             {"type", "object"},
             {"properties",
              {{"name", {{"type", "string"}, {"description", "la fuente; vacio o sin esto = apagar"}}},
-              {"escuchar", {{"type", "boolean"}, {"description", "false para apagar esta (por defecto true)"}}}}}};
+              {"escuchar",
+               {{"type", "boolean"}, {"description", "false para apagar esta (por defecto true)"}}}}}};
         t.examples = {R"({"name": "Microfono del atril"})", R"({})"};
         t.run = [&rt](const json& a, Done done) {
             const std::string n = a.value("name", std::string());
@@ -1458,8 +1459,8 @@ void McpService::registerTools() {
                                                : "Dejo de escucharse: " + apagadas.front() + "."));
             }
             if (!rt.engine().setSourceMonitoring(n, true))
-                return done(ToolResult::error("No existe la fuente de audio '" + n +
-                                              "' (audio_sources las lista)."));
+                return done(
+                    ToolResult::error("No existe la fuente de audio '" + n + "' (audio_sources las lista)."));
             done(ToolResult::ok("Escuchando «" + n + "» por el monitor. Lo que sale al aire no cambio." +
                                 (apagadas.empty() ? "" : " (se dejo de escuchar " + apagadas.front() + ")")));
         };
@@ -1494,8 +1495,7 @@ void McpService::registerTools() {
             if (!a.contains("ms")) {
                 if (rt.engine().sourceNames().empty())
                     return done(ToolResult::error("El motor todavia no tiene fuentes."));
-                return done(ToolResult().data(
-                    json{{"name", n}, {"ms", rt.engine().sourceSyncOffset(n)}}));
+                return done(ToolResult().data(json{{"name", n}, {"ms", rt.engine().sourceSyncOffset(n)}}));
             }
             if (!rt.engine().setSourceSyncOffset(n, a["ms"].get<int>()))
                 return done(ToolResult::error(rt.engine().lastError()));
@@ -1538,7 +1538,8 @@ void McpService::registerTools() {
         t.title = "Cortar la transmision";
         t.category = "salidas";
         t.destructive = true;
-        t.description = "BAJA del aire: corta la transmision que esta saliendo. Detiene la transmision en vivo.";
+        t.description =
+            "BAJA del aire: corta la transmision que esta saliendo. Detiene la transmision en vivo.";
         t.run = [&rt, &vm](const json&, Done done) {
             rt.stopStreaming();
             emit vm.statusChanged();
@@ -1566,12 +1567,13 @@ void McpService::registerTools() {
             "que solo las primeras CINCO entradas con audio graban sonido. De la sexta en adelante se "
             "graba el video sin audio, y la respuesta lo dice en `audioPropio`.\n\n"
             "Los archivos van a Recordings/entradas/, con el nombre de la fuente adentro.";
-        t.inputSchema = {{"type", "object"},
-                         {"properties",
-                          {{"arrancar", {{"type", "array"}, {"items", {{"type", "string"}}}}},
-                           {"parar", {{"type", "array"}, {"items", {{"type", "string"}}}}},
-                           {"todas", {{"type", "boolean"},
-                                      {"description", "Con `arrancar`: todas las de la escena al aire."}}}}}};
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"arrancar", {{"type", "array"}, {"items", {{"type", "string"}}}}},
+              {"parar", {{"type", "array"}, {"items", {{"type", "string"}}}}},
+              {"todas",
+               {{"type", "boolean"}, {"description", "Con `arrancar`: todas las de la escena al aire."}}}}}};
         t.run = [&rt, &vm](const json& a, Done done) {
             std::vector<std::string> arrancar;
             if (a.contains("arrancar") && a["arrancar"].is_array())
@@ -1683,9 +1685,9 @@ void McpService::registerTools() {
             // posible. El operador puede hacerlo igual desde la app (sabe lo
             // que hace y ve el aviso); el asistente, no.
             if (auto* ev = static_cast<EventoViewModel*>(vm.evento()); ev != nullptr && ev->enVivo())
-                return done(ToolResult::error(
-                    "El evento esta corriendo: los ajustes no se tocan hasta que termine. "
-                    "Si de verdad hace falta, lo hace el operador desde la app."));
+                return done(
+                    ToolResult::error("El evento esta corriendo: los ajustes no se tocan hasta que termine. "
+                                      "Si de verdad hace falta, lo hace el operador desde la app."));
             // La salvaguarda y el propio servidor MCP solo se tocan desde la
             // interfaz: un asistente (quiza manipulado) no puede aflojarlos.
             if (a.value("resetSection", std::string()) == "Asistente (MCP)")

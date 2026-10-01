@@ -2,8 +2,8 @@
 // src/app/ui/DashboardModel.cpp — ver DashboardModel.hpp
 // ============================================================================
 
-#include <QSizeF>
 #include "ui/DashboardModel.hpp"
+#include <QSizeF>
 
 #include <QFile>
 #include <QJsonArray>
@@ -32,11 +32,9 @@ struct Kind {
 };
 const Kind kKinds[] = {
     // Primera a proposito: es la que se mira todo el tiempo.
-    {"direccion", "Dirección"},
-    {"outputs", "Salidas"},  {"scenes", "Escenas"}, {"mixer", "Mezclador"},
-    {"guests", "Invitados"}, {"health", "Sistema"}, {"monitor", "Monitor"},
-    {"sources", "Fuentes"},  {"lobby", "Sala"},     {"speakers", "Oradores"},
-    {"carrusel", "Carrusel"},
+    {"direccion", "Dirección"}, {"outputs", "Salidas"},   {"scenes", "Escenas"},    {"mixer", "Mezclador"},
+    {"guests", "Invitados"},    {"health", "Sistema"},    {"monitor", "Monitor"},   {"sources", "Fuentes"},
+    {"lobby", "Sala"},          {"speakers", "Oradores"}, {"carrusel", "Carrusel"},
 };
 
 } // namespace
@@ -277,8 +275,7 @@ void DashboardModel::addCard(const QString& kind, const QString& source) {
     const QSizeF t = tamanoInicial(kind);
     beginInsertRows({}, row, row);
     cards_.push_back(Card{nextId_++, kind,
-                          QRectF(0.5 - t.width() / 2, 0.5 - t.height() / 2, t.width(), t.height()),
-                          source});
+                          QRectF(0.5 - t.width() / 2, 0.5 - t.height() / 2, t.width(), t.height()), source});
     endInsertRows();
     save();
 }

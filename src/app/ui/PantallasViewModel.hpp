@@ -84,7 +84,7 @@ class PantallasViewModel : public QObject {
     /// transicion}].
     Q_PROPERTY(QVariantList carruseles READ carruseles NOTIFY carruselesCambio)
 
-  public:
+   public:
     PantallasViewModel(AppRuntime& rt, ConferenceViewModel* sala, QObject* parent = nullptr);
     ~PantallasViewModel() override;
 
@@ -131,8 +131,8 @@ class PantallasViewModel : public QObject {
     Q_INVOKABLE QString carruselRenombrar(const QString& id, const QString& nombre);
     Q_INVOKABLE QString carruselTransicion(const QString& id, const QString& transicion);
     /// Agrega un paso al final.
-    Q_INVOKABLE QString pasoAgregar(const QString& carrusel, const QString& tipo,
-                                    const QVariantMap& datos, int segundos);
+    Q_INVOKABLE QString pasoAgregar(const QString& carrusel, const QString& tipo, const QVariantMap& datos,
+                                    int segundos);
     Q_INVOKABLE QString pasoQuitar(const QString& carrusel, int indice);
     Q_INVOKABLE QString pasoMover(const QString& carrusel, int indice, int aIndice);
     Q_INVOKABLE QString pasoSegundos(const QString& carrusel, int indice, int segundos);
@@ -171,13 +171,13 @@ class PantallasViewModel : public QObject {
 
     QVariantList carruseles() const;
 
-  signals:
+   signals:
     void cambio();
     void carruselesCambio();
     void superficiesCambio();
     void notify(const QString& texto, const QString& tipo);
 
-  private:
+   private:
     /// Resuelve los pasos de un carrusel a URLs y lo publica en el gateway.
     void publicar(const QString& id, const QString& hostDestino);
     /// Pasada de mantenimiento: a cada pantalla con algo fijo que no lo esté

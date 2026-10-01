@@ -14,8 +14,8 @@
 #include <QTimer>
 
 #include "ui/ConferenceClient.hpp"
-#include "ui/Discursos.hpp"
 #include "ui/ConferenceViewModel.hpp"
+#include "ui/Discursos.hpp"
 #include "ui/EventoViewModel.hpp"
 
 namespace ba::app {
@@ -36,10 +36,10 @@ struct PrompterViewModel::Impl {
     /// puede cambiar mientras la página está a la vista.
     Discursos docs;
 
-    QString carpeta;  ///< la que se está mirando ("" es la raíz)
-    QString abierto;  ///< documento abierto en el editor (rel)
-    QString texto;    ///< lo que hay en el editor
-    QString enDisco;  ///< lo que había cuando se abrió (para saber si está sucio)
+    QString carpeta; ///< la que se está mirando ("" es la raíz)
+    QString abierto; ///< documento abierto en el editor (rel)
+    QString texto;   ///< lo que hay en el editor
+    QString enDisco; ///< lo que había cuando se abrió (para saber si está sucio)
     QVariantList documentos;
     QStringList carpetas;
 
@@ -241,9 +241,9 @@ double PrompterViewModel::avance() const {
     // de medio segundo.
     double pos = d_->estado.value("posicion", 0).toDouble();
     if (d_->estado.value("corriendo", false).toBool()) {
-        const double minutos = (d_->estado.value("ahoraMs", 0).toLongLong() -
-                                d_->estado.value("desdeMs", 0).toLongLong()) /
-                               60000.0;
+        const double minutos =
+            (d_->estado.value("ahoraMs", 0).toLongLong() - d_->estado.value("desdeMs", 0).toLongLong()) /
+            60000.0;
         pos += minutos * d_->estado.value("ppm", Discursos::kPpm).toDouble();
     }
     return std::clamp(pos / total, 0.0, 1.0);
@@ -317,12 +317,8 @@ QString PrompterViewModel::cargarDelEditor() {
 }
 
 void PrompterViewModel::arrancar(bool si) { mandar(d_->sala, QJsonObject{{"corriendo", si}}); }
-void PrompterViewModel::setPpm(int ppm) {
-    mandar(d_->sala, QJsonObject{{"ppm", std::clamp(ppm, 40, 400)}});
-}
-void PrompterViewModel::setTamano(int t) {
-    mandar(d_->sala, QJsonObject{{"tamano", std::clamp(t, 1, 10)}});
-}
+void PrompterViewModel::setPpm(int ppm) { mandar(d_->sala, QJsonObject{{"ppm", std::clamp(ppm, 40, 400)}}); }
+void PrompterViewModel::setTamano(int t) { mandar(d_->sala, QJsonObject{{"tamano", std::clamp(t, 1, 10)}}); }
 void PrompterViewModel::setEspejo(bool si) { mandar(d_->sala, QJsonObject{{"espejo", si}}); }
 void PrompterViewModel::avisar(const QString& texto) { mandar(d_->sala, QJsonObject{{"aviso", texto}}); }
 void PrompterViewModel::panico() { mandar(d_->sala, QJsonObject{{"panico", true}}); }
@@ -341,17 +337,18 @@ void PrompterViewModel::pedirQr(const QString& target, const QString& vista, boo
     }
     const QString t = target == "remote" ? "remote" : "local";
     const QString v = vista == "orador" ? "orador" : "control";
-    d_->sala->client().get(
-        "/api/v1/prompter-link?target=" + t + "&vista=" + v + "&conClave=" + (conClave ? "1" : "0"),
-        [this](bool ok, const QJsonObject& r) {
-            QStringList filas;
-            for (const QJsonValue& x : r.value("modules").toArray()) filas << x.toString();
-            QString msg = r.value("message").toString();
-            const bool bien = ok && r.value("ok").toBool();
-            if (!bien && msg.isEmpty()) msg = "La sala no responde";
-            emit qrListo(bien ? r.value("url").toString() : QString(), filas, msg,
-                         r.value("clave").toString());
-        });
+    d_->sala->client().get("/api/v1/prompter-link?target=" + t + "&vista=" + v +
+                               "&conClave=" + (conClave ? "1" : "0"),
+                           [this](bool ok, const QJsonObject& r) {
+                               QStringList filas;
+                               for (const QJsonValue& x : r.value("modules").toArray())
+                                   filas << x.toString();
+                               QString msg = r.value("message").toString();
+                               const bool bien = ok && r.value("ok").toBool();
+                               if (!bien && msg.isEmpty()) msg = "La sala no responde";
+                               emit qrListo(bien ? r.value("url").toString() : QString(), filas, msg,
+                                            r.value("clave").toString());
+                           });
 }
 
 } // namespace ba::app

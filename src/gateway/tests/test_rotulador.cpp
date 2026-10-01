@@ -30,8 +30,7 @@ int g_fallos = 0;
     } while (0)
 
 json unaFuente(int id) {
-    return json{{"escena", "Camara 1"},
-                {"fuentes", json::array({json{{"id", id}, {"fuente", "Zocalo"}}})}};
+    return json{{"escena", "Camara 1"}, {"fuentes", json::array({json{{"id", id}, {"fuente", "Zocalo"}}})}};
 }
 
 } // namespace
@@ -73,7 +72,8 @@ int main() {
     // lo va a resucitar: lo que importa es el ultimo.
     {
         Rotulador r;
-        for (int i = 0; i < 40; ++i) r.encargar(json{{"id", 1}, {"n", i}});
+        for (int i = 0; i < 40; ++i)
+            r.encargar(json{{"id", 1}, {"n", i}});
         CHECK(r.pendientes() == Rotulador::kMaxEncargos, "la cola no crece sin fin");
         const json t = r.tomarEncargos();
         CHECK(t.back().value("n", -1) == 39, "el ultimo encargo sobrevive siempre");
