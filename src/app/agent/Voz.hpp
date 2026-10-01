@@ -18,11 +18,16 @@
 // LOS MODELOS se bajan a pedido (Configuración -> Modelos locales): un
 // reconocedor (tipo "voz") y Silero VAD ("vad"). Apenas están los dos, se
 // cargan solos.
+//
+// Y CONTESTA HABLANDO: una voz de piper (tipo "tts") elegida en la interfaz,
+// frase por frase y SOLO al monitoreo (audio/MonitorVoz). Si el operador
+// aprieta la tecla, se calla: está hablando él.
 // ============================================================================
 #pragma once
 
 #include <QObject>
 #include <QString>
+#include <QVariantList>
 
 #include <memory>
 
@@ -30,7 +35,9 @@ namespace ba::app {
 class AppRuntime;
 namespace audio {
 class Escucha;
-}
+class Habla;
+class MonitorVoz;
+} // namespace audio
 } // namespace ba::app
 
 namespace ba::app::agent {
@@ -49,6 +56,17 @@ class Voz : public QObject {
     Q_PROPERTY(QString estado READ estado NOTIFY cambio)
     Q_PROPERTY(QString ultimo READ ultimo NOTIFY cambio)
     Q_PROPERTY(QString tecla READ tecla CONSTANT)
+    // --- Contestar hablando ---------------------------------------------------
+    /// Las voces del catálogo: {repo, nombre, acento, genero, calidad, instalado, elegida}.
+    Q_PROPERTY(QVariantList voces READ voces NOTIFY cambio)
+    Q_PROPERTY(QString vozElegida READ vozElegida NOTIFY cambio)
+    /// Hablante dentro de la voz (algunas traen dos) y cuántos hay.
+    Q_PROPERTY(int hablante READ hablante WRITE setHablante NOTIFY cambio)
+    Q_PROPERTY(int hablantes READ hablantes NOTIFY cambio)
+    /// 0.7 (más lento) … 1.5 (más rápido).
+    Q_PROPERTY(double velocidad READ velocidad WRITE setVelocidad NOTIFY cambio)
+    Q_PROPERTY(bool vozLista READ vozLista NOTIFY cambio)
+    Q_PROPERTY(bool hablando READ hablando NOTIFY cambio)
 
    public:
     Voz(AppRuntime& rt, ModelosLocales& modelos, QObject* parent = nullptr);
@@ -66,6 +84,23 @@ class Voz : public QObject {
     Q_INVOKABLE void soltar();
     Q_INVOKABLE void cancelar();
 
+    QVariantList voces() const;
+    QString vozElegida() const { return vozElegida_; }
+    int hablante() const { return hablante_; }
+    void setHablante(int h);
+    int hablantes() const { return hablantes_; }
+    double velocidad() const { return velocidad_; }
+    void setVelocidad(double v);
+    bool vozLista() const { return vozLista_; }
+    bool hablando() const { return hablando_; }
+    /// Elegir la voz que contesta (tiene que estar bajada).
+    Q_INVOKABLE void elegirVoz(const QString& repo);
+    /// Decir algo por los auriculares del operador (solo monitoreo).
+    Q_INVOKABLE void decir(const QString& texto);
+    /// Una frase de prueba con la voz elegida.
+    Q_INVOKABLE void probarVoz();
+    Q_INVOKABLE void callar();
+
    signals:
     void cambio();
     /// Lo que dijo el operador, para la barra del asistente.
@@ -77,7 +112,10 @@ class Voz : public QObject {
 
    private:
     void revisarModelos();
+    void revisarVoz();
     void setEstado(const QString& e);
+    void leerAjustes();
+    void guardarAjustes() const;
 
     AppRuntime& rt_;
     ModelosLocales& modelos_;
@@ -88,6 +126,17 @@ class Voz : public QObject {
     bool transcribiendo_ = false;
     QString estado_;
     QString ultimo_;
+
+    std::unique_ptr<audio::Habla> habla_;
+    std::unique_ptr<audio::MonitorVoz> monitor_;
+    QString vozElegida_;
+    QString vozCargada_;
+    int hablante_ = 0;
+    int hablantes_ = 0;
+    double velocidad_ = 1.0;
+    bool vozLista_ = false;
+    bool hablando_ = false;
+    int pendientes_ = 0; ///< frases encargadas que todavía no terminaron
 };
 
 } // namespace ba::app::agent

@@ -218,6 +218,8 @@ Rectangle {
                     model: ml.catalogo
                     delegate: Rectangle {
                         required property var modelData
+                        // Las voces que contestan van en su propia sección.
+                        visible: modelData.tipo !== "tts"
                         Layout.fillWidth: true
                         implicitHeight: fila.implicitHeight + 20
                         radius: Theme.radiusSmall
@@ -323,6 +325,113 @@ Rectangle {
                               (Studio.voz.ultimo !== "" ? "  ·  último: «" + Studio.voz.ultimo + "»" : "")
                         color: Studio.voz.lista ? Theme.text : Theme.textDim
                         font.pixelSize: 12
+                    }
+                }
+
+                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
+
+                // La voz que contesta (solo por los auriculares del operador)
+                Text {
+                    visible: Studio.voz.disponible
+                    text: "Voz que contesta"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold }
+                }
+                Text {
+                    visible: Studio.voz.disponible
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: Theme.textFaint
+                    font.pixelSize: 11
+                    text: "Suena SOLO por el monitoreo (los auriculares del operador), nunca al aire. Frase por " +
+                          "frase, así empieza enseguida. Si apretás la tecla para hablar, se calla."
+                }
+                Repeater {
+                    model: Studio.voz.disponible ? Studio.voz.voces : []
+                    delegate: Rectangle {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        implicitHeight: filaVoz.implicitHeight + 16
+                        radius: Theme.radiusSmall
+                        color: modelData.elegida ? Qt.rgba(1, 0.42, 0.17, 0.12) : Theme.field
+                        border.color: modelData.elegida ? Theme.accent : "transparent"
+                        RowLayout {
+                            id: filaVoz
+                            anchors { fill: parent; margins: 8 }
+                            spacing: 10
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 1
+                                Text { text: modelData.nombre; color: Theme.text; font.pixelSize: 13 }
+                                Text {
+                                    text: "calidad " + modelData.calidad + " · " + Math.round(modelData.tamano_gb * 1024) + " MB"
+                                    color: Theme.textDim; font.pixelSize: 11
+                                }
+                            }
+                            GlassButton {
+                                compact: true
+                                visible: !modelData.instalado
+                                enabled: !ml.descargando
+                                text: "Bajar"; icon: "⇩"
+                                onClicked: ml.descargar(modelData.repo)
+                            }
+                            GlassButton {
+                                compact: true
+                                visible: modelData.instalado
+                                text: modelData.elegida ? "Elegida" : "Elegir"
+                                active: modelData.elegida
+                                onClicked: Studio.voz.elegirVoz(modelData.repo)
+                            }
+                            GlassButton {
+                                compact: true
+                                visible: modelData.instalado
+                                text: "Borrar"
+                                onClicked: ml.borrar(modelData.repo)
+                            }
+                        }
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: Studio.voz.vozLista
+                    spacing: 10
+                    Repeater {
+                        model: Studio.voz.hablantes > 1 ? Studio.voz.hablantes : 0
+                        delegate: GlassButton {
+                            required property int index
+                            compact: true
+                            text: "Voz " + (index + 1)
+                            active: Studio.voz.hablante === index
+                            onClicked: Studio.voz.hablante = index
+                        }
+                    }
+                    Text { text: "más lento"; color: Theme.textDim; font.pixelSize: 11 }
+                    Slider {
+                        Layout.fillWidth: true
+                        from: 0.7; to: 1.5; stepSize: 0.05
+                        value: Studio.voz.velocidad
+                        onMoved: Studio.voz.velocidad = value
+                    }
+                    Text { text: "más rápido"; color: Theme.textDim; font.pixelSize: 11 }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: Studio.voz.vozLista
+                    TextField {
+                        id: decirF
+                        Layout.fillWidth: true
+                        placeholderText: "escribí algo para que lo diga (por los auriculares)"
+                        onAccepted: { Studio.voz.decir(text); text = "" }
+                    }
+                    GlassButton {
+                        compact: true; text: decirF.text.trim() !== "" ? "Decir" : "Probar"; icon: "🔊"; active: true
+                        onClicked: {
+                            if (decirF.text.trim() !== "") { Studio.voz.decir(decirF.text); decirF.text = "" }
+                            else Studio.voz.probarVoz()
+                        }
+                    }
+                    GlassButton {
+                        compact: true; text: "Callar"
+                        visible: Studio.voz.hablando
+                        onClicked: Studio.voz.callar()
                     }
                 }
 

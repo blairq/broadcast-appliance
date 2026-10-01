@@ -56,7 +56,13 @@ json estado(agent::ModelosLocales& ml, agent::Voz* voz) {
                     {"lista", voz->lista()},
                     {"estado", voz->estado().toStdString()},
                     {"tecla", voz->tecla().toStdString()},
-                    {"ultimo", voz->ultimo().toStdString()}};
+                    {"ultimo", voz->ultimo().toStdString()},
+                    {"voz_que_contesta", voz->vozElegida().toStdString()},
+                    {"voz_lista", voz->vozLista()},
+                    {"hablante", voz->hablante()},
+                    {"hablantes", voz->hablantes()},
+                    {"velocidad", voz->velocidad()},
+                    {"hablando", voz->hablando()}};
     return r;
 }
 
@@ -247,6 +253,64 @@ void McpService::registerModeloTools() {
                                             {"prob", j.value("prob", 0.0)},
                                             {"ms", j.value("ms", 0.0)}}));
             });
+        };
+        core_.addTool(std::move(t));
+    }
+    if (voz == nullptr) return;
+    {
+        Tool t;
+        t.name = "voz_decir";
+        t.title = "Decirle algo al operador, por los auriculares";
+        t.category = "agentes";
+        t.description = "Lo dice en voz alta con la voz elegida, SOLO por el monitoreo (los auriculares del "
+                        "operador): nunca sale al aire. Vuelve enseguida; suena frase por frase.";
+        t.details =
+            "Para avisos cortos cuando el operador no esta mirando la pantalla. Hablar de mas molesta: "
+            "una o dos frases. Si el operador aprieta la tecla para hablar, se calla.";
+        t.inputSchema = {
+            {"type", "object"}, {"required", {"texto"}}, {"properties", {{"texto", {{"type", "string"}}}}}};
+        t.examples = {R"({"texto": "Ana Perez esta esperando en el lobby."})"};
+        t.run = [voz](const json& a, Done done) {
+            const std::string texto = a.value("texto", std::string());
+            if (texto.empty()) return done(ToolResult::error("Falta el texto."));
+            if (!voz->vozLista())
+                return done(
+                    ToolResult::error("No hay una voz cargada (Configuracion -> Modelos locales: bajar una "
+                                      "voz que contesta)."));
+            voz->decir(QString::fromStdString(texto));
+            done(ToolResult::ok("Dicho por los auriculares del operador."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "voz_ajustes";
+        t.title = "La voz que contesta";
+        t.category = "agentes";
+        t.idempotent = true;
+        t.description =
+            "Elige la voz que contesta (`voz`: el repo, tiene que estar bajada; modelo_local_estado "
+            "las lista con tipo tts), `hablante` (algunas traen dos) y `velocidad` (0.7 a 1.5). "
+            "`callar: true` corta lo que esta diciendo. Lo que no se manda no se toca.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"voz", {{"type", "string"}}},
+                           {"hablante", {{"type", "integer"}, {"minimum", 0}}},
+                           {"velocidad", {{"type", "number"}, {"minimum", 0.7}, {"maximum", 1.5}}},
+                           {"callar", {{"type", "boolean"}}}}}};
+        t.run = [&ml, voz](const json& a, Done done) {
+            if (a.value("callar", false)) voz->callar();
+            if (a.contains("voz") && a["voz"].is_string()) {
+                const QString repo = QString::fromStdString(a["voz"].get<std::string>());
+                if (ml.carpetaInstalada(repo).empty())
+                    return done(ToolResult::error("Esa voz no esta bajada: modelo_local_bajar primero."));
+                voz->elegirVoz(repo);
+            }
+            if (a.contains("hablante") && a["hablante"].is_number_integer())
+                voz->setHablante(a["hablante"].get<int>());
+            if (a.contains("velocidad") && a["velocidad"].is_number())
+                voz->setVelocidad(a["velocidad"].get<double>());
+            done(ToolResult::ok("Listo.").data(estado(ml, voz)));
         };
         core_.addTool(std::move(t));
     }

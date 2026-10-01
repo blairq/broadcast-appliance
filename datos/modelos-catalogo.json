@@ -112,6 +112,84 @@
    "licencia": "MIT",
    "tamano_gb": 0.001,
    "fecha": "2026-10-01"
+  },
+  {
+   "repo": "csukuangfj/vits-piper-es_AR-daniela-high",
+   "tipo": "tts",
+   "formato": "onnx",
+   "plataformas": [
+    "mac-arm64",
+    "linux-x64",
+    "win-x64"
+   ],
+   "revision": "b95fc6d7ff65e5da79796531cb4e760931b89888",
+   "archivos": [
+    "es_AR-daniela-high.onnx",
+    "tokens.txt",
+    "espeak-ng-data/",
+    "es_AR-daniela-high.onnx.json",
+    "MODEL_CARD"
+   ],
+   "modelo": "es_AR-daniela-high.onnx",
+   "nombre": "Daniela (rioplatense, mujer)",
+   "acento": "rioplatense",
+   "genero": "mujer",
+   "calidad": "high",
+   "licencia": "ver MODEL_CARD (voces de piper)",
+   "tamano_gb": 0.123,
+   "fecha": "2026-10-01"
+  },
+  {
+   "repo": "csukuangfj/vits-piper-es_ES-davefx-medium",
+   "tipo": "tts",
+   "formato": "onnx",
+   "plataformas": [
+    "mac-arm64",
+    "linux-x64",
+    "win-x64"
+   ],
+   "revision": "d5cddb304d484989611c1684db8878d4ef2fc506",
+   "archivos": [
+    "es_ES-davefx-medium.onnx",
+    "tokens.txt",
+    "espeak-ng-data/",
+    "es_ES-davefx-medium.onnx.json",
+    "MODEL_CARD"
+   ],
+   "modelo": "es_ES-davefx-medium.onnx",
+   "nombre": "Davefx (de España, hombre)",
+   "acento": "de España",
+   "genero": "hombre",
+   "calidad": "medium",
+   "licencia": "ver MODEL_CARD (voces de piper)",
+   "tamano_gb": 0.076,
+   "fecha": "2026-10-01"
+  },
+  {
+   "repo": "csukuangfj/vits-piper-es_ES-sharvard-medium",
+   "tipo": "tts",
+   "formato": "onnx",
+   "plataformas": [
+    "mac-arm64",
+    "linux-x64",
+    "win-x64"
+   ],
+   "revision": "2306b73bae558eddfdaee0a7ef3048a966a291d4",
+   "archivos": [
+    "es_ES-sharvard-medium.onnx",
+    "tokens.txt",
+    "espeak-ng-data/",
+    "es_ES-sharvard-medium.onnx.json",
+    "MODEL_CARD"
+   ],
+   "modelo": "es_ES-sharvard-medium.onnx",
+   "nombre": "Sharvard (de España, hombre y mujer)",
+   "acento": "de España",
+   "genero": "hombre y mujer",
+   "calidad": "medium",
+   "licencia": "ver MODEL_CARD (voces de piper)",
+   "tamano_gb": 0.088,
+   "fecha": "2026-10-01"
   }
  ]
 }

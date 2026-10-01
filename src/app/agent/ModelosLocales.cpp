@@ -337,16 +337,21 @@ void ModelosLocales::descargar(const QString& repo) {
             if (a.nombre == ".gitattributes") continue;
             const bool gguf = a.nombre.size() > 5 && a.nombre.substr(a.nombre.size() - 5) == ".gguf";
             if (gguf && !soloGguf.empty() && a.nombre != soloGguf) continue;
-            if (!soloArchivos.empty() &&
-                std::find(soloArchivos.begin(), soloArchivos.end(), a.nombre) == soloArchivos.end())
+            // `archivos` del catálogo: nombres exactos, o carpetas si terminan en
+            // «/» (las voces de piper traen espeak-ng-data/ entera).
+            const auto pedido = [&a](const std::string& f) {
+                return f == a.nombre || (!f.empty() && f.back() == '/' && a.nombre.rfind(f, 0) == 0);
+            };
+            if (!soloArchivos.empty() && std::none_of(soloArchivos.begin(), soloArchivos.end(), pedido))
                 continue;
             archivos.push_back(a);
             total += a.tamano;
         }
         if (err.isEmpty())
             for (const std::string& f : soloArchivos)
-                if (std::none_of(archivos.begin(), archivos.end(),
-                                 [&f](const ArchivoHf& a) { return a.nombre == f; }))
+                if (std::none_of(archivos.begin(), archivos.end(), [&f](const ArchivoHf& a) {
+                        return a.nombre == f || (!f.empty() && f.back() == '/' && a.nombre.rfind(f, 0) == 0);
+                    }))
                     err = "Al repo le falta " + QString::fromStdString(f) + " (en el commit fijado).";
         std::error_code ec;
         fs::remove_all(staging, ec);
