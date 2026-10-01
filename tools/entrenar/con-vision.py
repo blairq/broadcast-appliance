@@ -93,7 +93,7 @@ def main():
         {"metadata": {"total_size": total}, "weight_map": indice}, indent=2))
     for f in base.iterdir():
         if f.suffix in (".json", ".jinja", ".txt") and f.name != "model.safetensors.index.json":
-            shutil.copy(f, sal / f.name)
+            shutil.copyfile(f, sal / f.name)  # sin los permisos del cache de HF (solo lectura)
     if (fus / "huella-prompt.json").exists():
         shutil.copy(fus / "huella-prompt.json", sal)
     print(f"modelo completo: {cambiados} tensores del ajuste ({', '.join(sorted(objetivos))}), {de_base} de la base"
