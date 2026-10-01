@@ -49,7 +49,8 @@ PIP       ?= .venv/bin/pip
         deps deps-obs deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist \
         deps-lsp deps-status deps-clean deps-libreoffice deps-libreoffice-linux deps-libreoffice-win deps-libreoffice-mac \
         deps-msitools mcp-inventario deps-llamacpp bateria-local corpus-entrenamiento \
-        venv-entrenar vector-control \
+        venv-entrenar vector-control venv-mlx deps-llamacpp-convertir modelo modelo-fabricar \
+        modelo-corpus modelo-inventario modelo-etiquetas \
         corpus-descubrir \
         deps-src deps-mbedtls deps-nlohmann deps-samplerate deps-argon2 deps-rostros _ba_baja
 
@@ -104,6 +105,9 @@ help:
 	@echo "  make deps-llamacpp    llama.cpp (CPU) para probar un modelo chico local"
 	@echo "  make bateria-local    cuanto tarda y cuanto acierta ese modelo (prefijo cacheado)"
 	@echo "  make corpus-entrenamiento  arma datos/entrenamiento desde las semillas"
+	@echo "  make modelo PERFIL=reactivo BASE=Qwen/Qwen3.5-4B   el modelo reactivo al dia con el MCP:"
+	@echo "                        inventario, equivalencias, bucle del corpus y fabrica (MLX q4 + GGUF)"
+	@echo "  make modelo-fabricar NOMBRE=x  solo entrenar/medir/cuantizar/empaquetar con el corpus actual"
 	@echo "  make venv-entrenar         el entorno para entrenar (torch, unsloth, gguf)"
 	@echo "  make vector-control MODELO=... el vector que empuja a derivar, y su curva"
 	@echo "  make corpus-descubrir      que herramientas nuevas no tienen frases"
@@ -1177,6 +1181,43 @@ vector-control:
 # Con --generar propone frases desde las etiquetas del buscador, PARA REVISAR.
 corpus-descubrir:
 	tools/corpus-descubrir.py
+
+## EL MODELO REACTIVO, AUTOMATICO. Cada vez que el MCP crece: inventario, json de
+## equivalencias, bucle del corpus (cobertura, sentido, CDNV, Frobenius, margen)
+## y fabrica (entrenar, medir, MLX q4, GGUF Q4_K_M con la cabeza MTP entrenada,
+## carpetas con forma de repo de Hugging Face; no sube nada).
+##   PERFIL: datos/perfiles/<perfil>.json (que herramientas, por categoria)
+##   BASE:   Qwen/Qwen3.5-2B | -4B | -9B | unsloth/Qwen3.5-4B-MTP-GGUF ... (se detecta sola)
+PERFIL ?= reactivo
+BASE ?= Qwen/Qwen3.5-4B
+VUELTAS ?= 2
+modelo: venv-entrenar venv-mlx deps-llamacpp deps-llamacpp-convertir
+	.venv-entrenar/bin/python tools/entrenar/actualizar-modelo.py --perfil $(PERFIL) --base $(BASE) --vueltas $(VUELTAS)
+
+## Solo la fabrica, con el corpus que hay (NOMBRE= la carpeta en ~/entrenamientos/fabrica).
+modelo-fabricar: venv-entrenar venv-mlx deps-llamacpp deps-llamacpp-convertir
+	@test -n "$(NOMBRE)" || { echo "uso: make modelo-fabricar NOMBRE=<nombre> [PERFIL=] [BASE=]"; exit 1; }
+	.venv-entrenar/bin/python tools/entrenar/fabricar-modelo.py --perfil $(PERFIL) --base $(BASE) --nombre $(NOMBRE)
+
+## Solo el bucle del corpus (NOMBRE= la corrida; MEDIDOR= un adaptador para medir, si hay).
+modelo-corpus: venv-entrenar
+	@test -n "$(NOMBRE)" || { echo "uso: make modelo-corpus NOMBRE=<nombre> [PERFIL=] [BASE=] [MEDIDOR=]"; exit 1; }
+	.venv-entrenar/bin/python tools/entrenar/bucle-corpus-completo.py --perfil $(PERFIL) --base $(BASE) \
+		--nombre $(NOMBRE) --vueltas $(VUELTAS) $(if $(MEDIDOR),--medidor $(MEDIDOR))
+
+## Que herramientas hay y cuales entran en el perfil.
+modelo-inventario:
+	.venv-entrenar/bin/python tools/entrenar/inventario-mcp.py --perfil $(PERFIL)
+
+## El json de equivalencias al dia (si el perfil contesta con etiquetas).
+modelo-etiquetas: venv-entrenar
+	.venv-entrenar/bin/python tools/entrenar/completar-etiquetas.py --perfil $(PERFIL)
+
+## MLX (para la Mac) y el conversor HF -> GGUF de llama.cpp, por script.
+venv-mlx:
+	tools/entrenar/venv-mlx.sh
+deps-llamacpp-convertir:
+	tools/deps/llamacpp-convertir.sh
 
 deps-clap:
 	@mkdir -p "$(DL_DIR)"
