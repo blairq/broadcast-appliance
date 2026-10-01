@@ -34,9 +34,12 @@ namespace ba::app {
 /// "Sans" es un alias generico de fontconfig: se resuelve en Linux, pero en
 /// Windows no existe y FT2 falla ("FT2-text: Failed to load font Sans"),
 /// dejando el texto invisible. "Segoe UI" viene en todo Windows 10+, que es el
-/// minimo que pide el appliance.
+/// minimo que pide el appliance. En macOS pasa lo mismo: Helvetica viene en
+/// todas las versiones.
 #if defined(_WIN32)
 inline constexpr const char* kDefaultFontFace = "Segoe UI";
+#elif defined(__APPLE__)
+inline constexpr const char* kDefaultFontFace = "Helvetica";
 #else
 inline constexpr const char* kDefaultFontFace = "Sans";
 #endif
@@ -44,7 +47,15 @@ inline constexpr const char* kDefaultFontFace = "Sans";
 /// Una escena y sus fuentes (en orden de abajo hacia arriba).
 struct SceneConfig {
     std::string name;
+    /// Carpeta para ordenar la lista ("" = sin carpeta). Solo organiza la
+    /// vista: el motor no la usa para nada.
+    std::string folder;
     std::vector<SourceSpec> sources;
+    /// Protegida: no se borra ni se renombra, y la interfaz lo dice. Es para
+    /// la escena base de la que se copian las demas —la que si alguien borra,
+    /// se pierde el trabajo de todos— y para las que no se tocan en vivo.
+    /// Copiarla SI se puede: de eso se trata.
+    bool protegida = false;
 };
 
 /// Transicion entre escenas.
@@ -63,6 +74,10 @@ struct AppConfig {
     StreamConfig streamCfg;
     std::string streamKeyEnv = "BA_STREAM_KEY";
     int guests = 2;
+    /// Entradas de audio del equipo (microfonos, lineas). Como el audio de los
+    /// invitados, van a un canal GLOBAL: suenan en todas las escenas, asi que
+    /// no pertenecen a ninguna.
+    std::vector<SourceSpec> audioInputs;
     bool guestVideo = true;
     bool guestAudio = true;
     std::string guestAudioPreset = "podium"; ///< channel strip de los invitados ("" = sin)
@@ -106,6 +121,7 @@ struct GatewaySettings {
     int guestVideoH = 360;
     std::uint16_t adminPort = 8788; ///< API de control de la sala (127.0.0.1)
     bool lobby = true;              ///< el operador admite a cada invitado
+    bool autoIntake = false;        ///< el asistente atiende solo a los que esperan
     int lobbySlots = 4;             ///< del lobby, cuantos muestran su camara al operador
     int maxBackstage = 12;          ///< modo oradores: cuantos en la fila ven el programa
     int backstagePreviews = 6;      ///< de la fila, cuantos muestran su camara al operador

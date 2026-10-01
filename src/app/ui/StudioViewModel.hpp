@@ -18,11 +18,14 @@
 
 #include <chrono>
 #include <cstdint>
+#include <functional>
 #include <memory>
 
 namespace ba::app::agent {
 class AlertEngine;
 class AgentViewModel;
+class Despachador;
+class Roles;
 } // namespace ba::app::agent
 
 namespace ba::app::audio {
@@ -34,6 +37,23 @@ namespace ba::app {
 
 class AppRuntime;
 class ConferenceViewModel;
+class EventoViewModel;
+class GraficoViewModel;
+class RotuladorViewModel;
+class PrompterViewModel;
+class PantallasViewModel;
+class QrViewModel;
+class PersonasViewModel;
+class PublicoViewModel;
+class CarruselViewModel;
+class MediosViewModel;
+class RegistroViewModel;
+class ExtensionesModel;
+class RielConfig;
+namespace graficos {
+class Emisor;
+class Vinculos;
+} // namespace graficos
 class YouTubeViewModel;
 class TwitchViewModel;
 class FacebookViewModel;
@@ -55,6 +75,10 @@ class StudioViewModel : public QObject {
     // --- Estado ---------------------------------------------------------------
     Q_PROPERTY(bool recording READ recording NOTIFY statusChanged)
     Q_PROPERTY(bool streaming READ streaming NOTIFY statusChanged)
+    /// La transmision se corto y se esta reintentando.
+    Q_PROPERTY(bool reconnecting READ reconnecting NOTIFY statusChanged)
+    /// Por que se corto, en castellano. Vacio si no hubo problema.
+    Q_PROPERTY(QString outputProblem READ outputProblem NOTIFY statusChanged)
     Q_PROPERTY(QString recordTime READ recordTime NOTIFY statusChanged)
     Q_PROPERTY(QString streamTime READ streamTime NOTIFY statusChanged)
     Q_PROPERTY(double fps READ fps NOTIFY statusChanged)
@@ -68,6 +92,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(double programPeakR READ programPeakR NOTIFY statusChanged)
     Q_PROPERTY(QString currentScene READ currentScene NOTIFY sceneChanged)
     Q_PROPERTY(QString transitionType READ transitionType NOTIFY sceneChanged)
+    /// La escena ARMADA (la que sale con el proximo TAKE). Vacia = ninguna.
+    Q_PROPERTY(QString escenaArmada READ escenaArmada NOTIFY sceneChanged)
     Q_PROPERTY(double canvasAspect READ canvasAspect NOTIFY canvasChanged)
     Q_PROPERTY(QString canvasLabel READ canvasLabel NOTIFY canvasChanged)
     Q_PROPERTY(QString streamServer READ streamServer NOTIFY statusChanged)
@@ -87,11 +113,41 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* frames READ frames CONSTANT)
     Q_PROPERTY(QObject* properties READ properties CONSTANT)
     Q_PROPERTY(QObject* conference READ conference CONSTANT)
+    Q_PROPERTY(QObject* evento READ evento CONSTANT)
+    Q_PROPERTY(QObject* grafico READ grafico CONSTANT)
+    Q_PROPERTY(QObject* rotulador READ rotulador CONSTANT)
+    /// El teleprompter: los discursos, quién está conectado y los controles.
+    Q_PROPERTY(QObject* prompter READ prompter CONSTANT)
+    /// Pantallas externas (televisores): dónde mostrar y qué mostrar.
+    Q_PROPERTY(QObject* pantallas READ pantallas CONSTANT)
+    /// La biblioteca de códigos QR y su estudio de diseño.
+    Q_PROPERTY(QObject* qr READ qr CONSTANT)
+    /// La libreta de personas (rostros). Existe siempre: sin los modelos
+    /// vendoreados avisa por qué, que es mejor que una lista vacía.
+    Q_PROPERTY(QObject* personas READ personas CONSTANT)
+    /// Las preguntas del publico y la urna (viven en B; esto las trae).
+    Q_PROPERTY(QObject* publico READ publico CONSTANT)
+    /// Los archivos del operador: musica, videos, imagenes, presentaciones.
+    Q_PROPERTY(QObject* medios READ medios CONSTANT)
+    /// La biblioteca de carruseles: se arman en Medios y se aplican en las
+    /// escenas (ver ui/CarruselViewModel.hpp).
+    Q_PROPERTY(QObject* carruseles READ carruseles CONSTANT)
+    Q_PROPERTY(QObject* registro READ registro CONSTANT)
+    /// Las tarjetas que vienen de Extensiones/ (ver ExtensionesModel.hpp).
+    Q_PROPERTY(QObject* extensiones READ extensiones CONSTANT)
+    /// La barra de navegacion: donde va, de que tamaño y que muestra.
+    Q_PROPERTY(QObject* riel READ riel CONSTANT)
+    /// Que seccion de Configuracion esta abierta. Vive aca y no adentro del
+    /// QML para que se pueda llevar al operador derecho a una seccion ("andá a
+    /// la de audio") en vez de decirle donde tiene que hacer clic.
+    Q_PROPERTY(QString seccionConfig READ seccionConfig WRITE setSeccionConfig NOTIFY seccionConfigChanged)
     Q_PROPERTY(QObject* youtube READ youtube CONSTANT)
     Q_PROPERTY(QObject* twitch READ twitch CONSTANT)
     Q_PROPERTY(QObject* facebook READ facebook CONSTANT)
     Q_PROPERTY(QObject* system READ system CONSTANT)
     Q_PROPERTY(QObject* agent READ agent CONSTANT)
+    /// Los roles automaticos y sus corridas (pagina Agentes).
+    Q_PROPERTY(QObject* despachador READ despachadorQml CONSTANT)
     Q_PROPERTY(QObject* messages READ messages CONSTANT)
     Q_PROPERTY(QObject* inputs READ inputs CONSTANT)
     /// Pestaña Audio (patchbay de modulos LSP por fuente); null sin CLAP.
@@ -101,7 +157,12 @@ class StudioViewModel : public QObject {
     ~StudioViewModel() override;
 
     bool recording() const { return recording_; }
+    /// Cuando arranco la grabacion, en ms desde la epoca. 0 = no esta grabando
+    /// (o arranco antes de que la app supiera mirarlo).
+    Q_INVOKABLE qint64 recordStartMs() const { return recording_ ? recSinceMs_ : 0; }
     bool streaming() const { return streaming_; }
+    bool reconnecting() const { return reconnecting_; }
+    QString outputProblem() const { return outputProblem_; }
     QString recordTime() const;
     QString streamTime() const;
     double fps() const { return fps_; }
@@ -134,6 +195,30 @@ class StudioViewModel : public QObject {
     QObject* frames() const;
     QObject* properties() const;
     QObject* conference() const;
+    QObject* evento() const;
+    QObject* grafico() const;
+    QObject* rotulador() const;
+    QObject* prompter() const;
+    QObject* pantallas() const;
+    QObject* qr() const;
+    QObject* personas() const;
+    QObject* publico() const;
+    QObject* medios() const;
+    QObject* carruseles() const;
+    QrViewModel& qrVm() { return *qr_; }
+    QObject* registro() const;
+    QObject* extensiones() const;
+    QObject* riel() const;
+    QString seccionConfig() const { return seccionConfig_; }
+    void setSeccionConfig(const QString& s);
+    /// De donde sacan sus valores los vinculos (ver graficos/Vinculos.hpp):
+    /// la sala, el guion y la escena al aire, todo junto.
+    QJsonObject contextoDeVinculos() const;
+    graficos::Vinculos* vinculos() { return vinculos_.get(); }
+    /// El unico emisor de graficos del proceso. Lo usan la interfaz, el guion,
+    /// el rotulador y el MCP: si cada uno tuviera el suyo, lo que uno saca al
+    /// aire no se veria en la pantalla del otro.
+    graficos::Emisor* emisor() { return emisor_.get(); }
     QObject* youtube() const;
     QObject* twitch() const;
     QObject* facebook() const;
@@ -147,6 +232,8 @@ class StudioViewModel : public QObject {
     audio::RackManager* racks() const { return racks_.get(); }
 #endif
     agent::AlertEngine& alerts() { return *alerts_; }
+    agent::Despachador& despachador() { return *despachador_; }
+    QObject* despachadorQml() const;
 
     // --- Comandos ---------------------------------------------------------------
     /// Pasos para conectar una plataforma (misma fuente que el MCP: AccountGuides).
@@ -157,10 +244,90 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE void toggleRecording();
     Q_INVOKABLE void startStreaming(const QString& server, const QString& key);
     Q_INVOKABLE void stopStreaming();
+    // --- Bus de preview y TAKE ------------------------------------------------
+    // Una mesa de switcher tiene DOS buses: lo que esta al aire (programa) y lo
+    // que va a salir (preview). El operador arma el proximo plano, lo MIRA, y
+    // recien ahi hace TAKE. Sin eso, cada cambio de plano es a ciegas y en
+    // vivo: lo que esta roto se descubre cuando ya salio.
+    //
+    // `takeScene` sigue estando y sigue yendo directo al aire: hay momentos en
+    // los que hay que cortar YA y pedir dos pasos seria peor.
     Q_INVOKABLE void takeScene(const QString& name);
+    /// Arma una escena en el bus de preview (NO la pone al aire).
+    Q_INVOKABLE void armarEscena(const QString& name);
+    /// Pone al aire la escena armada, con la transicion configurada.
+    ///
+    /// Y deja armada la que SALIO del aire, como cualquier mesa: despues de un
+    /// take, el bus de preview queda con el plano anterior, listo para volver.
+    Q_INVOKABLE void take();
+    QString escenaArmada() const;
+
+    /// Las escenas AGRUPADAS POR CARPETA, en el orden que puso el operador:
+    /// `[{carpeta: "", escenas: ["a", "b"]}, {carpeta: "Bloque 1", ...}]`.
+    ///
+    /// Esto se arma acá y no en QML porque desde QML no se puede recorrer un
+    /// QAbstractListModel. Devuelve SOLO la agrupación, sin decir cuál está al
+    /// aire ni cuál armada: esas dos salen de `currentScene` y `escenaArmada`,
+    /// que ya avisan cuando cambian. Metiéndolas acá habría que reconstruir la
+    /// lista entera en cada corte, y la lista no cambió.
+    Q_INVOKABLE QVariantList escenasPorCarpeta() const;
+
+    /// Muestra un cartel grande en CADA monitor con su número y su nombre,
+    /// unos segundos. Es la única forma de saber cuál es «DP-1» sin ponerse a
+    /// mover ventanas a ver cuál se mueve.
+    Q_INVOKABLE void identificarPantallas() { emit identificarPedido(); }
+
+    /// Los monitores donde YA hay una ventana nuestra, por nombre. Lo usa una
+    /// ventana que se abre para nacer en uno libre en vez de encima de otra.
+    Q_INVOKABLE QStringList ventanasAbiertas() const;
+
+    /// Si en este escritorio un programa puede decir DONDE va una ventana.
+    ///
+    /// En Wayland no: ubicarlas es del compositor. Y lo peor es que pedirlo no
+    /// falla —Qt hasta informa la pantalla nueva— pero la ventana no se mueve.
+    /// Con esto la interfaz puede hacer lo único que sí funciona (pantalla
+    /// completa en un monitor) en vez de un botón que no hace nada.
+    Q_PROPERTY(bool puedeUbicarVentanas READ puedeUbicarVentanas CONSTANT)
+    static bool puedeUbicarVentanas();
+
+   private:
+    /// Le manda el estado de los buses a las pantallas de tally de la sala.
+    /// Se llama en cada cambio de escena y de aire: un tally que llega tarde
+    /// es peor que no tenerlo, porque alguien se confia.
+    void publicarTally();
+
+   public:
     Q_INVOKABLE void addScene(const QString& name);
     Q_INVOKABLE void removeScene(const QString& name);
     Q_INVOKABLE void renameScene(const QString& from, const QString& to);
+    /// Copia una escena entera con sus fuentes. Devuelve el nombre que le
+    /// quedo (le agrega un numero si el que se pidio ya existia), o vacio si
+    /// no se pudo.
+    Q_INVOKABLE QString copyScene(const QString& from, const QString& to = {});
+    Q_INVOKABLE void setSceneProtected(const QString& name, bool protegida);
+    Q_INVOKABLE bool sceneProtected(const QString& name) const;
+    /// Mueve la escena a una carpeta ("" la saca). Solo ordena la lista.
+    Q_INVOKABLE void setSceneFolder(const QString& name, const QString& folder);
+    /// Carpetas que ya existen (para ofrecerlas al mover una escena).
+    Q_INVOKABLE QStringList sceneFolders() const;
+    /// Reordena: deja `name` justo antes de `before` (vacio = al final), en la
+    /// carpeta de `before`.
+    Q_INVOKABLE void moveScene(const QString& name, const QString& before);
+    /// El operador le encarga al asistente atender a alguien del lobby: que le
+    /// pida sus datos por chat y despues le presente todo junto para admitirlo.
+    /// Devuelve el error o "".
+    Q_INVOKABLE QString assistantIntake(const QString& id, const QString& name, bool yaAdentro);
+
+    /// Copia un texto al portapapeles y lo avisa.
+    ///
+    /// Vive acá y no en la sala: copiar un enlace no tiene nada que ver con una
+    /// videoconferencia. Estaba en ConferenceViewModel y por eso el diálogo de
+    /// QR —que lo usan el teleprompter y los rótulos— no podía copiar nada.
+    Q_INVOKABLE void copiar(const QString& texto);
+    /// Lo engancha McpService (necesita el nucleo MCP, que vive afuera).
+    void setIntakeSink(std::function<QString(const QString&, const QString&, bool)> fn) {
+        intakeSink_ = std::move(fn);
+    }
     /// Escena que muestra el lienzo del editor ("" = ninguna). Se renderiza
     /// aunque no este al aire, asi una escena vacia se ve vacia.
     Q_INVOKABLE void setScenePreview(const QString& name);
@@ -172,6 +339,13 @@ class StudioViewModel : public QObject {
    signals:
     void statusChanged();
     void sceneChanged();
+    /// La LISTA de escenas cambió (se agregó, borró, renombró o cambió de
+    /// carpeta). Distinta de `sceneChanged`, que es «cambió la que está al
+    /// aire»: una pasa cada pocos segundos en vivo y la otra casi nunca.
+    void escenasCambiaron();
+    /// Alguien pidió identificar los monitores (ver `identificarPantallas`).
+    void identificarPedido();
+    void seccionConfigChanged();
     void canvasChanged();
     void themeChanged();
     /// Aviso para el operador: level = "info" | "ok" | "warn" | "error".
@@ -184,6 +358,7 @@ class StudioViewModel : public QObject {
 
    private:
     AppRuntime& rt_;
+    std::function<QString(const QString&, const QString&, bool)> intakeSink_;
     std::unique_ptr<ScenesModel> scenes_;
     std::unique_ptr<SourcesModel> sources_;
     std::unique_ptr<MixerModel> mixer_;
@@ -193,6 +368,22 @@ class StudioViewModel : public QObject {
     std::unique_ptr<FrameService> frames_;
     std::unique_ptr<PropertiesModel> props_;
     std::unique_ptr<ConferenceViewModel> conference_;
+    std::unique_ptr<EventoViewModel> evento_;
+    std::unique_ptr<graficos::Emisor> emisor_;
+    std::unique_ptr<GraficoViewModel> grafico_;
+    std::unique_ptr<RotuladorViewModel> rotulador_;
+    std::unique_ptr<PrompterViewModel> prompter_;
+    std::unique_ptr<PantallasViewModel> pantallas_;
+    std::unique_ptr<QrViewModel> qr_;
+    std::unique_ptr<PersonasViewModel> personas_;
+    std::unique_ptr<PublicoViewModel> publico_;
+    std::unique_ptr<MediosViewModel> medios_;
+    std::unique_ptr<CarruselViewModel> carruseles_;
+    std::unique_ptr<graficos::Vinculos> vinculos_;
+    std::unique_ptr<RegistroViewModel> registro_;
+    std::unique_ptr<ExtensionesModel> extensiones_;
+    std::unique_ptr<RielConfig> riel_;
+    QString seccionConfig_;
 #if defined(BA_HAVE_CLAP)
     std::unique_ptr<audio::RackManager> racks_;
     std::unique_ptr<audio::AudioViewModel> audio_;
@@ -203,6 +394,8 @@ class StudioViewModel : public QObject {
     std::unique_ptr<SystemViewModel> system_;
     std::unique_ptr<agent::AlertEngine> alerts_;
     std::unique_ptr<agent::AgentViewModel> agent_;
+    std::unique_ptr<agent::Roles> roles_;
+    std::unique_ptr<agent::Despachador> despachador_;
     std::unique_ptr<OperatorMessages> messages_;
     std::unique_ptr<InputsViewModel> inputs_;
     std::unique_ptr<ChatOverlayRenderer> chatOverlay_;
@@ -211,7 +404,14 @@ class StudioViewModel : public QObject {
 
     bool recording_ = false;
     bool streaming_ = false;
+    bool reconnecting_ = false;
+    QString outputProblem_;
     std::chrono::steady_clock::time_point recSince_{};
+    /// Lo mismo pero en reloj de PARED. `recSince_` es monotono —sirve para
+    /// contar cuanto lleva grabando y no se mueve si alguien cambia la hora—
+    /// pero no se puede comparar con el recorrido del guion, que va en reloj de
+    /// pared. Para los capitulos hacen falta los dos en la misma escala.
+    qint64 recSinceMs_ = 0;
     std::chrono::steady_clock::time_point streamSince_{};
     double fps_ = 0;
     QString encoder_;

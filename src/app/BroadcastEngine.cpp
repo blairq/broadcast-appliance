@@ -15,12 +15,16 @@
 // ============================================================================
 
 #include "BroadcastEngine.hpp"
+
 #include "ChatOverlaySource.hpp"
+#include "graficos/GraficoSource.hpp"
+#include "platform/Paths.hpp"
 #if defined(BA_HAVE_NDI)
 #include "NdiSource.hpp"
 #endif
 
 #include <obs.h>
+#include <util/platform.h> // os_gettime_ns: el mismo reloj que usa libobs
 
 #include "WindowingPlatform.hpp"
 
@@ -32,14 +36,17 @@
 #endif
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <string>
 #include <vector>
 
+#include "diag/Registro.hpp"
 #include "ipc/HealthBlock.hpp" // nowQpc() para los timestamps del IPC
 
 namespace ba::app {
@@ -67,29 +74,59 @@ constexpr const wchar_t* kProgramVideoName = L"BA.Program";
 /// ("Duplicate library?") y en cualquier otra podria levantar plugins ajenos
 /// al bundle. Aca el conjunto de modulos es exactamente el del bundle.
 ///
-/// :param binDir: directorio con los `.so`/`.dll` de los plugins.
+/// :param binDir: directorio con los `.so`/`.dll` (macOS: bundles `.plugin`).
 /// :param dataDir: raiz de los datos de los plugins; cada modulo recibe
 ///                 `<dataDir>/<nombre>` (locale, efectos).
 /// :returns: cantidad de modulos cargados.
 int loadBundleModules(const std::string& binDir, const std::string& dataDir) {
+    std::error_code ec;
+    // (binario, nombre, datos) de cada plugin.
+    struct Found {
+        std::filesystem::path bin;
+        std::string name;
+        std::string data;
+    };
+    std::vector<Found> found;
+#if defined(__APPLE__)
+    // macOS: cada plugin es un bundle X.plugin con el binario en
+    // Contents/MacOS/X y sus datos (locale, efectos) en Contents/Resources.
+    for (const auto& entry : std::filesystem::directory_iterator(binDir, ec)) {
+        if (!entry.is_directory(ec) || entry.path().extension() != ".plugin") continue;
+        const std::string name = entry.path().stem().string();
+        const auto bin = entry.path() / "Contents" / "MacOS" / name;
+        if (!std::filesystem::exists(bin, ec)) continue;
+        const auto res = entry.path() / "Contents" / "Resources";
+        found.push_back(
+            {bin, name, std::filesystem::is_directory(res, ec) ? res.string() : dataDir + "/" + name});
+    }
+    // Y los modulos propios (ba-sources), que son un `.so` suelto como en Linux.
+    for (const auto& entry : std::filesystem::directory_iterator(binDir, ec)) {
+        if (entry.is_regular_file(ec) && entry.path().extension() == ".so") {
+            const std::string name = entry.path().stem().string();
+            found.push_back({entry.path(), name, dataDir + "/" + name});
+        }
+    }
+#else
 #if defined(_WIN32)
     const char* ext = ".dll";
 #else
     const char* ext = ".so";
 #endif
-    std::error_code ec;
-    std::vector<std::filesystem::path> files;
     for (const auto& entry : std::filesystem::directory_iterator(binDir, ec)) {
         if (entry.is_regular_file(ec) && entry.path().extension() == ext) {
-            files.push_back(entry.path());
+            const std::string name = entry.path().stem().string();
+            found.push_back({entry.path(), name, dataDir + "/" + name});
         }
     }
-    std::sort(files.begin(), files.end()); // orden estable entre corridas
+#endif
+    // Orden estable entre corridas.
+    std::sort(found.begin(), found.end(), [](const Found& a, const Found& b) { return a.name < b.name; });
 
     int loaded = 0;
-    for (const auto& file : files) {
-        const std::string name = file.stem().string();
-        const std::string data = dataDir + "/" + name;
+    for (const auto& f : found) {
+        const std::filesystem::path& file = f.bin;
+        const std::string& name = f.name;
+        const std::string& data = f.data;
         obs_module_t* module = nullptr;
         const int rc = obs_open_module(&module, file.string().c_str(), data.c_str());
         if (rc != MODULE_SUCCESS) {
@@ -130,6 +167,11 @@ BroadcastEngine::~BroadcastEngine() { shutdown(); }
 const char* BroadcastEngine::defaultGraphicsModule() {
 #if defined(_WIN32)
     return "libobs-d3d11";
+#elif defined(__APPLE__)
+    // macOS: dlopen de un nombre suelto no busca junto al ejecutable (solo
+    // DYLD_* y el cwd): se le da la ruta absoluta del modulo del bundle.
+    static const std::string path = (ba::platform::executableDir() / "libobs-opengl.so").string();
+    return path.c_str();
 #else
     return "libobs-opengl";
 #endif
@@ -235,6 +277,7 @@ bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video
     obs_post_load_modules();
     // Fuentes propias de la app (no son plugins): el chat en vivo.
     chatoverlay::registerSourceType();
+    graficos::registerSourceType();
 #if defined(BA_HAVE_NDI)
     ndi::registerSourceType(); // entrada NDI(R) abierta (libNoIDea)
 #endif
@@ -330,6 +373,16 @@ bool BroadcastEngine::publishReturnFeeds() {
 
     // El retorno al invitado va en BGRA: es lo que el MediaPump del gateway
     // escala y entrega a WebRTC.
+    // POR QUE BGRA Y NO NV12, que es el formato en el que libobs ya lo tiene
+    // (ovi.output_format). Se midio: pidiendole el cuadro en NV12 —o sea sin
+    // conversion ninguna— libobs lo entrega EN EL MISMO MOMENTO, 44,7 ms
+    // contra 44,7. La conversion no esta en el camino del retardo; esos 44 ms
+    // son la bajada de la GPU, que no depende de lo que le pidamos.
+    //
+    // Asi que cambiar el formato del canal a NV12 ahorraria banda de memoria
+    // (8,3 MB por cuadro contra 3,1) pero NI UN MILISEGUNDO de retardo, y
+    // costaria tocar el contrato del IPC. Queda anotado para que nadie lo
+    // vuelva a proponer como arreglo del retardo: ya se probo.
     struct video_scale_info vsi = {};
     vsi.format = VIDEO_FORMAT_BGRA;
     vsi.width = static_cast<uint32_t>(video_.outputWidth);
@@ -402,6 +455,36 @@ void BroadcastEngine::onRawVideo(struct video_data* frame) {
     meta.frameIndex = ++programFrameIndex_;
     meta.qpc = ba::ipc::HealthBlock::nowQpc();
     programVideo_.send(pixels, bytes, meta);
+
+    // CUANTO TARDA LIBOBS. `frame->timestamp` es de cuando se compuso el
+    // cuadro; esto es de cuando nos lo entrega. La diferencia es todo lo que
+    // pasa adentro de libobs entre componer y soltar: la bajada de la GPU
+    // (que usa dos superficies de apoyo a proposito, o sea un par de cuadros)
+    // y la conversion al formato que le pedimos.
+    //
+    // Es el ultimo tramo del camino que no tenia numero. Los otros ya lo
+    // tienen —la subida del invitado, el salto A->B, el retorno, la red hasta
+    // el televisor— y todos dieron chicos, asi que lo que falta esta aca. Sin
+    // medirlo, «bajar el retardo» es tocar cosas a ver que pasa.
+    const std::uint64_t ahora = os_gettime_ns();
+    if (frame->timestamp != 0 && ahora > frame->timestamp) programEdadNs_ += ahora - frame->timestamp;
+    ++programMedidos_;
+    if (programInformeNs_ == 0) {
+        programInformeNs_ = ahora;
+    } else if (ahora - programInformeNs_ >= 10'000'000'000ull && programMedidos_ > 0) {
+        const double seg = static_cast<double>(ahora - programInformeNs_) / 1e9;
+        // Por el registro propio y no por blog(): lo que libobs manda con
+        // LOG_INFO se guarda como «depuracion» (es MUY hablador) y queda por
+        // debajo del nivel normal, o sea que no se ve. Esto tiene que verse.
+        char linea[128];
+        std::snprintf(linea, sizeof(linea), "programa: %.1f fps, %.1f ms adentro de libobs",
+                      static_cast<double>(programMedidos_) / seg,
+                      static_cast<double>(programEdadNs_) / static_cast<double>(programMedidos_) / 1e6);
+        ba::diag::registro().linea(ba::diag::Nivel::Info, "motor", 0, linea);
+        programEdadNs_ = 0;
+        programMedidos_ = 0;
+        programInformeNs_ = ahora;
+    }
 }
 
 // ============================================================================
@@ -771,6 +854,7 @@ bool BroadcastEngine::startStreaming(const StreamConfig& stream, const EncoderCo
         obs_output_release(reinterpret_cast<obs_output_t*>(streamOutput_));
     }
     streamOutput_ = reinterpret_cast<obs_output*>(out);
+    watchOutput(streamOutput_);
     return true;
 }
 
@@ -839,8 +923,264 @@ void BroadcastEngine::stopRecording() {
 }
 
 // ============================================================================
+// Grabacion POR ENTRADA
+// ============================================================================
+// Ver el comentario del header. Lo unico que conviene repetir aca: cada entrada
+// que se graba es un ENCODE MAS, con su propia vista, su codificador y su
+// salida. Nada de esto se comparte con el programa.
+
+struct BroadcastEngine::SourceRec {
+    std::string source;
+    std::string path;
+    obs_view_t* view = nullptr;
+    video_t* video = nullptr;
+    obs_encoder_t* venc = nullptr;
+    obs_encoder_t* aenc = nullptr;
+    obs_output_t* out = nullptr;
+    int pista = -1;                ///< pista de audio tomada (1..5), -1 = sin audio
+    std::uint32_t mixersAntes = 0; ///< para devolverle a la fuente lo que tenia
+
+    ~SourceRec() {
+        // El orden importa: primero se para la salida, despues se sueltan los
+        // codificadores y por ultimo la vista. Al reves, libobs se queda con la
+        // vista viva y el proximo arranque no consigue GPU.
+        if (out != nullptr) {
+            if (obs_output_active(out)) obs_output_stop(out);
+            obs_output_release(out);
+        }
+        if (venc != nullptr) obs_encoder_release(venc);
+        if (aenc != nullptr) obs_encoder_release(aenc);
+        if (view != nullptr) {
+            obs_view_remove(view);
+            obs_view_set_source(view, 0, nullptr);
+            obs_view_destroy(view);
+        }
+    }
+};
+
+bool BroadcastEngine::startSourceRecording(const std::string& source, const std::string& dir,
+                                           const EncoderConfig& enc) {
+    if (!started_) {
+        setError("startSourceRecording sin startup");
+        return false;
+    }
+    if (sourceRecs_.count(source) > 0) {
+        setError("ya se esta grabando \"" + source + "\" por separado");
+        return false;
+    }
+    if (static_cast<int>(sourceRecs_.size()) >= kMaxIndividuales) {
+        setError("ya hay " + std::to_string(kMaxIndividuales) +
+                 " entradas grabandose por separado, que es el tope");
+        return false;
+    }
+    obs_source_t* src = reinterpret_cast<obs_source_t*>(ownedSource(source));
+    if (src == nullptr) {
+        setError("no existe la fuente \"" + source + "\"");
+        return false;
+    }
+
+    auto rec = std::make_unique<SourceRec>();
+    rec->source = source;
+
+    // 1) La vista: la fuente sola, sin escena ni nada mas. De aca sale un
+    //    `video_t` propio, que es lo que hace que esto sea la ENTRADA y no el
+    //    programa.
+    rec->view = obs_view_create();
+    if (rec->view == nullptr) {
+        setError("no se pudo crear la vista de la entrada");
+        return false;
+    }
+    obs_view_set_source(rec->view, 0, src);
+
+    struct obs_video_info ovi;
+    if (!obs_get_video_info(&ovi)) {
+        setError("no se pudo leer la configuracion de video");
+        return false;
+    }
+    rec->video = obs_view_add2(rec->view, &ovi);
+    if (rec->video == nullptr) {
+        setError("no se pudo abrir el render de la entrada (GPU sin lugar)");
+        return false;
+    }
+
+    // 2) El codificador de video, propio. Se usa x264 y no el de la GPU: los
+    //    codificadores por hardware tienen dos o tres sesiones y hay que
+    //    dejarselas al programa, que es el que sale al aire.
+    obs_data_t* vs = obs_data_create();
+    obs_data_set_int(vs, "bitrate", enc.videoBitrateKbps);
+    obs_data_set_string(vs, "rate_control", enc.rateControl.c_str());
+    obs_data_set_int(vs, "keyint_sec", enc.keyintSec);
+    obs_data_set_string(vs, "preset", enc.preset.c_str());
+    rec->venc = obs_video_encoder_create("obs_x264", ("venc-" + source).c_str(), vs, nullptr);
+    obs_data_release(vs);
+    if (rec->venc == nullptr) {
+        setError("no se pudo crear el codificador de \"" + source + "\"");
+        return false;
+    }
+    obs_encoder_set_video(rec->venc, rec->video);
+
+    // 3) El audio. SIEMPRE hay que ponerle uno: `ffmpeg_muxer` es una salida
+    //    audio+video y sin codificador de audio no arranca —y no dice por que,
+    //    devuelve false con el mensaje vacio, que costo un rato encontrar—.
+    //
+    //    Si la fuente tiene audio propio y queda pista libre, graba EL SUYO:
+    //    libobs mezcla en 6 pistas, la 0 es la del programa, quedan 5. Si no
+    //    (la fuente no tiene audio, o ya se usaron las cinco), graba la del
+    //    PROGRAMA, que igual sirve de referencia para sincronizar al editar.
+    //    Cual de las dos quedo se informa; adivinarlo despues, mirando el
+    //    archivo, es imposible.
+    if ((obs_source_get_output_flags(src) & OBS_SOURCE_AUDIO) != 0) {
+        bool usada[6] = {true, false, false, false, false, false}; // 0 = programa
+        for (const auto& [n, r] : sourceRecs_)
+            if (r->pista > 0 && r->pista < 6) usada[r->pista] = true;
+        for (int p = 1; p < 6 && rec->pista < 0; ++p)
+            if (!usada[p]) rec->pista = p;
+
+        if (rec->pista > 0) {
+            // La fuente pasa a sonar TAMBIEN en su pista: se le suma, no se le
+            // saca la del programa, o dejaria de escucharse al aire.
+            rec->mixersAntes = obs_source_get_audio_mixers(src);
+            obs_source_set_audio_mixers(src, rec->mixersAntes | (1u << rec->pista));
+        }
+    }
+    {
+        const size_t mezcla = rec->pista > 0 ? static_cast<size_t>(rec->pista) : 0;
+        obs_data_t* as = obs_data_create();
+        obs_data_set_int(as, "bitrate", enc.audioBitrateKbps);
+        rec->aenc = obs_audio_encoder_create("ffmpeg_aac", ("aenc-" + source).c_str(), as, mezcla, nullptr);
+        obs_data_release(as);
+        if (rec->aenc == nullptr) {
+            setError("no se pudo crear el codificador de audio de \"" + source + "\"");
+            return false;
+        }
+        obs_encoder_set_audio(rec->aenc, obs_get_audio());
+    }
+
+    // 4) La salida a archivo. Nombre con la fuente adentro: despues hay que
+    //    encontrarlo entre veinte archivos y "ba-1758546202.mkv" no ayuda.
+    std::string limpio;
+    for (const char c : source)
+        limpio += (std::isalnum(static_cast<unsigned char>(c)) != 0 || c == '-' || c == '_') ? c : '-';
+    const auto secs =
+        std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch())
+            .count();
+    rec->path = dir + "/entrada-" + limpio + "-" + std::to_string(secs) + ".mkv";
+
+    obs_data_t* os = obs_data_create();
+    obs_data_set_string(os, "path", rec->path.c_str());
+    rec->out = obs_output_create("ffmpeg_muxer", ("rec-" + source).c_str(), os, nullptr);
+    obs_data_release(os);
+    if (rec->out == nullptr) {
+        setError("no se pudo crear la salida de \"" + source + "\"");
+        return false;
+    }
+    obs_output_set_video_encoder(rec->out, rec->venc);
+    obs_output_set_audio_encoder(rec->out, rec->aenc, 0);
+    if (!obs_output_start(rec->out)) {
+        const char* e = obs_output_get_last_error(rec->out);
+        setError("no arranco la grabacion de \"" + source + "\"" +
+                 (e != nullptr && *e != '\0' ? std::string(": ") + e : std::string()));
+        return false;
+    }
+
+    sourceRecs_[source] = std::move(rec);
+    return true;
+}
+
+bool BroadcastEngine::stopSourceRecording(const std::string& source) {
+    const auto it = sourceRecs_.find(source);
+    if (it == sourceRecs_.end()) {
+        setError("no se estaba grabando \"" + source + "\" por separado");
+        return false;
+    }
+    // Se le devuelve a la fuente las pistas que tenia: si no, seguiria sonando
+    // en una pista que ya no graba nadie.
+    if (it->second->pista > 0) {
+        obs_source_t* src = reinterpret_cast<obs_source_t*>(ownedSource(source));
+        if (src != nullptr) obs_source_set_audio_mixers(src, it->second->mixersAntes);
+    }
+    sourceRecs_.erase(it); // el destructor para y libera, en orden
+    return true;
+}
+
+void BroadcastEngine::stopAllSourceRecordings() {
+    while (!sourceRecs_.empty())
+        stopSourceRecording(sourceRecs_.begin()->first);
+}
+
+std::vector<BroadcastEngine::GrabacionIndividual> BroadcastEngine::sourceRecordings() const {
+    std::vector<GrabacionIndividual> out;
+    out.reserve(sourceRecs_.size());
+    for (const auto& [n, r] : sourceRecs_)
+        out.push_back(
+            GrabacionIndividual{n, r->path, r->pista > 0, r->out != nullptr && obs_output_active(r->out)});
+    return out;
+}
+
+// ============================================================================
 // Estado
 // ============================================================================
+
+// --- Estado de la salida: por que se corto ----------------------------------
+// libobs avisa por señales, en el hilo que se le ocurra. Aca solo se anota que
+// paso, en castellano y con la causa: el operador necesita saber si esperar
+// (se cayo la red y esta reintentando) o hacer algo (la clave es incorrecta).
+
+namespace {
+
+/// Codigos de obs_output (OBS_OUTPUT_*) en palabras que sirvan.
+const char* motivoDeCorte(int code) {
+    switch (code) {
+        case 0: return ""; // OBS_OUTPUT_SUCCESS: cierre normal
+        case -1: return "No se pudo escribir en el destino (ruta o permisos)";
+        case -2: return "No se pudo conectar con el servidor";
+        case -3: return "El servidor rechazó la transmisión (¿la clave es correcta?)";
+        case -4: return "Error en la salida";
+        case -5: return "Se cortó la conexión con el servidor";
+        case -6: return "El servidor no soporta este formato";
+        case -7: return "No queda espacio en el disco";
+        case -8: return "El codificador falló";
+        default: return "La transmisión se cortó";
+    }
+}
+
+} // namespace
+
+void BroadcastEngine::onOutputReconnect(void* data, ::calldata* /*cd*/) {
+    auto* self = static_cast<BroadcastEngine*>(data);
+    std::lock_guard<std::mutex> lock(self->outputStateLock_);
+    self->reconnecting_ = true;
+    if (self->outputProblem_.empty()) self->outputProblem_ = "Se cortó la conexión con el servidor";
+}
+
+void BroadcastEngine::onOutputReconnected(void* data, ::calldata* /*cd*/) {
+    auto* self = static_cast<BroadcastEngine*>(data);
+    std::lock_guard<std::mutex> lock(self->outputStateLock_);
+    self->reconnecting_ = false;
+    self->outputProblem_.clear();
+}
+
+void BroadcastEngine::onOutputStopped(void* data, ::calldata* cd) {
+    auto* self = static_cast<BroadcastEngine*>(data);
+    const long long code = calldata_int(cd, "code");
+    std::lock_guard<std::mutex> lock(self->outputStateLock_);
+    self->reconnecting_ = false;
+    self->outputProblem_ = motivoDeCorte(static_cast<int>(code));
+}
+
+void BroadcastEngine::watchOutput(obs_output* outRaw) {
+    auto* out = reinterpret_cast<obs_output_t*>(outRaw);
+    if (out == nullptr) return;
+    signal_handler_t* sh = obs_output_get_signal_handler(out);
+    if (sh == nullptr) return;
+    signal_handler_connect(sh, "reconnect", &BroadcastEngine::onOutputReconnect, this);
+    signal_handler_connect(sh, "reconnect_success", &BroadcastEngine::onOutputReconnected, this);
+    signal_handler_connect(sh, "stop", &BroadcastEngine::onOutputStopped, this);
+    // Arrancar limpia lo que hubiera quedado del intento anterior.
+    std::lock_guard<std::mutex> lock(outputStateLock_);
+    reconnecting_ = false;
+    outputProblem_.clear();
+}
 
 EngineStatus BroadcastEngine::status() const {
     EngineStatus st;
@@ -863,6 +1203,11 @@ EngineStatus BroadcastEngine::status() const {
     auto* record = reinterpret_cast<obs_output_t*>(recordOutput_);
     if (record != nullptr) {
         st.recording = obs_output_active(record);
+    }
+    {
+        std::lock_guard<std::mutex> lock(outputStateLock_);
+        st.reconnecting = reconnecting_;
+        st.outputProblem = outputProblem_;
     }
     return st;
 }

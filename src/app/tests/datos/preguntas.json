@@ -1,0 +1,1152 @@
+{
+  "_comentario": [
+    "Lo que un operador PIDE, y con qué herramienta se hace.",
+    "",
+    "PARA QUE SIRVE ESTE ARCHIVO. Es el banco de pruebas de dos cosas distintas",
+    "que conviene medir con el MISMO corpus, o se van separando:",
+    "  1. el buscador (test_mcp_busqueda): sin modelo, sin red, en microsegundos;",
+    "  2. el modelo (tools/bateria-modelo.py): con qué acierto elige la",
+    "     herramienta cuando se le dan las que encontró el buscador.",
+    "Lo segundo es lo que dice si alcanza con un modelo más chico.",
+    "",
+    "COMO SE ESCRIBEN LAS PREGUNTAS: como habla alguien en una cabina. Dice el",
+    "síntoma o la intención, NO el nombre de la herramienta. «No se escucha al",
+    "invitado», no «audio_set». Si las preguntas se escriben con las palabras",
+    "del código, el test pasa siempre y no mide nada.",
+    "",
+    "`herramientas` son las ACEPTABLES, no una sola: varias veces hay más de un",
+    "camino razonable y castigar al que eligió otro bueno es medir mal.",
+    "",
+    "LOS CASOS REACTIVOS son los que más importan y los más difíciles: en vivo,",
+    "el operador no pide una herramienta, grita lo que está saliendo mal —«hay",
+    "acople», «suena un pitido»—. Ahí el asistente tiene que llegar SOLO a medir",
+    "y cortar, sin que nadie le nombre `audio_set`. Si el buscador no resuelve",
+    "estos, el asistente no sirve para lo único que no da tiempo a hacer a mano.",
+    "",
+    "ANTE UN SINTOMA, MIRAR PRIMERO TAMBIEN VALE. En los casos reactivos de audio",
+    "se aceptan las que MIDEN (mixer_list, audio_sources, audio_escuchar) ademas de",
+    "las que corrigen: es lo que dice la doctrina del rol tecnico —medir antes de",
+    "tocar— y contar eso como error medía mal. Lo que NO vale es irse a otra",
+    "familia: `guest_chat_pending` ante un acople sigue siendo un fallo.",
+    "",
+    "RESOLVER UNA REFERENCIA TAMBIEN ES LA RESPUESTA CORRECTA. «Mostra el qr en el",
+    "televisor del hall» nombra dos cosas que todavia no son ids; la primera",
+    "llamada bien hecha es la que los averigua. Medido: el modelo pedia",
+    "`pantalla_listar` + `qr_listar` y el corpus lo contaba como error, cuando",
+    "llamar a `pantalla_mostrar` sin saber a que televisor habria sido actuar",
+    "sobre una adivinanza. Se aceptan las que resuelven SOLO donde el pedido trae",
+    "una referencia sin resolver; «para la grabacion» no tiene ninguna, asi que",
+    "ahi elegir `status` sigue siendo un fallo.",
+    "",
+    "LAS TILDES IMPORTAN, aunque el indice las saque. «Para la grabacion» sin",
+    "tilde es ambiguo hasta para una persona: «pará» (imperativo) y «para»",
+    "(preposicion) se escriben igual. El modelo lo leia como «destinado a la",
+    "grabacion» y elegia `record_start`, que es una lectura legitima de lo que",
+    "estaba escrito. El corpus se escribe en castellano correcto; el buscador",
+    "ignora las tildes por su cuenta.",
+    "",
+    "Lo encontro Claude, no yo: para «abri la pestaña de audio», `audio_show` la",
+    "abre DIRECTAMENTE en una fuente, y es mas especifica que la generica",
+    "`ui_show_page`. El corpus la contaba mal.",
+    "",
+    "LO QUE DEPENDE DEL TURNO ANTERIOR NO VA. El buscador ve UNA frase, no la",
+    "conversacion. «Descarta esa que no sirve» es perfectamente normal dicho en",
+    "voz alta despues de leer la cola, pero sin ese turno previo no hay con que",
+    "resolverla. Hacerla pasar obligaba a poner «sirve» de etiqueta, y ese verbo",
+    "esta en la ayuda de media herramienta: el arreglo ensuciaba diez consultas",
+    "para salvar una. Se escribe con el sustantivo adentro.",
+    "",
+    "EL BANCO NO ES EL APARATO, Y HAY CASOS QUE MIDEN EL BANCO. Su indice se arma",
+    "con la lista de `kHerramientas` del test y las etiquetas: NO tiene las",
+    "descripciones largas que si tiene el MCP de verdad. Para «armame una placa de",
+    "apertura para el acto» el aparato devuelve los graficos en el puesto 4 y el",
+    "banco no los encontraba, porque ahi el ranking sale de menos texto. Ese caso",
+    "se saco: medirlo daba una senal falsa y ajustar el indice para que pasara",
+    "habria sido optimizar contra el banco y no contra el uso."
+  ],
+  "casos": [
+    {
+      "pregunta": "cuantas escenas hay",
+      "herramientas": [
+        "scene_list"
+      ]
+    },
+    {
+      "pregunta": "pone al aire la apertura",
+      "herramientas": [
+        "scene_switch"
+      ]
+    },
+    {
+      "pregunta": "corta a la camara 2",
+      "herramientas": [
+        "scene_switch"
+      ]
+    },
+    {
+      "pregunta": "deja preparada la escena del cierre",
+      "herramientas": [
+        "scene_preview"
+      ]
+    },
+    {
+      "pregunta": "saca al aire lo que tengo armado",
+      "herramientas": [
+        "scene_take"
+      ]
+    },
+    {
+      "pregunta": "crea una escena nueva para el bloque de deportes",
+      "herramientas": [
+        "scene_create",
+        "scene_define"
+      ]
+    },
+    {
+      "pregunta": "que hay adentro de la escena que esta al aire",
+      "herramientas": [
+        "source_list"
+      ]
+    },
+    {
+      "pregunta": "agrega la camara del fondo a esta escena",
+      "herramientas": [
+        "source_add"
+      ]
+    },
+    {
+      "pregunta": "que fundido esta puesto entre escenas",
+      "herramientas": [
+        "transition_set"
+      ]
+    },
+    {
+      "pregunta": "el invitado no se escucha",
+      "herramientas": [
+        "audio_escuchar",
+        "audio_measure",
+        "audio_set",
+        "audio_sources",
+        "mixer_list"
+      ]
+    },
+    {
+      "pregunta": "no tengo sonido",
+      "herramientas": [
+        "audio_measure",
+        "audio_set",
+        "audio_sources"
+      ]
+    },
+    {
+      "pregunta": "silencia el microfono del invitado 1",
+      "herramientas": [
+        "audio_set",
+        "participant_request"
+      ]
+    },
+    {
+      "pregunta": "subi un poco el volumen de la musica",
+      "herramientas": [
+        "audio_set"
+      ]
+    },
+    {
+      "pregunta": "se escucha desfasado de la imagen",
+      "herramientas": [
+        "audio_sincro"
+      ]
+    },
+    {
+      "pregunta": "los graves suenan mal",
+      "herramientas": [
+        "audio_eq"
+      ]
+    },
+    {
+      "pregunta": "quiero escuchar ese microfono antes de abrirlo",
+      "herramientas": [
+        "audio_escuchar"
+      ]
+    },
+    {
+      "pregunta": "que canales de audio hay",
+      "herramientas": [
+        "audio_sources",
+        "mixer_list"
+      ]
+    },
+    {
+      "pregunta": "quien esta esperando para entrar",
+      "herramientas": [
+        "room_status",
+        "rostro_lobby"
+      ]
+    },
+    {
+      "pregunta": "cuanta gente hay en la sala",
+      "herramientas": [
+        "room_status"
+      ]
+    },
+    {
+      "pregunta": "hace pasar al que esta esperando",
+      "herramientas": [
+        "participant_admit",
+        "participant_admit_all",
+        "room_status"
+      ]
+    },
+    {
+      "pregunta": "echa a ese tipo de la sala",
+      "herramientas": [
+        "participant_kick",
+        "participant_reject"
+      ]
+    },
+    {
+      "pregunta": "mandale un mensaje al invitado 1",
+      "herramientas": [
+        "chat_send"
+      ]
+    },
+    {
+      "pregunta": "que me dijo el invitado",
+      "herramientas": [
+        "chat_history",
+        "guest_chat_pending"
+      ]
+    },
+    {
+      "pregunta": "pedile que prenda la camara",
+      "herramientas": [
+        "chat_send",
+        "participant_request"
+      ]
+    },
+    {
+      "pregunta": "el link para invitar gente",
+      "herramientas": [
+        "room_link"
+      ]
+    },
+    {
+      "pregunta": "que archivos mandaron los invitados",
+      "herramientas": [
+        "share_list"
+      ]
+    },
+    {
+      "pregunta": "quien habla ahora y cuanto le queda",
+      "herramientas": [
+        "speaker_time",
+        "speakers_status"
+      ]
+    },
+    {
+      "pregunta": "pasa al que sigue",
+      "herramientas": [
+        "speaker_next"
+      ]
+    },
+    {
+      "pregunta": "quien es el que esta en camara",
+      "herramientas": [
+        "rostro_lobby",
+        "rostro_ver"
+      ]
+    },
+    {
+      "pregunta": "no me acuerdo como se llama el que esta esperando",
+      "herramientas": [
+        "rostro_lobby",
+        "rostro_ver"
+      ]
+    },
+    {
+      "pregunta": "guarda la cara de esta persona",
+      "herramientas": [
+        "rostro_guardar",
+        "rostro_sumar"
+      ]
+    },
+    {
+      "pregunta": "pone el nombre y el cargo del que habla en pantalla",
+      "herramientas": [
+        "grafico_mostrar",
+        "rotulo_vincular",
+        "rotulo_vinculos"
+      ]
+    },
+    {
+      "pregunta": "empeza a grabar",
+      "herramientas": [
+        "record_start"
+      ]
+    },
+    {
+      "pregunta": "pará la grabación",
+      "herramientas": [
+        "record_stop"
+      ]
+    },
+    {
+      "pregunta": "salimos al aire",
+      "herramientas": [
+        "stream_start"
+      ]
+    },
+    {
+      "pregunta": "bajanos del aire",
+      "herramientas": [
+        "stream_stop"
+      ]
+    },
+    {
+      "pregunta": "como esta todo",
+      "herramientas": [
+        "status"
+      ]
+    },
+    {
+      "pregunta": "se esta cortando la transmision",
+      "herramientas": [
+        "network_status",
+        "status"
+      ]
+    },
+    {
+      "pregunta": "mostrame como se ve el programa",
+      "herramientas": [
+        "capture_program",
+        "imagen_analizar"
+      ]
+    },
+    {
+      "pregunta": "se ve todo negro",
+      "herramientas": [
+        "capture_program",
+        "imagen_analizar"
+      ]
+    },
+    {
+      "pregunta": "fijate si en camara se ve bien el rotulo",
+      "herramientas": [
+        "capture_program",
+        "imagen_analizar"
+      ]
+    },
+    {
+      "pregunta": "ordena las ventanas en los dos monitores",
+      "herramientas": [
+        "ventanas_ordenar"
+      ]
+    },
+    {
+      "pregunta": "manda el registro al otro monitor",
+      "herramientas": [
+        "ventana_listar",
+        "ventana_mover"
+      ]
+    },
+    {
+      "pregunta": "que pantalla es cual",
+      "herramientas": [
+        "monitor_identificar",
+        "monitors"
+      ]
+    },
+    {
+      "pregunta": "mostra el qr en el televisor del hall",
+      "herramientas": [
+        "pantalla_listar",
+        "pantalla_mostrar",
+        "qr_listar"
+      ]
+    },
+    {
+      "pregunta": "que televisores hay",
+      "herramientas": [
+        "pantalla_listar"
+      ]
+    },
+    {
+      "pregunta": "avisame cuando entre alguien",
+      "herramientas": [
+        "alert_create"
+      ]
+    },
+    {
+      "pregunta": "ver que paso, hubo un error",
+      "herramientas": [
+        "log_leer"
+      ]
+    },
+    {
+      "pregunta": "pone musica de fondo",
+      "herramientas": [
+        "media_find",
+        "media_list",
+        "media_use"
+      ]
+    },
+    {
+      "pregunta": "que camaras hay conectadas",
+      "herramientas": [
+        "feeds_list",
+        "input_status",
+        "video_devices"
+      ]
+    },
+    {
+      "pregunta": "preguntale al de cabina si lo saco al aire",
+      "herramientas": [
+        "operator_ask"
+      ]
+    },
+    {
+      "pregunta": "encargale esto a otro agente",
+      "herramientas": [
+        "agente_encargar",
+        "agente_roles"
+      ]
+    },
+    {
+      "pregunta": "guarda esto como receta para repetirlo",
+      "herramientas": [
+        "receta_guardar"
+      ]
+    },
+    {
+      "pregunta": "que sigue en el guion",
+      "herramientas": [
+        "evento_correr",
+        "evento_ver"
+      ]
+    },
+    {
+      "pregunta": "abri la pestaña de audio",
+      "herramientas": [
+        "audio_show",
+        "ui_show_page"
+      ]
+    },
+    {
+      "pregunta": "hay acople",
+      "herramientas": [
+        "audio_analyze",
+        "audio_escuchar",
+        "audio_measure",
+        "audio_set",
+        "audio_sources",
+        "mixer_list"
+      ]
+    },
+    {
+      "pregunta": "se esta acoplando el audio, cortalo",
+      "herramientas": [
+        "audio_measure",
+        "audio_set",
+        "audio_sources",
+        "mixer_list"
+      ]
+    },
+    {
+      "pregunta": "suena un pitido horrible",
+      "herramientas": [
+        "audio_analyze",
+        "audio_measure",
+        "audio_set",
+        "audio_sources",
+        "mixer_list"
+      ]
+    },
+    {
+      "pregunta": "esta saturando el audio",
+      "herramientas": [
+        "audio_compressor",
+        "audio_limiter",
+        "audio_measure",
+        "audio_set",
+        "audio_sources",
+        "mixer_list"
+      ]
+    },
+    {
+      "pregunta": "se escucha un zumbido de fondo",
+      "herramientas": [
+        "audio_measure",
+        "audio_analyze",
+        "audio_eq",
+        "audio_gate"
+      ]
+    },
+    {
+      "pregunta": "el microfono queda abierto y se escucha todo",
+      "herramientas": [
+        "audio_set",
+        "audio_gate"
+      ]
+    },
+    {
+      "pregunta": "no se escucha nada al aire",
+      "herramientas": [
+        "audio_measure",
+        "audio_outputs",
+        "audio_set",
+        "mixer_list",
+        "status"
+      ]
+    },
+    {
+      "pregunta": "quedamos sin imagen",
+      "herramientas": [
+        "capture_program",
+        "status",
+        "imagen_analizar"
+      ]
+    },
+    {
+      "pregunta": "se congelo la camara del invitado",
+      "herramientas": [
+        "capture_feed",
+        "room_status",
+        "participant_request"
+      ]
+    },
+    {
+      "pregunta": "se cayo un invitado",
+      "herramientas": [
+        "room_status",
+        "chat_send"
+      ]
+    },
+    {
+      "pregunta": "se corto la transmision",
+      "herramientas": [
+        "status",
+        "network_status",
+        "stream_start"
+      ]
+    },
+    {
+      "pregunta": "se esta llenando el disco",
+      "herramientas": [
+        "system_hardware",
+        "status"
+      ]
+    },
+    {
+      "pregunta": "quienes estan en el evento",
+      "herramientas": [
+        "padron_ver"
+      ]
+    },
+    {
+      "pregunta": "cuantos llegaron y cuantos faltan",
+      "herramientas": [
+        "padron_ver"
+      ]
+    },
+    {
+      "pregunta": "hay quorum para votar",
+      "herramientas": [
+        "padron_ver"
+      ]
+    },
+    {
+      "pregunta": "anota a Marta Ruiz como panelista",
+      "herramientas": [
+        "padron_anotar"
+      ]
+    },
+    {
+      "pregunta": "sumalo a la lista de invitados del evento",
+      "herramientas": [
+        "padron_anotar"
+      ]
+    },
+    {
+      "pregunta": "marca que llego Jose Perez",
+      "herramientas": [
+        "padron_acreditar"
+      ]
+    },
+    {
+      "pregunta": "acredita al que acaba de entrar por la puerta",
+      "herramientas": [
+        "padron_acreditar"
+      ]
+    },
+    {
+      "pregunta": "cambiale el papel a orador",
+      "herramientas": [
+        "padron_cambiar"
+      ]
+    },
+    {
+      "pregunta": "sacalo de la lista del evento",
+      "herramientas": [
+        "padron_quitar"
+      ]
+    },
+    {
+      "pregunta": "cuando es el evento",
+      "herramientas": [
+        "evento_ver"
+      ]
+    },
+    {
+      "pregunta": "ponele fecha y hora al evento",
+      "herramientas": [
+        "evento_guardar"
+      ]
+    },
+    {
+      "pregunta": "a quien dejo pasar solo sin aprobar",
+      "herramientas": [
+        "padron_ver"
+      ]
+    },
+    {
+      "pregunta": "que entre sola sin que yo apruebe",
+      "herramientas": [
+        "padron_cambiar",
+        "padron_anotar"
+      ]
+    },
+    {
+      "pregunta": "prende la camara de la entrada para acreditar",
+      "herramientas": [
+        "padron_puerta"
+      ]
+    },
+    {
+      "pregunta": "que reconozca a los que llegan al salon",
+      "herramientas": [
+        "padron_puerta"
+      ]
+    },
+    {
+      "pregunta": "que pregunto la gente",
+      "herramientas": [
+        "preguntas_ver"
+      ]
+    },
+    {
+      "pregunta": "cual es la proxima pregunta",
+      "herramientas": [
+        "preguntas_ver"
+      ]
+    },
+    {
+      "pregunta": "saca esa pregunta al aire",
+      "herramientas": [
+        "pregunta_moderar"
+      ]
+    },
+    {
+      "pregunta": "descarta esa pregunta",
+      "herramientas": [
+        "pregunta_moderar"
+      ]
+    },
+    {
+      "pregunta": "sumale esta pregunta que vino por youtube",
+      "herramientas": [
+        "pregunta_sumar"
+      ]
+    },
+    {
+      "pregunta": "dame el qr para que el publico pregunte",
+      "herramientas": [
+        "publico_pagina"
+      ]
+    },
+    {
+      "pregunta": "ponele fondo a la pagina del publico",
+      "herramientas": [
+        "publico_pagina"
+      ]
+    },
+    {
+      "pregunta": "pongamos a votar si aprobamos el balance",
+      "herramientas": [
+        "votacion_abrir"
+      ]
+    },
+    {
+      "pregunta": "hace una encuesta al publico",
+      "herramientas": [
+        "votacion_abrir"
+      ]
+    },
+    {
+      "pregunta": "como va la votacion",
+      "herramientas": [
+        "votacion_ver"
+      ]
+    },
+    {
+      "pregunta": "quienes faltan votar",
+      "herramientas": [
+        "votacion_ver"
+      ]
+    },
+    {
+      "pregunta": "cerra la votacion",
+      "herramientas": [
+        "votacion_ver"
+      ]
+    },
+    {
+      "pregunta": "arma el acta de la reunion",
+      "herramientas": [
+        "evento_acta"
+      ]
+    },
+    {
+      "pregunta": "quienes asistieron y que se decidio",
+      "herramientas": [
+        "evento_acta"
+      ]
+    },
+    {
+      "pregunta": "dame los capitulos para la descripcion del video",
+      "herramientas": [
+        "evento_capitulos"
+      ]
+    },
+    {
+      "pregunta": "las marcas de tiempo de cada bloque",
+      "herramientas": [
+        "evento_capitulos"
+      ]
+    },
+    {
+      "pregunta": "mandale la invitacion a Marta",
+      "herramientas": [
+        "invitacion"
+      ]
+    },
+    {
+      "pregunta": "dame el enlace personal de ese invitado",
+      "herramientas": [
+        "invitacion"
+      ]
+    },
+    {
+      "pregunta": "estan listos los que estan esperando",
+      "herramientas": [
+        "invitado_chequeo"
+      ]
+    },
+    {
+      "pregunta": "probale la camara y el microfono al que espera",
+      "herramientas": [
+        "invitado_chequeo"
+      ]
+    },
+    {
+      "pregunta": "armame la asamblea del jueves con tres puntos a votar",
+      "herramientas": [
+        "evento_armar"
+      ]
+    },
+    {
+      "pregunta": "prepara un evento nuevo de cero",
+      "herramientas": [
+        "evento_armar",
+        "evento_listar"
+      ]
+    },
+    {
+      "pregunta": "sacame las preguntas a otro monitor",
+      "herramientas": [
+        "ui_panel_window"
+      ]
+    },
+    {
+      "pregunta": "poneme el padron en una ventana aparte",
+      "herramientas": [
+        "ui_panel_window"
+      ]
+    },
+    {
+      "pregunta": "dale consola al escenografo",
+      "herramientas": [
+        "agente_configurar"
+      ]
+    },
+    {
+      "pregunta": "que archivos de medios tengo",
+      "herramientas": [
+        "media_list"
+      ]
+    },
+    {
+      "pregunta": "donde esta el logo del sponsor",
+      "herramientas": [
+        "media_find",
+        "media_list"
+      ]
+    },
+    {
+      "pregunta": "volve a la lamina del grafico de barras",
+      "herramientas": [
+        "laminas_ir",
+        "laminas_ver"
+      ]
+    },
+    {
+      "pregunta": "pone la diapositiva 7",
+      "herramientas": [
+        "laminas_ir"
+      ]
+    },
+    {
+      "pregunta": "que presentaciones tengo cargadas",
+      "herramientas": [
+        "laminas_listar"
+      ]
+    },
+    {
+      "pregunta": "convertime este powerpoint en imagenes",
+      "herramientas": [
+        "laminas_desarmar"
+      ]
+    },
+    {
+      "pregunta": "el orador trajo un pdf, armalo para proyectar",
+      "herramientas": [
+        "laminas_desarmar"
+      ]
+    },
+    {
+      "pregunta": "cuantas laminas tiene la presentacion",
+      "herramientas": [
+        "laminas_listar",
+        "laminas_ver"
+      ]
+    },
+    {
+      "pregunta": "mira las laminas y deciles de que tratan",
+      "herramientas": [
+        "laminas_etiquetar",
+        "laminas_sin_analizar"
+      ]
+    },
+    {
+      "pregunta": "mete todos los logos en una carpeta",
+      "herramientas": [
+        "media_ordenar"
+      ]
+    },
+    {
+      "pregunta": "borra ese archivo que no sirve",
+      "herramientas": [
+        "media_ordenar"
+      ]
+    },
+    {
+      "pregunta": "como estan ordenadas las carpetas de medios",
+      "herramientas": [
+        "media_carpetas"
+      ]
+    },
+    {
+      "pregunta": "mostrame como se ve la pantalla del aparato",
+      "herramientas": [
+        "ventana_captura"
+      ]
+    },
+    {
+      "pregunta": "poneme la presentacion del orador en esta escena",
+      "herramientas": [
+        "laminas_aplicar"
+      ]
+    },
+    {
+      "pregunta": "agrega el carrusel a la escena de apertura",
+      "herramientas": [
+        "laminas_aplicar"
+      ]
+    },
+    {
+      "pregunta": "arma un carrusel con los logos de los sponsors",
+      "herramientas": [
+        "laminas_armar"
+      ]
+    },
+    {
+      "pregunta": "saca esa lamina del carrusel",
+      "herramientas": [
+        "laminas_editar"
+      ]
+    },
+    {
+      "pregunta": "pone la lamina del cierre al final",
+      "herramientas": [
+        "laminas_editar"
+      ]
+    },
+    {
+      "pregunta": "pasa a la siguiente lamina",
+      "herramientas": [
+        "laminas_ir"
+      ]
+    },
+    {
+      "pregunta": "buscame la imagen de los perros en la presentacion",
+      "herramientas": [
+        "laminas_buscar"
+      ]
+    },
+    {
+      "pregunta": "esta mal el apellido en el zocalo",
+      "herramientas": [
+        "grafico_mostrar"
+      ]
+    },
+    {
+      "pregunta": "baja el zocalo",
+      "herramientas": [
+        "grafico_ocultar"
+      ]
+    },
+    {
+      "pregunta": "mostrame todas las escenas juntas en una grilla",
+      "herramientas": [
+        "capture_multiview"
+      ]
+    },
+    {
+      "pregunta": "quiero ver a toda la gente que hay en la sala",
+      "herramientas": [
+        "capture_people"
+      ]
+    },
+    {
+      "pregunta": "mostrame cómo está saliendo la invitada",
+      "herramientas": [
+        "capture_person"
+      ]
+    },
+    {
+      "pregunta": "sacale varios cuadros seguidos al programa, quiero ver si se mueve",
+      "herramientas": [
+        "capture_sequence"
+      ]
+    },
+    {
+      "pregunta": "quiero ver cómo quedó la escena de la entrevista antes de ponerla",
+      "herramientas": [
+        "capture_source"
+      ]
+    },
+    {
+      "pregunta": "sacá una captura de la pantalla de la aplicación",
+      "herramientas": [
+        "capture_ui"
+      ]
+    },
+    {
+      "pregunta": "avisame cuando el invitado escriba algo",
+      "herramientas": [
+        "chat_wait"
+      ]
+    },
+    {
+      "pregunta": "la sala no responde, reiniciala",
+      "herramientas": [
+        "gateway_restart"
+      ]
+    },
+    {
+      "pregunta": "grabá la cámara del invitado en un archivo aparte",
+      "herramientas": [
+        "grabacion_individual"
+      ]
+    },
+    {
+      "pregunta": "qué gráficos animados hay puestos en las escenas",
+      "herramientas": [
+        "grafico_en_escena"
+      ]
+    },
+    {
+      "pregunta": "qué gráficos tengo disponibles para usar",
+      "herramientas": [
+        "grafico_listar"
+      ]
+    },
+    {
+      "pregunta": "metele la cámara del invitado del lugar dos a esta escena",
+      "herramientas": [
+        "guest_source_add"
+      ]
+    },
+    {
+      "pregunta": "con qué imagen me están viendo los que esperan",
+      "herramientas": [
+        "operator_feed"
+      ]
+    },
+    {
+      "pregunta": "corregile los datos de contacto a la invitada",
+      "herramientas": [
+        "participant_profile"
+      ]
+    },
+    {
+      "pregunta": "mandá de nuevo al final de la fila al que ya habló",
+      "herramientas": [
+        "participant_requeue"
+      ]
+    },
+    {
+      "pregunta": "quiero hablarle en privado al que está esperando",
+      "herramientas": [
+        "participant_talk"
+      ]
+    },
+    {
+      "pregunta": "cambiá el pin para entrar",
+      "herramientas": [
+        "room_pin"
+      ]
+    },
+    {
+      "pregunta": "cerrá la sala, que no entre nadie más",
+      "herramientas": [
+        "room_set"
+      ]
+    },
+    {
+      "pregunta": "apagá el vínculo ese del rótulo",
+      "herramientas": [
+        "rotulo_desvincular"
+      ]
+    },
+    {
+      "pregunta": "hacé una copia de esta escena",
+      "herramientas": [
+        "scene_copy"
+      ]
+    },
+    {
+      "pregunta": "borrá la escena de prueba",
+      "herramientas": [
+        "scene_delete"
+      ]
+    },
+    {
+      "pregunta": "exportame la definición de las escenas",
+      "herramientas": [
+        "scene_export"
+      ]
+    },
+    {
+      "pregunta": "metela en la carpeta del segundo bloque",
+      "herramientas": [
+        "scene_folder"
+      ]
+    },
+    {
+      "pregunta": "subila en la lista, que va antes que esa",
+      "herramientas": [
+        "scene_move"
+      ]
+    },
+    {
+      "pregunta": "dejala protegida para que nadie la borre",
+      "herramientas": [
+        "scene_protect"
+      ]
+    },
+    {
+      "pregunta": "cambiale el nombre a la escena",
+      "herramientas": [
+        "scene_rename"
+      ]
+    },
+    {
+      "pregunta": "borrá el archivo que mandó el invitado",
+      "herramientas": [
+        "share_delete"
+      ]
+    },
+    {
+      "pregunta": "poné al aire la foto que compartió el invitado",
+      "herramientas": [
+        "share_take"
+      ]
+    },
+    {
+      "pregunta": "quiero ver qué mandó antes de ponerlo",
+      "herramientas": [
+        "share_view"
+      ]
+    },
+    {
+      "pregunta": "qué opciones tiene esta fuente",
+      "herramientas": [
+        "source_properties"
+      ]
+    },
+    {
+      "pregunta": "sacá esa fuente de la escena",
+      "herramientas": [
+        "source_remove"
+      ]
+    },
+    {
+      "pregunta": "refrescá la lista de dispositivos de la cámara",
+      "herramientas": [
+        "source_set_property"
+      ]
+    },
+    {
+      "pregunta": "qué tipos de fuente puedo crear acá",
+      "herramientas": [
+        "source_types"
+      ]
+    },
+    {
+      "pregunta": "corré el título un poco a la izquierda",
+      "herramientas": [
+        "source_update"
+      ]
+    },
+    {
+      "pregunta": "pasá al invitado al primer lugar de la fila",
+      "herramientas": [
+        "speaker_move"
+      ]
+    },
+    {
+      "pregunta": "poné al aire al que está primero en la fila",
+      "herramientas": [
+        "speaker_on_air"
+      ]
+    },
+    {
+      "pregunta": "dejá fijo al conductor mientras rotan los demás",
+      "herramientas": [
+        "speaker_presenter"
+      ]
+    },
+    {
+      "pregunta": "mandá a la fila de oradores al que acaba de entrar",
+      "herramientas": [
+        "speaker_queue"
+      ]
+    },
+    {
+      "pregunta": "activá el modo oradores con dos minutos para cada uno",
+      "herramientas": [
+        "speakers_config"
+      ]
+    }
+  ]
+}

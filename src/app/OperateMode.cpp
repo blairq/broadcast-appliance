@@ -17,6 +17,7 @@
 
 #include "AppRuntime.hpp"
 #include "BroadcastEngine.hpp"
+#include "diag/Registro.hpp"
 #include "ipc/ControlService.hpp"
 #include "ipc/HealthBlock.hpp"
 #include "platform/LocalSocket.hpp"
@@ -120,10 +121,19 @@ void applyCli(AppConfig& c, int argc, char** argv, const fs::path& root) {
     c.safeMode = hasFlag(argc, argv, "--safe-mode");
     if (c.safeMode) {
         // Modo seguro (circuit breaker del launcher): lo minimo que funciona.
+        //
+        // NO se le tocan las escenas a la configuracion. Antes se les vaciaban
+        // las fuentes ACA, en memoria, para arrancar sin ellas; el problema es
+        // que despues cualquier guardado escribia ESA configuracion vacia
+        // encima del app.json del operador y le borraba el trabajo de verdad.
+        // Paso: doce escenas con setenta y ocho fuentes quedaron en cero, y se
+        // recuperaron de la copia .antes-del-modo-seguro de milagro.
+        //
+        // Ahora la configuracion queda INTACTA y lo unico que cambia es que al
+        // armar las escenas no se crean las fuentes (ver `startEngine`). Asi el
+        // modo seguro es lo que tiene que ser: una forma de arrancar, no una
+        // forma de perder datos.
         c.encoder.videoEncoder = "x264";
-        for (auto& sc : c.scenes) {
-            sc.sources.clear();
-        }
     }
     if (c.guests < 0) {
         c.guests = 0;
@@ -182,6 +192,38 @@ SourceSpec* AppRuntime::findSpec(const std::string& scene, const std::string& na
         }
     }
     return nullptr;
+}
+
+void AppRuntime::addAudioInputs() {
+    // Microfonos y lineas del equipo: canal global, como el audio de los
+    // invitados (suenan en todas las escenas, no son items de escena).
+    for (const auto& spec : cfg_.audioInputs) {
+        if (!engine_.addGlobalAudio(spec))
+            std::printf("ba-app: entrada de audio '%s' omitida: %s\n", spec.name.c_str(),
+                        engine_.lastError().c_str());
+    }
+}
+
+bool AppRuntime::addAudioInput(const SourceSpec& spec) {
+    if (!engine_.addGlobalAudio(spec)) {
+        lastError_ = engine_.lastError();
+        return false;
+    }
+    const auto it = std::find_if(cfg_.audioInputs.begin(), cfg_.audioInputs.end(),
+                                 [&](const SourceSpec& s) { return s.name == spec.name; });
+    if (it == cfg_.audioInputs.end())
+        cfg_.audioInputs.push_back(spec);
+    else
+        *it = spec;
+    return true;
+}
+
+bool AppRuntime::removeAudioInput(const std::string& name) {
+    const bool ok = engine_.removeGlobalAudio(name);
+    cfg_.audioInputs.erase(std::remove_if(cfg_.audioInputs.begin(), cfg_.audioInputs.end(),
+                                          [&](const SourceSpec& s) { return s.name == name; }),
+                           cfg_.audioInputs.end());
+    return ok;
 }
 
 void AppRuntime::addGuests() {
@@ -270,9 +312,14 @@ int AppRuntime::start() {
     started_ = true;
 
     addGuests();
+    addAudioInputs();
     engine_.setTransition(cfg_.transition.type, cfg_.transition.durationMs);
     for (const auto& sc : cfg_.scenes) {
         engine_.createScene(sc.name);
+        // En modo seguro las escenas se crean VACIAS: si una fuente es la que
+        // venia tumbando el arranque, asi no se la toca. La configuracion no
+        // se modifica, o sea que al arrancar normal vuelven todas solas.
+        if (cfg_.safeMode) continue;
         for (const auto& src : sc.sources) {
             // Una fuente rota (camara desenchufada, id mal escrito) no tumba
             // el proceso: se avisa y la emision sigue con el resto.
@@ -350,6 +397,10 @@ void AppRuntime::stop() {
     // Cierre ordenado: nada que retomar en el proximo arranque.
     streamStopWanted_ = recordStopWanted_ = true;
     writeOnAirState();
+    // Las grabaciones por entrada, ANTES que el resto: cada una tiene su vista
+    // de render y su archivo abierto, y si el cierre las deja vivas el archivo
+    // queda sin cerrar (o sea, sin indice y a veces sin poder abrirse).
+    engine_.stopAllSourceRecordings();
     std::printf("ba-app: cerrando (salidas, escena, libobs)\n");
     control_.stop();
     operator_.shutdown(); // antes de apagar libobs: suelta vista y fuentes
@@ -373,6 +424,34 @@ bool AppRuntime::startRecording() {
     writeOnAirState();
     return true;
 }
+
+bool AppRuntime::startSourceRecording(const std::string& source) {
+    std::error_code ec;
+    // Las individuales van a su propia carpeta: en Recordings/ ya estan las del
+    // programa, y mezclar veinte archivos de entradas con las del evento hace
+    // que despues nadie encuentre nada.
+    const std::string dir = cfg_.rec.directory + "/entradas";
+    fs::create_directories(dir, ec);
+    if (!engine_.startSourceRecording(source, dir, cfg_.encoder)) {
+        lastError_ = engine_.lastError();
+        return false;
+    }
+    ba::diag::registro().linea(ba::diag::Nivel::Info, "grabacion", 0,
+                               "grabando la entrada \"" + source + "\" aparte");
+    return true;
+}
+
+bool AppRuntime::stopSourceRecording(const std::string& source) {
+    if (!engine_.stopSourceRecording(source)) {
+        lastError_ = engine_.lastError();
+        return false;
+    }
+    ba::diag::registro().linea(ba::diag::Nivel::Info, "grabacion", 0,
+                               "para la grabacion aparte de \"" + source + "\"");
+    return true;
+}
+
+void AppRuntime::stopAllSourceRecordings() { engine_.stopAllSourceRecordings(); }
 
 void AppRuntime::stopRecording() {
     recordStopWanted_ = true;
@@ -488,7 +567,70 @@ bool AppRuntime::addScene(const std::string& name) {
     return true;
 }
 
+bool AppRuntime::copyScene(const std::string& from, const std::string& to) {
+    // `lastError_` es pegajoso: guarda lo ultimo que fallo, de cuando sea. Como
+    // aca se lo usa DESPUES de haber salido bien —para contar que una fuente no
+    // se pudo recrear— hay que limpiarlo al entrar, o la copia informa como
+    // propio un error de otra operacion anterior.
+    lastError_.clear();
+    const SceneConfig* origen = nullptr;
+    for (const SceneConfig& s : cfg_.scenes)
+        if (s.name == from) origen = &s;
+    if (origen == nullptr) {
+        lastError_ = "no existe la escena \"" + from + "\"";
+        return false;
+    }
+    for (const SceneConfig& s : cfg_.scenes)
+        if (s.name == to) {
+            lastError_ = "ya hay una escena llamada \"" + to + "\"";
+            return false;
+        }
+    if (!engine_.createScene(to)) {
+        lastError_ = engine_.lastError();
+        return false;
+    }
+    // Se copia la CONFIGURACION, no las fuentes del motor: una fuente de
+    // libobs pertenece a su escena, y compartirlas haria que mover algo en la
+    // copia moviera el original. Recrearlas desde la especificacion da dos
+    // escenas de verdad independientes, que es lo que uno espera al copiar.
+    SceneConfig copia = *origen;
+    copia.name = to;
+    copia.protegida = false; // la copia se puede tocar: para eso se copio
+    cfg_.scenes.push_back(copia);
+    for (const SourceSpec& spec : origen->sources) {
+        SourceSpec s = spec;
+        if (!addSource(to, s)) {
+            // Lo que no se pudo recrear se dice, pero no se deshace todo: una
+            // escena copiada a medias se arregla a mano; una que desaparecio
+            // sin explicacion, no.
+            lastError_ =
+                "la escena se copio, pero la fuente \"" + spec.name + "\" no se pudo recrear: " + lastError_;
+        }
+    }
+    return true;
+}
+
+bool AppRuntime::setSceneProtected(const std::string& name, bool protegida) {
+    for (SceneConfig& s : cfg_.scenes)
+        if (s.name == name) {
+            s.protegida = protegida;
+            return true;
+        }
+    lastError_ = "no existe la escena \"" + name + "\"";
+    return false;
+}
+
+bool AppRuntime::sceneProtected(const std::string& name) const {
+    for (const SceneConfig& s : cfg_.scenes)
+        if (s.name == name) return s.protegida;
+    return false;
+}
+
 bool AppRuntime::removeScene(const std::string& name) {
+    if (sceneProtected(name)) {
+        lastError_ = "la escena \"" + name + "\" esta protegida: sacale la proteccion primero";
+        return false;
+    }
     if (!engine_.removeScene(name)) {
         lastError_ = engine_.lastError();
         return false;
@@ -501,6 +643,10 @@ bool AppRuntime::removeScene(const std::string& name) {
 }
 
 bool AppRuntime::renameScene(const std::string& from, const std::string& to) {
+    if (sceneProtected(from)) {
+        lastError_ = "la escena \"" + from + "\" esta protegida: sacale la proteccion primero";
+        return false;
+    }
     if (!engine_.renameScene(from, to)) {
         lastError_ = engine_.lastError();
         return false;
@@ -509,6 +655,59 @@ bool AppRuntime::renameScene(const std::string& from, const std::string& to) {
         sc->name = to;
     }
     cfg_.currentScene = engine_.currentScene();
+    return true;
+}
+
+std::string AppRuntime::sceneFolder(const std::string& name) const {
+    const SceneConfig* sc = findScene(const_cast<AppConfig&>(cfg_), name);
+    return sc != nullptr ? sc->folder : std::string();
+}
+
+bool AppRuntime::setSceneFolder(const std::string& name, const std::string& folder) {
+    SceneConfig* sc = findScene(cfg_, name);
+    if (sc == nullptr) {
+        lastError_ = "no existe la escena '" + name + "'";
+        return false;
+    }
+    sc->folder = folder;
+    return true;
+}
+
+std::vector<std::string> AppRuntime::sceneFolders() const {
+    std::vector<std::string> out;
+    for (const auto& sc : cfg_.scenes)
+        if (!sc.folder.empty() && std::find(out.begin(), out.end(), sc.folder) == out.end())
+            out.push_back(sc.folder);
+    return out;
+}
+
+std::vector<std::string> AppRuntime::orderedSceneNames() const {
+    const std::vector<std::string> live = const_cast<AppRuntime*>(this)->engine_.sceneNames();
+    std::vector<std::string> out;
+    for (const auto& sc : cfg_.scenes)
+        if (std::find(live.begin(), live.end(), sc.name) != live.end()) out.push_back(sc.name);
+    for (const auto& n : live)
+        if (std::find(out.begin(), out.end(), n) == out.end()) out.push_back(n);
+    return out;
+}
+
+bool AppRuntime::moveScene(const std::string& name, const std::string& before) {
+    if (name == before) return true;
+    const auto it = std::find_if(cfg_.scenes.begin(), cfg_.scenes.end(),
+                                 [&](const SceneConfig& s) { return s.name == name; });
+    if (it == cfg_.scenes.end()) {
+        lastError_ = "no existe la escena '" + name + "'";
+        return false;
+    }
+    SceneConfig moved = *it;
+    cfg_.scenes.erase(it);
+    auto dst = cfg_.scenes.end();
+    if (!before.empty()) {
+        dst = std::find_if(cfg_.scenes.begin(), cfg_.scenes.end(),
+                           [&](const SceneConfig& s) { return s.name == before; });
+        if (dst != cfg_.scenes.end()) moved.folder = dst->folder; // cae en su misma carpeta
+    }
+    cfg_.scenes.insert(dst, std::move(moved));
     return true;
 }
 
@@ -668,18 +867,27 @@ bool AppRuntime::applyEncoder(const EncoderConfig& e) {
 
 bool AppRuntime::save() {
     std::string err;
-    // Modo seguro: las escenas se vaciaron EN MEMORIA para poder arrancar. El
-    // primer guardado pisaria el app.json del operador con escenas vacias: se
-    // guarda una copia antes (una sola vez por corrida).
-    if (cfg_.safeMode && !safeBackupDone_) {
-        safeBackupDone_ = true;
-        std::error_code ec;
-        std::filesystem::path backup = cfg_.configPath;
-        backup += ".antes-del-modo-seguro";
-        if (std::filesystem::exists(cfg_.configPath, ec) && !std::filesystem::exists(backup, ec)) {
-            std::filesystem::copy_file(cfg_.configPath, backup, ec);
-            std::printf("ba-app: modo seguro: copia de la configuracion en %s\n", backup.string().c_str());
+    // EN MODO SEGURO NO SE GUARDA. Es un estado degradado y transitorio: lo
+    // que haya en memoria vale para esta corrida y nada mas. Escribirlo seria
+    // hacer permanente una situacion de emergencia, y ya paso una vez
+    // (escenas vaciadas). La copia de seguridad se deja igual, por si alguien
+    // llega hasta aca con el app.json ya dañado de antes.
+    if (cfg_.safeMode) {
+        if (!safeBackupDone_) {
+            safeBackupDone_ = true;
+            std::error_code ec;
+            std::filesystem::path backup = cfg_.configPath;
+            backup += ".antes-del-modo-seguro";
+            if (std::filesystem::exists(cfg_.configPath, ec) && !std::filesystem::exists(backup, ec)) {
+                std::filesystem::copy_file(cfg_.configPath, backup, ec);
+                std::printf("ba-app: modo seguro: copia de la configuracion en %s\n",
+                            backup.string().c_str());
+            }
         }
+        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "config", 0,
+                                   "modo seguro: NO se guarda la configuracion. Lo que cambies "
+                                   "ahora vale solo hasta que se cierre.");
+        return true;
     }
     gateway_.guests = cfg_.guests; // B lee la cantidad de invitados de A
     if (!saveAppConfig(cfg_.configPath, cfg_, root_, &err) ||

@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0d1014" />
+  <title>Preguntas del público</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024' width='1024' height='1024'%3E %3Cdefs%3E %3ClinearGradient id='f' x1='0' y1='0' x2='0' y2='1024' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%23202025'/%3E%3Cstop offset='1' stop-color='%230a0a0c'/%3E%3C/linearGradient%3E %3ClinearGradient id='b' x1='0' y1='0' x2='0' y2='1024' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%23ffa45e'/%3E%3Cstop offset='1' stop-color='%23ff6a2b'/%3E%3C/linearGradient%3E %3Cfilter id='g' x='-50%25' y='-50%25' width='200%25' height='200%25'%3E%3CfeGaussianBlur stdDeviation='16'/%3E%3C/filter%3E %3C/defs%3E %3Crect x='32' y='32' width='960' height='960' rx='220' fill='url%28%23f%29' stroke='%23ffffff' stroke-opacity='0.12' stroke-width='6'/%3E %3Cline x1='340' y1='258' x2='340' y2='766' fill='none' stroke='url%28%23b%29' stroke-width='88' stroke-linecap='round'/%3E %3Cpath d='M340 258H490A134 134 0 0 1 490 526H340' fill='none' stroke='url%28%23b%29' stroke-width='88'/%3E %3Cpath d='M340 526H525A120 120 0 0 1 525 766H340' fill='none' stroke='url%28%23b%29' stroke-width='88'/%3E %3Ccircle cx='482' cy='392' r='75' fill='%23ff3b30' opacity='0.47' filter='url%28%23g%29'/%3E %3Ccircle cx='482' cy='392' r='60' fill='%23ff3b30'/%3E %3C/svg%3E">
+  <link rel="apple-touch-icon" href="/comun/icono-180.png">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!--
+    La página del público (/publico/#k=<clave>).
+
+    Es para el que está en la butaca, con su teléfono. NO entra a la sala: no
+    pide cámara ni micrófono y no abre una conexión de video. En un salón con
+    doscientas personas, entrar como participante sería un acople garantizado y
+    el ancho de banda tirado.
+
+    La clave va en el FRAGMENTO del enlace, como en el resto de las vistas. Acá
+    no es un secreto fuerte y no pretende serlo: la tiene todo el que está en la
+    sala, porque viaja en un QR que se proyecta o se reparte. Lo que evita es
+    que la cola de preguntas la llene cualquiera que pase por el túnel.
+
+    `yo` es un número que se inventa este navegador y se queda en este teléfono.
+    NO es identidad: sirve para que cada uno vea las suyas y para que un toque
+    repetido no sume diez votos. No lo usamos para nada más y no se lo pedimos
+    a nadie.
+  -->
+  <div id="fondo" class="fondo"></div>
+
+  <header class="barra">
+    <div class="titulo">
+      <strong id="evento">Preguntas</strong>
+      <span id="cuando" class="cuando"></span>
+    </div>
+    <span id="estado" class="estado"></span>
+  </header>
+
+  <main class="hoja">
+    <!--
+      La urna. Solo aparece cuando hay una abierta: una sección vacía que dice
+      «no hay votación» le roba la pantalla a lo que sí hay.
+
+      En una votación FORMAL el teléfono no alcanza —se borra el sitio y se
+      vota de nuevo—, así que hace falta el código que le dieron al acreditarse.
+      En una encuesta no se pide nada.
+    -->
+    <section id="urna" class="tarjeta urna hidden">
+      <div class="marca" id="urnaModo"></div>
+      <h3 id="urnaPregunta"></h3>
+      <div id="urnaCodigo" class="hidden">
+        <label class="rotulo" for="codigo">Tu código de votante</label>
+        <input id="codigo" type="text" maxlength="8" autocapitalize="characters"
+               autocomplete="off" placeholder="Ej.: K7QM" />
+        <p class="pie">Es el que te dieron al acreditarte.</p>
+      </div>
+      <div id="urnaOpciones" class="opciones"></div>
+      <div id="urnaResultado" class="resultado hidden"></div>
+      <p id="urnaAviso" class="aviso"></p>
+    </section>
+
+
+    <!-- Preguntar es lo primero y lo más grande: es a lo que vino. -->
+    <section class="tarjeta">
+      <label class="rotulo" for="texto">Tu pregunta</label>
+      <textarea id="texto" rows="3" maxlength="400"
+                placeholder="¿Qué querés preguntar?"></textarea>
+      <div class="fila">
+        <input id="nombre" type="text" maxlength="60" placeholder="Tu nombre (opcional)" />
+        <button id="mandar" class="primario">Preguntar</button>
+      </div>
+      <p id="aviso" class="aviso"></p>
+    </section>
+
+    <section id="seccionMias" class="hidden">
+      <h2>Las tuyas</h2>
+      <div id="mias" class="lista"></div>
+    </section>
+
+    <section id="seccionOtras" class="hidden">
+      <h2>Las de los demás</h2>
+      <p class="pie">Tocá la flechita para que suba: las más votadas se preguntan antes.</p>
+      <div id="otras" class="lista"></div>
+    </section>
+  </main>
+
+  <div id="sinClave" class="pin hidden">
+    <p>Este enlace está incompleto: le falta la clave.</p>
+    <p class="pie">Volvé a escanear el código QR del evento.</p>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

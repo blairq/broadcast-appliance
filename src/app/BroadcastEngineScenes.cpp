@@ -13,6 +13,7 @@
 #include "BroadcastEngine.hpp"
 
 #include <graphics/vec4.h>
+#include <nlohmann/json.hpp>
 #include <obs.h>
 
 #include <algorithm>
@@ -30,7 +31,10 @@ namespace ba::app {
 namespace {
 
 constexpr std::uint32_t kProgramChannel = 0;
-constexpr std::uint32_t kFirstGuestAudioChannel = 1; // 1..4: invitados
+constexpr std::uint32_t kFirstGuestAudioChannel = 1; // 1..16: invitados
+constexpr std::uint32_t kMaxGuestAudioChannels = 16;
+constexpr std::uint32_t kFirstMicChannel = 17; // 17..: entradas de audio del equipo
+constexpr std::uint32_t kMaxMicChannels = 8;   // (libobs admite 64 canales)
 
 /// id de libobs de cada transicion.
 const char* transitionId(const std::string& type) {
@@ -198,7 +202,8 @@ bool BroadcastEngine::buildScene() {
 
 void BroadcastEngine::releaseScenes() {
     obs_set_output_source(kProgramChannel, nullptr);
-    for (std::uint32_t ch = kFirstGuestAudioChannel; ch < kFirstGuestAudioChannel + 4; ++ch) {
+    for (std::uint32_t ch = kFirstGuestAudioChannel; ch < kFirstGuestAudioChannel + kMaxGuestAudioChannels;
+         ++ch) {
         obs_set_output_source(ch, nullptr);
     }
     meters_.clear(); // antes que las fuentes: los vumetros las referencian
@@ -215,6 +220,7 @@ void BroadcastEngine::releaseScenes() {
     }
     sources_.clear();
     globalAudio_.clear();
+    micInputs_.clear();
     currentScene_.clear();
     scene_ = nullptr;
 }
@@ -319,12 +325,13 @@ bool BroadcastEngine::captureSource(const std::string& name, int maxWidth, std::
     return true;
 }
 
-bool BroadcastEngine::enableScenePreview(const std::string& name, int maxWidth) {
-    if (name == scenePreviewName_ && scenePreviewSrc_ != nullptr) {
-        scenePreviewMaxW_ = maxWidth;
+bool BroadcastEngine::enableScenePreview(const std::string& canal, const std::string& name, int maxWidth) {
+    VistaPrevia& vp = scenePreviews_[canal];
+    if (name == vp.name && vp.src != nullptr) {
+        vp.maxW = maxWidth;
         return true;
     }
-    disableScenePreview();
+    disableScenePreview(canal);
     if (name.empty()) return true;
     if (!started_) {
         setError("vista previa de escena: el motor no arranco");
@@ -345,34 +352,42 @@ bool BroadcastEngine::enableScenePreview(const std::string& name, int maxWidth) 
     // Se mantiene mientras dure la vista previa: sin esto las camaras y los
     // videos de red no suben cuadros si la escena no esta al aire.
     obs_source_inc_showing(src);
-    scenePreviewSrc_ = reinterpret_cast<struct obs_source*>(src);
-    scenePreviewName_ = name;
-    scenePreviewMaxW_ = maxWidth;
+    VistaPrevia& v = scenePreviews_[canal];
+    v.src = reinterpret_cast<struct obs_source*>(src);
+    v.name = name;
+    v.maxW = maxWidth;
     return true;
 }
 
-void BroadcastEngine::disableScenePreview() {
-    if (scenePreviewSrc_ == nullptr) {
-        scenePreviewName_.clear();
-        return;
+void BroadcastEngine::disableScenePreview(const std::string& canal) {
+    const auto it = scenePreviews_.find(canal);
+    if (it == scenePreviews_.end()) return;
+    if (it->second.src != nullptr) {
+        auto* src = reinterpret_cast<obs_source_t*>(it->second.src);
+        obs_source_dec_showing(src);
+        obs_source_release(src);
     }
-    auto* src = reinterpret_cast<obs_source_t*>(scenePreviewSrc_);
-    obs_source_dec_showing(src);
-    obs_source_release(src);
-    scenePreviewSrc_ = nullptr;
-    scenePreviewName_.clear();
+    scenePreviews_.erase(it);
 }
 
-bool BroadcastEngine::renderScenePreview(std::vector<std::uint8_t>& dst, int& width, int& height) {
-    if (scenePreviewSrc_ == nullptr || !started_) return false;
-    auto* src = reinterpret_cast<obs_source_t*>(scenePreviewSrc_);
+std::string BroadcastEngine::scenePreviewName(const std::string& canal) const {
+    const auto it = scenePreviews_.find(canal);
+    return it == scenePreviews_.end() ? std::string() : it->second.name;
+}
+
+bool BroadcastEngine::renderScenePreview(const std::string& canal, std::vector<std::uint8_t>& dst, int& width,
+                                         int& height) {
+    const auto it = scenePreviews_.find(canal);
+    if (it == scenePreviews_.end() || it->second.src == nullptr || !started_) return false;
+    const int maxW = it->second.maxW;
+    auto* src = reinterpret_cast<obs_source_t*>(it->second.src);
     const uint32_t cx = obs_source_get_width(src);
     const uint32_t cy = obs_source_get_height(src);
     if (cx == 0 || cy == 0) return false; // escena vacia o fuente sin señal
     uint32_t w = cx;
     uint32_t h = cy;
-    if (scenePreviewMaxW_ > 0 && w > static_cast<uint32_t>(scenePreviewMaxW_)) {
-        w = static_cast<uint32_t>(scenePreviewMaxW_);
+    if (maxW > 0 && w > static_cast<uint32_t>(maxW)) {
+        w = static_cast<uint32_t>(maxW);
         h = std::max<uint32_t>(1, static_cast<uint32_t>(static_cast<uint64_t>(cy) * w / cx));
     }
     bool ok = false;
@@ -695,6 +710,63 @@ bool BroadcastEngine::addGuestAudio(int slot) {
     return true;
 }
 
+bool BroadcastEngine::addGlobalAudio(const SourceSpec& spec) {
+    const bool known = std::find(micInputs_.begin(), micInputs_.end(), spec.name) != micInputs_.end();
+    if (!known && micInputs_.size() >= kMaxMicChannels) {
+        setError("no entran mas entradas de audio (maximo " + std::to_string(kMaxMicChannels) + ")");
+        return false;
+    }
+    obs_source_t* src = reinterpret_cast<obs_source_t*>(ownedSource(spec.name));
+    if (src == nullptr) {
+        obs_data_t* settings = obs_data_create_from_json(spec.settingsJson.c_str());
+        src = obs_source_create(spec.id.c_str(), spec.name.c_str(), settings, nullptr);
+        if (settings != nullptr) obs_data_release(settings);
+        if (src == nullptr) {
+            setError("no se pudo crear la entrada de audio '" + spec.id + "'");
+            return false;
+        }
+        obs_source_set_volume(src, spec.volume);
+        obs_source_set_muted(src, spec.muted);
+        sources_.emplace_back(spec.name, reinterpret_cast<obs_source*>(src));
+        attachMeter(spec.name, reinterpret_cast<obs_source*>(src));
+    }
+    if (!known) micInputs_.push_back(spec.name);
+    if (std::find(globalAudio_.begin(), globalAudio_.end(), spec.name) == globalAudio_.end())
+        globalAudio_.push_back(spec.name);
+    // Global: suena en cualquier escena (no es un item de escena).
+    const auto idx = static_cast<std::uint32_t>(std::find(micInputs_.begin(), micInputs_.end(), spec.name) -
+                                                micInputs_.begin());
+    obs_set_output_source(kFirstMicChannel + idx, src);
+    return true;
+}
+
+bool BroadcastEngine::removeGlobalAudio(const std::string& name) {
+    const auto it = std::find(micInputs_.begin(), micInputs_.end(), name);
+    if (it == micInputs_.end()) return false;
+    micInputs_.erase(it);
+    globalAudio_.erase(std::remove(globalAudio_.begin(), globalAudio_.end(), name), globalAudio_.end());
+    // Se reasignan los canales de las que quedan (sin huecos).
+    for (std::uint32_t ch = kFirstMicChannel; ch < kFirstMicChannel + kMaxMicChannels; ++ch)
+        obs_set_output_source(ch, nullptr);
+    for (std::size_t i = 0; i < micInputs_.size(); ++i)
+        obs_set_output_source(kFirstMicChannel + static_cast<std::uint32_t>(i),
+                              reinterpret_cast<obs_source_t*>(ownedSource(micInputs_[i])));
+    // Si no quedo en ninguna escena, se libera la fuente (igual que removeSource).
+    for (const auto& [n, other] : scenes_)
+        if (obs_scene_find_source(reinterpret_cast<obs_scene_t*>(other), name.c_str()) != nullptr)
+            return true;
+    meters_.erase(
+        std::remove_if(meters_.begin(), meters_.end(), [&](const auto& m) { return m.first == name; }),
+        meters_.end());
+    for (auto it = sources_.begin(); it != sources_.end(); ++it)
+        if (it->first == name) {
+            obs_source_release(reinterpret_cast<obs_source_t*>(it->second));
+            sources_.erase(it);
+            break;
+        }
+    return true;
+}
+
 bool BroadcastEngine::addGuestVideo(int slot) {
     return addGuestVideo(slot, CanvasRect{0.5f, 0.5f, 0.5f, 0.5f});
 }
@@ -727,6 +799,83 @@ bool BroadcastEngine::setSourceVolume(const std::string& name, float mul) {
     }
     obs_source_set_volume(reinterpret_cast<obs_source_t*>(src), std::max(0.0f, mul));
     return true;
+}
+
+bool BroadcastEngine::setSourceSyncOffset(const std::string& name, int ms) {
+    auto* src = reinterpret_cast<obs_source_t*>(ownedSource(name));
+    if (src == nullptr) {
+        setError("no existe la fuente '" + name + "'");
+        return false;
+    }
+    // libobs lo quiere en NANOSEGUNDOS y con signo. Se acota a +-5 s: mas que
+    // eso no es una camara con retardo, es un error de quien lo puso.
+    const int64_t acotado = std::clamp(ms, -5000, 5000);
+    obs_source_set_sync_offset(src, acotado * 1000000LL);
+    return true;
+}
+
+int BroadcastEngine::sourceSyncOffset(const std::string& name) const {
+    auto* src = reinterpret_cast<obs_source_t*>(ownedSource(name));
+    if (src == nullptr) return 0;
+    return static_cast<int>(obs_source_get_sync_offset(src) / 1000000LL);
+}
+
+bool BroadcastEngine::playMedia(const std::string& name, const std::string& file, bool loop, float volume) {
+    if (file.empty()) {
+        setError("no se dijo que archivo reproducir");
+        return false;
+    }
+    const nlohmann::json s{{"local_file", file},
+                           {"is_local_file", true},
+                           {"looping", loop},
+                           {"restart_on_activate", false},
+                           {"close_when_inactive", false},
+                           // Al terminar se queda en negro/silencio en vez de
+                           // dejar congelado el ultimo cuadro.
+                           {"clear_on_media_end", true},
+                           {"hw_decode", true}};
+
+    auto* existente = reinterpret_cast<obs_source_t*>(ownedSource(name));
+    if (existente != nullptr) {
+        // Ya existe: se le cambia el archivo y se rebobina. Crear otra fuente
+        // dejaria la anterior sonando por debajo.
+        obs_data_t* d = obs_data_create_from_json(s.dump().c_str());
+        obs_source_update(existente, d);
+        if (d != nullptr) obs_data_release(d);
+        obs_source_set_volume(existente, volume);
+        obs_source_set_muted(existente, false);
+        obs_source_media_restart(existente);
+        return true;
+    }
+
+    SourceSpec spec;
+    spec.id = "ffmpeg_source";
+    spec.name = name;
+    spec.settingsJson = s.dump();
+    spec.volume = volume;
+    if (!addGlobalAudio(spec)) return false;
+    auto* nueva = reinterpret_cast<obs_source_t*>(ownedSource(name));
+    if (nueva != nullptr) obs_source_media_restart(nueva);
+    return true;
+}
+
+bool BroadcastEngine::restartMedia(const std::string& name) {
+    auto* src = reinterpret_cast<obs_source_t*>(ownedSource(name));
+    if (src == nullptr) {
+        setError("no existe la fuente de medios \"" + name + "\"");
+        return false;
+    }
+    obs_source_media_restart(src);
+    return true;
+}
+
+bool BroadcastEngine::stopMedia(const std::string& name) {
+    auto* src = reinterpret_cast<obs_source_t*>(ownedSource(name));
+    if (src == nullptr) return false;
+    obs_source_media_stop(src);
+    // Se libera el canal: una fuente parada sigue ocupando uno de los pocos
+    // que hay, y el proximo tema no entraria.
+    return removeGlobalAudio(name);
 }
 
 std::vector<BroadcastEngine::MediaInfo> BroadcastEngine::mediaSources() const {
@@ -880,6 +1029,23 @@ bool BroadcastEngine::setSourceMuted(const std::string& name, bool muted) {
 bool BroadcastEngine::sourceMuted(const std::string& name) const {
     obs_source* src = ownedSource(name);
     return src != nullptr && obs_source_muted(reinterpret_cast<obs_source_t*>(src));
+}
+
+bool BroadcastEngine::setSourceMonitoring(const std::string& name, bool on) {
+    obs_source* src = ownedSource(name);
+    if (src == nullptr) {
+        return false;
+    }
+    // MONITOR_AND_OUTPUT y NO MONITOR_ONLY: ver el porque en el .hpp.
+    obs_source_set_monitoring_type(reinterpret_cast<obs_source_t*>(src),
+                                   on ? OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT : OBS_MONITORING_TYPE_NONE);
+    return true;
+}
+
+bool BroadcastEngine::sourceMonitoring(const std::string& name) const {
+    obs_source* src = ownedSource(name);
+    return src != nullptr &&
+           obs_source_get_monitoring_type(reinterpret_cast<obs_source_t*>(src)) != OBS_MONITORING_TYPE_NONE;
 }
 
 float BroadcastEngine::sourcePeakDb(const std::string& name) const {

@@ -4,6 +4,14 @@
 
 #include "mcp/McpCore.hpp"
 
+#include "mcp/McpEtiquetas.hpp"
+#include "mcp/McpIndice.hpp"
+#include "mcp/McpTraza.hpp"
+
+#include <chrono>
+
+#include "diag/Registro.hpp"
+
 #include <chrono>
 
 #include <algorithm>
@@ -204,7 +212,7 @@ McpCore::McpCore() {
     search.examples = {R"({"query": "poner un texto en pantalla"})",
                        R"({"query": "ver la camara de un invitado"})"};
     search.run = [this](const json& a, Done done) {
-        const json hits = this->search(a.value("query", ""));
+        const json hits = this->search(a.value("query", ""), enCurso_.rol);
         if (hits.empty()) {
             done(ToolResult::ok("Sin coincidencias. Proba con otras palabras o llama `help` para ver todo."));
             return;
@@ -213,7 +221,20 @@ McpCore::McpCore() {
         out << "Coincidencias para \"" << a.value("query", "") << "\":\n";
         for (const auto& h : hits) {
             out << "- [" << h["kind"].get<std::string>() << "] " << h["id"].get<std::string>() << " — "
-                << h["title"].get<std::string>() << "\n";
+                << h["title"].get<std::string>();
+            // Por que salio. Una busqueda que no dice con que palabra enganchó
+            // no se puede corregir: el que pregunta vuelve a probar a ciegas.
+            if (h.contains("porque") && h["porque"].is_array() && !h["porque"].empty()) {
+                out << "  (por: ";
+                bool primero = true;
+                for (const auto& t : h["porque"]) {
+                    if (!primero) out << ", ";
+                    out << t.get<std::string>();
+                    primero = false;
+                }
+                out << ")";
+            }
+            out << "\n";
         }
         out << "\nPara el detalle: help {\"tool\": ...} o help {\"topic\": ...}.";
         ToolResult r;
@@ -224,6 +245,35 @@ McpCore::McpCore() {
     addTool(std::move(search));
 }
 
+void McpCore::addInstructions(const std::string& mas) {
+    if (mas.empty()) return;
+    if (!instructions_.empty()) instructions_ += "\n";
+    instructions_ += mas;
+}
+
+std::string McpCore::mapaDeCategorias(const std::string& rol) const {
+    std::map<std::string, int> cuantas;
+    for (const Tool& t : tools_)
+        if (permitida(t, rol)) ++cuantas[t.category];
+    std::string out =
+        rol.empty() ? "## Mapa de herramientas\n\nNo te quedes con lo que ves: si algo no "
+                      "aparece, fijate en que categoria caeria y pedi su ayuda con "
+                      "`help {\"topic\": \"<categoria>\"}`.\n\n"
+                    : "## Mapa de herramientas\n\nSos el rol `" + rol +
+                          "`: este es TODO tu juego. Lo que no esta aca no lo podes hacer vos; si el "
+                          "encargo lo necesita, pediselo a otro rol con `agente_encargar` o contalo en tu "
+                          "resumen final para que lo vea el operador.\n\n";
+    for (const Category& c : categories_) {
+        const auto it = cuantas.find(c.id);
+        const int n = it == cuantas.end() ? 0 : it->second;
+        if (n == 0) continue;
+        out += "- **" + c.id + "** (" + std::to_string(n) + "): " + c.title;
+        if (!c.summary.empty()) out += " — " + c.summary;
+        out += "\n";
+    }
+    return out;
+}
+
 void McpCore::setServerInfo(std::string name, std::string version, std::string instructions) {
     name_ = std::move(name);
     version_ = std::move(version);
@@ -232,6 +282,41 @@ void McpCore::setServerInfo(std::string name, std::string version, std::string i
 
 void McpCore::addCategory(const std::string& id, const std::string& title, const std::string& summary) {
     categories_.push_back(Category{id, title, summary});
+}
+
+void McpCore::verificarJuegos() const {
+    // AVISA SI UN JUEGO NOMBRA UNA CATEGORIA QUE NO EXISTE. Este error es mudo:
+    // la categoria inventada no rompe nada, simplemente esas herramientas
+    // dejan de existir para ese rol. Paso de verdad —«media» por «medios»,
+    // «sistema» por «equipo»— y el asistente se quedo sin poder poner musica ni
+    // mirar el disco sin que nada fallara.
+    //
+    // SE LLAMA AL FINAL, con todas registradas. Puesto dentro de `setRoles`
+    // avisaba de `qr`, `rostros` y `ventanas` —que existen— solo porque sus
+    // herramientas se registran despues.
+    std::set<std::string> reales;
+    for (const Tool& t : tools_)
+        reales.insert(t.category);
+    for (const auto& [rol, cats] : roles_)
+        for (const std::string& c : cats)
+            if (reales.count(c) == 0)
+                ba::diag::registro().linea(ba::diag::Nivel::Aviso, "mcp", 0,
+                                           "el juego de '" + rol + "' nombra la categoria '" + c +
+                                               "', que no la usa ninguna herramienta (ver "
+                                               "addCategory)");
+}
+
+void McpCore::setRoles(std::map<std::string, std::set<std::string>> categoriasPorRol,
+                       std::set<std::string> comunes) {
+    roles_ = std::move(categoriasPorRol);
+    comunes_ = std::move(comunes);
+}
+
+bool McpCore::permitida(const Tool& t, const std::string& rol) const {
+    if (rol.empty()) return true;
+    if (comunes_.count(t.category) != 0) return true;
+    const auto it = roles_.find(rol);
+    return it != roles_.end() && it->second.count(t.category) != 0;
 }
 
 void McpCore::addTool(Tool tool) { tools_.push_back(std::move(tool)); }
@@ -319,6 +404,36 @@ void McpCore::handle(const json& message, std::function<void(json)> reply, const
     handleOne(message, std::move(reply), ctx);
 }
 
+void McpCore::startIntake(const std::string& id, const std::string& name) { intake_[id] = name; }
+
+void McpCore::endIntake(const std::string& id) { intake_.erase(id); }
+
+std::vector<std::string> McpCore::intakes() const {
+    std::vector<std::string> out;
+    for (const auto& [id, name] : intake_)
+        out.push_back(id);
+    return out;
+}
+
+bool McpCore::intakeAllows(const Tool& t, const nlohmann::json& args) const {
+    if (intake_.empty()) return false;
+    // Solo lo que hace falta para atender a alguien del lobby.
+    static const std::set<std::string> kIntakeTools{"chat_send", "participant_profile", "participant_admit",
+                                                    "participant_talk"};
+    if (kIntakeTools.count(t.name) == 0) return false;
+    // Y solo si la accion apunta a esa persona. Lo resuelve quien conoce la
+    // sala (el nombre puede haber cambiado al completar la ficha).
+    if (!args.is_object()) return false;
+    if (intakeMatch_ && intakeMatch_(t.name, args)) return true;
+    for (const auto& [key, v] : args.items()) {
+        if (!v.is_string()) continue;
+        const std::string val = v.get<std::string>();
+        for (const auto& [id, name] : intake_)
+            if (val == id || val == name) return true;
+    }
+    return false;
+}
+
 void McpCore::taint(const std::string& session, const std::string& source) {
     if (taint_.count(session)) return; // se recuerda lo primero que la contamino
     taint_[session] =
@@ -352,18 +467,44 @@ void McpCore::handleOne(const json& msg, std::function<void(json)> reply, const 
     const json params = msg.value("params", json::object());
     if (!isRequest) {
         // Notificaciones (initialized, cancelled, roots/list_changed...): sin respuesta.
+        Traza::la().anotar("   · " + method + " (aviso) " + Traza::resumir(params));
         reply(json());
         return;
     }
+    // TODO lo que entra y sale queda escrito, con sus argumentos y su
+    // respuesta. Ver McpTraza.hpp: sin esto, «lo acepte y no lo metio a la
+    // sala» no se puede contestar mirando ningun archivo.
+    const std::string quien = ctx.rol.empty() ? std::string() : " [" + ctx.rol + "]";
+    const std::string etiqueta =
+        method +
+        (method == "tools/call" && params.contains("name") && params["name"].is_string()
+             ? ":" + params["name"].get<std::string>()
+             : std::string()) +
+        quien;
+    Traza::la().anotar("--> " + etiqueta + " id=" + id.dump() + " " + Traza::resumir(params));
+    const auto arranque = std::chrono::steady_clock::now();
+    reply = [reply, etiqueta, id, arranque](json r) {
+        const auto ms =
+            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - arranque)
+                .count();
+        // `isError` de una herramienta viaja DENTRO del resultado: un fallo de
+        // herramienta es una respuesta valida de JSON-RPC. Si solo se mirara
+        // `error`, la traza diria «OK» de cada herramienta que fallo.
+        const bool fallo =
+            r.contains("error") || (r.contains("result") && r["result"].value("isError", false));
+        Traza::la().anotar((fallo ? "<-- FALLO " : "<-- ok    ") + etiqueta + " id=" + id.dump() + " (" +
+                           std::to_string(ms) + " ms) " + Traza::resumir(r));
+        reply(std::move(r));
+    };
     try {
         if (method == "initialize") {
-            reply(rpcResult(id, initializeResult(params)));
+            reply(rpcResult(id, initializeResult(params, ctx)));
         } else if (method == "ping") {
             reply(rpcResult(id, json::object()));
         } else if (method == "tools/list") {
             json list = json::array();
             for (const Tool& t : tools_)
-                list.push_back(toolListEntry(t));
+                if (permitida(t, ctx.rol)) list.push_back(toolListEntry(t));
             reply(rpcResult(id, json{{"tools", list}}));
         } else if (method == "tools/call") {
             if (!params.contains("name") || !params["name"].is_string()) {
@@ -426,7 +567,7 @@ void McpCore::handleOne(const json& msg, std::function<void(json)> reply, const 
     }
 }
 
-json McpCore::initializeResult(const json& params) const {
+json McpCore::initializeResult(const json& params, const CallContext& ctx) const {
     // Negociacion: la version del cliente si la soportamos; si no, la ultima.
     std::string version = kLatestProtocol;
     const std::string asked = params.value("protocolVersion", "");
@@ -439,19 +580,47 @@ json McpCore::initializeResult(const json& params) const {
                   {"prompts", {{"listChanged", false}}},
                   {"logging", json::object()}}},
                 {"serverInfo", {{"name", name_}, {"title", "Broadcast Appliance"}, {"version", version_}}},
-                {"instructions", instructions_}};
+                // El mapa se arma ACA y no de antemano: es distinto para cada
+                // rol, y para un cliente sin rol es el completo.
+                {"instructions", instructions_ + "\n" + mapaDeCategorias(ctx.rol)}};
 }
 
 json McpCore::toolListEntry(const Tool& t) const {
+    // MEDIDO Y DESCARTADO: marcar aca «[SOLO MIRA]» / «[HACE UN CAMBIO]» segun
+    // `readOnly` no mejora que el modelo elija bien —dio 43/67 contra 45/67— y
+    // cuesta tokens en cada pedido. Con el pensamiento apagado no razona «me
+    // piden hacer algo, elijo una que hace»: empareja las palabras del pedido
+    // con las de la descripcion. Lo que funciona es que las descripciones NO SE
+    // PISEN, herramienta por herramienta (ver tools/bateria-modelo.py).
     json e{
         {"name", t.name}, {"title", t.title}, {"description", t.description}, {"inputSchema", t.inputSchema}};
-    e["annotations"] = json{{"title", t.title},
-                            {"readOnlyHint", t.readOnly},
+    // Las cuatro marcas van SIEMPRE, aunque repitan el valor por defecto: en
+    // el protocolo `destructiveHint` y `openWorldHint` valen true si no estan,
+    // asi que omitirlas no ahorra bytes, les cambia el sentido.
+    //
+    // Lo que si se saca es el titulo repetido adentro de las anotaciones: ya
+    // viaja arriba, y el listado entero se manda en CADA pedido al modelo.
+    e["annotations"] = json{{"readOnlyHint", t.readOnly},
                             {"destructiveHint", t.destructive},
                             {"idempotentHint", t.idempotent},
                             {"openWorldHint", t.openWorld}};
     return e;
 }
+
+namespace {
+/// El primer texto de una respuesta, para la linea del registro. Cuando una
+/// herramienta falla, el motivo esta ahi: sin el, el registro dice «FALLO» y
+/// hay que abrir la traza para saber por que.
+std::string primerTexto(const ToolResult& r) {
+    for (const auto& c : r.content)
+        if (c.value("type", "") == "text") {
+            std::string t = c.value("text", std::string());
+            if (t.size() > 200) t = t.substr(0, 200) + "…";
+            return t;
+        }
+    return {};
+}
+} // namespace
 
 void McpCore::callTool(const json& params, std::function<void(json)> done, const CallContext& ctx) {
     const std::string name = params["name"].get<std::string>();
@@ -464,13 +633,30 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
     };
     const Tool* tool = findTool(name);
     if (tool == nullptr) {
-        const json hits = search(name);
+        const json hits = search(name, ctx.rol);
         std::string hint;
         for (const auto& h : hits)
             if (h["kind"] == "herramienta") hint += " " + h["id"].get<std::string>();
+        // Al registro general TAMBIEN, y como aviso: que alguien pida una
+        // herramienta que no existe casi siempre quiere decir que falta
+        // registrarla, no que el que llamo se equivoco. Eso hay que verlo sin
+        // tener que abrir la traza.
+        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "mcp", 0,
+                                   "NO EXISTE la herramienta '" + name + "'" +
+                                       (ctx.rol.empty() ? "" : " [" + ctx.rol + "]") +
+                                       (hint.empty() ? "" : " (parecidas:" + hint + ")"));
         finish(ToolResult::error("No existe la herramienta '" + name + "'." +
                                  (hint.empty() ? "" : " ¿Quisiste decir:" + hint + "?") +
                                  " `help` lista todas."));
+        return;
+    }
+    // Fuera del juego del rol: se niega ANTES de validar, explicando de quien
+    // es. La herramienta existe, pero no para este cliente.
+    if (!permitida(*tool, ctx.rol)) {
+        finish(ToolResult::error("La herramienta '" + name + "' (categoria `" + tool->category +
+                                 "`) no esta en el juego del rol `" + ctx.rol +
+                                 "`. Si el encargo la necesita, pediselo a otro rol con `agente_encargar` "
+                                 "o dejalo dicho en tu resumen final."));
         return;
     }
     const std::string problem = validate(tool->inputSchema, args);
@@ -500,26 +686,67 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
     // informa como error de la herramienta.
     const std::string session = ctx.session;
     const bool untrustedOut = tool->untrustedOutput;
-    const auto execute = [this, tool, args, finish, session, untrustedOut, name]() {
+    const bool modifica = mutating(*tool);
+    const auto execute = [this, tool, args, finish, session, untrustedOut, name, modifica, ctx]() {
+        // QUIEN ESTA LLAMANDO, mientras dura la llamada. Se limpiaba al final
+        // pero no se ponia nunca, asi que `contextoEnCurso()` siempre devolvia
+        // vacio: el buscador no filtraba por rol y el cerrojo de imagenes no
+        // dejaba pasar ninguna, ni siquiera al rol que mira. Un campo que solo
+        // se limpia es un campo que no existe.
+        enCurso_ = ctx;
         auto called = std::make_shared<bool>(false);
+        // TODO lo que entra por MCP queda escrito. Es el plano de control del
+        // aparato —por acá cambian escenas, salidas y pantallas, y a veces lo
+        // maneja un asistente—, asi que «quien hizo que» tiene que poder
+        // contestarse despues. Es el unico lugar por donde pasan todas: las
+        // recetas y los agentes tambien entran por aca.
+        //
+        // Lo que MODIFICA va como info; lo que solo consulta, como depuracion:
+        // un `status` cada dos segundos ahogaria el registro a nivel normal.
+        const auto arranque = std::chrono::steady_clock::now();
+        const std::string quien = ctx.rol.empty() ? std::string() : " [" + ctx.rol + "]";
+        // Los argumentos van en la linea: «audio_set FALLO» sin decir de que
+        // canal ni a que valor no sirve para entender nada despues.
+        const std::string resumenArgs = Traza::resumir(args, 220);
         try {
-            tool->run(args, [this, finish, called, session, untrustedOut, name](ToolResult r) {
+            tool->run(args, [this, finish, called, session, untrustedOut, name, modifica, arranque, quien,
+                             resumenArgs](ToolResult r) {
                 if (*called) return; // una sola respuesta por pedido
                 *called = true;
+                const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                    std::chrono::steady_clock::now() - arranque)
+                                    .count();
+                ba::diag::registro().linea(r.isError  ? ba::diag::Nivel::Aviso
+                                           : modifica ? ba::diag::Nivel::Info
+                                                      : ba::diag::Nivel::Depuracion,
+                                           "mcp", 0,
+                                           name + quien + (r.isError ? " FALLO" : "") + " (" +
+                                               std::to_string(ms) + " ms) " + resumenArgs +
+                                               (r.isError ? " -> " + primerTexto(r) : ""));
                 if (untrustedOut || r.untrusted) taint(session, name);
+                // Si modifico algo y salio bien, las vistas se enteran ANTES de
+                // que se conteste: asi no hay un instante en el que el
+                // asistente ya sabe algo que la pantalla todavia no muestra.
+                // Ver setSincronizador.
+                if (modifica && !r.isError && sincronizar_) sincronizar_();
                 finish(r);
             });
         } catch (const std::exception& e) {
             if (!*called) {
                 *called = true;
+                ba::diag::registro().linea(ba::diag::Nivel::Error, "mcp", 0,
+                                           name + quien + " reviento: " + e.what());
                 finish(ToolResult::error(std::string("La herramienta fallo: ") + e.what()));
             }
         }
+        enCurso_ = CallContext{};
     };
     // Salvaguarda: en una sesion contaminada (o con politica "siempre"), una
     // accion que modifica algo espera la aprobacion de una persona.
-    const bool needApproval = mutating(*tool) && (policy_ == ApprovalPolicy::Always ||
-                                                  (policy_ == ApprovalPolicy::Untrusted && tainted(session)));
+    const bool needApproval =
+        mutating(*tool) &&
+        (policy_ == ApprovalPolicy::Always || (policy_ == ApprovalPolicy::Untrusted && tainted(session))) &&
+        !intakeAllows(*tool, args);
     if (!needApproval) {
         execute();
         return;
@@ -660,25 +887,71 @@ std::string McpCore::helpTool(const std::string& name) const {
     return o.str();
 }
 
-json McpCore::search(const std::string& query) const {
-    const std::vector<std::string> q = words(query);
-    std::vector<std::pair<int, json>> hits;
+void McpCore::armarIndice() const {
+    indice_ = std::make_unique<Indice>();
+    // Una herramienta sin etiquetas solo se encuentra si alguien adivina las
+    // palabras de su documentacion, que son las de quien ya sabia como se
+    // llamaba. No falla nada: simplemente no aparece nunca en una busqueda.
+    // Por eso se avisa acá, donde se arma el indice, y no en una prueba con
+    // una lista aparte que hay que acordarse de actualizar.
+    std::vector<std::string> sinEtiquetas;
     for (const Tool& t : tools_) {
-        const int s = score(q, t.name + " " + t.title, t.description + " " + t.details);
-        if (s > 0)
-            hits.emplace_back(
-                s, json{{"kind", "herramienta"}, {"id", t.name}, {"title", t.title}, {"score", s}});
+        Documento d;
+        d.id = t.name;
+        d.clase = "herramienta";
+        d.nombre = t.name;
+        d.titulo = t.title;
+        d.etiquetas = etiquetasDe(t.name);
+        if (d.etiquetas.empty()) sinEtiquetas.push_back(t.name);
+        d.cuerpo = t.description + " " + t.details;
+        indice_->agregar(std::move(d));
+    }
+    if (!sinEtiquetas.empty()) {
+        std::string lista;
+        for (const std::string& n : sinEtiquetas)
+            lista += (lista.empty() ? "" : ", ") + n;
+        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "mcp", 0,
+                                   "sin etiquetas (no se van a encontrar buscando; ver "
+                                   "McpEtiquetas.cpp): " +
+                                       lista);
     }
     for (const HelpTopic& t : topics_) {
-        const int s = score(q, t.id + " " + t.title, t.summary + " " + t.body);
-        if (s > 0)
-            hits.emplace_back(s, json{{"kind", "tema"}, {"id", t.id}, {"title", t.title}, {"score", s}});
+        Documento d;
+        d.id = t.id;
+        d.clase = "tema";
+        d.nombre = t.id;
+        d.titulo = t.title;
+        d.cuerpo = t.summary + " " + t.body;
+        indice_->agregar(std::move(d));
     }
-    std::stable_sort(hits.begin(), hits.end(),
-                     [](const auto& a, const auto& b) { return a.first > b.first; });
+    indice_->armar();
+    indiceDe_ = tools_.size() + topics_.size();
+}
+
+json McpCore::search(const std::string& query, const std::string& rol) const {
+    // Se arma una sola vez, y se rearma si aparecieron herramientas nuevas
+    // (las extensiones se registran despues del arranque).
+    if (!indice_ || indiceDe_ != tools_.size() + topics_.size()) armarIndice();
     json out = json::array();
-    for (size_t i = 0; i < hits.size() && i < 12; ++i)
-        out.push_back(hits[i].second);
+    // PRIMERO EL GRUPO, DESPUES LA BUSQUEDA. Buscar sobre todo y despues
+    // contestarle a un rol cosas que no puede llamar es peor que inutil: el rol
+    // `vision` —que solo mira imagenes— recibia `audio_eq` y `audio_module_add`
+    // como respuesta, y si las intentaba rebotaban. Ademas le gasta el lugar a
+    // las que si puede usar, que es justo lo que se esta tratando de cuidar.
+    // Se pide de mas al indice porque el filtro saca de la lista.
+    for (const Resultado& r : indice_->buscar(query, rol.empty() ? 12 : 40)) {
+        const Documento& d = indice_->doc(r.doc);
+        if (!rol.empty() && d.clase == "herramienta") {
+            const Tool* t = findTool(d.id);
+            if (t == nullptr || !permitida(*t, rol)) continue;
+        }
+        if (out.size() >= 12) break;
+        out.push_back(json{{"kind", d.clase},
+                           {"id", d.id},
+                           {"title", d.titulo},
+                           {"score", static_cast<int>(r.puntaje * 10)},
+                           {"porque", r.porque}});
+    }
     return out;
 }
 

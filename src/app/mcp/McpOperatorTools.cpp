@@ -73,6 +73,12 @@ void McpService::registerOperatorTools() {
         "operador manda con un click.");
     StudioViewModel& vm = vm_;
     auto* msgs = static_cast<OperatorMessages*>(vm.messages());
+    // Foto de una persona de la sala para adjuntar a la tarjeta del operador.
+    const auto photo = [&vm](const std::string& who) -> std::string {
+        auto* conf = static_cast<ConferenceViewModel*>(vm.conference());
+        if (conf == nullptr || who.empty()) return {};
+        return conf->photoOf(QString::fromStdString(who)).toStdString();
+    };
     const json prioProp{
         {"type", "string"},
         {"enum", {"info", "success", "warning", "critical"}},
@@ -124,13 +130,19 @@ void McpService::registerOperatorTools() {
               {"options",
                {{"type", "array"}, {"items", {{"type", "string"}, {"maxLength", 60}}}, {"maxItems", 6}}},
               {"allowText", {{"type", "boolean"}}},
-              {"timeoutSec", {{"type", "integer"}, {"minimum", 0}, {"maximum", 600}, {"default", 60}}}}},
+              {"timeoutSec", {{"type", "integer"}, {"minimum", 0}, {"maximum", 600}, {"default", 60}}},
+              {"photoOf",
+               {{"type", "string"},
+                {"description",
+                 "Nombre o id de una persona de la sala: adjunta su foto (la ultima que mando su "
+                 "camara) a la tarjeta que ve el operador."}}}}},
             {"required", {"text"}}};
         t.examples = {
             R"({"text": "Ana escribio preguntando cuando sale. ¿Como queres manejar los mensajes de los invitados?", "options": ["Responde vos por mi", "Sugerime respuestas", "Los contesto yo"]})"};
-        t.run = [msgs](const json& a, Done done) {
+        t.run = [msgs, photo](const json& a, Done done) {
             json spec = a;
             spec["kind"] = "question";
+            if (a.contains("photoOf")) spec["image"] = photo(a.value("photoOf", ""));
             if (!a.contains("allowText")) spec["allowText"] = !a.contains("options");
             const int id = msgs->post(spec);
             const int timeout = a.value("timeoutSec", 60);

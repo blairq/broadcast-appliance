@@ -1,0 +1,1253 @@
+{
+  "_comentario": [
+    "Como PIDE un operador cada cosa, en cabina, apurado. Escritas a mano.",
+    "",
+    "ESTO ES LA SEMILLA, no el conjunto: tools/corpus-entrenamiento.py le aplica",
+    "encima la variacion que de verdad aparece al hablar y al tipear rapido (sin",
+    "tildes, con el verbo al final, con «che» adelante, con un typo).",
+    "",
+    "REGLAS AL ESCRIBIRLAS, que son las que hacen que sirvan:",
+    "  1. NUNCA se nombra la herramienta. Si la frase dice «audio_set», no",
+    "     prueba nada: el modelo la copia y no aprendio a mapear.",
+    "  2. Se dice el SINTOMA o la INTENCION, como sale en voz alta. «No se",
+    "     escucha al invitado», no «ajustar volumen de la fuente de audio».",
+    "  3. Cortas. En vivo nadie arma una oracion larga.",
+    "  4. Si dos herramientas compiten de verdad (armar contra sacar al aire),",
+    "     se escriben frases que las DISTINGAN, no que las confundan.",
+    "",
+    "`tambien` son las otras respuestas aceptables. Ante un sintoma, MEDIR antes",
+    "de tocar vale: es la doctrina del rol tecnico y contarlo como error medía",
+    "mal. Lo usa la evaluacion, no el entrenamiento (que necesita una sola).",
+    "",
+    "PARES QUE SE CONFUNDEN: al final de varias herramientas hay frases escritas",
+    "para DISTINGUIRLAS de su vecina (armar contra tomar, parar el rec contra",
+    "parar la transmision, sacar una persona contra sacar una capa). Salieron de",
+    "mirar los fallos medidos: los cuatro eran entre vecinas, por una palabra de",
+    "superficie. Mas parafrasis de otra cosa no los arregla.",
+    "",
+    "REPORTE CONTRA ORDEN. El error mas caro del primer modelo entrenado no era",
+    "confundir vecinas: era leer el SINTOMA como una ORDEN. «Se esta cortando la",
+    "transmision» es un reporte —hay que MIRAR— y el modelo cortaba la",
+    "transmision. Lo mismo con «se cayo un invitado» (lo echaba) y «se esta",
+    "llenando el disco» (paraba la grabacion).",
+    "",
+    "Por eso ahora las frases van de a pares: el sintoma a la herramienta que",
+    "mira, y la orden equivalente a la que actua. Sin el par, la palabra «corta»",
+    "queda asociada a cortar y no hay con que distinguir quien la dijo pidiendo.",
+    "",
+    "NINGUNA SEMILLA SE PARECE A UNA PREGUNTA DEL EXAMEN. Se descubrio tarde: 25",
+    "de los 48 casos del examen tenian una frase casi igual adentro del",
+    "entrenamiento —la guarda tiraba las identicas pero dejaba pasar «eh, se",
+    "corto la transmision»— y el 85% del primer modelo entrenado estaba inflado.",
+    "Ahora el generador compara POR PALABRAS COMPARTIDAS y avisa que semilla hay",
+    "que reescribir. Reescribir, no borrar: el pedido tiene que estar, dicho con",
+    "otras palabras. Si el modelo aprendio el concepto, el examen lo mide igual.",
+    "",
+    "`arregla` dice de que version salio el fallo que esta frase corrige. Esas",
+    "semillas generan MAS variantes: treinta frases diluidas entre mil trescientas",
+    "no le ensenan nada a nadie. Pero con techo —35% del corpus—: si las dificiles",
+    "se acumulan version tras version sin limite, el corpus termina pareciendose a",
+    "una lista de casos raros y no a lo que un operador dice de verdad.",
+    "",
+    "Y NO SE SACAN NUNCA. Un error arreglado en v1 vuelve en v3 si le quitas las",
+    "frases: funcionan como suite de regresion del corpus."
+  ],
+  "herramientas": {
+    "audio_set": {
+      "frases": [
+        "bajale al invitado 1",
+        "silenciá ese micrófono",
+        "subí la música",
+        "mutealo",
+        "bajá el volumen del programa",
+        "abrile el micrófono al orador",
+        "poné la música más bajo que está tapando",
+        "cerrá el micro del fondo",
+        "subile un poco al que está hablando",
+        "mutea la fuente del plano fijo"
+      ],
+      "tambien": [
+        "mixer_list",
+        "audio_measure"
+      ],
+      "correctivas": [
+        "bajale el volumen a ese",
+        "subile a ese que no se escucha",
+        "silencialo al invitado 2"
+      ],
+      "arregla": [
+        "v2"
+      ]
+    },
+    "audio_measure": {
+      "frases": [
+        "cuánto está picando",
+        "medime el audio",
+        "fijate los niveles",
+        "cómo viene el nivel del programa",
+        "está saturando?",
+        "medime los niveles de la cadena del conductor"
+      ],
+      "tambien": [
+        "mixer_list",
+        "audio_analyze"
+      ],
+      "correctivas": [
+        "no me llega audio de esa persona",
+        "esto esta mudo",
+        "esta saliendo sin audio",
+        "esta muy bajo lo que sale",
+        "se escucha mal",
+        "cuanto esta llegando",
+        "medime cuanto pica ese canal",
+        "fijate el nivel antes de tocar nada"
+      ],
+      "arregla": [
+        "v2"
+      ]
+    },
+    "audio_analyze": {
+      "frases": [
+        "qué es ese ruido",
+        "analizame el audio a ver qué pasa",
+        "hay un zumbido raro, mirá qué es",
+        "de dónde sale ese pitido",
+        "analizá qué frecuencia está zumbando",
+        "decime de dónde viene ese ruido"
+      ],
+      "tambien": [
+        "audio_measure"
+      ],
+      "correctivas": [
+        "que forma tiene ese ruido",
+        "analizame el espectro de ese canal",
+        "de que frecuencia es el pitido"
+      ],
+      "arregla": [
+        "v2"
+      ]
+    },
+    "audio_escuchar": {
+      "frases": [
+        "dejame oír el canal 2",
+        "pasame el audio del invitado a los auriculares",
+        "escuchá vos cómo suena eso",
+        "escuchalo vos primero y decime como suena"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "audio_sincro": {
+      "frases": [
+        "se escucha desfasado",
+        "el audio va antes que la imagen",
+        "no coinciden labios y voz",
+        "corregí el retardo del audio"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "mixer_list": {
+      "frases": [
+        "mostrame el mezclador",
+        "qué fuentes con sonido tengo",
+        "listame las pistas de sonido"
+      ],
+      "tambien": [
+        "audio_sources"
+      ],
+      "correctivas": []
+    },
+    "scene_switch": {
+      "frases": [
+        "andá al cierre",
+        "pasá a pantalla completa",
+        "cortá al plano general",
+        "al aire ya, sin preparar nada",
+        "pasa al plano dos",
+        "arranca con la de bienvenida",
+        "quiero la bienvenida saliendo ya",
+        "reemplaza lo que sale por el plano dos",
+        "pasa a la escena de placa",
+        "anda a la toma de graficos"
+      ],
+      "tambien": [],
+      "correctivas": [
+        "poné la de apertura",
+        "sacá la del cierre al aire ya"
+      ],
+      "arregla": [
+        "v7-pegadas"
+      ]
+    },
+    "scene_preview": {
+      "frases": [
+        "armá la próxima",
+        "prepará el bloque que sigue",
+        "dejá lista la de los sponsors",
+        "dejame lista la del invitado en pre",
+        "no la saques todavia, solo dejala lista",
+        "preparala pero no la tires",
+        "cargala en preview nada mas",
+        "alista la de despedida en el bus previo"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "scene_take": {
+      "frases": [
+        "dale take",
+        "mandalo",
+        "tirá la armada",
+        "ahora sí, al aire",
+        "tira la que ya tenia preparada",
+        "dale al take de la armada",
+        "ejecuta el corte a lo alistado"
+      ],
+      "tambien": [],
+      "correctivas": [
+        "dale take a la que preparé"
+      ],
+      "arregla": [
+        "v7-pegadas"
+      ]
+    },
+    "scene_list": {
+      "frases": [
+        "listame las escenas",
+        "enumerame las tomas",
+        "cuantas tomas tengo configuradas"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "scene_create": {
+      "frases": [
+        "necesito una escena nueva",
+        "armame una escena para la entrevista",
+        "necesito una toma nueva para deportes"
+      ],
+      "tambien": [
+        "scene_define"
+      ],
+      "correctivas": []
+    },
+    "transition_set": {
+      "frases": [
+        "cambiá la transición a corte",
+        "poné fundido de medio segundo",
+        "sacá el fundido, quiero corte seco",
+        "con que efecto paso de una toma a otra"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "source_list": {
+      "frases": [
+        "qué capas tiene la escena del aire",
+        "mostrame las fuentes",
+        "que capas tiene armada esta escena",
+        "decime que fuentes hay, no me muestres imagen",
+        "enumerame las capas de esta toma",
+        "qué fuentes tiene la escena Debate",
+        "listame lo que hay en la escena de la entrevista"
+      ],
+      "tambien": [],
+      "correctivas": [
+        "qué elementos tiene cargada la escena Clima"
+      ],
+      "arregla": [
+        "v9-banco"
+      ]
+    },
+    "source_add": {
+      "frases": [
+        "sumale el logo",
+        "poné una imagen arriba a la derecha",
+        "metele la cámara 3",
+        "suma el plano trasero a esta toma"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "source_update": {
+      "frases": [
+        "sacá el rótulo",
+        "ocultá el logo",
+        "mostrá de nuevo la placa",
+        "corré la cámara chica a la izquierda",
+        "agrandá el pip",
+        "agrandá el recuadro del invitado"
+      ],
+      "tambien": [
+        "source_set_property"
+      ],
+      "correctivas": []
+    },
+    "source_remove": {
+      "frases": [
+        "quitá ese elemento de la escena",
+        "sacá esa fuente que no va más",
+        "sacá esa capa de la escena, no a la persona"
+      ],
+      "tambien": [],
+      "correctivas": [
+        "eliminá el título viejo de la escena Mesa"
+      ],
+      "arregla": [
+        "v9-banco"
+      ]
+    },
+    "capture_program": {
+      "frases": [
+        "sacame una foto de lo que está saliendo",
+        "cómo está saliendo al aire",
+        "sacame la imagen de lo que sale, no la lista",
+        "pasame una foto del vivo",
+        "revisa si el zocalo quedo legible"
+      ],
+      "tambien": [
+        "imagen_analizar",
+        "status"
+      ],
+      "correctivas": [
+        "esta saliendo en negro",
+        "el vivo no tiene video",
+        "el vivo salio vacio",
+        "se ve raro lo que sale"
+      ],
+      "arregla": [
+        "v2"
+      ]
+    },
+    "capture_source": {
+      "frases": [
+        "mostrame cómo quedó esa fuente",
+        "mostrame esa fuente sola",
+        "revisa como quedo el isotipo"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "capture_feed": {
+      "frases": [
+        "mirá si el invitado 2 tiene imagen",
+        "la imagen del que entro quedo clavada",
+        "mostrame el video del que aguarda"
+      ],
+      "tambien": [
+        "room_status"
+      ],
+      "correctivas": [
+        "mirá cómo llega la cámara del invitado 2"
+      ],
+      "arregla": [
+        "v9-banco"
+      ]
+    },
+    "room_status": {
+      "frases": [
+        "quién está conectado",
+        "cuántos lugares quedan",
+        "cómo viene la sala",
+        "quien hay en el lobby ahora",
+        "cuantos estan esperando",
+        "cuantos estan conectados ahora",
+        "quiénes tienen la mano levantada",
+        "decime el estado de cada participante"
+      ],
+      "tambien": [
+        "chat_send"
+      ],
+      "correctivas": [
+        "uno de los participantes perdio la conexion",
+        "se desconecto uno",
+        "se fue alguien de la sala",
+        "hay menos participantes de los que deberia",
+        "el del lugar 2 desaparecio",
+        "a quien tengo aguardando acceso"
+      ],
+      "arregla": [
+        "v2"
+      ]
+    },
+    "participant_admit": {
+      "frases": [
+        "hacelo pasar",
+        "dejalo entrar",
+        "que pase Marta",
+        "metelo a la sala",
+        "dale acceso al que aguarda",
+        "dejá pasar a la licenciada Ruiz",
+        "admitilo a Federico, el resto que espere"
+      ],
+      "tambien": [
+        "room_status"
+      ],
+      "correctivas": [
+        "dejá entrar únicamente a Paula",
+        "pasá solo a la señora de rojo"
+      ],
+      "arregla": [
+        "v9-banco"
+      ]
+    },
+    "participant_reject": {
+      "frases": [
+        "rechazá a ese",
+        "no lo dejes entrar",
+        "sacá a ese del lobby",
+        "no lo dejes entrar, esta esperando todavia"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "participant_kick": {
+      "frases": [
+        "sacalo ya",
+        "desconectalo",
+        "sacalo de la sala a esa persona"
+      ],
+      "tambien": [],
+      "correctivas": [
+        "sacalo vos al invitado 2",
+        "desconectalo a ese ya",
+        "expulsa a esa persona",
+        "removelo de la reunion"
+      ],
+      "arregla": [
+        "v2"
+      ]
+    },
+    "participant_request": {
+      "frases": [
+        "decile que se acerque al micrófono",
+        "pedile que se mute",
+        "que encienda el micro"
+      ],
+      "tambien": [
+        "chat_send"
+      ],
+      "correctivas": [
+        "solicitale que active su video",
+        "decile que abra el microfono"
+      ],
+      "arregla": [
+        "v2"
+      ]
+    },
+    "chat_send": {
+      "frases": [
+        "escribile que ya sale",
+        "avisale que arrancamos en dos minutos",
+        "escribile algo al del lugar 1"
+      ],
+      "tambien": [],
+      "correctivas": [
+        "escribile vos al invitado",
+        "mandale un texto al que se cayo"
+      ],
+      "arregla": [
+        "v2"
+      ]
+    },
+    "chat_history": {
+      "frases": [
+        "qué escribieron en el chat",
+        "leeme los mensajes",
+        "leeme lo que escribio esa persona"
+      ],
+      "tambien": [
+        "chat_wait"
+      ],
+      "correctivas": []
+    },
+    "room_link": {
+      "frases": [
+        "dame el enlace de la sala",
+        "cómo entra la gente"
+      ],
+      "tambien": [],
+      "correctivas": [
+        "pasame el enlace para que entren",
+        "dame la direccion de la sala para mandar",
+        "dame la url de acceso",
+        "mandame el enlace de ingreso para los panelistas"
+      ],
+      "arregla": [
+        "v2",
+        "v9-banco"
+      ]
+    },
+    "speaker_next": {
+      "frases": [
+        "que pase el que sigue",
+        "siguiente orador",
+        "dale, el próximo",
+        "pasá al siguiente"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "speakers_status": {
+      "frases": [
+        "cómo viene la fila",
+        "cuánto tiempo le queda al que está",
+        "como va el tiempo del expositor actual"
+      ],
+      "tambien": [
+        "speaker_time"
+      ],
+      "correctivas": []
+    },
+    "speaker_time": {
+      "frases": [
+        "dale dos minutos más",
+        "cortale el tiempo a ese",
+        "ponele cinco minutos al que sigue"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "speaker_on_air": {
+      "frases": [
+        "sacá al aire a Marta",
+        "bajá del aire al que está hablando",
+        "poné al aire a ese orador, no a la escena",
+        "subi al expositor que aguarda",
+        "dejalo hablar",
+        "abrile el turno de palabra",
+        "dale la palabra a ese"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "record_start": {
+      "frases": [
+        "poné a grabar esto",
+        "dale rec",
+        "arranca el registro en disco",
+        "arrancá la grabación, que ya salimos"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "record_stop": {
+      "frases": [
+        "cortá el rec",
+        "dejá de grabar",
+        "pará el rec pero seguimos al aire",
+        "corta la grabacion, la transmision sigue",
+        "dejá de grabar, terminamos"
+      ],
+      "tambien": [],
+      "correctivas": [
+        "corta el rec ya",
+        "frena el registro",
+        "detene el archivo ya"
+      ],
+      "arregla": [
+        "v2"
+      ]
+    },
+    "stream_start": {
+      "frases": [
+        "arrancá la transmisión",
+        "mandá a youtube"
+      ],
+      "tambien": [],
+      "correctivas": [
+        "arranca la transmision de nuevo",
+        "volve a salir al aire",
+        "inicia el envio"
+      ],
+      "arregla": [
+        "v2"
+      ]
+    },
+    "stream_stop": {
+      "frases": [
+        "cortá la transmisión",
+        "sacanos de youtube",
+        "corta la transmision pero segui grabando",
+        "bajanos del aire, el rec sigue",
+        "terminala, cortá el vivo"
+      ],
+      "tambien": [],
+      "correctivas": [
+        "corta la transmision ahora",
+        "dale, sacanos del aire",
+        "finaliza el envio",
+        "termina el vivo ahora"
+      ],
+      "arregla": [
+        "v2"
+      ]
+    },
+    "status": {
+      "frases": [
+        "cómo venimos",
+        "dame un panorama",
+        "estamos al aire?",
+        "dame un resumen general"
+      ],
+      "tambien": [
+        "network_status"
+      ],
+      "correctivas": [
+        "el vivo viene entrecortado",
+        "el envio se interrumpio",
+        "estamos perdiendo cuadros",
+        "queda poco espacio de almacenamiento",
+        "no queda espacio para grabar",
+        "la maquina esta lenta",
+        "algo anda mal y no se que",
+        "se traba todo"
+      ],
+      "arregla": [
+        "v2"
+      ]
+    },
+    "network_status": {
+      "frases": [
+        "cómo está la red",
+        "estamos perdiendo cuadros?",
+        "se va la conexion"
+      ],
+      "tambien": [
+        "status"
+      ],
+      "correctivas": [
+        "el enlace viene flojo",
+        "la subida esta mal",
+        "se entrecorta lo que sale",
+        "anda inestable la red",
+        "cómo está la red para los invitados de afuera",
+        "hay buena conexión para que entren desde sus casas?"
+      ],
+      "arregla": [
+        "v2",
+        "v9-banco"
+      ]
+    },
+    "share_list": {
+      "frases": [
+        "que adjuntos llegaron",
+        "que subieron los participantes",
+        "qué archivos compartieron",
+        "listame lo que subieron los invitados"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "capture_multiview": {
+      "frases": [
+        "quiero el multiview",
+        "dame el multiview",
+        "a ver todas las camaras de una"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "capture_people": {
+      "frases": [
+        "mostrame a todos los invitados",
+        "sacales una foto a todos los que estan en la sala",
+        "mostrame las caras de todos los que están conectados",
+        "una foto de cada participante",
+        "quiero ver a los participantes uno por uno"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "capture_person": {
+      "frases": [
+        "mostrame a Marta",
+        "a ver la cara del invitado 2",
+        "sacale una foto al que esta hablando"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "capture_sequence": {
+      "frases": [
+        "sacame varias fotos seguidas",
+        "grabame una secuencia de lo que sale",
+        "tirame una ráfaga de capturas del programa",
+        "quiero ver varios instantes seguidos, algo se mueve raro",
+        "sacame cinco cuadros con medio segundo entre cada uno",
+        "necesito una tira de imágenes de esa cámara",
+        "hacele un muestreo en el tiempo a esa fuente",
+        "sacá capturas a intervalos del programa",
+        "sacale diez cuadros a la cámara de Pedro"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "capture_ui": {
+      "frases": [
+        "mostrame la pantalla del aparato",
+        "sacale una foto a la interfaz",
+        "como se ve la pestaña de medios"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "chat_wait": {
+      "frases": [
+        "quedate esperando la respuesta del invitado",
+        "quedate esperando la respuesta del invitado",
+        "quedate atento al chat hasta que conteste",
+        "esperá su respuesta por escrito",
+        "aguardá el mensaje del entrevistado"
+      ],
+      "tambien": [],
+      "correctivas": [
+        "esperá que el invitado responda en el chat"
+      ],
+      "arregla": [
+        "v9-banco"
+      ]
+    },
+    "gateway_restart": {
+      "frases": [
+        "reinicia la sala",
+        "el gateway se colgo, levantalo de nuevo",
+        "reinicia el servidor de invitados"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "grabacion_individual": {
+      "frases": [
+        "grabame a cada invitado por separado",
+        "quiero pistas separadas de cada camara",
+        "quiero el audio de cada micrófono en su propio archivo",
+        "que quede cada cámara grabada aparte, después edito",
+        "además del programa, grabame las fuentes sueltas",
+        "necesito los ISO de cada entrada",
+        "prendé el grabado por entrada que hay que reeditar"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "guest_source_add": {
+      "frases": [
+        "sumá al invitado del slot uno",
+        "agrega la pantalla que esta compartiendo",
+        "sumá la pantalla que comparte el invitado a esta escena"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "imagen_analizar": {
+      "frases": [
+        "mira esta imagen y decime que ve",
+        "analizame esta foto",
+        "que dice ese cartel de la imagen",
+        "decime qué hay en la imagen de la cámara 1"
+      ],
+      "tambien": [],
+      "correctivas": [
+        "cuánta gente se ve en el fondo del estudio?",
+        "hay alguien detrás del conductor en la toma?"
+      ],
+      "arregla": [
+        "v9-banco"
+      ]
+    },
+    "participant_admit_all": {
+      "frases": [
+        "hacelos pasar a todos",
+        "admiti a todos los que estan esperando",
+        "que entren todos",
+        "dejá entrar a todos juntos"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "participant_profile": {
+      "frases": [
+        "quien es este",
+        "dejale la ficha a ese invitado",
+        "anotame quien es y de donde viene",
+        "actualizá los datos de contacto del invitado 3"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "participant_requeue": {
+      "frases": [
+        "mandalo de nuevo a la fila",
+        "ese ya hablo, que vuelva atras",
+        "devolvelo a la espera"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "participant_talk": {
+      "frases": [
+        "necesito decirle algo por privado a Laura antes de que entre",
+        "quiero una línea privada con el del lobby",
+        "hablemos por privado con Nicolás antes de que entre"
+      ],
+      "tambien": [],
+      "correctivas": [
+        "conectame en privado con Julián, que espera"
+      ],
+      "_nota": [
+        "Sus tres semillas eran de DAR LA PALABRA a un orador («dejalo hablar», «dale la palabra a ese») y esta herramienta es hablar EN PRIVADO con alguien del lobby. Sacaba 0 de 5 en el banco de orientacion. Las tres pasaron a speaker_on_air, que es lo que dicen."
+      ],
+      "arregla": [
+        "v9-banco"
+      ]
+    },
+    "room_pin": {
+      "frases": [
+        "ponele clave a la sala",
+        "cambiale el pin de entrada",
+        "generá un código de acceso nuevo",
+        "renová la clave de ingreso a la sala",
+        "el pin se filtró, cambialo"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "room_set": {
+      "frases": [
+        "abrí el lobby de admisión",
+        "configurame cuantos lugares hay",
+        "aumentale los lugares"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "scene_copy": {
+      "frases": [
+        "copiame esta escena",
+        "duplica la de apertura",
+        "hacele un clon a la del invitado",
+        "quiero otra igual a esta para modificarla",
+        "hacele una gemela a la que va saliendo",
+        "duplicame la del panel, le cambio una cámara y listo",
+        "sacale una copia antes de que la toque"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "scene_define": {
+      "frases": [
+        "armame una escena entera con la camara y el logo",
+        "defini la escena del cierre con todo adentro",
+        "armá una escena entera con dos cámaras y el logo"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "scene_delete": {
+      "frases": [
+        "borra esa escena",
+        "elimina la que no usamos",
+        "eliminá la escena vieja"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "scene_export": {
+      "frases": [
+        "exportame las escenas",
+        "sacame una copia de como quedaron las escenas",
+        "pasame la definición de todas las escenas en json",
+        "guardá un respaldo de las escenas"
+      ],
+      "tambien": [],
+      "correctivas": [
+        "exportame la escena Cierre a un archivo"
+      ],
+      "arregla": [
+        "v9-banco"
+      ]
+    },
+    "scene_folder": {
+      "frases": [
+        "meti esa escena en la carpeta de deportes",
+        "agrupa estas escenas",
+        "agrupá estas escenas en una carpeta",
+        "creá una carpeta para el segundo bloque y metela ahí"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "scene_move": {
+      "frases": [
+        "subi esa escena en la lista",
+        "cambiale el orden a las escenas",
+        "esa va antes del bloque de entrevistas",
+        "acomodame el orden, que quedaron desordenadas",
+        "bajala al final de la lista",
+        "ponela tercera, va después del informe",
+        "reordename las escenas como va el programa",
+        "reubicá la escena en el orden del programa",
+        "mové la escena del clima debajo del noticiero",
+        "la de cierre va última en la lista de escenas"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "scene_protect": {
+      "frases": [
+        "protege esa escena para que no la toquen",
+        "bloquea la de apertura",
+        "que esa escena quede de solo lectura",
+        "ponele candado a esa",
+        "asegurame esa antes de que entre el otro operador",
+        "bloqueá esa escena contra cambios",
+        "la escena de la entrevista no se puede tocar, bloqueala"
+      ],
+      "tambien": [],
+      "correctivas": [
+        "candado a la de apertura"
+      ],
+      "arregla": [
+        "v7-pegadas"
+      ]
+    },
+    "scene_rename": {
+      "frases": [
+        "rebautizá esa escena",
+        "renombra la escena 4",
+        "ponele otro nombre a esa escena"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "share_delete": {
+      "frases": [
+        "borra ese archivo que mandaron",
+        "elimina lo que compartio",
+        "eliminá el archivo compartido"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "share_take": {
+      "frases": [
+        "metele a la escena el archivo compartido",
+        "llevá el adjunto del invitado a la toma",
+        "usá en la escena la imagen que mandaron por la sala"
+      ],
+      "tambien": [],
+      "correctivas": [
+        "ponelo al aire, ya lo vi",
+        "el archivo compartido va a la escena"
+      ],
+      "arregla": [
+        "v7-pegadas"
+      ]
+    },
+    "share_view": {
+      "frases": [
+        "mostrame lo que mandaron",
+        "abrime el archivo del invitado",
+        "quiero chequear la foto antes de sacarla al aire",
+        "dejame ver qué subió el invitado",
+        "previsualizame el archivo compartido",
+        "qué es eso que mandaron, mostrámelo",
+        "abrime el adjunto que mandaron"
+      ],
+      "tambien": [],
+      "correctivas": [
+        "mostrame el archivo compartido en la previa"
+      ],
+      "arregla": [
+        "v7-pegadas"
+      ]
+    },
+    "source_properties": {
+      "frases": [
+        "que ajustes tiene esa camara",
+        "mostrame las propiedades de la fuente",
+        "qué se le puede cambiar a esa fuente",
+        "abrime el panel de propiedades de la cámara",
+        "qué configuraciones acepta esa entrada",
+        "mostrame qué parámetros tiene ese título",
+        "quiero ver los ajustes disponibles de la placa"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "source_set_property": {
+      "frases": [
+        "ponele otro dispositivo a esa fuente",
+        "ajustale el tamaño de captura a esa fuente",
+        "cambiale la resolución a esa entrada",
+        "esa cámara está en el dispositivo equivocado, cambiásela",
+        "apretale el botón de volver a escanear",
+        "ponele otro micrófono a esa entrada",
+        "cambiale el formato de video a la placa de captura",
+        "poné la cámara 1 en 720p"
+      ],
+      "tambien": [],
+      "correctivas": [
+        "recargá la página de la fuente del clima",
+        "cambiale la resolución a la captura del atril a 1080"
+      ],
+      "arregla": [
+        "v9-banco"
+      ]
+    },
+    "source_types": {
+      "frases": [
+        "qué clases de entrada soporta",
+        "que se puede meter en una escena",
+        "qué fuentes se pueden agregar",
+        "qué tipos de entrada soporta el programa",
+        "listame los tipos de fuente"
+      ],
+      "tambien": [],
+      "correctivas": [
+        "qué clases de fuentes se pueden crear"
+      ],
+      "arregla": [
+        "v9-banco"
+      ]
+    },
+    "speaker_move": {
+      "frases": [
+        "subi a Marta en la fila",
+        "cambiale el orden a los oradores",
+        "ponelo primero"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "speaker_presenter": {
+      "frases": [
+        "la conductora se queda fija mientras rotan los invitados",
+        "marcalo como el que lleva el programa",
+        "dejalo siempre en pantalla, los demás van pasando",
+        "fijá a este que es el que presenta",
+        "quiero que ese tenga lugar propio todo el tiempo"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "speaker_queue": {
+      "frases": [
+        "mostrame la fila de oradores",
+        "quienes estan esperando para hablar",
+        "anotalo en la lista de oradores"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "speakers_config": {
+      "frases": [
+        "prendi el modo oradores",
+        "configurame los tiempos de cada uno",
+        "apaga el modo oradores"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "grafico_mostrar": {
+      "frases": [
+        "poné el zócalo de Fulano",
+        "levantá el rótulo del orador",
+        "tirá el generador",
+        "que salga el GC",
+        "poné la placa de sponsors",
+        "mandá la placa",
+        "identificá a quien está hablando",
+        "sacá el cartel con el cargo",
+        "necesito el zócalo del entrevistado",
+        "poné la gráfica de resultados",
+        "está mal el apellido, corregilo",
+        "cambiale el cargo al zócalo",
+        "el nombre va con zeta, arreglalo",
+        "poné que dice ministro, no secretario",
+        "actualizá el texto del zócalo",
+        "levantá la animación de la tabla de posiciones"
+      ],
+      "tambien": [
+        "rotulo_vincular"
+      ],
+      "correctivas": [
+        "poné el gráfico del partido, van 3 a 0",
+        "al aire la placa del pronóstico, 22 grados y nublado",
+        "mandá la gráfica de la encuesta con los porcentajes"
+      ],
+      "arregla": [
+        "v7-pegadas",
+        "v9-banco"
+      ]
+    },
+    "grafico_ocultar": {
+      "frases": [
+        "apagá el generador de caracteres",
+        "sacá el generador de pantalla",
+        "quitá la placa",
+        "quitá la identificación",
+        "sacá eso de pantalla",
+        "limpiá la pantalla",
+        "fuera el cartel"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "grafico_listar": {
+      "frases": [
+        "qué gráficos tengo",
+        "qué placas hay armadas",
+        "listame los zócalos",
+        "qué arte tengo disponible"
+      ],
+      "tambien": [
+        "grafico_en_escena"
+      ],
+      "correctivas": [
+        "qué plantillas de gráficos hay cargadas"
+      ],
+      "arregla": [
+        "v9-banco"
+      ]
+    },
+    "grafico_en_escena": {
+      "frases": [
+        "dónde están puestos los animados",
+        "qué fuentes de gráfico hay en la toma",
+        "qué placas animadas hay colocadas",
+        "listame las fuentes de gráfico que están en las escenas",
+        "en qué escenas hay puesto un animado",
+        "decime los ids de los gráficos que están en escena",
+        "qué tamaño tiene el gráfico que está puesto",
+        "listame los gráficos colocados con su tamaño"
+      ],
+      "tambien": [],
+      "correctivas": [
+        "qué animados están colocados en las escenas"
+      ],
+      "arregla": [
+        "v7-pegadas"
+      ]
+    },
+    "rotulo_vincular": {
+      "frases": [
+        "que el zócalo se escriba solo",
+        "atá el nombre al que está hablando",
+        "que el cargo salga automático",
+        "vinculá el rótulo con el orador"
+      ],
+      "tambien": [
+        "grafico_mostrar"
+      ],
+      "correctivas": []
+    },
+    "rotulo_vinculos": {
+      "frases": [
+        "qué rótulos se escriben solos",
+        "qué vínculos hay armados",
+        "qué rótulos están conectados a datos",
+        "cuáles se actualizan solos",
+        "listame los rótulos que toman datos automáticos"
+      ],
+      "tambien": [],
+      "correctivas": [
+        "qué rótulos están conectados a una planilla"
+      ],
+      "arregla": [
+        "v9-banco"
+      ]
+    },
+    "rotulo_desvincular": {
+      "frases": [
+        "desatá ese rótulo",
+        "que deje de escribirse solo",
+        "desenganchá ese rótulo",
+        "cortá la conexión de ese rótulo con los datos",
+        "ese zócalo ya no se actualiza más solo",
+        "apagale el automático al generador",
+        "quitale el vínculo, lo escribo a mano",
+        "soltá ese rótulo del dato"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "laminas_ir": {
+      "frases": [
+        "tirá la que sigue",
+        "la que sigue",
+        "seguí",
+        "avanzá una",
+        "volvé a la anterior",
+        "atrás una",
+        "la de antes",
+        "poné la 3",
+        "clavá la número 7",
+        "mostrá la cuatro",
+        "volvé a la primera",
+        "poné la última",
+        "pasá de imagen",
+        "cambiá la imagen del carrusel"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "laminas_buscar": {
+      "frases": [
+        "encontrame la foto del estadio",
+        "dónde quedó la de la torta de porcentajes",
+        "dónde está la lámina del organigrama",
+        "buscá la placa de sponsors en la presentación",
+        "encontrame la del mapa",
+        "en qué número está la de las ventas"
+      ],
+      "tambien": [
+        "laminas_ver"
+      ],
+      "correctivas": []
+    },
+    "laminas_ver": {
+      "frases": [
+        "qué láminas tiene",
+        "cuántas diapositivas son",
+        "mostrame la lista de láminas",
+        "en cuál estamos",
+        "qué diapositivas tiene la presentación del informe"
+      ],
+      "tambien": [
+        "laminas_listar"
+      ],
+      "correctivas": [
+        "listá las diapositivas del carrusel de la cooperativa"
+      ],
+      "arregla": [
+        "v9-banco"
+      ]
+    },
+    "laminas_listar": {
+      "frases": [
+        "mostrame el repertorio de diapositivas",
+        "qué carruseles hay armados",
+        "cuántos carruseles tengo armados",
+        "cuántos juegos de diapositivas hay",
+        "decime qué presentaciones subí",
+        "qué carruseles de láminas están listos",
+        "cuáles carruseles tengo disponibles",
+        "enumerame los carruseles de diapositivas"
+      ],
+      "tambien": [],
+      "correctivas": []
+    },
+    "laminas_aplicar": {
+      "frases": [
+        "metele las láminas a esta escena",
+        "metele el carrusel a la toma",
+        "que las láminas salgan en esta escena",
+        "poné las diapos de la feria en la escena de apertura"
+      ],
+      "tambien": [],
+      "correctivas": []
+    }
+  }
+}

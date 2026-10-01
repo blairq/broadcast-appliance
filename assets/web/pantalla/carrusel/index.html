@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Carrusel</title>
+<!--
+  Varias páginas rotando en una pantalla.
+
+  CADA PASO ES UNA URL, y nada más. Todo lo que este aparato sabe proyectar ya
+  es una página: un mensaje, un QR, la hora, el teleprompter, el programa en
+  vivo, o algo de afuera. Así, lo que se pueda mostrar se puede poner en un
+  carrusel sin tocar esta página: ella solo sabe rotar.
+
+  DOS MARCOS QUE SE TURNAN. El que viene se carga ESCONDIDO y recién se cruza
+  cuando terminó de cargar: si se cambiara de golpe, se vería el blanco de una
+  página a medio cargar en el medio del salón. Y como el que sale sigue ahí
+  hasta que el otro está listo, nunca hay pantalla en negro.
+-->
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <iframe id="a" class="hoja visible" frameborder="0" scrolling="no"></iframe>
+  <iframe id="b" class="hoja" frameborder="0" scrolling="no"></iframe>
+  <div id="aviso" class="aviso">Buscando qué mostrar…</div>
+  <div id="barra" class="barra"><div id="progreso"></div></div>
+  <script src="../../comun/trama.js"></script>
+  <script src="../../comun/canal.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

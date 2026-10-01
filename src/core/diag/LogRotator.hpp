@@ -78,7 +78,16 @@ class LogRotator {
     /// :param dir: directorio donde viven los logs (p. ej. Logs/).
     /// :param maxBytes: umbral en bytes del archivo activo que fuerza rotacion.
     /// :param keepFiles: maximo de archivos rotados a conservar.
-    LogRotator(std::string dir, std::size_t maxBytes, std::size_t keepFiles);
+    /// :param nombre: nombre del archivo activo. Vacio = "ba.log". Cada
+    ///        proceso escribe el suyo (app.log, gateway.log, launcher.log) para
+    ///        que el visor pueda mostrar de donde salio cada linea y para que
+    ///        dos procesos no se pisen la rotacion.
+    /// :param conSelloDeTiempo: si el rotador antepone `[hora] ` a cada linea.
+    ///        Con false, la linea se escribe tal cual: es lo que hace falta
+    ///        cuando quien llama ya arma la linea entera con su hora (ver
+    ///        Registro.hpp), para no terminar con dos horas por linea.
+    LogRotator(std::string dir, std::size_t maxBytes, std::size_t keepFiles, std::string nombre = {},
+               bool conSelloDeTiempo = true);
 
     /// Escribe una linea con timestamp al archivo activo, rotando si hace falta.
     ///
@@ -108,6 +117,8 @@ class LogRotator {
     std::string activePath_;
     std::size_t maxBytes_;
     std::size_t keepFiles_;
+    std::string nombre_;
+    bool conSello_ = true;
     bool active_ = false; // false si el directorio no se pudo crear
 
     // --- helpers (privados) -------------------------------------------------

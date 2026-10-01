@@ -109,8 +109,35 @@ void InputsViewModel::refresh() {
     for (const auto& d : rt_.engine().sourceTypeListItems(inputs::kVideoType, inputs::kVideoProp))
         devices_ << QVariantMap{{"name", QString::fromStdString(d.name)},
                                 {"value", QString::fromStdString(d.value)}};
+    audioDevices_.clear();
+    for (const auto& d : rt_.engine().sourceTypeListItems(inputs::kAudioInType, inputs::kAudioInProp))
+        audioDevices_ << QVariantMap{{"name", QString::fromStdString(d.name)},
+                                     {"value", QString::fromStdString(d.value)}};
     rebuildInputs();
     emit changed();
+}
+
+QString InputsViewModel::audioInputName(const QString& device) const {
+    // El dispositivo "default" se llama "Default": con ese nombre el operador
+    // no sabe que es. El resto ya trae el nombre del equipo.
+    if (device == "default") return QStringLiteral("Entrada de audio predeterminada");
+    for (const QVariant& d : audioDevices_)
+        if (d.toMap().value("value").toString() == device) return d.toMap().value("name").toString();
+    return QStringLiteral("Micrófono");
+}
+
+QString InputsViewModel::addAudioInput(const QString& device, const QString& name) {
+    if (device.isEmpty()) return "Elegí una entrada de audio.";
+    QString nm = name.trimmed();
+    if (nm.isEmpty()) nm = audioInputName(device);
+    const SourceSpec spec = inputs::audioInputSpec(device.toStdString(), nm.toStdString());
+    // Canal GLOBAL, como el audio de los invitados: suena en todas las escenas
+    // (un microfono no pertenece a una escena).
+    if (!rt_.addAudioInput(spec)) return QString::fromStdString(rt_.lastError());
+    rt_.save();
+    vm_.refreshModels();
+    refresh();
+    return {};
 }
 
 void InputsViewModel::rebuildInputs() {
@@ -146,6 +173,20 @@ void InputsViewModel::rebuildInputs() {
             {"receiving", w > 0},
             {"state", QString::fromStdString(media.count(n) ? media[n] : std::string())},
             {"scenes", inScenes}};
+    }
+    // Entradas de audio del equipo: no son items de escena (van por un canal
+    // global), asi que no salen del recorrido de arriba. Se listan igual: para
+    // el operador son entradas como cualquier otra.
+    for (const std::string& n : e.globalAudioInputs()) {
+        const json s = json::parse(e.sourceSettingsJson(n), nullptr, false);
+        out << QVariantMap{{"name", QString::fromStdString(n)},
+                           {"kind", "audio"},
+                           {"where", QString::fromStdString(s.value(inputs::kAudioInProp, std::string()))},
+                           {"width", 0},
+                           {"height", 0},
+                           {"receiving", true},
+                           {"state", QString()},
+                           {"scenes", QStringList{QStringLiteral("todas (audio)")}}};
     }
     if (out != inputs_) {
         inputs_ = out;
@@ -246,6 +287,8 @@ void InputsViewModel::remove(const QString& name) {
     for (const auto& sc : rt_.engine().sceneNames())
         for (const auto& src : rt_.engine().sceneSources(sc))
             if (src == n) rt_.removeSource(sc, n);
+    // Las entradas de audio no estan en ninguna escena: van por su canal global.
+    rt_.removeAudioInput(n);
     rt_.save();
     vm_.refreshModels();
     refresh();

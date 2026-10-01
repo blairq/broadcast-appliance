@@ -34,6 +34,15 @@ SourceSpec hardwareSpec(const std::string& device, const std::string& name, cons
     return spec;
 }
 
+SourceSpec audioInputSpec(const std::string& device, const std::string& name) {
+    SourceSpec spec;
+    spec.id = kAudioInType;
+    spec.name = name;
+    spec.settingsJson = json{{kAudioInProp, device}}.dump();
+    spec.rect = CanvasRect{0.0f, 0.0f, 0.0f, 0.0f}; // solo audio
+    return spec;
+}
+
 SourceSpec networkSpec(const std::string& url, const std::string& name, const json& opts,
                        const std::string& caFile) {
     const std::string sch = networkScheme(url);

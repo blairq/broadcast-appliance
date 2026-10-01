@@ -128,7 +128,44 @@ if(MSVC)
     endif()
 endif()
 
-if(BA_GATEWAY_WEBRTC)
+# macOS: el libwebrtc de Shiguredo (macos_arm64) esta compilado contra la
+# libc++ del sistema (std::__1), la misma de Apple clang: se enlaza directo en
+# este build, sin el sub-build de Linux. Lo baja `make deps-webrtc` en macOS.
+set(BA_GATEWAY_WEBRTC_MAC 0)
+if(APPLE AND EXISTS "${BA_WEBRTC_ROOT}/lib/libwebrtc.a" AND EXISTS "${BA_WEBRTC_ROOT}/include/api/peer_connection_interface.h")
+    set(BA_GATEWAY_WEBRTC_MAC 1)
+    message(STATUS "ba-gateway: libwebrtc REAL (macOS arm64) en ${BA_WEBRTC_ROOT}")
+    # Igual que en Windows (ver abajo): el SDK se compilo con un clang mas
+    # viejo y el de Xcode 26 rechaza [[clang::lifetimebound]] en parametros de
+    # funciones void (api/candidate.h). Copia de absl/base/attributes.h sin
+    # ese atributo delante del SDK (solo avisos de analisis; mismo ABI).
+    set(_ba_absl_shadow "${CMAKE_BINARY_DIR}/webrtc-mac-shadow")
+    file(READ "${BA_WEBRTC_ROOT}/include/third_party/abseil-cpp/absl/base/attributes.h" _ba_attr)
+    string(REPLACE "#define ABSL_ATTRIBUTE_LIFETIME_BOUND [[clang::lifetimebound]]"
+           "#define ABSL_ATTRIBUTE_LIFETIME_BOUND" _ba_attr "${_ba_attr}")
+    file(WRITE "${_ba_absl_shadow}/absl/base/attributes.h" "${_ba_attr}")
+    add_library(ba_webrtc_mac INTERFACE)
+    target_include_directories(ba_webrtc_mac SYSTEM BEFORE INTERFACE
+        "${_ba_absl_shadow}"
+        "${BA_WEBRTC_ROOT}/include"
+        "${BA_WEBRTC_ROOT}/include/third_party/abseil-cpp"
+        "${BA_WEBRTC_ROOT}/include/third_party/libyuv/include")
+    target_compile_definitions(ba_webrtc_mac INTERFACE BA_GATEWAY_HAVE_WEBRTC=1 WEBRTC_POSIX WEBRTC_MAC)
+    target_link_libraries(ba_webrtc_mac INTERFACE "${BA_WEBRTC_ROOT}/lib/libwebrtc.a"
+        "-framework Foundation" "-framework CoreFoundation" "-framework CoreAudio" "-framework AudioToolbox"
+        "-framework AudioUnit" "-framework CoreVideo" "-framework CoreMedia" "-framework VideoToolbox"
+        "-framework AVFoundation" "-framework AppKit" "-framework Metal" "-framework MetalKit"
+        "-framework IOSurface" "-framework ApplicationServices" "-framework CoreGraphics"
+        "-framework QuartzCore" "-framework CoreServices" "-framework Security"
+        "-framework SystemConfiguration")
+    # libwebrtc esta compilado sin RTTI.
+    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/Webrtc.cpp" PROPERTIES COMPILE_OPTIONS "-fno-rtti")
+    target_link_libraries(ba-gateway PRIVATE ba_webrtc_mac)
+endif()
+
+if(BA_GATEWAY_WEBRTC_MAC)
+    # (configurado arriba)
+elseif(BA_GATEWAY_WEBRTC)
     message(STATUS "ba-gateway: libwebrtc en ${BA_WEBRTC_ROOT}")
     target_compile_definitions(ba-gateway PRIVATE BA_GATEWAY_HAVE_WEBRTC=1)
     # Binarios precompilados de Shiguredo: webrtc.lib en COFF con símbolos
@@ -262,6 +299,19 @@ if(BA_GATEWAY_WEBRTC AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_webrtc_l
     add_test(NAME test_webrtc_loopback COMMAND test_webrtc_loopback)
     set_tests_properties(test_webrtc_loopback PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
 endif()
+if(BA_GATEWAY_WEBRTC_MAC AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_webrtc_loopback.cpp")
+    add_executable(test_webrtc_loopback tests/test_webrtc_loopback.cpp ${BA_GATEWAY_LIB_SOURCES}
+                   "${BA_QRCODEGEN_DIR}/qrcodegen.cpp")
+    target_include_directories(test_webrtc_loopback PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_QRCODEGEN_DIR}")
+    target_link_libraries(test_webrtc_loopback PRIVATE ba_core mbedcrypto ba_webrtc_mac)
+    if(BA_HAVE_LWIP)
+        target_link_libraries(test_webrtc_loopback PRIVATE ba_lwip)
+        target_compile_definitions(test_webrtc_loopback PRIVATE BA_HAVE_LWIP=1)
+    endif()
+    set_source_files_properties(tests/test_webrtc_loopback.cpp PROPERTIES COMPILE_OPTIONS "-fno-rtti")
+    add_test(NAME test_webrtc_loopback COMMAND test_webrtc_loopback)
+    set_tests_properties(test_webrtc_loopback PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+endif()
 
 # --- Instalación ------------------------------------------------------------
 # Proceso B va a bin/64bit/ (spec §5.1). La app web del invitado se instala en
@@ -333,5 +383,49 @@ endif()
 if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/board")
     install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/board/"
         DESTINATION Web/board
+    )
+endif()
+# El canal de control, compartido por TODAS las superficies web (canal.js).
+if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/comun")
+    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/comun/"
+        DESTINATION Web/comun
+    )
+endif()
+# Nota: assets/web/pantalla/ incluye carrusel/ (se copia el directorio entero).
+# El programa en vivo para un televisor (/cast/): la pagina del invitado sin
+# las partes de invitado, por WebRTC (100-300 ms, contra los 1-5 s del
+# reproductor de fabrica del Chromecast).
+if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/cast")
+    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/cast/"
+        DESTINATION Web/cast
+    )
+endif()
+# Lo que se manda a un televisor (/pantalla/): mensajes, QR y reloj. Una sola
+# pagina para todo lo que se proyecta (ver assets/web/pantalla/index.html).
+if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/pantalla")
+    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/pantalla/"
+        DESTINATION Web/pantalla
+    )
+endif()
+# Teleprompter: la tablet del orador (/prompter) y el control del celular
+# (/prompter/#control). Lo sirve B, como el resto de las vistas web.
+if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/prompter")
+    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/prompter/"
+        DESTINATION Web/prompter
+    )
+endif()
+
+# Publico: el que esta en la butaca, con su telefono (/publico/). Pregunta y
+# vota; no entra a la sala ni pide camara.
+if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/publico")
+    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/publico/"
+        DESTINATION Web/publico
+    )
+endif()
+
+# Rotulos: escribir el nombre del que habla desde el celular (/rotulos/).
+if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/rotulos")
+    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/rotulos/"
+        DESTINATION Web/rotulos
     )
 endif()

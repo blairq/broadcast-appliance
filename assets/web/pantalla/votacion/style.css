@@ -1,0 +1,68 @@
+/* Se mira desde el fondo de una sala: todo grande, mucho contraste y nada
+   decorativo. La medida de referencia no son píxeles sino el ancho de la
+   pantalla (vw), porque el mismo HTML va a un televisor de 40" y a un
+   proyector de tres metros. */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: #0d1014;
+  color: #e8ecf2;
+  font: 16px/1.3 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+main { width: 100%; padding: 4vh 5vw; }
+
+.estado {
+  font-size: 1.6vw;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #9aa4b2;
+  margin-bottom: 1.5vh;
+}
+.estado.abierta { color: #ff3b30; }
+
+h1 {
+  font-size: 4.2vw;
+  line-height: 1.15;
+  margin: 0 0 4vh;
+  font-weight: 650;
+}
+
+.cuerpo { display: flex; gap: 4vw; align-items: flex-start; }
+.opciones { flex: 1; display: flex; flex-direction: column; gap: 2.5vh; }
+
+.op .fila { display: flex; justify-content: space-between; align-items: baseline; }
+.op .nombre { font-size: 2.6vw; }
+.op .n { font-size: 2.6vw; font-weight: 700; }
+.op .riel {
+  margin-top: 0.8vh;
+  height: 1.8vh;
+  border-radius: 1vh;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.op .lleno {
+  height: 100%;
+  border-radius: 1vh;
+  background: #ff6a2b;
+  transition: width 0.4s ease;
+}
+
+/* Cuando todavía no se puede mostrar el resultado, las opciones se leen igual
+   —la gente tiene que saber qué está votando— pero sin barras ni números. */
+.op.sinnumeros .n, .op.sinnumeros .riel { display: none; }
+
+.como { width: 22vw; text-align: center; }
+.como img { width: 100%; background: #fff; border-radius: 1vw; padding: 1vw; }
+.como.oculto { display: none; }
+.pie { font-size: 1.4vw; color: #9aa4b2; margin: 1.2vh 0 0; }
+.cuenta { font-size: 1.8vw; margin: 2vh 0 0; font-weight: 600; }
+
+.nada { font-size: 2.4vw; color: #6b7480; }
+.hidden { display: none !important; }

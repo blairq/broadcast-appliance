@@ -9,6 +9,9 @@
 //   plugin     un modulo CLAP (LSP: gate, compresor, de-esser, EQ...)
 //   analyzer   analizador en cualquier punto (pasa el audio tal cual)
 //   generator  señal de prueba (seno, ruido, barrido): solo salida
+//   salida     una salida de audio del equipo (auriculares, parlantes): copia
+//              lo que le llega para mandarlo a ese dispositivo. No toca lo que
+//              sale al aire; se patchea desde donde se quiera oir.
 // Puertos: "in" (entrada principal), "sc" (sidechain, si el modulo tiene) y
 // "out". Varios cables a una entrada se suman. Sin ciclos.
 //
@@ -57,15 +60,30 @@ class AudioRack {
     std::string addAnalyzer(const std::string& label, const std::string& after);
     /// Generador suelto (no se conecta solo: se patchea a mano o se usa para medir).
     std::string addGenerator(const std::string& label);
+    /// Nodo de SALIDA de audio del equipo (uno por rack). `device` es el id del
+    /// dispositivo y `label` su nombre. Si ya hay uno, le cambia el destino.
+    std::string addOutput(const std::string& device, const std::string& label);
+    bool hasOutput() const;
+    /// Id del dispositivo de la salida ("" si no hay nodo de salida).
+    std::string outputDevice() const;
     bool remove(const std::string& id, std::string* error);
+    /// Conecta una salida con una entrada. Los canales van en -1 (puerto
+    /// entero), 0 (izquierdo) o 1 (derecho).
     bool connect(const std::string& from, const std::string& fromPort, const std::string& to,
-                 const std::string& toPort, std::string* error);
+                 const std::string& toPort, std::string* error, int fromCh = -1, int toCh = -1);
+    /// Quita el cable. Con los canales en -1 quita cualquiera entre esos puertos.
     bool disconnect(const std::string& from, const std::string& fromPort, const std::string& to,
-                    const std::string& toPort);
+                    const std::string& toPort, int fromCh = -1, int toCh = -1);
     bool setBypass(const std::string& id, bool bypass);
     bool rename(const std::string& id, const std::string& label);
-    /// Posicion del nodo en el patchbay (se guarda con el rack).
+    /// Posicion del nodo en el patchbay (se guarda con el rack). Se redondea
+    /// a la grilla: los nodos quedan alineados entre si.
     bool setPosition(const std::string& id, double x, double y);
+    /// Paso de la grilla del patchbay (para dibujarla en la interfaz).
+    static double gridStep();
+    /// Reordena TODO en la grilla: la cadena principal de izquierda a derecha
+    /// (en varias filas si no entra), y abajo los generadores y la escucha.
+    void layoutGrid();
 
     ClapInstance* plugin(const std::string& id);
     /// "in", "out" o un nodo analizador.
@@ -92,15 +110,24 @@ class AudioRack {
     // --- hilo de audio ---------------------------------------------------------------
     /// `planes`: los canales de la fuente (1..8, se procesan los 2 primeros).
     void process(float* const* planes, int channels, uint32_t frames);
+    /// Lo que capturo el nodo de salida en el ULTIMO `process()` (planar, 2
+    /// canales). Vale hasta el `process()` siguiente y solo en ese hilo.
+    uint32_t monitorFrames() const { return monFrames_; }
+    const float* monitorPlane(int ch) const;
 
     struct Node;
 
    private:
+    /// Un cable. `fromCh`/`toCh`: -1 = el puerto entero (L->L y R->R), 0 = el
+    /// canal izquierdo, 1 = el derecho. Asi se puede llevar, por ejemplo, la
+    /// derecha de un modulo a la izquierda de otro, o usar un solo canal.
     struct Conn {
         std::string from;
         int fromPort;
         std::string to;
         int toPort;
+        int fromCh = -1;
+        int toCh = -1;
     };
     struct Plan;
 
@@ -113,6 +140,8 @@ class AudioRack {
     /// Ubica un nodo nuevo en el patchbay: a la derecha del ultimo (la salida
     /// se corre); los generadores, abajo.
     void place(Node& n);
+    /// Ubica el nodo en la celda `slot` de la grilla (fila = slot / columnas).
+    void setSlot(Node& n, int slot);
     void rebuild();
     std::vector<std::string> mainChain() const;
 
@@ -121,6 +150,11 @@ class AudioRack {
     double sr_ = 48000;
     std::vector<std::unique_ptr<Node>> nodes_;
     std::vector<Conn> conns_;
+
+    // Escucha: buffer propio (no se asigna memoria en el hilo de audio).
+    static constexpr uint32_t kMonitorCap = 8192;
+    std::vector<float> monL_, monR_;
+    uint32_t monFrames_ = 0;
 
     std::mutex planLock_;
     std::unique_ptr<Plan> plan_;

@@ -57,6 +57,11 @@ class AppRuntime {
     // --- Salidas --------------------------------------------------------------
     bool startRecording();
     void stopRecording();
+    /// Graba una entrada a su propio archivo, ademas del programa. Ver
+    /// BroadcastEngine::startSourceRecording: cada una es un encode mas.
+    bool startSourceRecording(const std::string& source);
+    bool stopSourceRecording(const std::string& source);
+    void stopAllSourceRecordings();
     /// Transmite a `server` con `key`; vacios = los de la configuracion/entorno.
     bool startStreaming(const std::string& server = {}, const std::string& key = {});
     void stopStreaming();
@@ -64,7 +69,25 @@ class AppRuntime {
     // --- Escenas y fuentes (motor + configuracion) ----------------------------
     bool addScene(const std::string& name);
     bool removeScene(const std::string& name);
+    /// Copia una escena entera con sus fuentes. La copia NO queda protegida
+    /// aunque el original lo este: para eso se copia.
+    bool copyScene(const std::string& from, const std::string& to);
+    /// Una escena protegida no se borra ni se renombra (copiarla si).
+    bool setSceneProtected(const std::string& name, bool protegida);
+    bool sceneProtected(const std::string& name) const;
     bool renameScene(const std::string& from, const std::string& to);
+    /// Carpeta de una escena ("" si no tiene).
+    std::string sceneFolder(const std::string& name) const;
+    /// Mueve la escena a una carpeta ("" la saca). Devuelve false si no existe.
+    bool setSceneFolder(const std::string& name, const std::string& folder);
+    /// Carpetas que hay, en el orden en que aparecen las escenas.
+    std::vector<std::string> sceneFolders() const;
+    /// Escenas en el orden en que las ve el operador (el de la configuracion;
+    /// las que solo existan en el motor van al final).
+    std::vector<std::string> orderedSceneNames() const;
+    /// Mueve `name` para que quede JUSTO ANTES de `before` (vacio = al final) y
+    /// le pone la carpeta de `before`. Devuelve false si no existe.
+    bool moveScene(const std::string& name, const std::string& before);
     bool setScene(const std::string& name);
     bool setTransition(const std::string& type, int durationMs);
     bool addSource(const std::string& scene, const SourceSpec& spec);
@@ -115,8 +138,13 @@ class AppRuntime {
     /// La definicion guardada de una fuente en una escena (nullptr si no esta).
     SourceSpec* findSpec(const std::string& scene, const std::string& name);
 
+    /// Entrada de audio del equipo (microfono, linea) como fuente global.
+    bool addAudioInput(const SourceSpec& spec);
+    bool removeAudioInput(const std::string& name);
+
    private:
     void addGuests();
+    void addAudioInputs();
     /// Runtime/al-aire.json: que salidas estaban activas. Lo lee un arranque
     /// con --restore para retomar la emision tras una caida.
     void writeOnAirState() const;

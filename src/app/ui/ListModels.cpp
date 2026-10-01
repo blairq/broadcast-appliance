@@ -35,15 +35,30 @@ QVariant ScenesModel::data(const QModelIndex& index, int role) const {
     switch (role) {
         case NameRole: return qs(n);
         case LiveRole: return n == rt_.engine().currentScene();
+        case FolderRole: return qs(rt_.sceneFolder(n));
+        case ProtegidaRole: return rt_.sceneProtected(n);
+        case ArmadaRole: return qs(n) == armada_;
         default: return {};
     }
 }
 
-QHash<int, QByteArray> ScenesModel::roleNames() const { return {{NameRole, "name"}, {LiveRole, "live"}}; }
+QHash<int, QByteArray> ScenesModel::roleNames() const {
+    return {{NameRole, "name"},
+            {LiveRole, "live"},
+            {FolderRole, "folder"},
+            {ProtegidaRole, "protegida"},
+            {ArmadaRole, "armada"}};
+}
+
+void ScenesModel::setArmada(const QString& n) {
+    if (n == armada_) return;
+    armada_ = n;
+    if (rowCount() > 0) emit dataChanged(index(0), index(rowCount() - 1), {ArmadaRole});
+}
 
 void ScenesModel::reload() {
     beginResetModel();
-    names_ = rt_.engine().sceneNames();
+    names_ = rt_.orderedSceneNames();
     endResetModel();
 }
 
@@ -129,6 +144,12 @@ void SourcesModel::reload() {
     beginResetModel();
     names_ = rt_.engine().sceneSources(scene_.toStdString());
     endResetModel();
+}
+
+QVariantMap SourcesModel::capa(int fila) const {
+    if (fila < 0 || fila >= rowCount()) return {};
+    const QModelIndex i = index(fila, 0);
+    return QVariantMap{{"nombre", data(i, NameRole)}, {"visible", data(i, VisibleRole)}};
 }
 
 bool SourcesModel::setVisible(const QString& name, bool visible) {
@@ -286,6 +307,13 @@ void MixerModel::refreshLevels() {
     if (!names_.empty()) {
         emit dataChanged(index(0), index(rowCount() - 1), {PeakDbRole});
     }
+}
+
+QVariantMap MixerModel::canal(int fila) const {
+    if (fila < 0 || fila >= static_cast<int>(names_.size())) return {};
+    const QModelIndex i = index(fila, 0);
+    return QVariantMap{
+        {"nombre", data(i, NameRole)}, {"volumenDb", data(i, VolumeDbRole)}, {"mudo", data(i, MutedRole)}};
 }
 
 bool MixerModel::setVolumeDb(const QString& name, double db) {

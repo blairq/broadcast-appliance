@@ -27,7 +27,11 @@ class AppRuntime;
 class ScenesModel : public QAbstractListModel {
     Q_OBJECT
    public:
-    enum Roles { NameRole = Qt::UserRole + 1, LiveRole };
+    /// `live` = esta AL AIRE. `armada` = esta en el bus de preview, o sea la
+    /// que va a salir con el proximo TAKE. Son dos cosas distintas y por eso
+    /// son dos roles: una mesa de switcher las muestra en dos filas y el
+    /// operador mira las dos.
+    enum Roles { NameRole = Qt::UserRole + 1, LiveRole, FolderRole, ProtegidaRole, ArmadaRole };
     explicit ScenesModel(AppRuntime& rt, QObject* parent = nullptr);
     int rowCount(const QModelIndex& = {}) const override;
     QVariant data(const QModelIndex& index, int role) const override;
@@ -36,10 +40,15 @@ class ScenesModel : public QAbstractListModel {
     void reload();
     /// Avisa que cambio la escena al aire.
     void liveChanged();
+    /// La escena ARMADA (bus de preview): la que sale con el proximo TAKE.
+    /// Vacia = no hay ninguna armada.
+    QString armada() const { return armada_; }
+    void setArmada(const QString& n);
 
    private:
     AppRuntime& rt_;
     std::vector<std::string> names_;
+    QString armada_;
 };
 
 class SourcesModel : public QAbstractListModel {
@@ -68,6 +77,9 @@ class SourcesModel : public QAbstractListModel {
     void reload();
 
     Q_INVOKABLE bool setVisible(const QString& name, bool visible);
+    /// Una capa por posicion: {nombre, visible}. Vacio si no existe. Igual que
+    /// `MixerModel::canal`: la vista no pide datos por NUMERO de rol.
+    Q_INVOKABLE QVariantMap capa(int fila) const;
     Q_INVOKABLE bool move(const QString& name, int delta);
     Q_INVOKABLE bool remove(const QString& name);
     Q_INVOKABLE bool setRect(const QString& name, double x, double y, double w, double h);
@@ -119,6 +131,12 @@ class MixerModel : public QAbstractListModel {
 
     Q_INVOKABLE bool setVolumeDb(const QString& name, double db);
     Q_INVOKABLE bool setMuted(const QString& name, bool muted);
+    /// Un canal por posicion: {nombre, volumenDb, mudo}. Vacio si no existe.
+    /// Esta aca para que la vista NO tenga que pedir datos por NUMERO de rol:
+    /// los roles son un enum que corre solo al agregar uno, y una vista que
+    /// los escribe a mano se rompe en silencio (pasa: se pidio el pico
+    /// creyendo pedir el volumen).
+    Q_INVOKABLE QVariantMap canal(int fila) const;
 
    private:
     AppRuntime& rt_;

@@ -22,9 +22,19 @@
 //   GET    /api/v1/room                    estado completo (snapshot)
 //   GET    /api/v1/events                  SSE: "room" (snapshot) y "chat"
 //   GET    /api/v1/network                 HTTPS, tunel WireGuard, IPs y enlaces
+//   GET    /api/v1/prompter                estado del teleprompter (+ la clave y quien esta conectado)
+//   POST   /api/v1/prompter                {texto?, titulo?, panico?, ...comandos}
+//   GET    /api/v1/prompter-link?target=local|remote&vista=control|orador&conClave=0|1  enlace + QR
+//   GET    /api/v1/cast-link?target=local|remote&nombre=  enlace del programa en vivo para una pantalla
+//   GET    /api/v1/carruseles              los publicados
+//   GET    /api/v1/superficies             que paginas estan VIVAS (latido, ver Superficies.hpp)
+//   POST   /api/v1/carruseles              publica uno entero (o {borrar: "<id>"})
+//   GET    /api/v1/rotulos                estado de los rotulos (+ la clave)
+//   POST   /api/v1/rotulos                {estado?, tomar?} publica y se lleva los encargos
+//   GET    /api/v1/rotulos-link?target=local|remote&conClave=0|1  enlace + QR para el celular
 //   GET    /api/v1/qr?target=local|remote[&pin=1]  URL de ingreso (+PIN) + matriz del QR
 //   POST   /api/v1/network/server-config   {endpoint, publicAddress?} -> wg0.conf del servidor
-//   POST   /api/v1/room                    {lobby?, locked?}
+//   POST   /api/v1/room                    {lobby?, locked?, intake?}
 //   POST   /api/v1/pin                     {pin?}  (vacio = generar)
 //   POST   /api/v1/participants/<id>/admit | reject | kick
 //   POST   /api/v1/participants/<id>/request   {what}
@@ -33,6 +43,7 @@
 //   POST   /api/v1/participants/<id>/move      {index}  lugar en la fila (0 = primero)
 //   POST   /api/v1/participants/<id>/time      {sec}  tiempo propio para hablar
 //   POST   /api/v1/participants/<id>/requeue   vuelve al final de la fila
+//   POST   /api/v1/participants/<id>/presenter  {on} presentador fijo
 //   POST   /api/v1/participants/<id>/profile   {name?, info?, contact?}
 //   GET    /api/v1/participants/<id>/avatar    foto de la tarjeta (JPEG)
 //   POST   /api/v1/speakers                {enabled?, defaultSec?, carousel?, graceSec?,
@@ -52,10 +63,12 @@
 // ============================================================================
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <system_error>
 
 #include "HttpIo.hpp"
@@ -66,11 +79,20 @@
 #include "ShareStore.hpp"
 #include "SignalingServer.hpp"
 
+#include "diag/Registro.hpp"
+
 namespace ba::gateway {
 
 using json = nlohmann::json;
 
 namespace {
+
+/// El reloj de pared, para fechar lo que entra por aca.
+inline std::int64_t nowMsAdmin() {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+               std::chrono::system_clock::now().time_since_epoch())
+        .count();
+}
 
 int64_t nowMsA() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -248,6 +270,8 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
                 room_.setLobby(req["lobby"].get<bool>(), nowMsA());
             if (req.contains("locked") && req["locked"].is_boolean())
                 room_.setLocked(req["locked"].get<bool>());
+            if (req.contains("intake") && req["intake"].is_boolean())
+                room_.setIntake(req["intake"].get<bool>());
             sendJson(fd, 200, json{{"ok", true}});
             return;
         }
@@ -350,6 +374,457 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             json{{"ok", true}, {"target", target}, {"url", url}, {"size", qr.getSize()}, {"modules", rows}});
         return;
     }
+    // --- Teleprompter -------------------------------------------------------
+    if (path == "/api/v1/prompter") {
+        // A ve siempre la clave del control: la necesita para armar el enlace
+        // que le manda al operador. Por la superficie de invitados no sale.
+        const auto conClave = [this](json e) {
+            e["clave"] = cfg_.prompterKey;
+            e["clientes"] = prompter_.clientes();
+            return e;
+        };
+        if (method == "GET") {
+            sendJson(fd, 200, conClave(prompter_.estado()));
+            return;
+        }
+        if (method == "POST") {
+            // A comanda sin clave: ya paso por el token de la API de control.
+            if (req.contains("texto") && req["texto"].is_string()) {
+                prompter_.cargar(req.value("titulo", std::string()), req["texto"].get<std::string>());
+            }
+            if (req.value("panico", false)) prompter_.pararEnSeco();
+            prompter_.comandar(req);
+            sendJson(fd, 200, conClave(prompter_.estado()));
+            return;
+        }
+    }
+    // --- Rotulos ------------------------------------------------------------
+    // El buzon de dos direcciones con la app: A publica lo que hay y se lleva
+    // lo que encargaron desde los celulares. Ver Rotulador.hpp.
+    if (path == "/api/v1/rotulos") {
+        if (method == "GET") {
+            json e = rotulador_.estado();
+            e["clave"] = cfg_.rotulosKey;
+            sendJson(fd, 200, e);
+            return;
+        }
+        if (method == "POST") {
+            if (req.contains("estado")) rotulador_.publicar(req["estado"]);
+            json out{{"ok", true}};
+            // `tomar` en el mismo pedido: A publica y se lleva los encargos de
+            // una, que es un viaje por segundo en vez de dos.
+            if (req.value("tomar", false)) out["encargos"] = rotulador_.tomarEncargos();
+            sendJson(fd, 200, out);
+            return;
+        }
+    }
+    if (path == "/api/v1/rotulos-link" && method == "GET") {
+        const auto q = http::parseQuery(query);
+        const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
+        json out = joinUrl_ ? joinUrl_(target) : json{{"error", "sin proveedor de URL"}};
+        if (!out.contains("url")) {
+            out["ok"] = false;
+            sendJson(fd, 200, out);
+            return;
+        }
+        std::string origin = out["url"].get<std::string>();
+        if (const size_t s = origin.find("://"); s != std::string::npos) {
+            const size_t end = origin.find_first_of("/?#", s + 3);
+            if (end != std::string::npos) origin.resize(end);
+        }
+        // La clave va en el FRAGMENTO: no viaja en la peticion ni queda en los
+        // registros de ningun servidor por el que pase el enlace. `conClave=0`
+        // la deja afuera: el QR entra a la pagina y la clave se la dice el
+        // operador aparte, que es lo que se quiere si el QR va a quedar pegado
+        // en una pared.
+        const bool conClave = !q.count("conClave") || http::urlDecode(q.at("conClave")) != "0";
+        const std::string url = origin + "/rotulos/" + (conClave ? "#k=" + cfg_.rotulosKey : std::string());
+        const qrcodegen::QrCode qr =
+            qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
+        json rows = json::array();
+        for (int y = 0; y < qr.getSize(); ++y) {
+            std::string row;
+            for (int x = 0; x < qr.getSize(); ++x)
+                row.push_back(qr.getModule(x, y) ? '1' : '0');
+            rows.push_back(row);
+        }
+        sendJson(fd, 200,
+                 json{{"ok", true},
+                      {"target", target},
+                      {"url", url},
+                      {"conClave", conClave},
+                      {"clave", cfg_.rotulosKey},
+                      {"size", qr.getSize()},
+                      {"modules", rows}});
+        return;
+    }
+
+    // --- Las preguntas del publico -------------------------------------------
+    if (path == "/api/v1/preguntas") {
+        if (method == "GET") {
+            sendJson(fd, 200,
+                     json{{"ok", true},
+                          {"preguntas", preguntas_.lista()},
+                          {"recuento", preguntas_.recuento()},
+                          {"proxima", preguntas_.proxima()},
+                          {"clave", cfg_.publicoKey}});
+            return;
+        }
+        if (method == "POST") {
+            const std::string accion = req.value("accion", std::string());
+            const std::string id = req.value("id", std::string());
+            bool ok = false;
+            if (accion == "elegir")
+                ok = preguntas_.elegir(id);
+            else if (accion == "des_elegir")
+                ok = preguntas_.desElegir(id);
+            else if (accion == "al_aire")
+                ok = preguntas_.alAire(id);
+            else if (accion == "responder")
+                ok = preguntas_.responder(id);
+            else if (accion == "descartar")
+                ok = preguntas_.descartar(id);
+            else if (accion == "limpiar") {
+                preguntas_.limpiar();
+                ok = true;
+            } else if (accion == "vaciar") {
+                preguntas_.vaciar();
+                ok = true;
+            } else if (accion == "preguntar") {
+                // Para meter en la cola lo que llego por otro lado (el chat de
+                // la sala, o el de YouTube): una sola cola para todos, que es
+                // de lo que se trata.
+                ok = !preguntas_
+                          .preguntar(req.value("nombre", std::string()), req.value("texto", std::string()),
+                                     req.value("deDonde", std::string("sala")), std::string(), nowMsAdmin())
+                          .empty();
+            } else {
+                sendErr(fd, 400, "accion");
+                return;
+            }
+            sendJson(fd, 200,
+                     json{{"ok", ok},
+                          {"preguntas", preguntas_.lista()},
+                          {"recuento", preguntas_.recuento()},
+                          {"proxima", preguntas_.proxima()}});
+            return;
+        }
+    }
+
+    // A viene a vaciar el buzon de los que escanearon su invitacion.
+    if (path == "/api/v1/acreditaciones" && method == "GET") {
+        json cs = json::array();
+        for (const std::string& c : tomarAcreditaciones())
+            cs.push_back(c);
+        sendJson(fd, 200, json{{"ok", true}, {"codigos", cs}});
+        return;
+    }
+
+    // Lo que la pagina del publico muestra arriba y de fondo. Lo manda A: es
+    // el unico que sabe que evento esta abierto.
+    if (path == "/api/v1/publico-info" && method == "POST") {
+        if (req.contains("info")) setPublicoInfo(req["info"]);
+        if (req.contains("fondo")) {
+            // Base64 porque viaja en JSON. Vacio = sacar el fondo, que tiene
+            // que poder hacerse sin reiniciar nada.
+            const std::string b64 = req["fondo"].is_string() ? req["fondo"].get<std::string>() : "";
+            setPublicoFondo(b64.empty() ? std::string() : http::deBase64(b64),
+                            req.value("fondoTipo", std::string("image/jpeg")));
+        }
+        sendJson(fd, 200, json{{"ok", true}, {"info", publicoInfo()}});
+        return;
+    }
+
+    // --- La urna, del lado del operador --------------------------------------
+    if (path == "/api/v1/votacion") {
+        if (method == "GET") {
+            const auto q = http::parseQuery(query);
+            json out{{"ok", true}, {"votacion", votacion_.estado()}};
+            // El historial solo cuando se pide: en una asamblea larga son
+            // muchas, y quien mira «como va» no las quiere todas.
+            if (q.count("historial")) out["historial"] = votacion_.historial();
+            sendJson(fd, 200, out);
+            return;
+        }
+        if (method == "POST") {
+            const std::string accion = req.value("accion", std::string());
+            if (accion == "cerrar") {
+                const bool ok = votacion_.cerrar();
+                sendJson(fd, 200, json{{"ok", ok}, {"votacion", votacion_.estado()}});
+                return;
+            }
+            if (accion == "olvidar_historial") {
+                votacion_.olvidarHistorial();
+                sendJson(fd, 200, json{{"ok", true}});
+                return;
+            }
+            if (accion == "en_vivo") {
+                votacion_.setMostrarEnVivo(req.value("si", false));
+                sendJson(fd, 200, json{{"ok", true}, {"votacion", votacion_.estado()}});
+                return;
+            }
+            if (accion != "abrir") {
+                sendErr(fd, 400, "accion");
+                return;
+            }
+            std::vector<std::string> opciones;
+            if (req.contains("opciones") && req["opciones"].is_array())
+                for (const json& o : req["opciones"])
+                    if (o.is_string()) opciones.push_back(o.get<std::string>());
+            ba::gateway::Votacion::Modo modo = ba::gateway::Votacion::Modo::Encuesta;
+            ba::gateway::Votacion::modoDeNombre(req.value("modo", std::string("encuesta")), modo);
+            // Los habilitados los manda A: es el unico que tiene el padron. B
+            // solo sabe que codigos son validos, ni siquiera de quienes son mas
+            // que el nombre para poder decir quien falta votar.
+            std::map<std::string, std::string> habilitados;
+            if (req.contains("habilitados") && req["habilitados"].is_array())
+                for (const json& h : req["habilitados"])
+                    if (h.is_object() && h.contains("codigo"))
+                        habilitados[h["codigo"].get<std::string>()] = h.value("nombre", std::string());
+            const bool ok = votacion_.abrir(req.value("pregunta", std::string()), opciones, modo,
+                                            req.value("secreta", false), habilitados, req.value("podian", 0),
+                                            nowMsAdmin());
+            if (!ok) {
+                sendErr(fd, 400, "hace falta una pregunta y al menos dos opciones");
+                return;
+            }
+            votacion_.setMostrarEnVivo(req.value("enVivo", false));
+            sendJson(fd, 200, json{{"ok", true}, {"votacion", votacion_.estado()}});
+            return;
+        }
+    }
+
+    if (path == "/api/v1/publico-link" && method == "GET") {
+        const auto q = http::parseQuery(query);
+        const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
+        json out = joinUrl_ ? joinUrl_(target) : json{{"error", "sin proveedor de URL"}};
+        if (!out.contains("url")) {
+            out["ok"] = false;
+            sendJson(fd, 200, out);
+            return;
+        }
+        std::string origin = out["url"].get<std::string>();
+        if (const size_t s = origin.find("://"); s != std::string::npos) {
+            const size_t end = origin.find_first_of("/?#", s + 3);
+            if (end != std::string::npos) origin.resize(end);
+        }
+        // Con la clave adentro casi siempre: este QR se proyecta en una
+        // pantalla o se imprime en el programa, y pedirle a doscientas personas
+        // que tipeen una clave es perder a la mitad.
+        const bool conClave = !q.count("conClave") || http::urlDecode(q.at("conClave")) != "0";
+        const std::string url = origin + "/publico/" + (conClave ? "#k=" + cfg_.publicoKey : std::string());
+        const qrcodegen::QrCode qr =
+            qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
+        json rows = json::array();
+        for (int y = 0; y < qr.getSize(); ++y) {
+            std::string row;
+            for (int x = 0; x < qr.getSize(); ++x)
+                row.push_back(qr.getModule(x, y) ? '1' : '0');
+            rows.push_back(row);
+        }
+        sendJson(fd, 200,
+                 json{{"ok", true},
+                      {"target", target},
+                      {"url", url},
+                      {"conClave", conClave},
+                      {"clave", cfg_.publicoKey},
+                      {"size", qr.getSize()},
+                      {"modules", rows}});
+        return;
+    }
+    // Lo que no es letra, numero o guion va porcentado: el nombre lo escribe
+    // una persona ("TV del hall") y va en una URL.
+    const auto porcentar = [](const std::string& s) {
+        static const char* hex = "0123456789ABCDEF";
+        std::string o;
+        for (const unsigned char c : s) {
+            if (std::isalnum(c) != 0 || c == '-' || c == '_' || c == '.' || c == '~') {
+                o.push_back(static_cast<char>(c));
+            } else {
+                o.push_back('%');
+                o.push_back(hex[c >> 4]);
+                o.push_back(hex[c & 0xf]);
+            }
+        }
+        return o;
+    };
+    // EMPUJAR: cambiarle a una superficie lo que muestra, SIN volver a
+    // castearla. Es la mitad que le faltaba al latido: una dice como esta, la
+    // otra la maneja. {a: "<id>"|"" (todas), tipo?: solo las de ese tipo,
+    // url?: que abrir, recargar?: que se recargue sola}.
+    if (path == "/api/v1/superficies/mostrar" && method == "POST") {
+        std::vector<std::string> destinos;
+        if (req.contains("a") && req["a"].is_string() && !req["a"].get<std::string>().empty())
+            destinos.push_back("superficie:" + req["a"].get<std::string>());
+        else
+            destinos = superficies_.conexionesDe(req.value("tipo", ""));
+        json orden{{"type", req.value("recargar", false) ? "recargar" : "mostrar"}};
+        if (req.contains("url")) orden["url"] = req["url"];
+        for (const std::string& pid : destinos)
+            sendToGuest(pid, orden);
+        sendJson(fd, 200, json{{"ok", true}, {"a", destinos.size()}});
+        return;
+    }
+    // EL TALLY lo publica A en cada cambio de escena. El gateway no sabe de
+    // escenas ni quiere saber: guarda lo que le dan y lo sirve en
+    // /pantalla/tally.json.
+    if (path == "/api/v1/tally" && method == "POST") {
+        {
+            std::lock_guard<std::mutex> lock(tallyLock_);
+            tally_ = req.is_object() ? req : json::object();
+        }
+        // Y se les avisa a las pantallas de tally que hay algo nuevo, para que
+        // no tengan que preguntar cada medio segundo: un tally que llega tarde
+        // es peor que no tenerlo, porque alguien se confia.
+        for (const std::string& pid : superficies_.conexionesDe("tally"))
+            sendToGuest(pid, json{{"type", "tally"}});
+        sendJson(fd, 200, json{{"ok", true}});
+        return;
+    }
+    if (path == "/api/v1/superficies" && method == "GET") {
+        sendJson(fd, 200, json{{"ok", true}, {"superficies", superficies_.vivas()}});
+        return;
+    }
+    if (path == "/api/v1/carruseles") {
+        if (method == "GET") {
+            sendJson(fd, 200, json{{"ok", true}, {"carruseles", carruseles_.todos()}});
+            return;
+        }
+        if (method == "POST") {
+            if (req.contains("borrar")) {
+                sendJson(fd, 200, json{{"ok", carruseles_.borrar(req["borrar"].get<std::string>())}});
+                return;
+            }
+            if (!carruseles_.publicar(req)) {
+                sendErr(fd, 400, "carrusel");
+                return;
+            }
+            sendJson(fd, 200, json{{"ok", true}});
+            return;
+        }
+    }
+
+    // El enlace del PROGRAMA EN VIVO para una pantalla. Acuña un token de
+    // ingreso (la pantalla entra como un invitado que no publica nada) y arma
+    // la URL de /cast/. Va por HTTP a proposito: un televisor no tiene donde
+    // aceptar nuestro certificado propio, asi que el HTTPS lo rechazaria.
+    if (path == "/api/v1/cast-link" && method == "GET") {
+        const auto q = http::parseQuery(query);
+        const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
+        const std::string nombre = q.count("nombre") ? http::urlDecode(q.at("nombre")) : "Pantalla";
+        if (room_.snapshot().value("locked", false)) {
+            sendJson(fd, 200,
+                     json{{"ok", false},
+                          {"message",
+                           "La sala esta cerrada: abrila para poder mandarle el programa a una pantalla."}});
+            return;
+        }
+        const std::string token = auth_.issue(cfg_.room, room_.snapshot().value("pin", ""));
+        if (token.empty()) {
+            sendJson(
+                fd, 200,
+                json{{"ok", false}, {"message", "No pude sacar un permiso de ingreso para la pantalla."}});
+            return;
+        }
+        json out = joinUrl_ ? joinUrl_(target) : json{{"error", "sin proveedor de URL"}};
+        if (!out.contains("url")) {
+            out["ok"] = false;
+            sendJson(fd, 200, out);
+            return;
+        }
+        std::string origin = out["url"].get<std::string>();
+        if (const size_t s = origin.find("://"); s != std::string::npos) {
+            const size_t end = origin.find_first_of("/?#", s + 3);
+            if (end != std::string::npos) origin.resize(end);
+        }
+        // Un televisor no tiene donde aceptar un certificado propio, asi que
+        // va por HTTP. Ojo: no alcanza con cambiar el esquema, porque el
+        // enlace de ingreso apunta al puerto de HTTPS y ahi no hay HTTP.
+        if (origin.rfind("https://", 0) == 0) {
+            std::string hostPort = origin.substr(8);
+            const size_t colon = hostPort.rfind(':');
+            const std::string host = colon == std::string::npos ? hostPort : hostPort.substr(0, colon);
+            origin = "http://" + host + ":" + std::to_string(cfg_.port);
+        }
+        sendJson(fd, 200,
+                 json{{"ok", true},
+                      {"url", origin + "/cast/?token=" + token + "&nombre=" + porcentar(nombre)},
+                      {"token", token}});
+        return;
+    }
+    if (path == "/api/v1/prompter-link" && method == "GET") {
+        // El enlace del control, con la clave en el FRAGMENTO para que no
+        // viaje en la URL pedida ni quede en los registros del servidor.
+        const auto q = http::parseQuery(query);
+        const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
+        const bool control = !q.count("vista") || http::urlDecode(q.at("vista")) == "control";
+        // La clave puede ir DENTRO del enlace (se entra sin tipear) o no: un QR
+        // pegado en una pared no deberia llevarla.
+        const bool conClave = !q.count("conClave") || http::urlDecode(q.at("conClave")) != "0";
+        json out = joinUrl_ ? joinUrl_(target) : json{{"error", "sin proveedor de URL"}};
+        if (!out.contains("url")) {
+            out["ok"] = false;
+            sendJson(fd, 200, out);
+            return;
+        }
+        std::string origin = out["url"].get<std::string>();
+        if (const size_t s = origin.find("://"); s != std::string::npos) {
+            const size_t end = origin.find_first_of("/?#", s + 3);
+            if (end != std::string::npos) origin.resize(end);
+        }
+        // La tablet del orador no lleva clave nunca: solo lee.
+        const std::string url = origin + "/prompter/" +
+                                (control ? (conClave ? "#control&k=" + cfg_.prompterKey : "#control") : "");
+        const qrcodegen::QrCode qr =
+            qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
+        json rows = json::array();
+        for (int y = 0; y < qr.getSize(); ++y) {
+            std::string row;
+            for (int x = 0; x < qr.getSize(); ++x)
+                row.push_back(qr.getModule(x, y) ? '1' : '0');
+            rows.push_back(row);
+        }
+        sendJson(fd, 200,
+                 json{{"ok", true},
+                      {"vista", control ? "control" : "orador"},
+                      {"conClave", control && conClave},
+                      {"clave", cfg_.prompterKey},
+                      {"url", url},
+                      {"size", qr.getSize()},
+                      {"modules", rows}});
+        return;
+    }
+
+    // El nivel de registro de B, en vivo. Sin esto solo se podia fijar al
+    // arrancar (BA_LOG_NIVEL), o sea que para ver mas detalle de algo que esta
+    // pasando AHORA habia que reiniciar el gateway y perder lo que se queria
+    // mirar.
+    if (path == "/api/v1/log-nivel") {
+        auto& reg = ba::diag::registro();
+        if (method == "GET") {
+            sendJson(fd, 200,
+                     json{{"nivel", ba::diag::nombreDeNivel(reg.nivel())},
+                          {"descartadas", reg.descartadas()},
+                          {"registradas", reg.cuenta()}});
+            return;
+        }
+        if (method == "POST") {
+            ba::diag::Nivel n{};
+            if (!req.contains("nivel") || !req["nivel"].is_string() ||
+                !ba::diag::nivelDeNombre(req["nivel"].get<std::string>(), n)) {
+                sendJson(fd, 400, json{{"ok", false}, {"error", "nivel desconocido"}});
+                return;
+            }
+            reg.setNivel(n);
+            // Queda anotado en el propio registro: si manana aparece un log
+            // lleno de trazas, tiene que decir quien lo puso asi.
+            reg.linea(ba::diag::Nivel::Info, "registro", 0,
+                      std::string("nivel cambiado a ") + ba::diag::nombreDeNivel(n) +
+                          " desde la API de control");
+            sendJson(fd, 200, json{{"ok", true}, {"nivel", ba::diag::nombreDeNivel(n)}});
+            return;
+        }
+    }
     if (path == "/api/v1/network" && method == "GET") {
         sendJson(fd, 200, networkStatus_ ? networkStatus_() : json::object());
         return;
@@ -427,6 +902,8 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             sendRoomResult(fd, room_.setAllotted(id, req.value("sec", 0)));
         } else if (action == "requeue") {
             sendRoomResult(fd, room_.requeue(id));
+        } else if (action == "presenter") {
+            sendRoomResult(fd, room_.setPresenter(id, req.value("on", true), nowMsA()));
         } else if (action == "profile") {
             sendRoomResult(fd, room_.setProfile(id, req));
         } else {

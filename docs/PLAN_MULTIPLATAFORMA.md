@@ -24,8 +24,14 @@ ejecutarlo. macOS: escrito, sin compilar todavía.
 - [x] Nombres de memoria compartida hasheados (límite de 31 de macOS; UID en
       el hash).
 - [x] `make lint` en verde; mbedTLS ya no se cuela en el bundle.
-- [ ] CI con runners nativos Windows (MSVC) y macOS (`macos-14`).
-- [ ] `make deps-obs-macos` y rama macOS de `cmake/BaLibObs.cmake`.
+- [x] CI de Windows (clang-cl desde Linux, ABI MSVC, tests en Wine).
+- [~] macOS (rama `macos`, sin validar en una Mac todavía; ver docs/MACOS.md):
+      `make deps-macos` (libobs con Xcode + obs-deps arm64, Qt, libwebrtc
+      macos_arm64, LSP desde fuente), rama APPLE de `cmake/BaLibObs.cmake`,
+      plugins `.plugin`, Qt en frameworks, gateway con libwebrtc real, editor
+      CLAP Cocoa (QWindow), Info.plist embebido (TCC), firma ad-hoc,
+      `check-portable-macos.sh`, diálogo de recuperación con osascript.
+      Workflow `macos.yml` manual.
 
 **Adelantado de otras fases (para que el sistema levante en Linux)**
 - [x] Canal de control real (F2.1): `ControlService` en A y B sobre
@@ -372,4 +378,5 @@ F1 cimientos ─┬─► F2 IPC ─┬─► F4 launcher ─┬─► F10 verif
 
 Spec §1 y reglas §14 (`/MT`/`/MD` pasan a ser reglas de Windows), README
 (Estado, Arquitectura, Dependencias con columna por plataforma) y
-`docs/TASKS.md` con columnas Windows / Linux / macOS.
+el tablero de tareas con columnas Windows / Linux / macOS (lo que se lleva hoy
+está en `docs/IDEAS.md`; el tablero viejo quedó en `docs/historia/`).

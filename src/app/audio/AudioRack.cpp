@@ -71,6 +71,7 @@ std::vector<uint8_t> unb64(const std::string& s) {
 
 struct AudioRack::Node {
     std::string id, kind, label, pluginId;
+    std::string device; // nodo "monitor": id del dispositivo de salida
     std::unique_ptr<ClapInstance> clap;
     std::unique_ptr<Analyzer> analyzer;
     std::unique_ptr<Generator> gen;
@@ -85,7 +86,7 @@ struct AudioRack::Node {
         return 1;
     }
     int outputs() const {
-        if (kind == "out") return 0;
+        if (kind == "out" || kind == "monitor") return 0;
         if (kind == "plugin") return static_cast<int>(clap->outputs().size());
         return 1;
     }
@@ -109,9 +110,16 @@ struct AudioRack::Plan {
             ch[1] = r.data();
         }
     };
+    /// Una fuente de audio para un canal: de que buffer y de cual de sus canales.
+    struct Src {
+        int buf = -1;
+        int ch = 0;
+    };
     struct InPort {
-        std::vector<int> srcs; // buffers a sumar
+        std::vector<Src> l, r; // que se suma en cada canal (vacio si se lee directo)
         int buf = -1;          // lo que lee el nodo
+        bool wired = false;    // tiene al menos un cable
+        bool mix = false;      // hay que mezclar en `buf` (si no, se lee directo)
     };
     struct Step {
         Node* n = nullptr;
@@ -131,6 +139,18 @@ struct AudioRack::Plan {
     }
 };
 
+// Grilla del patchbay: los nodos se acomodan en celdas para que queden
+// alineados y los cables puedan correr por calles rectas entre columnas.
+namespace {
+constexpr double kGrid = 20.0;  // paso de la grilla
+constexpr double kColW = 260.0; // 13 celdas: nodo (178) + calle para los cables
+constexpr double kRowH = 260.0;
+constexpr double kOrgX = 20.0, kOrgY = 60.0;
+constexpr int kCols = 5; // columnas antes de saltar de fila
+
+double snapGrid(double v) { return std::round(v / kGrid) * kGrid; }
+} // namespace
+
 // --- Construccion -------------------------------------------------------------------------
 
 AudioRack::AudioRack(std::shared_ptr<ClapLibrary> lib, HostServices* services, double sampleRate)
@@ -147,6 +167,8 @@ AudioRack::AudioRack(std::shared_ptr<ClapLibrary> lib, HostServices* services, d
         nodes_.push_back(std::move(n));
     }
     conns_.push_back({"in", 0, "out", 0});
+    monL_.assign(kMonitorCap, 0.0f);
+    monR_.assign(kMonitorCap, 0.0f);
     rebuild();
 }
 
@@ -222,21 +244,61 @@ bool AudioRack::wouldCycle(const std::string& from, const std::string& to) const
     return false;
 }
 
+double AudioRack::gridStep() { return kGrid; }
+
+namespace {
+int slotOf(double x, double y) {
+    const int col = static_cast<int>(std::lround((x - kOrgX) / kColW));
+    const int row = static_cast<int>(std::lround((y - kOrgY) / kRowH));
+    return std::max(0, row) * kCols + std::clamp(col, 0, kCols - 1);
+}
+} // namespace
+
 void AudioRack::place(Node& n) {
-    double maxX = 20;
-    for (const auto& o : nodes_)
-        if (o.get() != &n && o->id != "out" && o->kind != "generator") maxX = std::max(maxX, o->x);
-    if (n.kind == "generator") {
-        double gx = 20;
+    // Generadores y escucha: fila propia abajo, uno al lado del otro.
+    if (n.kind == "generator" || n.kind == "monitor") {
+        double gx = kOrgX, maxY = kOrgY;
         for (const auto& o : nodes_)
-            if (o.get() != &n && o->kind == "generator") gx = std::max(gx, o->x + 230);
-        n.x = gx;
-        n.y = 330;
+            if (o.get() != &n) maxY = std::max(maxY, o->y);
+        for (const auto& o : nodes_)
+            if (o.get() != &n && (o->kind == "generator" || o->kind == "monitor"))
+                gx = std::max(gx, o->x + kColW);
+        n.x = snapGrid(gx);
+        n.y = snapGrid(maxY + kRowH);
         return;
     }
-    n.x = maxX + 262;
-    n.y = 80;
-    if (Node* out = find("out"); out != nullptr && out->x < n.x + 262) out->x = n.x + 262;
+    // El resto sigue a la cadena: celda siguiente a la ultima ocupada, y la
+    // salida se corre una mas (cuando la fila se llena, sigue en la de abajo).
+    int last = 0;
+    for (const auto& o : nodes_)
+        if (o.get() != &n && o->id != "out" && o->kind != "generator" && o->kind != "monitor")
+            last = std::max(last, slotOf(o->x, o->y));
+    setSlot(n, last + 1);
+    if (Node* out = find("out"); out != nullptr) setSlot(*out, last + 2);
+}
+
+void AudioRack::setSlot(Node& n, int slot) {
+    n.x = snapGrid(kOrgX + kColW * (slot % kCols));
+    n.y = snapGrid(kOrgY + kRowH * (slot / kCols));
+}
+
+void AudioRack::layoutGrid() {
+    // Orden: entrada, la cadena principal, lo que quedo patcheado aparte, salida.
+    std::vector<std::string> seq{"in"};
+    for (const auto& id : mainChain())
+        seq.push_back(id);
+    for (const auto& n : nodes_) {
+        if (n->kind == "in" || n->kind == "out" || n->kind == "generator" || n->kind == "monitor") continue;
+        if (std::find(seq.begin(), seq.end(), n->id) == seq.end()) seq.push_back(n->id);
+    }
+    seq.push_back("out");
+    for (size_t i = 0; i < seq.size(); ++i)
+        if (Node* n = find(seq[i]); n != nullptr) setSlot(*n, static_cast<int>(i));
+    // Generadores y escucha: la fila de abajo.
+    const int row = (static_cast<int>(seq.size()) + kCols - 1) / kCols;
+    int i = 0;
+    for (const auto& n : nodes_)
+        if (n->kind == "generator" || n->kind == "monitor") setSlot(*n, row * kCols + i++);
 }
 
 void AudioRack::insertInChain(const std::string& id, const std::string& after) {
@@ -312,6 +374,36 @@ std::string AudioRack::addAnalyzer(const std::string& label, const std::string& 
     return id;
 }
 
+std::string AudioRack::addOutput(const std::string& device, const std::string& label) {
+    // Una sola por rack: si ya hay, se le cambia el dispositivo destino.
+    if (Node* e = find("salida-audio"); e != nullptr) {
+        e->device = device;
+        e->label = label.empty() ? "Salida de audio" : label;
+        return e->id;
+    }
+    auto n = std::make_unique<Node>();
+    n->id = "salida-audio";
+    n->kind = "monitor";
+    n->device = device;
+    n->label = label.empty() ? "Salida de audio" : label;
+    // Debajo de la salida: es el otro destino posible del audio.
+    const Node* out = find("out");
+    n->x = out != nullptr ? out->x : 280;
+    n->y = (out != nullptr ? out->y : 80) + 150;
+    nodes_.push_back(std::move(n));
+    rebuild(); // sin cable: lo patchea el operador desde donde quiera oir
+    return "salida-audio";
+}
+
+bool AudioRack::hasOutput() const { return find("salida-audio") != nullptr; }
+
+std::string AudioRack::outputDevice() const {
+    const Node* n = find("salida-audio");
+    return n != nullptr ? n->device : std::string();
+}
+
+const float* AudioRack::monitorPlane(int ch) const { return ch == 0 ? monL_.data() : monR_.data(); }
+
 std::string AudioRack::addGenerator(const std::string& label) {
     auto n = std::make_unique<Node>();
     n->kind = "generator";
@@ -369,7 +461,7 @@ bool AudioRack::remove(const std::string& id, std::string* error) {
 }
 
 bool AudioRack::connect(const std::string& from, const std::string& fromPort, const std::string& to,
-                        const std::string& toPort, std::string* error) {
+                        const std::string& toPort, std::string* error, int fromCh, int toCh) {
     Node* a = find(from);
     Node* b = find(to);
     if (a == nullptr || b == nullptr) {
@@ -388,15 +480,28 @@ bool AudioRack::connect(const std::string& from, const std::string& fromPort, co
         if (error != nullptr) *error = "ese cable cerraria un ciclo";
         return false;
     }
+    // Un cable de puerto entero reemplaza a los de canal sueltos entre los
+    // mismos puertos (y al reves): si no, se sumarian dos veces.
+    const bool whole = fromCh < 0 || toCh < 0;
     for (const auto& c : conns_)
-        if (c.from == from && c.fromPort == pa && c.to == to && c.toPort == pb) return true;
-    conns_.push_back({from, pa, to, pb});
+        if (c.from == from && c.fromPort == pa && c.to == to && c.toPort == pb && c.fromCh == fromCh &&
+            c.toCh == toCh)
+            return true;
+    conns_.erase(std::remove_if(conns_.begin(), conns_.end(),
+                                [&](const Conn& c) {
+                                    if (c.from != from || c.fromPort != pa || c.to != to || c.toPort != pb)
+                                        return false;
+                                    const bool cWhole = c.fromCh < 0 || c.toCh < 0;
+                                    return whole || cWhole || c.toCh == toCh;
+                                }),
+                 conns_.end());
+    conns_.push_back({from, pa, to, pb, whole ? -1 : fromCh, whole ? -1 : toCh});
     rebuild();
     return true;
 }
 
 bool AudioRack::disconnect(const std::string& from, const std::string& fromPort, const std::string& to,
-                           const std::string& toPort) {
+                           const std::string& toPort, int fromCh, int toCh) {
     Node* a = find(from);
     Node* b = find(to);
     if (a == nullptr || b == nullptr) return false;
@@ -406,7 +511,8 @@ bool AudioRack::disconnect(const std::string& from, const std::string& fromPort,
     conns_.erase(std::remove_if(conns_.begin(), conns_.end(),
                                 [&](const Conn& c) {
                                     return c.from == from && c.to == to && (pa < 0 || c.fromPort == pa) &&
-                                           (pb < 0 || c.toPort == pb);
+                                           (pb < 0 || c.toPort == pb) && (fromCh < 0 || c.fromCh == fromCh) &&
+                                           (toCh < 0 || c.toCh == toCh);
                                 }),
                  conns_.end());
     if (conns_.size() == before) return false;
@@ -431,8 +537,8 @@ bool AudioRack::rename(const std::string& id, const std::string& label) {
 bool AudioRack::setPosition(const std::string& id, double x, double y) {
     Node* n = find(id);
     if (n == nullptr) return false;
-    n->x = x;
-    n->y = y;
+    n->x = snapGrid(std::max(0.0, x));
+    n->y = snapGrid(std::max(0.0, y));
     return true;
 }
 
@@ -483,13 +589,35 @@ void AudioRack::rebuild() {
         st.n = n;
         for (int p = 0; p < n->inputs(); ++p) {
             Plan::InPort ip;
-            for (const auto& c : conns_)
-                if (c.to == n->id && c.toPort == p) {
-                    auto it = outBuf.find({c.from, c.fromPort});
-                    if (it != outBuf.end()) ip.srcs.push_back(it->second);
+            for (const auto& c : conns_) {
+                if (c.to != n->id || c.toPort != p) continue;
+                auto it = outBuf.find({c.from, c.fromPort});
+                if (it == outBuf.end()) continue;
+                const int b = it->second;
+                if (c.fromCh < 0 || c.toCh < 0) { // puerto entero: L->L, R->R
+                    ip.l.push_back({b, 0});
+                    ip.r.push_back({b, 1});
+                } else if (c.toCh == 0) {
+                    ip.l.push_back({b, c.fromCh});
+                } else {
+                    ip.r.push_back({b, c.fromCh});
                 }
-            ip.buf = ip.srcs.empty() ? plan->zero : ip.srcs.size() == 1 ? ip.srcs[0] : plan->newBuf();
-            if (ip.srcs.size() == 1) ip.srcs.clear(); // se lee directo
+            }
+            ip.wired = !ip.l.empty() || !ip.r.empty();
+            // Un solo cable de puerto entero: se lee el buffer de la fuente sin
+            // copiar (el caso de siempre). Todo lo demas se mezcla aparte.
+            const bool plain = ip.l.size() == 1 && ip.r.size() == 1 && ip.l[0].buf == ip.r[0].buf &&
+                               ip.l[0].ch == 0 && ip.r[0].ch == 1;
+            if (!ip.wired) {
+                ip.buf = plan->zero;
+            } else if (plain) {
+                ip.buf = ip.l[0].buf;
+                ip.l.clear();
+                ip.r.clear();
+            } else {
+                ip.buf = plan->newBuf();
+                ip.mix = true;
+            }
             st.ins.push_back(std::move(ip));
         }
         for (int p = 0; p < n->outputs(); ++p)
@@ -533,6 +661,7 @@ void meterInto(std::atomic<float>& pow, std::atomic<float>& peak, float* const* 
 } // namespace
 
 void AudioRack::process(float* const* planes, int channels, uint32_t frames) {
+    monFrames_ = 0;
     std::unique_lock<std::mutex> lk(planLock_, std::try_to_lock);
     if (!lk.owns_lock() || !plan_ || plan_->inBuf < 0 || plan_->outRead < 0 || channels < 1) return;
     Plan& P = *plan_;
@@ -545,17 +674,20 @@ void AudioRack::process(float* const* planes, int channels, uint32_t frames) {
         for (auto& st : P.steps) {
             Node& node = *st.n;
             for (auto& ip : st.ins) {
-                if (ip.srcs.size() < 2) continue;
+                if (!ip.mix) continue;
                 Plan::Buf& dst = *P.bufs[static_cast<size_t>(ip.buf)];
                 std::memset(dst.l.data(), 0, n * sizeof(float));
                 std::memset(dst.r.data(), 0, n * sizeof(float));
-                for (int s : ip.srcs) {
-                    const Plan::Buf& src = *P.bufs[static_cast<size_t>(s)];
-                    for (uint32_t i = 0; i < n; ++i) {
-                        dst.l[i] += src.l[i];
-                        dst.r[i] += src.r[i];
+                const auto add = [&](const std::vector<Plan::Src>& srcs, std::vector<float>& out) {
+                    for (const Plan::Src& s : srcs) {
+                        const Plan::Buf& src = *P.bufs[static_cast<size_t>(s.buf)];
+                        const std::vector<float>& from = s.ch == 0 ? src.l : src.r;
+                        for (uint32_t i = 0; i < n; ++i)
+                            out[i] += from[i];
                     }
-                }
+                };
+                add(ip.l, dst.l);
+                add(ip.r, dst.r);
             }
             if (node.kind == "in") {
                 node.analyzer->feed(st.outArr[0], 2, n);
@@ -569,6 +701,19 @@ void AudioRack::process(float* const* planes, int channels, uint32_t frames) {
                     std::memcpy(st.outArr[0][c], st.inArr[0][c], n * sizeof(float));
                 meterInto(node.inPow, node.inPeak, st.inArr[0], n, alpha);
                 meterInto(node.outPow, node.outPeak, st.outArr[0], n, alpha);
+            } else if (node.kind == "monitor") {
+                // Sumidero: copia para la salida de audio del sistema. Lo que
+                // no entre en el buffer se descarta (la escucha es best-effort).
+                // Sin ningun cable no se junta nada: asi la salida de audio no
+                // recibe silencio permanente cuando la escucha esta suelta.
+                const bool wired = !st.ins.empty() && st.ins[0].wired;
+                const uint32_t room = wired && off < kMonitorCap ? std::min(n, kMonitorCap - off) : 0;
+                if (room > 0) {
+                    std::memcpy(monL_.data() + off, st.inArr[0][0], room * sizeof(float));
+                    std::memcpy(monR_.data() + off, st.inArr[0][1], room * sizeof(float));
+                    monFrames_ = off + room;
+                }
+                meterInto(node.inPow, node.inPeak, st.inArr[0], n, alpha);
             } else if (node.kind == "generator") {
                 node.gen->render(st.outArr[0], 2, n);
                 meterInto(node.outPow, node.outPeak, st.outArr[0], n, alpha);
@@ -622,13 +767,29 @@ json AudioRack::describe() const {
     json nodes = json::array();
     for (const auto& n : nodes_) {
         json j{{"id", n->id}, {"tipo", n->kind}, {"etiqueta", n->label}, {"x", n->x}, {"y", n->y}};
-        json ins = json::array(), outs = json::array();
-        for (int p = 0; p < n->inputs(); ++p)
+        // Puertos: el id con el que se cablean, mas el nombre real del modulo
+        // y si son mono o estereo (la interfaz lo muestra en modo completo).
+        json ins = json::array(), outs = json::array(), insInfo = json::array(), outsInfo = json::array();
+        const auto info = [&](int p, bool input) {
+            json d{{"puerto", portName(*n, p, input)}, {"canales", n->channels(p, input)}};
+            if (n->kind == "plugin") {
+                const auto& ps = input ? n->clap->inputs() : n->clap->outputs();
+                if (p < static_cast<int>(ps.size())) d["nombre"] = ps[static_cast<size_t>(p)].name;
+            }
+            return d;
+        };
+        for (int p = 0; p < n->inputs(); ++p) {
             ins.push_back(portName(*n, p, true));
-        for (int p = 0; p < n->outputs(); ++p)
+            insInfo.push_back(info(p, true));
+        }
+        for (int p = 0; p < n->outputs(); ++p) {
             outs.push_back(portName(*n, p, false));
+            outsInfo.push_back(info(p, false));
+        }
         j["entradas"] = ins;
         j["salidas"] = outs;
+        j["puertosEntrada"] = insInfo;
+        j["puertosSalida"] = outsInfo;
         if (n->kind == "plugin") {
             j["modulo"] = n->pluginId;
             j["nombre"] = n->clap->desc().name;
@@ -640,6 +801,7 @@ json AudioRack::describe() const {
             j["senal"] = {
                 {"tipo", Generator::kindName(c.kind)}, {"frecuencia", c.freq}, {"nivelDb", c.levelDb}};
         }
+        if (n->kind == "monitor") j["dispositivo"] = n->device;
         j["medidores"] = meters(n->id);
         nodes.push_back(std::move(j));
     }
@@ -651,7 +813,9 @@ json AudioRack::describe() const {
         conns.push_back({{"desde", c.from},
                          {"salida", portName(*a, c.fromPort, false)},
                          {"hacia", c.to},
-                         {"entrada", portName(*b, c.toPort, true)}});
+                         {"entrada", portName(*b, c.toPort, true)},
+                         {"canalSalida", c.fromCh},
+                         {"canalEntrada", c.toCh}});
     }
     return json{{"nodos", nodes}, {"cables", conns}, {"frecuenciaMuestreo", sr_}};
 }
@@ -665,6 +829,7 @@ json AudioRack::save() const {
             j["bypass"] = n->bypass.load();
             j["estado"] = b64(n->clap->saveState());
         }
+        if (n->kind == "monitor") j["dispositivo"] = n->device;
         if (n->kind == "generator") {
             const auto c = n->gen->config();
             j["senal"] = {{"tipo", Generator::kindName(c.kind)},
@@ -683,7 +848,9 @@ json AudioRack::save() const {
         conns.push_back({{"desde", c.from},
                          {"salida", portName(*a, c.fromPort, false)},
                          {"hacia", c.to},
-                         {"entrada", portName(*b, c.toPort, true)}});
+                         {"entrada", portName(*b, c.toPort, true)},
+                         {"canalSalida", c.fromCh},
+                         {"canalEntrada", c.toCh}});
     }
     return json{{"version", 1}, {"nodos", nodes}, {"cables", conns}};
 }
@@ -734,6 +901,12 @@ bool AudioRack::load(const json& j, std::string* error) {
         } else if (kind == "analyzer") {
             n->analyzer = std::make_unique<Analyzer>();
             n->analyzer->setSampleRate(sr_);
+        } else if (kind == "monitor") {
+            n->id = "salida-audio"; // una sola por rack
+            n->device = nj.value("dispositivo", "");
+            // Racks guardados por versiones anteriores: el nodo se llamaba
+            // "Escucha" y no tenia dispositivo.
+            if (n->label == "Escucha" || n->label.empty()) n->label = "Salida de audio";
         } else if (kind == "generator") {
             n->gen = std::make_unique<Generator>();
             n->gen->setSampleRate(sr_);
@@ -756,7 +929,10 @@ bool AudioRack::load(const json& j, std::string* error) {
         if (a == nullptr || b == nullptr) continue;
         const int pa = portIndex(*a, cj.value("salida", "out"), false);
         const int pb = portIndex(*b, cj.value("entrada", "in"), true);
-        if (pa >= 0 && pb >= 0 && !wouldCycle(a->id, b->id)) conns_.push_back({a->id, pa, b->id, pb});
+        int ca = cj.value("canalSalida", -1);
+        int cb = cj.value("canalEntrada", -1);
+        if (ca < 0 || cb < 0) ca = cb = -1; // puerto entero
+        if (pa >= 0 && pb >= 0 && !wouldCycle(a->id, b->id)) conns_.push_back({a->id, pa, b->id, pb, ca, cb});
     }
     rebuild();
     if (!firstError.empty() && error != nullptr)

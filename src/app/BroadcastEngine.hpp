@@ -38,6 +38,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -58,6 +59,7 @@ struct obs_source;
 struct obs_scene_item;
 struct video_data;
 struct audio_data;
+struct calldata;
 
 namespace ba::app {
 
@@ -155,6 +157,14 @@ struct EngineStatus {
     std::uint64_t bytesSent = 0;
     std::string videoEncoder; ///< id de libobs del codificador en uso ("" si ninguno)
     std::string lastError;
+    /// Se corto la transmision y libobs esta reintentando. Mientras esto es
+    /// true, `streaming` puede seguir en true: para libobs la salida sigue
+    /// activa, pero no esta llegando nada.
+    bool reconnecting = false;
+    /// En castellano y con la CAUSA: "Se cortó la conexión con el servidor",
+    /// "El servidor rechazó la clave"... Vacio si no hubo ningun problema.
+    /// Es lo que el operador necesita para saber si esperar o hacer algo.
+    std::string outputProblem;
 };
 
 /// Motor de emision sobre libobs. Ver el header.
@@ -291,6 +301,15 @@ class BroadcastEngine {
     /// Invitados: la fuente de video va en escenas; la de AUDIO es global
     /// (siempre en la mezcla, como un microfono): canal de salida 1+slot.
     bool addGuestAudio(int slot);
+
+    /// Entrada de audio del equipo (microfono, linea) como fuente GLOBAL: suena
+    /// en todas las escenas, igual que el audio de los invitados (canales 5+).
+    /// Si ya existe una con ese nombre, la reengancha.
+    bool addGlobalAudio(const SourceSpec& spec);
+    /// Saca la entrada de audio global (libera su canal).
+    bool removeGlobalAudio(const std::string& name);
+    /// Nombres de las entradas de audio del equipo (sin los invitados).
+    std::vector<std::string> globalAudioInputs() const { return micInputs_; }
     bool addGuestVideo(int slot);
     bool addGuestVideo(int slot, const CanvasRect& rect);
 
@@ -307,6 +326,32 @@ class BroadcastEngine {
     /// Pico mas reciente de la fuente en dBFS (-100 = silencio).
     float sourcePeakDb(const std::string& name) const;
 
+    /// Escuchar una fuente por el monitor del operador (PFL), SIN cambiar lo
+    /// que sale al aire.
+    ///
+    /// OJO CON EL MODO. libobs tiene MONITOR_ONLY, que parece el indicado
+    /// —«solo monitoreo»— y es justo el que no hay que usar: SACA la fuente de
+    /// la mezcla, o sea que escuchar un microfono lo bajaria del aire. Se usa
+    /// MONITOR_AND_OUTPUT: se escucha y lo que sale sigue saliendo. Escuchar
+    /// no puede cambiar lo que se emite; esa es toda la idea de un PFL.
+    ///
+    /// Que se oiga depende de que haya monitor configurado en el sistema de
+    /// audio; sin monitor, esto no falla pero tampoco suena.
+    bool setSourceMonitoring(const std::string& name, bool on);
+    bool sourceMonitoring(const std::string& name) const;
+
+    /// Atrasa el audio de una fuente para que coincida con su video.
+    ///
+    /// Es lo que hace falta con una camara IP: el video llega 200 ms a 2 s
+    /// tarde y el microfono por la placa llega casi al instante, asi que se
+    /// escucha antes de ver los labios. `ms` positivo atrasa el audio; negativo
+    /// lo adelanta (sirve cuando el audio llega DESPUES que el video).
+    ///
+    /// El valor lo puede medir el sistema solo con el metodo del aplauso (ver
+    /// camaras/SincroLabios.hpp), o ponerlo el operador a ojo.
+    bool setSourceSyncOffset(const std::string& name, int ms);
+    int sourceSyncOffset(const std::string& name) const;
+
     // --- Medios (videos/musica que se reproducen) -------------------------------
     struct MediaInfo {
         std::string name;
@@ -316,6 +361,28 @@ class BroadcastEngine {
     };
     /// Fuentes reproducibles (con controles de medio) y su estado.
     std::vector<MediaInfo> mediaSources() const;
+
+    /// Reproduce un archivo como fuente GLOBAL de audio: suena en todas las
+    /// escenas, como un microfono. Es lo que hace falta para la musica de un
+    /// evento (el himno, una cortina), que no tiene por que depender de que
+    /// escena este al aire.
+    ///
+    /// Si ya habia algo sonando con ese `name`, lo reemplaza: dos temas
+    /// encimados es lo peor que puede pasar en vivo.
+    ///
+    /// :param name: nombre de la fuente (se reutiliza entre llamadas).
+    /// :param file: ruta absoluta del archivo.
+    /// :param loop: repetir al terminar.
+    /// :param volume: ganancia lineal (1 = 0 dB).
+    bool playMedia(const std::string& name, const std::string& file, bool loop = false, float volume = 1.0f);
+    /// Para lo que este sonando y libera la fuente.
+    bool stopMedia(const std::string& name);
+    /// Rebobina y arranca una fuente de medios que YA existe (en una escena o
+    /// global). Hace falta aparte de `playMedia` porque una fuente de video
+    /// vive en su escena —se ve— y cambiarle los ajustes no la rearranca sola:
+    /// si el archivo es el mismo que ya habia, libobs no tiene motivo para
+    /// volver a empezar, y el cue del guion no mostraria nada.
+    bool restartMedia(const std::string& name);
 
     // --- Descubrir dispositivos y capacidades (sin crear fuentes) ------------------
     struct ListItem {
@@ -395,6 +462,51 @@ class BroadcastEngine {
     /// Detiene la grabacion (no toca la transmision).
     void stopRecording();
 
+    // --- Grabacion POR ENTRADA ------------------------------------------------
+    // Grabar cada camara a su propio archivo, ademas del programa. Es lo que
+    // pide un evento del que despues hay que editar: el programa sirve para
+    // subirlo esa misma noche, y los archivos por entrada para armar la version
+    // buena sin haber perdido nada.
+    //
+    // COMO. libobs no sabe «grabar una fuente»: lo que sabe es rendir una VISTA
+    // (obs_view) con una fuente en el canal 0 y dar un `video_t` propio. De ahi
+    // cuelga un codificador dedicado y una salida a archivo. O sea que cada
+    // entrada que se graba es UN ENCODE MAS: ocho camaras son ocho
+    // codificaciones simultaneas y eso no lo hace cualquier maquina. Por eso
+    // hay tope y por eso se avisa.
+    //
+    // EL AUDIO es mas limitado: libobs mezcla en 6 pistas y la 0 es la del
+    // programa, asi que quedan 5 para darle una propia a cada fuente
+    // (obs_source_set_audio_mixers). A la sexta en adelante, y a las que no
+    // tienen audio, se les graba la del PROGRAMA: sirve de referencia para
+    // sincronizar al editar, y ademas `ffmpeg_muxer` no arranca sin audio.
+    struct GrabacionIndividual {
+        std::string source; ///< que fuente
+        std::string path;   ///< a que archivo
+        /// true = graba el audio PROPIO de la fuente; false = el del programa
+        /// (que igual sirve de referencia para sincronizar al editar).
+        bool audioPropio = false;
+        bool activa = false;
+    };
+    /// Cuantas se pueden grabar a la vez. No es un limite de libobs: es que
+    /// mas que esto no lo codifica ninguna maquina razonable en vivo.
+    static constexpr int kMaxIndividuales = 8;
+
+    /// Arranca la grabacion individual de esa fuente.
+    ///
+    /// :param source: nombre de la fuente (tiene que existir).
+    /// :param dir: carpeta destino (normalmente Recordings/).
+    /// :param enc: de donde salen bitrate y preset.
+    /// :returns: false y `lastError()` explica (no existe, ya se graba, no hay
+    ///           lugar, no se pudo crear el codificador).
+    bool startSourceRecording(const std::string& source, const std::string& dir, const EncoderConfig& enc);
+    /// La para y cierra su archivo. false si no se estaba grabando.
+    bool stopSourceRecording(const std::string& source);
+    /// Para todas.
+    void stopAllSourceRecordings();
+    /// Que se esta grabando por entrada, con su archivo.
+    std::vector<GrabacionIndividual> sourceRecordings() const;
+
     /// Recibe un frame de programa ya compuesto (lo llama libobs).
     ///
     /// Corre en el HILO DE RENDER de libobs. Copia el frame al canal
@@ -432,18 +544,36 @@ class BroadcastEngine {
     /// video de red) siguen subiendo cuadros y no hay que esperarlas en cada
     /// uno. Llamar de nuevo con otro nombre cambia de escena.
     ///
-    /// :param name: escena o fuente ("" = apaga, igual que disableScenePreview).
+    /// HAY VARIOS CANALES, y no por lujo: el editor de escenas mira la que se
+    /// esta editando y el monitor de ARMADA mira la que va a salir con el
+    /// proximo take. Son dos escenas distintas al mismo tiempo, y con un solo
+    /// canal se pisaban —abrir el editor apagaba el monitor del director, que
+    /// es exactamente cuando mas lo necesita—.
+    ///
+    /// :param canal: quien pide la vista previa ("editor", "armada"...).
+    /// :param name: escena o fuente ("" = apaga ese canal).
     /// :param maxWidth: ancho maximo del cuadro entregado.
-    bool enableScenePreview(const std::string& name, int maxWidth);
+    bool enableScenePreview(const std::string& canal, const std::string& name, int maxWidth);
+    /// Igual, sobre el canal "editor" (el historico).
+    bool enableScenePreview(const std::string& name, int maxWidth) {
+        return enableScenePreview("editor", name, maxWidth);
+    }
 
-    /// Apaga la vista previa de escena y suelta la fuente. Idempotente.
-    void disableScenePreview();
+    /// Apaga un canal de vista previa y suelta su fuente. Idempotente.
+    void disableScenePreview(const std::string& canal);
+    void disableScenePreview() { disableScenePreview("editor"); }
 
     /// Renderiza AHORA la escena de `enableScenePreview` y la deja en `dst`.
     ///
     /// :param dst: recibe RGBA empaquetado (width*4 por fila).
     /// :returns: false si no hay vista previa activa o la fuente no da imagen.
-    bool renderScenePreview(std::vector<std::uint8_t>& dst, int& width, int& height);
+    bool renderScenePreview(const std::string& canal, std::vector<std::uint8_t>& dst, int& width,
+                            int& height);
+    bool renderScenePreview(std::vector<std::uint8_t>& dst, int& width, int& height) {
+        return renderScenePreview("editor", dst, width, height);
+    }
+    /// Que escena esta mirando ese canal ("" = ninguna).
+    std::string scenePreviewName(const std::string& canal) const;
 
     /// Copia el ultimo frame de vista previa si es mas nuevo que `serial`.
     ///
@@ -504,6 +634,7 @@ class BroadcastEngine {
     int transitionMs_ = 300;
     std::vector<std::pair<std::string, obs_source*>> sources_;
     std::vector<std::string> globalAudio_; // fuentes en canales de salida 1..
+    std::vector<std::string> micInputs_;   // entradas de audio del equipo (canales 5+)
     // Vumetro por fuente: obs_volmeter (opaco) + pico mas reciente en dBFS.
     struct Meter {
         void* vm = nullptr;
@@ -522,6 +653,11 @@ class BroadcastEngine {
     obs_encoder* audioEncoder_ = nullptr;
     obs_output* streamOutput_ = nullptr;
     obs_output* recordOutput_ = nullptr;
+
+    /// Una por fuente que se graba aparte. Se guarda todo lo que hay que
+    /// liberar: si algo queda vivo, libobs no suelta ni la GPU ni el archivo.
+    struct SourceRec;
+    std::map<std::string, std::unique_ptr<SourceRec>> sourceRecs_;
     obs_service* service_ = nullptr;
 
     // Candidatos de codificador de video (ver EncoderConfig::videoEncoder) y
@@ -529,6 +665,16 @@ class BroadcastEngine {
     std::vector<std::string> encoderCandidates_;
     std::size_t encoderIndex_ = 0;
     std::string videoEncoderId_;
+    /// Estado de la salida de transmision, escrito desde los callbacks de
+    /// libobs (que llegan en CUALQUIER hilo) y leido desde el de control.
+    mutable std::mutex outputStateLock_;
+    bool reconnecting_ = false;
+    std::string outputProblem_;
+    /// Engancha "reconnect", "reconnect_success" y "stop" de una salida.
+    void watchOutput(obs_output* out);
+    static void onOutputReconnect(void* data, ::calldata* cd);
+    static void onOutputReconnected(void* data, ::calldata* cd);
+    static void onOutputStopped(void* data, ::calldata* cd);
 
     // Canales IPC hacia el Proceso B (el lado PRODUCTOR).
     ba::ipc::SharedAudioRing returnAudio_;
@@ -541,6 +687,11 @@ class BroadcastEngine {
     // libobs), por eso no necesita lock.
     std::vector<float> audioAccum_;
     std::uint64_t programFrameIndex_ = 0;
+    /// Para medir cuanto tarda libobs entre componer un cuadro y entregarlo
+    /// (ver onRawVideo). Solo las toca el hilo del callback de video.
+    std::uint64_t programEdadNs_ = 0;
+    std::uint64_t programMedidos_ = 0;
+    std::uint64_t programInformeNs_ = 0;
     // Frame de programa empaquetado cuando libobs entrega filas con relleno
     // (linesize > ancho*4). Solo lo toca el hilo de render.
     std::vector<std::uint8_t> programPacked_;
@@ -555,9 +706,13 @@ class BroadcastEngine {
 
     // Vista previa del editor de escenas: la fuente queda "mostrandose"
     // mientras dura (ver enableScenePreview).
-    struct obs_source* scenePreviewSrc_ = nullptr;
-    std::string scenePreviewName_;
-    int scenePreviewMaxW_ = 0;
+    /// Un canal de vista previa: la fuente tomada y a que tamaño se entrega.
+    struct VistaPrevia {
+        struct obs_source* src = nullptr;
+        std::string name;
+        int maxW = 0;
+    };
+    std::map<std::string, VistaPrevia> scenePreviews_;
     // Picos de programa (lineales, 0..1) acumulados entre lecturas.
     std::atomic<float> peakL_{0.0f};
     std::atomic<float> peakR_{0.0f};

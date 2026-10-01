@@ -79,10 +79,37 @@ Dialog {
         padding: 12
     }
 
-    Label {
+    Column {
         width: dlg.availableWidth
-        text: dlg.text
-        wrapMode: Text.WordWrap
+        spacing: 10
+
+        // Modo evento: con el guion corriendo de verdad, cualquier cosa que se
+        // apriete sale al aire. No se bloquea nada -el operador sabe lo que
+        // hace- pero se le recuerda donde esta parado antes de decidir.
+        Rectangle {
+            visible: Studio.evento.enVivo
+            width: parent.width
+            height: enVivoTxt.implicitHeight + 16
+            radius: 6
+            color: Qt.rgba(1, 0.23, 0.19, 0.16)
+            border.color: Theme.live
+            Text {
+                id: enVivoTxt
+                anchors { fill: parent; margins: 8 }
+                wrapMode: Text.WordWrap
+                color: Theme.text
+                font { family: Theme.font; pixelSize: 12; weight: Font.DemiBold }
+                text: "● EL EVENTO ESTÁ CORRIENDO — " +
+                      (Studio.evento.actual.texto || Studio.evento.actual.tipo || "") +
+                      ". Lo que hagas ahora sale al aire."
+            }
+        }
+
+        Label {
+            width: parent.width
+            text: dlg.text
+            wrapMode: Text.WordWrap
+        }
     }
 
     footer: Item {

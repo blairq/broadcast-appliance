@@ -42,7 +42,9 @@ void McpService::registerAlertTools() {
         t.title = "Que se puede vigilar";
         t.category = "alertas";
         t.readOnly = true;
-        t.description = "Tipos de vigilancia con sus parametros y valores por defecto.";
+        t.description = "Referencia tecnica: que parametros admite cada tipo y con que valores vienen. "
+                        "Es documentacion, no hace nada.";
+        t.details = "No crea ninguna vigilancia: para eso es `alert_create`.";
         t.run = [](const json&, Done done) { done(ToolResult().data(agent::AlertEngine::types())); };
         core_.addTool(std::move(t));
     }
@@ -52,7 +54,9 @@ void McpService::registerAlertTools() {
         t.title = "Crear una vigilancia";
         t.category = "alertas";
         t.description =
-            "Crea una vigilancia que el servidor evalua sola (cada 250 ms) y dispara un aviso cuando pasa. "
+            "AVISAME CUANDO: crea una vigilancia que avisa sola al pasar algo (entra alguien, hay silencio "
+            "al aire, satura el audio, se cae un invitado). Crea una vigilancia que el servidor evalua sola "
+            "(cada 250 ms) y dispara un aviso cuando pasa. "
             "`notify`: [\"llm\"] = te lo escribe en el chat (despierta al asistente), [\"ui\"] = aviso en "
             "pantalla (por defecto las dos). `actions`: herramientas MCP a ejecutar en el acto al dispararse "
             "(p. ej. bajar un volumen, cambiar de escena). `once`: se apaga despues del primer aviso. "
@@ -64,7 +68,7 @@ void McpService::registerAlertTools() {
                {{"type", "string"},
                 {"enum",
                  {"audio_peak", "audio_silence", "media_end", "speaker_time", "lobby", "hand", "guest_drop",
-                  "chat", "guest_message", "stream_health", "disk", "timer"}}}},
+                  "chat", "guest_message", "stream_health", "stream_down", "disk", "timer"}}}},
               {"name", {{"type", "string"}}},
               {"params", {{"type", "object"}}},
               {"message", {{"type", "string"}, {"description", "Texto propio que acompaña al aviso."}}},

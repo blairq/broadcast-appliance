@@ -50,6 +50,9 @@ class FrameService : public QObject {
     /// Ultima imagen de `key` si es mas nueva que `serial` (y lo actualiza).
     bool latest(const QString& key, QImage& out, std::uint64_t& serial) const;
 
+    /// Que escena mirar en la clave "armada" ("" = ninguna). La pone
+    /// StudioViewModel cada vez que cambia el bus de preview.
+    void setArmada(const QString& escena);
     /// Cambia la cantidad de invitados.
     void setGuests(int guests);
     /// Nombres de los invitados por slot (indice slot-1) para las etiquetas.
@@ -79,7 +82,9 @@ class FrameService : public QObject {
     int lobbySlots_ = 4;
     static constexpr int kBackstageSlots = 8;
     std::vector<std::uint8_t> programBuf_;
-    std::vector<std::uint8_t> sceneBuf_; ///< vista previa del editor de escenas
+    std::vector<std::uint8_t> sceneBuf_;  ///< vista previa del editor de escenas
+    std::vector<std::uint8_t> armadaBuf_; ///< vista previa de la escena ARMADA
+    QString armada_;
     std::uint64_t programSerial_ = 0;
 };
 

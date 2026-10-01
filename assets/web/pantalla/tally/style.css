@@ -1,0 +1,43 @@
+/* El tally se mira de reojo, de lejos y con luz de sala: color primero,
+   letra después. Nada de degradés ni bordes: lo que importa es que el rojo
+   sea inconfundible desde seis metros y de costado. */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; background: #000; overflow: hidden; }
+body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+
+main {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2vh;
+  /* Sin animación al pasar a ROJO: un tally que se desvanece hacia el aire
+     miente durante la transición. Al salir sí, que es cuando ya no importa. */
+  transition: background-color 0s;
+}
+main.listo    { background: #101216; }
+main.armada   { background: #0d7a2e; transition: background-color .12s; }
+main.aire     { background: #c81e1e; }
+
+#estado {
+  font-size: 14vh;
+  font-weight: 800;
+  letter-spacing: .04em;
+  color: #fff;
+  text-align: center;
+  line-height: 1;
+}
+main.listo #estado { color: #6b7280; font-size: 9vh; }
+
+#quien {
+  font-size: 4vh;
+  color: rgba(255, 255, 255, .8);
+  text-align: center;
+  padding: 0 4vw;
+}
+main.listo #quien { color: #4b5563; }
+
+/* Sin conexión no se puede mentir diciendo «listo»: se avisa. */
+main.caido { background: #3b0a0a; }
+main.caido #estado { color: #f59e0b; font-size: 7vh; }

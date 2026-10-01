@@ -1,0 +1,114 @@
+# ============================================================================
+# macOS (Apple Silicon) — SOLO A MANO (workflow_dispatch)
+#
+# El release de todos los dias NO compila macOS: en un repo privado los
+# minutos de un runner de Mac cuentan x10. El .dmg se arma en una Mac y se sube
+# al release con `make publicar-macos`. Esto queda para validar en GitHub
+# cuando haga falta (una Mac limpia, sin nada instalado a mano): deps + build +
+# tests + .dmg + humo sobre el .dmg, y el .dmg como artefacto de la corrida.
+# ============================================================================
+name: macOS
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # macOS nativo, en un runner Apple Silicon (el unico que se puede probar: el
+  # .dmg es solo arm64). Los mismos make que en una Mac de desarrollo; libobs
+  # se compila con Xcode la primera vez y despues sale de la cache.
+  macos:
+    name: "macOS arm64: deps + build + tests + .dmg"
+    runs-on: macos-15
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v5
+
+      # Herramientas de BUILD (no viajan en el bundle). gmake: el build de los
+      # modulos LSP pide GNU make 4 y el de macOS es 3.81.
+      - name: Herramientas (Homebrew)
+        run: |
+          brew install ninja meson pkg-config make
+          xcodebuild -version
+          cmake --version
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Restaurar extern/ (macOS)
+        id: extern-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            extern
+            !extern/.build-*
+          key: extern-macos-${{ hashFiles('Makefile', 'versions.cmake', 'tools/deps/obs-macos.sh', 'tools/deps/lsp-macos.sh', 'tools/deps/libreoffice.sh') }}
+
+      - name: Dependencias (make deps-macos)
+        run: |
+          python -m venv .venv
+          make deps-macos JOBS=$(sysctl -n hw.ncpu)
+
+      - name: Guardar extern/ (macOS)
+        if: steps.extern-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            extern
+            !extern/.build-*
+          key: ${{ steps.extern-cache.outputs.cache-primary-key }}
+
+      # Build + ctest. Los tests que necesitan sesion grafica o red devuelven
+      # 77 (saltados).
+      - name: Build y tests (make macos)
+        run: make macos JOBS=$(sysctl -n hw.ncpu)
+
+      - name: Tests Python (pytest)
+        run: |
+          .venv/bin/pip install -r requirements-dev.lock
+          .venv/bin/pytest -q
+
+      - name: Bundle (make dmg-macos)
+        run: make dmg-macos JOBS=$(sysctl -n hw.ncpu)
+
+      # Humo del .dmg TAL CUAL se publica: montado, la .app copiada a otro lado
+      # y sin el libobs de extern/ (como en Linux: tapaba errores de "solo anda
+      # en la maquina que compilo"). Sin contexto grafico el autotest devuelve
+      # 77 (saltado): en ese caso se avisa y no se corta el release.
+      - name: Humo del .dmg (autotest del motor)
+        run: |
+          d="$RUNNER_TEMP/humo" && rm -rf "$d" && mkdir -p "$d/mnt"
+          hdiutil attach -nobrowse -readonly -noautoopen -mountpoint "$d/mnt" dist/*-macos-arm64.dmg
+          ditto "$d/mnt/BroadcastAppliance.app" "$d/BroadcastAppliance.app"
+          hdiutil detach "$d/mnt"
+          codesign --verify --deep --strict "$d/BroadcastAppliance.app"
+          mv extern/obs-macos extern/obs-macos.oculto
+          set +e
+          HOME="$d/home" "$d/BroadcastAppliance.app/Contents/Resources/bin/64bit/ba-app" --engine-selftest >"$d/humo.log" 2>&1
+          rc=$?
+          set -e
+          mv extern/obs-macos.oculto extern/obs-macos
+          grep -E '^\s*\[|autotest del motor' "$d/humo.log" || true
+          if grep -q "autotest del motor: OK" "$d/humo.log"; then exit 0; fi
+          if [ "$rc" = 77 ]; then echo "::warning::sin contexto grafico en el runner: el autotest del motor se salteo"; exit 0; fi
+          tail -60 "$d/humo.log"; exit 1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          # Solo sirven para pasarle los archivos al release en la MISMA corrida
+          # (lo publicado queda en el release): 1 dia y no los 90 de siempre, que
+          # llenaban la cuota de almacenamiento de Actions.
+          retention-days: 1
+          name: dist-macos
+          path: |
+            dist/*-macos-arm64.dmg
+            dist/*-macos-arm64.dmg.sha256
+          if-no-files-found: error
+

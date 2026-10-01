@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "ui/DashboardModel.hpp"
+#include <QSizeF>
 
 #include <QFile>
 #include <QJsonArray>
@@ -16,8 +17,10 @@ namespace ba::app {
 
 namespace {
 
-constexpr double kGridX = 1.0 / 48.0; // grilla fina: 48 x 32
-constexpr double kGridY = 1.0 / 32.0;
+// Grilla de encaje: lo bastante gruesa como para que las tarjetas queden
+// alineadas entre si (y para dibujarla mientras se acomoda el tablero).
+constexpr double kGridX = 1.0 / 24.0; // 24 x 16
+constexpr double kGridY = 1.0 / 16.0;
 constexpr double kGapPx = 12.0;    // separacion entre tarjetas vecinas
 constexpr double kMagnetPx = 18.0; // distancia de "iman"
 constexpr double kMinW = 0.10;
@@ -28,9 +31,10 @@ struct Kind {
     const char* title;
 };
 const Kind kKinds[] = {
-    {"outputs", "Salidas"},  {"scenes", "Escenas"}, {"mixer", "Mezclador"},
-    {"guests", "Invitados"}, {"health", "Sistema"}, {"monitor", "Monitor"},
-    {"sources", "Fuentes"},  {"lobby", "Sala"},     {"speakers", "Oradores"},
+    // Primera a proposito: es la que se mira todo el tiempo.
+    {"direccion", "Dirección"}, {"outputs", "Salidas"},   {"scenes", "Escenas"},    {"mixer", "Mezclador"},
+    {"guests", "Invitados"},    {"health", "Sistema"},    {"monitor", "Monitor"},   {"sources", "Fuentes"},
+    {"lobby", "Sala"},          {"speakers", "Oradores"}, {"carrusel", "Carrusel"},
 };
 
 } // namespace
@@ -215,6 +219,8 @@ QString DashboardModel::kindTitle(const QString& kind) const {
             return k.title;
         }
     }
+    // Las de Extensiones/ las nombra su ficha; aca no se las conoce. Devolver
+    // el kind pelado («ext:reloj») ya es mejor que nada: se ve de donde viene.
     return kind;
 }
 
@@ -246,11 +252,30 @@ int DashboardModel::rowOf(int id) const {
     return -1;
 }
 
+/// El tamaño con el que nace cada tarjeta, en fraccion del tablero.
+///
+/// No todas piden lo mismo: «Escenas» tiene los dos buses arriba (al aire /
+/// armada / TAKE) y despues la grilla, asi que con el tamaño generico nace
+/// apretada y lo primero que hay que hacer es agrandarla. Una tarjeta que hay
+/// que acomodar antes de que sirva es una tarjeta mal nacida.
+QSizeF tamanoInicial(const QString& kind) {
+    if (kind == "direccion") return {0.34, 0.34};
+    if (kind == "scenes") return {0.34, 0.42};
+    if (kind == "mixer" || kind == "guests" || kind == "speakers") return {0.30, 0.38};
+    if (kind == "monitor") return {0.28, 0.34};
+    // Ancha y baja: la tira en perspectiva necesita lugar a los costados para
+    // que se vean las de al lado, que es de donde sale la orientacion.
+    if (kind == "carrusel") return {0.40, 0.30};
+    return {0.28, 0.30};
+}
+
 void DashboardModel::addCard(const QString& kind, const QString& source) {
     // Aparece centrada; el operador la lleva a su lugar.
     const int row = rowCount();
+    const QSizeF t = tamanoInicial(kind);
     beginInsertRows({}, row, row);
-    cards_.push_back(Card{nextId_++, kind, QRectF(0.36, 0.30, 0.28, 0.30), source});
+    cards_.push_back(Card{nextId_++, kind,
+                          QRectF(0.5 - t.width() / 2, 0.5 - t.height() / 2, t.width(), t.height()), source});
     endInsertRows();
     save();
 }
@@ -275,6 +300,9 @@ void DashboardModel::setCardSource(int id, const QString& source) {
     emit dataChanged(index(row), index(row), {SourceRole});
     save();
 }
+
+int DashboardModel::gridCols() const { return static_cast<int>(std::lround(1.0 / kGridX)); }
+int DashboardModel::gridRows() const { return static_cast<int>(std::lround(1.0 / kGridY)); }
 
 QRectF DashboardModel::snap(int id, double x, double y, double w, double h, double aspect) const {
     // Separaciones en fracciones: el mismo numero de pixeles en X y en Y.
@@ -429,6 +457,10 @@ void DashboardModel::load() {
 }
 
 void DashboardModel::save() const {
+    // Ruta vacia = esta disposicion no se persiste. Es lo que pide el arranque
+    // cuando ui.json se llevo puesto el arranque anterior: se trabaja con la
+    // disposicion por defecto y NO se pisa el archivo, para poder mirarlo.
+    if (file_.empty()) return;
     QJsonArray cards;
     for (const auto& c : cards_) {
         cards.append(QJsonObject{{"kind", c.kind},

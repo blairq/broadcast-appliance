@@ -13,6 +13,10 @@
 #include <vector>
 
 #include "ipc/HealthBlock.hpp"
+
+#if BA_GATEWAY_HAVE_WEBRTC
+#include "third_party/libyuv/include/libyuv/scale_argb.h"
+#endif
 #include "Log.hpp"
 
 #ifdef _WIN32
@@ -46,8 +50,24 @@ constexpr uint32_t kGeneration = 1;
 /// :param sw/sh: resolucion de origen.
 /// :param dst: buffer de destino (dw*dh*4 bytes).
 /// :param dw/dh: resolucion de destino.
+/// Escala BGRA. Achicar es lo normal acá: el programa es 1080p y el retorno
+/// 720p.
+///
+/// CON FILTRO, no tomando el píxel más cercano. Achicar 1080p a 720p tirando
+/// dos de cada tres filas deja fuera dos tercios de la imagen: el texto de un
+/// zócalo y los bordes finos titilan, y en un televisor grande se ve como
+/// suciedad. El filtro de caja promedia lo que se descarta, que es la
+/// diferencia entre «más chico» y «peor».
+///
+/// Y es de libyuv, o sea con SIMD. El de antes hacía dos divisiones enteras
+/// por píxel —novecientas mil por cuadro— en C escalar. Donde no hay libyuv
+/// (el backend NULL, el de los tests) queda el de antes: ahí no hay nadie
+/// mirando la imagen, solo se comprueba que los bytes lleguen.
 void scaleBgra(const uint8_t* src, int sw, int sh, uint8_t* dst, int dw, int dh) {
     if (sw <= 0 || sh <= 0 || dw <= 0 || dh <= 0) return;
+#if BA_GATEWAY_HAVE_WEBRTC
+    libyuv::ARGBScale(src, sw * 4, sw, sh, dst, dw * 4, dw, dh, libyuv::kFilterBox);
+#else
     for (int y = 0; y < dh; ++y) {
         const int sy = (y * sh) / dh;
         const uint8_t* srow = src + static_cast<size_t>(sy) * sw * 4;
@@ -62,6 +82,7 @@ void scaleBgra(const uint8_t* src, int sw, int sh, uint8_t* dst, int dw, int dh)
             drow += 4;
         }
     }
+#endif
 }
 
 /// Ajusta (sw x sh) DENTRO de (dw x dh) conservando el aspecto, centrado y
@@ -165,6 +186,7 @@ void MediaPump::start() {
         auto out = std::make_unique<VideoOut>();
         out->w = w;
         out->h = h;
+        out->nombre = narrow(n);
         out->scratch.resize(static_cast<size_t>(w) * h * 4u);
         if (!n.empty()) {
             if (out->sender.publish(n.c_str(), SlotConfig{w, h})) {
@@ -308,6 +330,18 @@ void MediaPump::returnAudioThread() {
     }
 }
 
+/// Cada cuanto se mira si A publico un cuadro nuevo.
+///
+/// MUY por debajo del periodo de un cuadro, a proposito. Mirando cada 33 ms
+/// contra alguien que publica cada 33 ms, las dos cadencias baten entre si y
+/// se pierde casi la mitad de los cuadros: medido, 13,6 fps de 30. Y lo peor
+/// no es la mitad que falta, es que lo que llega llega parejo pero tarde y a
+/// destiempo, asi que el navegador del otro lado ensancha su colchon y la
+/// pantalla se va un segundo atras de la sala. Mirando cada 4 ms el cuadro
+/// sale apenas se publica. Cuesta poco: preparar uno son ~8 ms de un solo
+/// nucleo, y mirar y que no haya nada no cuesta nada.
+constexpr int kMiradaMs = 4;
+
 void MediaPump::returnVideoThread() {
     SpoutReceiver receiver;
     bool sub = false;
@@ -315,7 +349,15 @@ void MediaPump::returnVideoThread() {
     int srcW = 0;
     int srcH = 0;
     std::vector<uint8_t> src;
-    std::vector<uint8_t> scaled(static_cast<size_t>(cfg_.guestVideoW) * cfg_.guestVideoH * 4u);
+    // El tamaño del retorno se decide recien al saber cuanto mide el programa:
+    // agrandarlo no agrega detalle, solo gasta banda y CPU.
+    int outW = 0;
+    int outH = 0;
+    std::vector<uint8_t> scaled;
+    std::int64_t trabajoUs = 0;
+    std::int64_t edadUs = 0;
+    std::int64_t cuadros = 0;
+    auto ultimoInforme = std::chrono::steady_clock::now();
     while (!stop_.load(std::memory_order_relaxed)) {
         if (!sub) {
             const auto now = std::chrono::steady_clock::now();
@@ -327,8 +369,16 @@ void MediaPump::returnVideoThread() {
                     srcW = receiver.width();
                     srcH = receiver.height();
                     src.assign(receiver.frameBytes(), 0);
+                    outW = std::min(cfg_.programVideoW, srcW);
+                    outH = std::min(cfg_.programVideoH, srcH);
+                    if (outW <= 0 || outH <= 0) {
+                        outW = srcW;
+                        outH = srcH;
+                    }
+                    scaled.assign(static_cast<size_t>(outW) * outH * 4u, 0);
                     log_.info("retorno video: suscrito a BA.Program (" + std::to_string(srcW) + "x" +
-                              std::to_string(srcH) + ")");
+                              std::to_string(srcH) + ") -> " + std::to_string(outW) + "x" +
+                              std::to_string(outH));
                 }
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -337,6 +387,8 @@ void MediaPump::returnVideoThread() {
         if (receiver.stale()) {
             receiver = SpoutReceiver{};
             sub = false;
+            outW = 0;
+            outH = 0;
             log_.info("retorno video: A cambio o se cerro; resuscribiendo");
             continue;
         }
@@ -346,18 +398,50 @@ void MediaPump::returnVideoThread() {
                 const auto targets = sessionsWhere([](const MediaRoute& r) {
                     return r.kind == MediaRoute::Kind::Program || r.kind == MediaRoute::Kind::Backstage;
                 });
-                if (!targets.empty()) {
-                    scaleBgra(src.data(), srcW, srcH, scaled.data(), cfg_.guestVideoW, cfg_.guestVideoH);
+                if (!targets.empty() && outW > 0 && outH > 0) {
+                    const auto t0 = std::chrono::steady_clock::now();
+                    scaleBgra(src.data(), srcW, srcH, scaled.data(), outW, outH);
                     for (int s : targets) {
                         if (WebrtcSession* sess = hub_.session(s)) {
-                            sess->pushLocalVideo(scaled.data(), scaled.size(), cfg_.guestVideoW,
-                                                 cfg_.guestVideoH);
+                            sess->pushLocalVideo(scaled.data(), scaled.size(), outW, outH);
                         }
                     }
+                    // Cuanto cuesta preparar un cuadro. Importa para el RETARDO:
+                    // si esto pasa del presupuesto (33 ms a 30 fps) la cola se
+                    // va llenando y la pantalla se atrasa sola, sin que nada
+                    // parezca roto. Se avisa cada 10 s, no por cuadro.
+                    trabajoUs += std::chrono::duration_cast<std::chrono::microseconds>(
+                                     std::chrono::steady_clock::now() - t0)
+                                     .count();
+                    // Cuanto hace que A publico este cuadro. `meta.qpc` lo pone
+                    // A al publicar y los dos procesos miden con el mismo reloj
+                    // monotonico, asi que la resta es el SALTO A->B solo: el
+                    // sondeo mas el IPC. Es el unico tramo del camino que no
+                    // tenia numero, y sin el no habia forma de saber si el
+                    // retardo estaba en libobs o en nosotros.
+                    const std::uint64_t ahoraQpc = HealthBlock::nowQpc();
+                    if (meta.qpc != 0 && ahoraQpc > meta.qpc) edadUs += (ahoraQpc - meta.qpc) / 1000;
+                    ++cuadros;
                 }
             }
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(33));
+        const auto ahora = std::chrono::steady_clock::now();
+        if (ahora - ultimoInforme >= std::chrono::seconds(10)) {
+            if (cuadros > 0) {
+                const double seg = std::chrono::duration<double>(ahora - ultimoInforme).count();
+                const double medioMs = static_cast<double>(trabajoUs) / cuadros / 1000.0;
+                const double fps = cuadros / seg;
+                const double edadMs = static_cast<double>(edadUs) / cuadros / 1000.0;
+                log_.fmt(medioMs > 25.0 ? "warn" : "info", 0,
+                         "retorno video: %.1f fps, %.1f ms por cuadro, %.1f ms de A a B%s", fps, medioMs,
+                         edadMs, medioMs > 25.0 ? " (no llega: la pantalla se va a atrasar)" : "");
+            }
+            trabajoUs = 0;
+            edadUs = 0;
+            cuadros = 0;
+            ultimoInforme = ahora;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(kMiradaMs));
     }
 }
 
@@ -460,7 +544,7 @@ void MediaPump::operatorVideoThread() {
                 }
             }
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(33));
+        std::this_thread::sleep_for(std::chrono::milliseconds(kMiradaMs));
     }
 }
 
@@ -520,6 +604,23 @@ void MediaPump::publishVideo(VideoOut& out, const uint8_t* pixels, int w, int h,
     }
     const uint64_t now = HealthBlock::nowQpc();
     out.sender.send(frame, static_cast<size_t>(out.w) * out.h * 4u, FrameMeta{now, now});
+
+    // A que ritmo llega lo que sube este participante. Solo los canales sin
+    // tope de fps: una miniatura de backstage va a 10 a proposito y decir que
+    // "va a 10" seria ruido.
+    if (real && out.minIntervalNs == 0 && !out.nombre.empty()) {
+        ++out.cuadros;
+        const uint64_t t = monoNs();
+        if (out.informeNs == 0) {
+            out.informeNs = t;
+        } else if (t - out.informeNs >= 10'000'000'000ull) {
+            const double seg = static_cast<double>(t - out.informeNs) / 1e9;
+            log_.fmt("info", 0, "sube %s: %.1f fps (%dx%d)", out.nombre.c_str(),
+                     static_cast<double>(out.cuadros) / seg, w, h);
+            out.cuadros = 0;
+            out.informeNs = t;
+        }
+    }
 }
 
 void MediaPump::publishAudio(AudioOut& out, const float* samples, size_t n, int rate) {

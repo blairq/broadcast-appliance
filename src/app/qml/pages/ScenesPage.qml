@@ -12,6 +12,47 @@ Rectangle {
     property string selected: ""
     readonly property string editScene: Studio.sources.scene
 
+    // --- Carpetas de escenas --------------------------------------------------
+    // Solo ordenan la lista (el motor no las usa). El arbol se arma leyendo el
+    // modelo de escenas, que informa la carpeta de cada una.
+    property var closedFolders: ({})
+    property int folderTick: 0
+    property int scenesTick: 0
+    function folderOpen(f) { folderTick; return !closedFolders[f] }
+    function toggleFolder(f) { closedFolders[f] = !closedFolders[f]; folderTick++ }
+    readonly property var sceneTree: {
+        folderTick; scenesTick
+        const m = Studio.scenes
+        const sueltas = [], carpetas = [], porCarpeta = {}
+        for (let i = 0; i < m.rowCount(); ++i) {
+            const idx = m.index(i, 0)
+            const fila = { fila: "escena",
+                           nombre: m.data(idx, 257),   // NameRole
+                           live: m.data(idx, 258),     // LiveRole
+                           carpeta: m.data(idx, 259) } // FolderRole
+            if (!fila.carpeta) { sueltas.push(fila); continue }
+            if (!porCarpeta[fila.carpeta]) { porCarpeta[fila.carpeta] = []; carpetas.push(fila.carpeta) }
+            porCarpeta[fila.carpeta].push(fila)
+        }
+        const filas = []
+        if (carpetas.length > 0) {
+            filas.push({ fila: "carpeta", carpeta: "", cuantas: sueltas.length })
+            if (folderOpen("")) for (const f of sueltas) filas.push(f)
+        } else {
+            for (const f of sueltas) filas.push(f)
+        }
+        for (const c of carpetas) {
+            filas.push({ fila: "carpeta", carpeta: c, cuantas: porCarpeta[c].length })
+            if (folderOpen(c)) for (const f of porCarpeta[c]) filas.push(f)
+        }
+        return filas
+    }
+    Connections {
+        target: Studio.scenes
+        function onModelReset() { page.scenesTick++ }
+        function onDataChanged() { page.scenesTick++ }
+    }
+
     // El motor renderiza la escena que se edita solo mientras esta pagina esta
     // a la vista: fuera de aca no se gasta GPU en ella.
     onEditSceneChanged: if (visible) Studio.setScenePreview(editScene)
@@ -38,33 +79,183 @@ Rectangle {
                     Layout.fillHeight: true
                     clip: true
                     spacing: 6
-                    model: Studio.scenes
-                    delegate: Rectangle {
-                        required property string name
-                        required property bool live
+                    // Arbol: un encabezado por carpeta (se pliega) y debajo sus
+                    // escenas. Las que no tienen carpeta van primero, sueltas.
+                    model: page.sceneTree
+                    delegate: Item {
+                        required property var modelData
                         width: ListView.view.width
-                        height: 46
-                        radius: 12
-                        color: name === page.editScene ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.04)
-                        border.color: live ? Theme.accent : "transparent"
-                        RowLayout {
-                            anchors { fill: parent; leftMargin: 12; rightMargin: 8 }
-                            Rectangle { width: 8; height: 8; radius: 4; color: live ? Theme.live : Theme.textFaint }
-                            Text { text: name; color: Theme.text; Layout.fillWidth: true; elide: Text.ElideRight; font.pixelSize: 13 }
-                            GlassButton { visible: !live; text: "Al aire"; compact: true; onClicked: Studio.takeScene(name) }
+                        height: modelData.fila === "carpeta" ? 28 : 46
+
+                        Rectangle {
+                            id: folderRow
+                            anchors.fill: parent
+                            visible: modelData.fila === "carpeta"
+                            radius: 8
+                            // Se ilumina cuando se le arrastra una escena encima.
+                            color: dropHere.containsDrag ? Qt.rgba(1, 0.42, 0.17, 0.18) : "transparent"
+                            border.color: dropHere.containsDrag ? Theme.accent : "transparent"
+                            DropArea {
+                                id: dropHere
+                                // Un poco mas alta que el encabezado: es facil
+                                // pasarse con el mouse.
+                                anchors { fill: parent; topMargin: -6; bottomMargin: -6 }
+                                property string folderName: modelData.carpeta
+                                // El que se solto es el fantasma de la fila (su
+                                // `escena` dice cual es).
+                                onDropped: (ev) => {
+                                    if (ev.source && ev.source.escena !== undefined)
+                                        Studio.setSceneFolder(ev.source.escena, folderName)
+                                }
+                            }
+                            RowLayout {
+                                anchors { fill: parent; leftMargin: 2; rightMargin: 6 }
+                                spacing: 6
+                                Text {
+                                    text: page.folderOpen(modelData.carpeta) ? "▾" : "▸"
+                                    color: Theme.textFaint; font.pixelSize: 11
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: modelData.carpeta || "Sin carpeta"
+                                    color: Theme.textDim
+                                    font { pixelSize: 11; weight: Font.DemiBold; capitalization: Font.AllUppercase; letterSpacing: 0.4 }
+                                    elide: Text.ElideRight
+                                }
+                                // `cuantas` puede no venir en una fila recién creada:
+                                // sin el respaldo, Qt avisa «Unable to assign [undefined]
+                                // to QString» en cada redibujo.
+                                Text { text: modelData.cuantas !== undefined ? String(modelData.cuantas) : ""
+                                       color: Theme.textFaint; font.pixelSize: 11 }
+                            }
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: page.toggleFolder(modelData.carpeta)
+                            }
                         }
-                        MouseArea {
-                            anchors.fill: parent; z: -1
-                            onClicked: { Studio.sources.scene = name; page.selected = "" }
-                            onDoubleClicked: { renameDlg.from = name; renameDlg.open() }
+
+                        Rectangle {
+                            anchors { fill: parent; leftMargin: modelData.carpeta ? 12 : 0 }
+                            visible: modelData.fila === "escena"
+                            readonly property string name: modelData.nombre || ""
+                            readonly property bool live: !!modelData.live
+                            radius: 12
+                            color: name === page.editScene ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.04)
+                            border.color: live ? Theme.accent : "transparent"
+                            RowLayout {
+                                anchors { fill: parent; leftMargin: 12; rightMargin: 8 }
+                                Rectangle { width: 8; height: 8; radius: 4; color: parent.parent.live ? Theme.live : Theme.textFaint }
+                                Text { text: parent.parent.name; color: Theme.text; Layout.fillWidth: true; elide: Text.ElideRight; font.pixelSize: 13 }
+                                GlassButton { visible: !parent.parent.live; text: "Al aire"; compact: true; onClicked: Studio.takeScene(parent.parent.name) }
+                            }
+                            // Lo que se ve mientras se lleva la escena a una carpeta.
+                            // `Drag.active` va ATADO al arrastre del MouseArea y el
+                            // destino se resuelve en el `onDropped` de la carpeta: es
+                            // el patron que funciona (leer Drag.target al soltar no,
+                            // porque para entonces ya esta vacio).
+                            Item {
+                                id: rowGhost
+                                property string escena: parent.name
+                                width: 150
+                                height: 28
+                                visible: Drag.active
+                                z: 999
+                                Drag.active: rowMa.drag.active
+                                Drag.hotSpot: Qt.point(20, 14)
+                                Rectangle {
+                                    anchors.fill: parent
+                                    radius: 8
+                                    color: Qt.rgba(0.1, 0.12, 0.18, 0.95)
+                                    border.color: Theme.accent
+                                    Text {
+                                        anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
+                                        verticalAlignment: Text.AlignVCenter
+                                        text: "📁 " + rowGhost.escena
+                                        color: Theme.text; font.pixelSize: 12; elide: Text.ElideRight
+                                    }
+                                }
+                            }
+                            // Soltar una escena encima de esta la deja justo antes
+                            // (y en la misma carpeta): asi se reordena a mano.
+                            DropArea {
+                                id: dropRow
+                                anchors.fill: parent
+                                onDropped: (ev) => {
+                                    if (ev.source && ev.source.escena !== undefined)
+                                        Studio.moveScene(ev.source.escena, parent.name)
+                                }
+                            }
+                            // Linea que marca donde va a caer.
+                            Rectangle {
+                                anchors { left: parent.left; right: parent.right; top: parent.top }
+                                height: 3
+                                radius: 2
+                                visible: dropRow.containsDrag
+                                color: Theme.accent
+                            }
+                            MouseArea {
+                                id: rowMa
+                                anchors.fill: parent; z: -1
+                                preventStealing: true
+                                cursorShape: drag.active ? Qt.ClosedHandCursor : Qt.ArrowCursor
+                                drag.target: rowGhost
+                                onPressed: (m) => {
+                                    rowGhost.x = m.x - 20
+                                    rowGhost.y = m.y - 14
+                                }
+                                onReleased: if (rowGhost.Drag.active) rowGhost.Drag.drop()
+                                onClicked: { Studio.sources.scene = parent.name; page.selected = "" }
+                                onDoubleClicked: { renameDlg.from = parent.name; renameDlg.open() }
+                            }
                         }
                     }
                 }
-                RowLayout {
-                    GlassButton { text: "Nueva"; icon: "+"; compact: true; onClicked: newSceneDlg.open() }
-                    GlassButton { text: "Renombrar"; compact: true; onClicked: { renameDlg.from = page.editScene; renameDlg.open() } }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    GlassButton { text: "Escena"; icon: "+"; compact: true; onClicked: newSceneDlg.open() }
+                    GlassButton {
+                        text: "Copiar"; icon: "⧉"; compact: true
+                        // La forma barata de armar escenas parecidas: se hace
+                        // UNA bien y las demás salen de copiarla. El nombre lo
+                        // propone solo; renombrar es un clic más.
+                        onClicked: {
+                            const nueva = Studio.copyScene(page.editScene, "")
+                            if (nueva !== "") page.editScene = nueva
+                        }
+                        ToolTip.visible: hovered; ToolTip.delay: 400
+                        ToolTip.text: "Una escena nueva con todas las fuentes de «" + page.editScene + "»"
+                    }
+                    GlassButton {
+                        text: "Renombrar"; compact: true
+                        enabled: !Studio.sceneProtected(page.editScene)
+                        onClicked: { renameDlg.from = page.editScene; renameDlg.open() }
+                        ToolTip.visible: hovered && !enabled
+                        ToolTip.text: "«" + page.editScene + "» está protegida"
+                    }
+                    GlassButton {
+                        text: Studio.sceneProtected(page.editScene) ? "Protegida" : "Proteger"
+                        icon: Studio.sceneProtected(page.editScene) ? "🔒" : "🔓"
+                        compact: true
+                        active: Studio.sceneProtected(page.editScene)
+                        onClicked: Studio.setSceneProtected(page.editScene,
+                                                            !Studio.sceneProtected(page.editScene))
+                        ToolTip.visible: hovered; ToolTip.delay: 400
+                        ToolTip.text: "Una escena protegida no se borra ni se renombra. Copiarla sí.\n" +
+                                      "Para la escena base de la que salen las demás."
+                    }
+                    GlassButton {
+                        text: "Carpeta"; icon: "+"; compact: true
+                        onClicked: { folderDlg.scene = page.editScene; folderDlg.open() }
+                        ToolTip.visible: hovered; ToolTip.delay: 400
+                        ToolTip.text: "Mover «" + page.editScene + "» a una carpeta (o arrastrala hasta la carpeta)"
+                    }
                     GlassButton {
                         text: "Borrar"; compact: true
+                        enabled: !Studio.sceneProtected(page.editScene)
+                        ToolTip.visible: hovered && !enabled
+                        ToolTip.text: "«" + page.editScene + "» está protegida: sacale el candado primero"
                         onClicked: {
                             const escena = page.editScene
                             // La unica escena no se puede borrar: el motor lo avisa, sin preguntar antes.
@@ -268,6 +459,35 @@ Rectangle {
                             }
                         }
                     }
+                    // Un carrusel no es una fuente mas de la lista: es una tira
+                    // de imagenes que ya esta armada en Medios y que se PONE en
+                    // esta escena. De aca en mas, saltar a una lamina le cambia
+                    // la imagen a esta fuente, y si la escena esta al aire, sale
+                    // al aire. La tarjeta de control del dashboard pasa a
+                    // manejar este carrusel cuando esta escena esta al aire.
+                    GlassButton {
+                        text: "Agregar carrusel"; icon: "▦"; compact: true
+                        visible: Studio.carruseles.carruseles.length > 0
+                        onClicked: carruselMenu.popup()
+                        ToolTip.visible: hovered
+                        ToolTip.delay: 400
+                        ToolTip.text: "Poner en esta escena una tira de imágenes armada en Medios"
+                        Menu {
+                            id: carruselMenu
+                            Repeater {
+                                model: Studio.carruseles.carruseles
+                                delegate: MenuItem {
+                                    required property var modelData
+                                    text: modelData.nombre + "  (" + modelData.laminas + " láminas)" +
+                                          (modelData.fuente !== "" ? "  · ya puesto" : "")
+                                    onTriggered: {
+                                        Studio.carruseles.aplicarAEscena(modelData.nombre, page.editScene)
+                                        page.selected = "Carrusel · " + modelData.nombre
+                                    }
+                                }
+                            }
+                        }
+                    }
                     // Una camara o capturadora NO se puede abrir dos veces (el
                     // dispositivo es exclusivo), pero SI puede estar en varias
                     // escenas: es la MISMA fuente, con otra ubicacion. Asi
@@ -340,6 +560,43 @@ Rectangle {
         TextField { id: newSceneName; width: 280; placeholderText: "Nombre de la escena" }
         onAccepted: { if (newSceneName.text) Studio.addScene(newSceneName.text); newSceneName.text = "" }
     }
+    // Mover una escena a una carpeta (o sacarla, dejando el nombre vacio).
+    Dialog {
+        id: folderDlg
+        property string scene: ""
+        anchors.centerIn: parent
+        modal: true
+        title: "Carpeta de «" + scene + "»"
+        onOpened: folderField.forceActiveFocus()
+        footer: DialogButtonBox {
+            GlassButton { text: "Guardar"; active: true; onClicked: { Studio.setSceneFolder(folderDlg.scene, folderField.text); folderDlg.close() } }
+            GlassButton { text: "Cancelar"; onClicked: folderDlg.close() }
+        }
+        ColumnLayout {
+            spacing: 8
+            Label { text: "Nombre de la carpeta (vacío = sin carpeta)" }
+            TextField {
+                id: folderField
+                Layout.preferredWidth: 320
+                placeholderText: "p. ej. Bloque 1, Invitados, Placas"
+                onAccepted: { Studio.setSceneFolder(folderDlg.scene, text); folderDlg.close() }
+            }
+            Flow {
+                Layout.preferredWidth: 320
+                spacing: 6
+                Repeater {
+                    model: Studio.sceneFolders()
+                    delegate: GlassButton {
+                        required property string modelData
+                        compact: true
+                        text: modelData
+                        onClicked: folderField.text = modelData
+                    }
+                }
+            }
+        }
+    }
+
     Dialog {
         id: renameDlg
         property string from: ""

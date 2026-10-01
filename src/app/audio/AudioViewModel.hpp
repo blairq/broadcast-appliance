@@ -33,6 +33,11 @@ class AudioViewModel : public QObject {
     Q_PROPERTY(QString selected READ selected NOTIFY selectionChanged)
     Q_PROPERTY(QVariantMap detail READ detail NOTIFY detailChanged)
     Q_PROPERTY(QVariantList catalog READ catalog CONSTANT)
+    /// Paso de la grilla del patchbay (posiciones de nodos y calles de cables).
+    Q_PROPERTY(double gridStep READ gridStep CONSTANT)
+    /// Salidas de audio del equipo, agrupadas por dispositivo:
+    /// [{dispositivo, salidas: [{id, nombre}]}].
+    Q_PROPERTY(QVariantList outputDevices READ outputDevices NOTIFY changed)
    public:
     explicit AudioViewModel(RackManager& mgr, QObject* parent = nullptr);
 
@@ -45,6 +50,8 @@ class AudioViewModel : public QObject {
     QString selected() const { return selected_; }
     QVariantMap detail() const { return detail_; }
     QVariantList catalog() const;
+    QVariantList outputDevices() const;
+    double gridStep() const;
 
     Q_INVOKABLE void setActive(bool on);
     Q_INVOKABLE void refresh();
@@ -54,12 +61,28 @@ class AudioViewModel : public QObject {
     Q_INVOKABLE QString addModule(const QString& moduleOrId, const QString& after = {});
     Q_INVOKABLE QString addAnalyzer();
     Q_INVOKABLE QString addGenerator();
+    /// Agrega (o reapunta) la salida de audio de esta fuente: una tarjeta mas
+    /// en el grafo, con el nombre del dispositivo elegido.
+    Q_INVOKABLE QString addOutput(const QString& device);
+
+    // --- Plantillas -------------------------------------------------------------
+    Q_INVOKABLE QVariantList plantillas() const;
+    Q_INVOKABLE QString guardarPlantilla(const QString& nombre);
+    Q_INVOKABLE QString aplicarPlantilla(const QString& nombre);
+    Q_INVOKABLE QString borrarPlantilla(const QString& nombre);
+    Q_INVOKABLE QString plantillaPorDefecto(const QString& nombre, const QString& tipo);
+    /// El tipo de libobs de la fuente elegida (para marcar la predeterminada).
+    Q_INVOKABLE QString tipoDeFuente() const;
+    /// Reordena los nodos en la grilla del patchbay.
+    Q_INVOKABLE void tidy();
     Q_INVOKABLE void removeNode(const QString& node);
     Q_INVOKABLE void removeRack();
+    /// Conecta una salida con una entrada. `outCh`/`inCh`: -1 = el puerto
+    /// entero, 0 = canal izquierdo, 1 = derecho.
     Q_INVOKABLE QString connectPorts(const QString& from, const QString& out, const QString& to,
-                                     const QString& in);
+                                     const QString& in, int outCh = -1, int inCh = -1);
     Q_INVOKABLE void disconnectPorts(const QString& from, const QString& out, const QString& to,
-                                     const QString& in);
+                                     const QString& in, int outCh = -1, int inCh = -1);
     Q_INVOKABLE void moveNode(const QString& node, double x, double y);
     Q_INVOKABLE void setBypass(const QString& node, bool bypass);
     Q_INVOKABLE QString openEditor(const QString& node);

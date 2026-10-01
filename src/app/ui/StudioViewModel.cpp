@@ -3,6 +3,12 @@
 // ============================================================================
 
 #include "ui/StudioViewModel.hpp"
+#include <QClipboard>
+#include <QDateTime>
+
+#include <QGuiApplication>
+#include <QScreen>
+#include <QWindow>
 
 #if defined(BA_HAVE_CLAP)
 #include "audio/AudioViewModel.hpp"
@@ -25,18 +31,37 @@
 #include "AccountGuides.hpp"
 #include "agent/AgentViewModel.hpp"
 #include "agent/AlertEngine.hpp"
+#include "agent/Despachador.hpp"
+#include "agent/Roles.hpp"
 #include "AppRuntime.hpp"
+#include "diag/DiarioDeArranque.hpp"
+#include "diag/Registro.hpp"
+#include "graficos/Emisor.hpp"
+#include "graficos/Vinculos.hpp"
 #include "net/HttpsClient.hpp"
+#include "ui/CarruselViewModel.hpp"
 #include "ui/ChatOverlayRenderer.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/DashboardModel.hpp"
+#include "ui/EventoViewModel.hpp"
+#include "ui/ExtensionesModel.hpp"
 #include "ui/FacebookViewModel.hpp"
 #include "ui/FrameService.hpp"
+#include "ui/GraficoViewModel.hpp"
 #include "ui/InputsViewModel.hpp"
 #include "ui/ListModels.hpp"
+#include "ui/MediosViewModel.hpp"
 #include "ui/OperatorMessages.hpp"
+#include "ui/PantallasViewModel.hpp"
+#include "ui/PersonasViewModel.hpp"
+#include "ui/PrompterViewModel.hpp"
 #include "ui/PropertiesModel.hpp"
+#include "ui/PublicoViewModel.hpp"
+#include "ui/QrViewModel.hpp"
+#include "ui/RegistroViewModel.hpp"
+#include "ui/RielConfig.hpp"
+#include "ui/RotuladorViewModel.hpp"
 #include "ui/SettingsModel.hpp"
 #include "ui/SystemViewModel.hpp"
 #include "ui/TwitchViewModel.hpp"
@@ -61,18 +86,117 @@ QString hms(std::chrono::steady_clock::time_point since) {
 } // namespace
 
 StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(parent), rt_(rt) {
+    // Modo seguro (el circuit breaker del launcher, tras varias caidas
+    // seguidas): NADA que venga del disco. Aquel apaga todo; el diario apaga al
+    // culpable. Juntos cubren los dos casos: el que rompe una cosa y el que
+    // rompe algo que no sabemos cual es.
+    if (rt.config().safeMode) {
+        ba::diag::diario().setModoSeguro(true);
+        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
+                                   "modo seguro: no se carga nada del disco en esta corrida");
+    }
     scenes_ = std::make_unique<ScenesModel>(rt);
     sources_ = std::make_unique<SourcesModel>(rt);
     sources_->setScene(currentScene());
     mixer_ = std::make_unique<MixerModel>(rt);
     types_ = std::make_unique<SourceTypesModel>(rt);
     settings_ = std::make_unique<SettingsModel>(rt);
-    dashboard_ = std::make_unique<DashboardModel>(rt.dataRoot() / "Config" / "ui.json");
+    {
+        // La disposicion del dashboard sale de un archivo que se edita solo y
+        // que tambien toca el asistente: si queda roto, no puede impedir que el
+        // programa abra.
+        ba::diag::Cargando c("dashboard");
+        dashboard_ = std::make_unique<DashboardModel>(c.saltear() ? std::filesystem::path{}
+                                                                  : rt.dataRoot() / "Config" / "ui.json");
+    }
     frames_ = std::make_unique<FrameService>(rt.engine(), rt.config().guests);
     frames_->setLobbySlots(rt.gateway().lobbySlots);
     props_ = std::make_unique<PropertiesModel>(rt);
     conference_ = std::make_unique<ConferenceViewModel>(rt);
+    // El encargo al asistente vive aca (necesita el MCP): la sala solo avisa.
+    conference_->setIntakeSink([this](const QString& id, const QString& name, bool yaAdentro) {
+        return assistantIntake(id, name, yaAdentro);
+    });
     connect(conference_.get(), &ConferenceViewModel::notify, this, &StudioViewModel::notify);
+    // Un solo renderizador de gráficos para todos los que disparan uno: el
+    // guion, el editor, el rotulador y el asistente.
+    emisor_ = std::make_unique<graficos::Emisor>(rt.dataRoot());
+    // El guion del evento necesita la sala para los cues de orador.
+    {
+        // El guion abre solo el ultimo evento que se toco, que es un archivo
+        // del disco y puede venir de cualquier lado.
+        ba::diag::Cargando c("evento");
+        evento_ = std::make_unique<EventoViewModel>(rt, conference_.get(), emisor_.get(), c.saltear());
+    }
+    connect(evento_.get(), &EventoViewModel::notify, this, &StudioViewModel::notify);
+    grafico_ = std::make_unique<GraficoViewModel>(rt, *emisor_);
+    // El rotulador mira la escena que está al aire, así que la sigue.
+    rotulador_ = std::make_unique<RotuladorViewModel>(rt, *emisor_, conference_.get());
+    // El teleprompter: los discursos son los del evento (los mismos que lee el
+    // cue) y el estado es del gateway, así que necesita a los dos.
+    prompter_ = std::make_unique<PrompterViewModel>(evento_.get(), conference_.get());
+    connect(prompter_.get(), &PrompterViewModel::notify, this, &StudioViewModel::notify);
+    // Pantallas externas: necesita la sala para saber con qué dirección la ve
+    // un televisor de la red.
+    pantallas_ = std::make_unique<PantallasViewModel>(rt, conference_.get());
+    connect(pantallas_.get(), &PantallasViewModel::notify, this, &StudioViewModel::notify);
+    // Códigos QR: la biblioteca es del aparato y del evento, y los enlaces
+    // propios (sala, prompter, rótulos) se los pide al gateway.
+    qr_ = std::make_unique<QrViewModel>(rt, evento_.get(), conference_.get());
+    // Despues de `frames_`: mira los mismos videos que el resto de la interfaz.
+    personas_ = std::make_unique<PersonasViewModel>(rt, *this);
+    // Las preguntas del publico y la urna. Viven en B; esto las trae y las
+    // modera. No consulta nada hasta que una vista se muestra (ver `activo`).
+    publico_ = std::make_unique<PublicoViewModel>(conference_.get(), this);
+    connect(publico_.get(), &PublicoViewModel::notify, this, &StudioViewModel::notify);
+    medios_ = std::make_unique<MediosViewModel>(rt, this);
+    connect(medios_.get(), &MediosViewModel::notify, this, &StudioViewModel::notify);
+    carruseles_ = std::make_unique<CarruselViewModel>(rt, this);
+    connect(carruseles_.get(), &CarruselViewModel::notify, this, &StudioViewModel::notify);
+    // La tarjeta de control sigue a la escena: al cortar a otra escena pasa a
+    // manejar el carrusel que esa escena tenga. Sin esto el operador tendria
+    // que acordarse de elegirlo a mano en el peor momento para acordarse de
+    // algo. `sceneChanged` avisa tanto del corte como del cambio de fuentes.
+    connect(this, &StudioViewModel::sceneChanged, carruseles_.get(), &CarruselViewModel::revisarEscena);
+    connect(this, &StudioViewModel::escenasCambiaron, carruseles_.get(), &CarruselViewModel::revisarEscena);
+    carruseles_->revisarEscena();
+    connect(qr_.get(), &QrViewModel::notify, this, &StudioViewModel::notify);
+    connect(rotulador_.get(), &RotuladorViewModel::notify, this, &StudioViewModel::notify);
+    connect(this, &StudioViewModel::sceneChanged, rotulador_.get(), &RotuladorViewModel::refrescar);
+
+    // Los vínculos: «el nombre del zócalo sale del orador que está al aire».
+    // El contexto se arma acá porque es el único lugar que ve todo junto: la
+    // sala sabe quién habla, el guion sabe quién sigue, el motor sabe qué
+    // escena está al aire.
+    ba::diag::Cargando cargandoVinculos("vinculos");
+    vinculos_ = std::make_unique<graficos::Vinculos>(
+        cargandoVinculos.saltear() ? std::filesystem::path{} : rt.dataRoot() / "Config" / "vinculos.json",
+        *emisor_);
+    vinculos_->setContexto([this]() { return contextoDeVinculos(); });
+    rotulador_->setVinculos(vinculos_.get());
+    evento_->setVinculos(vinculos_.get());
+
+    {
+        // Mirar la carpeta es leer disco y parsear JSON ajeno: si eso se
+        // llevara puesto el arranque, la proxima vez se saltea.
+        ba::diag::Cargando c("extensiones");
+        extensiones_ = std::make_unique<ExtensionesModel>(rt);
+        if (c.saltear()) extensiones_.reset();
+    }
+    if (extensiones_) connect(extensiones_.get(), &ExtensionesModel::notify, this, &StudioViewModel::notify);
+
+    // El riel se lee siempre, tambien en modo seguro: es COMO SE NAVEGA. Si
+    // no se cargara, el operador quedaria sin poder llegar a Configuracion
+    // justo cuando algo anda mal.
+    riel_ = std::make_unique<RielConfig>(rt.dataRoot() / "Config" / "riel.json");
+
+    registro_ = std::make_unique<RegistroViewModel>(rt);
+    connect(registro_.get(), &RegistroViewModel::notify, this, &StudioViewModel::notify);
+    connect(vinculos_.get(), &graficos::Vinculos::actuo, this,
+            [this](const QString&, const QString& texto, bool error) {
+                if (error) emit notify("Un rótulo automático no salió: " + texto, "error");
+            });
+    connect(grafico_.get(), &GraficoViewModel::notify, this, &StudioViewModel::notify);
     // HTTPS propio (plataformas): raices de certificados del bundle primero.
     net::HttpsClient::setDefaultCaSearch(
         {(rt.dataRoot() / "data" / "cacert.pem").string(),
@@ -127,7 +251,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         };
         in.status = [this]() {
             const EngineStatus s = rt_.engine().status();
-            return agent::AlertInputs::Status{s.streaming, s.recording, s.droppedFrames, s.totalFrames};
+            return agent::AlertInputs::Status{s.streaming, s.recording, s.droppedFrames, s.totalFrames,
+                                              s.reconnecting};
         };
         in.diskFreeGb = [this]() {
             const QStorageInfo si(QString::fromStdWString((rt_.dataRoot() / "Recordings").wstring()));
@@ -142,6 +267,12 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         alerts_->start(250);
         agent_ = std::make_unique<agent::AgentViewModel>(rt, *alerts_);
         connect(agent_.get(), &agent::AgentViewModel::notify, this, &StudioViewModel::notify);
+        // Los roles automaticos: un disparo que un rol activo reclama va a un
+        // agente de un tiro y NO al chat del asistente interactivo.
+        roles_ = std::make_unique<agent::Roles>(rt.dataRoot() / "Config" / "roles.json");
+        despachador_ = std::make_unique<agent::Despachador>(*roles_, agent_->motores());
+        connect(despachador_.get(), &agent::Despachador::notify, this, &StudioViewModel::notify);
+        agent_->setReclamado([this](const nlohmann::json& ev) { return despachador_->evento(ev); });
         // Barra de mensajes del asistente al operador (y respuestas a invitados).
         messages_ = std::make_unique<OperatorMessages>();
         if (rt.config().safeMode) {
@@ -232,6 +363,7 @@ void StudioViewModel::onTick() {
     const EngineStatus st = rt_.engine().status();
     if (st.recording && !recording_) {
         recSince_ = std::chrono::steady_clock::now();
+        recSinceMs_ = QDateTime::currentMSecsSinceEpoch();
     }
     if (st.streaming && !streaming_) {
         streamSince_ = std::chrono::steady_clock::now();
@@ -268,8 +400,20 @@ void StudioViewModel::onTick() {
                 "salir al aire.");
         }
     }
+    // Si cambio el aire o la grabacion, el tally lo tiene que saber: una
+    // pantalla que dice «al aire» con la transmision cortada miente, y es la
+    // clase de mentira por la que alguien se confia.
+    const bool cambioElAire = recording_ != st.recording || streaming_ != st.streaming;
     recording_ = st.recording;
     streaming_ = st.streaming;
+    if (cambioElAire) publicarTally();
+    // Avisar UNA vez por problema, no en cada vuelta del reloj.
+    if (st.reconnecting && !reconnecting_)
+        emit notify("Se cortó la transmisión: reconectando… (" + qs(st.outputProblem) + ")", "error");
+    else if (!st.reconnecting && reconnecting_ && st.streaming)
+        emit notify("Transmisión recuperada", "ok");
+    reconnecting_ = st.reconnecting;
+    outputProblem_ = qs(st.outputProblem);
     fps_ = st.fps;
     encoder_ = qs(st.videoEncoder);
     dropped_ = st.droppedFrames;
@@ -344,6 +488,7 @@ QObject* StudioViewModel::twitch() const { return twitch_.get(); }
 QObject* StudioViewModel::facebook() const { return facebook_.get(); }
 QObject* StudioViewModel::system() const { return system_.get(); }
 QObject* StudioViewModel::agent() const { return agent_.get(); }
+QObject* StudioViewModel::despachadorQml() const { return despachador_.get(); }
 QObject* StudioViewModel::messages() const { return messages_.get(); }
 
 QObject* StudioViewModel::audio() const {
@@ -387,6 +532,82 @@ QString StudioViewModel::saveAccountCredential(const QString& platform, const QV
 }
 QObject* StudioViewModel::inputs() const { return inputs_.get(); }
 QObject* StudioViewModel::conference() const { return conference_.get(); }
+QObject* StudioViewModel::evento() const { return evento_.get(); }
+QObject* StudioViewModel::grafico() const { return grafico_.get(); }
+QObject* StudioViewModel::rotulador() const { return rotulador_.get(); }
+QObject* StudioViewModel::prompter() const { return prompter_.get(); }
+QObject* StudioViewModel::pantallas() const { return pantallas_.get(); }
+QObject* StudioViewModel::qr() const { return qr_.get(); }
+QObject* StudioViewModel::personas() const { return personas_.get(); }
+QObject* StudioViewModel::publico() const { return publico_.get(); }
+QObject* StudioViewModel::medios() const { return medios_.get(); }
+QObject* StudioViewModel::carruseles() const { return carruseles_.get(); }
+QObject* StudioViewModel::registro() const { return registro_.get(); }
+QObject* StudioViewModel::extensiones() const { return extensiones_.get(); }
+QObject* StudioViewModel::riel() const { return riel_.get(); }
+
+void StudioViewModel::setSeccionConfig(const QString& s) {
+    if (s == seccionConfig_) return;
+    seccionConfig_ = s;
+    emit seccionConfigChanged();
+}
+
+QJsonObject StudioViewModel::contextoDeVinculos() const {
+    QJsonObject ctx;
+    ctx["escena"] = currentScene();
+
+    // La sala: quién está al aire y quiénes esperan, en el orden en que los
+    // ve el operador. `invitado1`, `invitado2`... son ESE orden, que es lo que
+    // uno tiene delante cuando dice «el invitado 2».
+    const QJsonObject sala = conference_ != nullptr ? conference_->client().snapshot() : QJsonObject{};
+    QHash<QString, QJsonObject> porId;
+    for (const QJsonValue& v : sala.value("participants").toArray())
+        porId.insert(v.toObject().value("id").toString(), v.toObject());
+
+    const auto deParticipante = [](const QJsonObject& p) {
+        return QJsonObject{{"nombre", p.value("name").toString()},
+                           // `info` es lo que el invitado puso de sí mismo al
+                           // entrar: es el cargo o la procedencia.
+                           {"cargo", p.value("info").toString()},
+                           {"contacto", p.value("contact").toString()}};
+    };
+
+    int n = 0;
+    bool hayOrador = false;
+    QJsonObject primeroEnCola;
+    for (const QJsonValue& v : sala.value("order").toArray()) {
+        const auto it = porId.constFind(v.toString());
+        if (it == porId.constEnd()) continue;
+        const QJsonObject p = *it;
+        ctx["invitado" + QString::number(++n)] = deParticipante(p);
+        const QString estado = p.value("speaker").toString();
+        if (estado == "onair" && !hayOrador) {
+            ctx["orador"] = deParticipante(p);
+            hayOrador = true;
+        } else if (estado == "queued" && primeroEnCola.isEmpty()) {
+            primeroEnCola = deParticipante(p);
+        }
+    }
+    if (!primeroEnCola.isEmpty()) ctx["siguiente"] = primeroEnCola;
+
+    // El guion: qué bloque va y qué dice el cue. Si el cue que corre es de
+    // orador, ese es el orador según el guion, que puede no ser el mismo que
+    // el de la sala (alguien que habla desde el estudio, sin conectarse).
+    if (evento_ != nullptr) {
+        const QVariantMap actual = evento_->property("actual").toMap();
+        const QVariantMap sig = evento_->property("siguiente").toMap();
+        QJsonObject guion{{"bloque", actual.value("bloqueNombre").toString()},
+                          {"cue", actual.value("texto").toString()},
+                          {"tipo", actual.value("tipo").toString()},
+                          {"proximo", sig.value("texto").toString()}};
+        const QVariantMap datos = actual.value("datos").toMap();
+        if (actual.value("tipo").toString() == "orador")
+            guion["orador"] = datos.value("participante").toString();
+        ctx["guion"] = guion;
+        ctx["evento"] = QJsonObject{{"nombre", evento_->property("nombre").toString()}};
+    }
+    return ctx;
+}
 
 void StudioViewModel::toggleRecording() {
     if (recording_) {
@@ -421,7 +642,107 @@ void StudioViewModel::takeScene(const QString& name) {
     scenes_->liveChanged();
     sources_->setScene(name); // el editor de fuentes sigue a la escena al aire
     emit sceneChanged();
+    publicarTally();
     rt_.save();
+}
+
+QString StudioViewModel::escenaArmada() const { return scenes_->armada(); }
+
+void StudioViewModel::publicarTally() {
+    auto* p = qobject_cast<PantallasViewModel*>(pantallas());
+    if (p == nullptr) return;
+    const QString aire = qs(rt_.engine().currentScene());
+    const QString armada = scenes_->armada();
+    const auto fuentesDe = [this](const QString& escena) {
+        QStringList out;
+        if (escena.isEmpty()) return out;
+        for (const std::string& f : rt_.engine().sceneSources(escena.toStdString()))
+            out << qs(f);
+        return out;
+    };
+    p->publicarTally(aire, armada, fuentesDe(aire), fuentesDe(armada), streaming(), recording());
+}
+
+void StudioViewModel::armarEscena(const QString& name) {
+    if (name == qs(rt_.engine().currentScene())) {
+        // Armar lo que ya esta al aire deja el TAKE sin sentido (cortaria a lo
+        // mismo). Se avisa en vez de aceptarlo callado.
+        emit notify("«" + name + "» ya está al aire: armá otra para el próximo take.", "aviso");
+        return;
+    }
+    scenes_->setArmada(name);
+    frames_->setArmada(name); // el monitor de armada mira esta
+    emit sceneChanged();
+    publicarTally();
+}
+
+void StudioViewModel::take() {
+    const QString armada = scenes_->armada();
+    if (armada.isEmpty()) {
+        emit notify("No hay ninguna escena armada: elegí una en el bus de preview.", "aviso");
+        return;
+    }
+    const QString saliendo = qs(rt_.engine().currentScene());
+    if (!rt_.setScene(armada.toStdString())) {
+        emit notify(qs(rt_.lastError()), "error");
+        return;
+    }
+    // El plano que sale del aire queda armado: en una mesa, despues de un take
+    // el preview tiene lo anterior y volver es un solo golpe.
+    scenes_->setArmada(saliendo);
+    frames_->setArmada(saliendo);
+    scenes_->liveChanged();
+    sources_->setScene(armada);
+    emit sceneChanged();
+    publicarTally();
+    rt_.save();
+}
+
+QStringList StudioViewModel::ventanasAbiertas() const {
+    QStringList out;
+    for (QWindow* w : QGuiApplication::topLevelWindows()) {
+        if (w == nullptr || !w->isVisible() || !w->objectName().startsWith("ba:")) continue;
+        if (w->screen() != nullptr && !out.contains(w->screen()->name())) out << w->screen()->name();
+    }
+    return out;
+}
+
+bool StudioViewModel::puedeUbicarVentanas() {
+    return !QGuiApplication::platformName().contains("wayland", Qt::CaseInsensitive);
+}
+
+QVariantList StudioViewModel::escenasPorCarpeta() const {
+    // MISMO ORDEN QUE LA PESTAÑA ESCENAS: primero las sueltas, después las
+    // carpetas. Agrupando en el orden crudo del modelo, las sueltas quedaban
+    // EN EL MEDIO de dos carpetas y sin título propio, o sea que parecían
+    // parte de la de arriba. Dos vistas de lo mismo con dos ordenes distintos
+    // obligan a leer en vez de reconocer.
+    //
+    // Adentro de cada grupo se respeta el orden que puso el operador:
+    // ordenarlas alfabéticamente sería desordenarlas para el que las acomodó.
+    QVariantList sueltas;
+    QVariantList carpetas;    // [{carpeta, escenas}]
+    QMap<QString, int> donde; // carpeta -> posicion en `carpetas`
+    for (const std::string& n : rt_.orderedSceneNames()) {
+        const QString carpeta = qs(rt_.sceneFolder(n));
+        if (carpeta.isEmpty()) {
+            sueltas.append(qs(n));
+            continue;
+        }
+        if (!donde.contains(carpeta)) {
+            donde[carpeta] = static_cast<int>(carpetas.size());
+            carpetas.append(QVariantMap{{"carpeta", carpeta}, {"escenas", QVariantList{}}});
+        }
+        QVariantMap g = carpetas[donde[carpeta]].toMap();
+        QVariantList e = g.value("escenas").toList();
+        e.append(qs(n));
+        g["escenas"] = e;
+        carpetas[donde[carpeta]] = g;
+    }
+    QVariantList out;
+    if (!sueltas.isEmpty()) out.append(QVariantMap{{"carpeta", QString()}, {"escenas", sueltas}});
+    out.append(carpetas);
+    return out;
 }
 
 void StudioViewModel::addScene(const QString& name) {
@@ -430,7 +751,53 @@ void StudioViewModel::addScene(const QString& name) {
         return;
     }
     scenes_->reload();
+    emit escenasCambiaron();
     rt_.save();
+}
+
+QString StudioViewModel::copyScene(const QString& from, const QString& to) {
+    // Sin nombre, se propone uno libre: copiar tiene que ser un clic, no un
+    // dialogo. Se renombra despues, que es cuando uno ya sabe como llamarla.
+    QString destino = to;
+    if (destino.isEmpty()) {
+        const auto existe = [this](const QString& n) {
+            for (const std::string& s : rt_.orderedSceneNames())
+                if (qs(s) == n) return true;
+            return false;
+        };
+        destino = from + " (copia)";
+        for (int i = 2; existe(destino); ++i)
+            destino = from + " (copia " + QString::number(i) + ")";
+    }
+    if (!rt_.copyScene(from.toStdString(), destino.toStdString())) {
+        emit notify(qs(rt_.lastError()), "error");
+        return {};
+    }
+    scenes_->reload();
+    emit escenasCambiaron();
+    emit sceneChanged();
+    rt_.save();
+    const std::string aviso = rt_.lastError();
+    emit notify(aviso.empty() ? "Escena copiada: " + destino : "Escena copiada, pero " + qs(aviso),
+                aviso.empty() ? "ok" : "warn");
+    return destino;
+}
+
+void StudioViewModel::setSceneProtected(const QString& name, bool protegida) {
+    if (!rt_.setSceneProtected(name.toStdString(), protegida)) {
+        emit notify(qs(rt_.lastError()), "error");
+        return;
+    }
+    scenes_->reload();
+    emit escenasCambiaron();
+    rt_.save();
+    emit notify(protegida ? "«" + name + "» protegida: no se puede borrar ni renombrar"
+                          : "«" + name + "» ya no está protegida",
+                "ok");
+}
+
+bool StudioViewModel::sceneProtected(const QString& name) const {
+    return rt_.sceneProtected(name.toStdString());
 }
 
 void StudioViewModel::removeScene(const QString& name) {
@@ -439,9 +806,51 @@ void StudioViewModel::removeScene(const QString& name) {
         return;
     }
     scenes_->reload();
+    emit escenasCambiaron();
     if (sources_->scene() == name) {
         sources_->setScene(currentScene());
     }
+    emit sceneChanged();
+    rt_.save();
+}
+
+void StudioViewModel::setSceneFolder(const QString& name, const QString& folder) {
+    if (!rt_.setSceneFolder(name.toStdString(), folder.trimmed().toStdString())) {
+        emit notify(qs(rt_.lastError()), "error");
+        return;
+    }
+    scenes_->reload();
+    emit escenasCambiaron();
+    emit sceneChanged();
+    rt_.save();
+}
+
+QStringList StudioViewModel::sceneFolders() const {
+    QStringList out;
+    for (const auto& f : rt_.sceneFolders())
+        out << qs(f);
+    return out;
+}
+
+void StudioViewModel::copiar(const QString& texto) {
+    if (QClipboard* c = QGuiApplication::clipboard()) {
+        c->setText(texto);
+        emit notify("Copiado", "ok");
+    }
+}
+
+QString StudioViewModel::assistantIntake(const QString& id, const QString& name, bool yaAdentro) {
+    if (!intakeSink_) return "El servidor MCP no está disponible.";
+    return intakeSink_(id, name, yaAdentro);
+}
+
+void StudioViewModel::moveScene(const QString& name, const QString& before) {
+    if (!rt_.moveScene(name.toStdString(), before.toStdString())) {
+        emit notify(qs(rt_.lastError()), "error");
+        return;
+    }
+    scenes_->reload();
+    emit escenasCambiaron();
     emit sceneChanged();
     rt_.save();
 }
@@ -452,6 +861,7 @@ void StudioViewModel::renameScene(const QString& from, const QString& to) {
         return;
     }
     scenes_->reload();
+    emit escenasCambiaron();
     if (sources_->scene() == from) {
         sources_->setScene(to.trimmed());
     }
@@ -469,6 +879,7 @@ void StudioViewModel::save() {
 
 void StudioViewModel::refreshModels() {
     scenes_->reload();
+    emit escenasCambiaron();
     scenes_->liveChanged();
     // Si la escena que mostraba el editor ya no existe, sigue a la del aire.
     const std::vector<std::string> names = rt_.engine().sceneNames();

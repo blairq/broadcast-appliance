@@ -75,8 +75,14 @@
 
 #include <nlohmann/json.hpp>
 
+#include "Carruseles.hpp"
 #include "MediaRoute.hpp"
+#include "Preguntas.hpp"
+#include "Prompter.hpp"
+#include "Rotulador.hpp"
+#include "Superficies.hpp"
 #include "TokenAuth.hpp"
+#include "Votacion.hpp"
 #include "Webrtc.hpp"
 
 namespace ba::gateway {
@@ -99,7 +105,27 @@ class SignalingServer {
         std::string adminWebroot;  // Web/admin (consola web)
         std::string adminToken;    // Bearer / cookie de la consola; vacio = sin API de control
         int maxSharesPerGuest = 20;
-        std::string boardWebroot; // Web/board (tablero de oradores)
+        std::string boardWebroot;    // Web/board (tablero de oradores)
+        std::string prompterWebroot; // Web/prompter (teleprompter del orador)
+        /// Clave del control del teleprompter: sin ella cualquiera en la LAN
+        /// podria frenarle el texto al orador en medio del discurso. Viaja en
+        /// el enlace que el operador le pasa (o en el QR). Vacia = sin control
+        /// remoto (la tablet igual muestra el texto).
+        std::string prompterKey;
+        std::string rotulosWebroot;  // Web/rotulos (los rotulos desde el celular)
+        std::string pantallaWebroot; // Web/pantalla (lo que se manda a un televisor)
+        std::string castWebroot;     // Web/cast (el programa en vivo, para un televisor)
+        std::string comunWebroot;    // Web/comun (el canal de control, lo usan TODAS)
+        /// Clave de los rotulos. A diferencia del teleprompter, hace falta
+        /// TAMBIEN PARA MIRAR: un rotulo suele llevar el nombre del invitado
+        /// que todavia no se anuncio. Vacia = la pagina no atiende a nadie.
+        std::string rotulosKey;
+        std::string publicoWebroot; // Web/publico (la pagina del publico)
+        /// Clave de la pagina del publico. Viaja en el QR que se reparte (o se
+        /// proyecta): no es un secreto fuerte y no pretende serlo —lo tiene
+        /// todo el que esta en la sala—, es lo que evita que la cola de
+        /// preguntas la llene cualquiera que pase por el tunel.
+        std::string publicoKey;
     };
 
     SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub, Room& room, ShareStore& shares,
@@ -126,6 +152,41 @@ class SignalingServer {
     /// IP publica del tunel WireGuard: los candidatos ICE de loopback (los que
     /// atiende el puente del tunel) se anuncian con esta IP. Vacio = no.
     void setPublicAddress(const std::string& ip) { publicAddress_ = ip; }
+    /// El teleprompter, para que la API de control (A) le cargue discursos y
+    /// lo comande sin pasar por la clave del control remoto.
+    Prompter& prompter() { return prompter_; }
+    /// El buzon de rotulos, que A publica y viene a vaciar.
+    Rotulador& rotulador() { return rotulador_; }
+    Preguntas& preguntas() { return preguntas_; }
+    Votacion& votacion() { return votacion_; }
+
+    /// Lo que la pagina del publico muestra arriba y de fondo. Lo publica A,
+    /// que es el unico que sabe que evento esta abierto. B solo lo repite.
+    void setPublicoInfo(const nlohmann::json& info);
+    nlohmann::json publicoInfo() const;
+    /// Los codigos que escanearon su invitacion y todavia no fueron a parar al
+    /// padron. Es un BUZON, como el de los rotulos: B no tiene el padron —lo
+    /// tiene A— asi que anota quien llego y A lo viene a buscar. Encolar es lo
+    /// que hace que acreditarse funcione aunque A este ocupado o reiniciando;
+    /// una llamada directa a un proceso que no esta se pierde, y el que se
+    /// acredito ya guardo el telefono.
+    std::vector<std::string> tomarAcreditaciones();
+
+    /// La imagen de fondo, en memoria. Se guarda ACA y no se manda a cada
+    /// telefono dentro del JSON: son doscientos telefonos pidiendo cada tres
+    /// segundos, y una imagen repetida en cada respuesta es el mismo fondo
+    /// mandado mil veces. Asi va una vez y el navegador la cachea.
+    void setPublicoFondo(std::string bytes, std::string tipo);
+    const std::string& rotulosKey() const { return cfg_.rotulosKey; }
+    const std::string& prompterKey() const { return cfg_.prompterKey; }
+
+    /// true si el offer es de SOLO RECEPCION (ninguna pista sube). Lo que
+    /// decide es el SDP, no la buena fe del cliente: el token de ingreso de
+    /// una pantalla lo puede tener cualquiera. Publica porque es LA garantia
+    /// de que un televisor no sea un microfono abierto, y como tal tiene su
+    /// propio test (test_pantalla).
+    static bool soloRecibe(const std::string& sdp);
+
     /// Estado de red para la API de control (/api/v1/network).
     void setNetworkStatus(std::function<nlohmann::json()> fn) { networkStatus_ = std::move(fn); }
     /// URL de ingreso para el QR: target "local" (red local) o "remote"
@@ -153,6 +214,27 @@ class SignalingServer {
     void closeActiveConns();
 
     // --- Superficie de invitados --------------------------------------------
+    // --- Pantallas (solo miran) ----------------------------------------------
+    // Una PANTALLA es un televisor que muestra el programa y nada mas. No es
+    // un participante de la sala: no tiene nombre, no aparece en la lista, no
+    // pasa por el lobby, no puede escribir en el chat y no puede publicar
+    // audio ni video. Eso ULTIMO no depende de que su pagina se porte bien:
+    // el servidor le rechaza el offer si no es de solo recepcion, y su ruta de
+    // medios (backstage sin preview) manda lo que subiera a ningun lado.
+    //
+    // Entra por /ws?pantalla=1&token=..., con el mismo token de ingreso que un
+    // invitado: lo que cambia es TODO lo que puede hacer despues.
+    /// true si ese id es una pantalla (y no un participante de la sala).
+    bool esPantalla(const std::string& pid) const;
+    /// Registra una pantalla nueva y devuelve su id. `claveOut` recibe la
+    /// clave de reenganche, que se le manda en el "hello".
+    std::string altaPantalla(std::string& claveOut);
+    /// La clave de reenganche de esa pantalla (vacia si no existe).
+    std::string claveDePantalla(const std::string& pid) const;
+    /// Valida un reenganche. true si ese id existe y la clave coincide.
+    bool reengancharPantalla(const std::string& pid, const std::string& clave);
+    void bajaPantalla(const std::string& pid);
+
     void handleGuestHttp(long long fd, const std::string& method, const std::string& path,
                          const std::string& query, const std::string& body, std::uint32_t clientIp);
     bool serveStatic(long long fd, const std::string& root, const std::string& relPath);
@@ -248,6 +330,45 @@ class SignalingServer {
     TokenAuth& auth_;
     WebrtcHub& hub_;
     Room& room_;
+    Prompter prompter_;
+    /// Lo que rota en cada pantalla (lo publica A, lo lee /pantalla/carrusel/).
+    Carruseles carruseles_;
+    /// EL TALLY: que escena esta al aire, cual armada y que fuentes tiene cada
+    /// una. Lo publica A (es el unico que sabe de escenas) y lo leen las
+    /// pantallas de tally de la sala.
+    ///
+    /// Es un JSON tal cual, sin estructura propia, a proposito: lo que hay
+    /// adentro lo decide quien lo publica, y el gateway solo lo guarda y lo
+    /// sirve. Un tally que se atrasa porque hubo que tocar dos lados para
+    /// agregarle un campo no sirve.
+    mutable std::mutex tallyLock_;
+    nlohmann::json tally_ = nlohmann::json::object();
+    /// Quien esta VIVO del otro lado: cada superficie web late (ver Superficies).
+    Superficies superficies_;
+    /// Las conexiones que son PANTALLAS (ver esPantalla), con su clave de
+    /// reenganche. Aparte de la sala a proposito: nada de lo que sabe Room
+    /// aplica a un televisor.
+    ///
+    /// La entrada SOBREVIVE a la desconexion (hasta `kPantallaTtlMs`) porque
+    /// el token de ingreso es de un solo uso: sin esto, un televisor que
+    /// pierde el WebSocket un segundo no puede volver nunca mas y se queda en
+    /// "reconectando" hasta que alguien lo vuelva a castear a mano.
+    struct Pantalla {
+        std::string clave;
+        std::int64_t sueltaMs = 0; ///< cuando se desconecto (0: conectada)
+    };
+    static constexpr std::int64_t kPantallaTtlMs = 12LL * 60 * 60 * 1000;
+    static constexpr std::size_t kMaxPantallas = 32;
+    mutable std::mutex pantallasLock_;
+    std::map<std::string, Pantalla> pantallas_;
+    Rotulador rotulador_;
+    Preguntas preguntas_;
+    Votacion votacion_;
+    mutable std::mutex publicoM_;
+    nlohmann::json publicoInfo_ = nlohmann::json::object();
+    std::vector<std::string> acreditaciones_;
+    std::string fondoBytes_;
+    std::string fondoTipo_;
     ShareStore& shares_;
     Log& log_;
     MediaPump* pump_ = nullptr;

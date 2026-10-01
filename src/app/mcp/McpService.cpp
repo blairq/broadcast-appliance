@@ -6,6 +6,14 @@
 // ============================================================================
 
 #include "mcp/McpService.hpp"
+#include <QDateTime>
+#include <QRandomGenerator>
+
+#include "agent/AgentViewModel.hpp"
+#include "agent/Despachador.hpp"
+#include "agent/Roles.hpp"
+#include "mcp/McpTraza.hpp"
+#include "ui/PersonasViewModel.hpp"
 
 #include <QBuffer>
 #include <QCoreApplication>
@@ -22,10 +30,13 @@
 
 #include "AppRuntime.hpp"
 #include "AppSettings.hpp"
+#include "mcp/McpEventoTools.hpp"
 #include "mcp/McpHttp.hpp"
+#include "mcp/McpPreguntaTools.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "platform/Paths.hpp"
 #include "ui/ConferenceViewModel.hpp"
+#include "ui/EventoViewModel.hpp"
 #include "ui/ListModels.hpp"
 #include "ui/OperatorMessages.hpp"
 #include "ui/PropertiesModel.hpp"
@@ -33,6 +44,44 @@
 #include "ui/StudioViewModel.hpp"
 
 namespace ba::app::mcp {
+
+namespace {
+
+/// Lo que hay que mirar ANTES de preguntarle nada a quien espera.
+///
+/// POR QUE VA PRIMERO. Si el sistema ya sabe quien es, preguntarle el nombre
+/// otra vez es hacerle perder el tiempo a alguien que ya estuvo —y le dice, sin
+/// querer, que aca no lo conoce nadie—. Y si casi lo reconoce, lo que falta no
+/// es una pregunta: es que se ponga de frente a la camara.
+///
+/// Vacio si este equipo no tiene reconocimiento: no tiene sentido mandarle al
+/// asistente instrucciones sobre herramientas que no estan registradas.
+QString reconocerPrimero(const QString& uid) {
+    return "ANTES DE PREGUNTARLE NADA, mira `rostro_lobby` y busca su `uid` (" + uid +
+           "):\n"
+           "- Si viene con `nombre`, YA SABES QUIEN ES: saludala por su nombre, confirmale en UNA "
+           "sola pregunta el cargo que figura en su ficha, y no le vuelvas a preguntar lo que ya "
+           "esta ahi. Preguntarle el nombre a alguien que el sistema reconoce es hacerle perder el "
+           "tiempo.\n"
+           "- Si `parecido` esta cerca del corte (0.40 o mas) pero sin `nombre`, casi seguro ES "
+           "alguien de la libreta y lo que falta es una cara mejor: deciselo por `chat_send` con "
+           "las palabras de `sugerencia` (por ejemplo «mira de frente a la camara»), espera unos "
+           "segundos y volve a mirar `rostro_lobby` ANTES de preguntarle quien es.\n"
+           "- Si no la reconoce, atendela como siempre.\n\n";
+}
+
+/// Y lo que hay que hacer al final, para que la proxima vez ya la conozca.
+QString guardarLaCara(const QString& uid) {
+    return QString(" Al final, cuando tengas su nombre y su cargo, guardale la cara: mira "
+                   "`rostro_lobby` para sacar su `feed` (uid ") +
+           uid +
+           ") y llama `rostro_guardar {nombre, cargo, feed}` —si ya tenia ficha, `rostro_sumar "
+           "{id, feed}`—. Si `rostro_calidad` dice que la cara no sirve, pedile primero lo que "
+           "diga `sugerencia`. Asi la proxima vez que venga la reconoce sola y no hay que "
+           "preguntarle todo de nuevo.";
+}
+
+} // namespace
 
 // ============================================================================
 // Utilidades
@@ -58,12 +107,58 @@ std::string encodeImage(const QImage& src, const std::string& format, int maxWid
     return bytes.toBase64().toStdString();
 }
 
+/// Quién puede recibir una imagen DENTRO de su conversación.
+///
+/// SOLO EL ROL QUE MIRA. El asistente principal aguanta muy pocas imágenes en
+/// su contexto y, pasadas esas, la sesión se cuelga —no da error: se cuelga, en
+/// el medio de una transmisión—. Una regla en el prompt («no captures si no te
+/// lo piden») no alcanza: se lo vio disparar veinte herramientas de una y meter
+/// una captura al final sin que nadie se la pidiera. Entonces la capacidad no
+/// existe para él: las capturas le vuelven como un archivo, y para mirarlas
+/// está `imagen_analizar`, que se lo encarga a un agente aparte.
+bool puedeVerImagenes(McpCore& core) { return core.contextoEnCurso().rol == "vision"; }
+
+/// Dónde quedan las capturas para que las mire otro. Una por archivo, con un
+/// nombre que no se repite. (Declarada en el header: la usa `imagen_analizar`.)
+QString guardarCaptura(const QImage& img, const std::filesystem::path& raiz, const json& args,
+                       int defaultWidth) {
+    const QString dir = QString::fromStdWString((raiz / "Runtime" / "capturas").wstring());
+    QDir().mkpath(dir);
+    const int maxW = args.value("maxWidth", defaultWidth);
+    QImage e = img;
+    if (maxW > 0 && e.width() > maxW) e = e.scaledToWidth(maxW, Qt::SmoothTransformation);
+    const QString archivo = dir + "/" + QString::number(QDateTime::currentMSecsSinceEpoch()) + "-" +
+                            QString::number(QRandomGenerator::global()->bounded(1000, 9999)) + ".jpg";
+    return e.save(archivo, "JPG", args.value("quality", 85)) ? archivo : QString();
+}
+
 void addImage(ToolResult& r, const QImage& img, const json& args, int defaultWidth) {
     std::string mime;
     const int maxW = args.value("maxWidth", defaultWidth);
     const std::string b64 =
         encodeImage(img, args.value("format", std::string("jpeg")), maxW, args.value("quality", 85), mime);
     r.image(b64, mime);
+}
+
+void addImage(ToolResult& r, const QImage& img, const json& args, int defaultWidth, McpCore& core,
+              const std::filesystem::path& raiz) {
+    if (puedeVerImagenes(core)) {
+        addImage(r, img, args, defaultWidth);
+        return;
+    }
+    const QString archivo = guardarCaptura(img, raiz, args, defaultWidth);
+    if (archivo.isEmpty()) {
+        r.text("(no se pudo guardar la captura)");
+        return;
+    }
+    r.text("Captura guardada en " + archivo.toStdString() + " (" + std::to_string(img.width()) + "x" +
+           std::to_string(img.height()) +
+           "). NO te la mando acá: una imagen en esta conversación cuelga la sesión. Para saber "
+           "qué se ve, usá `imagen_analizar` con una pregunta concreta.");
+    if (r.structured.is_null()) r.structured = json::object();
+    json archivos = r.structured.value("capturas", json::array());
+    archivos.push_back(archivo.toStdString());
+    r.structured["capturas"] = archivos;
 }
 
 bool parseLayout(const json& v, float& x, float& y, float& w, float& h, std::string& err) {
@@ -206,13 +301,88 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
     registerFacebookTools();
     registerAlertTools();
     registerAssistantTools();
+    // El operador delega en el asistente la atencion de alguien del lobby: se
+    // habilita la exencion para ESA persona y se le pasa la tarea al agente.
+    vm_.setIntakeSink([this](const QString& id, const QString& name, bool yaAdentro) -> QString {
+        // Si la recepcion esta prendida, es de ella: un agente de un tiro con
+        // su juego de herramientas, y el asistente interactivo no se entera.
+        agent::Despachador& d = vm_.despachador();
+        if (const agent::Rol* r = d.roles().porId("recepcion"); r != nullptr && r->activo) {
+            core_.startIntake(id.toStdString(), name.toStdString());
+            std::string err;
+            d.encargar("recepcion",
+                       (yaAdentro ? "«" + name.toStdString() +
+                                        "» YA ENTRO sola (estaba en la "
+                                        "lista de auto-aceptar del evento): no le pidas los datos de "
+                                        "cero, mostrale los que ya tenemos para que confirme. "
+                                  : reconocerPrimero(id).toStdString()) +
+                           "El operador te pide que atiendas a la persona que espera en el lobby (id " +
+                           id.toStdString() + ", se anoto como «" + name.toStdString() + "»).",
+                       "lobby:" + id.toStdString(), 0, &err);
+            return QString::fromStdString(err);
+        }
+        auto* ag = static_cast<agent::AgentViewModel*>(vm_.agent());
+        if (ag == nullptr || !ag->running()) return "El asistente no está corriendo (pestaña ✦).";
+        core_.startIntake(id.toStdString(), name.toStdString());
+        if (yaAdentro) {
+            // YA ESTA ADENTRO: entro sola porque estaba en la lista del
+            // evento. Pedirle los datos de cero a alguien que el sistema
+            // reconocio y dejo pasar es contradecirse en la misma frase.
+            ag->send("«" + name + "» (id " + id +
+                     ") YA ENTRO A LA SALA sola: el sistema la reconocio y estaba en la lista de "
+                     "auto-aceptar del evento. NO le pidas los datos de cero. Hablale por "
+                     "`chat_send`, saludala por su nombre, deciles que ya esta adentro, y mostrale "
+                     "los datos que ya tenemos de ella (`participant_profile` y `rostro_listar`) "
+                     "para que confirme si siguen bien o si cambio algo —el cargo sobre todo, que "
+                     "es lo que va al aire—. Si te corrige algo, guardalo con `participant_profile` "
+                     "y, si cambio su cargo, tambien con `rostro_guardar {id, nombre, cargo}`. "
+                     "Avisame con `operator_ask` SOLO si algo no cierra. Manejate sola.");
+            return {};
+        }
+        ag->send(reconocerPrimero(id) + "Atendé vos a la persona que espera en el lobby (id " + id +
+                 ", se anotó como «" + name +
+                 "»). Hablale por chat con `chat_send` usándola como destinatario, presentate en una línea y "
+                 "pedile, de a una pregunta por vez y en español rioplatense: su nombre y apellido tal como "
+                 "quiere que se lea en pantalla, su cargo o de qué va a hablar, cómo quiere que la presenten "
+                 "al aire, y un teléfono o correo de contacto por si se corta. Leé sus respuestas con "
+                 "`chat_history`. A medida que las tengas, completá su ficha con `participant_profile`. "
+                 "Cuando los tengas, ANTES de consultarme a mí, avisale por `chat_send` que ya "
+                 "está: algo como «Listo, ya tengo todo. Se lo paso a producción y te aviso apenas "
+                 "me confirmen». Del otro lado no se ve nada de lo que pasa acá, y quedarse "
+                 "esperando en silencio frente a una cámara, sin saber si alguien lo está "
+                 "mirando, se siente como que lo dejaron colgado. "
+                 "Recién después mostrámelos todos juntos con `operator_ask` "
+                 "(opciones: «Hacer pasar» y «Todavía no») pasando `photoOf` con su nombre, asi la "
+                 "tarjeta lleva su foto. "
+                 "Si contesto «Hacer pasar», admitila con `participant_admit` Y avisale por chat que "
+                 "ya entra; si no, dejala esperando y avisale con cortesía que todavía no. "
+                 "Contestale SIEMPRE, salga como salga: el silencio es la peor respuesta. Mientras dure esto "
+                 "no me preguntes nada más: manejate sola." +
+                 guardarLaCara(id));
+        return {};
+    });
     registerSystemTools();
     registerInputTools();
     registerMediaTools();
+    registerLaminaTools();
     registerOperatorTools();
     registerAccountTools();
     registerAudioTools();
+    registerGraficoTools();
+    registerRegistroTools();
+    registerRecetaTools();
+    registerAgenteTools();
+    registerPrompterTools();
+    registerPantallaTools();
+    registerQrTools();
+    registerVentanaTools();
+    registerRostroTools();
+    // El mapa de categorias va en las `instructions` del initialize (lo arma
+    // McpCore en cada initialize, porque depende del rol del cliente) y
+    // cuesta unos 400 tokens.
     applySecurity();
+    // Con todas las herramientas ya registradas (ver verificarJuegos).
+    core_.verificarJuegos();
 }
 
 bool McpService::roomHasUntrusted() {
@@ -264,6 +434,25 @@ void McpService::applySecurity() {
             [this](const QString&) { applyApprovalPolicy(); });
     // La aprobacion la da una persona en la barra de abajo: la tarjeta la arma
     // el servidor con la herramienta y los argumentos exactos.
+    // Atencion delegada: una llamada es "de esa persona" si el nombre o id que
+    // trae resuelve contra la sala al id que el operador delego.
+    core_.setIntakeMatcher([this](const std::string& tool, const json& args) {
+        const std::vector<std::string> ids = core_.intakes();
+        if (ids.empty() || !args.is_object()) return false;
+        static const std::map<std::string, const char*> kArg{{"chat_send", "to"},
+                                                             {"participant_profile", "participant"},
+                                                             {"participant_admit", "participant"},
+                                                             {"participant_talk", "participant"}};
+        const auto it = kArg.find(tool);
+        if (it == kArg.end()) return false;
+        const std::string who = args.value(it->second, std::string());
+        if (who.empty() || who == "all") return false;
+        json p;
+        std::string err;
+        if (!resolveParticipant(roomSnapshot(vm_), who, p, err)) return false;
+        const std::string id = p.value("id", "");
+        return std::find(ids.begin(), ids.end(), id) != ids.end();
+    });
     core_.setApprover(
         [this](const Tool& t, const json& args, const std::string& reason, std::function<void(bool)> decide) {
             auto* msgs = static_cast<OperatorMessages*>(vm_.messages());
@@ -288,6 +477,9 @@ void McpService::applySecurity() {
 McpService::~McpService() = default;
 
 bool McpService::start(quint16 port) {
+    // La traza completa arranca con el servidor: lo que pase antes no existe
+    // todavia para nadie de afuera.
+    Traza::la().abrir(rt_.dataRoot() / "Logs");
     const QString token =
         loadOrCreateToken(QString::fromStdWString((rt_.dataRoot() / "Credenciales").wstring()));
     if (token.isEmpty()) return false;
@@ -327,6 +519,23 @@ void McpService::registerTools() {
     core_.addCategory("salidas", "Salidas", "Transmision (RTMP) y grabacion.");
     core_.addCategory("config", "Configuracion",
                       "Todos los ajustes del appliance (video, codificacion, sala, red...).");
+    // El guion del evento: su propio bloque (ver McpEventoTools.cpp).
+    if (auto* ev = static_cast<EventoViewModel*>(vm_.evento())) {
+        registerEventoTools(core_, *ev, vm_, [this](const std::string& id) {
+            auto* pv = static_cast<PersonasViewModel*>(vm_.personas());
+            if (pv == nullptr || !pv->disponible()) return std::pair{false, std::string()};
+            for (const QVariant& v : pv->personas()) {
+                const QVariantMap m = v.toMap();
+                if (m.value("id").toString().toStdString() == id)
+                    return std::pair{true, m.value("nombre").toString().toStdString()};
+            }
+            return std::pair{false, std::string()};
+        });
+    }
+
+    // Las preguntas del publico: viven en B, y esto es el lado de A que las
+    // modera (ver McpPreguntaTools.cpp).
+    registerPreguntaTools(core_, vm_, rt_);
 
     AppRuntime& rt = rt_;
     StudioViewModel& vm = vm_;
@@ -334,6 +543,11 @@ void McpService::registerTools() {
         rt.save();
         vm.refreshModels();
     };
+    // La invariante, puesta una vez y para todas: lo que se toca por MCP se ve
+    // en la interfaz. El despachador la aplica a TODA herramienta que modifica
+    // algo, asi ninguna superficie nueva depende de que su autor se acuerde.
+    // Ver McpCore::setSincronizador.
+    core_.setSincronizador(persist);
     const auto sceneOr = [&rt](const json& a) {
         const std::string s = a.value("scene", std::string());
         return s.empty() ? rt.engine().currentScene() : s;
@@ -413,26 +627,90 @@ void McpService::registerTools() {
         t.category = "escenas";
         t.readOnly = true;
         t.idempotent = true;
-        t.description = "Todas las escenas con sus fuentes (de abajo hacia arriba) y cual esta al aire.";
-        t.run = [&rt](const json&, Done done) {
+        t.description =
+            "El listado de escenas que existen: cual esta al aire, en que carpeta esta cada una. "
+            "Para el contenido de UNA escena, capa por capa, no es esta. "
+            "Todas las escenas con sus capas (de abajo hacia arriba), cual esta al aire y en que "
+            "carpeta esta cada una (`folder`, \"\" = suelta). Las carpetas solo ordenan la lista de la "
+            "pestaña Escenas: no cambian nada de la emision.\n\n"
+            "`live` es la que esta AL AIRE; `armada` es la del bus de preview, la que sale con el "
+            "proximo `scene_take`. Son los dos buses de una mesa de switcher.";
+        t.run = [&rt, &vm](const json&, Done done) {
+            const QString armada = vm.escenaArmada();
             json scenes = json::array();
-            for (const std::string& n : rt.engine().sceneNames()) {
+            for (const std::string& n : rt.orderedSceneNames()) {
                 scenes.push_back(json{{"name", n},
                                       {"live", n == rt.engine().currentScene()},
+                                      {"armada", QString::fromStdString(n) == armada},
+                                      {"folder", rt.sceneFolder(n)},
                                       {"sources", rt.engine().sceneSources(n)}});
             }
-            done(ToolResult().data(json{{"current", rt.engine().currentScene()}, {"scenes", scenes}}));
+            done(ToolResult().data(json{{"current", rt.engine().currentScene()},
+                                        {"armada", armada.toStdString()},
+                                        {"folders", rt.sceneFolders()},
+                                        {"scenes", scenes}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "scene_folder";
+        t.title = "Mover una escena a una carpeta";
+        t.category = "escenas";
+        t.description =
+            "QUE ES: las carpetas agrupan escenas en la lista de la pestaña Escenas (arbol que se "
+            "pliega). PARA QUE: ordenar cuando hay muchas (bloques del programa, placas, invitados). "
+            "COMO SE USA: `folder` con el nombre de la carpeta (se crea sola si no existe) o vacio para "
+            "sacar la escena de toda carpeta. No cambia nada de la emision ni del contenido de la "
+            "escena; `scene_list` informa la carpeta de cada una.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"scene", {{"type", "string"}}}, {"folder", {{"type", "string"}}}}},
+                         {"required", {"scene"}}};
+        t.run = [&rt](const json& a, Done done) {
+            if (!rt.setSceneFolder(a.value("scene", ""), a.value("folder", "")))
+                return done(ToolResult::error(rt.lastError()));
+            rt.save();
+            done(ToolResult().data(json{{"scene", a.value("scene", "")},
+                                        {"folder", a.value("folder", "")},
+                                        {"folders", rt.sceneFolders()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "scene_move";
+        t.title = "Reordenar una escena";
+        t.category = "escenas";
+        t.description =
+            "QUE ES: cambia el ORDEN de la lista de escenas (y de paso la carpeta). PARA QUE: dejar las "
+            "escenas en el orden del programa. COMO SE USA: `before` es la escena delante de la cual "
+            "queda (vacio = al final); ademas hereda su carpeta. No cambia nada de la emision. El orden "
+            "que informa `scene_list` es el que ve el operador.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"scene", {{"type", "string"}}}, {"before", {{"type", "string"}}}}},
+                         {"required", {"scene"}}};
+        t.run = [&rt](const json& a, Done done) {
+            if (!rt.moveScene(a.value("scene", ""), a.value("before", "")))
+                return done(ToolResult::error(rt.lastError()));
+            rt.save();
+            done(ToolResult().data(json{{"orden", rt.orderedSceneNames()}}));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "scene_switch";
-        t.title = "Poner una escena al aire";
+        t.title = "Poner una escena al aire (corte directo)";
         t.category = "escenas";
-        t.description =
-            "Cambia la escena del programa (con la transicion configurada). Lo que se ve y oye en la "
-            "transmision cambia en el acto.";
+        t.description = "Pone una escena al aire YA, sin pasar por el preview: es «corta a la camara 2», "
+                        "«pone la apertura». Cambia la escena del programa (con la transicion configurada). "
+                        "Lo que se ve y oye en la "
+                        "transmision cambia EN EL ACTO, sin pasar por el bus de preview.";
+        t.details =
+            "Es el corte de urgencia: sale ya. Para lo demas, la forma de trabajar de una mesa es "
+            "`scene_preview` (armar el proximo plano) -> mirarlo con `capture_source` -> `scene_take`. "
+            "Dos pasos parece mas lento y es al reves: lo que esta roto se ve ANTES de salir al aire, "
+            "no despues.";
         t.inputSchema = {
             {"type", "object"},
             {"properties", {{"name", {{"type", "string"}, {"description", "Nombre de la escena."}}}}},
@@ -448,6 +726,58 @@ void McpService::registerTools() {
         };
         core_.addTool(std::move(t));
     }
+    // --- El bus de preview: armar, mirar, TAKE --------------------------------
+    {
+        Tool t;
+        t.name = "scene_preview";
+        t.title = "Armar la proxima escena (sin sacarla al aire)";
+        t.category = "escenas";
+        t.description =
+            "Pone una escena en el bus de PREVIEW: queda armada para el proximo `scene_take`. NO cambia "
+            "lo que se ve en la transmision.";
+        t.details =
+            "Asi se opera una mesa de switcher: se arma el proximo plano, se MIRA (`capture_source` con "
+            "el mismo nombre da la foto de como va a salir), y recien ahi `scene_take`.\n\n"
+            "Armar la escena que YA esta al aire no tiene sentido (el take cortaria a lo mismo) y se "
+            "rechaza.\n\n"
+            "`scene_list` dice cual esta armada y cual al aire.";
+        t.inputSchema = {
+            {"type", "object"}, {"properties", {{"name", {{"type", "string"}}}}}, {"required", {"name"}}};
+        t.examples = {R"({"name": "06 Debate invitados"})"};
+        t.run = [&rt, &vm, sceneExists, noScene](const json& a, Done done) {
+            const std::string name = a["name"];
+            if (!sceneExists(name)) return done(noScene(name));
+            vm.armarEscena(QString::fromStdString(name));
+            if (vm.escenaArmada().toStdString() != name)
+                return done(ToolResult::error("No se armo: «" + name + "» ya esta al aire."));
+            done(ToolResult::ok("Armada: " + name + ". Mirala con capture_source y sacala con scene_take."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "scene_take";
+        t.title = "TAKE: sacar al aire la escena armada";
+        t.category = "escenas";
+        t.description = "Pone al aire la escena que estaba armada en el bus de preview, con la transicion "
+                        "configurada. Deja armada la que salia, para poder volver de un golpe.";
+        t.details = "Sin nada armado no hace nada y lo dice: armar primero con `scene_preview`.\n\n"
+                    "Que el plano que SALE del aire quede armado es como funciona cualquier mesa: "
+                    "despues de un take, volver a lo anterior es un solo take mas.";
+        t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
+        t.run = [&rt, &vm](const json&, Done done) {
+            const QString armada = vm.escenaArmada();
+            if (armada.isEmpty())
+                return done(ToolResult::error(
+                    "No hay nada armado. Arma el proximo plano con scene_preview {\"name\": ...}."));
+            vm.take();
+            if (rt.engine().currentScene() != armada.toStdString())
+                return done(ToolResult::error("No se pudo: " + rt.lastError()));
+            done(ToolResult::ok("AL AIRE: " + armada.toStdString() +
+                                ". Queda armada: " + vm.escenaArmada().toStdString() + "."));
+        };
+        core_.addTool(std::move(t));
+    }
     {
         Tool t;
         t.name = "scene_create";
@@ -460,6 +790,64 @@ void McpService::registerTools() {
             if (!rt.addScene(a["name"].get<std::string>())) return done(ToolResult::error(rt.lastError()));
             persist();
             done(ToolResult::ok("Escena creada: " + a["name"].get<std::string>()));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "scene_copy";
+        t.title = "Copiar una escena";
+        t.category = "escenas";
+        t.description = "Crea una escena nueva con todas las fuentes de otra.";
+        t.details = "Es como se arman las escenas parecidas sin repetir el trabajo: se hace UNA bien —la de "
+                    "entrevista, con su camara, su zocalo y su fondo— y las demas salen de copiarla y "
+                    "cambiarle lo que difiere.\n\n"
+                    "Las fuentes se RECREAN, no se comparten: quedan dos escenas de verdad independientes, y "
+                    "mover algo en la copia no mueve el original.\n\n"
+                    "La copia nunca queda protegida, aunque el original lo este: para eso se copia. Si "
+                    "alguna fuente no se pudo recrear, la escena igual queda creada y se dice cual fallo: "
+                    "una escena a medias se arregla a mano, una que desaparecio sin explicacion no.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"from", {{"type", "string"}, {"description", "La escena que se copia."}}},
+                           {"to", {{"type", "string"}, {"description", "Nombre de la copia."}}}}},
+                         {"required", {"from", "to"}}};
+        t.run = [&rt, persist](const json& a, Done done) {
+            const std::string from = a["from"].get<std::string>();
+            const std::string to = a["to"].get<std::string>();
+            if (!rt.copyScene(from, to)) return done(ToolResult::error(rt.lastError()));
+            persist();
+            // `lastError` con la copia hecha = alguna fuente no se pudo
+            // recrear. Se dice, pero no es un error: la escena existe.
+            const std::string aviso = rt.lastError();
+            done(ToolResult::ok("Escena «" + to + "» copiada de «" + from + "»." +
+                                (aviso.empty() ? "" : " Ojo: " + aviso)));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "scene_protect";
+        t.title = "Proteger una escena";
+        t.category = "escenas";
+        t.description = "Una escena protegida no se puede borrar ni renombrar.";
+        t.details = "Para la escena BASE de la que se copian las demas —la que si alguien borra se pierde el "
+                    "trabajo de todos— y para las que no se tocan en vivo.\n\n"
+                    "Copiarla si se puede, y editar sus fuentes tambien: lo que se protege es que "
+                    "desaparezca o cambie de nombre, que es lo que rompe todo lo que la nombra (el guion, "
+                    "los vinculos de rotulos, las recetas).";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"scene", {{"type", "string"}}}, {"protected", {{"type", "boolean"}, {"default", true}}}}},
+            {"required", {"scene"}}};
+        t.run = [&rt, persist](const json& a, Done done) {
+            const std::string s = a["scene"].get<std::string>();
+            const bool p = a.value("protected", true);
+            if (!rt.setSceneProtected(s, p)) return done(ToolResult::error(rt.lastError()));
+            persist();
+            done(ToolResult::ok(p ? "«" + s + "» queda protegida: no se borra ni se renombra."
+                                  : "«" + s + "» ya no esta protegida."));
         };
         core_.addTool(std::move(t));
     }
@@ -686,9 +1074,9 @@ void McpService::registerTools() {
         t.category = "fuentes";
         t.readOnly = true;
         t.idempotent = true;
-        t.description =
-            "Fuentes de una escena (de abajo hacia arriba) con tipo, visibilidad, ubicacion en el "
-            "lienzo, volumen y silencio.";
+        t.description = "Lo que hay ADENTRO de una escena: sus capas, una por una. Fuentes de una escena (de "
+                        "abajo hacia arriba) con tipo, visibilidad, ubicacion en el "
+                        "lienzo, volumen y silencio.";
         t.inputSchema = {{"type", "object"}, {"properties", {{"scene", sceneProp}}}};
         t.run = [&rt, sceneOr, sceneExists, noScene](const json& a, Done done) {
             const std::string scene = sceneOr(a);
@@ -972,9 +1360,10 @@ void McpService::registerTools() {
         t.title = "Mezclador";
         t.category = "audio";
         t.readOnly = true;
-        t.description =
-            "Fuentes de audio con volumen (dB), silencio y nivel pico actual (dBFS), mas el nivel del "
-            "programa. -100 = silencio; cerca de 0 = saturando.";
+        t.description = "Foto de los niveles del mezclador, para leer. "
+                        "Fuentes de audio con volumen (dB), silencio, si se esta escuchando por el monitor "
+                        "(`escuchando`, ver audio_escuchar) y nivel pico actual (dBFS), mas el nivel del "
+                        "programa. -100 = silencio; cerca de 0 = saturando.";
         t.run = [&rt, &vm](const json&, Done done) {
             json out = json::array();
             for (const std::string& n : rt.engine().audioSources()) {
@@ -982,6 +1371,11 @@ void McpService::registerTools() {
                 out.push_back(json{{"name", n},
                                    {"volumeDb", mul > 0 ? 20.0 * std::log10(mul) : -100.0},
                                    {"muted", rt.engine().sourceMuted(n)},
+                                   // Cual se esta escuchando por el monitor
+                                   // (audio_escuchar). Sin esto el PFL es
+                                   // invisible: queda una fuente sonando en
+                                   // los auriculares y nadie sabe cual.
+                                   {"escuchando", rt.engine().sourceMonitoring(n)},
                                    {"peakDb", rt.engine().sourcePeakDb(n)}});
             }
             done(ToolResult().data(
@@ -995,7 +1389,9 @@ void McpService::registerTools() {
         t.title = "Volumen / silencio";
         t.category = "audio";
         t.description =
-            "Cambia el volumen (dB, 0 = sin cambio, negativo baja) y/o silencia una fuente de audio.";
+            "Silencia, sube o baja el audio de una fuente. Es con lo que se CORTA un acople, se baja lo que "
+            "satura, se sube lo que no se escucha o se cierra un microfono que quedo abierto. Cambia el "
+            "volumen (dB, 0 = sin cambio, negativo baja) y/o silencia una fuente de audio.";
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"name", {{"type", "string"}}},
@@ -1015,6 +1411,97 @@ void McpService::registerTools() {
                     ToolResult::error("No existe la fuente de audio '" + n + "' (mixer_list las muestra)."));
             persist();
             done(ToolResult::ok("Audio de '" + n + "' actualizado."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "audio_escuchar";
+        t.title = "Escuchar una fuente por el monitor (PFL), sin tocar el aire";
+        t.category = "audio";
+        t.description =
+            "Manda una fuente de audio al monitor del operador para escucharla. NO cambia lo que sale "
+            "al aire: lo que estaba saliendo sigue saliendo igual.";
+        t.details =
+            "Es el PFL de una consola: antes de abrir un microfono se lo escucha para ver si esta ahi, "
+            "si zumba, si el invitado ya volvio. Sin esto habia que ponerlo al aire para enterarse.\n\n"
+            "Es EXCLUSIVO, como el solo de una mesa: escuchar una apaga la anterior. Sin argumentos "
+            "apaga la que este sonando.\n\n"
+            "OJO: una fuente SILENCIADA (`audio_set muted`) no suena ni por el monitor —en libobs el "
+            "silencio es antes de todo—. Para probar un microfono cerrado hay que quitarle el silencio "
+            "y bajarle el volumen, no silenciarlo.\n\n"
+            "Que se oiga depende de que el equipo tenga un monitor de audio configurado; sin monitor "
+            "esto no falla pero tampoco suena. `audio_sources` dice cual se esta escuchando.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"name", {{"type", "string"}, {"description", "la fuente; vacio o sin esto = apagar"}}},
+              {"escuchar",
+               {{"type", "boolean"}, {"description", "false para apagar esta (por defecto true)"}}}}}};
+        t.examples = {R"({"name": "Microfono del atril"})", R"({})"};
+        t.run = [&rt](const json& a, Done done) {
+            const std::string n = a.value("name", std::string());
+            const bool on = a.value("escuchar", true) && !n.empty();
+            // Exclusivo: se apagan todas y se prende la pedida. Asi «escuchar»
+            // siempre quiere decir lo mismo, y nunca quedan dos sonando juntas
+            // sin que nadie se acuerde de la primera.
+            std::vector<std::string> apagadas;
+            for (const std::string& f : rt.engine().audioSources()) {
+                if (f == n && on) continue;
+                if (rt.engine().sourceMonitoring(f)) {
+                    rt.engine().setSourceMonitoring(f, false);
+                    apagadas.push_back(f);
+                }
+            }
+            if (!on) {
+                return done(ToolResult::ok(apagadas.empty()
+                                               ? "No se estaba escuchando ninguna."
+                                               : "Dejo de escucharse: " + apagadas.front() + "."));
+            }
+            if (!rt.engine().setSourceMonitoring(n, true))
+                return done(
+                    ToolResult::error("No existe la fuente de audio '" + n + "' (audio_sources las lista)."));
+            done(ToolResult::ok("Escuchando «" + n + "» por el monitor. Lo que sale al aire no cambio." +
+                                (apagadas.empty() ? "" : " (se dejo de escuchar " + apagadas.front() + ")")));
+        };
+        core_.addTool(std::move(t));
+    }
+
+    {
+        Tool t;
+        t.name = "audio_sincro";
+        t.title = "Sincronizar labios y voz";
+        t.category = "audio";
+        t.description =
+            "Atrasa el audio de una fuente para que coincida con su video. Sin `ms`, dice el retardo que "
+            "tiene puesto.";
+        t.details =
+            "Para que sirve: una camara IP llega con 200 ms a 2 s de retardo (codificacion + red + "
+            "buffer), mientras que un microfono por la placa de audio llega casi al instante. Se escucha "
+            "antes de ver los labios, y eso se nota muchisimo.\n\n"
+            "`ms` positivo ATRASA el audio (lo normal con una camara IP); negativo lo adelanta, que sirve "
+            "cuando el audio llega despues que el video. Se acota a +-5 s: mas que eso no es una camara "
+            "con retardo, es un error.\n\n"
+            "Como encontrar el numero: poner un valor, mirar con `capture_program` a alguien hablando y "
+            "corregir. El ojo humano es el juez. Un metodo mas fino -medirlo con un aplauso- esta "
+            "escrito pero todavia no conectado a las fuentes.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"name", {{"type", "string"}}},
+                           {"ms", {{"type", "integer"}, {"minimum", -5000}, {"maximum", 5000}}}}},
+                         {"required", {"name"}}};
+        t.run = [&rt, persist](const json& a, Done done) {
+            const std::string n = a["name"];
+            if (!a.contains("ms")) {
+                if (rt.engine().sourceNames().empty())
+                    return done(ToolResult::error("El motor todavia no tiene fuentes."));
+                return done(ToolResult().data(json{{"name", n}, {"ms", rt.engine().sourceSyncOffset(n)}}));
+            }
+            if (!rt.engine().setSourceSyncOffset(n, a["ms"].get<int>()))
+                return done(ToolResult::error(rt.engine().lastError()));
+            persist();
+            done(ToolResult::ok("El audio de '" + n + "' va " + std::to_string(a["ms"].get<int>()) +
+                                " ms respecto del video."));
         };
         core_.addTool(std::move(t));
     }
@@ -1051,7 +1538,8 @@ void McpService::registerTools() {
         t.title = "Cortar la transmision";
         t.category = "salidas";
         t.destructive = true;
-        t.description = "Detiene la transmision en vivo.";
+        t.description =
+            "BAJA del aire: corta la transmision que esta saliendo. Detiene la transmision en vivo.";
         t.run = [&rt, &vm](const json&, Done done) {
             rt.stopStreaming();
             emit vm.statusChanged();
@@ -1061,10 +1549,68 @@ void McpService::registerTools() {
     }
     {
         Tool t;
+        t.name = "grabacion_individual";
+        t.title = "Grabar cada entrada por separado";
+        t.category = "salidas";
+        t.description = "Graba una entrada a su propio archivo, ademas del programa.";
+        t.details =
+            "Para un evento que despues hay que EDITAR: el programa sirve para subirlo esa misma "
+            "noche, y los archivos por entrada para armar la version buena sin haber perdido nada.\n\n"
+            "Sin argumentos informa que se esta grabando. Con `arrancar` o `parar` (listas de nombres "
+            "de fuente) lo cambia. `todas: true` con `arrancar` toma todas las fuentes de video de la "
+            "escena que esta al aire.\n\n"
+            "LO QUE CUESTA, y conviene decirlo antes de prender ocho: cada entrada es UNA CODIFICACION "
+            "MAS, con su render propio. Ocho camaras son ocho encodes simultaneos y eso no lo hace "
+            "cualquier maquina; si la CPU se satura, lo primero que se degrada es el programa, que es "
+            "lo que sale al aire. Empeza por las que de verdad vas a editar y mira `status.cpu`.\n\n"
+            "EL AUDIO tiene un limite propio: libobs mezcla en 6 pistas y la 0 es la del programa, asi "
+            "que solo las primeras CINCO entradas con audio graban sonido. De la sexta en adelante se "
+            "graba el video sin audio, y la respuesta lo dice en `audioPropio`.\n\n"
+            "Los archivos van a Recordings/entradas/, con el nombre de la fuente adentro.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"arrancar", {{"type", "array"}, {"items", {{"type", "string"}}}}},
+              {"parar", {{"type", "array"}, {"items", {{"type", "string"}}}}},
+              {"todas",
+               {{"type", "boolean"}, {"description", "Con `arrancar`: todas las de la escena al aire."}}}}}};
+        t.run = [&rt, &vm](const json& a, Done done) {
+            std::vector<std::string> arrancar;
+            if (a.contains("arrancar") && a["arrancar"].is_array())
+                for (const json& s : a["arrancar"])
+                    if (s.is_string()) arrancar.push_back(s.get<std::string>());
+            if (a.value("todas", false))
+                for (const std::string& s : rt.engine().sceneSources(rt.engine().currentScene()))
+                    arrancar.push_back(s);
+
+            json fallaron = json::array();
+            for (const std::string& s : arrancar)
+                if (!rt.startSourceRecording(s))
+                    fallaron.push_back(json{{"fuente", s}, {"motivo", rt.lastError()}});
+            if (a.contains("parar") && a["parar"].is_array())
+                for (const json& s : a["parar"])
+                    if (s.is_string()) rt.stopSourceRecording(s.get<std::string>());
+
+            json grabando = json::array();
+            for (const auto& g : rt.engine().sourceRecordings())
+                grabando.push_back(json{{"fuente", g.source},
+                                        {"archivo", g.path},
+                                        {"audioPropio", g.audioPropio},
+                                        {"activa", g.activa}});
+            emit vm.statusChanged();
+            done(ToolResult().data(json{{"grabando", grabando},
+                                        {"noSePudo", fallaron},
+                                        {"tope", BroadcastEngine::kMaxIndividuales}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "record_start";
         t.title = "Grabar";
         t.category = "salidas";
-        t.description = "Empieza a grabar el programa a disco (carpeta y formato de la configuracion).";
+        t.description = "EMPEZAR a grabar el programa en disco, con la carpeta y el formato de la "
+                        "configuracion. Es para cuando todavia no se esta grabando.";
         t.run = [&rt, &vm](const json&, Done done) {
             if (rt.engine().status().recording) return done(ToolResult::ok("Ya esta grabando."));
             if (!rt.startRecording()) return done(ToolResult::error("No arranco: " + rt.lastError()));
@@ -1078,7 +1624,7 @@ void McpService::registerTools() {
         t.name = "record_stop";
         t.title = "Detener grabacion";
         t.category = "salidas";
-        t.description = "Detiene la grabacion (el archivo se cierra bien).";
+        t.description = "PARA de grabar: cierra el archivo y deja de escribir en disco.";
         t.run = [&rt, &vm](const json&, Done done) {
             rt.stopRecording();
             emit vm.statusChanged();
@@ -1134,6 +1680,14 @@ void McpService::registerTools() {
                       R"({"values": {"room.lobby": false}})"};
         SettingsModel* settings = settings_.get();
         t.run = [settings, &vm](const json& a, Done done) {
+            // Modo evento: con el guion corriendo de verdad, un ajuste que
+            // reinicia la sala saca a todos los invitados en el peor momento
+            // posible. El operador puede hacerlo igual desde la app (sabe lo
+            // que hace y ve el aviso); el asistente, no.
+            if (auto* ev = static_cast<EventoViewModel*>(vm.evento()); ev != nullptr && ev->enVivo())
+                return done(
+                    ToolResult::error("El evento esta corriendo: los ajustes no se tocan hasta que termine. "
+                                      "Si de verdad hace falta, lo hace el operador desde la app."));
             // La salvaguarda y el propio servidor MCP solo se tocan desde la
             // interfaz: un asistente (quiza manipulado) no puede aflojarlos.
             if (a.value("resetSection", std::string()) == "Asistente (MCP)")

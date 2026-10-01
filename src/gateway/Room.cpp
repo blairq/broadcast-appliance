@@ -330,7 +330,8 @@ int Room::setTalk(const std::string& id, bool on) {
 }
 
 int Room::request(const std::string& id, const std::string& what) {
-    static const char* kAllowed[] = {"mute-mic", "mute-cam", "stop-screen", "lower-hand"};
+    static const char* kAllowed[] = {"mute-mic",   "mute-cam",    "unmute-mic",
+                                     "unmute-cam", "stop-screen", "lower-hand"};
     if (std::none_of(std::begin(kAllowed), std::end(kAllowed), [&](const char* a) { return what == a; })) {
         return kBadState;
     }
@@ -395,6 +396,22 @@ void Room::setLocked(bool on) {
         out.roomChanged = true;
     }
     flush(out);
+}
+
+void Room::setIntake(bool on) {
+    Out out;
+    {
+        std::lock_guard<std::mutex> lock(m_);
+        if (intake_ == on) return;
+        intake_ = on;
+        out.roomChanged = true;
+    }
+    flush(out);
+}
+
+bool Room::intake() const {
+    std::lock_guard<std::mutex> lock(m_);
+    return intake_;
 }
 
 // --- Archivos ---------------------------------------------------------------
@@ -670,6 +687,7 @@ json Room::toJson(const Participant& p) {
                 {"contact", p.contact},
                 {"hasAvatar", p.hasAvatar},
                 {"speaker", speakerName(p.speaker)},
+                {"presenter", p.presenter},
                 {"allottedSec", p.allottedSec},
                 {"onAirSinceMs", p.onAirSinceMs},
                 {"usedMs", p.usedMs}};
@@ -708,6 +726,7 @@ json Room::snapshotLocked() const {
     return json{{"room", cfg_.name},
                 {"lobby", cfg_.lobby},
                 {"locked", locked_},
+                {"intake", intake_},
                 {"maxGuests", cfg_.maxGuests},
                 {"slotsFree", cfg_.maxGuests - admitted},
                 {"pin", pin_},
@@ -716,8 +735,25 @@ json Room::snapshotLocked() const {
                 {"shares", shares},
                 {"chat", chat},
                 {"speakers", speakerCfgJson()},
+                {"uso", usage_},
                 {"order", order_},
                 {"serverNowMs", wallNowMs()}};
+}
+
+void Room::setUsage(const json& u) {
+    Out out;
+    {
+        std::lock_guard<std::mutex> lock(m_);
+        usage_ = u;
+        // El snapshot solo viaja cuando cambia algo de la sala: sin esto el
+        // panel de uso quedaba con la foto del ultimo evento. Se manda uno
+        // cada 2 s (suficiente para una barra, sin inundar a los clientes).
+        if (lastNowMs_ - usageSentMs_ >= 2000) {
+            usageSentMs_ = lastNowMs_;
+            out.roomChanged = true;
+        }
+    }
+    flush(out);
 }
 
 json Room::speakerCfgJson() const {
@@ -764,11 +800,21 @@ Room::SpeakerCfg Room::speakerConfig() const {
 bool Room::putOnAirLocked(Participant& p, int64_t nowMs, Out& out) {
     int slot = 0;
     if (!spk_.multi) {
-        // Uno a la vez: el que estaba (o cualquiera en el programa) sale.
+        // Uno a la vez: el que estaba sale. El PRESENTADOR se queda: los
+        // oradores rotan a su lado.
         for (Participant& o : people_) {
-            if (&o != &p && o.state == State::Admitted && o.slot > 0) takeOffAirLocked(o, nowMs, out);
+            if (&o != &p && !o.presenter && o.state == State::Admitted && o.slot > 0)
+                takeOffAirLocked(o, nowMs, out);
         }
         slot = std::clamp(spk_.defaultSlot, 1, cfg_.maxGuests);
+        // Si el presentador esta en ese lugar, el orador va a otro.
+        const bool taken = std::any_of(people_.begin(), people_.end(), [&](const Participant& o) {
+            return &o != &p && o.presenter && o.slot == slot;
+        });
+        if (taken) {
+            slot = freeSlotLocked();
+            if (slot == 0) return false;
+        }
     } else {
         const bool defaultFree = std::none_of(people_.begin(), people_.end(), [&](const Participant& o) {
             return o.state == State::Admitted && o.slot == spk_.defaultSlot;
@@ -801,7 +847,7 @@ void Room::takeOffAirLocked(Participant& p, int64_t nowMs, Out& out) {
 bool Room::nextSpeakerLocked(int64_t nowMs, Out& out) {
     for (const std::string& id : order_) {
         Participant* p = findLocked(id);
-        if (p != nullptr && p->speaker == Speaker::Queued && p->connected)
+        if (p != nullptr && !p->presenter && p->speaker == Speaker::Queued && p->connected)
             return putOnAirLocked(*p, nowMs, out);
     }
     return false;
@@ -876,10 +922,52 @@ int Room::requeue(const std::string& id) {
         Participant* p = findLocked(id);
         if (p == nullptr) return kNotFound;
         if (p->state != State::Admitted || p->speaker == Speaker::OnAir) return kBadState;
+        p->presenter = false; // meterlo a la fila lo saca de presentador
         p->speaker = Speaker::Queued;
         order_.erase(std::remove(order_.begin(), order_.end(), id), order_.end());
         order_.push_back(id);
         speakerNotifyLocked(lastNowMs_, out);
+        out.roomChanged = true;
+    }
+    flush(out);
+    return kOk;
+}
+
+int Room::setPresenter(const std::string& id, bool on, int64_t nowMs) {
+    Out out;
+    {
+        std::lock_guard<std::mutex> lock(m_);
+        lastNowMs_ = nowMs;
+        Participant* p = findLocked(id);
+        if (p == nullptr) return kNotFound;
+        if (p->state != State::Admitted) return kBadState;
+        if (p->presenter == on) return kOk;
+        if (on) {
+            // Uno solo: el anterior deja de serlo (sigue al aire si estaba).
+            for (Participant& o : people_)
+                if (&o != p) o.presenter = false;
+            p->presenter = true;
+            p->speaker = Speaker::None; // no rota con los oradores
+            order_.erase(std::remove(order_.begin(), order_.end(), p->id), order_.end());
+            if (p->slot == 0) {
+                const int slot = freeSlotLocked();
+                if (slot == 0) return kFull;
+                p->slot = slot;
+                out.routes.emplace_back(p->id, routeFor(*p));
+                out.guest.emplace_back(p->id, json{{"type", "admitted"}, {"slot", slot}});
+            }
+        } else {
+            p->presenter = false;
+            // No puede quedar admitido sin lugar Y fuera de la fila: asi
+            // desaparecia de la vista del operador aunque siguiera conectado.
+            if (spk_.enabled) {
+                if (p->slot > 0) takeOffAirLocked(*p, nowMs, out);
+                p->speaker = Speaker::Queued;
+                if (std::find(order_.begin(), order_.end(), p->id) == order_.end()) order_.push_back(p->id);
+            }
+            // Sin modo oradores se queda en el programa, como cualquier invitado.
+        }
+        speakerNotifyLocked(nowMs, out);
         out.roomChanged = true;
     }
     flush(out);
@@ -1012,6 +1100,7 @@ json Room::boardSnapshot(int64_t nowMs) const {
                     {"contact", p.contact},
                     {"state", stateName(p.state)},
                     {"speaker", speakerName(p.speaker)},
+                    {"presenter", p.presenter},
                     {"connected", p.connected},
                     {"hasAvatar", p.hasAvatar},
                     {"mediaUp", p.mediaUp},

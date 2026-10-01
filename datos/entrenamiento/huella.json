@@ -1,0 +1,24 @@
+{
+ "prompt": "3f9122d8064004c5",
+ "herramientas": "700718b0d81cb718",
+ "cuantas": 84,
+ "tokens_aprox": 2828,
+ "ejemplos_entrenar": 3338,
+ "herramientas_con_frases": 85,
+ "propuestas_automaticas": [],
+ "derivar": {
+  "ejemplos": 456,
+  "porcion": 0.137,
+  "herramientas_fuera_del_repertorio": 208,
+  "fuera_con_ejemplos": 203
+ },
+ "correctivas": {
+  "ejemplos": 716,
+  "porcion": 0.214,
+  "versiones": [
+   "v2",
+   "v7-pegadas",
+   "v9-banco"
+  ]
+ }
+}

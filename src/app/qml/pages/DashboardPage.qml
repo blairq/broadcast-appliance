@@ -19,6 +19,14 @@ Item {
             keys: Studio.dashboard.background
             layout: Studio.dashboard.backgroundLayout
             gap: 2
+            // ENTERO, sin recortar. La celda de la grilla casi nunca tiene la
+            // proporcion del video, y `Cover` llenaba recortando: al programa
+            // le comia una franja arriba y otra abajo —justo donde suelen ir
+            // el titulo y el zocalo— sin que nada lo dijera. Acá el fondo es
+            // para MIRAR lo que esta pasando, asi que se ve completo aunque
+            // queden bandas; para llenar la pantalla estan las ventanas de
+            // salida, que ahi si conviene `Cover`.
+            fillMode: VideoItem.Fit
         }
         // Oscurecido + viñeta para que las tarjetas se lean sobre cualquier video.
         Rectangle { anchors.fill: parent; color: "black"; opacity: Studio.dashboard.backgroundDim }
@@ -46,7 +54,15 @@ Item {
         Item { Layout.fillWidth: true }
         StatusPill { text: Studio.streaming ? "AL AIRE  " + Studio.streamTime : "FUERA DEL AIRE"; dot: Theme.live; on: Studio.streaming; pulse: true }
         StatusPill { text: Studio.recording ? "REC  " + Studio.recordTime : "REC"; dot: Theme.accent; on: Studio.recording; pulse: true }
-        StatusPill { text: "CPU " + Math.round(Studio.cpuPercent) + "%"; dot: Studio.cpuPercent > 80 ? Theme.live : Theme.ok }
+        // Se mide por «CPU 100%» y no por su propio texto: si no, al pasar de
+        // una cifra a dos se ensancha y encoge varias veces por segundo,
+        // moviendo todas las pildoras de al lado.
+        StatusPill {
+            text: "CPU " + Math.round(Studio.cpuPercent) + "%"
+            medidaDe: "CPU 100%"
+            pixelSize: 15
+            dot: Studio.cpuPercent > 80 ? Theme.live : Theme.ok
+        }
         Item { width: 8 }
         GlassButton {
             text: "Tarjeta"; icon: "+"
@@ -59,6 +75,20 @@ Item {
                         required property string modelData
                         text: Studio.dashboard.kindTitle(modelData)
                         onTriggered: Studio.dashboard.addCard(modelData, modelData === "monitor" ? "program" : "")
+                    }
+                }
+                // Las que vienen de Extensiones/. Van abajo y separadas: son
+                // de otra procedencia y conviene que se note.
+                MenuSeparator {
+                    visible: Studio.extensiones && Studio.extensiones.cuantas > 0
+                    height: visible ? implicitHeight : 0
+                }
+                Repeater {
+                    model: Studio.extensiones ? Studio.extensiones.kinds() : []
+                    delegate: MenuItem {
+                        required property string modelData
+                        text: Studio.extensiones.tituloDeKind(modelData)
+                        onTriggered: Studio.dashboard.addCard(modelData, "")
                     }
                 }
             }
@@ -127,6 +157,34 @@ Item {
         anchors { left: parent.left; right: parent.right; top: top.bottom; bottom: parent.bottom
                   leftMargin: page.leftInset; rightMargin: 12; topMargin: 8; bottomMargin: 12 }
 
+        // Grilla de encaje: solo mientras se mueve o redimensiona una tarjeta.
+        Canvas {
+            id: gridOverlay
+            anchors.fill: parent
+            visible: opacity > 0
+            opacity: snapGuide.visible ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: 140 } }
+            onWidthChanged: requestPaint()
+            onHeightChanged: requestPaint()
+            onPaint: {
+                const c = getContext("2d")
+                c.reset()
+                c.strokeStyle = Qt.rgba(1, 1, 1, 0.10)
+                c.lineWidth = 1
+                const cols = Studio.dashboard.gridCols, rows = Studio.dashboard.gridRows
+                c.beginPath()
+                for (let i = 1; i < cols; ++i) {
+                    const x = Math.round(width * i / cols) + 0.5
+                    c.moveTo(x, 0); c.lineTo(x, height)
+                }
+                for (let j = 1; j < rows; ++j) {
+                    const y = Math.round(height * j / rows) + 0.5
+                    c.moveTo(0, y); c.lineTo(width, y)
+                }
+                c.stroke()
+            }
+        }
+
         // Guia de encaje (se ve mientras se arrastra).
         Rectangle {
             id: snapGuide
@@ -149,19 +207,80 @@ Item {
                 required fy
                 required fw
                 required fh
-                required title
                 required property string kind
                 required property string source
+                // El titulo de una tarjeta de extension lo sabe su ficha, no
+                // el modelo del dashboard: el modelo solo conoce las de
+                // fabrica y devolveria «ext:reloj» pelado.
+                required title
+                onKindChanged: if (kind.startsWith("ext:") && Studio.extensiones)
+                                   title = Studio.extensiones.tituloDeKind(kind)
+                Component.onCompleted: if (kind.startsWith("ext:") && Studio.extensiones)
+                                           title = Studio.extensiones.tituloDeKind(kind)
                 area: cardArea
                 backdrop: bgLayer
                 backdropOffset: Qt.point(cardArea.x, cardArea.y)
                 ghost: snapGuide
                 onCloseRequested: Studio.dashboard.removeCard(cardId)
 
+                // El punto de inserción: una tarjeta cuyo `kind` empieza con
+                // «ext:» se resuelve contra Extensiones/<id>/ en el disco. El
+                // resto sale de qrc, como siempre. Ver ExtensionesModel.hpp.
                 Loader {
                     id: content
                     anchors.fill: parent
-                    source: "../cards/" + kind.charAt(0).toUpperCase() + kind.slice(1) + "Content.qml"
+                    // UN LOADER ES UN AMBITO DE FOCO: sin esto, el foco se
+                    // queda en el marco y las teclas de la tarjeta no llegan
+                    // NUNCA a su contenido. No falla ni avisa: simplemente no
+                    // pasa nada al apretar una flecha.
+                    focus: true
+                    readonly property bool esExt: card.kind.startsWith("ext:")
+                    readonly property string extId: esExt ? card.kind.slice(4) : ""
+                    source: {
+                        if (!esExt)
+                            return "../cards/" + card.kind.charAt(0).toUpperCase() +
+                                   card.kind.slice(1) + "Content.qml"
+                        if (!Studio.extensiones) return ""
+                        // Se anota en el diario ANTES de que el QML se evalúe:
+                        // si cuelga la interfaz, el arranque no termina y la
+                        // próxima vez esta tarjeta queda apagada sola.
+                        Studio.extensiones.cargando(extId)
+                        return Studio.extensiones.vista(extId)
+                    }
+                    onStatusChanged: {
+                        if (!esExt) return
+                        if (status === Loader.Ready) Studio.extensiones.cargada(extId, true)
+                        else if (status === Loader.Error)
+                            Studio.extensiones.cargada(extId, false, "no se pudo cargar el QML")
+                    }
+                }
+
+                // Una tarjeta rota lo dice en su lugar, en vez de quedar en
+                // blanco: en blanco parece que no hace nada y se busca el
+                // problema en otro lado.
+                Text {
+                    anchors { fill: parent; margins: 14 }
+                    // `source` es una URL, no un texto: compararla contra ""
+                    // da false aunque este vacia. Lo que dice que no hay nada
+                    // que cargar es el estado Null.
+                    visible: content.status === Loader.Error ||
+                             (content.esExt && content.status === Loader.Null)
+                    wrapMode: Text.WordWrap
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    color: Theme.textDim
+                    font.pixelSize: 11
+                    text: {
+                        if (!content.esExt) return "Esta tarjeta no se pudo cargar."
+                        const f = Studio.extensiones ? Studio.extensiones.ficha(content.extId) : null
+                        if (!f || !f.id) return "La extensión «" + content.extId + "» ya no está."
+                        if (f.apagada)
+                            return "«" + f.nombre + "» está apagada: se llevó puesto el arranque.\n" +
+                                   "Se prende desde el Registro."
+                        if (f.problema) return "«" + f.nombre + "»: " + f.problema
+                        return "«" + f.nombre + "» tiene un error de QML. Mirá el Registro, que trae " +
+                               "el archivo y la línea."
+                    }
                 }
                 Binding { target: content.item; property: "cardId"; value: card.cardId; when: content.status === Loader.Ready && card.kind === "monitor" }
                 Binding { target: content.item; property: "source"; value: card.source; when: content.status === Loader.Ready && card.kind === "monitor" }

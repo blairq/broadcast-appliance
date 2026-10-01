@@ -1,0 +1,46 @@
+/* Pantalla de sala: negro, sin bordes, sin cursor. */
+:root { color-scheme: dark; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: #000; overflow: hidden; cursor: none; }
+.hoja {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  opacity: 0;
+  /* El cruce dura lo mismo que el fundido de abajo (ver app.js). */
+  transition: opacity 0.6s ease-in-out;
+  pointer-events: none;
+}
+.hoja.visible { opacity: 1; }
+/* Corte seco: sin transición. Para cuando el fundido molesta (un reloj). */
+body.corte .hoja { transition: none; }
+.aviso {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #8a8a93;
+  font: 400 clamp(16px, 3vh, 34px) system-ui, -apple-system, sans-serif;
+  text-align: center;
+  padding: 6vw;
+  background: #000;
+  transition: opacity 0.4s;
+}
+.aviso.oculto { opacity: 0; pointer-events: none; }
+/* Una línea fina abajo con lo que falta del paso. Discreta a propósito: sirve
+   para que el operador vea de un vistazo que el carrusel está vivo. */
+.barra {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  z-index: 5;
+}
+.barra > div {
+  height: 100%;
+  width: 0;
+  background: rgba(255, 255, 255, 0.45);
+}

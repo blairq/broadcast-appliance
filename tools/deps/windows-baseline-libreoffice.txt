@@ -1,0 +1,22 @@
+# ============================================================================
+# tools/deps/windows-baseline-libreoffice.txt — DLL de Windows que puede pedir
+# LibreOffice (y SOLO LibreOffice: bin/libreoffice/ del bundle)
+#
+# Son parte de Windows 10/11, pero la base general (windows-baseline.txt) no
+# las incluye porque nuestros programas no las usan. Las pide el nucleo del
+# LibreOffice oficial. check-portable-win.sh las acepta solo dentro de
+# bin/libreoffice/: un .exe propio que empiece a usarlas sigue siendo un error.
+#
+# Nota: MFPlay (Media Foundation) no esta en las ediciones "N" de Windows sin
+# el Media Feature Pack; ahi la conversion de PowerPoint fallaria (la emision
+# no se entera).
+# ============================================================================
+MFPlay.dll
+oledlg.dll
+HTTPAPI.dll
+WSOCK32.dll
+urlmon.dll
+wer.dll
+# Skia (dibujo del nucleo): tipografias y escritura compleja
+FONTSUB.dll
+USP10.dll

@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#000000" />
+  <title>Teleprompter</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024' width='1024' height='1024'%3E %3Cdefs%3E %3ClinearGradient id='f' x1='0' y1='0' x2='0' y2='1024' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%23202025'/%3E%3Cstop offset='1' stop-color='%230a0a0c'/%3E%3C/linearGradient%3E %3ClinearGradient id='b' x1='0' y1='0' x2='0' y2='1024' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%23ffa45e'/%3E%3Cstop offset='1' stop-color='%23ff6a2b'/%3E%3C/linearGradient%3E %3Cfilter id='g' x='-50%25' y='-50%25' width='200%25' height='200%25'%3E%3CfeGaussianBlur stdDeviation='16'/%3E%3C/filter%3E %3C/defs%3E %3Crect x='32' y='32' width='960' height='960' rx='220' fill='url%28%23f%29' stroke='%23ffffff' stroke-opacity='0.12' stroke-width='6'/%3E %3Cline x1='340' y1='258' x2='340' y2='766' fill='none' stroke='url%28%23b%29' stroke-width='88' stroke-linecap='round'/%3E %3Cpath d='M340 258H490A134 134 0 0 1 490 526H340' fill='none' stroke='url%28%23b%29' stroke-width='88'/%3E %3Cpath d='M340 526H525A120 120 0 0 1 525 766H340' fill='none' stroke='url%28%23b%29' stroke-width='88'/%3E %3Ccircle cx='482' cy='392' r='75' fill='%23ff3b30' opacity='0.47' filter='url%28%23g%29'/%3E %3Ccircle cx='482' cy='392' r='60' fill='%23ff3b30'/%3E %3C/svg%3E">
+  <link rel="apple-touch-icon" href="/comun/icono-180.png">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!--
+    Dos vistas de lo mismo, servidas por el gateway:
+
+      /prompter           la tablet del orador: solo el texto, grande.
+      /prompter/#control  el celular del operador: arrancar, velocidad, avisos.
+
+    El servidor manda DESDE DONDE y A QUE VELOCIDAD; cada vista calcula sola
+    donde va el texto. Asi un hipo de la red no se ve como un tiron en el
+    renglon que alguien esta leyendo en vivo, y si se corta, el texto sigue.
+  -->
+
+  <!-- ====================== Vista del orador ====================== -->
+  <main id="orador" class="orador">
+    <div id="aviso" class="aviso hidden"></div>
+
+    <div id="lienzo" class="lienzo">
+      <!-- La guia de lectura: el renglon donde hay que tener los ojos. -->
+      <div class="guia" aria-hidden="true"></div>
+      <div id="texto" class="texto"></div>
+    </div>
+
+    <div id="vacio" class="vacio">
+      <h1>Teleprompter</h1>
+      <p>Esperando el discurso.</p>
+      <p class="chico">El operador lo carga desde el guion del evento.</p>
+    </div>
+
+    <!-- Los controles de la tablet son del orador: como VE el texto, no como
+         corre. Arrancarlo y pararlo es del control. -->
+    <div class="propios">
+      <button id="menos" class="redondo" title="Letra más chica">A−</button>
+      <button id="mas" class="redondo" title="Letra más grande">A+</button>
+      <button id="espejo" class="redondo" title="Espejar para el vidrio">⇄</button>
+      <!-- Para que el operador sepa cuál de los aparatos de la sala es este.
+           Se guarda en el aparato: se escribe una vez y queda. -->
+      <input id="nombre" class="nombre" type="text" maxlength="40" placeholder="Nombre de este aparato" />
+      <span id="reloj" class="reloj"></span>
+    </div>
+  </main>
+
+  <!-- ====================== Control (celular) ====================== -->
+  <main id="control" class="control hidden">
+    <header>
+      <strong id="c-titulo">Sin discurso</strong>
+      <span id="c-estado" class="estado">—</span>
+    </header>
+
+    <div class="barra-wrap">
+      <input id="c-barra" class="barra" type="range" min="0" max="1000" value="0" step="1"
+             aria-label="Posición en el texto" />
+      <div class="barra-pies"><span id="c-pos">0</span><span id="c-falta"></span></div>
+    </div>
+
+    <!-- El de pánico primero y grande: cuando hace falta, hace falta ya. -->
+    <button id="c-panico" class="panico">PARÁ AHÍ</button>
+
+    <div class="fila">
+      <button id="c-play" class="grande">▶ Arrancar</button>
+    </div>
+
+    <div class="fila">
+      <button id="c-lento" class="grande">− lento</button>
+      <span id="c-ppm" class="ppm">140</span>
+      <button id="c-rapido" class="grande">rápido +</button>
+    </div>
+    <p class="pie">palabras por minuto · <span id="c-dura"></span></p>
+
+    <div class="fila">
+      <button id="c-inicio" class="chico">⏮ Al principio</button>
+      <button id="c-atras" class="chico">◀ Párrafo</button>
+      <button id="c-adelante" class="chico">Párrafo ▶</button>
+    </div>
+
+    <h2>Avisarle al orador</h2>
+    <div class="avisos">
+      <button class="aviso-btn" data-aviso="Redondeá">Redondeá</button>
+      <button class="aviso-btn" data-aviso="Te escuchamos bajo">Se escucha bajo</button>
+      <button class="aviso-btn" data-aviso="Más despacio">Más despacio</button>
+      <button class="aviso-btn" data-aviso="Mirá a cámara">Mirá a cámara</button>
+      <button class="aviso-btn" data-aviso="">Quitar el aviso</button>
+    </div>
+
+    <p class="pie">
+      <input id="c-nombre" class="nombre" type="text" maxlength="40" placeholder="Nombre de este control" />
+    </p>
+
+    <p id="c-error" class="error"></p>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

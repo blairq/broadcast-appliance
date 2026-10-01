@@ -6,9 +6,23 @@ import QtQuick.Layouts
 import BA
 import "../controls"
 
+// CON EL TECLADO (un clic en la tarjeta y ya):
+//   Enter    pasar al siguiente orador
+//
+// Una sola tecla y la mas pedida: «que pase el que sigue» se dice en voz alta
+// y hay que hacerlo en el momento. Lo demas (mover la fila, cambiar tiempos)
+// vive en la pagina Sala, donde hay lugar para pensarlo.
 Item {
     id: root
+    focus: true
     readonly property var conf: Studio.conference
+
+    Keys.onPressed: (e) => {
+        if ((e.key === Qt.Key_Return || e.key === Qt.Key_Enter) && root.conf.speakerMode) {
+            root.conf.speakerNext()
+            e.accepted = true
+        }
+    }
     property double clock: Date.now() + conf.clockOffset
     Timer { interval: 250; running: conf.speakers.count > 0; repeat: true; onTriggered: root.clock = Date.now() + root.conf.clockOffset }
     function fmt(ms) {

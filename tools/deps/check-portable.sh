@@ -20,6 +20,14 @@ while read -r l; do
   l="${l%%#*}"; l="${l// /}"
   [ -n "$l" ] && allowed["$l"]=1
 done <"$BASELINE"
+# Lo que ademas puede pedir LibreOffice, y solo el (ver el archivo).
+declare -A allowed_lo=()
+if [ -f "$HERE/linux-baseline-libreoffice.txt" ]; then
+  while read -r l; do
+    l="${l%%#*}"; l="${l// /}"
+    [ -n "$l" ] && allowed_lo["$l"]=1
+  done <"$HERE/linux-baseline-libreoffice.txt"
+fi
 
 # Como el cargador dinamico: una dependencia del bundle tiene que estar en un
 # directorio del RUNPATH/RPATH del PROPIO archivo ($ORIGIN = su carpeta). El
@@ -47,6 +55,7 @@ while IFS= read -r f; do
   while read -r need; do
     [ -z "$need" ] && continue
     [ -n "${allowed[$need]:-}" ] && continue
+    case "$f" in "$BUNDLE"/bin/libreoffice/*) [ -n "${allowed_lo[$need]:-}" ] && continue ;; esac
     if ! resolvable "$f" "$need"; then
       echo "NO PORTABLE: ${f#$BUNDLE/} necesita $need y no la encuentra en el bundle (su RUNPATH) ni es de la base del sistema"
       bad=1

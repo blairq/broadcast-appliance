@@ -17,11 +17,13 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QObject>
+#include <QSet>
 #include <QStringList>
 #include <QTimer>
 #include <QVariantList>
 #include <QVariantMap>
 
+#include <functional>
 #include <memory>
 
 namespace ba::app {
@@ -42,6 +44,10 @@ class JsonListModel : public QAbstractListModel {
     QVariant data(const QModelIndex& index, int role) const override;
     QHash<int, QByteArray> roleNames() const override;
     int count() const { return items_.size(); }
+    /// Una fila por posicion, con sus claves. Vacio si no existe. Es lo que
+    /// deja manejar estas listas CON EL TECLADO sin que la vista tenga que
+    /// pedir datos por numero de rol.
+    Q_INVOKABLE QVariantMap fila(int i) const;
     void setItems(const QJsonArray& items);
     void append(const QJsonObject& item);
     const QJsonArray& items() const { return items_; }
@@ -71,6 +77,13 @@ class ConferenceViewModel : public QObject {
     Q_PROPERTY(QStringList slotNames READ slotNames NOTIFY roomChanged)
     /// Destinos del chat: [{label, value}] ("all" + cada participante).
     Q_PROPERTY(QVariantList chatTargets READ chatTargets NOTIFY roomChanged)
+    /// Sube con cada mensaje. Es para que la vista sepa que tiene que volver a
+    /// pedir el hilo: `chatCon()` es una funcion, y QML no re-evalua una
+    /// funcion porque cambie un modelo que no esta mirando.
+    Q_PROPERTY(int chatRev READ chatRev NOTIFY chatRevChanged)
+    /// Los hilos privados abiertos: [{uid, nombre}]. El chat de la sala no
+    /// esta aca: ese es el de siempre y va primero.
+    Q_PROPERTY(QVariantList chatHilos READ chatHilos NOTIFY chatRevChanged)
     /// Con que aparece el operador ante el LOBBY (fuentes por nombre).
     Q_PROPERTY(QString operatorVideo READ operatorVideo NOTIFY operatorChanged)
     Q_PROPERTY(QString operatorAudio READ operatorAudio NOTIFY operatorChanged)
@@ -79,6 +92,9 @@ class ConferenceViewModel : public QObject {
     Q_PROPERTY(QStringList audioSourceNames READ audioSourceNames NOTIFY operatorChanged)
     /// Estado de red de B: HTTPS, tunel WireGuard, enlaces (GET /api/v1/network).
     Q_PROPERTY(QVariantMap network READ network NOTIFY networkChanged)
+    /// Uso de la sala: cuanta gente hay, cuantos mandan video y cuanto le
+    /// cuesta al gateway (cpuPct, memMb, nucleos). Para ver si nos pasamos.
+    Q_PROPERTY(QVariantMap usage READ usage NOTIFY roomChanged)
     Q_PROPERTY(QObject* waiting READ waiting CONSTANT)
     Q_PROPERTY(QObject* inside READ inside CONSTANT)
     Q_PROPERTY(QObject* shares READ shares CONSTANT)
@@ -86,6 +102,7 @@ class ConferenceViewModel : public QObject {
     // --- Modo oradores ---------------------------------------------------------
     /// Configuracion: {enabled, defaultSec, carousel, graceSec, multi, defaultSlot}.
     Q_PROPERTY(QVariantMap speakerCfg READ speakerCfg NOTIFY roomChanged)
+    Q_PROPERTY(bool autoIntake READ autoIntake NOTIFY autoIntakeChanged)
     Q_PROPERTY(bool speakerMode READ speakerMode NOTIFY roomChanged)
     /// Fila de oradores en orden (tarjetas): uid, name, info, contact, speaker
     /// ("queued"|"onair"|"done"), position, allottedSec, onAirSinceMs, usedMs,
@@ -117,6 +134,7 @@ class ConferenceViewModel : public QObject {
     QStringList videoSourceNames() const;
     QStringList audioSourceNames() const;
     QVariantMap network() const { return network_; }
+    QVariantMap usage() const;
     QObject* waiting() const;
     QObject* inside() const;
     QObject* shares() const;
@@ -125,6 +143,7 @@ class ConferenceViewModel : public QObject {
     ConferenceClient& client() { return *client_; }
     QVariantMap speakerCfg() const;
     bool speakerMode() const;
+    bool autoIntake() const { return autoIntake_; }
     QObject* speakers() const;
     QVariantList onAir() const { return onAir_; }
     double clockOffset() const { return clockOffset_; }
@@ -136,7 +155,26 @@ class ConferenceViewModel : public QObject {
     /// Lugar en la fila (0 = primero).
     Q_INVOKABLE void speakerMove(const QString& id, int index);
     Q_INVOKABLE void speakerTime(const QString& id, int sec);
+    /// Mete a alguien de la sala a la fila de oradores (o lo devuelve a ella).
     Q_INVOKABLE void speakerRequeue(const QString& id);
+    /// Presentador fijo: se queda al aire mientras rotan los oradores.
+    Q_INVOKABLE void setPresenter(const QString& id, bool on);
+    /// Ultima foto que mando la camara de esa persona (id o nombre), como
+    /// data: URL. Vacio si todavia no mando ninguna.
+    Q_INVOKABLE QString photoOf(const QString& idOrName) const;
+    /// Atencion automatica: a cada persona que entra al lobby la atiende el
+    /// asistente (le pide los datos y despues pregunta si la hacemos pasar).
+    Q_INVOKABLE void setAutoIntake(bool on);
+    /// Lo engancha StudioViewModel (el encargo vive alla, con el MCP).
+    /// :param yaAdentro: true si esa persona ya entró a la sala sola (estaba
+    ///        en la lista del evento). El encargo es otro: confirmarle los
+    ///        datos que ya tenemos, no pedírselos de cero.
+    void setIntakeSink(std::function<QString(const QString&, const QString&, bool)> fn) {
+        intakeSink_ = std::move(fn);
+    }
+    /// Da por atendida a esa persona: el asistente no la va a abordar. Lo usa
+    /// el auto-aceptado, que la atiende de otra manera.
+    void marcarAtendido(const QString& id) { intakeDone_.insert(id); }
     Q_INVOKABLE void setProfile(const QString& id, const QString& name, const QString& info,
                                 const QString& contact);
     /// "m:ss", "m" (minutos) o "Ns" -> segundos (0 = invalido).
@@ -168,9 +206,18 @@ class ConferenceViewModel : public QObject {
     Q_INVOKABLE void takeShare(const QString& id);
     /// Abre la consola web (codigo de un solo uso -> navegador).
     Q_INVOKABLE void openWebConsole();
-    Q_INVOKABLE void copyToClipboard(const QString& text);
     /// Nombre de un participante por id (para el chat).
     Q_INVOKABLE QString nameOf(const QString& id) const;
+    /// Los mensajes de UN hilo. `uid` vacio = el de la sala (lo que ve todo el
+    /// mundo); con `uid`, la conversacion privada con esa persona.
+    ///
+    /// POR QUE SEPARADOS. La charla en la que se le piden los datos a alguien
+    /// que llega es privada, y mezclada en el chat de la sala se lee como si
+    /// fuera para todos —y peor: contestarle ahi manda a toda la sala lo que
+    /// era para uno—.
+    Q_INVOKABLE QVariantList chatCon(const QString& uid) const;
+    int chatRev() const { return chatRev_; }
+    QVariantList chatHilos() const;
     /// QR de ingreso al lobby: "local" (red local) o "remote" (Cloudflare).
     /// Responde con qrReady.
     Q_INVOKABLE void requestQr(const QString& target, bool withPin = false);
@@ -182,6 +229,8 @@ class ConferenceViewModel : public QObject {
    signals:
     void onlineChanged();
     void roomChanged();
+    void autoIntakeChanged();
+    void chatRevChanged();
     void operatorChanged();
     void networkChanged();
     /// `modules`: filas de '0'/'1'. Sin url -> `message` explica que falta.
@@ -199,6 +248,13 @@ class ConferenceViewModel : public QObject {
     void participantAction(const QString& id, const QString& action, const QJsonObject& body = {});
 
     AppRuntime& rt_;
+
+    bool autoIntake_ = false;
+    int chatRev_ = 0;
+
+    std::function<QString(const QString&, const QString&, bool)> intakeSink_;
+
+    QSet<QString> intakeDone_; // a quienes ya se les encargo
     std::unique_ptr<ConferenceClient> client_;
     std::unique_ptr<JsonListModel> waiting_;
     std::unique_ptr<JsonListModel> inside_;

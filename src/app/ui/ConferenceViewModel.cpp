@@ -11,6 +11,7 @@
 #include <QJsonDocument>
 #include <QRegularExpression>
 #include <QSet>
+#include <QTimer>
 #include <QUrl>
 
 #include <algorithm>
@@ -22,6 +23,10 @@
 #include "ui/ConferenceClient.hpp"
 
 namespace ba::app {
+
+/// Ver el uso: cuánto se espera antes de que el asistente aborde a alguien
+/// que acaba de llegar al lobby, para que el reconocimiento llegue a contestar.
+constexpr int kEsperarAlReconocimientoMs = 2500;
 
 namespace fs = std::filesystem;
 
@@ -41,6 +46,15 @@ QHash<int, QByteArray> JsonListModel::roleNames() const {
     for (int i = 0; i < keys_.size(); ++i)
         r.insert(Qt::UserRole + 1 + i, keys_.at(i).toUtf8());
     return r;
+}
+
+QVariantMap JsonListModel::fila(int i) const {
+    if (i < 0 || i >= items_.size()) return {};
+    const QJsonObject o = items_.at(i).toObject();
+    QVariantMap out;
+    for (const QString& k : keys_)
+        out.insert(k == "id" ? QStringLiteral("uid") : k, o.value(k).toVariant());
+    return out;
 }
 
 void JsonListModel::setItems(const QJsonArray& items) {
@@ -74,14 +88,15 @@ ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, QObject* parent)
       waiting_(std::make_unique<JsonListModel>(
           QStringList{"uid", "name", "connected", "joinedMs", "lobbySlot", "talk", "info", "contact"})),
       inside_(std::make_unique<JsonListModel>(QStringList{"uid", "name", "slot", "connected", "mediaUp",
-                                                          "mic", "cam", "screen", "hand", "admittedMs"})),
+                                                          "mic", "cam", "screen", "hand", "admittedMs",
+                                                          "presenter", "speaker", "info", "contact"})),
       shares_(std::make_unique<JsonListModel>(
           QStringList{"uid", "name", "kind", "mime", "bytes", "participantName", "path", "atMs", "url"})),
       chat_(std::make_unique<JsonListModel>(
           QStringList{"uid", "fromId", "fromName", "to", "text", "atMs", "mine"})),
       speakers_(std::make_unique<JsonListModel>(
           QStringList{"uid", "name", "info", "contact", "speaker", "position", "allottedSec", "onAirSinceMs",
-                      "usedMs", "connected", "slot", "avatar", "backstageSlot"})) {
+                      "usedMs", "connected", "slot", "avatar", "backstageSlot", "presenter"})) {
     connect(client_.get(), &ConferenceClient::onlineChanged, this, [this]() { emit onlineChanged(); });
     connect(client_.get(), &ConferenceClient::snapshotChanged, this, &ConferenceViewModel::onSnapshot);
     connect(client_.get(), &ConferenceClient::chatReceived, this,
@@ -112,6 +127,14 @@ ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, QObject* parent)
     connect(&networkPoll_, &QTimer::timeout, this, pollNetwork);
     connect(client_.get(), &ConferenceClient::onlineChanged, this, pollNetwork);
     networkPoll_.start(5000);
+    // Si el operador lo dejo prendido, sigue prendido al arrancar: es una
+    // decision del evento, no un boton que haya que volver a apretar. Si no
+    // hay asistente, se apaga solo en cuanto lo intenta (ver onSnapshot).
+    autoIntake_ = rt_.gateway().autoIntake;
+    // La sala arranca despues que esto, asi que se le avisa cuando conecta.
+    connect(client_.get(), &ConferenceClient::onlineChanged, this, [this]() {
+        if (client_->online()) client_->post("/api/v1/room", QJsonObject{{"intake", autoIntake_}});
+    });
 }
 
 ConferenceViewModel::~ConferenceViewModel() = default;
@@ -212,6 +235,53 @@ void ConferenceViewModel::speakerTime(const QString& id, int sec) {
     if (sec > 0) participantAction(id, "time", QJsonObject{{"sec", sec}});
 }
 void ConferenceViewModel::speakerRequeue(const QString& id) { participantAction(id, "requeue"); }
+QVariantMap ConferenceViewModel::usage() const {
+    const QJsonObject s = client_->snapshot();
+    QVariantMap u = s.value("uso").toObject().toVariantMap();
+    int conectados = 0;
+    int conVideo = 0;
+    int enSala = 0;
+    for (const QJsonValue& v : s.value("participants").toArray()) {
+        const QJsonObject p = v.toObject();
+        if (!p.value("connected").toBool()) continue;
+        ++conectados;
+        if (p.value("mediaUp").toBool() && p.value("cam").toBool()) ++conVideo;
+        if (p.value("state").toString() == "admitted") ++enSala;
+    }
+    u["conectados"] = conectados;
+    u["conVideo"] = conVideo;
+    u["enSala"] = enSala;
+    u["lugares"] = s.value("maxGuests").toInt();
+    return u;
+}
+
+QString ConferenceViewModel::photoOf(const QString& idOrName) const {
+    if (avatars_.contains(idOrName)) return avatars_.value(idOrName);
+    for (const QJsonValue& v : client_->snapshot().value("participants").toArray()) {
+        const QJsonObject p = v.toObject();
+        if (p.value("name").toString().compare(idOrName, Qt::CaseInsensitive) == 0)
+            return avatars_.value(p.value("id").toString());
+    }
+    return {};
+}
+
+void ConferenceViewModel::setAutoIntake(bool on) {
+    if (autoIntake_ == on) return;
+    autoIntake_ = on;
+    // Al prenderlo, los que ya estaban esperando tambien se atienden.
+    if (!on) intakeDone_.clear();
+    emit autoIntakeChanged();
+    rt_.gateway().autoIntake = on;
+    rt_.save();
+    // B tiene que enterarse: con el asistente atendiendo, la pantalla de
+    // ingreso del invitado no le pide los datos (se los pregunta el asistente).
+    client_->post("/api/v1/room", QJsonObject{{"intake", on}});
+    if (on) onSnapshot();
+}
+
+void ConferenceViewModel::setPresenter(const QString& id, bool on) {
+    participantAction(id, "presenter", QJsonObject{{"on", on}});
+}
 void ConferenceViewModel::setProfile(const QString& id, const QString& name, const QString& info,
                                      const QString& contact) {
     participantAction(id, "profile", QJsonObject{{"name", name}, {"info", info}, {"contact", contact}});
@@ -264,10 +334,46 @@ void ConferenceViewModel::onSnapshot() {
             if (!knownWaiting_.contains(p.value("id").toString()) && !firstSnapshot_) {
                 emit notify(p.value("name").toString() + " espera en el lobby", "info");
             }
+            // Atencion automatica: se le encarga al asistente una sola vez por
+            // persona (mientras siga esperando).
+            const QString pid = p.value("id").toString();
+            if (autoIntake_ && intakeSink_ && !intakeDone_.contains(pid)) {
+                intakeDone_.insert(pid);
+                // UN MOMENTO ANTES DE ABORDARLO, a propósito. El
+                // reconocimiento de rostros necesita una vuelta para tener algo
+                // que decir de alguien que se acaba de conectar. Atendiéndolo
+                // en el instante en que aparece, el asistente mira la libreta,
+                // no encuentra nada todavía y le pide los datos de cero a
+                // alguien que el sistema conoce perfectamente —y que un
+                // segundo después va a estar identificado—. Dos segundos y
+                // medio no los nota nadie del otro lado.
+                const QString nombre = p.value("name").toString();
+                QTimer::singleShot(kEsperarAlReconocimientoMs, this, [this, pid, nombre]() {
+                    if (intakeSink_ == nullptr) return;
+                    // Si mientras tanto entró sola (lista del evento), la
+                    // atiende el otro camino: `marcarAtendido` lo saca de acá.
+                    if (!intakeDone_.contains(pid)) return;
+                    const QString err = intakeSink_(pid, nombre, false);
+                    if (!err.isEmpty()) {
+                        // Sin asistente no tiene sentido seguir: se apaga como si
+                        // lo hubiera apagado el operador (se guarda y B se entera).
+                        setAutoIntake(false);
+                        emit notify(err, "error");
+                    }
+                });
+            }
         } else if (slot > 0) {
             inside.append(p); // en el programa (la fila de oradores va aparte)
+        } else if (p.value("speaker").toString() == "none") {
+            // Admitido, sin lugar en el programa y fuera de la fila de oradores:
+            // igual esta en la sala y conectado. Se muestra (sin video) para que
+            // nunca quede alguien invisible para el operador.
+            inside.append(p);
         }
     }
+    // Los que ya no esperan se olvidan: si vuelven, se los atiende de nuevo.
+    for (auto it = intakeDone_.begin(); it != intakeDone_.end();)
+        it = nowWaiting.contains(*it) ? std::next(it) : intakeDone_.erase(it);
     knownWaiting_ = nowWaiting;
     slotNames_ = slotNames;
     // Adentro, ordenados por slot (coincide con "Invitado N" de las fuentes).
@@ -310,6 +416,8 @@ void ConferenceViewModel::onSnapshot() {
     const qint64 lastInSnap = history.isEmpty() ? 0 : history.last().toObject().value("seq").toInteger();
     if (lastInSnap < lastSeq_) {
         chat_->setItems({});
+        ++chatRev_;
+        emit chatRevChanged();
         lastSeq_ = 0;
     }
     for (const QJsonValue& v : history)
@@ -333,6 +441,8 @@ void ConferenceViewModel::onChatMsg(const QJsonObject& msg, bool live) {
     const bool mine = m.value("fromId").toString() == "host";
     m.insert("mine", mine);
     chat_->append(m);
+    ++chatRev_;
+    emit chatRevChanged();
     if (live && !mine)
         emit notify(m.value("fromName").toString() + ": " + m.value("text").toString(), "info");
 }
@@ -492,13 +602,6 @@ void ConferenceViewModel::openWebConsole() {
     });
 }
 
-void ConferenceViewModel::copyToClipboard(const QString& text) {
-    if (QClipboard* c = QGuiApplication::clipboard()) {
-        c->setText(text);
-        emit notify("Copiado", "ok");
-    }
-}
-
 void ConferenceViewModel::takeShare(const QString& id) {
     QJsonObject share;
     for (const QJsonValue& v : shares_->items()) {
@@ -557,6 +660,39 @@ void ConferenceViewModel::takeShare(const QString& id) {
     rt_.save();
     emit sourceAdded();
     emit notify("«" + shown + "» agregado a la escena " + QString::fromStdString(scene), "ok");
+}
+
+QVariantList ConferenceViewModel::chatCon(const QString& uid) const {
+    QVariantList out;
+    for (const QJsonValue& v : chat_->items()) {
+        const QJsonObject o = v.toObject();
+        const QString para = o.value("to").toString();
+        const QString de = o.value("fromId").toString();
+        const bool esDeLaSala = para == "all";
+        // El hilo privado con alguien son las dos direcciones: lo que le
+        // mandamos y lo que contesto. Si solo se mirara `to`, sus respuestas
+        // (que vienen dirigidas al operador) caerian fuera del hilo.
+        const bool esSuyo = !esDeLaSala && (para == uid || de == uid);
+        if (uid.isEmpty() ? esDeLaSala : esSuyo) out.append(v.toObject().toVariantMap());
+    }
+    return out;
+}
+
+QVariantList ConferenceViewModel::chatHilos() const {
+    QVariantList out;
+    QStringList vistos;
+    for (const QJsonValue& v : chat_->items()) {
+        const QJsonObject o = v.toObject();
+        const QString para = o.value("to").toString();
+        const QString de = o.value("fromId").toString();
+        // El otro extremo del hilo: si lo mandamos nosotros, el destinatario;
+        // si nos lo mandaron, quien lo mando.
+        const QString quien = para == "all" ? QString() : (de == "host" ? para : de);
+        if (quien.isEmpty() || quien == "host" || vistos.contains(quien)) continue;
+        vistos << quien;
+        out.append(QVariantMap{{"uid", quien}, {"nombre", nameOf(quien)}});
+    }
+    return out;
 }
 
 } // namespace ba::app

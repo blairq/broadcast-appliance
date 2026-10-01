@@ -39,17 +39,30 @@
 // #ifdef _WIN32. No depende de Qt ni de libobs.
 // ============================================================================
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib> // std::getenv (inyeccion de secretos por entorno)
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <map>
+#include <sstream>
 #include <string>
 #include <thread>
 #include <vector>
+
+// Diagnostico del proceso, que es lo unico especifico del sistema que hay en
+// este archivo: el uso de CPU y memoria (getrusage) y el hilo mas cargado
+// (/proc/self/task). En Windows eso lo dan GetProcessTimes y
+// GetProcessMemoryInfo, mas abajo, y el detalle por hilo directamente no esta.
+#if !defined(_WIN32)
+#include <dirent.h>
+#include <sys/resource.h>
+#endif
 
 // ba_core (frozen headers).
 #include "ipc/ControlService.hpp"
@@ -61,6 +74,8 @@
 #include "Cloudflared.hpp"
 #include "Config.hpp"
 #include "Log.hpp"
+
+#include "diag/Caidas.hpp"
 #include "MediaPump.hpp"
 #include "net/NetUtil.hpp"
 #include "net/TlsTerminator.hpp"
@@ -77,6 +92,7 @@
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
+#include <psapi.h> // PROCESS_MEMORY_COUNTERS (la K32* vive en kernel32)
 #include <windows.h>
 #include <winsock2.h> // getaddrinfo / inet_ntop (LEAN_AND_MEAN: windows.h no trae winsock.h)
 #include <ws2tcpip.h>
@@ -243,6 +259,148 @@ void sigHandler(int) { g_stop.store(true); }
 /// :param argc: cantidad de argumentos de linea de comandos.
 /// :param argv: argumentos (ver Config::parseArgs).
 /// :returns: 0 en cierre ordenado; 1 si no se pudo abrir el HealthBlock.
+namespace {
+
+/// CPU (porcentaje del total de la maquina desde la vuelta anterior) y memoria
+/// residente del propio proceso. Sin dependencias: /proc en Linux,
+/// GetProcessTimes en Windows, task_info en macOS.
+nlohmann::json processUsage(const WebrtcHub* hub) {
+    static double lastCpuSec = 0;
+    static std::chrono::steady_clock::time_point lastAt{};
+    double cpuSec = 0;
+    double rssMb = 0;
+#if defined(_WIN32)
+    // Nombres largos a proposito: los cortos (c, e, k, u) tapaban el `u` del
+    // JSON que se arma mas abajo en esta misma funcion, y el compilador de
+    // Windows se quedaba en «redefinition of 'u' with a different type». Con
+    // este archivo compilando solo en Linux, eso no lo veia nadie.
+    FILETIME ftCreacion, ftSalida, ftKernel, ftUsuario;
+    if (GetProcessTimes(GetCurrentProcess(), &ftCreacion, &ftSalida, &ftKernel, &ftUsuario)) {
+        const auto to100ns = [](const FILETIME& f) {
+            return (static_cast<unsigned long long>(f.dwHighDateTime) << 32) | f.dwLowDateTime;
+        };
+        cpuSec = static_cast<double>(to100ns(ftKernel) + to100ns(ftUsuario)) / 1e7;
+    }
+    // K32GetProcessMemoryInfo y no GetProcessMemoryInfo: la version K32 esta en
+    // kernel32, que ya se enlaza, y evita tener que arrastrar psapi.lib.
+    PROCESS_MEMORY_COUNTERS pmc{};
+    pmc.cb = sizeof(pmc);
+    if (K32GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc)) != 0)
+        rssMb = static_cast<double>(pmc.WorkingSetSize) / (1024.0 * 1024.0);
+#else
+    rusage ru{};
+    if (getrusage(RUSAGE_SELF, &ru) == 0) {
+        cpuSec = static_cast<double>(ru.ru_utime.tv_sec + ru.ru_stime.tv_sec) +
+                 static_cast<double>(ru.ru_utime.tv_usec + ru.ru_stime.tv_usec) / 1e6;
+#if defined(__APPLE__)
+        rssMb = static_cast<double>(ru.ru_maxrss) / (1024.0 * 1024.0);
+#else
+        rssMb = static_cast<double>(ru.ru_maxrss) / 1024.0; // Linux informa KB
+#endif
+    }
+#endif
+    const auto now = std::chrono::steady_clock::now();
+    double pct = 0;
+    if (lastAt.time_since_epoch().count() != 0) {
+        const double wall = std::chrono::duration<double>(now - lastAt).count();
+        const unsigned cores = std::max(1u, std::thread::hardware_concurrency());
+        if (wall > 0) pct = 100.0 * (cpuSec - lastCpuSec) / (wall * cores);
+    }
+    lastCpuSec = cpuSec;
+    lastAt = now;
+    nlohmann::json u{{"cpuPct", std::round(std::clamp(pct, 0.0, 100.0) * 10) / 10},
+                     {"memMb", std::round(rssMb)},
+                     {"nucleos", std::max(1u, std::thread::hardware_concurrency())}};
+
+    // Ancho de banda de video, que es lo unico que dice si el limite de la
+    // sala es la RED y no la maquina. Se informa en kbit/s sobre el intervalo
+    // entre dos llamadas, no el acumulado: lo que interesa es el caudal de
+    // AHORA, no cuanto paso desde que arranco.
+    //
+    // Cuenta el video que el gateway PROCESA (ver WebrtcHub::trafico): con un
+    // gateway suelto, sin A del otro lado, da cero aunque los invitados esten
+    // mandando.
+    if (hub != nullptr) {
+        static uint64_t lastIn = 0;
+        static uint64_t lastOut = 0;
+        static std::chrono::steady_clock::time_point lastNet{};
+        const WebrtcHub::Trafico tr = hub->trafico();
+        const double wallN = lastNet.time_since_epoch().count() == 0
+                                 ? 0
+                                 : std::chrono::duration<double>(now - lastNet).count();
+        if (wallN > 0.2) {
+            // El contador solo sube, pero si alguna vez se reiniciara, restar
+            // daria un numero absurdo: se acota en cero.
+            const auto kbps = [wallN](uint64_t ahora, uint64_t antes) {
+                return ahora < antes ? 0.0 : std::round((ahora - antes) * 8.0 / 1000.0 / wallN);
+            };
+            u["kbpsEntrada"] = kbps(tr.entrada, lastIn);
+            u["kbpsSalida"] = kbps(tr.salida, lastOut);
+        }
+        if (wallN > 0.2 || lastNet.time_since_epoch().count() == 0) {
+            lastIn = tr.entrada;
+            lastOut = tr.salida;
+            lastNet = now;
+        }
+    }
+#if defined(__linux__)
+    // Hilo mas cargado (porcentaje de UN nucleo). libwebrtc reparte la
+    // decodificacion de cada invitado en su propio hilo, pero la red, el worker
+    // y la senalizacion son UNO para todas las conexiones: si ese hilo se va a
+    // 100 el techo no es la maquina sino ese nucleo.
+    static std::map<int, double> lastThread;
+    static std::chrono::steady_clock::time_point lastThreadAt{};
+    const double ticks = static_cast<double>(sysconf(_SC_CLK_TCK));
+    std::map<int, double> nowThread;
+    std::string topName;
+    double topPct = -1; // asi se informa el hilo aunque todos esten en cero
+    const double wallT = lastThreadAt.time_since_epoch().count() == 0
+                             ? 0
+                             : std::chrono::duration<double>(now - lastThreadAt).count();
+    if (DIR* d = opendir("/proc/self/task")) {
+        while (dirent* e = readdir(d)) {
+            const int tid = std::atoi(e->d_name);
+            if (tid <= 0) continue;
+            std::ifstream st("/proc/self/task/" + std::string(e->d_name) + "/stat");
+            std::string line;
+            if (!std::getline(st, line)) continue;
+            // El nombre va entre parentesis y puede traer espacios.
+            const std::size_t close = line.rfind(')');
+            if (close == std::string::npos) continue;
+            std::istringstream rest(line.substr(close + 2));
+            std::string field;
+            double utime = 0;
+            double stime = 0;
+            for (int i = 3; i <= 15 && rest >> field; ++i) {
+                if (i == 14) utime = std::atof(field.c_str());
+                if (i == 15) stime = std::atof(field.c_str());
+            }
+            const double cpu = ticks > 0 ? (utime + stime) / ticks : 0;
+            nowThread[tid] = cpu;
+            const auto prev = lastThread.find(tid);
+            if (wallT > 0 && prev != lastThread.end()) {
+                const double p = 100.0 * (cpu - prev->second) / wallT;
+                if (p > topPct) {
+                    topPct = p;
+                    const std::size_t open = line.find('(');
+                    topName = open != std::string::npos ? line.substr(open + 1, close - open - 1) : "";
+                }
+            }
+        }
+        closedir(d);
+    }
+    lastThread = std::move(nowThread);
+    lastThreadAt = now;
+    if (!topName.empty()) {
+        u["hiloTop"] = topName;
+        u["hiloPct"] = std::round(std::clamp(topPct, 0.0, 100.0) * 10) / 10;
+    }
+#endif
+    return u;
+}
+
+} // namespace
+
 int main(int argc, char** argv) {
     ba::platform::redirectUserDirs(); // portable: nada al perfil del usuario
     // Credenciales en claro de versiones anteriores -> Credenciales/ cifradas.
@@ -258,6 +416,8 @@ int main(int argc, char** argv) {
     // escribia a stderr y en campo no quedaba ningun rastro de B en disco.
     if (!cfg.logsDir.empty()) {
         log.openFile(cfg.logsDir);
+        // Y que una caida deje la pila escrita (ver diag/Caidas.hpp).
+        ba::diag::instalarManejadorDeCaidas("gateway");
     }
 
     log.info("arranque: guests=" + std::to_string(cfg.guests) + " port=" + std::to_string(cfg.port) +
@@ -389,6 +549,8 @@ int main(int argc, char** argv) {
     pumpCfg.audioChannels = cfg.audioChannels;
     pumpCfg.programW = cfg.videoW;
     pumpCfg.programH = cfg.videoH;
+    pumpCfg.programVideoW = cfg.programVideoW;
+    pumpCfg.programVideoH = cfg.programVideoH;
     pumpCfg.guestVideoW = cfg.guestVideoW;
     pumpCfg.guestVideoH = cfg.guestVideoH;
     MediaPump pump(hub, pumpCfg, log);
@@ -434,7 +596,26 @@ int main(int argc, char** argv) {
         std::filesystem::path guestRoot(cfg.webroot);
         if (!guestRoot.has_filename()) guestRoot = guestRoot.parent_path(); // "Web/guest/"
         sigCfg.boardWebroot = (guestRoot.parent_path() / "board").string();
+        sigCfg.prompterWebroot = (guestRoot.parent_path() / "prompter").string();
+        sigCfg.rotulosWebroot = (guestRoot.parent_path() / "rotulos").string();
+        sigCfg.pantallaWebroot = (guestRoot.parent_path() / "pantalla").string();
+        sigCfg.castWebroot = (guestRoot.parent_path() / "cast").string();
+        sigCfg.comunWebroot = (guestRoot.parent_path() / "comun").string();
+        sigCfg.publicoWebroot = (guestRoot.parent_path() / "publico").string();
     }
+    // Clave del control del teleprompter: nueva en cada arranque. No hace
+    // falta que sobreviva -- el operador manda el enlace (o el QR) cuando va a
+    // usarlo, y una clave que no se guarda en ningun lado no se filtra.
+    if (!ba::security::randomSecretHex(16, sigCfg.prompterKey)) sigCfg.prompterKey.clear();
+    // Idem los rotulos, con su propia clave: que el que rotula desde el celular
+    // no pueda ademas frenarle el texto al orador.
+    if (!ba::security::randomSecretHex(16, sigCfg.rotulosKey)) sigCfg.rotulosKey.clear();
+    // Y la del publico. Esta la tiene TODO el que esta en la sala —viaja en un
+    // QR que se proyecta o se reparte—, asi que no es un secreto fuerte y no
+    // pretende serlo: es lo que evita que la cola de preguntas la llene
+    // cualquiera que pase por el tunel. Nueva en cada arranque, como las otras:
+    // las preguntas del evento de ayer no son las de hoy.
+    if (!ba::security::randomSecretHex(16, sigCfg.publicoKey)) sigCfg.publicoKey.clear();
     sigCfg.adminToken = adminToken;
     SignalingServer server(sigCfg, auth, hub, room, shares, log);
     server.setPump(&pump);
@@ -654,6 +835,14 @@ int main(int argc, char** argv) {
         st["urls"] = urls;
         st["bestUrl"] = bestUrl;
         st["lan"] = lanIps;
+        // El origen con certificado DE VERDAD, si lo hay. Importa para los
+        // televisores: un receptor de Chromecast es una pagina HTTPS y el
+        // navegador le prohibe cargar contenido http (mixed content), asi que
+        // nuestro HTTPS autofirmado tampoco le sirve. Sin tunel, no hay forma
+        // de mostrarle una pagina NUESTRA, y conviene decirlo que descubrirlo
+        // con un televisor colgado en "cargando".
+        st["origenSeguro"] =
+            cfg.tunnelHostname.empty() ? nlohmann::json() : nlohmann::json("https://" + cfg.tunnelHostname);
         st["bindAddress"] = cfg.bindAddress;
         st["rtcPorts"] = {cfg.rtcPortMin, cfg.rtcPortMax};
         st["https"] = tls ? nlohmann::json{{"enabled", true},
@@ -754,6 +943,10 @@ int main(int argc, char** argv) {
         room.tick(std::chrono::duration_cast<std::chrono::milliseconds>(
                       std::chrono::system_clock::now().time_since_epoch())
                       .count());
+        // Uso del propio proceso: es lo que se satura cuando hay muchos
+        // invitados (cada uno es un video que hay que decodificar). Va en el
+        // snapshot para que el operador lo vea en la pagina Sala.
+        room.setUsage(processUsage(&hub));
     }
 
     log.info("parando: deteniendo componentes...");

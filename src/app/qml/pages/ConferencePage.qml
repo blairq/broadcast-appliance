@@ -17,11 +17,28 @@ Rectangle {
     // Reloj para los "hace N min" (sin tocar el modelo).
     property double now: Date.now()
     Timer { interval: 5000; running: page.visible; repeat: true; onTriggered: page.now = Date.now() }
+    // El hilo de chat que se está leyendo: "" es la sala, o el uid de alguien.
+    // Ver el comentario del TabBar: es también el destinatario de lo que se
+    // escriba, para que no se pueda contestar en público algo privado.
+    property string hiloChat: ""
+    function abrirHilo(uid) {
+        page.hiloChat = uid
+        const h = conf.chatHilos
+        for (let i = 0; i < h.length; ++i)
+            if (h[i].uid === uid) { hilos.currentIndex = i + 1; return }
+        // Todavía no hay hilo con esa persona: el tab aparece solo cuando se
+        // manda el primer mensaje, y hasta entonces se escribe desde acá.
+    }
     function since(ms) {
         const s = Math.max(0, Math.round((page.now - ms) / 1000))
         return s < 60 ? s + " s" : Math.floor(s / 60) + " min"
     }
     function mb(bytes) { return (bytes / 1048576).toFixed(1) + " MB" }
+    /// kbit/s a algo que se lea de un vistazo.
+    function mbits(kbps) {
+        const k = kbps || 0
+        return k >= 1000 ? (k / 1000).toFixed(1) + " Mb/s" : Math.round(k) + " kb/s"
+    }
     function fmt(ms) {
         const neg = ms < 0
         const t = Math.floor(Math.abs(ms) / 1000)
@@ -131,7 +148,7 @@ Rectangle {
                     Text {
                         anchors.centerIn: parent
                         visible: spkList.count === 0
-                        text: "Nadie en la fila. Admití gente del lobby: entra a la fila con el tiempo general."
+                        text: "Nadie en la fila. Admití gente del lobby, o usá «→ Oradores» en alguien que ya esté en la sala."
                         color: Theme.textFaint; font.pixelSize: 13
                     }
                 }
@@ -152,6 +169,77 @@ Rectangle {
                 ColumnLayout {
                     anchors.fill: parent
                     spacing: 10
+                    // Que el asistente atienda SOLO a cada uno que llega: les
+                    // pide los datos y despues pregunta si los hacemos pasar.
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        Toggle {
+                            checked: conf.autoIntake
+                            enabled: Studio.agent.running
+                            onToggled: (wanted) => conf.setAutoIntake(wanted)
+                        }
+                        ColumnLayout {
+                            spacing: 0
+                            Layout.fillWidth: true
+                            Text {
+                                text: "✦ Los atiende el asistente"
+                                color: Studio.agent.running ? Theme.text : Theme.textFaint
+                                font.pixelSize: 13
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                wrapMode: Text.WordWrap
+                                text: !Studio.agent.running ? "Prendé el asistente en la pestaña ✦"
+                                      : conf.autoIntake ? "Les pide los datos y te muestra todo junto para admitirlos"
+                                                        : "Cada uno que entra, lo atendés vos"
+                                color: Theme.textFaint; font.pixelSize: 11
+                            }
+                        }
+                    }
+                    // --- Reconocer a los que llegan ------------------------
+                    // EL LOBBY ES EL MOMENTO: la gente llega antes de entrar y
+                    // se queda quieta frente a su cámara esperando. Es el único
+                    // rato en que hay tiempo de saber quién es sin que nada de
+                    // esto salga al aire.
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        visible: Studio.personas.disponible
+                        Toggle {
+                            checked: Studio.personas.lobbyAuto
+                            onToggled: (wanted) => Studio.personas.lobbyAuto = wanted
+                        }
+                        ColumnLayout {
+                            spacing: 2
+                            Layout.fillWidth: true
+                            // preferredWidth en 0: un Text que envuelve pide,
+                            // como ancho implícito, TODO el renglón sin cortar.
+                            // Sin esto el panel entero se ensanchaba para darle
+                            // ese ancho y el botón «QR ▾» de más abajo terminaba
+                            // fuera del panel. Con 0, el texto se conforma con
+                            // lo que le quede y envuelve, que es lo que se le
+                            // pidió al ponerle WordWrap.
+                            Layout.preferredWidth: 0
+                            Text { text: "☻ Reconocer a los que llegan"
+                                   color: Theme.text; font.pixelSize: 13 }
+                            Text {
+                                Layout.fillWidth: true
+                                Layout.preferredWidth: 0
+                                wrapMode: Text.WordWrap
+                                color: Theme.textFaint; font.pixelSize: 11
+                                text: Studio.personas.lobbyAuto
+                                      ? "Sobre cada cámara dice quién es. Al que no conoce lo anota sin " +
+                                        "nombre, con su foto, para que le pongas quién es."
+                                      : "Mira las cámaras de los que esperan y te dice a quién reconoce."
+                            }
+                            // NO va acá el contador de fichas sin nombre de
+                            // toda la libreta: en el panel del lobby se lee
+                            // como si esa gente estuviera esperando, y puede
+                            // venir de cualquier otra cámara. Ese número vive
+                            // en la página de Personas, que es de donde habla.
+                        }
+                    }
                     RowLayout {
                         Layout.fillWidth: true
                         Text { text: conf.waiting.count === 0 ? "Nadie esperando" : conf.waiting.count + " esperando"
@@ -184,6 +272,8 @@ Rectangle {
                             required property double joinedMs
                             required property int lobbySlot
                             required property bool talk
+                            required property string info
+                            required property string contact
                             width: ListView.view.width
                             height: waitCol.implicitHeight + 20
                             radius: 14
@@ -198,7 +288,9 @@ Rectangle {
                                 // Su camara: solo la ves vos (preview privado del lobby).
                                 Rectangle {
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: width * 9 / 16
+                                    // Del ancho de la columna: tomandolo del suyo propio
+                                    // quedaba a medio calcular en el primer armado.
+                                    Layout.preferredHeight: (waitCol.width - 20) * 9 / 16
                                     radius: 10
                                     color: "#000000"
                                     clip: true
@@ -211,6 +303,48 @@ Rectangle {
                                         color: Theme.textFaint; font.pixelSize: 11
                                     }
                                     StatusPill { anchors.left: parent.left; anchors.top: parent.top; anchors.margins: 6; visible: talk; text: "hablando"; dot: Theme.ok; pulse: true }
+
+                                    // --- Quién es, según el reconocimiento ---
+                                    // Va ENCIMA de su cámara y no al lado del
+                                    // nombre que escribió él: son dos cosas
+                                    // distintas. Lo que escribió es lo que dice
+                                    // ser; esto es a quién se parece. Juntarlas
+                                    // haría pasar una por la otra.
+                                    Rectangle {
+                                        // Por `uid` y no por el número de posición: las posiciones
+                                        // se reciclan y el cartel del anterior le quedaría puesto
+                                        // al siguiente.
+                                        readonly property var quien: Studio.personas.enLobby[uid]
+                                        visible: quien !== undefined
+                                        anchors { left: parent.left; right: parent.right
+                                                  bottom: parent.bottom; margins: 6 }
+                                        height: quienTxt.implicitHeight + 10
+                                        radius: 7
+                                        color: Qt.rgba(0, 0, 0, 0.62)
+                                        border.width: 1
+                                        border.color: !parent.visible || quien === undefined ? "transparent"
+                                                    : quien.nombre !== "" ? Theme.ok
+                                                    : quien.id !== "" ? Theme.accent : Theme.warn
+                                        Text {
+                                            id: quienTxt
+                                            anchors { fill: parent; margins: 5 }
+                                            wrapMode: Text.WordWrap
+                                            font.pixelSize: 11
+                                            color: Theme.text
+                                            text: {
+                                                const q = parent.quien
+                                                if (q === undefined) return ""
+                                                if (q.nombre !== "")
+                                                    return "✓ " + q.nombre +
+                                                           (q.cargo !== "" ? " · " + q.cargo : "") +
+                                                           "  " + Math.round(q.parecido * 100) + "%"
+                                                if (q.id !== "")
+                                                    return "Anotado sin nombre · " + q.caras + " cara(s)"
+                                                return q.sirve ? "No lo tengo en la libreta"
+                                                               : q.sugerencia
+                                            }
+                                        }
+                                    }
                                 }
                                 RowLayout {
                                     spacing: 8
@@ -221,14 +355,37 @@ Rectangle {
                                         Text { text: (connected ? "espera hace " : "desconectado · ") + page.since(joinedMs); color: Theme.textFaint; font.pixelSize: 11 }
                                     }
                                 }
-                                RowLayout {
+                                // Flow y no RowLayout: con varios botones ya no
+                                // entraban en el ancho de la tarjeta y la
+                                // descuadraban (el video se salia del marco).
+                                Flow {
+                                    Layout.fillWidth: true
                                     spacing: 6
                                     GlassButton { text: "Admitir"; compact: true; active: true; activeColor: Theme.ok; onClicked: conf.admit(uid) }
                                     GlassButton { text: talk ? "Cortar" : "Hablar"; compact: true; enabled: lobbySlot > 0; active: talk; activeColor: Theme.ok
                                                   onClicked: conf.talk(uid, !talk) }
                                     GlassButton { text: "Rechazar"; compact: true; onClicked: conf.reject(uid) }
-                                    Item { Layout.fillWidth: true }
                                     GlassButton { text: "✉"; compact: true; onClicked: { chatTo.pick(uid); chatInput.forceActiveFocus() } }
+                                    GlassButton {
+                                        text: "✎"; compact: true
+                                        onClicked: profDlg.editPerson(waitCard.uid, waitCard.name, waitCard.info, waitCard.contact)
+                                        ToolTip.visible: hovered; ToolTip.delay: 400
+                                        ToolTip.text: "Editar nombre, cargo y contacto"
+                                    }
+                                    // Que la atienda el asistente: le pide los datos por
+                                    // chat y despues te muestra todo junto con su foto.
+                                    GlassButton {
+                                        text: "✦ Que lo atienda"; compact: true
+                                        visible: Studio.agent.running
+                                        onClicked: {
+                                            const e = Studio.assistantIntake(waitCard.uid, waitCard.name)
+                                            ApplicationWindow.window.toast(
+                                                e !== "" ? e : "El asistente está hablando con " + waitCard.name,
+                                                e !== "" ? "error" : "ok")
+                                        }
+                                        ToolTip.visible: hovered; ToolTip.delay: 400
+                                        ToolTip.text: "El asistente le pide nombre, cargo, cómo presentarlo y contacto, y te muestra todo junto con su foto para que decidas si pasa."
+                                    }
                                 }
                             }
                         }
@@ -245,6 +402,12 @@ Rectangle {
                 Panel {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
+                    // Puede achicarse hasta acá. Sin un mínimo explícito, el
+                    // layout no la deja bajar de lo que mide su contenido, y
+                    // lo que no entra se desborda por abajo de la página en vez
+                    // de apretarse: las baldosas de la sala tienen de sobra con
+                    // menos, y quedarse sin Chat visible es peor.
+                    Layout.minimumHeight: 220
                     title: "En la sala"
                     RowLayout {
                         anchors { right: parent.right; top: parent.top; topMargin: -34 }
@@ -270,6 +433,10 @@ Rectangle {
                             required property bool cam
                             required property bool screen
                             required property bool hand
+                            required property bool presenter
+                            required property string speaker
+                            required property string info
+                            required property string contact
                             width: grid.cellWidth
                             height: grid.cellHeight
                             Rectangle {
@@ -277,10 +444,24 @@ Rectangle {
                                 radius: 16
                                 color: "#000000"
                                 clip: true
-                                border.color: hand ? Theme.amber : Theme.glassBorder
-                                border.width: hand ? 2 : 1
+                                border.color: presenter ? "#a78bfa" : hand ? Theme.amber : Theme.glassBorder
+                                border.width: presenter || hand ? 2 : 1
                                 // El video que B publica para ese slot (lo mismo que ve el motor).
-                                VideoItem { anchors.fill: parent; source: "guest:" + slot; fillMode: VideoItem.Fit; opacity: connected ? 1 : 0.4 }
+                                // Sin lugar en el programa no hay video que mostrar
+                                // (esta en la sala igual: se lo ve y se lo maneja).
+                                VideoItem {
+                                    anchors.fill: parent
+                                    visible: slot > 0
+                                    source: "guest:" + slot
+                                    fillMode: VideoItem.Fit
+                                    opacity: connected ? 1 : 0.4
+                                }
+                                Text {
+                                    anchors.centerIn: parent
+                                    visible: slot <= 0
+                                    text: "sin lugar en el programa"
+                                    color: Theme.textFaint; font.pixelSize: 12
+                                }
                                 Rectangle {
                                     anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
                                     height: 74
@@ -294,23 +475,64 @@ Rectangle {
                                     spacing: 6
                                     RowLayout {
                                         spacing: 8
-                                        Rectangle { width: 22; height: 22; radius: 7; color: Theme.accent
-                                            Text { anchors.centerIn: parent; text: slot; color: "#140a04"; font { pixelSize: 12; weight: Font.Bold } } }
+                                        Rectangle { width: 22; height: 22; radius: 7; color: slot > 0 ? Theme.accent : Qt.rgba(1, 1, 1, 0.18)
+                                            Text { anchors.centerIn: parent; text: slot > 0 ? slot : "–"; color: slot > 0 ? "#140a04" : "white"; font { pixelSize: 12; weight: Font.Bold } } }
                                         Text { text: name; color: "white"; font.pixelSize: 14; font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.fillWidth: true }
                                         Text { visible: hand; text: "✋"; font.pixelSize: 16 }
                                         StatusPill { text: mic ? "mic" : "mic off"; dot: mic ? Theme.ok : Theme.live }
                                         StatusPill { text: cam ? "cámara" : "cámara off"; dot: cam ? Theme.ok : Theme.live }
                                         StatusPill { visible: screen; text: "pantalla"; dot: Theme.accent }
+                                        StatusPill { visible: presenter; text: "PRESENTADOR"; dot: "#a78bfa" }
+                                        StatusPill { visible: speaker === "onair"; text: "ORADOR"; dot: Theme.live }
                                         StatusPill { text: !connected ? "reconectando" : mediaUp ? "en vivo" : "sin medios"; dot: !connected ? Theme.live : mediaUp ? Theme.ok : Theme.amber }
                                     }
                                     Flow {
                                         Layout.fillWidth: true
                                         spacing: 6
-                                        GlassButton { visible: mic; compact: true; text: "Silenciar"; onClicked: conf.request(uid, "mute-mic") }
-                                        GlassButton { visible: cam; compact: true; text: "Apagar cámara"; onClicked: conf.request(uid, "mute-cam") }
+                                        GlassButton {
+                                            compact: true
+                                            text: mic ? "Silenciar" : "Activar micrófono"
+                                            onClicked: conf.request(uid, mic ? "mute-mic" : "unmute-mic")
+                                        }
+                                        GlassButton {
+                                            compact: true
+                                            text: cam ? "Apagar cámara" : "Encender cámara"
+                                            onClicked: conf.request(uid, cam ? "mute-cam" : "unmute-cam")
+                                        }
                                         GlassButton { visible: screen; compact: true; text: "Cortar pantalla"; onClicked: conf.request(uid, "stop-screen") }
                                         GlassButton { visible: hand; compact: true; text: "Bajar mano"; onClicked: conf.request(uid, "lower-hand") }
-                                        GlassButton { compact: true; text: "✉ Mensaje"; onClicked: { chatTo.pick(uid); chatInput.forceActiveFocus() } }
+                                        // Pasarlo a la fila de oradores o dejarlo de presentador
+                                        // fijo: la sala sigue siendo la misma para todos.
+                                        GlassButton {
+                                            visible: !presenter && speaker !== "queued"
+                                            compact: true; text: "→ Oradores"
+                                            onClicked: conf.speakerRequeue(uid)
+                                            ToolTip.visible: hovered; ToolTip.delay: 400
+                                            ToolTip.text: "Lo pone en la fila de oradores (sale del aire hasta que le toque)"
+                                        }
+                                        GlassButton {
+                                            compact: true
+                                            text: presenter ? "Quitar presentador" : "★ Presentador"
+                                            active: presenter
+                                            activeColor: "#a78bfa"
+                                            onClicked: conf.setPresenter(uid, !presenter)
+                                            ToolTip.visible: hovered; ToolTip.delay: 400
+                                            ToolTip.text: presenter ? "Deja de ser presentador y sale del aire"
+                                                                    : "Se queda al aire con su lugar mientras rotan los oradores"
+                                        }
+                                        GlassButton {
+                                            compact: true; text: "✉ Mensaje"
+                                            // Abre SU hilo. Si todavía no hay
+                                            // ninguno con esa persona, el tab
+                                            // aparece con el primer mensaje.
+                                            onClicked: { page.abrirHilo(uid); chatInput.forceActiveFocus() }
+                                        }
+                                        GlassButton {
+                                            compact: true; text: "✎ Datos"
+                                            onClicked: profDlg.editPerson(uid, name, info, contact)
+                                            ToolTip.visible: hovered; ToolTip.delay: 400
+                                            ToolTip.text: "Editar nombre, cargo y contacto"
+                                        }
                                         GlassButton { compact: true; text: "Sacar"; onClicked: { kickDlg.who = uid; kickDlg.whoName = name; kickDlg.open() } }
                                     }
                                 }
@@ -330,24 +552,55 @@ Rectangle {
                 Panel {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 250
+                    Layout.minimumHeight: 150
                     title: "Chat"
+                    // EL TAB ES EL DESTINATARIO, y eso es el punto. Antes había
+                    // una sola lista con todo mezclado y un selector aparte:
+                    // la charla privada en la que se le piden los datos a
+                    // alguien que llega se leía como si fuera para toda la
+                    // sala, y contestar ahí con el selector en «A todos»
+                    // mandaba a todo el mundo lo que era para uno. Con el
+                    // destinatario pegado al hilo que estás leyendo, ese error
+                    // no se puede cometer.
                     ColumnLayout {
                         anchors.fill: parent
                         spacing: 8
+                        TabBar {
+                            id: hilos
+                            Layout.fillWidth: true
+                            currentIndex: 0
+                            onCurrentIndexChanged: page.hiloChat =
+                                currentIndex === 0 || currentIndex > conf.chatHilos.length
+                                    ? "" : conf.chatHilos[currentIndex - 1].uid
+                            TabButton { text: "Sala"; width: implicitWidth }
+                            Repeater {
+                                model: conf.chatHilos
+                                delegate: TabButton {
+                                    required property var modelData
+                                    text: "✉ " + (modelData.nombre !== "" ? modelData.nombre : "privado")
+                                    width: implicitWidth
+                                }
+                            }
+                        }
                         ListView {
                             id: chatList
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             clip: true
                             spacing: 6
-                            model: conf.chat
+                            // Se nombra `chatRev` para que esto se vuelva a
+                            // pedir cuando llega un mensaje: QML no re-evalúa
+                            // una función porque cambie un modelo que no mira.
+                            model: { conf.chatRev; return conf.chatCon(page.hiloChat) }
                             onCountChanged: Qt.callLater(positionViewAtEnd)
                             delegate: Item {
                                 id: msg
-                                required property string fromName
-                                required property string to
-                                required property string text
-                                required property bool mine
+                                required property var modelData
+                                readonly property string fromName: modelData.fromName
+                                readonly property string to: modelData.to
+                                readonly property string text: modelData.text
+                                readonly property bool mine: modelData.mine === true
+                                                             || modelData.fromId === "host"
                                 width: ListView.view.width
                                 height: bubble.height
                                 Rectangle {
@@ -371,25 +624,18 @@ Rectangle {
                         }
                         RowLayout {
                             Layout.fillWidth: true
-                            ComboBox {
-                                id: chatTo
-                                Layout.preferredWidth: 170
-                                textRole: "label"
-                                valueRole: "value"
-                                model: conf.chatTargets
-                                function pick(uid) {
-                                    const i = indexOfValue(uid)
-                                    currentIndex = i >= 0 ? i : 0
-                                }
-                            }
                             TextField {
                                 id: chatInput
                                 Layout.fillWidth: true
-                                placeholderText: "Escribí un mensaje…"
+                                placeholderText: page.hiloChat === ""
+                                                 ? "Escribí a toda la sala…"
+                                                 : "En privado a " + conf.nameOf(page.hiloChat) + "…"
                                 onAccepted: send()
                                 function send() {
                                     if (text.trim() === "") return
-                                    conf.sendChat(chatTo.currentValue, text)
+                                    // Al hilo que se está leyendo. Ver el
+                                    // comentario del TabBar.
+                                    conf.sendChat(page.hiloChat === "" ? "all" : page.hiloChat, text)
                                     text = ""
                                 }
                             }
@@ -400,14 +646,132 @@ Rectangle {
             }
 
             // --- Acceso + archivos ---------------------------------------------------
-            // fillWidth explicito en false: un ColumnLayout hereda fillWidth de sus
-            // hijos y, sin esto, le disputa el ancho a la columna central.
-            ColumnLayout {
+            // --- Columna derecha, CON SCROLL -----------------------------
+            // Las tarjetas de acá suman más de 1300 px de alto fijo. En una
+            // ventana normal eso no entra: sin scroll, la columna se desbordaba
+            // hacia abajo y lo que sobraba quedaba debajo del zócalo del
+            // asistente —parecía que la barra se superponía, y en realidad era
+            // la página la que se salía de su lugar—. Acá se scrollea, que es
+            // lo que hace cualquier panel lateral que no entra.
+            ScrollView {
+                id: colDer
                 Layout.preferredWidth: 360
                 Layout.maximumWidth: 360
                 Layout.fillWidth: false
                 Layout.fillHeight: true
+                clip: true
+                // Sin barra horizontal: la columna tiene ancho fijo y lo que
+                // sobra es alto. Una barra de abajo acá solo roba 12 px.
+                ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                contentWidth: availableWidth
+
+            ColumnLayout {
+                width: colDer.availableWidth
                 spacing: 16
+
+                // Uso de la sala: lo que se satura cuando hay mucha gente es el
+                // procesador del gateway (un video por persona que decodificar).
+                Panel {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: usoCol.implicitHeight + 56
+                    title: "Uso de la sala"
+                    ColumnLayout {
+                        id: usoCol
+                        anchors.fill: parent
+                        spacing: 6
+                        readonly property var u: conf.usage
+                        readonly property real cpu: u.cpuPct !== undefined ? u.cpuPct : 0
+                        readonly property bool apretado: cpu >= 70
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 6
+                            StatusPill {
+                                text: (usoCol.u.enSala !== undefined ? usoCol.u.enSala : 0) + "/" +
+                                      (usoCol.u.lugares !== undefined ? usoCol.u.lugares : 0) + " en la sala"
+                                dot: Theme.accent
+                            }
+                            StatusPill {
+                                text: (usoCol.u.conVideo !== undefined ? usoCol.u.conVideo : 0) + " con video"
+                                dot: Theme.ok
+                            }
+                            StatusPill {
+                                visible: (usoCol.u.conectados !== undefined ? usoCol.u.conectados : 0) >
+                                         (usoCol.u.enSala !== undefined ? usoCol.u.enSala : 0)
+                                text: ((usoCol.u.conectados !== undefined ? usoCol.u.conectados : 0) -
+                                       (usoCol.u.enSala !== undefined ? usoCol.u.enSala : 0)) + " esperando"
+                                dot: Theme.amber
+                            }
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text { text: "Procesador del gateway"; color: Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true }
+                            Text {
+                                text: Math.round(usoCol.cpu) + "%"
+                                color: usoCol.apretado ? Theme.live : Theme.text
+                                font { pixelSize: 13; weight: Font.DemiBold }
+                            }
+                        }
+                        Rectangle {
+                            Layout.fillWidth: true
+                            height: 6; radius: 3
+                            color: Qt.rgba(1, 1, 1, 0.10)
+                            Rectangle {
+                                width: parent.width * Math.min(1, usoCol.cpu / 100)
+                                height: parent.height; radius: 3
+                                color: usoCol.cpu >= 85 ? Theme.live : usoCol.cpu >= 70 ? Theme.amber : Theme.ok
+                                Behavior on width { NumberAnimation { duration: 300 } }
+                            }
+                        }
+                        // Ancho de banda: el otro limite posible. Con muchos
+                        // invitados puede sobrar CPU y faltar red, y hasta
+                        // ahora no habia forma de saberlo.
+                        RowLayout {
+                            Layout.fillWidth: true
+                            visible: usoCol.u.kbpsEntrada !== undefined
+                            Text {
+                                Layout.fillWidth: true
+                                text: "Video por la red"
+                                color: Theme.textDim; font.pixelSize: 11
+                            }
+                            Text {
+                                text: "↓ " + page.mbits(usoCol.u.kbpsEntrada) +
+                                      "   ↑ " + page.mbits(usoCol.u.kbpsSalida)
+                                color: Theme.textFaint
+                                font { family: Theme.mono; pixelSize: 11 }
+                            }
+                        }
+                        // Hilo mas cargado: si uno solo se va a 100 mientras el
+                        // total esta bajo, el techo es ese nucleo y no la maquina.
+                        RowLayout {
+                            Layout.fillWidth: true
+                            visible: usoCol.u.hiloTop !== undefined
+                            Text {
+                                Layout.fillWidth: true
+                                text: "Hilo más cargado: " + (usoCol.u.hiloTop || "")
+                                color: Theme.textDim; font.pixelSize: 11; elide: Text.ElideRight
+                            }
+                            Text {
+                                text: Math.round(usoCol.u.hiloPct || 0) + "% de un núcleo"
+                                color: (usoCol.u.hiloPct || 0) >= 85 ? Theme.live
+                                     : (usoCol.u.hiloPct || 0) >= 65 ? Theme.amber : Theme.textFaint
+                                font { pixelSize: 11; weight: Font.DemiBold }
+                            }
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            color: usoCol.apretado ? Theme.amber : Theme.textFaint
+                            font.pixelSize: 11
+                            text: usoCol.u.cpuPct === undefined
+                                  ? "Esperando datos del gateway…"
+                                  : usoCol.apretado
+                                    ? "Está apretado: no sumes más invitados con cámara. Pedí que apaguen la suya a quien no esté hablando."
+                                    : "Memoria " + (usoCol.u.memMb !== undefined ? usoCol.u.memMb : 0) + " MB · " +
+                                      (usoCol.u.nucleos !== undefined ? usoCol.u.nucleos : 0) + " núcleos. " +
+                                      "Cada invitado con cámara es un video que hay que decodificar."
+                        }
+                    }
+                }
 
                 Panel {
                     Layout.fillWidth: true
@@ -416,10 +780,17 @@ Rectangle {
                     ColumnLayout {
                         anchors.fill: parent
                         spacing: 10
+                        // Invitar: el QR es lo que se le muestra a la persona.
                         RowLayout {
                             Layout.fillWidth: true
-                            TextField { Layout.fillWidth: true; readOnly: true; text: conf.guestUrl; font.pixelSize: 11; selectByMouse: true }
-                            GlassButton { text: "Copiar"; compact: true; onClicked: conf.copyToClipboard(conf.guestUrl) }
+                            spacing: 6
+                            GlassButton {
+                                Layout.fillWidth: true
+                                text: "Invitar con QR"; icon: "⬚"; active: true
+                                onClicked: qrDlg.show("local")
+                                ToolTip.visible: hovered; ToolTip.delay: 400
+                                ToolTip.text: "Muestra el código para escanear. Adentro se elige red local o internet, y si el PIN va incluido."
+                            }
                         }
                         RowLayout {
                             Layout.fillWidth: true
@@ -518,7 +889,7 @@ Rectangle {
                             Layout.fillWidth: true
                             TextField { Layout.fillWidth: true; readOnly: true; font.pixelSize: 11
                                         id: bestUrlField; text: direct.net && direct.net.bestUrl ? direct.net.bestUrl : "" }
-                            GlassButton { text: "Copiar"; compact: true; onClicked: conf.copyToClipboard(bestUrlField.text) }
+                            GlassButton { text: "Copiar"; compact: true; onClicked: Studio.copiar(bestUrlField.text) }
                         }
                         GlassButton { text: "Configurar servidor WireGuard…"; compact: true; enabled: conf.online; onClicked: wgDlg.open() }
                     }
@@ -584,7 +955,8 @@ Rectangle {
                         }
                     }
                 }
-            }
+            } // ColumnLayout de la columna derecha
+            } // ScrollView
         }
     }
 
@@ -593,16 +965,27 @@ Rectangle {
         id: profDlg
         anchors.centerIn: parent
         modal: true
-        title: "Datos del orador"
+        title: "Datos de " + (profDlg.whoName !== "" ? "«" + profDlg.whoName + "»" : "la persona")
         standardButtons: Dialog.Save | Dialog.Cancel
         property string who: ""
+        property string whoName: ""
+        property bool withTime: true
         function edit(id, name, info, contact, sec) {
-            who = id; profName.text = name; profInfo.text = info; profContact.text = contact
+            who = id; whoName = name; withTime = true
+            profName.text = name; profInfo.text = info; profContact.text = contact
             profTime.text = page.fmt(sec * 1000)
+            open()
+        }
+        /// Desde el lobby o la sala: los mismos datos, sin el tiempo de orador.
+        function editPerson(id, name, info, contact) {
+            who = id; whoName = name; withTime = false
+            profName.text = name; profInfo.text = info; profContact.text = contact
+            profTime.text = ""
             open()
         }
         onAccepted: {
             conf.setProfile(who, profName.text, profInfo.text, profContact.text)
+            if (!withTime) return
             const s = conf.parseDuration(profTime.text)
             if (s > 0) conf.speakerTime(who, s)
         }
@@ -616,8 +999,8 @@ Rectangle {
             TextField { id: profInfo; Layout.preferredWidth: 300; maximumLength: 200 }
             Text { text: "Contacto"; color: Theme.textDim }
             TextField { id: profContact; Layout.preferredWidth: 300; maximumLength: 120 }
-            Text { text: "Tiempo"; color: Theme.textDim }
-            TextField { id: profTime; Layout.preferredWidth: 90; placeholderText: "m:ss" }
+            Text { text: "Tiempo"; color: Theme.textDim; visible: profDlg.withTime }
+            TextField { id: profTime; Layout.preferredWidth: 90; placeholderText: "m:ss"; visible: profDlg.withTime }
         }
     }
 
@@ -701,17 +1084,33 @@ Rectangle {
                     text: qrDlg.loading ? "Generando…" : qrDlg.message
                 }
             }
+            // Donde sirve el QR: se puede cambiar sin cerrar.
+            RowLayout {
+                Layout.alignment: Qt.AlignHCenter
+                visible: !qrDlg.board
+                spacing: 6
+                GlassButton {
+                    compact: true; text: "Red local"
+                    active: qrDlg.target === "local"
+                    onClicked: qrDlg.show("local")
+                }
+                GlassButton {
+                    compact: true; text: "Por internet"
+                    active: qrDlg.target === "remote"
+                    onClicked: qrDlg.show("remote")
+                }
+            }
             CheckBox {
                 id: qrPin
                 visible: !qrDlg.board
-                text: "Incluir PIN (entran sin tipearlo)"
+                text: "Incluir el PIN en el QR (entran sin tipearlo)"
                 onToggled: qrDlg.show(qrDlg.target)
             }
             RowLayout {
                 visible: qrDlg.url !== ""
                 Layout.preferredWidth: 300
                 TextField { id: qrUrl; Layout.fillWidth: true; readOnly: true; text: qrDlg.url; font.pixelSize: 11 }
-                GlassButton { text: "Copiar"; compact: true; onClicked: conf.copyToClipboard(qrDlg.url) }
+                GlassButton { text: "Copiar"; compact: true; onClicked: Studio.copiar(qrDlg.url) }
             }
             Text {
                 Layout.preferredWidth: 300
@@ -779,7 +1178,7 @@ Rectangle {
                 Layout.preferredHeight: 260
                 TextArea { readOnly: true; text: wgDlg.config; font.family: "monospace"; font.pixelSize: 11; wrapMode: TextEdit.NoWrap; selectByMouse: true }
             }
-            GlassButton { visible: wgDlg.config !== ""; text: "Copiar configuracion"; compact: true; onClicked: conf.copyToClipboard(wgDlg.config) }
+            GlassButton { visible: wgDlg.config !== ""; text: "Copiar configuracion"; compact: true; onClicked: Studio.copiar(wgDlg.config) }
         }
     }
 

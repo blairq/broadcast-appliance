@@ -59,6 +59,10 @@ find_package(Threads REQUIRED)
 # --- ba_core (mismo codigo que el del producto, otra STL) --------------------
 file(GLOB_RECURSE CORE_SOURCES CONFIGURE_DEPENDS "${BA_SRC}/src/core/*.cpp")
 list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/tests/.*")
+# El reconocimiento de rostros es de la interfaz (A), no del gateway: B no ve
+# video de camaras, ve sesiones de WebRTC. Sacarlo de aca ademas evita que el
+# gateway arrastre ONNX Runtime por nada.
+list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/rostros/.*")
 if(APPLE)
     list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/platform/.*_(win|linux)\\.cpp$")
     file(GLOB CORE_MM CONFIGURE_DEPENDS "${BA_SRC}/src/core/platform/*_mac.mm")
@@ -66,8 +70,13 @@ if(APPLE)
 else()
     list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/platform/.*_(win|mac)\\.cpp$")
 endif()
+# qrcodegen: el nucleo lo usa para generar QR (src/core/qr/Qr.cpp), asi que
+# esta copia del nucleo tambien lo necesita, con su header a la vista.
+list(APPEND CORE_SOURCES "${BA_SRC}/third_party/qrcodegen/qrcodegen.cpp")
+
 add_library(ba_core_cr STATIC ${CORE_SOURCES})
-target_include_directories(ba_core_cr PUBLIC "${BA_SRC}/src/core" ${BA_C_INCLUDES})
+target_include_directories(ba_core_cr PUBLIC "${BA_SRC}/src/core"
+                           "${BA_SRC}/third_party/qrcodegen" ${BA_C_INCLUDES})
 target_link_libraries(ba_core_cr PUBLIC ${BA_C_LIBS} Threads::Threads)
 
 # --- Gateway ------------------------------------------------------------------

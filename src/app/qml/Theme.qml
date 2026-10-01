@@ -18,8 +18,22 @@ QtObject {
     readonly property color glassBorder: Qt.rgba(1, 1, 1, 0.13)
     readonly property color glassHighlight: Qt.rgba(1, 1, 1, 0.07)
     readonly property color field: Qt.rgba(1, 1, 1, 0.07)
+    // La paleta de los controles de Qt (TextField, ComboBox, Menu...). Vive
+    // ACA y no adentro de una ventana porque hay TRES que la necesitan: la
+    // principal, la de una pagina suelta y la de un panel suelto. Estaba
+    // escrita a mano solo en la principal, y por eso un buscador sacado a su
+    // ventana salia con fondo BLANCO en una aplicacion oscura.
+    readonly property color paletaBase: "#1b1b1f"
+    readonly property color paletaAlterna: "#222226"
+    readonly property color paletaBoton: "#26262b"
+    readonly property color paletaMedio: "#3a3a40"
+    readonly property color paletaOscura: "#101012"
+    readonly property color paletaClara: "#44444b"
     readonly property int radius: 22
     readonly property int radiusSmall: 12
     readonly property int gap: 12
     readonly property string font: "Inter, Noto Sans, DejaVu Sans, Sans"
+    // Para numeros que se leen en columna (tiempos, relojes, contadores): con
+    // ancho fijo no bailan cuando cambian.
+    readonly property string mono: "JetBrains Mono, DejaVu Sans Mono, Consolas, Monospace"
 }

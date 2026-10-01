@@ -50,7 +50,49 @@ if(NOT BA_CORE_SOURCES)
     set(BA_CORE_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/placeholder.cpp")
 endif()
 
+# Generador de QR con estilo (qr/Qr.cpp): qrcodegen vive en third_party y lo
+# comparten el nucleo y el gateway. Un solo generador para todo el sistema,
+# porque el mismo QR sale por la pantalla, por un televisor y por un archivo.
+set(BA_QRCODEGEN "${CMAKE_SOURCE_DIR}/third_party/qrcodegen")
+list(APPEND BA_CORE_SOURCES "${BA_QRCODEGEN}/qrcodegen.cpp")
+
+# --- Reconocimiento de rostros (opcional) ------------------------------------
+# Solo si estan los modelos y el runtime vendoreados (`make deps-rostros`).
+# Sin eso, el nucleo compila igual y el resto del sistema no se entera: esto
+# agrega una capacidad, no es un cimiento.
+set(BA_ROSTROS_DIR "${CMAKE_SOURCE_DIR}/extern/rostros")
+set(BA_HAVE_ROSTROS OFF)
+# El runtime de ESTA plataforma: extern/rostros tiene uno solo (el que bajo
+# `make deps-rostros`), y el de Linux en un build de Windows no enlaza.
+if(WIN32)
+    set(_ba_ort_lib "${BA_ROSTROS_DIR}/onnxruntime/lib/onnxruntime.lib")
+elseif(APPLE)
+    set(_ba_ort_lib "${BA_ROSTROS_DIR}/onnxruntime/lib/libonnxruntime.dylib")
+else()
+    set(_ba_ort_lib "${BA_ROSTROS_DIR}/onnxruntime/lib/libonnxruntime.so")
+endif()
+if(EXISTS "${BA_ROSTROS_DIR}/onnxruntime/include/onnxruntime_cxx_api.h"
+   AND EXISTS "${BA_ROSTROS_DIR}/modelos/yunet.onnx" AND EXISTS "${_ba_ort_lib}")
+    set(BA_HAVE_ROSTROS ON)
+else()
+    list(FILTER BA_CORE_SOURCES EXCLUDE REGEX ".*/rostros/.*")
+endif()
+
 add_library(ba_core STATIC ${BA_CORE_SOURCES})
+if(BA_HAVE_ROSTROS)
+    target_include_directories(ba_core PUBLIC "${BA_ROSTROS_DIR}/onnxruntime/include")
+    target_link_libraries(ba_core PUBLIC "${_ba_ort_lib}")
+    target_compile_definitions(ba_core PUBLIC BA_HAVE_ROSTROS=1)
+    # La biblioteca viaja en el bundle, como todo lo demas.
+    file(GLOB _ba_ort_runtime "${BA_ROSTROS_DIR}/onnxruntime/lib/libonnxruntime.so*"
+                              "${BA_ROSTROS_DIR}/onnxruntime/lib/onnxruntime.dll"
+                              "${BA_ROSTROS_DIR}/onnxruntime/lib/libonnxruntime*.dylib")
+    install(FILES ${_ba_ort_runtime} DESTINATION bin/64bit)
+    install(DIRECTORY "${BA_ROSTROS_DIR}/modelos/" DESTINATION data/rostros FILES_MATCHING PATTERN "*.onnx")
+    install(FILES "${BA_ROSTROS_DIR}/onnxruntime/LICENSE" DESTINATION data/licencias
+            RENAME onnxruntime-MIT.txt OPTIONAL)
+endif()
+target_include_directories(ba_core PUBLIC "${BA_QRCODEGEN}")
 
 # Incluye públicos: los headers de ba_core se consumen desde tests y desde
 # launcher/app/gateway.
@@ -100,6 +142,10 @@ endif()
 file(GLOB_RECURSE BA_CORE_TESTS CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_*.cpp"
 )
+# Sin el runtime de rostros, su codigo no esta en ba_core: su test tampoco.
+if(NOT BA_HAVE_ROSTROS)
+    list(FILTER BA_CORE_TESTS EXCLUDE REGEX ".*/test_rostros\\.cpp$")
+endif()
 
 foreach(test_source ${BA_CORE_TESTS})
     get_filename_component(test_name ${test_source} NAME_WE)

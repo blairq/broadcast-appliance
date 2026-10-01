@@ -49,7 +49,12 @@ ExternalProject_Add(ba_win_mt
 
 install(PROGRAMS "${BA_WIN_MT_DIR}/src/launcher/BroadcastAppliance.exe" DESTINATION . COMPONENT bundle)
 install(PROGRAMS "${BA_WIN_MT_DIR}/src/gateway/ba-gateway.exe" DESTINATION bin/64bit COMPONENT bundle)
-foreach(_web guest admin board)
+# OJO: esta lista es la de WINDOWS y vive aparte de la de src/gateway, porque
+# ahi el gateway se compila en un sub-build /MT cuyas reglas de instalacion no
+# llegan al bundle. O sea que hay que tocar LAS DOS al agregar una vista web.
+# Ya paso: el teleprompter y los rotulos existian en Linux y en Windows no,
+# sin que nada lo avisara (la pagina simplemente daba 404).
+foreach(_web guest admin board prompter rotulos pantalla cast comun)
     if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/${_web}")
         install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/${_web}/" DESTINATION Web/${_web} COMPONENT bundle)
     endif()

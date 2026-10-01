@@ -1,0 +1,304 @@
+// ============================================================================
+// src/app/evento/EventoStore.cpp — ver EventoStore.hpp
+// ============================================================================
+#include "evento/EventoStore.hpp"
+
+#include <algorithm>
+#include <chrono>
+#include <cstdio>
+#include <ctime>
+#include <fstream>
+#include <sstream>
+
+namespace fs = std::filesystem;
+
+namespace ba::evento {
+namespace {
+
+using nlohmann::json;
+
+constexpr const char* kGuion = "evento.json";
+
+/// Caracteres que Windows no acepta en un nombre de archivo (Linux solo
+/// prohibe '/', pero el disco es portable y tiene que abrir en los dos).
+bool prohibido(char c) {
+    if (static_cast<unsigned char>(c) < 0x20) return true;
+    static const std::string kMalos = R"(<>:"/\|?*)";
+    return kMalos.find(c) != std::string::npos;
+}
+
+std::string ahoraParaNombre() {
+    const auto t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    std::tm tm{};
+#ifdef _WIN32
+    localtime_s(&tm, &t);
+#else
+    localtime_r(&t, &tm);
+#endif
+    char buf[32];
+    std::snprintf(buf, sizeof(buf), "%04d%02d%02d-%02d%02d%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+                  tm.tm_hour, tm.tm_min, tm.tm_sec);
+    return buf;
+}
+
+void ponerErr(std::string* err, const std::string& texto) {
+    if (err != nullptr) *err = texto;
+}
+
+} // namespace
+
+std::string nombreDeCarpeta(const std::string& nombre) {
+    std::string out;
+    out.reserve(nombre.size());
+    for (const char c : nombre) {
+        if (prohibido(c)) continue;
+        out.push_back(c == ' ' ? '-' : c);
+    }
+    // Un nombre que termina en punto o espacio no se puede crear en Windows.
+    while (!out.empty() && (out.back() == '.' || out.back() == '-'))
+        out.pop_back();
+    while (!out.empty() && out.front() == '-')
+        out.erase(out.begin());
+    if (out.size() > 80) out.resize(80);
+    return out;
+}
+
+namespace {
+
+/// Resuelve la ruta de un medio DENTRO de la subcarpeta que le corresponde.
+/// Devuelve vacio si el guion intenta salirse de ahi (un ".." en un evento
+/// que vino de otro lado no tiene por que leer el disco del que lo abre).
+fs::path dentroDe(const fs::path& base, const std::string& sub, std::string rel) {
+    // "Medios/x.wav" y "x.wav" valen lo mismo: el operador escribe lo que le
+    // sale y las dos formas apuntan al mismo lado.
+    const std::string prefijo = sub + "/";
+    if (rel.rfind(prefijo, 0) == 0) rel = rel.substr(prefijo.size());
+    const fs::path dir = base / sub;
+    const fs::path abs = (dir / rel).lexically_normal();
+    const fs::path raiz = dir.lexically_normal();
+    const auto rel2 = abs.lexically_relative(raiz);
+    // `generic_string()` y no `native()`: en Windows `native()` es un wstring
+    // y no se puede comparar con ".." literal, asi que el build cruzado no
+    // pasaba de aca. `generic_string` da std::string en las tres plataformas.
+    if (rel2.empty() || rel2.generic_string().rfind("..", 0) == 0) return {};
+    return abs;
+}
+
+} // namespace
+
+std::vector<Reparo> revisarArchivos(const Evento& e, const fs::path& carpeta) {
+    std::vector<Reparo> rs;
+    std::error_code ec;
+    for (std::size_t bi = 0; bi < e.bloques.size(); ++bi) {
+        const Bloque& b = e.bloques[bi];
+        for (std::size_t ci = 0; ci < b.cues.size(); ++ci) {
+            const Cue& c = b.cues[ci];
+            std::string clave;
+            std::string sub;
+            switch (c.tipo) {
+                case Tipo::Musica:
+                    if (c.datos.value("accion", std::string("arrancar")) == "parar") continue;
+                    clave = "archivo";
+                    sub = "Medios";
+                    break;
+                case Tipo::Video:
+                    clave = "archivo";
+                    sub = "Medios";
+                    break;
+                case Tipo::Teleprompter:
+                    clave = "discurso";
+                    sub = "Discursos";
+                    break;
+                default: continue;
+            }
+            const std::string rel = c.datos.value(clave, std::string());
+            if (rel.empty()) continue; // ya lo dijo la revision del guion
+            const int ib = static_cast<int>(bi);
+            const int ic = static_cast<int>(ci);
+            const fs::path p = dentroDe(carpeta, sub, rel);
+            if (p.empty()) {
+                rs.push_back({ib, ic, true, "\"" + rel + "\" apunta fuera de " + sub + "/"});
+                continue;
+            }
+            if (!fs::exists(p, ec)) {
+                rs.push_back({ib, ic, true, "falta el archivo " + sub + "/" + rel});
+                continue;
+            }
+            if (fs::is_directory(p, ec)) {
+                rs.push_back({ib, ic, true, sub + "/" + rel + " es una carpeta, no un archivo"});
+                continue;
+            }
+            if (fs::file_size(p, ec) == 0 && !ec)
+                rs.push_back({ib, ic, true, sub + "/" + rel + " esta vacio"});
+        }
+    }
+    return rs;
+}
+
+EventoStore::EventoStore(fs::path raiz) : raiz_(std::move(raiz)) {
+    std::error_code ec;
+    fs::create_directories(raiz_, ec);
+}
+
+std::vector<Ficha> EventoStore::listar() const {
+    std::vector<Ficha> fichas;
+    std::error_code ec;
+    if (!fs::is_directory(raiz_, ec)) return fichas;
+    for (const fs::directory_entry& d : fs::directory_iterator(raiz_, ec)) {
+        if (!d.is_directory(ec)) continue;
+        const std::string carpeta = d.path().filename().string();
+        bool ok = false;
+        const Evento e = cargar(carpeta, &ok);
+        // Una carpeta sin guion no es un evento: puede ser cualquier cosa que
+        // el operador dejo ahi. No se la inventa como evento vacio.
+        if (!ok) continue;
+        Ficha f;
+        f.carpeta = carpeta;
+        f.nombre = e.nombre.empty() ? carpeta : e.nombre;
+        f.fecha = e.fecha;
+        f.inicio = e.inicio;
+        f.huso = e.huso;
+        f.duracionSeg = e.duracionSeg();
+        f.bloques = e.bloques.size();
+        f.cues = e.cantidadDeCues();
+        const auto cuando = fs::last_write_time(d.path() / kGuion, ec);
+        if (!ec) {
+            f.modificadoTic = static_cast<std::int64_t>(cuando.time_since_epoch().count());
+            f.tieneModificado = true;
+        }
+        fichas.push_back(std::move(f));
+    }
+    std::sort(fichas.begin(), fichas.end(),
+              [](const Ficha& a, const Ficha& b) { return a.nombre < b.nombre; });
+    return fichas;
+}
+
+std::string EventoStore::ultimoTocado() const {
+    std::string mejor;
+    std::int64_t masReciente = 0;
+    bool hay = false;
+    for (const Ficha& f : listar()) {
+        if (!f.tieneModificado) continue;
+        // Ojo con comparar contra cero o contra -1: estos tics son negativos
+        // en libstdc++ (ver Ficha::modificadoTic). El primero que aparece
+        // marca el piso.
+        if (!hay || f.modificadoTic > masReciente) {
+            masReciente = f.modificadoTic;
+            mejor = f.carpeta;
+            hay = true;
+        }
+    }
+    return mejor;
+}
+
+std::string EventoStore::crear(const std::string& nombre, std::string* err) {
+    const std::string base = nombreDeCarpeta(nombre);
+    if (base.empty()) {
+        ponerErr(err, "ese nombre no sirve para una carpeta");
+        return {};
+    }
+    std::error_code ec;
+    // Si ya hay una con ese nombre, se le agrega un numero: pisar el evento
+    // de otro dia por tener el mismo titulo seria imperdonable.
+    std::string carpeta = base;
+    for (int i = 2; fs::exists(raiz_ / carpeta, ec) && i < 1000; ++i)
+        carpeta = base + "-" + std::to_string(i);
+
+    const fs::path dir = raiz_ / carpeta;
+    if (!fs::create_directories(dir, ec)) {
+        ponerErr(err, "no se pudo crear la carpeta: " + ec.message());
+        return {};
+    }
+    for (const char* sub : {"Medios", "Discursos", "Respaldos"})
+        fs::create_directories(dir / sub, ec);
+
+    Evento e;
+    e.nombre = nombre;
+    if (!guardar(carpeta, e, err)) return {};
+    return carpeta;
+}
+
+Evento EventoStore::cargar(const std::string& carpeta, bool* ok, std::string* err) const {
+    if (ok != nullptr) *ok = false;
+    const fs::path archivo = raiz_ / carpeta / kGuion;
+    std::ifstream in(archivo);
+    if (!in) {
+        ponerErr(err, "no hay guion en " + archivo.string());
+        return {};
+    }
+    std::stringstream ss;
+    ss << in.rdbuf();
+    const json j = json::parse(ss.str(), nullptr, false);
+    if (j.is_discarded()) {
+        // El archivo esta ahi pero roto. No se devuelve un evento vacio como
+        // si nada: el operador tiene que enterarse ANTES de empezar a editar
+        // encima, porque el respaldo del guardado siguiente seria el roto.
+        ponerErr(err, "el guion esta dañado (JSON invalido): mira en Respaldos/");
+        return {};
+    }
+    if (ok != nullptr) *ok = true;
+    return Evento::deJson(j);
+}
+
+bool EventoStore::guardar(const std::string& carpeta, const Evento& e, std::string* err) const {
+    const fs::path dir = raiz_ / carpeta;
+    std::error_code ec;
+    if (!fs::is_directory(dir, ec)) {
+        ponerErr(err, "no existe la carpeta del evento");
+        return false;
+    }
+    const fs::path archivo = dir / kGuion;
+
+    // Respaldo del que estaba. Que falle el respaldo no impide guardar, pero
+    // se avisa: es peor quedarse sin poder guardar en medio de un evento.
+    if (fs::exists(archivo, ec)) {
+        fs::create_directories(dir / "Respaldos", ec);
+        fs::copy_file(archivo, dir / "Respaldos" / ("evento-" + ahoraParaNombre() + ".json"),
+                      fs::copy_options::overwrite_existing, ec);
+    }
+
+    // Se escribe a un temporal y se renombra: si se corta la luz en el medio,
+    // el guion que estaba sigue entero.
+    const fs::path tmp = dir / "evento.json.nuevo";
+    {
+        std::ofstream out(tmp, std::ios::binary | std::ios::trunc);
+        if (!out) {
+            ponerErr(err, "no se pudo escribir en la carpeta del evento");
+            return false;
+        }
+        out << e.aJson().dump(2) << "\n";
+        if (!out.good()) {
+            ponerErr(err, "no se pudo escribir el guion entero");
+            return false;
+        }
+    }
+    fs::rename(tmp, archivo, ec);
+    if (ec) {
+        ponerErr(err, "no se pudo reemplazar el guion: " + ec.message());
+        fs::remove(tmp, ec);
+        return false;
+    }
+    return true;
+}
+
+bool EventoStore::borrar(const std::string& carpeta, std::string* err) const {
+    if (carpeta.empty() || carpeta.find("..") != std::string::npos ||
+        carpeta.find('/') != std::string::npos || carpeta.find('\\') != std::string::npos) {
+        ponerErr(err, "nombre de carpeta invalido");
+        return false;
+    }
+    std::error_code ec;
+    const fs::path dir = raiz_ / carpeta;
+    if (!fs::is_directory(dir, ec)) {
+        ponerErr(err, "no existe esa carpeta");
+        return false;
+    }
+    fs::remove_all(dir, ec);
+    if (ec) {
+        ponerErr(err, "no se pudo borrar: " + ec.message());
+        return false;
+    }
+    return true;
+}
+
+} // namespace ba::evento

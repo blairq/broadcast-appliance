@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -126,8 +127,11 @@ def test_cpp_binary_runs_clean(build_dir: Path | None, binary: Path | None) -> N
     if binary is None or not binary.is_file():
         pytest.skip("binary not built yet (build in progress); nothing to run")
     # Sin sesion grafica (CI): Qt usa la plataforma offscreen, como en ctest.
+    # Solo en Linux: en macOS (y Windows) offscreen no da contexto OpenGL y el
+    # renderizador de graficos no puede dibujar (ver src/grafico/main.cpp).
     env = os.environ.copy()
-    env.setdefault("QT_QPA_PLATFORM", "offscreen")
+    if sys.platform.startswith("linux"):
+        env.setdefault("QT_QPA_PLATFORM", "offscreen")
     result = subprocess.run(
         [str(binary)],
         capture_output=True,

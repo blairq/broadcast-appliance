@@ -14,6 +14,8 @@
 
 #include "audio/ClapEditor.hpp"
 
+#include <filesystem>
+
 #ifdef _WIN32
 #include <windows.h>
 #else
@@ -21,6 +23,10 @@
 #endif
 
 namespace ba::app::audio {
+
+// Puertos de audio que se le leen a un modulo. LSP tiene mezcladores de 16
+// entradas: con el tope viejo (8) la mitad no aparecia en la tarjeta.
+constexpr uint32_t kMaxPorts = 32;
 
 namespace {
 
@@ -36,7 +42,25 @@ void* openLib(const std::string& path, std::string* error) {
         *error = "LoadLibrary fallo (" + std::to_string(GetLastError()) + ")";
     return reinterpret_cast<void*>(h);
 #else
-    void* h = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
+    std::string bin = path;
+#if defined(__APPLE__)
+    // macOS: un .clap es un bundle (carpeta) con el binario en Contents/MacOS.
+    std::error_code ec;
+    if (std::filesystem::is_directory(path, ec)) {
+        const std::filesystem::path macos = std::filesystem::path(path) / "Contents" / "MacOS";
+        const std::filesystem::path named = macos / std::filesystem::path(path).stem();
+        if (std::filesystem::exists(named, ec)) {
+            bin = named.string();
+        } else {
+            for (const auto& e : std::filesystem::directory_iterator(macos, ec))
+                if (e.is_regular_file(ec)) {
+                    bin = e.path().string();
+                    break;
+                }
+        }
+    }
+#endif
+    void* h = dlopen(bin.c_str(), RTLD_NOW | RTLD_LOCAL);
     if (h == nullptr && error != nullptr) *error = dlerror();
     return h;
 #endif
@@ -316,7 +340,7 @@ std::unique_ptr<ClapInstance> ClapInstance::create(std::shared_ptr<ClapLibrary> 
     for (bool isIn : {true, false}) {
         auto& list = isIn ? inst->inputs_ : inst->outputs_;
         const uint32_t n = ports != nullptr ? ports->count(inst->plugin_, isIn) : 0;
-        for (uint32_t i = 0; i < n && i < 8; ++i) {
+        for (uint32_t i = 0; i < n && i < kMaxPorts; ++i) {
             clap_audio_port_info_t pi{};
             if (!ports->get(inst->plugin_, i, isIn, &pi)) continue;
             list.push_back({pi.name, pi.channel_count, (pi.flags & CLAP_AUDIO_PORT_IS_MAIN) != 0});
@@ -549,8 +573,8 @@ void ClapInstance::process(float* const* const* in, float* const* const* out, ui
     clap_input_events_t inEv{&list, evSize, evGet};
     clap_output_events_t outEv{nullptr, evPush};
 
-    clap_audio_buffer_t ib[8]{};
-    clap_audio_buffer_t ob[8]{};
+    clap_audio_buffer_t ib[kMaxPorts]{};
+    clap_audio_buffer_t ob[kMaxPorts]{};
     for (size_t p = 0; p < inputs_.size(); ++p) {
         ib[p].data32 = const_cast<float**>(in[p]);
         ib[p].channel_count = inputs_[p].channels;

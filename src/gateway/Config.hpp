@@ -20,7 +20,7 @@
 //   No hay estado mutable tras el parse, por lo que no necesita lock.
 //
 // Estrategia de errores:
-//   No lanza. parseArgs acota los valores a rangos validos (guests 1..4, puertos
+//   No lanza. parseArgs acota los valores a rangos validos (guests 1..kMaxGuests, puertos
 //   1..65535, duracion >= 0). Un argumento desconocido se ignora (tolerante).
 // ============================================================================
 #pragma once
@@ -45,7 +45,10 @@ namespace ba::gateway {
 
 /// Rango de invitados soportado (spec §3.2, §8.2: 1 a 4 invitados).
 inline constexpr int kMinGuests = 1;
-inline constexpr int kMaxGuests = 4;
+// Tope de invitados en el programa. Cada uno es una conexion WebRTC que hay
+// que decodificar: el techo real lo pone la maquina (ver el panel de uso de la
+// sala), no este numero.
+inline constexpr int kMaxGuests = 16;
 
 /// Configuracion del gateway (CLI + rutas). Ver el header para el detalle.
 struct Config {
@@ -71,6 +74,8 @@ struct Config {
     int audioChannels = 2;    // canales del retorno de audio
     int videoW = 1280;        // resolucion del slot de video (BA.Guest.<n>)
     int videoH = 720;
+    int programVideoW = 1280; // resolucion del retorno del PROGRAMA (pantallas)
+    int programVideoH = 720;
     int guestVideoW = 640; // resolucion del retorno de video al invitado
     int guestVideoH = 360;
     // --- Sala / API de control ---------------------------------------------
@@ -129,6 +134,8 @@ struct Config {
         metricsPort = j.value("metricsPort", metricsPort);
         videoW = j.value("videoW", videoW);
         videoH = j.value("videoH", videoH);
+        programVideoW = j.value("programVideoW", programVideoW);
+        programVideoH = j.value("programVideoH", programVideoH);
         guestVideoW = j.value("guestVideoW", guestVideoW);
         guestVideoH = j.value("guestVideoH", guestVideoH);
         adminPort = j.value("adminPort", adminPort);
@@ -214,6 +221,8 @@ struct Config {
         if (audioChannels <= 0) audioChannels = 2;
         if (videoW <= 0) videoW = 1280;
         if (videoH <= 0) videoH = 720;
+        if (programVideoW <= 0) programVideoW = 1280;
+        if (programVideoH <= 0) programVideoH = 720;
         if (guestVideoW <= 0) guestVideoW = 640;
         if (guestVideoH <= 0) guestVideoH = 360;
         if (maxUploadMB <= 0) maxUploadMB = 2048;

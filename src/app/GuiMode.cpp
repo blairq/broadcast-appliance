@@ -13,7 +13,12 @@
 #include <QDir>
 #include <QFontDatabase>
 #include <QGuiApplication>
+#include <QIcon>
 #include <QQmlApplicationEngine>
+#include <QQuickWindow>
+
+#include "diag/DiarioDeArranque.hpp"
+#include "diag/Registro.hpp"
 #include <QQmlContext>
 #include <QQuickStyle>
 #include <QQuickWindow>
@@ -29,6 +34,7 @@
 #include "term/TerminalView.hpp"
 #include "ui/FrameService.hpp"
 #include "ui/InputsViewModel.hpp"
+#include "ui/QrViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
 #include "ui/VideoItem.hpp"
 
@@ -50,7 +56,16 @@ int runGui(int argc, char** argv) {
 #endif
 
     QGuiApplication app(argc, argv);
+
     QGuiApplication::setApplicationName("Broadcast Appliance");
+    // El logo en la barra de tareas, el Dock y el selector de ventanas. Varios
+    // tamaños: el sistema elige (los chicos son el dibujo sin las ondas).
+    {
+        QIcon icono;
+        for (int lado : {16, 24, 32, 48, 64, 128, 256, 512})
+            icono.addFile(QString(":/icons/broadcast-appliance-%1.png").arg(lado), QSize(lado, lado));
+        QGuiApplication::setWindowIcon(icono);
+    }
     QQuickStyle::setStyle("Basic"); // controles propios encima; nada nativo que desentone
 
     AppRuntime rt;
@@ -84,6 +99,9 @@ int runGui(int argc, char** argv) {
 
         QQmlApplicationEngine engine;
         engine.addImageProvider("inputs", new InputThumbProvider(rt)); // miniaturas de la pagina Entradas
+        // La vista previa del generador de QR: rasteriza el MISMO SVG que se
+        // exporta, asi lo que se ve es exactamente lo que sale.
+        engine.addImageProvider("qr", new QrImageProvider(vm.qrVm()));
         QObject::connect(&vm, &StudioViewModel::quitRequested, &app, &QGuiApplication::quit);
         engine.load(QUrl("qrc:/qml/Main.qml"));
         if (engine.rootObjects().isEmpty()) {
@@ -91,6 +109,22 @@ int runGui(int argc, char** argv) {
             rt.stop();
             return 3;
         }
+        // El arranque se da por terminado cuando la interfaz DIBUJO, no cuando
+        // termino de construirse: entre una cosa y la otra es donde se cuelga
+        // un QML roto, y eso es justo lo que el diario tiene que agarrar.
+        if (auto* w = qobject_cast<QQuickWindow*>(engine.rootObjects().first())) {
+            QObject::connect(
+                w, &QQuickWindow::frameSwapped, w,
+                []() {
+                    static bool avisado = false;
+                    if (avisado) return;
+                    avisado = true;
+                    ba::diag::diario().arranqueOk();
+                    ba::diag::registro().info("arranque terminado: la interfaz dibujo");
+                },
+                Qt::QueuedConnection);
+        }
+
         // Servidor MCP: un asistente de IA maneja y ve toda la app (127.0.0.1 + token).
         mcp::McpService mcpService(rt, vm);
         mcpService.setMainWindow([&engine]() -> QQuickWindow* {
@@ -108,6 +142,10 @@ int runGui(int argc, char** argv) {
                 std::printf("ba-app: el servidor MCP no pudo abrir el puerto %d\n", rt.config().mcpPort);
             }
         }
+        // El servidor arranca DESPUES de que la interfaz se dibujo, asi que hay
+        // que avisar: si no, la pestaña Asistente se queda con el cartel de
+        // «MCP apagado» que evaluo antes de tiempo.
+        agentVm->avisarMcpCambio();
         // Diagnostico: --ui-snapshot=<png> guarda una captura a los 6 s
         // (--ui-snapshot-delay=<ms> para cambiarlo).
         int snapshotDelayMs = 6000;

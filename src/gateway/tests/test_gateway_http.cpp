@@ -441,6 +441,20 @@ int main() {
         CHECK(statusLine(t).find("200") == std::string::npos, "path traversal codificado se rechaza");
     }
 
+    // --- 1b) /api/sala: lo que la pantalla de ingreso mira antes de entrar ---
+    {
+        const std::string r = roundTrip(port, "GET /api/sala HTTP/1.1\r\nHost: x\r\n\r\n");
+        CHECK(statusLine(r).find("200") != std::string::npos, "/api/sala responde 200");
+        CHECK(r.find("\"pedirDatos\":true") != std::string::npos,
+              "sin asistente atendiendo, al invitado se le piden los datos");
+        CHECK(r.find("\"pin\"") == std::string::npos, "/api/sala no filtra el PIN");
+        room.setIntake(true);
+        const std::string r2 = roundTrip(port, "GET /api/sala HTTP/1.1\r\nHost: x\r\n\r\n");
+        CHECK(r2.find("\"pedirDatos\":false") != std::string::npos,
+              "con el asistente atendiendo, no se le piden los datos");
+        room.setIntake(false);
+    }
+
     // --- 2) /api/join -------------------------------------------------------
     std::string token;
     {

@@ -204,6 +204,8 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
         for (const auto& sc : j["scenes"]) {
             SceneConfig scene;
             scene.name = get<std::string>(sc, "name", "Escena");
+            scene.folder = get<std::string>(sc, "folder", "");
+            scene.protegida = get<bool>(sc, "protegida", false);
             for (const auto& s : sc.value("sources", json::array())) {
                 scene.sources.push_back(sourceFromJson(s));
             }
@@ -219,6 +221,12 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
         }
         c.scenes.push_back(scene);
     }
+    if (j.contains("audioInputs") && j["audioInputs"].is_array()) {
+        c.audioInputs.clear();
+        for (const auto& s : j["audioInputs"]) {
+            c.audioInputs.push_back(sourceFromJson(s));
+        }
+    }
     if (c.scenes.empty()) {
         c.scenes.push_back(SceneConfig{"Principal", {}});
     }
@@ -230,13 +238,20 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
 }
 
 bool saveAppConfig(const fs::path& path, const AppConfig& c, const fs::path& dataRoot, std::string* err) {
+    json audioIns = json::array();
+    for (const auto& s : c.audioInputs) {
+        audioIns.push_back(sourceToJson(s));
+    }
     json scenes = json::array();
     for (const auto& sc : c.scenes) {
         json sources = json::array();
         for (const auto& s : sc.sources) {
             sources.push_back(sourceToJson(s));
         }
-        scenes.push_back({{"name", sc.name}, {"sources", sources}});
+        json j{{"name", sc.name}, {"folder", sc.folder}, {"sources", sources}};
+        // Solo si esta: un app.json lleno de "protegida": false no dice nada.
+        if (sc.protegida) j["protegida"] = true;
+        scenes.push_back(std::move(j));
     }
     const json j{
         {"video",
@@ -268,6 +283,7 @@ bool saveAppConfig(const fs::path& path, const AppConfig& c, const fs::path& dat
         {"ui", {{"theme", c.theme}, {"previewWidth", c.previewWidth}}},
         {"mcp", {{"enabled", c.mcpEnabled}, {"port", c.mcpPort}, {"approval", c.mcpApproval}}},
         {"scenes", scenes},
+        {"audioInputs", audioIns},
         {"currentScene", c.currentScene},
     };
     return writeJson(path, j, err);
@@ -290,6 +306,7 @@ GatewaySettings loadGatewaySettings(const fs::path& path) {
     s.guestVideoH = get(j, "guestVideoH", s.guestVideoH);
     s.adminPort = get(j, "adminPort", s.adminPort);
     s.lobby = get(j, "lobby", s.lobby);
+    s.autoIntake = get(j, "autoIntake", s.autoIntake);
     s.lobbySlots = std::clamp(get(j, "lobbySlots", s.lobbySlots), 0, 8);
     s.maxBackstage = std::clamp(get(j, "maxBackstage", s.maxBackstage), 0, 32);
     s.backstagePreviews = std::clamp(get(j, "backstagePreviews", s.backstagePreviews), 0, 8);
@@ -323,6 +340,7 @@ bool saveGatewaySettings(const fs::path& path, const GatewaySettings& s, std::st
                           {"guestVideoH", s.guestVideoH},
                           {"adminPort", s.adminPort},
                           {"lobby", s.lobby},
+                          {"autoIntake", s.autoIntake},
                           {"lobbySlots", s.lobbySlots},
                           {"maxBackstage", s.maxBackstage},
                           {"backstagePreviews", s.backstagePreviews},

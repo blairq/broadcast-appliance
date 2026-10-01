@@ -249,3 +249,40 @@ button.icon { background: none; border: none; padding: 4px 8px; color: var(--mut
   .speaker-bar.warn .sp-clock, .speaker-bar.over .sp-clock { animation: none; }
 }
 .hint a { color: var(--accent); }
+
+/* --- Vista del orador (teleprompter en su propia pantalla) ----------------- */
+/* El que habla no tiene por que mirar la proyeccion de atras: su texto y los
+   avisos del operador le llegan aca, de frente. */
+.orador {
+  margin: 10px 0 0;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+.orador-aviso {
+  background: var(--accent);
+  color: #1a0d05;
+  font-weight: 800;
+  font-size: 17px;
+  text-align: center;
+  padding: 9px 14px;
+  letter-spacing: 0.02em;
+}
+.orador-texto {
+  padding: 14px 16px;
+  font-size: clamp(17px, 2.6vw, 26px);
+  line-height: 1.5;
+  font-weight: 600;
+  white-space: pre-wrap;
+  max-height: 34vh;
+  overflow: hidden;
+}
+.orador-texto .leido { opacity: 0.3; }
+.orador-texto .aqui { color: var(--accent); }
+.orador-pie {
+  padding: 7px 16px 11px;
+  color: var(--muted);
+  font-size: 12px;
+  border-top: 1px solid var(--line);
+}

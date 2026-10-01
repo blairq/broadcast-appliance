@@ -12,6 +12,8 @@
 
 #include "SignalingServer.hpp"
 
+#include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cstdio>
 #include <filesystem>
@@ -23,6 +25,7 @@
 #include "ipc/ControlProtocol.hpp"
 #include "Log.hpp"
 #include "MediaPump.hpp"
+#include "qr/Qr.hpp"
 #include "Room.hpp"
 #include "security/SecretsStore.hpp" // randomSecretHex (ids de participante)
 #include "security/TokenService.hpp" // nowUnix() para el rate-limit por IP
@@ -43,6 +46,20 @@ using json = nlohmann::json;
 using ba::ipc::Frame;
 
 namespace {
+
+/// Un QR como SVG, para la pagina que se manda a un televisor. En SVG y no en
+/// PNG porque un QR son cuadraditos: escala sin verse borroso en una pantalla
+/// de 55 pulgadas y pesa menos que la imagen.
+/// El QR de una pantalla, con el estilo que venga en la direccion.
+///
+/// ANTES ESTO DIBUJABA SU PROPIO QR: negro sobre blanco, esquinas cuadradas,
+/// correccion fija. O sea que un codigo guardado con su icono y sus esquinas
+/// redondeadas se veia de una manera en la biblioteca y salia de otra en el
+/// televisor. El generador con estilo vive en el nucleo justamente para que
+/// eso no pase (ver qr/Qr.hpp), y este era el unico lugar que no lo usaba.
+std::string qrSvg(const std::string& texto, const std::string& query) {
+    return ba::qr::svg(texto, ba::qr::desdeConsulta(query));
+}
 
 int64_t nowMs() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -131,6 +148,29 @@ bool SignalingServer::start() {
         }
     }
     return true;
+}
+
+std::vector<std::string> SignalingServer::tomarAcreditaciones() {
+    std::lock_guard<std::mutex> g(publicoM_);
+    std::vector<std::string> out;
+    out.swap(acreditaciones_);
+    return out;
+}
+
+void SignalingServer::setPublicoInfo(const nlohmann::json& info) {
+    std::lock_guard<std::mutex> g(publicoM_);
+    publicoInfo_ = info.is_object() ? info : nlohmann::json::object();
+}
+
+nlohmann::json SignalingServer::publicoInfo() const {
+    std::lock_guard<std::mutex> g(publicoM_);
+    return publicoInfo_;
+}
+
+void SignalingServer::setPublicoFondo(std::string bytes, std::string tipo) {
+    std::lock_guard<std::mutex> g(publicoM_);
+    fondoBytes_ = std::move(bytes);
+    fondoTipo_ = std::move(tipo);
 }
 
 void SignalingServer::stop() {
@@ -340,9 +380,26 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, boo
         const std::string pid = wsOpen(fd, headers, query, clientIp);
         if (pid.empty()) return;
         const uint64_t gen = registerConn(pid, fd);
+        // La pantalla no espera nada de la sala: se le dice ya que arme su
+        // PeerConnection (un invitado espera a tener lugar).
+        if (esPantalla(pid))
+            sendToGuest(pid, json{{"type", "hello"},
+                                  {"pantalla", true},
+                                  {"id", pid},
+                                  // Con esto vuelve sola si se le corta el WS:
+                                  // el token de ingreso ya se gasto.
+                                  {"key", claveDePantalla(pid)}});
         wsLoop(fd, pid, gen);
         const bool current = unregisterConn(pid, gen);
         releaseSession(pid, gen, false);
+        if (pid.rfind("superficie:", 0) == 0) {
+            superficies_.desconectar(pid);
+            return;
+        }
+        if (esPantalla(pid)) {
+            bajaPantalla(pid);
+            return;
+        }
         // Solo la conexion VIGENTE informa la desconexion: una vieja que cierra
         // tarde no debe marcar como caido a quien ya se reengancho.
         if (current) room_.disconnect(pid, nowMs());
@@ -374,7 +431,395 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
         apiVerify(fd, query);
         return;
     }
+    if (path == "/api/sala" && method == "GET") {
+        // Lo poco que la pantalla de ingreso necesita saber ANTES de entrar.
+        // Nada de esto es secreto: el nombre de la sala ya viaja en el enlace
+        // y lo otro es si el asistente esta atendiendo, para no pedirle al
+        // invitado datos que le va a preguntar el asistente por chat.
+        http::sendResponse(fd, 200, "application/json",
+                           json{{"ok", true}, {"room", cfg_.room}, {"pedirDatos", !room_.intake()}}.dump());
+        return;
+    }
+    // --- Teleprompter -------------------------------------------------------
+    // La tablet del orador (/prompter) y el control del celular
+    // (/prompter/control) son la misma pagina con distinta vista.
+    if (method == "GET" && (path == "/prompter" || path.rfind("/prompter/", 0) == 0)) {
+        // Sin la barra final, el navegador resuelve "app.js" y "style.css"
+        // contra la RAIZ, y ahi vive la app del invitado: la pagina sale con
+        // el codigo equivocado y sin decir nada. Se redirige, como hace
+        // cualquier servidor con un directorio.
+        if (path == "/prompter") {
+            http::sendResponse(fd, 301, "text/plain", "", "Location: /prompter/\r\n");
+            return;
+        }
+        std::string rel = path.size() > 10 ? path.substr(10) : std::string("index.html");
+        if (rel.empty() || rel == "control") rel = "index.html";
+        if (!cfg_.prompterWebroot.empty() && serveStatic(fd, cfg_.prompterWebroot, rel)) return;
+        http::sendResponse(fd, 404, "text/plain", "no encontrado\n");
+        return;
+    }
+    if (path == "/api/prompter") {
+        if (method == "GET") {
+            // Quien pregunta queda anotado: la pagina manda su id, su vista y
+            // (si alguien lo escribio) su nombre. Es lo que le muestra al
+            // operador que la tablet del atril esta prendida.
+            const auto q = http::parseQuery(query);
+            const auto campo = [&q](const char* k) {
+                return q.count(k) ? http::urlDecode(q.at(k)) : std::string();
+            };
+            prompter_.visto(campo("id"), campo("vista"), campo("nombre"), clientIp);
+            // Publico: es el texto que el orador va a decir en voz alta en un
+            // rato. Lo que se protege es CAMBIARLO, no verlo.
+            http::sendResponse(fd, 200, "application/json", prompter_.estado().dump());
+            return;
+        }
+        if (method == "POST") {
+            const json req = json::parse(body, nullptr, false);
+            if (!req.is_object()) {
+                http::sendResponse(fd, 400, "application/json", R"({"ok":false,"error":"json"})");
+                return;
+            }
+            // Sin clave no se comanda: frenarle el texto a alguien en medio de
+            // un discurso, desde cualquier telefono de la LAN, seria un chiste
+            // caro. La clave viaja en el enlace que le pasa el operador.
+            if (cfg_.prompterKey.empty() || req.value("clave", std::string()) != cfg_.prompterKey) {
+                http::sendResponse(fd, 403, "application/json", R"({"ok":false,"error":"clave"})");
+                return;
+            }
+            prompter_.comandar(req);
+            http::sendResponse(fd, 200, "application/json", prompter_.estado().dump());
+            return;
+        }
+    }
+
+    // --- El latido de las superficies web -----------------------------------
+    // Cada pagina del aparato avisa que esta viva y que muestra. Sin esto, que
+    // el comando de mostrar salga bien no dice nada sobre si la pagina cargo.
+    if (path == "/api/superficie" && method == "POST") {
+        const json r = json::parse(body, nullptr, false);
+        if (!r.is_object()) {
+            http::sendResponse(fd, 400, "application/json", R"({"ok":false})");
+            return;
+        }
+        superficies_.latido(r.value("tipo", ""), r.value("id", ""), r.value("que", ""), clientIp);
+        http::sendResponse(fd, 200, "application/json", R"({"ok":true})");
+        return;
+    }
+
+    // --- Lo que comparten TODAS las superficies ------------------------------
+    // El canal de control (canal.js). Publico y estatico: es codigo, no datos.
+    if (method == "GET" && path.rfind("/comun/", 0) == 0) {
+        const std::string rel = path.substr(7);
+        if (!rel.empty() && !cfg_.comunWebroot.empty() && serveStatic(fd, cfg_.comunWebroot, rel)) return;
+        http::sendResponse(fd, 404, "text/plain", "no encontrado\n");
+        return;
+    }
+
+    // --- El programa en vivo, para un televisor ------------------------------
+    // Es la pagina del invitado sin las partes de invitado: entra por /ws con
+    // un token, no publica nada y muestra lo que le baja. Estatica y sin
+    // clave: el token va en la URL que le pasa la app.
+    if (method == "GET" && (path == "/cast" || path.rfind("/cast/", 0) == 0)) {
+        if (path == "/cast") {
+            http::sendResponse(fd, 301, "text/plain", "", "Location: /cast/\r\n");
+            return;
+        }
+        std::string rel = path.size() > 6 ? path.substr(6) : std::string("index.html");
+        if (rel.empty()) rel = "index.html";
+        if (!cfg_.castWebroot.empty() && serveStatic(fd, cfg_.castWebroot, rel)) return;
+        http::sendResponse(fd, 404, "text/plain", "no encontrado\n");
+        return;
+    }
+
+    // --- Lo que se manda a un televisor -------------------------------------
+    // Publico y de solo lectura: es una pagina que MUESTRA lo que dice la URL.
+    // No lleva clave porque no hay nada que proteger (quien la abre ve lo que
+    // ya se esta viendo en una pantalla de la sala) y porque el televisor no
+    // tiene donde guardar una.
+    if (method == "GET" && (path == "/pantalla" || path.rfind("/pantalla/", 0) == 0)) {
+        if (path == "/pantalla") {
+            http::sendResponse(fd, 301, "text/plain", "", "Location: /pantalla/\r\n");
+            return;
+        }
+        std::string rel = path.size() > 10 ? path.substr(10) : std::string("index.html");
+        // Una subcarpeta con barra final ("carrusel/") es su index, no un
+        // directorio: sin esto, /pantalla/carrusel/ daba 404.
+        if (rel.empty() || rel.back() == '/') rel += "index.html";
+        // La lista de un carrusel, para la pagina que lo rota. Publica y de
+        // solo lectura, como el resto de /pantalla/: es lo que ya se esta
+        // viendo en una pantalla de la sala.
+        // El tally: lo que A publico (ver /api/v1/tally). Publico y de solo
+        // lectura, como el resto de /pantalla/.
+        if (rel == "tally.json") {
+            std::lock_guard<std::mutex> lock(tallyLock_);
+            http::sendResponse(fd, 200, "application/json", tally_.dump());
+            return;
+        }
+        if (rel == "carrusel.json") {
+            const auto q = http::parseQuery(query);
+            const std::string id = q.count("id") ? http::urlDecode(q.at("id")) : std::string();
+            const json c = carruseles_.uno(id);
+            if (c.is_null()) {
+                http::sendResponse(fd, 404, "application/json", R"({"error":"no existe ese carrusel"})");
+                return;
+            }
+            http::sendResponse(fd, 200, "application/json", c.dump());
+            return;
+        }
+        // El QR lo dibuja el servidor: asi la pagina no arrastra una
+        // biblioteca de QR y anda igual en un televisor viejo.
+        if (rel == "qr.svg") {
+            const auto q = http::parseQuery(query);
+            const std::string texto = q.count("texto") ? http::urlDecode(q.at("texto")) : std::string();
+            if (texto.empty() || texto.size() > 1200) {
+                http::sendResponse(fd, 400, "text/plain", "falta `texto` (o es demasiado largo)\n");
+                return;
+            }
+            http::sendResponse(fd, 200, "image/svg+xml", qrSvg(texto, query));
+            return;
+        }
+        if (!cfg_.pantallaWebroot.empty() && serveStatic(fd, cfg_.pantallaWebroot, rel)) return;
+        http::sendResponse(fd, 404, "text/plain", "no encontrado\n");
+        return;
+    }
+
+    // --- Rotulos desde el celular -------------------------------------------
+    // La pagina es estatica y no lleva datos: se sirve sin clave. Los datos
+    // (que es /api/rotulos) SI la piden, para mirar y para cambiar.
+    if (method == "GET" && (path == "/rotulos" || path.rfind("/rotulos/", 0) == 0)) {
+        if (path == "/rotulos") { // ver el comentario de /prompter
+            http::sendResponse(fd, 301, "text/plain", "", "Location: /rotulos/\r\n");
+            return;
+        }
+        std::string rel = path.size() > 9 ? path.substr(9) : std::string("index.html");
+        if (rel.empty()) rel = "index.html";
+        if (!cfg_.rotulosWebroot.empty() && serveStatic(fd, cfg_.rotulosWebroot, rel)) return;
+        http::sendResponse(fd, 404, "text/plain", "no encontrado\n");
+        return;
+    }
+    if (path == "/api/rotulos") {
+        // La clave hace falta para las dos cosas. Sin clave configurada, la
+        // superficie no existe: es preferible que no ande a que ande abierta.
+        const json req = method == "POST" ? json::parse(body, nullptr, false) : json::object();
+        std::string clave;
+        if (method == "GET") {
+            const auto q = http::parseQuery(query);
+            if (q.count("k")) clave = http::urlDecode(q.at("k"));
+        } else if (req.is_object()) {
+            clave = req.value("clave", std::string());
+        }
+        if (cfg_.rotulosKey.empty() || clave != cfg_.rotulosKey) {
+            http::sendResponse(fd, 403, "application/json", R"({"ok":false,"error":"clave"})");
+            return;
+        }
+        if (method == "GET") {
+            http::sendResponse(fd, 200, "application/json", rotulador_.estado().dump());
+            return;
+        }
+        if (method == "POST") {
+            if (!req.is_object() || !rotulador_.encargar(req)) {
+                http::sendResponse(fd, 400, "application/json",
+                                   R"({"ok":false,"error":"falta id de fuente"})");
+                return;
+            }
+            http::sendResponse(fd, 200, "application/json", rotulador_.estado().dump());
+            return;
+        }
+    }
+
+    // --- La pagina del publico ----------------------------------------------
+    // El que esta en la butaca, con su telefono. NO entra a la sala: no pide
+    // camara ni microfono y no hay una conexion de video por persona. En un
+    // salon con doscientas personas, entrar como participante seria un acople
+    // garantizado y el ancho de banda tirado.
+    //
+    // La pagina es estatica y se sirve sin clave; los datos (/api/preguntas) SI
+    // la piden.
+    if (method == "GET" && (path == "/publico" || path.rfind("/publico/", 0) == 0)) {
+        if (path == "/publico") { // ver el comentario de /prompter
+            http::sendResponse(fd, 301, "text/plain", "", "Location: /publico/\r\n");
+            return;
+        }
+        std::string rel = path.size() > 9 ? path.substr(9) : std::string("index.html");
+        if (rel.empty()) rel = "index.html";
+        if (!cfg_.publicoWebroot.empty() && serveStatic(fd, cfg_.publicoWebroot, rel)) return;
+        http::sendResponse(fd, 404, "text/plain", "no encontrado\n");
+        return;
+    }
+    // El fondo del evento. Va aparte del JSON a proposito: son doscientos
+    // telefonos pidiendo cada tres segundos, y una imagen repetida en cada
+    // respuesta es el mismo fondo mandado mil veces. Asi va una vez y el
+    // navegador la cachea.
+    if (method == "GET" && path == "/api/publico-fondo") {
+        std::string bytes, tipo;
+        {
+            std::lock_guard<std::mutex> g(publicoM_);
+            bytes = fondoBytes_;
+            tipo = fondoTipo_;
+        }
+        if (bytes.empty()) {
+            http::sendResponse(fd, 404, "text/plain", "sin fondo\n");
+            return;
+        }
+        http::sendResponse(fd, 200, tipo.empty() ? "image/jpeg" : tipo, bytes,
+                           "Cache-Control: max-age=300\r\n");
+        return;
+    }
+    if (method == "GET" && path == "/api/publico-info") {
+        const auto q = http::parseQuery(query);
+        const std::string clave = q.count("k") ? http::urlDecode(q.at("k")) : std::string();
+        if (cfg_.publicoKey.empty() || clave != cfg_.publicoKey) {
+            http::sendResponse(fd, 403, "application/json", R"({"ok":false,"error":"clave"})");
+            return;
+        }
+        json info;
+        bool hayFondo = false;
+        {
+            std::lock_guard<std::mutex> g(publicoM_);
+            info = publicoInfo_;
+            hayFondo = !fondoBytes_.empty();
+        }
+        info["ok"] = true;
+        if (hayFondo) info["fondo"] = "/api/publico-fondo";
+        http::sendResponse(fd, 200, "application/json", info.dump());
+        return;
+    }
+    // La urna, del lado del telefono. El `codigo` solo lo manda el que esta en
+    // una votacion formal: en una encuesta no existe.
+    if (path == "/api/votacion") {
+        const json req = method == "POST" ? json::parse(body, nullptr, false) : json::object();
+        std::string clave, quien, codigo;
+        if (method == "GET") {
+            const auto q = http::parseQuery(query);
+            if (q.count("k")) clave = http::urlDecode(q.at("k"));
+            if (q.count("yo")) quien = http::urlDecode(q.at("yo"));
+            if (q.count("codigo")) codigo = http::urlDecode(q.at("codigo"));
+        } else if (req.is_object()) {
+            clave = req.value("clave", std::string());
+            quien = req.value("yo", std::string());
+            codigo = req.value("codigo", std::string());
+        }
+        if (cfg_.publicoKey.empty() || clave != cfg_.publicoKey) {
+            http::sendResponse(fd, 403, "application/json", R"({"ok":false,"error":"clave"})");
+            return;
+        }
+        if (quien.size() > 64) quien.resize(64);
+        // El codigo viene de afuera y se compara contra una tabla: se recorta y
+        // se pasa a mayusculas, porque el que lo tipea en el telefono lo
+        // escribe como le sale.
+        if (codigo.size() > 16) codigo.resize(16);
+        for (char& c : codigo)
+            c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+        if (method == "GET") {
+            http::sendResponse(
+                fd, 200, "application/json",
+                json{{"ok", true}, {"votacion", votacion_.estadoPublico(quien, codigo)}}.dump());
+            return;
+        }
+        if (method == "POST") {
+            const int opcion = req.is_object() && req.contains("opcion") && req["opcion"].is_number_integer()
+                                   ? req["opcion"].get<int>()
+                                   : -1;
+            const std::string motivo = votacion_.votar(quien, codigo, opcion);
+            http::sendResponse(fd, 200, "application/json",
+                               json{{"ok", motivo.empty()},
+                                    {"error", motivo},
+                                    {"votacion", votacion_.estadoPublico(quien, codigo)}}
+                                   .dump());
+            return;
+        }
+    }
+    // Escanear la invitacion acredita. El QR lleva el codigo de la persona, y
+    // el que llega no tiene que hacer nada mas que mirarlo con el telefono.
+    if (method == "POST" && path == "/api/acreditar") {
+        const json req = json::parse(body, nullptr, false);
+        const std::string clave = req.is_object() ? req.value("clave", std::string()) : "";
+        if (cfg_.publicoKey.empty() || clave != cfg_.publicoKey) {
+            http::sendResponse(fd, 403, "application/json", R"({"ok":false,"error":"clave"})");
+            return;
+        }
+        std::string codigo = req.value("codigo", std::string());
+        if (codigo.size() > 16) codigo.resize(16);
+        for (char& c : codigo)
+            c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+        if (codigo.empty()) {
+            http::sendResponse(fd, 400, "application/json", R"({"ok":false,"error":"sin codigo"})");
+            return;
+        }
+        {
+            std::lock_guard<std::mutex> g(publicoM_);
+            // Tope: el buzon no puede crecer sin fin si A no viene a vaciarlo.
+            // Repetido no molesta —acreditar dos veces no mueve la hora— pero
+            // tampoco hace falta guardarlo dos veces.
+            if (acreditaciones_.size() < 500 &&
+                std::find(acreditaciones_.begin(), acreditaciones_.end(), codigo) == acreditaciones_.end())
+                acreditaciones_.push_back(codigo);
+        }
+        // Se contesta que si SIEMPRE: B no sabe si ese codigo existe (el padron
+        // lo tiene A), y decirle «no se» al que acaba de llegar no le sirve.
+        // Si el codigo no esta en el padron, A lo avisa del lado del operador.
+        http::sendResponse(fd, 200, "application/json", R"({"ok":true})");
+        return;
+    }
+    if (path == "/api/preguntas") {
+        const json req = method == "POST" ? json::parse(body, nullptr, false) : json::object();
+        std::string clave;
+        std::string quien;
+        if (method == "GET") {
+            const auto q = http::parseQuery(query);
+            if (q.count("k")) clave = http::urlDecode(q.at("k"));
+            if (q.count("yo")) quien = http::urlDecode(q.at("yo"));
+        } else if (req.is_object()) {
+            clave = req.value("clave", std::string());
+            quien = req.value("yo", std::string());
+        }
+        if (cfg_.publicoKey.empty() || clave != cfg_.publicoKey) {
+            http::sendResponse(fd, 403, "application/json", R"({"ok":false,"error":"clave"})");
+            return;
+        }
+        // `yo` lo inventa el navegador y se guarda en el telefono. NO es
+        // identidad: sirve para que cada uno vea las suyas y para que un toque
+        // repetido no sume diez votos. Se recorta porque viene de afuera.
+        if (quien.size() > 64) quien.resize(64);
+        if (method == "GET") {
+            http::sendResponse(fd, 200, "application/json",
+                               json{{"ok", true},
+                                    {"preguntas", preguntas_.listaPublica(quien)},
+                                    {"recuento", preguntas_.recuento()}}
+                                   .dump());
+            return;
+        }
+        if (method == "POST") {
+            if (!req.is_object()) {
+                http::sendResponse(fd, 400, "application/json", R"({"ok":false,"error":"json"})");
+                return;
+            }
+            if (req.contains("votar")) {
+                const bool sumo = preguntas_.votar(req["votar"].get<std::string>(), quien);
+                http::sendResponse(fd, 200, "application/json",
+                                   json{{"ok", sumo}, {"preguntas", preguntas_.listaPublica(quien)}}.dump());
+                return;
+            }
+            const std::string id =
+                preguntas_.preguntar(req.value("nombre", std::string()), req.value("texto", std::string()),
+                                     "publico", quien, nowMs());
+            if (id.empty()) {
+                http::sendResponse(fd, 400, "application/json",
+                                   R"({"ok":false,"error":"la pregunta esta vacia"})");
+                return;
+            }
+            http::sendResponse(
+                fd, 200, "application/json",
+                json{{"ok", true}, {"id", id}, {"preguntas", preguntas_.listaPublica(quien)}}.dump());
+            return;
+        }
+    }
+
     if (method == "GET" && (path == "/board" || path.rfind("/board/", 0) == 0)) {
+        if (path == "/board") { // ver el comentario de /prompter
+            http::sendResponse(fd, 301, "text/plain", "", "Location: /board/\r\n");
+            return;
+        }
         std::string rel = path.size() > 7 ? path.substr(7) : std::string("index.html");
         if (rel.empty()) rel = "index.html";
         if (!cfg_.boardWebroot.empty() && serveStatic(fd, cfg_.boardWebroot, rel)) return;
@@ -416,7 +861,12 @@ bool SignalingServer::serveStatic(long long fd, const std::string& root, const s
     }
     std::ostringstream ss;
     ss << f.rdbuf();
-    http::sendResponse(fd, 200, contentTypeFor(relPath), ss.str());
+    // `no-cache` NO quiere decir «no guardes»: quiere decir «preguntá antes de
+    // usar lo guardado». Sin esto el navegador decide solo cuanto se queda con
+    // un archivo, y como los nombres no llevan version, un telefono se queda
+    // con el app.js de la actualizacion anterior y lo arreglado no aparece.
+    // Pasa siempre y no se nota: la pagina carga, anda, y anda como antes.
+    http::sendResponse(fd, 200, contentTypeFor(relPath), ss.str(), "Cache-Control: no-cache\r\n");
     return true;
 }
 
@@ -712,6 +1162,102 @@ void SignalingServer::apiViewAction(long long fd, const std::string& method, con
 // WebSocket de sala
 // ============================================================================
 
+bool SignalingServer::esPantalla(const std::string& pid) const {
+    std::lock_guard<std::mutex> lock(pantallasLock_);
+    return pantallas_.find(pid) != pantallas_.end();
+}
+
+std::string SignalingServer::altaPantalla(std::string& claveOut) {
+    std::string hex, clave;
+    if (!ba::security::randomSecretHex(16, hex)) return {};
+    if (!ba::security::randomSecretHex(16, clave)) return {};
+    // Prefijo propio: los participantes de la sala son "p"+hex, asi que un id
+    // de pantalla no puede chocar con uno de invitado ni pasar por tal.
+    const std::string id = "pantalla-" + hex.substr(0, 12);
+    std::lock_guard<std::mutex> lock(pantallasLock_);
+    // Se limpian las que hace rato que no vuelven. Se hace aca (y no con un
+    // temporizador) porque es el unico momento en que la tabla crece.
+    const std::int64_t ahora = nowMs();
+    for (auto it = pantallas_.begin(); it != pantallas_.end();)
+        it = (it->second.sueltaMs != 0 && ahora - it->second.sueltaMs > kPantallaTtlMs) ? pantallas_.erase(it)
+                                                                                        : std::next(it);
+    // Con la tabla llena, se desaloja a la que hace mas que esta suelta. Una
+    // conectada no se toca: esa esta mostrando algo ahora mismo.
+    while (pantallas_.size() >= kMaxPantallas) {
+        auto peor = pantallas_.end();
+        for (auto it = pantallas_.begin(); it != pantallas_.end(); ++it)
+            if (it->second.sueltaMs != 0 &&
+                (peor == pantallas_.end() || it->second.sueltaMs < peor->second.sueltaMs))
+                peor = it;
+        if (peor == pantallas_.end()) return {}; // todas conectadas: no hay lugar
+        pantallas_.erase(peor);
+    }
+    pantallas_[id] = Pantalla{clave, 0};
+    claveOut = clave;
+    return id;
+}
+
+std::string SignalingServer::claveDePantalla(const std::string& pid) const {
+    std::lock_guard<std::mutex> lock(pantallasLock_);
+    const auto it = pantallas_.find(pid);
+    return it == pantallas_.end() ? std::string() : it->second.clave;
+}
+
+bool SignalingServer::reengancharPantalla(const std::string& pid, const std::string& clave) {
+    if (pid.empty() || clave.empty()) return false;
+    std::lock_guard<std::mutex> lock(pantallasLock_);
+    const auto it = pantallas_.find(pid);
+    if (it == pantallas_.end()) return false;
+    if (it->second.clave != clave) return false;
+    it->second.sueltaMs = 0;
+    return true;
+}
+
+void SignalingServer::bajaPantalla(const std::string& pid) {
+    std::lock_guard<std::mutex> lock(pantallasLock_);
+    const auto it = pantallas_.find(pid);
+    // No se borra: se marca suelta, para que pueda volver con su clave.
+    if (it != pantallas_.end()) it->second.sueltaMs = nowMs();
+}
+
+/// Un offer es de solo recepcion si NINGUNA de sus pistas sube. En SDP eso se
+/// lee en cada seccion "m=": recvonly o inactive esta bien; sendonly, sendrecv
+/// o que no diga nada (el valor por omision es sendrecv) NO.
+///
+/// Se mira el SDP y no lo que prometa el cliente porque el token de ingreso lo
+/// puede tener cualquiera: alcanza con abrir la URL del televisor en otra
+/// maquina. Lo que garantiza que una pantalla no sea un microfono abierto en
+/// la sala es esto.
+bool SignalingServer::soloRecibe(const std::string& sdp) {
+    bool enSeccion = false;
+    bool direccionVista = false;
+    bool hayMedios = false;
+    size_t pos = 0;
+    while (pos < sdp.size()) {
+        size_t fin = sdp.find('\n', pos);
+        std::string linea = sdp.substr(pos, fin == std::string::npos ? std::string::npos : fin - pos);
+        pos = fin == std::string::npos ? sdp.size() : fin + 1;
+        if (!linea.empty() && linea.back() == '\r') linea.pop_back();
+        if (linea.rfind("m=", 0) == 0) {
+            // La seccion anterior tenia que haber declarado su direccion.
+            if (enSeccion && !direccionVista) return false;
+            enSeccion = true;
+            direccionVista = false;
+            // Solo importan audio y video: los canales de datos no llevan medios.
+            hayMedios = linea.rfind("m=audio", 0) == 0 || linea.rfind("m=video", 0) == 0;
+            if (!hayMedios) direccionVista = true; // no se le exige direccion
+            continue;
+        }
+        if (!enSeccion || !hayMedios) continue;
+        if (linea == "a=recvonly" || linea == "a=inactive") {
+            direccionVista = true;
+        } else if (linea == "a=sendrecv" || linea == "a=sendonly") {
+            return false;
+        }
+    }
+    return !enSeccion || direccionVista;
+}
+
 std::string SignalingServer::wsOpen(long long fd, const std::string& headers, const std::string& query,
                                     std::uint32_t clientIp) {
     const std::string wsKey = http::getHeader(headers, "Sec-WebSocket-Key");
@@ -721,6 +1267,72 @@ std::string SignalingServer::wsOpen(long long fd, const std::string& headers, co
     }
     const auto q = http::parseQuery(query);
     const auto arg = [&](const char* k) { return q.count(k) ? http::urlDecode(q.at(k)) : std::string(); };
+
+    // UNA SUPERFICIE del aparato (una pantalla, un carrusel, el teleprompter,
+    // los rotulos). Entra sin token: lo que hace por este canal es DECIR que
+    // esta viva y que muestra, y recibir ordenes de que mostrar. No lee ni
+    // toca nada de la sala. Lo que se protege en este aparato es cambiar
+    // cosas, y eso sigue pasando por donde pasaba.
+    if (!arg("superficie").empty()) {
+        const std::string accept =
+            http::base64(http::sha1(wsKey + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").data(), 20);
+        const std::string ok = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\n"
+                               "Connection: Upgrade\r\nSec-WebSocket-Accept: " +
+                               accept + "\r\n\r\n";
+        if (!http::sendAll(fd, ok.data(), ok.size())) return {};
+        http::setSocketTimeout(fd, 0);
+        // El id lo elige la pagina y lo guarda: asi recargarse no la hace
+        // aparecer como una superficie nueva.
+        std::string id = arg("id");
+        if (id.empty() || id.size() > 64) {
+            std::string hex;
+            if (!ba::security::randomSecretHex(8, hex)) return {};
+            id = "sup-" + hex;
+        }
+        const std::string pid = "superficie:" + id;
+        superficies_.conectar(pid, arg("superficie"), id);
+        log_.info("ws: superficie " + arg("superficie") + " (" + id + ") conectada");
+        return pid;
+    }
+
+    // Una PANTALLA entra por su propia puerta: mismo token, pero no se
+    // conecta a la sala. Se resuelve antes que nada para que ninguna de las
+    // ramas de invitado la toque.
+    if (arg("pantalla") == "1") {
+        // Dos formas de entrar: token de ingreso (la primera vez) o reenganche
+        // con la clave que se le dio en el "hello". El token es de UN SOLO
+        // USO, asi que sin el reenganche una pantalla que pierde la conexion
+        // no podria volver jamas.
+        const bool vuelve = !arg("resume").empty();
+        if (vuelve) {
+            if (!reengancharPantalla(arg("resume"), arg("key"))) {
+                http::sendResponse(fd, 401, "text/plain", "reenganche invalido\n");
+                return {};
+            }
+        } else {
+            const std::string room = arg("room").empty() ? cfg_.room : arg("room");
+            if (auth_.redeem(arg("token"), room) != 0) {
+                http::sendResponse(fd, 401, "text/plain", "token invalido\n");
+                return {};
+            }
+        }
+        const std::string ok =
+            "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
+            "Sec-WebSocket-Accept: " +
+            http::base64(http::sha1(wsKey + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").data(), 20) + "\r\n\r\n";
+        if (!http::sendAll(fd, ok.data(), ok.size())) return {};
+        http::setSocketTimeout(fd, 0);
+        std::string id = arg("resume"), clave;
+        if (!vuelve) {
+            id = altaPantalla(clave);
+            if (id.empty()) {
+                http::writeWsFrame(fd, 0x8, "");
+                return {};
+            }
+        }
+        log_.info("ws: pantalla " + id + (vuelve ? " volvio" : " conectada") + " (solo mira)");
+        return id;
+    }
 
     // Dos formas de entrar: token nuevo (entra al lobby) o reenganche con la
     // clave que la sala le dio al participante en su "hello".
@@ -900,7 +1512,16 @@ std::string SignalingServer::publicCandidate(const std::string& line) const {
 }
 
 void SignalingServer::handleOffer(const std::string& pid, uint64_t gen, const std::string& sdp) {
-    const MediaRoute route = room_.routeOf(pid);
+    // Una pantalla no tiene ruta en la sala: la suya es backstage SIN preview,
+    // o sea que recibe el programa y lo que mandara no va a ningun lado.
+    const bool pantalla = esPantalla(pid);
+    if (pantalla && !soloRecibe(sdp)) {
+        log_.warn("ws: la pantalla " + pid + " ofrecio mandar medios; se corta", -1);
+        sendToGuest(pid, json{{"type", "rejected"}, {"reason", "solo_mirar"}});
+        dropGuest(pid);
+        return;
+    }
+    const MediaRoute route = pantalla ? MediaRoute::backstage(0) : room_.routeOf(pid);
     if (route.kind == MediaRoute::Kind::None) {
         log_.warn("ws: offer de " + pid + " sin ruta de medios (sin lugar); se ignora", -1);
         return;
@@ -983,7 +1604,14 @@ void SignalingServer::handleOffer(const std::string& pid, uint64_t gen, const st
     // Un re-offer (p. ej. al sumar la pantalla compartida) reusa la sesion.
     if (!sess->setRemoteOffer(sdp)) {
         log_.warn("ws: setRemoteOffer fallo (sesion " + std::to_string(idx) + ")", -1);
+        return;
     }
+    // Se anota TAMBIEN cuando sale bien. Antes solo se anotaba el fracaso, asi
+    // que un offer que nunca llegaba al servidor y uno aceptado se veian
+    // igual en el registro: nada. Un televisor en "conectando" no se podia
+    // distinguir de uno al que no se le leyo el mensaje.
+    log_.fmt("info", 0, "ws: offer de %s aceptado (sesion %d, %s%s)", pid.c_str(), idx,
+             pantalla ? "pantalla" : "invitado", fresh ? ", sesion nueva" : "");
 }
 
 void SignalingServer::wsLoop(long long fd, const std::string& pid, uint64_t gen) {
@@ -1024,6 +1652,23 @@ void SignalingServer::wsLoop(long long fd, const std::string& pid, uint64_t gen)
 void SignalingServer::handleWsMessage(const std::string& pid, uint64_t gen, const json& msg) {
     {
         const std::string type = msg.value("type", "");
+        // Una superficie solo dice que esta viva y que muestra. Nada mas: lo
+        // que llega de un televisor es informacion, no ordenes.
+        if (pid.rfind("superficie:", 0) == 0) {
+            if (type == "late") {
+                superficies_.latido(msg.value("tipo", ""), pid.substr(11), msg.value("que", ""), 0);
+                superficies_.dice(pid, msg.value("que", ""));
+            } else if (type == "ping") {
+                sendToGuest(pid, json{{"type", "pong"}});
+            }
+            return;
+        }
+        // Una pantalla solo negocia su video y late. Nada de chat, ni ficha,
+        // ni estado de medios, ni mano levantada: esas cosas ni se miran.
+        if (esPantalla(pid) && type != "offer" && type != "ice" && type != "ping") {
+            log_.warn("ws: la pantalla " + pid + " mando '" + type + "'; se descarta", -1);
+            return;
+        }
         if (type == "offer") {
             // El navegador manda la descripcion entera ({type, sdp}) o solo el sdp.
             const json& s = msg.contains("sdp") ? msg["sdp"] : json();

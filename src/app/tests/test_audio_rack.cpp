@@ -165,6 +165,75 @@ int main() {
     const float after = feed(rack, 0.5f, 1);
     CHECK(after > 0.4f, "sigue pasando audio sin el compresor");
     CHECK(!rack.remove("in", &err), "la entrada no se quita");
+
+    // 5. Salida de audio del equipo: sumidero aparte. Sin cable no junta nada;
+    //    conectado a la entrada copia lo que entra y NO cambia lo que sale al aire.
+    CHECK(rack.addOutput("dev-1", "Auriculares") == "salida-audio" && rack.hasOutput(),
+          "agrega el nodo de salida");
+    CHECK(rack.outputDevice() == "dev-1", "la salida recuerda su dispositivo");
+    const float outNoWire = feed(rack, 0.5f, 0.1);
+    CHECK(rack.monitorFrames() == 0, "sin cable, la salida no junta audio");
+    CHECK(rack.connect("in", "out", "salida-audio", "in", &err), "se patchea la entrada a la salida");
+    const float outWired = feed(rack, 0.5f, 0.1);
+    CHECK(rack.monitorFrames() == 480, "la salida junta el bloque entero");
+    float monPeak = 0;
+    for (uint32_t i = 0; i < rack.monitorFrames(); ++i)
+        monPeak = std::max(monPeak, std::fabs(rack.monitorPlane(0)[i]));
+    CHECK(monPeak > 0.45f && monPeak < 0.55f, "la salida oye la entrada tal cual");
+    CHECK(std::fabs(outWired - outNoWire) < 0.02f, "la salida no altera lo que sale al aire");
+    // 6. Cables por canal: la derecha de un modulo a la izquierda de otro, y
+    //    un solo canal (la otra mitad queda en silencio).
+    {
+        AudioRack r2(lib, &svc, 48000);
+        const std::string an2 = r2.addAnalyzer("", "");
+        CHECK(r2.connect("in", "out", an2, "in", &err, 1, 0), "derecha -> izquierda");
+        const json d = r2.describe();
+        bool found = false;
+        for (const auto& c : d["cables"])
+            if (c.value("desde", "") == "in" && c.value("hacia", "") == an2)
+                found = c.value("canalSalida", -1) == 1 && c.value("canalEntrada", -1) == 0;
+        CHECK(found, "el cable informa sus canales");
+        // Solo llega a la izquierda: con una señal igual en L y R, la salida
+        // del analizador tiene la izquierda con señal y la derecha en cero.
+        std::vector<float> l(480), rr(480);
+        float* planes[2] = {l.data(), rr.data()};
+        double ph = 0;
+        for (int b2 = 0; b2 < 20; ++b2) {
+            for (int i = 0; i < 480; ++i) {
+                l[static_cast<size_t>(i)] = rr[static_cast<size_t>(i)] =
+                    0.5f * static_cast<float>(std::sin(ph));
+                ph += 2 * M_PI * 1000 / 48000;
+            }
+            r2.process(planes, 2, 480);
+        }
+        const json m = r2.meters(an2);
+        CHECK(m.contains("entradaDb") && m["entradaDb"].get<double>() > -20,
+              "el canal conectado tiene señal");
+        // Guardar y cargar conserva los canales.
+        AudioRack r3(lib, &svc, 48000);
+        CHECK(r3.load(r2.save(), &err), "carga cables por canal");
+        bool ok2 = false;
+        // OJO: `describe()` devuelve un temporario; hay que guardarlo antes de
+        // recorrer un subobjeto (si no, la referencia queda colgando).
+        const json d3 = r3.describe();
+        for (const auto& c : d3["cables"])
+            if (c.value("hacia", "") == an2)
+                ok2 = c.value("canalSalida", -1) == 1 && c.value("canalEntrada", -1) == 0;
+        CHECK(ok2, "los canales vuelven del archivo");
+        // Un cable de puerto entero reemplaza al de canal suelto.
+        CHECK(r2.connect("in", "out", an2, "in", &err), "puerto entero");
+        int cables = 0;
+        const json d2 = r2.describe();
+        for (const auto& c : d2["cables"])
+            if (c.value("hacia", "") == an2) ++cables;
+        CHECK(cables == 1, "no quedan dos cables sumando lo mismo");
+    }
+
+    // Sobrevive a guardar y cargar.
+    AudioRack rack3(lib, &svc, 48000);
+    CHECK(rack3.load(rack.save(), &err), "carga un rack con salida de audio");
+    CHECK(rack3.hasOutput() && rack3.outputDevice() == "dev-1",
+          "la salida y su dispositivo vuelven del archivo");
     (void)setByName;
 
     if (g_failures == 0) std::printf("test_audio_rack: OK\n");

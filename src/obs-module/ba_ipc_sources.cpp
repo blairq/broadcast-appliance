@@ -257,6 +257,10 @@ struct GuestVideoSource {
         uint32_t height = 0;
 
         std::string subChannel;
+        std::uint64_t edadUs = 0;
+        std::uint64_t medidos = 0;
+        std::uint64_t informeNs = 0;
+        const auto narrow = [](const std::wstring& w) { return std::string(w.begin(), w.end()); };
         while (!stop.load(std::memory_order_relaxed)) {
             int want;
             std::string wantChannel;
@@ -302,10 +306,36 @@ struct GuestVideoSource {
                     frame.format = VIDEO_FORMAT_BGRA;
                     frame.timestamp = os_gettime_ns();
                     obs_source_output_video(source, &frame);
+
+                    // Cuanto hace que B publico este cuadro: el salto B->A
+                    // solo (sondeo + IPC), medido con el mismo reloj
+                    // monotonico de los dos lados. Es la mitad de ida de lo
+                    // que el gateway ya mide a la vuelta; con las dos se sabe
+                    // cuanto del retardo es nuestro y cuanto es de libobs.
+                    const std::uint64_t ahora = ba::ipc::HealthBlock::nowQpc();
+                    if (meta.qpc != 0 && ahora > meta.qpc) edadUs += (ahora - meta.qpc) / 1000;
+                    ++medidos;
+                    if (informeNs == 0) {
+                        informeNs = ahora;
+                    } else if (ahora - informeNs >= 10'000'000'000ull && medidos > 0) {
+                        const double seg = static_cast<double>(ahora - informeNs) / 1e9;
+                        blog(LOG_INFO, "[ba] %s: %.1f fps, %.1f ms de B a A",
+                             narrow(videoName(subChannel, subSlot)).c_str(),
+                             static_cast<double>(medidos) / seg,
+                             static_cast<double>(edadUs) / medidos / 1000.0);
+                        edadUs = 0;
+                        medidos = 0;
+                        informeNs = ahora;
+                    }
                 }
             }
-            // ~60 Hz de sondeo: por encima de cualquier cadencia de emision.
-            std::this_thread::sleep_for(std::chrono::milliseconds(16));
+            // Se mira MUY seguido a proposito. Sondear al ritmo del que
+            // publica (o cerca) hace que las dos cadencias batan entre si y se
+            // pierdan cuadros; y aun sin perderlos, cada cuadro espera hasta
+            // un periodo de sondeo antes de salir. En un camino en vivo eso se
+            // acumula con todo lo demas. Mirar y que no haya nada es una carga
+            // atomica: no cuesta nada.
+            std::this_thread::sleep_for(std::chrono::milliseconds(4));
         }
     }
 };
@@ -318,6 +348,15 @@ void* guestVideoCreate(obs_data_t* settings, obs_source_t* source) {
         ctx->source = source;
         ctx->slot = slotFromSettings(settings);
         ctx->channel = channelFromSettings(settings);
+        // SIN COLCHON. Por defecto libobs le guarda cuadros a una fuente
+        // asincrona para que un video con cadencia despareja se vea parejo.
+        // Para un archivo eso esta bien; para alguien que esta hablando en
+        // vivo desde su telefono es justo lo contrario de lo que se quiere:
+        // agrega varios cuadros de retardo a un camino que ya viene largo
+        // (camara -> wifi -> gateway -> aca -> programa -> de vuelta). Se
+        // prefiere un cuadro que llega cuando llega antes que uno prolijo que
+        // llega tarde.
+        obs_source_set_async_unbuffered(source, true);
         ctx->worker = std::thread([ctx] { ctx->run(); });
         return ctx;
     } catch (...) {

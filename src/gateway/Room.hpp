@@ -91,6 +91,9 @@ class Room {
         std::string contact;    ///< telefono/email: solo produccion (nunca otros invitados)
         bool hasAvatar = false; ///< mando al menos una foto de su camara
         // --- Modo oradores ---
+        /// Presentador: se queda al aire con su lugar propio mientras los
+        /// oradores rotan. No entra en la fila ni lo saca la rotacion.
+        bool presenter = false;
         Speaker speaker = Speaker::None;
         int allottedSec = 0;      ///< tiempo asignado
         int64_t onAirSinceMs = 0; ///< al aire desde (0 = no esta al aire)
@@ -192,6 +195,11 @@ class Room {
     int chatFromHost(const std::string& to, const std::string& text, int64_t nowMs);
     void setLobby(bool on, int64_t nowMs);
     void setLocked(bool on);
+    /// El asistente esta atendiendo el lobby: la app del invitado deja de
+    /// pedirle los datos al entrar, porque se los va a preguntar el asistente
+    /// por chat. Lo prende y apaga el operador desde A.
+    void setIntake(bool on);
+    bool intake() const;
 
     // --- Modo oradores ----------------------------------------------------------
     /// Aplica los campos presentes de `cfg` (ver SpeakerCfg / API).
@@ -204,13 +212,21 @@ class Room {
     /// Mueve al orador a la posicion `index` (0 = primero) de la fila.
     int moveSpeaker(const std::string& id, int index);
     int setAllotted(const std::string& id, int sec);
-    /// "Ya hablo" -> otra vez a la fila (al final).
+    /// "Ya hablo" -> otra vez a la fila (al final). Tambien sirve para meter a
+    /// la fila a alguien que ya estaba en la sala.
     int requeue(const std::string& id);
+    /// Presentador fijo: queda al aire con su propio lugar mientras rotan los
+    /// oradores. `on=false` lo saca del aire y vuelve a ser uno mas de la sala.
+    int setPresenter(const std::string& id, bool on, int64_t nowMs);
     /// Ficha: campos presentes en `fields` (name, info, contact).
     int setProfile(const std::string& id, const nlohmann::json& fields);
     void setHasAvatar(const std::string& id);
     /// Participante por clave (cualquier estado): autoriza la foto de la camara.
     bool byKey(const std::string& key, Participant& out) const;
+    /// Uso del sistema que informa el gateway (lo mide main.cpp y lo deja aca
+    /// para que viaje en el snapshot: el operador lo ve en la pagina Sala).
+    void setUsage(const nlohmann::json& u);
+
     /// Vista de solo lectura para la tablet: fila, fichas, tiempos (sin claves
     /// ni IPs ni chat).
     nlohmann::json boardSnapshot(int64_t nowMs) const;
@@ -286,6 +302,7 @@ class Room {
     Cfg cfg_;
     Sinks sinks_;
     bool locked_ = false;
+    bool intake_ = false;
     std::string pin_;
     std::string guestUrl_;
     std::vector<Participant> people_; // orden de llegada (el lobby es FIFO)
@@ -293,6 +310,8 @@ class Room {
     std::deque<ChatMsg> chat_;
     uint64_t chatSeq_ = 0;
     SpeakerCfg spk_;
+    nlohmann::json usage_ = nlohmann::json::object();
+    int64_t usageSentMs_ = 0;        // ultimo snapshot mandado solo por el uso
     std::vector<std::string> order_; ///< ids en el orden de la fila de oradores
     int64_t lastNowMs_ = 0;          // ultimo "ahora" visto (para admisiones sin reloj propio)
 };

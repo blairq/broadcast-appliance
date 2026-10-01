@@ -1,0 +1,238 @@
+{
+  "_comentario": [
+    "La jerga del oficio. Un control no habla como un manual.",
+    "",
+    "POR QUE EXISTE ESTE ARCHIVO. El primer modelo entrenado fallo en «salimos al",
+    "aire» y eligio PARAR la transmision: leyo «salimos» como irse. «Salir al",
+    "aire» es EMPEZAR a transmitir, y eso no se deduce del castellano, se sabe",
+    "del oficio. El corpus estaba escrito en el castellano de quien lo escribio,",
+    "no en el de la cabina.",
+    "",
+    "`sinonimos` se aplica como sustitucion sobre las frases semilla: cada una",
+    "genera tambien su version con la palabra del gremio. Multiplica cobertura",
+    "sin inventar significado.",
+    "",
+    "`giros` son frases enteras: construcciones que no salen de cambiar una",
+    "palabra («pincha la 2», «larga el VTR»).",
+    "",
+    "ESTO HAY QUE CORREGIRLO CON ALGUIEN QUE OPERE. Lo escribio quien no estuvo",
+    "en una cabina: seguro sobra algo que nadie dice y falta lo que se dice todo",
+    "el tiempo. Cada termino que se saque o se agregue mejora el modelo mas que",
+    "mil frases nuevas."
+  ],
+  "sinonimos": {
+    "cámara": [
+      "camara",
+      "cam",
+      "plano",
+      "toma"
+    ],
+    "micrófono": [
+      "microfono",
+      "micro",
+      "mic"
+    ],
+    "rótulo": [
+      "rotulo",
+      "zocalo",
+      "placa",
+      "gc",
+      "generador de caracteres"
+    ],
+    "transmisión": [
+      "transmision",
+      "vivo",
+      "directo",
+      "senal",
+      "aire"
+    ],
+    "grabación": [
+      "grabacion",
+      "rec",
+      "registro"
+    ],
+    "escena": [
+      "escena",
+      "toma",
+      "plano"
+    ],
+    "fundido": [
+      "fundido",
+      "disolvencia",
+      "cortinilla"
+    ],
+    "volumen": [
+      "volumen",
+      "nivel",
+      "pote",
+      "fader"
+    ],
+    "silenciar": [
+      "silenciar",
+      "mutear",
+      "cerrar",
+      "bajar del todo"
+    ],
+    "invitado": [
+      "invitado",
+      "entrevistado",
+      "participante"
+    ],
+    "sala": [
+      "sala",
+      "piso remoto",
+      "lobby"
+    ],
+    "programa": [
+      "programa",
+      "pgm",
+      "lo que sale",
+      "el aire"
+    ],
+    "preview": [
+      "preview",
+      "previo",
+      "pvw",
+      "el bus previo"
+    ],
+    "gráfico": [
+      "grafico",
+      "placa",
+      "arte",
+      "zocalo"
+    ],
+    "lámina": [
+      "lamina",
+      "diapositiva",
+      "imagen",
+      "placa",
+      "filmina"
+    ],
+    "zócalo": [
+      "zocalo",
+      "pie de pagina",
+      "faldon",
+      "GC",
+      "rotulo"
+    ]
+  },
+  "giros": {
+    "stream_start": [
+      "arrancá la emisión",
+      "arrancamos el vivo",
+      "largamos la señal",
+      "al aire en tres",
+      "prendé la señal",
+      "abrí el vivo"
+    ],
+    "stream_stop": [
+      "cortá la emisión",
+      "cerrá la señal",
+      "cortamos el vivo",
+      "terminá la transmisión",
+      "terminamos la señal"
+    ],
+    "scene_switch": [
+      "pinchá la 2",
+      "pinchá cámara uno",
+      "tirá el plano general",
+      "andá a primer plano",
+      "mandá el PP",
+      "poné el PG"
+    ],
+    "scene_take": [
+      "dale take",
+      "tomá",
+      "tirala",
+      "mandá la armada",
+      "cortá a lo que está en previo"
+    ],
+    "scene_preview": [
+      "dejala en previo",
+      "cargá en el bus previo",
+      "armá la que sigue en pvw"
+    ],
+    "source_update": [
+      "levantá la capa",
+      "ocultá esa fuente",
+      "mostrá de nuevo esa capa"
+    ],
+    "audio_set": [
+      "levantá el micro del piso",
+      "bajá el pote del invitado",
+      "cerrá el corbatero",
+      "abrí el cañón",
+      "subí el fader del programa"
+    ],
+    "audio_measure": [
+      "cómo viene el pico",
+      "está clipeando?",
+      "cuánto headroom tenemos",
+      "fijate el nivel de programa"
+    ],
+    "audio_analyze": [
+      "hay Larsen",
+      "eso es un Larsen",
+      "está realimentando"
+    ],
+    "audio_escuchar": [
+      "mandámelo al PFL",
+      "ponelo en solo",
+      "dame cue de ese canal"
+    ],
+    "record_start": [
+      "poné a grabar el ISO",
+      "arrancá el registro",
+      "dale rec"
+    ],
+    "capture_program": [
+      "cómo está saliendo el PGM",
+      "mostrame el programa",
+      "qué hay en el aire"
+    ],
+    "capture_feed": [
+      "mirá el retorno de esa cámara",
+      "cómo llega ese enlace",
+      "fijate la señal del móvil"
+    ],
+    "status": [
+      "cómo venimos",
+      "estamos en hora?",
+      "cómo viene la tanda"
+    ],
+    "speaker_next": [
+      "que pase el que sigue",
+      "siguiente en la lista",
+      "largá al próximo"
+    ],
+    "transition_set": [
+      "ponele disolvencia",
+      "que sea corte seco",
+      "sacá la cortinilla"
+    ],
+    "grafico_mostrar": [
+      "levantá el rótulo",
+      "tirá el generador",
+      "mandá la identificación",
+      "poné el GC del invitado"
+    ],
+    "grafico_ocultar": [
+      "apagá el generador de caracteres",
+      "sacá el generador",
+      "quitá la identificación"
+    ],
+    "laminas_ir": [
+      "la que sigue",
+      "pasá una",
+      "volvé una",
+      "andá a la tres",
+      "dale, la próxima",
+      "atrás, la anterior"
+    ],
+    "laminas_buscar": [
+      "ubicame la del mapa",
+      "cuál era la del gráfico",
+      "dónde está la del mapa"
+    ]
+  }
+}

@@ -71,6 +71,14 @@ Rectangle {
                 GlassButton { compact: true; visible: ag.updateAvailable && !ag.installing
                               text: "Actualizar a " + (page.cur.version || ""); icon: "⇩"
                               onClicked: ag.install() }
+                // La ultima que publico el proveedor (con su hash), sin esperar
+                // una version nueva del sistema. Se instala en Agentes/ del bundle.
+                GlassButton { compact: true; visible: ag.installed && !ag.installing && !ag.newerAvailable && !ag.updateAvailable
+                              text: ag.checkingUpdate ? "Buscando…" : "Buscar actualización"; icon: "↻"
+                              onClicked: if (!ag.checkingUpdate) ag.checkUpdate() }
+                GlassButton { compact: true; visible: ag.newerAvailable && !ag.installing
+                              text: "Actualizar a " + ag.latestVersion; icon: "⇩"; active: true
+                              onClicked: ag.installLatest() }
                 GlassButton { compact: true; visible: !ag.running && ag.installed; text: "Iniciar"; icon: "▶"; active: true
                                   onClicked: { ag.start(); term.forceActiveFocus() } }
                 }
@@ -87,11 +95,9 @@ Rectangle {
             }
 
             // Sin instalar: tarjeta de instalacion
-            ColumnLayout {
-                anchors.centerIn: parent
-                width: Math.min(parent.width - 60, 560)
+            CapaTerminal {
+                anchors { left: parent.left; right: parent.right; top: bar.bottom; bottom: parent.bottom }
                 visible: !ag.installed
-                spacing: 14
                 Text { Layout.alignment: Qt.AlignHCenter; text: "✦"; color: Theme.accent; font.pixelSize: 44 }
                 Text { Layout.alignment: Qt.AlignHCenter; text: "Instalar " + (page.cur.agentName || "el agente")
                        color: Theme.text; font { pixelSize: 22; weight: Font.DemiBold } }
@@ -117,20 +123,25 @@ Rectangle {
                        text: "El servidor MCP está apagado: activalo en Configuración → Asistente (MCP) y reiniciá la app." }
             }
             // Arrancar (instalado y detenido)
-            ColumnLayout {
-                anchors.centerIn: parent
+            CapaTerminal {
+                anchors { left: parent.left; right: parent.right; top: bar.bottom; bottom: parent.bottom }
                 visible: ag.installed && !ag.running && ag.mcpReady
-                spacing: 12
+                Text { Layout.alignment: Qt.AlignHCenter; text: "✦"; color: Theme.accent; font.pixelSize: 32 }
                 Text { Layout.alignment: Qt.AlignHCenter; text: page.cur.agentName || ""; color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
-                Text { Layout.alignment: Qt.AlignHCenter; Layout.maximumWidth: 520; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
+                Text { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
                        color: Theme.textDim; font.pixelSize: 13; text: page.cur.help || "" }
                 GlassButton { Layout.alignment: Qt.AlignHCenter; text: "Iniciar el asistente"; icon: "▶"; active: true
                               enabled: !page.cur.needsKey || ag.hasKey
                               onClicked: { ag.start(); term.forceActiveFocus() } }
-                Text { Layout.alignment: Qt.AlignHCenter; visible: page.cur.needsKey && !ag.hasKey; color: Theme.warn; font.pixelSize: 12
+                Text { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; visible: page.cur.needsKey && !ag.hasKey
+                       color: Theme.warn; font.pixelSize: 12; wrapMode: Text.WordWrap
                        text: "Falta la clave de API (panel de la derecha)." }
-                Text { Layout.alignment: Qt.AlignHCenter; visible: ag.lastError !== ""; color: Theme.live; font.pixelSize: 12; text: ag.lastError
-                       Layout.maximumWidth: 520; wrapMode: Text.WordWrap; horizontalAlignment: Text.AlignHCenter }
+                // El último error solo si dice algo NUEVO: cuando falta la clave, el
+                // motor devuelve lo mismo que ya está escrito arriba, y el cartel
+                // terminaba repitiendo la misma frase dos veces con otras palabras.
+                Text { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
+                       visible: ag.lastError !== "" && !(page.cur.needsKey && !ag.hasKey)
+                       color: Theme.live; font.pixelSize: 12; text: ag.lastError; wrapMode: Text.WordWrap }
             }
         }
 
@@ -189,6 +200,90 @@ Rectangle {
                             }
                             Text { visible: page.keyError !== ""; text: page.keyError; color: Theme.live; font.pixelSize: 11 }
                         }
+
+                        // --- El modelo propio: lo que solo él necesita -------
+                        // Dirección, qué modelo pedir y los parámetros extra de
+                        // TU servidor. Van acá y no en una tabla del programa
+                        // porque son tuyos: cada servidor propio acepta lo
+                        // suyo, y una lista fija de casillas se queda corta el
+                        // primer día. Lo que se escriba viaja tal cual.
+                        ColumnLayout {
+                            id: propio
+                            Layout.fillWidth: true
+                            visible: page.cur.id === "propio"
+                            spacing: 6
+                            property var cfg: ({})
+                            function recargar() { propio.cfg = ag.modeloPropio()
+                                                  urlF.text = propio.cfg.url || ""
+                                                  modF.text = propio.cfg.modelo || ""
+                                                  nomF.text = propio.cfg.nombre || ""
+                                                  extraF.text = propio.cfg.extra || "{}"
+                                                  instF.text = propio.cfg.instrucciones || ""
+                                                  piensaT.checked = propio.cfg.piensa === true }
+                            Component.onCompleted: recargar()
+                            Connections { target: ag; function onConfigChanged() { propio.recargar() } }
+
+                            Text { text: "Tu servidor"; color: Theme.textDim
+                                   font { pixelSize: 12; weight: Font.DemiBold } }
+                            TextField { id: urlF; Layout.fillWidth: true
+                                        placeholderText: "https://tu-servidor/v1" }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                TextField { id: modF; Layout.fillWidth: true
+                                            placeholderText: "modelo (como lo pide tu servidor)" }
+                                TextField { id: nomF; Layout.preferredWidth: 130
+                                            placeholderText: "cómo mostrarlo" }
+                            }
+                            RowLayout {
+                                Toggle { id: piensaT; onToggled: (w) => checked = w }
+                                Text { text: "Razona antes de contestar"; color: Theme.textDim
+                                       font.pixelSize: 12; Layout.fillWidth: true }
+                            }
+                            Text { text: "Parámetros extra (JSON, tal cual al servidor)"
+                                   color: Theme.textDim; font.pixelSize: 12 }
+                            ScrollView {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 150
+                                clip: true
+                                TextArea { id: extraF; wrapMode: TextEdit.NoWrap; selectByMouse: true
+                                           font { family: "monospace"; pixelSize: 11 } }
+                            }
+                            Text { text: "Instrucciones para este modelo (se suman al prompt)"
+                                   color: Theme.textDim; font.pixelSize: 12 }
+                            ScrollView {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 110
+                                clip: true
+                                TextArea { id: instF; wrapMode: TextEdit.Wrap; selectByMouse: true
+                                           font.pixelSize: 11 }
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                GlassButton {
+                                    compact: true; text: "Guardar"
+                                    onClicked: {
+                                        const e = ag.guardarModeloPropio(urlF.text, modF.text, nomF.text,
+                                                                         extraF.text, instF.text,
+                                                                         piensaT.checked)
+                                        ApplicationWindow.window.toast(
+                                            e === "" ? "Modelo propio guardado" : e,
+                                            e === "" ? "ok" : "error")
+                                    }
+                                }
+                                GlassButton {
+                                    compact: true; text: "Probar"
+                                    // Pregunta a /models: dice si el servidor
+                                    // está, si la clave sirve y si ese modelo
+                                    // existe, sin gastar un token.
+                                    onClicked: ag.probarModeloPropio()
+                                    ToolTip.visible: hovered; ToolTip.delay: 400
+                                    ToolTip.text: "Le pregunta al servidor si está y si la clave sirve"
+                                }
+                                Item { Layout.fillWidth: true }
+                                Text { text: "Los cambios se aplican al reiniciar el asistente."
+                                       color: Theme.textFaint; font.pixelSize: 10 }
+                            }
+                        }
                         RowLayout {
                             Toggle { checked: ag.autoStart; onToggled: (wanted) => ag.setAutoStart(wanted) }
                             Text { text: "Arrancar solo al abrir la app"; color: Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true }
@@ -198,6 +293,11 @@ Rectangle {
                             Text { text: "Avisos de las vigilancias al chat"; color: Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap }
                         }
                         GlassButton { compact: true; text: "Carpeta de agentes"; icon: "▸"; onClicked: ag.openAgentsFolder() }
+                        // Se actualizo desde la pestaña: se puede volver a la que
+                        // fija esta version del sistema (la probada con el aparato).
+                        GlassButton { compact: true; visible: ag.usingChosenVersion && !ag.installing
+                                      text: "Volver a la versión fijada (" + ag.pinnedVersion + ")"; icon: "↺"
+                                      onClicked: ag.revertToPinned() }
                     }
                 }
 

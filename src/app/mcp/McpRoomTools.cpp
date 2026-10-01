@@ -8,13 +8,16 @@
 // ============================================================================
 
 #include <QBuffer>
+#include <QDateTime>
 #include <QJsonDocument>
 #include <QPainter>
+#include <QTimer>
 #include <QUrl>
 
 #include <algorithm>
 #include <cctype>
 #include <memory>
+#include <set>
 
 #include "AppRuntime.hpp"
 #include "mcp/McpService.hpp"
@@ -213,39 +216,85 @@ void McpService::registerRoomTools() {
         };
         core_.addTool(std::move(t));
     }
-    // Acciones sobre una persona.
-    struct Act {
-        const char* name;
-        const char* title;
-        const char* action;
-        const char* desc;
-        bool destructive;
-    };
-    static const Act kActs[] = {
-        {"participant_admit", "Admitir", "admit",
-         "Hace pasar a alguien del lobby (en modo oradores, a la fila; si no, a un lugar del programa).",
-         false},
-        {"participant_reject", "Rechazar", "reject", "Rechaza a alguien del lobby (se le avisa y se corta).",
-         true},
-        {"participant_kick", "Sacar de la sala", "kick",
-         "Saca a alguien de la sala (se le avisa y se corta).", true},
-        {"participant_requeue", "Volver a la fila", "requeue",
-         "Orador que ya hablo: vuelve al final de la fila.", false}};
-    for (const Act& act : kActs) {
+    // Volver a la fila. ESTABA EN UNA TABLA junto con admitir, rechazar y
+    // sacar, y esas tres YA se registran una por una mas abajo, con su titulo,
+    // sus detalles y sus ejemplos: se estaban publicando DOS VECES cada una.
+    // El modelo las veia repetidas —dos fichas distintas con el mismo nombre—
+    // y el listado pesaba de mas. Lo encontro el inventario del MCP
+    // (tools/mcp-inventario.py), que cuenta nombres repetidos.
+    {
         Tool t;
-        t.name = act.name;
-        t.title = act.title;
-        t.category = std::string(act.action) == "requeue" ? "oradores" : "sala";
-        t.destructive = act.destructive;
-        t.description = act.desc;
+        t.name = "participant_requeue";
+        t.title = "Volver a la fila";
+        t.category = "oradores";
+        t.description = "Orador que ya hablo: vuelve al final de la fila.";
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"participant", personProp}}}, {"required", {"participant"}}};
-        const std::string action = act.action;
-        t.run = [withPerson, partPath, post, action](const json& a, Done done) {
+        t.examples = {R"({"participant": "Marta"})"};
+        t.run = [withPerson, partPath, post](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
-            post(partPath(p, action.c_str()), json::object(), "Hecho: " + action + " " + p.value("name", ""),
-                 done);
+            post(partPath(p, "requeue"), json::object(), "Vuelve a la fila.", done);
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "participant_admit";
+        t.title = "Hacer pasar a alguien del lobby";
+        t.category = "sala";
+        t.description = "Hace PASAR a alguien que espera en el lobby: entra a la sala. Admite a UNA persona "
+                        "que espera: deja el lobby y entra a la sala, con su camara y su "
+                        "microfono.";
+        t.details = "Es el final del camino de la atencion en el lobby: `rostro_lobby` / `chat_send` para "
+                    "saber quien es, `participant_profile` para dejarle la ficha, `operator_ask` para que "
+                    "el operador decida, y esto cuando dijo que si.\n\n"
+                    "Si no hay lugar libre en la sala (`room_status` -> `slotsFree`) el gateway la deja "
+                    "esperando: admitir no crea lugares.";
+        t.inputSchema = {
+            {"type", "object"}, {"properties", {{"participant", personProp}}}, {"required", {"participant"}}};
+        t.examples = {R"({"participant": "Jorge"})"};
+        t.run = [withPerson, partPath, post](const json& a, Done done) {
+            json p;
+            if (!withPerson(a, "participant", p, done)) return;
+            post(partPath(p, "admit"), json::object(), "Adentro.", done);
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "participant_reject";
+        t.title = "No dejar pasar a alguien del lobby";
+        t.category = "sala";
+        t.destructive = true;
+        t.description = "Le niega la entrada a quien espera: se le cierra la sesion y sale del lobby.";
+        t.details = "Para el que no tiene que estar. Si solo querés que espere un rato mas, no uses "
+                    "esto: dejala en el lobby y avisale por `chat_send`.";
+        t.inputSchema = {
+            {"type", "object"}, {"properties", {{"participant", personProp}}}, {"required", {"participant"}}};
+        t.run = [withPerson, partPath, post](const json& a, Done done) {
+            json p;
+            if (!withPerson(a, "participant", p, done)) return;
+            post(partPath(p, "reject"), json::object(), "Afuera.", done);
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "participant_kick";
+        t.title = "Sacar a alguien de la sala";
+        t.category = "sala";
+        t.destructive = true;
+        t.description = "Saca a alguien que YA esta adentro. Si esta al aire, sale al aire que se fue.";
+        t.details = "Mira `room_status` antes: si esa persona esta en una escena al aire, sacarla se "
+                    "ve en la transmision. Pasar el programa a otra escena primero es gratis; "
+                    "deshacer esto no.";
+        t.inputSchema = {
+            {"type", "object"}, {"properties", {{"participant", personProp}}}, {"required", {"participant"}}};
+        t.run = [withPerson, partPath, post](const json& a, Done done) {
+            json p;
+            if (!withPerson(a, "participant", p, done)) return;
+            post(partPath(p, "kick"), json::object(), "Listo.", done);
         };
         core_.addTool(std::move(t));
     }
@@ -299,7 +348,9 @@ void McpService::registerRoomTools() {
             {"properties",
              {{"participant", personProp},
               {"what",
-               {{"type", "string"}, {"enum", {"mute-mic", "mute-cam", "stop-screen", "lower-hand"}}}}}},
+               {{"type", "string"},
+                {"enum",
+                 {"mute-mic", "mute-cam", "unmute-mic", "unmute-cam", "stop-screen", "lower-hand"}}}}}},
             {"required", {"participant", "what"}}};
         t.run = [withPerson, partPath, post](const json& a, Done done) {
             json p;
@@ -381,6 +432,66 @@ void McpService::registerRoomTools() {
             for (const auto& m : out)
                 if (!m.value("mine", false)) r.untrusted = true; // escrito por un invitado
             done(r);
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        // Para un agente de un tiro que atiende a alguien: una pregunta, un
+        // chat_wait. Sin esto tendria que consultar chat_history cada tanto,
+        // que es caro (cada consulta es un turno) y torpe.
+        Tool t;
+        t.name = "chat_wait";
+        t.title = "Esperar que alguien escriba";
+        t.category = "sala";
+        t.readOnly = true;
+        t.description =
+            "Espera hasta `timeoutSec` (max. 120) a que `participant` escriba en el chat de la sala y "
+            "devuelve "
+            "sus mensajes nuevos (`timedOut` true y lista vacia si no escribio). Para atender a alguien: una "
+            "pregunta con chat_send, un chat_wait, y asi.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"required", {"participant"}},
+            {"properties",
+             {{"participant", {{"type", "string"}, {"description", "id o nombre"}}},
+              {"timeoutSec", {{"type", "integer"}, {"minimum", 1}, {"maximum", 120}, {"default", 60}}}}}};
+        t.run = [conf, &vm](const json& a, Done done) {
+            json p;
+            std::string err;
+            if (!resolveParticipant(roomSnapshot(vm), a["participant"].get<std::string>(), p, err)) {
+                done(ToolResult::error(err));
+                return;
+            }
+            const std::string id = p.value("id", "");
+            auto* model = static_cast<JsonListModel*>(conf->chat());
+            const auto leer = [model]() {
+                return json::parse(QJsonDocument(model->items()).toJson(QJsonDocument::Compact).toStdString(),
+                                   nullptr, false);
+            };
+            // Lo ya visto se recuerda por uid, no por posicion: la lista se
+            // recorta por arriba y las posiciones se mueven.
+            auto vistos = std::make_shared<std::set<std::string>>();
+            for (const auto& m : leer())
+                if (m.is_object()) vistos->insert(m.value("uid", ""));
+            const std::int64_t vence = QDateTime::currentMSecsSinceEpoch() + a.value("timeoutSec", 60) * 1000;
+            auto* timer = new QTimer(conf);
+            timer->setInterval(400);
+            QObject::connect(timer, &QTimer::timeout, conf, [timer, leer, vistos, id, vence, done]() {
+                json nuevos = json::array();
+                for (const auto& m : leer()) {
+                    if (!m.is_object() || vistos->count(m.value("uid", "")) != 0) continue;
+                    if (m.value("fromId", "") == id && !m.value("mine", false)) nuevos.push_back(m);
+                }
+                const bool vencio = QDateTime::currentMSecsSinceEpoch() >= vence;
+                if (nuevos.empty() && !vencio) return;
+                timer->stop();
+                timer->deleteLater();
+                ToolResult r;
+                r.data(json{{"messages", nuevos}, {"timedOut", nuevos.empty()}});
+                if (!nuevos.empty()) r.untrusted = true; // escrito por un invitado
+                done(r);
+            });
+            timer->start();
         };
         core_.addTool(std::move(t));
     }
@@ -505,7 +616,8 @@ void McpService::registerRoomTools() {
         t.title = "Red y acceso de invitados";
         t.category = "sala";
         t.readOnly = true;
-        t.description = "HTTPS, tunel WireGuard, IPs locales, enlaces y puertos WebRTC del gateway.";
+        t.description = "Como se llega por RED al aparato: HTTPS, tunel WireGuard, IPs locales, "
+                        "enlaces y puertos WebRTC del gateway.";
         t.run = [client](const json&, Done done) {
             client->get("/api/v1/network", [done](bool ok, const QJsonObject& r) {
                 done(ok ? ToolResult().data(fromQt(r)) : ToolResult::error("La sala no responde."));
@@ -661,7 +773,8 @@ void McpService::registerRoomTools() {
         t.name = "speaker_next";
         t.title = "Siguiente orador";
         t.category = "oradores";
-        t.description = "Pone al aire al siguiente de la fila (en modo 'uno a la vez', el que estaba sale).";
+        t.description = "Pasa al orador que SIGUE en la fila. Pone al aire al siguiente de la fila (en modo "
+                        "'uno a la vez', el que estaba sale).";
         t.run = [post](const json&, Done done) {
             post("/api/v1/speakers/next", json::object(), "Siguiente al aire.", done);
         };
@@ -682,6 +795,49 @@ void McpService::registerRoomTools() {
             if (!withPerson(a, "participant", p, done)) return;
             post(partPath(p, "move"), json{{"index", a["position"].get<int>() - 1}}, "Fila reordenada.",
                  done);
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "speaker_queue";
+        t.title = "Mandar a la fila de oradores";
+        t.category = "oradores";
+        t.description =
+            "QUE ES: pone en la FILA de oradores a alguien que ya esta en la sala (o devuelve a la fila a "
+            "quien ya hablo). PARA QUE: en modo oradores todos siguen en la sala y la fila es solo el "
+            "orden en que se los saca al aire. COMO SE USA: `participant` (nombre o id). Sale del aire "
+            "hasta que le toque; `speaker_on_air` o `speaker_next` lo suben. Si era presentador, deja de "
+            "serlo.";
+        t.inputSchema = {
+            {"type", "object"}, {"properties", {{"participant", personProp}}}, {"required", {"participant"}}};
+        t.run = [withPerson, partPath, post](const json& a, Done done) {
+            json p;
+            if (!withPerson(a, "participant", p, done)) return;
+            post(partPath(p, "requeue"), json::object(), "A la fila de oradores.", done);
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "speaker_presenter";
+        t.title = "Presentador fijo";
+        t.category = "oradores";
+        t.description =
+            "QUE ES: marca a una persona como PRESENTADOR: se queda al aire con su propio lugar mientras "
+            "los oradores rotan a su lado. PARA QUE: un conductor remoto fijo con invitados que entran y "
+            "salen. COMO SE USA: `participant` (nombre o id) y `on` (true/false). Hay uno solo a la vez; "
+            "no entra en la fila y la rotacion no lo saca. Con `on=false` deja de serlo y sale del aire "
+            "(despues se lo puede mandar a la fila con `speaker_queue`).";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"participant", personProp}, {"on", {{"type", "boolean"}}}}},
+                         {"required", {"participant"}}};
+        t.run = [withPerson, partPath, post](const json& a, Done done) {
+            json p;
+            if (!withPerson(a, "participant", p, done)) return;
+            const bool on = a.value("on", true);
+            post(partPath(p, "presenter"), json{{"on", on}},
+                 on ? "Presentador fijo." : "Ya no es presentador.", done);
         };
         core_.addTool(std::move(t));
     }

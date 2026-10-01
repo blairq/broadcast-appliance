@@ -98,6 +98,9 @@ namespace {
 RackManager* g_mgr = nullptr;
 constexpr const char* kFilterId = "ba_audio_rack";
 constexpr const char* kFilterName = "Rack de audio";
+// Fuente privada por rack que lleva el nodo de escucha a los auriculares del
+// operador: MONITOR_ONLY, nunca entra en la mezcla del programa.
+constexpr const char* kTapId = "ba_rack_escucha";
 } // namespace
 
 void QtHostServices::stateDirty() {
@@ -113,6 +116,7 @@ struct RackManager::Filter {
     obs_source_t* self = nullptr;
     std::string source;
     std::unique_ptr<AudioRack> rack;
+    obs_source_t* tap = nullptr; // salida de escucha (puede ser nullptr)
 };
 
 namespace {
@@ -142,8 +146,26 @@ obs_audio_data* filterAudio(void* data, obs_audio_data* audio) {
     auto* f = static_cast<RackManager::Filter*>(data);
     const int ch = static_cast<int>(audio_output_get_channels(obs_get_audio()));
     f->rack->process(reinterpret_cast<float* const*>(audio->data), ch, audio->frames);
+    // Escucha: lo que junto el nodo "monitor" se entrega a su fuente privada,
+    // que libobs reproduce en la salida elegida (no vuelve a la mezcla).
+    const uint32_t mf = f->rack->monitorFrames();
+    if (f->tap != nullptr && mf > 0) {
+        obs_source_audio out{};
+        out.data[0] = reinterpret_cast<const uint8_t*>(f->rack->monitorPlane(0));
+        out.data[1] = reinterpret_cast<const uint8_t*>(f->rack->monitorPlane(1));
+        out.frames = mf;
+        out.speakers = SPEAKERS_STEREO;
+        out.format = AUDIO_FORMAT_FLOAT_PLANAR;
+        out.samples_per_sec = audio_output_get_sample_rate(obs_get_audio());
+        out.timestamp = audio->timestamp;
+        obs_source_output_audio(f->tap, &out);
+    }
     return audio;
 }
+
+const char* tapName(void*) { return "Escucha del rack"; }
+void* tapCreate(obs_data_t*, obs_source_t* self) { return self; }
+void tapDestroy(void*) {}
 
 } // namespace
 
@@ -164,6 +186,15 @@ RackManager::RackManager(fs::path dataRoot, QObject* parent) : QObject(parent), 
         info.destroy = filterDestroy;
         info.filter_audio = filterAudio;
         obs_register_source(&info);
+
+        obs_source_info tap{};
+        tap.id = kTapId;
+        tap.type = OBS_SOURCE_TYPE_INPUT;
+        tap.output_flags = OBS_SOURCE_AUDIO;
+        tap.get_name = tapName;
+        tap.create = tapCreate;
+        tap.destroy = tapDestroy;
+        obs_register_source(&tap);
         registered = true;
     }
     saveTimer_.setSingleShot(true);
@@ -209,7 +240,18 @@ std::shared_ptr<ClapLibrary> RackManager::library(std::string* error) {
     return lib_;
 }
 
-void RackManager::attach(Filter* f) { filters_[f->source] = f; }
+void RackManager::attach(Filter* f) {
+    filters_[f->source] = f;
+    if (f->tap == nullptr) {
+        const std::string name = "ba-escucha-" + f->source;
+        f->tap = obs_source_create_private(kTapId, name.c_str(), nullptr);
+        if (f->tap != nullptr) {
+            // Solo a los auriculares del operador: jamas a la mezcla.
+            obs_source_set_monitoring_type(f->tap, OBS_MONITORING_TYPE_MONITOR_ONLY);
+            obs_source_set_muted(f->tap, monitorId_.empty());
+        }
+    }
+}
 
 void RackManager::detach(Filter* f) {
     for (auto it = filters_.begin(); it != filters_.end(); ++it)
@@ -217,6 +259,118 @@ void RackManager::detach(Filter* f) {
             filters_.erase(it);
             break;
         }
+    if (f->tap != nullptr) {
+        obs_source_release(f->tap);
+        f->tap = nullptr;
+    }
+}
+
+// --- Salidas de audio del equipo ------------------------------------------------
+
+namespace {
+/// Placa a la que pertenece una salida, para agrupar la lista. En PulseAudio el
+/// id es `alsa_output.<placa>.<perfil>__<puerto>__sink`: la placa es el tramo
+/// que sigue al prefijo. Si no se reconoce, la salida queda en su propio grupo.
+std::string deviceGroupOf(const std::string& id, const std::string& name) {
+    const std::size_t dot = id.find('.');
+    if (dot != std::string::npos) {
+        const std::size_t end = id.find('.', dot + 1);
+        if (end != std::string::npos) return id.substr(dot + 1, end - dot - 1);
+    }
+    return name.empty() ? std::string("Otras salidas") : name;
+}
+} // namespace
+
+json RackManager::outputDevices() const {
+    struct Item {
+        std::string id, name;
+    };
+    std::vector<Item> items;
+    obs_enum_audio_monitoring_devices(
+        [](void* p, const char* name, const char* id) {
+            static_cast<std::vector<Item>*>(p)->push_back(
+                {id != nullptr ? id : "", name != nullptr ? name : ""});
+            return true;
+        },
+        &items);
+    std::vector<std::string> order;
+    std::map<std::string, json> byGroup;
+    std::map<std::string, std::string> label;
+    for (const auto& it : items) {
+        const std::string g = deviceGroupOf(it.id, it.name);
+        if (byGroup.find(g) == byGroup.end()) {
+            order.push_back(g);
+            byGroup[g] = json::array();
+            label[g] = it.name; // nombre de la primera salida de esa placa
+        }
+        byGroup[g].push_back({{"id", it.id}, {"nombre", it.name}});
+    }
+    json out = json::array();
+    for (const auto& g : order)
+        out.push_back({{"dispositivo", label[g]}, {"clave", g}, {"salidas", byGroup[g]}});
+    return out;
+}
+
+std::string RackManager::setOutput(const std::string& source, const std::string& device) {
+    auto it = filters_.find(source);
+    if (it == filters_.end()) return "esa fuente no tiene rack";
+    struct Ctx {
+        const std::string& id;
+        std::string name;
+        bool found = false;
+    } ctx{device, {}, false};
+    obs_enum_audio_monitoring_devices(
+        [](void* p, const char* n, const char* i) {
+            auto* c = static_cast<Ctx*>(p);
+            if (i != nullptr && c->id == i) {
+                c->name = n != nullptr ? n : "";
+                c->found = true;
+                return false;
+            }
+            return true;
+        },
+        &ctx);
+    if (!ctx.found) return "esa salida de audio ya no esta";
+    if (!obs_set_audio_monitoring_device(ctx.name.c_str(), device.c_str()))
+        return "no se pudo abrir la salida de audio";
+    monitorId_ = device;
+    monitorName_ = ctx.name;
+    it->second->rack->addOutput(device, ctx.name);
+    syncMonitors();
+    saveMonitor();
+    markDirty();
+    emit changed();
+    return {};
+}
+
+void RackManager::syncMonitors() {
+    // Suena el rack que tiene nodo de salida (y un dispositivo elegido).
+    for (auto& [name, f] : filters_)
+        if (f->tap != nullptr) obs_source_set_muted(f->tap, !f->rack->hasOutput() || monitorId_.empty());
+}
+
+void RackManager::saveMonitor() const {
+    const fs::path file = root_ / "Config" / "audio-escucha.json";
+    std::error_code ec;
+    fs::create_directories(file.parent_path(), ec);
+    std::ofstream out(file, std::ios::binary);
+    if (out) out << json{{"id", monitorId_}, {"nombre", monitorName_}}.dump(2);
+}
+
+void RackManager::restoreMonitor() {
+    std::ifstream in(root_ / "Config" / "audio-escucha.json", std::ios::binary);
+    if (!in) return;
+    const json j = json::parse(in, nullptr, false);
+    if (!j.is_object()) return;
+    const std::string id = j.value("id", "");
+    const std::string name = j.value("nombre", "");
+    if (id.empty()) return;
+    // El dispositivo puede no estar (se desenchufo): se queda sin escucha.
+    if (obs_set_audio_monitoring_device(name.c_str(), id.c_str())) {
+        monitorId_ = id;
+        monitorName_ = name;
+    }
+    syncMonitors();
 }
 
 json RackManager::audioSources() const {
@@ -229,7 +383,19 @@ json RackManager::audioSources() const {
             auto* c = static_cast<Ctx*>(p);
             if ((obs_source_get_output_flags(s) & OBS_SOURCE_AUDIO) == 0) return true;
             const std::string name = obs_source_get_name(s);
-            json j{{"nombre", name}, {"tipo", obs_source_get_id(s)}, {"rack", false}};
+            const std::string type = obs_source_get_id(s);
+            // Grupo para el arbol de la interfaz: por donde entra el audio.
+            std::string group = "Otras fuentes";
+            if (type == "ba_guest_audio") {
+                group = "Invitados";
+            } else if (type.find("_input_capture") != std::string::npos) {
+                group = "Micrófonos y líneas del equipo";
+            } else if (type.find("_output_capture") != std::string::npos) {
+                group = "Audio del equipo (lo que suena)";
+            } else if (type == "ffmpeg_source" || type == "vlc_source" || type == "ba_ndi_input") {
+                group = "Medios y red";
+            }
+            json j{{"nombre", name}, {"tipo", type}, {"grupo", group}, {"rack", false}};
             auto it = c->self->filters_.find(name);
             if (it != c->self->filters_.end()) {
                 j["rack"] = true;
@@ -273,6 +439,14 @@ AudioRack* RackManager::rack(const std::string& source, bool create, std::string
                 f->rack->load(pending_[source], &e);
             } else {
                 f->rack = std::make_unique<AudioRack>(library(), services_, sampleRate());
+                // Sin rack guardado, se mira si hay una plantilla marcada para
+                // este tipo de fuente: es lo que hace que un invitado que se
+                // conecta ya suene bien sin que nadie le arme nada.
+                const std::string plantilla = plantillaDeTipo(obs_source_get_id(src));
+                if (!plantilla.empty()) {
+                    std::string e;
+                    f->rack->load(plantillas_[plantilla].value("rack", json::object()), &e);
+                }
             }
             obs_source_filter_add(src, filter);
             attach(f);
@@ -302,6 +476,101 @@ bool RackManager::removeRack(const std::string& source) {
     return true;
 }
 
+// --- Plantillas -------------------------------------------------------------
+
+namespace {
+constexpr const char* kPlantillasFile = "audio-plantillas.json";
+}
+
+void RackManager::cargarPlantillas() {
+    std::ifstream in(root_ / "Config" / kPlantillasFile, std::ios::binary);
+    if (!in) return;
+    const json j = json::parse(in, nullptr, false);
+    // Un archivo roto no tiene por que impedir que el audio ande: se ignora y
+    // el operador se entera cuando la lista aparece vacia.
+    if (j.is_object()) plantillas_ = j;
+}
+
+void RackManager::guardarPlantillas() const {
+    const fs::path file = root_ / "Config" / kPlantillasFile;
+    std::error_code ec;
+    fs::create_directories(file.parent_path(), ec);
+    const fs::path tmp = file.string() + ".tmp";
+    {
+        std::ofstream out(tmp, std::ios::binary);
+        if (!out) return;
+        out << plantillas_.dump(2);
+    }
+    fs::rename(tmp, file, ec);
+}
+
+json RackManager::plantillas() const {
+    json out = json::array();
+    for (auto it = plantillas_.begin(); it != plantillas_.end(); ++it) {
+        const json& p = it.value();
+        const json& r = p.value("rack", json::object());
+        out.push_back(json{{"nombre", it.key()},
+                           {"modulos", r.contains("nodos") ? r["nodos"].size() : 0},
+                           {"paraTipo", p.value("paraTipo", std::string())}});
+    }
+    return out;
+}
+
+std::string RackManager::guardarPlantilla(const std::string& source, const std::string& nombre) {
+    if (nombre.empty()) return "la plantilla necesita un nombre";
+    AudioRack* r = rack(source, false);
+    if (r == nullptr) return "'" + source + "' no tiene rack que guardar";
+    // Se conserva el tipo predeterminado si la plantilla ya existia: guardar
+    // encima es actualizarla, no volverla a empezar.
+    const std::string tipo =
+        plantillas_.contains(nombre) ? plantillas_[nombre].value("paraTipo", std::string()) : std::string();
+    plantillas_[nombre] = json{{"rack", r->save()}, {"paraTipo", tipo}};
+    guardarPlantillas();
+    emit changed();
+    return {};
+}
+
+std::string RackManager::aplicarPlantilla(const std::string& nombre, const std::string& source) {
+    if (!plantillas_.contains(nombre)) return "no existe la plantilla '" + nombre + "'";
+    std::string err;
+    AudioRack* r = rack(source, true, &err);
+    if (r == nullptr) return err.empty() ? "no se pudo montar el rack" : err;
+    if (!r->load(plantillas_[nombre].value("rack", json::object()), &err))
+        return "la plantilla no se pudo aplicar: " + err;
+    markDirty();
+    emit changed();
+    return {};
+}
+
+std::string RackManager::borrarPlantilla(const std::string& nombre) {
+    if (!plantillas_.contains(nombre)) return "no existe la plantilla '" + nombre + "'";
+    plantillas_.erase(nombre);
+    guardarPlantillas();
+    emit changed();
+    return {};
+}
+
+std::string RackManager::plantillaPorDefecto(const std::string& nombre, const std::string& tipo) {
+    if (!plantillas_.contains(nombre)) return "no existe la plantilla '" + nombre + "'";
+    // Una sola por tipo: si no, cual toma una fuente nueva seria una moneda.
+    if (!tipo.empty()) {
+        for (auto it = plantillas_.begin(); it != plantillas_.end(); ++it)
+            if (it.key() != nombre && it.value().value("paraTipo", std::string()) == tipo)
+                it.value()["paraTipo"] = "";
+    }
+    plantillas_[nombre]["paraTipo"] = tipo;
+    guardarPlantillas();
+    emit changed();
+    return {};
+}
+
+std::string RackManager::plantillaDeTipo(const std::string& tipo) const {
+    if (tipo.empty()) return {};
+    for (auto it = plantillas_.begin(); it != plantillas_.end(); ++it)
+        if (it.value().value("paraTipo", std::string()) == tipo) return it.key();
+    return {};
+}
+
 void RackManager::markDirty() { saveTimer_.start(); }
 
 void RackManager::saveNow() {
@@ -321,6 +590,8 @@ void RackManager::saveNow() {
 }
 
 void RackManager::restore() {
+    cargarPlantillas();
+    restoreMonitor();
     std::ifstream in(root_ / "Config" / "audio-racks.json", std::ios::binary);
     if (!in) return;
     const json all = json::parse(in, nullptr, false);

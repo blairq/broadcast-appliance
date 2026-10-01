@@ -70,6 +70,9 @@ class DashboardModel : public QAbstractListModel {
     Q_PROPERTY(QStringList background READ background WRITE setBackground NOTIFY backgroundChanged)
     Q_PROPERTY(double backgroundDim READ backgroundDim WRITE setBackgroundDim NOTIFY backgroundChanged)
     Q_PROPERTY(QStringList cardKinds READ cardKinds CONSTANT)
+    /// Divisiones de la grilla de encaje (para dibujarla mientras se acomoda).
+    Q_PROPERTY(int gridCols READ gridCols CONSTANT)
+    Q_PROPERTY(int gridRows READ gridRows CONSTANT)
     /// Distribucion de las fuentes del fondo: "grid" | "focus" | "pip" | "row".
     Q_PROPERTY(
         QString backgroundLayout READ backgroundLayout WRITE setBackgroundLayout NOTIFY backgroundChanged)
@@ -102,6 +105,9 @@ class DashboardModel : public QAbstractListModel {
     /// Ajusta un rectangulo propuesto (fracciones) para la tarjeta `id`:
     /// grilla, bordes del area y bordes de las otras tarjetas.
     /// `aspect` = ancho/alto del area en pixeles (para separaciones parejas).
+    int gridCols() const;
+    int gridRows() const;
+
     Q_INVOKABLE QRectF snap(int id, double x, double y, double w, double h, double aspect) const;
 
     /// Fija la ubicacion final de la tarjeta (ya ajustada) y guarda.

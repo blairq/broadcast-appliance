@@ -38,7 +38,7 @@
     maxUploadBytes: 0,
     reconnectDelay: RECONNECT_BASE_MS, reconnectTimer: 0, resumeFailures: 0,
     lastRx: 0, pongSeen: false, pingTimer: 0, mediaTimer: 0, wakeLock: null,
-    left: false, chatOpen: false, unread: 0,
+    left: false, chatOpen: false, chatAuto: false, unread: 0,
     info: "", contact: "",
     speaker: null, clockOffset: 0, speakerAt: 0, speakerTimer: 0, avatarTimer: 0,
   };
@@ -58,6 +58,11 @@
     setTimeout(() => el.classList.add("out"), 3500);
     setTimeout(() => el.remove(), 4000);
   }
+
+  /// Cuanto retener antes de mostrar el retorno (ver ../comun/retardo.js).
+  /// 0 = lo menos que el navegador acepte.
+  const BUFFER_MS = Math.max(
+      0, parseInt(new URLSearchParams(location.search).get("buffer") || "0", 10) || 0);
 
   // --- Framing ------------------------------------------------------------
   function encodeFrame(obj) {
@@ -415,6 +420,12 @@
         state.admitted = true;
         state.slot = msg.slot;
         $("talk-badge").classList.add("hidden");
+        // El chat que se abrio solo en el lobby se cierra al pasar: adentro
+        // tapa el video, y el que lo abrio a mano se lo queda.
+        if (state.chatAuto) {
+          state.chatAuto = false;
+          toggleChat(false);
+        }
         show("room");
         toast(msg.backstage ? "Estás en la fila de oradores" : "¡Estás adentro!", "ok");
         // La MISMA conexion sigue: B solo cambia a donde van tus medios (del
@@ -470,6 +481,8 @@
 
   function onRequest(what) {
     if (what === "mute-mic" && state.mic) { setMic(false); toast("El operador te silenció el micrófono. Tocá 🎙️ para volver a activarlo."); }
+    else if (what === "unmute-mic" && !state.mic) { setMic(true); toast("El operador activó tu micrófono", "ok"); }
+    else if (what === "unmute-cam" && !state.cam) { setCam(true); toast("El operador encendió tu cámara", "ok"); }
     else if (what === "mute-cam" && state.cam) { setCam(false); toast("El operador te pidió apagar la cámara"); }
     else if (what === "stop-screen" && state.screenStream) { stopScreen(); toast("El operador dejó de mostrar tu pantalla"); }
     else if (what === "lower-hand" && state.hand) { setHand(false); toast("El operador bajó tu mano"); }
@@ -494,9 +507,18 @@
       pc.addTransceiver("audio", { direction: "recvonly" });
       pc.addTransceiver("video", { direction: "recvonly" });
     }
+    // El retorno se mira para saber si lo que uno dice esta saliendo, asi que
+    // el retardo se nota: con el colchon que el navegador pone por su cuenta,
+    // uno se ve a si mismo un cuarto de segundo tarde. Se pide lo menos
+    // posible; con ?buffer=N se sube si la red del lugar lo pide.
+    state.retardoPuesto = window.BARetardo.aTodos(pc, BUFFER_MS);
     // Lo que manda B: en el lobby, el operador; adentro, el programa. Es el
     // mismo track (B cambia la fuente), asi que no hay corte al admitirte.
     pc.ontrack = (ev) => {
+      // De nuevo: segun la version del navegador, lo puesto en el transceiver
+      // se pierde cuando llega el track de verdad.
+      const puesto = window.BARetardo.aTodos(pc, BUFFER_MS);
+      if (puesto !== null) state.retardoPuesto = puesto;
       const rs = ev.streams[0] || new MediaStream([ev.track]);
       if (ev.track.kind === "video") {
         $("remote-video").srcObject = rs;
@@ -687,6 +709,14 @@
     $("chat-log").appendChild(el);
     $("chat-log").scrollTop = $("chat-log").scrollHeight;
     if (!state.chatOpen && !mine) {
+      // Esperando en el lobby no hay nada que tapar, y el mensaje del operador
+      // (o del asistente que atiende) es justo lo que la persona tiene que
+      // ver: se abre el chat en vez de dejarle un globito que no mira nadie.
+      if (m.fromId === "host" && !state.admitted) {
+        state.chatAuto = true;
+        toggleChat(true);
+        return;
+      }
       state.unread++;
       $("unread").textContent = state.unread;
       $("unread").classList.remove("hidden");
@@ -706,6 +736,90 @@
   // --- Modo oradores -----------------------------------------------------
   // La sala manda el turno y el reloj; el cliente solo lo dibuja. El reloj del
   // servidor manda: se corrige la diferencia con el reloj local.
+
+  // --- Vista del orador ---------------------------------------------------
+  // El que habla no tiene por que mirar la proyeccion que tiene a la espalda:
+  // su texto y los avisos del operador le llegan a su propia pantalla, de
+  // frente. El estado sale del mismo teleprompter que ve la tablet
+  // (GET /api/prompter es publico: es lo que va a decir en voz alta).
+  //
+  // El servidor manda desde donde y a que velocidad; aca se calcula la
+  // posicion igual que en la tablet, asi el texto no salta con la red.
+  const prompter = { texto: "", palabras: [], pos: 0, ppm: 140, corriendo: false,
+                     desdeMs: 0, desfaseMs: 0, aviso: "", version: -1, timer: 0 };
+
+  function prompterPos() {
+    if (!prompter.corriendo) return prompter.pos;
+    const ahora = Date.now() + prompter.desfaseMs;
+    return Math.min(prompter.palabras.length,
+                    prompter.pos + ((ahora - prompter.desdeMs) / 60000) * prompter.ppm);
+  }
+
+  function pintarOrador() {
+    const panel = $("orador-panel");
+    // Solo cuando le toca a esta persona y hay algo que leer. En la fila no:
+    // le taparia el programa que esta mirando.
+    const suTurno = state.speakerState === "onair";
+    if (!suTurno || prompter.palabras.length === 0) {
+      panel.classList.add("hidden");
+      return;
+    }
+    panel.classList.remove("hidden");
+
+    const av = $("orador-aviso");
+    av.textContent = prompter.aviso;
+    av.classList.toggle("hidden", !prompter.aviso);
+
+    // Una ventana de palabras alrededor de donde va: en un celular no entra
+    // el discurso entero y desplazar todo el texto seria caro.
+    const i = Math.floor(prompterPos());
+    const desde = Math.max(0, i - 4);
+    const hasta = Math.min(prompter.palabras.length, i + 45);
+    const cont = $("orador-texto");
+    cont.textContent = "";
+    for (let k = desde; k < hasta; k++) {
+      const s = document.createElement("span");
+      s.textContent = prompter.palabras[k] + " ";
+      if (k < i) s.className = "leido";
+      else if (k === i) s.className = "aqui";
+      cont.appendChild(s);
+    }
+    const faltan = Math.max(0, prompter.palabras.length - prompterPos());
+    $("orador-pie").textContent = prompter.corriendo
+      ? "Quedan " + fmtClock((faltan / prompter.ppm) * 60000) + " de lectura"
+      : "El texto está parado: lo arranca el operador";
+  }
+
+  async function leerPrompter() {
+    try {
+      const d = await (await fetch("/api/prompter", { cache: "no-store" })).json();
+      prompter.desfaseMs = (d.ahoraMs || Date.now()) - Date.now();
+      if (d.texto !== prompter.texto) {
+        prompter.texto = d.texto || "";
+        prompter.palabras = prompter.texto.split(/\s+/).filter((w) => w !== "");
+      }
+      prompter.pos = d.posicion || 0;
+      prompter.ppm = d.ppm || 140;
+      prompter.corriendo = !!d.corriendo;
+      prompter.desdeMs = d.desdeMs || 0;
+      if (d.aviso !== prompter.aviso && d.aviso) toast(d.aviso, "ok");
+      prompter.aviso = d.aviso || "";
+    } catch (e) { /* sin prompter, el panel simplemente no aparece */ }
+  }
+
+  /// Se consulta solo mientras esta en modo oradores: al resto de la sala el
+  /// teleprompter no le importa y no hay por que pedirlo.
+  function seguirPrompter(on) {
+    clearInterval(prompter.timer);
+    if (!on) {
+      prompter.timer = 0;
+      $("orador-panel").classList.add("hidden");
+      return;
+    }
+    leerPrompter().then(pintarOrador);
+    prompter.timer = setInterval(() => { leerPrompter(); }, 1000);
+  }
+
   function onSpeaker(msg) {
     state.speaker = msg;
     state.speakerAt = Date.now();
@@ -716,6 +830,8 @@
     clearInterval(state.speakerTimer);
     state.speakerTimer = setInterval(renderSpeaker, 200);
     renderSpeaker();
+    // El teleprompter se sigue mientras esta al aire o a punto de estarlo.
+    seguirPrompter(msg.state === "onair" || msg.state === "queued");
   }
 
   function fmtClock(ms) {
@@ -726,6 +842,7 @@
   }
 
   function renderSpeaker() {
+    if (prompter.timer) pintarOrador();
     const m = state.speaker;
     const bar = $("speaker-bar");
     const visible = !!m && (m.state === "queued" || m.state === "onair" || m.state === "done") && state.admitted;
@@ -897,6 +1014,13 @@
     $("room").parentElement.parentElement.style.gridTemplateColumns = "1fr";
   }
   if (!window.isSecureContext) $("join-error").textContent = "Este enlace no es seguro (http): el navegador no va a dejar usar la cámara ni el micrófono. Pedile al operador el enlace que empieza con https.";
+  // Con el asistente atendiendo el lobby, entrar es solo el nombre: los demas
+  // datos se los pregunta el asistente por chat. No se espera la respuesta:
+  // si el servidor tarda o no contesta, el formulario queda como estaba.
+  fetch("/api/sala")
+    .then((r) => r.json())
+    .then((d) => { if (d && d.ok && d.pedirDatos === false) $("datos").classList.add("hidden"); })
+    .catch(() => {});
   try {
     $("name").value = hash.get("name") || localStorage.getItem("ba.guest.name") || "";
     $("info").value = localStorage.getItem("ba.guest.info") || "";

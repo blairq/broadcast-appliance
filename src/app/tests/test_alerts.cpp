@@ -3,7 +3,8 @@
 //   audio_peak (retencion + enfriamiento por canal, ignora silenciados),
 //   audio_silence (solo al aire), media_end (al terminar y "faltan N s"),
 //   speaker_time (una vez por turno), lobby/hand (sin avisar lo que ya estaba),
-//   chat (filtro y regex), stream_health (cuadros perdidos y corte), disk,
+//   chat (filtro y regex), stream_health (cuadros perdidos y corte),
+//   stream_down (se cayo sola y no vuelve; NO cuando la paraste vos), disk,
 //   timer (in / every), once, persistencia, alert_wait (evento y vencimiento),
 //   validaciones.
 
@@ -194,6 +195,46 @@ int main(int argc, char** argv) {
     step(250);
     CHECK(fired.size() == 3 && fired[2]["text"].get<std::string>().find("detuvo") != std::string::npos,
           "se corto");
+    eng.clear();
+    fired.clear();
+
+    // --- stream_down: solo cuando se cayo SOLA y no vuelve -----------------------------------------
+    // Es la diferencia con stream_health, que tambien avisa cuando la parás
+    // vos. A esta se le engancha una accion (volver a salir, poner la placa de
+    // «ya volvemos»), asi que no puede dispararse cuando el corte fue a
+    // proposito: seria pelearle al operador.
+    eng.create(json{{"type", "stream_down"}, {"params", {{"forSec", 20}}}});
+    w.status = {true, false, 0, 1000, false};
+    step(250);
+    // El operador la para: NO es un corte.
+    w.status.streaming = false;
+    step(1000);
+    CHECK(fired.empty(), "pararla a proposito no dispara stream_down");
+
+    // Ahora se cae sola y libobs reintenta. Un corte corto no es noticia.
+    w.status = {true, false, 0, 1000, true};
+    step(5000);
+    CHECK(fired.empty(), "reintentar unos segundos todavia no avisa");
+    step(20000);
+    CHECK(fired.size() == 1 && fired[0]["type"] == "stream_down", "lleva rato sin volver: avisa");
+    CHECK(fired.size() == 1 &&
+              fired[0]["text"].get<std::string>().find("sin poder volver") != std::string::npos,
+          "y dice cuanto lleva");
+
+    // Vuelve: se olvida, para que el proximo corte se cuente de cero.
+    w.status = {true, false, 0, 1000, false};
+    step(250);
+    // Y se deja pasar el enfriamiento: el segundo aviso no tiene que salir
+    // pegado al primero (un corte que va y viene llenaria la pantalla).
+    step(61000);
+    fired.clear();
+    // Se cae otra vez y el reintento se da por vencido.
+    w.status.reconnecting = true;
+    step(250);
+    w.status = {false, false, 0, 1000, false};
+    step(250);
+    CHECK(fired.size() == 1 && fired[0]["text"].get<std::string>().find("vencida") != std::string::npos,
+          "si el reintento se rinde, avisa aunque no haya pasado el tiempo");
     eng.clear();
     fired.clear();
 

@@ -1,0 +1,153 @@
+/* La página del público: se usa de pie, con una mano, en un salón a media luz y
+   con el escenario iluminado. De ahí el fondo oscuro, el texto grande y los
+   blancos de toque amplios. */
+:root {
+  --bg: #0d1014;
+  --panel: #161a21;
+  --borde: rgba(255, 255, 255, 0.09);
+  --texto: #e8ecf2;
+  --tenue: #9aa4b2;
+  --acento: #ff6a2b;
+  --aire: #ff3b30;
+  --ok: #34c759;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--texto);
+  font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+}
+
+/* El fondo del evento. Va detrás de todo y ATENUADO: es identidad visual, no
+   decoración — si compite con el texto, la pregunta no se lee. */
+.fondo {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.22;
+}
+.fondo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(13, 16, 20, 0.5), rgba(13, 16, 20, 0.95));
+}
+
+.barra {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
+  background: rgba(13, 16, 20, 0.92);
+  border-bottom: 1px solid var(--borde);
+  backdrop-filter: blur(8px);
+}
+.titulo { display: flex; flex-direction: column; min-width: 0; }
+.titulo strong { font-size: 17px; }
+.cuando { color: var(--tenue); font-size: 12px; }
+.estado { color: var(--tenue); font-size: 12px; white-space: nowrap; }
+
+.hoja { padding: 16px; max-width: 640px; margin: 0 auto; }
+
+h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em;
+     color: var(--tenue); margin: 22px 0 8px; }
+
+.tarjeta {
+  background: var(--panel);
+  border: 1px solid var(--borde);
+  border-radius: 14px;
+  padding: 14px;
+}
+.rotulo { display: block; font-size: 13px; color: var(--tenue); margin-bottom: 6px; }
+
+textarea, input[type="text"] {
+  width: 100%;
+  background: #0f1319;
+  color: var(--texto);
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  padding: 12px;
+  font: inherit;
+  resize: vertical;
+}
+textarea:focus, input:focus { outline: 2px solid var(--acento); outline-offset: 1px; }
+
+.fila { display: flex; gap: 8px; margin-top: 10px; }
+.fila input { flex: 1; min-width: 0; }
+
+button {
+  font: inherit;
+  border-radius: 10px;
+  border: 1px solid var(--borde);
+  background: #1d232c;
+  color: var(--texto);
+  /* 44px de alto: lo que hace falta para que un dedo acierte sin mirar. */
+  min-height: 44px;
+  padding: 0 16px;
+  cursor: pointer;
+}
+button:active { transform: translateY(1px); }
+button[disabled] { opacity: 0.5; cursor: default; }
+.primario { background: var(--acento); border-color: transparent; color: #12161b; font-weight: 600; }
+
+.aviso { min-height: 18px; margin: 8px 0 0; font-size: 13px; color: var(--tenue); }
+.aviso.mal { color: var(--aire); }
+.aviso.bien { color: var(--ok); }
+
+.lista { display: flex; flex-direction: column; gap: 8px; }
+
+.q {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--panel);
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  padding: 12px;
+}
+.q.aire { border-color: var(--aire); box-shadow: 0 0 0 1px var(--aire) inset; }
+.q .cuerpo { flex: 1; min-width: 0; }
+.q .texto { overflow-wrap: anywhere; }
+.q .quien { color: var(--tenue); font-size: 12px; margin-top: 4px; }
+
+.marca { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+         color: var(--tenue); }
+.marca.aire { color: var(--aire); }
+.marca.elegida { color: var(--ok); }
+
+.votar { display: flex; flex-direction: column; align-items: center; gap: 2px;
+         min-width: 48px; min-height: 48px; justify-content: center; }
+.votar.ya { color: var(--acento); border-color: var(--acento); }
+.votar .n { font-size: 13px; font-weight: 600; }
+
+.pie { color: var(--tenue); font-size: 12px; margin: 0 0 8px; }
+
+.pin { padding: 40px 20px; text-align: center; color: var(--tenue); }
+.hidden { display: none !important; }
+
+/* --- La urna ------------------------------------------------------------- */
+.urna { margin-bottom: 16px; }
+.urna h3 { margin: 6px 0 12px; font-size: 18px; line-height: 1.3; }
+
+.opciones { display: flex; flex-direction: column; gap: 8px; }
+/* Los botones de votar son grandes y a lo ancho: se aprieta de pie, con una
+   mano, y equivocarse de opción no se puede deshacer después de cerrada. */
+.opciones button { width: 100%; justify-content: flex-start; text-align: left; min-height: 52px; }
+.opciones button.mio { border-color: var(--acento); background: rgba(255, 106, 43, 0.14); }
+.opciones button.mio::before { content: "✓ "; color: var(--acento); font-weight: 700; }
+
+.resultado { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+.barra-voto { display: flex; flex-direction: column; gap: 4px; }
+.barra-voto .fila-voto { display: flex; justify-content: space-between; font-size: 14px; }
+.barra-voto .riel { height: 8px; border-radius: 4px; background: #0f1319; overflow: hidden; }
+.barra-voto .lleno { height: 100%; background: var(--acento); border-radius: 4px; }

@@ -133,9 +133,15 @@ void AudioViewModel::rebuildGraph() {
     AudioRack* r = rack();
     json d = r != nullptr ? r->describe() : json::object();
     json meters = json::object();
-    for (auto& n : d.value("nodos", json::array())) {
-        meters[n.value("id", "")] = n.value("medidores", json::object());
-        n.erase("medidores");
+    // OJO: `d.value(...)` devuelve una COPIA. Iterando sobre ella, el erase no
+    // sacaba los medidores de `d`: el grafo "cambiaba" en cada vuelta con audio
+    // vivo, se rehacian los delegados del patchbay y no se podia arrastrar un
+    // nodo (con fuentes en silencio no se notaba, porque el medidor no variaba).
+    if (d.contains("nodos")) {
+        for (auto& n : d["nodos"]) {
+            meters[n.value("id", "")] = n.value("medidores", json::object());
+            n.erase("medidores");
+        }
     }
     const QVariantMap g = toVariant(d).toMap();
     if (g != graph_) {
@@ -249,6 +255,86 @@ QString AudioViewModel::addGenerator() {
     return {};
 }
 
+QVariantList AudioViewModel::outputDevices() const {
+    QVariantList out;
+    for (const auto& d : mgr_.outputDevices()) {
+        QVariantList salidas;
+        for (const auto& o : d.value("salidas", nlohmann::json::array()))
+            salidas << QVariantMap{{"id", QString::fromStdString(o.value("id", ""))},
+                                   {"nombre", QString::fromStdString(o.value("nombre", ""))}};
+        out << QVariantMap{{"dispositivo", QString::fromStdString(d.value("dispositivo", ""))},
+                           {"salidas", salidas}};
+    }
+    return out;
+}
+
+QString AudioViewModel::addOutput(const QString& device) {
+    if (rack(true) == nullptr) return "Elegí una fuente con audio.";
+    const std::string e = mgr_.setOutput(source_.toStdString(), device.toStdString());
+    if (!e.empty()) return QString::fromStdString(e);
+    select("salida-audio");
+    rebuildGraph();
+    return {};
+}
+
+// --- Plantillas -------------------------------------------------------------
+
+QVariantList AudioViewModel::plantillas() const {
+    QVariantList out;
+    for (const auto& p : mgr_.plantillas()) {
+        out.append(QVariantMap{{"nombre", QString::fromStdString(p.value("nombre", std::string()))},
+                               {"modulos", static_cast<int>(p.value("modulos", 0))},
+                               {"paraTipo", QString::fromStdString(p.value("paraTipo", std::string()))}});
+    }
+    return out;
+}
+
+QString AudioViewModel::guardarPlantilla(const QString& nombre) {
+    const std::string e = mgr_.guardarPlantilla(source_.toStdString(), nombre.trimmed().toStdString());
+    if (e.empty()) emit changed();
+    return QString::fromStdString(e);
+}
+
+QString AudioViewModel::aplicarPlantilla(const QString& nombre) {
+    const std::string e = mgr_.aplicarPlantilla(nombre.toStdString(), source_.toStdString());
+    if (e.empty()) {
+        // La plantilla trae otros nodos: lo que estaba elegido ya no existe.
+        selected_.clear();
+        rebuildGraph();
+        emit selectionChanged();
+    }
+    return QString::fromStdString(e);
+}
+
+QString AudioViewModel::borrarPlantilla(const QString& nombre) {
+    const std::string e = mgr_.borrarPlantilla(nombre.toStdString());
+    if (e.empty()) emit changed();
+    return QString::fromStdString(e);
+}
+
+QString AudioViewModel::plantillaPorDefecto(const QString& nombre, const QString& tipo) {
+    const std::string e = mgr_.plantillaPorDefecto(nombre.toStdString(), tipo.toStdString());
+    if (e.empty()) emit changed();
+    return QString::fromStdString(e);
+}
+
+QString AudioViewModel::tipoDeFuente() const {
+    for (const auto& s : mgr_.audioSources())
+        if (s.value("nombre", std::string()) == source_.toStdString())
+            return QString::fromStdString(s.value("tipo", std::string()));
+    return {};
+}
+
+double AudioViewModel::gridStep() const { return AudioRack::gridStep(); }
+
+void AudioViewModel::tidy() {
+    AudioRack* r = rack();
+    if (r == nullptr) return;
+    r->layoutGrid();
+    mgr_.markDirty();
+    rebuildGraph();
+}
+
 void AudioViewModel::removeNode(const QString& node) {
     AudioRack* r = rack();
     std::string e;
@@ -269,11 +355,12 @@ void AudioViewModel::removeRack() {
 }
 
 QString AudioViewModel::connectPorts(const QString& from, const QString& out, const QString& to,
-                                     const QString& in) {
+                                     const QString& in, int outCh, int inCh) {
     AudioRack* r = rack(true);
     if (r == nullptr) return "sin rack";
     std::string e;
-    if (!r->connect(from.toStdString(), out.toStdString(), to.toStdString(), in.toStdString(), &e))
+    if (!r->connect(from.toStdString(), out.toStdString(), to.toStdString(), in.toStdString(), &e, outCh,
+                    inCh))
         return QString::fromStdString(e);
     mgr_.markDirty();
     rebuildGraph();
@@ -281,10 +368,10 @@ QString AudioViewModel::connectPorts(const QString& from, const QString& out, co
 }
 
 void AudioViewModel::disconnectPorts(const QString& from, const QString& out, const QString& to,
-                                     const QString& in) {
+                                     const QString& in, int outCh, int inCh) {
     AudioRack* r = rack();
     if (r == nullptr) return;
-    if (r->disconnect(from.toStdString(), out.toStdString(), to.toStdString(), in.toStdString()))
+    if (r->disconnect(from.toStdString(), out.toStdString(), to.toStdString(), in.toStdString(), outCh, inCh))
         mgr_.markDirty();
     rebuildGraph();
 }

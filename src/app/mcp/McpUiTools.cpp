@@ -6,9 +6,11 @@
 #include <QDir>
 #include <QFile>
 #include <QGuiApplication>
+#include <QMetaObject>
 #include <QQuickWindow>
 #include <QScreen>
 #include <QTimer>
+#include <QVariant>
 
 #include <algorithm>
 #include <deque>
@@ -18,10 +20,30 @@
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/DashboardModel.hpp"
 #include "ui/FrameService.hpp"
+#include "ui/RielConfig.hpp"
 #include "ui/StudioViewModel.hpp"
 #include "ui/SystemViewModel.hpp"
 
 namespace ba::app::mcp {
+namespace {
+
+/// Los ids de las paginas, para el `enum` del esquema. Salen del catalogo
+/// (ui/RielConfig.hpp), que es el unico lugar donde estan declaradas: una
+/// pagina nueva aparece aca sin tocar nada.
+json idsDePaginas() {
+    json out = json::array();
+    for (const QString& id : RielConfig::idsDePaginas())
+        out.push_back(id.toStdString());
+    return out;
+}
+
+/// El indice de pagina de un id, o -1.
+int paginaDeId(StudioViewModel& vm, const std::string& id) {
+    auto* riel = static_cast<RielConfig*>(vm.riel());
+    return riel == nullptr ? -1 : riel->paginaDeId(QString::fromStdString(id));
+}
+
+} // namespace
 
 void McpService::registerUiTools() {
     core_.addCategory(
@@ -40,24 +62,113 @@ void McpService::registerUiTools() {
         t.name = "ui_show_page";
         t.title = "Mostrar una pagina";
         t.category = "interfaz";
-        t.description = "Cambia la pagina que ve el operador: dashboard, escenas, entradas, sala, youtube, "
-                        "twitch, facebook, configuracion o asistente.";
-        t.inputSchema = {{"type", "object"},
-                         {"properties",
-                          {{"page",
-                            {{"type", "string"},
-                             {"enum",
-                              {"dashboard", "escenas", "entradas", "audio", "sala", "youtube", "twitch",
-                               "facebook", "configuracion", "asistente"}}}}}},
-                         {"required", {"page"}}};
-        t.run = [self](const json& a, Done done) {
-            static const std::map<std::string, int> kPages{
-                {"dashboard", 0}, {"escenas", 1},       {"sala", 2},      {"youtube", 3},  {"twitch", 4},
-                {"facebook", 5},  {"configuracion", 6}, {"asistente", 7}, {"entradas", 8}, {"audio", 9}};
+        t.description = "Cambia la pagina que ve el operador. Las que hay salen del catalogo de la "
+                        "interfaz (ver el enum de `page`): si se agrega una pagina nueva al programa, "
+                        "aparece aca sola.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"page", {{"type", "string"}, {"enum", idsDePaginas()}}},
+              {"seccion",
+               {{"type", "string"},
+                {"description", "Solo con page=configuracion: a que seccion ir (el nombre tal cual lo "
+                                "muestra la lista, p. ej. \"Audio\", \"Gateway\", \"Barra de "
+                                "navegacion\"). Sin esto queda la que estaba."}}}}},
+            {"required", {"page"}}};
+        t.run = [self, &vm](const json& a, Done done) {
             QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;
             if (w == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
-            w->setProperty("page", kPages.at(a["page"]));
+            const int pagina = paginaDeId(vm, a["page"].get<std::string>());
+            if (pagina < 0)
+                return done(
+                    ToolResult::error("No conozco la pagina \"" + a["page"].get<std::string>() + "\"."));
+            w->setProperty("page", pagina);
+            // Llevarlo a la seccion ANTES de mostrar la pagina haria que se
+            // vea un salto; despues, no se nota.
+            if (a.contains("seccion") && a["seccion"].is_string())
+                vm.setSeccionConfig(QString::fromStdString(a["seccion"].get<std::string>()));
             done(ToolResult::ok("Pagina: " + a["page"].get<std::string>()));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "ui_page_window";
+        t.title = "Sacar una pagina a su ventana";
+        t.category = "interfaz";
+        t.description = "Abre una pagina en su PROPIA ventana, para mandarla a otro monitor.";
+        t.details =
+            "No la saca de la ventana principal: abre otra vista de lo mismo. Las dos se mantienen "
+            "sincronizadas solas (todas las paginas leen su estado del mismo lugar), asi que el operador "
+            "puede tener el guion en un monitor y las escenas en el otro.\n\n"
+            "El operador hace lo mismo con clic derecho en el icono del riel. Si esa pagina ya esta "
+            "afuera, no se abre otra igual.\n\n"
+            "Cerrar la ventana no pierde nada: la pagina sigue en la ventana principal.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"page", {{"type", "string"}, {"enum", idsDePaginas()}}},
+              {"seccion",
+               {{"type", "string"},
+                {"description", "Solo con page=configuracion: a que seccion ir (el nombre tal cual lo "
+                                "muestra la lista, p. ej. \"Audio\", \"Gateway\", \"Barra de "
+                                "navegacion\"). Sin esto queda la que estaba."}}}}},
+            {"required", {"page"}}};
+        t.run = [self, &vm](const json& a, Done done) {
+            QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;
+            if (w == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
+            const int idx = paginaDeId(vm, a["page"].get<std::string>());
+            if (idx < 0)
+                return done(
+                    ToolResult::error("No conozco la pagina \"" + a["page"].get<std::string>() + "\"."));
+            auto* riel = static_cast<RielConfig*>(vm.riel());
+            const QString titulo = riel->tituloDePagina(idx);
+            QMetaObject::invokeMethod(w, "sacarAVentana", Q_ARG(QVariant, idx), Q_ARG(QVariant, titulo));
+            done(ToolResult::ok("\"" + titulo.toStdString() + "\" abierta en su propia ventana."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "ui_panel_window";
+        t.title = "Sacar un panel a su ventana";
+        t.category = "interfaz";
+        t.description =
+            "Abre el padron, la cola de preguntas o la urna en su PROPIA ventana, para mandarla a "
+            "otro monitor.";
+        t.details = "MAS FINO QUE `ui_page_window`, que saca una pagina entera. En un evento esa es la "
+                    "diferencia entre tener «Publico» en el segundo monitor y tener la cola de preguntas en "
+                    "uno y la urna en otro: cuando hay alguien moderando y alguien conduciendo, cada uno "
+                    "mira lo suyo.\n\n"
+                    "Los tres:\n"
+                    "- `padron`: quienes vienen y quienes llegaron. Es el que va en el mostrador de la "
+                    "entrada.\n"
+                    "- `preguntas`: la cola del publico, para moderarla.\n"
+                    "- `votacion`: la urna, para abrirla y cerrarla en vivo.\n\n"
+                    "No saca nada de la ventana principal: abre otra vista de lo mismo, y las dos se "
+                    "mantienen sincronizadas solas. Cerrarla no pierde nada.\n\n"
+                    "Despues se la manda al monitor que corresponda con `ventana_mover`: la ventana se llama "
+                    "`ba:panel:<id>` y `ventana_listar` la muestra. Si ese panel ya esta afuera, no se abre "
+                    "otro igual.\n\n"
+                    "El operador hace lo mismo con el boton ⧉ del panel.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"required", {"panel"}},
+            {"properties",
+             {{"panel", {{"type", "string"}, {"enum", {"padron", "preguntas", "votacion", "carrusel"}}}}}}};
+        t.examples = {R"({"panel": "preguntas"})"};
+        t.run = [self](const json& a, Done done) {
+            QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;
+            if (w == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
+            const std::string id = a["panel"].get<std::string>();
+            const QString titulo = id == "padron"      ? "Padrón"
+                                   : id == "preguntas" ? "Preguntas"
+                                   : id == "carrusel"  ? "Carrusel"
+                                                       : "Votación";
+            QMetaObject::invokeMethod(w, "sacarPanel", Q_ARG(QVariant, QString::fromStdString(id)),
+                                      Q_ARG(QVariant, titulo));
+            done(ToolResult::ok("\"" + titulo.toStdString() + "\" abierto en su propia ventana (ba:panel:" +
+                                id + "). Con `ventana_mover` se la manda al monitor que corresponda."));
         };
         core_.addTool(std::move(t));
     }
@@ -217,8 +328,10 @@ void McpService::registerUiTools() {
         t.category = "sistema";
         t.readOnly = true;
         t.description =
-            "Claves de video que la app puede mostrar o capturar (program, guest:N, share:N, lobby:K, "
-            "backstage:K, operator) con su etiqueta y si ahora tienen imagen.";
+            "Claves de video que la app puede mostrar o capturar (program, armada, guest:N, share:N, "
+            "lobby:K, backstage:K, operator) con su etiqueta y si ahora tienen imagen.\n\n"
+            "`armada` es la escena del bus de preview, renderizada aunque no este al aire: es el "
+            "monitor de preview de una mesa. Solo tiene imagen si hay algo armado (scene_preview).";
         t.run = [&vm](const json&, Done done) {
             auto* frames = static_cast<FrameService*>(vm.frames());
             QStringList keys = frames->keys();
@@ -240,19 +353,103 @@ void McpService::registerUiTools() {
         };
         core_.addTool(std::move(t));
     }
+    // --- La barra de navegacion ---------------------------------------------
+    // Tiene vista (Configuracion -> Barra de navegacion), asi que se puede
+    // publicar: la regla es que no se expone un setter que no se vea en
+    // ningun lado (ver docs/EXTENSIONES.md).
+    {
+        Tool t;
+        t.name = "ui_barra";
+        t.title = "La barra de navegacion";
+        t.category = "interfaz";
+        t.description = "Donde va la barra lateral, de que tamaño y que paginas muestra.";
+        t.details =
+            "Sin argumentos, informa como esta. Con ellos, cambia lo que se le diga y deja el resto.\n\n"
+            "`posicion`: izquierda (por defecto), derecha, arriba o abajo. Arriba y abajo convienen en "
+            "pantallas anchas y bajas, donde lo que falta es altura.\n\n"
+            "`tamano`: el lado del boton en pixeles, de 30 a 64. 34 es chico, 42 normal, 54 grande.\n\n"
+            "`expandir`: si la barra se abre en arbol al pasarle el puntero por encima. En reposo es la "
+            "misma tira de iconos; abierta se eleva del fondo y muestra los grupos con el nombre de "
+            "cada pagina, y la seccion donde uno se apoya se abre sola. Flota sobre la pagina, no la "
+            "corre. Solo aplica con la barra a la izquierda o a la derecha: arriba y abajo lo que falta "
+            "es altura y un arbol seria un menu colgando.\n\n"
+            "`anchoAbierto`: cuanto mide abierta, de 180 a 360 pixeles.\n\n"
+            "`mostrar` y `esconder`: listas de paginas por nombre, los mismos que toma ui_show_page. "
+            "Esconder una NO la desactiva: la pagina sigue existiendo, el asistente la sigue usando y "
+            "se puede abrir en su propia ventana; lo unico que se esconde es su boton. Configuracion "
+            "no se puede esconder, porque es por donde se vuelve.\n\n"
+            "El cambio se ve al toque y se guarda solo en Config/riel.json.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"posicion", {{"type", "string"}, {"enum", {"izquierda", "derecha", "arriba", "abajo"}}}},
+              {"tamano", {{"type", "integer"}, {"minimum", 30}, {"maximum", 64}}},
+              {"separadores", {{"type", "boolean"}, {"description", "Lineas entre los grupos."}}},
+              {"expandir",
+               {{"type", "boolean"},
+                {"description", "Que se abra en arbol al pasarle el puntero (solo en vertical)."}}},
+              {"anchoAbierto", {{"type", "integer"}, {"minimum", 180}, {"maximum", 360}}},
+              {"mostrar", {{"type", "array"}, {"items", {{"type", "string"}}}}},
+              {"esconder", {{"type", "array"}, {"items", {{"type", "string"}}}}},
+              {"restaurar", {{"type", "boolean"}, {"description", "Todo como viene de fabrica."}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            auto* riel = static_cast<RielConfig*>(vm.riel());
+            if (riel == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
+            if (a.value("restaurar", false)) riel->restaurar();
+            if (a.contains("posicion"))
+                riel->setPosicion(QString::fromStdString(a["posicion"].get<std::string>()));
+            if (a.contains("tamano")) riel->setTamano(a["tamano"].get<int>());
+            if (a.contains("separadores")) riel->setSeparadores(a["separadores"].get<bool>());
+            if (a.contains("expandir")) riel->setExpandir(a["expandir"].get<bool>());
+            if (a.contains("anchoAbierto")) riel->setAnchoAbierto(a["anchoAbierto"].get<int>());
+            for (const char* cual : {"mostrar", "esconder"}) {
+                if (!a.contains(cual) || !a[cual].is_array()) continue;
+                const bool ver = std::string(cual) == "mostrar";
+                for (const json& p : a[cual]) {
+                    if (!p.is_string()) continue;
+                    const int pagina = paginaDeId(vm, p.get<std::string>());
+                    if (pagina < 0)
+                        return done(
+                            ToolResult::error("No conozco la pagina \"" + p.get<std::string>() + "\"."));
+                    riel->setVisible(pagina, ver);
+                }
+            }
+
+            json paginas = json::array();
+            for (const QVariant& v : riel->paginas()) {
+                const QVariantMap m = v.toMap();
+                paginas.push_back(json{{"titulo", m.value("titulo").toString().toStdString()},
+                                       {"visible", m.value("visible").toBool()},
+                                       {"grupo", m.value("grupo").toString().toStdString()}});
+            }
+            done(ToolResult().data(json{{"posicion", riel->posicion().toStdString()},
+                                        {"tamano", riel->tamano()},
+                                        {"separadores", riel->separadores()},
+                                        {"expandir", riel->expandir()},
+                                        {"anchoAbierto", riel->anchoAbierto()},
+                                        {"escondidas", riel->escondidas()},
+                                        {"paginas", paginas}}));
+        };
+        core_.addTool(std::move(t));
+    }
+
     {
         Tool t;
         t.name = "logs_tail";
         t.title = "Registros";
         t.category = "sistema";
         t.readOnly = true;
-        t.description =
-            "Ultimas lineas de un registro (Logs/): ba.log (app y sala), launcher.log (supervisor), "
-            "cloudflared.log (tunel). Con `grep`, solo las lineas que lo contienen.";
+        t.description = "Ultimas lineas CRUDAS de un archivo de Logs/, tal como esta escrito.";
+        t.details = "Para diagnosticar, usa `log_leer`: lee los mismos archivos pero ya partidos en hora, "
+                    "nivel, modulo y descripcion, entrelazando los tres procesos y con filtros. Esto sirve "
+                    "cuando hace falta ver el archivo TAL CUAL, sin interpretar: por ejemplo "
+                    "cloudflared.log, que lo escribe un programa de terceros con su propio formato.\n\n"
+                    "Los archivos: app.log (Proceso A), gateway.log (Proceso B), graficos.log, "
+                    "launcher.log (supervisor) y cloudflared.log (tunel).";
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"log", {{"type", "string"}, {"default", "ba.log"}}},
+             {{"log", {{"type", "string"}, {"default", "app.log"}}},
               {"lines", {{"type", "integer"}, {"minimum", 1}, {"maximum", 2000}, {"default", 80}}},
               {"grep", {{"type", "string"}}}}}};
         t.run = [&rt](const json& a, Done done) {

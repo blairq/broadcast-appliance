@@ -14,8 +14,10 @@
 // puede arrancar sin contexto grafico).
 // ============================================================================
 
+#include "diag/DiarioDeArranque.hpp"
 #include "OperatorEngine.hpp"
 #include "platform/Paths.hpp"
+#include "Registrar.hpp"
 #include "security/CredentialStore.hpp"
 
 #include <cmath>
@@ -134,6 +136,13 @@ int dispatch(int argc, char** argv) {
 #endif
     // Portable: caches de Qt/fontconfig/shaders al bundle (antes de Qt y libobs).
     ba::platform::redirectUserDirs();
+    // El registro, ANTES que nada: lo primero que puede fallar es el arranque,
+    // y si el registro se abre despues, eso no queda escrito en ningun lado.
+    ba::app::registrarTodo(ba::platform::dataRoot());
+    // El diario de arranque: anota que se esta cargando para que, si algo se
+    // lleva puesto el arranque, la proxima vez se saltee en vez de volver a
+    // morir en el mismo lugar. Ver diag/DiarioDeArranque.hpp.
+    ba::diag::abrirDiario(ba::platform::dataRoot() / "Runtime" / "arranque.json");
     // Credenciales en claro de versiones anteriores -> Credenciales/ cifradas.
     ba::security::CredentialStore::bundle().importLegacy(ba::platform::dataRoot());
     // --restore (spec §3.1.8): el launcher lo pasa al relanzar A tras un crash.

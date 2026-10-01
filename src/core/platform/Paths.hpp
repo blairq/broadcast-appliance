@@ -14,8 +14,9 @@
 // Layout que se reconoce para la raiz del bundle:
 //   - `<root>/bin/64bit/<exe>`          -> ba-app, ba-gateway (Windows/Linux)
 //   - `<root>/<exe>`                    -> el launcher (vive en la raiz, §5.1)
-//   - `<X>.app/Contents/MacOS/<exe>`    -> launcher en macOS; root = Contents
-//   - `<X>.app/Contents/bin/64bit/<exe>`-> A y B en macOS; root = Contents
+//   - `<X>.app/Contents/MacOS/<exe>`    -> launcher en macOS; root = Contents/Resources
+//   - `<X>.app/Contents/Resources/bin/64bit/<exe>` -> A y B en macOS (la regla de
+//     bin/64bit); root = Contents/Resources
 //
 // Estrategia de errores:
 //   No lanza. Si el SO no permite resolver el ejecutable se devuelve una ruta

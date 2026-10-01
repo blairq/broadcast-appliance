@@ -12,6 +12,10 @@
 //   probar     audio_generator (señal de prueba), audio_editor (interfaz LSP)
 // ============================================================================
 
+#include "audio/PluginTerminos.hpp"
+#include <set>
+
+#include "mcp/McpIndice.hpp"
 #include "mcp/McpService.hpp"
 
 #if defined(BA_HAVE_CLAP)
@@ -80,6 +84,7 @@ void McpService::registerAudioTools() {
         t.category = "audio_rack";
         t.readOnly = true;
         t.description =
+            "El inventario de fuentes con SONIDO. "
             "Todas las fuentes con audio (microfonos, placas, videos con sonido, invitados...), si tienen "
             "rack, cuantos modulos y el nivel de salida.";
         t.run = [mgr](const json&, Done done) {
@@ -88,6 +93,56 @@ void McpService::registerAudioTools() {
             json r{{"fuentes", mgr()->audioSources()}};
             if (!e.empty()) r["aviso"] = e;
             done(ToolResult().data(r));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "audio_plantillas";
+        t.title = "Plantillas de rack";
+        t.category = "audio_rack";
+        t.description =
+            "Guarda el rack de una fuente con nombre, se lo aplica a otra, lo borra, o lo marca como "
+            "predeterminado de un tipo de fuente. Sin argumentos, lista las que hay.";
+        t.details =
+            "Un rack armado a mano (compuerta, compresor, de-esser, sus parametros y sus cables) es media "
+            "hora de trabajo. Guardarlo con nombre permite ponerselo a otra fuente en un clic.\n\n"
+            "Lo que mas sirve es `porDefecto`: marcada para un tipo de fuente (`ba_guest_audio` son los "
+            "invitados), las fuentes NUEVAS de ese tipo la toman solas al crearse. O sea que un invitado "
+            "que se conecta ya suena bien sin que nadie le arme nada mientras el evento empieza. Una sola "
+            "por tipo: si marcas otra, la anterior se desmarca.\n\n"
+            "`aplicar` REEMPLAZA el rack que la fuente tenga: lo que habia se pierde. Si el operador "
+            "armo algo a mano ahi, guardalo antes con `guardar`.\n\n"
+            "Viven en Config/audio-plantillas.json, asi que viajan con la carpeta portable.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"guardar",
+               {{"type", "string"}, {"description", "Nombre con el que guardar el rack de `source`."}}},
+              {"aplicar", {{"type", "string"}, {"description", "Plantilla a ponerle a `source`."}}},
+              {"borrar", {{"type", "string"}}},
+              {"porDefecto", {{"type", "string"}, {"description", "Plantilla a marcar."}}},
+              {"paraTipo",
+               {{"type", "string"},
+                {"description", "Tipo de fuente de libobs para `porDefecto` (vacio = desmarcar)."}}},
+              {"source", {{"type", "string"}, {"description", "La fuente, para guardar o aplicar."}}}}}};
+        t.run = [mgr](const json& a, Done done) {
+            const std::string src = a.value("source", std::string());
+            std::string err;
+            if (a.contains("guardar")) {
+                if (src.empty())
+                    return done(ToolResult::error("Falta `source`: de que fuente guardar el rack."));
+                err = mgr()->guardarPlantilla(src, a["guardar"]);
+            } else if (a.contains("aplicar")) {
+                if (src.empty()) return done(ToolResult::error("Falta `source`: a que fuente aplicarsela."));
+                err = mgr()->aplicarPlantilla(a["aplicar"], src);
+            } else if (a.contains("borrar")) {
+                err = mgr()->borrarPlantilla(a["borrar"]);
+            } else if (a.contains("porDefecto")) {
+                err = mgr()->plantillaPorDefecto(a["porDefecto"], a.value("paraTipo", std::string()));
+            }
+            if (!err.empty()) return done(ToolResult::error(err));
+            done(ToolResult().data(json{{"plantillas", mgr()->plantillas()}}));
         };
         core_.addTool(std::move(t));
     }
@@ -112,14 +167,19 @@ void McpService::registerAudioTools() {
     {
         Tool t;
         t.name = "audio_modules";
-        t.title = "Modulos disponibles";
+        t.title = "Modulos con interfaz propia";
         t.category = "audio_rack";
         t.readOnly = true;
         t.description =
-            "Los modulos con interfaz propia (gate, compresor, deesser, eq, multibanda, limitador: "
-            "parametros, ayuda y presets) y, con `buscar`, cualquiera de los ~200 plugins LSP.";
-        t.inputSchema = {{"type", "object"}, {"properties", {{"buscar", {{"type", "string"}}}}}};
-        t.run = [mgr](const json& a, Done done) {
+            "Los seis modulos que el aparato maneja con nombre propio —compuerta, compresor, "
+            "deesser, ecualizador, multibanda, limitador— con sus parametros explicados, sus rangos "
+            "y sus presets. Son los que conviene usar cuando alcanzan.";
+        t.details = "Para cualquier otro de los ~200 instalados, `audio_plugin_buscar`: busca en castellano "
+                    "y dice para que sirve cada uno. Aca estaba antes ese buscador, haciendo una busqueda "
+                    "literal peor y devolviendo el catalogo entero encima —19 KB para leer diez lineas—. "
+                    "Dos buscadores para lo mismo es uno de mas.";
+        t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
+        t.run = [](const json&, Done done) {
             json cat = json::array();
             for (const auto& m : audio::moduleCatalog()) {
                 json params = json::array();
@@ -141,28 +201,135 @@ void McpService::registerAudioTools() {
                      {"bandas", m.bandCount > 0 ? json{m.bandFirst, m.bandFirst + m.bandCount - 1} : json()},
                      {"presets", presets}});
             }
-            json out{{"catalogo", cat}};
-            const std::string q = a.value("buscar", "");
-            if (!q.empty()) {
-                std::string e;
-                auto lib = mgr()->library(&e);
-                json found = json::array();
-                if (lib) {
-                    std::string ql = q;
-                    std::transform(ql.begin(), ql.end(), ql.begin(), ::tolower);
-                    for (const auto& p : lib->plugins()) {
-                        std::string h = p.id + " " + p.name + " " + p.description;
-                        std::transform(h.begin(), h.end(), h.begin(), ::tolower);
-                        if (h.find(ql) != std::string::npos && found.size() < 40)
-                            found.push_back(
-                                {{"id", p.id}, {"nombre", p.name}, {"descripcion", p.description}});
-                    }
-                } else {
-                    out["aviso"] = e;
-                }
-                out["lsp"] = found;
+            done(ToolResult().data(json{{"catalogo", cat}}));
+        };
+        core_.addTool(std::move(t));
+    }
+
+    {
+        Tool t;
+        t.name = "audio_plugin_buscar";
+        t.title = "Buscar entre los ~200 plugins de audio instalados";
+        t.category = "audio_rack";
+        t.readOnly = true;
+        t.description =
+            "Busca EN CASTELLANO entre todos los plugins de audio instalados (~200) y devuelve los "
+            "que sirven para lo que pediste, con para que sirve cada uno y cuantos canales maneja. "
+            "El rack no se limita a los seis modulos con interfaz propia.";
+        t.details = "POR QUE HACE FALTA BUSCAR. Los plugins se describen en ingles («performs gating of "
+                    "input signal») y son doscientos: ni entran en una lista ni se encuentran pidiendo lo "
+                    "que uno quiere. Aca hay un indice hecho a mano con las palabras de una cabina —«que la "
+                    "musica baje cuando hablan», «sacale el siseo», «que no pase de cierto volumen»— sobre "
+                    "el nombre, la descripcion y las caracteristicas de cada uno.\n\n"
+                    "EL `id` QUE DEVUELVE SE USA TAL CUAL en `audio_module_add`. Los seis del catalogo "
+                    "(gate, compresor, deesser, eq, multibanda, limitador) tienen ademas parametros con "
+                    "nombre y presets: si uno de esos alcanza, es mejor, y `audio_modules` los detalla.\n\n"
+                    "`canales` dice si la version es mono, estereo o por bandas: LSP publica el mismo "
+                    "aparato varias veces y hay que elegir el que corresponde a la fuente.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"required", {"buscar"}},
+            {"properties",
+             {{"buscar", {{"type", "string"}, {"description", "que necesitas, con tus palabras"}}},
+              {"limite", {{"type", "integer"}, {"default", 10}}}}}};
+        t.examples = {R"({"buscar": "que la musica baje cuando hablan"})",
+                      R"({"buscar": "sacarle el siseo a la voz"})",
+                      R"({"buscar": "sincronizar el audio con la imagen"})"};
+        t.run = [mgr](const json& a, Done done) {
+            std::string e;
+            auto lib = mgr()->library(&e);
+            if (!lib) return done(ToolResult::error("No se pudo abrir la biblioteca de plugins: " + e));
+
+            // El MISMO motor que busca herramientas (McpIndice): pesos por
+            // campo, IDF y prefijos. No hay razon para tener dos buscadores.
+            Indice idx;
+            for (const auto& p : lib->plugins()) {
+                Documento d;
+                d.id = p.id;
+                d.clase = "plugin";
+                d.nombre = audio::familiaDe(p.id);
+                d.titulo = p.name;
+                d.etiquetas = audio::terminosDePlugin(p.id);
+                // El para-que en castellano pesa como cuerpo; la descripcion en
+                // ingles tambien entra, que a veces alguien busca por el nombre
+                // tecnico.
+                d.cuerpo = audio::paraQueSirve(p.id) + " " + p.description;
+                for (const std::string& f : p.features)
+                    d.cuerpo += " " + f;
+                idx.agregar(std::move(d));
             }
-            done(ToolResult().data(out));
+            idx.armar();
+
+            const int limite = std::max(1, std::min(40, a.value("limite", 10)));
+            // CUANTO DE LO QUE PREGUNTASTE MATCHEO DE VERDAD.
+            //
+            // El puntaje NO alcanza para saber si la respuesta sirve: «auto
+            // tune corregir la afinacion» sacaba 393 —mas que el deesser
+            // correcto, 281— porque «auto» es prefijo de `autogain`,
+            // `automatico` y `automaticamente`. Tres coincidencias de UNA sola
+            // palabra, y las otras tres («tune», «corregir», «afinacion») no
+            // pegaban nada. Contestar eso como si sirviera es peor que decir
+            // que no hay: manda a poner un control de volumen donde pedian un
+            // corrector de tono.
+            //
+            // Entonces se cuenta cuantas PALABRAS DISTINTAS de la pregunta
+            // aparecen entre lo que matcheo. Una sola, habiendo pedido varias,
+            // es un parecido de casualidad.
+            const auto palabras = Indice::terminos(a["buscar"].get<std::string>());
+            // Una palabra CORTA que solo aparece como principio de otra mas
+            // larga no cuenta: «auto» dentro de `autogain` no es haber
+            // encontrado un auto-tune. Una palabra larga que matcheo, si:
+            // «comprimir» trayendo `compresor` es un acierto, y castigarlo por
+            // las palabras de relleno que la acompañan («necesito», «del») era
+            // esconder la respuesta correcta.
+            constexpr std::size_t kPalabraFuerte = 6;
+            const auto cubiertas = [&palabras](const std::vector<std::string>& porque) {
+                std::set<std::string> vistas;
+                for (const std::string& w : palabras)
+                    for (const std::string& t : porque) {
+                        const bool exacta = t == w;
+                        const bool porPrefijo = t.rfind(w, 0) == 0 || w.rfind(t, 0) == 0;
+                        if (exacta || (porPrefijo && w.size() >= kPalabraFuerte)) vistas.insert(w);
+                    }
+                return vistas.size();
+            };
+            json out = json::array();
+            std::size_t mejorCobertura = 0;
+            for (const Resultado& r :
+                 idx.buscar(a["buscar"].get<std::string>(), static_cast<std::size_t>(limite))) {
+                const std::string id = idx.doc(r.doc).id;
+                const audio::PluginDesc* d = nullptr;
+                for (const auto& p : lib->plugins())
+                    if (p.id == id) d = &p;
+                if (d == nullptr) continue;
+                const std::size_t cub = cubiertas(r.porque);
+                mejorCobertura = std::max(mejorCobertura, cub);
+                out.push_back(
+                    json{{"deLoQuePediste", std::to_string(cub) + "/" + std::to_string(palabras.size())},
+                         {"id", d->id},
+                         {"nombre", d->name},
+                         {"paraQue", audio::paraQueSirve(d->id)},
+                         {"canales", audio::canalesDe(d->id)},
+                         {"porque", r.porque},
+                         {"descripcion", d->description}});
+            }
+            // Con una sola palabra pegada habiendo pedido varias, se dice que
+            // no hay: ofrecer «lo mas parecido» como si sirviera es lo que hace
+            // que alguien termine poniendo un control de volumen donde pidio un
+            // corrector de tono.
+            const bool flojo = out.empty() || mejorCobertura == 0;
+            ToolResult res;
+            if (out.empty())
+                res.text("No hay ningun plugin instalado para eso.");
+            else if (flojo)
+                res.text("NO hay ninguno para eso. Lo unico que se le parece de nombre es " +
+                         out[0]["id"].get<std::string>() +
+                         ", que hace otra cosa: no lo pongas sin leer `paraQue`.");
+            else
+                res.text(std::to_string(out.size()) +
+                         " plugin(s). El `id` va tal cual en `audio_module_add`.");
+            res.structured = json{{"plugins", out}, {"hayAlguno", !flojo}};
+            done(res);
         };
         core_.addTool(std::move(t));
     }
@@ -248,17 +415,23 @@ void McpService::registerAudioTools() {
         t.name = "audio_patch";
         t.title = "Conectar cables";
         t.category = "audio_rack";
-        t.description = "Conecta y/o desconecta cables como en JACK: {desde, salida (\"out\"), hacia, "
-                        "entrada (\"in\" o \"sc\" "
-                        "para sidechain)}. Varios cables a una entrada se suman (ramas en paralelo). No se "
-                        "permiten ciclos. "
-                        "Ojo: si la salida \"out\" queda sin nada conectado, la fuente se calla.";
+        t.description =
+            "Conecta y/o desconecta cables como en JACK: {desde, salida (\"out\"), hacia, entrada "
+            "(\"in\" o \"sc\" para sidechain)}. Varios cables a una entrada se suman (ramas en "
+            "paralelo). No se permiten ciclos. Por CANAL: agregar `canalSalida` y `canalEntrada` con "
+            "\"L\" o \"R\" (p. ej. la derecha de un modulo a la izquierda de otro, o usar un solo "
+            "canal); sin ellos el cable lleva el puerto entero (L->L y R->R). Un cable de puerto entero "
+            "y uno de canal entre los mismos puertos no conviven: el ultimo reemplaza al anterior. "
+            "Ojo: si la salida \"out\" queda sin nada conectado, la fuente se calla.";
+        const json canal{{"type", "string"}, {"enum", {"L", "R", "LR"}}};
         const json cable{{"type", "object"},
                          {"properties",
                           {{"desde", {{"type", "string"}}},
                            {"salida", {{"type", "string"}}},
                            {"hacia", {{"type", "string"}}},
-                           {"entrada", {{"type", "string"}}}}},
+                           {"entrada", {{"type", "string"}}},
+                           {"canalSalida", canal},
+                           {"canalEntrada", canal}}},
                          {"required", {"desde", "hacia"}}};
         t.inputSchema = {{"type", "object"},
                          {"properties",
@@ -271,15 +444,23 @@ void McpService::registerAudioTools() {
             AudioRack* r = mgr()->rack(a.value("source", ""), true, &e);
             if (r == nullptr) return done(ToolResult::error(e));
             json errors = json::array();
+            // "L" = izquierdo, "R" = derecho, ausente o "LR" = el puerto entero.
+            const auto canal = [](const json& c, const char* key) {
+                const std::string v = c.value(key, std::string());
+                if (v == "L" || v == "l") return 0;
+                if (v == "R" || v == "r") return 1;
+                return -1;
+            };
             for (const auto& c : a.value("desconectar", json::array()))
                 if (!r->disconnect(c.value("desde", ""), c.value("salida", ""), c.value("hacia", ""),
-                                   c.value("entrada", "")))
+                                   c.value("entrada", ""), canal(c, "canalSalida"), canal(c, "canalEntrada")))
                     errors.push_back("no habia cable " + c.value("desde", "") + " -> " +
                                      c.value("hacia", ""));
             for (const auto& c : a.value("conectar", json::array())) {
                 std::string ce;
                 if (!r->connect(c.value("desde", ""), c.value("salida", "out"), c.value("hacia", ""),
-                                c.value("entrada", "in"), &ce))
+                                c.value("entrada", "in"), &ce, canal(c, "canalSalida"),
+                                canal(c, "canalEntrada")))
                     errors.push_back(ce);
             }
             mgr()->markDirty();
@@ -413,7 +594,18 @@ void McpService::registerAudioTools() {
         std::string presets;
         for (auto it = type->presets.begin(); it != type->presets.end(); ++it)
             presets += (presets.empty() ? "" : ", ") + it.key();
-        t.description = type->help +
+        // Con las palabras del que se queja, no las del manual. `type->help`
+        // describe el modulo; esto dice CUANDO se usa, que es lo que el modelo
+        // tiene que emparejar con «los graves suenan mal».
+        const std::string cuando =
+            std::string(f.module) == "eq"          ? "Ecualiza: cuando los graves o los agudos suenan mal, "
+                                                     "retumba, suena metalico o apagado. "
+            : std::string(f.module) == "gate"      ? "Compuerta: cierra el microfono cuando nadie habla, "
+                                                     "para que no se escuche todo lo de alrededor. "
+            : std::string(f.module) == "limitador" ? "Limitador: para que no sature ni pase de cierto nivel. "
+            : std::string(f.module) == "compresor" ? "Compresor: empareja lo muy fuerte con lo muy bajo. "
+                                                   : std::string();
+        t.description = cuando + type->help +
                         " Sin parametros solo lee. Devuelve valores y medidores (cambioDb = lo que "
                         "el modulo baja/sube ahora)." +
                         (presets.empty() ? std::string() : " Presets: " + presets + ".");
@@ -452,9 +644,10 @@ void McpService::registerAudioTools() {
         Tool t;
         t.name = "audio_analyze";
         t.title = "Analizar el audio";
-        t.category = "audio_rack";
+        t.category = "audio";
         t.readOnly = true;
         t.description =
+            "Numeros crudos del espectro en un punto del rack, para verificar un ajuste. "
             "Analiza el audio en un punto del rack (\"in\" = la fuente cruda, \"out\" = lo que sale, o un "
             "nodo "
             "analizador) durante `segundos` (0-30; 0 = lo ya medido): pico, RMS, LUFS (momentaneo, corto, "
@@ -503,12 +696,20 @@ void McpService::registerAudioTools() {
     }
     {
         Tool t;
+        // MEDIR NO ES EL RACK. `audio_measure` y `audio_analyze` solo miran: no
+        // tocan una ganancia ni mueven un modulo. Estaban catalogadas en
+        // `audio_rack` porque viven en este archivo, y eso las dejaba fuera del
+        // juego del asistente: ante un acople no podia ni medir, que es lo
+        // primero que hay que hacer. La categoria dice QUE ES la herramienta,
+        // no en que archivo quedo.
         t.name = "audio_measure";
         t.title = "Medir un modulo o la cadena (fuera de linea)";
-        t.category = "audio_rack";
+        t.category = "audio";
         t.readOnly = true;
         t.description =
-            "Mide copias de los modulos con señales de prueba SIN tocar lo que sale al aire: `tipo: "
+            "Que esta pasando con el audio AHORA: es lo primero ante un acople, un pitido, saturacion, un "
+            "zumbido, o cuando alguien no se escucha o no se escucha nada al aire. Mide copias de los "
+            "modulos con señales de prueba SIN tocar lo que sale al aire: `tipo: "
             "respuesta` "
             "(ganancia por tercio de octava con un seno a `nivel_db`: para ver un EQ o un filtro) o `curva` "
             "(salida vs entrada de 1 kHz de -80 a 0 dBFS: para ver donde y cuanto actua un gate/compresor). "
@@ -583,6 +784,46 @@ void McpService::registerAudioTools() {
             }
             mgr()->markDirty();
             done(ToolResult().data(json{{"nodo", id}, {"rack", r->describe()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "audio_outputs";
+        t.title = "Salidas de audio del equipo";
+        t.category = "audio_rack";
+        t.readOnly = true;
+        t.description =
+            "QUE ES: las salidas fisicas de esta maquina (auriculares, parlantes, HDMI), agrupadas por "
+            "placa. PARA QUE: escuchar aparte lo que pasa por cualquier punto del rack de una fuente, sin "
+            "tocar lo que sale al aire ni a la mezcla del programa. Con `audio_output_set` se agrega al "
+            "grafo una tarjeta con esa salida y despues se le conecta lo que se quiera oir (audio_patch). "
+            "OJO: el motor reproduce por UNA salida a la vez; elegir otra cambia la de todos.";
+        t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
+        t.run = [mgr](const json&, Done done) {
+            done(ToolResult().data(json{{"dispositivos", mgr()->outputDevices()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "audio_output_set";
+        t.title = "Mandar el rack a una salida del equipo";
+        t.category = "audio_rack";
+        t.description =
+            "COMO SE USA: `salida` es el id que informa `audio_outputs`. Agrega (o reapunta) en el grafo "
+            "de esa fuente una tarjeta con el nombre de la salida; el audio recien se oye cuando se le "
+            "conecta algo con `audio_patch` (p. ej. {desde: \"in\", hacia: \"salida-audio\"}). No "
+            "cambia lo que sale al aire.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"source", kSource}, {"salida", {{"type", "string"}}}}},
+                         {"required", {"source", "salida"}}};
+        t.run = [mgr](const json& a, Done done) {
+            const std::string e = mgr()->setOutput(a.value("source", ""), a.value("salida", ""));
+            if (!e.empty()) return done(ToolResult::error(e));
+            std::string re;
+            AudioRack* r = mgr()->rack(a.value("source", ""), false, &re);
+            done(ToolResult().data(r != nullptr ? r->describe() : json::object()));
         };
         core_.addTool(std::move(t));
     }

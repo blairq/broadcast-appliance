@@ -101,6 +101,11 @@ json AlertEngine::types() {
          {"params",
           {{"droppedPct", "porcentaje de cuadros perdidos (por defecto 2)"}, {"windowSec", "ventana (30)"}}},
          {"cooldownSec", 60}},
+        {{"type", "stream_down"},
+         {"summary", "La transmision se cayo y no vuelve: lleva N segundos reintentando, o el "
+                     "reintento se dio por vencido."},
+         {"params", {{"forSec", "segundos reintentando antes de avisar (por defecto 20)"}}},
+         {"cooldownSec", 60}},
         {{"type", "disk"},
          {"summary", "Queda poco disco mientras se graba."},
          {"params", {{"minGb", "GB libres minimos (por defecto 5)"}}},
@@ -456,6 +461,37 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
                  "La transmision pierde cuadros: " + fmt1(pct) +
                      "% en los ultimos segundos (red o codificador al limite).",
                  {{"droppedPct", pct}}, now);
+        }
+    } else if (type == "stream_down" && in_.status) {
+        // DISTINTO de `stream_health`, que avisa por cuadros perdidos y
+        // tambien cuando la transmision para —incluso si la paraste vos—. Este
+        // es el que sirve para ENGANCHARLE UNA ACCION: se dispara solo cuando
+        // la salida se cayo sola y no consigue volver.
+        //
+        // libobs reintenta por su cuenta, asi que un corte de dos segundos no
+        // es noticia: lo que importa es que LLEVE UN RATO sin lograrlo, o que
+        // el reintento se haya dado por vencido (estaba reconectando y ahora
+        // ni eso).
+        const auto s = in_.status();
+        const std::int64_t espera = static_cast<std::int64_t>(p.value("forSec", 20.0) * 1000);
+        const bool reintentabaAntes = st.seen["reconn"] == "1";
+        st.seen["reconn"] = s.reconnecting ? "1" : "0";
+        if (s.reconnecting) {
+            if (!st.since.count("r0")) st.since["r0"] = now;
+            if (now - st.since["r0"] >= espera && cooled("down")) {
+                mark("down");
+                fire(rule, st,
+                     "La transmision se corto y lleva " + fmt1((now - st.since["r0"]) / 1000.0) +
+                         " s sin poder volver.",
+                     {{"reintentandoSeg", (now - st.since["r0"]) / 1000}}, now);
+            }
+            return;
+        }
+        st.since.erase("r0");
+        if (reintentabaAntes && !s.streaming && cooled("down")) {
+            mark("down");
+            fire(rule, st, "La transmision se dio por vencida: dejo de reintentar y esta fuera del aire.",
+                 json::object(), now);
         }
     } else if (type == "disk" && in_.diskFreeGb && in_.status) {
         if (!in_.status().recording) return;

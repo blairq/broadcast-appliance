@@ -145,6 +145,57 @@ void applyEnvPolicy(ba::platform::ProcessOptions& o, const std::filesystem::path
         o.envRemove.emplace_back(n);
     }
 #if defined(__linux__)
+    // --- La interfaz corre sobre X11 (XWayland si la sesion es Wayland) -----
+    //
+    // NO ES CAPRICHO, Y TAMPOCO ES GRATIS. En Wayland un programa NO PUEDE
+    // decir donde va su ventana: ubicarlas es del compositor. Lo peor es que
+    // pedirlo no falla —Qt hasta informa la pantalla nueva— y la ventana se
+    // queda donde estaba, asi que el operador ve botones que no hacen nada.
+    //
+    // Este aparato lo necesita: un puesto de television se arma repartiendo
+    // ventanas entre dos o tres monitores (el programa aca, el guion alla, el
+    // registro abajo), y se arma UNA VEZ y se repite igual antes de cada
+    // evento. Sobre X11 eso funciona —medido: dos ventanas quedan en mitades
+    // exactas, cuatro en cuadrantes, sin huecos ni superposicion—.
+    //
+    // LO QUE SE PAGA: sobre XWayland el escalado fraccionario se ve mas
+    // blando y no hay DPI por monitor. Si algun dia eso pesa mas que poder
+    // acomodar el puesto, se saca esta linea y todo lo demas sigue andando:
+    // las herramientas de ventanas detectan solas que no se puede ubicar y lo
+    // dicen en vez de mentir.
+    //
+    // Se respeta lo que ya venga puesto: quien exporte QT_QPA_PLATFORM antes
+    // de arrancar manda (`QT_QPA_PLATFORM=wayland ./BroadcastAppliance`).
+    if (std::getenv("QT_QPA_PLATFORM") == nullptr) {
+        o.envSet["QT_QPA_PLATFORM"] = "xcb";
+    }
+    // Y SIN ESPERAR AL BARRIDO DE PANTALLA, que sobre XWayland es lo que
+    // vuelve inusable cualquier SEGUNDA ventana.
+    //
+    // Medido en una app Qt de veinte lineas, sin nada nuestro adentro: con dos
+    // ventanas abiertas sobre `xcb`, la segunda dibuja a UN cuadro por segundo.
+    // No depende del tamaño, ni de lo que dibuje, ni del bucle de render
+    // (`threaded` y `basic` dan lo mismo). Con Wayland nativo da 60, y con
+    // `vblank_mode=0` sobre xcb tambien da 60.
+    //
+    // Se siente como «la interfaz esta lentisima» y aparece justo cuando el
+    // operador hace lo que este aparato promete: sacar un panel a la otra
+    // pantalla y agrandarlo. Con la ventana principal tapada, TODO el programa
+    // se arrastraba.
+    //
+    // LO QUE SE PAGA: la interfaz puede mostrar algun corte horizontal al
+    // moverse. No toca la salida: el programa se arma adentro de libobs y va
+    // al codificador, no por esta pantalla.
+    //
+    // Son dos variables porque son dos controladores: `vblank_mode` es de Mesa
+    // (Intel y AMD) y `__GL_SYNC_TO_VBLANK` es del de NVIDIA. Poner la que no
+    // corresponde no hace nada. Igual que arriba, quien las exporte manda.
+    if (std::getenv("vblank_mode") == nullptr) {
+        o.envSet["vblank_mode"] = "0";
+    }
+    if (std::getenv("__GL_SYNC_TO_VBLANK") == nullptr) {
+        o.envSet["__GL_SYNC_TO_VBLANK"] = "0";
+    }
     if (const std::string cxx = cxxRuntimeDir(ownBinDir); !cxx.empty()) {
         o.envSet["LD_LIBRARY_PATH"] = cxx;
         o.envRemove.erase(std::remove(o.envRemove.begin(), o.envRemove.end(), "LD_LIBRARY_PATH"),

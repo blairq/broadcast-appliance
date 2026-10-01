@@ -34,9 +34,14 @@
 // ============================================================================
 #pragma once
 
+#include <memory>
+
+#include "mcp/McpIndice.hpp"
+
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -88,8 +93,14 @@ struct Tool {
 
 /// Quien llama (para la contaminacion por sesion). La sesion la pone el
 /// cliente MCP (cabecera Mcp-Session-Id), no el modelo.
+///
+/// El ROL lo declara el cliente al conectarse (cabecera X-BA-Rol; el puente
+/// la manda con `ba-mcp --rol <rol>`). Con rol, el cliente ve SOLO el juego de
+/// herramientas de ese rol (ver setRoles). Sin rol, ve todo: el asistente
+/// interactivo y los clientes externos siguen como estaban.
 struct CallContext {
     std::string session;
+    std::string rol;
 };
 
 /// Politica de aprobacion de acciones que modifican algo.
@@ -128,6 +139,23 @@ class McpCore {
     McpCore();
 
     void setServerInfo(std::string name, std::string version, std::string instructions);
+    /// Le pega texto a las instrucciones que van en el `initialize`.
+    void addInstructions(const std::string& mas);
+
+    /// Un renglon por categoria: id, titulo, cuantas herramientas y para que
+    /// sirve.
+    ///
+    /// POR QUE VA SIEMPRE. El listado de herramientas cuesta ~32.000 tokens EN
+    /// CADA PEDIDO, asi que tarde o temprano hay que mandar menos. Pero mandar
+    /// menos SIN un indice de lo que existe es peor que mandar todo: el modelo
+    /// concluye «esto no se puede hacer» cuando la herramienta esta a una
+    /// categoria de distancia. El mapa cuesta unos 400 tokens y hace que eso
+    /// no pueda pasar.
+    ///
+    /// Con `rol`, el mapa es el de ESE rol: sus categorias y las comunes. Lo
+    /// que no ve, no aparece, porque un agente automatico no tiene a quien
+    /// pedirle «la otra categoria».
+    std::string mapaDeCategorias(const std::string& rol = {}) const;
     void addCategory(const std::string& id, const std::string& title, const std::string& summary);
     void addTool(Tool tool);
     void addTopic(HelpTopic topic);
@@ -148,10 +176,41 @@ class McpCore {
     using Approver = std::function<void(const Tool& tool, const json& args, const std::string& reason,
                                         std::function<void(bool approved)> decide)>;
     void setApprover(Approver fn) { approver_ = std::move(fn); }
+
+    /// Lo que hay que hacer DESPUES de cada herramienta que modifica algo:
+    /// persistir y avisarle a la interfaz.
+    ///
+    /// POR QUE ESTA ACA Y NO EN CADA HERRAMIENTA. Estaba en cada una, como
+    /// convencion: el que escribia una herramienta que modificaba algo tenia
+    /// que acordarse de llamar a `persist()`. De veintisiete mutadores, doce se
+    /// acordaban. Las otras cambiaban el motor por abajo y la interfaz seguia
+    /// mostrando lo anterior hasta que algo la despertara, que es lo peor que
+    /// puede pasar: dos verdades a la vez y ninguna senal de que difieren.
+    ///
+    /// Puesto en el despachador, la invariante deja de depender de la memoria
+    /// de nadie: TODA herramienta que no sea de solo lectura refresca las
+    /// vistas, y una superficie nueva la hereda sin hacer nada.
+    void setSincronizador(std::function<void()> fn) { sincronizar_ = std::move(fn); }
     void setApprovalPolicy(ApprovalPolicy p) { policy_ = p; }
     ApprovalPolicy approvalPolicy() const { return policy_; }
     /// Marca la sesion como contaminada (p. ej. al leer un recurso de la sala).
     void taint(const std::string& session, const std::string& source);
+
+    /// Atencion delegada de alguien del lobby. El operador la habilita con un
+    /// click en su tarjeta: mientras dura, el asistente puede hablarle,
+    /// completar su ficha y hacerla pasar SIN pedir aprobacion paso a paso
+    /// (seguiria pidiendola por cada mensaje, que es lo que la hace inusable).
+    /// La salvaguarda general no se toca: la exencion vale SOLO para esa
+    /// persona y para esas herramientas.
+    void startIntake(const std::string& id, const std::string& name);
+    /// Como saber si una llamada apunta a una persona atendida: resuelve el
+    /// nombre o id de los argumentos contra la sala (los nombres cambian
+    /// cuando el asistente completa la ficha).
+    void setIntakeMatcher(std::function<bool(const std::string& tool, const nlohmann::json& args)> fn) {
+        intakeMatch_ = std::move(fn);
+    }
+    void endIntake(const std::string& id);
+    std::vector<std::string> intakes() const;
     bool tainted(const std::string& session) const;
     /// {session, tainted, source, atMs}
     json taintInfo(const std::string& session) const;
@@ -163,7 +222,13 @@ class McpCore {
     std::string helpTopic(const std::string& id) const;
     std::string helpTool(const std::string& name) const;
     /// Coincidencias por palabras: [{kind, id, title, score}].
-    json search(const std::string& query) const;
+    /// Las mejores coincidencias para esa consulta, por el indice invertido
+    /// (ver McpIndice.hpp). Cada una trae `porque`: los terminos que
+    /// engancharon, para poder corregir la busqueda en vez de adivinar.
+    /// Busca en el indice. Con `rol`, SOLO lo que ese rol puede llamar: ver el
+    /// comentario en el .cpp —contestarle a un rol herramientas que le van a
+    /// rebotar le gasta el lugar a las que si puede usar—.
+    json search(const std::string& query, const std::string& rol = {}) const;
 
     const std::vector<Tool>& tools() const { return tools_; }
     /// (id, titulo) de cada categoria, en orden.
@@ -179,17 +244,54 @@ class McpCore {
         for (Tool& t : tools_)
             fn(t);
     }
+    // --- Roles: un juego de herramientas por identidad ---------------------------
+    // Un cliente que se presenta con un rol recibe en tools/list SOLO las
+    // herramientas de sus categorias y de las comunes, y llamar a otra se le
+    // niega con un mensaje que lo explica. Es para que un agente automatico
+    // (recepcion, tecnico...) no pueda tocar por accidente lo que no es suyo,
+    // y para que su contexto sea chico: cada herramienta que no ve son tokens
+    // que no paga en cada pedido.
+    //
+    // NO es una frontera de seguridad: el token del servidor ya da acceso a
+    // todo, y un proceso que lo tiene puede presentarse con el rol que quiera.
+    // Es una barandilla contra el accidente, no contra el ataque.
+    /// `categoriasPorRol`: rol -> categorias que ve. `comunes`: las que ven
+    /// todos los roles (ayuda, estado...). Un rol que no esta en el mapa ve
+    /// solo las comunes: un rol desconocido es un rol sin permisos, no uno
+    /// con todos.
+    void setRoles(std::map<std::string, std::set<std::string>> categoriasPorRol,
+                  std::set<std::string> comunes);
+    /// Avisa si algun juego nombra una categoria que no usa ninguna
+    /// herramienta. Llamar CUANDO YA ESTAN TODAS REGISTRADAS: antes da falsos
+    /// positivos de las que se registran mas tarde.
+    void verificarJuegos() const;
+    /// Si el rol puede ver y llamar a la herramienta. Sin rol, siempre.
+    bool permitida(const Tool& t, const std::string& rol) const;
+    bool hayRoles() const { return !roles_.empty(); }
+
+    /// El contexto de la llamada en curso: para herramientas que necesitan
+    /// saber QUIEN las llama (agente_encargar cuenta la profundidad por rol).
+    /// Vale solo mientras `run` no devolvio; una herramienta asincrona lo lee
+    /// a la entrada y se lo guarda.
+    const CallContext& contextoEnCurso() const { return enCurso_; }
+
     /// Valida `args` contra el esquema (requeridos, tipos, enums, rangos).
     /// :returns: vacio si esta bien, o el problema explicado.
     static std::string validate(const json& schema, const json& args);
 
     static constexpr const char* kLatestProtocol = "2025-06-18";
 
+    /// Ejecuta una herramienta como si la hubiera pedido el cliente: valida los
+    /// argumentos, pide aprobacion si la politica lo exige, refresca la
+    /// interfaz al terminar. Es publica porque las RECETAS (una serie de pasos
+    /// guardada) tienen que pasar por el MISMO camino: si tuvieran uno propio,
+    /// serian una puerta de atras que se saltea la validacion y la aprobacion.
+    void callTool(const json& params, std::function<void(json result)> done, const CallContext& ctx);
+
    private:
     void handleOne(const json& msg, std::function<void(json)> reply, const CallContext& ctx);
-    json initializeResult(const json& params) const;
+    json initializeResult(const json& params, const CallContext& ctx) const;
     json toolListEntry(const Tool& t) const;
-    void callTool(const json& params, std::function<void(json result)> done, const CallContext& ctx);
     json resourceList() const;
     json readResource(const std::string& uri, std::string& error) const;
 
@@ -202,15 +304,30 @@ class McpCore {
     std::vector<Category> categories_;
     std::vector<Tool> tools_;
     std::vector<HelpTopic> topics_;
+    /// El indice de busqueda: se arma solo la primera vez que se busca, y de
+    /// nuevo si aparecieron herramientas (las extensiones se registran
+    /// despues del arranque). `mutable` porque `search` es const: buscar no
+    /// cambia nada de lo que se ve desde afuera.
+    mutable std::unique_ptr<Indice> indice_;
+    mutable std::size_t indiceDe_ = 0;
+    void armarIndice() const;
     std::vector<Resource> resources_;
     std::vector<Prompt> prompts_;
     Approver approver_;
+    std::function<void()> sincronizar_;
     ApprovalPolicy policy_ = ApprovalPolicy::Untrusted;
     struct Taint {
         std::string source;
         std::int64_t atMs = 0;
     };
     std::map<std::string, Taint> taint_;
+    /// id -> nombre de las personas cuya atencion delego el operador.
+    std::map<std::string, std::string> intake_;
+    bool intakeAllows(const Tool& t, const nlohmann::json& args) const;
+    std::function<bool(const std::string&, const nlohmann::json&)> intakeMatch_;
+    std::map<std::string, std::set<std::string>> roles_;
+    std::set<std::string> comunes_;
+    CallContext enCurso_;
 };
 
 } // namespace ba::app::mcp
