@@ -129,7 +129,10 @@ void* filterCreate(obs_data_t*, obs_source_t* self) {
     auto* f = new RackManager::Filter();
     f->self = self;
     std::shared_ptr<ClapLibrary> lib = g_mgr != nullptr ? g_mgr->library() : nullptr;
-    f->rack = std::make_unique<AudioRack>(lib, nullptr, g_mgr != nullptr ? g_mgr->sampleRate() : 48000);
+    // Con los servicios del proceso (timers, ventanas): sin ellos los plugins de
+    // un rack restaurado de la escena no tienen interfaz que funcione.
+    f->rack = std::make_unique<AudioRack>(lib, g_mgr != nullptr ? g_mgr->services() : nullptr,
+                                          g_mgr != nullptr ? g_mgr->sampleRate() : 48000);
     return f;
 }
 

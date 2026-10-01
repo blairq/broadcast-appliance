@@ -17,6 +17,7 @@
 
 #include <QGuiApplication>
 #include <QImage>
+#include <QScreen>
 #include <QSocketNotifier>
 #include <QTimer>
 #include <QWindow>
@@ -178,6 +179,15 @@ int main(int argc, char** argv) {
         }
     });
 
+    // BA_CAPTURA_PRINCIPAL=1: antes, una ventana principal grande (como la de la
+    // app), para reproducir cómo abre el editor con otra ventana ya abierta.
+    std::unique_ptr<QWindow> principal;
+    if (qEnvironmentVariableIsSet("BA_CAPTURA_PRINCIPAL")) {
+        principal = std::make_unique<QWindow>();
+        principal->setGeometry(QGuiApplication::primaryScreen()->availableGeometry());
+        principal->show();
+        QCoreApplication::processEvents();
+    }
     if (!inst->openEditor(inst->desc().name, &err)) {
         std::fprintf(stderr, "no se pudo abrir el editor: %s\n", err.c_str());
         salir = true;

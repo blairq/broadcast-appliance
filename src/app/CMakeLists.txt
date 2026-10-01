@@ -33,6 +33,7 @@ file(GLOB_RECURSE BA_APP_SOURCES CONFIGURE_DEPENDS
 
 list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/tests/.*")
 list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/mcp/bridge/.*") # ba-mcp es otro binario
+list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/src/app/tools/.*") # herramientas con su propio main
 
 # WIN32 en MSVC: subsistema GUI (sin consola). En Linux es un ejecutable normal.
 # BroadcastEngine.cpp incluye <obs.h>: sin libobs no puede compilarse, asi que
