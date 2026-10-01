@@ -1,0 +1,40 @@
+{
+ "_comentario": "Modelos que la app (Configuracion -> Modelos locales) ofrece bajar de Hugging Face. Lo actualiza tools/entrenar/fabricar-modelo.py al subir. La app muestra solo los que existen y son publicos.",
+ "modelos": [
+  {
+   "repo": "BlairQ/broadcast-reactivo-qwen3.5-4b-mlx-q4",
+   "formato": "mlx",
+   "plataformas": [
+    "mac-arm64"
+   ],
+   "archivo": null,
+   "base": "Qwen/Qwen3.5-4B",
+   "perfil": "reactivo",
+   "herramientas": 84,
+   "prompt": "3f9122d8064004c5",
+   "tamano_gb": 2.22,
+   "precision": 92.3,
+   "derivado": 87.0,
+   "examen": 87.6,
+   "fecha": "2026-10-01"
+  },
+  {
+   "repo": "BlairQ/broadcast-reactivo-qwen3.5-4b-GGUF",
+   "formato": "gguf",
+   "plataformas": [
+    "linux-x64",
+    "win-x64"
+   ],
+   "archivo": "broadcast-reactivo-qwen3.5-4b-Q4_K_M.gguf",
+   "base": "Qwen/Qwen3.5-4B",
+   "perfil": "reactivo",
+   "herramientas": 84,
+   "prompt": "3f9122d8064004c5",
+   "tamano_gb": 2.59,
+   "precision": 93.1,
+   "derivado": 88.9,
+   "examen": 88.6,
+   "fecha": "2026-10-01"
+  }
+ ]
+}

@@ -1,0 +1,300 @@
+{
+ "base": "Qwen/Qwen3.5-4B",
+ "base_revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+ "base_licencia": "apache-2.0",
+ "corpus_firma": "b9475ce58078ba6d",
+ "corpus_ejemplos": 7800,
+ "repo_commit": "195113a",
+ "arquitectura": {
+  "tipo": "qwen3_5",
+  "pesos_gb": 9.3,
+  "capas": 32,
+  "atencion_lineal": true,
+  "mtp": 1,
+  "vision": true,
+  "modo": "repartir",
+  "extra": []
+ },
+ "entrenamiento": {
+  "modo": "repartir",
+  "epocas": 2.0,
+  "semilla": 7,
+  "lote": 16,
+  "lr": 0.0002,
+  "lora_r": 32,
+  "fin": "listo: mejor paso 600 (validacion 0.0313) · 33.5 min · /home/usuario/entrenamientos/fabrica/unsloth-4b-mtp/adaptador"
+ },
+ "medidas": {
+  "bf16": {
+   "examen": {
+    "cobertura": [
+     93,
+     97
+    ],
+    "precision": [
+     83,
+     93
+    ],
+    "derivado": [
+     7,
+     8
+    ],
+    "acierto": [
+     90,
+     105
+    ]
+   },
+   "banco": {
+    "-4": {
+     "cobertura": [
+      393,
+      394
+     ],
+     "precision": [
+      361,
+      393
+     ],
+     "derivado": [
+      603,
+      1029
+     ],
+     "acierto": [
+      964,
+      1423
+     ]
+    },
+    "-2": {
+     "cobertura": [
+      389,
+      394
+     ],
+     "precision": [
+      360,
+      389
+     ],
+     "derivado": [
+      764,
+      1029
+     ],
+     "acierto": [
+      1124,
+      1423
+     ]
+    },
+    "0": {
+     "cobertura": [
+      377,
+      394
+     ],
+     "precision": [
+      355,
+      377
+     ],
+     "derivado": [
+      863,
+      1029
+     ],
+     "acierto": [
+      1218,
+      1423
+     ]
+    },
+    "2": {
+     "cobertura": [
+      364,
+      394
+     ],
+     "precision": [
+      343,
+      364
+     ],
+     "derivado": [
+      944,
+      1029
+     ],
+     "acierto": [
+      1287,
+      1423
+     ]
+    },
+    "4": {
+     "cobertura": [
+      337,
+      394
+     ],
+     "precision": [
+      324,
+      337
+     ],
+     "derivado": [
+      993,
+      1029
+     ],
+     "acierto": [
+      1317,
+      1423
+     ]
+    }
+   },
+   "margen": {
+    "negativo": 0,
+    "menor_a_2": 9
+   }
+  },
+  "mlx-q4": {
+   "examen": {
+    "cobertura": [
+     92,
+     97
+    ],
+    "precision": [
+     81,
+     92
+    ],
+    "derivado": [
+     7,
+     8
+    ],
+    "acierto": [
+     88,
+     105
+    ]
+   },
+   "banco": {
+    "0": {
+     "cobertura": [
+      379,
+      394
+     ],
+     "precision": [
+      351,
+      379
+     ],
+     "derivado": [
+      875,
+      1029
+     ],
+     "acierto": [
+      1226,
+      1423
+     ]
+    }
+   }
+  }
+ },
+ "mtp": {
+  "aceptacion_antes": 0.9351749539594844,
+  "aceptacion_despues": 0.9988950276243094,
+  "pasos": 487
+ },
+ "perfil": {
+  "nombre": "reactivo",
+  "categorias": [
+   "audio",
+   "escenas",
+   "fuentes",
+   "sala",
+   "oradores",
+   "imagenes",
+   "estado",
+   "salidas",
+   "graficos",
+   "laminas"
+  ],
+  "entradas": [
+   "pedidos"
+  ],
+  "herramientas": [
+   "audio_analyze",
+   "audio_escuchar",
+   "audio_measure",
+   "audio_set",
+   "audio_sincro",
+   "capture_feed",
+   "capture_multiview",
+   "capture_people",
+   "capture_person",
+   "capture_program",
+   "capture_sequence",
+   "capture_source",
+   "capture_ui",
+   "chat_history",
+   "chat_send",
+   "chat_wait",
+   "gateway_restart",
+   "grabacion_individual",
+   "grafico_en_escena",
+   "grafico_listar",
+   "grafico_mostrar",
+   "grafico_ocultar",
+   "guest_source_add",
+   "imagen_analizar",
+   "laminas_aplicar",
+   "laminas_buscar",
+   "laminas_ir",
+   "laminas_listar",
+   "laminas_ver",
+   "mixer_list",
+   "network_status",
+   "participant_admit",
+   "participant_admit_all",
+   "participant_kick",
+   "participant_profile",
+   "participant_reject",
+   "participant_request",
+   "participant_requeue",
+   "participant_talk",
+   "record_start",
+   "record_stop",
+   "room_link",
+   "room_pin",
+   "room_set",
+   "room_status",
+   "rotulo_desvincular",
+   "rotulo_vincular",
+   "rotulo_vinculos",
+   "scene_copy",
+   "scene_create",
+   "scene_define",
+   "scene_delete",
+   "scene_export",
+   "scene_folder",
+   "scene_list",
+   "scene_move",
+   "scene_preview",
+   "scene_protect",
+   "scene_rename",
+   "scene_switch",
+   "scene_take",
+   "share_delete",
+   "share_list",
+   "share_take",
+   "share_view",
+   "source_add",
+   "source_list",
+   "source_properties",
+   "source_remove",
+   "source_set_property",
+   "source_types",
+   "source_update",
+   "speaker_move",
+   "speaker_next",
+   "speaker_on_air",
+   "speaker_presenter",
+   "speaker_queue",
+   "speaker_time",
+   "speakers_config",
+   "speakers_status",
+   "status",
+   "stream_start",
+   "stream_stop",
+   "transition_set"
+  ],
+  "prompt": "3f9122d8064004c5",
+  "etiquetas": null
+ },
+ "repos": [
+  "broadcast-reactivo-qwen3.5-4b-mtp-ud-mlx-q4",
+  "broadcast-reactivo-qwen3.5-4b-mtp-ud-GGUF"
+ ]
+}
