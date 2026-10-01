@@ -24,11 +24,31 @@
 
 #include "carrusel/Conversion.hpp"
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
+
 using namespace ba::carrusel;
 
 namespace {
 
 int g_fallos = 0;
+
+/// Bajo Wine (los tests de Windows se corren asi desde Linux) el LibreOffice de
+/// Windows no convierte: eso se prueba en un Windows de verdad. Wine se
+/// reconoce por `wine_get_version`, que solo exporta su ntdll.
+bool bajoWine() {
+#ifdef _WIN32
+    HMODULE ntdll = GetModuleHandleA("ntdll.dll");
+    return ntdll != nullptr && GetProcAddress(ntdll, "wine_get_version") != nullptr;
+#else
+    return false;
+#endif
+}
+
+/// Hay un LibreOffice que se pueda correr aca.
+bool hayOffice() { return !Conversor::soffice().isEmpty() && !bajoWine(); }
 #define CHECK(cond, msg)                                                                                     \
     do {                                                                                                     \
         if (!(cond)) {                                                                                       \
@@ -98,8 +118,9 @@ int main(int argc, char** argv) {
     }
 
     // --- 2. El .pptx entero -------------------------------------------------
-    if (Conversor::soffice().isEmpty()) {
-        std::printf("SALTEADO: no hay extern/libreoffice en este equipo\n");
+    if (!hayOffice()) {
+        std::printf(bajoWine() ? "SALTEADO: bajo Wine el LibreOffice de Windows no convierte\n"
+                               : "SALTEADO: no hay extern/libreoffice en este equipo\n");
     } else {
         QTemporaryDir tmp;
         Conversor c;
@@ -124,7 +145,7 @@ int main(int argc, char** argv) {
     // codificar, LibreOffice moria sin decir nada y la conversion fallaba
     // SOLO adentro del aparato: desde la terminal y desde este mismo test
     // andaba, porque aca el programa se llama test_conversion.
-    if (!Conversor::soffice().isEmpty()) {
+    if (hayOffice()) {
         QTemporaryDir tmp;
         const QString conEspacios = tmp.path() + "/Con Espacios Adentro";
         QDir().mkpath(conEspacios);

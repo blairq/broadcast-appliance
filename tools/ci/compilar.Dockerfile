@@ -16,6 +16,9 @@
 FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
+# UTF-8 como el runner del CI: sin esto Wine traduce mal los nombres de archivo
+# con acentos (test_medios no encontraba «Logo_Camión.png»).
+ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
 RUN apt-get update && apt-get install -y --no-install-recommends \
       cmake build-essential pkg-config git curl ca-certificates rsync unzip xz-utils zstd file \
       ccache ninja-build clang patchelf p7zip-full binutils \
