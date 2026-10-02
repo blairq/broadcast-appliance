@@ -125,14 +125,21 @@ struct Prompt {
     let derivar: String
     let huella: String
     let pruebas: [(frase: String, herramienta: String)]
+    /// "tc" (v2): tool calling nativo de Qwen3.5 (<tool_call><function=…>);
+    /// "" (v1): la salida es el nombre de la herramienta, nada más.
+    let formato: String
+    let faltaDato: String
 }
 
 func leerPrompt() -> Prompt {
     guard let d = try? Data(contentsOf: dir.appending(component: "prompt.json")),
         let j = try? JSONSerialization.jsonObject(with: d) as? [String: Any],
-        let cabeza = j["cabeza"] as? String, let cola = j["cola"] as? String,
-        let salidas = j["salidas"] as? [String], !salidas.isEmpty
-    else { morir("la carpeta no tiene un prompt.json válido (cabeza, cola, salidas)") }
+        let cabeza = j["cabeza"] as? String, let cola = j["cola"] as? String
+    else { morir("la carpeta no tiene un prompt.json válido (cabeza, cola)") }
+    let formato = j["formato"] as? String ?? ""
+    // v1: «salidas»; v2 (tc): los nombres de «funciones» (con derivar y falta_dato).
+    let salidas = (j["salidas"] as? [String]) ?? (j["funciones"] as? [String]) ?? []
+    if salidas.isEmpty { morir("el prompt.json no trae salidas ni funciones") }
     let pruebas = (j["frases_prueba"] as? [[String: Any]] ?? []).compactMap { p -> (String, String)? in
         guard let f = p["frase"] as? String, let h = p["herramienta"] as? String else { return nil }
         return (f, h)
@@ -141,7 +148,7 @@ func leerPrompt() -> Prompt {
         cabeza: cabeza, cola: cola, fin: j["fin"] as? String ?? "<|im_end|>", salidas: salidas,
         equivalencias: j["equivalencias"] as? [String: String] ?? [:],
         derivar: j["derivar"] as? String ?? "derivar", huella: j["huella"] as? String ?? "",
-        pruebas: pruebas)
+        pruebas: pruebas, formato: formato, faltaDato: j["falta_dato"] as? String ?? "falta_dato")
 }
 
 let prompt = leerPrompt()
@@ -245,15 +252,73 @@ func adelante(_ tokens: [Int], _ cache: [KVCache], _ estado: inout LMOutput.Stat
 
 let tPrefijo = Date()
 let idsCabeza = ids(prompt.cabeza)
-let cachePrefijo: [KVCache]
-do {
-    cachePrefijo = try modelo.newCache(parameters: nil)
-} catch {
-    morir("no se pudo crear la caché: \(error)")
-}
+// El prefijo ya calculado se guarda junto al modelo: calcularlo cuesta ~2,5 ms
+// por token en una M1 Pro (la v2 tiene 8 mil: 22 s) y es siempre el mismo
+// mientras no cambie el prompt. Se reconoce por la huella del prompt, la
+// cantidad de tokens y el modo (con o sin visión, que cambian la caché).
+let archivoPrefijo = dir.appending(
+    component: ".prefijo-\(prompt.huella.isEmpty ? "sin-huella" : prompt.huella)-\(conVision ? "vision" : "texto").safetensors")
+/// Los pesos: tamaño y fecha de los .safetensors del modelo. Un reentrenamiento
+/// con el mismo prompt deja la misma huella; sin esto se cargaría un prefijo
+/// calculado con los pesos viejos.
+let firmaPesos: String = {
+    let fm = FileManager.default
+    let archivos = ((try? fm.contentsOfDirectory(atPath: dir.path)) ?? [])
+        .filter { $0.hasSuffix(".safetensors") && !$0.hasPrefix(".") && !$0.hasPrefix("mtp") }.sorted()
+    return archivos.map { nombre -> String in
+        let a = try? fm.attributesOfItem(atPath: dir.appending(component: nombre).resolvingSymlinksInPath().path)
+        let tam = (a?[.size] as? NSNumber)?.int64Value ?? 0
+        let fecha = Int((a?[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0)
+        return "\(nombre):\(tam):\(fecha)"
+    }.joined(separator: ";")
+}()
+let datosPrefijo: [String: String] = [
+    "huella": prompt.huella, "tokens": String(idsCabeza.count), "modo": conVision ? "vision" : "texto",
+    "pesos": firmaPesos,
+]
+var prefijoDeDisco = false
+var cachePrefijo: [KVCache] = []
 var estadoPrefijo: LMOutput.State? = nil
-_ = adelante(idsCabeza, cachePrefijo, &estadoPrefijo)
-eval(cachePrefijo)
+if ProcessInfo.processInfo.environment["BA_PREFIJO_SIN_DISCO"] == nil,
+    FileManager.default.fileExists(atPath: archivoPrefijo.path),
+    let foto = try? loadPromptCacheSnapshot(url: archivoPrefijo),
+    datosPrefijo.allSatisfy({ foto.metadata[$0.key] == $0.value }), !foto.cache.isEmpty
+{
+    cachePrefijo = foto.cache
+    estadoPrefijo = foto.state
+    eval(cachePrefijo)
+    prefijoDeDisco = true
+}
+if !prefijoDeDisco {
+    do {
+        cachePrefijo = try modelo.newCache(parameters: nil)
+    } catch {
+        morir("no se pudo crear la caché: \(error)")
+    }
+    // De a pedazos (como mlx-lm): de una sola vez, las capas de atención
+    // completa arman la máscara y las cuentas de N×N con N = toda la cabeza.
+    // Medido (v2, 8203 tokens): de una vez 26,7 s; de a 512, 21,8 s.
+    // BA_PREFIJO_PASO lo cambia (0 = de una vez) para medir.
+    let pasoPrefijo: Int = Int(ProcessInfo.processInfo.environment["BA_PREFIJO_PASO"] ?? "") ?? 512
+    if pasoPrefijo <= 0 {
+        _ = adelante(idsCabeza, cachePrefijo, &estadoPrefijo)
+        eval(cachePrefijo)
+    } else {
+        var desde = 0
+        while desde < idsCabeza.count {
+            let hasta = Swift.min(desde + pasoPrefijo, idsCabeza.count)
+            _ = adelante(Array(idsCabeza[desde..<hasta]), cachePrefijo, &estadoPrefijo)
+            eval(cachePrefijo)
+            desde = hasta
+        }
+    }
+    // Para el próximo arranque (si no se puede escribir, se recalcula y listo).
+    do {
+        try savePromptCache(url: archivoPrefijo, cache: cachePrefijo, metadata: datosPrefijo, state: estadoPrefijo)
+    } catch {
+        emitir(["ev": "aviso", "aviso": "no se pudo guardar el prefijo calculado: \(error)"])
+    }
+}
 let msPrefijo = ms(tPrefijo)
 
 func copiaDelPrefijo() -> [KVCache] { cachePrefijo.map { $0.copy() } }
@@ -307,6 +372,101 @@ func elegir(_ frase: String, sesgo: Float) -> (etiqueta: String, prob: Double) {
     return (arbol.quedan[pre]?.first ?? prompt.derivar, prob)
 }
 
+// MARK: - formato tc (v2): la llamada nativa de Qwen3.5
+//
+// La respuesta de un modelo v2 es una llamada <tool_call>\n<function=NOMBRE>
+// con sus <parameter=…>, o texto (charla). El primer token dice cuál: si es
+// <tool_call>, el comienzo se fuerza hasta un NOMBRE válido (el árbol de
+// abajo, con el dial de derivar donde se separa) y el resto (los
+// parámetros) se genera libre. Así se midió el banco de la v2 (91,6 %).
+
+/// Las secuencias completas «<tool_call>\n<function=NOMBRE>» de cada salida.
+let arbolTc: Arbol = {
+    var a = Arbol()
+    guard prompt.formato == "tc" else { return a }
+    for s in prompt.salidas {
+        let sq = ids("<tool_call>\n<function=" + s + ">")
+        for k in 0...sq.count {
+            let p = Array(sq[0..<k])
+            a.quedan[p, default: []].insert(s)
+            if k < sq.count, !(a.siguientes[p]?.contains(sq[k]) ?? false) {
+                a.siguientes[p, default: []].append(sq[k])
+            }
+        }
+    }
+    return a
+}()
+let tokToolCall: Int = tok.convertTokenToId("<tool_call>") ?? -1
+
+/// Recorre el árbol desde `lg` (los logits del próximo token): fuerza donde
+/// hay un solo camino y elige el más probable donde se abre. Devuelve el
+/// nombre, la probabilidad de las elecciones y los tokens (el último sin
+/// pasar todavía por el modelo).
+func caminarTc(_ lg0: MLXArray, _ c: [KVCache], _ estado: inout LMOutput.State?, sesgo: Float)
+    -> (nombre: String, prob: Double, tokens: [Int])
+{
+    var lg = lg0
+    var pre: [Int] = []
+    var prob = 1.0
+    while let ops = arbolTc.siguientes[pre], !ops.isEmpty {
+        var elegido = ops[0]
+        if ops.count > 1 {
+            var val = lg[arr(ops)]
+            if sesgo != 0, let i = ops.firstIndex(where: { (arbolTc.quedan[pre + [$0]] ?? []).contains(prompt.derivar) }) {
+                var bump = [Float](repeating: 0, count: ops.count)
+                bump[i] = sesgo
+                val = val + MLXArray(bump)
+            }
+            let p = softmax(val)
+            let k = argMax(p).item(Int.self)
+            prob *= Double(p[k].item(Float.self))
+            elegido = ops[k]
+        }
+        pre.append(elegido)
+        if arbolTc.siguientes[pre] == nil { break } // nombre completo (el «>» incluido)
+        lg = adelante([elegido], c, &estado)
+    }
+    let nombre = (arbolTc.quedan[pre] ?? []).first ?? prompt.derivar
+    return (nombre, prob, pre)
+}
+
+/// Un pedido al modelo v2: estado (JSON compacto, o nada para charla) y frase.
+/// Devuelve el texto entero (la llamada o la charla) y el tipo.
+func llamar(id: Any, estadoJson: String?, frase: String, sesgo: Float, gramatica: Bool, max: Int, usarMtp: Bool)
+    throws -> [String: Any]
+{
+    let t0 = Date()
+    let usuario = (estadoJson ?? "").isEmpty ? frase : "Estado: \(estadoJson!)\nPedido: \(frase)"
+    let c = copiaDelPrefijo()
+    var est = estadoPrefijo
+    let lg = adelante(ids(usuario + prompt.cola), c, &est)
+    let primeroLibre = argMax(lg).item(Int.self)
+    let pLlamada = tokToolCall >= 0 ? Double(softmax(lg)[tokToolCall].item(Float.self)) : 0
+    // ¿Llamada o charla? Lo dice el primer token (con gramática, alcanza con
+    // que <tool_call> sea lo más probable o pase de 0,5).
+    let esLlamada = primeroLibre == tokToolCall || (gramatica && pLlamada >= 0.5)
+    var r: [String: Any]
+    if esLlamada && gramatica && prompt.formato == "tc" {
+        let (nombre, prob, toks) = caminarTc(lg, c, &est, sesgo: sesgo)
+        r = try generar(
+            id: id, entrada: LMInput(tokens: arr([toks.last!])), cache: c, estado: est, max: max,
+            usarMtp: usarMtp, previos: toks, t0: t0) // el último entra al modelo y también es salida
+        r["herramienta"] = nombre
+        r["prob"] = prob
+    } else {
+        // Libre (charla, o sin gramática): desde el token más probable.
+        r = try generar(
+            id: id, entrada: LMInput(tokens: arr([primeroLibre])), cache: c, estado: est, max: max,
+            usarMtp: usarMtp, previos: [], t0: t0)
+        // generar no incluye el token de entrada: se le antepone.
+        r["texto"] = tok.decode(tokenIds: [primeroLibre], skipSpecialTokens: true) + (r["texto"] as? String ?? "")
+        r["crudo"] = tok.decode(tokenIds: [primeroLibre], skipSpecialTokens: false) + (r["crudo"] as? String ?? "")
+    }
+    r["tipo"] = esLlamada ? "llamada" : "charla"
+    r["p_llamada"] = pLlamada
+    return r
+}
+
 // MARK: - generar: texto corto, con MTP si hay cabeza
 
 let idFin: Set<Int> = {
@@ -338,20 +498,26 @@ func ver(id: Any, imagen: String, texto: String, max: Int) async throws -> [Stri
 }
 
 func generar(
-    id: Any, entrada: LMInput, cache: [KVCache], estado: LMOutput.State?, max: Int, usarMtp: Bool
+    id: Any, entrada: LMInput, cache: [KVCache], estado: LMOutput.State?, max: Int, usarMtp: Bool,
+    previos: [Int] = [], t0: Date = Date()
 ) throws -> [String: Any] {
-    let t0 = Date()
     var p = GenerateParameters(maxTokens: max, temperature: 0)
     p.prefill.stepSize = 512
-    var salida: [Int] = []
-    var dicho = ""
+    // `previos`: lo que ya se eligió antes de generar (el comienzo forzado de
+    // una llamada, en formato tc); es parte de la salida.
+    var salida: [Int] = previos
+    var dicho = previos.isEmpty ? "" : tok.decode(tokenIds: previos, skipSpecialTokens: false)
     var msPrimero = 0.0
+    var primero = true
     var aceptados = 0, propuestos = 0
     let especulativo = usarMtp && drafter != nil
 
     func consumir<I: TokenIteratorProtocol>(_ it: inout I) {
         while let t = it.next() {
-            if salida.isEmpty { msPrimero = ms(t0) }
+            if primero {
+                msPrimero = ms(t0)
+                primero = false
+            }
             if idFin.contains(t) { break }
             salida.append(t)
             let todo = tok.decode(tokenIds: salida, skipSpecialTokens: false)
@@ -376,6 +542,8 @@ func generar(
     let decod = Swift.max(total - msPrimero, 0.001)
     var r: [String: Any] = [
         "id": id, "fin": true, "texto": tok.decode(tokenIds: salida, skipSpecialTokens: true),
+        // Con los especiales (<tool_call>…): lo que hay que leer en formato tc.
+        "crudo": tok.decode(tokenIds: salida, skipSpecialTokens: false),
         "tokens": salida.count, "ms_primero": msPrimero, "ms": total,
         "tok_s": salida.count > 1 ? (Double(salida.count - 1) / decod * 10000).rounded() / 10 : 0,
         "mtp": especulativo,
@@ -423,6 +591,8 @@ func registrarAceptacion(_ a: Double) {
 
 emitir([
     "ev": "listo", "ms_carga": msCarga, "ms_prefijo": msPrefijo, "tokens_prefijo": idsCabeza.count,
+    "prefijo_de_disco": prefijoDeDisco,
+    "formato": prompt.formato.isEmpty ? "v1" : prompt.formato,
     "mtp": varianteMtp, "huella": prompt.huella, "salidas": prompt.salidas.count,
     "dispositivo": "\(Device.defaultDevice())", "vision": conVision,
     "pruebas": prompt.pruebas.map { ["frase": $0.frase, "herramienta": $0.herramienta] },
@@ -487,11 +657,35 @@ while let linea = readLine(strippingNewline: true) {
         }
         let t = Date()
         let sesgo = (pedido["sesgo"] as? NSNumber)?.floatValue ?? 0
-        let (e, pr) = elegir(frase, sesgo: sesgo)
+        // v2 (tc): el nombre sale del comienzo forzado de la llamada.
+        let (e, pr): (String, Double) = {
+            guard prompt.formato == "tc" else { return elegir(frase, sesgo: sesgo) }
+            let c = copiaDelPrefijo()
+            var est = estadoPrefijo
+            let lg = adelante(ids(frase + prompt.cola), c, &est)
+            let r = caminarTc(lg, c, &est, sesgo: sesgo)
+            return (r.nombre, r.prob)
+        }()
         emitir([
             "id": id, "herramienta": herramienta(e), "etiqueta": e,
             "derivar": e == prompt.derivar, "prob": pr, "ms": ms(t),
         ])
+    case "llamar":
+        guard let frase = pedido["frase"] as? String else {
+            emitir(["id": id, "error": "falta frase"])
+            continue
+        }
+        do {
+            emitir(
+                try llamar(
+                    id: id, estadoJson: pedido["estado"] as? String, frase: frase,
+                    sesgo: (pedido["sesgo"] as? NSNumber)?.floatValue ?? 0,
+                    gramatica: pedido["gramatica"] as? Bool ?? true,
+                    max: (pedido["max"] as? NSNumber)?.intValue ?? 256,
+                    usarMtp: pedido["mtp"] as? Bool ?? mtpRinde))
+        } catch {
+            emitir(["id": id, "error": "\(error)"])
+        }
     case "generar":
         guard let texto = pedido["texto"] as? String else {
             emitir(["id": id, "error": "falta texto"])
