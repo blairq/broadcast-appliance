@@ -20,6 +20,16 @@ Rectangle {
     color: Theme.bg
     property real leftInset: 92
     readonly property var r: Studio.registro
+    // Solo se releen los logs mientras esta vista está a la vista.
+    property bool mirando: false
+    function avisarVista() {
+        if (visible === mirando) return
+        mirando = visible
+        r.mirar(visible)
+    }
+    onVisibleChanged: avisarVista()
+    Component.onCompleted: avisarVista()
+    Component.onDestruction: if (mirando) r.mirar(false)
 
     function colorDeNivel(n) {
         switch (n) {

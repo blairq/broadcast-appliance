@@ -34,6 +34,7 @@
 #include "agent/AlertEngine.hpp"
 #include "agent/Despachador.hpp"
 #include "agent/FlujosTexto.hpp"
+#include "agent/VocesRack.hpp"
 #include "agent/ModelosLocales.hpp"
 #include "agent/Roles.hpp"
 #include "agent/Voz.hpp"
@@ -354,6 +355,12 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // Las salidas de texto (antes que la Voz las use).
     flujos_ = std::make_unique<agent::FlujosTexto>(rt.dataRoot());
     if (voz_) voz_->setFlujos(flujos_.get());
+    // Las tarjetas «Texto a voz»: dicen lo que llega por una salida de texto.
+    if (modelos_) {
+        voces_ = std::make_unique<agent::VocesRack>(*modelos_);
+        voces_->setFlujos(flujos_.get());
+        voces_->setVozSistema([v = voz_.get()]() { return v != nullptr ? v->vozElegida() : QString(); });
+    }
     inputs_ = std::make_unique<InputsViewModel>(rt, *this);
     // El PTZ de cada entrada (y Mejorar imagen): se entera enseguida de las
     // entradas nuevas y de lo que cambia en Configuración.
@@ -367,6 +374,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     if (voz_) voz_->setRacks(racks_.get()); // la voz sale de los nodos «Voz a texto»
     flujos_->setConfig([r = racks_.get()](const QString& flujo) { return r->textoDe(flujo.toStdString()); });
     flujos_->setLista([r = racks_.get()]() { return r->textos(); });
+    if (voces_) {
+        voces_->setRacks(racks_.get());
+        connect(racks_.get(), &audio::RackManager::changed, voces_.get(), &agent::VocesRack::cambio);
+    }
     connect(racks_.get(), &audio::RackManager::changed, flujos_.get(), &agent::FlujosTexto::cambio);
     matriz_ = std::make_unique<audio::Matriz>(rt.dataRoot());
     // Una entrada de placa que trae la tarjeta «Entrada» de un rack también se abre.
@@ -550,6 +561,7 @@ QObject* StudioViewModel::matriz() const {
 }
 QObject* StudioViewModel::camaras() const { return camaras_.get(); }
 QObject* StudioViewModel::flujos() const { return flujos_.get(); }
+QObject* StudioViewModel::voces() const { return voces_.get(); }
 QObject* StudioViewModel::despachadorQml() const { return despachador_.get(); }
 QObject* StudioViewModel::messages() const { return messages_.get(); }
 

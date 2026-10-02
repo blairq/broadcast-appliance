@@ -30,6 +30,7 @@ class Roles;
 class Voz;
 class VozPrompter;
 class FlujosTexto;
+class VocesRack;
 } // namespace ba::app::agent
 
 namespace ba::app::audio {
@@ -168,6 +169,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* camaras READ camaras CONSTANT)
     /// Las salidas de texto (voz a texto con nombre): agent/FlujosTexto.hpp.
     Q_PROPERTY(QObject* flujos READ flujos CONSTANT)
+    /// Las tarjetas «Texto a voz»: voces, idiomas y lo que dicen (agent/VocesRack.hpp).
+    Q_PROPERTY(QObject* voces READ voces CONSTANT)
     /// Los roles automaticos y sus corridas (pagina Agentes).
     Q_PROPERTY(QObject* despachador READ despachadorQml CONSTANT)
     Q_PROPERTY(QObject* messages READ messages CONSTANT)
@@ -252,6 +255,7 @@ class StudioViewModel : public QObject {
     QObject* matriz() const;
     QObject* camaras() const;
     QObject* flujos() const;
+    QObject* voces() const;
     agent::ModelosLocales* modelosLocales() const { return modelos_.get(); }
     QObject* messages() const;
     QObject* inputs() const;
@@ -418,6 +422,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<audio::Matriz> matriz_;
     std::unique_ptr<ptz::ControlCamaras> camaras_;
     std::unique_ptr<agent::FlujosTexto> flujos_;
+    std::unique_ptr<agent::VocesRack> voces_;
     std::unique_ptr<audio::AudioViewModel> audio_;
 #endif
     std::unique_ptr<YouTubeViewModel> youtube_;

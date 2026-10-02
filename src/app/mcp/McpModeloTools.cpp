@@ -18,6 +18,7 @@
 
 #include "agent/FlujosTexto.hpp"
 #include "agent/ModelosLocales.hpp"
+#include "agent/VocesRack.hpp"
 #include "agent/Voz.hpp"
 #include "agent/VozPrompter.hpp"
 #include "mcp/McpService.hpp"
@@ -446,6 +447,108 @@ void McpService::registerModeloTools() {
                                  {"ultima", m.value("ultima").toString().toStdString()}});
             }
             done(ToolResult().data(json{{"flujos", lista}, {"carpeta", fl->carpeta().toStdString()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "voces";
+        t.title = "Las voces (texto a voz) por idioma";
+        t.category = "agentes";
+        t.readOnly = true;
+        t.description =
+            "Las voces para hablar (texto a voz), con su idioma, acento, si es hombre o mujer y si ya esta bajada. "
+            "Se bajan con modelo_local_bajar {repo}; se usan en la tarjeta «Texto a voz» (texto_a_voz).";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"idioma", {{"type", "string"}, {"description", "es, en, pt, fr, it, de, ca..."}}}}}};
+        t.run = [vmp = &vm_](const json& a, Done done) {
+            auto* vr = qobject_cast<agent::VocesRack*>(vmp->voces());
+            if (vr == nullptr) return done(ToolResult::error("no hay voces en esta compilacion"));
+            const std::string idioma = a.value("idioma", std::string());
+            json lista = json::array();
+            for (const QVariant& v : vr->voces()) {
+                const QVariantMap m = v.toMap();
+                if (!idioma.empty() && m.value("idioma").toString().toStdString() != idioma) continue;
+                lista.push_back({{"repo", m.value("repo").toString().toStdString()},
+                                 {"nombre", m.value("nombre").toString().toStdString()},
+                                 {"idioma", m.value("idioma").toString().toStdString()},
+                                 {"acento", m.value("acento").toString().toStdString()},
+                                 {"genero", m.value("genero").toString().toStdString()},
+                                 {"instalada", m.value("instalada").toBool()}});
+            }
+            done(ToolResult().data(json{{"voces", lista}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "texto_a_voz";
+        t.title = "Tarjeta «Texto a voz» en un rack";
+        t.category = "agentes";
+        t.description =
+            "Pone o ajusta la tarjeta «Texto a voz» en el rack de `fuente` (la crea si no hay; `nueva: true` "
+            "agrega otra) y/o le hace `decir` algo. Opciones: `voz` (repo de `voces`; vacio = la del sistema), "
+            "`lee` (nombre de una salida de texto que dice en voz alta: texto_flujos), `hablante`, `velocidad` "
+            "(0.5-2). Su audio sale por el puerto de la tarjeta: cablearlo con audio_patch (p. ej. a "
+            "salida-audio o a out).";
+        t.details =
+            "Ponela en una fuente que siempre tenga audio (una entrada virtual de la Matriz o un microfono): el rack "
+            "procesa mientras su fuente suena. Para pasar de un idioma a otro: Voz a texto -> (traduccion) -> Texto a "
+            "voz con una voz del otro idioma.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"fuente"}},
+                         {"properties",
+                          {{"fuente", {{"type", "string"}}},
+                           {"nodo", {{"type", "string"}}},
+                           {"nueva", {{"type", "boolean"}}},
+                           {"voz", {{"type", "string"}}},
+                           {"lee", {{"type", "string"}}},
+                           {"hablante", {{"type", "integer"}, {"minimum", 0}}},
+                           {"velocidad", {{"type", "number"}, {"minimum", 0.5}, {"maximum", 2}}},
+                           {"decir", {{"type", "string"}}}}}};
+        t.examples = {R"({"fuente": "Traduccion", "voz": "csukuangfj/vits-piper-en_US-amy-medium", "lee": "Orador en ingles"})",
+                      R"({"fuente": "Traduccion", "decir": "Good evening and welcome."})"};
+        t.run = [vmp = &vm_](const json& a, Done done) {
+#if defined(BA_HAVE_CLAP)
+            audio::RackManager* racks = vmp->racks();
+            auto* vr = qobject_cast<agent::VocesRack*>(vmp->voces());
+            if (racks == nullptr || vr == nullptr) return done(ToolResult::error("no hay racks de audio o voces"));
+            const std::string fuente = a.value("fuente", std::string());
+            std::string nodo = a.value("nodo", std::string()), e;
+            if (nodo.empty() && !a.value("nueva", false))
+                for (const auto& h : racks->hablas())
+                    if (h.value("fuente", "") == fuente) {
+                        nodo = h.value("nodo", "");
+                        break;
+                    }
+            if (nodo.empty()) {
+                nodo = racks->addHabla(fuente, json::object(), &e);
+                if (nodo.empty()) return done(ToolResult::error(e));
+            }
+            json cambios = json::object();
+            if (a.contains("voz")) cambios["voz"] = a.value("voz", std::string());
+            if (a.contains("lee")) cambios["flujo"] = a.value("lee", std::string());
+            if (a.contains("hablante")) cambios["hablante"] = a.value("hablante", 0);
+            if (a.contains("velocidad")) cambios["velocidad"] = a.value("velocidad", 1.0);
+            if (!cambios.empty()) {
+                e = racks->setHablaOpciones(fuente, nodo, cambios);
+                if (!e.empty()) return done(ToolResult::error(e));
+            }
+            json r{{"nodo", nodo}};
+            if (a.contains("decir")) {
+                const QString err = vr->decir(QString::fromStdString(fuente), QString::fromStdString(nodo),
+                                              QString::fromStdString(a.value("decir", std::string())));
+                if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
+                r["dicho"] = true;
+            }
+            r["estado"] = vr->estado(QString::fromStdString(fuente), QString::fromStdString(nodo)).toStdString();
+            for (const auto& h : racks->hablas())
+                if (h.value("fuente", "") == fuente && h.value("nodo", "") == nodo) r["tarjeta"] = h;
+            done(ToolResult().data(r));
+#else
+            (void)vmp;
+            (void)a;
+            done(ToolResult::error("esta compilacion no tiene racks de audio"));
+#endif
         };
         core_.addTool(std::move(t));
     }

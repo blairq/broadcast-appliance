@@ -122,8 +122,16 @@ Matriz::Matriz(fs::path dataRoot, QObject* parent) : QObject(parent), root_(std:
             armarPlan();
         }
         // Las tarjetas «Entrada» de los racks pueden haber empezado (o dejado)
-        // de usar una entrada de placa.
-        if (usadasPorOtros_) usarEquipo();
+        // de usar una entrada de placa. Solo si cambió: abrir una captura toca
+        // CoreAudio en este hilo, y con el audio del sistema trabado cada
+        // reintento colgaba la app.
+        if (usadasPorOtros_) {
+            std::set<std::string> otros = usadasPorOtros_();
+            if (otros != ultimosOtros_) {
+                ultimosOtros_ = std::move(otros);
+                usarEquipo();
+            }
+        }
     });
     lento_.start(3000);
     hilo_ = std::thread([this]() { bucleMezcla(); });

@@ -88,6 +88,7 @@ Rectangle {
         if (t === "texto") return "#22c55e"
         if (t === "generator") return "#f59e0b"
         if (t === "entrada") return "#38bdf8"
+        if (t === "habla") return "#f472b6"
         return Theme.accent
     }
     function fmtDb(v) { return (v === undefined || v === null || v <= -139) ? "—" : (Math.round(v * 10) / 10).toFixed(1) }
@@ -367,6 +368,18 @@ Rectangle {
                             }
                         }
                     }
+                }
+                // Texto a voz: dice una salida de texto (o lo que se le pide)
+                // con la voz y el idioma elegidos.
+                GlassButton {
+                    compact: true
+                    visible: !!Studio.voces
+                    text: "+ Texto a voz"
+                    activeColor: "#f472b6"
+                    active: true
+                    onClicked: page.msg = page.au.addHabla()
+                    ToolTip.visible: hovered; ToolTip.delay: 400
+                    ToolTip.text: "Dice en voz alta (con la voz y el idioma que elijas) lo que llega por una salida de texto."
                 }
                 // Voz a texto: como una salida, pero al reconocedor (dictado al
                 // asistente o transcripción continua).
@@ -980,6 +993,78 @@ Rectangle {
                         Layout.fillWidth: true
                         spacing: 6
                         visible: parent.d.tipo === "analyzer" || parent.d.tipo === "generator"
+                        GlassButton { compact: true; text: "Quitar"; onClicked: page.au.removeNode(page.au.selected) }
+                    }
+                    // Texto a voz: idioma, voz, qué salida lee, velocidad, probar
+                    ColumnLayout {
+                        id: hablaCol
+                        Layout.fillWidth: true
+                        visible: parent.d.tipo === "habla"
+                        spacing: 6
+                        readonly property var h: (parent.d && parent.d.habla) || ({})
+                        readonly property var voces: Studio.voces ? Studio.voces.voces : []
+                        readonly property var vozActual: voces.find(v => v.repo === h.voz)
+                        property string idioma: vozActual ? vozActual.idioma : "es"
+                        property string estado: ""
+                        Timer {
+                            interval: 1000; repeat: true; triggeredOnStart: true
+                            running: hablaCol.visible && page.visible && !!Studio.voces
+                            onTriggered: hablaCol.estado = Studio.voces.estado(page.au.source, page.au.selected)
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text { text: "Idioma"; color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 70 }
+                            ComboBox {
+                                Layout.fillWidth: true
+                                model: Studio.voces ? Studio.voces.idiomas : []
+                                textRole: "nombre"; valueRole: "codigo"
+                                currentIndex: Math.max(0, (Studio.voces ? Studio.voces.idiomas : []).findIndex(x => x.codigo === hablaCol.idioma))
+                                onActivated: hablaCol.idioma = currentValue
+                            }
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text { text: "Voz"; color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 70 }
+                            ComboBox {
+                                id: vozBox
+                                Layout.fillWidth: true
+                                readonly property var lista: [{repo: "", nombre: "La del sistema", instalada: true}].concat(hablaCol.voces.filter(v => v.idioma === hablaCol.idioma))
+                                model: lista.map(v => v.nombre + (v.instalada ? "" : "  (bajar)"))
+                                currentIndex: Math.max(0, lista.findIndex(v => v.repo === (hablaCol.h.voz || "")))
+                                onActivated: {
+                                    const v = lista[currentIndex]
+                                    if (!v.instalada) Studio.voces.bajar(v.repo)
+                                    page.msg = page.au.setHablaOpciones(page.au.selected, {voz: v.repo})
+                                }
+                            }
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text { text: "Lee"; color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 70 }
+                            ComboBox {
+                                Layout.fillWidth: true
+                                readonly property var lista: ["(nada: solo lo que le pidan)"].concat((Studio.flujos ? Studio.flujos.flujos : []).map(f => f.nombre))
+                                model: lista
+                                currentIndex: Math.max(0, lista.indexOf(hablaCol.h.flujo || ""))
+                                onActivated: page.msg = page.au.setHablaOpciones(page.au.selected, {flujo: currentIndex === 0 ? "" : currentText})
+                                ToolTip.visible: hovered; ToolTip.delay: 400
+                                ToolTip.text: "La salida de texto que dice en voz alta (por ejemplo, lo que transcribe una «Voz a texto»)."
+                            }
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text { text: "Velocidad"; color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 70 }
+                            Slider { Layout.fillWidth: true; from: 0.5; to: 2.0; stepSize: 0.05; value: hablaCol.h.velocidad || 1.0
+                                     onMoved: page.au.setHablaOpciones(page.au.selected, {velocidad: value}) }
+                            Text { text: (hablaCol.h.velocidad || 1.0).toFixed(2) + "×"; color: Theme.textFaint; font.pixelSize: 11 }
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            TextField { id: hablaPrueba; Layout.fillWidth: true; placeholderText: "Escribí algo para que lo diga" }
+                            GlassButton { compact: true; text: "Decir"; enabled: hablaPrueba.text.trim() !== ""
+                                          onClicked: page.msg = Studio.voces.decir(page.au.source, page.au.selected, hablaPrueba.text) }
+                        }
+                        Text { Layout.fillWidth: true; text: hablaCol.estado; color: Theme.textFaint; font.pixelSize: 11; wrapMode: Text.WordWrap }
                         GlassButton { compact: true; text: "Quitar"; onClicked: page.au.removeNode(page.au.selected) }
                     }
                     // Salida de audio: grabar todo lo que le llega

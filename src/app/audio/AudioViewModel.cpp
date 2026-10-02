@@ -199,6 +199,14 @@ void AudioViewModel::rebuildDetail() {
                          "sola: cableala a donde la quieras (la mezcla, el sidechain de un compresor, la voz a "
                          "texto). Si la fuente es una entrada de placa, su captura se abre sola.";
         }
+        if (r->kindOf(id) == "habla") {
+            for (const auto& h : r->hablas())
+                if (h.value("id", "") == id) j["habla"] = h;
+            j["ayuda"] = "Dice con la voz elegida lo que llega por una salida de texto (o lo que escribas abajo). "
+                         "Suena por su puerto: cableala a la mezcla, a la salida de audio o a otra voz a texto. "
+                         "Ponela en una fuente que siempre tenga audio (una entrada virtual, un micrófono): el "
+                         "rack procesa mientras su fuente suena.";
+        }
         if (r->kindOf(id) == "texto") {
             std::string modo = "dictado";
             for (const auto& t : r->textos())
@@ -323,6 +331,25 @@ QString AudioViewModel::addEntrada(const QString& fuente) {
 QString AudioViewModel::setEntradaFuente(const QString& node, const QString& fuente) {
     const std::string e = mgr_.setEntradaFuente(source_.toStdString(), node.toStdString(), fuente.toStdString());
     rebuildGraph();
+    rebuildDetail();
+    return QString::fromStdString(e);
+}
+
+QString AudioViewModel::addHabla() {
+    if (source_.isEmpty()) return "Elegí una fuente con audio.";
+    std::string e;
+    const std::string id = mgr_.addHabla(source_.toStdString(), json::object(), &e);
+    if (id.empty()) return QString::fromStdString(e);
+    autoLayout();
+    select(QString::fromStdString(id));
+    rebuildGraph();
+    rebuildDetail();
+    return {};
+}
+
+QString AudioViewModel::setHablaOpciones(const QString& node, const QVariantMap& cambios) {
+    const json c = json::parse(QJsonDocument(QJsonObject::fromVariantMap(cambios)).toJson().toStdString(), nullptr, false);
+    const std::string e = mgr_.setHablaOpciones(source_.toStdString(), node.toStdString(), c);
     rebuildDetail();
     return QString::fromStdString(e);
 }

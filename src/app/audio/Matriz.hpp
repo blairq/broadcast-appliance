@@ -153,6 +153,7 @@ class Matriz : public QObject {
     /// Abre lo del equipo que se usa y cierra lo que no.
     void usarEquipo();
     std::function<std::set<std::string>()> usadasPorOtros_;
+    std::set<std::string> ultimosOtros_; ///< lo último que se miró (para no reabrir en cada vuelta)
     static void alAudio(void* param, obs_source* src, const ::audio_data* data, bool muted);
 
     std::filesystem::path root_;

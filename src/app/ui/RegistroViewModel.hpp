@@ -92,6 +92,10 @@ class RegistroViewModel : public QObject {
 
     /// Vuelve a leer ahora.
     Q_INVOKABLE void refrescar();
+    /// Una vista del Registro se abre (true) o se cierra (false). Sin ninguna
+    /// a la vista no se relee nada: los logs pesan megas y leerlos cada 2 s en
+    /// el hilo principal le robaba tiempo a todo lo demás.
+    Q_INVOKABLE void mirar(bool visible);
     /// Todo lo que se está viendo, como texto, para pegarlo en un mensaje.
     Q_INVOKABLE QString comoTexto() const;
     /// Escribe una línea en el registro desde la interfaz. Sirve para dejar

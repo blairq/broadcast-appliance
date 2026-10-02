@@ -132,6 +132,16 @@ class RackManager : public QObject {
     /// entradas de placa que se usen así).
     std::set<std::string> fuentesDeEntradas() const;
 
+    // --- Texto a voz (tarjeta «habla») ------------------------------------------
+    /// Agrega una tarjeta TEXTO A VOZ al rack de `source`. Opciones: {flujo,
+    /// voz, hablante, velocidad}. Devuelve el id o "" con el error.
+    std::string addHabla(const std::string& source, const json& opciones, std::string* error);
+    std::string setHablaOpciones(const std::string& source, const std::string& nodo, const json& cambios);
+    /// Todas: [{fuente, nodo, flujo, voz, hablante, velocidad}].
+    json hablas() const;
+    /// El anillo por el que suena esa tarjeta (nulo si no existe).
+    std::shared_ptr<anillo::Ring> anilloHabla(const std::string& source, const std::string& nodo) const;
+
     // --- Grabar lo que le llega a la tarjeta de salida -------------------------
     /// Prende o apaga la grabación de la tarjeta «Salida de audio» de `source`
     /// (Recordings/Audio/<fuente>-<fecha>.wav). "" o el error.
@@ -191,6 +201,7 @@ class RackManager : public QObject {
     /// la fuente de origen empuja a su anillo; el rack lo saca.
     struct Toma;
     std::map<std::string, std::unique_ptr<Toma>> tomas_; ///< "<rack>\n<nodo>"
+    std::map<std::string, std::shared_ptr<anillo::Ring>> anillosHabla_; ///< "<rack>\n<nodo>"
     /// Pone y saca las tomas según las tarjetas de entrada de todos los racks.
     void sincronizarEntradas();
     /// Monta los racks guardados cuya fuente apareció después (invitados que

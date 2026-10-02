@@ -1037,6 +1037,21 @@ void RackManager::sincronizarEntradas() {
             f->rack->setEntradaAnillo(nodo, it->second->ring);
         }
     }
+    // Texto a voz: cada tarjeta con su anillo (lo llena VocesRack).
+    std::set<std::string> hablasVivas;
+    for (const auto& [nombre, f] : filters_) {
+        if (!f->rack) continue;
+        for (const auto& h : f->rack->hablas()) {
+            const std::string nodo = h.value("id", "");
+            const std::string clave = nombre + "\n" + nodo;
+            hablasVivas.insert(clave);
+            auto& ring = anillosHabla_[clave];
+            if (!ring) ring = std::make_shared<anillo::Ring>();
+            f->rack->setEntradaAnillo(nodo, ring);
+        }
+    }
+    for (auto it = anillosHabla_.begin(); it != anillosHabla_.end();)
+        it = hablasVivas.contains(it->first) ? std::next(it) : anillosHabla_.erase(it);
     for (auto it = tomas_.begin(); it != tomas_.end();) {
         if (quiero.contains(it->first)) {
             ++it;
@@ -1126,6 +1141,45 @@ void RackManager::sincronizarGrabaciones() {
             actual->terminar();
         }
     }
+}
+
+// --- Texto a voz ------------------------------------------------------------------------
+
+std::string RackManager::addHabla(const std::string& source, const json& opciones, std::string* error) {
+    AudioRack* r = rack(source, true, error);
+    if (r == nullptr) return {};
+    const std::string id = r->addHabla(opciones);
+    markDirty();
+    emit changed();
+    return id;
+}
+
+std::string RackManager::setHablaOpciones(const std::string& source, const std::string& nodo, const json& cambios) {
+    std::string e;
+    AudioRack* r = rack(source, false, &e);
+    if (r == nullptr) return e;
+    if (!r->setHablaOpciones(nodo, cambios)) return "'" + nodo + "' no es una tarjeta de texto a voz";
+    markDirty();
+    emit changed();
+    return {};
+}
+
+RackManager::json RackManager::hablas() const {
+    json out = json::array();
+    for (const auto& [nombre, f] : filters_)
+        if (f != nullptr && f->rack)
+            for (json h : f->rack->hablas()) {
+                h["fuente"] = nombre;
+                h["nodo"] = h.value("id", "");
+                h.erase("id");
+                out.push_back(h);
+            }
+    return out;
+}
+
+std::shared_ptr<anillo::Ring> RackManager::anilloHabla(const std::string& source, const std::string& nodo) const {
+    auto it = anillosHabla_.find(source + "\n" + nodo);
+    return it == anillosHabla_.end() ? nullptr : it->second;
 }
 
 } // namespace ba::app::audio

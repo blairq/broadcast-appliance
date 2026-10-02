@@ -359,6 +359,13 @@ void ModelosLocales::descargar(const QString& repo) {
         std::uint64_t hecho = 0;
         for (const ArchivoHf& a : archivos) {
             if (!err.isEmpty()) break;
+            // Al cerrar la app (o cancelar) se corta acá, sin esperar a bajar el
+            // siguiente: el cierre esperaba la bajada entera y el launcher lo
+            // tomaba por un cuelgue (y reabría la app).
+            if (cancelar_) {
+                err = "Descarga cancelada.";
+                break;
+            }
             const fs::path final = staging / desdeUtf8(a.nombre);
             fs::create_directories(final.parent_path(), ec);
             // Lo que ya está bajado y verificado no se vuelve a bajar: se enlaza

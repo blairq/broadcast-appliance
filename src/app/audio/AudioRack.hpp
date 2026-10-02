@@ -16,6 +16,9 @@
 //              de una placa), después de su propio rack: una tarjeta más del
 //              grafo, que se patchea a donde se quiera (la mezcla, el
 //              sidechain de un compresor, la voz a texto). Solo salida.
+//   habla      TEXTO A VOZ: dice (con la voz y el idioma elegidos) lo que
+//              llega por una salida de texto, o lo que se le pide; su audio
+//              sale por su puerto y se patchea como cualquier otro.
 //   texto      VOZ A TEXTO (uno por rack): copia lo que le llega para el
 //              reconocedor. Modo «dictado» (push-to-talk al asistente) o
 //              «continuo» (transcripción: subtítulos, acta). Tampoco toca lo que
@@ -76,8 +79,16 @@ class AudioRack {
     bool setEntradaFuente(const std::string& id, const std::string& fuente);
     /// Las tarjetas de entrada: (id del nodo, fuente).
     std::vector<std::pair<std::string, std::string>> entradas() const;
-    /// El anillo del que lee la tarjeta (nulo = silencio).
+    /// El anillo del que lee la tarjeta (nulo = silencio). Sirve para las
+    /// tarjetas «entrada» y «habla».
     void setEntradaAnillo(const std::string& id, std::shared_ptr<anillo::Ring> ring);
+    /// Tarjeta TEXTO A VOZ. Opciones: {flujo (la salida de texto que lee, ""
+    /// = ninguna), voz (repo del modelo, "" = la del sistema), hablante,
+    /// velocidad}. El audio lo pone RackManager/VocesRack en su anillo.
+    std::string addHabla(const json& opciones);
+    bool setHablaOpciones(const std::string& id, const json& cambios);
+    /// [{id, flujo, voz, hablante, velocidad}]
+    json hablas() const;
     /// Nodo de SALIDA de audio del equipo (uno por rack). `device` es el id del
     /// dispositivo y `label` su nombre. Si ya hay uno, le cambia el destino.
     std::string addOutput(const std::string& device, const std::string& label);
