@@ -41,6 +41,7 @@ Item {
         if (c.tipo === "pista") return c.indice === 0 ? "#ef4444" : "#f59e0b"
         if (c.tipo === "salida") return "#a78bfa"
         if (c.tipo === "escucha") return "#22c55e"
+        if (c.tipo === "fisica") return "#38bdf8"
         return "#14b8a6"
     }
     function idxCol(id) { for (let i = 0; i < cols.length; ++i) if (cols[i].id === id) return i; return -1 }
@@ -110,6 +111,13 @@ Item {
             }
             GlassButton { compact: true; text: "+ Entrada virtual"; activeColor: "#14b8a6"; active: true; onClicked: entradaPop.open() }
             GlassButton { compact: true; text: "+ Salida virtual"; activeColor: "#a78bfa"; active: true; onClicked: salidaPop.open() }
+            GlassButton {
+                compact: true; icon: "🔌"; text: "Equipo"
+                active: !!mx.mz && mx.mz.mostrarEquipo; activeColor: "#38bdf8"
+                onClicked: equipoPop.open()
+                ToolTip.visible: hovered; ToolTip.delay: 400
+                ToolTip.text: "Las entradas y salidas de lo que está enchufado (bocinas, monitores con audio, placas USB): mostrarlas u ocultarlas, todas o una por una."
+            }
         }
         Text {
             visible: mx.msg !== ""
@@ -165,6 +173,7 @@ Item {
                                     anchors { horizontalCenter: parent.horizontalCenter; top: parent.top; topMargin: 12 }
                                     text: cab.modelData.tipo === "pista" ? String(cab.modelData.indice + 1)
                                         : cab.modelData.tipo === "escucha" ? "🎧"
+                                        : cab.modelData.tipo === "fisica" ? "🔈"
                                         : cab.modelData.tipo === "salida" ? "OUT" : "IN"
                                     color: cab.col; font { pixelSize: 11; weight: Font.Bold; family: Theme.mono }
                                 }
@@ -185,6 +194,7 @@ Item {
                                 ToolTip.delay: 250
                                 ToolTip.text: cab.modelData.nombre +
                                     (cab.modelData.tipo === "escucha" ? "\n→ " + cab.modelData.dispositivoNombre + "\nlos auriculares del operador: nunca al aire"
+                                     : cab.modelData.tipo === "fisica" ? "\nsalida del equipo\nmezcla propia (~25 ms)"
                                      : cab.modelData.tipo === "pista" ? (cab.modelData.uso ? "\n" + cab.modelData.uso : "\nlibre") + "\nnativo: sin retardo"
                                      : cab.modelData.tipo === "salida" ? "\n→ " + (cab.modelData.dispositivoNombre || "sin dispositivo")
                                      : "\nvuelve como entrada: «" + cab.modelData.nombre + "»")
@@ -438,13 +448,16 @@ Item {
             Text {
                 text: busPop.bus.tipo === "pista" ? "Pista " + (busPop.bus.indice + 1) + " de OBS"
                       : busPop.bus.tipo === "escucha" ? "Escucha: los auriculares del operador"
+                      : busPop.bus.tipo === "fisica" ? "Salida del equipo"
                       : busPop.bus.tipo === "salida" ? "Salida virtual" : "Entrada virtual"
                 color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold }
             }
             Text {
                 Layout.fillWidth: true; wrapMode: Text.WordWrap
                 color: Theme.textFaint; font.pixelSize: 11
-                text: busPop.bus.tipo === "escucha"
+                text: busPop.bus.tipo === "fisica"
+                      ? "«" + (busPop.bus.nombre || "") + "»: lo que se le manda sale por ese dispositivo (y esos canales). Pasa por la mezcla propia (~25 ms). El dispositivo se abre solo mientras recibe algo."
+                      : busPop.bus.tipo === "escucha"
                       ? "Lo que se prende acá suena por «" + (busPop.bus.dispositivoNombre || "") + "» y nunca va al aire por esta columna. Las voces (texto a audio) vienen prendidas. El dispositivo es el mismo que en Configuración → Audio y voz."
                       : busPop.bus.tipo === "pista"
                       ? (busPop.bus.indice === 0 ? "La mezcla del programa: lo que se emite y se graba." : "Libre, o la toma una grabación individual (" + (busPop.bus.uso || "ahora libre") + ").") + " Nativa: sin retardo."
@@ -476,7 +489,7 @@ Item {
                 }
             }
             RowLayout {
-                visible: busPop.bus.tipo !== "escucha"
+                visible: busPop.bus.tipo !== "escucha" && busPop.bus.tipo !== "fisica"
                 TextField { id: nombreBus; Layout.fillWidth: true; placeholderText: "nombre" }
                 GlassButton { compact: true; text: "Renombrar"; onClicked: mx.msg = mx.mz.renombrar(busPop.bus.id, nombreBus.text) }
             }
@@ -495,7 +508,16 @@ Item {
             }
             RowLayout {
                 GlassButton {
-                    visible: busPop.bus.tipo !== "pista" && busPop.bus.tipo !== "escucha"
+                    visible: busPop.bus.tipo === "fisica"
+                    compact: true; text: "Ocultar este dispositivo"
+                    onClicked: {
+                        const id = String(busPop.bus.id || "")
+                        mx.mz.setVisibleDispositivo(id.substring(4, id.lastIndexOf(":")), false)
+                        busPop.close()
+                    }
+                }
+                GlassButton {
+                    visible: busPop.bus.tipo !== "pista" && busPop.bus.tipo !== "escucha" && busPop.bus.tipo !== "fisica"
                     compact: true; text: "Quitar"; activeColor: Theme.live
                     onClicked: { mx.msg = mx.mz.quitarBus(busPop.bus.id); busPop.close() }
                 }
@@ -506,6 +528,56 @@ Item {
     }
 
     // --- Agregar buses ---------------------------------------------------------------------
+    // --- El equipo: lo que está enchufado ------------------------------------------------
+    Popup {
+        id: equipoPop
+        anchors.centerIn: parent
+        padding: 16
+        modal: true
+        background: Rectangle { color: Theme.panel; radius: Theme.radius; border.color: "#38bdf8" }
+        ColumnLayout {
+            spacing: 10
+            width: 460
+            Text { text: "Entradas y salidas del equipo"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+            Text {
+                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                color: Theme.textFaint; font.pixelSize: 11
+                text: "Lo que se enchufa aparece solo. Las salidas, un par de canales por columna; las entradas, un " +
+                      "canal por fila (de fábrica, sin ir al aire). Un dispositivo se abre solo mientras se usa; " +
+                      "lo oculto no se abre nunca."
+            }
+            RowLayout {
+                spacing: 10
+                Toggle { checked: !!mx.mz && mx.mz.mostrarEquipo; onToggled: (w) => mx.mz.mostrarEquipo = w }
+                Text { text: "Mostrar el equipo en la matriz"; color: Theme.text; font.pixelSize: 13 }
+            }
+            Repeater {
+                model: mx.mz ? mx.mz.equipo : []
+                delegate: RowLayout {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    spacing: 8
+                    Toggle {
+                        enabled: !!mx.mz && mx.mz.mostrarEquipo && !modelData.enApp
+                        checked: modelData.visible
+                        onToggled: (w) => mx.mz.setVisibleDispositivo(modelData.id, w)
+                    }
+                    Text { text: modelData.tipo === "salida" ? "🔈" : "🎙"; font.pixelSize: 13 }
+                    Text {
+                        Layout.fillWidth: true; elide: Text.ElideRight
+                        text: modelData.nombre + "  ·  " + modelData.canales + (modelData.canales === 1 ? " canal" : " canales")
+                        color: Theme.text; font.pixelSize: 12
+                    }
+                    Text {
+                        text: modelData.enApp ? "ya está en Audio" : modelData.abierto ? "en uso" : ""
+                        color: modelData.abierto ? Theme.ok : Theme.textFaint; font.pixelSize: 11
+                    }
+                }
+            }
+            GlassButton { compact: true; text: "Cerrar"; onClicked: equipoPop.close() }
+        }
+    }
+
     Popup {
         id: entradaPop
         anchors.centerIn: parent

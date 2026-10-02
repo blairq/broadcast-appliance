@@ -194,6 +194,43 @@ void McpService::registerMatrizTools() {
     }
     {
         Tool t;
+        t.name = "audio_matriz_equipo";
+        t.title = "Entradas y salidas del equipo en la matriz";
+        t.category = "audio_rack";
+        t.description =
+            "Lo enchufado (bocinas, monitores con audio, placas USB) en la matriz: las salidas, una columna "
+            "por par de canales (id fis:...); las entradas, una fila por canal. Sin argumentos lo lista. "
+            "`mostrar` (true/false) muestra u oculta todo el equipo; `dispositivo` (id) con `visible` "
+            "muestra u oculta uno (lo oculto no se abre).";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"mostrar", {{"type", "boolean"}}},
+                           {"dispositivo", {{"type", "string"}}},
+                           {"visible", {{"type", "boolean"}}}}}};
+        t.run = [m](const json& a, Done done) {
+            if (a.contains("mostrar")) m->setMostrarEquipo(a.value("mostrar", true));
+            if (a.contains("dispositivo"))
+                m->setVisibleDispositivo(QString::fromStdString(a.value("dispositivo", std::string())),
+                                         a.value("visible", true));
+            json devs = json::array();
+            for (const QVariant& v : m->equipo()) {
+                const QVariantMap d = v.toMap();
+                devs.push_back({{"id", d.value("id").toString().toStdString()},
+                                {"nombre", d.value("nombre").toString().toStdString()},
+                                {"tipo", d.value("tipo").toString().toStdString()},
+                                {"canales", d.value("canales").toInt()},
+                                {"visible", d.value("visible").toBool()},
+                                {"abierto", d.value("abierto").toBool()},
+                                {"ya_en_audio", d.value("enApp").toBool()}});
+            }
+            done(ToolResult().data(json{{"mostrar", m->mostrarEquipo()},
+                                        {"dispositivos", devs},
+                                        {"matriz", m->estado().value("equipo", json::object())}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "audio_filtros_catalogo";
         t.title = "Catalogo de filtros de audio (LSP)";
         t.category = "audio_rack";
