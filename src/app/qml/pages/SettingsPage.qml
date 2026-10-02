@@ -438,11 +438,13 @@ Rectangle {
                             color: Theme.textDim; font.pixelSize: 12
                         }
                         Text {
-                            Layout.maximumWidth: modelData.vision ? parent.width * 0.6 : implicitWidth
-                            wrapMode: modelData.vision ? Text.WordWrap : Text.NoWrap
+                            Layout.maximumWidth: modelData.vision || modelData.resumen !== undefined ? parent.width * 0.6 : implicitWidth
+                            wrapMode: modelData.vision || modelData.resumen !== undefined ? Text.WordWrap : Text.NoWrap
                             text: modelData.error !== undefined ? modelData.error
                                 : modelData.vision ? modelData.texto
-                                : modelData.derivar ? "→ derivar al grande" : "→ " + modelData.herramienta
+                                : modelData.derivar ? "→ derivar al grande"
+                                : modelData.resumen !== undefined ? "→ " + modelData.resumen
+                                : "→ " + modelData.herramienta
                             color: modelData.error !== undefined ? Theme.live
                                  : modelData.derivar ? Theme.amber : Theme.ok
                             font { pixelSize: 12; family: Theme.mono }

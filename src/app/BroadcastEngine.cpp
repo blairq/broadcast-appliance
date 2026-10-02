@@ -15,6 +15,8 @@
 // ============================================================================
 
 #include "BroadcastEngine.hpp"
+
+#include <nlohmann/json.hpp>
 #if defined(BA_HAVE_CLAP)
 #include "audio/EquipoAudio.hpp"
 #include "audio/Matriz.hpp"
@@ -287,6 +289,16 @@ bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video
     audio::registrarMonitorVoz();     // la voz del asistente, solo a los auriculares
     audio::registrarEntradaVirtual(); // las entradas virtuales de la matriz de mezcla
     audio::registrarEntradaFisica();  // las entradas del equipo (placas, cada canal)
+    // Las entradas de audio que todavía se están abriendo: la placa no las repite.
+    audio::setDispositivosReservados([this]() {
+        std::set<std::string> out;
+        for (const auto& p : pendingAudio_) {
+            const auto j = nlohmann::json::parse(p.first.settingsJson, nullptr, false);
+            if (j.is_object() && j.contains("device_id") && j["device_id"].is_string())
+                out.insert(j["device_id"].get<std::string>());
+        }
+        return out;
+    });
 #endif
 #if defined(BA_HAVE_NDI)
     ndi::registerSourceType(); // entrada NDI(R) abierta (libNoIDea)

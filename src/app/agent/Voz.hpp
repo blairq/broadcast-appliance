@@ -208,6 +208,20 @@ class Voz : public QObject {
     Q_INVOKABLE void setAutomatica(const QString& herramienta, bool on);
     /// Lo que hace con una frase dictada (también sirve para probar escribiendo).
     Q_INVOKABLE void atender(const QString& frase);
+    /// Modelo v2: que lea ya el estado del aparato (lo hace solo al apretar
+    /// F9), así el pedido que sigue solo procesa la frase. `listo` cuando
+    /// terminó (o enseguida si no corresponde).
+    void prepararTc(std::function<void()> listo = {});
+    /// Si hay un asistente grande andando (al que derivar). Sin esto, o si el
+    /// pedido vino del propio asistente «Modelo local», derivar no lo manda a
+    /// ningún lado: se le avisa al operador.
+    void setAsistenteGrande(std::function<bool()> f) { asistenteGrande_ = std::move(f); }
+    /// Si el asistente es el propio modelo local: entonces lo derivado no se
+    /// deja en la barra (la barra se lo mandaría, y volvería acá).
+    void setAsistenteLocal(std::function<bool()> f) { asistenteLocal_ = std::move(f); }
+    /// v2: lo que el modelo haría con la frase, con el estado de ahora, SIN
+    /// hacerlo (para «Probar» y modelo_local_elegir). La respuesta de llamar.
+    void probarTc(const QString& frase, std::function<void(const nlohmann::json&)> r);
     /// Lo que le llega al MODELO LOCAL como motor de un agente o del asistente
     /// (proveedor «local»): `quien` es el rol o "asistente". Un disparador se
     /// dice primero en voz alta y sus acciones solo se PROPONEN (nunca se hacen
@@ -242,7 +256,12 @@ class Voz : public QObject {
     /// después decide: hacer (si es automática y válida) o proponer.
     /// Modelo v2 (formato tc): estado + frase en una sola vuelta; la llamada
     /// se lee y se valida (o es charla, derivar o falta_dato).
-    void atenderTc(int id, const QString& frase);
+    /// v2: el estado como lo lee el modelo (JSON compacto).
+    static QString estadoTc(const nlohmann::json& estado);
+    void atenderTc(int id, const QString& frase, const QString& origen);
+    /// Lo que no es para el modelo local (derivar, error): al asistente
+    /// grande si hay uno y el pedido no vino de él; si no, se avisa.
+    void derivarA(int id, const QString& frase, const QString& origen, const std::string& motivo);
     void completar(int id, const QString& frase, const QString& herramienta, const FichaHerramienta& f);
     void decidir(int id, const QString& frase, const QString& herramienta, const FichaHerramienta& f,
                  const nlohmann::json& args, const QStringList& notas, const QStringList& bloqueos);
@@ -266,6 +285,8 @@ class Voz : public QObject {
     Ficha ficha_;
     Ejecutor ejecutor_;
     Contexto contexto_;
+    std::function<bool()> asistenteGrande_;
+    std::function<bool()> asistenteLocal_;
     std::string sistemaArgs_; ///< las reglas para completar argumentos (datos/voz-argumentos.txt)
     QVariantMap propuesta_;
     bool usarModeloLocal_ = true;

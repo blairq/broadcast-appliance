@@ -589,7 +589,8 @@ endif()
     target_link_libraries(test_argumentos_locales PRIVATE ba_core Qt6::Core)
     set_target_properties(test_argumentos_locales PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_argumentos_locales COMMAND test_argumentos_locales)
-    add_executable(test_modelos_locales tests/test_modelos_locales.cpp agent/ModelosLocales.cpp net/HttpsClient.cpp)
+    add_executable(test_modelos_locales tests/test_modelos_locales.cpp agent/ModelosLocales.cpp agent/ArgumentosLocales.cpp
+                   net/HttpsClient.cpp)
     target_include_directories(test_modelos_locales PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_modelos_locales PRIVATE ba_core Qt6::Core Qt6::Gui mbedtls mbedx509 mbedcrypto)
     target_compile_definitions(test_modelos_locales PRIVATE BA_TEST_TMP="${CMAKE_CURRENT_BINARY_DIR}"

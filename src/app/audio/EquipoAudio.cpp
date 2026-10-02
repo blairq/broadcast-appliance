@@ -144,8 +144,10 @@ int canalesDe(const QAudioDevice& d, bool entrada, EquipoAudio* equipo = nullptr
 
 /// Los dispositivos de entrada que ya son una fuente de la app (el micrófono
 /// de la Mac en Audio): no se repiten como entrada física.
+std::function<std::set<std::string>()> g_reservados;
+
 std::set<std::string> yaUsados() {
-    std::set<std::string> out;
+    std::set<std::string> out = g_reservados ? g_reservados() : std::set<std::string>{};
     obs_enum_sources(
         [](void* p, obs_source_t* s) {
             const std::string tipo = obs_source_get_id(s);
@@ -161,6 +163,8 @@ std::set<std::string> yaUsados() {
 }
 
 } // namespace
+
+void setDispositivosReservados(std::function<std::set<std::string>()> f) { g_reservados = std::move(f); }
 
 void registrarEntradaFisica() {
     g_info.id = kTipo;
@@ -344,6 +348,13 @@ struct EquipoAudio::Entrada {
         for (int c = 0; c < canales; ++c) {
             const std::string n = canales == 1 ? nombre : nombre + " · Entrada " + std::to_string(c + 1);
             obs_source_t* s = obs_get_source_by_name(n.c_str()); // ya existía (otra enchufada)
+            // Con ese nombre hay OTRA cosa (una entrada de audio de la app): no
+            // se la toma. Antes se le empujaba audio encima del suyo.
+            if (s != nullptr && std::string(obs_source_get_unversioned_id(s)) != kTipo) {
+                std::printf("ba-app: la entrada física '%s' choca con otra fuente; no se crea\n", n.c_str());
+                obs_source_release(s);
+                continue;
+            }
             if (s == nullptr) {
                 s = obs_source_create(kTipo, n.c_str(), nullptr, nullptr);
                 if (s == nullptr) continue;

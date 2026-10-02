@@ -3,6 +3,8 @@
 // ============================================================================
 #include "agent/ModelosLocales.hpp"
 
+#include "agent/ArgumentosLocales.hpp"
+
 #include <QCryptographicHash>
 #include <QDateTime>
 #include <QDesktopServices>
@@ -581,6 +583,10 @@ void ModelosLocales::llamar(const QString& estadoJson, const QString& frase, Res
     pedir(std::move(pedido), std::move(r));
 }
 
+void ModelosLocales::preparar(const QString& estadoJson, Respuesta r) {
+    pedir(json{{"op", "preparar"}, {"estado", estadoJson.toStdString()}}, std::move(r));
+}
+
 void ModelosLocales::generar(const QString& texto, bool conPrefijo, int maxTokens,
                              std::function<void(const QString&)> delta, Respuesta fin) {
     pedir(
@@ -615,10 +621,32 @@ void ModelosLocales::probarVision(const QString& imagen, const QString& pregunta
     });
 }
 
+void ModelosLocales::probarFrase(const QString& frase, Respuesta r) {
+    if (formato() != "tc" || !probadorTc_) return elegir(frase, std::move(r));
+    probadorTc_(frase, [r](const json& j) {
+        if (j.contains("error")) return r(j);
+        json out{{"tipo", j.value("tipo", std::string())}, {"crudo", j.value("crudo", std::string())},
+                 {"prob", j.value("prob", 0.0)}, {"ms", j.value("ms", 0.0)}};
+        const argumentos::LlamadaTc l = argumentos::leerTc(j.value("crudo", std::string()));
+        if (!l.hay) {
+            out["herramienta"] = "";
+            out["derivar"] = false;
+            out["resumen"] = "🗣 " + j.value("texto", std::string());
+            return r(out);
+        }
+        std::string args;
+        for (const auto& [k, v] : l.parametros) args += (args.empty() ? "" : ", ") + k + ": " + v;
+        out["herramienta"] = l.funcion;
+        out["derivar"] = l.funcion == "derivar";
+        out["resumen"] = l.funcion + "(" + args + ")";
+        r(out);
+    });
+}
+
 void ModelosLocales::probar(const QString& frase) {
     const QString f = frase.trimmed();
     if (f.isEmpty()) return;
-    elegir(f, [this, f](const json& j) {
+    probarFrase(f, [this, f](const json& j) {
         QVariantMap v = aVariant(j);
         v["frase"] = f;
         pruebas_.prepend(v);

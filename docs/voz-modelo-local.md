@@ -75,8 +75,52 @@ Con la app (M1 Pro, sin MTP), 2 de octubre:
 | hola, ¿cómo andás? | `derivar` | ✓ |
 | armame un resumen… y mandáselo por mail | `derivar` | ✓ |
 
-Cada pedido tarda 1,2–1,9 s, y 1 s de eso es leer el turno (el estado, unos
-400 tokens) antes del primer token.
+### Más rápido: el estado se lee mientras se habla
+
+El turno es `Estado: …\nPedido: <frase>` y el estado va **antes** de la frase.
+Al apretar F9, la app arma el estado y `ba-modelo` lo lee (op `preparar`, ~0,8 s
+mientras el operador todavía habla); cuando llega la frase, solo falta « <frase>»
+y la cola. Se usa solo si los tokens de lo preparado son exactamente el
+comienzo de los del pedido entero; si no (otro estado, el borde tokenizado
+distinto), se procesa todo como antes. Lo preparado sigue sirviendo mientras el
+estado no cambie.
+
+Además, lo forzado de la llamada (`<tool_call>\n<function=` y el resto de un
+nombre una vez elegido) entra al modelo en una sola pasada: los logits solo
+hacen falta donde el árbol de nombres se abre. De a un token eran ~250 ms.
+
+Medido fuera de la app (M1 Pro, 6 estados reales × 23 frases = 92 pedidos):
+
+| | primer token | pedido entero |
+|---|---|---|
+| antes | 1.151 ms | 1.412 ms |
+| sin preparar | 1.109 ms | 1.370 ms |
+| **preparado** | **332 ms** | **780 ms** |
+
+Lo preparado dio **exactamente** la misma salida que antes en los 92. Sin
+preparar hubo 1 diferencia en 92 («dale play a la tanda»: un empate entre
+`derivar` y `speaker_on_air` que se da vuelta por redondeo al pasar los tokens
+juntos). En la app: primer token ~340 ms preparado, contra ~1.240 ms en frío.
+
+### Charla, derivar y contestar: lo medido
+
+- **Charla**: con o sin estado da lo mismo. Las preguntas las contesta en texto
+  (qué es un take, RTMP, chroma, 7×8, un chiste); los saludos y lo social
+  («hola», «gracias», «buen día», «te quiero») los deriva. Es del corpus: la
+  charla salió de preguntas (dolly), no de saludos. Contesta en neutro
+  («mantén», «gestiona»), no en rioplatense.
+- **Derivar sin asistente grande**: se avisa («Eso es para el asistente grande,
+  y no está andando») y la frase queda en la barra. No se le pasa a una charla
+  del mismo modelo sin herramientas: con «escribile a Juan que llegue temprano»
+  contestó «le escribo a Juan…» sin haber hecho nada.
+- **Asistente «Modelo local»**: lo derivado no vuelve al asistente (era un
+  bucle: dictado → asistente local → el mismo modelo → derivar → …).
+- **Contestar una lectura** (status, scene_list…): sigue con su prompt propio.
+  La forma nativa (`<tool_response>`) anda peor: la v2 no se entrenó con varios
+  turnos y en 4 de 6 casos vuelve a llamar a `derivar`.
+- Para el próximo entrenamiento: «un poco» da `+6` (es `+3`); «¿cuánto está la
+  música?» elige `audio_set`; «¿está silenciado el micrófono?», `audio_escuchar`;
+  «¿hay alguien en la sala?», `derivar`; saludos como charla; rioplatense.
 
 ## Por qué así
 

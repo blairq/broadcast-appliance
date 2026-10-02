@@ -242,8 +242,9 @@ void McpService::registerModeloTools() {
         t.category = "agentes";
         t.readOnly = true;
         t.description = "Que herramienta elige el modelo local para una frase de cabina (o si la deriva), "
-                        "con la probabilidad y lo que tardo. NO ejecuta nada: es para probarlo. Queda en "
-                        "la lista de pruebas de la pagina.";
+                        "con la probabilidad y lo que tardo; con el modelo v2, ademas la llamada entera con "
+                        "sus argumentos (con el estado de ahora) o la charla. NO ejecuta nada: es para "
+                        "probarlo. Queda en la lista de pruebas de la pagina.";
         t.inputSchema = {
             {"type", "object"}, {"required", {"frase"}}, {"properties", {{"frase", {{"type", "string"}}}}}};
         t.examples = {R"({"frase": "bajale al mic 2"})", R"({"frase": "poneme un cafe con leche"})"};
@@ -254,12 +255,18 @@ void McpService::registerModeloTools() {
                 return done(
                     ToolResult::error("No hay un modelo local cargado (" + ml.estado().toStdString() + ")."));
             ml.probar(frase); // que se vea en la pagina
-            ml.elegir(frase, [done](const json& j) {
+            ml.probarFrase(frase, [done](const json& j) {
                 if (j.contains("error")) return done(ToolResult::error(j.value("error", std::string())));
-                done(ToolResult().data(json{{"herramienta", j.value("herramienta", std::string())},
-                                            {"derivar", j.value("derivar", false)},
-                                            {"prob", j.value("prob", 0.0)},
-                                            {"ms", j.value("ms", 0.0)}}));
+                json out{{"herramienta", j.value("herramienta", std::string())},
+                         {"derivar", j.value("derivar", false)},
+                         {"prob", j.value("prob", 0.0)},
+                         {"ms", j.value("ms", 0.0)}};
+                // v2: la llamada entera (o la charla), con el estado de ahora.
+                if (j.contains("resumen")) {
+                    out["llamada"] = j.value("resumen", std::string());
+                    out["tipo"] = j.value("tipo", std::string());
+                }
+                done(ToolResult().data(out));
             });
         };
         core_.addTool(std::move(t));
@@ -598,12 +605,23 @@ void McpService::registerModeloTools() {
         t.details = "Para probar el modelo local sin microfono. Lo que se hace solo es lo que el operador "
                     "permitio (voz_automaticas).";
         t.inputSchema = {{"type", "object"},
-                         {"properties", {{"frase", {{"type", "string"}}}}},
+                         {"properties",
+                          {{"frase", {{"type", "string"}}},
+                           {"preparar",
+                            {{"type", "boolean"},
+                             {"description", "Como con F9: el modelo v2 lee el estado antes de la frase."}}}}},
                          {"required", json::array({"frase"})}};
         t.run = [voz](const json& a, Done done) {
-            voz->atender(QString::fromStdString(a.value("frase", std::string())));
+            const QString frase = QString::fromStdString(a.value("frase", std::string()));
+            // `preparar`: como con F9, el estado se lee antes (mientras se habla)
+            // y la frase llega despues. Para medir el camino real sin microfono.
+            if (a.value("preparar", false)) {
+                voz->prepararTc([voz, frase]() { voz->atender(frase); });
+            } else {
+                voz->atender(frase);
+            }
             // El modelo contesta en milisegundos: se mira la propuesta un rato despues.
-            QTimer::singleShot(1500, voz, [voz, done]() {
+            QTimer::singleShot(a.value("preparar", false) ? 2500 : 1500, voz, [voz, done]() {
                 const QVariantMap p = voz->propuesta();
                 if (p.isEmpty())
                     return done(ToolResult::ok("Sin propuesta pendiente: se hizo sola (automatica) o fue al "

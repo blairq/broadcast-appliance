@@ -125,6 +125,10 @@ class AgentViewModel : public QObject {
     /// La que fija esta version del sistema (agentes.json, compilado).
     QString pinnedVersion() const;
     bool running() const { return localActivo_ || session_->running(); }
+    /// Un asistente GRANDE andando (no el modelo local): a quien derivar.
+    bool asistenteGrande() const { return !localActivo_ && session_->running(); }
+    /// El asistente es el modelo local y está «andando» (lo que le llega va a Voz).
+    bool asistenteLocal() const { return localActivo_; }
     /// El MODELO LOCAL como motor (proveedor «local»): lo engancha StudioViewModel
     /// con agent/Voz. `rol`: quién pide ("asistente" o un rol); `disparador`:
     /// viene de un disparador (se dice en voz alta y nunca se hace solo).

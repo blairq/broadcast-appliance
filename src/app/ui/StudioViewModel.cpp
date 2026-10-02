@@ -298,6 +298,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         connect(modelos_.get(), &agent::ModelosLocales::notify, this, &StudioViewModel::notify);
         QTimer::singleShot(0, modelos_.get(), [m = modelos_.get()]() { m->arrancarSiCorresponde(); });
         voz_ = std::make_unique<agent::Voz>(rt, *modelos_);
+        modelos_->setProbadorTc([v = voz_.get()](const QString& frase, agent::ModelosLocales::Respuesta r) {
+            v->probarTc(frase, std::move(r));
+        });
         connect(voz_.get(), &agent::Voz::notify, this, &StudioViewModel::notify);
         vozPrompter_ = std::make_unique<agent::VozPrompter>(rt, *voz_, conference_.get());
         // El modelo local como motor de agentes y del asistente (proveedor «local»).
@@ -306,6 +309,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             agent_->setLocal([v](const QString& quien, const QString& texto, bool disparador) {
                 v->atenderDesde(texto, quien, disparador);
             });
+            v->setAsistenteGrande([a = agent_.get()]() { return a->asistenteGrande(); });
+            v->setAsistenteLocal([a = agent_.get()]() { return a->asistenteLocal(); });
         }
         // El micrófono del operador se cambia en Configuración: Sala lo muestra.
         connect(voz_.get(), &agent::Voz::cambio, conference_.get(), &ConferenceViewModel::operatorChanged);

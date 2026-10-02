@@ -175,6 +175,7 @@ void Voz::apretar() {
     feed.setPushToTalk(true); // desde acá el lobby ya no oye al operador
     grabando_ = true;
     setEstado("Escuchando… (soltá para mandar)");
+    prepararTc(); // mientras habla, el modelo v2 ya lee el estado
 #endif
 }
 
@@ -429,32 +430,37 @@ void Voz::atenderDe(const QString& frase, const QString& origen, const nlohmann:
                              : !ficha_         ? "sin herramientas MCP"
                                        : "modelo local no listo (" + modelos_.estado().toStdString() + ")"},
                   {"texto", f.toStdString()}});
+        // Vino del asistente «Modelo local» (o es él quien lo recibiría):
+        // devolvérselo sería un bucle.
+        if (origen.startsWith("asistente:") || (asistenteLocal_ && asistenteLocal_())) {
+            responder(id, !modelos_.listo() ? "El modelo local no está listo todavía."
+                                             : "El modelo local está apagado para lo dictado.");
+            return;
+        }
         emit dictado(f);
         return;
     }
     // Modelo v2 (tool calling nativo): una sola vuelta, con el estado.
     if (modelos_.formato() == "tc") {
-        atenderTc(id, f);
+        atenderTc(id, f, origen);
         return;
     }
     bitacora(id, "modelo_pedido",
              {{"op", "elegir"}, {"frase", f.toStdString()}, {"modelo", modelos_.activo().toStdString()}});
     const auto t0 = std::chrono::steady_clock::now();
-    modelos_.elegir(f, [this, f, id, t0](const nlohmann::json& j) {
+    modelos_.elegir(f, [this, f, id, t0, origen](const nlohmann::json& j) {
         const double ms =
             std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
-        QMetaObject::invokeMethod(this, [this, f, j, id, ms]() {
+        QMetaObject::invokeMethod(this, [this, f, j, id, ms, origen]() {
             bitacora(id, "modelo_respuesta", {{"respuesta", j}, {"ms_ida_y_vuelta", ms}});
             const QString h = QString::fromStdString(j.value("herramienta", std::string()));
             const FichaHerramienta ficha = h.isEmpty() ? FichaHerramienta{} : ficha_(h);
             // `derivar`, un error o algo que no existe: es del asistente.
             if (j.contains("error") || h.isEmpty() || h == "derivar" || !ficha.existe) {
-                bitacora(id, "al_asistente",
-                         {{"motivo", j.contains("error") ? "error del modelo"
-                                     : h == "derivar"    ? "derivar"
-                                                         : "herramienta inexistente: " + h.toStdString()},
-                          {"texto", f.toStdString()}});
-                emit dictado(f);
+                derivarA(id, f, origen,
+                         j.contains("error") ? "error del modelo"
+                         : h == "derivar"    ? "derivar"
+                                             : "herramienta inexistente: " + h.toStdString());
                 return;
             }
             if (ficha.requiereDatos)
@@ -465,25 +471,78 @@ void Voz::atenderDe(const QString& frase, const QString& origen, const nlohmann:
     });
 }
 
-void Voz::atenderTc(int id, const QString& f) {
+QString Voz::estadoTc(const nlohmann::json& estado) {
+    // JSON compacto, con los acentos de verdad (como se entrenó). El MISMO
+    // texto en preparar y en llamar: si difiere en un byte, no se aprovecha.
+    return estado.is_object() && !estado.empty() ? QString::fromStdString(estado.dump()) : QString();
+}
+
+void Voz::prepararTc(std::function<void()> listo) {
+    if (!usarModeloLocal_ || !modelos_.listo() || modelos_.formato() != "tc" || !contexto_) {
+        if (listo) listo();
+        return;
+    }
+    contexto_([this, listo](const nlohmann::json& estado) {
+        const QString e = estadoTc(estado);
+        if (e.isEmpty()) {
+            if (listo) listo();
+            return;
+        }
+        modelos_.preparar(e, [this, listo](const nlohmann::json& j) {
+            QMetaObject::invokeMethod(this, [this, j, listo]() {
+                bitacora(0, "preparado", j);
+                if (listo) listo();
+            });
+        });
+    });
+}
+
+void Voz::probarTc(const QString& frase, std::function<void(const nlohmann::json&)> r) {
+    const auto conEstado = [this, frase, r](const nlohmann::json& estado) {
+        modelos_.llamar(estadoTc(estado), frase, [this, r](const nlohmann::json& j) {
+            QMetaObject::invokeMethod(this, [r, j]() { r(j); });
+        });
+    };
+    if (contexto_) contexto_(conEstado);
+    else conEstado(nlohmann::json::object());
+}
+
+void Voz::derivarA(int id, const QString& f, const QString& origen, const std::string& motivo) {
+    // Un asistente grande andando, y el pedido no vino de él: es suyo.
+    const bool delAsistente = origen.startsWith("asistente:");
+    if (!delAsistente && asistenteGrande_ && asistenteGrande_()) {
+        bitacora(id, "al_asistente", {{"motivo", motivo}, {"texto", f.toStdString()}});
+        emit dictado(f);
+        return;
+    }
+    // Si no, NO se le devuelve: con el asistente «Modelo local», dictado()
+    // volvía a entrar acá y derivaba de nuevo, sin fin. Tampoco se lo pasa a
+    // una charla del mismo modelo sin herramientas: medido, a «escribile a
+    // Juan…» contesta «le escribo a Juan» sin haber hecho nada.
+    bitacora(id, "sin_asistente", {{"motivo", motivo}, {"texto", f.toStdString()}});
+    responder(id, "Eso es para el asistente grande, y no está andando.");
+    // Queda escrito en la barra, para no perderlo (salvo que la barra se lo
+    // vaya a mandar al mismo modelo local).
+    if (!delAsistente && !(asistenteLocal_ && asistenteLocal_())) emit dictado(f);
+}
+
+void Voz::atenderTc(int id, const QString& f, const QString& origen) {
     // El estado que se entrenó: escenas, fuentes, audio (el micrófono del
     // operador primero), participantes, gráficos y carruseles. Sin contexto
     // (no debería pasar) va sin estado: el modelo lo toma como charla.
-    const auto conEstado = [this, id, f](const nlohmann::json& estado) {
-        // JSON compacto, con los acentos de verdad (como se entrenó).
-        const QString estadoJson = estado.is_object() && !estado.empty() ? QString::fromStdString(estado.dump()) : QString();
+    const auto conEstado = [this, id, f, origen](const nlohmann::json& estado) {
+        const QString estadoJson = estadoTc(estado);
         bitacora(id, "modelo_pedido",
                  {{"op", "llamar"}, {"frase", f.toStdString()}, {"modelo", modelos_.activo().toStdString()},
                   {"estado", estadoJson.toStdString()}});
         const auto t0 = std::chrono::steady_clock::now();
-        modelos_.llamar(estadoJson, f, [this, id, f, estado, t0](const nlohmann::json& j) {
+        modelos_.llamar(estadoJson, f, [this, id, f, estado, t0, origen](const nlohmann::json& j) {
             const double ms =
                 std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
-            QMetaObject::invokeMethod(this, [this, id, f, estado, j, ms]() {
+            QMetaObject::invokeMethod(this, [this, id, f, estado, j, ms, origen]() {
                 bitacora(id, "modelo_respuesta", {{"op", "llamar"}, {"respuesta", j}, {"ms_ida_y_vuelta", ms}});
                 if (j.contains("error")) {
-                    bitacora(id, "al_asistente", {{"motivo", "error del modelo"}, {"texto", f.toStdString()}});
-                    emit dictado(f);
+                    derivarA(id, f, origen, "error del modelo: " + j.value("error", std::string()));
                     return;
                 }
                 const std::string crudo = j.value("crudo", j.value("texto", std::string()));
@@ -493,7 +552,7 @@ void Voz::atenderTc(int id, const QString& f) {
                     const QString texto = QString::fromStdString(j.value("texto", std::string())).trimmed();
                     bitacora(id, "charla", {{"texto", texto.toStdString()}});
                     if (texto.isEmpty()) {
-                        emit dictado(f);
+                        derivarA(id, f, origen, "charla vacía");
                         return;
                     }
                     emit notify("🗣 " + texto, "ok");
@@ -502,8 +561,7 @@ void Voz::atenderTc(int id, const QString& f) {
                 }
                 const QString h = QString::fromStdString(l.funcion);
                 if (h == "derivar") {
-                    bitacora(id, "al_asistente", {{"motivo", "derivar"}, {"texto", f.toStdString()}});
-                    emit dictado(f);
+                    derivarA(id, f, origen, "derivar");
                     return;
                 }
                 if (h == "falta_dato") {
@@ -518,9 +576,7 @@ void Voz::atenderTc(int id, const QString& f) {
                 }
                 const FichaHerramienta ficha = ficha_ ? ficha_(h) : FichaHerramienta{};
                 if (!ficha.existe) {
-                    bitacora(id, "al_asistente",
-                             {{"motivo", "herramienta inexistente: " + h.toStdString()}, {"texto", f.toStdString()}});
-                    emit dictado(f);
+                    derivarA(id, f, origen, "herramienta inexistente: " + h.toStdString());
                     return;
                 }
                 const nlohmann::json crudos = argumentos::argsDesdeTc(l, ficha.ficha);

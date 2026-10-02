@@ -148,6 +148,18 @@ class ModelosLocales : public QObject {
     /// estado (JSON compacto; vacío = charla) y la frase. Responde {crudo,
     /// texto, tipo: llamada|charla, herramienta, prob, ms} o {error}.
     void llamar(const QString& estadoJson, const QString& frase, Respuesta r);
+    /// Modelos v2: lee el estado antes de que llegue la frase (al apretar F9),
+    /// para que `llamar` con ese MISMO estado solo procese la frase: el primer
+    /// token pasa de ~1,1 s a ~0,3 s. Responde {preparado, ms, tokens} o {error}.
+    void preparar(const QString& estadoJson, Respuesta r);
+    /// v2: quien arma el estado del aparato y llama (Voz). Con esto, `probar`
+    /// y `probarFrase` muestran la llamada entera, no solo el nombre.
+    using Probador = std::function<void(const QString& frase, Respuesta r)>;
+    void setProbadorTc(Probador p) { probadorTc_ = std::move(p); }
+    /// Lo que haría el modelo con la frase, SIN hacerlo. v1: {herramienta,
+    /// derivar, prob, ms}. v2: además {tipo, crudo, resumen («audio_set(name:
+    /// Música, volumeDb: +6)» o la charla)}.
+    void probarFrase(const QString& frase, Respuesta r);
     /// "tc" si el modelo activo es v2 (tool calling nativo), "v1" si no.
     QString formato() const { return info_.value("formato", "v1").toString(); }
     /// Texto corto (con MTP si rinde): `delta` va llegando, `fin` al final.
@@ -200,6 +212,7 @@ class ModelosLocales : public QObject {
     QString mtp_ = "no"; ///< la cabeza todavía no rinde: sin MTP hasta reentrenarla
     bool alArrancar_ = false;
     QVariantList pruebas_;
+    Probador probadorTc_;
 
     QProcess* proc_ = nullptr;
     QByteArray pendiente_;
