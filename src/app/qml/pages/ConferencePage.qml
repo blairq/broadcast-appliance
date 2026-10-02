@@ -379,7 +379,7 @@ Rectangle {
                                         visible: Studio.agent.running
                                         onClicked: {
                                             const e = Studio.assistantIntake(waitCard.uid, waitCard.name)
-                                            ApplicationWindow.window.toast(
+                                            Studio.notify(
                                                 e !== "" ? e : "El asistente está hablando con " + waitCard.name,
                                                 e !== "" ? "error" : "ok")
                                         }

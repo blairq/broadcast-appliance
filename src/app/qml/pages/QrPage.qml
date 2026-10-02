@@ -25,8 +25,8 @@ Rectangle {
         return null
     }
     function chequear(err, bien) {
-        if (err && err !== "") ApplicationWindow.window.toast(err, "error")
-        else if (bien) ApplicationWindow.window.toast(bien, "ok")
+        if (err && err !== "") Studio.notify(err, "error")
+        else if (bien) Studio.notify(bien, "ok")
         return !err || err === ""
     }
 

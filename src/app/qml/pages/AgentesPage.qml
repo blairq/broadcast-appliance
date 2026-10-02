@@ -179,7 +179,7 @@ Rectangle {
                                 compact: true; text: "Mandar"; active: true
                                 onClicked: {
                                     const err = page.d.encargarDesdeUi(fila.modelData.id, encargoTexto.text)
-                                    if (err !== "") ApplicationWindow.window.toast(err, "error")
+                                    if (err !== "") Studio.notify(err, "error")
                                     else { encargoTexto.text = ""; encargo.visible = false }
                                 }
                             }

@@ -265,7 +265,7 @@ Rectangle {
                                         const e = ag.guardarModeloPropio(urlF.text, modF.text, nomF.text,
                                                                          extraF.text, instF.text,
                                                                          piensaT.checked)
-                                        ApplicationWindow.window.toast(
+                                        Studio.notify(
                                             e === "" ? "Modelo propio guardado" : e,
                                             e === "" ? "ok" : "error")
                                     }

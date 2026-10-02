@@ -104,7 +104,7 @@ Rectangle {
                     copiador.text = page.r.comoTexto()
                     copiador.selectAll()
                     copiador.copy()
-                    ApplicationWindow.window.toast("Registro copiado (" + page.r.lineas.length + " líneas)", "ok")
+                    Studio.notify("Registro copiado (" + page.r.lineas.length + " líneas)", "ok")
                 }
             }
             GlassButton {

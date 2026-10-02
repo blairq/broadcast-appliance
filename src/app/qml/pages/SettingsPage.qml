@@ -484,7 +484,7 @@ Rectangle {
                         currentIndex: Math.max(0, nombres.indexOf(Studio.voz.microfono))
                         onActivated: (i) => {
                             const e = Studio.voz.setMicrofono(i === 0 ? "" : nombres[i])
-                            if (e !== "") ApplicationWindow.window.toast(e, "error")
+                            if (e !== "") Studio.notify(e, "error")
                         }
                     }
                 }
