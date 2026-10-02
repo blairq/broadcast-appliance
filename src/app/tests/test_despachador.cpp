@@ -189,7 +189,7 @@ int main(int argc, char** argv) {
         d.evento(evento("lobby", json::array({"llm", "ui"}), json{{"participant", "p1"}, {"name", "Juan"}})),
         "lobby reclamado");
     CHECK(tomados == 1, "eventoTomado");
-    CHECK(d.corridas().size() == 1 && d.corridas()[0]["origen"] == "vigilancia:lobby", "una corrida");
+    CHECK(d.corridas().size() == 1 && d.corridas()[0]["origen"] == "disparador:lobby", "una corrida");
     CHECK(d.profundidadDe("recepcion") == 0, "en curso, profundidad 0");
     CHECK(esperar([&]() { return d.corridas()[0]["estado"] == "ok"; }), "termina ok");
     {

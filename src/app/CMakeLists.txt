@@ -803,7 +803,7 @@ endif()
     target_link_libraries(test_account_guides PRIVATE ba_core Qt6::Core)
     set_target_properties(test_account_guides PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_account_guides COMMAND test_account_guides)
-    # Vigilancias (alertas) con entradas y reloj falsos.
+    # Disparadores (alertas) con entradas y reloj falsos.
     add_executable(test_alerts tests/test_alerts.cpp agent/AlertEngine.cpp agent/AlertEngine.hpp)
     target_include_directories(test_alerts PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_alerts PRIVATE ba_core Qt6::Core)

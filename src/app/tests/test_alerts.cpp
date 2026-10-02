@@ -1,4 +1,4 @@
-// test_alerts.cpp — vigilancias (AlertEngine) con entradas y reloj falsos
+// test_alerts.cpp — disparadores (AlertEngine) con entradas y reloj falsos
 //
 //   audio_peak (retencion + enfriamiento por canal, ignora silenciados),
 //   audio_silence (solo al aire), media_end (al terminar y "faltan N s"),
@@ -37,6 +37,7 @@ struct World {
     std::vector<AlertInputs::Media> media{{"Musica", "playing", 60000, 0}};
     json room{{"serverNowMs", 0.0}, {"participants", json::array()}};
     std::vector<json> chat;
+    std::vector<json> textos;
     AlertInputs::Status status;
     double disk = 100;
 
@@ -46,6 +47,7 @@ struct World {
         in.media = [this]() { return media; };
         in.room = [this]() { return room; };
         in.chat = [this]() { return chat; };
+        in.textos = [this]() { return textos; };
         in.status = [this]() { return status; };
         in.diskFreeGb = [this]() { return disk; };
         in.nowMs = [this]() { return now; };
@@ -141,7 +143,7 @@ int main(int argc, char** argv) {
     eng.create(json{{"type", "guest_drop"}});
     eng.create(json{{"type", "speaker_time"}, {"params", {{"remainingSec", 30}}}});
     step(250);
-    CHECK(fired.empty(), "lo que ya estaba al crear la vigilancia no se avisa");
+    CHECK(fired.empty(), "lo que ya estaba al crear el disparador no se avisa");
     w.room["participants"].push_back({{"id", "p2"}, {"name", "Beto"}, {"state", "waiting"}});
     step(250);
     CHECK(fired.size() == 1 && fired[0]["type"] == "lobby" && fired[0]["data"]["name"] == "Beto",
@@ -176,6 +178,24 @@ int main(int argc, char** argv) {
     CHECK(fired.size() == 2, "filtra por plataforma, texto y regex (y no repite lo viejo)");
     CHECK(fired.size() == 2 && fired[0]["data"]["author"] == "z" && fired[1]["data"]["text"] == "!escena 4",
           "los correctos");
+    eng.clear();
+    fired.clear();
+
+    // --- texto (una salida de texto con nombre) --------------------------------------------------
+    w.textos = {{{"key", "1"}, {"flujo", "Orador"}, {"texto", "pasamos a un cuarto intermedio"}}};
+    eng.create(json{{"type", "texto"}, {"params", {{"flujo", "orador"}, {"contains", "CUARTO INTERMEDIO"}}}});
+    eng.create(json{{"type", "texto"}, {"params", {{"palabras", {"votación", "moción"}}}}});
+    step(250);
+    CHECK(fired.empty(), "lo que ya estaba dicho al crear el disparador no se avisa");
+    w.textos.push_back({{"key", "2"}, {"flujo", "Sala"}, {"texto", "cuarto intermedio de diez minutos"}});
+    w.textos.push_back({{"key", "3"}, {"flujo", "Orador"}, {"texto", "Hacemos un cuarto intermedio"}});
+    w.textos.push_back({{"key", "4"}, {"flujo", "Sala"}, {"texto", "pido una votacion nominal"}});
+    step(250);
+    CHECK(fired.size() == 2, "filtra por salida y frase, y las palabras sin importar tildes");
+    CHECK(fired.size() == 2 && fired[0]["data"]["texto"] == "Hacemos un cuarto intermedio" &&
+              fired[1]["data"]["flujo"] == "Sala",
+          "los correctos");
+    CHECK(fired.size() == 2 && fired[0]["untrusted"] == true, "lo que dijo una persona llega como dato no confiable");
     eng.clear();
     fired.clear();
 
@@ -272,7 +292,7 @@ int main(int argc, char** argv) {
     {
         World w2;
         AlertEngine reloaded(w2.inputs(), store);
-        CHECK(reloaded.list().size() == eng.list().size(), "las vigilancias se guardan y se recargan");
+        CHECK(reloaded.list().size() == eng.list().size(), "los disparadores se guardan y se recargan");
         const json again = reloaded.create(json{{"type", "lobby"}});
         CHECK(again["id"] != t1["id"] && again["id"] != t2["id"], "los ids no se reutilizan");
     }

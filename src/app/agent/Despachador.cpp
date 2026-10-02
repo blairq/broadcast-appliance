@@ -108,7 +108,7 @@ bool Despachador::evento(const json& ev) {
     bool llm = false;
     for (const auto& n : ev.value("notify", json::array()))
         if (n == "llm") llm = true;
-    // Una vigilancia sin "llm" es del operador (aviso en pantalla, acciones
+    // Un disparador sin "llm" es del operador (aviso en pantalla, acciones
     // directas): no despierta a nadie.
     if (!llm) return false;
     const std::string tipo = ev.value("type", "");
@@ -119,10 +119,10 @@ bool Despachador::evento(const json& ev) {
     // Sin agrupacion: una corrida por evento, ya.
     if (rol->agruparMs <= 0 || rol->agruparMax <= 1) {
         const std::string texto = "[" + hora(ev.value("atMs", std::int64_t{0})) + "] " +
-                                  ev.value("llmText", ev.value("text", "")) + " (vigilancia " +
+                                  ev.value("llmText", ev.value("text", "")) + " (disparador " +
                                   ev.value("ruleId", "") + ", tipo " + tipo + ")";
         std::string err;
-        if (encargar(rol->id, texto, "vigilancia:" + tipo, 0, &err).empty())
+        if (encargar(rol->id, texto, "disparador:" + tipo, 0, &err).empty())
             registrar(diag::Nivel::Aviso, rol->id, "no se pudo encargar: " + err);
         return true;
     }
@@ -151,12 +151,12 @@ void Despachador::lanzar(const std::string& rol) {
     std::string texto;
     for (const json& ev : it->second->eventos)
         texto += "[" + hora(ev.value("atMs", std::int64_t{0})) + "] " +
-                 ev.value("llmText", ev.value("text", "")) + " (vigilancia " + ev.value("ruleId", "") +
+                 ev.value("llmText", ev.value("text", "")) + " (disparador " + ev.value("ruleId", "") +
                  ", tipo " + ev.value("type", "") + ")\n";
     const std::size_t n = it->second->eventos.size();
     it->second->eventos.clear();
     std::string err;
-    if (encargar(rol, texto, n == 1 ? "vigilancia" : "vigilancias (" + std::to_string(n) + ")", 0, &err)
+    if (encargar(rol, texto, n == 1 ? "disparador" : "disparadores (" + std::to_string(n) + ")", 0, &err)
             .empty())
         registrar(diag::Nivel::Aviso, rol, "no se pudo encargar: " + err);
 }
@@ -184,7 +184,7 @@ std::string Despachador::encargar(const std::string& rolId, const std::string& t
         return {};
     }
     // El mismo origen ya esta en curso o esperando: no se duplica (dos
-    // caminos —la vigilancia y el click del operador— pueden traer a la
+    // caminos —el disparador y el click del operador— pueden traer a la
     // misma persona).
     if (origen.rfind("lobby:", 0) == 0)
         for (const auto& c : corridas_)

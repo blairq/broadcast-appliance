@@ -99,7 +99,7 @@ Como herramientas más del formato (igual que `derivar` hoy):
 | etiqueta | para qué |
 |---|---|
 | `derivar` | no es suyo: al asistente grande (ya existe) |
-| `aviso` | el texto es una vigilancia, no una orden |
+| `aviso` | el texto es el aviso de un disparador, no una orden |
 | `pregunta` / `orden` | contestar contra hacer |
 | `charla` | conversación: contesta en texto, no llama nada |
 | `falta_dato` | pedir lo que falta («¿a qué escena?») en vez de inventarlo |
@@ -121,10 +121,10 @@ hay internet:
 Ya está el proveedor «Modelo local» en el asistente y en los agentes (hoy
 todo pasa por elegir una herramienta).
 
-### 5. Alertas (vigilancias)
+### 5. Alertas (disparadores)
 
 Medido: toma los avisos como órdenes («Terminó Apertura.mp4» → `record_stop`).
-Por ahora una vigilancia nunca se hace sola: se dice en voz alta y se propone.
+Por ahora un disparador nunca se hace solo: se dice en voz alta y se propone.
 Para que las atienda bien:
 
 1. entrenar con los textos de `AlertEngine` y la etiqueta `aviso`, donde lo

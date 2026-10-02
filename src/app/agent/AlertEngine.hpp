@@ -1,5 +1,5 @@
 // ============================================================================
-// src/app/agent/AlertEngine.hpp — Vigilancias programables (alertas)
+// src/app/agent/AlertEngine.hpp — Disparadores programables (alertas)
 //
 // El asistente de IA no tiene que "mirar cada tanto" con temporizadores: le
 // pide al servidor que vigile algo (alert_create) y el servidor le AVISA
@@ -21,6 +21,9 @@
 //   guest_drop    (un invitado admitido se desconecta)
 //   chat          platform (all|youtube|twitch|facebook|room), contains | regex
 //   guest_message un invitado escribe en el chat de la sala (privateOnly)
+//   texto         una SALIDA DE TEXTO (una «Voz a texto» con nombre) dice algo
+//                 que coincide: flujo ("*" o el nombre), contains | palabras |
+//                 regex (sin distinguir mayúsculas ni tildes)
 //   stream_health droppedPct (2), windowSec (30); y corte de la transmision
 //   disk          minGb (5) (solo grabando)
 //   timer         in (seg) | at ("HH:MM") | every (seg)
@@ -72,6 +75,7 @@ struct AlertInputs {
     std::function<json()> room;              ///< snapshot de la sala (participants, order, serverNowMs)
     std::function<std::vector<json>()> chat; ///< {key, platform, author, text}
     std::function<json()> roomChat;          ///< chat de la sala: [{uid, fromId, fromName, to, text, mine}]
+    std::function<std::vector<json>()> textos; ///< salidas de texto: {key, flujo, texto, origen}
     std::function<Status()> status;
     std::function<double()> diskFreeGb;  ///< -1 = desconocido
     std::function<std::int64_t()> nowMs; ///< reloj (inyectable en tests)

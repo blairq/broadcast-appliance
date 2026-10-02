@@ -1,7 +1,7 @@
 // Pagina Asistente: chat con el LLM que maneja la app por MCP. A la izquierda
 // la terminal con la interfaz oficial del agente (Claude Code, Gemini CLI u
 // opencode); a la derecha el proveedor/modelo, pedidos rapidos y las
-// vigilancias (alertas) con sus avisos. Todo sale de Studio.agent.
+// disparadores (alertas) con sus avisos. Todo sale de Studio.agent.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -290,7 +290,7 @@ Rectangle {
                         }
                         RowLayout {
                             Toggle { checked: ag.alertsToChat; onToggled: (wanted) => ag.setAlertsToChat(wanted) }
-                            Text { text: "Avisos de las vigilancias al chat"; color: Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                            Text { text: "Avisos de los disparadores al chat"; color: Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap }
                         }
                         GlassButton { compact: true; text: "Carpeta de agentes"; icon: "▸"; onClicked: ag.openAgentsFolder() }
                         // Se actualizo desde la pestaña: se puede volver a la que
@@ -333,7 +333,7 @@ Rectangle {
                 Panel {
                     Layout.fillWidth: true
                     Layout.preferredHeight: alertCol.implicitHeight + 64
-                    title: "Vigilancias (" + ag.alerts.length + ")"
+                    title: "Disparadores (" + ag.alerts.length + ")"
                     ColumnLayout {
                         id: alertCol
                         anchors.fill: parent

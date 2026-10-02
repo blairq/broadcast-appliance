@@ -219,7 +219,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         QTimer::singleShot(800, this, [this]() { emit quitRequested(); });
     });
     chatOverlay_ = std::make_unique<ChatOverlayRenderer>(*youtube_, *conference_, *twitch_, *facebook_);
-    // Vigilancias (alertas) contra el estado real de la app, y la pestaña Asistente.
+    // Disparadores (alertas) contra el estado real de la app, y la pestaña Asistente.
     {
         agent::AlertInputs in;
         in.audio = [this]() {
@@ -246,6 +246,18 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                                {"platform", m.source.toStdString()},
                                {"author", m.author.toStdString()},
                                {"text", m.text.toStdString()}});
+            return out;
+        };
+        // Las salidas de texto (voz a texto con nombre): las últimas frases.
+        in.textos = [this]() {
+            std::vector<nlohmann::json> out;
+            if (!flujos_) return out;
+            const std::uint64_t ultimo = flujos_->ultimoSeq();
+            for (const auto& f : flujos_->desde(ultimo > 50 ? ultimo - 50 : 0))
+                out.push_back({{"key", std::to_string(f.seq)},
+                               {"flujo", f.flujo.toStdString()},
+                               {"texto", f.texto.toStdString()},
+                               {"origen", f.origen.toStdString()}});
             return out;
         };
         in.roomChat = [this]() {
@@ -290,8 +302,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         // El modelo local como motor de agentes y del asistente (proveedor «local»).
         if (agent_) {
             agent::Voz* v = voz_.get();
-            agent_->setLocal([v](const QString& quien, const QString& texto, bool vigilancia) {
-                v->atenderDesde(texto, quien, vigilancia);
+            agent_->setLocal([v](const QString& quien, const QString& texto, bool disparador) {
+                v->atenderDesde(texto, quien, disparador);
             });
         }
         // El micrófono del operador se cambia en Configuración: Sala lo muestra.

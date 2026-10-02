@@ -209,11 +209,11 @@ class Voz : public QObject {
     /// Lo que hace con una frase dictada (también sirve para probar escribiendo).
     Q_INVOKABLE void atender(const QString& frase);
     /// Lo que le llega al MODELO LOCAL como motor de un agente o del asistente
-    /// (proveedor «local»): `quien` es el rol o "asistente". Una vigilancia se
+    /// (proveedor «local»): `quien` es el rol o "asistente". Un disparador se
     /// dice primero en voz alta y sus acciones solo se PROPONEN (nunca se hacen
     /// solas, aunque estén entre las automáticas: el modelo toma un aviso como
     /// una orden, y «terminó el video» le sugiere cortar la grabación).
-    void atenderDesde(const QString& texto, const QString& quien, bool vigilancia);
+    void atenderDesde(const QString& texto, const QString& quien, bool disparador);
 
    signals:
     void cambio();
@@ -270,7 +270,7 @@ class Voz : public QObject {
     QVariantMap vozParaOtros_;
     QStringList automaticas_;
     int ultimoId_ = 0;       ///< el `id` de la última frase atendida (bitácora)
-    QSet<int> soloProponer_; ///< frases (id) cuyas acciones no se hacen solas (vigilancias)
+    QSet<int> soloProponer_; ///< frases (id) cuyas acciones no se hacen solas (disparadores)
     std::unique_ptr<audio::Escucha> escucha_;
     QString cargados_; ///< los repos con los que se cargó (para recargar si cambian)
     bool lista_ = false;

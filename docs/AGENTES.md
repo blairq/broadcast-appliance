@@ -25,7 +25,7 @@ el despachador nunca le habla.
 | | quién lo fija | qué es |
 |---|---|---|
 | categorías | el sistema | el juego de herramientas MCP que ve (más las comunes: `ayuda`, `estado`, `agentes`, `registro`) |
-| disparadores | el sistema | los tipos de vigilancia que atiende (`lobby`, `audio_peak`…) |
+| disparadores | el sistema | los tipos de disparador que atiende (`lobby`, `audio_peak`…) |
 | prompt | el sistema | el `CLAUDE.md`/`AGENTS.md` de su espacio de trabajo |
 | agrupación | el sistema | una corrida por evento, o juntar lo que llegue en N ms |
 | activo, proveedor, modelo | el operador | `Config/roles.json` |
@@ -76,7 +76,7 @@ Dos cosas que da y una que no:
   hace dos horas. Y la verificación de identidad **no depende de lo que un
   modelo recuerda**.
 - **Tope de 20 minutos** por corrida; el mismo origen de lobby no se duplica
-  (la vigilancia y el click del operador pueden traer a la misma persona).
+  (el disparador y el click del operador pueden traer a la misma persona).
 - Cada agente termina con `RESUMEN:`; eso es lo que ve el operador y lo que
   recibe la próxima corrida.
 
@@ -105,7 +105,7 @@ atiende a alguien hace una pregunta con `chat_send` y espera la respuesta con
   porque le daría permiso para borrar videos.
 - Política de aprobación **por rol** y una bandeja única, con «aprobar =
   ejecutar la acción grabada» sin volver a correr el modelo.
-- Escalera regla → agente en las vigilancias: primero la acción determinista;
+- Escalera regla → agente en los disparadores: primero la acción determinista;
   si no alcanza, recién ahí un rol.
 - Enlaces de invitación por persona (hoy es un PIN por sala); reconocimiento
   de rostros como herramienta determinista (detector + embedding, ONNX

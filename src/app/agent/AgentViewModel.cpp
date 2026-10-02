@@ -180,7 +180,7 @@ const std::vector<Provider>& providerTable() {
          "",
          "",
          "El modelo de Configuración → Modelos locales. No abre una terminal: lo que se le pide (escrito, "
-         "dictado o una vigilancia) pasa por el mismo camino que la voz: elige la acción, completa los "
+         "dictado o un disparador) pasa por el mismo camino que la voz: elige la acción, completa los "
          "datos con el estado del aparato y la propone en la barra del asistente (o la hace, si la dejaste "
          "automática). Rápido para lo sencillo; para lo complejo, mejor un asistente grande.",
          {}},
@@ -1179,7 +1179,7 @@ Motores AgentViewModel::motores() {
             *resumen = "el modelo local no está disponible en esta versión";
             return true;
         }
-        local_(l.rol, l.encargo, origen.rfind("vigilancia", 0) == 0);
+        local_(l.rol, l.encargo, origen.rfind("disparador", 0) == 0);
         *resumen = "Lo atendió el modelo local: lo dijo por los auriculares y, si había algo para hacer, "
                    "lo propuso en la barra del asistente.";
         return true;
@@ -1330,7 +1330,7 @@ void AgentViewModel::onAlert(const json& ev) {
     // Sin texto de invitados/publico (llmText): leerlo es decision del asistente
     // con una herramienta, y eso activa la salvaguarda de su sesion.
     pendingAlerts_ << "[" + t + "] " + QString::fromStdString(ev.value("llmText", ev.value("text", ""))) +
-                          " (vigilancia " + QString::fromStdString(ev.value("ruleId", "")) + ")";
+                          " (disparador " + QString::fromStdString(ev.value("ruleId", "")) + ")";
     if (!flushScheduled_) {
         flushScheduled_ = true;
         // Si llegan varias juntas, van en un solo mensaje.

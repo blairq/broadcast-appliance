@@ -391,15 +391,15 @@ void Voz::setAutomatica(const QString& herramienta, bool on) {
     emit cambio();
 }
 
-void Voz::atenderDesde(const QString& texto, const QString& quien, bool vigilancia) {
-    if (!vigilancia) {
+void Voz::atenderDesde(const QString& texto, const QString& quien, bool disparador) {
+    if (!disparador) {
         atenderDe(texto, "asistente:" + quien, nlohmann::json::object());
         return;
     }
-    // El encargo de una vigilancia viene como «[HH:mm:ss] aviso (vigilancia x,
+    // El encargo de un disparador viene como «[HH:mm:ss] aviso (disparador x,
     // tipo y)», una por línea si se juntaron: se dice y se atiende el aviso.
     static const QRegularExpression hora("^\\[\\d\\d:\\d\\d:\\d\\d\\]\\s*");
-    static const QRegularExpression cola("\\s*\\(vigilancia [^)]*\\)\\s*$");
+    static const QRegularExpression cola("\\s*\\(disparador [^)]*\\)\\s*$");
     for (QString linea : texto.split('\n', Qt::SkipEmptyParts)) {
         linea.remove(hora);
         linea.remove(cola);
@@ -408,7 +408,7 @@ void Voz::atenderDesde(const QString& texto, const QString& quien, bool vigilanc
         const int id = ultimoId_ + 1; // el que va a tomar atenderDe
         soloProponer_.insert(id);
         responder(id, linea);
-        atenderDe(linea, "vigilancia:" + quien, nlohmann::json{{"vigilancia", true}});
+        atenderDe(linea, "disparador:" + quien, nlohmann::json{{"disparador", true}});
     }
 }
 
@@ -521,7 +521,7 @@ void Voz::decidir(int id, const QString& frase, const QString& h, const FichaHer
     // Automática y sin dudas: se hace. Con dudas (un nombre que no existe, un
     // dato que falta) se propone igual, para que el operador lo vea.
     // Una pregunta (solo lee) no cambia nada: se contesta sin preguntar.
-    // Una vigilancia: solo lo que lee se hace solo; las acciones, propuestas.
+    // Un disparador: solo lo que lee se hace solo; las acciones, propuestas.
     const bool automatica = automaticas_.contains(h) && !soloProponer_.contains(id);
     if ((automatica || ficha.lectura) && bloqueos.isEmpty()) {
         bitacora(id, "automatica", {{"herramienta", h.toStdString()}, {"args", args}});

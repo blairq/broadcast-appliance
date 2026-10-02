@@ -1,11 +1,11 @@
 // ============================================================================
-// src/app/mcp/McpAlertTools.cpp — Vigilancias (alertas) por MCP
+// src/app/mcp/McpAlertTools.cpp — Disparadores (alertas) por MCP
 //
 // El asistente programa lo que hay que vigilar (alert_create) y el servidor le
 // avisa cuando pasa: en la pestaña Asistente el aviso se escribe en su chat;
 // cualquier otro cliente puede esperar con alert_wait (una llamada que vuelve
 // apenas hay un evento, sin temporizadores del lado del agente). Las acciones
-// de una vigilancia (herramientas MCP) se ejecutan aca, en el acto.
+// de un disparador (herramientas MCP) se ejecutan aca, en el acto.
 // ============================================================================
 
 #include "agent/AlertEngine.hpp"
@@ -17,13 +17,13 @@ namespace ba::app::mcp {
 
 void McpService::registerAlertTools() {
     core_.addCategory(
-        "alertas", "Vigilancias (alertas)",
+        "alertas", "Disparadores (alertas)",
         "Pedirle al servidor que vigile algo (saturacion, silencio, fin de un tema, tiempo de un "
         "orador, lobby, chat, cortes, disco, temporizadores) y que avise o actue solo. Evita tener "
         "que consultar cada tanto: el aviso llega al chat del asistente.");
     agent::AlertEngine& eng = vm_.alerts();
 
-    // Acciones de las vigilancias: se ejecutan como llamadas MCP normales.
+    // Acciones de los disparadores: se ejecutan como llamadas MCP normales.
     connect(&eng, &agent::AlertEngine::fired, this, [this](const json& ev) {
         for (const auto& a : ev.value("actions", json::array())) {
             if (!a.is_object() || !a.contains("tool")) continue;
@@ -44,18 +44,18 @@ void McpService::registerAlertTools() {
         t.readOnly = true;
         t.description = "Referencia tecnica: que parametros admite cada tipo y con que valores vienen. "
                         "Es documentacion, no hace nada.";
-        t.details = "No crea ninguna vigilancia: para eso es `alert_create`.";
+        t.details = "No crea ningun disparador: para eso es `alert_create`.";
         t.run = [](const json&, Done done) { done(ToolResult().data(agent::AlertEngine::types())); };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "alert_create";
-        t.title = "Crear una vigilancia";
+        t.title = "Crear un disparador";
         t.category = "alertas";
         t.description =
-            "AVISAME CUANDO: crea una vigilancia que avisa sola al pasar algo (entra alguien, hay silencio "
-            "al aire, satura el audio, se cae un invitado). Crea una vigilancia que el servidor evalua sola "
+            "AVISAME CUANDO: crea un disparador que avisa solo al pasar algo (entra alguien, hay silencio "
+            "al aire, satura el audio, se cae un invitado). Crea un disparador que el servidor evalua solo "
             "(cada 250 ms) y dispara un aviso cuando pasa. "
             "`notify`: [\"llm\"] = te lo escribe en el chat (despierta al asistente), [\"ui\"] = aviso en "
             "pantalla (por defecto las dos). `actions`: herramientas MCP a ejecutar en el acto al dispararse "
@@ -91,27 +91,27 @@ void McpService::registerAlertTools() {
             const json r = eng.create(a);
             if (r.contains("error")) return done(ToolResult::error(r["error"].get<std::string>()));
             QMetaObject::invokeMethod(vm_.agent(), "alertsChanged");
-            done(ToolResult().text("Vigilancia " + r["id"].get<std::string>() + " activa.").data(r));
+            done(ToolResult().text("Disparador " + r["id"].get<std::string>() + " activo.").data(r));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "alert_list";
-        t.title = "Vigilancias activas";
+        t.title = "Disparadores activos";
         t.category = "alertas";
         t.readOnly = true;
-        t.description = "Las vigilancias con su estado (activa, cuantas veces se disparo, la ultima vez).";
+        t.description = "Los disparadores con su estado (activo, cuantas veces se disparo, la ultima vez).";
         t.run = [&eng](const json&, Done done) { done(ToolResult().data(json{{"alerts", eng.list()}})); };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "alert_update";
-        t.title = "Cambiar una vigilancia";
+        t.title = "Cambiar un disparador";
         t.category = "alertas";
         t.description =
-            "Activa/desactiva (`enabled`) o cambia parametros, mensaje, avisos o acciones de una vigilancia.";
+            "Activa/desactiva (`enabled`) o cambia parametros, mensaje, avisos o acciones de un disparador.";
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"id", {{"type", "string"}}},
@@ -134,17 +134,17 @@ void McpService::registerAlertTools() {
     {
         Tool t;
         t.name = "alert_delete";
-        t.title = "Borrar vigilancias";
+        t.title = "Borrar disparadores";
         t.category = "alertas";
         t.destructive = true;
-        t.description = "Borra una vigilancia (`id`) o todas (`all`: true).";
+        t.description = "Borra un disparador (`id`) o todos (`all`: true).";
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"id", {{"type", "string"}}}, {"all", {{"type", "boolean"}}}}}};
         t.run = [&eng, this](const json& a, Done done) {
             if (a.value("all", false)) {
                 eng.clear();
             } else if (!a.contains("id") || !eng.remove(a["id"].get<std::string>())) {
-                return done(ToolResult::error("No existe esa vigilancia (alert_list las muestra)."));
+                return done(ToolResult::error("No existe ese disparador (alert_list los muestra)."));
             }
             QMetaObject::invokeMethod(vm_.agent(), "alertsChanged");
             done(ToolResult::ok("Listo."));
@@ -181,7 +181,7 @@ void McpService::registerAlertTools() {
         t.category = "alertas";
         t.readOnly = true;
         t.description =
-            "Vuelve apenas se dispara una vigilancia (o al vencer `timeoutSec`, max. 300) con los avisos "
+            "Vuelve apenas salta un disparador (o al vencer `timeoutSec`, max. 300) con los avisos "
             "nuevos "
             "desde `sinceId`. Para clientes que no reciben los avisos en su chat: una sola llamada en vez de "
             "consultar cada tanto.";
