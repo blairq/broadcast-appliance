@@ -36,6 +36,171 @@ Hoy son dos llamadas al modelo:
 Medido con el aparato andando: ninguna acción de volumen ni de silencio quedó
 distinta de lo pedido.
 
+## Cómo se entrenaron los modelos actuales (la metodología que funcionó)
+
+Los seis repos públicos (4B, 4B mtp-ud y 9B mtp-ud; MLX y GGUF de cada uno)
+salen de **una sola fábrica reproducible**: `make modelo` →
+`tools/entrenar/actualizar-modelo.py` → `tools/entrenar/fabricar-modelo.py`.
+Lo que sigue es qué hace cada paso y por qué; el formato nuevo tiene que
+reusar todo esto, no empezar de cero.
+
+### Resultados (para comparar el formato nuevo)
+
+Banco de orientación (1.423 frases escritas aparte, nunca entrenadas) con el
+dial de `derivar` en 0, y examen (105 casos):
+
+| modelo | cobertura | precisión | derivado | examen | MLX q4 fp16 (precisión) | margen < 0 |
+|---|---|---|---|---|---|---|
+| 4B (Qwen3.5-4B) | 92,4 % | 93,1 % | 88,9 % | 88,6 % | 92,3 % | 8 |
+| 4B mtp-ud | 95,7 % | 94,2 % | 83,9 % | 85,7 % | 92,9 % | 0 |
+| 9B mtp-ud (Qwen3.5-9B) | 93,7 % | 94,9 % | 91,2 % | 86,7 % | 95,1 % | 6 |
+
+Cabeza MTP (validación aparte, tokens aceptados por ciclo de 3 borradores):
+
+| modelo | nombres: original → entrenada | texto: original → entrenada |
+|---|---|---|
+| 4B | 1,61 → **1,82** | 1,62 → **1,63** |
+| 4B mtp-ud | 1,57 → **1,82** | 1,50 → **1,58** |
+| 9B mtp-ud | 1,64 → **1,82** | 1,53 → **1,65** |
+
+Mismo corpus (7.800 ejemplos) para los tres: las diferencias entre ellos
+caen dentro del ruido de una corrida a otra (2-4 puntos), salvo el 9B, que en
+la curva del banco queda ~1 punto arriba a igual cobertura.
+
+### 1. Un solo prompt, con firma
+
+- `tools/lib_prompt.py` arma el prompt de entrenamiento **y** el de servir:
+  sistema + fichas de las herramientas del perfil + la frase, con `<think>`
+  vacío (no-thinking) escrito en el propio prompt. `partes()` devuelve
+  cabeza y cola: el prefijo fijo (~2.800 tokens) se procesa una vez y se reusa.
+- `huella()` firma el prefijo: si una herramienta nueva cambia las fichas, el
+  modelo quedó viejo y la fábrica lo nota (hoy `3f9122d8064004c5`, 84
+  herramientas).
+- Cada repo lleva `prompt.json` (cabeza, cola, salidas, gramática, firma,
+  frases de prueba) para que quien sirve no reconstruya nada.
+- **Perfiles** (`datos/perfiles/*.json`): qué herramientas del MCP entran,
+  por categoría. `reactivo` es el actual.
+- Nombres **reales** de las herramientas como salida: las etiquetas legibles
+  empataron y las de fragmentos empeoraron (v11).
+
+### 2. El corpus: calidad antes que cantidad
+
+Ver [bucle-corpus.md](bucle-corpus.md). Lo esencial:
+
+- **Semillas** por herramienta (`datos/semillas-reactivas.json`), **15 a 20
+  por grupo**. Crecer por cantidad empeoró: el salto vino de mejorar las que
+  había.
+- **Medir cada frase contra el conjunto**: con los estados internos del
+  modelo se calcula la separación de cada grupo con el más cercano
+  (Frobenius: distancia entre centros sobre la dispersión de los dos) y cuánto
+  aporta cada frase. Se usa como **guía** de qué frase está mal, nunca para
+  podar a ciegas. Si un grupo se corrió se realinea; si quedó apretado se abre
+  con frases nuevas.
+- **Pares que se pisan**: dos herramientas cuyas frases caen en la nube de la
+  otra; se separan reescribiendo con el contexto real de cada ficha (regla del
+  radio: solo cuenta un choque si la frase cae dentro de la nube ajena).
+- **Margen (AUM)** sobre todas las semillas: logit de la correcta menos el
+  mejor rival en los pasos donde la gramática decide. Las de margen negativo
+  van al agente para arreglar.
+- **Agentes con contexto real** (`tools/entrenar/agente.py` y `consignas/`):
+  revisan el sentido de cada frase con la ficha de la herramienta, separan
+  pares, reescriben; un juez ciego verifica. Bucle: test → agente arregla →
+  test, hasta que todas dan bien (`bucle-corpus-completo.py`).
+- Cada frase se expande en **4 variantes** (con 1 sola, la cuota de
+  `derivar` se achicó y las frases de otros dominios se colaron como propias).
+- Lo **ajeno** (`derivar`) está en el corpus con su peso: es lo que deja
+  pasar al asistente grande lo que no es del modelo.
+- **El examen y el banco nunca se entrenan ni se copian**: son lo único que
+  mide de verdad.
+
+### 3. Entrenar rápido en dos 3090
+
+`tools/entrenar/entrenar-rapido.py`, LoRA r=32 sobre todas las lineales (las
+de atención completa y las de la atención lineal de Qwen3.5), lr 2e-4, lote
+16, 2 épocas.
+
+- **Prefijo compartido**: las fichas (~3.000 tokens) se procesan **una vez**
+  por lote y su caché se repite para las 16 frases. Qwen3.5 tiene 3 de cada 4
+  capas de atención lineal con estado recurrente: transformers no continúa ese
+  estado con varios tokens, así que `cache_hibrido.py` lo parchea (continuar,
+  repetir, foto/volver).
+- **Modo según el tamaño** (lo decide la fábrica leyendo el config): hasta
+  ~5 GB de pesos, una copia por placa y medio lote cada una (torchrun); el 4B,
+  repartido entre las dos placas (2 s/paso, ~30 min); el 9B, repartido y con
+  **el prefijo recalculado capa por capa** en el backward (un solo checkpoint
+  sobre todo el prefijo no bajaba el pico): 13,4 + 19 GB, 3,9 s/paso, 74 min.
+- Kernels de triton de la atención lineal: cada capa corre con su placa
+  activa y el autoajuste va con candado (los hilos del backward se pisaban).
+
+### 4. Medir
+
+`tools/entrenar/evaluar.py` con decodificación **restringida** a los nombres
+posibles (más `derivar`):
+
+- **Examen** y **curva del banco** en 5 puntos del dial de `derivar` (-4..+4):
+  se comparan modelos **a igual derivado**, no en un punto suelto.
+- **Margen** sobre todas las semillas, con cada checkpoint.
+- **q4 de MLX simulado**: los pesos cuantizados y descuantizados exactos de
+  MLX, medidos en GPU (MLX en CPU es lento). Cuesta ~1 punto.
+- **fp16**: el q4 corriendo entero en fp16 (`evaluar.py --tipo fp16`), para
+  saber si desborda: pierde 0,0-0,1 puntos.
+
+### 5. Exportar para la Mac (MLX)
+
+- Todo en **fp16** (la M1 no tiene bf16 nativo); lo único en fp32 es `A_log`
+  (24 tensores chicos: el decaimiento de la atención lineal).
+- **Con visión**: se entrena solo el texto, así que `con-vision.py` arma el
+  checkpoint completo con la base y solo los módulos que el LoRA cambió (la
+  torre de visión, de la base) y `mlx_vlm.convert` lo cuantiza a 4 bits
+  (grupos de 64) **dejando la visión sin cuantizar**. mlx-vlm 0.7.4 escribe
+  el config sin la cuantización: la fábrica la agrega. Carga en mlx-lm (texto)
+  y en mlx-vlm (imágenes).
+- La cabeza MTP va **aparte** (`mtp.safetensors` fp16 y `mtp-q8.safetensors`),
+  fuera de `model*.safetensors`: si un peso `mtp.*` estuviera ahí, mlx-lm
+  creería que el modelo no está convertido y correría todas sus normas. Normas
+  de la cabeza en la convención de Hugging Face (sin +1): ba-modelo arma el
+  drafter con `model_type qwen3_5` y mlx-swift-lm les suma 1 al cargarla
+  (el formato de MTPLX, con el +1 ya aplicado, acá quedaría sumado dos veces).
+
+### 6. Exportar para Linux y Windows (GGUF)
+
+- GGUF bf16 con llama.cpp b11255 (la cabeza MTP entrenada adentro, bloque 32)
+  y cuantizado con **imatrix calibrada con el propio corpus** (sin el examen).
+- Q4_K_M, o la **receta UD de unsloth** (UD-Q4_K_XL: el tipo de cada tensor se
+  lee de la cabecera de su GGUF con un pedido por rango, sin bajarlo entero, y
+  se aplica a nuestros pesos con nuestra imatrix).
+- `mmproj-F16.gguf` para la visión (`--mmproj`).
+
+### 7. La cabeza MTP
+
+`tools/entrenar/entrenar-mtp.py`, con el modelo principal congelado:
+
+- **En cadena**: los 3 borradores juntos, cada paso con la salida del
+  anterior (como `common/speculative.cpp` de llama.cpp) y una máscara que le
+  da a cada paso exactamente el contexto que tiene en vivo (EAGLE-3,
+  *training-time test*). Peso 0,8 por paso.
+- **Con texto**: además de los nombres, prosa escrita por **el propio modelo
+  ajustado** (frases del operador como pedidos de explicación y fragmentos de
+  docs/): lo que la cabeza adivina es lo que el modelo va a escribir.
+- **Peso 4 al texto y lr 5e-5**, con calentamiento: con peso 2 y lr 1e-4 los
+  nombres (que se aprenden enseguida) tiraban para su lado y el texto bajaba
+  (9B: 1,86 → 1,68 tokens por ciclo).
+- **Se queda con la mejor**: cada 100 pasos se mide en una parte de
+  validación y se guarda la mejor que no acepte menos texto que la original;
+  lo que se informa sale de otra parte, que no participa de la elección.
+
+### 8. Empaquetar, verificar y subir
+
+- Repos con tarjeta (también versionada en `docs/modelos/`), licencia,
+  `prompt.json`, firma y, si hay, equivalencias. El catálogo de la app
+  (`datos/modelos-catalogo.json`) se actualiza al subir.
+- **Espacio**: antes de cada etapa la fábrica estima lo que va a ocupar y
+  para si no entra con 10 GB de margen; borra los intermedios grandes y los
+  repos usan enlaces duros.
+- **Se sube una sola vez, al final, verificado**: MLX con visión, fp16 y la
+  cabeza en el formato de ba-modelo; GGUF con la cabeza nueva y el mmproj. La
+  subida es lenta y subir algo que se va a rehacer es tiempo perdido.
+
 ## Qué entrenar
 
 ### 1. Herramienta y argumentos en el formato nativo de *tool calling* de Qwen
