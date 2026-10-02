@@ -58,4 +58,32 @@ Resultado validar(const std::string& herramienta, const json& ficha, const json&
 /// Una línea para mostrar: «name: Música · volumeDb: -16».
 std::string resumen(const json& args);
 
+// --- Formato tc (modelo v2: tool calling nativo de Qwen3.5) --------------------
+//
+//   <tool_call>
+//   <function=audio_set>
+//   <parameter=name>
+//   Música
+//   </parameter>
+//   <parameter=volumeDb>
+//   -4
+//   </parameter>
+//   </function>
+//   </tool_call>
+//
+// Valores (en XML no hay comillas): nombres copiados del estado; cambio con
+// signo (-4 / +3); valor exacto con «=» adelante (=-10); true / false; enums
+// tal cual. Se lee con la misma expresión que lib_tc.leer.
+struct LlamadaTc {
+    bool hay = false;         ///< había un <tool_call>
+    std::string funcion;      ///< el nombre (o "derivar", "falta_dato")
+    std::vector<std::pair<std::string, std::string>> parametros; ///< tal cual (texto)
+};
+LlamadaTc leerTc(const std::string& generado);
+/// Los parámetros, convertidos según el esquema y las convenciones de la v2:
+/// "=X" exacto; "+N"/"-N" cambio (queda como texto con signo para que
+/// `validar` lo sume al valor actual); un número sin signo, tal cual;
+/// booleanos; listas y objetos (JSON). Después va por `validar`.
+json argsDesdeTc(const LlamadaTc& llamada, const json& ficha);
+
 } // namespace ba::app::agent::argumentos

@@ -34,6 +34,50 @@ Sin modelo listo, con `derivar`, o desde *Al asistente*: la frase va tal cual
 al asistente grande (si está instalado y corriendo; si no, queda escrita en su
 barra).
 
+## Con el modelo v2: la llamada en una pasada
+
+`broadcast-reactivo-qwen3.5-4b-v2` (su `prompt.json` dice `"formato": "tc"`)
+no elige y después completa: recibe el estado y el pedido juntos y escribe la
+llamada entera, en el formato nativo de Qwen.
+
+- **Cabeza fija** (~8.200 tokens: las 86 funciones con sus esquemas): se
+  procesa una vez y queda guardada en disco al lado del modelo
+  (`.prefijo-<huella>-<vision|texto>.safetensors`); la primera vez tarda unos
+  20 s, después carga en décimas de segundo.
+- **El turno**: `Estado: {JSON compacto}\nPedido: <frase>`. El estado lo arma
+  la app (escena al aire y armada, escenas, fuentes de la escena, audio con
+  volumen y silencio, participantes, gráficos, carruseles). En `audio` va
+  primero el micrófono del operador (el elegido en Conferencia, o si no hay,
+  el primer micrófono del equipo): es el que se toca cuando el pedido no
+  nombra fuente.
+- **La respuesta** (`ba-modelo`, op `llamar`): si el primer token es
+  `<tool_call>`, se fuerza `<function=` y el nombre se camina por el árbol de
+  las funciones (no puede inventar una); los parámetros salen libres.
+  - `derivar` → al asistente grande.
+  - `falta_dato` → la `pregunta` se muestra y se dice («¿A qué escena?»).
+  - texto sin llamada → es charla: se muestra y se dice.
+- **Los valores**: con signo (`-4`, `+3`) es un cambio sobre el valor actual;
+  con `=` (`=-10`) es exacto; sin signo, tal cual. Después pasa por la misma
+  validación de siempre (`ArgumentosLocales`: nombres que existen, rangos,
+  enums, requeridos).
+
+Con la app (M1 Pro, sin MTP), 2 de octubre:
+
+| pedido | respuesta | |
+|---|---|---|
+| subile un poco a la música | `audio_set` Música `+6` | ✓ aunque «un poco» debería ser `+3` |
+| bajá la música en menos diez | `audio_set` Música `-10` (cambio) | ambiguo: ¿cambio o «a -10»? |
+| silenciá el micrófono del operador | `audio_set` Micrófono de MacBook Pro, muted | ✓ |
+| pasá a la escena | `falta_dato` «¿A qué escena?» | ✓ |
+| prepará la escena Apertura | `scene_preview` Apertura | ✓ |
+| ocultá el logo | `falta_dato` «¿Qué fuente?» | ✓ (el logo no está en la escena al aire) |
+| sacá el zócalo | `falta_dato` «¿Qué zócalo saco?» | ✓ (no está en la escena al aire) |
+| hola, ¿cómo andás? | `derivar` | ✓ |
+| armame un resumen… y mandáselo por mail | `derivar` | ✓ |
+
+Cada pedido tarda 1,2–1,9 s, y 1 s de eso es leer el turno (el estado, unos
+400 tokens) antes del primer token.
+
 ## Por qué así
 
 - **El modelo no hace cuentas.** Pedirle el volumen final daba errores de

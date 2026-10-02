@@ -54,6 +54,21 @@
    "fecha": "2026-10-01"
   },
   {
+   "repo": "BlairQ/broadcast-reactivo-qwen3.5-4b-v2-mlx-q4",
+   "revision": "4928bd2535aa0abf29f6725dc0a96ffd9b327746",
+   "formato": "mlx",
+   "plataformas": [
+    "mac-arm64"
+   ],
+   "archivo": null,
+   "base": "Qwen/Qwen3.5-4B",
+   "perfil": "reactivo",
+   "herramientas": 86,
+   "prompt": "900e34cd7e5900fb",
+   "tamano_gb": 3.43,
+   "fecha": "2026-10-02"
+  },
+  {
    "repo": "BlairQ/broadcast-reactivo-qwen3.5-4b-mtp-ud-GGUF",
    "formato": "gguf",
    "plataformas": [

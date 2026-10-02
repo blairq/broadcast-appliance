@@ -30,8 +30,11 @@
 #include <memory>
 #include <set>
 
+#include <obs.h>
+
 #include "AppRuntime.hpp"
 #include "AppSettings.hpp"
+#include "InputSpecs.hpp"
 #include "mcp/McpEventoTools.hpp"
 #include "mcp/McpHttp.hpp"
 #include "mcp/McpPreguntaTools.hpp"
@@ -358,7 +361,7 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
             },
             // El estado que ve el modelo para completar argumentos: los nombres
             // que existen y el volumen de cada fuente de audio.
-            [leer](std::function<void(json)> listo) {
+            [leer, rtp = &rt_](std::function<void(json)> listo) {
                 auto estado = std::make_shared<json>(json::object());
                 leer("scene_list", json::object(), [=](bool, const json& sl, const std::string&) {
                     json escenas = json::array();
@@ -380,6 +383,25 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
                                     {{"nombre", a.value("name", std::string())},
                                      {"volumen_db", std::round(a.value("volumeDb", 0.0) * 10.0) / 10.0},
                                      {"silenciada", a.value("muted", false)}});
+                            // El micrófono del operador primero: es el que se toca cuando
+                            // el pedido no nombra fuente (así se entrenó el modelo v2). Si no
+                            // hay uno elegido, el primer micrófono del equipo.
+                            std::string mic = rtp->config().operatorAudio;
+                            for (std::size_t i = 0; mic.empty() && i < audio.size(); ++i) {
+                                const std::string n = audio[i].value("nombre", std::string());
+                                if (obs_source_t* s = obs_get_source_by_name(n.c_str())) {
+                                    const char* id = obs_source_get_unversioned_id(s);
+                                    if (id != nullptr && std::string(id) == inputs::kAudioInType) mic = n;
+                                    obs_source_release(s);
+                                }
+                            }
+                            for (std::size_t i = 1; i < audio.size(); ++i)
+                                if (!mic.empty() && audio[i].value("nombre", std::string()) == mic) {
+                                    json primero = audio[i];
+                                    audio.erase(audio.begin() + static_cast<std::ptrdiff_t>(i));
+                                    audio.insert(audio.begin(), primero);
+                                    break;
+                                }
                             (*estado)["audio"] = audio;
                             leer("room_status", json::object(),
                                  [=](bool, const json& rs, const std::string&) {

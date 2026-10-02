@@ -432,6 +432,11 @@ void Voz::atenderDe(const QString& frase, const QString& origen, const nlohmann:
         emit dictado(f);
         return;
     }
+    // Modelo v2 (tool calling nativo): una sola vuelta, con el estado.
+    if (modelos_.formato() == "tc") {
+        atenderTc(id, f);
+        return;
+    }
     bitacora(id, "modelo_pedido",
              {{"op", "elegir"}, {"frase", f.toStdString()}, {"modelo", modelos_.activo().toStdString()}});
     const auto t0 = std::chrono::steady_clock::now();
@@ -458,6 +463,80 @@ void Voz::atenderDe(const QString& frase, const QString& origen, const nlohmann:
                 decidir(id, f, h, ficha, nlohmann::json::object(), {}, {});
         });
     });
+}
+
+void Voz::atenderTc(int id, const QString& f) {
+    // El estado que se entrenó: escenas, fuentes, audio (el micrófono del
+    // operador primero), participantes, gráficos y carruseles. Sin contexto
+    // (no debería pasar) va sin estado: el modelo lo toma como charla.
+    const auto conEstado = [this, id, f](const nlohmann::json& estado) {
+        // JSON compacto, con los acentos de verdad (como se entrenó).
+        const QString estadoJson = estado.is_object() && !estado.empty() ? QString::fromStdString(estado.dump()) : QString();
+        bitacora(id, "modelo_pedido",
+                 {{"op", "llamar"}, {"frase", f.toStdString()}, {"modelo", modelos_.activo().toStdString()},
+                  {"estado", estadoJson.toStdString()}});
+        const auto t0 = std::chrono::steady_clock::now();
+        modelos_.llamar(estadoJson, f, [this, id, f, estado, t0](const nlohmann::json& j) {
+            const double ms =
+                std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+            QMetaObject::invokeMethod(this, [this, id, f, estado, j, ms]() {
+                bitacora(id, "modelo_respuesta", {{"op", "llamar"}, {"respuesta", j}, {"ms_ida_y_vuelta", ms}});
+                if (j.contains("error")) {
+                    bitacora(id, "al_asistente", {{"motivo", "error del modelo"}, {"texto", f.toStdString()}});
+                    emit dictado(f);
+                    return;
+                }
+                const std::string crudo = j.value("crudo", j.value("texto", std::string()));
+                const argumentos::LlamadaTc l = argumentos::leerTc(crudo);
+                // Charla: el modelo contesta en texto.
+                if (!l.hay) {
+                    const QString texto = QString::fromStdString(j.value("texto", std::string())).trimmed();
+                    bitacora(id, "charla", {{"texto", texto.toStdString()}});
+                    if (texto.isEmpty()) {
+                        emit dictado(f);
+                        return;
+                    }
+                    emit notify("🗣 " + texto, "ok");
+                    responder(id, texto);
+                    return;
+                }
+                const QString h = QString::fromStdString(l.funcion);
+                if (h == "derivar") {
+                    bitacora(id, "al_asistente", {{"motivo", "derivar"}, {"texto", f.toStdString()}});
+                    emit dictado(f);
+                    return;
+                }
+                if (h == "falta_dato") {
+                    QString pregunta;
+                    for (const auto& [k, v] : l.parametros)
+                        if (k == "pregunta") pregunta = QString::fromStdString(v).trimmed();
+                    if (pregunta.isEmpty()) pregunta = "Me falta un dato: ¿cuál?";
+                    bitacora(id, "falta_dato", {{"pregunta", pregunta.toStdString()}});
+                    emit notify("❓ " + pregunta, "ok");
+                    responder(id, pregunta);
+                    return;
+                }
+                const FichaHerramienta ficha = ficha_ ? ficha_(h) : FichaHerramienta{};
+                if (!ficha.existe) {
+                    bitacora(id, "al_asistente",
+                             {{"motivo", "herramienta inexistente: " + h.toStdString()}, {"texto", f.toStdString()}});
+                    emit dictado(f);
+                    return;
+                }
+                const nlohmann::json crudos = argumentos::argsDesdeTc(l, ficha.ficha);
+                const auto r = argumentos::validar(h.toStdString(), ficha.ficha, crudos, estado);
+                QStringList notas, bloqueos;
+                for (const auto& n : r.notas) notas << QString::fromStdString(n);
+                for (const auto& b : r.bloqueos) bloqueos << QString::fromStdString(b);
+                bitacora(id, "argumentos",
+                         {{"crudos", crudos}, {"args", r.args}, {"notas", notas.join(" | ").toStdString()},
+                          {"bloqueos", bloqueos.join(" | ").toStdString()}});
+                decidir(id, f, h, ficha, r.args, notas, bloqueos);
+            });
+        });
+    };
+    if (contexto_) contexto_(conEstado);
+    else conEstado(nlohmann::json::object());
 }
 
 void Voz::completar(int id, const QString& frase, const QString& h, const FichaHerramienta& ficha) {

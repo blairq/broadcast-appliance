@@ -240,6 +240,9 @@ class Voz : public QObject {
 
     /// Completa los argumentos con el modelo local (generar) y los valida;
     /// después decide: hacer (si es automática y válida) o proponer.
+    /// Modelo v2 (formato tc): estado + frase en una sola vuelta; la llamada
+    /// se lee y se valida (o es charla, derivar o falta_dato).
+    void atenderTc(int id, const QString& frase);
     void completar(int id, const QString& frase, const QString& herramienta, const FichaHerramienta& f);
     void decidir(int id, const QString& frase, const QString& herramienta, const FichaHerramienta& f,
                  const nlohmann::json& args, const QStringList& notas, const QStringList& bloqueos);

@@ -575,6 +575,12 @@ void ModelosLocales::elegir(const QString& frase, Respuesta r) {
     pedir(json{{"op", "elegir"}, {"frase", frase.toStdString()}, {"sesgo", sesgo_}}, std::move(r));
 }
 
+void ModelosLocales::llamar(const QString& estadoJson, const QString& frase, Respuesta r) {
+    json pedido{{"op", "llamar"}, {"frase", frase.toStdString()}, {"sesgo", sesgo_}, {"max", 256}};
+    if (!estadoJson.isEmpty()) pedido["estado"] = estadoJson.toStdString();
+    pedir(std::move(pedido), std::move(r));
+}
+
 void ModelosLocales::generar(const QString& texto, bool conPrefijo, int maxTokens,
                              std::function<void(const QString&)> delta, Respuesta fin) {
     pedir(

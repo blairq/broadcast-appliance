@@ -253,8 +253,10 @@ Rectangle {
                                         : modelData.tipo === "vad"
                                           ? "Detector de voz (recorta los silencios) · " + modelData.licencia
                                         : modelData.formato.toUpperCase() + " · " + modelData.tamano_gb + " GB · " +
-                                          modelData.herramientas + " herramientas · precisión " + modelData.precision +
-                                          "% · examen " + modelData.examen + "% · " + modelData.fecha
+                                          modelData.herramientas + " herramientas · " +
+                                          (modelData.precision !== undefined
+                                           ? "precisión " + modelData.precision + "% · examen " + modelData.examen + "% · "
+                                           : "llamada nativa (v2) · ") + modelData.fecha
                                     color: Theme.textDim; font.pixelSize: 11
                                 }
                             }

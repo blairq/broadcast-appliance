@@ -144,6 +144,12 @@ class ModelosLocales : public QObject {
     /// {"herramienta","derivar","prob","ms"} o {"error"}; sin modelo listo,
     /// {"error":"sin modelo"} enseguida.
     void elegir(const QString& frase, Respuesta r);
+    /// Modelos v2 (formato «tc», tool calling nativo): una sola vuelta con el
+    /// estado (JSON compacto; vacío = charla) y la frase. Responde {crudo,
+    /// texto, tipo: llamada|charla, herramienta, prob, ms} o {error}.
+    void llamar(const QString& estadoJson, const QString& frase, Respuesta r);
+    /// "tc" si el modelo activo es v2 (tool calling nativo), "v1" si no.
+    QString formato() const { return info_.value("formato", "v1").toString(); }
     /// Texto corto (con MTP si rinde): `delta` va llegando, `fin` al final.
     void generar(const QString& texto, bool conPrefijo, int maxTokens,
                  std::function<void(const QString&)> delta, Respuesta fin);
