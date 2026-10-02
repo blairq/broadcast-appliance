@@ -157,6 +157,70 @@ Para que las atienda bien:
 - respuestas habladas que cuentan mal («diez» escenas con once): darle los
   datos ya contados y entrenar `resultado → una oración`.
 
+## Lo que dice la investigación (arXiv, octubre de 2026)
+
+Búsqueda sobre cómo entrenar un modelo chico para *tool calling*, aplicada a
+este plan.
+
+**La base sigue siendo Qwen 3.5 4B.** No existe un Qwen 3.6 4B: la familia 3.6
+en Hugging Face trae solo el 27B y el 35B-A3B (MoE, 3B activos), grandes para
+entrenar en las dos 3090 y para la M1 Pro.
+
+1. **Enseñarle el catálogo funciona, con la receta que ya usamos.**
+   [2605.17774](https://arxiv.org/html/2605.17774v2) ajusta Qwen3-4B (y Gemma
+   4 E4B) sobre un catálogo fijo de 23 herramientas con ~1.700 ejemplos, LoRA
+   r=32, lr 2e-4 y 2 épocas: 95-98 % de elección de herramienta, y el ajustado
+   **sin** las descripciones en el prompt le gana al base que las tiene.
+   Advertencia: **Qwen3-4B conservó solo el 61 % de su capacidad general**
+   (MMLU/ARC; Gemma, el 80 %).
+2. **Mezclar datos generales para no olvidar.**
+   [Alopex, 2411.05209](https://arxiv.org/pdf/2411.05209) mitiga el olvido
+   mezclando llamadas a funciones con texto general **1:1** (Gemma-2B,
+   Qwen-1.8B). El 20-30 % de charla de este plan puede quedar corto para un 4B:
+   **medir con 30 % y con 50 %**, y sumar un examen chico de capacidad general
+   además del banco de herramientas.
+3. **Lo que no es suyo (`derivar`, `charla`, `aviso`).**
+   [Hammer, 2410.04587](https://arxiv.org/html/2410.04587v2) encontró que, al
+   mejorar en elegir función, el modelo empeora en darse cuenta de que ninguna
+   aplica; lo corrigen con ~10 % de ejemplos donde la función correcta no está y
+   lo correcto es no llamar nada. Acá: **al menos 10 % del corpus** para esas
+   etiquetas, con frases que **parecen** órdenes y no lo son. (Su «function
+   masking», nombres al azar, es para generalizar a herramientas nunca vistas;
+   el catálogo es fijo y ya vimos que las etiquetas de fragmentos empeoran, v11:
+   no va.)
+4. **La gramática como red, no como muleta.** En modelos chicos sin ajustar,
+   forzar el JSON con gramática cuesta latencia y a veces calidad (repeticiones
+   cuando el modelo «pelea» con la gramática):
+   [2605.02363](https://arxiv.org/html/2605.02363v1). Entrenar **exactamente**
+   en el formato `<tool_call>` para que la gramática casi nunca tenga que
+   intervenir; así funciona hoy el 98 % con los nombres.
+5. **Dato real, después: SFT y luego DPO.** La receta estándar es SFT y después
+   DPO con pares elegido/rechazado (AWARE-US sobre Qwen3-8B,
+   [2601.02643](https://arxiv.org/pdf/2601.02643)). «Hacer» contra «No» en
+   `Logs/voz-modelo.jsonl` son esos pares: segundo paso, cuando se junten
+   suficientes.
+6. **Sintético con verificación automática.**
+   [ToolWeave, 2605.12521](https://arxiv.org/pdf/2605.12521) y el punto 1
+   coinciden: la llamada la genera un programa y se verifica, no la escribe un
+   modelo. Es el enfoque de este plan: semilla anotada → llamada con el nombre
+   del estado de turno → `ArgumentosLocales` valida.
+
+**Ajustes al plan que salen de esto**: charla general 30-50 % (medir); al
+menos 10 % de «no es suyo»; examen de capacidad general además del banco;
+gramática solo como red; DPO con la bitácora como segundo paso. Y para la
+cabeza MTP: la fábrica ya la reentrena con el mismo corpus, en cadena y con
+texto escrito por el propio modelo (`tools/entrenar/entrenar-mtp.py`), así que
+sale entrenada para el formato nuevo sin pasos extra.
+
+Fuentes: [2605.17774](https://arxiv.org/html/2605.17774v2) ·
+[2410.04587](https://arxiv.org/html/2410.04587v2) ·
+[2411.05209](https://arxiv.org/pdf/2411.05209) ·
+[2605.02363](https://arxiv.org/html/2605.02363v1) ·
+[2601.02643](https://arxiv.org/pdf/2601.02643) ·
+[2605.12521](https://arxiv.org/pdf/2605.12521) ·
+[2512.15943](https://arxiv.org/abs/2512.15943) ·
+[Qwen3.6-27B](https://huggingface.co/Qwen/Qwen3.6-27B).
+
 ## Cuidados
 
 - **Un solo módulo de prompt** para entrenar y servir (`tools/lib_prompt.py`):
