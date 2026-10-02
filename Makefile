@@ -337,7 +337,7 @@ check-macos-tools:
 # deps-ndi-src: el fuente de libmicrodns (buscar televisores por mDNS); en
 # Linux viene compilada con obs-deps.
 deps-macos: check-macos-tools deps-obs-macos deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts \
-            deps-cloudflared-host deps-clap deps-ndi-src deps-libreoffice-mac deps-sherpa-onnx
+            deps-cloudflared-host deps-clap deps-ndi-src deps-libreoffice-mac deps-sherpa-onnx deps-gstreamer-macos
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=macos
 	@# LSP (modulos del rack de audio) es opcional en macOS mientras se valida:
 	@# sin el, el rack funciona con el analizador y el generador.
@@ -1394,3 +1394,21 @@ clean:
 
 clean-all:
 	rm -rf $(BUILD_DIR) release docs/_build
+
+# --- GStreamer (macOS) ---------------------------------------------------------
+# El GStreamer.framework oficial (relocalizable), desarmado sin instalarlo:
+# tools/deps/gstreamer-macos.sh. Versión y sha256 fijados (los .sha256sum que
+# publica gstreamer.freedesktop.org).
+GST_VER := 1.28.7
+GST_URL := https://origin.gstreamer.freedesktop.org/data/pkg/osx/$(GST_VER)
+GST_RT := gstreamer-1.0-$(GST_VER)-universal.pkg
+GST_RT_SHA := 529fdf4a4027d942e59b5b3564f6400adaa008f63ce5f3fed4ffe35d73911994
+GST_DEV := gstreamer-1.0-devel-$(GST_VER)-universal.pkg
+GST_DEV_SHA := 72a44870cf02472cbf6e9a84bcc25ee6807dd1c26659a112066373544d365e7a
+.PHONY: deps-gstreamer-macos
+deps-gstreamer-macos:
+	@if [ -f "$(EXTERNS_DIR)/gstreamer-macos/GStreamer.framework/Versions/1.0/lib/libgstreamer-1.0.dylib" ]; then \
+		echo "GStreamer ya está ($(EXTERNS_DIR)/gstreamer-macos)"; exit 0; fi; \
+	$(MAKE) --no-print-directory _ba_baja ARCHIVO="$(DL_DIR)/$(GST_RT)" URL="$(GST_URL)/$(GST_RT)" SHA="$(GST_RT_SHA)" QUE="GStreamer" && \
+	$(MAKE) --no-print-directory _ba_baja ARCHIVO="$(DL_DIR)/$(GST_DEV)" URL="$(GST_URL)/$(GST_DEV)" SHA="$(GST_DEV_SHA)" QUE="GStreamer (cabeceras)" && \
+	bash tools/deps/gstreamer-macos.sh "$(DL_DIR)/$(GST_RT)" "$(DL_DIR)/$(GST_DEV)" "$(EXTERNS_DIR)/gstreamer-macos"

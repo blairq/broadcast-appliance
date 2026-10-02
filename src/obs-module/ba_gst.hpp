@@ -1,0 +1,81 @@
+// ============================================================================
+// src/obs-module/ba_gst.hpp — GStreamer adentro del grafo de video
+//
+// Dos usos:
+//   - TarjetaGst: una tarjeta del grafo que pasa la imagen por un módulo de
+//     GStreamer (videobalance, coloreffects, gaussianblur, frei0r-…). La
+//     textura se baja de la GPU, entra por `appsrc`, pasa por
+//       videoconvert ! <módulo> ! videoconvert ! videoscale ! RGBA WxH
+//     y sale por `appsink` para volver a la GPU. Las propiedades del módulo
+//     se cambian EN VIVO (sin rearmar el pipeline).
+//   - La fuente `ba_gst_fuente` (ba_gst_fuente.cpp): un pipeline de GStreamer
+//     como entrada de video (señal de ajuste, RTSP, SRT, NDI…).
+//
+// GStreamer viene en el bundle y usa SOLO sus plugins
+// (ba::platform::prepararGst). Sin GStreamer en el bundle, las tarjetas pasan
+// la imagen sin tocar y la fuente queda en negro (con el motivo en el log).
+//
+// Hilos: la tarjeta se usa en el hilo gráfico de libobs (subir/bajar
+// texturas); el pipeline corre en sus propios hilos (GStreamer).
+// ============================================================================
+#pragma once
+
+#if defined(BA_HAVE_GST)
+
+#include <obs-module.h>
+
+#include <cstdint>
+#include <map>
+#include <string>
+#include <vector>
+
+typedef struct _GstElement GstElement;
+
+namespace ba::gst {
+
+/// Inicia GStreamer una sola vez (con el entorno del bundle). false si no hay.
+bool iniciar();
+/// El motivo si iniciar() falló.
+const std::string& errorInicio();
+
+/// Una tarjeta del grafo que corre un módulo de GStreamer.
+class TarjetaGst {
+   public:
+    TarjetaGst(std::string elemento, std::map<std::string, std::string> propiedades);
+    ~TarjetaGst();
+    TarjetaGst(const TarjetaGst&) = delete;
+    TarjetaGst& operator=(const TarjetaGst&) = delete;
+
+    const std::string& elemento() const { return elemento_; }
+    /// Cambia propiedades en vivo (las que no cambiaron, no se tocan).
+    void ajustar(const std::map<std::string, std::string>& propiedades);
+    /// Pasa `entrada` (cx x cy, alfa premultiplicado) por el módulo y dibuja el
+    /// resultado en el render target actual (ya preparado con gs_ortho).
+    /// `fx` es el efecto del grafo (técnicas Despremultiplicar/Premultiplicar).
+    /// false si no se pudo (entonces el llamador copia la entrada).
+    bool procesar(gs_texture_t* entrada, std::uint32_t cx, std::uint32_t cy, gs_effect_t* fx);
+    /// Lo último que pasó (para el log y la interfaz).
+    const std::string& error() const { return error_; }
+
+   private:
+    bool armar(std::uint32_t cx, std::uint32_t cy);
+    void desarmar();
+
+    std::string elemento_;
+    std::map<std::string, std::string> props_;
+    std::string error_;
+    GstElement* pipeline_ = nullptr;
+    GstElement* src_ = nullptr;
+    GstElement* sink_ = nullptr;
+    GstElement* modulo_ = nullptr;
+    std::uint32_t cx_ = 0, cy_ = 0;
+    std::uint64_t pts_ = 0;
+    gs_texrender_t* bajada_ = nullptr; ///< la entrada despremultiplicada, para bajarla
+    gs_stagesurf_t* stage_ = nullptr;
+    gs_texture_t* subida_ = nullptr; ///< lo que devolvió GStreamer
+    bool haySubida_ = false;
+};
+
+} // namespace ba::gst
+
+#endif

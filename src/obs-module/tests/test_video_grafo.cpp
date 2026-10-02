@@ -22,6 +22,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <string>
 #include <thread>
@@ -159,6 +160,9 @@ int main() {
         return 77;
     }
     obs_add_module_path(BA_SOURCES_MODULE_DIR, BA_SOURCES_MODULE_DIR "/%module%");
+#if defined(BA_TEST_GST_RAIZ)
+    setenv("BA_GST_RAIZ", BA_TEST_GST_RAIZ, 1); // el GStreamer vendoreado (extern/)
+#endif
 #if defined(BA_TEST_OBS_FILTERS)
     // obs-filters (el de OBS, vendoreado), para la tarjeta de un filtro de OBS.
     obs_module_t* filtros = nullptr;
@@ -269,6 +273,45 @@ int main() {
     im = dibujar(fuente);
     std::printf("   color_filter_v2: el verde quedo en %d %d %d (alfa %d)\n", px(im, 5, 5, 0), px(im, 5, 5, 1), px(im, 5, 5, 2), px(im, 5, 5, 3));
     CHECK(px(im, 5, 5, 3) > 245 && std::abs(px(im, 5, 5, 0) - px(im, 5, 5, 1)) <= 3, "tarjeta color_filter_v2 (obs-filters): saturacion -1 deja gris");
+#endif
+
+#if defined(BA_TEST_GST_RAIZ)
+    // 10. GStreamer: una tarjeta `gst` (videobalance) y la fuente ba_gst_fuente.
+    ponerGrafo(f, R"({"nodos":[{"id":"in","tipo":"in"},{"id":"vb","tipo":"gst","params":{"elemento":"videobalance","propiedades":{"saturation":0.0}}},{"id":"out","tipo":"out"}],
+                    "cables":[{"desde":"in","hacia":"vb"},{"desde":"vb","hacia":"out"}]})");
+    for (int i = 0; i < 4; ++i) { // el primer cuadro arma el pipeline
+        im = dibujar(fuente);
+        siguienteCuadro();
+    }
+    std::printf("   gst videobalance saturation=0: el verde quedo en %d %d %d (alfa %d)\n", px(im, 5, 5, 0), px(im, 5, 5, 1),
+                px(im, 5, 5, 2), px(im, 5, 5, 3));
+    CHECK(px(im, 5, 5, 3) > 245 && std::abs(px(im, 5, 5, 0) - px(im, 5, 5, 1)) <= 6, "tarjeta gst videobalance: saturacion 0 deja gris");
+    ponerGrafo(f, R"({"nodos":[{"id":"in","tipo":"in"},{"id":"vb","tipo":"gst","params":{"elemento":"videobalance","propiedades":{"saturation":1.0}}},{"id":"out","tipo":"out"}],
+                    "cables":[{"desde":"in","hacia":"vb"},{"desde":"vb","hacia":"out"}]})");
+    for (int i = 0; i < 4; ++i) {
+        im = dibujar(fuente);
+        siguienteCuadro();
+    }
+    CHECK(px(im, 5, 5, 1) > px(im, 5, 5, 0) + 80, "tarjeta gst: la propiedad cambia en vivo (vuelve el verde)");
+    ponerGrafo(f, R"({"nodos":[{"id":"in","tipo":"in"},{"id":"x","tipo":"gst","params":{"elemento":"no-existe-este"}},{"id":"out","tipo":"out"}],
+                    "cables":[{"desde":"in","hacia":"x"},{"desde":"x","hacia":"out"}]})");
+    im = dibujar(fuente);
+    CHECK(px(im, 50, 10, 0) == 200, "tarjeta gst con un modulo que no existe: la imagen pasa igual");
+
+    obs_data_t* gs = obs_data_create();
+    obs_data_set_string(gs, "pipeline", "videotestsrc pattern=red is-live=true ! video/x-raw,width=64,height=64,framerate=30/1");
+    obs_source_t* gf = obs_source_create("ba_gst_fuente", "senal", gs, nullptr);
+    obs_data_release(gs);
+    CHECK(gf != nullptr, "existe la fuente ba_gst_fuente");
+    std::vector<std::uint8_t> ig;
+    for (int i = 0; i < 60 && gf != nullptr; ++i) {
+        siguienteCuadro();
+        ig = dibujar(gf);
+        if (px(ig, 32, 32, 0) > 200) break;
+    }
+    std::printf("   ba_gst_fuente (videotestsrc red): %d %d %d\n", px(ig, 32, 32, 0), px(ig, 32, 32, 1), px(ig, 32, 32, 2));
+    CHECK(px(ig, 32, 32, 0) > 200 && px(ig, 32, 32, 1) < 50, "fuente GStreamer: llegan los cuadros (rojo)");
+    obs_source_release(gf);
 #endif
 
     // 7. out sin nada: negro

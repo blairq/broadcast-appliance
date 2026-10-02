@@ -44,6 +44,7 @@ else()
     list(FILTER BA_SOURCES_SOURCES EXCLUDE REGEX ".*/ba_mejora_imagen\\.cpp$")
     list(FILTER BA_SOURCES_SOURCES EXCLUDE REGEX ".*/ba_ptz_digital\\.cpp$")
     list(FILTER BA_SOURCES_SOURCES EXCLUDE REGEX ".*/ba_video_grafo\\.cpp$")
+    list(FILTER BA_SOURCES_SOURCES EXCLUDE REGEX ".*/ba_gst.*\\.cpp$")
 endif()
 
 # Shared lib: OBS la carga como plugin. En Windows se llama ba-sources.dll.
@@ -61,6 +62,12 @@ target_link_libraries(ba-sources PRIVATE ba_core)
 # (`%module%.so` / `%module%.dll`).
 if(BA_HAVE_LIBOBS)
     target_link_libraries(ba-sources PRIVATE ba::libobs)
+    # GStreamer (si está vendoreado): tarjetas `gst` del grafo y la fuente
+    # ba_gst_fuente. El módulo va en obs-plugins/64bit: el framework, en bin/64bit.
+    if(BA_HAVE_GST)
+        target_link_libraries(ba-sources PRIVATE ba::gstreamer)
+        ba_gst_rpath(ba-sources "../../bin/64bit/")
+    endif()
     target_compile_definitions(ba-sources PRIVATE BA_HAVE_LIBOBS=1)
     set_target_properties(ba-sources PROPERTIES PREFIX "")
     if(APPLE)
@@ -140,6 +147,11 @@ foreach(test_source ${BA_SOURCES_TESTS})
             BA_TEST_GRAPHICS_MODULE="${_ba_test_gfx}"
             BA_TEST_OBS_DATA_DIR="${BA_LIBOBS_DATA_DIR}")
         add_dependencies(${test_name} ba-sources)
+        if(BA_HAVE_GST)
+            target_link_libraries(${test_name} PRIVATE ba::gstreamer)
+            ba_gst_rpath(${test_name} "")
+            target_compile_definitions(${test_name} PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0")
+        endif()
         if(NOT WIN32)
             set_target_properties(${test_name} PROPERTIES
                 BUILD_RPATH "${BA_OBS_LINUX_PREFIX}/lib")

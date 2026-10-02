@@ -14,8 +14,9 @@
 //   El grafo llega como JSON en el ajuste `grafo` (lo arma la app, ver
 //   src/app/video/VideoGrafos):
 //     {"nodos":[{"id","tipo","params":{…}}], "cables":[{"desde","hacia"}]}
-//   tipos: in, out, color, croma, recorte, salida, y `obs`: cualquier filtro
-//   de video de OBS ({"filtro": id, "ajustes": {…}}).
+//   tipos: in, out, color, croma, recorte, salida, `obs`: cualquier filtro
+//   de video de OBS ({"filtro": id, "ajustes": {…}}), y `gst`: un módulo de
+//   GStreamer ({"elemento": nombre, "propiedades": {…}}, ver ba_gst.hpp).
 //
 // Modelo de threading:
 //   `update` (cualquier hilo) arma un Plan nuevo y lo cambia bajo un mutex;
@@ -33,6 +34,8 @@
 #include <obs-module.h>
 #include <obs.h>
 
+#include "ba_gst.hpp"
+
 #include <cstdint>
 #include <iterator>
 #include <map>
@@ -44,7 +47,7 @@
 
 namespace {
 
-enum class Tipo { Color, Croma, Recorte, Salida, Obs };
+enum class Tipo { Color, Croma, Recorte, Salida, Obs, Gst };
 
 // --- Tarjetas que corren un filtro de OBS -------------------------------------
 //
@@ -86,12 +89,19 @@ struct Paso {
     std::string nombre;
     // obs
     std::shared_ptr<InstanciaObs> obs;
+#if defined(BA_HAVE_GST)
+    // gst: un módulo de GStreamer
+    std::shared_ptr<ba::gst::TarjetaGst> gst;
+#endif
 };
 
 struct Plan {
     std::vector<Paso> pasos;
     /// Las tarjetas de OBS por id de nodo (para reusarlas en el plan siguiente).
     std::map<std::string, std::shared_ptr<InstanciaObs>> obs;
+#if defined(BA_HAVE_GST)
+    std::map<std::string, std::shared_ptr<ba::gst::TarjetaGst>> gst;
+#endif
     /// Lo que llega a la escena: -1 = la entrada tal cual, -2 = nada (negro).
     int escena = -1;
     bool trivial() const { return pasos.empty() && escena == -1; }
@@ -178,6 +188,42 @@ std::shared_ptr<InstanciaObs> instanciaObs(const Plan* anterior, const std::stri
     return inst;
 }
 
+#if defined(BA_HAVE_GST)
+/// Las propiedades de una tarjeta de GStreamer como texto (lo que entiende
+/// gst_util_set_object_arg: números, true/false, nombres de enum).
+std::map<std::string, std::string> propiedadesGst(obs_data_t* props) {
+    std::map<std::string, std::string> out;
+    if (props == nullptr) return out;
+    for (obs_data_item_t* it = obs_data_first(props); it != nullptr; obs_data_item_next(&it)) {
+        const char* k = obs_data_item_get_name(it);
+        switch (obs_data_item_gettype(it)) {
+        case OBS_DATA_STRING: out[k] = obs_data_item_get_string(it); break;
+        case OBS_DATA_BOOLEAN: out[k] = obs_data_item_get_bool(it) ? "true" : "false"; break;
+        case OBS_DATA_NUMBER:
+            out[k] = obs_data_item_numtype(it) == OBS_DATA_NUM_INT ? std::to_string(obs_data_item_get_int(it))
+                                                                    : std::to_string(obs_data_item_get_double(it));
+            break;
+        default: break;
+        }
+    }
+    return out;
+}
+
+/// La tarjeta de GStreamer del nodo `id`: la del plan anterior si es el mismo
+/// módulo (con las propiedades al día, en vivo), o una nueva.
+std::shared_ptr<ba::gst::TarjetaGst> tarjetaGst(const Plan* anterior, const std::string& id, const std::string& elemento,
+                                                 const std::map<std::string, std::string>& props) {
+    if (anterior != nullptr) {
+        const auto it = anterior->gst.find(id);
+        if (it != anterior->gst.end() && it->second->elemento() == elemento) {
+            it->second->ajustar(props);
+            return it->second;
+        }
+    }
+    return std::make_shared<ba::gst::TarjetaGst>(elemento, props);
+}
+#endif
+
 std::shared_ptr<Plan> armarPlan(const char* json, const Plan* anterior) {
     auto plan = std::make_shared<Plan>();
     if (json == nullptr || *json == '\0') return plan;
@@ -256,6 +302,18 @@ std::shared_ptr<Plan> armarPlan(const char* json, const Plan* anterior) {
                 obs_data_release(aj);
                 if (!p.obs) continue; // un filtro que no existe: la tarjeta no se calcula
                 plan->obs[n.id] = p.obs;
+            } else if (n.tipo == "gst") {
+#if defined(BA_HAVE_GST)
+                p.tipo = Tipo::Gst;
+                const std::string elemento = q != nullptr ? obs_data_get_string(q, "elemento") : "";
+                if (elemento.empty()) continue;
+                obs_data_t* pr = q != nullptr ? obs_data_get_obj(q, "propiedades") : nullptr;
+                p.gst = tarjetaGst(anterior, n.id, elemento, propiedadesGst(pr));
+                obs_data_release(pr);
+                plan->gst[n.id] = p.gst;
+#else
+                continue; // sin GStreamer: la tarjeta no se calcula
+#endif
             } else if (n.tipo == "salida") {
                 p.tipo = Tipo::Salida;
                 p.nombre = q != nullptr ? obs_data_get_string(q, "nombre") : "";
@@ -428,6 +486,19 @@ bool procesar(Grafo* g, const Plan& plan) {
         case Tipo::Salida:
             // Pasa lo que recibe (lo que la siga ve lo mismo) y lo publica.
             pasada(g, en, "Copiar");
+            break;
+        case Tipo::Gst:
+#if defined(BA_HAVE_GST)
+            if (!p.gst->procesar(en, g->cx, g->cy, g->fx)) {
+                // Sin GStreamer o con el módulo caído: la imagen pasa como vino.
+                gs_texrender_end(destino);
+                gs_texrender_reset(destino);
+                if (gs_texrender_begin(destino, g->cx, g->cy)) {
+                    gs_ortho(0.0f, static_cast<float>(g->cx), 0.0f, static_cast<float>(g->cy), -100.0f, 100.0f);
+                    pasada(g, en, "Copiar");
+                }
+            }
+#endif
             break;
         case Tipo::Obs: {
             // El portador dibuja la textura y su filtro de OBS la procesa.

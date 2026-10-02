@@ -38,6 +38,10 @@ void ba_register_dsp_sources(void);
 /// `ba_mejora_imagen` y `ba_ptz_digital`.
 void ba_register_video_filters(void);
 
+/// Definida en ba_gst_fuente.cpp: `ba_gst_fuente` (un pipeline de GStreamer
+/// como entrada; sin GStreamer no registra nada).
+void ba_register_gst_fuente(void);
+
 /// Punto de entrada del modulo. Lo invoca libobs al cargar la biblioteca.
 ///
 /// :returns: true si el modulo quedo registrado.
@@ -45,6 +49,7 @@ MODULE_EXPORT bool obs_module_load(void) {
     ba_register_ipc_sources();
     ba_register_dsp_sources();
     ba_register_video_filters();
+    ba_register_gst_fuente();
     blog(LOG_INFO, "[ba-sources] modulo cargado: fuentes IPC de invitado + DSP de canal + Mejorar imagen + PTZ digital + grafo de video");
     return true;
 }

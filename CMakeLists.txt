@@ -237,6 +237,7 @@ if(BA_WIN_STATIC_PART)
 endif()
 
 include(${CMAKE_SOURCE_DIR}/cmake/BaLibObs.cmake)
+include(${CMAKE_SOURCE_DIR}/cmake/BaGStreamer.cmake)
 
 # macOS 26 (Xcode 26) ya no trae AGL.framework, pero el FindWrapOpenGL de Qt
 # 6.6 lo enlaza igual ("framework 'AGL' not found"). Qt lo busca en la cache
