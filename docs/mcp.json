@@ -6,7 +6,7 @@
     "`etiquetas` son las del buscador (McpIndice), no del protocolo: es lo que hace que",
     "«hay acople» llegue a audio_set sin que nadie nombre la herramienta."
   ],
-  "generado": "2026-10-02T14:19:41+00:00",
+  "generado": "2026-10-02T14:20:15+00:00",
   "cuantas": 332,
   "repetidas": [],
   "categorias": [
@@ -1067,7 +1067,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "",
-        "porPrefijo": ""
+        "porPrefijo": "modelo local ia de esta maquina qwen motor local bajar modelo sin internet"
       },
       "donde": {
         "archivo": "src/app/mcp/McpModeloTools.cpp",
@@ -1114,7 +1114,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "",
-        "porPrefijo": ""
+        "porPrefijo": "modelo local ia de esta maquina qwen motor local bajar modelo sin internet"
       },
       "donde": {
         "archivo": "src/app/mcp/McpModeloTools.cpp",
@@ -1143,7 +1143,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "",
-        "porPrefijo": ""
+        "porPrefijo": "modelo local ia de esta maquina qwen motor local bajar modelo sin internet"
       },
       "donde": {
         "archivo": "src/app/mcp/McpModeloTools.cpp",
@@ -1180,7 +1180,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "",
-        "porPrefijo": ""
+        "porPrefijo": "modelo local ia de esta maquina qwen motor local bajar modelo sin internet"
       },
       "donde": {
         "archivo": "src/app/mcp/McpModeloTools.cpp",
@@ -1217,7 +1217,7 @@
       "destructiva": true,
       "etiquetas": {
         "propias": "",
-        "porPrefijo": ""
+        "porPrefijo": "modelo local ia de esta maquina qwen motor local bajar modelo sin internet"
       },
       "donde": {
         "archivo": "src/app/mcp/McpModeloTools.cpp",
@@ -1246,7 +1246,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "",
-        "porPrefijo": ""
+        "porPrefijo": "modelo local ia de esta maquina qwen motor local bajar modelo sin internet"
       },
       "donde": {
         "archivo": "src/app/mcp/McpModeloTools.cpp",
@@ -1282,7 +1282,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "",
-        "porPrefijo": ""
+        "porPrefijo": "modelo local ia de esta maquina qwen motor local bajar modelo sin internet"
       },
       "donde": {
         "archivo": "src/app/mcp/McpModeloTools.cpp",
@@ -1311,7 +1311,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "",
-        "porPrefijo": ""
+        "porPrefijo": "modelo local ia de esta maquina qwen motor local bajar modelo sin internet"
       },
       "donde": {
         "archivo": "src/app/mcp/McpModeloTools.cpp",
@@ -3992,8 +3992,8 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "indice catalogo guia empezar",
-        "porPrefijo": ""
+        "propias": "",
+        "porPrefijo": "indice catalogo guia empezar"
       },
       "donde": {
         "archivo": "src/app/mcp/McpCore.cpp",
@@ -4030,7 +4030,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "buscar herramienta encontrar funcion que hay para",
-        "porPrefijo": ""
+        "porPrefijo": "indice catalogo guia empezar"
       },
       "donde": {
         "archivo": "src/app/mcp/McpCore.cpp",
@@ -5074,8 +5074,8 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "monitores conectados resolucion cuantas pantallas hay segundo monitor",
-        "porPrefijo": ""
+        "propias": "",
+        "porPrefijo": "monitores conectados resolucion cuantas pantallas hay segundo monitor"
       },
       "donde": {
         "archivo": "src/app/mcp/McpSystemTools.cpp",

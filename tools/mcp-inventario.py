@@ -96,6 +96,9 @@ def etiquetas():
     """Las del buscador (McpEtiquetas.cpp): por nombre exacto y por prefijo."""
     txt = (RAIZ / "src/app/mcp/McpEtiquetas.cpp").read_text(encoding="utf-8")
     exactas, prefijos = {}, {}
+    # Las familias son las de la tabla kFamilias (se aplican por prefijo).
+    bloque = re.search(r"kFamilias\[\]\s*=\s*\{(.*?)\n\};", txt, re.S)
+    familias = set(re.findall(r'\{"([a-z_0-9]+)",', bloque.group(1))) if bloque else set()
     # Una entrada puede ocupar varias lineas: se juntan los literales pegados.
     for m in re.finditer(r'\{"([a-z_0-9]+)",\s*((?:"[^"]*"\s*)+)\}', txt):
         clave = m.group(1)
@@ -103,9 +106,7 @@ def etiquetas():
         # el inventario de «a», «del» y «la», que no dicen nada de la
         # herramienta. Como frase se lee lo que alguien diria en voz alta.
         valor = " ".join(re.findall(r'"([^"]*)"', m.group(2))).strip()
-        (prefijos if clave.endswith("_") and clave.count("_") == 1 and
-         not any(c.isdigit() for c in clave) and clave[:-1].isalpha() and
-         f'"{clave}"' in txt and clave.endswith("_") else exactas)[clave] = valor
+        (prefijos if clave in familias else exactas)[clave] = valor
     return exactas, prefijos
 
 
