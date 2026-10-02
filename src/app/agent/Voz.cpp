@@ -3,6 +3,8 @@
 // ============================================================================
 #include "agent/Voz.hpp"
 
+#include "agent/FlujosTexto.hpp"
+
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QDir>
@@ -44,17 +46,27 @@ Voz::Voz(AppRuntime& rt, ModelosLocales& modelos, QObject* parent)
     monitor_->preparar(); // «Voz del sistema», ya en Audio y en la Matriz
     leerAjustes();
     // Las frases de la transcripción continua (llegan en el hilo de Escucha).
-    escucha_->setFrase([this](const std::string& fuente, const audio::Escucha::Resultado& r) {
-        QMetaObject::invokeMethod(this, [this, fuente, r]() {
-            const QString f = QString::fromStdString(fuente), t = QString::fromStdString(r.texto);
-            transcripcion_.push_back(QVariantMap{{"fuente", f},
+    // La clave es el nombre de la SALIDA DE TEXTO (la tarjeta), no la fuente.
+    escucha_->setFrase([this](const std::string& flujo, const audio::Escucha::Resultado& r) {
+        QMetaObject::invokeMethod(this, [this, flujo, r]() {
+            const QString fl = QString::fromStdString(flujo), t = QString::fromStdString(r.texto);
+            QString fuente = fl;
+#if defined(BA_HAVE_CLAP)
+            if (racks_ != nullptr) {
+                const auto d = racks_->textoDe(flujo);
+                if (d.is_object()) fuente = QString::fromStdString(d.value("fuente", flujo));
+            }
+#endif
+            transcripcion_.push_back(QVariantMap{{"fuente", fuente},
+                                                 {"flujo", fl},
                                                  {"texto", t},
                                                  {"hora", QTime::currentTime().toString("HH:mm:ss")},
                                                  {"segundos", r.segundosDeAudio}});
             while (transcripcion_.size() > 200)
                 transcripcion_.removeFirst();
             emit transcripcionCambio();
-            emit frase(f, t);
+            emit frase(fuente, t);
+            if (flujos_ != nullptr) flujos_->publicar(fl, t, "Voz a texto en «" + fuente + "»", r.segundosDeAudio);
         });
     });
     connect(&modelos_, &ModelosLocales::cambio, this, &Voz::revisarModelos);
@@ -277,8 +289,8 @@ void Voz::revisarCorrientes() {
 #if defined(BA_HAVE_VOZ) && defined(BA_HAVE_CLAP)
     if (racks_ == nullptr) return;
     std::set<std::string> ahora;
-    for (const auto& f : racks_->fuentesConTexto())
-        if (f.value("modo", std::string()) == "continuo") ahora.insert(f.value("fuente", std::string()));
+    for (const auto& f : racks_->textos())
+        if (f.value("modo", std::string()) == "continuo") ahora.insert(f.value("flujo", std::string()));
     for (const auto& c : continuas_)
         if (!ahora.contains(c)) escucha_->cerrarContinuo(c);
     for (const auto& c : ahora)
@@ -302,7 +314,8 @@ QVariantList Voz::fuentesTexto() const {
     if (racks_ != nullptr)
         for (const auto& f : racks_->fuentesConTexto())
             out.push_back(QVariantMap{{"fuente", QString::fromStdString(f.value("fuente", std::string()))},
-                                      {"modo", QString::fromStdString(f.value("modo", std::string()))}});
+                                      {"modo", QString::fromStdString(f.value("modo", std::string()))},
+                                      {"flujo", QString::fromStdString(f.value("flujo", std::string()))}});
 #endif
     return out;
 }
@@ -311,12 +324,7 @@ QString Voz::setTexto(const QString& fuente, const QString& modo) {
 #if defined(BA_HAVE_CLAP)
     if (racks_ == nullptr) return "Esta compilación no tiene racks de audio.";
     if (modo.isEmpty()) {
-        audio::AudioRack* r = racks_->rack(fuente.toStdString(), false);
-        if (r == nullptr) return {};
-        std::string e;
-        r->remove("voz-a-texto", &e);
-        racks_->markDirty();
-        emit racks_->changed();
+        racks_->quitarTextos(fuente.toStdString());
         return {};
     }
     if (modo != "dictado" && modo != "continuo") return "El modo es «dictado» o «continuo».";

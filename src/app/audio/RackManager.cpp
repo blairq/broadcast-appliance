@@ -194,13 +194,15 @@ obs_audio_data* filterAudio(void* data, obs_audio_data* audio) {
         out.timestamp = audio->timestamp;
         obs_source_output_audio(f->tap, &out);
     }
-    // Voz a texto: lo que junto su nodo va al reconocedor (copia y vuelve).
-    const uint32_t tf = f->rack->textoFrames();
-    if (tf > 0) {
+    // Voz a texto: lo que juntó cada nodo va al reconocedor (copia y vuelve).
+    {
         std::lock_guard<std::mutex> l(g_textoLock);
-        if (g_texto)
-            g_texto(f->source, f->rack->textoModoAudio(), f->rack->textoData(), tf,
-                    audio_output_get_sample_rate(obs_get_audio()));
+        if (g_texto) {
+            const uint32_t sr = audio_output_get_sample_rate(obs_get_audio());
+            f->rack->textosCapturados([sr](const std::string& flujo, int modo, const float* m, uint32_t n) {
+                g_texto(flujo, modo, m, n, sr);
+            });
+        }
     }
     return audio;
 }
@@ -245,6 +247,7 @@ RackManager::RackManager(fs::path dataRoot, QObject* parent) : QObject(parent), 
     revision_.setInterval(2000);
     connect(&revision_, &QTimer::timeout, this, [this]() {
         montarPendientes();
+        normalizarFlujos();
         sincronizarEntradas();
     });
     revision_.start();
@@ -509,20 +512,115 @@ std::string RackManager::setTexto(const std::string& source, const std::string& 
     std::string e;
     AudioRack* r = rack(source, true, &e);
     if (r == nullptr) return e;
-    r->addTexto(modo);
+    const auto ts = r->textos();
+    if (!ts.empty()) {
+        r->setTextoModo(ts.front().id, modo);
+    } else if (addTexto(source, modo, {}, &e).empty()) {
+        return e;
+    }
     markDirty();
     emit changed();
     return {};
 }
 
-RackManager::json RackManager::fuentesConTexto() const {
+bool RackManager::flujoLibre(const std::string& flujo, const std::string& salvoRack, const std::string& salvoNodo) const {
+    for (const auto& [nombre, f] : filters_)
+        if (f->rack)
+            for (const auto& t : f->rack->textos())
+                if (t.flujo == flujo && !(nombre == salvoRack && t.id == salvoNodo)) return false;
+    return true;
+}
+
+std::string RackManager::addTexto(const std::string& source, const std::string& modo, const std::string& flujo,
+                                  std::string* error) {
+    AudioRack* r = rack(source, true, error);
+    if (r == nullptr) return {};
+    std::string nombre = flujo;
+    if (nombre.empty()) {
+        nombre = source;
+        for (int i = 2; !flujoLibre(nombre, {}, {}); ++i) nombre = source + " " + std::to_string(i);
+    } else if (!flujoLibre(nombre, {}, {})) {
+        if (error != nullptr) *error = "ya hay una salida de texto «" + nombre + "»";
+        return {};
+    }
+    const std::string id = r->addTexto(modo, nombre);
+    markDirty();
+    emit changed();
+    return id;
+}
+
+std::string RackManager::setTextoOpciones(const std::string& source, const std::string& nodo, const json& cambios) {
+    std::string e;
+    AudioRack* r = rack(source, false, &e);
+    if (r == nullptr) return e;
+    if (r->kindOf(nodo) != "texto") return "'" + nodo + "' no es una voz a texto";
+    if (cambios.contains("flujo")) {
+        const std::string f = cambios.value("flujo", "");
+        if (f.empty()) return "la salida de texto necesita un nombre";
+        if (!flujoLibre(f, source, nodo)) return "ya hay una salida de texto «" + f + "»";
+        r->setTextoFlujo(nodo, f);
+    }
+    if (cambios.contains("modo")) r->setTextoModo(nodo, cambios.value("modo", "dictado"));
+    if (cambios.contains("salidas")) {
+        json actuales = json::object();
+        for (const auto& t : r->textos())
+            if (t.id == nodo) actuales = t.salidas.is_object() ? t.salidas : json::object();
+        for (auto it = cambios["salidas"].begin(); it != cambios["salidas"].end(); ++it) actuales[it.key()] = it.value();
+        r->setTextoSalidas(nodo, actuales);
+    }
+    markDirty();
+    emit changed();
+    return {};
+}
+
+void RackManager::quitarTextos(const std::string& source) {
+    AudioRack* r = rack(source, false);
+    if (r == nullptr) return;
+    std::string e;
+    for (const auto& t : r->textos()) r->remove(t.id, &e);
+    markDirty();
+    emit changed();
+}
+
+RackManager::json RackManager::textos() const {
     json out = json::array();
     for (const auto& [nombre, f] : filters_)
-        if (f != nullptr && f->rack) {
-            const std::string m = f->rack->textoModo();
-            if (!m.empty()) out.push_back({{"fuente", nombre}, {"modo", m}});
-        }
+        if (f != nullptr && f->rack)
+            for (const auto& t : f->rack->textos())
+                out.push_back({{"flujo", t.flujo}, {"fuente", nombre}, {"nodo", t.id}, {"modo", t.modo},
+                               {"salidas", t.salidas.is_object() ? t.salidas : json::object()}});
     return out;
+}
+
+RackManager::json RackManager::textoDe(const std::string& flujo) const {
+    for (const auto& t : textos())
+        if (t.value("flujo", "") == flujo) return t;
+    return nullptr;
+}
+
+RackManager::json RackManager::fuentesConTexto() const {
+    json out = json::array();
+    for (const auto& t : textos())
+        out.push_back({{"fuente", t["fuente"]}, {"modo", t["modo"]}, {"flujo", t["flujo"]}});
+    return out;
+}
+
+void RackManager::normalizarFlujos() {
+    bool algo = false;
+    for (const auto& [nombre, f] : filters_) {
+        if (!f->rack) continue;
+        for (const auto& t : f->rack->textos()) {
+            if (!t.flujo.empty() && flujoLibre(t.flujo, nombre, t.id)) continue;
+            std::string n = t.flujo.empty() ? nombre : t.flujo;
+            for (int i = 2; !flujoLibre(n, nombre, t.id); ++i) n = (t.flujo.empty() ? nombre : t.flujo) + " " + std::to_string(i);
+            f->rack->setTextoFlujo(t.id, n);
+            algo = true;
+        }
+    }
+    if (algo) {
+        saveTimer_.start();
+        emit changed();
+    }
 }
 
 AudioRack* RackManager::rack(const std::string& source, bool create, std::string* error) {
@@ -686,6 +784,7 @@ std::string RackManager::plantillaDeTipo(const std::string& tipo) const {
 
 void RackManager::markDirty() {
     saveTimer_.start();
+    normalizarFlujos();
     sincronizarEntradas();
 }
 

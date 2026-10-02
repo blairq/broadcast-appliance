@@ -68,7 +68,12 @@ class AudioViewModel : public QObject {
     /// en el grafo, con el nombre del dispositivo elegido.
     Q_INVOKABLE QString addOutput(const QString& device);
     /// Nodo de voz a texto en esta fuente ("dictado" o "continuo"; si ya hay, cambia el modo).
+    /// Agrega OTRA voz a texto (cada una con su salida de texto con nombre).
     Q_INVOKABLE QString addTexto(const QString& modo);
+    /// Cambia una voz a texto: {modo?, flujo?, salidas?: {archivo, rotulo}}.
+    Q_INVOKABLE QString setTextoOpciones(const QString& node, const QVariantMap& cambios);
+    /// Las fuentes de texto (para subtítulos en un rótulo).
+    Q_INVOKABLE QStringList fuentesDeTexto() const;
     /// El catálogo de filtros LSP por familia (datos/lsp-catalogo.json, en
     /// castellano) con sus variantes reales: [{clave, nombre, categoria,
     /// ilustracion, vivo, esFiltro, descripcion, usoVivo, etiquetas,

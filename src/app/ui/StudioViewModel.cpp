@@ -33,6 +33,7 @@
 #include "agent/AgentViewModel.hpp"
 #include "agent/AlertEngine.hpp"
 #include "agent/Despachador.hpp"
+#include "agent/FlujosTexto.hpp"
 #include "agent/ModelosLocales.hpp"
 #include "agent/Roles.hpp"
 #include "agent/Voz.hpp"
@@ -338,6 +339,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             if (!note.isEmpty()) agent_->deliverNote(note);
         });
     }
+    // Las salidas de texto (antes que la Voz las use).
+    flujos_ = std::make_unique<agent::FlujosTexto>(rt.dataRoot());
+    if (voz_) voz_->setFlujos(flujos_.get());
     inputs_ = std::make_unique<InputsViewModel>(rt, *this);
     // El PTZ de cada entrada (y Mejorar imagen): se entera enseguida de las
     // entradas nuevas y de lo que cambia en Configuración.
@@ -349,6 +353,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     racks_->restore();
     audio_ = std::make_unique<audio::AudioViewModel>(*racks_);
     if (voz_) voz_->setRacks(racks_.get()); // la voz sale de los nodos «Voz a texto»
+    flujos_->setConfig([r = racks_.get()](const QString& flujo) { return r->textoDe(flujo.toStdString()); });
+    flujos_->setLista([r = racks_.get()]() { return r->textos(); });
+    connect(racks_.get(), &audio::RackManager::changed, flujos_.get(), &agent::FlujosTexto::cambio);
     matriz_ = std::make_unique<audio::Matriz>(rt.dataRoot());
     // Una entrada de placa que trae la tarjeta «Entrada» de un rack también se abre.
     matriz_->setUsadasPorOtros([r = racks_.get()]() { return r->fuentesDeEntradas(); });
@@ -530,6 +537,7 @@ QObject* StudioViewModel::matriz() const {
 #endif
 }
 QObject* StudioViewModel::camaras() const { return camaras_.get(); }
+QObject* StudioViewModel::flujos() const { return flujos_.get(); }
 QObject* StudioViewModel::despachadorQml() const { return despachador_.get(); }
 QObject* StudioViewModel::messages() const { return messages_.get(); }
 

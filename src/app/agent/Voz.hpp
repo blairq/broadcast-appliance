@@ -148,6 +148,9 @@ class Voz : public QObject {
 
     /// Los racks de audio (si esta compilación los tiene): de ahí sale la voz.
     void setRacks(audio::RackManager* racks);
+    /// Las salidas de texto: cada frase transcripta se publica ahí con el
+    /// nombre de su tarjeta.
+    void setFlujos(class FlujosTexto* flujos) { flujos_ = flujos; }
     QString microfono() const;
     /// Elegir el micrófono del operador entre las fuentes con audio. Devuelve el error o "".
     Q_INVOKABLE QString setMicrofono(const QString& fuente);
@@ -288,6 +291,7 @@ class Voz : public QObject {
     int pendientes_ = 0; ///< frases encargadas que todavía no terminaron
 
     audio::RackManager* racks_ = nullptr;
+    class FlujosTexto* flujos_ = nullptr;
     std::atomic<bool> tomando_{false}; ///< el hilo de audio lo lee
     std::mutex tomasLock_;
     struct Toma {

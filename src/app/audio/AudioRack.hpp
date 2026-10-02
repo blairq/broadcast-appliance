@@ -36,6 +36,7 @@
 #pragma once
 
 #include <atomic>
+#include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -80,11 +81,21 @@ class AudioRack {
     /// Nodo de SALIDA de audio del equipo (uno por rack). `device` es el id del
     /// dispositivo y `label` su nombre. Si ya hay uno, le cambia el destino.
     std::string addOutput(const std::string& device, const std::string& label);
-    /// Nodo de VOZ A TEXTO (uno por rack): `modo` "dictado" o "continuo". Si
-    /// ya hay uno, le cambia el modo. Nuevo, se conecta solo a lo que va a la
-    /// mezcla (el final de la cadena); después se patchea donde se quiera.
-    std::string addTexto(const std::string& modo);
-    /// "" (sin nodo), "dictado" o "continuo".
+    /// Nodo de VOZ A TEXTO (puede haber varios): `modo` "dictado" o
+    /// "continuo"; `flujo` es el nombre de su SALIDA DE TEXTO (único en todo el
+    /// sistema: lo valida RackManager). Nuevo, se conecta solo a lo que va a
+    /// la mezcla; después se patchea donde se quiera.
+    std::string addTexto(const std::string& modo, const std::string& flujo);
+    bool setTextoModo(const std::string& id, const std::string& modo);
+    bool setTextoFlujo(const std::string& id, const std::string& flujo);
+    /// Las salidas del texto: {archivo: bool, rotulo: "<fuente de texto>"}.
+    bool setTextoSalidas(const std::string& id, const json& salidas);
+    struct TextoInfo {
+        std::string id, flujo, modo;
+        json salidas;
+    };
+    std::vector<TextoInfo> textos() const;
+    /// El modo de la primera voz a texto ("" si no hay).
     std::string textoModo() const;
     bool hasOutput() const;
     /// Id del dispositivo de la salida ("" si no hay nodo de salida).
@@ -139,12 +150,10 @@ class AudioRack {
     /// canales). Vale hasta el `process()` siguiente y solo en ese hilo.
     uint32_t monitorFrames() const { return monFrames_; }
     const float* monitorPlane(int ch) const;
-    /// Lo que junto el nodo de voz a texto en el ULTIMO `process()` (mono).
-    /// Mismo contrato que el monitor: solo en el hilo de audio.
-    uint32_t textoFrames() const { return txtFrames_; }
-    const float* textoData() const { return txt_.data(); }
-    /// 0 = sin nodo, 1 = dictado, 2 = continuo (se puede leer desde el audio).
-    int textoModoAudio() const { return txtModo_.load(std::memory_order_relaxed); }
+    /// Lo que juntó cada nodo de voz a texto en el ÚLTIMO `process()` (mono):
+    /// fn(flujo, modo 1 dictado | 2 continuo, muestras, n). Solo en el hilo de
+    /// audio, justo después de `process()`.
+    void textosCapturados(const std::function<void(const std::string&, int, const float*, uint32_t)>& fn);
 
     struct Node;
 
@@ -186,9 +195,6 @@ class AudioRack {
     static constexpr uint32_t kMonitorCap = 8192;
     std::vector<float> monL_, monR_;
     uint32_t monFrames_ = 0;
-    std::vector<float> txt_;
-    uint32_t txtFrames_ = 0;
-    std::atomic<int> txtModo_{0};
 
     std::mutex planLock_;
     std::unique_ptr<Plan> plan_;

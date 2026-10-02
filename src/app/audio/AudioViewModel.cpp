@@ -16,6 +16,8 @@
 #include "audio/Modules.hpp"
 #include "audio/RackManager.hpp"
 
+#include <obs.h>
+
 namespace ba::app::audio {
 
 using json = nlohmann::json;
@@ -198,9 +200,16 @@ void AudioViewModel::rebuildDetail() {
                          "texto). Si la fuente es una entrada de placa, su captura se abre sola.";
         }
         if (r->kindOf(id) == "texto") {
-            j["modo"] = r->textoModo();
+            std::string modo = "dictado";
+            for (const auto& t : r->textos())
+                if (t.id == id) {
+                    modo = t.modo;
+                    j["flujo"] = t.flujo;
+                    j["salidas"] = t.salidas.is_object() ? t.salidas : json::object();
+                }
+            j["modo"] = modo;
             j["ayuda"] =
-                r->textoModo() == "continuo"
+                modo == "continuo"
                     ? "Transcribe sin parar lo que le llega (subtítulos, acta): frase por frase, 1 a 3 s "
                       "después. El texto se ve abajo y por MCP (voz_transcripcion). No toca lo que sale al "
                       "aire."
@@ -257,12 +266,35 @@ QString AudioViewModel::addModule(const QString& moduleOrId, const QString& afte
 
 QString AudioViewModel::addTexto(const QString& modo) {
     if (rack(true) == nullptr) return "Elegí una fuente con audio.";
-    const std::string e = mgr_.setTexto(source_.toStdString(), modo.toStdString());
-    if (!e.empty()) return QString::fromStdString(e);
-    select("voz-a-texto");
+    std::string e;
+    const std::string id = mgr_.addTexto(source_.toStdString(), modo.toStdString(), {}, &e);
+    if (id.empty()) return QString::fromStdString(e);
+    select(QString::fromStdString(id));
     rebuildGraph();
     rebuildDetail();
     return {};
+}
+
+QString AudioViewModel::setTextoOpciones(const QString& node, const QVariantMap& cambios) {
+    const json c = json::parse(QJsonDocument(QJsonObject::fromVariantMap(cambios)).toJson().toStdString(), nullptr, false);
+    const std::string e = mgr_.setTextoOpciones(source_.toStdString(), node.toStdString(), c);
+    rebuildGraph();
+    rebuildDetail();
+    return QString::fromStdString(e);
+}
+
+QStringList AudioViewModel::fuentesDeTexto() const {
+    QStringList out;
+    obs_enum_sources(
+        [](void* p, obs_source_t* s) {
+            const char* id = obs_source_get_unversioned_id(s);
+            if (id != nullptr && std::string(id).rfind("text_", 0) == 0)
+                static_cast<QStringList*>(p)->append(QString::fromUtf8(obs_source_get_name(s)));
+            return true;
+        },
+        &out);
+    out.sort();
+    return out;
 }
 
 QString AudioViewModel::addAnalyzer() {

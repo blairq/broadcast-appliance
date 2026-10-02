@@ -71,15 +71,30 @@ class RackManager : public QObject {
     json auriculares() const { return json{{"id", monitorId_}, {"nombre", monitorName_}}; }
 
     // --- Voz a texto ----------------------------------------------------------
-    /// Pone (o cambia de modo) el nodo de voz a texto en el rack de `source`,
-    /// montando el rack si no tiene. `modo`: "dictado" o "continuo".
+    /// Pone (o cambia de modo) la voz a texto en el rack de `source`, montando
+    /// el rack si no tiene: si ya tiene una, le cambia el modo a la primera.
+    /// `modo`: "dictado" o "continuo".
     std::string setTexto(const std::string& source, const std::string& modo);
-    /// Las fuentes con nodo de voz a texto: [{fuente, modo}].
+    /// Agrega OTRA voz a texto al rack de `source` con la salida de texto
+    /// `flujo` ("" = el nombre de la fuente, o «<fuente> 2»...). Devuelve el
+    /// id del nodo o "" con el error.
+    std::string addTexto(const std::string& source, const std::string& modo, const std::string& flujo,
+                         std::string* error);
+    /// Cambia una voz a texto: {modo?, flujo?, salidas?: {archivo, rotulo}}.
+    std::string setTextoOpciones(const std::string& source, const std::string& nodo, const json& cambios);
+    /// Quita TODAS las voces a texto del rack de `source`.
+    void quitarTextos(const std::string& source);
+    /// Las salidas de texto (las voces a texto de todos los racks):
+    /// [{flujo, fuente, nodo, modo, salidas}].
+    json textos() const;
+    /// La de ese nombre (null si no hay).
+    json textoDe(const std::string& flujo) const;
+    /// Las fuentes con voz a texto: [{fuente, modo, flujo}] (compatibilidad).
     json fuentesConTexto() const;
-    /// A dónde va el audio de esos nodos: (fuente, modo 1=dictado 2=continuo,
+    /// A dónde va el audio de esos nodos: (flujo, modo 1=dictado 2=continuo,
     /// mono, frames, frecuencia). Se llama EN EL HILO DE AUDIO de OBS: tiene
     /// que copiar y volver. Una sola para toda la app (la Voz).
-    using TextoSink = std::function<void(const std::string& fuente, int modo, const float* mono, uint32_t n,
+    using TextoSink = std::function<void(const std::string& flujo, int modo, const float* mono, uint32_t n,
                                          uint32_t frecuencia)>;
     static void setTextoSink(TextoSink sink);
     // --- Plantillas -----------------------------------------------------------
@@ -172,6 +187,10 @@ class RackManager : public QObject {
     /// Monta los racks guardados cuya fuente apareció después (invitados que
     /// llegan, entradas virtuales y de placa que se crean tarde).
     void montarPendientes();
+    /// Cada voz a texto con un nombre de salida, único en todo el sistema
+    /// (los racks viejos no tenían: toman el de su fuente).
+    void normalizarFlujos();
+    bool flujoLibre(const std::string& flujo, const std::string& salvoRack, const std::string& salvoNodo) const;
     QTimer revision_;
 };
 

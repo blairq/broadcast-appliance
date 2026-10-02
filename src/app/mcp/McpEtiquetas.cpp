@@ -343,6 +343,7 @@ const Fila kPropias[] = {
     {"ext_prender", "activar extension plugin prender"},
 
     // --- Cámaras PTZ ------------------------------------------------------------
+    {"texto_flujos", "salidas de texto transcripciones con nombre que se esta transcribiendo flujos de texto"},
     {"ptz_camaras", "camaras ptz que puede cada camara estado del ptz backend visca onvif"},
     {"ptz_mover", "mover camara paneo pan tilt zoom acercar alejar girar subir bajar la camara"},
     {"ptz_parar", "parar la camara frenar el movimiento"},

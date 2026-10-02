@@ -997,14 +997,52 @@ Rectangle {
                         }
                         GlassButton { compact: true; text: "Quitar"; onClicked: page.au.removeNode(page.au.selected) }
                     }
-                    // Voz a texto: el modo, y lo que va transcribiendo
+                    // Voz a texto: el nombre de su salida, el modo, las salidas, y lo que va transcribiendo
+                    RowLayout {
+                        Layout.fillWidth: true
+                        visible: parent.d.tipo === "texto"
+                        Text { text: "Salida"; color: Theme.textDim; font.pixelSize: 12 }
+                        TextField {
+                            id: flujoNombre
+                            Layout.fillWidth: true
+                            text: parent.parent.d.flujo || ""
+                            placeholderText: "Nombre de la salida de texto"
+                            onEditingFinished: if (text !== (parent.parent.d.flujo || ""))
+                                                   page.msg = page.au.setTextoOpciones(page.au.selected, {flujo: text})
+                            ToolTip.visible: hovered; ToolTip.delay: 400
+                            ToolTip.text: "Con este nombre se usa en otras partes: disparadores, texto a voz, MCP."
+                        }
+                    }
                     Flow {
                         Layout.fillWidth: true
                         spacing: 6
                         visible: parent.d.tipo === "texto"
-                        GlassButton { compact: true; text: "Dictado"; active: parent.parent.d.modo === "dictado"; onClicked: page.msg = page.au.addTexto("dictado") }
-                        GlassButton { compact: true; text: "Continuo"; active: parent.parent.d.modo === "continuo"; onClicked: page.msg = page.au.addTexto("continuo") }
+                        GlassButton { compact: true; text: "Dictado"; active: parent.parent.d.modo === "dictado"; onClicked: page.msg = page.au.setTextoOpciones(page.au.selected, {modo: "dictado"}) }
+                        GlassButton { compact: true; text: "Continuo"; active: parent.parent.d.modo === "continuo"; onClicked: page.msg = page.au.setTextoOpciones(page.au.selected, {modo: "continuo"}) }
                         GlassButton { compact: true; text: "Quitar"; onClicked: page.au.removeNode(page.au.selected) }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        visible: parent.d.tipo === "texto"
+                        Toggle {
+                            checked: !!(parent.parent.d.salidas && parent.parent.d.salidas.archivo)
+                            onToggled: (w) => page.msg = page.au.setTextoOpciones(page.au.selected, {salidas: {archivo: w}})
+                        }
+                        Text { Layout.fillWidth: true; text: "Guardar en archivo (.txt con hora y .srt)"; color: Theme.text; font.pixelSize: 12; wrapMode: Text.WordWrap }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        visible: parent.d.tipo === "texto"
+                        Text { text: "Subtítulos en"; color: Theme.textDim; font.pixelSize: 12 }
+                        ComboBox {
+                            Layout.fillWidth: true
+                            readonly property var lista: ["(ninguno)"].concat(page.au ? page.au.fuentesDeTexto() : [])
+                            model: lista
+                            currentIndex: Math.max(0, lista.indexOf((parent.parent.d.salidas && parent.parent.d.salidas.rotulo) || "(ninguno)"))
+                            onActivated: page.msg = page.au.setTextoOpciones(page.au.selected, {salidas: {rotulo: currentIndex === 0 ? "" : currentText}})
+                            ToolTip.visible: hovered; ToolTip.delay: 400
+                            ToolTip.text: "Una fuente de texto de la escena: su texto pasa a ser la última frase (subtítulo)."
+                        }
                     }
                     Text {
                         Layout.fillWidth: true
@@ -1014,7 +1052,7 @@ Rectangle {
                     }
                     Repeater {
                         model: parent.d.tipo === "texto" && parent.d.modo === "continuo"
-                               ? Studio.voz.transcripcion.filter(x => x.fuente === page.au.source).slice(-12) : []
+                               ? Studio.voz.transcripcion.filter(x => x.flujo === parent.d.flujo).slice(-12) : []
                         delegate: Text {
                             required property var modelData
                             Layout.fillWidth: true

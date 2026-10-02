@@ -73,6 +73,8 @@ struct AudioRack::Node {
     std::string id, kind, label, pluginId;
     std::string device; // nodo "monitor": id del dispositivo de salida
     std::string modo;   // nodo "texto": "dictado" o "continuo"
+    std::string flujo;  // nodo "texto": el nombre de su salida de texto
+    json salidas = json::object(); // nodo "texto": archivo, rótulo
     std::string fuente; // nodo "entrada": de qué fuente trae el audio
     std::shared_ptr<anillo::Ring> ring; // nodo "entrada": lo que llega de esa fuente
     std::unique_ptr<ClapInstance> clap;
@@ -130,6 +132,11 @@ struct AudioRack::Plan {
         std::vector<int> outs;
         std::vector<float* const*> inArr, outArr;
         std::shared_ptr<anillo::Ring> ring; // tarjeta de entrada
+        // Voz a texto: su salida, su modo y lo que juntó en el último process().
+        std::string flujo;
+        int modo = 0;
+        std::vector<float> txt;
+        uint32_t txtFrames = 0;
     };
     std::vector<std::unique_ptr<Buf>> bufs;
     std::vector<Step> steps;
@@ -173,7 +180,6 @@ AudioRack::AudioRack(std::shared_ptr<ClapLibrary> lib, HostServices* services, d
     conns_.push_back({"in", 0, "out", 0});
     monL_.assign(kMonitorCap, 0.0f);
     monR_.assign(kMonitorCap, 0.0f);
-    txt_.assign(kMonitorCap, 0.0f);
     rebuild();
 }
 
@@ -405,19 +411,15 @@ std::string AudioRack::addOutput(const std::string& device, const std::string& l
     return "salida-audio";
 }
 
-std::string AudioRack::addTexto(const std::string& modo) {
+std::string AudioRack::addTexto(const std::string& modo, const std::string& flujo) {
     const std::string m = modo == "continuo" ? "continuo" : "dictado";
-    if (Node* e = find("voz-a-texto"); e != nullptr) {
-        e->modo = m;
-        e->label = m == "continuo" ? "Voz a texto (continuo)" : "Voz a texto (dictado)";
-        txtModo_ = m == "continuo" ? 2 : 1;
-        return e->id;
-    }
     auto n = std::make_unique<Node>();
-    n->id = "voz-a-texto";
+    n->id = newId("voz-a-texto");
     n->kind = "texto";
     n->modo = m;
-    n->label = m == "continuo" ? "Voz a texto (continuo)" : "Voz a texto (dictado)";
+    n->flujo = flujo;
+    n->label = "Voz a texto: " + flujo;
+    const std::string id = n->id;
     nodes_.push_back(std::move(n));
     place(*nodes_.back());
     // Se conecta a lo mismo que llega a la mezcla: lo que se oye, ya
@@ -433,13 +435,52 @@ std::string AudioRack::addTexto(const std::string& modo) {
         }
     rebuild();
     std::string e;
-    connect(desde, puerto, "voz-a-texto", "in", &e);
-    return "voz-a-texto";
+    connect(desde, puerto, id, "in", &e);
+    return id;
+}
+
+bool AudioRack::setTextoModo(const std::string& id, const std::string& modo) {
+    Node* n = find(id);
+    if (n == nullptr || n->kind != "texto") return false;
+    n->modo = modo == "continuo" ? "continuo" : "dictado";
+    rebuild();
+    return true;
+}
+
+bool AudioRack::setTextoFlujo(const std::string& id, const std::string& flujo) {
+    Node* n = find(id);
+    if (n == nullptr || n->kind != "texto") return false;
+    if (n->label == "Voz a texto: " + n->flujo || n->label.rfind("Voz a texto", 0) == 0) n->label = "Voz a texto: " + flujo;
+    n->flujo = flujo;
+    rebuild();
+    return true;
+}
+
+bool AudioRack::setTextoSalidas(const std::string& id, const json& salidas) {
+    Node* n = find(id);
+    if (n == nullptr || n->kind != "texto" || !salidas.is_object()) return false;
+    n->salidas = salidas;
+    return true;
+}
+
+std::vector<AudioRack::TextoInfo> AudioRack::textos() const {
+    std::vector<TextoInfo> out;
+    for (const auto& n : nodes_)
+        if (n->kind == "texto") out.push_back({n->id, n->flujo, n->modo, n->salidas});
+    return out;
 }
 
 std::string AudioRack::textoModo() const {
-    const Node* n = find("voz-a-texto");
-    return n != nullptr ? n->modo : std::string();
+    for (const auto& n : nodes_)
+        if (n->kind == "texto") return n->modo;
+    return {};
+}
+
+void AudioRack::textosCapturados(const std::function<void(const std::string&, int, const float*, uint32_t)>& fn) {
+    std::unique_lock<std::mutex> lk(planLock_, std::try_to_lock);
+    if (!lk.owns_lock() || !plan_) return;
+    for (auto& st : plan_->steps)
+        if (st.modo > 0 && st.txtFrames > 0) fn(st.flujo, st.modo, st.txt.data(), st.txtFrames);
 }
 
 bool AudioRack::hasOutput() const { return find("salida-audio") != nullptr; }
@@ -539,7 +580,6 @@ bool AudioRack::remove(const std::string& id, std::string* error) {
             nodes_.erase(it);
             break;
         }
-    if (id == "voz-a-texto") txtModo_ = 0;
     rebuild();
     dead.reset();
     return true;
@@ -718,6 +758,11 @@ void AudioRack::rebuild() {
         for (int p = 0; p < n->outputs(); ++p)
             st.outs.push_back(outBuf[{n->id, p}]);
         if (n->kind == "entrada") st.ring = n->ring;
+        if (n->kind == "texto") {
+            st.flujo = n->flujo;
+            st.modo = n->modo == "continuo" ? 2 : 1;
+            st.txt.assign(kMonitorCap, 0.0f);
+        }
         if (n->kind == "in") plan->inBuf = st.outs[0];
         if (n->kind == "out") plan->outRead = st.ins[0].buf;
         plan->steps.push_back(std::move(st));
@@ -758,10 +803,11 @@ void meterInto(std::atomic<float>& pow, std::atomic<float>& peak, float* const* 
 
 void AudioRack::process(float* const* planes, int channels, uint32_t frames) {
     monFrames_ = 0;
-    txtFrames_ = 0;
     std::unique_lock<std::mutex> lk(planLock_, std::try_to_lock);
     if (!lk.owns_lock() || !plan_ || plan_->inBuf < 0 || plan_->outRead < 0 || channels < 1) return;
     Plan& P = *plan_;
+    for (auto& st : P.steps)
+        st.txtFrames = 0;
     for (uint32_t off = 0; off < frames; off += kMaxFrames) {
         const uint32_t n = std::min(kMaxFrames, frames - off);
         const double alpha = std::min(1.0, n / (0.3 * sr_));
@@ -817,8 +863,8 @@ void AudioRack::process(float* const* planes, int channels, uint32_t frames) {
                 const bool wired = !st.ins.empty() && st.ins[0].wired;
                 const uint32_t room = wired && off < kMonitorCap ? std::min(n, kMonitorCap - off) : 0;
                 for (uint32_t i = 0; i < room; ++i)
-                    txt_[off + i] = 0.5f * (st.inArr[0][0][i] + st.inArr[0][1][i]);
-                if (room > 0) txtFrames_ = off + room;
+                    st.txt[off + i] = 0.5f * (st.inArr[0][0][i] + st.inArr[0][1][i]);
+                if (room > 0) st.txtFrames = off + room;
                 meterInto(node.inPow, node.inPeak, st.inArr[0], n, alpha);
             } else if (node.kind == "entrada") {
                 // Lo que llegó de la otra fuente (silencio si todavía no hay).
@@ -919,7 +965,11 @@ json AudioRack::describe() const {
                 {"tipo", Generator::kindName(c.kind)}, {"frecuencia", c.freq}, {"nivelDb", c.levelDb}};
         }
         if (n->kind == "monitor") j["dispositivo"] = n->device;
-        if (n->kind == "texto") j["modo"] = n->modo;
+        if (n->kind == "texto") {
+            j["modo"] = n->modo;
+            j["flujo"] = n->flujo;
+            j["salidas"] = n->salidas;
+        }
         if (n->kind == "entrada") j["fuente"] = n->fuente;
         j["medidores"] = meters(n->id);
         nodes.push_back(std::move(j));
@@ -949,7 +999,11 @@ json AudioRack::save() const {
             j["estado"] = b64(n->clap->saveState());
         }
         if (n->kind == "monitor") j["dispositivo"] = n->device;
-        if (n->kind == "texto") j["modo"] = n->modo;
+        if (n->kind == "texto") {
+            j["modo"] = n->modo;
+            j["flujo"] = n->flujo;
+            j["salidas"] = n->salidas;
+        }
         if (n->kind == "entrada") j["fuente"] = n->fuente;
         if (n->kind == "generator") {
             const auto c = n->gen->config();
@@ -1023,9 +1077,9 @@ bool AudioRack::load(const json& j, std::string* error) {
             n->analyzer = std::make_unique<Analyzer>();
             n->analyzer->setSampleRate(sr_);
         } else if (kind == "texto") {
-            n->id = "voz-a-texto"; // uno solo por rack
             n->modo = nj.value("modo", "dictado") == "continuo" ? "continuo" : "dictado";
-            txtModo_ = n->modo == "continuo" ? 2 : 1;
+            n->flujo = nj.value("flujo", ""); // racks viejos: lo pone RackManager
+            n->salidas = nj.value("salidas", json::object());
         } else if (kind == "entrada") {
             n->fuente = nj.value("fuente", "");
         } else if (kind == "monitor") {
