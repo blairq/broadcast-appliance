@@ -438,6 +438,8 @@ class Fabrica:
             if not self.a.sin_mtp:
                 cmd = [PY, E / "entrenar-mtp.py", "--modelo", hf, "--base-ruta", self.man["base_ruta"],
                        "--datos", self.corpus, "--salida", mtp_f]
+                if self.a.formato == "tc":  # prefijo de ~8.000 tokens: lote chico, media epoca
+                    cmd += ["--lote", "4", "--epocas", "0.5"]
                 if self.man["arquitectura"]["modo"] == "repartir":
                     cmd.append("--repartir")
                 correr(cmd, salida=self.dir / "mtp.log")

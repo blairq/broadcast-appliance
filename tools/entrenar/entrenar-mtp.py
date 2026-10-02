@@ -341,6 +341,8 @@ def main():
             bien.append((por_base, hay))
         return perd, bien
 
+    prefijo_hecho = {}
+
     def lote_nombres(lote, grad):
         """Prefijo de las fichas compartido (la parte del modelo y el paso 1 de la cabeza)."""
         B = len(lote)
@@ -358,8 +360,15 @@ def main():
             tgt[i, :len(s) - 1] = torch.tensor(s[1:], device=dev)
             base_ok[i, a0:len(s) - 1] = True
         with torch.no_grad(), torch.autocast("cuda", dtype=torch.bfloat16):
-            kv = DynamicCache(config=cfg)
-            hp = texto_m(input_ids=pre_t, past_key_values=kv, use_cache=True).last_hidden_state
+            # el modelo esta CONGELADO: su pasada por el prefijo es la misma en cada
+            # paso. Se hace una vez y se copia (con el formato de tool calling el
+            # prefijo son ~8.000 tokens: rehacerlo era casi todo el tiempo)
+            if "kv" not in prefijo_hecho:
+                kv0 = DynamicCache(config=cfg)
+                prefijo_hecho["hp"] = texto_m(input_ids=pre_t, past_key_values=kv0, use_cache=True).last_hidden_state
+                prefijo_hecho["kv"] = kv0
+            hp = prefijo_hecho["hp"]
+            kv = copy.deepcopy(prefijo_hecho["kv"])
             ch.repetir(kv, B) if hibrido else kv.batch_repeat_interleave(B)
             pos = torch.arange(Lp, Lp + L, device=dev).unsqueeze(0).expand(B, -1)
             hs = texto_m(input_ids=ids, attention_mask=mask, position_ids=pos, past_key_values=kv,
@@ -428,7 +437,7 @@ def main():
     def informe(etiqueta, nombres=None, texto=None, callado=False):
         nombres = V if nombres is None else nombres
         texto = TV if texto is None else texto
-        r = {"nombres": medir(nombres, lote_nombres, 32)}
+        r = {"nombres": medir(nombres, lote_nombres, args.lote)}
         if texto:
             r["texto"] = medir(texto, lote_texto, 8)
         if callado:
