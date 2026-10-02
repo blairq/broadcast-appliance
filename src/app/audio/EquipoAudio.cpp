@@ -8,6 +8,7 @@
 #include <QAudioFormat>
 #include <QAudioSink>
 #include <QAudioSource>
+#include <QPointer>
 
 #include <obs.h>
 #if defined(__APPLE__)
@@ -17,6 +18,8 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <mutex>
+#include <thread>
 
 namespace ba::app::audio {
 
@@ -83,16 +86,59 @@ int canalesCoreAudio(const std::string& uid, bool entrada) {
 }
 #endif
 
-/// Cuántos canales tiene de verdad el dispositivo.
-int canalesDe(const QAudioDevice& d, bool entrada) {
 #if defined(__APPLE__)
-    if (const int n = canalesCoreAudio(idDe(d), entrada); n > 0) return std::clamp(n, 1, kMaxCanales);
+/// Lo que ya contestó CoreAudio. La consulta va en un hilo aparte: si el
+/// servicio de audio del sistema (coreaudiod) no responde, se queda colgada
+/// ahí y no en el arranque de la app (con la consulta en el hilo principal,
+/// el launcher la daba por colgada y la reiniciaba en bucle).
+struct CacheCanales {
+    std::mutex mu;
+    std::map<std::string, int> valor;
+    std::set<std::string> pidiendo;
+};
+CacheCanales& cacheCanales() {
+    static CacheCanales c;
+    return c;
+}
+#endif
+
+/// Cuántos canales tiene de verdad el dispositivo. En la Mac, si CoreAudio
+/// todavía no contestó, 2 por ahora; al saberlo se avisa a `equipo`, que
+/// rearma ese dispositivo.
+int canalesDe(const QAudioDevice& d, bool entrada, EquipoAudio* equipo = nullptr) {
+#if defined(__APPLE__)
+    const std::string uid = idDe(d);
+    const std::string clave = uid + (entrada ? "|e" : "|s");
+    CacheCanales& c = cacheCanales();
+    {
+        std::lock_guard<std::mutex> l(c.mu);
+        if (const auto it = c.valor.find(clave); it != c.valor.end())
+            return it->second > 0 ? std::clamp(it->second, 1, kMaxCanales) : 2;
+        if (!c.pidiendo.contains(clave)) {
+            c.pidiendo.insert(clave);
+            QPointer<EquipoAudio> avisar(equipo);
+            std::thread([uid, clave, entrada, avisar]() {
+                const int n = canalesCoreAudio(uid, entrada);
+                {
+                    CacheCanales& cc = cacheCanales();
+                    std::lock_guard<std::mutex> l2(cc.mu);
+                    cc.valor[clave] = n;
+                    cc.pidiendo.erase(clave);
+                }
+                if (avisar) QMetaObject::invokeMethod(avisar.data(), [avisar]() {
+                    if (avisar) avisar->canalesSabidos();
+                }, Qt::QueuedConnection);
+            }).detach();
+        }
+    }
+    return 2;
 #else
     (void)entrada;
-#endif
+    (void)equipo;
     // Fuera de la Mac, el formato preferido es el del dispositivo (WASAPI: el del mezclador).
     const int pref = d.preferredFormat().channelCount();
     return std::clamp(pref > 0 ? pref : 2, 1, kMaxCanales);
+#endif
 }
 
 /// Los dispositivos de entrada que ya son una fuente de la app (el micrófono
@@ -280,7 +326,7 @@ void EquipoAudio::refrescar() {
         s->dev = d;
         s->id = id;
         s->nombre = d.description().toStdString();
-        s->canales = canalesDe(d, false);
+        s->canales = canalesDe(d, false, this);
         for (int p = 0; p < (s->canales + 1) / 2; ++p)
             s->pares.push_back(std::make_shared<anillo::Ring>());
         salidas_[id] = std::move(s);
@@ -305,7 +351,7 @@ void EquipoAudio::refrescar() {
         e->dev = d;
         e->id = id;
         e->nombre = d.description().toStdString();
-        e->canales = canalesDe(d, true);
+        e->canales = canalesDe(d, true, this);
         e->crearFuentes();
         entradas_[id] = std::move(e);
     }
@@ -318,6 +364,31 @@ void EquipoAudio::refrescar() {
         it = entradas_.erase(it);
     }
     emit cambio();
+}
+
+void EquipoAudio::canalesSabidos() {
+    // CoreAudio contestó cuántos canales tiene algún dispositivo: el que
+    // quedó armado con otra cantidad se rearma.
+    bool algo = false;
+    for (auto it = salidas_.begin(); it != salidas_.end();) {
+        if (canalesDe(it->second->dev, false) != it->second->canales) {
+            it->second->cerrar();
+            it = salidas_.erase(it);
+            algo = true;
+        } else {
+            ++it;
+        }
+    }
+    for (auto it = entradas_.begin(); it != entradas_.end();) {
+        if (canalesDe(it->second->dev, true) != it->second->canales) {
+            it->second->quitarFuentes();
+            it = entradas_.erase(it);
+            algo = true;
+        } else {
+            ++it;
+        }
+    }
+    if (algo) refrescar();
 }
 
 std::vector<EquipoAudio::Columna> EquipoAudio::columnas() const {

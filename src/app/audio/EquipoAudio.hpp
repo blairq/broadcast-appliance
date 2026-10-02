@@ -76,6 +76,8 @@ class EquipoAudio : public QObject {
     QVariantList dispositivos() const;
 
     nlohmann::json guardado() const;
+    /// CoreAudio contestó (en otro hilo) cuántos canales tiene un dispositivo.
+    void canalesSabidos();
     void cargar(const nlohmann::json& j);
 
    signals:

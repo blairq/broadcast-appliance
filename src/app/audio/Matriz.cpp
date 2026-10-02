@@ -129,6 +129,8 @@ Matriz::Matriz(fs::path dataRoot, QObject* parent) : QObject(parent), root_(std:
 Matriz::~Matriz() {
     salir_ = true;
     if (hilo_.joinable()) hilo_.join();
+    // Si libobs ya se apagó (cierre temprano), sus fuentes ya no existen.
+    if (!obs_initialized()) return;
     setActiva(false);
     {
         std::lock_guard<std::mutex> l(tomasLock_);

@@ -43,7 +43,9 @@ void registrarMonitorVoz() {
 
 MonitorVoz::~MonitorVoz() {
     std::lock_guard<std::mutex> l(lock_);
-    if (fuente_ != nullptr) {
+    // Si libobs ya se apagó (un cierre temprano, p. ej. la interfaz no
+    // cargó), la fuente ya no existe: tocarla es un acceso inválido.
+    if (fuente_ != nullptr && obs_initialized()) {
         obs_set_output_source(canal_, nullptr);
         obs_source_set_monitoring_type(fuente_, OBS_MONITORING_TYPE_NONE);
         obs_source_release(fuente_);
