@@ -74,6 +74,8 @@ class Matriz : public QObject {
     /// y cada dispositivo [{id, nombre, tipo, canales, visible, abierto, enApp}].
     Q_PROPERTY(bool mostrarEquipo READ mostrarEquipo WRITE setMostrarEquipo NOTIFY cambio)
     Q_PROPERTY(QVariantList equipo READ equipo NOTIFY cambio)
+    /// Las pistas 2-6 de OBS plegadas en la vista (por defecto: solo se ve la 1).
+    Q_PROPERTY(bool pistasPlegadas READ pistasPlegadas WRITE setPistasPlegadas NOTIFY cambio)
 
    public:
     using json = nlohmann::json;
@@ -91,6 +93,8 @@ class Matriz : public QObject {
     bool mostrarEquipo() const;
     void setMostrarEquipo(bool on);
     QVariantList equipo() const;
+    bool pistasPlegadas() const { return pistasPlegadas_; }
+    void setPistasPlegadas(bool on);
     /// Mostrar u ocultar un dispositivo del equipo (lo oculto no se abre).
     Q_INVOKABLE void setVisibleDispositivo(const QString& id, bool visible);
 
@@ -150,6 +154,7 @@ class Matriz : public QObject {
     std::string usoPista_[kPistas];
     std::vector<std::unique_ptr<Bus>> buses_;
     std::unique_ptr<EquipoAudio> equipo_;
+    bool pistasPlegadas_ = true;
     std::map<std::string, std::shared_ptr<std::atomic<float>>> picosEquipo_; ///< columna física -> pico
     std::map<std::pair<std::string, std::string>, Envio> envios_;            ///< (fuente, bus)
     std::vector<std::string> filas_;                                         ///< fuentes conocidas

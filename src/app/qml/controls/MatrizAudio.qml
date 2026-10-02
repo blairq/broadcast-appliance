@@ -17,7 +17,11 @@ Item {
     id: mx
     readonly property var mz: Studio.matriz
     readonly property var filas: mz ? mz.filas : []
-    readonly property var cols: mz ? mz.columnas : []
+    // Las pistas 2-6 de OBS (las de la grabación multipista) van plegadas por
+    // defecto: se ve solo la 1 (Programa). Se despliegan con el «+5» de su cabecera.
+    // (Se guarda con la Matriz, en la carpeta portable: no en las preferencias del sistema.)
+    readonly property bool pistasPlegadas: !mz || mz.pistasPlegadas
+    readonly property var cols: mz ? mz.columnas.filter(c => !(pistasPlegadas && c.tipo === "pista" && c.indice > 0)) : []
     readonly property var cruces: mz ? mz.cruces : ({})
     readonly property var med: mz ? mz.medidores : ({})
     property string msg: ""
@@ -198,6 +202,31 @@ Item {
                                      : cab.modelData.tipo === "pista" ? (cab.modelData.uso ? "\n" + cab.modelData.uso : "\nlibre") + "\nnativo: sin retardo"
                                      : cab.modelData.tipo === "salida" ? "\n→ " + (cab.modelData.dispositivoNombre || "sin dispositivo")
                                      : "\nvuelve como entrada: «" + cab.modelData.nombre + "»")
+                            }
+                            // En Programa: desplegar o plegar las pistas 2-6.
+                            Rectangle {
+                                visible: cab.modelData.tipo === "pista" && cab.modelData.indice === 0
+                                anchors { right: parent.right; top: parent.top; rightMargin: 1; topMargin: 1 }
+                                width: 22; height: 16; radius: 8
+                                color: plegar.containsMouse ? "#f59e0b" : Qt.rgba(0.96, 0.62, 0.04, 0.25)
+                                border.color: "#f59e0b"
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: mx.pistasPlegadas ? "+5" : "−"
+                                    color: plegar.containsMouse ? "black" : "#f59e0b"
+                                    font { pixelSize: 9; weight: Font.Bold }
+                                }
+                                MouseArea {
+                                    id: plegar
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    onClicked: mx.mz.pistasPlegadas = !mx.pistasPlegadas
+                                    ToolTip.visible: containsMouse
+                                    ToolTip.delay: 250
+                                    ToolTip.text: mx.pistasPlegadas
+                                        ? "Mostrar las pistas 2 a 6 (las de la grabación multipista)"
+                                        : "Plegar las pistas 2 a 6"
+                                }
                             }
                         }
                     }

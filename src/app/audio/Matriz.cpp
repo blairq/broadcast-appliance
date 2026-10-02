@@ -606,6 +606,12 @@ void Matriz::setMostrarEquipo(bool on) {
     guardar();
 }
 QVariantList Matriz::equipo() const { return equipo_->dispositivos(); }
+void Matriz::setPistasPlegadas(bool on) {
+    if (pistasPlegadas_ == on) return;
+    pistasPlegadas_ = on;
+    guardar();
+    emit cambio();
+}
 void Matriz::setVisibleDispositivo(const QString& id, bool visible) {
     equipo_->setVisible(id.toStdString(), visible);
     guardar();
@@ -838,6 +844,7 @@ void Matriz::guardar() const {
         }
     j["escucha"] = oye;
     j["equipo"] = equipo_->guardado();
+    j["pistasPlegadas"] = pistasPlegadas_;
     const fs::path p = root_ / "Config" / "audio-matriz.json";
     std::error_code ec;
     fs::create_directories(p.parent_path(), ec);
@@ -885,6 +892,7 @@ void Matriz::cargar() {
     // Primero el equipo: crea las fuentes de las entradas físicas, que el resto
     // (pistas, escucha) reconoce por nombre.
     equipo_->cargar(j.value("equipo", json::object()));
+    pistasPlegadas_ = j.value("pistasPlegadas", true);
     for (const auto& [fuente, mx2] : j.value("mezcladores", json::object()).items())
         if (equipo_->esEntradaFisica(fuente))
             if (obs_source_t* s = obs_get_source_by_name(fuente.c_str())) {
