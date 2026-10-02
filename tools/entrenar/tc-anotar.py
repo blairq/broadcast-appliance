@@ -44,10 +44,25 @@ RELLENO = {"escena": "la del cierre", "audio": "la música", "audio_operador": "
            "persona": "Laura", "grafico": "el zócalo", "carrusel": "la presentación"}
 
 
+# que tipo de entidad recibe cada familia de herramientas (como candidatos() en
+# agent/ArgumentosLocales.cpp): un audio_set no recibe el nombre de una persona
+ENTIDADES = [(("scene_", "transition_"), {"escena"}), (("audio", "mixer_"), {"audio", "audio_operador"}),
+             (("source_", "capture_source"), {"fuente", "audio", "audio_operador", "escena"}),
+             (("participant_", "speaker_", "capture_person", "chat_"), {"persona"}),
+             (("grafico_", "rotulo_"), {"grafico", "escena"}), (("laminas_",), {"carrusel", "escena"})]
+
+
 def validar(a, esq, herramienta=None):
     """Los errores de una anotacion (lista vacia = bien): el esquema, y STE-ES
     (docs/ste-es.md) sobre la plantilla con los huecos llenados."""
     err = []
+    if herramienta:
+        permitidas = next((t for pre, t in ENTIDADES if herramienta.startswith(pre)), None)
+        if permitidas:
+            for v in (a.get("args") or {}).values():
+                for m in tc.RE_HUECO.finditer(str(v)):
+                    if m.group(1) not in permitidas:
+                        err.append(f"{herramienta} no recibe un {{{m.group(1)}}} (recibe {', '.join(sorted(permitidas))})")
     if herramienta and a.get("plantilla"):
         import ste_es
         frase = tc.RE_HUECO.sub(lambda m: RELLENO.get(m.group(1), "eso"), a["plantilla"])
@@ -98,6 +113,53 @@ def validar(a, esq, herramienta=None):
     return err
 
 
+def sumar(args, nombres, esquemas, funcs, hechas, guardar):
+    """Anotaciones NUEVAS por herramienta con otra consigna; validadas igual
+    (esquema + STE-ES) y marcadas nueva/origen para que entren al entrenamiento."""
+    import agente
+    import lib_prompt as lp
+    inv = lp.inventario()
+    lectura = {h["nombre"] for h in inv["herramientas"] if h.get("soloLectura")}
+    pref = lambda n: n.split("_")[0]
+    tmp = Path(tempfile.mkdtemp(prefix="tc-sumar-"))
+    trabajos = []
+    for i in range(0, len(nombres), args.grupo):
+        lote = [{"herramienta": h, "descripcion": funcs[h]["description"], "esquema": esquemas[h],
+                 "solo_lectura": h in lectura,
+                 "anotaciones": [a.get("plantilla") for a in hechas.get(h, [])][:20],
+                 "vecinas": [o for o in nombres if o != h and pref(o) == pref(h)][:8]}
+                for h in nombres[i:i + args.grupo]]
+        f = tmp / f"lote-{i}.json"
+        f.write_text(json.dumps(lote, ensure_ascii=False, indent=1))
+        trabajos.append(agente.Trabajo(f"{args.sumar}.md", f, tmp / f"salida-{i}.jsonl", ["herramienta", "plantilla"]))
+    agente.correr_lotes(trabajos, paralelo=4)
+    esquemas = dict(esquemas, derivar={"type": "object", "properties": {}})
+    n = rech = 0
+    for t in trabajos:
+        if not Path(t.salida).exists():
+            continue
+        for linea in Path(t.salida).read_text().splitlines():
+            try:
+                a = json.loads(linea)
+            except json.JSONDecodeError:
+                continue
+            h = a.pop("herramienta", None)
+            if h not in esquemas:
+                rech += 1
+                continue
+            a.setdefault("frase", a["plantilla"])
+            a.setdefault("args", {}) if "falta" not in a else None
+            if validar(a, esquemas[h], h if h != "derivar" else None):
+                rech += 1
+                continue
+            a["nueva"] = True
+            a["origen"] = args.sumar
+            hechas.setdefault(h, []).append(a)
+            n += 1
+    guardar()
+    print(f"sumadas: {n} anotaciones nuevas ({args.sumar}) · rechazadas por invalidas: {rech}")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--solo", help="herramientas separadas por coma")
@@ -105,6 +167,8 @@ def main():
     ap.add_argument("--revisar", action="store_true", help="solo validar lo que hay")
     ap.add_argument("--vueltas", type=int, default=2, help="reintentos con los errores")
     ap.add_argument("--grupo", type=int, default=6, help="herramientas por agente")
+    ap.add_argument("--sumar", help="consigna (consignas/<x>.md) para SUMAR anotaciones nuevas por herramienta"
+                                    " (p. ej. tc-sumar: preguntas contra ordenes, sintomas, lo que no es suyo)")
     args = ap.parse_args()
 
     import agente
@@ -118,6 +182,9 @@ def main():
 
     def guardar():
         SALIDA.write_text(json.dumps(dict(sorted(hechas.items())), ensure_ascii=False, indent=1) + "\n")
+
+    if args.sumar:
+        return sumar(args, nombres, esquemas, funcs, hechas, guardar)
 
     # sin argumentos: la plantilla es la frase y no hay args
     for h in nombres:

@@ -67,24 +67,6 @@
    }
   },
   {
-   "frase": "Analizá el espectro del in de Ana diez segundos, números crudos por zonas",
-   "plantilla": "Analizá el espectro del in de {persona} diez segundos, números crudos por zonas",
-   "args": {
-    "source": "{persona}",
-    "punto": "in",
-    "segundos": 10
-   }
-  },
-  {
-   "frase": "Analizá el nodo analizador del conductor quince segundos y pasame el espectro por zonas",
-   "plantilla": "Analizá el nodo analizador de {persona} quince segundos y pasame el espectro por zonas",
-   "args": {
-    "source": "{persona}",
-    "punto": "analizador",
-    "segundos": 15
-   }
-  },
-  {
    "frase": "Dame los números del espectro que ya midió, cero segundos, sin volver a escuchar",
    "plantilla": "Dame los números del espectro que ya midió, cero segundos, sin volver a escuchar",
    "args": {
@@ -101,29 +83,12 @@
    }
   },
   {
-   "frase": "¿Cuánta sibilancia marca el espectro del in de la invitada? Analizalo ocho segundos",
-   "plantilla": "¿Cuánta sibilancia marca el espectro del in de {persona}? Analizalo ocho segundos",
-   "args": {
-    "source": "{persona}",
-    "punto": "in",
-    "segundos": 8
-   }
-  },
-  {
    "frase": "Correlación y rango dinámico del out del rack de la mesa, analizá veinte segundos",
    "plantilla": "Correlación y rango dinámico del out del rack de {audio}, analizá veinte segundos",
    "args": {
     "source": "{audio}",
     "punto": "out",
     "segundos": 20
-   }
-  },
-  {
-   "frase": "Analizá si el espectro del out del rack del panelista muestra recortes",
-   "plantilla": "Analizá si el espectro del out del rack de {persona} muestra recortes",
-   "args": {
-    "source": "{persona}",
-    "punto": "out"
    }
   },
   {
@@ -167,6 +132,96 @@
    "plantilla": "analizá el espectro en el punto out de una entrada",
    "falta": "¿De qué fuente de audio?",
    "nueva": true
+  },
+  {
+   "frase": "¿qué frecuencias le sobran a la música en la salida del rack?",
+   "plantilla": "¿qué frecuencias le sobran a {audio} en la salida del rack?",
+   "args": {
+    "source": "{audio}",
+    "punto": "out"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿en qué frecuencia zumba la cortina? pasame los números",
+   "plantilla": "¿en qué frecuencia zumba {audio}? pasame los números",
+   "args": {
+    "source": "{audio}"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿cómo quedó el espectro después del ajuste?",
+   "plantilla": "¿cómo quedó el espectro después del ajuste?",
+   "falta": "¿de qué fuente querés el espectro?",
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "Analizá el espectro del in de Ana diez segundos, números crudos por zonas",
+   "plantilla": "Analizá el espectro del in de {audio} diez segundos, números crudos por zonas",
+   "args": {
+    "source": "{audio}",
+    "punto": "in",
+    "segundos": 10
+   }
+  },
+  {
+   "frase": "Analizá el nodo analizador del conductor quince segundos y pasame el espectro por zonas",
+   "plantilla": "Analizá el nodo analizador de {audio} quince segundos, espectro por zonas",
+   "args": {
+    "source": "{audio}",
+    "punto": "analizador",
+    "segundos": 15
+   }
+  },
+  {
+   "frase": "¿Cuánta sibilancia marca el espectro del in de la invitada? Analizalo ocho segundos",
+   "plantilla": "¿Cuánta sibilancia marca el espectro del in de {audio}? Analizá ocho segundos",
+   "args": {
+    "source": "{audio}",
+    "punto": "in",
+    "segundos": 8
+   }
+  },
+  {
+   "frase": "Analizá si el espectro del out del rack del panelista muestra recortes",
+   "plantilla": "Analizá si el espectro del out del rack de {audio} muestra recortes",
+   "args": {
+    "source": "{audio}",
+    "punto": "out"
+   }
+  },
+  {
+   "frase": "¿cuántos agudos marca el espectro de Laura?",
+   "plantilla": "¿cuántos agudos marca el espectro de {audio}?",
+   "args": {
+    "source": "{audio}"
+   }
+  },
+  {
+   "frase": "ya le toqué el eq a Martín y sigue chillón, verificá el espectro",
+   "plantilla": "ya le toqué el eq a {audio} y sigue chillón, verificá el espectro",
+   "args": {
+    "source": "{audio}"
+   }
+  },
+  {
+   "frase": "analizá el espectro de uno de los invitados",
+   "plantilla": "analizá el espectro de uno de los invitados",
+   "falta": "¿De qué invitado?",
+   "nueva": true
+  },
+  {
+   "frase": "analizá el espectro del micro de un panelista diez segundos",
+   "plantilla": "analizá el espectro del micro de un panelista diez segundos",
+   "falta": "¿De qué panelista?",
+   "nueva": true
   }
  ],
  "audio_escuchar": [
@@ -179,26 +234,10 @@
    }
   },
   {
-   "frase": "Poneme en PFL al invitado, que lo escucho yo por el monitor",
-   "plantilla": "Poneme en PFL a {persona}, que lo escucho yo por el monitor",
-   "args": {
-    "name": "{persona}",
-    "escuchar": true
-   }
-  },
-  {
    "frase": "Mandame al monitor el audio de la capturadora, sin tocar lo que sale",
    "plantilla": "Mandame al monitor {audio}, sin tocar lo que sale",
    "args": {
     "name": "{audio}",
-    "escuchar": true
-   }
-  },
-  {
-   "frase": "Quiero pre-escuchar la cámara dos en el monitor sin sacarla al aire",
-   "plantilla": "Quiero pre-escuchar {fuente} en el monitor sin que salga al aire",
-   "args": {
-    "name": "{fuente}",
     "escuchar": true
    }
   },
@@ -291,32 +330,66 @@
    }
   },
   {
-   "frase": "Antes de abrirle el micro a Pablo, ponémelo en escucha",
-   "plantilla": "Antes de abrirle el micro a {persona}, ponémelo en escucha",
+   "frase": "haceme oír cómo suena la música en mi monitor",
+   "plantilla": "haceme oír cómo suena {audio} en mi monitor",
    "args": {
-    "name": "{persona}",
+    "name": "{audio}",
+    "escuchar": true
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "ponémelo en escucha antes de que salga",
+   "plantilla": "ponémelo en escucha antes de que salga",
+   "falta": "¿qué fuente querés escuchar?",
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "Poneme en PFL al invitado, que lo escucho yo por el monitor",
+   "plantilla": "Poneme en PFL a {audio}, lo escucho yo por el monitor",
+   "args": {
+    "name": "{audio}",
+    "escuchar": true
+   }
+  },
+  {
+   "frase": "Quiero pre-escuchar la cámara dos en el monitor sin sacarla al aire",
+   "plantilla": "Mandame {audio} al monitor para pre-escucha, no al aire",
+   "args": {
+    "name": "{audio}",
+    "escuchar": true
+   }
+  },
+  {
+   "frase": "Antes de abrirle el micro a Pablo, ponémelo en escucha",
+   "plantilla": "Poné {audio} en escucha en mi monitor antes de abrirle el canal",
+   "args": {
+    "name": "{audio}",
+    "escuchar": true
+   }
+  },
+  {
+   "frase": "pasame a Laura al auricular que quiero oír si zumba",
+   "plantilla": "pasame {audio} al auricular, quiero oír si zumba",
+   "args": {
+    "name": "{audio}",
+    "escuchar": true
+   }
+  },
+  {
+   "frase": "Martín dice que tiene ruido en el micro, dejámelo oír a mí",
+   "plantilla": "hay ruido en {audio}, dejame escuchar ese canal en el monitor",
+   "args": {
+    "name": "{audio}",
     "escuchar": true
    }
   }
  ],
  "audio_measure": [
-  {
-   "frase": "el conductor suena opaco al aire, medí su cadena con señal de prueba",
-   "plantilla": "{persona} suena opaco al aire, medí su cadena con señal de prueba",
-   "args": {
-    "source": "{persona}",
-    "tipo": "respuesta"
-   }
-  },
-  {
-   "frase": "medí la curva del compresor del conductor, parece que satura",
-   "plantilla": "medí la curva del compresor de {persona}, parece que satura",
-   "args": {
-    "source": "{persona}",
-    "tipo": "curva",
-    "node": "compresor"
-   }
-  },
   {
    "frase": "hay un pitido en el micro del conductor, medí su cadena con un seno a -20",
    "plantilla": "hay un pitido en {audio}, medí su cadena con un seno a -20",
@@ -365,14 +438,6 @@
     "source": "{audio_operador}",
     "tipo": "curva",
     "node": "limitador"
-   }
-  },
-  {
-   "frase": "Al conductor no se lo oye en el aire, testeá la cadena de módulos",
-   "plantilla": "A {persona} no se lo oye en el aire, testeá la cadena de módulos",
-   "args": {
-    "source": "{persona}",
-    "tipo": "respuesta"
    }
   },
   {
@@ -433,6 +498,77 @@
    "frase": "uno de los panelistas se escucha mal, medí su cadena con señal de prueba",
    "plantilla": "uno de los panelistas se escucha mal, medí su cadena con señal de prueba",
    "falta": "¿Cuál de los panelistas?",
+   "nueva": true
+  },
+  {
+   "frase": "no se escucha la música al aire",
+   "plantilla": "no se escucha {audio} al aire",
+   "args": {
+    "source": "{audio}",
+    "tipo": "respuesta"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "el conductor suena opaco al aire, medí su cadena con señal de prueba",
+   "plantilla": "{audio} suena opaco al aire, medí su cadena con señal de prueba",
+   "args": {
+    "source": "{audio}",
+    "tipo": "respuesta"
+   }
+  },
+  {
+   "frase": "medí la curva del compresor del conductor, parece que satura",
+   "plantilla": "medí la curva del compresor de {audio}, parece que satura",
+   "args": {
+    "source": "{audio}",
+    "tipo": "curva"
+   }
+  },
+  {
+   "frase": "Al conductor no se lo oye en el aire, testeá la cadena de módulos",
+   "plantilla": "No se oye {audio} en el aire, testeá la cadena de módulos",
+   "args": {
+    "source": "{audio}",
+    "tipo": "respuesta"
+   }
+  },
+  {
+   "frase": "¿qué le pasa al audio de Laura? no sale al aire",
+   "plantilla": "¿qué le pasa a {audio}? no sale al aire",
+   "args": {
+    "source": "{audio}",
+    "tipo": "respuesta"
+   }
+  },
+  {
+   "frase": "¿está saturando el compresor de Martín?",
+   "plantilla": "¿está saturando el compresor de {audio}?",
+   "args": {
+    "source": "{audio}",
+    "tipo": "curva"
+   }
+  },
+  {
+   "frase": "se acopla el mic de Laura",
+   "plantilla": "se acopla {audio}",
+   "args": {
+    "source": "{audio}",
+    "tipo": "respuesta"
+   }
+  },
+  {
+   "frase": "medí la respuesta del micro de un panelista con señal de prueba",
+   "plantilla": "medí la respuesta del micro de un panelista con señal de prueba",
+   "falta": "¿De qué panelista?",
+   "nueva": true
+  },
+  {
+   "frase": "medí el audio de Laura ahora",
+   "plantilla": "medí el audio de {audio} ahora",
+   "falta": "¿Mido la respuesta de la cadena o la curva del compresor?",
    "nueva": true
   }
  ],
@@ -595,17 +731,89 @@
    "plantilla": "silenciá uno de los micrófonos de la mesa",
    "falta": "¿Qué micrófono silencio?",
    "nueva": true
+  },
+  {
+   "frase": "poné la música en menos diez",
+   "plantilla": "poné {audio} en menos diez",
+   "args": {
+    "name": "{audio}",
+    "volumeDb": "=-10"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "silenciá la cortina, que está sonando",
+   "plantilla": "silenciá {audio}, que está sonando",
+   "args": {
+    "name": "{audio}",
+    "muted": true
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "dale un toque más a la música",
+   "plantilla": "dale un toque más a {audio}",
+   "args": {
+    "name": "{audio}",
+    "volumeDb": "+3"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "la música está altísima, se come a todos",
+   "plantilla": "{audio} está altísima, se come a todos",
+   "args": {
+    "name": "{audio}",
+    "volumeDb": "-6"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "bajalo a menos veinte ya",
+   "plantilla": "bajalo a menos veinte ya",
+   "falta": "¿a qué fuente le bajo el volumen?",
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "dejá el micro de Laura en cero",
+   "plantilla": "dejá {audio} en cero",
+   "args": {
+    "name": "{audio}",
+    "volumeDb": "=0"
+   }
+  },
+  {
+   "frase": "el micro de Martín quedó muteado, no sale",
+   "plantilla": "{audio} quedó en mute, no sale al aire",
+   "args": {
+    "name": "{audio}",
+    "muted": false
+   }
+  },
+  {
+   "frase": "subile 4 dB al micro de un invitado",
+   "plantilla": "subile 4 dB al micro de un invitado",
+   "falta": "¿A qué invitado?",
+   "nueva": true
+  },
+  {
+   "frase": "bajale 3 dB a uno de los micros de la mesa",
+   "plantilla": "bajale 3 dB a uno de los micros de la mesa",
+   "falta": "¿A qué micro?",
+   "nueva": true
   }
  ],
  "audio_sincro": [
-  {
-   "frase": "la voz de la cámara 3 va desfasada de la imagen, atrasale el audio",
-   "plantilla": "la voz de {fuente} va desfasada de la imagen, atrasale el audio",
-   "args": {
-    "name": "{fuente}",
-    "ms": "+6"
-   }
-  },
   {
    "frase": "el audio va antes que la imagen",
    "plantilla": "el audio va antes que la imagen",
@@ -615,89 +823,10 @@
    }
   },
   {
-   "frase": "la boca de la cámara 1 va atrás de la voz, atrasale el audio",
-   "plantilla": "la boca de {fuente} va atrás de la voz, atrasale el audio",
-   "args": {
-    "name": "{fuente}",
-    "ms": "+6"
-   }
-  },
-  {
    "frase": "corregí el retardo del audio",
    "plantilla": "corregí el retardo del audio",
    "args": {
     "name": "{audio_operador}"
-   }
-  },
-  {
-   "frase": "El audio de la cámara dos va adelantado a la imagen, atrasalo",
-   "plantilla": "El audio de {fuente} va adelantado a la imagen, atrasalo",
-   "args": {
-    "name": "{fuente}",
-    "ms": "+6"
-   }
-  },
-  {
-   "frase": "Pedro mueve la boca después de que se escucha, sincronizalo",
-   "plantilla": "{persona} mueve la boca después de que se escucha, sincronizalo",
-   "args": {
-    "name": "{persona}",
-    "ms": "+6"
-   }
-  },
-  {
-   "frase": "subile a 200 ms el atraso del audio de la PTZ",
-   "plantilla": "subile a 200 ms el atraso del audio de {fuente}",
-   "args": {
-    "name": "{fuente}",
-    "ms": "=200"
-   }
-  },
-  {
-   "frase": "no coinciden los labios del invitado con lo que dice, sincronizá su audio",
-   "plantilla": "no coinciden los labios de {persona} con lo que dice, sincronizá su audio",
-   "args": {
-    "name": "{persona}"
-   }
-  },
-  {
-   "frase": "labios desfasados en la cámara de exteriores, corregí con 100 ms",
-   "plantilla": "labios desfasados en {fuente}, corregí con 100 ms",
-   "args": {
-    "name": "{fuente}",
-    "ms": "+100"
-   }
-  },
-  {
-   "frase": "sincro labial de la cámara del patio, el audio se anticipa",
-   "plantilla": "sincro labial de {fuente}, el audio se anticipa",
-   "args": {
-    "name": "{fuente}",
-    "ms": "+6"
-   }
-  },
-  {
-   "frase": "al invitado se lo oye antes de que mueva la boca, atrasale el audio",
-   "plantilla": "a {persona} se lo oye antes de que mueva la boca, atrasale el audio",
-   "args": {
-    "name": "{persona}",
-    "ms": "+6"
-   }
-  },
-  {
-   "frase": "la voz de la cámara del living se adelanta a la boca, atrasala 80 ms",
-   "plantilla": "la voz de {fuente} se adelanta a la boca, atrasala 80 ms",
-   "args": {
-    "name": "{fuente}",
-    "ms": "+80"
-   }
-  },
-  {
-   "frase": "sincronizá labios y voz de la cámara 4, el sonido llega primero",
-   "plantilla": "sincronizá labios y voz de {fuente}, el sonido llega primero",
-   "args": {
-    "name": "{fuente}",
-    "ms": "+6"
    }
   },
   {
@@ -739,6 +868,122 @@
    "frase": "el audio va adelantado del video, sincronizá la fuente",
    "plantilla": "el audio va adelantado del video, sincronizá la fuente",
    "falta": "¿Qué fuente?",
+   "nueva": true
+  },
+  {
+   "frase": "la voz de la cámara 3 va desfasada de la imagen, atrasale el audio",
+   "plantilla": "la voz de {audio} va desfasada de la imagen, atrasale el audio",
+   "args": {
+    "name": "{audio}",
+    "ms": "+6"
+   }
+  },
+  {
+   "frase": "la boca de la cámara 1 va atrás de la voz, atrasale el audio",
+   "plantilla": "la boca en {audio} va atrás de la voz, atrasale el audio",
+   "args": {
+    "name": "{audio}",
+    "ms": "+6"
+   }
+  },
+  {
+   "frase": "El audio de la cámara dos va adelantado a la imagen, atrasalo",
+   "plantilla": "El audio de {audio} va adelantado a la imagen, atrasale el audio",
+   "args": {
+    "name": "{audio}",
+    "ms": "+6"
+   }
+  },
+  {
+   "frase": "Pedro mueve la boca después de que se escucha, sincronizalo",
+   "plantilla": "en {audio} la boca se mueve después de la voz, atrasale el audio",
+   "args": {
+    "name": "{audio}",
+    "ms": "+6"
+   }
+  },
+  {
+   "frase": "subile a 200 ms el atraso del audio de la PTZ",
+   "plantilla": "subí a 200 ms el atraso de {audio}",
+   "args": {
+    "name": "{audio}",
+    "ms": "=200"
+   }
+  },
+  {
+   "frase": "no coinciden los labios del invitado con lo que dice, sincronizá su audio",
+   "plantilla": "no coinciden los labios con la voz en {audio}, sincronizá el audio",
+   "args": {
+    "name": "{audio}",
+    "ms": "+6"
+   }
+  },
+  {
+   "frase": "labios desfasados en la cámara de exteriores, corregí con 100 ms",
+   "plantilla": "labios desfasados en {audio}, atrasale el audio 100 ms",
+   "args": {
+    "name": "{audio}",
+    "ms": "+100"
+   }
+  },
+  {
+   "frase": "sincro labial de la cámara del patio, el audio se anticipa",
+   "plantilla": "corregí la sincro labial de {audio}, el audio se anticipa",
+   "args": {
+    "name": "{audio}",
+    "ms": "+6"
+   }
+  },
+  {
+   "frase": "al invitado se lo oye antes de que mueva la boca, atrasale el audio",
+   "plantilla": "en {audio} se oye la voz antes de la boca, atrasale el audio",
+   "args": {
+    "name": "{audio}",
+    "ms": "+6"
+   }
+  },
+  {
+   "frase": "la voz de la cámara del living se adelanta a la boca, atrasala 80 ms",
+   "plantilla": "la voz de {audio} se adelanta a la boca, atrasale el audio 80 ms",
+   "args": {
+    "name": "{audio}",
+    "ms": "+80"
+   }
+  },
+  {
+   "frase": "sincronizá labios y voz de la cámara 4, el sonido llega primero",
+   "plantilla": "sincronizá labios y voz de {audio}, el sonido llega primero",
+   "args": {
+    "name": "{audio}",
+    "ms": "+6"
+   }
+  },
+  {
+   "frase": "dejá la cámara 1 sin retardo de audio",
+   "plantilla": "dejá {audio} sin retardo de audio",
+   "args": {
+    "name": "{audio}",
+    "ms": "=0"
+   }
+  },
+  {
+   "frase": "en la cámara 3 se oye la palabra antes de que abra la boca",
+   "plantilla": "en {audio} se oye la voz antes de que se mueva la boca",
+   "args": {
+    "name": "{audio}",
+    "ms": "+6"
+   }
+  },
+  {
+   "frase": "atrasale 100 ms el audio a una de las cámaras",
+   "plantilla": "atrasale 100 ms el audio a una de las cámaras",
+   "falta": "¿A qué fuente?",
+   "nueva": true
+  },
+  {
+   "frase": "el audio va adelantado a la imagen, atrasale el audio",
+   "plantilla": "el audio va adelantado a la imagen, atrasale el audio",
+   "falta": "¿De qué fuente es el audio?",
    "nueva": true
   }
  ],
@@ -851,6 +1096,64 @@
    "plantilla": "mostrame la cámara de uno de los invitados",
    "falta": "¿De qué lugar?",
    "nueva": true
+  },
+  {
+   "frase": "¿llega imagen de guest 2?",
+   "plantilla": "¿llega imagen de guest 2?",
+   "args": {
+    "key": "guest:2"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿qué se ve en la cámara del invitado del lugar 3?",
+   "plantilla": "¿qué se ve en la cámara del invitado del lugar 3?",
+   "args": {
+    "key": "guest:3"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿cómo se ve el que espera en el lobby 2?",
+   "plantilla": "¿cómo se ve el que espera en el lobby 2?",
+   "args": {
+    "key": "lobby:2"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿llega bien el video?",
+   "plantilla": "¿llega bien el video?",
+   "falta": "¿de qué feed? ¿program, guest, share o lobby?",
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "se ve todo negro en la cámara del lugar 1",
+   "plantilla": "se ve todo negro en la cámara del lugar 1",
+   "args": {
+    "key": "guest:1"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "la pantalla que comparte el del lugar 2 parece congelada",
+   "plantilla": "la pantalla que comparte el del lugar 2 parece congelada",
+   "args": {
+    "key": "share:2"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "capture_multiview": [
@@ -945,6 +1248,30 @@
     "format": "jpeg",
     "quality": 30
    }
+  },
+  {
+   "frase": "¿cómo están todas las escenas ahora?",
+   "plantilla": "¿cómo están todas las escenas ahora?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿cuál de todas las escenas está al aire? mostrámelas juntas",
+   "plantilla": "¿cuál de todas las escenas está al aire? mostrámelas juntas",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿hay alguna escena que esté en negro? quiero verlas todas",
+   "plantilla": "¿hay alguna escena que esté en negro? quiero verlas todas",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "capture_people": [
@@ -1031,6 +1358,50 @@
    "frase": "Mandame una imagen por persona, de todos los que hay",
    "plantilla": "Mandame una imagen por persona, de todos los que hay",
    "args": {}
+  },
+  {
+   "frase": "¿quiénes hay en la sala? mostrame a cada uno",
+   "plantilla": "¿quiénes hay en la sala? mostrame a cada uno",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿hay alguien esperando en el lobby? quiero verles la cara",
+   "plantilla": "¿hay alguien esperando en el lobby? quiero verles la cara",
+   "args": {
+    "state": "waiting"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿cómo se ven los que ya entraron?",
+   "plantilla": "¿cómo se ven los que ya entraron?",
+   "args": {
+    "state": "admitted"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿alguno tiene la cámara en negro? pasame a todos",
+   "plantilla": "¿alguno tiene la cámara en negro? pasame a todos",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "alguno de los invitados se ve oscuro y no sé cuál",
+   "plantilla": "alguno de los invitados se ve oscuro y no sé cuál",
+   "args": {},
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "capture_person": [
@@ -1152,6 +1523,65 @@
    "plantilla": "traeme la imagen de alguien de la sala, a ver cómo se ve",
    "falta": "¿De quién?",
    "nueva": true
+  },
+  {
+   "frase": "¿está en cámara Juli o se fue?",
+   "plantilla": "¿está en cámara {persona} o se fue?",
+   "args": {
+    "participant": "{persona}"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿qué está compartiendo Martín en pantalla?",
+   "plantilla": "¿qué está compartiendo {persona} en pantalla?",
+   "args": {
+    "participant": "{persona}",
+    "includeScreen": true
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿cómo está encuadrado el que espera en el lobby?",
+   "plantilla": "¿cómo está encuadrado el que espera en el lobby?",
+   "falta": "¿Qué persona querés ver?",
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "la cámara de Sofi se ve toda negra",
+   "plantilla": "la cámara de {persona} se ve toda negra",
+   "args": {
+    "participant": "{persona}"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "Pablo dice que se le congeló la imagen",
+   "plantilla": "{persona} dice que se le congeló la imagen",
+   "args": {
+    "participant": "{persona}"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "a Caro la veo a contraluz, re oscura",
+   "plantilla": "a {persona} la veo a contraluz, re oscura",
+   "args": {
+    "participant": "{persona}"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "capture_program": [
@@ -1228,6 +1658,46 @@
    "frase": "mostrame una captura única del programa ahora",
    "plantilla": "mostrame una captura única del programa ahora",
    "args": {}
+  },
+  {
+   "frase": "¿qué se está viendo al aire?",
+   "plantilla": "¿qué se está viendo al aire?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿está bien encuadrado lo que sale?",
+   "plantilla": "¿está bien encuadrado lo que sale?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿se congeló el aire o es mi monitor?",
+   "plantilla": "¿se congeló el aire o es mi monitor?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "me escriben que el vivo se ve todo negro",
+   "plantilla": "me escriben que el vivo se ve todo negro",
+   "args": {},
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "en la transmisión se corta la cabeza del conductor",
+   "plantilla": "en la transmisión se corta la cabeza del conductor",
+   "args": {},
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "capture_sequence": [
@@ -1339,6 +1809,56 @@
    "frase": "capturá cuadro a cuadro la transición entre escenas",
    "plantilla": "capturá cuadro a cuadro la transición entre escenas",
    "args": {}
+  },
+  {
+   "frase": "¿se está moviendo {fuente} o quedó clavada? sacale varios cuadros",
+   "plantilla": "¿se está moviendo {fuente} o quedó clavada? sacale varios cuadros",
+   "args": {
+    "target": "{fuente}"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿está congelado Nico? cuatro cuadros, uno por segundo",
+   "plantilla": "¿está congelado {persona}? cuatro cuadros, uno por segundo",
+   "args": {
+    "participant": "{persona}",
+    "frames": 4,
+    "intervalMs": 1000
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿titila el programa? tirame unos cuadros seguidos",
+   "plantilla": "¿titila el programa? tirame unos cuadros seguidos",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "la imagen de Flor se traba cada tanto",
+   "plantilla": "la imagen de {persona} se traba cada tanto",
+   "args": {
+    "participant": "{persona}"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "{fuente} parpadea, por momentos se va a negro",
+   "plantilla": "{fuente} parpadea, por momentos se va a negro",
+   "args": {
+    "target": "{fuente}"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "capture_source": [
@@ -1500,6 +2020,74 @@
    "plantilla": "capturá una imagen ahora",
    "falta": "¿De qué fuente o escena?",
    "nueva": true
+  },
+  {
+   "frase": "¿cómo está quedando {fuente}?",
+   "plantilla": "¿cómo está quedando {fuente}?",
+   "args": {
+    "name": "{fuente}"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿está prendida {fuente} o sigue en negro?",
+   "plantilla": "¿está prendida {fuente} o sigue en negro?",
+   "args": {
+    "name": "{fuente}"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿qué tiene armado {escena} antes de pasarla?",
+   "plantilla": "¿qué tiene armado {escena} antes de pasarla?",
+   "args": {
+    "name": "{escena}"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿se ve bien la cámara?",
+   "plantilla": "¿se ve bien la cámara?",
+   "falta": "¿Qué cámara o fuente querés ver?",
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "se ve todo negro en {fuente}",
+   "plantilla": "se ve todo negro en {fuente}",
+   "args": {
+    "name": "{fuente}"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "{fuente} está desenfocada, se ve borroso",
+   "plantilla": "{fuente} está desenfocada, se ve borroso",
+   "args": {
+    "name": "{fuente}"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "en {escena} el texto se corta por el costado",
+   "plantilla": "en {escena} el texto se corta por el costado",
+   "args": {
+    "name": "{escena}"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "capture_ui": [
@@ -1594,6 +2182,48 @@
    "frase": "tomá una imagen de la interfaz de la aplicación ahora mismo",
    "plantilla": "tomá una imagen de la interfaz de la aplicación ahora mismo",
    "args": {}
+  },
+  {
+   "frase": "¿cómo se está viendo la app en cabina ahora?",
+   "plantilla": "¿cómo se está viendo la app en cabina ahora?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿qué está mostrando la ventana principal de la aplicación?",
+   "plantilla": "¿qué está mostrando la ventana principal de la aplicación?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿cómo quedaron todas las ventanas abiertas de la app?",
+   "plantilla": "¿cómo quedaron todas las ventanas abiertas de la app?",
+   "args": {
+    "window": "all"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "la interfaz de la app se ve rara, hay botones cortados",
+   "plantilla": "la interfaz de la app se ve rara, hay botones cortados",
+   "args": {},
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "se me desacomodó la pantalla del operador, no encuentro nada",
+   "plantilla": "se me desacomodó la pantalla del operador, no encuentro nada",
+   "args": {},
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "chat_history": [
@@ -1680,6 +2310,40 @@
    "frase": "fijate en el chat si el director me escribió algo",
    "plantilla": "fijate en el chat si el director me escribió algo",
    "args": {}
+  },
+  {
+   "frase": "¿me escribió alguien en el chat?",
+   "plantilla": "¿me escribió alguien en el chat?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿quién fue el último que escribió en el chat?",
+   "plantilla": "¿quién fue el último que escribió en el chat?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿cuáles son los últimos cinco mensajes del chat?",
+   "plantilla": "¿cuáles son los últimos cinco mensajes del chat?",
+   "args": {
+    "limit": 5
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "se me perdió el chat, no sé si me pidieron algo",
+   "plantilla": "se me perdió el chat, no sé si me pidieron algo",
+   "args": {},
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "chat_send": [
@@ -1815,14 +2479,6 @@
    "nueva": true
   },
   {
-   "frase": "escribile a Pablo por chat: estás tercero, preparate",
-   "plantilla": "escribile a {persona} por chat: \"estás tercero, preparate\"",
-   "args": {
-    "text": "estás tercero, preparate",
-    "to": "{persona}"
-   }
-  },
-  {
    "frase": "escribí un mensaje en el chat",
    "plantilla": "escribí un mensaje en el chat",
    "falta": "¿Qué mensaje escribo?",
@@ -1832,6 +2488,88 @@
    "frase": "escribile a Pablo por chat",
    "plantilla": "escribile a {persona} por chat",
    "falta": "¿Qué le escribo?",
+   "nueva": true
+  },
+  {
+   "frase": "preguntale por chat a {persona} si está listo",
+   "plantilla": "preguntale por chat a {persona} si está listo",
+   "args": {
+    "to": "{persona}",
+    "text": "¿Estás listo?"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "preguntá en el chat de la sala si se escucha bien",
+   "plantilla": "preguntá en el chat de la sala si se escucha bien",
+   "args": {
+    "text": "¿Se escucha bien?"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "contestale a {persona} en el chat que sí, que entra después",
+   "plantilla": "contestale a {persona} en el chat que sí, que entra después",
+   "args": {
+    "to": "{persona}",
+    "text": "Sí, entrás después"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "respondé en el chat: ¿quién falta conectarse?",
+   "plantilla": "respondé en el chat: ¿quién falta conectarse?",
+   "args": {
+    "text": "¿Quién falta conectarse?"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "tirale unas líneas a {persona} por el chat",
+   "plantilla": "tirale unas líneas a {persona} por el chat",
+   "falta": "¿Qué le escribo a {persona}?",
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "mandale un mensaje por chat a Pablo",
+   "plantilla": "mandale un mensaje por chat a {persona}",
+   "falta": "¿Qué le escribo?",
+   "nueva": true
+  },
+  {
+   "frase": "escribí un mensaje en el chat de la sala",
+   "plantilla": "escribí un mensaje en el chat de la sala",
+   "falta": "¿Qué mensaje mando?",
+   "nueva": true
+  },
+  {
+   "frase": "escribile a Pablo por chat: estás tercero, preparate",
+   "plantilla": "escribile a {persona} por chat: estás tercero, atento",
+   "args": {
+    "text": "estás tercero, atento",
+    "to": "{persona}"
+   }
+  },
+  {
+   "frase": "mandá un mensaje por chat",
+   "plantilla": "mandá un mensaje por chat",
+   "falta": "¿Qué texto mando?",
+   "nueva": true
+  },
+  {
+   "frase": "escribile a {persona} por chat",
+   "plantilla": "escribile a {persona} por chat",
+   "falta": "¿Qué texto le mando?",
    "nueva": true
   }
  ],
@@ -1955,6 +2693,656 @@
    "plantilla": "aguardá la respuesta por escrito, dale un minuto",
    "falta": "¿De quién espero la respuesta?",
    "nueva": true
+  },
+  {
+   "frase": "¿{persona} va a contestar? quedate esperando un minuto",
+   "plantilla": "¿{persona} va a contestar? quedate esperando un minuto",
+   "args": {
+    "participant": "{persona}",
+    "timeoutSec": 60
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿qué me va a responder {persona}? esperalo en el chat",
+   "plantilla": "¿qué me va a responder {persona}? esperalo en el chat",
+   "args": {
+    "participant": "{persona}"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "{persona} todavía no contestó, bancalo treinta segundos más",
+   "plantilla": "{persona} todavía no contestó, bancalo treinta segundos más",
+   "args": {
+    "participant": "{persona}",
+    "timeoutSec": 30
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "quedate clavado en el chat hasta que responda, medio minuto",
+   "plantilla": "quedate clavado en el chat hasta que responda, medio minuto",
+   "falta": "¿De quién espero la respuesta?",
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  }
+ ],
+ "derivar": [
+  {
+   "frase": "buscame en internet qué frecuencia tiene la red eléctrica acá",
+   "plantilla": "buscame en internet qué frecuencia tiene la red eléctrica acá",
+   "args": {},
+   "tipo_nueva": "derivar",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "llamalo al técnico de sonido que suba al piso",
+   "plantilla": "llamalo al técnico de sonido que suba al piso",
+   "args": {},
+   "tipo_nueva": "derivar",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "sacale una captura a guest 3 y mandásela por mail al productor",
+   "plantilla": "sacale una captura a guest 3 y mandásela por mail al productor",
+   "args": {},
+   "tipo_nueva": "derivar",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "mandale el multiview por mail al productor",
+   "plantilla": "mandale el multiview por mail al productor",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "buscame en internet qué es un multiview",
+   "plantilla": "buscame en internet qué es un multiview",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "mandale a todos los participantes el link por whatsapp",
+   "plantilla": "mandale a todos los participantes el link por whatsapp",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "buscá en linkedin quiénes son los invitados de hoy",
+   "plantilla": "buscá en linkedin quiénes son los invitados de hoy",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "subí la foto del aire a instagram",
+   "plantilla": "subí la foto del aire a instagram",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "fijate en youtube cuánta gente está mirando el vivo",
+   "plantilla": "fijate en youtube cuánta gente está mirando el vivo",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "armame un gif con esos cuadros y mandalo por telegram",
+   "plantilla": "armame un gif con esos cuadros y mandalo por telegram",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "buscame en google cómo enfocar esta cámara",
+   "plantilla": "buscame en google cómo enfocar esta cámara",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "mandale por mail el pantallazo de la app a soporte",
+   "plantilla": "mandale por mail el pantallazo de la app a soporte",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "sacale captura a la pantalla de la compu de producción",
+   "plantilla": "sacale captura a la pantalla de la compu de producción",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿me llegó algún mail de producción?",
+   "plantilla": "¿me llegó algún mail de producción?",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿qué pusieron en el grupo de whatsapp del equipo?",
+   "plantilla": "¿qué pusieron en el grupo de whatsapp del equipo?",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "mandale un whatsapp al productor que ya arrancamos",
+   "plantilla": "mandale un whatsapp al productor que ya arrancamos",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "reiniciá la compu de cabina que está lentísima",
+   "plantilla": "reiniciá la compu de cabina que está lentísima",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "reseteá el router de la oficina que se cae internet",
+   "plantilla": "reseteá el router de la oficina que se cae internet",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "mandale los archivos separados al editor por wetransfer",
+   "plantilla": "mandale los archivos separados al editor por wetransfer",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "mandale por mail al productor la lista de gráficos puestos",
+   "plantilla": "mandale por mail al productor la lista de gráficos puestos",
+   "args": {},
+   "tipo_nueva": "derivar",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "buscame en internet gráficos animados de elecciones para copiar",
+   "plantilla": "buscame en internet gráficos animados de elecciones para copiar",
+   "args": {},
+   "tipo_nueva": "derivar",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "diseñame un gráfico nuevo de encuestas en Illustrator",
+   "plantilla": "diseñame un gráfico nuevo de encuestas en Illustrator",
+   "args": {},
+   "tipo_nueva": "derivar",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "mandale el link de la llamada al invitado por WhatsApp",
+   "plantilla": "mandale el link de la llamada al invitado por WhatsApp",
+   "args": {},
+   "tipo_nueva": "derivar",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "buscá en Google quién es el que aparece en cámara",
+   "plantilla": "buscá en Google quién es el que aparece en cámara",
+   "args": {},
+   "tipo_nueva": "derivar",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "mandale el carrusel por mail a producción",
+   "plantilla": "mandale el carrusel por mail a producción",
+   "args": {},
+   "tipo_nueva": "derivar",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "buscame en internet una foto del estadio para el carrusel",
+   "plantilla": "buscame en internet una foto del estadio para el carrusel",
+   "args": {},
+   "tipo_nueva": "derivar",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "imprimí la lámina cinco para el conductor",
+   "plantilla": "imprimí la lámina cinco para el conductor",
+   "args": {},
+   "tipo_nueva": "derivar",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "subí los carruseles al drive de producción",
+   "plantilla": "subí los carruseles al drive de producción",
+   "args": {},
+   "tipo_nueva": "derivar",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "pasale al conductor por whatsapp el orden de las láminas",
+   "plantilla": "pasale al conductor por whatsapp el orden de las láminas",
+   "args": {},
+   "tipo_nueva": "derivar",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "mandale al sonidista un mail con los niveles",
+   "plantilla": "mandale al sonidista un mail con los niveles",
+   "args": {},
+   "tipo_nueva": "derivar",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "probá si anda internet en la compu de la oficina",
+   "plantilla": "probá si anda internet en la compu de la oficina",
+   "args": {},
+   "tipo_nueva": "derivar",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "llamá al proveedor que se cortó internet en el edificio",
+   "plantilla": "llamá al proveedor que se cortó internet en el edificio",
+   "args": {},
+   "tipo_nueva": "derivar",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "mandales a todos los invitados el recordatorio por mail",
+   "plantilla": "mandales a todos los invitados el recordatorio por mail",
+   "args": {},
+   "tipo_nueva": "derivar",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "anotá cuántas veces habló cada orador en una planilla",
+   "plantilla": "anotá cuántas veces habló cada orador en una planilla",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "llamalo por teléfono al invitado que no entra",
+   "plantilla": "llamalo por teléfono al invitado que no entra",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "subí la grabación de ayer a YouTube",
+   "plantilla": "subí la grabación de ayer a YouTube",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "mandale el archivo grabado a la productora por mail",
+   "plantilla": "mandale el archivo grabado a la productora por mail",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "editá la grabación y cortale los primeros minutos",
+   "plantilla": "editá la grabación y cortale los primeros minutos",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "publicá el link de la sala en Instagram",
+   "plantilla": "publicá el link de la sala en Instagram",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "mandale el pin nuevo por mail a los invitados",
+   "plantilla": "mandale el pin nuevo por mail a los invitados",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "mandale la invitación por whatsapp al columnista",
+   "plantilla": "mandale la invitación por whatsapp al columnista",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "borrá el mail que le mandamos al orador",
+   "plantilla": "borrá el mail que le mandamos al orador",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "buscá el cargo del orador en LinkedIn",
+   "plantilla": "buscá el cargo del orador en LinkedIn",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿qué orígenes de datos usa la competencia para sus rótulos?",
+   "plantilla": "¿qué orígenes de datos usa la competencia para sus rótulos?",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "copiame el link de la transmisión y mandáselo al productor",
+   "plantilla": "copiame el link de la transmisión y mandáselo al productor",
+   "args": {},
+   "tipo_nueva": "no_es_suya",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "creá un evento en el calendario para el programa del jueves",
+   "plantilla": "creá un evento en el calendario para el programa del jueves",
+   "args": {},
+   "tipo_nueva": "no_es_suya",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "armame el guion del programa de esta noche",
+   "plantilla": "armame el guion del programa de esta noche",
+   "args": {},
+   "tipo_nueva": "no_es_suya",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "borrá el mensaje que mandé al grupo de producción",
+   "plantilla": "borrá el mensaje que mandé al grupo de producción",
+   "args": {},
+   "tipo_nueva": "no_es_suya",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "exportá la grabación del programa a mp4",
+   "plantilla": "exportá la grabación del programa a mp4",
+   "args": {},
+   "tipo_nueva": "no_es_suya",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "subí el export de las escenas a Google Drive",
+   "plantilla": "subí el export de las escenas a Google Drive",
+   "args": {},
+   "tipo_nueva": "no_es_suya",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "creá una carpeta en el escritorio para las grabaciones",
+   "plantilla": "creá una carpeta en el escritorio para las grabaciones",
+   "args": {},
+   "tipo_nueva": "no_es_suya",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "mandale por mail la lista de escenas al productor",
+   "plantilla": "mandale por mail la lista de escenas al productor",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "imprimime la escaleta del programa de hoy",
+   "plantilla": "imprimime la escaleta del programa de hoy",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "reordená los bloques de la escaleta en el documento compartido",
+   "plantilla": "reordená los bloques de la escaleta en el documento compartido",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "mandale al conductor una vista previa por WhatsApp",
+   "plantilla": "mandale al conductor una vista previa por WhatsApp",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "ponele contraseña a la computadora del switcher",
+   "plantilla": "ponele contraseña a la computadora del switcher",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "cambiale el nombre al archivo de la grabación de ayer",
+   "plantilla": "cambiale el nombre al archivo de la grabación de ayer",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "avisale al de piso que salimos al aire en un minuto",
+   "plantilla": "avisale al de piso que salimos al aire en un minuto",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "mandale por mail al productor la escena armada",
+   "plantilla": "mandale por mail al productor la escena armada",
+   "args": {},
+   "tipo_nueva": "derivar",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "buscá en internet cómo se hace un take con corte",
+   "plantilla": "buscá en internet cómo se hace un take con corte",
+   "args": {},
+   "tipo_nueva": "derivar",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "eliminá el archivo del drive de producción",
+   "plantilla": "eliminá el archivo del drive de producción",
+   "args": {},
+   "tipo_nueva": "derivar",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿qué archivos me mandaron por WhatsApp?",
+   "plantilla": "¿qué archivos me mandaron por WhatsApp?",
+   "args": {},
+   "tipo_nueva": "derivar",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "buscá en internet el logo del sponsor para la escena",
+   "plantilla": "buscá en internet el logo del sponsor para la escena",
+   "args": {},
+   "tipo_nueva": "derivar",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "buscame en internet cómo se ordenan las capas en OBS",
+   "plantilla": "buscame en internet cómo se ordenan las capas en OBS",
+   "args": {},
+   "tipo_nueva": "no_es_suya",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "bajate los drivers nuevos de la Elgato de la página",
+   "plantilla": "bajate los drivers nuevos de la Elgato de la página",
+   "args": {},
+   "tipo_nueva": "no_es_suya",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "instalame el plugin de NDI desde internet",
+   "plantilla": "instalame el plugin de NDI desde internet",
+   "args": {},
+   "tipo_nueva": "no_es_suya",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "mandale un mail a los oradores con el orden de la fila",
+   "plantilla": "mandale un mail a los oradores con el orden de la fila",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "avisale por WhatsApp al siguiente orador que se prepare",
+   "plantilla": "avisale por WhatsApp al siguiente orador que se prepare",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "buscá en internet quién es el orador que está al aire",
+   "plantilla": "buscá en internet quién es el orador que está al aire",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "escribile al presentador el guion del programa",
+   "plantilla": "escribile al presentador el guion del programa",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "poné una alarma en mi celular para dentro de tres minutos",
+   "plantilla": "poné una alarma en mi celular para dentro de tres minutos",
+   "args": {},
+   "tipo_nueva": "no_es_suyo",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "mandale un mail a los oradores con su horario",
+   "plantilla": "mandale un mail a los oradores con su horario",
+   "args": {},
+   "tipo_nueva": "derivar",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "fijate cuánta gente nos está mirando en youtube",
+   "plantilla": "fijate cuánta gente nos está mirando en youtube",
+   "args": {},
+   "tipo_nueva": "derivar",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "publicá en twitter que ya estamos en vivo",
+   "plantilla": "publicá en twitter que ya estamos en vivo",
+   "args": {},
+   "tipo_nueva": "derivar",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "borrá el video del vivo de youtube",
+   "plantilla": "borrá el video del vivo de youtube",
+   "args": {},
+   "tipo_nueva": "derivar",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "descargame transiciones nuevas de internet",
+   "plantilla": "descargame transiciones nuevas de internet",
+   "args": {},
+   "tipo_nueva": "derivar",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "gateway_restart": [
@@ -2047,6 +3435,22 @@
    "frase": "la sala quedó trabada, reiniciá su proceso",
    "plantilla": "la sala quedó trabada, reiniciá su proceso",
    "args": {}
+  },
+  {
+   "frase": "los invitados quedaron todos congelados y la sala no responde",
+   "plantilla": "los invitados quedaron todos congelados y la sala no responde",
+   "args": {},
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "la sala de invitados quedó tildada, no entra nadie",
+   "plantilla": "la sala de invitados quedó tildada, no entra nadie",
+   "args": {},
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "grabacion_individual": [
@@ -2174,6 +3578,38 @@
    "args": {
     "todas": true
    }
+  },
+  {
+   "frase": "grabame a {persona} en un archivo aparte",
+   "plantilla": "grabame a {persona} en un archivo aparte",
+   "args": {
+    "arrancar": [
+     "{persona}"
+    ]
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "el editor no tiene el archivo suelto de {fuente}, grabalo aparte",
+   "plantilla": "el editor no tiene el archivo suelto de {fuente}, grabalo aparte",
+   "args": {
+    "arrancar": [
+     "{fuente}"
+    ]
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "arrancá una grabación separada, además del programa",
+   "plantilla": "arrancá una grabación separada, además del programa",
+   "falta": "¿Qué entrada grabo aparte?",
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "grafico_en_escena": [
@@ -2256,6 +3692,22 @@
    "frase": "qué fuentes de animado están cargadas en las tomas",
    "plantilla": "qué fuentes de animado están cargadas en las tomas",
    "args": {}
+  },
+  {
+   "frase": "¿cuántas fuentes de animado hay colocadas ahora?",
+   "plantilla": "¿cuántas fuentes de animado hay colocadas ahora?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿dónde metimos la fuente de gráfico, en qué toma está?",
+   "plantilla": "¿dónde metimos la fuente de gráfico, en qué toma está?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "grafico_listar": [
@@ -2348,6 +3800,30 @@
    "frase": "Repasame los gráficos disponibles, todos",
    "plantilla": "Repasame los gráficos disponibles, todos",
    "args": {}
+  },
+  {
+   "frase": "¿qué gráficos tenemos para usar hoy?",
+   "plantilla": "¿qué gráficos tenemos para usar hoy?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿existe algún gráfico de marcador en el sistema?",
+   "plantilla": "¿existe algún gráfico de marcador en el sistema?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿cuántas plantillas de gráfico hay cargadas?",
+   "plantilla": "¿cuántas plantillas de gráfico hay cargadas?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "grafico_mostrar": [
@@ -2461,6 +3937,37 @@
    "frase": "tirá un gráfico al aire",
    "plantilla": "tirá un gráfico al aire",
    "falta": "¿Qué gráfico y en qué fuente?",
+   "nueva": true
+  },
+  {
+   "frase": "poné el zócalo del invitado en la fuente 2",
+   "plantilla": "poné {grafico} en la fuente 2",
+   "args": {
+    "nombre": "{grafico}",
+    "fuente": 2
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "no sale el zócalo de Martín, tiralo de nuevo en la fuente 3",
+   "plantilla": "no sale {grafico}, tiralo de nuevo en la fuente 3",
+   "args": {
+    "fuente": 3,
+    "nombre": "{grafico}"
+   }
+  },
+  {
+   "frase": "mostrá el gráfico animado en la escena",
+   "plantilla": "mostrá el gráfico animado en la escena",
+   "falta": "¿Qué gráfico y en qué fuente?",
+   "nueva": true
+  },
+  {
+   "frase": "reproducí el gráfico en la fuente 2",
+   "plantilla": "reproducí el gráfico en la fuente 2",
+   "falta": "¿Qué gráfico?",
    "nueva": true
   }
  ],
@@ -2604,14 +4111,6 @@
    "nueva": true
   },
   {
-   "frase": "El gráfico de barras tapa al invitado, poné su fuente en transparente",
-   "plantilla": "ocultá {grafico}, tapa al invitado",
-   "args": {
-    "fuente": "{grafico}"
-   },
-   "duda": "el esquema pide un entero para fuente; va el hueco del gráfico"
-  },
-  {
    "frase": "poné una fuente en transparente",
    "plantilla": "ocultá una fuente",
    "falta": "¿Qué fuente oculto?"
@@ -2626,6 +4125,78 @@
    "frase": "dejá transparente una fuente",
    "plantilla": "dejá transparente una fuente",
    "falta": "¿Qué fuente oculto?",
+   "nueva": true
+  },
+  {
+   "frase": "dejá la fuente 2 sin gráfico",
+   "plantilla": "dejá la fuente 2 sin gráfico",
+   "args": {
+    "fuente": 2
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "limpiá la fuente 1, que no quede ningún animado",
+   "plantilla": "limpiá la fuente 1, que no quede ningún animado",
+   "args": {
+    "fuente": 1
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "se repite y se repite el animado de la fuente 2, cortalo",
+   "plantilla": "se repite y se repite el animado de la fuente 2, cortalo",
+   "args": {
+    "fuente": 2
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "ocultá el gráfico animado",
+   "plantilla": "ocultá el gráfico animado",
+   "falta": "¿Qué número de fuente?",
+   "nueva": true
+  },
+  {
+   "frase": "dejá transparente la fuente del gráfico",
+   "plantilla": "dejá transparente la fuente del gráfico",
+   "falta": "¿Qué número de fuente?",
+   "nueva": true
+  },
+  {
+   "frase": "dejá transparente la fuente del grafico animado",
+   "plantilla": "dejá transparente la fuente del grafico animado",
+   "falta": "¿Qué gráfico?",
+   "nueva": true
+  },
+  {
+   "frase": "el grafico animado tapa la imagen, dejalo transparente",
+   "plantilla": "el grafico animado tapa la imagen, dejalo transparente",
+   "falta": "¿Qué gráfico?",
+   "nueva": true
+  },
+  {
+   "frase": "El gráfico de barras tapa al invitado, poné su fuente en transparente",
+   "plantilla": "{grafico} tapa al invitado, poné su fuente en transparente",
+   "falta": "¿Qué número de fuente pongo transparente?",
+   "duda": "el esquema pide fuente como número entero (id) y la frase nombra el gráfico, no da el número"
+  },
+  {
+   "frase": "dejá transparente una fuente",
+   "plantilla": "dejá transparente una fuente",
+   "falta": "¿Qué fuente?",
+   "nueva": true
+  },
+  {
+   "frase": "poné en transparente la fuente del gráfico",
+   "plantilla": "poné en transparente la fuente del gráfico",
+   "falta": "¿Qué número de fuente?",
    "nueva": true
   }
  ],
@@ -2789,6 +4360,25 @@
    "plantilla": "meté la pantalla compartida del invitado en la toma",
    "falta": "¿De qué lugar es el invitado?",
    "nueva": true
+  },
+  {
+   "frase": "no se ve al invitado del lugar 3 en Noticias",
+   "plantilla": "no se ve al invitado del lugar 3 en {escena}",
+   "args": {
+    "slot": 3,
+    "scene": "{escena}"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "metele la cámara del invitado a Noticias",
+   "plantilla": "metele la cámara del invitado a {escena}",
+   "falta": "¿de qué lugar es el invitado?",
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "imagen_analizar": [
@@ -2922,6 +4512,72 @@
    "plantilla": "mirá la cámara del invitado",
    "falta": "¿Qué querés saber de esa imagen?",
    "nueva": true
+  },
+  {
+   "frase": "¿hay alguien en la sala de Cámara 2?",
+   "plantilla": "¿hay alguien en la sala de {fuente}?",
+   "args": {
+    "fuente": "{fuente}",
+    "que": "¿hay alguien en la sala?"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿se ve negro Cámara 1 o tiene imagen?",
+   "plantilla": "¿se ve negro {fuente} o tiene imagen?",
+   "args": {
+    "fuente": "{fuente}",
+    "que": "¿se ve negro o tiene imagen?"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿Martín está mirando a cámara en el programa?",
+   "plantilla": "¿{persona} está mirando a cámara en el programa?",
+   "args": {
+    "fuente": "programa",
+    "que": "¿{persona} está mirando a cámara?"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿está desenfocada la Cámara 3?",
+   "plantilla": "¿está desenfocada {fuente}?",
+   "args": {
+    "fuente": "{fuente}",
+    "que": "¿está desenfocada la imagen?"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿se lee bien el zócalo en el programa?",
+   "plantilla": "¿se lee bien el zócalo en el programa?",
+   "args": {
+    "fuente": "programa",
+    "que": "¿se lee bien el zócalo?"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿qué escena se ve en la app ahora mismo?",
+   "plantilla": "¿qué escena se ve en la app ahora mismo?",
+   "args": {
+    "fuente": "app",
+    "que": "¿qué escena se ve ahora?"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "laminas_aplicar": [
@@ -3047,6 +4703,36 @@
    "plantilla": "aplicá las láminas a la toma que está al aire",
    "falta": "¿Qué carrusel?",
    "nueva": true
+  },
+  {
+   "frase": "no, no te pregunto si está, poné el carrusel de economía en la toma dos",
+   "plantilla": "no, no te pregunto si está, poné {carrusel} en {escena}",
+   "args": {
+    "carrusel": "{carrusel}",
+    "escena": "{escena}"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "que el carrusel de deportes quede puesto en la general, dale",
+   "plantilla": "que {carrusel} quede puesto en {escena}, dale",
+   "args": {
+    "carrusel": "{carrusel}",
+    "escena": "{escena}"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "instalá el carrusel en la escena del cierre",
+   "plantilla": "instalá el carrusel en {escena}",
+   "falta": "¿Qué carrusel pongo en esa escena?",
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "laminas_buscar": [
@@ -3191,6 +4877,58 @@
    "plantilla": "buscá entre las láminas",
    "falta": "¿Qué texto busco y en qué carrusel?",
    "nueva": true
+  },
+  {
+   "frase": "¿cuál es la lámina de la inflación en el carrusel de economía?",
+   "plantilla": "¿cuál es la lámina de la inflación en {carrusel}?",
+   "args": {
+    "carrusel": "{carrusel}",
+    "texto": "inflación"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿tiene el carrusel de clima alguna lámina de granizo?",
+   "plantilla": "¿tiene {carrusel} alguna lámina de granizo?",
+   "args": {
+    "carrusel": "{carrusel}",
+    "texto": "granizo"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿qué número tiene la del gol de Boca en el carrusel de deportes?",
+   "plantilla": "¿qué número tiene la del gol de Boca en {carrusel}?",
+   "args": {
+    "carrusel": "{carrusel}",
+    "texto": "gol de Boca"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "no encuentro la del mapa electoral, ¿en cuál está?",
+   "plantilla": "no encuentro la del mapa electoral, ¿en cuál está?",
+   "falta": "¿En qué carrusel la busco?",
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "el conductor pide la del riesgo país y no la veo en el carrusel de economía",
+   "plantilla": "el conductor pide la del riesgo país y no la veo en {carrusel}",
+   "args": {
+    "carrusel": "{carrusel}",
+    "texto": "riesgo país"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "laminas_ir": [
@@ -3353,6 +5091,47 @@
    "plantilla": "poné la lámina anterior del carrusel",
    "falta": "¿En qué carrusel?",
    "nueva": true
+  },
+  {
+   "frase": "no te pregunto cuál está, poné la seis de deportes",
+   "plantilla": "no te pregunto cuál está, poné la seis de {carrusel}",
+   "args": {
+    "carrusel": "{carrusel}",
+    "numero": 6
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "dejá la lámina dos al aire en el carrusel de clima",
+   "plantilla": "dejá la lámina dos al aire en {carrusel}",
+   "args": {
+    "carrusel": "{carrusel}",
+    "numero": 2
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "me pasé de lámina en el carrusel de deportes, se adelantó una",
+   "plantilla": "me pasé de lámina en {carrusel}, se adelantó una",
+   "args": {
+    "carrusel": "{carrusel}",
+    "hacia": "anterior"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "está al aire la lámina equivocada en el carrusel de clima",
+   "plantilla": "está al aire la lámina equivocada en {carrusel}",
+   "falta": "¿Qué número de lámina pongo?",
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "laminas_listar": [
@@ -3435,6 +5214,46 @@
    "frase": "Nombres de los carruseles que hay, con su cantidad de láminas",
    "plantilla": "Nombres de los carruseles que hay, con su cantidad de láminas",
    "args": {}
+  },
+  {
+   "frase": "¿qué carrusel está abierto ahora?",
+   "plantilla": "¿qué carrusel está abierto ahora?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿hay algún carrusel de clima en la biblioteca?",
+   "plantilla": "¿hay algún carrusel de clima en la biblioteca?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿cuál de los carruseles es el más largo?",
+   "plantilla": "¿cuál de los carruseles es el más largo?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿cuántas láminas trae cada carrusel que tenemos?",
+   "plantilla": "¿cuántas láminas trae cada carrusel que tenemos?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "no me acuerdo cómo se llamaba el carrusel de la elección",
+   "plantilla": "no me acuerdo cómo se llamaba el carrusel de la elección",
+   "args": {},
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "laminas_ver": [
@@ -3546,6 +5365,64 @@
    "plantilla": "qué hay cargado en el carrusel",
    "falta": "¿Qué carrusel?",
    "nueva": true
+  },
+  {
+   "frase": "¿cuál lámina está al aire en el carrusel de deportes?",
+   "plantilla": "¿cuál lámina está al aire en {carrusel}?",
+   "args": {
+    "carrusel": "{carrusel}"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿en qué lámina vamos del carrusel de economía?",
+   "plantilla": "¿en qué lámina vamos de {carrusel}?",
+   "args": {
+    "carrusel": "{carrusel}"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿qué viene después de la que está puesta en clima?",
+   "plantilla": "¿qué viene después de la que está puesta en {carrusel}?",
+   "args": {
+    "carrusel": "{carrusel}"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿cuántas le quedan al carrusel de policiales?",
+   "plantilla": "¿cuántas le quedan a {carrusel}?",
+   "args": {
+    "carrusel": "{carrusel}"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿cuál está puesta ahora?",
+   "plantilla": "¿cuál está puesta ahora?",
+   "falta": "¿De qué carrusel?",
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "me perdí, no sé en qué lámina está deportes",
+   "plantilla": "me perdí, no sé en qué lámina está {carrusel}",
+   "args": {
+    "carrusel": "{carrusel}"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "mixer_list": [
@@ -3648,6 +5525,22 @@
    "frase": "leeme del mezclador el pico actual del programa en dBFS",
    "plantilla": "leeme del mezclador el pico actual del programa en dBFS",
    "args": {}
+  },
+  {
+   "frase": "¿cuánto pica el programa ahora?",
+   "plantilla": "¿cuánto pica el programa ahora?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿qué canales están abiertos?",
+   "plantilla": "¿qué canales están abiertos?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "network_status": [
@@ -3725,6 +5618,54 @@
    "frase": "mirá cómo está el acceso de red de los invitados al gateway",
    "plantilla": "mirá cómo está el acceso de red de los invitados al gateway",
    "args": {}
+  },
+  {
+   "frase": "¿qué IP tiene el aparato en la red local?",
+   "plantilla": "¿qué IP tiene el aparato en la red local?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿están abiertos los puertos WebRTC del gateway?",
+   "plantilla": "¿están abiertos los puertos WebRTC del gateway?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿por dónde entran los invitados, por el túnel o directo?",
+   "plantilla": "¿por dónde entran los invitados, por el túnel o directo?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿cuál es la dirección HTTPS para pasarle a los invitados?",
+   "plantilla": "¿cuál es la dirección HTTPS para pasarle a los invitados?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "los remotos no pueden conectarse, les queda cargando el link",
+   "plantilla": "los remotos no pueden conectarse, les queda cargando el link",
+   "args": {},
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "al invitado le dice que la página no es segura",
+   "plantilla": "al invitado le dice que la página no es segura",
+   "args": {},
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "participant_admit": [
@@ -3843,6 +5784,34 @@
    "plantilla": "deja entrar a la sala a uno del lobby",
    "falta": "¿A quién dejo entrar?",
    "nueva": true
+  },
+  {
+   "frase": "{persona} está esperando hace rato en el lobby, dale",
+   "plantilla": "{persona} está esperando hace rato en el lobby, dale",
+   "args": {
+    "participant": "{persona}"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "me escribe Marta que sigue clavada en la sala de espera",
+   "plantilla": "me escribe {persona} que sigue clavada en la sala de espera",
+   "args": {
+    "participant": "{persona}"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "hacé pasar al que sigue, ya",
+   "plantilla": "hacé pasar al que sigue, ya",
+   "falta": "¿A quién del lobby hago pasar?",
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "participant_admit_all": [
@@ -3925,6 +5894,22 @@
    "frase": "admisión de todo el lobby, uno atrás del otro",
    "plantilla": "admisión de todo el lobby, uno atrás del otro",
    "args": {}
+  },
+  {
+   "frase": "se está llenando el lobby y nadie entra",
+   "plantilla": "se está llenando el lobby y nadie entra",
+   "args": {},
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "entrá a los que hay en espera, a todos",
+   "plantilla": "entrá a los que hay en espera, a todos",
+   "args": {},
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "participant_kick": [
@@ -4030,6 +6015,34 @@
    "plantilla": "che, saca de la sala al que molesta",
    "falta": "¿A quién saco de la sala?",
    "nueva": true
+  },
+  {
+   "frase": "se coló Pérez en la sala y no está en la lista",
+   "plantilla": "se coló {persona} en la sala y no está en la lista",
+   "args": {
+    "participant": "{persona}"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "hay un intruso adentro que dice Pérez, volalo",
+   "plantilla": "hay un intruso adentro que dice {persona}, volalo",
+   "args": {
+    "participant": "{persona}"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "sacá a uno que está adentro y no va",
+   "plantilla": "sacá a uno que está adentro y no va",
+   "falta": "¿A quién saco de la sala?",
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "participant_profile": [
@@ -4168,6 +6181,58 @@
    "plantilla": "cambiale el nombre en el perfil a Dra. Ruiz",
    "falta": "¿A qué persona le cambio el nombre?",
    "nueva": true
+  },
+  {
+   "frase": "en el tablero a Ruiz le figura el cargo viejo, ponele senadora",
+   "plantilla": "en el tablero a {persona} le figura el cargo viejo, ponele senadora",
+   "args": {
+    "participant": "{persona}",
+    "info": "senadora"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "a Ruiz le sale el nombre todo en minúscula, poné Ana Ruiz",
+   "plantilla": "a {persona} le sale el nombre todo en minúscula, poné Ana Ruiz",
+   "args": {
+    "participant": "{persona}",
+    "name": "Ana Ruiz"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "el nombre de Ruiz está mal en el tablero",
+   "plantilla": "el nombre de {persona} está mal en el tablero",
+   "falta": "¿Qué nombre le pongo?",
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "cargale el teléfono a Ruiz: 11 5555 0101",
+   "plantilla": "cargale el teléfono a {persona}: 11 5555 0101",
+   "args": {
+    "participant": "{persona}",
+    "contact": "11 5555 0101"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "a Ruiz ponele de contacto ruiz@prensa.com",
+   "plantilla": "a {persona} ponele de contacto ruiz@prensa.com",
+   "args": {
+    "participant": "{persona}",
+    "contact": "ruiz@prensa.com"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "participant_reject": [
@@ -4301,6 +6366,34 @@
    "plantilla": "rechazá la entrada del lobby, dale",
    "falta": "¿A quién le niego la entrada?",
    "nueva": true
+  },
+  {
+   "frase": "en el lobby hay un tal Sosa que no está en la lista",
+   "plantilla": "en el lobby hay un tal {persona} que no está en la lista",
+   "args": {
+    "participant": "{persona}"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "Sosa entró al lobby con un nombre trucho, no pasa",
+   "plantilla": "{persona} entró al lobby con un nombre trucho, no pasa",
+   "args": {
+    "participant": "{persona}"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "al que está esperando rebotalo",
+   "plantilla": "al que está esperando rebotalo",
+   "falta": "¿A quién del lobby rechazo?",
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "participant_request": [
@@ -4420,6 +6513,58 @@
    "plantilla": "pedile algo a {persona}",
    "falta": "¿Qué le pido: silenciar o activar micrófono, apagar o prender cámara, dejar de compartir pantalla o bajar la mano?",
    "nueva": true
+  },
+  {
+   "frase": "se acopla el mic de Laura",
+   "plantilla": "se acopla el mic de {persona}",
+   "args": {
+    "participant": "{persona}",
+    "what": "mute-mic"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "no se escucha a Sofía, tiene el micro cerrado",
+   "plantilla": "no se escucha a {persona}, tiene el micro cerrado",
+   "args": {
+    "participant": "{persona}",
+    "what": "unmute-mic"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "Carlos sigue con la mano levantada y ya habló",
+   "plantilla": "{persona} sigue con la mano levantada y ya habló",
+   "args": {
+    "participant": "{persona}",
+    "what": "lower-hand"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "se ve negro el recuadro de Ana, que prenda la cámara",
+   "plantilla": "se ve negro el recuadro de {persona}, que prenda la cámara",
+   "args": {
+    "participant": "{persona}",
+    "what": "unmute-cam"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "hay un ruido de obra en uno de los invitados, que se mutee",
+   "plantilla": "hay un ruido de obra en uno de los invitados, que se mutee",
+   "falta": "¿a qué invitado le pido que se mutee?",
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "participant_requeue": [
@@ -4548,6 +6693,34 @@
    "plantilla": "ponelo al final de la fila de oradores",
    "falta": "¿Qué orador vuelve al final de la fila?",
    "nueva": true
+  },
+  {
+   "frase": "Pedro ya habló pero quiere volver a opinar, que espere al final",
+   "plantilla": "{persona} ya habló pero quiere volver a opinar, que espere al final",
+   "args": {
+    "participant": "{persona}"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "Lucía terminó y levantó la mano otra vez, ponela última",
+   "plantilla": "{persona} terminó y levantó la mano otra vez, ponela última",
+   "args": {
+    "participant": "{persona}"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "el que ya habló quiere otra ronda, mandalo al fondo",
+   "plantilla": "el que ya habló quiere otra ronda, mandalo al fondo",
+   "falta": "¿a quién mando al final de la fila?",
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "participant_talk": [
@@ -4702,6 +6875,39 @@
    "plantilla": "quiero hablar por monitoreo con el del lobby",
    "falta": "¿Con quién del lobby hablo?",
    "nueva": true
+  },
+  {
+   "frase": "cortá el privado con Julián, ya le expliqué",
+   "plantilla": "cortá el privado con {persona}, ya le expliqué",
+   "args": {
+    "participant": "{persona}",
+    "on": false
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "Marta está en el lobby y no sabe qué tiene que decir, pasame con ella",
+   "plantilla": "{persona} está en el lobby y no sabe qué tiene que decir, pasame con ella",
+   "args": {
+    "participant": "{persona}",
+    "on": true
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "listo, cerrá la línea privada con Rocío",
+   "plantilla": "listo, cerrá la línea privada con {persona}",
+   "args": {
+    "participant": "{persona}",
+    "on": false
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "record_start": [
@@ -4784,6 +6990,30 @@
    "frase": "Necesito que empiece a grabar ya",
    "plantilla": "Necesito que empiece a grabar ya",
    "args": {}
+  },
+  {
+   "frase": "ya estamos al aire y el rec está apagado",
+   "plantilla": "ya estamos al aire y el rec está apagado",
+   "args": {},
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "no está grabando nada y arrancó la entrevista",
+   "plantilla": "no está grabando nada y arrancó la entrevista",
+   "args": {},
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "el contador de grabación está en cero, largá rec ya",
+   "plantilla": "el contador de grabación está en cero, largá rec ya",
+   "args": {},
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "record_stop": [
@@ -4871,6 +7101,30 @@
    "frase": "se llena el disco, frená la grabación",
    "plantilla": "se llena el disco, frená la grabación",
    "args": {}
+  },
+  {
+   "frase": "terminó el programa y sigue grabando",
+   "plantilla": "terminó el programa y sigue grabando",
+   "args": {},
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "se está grabando la tanda al pedo, cortá",
+   "plantilla": "se está grabando la tanda al pedo, cortá",
+   "args": {},
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "avisa que queda poco disco y sigue el rec prendido",
+   "plantilla": "avisa que queda poco disco y sigue el rec prendido",
+   "args": {},
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "room_link": [
@@ -4945,6 +7199,52 @@
    "args": {
     "target": "remote"
    }
+  },
+  {
+   "frase": "¿cuál es el link para entrar a la sala?",
+   "plantilla": "¿cuál es el link para entrar a la sala?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿con qué link entran los que están afuera?",
+   "plantilla": "¿con qué link entran los que están afuera?",
+   "args": {
+    "target": "remote"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿tenés el QR de la sala para la red de acá?",
+   "plantilla": "¿tenés el QR de la sala para la red de acá?",
+   "args": {
+    "target": "local"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿cómo entra el invitado? Pasame el link con el PIN",
+   "plantilla": "¿cómo entra el invitado? Pasame el link con el PIN",
+   "args": {
+    "withPin": true
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "el invitado no encuentra cómo entrar, ¿qué enlace le paso?",
+   "plantilla": "el invitado no encuentra cómo entrar, ¿qué enlace le paso?",
+   "args": {},
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "room_pin": [
@@ -5031,6 +7331,50 @@
    "frase": "Invalidá el PIN actual y dame uno fresco",
    "plantilla": "Generá un PIN nuevo para la sala, el actual no va más",
    "args": {}
+  },
+  {
+   "frase": "poné el pin de la sala en 7350",
+   "plantilla": "poné el pin de la sala en 7350",
+   "args": {
+    "pin": "7350"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "cambiá el pin, no me digas cuál es, cambialo",
+   "plantilla": "cambiá el pin, no me digas cuál es, cambialo",
+   "args": {},
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "dejá el pin en 1990",
+   "plantilla": "dejá el pin en 1990",
+   "args": {
+    "pin": "1990"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "se coló uno con el pin de la semana pasada",
+   "plantilla": "se coló uno con el pin de la semana pasada",
+   "args": {},
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "el pin de la sala salió en el chat público",
+   "plantilla": "el pin de la sala salió en el chat público",
+   "args": {},
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "room_set": [
@@ -5164,6 +7508,56 @@
     "lobby": true,
     "locked": false
    }
+  },
+  {
+   "frase": "cerrame la sala ya",
+   "plantilla": "cerrame la sala ya",
+   "args": {
+    "locked": true
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "abrí la sala, que pueda entrar gente",
+   "plantilla": "abrí la sala, que pueda entrar gente",
+   "args": {
+    "locked": false
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "poné el lobby, que esperen afuera",
+   "plantilla": "poné el lobby, que esperen afuera",
+   "args": {
+    "lobby": true
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "se nos mete cualquiera a la sala sin avisar",
+   "plantilla": "se nos mete cualquiera a la sala sin avisar",
+   "args": {
+    "lobby": true
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "el invitado dice que la sala le figura cerrada y no puede entrar",
+   "plantilla": "el invitado dice que la sala le figura cerrada y no puede entrar",
+   "args": {
+    "locked": false
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "room_status": [
@@ -5211,6 +7605,38 @@
    "frase": "algo raro pasa adentro, dame todo el detalle de la sala",
    "plantilla": "algo raro pasa adentro, dame todo el detalle de la sala",
    "args": {}
+  },
+  {
+   "frase": "¿está cerrada la sala?",
+   "plantilla": "¿está cerrada la sala?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿cuál es el pin de la sala ahora?",
+   "plantilla": "¿cuál es el pin de la sala ahora?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿está activado el lobby?",
+   "plantilla": "¿está activado el lobby?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿hay alguien esperando para entrar?",
+   "plantilla": "¿hay alguien esperando para entrar?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "rotulo_desvincular": [
@@ -5315,6 +7741,25 @@
    "plantilla": "desvinculá el rótulo automático",
    "falta": "¿Qué vínculo de rótulo quito?",
    "nueva": true
+  },
+  {
+   "frase": "apagá el vínculo 4 pero dejalo armado",
+   "plantilla": "apagá el vínculo 4 pero dejalo armado",
+   "args": {
+    "id": "4",
+    "activo": false
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "el zócalo de Pedro se pisa solo con otro nombre",
+   "plantilla": "el zócalo de {persona} se pisa solo con otro nombre",
+   "falta": "¿Qué vínculo querés quitar?",
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "rotulo_vincular": [
@@ -5435,6 +7880,30 @@
    "plantilla": "vinculá el zócalo con el nombre del orador",
    "falta": "¿De qué fuente y en qué gráfico?",
    "nueva": true
+  },
+  {
+   "frase": "vinculá un rótulo al orador",
+   "plantilla": "vinculá un rótulo al orador",
+   "falta": "¿Qué gráfico y qué fuente querés vincular?",
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "atá el zócalo nombre al que hable en la cámara dos",
+   "plantilla": "atá {grafico} al que hable en {fuente}",
+   "falta": "¿Qué campos del rótulo querés llenar y con qué dato?",
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "no llego a tipear los nombres de cada orador",
+   "plantilla": "no llego a tipear los nombres de cada orador",
+   "falta": "¿Qué gráfico y qué fuente querés vincular?",
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "rotulo_vinculos": [
@@ -5522,6 +7991,30 @@
    "frase": "¿De qué orígenes se puede alimentar un rótulo vinculado?",
    "plantilla": "¿De qué orígenes se puede alimentar un rótulo vinculado?",
    "args": {}
+  },
+  {
+   "frase": "¿está prendido el vínculo 4?",
+   "plantilla": "¿está prendido el vínculo 4?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿cuál es el id del vínculo del cargo?",
+   "plantilla": "¿cuál es el id del vínculo del cargo?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "el rótulo pone cualquier nombre, ¿de qué origen lo toma?",
+   "plantilla": "el rótulo pone cualquier nombre, ¿de qué origen lo toma?",
+   "args": {},
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "scene_copy": [
@@ -5638,6 +8131,36 @@
    "plantilla": "duplicá la escena en otra nueva",
    "falta": "¿Qué escena copio y cómo se llama la nueva?",
    "nueva": true
+  },
+  {
+   "frase": "hacé que exista una copia de Estudio que se llame Estudio B",
+   "plantilla": "hacé que exista una copia de {escena} que se llame Estudio B",
+   "args": {
+    "from": "{escena}",
+    "to": "Estudio B"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "duplicame Entrevista ya, que la quiero tocar",
+   "plantilla": "duplicame {escena} ya, que la quiero tocar",
+   "falta": "¿cómo se llama la escena nueva?",
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "si toco Noticiero la rompo, duplicala como Noticiero Seguro",
+   "plantilla": "si toco {escena} la rompo, duplicala como Noticiero Seguro",
+   "args": {
+    "from": "{escena}",
+    "to": "Noticiero Seguro"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "scene_create": [
@@ -5789,18 +8312,6 @@
    "falta": "¿Qué fuentes lleva, de abajo hacia arriba?"
   },
   {
-   "frase": "rehacé entera la escena Clima: mapa abajo y cámara del presentador arriba",
-   "plantilla": "rehacé entera {escena}: {fuente} abajo y {fuente2} arriba",
-   "args": {
-    "name": "{escena}",
-    "replace": true,
-    "sources": [
-     "{fuente}",
-     "{fuente2}"
-    ]
-   }
-  },
-  {
    "frase": "armá la escena completa: fondo abajo, cámara, logo arriba",
    "plantilla": "armá la escena completa: {fuente} abajo, {fuente2}, {fuente3} arriba",
    "falta": "¿Cómo se va a llamar la escena?"
@@ -5826,19 +8337,6 @@
    "falta": "¿Cómo se va a llamar la escena y qué más lleva?"
   },
   {
-   "frase": "rehacé entera la escena Mesa con las tres cámaras",
-   "plantilla": "rehacé entera {escena} con {fuente}, {fuente2} y {fuente3}",
-   "args": {
-    "name": "{escena}",
-    "replace": true,
-    "sources": [
-     "{fuente}",
-     "{fuente2}",
-     "{fuente3}"
-    ]
-   }
-  },
-  {
    "frase": "definí la escena Debate compartiendo las cámaras de Panel, en este orden",
    "plantilla": "definí la escena Debate compartiendo las cámaras de {escena}, en este orden",
    "falta": "¿Qué cámaras de esa escena y en qué orden, de abajo hacia arriba?"
@@ -5854,97 +8352,6 @@
    "plantilla": "rehacé entera la escena con todas sus capas",
    "falta": "¿Qué escena y con qué fuentes, de abajo hacia arriba?",
    "nueva": true
-  },
-  {
-   "frase": "armá la escena Cierre con cámara 1, logo y zócalo, todo de una",
-   "plantilla": "armá la escena Cierre con {fuente}, {fuente2} y {fuente3}",
-   "args": {
-    "name": "Cierre",
-    "sources": [
-     {
-      "name": "{fuente}"
-     },
-     {
-      "name": "{fuente2}"
-     },
-     {
-      "name": "{fuente3}"
-     }
-    ]
-   }
-  },
-  {
-   "frase": "Armame entera la escena Noticias: fondo, cámara y logo, de una",
-   "plantilla": "armá la escena Noticias con {fuente}, {fuente2} y {fuente3}",
-   "args": {
-    "name": "Noticias",
-    "sources": [
-     {
-      "name": "{fuente}"
-     },
-     {
-      "name": "{fuente2}"
-     },
-     {
-      "name": "{fuente3}"
-     }
-    ]
-   }
-  },
-  {
-   "frase": "definí la escena Entrevista de una: fondo abajo, dos cámaras arriba",
-   "plantilla": "creá la escena Entrevista: {fuente} abajo, {fuente2} y {fuente3} arriba",
-   "args": {
-    "name": "Entrevista",
-    "sources": [
-     {
-      "name": "{fuente}"
-     },
-     {
-      "name": "{fuente2}"
-     },
-     {
-      "name": "{fuente3}"
-     }
-    ]
-   }
-  },
-  {
-   "frase": "vaciá y rehacé la escena Deportes: placa, cámara 2 y marcador",
-   "plantilla": "rehacé {escena} con {fuente}, {fuente2} y {fuente3}",
-   "args": {
-    "name": "{escena}",
-    "replace": true,
-    "sources": [
-     {
-      "name": "{fuente}"
-     },
-     {
-      "name": "{fuente2}"
-     },
-     {
-      "name": "{fuente3}"
-     }
-    ]
-   }
-  },
-  {
-   "frase": "creá de una la escena Clima con fondo, mapa y reloj, de abajo arriba",
-   "plantilla": "creá la escena Clima con {fuente}, {fuente2} y {fuente3}",
-   "args": {
-    "name": "Clima",
-    "sources": [
-     {
-      "name": "{fuente}"
-     },
-     {
-      "name": "{fuente2}"
-     },
-     {
-      "name": "{fuente3}"
-     }
-    ]
-   }
   },
   {
    "frase": "creá una escena nueva con {fuente} y {fuente2}",
@@ -5975,6 +8382,148 @@
    "frase": "creá una escena nueva con fondo y cámara",
    "plantilla": "creá una escena nueva con fondo y cámara",
    "falta": "¿Qué nombre le pongo a la escena?",
+   "nueva": true
+  },
+  {
+   "frase": "creá la escena Entrevista",
+   "plantilla": "creá la escena Entrevista",
+   "falta": "¿Qué fuentes lleva la escena?",
+   "nueva": true
+  },
+  {
+   "frase": "armame una escena con Cámara 1 y Placa Clima",
+   "plantilla": "armame una escena con {fuente} y {fuente2}",
+   "falta": "¿cómo se llama la escena?",
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "rehacé entera la escena Clima: mapa abajo y cámara del presentador arriba",
+   "plantilla": "rehacé entera {escena}: mapa abajo y cámara del presentador arriba",
+   "args": {
+    "name": "{escena}",
+    "replace": true,
+    "sources": [
+     "mapa",
+     "cámara del presentador"
+    ]
+   }
+  },
+  {
+   "frase": "rehacé entera la escena Mesa con las tres cámaras",
+   "plantilla": "rehacé entera {escena} con las tres cámaras",
+   "args": {
+    "name": "{escena}",
+    "replace": true,
+    "sources": [
+     "cámara 1",
+     "cámara 2",
+     "cámara 3"
+    ]
+   }
+  },
+  {
+   "frase": "armá la escena Cierre con cámara 1, logo y zócalo, todo de una",
+   "plantilla": "armá {escena} con cámara 1, logo y zócalo, todo de una",
+   "args": {
+    "name": "{escena}",
+    "sources": [
+     "cámara 1",
+     "logo",
+     "zócalo"
+    ]
+   }
+  },
+  {
+   "frase": "Armame entera la escena Noticias: fondo, cámara y logo, de una",
+   "plantilla": "Armame entera {escena}: fondo, cámara y logo, de una",
+   "args": {
+    "name": "{escena}",
+    "sources": [
+     "fondo",
+     "cámara",
+     "logo"
+    ]
+   }
+  },
+  {
+   "frase": "definí la escena Entrevista de una: fondo abajo, dos cámaras arriba",
+   "plantilla": "definí {escena} de una: fondo abajo, dos cámaras arriba",
+   "args": {
+    "name": "{escena}",
+    "sources": [
+     "fondo",
+     "cámara 1",
+     "cámara 2"
+    ]
+   }
+  },
+  {
+   "frase": "creá de una la escena Clima con fondo, mapa y reloj, de abajo arriba",
+   "plantilla": "creá de una {escena} con fondo, mapa y reloj, de abajo arriba",
+   "args": {
+    "name": "{escena}",
+    "sources": [
+     "fondo",
+     "mapa",
+     "reloj"
+    ]
+   }
+  },
+  {
+   "frase": "armá la escena Tanda con Fondo y Video Tanda, y mandala al aire",
+   "plantilla": "armá {escena} con Fondo y Video Tanda, y mandala al aire",
+   "args": {
+    "name": "{escena}",
+    "sources": [
+     "Fondo",
+     "Video Tanda"
+    ],
+    "switch": true
+   }
+  },
+  {
+   "frase": "armá una escena nueva de una",
+   "plantilla": "armá una escena nueva de una",
+   "falta": "¿Cómo se llama la escena y qué fuentes lleva?",
+   "nueva": true
+  },
+  {
+   "frase": "rehacé entera la escena Noticias",
+   "plantilla": "rehacé entera {escena}",
+   "falta": "¿Qué fuentes lleva, de abajo hacia arriba?",
+   "nueva": true
+  },
+  {
+   "frase": "creá una escena nueva con {fuente} y {fuente2}",
+   "plantilla": "creá una escena nueva con {fuente} y {fuente2}",
+   "falta": "¿Qué nombre le pongo a la escena?",
+   "nueva": true
+  },
+  {
+   "frase": "creá una escena nueva con el nombre Entrevista",
+   "plantilla": "creá una escena nueva con el nombre Entrevista",
+   "falta": "¿Qué fuentes lleva la escena?",
+   "nueva": true
+  },
+  {
+   "frase": "vaciá y rehacé la escena Deportes: placa, cámara 2 y marcador",
+   "plantilla": "vaciá y rehacé {escena}: placa, cámara 2 y marcador",
+   "args": {
+    "name": "{escena}",
+    "replace": true,
+    "sources": [
+     "placa",
+     "cámara 2",
+     "marcador"
+    ]
+   }
+  },
+  {
+   "frase": "creá una escena nueva",
+   "plantilla": "creá una escena nueva",
+   "falta": "¿Cómo se llama la escena y qué fuentes lleva?",
    "nueva": true
   },
   {
@@ -6123,6 +8672,24 @@
    "plantilla": "che, borrá la escena que sobra",
    "falta": "¿Qué escena borro?",
    "nueva": true
+  },
+  {
+   "frase": "que no exista más Entrevista Copia, borrala",
+   "plantilla": "que no exista más {escena}, borrala",
+   "args": {
+    "name": "{escena}"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "la lista está llena de escenas viejas, borrá una",
+   "plantilla": "la lista está llena de escenas viejas, borrá una",
+   "falta": "¿qué escena borro?",
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "scene_export": [
@@ -6220,6 +8787,54 @@
    "args": {
     "name": "{escena}"
    }
+  },
+  {
+   "frase": "¿cómo está definida Estudio, con qué settings tiene cada fuente?",
+   "plantilla": "¿cómo está definida {escena}, con qué settings tiene cada fuente?",
+   "args": {
+    "name": "{escena}"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿qué volumen y posición tiene cada fuente de Debate?",
+   "plantilla": "¿qué volumen y posición tiene cada fuente de {escena}?",
+   "args": {
+    "name": "{escena}"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿cómo quedaron definidas todas las escenas, con todo?",
+   "plantilla": "¿cómo quedaron definidas todas las escenas, con todo?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿qué capas de Apertura están ocultas y dónde está ubicada cada una?",
+   "plantilla": "¿qué capas de {escena} están ocultas y dónde está ubicada cada una?",
+   "args": {
+    "name": "{escena}"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "Noticiero se ve distinta en el otro equipo, pasame su definición completa",
+   "plantilla": "{escena} se ve distinta en el otro equipo, pasame su definición completa",
+   "args": {
+    "name": "{escena}"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "scene_folder": [
@@ -6353,6 +8968,46 @@
    "plantilla": "agrupá en una carpeta la escena que va",
    "falta": "¿Qué escena agrupo y en qué carpeta?",
    "nueva": true
+  },
+  {
+   "frase": "dejá Cierre suelta, fuera de cualquier carpeta",
+   "plantilla": "dejá {escena} suelta, fuera de cualquier carpeta",
+   "args": {
+    "scene": "{escena}"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "no encuentro Clima entre tantas escenas, metela en la carpeta Bloque 1",
+   "plantilla": "no encuentro {escena} entre tantas escenas, metela en la carpeta Bloque 1",
+   "args": {
+    "scene": "{escena}",
+    "folder": "Bloque 1"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "Tribuna quedó en la carpeta equivocada, pasala a Deportes",
+   "plantilla": "{escena} quedó en la carpeta equivocada, pasala a Deportes",
+   "args": {
+    "scene": "{escena}",
+    "folder": "Deportes"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "metela en la carpeta Cierre",
+   "plantilla": "metela en la carpeta Cierre",
+   "falta": "¿qué escena meto en la carpeta Cierre?",
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "scene_list": [
@@ -6445,6 +9100,30 @@
    "frase": "enumerame las escenas por carpeta",
    "plantilla": "enumerame las escenas por carpeta",
    "args": {}
+  },
+  {
+   "frase": "¿qué escena está al aire ahora?",
+   "plantilla": "¿qué escena está al aire ahora?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿cuántas escenas tenemos armadas?",
+   "plantilla": "¿cuántas escenas tenemos armadas?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿en qué orden están las escenas?",
+   "plantilla": "¿en qué orden están las escenas?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "scene_move": [
@@ -6599,6 +9278,24 @@
    "plantilla": "en la lista, bajá una escena al final",
    "falta": "¿Qué escena bajo?",
    "nueva": true
+  },
+  {
+   "frase": "cambiá el orden: la tanda va más abajo en la lista",
+   "plantilla": "cambiá el orden: {escena} va más abajo en la lista",
+   "args": {
+    "scene": "{escena}"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "reordená la lista, que esa suba",
+   "plantilla": "reordená la lista, que esa suba",
+   "falta": "¿qué escena querés mover en la lista?",
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "scene_preview": [
@@ -6737,6 +9434,54 @@
    "plantilla": "cargame algo en el preview, rápido",
    "falta": "¿Qué escena cargo en preview?",
    "nueva": true
+  },
+  {
+   "frase": "poné la cámara 2 en preview, todavía no sale",
+   "plantilla": "poné {escena} en preview, todavía no sale",
+   "args": {
+    "name": "{escena}"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "dejame en el previo la del cierre para el take",
+   "plantilla": "dejame en el previo {escena} para el take",
+   "args": {
+    "name": "{escena}"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "el preview está vacío, cargale la entrevista",
+   "plantilla": "el preview está vacío, cargale {escena}",
+   "args": {
+    "name": "{escena}"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "en preview quedó la que no es, poneme la general",
+   "plantilla": "en preview quedó la que no es, poneme {escena}",
+   "args": {
+    "name": "{escena}"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "el preview está vacío y ya vamos al take",
+   "plantilla": "el preview está vacío y ya vamos al take",
+   "falta": "¿qué escena cargo en preview?",
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "scene_protect": [
@@ -6893,6 +9638,47 @@
    "plantilla": "sacale la protección a la escena",
    "falta": "¿A qué escena le saco la protección?",
    "nueva": true
+  },
+  {
+   "frase": "dejá protegida la apertura, que nadie la toque",
+   "plantilla": "dejá protegida {escena}, que nadie la toque",
+   "args": {
+    "scene": "{escena}",
+    "protected": true
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "ya no hace falta el candado en la tanda, liberala",
+   "plantilla": "ya no hace falta el candado en {escena}, liberala",
+   "args": {
+    "scene": "{escena}",
+    "protected": false
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "ayer alguien me borró el cierre, que no pase más",
+   "plantilla": "ayer alguien me borró {escena}, que no pase más",
+   "args": {
+    "scene": "{escena}",
+    "protected": true
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "me renombran las escenas a cada rato, poné candado",
+   "plantilla": "me renombran las escenas a cada rato, poné candado",
+   "falta": "¿qué escena querés proteger?",
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "scene_rename": [
@@ -7060,6 +9846,47 @@
    "plantilla": "cambiá el nombre de la escena",
    "falta": "¿Qué escena renombro y con qué nombre?",
    "nueva": true
+  },
+  {
+   "frase": "la cámara 2 ahora se llama Living, cambiale el nombre",
+   "plantilla": "{escena} ahora se llama Living, cambiale el nombre",
+   "args": {
+    "from": "{escena}",
+    "to": "Living"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "la entrevista tiene el nombre mal escrito, ponele Entrevista",
+   "plantilla": "{escena} tiene el nombre mal escrito, ponele Entrevista",
+   "args": {
+    "from": "{escena}",
+    "to": "Entrevista"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "hay dos que se llaman igual, a la general llamala General B",
+   "plantilla": "hay dos que se llaman igual, a {escena} llamala General B",
+   "args": {
+    "from": "{escena}",
+    "to": "General B"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "ponele Cierre a esa escena",
+   "plantilla": "ponele Cierre a esa escena",
+   "falta": "¿qué escena querés renombrar?",
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "scene_switch": [
@@ -7239,6 +10066,54 @@
    "plantilla": "poné una escena al aire",
    "falta": "¿Qué escena pongo al aire?",
    "nueva": true
+  },
+  {
+   "frase": "poné al aire la general, ya",
+   "plantilla": "poné al aire {escena}, ya",
+   "args": {
+    "name": "{escena}"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "que salga la cámara 2 ahora",
+   "plantilla": "que salga {escena} ahora",
+   "args": {
+    "name": "{escena}"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "se nos fue el conductor de cuadro, salí con la general",
+   "plantilla": "se nos fue el conductor de cuadro, salí con {escena}",
+   "args": {
+    "name": "{escena}"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "está saliendo la tanda y ya volvimos, la apertura al aire",
+   "plantilla": "está saliendo la tanda y ya volvimos, {escena} al aire",
+   "args": {
+    "name": "{escena}"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "el aire está en negro, cortá a otra ya",
+   "plantilla": "el aire está en negro, cortá a otra ya",
+   "falta": "¿a qué escena corto?",
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "scene_take": [
@@ -7321,6 +10196,22 @@
    "frase": "mandá al aire lo que está armado en preview",
    "plantilla": "mandá al aire lo que está armado en preview",
    "args": {}
+  },
+  {
+   "frase": "al aire sigue la escena vieja y la nueva ya está armada",
+   "plantilla": "al aire sigue la escena vieja y la nueva ya está armada",
+   "args": {},
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "quedó la armada en preview y nunca salió",
+   "plantilla": "quedó la armada en preview y nunca salió",
+   "args": {},
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "share_delete": [
@@ -7455,6 +10346,54 @@
    "plantilla": "borrá el compartido del gateway",
    "falta": "¿Qué archivo compartido borro?",
    "nueva": true
+  },
+  {
+   "frase": "el compartido 12 volalo de la lista",
+   "plantilla": "el compartido 12 volalo de la lista",
+   "args": {
+    "id": "12"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "de lo que compartieron, borrá el 7",
+   "plantilla": "de lo que compartieron, borrá el 7",
+   "args": {
+    "id": "7"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "borrá lo que compartió Lucía",
+   "plantilla": "borrá lo que compartió {persona}",
+   "falta": "¿Qué id tiene el compartido de {persona} que borro?",
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "el compartido 15 vino duplicado, sobra en la lista",
+   "plantilla": "el compartido 15 vino duplicado, sobra en la lista",
+   "args": {
+    "id": "15"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "el compartido 3 es spam, no tiene nada que ver",
+   "plantilla": "el compartido 3 es spam, no tiene nada que ver",
+   "args": {
+    "id": "3"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "share_list": [
@@ -7547,6 +10486,30 @@
    "frase": "revisá la lista de archivos que subieron los participantes",
    "plantilla": "revisá la lista de archivos que subieron los participantes",
    "args": {}
+  },
+  {
+   "frase": "¿qué archivos mandaron los invitados?",
+   "plantilla": "¿qué archivos mandaron los invitados?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿cuántos compartidos hay hasta ahora?",
+   "plantilla": "¿cuántos compartidos hay hasta ahora?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿quién subió el video que está en compartidos?",
+   "plantilla": "¿quién subió el video que está en compartidos?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "share_take": [
@@ -7663,6 +10626,32 @@
    "plantilla": "agregá a la escena un compartido",
    "falta": "¿Qué archivo compartido agrego? Decime el id.",
    "nueva": true
+  },
+  {
+   "frase": "el compartido 6 metelo en la escena al aire",
+   "plantilla": "el compartido 6 metelo en la escena al aire",
+   "args": {
+    "id": "6"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "lo que mandó Lucía, ponelo al aire ya",
+   "plantilla": "lo que mandó {persona}, ponelo al aire ya",
+   "falta": "¿Qué id tiene el compartido de {persona}?",
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "falta en pantalla el video que compartió Lucía",
+   "plantilla": "falta en pantalla el video que compartió {persona}",
+   "falta": "¿Qué id tiene el video compartido de {persona}?",
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "share_view": [
@@ -7759,6 +10748,55 @@
    "plantilla": "quiero revisar algo que compartieron",
    "falta": "¿Qué imagen compartida querés ver?",
    "nueva": true
+  },
+  {
+   "frase": "¿qué hay en el compartido 3?",
+   "plantilla": "¿qué hay en el compartido 3?",
+   "args": {
+    "id": "3"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿cómo es la foto que mandó Lucía?",
+   "plantilla": "¿cómo es la foto que mandó {persona}?",
+   "falta": "¿Qué id tiene la foto de {persona}?",
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿se ve bien la imagen 5 o está pixelada?",
+   "plantilla": "¿se ve bien la imagen 5 o está pixelada?",
+   "args": {
+    "id": "5"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿sirve la foto compartida 2? mostrámela antes de usarla",
+   "plantilla": "¿sirve la foto compartida 2? mostrámela antes de usarla",
+   "args": {
+    "id": "2"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿qué es la imagen 9? mostrámela de 400 de ancho",
+   "plantilla": "¿qué es la imagen 9? mostrámela de 400 de ancho",
+   "args": {
+    "id": "9",
+    "maxWidth": 400
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "source_add": [
@@ -7846,16 +10884,6 @@
    "falta": "¿Qué logo? ¿Con qué nombre lo agrego?"
   },
   {
-   "frase": "Sumá al invitado 2 como fuente en la escena Entrevista, a la izquierda",
-   "plantilla": "Sumá a {persona} como fuente en {escena}, a la izquierda",
-   "args": {
-    "type": "invitado",
-    "name": "{persona}",
-    "scene": "{escena}",
-    "layout": "left"
-   }
-  },
-  {
    "frase": "En la escena Deportes agregá una imagen nueva, Escudo, arriba a la izquierda",
    "plantilla": "En {escena} agregá una imagen nueva, Escudo, arriba a la izquierda",
    "args": {
@@ -7925,6 +10953,84 @@
    "frase": "agregá una cámara a la escena",
    "plantilla": "agregá una cámara a {escena}",
    "falta": "¿Qué nombre le pongo a la cámara?",
+   "nueva": true
+  },
+  {
+   "frase": "metele la Cam 2 como cámara a Estudio, en full",
+   "plantilla": "metele {fuente} como cámara a {escena}, en full",
+   "args": {
+    "type": "camara",
+    "name": "{fuente}",
+    "scene": "{escena}",
+    "layout": "full"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "en Estudio poné un zócalo nuevo, Titular, abajo",
+   "plantilla": "en {escena} poné un zócalo nuevo, Titular, abajo",
+   "args": {
+    "type": "zocalo",
+    "name": "Titular",
+    "scene": "{escena}",
+    "layout": "bottom"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "sumá un texto nuevo, Hora, a Estudio, oculto por ahora",
+   "plantilla": "sumá un texto nuevo, Hora, a {escena}, oculto por ahora",
+   "args": {
+    "type": "texto",
+    "name": "Hora",
+    "scene": "{escena}",
+    "visible": false
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "se ve todo negro en Estudio, no tiene ninguna fuente",
+   "plantilla": "se ve todo negro en {escena}, no tiene ninguna fuente",
+   "falta": "¿Qué fuente agrego a {escena} y de qué tipo?",
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "Sumá al invitado 2 como fuente en la escena Entrevista, a la izquierda",
+   "plantilla": "Sumá al invitado 2 como fuente en {escena}, a la izquierda",
+   "args": {
+    "type": "invitado",
+    "name": "Invitado 2",
+    "scene": "{escena}",
+    "layout": "left"
+   }
+  },
+  {
+   "frase": "falta Lucía en Estudio, no está como fuente",
+   "plantilla": "falta Lucía en {escena}, no está como fuente",
+   "args": {
+    "type": "invitado",
+    "name": "Lucía",
+    "scene": "{escena}"
+   }
+  },
+  {
+   "frase": "agregá una fuente nueva a la escena Estudio",
+   "plantilla": "agregá una fuente nueva a {escena}",
+   "falta": "¿Qué tipo de fuente y con qué nombre?",
+   "nueva": true
+  },
+  {
+   "frase": "sumá un logo nuevo a la escena Noticias",
+   "plantilla": "sumá un logo nuevo a {escena}",
+   "falta": "¿Con qué nombre?",
    "nueva": true
   }
  ],
@@ -8040,6 +11146,34 @@
    "args": {
     "scene": "[escena_actual]"
    }
+  },
+  {
+   "frase": "¿qué hay puesto ahora en la escena entrevista?",
+   "plantilla": "¿qué hay puesto ahora en {escena}?",
+   "args": {
+    "scene": "{escena}"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿cuál capa está arriba de todo en esta escena?",
+   "plantilla": "¿cuál capa está arriba de todo en esta escena?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "en la escena panel falta algo, ¿qué capas quedaron?",
+   "plantilla": "en {escena} falta algo, ¿qué capas quedaron?",
+   "args": {
+    "scene": "{escena}"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "source_properties": [
@@ -8193,6 +11327,54 @@
    "plantilla": "listá las opciones de la fuente",
    "falta": "¿De qué fuente?",
    "nueva": true
+  },
+  {
+   "frase": "¿en qué resolución está la cámara uno?",
+   "plantilla": "¿en qué resolución está {fuente}?",
+   "args": {
+    "name": "{fuente}"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿a cuántos cuadros por segundo está la capturadora?",
+   "plantilla": "¿a cuántos cuadros por segundo está {fuente}?",
+   "args": {
+    "name": "{fuente}"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿qué dispositivo tiene asignado la cámara del conductor?",
+   "plantilla": "¿qué dispositivo tiene asignado {fuente}?",
+   "args": {
+    "name": "{fuente}"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿qué URL tiene cargada el navegador del marcador?",
+   "plantilla": "¿qué URL tiene cargada {fuente}?",
+   "args": {
+    "name": "{fuente}"
+   },
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿cuánto vale cada opción? fijate vos",
+   "plantilla": "¿cuánto vale cada opción? fijate vos",
+   "falta": "¿de qué fuente querés ver las propiedades?",
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "source_remove": [
@@ -8310,6 +11492,27 @@
    "plantilla": "borrá una capa de esta escena",
    "falta": "¿Qué capa borro?",
    "nueva": true
+  },
+  {
+   "frase": "la cámara dos está en la escena del aire, sacala de ahí",
+   "plantilla": "{fuente} está en {escena}, sacala de ahí",
+   "args": {
+    "name": "{fuente}",
+    "scene": "{escena}"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "sacá el logo viejo de las capas de esta escena",
+   "plantilla": "sacá {fuente} de las capas de esta escena",
+   "args": {
+    "name": "{fuente}"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "source_set_property": [
@@ -8476,6 +11679,58 @@
    "plantilla": "cambiá una propiedad de {fuente}",
    "falta": "¿Qué propiedad cambio?",
    "nueva": true
+  },
+  {
+   "frase": "poné la cámara uno en 1080",
+   "plantilla": "poné {fuente} en 1080",
+   "args": {
+    "source": "{fuente}",
+    "property": "resolution",
+    "value": "=1920x1080"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "dejá la capturadora a 30 cuadros por segundo",
+   "plantilla": "dejá {fuente} a 30 cuadros por segundo",
+   "args": {
+    "source": "{fuente}",
+    "property": "fps",
+    "value": "=30"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "cambiale la URL al navegador del marcador por la nueva",
+   "plantilla": "cambiale la URL a {fuente} por la nueva",
+   "falta": "¿cuál es la URL nueva?",
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "la cámara del conductor se ve pixelada, está en baja resolución",
+   "plantilla": "{fuente} se ve pixelada, está en baja resolución",
+   "falta": "¿a qué resolución la paso?",
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "no me aparece la Elgato en la lista de la capturadora",
+   "plantilla": "no me aparece la Elgato en la lista de {fuente}",
+   "args": {
+    "source": "{fuente}",
+    "property": "refresh_devices",
+    "press": true
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "source_types": [
@@ -8553,6 +11808,30 @@
    "frase": "repasame los tipos de fuente que se pueden crear",
    "plantilla": "repasame los tipos de fuente que se pueden crear",
    "args": {}
+  },
+  {
+   "frase": "¿se puede agregar una fuente de navegador acá?",
+   "plantilla": "¿se puede agregar una fuente de navegador acá?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿está instalado el tipo de fuente NDI?",
+   "plantilla": "¿está instalado el tipo de fuente NDI?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿qué tipos de fuente traen audio?",
+   "plantilla": "¿qué tipos de fuente traen audio?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "source_update": [
@@ -8642,29 +11921,10 @@
    }
   },
   {
-   "frase": "Corregí el nombre en el zócalo: es Fernández con zeta",
-   "plantilla": "Corregí el nombre en {grafico}: es Fernández con zeta",
-   "args": {
-    "name": "{grafico}",
-    "settings": {
-     "text": "Fernández"
-    }
-   },
-   "duda": "no dicta el texto completo del zócalo, solo el apellido corregido"
-  },
-  {
    "frase": "Mandá el logo al frente, que queda tapado por la cámara",
    "plantilla": "Mandá {fuente} al frente, que está quedando abajo de la cámara",
    "args": {
     "name": "{fuente}",
-    "order": "top"
-   }
-  },
-  {
-   "frase": "Traé el título al frente, que quede por encima de la cámara",
-   "plantilla": "Traé {grafico} al frente, que quede por encima de la cámara",
-   "args": {
-    "name": "{grafico}",
     "order": "top"
    }
   },
@@ -8689,16 +11949,6 @@
    "nueva": true
   },
   {
-   "frase": "Cambiá el texto del zócalo: ahora habla Gómez",
-   "plantilla": "cambiá el texto de {grafico} a \"ahora habla Gómez\"",
-   "args": {
-    "name": "{grafico}",
-    "settings": {
-     "text": "ahora habla Gómez"
-    }
-   }
-  },
-  {
    "frase": "ocultá la fuente",
    "plantilla": "ocultá la fuente",
    "falta": "¿Qué fuente oculto?",
@@ -8708,6 +11958,136 @@
    "frase": "cambiá el texto del zócalo",
    "plantilla": "cambiá el texto del zócalo",
    "falta": "¿De qué zócalo?",
+   "nueva": true
+  },
+  {
+   "frase": "poné el logo arriba de todas las capas de esta escena",
+   "plantilla": "poné {fuente} arriba de todas las capas de esta escena",
+   "args": {
+    "name": "{fuente}",
+    "order": "top"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "no se escucha la cámara del conductor, está muteada",
+   "plantilla": "no se escucha {fuente}, está muteada",
+   "args": {
+    "name": "{fuente}",
+    "muted": false
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "el zócalo dice mal el apellido de Pérez",
+   "plantilla": "{grafico} dice mal el apellido de {persona}",
+   "falta": "¿cómo tiene que decir el texto?",
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "bajale un poco a la cámara dos que satura",
+   "plantilla": "bajale un poco a {fuente} que satura",
+   "args": {
+    "name": "{fuente}",
+    "volumeDb": "-3"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "el recuadro de la cámara dos tapa la cara de Pérez",
+   "plantilla": "el recuadro de {fuente} tapa la cara de {persona}",
+   "falta": "¿adónde lo muevo?",
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "Corregí el nombre en el zócalo: es Fernández con zeta",
+   "plantilla": "Corregí el nombre en {fuente}: es Fernández con zeta",
+   "args": {
+    "name": "{fuente}",
+    "settings": {
+     "text": "Fernández"
+    }
+   }
+  },
+  {
+   "frase": "Traé el título al frente, que quede por encima de la cámara",
+   "plantilla": "Traé {fuente} al frente, que quede por encima de la cámara",
+   "args": {
+    "name": "{fuente}",
+    "order": "top"
+   }
+  },
+  {
+   "frase": "mostrá el zócalo en la escena del aire",
+   "plantilla": "mostrá {fuente} en la escena del aire",
+   "args": {
+    "name": "{fuente}",
+    "scene": "[escena_actual]",
+    "visible": true
+   }
+  },
+  {
+   "frase": "no sale el zócalo al aire",
+   "plantilla": "no sale {fuente} al aire",
+   "args": {
+    "name": "{fuente}",
+    "visible": true
+   }
+  },
+  {
+   "frase": "ocultá la fuente en la escena",
+   "plantilla": "ocultá la fuente en la escena",
+   "falta": "¿Qué fuente?",
+   "nueva": true
+  },
+  {
+   "frase": "mové la fuente a la izquierda",
+   "plantilla": "mové la fuente a la izquierda",
+   "falta": "¿Qué fuente?",
+   "nueva": true
+  },
+  {
+   "frase": "cambiá el tamaño de la fuente, más chica",
+   "plantilla": "cambiá el tamaño de la fuente, más chica",
+   "falta": "¿Qué fuente?",
+   "nueva": true
+  },
+  {
+   "frase": "mové la fuente a la izquierda",
+   "plantilla": "mové la fuente a la izquierda",
+   "falta": "¿Qué fuente?",
+   "nueva": true
+  },
+  {
+   "frase": "Cambiá el texto del zócalo: ahora habla Gómez",
+   "plantilla": "Cambiá el texto de {fuente}: ahora habla Gómez",
+   "args": {
+    "name": "{fuente}",
+    "settings": {
+     "text": "ahora habla Gómez"
+    }
+   }
+  },
+  {
+   "frase": "mové la fuente a la izquierda",
+   "plantilla": "mové la fuente a la izquierda",
+   "falta": "¿Qué fuente?",
+   "nueva": true
+  },
+  {
+   "frase": "ocultá una fuente de la escena",
+   "plantilla": "ocultá una fuente de la escena",
+   "falta": "¿Qué fuente?",
    "nueva": true
   }
  ],
@@ -8854,6 +12234,17 @@
    "plantilla": "mové a {persona} en la fila",
    "falta": "¿A qué posición de la fila?",
    "nueva": true
+  },
+  {
+   "frase": "¿podés dejar a Julián en el puesto cuatro de la fila?",
+   "plantilla": "¿podés dejar a {persona} en el puesto cuatro de la fila?",
+   "args": {
+    "participant": "{persona}",
+    "position": "=4"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "speaker_next": [
@@ -8941,6 +12332,46 @@
    "frase": "cerró el vecino, dale aire al que sigue",
    "plantilla": "cerró el vecino, dale aire al que sigue",
    "args": {}
+  },
+  {
+   "frase": "el que está hablando ya se pasó de tiempo, que entre otro",
+   "plantilla": "el que está hablando ya se pasó de tiempo, que entre otro",
+   "args": {},
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "se quedó colgado el orador y la fila está esperando, avanzá",
+   "plantilla": "se quedó colgado el orador y la fila está esperando, avanzá",
+   "args": {},
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿podés pasar al próximo de la fila ya?",
+   "plantilla": "¿podés pasar al próximo de la fila ya?",
+   "args": {},
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "este ya no tiene nada más que decir, el que sigue",
+   "plantilla": "este ya no tiene nada más que decir, el que sigue",
+   "args": {},
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "hay silencio al aire, terminó y nadie entró, dale al próximo",
+   "plantilla": "hay silencio al aire, terminó y nadie entró, dale al próximo",
+   "args": {},
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "speaker_on_air": [
@@ -9105,6 +12536,25 @@
    "plantilla": "sacá del aire al orador",
    "falta": "¿A qué orador saco del aire?",
    "nueva": true
+  },
+  {
+   "frase": "¿podés sacar a Gabriela del aire ahora?",
+   "plantilla": "¿podés sacar a {persona} del aire ahora?",
+   "args": {
+    "participant": "{persona}",
+    "on": false
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "entró el que estaba esperando, ponelo al aire",
+   "plantilla": "entró el que estaba esperando, ponelo al aire",
+   "falta": "¿A quién pongo al aire?",
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "speaker_presenter": [
@@ -9287,6 +12737,50 @@
    "plantilla": "poné la marca de presentador",
    "falta": "¿A quién le pongo la marca de presentador?",
    "nueva": true
+  },
+  {
+   "frase": "Valeria se va con cada rotación y es la conductora, dejala fija",
+   "plantilla": "{persona} se va con cada rotación y es la conductora, dejala fija",
+   "args": {
+    "participant": "{persona}",
+    "on": true
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "Diego quedó fijo en pantalla y ya no conduce, sacale presentador",
+   "plantilla": "{persona} quedó fijo en pantalla y ya no conduce, sacale presentador",
+   "args": {
+    "participant": "{persona}",
+    "on": false
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿podés dejar a Nicolás de presentador todo el bloque?",
+   "plantilla": "¿podés dejar a {persona} de presentador todo el bloque?",
+   "args": {
+    "participant": "{persona}",
+    "on": true
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "Carla ya no presenta, que rote como los demás",
+   "plantilla": "{persona} ya no presenta, que rote como los demás",
+   "args": {
+    "participant": "{persona}",
+    "on": false
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "speaker_queue": [
@@ -9449,6 +12943,34 @@
    "plantilla": "sumá a la fila de oradores",
    "falta": "¿A quién sumo a la fila de oradores?",
    "nueva": true
+  },
+  {
+   "frase": "¿podés anotar a Esteban para hablar después?",
+   "plantilla": "¿podés anotar a {persona} para hablar después?",
+   "args": {
+    "participant": "{persona}"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "Mariela está en la sala pero no figura entre los oradores",
+   "plantilla": "{persona} está en la sala pero no figura entre los oradores",
+   "args": {
+    "participant": "{persona}"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "uno levantó la mano y no está en la cola",
+   "plantilla": "uno levantó la mano y no está en la cola",
+   "falta": "¿A quién sumo a la fila de oradores?",
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "speaker_time": [
@@ -9613,6 +13135,17 @@
    "plantilla": "poné 4:00 de tiempo asignado",
    "falta": "¿Para qué persona?",
    "nueva": true
+  },
+  {
+   "frase": "¿le podés poner cuatro minutos a Micaela?",
+   "plantilla": "¿le podés poner cuatro minutos a {persona}?",
+   "args": {
+    "participant": "{persona}",
+    "time": "=4:00"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "speakers_config": [
@@ -9731,6 +13264,56 @@
     "enabled": true,
     "carousel": "manual"
    }
+  },
+  {
+   "frase": "poné cuatro minutos por orador",
+   "plantilla": "poné cuatro minutos por orador",
+   "args": {
+    "defaultTime": "4m"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "dejá el tiempo de cada orador en dos minutos",
+   "plantilla": "dejá el tiempo de cada orador en dos minutos",
+   "args": {
+    "defaultTime": "2m"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "que roten solos cuando se les acaba el tiempo",
+   "plantilla": "que roten solos cuando se les acaba el tiempo",
+   "args": {
+    "carousel": "time"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "se cortan justo al terminar, dales un minuto de margen",
+   "plantilla": "se cortan justo al terminar, dales un minuto de margen",
+   "args": {
+    "graceSec": 60
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "entran dos oradores a la vez y tiene que ser de a uno",
+   "plantilla": "entran dos oradores a la vez y tiene que ser de a uno",
+   "args": {
+    "multi": false
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "speakers_status": [
@@ -9813,6 +13396,38 @@
    "frase": "mirá cómo viene la conexión de los oradores en la fila",
    "plantilla": "mirá cómo viene la conexión de los oradores en la fila",
    "args": {}
+  },
+  {
+   "frase": "¿cuánto tiempo tiene cada orador?",
+   "plantilla": "¿cuánto tiempo tiene cada orador?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿está prendido el modo oradores?",
+   "plantilla": "¿está prendido el modo oradores?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿rotan solos o los paso yo a mano?",
+   "plantilla": "¿rotan solos o los paso yo a mano?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿cuántos pueden estar al aire a la vez?",
+   "plantilla": "¿cuántos pueden estar al aire a la vez?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "status": [
@@ -9880,6 +13495,46 @@
    "frase": "cómo está todo: aire, rec, CPU",
    "plantilla": "cómo está todo: aire, rec, CPU",
    "args": {}
+  },
+  {
+   "frase": "¿estamos al aire o no?",
+   "plantilla": "¿estamos al aire o no?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿qué escena está saliendo ahora?",
+   "plantilla": "¿qué escena está saliendo ahora?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "¿cuánto llevamos transmitiendo?",
+   "plantilla": "¿cuánto llevamos transmitiendo?",
+   "args": {},
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "el aire se ve entrecortado, va a los saltos",
+   "plantilla": "el aire se ve entrecortado, va a los saltos",
+   "args": {},
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "el equipo está re lento, algo lo está ahogando",
+   "plantilla": "el equipo está re lento, algo lo está ahogando",
+   "args": {},
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "stream_start": [
@@ -9947,6 +13602,30 @@
    "frase": "Iniciá el envío al servidor, salimos",
    "plantilla": "Iniciá el envío al servidor, salimos",
    "args": {}
+  },
+  {
+   "frase": "transmití con la clave nueva",
+   "plantilla": "transmití con la clave nueva",
+   "falta": "¿cuál es la clave nueva?",
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "se cayó la transmisión, volvé a salir",
+   "plantilla": "se cayó la transmisión, volvé a salir",
+   "args": {},
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "ya es la hora y no estamos saliendo, dale",
+   "plantilla": "ya es la hora y no estamos saliendo, dale",
+   "args": {},
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "stream_stop": [
@@ -10019,6 +13698,38 @@
    "frase": "detené la transmisión que está saliendo ahora",
    "plantilla": "detené la transmisión que está saliendo ahora",
    "args": {}
+  },
+  {
+   "frase": "sacanos del aire ya",
+   "plantilla": "sacanos del aire ya",
+   "args": {},
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "terminó el programa, cortá el vivo",
+   "plantilla": "terminó el programa, cortá el vivo",
+   "args": {},
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "está saliendo algo que no tiene que salir, cortá",
+   "plantilla": "está saliendo algo que no tiene que salir, cortá",
+   "args": {},
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "seguimos al aire y ya terminamos, bajá",
+   "plantilla": "seguimos al aire y ya terminamos, bajá",
+   "args": {},
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ],
  "transition_set": [
@@ -10168,6 +13879,56 @@
    "plantilla": "poné otra transición entre escenas",
    "falta": "¿Qué tipo de transición?",
    "nueva": true
+  },
+  {
+   "frase": "poné fundido de un segundo entre escenas",
+   "plantilla": "poné fundido de un segundo entre escenas",
+   "args": {
+    "type": "fade",
+    "durationMs": 1000
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "dejá la transición en corte directo",
+   "plantilla": "dejá la transición en corte directo",
+   "args": {
+    "type": "cut"
+   },
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "que la transición dure 600 milisegundos",
+   "plantilla": "que la transición dure 600 milisegundos",
+   "falta": "¿qué tipo de transición: corte, fundido, swipe, slide o fundido a color?",
+   "tipo_nueva": "orden",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "el cambio de escena es muy brusco, suavizalo con un fade",
+   "plantilla": "el cambio de escena es muy brusco, suavizalo con un fade",
+   "args": {
+    "type": "fade"
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
+  },
+  {
+   "frase": "el fundido tarda una eternidad, hacelo de 300",
+   "plantilla": "el fundido tarda una eternidad, hacelo de 300",
+   "args": {
+    "type": "fade",
+    "durationMs": 300
+   },
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar"
   }
  ]
 }

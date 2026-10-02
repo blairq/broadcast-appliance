@@ -27,9 +27,12 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 HF = RAIZ / ".venv-entrenar/bin/hf"
-# como va a contestar en uso (el sistema de lib_tc pide «corto y en castellano»):
+# como va a contestar en uso: rioplatense, corto y dicho en voz alta (pruebas de la v2: salia neutro o
+# peninsular, «mantén», «tienes»). Y nunca afirma una accion (la v2 dijo «le escribo a Juan»).
 # sin esto Qwen se extiende y 2 de cada 3 respuestas no terminan en 220 tokens
-BREVE = "Respondé en castellano, claro y breve: como mucho un párrafo corto."
+BREVE = ("Sos el asistente de un estudio de TV en Buenos Aires y lo que contestás se dice en voz alta por los "
+         "auriculares del operador. Respondé en castellano rioplatense, con voseo (tenés, mirá, fijate), en una o dos "
+         "oraciones, sin listas ni markdown. Nunca digas que hiciste algo: solo contestás.")
 DOLLY = "argilla/databricks-dolly-15k-curated-multilingual"
 
 

@@ -121,7 +121,9 @@ def main():
             volver()
 
     # ELEGIR con el nombre restringido (como evaluar.py), para comparar con el de nombres
-    nombres = lp.herramientas_reactivas() + [tc.DERIVAR]
+    # falta_dato tambien se puede elegir: antes, forzado a «herramienta o derivar», lo
+    # que el modelo queria PREGUNTAR caia en derivar (18 de 31 en el examen de la vuelta 1)
+    nombres = lp.herramientas_reactivas() + [tc.DERIVAR, tc.FALTA]
     puente = tc.COLA + "<tool_call>\n<function="
     seqs = {n: tok(puente + n + ">", add_special_tokens=False).input_ids for n in nombres}
     comun = min(len(s) for s in seqs.values())
@@ -211,16 +213,18 @@ def main():
             eleg[x["frase"]] = elegir(tc.usuario(est_fijo, x["frase"]))
         suyos = [x for x in casos if tc.DERIVAR not in x["aceptables"]]
         ajenos = [x for x in casos if tc.DERIVAR in x["aceptables"]]
-        atend = [x for x in suyos if eleg[x["frase"]] != tc.DERIVAR]
+        atend = [x for x in suyos if eleg[x["frase"]] not in (tc.DERIVAR, tc.FALTA)]
+        pregunta = [x for x in suyos if eleg[x["frase"]] == tc.FALTA]
         bien = [x for x in atend if eleg[x["frase"]] in x["aceptables"]]
         rech = [x for x in ajenos if eleg[x["frase"]] == tc.DERIVAR]
         acierto = sum(1 for x in casos if eleg[x["frase"]] in x["aceptables"])
         med[nombre] = {"casos": len(casos), "cobertura": len(atend) / max(1, len(suyos)),
                        "precision": len(bien) / max(1, len(atend)), "derivado": len(rech) / max(1, len(ajenos)),
-                       "acierto": acierto / len(casos),
+                       "acierto": acierto / len(casos), "pregunta": len(pregunta) / max(1, len(suyos)),
                        # las cuentas, como las de evaluar.py: [aciertos, de cuantos]
                        "conteos": {"cobertura": [len(atend), len(suyos)], "precision": [len(bien), len(atend)],
-                                   "derivado": [len(rech), len(ajenos)], "acierto": [acierto, len(casos)]}}
+                                   "derivado": [len(rech), len(ajenos)], "acierto": [acierto, len(casos)],
+                                   "pregunta": [len(pregunta), len(suyos)]}}
         fallos[nombre] = [{"frase": x["frase"], "esperada": x["aceptables"], "elegida": eleg[x["frase"]]}
                           for x in casos if eleg[x["frase"]] not in x["aceptables"]]
         print(f"{nombre}: {json.dumps(med[nombre])} · {time.time() - t0:.0f} s", flush=True)
