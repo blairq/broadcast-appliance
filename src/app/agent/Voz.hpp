@@ -38,6 +38,7 @@
 #include <nlohmann/json.hpp>
 
 #include <QObject>
+#include <QSet>
 #include <QString>
 #include <QVariantList>
 #include <QVariantMap>
@@ -204,6 +205,12 @@ class Voz : public QObject {
     Q_INVOKABLE void setAutomatica(const QString& herramienta, bool on);
     /// Lo que hace con una frase dictada (también sirve para probar escribiendo).
     Q_INVOKABLE void atender(const QString& frase);
+    /// Lo que le llega al MODELO LOCAL como motor de un agente o del asistente
+    /// (proveedor «local»): `quien` es el rol o "asistente". Una vigilancia se
+    /// dice primero en voz alta y sus acciones solo se PROPONEN (nunca se hacen
+    /// solas, aunque estén entre las automáticas: el modelo toma un aviso como
+    /// una orden, y «terminó el video» le sugiere cortar la grabación).
+    void atenderDesde(const QString& texto, const QString& quien, bool vigilancia);
 
    signals:
     void cambio();
@@ -259,7 +266,8 @@ class Voz : public QObject {
     bool contestarConVoz_ = true;
     QVariantMap vozParaOtros_;
     QStringList automaticas_;
-    int ultimoId_ = 0; ///< el `id` de la última frase atendida (bitácora)
+    int ultimoId_ = 0;       ///< el `id` de la última frase atendida (bitácora)
+    QSet<int> soloProponer_; ///< frases (id) cuyas acciones no se hacen solas (vigilancias)
     std::unique_ptr<audio::Escucha> escucha_;
     QString cargados_; ///< los repos con los que se cargó (para recargar si cambian)
     bool lista_ = false;

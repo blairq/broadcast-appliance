@@ -285,6 +285,13 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         voz_ = std::make_unique<agent::Voz>(rt, *modelos_);
         connect(voz_.get(), &agent::Voz::notify, this, &StudioViewModel::notify);
         vozPrompter_ = std::make_unique<agent::VozPrompter>(rt, *voz_, conference_.get());
+        // El modelo local como motor de agentes y del asistente (proveedor «local»).
+        if (agent_) {
+            agent::Voz* v = voz_.get();
+            agent_->setLocal([v](const QString& quien, const QString& texto, bool vigilancia) {
+                v->atenderDesde(texto, quien, vigilancia);
+            });
+        }
         // El micrófono del operador se cambia en Configuración: Sala lo muestra.
         connect(voz_.get(), &agent::Voz::cambio, conference_.get(), &ConferenceViewModel::operatorChanged);
         // Barra de mensajes del asistente al operador (y respuestas a invitados).

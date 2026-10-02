@@ -9,6 +9,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QKeyEvent>
+#include <QRegularExpression>
 #include <QTime>
 
 #include <algorithm>
@@ -382,6 +383,27 @@ void Voz::setAutomatica(const QString& herramienta, bool on) {
     emit cambio();
 }
 
+void Voz::atenderDesde(const QString& texto, const QString& quien, bool vigilancia) {
+    if (!vigilancia) {
+        atenderDe(texto, "asistente:" + quien, nlohmann::json::object());
+        return;
+    }
+    // El encargo de una vigilancia viene como «[HH:mm:ss] aviso (vigilancia x,
+    // tipo y)», una por línea si se juntaron: se dice y se atiende el aviso.
+    static const QRegularExpression hora("^\\[\\d\\d:\\d\\d:\\d\\d\\]\\s*");
+    static const QRegularExpression cola("\\s*\\(vigilancia [^)]*\\)\\s*$");
+    for (QString linea : texto.split('\n', Qt::SkipEmptyParts)) {
+        linea.remove(hora);
+        linea.remove(cola);
+        linea = linea.trimmed();
+        if (linea.isEmpty()) continue;
+        const int id = ultimoId_ + 1; // el que va a tomar atenderDe
+        soloProponer_.insert(id);
+        responder(id, linea);
+        atenderDe(linea, "vigilancia:" + quien, nlohmann::json{{"vigilancia", true}});
+    }
+}
+
 void Voz::atender(const QString& frase) { atenderDe(frase, "manual", nlohmann::json::object()); }
 
 void Voz::atenderDe(const QString& frase, const QString& origen, const nlohmann::json& meta) {
@@ -491,7 +513,9 @@ void Voz::decidir(int id, const QString& frase, const QString& h, const FichaHer
     // Automática y sin dudas: se hace. Con dudas (un nombre que no existe, un
     // dato que falta) se propone igual, para que el operador lo vea.
     // Una pregunta (solo lee) no cambia nada: se contesta sin preguntar.
-    if ((automaticas_.contains(h) || ficha.lectura) && bloqueos.isEmpty()) {
+    // Una vigilancia: solo lo que lee se hace solo; las acciones, propuestas.
+    const bool automatica = automaticas_.contains(h) && !soloProponer_.contains(id);
+    if ((automatica || ficha.lectura) && bloqueos.isEmpty()) {
         bitacora(id, "automatica", {{"herramienta", h.toStdString()}, {"args", args}});
         hacer(id, frase, h, titulo, args);
         return;

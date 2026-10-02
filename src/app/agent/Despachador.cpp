@@ -256,6 +256,19 @@ void Despachador::lanzarAhora(Corrida& c) {
     l.encargo = QString::fromStdString(contextoPara(c.rol) + "ENCARGO:\n" + c.encargo);
     for (const std::string& f : c.adjuntos)
         l.adjuntos << QString::fromStdString(f);
+    // El modelo local no es un programa: lo atiende la app (sin contexto ni
+    // instrucciones del rol: solo el encargo, que es lo que entiende).
+    if (motores_.local) {
+        Lanzamiento crudo = l;
+        crudo.encargo = QString::fromStdString(c.encargo);
+        std::string resumen;
+        if (motores_.local(crudo, c.origen, &resumen)) {
+            c.inicioMs = ahoraMs();
+            c.resultado = "RESUMEN: " + resumen;
+            terminar(c, "ok", "");
+            return;
+        }
+    }
     QString err;
     const term::Pty::Options o = motores_.lanzar ? motores_.lanzar(l, &err) : term::Pty::Options{};
     if (o.program.isEmpty()) {

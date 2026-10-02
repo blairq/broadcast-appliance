@@ -293,6 +293,22 @@ std::vector<Rol> deFabrica() {
         x.agruparMax = 5;
         r.push_back(std::move(x));
     }
+    {
+        // Las vigilancias que no toma nadie más. Con el modelo local de fábrica:
+        // es instantáneo y no necesita internet; las dice en voz alta, contesta
+        // lo que es leer y propone (nunca hace solo) lo que sea una acción.
+        Rol x;
+        x.id = "vigilante";
+        x.titulo = "Vigilante";
+        x.descripcion = "Atiende las vigilancias que no toma otro agente (fin de un video, tiempo de un "
+                        "orador, el chat, el disco, los temporizadores): las avisa en voz alta y propone "
+                        "qué hacer.";
+        x.categorias = {"estado", "escenas", "audio", "sala", "oradores", "operador"};
+        x.disparadores = {"media_end", "speaker_time", "chat", "disk", "timer"};
+        x.prompt = std::string(kComun);
+        x.proveedor = "local";
+        r.push_back(std::move(x));
+    }
     return r;
 }
 
