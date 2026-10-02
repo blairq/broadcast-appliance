@@ -8,6 +8,7 @@
 // La vista solo ve el singleton `Studio` y el tipo `VideoItem`.
 // ============================================================================
 
+#include "platform/Paths.hpp"
 #include "GuiMode.hpp"
 
 #include <QDir>
@@ -93,7 +94,7 @@ int runGui(int argc, char** argv) {
         qmlRegisterType<VideoItem>("BA", 1, 0, "VideoItem");
         qmlRegisterType<term::TerminalView>("BA", 1, 0, "TerminalView");
         // Fuente de la terminal del Asistente (viaja en el bundle: data/fonts).
-        for (const QString& dir : {QString::fromStdWString((rt.dataRoot() / "data" / "fonts").wstring()),
+        for (const QString& dir : {QString::fromStdWString((ba::platform::bundleRoot() / "data" / "fonts").wstring()),
                                    QCoreApplication::applicationDirPath() + "/../../data/fonts"}) {
             const QStringList fonts = QDir(dir).entryList({"*.ttf"}, QDir::Files);
             for (const QString& f : fonts)

@@ -43,6 +43,22 @@ std::filesystem::path bundleRootFor(const std::filesystem::path& exeDir) {
 
 std::filesystem::path bundleRoot() { return bundleRootFor(executableDir()); }
 
+std::filesystem::path dataRootFor(const std::filesystem::path& bundle) {
+    if (bundle.empty()) return bundle;
+    const std::filesystem::path b = bundle.lexically_normal();
+    const std::filesystem::path norm = b.has_filename() ? b : b.parent_path();
+    // <X>.app/Contents/Resources -> <dir de la .app>/<X> Datos. Lo que se
+    // escribe adentro de la .app rompe el sello de su firma: macOS la vuelve a
+    // verificar entera (varios GB) y no reconoce su identidad para los
+    // permisos de cámara y micrófono.
+    if (norm.filename() == "Resources" && norm.parent_path().filename() == "Contents") {
+        const std::filesystem::path app = norm.parent_path().parent_path();
+        if (app.extension() == ".app")
+            return app.parent_path() / (app.stem().string() + " Datos");
+    }
+    return norm;
+}
+
 std::filesystem::path dataRoot() {
     const char* env = std::getenv(kDataRootEnv);
     if (env != nullptr && *env != '\0') {
@@ -50,7 +66,7 @@ std::filesystem::path dataRoot() {
         const std::string s(env);
         return std::filesystem::path(std::u8string(s.begin(), s.end()));
     }
-    return bundleRoot();
+    return dataRootFor(bundleRoot());
 }
 
 namespace {

@@ -47,11 +47,21 @@ void McpService::registerVideoTools() {
             "entre ellos) y las tarjetas propias. Con `entrada`: su sub-grafo, con los nodos de afuera que se "
             "conectan con él marcados `externo`. Cada nodo trae sus puertos (`entradas`, `salidas`; un compositor "
             "tiene puertos a pedido in_0, in_1… y siempre uno libre).";
-        t.inputSchema = {{"type", "object"}, {"properties", {{"entrada", entrada}}}};
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"entrada", entrada},
+                           {"mostrar",
+                            {{"type", "string"},
+                             {"enum", {"racks", "estudio"}},
+                             {"description", "Además, que la página Video muestre esa vista (y esa entrada)."}}}}}};
         t.run = [v](const json& a, Done done) {
             if (!v) return done(ToolResult::error("el video no está disponible"));
             v->sincronizar();
             const std::string e = a.value("entrada", std::string());
+            if (a.contains("mostrar")) {
+                v->setVista(QString::fromStdString(a.value("mostrar", std::string())));
+                if (!e.empty()) v->seleccionar(QString::fromStdString(e));
+            }
             json d = v->describir(e);
             if (d.contains("error")) return done(ToolResult::error(d.value("error", std::string())));
             if (e.empty()) {

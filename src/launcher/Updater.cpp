@@ -135,7 +135,7 @@ bool isDataEntry(const std::string& name) {
     // no recibir un ejemplo.
     static const char* kData[] = {"Config",   "Credenciales", "Logs",      "Recordings", "Shares",
                                   "Runtime",  "Cache",        "Respaldos", "Agentes",    "Media",
-                                  "Graficos", "Extensiones",  "Eventos"};
+                                  "Graficos", "Extensiones",  "Eventos",   "Modelos",    "Exportado"};
     if (name.rfind(".actualizacion", 0) == 0) return true;
     return std::any_of(std::begin(kData), std::end(kData), [&](const char* d) { return name == d; });
 }

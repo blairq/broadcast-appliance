@@ -44,6 +44,9 @@ class VideoGrafos : public QObject {
     Q_OBJECT
     /// Las entradas de video que hay.
     Q_PROPERTY(QStringList entradas READ entradas NOTIFY cambio)
+    /// Las mismas, agrupadas como en el audio: [{nombre, grupo («Cámaras»,
+    /// «Red», «NDI»), tarjetas (cuántas tiene)}]
+    Q_PROPERTY(QVariantList entradasInfo READ entradasInfo NOTIFY cambio)
     /// La que se está editando.
     Q_PROPERTY(QString entrada READ entrada WRITE seleccionar NOTIFY cambio)
     /// Su sub-grafo: {nodos:[{id,tipo,titulo,etiqueta,grupo,x,y,params,externo,
@@ -51,13 +54,22 @@ class VideoGrafos : public QObject {
     Q_PROPERTY(QVariantMap grafo READ grafo NOTIFY cambio)
     /// Todo el estudio (mismo formato).
     Q_PROPERTY(QVariantMap estudio READ estudio NOTIFY cambio)
+    /// Qué muestra la página: "racks" (una entrada) o "estudio" (todo).
+    Q_PROPERTY(QString vista READ vista WRITE setVista NOTIFY vistaCambio)
     /// Las tarjetas propias: [{tipo,titulo,descripcion,params,ambito}]
     Q_PROPERTY(QVariantList catalogo READ catalogo CONSTANT)
 
    public:
     VideoGrafos(AppRuntime& rt, std::filesystem::path dataRoot, QObject* parent = nullptr);
 
+    QString vista() const { return vista_; }
+    void setVista(const QString& v) {
+        if (v == vista_ || (v != "racks" && v != "estudio")) return;
+        vista_ = v;
+        emit vistaCambio();
+    }
     QStringList entradas() const;
+    QVariantList entradasInfo() const;
     QString entrada() const { return entrada_; }
     void seleccionar(const QString& entrada);
     QVariantMap grafo() const;
@@ -102,6 +114,7 @@ class VideoGrafos : public QObject {
 
    signals:
     void cambio();
+    void vistaCambio();
 
    private:
     void aplicar(const std::string& entrada);
@@ -117,6 +130,7 @@ class VideoGrafos : public QObject {
     std::map<std::string, std::string> aplicado_; ///< lo último que recibió cada filtro
     QStringList entradas_;
     QString entrada_;
+    QString vista_ = QStringLiteral("racks");
     QTimer revision_;
 };
 

@@ -1,6 +1,7 @@
 // ============================================================================
 // src/app/ui/PersonasViewModel.cpp — ver PersonasViewModel.hpp
 // ============================================================================
+#include "platform/Paths.hpp"
 #include "ui/PersonasViewModel.hpp"
 
 #include <QDateTime>
@@ -208,7 +209,8 @@ PersonasViewModel::PersonasViewModel(AppRuntime& rt, StudioViewModel& vm, QObjec
     d_->carpetaFotos = QString::fromStdString((rt.dataRoot() / "Config" / "personas").string());
     // Los modelos se cargan UNA vez, y acá y no en cada llamada: cuesta ~100 ms
     // y la página los va a usar en cada refresco.
-    const std::string modelos = (rt.dataRoot() / "data" / "rostros").string();
+    // Vienen con el programa (no son datos del usuario).
+    const std::string modelos = (ba::platform::bundleRoot() / "data" / "rostros").string();
     if (d_->rec.abrir(modelos)) {
         d_->listo = true;
         d_->libreta.leer(d_->archivo.toStdString());

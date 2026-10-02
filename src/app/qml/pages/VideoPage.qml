@@ -15,10 +15,14 @@ Rectangle {
     property real leftInset: 92
     readonly property var vg: Studio.video
     readonly property var g: vg ? vg.grafo : ({})
+    readonly property var est: vg && vista === "estudio" ? vg.estudio : ({})
     property string sel: ""
+    // Dos vistas, como el audio: el rack de UNA entrada, o todo el estudio
+    // (cada entrada en su franja y los cables que cruzan entre ellas).
+    readonly property string vista: vg ? vg.vista : "racks"
     property string msg: ""
     readonly property var nodo: {
-        const l = page.g.nodos || []
+        const l = (page.vista === "estudio" ? page.est.nodos : page.g.nodos) || []
         for (let i = 0; i < l.length; ++i) if (l[i].id === page.sel) return l[i]
         return null
     }
@@ -82,6 +86,55 @@ Rectangle {
         }
         return out
     }
+    // La vista Estudio: todos los nodos, cada entrada en su franja.
+    onEstChanged: console.log("DEPURACION estudio:", JSON.stringify(Object.keys(page.est)), (page.est.nodos || []).length, "vista", page.vista)
+    readonly property var nodosEstudio: {
+        const l = page.est.nodos || []
+        const out = []
+        for (let i = 0; i < l.length; ++i) out.push(Object.assign({}, l[i], { resumen: page.resumen(l[i]), externo: false }))
+        return out
+    }
+    readonly property var franjasEstudio: {
+        const l = page.est.nodos || []
+        const porGrupo = {}
+        for (const n of l) {
+            const k = n.grupo || ""
+            const alto = 34 + Math.max((n.entradas || []).length, (n.salidas || []).length, 1) * 24 + 40
+            if (!porGrupo[k]) porGrupo[k] = { min: n.y, max: n.y + alto }
+            porGrupo[k].min = Math.min(porGrupo[k].min, n.y)
+            porGrupo[k].max = Math.max(porGrupo[k].max, n.y + alto)
+        }
+        const out = []
+        for (const k in porGrupo)
+            if (k !== "") out.push({ titulo: k, y: porGrupo[k].min - 26, alto: porGrupo[k].max - porGrupo[k].min + 40 })
+        return out
+    }
+    function elegir(id) {
+        page.sel = id
+        // En el estudio, elegir una tarjeta elige su entrada (la vista previa
+        // y las tarjetas nuevas van a esa).
+        if (page.vista !== "estudio") return
+        const l = page.est.nodos || []
+        for (const n of l) if (n.id === id && n.grupo && page.vg.entrada !== n.grupo) page.vg.entrada = n.grupo
+    }
+    // El árbol de entradas, agrupado como el de las fuentes del audio.
+    property var plegados: ({})
+    property int plegTick: 0
+    readonly property var arbol: {
+        plegTick
+        const info = page.vg ? page.vg.entradasInfo : []
+        const orden = ["Cámaras", "Red", "NDI"]
+        const porGrupo = {}
+        for (const e of info) { (porGrupo[e.grupo] = porGrupo[e.grupo] || []).push(e) }
+        for (const k in porGrupo) if (orden.indexOf(k) < 0) orden.push(k)
+        const filas = []
+        for (const k of orden) {
+            if (!porGrupo[k]) continue
+            filas.push({ fila: "grupo", grupo: k, cuantas: porGrupo[k].length })
+            if (!page.plegados[k]) for (const e of porGrupo[k]) filas.push({ fila: "entrada", e: e })
+        }
+        return filas
+    }
     function avisar(e) { page.msg = e || "" }
     // Los deslizadores aplican mientras se mueven, sin pedir un cambio por píxel.
     property var pendiente: null
@@ -112,20 +165,46 @@ Rectangle {
                 anchors.fill: parent
                 clip: true
                 spacing: 6
-                model: page.vg ? page.vg.entradas : []
-                delegate: Rectangle {
-                    required property string modelData
+                model: page.arbol
+                delegate: Item {
+                    required property var modelData
                     width: ListView.view.width
-                    height: 40
-                    radius: 10
-                    color: page.vg && page.vg.entrada === modelData ? Qt.rgba(1, 0.42, 0.17, 0.18) : Qt.rgba(1, 1, 1, 0.04)
-                    border.color: page.vg && page.vg.entrada === modelData ? Theme.accent : "transparent"
-                    Text {
-                        anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: 12 }
-                        text: modelData; elide: Text.ElideRight
-                        color: Theme.text; font.pixelSize: 13
+                    height: modelData.fila === "grupo" ? 26 : 50
+                    // Encabezado de grupo (se pliega).
+                    RowLayout {
+                        visible: modelData.fila === "grupo"
+                        anchors { fill: parent; leftMargin: 2; rightMargin: 4 }
+                        spacing: 6
+                        Text { text: page.plegados[modelData.grupo] ? "▸" : "▾"; color: Theme.textFaint; font.pixelSize: 11 }
+                        Text {
+                            Layout.fillWidth: true
+                            text: modelData.grupo || ""
+                            color: Theme.textDim
+                            font { pixelSize: 11; weight: Font.DemiBold; capitalization: Font.AllUppercase; letterSpacing: 0.4 }
+                        }
+                        Text { text: modelData.cuantas || 0; color: Theme.textFaint; font.pixelSize: 11 }
                     }
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { page.vg.entrada = modelData; page.sel = "" } }
+                    MouseArea {
+                        visible: modelData.fila === "grupo"
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: { page.plegados[modelData.grupo] = !page.plegados[modelData.grupo]; page.plegTick++ }
+                    }
+                    // Una entrada.
+                    Rectangle {
+                        visible: modelData.fila === "entrada"
+                        anchors { fill: parent; leftMargin: 12 }
+                        radius: 12
+                        readonly property var e: modelData.e || ({})
+                        color: page.vg && page.vg.entrada === e.nombre ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.04)
+                        border.color: page.vg && page.vg.entrada === e.nombre ? Theme.accent : "transparent"
+                        RowLayout {
+                            anchors { fill: parent; margins: 10 }
+                            Text { text: parent.parent.e.nombre || ""; color: Theme.text; font.pixelSize: 13; elide: Text.ElideRight; Layout.fillWidth: true }
+                            Text { visible: (parent.parent.e.tarjetas || 0) > 0; text: "⧈ " + parent.parent.e.tarjetas; color: Theme.accent; font.pixelSize: 12 }
+                        }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { page.vg.entrada = parent.e.nombre; page.sel = "" } }
+                    }
                 }
                 Text {
                     visible: parent.count === 0
@@ -202,6 +281,12 @@ Rectangle {
                         }
                     }
                 }
+                Item { width: 12; height: 1 }
+                GlassButton { compact: true; text: "Racks"; active: page.vista === "racks"; onClicked: page.vg.vista = "racks"
+                              ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "El pipeline de la entrada elegida" }
+                GlassButton { compact: true; text: "Estudio"; icon: "▦"; active: page.vista === "estudio"; onClicked: page.vg.vista = "estudio"
+                              ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Todas las entradas, cada una en su franja, y los cables entre ellas" }
+                Item { width: 12; height: 1 }
                 GlassButton {
                     compact: true
                     text: "Volver a como vino"
@@ -217,11 +302,12 @@ Rectangle {
             Patchbay {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                nodos: page.nodosVista
-                cables: page.g.cables || []
+                nodos: page.vista === "estudio" ? page.nodosEstudio : page.nodosVista
+                cables: (page.vista === "estudio" ? page.est.cables : page.g.cables) || []
+                franjas: page.vista === "estudio" ? page.franjasEstudio : []
                 seleccionado: page.sel
                 colorDe: page.colorDe
-                onElegir: (id) => page.sel = id
+                onElegir: (id) => page.elegir(id)
                 onMover: (id, x, y) => page.avisar(page.vg.mover(id, x, y))
                 onConectar: (desde, salida, hacia, entrada) => page.avisar(page.vg.conectar(desde, salida, hacia, entrada))
                 onDesconectar: (desde, salida, hacia, entrada) => page.avisar(page.vg.desconectar(desde, salida, hacia, entrada))

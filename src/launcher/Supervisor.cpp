@@ -233,7 +233,9 @@ bool Supervisor::startChild(bool isA) {
     const std::uint32_t slot = isA ? cfg_.slotA : cfg_.slotB;
     ChildProcess::Config c;
     c.exePath = isA ? cfg_.appExe : cfg_.gatewayExe;
-    c.workDir = cfg_.root;
+    // Los hijos trabajan en la raiz de los DATOS (y la reciben en BA_DATA_ROOT):
+    // en macOS es la carpeta al lado de la .app, no el bundle.
+    c.workDir = cfg_.dataRoot.empty() ? cfg_.root : cfg_.dataRoot;
     c.name = isA ? "A" : "B";
     c.args = isA ? cfg_.appArgs : cfg_.gatewayArgs;
     if (isA && appNeedsRestore_) {

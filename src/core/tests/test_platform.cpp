@@ -290,6 +290,14 @@ void testPaths() {
           fs::path("/Applications/BA.app/Contents/Resources"));
     CHECK(bundleRootFor(fs::path("/x/64bit")) == fs::path("/x/64bit")); // sin bin/: no es el layout
     CHECK(bundleRootFor(fs::path()).empty());
+    // Los datos: en macOS al lado de la .app; en el resto, la misma carpeta.
+    CHECK(dataRootFor(fs::path("/Users/x/BA/BroadcastAppliance.app/Contents/Resources")) ==
+          fs::path("/Users/x/BA/BroadcastAppliance Datos"));
+    CHECK(dataRootFor(fs::path("/Users/x/BA/BroadcastAppliance.app/Contents/Resources/")) ==
+          fs::path("/Users/x/BA/BroadcastAppliance Datos"));
+    CHECK(dataRootFor(fs::path("/opt/ba")) == fs::path("/opt/ba"));
+    CHECK(dataRootFor(fs::path("/x/Contents/Resources")) == fs::path("/x/Contents/Resources")); // sin .app
+    CHECK(dataRootFor(fs::path()).empty());
 
     const fs::path exe = executablePath();
     CHECK(!exe.empty());

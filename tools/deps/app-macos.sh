@@ -119,8 +119,10 @@ cat >"$STAGE/Leeme primero.txt" <<'TXT'
 BROADCAST APPLIANCE PARA macOS (Apple Silicon, macOS 13.3 o más nuevo)
 ======================================================================
 
-1. Arrastrá "BroadcastAppliance" a Aplicaciones (o a una carpeta de tu disco
-   externo: es portable, todo lo que usa y lo que graba queda adentro).
+1. Arrastrá "BroadcastAppliance" a Aplicaciones o, mejor, a una carpeta
+   propia (por ejemplo en un disco externo): es portable. Al lado de la app
+   se crea la carpeta "BroadcastAppliance Datos" con la configuración, las
+   grabaciones y los modelos: para llevarla a otra Mac, llevá las dos cosas.
    No lo abras desde este disco (.dmg): ahí es de solo lectura.
 
 2. La PRIMERA vez: clic derecho sobre BroadcastAppliance -> Abrir -> Abrir.
@@ -133,9 +135,10 @@ BROADCAST APPLIANCE PARA macOS (Apple Silicon, macOS 13.3 o más nuevo)
    Para capturar la pantalla hay que darlo en Ajustes -> Privacidad y
    seguridad -> Grabación de pantalla, y volver a abrir el programa.
 
-Las grabaciones y la configuración quedan dentro de la app (clic derecho ->
-Mostrar contenido del paquete -> Contents -> Resources -> Recordings). El
-manual completo está en Contents/Resources/LEEME.txt.
+Las grabaciones y la configuración quedan en "BroadcastAppliance Datos", al
+lado de la app (no adentro: así la app sigue sellada y macOS no la vuelve a
+verificar ni a pedir los permisos). El manual completo está en
+Contents/Resources/LEEME.txt.
 TXT
 rm -f "$DMG"
 log "armando $(basename "$DMG")"

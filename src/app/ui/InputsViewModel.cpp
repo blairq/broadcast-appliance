@@ -2,6 +2,7 @@
 // src/app/ui/InputsViewModel.cpp — ver InputsViewModel.hpp
 // ============================================================================
 
+#include "platform/Paths.hpp"
 #include "ui/InputsViewModel.hpp"
 
 #include <QImage>
@@ -269,7 +270,7 @@ QString InputsViewModel::addNetwork(const QString& url, const QString& name, con
     const std::string nm =
         name.trimmed().isEmpty() ? "Red " + inputs::redactUrl(u).substr(0, 40) : name.trimmed().toStdString();
     const SourceSpec spec = inputs::networkSpec(u, nm, json{{"latency", lowLatency ? "low" : "normal"}},
-                                                (rt_.dataRoot() / "data" / "cacert.pem").string());
+                                                (ba::platform::bundleRoot() / "data" / "cacert.pem").string());
     const std::string sc = scene.isEmpty() ? rt_.engine().currentScene() : scene.toStdString();
     if (!rt_.addSource(sc, spec)) return QString::fromStdString(rt_.lastError());
     rt_.save();

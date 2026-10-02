@@ -2,6 +2,7 @@
 // src/app/ui/StudioViewModel.cpp — ver StudioViewModel.hpp
 // ============================================================================
 
+#include "platform/Paths.hpp"
 #include "ui/StudioViewModel.hpp"
 #include <QClipboard>
 #include <QDateTime>
@@ -207,7 +208,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     connect(grafico_.get(), &GraficoViewModel::notify, this, &StudioViewModel::notify);
     // HTTPS propio (plataformas): raices de certificados del bundle primero.
     net::HttpsClient::setDefaultCaSearch(
-        {(rt.dataRoot() / "data" / "cacert.pem").string(),
+        {(ba::platform::bundleRoot() / "data" / "cacert.pem").string(),
+         (rt.dataRoot() / "data" / "cacert.pem").string(),
          (QCoreApplication::applicationDirPath() + "/../../data/cacert.pem").toStdString()});
     youtube_ = std::make_unique<YouTubeViewModel>(rt);
     connect(youtube_.get(), &YouTubeViewModel::notify, this, &StudioViewModel::notify);

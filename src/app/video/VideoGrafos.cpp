@@ -65,6 +65,22 @@ bool VideoGrafos::esEntrada(const std::string& n) const {
 
 QStringList VideoGrafos::entradas() const { return entradas_; }
 
+QVariantList VideoGrafos::entradasInfo() const {
+    QVariantList out;
+    for (const QString& e : entradas_) {
+        const std::string n = e.toStdString();
+        const std::string tipo = rt_.engine().sourceTypeId(n);
+        const QString grupo = tipo == inputs::kVideoType ? QStringLiteral("Cámaras")
+                              : tipo == "ba_ndi_input"   ? QStringLiteral("NDI")
+                                                         : QStringLiteral("Red");
+        int tarjetas = 0;
+        for (const auto& nd : grafo_.nodos())
+            if (nd.grupo == n && nd.tipo != "entrada" && nd.tipo != "escena") ++tarjetas;
+        out << QVariantMap{{"nombre", e}, {"grupo", grupo}, {"tarjetas", tarjetas}};
+    }
+    return out;
+}
+
 void VideoGrafos::seleccionar(const QString& entrada) {
     if (entrada == entrada_) return;
     entrada_ = entrada;

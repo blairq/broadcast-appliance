@@ -9,6 +9,7 @@
 // Las dos quedan como fuentes de escena normales (source_update, capturas...).
 // ============================================================================
 
+#include "platform/Paths.hpp"
 #include <QTimer>
 
 #include <algorithm>
@@ -122,7 +123,7 @@ void McpService::registerInputTools() {
             if (inputs::networkScheme(url).empty())
                 return done(ToolResult::error(
                     "URL no soportada: rtsp, rtsps, rtmp, rtmps, srt, http(s), udp, rtp o tcp."));
-            const std::string ca = (rt.dataRoot() / "data" / "cacert.pem").string();
+            const std::string ca = (ba::platform::bundleRoot() / "data" / "cacert.pem").string();
             SourceSpec spec = inputs::networkSpec(
                 url, a.value("name", "Red " + inputs::redactUrl(url).substr(0, 40)), a, ca);
             std::string err;

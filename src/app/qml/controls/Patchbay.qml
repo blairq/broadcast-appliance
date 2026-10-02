@@ -9,7 +9,8 @@
 //   cables: [{desde, salida, hacia, entrada}]
 // Un puerto `pedido` es uno libre de los que se crean al conectar (los de un
 // compositor): se dibuja hueco, con «+». Un nodo `externo` es de otra parte
-// del grafo (se ve atenuado y no se mueve desde acá).
+// del grafo (se ve atenuado y no se mueve desde acá). `franjas` dibuja
+// bandas de fondo con nombre (una por entrada en la vista Estudio).
 // La tarjeta se mueve por la cabecera (encaja en la grilla al soltar); un
 // cable se tira desde un punto de salida y se suelta sobre una entrada o una
 // tarjeta; la ✕ en el medio lo quita.
@@ -23,6 +24,9 @@ Rectangle {
     property var nodos: []
     property var cables: []
     property string seleccionado: ""
+    /// Franjas de fondo con nombre (la vista Estudio: una por entrada):
+    /// [{titulo, y, alto, color?}]
+    property var franjas: []
     /// El color de la franja de cada tipo de tarjeta.
     property var colorDe: function(tipo) { return Theme.accent }
     signal elegir(string id)
@@ -124,6 +128,27 @@ Rectangle {
             scale: pb.escala
             transformOrigin: Item.TopLeft
             MouseArea { anchors.fill: parent; onClicked: pb.elegir("") }
+
+            // Franjas (debajo de todo).
+            Repeater {
+                model: pb.franjas
+                delegate: Rectangle {
+                    required property var modelData
+                    z: -2
+                    x: 0
+                    y: modelData.y
+                    width: Math.max(pb.anchoGrafo, flick.width / pb.escala)
+                    height: modelData.alto
+                    color: modelData.color || Qt.rgba(1, 1, 1, 0.025)
+                    border.color: Qt.rgba(1, 1, 1, 0.06)
+                    Text {
+                        anchors { left: parent.left; top: parent.top; leftMargin: 10; topMargin: 6 }
+                        text: modelData.titulo
+                        color: Theme.textFaint
+                        font { pixelSize: 11; weight: Font.DemiBold; capitalization: Font.AllUppercase; letterSpacing: 0.4 }
+                    }
+                }
+            }
 
             Canvas {
                 anchors.fill: parent

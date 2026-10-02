@@ -2,6 +2,7 @@
 // src/app/audio/RackManager.cpp — ver RackManager.hpp
 // ============================================================================
 
+#include "platform/Paths.hpp"
 #include "audio/RackManager.hpp"
 
 #include "audio/GrabadorWav.hpp"
@@ -292,6 +293,8 @@ std::shared_ptr<ClapLibrary> RackManager::library(std::string* error) {
         libTried_ = true;
         std::vector<fs::path> candidates;
         if (const char* env = std::getenv("BA_LSP_CLAP")) candidates.emplace_back(env);
+        // Viene con el programa: del bundle; y de la raíz de datos (copia sombra, layout viejo).
+        candidates.push_back(ba::platform::bundleRoot() / "plugins" / "lsp" / "lsp-plugins.clap");
         candidates.push_back(root_ / "plugins" / "lsp" / "lsp-plugins.clap");
 #ifdef BA_DEV_LSP_CLAP
         candidates.emplace_back(BA_DEV_LSP_CLAP); // arbol de build (desarrollo)
