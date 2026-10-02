@@ -101,6 +101,7 @@ def main():
     ap.add_argument("--charla", type=float, default=0.35, help="porcion de charla en el corpus")
     ap.add_argument("--derivar", type=float, default=0.15, help="porcion de derivar")
     ap.add_argument("--prueba", type=float, default=0.15, help="plantillas que no se entrenan")
+    ap.add_argument("--falta", type=float, default=0.10, help="porcion (techo) de falta_dato")
     ap.add_argument("--semilla", type=int, default=13)
     args = ap.parse_args()
     rnd = random.Random(args.semilla)
@@ -117,8 +118,14 @@ def main():
                 prueba += rendir(h, a, rnd, 2, variar=False)
             else:
                 ent += rendir(h, a, rnd, args.k, variar=True)
-    n_herr = sum(1 for f in ent if f["tipo"] == "herramienta")
-    n_falta = sum(1 for f in ent if f["tipo"] == "falta")
+    # falta_dato CON TECHO: el agente marca como incompleta toda frase con
+    # «ese/eso» y quedaba un 27 % del corpus; con eso el modelo aprende a
+    # preguntar de mas. ~10 % del total (como la irrelevancia de Hammer).
+    herr = [f for f in ent if f["tipo"] == "herramienta"]
+    faltas = [f for f in ent if f["tipo"] == "falta"]
+    rnd.shuffle(faltas)
+    tope = int(len(herr) / max(0.1, 1 - args.derivar - args.charla - args.falta) * args.falta)
+    ent = herr + faltas[:tope]
 
     # derivar: las frases ajenas que ya funcionaban, cada una con un estado cualquiera
     der = []
@@ -130,8 +137,8 @@ def main():
     der = sorted(set(der))
     rnd.shuffle(der)
     base = len(ent)
-    # derivar y charla son porciones del TOTAL: total = base / (1 - derivar - charla)
-    total = int(base / max(0.1, 1 - args.derivar - args.charla))
+    # derivar y charla son porciones del TOTAL
+    total = int(len(herr) / max(0.1, 1 - args.derivar - args.charla - args.falta))
     for frase in der[:int(total * args.derivar)]:
         est, _ = tc.estado_sintetico(rnd)
         ent.append(fila(est, frase, tc.llamada(tc.DERIVAR, {}), "derivar", tc.DERIVAR, {}))

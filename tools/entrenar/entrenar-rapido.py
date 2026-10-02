@@ -63,7 +63,7 @@ def main():
                          " 0..k en una, el resto en la otra; las activaciones pasan por P2P). Para"
                          " modelos que no entran en una placa: el 9B entra en bf16, sin cuantizar")
     ap.add_argument("--recalcular", action="store_true",
-                    help="no guardar las activaciones del prefijo: se recalculan en el backward, capa por capa")
+                    help="no guardar las activaciones (prefijo y sufijo): se recalculan en el backward, capa por capa")
     args = ap.parse_args()
 
     import torch
@@ -192,12 +192,27 @@ def main():
                 # respuesta desde la posicion anterior a cada uno
                 etq[i, len(s) - n - 1:len(s) - 1] = torch.tensor(s[len(s) - n:], device=dev)
             pos = torch.arange(Lp, Lp + L, device=dev).unsqueeze(0).expand(len(lote), -1)
-            lg = modelo(input_ids=ids, attention_mask=mask, position_ids=pos,
-                        past_key_values=kv, use_cache=True).logits
-            etq = etq.to(lg.device)  # con --repartir los logits salen en la ultima placa
-            suma = F.cross_entropy(lg.float().reshape(-1, lg.shape[-1]), etq.reshape(-1),
-                                   ignore_index=-100, reduction="sum")
-            return suma, (etq != -100).sum()
+            # LOGITS SOLO DONDE HAY PERDIDA, y por tandas. Con respuestas largas
+            # (la charla del formato de tool calling, ~220 tokens) los logits de
+            # todo el lote son lote x largo x 248k: varios GB que no hacen falta.
+            interno = modelo.get_base_model() if hasattr(modelo, "get_base_model") else modelo
+            # con --recalcular tambien el sufijo se recalcula capa por capa: las
+            # respuestas largas (charla) llenaban la placa; cada capa vuelve a su
+            # cache «con el prefijo» antes de recalcularse (cache_hibrido)
+            import contextlib
+            ctx = ch.recalculando() if (args.recalcular and grad) else contextlib.nullcontext()
+            with ctx:
+                hs = interno.model(input_ids=ids, attention_mask=mask, position_ids=pos,
+                                   past_key_values=kv, use_cache=True).last_hidden_state
+            etq = etq.to(hs.device)  # con --repartir sale en la ultima placa
+            sel = etq != -100
+            h_sel, t_sel = hs[sel], etq[sel]
+            cabeza_lm = interno.lm_head
+            suma = 0.0
+            for i in range(0, h_sel.shape[0], 512):
+                lg = cabeza_lm(h_sel[i:i + 512].to(cabeza_lm.weight.device))
+                suma = suma + F.cross_entropy(lg.float(), t_sel[i:i + 512].to(lg.device), reduction="sum")
+            return suma, sel.sum().to(suma.device)  # con embeddings atados lm_head esta en la placa 0
 
     por_placa = args.lote // mundo
     pasos_epoca = len(E) // args.lote

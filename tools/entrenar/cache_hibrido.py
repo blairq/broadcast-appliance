@@ -168,6 +168,21 @@ def volver(kv, f, n_prefijo):
 _recalcular = {"activo": False}
 
 
+_ATRIBUTOS = ("conv_states", "recurrent_states", "has_previous_state", "is_conv_states_initialized",
+              "is_recurrent_states_initialized", "keys", "values", "is_initialized")
+
+
+def _foto_capa(c):
+    """Las referencias del estado de UNA capa del cache (no copia: la capa recibe
+    tensores nuevos al actualizarse, asi que las viejas quedan intactas)."""
+    return {k: getattr(c, k) for k in _ATRIBUTOS if hasattr(c, k)}
+
+
+def _poner_capa(c, foto):
+    for k, v in foto.items():
+        setattr(c, k, v)
+
+
 def _vaciar(c):
     if _lineal(c):
         c.conv_states = c.recurrent_states = None
@@ -192,10 +207,14 @@ def recalcular_por_capa(modelo):
             if not (_recalcular["activo"] and torch.is_grad_enabled()):
                 return _orig(hidden_states, *a, **kw)
             kv = kw.get("past_key_values")
+            # el cache de ESTA capa como estaba antes de correrla: al recalcular se
+            # vuelve a eso. En el prefijo es «vacio»; en el sufijo, «con el prefijo»
+            # (por eso no alcanza con vaciarla, como hacia la primera version).
+            foto = _foto_capa(kv.layers[_idx]) if kv is not None else None
 
             def f(h):
-                if kv is not None:
-                    _vaciar(kv.layers[_idx])
+                if foto is not None:
+                    _poner_capa(kv.layers[_idx], foto)
                 return _orig(h, *a, **kw)
             return checkpoint(f, hidden_states, use_reentrant=False)
         setattr(capa, attr, envuelto)
