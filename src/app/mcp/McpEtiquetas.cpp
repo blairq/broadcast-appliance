@@ -342,6 +342,16 @@ const Fila kPropias[] = {
     {"ext_listar", "que extensiones hay plugins disponibles"},
     {"ext_prender", "activar extension plugin prender"},
 
+    // --- Cámaras PTZ ------------------------------------------------------------
+    {"ptz_camaras", "camaras ptz que puede cada camara estado del ptz backend visca onvif"},
+    {"ptz_mover", "mover camara paneo pan tilt zoom acercar alejar girar subir bajar la camara"},
+    {"ptz_parar", "parar la camara frenar el movimiento"},
+    {"ptz_preset", "preset posicion guardada ir a la posicion guardar posicion de camara plano"},
+    {"ptz_encuadre", "encuadre recorte zoom digital reencuadrar acercar el plano centrar"},
+    {"ptz_configurar", "configurar ptz camara motorizada visca onvif panasonic ip de la camara"},
+    {"ptz_buscar", "buscar camaras onvif en la red descubrir camaras ip"},
+    {"video_mejora", "mejorar imagen ruido nitidez calidad de la camara color corrido led"},
+
     // --- Medios ---------------------------------------------------------------
     {"media_list", "que archivos hay musica videos biblioteca"},
     {"media_find", "buscar archivo cancion video por nombre"},

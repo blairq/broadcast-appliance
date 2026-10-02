@@ -80,6 +80,7 @@ class McpService : public QObject {
     void registerAgenteTools();
     void registerModeloTools();
     void registerMatrizTools();
+    void registerPtzTools();
     void registerPrompterTools();
     void registerPantallaTools();
     void registerLaminaTools();

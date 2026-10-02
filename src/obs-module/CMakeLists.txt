@@ -2,7 +2,7 @@
 # src/obs-module — `ba-sources` (módulo propio de fuentes/filtros libobs)
 #
 # Biblioteca compartida que libobs carga como plugin, desplegada en
-# obs-plugins/64bit/ (spec §5.1). Registra cinco cosas:
+# obs-plugins/64bit/ (spec §5.1). Registra seis cosas:
 #   - FUENTE `ba_guest_audio`: lee el ring BA.Audio.Guest.<n> del Proceso B.
 #   - FUENTE `ba_guest_video`: lee el canal compartido BA.Guest.<n>.
 #   - FILTRO `ba_channel_strip`: el DSP nativo de ba_core (HPF->EQ4->de-esser->
@@ -10,6 +10,8 @@
 #   - FUENTE `ba_channel_preset`: tono de referencia para oir cada preset.
 #   - FILTRO `ba_mejora_imagen`: ruido temporal + color guiado + nitidez, en
 #     la GPU (data/mejora-imagen.effect, que libobs traduce a D3D11/OpenGL).
+#   - FILTRO `ba_ptz_digital`: pan/tilt/zoom recortando en la GPU, el PTZ que
+#     tiene cualquier entrada (data/ptz-digital.effect).
 #
 # Se compila contra libobs DE VERDAD y en CUALQUIER plataforma: libobs es
 # cross-platform, asi que aca no hay `#ifdef _WIN32`. Si libobs no esta
@@ -38,6 +40,7 @@ else()
     list(FILTER BA_SOURCES_SOURCES EXCLUDE REGEX ".*/ba_ipc_sources\\.cpp$")
     list(FILTER BA_SOURCES_SOURCES EXCLUDE REGEX ".*/ba_dsp_sources\\.cpp$")
     list(FILTER BA_SOURCES_SOURCES EXCLUDE REGEX ".*/ba_mejora_imagen\\.cpp$")
+    list(FILTER BA_SOURCES_SOURCES EXCLUDE REGEX ".*/ba_ptz_digital\\.cpp$")
 endif()
 
 # Shared lib: OBS la carga como plugin. En Windows se llama ba-sources.dll.

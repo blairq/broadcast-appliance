@@ -1,5 +1,7 @@
 // ============================================================================
-// src/obs-module/tests/test_mejora_imagen.cpp — «Mejorar imagen» en la GPU real
+// src/obs-module/tests/test_mejora_imagen.cpp — los filtros de video en la GPU real
+//
+// «Mejorar imagen» (ba_mejora_imagen) y el PTZ digital (ba_ptz_digital).
 //
 // Proposito:
 //   Correr el filtro `ba_mejora_imagen` dentro de una libobs real, con su
@@ -239,6 +241,92 @@ void pruebaNitidez(obs_source_t* fuente) {
     sacar(fuente, f);
 }
 
+// --- PTZ digital -----------------------------------------------------------------
+
+struct Pos {
+    double x, y, zoom;
+    bool moviendo;
+};
+
+Pos posicion(obs_source_t* f) {
+    calldata_t cd;
+    calldata_init(&cd);
+    proc_handler_call(obs_source_get_proc_handler(f), "posicion", &cd);
+    Pos p{calldata_float(&cd, "x"), calldata_float(&cd, "y"), calldata_float(&cd, "zoom"), calldata_bool(&cd, "moviendo")};
+    calldata_free(&cd);
+    return p;
+}
+
+void ir(obs_source_t* f, double x, double y, double zoom, double segundos) {
+    calldata_t cd;
+    calldata_init(&cd);
+    calldata_set_float(&cd, "x", x);
+    calldata_set_float(&cd, "y", y);
+    calldata_set_float(&cd, "zoom", zoom);
+    calldata_set_float(&cd, "segundos", segundos);
+    proc_handler_call(obs_source_get_proc_handler(f), "ir", &cd);
+    calldata_free(&cd);
+}
+
+void mover(obs_source_t* f, double vx, double vy, double vz) {
+    calldata_t cd;
+    calldata_init(&cd);
+    calldata_set_float(&cd, "vx", vx);
+    calldata_set_float(&cd, "vy", vy);
+    calldata_set_float(&cd, "vz", vz);
+    proc_handler_call(obs_source_get_proc_handler(f), "mover", &cd);
+    calldata_free(&cd);
+}
+
+void pruebaPtzDigital(obs_source_t* fuente) {
+    obs_source_t* f = obs_source_create_private("ba_ptz_digital", "ptz", nullptr);
+    CHECK(f != nullptr, "se crea el PTZ digital");
+    if (f == nullptr) return;
+    obs_source_filter_add(fuente, f);
+    // Mitad izquierda oscura, mitad derecha clara.
+    std::vector<std::uint8_t> im(static_cast<std::size_t>(g_w) * g_h * 4), sal;
+    for (std::uint32_t y = 0; y < g_h; ++y)
+        for (std::uint32_t x = 0; x < g_w; ++x) {
+            const double v = x < g_w / 2 ? 0.2 : 0.8;
+            llenar(im, x, y, v, v, v);
+        }
+    cargar(im);
+    siguienteCuadro();
+    dibujar(fuente, sal);
+    CHECK(std::fabs(px(sal, g_w / 4, g_h / 2, 1) - 0.2) < 0.01, "sin zoom la imagen pasa igual");
+
+    // Zoom 2 centrado en x = 0.75: se ve solo la mitad clara.
+    ir(f, 0.75, 0.5, 2.0, 0.0);
+    siguienteCuadro();
+    dibujar(fuente, sal);
+    std::printf("ptz digital: con zoom 2 a la derecha, x=1/8 vale %.3f, x=7/8 vale %.3f (la mitad clara: 0.8)\n",
+                px(sal, g_w / 8, g_h / 2, 1), px(sal, g_w * 7 / 8, g_h / 2, 1));
+    CHECK(px(sal, g_w / 8, g_h / 2, 1) > 0.75 && px(sal, g_w * 7 / 8, g_h / 2, 1) > 0.75, "el zoom recorta la ventana pedida");
+
+    // La ventana no sale del cuadro.
+    ir(f, 0.05, 0.5, 2.0, 0.0);
+    Pos p = posicion(f);
+    CHECK(std::fabs(p.x - 0.25) < 1e-6, "la ventana queda dentro del cuadro");
+
+    // El joystick: a velocidad 1 hacia la derecha avanza, con la rampa.
+    ir(f, 0.5, 0.5, 2.0, 0.0);
+    mover(f, 1.0, 0.0, 0.0);
+    for (int i = 0; i < 30; ++i) siguienteCuadro(); // ~0,5 s a 60 fps
+    p = posicion(f);
+    std::printf("ptz digital: tras ~0,5 s a velocidad 1, x = %.3f (salio de 0.5), moviendo = %d\n", p.x, p.moviendo);
+    CHECK(p.x > 0.53 && p.moviendo, "a velocidad 1 la ventana se mueve");
+    mover(f, 0.0, 0.0, 0.0);
+    for (int i = 0; i < 40; ++i) siguienteCuadro();
+    CHECK(!posicion(f).moviendo, "al soltar el joystick frena");
+
+    // Ir a un preset en 0,3 s: a mitad de camino esta entre medio, al final llega.
+    ir(f, 0.5, 0.5, 1.0, 0.3);
+    for (int i = 0; i < 40; ++i) siguienteCuadro();
+    p = posicion(f);
+    CHECK(std::fabs(p.zoom - 1.0) < 1e-6 && !p.moviendo, "llega al preset");
+    sacar(fuente, f);
+}
+
 /// Modo herramienta: un clip crudo por el filtro real.
 double mediana(std::vector<double> v) {
     std::sort(v.begin(), v.end());
@@ -353,8 +441,9 @@ int main(int argc, char** argv) {
         pruebaRuido(fuente);
         pruebaColor(fuente);
         pruebaNitidez(fuente);
+        pruebaPtzDigital(fuente);
         rcFinal = g_failures == 0 ? 0 : 1;
-        std::printf(g_failures == 0 ? "OK: Mejorar imagen anda en la GPU\n" : "%d fallos\n", g_failures);
+        std::printf(g_failures == 0 ? "OK: los filtros de video andan en la GPU\n" : "%d fallos\n", g_failures);
     }
 
     obs_source_release(fuente);

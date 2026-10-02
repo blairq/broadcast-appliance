@@ -171,6 +171,7 @@ ApplicationWindow {
         PersonasPage { leftInset: win.insetPagina }
         PublicoPage { leftInset: win.insetPagina }
         MediosPage { leftInset: win.insetPagina }
+        PtzPage { leftInset: win.insetPagina }
     }
 
     // --- Pestañas sacadas a su propia ventana --------------------------------------
@@ -198,12 +199,13 @@ ApplicationWindow {
     Component { id: cmpQr;         QrPage {} }
     Component { id: cmpPublico;    PublicoPage {} }
     Component { id: cmpMedios;     MediosPage {} }
+    Component { id: cmpPtz;        PtzPage {} }
 
     function componenteDePagina(i) {
         return [cmpDashboard, cmpScenes, cmpConference, cmpYouTube, cmpTwitch, cmpFacebook,
                 cmpSettings, cmpAssistant, cmpInputs, cmpAudio, cmpEvento, cmpGraficos,
                 cmpRotulos, cmpRegistro, cmpAgentes, cmpPrompter, cmpPantallas, cmpQr,
-                cmpPersonas, cmpPublico, cmpMedios][i] || null
+                cmpPersonas, cmpPublico, cmpMedios, cmpPtz][i] || null
     }
 
     ListModel { id: sueltas }

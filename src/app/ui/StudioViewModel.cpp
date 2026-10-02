@@ -43,6 +43,7 @@
 #include "graficos/Emisor.hpp"
 #include "graficos/Vinculos.hpp"
 #include "net/HttpsClient.hpp"
+#include "ptz/ControlCamaras.hpp"
 #include "ui/CarruselViewModel.hpp"
 #include "ui/ChatOverlayRenderer.hpp"
 #include "ui/ConferenceClient.hpp"
@@ -338,6 +339,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         });
     }
     inputs_ = std::make_unique<InputsViewModel>(rt, *this);
+    // El PTZ de cada entrada (y Mejorar imagen): se entera enseguida de las
+    // entradas nuevas y de lo que cambia en Configuración.
+    camaras_ = std::make_unique<ptz::ControlCamaras>(rt, rt.dataRoot());
+    connect(inputs_.get(), &InputsViewModel::changed, camaras_.get(), &ptz::ControlCamaras::sincronizar);
 #if defined(BA_HAVE_CLAP)
     // Racks de audio (LSP) de cada fuente: se montan los guardados.
     racks_ = std::make_unique<audio::RackManager>(rt.dataRoot());
@@ -363,6 +368,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         emit themeChanged();
         emit sceneChanged();
         frames_->setGuests(rt_.config().guests);
+        camaras_->sincronizar(); // Mejorar imagen general: rige ya
     });
 
     connect(&tick_, &QTimer::timeout, this, &StudioViewModel::onTick);
@@ -521,6 +527,7 @@ QObject* StudioViewModel::matriz() const {
     return nullptr;
 #endif
 }
+QObject* StudioViewModel::camaras() const { return camaras_.get(); }
 QObject* StudioViewModel::despachadorQml() const { return despachador_.get(); }
 QObject* StudioViewModel::messages() const { return messages_.get(); }
 

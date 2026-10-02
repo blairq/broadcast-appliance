@@ -423,6 +423,22 @@ La API de Facebook solo transmite y administra videos de **Paginas** (no del per
 - Otras: `rtmp://`, `srt://ip:puerto?mode=caller`, `https://.../playlist.m3u8` (HLS), `udp://@:5000`.
 - Devuelve si llega imagen y de que tamaño. `input_status` muestra el estado de todas (sin claves).
 - Latencia baja por defecto; `latency: "normal"` para señales inestables (mas colchon). Reconecta sola.)md"},
+    {"camaras", "Camaras PTZ", "Mover las camaras (pan, tilt, zoom, foco, presets) y mejorar su imagen.",
+     R"md(Cada entrada de video tiene PTZ: DIGITAL (recorte y zoom en la GPU, en cualquier camara) y, si la camara es motorizada, el de la camara (backend VISCA, ONVIF o Panasonic). `ptz_camaras` dice que tiene y que puede cada una.
+
+## Mover
+- `ptz_mover {"entrada": ..., "pan": 0.3, "duracion_ms": 1000}`: velocidades -1..1 (pan + derecha, tilt + arriba, zoom + acercar); se para sola al terminar. Mueve lo que diga su `modo` (optico = la cabeza, digital = el recorte).
+- Encuadre digital exacto: `ptz_encuadre {"entrada": ..., "x": 0.3, "y": 0.4, "zoom": 2, "segundos": 1}` (x, y = centro, 0..1; zoom 1..8). Mira el resultado con `capture_source`.
+- Presets: `ptz_preset {"entrada": ..., "numero": 2}` (ir) o con `"accion": "guardar"`.
+
+## Configurar una camara motorizada
+1. ONVIF: `ptz_buscar` encuentra las de la red; `ptz_configurar {"entrada": ..., "backend": "onvif", "host": <direccion>, "usuario": ..., "clave": ...}`.
+2. VISCA (Sony, PTZOptics, BirdDog...): `"backend": "visca", "host": ip, "transporte": "sony"` (UDP 52381) o `"tcp"` (5678) o `"udp"` (1259).
+3. Panasonic AW/UE: `"backend": "panasonic", "host": ip`.
+4. `ptz_camaras` dice si contesta (`listo`, `estado`). Con camara y digital, `"modo": "digital"` hace que el joystick mueva el recorte.
+
+## Mejorar imagen
+`video_mejora {"activa": true}` (lo general: ruido, color pegado al brillo, nitidez; 0-100) y por camara `ptz_configurar {"entrada": ..., "mejora": "si"|"no"|"general"}`.)md"},
     {"medios", "Medios", "Buscar imagenes, videos y musica del sistema y usarlos en escenas.",
      R"md(Carpetas (dentro del sistema portable): `Media/` (la biblioteca: logos, placas, fondos, musica, videos), `Shares/` (lo que compartieron los invitados), `Recordings/`.
 

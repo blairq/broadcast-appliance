@@ -34,7 +34,8 @@ void ba_register_ipc_sources(void);
 /// `ba_channel_preset` (fuente de referencia audible).
 void ba_register_dsp_sources(void);
 
-/// Definida en ba_mejora_imagen.cpp: registra `ba_mejora_imagen` (filtro de video).
+/// Definida en ba_mejora_imagen.cpp: registra los filtros de video
+/// `ba_mejora_imagen` y `ba_ptz_digital`.
 void ba_register_video_filters(void);
 
 /// Punto de entrada del modulo. Lo invoca libobs al cargar la biblioteca.
@@ -44,7 +45,7 @@ MODULE_EXPORT bool obs_module_load(void) {
     ba_register_ipc_sources();
     ba_register_dsp_sources();
     ba_register_video_filters();
-    blog(LOG_INFO, "[ba-sources] modulo cargado: fuentes IPC de invitado + DSP de canal + Mejorar imagen");
+    blog(LOG_INFO, "[ba-sources] modulo cargado: fuentes IPC de invitado + DSP de canal + Mejorar imagen + PTZ digital");
     return true;
 }
 

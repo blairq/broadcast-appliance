@@ -37,6 +37,10 @@ class Matriz;
 class AudioViewModel;
 } // namespace ba::app::audio
 
+namespace ba::app::ptz {
+class ControlCamaras;
+} // namespace ba::app::ptz
+
 namespace ba::app {
 
 class AppRuntime;
@@ -158,6 +162,9 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* vozPrompter READ vozPrompter CONSTANT)
     /// La matriz de mezcla (fuentes × pistas y buses virtuales): audio/Matriz.hpp.
     Q_PROPERTY(QObject* matriz READ matriz CONSTANT)
+    /// El PTZ de cada entrada de video (digital + hardware) y Mejorar imagen:
+    /// ptz/ControlCamaras.hpp.
+    Q_PROPERTY(QObject* camaras READ camaras CONSTANT)
     /// Los roles automaticos y sus corridas (pagina Agentes).
     Q_PROPERTY(QObject* despachador READ despachadorQml CONSTANT)
     Q_PROPERTY(QObject* messages READ messages CONSTANT)
@@ -240,6 +247,7 @@ class StudioViewModel : public QObject {
     QObject* voz() const;
     QObject* vozPrompter() const;
     QObject* matriz() const;
+    QObject* camaras() const;
     agent::ModelosLocales* modelosLocales() const { return modelos_.get(); }
     QObject* messages() const;
     QObject* inputs() const;
@@ -404,6 +412,7 @@ class StudioViewModel : public QObject {
 #if defined(BA_HAVE_CLAP)
     std::unique_ptr<audio::RackManager> racks_;
     std::unique_ptr<audio::Matriz> matriz_;
+    std::unique_ptr<ptz::ControlCamaras> camaras_;
     std::unique_ptr<audio::AudioViewModel> audio_;
 #endif
     std::unique_ptr<YouTubeViewModel> youtube_;

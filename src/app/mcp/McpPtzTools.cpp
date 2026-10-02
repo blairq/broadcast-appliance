@@ -1,0 +1,290 @@
+// ============================================================================
+// src/app/mcp/McpPtzTools.cpp — el PTZ de las cámaras y Mejorar imagen, por MCP
+//
+// Lo mismo que la página «Cámaras PTZ»: operan sobre el mismo objeto
+// (ptz/ControlCamaras), así que lo que se mueve por acá se ve allá en el acto.
+// Un frontend para todas las cámaras: el backend (digital, VISCA, ONVIF,
+// Panasonic) lo elige cada entrada y estas herramientas no cambian.
+//
+// En su propia categoría («camaras»): no está en el perfil del modelo
+// reactivo, así que agregarlas no le cambia el prompt.
+// ============================================================================
+
+#include "mcp/McpService.hpp"
+#include "mcp/McpToolsCommon.hpp"
+#include "ptz/ControlCamaras.hpp"
+#include "ui/StudioViewModel.hpp"
+
+#include "AppRuntime.hpp"
+
+#include <QJsonDocument>
+#include <QPointer>
+#include <QTimer>
+
+namespace ba::app::mcp {
+
+namespace {
+
+json aJson(const QJsonObject& o) {
+    return json::parse(QJsonDocument(o).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
+}
+
+QString qarg(const json& a, const char* k) { return QString::fromStdString(a.value(k, std::string())); }
+
+} // namespace
+
+void McpService::registerPtzTools() {
+    auto* cc = qobject_cast<ptz::ControlCamaras*>(vm_.camaras());
+    if (cc == nullptr) return;
+    core_.addCategory(
+        "camaras", "Cámaras PTZ",
+        "Mover las cámaras (pan, tilt, zoom, foco, presets): cada entrada de video tiene PTZ digital (recorte y "
+        "zoom en la GPU) y, si la cámara es motorizada, su backend (VISCA, ONVIF, Panasonic). Y «Mejorar imagen».");
+    const QPointer<ptz::ControlCamaras> c = cc;
+    AppRuntime& rt = rt_;
+    const auto resultado = [](const QString& error, const std::string& ok) {
+        return error.isEmpty() ? ToolResult::ok(ok) : ToolResult::error(error.toStdString());
+    };
+    const json entrada = {{"type", "string"}, {"description", "Nombre de la entrada de video (como en ptz_camaras)."}};
+
+    {
+        Tool t;
+        t.name = "ptz_camaras";
+        t.title = "Las cámaras y su PTZ";
+        t.category = "camaras";
+        t.readOnly = true;
+        t.description =
+            "Cada entrada de video con su PTZ: backend (ninguno = solo digital, visca, onvif, panasonic), si "
+            "contesta, qué puede (capacidades: panTilt, zoom, foco, presets…), qué mueve el joystick (modo "
+            "optico|digital), el encuadre digital (x, y, zoom) y si tiene Mejorar imagen.";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"entrada", entrada}}}};
+        t.run = [c](const json& a, Done done) {
+            if (!c) return done(ToolResult::error("el PTZ no está disponible"));
+            c->sincronizar();
+            done(ToolResult().data(aJson(c->estadoJson(qarg(a, "entrada")))));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "ptz_mover";
+        t.title = "Mover una cámara";
+        t.category = "camaras";
+        t.description =
+            "Mueve la cámara `entrada` durante `duracion_ms` y la para: `pan` (+ derecha), `tilt` (+ arriba), "
+            "`zoom` (+ acercar), velocidades de -1 a 1 (0,2 es lento, 1 a fondo). Mueve lo que diga su modo: la "
+            "cabeza (óptico) o el recorte (digital).";
+        t.details =
+            "Para un encuadre digital exacto usá ptz_encuadre; para volver a un lugar guardado, ptz_preset. "
+            "Devuelve el encuadre digital después de moverse (si el modo es digital).";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"entrada"}},
+                         {"properties",
+                          {{"entrada", entrada},
+                           {"pan", {{"type", "number"}, {"minimum", -1}, {"maximum", 1}}},
+                           {"tilt", {{"type", "number"}, {"minimum", -1}, {"maximum", 1}}},
+                           {"zoom", {{"type", "number"}, {"minimum", -1}, {"maximum", 1}}},
+                           {"duracion_ms", {{"type", "integer"}, {"minimum", 100}, {"maximum", 10000}}}}}};
+        t.examples = {R"({"entrada": "Cámara 1", "pan": 0.3, "duracion_ms": 1000})",
+                      R"({"entrada": "Cámara 1", "zoom": 0.5, "duracion_ms": 1500})"};
+        t.run = [c](const json& a, Done done) {
+            if (!c) return done(ToolResult::error("el PTZ no está disponible"));
+            const QString e = qarg(a, "entrada");
+            const QString err = c->mover(e, a.value("pan", 0.0), a.value("tilt", 0.0), a.value("zoom", 0.0));
+            if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
+            const int ms = std::clamp(a.value("duracion_ms", 800), 100, 10000);
+            QTimer::singleShot(ms, c.data(), [c, e, done]() {
+                if (!c) return done(ToolResult::error("el PTZ no está disponible"));
+                c->parar(e);
+                // Un momento para que el digital frene con su rampa.
+                QTimer::singleShot(400, c.data(), [c, e, done]() {
+                    if (!c) return done(ToolResult::ok("movida"));
+                    json r = {{"ok", true}};
+                    const QVariantMap p = c->posicion(e);
+                    if (!p.isEmpty())
+                        r["encuadre_digital"] = {{"x", p["x"].toDouble()}, {"y", p["y"].toDouble()}, {"zoom", p["zoom"].toDouble()}};
+                    done(ToolResult().data(r));
+                });
+            });
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "ptz_parar";
+        t.title = "Parar una cámara";
+        t.category = "camaras";
+        t.idempotent = true;
+        t.description = "Para todo movimiento de la cámara `entrada` (cabeza y recorte).";
+        t.inputSchema = {{"type", "object"}, {"required", {"entrada"}}, {"properties", {{"entrada", entrada}}}};
+        t.run = [c, resultado](const json& a, Done done) {
+            if (!c) return done(ToolResult::error("el PTZ no está disponible"));
+            done(resultado(c->parar(qarg(a, "entrada")), "parada"));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "ptz_preset";
+        t.title = "Ir a un preset o guardarlo";
+        t.category = "camaras";
+        t.description =
+            "`accion` ir (de fábrica) o guardar el preset `numero` (desde 1) de la cámara `entrada`. Los presets "
+            "son de lo que mueve el joystick: en la cámara (óptico) o en el recorte (digital).";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"entrada", "numero"}},
+                         {"properties",
+                          {{"entrada", entrada},
+                           {"numero", {{"type", "integer"}, {"minimum", 1}, {"maximum", 128}}},
+                           {"accion", {{"type", "string"}, {"enum", {"ir", "guardar"}}}}}}};
+        t.examples = {R"({"entrada": "Cámara 1", "numero": 2})", R"({"entrada": "Cámara 1", "numero": 3, "accion": "guardar"})"};
+        t.run = [c, resultado](const json& a, Done done) {
+            if (!c) return done(ToolResult::error("el PTZ no está disponible"));
+            const QString e = qarg(a, "entrada");
+            const int n = a.value("numero", 1);
+            const bool guardar = a.value("accion", std::string("ir")) == "guardar";
+            done(resultado(guardar ? c->guardarPreset(e, n) : c->irPreset(e, n),
+                           (guardar ? "preset guardado: " : "yendo al preset ") + std::to_string(n)));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "ptz_encuadre";
+        t.title = "Encuadre digital exacto";
+        t.category = "camaras";
+        t.idempotent = true;
+        t.description =
+            "Recorte digital de la entrada: centro `x`, `y` (0 a 1 del cuadro; 0,5 = centro) y `zoom` (1 = todo el "
+            "cuadro, hasta 8), llegando en `segundos` (0 = corte). Sirve en cualquier cámara, aunque sea fija.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"entrada"}},
+                         {"properties",
+                          {{"entrada", entrada},
+                           {"x", {{"type", "number"}, {"minimum", 0}, {"maximum", 1}}},
+                           {"y", {{"type", "number"}, {"minimum", 0}, {"maximum", 1}}},
+                           {"zoom", {{"type", "number"}, {"minimum", 1}, {"maximum", 8}}},
+                           {"segundos", {{"type", "number"}, {"minimum", 0}, {"maximum", 10}}}}}};
+        t.examples = {R"({"entrada": "Cámara 1", "x": 0.3, "y": 0.4, "zoom": 2, "segundos": 1})",
+                      R"({"entrada": "Cámara 1", "zoom": 1})"};
+        t.run = [c, resultado](const json& a, Done done) {
+            if (!c) return done(ToolResult::error("el PTZ no está disponible"));
+            done(resultado(c->encuadre(qarg(a, "entrada"), a.value("x", 0.5), a.value("y", 0.5), a.value("zoom", 1.0),
+                                       a.value("segundos", 1.0)),
+                           "encuadre aplicado"));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "ptz_configurar";
+        t.title = "Configurar el PTZ de una entrada";
+        t.category = "camaras";
+        t.description =
+            "Elige el `backend` de la cámara `entrada` (ninguno = solo digital, visca, onvif, panasonic) con su "
+            "`host` y lo que haga falta; y/o `digital` (prender el PTZ digital), `modo` (qué mueve el joystick: "
+            "optico|digital) y `mejora` (Mejorar imagen en esta entrada: general|si|no).";
+        t.details =
+            "VISCA: `transporte` sony (UDP 52381, con encabezado), tcp (5678) o udp (1259); `direccion` 1-7. "
+            "ONVIF: `usuario`, `clave`, `perfil` (vacío = el que tenga PTZ); ptz_buscar las encuentra. Panasonic: "
+            "`usuario` y `clave` si la cámara los pide. La clave se guarda cifrada (Credenciales/), nunca en el json.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"entrada"}},
+                         {"properties",
+                          {{"entrada", entrada},
+                           {"backend", {{"type", "string"}, {"enum", {"ninguno", "visca", "onvif", "panasonic"}}}},
+                           {"host", {{"type", "string"}}},
+                           {"puerto", {{"type", "integer"}}},
+                           {"transporte", {{"type", "string"}, {"enum", {"sony", "tcp", "udp"}}}},
+                           {"direccion", {{"type", "integer"}, {"minimum", 1}, {"maximum", 7}}},
+                           {"usuario", {{"type", "string"}}},
+                           {"clave", {{"type", "string"}}},
+                           {"perfil", {{"type", "string"}}},
+                           {"digital", {{"type", "boolean"}}},
+                           {"modo", {{"type", "string"}, {"enum", {"optico", "digital"}}}},
+                           {"mejora", {{"type", "string"}, {"enum", {"general", "si", "no"}}}}}}};
+        t.examples = {R"({"entrada": "Cámara 1", "backend": "visca", "host": "192.168.1.50", "transporte": "sony"})",
+                      R"({"entrada": "Cámara 2", "backend": "onvif", "host": "192.168.1.64", "usuario": "admin", "clave": "..."})",
+                      R"({"entrada": "Webcam", "mejora": "si"})"};
+        t.run = [c](const json& a, Done done) {
+            if (!c) return done(ToolResult::error("el PTZ no está disponible"));
+            const QString e = qarg(a, "entrada");
+            QString err;
+            if (a.contains("backend")) {
+                QVariantMap conf;
+                for (const char* k : {"host", "transporte", "usuario", "clave", "perfil"})
+                    if (a.contains(k)) conf[k] = qarg(a, k);
+                for (const char* k : {"puerto", "direccion"})
+                    if (a.contains(k)) conf[k] = a.value(k, 0);
+                err = c->configurar(e, qarg(a, "backend"), conf);
+            }
+            if (err.isEmpty() && a.contains("digital")) err = c->setDigital(e, a.value("digital", true));
+            if (err.isEmpty() && a.contains("mejora")) err = c->setMejora(e, qarg(a, "mejora"));
+            if (err.isEmpty() && a.contains("modo")) err = c->setModo(e, qarg(a, "modo"));
+            if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
+            done(ToolResult().data(aJson(c->estadoJson(e))));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "ptz_buscar";
+        t.title = "Buscar cámaras ONVIF en la red";
+        t.category = "camaras";
+        t.readOnly = true;
+        t.openWorld = true;
+        t.description = "Busca cámaras ONVIF en la red local (3 s) y devuelve su dirección, nombre y modelo.";
+        t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
+        t.run = [c](const json&, Done done) {
+            if (!c) return done(ToolResult::error("el PTZ no está disponible"));
+            c->buscarOnvif();
+            QTimer::singleShot(3300, c.data(), [c, done]() {
+                if (!c) return done(ToolResult::error("el PTZ no está disponible"));
+                json lista = json::array();
+                for (const QVariant& v : c->encontradas()) {
+                    const QVariantMap m = v.toMap();
+                    lista.push_back({{"direccion", m["direccion"].toString().toStdString()},
+                                     {"host", m["host"].toString().toStdString()},
+                                     {"nombre", m["nombre"].toString().toStdString()},
+                                     {"modelo", m["modelo"].toString().toStdString()}});
+                }
+                done(ToolResult().data({{"encontradas", lista}}));
+            });
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "video_mejora";
+        t.title = "Mejorar imagen (general)";
+        t.category = "camaras";
+        t.idempotent = true;
+        t.description =
+            "Mejorar imagen en las cámaras que siguen lo general (Configuración → Video): `activa`, y la intensidad "
+            "de `ruido`, `color` (color pegado al brillo: el LED, la corbata) y `nitidez`, de 0 a 100. Sin "
+            "argumentos, dice cómo está. Por entrada: ptz_configurar `mejora`.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"activa", {{"type", "boolean"}}},
+                           {"ruido", {{"type", "integer"}, {"minimum", 0}, {"maximum", 100}}},
+                           {"color", {{"type", "integer"}, {"minimum", 0}, {"maximum", 100}}},
+                           {"nitidez", {{"type", "integer"}, {"minimum", 0}, {"maximum", 100}}}}}};
+        t.examples = {R"({"activa": true})", R"({"nitidez": 70})"};
+        t.run = [c, &rt](const json& a, Done done) {
+            MejoraConfig& m = rt.config().mejora;
+            const bool cambia = a.contains("activa") || a.contains("ruido") || a.contains("color") || a.contains("nitidez");
+            if (a.contains("activa")) m.activa = a.value("activa", m.activa);
+            if (a.contains("ruido")) m.ruido = std::clamp(a.value("ruido", m.ruido), 0, 100);
+            if (a.contains("color")) m.color = std::clamp(a.value("color", m.color), 0, 100);
+            if (a.contains("nitidez")) m.nitidez = std::clamp(a.value("nitidez", m.nitidez), 0, 100);
+            if (cambia) {
+                rt.save();
+                if (c) c->sincronizar();
+            }
+            done(ToolResult().data({{"activa", m.activa}, {"ruido", m.ruido}, {"color", m.color}, {"nitidez", m.nitidez}}));
+        };
+        core_.addTool(std::move(t));
+    }
+}
+
+} // namespace ba::app::mcp

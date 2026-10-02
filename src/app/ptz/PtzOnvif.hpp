@@ -1,0 +1,69 @@
+// src/app/ptz/PtzOnvif.hpp — ONVIF (Profile S: PTZ + Media + Imaging)
+//
+// SOAP 1.2 a mano sobre QNetworkAccessManager: no hace falta gSOAP ni nada
+// del sistema. Al configurar:
+//   1. GetSystemDateAndTime (sin clave): la hora de la cámara. El digest de
+//      WS-Security lleva la hora, y si la cámara está corrida la rechaza: se
+//      firma con NUESTRA hora + el desfase.
+//   2. GetCapabilities: dónde están los servicios PTZ, Media e Imaging.
+//   3. GetProfiles: el perfil con PTZ (o el que se eligió en «perfil»).
+//   4. GetPresets: los presets que ya tiene la cámara (el 1 es el primero).
+// Los movimientos son ContinuousMove (lo del joystick se junta cada 100 ms) y
+// Stop. El foco va por Imaging (Move continuo), si la cámara lo ofrece.
+// Autenticación: WS-Security UsernameToken (digest) y, si la cámara pide
+// HTTP Digest/Basic en su lugar, también.
+
+#pragma once
+
+#include "ptz/PtzBackend.hpp"
+#include "ptz/PtzProtocolos.hpp"
+
+#include <QTimer>
+
+#include <functional>
+
+class QNetworkAccessManager;
+
+namespace ba::app::ptz {
+
+class PtzOnvif : public PtzBackend {
+    Q_OBJECT
+   public:
+    explicit PtzOnvif(QObject* parent = nullptr);
+    ~PtzOnvif() override;
+
+    QString tipo() const override { return QStringLiteral("onvif"); }
+    Capacidades capacidades() const override;
+    void configurar(const QJsonObject& conf) override;
+
+    void mover(double pan, double tilt, double zoom) override;
+    void parar() override;
+    void enfocar(double velocidad) override;
+    void irAPreset(int numero) override;
+    void guardarPreset(int numero) override;
+    void home() override;
+
+    /// El device_service de un host ("192.168.1.20" o una URL completa).
+    static QString urlDispositivo(const QString& host, int puerto);
+
+   private:
+    using Respuesta = std::function<void(bool ok, const QByteArray& xml)>;
+    void soap(const QString& url, const QString& cuerpo, Respuesta alTerminar, bool conClave = true);
+    void paso(const QString& que);
+    void leerPresets();
+    void vaciar();
+
+    QNetworkAccessManager* red_ = nullptr;
+    QString dispositivo_, usuario_, clave_, perfilPedido_;
+    qint64 desfase_ = 0;
+    onvif::Servicios servicios_;
+    onvif::Perfil perfil_;
+    QList<onvif::Preset> presets_;
+    int generacion_ = 0; ///< una reconfiguración invalida respuestas viejas
+
+    bool hayMovimiento_ = false;
+    double pan_ = 0, tilt_ = 0, zoom_ = 0;
+    QTimer junta_;
+};
+
+} // namespace ba::app::ptz

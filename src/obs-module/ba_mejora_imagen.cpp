@@ -317,10 +317,15 @@ void dibujar(void* data, gs_effect_t*) {
 
 extern "C" {
 
+/// Definida en ba_ptz_digital.cpp.
+void ba_register_ptz_digital(void);
+
 static struct obs_source_info ba_mejora_imagen_info = {};
 
-/// Registra el filtro de video. La llama `obs_module_load` (ba_module.cpp).
+/// Registra los filtros de video (Mejorar imagen y PTZ digital). La llama
+/// `obs_module_load` (ba_module.cpp).
 void ba_register_video_filters(void) {
+    ba_register_ptz_digital();
     ba_mejora_imagen_info.id = "ba_mejora_imagen";
     ba_mejora_imagen_info.type = OBS_SOURCE_TYPE_FILTER;
     ba_mejora_imagen_info.output_flags = OBS_SOURCE_VIDEO;

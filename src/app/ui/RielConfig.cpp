@@ -35,6 +35,7 @@ const std::vector<Grupo>& catalogo() {
          {{0, "dashboard", "⌂", "Dashboard"},
           {1, "escenas", "▦", "Escenas y fuentes"},
           {8, "entradas", "◉", "Entradas de video (cámaras, capturadoras, red)"},
+          {21, "camaras", "⌖", "Cámaras PTZ: mover, zoom, presets y mejorar la imagen de cada cámara"},
           {9, "audio", "🎚", "Audio: patchbay de módulos LSP por fuente"}}},
         {"Contenido",
          {{2, "sala", "☎", "Sala (lobby, invitados, chat)"},

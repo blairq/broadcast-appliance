@@ -157,6 +157,11 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
     c.video.outputHeight = get(video, "outputHeight", c.video.baseHeight);
     c.video.fpsNum = get(video, "fps", 30);
     c.video.fpsDen = 1;
+    const json mej = video.value("mejora", json::object());
+    c.mejora.activa = get(mej, "activa", c.mejora.activa);
+    c.mejora.ruido = get(mej, "ruido", c.mejora.ruido);
+    c.mejora.color = get(mej, "color", c.mejora.color);
+    c.mejora.nitidez = get(mej, "nitidez", c.mejora.nitidez);
 
     const json enc = j.value("encoder", json::object());
     c.encoder.videoEncoder = get<std::string>(enc, "video", "auto");
@@ -259,7 +264,12 @@ bool saveAppConfig(const fs::path& path, const AppConfig& c, const fs::path& dat
           {"height", c.video.baseHeight},
           {"outputWidth", c.video.outputWidth},
           {"outputHeight", c.video.outputHeight},
-          {"fps", c.video.fpsNum}}},
+          {"fps", c.video.fpsNum},
+          {"mejora",
+           {{"activa", c.mejora.activa},
+            {"ruido", c.mejora.ruido},
+            {"color", c.mejora.color},
+            {"nitidez", c.mejora.nitidez}}}}},
         {"encoder",
          {{"video", c.encoder.videoEncoder},
           {"bitrateKbps", c.encoder.videoBitrateKbps},
