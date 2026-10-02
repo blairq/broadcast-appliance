@@ -144,7 +144,7 @@ def arreglar(fallos, dir_):
             h = a.pop("herramienta", None)
             if h not in esquemas:
                 continue
-            if tca.validar(a, esquemas[h]):
+            if tca.validar(a, esquemas[h], h):
                 rechazadas += 1
                 continue
             a.setdefault("frase", a["plantilla"])

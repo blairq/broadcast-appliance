@@ -40,9 +40,18 @@ RE_EXACTO = re.compile(r"^=-?\d+(\.\d+)?$")
 RE_CONTEXTO = re.compile(r"^\[(escena_armada|escena_actual)\]$")
 
 
-def validar(a, esq):
-    """Los errores de una anotacion (lista vacia = bien)."""
+RELLENO = {"escena": "la del cierre", "audio": "la música", "audio_operador": "", "fuente": "la cámara 2",
+           "persona": "Laura", "grafico": "el zócalo", "carrusel": "la presentación"}
+
+
+def validar(a, esq, herramienta=None):
+    """Los errores de una anotacion (lista vacia = bien): el esquema, y STE-ES
+    (docs/ste-es.md) sobre la plantilla con los huecos llenados."""
     err = []
+    if herramienta and a.get("plantilla"):
+        import ste_es
+        frase = tc.RE_HUECO.sub(lambda m: RELLENO.get(m.group(1), "eso"), a["plantilla"])
+        err += [f"STE-ES {e}" for e in ste_es.errores(frase, herramienta, falta="falta" in a)]
     pl = a.get("plantilla", "")
     if not pl:
         err.append("falta plantilla")
@@ -116,7 +125,7 @@ def main():
             hechas[h] = [{"frase": f, "plantilla": f, "args": {}} for f in sem[h]["frases"]]
 
     def errores_de(h):
-        return [(a, validar(a, esquemas[h])) for a in hechas.get(h, [])]
+        return [(a, validar(a, esquemas[h], h)) for a in hechas.get(h, [])]
 
     for vuelta in range(args.vueltas + 1):
         if args.revisar:

@@ -1,0 +1,6586 @@
+{
+ "_comentario": "STE-ES de cabina (docs/ste-es.md): lo arma tools/entrenar/ste_es.py armar; se cura como las semillas.",
+ "entradas": [
+  {
+   "tipo": "accion",
+   "verbo": "medir",
+   "formas": [
+    "medí",
+    "medi",
+    "medilo",
+    "medila",
+    "medime"
+   ],
+   "significado": "medir con señales de prueba qué pasa con el audio ahora (acople, pitido, saturación, zumbido, falta de audio) sin tocar el aire",
+   "herramientas": [
+    "audio_measure"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "escuchar",
+   "formas": [
+    "escuchá",
+    "escucha",
+    "escuchalo",
+    "escuchala"
+   ],
+   "significado": "mandar una fuente de audio al monitor del operador para oírla, sin cambiar lo que sale al aire",
+   "herramientas": [
+    "audio_escuchar"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "mutear",
+   "formas": [
+    "muteá",
+    "mutea",
+    "mutealo",
+    "muteala",
+    "muteale"
+   ],
+   "significado": "silenciar una fuente de audio",
+   "herramientas": [
+    "audio_set"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "desmutear",
+   "formas": [
+    "desmuteá",
+    "desmutea",
+    "desmutealo",
+    "desmuteala",
+    "desmuteale"
+   ],
+   "significado": "quitarle el silencio a una fuente de audio",
+   "herramientas": [
+    "audio_set"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "atrasar",
+   "formas": [
+    "atrasá",
+    "atrasa",
+    "atrasalo",
+    "atrasala",
+    "atrasale"
+   ],
+   "significado": "retrasar el audio de una fuente para que coincida con su video",
+   "herramientas": [
+    "audio_sincro"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "escribir",
+   "formas": [
+    "escribí",
+    "escribi",
+    "escribile",
+    "escribiles"
+   ],
+   "significado": "mandar un mensaje de chat del operador a toda la sala o a una persona",
+   "herramientas": [
+    "chat_send"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "esperar",
+   "formas": [
+    "esperá",
+    "espera",
+    "esperalo",
+    "esperala"
+   ],
+   "significado": "aguardar a que una persona escriba en el chat de la sala y traer sus mensajes nuevos",
+   "herramientas": [
+    "chat_wait"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "reiniciar",
+   "formas": [
+    "reiniciá",
+    "reinicia",
+    "reinicialo"
+   ],
+   "significado": "reiniciar el proceso de la sala (gateway); se cortan todos y se reconectan",
+   "herramientas": [
+    "gateway_restart"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "reproducir",
+   "formas": [
+    "reproducí",
+    "reproduci",
+    "reproducilo"
+   ],
+   "significado": "dibujar un gráfico animado y reproducirlo en su fuente de una escena",
+   "herramientas": [
+    "grafico_mostrar"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "aplicar",
+   "formas": [
+    "aplicá",
+    "aplica",
+    "aplicalo",
+    "aplicala"
+   ],
+   "significado": "poner un carrusel de láminas en una escena, creando su fuente de imagen",
+   "herramientas": [
+    "laminas_aplicar"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "buscar",
+   "formas": [
+    "buscá",
+    "busca",
+    "buscame",
+    "buscala"
+   ],
+   "significado": "buscar láminas de un carrusel por texto en su título o etiquetas",
+   "herramientas": [
+    "laminas_buscar"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "ir",
+   "formas": [
+    "andá a",
+    "anda a",
+    "andá",
+    "anda"
+   ],
+   "significado": "poner la lámina número N de un carrusel",
+   "herramientas": [
+    "laminas_ir"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "admitir",
+   "formas": [
+    "admití",
+    "admiti",
+    "admitilo",
+    "admitila",
+    "admitilos"
+   ],
+   "significado": "hacer entrar a la sala a quien espera en el lobby (una persona, o todos en orden de llegada)",
+   "herramientas": [
+    "participant_admit",
+    "participant_admit_all"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "echar",
+   "formas": [
+    "echá",
+    "echa",
+    "echalo",
+    "echala"
+   ],
+   "significado": "sacar de la sala a una persona que ya está adentro",
+   "herramientas": [
+    "participant_kick"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "actualizar",
+   "formas": [
+    "actualizá",
+    "actualiza",
+    "actualizale",
+    "actualizalo"
+   ],
+   "significado": "cambiar nombre, información o contacto de una persona",
+   "herramientas": [
+    "participant_profile"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "rechazar",
+   "formas": [
+    "rechazá",
+    "rechaza",
+    "rechazalo",
+    "rechazala"
+   ],
+   "significado": "negarle la entrada a quien espera en el lobby",
+   "herramientas": [
+    "participant_reject"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "pedir",
+   "formas": [
+    "pedí",
+    "pedi",
+    "pedile",
+    "pediles"
+   ],
+   "significado": "pedirle al navegador de un invitado que silencie el micrófono, apague la cámara, deje de compartir pantalla o baje la mano",
+   "herramientas": [
+    "participant_request"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "reencolar",
+   "formas": [
+    "reencolá",
+    "reencola",
+    "reencolalo",
+    "reencolala"
+   ],
+   "significado": "devolver al final de la fila a un orador que ya habló",
+   "herramientas": [
+    "participant_requeue"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "encolar",
+   "formas": [
+    "encolá",
+    "encola",
+    "encolalo",
+    "encolala"
+   ],
+   "significado": "poner en la fila de oradores a una persona que está en la sala",
+   "herramientas": [
+    "speaker_queue"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "hablar",
+   "formas": [
+    "hablá",
+    "habla",
+    "hablale"
+   ],
+   "significado": "abrir una línea de voz privada con una persona del lobby",
+   "herramientas": [
+    "participant_talk"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "generar",
+   "formas": [
+    "generá",
+    "genera",
+    "generame",
+    "generalo"
+   ],
+   "significado": "crear un PIN nuevo para entrar a la sala (el anterior deja de servir)",
+   "herramientas": [
+    "room_pin"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "atar",
+   "formas": [
+    "atá",
+    "ata",
+    "atalo",
+    "atala"
+   ],
+   "significado": "atar los campos de un gráfico (nombre, cargo) a un origen que cambia solo",
+   "herramientas": [
+    "rotulo_vincular"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "desvincular",
+   "formas": [
+    "desvinculá",
+    "desvincula",
+    "desvinculalo",
+    "desvinculala"
+   ],
+   "significado": "quitar o pausar el vínculo entre un gráfico y su origen",
+   "herramientas": [
+    "rotulo_desvincular"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "duplicar",
+   "formas": [
+    "duplicá",
+    "duplica",
+    "duplicalo",
+    "duplicala"
+   ],
+   "significado": "crear una escena nueva con todas las fuentes de otra",
+   "herramientas": [
+    "scene_copy"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "definir",
+   "formas": [
+    "definí",
+    "defini",
+    "definime",
+    "definila"
+   ],
+   "significado": "crear una escena con todas sus fuentes de una vez",
+   "herramientas": [
+    "scene_define"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "rehacer",
+   "formas": [
+    "rehacé",
+    "rehace",
+    "rehacela",
+    "rehacelo"
+   ],
+   "significado": "reemplazar una escena existente por una definición nueva con todas sus fuentes",
+   "herramientas": [
+    "scene_define"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "exportar",
+   "formas": [
+    "exportá",
+    "exporta",
+    "exportame",
+    "exportala"
+   ],
+   "significado": "obtener la definición completa de una escena o de todas, en formato de scene_define",
+   "herramientas": [
+    "scene_export"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "agrupar",
+   "formas": [
+    "agrupá",
+    "agrupa",
+    "agrupalas",
+    "agrupala"
+   ],
+   "significado": "poner escenas en una carpeta de la lista de escenas",
+   "herramientas": [
+    "scene_folder"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "reordenar",
+   "formas": [
+    "reordená",
+    "reordena",
+    "reordenalas",
+    "reordenala"
+   ],
+   "significado": "cambiar el orden de una escena en la lista de escenas",
+   "herramientas": [
+    "scene_move"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "preparar",
+   "formas": [
+    "prepará",
+    "prepara",
+    "preparala",
+    "preparame"
+   ],
+   "significado": "poner una escena en preview para el próximo take, sin cambiar el aire",
+   "herramientas": [
+    "scene_preview"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "proteger",
+   "formas": [
+    "protegé",
+    "protege",
+    "protegela",
+    "protegelas"
+   ],
+   "significado": "proteger una escena para que no se pueda borrar ni renombrar",
+   "herramientas": [
+    "scene_protect"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "desproteger",
+   "formas": [
+    "desprotegé",
+    "desprotege",
+    "desprotegela"
+   ],
+   "significado": "quitarle la protección a una escena",
+   "herramientas": [
+    "scene_protect"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "renombrar",
+   "formas": [
+    "renombrá",
+    "renombra",
+    "renombrala",
+    "renombrame"
+   ],
+   "significado": "cambiar el nombre de una escena",
+   "herramientas": [
+    "scene_rename"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "previsualizar",
+   "formas": [
+    "previsualizá",
+    "previsualiza",
+    "previsualizame",
+    "previsualizalo"
+   ],
+   "significado": "ver un archivo compartido por un invitado antes de ponerlo al aire",
+   "herramientas": [
+    "share_view"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "setear",
+   "formas": [
+    "seteá",
+    "setea",
+    "setealo",
+    "seteala",
+    "seteale"
+   ],
+   "significado": "cambiar el valor de una propiedad de una fuente por su nombre",
+   "herramientas": [
+    "source_set_property"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "apretar",
+   "formas": [
+    "apretá",
+    "apreta",
+    "apretale",
+    "apretalo"
+   ],
+   "significado": "apretar una propiedad tipo botón de una fuente",
+   "herramientas": [
+    "source_set_property"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "asignar",
+   "formas": [
+    "asigná",
+    "asigna",
+    "asignale"
+   ],
+   "significado": "fijar el tiempo para hablar de una persona (segundos o m:ss)",
+   "herramientas": [
+    "speaker_time"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "configurar",
+   "formas": [
+    "configurá",
+    "configura",
+    "configuralo"
+   ],
+   "significado": "definir el modo oradores: tiempo general, uno o varios al aire, lugar por defecto, carrusel y margen",
+   "herramientas": [
+    "speakers_config"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "marcar",
+   "formas": [
+    "marcá",
+    "marca",
+    "marcalo",
+    "marcala"
+   ],
+   "significado": "marcar a una persona como presentador fijo al aire",
+   "herramientas": [
+    "speaker_presenter"
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "poner",
+   "formas": [
+    "pone",
+    "ponela",
+    "ponele",
+    "ponelo",
+    "poneme",
+    "poné"
+   ],
+   "sentidos": [
+    {
+     "objeto": "escena (al aire)",
+     "ejemplo": "poné la escena Apertura al aire",
+     "herramientas": [
+      "scene_switch"
+     ]
+    },
+    {
+     "objeto": "escena (en preview)",
+     "ejemplo": "poné la escena Panel en preview",
+     "herramientas": [
+      "scene_preview"
+     ]
+    },
+    {
+     "objeto": "lámina N de un carrusel",
+     "ejemplo": "poné la lámina 5 del carrusel Ventas",
+     "herramientas": [
+      "laminas_ir"
+     ]
+    },
+    {
+     "objeto": "carrusel en una escena",
+     "ejemplo": "poné el carrusel Ventas en la escena Panel",
+     "herramientas": [
+      "laminas_aplicar"
+     ]
+    },
+    {
+     "objeto": "gráfico animado",
+     "ejemplo": "poné el gráfico Encuesta en la escena Panel",
+     "herramientas": [
+      "grafico_mostrar"
+     ]
+    },
+    {
+     "objeto": "fuente nueva en una escena",
+     "ejemplo": "poné un logo arriba de todo en la escena Apertura",
+     "herramientas": [
+      "source_add"
+     ]
+    },
+    {
+     "objeto": "texto de un zócalo",
+     "ejemplo": "poné Ana Gómez en el zócalo de la escena Panel",
+     "herramientas": [
+      "source_update"
+     ]
+    },
+    {
+     "objeto": "valor de una propiedad",
+     "ejemplo": "ponele 1080 al alto de la fuente Pizarra",
+     "herramientas": [
+      "source_set_property"
+     ]
+    },
+    {
+     "objeto": "archivo compartido (al aire)",
+     "ejemplo": "poné al aire la foto que compartió Ana",
+     "herramientas": [
+      "share_take"
+     ]
+    },
+    {
+     "objeto": "orador (al aire)",
+     "ejemplo": "poné a Laura al aire como oradora",
+     "herramientas": [
+      "speaker_on_air"
+     ]
+    },
+    {
+     "objeto": "persona en la fila",
+     "ejemplo": "poné a Diego en la fila de oradores",
+     "herramientas": [
+      "speaker_queue"
+     ]
+    },
+    {
+     "objeto": "persona en una posición de la fila",
+     "ejemplo": "poné a Ana primera en la fila",
+     "herramientas": [
+      "speaker_move"
+     ]
+    },
+    {
+     "objeto": "persona como presentador",
+     "ejemplo": "poné a Juan de presentador",
+     "herramientas": [
+      "speaker_presenter"
+     ]
+    },
+    {
+     "objeto": "tiempo de un orador",
+     "ejemplo": "ponele 3 minutos a Laura",
+     "herramientas": [
+      "speaker_time"
+     ]
+    },
+    {
+     "objeto": "modo oradores",
+     "ejemplo": "poné el modo oradores de a uno al aire",
+     "herramientas": [
+      "speakers_config"
+     ]
+    },
+    {
+     "objeto": "PIN de la sala",
+     "ejemplo": "poné el PIN 4821 en la sala",
+     "herramientas": [
+      "room_pin"
+     ]
+    },
+    {
+     "objeto": "lobby o sala cerrada",
+     "ejemplo": "poné el lobby de admisión en la sala",
+     "herramientas": [
+      "room_set"
+     ]
+    },
+    {
+     "objeto": "nombre de una escena",
+     "ejemplo": "ponele Cierre de nombre a la escena 3",
+     "herramientas": [
+      "scene_rename"
+     ]
+    },
+    {
+     "objeto": "candado de una escena",
+     "ejemplo": "ponele candado a la escena Apertura",
+     "herramientas": [
+      "scene_protect"
+     ]
+    },
+    {
+     "objeto": "volumen de una fuente de audio (en dB)",
+     "ejemplo": "poné la cámara 1 en -10 dB",
+     "herramientas": [
+      "audio_set"
+     ]
+    },
+    {
+     "objeto": "fuente en el monitor del operador",
+     "ejemplo": "poneme la cámara 2 en el monitor",
+     "herramientas": [
+      "audio_escuchar"
+     ]
+    },
+    {
+     "objeto": "grabación del programa",
+     "ejemplo": "poné a grabar el programa",
+     "herramientas": [
+      "record_start"
+     ]
+    },
+    {
+     "objeto": "transición",
+     "ejemplo": "poné la transición fundido de 500 ms",
+     "herramientas": [
+      "transition_set"
+     ]
+    },
+    {
+     "objeto": "mensaje en el chat",
+     "ejemplo": "poné en el chat que volvemos en 5 minutos",
+     "herramientas": [
+      "chat_send"
+     ]
+    },
+    {
+     "objeto": "nombre de una persona",
+     "ejemplo": "al del lugar 3 ponele de nombre Carlos Gómez",
+     "herramientas": [
+      "participant_profile"
+     ]
+    },
+    {
+     "objeto": "información de una persona",
+     "ejemplo": "en la info de Ramiro poné periodista de Rosario",
+     "herramientas": [
+      "participant_profile"
+     ]
+    },
+    {
+     "objeto": "información de una persona",
+     "ejemplo": "poné economista en la info de Ramos",
+     "herramientas": [
+      "participant_profile"
+     ]
+    },
+    {
+     "objeto": "orador que ya habló, otra vez al final de la fila",
+     "ejemplo": "ese ya habló, ponelo otra vez al final de la fila",
+     "herramientas": [
+      "participant_requeue"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "sacar",
+   "formas": [
+    "saca",
+    "sacala",
+    "sacale",
+    "sacales",
+    "sacalo",
+    "sacame",
+    "sacanos",
+    "sacá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "orador (del aire, vuelve a la fila)",
+     "ejemplo": "sacá a Laura del aire",
+     "herramientas": [
+      "speaker_on_air"
+     ]
+    },
+    {
+     "objeto": "persona (de la sala)",
+     "ejemplo": "sacá a Juan de la sala",
+     "herramientas": [
+      "participant_kick"
+     ]
+    },
+    {
+     "objeto": "persona (de presentador)",
+     "ejemplo": "sacá a Juan de presentador",
+     "herramientas": [
+      "speaker_presenter"
+     ]
+    },
+    {
+     "objeto": "nosotros (del aire, transmisión)",
+     "ejemplo": "sacanos del aire ya",
+     "herramientas": [
+      "stream_stop"
+     ]
+    },
+    {
+     "objeto": "gráfico animado",
+     "ejemplo": "sacá el gráfico Encuesta de la escena Panel",
+     "herramientas": [
+      "grafico_ocultar"
+     ]
+    },
+    {
+     "objeto": "fuente de una escena",
+     "ejemplo": "sacá el logo de la escena Apertura",
+     "herramientas": [
+      "source_remove"
+     ]
+    },
+    {
+     "objeto": "escena de una carpeta",
+     "ejemplo": "sacá la escena Placa 1 de la carpeta Bloque 2",
+     "herramientas": [
+      "scene_folder"
+     ]
+    },
+    {
+     "objeto": "escena de la lista (borrarla)",
+     "ejemplo": "sacá la escena Prueba de la lista de escenas",
+     "herramientas": [
+      "scene_delete"
+     ]
+    },
+    {
+     "objeto": "archivo compartido del gateway",
+     "ejemplo": "sacá el archivo de Ana del gateway",
+     "herramientas": [
+      "share_delete"
+     ]
+    },
+    {
+     "objeto": "candado de una escena",
+     "ejemplo": "sacale el candado a la escena Apertura",
+     "herramientas": [
+      "scene_protect"
+     ]
+    },
+    {
+     "objeto": "transición (corte seco)",
+     "ejemplo": "sacá la transición y dejá corte seco",
+     "herramientas": [
+      "transition_set"
+     ]
+    },
+    {
+     "objeto": "foto del programa",
+     "ejemplo": "sacame una foto del programa",
+     "herramientas": [
+      "capture_program"
+     ]
+    },
+    {
+     "objeto": "foto de una fuente o escena",
+     "ejemplo": "sacame una foto de la fuente Pizarra",
+     "herramientas": [
+      "capture_source"
+     ]
+    },
+    {
+     "objeto": "fotos de todas las personas",
+     "ejemplo": "sacales una foto a todas las personas de la sala",
+     "herramientas": [
+      "capture_people"
+     ]
+    },
+    {
+     "objeto": "multiview",
+     "ejemplo": "sacame el multiview de todas las escenas",
+     "herramientas": [
+      "capture_multiview"
+     ]
+    },
+    {
+     "objeto": "último cuadro de un feed",
+     "ejemplo": "sacame el último cuadro del invitado 2",
+     "herramientas": [
+      "capture_feed"
+     ]
+    },
+    {
+     "objeto": "secuencia de cuadros",
+     "ejemplo": "sacale una secuencia de 5 cuadros a la cámara 2",
+     "herramientas": [
+      "capture_sequence"
+     ]
+    },
+    {
+     "objeto": "pantallazo de la app",
+     "ejemplo": "sacale un pantallazo a la app",
+     "herramientas": [
+      "capture_ui"
+     ]
+    },
+    {
+     "objeto": "espectro del audio",
+     "ejemplo": "sacame el espectro de la salida del rack",
+     "herramientas": [
+      "audio_analyze"
+     ]
+    },
+    {
+     "objeto": "definición de una escena",
+     "ejemplo": "sacame la definición de la escena Panel",
+     "herramientas": [
+      "scene_export"
+     ]
+    },
+    {
+     "objeto": "archivo aparte de una entrada",
+     "ejemplo": "sacame un archivo aparte de la cámara 2",
+     "herramientas": [
+      "grabacion_individual"
+     ]
+    },
+    {
+     "objeto": "imagen de una persona",
+     "ejemplo": "sacame una imagen de Ramiro",
+     "herramientas": [
+      "capture_person"
+     ]
+    },
+    {
+     "objeto": "persona del lobby (negarle la entrada)",
+     "ejemplo": "sacá a Carla del lobby",
+     "herramientas": [
+      "participant_reject"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "pasar",
+   "formas": [
+    "pasa",
+    "pasala",
+    "pasale",
+    "pasalo",
+    "pasalos",
+    "pasame",
+    "pasá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "al orador siguiente",
+     "ejemplo": "pasá al siguiente orador de la fila",
+     "herramientas": [
+      "speaker_next"
+     ]
+    },
+    {
+     "objeto": "a una escena (al aire)",
+     "ejemplo": "pasá a la escena Cierre",
+     "herramientas": [
+      "scene_switch"
+     ]
+    },
+    {
+     "objeto": "a una lámina",
+     "ejemplo": "pasá a la lámina 6 del carrusel Ventas",
+     "herramientas": [
+      "laminas_ir"
+     ]
+    },
+    {
+     "objeto": "escena a una carpeta",
+     "ejemplo": "pasá la escena Placa 1 a la carpeta Bloque 2",
+     "herramientas": [
+      "scene_folder"
+     ]
+    },
+    {
+     "objeto": "escena a otra posición de la lista",
+     "ejemplo": "pasá la escena Cierre al final de la lista",
+     "herramientas": [
+      "scene_move"
+     ]
+    },
+    {
+     "objeto": "una persona del lobby a la sala",
+     "ejemplo": "pasá a Juan del lobby a la sala",
+     "herramientas": [
+      "participant_admit"
+     ]
+    },
+    {
+     "objeto": "todos los del lobby a la sala",
+     "ejemplo": "pasalos a todos del lobby a la sala",
+     "herramientas": [
+      "participant_admit_all"
+     ]
+    },
+    {
+     "objeto": "archivo compartido (al aire)",
+     "ejemplo": "pasá al aire el video que compartió Ana",
+     "herramientas": [
+      "share_take"
+     ]
+    },
+    {
+     "objeto": "fuente al monitor (pasame)",
+     "ejemplo": "pasame la cámara 2 al monitor",
+     "herramientas": [
+      "audio_escuchar"
+     ]
+    },
+    {
+     "objeto": "línea con alguien del lobby (pasame con)",
+     "ejemplo": "pasame con Juan del lobby",
+     "herramientas": [
+      "participant_talk"
+     ]
+    },
+    {
+     "objeto": "espectro del audio (pasame)",
+     "ejemplo": "pasame el espectro de la entrada del rack",
+     "herramientas": [
+      "audio_analyze"
+     ]
+    },
+    {
+     "objeto": "fotos de todas las personas (pasame)",
+     "ejemplo": "pasame fotos de todas las personas de la sala",
+     "herramientas": [
+      "capture_people"
+     ]
+    },
+    {
+     "objeto": "imagen de una persona (pasame)",
+     "ejemplo": "pasame la imagen de Ana",
+     "herramientas": [
+      "capture_person"
+     ]
+    },
+    {
+     "objeto": "foto del programa (pasame)",
+     "ejemplo": "pasame una foto del programa",
+     "herramientas": [
+      "capture_program"
+     ]
+    },
+    {
+     "objeto": "foto de una fuente o escena (pasame)",
+     "ejemplo": "pasame una foto de la escena Panel",
+     "herramientas": [
+      "capture_source"
+     ]
+    },
+    {
+     "objeto": "chat reciente (pasame)",
+     "ejemplo": "pasame los últimos mensajes del chat",
+     "herramientas": [
+      "chat_history"
+     ]
+    },
+    {
+     "objeto": "gráficos disponibles (pasame)",
+     "ejemplo": "pasame los gráficos disponibles",
+     "herramientas": [
+      "grafico_listar"
+     ]
+    },
+    {
+     "objeto": "carruseles (pasame)",
+     "ejemplo": "pasame los carruseles de la biblioteca",
+     "herramientas": [
+      "laminas_listar"
+     ]
+    },
+    {
+     "objeto": "láminas de un carrusel (pasame)",
+     "ejemplo": "pasame las láminas del carrusel Ventas",
+     "herramientas": [
+      "laminas_ver"
+     ]
+    },
+    {
+     "objeto": "niveles del mezclador (pasame)",
+     "ejemplo": "pasame los niveles del mezclador",
+     "herramientas": [
+      "mixer_list"
+     ]
+    },
+    {
+     "objeto": "estado de la red (pasame)",
+     "ejemplo": "pasame el estado de la red",
+     "herramientas": [
+      "network_status"
+     ]
+    },
+    {
+     "objeto": "enlace de la sala (pasame)",
+     "ejemplo": "pasame el enlace de la sala",
+     "herramientas": [
+      "room_link"
+     ]
+    },
+    {
+     "objeto": "definición de una escena (pasame)",
+     "ejemplo": "pasame la definición de la escena Panel",
+     "herramientas": [
+      "scene_export"
+     ]
+    },
+    {
+     "objeto": "lista de escenas (pasame)",
+     "ejemplo": "pasame la lista de escenas",
+     "herramientas": [
+      "scene_list"
+     ]
+    },
+    {
+     "objeto": "archivos compartidos (pasame)",
+     "ejemplo": "pasame la lista de archivos compartidos",
+     "herramientas": [
+      "share_list"
+     ]
+    },
+    {
+     "objeto": "fuentes de una escena (pasame)",
+     "ejemplo": "pasame las fuentes de la escena Panel",
+     "herramientas": [
+      "source_list"
+     ]
+    },
+    {
+     "objeto": "gráficos puestos en escenas, con id y tamaño (pasame)",
+     "ejemplo": "pasame los gráficos puestos en escenas con id y tamaño",
+     "herramientas": [
+      "grafico_en_escena"
+     ]
+    },
+    {
+     "objeto": "estado general del aparato (pasame)",
+     "ejemplo": "pasame el estado general del aparato",
+     "herramientas": [
+      "status"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "mandar",
+   "formas": [
+    "manda",
+    "mandala",
+    "mandale",
+    "mandalo",
+    "mandame",
+    "mandá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "mensaje de chat",
+     "ejemplo": "mandale un mensaje a Ana: arrancamos en 5",
+     "herramientas": [
+      "chat_send"
+     ]
+    },
+    {
+     "objeto": "lo que está en preview (al aire)",
+     "ejemplo": "mandá al aire lo que está en preview",
+     "herramientas": [
+      "scene_take"
+     ]
+    },
+    {
+     "objeto": "escena nombrada (al aire)",
+     "ejemplo": "mandá la escena Apertura al aire",
+     "herramientas": [
+      "scene_switch"
+     ]
+    },
+    {
+     "objeto": "escena (a preview)",
+     "ejemplo": "mandá la escena Panel a preview",
+     "herramientas": [
+      "scene_preview"
+     ]
+    },
+    {
+     "objeto": "escena a una carpeta",
+     "ejemplo": "mandá la escena Placa 1 a la carpeta Bloque 2",
+     "herramientas": [
+      "scene_folder"
+     ]
+    },
+    {
+     "objeto": "escena a otra posición de la lista",
+     "ejemplo": "mandá la escena Cierre al final de la lista",
+     "herramientas": [
+      "scene_move"
+     ]
+    },
+    {
+     "objeto": "fuente atrás o adelante (orden de capas)",
+     "ejemplo": "mandá el logo al fondo de la escena Panel",
+     "herramientas": [
+      "source_update"
+     ]
+    },
+    {
+     "objeto": "persona a la fila",
+     "ejemplo": "mandá a Diego a la fila de oradores",
+     "herramientas": [
+      "speaker_queue"
+     ]
+    },
+    {
+     "objeto": "lámina",
+     "ejemplo": "mandá la lámina 7 del carrusel Ventas",
+     "herramientas": [
+      "laminas_ir"
+     ]
+    },
+    {
+     "objeto": "fuente al monitor (mandame)",
+     "ejemplo": "mandame la cámara 2 al monitor",
+     "herramientas": [
+      "audio_escuchar"
+     ]
+    },
+    {
+     "objeto": "multiview (mandame)",
+     "ejemplo": "mandame el multiview",
+     "herramientas": [
+      "capture_multiview"
+     ]
+    },
+    {
+     "objeto": "fotos de todas las personas (mandame)",
+     "ejemplo": "mandame fotos de todas las personas de la sala",
+     "herramientas": [
+      "capture_people"
+     ]
+    },
+    {
+     "objeto": "pantallazo de la app (mandame)",
+     "ejemplo": "mandame un pantallazo de la app",
+     "herramientas": [
+      "capture_ui"
+     ]
+    },
+    {
+     "objeto": "enlace de la sala (mandame)",
+     "ejemplo": "mandame el enlace de la sala con el PIN",
+     "herramientas": [
+      "room_link"
+     ]
+    },
+    {
+     "objeto": "orador que ya habló al final de la fila",
+     "ejemplo": "Diego ya habló, mandalo al final de la fila",
+     "herramientas": [
+      "participant_requeue"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "tirar",
+   "formas": [
+    "tirá",
+    "tira",
+    "tirame",
+    "tiralo",
+    "tirala",
+    "tirale"
+   ],
+   "sentidos": [
+    {
+     "objeto": "gráfico animado",
+     "ejemplo": "tirá el gráfico Encuesta en la escena Panel",
+     "herramientas": [
+      "grafico_mostrar"
+     ]
+    },
+    {
+     "objeto": "take (preview al aire)",
+     "ejemplo": "tirá el take",
+     "herramientas": [
+      "scene_take"
+     ]
+    },
+    {
+     "objeto": "lámina",
+     "ejemplo": "tirá la lámina 4 del carrusel Ventas",
+     "herramientas": [
+      "laminas_ir"
+     ]
+    },
+    {
+     "objeto": "mensaje de chat",
+     "ejemplo": "tirá un mensaje en el chat: volvemos en 2",
+     "herramientas": [
+      "chat_send"
+     ]
+    },
+    {
+     "objeto": "PIN nuevo",
+     "ejemplo": "tirá un PIN nuevo para la sala",
+     "herramientas": [
+      "room_pin"
+     ]
+    },
+    {
+     "objeto": "persona (afuera de la sala)",
+     "ejemplo": "tirá a Juan afuera de la sala",
+     "herramientas": [
+      "participant_kick"
+     ]
+    },
+    {
+     "objeto": "espectro del audio (tirame)",
+     "ejemplo": "tirame el espectro de la salida del rack",
+     "herramientas": [
+      "audio_analyze"
+     ]
+    },
+    {
+     "objeto": "multiview (tirame)",
+     "ejemplo": "tirame el multiview",
+     "herramientas": [
+      "capture_multiview"
+     ]
+    },
+    {
+     "objeto": "secuencia de cuadros (tirame)",
+     "ejemplo": "tirame una secuencia de 8 cuadros del programa",
+     "herramientas": [
+      "capture_sequence"
+     ]
+    },
+    {
+     "objeto": "foto de una fuente o escena (tirame)",
+     "ejemplo": "tirame una foto de la escena Panel",
+     "herramientas": [
+      "capture_source"
+     ]
+    },
+    {
+     "objeto": "niveles del mezclador (tirame)",
+     "ejemplo": "tirame los niveles del mezclador",
+     "herramientas": [
+      "mixer_list"
+     ]
+    },
+    {
+     "objeto": "lista de escenas (tirame)",
+     "ejemplo": "tirame la lista de escenas",
+     "herramientas": [
+      "scene_list"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "dar",
+   "formas": [
+    "da",
+    "dale",
+    "dale aire",
+    "dale paso",
+    "dame",
+    "damela",
+    "damelo",
+    "danos",
+    "dá",
+    "dá paso"
+   ],
+   "sentidos": [
+    {
+     "objeto": "espectro del audio",
+     "ejemplo": "dame el espectro de la salida del rack",
+     "herramientas": [
+      "audio_analyze"
+     ]
+    },
+    {
+     "objeto": "último cuadro de un feed",
+     "ejemplo": "dame el último cuadro del invitado 2",
+     "herramientas": [
+      "capture_feed"
+     ]
+    },
+    {
+     "objeto": "multiview",
+     "ejemplo": "dame el multiview de todas las escenas",
+     "herramientas": [
+      "capture_multiview"
+     ]
+    },
+    {
+     "objeto": "chat reciente",
+     "ejemplo": "dame los últimos mensajes del chat",
+     "herramientas": [
+      "chat_history"
+     ]
+    },
+    {
+     "objeto": "gráficos disponibles",
+     "ejemplo": "dame los gráficos disponibles con sus parámetros",
+     "herramientas": [
+      "grafico_listar"
+     ]
+    },
+    {
+     "objeto": "niveles del mezclador",
+     "ejemplo": "dame los niveles del mezclador",
+     "herramientas": [
+      "mixer_list"
+     ]
+    },
+    {
+     "objeto": "enlace de la sala",
+     "ejemplo": "dame el enlace remoto de la sala",
+     "herramientas": [
+      "room_link"
+     ]
+    },
+    {
+     "objeto": "escena nueva vacía",
+     "ejemplo": "dame una escena nueva vacía llamada Panel",
+     "herramientas": [
+      "scene_create"
+     ]
+    },
+    {
+     "objeto": "definición de una escena",
+     "ejemplo": "dame la definición de la escena Panel",
+     "herramientas": [
+      "scene_export"
+     ]
+    },
+    {
+     "objeto": "lista de escenas",
+     "ejemplo": "dame la lista de escenas",
+     "herramientas": [
+      "scene_list"
+     ]
+    },
+    {
+     "objeto": "archivos compartidos",
+     "ejemplo": "dame la lista de archivos compartidos",
+     "herramientas": [
+      "share_list"
+     ]
+    },
+    {
+     "objeto": "estado de la fila de oradores",
+     "ejemplo": "dame el estado de la fila de oradores",
+     "herramientas": [
+      "speakers_status"
+     ]
+    },
+    {
+     "objeto": "estado de la sala",
+     "ejemplo": "dame el estado de la sala",
+     "herramientas": [
+      "room_status"
+     ]
+    },
+    {
+     "objeto": "estado general del aparato",
+     "ejemplo": "dame el estado general del aparato",
+     "herramientas": [
+      "status"
+     ]
+    },
+    {
+     "objeto": "un restart al proceso de la sala (gateway)",
+     "ejemplo": "dale un restart al gateway",
+     "herramientas": [
+      "gateway_restart"
+     ]
+    },
+    {
+     "objeto": "paso a todos los del lobby",
+     "ejemplo": "dale paso a todos los del lobby",
+     "herramientas": [
+      "participant_admit_all"
+     ]
+    },
+    {
+     "objeto": "take (preview al aire)",
+     "ejemplo": "dale take a la escena armada",
+     "herramientas": [
+      "scene_take"
+     ]
+    },
+    {
+     "objeto": "take (preview al aire)",
+     "ejemplo": "ahora sí, dale take a la escena armada",
+     "herramientas": [
+      "scene_take"
+     ]
+    },
+    {
+     "objeto": "take (preview al aire)",
+     "ejemplo": "dale al take de la escena armada",
+     "herramientas": [
+      "scene_take"
+     ]
+    },
+    {
+     "objeto": "take (preview al aire)",
+     "ejemplo": "dale el take ahora",
+     "herramientas": [
+      "scene_take"
+     ]
+    },
+    {
+     "objeto": "take (preview al aire)",
+     "ejemplo": "dale take a lo que ya estaba armado",
+     "herramientas": [
+      "scene_take"
+     ]
+    },
+    {
+     "objeto": "take (preview al aire)",
+     "ejemplo": "dale take a lo que está en el bus de preview",
+     "herramientas": [
+      "scene_take"
+     ]
+    },
+    {
+     "objeto": "aire al orador siguiente de la fila",
+     "ejemplo": "dale aire al orador que sigue en la fila",
+     "herramientas": [
+      "speaker_next"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "cambiar",
+   "formas": [
+    "cambiá",
+    "cambia",
+    "cambiale",
+    "cambialo",
+    "cambiala"
+   ],
+   "sentidos": [
+    {
+     "objeto": "a otra escena (al aire)",
+     "ejemplo": "cambiá a la escena Cierre",
+     "herramientas": [
+      "scene_switch"
+     ]
+    },
+    {
+     "objeto": "a otra lámina",
+     "ejemplo": "cambiá a la lámina 8 del carrusel Ventas",
+     "herramientas": [
+      "laminas_ir"
+     ]
+    },
+    {
+     "objeto": "datos de una persona",
+     "ejemplo": "cambiale el cargo a Ana: Ministra de Salud",
+     "herramientas": [
+      "participant_profile"
+     ]
+    },
+    {
+     "objeto": "PIN de la sala",
+     "ejemplo": "cambiá el PIN de la sala",
+     "herramientas": [
+      "room_pin"
+     ]
+    },
+    {
+     "objeto": "nombre de una escena",
+     "ejemplo": "cambiale el nombre a la escena 3 por Cierre",
+     "herramientas": [
+      "scene_rename"
+     ]
+    },
+    {
+     "objeto": "posición de una escena en la lista",
+     "ejemplo": "cambiale el lugar a la escena Cierre: al final",
+     "herramientas": [
+      "scene_move"
+     ]
+    },
+    {
+     "objeto": "propiedad de una fuente",
+     "ejemplo": "cambiale el dispositivo a la fuente Cámara 1",
+     "herramientas": [
+      "source_set_property"
+     ]
+    },
+    {
+     "objeto": "fuente (texto, tamaño, lugar, visibilidad)",
+     "ejemplo": "cambiá el texto del zócalo a Ana Gómez",
+     "herramientas": [
+      "source_update"
+     ]
+    },
+    {
+     "objeto": "posición de una persona en la fila",
+     "ejemplo": "cambiale el lugar a Ana en la fila: segunda",
+     "herramientas": [
+      "speaker_move"
+     ]
+    },
+    {
+     "objeto": "presentador",
+     "ejemplo": "cambiá el presentador a Juan",
+     "herramientas": [
+      "speaker_presenter"
+     ]
+    },
+    {
+     "objeto": "modo oradores",
+     "ejemplo": "cambiá el modo oradores a varios al aire",
+     "herramientas": [
+      "speakers_config"
+     ]
+    },
+    {
+     "objeto": "transición",
+     "ejemplo": "cambiá la transición a corte seco",
+     "herramientas": [
+      "transition_set"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "mostrar",
+   "formas": [
+    "mostra",
+    "mostrala",
+    "mostralo",
+    "mostrame",
+    "mostrá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "fuente oculta (mostrá: visible al aire)",
+     "ejemplo": "mostrá el logo en la escena Panel",
+     "herramientas": [
+      "source_update"
+     ]
+    },
+    {
+     "objeto": "último cuadro de un feed (mostrame)",
+     "ejemplo": "mostrame el último cuadro del invitado 2",
+     "herramientas": [
+      "capture_feed"
+     ]
+    },
+    {
+     "objeto": "imágenes de todas las personas (mostrame)",
+     "ejemplo": "mostrame a todas las personas de la sala",
+     "herramientas": [
+      "capture_people"
+     ]
+    },
+    {
+     "objeto": "imagen de una persona (mostrame)",
+     "ejemplo": "mostrame la cámara de Ana",
+     "herramientas": [
+      "capture_person"
+     ]
+    },
+    {
+     "objeto": "programa (mostrame)",
+     "ejemplo": "mostrame lo que sale en el programa",
+     "herramientas": [
+      "capture_program"
+     ]
+    },
+    {
+     "objeto": "fuente o escena (mostrame)",
+     "ejemplo": "mostrame la escena Panel antes de ponerla",
+     "herramientas": [
+      "capture_source"
+     ]
+    },
+    {
+     "objeto": "chat reciente (mostrame)",
+     "ejemplo": "mostrame los últimos mensajes del chat",
+     "herramientas": [
+      "chat_history"
+     ]
+    },
+    {
+     "objeto": "gráficos disponibles (mostrame)",
+     "ejemplo": "mostrame los gráficos disponibles",
+     "herramientas": [
+      "grafico_listar"
+     ]
+    },
+    {
+     "objeto": "láminas de un carrusel (mostrame)",
+     "ejemplo": "mostrame las láminas del carrusel Ventas",
+     "herramientas": [
+      "laminas_ver"
+     ]
+    },
+    {
+     "objeto": "niveles del mezclador (mostrame)",
+     "ejemplo": "mostrame los niveles del mezclador",
+     "herramientas": [
+      "mixer_list"
+     ]
+    },
+    {
+     "objeto": "vínculos y orígenes (mostrame)",
+     "ejemplo": "mostrame los vínculos y los orígenes disponibles",
+     "herramientas": [
+      "rotulo_vinculos"
+     ]
+    },
+    {
+     "objeto": "lista de escenas (mostrame)",
+     "ejemplo": "mostrame la lista de escenas",
+     "herramientas": [
+      "scene_list"
+     ]
+    },
+    {
+     "objeto": "archivo compartido (mostrame)",
+     "ejemplo": "mostrame la foto que compartió Ana",
+     "herramientas": [
+      "share_view"
+     ]
+    },
+    {
+     "objeto": "fuentes de una escena (mostrame)",
+     "ejemplo": "mostrame las fuentes de la escena Panel",
+     "herramientas": [
+      "source_list"
+     ]
+    },
+    {
+     "objeto": "propiedades de una fuente (mostrame)",
+     "ejemplo": "mostrame las propiedades de la fuente Pizarra",
+     "herramientas": [
+      "source_properties"
+     ]
+    },
+    {
+     "objeto": "tipos de fuente (mostrame)",
+     "ejemplo": "mostrame los tipos de fuente instalados",
+     "herramientas": [
+      "source_types"
+     ]
+    },
+    {
+     "objeto": "estado de la fila (mostrame)",
+     "ejemplo": "mostrame el estado de la fila de oradores",
+     "herramientas": [
+      "speakers_status"
+     ]
+    },
+    {
+     "objeto": "gráfico animado (mostrá: reproducirlo en su fuente)",
+     "ejemplo": "mostrá el gráfico animado del resultado",
+     "herramientas": [
+      "grafico_mostrar"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "dejar",
+   "formas": [
+    "deja",
+    "deja armada",
+    "deja entrar",
+    "deja lista",
+    "dejala",
+    "dejalo",
+    "dejalos",
+    "dejame",
+    "dejame armada",
+    "dejame lista",
+    "dejá",
+    "dejá armada",
+    "dejá entrar",
+    "dejá lista"
+   ],
+   "sentidos": [
+    {
+     "objeto": "pasar a una persona del lobby",
+     "ejemplo": "dejá pasar a Juan a la sala",
+     "herramientas": [
+      "participant_admit"
+     ]
+    },
+    {
+     "objeto": "pasar a todos los del lobby",
+     "ejemplo": "dejá pasar a todos los del lobby",
+     "herramientas": [
+      "participant_admit_all"
+     ]
+    },
+    {
+     "objeto": "de grabar el programa",
+     "ejemplo": "dejá de grabar el programa",
+     "herramientas": [
+      "record_stop"
+     ]
+    },
+    {
+     "objeto": "de transmitir",
+     "ejemplo": "dejá de transmitir",
+     "herramientas": [
+      "stream_stop"
+     ]
+    },
+    {
+     "objeto": "escena en preview",
+     "ejemplo": "dejame la escena Panel en preview",
+     "herramientas": [
+      "scene_preview"
+     ]
+    },
+    {
+     "objeto": "sala cerrada o lobby",
+     "ejemplo": "dejá la sala cerrada",
+     "herramientas": [
+      "room_set"
+     ]
+    },
+    {
+     "objeto": "escuchar una fuente (dejame)",
+     "ejemplo": "dejame escuchar la cámara 2 por el monitor",
+     "herramientas": [
+      "audio_escuchar"
+     ]
+    },
+    {
+     "objeto": "ver a una persona (dejame)",
+     "ejemplo": "dejame ver la cámara de Ana",
+     "herramientas": [
+      "capture_person"
+     ]
+    },
+    {
+     "objeto": "ver un archivo compartido (dejame)",
+     "ejemplo": "dejame ver la foto que compartió Ana",
+     "herramientas": [
+      "share_view"
+     ]
+    },
+    {
+     "objeto": "hablar con alguien del lobby (dejame)",
+     "ejemplo": "dejame hablar con Juan del lobby",
+     "herramientas": [
+      "participant_talk"
+     ]
+    },
+    {
+     "objeto": "persona fija de presentador",
+     "ejemplo": "dejalo a Juan fijo de presentador",
+     "herramientas": [
+      "speaker_presenter"
+     ]
+    },
+    {
+     "objeto": "gráfico animado o su fuente (transparente)",
+     "ejemplo": "dejá transparente el gráfico de la encuesta",
+     "herramientas": [
+      "grafico_ocultar"
+     ]
+    },
+    {
+     "objeto": "gráfico animado o su fuente (transparente)",
+     "ejemplo": "dejá transparente el gráfico hasta el próximo dato",
+     "herramientas": [
+      "grafico_ocultar"
+     ]
+    },
+    {
+     "objeto": "gráfico animado o su fuente (transparente)",
+     "ejemplo": "dejá transparente la fuente del gráfico animado",
+     "herramientas": [
+      "grafico_ocultar"
+     ]
+    },
+    {
+     "objeto": "gráfico animado o su fuente (transparente)",
+     "ejemplo": "dejá transparente la fuente del gráfico de la cotización",
+     "herramientas": [
+      "grafico_ocultar"
+     ]
+    },
+    {
+     "objeto": "entrar a todos los del lobby",
+     "ejemplo": "dejá entrar a todos los del lobby",
+     "herramientas": [
+      "participant_admit_all"
+     ]
+    },
+    {
+     "objeto": "escena lista en preview (para el próximo take)",
+     "ejemplo": "dejame lista en preview la escena del invitado",
+     "herramientas": [
+      "scene_preview"
+     ]
+    },
+    {
+     "objeto": "escena armada en preview (PVW)",
+     "ejemplo": "dejame armada en preview la escena del invitado",
+     "herramientas": [
+      "scene_preview"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "traer",
+   "formas": [
+    "traé",
+    "trae",
+    "traeme",
+    "traelo",
+    "traela"
+   ],
+   "sentidos": [
+    {
+     "objeto": "último cuadro de un feed (traeme)",
+     "ejemplo": "traeme el último cuadro del invitado 2",
+     "herramientas": [
+      "capture_feed"
+     ]
+    },
+    {
+     "objeto": "imágenes de todas las personas (traeme)",
+     "ejemplo": "traeme fotos de todas las personas de la sala",
+     "herramientas": [
+      "capture_people"
+     ]
+    },
+    {
+     "objeto": "imagen de una persona (traeme)",
+     "ejemplo": "traeme la imagen de Ana",
+     "herramientas": [
+      "capture_person"
+     ]
+    },
+    {
+     "objeto": "cámara de un lugar a una escena",
+     "ejemplo": "traé la cámara del lugar 2 a la escena Panel",
+     "herramientas": [
+      "guest_source_add"
+     ]
+    },
+    {
+     "objeto": "archivo compartido (al aire)",
+     "ejemplo": "traé al aire la foto que compartió Ana",
+     "herramientas": [
+      "share_take"
+     ]
+    },
+    {
+     "objeto": "fuente adelante (orden de capas)",
+     "ejemplo": "traé el logo adelante de todo",
+     "herramientas": [
+      "source_update"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "meter",
+   "formas": [
+    "mete",
+    "metela",
+    "metele",
+    "metelo",
+    "meteme",
+    "meti",
+    "metime",
+    "meté",
+    "metí"
+   ],
+   "sentidos": [
+    {
+     "objeto": "cámara de un lugar en una escena",
+     "ejemplo": "meteme la cámara del lugar 3 en la escena Panel",
+     "herramientas": [
+      "guest_source_add"
+     ]
+    },
+    {
+     "objeto": "carrusel en una escena",
+     "ejemplo": "metele el carrusel Ventas a la escena Panel",
+     "herramientas": [
+      "laminas_aplicar"
+     ]
+    },
+    {
+     "objeto": "archivo compartido (al aire)",
+     "ejemplo": "metele al aire el video que compartió Ana",
+     "herramientas": [
+      "share_take"
+     ]
+    },
+    {
+     "objeto": "fuente nueva en una escena",
+     "ejemplo": "metele un texto a la escena Apertura",
+     "herramientas": [
+      "source_add"
+     ]
+    },
+    {
+     "objeto": "escena en una carpeta",
+     "ejemplo": "meté la escena Placa 1 en la carpeta Bloque 2",
+     "herramientas": [
+      "scene_folder"
+     ]
+    },
+    {
+     "objeto": "persona del lobby a la sala",
+     "ejemplo": "metelo a Juan en la sala",
+     "herramientas": [
+      "participant_admit"
+     ]
+    },
+    {
+     "objeto": "escena en una carpeta",
+     "ejemplo": "metí la escena Deportes en la carpeta de deportes",
+     "herramientas": [
+      "scene_folder"
+     ]
+    },
+    {
+     "objeto": "escena dentro de una carpeta",
+     "ejemplo": "metime la escena Sponsors dentro de la carpeta Placas",
+     "herramientas": [
+      "scene_folder"
+     ]
+    },
+    {
+     "objeto": "persona en la fila de oradores",
+     "ejemplo": "metela a Romina en la fila de oradores",
+     "herramientas": [
+      "speaker_queue"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "sumar",
+   "formas": [
+    "sumá",
+    "suma",
+    "sumale",
+    "sumalo",
+    "sumala"
+   ],
+   "sentidos": [
+    {
+     "objeto": "cámara de un lugar a una escena",
+     "ejemplo": "sumá la cámara del lugar 2 a la escena Panel",
+     "herramientas": [
+      "guest_source_add"
+     ]
+    },
+    {
+     "objeto": "escena nueva vacía",
+     "ejemplo": "sumá una escena nueva llamada Entrevista",
+     "herramientas": [
+      "scene_create"
+     ]
+    },
+    {
+     "objeto": "archivo compartido (al aire)",
+     "ejemplo": "sumá al aire la foto que compartió Ana",
+     "herramientas": [
+      "share_take"
+     ]
+    },
+    {
+     "objeto": "fuente nueva en una escena",
+     "ejemplo": "sumá un logo a la escena Apertura",
+     "herramientas": [
+      "source_add"
+     ]
+    },
+    {
+     "objeto": "persona a la fila",
+     "ejemplo": "sumá a Laura a la fila de oradores",
+     "herramientas": [
+      "speaker_queue"
+     ]
+    },
+    {
+     "objeto": "dato de una persona",
+     "ejemplo": "sumale el mail a Ana: ana@ejemplo.com",
+     "herramientas": [
+      "participant_profile"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "agregar",
+   "formas": [
+    "agrega",
+    "agregala",
+    "agregale",
+    "agregalo",
+    "agregá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "cámara de un lugar a una escena",
+     "ejemplo": "agregá la cámara del lugar 2 a la escena Panel",
+     "herramientas": [
+      "guest_source_add"
+     ]
+    },
+    {
+     "objeto": "escena nueva vacía",
+     "ejemplo": "agregá una escena nueva llamada Entrevista",
+     "herramientas": [
+      "scene_create"
+     ]
+    },
+    {
+     "objeto": "archivo compartido (al aire)",
+     "ejemplo": "agregá al aire el video que compartió Ana",
+     "herramientas": [
+      "share_take"
+     ]
+    },
+    {
+     "objeto": "fuente nueva en una escena",
+     "ejemplo": "agregá un zócalo a la escena Panel",
+     "herramientas": [
+      "source_add"
+     ]
+    },
+    {
+     "objeto": "persona a la fila",
+     "ejemplo": "agregá a Laura a la fila de oradores",
+     "herramientas": [
+      "speaker_queue"
+     ]
+    },
+    {
+     "objeto": "dato de una persona",
+     "ejemplo": "agregale a Ramos en su info que es intendente",
+     "herramientas": [
+      "participant_profile"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "borrar",
+   "formas": [
+    "borrá",
+    "borra",
+    "borrame",
+    "borralo",
+    "borrala"
+   ],
+   "sentidos": [
+    {
+     "objeto": "escena",
+     "ejemplo": "borrá la escena Prueba",
+     "herramientas": [
+      "scene_delete"
+     ]
+    },
+    {
+     "objeto": "archivo compartido",
+     "ejemplo": "borrá el archivo que compartió Ana",
+     "herramientas": [
+      "share_delete"
+     ]
+    },
+    {
+     "objeto": "fuente de una escena",
+     "ejemplo": "borrá el logo de la escena Apertura",
+     "herramientas": [
+      "source_remove"
+     ]
+    },
+    {
+     "objeto": "vínculo de un gráfico",
+     "ejemplo": "borrá el vínculo del zócalo de la escena Panel",
+     "herramientas": [
+      "rotulo_desvincular"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "eliminar",
+   "formas": [
+    "eliminá",
+    "elimina",
+    "eliminalo",
+    "eliminala"
+   ],
+   "sentidos": [
+    {
+     "objeto": "escena",
+     "ejemplo": "eliminá la escena Prueba",
+     "herramientas": [
+      "scene_delete"
+     ]
+    },
+    {
+     "objeto": "archivo compartido",
+     "ejemplo": "eliminá el archivo que compartió Ana",
+     "herramientas": [
+      "share_delete"
+     ]
+    },
+    {
+     "objeto": "fuente de una escena",
+     "ejemplo": "eliminá el logo de la escena Apertura",
+     "herramientas": [
+      "source_remove"
+     ]
+    },
+    {
+     "objeto": "vínculo de un gráfico",
+     "ejemplo": "eliminá el vínculo del zócalo de la escena Panel",
+     "herramientas": [
+      "rotulo_desvincular"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "quitar",
+   "formas": [
+    "quita",
+    "quitala",
+    "quitale",
+    "quitalo",
+    "quitá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "fuente de una escena",
+     "ejemplo": "quitá el logo de la escena Apertura",
+     "herramientas": [
+      "source_remove"
+     ]
+    },
+    {
+     "objeto": "gráfico animado (dejarlo transparente)",
+     "ejemplo": "quitá el gráfico Encuesta de la escena Panel",
+     "herramientas": [
+      "grafico_ocultar"
+     ]
+    },
+    {
+     "objeto": "vínculo de un gráfico",
+     "ejemplo": "quitale el vínculo al zócalo de la escena Panel",
+     "herramientas": [
+      "rotulo_desvincular"
+     ]
+    },
+    {
+     "objeto": "protección (candado) de una escena",
+     "ejemplo": "quitale la protección a la escena Resumen",
+     "herramientas": [
+      "scene_protect"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "cortar",
+   "formas": [
+    "cortá",
+    "corta",
+    "cortalo",
+    "cortala"
+   ],
+   "sentidos": [
+    {
+     "objeto": "a una escena (al aire)",
+     "ejemplo": "cortá a la cámara 2",
+     "herramientas": [
+      "scene_switch"
+     ]
+    },
+    {
+     "objeto": "grabación del programa",
+     "ejemplo": "cortá la grabación del programa",
+     "herramientas": [
+      "record_stop"
+     ]
+    },
+    {
+     "objeto": "transmisión",
+     "ejemplo": "cortá la transmisión",
+     "herramientas": [
+      "stream_stop"
+     ]
+    },
+    {
+     "objeto": "vínculo de un gráfico",
+     "ejemplo": "cortá el vínculo del zócalo de la escena Panel",
+     "herramientas": [
+      "rotulo_desvincular"
+     ]
+    },
+    {
+     "objeto": "línea con alguien del lobby",
+     "ejemplo": "cortá la línea con Juan del lobby",
+     "herramientas": [
+      "participant_talk"
+     ]
+    },
+    {
+     "objeto": "acople de una fuente de audio",
+     "ejemplo": "cortá el acople del micrófono 1",
+     "herramientas": [
+      "audio_set"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "arrancar",
+   "formas": [
+    "arrancá",
+    "arranca",
+    "arrancala",
+    "arrancalo"
+   ],
+   "sentidos": [
+    {
+     "objeto": "grabación del programa",
+     "ejemplo": "arrancá la grabación del programa",
+     "herramientas": [
+      "record_start"
+     ]
+    },
+    {
+     "objeto": "grabación aparte de una entrada",
+     "ejemplo": "arrancá la grabación aparte de la cámara 2",
+     "herramientas": [
+      "grabacion_individual"
+     ]
+    },
+    {
+     "objeto": "transmisión",
+     "ejemplo": "arrancá la transmisión",
+     "herramientas": [
+      "stream_start"
+     ]
+    },
+    {
+     "objeto": "con una escena (al aire)",
+     "ejemplo": "arrancá con la escena Apertura al aire",
+     "herramientas": [
+      "scene_switch"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "iniciar",
+   "formas": [
+    "iniciá",
+    "inicia",
+    "inicialo",
+    "iniciala"
+   ],
+   "sentidos": [
+    {
+     "objeto": "grabación del programa",
+     "ejemplo": "iniciá la grabación del programa",
+     "herramientas": [
+      "record_start"
+     ]
+    },
+    {
+     "objeto": "grabación aparte de una entrada",
+     "ejemplo": "iniciá la grabación aparte de la cámara 2",
+     "herramientas": [
+      "grabacion_individual"
+     ]
+    },
+    {
+     "objeto": "transmisión",
+     "ejemplo": "iniciá la transmisión",
+     "herramientas": [
+      "stream_start"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "empezar",
+   "formas": [
+    "empezá",
+    "empeza"
+   ],
+   "sentidos": [
+    {
+     "objeto": "a grabar el programa",
+     "ejemplo": "empezá a grabar el programa",
+     "herramientas": [
+      "record_start"
+     ]
+    },
+    {
+     "objeto": "a grabar aparte una entrada",
+     "ejemplo": "empezá a grabar aparte la cámara 2",
+     "herramientas": [
+      "grabacion_individual"
+     ]
+    },
+    {
+     "objeto": "a transmitir",
+     "ejemplo": "empezá a transmitir",
+     "herramientas": [
+      "stream_start"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "parar",
+   "formas": [
+    "para",
+    "parala",
+    "paralo",
+    "pará"
+   ],
+   "sentidos": [
+    {
+     "objeto": "grabación del programa",
+     "ejemplo": "pará la grabación del programa",
+     "herramientas": [
+      "record_stop"
+     ]
+    },
+    {
+     "objeto": "transmisión",
+     "ejemplo": "pará la transmisión",
+     "herramientas": [
+      "stream_stop"
+     ]
+    },
+    {
+     "objeto": "grabación aparte de una entrada",
+     "ejemplo": "pará la grabación aparte del invitado dos",
+     "herramientas": [
+      "grabacion_individual"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "detener",
+   "formas": [
+    "detené",
+    "detene",
+    "detenelo",
+    "detenela"
+   ],
+   "sentidos": [
+    {
+     "objeto": "grabación del programa",
+     "ejemplo": "detené la grabación del programa",
+     "herramientas": [
+      "record_stop"
+     ]
+    },
+    {
+     "objeto": "transmisión",
+     "ejemplo": "detené la transmisión",
+     "herramientas": [
+      "stream_stop"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "terminar",
+   "formas": [
+    "terminá",
+    "termina",
+    "terminalo",
+    "terminala"
+   ],
+   "sentidos": [
+    {
+     "objeto": "grabación del programa",
+     "ejemplo": "terminá la grabación del programa",
+     "herramientas": [
+      "record_stop"
+     ]
+    },
+    {
+     "objeto": "transmisión",
+     "ejemplo": "terminá la transmisión",
+     "herramientas": [
+      "stream_stop"
+     ]
+    },
+    {
+     "objeto": "gráfico animado",
+     "ejemplo": "terminá el gráfico Encuesta de la escena Panel",
+     "herramientas": [
+      "grafico_ocultar"
+     ]
+    },
+    {
+     "objeto": "turno del orador al aire (entra el siguiente)",
+     "ejemplo": "terminá el turno del orador al aire",
+     "herramientas": [
+      "speaker_next"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "abrir",
+   "formas": [
+    "abrí",
+    "abri",
+    "abrime",
+    "abrilo",
+    "abrila"
+   ],
+   "sentidos": [
+    {
+     "objeto": "sala (que pueda entrar gente)",
+     "ejemplo": "abrí la sala",
+     "herramientas": [
+      "room_set"
+     ]
+    },
+    {
+     "objeto": "línea con alguien del lobby",
+     "ejemplo": "abrí la línea con Juan del lobby",
+     "herramientas": [
+      "participant_talk"
+     ]
+    },
+    {
+     "objeto": "escena nueva vacía",
+     "ejemplo": "abrí una escena nueva llamada Entrevista",
+     "herramientas": [
+      "scene_create"
+     ]
+    },
+    {
+     "objeto": "transmisión",
+     "ejemplo": "abrí la transmisión",
+     "herramientas": [
+      "stream_start"
+     ]
+    },
+    {
+     "objeto": "archivo compartido (para verlo)",
+     "ejemplo": "abrime la foto que compartió Ana",
+     "herramientas": [
+      "share_view"
+     ]
+    },
+    {
+     "objeto": "micrófono (quitar silencio)",
+     "ejemplo": "abrí el micrófono de Ana",
+     "herramientas": [
+      "audio_set"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "cerrar",
+   "formas": [
+    "cerrá",
+    "cerra",
+    "cerralo",
+    "cerrala"
+   ],
+   "sentidos": [
+    {
+     "objeto": "sala (nadie nuevo entra)",
+     "ejemplo": "cerrá la sala",
+     "herramientas": [
+      "room_set"
+     ]
+    },
+    {
+     "objeto": "lobby de admisión",
+     "ejemplo": "cerrá el lobby de admisión",
+     "herramientas": [
+      "room_set"
+     ]
+    },
+    {
+     "objeto": "micrófono (silenciar)",
+     "ejemplo": "cerrá el micrófono de Ana",
+     "herramientas": [
+      "audio_set"
+     ]
+    },
+    {
+     "objeto": "grabación del programa",
+     "ejemplo": "cerrá la grabación del programa",
+     "herramientas": [
+      "record_stop"
+     ]
+    },
+    {
+     "objeto": "línea con alguien del lobby",
+     "ejemplo": "cerrá la línea con Juan del lobby",
+     "herramientas": [
+      "participant_talk"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "apagar",
+   "formas": [
+    "apagá",
+    "apaga",
+    "apagalo",
+    "apagala"
+   ],
+   "sentidos": [
+    {
+     "objeto": "gráfico animado",
+     "ejemplo": "apagá el gráfico Encuesta de la escena Panel",
+     "herramientas": [
+      "grafico_ocultar"
+     ]
+    },
+    {
+     "objeto": "lobby de admisión",
+     "ejemplo": "apagá el lobby de admisión",
+     "herramientas": [
+      "room_set"
+     ]
+    },
+    {
+     "objeto": "vínculo de un gráfico (sin borrarlo)",
+     "ejemplo": "apagá el vínculo del zócalo sin borrarlo",
+     "herramientas": [
+      "rotulo_desvincular"
+     ]
+    },
+    {
+     "objeto": "modo oradores",
+     "ejemplo": "apagá el modo oradores",
+     "herramientas": [
+      "speakers_config"
+     ]
+    },
+    {
+     "objeto": "transmisión",
+     "ejemplo": "apagá la transmisión",
+     "herramientas": [
+      "stream_stop"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "prender",
+   "formas": [
+    "prende",
+    "prendela",
+    "prendelo",
+    "prendé"
+   ],
+   "sentidos": [
+    {
+     "objeto": "grabación aparte de una entrada",
+     "ejemplo": "prendé la grabación aparte de la cámara 2",
+     "herramientas": [
+      "grabacion_individual"
+     ]
+    },
+    {
+     "objeto": "grabación del programa",
+     "ejemplo": "prendé la grabación del programa",
+     "herramientas": [
+      "record_start"
+     ]
+    },
+    {
+     "objeto": "modo oradores",
+     "ejemplo": "prendé el modo oradores",
+     "herramientas": [
+      "speakers_config"
+     ]
+    },
+    {
+     "objeto": "lobby de admisión",
+     "ejemplo": "prendé el lobby de admisión",
+     "herramientas": [
+      "room_set"
+     ]
+    },
+    {
+     "objeto": "transmisión",
+     "ejemplo": "prendé la transmisión",
+     "herramientas": [
+      "stream_start"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "activar",
+   "formas": [
+    "activa",
+    "activala",
+    "activale",
+    "activalo",
+    "activá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "lobby de admisión",
+     "ejemplo": "activá el lobby de admisión",
+     "herramientas": [
+      "room_set"
+     ]
+    },
+    {
+     "objeto": "modo oradores",
+     "ejemplo": "activá el modo oradores",
+     "herramientas": [
+      "speakers_config"
+     ]
+    },
+    {
+     "objeto": "propiedad de una fuente (casilla sí/no)",
+     "ejemplo": "activá la propiedad reiniciar al hacerse visible de esa fuente",
+     "herramientas": [
+      "source_set_property"
+     ]
+    },
+    {
+     "objeto": "modo presentador de una persona",
+     "ejemplo": "activá el modo presentador para Rocío",
+     "herramientas": [
+      "speaker_presenter"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "desactivar",
+   "formas": [
+    "desactiva",
+    "desactivala",
+    "desactivalo",
+    "desactivá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "lobby de admisión",
+     "ejemplo": "desactivá el lobby de admisión",
+     "herramientas": [
+      "room_set"
+     ]
+    },
+    {
+     "objeto": "modo oradores",
+     "ejemplo": "desactivá el modo oradores",
+     "herramientas": [
+      "speakers_config"
+     ]
+    },
+    {
+     "objeto": "modo presentador de una persona",
+     "ejemplo": "desactivá el modo presentador de Julián",
+     "herramientas": [
+      "speaker_presenter"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "bloquear",
+   "formas": [
+    "bloqueá",
+    "bloquea",
+    "bloquealo",
+    "bloqueala"
+   ],
+   "sentidos": [
+    {
+     "objeto": "sala (nadie nuevo entra)",
+     "ejemplo": "bloqueá la sala",
+     "herramientas": [
+      "room_set"
+     ]
+    },
+    {
+     "objeto": "escena (protegerla)",
+     "ejemplo": "bloqueá la escena Apertura",
+     "herramientas": [
+      "scene_protect"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "desbloquear",
+   "formas": [
+    "desbloqueá",
+    "desbloquea",
+    "desbloquealo",
+    "desbloqueala"
+   ],
+   "sentidos": [
+    {
+     "objeto": "sala",
+     "ejemplo": "desbloqueá la sala",
+     "herramientas": [
+      "room_set"
+     ]
+    },
+    {
+     "objeto": "escena (desprotegerla)",
+     "ejemplo": "desbloqueá la escena Apertura",
+     "herramientas": [
+      "scene_protect"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "subir",
+   "formas": [
+    "subi",
+    "subila",
+    "subile",
+    "subilo",
+    "subí"
+   ],
+   "sentidos": [
+    {
+     "objeto": "volumen de una fuente de audio",
+     "ejemplo": "subile 3 dB al micrófono de Ana",
+     "herramientas": [
+      "audio_set"
+     ]
+    },
+    {
+     "objeto": "retardo de audio de una fuente",
+     "ejemplo": "subile el retardo a la cámara 1 a 120 ms",
+     "herramientas": [
+      "audio_sincro"
+     ]
+    },
+    {
+     "objeto": "escena en la lista",
+     "ejemplo": "subí la escena Cierre dos lugares en la lista",
+     "herramientas": [
+      "scene_move"
+     ]
+    },
+    {
+     "objeto": "escena a preview",
+     "ejemplo": "subí la escena Panel a preview",
+     "herramientas": [
+      "scene_preview"
+     ]
+    },
+    {
+     "objeto": "persona en la fila",
+     "ejemplo": "subí a Ana al primer lugar de la fila",
+     "herramientas": [
+      "speaker_move"
+     ]
+    },
+    {
+     "objeto": "tiempo de un orador",
+     "ejemplo": "subile el tiempo a Laura a 5 minutos",
+     "herramientas": [
+      "speaker_time"
+     ]
+    },
+    {
+     "objeto": "tiempo general del modo oradores",
+     "ejemplo": "subí el tiempo general por orador a 4 minutos",
+     "herramientas": [
+      "speakers_config"
+     ]
+    },
+    {
+     "objeto": "fuente en el orden de capas",
+     "ejemplo": "subí el logo una capa en la escena Panel",
+     "herramientas": [
+      "source_update"
+     ]
+    },
+    {
+     "objeto": "valor de una propiedad de una fuente (resolución)",
+     "ejemplo": "subile la resolución a 1080 a la fuente de la cámara",
+     "herramientas": [
+      "source_set_property"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "bajar",
+   "formas": [
+    "baja",
+    "bajala",
+    "bajale",
+    "bajalo",
+    "bajanos",
+    "bajá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "volumen de una fuente de audio",
+     "ejemplo": "bajale 6 dB a la cámara 2",
+     "herramientas": [
+      "audio_set"
+     ]
+    },
+    {
+     "objeto": "retardo de audio de una fuente",
+     "ejemplo": "bajale el retardo a la cámara 1 a 40 ms",
+     "herramientas": [
+      "audio_sincro"
+     ]
+    },
+    {
+     "objeto": "escena en la lista",
+     "ejemplo": "bajá la escena Apertura al final de la lista",
+     "herramientas": [
+      "scene_move"
+     ]
+    },
+    {
+     "objeto": "persona en la fila",
+     "ejemplo": "bajá a Diego al último lugar de la fila",
+     "herramientas": [
+      "speaker_move"
+     ]
+    },
+    {
+     "objeto": "orador del aire",
+     "ejemplo": "bajá a Laura del aire",
+     "herramientas": [
+      "speaker_on_air"
+     ]
+    },
+    {
+     "objeto": "tiempo de un orador",
+     "ejemplo": "bajale el tiempo a Laura a 2 minutos",
+     "herramientas": [
+      "speaker_time"
+     ]
+    },
+    {
+     "objeto": "fuente en el orden de capas",
+     "ejemplo": "bajá el logo una capa en la escena Panel",
+     "herramientas": [
+      "source_update"
+     ]
+    },
+    {
+     "objeto": "nosotros del aire (transmisión)",
+     "ejemplo": "bajanos del aire",
+     "herramientas": [
+      "stream_stop"
+     ]
+    },
+    {
+     "objeto": "persona a una posición de la fila (puesto N)",
+     "ejemplo": "bajá a Tomás al último puesto de la fila",
+     "herramientas": [
+      "speaker_move"
+     ]
+    },
+    {
+     "objeto": "persona a una posición de la fila (puesto N)",
+     "ejemplo": "bajá a la invitada Paz a la posición 7 de la fila",
+     "herramientas": [
+      "speaker_move"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "hacer",
+   "formas": [
+    "hace",
+    "hacela",
+    "hacele",
+    "hacelo",
+    "hacelos",
+    "haceme",
+    "hacé"
+   ],
+   "sentidos": [
+    {
+     "objeto": "pasar a una persona del lobby",
+     "ejemplo": "hacé pasar a Juan a la sala",
+     "herramientas": [
+      "participant_admit"
+     ]
+    },
+    {
+     "objeto": "pasar a todos los del lobby",
+     "ejemplo": "hacé pasar a todos los del lobby",
+     "herramientas": [
+      "participant_admit_all"
+     ]
+    },
+    {
+     "objeto": "take",
+     "ejemplo": "hacé el take",
+     "herramientas": [
+      "scene_take"
+     ]
+    },
+    {
+     "objeto": "copia de una escena",
+     "ejemplo": "haceme una copia de la escena Panel",
+     "herramientas": [
+      "scene_copy"
+     ]
+    },
+    {
+     "objeto": "escena nueva vacía",
+     "ejemplo": "hacé una escena nueva vacía llamada Entrevista",
+     "herramientas": [
+      "scene_create"
+     ]
+    },
+    {
+     "objeto": "secuencia de cuadros",
+     "ejemplo": "hacele una secuencia de 10 cuadros a la cámara 2",
+     "herramientas": [
+      "capture_sequence"
+     ]
+    },
+    {
+     "objeto": "desaparecer un gráfico",
+     "ejemplo": "hacé desaparecer el gráfico Encuesta de la escena Panel",
+     "herramientas": [
+      "grafico_ocultar"
+     ]
+    },
+    {
+     "objeto": "transición (duración o tipo)",
+     "ejemplo": "hacé la transición de 1 segundo",
+     "herramientas": [
+      "transition_set"
+     ]
+    },
+    {
+     "objeto": "a una persona presentador fijo",
+     "ejemplo": "hacela presentadora a la conductora remota",
+     "herramientas": [
+      "speaker_presenter"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "armar",
+   "formas": [
+    "armá",
+    "arma",
+    "armame",
+    "armalo",
+    "armala"
+   ],
+   "sentidos": [
+    {
+     "objeto": "escena con todas sus fuentes",
+     "ejemplo": "armá la escena Panel con la cámara 1 y el logo",
+     "herramientas": [
+      "scene_define"
+     ]
+    },
+    {
+     "objeto": "escena en preview",
+     "ejemplo": "armá la escena Cierre en preview",
+     "herramientas": [
+      "scene_preview"
+     ]
+    },
+    {
+     "objeto": "multiview",
+     "ejemplo": "armame el multiview de todas las escenas",
+     "herramientas": [
+      "capture_multiview"
+     ]
+    },
+    {
+     "objeto": "vínculo de un gráfico con un origen",
+     "ejemplo": "armame el vínculo del zócalo con el orador al aire",
+     "herramientas": [
+      "rotulo_vincular"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "crear",
+   "formas": [
+    "creá",
+    "crea",
+    "creame",
+    "crealo",
+    "creala"
+   ],
+   "sentidos": [
+    {
+     "objeto": "escena vacía",
+     "ejemplo": "creá una escena vacía llamada Entrevista",
+     "herramientas": [
+      "scene_create"
+     ]
+    },
+    {
+     "objeto": "escena con fuentes",
+     "ejemplo": "creá la escena Panel con la cámara 1 y el zócalo",
+     "herramientas": [
+      "scene_define"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "copiar",
+   "formas": [
+    "copiá",
+    "copia",
+    "copiame",
+    "copialo",
+    "copiala"
+   ],
+   "sentidos": [
+    {
+     "objeto": "escena",
+     "ejemplo": "copiá la escena Panel como Panel 2",
+     "herramientas": [
+      "scene_copy"
+     ]
+    },
+    {
+     "objeto": "archivo compartido (a medios y al aire)",
+     "ejemplo": "copiá la foto que compartió Ana a la escena al aire",
+     "herramientas": [
+      "share_take"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "grabar",
+   "formas": [
+    "grabá",
+    "graba",
+    "grabame",
+    "grabalo",
+    "grabala"
+   ],
+   "sentidos": [
+    {
+     "objeto": "programa",
+     "ejemplo": "grabá el programa",
+     "herramientas": [
+      "record_start"
+     ]
+    },
+    {
+     "objeto": "una entrada en su propio archivo",
+     "ejemplo": "grabá la cámara 2 en un archivo aparte",
+     "herramientas": [
+      "grabacion_individual"
+     ]
+    },
+    {
+     "objeto": "secuencia de cuadros",
+     "ejemplo": "grabame 10 cuadros de la cámara 2 cada 500 ms",
+     "herramientas": [
+      "capture_sequence"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "capturar",
+   "formas": [
+    "capturá",
+    "captura",
+    "capturame",
+    "capturalo",
+    "capturala"
+   ],
+   "sentidos": [
+    {
+     "objeto": "programa",
+     "ejemplo": "capturá el programa",
+     "herramientas": [
+      "capture_program"
+     ]
+    },
+    {
+     "objeto": "fuente o escena",
+     "ejemplo": "capturá la escena Panel",
+     "herramientas": [
+      "capture_source"
+     ]
+    },
+    {
+     "objeto": "una persona",
+     "ejemplo": "capturá la cámara de Ana",
+     "herramientas": [
+      "capture_person"
+     ]
+    },
+    {
+     "objeto": "todas las personas",
+     "ejemplo": "capturá a todas las personas de la sala",
+     "herramientas": [
+      "capture_people"
+     ]
+    },
+    {
+     "objeto": "multiview",
+     "ejemplo": "capturá el multiview",
+     "herramientas": [
+      "capture_multiview"
+     ]
+    },
+    {
+     "objeto": "feed que llega a la app",
+     "ejemplo": "capturá el feed del invitado 2",
+     "herramientas": [
+      "capture_feed"
+     ]
+    },
+    {
+     "objeto": "pantalla de la app",
+     "ejemplo": "capturá la pantalla de la app",
+     "herramientas": [
+      "capture_ui"
+     ]
+    },
+    {
+     "objeto": "secuencia de cuadros",
+     "ejemplo": "capturá una secuencia de 5 cuadros del programa",
+     "herramientas": [
+      "capture_sequence"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "tomar",
+   "formas": [
+    "toma",
+    "tomala",
+    "tomale",
+    "tomalo",
+    "tomá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "pantallazo de la app",
+     "ejemplo": "tomá un pantallazo de la app",
+     "herramientas": [
+      "capture_ui"
+     ]
+    },
+    {
+     "objeto": "archivo compartido (al aire)",
+     "ejemplo": "tomá la foto que compartió Ana y ponela al aire",
+     "herramientas": [
+      "share_take"
+     ]
+    },
+    {
+     "objeto": "secuencia de cuadros (N cuadros cada X ms)",
+     "ejemplo": "tomá veinte cuadros cada 100 ms de la Cámara 2",
+     "herramientas": [
+      "capture_sequence"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "mirar",
+   "formas": [
+    "mirá",
+    "mira",
+    "miralo",
+    "mirala"
+   ],
+   "sentidos": [
+    {
+     "objeto": "imagen con una pregunta concreta",
+     "ejemplo": "mirá en la cámara 2 si se ve el logo",
+     "herramientas": [
+      "imagen_analizar"
+     ]
+    },
+    {
+     "objeto": "último cuadro de un feed",
+     "ejemplo": "mirá el último cuadro del invitado 3",
+     "herramientas": [
+      "capture_feed"
+     ]
+    },
+    {
+     "objeto": "niveles del mezclador",
+     "ejemplo": "mirá los niveles del mezclador",
+     "herramientas": [
+      "mixer_list"
+     ]
+    },
+    {
+     "objeto": "estado de la red",
+     "ejemplo": "mirá el estado de la red",
+     "herramientas": [
+      "network_status"
+     ]
+    },
+    {
+     "objeto": "estado de la fila de oradores",
+     "ejemplo": "mirá el estado de la fila de oradores",
+     "herramientas": [
+      "speakers_status"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "fijarse",
+   "formas": [
+    "fijate",
+    "fijate en",
+    "fijate si",
+    "fijá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "fuente o escena (imagen)",
+     "ejemplo": "fijate cómo se ve la escena Panel",
+     "herramientas": [
+      "capture_source"
+     ]
+    },
+    {
+     "objeto": "chat reciente",
+     "ejemplo": "fijate los últimos mensajes del chat",
+     "herramientas": [
+      "chat_history"
+     ]
+    },
+    {
+     "objeto": "gráficos puestos en escenas",
+     "ejemplo": "fijate en qué escenas hay gráficos",
+     "herramientas": [
+      "grafico_en_escena"
+     ]
+    },
+    {
+     "objeto": "niveles del mezclador",
+     "ejemplo": "fijate los niveles del mezclador",
+     "herramientas": [
+      "mixer_list"
+     ]
+    },
+    {
+     "objeto": "estado de la red",
+     "ejemplo": "fijate el estado de la red",
+     "herramientas": [
+      "network_status"
+     ]
+    },
+    {
+     "objeto": "archivos compartidos",
+     "ejemplo": "fijate qué archivos compartieron los invitados",
+     "herramientas": [
+      "share_list"
+     ]
+    },
+    {
+     "objeto": "propiedades de una fuente",
+     "ejemplo": "fijate las propiedades de la fuente Pizarra",
+     "herramientas": [
+      "source_properties"
+     ]
+    },
+    {
+     "objeto": "estado de la fila de oradores",
+     "ejemplo": "fijate cuánto le queda al orador al aire",
+     "herramientas": [
+      "speakers_status"
+     ]
+    },
+    {
+     "objeto": "niveles del mezclador",
+     "ejemplo": "fijate los niveles del mezclador",
+     "herramientas": [
+      "mixer_list"
+     ]
+    },
+    {
+     "objeto": "niveles del mezclador",
+     "ejemplo": "fijate en el mezclador cuánto pica ese canal",
+     "herramientas": [
+      "mixer_list"
+     ]
+    },
+    {
+     "objeto": "niveles del mezclador",
+     "ejemplo": "fijate en el mezclador los niveles",
+     "herramientas": [
+      "mixer_list"
+     ]
+    },
+    {
+     "objeto": "estado de la red (túnel, puertos, IPs)",
+     "ejemplo": "fijate si el túnel y los puertos del gateway están bien",
+     "herramientas": [
+      "network_status"
+     ]
+    },
+    {
+     "objeto": "estado de la red (túnel, puertos, IPs)",
+     "ejemplo": "fijate la red del aparato antes de que entren los invitados",
+     "herramientas": [
+      "network_status"
+     ]
+    },
+    {
+     "objeto": "propiedades de una fuente y sus valores actuales",
+     "ejemplo": "fijate qué propiedades tiene esa fuente y cuánto valen ahora",
+     "herramientas": [
+      "source_properties"
+     ]
+    },
+    {
+     "objeto": "tiempo usado o restante de un orador de la fila",
+     "ejemplo": "fijate cuánto tiempo lleva usado el orador al aire",
+     "herramientas": [
+      "speakers_status"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "revisar",
+   "formas": [
+    "revisa",
+    "revisala",
+    "revisalo",
+    "revisar",
+    "revisá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "chat reciente",
+     "ejemplo": "revisá los últimos mensajes del chat",
+     "herramientas": [
+      "chat_history"
+     ]
+    },
+    {
+     "objeto": "red",
+     "ejemplo": "revisá el estado de la red",
+     "herramientas": [
+      "network_status"
+     ]
+    },
+    {
+     "objeto": "escena antes de ponerla (imagen)",
+     "ejemplo": "revisá la imagen de la escena Panel",
+     "herramientas": [
+      "capture_source"
+     ]
+    },
+    {
+     "objeto": "lista de archivos compartidos",
+     "ejemplo": "revisá la lista de archivos compartidos por los participantes",
+     "herramientas": [
+      "share_list"
+     ]
+    },
+    {
+     "objeto": "archivo compartido antes de ponerlo al aire",
+     "ejemplo": "dejame revisar la foto que nos compartió la entrevistada",
+     "herramientas": [
+      "share_view"
+     ]
+    },
+    {
+     "objeto": "archivo compartido antes de ponerlo al aire",
+     "ejemplo": "revisá la foto compartida antes de ponerla",
+     "herramientas": [
+      "share_view"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "chequear",
+   "formas": [
+    "chequea",
+    "chequeala",
+    "chequealo",
+    "chequear",
+    "chequeá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "red",
+     "ejemplo": "chequeá el estado de la red",
+     "herramientas": [
+      "network_status"
+     ]
+    },
+    {
+     "objeto": "estado general del aparato",
+     "ejemplo": "chequeá el estado general del aparato",
+     "herramientas": [
+      "status"
+     ]
+    },
+    {
+     "objeto": "archivo compartido antes de ponerlo al aire",
+     "ejemplo": "quiero chequear la foto compartida antes de sacarla al aire",
+     "herramientas": [
+      "share_view"
+     ]
+    },
+    {
+     "objeto": "archivo compartido antes de ponerlo al aire",
+     "ejemplo": "quiero chequear lo que compartió el médico sin sacarlo al aire",
+     "herramientas": [
+      "share_view"
+     ]
+    },
+    {
+     "objeto": "archivo compartido antes de ponerlo al aire",
+     "ejemplo": "chequeá la imagen que nos compartió el del móvil antes de usarla",
+     "herramientas": [
+      "share_view"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "leer",
+   "formas": [
+    "leé",
+    "lee",
+    "leeme",
+    "leelo",
+    "leela"
+   ],
+   "sentidos": [
+    {
+     "objeto": "chat reciente",
+     "ejemplo": "leeme los últimos mensajes del chat",
+     "herramientas": [
+      "chat_history"
+     ]
+    },
+    {
+     "objeto": "niveles del mezclador",
+     "ejemplo": "leeme los niveles del mezclador",
+     "herramientas": [
+      "mixer_list"
+     ]
+    },
+    {
+     "objeto": "propiedades de una fuente",
+     "ejemplo": "leeme las propiedades de la fuente Pizarra",
+     "herramientas": [
+      "source_properties"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "decir",
+   "formas": [
+    "decí",
+    "deci",
+    "decile",
+    "decime",
+    "deciles"
+   ],
+   "sentidos": [
+    {
+     "objeto": "texto a un invitado por chat (decile)",
+     "ejemplo": "decile a Ana por chat que arrancamos en 5",
+     "herramientas": [
+      "chat_send"
+     ]
+    },
+    {
+     "objeto": "pedido al navegador: micrófono, cámara, pantalla o mano (decile)",
+     "ejemplo": "decile a Martín que apague la cámara",
+     "herramientas": [
+      "participant_request"
+     ]
+    },
+    {
+     "objeto": "gráficos puestos en escenas (decime)",
+     "ejemplo": "decime en qué escenas hay gráficos animados",
+     "herramientas": [
+      "grafico_en_escena"
+     ]
+    },
+    {
+     "objeto": "gráficos disponibles (decime)",
+     "ejemplo": "decime qué gráficos hay disponibles",
+     "herramientas": [
+      "grafico_listar"
+     ]
+    },
+    {
+     "objeto": "respuesta sobre una imagen (decime)",
+     "ejemplo": "decime si en la cámara 2 se ve el logo",
+     "herramientas": [
+      "imagen_analizar"
+     ]
+    },
+    {
+     "objeto": "carruseles (decime)",
+     "ejemplo": "decime qué carruseles hay en la biblioteca",
+     "herramientas": [
+      "laminas_listar"
+     ]
+    },
+    {
+     "objeto": "niveles del mezclador (decime)",
+     "ejemplo": "decime los niveles del mezclador",
+     "herramientas": [
+      "mixer_list"
+     ]
+    },
+    {
+     "objeto": "estado de la sala (decime)",
+     "ejemplo": "decime quién está en la sala",
+     "herramientas": [
+      "room_status"
+     ]
+    },
+    {
+     "objeto": "vínculos y orígenes (decime)",
+     "ejemplo": "decime qué orígenes se pueden vincular",
+     "herramientas": [
+      "rotulo_vinculos"
+     ]
+    },
+    {
+     "objeto": "archivos compartidos (decime)",
+     "ejemplo": "decime qué archivos compartieron los invitados",
+     "herramientas": [
+      "share_list"
+     ]
+    },
+    {
+     "objeto": "fuentes de una escena (decime)",
+     "ejemplo": "decime qué fuentes tiene la escena Panel",
+     "herramientas": [
+      "source_list"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "listar",
+   "formas": [
+    "listá",
+    "lista",
+    "listame"
+   ],
+   "sentidos": [
+    {
+     "objeto": "gráficos puestos en escenas",
+     "ejemplo": "listame los gráficos puestos en escenas",
+     "herramientas": [
+      "grafico_en_escena"
+     ]
+    },
+    {
+     "objeto": "gráficos disponibles",
+     "ejemplo": "listame los gráficos disponibles",
+     "herramientas": [
+      "grafico_listar"
+     ]
+    },
+    {
+     "objeto": "carruseles",
+     "ejemplo": "listame los carruseles de la biblioteca",
+     "herramientas": [
+      "laminas_listar"
+     ]
+    },
+    {
+     "objeto": "láminas de un carrusel",
+     "ejemplo": "listame las láminas del carrusel Ventas",
+     "herramientas": [
+      "laminas_ver"
+     ]
+    },
+    {
+     "objeto": "niveles del mezclador",
+     "ejemplo": "listame los niveles del mezclador",
+     "herramientas": [
+      "mixer_list"
+     ]
+    },
+    {
+     "objeto": "vínculos y orígenes",
+     "ejemplo": "listame los vínculos y los orígenes",
+     "herramientas": [
+      "rotulo_vinculos"
+     ]
+    },
+    {
+     "objeto": "escenas",
+     "ejemplo": "listame las escenas",
+     "herramientas": [
+      "scene_list"
+     ]
+    },
+    {
+     "objeto": "archivos compartidos",
+     "ejemplo": "listame los archivos compartidos",
+     "herramientas": [
+      "share_list"
+     ]
+    },
+    {
+     "objeto": "fuentes de una escena",
+     "ejemplo": "listame las fuentes de la escena Panel",
+     "herramientas": [
+      "source_list"
+     ]
+    },
+    {
+     "objeto": "propiedades de una fuente",
+     "ejemplo": "listame las propiedades de la fuente Pizarra",
+     "herramientas": [
+      "source_properties"
+     ]
+    },
+    {
+     "objeto": "tipos de fuente",
+     "ejemplo": "listame los tipos de fuente",
+     "herramientas": [
+      "source_types"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "enumerar",
+   "formas": [
+    "enumerá",
+    "enumera",
+    "enumerame"
+   ],
+   "sentidos": [
+    {
+     "objeto": "gráficos disponibles",
+     "ejemplo": "enumerame los gráficos disponibles",
+     "herramientas": [
+      "grafico_listar"
+     ]
+    },
+    {
+     "objeto": "carruseles",
+     "ejemplo": "enumerame los carruseles de la biblioteca",
+     "herramientas": [
+      "laminas_listar"
+     ]
+    },
+    {
+     "objeto": "escenas",
+     "ejemplo": "enumerame las escenas",
+     "herramientas": [
+      "scene_list"
+     ]
+    },
+    {
+     "objeto": "fuentes de una escena",
+     "ejemplo": "enumerame las fuentes de la escena Panel",
+     "herramientas": [
+      "source_list"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "repasar",
+   "formas": [
+    "repasá",
+    "repasa",
+    "repasame",
+    "repasemos"
+   ],
+   "sentidos": [
+    {
+     "objeto": "chat reciente",
+     "ejemplo": "repasemos los últimos mensajes del chat",
+     "herramientas": [
+      "chat_history"
+     ]
+    },
+    {
+     "objeto": "gráficos disponibles",
+     "ejemplo": "repasame los gráficos disponibles",
+     "herramientas": [
+      "grafico_listar"
+     ]
+    },
+    {
+     "objeto": "carruseles",
+     "ejemplo": "repasame los carruseles de la biblioteca",
+     "herramientas": [
+      "laminas_listar"
+     ]
+    },
+    {
+     "objeto": "láminas de un carrusel",
+     "ejemplo": "repasame las láminas del carrusel Ventas",
+     "herramientas": [
+      "laminas_ver"
+     ]
+    },
+    {
+     "objeto": "escenas",
+     "ejemplo": "repasemos la lista de escenas",
+     "herramientas": [
+      "scene_list"
+     ]
+    },
+    {
+     "objeto": "tipos de fuente",
+     "ejemplo": "repasame los tipos de fuente",
+     "herramientas": [
+      "source_types"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "analizar",
+   "formas": [
+    "analizá",
+    "analiza",
+    "analizalo",
+    "analizala"
+   ],
+   "sentidos": [
+    {
+     "objeto": "audio en un punto del rack",
+     "ejemplo": "analizá el audio de la salida del rack 5 segundos",
+     "herramientas": [
+      "audio_analyze"
+     ]
+    },
+    {
+     "objeto": "imagen con una pregunta concreta",
+     "ejemplo": "analizá la imagen del programa: ¿se ve negro?",
+     "herramientas": [
+      "imagen_analizar"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "ocultar",
+   "formas": [
+    "ocultá",
+    "oculta",
+    "ocultalo",
+    "ocultala"
+   ],
+   "sentidos": [
+    {
+     "objeto": "gráfico animado",
+     "ejemplo": "ocultá el gráfico Encuesta de la escena Panel",
+     "herramientas": [
+      "grafico_ocultar"
+     ]
+    },
+    {
+     "objeto": "fuente",
+     "ejemplo": "ocultá el logo en la escena Panel",
+     "herramientas": [
+      "source_update"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "mover",
+   "formas": [
+    "mové",
+    "move",
+    "movelo",
+    "movela"
+   ],
+   "sentidos": [
+    {
+     "objeto": "escena en la lista",
+     "ejemplo": "mové la escena Cierre antes de la escena Panel",
+     "herramientas": [
+      "scene_move"
+     ]
+    },
+    {
+     "objeto": "escena a una carpeta",
+     "ejemplo": "mové la escena Placa 1 a la carpeta Bloque 2",
+     "herramientas": [
+      "scene_folder"
+     ]
+    },
+    {
+     "objeto": "persona en la fila",
+     "ejemplo": "mové a Ana al lugar 2 de la fila",
+     "herramientas": [
+      "speaker_move"
+     ]
+    },
+    {
+     "objeto": "fuente en el lienzo",
+     "ejemplo": "mové el logo arriba a la derecha",
+     "herramientas": [
+      "source_update"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "achicar",
+   "formas": [
+    "achicá",
+    "achica",
+    "achicale",
+    "achicalo",
+    "achicala"
+   ],
+   "sentidos": [
+    {
+     "objeto": "tamaño de una fuente",
+     "ejemplo": "achicá la cámara 2 a la mitad",
+     "herramientas": [
+      "source_update"
+     ]
+    },
+    {
+     "objeto": "tiempo de un orador",
+     "ejemplo": "achicale el tiempo a Laura a 2 minutos",
+     "herramientas": [
+      "speaker_time"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "agrandar",
+   "formas": [
+    "agrandá",
+    "agranda",
+    "agrandale",
+    "agrandalo",
+    "agrandala"
+   ],
+   "sentidos": [
+    {
+     "objeto": "tamaño de una fuente",
+     "ejemplo": "agrandá la cámara 1 a pantalla completa",
+     "herramientas": [
+      "source_update"
+     ]
+    },
+    {
+     "objeto": "tiempo de un orador",
+     "ejemplo": "agrandale el tiempo a Laura a 5 minutos",
+     "herramientas": [
+      "speaker_time"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "alargar",
+   "formas": [
+    "alargá",
+    "alarga",
+    "alargale",
+    "alargala"
+   ],
+   "sentidos": [
+    {
+     "objeto": "transición",
+     "ejemplo": "alargá la transición a 1 segundo",
+     "herramientas": [
+      "transition_set"
+     ]
+    },
+    {
+     "objeto": "tiempo de un orador",
+     "ejemplo": "alargale el tiempo a Laura a 5 minutos",
+     "herramientas": [
+      "speaker_time"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "acortar",
+   "formas": [
+    "acortá",
+    "acorta",
+    "acortale",
+    "acortala"
+   ],
+   "sentidos": [
+    {
+     "objeto": "transición",
+     "ejemplo": "acortá la transición a 300 ms",
+     "herramientas": [
+      "transition_set"
+     ]
+    },
+    {
+     "objeto": "tiempo de un orador",
+     "ejemplo": "acortale el tiempo a Laura a 2 minutos",
+     "herramientas": [
+      "speaker_time"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "cargar",
+   "formas": [
+    "cargá",
+    "carga",
+    "cargale",
+    "cargalo",
+    "cargala"
+   ],
+   "sentidos": [
+    {
+     "objeto": "datos de una persona",
+     "ejemplo": "cargale el cargo a Ana: Ministra de Salud",
+     "herramientas": [
+      "participant_profile"
+     ]
+    },
+    {
+     "objeto": "escena en preview",
+     "ejemplo": "cargá la escena Cierre en preview",
+     "herramientas": [
+      "scene_preview"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "vincular",
+   "formas": [
+    "vinculá",
+    "vincula",
+    "vinculalo",
+    "vinculala"
+   ],
+   "sentidos": [
+    {
+     "objeto": "carrusel con una escena",
+     "ejemplo": "vinculá el carrusel Ventas con la escena Panel",
+     "herramientas": [
+      "laminas_aplicar"
+     ]
+    },
+    {
+     "objeto": "campo de un gráfico con un origen",
+     "ejemplo": "vinculá el zócalo con el orador al aire",
+     "herramientas": [
+      "rotulo_vincular"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "volver",
+   "formas": [
+    "volve",
+    "volvela",
+    "volvela a poner",
+    "volvelo",
+    "volvelo a poner",
+    "volvé"
+   ],
+   "sentidos": [
+    {
+     "objeto": "a una lámina",
+     "ejemplo": "volvé a la lámina del gráfico de ventas",
+     "herramientas": [
+      "laminas_ir"
+     ]
+    },
+    {
+     "objeto": "a la escena anterior (la que quedó en preview)",
+     "ejemplo": "volvé a la escena anterior con el take",
+     "herramientas": [
+      "scene_take"
+     ]
+    },
+    {
+     "objeto": "al aire (transmisión)",
+     "ejemplo": "volvé a transmitir",
+     "herramientas": [
+      "stream_start"
+     ]
+    },
+    {
+     "objeto": "a una transición",
+     "ejemplo": "volvé a la transición fundido",
+     "herramientas": [
+      "transition_set"
+     ]
+    },
+    {
+     "objeto": "orador que ya habló al final de la fila",
+     "ejemplo": "volvé a poner a Carla al final de la fila",
+     "herramientas": [
+      "participant_requeue"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "corregir",
+   "formas": [
+    "corregi",
+    "corregila",
+    "corregile",
+    "corregilo",
+    "corregí"
+   ],
+   "sentidos": [
+    {
+     "objeto": "sincronía de audio y video",
+     "ejemplo": "corregí la sincro de la cámara 1 con 80 ms",
+     "herramientas": [
+      "audio_sincro"
+     ]
+    },
+    {
+     "objeto": "datos de una persona",
+     "ejemplo": "corregile el nombre a Ana: Ana Gómez",
+     "herramientas": [
+      "participant_profile"
+     ]
+    },
+    {
+     "objeto": "orden de las escenas en la lista",
+     "ejemplo": "corregí el orden: la escena Pronóstico va antes de Cierre",
+     "herramientas": [
+      "scene_move"
+     ]
+    },
+    {
+     "objeto": "texto de un zócalo",
+     "ejemplo": "corregí el nombre en el zócalo: Fernández con zeta",
+     "herramientas": [
+      "source_update"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "querer",
+   "formas": [
+    "quiero",
+    "quiero que",
+    "quisiera"
+   ],
+   "sentidos": [
+    {
+     "objeto": "escuchar una fuente",
+     "ejemplo": "quiero escuchar la cámara 2 por el monitor",
+     "herramientas": [
+      "audio_escuchar"
+     ]
+    },
+    {
+     "objeto": "ver el multiview",
+     "ejemplo": "quiero ver el multiview",
+     "herramientas": [
+      "capture_multiview"
+     ]
+    },
+    {
+     "objeto": "fotos de todas las personas",
+     "ejemplo": "quiero fotos de todas las personas de la sala",
+     "herramientas": [
+      "capture_people"
+     ]
+    },
+    {
+     "objeto": "ver a una persona",
+     "ejemplo": "quiero ver la cámara de Ana",
+     "herramientas": [
+      "capture_person"
+     ]
+    },
+    {
+     "objeto": "secuencia de cuadros",
+     "ejemplo": "quiero una secuencia de 5 cuadros de la cámara 2",
+     "herramientas": [
+      "capture_sequence"
+     ]
+    },
+    {
+     "objeto": "pantallazo de la app",
+     "ejemplo": "quiero un pantallazo de la app",
+     "herramientas": [
+      "capture_ui"
+     ]
+    },
+    {
+     "objeto": "grabar aparte una entrada",
+     "ejemplo": "quiero grabar aparte la cámara 2",
+     "herramientas": [
+      "grabacion_individual"
+     ]
+    },
+    {
+     "objeto": "cámara de un lugar en una escena",
+     "ejemplo": "quiero la cámara del lugar 2 en la escena Panel",
+     "herramientas": [
+      "guest_source_add"
+     ]
+    },
+    {
+     "objeto": "carrusel en una escena",
+     "ejemplo": "quiero el carrusel Ventas en la escena Panel",
+     "herramientas": [
+      "laminas_aplicar"
+     ]
+    },
+    {
+     "objeto": "hablar con alguien del lobby",
+     "ejemplo": "quiero hablar con Juan del lobby",
+     "herramientas": [
+      "participant_talk"
+     ]
+    },
+    {
+     "objeto": "copia de una escena",
+     "ejemplo": "quiero una copia de la escena Panel",
+     "herramientas": [
+      "scene_copy"
+     ]
+    },
+    {
+     "objeto": "borrar una escena",
+     "ejemplo": "quiero borrar la escena Prueba",
+     "herramientas": [
+      "scene_delete"
+     ]
+    },
+    {
+     "objeto": "exportar una escena",
+     "ejemplo": "quiero exportar la escena Panel",
+     "herramientas": [
+      "scene_export"
+     ]
+    },
+    {
+     "objeto": "renombrar una escena",
+     "ejemplo": "quiero renombrar la escena 3 a Cierre",
+     "herramientas": [
+      "scene_rename"
+     ]
+    },
+    {
+     "objeto": "ver un archivo compartido",
+     "ejemplo": "quiero ver la foto que compartió Ana",
+     "herramientas": [
+      "share_view"
+     ]
+    },
+    {
+     "objeto": "ver las propiedades de una fuente",
+     "ejemplo": "quiero ver las propiedades de la fuente Pizarra",
+     "herramientas": [
+      "source_properties"
+     ]
+    },
+    {
+     "objeto": "cámara de un lugar en una escena",
+     "ejemplo": "quiero la cámara del lugar 7 en la escena Charla",
+     "herramientas": [
+      "guest_source_add"
+     ]
+    },
+    {
+     "objeto": "línea privada con alguien del lobby",
+     "ejemplo": "quiero una línea privada con el del lobby",
+     "herramientas": [
+      "participant_talk"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "necesitar",
+   "formas": [
+    "necesitamos",
+    "necesito"
+   ],
+   "sentidos": [
+    {
+     "objeto": "secuencia de cuadros",
+     "ejemplo": "necesito una secuencia de 5 cuadros del programa",
+     "herramientas": [
+      "capture_sequence"
+     ]
+    },
+    {
+     "objeto": "pantallazo de la app",
+     "ejemplo": "necesito un pantallazo de la app",
+     "herramientas": [
+      "capture_ui"
+     ]
+    },
+    {
+     "objeto": "gráfico animado al aire",
+     "ejemplo": "necesito el gráfico Encuesta en la escena Panel",
+     "herramientas": [
+      "grafico_mostrar"
+     ]
+    },
+    {
+     "objeto": "cámara de un lugar en una escena",
+     "ejemplo": "necesito la cámara del lugar 2 en la escena Panel",
+     "herramientas": [
+      "guest_source_add"
+     ]
+    },
+    {
+     "objeto": "hablar con alguien del lobby",
+     "ejemplo": "necesito hablar con Juan del lobby",
+     "herramientas": [
+      "participant_talk"
+     ]
+    },
+    {
+     "objeto": "grabar el programa",
+     "ejemplo": "necesito grabar el programa",
+     "herramientas": [
+      "record_start"
+     ]
+    },
+    {
+     "objeto": "PIN nuevo",
+     "ejemplo": "necesito un PIN nuevo para la sala",
+     "herramientas": [
+      "room_pin"
+     ]
+    },
+    {
+     "objeto": "escena nueva vacía",
+     "ejemplo": "necesito una escena nueva vacía llamada Entrevista",
+     "herramientas": [
+      "scene_create"
+     ]
+    },
+    {
+     "objeto": "definición de una escena",
+     "ejemplo": "necesito la definición exportada de la escena Panel",
+     "herramientas": [
+      "scene_export"
+     ]
+    },
+    {
+     "objeto": "escena nueva vacía",
+     "ejemplo": "necesito una escena nueva vacía para deportes",
+     "herramientas": [
+      "scene_create"
+     ]
+    },
+    {
+     "objeto": "escena en blanco (nueva, sin nada adentro)",
+     "ejemplo": "necesito una escena en blanco nueva, sin nada adentro",
+     "herramientas": [
+      "scene_create"
+     ]
+    },
+    {
+     "objeto": "escena en blanco con nombre",
+     "ejemplo": "necesito una escena en blanco nueva que se llame Cierre",
+     "herramientas": [
+      "scene_create"
+     ]
+    },
+    {
+     "objeto": "escena vacía con nombre",
+     "ejemplo": "para el segmento del clima necesito una escena vacía llamada Clima",
+     "herramientas": [
+      "scene_create"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "consulta",
+   "forma": "¿cuántas … hay?",
+   "significado": "contar elementos (escenas, láminas, fuentes, gráficos en escenas, personas en una imagen)",
+   "herramientas": [
+    "scene_list",
+    "laminas_ver",
+    "source_list",
+    "grafico_en_escena",
+    "imagen_analizar"
+   ]
+  },
+  {
+   "tipo": "consulta",
+   "forma": "¿cuántos … hay?",
+   "significado": "contar elementos (carruseles, invitados en la sala, oradores en la fila)",
+   "herramientas": [
+    "laminas_listar",
+    "room_status",
+    "speakers_status",
+    "status"
+   ]
+  },
+  {
+   "tipo": "consulta",
+   "forma": "¿qué … hay?",
+   "significado": "listar lo que existe o está disponible",
+   "herramientas": [
+    "grafico_listar",
+    "laminas_listar",
+    "share_list",
+    "source_list",
+    "source_types",
+    "rotulo_vinculos",
+    "grafico_en_escena"
+   ]
+  },
+  {
+   "tipo": "consulta",
+   "forma": "¿qué propiedades tiene …?",
+   "significado": "ver las opciones de una fuente",
+   "herramientas": [
+    "source_properties"
+   ]
+  },
+  {
+   "tipo": "consulta",
+   "forma": "¿qué parámetros acepta …?",
+   "significado": "ver los parámetros de un gráfico",
+   "herramientas": [
+    "grafico_listar"
+   ]
+  },
+  {
+   "tipo": "consulta",
+   "forma": "¿qué orígenes …?",
+   "significado": "ver los orígenes que se pueden vincular a un gráfico",
+   "herramientas": [
+    "rotulo_vinculos"
+   ]
+  },
+  {
+   "tipo": "consulta",
+   "forma": "¿qué láminas tiene …?",
+   "significado": "ver las láminas de un carrusel en orden",
+   "herramientas": [
+    "laminas_ver"
+   ]
+  },
+  {
+   "tipo": "consulta",
+   "forma": "¿cuál lámina está puesta en …?",
+   "significado": "saber qué lámina de un carrusel está puesta ahora",
+   "herramientas": [
+    "laminas_ver"
+   ]
+  },
+  {
+   "tipo": "consulta",
+   "forma": "¿hay alguna lámina de …?",
+   "significado": "buscar láminas por texto",
+   "herramientas": [
+    "laminas_buscar"
+   ]
+  },
+  {
+   "tipo": "consulta",
+   "forma": "¿qué se ve en …?",
+   "significado": "describir lo que se ve en una cámara, escena o en el programa",
+   "herramientas": [
+    "imagen_analizar"
+   ]
+  },
+  {
+   "tipo": "consulta",
+   "forma": "¿se ve … en …?",
+   "significado": "contestar una pregunta concreta sobre una imagen",
+   "herramientas": [
+    "imagen_analizar"
+   ]
+  },
+  {
+   "tipo": "consulta",
+   "forma": "¿cómo se ve …?",
+   "significado": "traer la imagen de algo para mirarla",
+   "herramientas": [
+    "capture_program",
+    "capture_source",
+    "capture_person",
+    "capture_feed",
+    "capture_multiview"
+   ]
+  },
+  {
+   "tipo": "consulta",
+   "forma": "¿qué está saliendo al aire?",
+   "significado": "saber qué sale ahora en el programa",
+   "herramientas": [
+    "capture_program",
+    "status"
+   ]
+  },
+  {
+   "tipo": "consulta",
+   "forma": "¿cuál escena está al aire?",
+   "significado": "saber qué escena está en el programa",
+   "herramientas": [
+    "scene_list",
+    "status"
+   ]
+  },
+  {
+   "tipo": "consulta",
+   "forma": "¿en qué carpeta está …?",
+   "significado": "saber la carpeta de una escena",
+   "herramientas": [
+    "scene_list"
+   ]
+  },
+  {
+   "tipo": "consulta",
+   "forma": "¿dónde está el gráfico …?",
+   "significado": "saber en qué escenas está puesto un gráfico animado",
+   "herramientas": [
+    "grafico_en_escena"
+   ]
+  },
+  {
+   "tipo": "consulta",
+   "forma": "¿quién está en …?",
+   "significado": "saber qué personas hay en la sala, el lobby o la fila",
+   "herramientas": [
+    "room_status",
+    "speakers_status"
+   ]
+  },
+  {
+   "tipo": "consulta",
+   "forma": "¿quién sigue en la fila?",
+   "significado": "saber el orden de la fila de oradores",
+   "herramientas": [
+    "speakers_status"
+   ]
+  },
+  {
+   "tipo": "consulta",
+   "forma": "¿cuánto le queda a …?",
+   "significado": "saber el tiempo restante de un orador al aire",
+   "herramientas": [
+    "speakers_status"
+   ]
+  },
+  {
+   "tipo": "consulta",
+   "forma": "¿cómo está …?",
+   "significado": "saber el estado del aparato, la red, la sala o la fila",
+   "herramientas": [
+    "status",
+    "network_status",
+    "room_status",
+    "speakers_status"
+   ]
+  },
+  {
+   "tipo": "consulta",
+   "forma": "¿estamos …?",
+   "significado": "saber si se está transmitiendo o grabando",
+   "herramientas": [
+    "status"
+   ]
+  },
+  {
+   "tipo": "consulta",
+   "forma": "¿cómo se llega por red a …?",
+   "significado": "saber las direcciones, el túnel y los puertos del aparato",
+   "herramientas": [
+    "network_status"
+   ]
+  },
+  {
+   "tipo": "consulta",
+   "forma": "¿cuál es el enlace de …?",
+   "significado": "obtener el enlace para entrar a la sala o al tablero",
+   "herramientas": [
+    "room_link"
+   ]
+  },
+  {
+   "tipo": "consulta",
+   "forma": "¿cuál es el PIN de …?",
+   "significado": "saber el PIN actual de la sala",
+   "herramientas": [
+    "room_status"
+   ]
+  },
+  {
+   "tipo": "consulta",
+   "forma": "¿cuánto retardo tiene …?",
+   "significado": "saber el retardo de audio puesto en una fuente",
+   "herramientas": [
+    "audio_sincro"
+   ]
+  },
+  {
+   "tipo": "consulta",
+   "forma": "¿qué nivel tiene …?",
+   "significado": "leer volumen, silencio y pico de una fuente del mezclador",
+   "herramientas": [
+    "mixer_list"
+   ]
+  },
+  {
+   "tipo": "consulta",
+   "forma": "¿hay … en el audio?",
+   "significado": "detectar acople, pitido, zumbido o saturación",
+   "herramientas": [
+    "audio_measure"
+   ]
+  },
+  {
+   "tipo": "consulta",
+   "forma": "¿se escucha …?",
+   "significado": "saber si una fuente o el programa tiene audio",
+   "herramientas": [
+    "audio_measure"
+   ]
+  },
+  {
+   "tipo": "consulta",
+   "forma": "¿cuánto da … en LUFS?",
+   "significado": "obtener los números crudos del audio en un punto del rack",
+   "herramientas": [
+    "audio_analyze"
+   ]
+  },
+  {
+   "tipo": "consulta",
+   "forma": "¿qué escribió … en el chat?",
+   "significado": "leer los mensajes recientes del chat",
+   "herramientas": [
+    "chat_history"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "texto sobreimpreso con nombre o cargo",
+   "canonico": "zócalo",
+   "sinonimos": [
+    "rótulo",
+    "graph",
+    "sobreimpreso",
+    "banda"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "fuente «Gráfico animado» que se dibuja y reproduce",
+   "canonico": "gráfico",
+   "sinonimos": [
+    "gráfica",
+    "animación",
+    "placa animada"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "composición de fuentes que se pone al aire",
+   "canonico": "escena",
+   "sinonimos": [
+    "plano",
+    "composición"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "elemento dentro de una escena (cámara, imagen, texto, invitado…)",
+   "canonico": "fuente",
+   "sinonimos": [
+    "capa",
+    "elemento",
+    "entrada",
+    "input"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "bus de lo que sale en la transmisión",
+   "canonico": "programa",
+   "sinonimos": [
+    "PGM",
+    "salida",
+    "master"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "estado de estar saliendo en el programa",
+   "canonico": "al aire",
+   "sinonimos": [
+    "en el aire",
+    "en vivo",
+    "on air"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "bus donde se arma la próxima escena sin salir al aire",
+   "canonico": "preview",
+   "sinonimos": [
+    "previo",
+    "PVW",
+    "bus de preview"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "paso de la escena de preview al programa",
+   "canonico": "take",
+   "sinonimos": [
+    "pase de preview",
+    "toma de preview"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "efecto al cambiar de escena",
+   "canonico": "transición",
+   "sinonimos": [
+    "efecto de transición",
+    "fundido"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "imagen única con todas las escenas en grilla",
+   "canonico": "multiview",
+   "sinonimos": [
+    "mosaico",
+    "grilla de escenas"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "captura de pantalla de la propia aplicación",
+   "canonico": "pantallazo",
+   "sinonimos": [
+    "screenshot",
+    "captura de la app"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "imagen fija de un video, fuente o persona",
+   "canonico": "foto",
+   "sinonimos": [
+    "captura",
+    "imagen",
+    "frame"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "serie de imágenes separadas en el tiempo",
+   "canonico": "secuencia",
+   "sinonimos": [
+    "ráfaga",
+    "serie de cuadros"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "video que llega a la app (programa, invitado, pantalla, lobby, backstage)",
+   "canonico": "feed",
+   "sinonimos": [
+    "señal",
+    "video entrante"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "tira ordenada de láminas",
+   "canonico": "carrusel",
+   "sinonimos": [
+    "tira",
+    "presentación"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "imagen individual de un carrusel",
+   "canonico": "lámina",
+   "sinonimos": [
+    "slide",
+    "diapositiva"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "lugar donde espera quien todavía no entró a la sala",
+   "canonico": "lobby",
+   "sinonimos": [
+    "sala de espera",
+    "espera"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "reunión en vivo donde están los invitados",
+   "canonico": "sala",
+   "sinonimos": [
+    "room",
+    "reunión"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "persona conectada a la sala",
+   "canonico": "invitado",
+   "sinonimos": [
+    "participante",
+    "guest",
+    "persona"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "número de lugar de un invitado en la sala",
+   "canonico": "lugar",
+   "sinonimos": [
+    "slot",
+    "puesto"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "orden de quienes van a hablar",
+   "canonico": "fila",
+   "sinonimos": [
+    "cola",
+    "backstage",
+    "fila de oradores"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "persona que sale al aire por turno en modo oradores",
+   "canonico": "orador",
+   "sinonimos": [
+    "speaker",
+    "expositor"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "persona fija al aire mientras los oradores rotan",
+   "canonico": "presentador",
+   "sinonimos": [
+    "conductor",
+    "host"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "modo en que los invitados salen al aire por turno",
+   "canonico": "modo oradores",
+   "sinonimos": [
+    "modo speakers"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "tiempo asignado a un orador",
+   "canonico": "tiempo",
+   "sinonimos": [
+    "reloj",
+    "turno"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "código para entrar a la sala",
+   "canonico": "PIN",
+   "sinonimos": [
+    "clave de la sala",
+    "código"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "dirección para entrar a la sala",
+   "canonico": "enlace",
+   "sinonimos": [
+    "link",
+    "URL"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "archivo que compartió un invitado",
+   "canonico": "archivo compartido",
+   "sinonimos": [
+    "share",
+    "adjunto"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "pantalla de su computadora que comparte un invitado",
+   "canonico": "pantalla compartida",
+   "sinonimos": [
+    "screen",
+    "presentación de pantalla"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "grupo de escenas en la lista de escenas",
+   "canonico": "carpeta",
+   "sinonimos": [
+    "folder",
+    "grupo"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "unión entre un campo de gráfico y un origen que cambia solo",
+   "canonico": "vínculo",
+   "sinonimos": [
+    "atadura",
+    "binding"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "dato vivo que alimenta un vínculo",
+   "canonico": "origen",
+   "sinonimos": [
+    "origen de datos",
+    "dato vivo"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "opción configurable de una fuente",
+   "canonico": "propiedad",
+   "sinonimos": [
+    "opción",
+    "setting",
+    "parámetro"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "clase de fuente que el aparato puede crear",
+   "canonico": "tipo de fuente",
+   "sinonimos": [
+    "plugin",
+    "clase de fuente"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "proceso que maneja la sala",
+   "canonico": "gateway",
+   "sinonimos": [
+    "proceso de la sala",
+    "servidor de la sala"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "acceso por red al aparato (HTTPS, túnel, IPs, puertos)",
+   "canonico": "red",
+   "sinonimos": [
+    "conexión",
+    "túnel"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "salida de audio para que escuche el operador",
+   "canonico": "monitor",
+   "sinonimos": [
+    "retorno",
+    "cue",
+    "PFL"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "panel de niveles de las fuentes de audio",
+   "canonico": "mezclador",
+   "sinonimos": [
+    "mixer",
+    "consola"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "nivel de audio de una fuente en dB",
+   "canonico": "volumen",
+   "sinonimos": [
+    "nivel",
+    "ganancia de fuente"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "cadena de procesamiento de audio",
+   "canonico": "rack",
+   "sinonimos": [
+    "cadena de audio",
+    "cadena de efectos"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "números crudos del audio (pico, RMS, LUFS, piso de ruido)",
+   "canonico": "espectro",
+   "sinonimos": [
+    "análisis",
+    "números del audio"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "realimentación de audio que pita",
+   "canonico": "acople",
+   "sinonimos": [
+    "feedback",
+    "realimentación"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "retraso del audio para que coincida con el video",
+   "canonico": "retardo",
+   "sinonimos": [
+    "delay",
+    "sincro",
+    "atraso"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "micrófono de una fuente o invitado",
+   "canonico": "micrófono",
+   "sinonimos": [
+    "mic",
+    "micro"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "envío en vivo por RTMP",
+   "canonico": "transmisión",
+   "sinonimos": [
+    "stream",
+    "emisión"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "grabación del programa en disco",
+   "canonico": "grabación",
+   "sinonimos": [
+    "rec",
+    "REC"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "cambio de volumen chico sin número",
+   "canonico": "3 dB",
+   "sinonimos": [
+    "un poco",
+    "un toque",
+    "un cachito"
+   ]
+  },
+  {
+   "tipo": "termino",
+   "concepto": "cambio de volumen sin cantidad dicha",
+   "canonico": "6 dB",
+   "sinonimos": [
+    "sin cantidad"
+   ]
+  },
+  {
+   "tipo": "muletilla",
+   "formas": [
+    "che",
+    "dale",
+    "ya",
+    "rápido",
+    "rapido",
+    "porfa",
+    "por favor",
+    "xfa",
+    "a ver",
+    "bueno",
+    "listo",
+    "ahí",
+    "ahora",
+    "ahora mismo",
+    "urgente",
+    "de una",
+    "cuando puedas",
+    "eh",
+    "ojo",
+    "sí",
+    "dale dale"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "verificar",
+   "formas": [
+    "verificá",
+    "verifica",
+    "verificalo"
+   ],
+   "significado": "verificar un ajuste del audio con los números del espectro en un punto del rack (in, out o nodo analizador)",
+   "herramientas": [
+    "audio_analyze"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "oír",
+   "formas": [
+    "oí",
+    "oir",
+    "oílo",
+    "oilo"
+   ],
+   "significado": "mandar una fuente de audio al monitor del operador para oírla, sin cambiar lo que sale al aire",
+   "herramientas": [
+    "audio_escuchar"
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "probar",
+   "formas": [
+    "proba",
+    "probalo",
+    "probá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "el audio con señal de prueba (zumbido, acople, falta de audio)",
+     "ejemplo": "probá el audio del programa con señal de prueba",
+     "herramientas": [
+      "audio_measure"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "testear",
+   "formas": [
+    "testeá",
+    "testea",
+    "testealo"
+   ],
+   "significado": "probar los módulos de la cadena de audio con señales de prueba, sin tocar lo que sale al aire",
+   "herramientas": [
+    "audio_measure"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "testear",
+   "formas": [
+    "testeá",
+    "testea",
+    "testealo"
+   ],
+   "significado": "probar los módulos de la cadena de audio con señales de prueba, sin tocar lo que sale al aire",
+   "herramientas": [
+    "audio_measure"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "silenciar",
+   "formas": [
+    "silenciá",
+    "silencia",
+    "silencialo"
+   ],
+   "significado": "silenciar una fuente de audio en el mezclador",
+   "herramientas": [
+    "audio_set"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "silenciar",
+   "formas": [
+    "silenciá",
+    "silencia",
+    "silencialo"
+   ],
+   "significado": "silenciar una fuente de audio en el mezclador",
+   "herramientas": [
+    "audio_set"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "sincronizar",
+   "formas": [
+    "sincronizá",
+    "sincroniza",
+    "sincronizalo"
+   ],
+   "significado": "atrasar el audio de una fuente para que coincida con su video (sincro labial)",
+   "herramientas": [
+    "audio_sincro"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "retrasar",
+   "formas": [
+    "retrasá",
+    "retrasa",
+    "retrasalo"
+   ],
+   "significado": "retrasar el audio de una fuente para que coincida con su video",
+   "herramientas": [
+    "audio_sincro"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "sincronizar",
+   "formas": [
+    "sincronizá",
+    "sincroniza",
+    "sincronizalo"
+   ],
+   "significado": "atrasar el audio de una fuente para que coincida con su video (sincro labial)",
+   "herramientas": [
+    "audio_sincro"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "sincronizar",
+   "formas": [
+    "sincronizá",
+    "sincroniza",
+    "sincronizalo"
+   ],
+   "significado": "atrasar el audio de una fuente para que coincida con su video (sincro labial)",
+   "herramientas": [
+    "audio_sincro"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "aguardar",
+   "formas": [
+    "aguardá",
+    "aguarda",
+    "aguardalo"
+   ],
+   "significado": "aguardar a que una persona escriba en el chat de la sala y traer sus mensajes nuevos",
+   "herramientas": [
+    "chat_wait"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "aguardar",
+   "formas": [
+    "aguardá",
+    "aguarda",
+    "aguardalo"
+   ],
+   "significado": "aguardar a que una persona escriba en el chat de la sala y traer sus mensajes nuevos",
+   "herramientas": [
+    "chat_wait"
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "levantar",
+   "formas": [
+    "levanta",
+    "levantalo",
+    "levantá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "el gateway de nuevo (reiniciar el proceso de la sala)",
+     "ejemplo": "el gateway se colgó, levantalo de nuevo",
+     "herramientas": [
+      "gateway_restart"
+     ]
+    },
+    {
+     "objeto": "gráfico animado (del aire)",
+     "ejemplo": "levantá el gráfico animado del aire",
+     "herramientas": [
+      "grafico_ocultar"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "restartear",
+   "formas": [
+    "restarteá",
+    "restartea",
+    "restartealo"
+   ],
+   "significado": "reiniciar el proceso de la sala (gateway); se cortan todos y se reconectan",
+   "herramientas": [
+    "gateway_restart"
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "frenar",
+   "formas": [
+    "frena",
+    "frená"
+   ],
+   "sentidos": [
+    {
+     "objeto": "grabación aparte de una entrada",
+     "ejemplo": "frená la grabación aparte de todas las entradas",
+     "herramientas": [
+      "grabacion_individual"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "dibujar",
+   "formas": [
+    "dibujá",
+    "dibuja",
+    "dibujalo"
+   ],
+   "significado": "dibujar un gráfico animado y reproducirlo en su fuente de una escena",
+   "herramientas": [
+    "grafico_mostrar"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "animar",
+   "formas": [
+    "animá",
+    "anima",
+    "animalo"
+   ],
+   "significado": "reproducir un gráfico animado en su fuente de una escena",
+   "herramientas": [
+    "grafico_mostrar"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "dibujar",
+   "formas": [
+    "dibujá",
+    "dibuja",
+    "dibujalo"
+   ],
+   "significado": "dibujar un gráfico animado y reproducirlo en su fuente de una escena",
+   "herramientas": [
+    "grafico_mostrar"
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "disparar",
+   "formas": [
+    "dispara",
+    "dispará"
+   ],
+   "sentidos": [
+    {
+     "objeto": "gráfico animado",
+     "ejemplo": "dispará el gráfico de votos",
+     "herramientas": [
+      "grafico_mostrar"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "lanzar",
+   "formas": [
+    "lanza",
+    "lanzalo",
+    "lanzá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "gráfico animado",
+     "ejemplo": "lanzá el gráfico animado del marcador",
+     "herramientas": [
+      "grafico_mostrar"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "animar",
+   "formas": [
+    "animá",
+    "anima",
+    "animalo"
+   ],
+   "significado": "reproducir un gráfico animado en su fuente de una escena",
+   "herramientas": [
+    "grafico_mostrar"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "animar",
+   "formas": [
+    "animá",
+    "anima",
+    "animalo"
+   ],
+   "significado": "reproducir un gráfico animado en su fuente de una escena",
+   "herramientas": [
+    "grafico_mostrar"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "vaciar",
+   "formas": [
+    "vaciá",
+    "vacia",
+    "vacialo"
+   ],
+   "significado": "dejar transparente la fuente de un gráfico animado",
+   "herramientas": [
+    "grafico_ocultar"
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "retirar",
+   "formas": [
+    "retira",
+    "retiralo",
+    "retirá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "gráfico animado (dejarlo transparente)",
+     "ejemplo": "retirá el gráfico animado de la votación",
+     "herramientas": [
+      "grafico_ocultar"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "colgar",
+   "formas": [
+    "colga",
+    "colgala",
+    "colgalo",
+    "colgá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "cámara de un lugar en una escena",
+     "ejemplo": "colgá la cámara del lugar 3 en la escena Charla",
+     "herramientas": [
+      "guest_source_add"
+     ]
+    },
+    {
+     "objeto": "archivo compartido (en la escena al aire)",
+     "ejemplo": "colgá en la escena la foto compartida del vecino",
+     "herramientas": [
+      "share_take"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "instalar",
+   "formas": [
+    "instala",
+    "instalalo",
+    "instalá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "carrusel en una escena",
+     "ejemplo": "instalá el carrusel Goles en la escena Central",
+     "herramientas": [
+      "laminas_aplicar"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "enganchar",
+   "formas": [
+    "engancha",
+    "enganchalo",
+    "enganchá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "carrusel en una escena",
+     "ejemplo": "enganchá el carrusel Placas en la escena Cierre",
+     "herramientas": [
+      "laminas_aplicar"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "asociar",
+   "formas": [
+    "asocia",
+    "asocialo",
+    "asociá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "carrusel con una escena",
+     "ejemplo": "asociá el carrusel Invitados a la escena Cierre",
+     "herramientas": [
+      "laminas_aplicar"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "montar",
+   "formas": [
+    "monta",
+    "montalo",
+    "montá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "carrusel en una escena",
+     "ejemplo": "montá el carrusel Economía en la escena Estudio",
+     "herramientas": [
+      "laminas_aplicar"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "encontrar",
+   "formas": [
+    "encontrá",
+    "encontrame",
+    "encontra"
+   ],
+   "significado": "buscar láminas de un carrusel por texto en su título o etiquetas",
+   "herramientas": [
+    "laminas_buscar"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "encontrar",
+   "formas": [
+    "encontrá",
+    "encontrame",
+    "encontra"
+   ],
+   "significado": "buscar láminas de un carrusel por texto en su título o etiquetas",
+   "herramientas": [
+    "laminas_buscar"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "filtrar",
+   "formas": [
+    "filtrá",
+    "filtra",
+    "filtrame"
+   ],
+   "significado": "buscar láminas de un carrusel por texto en su título o etiquetas",
+   "herramientas": [
+    "laminas_buscar"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "rastrear",
+   "formas": [
+    "rastreá",
+    "rastrea",
+    "rastreame"
+   ],
+   "significado": "buscar láminas de un carrusel por texto en su título o etiquetas",
+   "herramientas": [
+    "laminas_buscar"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "encontrar",
+   "formas": [
+    "encontrá",
+    "encontrame",
+    "encontra"
+   ],
+   "significado": "buscar láminas de un carrusel por texto en su título o etiquetas",
+   "herramientas": [
+    "laminas_buscar"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "filtrar",
+   "formas": [
+    "filtrá",
+    "filtra",
+    "filtrame"
+   ],
+   "significado": "buscar láminas de un carrusel por texto en su título o etiquetas",
+   "herramientas": [
+    "laminas_buscar"
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "clavar",
+   "formas": [
+    "clava",
+    "clavala",
+    "clavá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "lámina N de un carrusel",
+     "ejemplo": "clavá la lámina número 7",
+     "herramientas": [
+      "laminas_ir"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "saltar",
+   "formas": [
+    "salta",
+    "saltá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "a una lámina N de un carrusel",
+     "ejemplo": "saltá a la lámina cinco",
+     "herramientas": [
+      "laminas_ir"
+     ]
+    },
+    {
+     "objeto": "a una escena (al aire, directo)",
+     "ejemplo": "saltá al aire a la escena Móvil ahora",
+     "herramientas": [
+      "scene_switch"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "ir",
+   "formas": [
+    "andá",
+    "anda",
+    "andá directo"
+   ],
+   "significado": "poner la lámina número N de un carrusel",
+   "herramientas": [
+    "laminas_ir"
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "llevar",
+   "formas": [
+    "lleva",
+    "llevame",
+    "llevá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "a una lámina N (llevame)",
+     "ejemplo": "llevame a la lámina 12",
+     "herramientas": [
+      "laminas_ir"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "desconectar",
+   "formas": [
+    "desconecta",
+    "desconectalo",
+    "desconectá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "persona (de la sala)",
+     "ejemplo": "desconectá a ese invitado de la sala",
+     "herramientas": [
+      "participant_kick"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "kickear",
+   "formas": [
+    "kickeá",
+    "kickea",
+    "kickealo"
+   ],
+   "significado": "sacar de la sala a una persona que ya está adentro",
+   "herramientas": [
+    "participant_kick"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "rajar",
+   "formas": [
+    "rajá",
+    "raja",
+    "rajalo"
+   ],
+   "significado": "sacar de la sala a una persona que ya está adentro",
+   "herramientas": [
+    "participant_kick"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "expulsar",
+   "formas": [
+    "expulsá",
+    "expulsa",
+    "expulsalo"
+   ],
+   "significado": "sacar de la sala a una persona que ya está adentro",
+   "herramientas": [
+    "participant_kick"
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "modificar",
+   "formas": [
+    "modifica",
+    "modificale",
+    "modificá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "datos de una persona",
+     "ejemplo": "modificá los datos de Luis: nombre Luis Ferreyra",
+     "herramientas": [
+      "participant_profile"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "editar",
+   "formas": [
+    "edita",
+    "editale",
+    "editá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "perfil de una persona",
+     "ejemplo": "editá el perfil de Tomás, info: vecino de Lanús",
+     "herramientas": [
+      "participant_profile"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "anotar",
+   "formas": [
+    "anota",
+    "anotale",
+    "anotá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "datos en el perfil de una persona",
+     "ejemplo": "anotá en el perfil de Tomás: vecino de Lanús",
+     "herramientas": [
+      "participant_profile"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "negar",
+   "formas": [
+    "negale",
+    "negá",
+    "nega"
+   ],
+   "significado": "negarle la entrada a quien espera en el lobby",
+   "herramientas": [
+    "participant_reject"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "negar",
+   "formas": [
+    "negale",
+    "negá",
+    "nega"
+   ],
+   "significado": "negarle la entrada a quien espera en el lobby",
+   "herramientas": [
+    "participant_reject"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "negar",
+   "formas": [
+    "negale",
+    "negá",
+    "nega"
+   ],
+   "significado": "negarle la entrada a quien espera en el lobby",
+   "herramientas": [
+    "participant_reject"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "solicitar",
+   "formas": [
+    "solicitale",
+    "solicitá",
+    "solicita"
+   ],
+   "significado": "pedirle al navegador de un invitado que silencie el micrófono, apague la cámara, deje de compartir pantalla o baje la mano",
+   "herramientas": [
+    "participant_request"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "reenfilar",
+   "formas": [
+    "reenfilá",
+    "reenfila",
+    "reenfilalo",
+    "reenfilala"
+   ],
+   "significado": "devolver al final de la fila a un orador que ya habló",
+   "herramientas": [
+    "participant_requeue"
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "devolver",
+   "formas": [
+    "devolve",
+    "devolvela",
+    "devolvelo",
+    "devolvé"
+   ],
+   "sentidos": [
+    {
+     "objeto": "orador que ya habló (al final de la fila)",
+     "ejemplo": "el de la camisa roja ya habló, devolvelo al fondo de la fila",
+     "herramientas": [
+      "participant_requeue"
+     ]
+    },
+    {
+     "objeto": "orador que ya habló (último en la fila)",
+     "ejemplo": "el que ya habló, devolvelo último en la fila",
+     "herramientas": [
+      "participant_requeue"
+     ]
+    },
+    {
+     "objeto": "orador que ya usó su turno (al fondo de la fila)",
+     "ejemplo": "Molina ya usó su turno, devolvelo al fondo de la fila",
+     "herramientas": [
+      "participant_requeue"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "conectar",
+   "formas": [
+    "conecta",
+    "conectame",
+    "conectá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "línea privada con alguien del lobby (conectame con)",
+     "ejemplo": "conectame por privado con el del lobby",
+     "herramientas": [
+      "participant_talk"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "renovar",
+   "formas": [
+    "renová",
+    "renova",
+    "renovalo"
+   ],
+   "significado": "crear un PIN nuevo para entrar a la sala (el anterior deja de servir)",
+   "herramientas": [
+    "room_pin"
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "rotar",
+   "formas": [
+    "rota",
+    "rotalo",
+    "rotá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "PIN de la sala",
+     "ejemplo": "el PIN de la sala lo tiene gente que no debe, rotalo",
+     "herramientas": [
+      "room_pin"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "desatar",
+   "formas": [
+    "desatá",
+    "desata",
+    "desatalo"
+   ],
+   "significado": "quitar o pausar el vínculo entre un gráfico y su origen",
+   "herramientas": [
+    "rotulo_desvincular"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "desenganchar",
+   "formas": [
+    "desenganchá",
+    "desengancha",
+    "desenganchalo"
+   ],
+   "significado": "quitar o pausar el vínculo entre un gráfico y su origen",
+   "herramientas": [
+    "rotulo_desvincular"
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "suspender",
+   "formas": [
+    "suspende",
+    "suspendelo",
+    "suspendé"
+   ],
+   "sentidos": [
+    {
+     "objeto": "vínculo de un gráfico (sin borrarlo)",
+     "ejemplo": "suspendé el vínculo del nombre un rato",
+     "herramientas": [
+      "rotulo_desvincular"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "ligar",
+   "formas": [
+    "ligá",
+    "liga",
+    "ligalo"
+   ],
+   "significado": "atar los campos de un gráfico (nombre, cargo) a un origen que cambia solo",
+   "herramientas": [
+    "rotulo_vincular"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "ligar",
+   "formas": [
+    "ligá",
+    "liga",
+    "ligalo"
+   ],
+   "significado": "atar los campos de un gráfico (nombre, cargo) a un origen que cambia solo",
+   "herramientas": [
+    "rotulo_vincular"
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "reemplazar",
+   "formas": [
+    "reemplaza",
+    "reemplazalo",
+    "reemplazá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "vínculo de un gráfico por uno nuevo con un origen",
+     "ejemplo": "reemplazá el vínculo del rótulo por uno nuevo atado al orador",
+     "herramientas": [
+      "rotulo_vincular"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "clonar",
+   "formas": [
+    "cloná",
+    "clona",
+    "clonala",
+    "clonale"
+   ],
+   "significado": "crear una escena nueva con todas las fuentes de otra",
+   "herramientas": [
+    "scene_copy"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "clonar",
+   "formas": [
+    "cloná",
+    "clona",
+    "clonala"
+   ],
+   "significado": "crear una escena nueva con todas las fuentes de otra",
+   "herramientas": [
+    "scene_copy"
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "volcar",
+   "formas": [
+    "volcame",
+    "volcá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "definición de todas las escenas (volcame)",
+     "ejemplo": "volcame la definición de todas las escenas",
+     "herramientas": [
+      "scene_export"
+     ]
+    },
+    {
+     "objeto": "definición de una escena (volcame)",
+     "ejemplo": "volcame la definición de la escena Noticiero",
+     "herramientas": [
+      "scene_export"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "acomodar",
+   "formas": [
+    "acomoda",
+    "acomodala",
+    "acomodá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "escena en la lista (antes de otra)",
+     "ejemplo": "acomodá la escena Tanda antes de Cierre en la lista",
+     "herramientas": [
+      "scene_move"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "reubicar",
+   "formas": [
+    "reubica",
+    "reubicala",
+    "reubicá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "escena en la lista de escenas (orden del programa)",
+     "ejemplo": "reubicá la escena Cierre al final de la lista de escenas",
+     "herramientas": [
+      "scene_move"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "rebautizar",
+   "formas": [
+    "rebautiza",
+    "rebautizala",
+    "rebautizame",
+    "rebautizá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "escena (nombre nuevo)",
+     "ejemplo": "rebautizá la escena Nueva escena como Estudio",
+     "herramientas": [
+      "scene_rename"
+     ]
+    },
+    {
+     "objeto": "escena (nombre nuevo)",
+     "ejemplo": "rebautizá la escena Nueva escena como Estudio",
+     "herramientas": [
+      "scene_rename"
+     ]
+    },
+    {
+     "objeto": "escena (nombre nuevo)",
+     "ejemplo": "rebautizame esa escena como Invitados",
+     "herramientas": [
+      "scene_rename"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "llamar",
+   "formas": [
+    "llama",
+    "llamala",
+    "llamá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "escena (nombre nuevo: llamala X)",
+     "ejemplo": "esa escena llamala Cierre",
+     "herramientas": [
+      "scene_rename"
+     ]
+    },
+    {
+     "objeto": "escena (nombre nuevo: llamala X)",
+     "ejemplo": "la escena 3 llamala Mesa central",
+     "herramientas": [
+      "scene_rename"
+     ]
+    },
+    {
+     "objeto": "escena (nombre nuevo: llamala X)",
+     "ejemplo": "la escena Escena 8 llamala Panel",
+     "herramientas": [
+      "scene_rename"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "salir",
+   "formas": [
+    "sali",
+    "salí"
+   ],
+   "sentidos": [
+    {
+     "objeto": "al aire con una escena",
+     "ejemplo": "salí al aire con la escena Cierre ahora",
+     "herramientas": [
+      "scene_switch"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "volar",
+   "formas": [
+    "vola",
+    "volalo",
+    "volá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "archivo compartido (borrarlo del gateway)",
+     "ejemplo": "volá ese archivo compartido",
+     "herramientas": [
+      "share_delete"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "usar",
+   "formas": [
+    "usa",
+    "usalo",
+    "usá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "archivo compartido (en la escena al aire)",
+     "ejemplo": "usá el compartido 5 en la escena al aire",
+     "herramientas": [
+      "share_take"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "incorporar",
+   "formas": [
+    "incorpora",
+    "incorporalo",
+    "incorporá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "archivo compartido (a la escena al aire)",
+     "ejemplo": "incorporá el clip compartido del oyente a la escena al aire",
+     "herramientas": [
+      "share_take"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "añadir",
+   "formas": [
+    "anadi",
+    "añadi",
+    "añadila",
+    "añadí"
+   ],
+   "sentidos": [
+    {
+     "objeto": "fuente nueva en una escena",
+     "ejemplo": "añadí la fuente de video Cortina a la escena Apertura en full",
+     "herramientas": [
+      "source_add"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "desglosar",
+   "formas": [
+    "desglosá",
+    "desglosa",
+    "desglosame"
+   ],
+   "significado": "listar las fuentes (capas) de una escena, de abajo hacia arriba",
+   "herramientas": [
+    "source_list"
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "ajustar",
+   "formas": [
+    "ajusta",
+    "ajustale",
+    "ajustá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "propiedad de una fuente (por su nombre)",
+     "ejemplo": "ajustale la propiedad tamaño de captura a esa fuente",
+     "herramientas": [
+      "source_set_property"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "adelantar",
+   "formas": [
+    "adelanta",
+    "adelantalo",
+    "adelantá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "persona en la fila (N lugares)",
+     "ejemplo": "adelantá a Héctor dos lugares en la fila",
+     "herramientas": [
+      "speaker_move"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "correr",
+   "formas": [
+    "corre",
+    "correla",
+    "correlo",
+    "corré"
+   ],
+   "sentidos": [
+    {
+     "objeto": "persona a una posición de la fila",
+     "ejemplo": "corré a Esteban al segundo lugar de la fila",
+     "herramientas": [
+      "speaker_move"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "avanzar",
+   "formas": [
+    "avanza",
+    "avanzá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "la fila de oradores (entra al aire el siguiente)",
+     "ejemplo": "avanzá la fila de oradores",
+     "herramientas": [
+      "speaker_next"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "designar",
+   "formas": [
+    "designá",
+    "designa",
+    "designala",
+    "designalo"
+   ],
+   "significado": "marcar a una persona como presentador fijo al aire mientras los oradores rotan",
+   "herramientas": [
+    "speaker_presenter"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "desmarcar",
+   "formas": [
+    "desmarcá",
+    "desmarca",
+    "desmarcalo",
+    "desmarcala"
+   ],
+   "significado": "quitarle a una persona la marca de presentador fijo",
+   "herramientas": [
+    "speaker_presenter"
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "nombrar",
+   "formas": [
+    "nombra",
+    "nombrala",
+    "nombralo",
+    "nombrá"
+   ],
+   "sentidos": [
+    {
+     "objeto": "a una persona presentador fijo",
+     "ejemplo": "nombrá presentadora a Valeria para todo el programa",
+     "herramientas": [
+      "speaker_presenter"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "permitir",
+   "formas": [
+    "permiti",
+    "permití"
+   ],
+   "sentidos": [
+    {
+     "objeto": "varios oradores al aire a la vez (modo oradores)",
+     "ejemplo": "permití varios oradores al aire a la vez",
+     "herramientas": [
+      "speakers_config"
+     ]
+    },
+    {
+     "objeto": "varios oradores al aire a la vez (modo oradores)",
+     "ejemplo": "en el modo oradores, permití varios oradores al aire a la vez",
+     "herramientas": [
+      "speakers_config"
+     ]
+    }
+   ]
+  }
+ ]
+}
