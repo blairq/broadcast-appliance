@@ -244,6 +244,30 @@ QVariantList Matriz::filas() const {
     return out;
 }
 
+namespace {
+/// La salida de escucha (los auriculares del operador): el monitoreo de libobs.
+QString nombreEscucha() {
+    const char* nombre = nullptr;
+    const char* id = nullptr;
+    obs_get_audio_monitoring_device(&nombre, &id);
+    if (id == nullptr || std::string(id).empty() || std::string(id) == "default")
+        return "la salida del sistema";
+    return QString::fromUtf8(nombre != nullptr ? nombre : id);
+}
+/// Escuchar una fuente sin sacarla del aire: OBS_MONITORING_TYPE_MONITOR_ONLY
+/// la SACA de la mezcla, así que si tiene alguna pista va «monitor y salida».
+void setEscucha(obs_source_t* s, bool on) {
+    if (!on) {
+        obs_source_set_monitoring_type(s, OBS_MONITORING_TYPE_NONE);
+        return;
+    }
+    obs_source_set_monitoring_type(s, obs_source_get_audio_mixers(s) != 0
+                                          ? OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT
+                                          : OBS_MONITORING_TYPE_MONITOR_ONLY);
+}
+bool escucha(obs_source_t* s) { return obs_source_get_monitoring_type(s) != OBS_MONITORING_TYPE_NONE; }
+} // namespace
+
 QVariantList Matriz::columnas() const {
     QVariantList out;
     for (int i = 0; i < kPistas; ++i)
@@ -253,6 +277,11 @@ QVariantList Matriz::columnas() const {
             {"tipo", "pista"},
             {"indice", i},
             {"uso", QString::fromStdString(i == 0 ? std::string("emisión y grabación") : usoPista_[i])}});
+    // Los auriculares del operador (Configuración → Audio y voz → salida de auriculares).
+    out.push_back(QVariantMap{{"id", "escucha"},
+                              {"nombre", "Escucha"},
+                              {"tipo", "escucha"},
+                              {"dispositivoNombre", nombreEscucha()}});
     for (const auto& b : buses_) {
         QString disp;
         if (b->tipo == "salida")
@@ -275,7 +304,9 @@ QVariantMap Matriz::cruces() const {
         obs_source_t* s = obs_get_source_by_name(f.c_str());
         if (s == nullptr) continue;
         const std::uint32_t mx = obs_source_get_audio_mixers(s);
+        const bool oye = escucha(s);
         obs_source_release(s);
+        if (oye) out[QString::fromStdString(f) + "|escucha"] = QVariantMap{{"activo", true}};
         for (int i = 0; i < kPistas; ++i)
             if ((mx & (1u << i)) != 0)
                 out[QString::fromStdString(f) + QString("|pista%1").arg(i + 1)] =
@@ -341,6 +372,17 @@ QString Matriz::setCruce(const QString& fuenteQ, const QString& busQ, bool activ
         std::uint32_t mx = obs_source_get_audio_mixers(s);
         mx = activo ? (mx | (1u << i)) : (mx & ~(1u << i));
         obs_source_set_audio_mixers(s, mx);
+        // Si se escucha «solo monitor», con una pista no saldría al aire.
+        if (escucha(s)) setEscucha(s, true);
+        obs_source_release(s);
+        guardar();
+        emit cambio();
+        return {};
+    }
+    if (bus == "escucha") {
+        obs_source_t* s = obs_get_source_by_name(fuente.c_str());
+        if (s == nullptr) return "No existe la fuente «" + fuenteQ + "».";
+        setEscucha(s, activo);
         obs_source_release(s);
         guardar();
         emit cambio();
@@ -739,15 +781,21 @@ Matriz::json Matriz::estado() const {
                           {"ajustes", e.ajustes}});
     for (const auto& f : filas_) {
         json pis = json::array();
+        bool oye = false;
         if (obs_source_t* s = obs_get_source_by_name(f.c_str())) {
             const std::uint32_t mx = obs_source_get_audio_mixers(s);
+            oye = escucha(s);
             obs_source_release(s);
             for (int i = 0; i < kPistas; ++i)
                 if ((mx & (1u << i)) != 0) pis.push_back("pista" + std::to_string(i + 1));
         }
-        filas.push_back({{"fuente", f}, {"pistas", pis}});
+        filas.push_back({{"fuente", f}, {"pistas", pis}, {"escucha", oye}});
     }
-    return {{"pistas", pistas}, {"buses", buses}, {"envios", envios}, {"fuentes", filas}};
+    return {{"pistas", pistas},
+            {"escucha", {{"id", "escucha"}, {"dispositivo", nombreEscucha().toStdString()}}},
+            {"buses", buses},
+            {"envios", envios},
+            {"fuentes", filas}};
 }
 
 void Matriz::guardar() const {
@@ -762,6 +810,14 @@ void Matriz::guardar() const {
             obs_source_release(s);
         }
     j["mezcladores"] = mx;
+    // Qué fuentes suenan en la escucha (los auriculares).
+    json oye = json::object();
+    for (const auto& f : filas_)
+        if (obs_source_t* s = obs_get_source_by_name(f.c_str())) {
+            oye[f] = escucha(s);
+            obs_source_release(s);
+        }
+    j["escucha"] = oye;
     const fs::path p = root_ / "Config" / "audio-matriz.json";
     std::error_code ec;
     fs::create_directories(p.parent_path(), ec);
@@ -804,6 +860,11 @@ void Matriz::cargar() {
             // Las pistas 2-6 que toma la grabación individual no se reponen
             // de un guardado viejo: la grabación las pone y las saca sola.
             obs_source_set_audio_mixers(s, mx.get<std::uint32_t>() & 0x3F);
+            obs_source_release(s);
+        }
+    for (const auto& [fuente, on] : j.value("escucha", json::object()).items())
+        if (obs_source_t* s = obs_get_source_by_name(fuente.c_str())) {
+            if (on.is_boolean()) setEscucha(s, on.get<bool>());
             obs_source_release(s);
         }
 }

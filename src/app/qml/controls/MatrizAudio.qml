@@ -40,6 +40,7 @@ Item {
         if (!c) return Theme.accent
         if (c.tipo === "pista") return c.indice === 0 ? "#ef4444" : "#f59e0b"
         if (c.tipo === "salida") return "#a78bfa"
+        if (c.tipo === "escucha") return "#22c55e"
         return "#14b8a6"
     }
     function idxCol(id) { for (let i = 0; i < cols.length; ++i) if (cols[i].id === id) return i; return -1 }
@@ -163,6 +164,7 @@ Item {
                                 Text {
                                     anchors { horizontalCenter: parent.horizontalCenter; top: parent.top; topMargin: 12 }
                                     text: cab.modelData.tipo === "pista" ? String(cab.modelData.indice + 1)
+                                        : cab.modelData.tipo === "escucha" ? "🎧"
                                         : cab.modelData.tipo === "salida" ? "OUT" : "IN"
                                     color: cab.col; font { pixelSize: 11; weight: Font.Bold; family: Theme.mono }
                                 }
@@ -182,7 +184,8 @@ Item {
                                 ToolTip.visible: containsMouse
                                 ToolTip.delay: 250
                                 ToolTip.text: cab.modelData.nombre +
-                                    (cab.modelData.tipo === "pista" ? (cab.modelData.uso ? "\n" + cab.modelData.uso : "\nlibre") + "\nnativo: sin retardo"
+                                    (cab.modelData.tipo === "escucha" ? "\n→ " + cab.modelData.dispositivoNombre + "\nlos auriculares del operador: nunca al aire"
+                                     : cab.modelData.tipo === "pista" ? (cab.modelData.uso ? "\n" + cab.modelData.uso : "\nlibre") + "\nnativo: sin retardo"
                                      : cab.modelData.tipo === "salida" ? "\n→ " + (cab.modelData.dispositivoNombre || "sin dispositivo")
                                      : "\nvuelve como entrada: «" + cab.modelData.nombre + "»")
                             }
@@ -341,6 +344,7 @@ Item {
                                         onClicked: (ev) => {
                                             if (ev.button === Qt.RightButton) {
                                                 if (x0.modelData.tipo === "pista") { mx.msg = "Las pistas de OBS son nativas: prender o apagar, sin retardo."; return }
+                                                if (x0.modelData.tipo === "escucha") { mx.msg = "La escucha es prender o apagar: el volumen es el de la fuente."; return }
                                                 if (!x0.activo) mx.msg = mx.mz.setCruce(x0.f, x0.b, true)
                                                 ajustePop.f = x0.f; ajustePop.b = x0.b; ajustePop.col = x0.col
                                                 ajustePop.open()
@@ -432,18 +436,47 @@ Item {
             spacing: 10
             width: 340
             Text {
-                text: busPop.bus.tipo === "pista" ? "Pista " + (busPop.bus.indice + 1) + " de OBS" : busPop.bus.tipo === "salida" ? "Salida virtual" : "Entrada virtual"
+                text: busPop.bus.tipo === "pista" ? "Pista " + (busPop.bus.indice + 1) + " de OBS"
+                      : busPop.bus.tipo === "escucha" ? "Escucha: los auriculares del operador"
+                      : busPop.bus.tipo === "salida" ? "Salida virtual" : "Entrada virtual"
                 color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold }
             }
             Text {
                 Layout.fillWidth: true; wrapMode: Text.WordWrap
                 color: Theme.textFaint; font.pixelSize: 11
-                text: busPop.bus.tipo === "pista"
+                text: busPop.bus.tipo === "escucha"
+                      ? "Lo que se prende acá suena por «" + (busPop.bus.dispositivoNombre || "") + "» y nunca va al aire por esta columna. Las voces (texto a audio) vienen prendidas. El dispositivo es el mismo que en Configuración → Audio y voz."
+                      : busPop.bus.tipo === "pista"
                       ? (busPop.bus.indice === 0 ? "La mezcla del programa: lo que se emite y se graba." : "Libre, o la toma una grabación individual (" + (busPop.bus.uso || "ahora libre") + ").") + " Nativa: sin retardo."
                       : busPop.bus.tipo === "salida" ? "Lo que se le manda sale por un dispositivo del equipo. Pasa por la mezcla propia (~25 ms)."
                       : "Lo que se le manda vuelve como la fuente «" + busPop.bus.nombre + "»: tiene su menú de filtros en Audio y se rutea como cualquier entrada."
             }
+            // La escucha: por qué dispositivo suena.
+            Flow {
+                visible: busPop.bus.tipo === "escucha" && !!Studio.voz
+                Layout.fillWidth: true
+                spacing: 6
+                GlassButton {
+                    compact: true; text: "La del sistema"
+                    active: !!Studio.voz && Studio.voz.auriculares === ""
+                    onClicked: { mx.msg = Studio.voz.setAuriculares(""); mx.mz.refrescar() }
+                }
+                Repeater {
+                    model: Studio.voz ? Studio.voz.salidasAudio : []
+                    delegate: Repeater {
+                        required property var modelData
+                        model: modelData.salidas
+                        delegate: GlassButton {
+                            required property var modelData
+                            compact: true; text: modelData.nombre
+                            active: Studio.voz.auriculares === modelData.id
+                            onClicked: { mx.msg = Studio.voz.setAuriculares(modelData.id); mx.mz.refrescar() }
+                        }
+                    }
+                }
+            }
             RowLayout {
+                visible: busPop.bus.tipo !== "escucha"
                 TextField { id: nombreBus; Layout.fillWidth: true; placeholderText: "nombre" }
                 GlassButton { compact: true; text: "Renombrar"; onClicked: mx.msg = mx.mz.renombrar(busPop.bus.id, nombreBus.text) }
             }
@@ -462,7 +495,7 @@ Item {
             }
             RowLayout {
                 GlassButton {
-                    visible: busPop.bus.tipo !== "pista"
+                    visible: busPop.bus.tipo !== "pista" && busPop.bus.tipo !== "escucha"
                     compact: true; text: "Quitar"; activeColor: Theme.live
                     onClicked: { mx.msg = mx.mz.quitarBus(busPop.bus.id); busPop.close() }
                 }

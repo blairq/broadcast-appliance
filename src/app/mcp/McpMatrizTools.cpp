@@ -50,7 +50,8 @@ void McpService::registerMatrizTools() {
         t.category = "audio_rack";
         t.idempotent = true;
         t.description =
-            "`fuente` → `bus` (pista1..pista6 o el id de un bus virtual): `activo` lo prende o apaga. "
+            "`fuente` → `bus` (pista1..pista6, `escucha` = los auriculares del operador, o el id de un bus "
+            "virtual): `activo` lo prende o apaga. "
             "En buses virtuales, además, `nivel_db` (-60 a +12), `pan` (-1 izq a 1 der) y `mute`; "
             "`ajustes: false` lo vuelve a 0 dB, centro.";
         t.details =

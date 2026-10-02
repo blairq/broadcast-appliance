@@ -59,6 +59,8 @@ bool MonitorVoz::asegurar() {
     // De fábrica: en los auriculares del operador y en ninguna pista (no va
     // al aire). La Matriz le restaura el ruteo que el operador le haya dado.
     obs_source_set_audio_mixers(fuente_, 0);
+    // «Solo monitor» mientras no tenga pistas; la Matriz lo pasa a «monitor y
+    // salida» si se la rutea (MONITOR_ONLY la saca de la mezcla).
     obs_source_set_monitoring_type(fuente_, OBS_MONITORING_TYPE_MONITOR_ONLY);
     obs_source_set_muted(fuente_, false);
     obs_set_output_source(canal_, fuente_);
