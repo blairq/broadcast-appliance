@@ -63,9 +63,29 @@ Window {
     /// Con una pausa a proposito: el compositor tiene que terminar de sacarla
     /// antes de que se la pida de nuevo, o ignora el segundo pedido.
     property bool pedidoFull: false
+    // CAMBIAR `screen` NO MUEVE UNA VENTANA SIN PANTALLA COMPLETA (Mac): queda
+    // donde estaba y el botón «Monitor» parecía roto. Además de la pantalla se
+    // la lleva al centro del monitor elegido (achicada si no entra).
+    property var destino: null
+    function llevarYa() {
+        const s = w.destino
+        if (!s) return
+        Studio.dashboard.windows.setScreen(w.winId, s.name)
+        w.screen = s
+        const ww = Math.min(w.width, s.width - 40), hh = Math.min(w.height, s.height - 80)
+        // Directo a la ventana (setGeometry del modelo solo guarda); al
+        // moverse, remember() la guarda.
+        w.width = ww
+        w.height = hh
+        w.x = s.virtualX + Math.round((s.width - ww) / 2)
+        w.y = s.virtualY + Math.round((s.height - hh) / 2)
+        w.raise()
+        if (w.pedidoFull) volverAFull.restart()
+    }
+    Timer { id: llevar; onTriggered: w.llevarYa() }
     Timer {
         id: volverAFull
-        interval: 180
+        interval: 300
         onTriggered: if (w.pedidoFull) Studio.dashboard.windows.setFullscreen(w.winId, true)
     }
     Shortcut { sequence: "Esc"; enabled: w.fullscreen; onActivated: Studio.dashboard.windows.setFullscreen(w.winId, false) }
@@ -123,11 +143,15 @@ Window {
                                 // volver a entrar: ahi si recibe la peticion
                                 // nueva, con el monitor nuevo.
                                 w.pedidoFull = w.fullscreen || !Studio.puedeUbicarVentanas
-                                if (w.fullscreen)
+                                w.destino = modelData
+                                if (w.fullscreen) {
                                     Studio.dashboard.windows.setFullscreen(w.winId, false)
-                                Studio.dashboard.windows.setScreen(w.winId, modelData.name)
-                                w.screen = modelData
-                                if (w.pedidoFull) volverAFull.restart()
+                                    // Salir tiene animación (Mac): mover recién después.
+                                    llevar.interval = Qt.platform.os === "osx" ? 800 : 150
+                                    llevar.restart()
+                                } else {
+                                    w.llevarYa()
+                                }
                                 // EN WAYLAND `setScreen` NO MUEVE LA VENTANA, y
                                 // encima no falla: Qt informa la pantalla nueva
                                 // y la ventana se queda donde estaba —el botón
