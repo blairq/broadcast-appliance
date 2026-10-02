@@ -43,6 +43,12 @@ class PtzOnvif : public PtzBackend {
     void guardarPreset(int numero) override;
     void home() override;
 
+    bool usaTokens() const override { return true; }
+    int memorias() const override { return capacidades().panTilt ? 1 : 0; }
+    void grabarPosicion(int n, const QString& nombre, std::function<void(bool, QString)> listo) override;
+    void irAPosicion(int n, const QString& token) override;
+    void borrarPosicion(int n, const QString& token) override;
+
     /// El device_service de un host ("192.168.1.20" o una URL completa).
     static QString urlDispositivo(const QString& host, int puerto);
 

@@ -40,6 +40,8 @@ QByteArray focoAuto(bool automatico, int direccion = 1);
 QByteArray focoUnToque(int direccion = 1);
 /// Presets: 8x 01 04 3F 0a pp FF (a: 1 guardar, 2 ir). pp 0..127.
 QByteArray preset(bool guardar, int numero, int direccion = 1);
+/// Borra una memoria: 8x 01 04 3F 00 pp FF.
+QByteArray borrarPreset(int numero, int direccion = 1);
 QByteArray home(int direccion = 1);
 
 /// Encabezado VISCA over IP de Sony (UDP 52381): tipo (0x0100 orden,
@@ -74,6 +76,8 @@ QString foco(double v);
 QString focoAuto(bool automatico);
 /// #Rnn ir / #Mnn guardar: nn 00..99 (el preset 1 es 00).
 QString preset(bool guardar, int numero);
+/// #Cnn: borra la memoria.
+QString borrarPreset(int numero);
 /// Al centro: #APC80008000.
 QString home();
 /// La URL completa de una orden.
@@ -108,6 +112,7 @@ QString gotoPreset(const QString& perfil, const QString& preset);
 /// Guarda en un preset nuevo (sin token) o pisa uno existente.
 QString setPreset(const QString& perfil, const QString& nombre, const QString& preset = {});
 QString gotoHomePosition(const QString& perfil);
+QString removePreset(const QString& perfil, const QString& preset);
 /// Foco por el servicio de imagen (timg:Move continuo / timg:Stop).
 QString focoMover(const QString& fuenteVideo, double v);
 QString focoParar(const QString& fuenteVideo);

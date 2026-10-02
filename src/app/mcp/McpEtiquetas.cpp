@@ -349,6 +349,11 @@ const Fila kPropias[] = {
     {"ptz_preset", "preset posicion guardada ir a la posicion guardar posicion de camara plano"},
     {"ptz_encuadre", "encuadre recorte zoom digital reencuadrar acercar el plano centrar"},
     {"ptz_configurar", "configurar ptz camara motorizada visca onvif panasonic ip de la camara"},
+    {"ptz_posiciones", "posiciones guardadas con nombre de la camara lista de planos"},
+    {"ptz_posicion_crear", "guardar posicion con nombre registrar plano de la camara agregar posicion"},
+    {"ptz_posicion_editar", "renombrar posicion cambiar comentario regrabar plano"},
+    {"ptz_posicion_borrar", "borrar posicion eliminar plano guardado"},
+    {"ptz_ir_posicion", "llevar la camara a la posicion ir al plano mover a la posicion guardada"},
     {"ptz_buscar", "buscar camaras onvif en la red descubrir camaras ip"},
     {"video_mejora", "mejorar imagen ruido nitidez calidad de la camara color corrido led"},
 

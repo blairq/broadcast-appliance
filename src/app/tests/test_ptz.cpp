@@ -11,6 +11,7 @@
 // Sin red de verdad ni cámaras: corre en cualquier máquina (y en CI).
 
 #include "ptz/OnvifBusqueda.hpp"
+#include "ptz/Posiciones.hpp"
 #include "ptz/PtzOnvif.hpp"
 #include "ptz/PtzPanasonic.hpp"
 #include "ptz/PtzProtocolos.hpp"
@@ -74,6 +75,7 @@ void pruebaVisca() {
     CHECK(visca::preset(true, 1) == hex("81 01 04 3F 01 00 FF"), "VISCA: guardar preset 1");
     CHECK(visca::preset(false, 3) == hex("81 01 04 3F 02 02 FF"), "VISCA: ir al preset 3");
     CHECK(visca::home() == hex("81 01 06 04 FF"), "VISCA: home");
+    CHECK(visca::borrarPreset(128) == hex("81 01 04 3F 00 7F FF"), "VISCA: borrar la memoria 128");
     CHECK(visca::conEncabezado(0x0100, visca::home(), 5) == hex("01 00 00 05 00 00 00 05 81 01 06 04 FF"),
           "VISCA over IP: encabezado de Sony");
     CHECK(visca::reiniciarSecuencia() == hex("02 00 00 01 00 00 00 00 01"), "VISCA over IP: reiniciar secuencia");
@@ -90,6 +92,7 @@ void pruebaPanasonic() {
     CHECK(panasonic::panTilt(1, -1) == "#PTS9901", "Panasonic: derecha y abajo a fondo");
     CHECK(panasonic::zoom(1) == "#Z99" && panasonic::zoom(-1) == "#Z01", "Panasonic: zoom");
     CHECK(panasonic::preset(false, 1) == "#R00" && panasonic::preset(true, 12) == "#M11", "Panasonic: presets");
+    CHECK(panasonic::borrarPreset(100) == "#C99", "Panasonic: borrar la memoria 100");
     CHECK(panasonic::url("10.0.0.5", 80, "#PTS5050") == "http://10.0.0.5/cgi-bin/aw_ptz?cmd=%23PTS5050&res=1",
           "Panasonic: URL");
     CHECK(panasonic::url("10.0.0.5", 8080, "#Z50") == "http://10.0.0.5:8080/cgi-bin/aw_ptz?cmd=%23Z50&res=1",
@@ -159,6 +162,8 @@ void pruebaOnvif() {
     CHECK(onvif::setPreset("T", "Preset 2").indexOf("PresetToken") < 0 && onvif::setPreset("T", "P", "p2").contains("p2"),
           "ONVIF: SetPreset nuevo o pisando");
 
+    CHECK(onvif::removePreset("T", "p9") == "<tptz:RemovePreset><tptz:ProfileToken>T</tptz:ProfileToken><tptz:PresetToken>p9</tptz:PresetToken></tptz:RemovePreset>",
+          "ONVIF: RemovePreset");
     const auto perfiles = onvif::leerPerfiles(kPerfiles);
     CHECK(perfiles.size() == 2, "ONVIF: dos perfiles");
     if (perfiles.size() == 2) {
@@ -179,6 +184,45 @@ void pruebaOnvif() {
           "WS-Discovery: ProbeMatch (IPv4 primero, nombre y modelo)");
     CHECK(onvif::sondeo("abc").contains("dn:NetworkVideoTransmitter") && onvif::sondeo("abc").contains("uuid:abc"),
           "WS-Discovery: Probe");
+}
+
+void pruebaPosiciones() {
+    Posiciones ps;
+    Posicion a;
+    a.nombre = "  Atril ";
+    a.comentario = "Plano medio";
+    a.digital = true;
+    a.x = 0.3;
+    a.zoom = 2;
+    a.ancho = 1920;
+    a.alto = 1080;
+    Posicion& g = ps.agregar(a);
+    CHECK(g.id == "1" && g.nombre == "Atril" && !g.creada.isEmpty(), "Posiciones: id, nombre recortado y fecha");
+    CHECK(ps.validarNombre("atríl") != "", "Posiciones: el nombre es único sin importar mayúsculas ni tildes");
+    CHECK(ps.validarNombre("") != "" && ps.validarNombre("7") != "", "Posiciones: sin nombre o solo un número, no");
+    CHECK(ps.validarNombre("Atril", "1").isEmpty(), "Posiciones: la misma puede quedarse con su nombre");
+    Posicion b;
+    b.nombre = "Mesa del jurado";
+    b.backend = "visca";
+    b.memoria = ps.memoriaLibre(128);
+    ps.agregar(b);
+    CHECK(b.memoria == 128 && ps.memoriaLibre(128) == 127, "Posiciones: memorias de arriba para abajo");
+    CHECK(ps.memoriaLibre(16) == 0, "Posiciones: no pisa los presets rápidos 1-16");
+    CHECK(ps.buscar("2") && ps.buscar("2")->nombre == "Mesa del jurado", "Posiciones: buscar por id");
+    CHECK(ps.buscar("MESA DEL JURADO") && ps.buscar("mesa  del jurado"), "Posiciones: buscar por nombre");
+    CHECK(ps.buscar("atril")->definicion() == "1920x1080", "Posiciones: la definición");
+    // Ida y vuelta por json, y los ids siguen sin repetirse.
+    Posiciones otra;
+    otra.cargar(ps.json());
+    CHECK(otra.lista().size() == 2, "Posiciones: json");
+    const Posicion* r = otra.buscar("Atril");
+    CHECK(r && r->digital && r->x == 0.3 && r->zoom == 2 && r->comentario == "Plano medio" && r->ancho == 1920,
+          "Posiciones: el json conserva todo");
+    CHECK(otra.buscar("2")->memoria == 128 && otra.buscar("2")->backend == "visca", "Posiciones: la memoria de la cámara");
+    otra.borrar("1");
+    Posicion c;
+    c.nombre = "Tribuna";
+    CHECK(otra.agregar(c).id == "3", "Posiciones: un id borrado no se reusa");
 }
 
 // --- 2. Cámaras falsas ---------------------------------------------------------------
@@ -383,6 +427,21 @@ void pruebaOnvifHttp() {
           "ONVIF: el preset 2 es el segundo de la cámara");
     v.guardarPreset(3);
     CHECK(esperar([&]() { return v.estado().contains("3 presets"); }), "ONVIF: guardar un preset nuevo y releerlos");
+    // Posición con nombre: la cámara elige el token.
+    QString token;
+    bool listoPos = false;
+    v.grabarPosicion(0, "Atril", [&](bool ok, QString t) {
+        listoPos = ok;
+        token = t;
+    });
+    CHECK(esperar([&]() { return listoPos; }) && token == "p3", "ONVIF: grabar una posición devuelve el token de la cámara");
+    v.borrarPosicion(0, token);
+    CHECK(esperar([&]() {
+              for (const auto& p : camara.pedidos)
+                  if (p.cuerpo.contains("<tptz:RemovePreset>") && p.cuerpo.contains(">p3<")) return true;
+              return false;
+          }),
+          "ONVIF: borrar la posición libera la memoria");
     v.parar();
     CHECK(esperar([&]() {
               for (const auto& p : camara.pedidos)
@@ -427,6 +486,7 @@ int main(int argc, char** argv) {
     pruebaVisca();
     pruebaPanasonic();
     pruebaOnvif();
+    pruebaPosiciones();
     pruebaViscaSony();
     pruebaViscaTcp();
     pruebaPanasonicHttp();

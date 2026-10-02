@@ -21,6 +21,32 @@ imagen cuesta ~1,2 ms por cuadro 1080p; está pensado para que entre en una inte
 pasadas a resolución completa y una a un cuarto. Orden en la fuente: primero Mejorar imagen (se limpia), después el
 PTZ digital (se amplía).
 
+## Posiciones con nombre
+
+Cada cámara tiene su lista de **posiciones**: lugares a los que se vuelve por su nombre («Atril», «Mesa del
+jurado»), aparte de los presets rápidos 1-16. Cada una guarda:
+
+| Campo | Qué es |
+|---|---|
+| `id` | Número que no cambia aunque cambie el nombre (y no se reusa al borrar) |
+| `nombre` | Único en la cámara, sin importar mayúsculas ni tildes; no puede ser solo un número |
+| `comentario` | Para el operador |
+| `definicion` | La resolución de la entrada cuando se registró (`ancho`, `alto`) |
+| `digital` | El encuadre digital (`x`, `y`, `zoom`), si el PTZ digital estaba prendido |
+| `camara` | Dónde quedó grabada en la cámara: `backend` y `memoria` (VISCA, Panasonic) o `token` (ONVIF) |
+| `creada`, `modificada` | Fechas |
+
+- **Registrar** toma donde está ahora la cámara: el recorte y, si es motorizada, la graba en una memoria propia.
+  VISCA y Panasonic usan memorias de arriba hacia abajo (128, 127… / 100, 99…), sin pisar los presets rápidos 1-16;
+  ONVIF crea una memoria nueva y guarda el token que devuelve la cámara.
+- **Ir** manda la cabeza a su memoria y el recorte a su encuadre (en los segundos que se pidan). Avisa si la
+  definición de la entrada cambió (el recorte es proporcional: cae en el mismo lugar) o si la cámara cambió de
+  backend desde que se grabó.
+- **Regrabar** la vuelve a registrar donde está ahora (en la misma memoria). **Borrar** libera la memoria en la
+  cámara.
+- En la página: sección **Posiciones** (nombre + comentario → «Guardar donde está ahora»; en cada una: Ir,
+  Regrabar, Editar, Borrar). Se guardan con la cámara en `Config/camaras.json`.
+
 ## Backends de hardware
 
 | Backend | Cámaras | Cómo habla |
@@ -70,6 +96,11 @@ que cada entrada tenga lo que le corresponde.
 | `ptz_encuadre` | Encuadre digital exacto (`x`, `y`, `zoom`, `segundos`) |
 | `ptz_configurar` | Backend y sus datos; `digital`, `modo`, `mejora` |
 | `ptz_buscar` | Busca cámaras ONVIF en la red |
+| `ptz_posiciones` | Las posiciones con nombre de una cámara (o de todas) |
+| `ptz_posicion_crear` | Registra donde está ahora la cámara con `nombre` y `comentario` |
+| `ptz_posicion_editar` | Cambia `nombre`, `comentario`; `regrabar` la vuelve a registrar |
+| `ptz_posicion_borrar` | La borra (y libera su memoria en la cámara) |
+| `ptz_ir_posicion` | Lleva la cámara a la posición (id o nombre), en `segundos` |
 | `video_mejora` | Mejorar imagen general (`activa`, `ruido`, `color`, `nitidez`) |
 
 La guía para el asistente está en `help {"topic": "camaras"}`.
@@ -80,7 +111,8 @@ La guía para el asistente está en `help {"topic": "camaras"}`.
   WS-Security (vector calculado aparte), y cada backend contra una **cámara falsa** en 127.0.0.1: VISCA de Sony por
   UDP (encabezado y secuencia), VISCA crudo por TCP (respuestas pegadas), Panasonic por HTTP (los 130 ms), ONVIF por
   HTTP (la cámara falsa recalcula el digest de cada pedido: la clave tiene que ser la correcta; y con la clave
-  equivocada la app lo dice) y WS-Discovery.
+  equivocada la app lo dice) y WS-Discovery. También las posiciones: nombres únicos sin tildes, búsqueda por id o
+  nombre, memorias libres de arriba hacia abajo, json, y en ONVIF grabar (token de la cámara) y borrar.
 - `test_mejora_imagen` (`src/obs-module/tests/`): los dos filtros en la GPU real (OpenGL en Mac/Linux, D3D11 en
   Windows): que el shader compile en ese backend, que el ruido baje, que un cambio grande no deje estela, que el
   color corrido se vaya, que el borde gane contraste; y el PTZ digital: recorte, límites, joystick con rampa y presets.

@@ -431,6 +431,11 @@ La API de Facebook solo transmite y administra videos de **Paginas** (no del per
 - Encuadre digital exacto: `ptz_encuadre {"entrada": ..., "x": 0.3, "y": 0.4, "zoom": 2, "segundos": 1}` (x, y = centro, 0..1; zoom 1..8). Mira el resultado con `capture_source`.
 - Presets: `ptz_preset {"entrada": ..., "numero": 2}` (ir) o con `"accion": "guardar"`.
 
+## Posiciones con nombre
+1. Encuadrar (ptz_mover / ptz_encuadre) y `ptz_posicion_crear {"entrada": ..., "nombre": "Atril", "comentario": ...}`: guarda el encuadre digital, la memoria de la camara y la definicion.
+2. `ptz_ir_posicion {"entrada": ..., "posicion": "Atril"}` (id o nombre) la lleva ahi.
+3. `ptz_posiciones` las lista; `ptz_posicion_editar` (nombre, comentario, `regrabar`) y `ptz_posicion_borrar`.
+
 ## Configurar una camara motorizada
 1. ONVIF: `ptz_buscar` encuentra las de la red; `ptz_configurar {"entrada": ..., "backend": "onvif", "host": <direccion>, "usuario": ..., "clave": ...}`.
 2. VISCA (Sony, PTZOptics, BirdDog...): `"backend": "visca", "host": ip, "transporte": "sony"` (UDP 52381) o `"tcp"` (5678) o `"udp"` (1259).

@@ -17,6 +17,7 @@
 
 #include "AppRuntime.hpp"
 
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QPointer>
 #include <QTimer>
@@ -223,6 +224,121 @@ void McpService::registerPtzTools() {
             if (err.isEmpty() && a.contains("modo")) err = c->setModo(e, qarg(a, "modo"));
             if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
             done(ToolResult().data(aJson(c->estadoJson(e))));
+        };
+        core_.addTool(std::move(t));
+    }
+    // --- Posiciones con nombre -------------------------------------------------
+    const json posicion = {{"type", "string"}, {"description", "La posición: su id o su nombre (sin importar mayúsculas ni tildes)."}};
+    const auto mapaAJson = [](const QVariantMap& m) {
+        return json::parse(QJsonDocument(QJsonObject::fromVariantMap(m)).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
+    };
+    {
+        Tool t;
+        t.name = "ptz_posiciones";
+        t.title = "Las posiciones con nombre";
+        t.category = "camaras";
+        t.readOnly = true;
+        t.description =
+            "Las posiciones guardadas de una cámara (o de todas): id, nombre, comentario, la definición en que se "
+            "registró, el encuadre digital (x, y, zoom) y la memoria de la cámara donde quedó grabada.";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"entrada", entrada}}}};
+        t.run = [c](const json& a, Done done) {
+            if (!c) return done(ToolResult::error("el PTZ no está disponible"));
+            c->sincronizar();
+            json out = json::object();
+            const QString solo = qarg(a, "entrada");
+            for (const QVariant& v : c->camaras()) {
+                const QString e = v.toMap()["entrada"].toString();
+                if (!solo.isEmpty() && e != solo) continue;
+                out[e.toStdString()] = aJson(QJsonObject{{"p", QJsonArray::fromVariantList(c->posiciones(e))}})["p"];
+            }
+            if (!solo.isEmpty() && out.empty()) return done(ToolResult::error("No hay una entrada de video «" + solo.toStdString() + "»"));
+            done(ToolResult().data({{"posiciones", out}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "ptz_posicion_crear";
+        t.title = "Guardar la posición actual con un nombre";
+        t.category = "camaras";
+        t.description =
+            "Registra DONDE ESTÁ AHORA la cámara `entrada` como una posición con `nombre` (único en la cámara) y un "
+            "`comentario`: el encuadre digital y, si la cámara es motorizada, la graba en una memoria de la cámara. "
+            "Guarda también la definición de la entrada. Primero encuadrá (ptz_mover, ptz_encuadre).";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"entrada", "nombre"}},
+                         {"properties", {{"entrada", entrada}, {"nombre", {{"type", "string"}}}, {"comentario", {{"type", "string"}}}}}};
+        t.examples = {R"({"entrada": "Cámara 1", "nombre": "Atril", "comentario": "Plano medio del orador, con el logo"})"};
+        t.run = [c, mapaAJson](const json& a, Done done) {
+            if (!c) return done(ToolResult::error("el PTZ no está disponible"));
+            const QVariantMap r = c->crearPosicion(qarg(a, "entrada"), qarg(a, "nombre"), qarg(a, "comentario"));
+            if (!r["ok"].toBool()) return done(ToolResult::error(r["error"].toString().toStdString()));
+            done(ToolResult().data(mapaAJson(r)));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "ptz_posicion_editar";
+        t.title = "Cambiar una posición";
+        t.category = "camaras";
+        t.idempotent = true;
+        t.description =
+            "Cambia el `nombre` o el `comentario` de una posición; con `regrabar: true` la vuelve a registrar donde "
+            "está ahora la cámara (encuadre, memoria y definición).";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"entrada", "posicion"}},
+                         {"properties",
+                          {{"entrada", entrada},
+                           {"posicion", posicion},
+                           {"nombre", {{"type", "string"}}},
+                           {"comentario", {{"type", "string"}}},
+                           {"regrabar", {{"type", "boolean"}}}}}};
+        t.run = [c, mapaAJson](const json& a, Done done) {
+            if (!c) return done(ToolResult::error("el PTZ no está disponible"));
+            QVariantMap cambios;
+            if (a.contains("nombre")) cambios["nombre"] = qarg(a, "nombre");
+            if (a.contains("comentario")) cambios["comentario"] = qarg(a, "comentario");
+            if (a.contains("regrabar")) cambios["regrabar"] = a.value("regrabar", false);
+            const QVariantMap r = c->editarPosicion(qarg(a, "entrada"), qarg(a, "posicion"), cambios);
+            if (!r["ok"].toBool()) return done(ToolResult::error(r["error"].toString().toStdString()));
+            done(ToolResult().data(mapaAJson(r)));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "ptz_posicion_borrar";
+        t.title = "Borrar una posición";
+        t.category = "camaras";
+        t.destructive = true;
+        t.description = "Borra una posición de la cámara `entrada` (y libera su memoria en la cámara).";
+        t.inputSchema = {{"type", "object"}, {"required", {"entrada", "posicion"}}, {"properties", {{"entrada", entrada}, {"posicion", posicion}}}};
+        t.run = [c, resultado](const json& a, Done done) {
+            if (!c) return done(ToolResult::error("el PTZ no está disponible"));
+            done(resultado(c->borrarPosicion(qarg(a, "entrada"), qarg(a, "posicion")), "posición borrada"));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "ptz_ir_posicion";
+        t.title = "Llevar la cámara a una posición";
+        t.category = "camaras";
+        t.description =
+            "Lleva la cámara `entrada` a la posición (id o nombre): la cabeza a su memoria y el recorte a su "
+            "encuadre, en `segundos` (0 = corte; de fábrica 1). Avisa si la definición cambió desde que se registró.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"entrada", "posicion"}},
+                         {"properties",
+                          {{"entrada", entrada}, {"posicion", posicion}, {"segundos", {{"type", "number"}, {"minimum", 0}, {"maximum", 10}}}}}};
+        t.examples = {R"({"entrada": "Cámara 1", "posicion": "Atril"})", R"({"entrada": "Cámara 1", "posicion": "3", "segundos": 0})"};
+        t.run = [c, mapaAJson](const json& a, Done done) {
+            if (!c) return done(ToolResult::error("el PTZ no está disponible"));
+            const QVariantMap r = c->irAPosicion(qarg(a, "entrada"), qarg(a, "posicion"), a.value("segundos", 1.0));
+            if (!r["ok"].toBool()) return done(ToolResult::error(r["error"].toString().toStdString()));
+            done(ToolResult().data(mapaAJson(r)));
         };
         core_.addTool(std::move(t));
     }

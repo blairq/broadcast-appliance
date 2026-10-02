@@ -26,6 +26,8 @@
 #include <QString>
 #include <QVariantMap>
 
+#include <functional>
+
 namespace ba::app::ptz {
 
 struct Capacidades {
@@ -61,6 +63,27 @@ class PtzBackend : public QObject {
     virtual void irAPreset(int numero) { Q_UNUSED(numero); }
     virtual void guardarPreset(int numero) { Q_UNUSED(numero); }
     virtual void home() {}
+
+    // --- Memorias para las posiciones con nombre (ptz/Posiciones) -----------
+    /// Hasta qué número de memoria tiene (0 = no tiene memorias propias).
+    virtual int memorias() const { return capacidades().presets; }
+    /// La cámara identifica sus memorias con un token que elige ella (ONVIF).
+    virtual bool usaTokens() const { return false; }
+    /// Graba donde está ahora en la memoria `n` (o, con tokens, en una nueva
+    /// llamada `nombre`). `listo(ok, token)` al terminar.
+    virtual void grabarPosicion(int n, const QString& nombre, std::function<void(bool, QString)> listo) {
+        Q_UNUSED(nombre);
+        guardarPreset(n);
+        listo(true, {});
+    }
+    virtual void irAPosicion(int n, const QString& token) {
+        Q_UNUSED(token);
+        irAPreset(n);
+    }
+    virtual void borrarPosicion(int n, const QString& token) {
+        Q_UNUSED(n);
+        Q_UNUSED(token);
+    }
 
     /// ¿Contesta? (para mostrar «conectada» / «sin respuesta»).
     bool listo() const { return listo_; }

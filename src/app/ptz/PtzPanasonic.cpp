@@ -107,4 +107,8 @@ void PtzPanasonic::guardarPreset(int n) {
 
 void PtzPanasonic::home() { encolar(panasonic::home(), false); }
 
+void PtzPanasonic::borrarPosicion(int n, const QString&) {
+    if (n > 0) encolar(panasonic::borrarPreset(n), false);
+}
+
 } // namespace ba::app::ptz

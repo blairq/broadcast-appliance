@@ -34,6 +34,7 @@ class PtzPanasonic : public PtzBackend {
     void irAPreset(int numero) override;
     void guardarPreset(int numero) override;
     void home() override;
+    void borrarPosicion(int n, const QString& token) override;
 
    private:
     /// Pone una orden en la cola; `reemplaza` = la última del mismo tipo vale.

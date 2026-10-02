@@ -198,6 +198,34 @@ void PtzOnvif::guardarPreset(int n) {
          });
 }
 
+void PtzOnvif::grabarPosicion(int, const QString& nombre, std::function<void(bool, QString)> listo) {
+    if (servicios_.ptz.isEmpty()) {
+        listo(false, {});
+        return;
+    }
+    // Sin token: la cámara crea una memoria nueva y contesta su token.
+    soap(servicios_.ptz, onvif::setPreset(perfil_.token, nombre), [this, listo, nombre](bool ok, const QByteArray& xml) {
+        const QString token = ok ? onvif::leerTokenPreset(xml) : QString();
+        listo(ok && !token.isEmpty(), token);
+        if (ok) {
+            setEstado(true, QStringLiteral("«%1» grabada en la cámara").arg(nombre));
+            leerPresets();
+        }
+    });
+}
+
+void PtzOnvif::irAPosicion(int, const QString& token) {
+    if (servicios_.ptz.isEmpty() || token.isEmpty()) return;
+    soap(servicios_.ptz, onvif::gotoPreset(perfil_.token, token), [](bool, const QByteArray&) {});
+}
+
+void PtzOnvif::borrarPosicion(int, const QString& token) {
+    if (servicios_.ptz.isEmpty() || token.isEmpty()) return;
+    soap(servicios_.ptz, onvif::removePreset(perfil_.token, token), [this](bool ok, const QByteArray&) {
+        if (ok) leerPresets();
+    });
+}
+
 void PtzOnvif::home() {
     if (servicios_.ptz.isEmpty()) return;
     soap(servicios_.ptz, onvif::gotoHomePosition(perfil_.token), [](bool, const QByteArray&) {});

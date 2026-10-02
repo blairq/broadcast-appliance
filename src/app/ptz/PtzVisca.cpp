@@ -209,4 +209,8 @@ void PtzVisca::guardarPreset(int n) {
 
 void PtzVisca::home() { enviar(visca::home(direccion_)); }
 
+void PtzVisca::borrarPosicion(int n, const QString&) {
+    if (n > 0) enviar(visca::borrarPreset(n, direccion_));
+}
+
 } // namespace ba::app::ptz

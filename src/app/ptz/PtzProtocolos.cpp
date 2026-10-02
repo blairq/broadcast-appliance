@@ -85,6 +85,12 @@ QByteArray preset(bool guardar, int numero, int direccion) {
     return b;
 }
 
+QByteArray borrarPreset(int numero, int direccion) {
+    QByteArray b = bytes({0, 0x01, 0x04, 0x3F, 0x00, std::clamp(numero - 1, 0, 127), 0xFF});
+    b[0] = byteDir(direccion);
+    return b;
+}
+
 QByteArray home(int direccion) {
     QByteArray b = bytes({0, 0x01, 0x06, 0x04, 0xFF});
     b[0] = byteDir(direccion);
@@ -154,6 +160,7 @@ QString focoAuto(bool automatico) { return automatico ? QStringLiteral("#D11") :
 QString preset(bool guardar, int numero) {
     return (guardar ? "#M" : "#R") + dos(std::clamp(numero - 1, 0, 99));
 }
+QString borrarPreset(int numero) { return "#C" + dos(std::clamp(numero - 1, 0, 99)); }
 QString home() { return QStringLiteral("#APC80008000"); }
 
 QString url(const QString& host, int puerto, const QString& orden) {
@@ -275,6 +282,11 @@ QString setPreset(const QString& perfil, const QString& nombre, const QString& p
 
 QString gotoHomePosition(const QString& perfil) {
     return "<tptz:GotoHomePosition>" + perfilXml(perfil) + "</tptz:GotoHomePosition>";
+}
+
+QString removePreset(const QString& perfil, const QString& preset) {
+    return "<tptz:RemovePreset>" + perfilXml(perfil) + "<tptz:PresetToken>" + esc(preset) +
+           "</tptz:PresetToken></tptz:RemovePreset>";
 }
 
 QString focoMover(const QString& fuenteVideo, double v) {

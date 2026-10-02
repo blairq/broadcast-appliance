@@ -336,6 +336,98 @@ Rectangle {
                     }
                 }
 
+                // Posiciones con nombre: id, nombre, comentario, definición y posición.
+                Panel {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: posCol.implicitHeight + 64
+                    title: "Posiciones (" + (page.cam ? page.cam.posiciones.length : 0) + ")"
+                    ColumnLayout {
+                        id: posCol
+                        anchors.fill: parent
+                        spacing: 8
+                        Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
+                               text: "Guarda donde está ahora la cámara con un nombre: el encuadre digital y, si es motorizada, una memoria de la cámara. Se vuelve con «Ir»." }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            TextField { id: posNombre; Layout.preferredWidth: 180; placeholderText: "Nombre (p. ej. Atril)" }
+                            TextField { id: posComentario; Layout.fillWidth: true; placeholderText: "Comentario (opcional)" }
+                            GlassButton {
+                                text: "Guardar donde está ahora"; active: true; enabled: posNombre.text.trim() !== ""
+                                onClicked: {
+                                    const r = page.cc.crearPosicion(page.sel, posNombre.text, posComentario.text)
+                                    page.avisar(r.ok ? (r.aviso || "") : r.error)
+                                    if (r.ok) { posNombre.text = ""; posComentario.text = "" }
+                                }
+                            }
+                        }
+                        Repeater {
+                            model: page.cam ? page.cam.posiciones : []
+                            delegate: Rectangle {
+                                id: filaPos
+                                required property var modelData
+                                property bool editando: false
+                                Layout.fillWidth: true
+                                implicitHeight: filaCol.implicitHeight + 16
+                                radius: 10
+                                color: Qt.rgba(1, 1, 1, 0.04)
+                                border.color: Qt.rgba(1, 1, 1, 0.08)
+                                ColumnLayout {
+                                    id: filaCol
+                                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: 8 }
+                                    spacing: 4
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        Text { text: "#" + filaPos.modelData.id; color: Theme.textFaint; font.pixelSize: 11 }
+                                        Text { visible: !filaPos.editando; text: filaPos.modelData.nombre; color: Theme.text
+                                               font { pixelSize: 14; weight: Font.DemiBold } Layout.fillWidth: true; elide: Text.ElideRight }
+                                        TextField { id: edNombre; visible: filaPos.editando; Layout.preferredWidth: 180; text: filaPos.modelData.nombre }
+                                        TextField { id: edComentario; visible: filaPos.editando; Layout.fillWidth: true; text: filaPos.modelData.comentario || "" }
+                                        GlassButton { compact: true; text: "Ir"; active: true; visible: !filaPos.editando
+                                                      onClicked: { const r = page.cc.irAPosicion(page.sel, filaPos.modelData.id, 1.0)
+                                                                   page.avisar(r.ok ? (r.aviso || "") : r.error) } }
+                                        GlassButton { compact: true; text: "Regrabar"; visible: !filaPos.editando
+                                                      onClicked: { const r = page.cc.editarPosicion(page.sel, filaPos.modelData.id, {regrabar: true})
+                                                                   page.avisar(r.ok ? (r.aviso || "") : r.error) } }
+                                        GlassButton { compact: true; text: filaPos.editando ? "Listo" : "Editar"
+                                                      onClicked: {
+                                                          if (filaPos.editando) {
+                                                              const r = page.cc.editarPosicion(page.sel, filaPos.modelData.id,
+                                                                                               {nombre: edNombre.text, comentario: edComentario.text})
+                                                              page.avisar(r.ok ? "" : r.error)
+                                                              if (r.ok) filaPos.editando = false
+                                                          } else filaPos.editando = true
+                                                      } }
+                                        GlassButton { compact: true; text: "Borrar"; visible: !filaPos.editando
+                                                      onClicked: {
+                                                          const cc = page.cc, entrada = page.sel, id = filaPos.modelData.id, nombre = filaPos.modelData.nombre
+                                                          ApplicationWindow.window.confirm({
+                                                              title: "¿Borrar la posición «" + nombre + "»?",
+                                                              text: "Se borra de la lista y se libera su memoria en la cámara.",
+                                                              accept: "Borrar", reject: "Cancelar",
+                                                              action: function() { page.avisar(cc.borrarPosicion(entrada, id)) }
+                                                          })
+                                                      } }
+                                    }
+                                    Text { visible: !filaPos.editando && (filaPos.modelData.comentario || "") !== ""
+                                           text: filaPos.modelData.comentario || ""; color: Theme.textDim; font.pixelSize: 12
+                                           Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                                    Text {
+                                        Layout.fillWidth: true; color: Theme.textFaint; font.pixelSize: 11; wrapMode: Text.WordWrap
+                                        text: {
+                                            const m = filaPos.modelData
+                                            const partes = []
+                                            if (m.definicion) partes.push(m.definicion.ancho + "×" + m.definicion.alto)
+                                            if (m.digital) partes.push("digital " + m.digital.zoom.toFixed(2) + "× en " + m.digital.x.toFixed(2) + ", " + m.digital.y.toFixed(2))
+                                            if (m.camara) partes.push(m.camara.backend.toUpperCase() + (m.camara.memoria ? " memoria " + m.camara.memoria : m.camara.token ? " token " + m.camara.token : " (grabando…)"))
+                                            return partes.join("  ·  ")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // La cámara: backend y su configuración.
                 Panel {
                     id: panelHw

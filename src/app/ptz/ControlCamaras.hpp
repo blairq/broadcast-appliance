@@ -45,6 +45,7 @@ namespace ba::app::ptz {
 class PtzBackend;
 class PtzDigital;
 class OnvifBusqueda;
+struct Posicion;
 
 class ControlCamaras : public QObject {
     Q_OBJECT
@@ -98,6 +99,21 @@ class ControlCamaras : public QObject {
     /// Revisa entradas y filtros ya (también corre solo cada 1,5 s).
     Q_INVOKABLE void sincronizar();
 
+    // --- Posiciones con nombre (ptz/Posiciones) --------------------------------
+    /// [{id, nombre, comentario, definicion, digital{x,y,zoom}, camara{backend,memoria|token}, creada, modificada}]
+    Q_INVOKABLE QVariantList posiciones(const QString& entrada) const;
+    /// Registra donde está ahora la cámara (cabeza y/o recorte) con ese
+    /// nombre. {ok, error, aviso, id}.
+    Q_INVOKABLE QVariantMap crearPosicion(const QString& entrada, const QString& nombre, const QString& comentario);
+    /// cambios: {nombre?, comentario?, regrabar?: bool (vuelve a registrar
+    /// donde está ahora)}. {ok, error, aviso}.
+    Q_INVOKABLE QVariantMap editarPosicion(const QString& entrada, const QString& idONombre, const QVariantMap& cambios);
+    /// Borra la posición (y libera su memoria en la cámara).
+    Q_INVOKABLE QString borrarPosicion(const QString& entrada, const QString& idONombre);
+    /// Va a la posición: la cámara a su memoria y el recorte a su encuadre.
+    /// {ok, error, aviso}.
+    Q_INVOKABLE QVariantMap irAPosicion(const QString& entrada, const QString& idONombre, double segundos = 1.0);
+
     /// Para MCP: el estado de una entrada (o de todas), como json.
     QJsonObject estadoJson(const QString& entrada = {}) const;
 
@@ -117,6 +133,10 @@ class ControlCamaras : public QObject {
     void guardarPronto();
     void guardar();
     std::string nombreClave(const std::string& entrada) const;
+    /// Toma donde está ahora la cámara y lo pone en `p` (la parte de la
+    /// cámara puede llegar después: ONVIF contesta el token). "" o el error;
+    /// `aviso` lo que no se pudo.
+    QString registrar(Camara& c, Posicion& p, QString& aviso);
 
     AppRuntime& rt_;
     std::filesystem::path archivo_;

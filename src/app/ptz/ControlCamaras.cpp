@@ -7,6 +7,7 @@
 #include "InputSpecs.hpp"
 #include "net/Credentials.hpp"
 #include "ptz/OnvifBusqueda.hpp"
+#include "ptz/Posiciones.hpp"
 #include "ptz/PtzBackend.hpp"
 #include "ptz/PtzDigital.hpp"
 #include "ptz/PtzOnvif.hpp"
@@ -45,6 +46,7 @@ struct ControlCamaras::Camara {
     std::unique_ptr<PtzDigital> dig;
     std::unique_ptr<PtzBackend> hw;
     bool filtroPuesto = false; ///< el PTZ digital ya está en la fuente (y repuesto)
+    Posiciones posiciones;     ///< las posiciones con nombre
 };
 
 ControlCamaras::ControlCamaras(AppRuntime& rt, std::filesystem::path dataRoot, QObject* parent)
@@ -131,7 +133,8 @@ QVariantMap ControlCamaras::fila(const Camara& c) const {
             {"estado", c.hw ? c.hw->estado() : (c.digital ? QStringLiteral("Digital (recorte en la GPU)")
                                                            : QStringLiteral("PTZ apagado"))},
             {"estadoDigital", c.dig ? c.dig->estado() : QString()},
-            {"presetsDigitales", presetsDig}};
+            {"presetsDigitales", presetsDig},
+            {"posiciones", c.posiciones.json().toVariantList()}};
 }
 
 QVariantList ControlCamaras::camaras() const {
@@ -356,6 +359,186 @@ QVariantMap ControlCamaras::posicion(const QString& entrada) const {
 }
 
 // ---------------------------------------------------------------------------
+// Posiciones con nombre
+// ---------------------------------------------------------------------------
+
+QVariantList ControlCamaras::posiciones(const QString& entrada) const {
+    auto it = camaras_.find(entrada.toStdString());
+    return it == camaras_.end() ? QVariantList{} : it->second->posiciones.json().toVariantList();
+}
+
+QString ControlCamaras::registrar(Camara& c, Posicion& p, QString& aviso) {
+    // La definición de la entrada ahora.
+    int w = 0, h = 0;
+    rt_.engine().sourceSize(c.entrada, w, h);
+    p.ancho = w;
+    p.alto = h;
+    // El recorte digital.
+    p.digital = false;
+    if (c.digital && c.dig) {
+        const QVariantMap d = c.dig->posicion();
+        if (!d.isEmpty()) {
+            p.digital = true;
+            p.x = d["x"].toDouble();
+            p.y = d["y"].toDouble();
+            p.zoom = d["zoom"].toDouble();
+        }
+    }
+    // La cabeza: se graba en una memoria de la cámara.
+    QStringList faltas;
+    if (c.hw) {
+        if (!c.hw->listo()) {
+            faltas << QStringLiteral("la cámara no contesta: no se grabó en ella");
+        } else if (c.hw->memorias() <= 0) {
+            faltas << QStringLiteral("la cámara no tiene memorias");
+        } else if (c.hw->usaTokens()) {
+            p.backend = c.backend;
+            p.memoria = 0;
+            const QString entrada = qs(c.entrada), id = p.id;
+            // ONVIF: la cámara contesta el token después.
+            c.hw->grabarPosicion(0, p.nombre, [this, entrada, id](bool ok, QString token) {
+                auto it = camaras_.find(entrada.toStdString());
+                if (it == camaras_.end()) return;
+                if (Posicion* q = it->second->posiciones.buscar(id)) {
+                    q->token = ok ? token : QString();
+                    if (!ok) q->backend.clear();
+                    guardarPronto();
+                    emit cambio();
+                }
+            });
+        } else {
+            const int m = p.memoria > 0 ? p.memoria : c.posiciones.memoriaLibre(c.hw->memorias());
+            if (m <= 0) {
+                faltas << QStringLiteral("no quedan memorias libres en la cámara");
+            } else {
+                p.backend = c.backend;
+                p.memoria = m;
+                c.hw->grabarPosicion(m, p.nombre, [](bool, QString) {});
+            }
+        }
+    }
+    aviso = faltas.join("; ");
+    if (!p.digital && !p.tieneCamara() && !(c.hw && c.hw->usaTokens() && c.hw->listo()))
+        return QStringLiteral("No hay nada que registrar: prendé el PTZ digital o configurá la cámara (%1)").arg(aviso);
+    return {};
+}
+
+QVariantMap ControlCamaras::crearPosicion(const QString& entrada, const QString& nombre, const QString& comentario) {
+    QString error;
+    Camara* c = camara(entrada, &error);
+    if (c == nullptr) return {{"ok", false}, {"error", error}};
+    error = c->posiciones.validarNombre(nombre);
+    if (!error.isEmpty()) return {{"ok", false}, {"error", error}};
+    Posicion nueva;
+    nueva.nombre = nombre.trimmed();
+    nueva.comentario = comentario.trimmed();
+    Posicion& p = c->posiciones.agregar(nueva);
+    QString aviso;
+    error = registrar(*c, p, aviso);
+    const QString id = p.id;
+    if (!error.isEmpty()) {
+        c->posiciones.borrar(id);
+        return {{"ok", false}, {"error", error}};
+    }
+    guardarPronto();
+    emit cambio();
+    return {{"ok", true}, {"id", id}, {"aviso", aviso}};
+}
+
+QVariantMap ControlCamaras::editarPosicion(const QString& entrada, const QString& idONombre, const QVariantMap& cambios) {
+    QString error;
+    Camara* c = camara(entrada, &error);
+    if (c == nullptr) return {{"ok", false}, {"error", error}};
+    Posicion* p = c->posiciones.buscar(idONombre);
+    if (p == nullptr) return {{"ok", false}, {"error", QStringLiteral("No hay una posición «%1» en «%2»").arg(idONombre, entrada)}};
+    if (cambios.contains("nombre") && cambios["nombre"].toString().trimmed() != p->nombre) {
+        error = c->posiciones.validarNombre(cambios["nombre"].toString(), p->id);
+        if (!error.isEmpty()) return {{"ok", false}, {"error", error}};
+        p->nombre = cambios["nombre"].toString().trimmed();
+    }
+    if (cambios.contains("comentario")) p->comentario = cambios["comentario"].toString().trimmed();
+    QString aviso;
+    if (cambios.value("regrabar").toBool()) {
+        // Con ONVIF se borra la memoria vieja y se graba una nueva.
+        if (c->hw && c->hw->usaTokens() && !p->token.isEmpty()) {
+            c->hw->borrarPosicion(0, p->token);
+            p->token.clear();
+        }
+        Posicion copia = *p;
+        error = registrar(*c, copia, aviso);
+        if (!error.isEmpty()) return {{"ok", false}, {"error", error}};
+        // registrar() pudo dejar pendiente el token: se copia sin pisarlo.
+        Posicion* q = c->posiciones.buscar(copia.id);
+        const QString token = q->token;
+        *q = copia;
+        if (q->token.isEmpty()) q->token = token;
+        p = q;
+    }
+    p->modificada = Posiciones::ahora();
+    guardarPronto();
+    emit cambio();
+    return {{"ok", true}, {"aviso", aviso}};
+}
+
+QString ControlCamaras::borrarPosicion(const QString& entrada, const QString& idONombre) {
+    QString error;
+    Camara* c = camara(entrada, &error);
+    if (c == nullptr) return error;
+    const Posicion* p = c->posiciones.buscar(idONombre);
+    if (p == nullptr) return QStringLiteral("No hay una posición «%1» en «%2»").arg(idONombre, entrada);
+    // Libera la memoria en la cámara (si es la misma cámara que la grabó).
+    if (c->hw && p->tieneCamara() && p->backend == c->backend) c->hw->borrarPosicion(p->memoria, p->token);
+    c->posiciones.borrar(p->id);
+    guardarPronto();
+    emit cambio();
+    return {};
+}
+
+QVariantMap ControlCamaras::irAPosicion(const QString& entrada, const QString& idONombre, double segundos) {
+    QString error;
+    Camara* c = camara(entrada, &error);
+    if (c == nullptr) return {{"ok", false}, {"error", error}};
+    const Posicion* p = c->posiciones.buscar(idONombre);
+    if (p == nullptr) {
+        QStringList nombres;
+        for (const Posicion& x : c->posiciones.lista()) nombres << x.nombre;
+        return {{"ok", false},
+                {"error", QStringLiteral("No hay una posición «%1» en «%2» (hay: %3)")
+                              .arg(idONombre, entrada, nombres.isEmpty() ? QStringLiteral("ninguna") : nombres.join(", "))}};
+    }
+    QStringList avisos;
+    bool algo = false;
+    if (p->tieneCamara()) {
+        if (!c->hw || c->backend != p->backend) {
+            avisos << QStringLiteral("se grabó con el backend %1 y la cámara ahora tiene %2: la cabeza no se mueve")
+                          .arg(p->backend, c->backend);
+        } else {
+            if (!c->hw->listo()) avisos << QStringLiteral("la cámara no contesta");
+            c->hw->irAPosicion(p->memoria, p->token);
+            algo = true;
+        }
+    }
+    if (p->digital) {
+        if (!c->digital || !c->dig) {
+            avisos << QStringLiteral("el PTZ digital está apagado: el recorte no se aplica");
+        } else if (c->dig->ir(p->x, p->y, p->zoom, qBound(0.0, segundos, 10.0))) {
+            algo = true;
+        }
+    }
+    int w = 0, h = 0;
+    rt_.engine().sourceSize(c->entrada, w, h);
+    if (p->ancho > 0 && w > 0 && (p->ancho != w || p->alto != h))
+        avisos << QStringLiteral("se registró en %1 y la entrada ahora es %2x%3 (el recorte es proporcional: cae en el mismo lugar)")
+                      .arg(p->definicion())
+                      .arg(w)
+                      .arg(h);
+    if (!algo) return {{"ok", false}, {"error", QStringLiteral("No se pudo ir a «%1»: %2").arg(p->nombre, avisos.join("; "))}};
+    guardarPronto();
+    emit cambio();
+    return {{"ok", true}, {"nombre", p->nombre}, {"aviso", avisos.join("; ")}};
+}
+
+// ---------------------------------------------------------------------------
 // Configuración
 // ---------------------------------------------------------------------------
 
@@ -470,6 +653,7 @@ void ControlCamaras::leer() {
         c->mejora = j.value("mejora").toString("general");
         c->modo = j.value("modo").toString("optico");
         if (j.contains("posicion")) c->posicion = j.value("posicion").toObject();
+        c->posiciones.cargar(j.value("posiciones").toArray());
         c->dig = std::make_unique<PtzDigital>(c->entrada);
         c->dig->setPresets(j.value("presets").toObject());
         connect(c->dig.get(), &PtzBackend::estadoCambio, this, [this]() {
@@ -500,7 +684,8 @@ void ControlCamaras::guardar() {
                                         {"mejora", c->mejora},
                                         {"modo", c->modo},
                                         {"posicion", c->posicion},
-                                        {"presets", c->dig ? c->dig->presets() : QJsonObject{}}};
+                                        {"presets", c->dig ? c->dig->presets() : QJsonObject{}},
+                                        {"posiciones", c->posiciones.json()}};
     }
     std::error_code ec;
     std::filesystem::create_directories(archivo_.parent_path(), ec);
