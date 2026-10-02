@@ -400,17 +400,27 @@ let tokToolCall: Int = tok.convertTokenToId("<tool_call>") ?? -1
 
 /// Recorre el árbol desde `lg` (los logits del próximo token): fuerza donde
 /// hay un solo camino y elige el más probable donde se abre. Devuelve el
-/// nombre, la probabilidad de las elecciones y los tokens (el último sin
-/// pasar todavía por el modelo).
+/// nombre, la probabilidad de las elecciones, los tokens y los que todavía no
+/// pasaron por el modelo (`pendientes`, el final de `tokens`).
+///
+/// LO FORZADO VA JUNTO: los logits solo hacen falta donde el árbol se abre,
+/// así que los tramos de un solo camino («<tool_call>\n<function=», el resto
+/// de un nombre) entran al modelo en una sola pasada. De a uno eran ~25 ms por
+/// token sobre 8 mil de contexto: unos 250 ms antes del primer token.
 func caminarTc(_ lg0: MLXArray, _ c: [KVCache], _ estado: inout LMOutput.State?, sesgo: Float)
-    -> (nombre: String, prob: Double, tokens: [Int])
+    -> (nombre: String, prob: Double, tokens: [Int], pendientes: [Int])
 {
     var lg = lg0
     var pre: [Int] = []
+    var pendientes: [Int] = []
     var prob = 1.0
     while let ops = arbolTc.siguientes[pre], !ops.isEmpty {
         var elegido = ops[0]
         if ops.count > 1 {
+            if !pendientes.isEmpty {
+                lg = adelante(pendientes, c, &estado)
+                pendientes = []
+            }
             var val = lg[arr(ops)]
             if sesgo != 0, let i = ops.firstIndex(where: { (arbolTc.quedan[pre + [$0]] ?? []).contains(prompt.derivar) }) {
                 var bump = [Float](repeating: 0, count: ops.count)
@@ -423,11 +433,41 @@ func caminarTc(_ lg0: MLXArray, _ c: [KVCache], _ estado: inout LMOutput.State?,
             elegido = ops[k]
         }
         pre.append(elegido)
+        pendientes.append(elegido)
         if arbolTc.siguientes[pre] == nil { break } // nombre completo (el «>» incluido)
-        lg = adelante([elegido], c, &estado)
     }
     let nombre = (arbolTc.quedan[pre] ?? []).first ?? prompt.derivar
-    return (nombre, prob, pre)
+    return (nombre, prob, pre, pendientes)
+}
+
+// MARK: - preparar: el estado leído antes de que llegue la frase
+
+/// El turno es «Estado: {…}\nPedido: <frase>» y el estado va ANTES de la
+/// frase: se puede leer mientras el operador todavía habla (la app lo pide al
+/// apretar F9). Queda la caché hasta «Pedido:» y, cuando llega la frase, solo
+/// falta « <frase>» y la cola: de ~1 s a lo que tarde la frase.
+struct Preparado {
+    var estado: String
+    var ids: [Int]
+    var cache: [KVCache]
+    var st: LMOutput.State?
+}
+var preparado: Preparado? = nil
+let detalle = ProcessInfo.processInfo.environment["BA_PREFIJO_DETALLE"] != nil
+
+func inicioDelTurno(_ estadoJson: String) -> String { "Estado: \(estadoJson)\nPedido:" }
+
+/// Lee el comienzo del turno con este estado (si ya estaba, no hace nada).
+func preparar(_ estadoJson: String) -> (ms: Double, tokens: Int, yaEstaba: Bool) {
+    let t = Date()
+    if let p = preparado, p.estado == estadoJson { return (ms(t), p.ids.count, true) }
+    let toks = ids(inicioDelTurno(estadoJson))
+    let c = copiaDelPrefijo()
+    var est = estadoPrefijo
+    _ = adelante(toks, c, &est)
+    eval(c)
+    preparado = Preparado(estado: estadoJson, ids: toks, cache: c, st: est)
+    return (ms(t), toks.count, false)
 }
 
 /// Un pedido al modelo v2: estado (JSON compacto, o nada para charla) y frase.
@@ -437,9 +477,28 @@ func llamar(id: Any, estadoJson: String?, frase: String, sesgo: Float, gramatica
 {
     let t0 = Date()
     let usuario = (estadoJson ?? "").isEmpty ? frase : "Estado: \(estadoJson!)\nPedido: \(frase)"
-    let c = copiaDelPrefijo()
-    var est = estadoPrefijo
-    let lg = adelante(ids(usuario + prompt.cola), c, &est)
+    let todos = ids(usuario + prompt.cola)
+    // Si el estado ya estaba leído (preparar) y sus tokens son EXACTAMENTE el
+    // comienzo de los del pedido entero, se sigue desde ahí. Si no (otro
+    // estado, o el tokenizador juntó distinto el borde), desde el prefijo.
+    var c: [KVCache]
+    var est: LMOutput.State?
+    var faltan = todos
+    var usoPreparado = false
+    if let p = preparado, let e = estadoJson, p.estado == e, todos.count > p.ids.count,
+        Array(todos[0..<p.ids.count]) == p.ids
+    {
+        c = p.cache.map { $0.copy() }
+        est = p.st
+        faltan = Array(todos[p.ids.count...])
+        usoPreparado = true
+    } else {
+        c = copiaDelPrefijo()
+        est = estadoPrefijo
+    }
+    let tCopia = ms(t0)
+    let lg = adelante(faltan, c, &est)
+    if detalle { eval(lg); FileHandle.standardError.write("llamar: copia \(tCopia) ms, turno \(faltan.count) tokens \(ms(t0) - tCopia) ms\n".data(using: .utf8)!) }
     let primeroLibre = argMax(lg).item(Int.self)
     let pLlamada = tokToolCall >= 0 ? Double(softmax(lg)[tokToolCall].item(Float.self)) : 0
     // ¿Llamada o charla? Lo dice el primer token (con gramática, alcanza con
@@ -447,10 +506,10 @@ func llamar(id: Any, estadoJson: String?, frase: String, sesgo: Float, gramatica
     let esLlamada = primeroLibre == tokToolCall || (gramatica && pLlamada >= 0.5)
     var r: [String: Any]
     if esLlamada && gramatica && prompt.formato == "tc" {
-        let (nombre, prob, toks) = caminarTc(lg, c, &est, sesgo: sesgo)
+        let (nombre, prob, toks, pendientes) = caminarTc(lg, c, &est, sesgo: sesgo)
         r = try generar(
-            id: id, entrada: LMInput(tokens: arr([toks.last!])), cache: c, estado: est, max: max,
-            usarMtp: usarMtp, previos: toks, t0: t0) // el último entra al modelo y también es salida
+            id: id, entrada: LMInput(tokens: arr(pendientes)), cache: c, estado: est, max: max,
+            usarMtp: usarMtp, previos: toks, t0: t0) // los pendientes entran al modelo y también son salida
         r["herramienta"] = nombre
         r["prob"] = prob
     } else {
@@ -464,6 +523,8 @@ func llamar(id: Any, estadoJson: String?, frase: String, sesgo: Float, gramatica
     }
     r["tipo"] = esLlamada ? "llamada" : "charla"
     r["p_llamada"] = pLlamada
+    r["preparado"] = usoPreparado
+    r["tokens_turno"] = faltan.count
     return r
 }
 
@@ -686,6 +747,13 @@ while let linea = readLine(strippingNewline: true) {
         } catch {
             emitir(["id": id, "error": "\(error)"])
         }
+    case "preparar":
+        guard prompt.formato == "tc", let estado = pedido["estado"] as? String, !estado.isEmpty else {
+            emitir(["id": id, "error": "preparar es para el formato tc, con estado"])
+            continue
+        }
+        let r = preparar(estado)
+        emitir(["id": id, "preparado": true, "ms": r.ms, "tokens": r.tokens, "ya_estaba": r.yaEstaba])
     case "generar":
         guard let texto = pedido["texto"] as? String else {
             emitir(["id": id, "error": "falta texto"])
