@@ -99,7 +99,8 @@ def main():
     ap.add_argument("--charla-de", default="~/entrenamientos/tc/charla-*.jsonl")
     ap.add_argument("--k", type=int, default=4, help="ejemplos por plantilla (estados distintos)")
     ap.add_argument("--charla", type=float, default=0.35, help="porcion de charla en el corpus")
-    ap.add_argument("--derivar", type=float, default=0.15, help="porcion de derivar")
+    ap.add_argument("--derivar", type=float, default=0.10,
+                    help="porcion de derivar (0,15 en el v2: derivaba de mas, cobertura 81,7 %%)")
     ap.add_argument("--prueba", type=float, default=0.15, help="plantillas que no se entrenan")
     ap.add_argument("--falta", type=float, default=0.10, help="porcion (techo) de falta_dato")
     ap.add_argument("--semilla", type=int, default=13)

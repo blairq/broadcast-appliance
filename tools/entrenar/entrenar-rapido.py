@@ -62,6 +62,8 @@ def main():
                     help="un solo proceso con el modelo repartido entre las placas visibles (capas"
                          " 0..k en una, el resto en la otra; las activaciones pasan por P2P). Para"
                          " modelos que no entran en una placa: el 9B entra en bf16, sin cuantizar")
+    ap.add_argument("--micro", type=int, default=0,
+                    help="micro-lotes de este tamano sobre UN prefijo (gradiente exacto del lote entero)")
     ap.add_argument("--recalcular", action="store_true",
                     help="no guardar las activaciones (prefijo y sufijo): se recalculan en el backward, capa por capa")
     args = ap.parse_args()
@@ -165,10 +167,13 @@ def main():
     ids_pre_t = torch.tensor([ids_pre], device=dev)
     Lp = len(ids_pre)
 
-    def perdida(lote, grad=True):
-        """Prefijo una vez; sufijos en lote sobre el cache expandido."""
+    def perdida(lote, grad=True, kv_dado=None):
+        """Prefijo una vez; sufijos en lote sobre el cache expandido. Con kv_dado,
+        el prefijo ya viene hecho (paso_amortizado)."""
         with torch.autocast("cuda", dtype=torch.bfloat16), torch.set_grad_enabled(grad):
-            if args.recalcular and grad:
+            if kv_dado is not None:
+                kv = kv_dado
+            elif args.recalcular and grad:
                 # el prefijo se recalcula capa por capa en el backward (cache_hibrido)
                 kv = DynamicCache(config=modelo.config)
                 with ch.recalculando():
@@ -213,6 +218,37 @@ def main():
                 lg = cabeza_lm(h_sel[i:i + 512].to(cabeza_lm.weight.device))
                 suma = suma + F.cross_entropy(lg.float(), t_sel[i:i + 512].to(lg.device), reduction="sum")
             return suma, sel.sum().to(suma.device)  # con embeddings atados lm_head esta en la placa 0
+
+    def paso_amortizado(lote, micro):
+        """EL PREFIJO UNA SOLA VEZ PARA VARIOS MICRO-LOTES, con el gradiente exacto.
+
+        El prefijo (las fichas o las herramientas: ~8.000 tokens en el formato de
+        tool calling) era casi todo el costo de un paso, y se pagaba por cada lote
+        de 8. Aca: (1) el prefijo hacia adelante una vez; (2) su cache se corta del
+        grafo en HOJAS que piden gradiente; (3) cada micro-lote va y vuelve sobre
+        una copia armada con esas hojas, que acumulan el gradiente que llega al
+        prefijo; (4) un solo backward del prefijo con ese gradiente acumulado. La
+        suma de los gradientes es la del lote entero: mismo resultado, un prefijo."""
+        import contextlib
+        with torch.autocast("cuda", dtype=torch.bfloat16):
+            kv0 = DynamicCache(config=modelo.config)
+            with (ch.recalculando() if args.recalcular else contextlib.nullcontext()):
+                modelo(input_ids=ids_pre_t, past_key_values=kv0, use_cache=True)
+        ts = ch.tensores(kv0)
+        hojas = [t.detach().requires_grad_(t.is_floating_point()) for t in ts]
+        n_total = torch.tensor(float(sum(n for _, n in lote)), device=dev)
+        if dist_on:
+            dist.all_reduce(n_total)
+        suma_total = 0.0
+        for i in range(0, len(lote), micro):
+            kv = ch.desde_tensores(modelo.config, hojas)
+            suma, _ = perdida(lote[i:i + micro], kv_dado=kv)
+            (suma / n_total.to(suma.device) * mundo).backward()
+            suma_total = suma_total + suma.detach().to(dev)
+        pares = [(t, h.grad) for t, h in zip(ts, hojas) if h.grad is not None and t.requires_grad]
+        if pares:
+            torch.autograd.backward([t for t, _ in pares], [g for _, g in pares])
+        return suma_total, n_total
 
     por_placa = args.lote // mundo
     pasos_epoca = len(E) // args.lote
@@ -261,11 +297,15 @@ def main():
         mio = [E[i] for i in lote_ids[rank * por_placa:(rank + 1) * por_placa]]
         for g in opt.param_groups:
             g["lr"] = lr_en(paso)
-        suma, n = perdida(mio)
-        n_tot = n.float()
-        if dist_on:
-            dist.all_reduce(n_tot)
-        (suma / n_tot * mundo).backward()   # promedio por token sobre TODO el lote
+        if args.micro and args.micro < len(mio):
+            suma, n = paso_amortizado(mio, args.micro)   # ya hizo el backward
+            n_tot = n
+        else:
+            suma, n = perdida(mio)
+            n_tot = n.float()
+            if dist_on:
+                dist.all_reduce(n_tot)
+            (suma / n_tot * mundo).backward()   # promedio por token sobre TODO el lote
         if dist_on:
             for p in entrenables:
                 dist.all_reduce(p.grad)

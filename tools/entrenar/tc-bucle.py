@@ -191,7 +191,7 @@ def main():
         ad = d / "adaptador"
         if not (ad / "adapter_config.json").exists():
             correr([PY, E / "entrenar-rapido.py", "--repartir", "--recalcular", "--base", args.base, "--datos", corpus,
-                    "--salida", ad, "--epocas", str(args.epocas), "--eval-cada", "200"],
+                    "--salida", ad, "--epocas", str(args.epocas), "--eval-cada", "200", "--lote", "16", "--micro", "8"],
                    env={"PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True"}, salida=d / "entrenar.log")
         m = medir(ad, corpus, d / "medidas.json", args.limite_banco)
         med = m["medidas"]
