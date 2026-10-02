@@ -134,6 +134,80 @@ def leer_metricas(texto):
     return m
 
 
+# El contrato del formato de tool calling (v2), para la tarjeta: lo que tiene que
+# hacer quien lo sirve (ba-modelo, llama.cpp). Fuente: tools/lib_tc.py.
+FORMATO_TC = """## Formato (el contrato para servirlo)
+
+Todo sale de `prompt.json` (fuente: `tools/lib_tc.py` del aparato). Firma del prompt: `@HUELLA@`.
+
+**1. Cabeza fija** (`cabeza`, ~8.200 tokens, idéntica byte a byte: procesarla una vez y reusar el
+caché). Es el system nativo de tools de Qwen3.5: `# Tools … <tools>` con un JSON por línea por cada
+herramienta (descripción corta y esquema compactado) más dos pseudo-funciones, **`derivar`** (sin
+argumentos: no es para estas herramientas) y **`falta_dato`** (argumento `pregunta`), la instrucción
+estándar de Qwen y las reglas del aparato. Termina en `<|im_start|>user\\n`.
+
+**2. Turno del usuario**
+
+```
+Estado: {JSON compacto del estado}
+Pedido: <frase del operador>
+```
+
+JSON sin espacios (`separators=(',',':')`) y con tildes reales. El estado **completo**:
+`escena_actual`, `escena_armada` (texto), `escenas` (nombres), `fuentes_de_la_escena_actual`
+(`[{nombre, visible}]`), `audio` (`[{nombre, volumen_db, silenciada}]`; el primero es el micrófono
+del operador, el predeterminado si no se nombra fuente), `participantes` (`[{id, nombre, estado}]`),
+`graficos`, `carruseles` (nombres). Charla sin estado: solo la frase.
+
+**3. Cola** (`cola`): `<|im_end|>\\n<|im_start|>assistant\\n<think>\\n\\n</think>\\n\\n` (sin razonamiento).
+
+**4. Respuesta** (termina en `<|im_end|>`)
+
+```
+<tool_call>
+<function=audio_set>
+<parameter=name>
+Música
+</parameter>
+<parameter=volumeDb>
+-4
+</parameter>
+</function>
+</tool_call>
+```
+
+- herramienta: `<function=nombre>` con sus `<parameter=…>`;
+- no es suyo: `<function=derivar>` sin parámetros (al asistente grande);
+- falta un dato obligatorio: `<function=falta_dato>` con `pregunta` («¿A qué escena?»);
+- charla: texto, sin `<tool_call>`.
+
+Para leerla: `<tool_call>\\s*<function=([^>\\n]+)>(.*?)</function>\\s*</tool_call>` y los parámetros con
+`<parameter=([^>\\n]+)>\\n?(.*?)\\n?</parameter>`. Los valores salen como texto.
+
+**5. Convenciones de los valores** (en XML no hay comillas: por eso el `=`)
+
+| | se escribe | ejemplo |
+|---|---|---|
+| nombres | exactos, copiados del estado | `Micro Laura` |
+| cambio relativo | con signo; «un poco» = 3, sin cantidad = 6; **quien sirve lo suma** al valor real y lo recorta al rango | `-4`, `+3` |
+| valor exacto | con `=` adelante | `=-10` |
+| booleanos | | `true` / `false` |
+| enum | el valor exacto del esquema | |
+
+**6. Recomendado al servirlo**
+
+- Restringir el nombre: después de `<tool_call>\\n<function=` solo un nombre de `funciones` y `>`;
+  el resto, libre (así se midió el banco; el formato salió válido en el 100 % sin gramática).
+- Dial de `derivar`: sumarle un sesgo al logit de su primer token, como en el v1.
+- Validar siempre: nombres que existen, rangos, requeridos.
+- MTP: la misma cabeza que el v1 (`mtp.safetensors` fp16 / `mtp-q8.safetensors` en el MLX; adentro
+  del GGUF para `--spec-type draft-mtp`).
+
+**Diferencias con el v1**: el v1 contesta solo el nombre de la herramienta (con otro prompt, de
+fichas) y los argumentos van en una segunda llamada; el v2 hace las dos cosas en una. En el v1 el
+valor exacto iba como número suelto; en el v2, `-10` es un cambio y `=-10` es exacto."""
+
+
 class Fabrica:
     def __init__(self, args):
         self.a = args
@@ -915,6 +989,8 @@ Todo lo que hace falta para servirlo está en `prompt.json`: la cabeza exacta (s
 {len(p.get('herramientas', []))} herramientas y `derivar`/`falta_dato`), la forma del pedido, la cola y las convenciones:
 nombres copiados del estado; cambios con signo (`-4`, `+3`; «un poco» = 3, sin cantidad = 6); valor
 exacto con `=` (`=-10`); booleanos `true`/`false`. Firma del prompt: `{p.get('prompt')}`.
+
+{FORMATO_TC.replace("@HUELLA@", str(p.get('prompt')))}
 
 ## Entrenamiento
 
