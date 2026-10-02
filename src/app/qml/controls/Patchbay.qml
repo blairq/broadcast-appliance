@@ -103,14 +103,14 @@ Rectangle {
         return Qt.point((a.x + 3 * (a.x + d) + 3 * (b.x - d) + b.x) / 8, (a.y + 3 * a.y + 3 * b.y + b.y) / 8)
     }
 
-    // Si el grafo no entra a lo ancho, se achica (hasta 55 %) en vez de
+    // Si el grafo no entra a lo ancho, se achica (hasta 40 %) en vez de
     // dejar tarjetas fuera de vista; con lugar, tamaño normal.
     readonly property real anchoGrafo: {
         let m = 0
         for (let i = 0; i < nodos.length; ++i) m = Math.max(m, nodos[i].x + nodeW)
         return m + 40
     }
-    readonly property real escala: Math.max(0.55, Math.min(1, (flick.width - 8) / Math.max(1, anchoGrafo)))
+    readonly property real escala: Math.max(0.4, Math.min(1, (flick.width - 8) / Math.max(1, anchoGrafo)))
 
     Flickable {
         id: flick

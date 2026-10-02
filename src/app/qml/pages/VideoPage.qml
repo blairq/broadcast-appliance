@@ -15,7 +15,7 @@ Rectangle {
     property real leftInset: 92
     readonly property var vg: Studio.video
     readonly property var g: vg ? vg.grafo : ({})
-    readonly property var est: vg && vista === "estudio" ? vg.estudio : ({})
+    readonly property var est: vg && page.vista === "estudio" ? vg.estudio : ({})
     property string sel: ""
     // Dos vistas, como el audio: el rack de UNA entrada, o todo el estudio
     // (cada entrada en su franja y los cables que cruzan entre ellas).
@@ -87,11 +87,11 @@ Rectangle {
         return out
     }
     // La vista Estudio: todos los nodos, cada entrada en su franja.
-    onEstChanged: console.log("DEPURACION estudio:", JSON.stringify(Object.keys(page.est)), (page.est.nodos || []).length, "vista", page.vista)
     readonly property var nodosEstudio: {
         const l = page.est.nodos || []
         const out = []
-        for (let i = 0; i < l.length; ++i) out.push(Object.assign({}, l[i], { resumen: page.resumen(l[i]), externo: false }))
+        // Un margen arriba: el nombre de la primera franja tiene que entrar.
+        for (let i = 0; i < l.length; ++i) out.push(Object.assign({}, l[i], { resumen: page.resumen(l[i]), externo: false, y: l[i].y + 30 }))
         return out
     }
     readonly property var franjasEstudio: {
@@ -106,7 +106,7 @@ Rectangle {
         }
         const out = []
         for (const k in porGrupo)
-            if (k !== "") out.push({ titulo: k, y: porGrupo[k].min - 26, alto: porGrupo[k].max - porGrupo[k].min + 40 })
+            if (k !== "") out.push({ titulo: k, y: porGrupo[k].min + 30 - 26, alto: porGrupo[k].max - porGrupo[k].min + 40 })
         return out
     }
     function elegir(id) {
@@ -308,7 +308,7 @@ Rectangle {
                 seleccionado: page.sel
                 colorDe: page.colorDe
                 onElegir: (id) => page.elegir(id)
-                onMover: (id, x, y) => page.avisar(page.vg.mover(id, x, y))
+                onMover: (id, x, y) => page.avisar(page.vg.mover(id, x, page.vista === "estudio" ? y - 30 : y))
                 onConectar: (desde, salida, hacia, entrada) => page.avisar(page.vg.conectar(desde, salida, hacia, entrada))
                 onDesconectar: (desde, salida, hacia, entrada) => page.avisar(page.vg.desconectar(desde, salida, hacia, entrada))
             }
@@ -345,13 +345,13 @@ Rectangle {
                         }
                     }
                     VideoItem {
-                        id: vista
+                        id: vistaPrevia
                         anchors.fill: parent
                         source: page.vg && page.vg.entrada !== "" ? "entrada:" + page.vg.entrada : ""
                         fillMode: VideoItem.Fit
                     }
                     Text {
-                        visible: !vista.hasFrame
+                        visible: !vistaPrevia.hasFrame
                         anchors.centerIn: parent
                         text: "Sin señal"; color: Theme.textFaint; font.pixelSize: 12
                     }
@@ -557,3 +557,4 @@ Rectangle {
         }
     }
 }
+
