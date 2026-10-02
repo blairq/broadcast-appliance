@@ -20,6 +20,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <mutex>
+#include <string>
 
 struct obs_source;
 
@@ -30,7 +31,10 @@ void registrarMonitorVoz();
 
 class MonitorVoz {
    public:
-    MonitorVoz() = default;
+    /// `nombre`: como aparece en Audio y en la Matriz; `canal`: su canal de
+    /// salida (63 la del sistema, 62 la del teleprompter).
+    explicit MonitorVoz(std::string nombre = "Voz del sistema", std::uint32_t canal = 63)
+        : nombre_(std::move(nombre)), canal_(canal) {}
     ~MonitorVoz();
     MonitorVoz(const MonitorVoz&) = delete;
     MonitorVoz& operator=(const MonitorVoz&) = delete;
@@ -39,6 +43,10 @@ class MonitorVoz {
     /// frases de una respuesta salen pegadas, sin huecos ni encimadas).
     /// Thread-safe. Sin libobs arriba no hace nada.
     void reproducir(const float* muestras, std::size_t n, std::uint32_t frecuencia);
+    /// Lo mismo, pero que empiece en `inicioNs` (reloj de libobs, os_gettime_ns):
+    /// para sincronizar con algo de afuera (el teleprompter). Si ya pasó, sale
+    /// enseguida.
+    void reproducirEn(const float* muestras, std::size_t n, std::uint32_t frecuencia, std::uint64_t inicioNs);
     /// Corta lo que se está diciendo (el operador volvió a apretar la tecla).
     /// Silencia hasta que se acabe lo encolado (la fuente no se rearma: así no
     /// se pierden su rack ni su ruteo).
@@ -51,6 +59,9 @@ class MonitorVoz {
     bool asegurar();
     std::mutex lock_;
     struct obs_source* fuente_ = nullptr;
+    void empujar(const float* muestras, std::size_t n, std::uint32_t frecuencia, std::uint64_t ts);
+    std::string nombre_;
+    std::uint32_t canal_;
     std::uint64_t proximo_ = 0;       ///< ns: dónde termina lo encolado
     std::uint64_t silencioHasta_ = 0; ///< ns: callada hasta que se acabe lo encolado
 };

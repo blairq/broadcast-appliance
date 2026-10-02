@@ -139,14 +139,18 @@ Rectangle {
     readonly property var sourceTree: {
         groupTick
         const src = au ? au.sources : []
-        const orden = ["Invitados", "Micrófonos y líneas del equipo", "Audio del equipo (lo que suena)",
-                       "Medios y red", "Otras fuentes"]
+        const orden = ["Invitados", "Micrófonos y líneas del equipo", "Voces (texto a audio)",
+                       "Audio del equipo (lo que suena)", "Medios y red", "Otras fuentes"]
         const porGrupo = {}
         for (let i = 0; i < src.length; ++i) {
             const g = src[i].grupo || "Otras fuentes"
             if (!porGrupo[g]) porGrupo[g] = []
             porGrupo[g].push(src[i])
         }
+        // Un grupo nuevo que no está en el orden también se muestra (al final):
+        // antes se descartaba en silencio y la fuente no aparecía.
+        for (const g in porGrupo)
+            if (orden.indexOf(g) < 0) orden.push(g)
         const filas = []
         for (const g of orden) {
             if (!porGrupo[g]) continue

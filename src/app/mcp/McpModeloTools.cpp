@@ -18,6 +18,7 @@
 
 #include "agent/ModelosLocales.hpp"
 #include "agent/Voz.hpp"
+#include "agent/VozPrompter.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/StudioViewModel.hpp"
@@ -418,6 +419,22 @@ void McpService::registerModeloTools() {
                                             {"prob", p.value("prob").toDouble()},
                                             {"conDatos", p.value("conDatos").toBool()}}));
             });
+        };
+        core_.addTool(std::move(t));
+    }
+    if (auto* vp = qobject_cast<agent::VozPrompter*>(vm_.vozPrompter()); vp != nullptr) {
+        Tool t;
+        t.name = "voz_teleprompter";
+        t.title = "Leer el teleprompter en voz alta";
+        t.category = "agentes";
+        t.description =
+            "Prende o apaga la «Voz del teleprompter»: dice el texto cargado siguiendo los controles del "
+            "teleprompter (velocidad, pausa, saltos). Es una fuente de audio (audio_matriz para rutearla; de "
+            "fabrica, solo en los auriculares). Sin `activa`, informa el estado.";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"activa", {{"type", "boolean"}}}}}};
+        t.run = [vp](const json& a, Done done) {
+            if (a.contains("activa")) vp->setActiva(a.value("activa", false));
+            done(ToolResult().data(json{{"activa", vp->activa()}, {"estado", vp->estado().toStdString()}}));
         };
         core_.addTool(std::move(t));
     }

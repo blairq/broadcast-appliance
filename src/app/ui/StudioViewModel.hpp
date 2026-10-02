@@ -28,6 +28,7 @@ class Despachador;
 class ModelosLocales;
 class Roles;
 class Voz;
+class VozPrompter;
 } // namespace ba::app::agent
 
 namespace ba::app::audio {
@@ -153,6 +154,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* modelos READ modelos CONSTANT)
     /// Hablarle al asistente (push-to-talk): ver agent/Voz.hpp.
     Q_PROPERTY(QObject* voz READ voz CONSTANT)
+    /// «Voz del teleprompter»: el guion dicho en voz alta, siguiendo al teleprompter.
+    Q_PROPERTY(QObject* vozPrompter READ vozPrompter CONSTANT)
     /// La matriz de mezcla (fuentes × pistas y buses virtuales): audio/Matriz.hpp.
     Q_PROPERTY(QObject* matriz READ matriz CONSTANT)
     /// Los roles automaticos y sus corridas (pagina Agentes).
@@ -235,6 +238,7 @@ class StudioViewModel : public QObject {
     QObject* agent() const;
     QObject* modelos() const;
     QObject* voz() const;
+    QObject* vozPrompter() const;
     QObject* matriz() const;
     agent::ModelosLocales* modelosLocales() const { return modelos_.get(); }
     QObject* messages() const;
@@ -412,6 +416,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<agent::Despachador> despachador_;
     std::unique_ptr<agent::ModelosLocales> modelos_;
     std::unique_ptr<agent::Voz> voz_;
+    std::unique_ptr<agent::VozPrompter> vozPrompter_;
     std::unique_ptr<OperatorMessages> messages_;
     std::unique_ptr<InputsViewModel> inputs_;
     std::unique_ptr<ChatOverlayRenderer> chatOverlay_;

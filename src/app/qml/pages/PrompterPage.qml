@@ -66,6 +66,21 @@ Rectangle {
                 dot: page.p.controles > 0 ? Theme.ok : Theme.textFaint
                 medidaDe: "0 con el control"
             }
+            // «Voz del teleprompter»: el guion en voz alta, al ritmo del teleprompter.
+            // Es una fuente de audio (Audio, Matriz): de fábrica, solo en los auriculares.
+            GlassButton {
+                visible: !!Studio.vozPrompter
+                compact: true
+                icon: "🗣"
+                text: Studio.vozPrompter && Studio.vozPrompter.activa ? "Leyendo en voz alta" : "Leer en voz alta"
+                active: !!Studio.vozPrompter && Studio.vozPrompter.activa
+                onClicked: Studio.vozPrompter.activa = !Studio.vozPrompter.activa
+                ToolTip.visible: hovered; ToolTip.delay: 400
+                ToolTip.text: (Studio.vozPrompter ? Studio.vozPrompter.estado + ". " : "") +
+                              "Dice el texto siguiendo los controles del teleprompter (velocidad, pausa, saltos). " +
+                              "Suena por la fuente «Voz del teleprompter»: en Audio se le ponen filtros y en la " +
+                              "Matriz se rutea; de fábrica, solo en tus auriculares."
+            }
             Item { Layout.fillWidth: true }
             Text {
                 visible: page.p.sinEvento !== ""

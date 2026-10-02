@@ -736,9 +736,14 @@ void Voz::revisarVoz() {
     v.tokens = (d / "tokens.txt").string();
     v.datos = (d / "espeak-ng-data").string();
     emit cambio();
-    habla_->cargar(v, [this](const std::string& error) {
-        QMetaObject::invokeMethod(this, [this, error]() {
+    habla_->cargar(v, [this, v](const std::string& error) {
+        QMetaObject::invokeMethod(this, [this, error, v]() {
             vozLista_ = habla_->cargada();
+            vozParaOtros_ = vozLista_ ? QVariantMap{{"modelo", QString::fromStdString(v.modelo)},
+                                                    {"tokens", QString::fromStdString(v.tokens)},
+                                                    {"datos", QString::fromStdString(v.datos)},
+                                                    {"repo", vozCargada_}}
+                                      : QVariantMap{};
             hablantes_ = habla_->hablantes();
             if (hablante_ >= hablantes_) hablante_ = 0;
             if (!error.empty()) emit notify("La voz no cargó: " + QString::fromStdString(error), "warn");

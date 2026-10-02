@@ -562,6 +562,10 @@ endif()
     endif()
 
     # Modelos locales: leer la API de Hugging Face y verificar lo bajado (sin red).
+    # Las cuentas de la voz del teleprompter (agent/VozPrompterPlan).
+    add_executable(test_voz_prompter tests/test_voz_prompter.cpp agent/VozPrompterPlan.cpp)
+    target_include_directories(test_voz_prompter PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    add_test(NAME test_voz_prompter COMMAND test_voz_prompter)
     # Validar los argumentos que escribe el modelo local (agent/ArgumentosLocales).
     add_executable(test_argumentos_locales tests/test_argumentos_locales.cpp agent/ArgumentosLocales.cpp)
     target_include_directories(test_argumentos_locales PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

@@ -463,7 +463,7 @@ json RackManager::audioSources() const {
             // Grupo para el arbol de la interfaz: por donde entra el audio.
             std::string group = "Otras fuentes";
             if (type == "ba_voz_asistente") {
-                group = "Voz del sistema";
+                group = "Voces (texto a audio)"; // la del sistema, la del teleprompter…
             } else if (type == "ba_guest_audio") {
                 group = "Invitados";
             } else if (type.find("_input_capture") != std::string::npos) {

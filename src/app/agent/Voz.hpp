@@ -187,6 +187,9 @@ class Voz : public QObject {
     void setUsarModeloLocal(bool on);
     QVariantList automaticas() const;
     bool contestarConVoz() const { return contestarConVoz_; }
+    /// La voz cargada, para otras fuentes que hablan (el teleprompter):
+    /// {modelo, tokens, datos, hablante, repo}. Vacío si no hay voz.
+    QVariantMap vozParaOtros() const { return vozParaOtros_; }
     QString auriculares() const;
     QVariantList salidasAudio() const;
     /// Elige los auriculares ("" = la salida del sistema). Devuelve el error o "".
@@ -254,6 +257,7 @@ class Voz : public QObject {
     QVariantMap propuesta_;
     bool usarModeloLocal_ = true;
     bool contestarConVoz_ = true;
+    QVariantMap vozParaOtros_;
     QStringList automaticas_;
     int ultimoId_ = 0; ///< el `id` de la última frase atendida (bitácora)
     std::unique_ptr<audio::Escucha> escucha_;
