@@ -64,6 +64,7 @@ def main():
     ap.add_argument("--limite-banco", type=int, default=0, help="medir N casos del banco, repartidos parejo")
     ap.add_argument("--sesgo", type=float, default=0.0, help="dial de derivar en la eleccion")
     ap.add_argument("--json", help="donde dejar medidas y fallos")
+    ap.add_argument("--tipo", choices=["bf16", "fp16"], default="bf16", help="fp16: ver si desborda (M1/M2)")
     args = ap.parse_args()
     conj = set(args.conjuntos.split(","))
     corpus = Path(args.corpus).expanduser()
@@ -72,16 +73,17 @@ def main():
     import torch.nn.functional as F
     from transformers import AutoModelForCausalLM, AutoTokenizer
     import cache_hibrido as ch
+    TIPO = torch.float16 if args.tipo == "fp16" else torch.bfloat16
     m_dir = Path(args.modelo).expanduser()
     if (m_dir / "adapter_config.json").exists():
         from peft import PeftModel
         cfg = json.loads((m_dir / "adapter_config.json").read_text())
-        modelo = AutoModelForCausalLM.from_pretrained(cfg["base_model_name_or_path"], dtype=torch.bfloat16,
+        modelo = AutoModelForCausalLM.from_pretrained(cfg["base_model_name_or_path"], dtype=TIPO,
                                                       device_map={"": "cuda:0"})
         modelo = PeftModel.from_pretrained(modelo, str(m_dir)).merge_and_unload()
         tok = AutoTokenizer.from_pretrained(str(m_dir))
     else:
-        modelo = AutoModelForCausalLM.from_pretrained(args.modelo, dtype=torch.bfloat16, device_map={"": "cuda:0"})
+        modelo = AutoModelForCausalLM.from_pretrained(args.modelo, dtype=TIPO, device_map={"": "cuda:0"})
         tok = AutoTokenizer.from_pretrained(args.modelo)
     modelo.eval()
     dev = modelo.device
@@ -186,7 +188,9 @@ def main():
                 fl.append({"herramienta": f["herramienta"], "tipo": f["tipo"], "plantilla": f.get("plantilla"),
                            "frase": f["frase"], "esperado": f["args"], "obtenido": [h, a]})
         n_h = c["casos"] - c["faltas"]
-        med["prueba"] = {"casos": c["casos"], "formato": c["formato"] / c["casos"],
+        med["prueba"] = {"casos": c["casos"], "conteos": {k: [c[k], c["casos"]] for k in ("formato", "herramienta")}
+                         | {"args_exactos": [c["args"], n_h], "falta_dato": [c["falta_bien"], c["faltas"]]},
+                         "formato": c["formato"] / c["casos"],
                          "herramienta": c["herramienta"] / c["casos"],
                          "args_exactos": c["args"] / max(1, n_h),
                          "falta_dato": c["falta_bien"] / max(1, c["faltas"])}
@@ -213,7 +217,10 @@ def main():
         acierto = sum(1 for x in casos if eleg[x["frase"]] in x["aceptables"])
         med[nombre] = {"casos": len(casos), "cobertura": len(atend) / max(1, len(suyos)),
                        "precision": len(bien) / max(1, len(atend)), "derivado": len(rech) / max(1, len(ajenos)),
-                       "acierto": acierto / len(casos)}
+                       "acierto": acierto / len(casos),
+                       # las cuentas, como las de evaluar.py: [aciertos, de cuantos]
+                       "conteos": {"cobertura": [len(atend), len(suyos)], "precision": [len(bien), len(atend)],
+                                   "derivado": [len(rech), len(ajenos)], "acierto": [acierto, len(casos)]}}
         fallos[nombre] = [{"frase": x["frase"], "esperada": x["aceptables"], "elegida": eleg[x["frase"]]}
                           for x in casos if eleg[x["frase"]] not in x["aceptables"]]
         print(f"{nombre}: {json.dumps(med[nombre])} · {time.time() - t0:.0f} s", flush=True)

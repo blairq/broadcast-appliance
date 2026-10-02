@@ -259,6 +259,8 @@ class Fabrica:
         (self.dir / "descargado").write_text(ruta.name)
 
     def hacer_corpus(self):
+        if self.a.formato == "tc":
+            return self.hacer_corpus_tc()
         env = {"BA_ETIQUETAS": "0"}
         correr(["make", "corpus-entrenamiento"], env=env, salida=self.dir / "corpus.log")
         if self.corpus.exists():
@@ -277,11 +279,40 @@ class Fabrica:
         self.man["repo_commit"] = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=RAIZ,
                                                  capture_output=True, text=True).stdout.strip()
 
+    def hacer_corpus_tc(self):
+        """El corpus de tool calling viene armado (tc-corpus.py, por el bucle)."""
+        if not self.a.corpus_de:
+            sys.exit("--formato tc necesita --corpus-de (la carpeta de tc-corpus.py)")
+        if self.corpus.exists():
+            shutil.rmtree(self.corpus)
+        shutil.copytree(Path(self.a.corpus_de).expanduser(), self.corpus)
+        self.man["corpus_firma"] = firma(self.corpus)
+        sys.path.insert(0, str(RAIZ / "tools"))
+        import lib_prompt as lp
+        import lib_tc as tc
+        self.man["perfil"] = {"nombre": lp.PERFIL, "categorias": lp.REACTIVAS, "entradas": lp.ENTRADAS,
+                              "herramientas": lp.herramientas_reactivas(), "prompt": tc.huella(),
+                              "etiquetas": None, "formato": "tc"}
+        self.man["corpus_ejemplos"] = sum(1 for _ in open(self.corpus / "entrenar.jsonl"))
+        self.man["corpus_huella"] = json.loads((self.corpus / "huella.json").read_text())
+        self.man["repo_commit"] = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=RAIZ,
+                                                 capture_output=True, text=True).stdout.strip()
+
     def entrenar(self):
         cfg = self.man["arquitectura"]
+        if self.a.adaptador_de:  # ya entrenado (p. ej. el mejor del bucle)
+            if self.adaptador.exists():
+                shutil.rmtree(self.adaptador)
+            shutil.copytree(Path(self.a.adaptador_de).expanduser(), self.adaptador)
+            self.man["entrenamiento"] = {"modo": cfg["modo"], "adaptador_de": str(self.a.adaptador_de),
+                                         "lote": 8 if self.a.formato == "tc" else 16, "lr": 2e-4, "lora_r": 32,
+                                         "epocas": self.a.epocas}
+            return
         comun = ["--base", self.a.base, "--datos", self.corpus, "--salida", self.adaptador,
                  "--epocas", str(self.a.epocas), "--eval-cada", "100", "--semilla", str(self.a.semilla)]
         comun += cfg["extra"]
+        if self.a.formato == "tc":  # prefijo de ~8.000 tokens: lote 8 y recalculo por capa
+            comun += ["--lote", "8"] + ([] if "--recalcular" in comun else ["--recalcular"])
         env = {"PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True", "BA_ETIQUETAS": "0"}
         if self.adaptador.exists():
             shutil.rmtree(self.adaptador)
@@ -296,6 +327,8 @@ class Fabrica:
 
     def medir(self, modelo=None, etiqueta="bf16", banco_curva=True, margen=True, tipo="bf16"):
         modelo = modelo or self.adaptador
+        if self.a.formato == "tc":
+            return self.medir_tc(modelo, etiqueta, tipo)
         md = self.dir / "medidas"
         md.mkdir(exist_ok=True)
         env = {"BA_ETIQUETAS": "0"}
@@ -330,6 +363,37 @@ class Fabrica:
             out = p_margen.communicate()[0]
             x = re.search(r"margen negativo.*?: (\d+) · margen < 2: (\d+)", out)
             res["margen"] = {"negativo": int(x.group(1)), "menor_a_2": int(x.group(2))} if x else out[-300:]
+        self.man.setdefault("medidas", {})[etiqueta] = res
+        self.guardar()
+        if etiqueta == "bf16":
+            (self.dir / "medido").write_text("ok")
+
+    def medir_tc(self, modelo, etiqueta, tipo="bf16"):
+        """tc-evaluar.py en las dos placas: prueba + charla en una, banco + examen en
+        la otra. El bf16 con el banco entero; las variantes (q4, fp16), con 500."""
+        md = self.dir / "medidas"
+        md.mkdir(exist_ok=True)
+        lim = "0" if etiqueta == "bf16" else "500"
+        procs = []
+        for placa, conj in (("0", "prueba,charla"), ("1", "banco,examen")):
+            sal = md / f"{etiqueta}-{placa}.json"
+            procs.append((sal, subprocess.Popen(
+                [str(PY), str(E / "tc-evaluar.py"), "--modelo", str(modelo), "--corpus", str(self.corpus),
+                 "--conjuntos", conj, "--limite-banco", lim, "--tipo", tipo, "--json", str(sal)],
+                cwd=RAIZ, env=dict(os.environ, CUDA_VISIBLE_DEVICES=placa),
+                stdout=open(md / f"{etiqueta}-{placa}.log", "w"), stderr=subprocess.STDOUT)))
+        med, fallos = {}, {}
+        for sal, p in procs:
+            if p.wait():
+                sys.exit(f"fallo midiendo {etiqueta} (ver {sal.with_suffix('.log')})")
+            r = json.loads(sal.read_text())
+            med.update(r["medidas"])
+            fallos.update(r["fallos"])
+        (md / f"{etiqueta}-fallos.json").write_text(json.dumps(fallos, ensure_ascii=False, indent=1))
+        res = {"banco": {"0": med["banco"]["conteos"]}, "examen": med["examen"]["conteos"],
+               "prueba": med.get("prueba"), "charla": med.get("charla")}
+        log(f"{etiqueta}: prueba {json.dumps(med.get('prueba', {}).get('conteos'))} · banco "
+            f"{json.dumps(med['banco']['conteos'])}")
         self.man.setdefault("medidas", {})[etiqueta] = res
         self.guardar()
         if etiqueta == "bf16":
@@ -641,6 +705,8 @@ una gramática a los nombres posibles."""
                         f" corpus (sin el examen){' e incluye la cabeza MTP entrenada' if mtp else ''}."
                         + ("\n`mmproj-F16.gguf`: la parte de visión para llama.cpp (`--mmproj`), igual a la de la"
                            " base." if m.get("exportado", {}).get("mmproj") else ""))
+        if self.a.formato == "tc":
+            return self.tarjeta_tc(formato, repo, archivos, mtp)
         return f"""---
 license: {m['base_licencia']}
 base_model: {m.get('base')}
@@ -715,7 +781,27 @@ con otras fichas es otro modelo, aunque siga contestando.
 {archivos} `huella-prompt.json`: firma del prompt. `LICENSE`: la de la base.
 """
 
+    def prompt_para_servir_tc(self):
+        sys.path.insert(0, str(RAIZ / "tools"))
+        import lib_prompt as lp
+        import lib_tc as tc
+        prueba = [{"estado": {"audio": [{"nombre": "Mic operador", "volumen_db": -6.0, "silenciada": False},
+                                        {"nombre": "Música", "volumen_db": -12.0, "silenciada": False}]},
+                   "frase": "bajale 4 a la música", "llamada": tc.llamada("audio_set", {"name": "Música", "volumeDb": "-4"})},
+                  {"estado": None, "frase": "poneme un cafe con leche", "llamada": tc.llamada(tc.DERIVAR, {})}]
+        return {"formato": "tc", "cabeza": tc.cabeza(), "cola": tc.COLA, "fin": tc.FIN,
+                "usuario": "Estado: <JSON compacto del estado del aparato>\nPedido: <frase>",
+                "funciones": [f["function"]["name"] for f in tc.funciones()],
+                "derivar": tc.DERIVAR, "falta_dato": tc.FALTA,
+                "convenciones": {"nombres": "copiados exactos del estado",
+                                 "cambio": "con signo: -4 / +3 (un poco = 3, sin cantidad = 6)",
+                                 "exacto": "con = adelante: =-10", "booleanos": "true / false",
+                                 "charla": "texto, sin tool_call"},
+                "huella": tc.huella(), "perfil": lp.PERFIL, "frases_prueba": prueba}
+
     def prompt_para_servir(self):
+        if self.a.formato == "tc":
+            return self.prompt_para_servir_tc()
         """Todo lo que necesita quien SIRVE el modelo, sin reconstruir el prompt:
         la app (C++) y el servidor MLX lo leen tal cual. Es el MISMO de
         entrenamiento: con otras fichas seria otro modelo (ver huella)."""
@@ -764,6 +850,88 @@ con otras fichas es otro modelo, aunque siga contestando.
             cat["modelos"] = [m for m in cat["modelos"] if m["repo"] != repo] + [e]
         cat_f.write_text(json.dumps(cat, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
         log(f"catalogo: datos/modelos-catalogo.json ({len(cat['modelos'])} modelos)")
+
+    def tarjeta_tc(self, formato, repo, archivos, mtp):
+        m, a = self.man, self.a
+        p, med = m["perfil"], m.get("medidas", {})
+        pct = lambda v: f"{100 * v[0] / v[1]:.1f}%" if v and v[1] else "–"
+        b16, bq = med.get("bf16", {}), med.get("mlx-q4", {})
+        pr = (b16.get("prueba") or {}).get("conteos", {})
+        prq = (bq.get("prueba") or {}).get("conteos", {})
+        ch16 = b16.get("charla") or {}
+        hu = m.get("corpus_huella", {})
+        uso_mlx = f"""```python
+from mlx_lm import load   # o mlx_vlm, con imagenes
+modelo, tok = load("{a.hf_usuario or '<usuario>'}/{repo}")
+# prompt = prompt.json: cabeza (system con las herramientas) + "Estado: {{...}}\\nPedido: ..." + cola
+```"""
+        uso_gguf = f"""```bash
+llama-server -m {getattr(self, 'gguf_nombre', '')}{' --mmproj mmproj-F16.gguf' if m.get('exportado', {}).get('mmproj') else ''} -c 16384 --cache-reuse 256{' --spec-type draft-mtp --spec-draft-n-max 3' if mtp else ''}
+```"""
+        return f"""---
+license: {m['base_licencia']}
+base_model: {m.get('base')}
+language: [es]
+library_name: {'mlx' if formato == 'mlx' else 'gguf'}
+pipeline_tag: {'image-text-to-text' if m.get('exportado', {}).get('vision') else 'text-generation'}
+tags: [function-calling, tool-calling, broadcast, live-tv, spanish, qwen3.5{', mlx' if formato == 'mlx' else ', gguf, llama.cpp'}]
+---
+# {repo}
+
+**ES** · V2 del modelo chico de un aparato de producción de TV en vivo: por cada pedido del operador
+escribe **la llamada completa**, herramienta y argumentos, en el formato nativo de tool calling de
+Qwen3.5 (`<tool_call><function=...><parameter=...>`), copiando los nombres del estado del aparato.
+Si no es suyo llama a `derivar`; si falta un dato obligatorio, a `falta_dato` con la pregunta; si es
+charla, contesta en texto.
+
+**EN** · V2: writes the **full call** (tool + arguments) in Qwen3.5's native tool-calling format,
+copying entity names from the appliance state; `derivar` hands off, `falta_dato` asks for missing data.
+
+## Medidas (bf16{' · MLX q4' if bq else ''})
+
+| | bf16 | {'MLX q4' if bq else ''} |
+|---|---|---|
+| argumentos exactos (plantillas nunca vistas) | {pct(pr.get('args_exactos'))} | {pct(prq.get('args_exactos'))} |
+| herramienta correcta (ídem) | {pct(pr.get('herramienta'))} | {pct(prq.get('herramienta'))} |
+| formato válido | {pct(pr.get('formato'))} | {pct(prq.get('formato'))} |
+| falta_dato cuando corresponde | {pct(pr.get('falta_dato'))} | {pct(prq.get('falta_dato'))} |
+| banco: precisión (eleccion) | {pct(b16.get('banco', {}).get('0', {}).get('precision'))} | {pct(bq.get('banco', {}).get('0', {}).get('precision'))} |
+| banco: cobertura | {pct(b16.get('banco', {}).get('0', {}).get('cobertura'))} | {pct(bq.get('banco', {}).get('0', {}).get('cobertura'))} |
+| banco: derivado | {pct(b16.get('banco', {}).get('0', {}).get('derivado'))} | {pct(bq.get('banco', {}).get('0', {}).get('derivado'))} |
+| examen (105) | {pct(b16.get('examen', {}).get('acierto'))} | {pct(bq.get('examen', {}).get('acierto'))} |
+
+Charla general (respuestas del modelo base que no se entrenaron): pérdida {ch16.get('nll_por_token', 0):.3f} por
+token; contesta charla con una llamada en el {100 * ch16.get('llamadas_en_charla', 0):.0f} % de los casos.
+
+{self.texto_mtp(mtp)}
+
+## Uso
+
+{uso_mlx if formato == 'mlx' else uso_gguf}
+
+Todo lo que hace falta para servirlo está en `prompt.json`: la cabeza exacta (system con las
+{len(p.get('herramientas', []))} herramientas y `derivar`/`falta_dato`), la forma del pedido, la cola y las convenciones:
+nombres copiados del estado; cambios con signo (`-4`, `+3`; «un poco» = 3, sin cantidad = 6); valor
+exacto con `=` (`=-10`); booleanos `true`/`false`. Firma del prompt: `{p.get('prompt')}`.
+
+## Entrenamiento
+
+- Base [`{m.get('base')}`](https://huggingface.co/{m.get('base')}), LoRA r=32 sobre todas las lineales, fusionado.
+- Corpus {m.get('corpus_ejemplos')} ejemplos: {json.dumps(hu.get('porcion', {}), ensure_ascii=False)} (herramienta con argumentos,
+  falta_dato, derivar, charla). Las semillas curadas como plantillas con huecos, rendidas con estados
+  del aparato sintéticos y distintos; la charla, respuestas del propio Qwen3.5 base (pedidos de
+  databricks-dolly-15k en castellano y del oficio). Ver `docs/entrenamiento-avanzado.md` del aparato.
+
+## Limitaciones
+
+- Primera versión del formato: medida contra plantillas apartadas y el banco, todavía no con el
+  aparato andando (`tools/voz-banco.py`).
+- La app tiene que validar (`ArgumentosLocales`): nombres que existen, rangos, la cuenta del cambio.
+
+## Archivos
+
+{archivos} `prompt.json`: todo para servirlo. `huella-prompt.json` y `LICENSE`.
+"""
 
     @staticmethod
     def texto_mtp(mtp):
@@ -871,7 +1039,10 @@ con otras fichas es otro modelo, aunque siga contestando.
         self.man["subido"] = {"repos": subidos, "privado": not self.a.publico,
                               "fecha": datetime.datetime.now().isoformat(timespec="seconds")}
         (self.dir / "subido").write_text("\n".join(subidos))
-        self.actualizar_catalogo(subidos)
+        if self.a.formato == "tc":
+            log("catalogo: el formato tc todavia no lo entiende la app; no se ofrece")
+        else:
+            self.actualizar_catalogo(subidos)
         for u in subidos:
             log(f"subido: {u}{' (privado)' if not self.a.publico else ''}")
 
@@ -921,6 +1092,11 @@ def main():
     ap.add_argument("--rehacer", choices=ETAPAS, help="rehacer desde esta etapa (las anteriores se reusan)")
     ap.add_argument("--sin-mtp", action="store_true", help="no entrenar la cabeza MTP (usar la de la base)")
     ap.add_argument("--conservar", action="store_true", help="no borrar el fusionado ni el GGUF bf16 al exportar")
+    ap.add_argument("--formato", choices=["nombres", "tc"], default="nombres",
+                    help="nombres: el modelo contesta solo la herramienta (lib_prompt); tc: tool calling con "
+                         "argumentos (lib_tc, docs/entrenamiento-avanzado.md)")
+    ap.add_argument("--corpus-de", help="tc: la carpeta del corpus ya armado (tc-corpus.py / tc-bucle.py)")
+    ap.add_argument("--adaptador-de", help="usar este adaptador ya entrenado en vez de entrenar")
     ap.add_argument("--curva-q4", action="store_true", help="medir el q4 en los 5 puntos del dial (si no, solo sesgo 0)")
     args = ap.parse_args()
     # el perfil viaja por el entorno a TODO lo que corre debajo (corpus,
