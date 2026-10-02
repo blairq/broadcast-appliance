@@ -2,12 +2,14 @@
 # src/obs-module — `ba-sources` (módulo propio de fuentes/filtros libobs)
 #
 # Biblioteca compartida que libobs carga como plugin, desplegada en
-# obs-plugins/64bit/ (spec §5.1). Registra cuatro cosas:
+# obs-plugins/64bit/ (spec §5.1). Registra cinco cosas:
 #   - FUENTE `ba_guest_audio`: lee el ring BA.Audio.Guest.<n> del Proceso B.
 #   - FUENTE `ba_guest_video`: lee el canal compartido BA.Guest.<n>.
 #   - FILTRO `ba_channel_strip`: el DSP nativo de ba_core (HPF->EQ4->de-esser->
 #     gate->comp->lim), RT-safe, con presets podium/lavalier/handheld.
 #   - FUENTE `ba_channel_preset`: tono de referencia para oir cada preset.
+#   - FILTRO `ba_mejora_imagen`: ruido temporal + color guiado + nitidez, en
+#     la GPU (data/mejora-imagen.effect, que libobs traduce a D3D11/OpenGL).
 #
 # Se compila contra libobs DE VERDAD y en CUALQUIER plataforma: libobs es
 # cross-platform, asi que aca no hay `#ifdef _WIN32`. Si libobs no esta
@@ -35,6 +37,7 @@ else()
     list(FILTER BA_SOURCES_SOURCES EXCLUDE REGEX ".*/ba_module\\.cpp$")
     list(FILTER BA_SOURCES_SOURCES EXCLUDE REGEX ".*/ba_ipc_sources\\.cpp$")
     list(FILTER BA_SOURCES_SOURCES EXCLUDE REGEX ".*/ba_dsp_sources\\.cpp$")
+    list(FILTER BA_SOURCES_SOURCES EXCLUDE REGEX ".*/ba_mejora_imagen\\.cpp$")
 endif()
 
 # Shared lib: OBS la carga como plugin. En Windows se llama ba-sources.dll.
@@ -72,12 +75,21 @@ endif()
 # libobs busca los textos en <data>/%module%/locale/<idioma>.ini. Se copian
 # junto al binario para que el modulo tenga sus nombres tanto al correr desde
 # el arbol de build como desde el bundle instalado.
+# Es un target aparte (y no un POST_BUILD) para que cambiar SOLO un dato (el
+# shader de Mejorar imagen) tambien se copie: el POST_BUILD corre solo cuando
+# se vuelve a enlazar la biblioteca.
 if(BA_HAVE_LIBOBS)
-    add_custom_command(TARGET ba-sources POST_BUILD
+    file(GLOB_RECURSE _ba_sources_datos CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/data/*")
+    set(_ba_sources_sello "${CMAKE_CURRENT_BINARY_DIR}/ba-sources-datos.sello")
+    add_custom_command(OUTPUT "${_ba_sources_sello}"
         COMMAND ${CMAKE_COMMAND} -E copy_directory
                 "${CMAKE_CURRENT_SOURCE_DIR}/data"
-                "$<TARGET_FILE_DIR:ba-sources>/ba-sources"
-        COMMENT "ba-sources: copiando datos del modulo (locale)")
+                "${CMAKE_CURRENT_BINARY_DIR}/ba-sources"
+        COMMAND ${CMAKE_COMMAND} -E touch "${_ba_sources_sello}"
+        DEPENDS ${_ba_sources_datos}
+        COMMENT "ba-sources: copiando datos del modulo (locale, shaders)")
+    add_custom_target(ba-sources-datos ALL DEPENDS "${_ba_sources_sello}")
+    add_dependencies(ba-sources ba-sources-datos)
 endif()
 
 # --- Unit tests de ba-sources (CTest) ----------------------------------------
@@ -95,6 +107,16 @@ file(GLOB_RECURSE BA_SOURCES_TESTS CONFIGURE_DEPENDS
 # `test_ba_sources_real` necesita libobs de verdad: se excluye si no esta.
 if(NOT BA_HAVE_LIBOBS)
     list(FILTER BA_SOURCES_TESTS EXCLUDE REGEX ".*/test_ba_sources_real\\.cpp$")
+    list(FILTER BA_SOURCES_TESTS EXCLUDE REGEX ".*/test_mejora_imagen\\.cpp$")
+endif()
+
+# El modulo grafico con el que `test_mejora_imagen` corre el filtro en la GPU.
+if(WIN32)
+    set(_ba_test_gfx "libobs-d3d11")
+elseif(APPLE)
+    set(_ba_test_gfx "${BA_OBS_MAC_PREFIX}/lib/libobs-opengl.so")
+else()
+    set(_ba_test_gfx "libobs-opengl")
 endif()
 
 foreach(test_source ${BA_SOURCES_TESTS})
@@ -102,11 +124,13 @@ foreach(test_source ${BA_SOURCES_TESTS})
     add_executable(${test_name} ${test_source})
     target_link_libraries(${test_name} PRIVATE ba_core)
 
-    if(test_name STREQUAL "test_ba_sources_real")
+    if(test_name STREQUAL "test_ba_sources_real" OR test_name STREQUAL "test_mejora_imagen")
         target_link_libraries(${test_name} PRIVATE ba::libobs ${CMAKE_DL_LIBS})
         # Directorio donde el build deja ba-sources: el test carga desde ahi.
         target_compile_definitions(${test_name} PRIVATE
-            BA_SOURCES_MODULE_DIR="$<TARGET_FILE_DIR:ba-sources>")
+            BA_SOURCES_MODULE_DIR="$<TARGET_FILE_DIR:ba-sources>"
+            BA_TEST_GRAPHICS_MODULE="${_ba_test_gfx}"
+            BA_TEST_OBS_DATA_DIR="${BA_LIBOBS_DATA_DIR}")
         add_dependencies(${test_name} ba-sources)
         if(NOT WIN32)
             set_target_properties(${test_name} PROPERTIES

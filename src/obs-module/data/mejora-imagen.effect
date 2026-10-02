@@ -1,0 +1,195 @@
+// src/obs-module/data/mejora-imagen.effect — «Mejorar imagen» (ba_mejora_imagen)
+//
+// Tres pasadas por cuadro, todas sin demora (solo miran el cuadro actual y el
+// anterior ya filtrado). libobs traduce este archivo a HLSL (D3D11, Windows)
+// o GLSL (OpenGL, macOS y Linux): no hay nada propio de una GPU ni de un
+// sistema. Pensado para que alcance en una integrada (Radeon Vega, Intel UHD),
+// donde lo que limita es la memoria compartida: pocas lecturas por píxel y
+// pocas pasadas a resolución completa.
+//
+//   Temporal  (resolución completa) ruido: cada píxel se mezcla con el cuadro
+//             anterior ya limpio, salvo donde hay movimiento. El movimiento
+//             es la diferencia de brillo suavizada (filtro carpa 3x3) entre
+//             los dos cuadros; la carpa sale de 4 lecturas bilineales en las
+//             esquinas del píxel (cada una ya promedia 2x2).
+//   ColorMedio (media resolución) el color de cada bloque 2x2 pasa a ser el
+//             promedio del de los bloques vecinos de brillo PARECIDO (3x3):
+//             el color se pega a los bordes de brillo y deja de chorrearse
+//             (el LED del micrófono, la corbata, el 4:2:0 de la cámara, que
+//             ya trae el color a media resolución). Guarda color y brillo del
+//             bloque (textura de media precisión).
+//   Final     (resolución completa, directo a la salida) agranda ese color
+//             respetando los bordes de brillo (los 4 bloques más cercanos,
+//             pesados por cuánto se parece su brillo al del píxel) y afila el
+//             brillo con AMD FidelityFX CAS (licencia MIT): fuerte en lo plano,
+//             suave en lo que ya tiene borde, sin halos; el color no se afila
+//             (eso haría bordes de colores).
+//
+// Lo prueba en la GPU real src/obs-module/tests/test_mejora_imagen.cpp.
+//
+// Ojo: nombres de una letra (e, b, d, f, h) para las variables locales rompen
+// la traducción a GLSL de libobs (OpenGL: «undeclared identifier vert_in» en
+// TODAS las técnicas, porque cada shader lleva todas las funciones).
+
+uniform float4x4 ViewProj;
+uniform texture2d image;     // Temporal: el cuadro nuevo. ColorMedio y Final: el cuadro ya sin ruido.
+uniform texture2d anterior;  // Temporal: el cuadro anterior ya filtrado.
+uniform texture2d medio;     // Final: lo que dejó ColorMedio.
+uniform float2 texel;        // 1 / tamaño de `image`
+uniform float2 medioTam;     // tamaño de `medio`, en píxeles
+uniform float ruido;
+uniform float color;
+uniform float nitidez;
+
+sampler_state puntual {
+	Filter   = Point;
+	AddressU = Clamp;
+	AddressV = Clamp;
+};
+
+sampler_state lineal {
+	Filter   = Linear;
+	AddressU = Clamp;
+	AddressV = Clamp;
+};
+
+struct VertInOut {
+	float4 pos : POSITION;
+	float2 uv  : TEXCOORD0;
+};
+
+VertInOut VSDefault(VertInOut vert_in)
+{
+	VertInOut vert_out;
+	vert_out.pos = mul(float4(vert_in.pos.xyz, 1.0), ViewProj);
+	vert_out.uv  = vert_in.uv;
+	return vert_out;
+}
+
+float luma(float3 rgb)
+{
+	return dot(rgb, float3(0.2126, 0.7152, 0.0722));
+}
+
+float4 PSTemporal(VertInOut vert_in) : TARGET
+{
+	float2 uv = vert_in.uv;
+	float2 esq = 0.5 * texel;
+	float4 nuevo = image.Sample(puntual, uv);
+	float4 viejo = anterior.Sample(puntual, uv);
+	float ya = luma(image.Sample(lineal, uv + float2(-esq.x, -esq.y)).rgb)
+	         + luma(image.Sample(lineal, uv + float2(esq.x, -esq.y)).rgb)
+	         + luma(image.Sample(lineal, uv + float2(-esq.x, esq.y)).rgb)
+	         + luma(image.Sample(lineal, uv + float2(esq.x, esq.y)).rgb);
+	float yb = luma(anterior.Sample(lineal, uv + float2(-esq.x, -esq.y)).rgb)
+	         + luma(anterior.Sample(lineal, uv + float2(esq.x, -esq.y)).rgb)
+	         + luma(anterior.Sample(lineal, uv + float2(-esq.x, esq.y)).rgb)
+	         + luma(anterior.Sample(lineal, uv + float2(esq.x, esq.y)).rgb);
+	float dif = abs(ya - yb) / (4.0 * 0.04); // la carpa deja más ruido que un promedio 3x3: umbral algo más alto
+	float k = ruido * exp(-dif * dif);
+	return float4(lerp(nuevo.rgb, viejo.rgb, k), nuevo.a);
+}
+
+float4 PSCopiar(VertInOut vert_in) : TARGET
+{
+	return image.Sample(puntual, vert_in.uv);
+}
+
+float4 PSColorMedio(VertInOut vert_in) : TARGET
+{
+	// El centro de un píxel de media resolución cae justo entre 4 píxeles
+	// completos: una lectura bilineal ahí es el promedio del bloque 2x2.
+	float3 bloque = image.Sample(lineal, vert_in.uv).rgb;
+	float yc = luma(bloque);
+	float3 acc = float3(0.0, 0.0, 0.0);
+	float suma = 0.0;
+	for (float j = -1.0; j <= 1.0; j += 1.0) {
+		for (float i = -1.0; i <= 1.0; i += 1.0) {
+			float3 vecino = image.Sample(lineal, vert_in.uv + float2(i, j) * 2.0 * texel).rgb;
+			float yv = luma(vecino);
+			float dy = (yv - yc) / 0.06;
+			float peso = exp(-dy * dy - (i * i + j * j) * 0.5);
+			acc += (vecino - yv) * peso;
+			suma += peso;
+		}
+	}
+	return float4(acc / suma, yc);
+}
+
+float4 PSFinal(VertInOut vert_in) : TARGET
+{
+	float2 uv = vert_in.uv;
+	float4 centro4 = image.Sample(puntual, uv);
+	float3 centro = centro4.rgb;
+	float yc = luma(centro);
+
+	// Nitidez (CAS) sobre el brillo.
+	float yArr = luma(image.Sample(puntual, uv + float2(0.0, -texel.y)).rgb);
+	float yIzq = luma(image.Sample(puntual, uv + float2(-texel.x, 0.0)).rgb);
+	float yDer = luma(image.Sample(puntual, uv + float2(texel.x, 0.0)).rgb);
+	float yAba = luma(image.Sample(puntual, uv + float2(0.0, texel.y)).rgb);
+	float mn = min(min(min(yArr, yIzq), min(yDer, yAba)), yc);
+	float mx = max(max(max(yArr, yIzq), max(yDer, yAba)), yc);
+	float amp = sqrt(saturate(min(mn, 1.0 - mx) / max(mx, 0.00001)));
+	float peso = amp * (-1.0 / (8.0 - 3.0 * nitidez)) * step(0.0001, nitidez);
+	float yNueva = (yc + peso * (yArr + yIzq + yDer + yAba)) / (1.0 + 4.0 * peso);
+
+	// Color: los 4 bloques de media resolución más cercanos, pesados por la
+	// posición (bilineal) y por cuánto se parece su brillo al de este píxel.
+	float2 pos = uv * medioTam - 0.5;
+	float2 base = floor(pos);
+	float2 fr = pos - base;
+	float2 inv = 1.0 / medioTam;
+	float4 m00 = medio.Sample(puntual, (base + float2(0.5, 0.5)) * inv);
+	float4 m10 = medio.Sample(puntual, (base + float2(1.5, 0.5)) * inv);
+	float4 m01 = medio.Sample(puntual, (base + float2(0.5, 1.5)) * inv);
+	float4 m11 = medio.Sample(puntual, (base + float2(1.5, 1.5)) * inv);
+	float d00 = (m00.a - yc) / 0.06;
+	float d10 = (m10.a - yc) / 0.06;
+	float d01 = (m01.a - yc) / 0.06;
+	float d11 = (m11.a - yc) / 0.06;
+	float w00 = (1.0 - fr.x) * (1.0 - fr.y) * exp(-d00 * d00) + 0.00001;
+	float w10 = fr.x * (1.0 - fr.y) * exp(-d10 * d10) + 0.00001;
+	float w01 = (1.0 - fr.x) * fr.y * exp(-d01 * d01) + 0.00001;
+	float w11 = fr.x * fr.y * exp(-d11 * d11) + 0.00001;
+	float3 guiado = (m00.rgb * w00 + m10.rgb * w10 + m01.rgb * w01 + m11.rgb * w11) / (w00 + w10 + w01 + w11);
+	float3 propio = centro - yc;
+
+	return float4(saturate(yNueva + lerp(propio, guiado, color)), centro4.a);
+}
+
+technique Temporal
+{
+	pass
+	{
+		vertex_shader = VSDefault(vert_in);
+		pixel_shader  = PSTemporal(vert_in);
+	}
+}
+
+technique Copiar
+{
+	pass
+	{
+		vertex_shader = VSDefault(vert_in);
+		pixel_shader  = PSCopiar(vert_in);
+	}
+}
+
+technique ColorMedio
+{
+	pass
+	{
+		vertex_shader = VSDefault(vert_in);
+		pixel_shader  = PSColorMedio(vert_in);
+	}
+}
+
+technique Final
+{
+	pass
+	{
+		vertex_shader = VSDefault(vert_in);
+		pixel_shader  = PSFinal(vert_in);
+	}
+}
