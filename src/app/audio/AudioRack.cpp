@@ -72,6 +72,7 @@ std::vector<uint8_t> unb64(const std::string& s) {
 struct AudioRack::Node {
     std::string id, kind, label, pluginId;
     std::string device; // nodo "monitor": id del dispositivo de salida
+    bool grabar = false; // nodo "monitor": grabar lo que le llega
     std::string modo;   // nodo "texto": "dictado" o "continuo"
     std::string flujo;  // nodo "texto": el nombre de su salida de texto
     json salidas = json::object(); // nodo "texto": archivo, rótulo
@@ -409,6 +410,18 @@ std::string AudioRack::addOutput(const std::string& device, const std::string& l
     nodes_.push_back(std::move(n));
     rebuild(); // sin cable: lo patchea el operador desde donde quiera oir
     return "salida-audio";
+}
+
+bool AudioRack::setGrabar(bool grabar) {
+    Node* n = find("salida-audio");
+    if (n == nullptr) return false;
+    n->grabar = grabar;
+    return true;
+}
+
+bool AudioRack::grabar() const {
+    const Node* n = find("salida-audio");
+    return n != nullptr && n->grabar;
 }
 
 std::string AudioRack::addTexto(const std::string& modo, const std::string& flujo) {
@@ -964,7 +977,10 @@ json AudioRack::describe() const {
             j["senal"] = {
                 {"tipo", Generator::kindName(c.kind)}, {"frecuencia", c.freq}, {"nivelDb", c.levelDb}};
         }
-        if (n->kind == "monitor") j["dispositivo"] = n->device;
+        if (n->kind == "monitor") {
+            j["dispositivo"] = n->device;
+            j["grabar"] = n->grabar;
+        }
         if (n->kind == "texto") {
             j["modo"] = n->modo;
             j["flujo"] = n->flujo;
@@ -998,7 +1014,10 @@ json AudioRack::save() const {
             j["bypass"] = n->bypass.load();
             j["estado"] = b64(n->clap->saveState());
         }
-        if (n->kind == "monitor") j["dispositivo"] = n->device;
+        if (n->kind == "monitor") {
+            j["dispositivo"] = n->device;
+            j["grabar"] = n->grabar;
+        }
         if (n->kind == "texto") {
             j["modo"] = n->modo;
             j["flujo"] = n->flujo;
@@ -1085,6 +1104,7 @@ bool AudioRack::load(const json& j, std::string* error) {
         } else if (kind == "monitor") {
             n->id = "salida-audio"; // una sola por rack
             n->device = nj.value("dispositivo", "");
+            n->grabar = nj.value("grabar", false);
             // Racks guardados por versiones anteriores: el nodo se llamaba
             // "Escucha" y no tenia dispositivo.
             if (n->label == "Escucha" || n->label.empty()) n->label = "Salida de audio";

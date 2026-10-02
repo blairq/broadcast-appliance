@@ -132,6 +132,15 @@ class RackManager : public QObject {
     /// entradas de placa que se usen así).
     std::set<std::string> fuentesDeEntradas() const;
 
+    // --- Grabar lo que le llega a la tarjeta de salida -------------------------
+    /// Prende o apaga la grabación de la tarjeta «Salida de audio» de `source`
+    /// (Recordings/Audio/<fuente>-<fecha>.wav). "" o el error.
+    std::string setGrabar(const std::string& source, bool grabar);
+    /// {grabando, archivo, segundos, bytes, conCable} de la tarjeta de salida.
+    json grabacion(const std::string& source) const;
+    /// Carpeta de las grabaciones de audio.
+    std::filesystem::path carpetaGrabaciones() const { return root_ / "Recordings" / "Audio"; }
+
     /// Algo cambio en un rack: se guarda en un momento.
     void markDirty();
     /// Guarda ya (tambien al salir).
@@ -190,6 +199,8 @@ class RackManager : public QObject {
     /// Cada voz a texto con un nombre de salida, único en todo el sistema
     /// (los racks viejos no tenían: toman el de su fuente).
     void normalizarFlujos();
+    /// Arranca o para los grabadores según la marca de cada tarjeta de salida.
+    void sincronizarGrabaciones();
     bool flujoLibre(const std::string& flujo, const std::string& salvoRack, const std::string& salvoNodo) const;
     QTimer revision_;
 };

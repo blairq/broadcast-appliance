@@ -10,6 +10,7 @@
 //      tocar el audio en vivo) y respuesta de un modulo neutro (plana).
 // ============================================================================
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -207,6 +208,21 @@ int main() {
         std::fill(l.begin(), l.end(), 0.f);
         r3.process(planes, 2, 480);
         CHECK(std::fabs(l[100]) < 1e-6, "sin anillo, la entrada es silencio");
+        // Audio agendado a futuro (la voz del sistema dice la frase entera de
+        // una vez, para dentro de 1 s): suena a su hora y entero.
+        {
+            anillo::Ring futuro;
+            std::vector<float> frase(9600, 0.5f); // 200 ms
+            const std::uint64_t ahora = 1'000'000'000'000ULL;
+            futuro.pushEn(frase.data(), frase.data(), 9600, ahora + 1'000'000'000ULL, ahora, 48000);
+            std::vector<float> a(48000), b(48000);
+            futuro.pop(a.data(), b.data(), 48000);
+            const bool silencioAntes = std::all_of(a.begin(), a.end(), [](float x) { return x == 0.f; });
+            std::vector<float> c(9600), d(9600);
+            futuro.pop(c.data(), d.data(), 9600);
+            const bool frasEntera = std::all_of(c.begin(), c.end(), [](float x) { return x == 0.5f; });
+            CHECK(silencioAntes && frasEntera, "lo agendado a futuro suena a su hora y entero (no se recorta)");
+        }
         AudioRack r4(lib, &svc, 48000);
         CHECK(r4.load(r3.save(), &err) && r4.entradas().size() == 1 && r4.entradas()[0].second == "Micrófono",
               "la tarjeta de entrada se guarda con su fuente");

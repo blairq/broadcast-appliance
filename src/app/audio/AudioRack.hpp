@@ -98,6 +98,10 @@ class AudioRack {
     /// El modo de la primera voz a texto ("" si no hay).
     std::string textoModo() const;
     bool hasOutput() const;
+    /// La tarjeta de salida graba todo lo que le llega a un archivo (lo hace
+    /// RackManager; esto es la marca, que se guarda con el rack).
+    bool setGrabar(bool grabar);
+    bool grabar() const;
     /// Id del dispositivo de la salida ("" si no hay nodo de salida).
     std::string outputDevice() const;
     bool remove(const std::string& id, std::string* error);

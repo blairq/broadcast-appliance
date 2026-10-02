@@ -64,6 +64,10 @@ class AudioViewModel : public QObject {
     /// Tarjeta ENTRADA: trae el audio de otra fuente a este grafo.
     Q_INVOKABLE QString addEntrada(const QString& fuente);
     Q_INVOKABLE QString setEntradaFuente(const QString& node, const QString& fuente);
+    /// Grabar todo lo que le llega a la tarjeta de salida (.wav).
+    Q_INVOKABLE QString setGrabar(bool grabar);
+    /// {grabar, grabando, archivo, segundos, bytes, conCable, carpeta}.
+    Q_INVOKABLE QVariantMap grabacion() const;
     /// Agrega (o reapunta) la salida de audio de esta fuente: una tarjeta mas
     /// en el grafo, con el nombre del dispositivo elegido.
     Q_INVOKABLE QString addOutput(const QString& device);

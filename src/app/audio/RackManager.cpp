@@ -4,6 +4,8 @@
 
 #include "audio/RackManager.hpp"
 
+#include "audio/GrabadorWav.hpp"
+
 #include <mutex>
 
 #include <QCoreApplication>
@@ -18,6 +20,7 @@
 #include <atomic>
 
 #include <obs.h>
+#include <util/platform.h>
 
 #include <cstdlib>
 #include <fstream>
@@ -145,6 +148,10 @@ struct RackManager::Filter {
     std::string source;
     std::unique_ptr<AudioRack> rack;
     obs_source_t* tap = nullptr; // salida de escucha (puede ser nullptr)
+    // Grabación de la tarjeta de salida: el hilo de audio toma una copia del
+    // puntero bajo este mutex (muy corto) y le agrega lo que llegó.
+    std::mutex grabMu;
+    std::shared_ptr<GrabadorWav> grab;
 };
 
 namespace {
@@ -193,6 +200,14 @@ obs_audio_data* filterAudio(void* data, obs_audio_data* audio) {
         out.samples_per_sec = audio_output_get_sample_rate(obs_get_audio());
         out.timestamp = audio->timestamp;
         obs_source_output_audio(f->tap, &out);
+    }
+    if (mf > 0) {
+        std::shared_ptr<GrabadorWav> g;
+        {
+            std::lock_guard<std::mutex> l(f->grabMu);
+            g = f->grab;
+        }
+        if (g) g->agregar(f->rack->monitorPlane(0), f->rack->monitorPlane(1), mf);
     }
     // Voz a texto: lo que juntó cada nodo va al reconocedor (copia y vuelve).
     {
@@ -247,6 +262,7 @@ RackManager::RackManager(fs::path dataRoot, QObject* parent) : QObject(parent), 
     revision_.setInterval(2000);
     connect(&revision_, &QTimer::timeout, this, [this]() {
         montarPendientes();
+        sincronizarGrabaciones();
         normalizarFlujos();
         sincronizarEntradas();
     });
@@ -307,6 +323,21 @@ void RackManager::attach(Filter* f) {
 }
 
 void RackManager::detach(Filter* f) {
+    // Su fuente se va (la borraron, o la app se está cerrando y las entradas
+    // virtuales se destruyen antes del último guardado): el rack queda como
+    // pendiente, para volver cuando la fuente reaparezca. Antes se perdía.
+    if (f->rack && filters_.contains(f->source) && filters_[f->source] == f) {
+        if (!pending_.is_object()) pending_ = json::object();
+        pending_[f->source] = f->rack->save();
+    }
+    {
+        std::shared_ptr<GrabadorWav> g;
+        {
+            std::lock_guard<std::mutex> l(f->grabMu);
+            g.swap(f->grab);
+        }
+        if (g) g->terminar();
+    }
     for (auto it = filters_.begin(); it != filters_.end(); ++it)
         if (it->second == f) {
             filters_.erase(it);
@@ -784,6 +815,7 @@ std::string RackManager::plantillaDeTipo(const std::string& tipo) const {
 
 void RackManager::markDirty() {
     saveTimer_.start();
+    sincronizarGrabaciones();
     normalizarFlujos();
     sincronizarEntradas();
 }
@@ -896,11 +928,12 @@ struct RackManager::Toma {
         if (data == nullptr || data->frames == 0 || data->data[0] == nullptr) return;
         const auto* l = reinterpret_cast<const float*>(data->data[0]);
         const auto* r = data->data[1] != nullptr ? reinterpret_cast<const float*>(data->data[1]) : l;
+        const std::uint32_t sr = audio_output_get_sample_rate(obs_get_audio());
         if (muted) {
             std::vector<float> z(data->frames, 0.0f);
-            t->ring->push(z.data(), z.data(), data->frames);
+            t->ring->pushEn(z.data(), z.data(), data->frames, data->timestamp, os_gettime_ns(), sr);
         } else {
-            t->ring->push(l, r, data->frames);
+            t->ring->pushEn(l, r, data->frames, data->timestamp, os_gettime_ns(), sr);
         }
     }
     ~Toma() {
@@ -1029,6 +1062,69 @@ void RackManager::montarPendientes() {
         if (src == nullptr) continue;
         obs_source_release(src);
         rack(n, true);
+    }
+}
+
+// --- Grabar lo que le llega a la tarjeta de salida -----------------------------------
+
+std::string RackManager::setGrabar(const std::string& source, bool grabar) {
+    std::string e;
+    AudioRack* r = rack(source, false, &e);
+    if (r == nullptr) return e;
+    if (!r->setGrabar(grabar)) return "'" + source + "' no tiene tarjeta de salida de audio (agregala con «+ Salida»)";
+    markDirty();
+    emit changed();
+    return {};
+}
+
+RackManager::json RackManager::grabacion(const std::string& source) const {
+    auto it = filters_.find(source);
+    if (it == filters_.end() || !it->second->rack) return json{{"grabando", false}};
+    Filter* f = it->second;
+    bool conCable = false;
+    for (const auto& c : f->rack->describe().value("cables", json::array()))
+        if (c.value("hacia", "") == "salida-audio") conCable = true;
+    json j{{"grabar", f->rack->grabar()}, {"conCable", conCable}, {"grabando", false}};
+    std::shared_ptr<GrabadorWav> g;
+    {
+        std::lock_guard<std::mutex> l(f->grabMu);
+        g = f->grab;
+    }
+    if (g) {
+        j["grabando"] = g->grabando();
+        j["archivo"] = g->archivo().string();
+        j["segundos"] = g->segundos();
+        j["bytes"] = g->bytes();
+    }
+    return j;
+}
+
+void RackManager::sincronizarGrabaciones() {
+    for (auto& [nombre, f] : filters_) {
+        if (!f->rack) continue;
+        const bool quiere = f->rack->grabar();
+        std::shared_ptr<GrabadorWav> actual;
+        {
+            std::lock_guard<std::mutex> l(f->grabMu);
+            actual = f->grab;
+        }
+        if (quiere && !actual) {
+            // Un nombre de archivo sin caracteres raros.
+            std::string seguro;
+            for (char c : nombre) seguro += (std::string("/\\:*?\"<>|").find(c) == std::string::npos && static_cast<unsigned char>(c) >= 32) ? c : '_';
+            const std::string fecha = QDateTime::currentDateTime().toString("yyyyMMdd-HHmmss").toStdString();
+            auto g = std::make_shared<GrabadorWav>(carpetaGrabaciones() / (seguro + "-" + fecha),
+                                                   static_cast<std::uint32_t>(sampleRate()));
+            if (!g->empezar().empty()) continue;
+            std::lock_guard<std::mutex> l(f->grabMu);
+            f->grab = std::move(g);
+        } else if (!quiere && actual) {
+            {
+                std::lock_guard<std::mutex> l(f->grabMu);
+                f->grab.reset();
+            }
+            actual->terminar();
+        }
     }
 }
 

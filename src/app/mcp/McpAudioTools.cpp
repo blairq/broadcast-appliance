@@ -823,16 +823,24 @@ void McpService::registerAudioTools() {
             "COMO SE USA: `salida` es el id que informa `audio_outputs`. Agrega (o reapunta) en el grafo "
             "de esa fuente una tarjeta con el nombre de la salida; el audio recien se oye cuando se le "
             "conecta algo con `audio_patch` (p. ej. {desde: \"in\", hacia: \"salida-audio\"}). No "
-            "cambia lo que sale al aire.";
+            "cambia lo que sale al aire. `grabar: true` graba todo lo que le llega a la tarjeta en un .wav "
+            "(Recordings/Audio/); `grabar: false` lo corta (sin `salida`, solo cambia eso).";
         t.inputSchema = {{"type", "object"},
-                         {"properties", {{"source", kSource}, {"salida", {{"type", "string"}}}}},
-                         {"required", {"source", "salida"}}};
+                         {"properties", {{"source", kSource}, {"salida", {{"type", "string"}}}, {"grabar", {{"type", "boolean"}}}}},
+                         {"required", {"source"}}};
         t.run = [mgr](const json& a, Done done) {
-            const std::string e = mgr()->setOutput(a.value("source", ""), a.value("salida", ""));
-            if (!e.empty()) return done(ToolResult::error(e));
+            const std::string src = a.value("source", "");
+            if (a.contains("salida")) {
+                const std::string e = mgr()->setOutput(src, a.value("salida", ""));
+                if (!e.empty()) return done(ToolResult::error(e));
+            }
+            if (a.contains("grabar")) {
+                const std::string e = mgr()->setGrabar(src, a.value("grabar", false));
+                if (!e.empty()) return done(ToolResult::error(e));
+            }
             std::string re;
-            AudioRack* r = mgr()->rack(a.value("source", ""), false, &re);
-            done(ToolResult().data(r != nullptr ? r->describe() : json::object()));
+            AudioRack* r = mgr()->rack(src, false, &re);
+            done(ToolResult().data(json{{"rack", r != nullptr ? r->describe() : json::object()}, {"grabacion", mgr()->grabacion(src)}}));
         };
         core_.addTool(std::move(t));
     }

@@ -579,6 +579,10 @@ endif()
     add_executable(test_voz_prompter tests/test_voz_prompter.cpp agent/VozPrompterPlan.cpp)
     target_include_directories(test_voz_prompter PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     add_test(NAME test_voz_prompter COMMAND test_voz_prompter)
+    # Grabar lo que le llega a la tarjeta de salida (.wav, con partes).
+    add_executable(test_grabador_wav tests/test_grabador_wav.cpp audio/GrabadorWav.cpp)
+    target_include_directories(test_grabador_wav PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    add_test(NAME test_grabador_wav COMMAND test_grabador_wav)
     # Validar los argumentos que escribe el modelo local (agent/ArgumentosLocales).
     add_executable(test_argumentos_locales tests/test_argumentos_locales.cpp agent/ArgumentosLocales.cpp)
     target_include_directories(test_argumentos_locales PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

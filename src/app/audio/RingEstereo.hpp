@@ -34,6 +34,38 @@ struct Ring {
             r.erase(r.begin(), r.begin() + static_cast<std::ptrdiff_t>(r.size() - kColchon));
         }
     }
+    /// Empuja un bloque que trae HORA (la de libobs, os_gettime_ns): una
+    /// fuente que entrega audio agendado a futuro (la voz del sistema dice una
+    /// frase entera de una vez; el teleprompter la agenda segundos antes)
+    /// suena a su hora y entera: si hay un hueco hasta esa hora se rellena con
+    /// silencio, y lo que viene a futuro no se recorta. Lo que viene «ahora»
+    /// (un micrófono) va como `push`, con el control de deriva.
+    void pushEn(const float* a, const float* b, std::uint32_t n, std::uint64_t tsNs, std::uint64_t ahoraNs,
+                std::uint32_t frecuencia) {
+        if (frecuencia == 0) frecuencia = 48000;
+        const std::uint64_t durNs = static_cast<std::uint64_t>(n) * 1'000'000'000ULL / frecuencia;
+        const bool futuro = tsNs + durNs > ahoraNs + 200'000'000ULL;
+        if (!futuro) {
+            push(a, b, n);
+            return;
+        }
+        std::lock_guard<std::mutex> g(m);
+        // Hasta cuándo alcanza lo que ya hay (se saca a ritmo real desde ahora).
+        const std::uint64_t fin = ahoraNs + static_cast<std::uint64_t>(l.size()) * 1'000'000'000ULL / frecuencia;
+        if (tsNs > fin + 20'000'000ULL && tsNs - ahoraNs < 60'000'000'000ULL) {
+            const std::size_t hueco = static_cast<std::size_t>((tsNs - fin) * frecuencia / 1'000'000'000ULL);
+            l.insert(l.end(), hueco, 0.0f);
+            r.insert(r.end(), hueco, 0.0f);
+        }
+        l.insert(l.end(), a, a + n);
+        r.insert(r.end(), b, b + n);
+        // Tope de seguridad (un minuto): nada agendado tan lejos.
+        const std::size_t tope = static_cast<std::size_t>(frecuencia) * 60;
+        while (l.size() > tope) {
+            l.pop_front();
+            r.pop_front();
+        }
+    }
     /// Saca n frames (con ceros si falta). Hasta tener el colchón no entrega.
     bool pop(float* a, float* b, std::uint32_t n) {
         std::lock_guard<std::mutex> g(m);

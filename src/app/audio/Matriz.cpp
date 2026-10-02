@@ -547,11 +547,14 @@ void Matriz::alAudio(void* param, obs_source_t*, const ::audio_data* data, bool 
     if (data == nullptr || data->frames == 0 || data->data[0] == nullptr) return;
     const auto* l = reinterpret_cast<const float*>(data->data[0]);
     const auto* r = data->data[1] != nullptr ? reinterpret_cast<const float*>(data->data[1]) : l;
+    // Con hora: la voz del sistema y la del teleprompter entregan frases enteras
+    // agendadas a futuro; sin esto el anillo las recortaba a 80 ms.
+    const std::uint32_t sr = audio_output_get_sample_rate(obs_get_audio());
     if (muted) {
         std::vector<float> z(data->frames, 0.0f);
-        t->ring.push(z.data(), z.data(), data->frames);
+        t->ring.pushEn(z.data(), z.data(), data->frames, data->timestamp, os_gettime_ns(), sr);
     } else {
-        t->ring.push(l, r, data->frames);
+        t->ring.pushEn(l, r, data->frames, data->timestamp, os_gettime_ns(), sr);
     }
 }
 

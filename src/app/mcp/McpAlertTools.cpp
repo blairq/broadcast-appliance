@@ -66,9 +66,13 @@ void McpService::registerAlertTools() {
             {"properties",
              {{"type",
                {{"type", "string"},
+                // Los tipos salen del motor: un tipo nuevo no queda afuera.
                 {"enum",
-                 {"audio_peak", "audio_silence", "media_end", "speaker_time", "lobby", "hand", "guest_drop",
-                  "chat", "guest_message", "stream_health", "stream_down", "disk", "timer"}}}},
+                 [] {
+                     json e = json::array();
+                     for (const auto& t : agent::AlertEngine::types()) e.push_back(t.value("type", ""));
+                     return e;
+                 }()}}},
               {"name", {{"type", "string"}}},
               {"params", {{"type", "object"}}},
               {"message", {{"type", "string"}, {"description", "Texto propio que acompaña al aviso."}}},

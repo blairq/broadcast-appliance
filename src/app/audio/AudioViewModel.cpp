@@ -327,6 +327,18 @@ QString AudioViewModel::setEntradaFuente(const QString& node, const QString& fue
     return QString::fromStdString(e);
 }
 
+QString AudioViewModel::setGrabar(bool grabar) {
+    const std::string e = mgr_.setGrabar(source_.toStdString(), grabar);
+    rebuildDetail();
+    return QString::fromStdString(e);
+}
+
+QVariantMap AudioViewModel::grabacion() const {
+    QVariantMap m = toVariant(mgr_.grabacion(source_.toStdString())).toMap();
+    m["carpeta"] = QString::fromStdString(mgr_.carpetaGrabaciones().string());
+    return m;
+}
+
 QString AudioViewModel::addGenerator() {
     AudioRack* r = rack(true);
     if (r == nullptr) return "Elegí una fuente con audio.";

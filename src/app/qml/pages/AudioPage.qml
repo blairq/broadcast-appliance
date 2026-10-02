@@ -982,6 +982,37 @@ Rectangle {
                         visible: parent.d.tipo === "analyzer" || parent.d.tipo === "generator"
                         GlassButton { compact: true; text: "Quitar"; onClicked: page.au.removeNode(page.au.selected) }
                     }
+                    // Salida de audio: grabar todo lo que le llega
+                    ColumnLayout {
+                        id: grabCol
+                        Layout.fillWidth: true
+                        visible: parent.d.tipo === "monitor"
+                        spacing: 4
+                        property var g: ({})
+                        Timer {
+                            interval: 1000; repeat: true; triggeredOnStart: true
+                            running: grabCol.visible && page.visible
+                            onTriggered: grabCol.g = page.au.grabacion()
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Toggle { checked: !!grabCol.g.grabar
+                                     onToggled: (w) => { page.msg = page.au.setGrabar(w); grabCol.g = page.au.grabacion() } }
+                            Text { Layout.fillWidth: true; text: "Grabar todo lo que le llega en un archivo (.wav)"; color: Theme.text; font.pixelSize: 12; wrapMode: Text.WordWrap }
+                            Rectangle { visible: !!grabCol.g.grabando; width: 10; height: 10; radius: 5; color: Theme.live }
+                        }
+                        Text {
+                            Layout.fillWidth: true; visible: !!grabCol.g.grabando; color: Theme.textDim; font.pixelSize: 11; wrapMode: Text.WrapAnywhere
+                            text: {
+                                const s = Math.floor(grabCol.g.segundos || 0)
+                                const t = Math.floor(s / 3600) + ":" + ("0" + Math.floor(s / 60) % 60).slice(-2) + ":" + ("0" + s % 60).slice(-2)
+                                return "Grabando " + t + " · " + ((grabCol.g.bytes || 0) / 1048576).toFixed(1) + " MB\n" + (grabCol.g.archivo || "")
+                            }
+                        }
+                        Text { Layout.fillWidth: true; visible: !!grabCol.g.grabar && !grabCol.g.conCable; color: Theme.warn; font.pixelSize: 11; wrapMode: Text.WordWrap
+                               text: "La tarjeta no tiene cable: conectale lo que quieras grabar." }
+                        GlassButton { compact: true; text: "Abrir la carpeta"; onClicked: Qt.openUrlExternally("file://" + grabCol.g.carpeta) }
+                    }
                     // Entrada: de qué fuente trae el audio
                     RowLayout {
                         Layout.fillWidth: true
