@@ -301,7 +301,10 @@ def main():
         for f in filas:
             a = tok(f["prompt"][len(prefijo):], add_special_tokens=False).input_ids
             b = tok(f["completion"], add_special_tokens=False).input_ids
-            if len(b) >= 2:
+            # las respuestas largas (la charla del formato tc) van por la parte de
+            # texto; aca solo llamadas y nombres: con ellas la atencion sobre el
+            # prefijo de ~8.000 tokens no entraba en la placa
+            if 2 <= len(b) <= 96:
                 out.append((a + b, len(a)))
         return out
     E, V = armar(ent), armar(val)
