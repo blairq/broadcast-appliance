@@ -4,60 +4,60 @@ base_model: Qwen/Qwen3.5-4B
 language: [es]
 library_name: gguf
 pipeline_tag: image-text-to-text
-tags: [function-calling, tool-calling, broadcast, live-tv, spanish, qwen3.5, gguf, llama.cpp]
+tags: [function-calling, tool-calling, broadcast, live-tv, spanish, qwen3.5, vision, gguf, llama.cpp]
 ---
+
 # broadcast-reactivo-qwen3.5-4b-v2-GGUF
 
-**ES** · V2 del modelo chico de un aparato de producción de TV en vivo: por cada pedido del operador
-escribe **la llamada completa**, herramienta y argumentos, en el formato nativo de tool calling de
-Qwen3.5 (`<tool_call><function=...><parameter=...>`), copiando los nombres del estado del aparato.
-Si no es suyo llama a `derivar`; si falta un dato obligatorio, a `falta_dato` con la pregunta; si es
-charla, contesta en texto.
+> **ES** · El modelo local de un aparato de producción de TV en vivo. Por cada pedido del operador
+> («bajale 4 a la música») escribe **la llamada completa** —herramienta y argumentos— en el formato
+> nativo de tool calling de Qwen3.5, copiando los nombres del estado del aparato. Si el pedido no es
+> suyo lo deriva; si falta un dato, lo pregunta; si es charla, contesta en texto. **Ve imágenes**
+> (la torre de visión de Qwen3.5 va incluida).
+>
+> **EN** · Local model for a live-TV production appliance: it writes the **full tool call** (tool +
+> arguments) in Qwen3.5's native format, copying names from the appliance state; it hands off what
+> isn't its own and asks when data is missing. Includes Qwen3.5's vision tower. Rioplatense Spanish.
 
-**EN** · V2: writes the **full call** (tool + arguments) in Qwen3.5's native tool-calling format,
-copying entity names from the appliance state; `derivar` hands off, `falta_dato` asks for missing data.
+**84 herramientas** · base [`Qwen/Qwen3.5-4B`](https://huggingface.co/Qwen/Qwen3.5-4B) · GGUF Q4_K_M + mmproj (visión) · cabeza MTP entrenada
 
-## Medidas (bf16 · MLX q4)
+## Resultados
 
 | | bf16 | MLX q4 |
-|---|---|---|
-| argumentos exactos (plantillas nunca vistas) | 87.6% | 86.6% |
-| herramienta correcta (ídem) | 91.5% | 90.0% |
-| formato válido | 100.0% | 100.0% |
-| falta_dato cuando corresponde | 81.0% | 72.6% |
-| banco: precisión (eleccion) | 91.6% | 86.5% |
-| banco: cobertura | 81.7% | 74.8% |
-| banco: derivado | 84.5% | 87.5% |
-| examen (105) | 64.8% | 63.8% |
+|---|---:|---:|
+| Argumentos exactos (plantillas nunca vistas) | 87.6 % | 86.6 % |
+| Herramienta correcta (ídem) | 91.5 % | 90.0 % |
+| Formato válido | 100.0 % | 100.0 % |
+| `falta_dato` cuando corresponde | 81.0 % | 72.6 % |
+| Banco · precisión al elegir | 91.6 % | 86.5 % |
+| Banco · cobertura | 81.7 % | 74.8 % |
+| Banco · derivado | 84.5 % | 87.5 % |
+| Examen (105 casos) | 64.8 % | 63.8 % |
 
-Charla general (respuestas del modelo base que no se entrenaron): pérdida 0.466 por
-token; contesta charla con una llamada en el 16 % de los casos.
+Medido contra lo que **no** se entrenó: plantillas apartadas con estados nuevos, y el banco de
+orientación (1.423 frases escritas aparte). *Cobertura*: de lo que es suyo, cuánto atiende solo ·
+*precisión*: de lo que atiende, cuánto acierta · *derivado*: de lo ajeno, cuánto pasa al asistente
+grande. Charla general: pérdida 0.47 por token sobre respuestas del modelo base no
+entrenadas; contesta charla con una llamada en el 16 % de los casos.
 
-## Cabeza MTP
-
-Reentrenada para este modelo, con 3 borradores EN CADENA (cada paso recibe la salida del anterior, como se usa en vivo) y con nombres y texto escrito por el propio modelo. Medido en validación: tokens aceptados por ciclo (de 3) y acierto de cada paso dado que los anteriores acertaron.
-
-| datos | cabeza | aceptados por ciclo | por paso |
-|---|---|---|---|
-| nombres de herramienta | original | 2.08 | 85% / 83% / 83% |
-| nombres de herramienta | entrenada | 2.15 | 86% / 84% / 88% |
-| nombres de herramienta | entrenada, lineales q8 | 2.15 | 86% / 84% / 88% |
-| nombres de herramienta | entrenada, lineales q4 | 2.15 | 86% / 85% / 87% |
-| texto libre | original | 1.32 | 70% / 58% / 54% |
-| texto libre | entrenada | 1.54 | 74% / 67% / 65% |
-| texto libre | entrenada, lineales q8 | 1.54 | 74% / 67% / 64% |
-| texto libre | entrenada, lineales q4 | 1.52 | 74% / 66% / 64% |
-
-## Uso
+## Uso rápido
 
 ```bash
-llama-server -m broadcast-reactivo-qwen3.5-4b-v2-Q4_K_M.gguf --mmproj mmproj-F16.gguf -c 16384 --cache-reuse 256 --spec-type draft-mtp --spec-draft-n-max 3
+llama-server -m broadcast-reactivo-qwen3.5-4b-v2-Q4_K_M.gguf --mmproj mmproj-F16.gguf \
+    -c 16384 --cache-reuse 256 --spec-type draft-mtp --spec-draft-n-max 3
 ```
+llama.cpp b11255 o posterior (arquitectura `qwen35`).
 
-Todo lo que hace falta para servirlo está en `prompt.json`: la cabeza exacta (system con las
-84 herramientas y `derivar`/`falta_dato`), la forma del pedido, la cola y las convenciones:
-nombres copiados del estado; cambios con signo (`-4`, `+3`; «un poco» = 3, sin cantidad = 6); valor
-exacto con `=` (`=-10`); booleanos `true`/`false`. Firma del prompt: `900e34cd7e5900fb`.
+## Visión
+
+El modelo **ve imágenes**: la torre de visión va en **`mmproj-F16.gguf`** (F16), aparte del modelo, como lo usa llama.cpp. Es **la misma torre de la base**: el ajuste entrenó solo la parte
+de texto y la visión no se toca, así que ve como Qwen3.5-4B (capturas de la salida, de una fuente, del
+multiview). Verificado al armarlo: describe una imagen de prueba igual que el modelo base.
+
+```bash
+llama-mtmd-cli -m broadcast-reactivo-qwen3.5-4b-v2-Q4_K_M.gguf --mmproj mmproj-F16.gguf --image captura.png -p "¿Qué se ve?"
+# o con el servidor: llama-server ... --mmproj mmproj-F16.gguf (imágenes por la API compatible con OpenAI)
+```
 
 ## Formato (el contrato para servirlo)
 
@@ -130,21 +130,110 @@ Para leerla: `<tool_call>\s*<function=([^>\n]+)>(.*?)</function>\s*</tool_call>`
 fichas) y los argumentos van en una segunda llamada; el v2 hace las dos cosas en una. En el v1 el
 valor exacto iba como número suelto; en el v2, `-10` es un cambio y `=-10` es exacto.
 
-## Entrenamiento
+## Cómo se entrenó: el loop
 
-- Base [`Qwen/Qwen3.5-4B`](https://huggingface.co/Qwen/Qwen3.5-4B), LoRA r=32 sobre todas las lineales, fusionado.
-- Corpus 8719 ejemplos: {"herramienta": 0.409, "falta": 0.102, "derivar": 0.132, "charla": 0.356} (herramienta con argumentos,
-  falta_dato, derivar, charla). Las semillas curadas como plantillas con huecos, rendidas con estados
-  del aparato sintéticos y distintos; la charla, respuestas del propio Qwen3.5 base (pedidos de
-  databricks-dolly-15k en castellano y del oficio). Ver `docs/entrenamiento-avanzado.md` del aparato.
+Este modelo no sale de juntar muchos ejemplos: sale de un **loop** que mide cada frase, la corrige y
+vuelve a medir, primero sobre el corpus y después sobre el modelo entrenado.
+
+### 1. El corpus crece por calidad, no por cantidad
+
+De 15 a 20 frases semilla por herramienta (84 herramientas), como las dice un operador de cabina
+rioplatense. **Cada frase es un vector**: el estado interno del modelo cuando la lee. Cada herramienta
+es una nube de vectores, con su centro μ y su dispersión Σ, y se mide cuánto se separa de las demás:
+
+- **Separación de un grupo** contra el más peligroso (Frobenius):
+  `Q(a) = min_b ‖μa − μb‖² / (‖Σa‖_F + ‖Σb‖_F)`
+- **Puntaje de una frase**: cuánto cae Q sin ella, `(Q(a) − Q(a sin la frase)) / Q(a)`. Negativo: la
+  frase empeora su grupo, y se sabe hacia qué vecina tira.
+- **Choque entre dos grupos** (CDNV direccional, arXiv 2603.03530): la varianza de las dos nubes sobre
+  el eje que las une, dividida por la distancia entre centros; acota el error del clasificador por
+  centro más cercano. Un grupo bueno es **angosto hacia sus vecinas y ancho en todo lo demás**.
+- **Margen del decodificador** (AUM): logit de la herramienta correcta menos el del mejor rival.
+
+La matemática **no poda a ciegas**: señala qué frase está mal y hacia dónde tira.
+
+### 2. Agentes que corrigen, con contexto real
+
+Un agente (una LLM sin conexión, que solo ve su lote) recibe la ficha real de la herramienta, la de
+sus vecinas y la frase señalada, y la reescribe atacando ese detalle; separa los pares que se pisan;
+un juez ciego verifica. Después de cada cambio se recalcula el grupo: si se corrió se realinea, si
+quedó apretado se abre con formas de pedir distintas. **Test → arreglar → test**, hasta que todas
+dan bien.
+
+### 3. STE-ES: el alma de ASD-STE100, en castellano de cabina
+
+Las frases las reescribe una LLM, así que se le pone un lenguaje controlado: **una palabra, un
+significado**; las palabras de muchos sentidos («poné», «sacá», «pasá») solo con el objeto que fija
+cuál; un pedido, una acción; objeto y cantidad explícitos. El núcleo de la frase se controla y la
+superficie (voseo, muletillas, typos) queda libre, porque el modelo tiene que entender al operador
+real. En las semillas, el 64 % arrancaba con una palabra que comparten cuatro o más herramientas:
+justo donde los grupos se pisan.
+
+### 4. Lo que mide no se toca
+
+Un examen (105 casos) y un banco de 1.423 frases escritas aparte **nunca se entrenan ni se le
+muestran a un agente**. Es lo único que mide de verdad.
+
+### 5. Herramienta y argumentos, con estados del aparato inventados
+
+Cada semilla es una plantilla con huecos y sus argumentos («bajale 4 a `{audio}`» → `audio_set`,
+`volumeDb: -4`), validada contra el esquema de la herramienta y contra STE-ES. Se rinde varias veces
+con **estados del aparato sintéticos y distintos**: así el modelo aprende a **copiar** el nombre que
+hay en el estado («Micro Laura», «Cámara 2») en vez de memorizarlo.
+
+### 6. Lo que no es suyo, y no olvidar lo general
+
+Además de las llamadas: «no es mío» (`derivar`, al asistente grande), «falta un dato»
+(`falta_dato`, pregunta) y **charla general escrita por el propio modelo base**, para que el
+ajuste no le borre lo genérico (ajustado solo a un catálogo, Qwen3-4B conserva el 61 % de su
+capacidad general: arXiv 2605.17774).
+
+### 7. El loop del modelo
+
+Entrenar → medir con plantillas que nunca vio y con el banco → **autoexamen**: las plantillas
+entrenadas con estados nuevos → un agente corrige las anotaciones o suma ejemplos de lo que falló
+(validados por esquema y STE-ES) → otra vuelta. Se queda con la mejor.
+
+### 8. Ingeniería
+
+El system con las 84 herramientas son ~8.200 tokens: se procesan una vez por lote y se reusan. En el
+backward cada capa se recalcula sola (con una foto de su caché que se repone antes), y los logits se
+calculan solo donde hay pérdida: así entra en dos RTX 3090. La cabeza MTP se reentrena para este
+modelo con los borradores en cadena, como se usan en vivo, y con texto escrito por el propio modelo.
+
+
+## Datos de entrenamiento
+
+- 8719 ejemplos: herramienta 41 % · falta 10 % · derivar 13 % · charla 36 % (herramienta con argumentos, `falta_dato`, `derivar`, charla).
+- LoRA r=32 sobre todas las lineales (también las de atención lineal), lr 2e-4 coseno, fusionado.
+- La charla: pedidos de [databricks-dolly-15k](https://huggingface.co/datasets/argilla/databricks-dolly-15k-curated-multilingual)
+  en castellano (CC-BY-SA 3.0, solo las instrucciones) y del oficio, contestados por el Qwen3.5 base.
+- Firma del prompt `900e34cd7e5900fb` · corpus `271addc85e22ac82` · código del aparato `3d791a1`.
+
+## Cabeza MTP
+
+Reentrenada para este modelo, con 3 borradores EN CADENA (cada paso recibe la salida del anterior, como se usa en vivo) y con nombres y texto escrito por el propio modelo. Medido en validación: tokens aceptados por ciclo (de 3) y acierto de cada paso dado que los anteriores acertaron.
+
+| datos | cabeza | aceptados por ciclo | por paso |
+|---|---|---|---|
+| nombres de herramienta | original | 2.08 | 85% / 83% / 83% |
+| nombres de herramienta | entrenada | 2.15 | 86% / 84% / 88% |
+| nombres de herramienta | entrenada, lineales q8 | 2.15 | 86% / 84% / 88% |
+| nombres de herramienta | entrenada, lineales q4 | 2.15 | 86% / 85% / 87% |
+| texto libre | original | 1.32 | 70% / 58% / 54% |
+| texto libre | entrenada | 1.54 | 74% / 67% / 65% |
+| texto libre | entrenada, lineales q8 | 1.54 | 74% / 67% / 64% |
+| texto libre | entrenada, lineales q4 | 1.52 | 74% / 66% / 64% |
 
 ## Limitaciones
 
 - Primera versión del formato: medida contra plantillas apartadas y el banco, todavía no con el
-  aparato andando (`tools/voz-banco.py`).
-- La app tiene que validar (`ArgumentosLocales`): nombres que existen, rangos, la cuenta del cambio.
+  aparato andando.
+- Atiende solo lo suyo: deriva al asistente grande más que la versión de solo nombres (ver cobertura).
+- Quien lo sirve tiene que validar los argumentos: nombres que existen, rangos, la cuenta del cambio.
 
 ## Archivos
 
 `broadcast-reactivo-qwen3.5-4b-v2-Q4_K_M.gguf`: Q4_K_M, calibrado con imatrix sobre el propio corpus (sin el examen) e incluye la cabeza MTP entrenada.
-`mmproj-F16.gguf`: la parte de visión para llama.cpp (`--mmproj`), igual a la de la base. `prompt.json`: todo para servirlo. `huella-prompt.json` y `LICENSE`.
+`mmproj-F16.gguf`: la parte de visión para llama.cpp (`--mmproj`), igual a la de la base.
+`prompt.json`: todo para servirlo · `huella-prompt.json`: firma del prompt · `LICENSE`: la de la base.

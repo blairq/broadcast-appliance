@@ -136,6 +136,78 @@ def leer_metricas(texto):
 
 # El contrato del formato de tool calling (v2), para la tarjeta: lo que tiene que
 # hacer quien lo sirve (ba-modelo, llama.cpp). Fuente: tools/lib_tc.py.
+METODO_LOOP = """## Cómo se entrenó: el loop
+
+Este modelo no sale de juntar muchos ejemplos: sale de un **loop** que mide cada frase, la corrige y
+vuelve a medir, primero sobre el corpus y después sobre el modelo entrenado.
+
+### 1. El corpus crece por calidad, no por cantidad
+
+De 15 a 20 frases semilla por herramienta (84 herramientas), como las dice un operador de cabina
+rioplatense. **Cada frase es un vector**: el estado interno del modelo cuando la lee. Cada herramienta
+es una nube de vectores, con su centro μ y su dispersión Σ, y se mide cuánto se separa de las demás:
+
+- **Separación de un grupo** contra el más peligroso (Frobenius):
+  `Q(a) = min_b ‖μa − μb‖² / (‖Σa‖_F + ‖Σb‖_F)`
+- **Puntaje de una frase**: cuánto cae Q sin ella, `(Q(a) − Q(a sin la frase)) / Q(a)`. Negativo: la
+  frase empeora su grupo, y se sabe hacia qué vecina tira.
+- **Choque entre dos grupos** (CDNV direccional, arXiv 2603.03530): la varianza de las dos nubes sobre
+  el eje que las une, dividida por la distancia entre centros; acota el error del clasificador por
+  centro más cercano. Un grupo bueno es **angosto hacia sus vecinas y ancho en todo lo demás**.
+- **Margen del decodificador** (AUM): logit de la herramienta correcta menos el del mejor rival.
+
+La matemática **no poda a ciegas**: señala qué frase está mal y hacia dónde tira.
+
+### 2. Agentes que corrigen, con contexto real
+
+Un agente (una LLM sin conexión, que solo ve su lote) recibe la ficha real de la herramienta, la de
+sus vecinas y la frase señalada, y la reescribe atacando ese detalle; separa los pares que se pisan;
+un juez ciego verifica. Después de cada cambio se recalcula el grupo: si se corrió se realinea, si
+quedó apretado se abre con formas de pedir distintas. **Test → arreglar → test**, hasta que todas
+dan bien.
+
+### 3. STE-ES: el alma de ASD-STE100, en castellano de cabina
+
+Las frases las reescribe una LLM, así que se le pone un lenguaje controlado: **una palabra, un
+significado**; las palabras de muchos sentidos («poné», «sacá», «pasá») solo con el objeto que fija
+cuál; un pedido, una acción; objeto y cantidad explícitos. El núcleo de la frase se controla y la
+superficie (voseo, muletillas, typos) queda libre, porque el modelo tiene que entender al operador
+real. En las semillas, el 64 % arrancaba con una palabra que comparten cuatro o más herramientas:
+justo donde los grupos se pisan.
+
+### 4. Lo que mide no se toca
+
+Un examen (105 casos) y un banco de 1.423 frases escritas aparte **nunca se entrenan ni se le
+muestran a un agente**. Es lo único que mide de verdad.
+
+### 5. Herramienta y argumentos, con estados del aparato inventados
+
+Cada semilla es una plantilla con huecos y sus argumentos («bajale 4 a `{audio}`» → `audio_set`,
+`volumeDb: -4`), validada contra el esquema de la herramienta y contra STE-ES. Se rinde varias veces
+con **estados del aparato sintéticos y distintos**: así el modelo aprende a **copiar** el nombre que
+hay en el estado («Micro Laura», «Cámara 2») en vez de memorizarlo.
+
+### 6. Lo que no es suyo, y no olvidar lo general
+
+Además de las llamadas: «no es mío» (`derivar`, al asistente grande), «falta un dato»
+(`falta_dato`, pregunta) y **charla general escrita por el propio modelo base**, para que el
+ajuste no le borre lo genérico (ajustado solo a un catálogo, Qwen3-4B conserva el 61 % de su
+capacidad general: arXiv 2605.17774).
+
+### 7. El loop del modelo
+
+Entrenar → medir con plantillas que nunca vio y con el banco → **autoexamen**: las plantillas
+entrenadas con estados nuevos → un agente corrige las anotaciones o suma ejemplos de lo que falló
+(validados por esquema y STE-ES) → otra vuelta. Se queda con la mejor.
+
+### 8. Ingeniería
+
+El system con las 84 herramientas son ~8.200 tokens: se procesan una vez por lote y se reusan. En el
+backward cada capa se recalcula sola (con una foto de su caché que se repone antes), y los logits se
+calculan solo donde hay pérdida: así entra en dos RTX 3090. La cabeza MTP se reentrena para este
+modelo con los borradores en cadena, como se usan en vivo, y con texto escrito por el propio modelo.
+"""
+
 FORMATO_TC = """## Formato (el contrato para servirlo)
 
 Todo sale de `prompt.json` (fuente: `tools/lib_tc.py` del aparato). Firma del prompt: `@HUELLA@`.
@@ -930,85 +1002,131 @@ con otras fichas es otro modelo, aunque siga contestando.
     def tarjeta_tc(self, formato, repo, archivos, mtp):
         m, a = self.man, self.a
         p, med = m["perfil"], m.get("medidas", {})
-        pct = lambda v: f"{100 * v[0] / v[1]:.1f}%" if v and v[1] else "–"
+        pct = lambda v: f"{100 * v[0] / v[1]:.1f} %" if v and v[1] else "–"
         b16, bq = med.get("bf16", {}), med.get("mlx-q4", {})
         pr = (b16.get("prueba") or {}).get("conteos", {})
         prq = (bq.get("prueba") or {}).get("conteos", {})
+        bb, bbq = b16.get("banco", {}).get("0", {}), bq.get("banco", {}).get("0", {})
         ch16 = b16.get("charla") or {}
         hu = m.get("corpus_huella", {})
-        uso_mlx = f"""```python
-from mlx_lm import load   # o mlx_vlm, con imagenes
-modelo, tok = load("{a.hf_usuario or '<usuario>'}/{repo}")
-# prompt = prompt.json: cabeza (system con las herramientas) + "Estado: {{...}}\\nPedido: ..." + cola
+        usuario = a.hf_usuario or "<usuario>"
+        q4 = bool(prq or bbq)
+        filas = [("Argumentos exactos (plantillas nunca vistas)", pr.get("args_exactos"), prq.get("args_exactos")),
+                 ("Herramienta correcta (ídem)", pr.get("herramienta"), prq.get("herramienta")),
+                 ("Formato válido", pr.get("formato"), prq.get("formato")),
+                 ("`falta_dato` cuando corresponde", pr.get("falta_dato"), prq.get("falta_dato")),
+                 ("Banco · precisión al elegir", bb.get("precision"), bbq.get("precision")),
+                 ("Banco · cobertura", bb.get("cobertura"), bbq.get("cobertura")),
+                 ("Banco · derivado", bb.get("derivado"), bbq.get("derivado")),
+                 ("Examen (105 casos)", b16.get("examen", {}).get("acierto"), bq.get("examen", {}).get("acierto"))]
+        tabla = ("| | bf16 | MLX q4 |\n|---|---:|---:|\n" if q4 else "| | bf16 |\n|---|---:|\n") + "\n".join(
+            f"| {n} | {pct(x)} |" + (f" {pct(y)} |" if q4 else "") for n, x, y in filas)
+        porc = hu.get("porcion", {})
+        mezcla = " · ".join(f"{k} {100 * v:.0f} %" for k, v in porc.items())
+        if formato == "mlx":
+            uso = f"""```python
+from mlx_vlm import load          # con imágenes; mlx_lm.load si es solo texto
+modelo, proc = load("{usuario}/{repo}")
+# el prompt: prompt.json -> cabeza + "Estado: {{...}}\\nPedido: ..." + cola
+```
+En la Mac del aparato lo sirve `ba-modelo` (mlx-swift-lm), con la cabeza MTP en `mtp.safetensors`."""
+        else:
+            uso = f"""```bash
+llama-server -m {getattr(self, 'gguf_nombre', '')}{' --mmproj mmproj-F16.gguf' if m.get('exportado', {}).get('mmproj') else ''} \\
+    -c 16384 --cache-reuse 256{' --spec-type draft-mtp --spec-draft-n-max 3' if mtp else ''}
+```
+llama.cpp b11255 o posterior (arquitectura `qwen35`)."""
+        if m.get("exportado", {}).get("vision"):
+            if formato == "mlx":
+                como = f"""```python
+from mlx_vlm import load, generate
+from mlx_vlm.prompt_utils import apply_chat_template
+modelo, proc = load("{usuario}/{repo}")
+p = apply_chat_template(proc, modelo.config, "¿Qué se ve en esta imagen?", num_images=1)
+print(generate(modelo, proc, p, image=["captura.png"], max_tokens=80).text)
 ```"""
-        uso_gguf = f"""```bash
-llama-server -m {getattr(self, 'gguf_nombre', '')}{' --mmproj mmproj-F16.gguf' if m.get('exportado', {}).get('mmproj') else ''} -c 16384 --cache-reuse 256{' --spec-type draft-mtp --spec-draft-n-max 3' if mtp else ''}
+                donde = ("la torre de visión de Qwen3.5 (333M parámetros) va **dentro de `model.safetensors`**, sin cuantizar"
+                         " y en fp16 como el resto. mlx-vlm la usa con imágenes; mlx-lm carga el mismo archivo como texto"
+                         " (la ignora).")
+            else:
+                como = f"""```bash
+llama-mtmd-cli -m {getattr(self, 'gguf_nombre', '')} --mmproj mmproj-F16.gguf --image captura.png -p "¿Qué se ve?"
+# o con el servidor: llama-server ... --mmproj mmproj-F16.gguf (imágenes por la API compatible con OpenAI)
 ```"""
+                donde = "la torre de visión va en **`mmproj-F16.gguf`** (F16), aparte del modelo, como lo usa llama.cpp."
+            vision = f"""## Visión
+
+El modelo **ve imágenes**: {donde} Es **la misma torre de la base**: el ajuste entrenó solo la parte
+de texto y la visión no se toca, así que ve como Qwen3.5-4B (capturas de la salida, de una fuente, del
+multiview). Verificado al armarlo: describe una imagen de prueba igual que el modelo base.
+
+{como}"""
+        else:
+            vision = ""
         return f"""---
 license: {m['base_licencia']}
 base_model: {m.get('base')}
 language: [es]
 library_name: {'mlx' if formato == 'mlx' else 'gguf'}
 pipeline_tag: {'image-text-to-text' if m.get('exportado', {}).get('vision') else 'text-generation'}
-tags: [function-calling, tool-calling, broadcast, live-tv, spanish, qwen3.5{', mlx' if formato == 'mlx' else ', gguf, llama.cpp'}]
+tags: [function-calling, tool-calling, broadcast, live-tv, spanish, qwen3.5, vision{', mlx' if formato == 'mlx' else ', gguf, llama.cpp'}]
 ---
+
 # {repo}
 
-**ES** · V2 del modelo chico de un aparato de producción de TV en vivo: por cada pedido del operador
-escribe **la llamada completa**, herramienta y argumentos, en el formato nativo de tool calling de
-Qwen3.5 (`<tool_call><function=...><parameter=...>`), copiando los nombres del estado del aparato.
-Si no es suyo llama a `derivar`; si falta un dato obligatorio, a `falta_dato` con la pregunta; si es
-charla, contesta en texto.
+> **ES** · El modelo local de un aparato de producción de TV en vivo. Por cada pedido del operador
+> («bajale 4 a la música») escribe **la llamada completa** —herramienta y argumentos— en el formato
+> nativo de tool calling de Qwen3.5, copiando los nombres del estado del aparato. Si el pedido no es
+> suyo lo deriva; si falta un dato, lo pregunta; si es charla, contesta en texto. **Ve imágenes**
+> (la torre de visión de Qwen3.5 va incluida).
+>
+> **EN** · Local model for a live-TV production appliance: it writes the **full tool call** (tool +
+> arguments) in Qwen3.5's native format, copying names from the appliance state; it hands off what
+> isn't its own and asks when data is missing. Includes Qwen3.5's vision tower. Rioplatense Spanish.
 
-**EN** · V2: writes the **full call** (tool + arguments) in Qwen3.5's native tool-calling format,
-copying entity names from the appliance state; `derivar` hands off, `falta_dato` asks for missing data.
+**{len(p.get('herramientas', []))} herramientas** · base [`{m.get('base')}`](https://huggingface.co/{m.get('base')}) · {'MLX 4 bits, todo en fp16, con visión' if formato == 'mlx' else 'GGUF Q4_K_M + mmproj (visión)'} · cabeza MTP entrenada
 
-## Medidas (bf16{' · MLX q4' if bq else ''})
+## Resultados
 
-| | bf16 | {'MLX q4' if bq else ''} |
-|---|---|---|
-| argumentos exactos (plantillas nunca vistas) | {pct(pr.get('args_exactos'))} | {pct(prq.get('args_exactos'))} |
-| herramienta correcta (ídem) | {pct(pr.get('herramienta'))} | {pct(prq.get('herramienta'))} |
-| formato válido | {pct(pr.get('formato'))} | {pct(prq.get('formato'))} |
-| falta_dato cuando corresponde | {pct(pr.get('falta_dato'))} | {pct(prq.get('falta_dato'))} |
-| banco: precisión (eleccion) | {pct(b16.get('banco', {}).get('0', {}).get('precision'))} | {pct(bq.get('banco', {}).get('0', {}).get('precision'))} |
-| banco: cobertura | {pct(b16.get('banco', {}).get('0', {}).get('cobertura'))} | {pct(bq.get('banco', {}).get('0', {}).get('cobertura'))} |
-| banco: derivado | {pct(b16.get('banco', {}).get('0', {}).get('derivado'))} | {pct(bq.get('banco', {}).get('0', {}).get('derivado'))} |
-| examen (105) | {pct(b16.get('examen', {}).get('acierto'))} | {pct(bq.get('examen', {}).get('acierto'))} |
+{tabla}
 
-Charla general (respuestas del modelo base que no se entrenaron): pérdida {ch16.get('nll_por_token', 0):.3f} por
-token; contesta charla con una llamada en el {100 * ch16.get('llamadas_en_charla', 0):.0f} % de los casos.
+Medido contra lo que **no** se entrenó: plantillas apartadas con estados nuevos, y el banco de
+orientación (1.423 frases escritas aparte). *Cobertura*: de lo que es suyo, cuánto atiende solo ·
+*precisión*: de lo que atiende, cuánto acierta · *derivado*: de lo ajeno, cuánto pasa al asistente
+grande. Charla general: pérdida {ch16.get('nll_por_token', 0):.2f} por token sobre respuestas del modelo base no
+entrenadas; contesta charla con una llamada en el {100 * ch16.get('llamadas_en_charla', 0):.0f} % de los casos.
 
-{self.texto_mtp(mtp)}
+## Uso rápido
 
-## Uso
+{uso}
 
-{uso_mlx if formato == 'mlx' else uso_gguf}
-
-Todo lo que hace falta para servirlo está en `prompt.json`: la cabeza exacta (system con las
-{len(p.get('herramientas', []))} herramientas y `derivar`/`falta_dato`), la forma del pedido, la cola y las convenciones:
-nombres copiados del estado; cambios con signo (`-4`, `+3`; «un poco» = 3, sin cantidad = 6); valor
-exacto con `=` (`=-10`); booleanos `true`/`false`. Firma del prompt: `{p.get('prompt')}`.
+{vision}
 
 {FORMATO_TC.replace("@HUELLA@", str(p.get('prompt')))}
 
-## Entrenamiento
+{METODO_LOOP}
 
-- Base [`{m.get('base')}`](https://huggingface.co/{m.get('base')}), LoRA r=32 sobre todas las lineales, fusionado.
-- Corpus {m.get('corpus_ejemplos')} ejemplos: {json.dumps(hu.get('porcion', {}), ensure_ascii=False)} (herramienta con argumentos,
-  falta_dato, derivar, charla). Las semillas curadas como plantillas con huecos, rendidas con estados
-  del aparato sintéticos y distintos; la charla, respuestas del propio Qwen3.5 base (pedidos de
-  databricks-dolly-15k en castellano y del oficio). Ver `docs/entrenamiento-avanzado.md` del aparato.
+## Datos de entrenamiento
+
+- {m.get('corpus_ejemplos')} ejemplos: {mezcla} (herramienta con argumentos, `falta_dato`, `derivar`, charla).
+- LoRA r=32 sobre todas las lineales (también las de atención lineal), lr 2e-4 coseno, fusionado.
+- La charla: pedidos de [databricks-dolly-15k](https://huggingface.co/datasets/argilla/databricks-dolly-15k-curated-multilingual)
+  en castellano (CC-BY-SA 3.0, solo las instrucciones) y del oficio, contestados por el Qwen3.5 base.
+- Firma del prompt `{p.get('prompt')}` · corpus `{m.get('corpus_firma')}` · código del aparato `{m.get('repo_commit')}`.
+
+{self.texto_mtp(mtp)}
 
 ## Limitaciones
 
 - Primera versión del formato: medida contra plantillas apartadas y el banco, todavía no con el
-  aparato andando (`tools/voz-banco.py`).
-- La app tiene que validar (`ArgumentosLocales`): nombres que existen, rangos, la cuenta del cambio.
+  aparato andando.
+- Atiende solo lo suyo: deriva al asistente grande más que la versión de solo nombres (ver cobertura).
+- Quien lo sirve tiene que validar los argumentos: nombres que existen, rangos, la cuenta del cambio.
 
 ## Archivos
 
-{archivos} `prompt.json`: todo para servirlo. `huella-prompt.json` y `LICENSE`.
+{archivos}
+`prompt.json`: todo para servirlo · `huella-prompt.json`: firma del prompt · `LICENSE`: la de la base.
 """
 
     @staticmethod
