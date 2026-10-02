@@ -23,7 +23,11 @@ import sys
 from datetime import datetime, timezone
 
 RAIZ = pathlib.Path(__file__).resolve().parents[1]
-MCP = RAIZ / "release" / "bin" / "64bit" / "ba-mcp"
+# La app que está andando (la que tiene Runtime/mcp.json): release/ (Linux,
+# Windows) o el paquete de macOS.
+_CANDIDATAS = [RAIZ / "release", RAIZ / "dist" / "BroadcastAppliance.app" / "Contents" / "Resources"]
+APP = next((c for c in _CANDIDATAS if (c / "Runtime" / "mcp.json").exists()), _CANDIDATAS[0])
+MCP = APP / "bin" / "64bit" / "ba-mcp"
 
 
 def del_aparato():
@@ -34,7 +38,7 @@ def del_aparato():
         '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}\n'
     )
     r = subprocess.run([str(MCP)], input=pedidos, capture_output=True, text=True,
-                       timeout=120, cwd=str(RAIZ / "release"))
+                       timeout=120, cwd=str(APP))
     for linea in r.stdout.splitlines():
         if '"id":2' not in linea:
             continue

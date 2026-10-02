@@ -43,6 +43,8 @@ const Fila kFamilias[] = {
     {"log_", "registro log bitacora diagnostico error historial que paso depurar"},
     {"receta_", "receta automatizacion macro secuencia guardada atajo"},
     {"agente_", "agente automatico rol ia bot trabajador delegar encargar"},
+    {"modelo_local_", "modelo local ia de esta maquina qwen motor local bajar modelo sin internet"},
+    {"voz_", "voz hablar escuchar dictado microfono en voz alta asistente por voz"},
     {"prompter_", "teleprompter prompter apuntador discurso texto orador leer guion"},
     {"pantalla_", "pantalla televisor tv monitor chromecast proyector cartel proyectar castear"},
     // OJO, son DOS cosas distintas y la palabra «carrusel» lleva a las dos:

@@ -6,8 +6,8 @@
     "`etiquetas` son las del buscador (McpIndice), no del protocolo: es lo que hace que",
     "«hay acople» llegue a audio_set sin que nadie nombre la herramienta."
   ],
-  "generado": "2026-09-29T15:32:51+00:00",
-  "cuantas": 292,
+  "generado": "2026-10-02T14:19:41+00:00",
+  "cuantas": 332,
   "repetidas": [],
   "categorias": [
     {
@@ -19,12 +19,31 @@
         "agente_corridas",
         "agente_detener",
         "agente_encargar",
-        "agente_roles"
+        "agente_roles",
+        "modelo_local_activar",
+        "modelo_local_ajustes",
+        "modelo_local_apagar",
+        "modelo_local_bajar",
+        "modelo_local_borrar",
+        "modelo_local_cancelar_descarga",
+        "modelo_local_elegir",
+        "modelo_local_estado",
+        "texto_a_voz",
+        "texto_flujos",
+        "voces",
+        "voz_ajustes",
+        "voz_atender",
+        "voz_automaticas",
+        "voz_decir",
+        "voz_microfono",
+        "voz_teleprompter",
+        "voz_texto",
+        "voz_transcripcion"
       ]
     },
     {
       "id": "alertas",
-      "titulo": "Vigilancias (alertas)",
+      "titulo": "Disparadores (alertas)",
       "herramientas": [
         "alert_create",
         "alert_delete",
@@ -62,14 +81,24 @@
       "id": "audio_rack",
       "titulo": "Rack de audio (LSP)",
       "herramientas": [
+        "audio_bus_agregar",
+        "audio_bus_dispositivo",
+        "audio_bus_quitar",
+        "audio_bus_renombrar",
         "audio_bypass",
         "audio_compressor",
         "audio_deesser",
+        "audio_dispositivos",
         "audio_editor",
         "audio_eq",
+        "audio_filtros_catalogo",
         "audio_gate",
         "audio_generator",
         "audio_limiter",
+        "audio_lsp_restablecer_interfaz",
+        "audio_matriz",
+        "audio_matriz_cruce",
+        "audio_matriz_equipo",
         "audio_module_add",
         "audio_module_get",
         "audio_module_remove",
@@ -93,6 +122,25 @@
         "help",
         "help_search",
         "security_status"
+      ]
+    },
+    {
+      "id": "camaras",
+      "titulo": "Cámaras PTZ",
+      "herramientas": [
+        "ptz_buscar",
+        "ptz_camaras",
+        "ptz_configurar",
+        "ptz_encuadre",
+        "ptz_ir_posicion",
+        "ptz_mover",
+        "ptz_parar",
+        "ptz_posicion_borrar",
+        "ptz_posicion_crear",
+        "ptz_posicion_editar",
+        "ptz_posiciones",
+        "ptz_preset",
+        "video_mejora"
       ]
     },
     {
@@ -120,8 +168,6 @@
       "titulo": "Entradas de video",
       "herramientas": [
         "input_status",
-        "ndi_input_add",
-        "ndi_sources",
         "network_input_add",
         "video_input_add"
       ]
@@ -598,6 +644,14 @@
       "fuentes",
       "operador"
     ],
+    "vigilante": [
+      "audio",
+      "escenas",
+      "estado",
+      "operador",
+      "oradores",
+      "sala"
+    ],
     "vision": [
       "imagenes"
     ]
@@ -625,7 +679,7 @@
       "id": "fuentes",
       "titulo": "Fuentes y ubicacion",
       "resumen": "Tipos, settings mas usados, propiedades, presets de ubicacion.",
-      "texto": "## Tipos\n`source_types` lista los de esta instalacion. Los mas usados:\n| type | settings tipicos |\n|---|---|\n| `image_source` | `file` (ruta) |\n| `ffmpeg_source` | `local_file`, `looping`, `restart_on_activate` |\n| `color_source_v3` | `color` (entero ABGR: 0xAABBGGRR, p. ej. rojo opaco = 4278190335), `width`, `height` |\n| `text_ft2_source_v2` | `text`, `font` {face, size}, `color1`, `color2`, `outline`, `drop_shadow` |\n| `v4l2_input` (Linux) | camara: `device_id`, resolucion (ver source_properties) |\n| `pulse_input_capture` / `alsa_input_capture` | microfono |\n| `ba_guest_video` | invitado: `slot` (1..N), `channel` guest (camara) o share (pantalla compartida) |\n| `slideshow` | `files`, `slide_time` |\n| `ba_chat_overlay` | chat en vivo (YouTube, Twitch, Facebook y/o sala) sobre el video: `show_youtube`, `show_twitch`, `show_facebook`, `show_room` (o `channel` all/youtube/twitch/facebook/room), `max_messages`, `font_size`, `width`, `height`, `bg_opacity`, `show_names`, `fade_sec` |\n\nPara TODAS las opciones de una fuente: `source_properties {\"name\"}`; para cambiar una: `source_set_property`. `source_update {\"settings\": {...}}` mezcla claves (no borra las demas).\n\n## Ubicacion (`layout`)\nFracciones del lienzo: `{\"x\":0.1,\"y\":0.1,\"w\":0.8,\"h\":0.8}` o presets:\n`full`, `left`, `right`, `top`, `bottom`, `center`, `top-left`, `top-right`, `bottom-left`, `bottom-right`, `pip-tl`, `pip-tr`, `pip-bl`, `pip-br` (ventanita en esa esquina), `lower-third` (zocalo), `third-1..3`, `grid-<n>-<i>` (celda i de una grilla para n: `grid-4-1` .. `grid-4-4`).\nLa fuente se ajusta dentro del rectangulo conservando su proporcion.\n\n## Orden y visibilidad\n`source_update {\"name\": ..., \"order\": \"top\"|\"bottom\"|\"up\"|\"down\"|n}`, `{\"visible\": false}` (oculta sin borrar: ideal para preparar y mostrar en el momento justo).\n\n## Invitados\n`guest_source_add {\"slot\": 1, \"kind\": \"camera\"|\"screen\", \"layout\": \"left\"}` pone al invitado del lugar 1 (quien sea que este) en la escena."
+      "texto": "## Tipos\n`source_types` lista los de esta instalacion. Los mas usados:\n| type | settings tipicos |\n|---|---|\n| `image_source` | `file` (ruta) |\n| `ffmpeg_source` | `local_file`, `looping`, `restart_on_activate` |\n| `color_source_v3` | `color` (entero ABGR: 0xAABBGGRR, p. ej. rojo opaco = 4278190335), `width`, `height` |\n| `text_ft2_source_v2` | `text`, `font` {face, size}, `color1`, `color2`, `outline`, `drop_shadow` |\n| `v4l2_input` (Linux) | camara: `device_id`, resolucion (ver source_properties) |\n| `pulse_input_capture` / `alsa_input_capture` | microfono (Linux) |\n| `macos-avcapture` (macOS) | camara: `device` (ver source_properties) |\n| `coreaudio_input_capture` / `coreaudio_output_capture` (macOS) | microfono / audio del sistema: `device_id` |\n| `screen_capture` (macOS) | pantalla o ventana (ScreenCaptureKit; pide permiso de grabacion de pantalla) |\n| `dshow_input` / `wasapi_input_capture` (Windows) | camara / microfono |\n| `ba_guest_video` | invitado: `slot` (1..N), `channel` guest (camara) o share (pantalla compartida) |\n| `slideshow` | `files`, `slide_time` |\n| `ba_chat_overlay` | chat en vivo (YouTube, Twitch, Facebook y/o sala) sobre el video: `show_youtube`, `show_twitch`, `show_facebook`, `show_room` (o `channel` all/youtube/twitch/facebook/room), `max_messages`, `font_size`, `width`, `height`, `bg_opacity`, `show_names`, `fade_sec` |\n\nPara TODAS las opciones de una fuente: `source_properties {\"name\"}`; para cambiar una: `source_set_property`. `source_update {\"settings\": {...}}` mezcla claves (no borra las demas).\n\n## Ubicacion (`layout`)\nFracciones del lienzo: `{\"x\":0.1,\"y\":0.1,\"w\":0.8,\"h\":0.8}` o presets:\n`full`, `left`, `right`, `top`, `bottom`, `center`, `top-left`, `top-right`, `bottom-left`, `bottom-right`, `pip-tl`, `pip-tr`, `pip-bl`, `pip-br` (ventanita en esa esquina), `lower-third` (zocalo), `third-1..3`, `grid-<n>-<i>` (celda i de una grilla para n: `grid-4-1` .. `grid-4-4`).\nLa fuente se ajusta dentro del rectangulo conservando su proporcion.\n\n## Orden y visibilidad\n`source_update {\"name\": ..., \"order\": \"top\"|\"bottom\"|\"up\"|\"down\"|n}`, `{\"visible\": false}` (oculta sin borrar: ideal para preparar y mostrar en el momento justo).\n\n## Invitados\n`guest_source_add {\"slot\": 1, \"kind\": \"camera\"|\"screen\", \"layout\": \"left\"}` pone al invitado del lugar 1 (quien sea que este) en la escena."
     },
     {
       "id": "imagenes",
@@ -718,6 +772,12 @@
       "texto": "## Hardware (conectadas a la maquina)\n1. `video_devices` -> elegir `device`; `video_devices {\"device\": ...}` muestra formatos/resoluciones/fps.\n2. `video_input_add {\"device\": ..., \"scene\": ..., \"layout\": \"full\", \"resolution\": ..., \"framerate\": ...}`.\n3. Verificar con `capture_source`. Una misma camara no se abre dos veces: si ya es fuente en otra escena, agregala con `source_add` usando su nombre (queda compartida).\n\n## NDI\n- `ndi_sources` busca emisores NDI en la red (mDNS) y `ndi_input_add {\"ndiName\": ...}` (o `host` + `port`) los agrega.\n- Recepcion ABIERTA con libNoIDea (VideoLAN, experimental): NDI completo (SpeedHQ, con audio); NDI|HX (H.264/H.265) no. Si no llega imagen, `input_status` dice por que (no se encuentra, no conecta, se corto) y reintenta sola.\n\n## Red\n- Camara IP: `network_input_add {\"url\": \"rtsp://usuario:clave@192.168.1.50:554/stream1\"}` (RTSP por TCP; `rtspTransport: \"udp\"` si la camara lo pide).\n- Otras: `rtmp://`, `srt://ip:puerto?mode=caller`, `https://.../playlist.m3u8` (HLS), `udp://@:5000`.\n- Devuelve si llega imagen y de que tamaño. `input_status` muestra el estado de todas (sin claves).\n- Latencia baja por defecto; `latency: \"normal\"` para señales inestables (mas colchon). Reconecta sola."
     },
     {
+      "id": "camaras",
+      "titulo": "Camaras PTZ",
+      "resumen": "Mover las camaras (pan, tilt, zoom, foco, presets) y mejorar su imagen.",
+      "texto": "Cada entrada de video tiene PTZ: DIGITAL (recorte y zoom en la GPU, en cualquier camara) y, si la camara es motorizada, el de la camara (backend VISCA, ONVIF o Panasonic). `ptz_camaras` dice que tiene y que puede cada una.\n\n## Mover\n- `ptz_mover {\"entrada\": ..., \"pan\": 0.3, \"duracion_ms\": 1000}`: velocidades -1..1 (pan + derecha, tilt + arriba, zoom + acercar); se para sola al terminar. Mueve lo que diga su `modo` (optico = la cabeza, digital = el recorte).\n- Encuadre digital exacto: `ptz_encuadre {\"entrada\": ..., \"x\": 0.3, \"y\": 0.4, \"zoom\": 2, \"segundos\": 1}` (x, y = centro, 0..1; zoom 1..8). Mira el resultado con `capture_source`.\n- Presets: `ptz_preset {\"entrada\": ..., \"numero\": 2}` (ir) o con `\"accion\": \"guardar\"`.\n\n## Posiciones con nombre\n1. Encuadrar (ptz_mover / ptz_encuadre) y `ptz_posicion_crear {\"entrada\": ..., \"nombre\": \"Atril\", \"comentario\": ...}`: guarda el encuadre digital, la memoria de la camara y la definicion.\n2. `ptz_ir_posicion {\"entrada\": ..., \"posicion\": \"Atril\"}` (id o nombre) la lleva ahi.\n3. `ptz_posiciones` las lista; `ptz_posicion_editar` (nombre, comentario, `regrabar`) y `ptz_posicion_borrar`.\n\n## Configurar una camara motorizada\n1. ONVIF: `ptz_buscar` encuentra las de la red; `ptz_configurar {\"entrada\": ..., \"backend\": \"onvif\", \"host\": <direccion>, \"usuario\": ..., \"clave\": ...}`.\n2. VISCA (Sony, PTZOptics, BirdDog...): `\"backend\": \"visca\", \"host\": ip, \"transporte\": \"sony\"` (UDP 52381) o `\"tcp\"` (5678) o `\"udp\"` (1259).\n3. Panasonic AW/UE: `\"backend\": \"panasonic\", \"host\": ip`.\n4. `ptz_camaras` dice si contesta (`listo`, `estado`). Con camara y digital, `\"modo\": \"digital\"` hace que el joystick mueva el recorte.\n\n## Mejorar imagen\n`video_mejora {\"activa\": true}` (lo general: ruido, color pegado al brillo, nitidez; 0-100) y por camara `ptz_configurar {\"entrada\": ..., \"mejora\": \"si\"|\"no\"|\"general\"}`."
+    },
+    {
       "id": "medios",
       "titulo": "Medios",
       "resumen": "Buscar imagenes, videos y musica del sistema y usarlos en escenas.",
@@ -727,13 +787,13 @@
       "id": "operador",
       "titulo": "Hablar con el operador",
       "resumen": "Barra de mensajes, preguntas y respuestas sugeridas a invitados.",
-      "texto": "## La barra de abajo\nTodo lo que el asistente le quiere decir al operador sin depender de que mire el chat: aparece abajo de la ventana de la app, con color segun prioridad.\n- `operator_message {\"text\": \"...\", \"priority\": \"info\"|\"success\"|\"warning\"|\"critical\", \"title\": \"...\", \"ttlSec\": 30}`: aviso. critical es rojo, titila y queda hasta que lo cierren.\n- `operator_ask {\"text\": \"...\", \"options\": [\"Si\", \"No\"], \"allowText\": true, \"timeoutSec\": 60}`: pregunta. Devuelve la respuesta; si no contesta a tiempo, la pregunta queda y la respuesta llega despues al chat del asistente como `[RESPUESTA DEL OPERADOR]`.\n- `operator_messages` (con `history`): lo que hay en la barra y lo ya contestado.\n\n## Chat de los invitados\n- `guest_chat_pending`: conversaciones donde un invitado escribio y el operador no contesto (privadas y la general).\n- `guest_reply_suggest {\"participant\": \"Ana\", \"suggestions\": [\"...\", \"...\"]}`: muestra el mensaje de Ana con respuestas sugeridas; el operador toca una (o la edita) y se le manda (en privado si ella escribio en privado). Lo que haga llega al chat del asistente (`[OPERADOR] le mando a Ana: ...`).\n- `chat_send {\"to\": \"Ana\", \"text\": \"...\"}`: responder directamente (si el operador te autorizo).\n- Vigilancia: `alert_create {\"type\": \"guest_message\"}` (o con `\"params\": {\"privateOnly\": true}`)."
+      "texto": "## La barra de abajo\nTodo lo que el asistente le quiere decir al operador sin depender de que mire el chat: aparece abajo de la ventana de la app, con color segun prioridad.\n- `operator_message {\"text\": \"...\", \"priority\": \"info\"|\"success\"|\"warning\"|\"critical\", \"title\": \"...\", \"ttlSec\": 30}`: aviso. critical es rojo, titila y queda hasta que lo cierren.\n- `operator_ask {\"text\": \"...\", \"options\": [\"Si\", \"No\"], \"allowText\": true, \"timeoutSec\": 60}`: pregunta. Devuelve la respuesta; si no contesta a tiempo, la pregunta queda y la respuesta llega despues al chat del asistente como `[RESPUESTA DEL OPERADOR]`.\n- `operator_messages` (con `history`): lo que hay en la barra y lo ya contestado.\n\n## Chat de los invitados\n- `guest_chat_pending`: conversaciones donde un invitado escribio y el operador no contesto (privadas y la general).\n- `guest_reply_suggest {\"participant\": \"Ana\", \"suggestions\": [\"...\", \"...\"]}`: muestra el mensaje de Ana con respuestas sugeridas; el operador toca una (o la edita) y se le manda (en privado si ella escribio en privado). Lo que haga llega al chat del asistente (`[OPERADOR] le mando a Ana: ...`).\n- `chat_send {\"to\": \"Ana\", \"text\": \"...\"}`: responder directamente (si el operador te autorizo).\n- Disparador: `alert_create {\"type\": \"guest_message\"}` (o con `\"params\": {\"privateOnly\": true}`)."
     },
     {
       "id": "alertas",
-      "titulo": "Vigilancias (alertas)",
+      "titulo": "Disparadores (alertas)",
       "resumen": "Que el servidor vigile algo y avise o actue solo.",
-      "texto": "## Para que\nEn vez de consultar cada tanto (mixer_list, speakers_status...), pedile al servidor que vigile: evalua cada 250 ms y cuando pasa algo te **avisa en el chat** (pestaña Asistente) y/o en pantalla, y puede **actuar solo** (acciones = herramientas MCP).\n\n## Crear\n`alert_create {\"type\": ..., \"params\": {...}, \"message\": \"...\", \"notify\": [\"llm\",\"ui\"], \"actions\": [{\"tool\": ..., \"arguments\": {...}}], \"once\": false, \"cooldownSec\": N}`. Tipos y parametros: `alert_types`.\n\n| Tipo | Vigila |\n|---|---|\n| `audio_peak` | un canal (o todos, `source: \"*\"`) pasa el umbral (`thresholdDb`, -1) |\n| `audio_silence` | silencio en un canal mas de `forSec` (solo al aire/grabando) |\n| `media_end` | termina un video/tema (`beforeSec` para avisar antes) |\n| `speaker_time` | al orador le quedan `remainingSec` (0 = se cumplio) |\n| `lobby` / `hand` / `guest_drop` | alguien espera en el lobby / levanta la mano / se desconecta |\n| `chat` | llega un mensaje (plataforma, `contains` o `regex`) |\n| `guest_message` | un invitado escribe en el chat de la sala (`privateOnly`) |\n| `stream_health` | la transmision pierde cuadros o se corta |\n| `disk` | queda poco disco grabando |\n| `timer` | en `in` segundos, a las `at` \"HH:MM\", o cada `every` segundos |\n\n## Ejemplos\n- No saturar: `{\"type\":\"audio_peak\",\"params\":{\"source\":\"*\",\"thresholdDb\":-1}}` y, al recibir el aviso, bajar 3 dB con `audio_set`.\n- Musica que termina y vuelve a camara: `{\"type\":\"media_end\",\"params\":{\"source\":\"Musica\"},\"actions\":[{\"tool\":\"scene_switch\",\"arguments\":{\"scene\":\"Principal\"}}]}`.\n- Avisar al orador: `{\"type\":\"speaker_time\",\"params\":{\"remainingSec\":30}}` y `chat_send` al orador.\n- Recordatorio: `{\"type\":\"timer\",\"name\":\"Cierre\",\"params\":{\"at\":\"21:55\"}}`.\n\n## Manejo\n`alert_list`, `alert_update {\"id\",\"enabled\":false}`, `alert_delete`, `alert_events` (historial), `alert_wait` (para clientes que no reciben avisos en el chat: vuelve apenas hay uno). Las vigilancias quedan guardadas (Config/alertas.json)."
+      "texto": "## Para que\nEn vez de consultar cada tanto (mixer_list, speakers_status...), pedile al servidor que vigile: evalua cada 250 ms y cuando pasa algo te **avisa en el chat** (pestaña Asistente) y/o en pantalla, y puede **actuar solo** (acciones = herramientas MCP).\n\n## Crear\n`alert_create {\"type\": ..., \"params\": {...}, \"message\": \"...\", \"notify\": [\"llm\",\"ui\"], \"actions\": [{\"tool\": ..., \"arguments\": {...}}], \"once\": false, \"cooldownSec\": N}`. Tipos y parametros: `alert_types`.\n\n| Tipo | Vigila |\n|---|---|\n| `audio_peak` | un canal (o todos, `source: \"*\"`) pasa el umbral (`thresholdDb`, -1) |\n| `audio_silence` | silencio en un canal mas de `forSec` (solo al aire/grabando) |\n| `media_end` | termina un video/tema (`beforeSec` para avisar antes) |\n| `speaker_time` | al orador le quedan `remainingSec` (0 = se cumplio) |\n| `lobby` / `hand` / `guest_drop` | alguien espera en el lobby / levanta la mano / se desconecta |\n| `chat` | llega un mensaje (plataforma, `contains` o `regex`) |\n| `guest_message` | un invitado escribe en el chat de la sala (`privateOnly`) |\n| `stream_health` | la transmision pierde cuadros o se corta |\n| `disk` | queda poco disco grabando |\n| `timer` | en `in` segundos, a las `at` \"HH:MM\", o cada `every` segundos |\n\n## Ejemplos\n- No saturar: `{\"type\":\"audio_peak\",\"params\":{\"source\":\"*\",\"thresholdDb\":-1}}` y, al recibir el aviso, bajar 3 dB con `audio_set`.\n- Musica que termina y vuelve a camara: `{\"type\":\"media_end\",\"params\":{\"source\":\"Musica\"},\"actions\":[{\"tool\":\"scene_switch\",\"arguments\":{\"scene\":\"Principal\"}}]}`.\n- Avisar al orador: `{\"type\":\"speaker_time\",\"params\":{\"remainingSec\":30}}` y `chat_send` al orador.\n- Recordatorio: `{\"type\":\"timer\",\"name\":\"Cierre\",\"params\":{\"at\":\"21:55\"}}`.\n\n## Manejo\n`alert_list`, `alert_update {\"id\",\"enabled\":false}`, `alert_delete`, `alert_events` (historial), `alert_wait` (para clientes que no reciben avisos en el chat: vuelve apenas hay uno). Los disparadores quedan guardados (Config/alertas.json)."
     },
     {
       "id": "diagnostico",
@@ -800,6 +860,7 @@
         "organizador",
         "recepcion",
         "tecnico",
+        "vigilante",
         "vision"
       ]
     },
@@ -827,7 +888,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAgenteTools.cpp",
-        "linea": 159
+        "linea": 165
       },
       "roles": [
         "asistente",
@@ -835,6 +896,7 @@
         "organizador",
         "recepcion",
         "tecnico",
+        "vigilante",
         "vision"
       ]
     },
@@ -865,7 +927,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAgenteTools.cpp",
-        "linea": 142
+        "linea": 146
       },
       "roles": [
         "asistente",
@@ -873,6 +935,7 @@
         "organizador",
         "recepcion",
         "tecnico",
+        "vigilante",
         "vision"
       ]
     },
@@ -900,7 +963,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAgenteTools.cpp",
-        "linea": 179
+        "linea": 185
       },
       "roles": [
         "asistente",
@@ -908,6 +971,7 @@
         "organizador",
         "recepcion",
         "tecnico",
+        "vigilante",
         "vision"
       ]
     },
@@ -941,7 +1005,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAgenteTools.cpp",
-        "linea": 97
+        "linea": 99
       },
       "roles": [
         "asistente",
@@ -949,6 +1013,7 @@
         "organizador",
         "recepcion",
         "tecnico",
+        "vigilante",
         "vision"
       ]
     },
@@ -977,14 +1042,743 @@
         "organizador",
         "recepcion",
         "tecnico",
+        "vigilante",
+        "vision"
+      ]
+    },
+    {
+      "nombre": "modelo_local_activar",
+      "titulo": "Cargar un modelo local",
+      "categoria": "agentes",
+      "descripcion": "Carga un modelo de lenguaje bajado (apaga el que hubiera). Tarda unos segundos en leer las fichas: el estado pasa a `listo` en modelo_local_estado. Los de voz no se activan: se usan solos apenas estan bajados.",
+      "esquema": {
+        "properties": {
+          "repo": {
+            "description": "el repo del modelo de lenguaje",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repo"
+        ],
+        "type": "object"
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpModeloTools.cpp",
+        "linea": 173
+      },
+      "roles": [
+        "asistente",
+        "escenografo",
+        "organizador",
+        "recepcion",
+        "tecnico",
+        "vigilante",
+        "vision"
+      ]
+    },
+    {
+      "nombre": "modelo_local_ajustes",
+      "titulo": "Ajustes del modelo local",
+      "categoria": "agentes",
+      "descripcion": "Cambia `sesgo` (cuanto deriva al asistente grande: -4 atiende mas, +4 deriva mas), `mtp` (no | auto | q8 | fp16, al proximo arranque) y `al_arrancar` (cargarlo al abrir la app). Lo que no se manda no se toca.",
+      "esquema": {
+        "properties": {
+          "al_arrancar": {
+            "type": "boolean"
+          },
+          "mtp": {
+            "enum": [
+              "no",
+              "auto",
+              "q8",
+              "fp16"
+            ],
+            "type": "string"
+          },
+          "sesgo": {
+            "maximum": 8,
+            "minimum": -8,
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpModeloTools.cpp",
+        "linea": 212
+      },
+      "roles": [
+        "asistente",
+        "escenografo",
+        "organizador",
+        "recepcion",
+        "tecnico",
+        "vigilante",
+        "vision"
+      ]
+    },
+    {
+      "nombre": "modelo_local_apagar",
+      "titulo": "Apagar el modelo local",
+      "categoria": "agentes",
+      "descripcion": "Apaga el modelo cargado (libera la memoria y la GPU). Queda elegido para la proxima vez.",
+      "esquema": {
+        "properties": {},
+        "type": "object"
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpModeloTools.cpp",
+        "linea": 198
+      },
+      "roles": [
+        "asistente",
+        "escenografo",
+        "organizador",
+        "recepcion",
+        "tecnico",
+        "vigilante",
+        "vision"
+      ]
+    },
+    {
+      "nombre": "modelo_local_bajar",
+      "titulo": "Bajar un modelo local",
+      "categoria": "agentes",
+      "descripcion": "Baja un modelo del catalogo (modelo_local_estado lo lista) a la carpeta portable, verificando cada archivo. Si ya esta, lo actualiza (lo verificado no se rebaja). Vuelve enseguida: el avance se ve en modelo_local_estado (descarga).",
+      "esquema": {
+        "properties": {
+          "repo": {
+            "description": "el repo, tal cual aparece en el catalogo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repo"
+        ],
+        "type": "object"
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpModeloTools.cpp",
+        "linea": 118
+      },
+      "roles": [
+        "asistente",
+        "escenografo",
+        "organizador",
+        "recepcion",
+        "tecnico",
+        "vigilante",
+        "vision"
+      ]
+    },
+    {
+      "nombre": "modelo_local_borrar",
+      "titulo": "Borrar un modelo bajado",
+      "categoria": "agentes",
+      "descripcion": "Borra un modelo bajado (libera gigas). Si es el activo, lo apaga. Se puede volver a bajar.",
+      "esquema": {
+        "properties": {
+          "repo": {
+            "description": "el repo a borrar",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repo"
+        ],
+        "type": "object"
+      },
+      "soloLectura": false,
+      "destructiva": true,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpModeloTools.cpp",
+        "linea": 155
+      },
+      "roles": [
+        "asistente",
+        "escenografo",
+        "organizador",
+        "recepcion",
+        "tecnico",
+        "vigilante",
+        "vision"
+      ]
+    },
+    {
+      "nombre": "modelo_local_cancelar_descarga",
+      "titulo": "Cancelar la descarga",
+      "categoria": "agentes",
+      "descripcion": "Corta la descarga en curso. Lo que estaba instalado queda como estaba.",
+      "esquema": {
+        "properties": {},
+        "type": "object"
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpModeloTools.cpp",
+        "linea": 142
+      },
+      "roles": [
+        "asistente",
+        "escenografo",
+        "organizador",
+        "recepcion",
+        "tecnico",
+        "vigilante",
+        "vision"
+      ]
+    },
+    {
+      "nombre": "modelo_local_elegir",
+      "titulo": "Probar el modelo local con una frase",
+      "categoria": "agentes",
+      "descripcion": "Que herramienta elige el modelo local para una frase de cabina (o si la deriva), con la probabilidad y lo que tardo. NO ejecuta nada: es para probarlo. Queda en la lista de pruebas de la pagina.",
+      "esquema": {
+        "properties": {
+          "frase": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "frase"
+        ],
+        "type": "object"
+      },
+      "soloLectura": true,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpModeloTools.cpp",
+        "linea": 240
+      },
+      "roles": [
+        "asistente",
+        "escenografo",
+        "organizador",
+        "recepcion",
+        "tecnico",
+        "vigilante",
+        "vision"
+      ]
+    },
+    {
+      "nombre": "modelo_local_estado",
+      "titulo": "Modelos locales: que hay y como esta",
+      "categoria": "agentes",
+      "descripcion": "El modelo chico que corre en esta maquina (elige la herramienta para una frase de cabina y, si trae vision, mira imagenes) y la voz (push-to-talk): cual esta cargado, ajustes, descarga en curso, el catalogo para esta plataforma (cuales estan bajados) y el estado de la voz.",
+      "esquema": {
+        "properties": {},
+        "type": "object"
+      },
+      "soloLectura": true,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpModeloTools.cpp",
+        "linea": 105
+      },
+      "roles": [
+        "asistente",
+        "escenografo",
+        "organizador",
+        "recepcion",
+        "tecnico",
+        "vigilante",
+        "vision"
+      ]
+    },
+    {
+      "nombre": "texto_a_voz",
+      "titulo": "Tarjeta «Texto a voz» en un rack",
+      "categoria": "agentes",
+      "descripcion": "Pone o ajusta la tarjeta «Texto a voz» en el rack de `fuente` (la crea si no hay; `nueva: true` agrega otra) y/o le hace `decir` algo. Opciones: `voz` (repo de `voces`; vacio = la del sistema), `lee` (nombre de una salida de texto que dice en voz alta: texto_flujos), `hablante`, `velocidad` (0.5-2). Su audio sale por el puerto de la tarjeta: cablearlo con audio_patch (p. ej. a salida-audio o a out).",
+      "esquema": {
+        "properties": {
+          "decir": {
+            "type": "string"
+          },
+          "fuente": {
+            "type": "string"
+          },
+          "hablante": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "lee": {
+            "type": "string"
+          },
+          "nodo": {
+            "type": "string"
+          },
+          "nueva": {
+            "type": "boolean"
+          },
+          "velocidad": {
+            "maximum": 2,
+            "minimum": 0.5,
+            "type": "number"
+          },
+          "voz": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "fuente"
+        ],
+        "type": "object"
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "texto a voz tarjeta que hable decir en voz alta en otro idioma leer la transcripcion",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpModeloTools.cpp",
+        "linea": 484
+      },
+      "roles": [
+        "asistente",
+        "escenografo",
+        "organizador",
+        "recepcion",
+        "tecnico",
+        "vigilante",
+        "vision"
+      ]
+    },
+    {
+      "nombre": "texto_flujos",
+      "titulo": "Las salidas de texto",
+      "categoria": "agentes",
+      "descripcion": "Las salidas de texto del sistema (cada «Voz a texto» con su nombre): de donde vienen, si se guardan en archivo, en que rotulo van, y la ultima frase. Para usarlas: disparadores (alert_create type \"texto\"), voz_transcripcion {flujo}.",
+      "esquema": {
+        "properties": {},
+        "type": "object"
+      },
+      "soloLectura": true,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "salidas de texto transcripciones con nombre que se esta transcribiendo flujos de texto",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpModeloTools.cpp",
+        "linea": 424
+      },
+      "roles": [
+        "asistente",
+        "escenografo",
+        "organizador",
+        "recepcion",
+        "tecnico",
+        "vigilante",
+        "vision"
+      ]
+    },
+    {
+      "nombre": "voces",
+      "titulo": "Las voces (texto a voz) por idioma",
+      "categoria": "agentes",
+      "descripcion": "Las voces para hablar (texto a voz), con su idioma, acento, si es hombre o mujer y si ya esta bajada. Se bajan con modelo_local_bajar {repo}; se usan en la tarjeta «Texto a voz» (texto_a_voz).",
+      "esquema": {
+        "properties": {
+          "idioma": {
+            "description": "es, en, pt, fr, it, de, ca...",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "soloLectura": true,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "voces para hablar idiomas texto a voz que voces hay ingles portugues frances",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpModeloTools.cpp",
+        "linea": 455
+      },
+      "roles": [
+        "asistente",
+        "escenografo",
+        "organizador",
+        "recepcion",
+        "tecnico",
+        "vigilante",
+        "vision"
+      ]
+    },
+    {
+      "nombre": "voz_ajustes",
+      "titulo": "La voz que contesta",
+      "categoria": "agentes",
+      "descripcion": "Elige la voz que contesta (`voz`: el repo, tiene que estar bajada; modelo_local_estado las lista con tipo tts), `hablante` (algunas traen dos) y `velocidad` (0.7 a 1.5). `callar: true` corta lo que esta diciendo. Lo que no se manda no se toca.",
+      "esquema": {
+        "properties": {
+          "callar": {
+            "type": "boolean"
+          },
+          "hablante": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "velocidad": {
+            "maximum": 1.5,
+            "minimum": 0.7,
+            "type": "number"
+          },
+          "voz": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": "voz hablar escuchar dictado microfono en voz alta asistente por voz"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpModeloTools.cpp",
+        "linea": 295
+      },
+      "roles": [
+        "asistente",
+        "escenografo",
+        "organizador",
+        "recepcion",
+        "tecnico",
+        "vigilante",
+        "vision"
+      ]
+    },
+    {
+      "nombre": "voz_atender",
+      "titulo": "Tratar una frase como dictada",
+      "categoria": "agentes",
+      "descripcion": "Hace con `frase` lo mismo que con lo dictado por el operador: el modelo local elige la accion y la propone en la barra del asistente (o la hace sola si el operador la dejo automatica); `derivar` o sin modelo, va al asistente. Devuelve lo que quedo propuesto.",
+      "esquema": {
+        "properties": {
+          "frase": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "frase"
+        ],
+        "type": "object"
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": "voz hablar escuchar dictado microfono en voz alta asistente por voz"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpModeloTools.cpp",
+        "linea": 591
+      },
+      "roles": [
+        "asistente",
+        "escenografo",
+        "organizador",
+        "recepcion",
+        "tecnico",
+        "vigilante",
+        "vision"
+      ]
+    },
+    {
+      "nombre": "voz_automaticas",
+      "titulo": "Acciones de voz sin confirmar",
+      "categoria": "agentes",
+      "descripcion": "Las acciones que el modelo local hace sin preguntar al operador. Sin argumentos, las lista. Con `herramienta` y `automatica` (true/false), la agrega o la saca. `modelo_local` (true/false) prende o apaga el paso de lo dictado por el modelo local. `contestar_con_voz` y `auriculares` (la salida de escucha del operador) tambien.",
+      "esquema": {
+        "properties": {
+          "auriculares": {
+            "description": "id de la salida de audio (audio_outputs); \"\" = la del sistema",
+            "type": "string"
+          },
+          "automatica": {
+            "type": "boolean"
+          },
+          "contestar_con_voz": {
+            "type": "boolean"
+          },
+          "herramienta": {
+            "type": "string"
+          },
+          "modelo_local": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": "voz hablar escuchar dictado microfono en voz alta asistente por voz"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpModeloTools.cpp",
+        "linea": 637
+      },
+      "roles": [
+        "asistente",
+        "escenografo",
+        "organizador",
+        "recepcion",
+        "tecnico",
+        "vigilante",
+        "vision"
+      ]
+    },
+    {
+      "nombre": "voz_decir",
+      "titulo": "Decirle algo al operador, por los auriculares",
+      "categoria": "agentes",
+      "descripcion": "Lo dice en voz alta con la voz elegida, SOLO por el monitoreo (los auriculares del operador): nunca sale al aire. Vuelve enseguida; suena frase por frase.",
+      "esquema": {
+        "properties": {
+          "texto": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "texto"
+        ],
+        "type": "object"
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": "voz hablar escuchar dictado microfono en voz alta asistente por voz"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpModeloTools.cpp",
+        "linea": 270
+      },
+      "roles": [
+        "asistente",
+        "escenografo",
+        "organizador",
+        "recepcion",
+        "tecnico",
+        "vigilante",
+        "vision"
+      ]
+    },
+    {
+      "nombre": "voz_microfono",
+      "titulo": "El microfono del operador",
+      "categoria": "agentes",
+      "descripcion": "Lee o cambia el microfono del operador (`fuente`: una entrada con audio, o vacio para ninguno). Es lo que oye quien espera en el lobby y de donde se le dicta al asistente si ninguna otra fuente tiene voz a texto en dictado. Sin `fuente`, solo lo informa.",
+      "esquema": {
+        "properties": {
+          "fuente": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": "voz hablar escuchar dictado microfono en voz alta asistente por voz"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpModeloTools.cpp",
+        "linea": 327
+      },
+      "roles": [
+        "asistente",
+        "escenografo",
+        "organizador",
+        "recepcion",
+        "tecnico",
+        "vigilante",
+        "vision"
+      ]
+    },
+    {
+      "nombre": "voz_teleprompter",
+      "titulo": "Leer el teleprompter en voz alta",
+      "categoria": "agentes",
+      "descripcion": "Prende o apaga la «Voz del teleprompter»: dice el texto cargado siguiendo los controles del teleprompter (velocidad, pausa, saltos). Es una fuente de audio (audio_matriz para rutearla; de fabrica, solo en los auriculares). Sin `activa`, informa el estado.",
+      "esquema": {
+        "properties": {
+          "activa": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": "voz hablar escuchar dictado microfono en voz alta asistente por voz"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpModeloTools.cpp",
+        "linea": 621
+      },
+      "roles": [
+        "asistente",
+        "escenografo",
+        "organizador",
+        "recepcion",
+        "tecnico",
+        "vigilante",
+        "vision"
+      ]
+    },
+    {
+      "nombre": "voz_texto",
+      "titulo": "Voz a texto en una fuente",
+      "categoria": "agentes",
+      "descripcion": "Pone, cambia o quita la «Voz a texto» en el rack de una fuente con audio: `modo` \"dictado\" (lo que llega se le dicta al asistente con F9), \"continuo\" (transcripcion sin parar) o \"\" para quitarlas. Cada una tiene una SALIDA DE TEXTO con `nombre` (unico; se usa en disparadores, texto a voz, texto_flujos) y salidas: `archivo` (.txt con hora y .srt) y `rotulo` (una fuente de texto de la escena donde va la ultima frase: subtitulos). `nueva: true` agrega otra en el mismo rack. Sin argumentos lista donde hay.",
+      "esquema": {
+        "properties": {
+          "archivo": {
+            "type": "boolean"
+          },
+          "fuente": {
+            "type": "string"
+          },
+          "modo": {
+            "enum": [
+              "dictado",
+              "continuo",
+              ""
+            ],
+            "type": "string"
+          },
+          "nombre": {
+            "description": "Nombre de la salida de texto.",
+            "type": "string"
+          },
+          "nueva": {
+            "type": "boolean"
+          },
+          "rotulo": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": "voz hablar escuchar dictado microfono en voz alta asistente por voz"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpModeloTools.cpp",
+        "linea": 347
+      },
+      "roles": [
+        "asistente",
+        "escenografo",
+        "organizador",
+        "recepcion",
+        "tecnico",
+        "vigilante",
+        "vision"
+      ]
+    },
+    {
+      "nombre": "voz_transcripcion",
+      "titulo": "Lo que se transcribio",
+      "categoria": "agentes",
+      "descripcion": "Las ultimas frases de la transcripcion continua (fuentes con voz a texto en modo continuo): hora, fuente, salida de texto y texto. `fuente` o `flujo` (el nombre de la salida) filtran; `n` cuantas (por defecto 30).",
+      "esquema": {
+        "properties": {
+          "flujo": {
+            "type": "string"
+          },
+          "fuente": {
+            "type": "string"
+          },
+          "n": {
+            "maximum": 200,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "soloLectura": true,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": "voz hablar escuchar dictado microfono en voz alta asistente por voz"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpModeloTools.cpp",
+        "linea": 557
+      },
+      "roles": [
+        "asistente",
+        "escenografo",
+        "organizador",
+        "recepcion",
+        "tecnico",
+        "vigilante",
         "vision"
       ]
     },
     {
       "nombre": "alert_create",
-      "titulo": "Crear una vigilancia",
+      "titulo": "Crear un disparador",
       "categoria": "alertas",
-      "descripcion": "AVISAME CUANDO: crea una vigilancia que avisa sola al pasar algo (entra alguien, hay silencio al aire, satura el audio, se cae un invitado). Crea una vigilancia que el servidor evalua sola (cada 250 ms) y dispara un aviso cuando pasa. `notify`: [\"llm\"] = te lo escribe en el chat (despierta al asistente), [\"ui\"] = aviso en pantalla (por defecto las dos). `actions`: herramientas MCP a ejecutar en el acto al dispararse (p. ej. bajar un volumen, cambiar de escena). `once`: se apaga despues del primer aviso. `cooldownSec`: minimo entre avisos. Tipos y parametros: alert_types.",
+      "descripcion": "AVISAME CUANDO: crea un disparador que avisa solo al pasar algo (entra alguien, hay silencio al aire, satura el audio, se cae un invitado). Crea un disparador que el servidor evalua solo (cada 250 ms) y dispara un aviso cuando pasa. `notify`: [\"llm\"] = te lo escribe en el chat (despierta al asistente), [\"ui\"] = aviso en pantalla (por defecto las dos). `actions`: herramientas MCP a ejecutar en el acto al dispararse (p. ej. bajar un volumen, cambiar de escena). `once`: se apaga despues del primer aviso. `cooldownSec`: minimo entre avisos. Tipos y parametros: alert_types.",
       "esquema": {
         "properties": {
           "actions": {
@@ -1041,6 +1835,7 @@
               "hand",
               "guest_drop",
               "chat",
+              "texto",
               "guest_message",
               "stream_health",
               "stream_down",
@@ -1058,8 +1853,8 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "avisame cuando crear alerta vigilar",
-        "porPrefijo": "alerta aviso notificacion avisame vigilar monitorear disparador trigger"
+        "propias": "avisame cuando crear alerta vigilar crear disparador vigilancia cuando digan",
+        "porPrefijo": "alerta aviso notificacion avisame vigilar vigilancia monitorear disparador disparadores trigger"
       },
       "donde": {
         "archivo": "src/app/mcp/McpAlertTools.cpp",
@@ -1071,9 +1866,9 @@
     },
     {
       "nombre": "alert_delete",
-      "titulo": "Borrar vigilancias",
+      "titulo": "Borrar disparadores",
       "categoria": "alertas",
-      "descripcion": "Borra una vigilancia (`id`) o todas (`all`: true).",
+      "descripcion": "Borra un disparador (`id`) o todos (`all`: true).",
       "esquema": {
         "properties": {
           "all": {
@@ -1088,12 +1883,12 @@
       "soloLectura": false,
       "destructiva": true,
       "etiquetas": {
-        "propias": "borrar alerta quitar aviso",
-        "porPrefijo": "alerta aviso notificacion avisame vigilar monitorear disparador trigger"
+        "propias": "borrar alerta quitar aviso borrar disparador",
+        "porPrefijo": "alerta aviso notificacion avisame vigilar vigilancia monitorear disparador disparadores trigger"
       },
       "donde": {
         "archivo": "src/app/mcp/McpAlertTools.cpp",
-        "linea": 134
+        "linea": 140
       },
       "roles": [
         "asistente"
@@ -1123,11 +1918,11 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "que paso historial de alertas disparos",
-        "porPrefijo": "alerta aviso notificacion avisame vigilar monitorear disparador trigger"
+        "porPrefijo": "alerta aviso notificacion avisame vigilar vigilancia monitorear disparador disparadores trigger"
       },
       "donde": {
         "archivo": "src/app/mcp/McpAlertTools.cpp",
-        "linea": 154
+        "linea": 160
       },
       "roles": [
         "asistente"
@@ -1135,9 +1930,9 @@
     },
     {
       "nombre": "alert_list",
-      "titulo": "Vigilancias activas",
+      "titulo": "Disparadores activos",
       "categoria": "alertas",
-      "descripcion": "Las vigilancias con su estado (activa, cuantas veces se disparo, la ultima vez).",
+      "descripcion": "Los disparadores con su estado (activo, cuantas veces se disparo, la ultima vez).",
       "esquema": {
         "properties": {},
         "type": "object"
@@ -1145,12 +1940,12 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "que alertas hay configuradas",
-        "porPrefijo": "alerta aviso notificacion avisame vigilar monitorear disparador trigger"
+        "propias": "que alertas hay configuradas disparadores vigilancias",
+        "porPrefijo": "alerta aviso notificacion avisame vigilar vigilancia monitorear disparador disparadores trigger"
       },
       "donde": {
         "archivo": "src/app/mcp/McpAlertTools.cpp",
-        "linea": 98
+        "linea": 104
       },
       "roles": [
         "asistente"
@@ -1168,8 +1963,8 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "que se puede vigilar tipos de vigilancia eventos disponibles parametros",
-        "porPrefijo": "alerta aviso notificacion avisame vigilar monitorear disparador trigger"
+        "propias": "que se puede vigilar tipos de disparador de vigilancia eventos disponibles parametros",
+        "porPrefijo": "alerta aviso notificacion avisame vigilar vigilancia monitorear disparador disparadores trigger"
       },
       "donde": {
         "archivo": "src/app/mcp/McpAlertTools.cpp",
@@ -1181,9 +1976,9 @@
     },
     {
       "nombre": "alert_update",
-      "titulo": "Cambiar una vigilancia",
+      "titulo": "Cambiar un disparador",
       "categoria": "alertas",
-      "descripcion": "Activa/desactiva (`enabled`) o cambia parametros, mensaje, avisos o acciones de una vigilancia.",
+      "descripcion": "Activa/desactiva (`enabled`) o cambia parametros, mensaje, avisos o acciones de un disparador.",
       "esquema": {
         "properties": {
           "actions": {
@@ -1220,11 +2015,11 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "cambiar alerta editar",
-        "porPrefijo": "alerta aviso notificacion avisame vigilar monitorear disparador trigger"
+        "porPrefijo": "alerta aviso notificacion avisame vigilar vigilancia monitorear disparador disparadores trigger"
       },
       "donde": {
         "archivo": "src/app/mcp/McpAlertTools.cpp",
-        "linea": 108
+        "linea": 114
       },
       "roles": [
         "asistente"
@@ -1234,7 +2029,7 @@
       "nombre": "alert_wait",
       "titulo": "Esperar el proximo aviso",
       "categoria": "alertas",
-      "descripcion": "Vuelve apenas se dispara una vigilancia (o al vencer `timeoutSec`, max. 300) con los avisos nuevos desde `sinceId`. Para clientes que no reciben los avisos en su chat: una sola llamada en vez de consultar cada tanto.",
+      "descripcion": "Vuelve apenas salta un disparador (o al vencer `timeoutSec`, max. 300) con los avisos nuevos desde `sinceId`. Para clientes que no reciben los avisos en su chat: una sola llamada en vez de consultar cada tanto.",
       "esquema": {
         "properties": {
           "sinceId": {
@@ -1254,11 +2049,11 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "esperar a que pase algo quedarse esperando evento",
-        "porPrefijo": "alerta aviso notificacion avisame vigilar monitorear disparador trigger"
+        "porPrefijo": "alerta aviso notificacion avisame vigilar vigilancia monitorear disparador disparadores trigger"
       },
       "donde": {
         "archivo": "src/app/mcp/McpAlertTools.cpp",
-        "linea": 177
+        "linea": 183
       },
       "roles": [
         "asistente"
@@ -1268,7 +2063,7 @@
       "nombre": "assistant_config",
       "titulo": "Configurar el asistente",
       "categoria": "asistente",
-      "descripcion": "Cambia proveedor, modelo, arranque automatico y si los avisos de vigilancias van al chat. `assistant_status` lista los proveedores que hay y los modelos de cada uno. La clave de API se carga en la pestaña (no por aca).",
+      "descripcion": "Cambia proveedor, modelo, arranque automatico y si los avisos de disparadores van al chat. `assistant_status` lista los proveedores que hay y los modelos de cada uno. La clave de API se carga en la pestaña (no por aca).",
       "esquema": {
         "properties": {
           "alertsToChat": {
@@ -1288,6 +2083,7 @@
               "gemini-api",
               "opencode-go",
               "openrouter",
+              "local",
               "propio"
             ],
             "type": "string"
@@ -1463,11 +2259,12 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 647
+        "linea": 654
       },
       "roles": [
         "asistente",
-        "tecnico"
+        "tecnico",
+        "vigilante"
       ]
     },
     {
@@ -1496,11 +2293,12 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1419
+        "linea": 1535
       },
       "roles": [
         "asistente",
-        "tecnico"
+        "tecnico",
+        "vigilante"
       ]
     },
     {
@@ -1539,16 +2337,17 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "no tengo sonido sin sonido no sale audio quedamos sin audio pitido chillido silbido agudo insoportable suena un pitido no se escucha nada al aire quedamos sin audio acople acoplando acoplamiento microfonia feedback pitido chillido  zumbido ruido de fondo satura saturando satura el audio distorsiona  medir niveles pico  medir lufs nivel pico rms loudness normalizar",
+        "propias": "no tengo sonido sin sonido no sale audio quedamos sin audio pitido chillido silbido  agudo insoportable suena un pitido no se escucha nada al aire quedamos sin audio  acople acoplando acoplamiento microfonia feedback pitido chillido  zumbido ruido de fondo satura saturando satura el audio distorsiona  medir niveles pico  medir lufs nivel pico rms loudness normalizar",
         "porPrefijo": "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista  se escucha se oye suena"
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 707
+        "linea": 714
       },
       "roles": [
         "asistente",
-        "tecnico"
+        "tecnico",
+        "vigilante"
       ]
     },
     {
@@ -1583,11 +2382,12 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1390
+        "linea": 1504
       },
       "roles": [
         "asistente",
-        "tecnico"
+        "tecnico",
+        "vigilante"
       ]
     },
     {
@@ -1614,16 +2414,17 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "desfasado de la imagen no coincide con la imagen labios imagen adelantada sincronizar labios desfase desfasado desincronizado adelantado atrasado  delay offset demora retardo la voz no coincide con la imagen",
+        "propias": "desfasado de la imagen no coincide con la imagen labios imagen adelantada sincronizar  labios desfase desfasado desincronizado adelantado atrasado  delay offset demora retardo la voz no coincide con la imagen",
         "porPrefijo": "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista  se escucha se oye suena"
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1471
+        "linea": 1588
       },
       "roles": [
         "asistente",
-        "tecnico"
+        "tecnico",
+        "vigilante"
       ]
     },
     {
@@ -1643,7 +2444,150 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1360
+        "linea": 1475
+      },
+      "roles": [
+        "asistente",
+        "tecnico",
+        "vigilante"
+      ]
+    },
+    {
+      "nombre": "audio_bus_agregar",
+      "titulo": "Agregar una entrada o salida virtual",
+      "categoria": "audio_rack",
+      "descripcion": "`tipo` \"salida\": un bus que sale por un dispositivo (`dispositivo`: id de audio_dispositivos). `tipo` \"entrada\": un bus cuya mezcla vuelve como una fuente nueva (aparece en Audio con su menú de filtros). `nombre` opcional.",
+      "esquema": {
+        "properties": {
+          "dispositivo": {
+            "type": "string"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "tipo": {
+            "enum": [
+              "entrada",
+              "salida"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "tipo"
+        ],
+        "type": "object"
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista  se escucha se oye suena"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpMatrizTools.cpp",
+        "linea": 96
+      },
+      "roles": [
+        "asistente",
+        "tecnico"
+      ]
+    },
+    {
+      "nombre": "audio_bus_dispositivo",
+      "titulo": "A qué dispositivo sale una salida virtual",
+      "categoria": "audio_rack",
+      "descripcion": "Cambia el dispositivo de una salida virtual (`dispositivo`: id de audio_dispositivos).",
+      "esquema": {
+        "properties": {
+          "bus": {
+            "type": "string"
+          },
+          "dispositivo": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "bus",
+          "dispositivo"
+        ],
+        "type": "object"
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista  se escucha se oye suena"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpMatrizTools.cpp",
+        "linea": 158
+      },
+      "roles": [
+        "asistente",
+        "tecnico"
+      ]
+    },
+    {
+      "nombre": "audio_bus_quitar",
+      "titulo": "Quitar un bus virtual",
+      "categoria": "audio_rack",
+      "descripcion": "Quita una entrada o salida virtual (y sus envíos). Las pistas de OBS no se quitan.",
+      "esquema": {
+        "properties": {
+          "bus": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "bus"
+        ],
+        "type": "object"
+      },
+      "soloLectura": false,
+      "destructiva": true,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista  se escucha se oye suena"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpMatrizTools.cpp",
+        "linea": 122
+      },
+      "roles": [
+        "asistente",
+        "tecnico"
+      ]
+    },
+    {
+      "nombre": "audio_bus_renombrar",
+      "titulo": "Renombrar un bus o una pista",
+      "categoria": "audio_rack",
+      "descripcion": "Cambia el nombre de una pista (pista1..pista6) o de un bus virtual. Una entrada virtual cambia también el nombre de su fuente.",
+      "esquema": {
+        "properties": {
+          "bus": {
+            "type": "string"
+          },
+          "nombre": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "bus",
+          "nombre"
+        ],
+        "type": "object"
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista  se escucha se oye suena"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpMatrizTools.cpp",
+        "linea": 138
       },
       "roles": [
         "asistente",
@@ -1684,7 +2628,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 477
+        "linea": 484
       },
       "roles": [
         "asistente",
@@ -1759,7 +2703,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 571
+        "linea": 578
       },
       "roles": [
         "asistente",
@@ -1837,7 +2781,31 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 572
+        "linea": 579
+      },
+      "roles": [
+        "asistente",
+        "tecnico"
+      ]
+    },
+    {
+      "nombre": "audio_dispositivos",
+      "titulo": "Dispositivos de salida del equipo",
+      "categoria": "audio_rack",
+      "descripcion": "Las salidas de audio del equipo (placas, auriculares, cables virtuales): id y nombre, para las salidas virtuales de la matriz.",
+      "esquema": {
+        "properties": {},
+        "type": "object"
+      },
+      "soloLectura": true,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista  se escucha se oye suena"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpMatrizTools.cpp",
+        "linea": 179
       },
       "roles": [
         "asistente",
@@ -1877,7 +2845,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 856
+        "linea": 890
       },
       "roles": [
         "asistente",
@@ -1966,7 +2934,41 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 572
+        "linea": 579
+      },
+      "roles": [
+        "asistente",
+        "tecnico"
+      ]
+    },
+    {
+      "nombre": "audio_filtros_catalogo",
+      "titulo": "Catalogo de filtros de audio (LSP)",
+      "categoria": "audio_rack",
+      "descripcion": "Las familias de filtros LSP (compresor, compuerta, EQ...) en castellano: que hacen, para que sirven en vivo, si se recomiendan para vivo y sus variantes (id del plugin, mono/estereo, sidechain). `buscar` filtra por palabras (castellano o ingles), `categoria` y `solo_vivo`. El id de una variante es el que se agrega al rack de una fuente.",
+      "esquema": {
+        "properties": {
+          "buscar": {
+            "type": "string"
+          },
+          "categoria": {
+            "type": "string"
+          },
+          "solo_vivo": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "soloLectura": true,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista  se escucha se oye suena"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpMatrizTools.cpp",
+        "linea": 234
       },
       "roles": [
         "asistente",
@@ -2048,12 +3050,12 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "el microfono queda abierto se escucha todo lo de alrededor micro abierto compuerta gate ruido de fondo silencio respiracion",
+        "propias": "el microfono queda abierto se escucha todo lo de alrededor micro abierto compuerta gate  ruido de fondo silencio respiracion",
         "porPrefijo": "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista  se escucha se oye suena"
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 570
+        "linea": 577
       },
       "roles": [
         "asistente",
@@ -2117,7 +3119,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 738
+        "linea": 747
       },
       "roles": [
         "asistente",
@@ -2189,7 +3191,143 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 574
+        "linea": 581
+      },
+      "roles": [
+        "asistente",
+        "tecnico"
+      ]
+    },
+    {
+      "nombre": "audio_lsp_restablecer_interfaz",
+      "titulo": "Restablecer la interfaz LSP",
+      "categoria": "audio_rack",
+      "descripcion": "Cierra las ventanas de los modulos LSP y vuelve la configuracion de pantalla de LSP (zoom, escala del host, letra, zoom por plugin) a la de fabrica, con copia del archivo. Para cuando la interfaz de un modulo no aparece o no entra en la pantalla.",
+      "esquema": {
+        "properties": {},
+        "type": "object"
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista  se escucha se oye suena"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpAudioTools.cpp",
+        "linea": 873
+      },
+      "roles": [
+        "asistente",
+        "tecnico"
+      ]
+    },
+    {
+      "nombre": "audio_matriz",
+      "titulo": "La matriz de mezcla",
+      "categoria": "audio_rack",
+      "descripcion": "Fuentes con audio (a la salida de sus filtros) y a qué buses van: las 6 pistas de OBS (la 1 es el programa; nativas, sin retardo) y los buses virtuales (salidas a un dispositivo, entradas que vuelven como fuente). Con los envíos y sus ajustes.",
+      "esquema": {
+        "properties": {},
+        "type": "object"
+      },
+      "soloLectura": true,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista  se escucha se oye suena"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpMatrizTools.cpp",
+        "linea": 32
+      },
+      "roles": [
+        "asistente",
+        "tecnico"
+      ]
+    },
+    {
+      "nombre": "audio_matriz_cruce",
+      "titulo": "Prender, apagar o ajustar un cruce",
+      "categoria": "audio_rack",
+      "descripcion": "`fuente` → `bus` (pista1..pista6, `escucha` = los auriculares del operador, o el id de un bus virtual): `activo` lo prende o apaga. En buses virtuales, además, `nivel_db` (-60 a +12), `pan` (-1 izq a 1 der) y `mute`; `ajustes: false` lo vuelve a 0 dB, centro.",
+      "esquema": {
+        "properties": {
+          "activo": {
+            "type": "boolean"
+          },
+          "ajustes": {
+            "type": "boolean"
+          },
+          "bus": {
+            "type": "string"
+          },
+          "fuente": {
+            "type": "string"
+          },
+          "mute": {
+            "type": "boolean"
+          },
+          "nivel_db": {
+            "maximum": 12,
+            "minimum": -60,
+            "type": "number"
+          },
+          "pan": {
+            "maximum": 1,
+            "minimum": -1,
+            "type": "number"
+          }
+        },
+        "required": [
+          "fuente",
+          "bus"
+        ],
+        "type": "object"
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista  se escucha se oye suena"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpMatrizTools.cpp",
+        "linea": 48
+      },
+      "roles": [
+        "asistente",
+        "tecnico"
+      ]
+    },
+    {
+      "nombre": "audio_matriz_equipo",
+      "titulo": "Entradas y salidas del equipo en la matriz",
+      "categoria": "audio_rack",
+      "descripcion": "Lo enchufado (bocinas, monitores con audio, placas USB) en la matriz: las salidas, una columna por par de canales (id fis:...); las entradas, una fila por canal. Sin argumentos lo lista. `mostrar` (true/false) muestra u oculta todo el equipo; `dispositivo` (id) con `visible` muestra u oculta uno (lo oculto no se abre).",
+      "esquema": {
+        "properties": {
+          "dispositivo": {
+            "type": "string"
+          },
+          "mostrar": {
+            "type": "boolean"
+          },
+          "visible": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista  se escucha se oye suena"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpMatrizTools.cpp",
+        "linea": 197
       },
       "roles": [
         "asistente",
@@ -2200,10 +3338,13 @@
       "nombre": "audio_module_add",
       "titulo": "Agregar un modulo",
       "categoria": "audio_rack",
-      "descripcion": "Agrega un modulo al rack de la fuente (lo crea si no tiene): del catalogo (gate, compresor, deesser, eq, multibanda, limitador) o cualquier id LSP. Se inserta en la cadena despues de `after` (vacio = justo antes de la salida). `preset` aplica valores de partida (p. ej. \"voz\"). Tambien \"analizador\".",
+      "descripcion": "Agrega un modulo al rack de la fuente (lo crea si no tiene): del catalogo (gate, compresor, deesser, eq, multibanda, limitador) o cualquier id LSP. Se inserta en la cadena despues de `after` (vacio = justo antes de la salida). `preset` aplica valores de partida (p. ej. \"voz\"). Tambien \"analizador\", y \"entrada\" con `fuente`: trae el audio de OTRA fuente (el microfono, un invitado, un canal de placa) como una tarjeta del grafo; despues se cablea con audio_patch (sale por \"out\").",
       "esquema": {
         "properties": {
           "after": {
+            "type": "string"
+          },
+          "fuente": {
             "type": "string"
           },
           "label": {
@@ -2234,7 +3375,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 340
+        "linea": 338
       },
       "roles": [
         "asistente",
@@ -2274,7 +3415,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 499
+        "linea": 506
       },
       "roles": [
         "asistente",
@@ -2311,7 +3452,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 391
+        "linea": 398
       },
       "roles": [
         "asistente",
@@ -2354,7 +3495,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 530
+        "linea": 537
       },
       "roles": [
         "asistente",
@@ -2378,7 +3519,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 167
+        "linea": 169
       },
       "roles": [
         "asistente",
@@ -2473,7 +3614,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 573
+        "linea": 580
       },
       "roles": [
         "asistente",
@@ -2484,9 +3625,12 @@
       "nombre": "audio_output_set",
       "titulo": "Mandar el rack a una salida del equipo",
       "categoria": "audio_rack",
-      "descripcion": "COMO SE USA: `salida` es el id que informa `audio_outputs`. Agrega (o reapunta) en el grafo de esa fuente una tarjeta con el nombre de la salida; el audio recien se oye cuando se le conecta algo con `audio_patch` (p. ej. {desde: \"in\", hacia: \"salida-audio\"}). No cambia lo que sale al aire.",
+      "descripcion": "COMO SE USA: `salida` es el id que informa `audio_outputs`. Agrega (o reapunta) en el grafo de esa fuente una tarjeta con el nombre de la salida; el audio recien se oye cuando se le conecta algo con `audio_patch` (p. ej. {desde: \"in\", hacia: \"salida-audio\"}). No cambia lo que sale al aire. `grabar: true` graba todo lo que le llega a la tarjeta en un .wav (Recordings/Audio/); `grabar: false` lo corta (sin `salida`, solo cambia eso).",
       "esquema": {
         "properties": {
+          "grabar": {
+            "type": "boolean"
+          },
           "salida": {
             "type": "string"
           },
@@ -2496,8 +3640,7 @@
           }
         },
         "required": [
-          "source",
-          "salida"
+          "source"
         ],
         "type": "object"
       },
@@ -2509,7 +3652,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 810
+        "linea": 819
       },
       "roles": [
         "asistente",
@@ -2533,7 +3676,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 792
+        "linea": 801
       },
       "roles": [
         "asistente",
@@ -2645,7 +3788,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 417
+        "linea": 424
       },
       "roles": [
         "asistente",
@@ -2729,7 +3872,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 210
+        "linea": 211
       },
       "roles": [
         "asistente",
@@ -2761,7 +3904,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 149
+        "linea": 151
       },
       "roles": [
         "asistente",
@@ -2797,7 +3940,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 832
+        "linea": 849
       },
       "roles": [
         "asistente",
@@ -2862,6 +4005,7 @@
         "organizador",
         "recepcion",
         "tecnico",
+        "vigilante",
         "vision"
       ]
     },
@@ -2898,6 +4042,7 @@
         "organizador",
         "recepcion",
         "tecnico",
+        "vigilante",
         "vision"
       ]
     },
@@ -2926,8 +4071,527 @@
         "organizador",
         "recepcion",
         "tecnico",
+        "vigilante",
         "vision"
       ]
+    },
+    {
+      "nombre": "ptz_buscar",
+      "titulo": "Buscar cámaras ONVIF en la red",
+      "categoria": "camaras",
+      "descripcion": "Busca cámaras ONVIF en la red local (3 s) y devuelve su dirección, nombre y modelo.",
+      "esquema": {
+        "properties": {},
+        "type": "object"
+      },
+      "soloLectura": true,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "buscar camaras onvif en la red descubrir camaras ip",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpPtzTools.cpp",
+        "linea": 347
+      },
+      "roles": []
+    },
+    {
+      "nombre": "ptz_camaras",
+      "titulo": "Las cámaras y su PTZ",
+      "categoria": "camaras",
+      "descripcion": "Cada entrada de video con su PTZ: backend (ninguno = solo digital, visca, onvif, panasonic), si contesta, qué puede (capacidades: panTilt, zoom, foco, presets…), qué mueve el joystick (modo optico|digital), el encuadre digital (x, y, zoom) y si tiene Mejorar imagen.",
+      "esquema": {
+        "properties": {
+          "entrada": {
+            "description": "Nombre de la entrada de video (como en ptz_camaras).",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "soloLectura": true,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "camaras ptz que puede cada camara estado del ptz backend visca onvif",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpPtzTools.cpp",
+        "linea": 53
+      },
+      "roles": []
+    },
+    {
+      "nombre": "ptz_configurar",
+      "titulo": "Configurar el PTZ de una entrada",
+      "categoria": "camaras",
+      "descripcion": "Elige el `backend` de la cámara `entrada` (ninguno = solo digital, visca, onvif, panasonic) con su `host` y lo que haga falta; y/o `digital` (prender el PTZ digital), `modo` (qué mueve el joystick: optico|digital) y `mejora` (Mejorar imagen en esta entrada: general|si|no).",
+      "esquema": {
+        "properties": {
+          "backend": {
+            "enum": [
+              "ninguno",
+              "visca",
+              "onvif",
+              "panasonic"
+            ],
+            "type": "string"
+          },
+          "clave": {
+            "type": "string"
+          },
+          "digital": {
+            "type": "boolean"
+          },
+          "direccion": {
+            "maximum": 7,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "entrada": {
+            "description": "Nombre de la entrada de video (como en ptz_camaras).",
+            "type": "string"
+          },
+          "host": {
+            "type": "string"
+          },
+          "mejora": {
+            "enum": [
+              "general",
+              "si",
+              "no"
+            ],
+            "type": "string"
+          },
+          "modo": {
+            "enum": [
+              "optico",
+              "digital"
+            ],
+            "type": "string"
+          },
+          "perfil": {
+            "type": "string"
+          },
+          "puerto": {
+            "type": "integer"
+          },
+          "transporte": {
+            "enum": [
+              "sony",
+              "tcp",
+              "udp"
+            ],
+            "type": "string"
+          },
+          "usuario": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "entrada"
+        ],
+        "type": "object"
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "configurar ptz camara motorizada visca onvif panasonic ip de la camara",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpPtzTools.cpp",
+        "linea": 181
+      },
+      "roles": []
+    },
+    {
+      "nombre": "ptz_encuadre",
+      "titulo": "Encuadre digital exacto",
+      "categoria": "camaras",
+      "descripcion": "Recorte digital de la entrada: centro `x`, `y` (0 a 1 del cuadro; 0,5 = centro) y `zoom` (1 = todo el cuadro, hasta 8), llegando en `segundos` (0 = corte). Sirve en cualquier cámara, aunque sea fija.",
+      "esquema": {
+        "properties": {
+          "entrada": {
+            "description": "Nombre de la entrada de video (como en ptz_camaras).",
+            "type": "string"
+          },
+          "segundos": {
+            "maximum": 10,
+            "minimum": 0,
+            "type": "number"
+          },
+          "x": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "y": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "zoom": {
+            "maximum": 8,
+            "minimum": 1,
+            "type": "number"
+          }
+        },
+        "required": [
+          "entrada"
+        ],
+        "type": "object"
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "encuadre recorte zoom digital reencuadrar acercar el plano centrar",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpPtzTools.cpp",
+        "linea": 154
+      },
+      "roles": []
+    },
+    {
+      "nombre": "ptz_ir_posicion",
+      "titulo": "Llevar la cámara a una posición",
+      "categoria": "camaras",
+      "descripcion": "Lleva la cámara `entrada` a la posición (id o nombre): la cabeza a su memoria y el recorte a su encuadre, en `segundos` (0 = corte; de fábrica 1). Avisa si la definición cambió desde que se registró.",
+      "esquema": {
+        "properties": {
+          "entrada": {
+            "description": "Nombre de la entrada de video (como en ptz_camaras).",
+            "type": "string"
+          },
+          "posicion": {
+            "description": "La posición: su id o su nombre (sin importar mayúsculas ni tildes).",
+            "type": "string"
+          },
+          "segundos": {
+            "maximum": 10,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "entrada",
+          "posicion"
+        ],
+        "type": "object"
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "llevar la camara a la posicion ir al plano mover a la posicion guardada",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpPtzTools.cpp",
+        "linea": 326
+      },
+      "roles": []
+    },
+    {
+      "nombre": "ptz_mover",
+      "titulo": "Mover una cámara",
+      "categoria": "camaras",
+      "descripcion": "Mueve la cámara `entrada` durante `duracion_ms` y la para: `pan` (+ derecha), `tilt` (+ arriba), `zoom` (+ acercar), velocidades de -1 a 1 (0,2 es lento, 1 a fondo). Mueve lo que diga su modo: la cabeza (óptico) o el recorte (digital).",
+      "esquema": {
+        "properties": {
+          "duracion_ms": {
+            "maximum": 10000,
+            "minimum": 100,
+            "type": "integer"
+          },
+          "entrada": {
+            "description": "Nombre de la entrada de video (como en ptz_camaras).",
+            "type": "string"
+          },
+          "pan": {
+            "maximum": 1,
+            "minimum": -1,
+            "type": "number"
+          },
+          "tilt": {
+            "maximum": 1,
+            "minimum": -1,
+            "type": "number"
+          },
+          "zoom": {
+            "maximum": 1,
+            "minimum": -1,
+            "type": "number"
+          }
+        },
+        "required": [
+          "entrada"
+        ],
+        "type": "object"
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "mover camara paneo pan tilt zoom acercar alejar girar subir bajar la camara",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpPtzTools.cpp",
+        "linea": 71
+      },
+      "roles": []
+    },
+    {
+      "nombre": "ptz_parar",
+      "titulo": "Parar una cámara",
+      "categoria": "camaras",
+      "descripcion": "Para todo movimiento de la cámara `entrada` (cabeza y recorte).",
+      "esquema": {
+        "properties": {
+          "entrada": {
+            "description": "Nombre de la entrada de video (como en ptz_camaras).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entrada"
+        ],
+        "type": "object"
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "parar la camara frenar el movimiento",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpPtzTools.cpp",
+        "linea": 115
+      },
+      "roles": []
+    },
+    {
+      "nombre": "ptz_posicion_borrar",
+      "titulo": "Borrar una posición",
+      "categoria": "camaras",
+      "descripcion": "Borra una posición de la cámara `entrada` (y libera su memoria en la cámara).",
+      "esquema": {
+        "properties": {
+          "entrada": {
+            "description": "Nombre de la entrada de video (como en ptz_camaras).",
+            "type": "string"
+          },
+          "posicion": {
+            "description": "La posición: su id o su nombre (sin importar mayúsculas ni tildes).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entrada",
+          "posicion"
+        ],
+        "type": "object"
+      },
+      "soloLectura": false,
+      "destructiva": true,
+      "etiquetas": {
+        "propias": "borrar posicion eliminar plano guardado",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpPtzTools.cpp",
+        "linea": 312
+      },
+      "roles": []
+    },
+    {
+      "nombre": "ptz_posicion_crear",
+      "titulo": "Guardar la posición actual con un nombre",
+      "categoria": "camaras",
+      "descripcion": "Registra DONDE ESTÁ AHORA la cámara `entrada` como una posición con `nombre` (único en la cámara) y un `comentario`: el encuadre digital y, si la cámara es motorizada, la graba en una memoria de la cámara. Guarda también la definición de la entrada. Primero encuadrá (ptz_mover, ptz_encuadre).",
+      "esquema": {
+        "properties": {
+          "comentario": {
+            "type": "string"
+          },
+          "entrada": {
+            "description": "Nombre de la entrada de video (como en ptz_camaras).",
+            "type": "string"
+          },
+          "nombre": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "entrada",
+          "nombre"
+        ],
+        "type": "object"
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "guardar posicion con nombre registrar plano de la camara agregar posicion",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpPtzTools.cpp",
+        "linea": 262
+      },
+      "roles": []
+    },
+    {
+      "nombre": "ptz_posicion_editar",
+      "titulo": "Cambiar una posición",
+      "categoria": "camaras",
+      "descripcion": "Cambia el `nombre` o el `comentario` de una posición; con `regrabar: true` la vuelve a registrar donde está ahora la cámara (encuadre, memoria y definición).",
+      "esquema": {
+        "properties": {
+          "comentario": {
+            "type": "string"
+          },
+          "entrada": {
+            "description": "Nombre de la entrada de video (como en ptz_camaras).",
+            "type": "string"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "posicion": {
+            "description": "La posición: su id o su nombre (sin importar mayúsculas ni tildes).",
+            "type": "string"
+          },
+          "regrabar": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "entrada",
+          "posicion"
+        ],
+        "type": "object"
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "renombrar posicion cambiar comentario regrabar plano",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpPtzTools.cpp",
+        "linea": 283
+      },
+      "roles": []
+    },
+    {
+      "nombre": "ptz_posiciones",
+      "titulo": "Las posiciones con nombre",
+      "categoria": "camaras",
+      "descripcion": "Las posiciones guardadas de una cámara (o de todas): id, nombre, comentario, la definición en que se registró, el encuadre digital (x, y, zoom) y la memoria de la cámara donde quedó grabada.",
+      "esquema": {
+        "properties": {
+          "entrada": {
+            "description": "Nombre de la entrada de video (como en ptz_camaras).",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "soloLectura": true,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "posiciones guardadas con nombre de la camara lista de planos",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpPtzTools.cpp",
+        "linea": 237
+      },
+      "roles": []
+    },
+    {
+      "nombre": "ptz_preset",
+      "titulo": "Ir a un preset o guardarlo",
+      "categoria": "camaras",
+      "descripcion": "`accion` ir (de fábrica) o guardar el preset `numero` (desde 1) de la cámara `entrada`. Los presets son de lo que mueve el joystick: en la cámara (óptico) o en el recorte (digital).",
+      "esquema": {
+        "properties": {
+          "accion": {
+            "enum": [
+              "ir",
+              "guardar"
+            ],
+            "type": "string"
+          },
+          "entrada": {
+            "description": "Nombre de la entrada de video (como en ptz_camaras).",
+            "type": "string"
+          },
+          "numero": {
+            "maximum": 128,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "entrada",
+          "numero"
+        ],
+        "type": "object"
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "preset posicion guardada ir a la posicion guardar posicion de camara plano",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpPtzTools.cpp",
+        "linea": 129
+      },
+      "roles": []
+    },
+    {
+      "nombre": "video_mejora",
+      "titulo": "Mejorar imagen (general)",
+      "categoria": "camaras",
+      "descripcion": "Mejorar imagen en las cámaras que siguen lo general (Configuración → Video): `activa`, y la intensidad de `ruido`, `color` (color pegado al brillo: el LED, la corbata) y `nitidez`, de 0 a 100. Sin argumentos, dice cómo está. Por entrada: ptz_configurar `mejora`.",
+      "esquema": {
+        "properties": {
+          "activa": {
+            "type": "boolean"
+          },
+          "color": {
+            "maximum": 100,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "nitidez": {
+            "maximum": 100,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "ruido": {
+            "maximum": 100,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "mejorar imagen ruido nitidez calidad de la camara color corrido led",
+        "porPrefijo": "video camara webcam dispositivo entrada"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpPtzTools.cpp",
+        "linea": 374
+      },
+      "roles": []
     },
     {
       "nombre": "app_save",
@@ -2946,7 +4610,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1732
+        "linea": 1850
       },
       "roles": [
         "asistente"
@@ -2973,7 +4637,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1637
+        "linea": 1755
       },
       "roles": [
         "asistente"
@@ -3005,7 +4669,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1665
+        "linea": 1783
       },
       "roles": [
         "asistente"
@@ -3214,84 +4878,6 @@
       ]
     },
     {
-      "nombre": "ndi_input_add",
-      "titulo": "Agregar una fuente NDI",
-      "categoria": "entradas",
-      "descripcion": "Agrega a una escena una señal NDI(R) por su `ndiName` (de ndi_sources) o por `host` + `port`. Reconecta sola. Devuelve si llega imagen.",
-      "esquema": {
-        "properties": {
-          "host": {
-            "type": "string"
-          },
-          "layout": {
-            "description": "Preset o {x,y,w,h}. Por defecto pantalla completa."
-          },
-          "name": {
-            "type": "string"
-          },
-          "ndiName": {
-            "type": "string"
-          },
-          "port": {
-            "maximum": 65535,
-            "minimum": 1,
-            "type": "integer"
-          },
-          "scene": {
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
-      "soloLectura": false,
-      "destructiva": false,
-      "etiquetas": {
-        "propias": "agregar fuente ndi camara por red",
-        "porPrefijo": "ndi red camara remota fuente por red"
-      },
-      "donde": {
-        "archivo": "src/app/mcp/McpInputTools.cpp",
-        "linea": 185
-      },
-      "roles": [
-        "asistente",
-        "escenografo",
-        "tecnico"
-      ]
-    },
-    {
-      "nombre": "ndi_sources",
-      "titulo": "Fuentes NDI en la red",
-      "categoria": "entradas",
-      "descripcion": "Busca emisores NDI(R) en la red local (mDNS) durante `seconds` y los lista con IP y puerto. Recepcion con libNoIDea (abierta, ALFA): NDI completo (SpeedHQ); NDI|HX (H.264) no.",
-      "esquema": {
-        "properties": {
-          "seconds": {
-            "default": 4,
-            "maximum": 15,
-            "minimum": 1,
-            "type": "integer"
-          }
-        },
-        "type": "object"
-      },
-      "soloLectura": true,
-      "destructiva": false,
-      "etiquetas": {
-        "propias": "que fuentes ndi hay en la red",
-        "porPrefijo": "ndi red camara remota fuente por red"
-      },
-      "donde": {
-        "archivo": "src/app/mcp/McpInputTools.cpp",
-        "linea": 160
-      },
-      "roles": [
-        "asistente",
-        "escenografo",
-        "tecnico"
-      ]
-    },
-    {
       "nombre": "network_input_add",
       "titulo": "Agregar una camara o señal de red",
       "categoria": "entradas",
@@ -3434,7 +5020,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpSystemTools.cpp",
-        "linea": 260
+        "linea": 261
       },
       "roles": [
         "asistente",
@@ -3469,7 +5055,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpSystemTools.cpp",
-        "linea": 280
+        "linea": 281
       },
       "roles": [
         "asistente",
@@ -3493,7 +5079,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpSystemTools.cpp",
-        "linea": 243
+        "linea": 244
       },
       "roles": [
         "asistente",
@@ -3512,7 +5098,7 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "llenando llena disco almacenamiento espacio queda lugar se esta llenando el disco disco lleno espacio libre en disco cuanto  queda de disco memoria temperatura hardware placa gpu cpu capacidad",
+        "propias": "llenando llena disco almacenamiento espacio queda lugar se esta llenando el disco  disco lleno espacio libre en disco cuanto  queda de disco memoria temperatura hardware placa gpu cpu capacidad",
         "porPrefijo": "sistema equipo maquina hardware version actualizar"
       },
       "donde": {
@@ -3545,7 +5131,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpSystemTools.cpp",
-        "linea": 319
+        "linea": 320
       },
       "roles": [
         "asistente",
@@ -3582,11 +5168,12 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 797
+        "linea": 914
       },
       "roles": [
         "asistente",
-        "escenografo"
+        "escenografo",
+        "vigilante"
       ]
     },
     {
@@ -3613,11 +5200,12 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 782
+        "linea": 899
       },
       "roles": [
         "asistente",
-        "escenografo"
+        "escenografo",
+        "vigilante"
       ]
     },
     {
@@ -3690,11 +5278,12 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 931
+        "linea": 1046
       },
       "roles": [
         "asistente",
-        "escenografo"
+        "escenografo",
+        "vigilante"
       ]
     },
     {
@@ -3721,11 +5310,12 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 857
+        "linea": 972
       },
       "roles": [
         "asistente",
-        "escenografo"
+        "escenografo",
+        "vigilante"
       ]
     },
     {
@@ -3750,11 +5340,12 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 892
+        "linea": 1007
       },
       "roles": [
         "asistente",
-        "escenografo"
+        "escenografo",
+        "vigilante"
       ]
     },
     {
@@ -3784,11 +5375,12 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 654
+        "linea": 773
       },
       "roles": [
         "asistente",
-        "escenografo"
+        "escenografo",
+        "vigilante"
       ]
     },
     {
@@ -3808,11 +5400,12 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 622
+        "linea": 741
       },
       "roles": [
         "asistente",
-        "escenografo"
+        "escenografo",
+        "vigilante"
       ]
     },
     {
@@ -3837,16 +5430,17 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "mover ordenar reordenar posicion escena",
+        "propias": "mover ordenar reordenar posicion escena subir bajar en la lista ponerla antes que otra",
         "porPrefijo": "escena escenas placa composicion layout toma camara aire vivo obs"
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 678
+        "linea": 797
       },
       "roles": [
         "asistente",
-        "escenografo"
+        "escenografo",
+        "vigilante"
       ]
     },
     {
@@ -3868,16 +5462,17 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "dejar preparada dejala lista preparar la proxima armar la que sigue armar preparar el proximo plano bus de preview previo antes de sacarlo  cuear siguiente escena mesa switcher",
+        "propias": "dejar preparada dejala lista preparar la proxima armar la que sigue armar preparar el  proximo plano bus de preview previo antes de sacarlo  cuear siguiente escena mesa switcher",
         "porPrefijo": "escena escenas placa composicion layout toma camara aire vivo obs"
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 728
+        "linea": 848
       },
       "roles": [
         "asistente",
-        "escenografo"
+        "escenografo",
+        "vigilante"
       ]
     },
     {
@@ -3903,16 +5498,17 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "proteger bloquear candado no tocar impedir cambios",
+        "propias": "proteger bloquear candado no tocar impedir cambios dejarla protegida que nadie la  borre ni la renombre",
         "porPrefijo": "escena escenas placa composicion layout toma camara aire vivo obs"
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 830
+        "linea": 946
       },
       "roles": [
         "asistente",
-        "escenografo"
+        "escenografo",
+        "vigilante"
       ]
     },
     {
@@ -3943,11 +5539,12 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 875
+        "linea": 990
       },
       "roles": [
         "asistente",
-        "escenografo"
+        "escenografo",
+        "vigilante"
       ]
     },
     {
@@ -3970,16 +5567,17 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "corta cortala corte pasa poné pone cambiar poner al aire pasar a cortar a programa activa corte directo urgencia  cortar a camara pasar a camara ir a camara poner la camara  pone al aire la pone al aire poner al aire la escena arranca con",
+        "propias": "corta cortala corte pasa poné pone cambiar poner al aire pasar a cortar a programa  activa corte directo urgencia  cortar a camara pasar a camara ir a camara poner la camara  pone al aire la pone al aire poner al aire la escena arranca con",
         "porPrefijo": "escena escenas placa composicion layout toma camara aire vivo obs"
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 699
+        "linea": 818
       },
       "roles": [
         "asistente",
-        "escenografo"
+        "escenografo",
+        "vigilante"
       ]
     },
     {
@@ -3994,16 +5592,17 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "sacar al aire lo armado sacar la armada tomar el take ya take sacar al aire la armada cortar ahora disparar el plano preparado mesa switcher",
+        "propias": "sacar al aire lo armado sacar la armada tomar el take ya take sacar al aire la armada  cortar ahora disparar el plano preparado mesa switcher",
         "porPrefijo": "escena escenas placa composicion layout toma camara aire vivo obs"
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 757
+        "linea": 875
       },
       "roles": [
         "asistente",
-        "escenografo"
+        "escenografo",
+        "vigilante"
       ]
     },
     {
@@ -4037,16 +5636,17 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "que fundido esta puesto que transicion hay puesta cual es el fundido fundido corte disolvencia stinger duracion transicion",
+        "propias": "que fundido esta puesto que transicion hay puesta cual es el fundido fundido corte  disolvencia stinger duracion transicion",
         "porPrefijo": "transicion corte fundido disolvencia cambio de escena"
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1032
+        "linea": 1147
       },
       "roles": [
         "asistente",
-        "escenografo"
+        "escenografo",
+        "vigilante"
       ]
     },
     {
@@ -4066,7 +5666,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 572
+        "linea": 691
       },
       "roles": [
         "asistente",
@@ -4074,6 +5674,7 @@
         "organizador",
         "recepcion",
         "tecnico",
+        "vigilante",
         "vision"
       ]
     },
@@ -4103,7 +5704,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 116
+        "linea": 114
       },
       "roles": [
         "asistente",
@@ -4218,7 +5819,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 500
+        "linea": 517
       },
       "roles": [
         "asistente",
@@ -4259,7 +5860,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 147
+        "linea": 148
       },
       "roles": [
         "asistente",
@@ -4283,7 +5884,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 645
+        "linea": 658
       },
       "roles": [
         "asistente",
@@ -4335,7 +5936,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 436
+        "linea": 441
       },
       "roles": [
         "asistente",
@@ -4414,7 +6015,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 181
+        "linea": 182
       },
       "roles": [
         "asistente",
@@ -4438,7 +6039,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 371
+        "linea": 377
       },
       "roles": [
         "asistente",
@@ -4478,7 +6079,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 279
+        "linea": 285
       },
       "roles": [
         "asistente",
@@ -4506,7 +6107,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 402
+        "linea": 408
       },
       "roles": [
         "asistente",
@@ -4530,7 +6131,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 58
+        "linea": 57
       },
       "roles": [
         "asistente",
@@ -4554,7 +6155,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 336
+        "linea": 342
       },
       "roles": [
         "asistente",
@@ -4578,7 +6179,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 90
+        "linea": 88
       },
       "roles": [
         "asistente",
@@ -5029,7 +6630,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1315
+        "linea": 1430
       },
       "roles": [
         "asistente",
@@ -5075,12 +6676,12 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "agrega la camara agrega a esta escena sumar una camara agregar a la escena sumar a la escena meter en la escena poner en la escena agregar poner sumar fuente camara imagen texto navegador",
+        "propias": "agrega la camara agrega a esta escena sumar una camara agregar a la escena sumar a la escena meter en  la escena poner en la escena agregar poner sumar fuente camara imagen texto navegador",
         "porPrefijo": "fuente fuentes capa elemento objeto imagen video texto navegador captura obs"
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1103
+        "linea": 1218
       },
       "roles": [
         "asistente",
@@ -5105,12 +6706,12 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "que hay adentro de la escena que tiene la escena que capas tiene contenido de la escena listar fuentes de una escena que hay adentro",
+        "propias": "que hay adentro de la escena que tiene la escena que capas tiene contenido de la escena  listar fuentes de una escena que hay adentro",
         "porPrefijo": "fuente fuentes capa elemento objeto imagen video texto navegador captura obs"
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1073
+        "linea": 1188
       },
       "roles": [
         "asistente",
@@ -5142,7 +6743,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1260
+        "linea": 1375
       },
       "roles": [
         "asistente",
@@ -5178,7 +6779,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1147
+        "linea": 1262
       },
       "roles": [
         "asistente",
@@ -5215,12 +6816,12 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "cambiar una propiedad valor ajuste de fuente",
+        "propias": "cambiar una propiedad valor ajuste de fuente refrescar la lista de dispositivos apretar un boton",
         "porPrefijo": "fuente fuentes capa elemento objeto imagen video texto navegador captura obs"
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1282
+        "linea": 1397
       },
       "roles": [
         "asistente",
@@ -5245,7 +6846,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1054
+        "linea": 1169
       },
       "roles": [
         "asistente",
@@ -5305,12 +6906,12 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "cambiar editar modificar fuente",
+        "propias": "cambiar editar modificar fuente correr mover el titulo o el zocalo de lugar posicion tamano",
         "porPrefijo": "fuente fuentes capa elemento objeto imagen video texto navegador captura obs"
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1164
+        "linea": 1279
       },
       "roles": [
         "asistente",
@@ -5330,12 +6931,12 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "grafico dentro de una escena agregar",
+        "propias": "grafico dentro de una escena agregar que animados hay puestos en las escenas",
         "porPrefijo": "grafico placa zocalo lower third animacion html overlay superposicion"
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 280
+        "linea": 276
       },
       "roles": [
         "asistente",
@@ -5413,12 +7014,12 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "poner grafico al aire sacar placa zocalo",
+        "propias": "poner grafico al aire zocalo placa GC generador de caracteres rotulo  pie de pagina faldon  el apellido esta mal corregir el nombre cambiar el cargo poner el nombre  del que habla levantar el zocalo tirar la placa",
         "porPrefijo": "grafico placa zocalo lower third animacion html overlay superposicion"
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 210
+        "linea": 206
       },
       "roles": [
         "asistente",
@@ -5445,12 +7046,12 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "sacar grafico bajar placa esconder",
+        "propias": "sacar grafico esconder bajar el zocalo sacar la placa quitar el GC  limpiar la pantalla fuera el cartel",
         "porPrefijo": "grafico placa zocalo lower third animacion html overlay superposicion"
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 260
+        "linea": 256
       },
       "roles": [
         "asistente",
@@ -5493,7 +7094,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 149
+        "linea": 148
       },
       "roles": [
         "asistente",
@@ -5518,7 +7119,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 408
+        "linea": 407
       },
       "roles": [
         "asistente",
@@ -5554,7 +7155,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 379
+        "linea": 377
       },
       "roles": [
         "asistente",
@@ -5609,7 +7210,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 336
+        "linea": 331
       },
       "roles": [
         "asistente",
@@ -5634,7 +7235,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 312
+        "linea": 308
       },
       "roles": [
         "asistente",
@@ -5681,12 +7282,12 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "se congelo la camara del invitado su camara quedo trabada imagen congelada ver una señal entrante feed camara",
+        "propias": "se congelo la camara del invitado su camara quedo trabada imagen congelada ver una  señal entrante feed camara",
         "porPrefijo": "captura pantallazo screenshot foto imagen mirar ver revisar vista previa como se ve"
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
-        "linea": 296
+        "linea": 297
       },
       "roles": [
         "asistente",
@@ -5739,7 +7340,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
-        "linea": 265
+        "linea": 266
       },
       "roles": [
         "asistente",
@@ -5790,12 +7391,12 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "ver a todos los invitados grilla de personas",
+        "propias": "ver a todos los invitados grilla de personas toda la gente que hay quienes estan en la sala",
         "porPrefijo": "captura pantallazo screenshot foto imagen mirar ver revisar vista previa como se ve"
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
-        "linea": 380
+        "linea": 383
       },
       "roles": [
         "asistente",
@@ -5853,7 +7454,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
-        "linea": 343
+        "linea": 344
       },
       "roles": [
         "asistente",
@@ -5895,7 +7496,7 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "quedamos sin imagen no hay imagen pantalla en blanco se fue la imagen que esta al aire que se ve ahora salida programa",
+        "propias": "quedamos sin imagen no hay imagen pantalla en blanco se fue la imagen que esta al  aire que se ve ahora salida programa",
         "porPrefijo": "captura pantallazo screenshot foto imagen mirar ver revisar vista previa como se ve"
       },
       "donde": {
@@ -5967,7 +7568,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
-        "linea": 428
+        "linea": 432
       },
       "roles": [
         "asistente",
@@ -6021,7 +7622,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
-        "linea": 239
+        "linea": 240
       },
       "roles": [
         "asistente",
@@ -6076,7 +7677,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
-        "linea": 597
+        "linea": 625
       },
       "roles": [
         "asistente",
@@ -6114,7 +7715,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
-        "linea": 510
+        "linea": 514
       },
       "roles": [
         "asistente",
@@ -6161,7 +7762,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 261
+        "linea": 257
       },
       "roles": [
         "asistente"
@@ -6198,7 +7799,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 234
+        "linea": 230
       },
       "roles": [
         "asistente"
@@ -6221,7 +7822,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 201
+        "linea": 197
       },
       "roles": [
         "asistente"
@@ -6275,7 +7876,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 285
+        "linea": 281
       },
       "roles": [
         "asistente"
@@ -6342,7 +7943,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 366
+        "linea": 362
       },
       "roles": [
         "asistente"
@@ -6382,7 +7983,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 181
+        "linea": 177
       },
       "roles": [
         "asistente"
@@ -6400,6 +8001,7 @@
               "dashboard",
               "escenas",
               "entradas",
+              "camaras",
               "audio",
               "sala",
               "guion",
@@ -6439,7 +8041,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 94
+        "linea": 96
       },
       "roles": [
         "asistente"
@@ -6475,7 +8077,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 134
+        "linea": 133
       },
       "roles": [
         "asistente"
@@ -6493,6 +8095,7 @@
               "dashboard",
               "escenas",
               "entradas",
+              "camaras",
               "audio",
               "sala",
               "guion",
@@ -6532,7 +8135,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 61
+        "linea": 62
       },
       "roles": [
         "asistente"
@@ -6601,7 +8204,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLaminaTools.cpp",
-        "linea": 373
+        "linea": 388
       },
       "roles": [
         "asistente",
@@ -6641,7 +8244,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLaminaTools.cpp",
-        "linea": 263
+        "linea": 271
       },
       "roles": [
         "asistente",
@@ -6673,12 +8276,12 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "buscame la imagen de los perros cual era la del grafico donde esta la  lamina que dice buscar adentro de la presentacion por lo que se ve",
         "porPrefijo": "lamina diapositiva presentacion powerpoint pptx pdf carrusel imagenes tira  slide placa volver atras saltar"
       },
       "donde": {
         "archivo": "src/app/mcp/McpLaminaTools.cpp",
-        "linea": 179
+        "linea": 183
       },
       "roles": [
         "asistente",
@@ -6710,12 +8313,12 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "convertir un powerpoint o pdf en imagenes desarmar presentacion importar  el orador trajo un pdf armalo para proyectar cargar la charla",
+        "propias": "convertime este powerpoint en imagenes convertir un pdf desarmar  presentacion importar armar carrusel desde un archivo  el orador trajo un pdf armalo para proyectar cargar la charla",
         "porPrefijo": "lamina diapositiva presentacion powerpoint pptx pdf carrusel imagenes tira  slide placa volver atras saltar"
       },
       "donde": {
         "archivo": "src/app/mcp/McpLaminaTools.cpp",
-        "linea": 228
+        "linea": 232
       },
       "roles": [
         "asistente",
@@ -6772,7 +8375,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLaminaTools.cpp",
-        "linea": 320
+        "linea": 332
       },
       "roles": [
         "asistente",
@@ -6814,7 +8417,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLaminaTools.cpp",
-        "linea": 449
+        "linea": 466
       },
       "roles": [
         "asistente",
@@ -6854,7 +8457,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "volve a la lamina del grafico saltar a la diapositiva numero poner esa placa  pone la diapositiva mostrar esa lamina pasar a la",
+        "propias": "volve a la lamina del grafico saltar a la diapositiva numero poner esa placa  pasa a la siguiente la que sigue la anterior avanza una atras una  pone la diapositiva mostrar esa lamina pasar a la",
         "porPrefijo": "lamina diapositiva presentacion powerpoint pptx pdf carrusel imagenes tira  slide placa volver atras saltar"
       },
       "donde": {
@@ -6916,7 +8519,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLaminaTools.cpp",
-        "linea": 413
+        "linea": 428
       },
       "roles": [
         "asistente",
@@ -6974,7 +8577,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpMediaTools.cpp",
-        "linea": 306
+        "linea": 307
       },
       "roles": [
         "asistente",
@@ -7129,7 +8732,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpMediaTools.cpp",
-        "linea": 331
+        "linea": 332
       },
       "roles": [
         "asistente",
@@ -7175,7 +8778,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "musica cancion tema pista de audio video clip poner musica poner musica de fondo musica de fondo poner una cancion un video poner musica reproducir cancion video al aire cortina",
+        "propias": "musica cancion tema pista de audio video clip poner musica poner musica de fondo musica de fondo poner  una cancion un video poner musica reproducir cancion video al aire cortina",
         "porPrefijo": "medio archivo video musica audio cancion tema clip pelicula reproducir"
       },
       "donde": {
@@ -7250,7 +8853,8 @@
         "escenografo",
         "organizador",
         "recepcion",
-        "tecnico"
+        "tecnico",
+        "vigilante"
       ]
     },
     {
@@ -7314,7 +8918,8 @@
         "escenografo",
         "organizador",
         "recepcion",
-        "tecnico"
+        "tecnico",
+        "vigilante"
       ]
     },
     {
@@ -7373,7 +8978,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "preguntale al de cabina consultale al operador pedile permiso al humano preguntarle al operador consultar pedir permiso confirmar",
+        "propias": "preguntale al de cabina consultale al operador pedile permiso al humano preguntarle al  operador consultar pedir permiso confirmar",
         "porPrefijo": "operador humano persona preguntar avisar consultar cabina"
       },
       "donde": {
@@ -7385,7 +8990,8 @@
         "escenografo",
         "organizador",
         "recepcion",
-        "tecnico"
+        "tecnico",
+        "vigilante"
       ]
     },
     {
@@ -7440,7 +9046,8 @@
         "escenografo",
         "organizador",
         "recepcion",
-        "tecnico"
+        "tecnico",
+        "vigilante"
       ]
     },
     {
@@ -7472,7 +9079,8 @@
         "escenografo",
         "organizador",
         "recepcion",
-        "tecnico"
+        "tecnico",
+        "vigilante"
       ]
     },
     {
@@ -7495,7 +9103,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "devolver al lobby mandar atras volver a la espera",
+        "propias": "devolver mandar atras de nuevo al final de la fila el que ya hablo",
         "porPrefijo": "invitado participante persona asistente publico gente lobby entrar admitir"
       },
       "donde": {
@@ -7504,7 +9112,8 @@
       },
       "roles": [
         "asistente",
-        "recepcion"
+        "recepcion",
+        "vigilante"
       ]
     },
     {
@@ -7532,16 +9141,17 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "mover en la fila reordenar oradores",
+        "propias": "mover en la fila reordenar oradores pasar a alguien al primer lugar de la fila",
         "porPrefijo": "orador expositor panelista disertante fila cola turno atril escenario"
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 788
+        "linea": 785
       },
       "roles": [
         "asistente",
-        "recepcion"
+        "recepcion",
+        "vigilante"
       ]
     },
     {
@@ -7556,16 +9166,17 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "pasa al que sigue el siguiente orador proximo orador turno siguiente siguiente orador pasar al que sigue avanzar la fila",
+        "propias": "pasa al que sigue el siguiente orador proximo orador turno siguiente siguiente orador  pasar al que sigue avanzar la fila",
         "porPrefijo": "orador expositor panelista disertante fila cola turno atril escenario"
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 777
+        "linea": 773
       },
       "roles": [
         "asistente",
-        "recepcion"
+        "recepcion",
+        "vigilante"
       ]
     },
     {
@@ -7597,11 +9208,12 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 756
+        "linea": 752
       },
       "roles": [
         "asistente",
-        "recepcion"
+        "recepcion",
+        "vigilante"
       ]
     },
     {
@@ -7632,11 +9244,12 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 826
+        "linea": 823
       },
       "roles": [
         "asistente",
-        "recepcion"
+        "recepcion",
+        "vigilante"
       ]
     },
     {
@@ -7664,11 +9277,12 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 806
+        "linea": 803
       },
       "roles": [
         "asistente",
-        "recepcion"
+        "recepcion",
+        "vigilante"
       ]
     },
     {
@@ -7703,11 +9317,12 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 849
+        "linea": 846
       },
       "roles": [
         "asistente",
-        "recepcion"
+        "recepcion",
+        "vigilante"
       ]
     },
     {
@@ -7753,16 +9368,17 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "configurar fila de oradores tiempos reglas",
+        "propias": "configurar fila de oradores tiempos reglas activar el modo oradores minutos por orador",
         "porPrefijo": "orador expositor panelista fila cola turno backstage"
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 724
+        "linea": 720
       },
       "roles": [
         "asistente",
-        "recepcion"
+        "recepcion",
+        "vigilante"
       ]
     },
     {
@@ -7782,11 +9398,12 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 682
+        "linea": 678
       },
       "roles": [
         "asistente",
-        "recepcion"
+        "recepcion",
+        "vigilante"
       ]
     },
     {
@@ -7819,7 +9436,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 965
+        "linea": 986
       },
       "roles": [
         "asistente",
@@ -7868,7 +9485,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 911
+        "linea": 931
       },
       "roles": [
         "asistente",
@@ -7946,7 +9563,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 821
+        "linea": 839
       },
       "roles": [
         "asistente",
@@ -8024,7 +9641,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 870
+        "linea": 889
       },
       "roles": [
         "asistente",
@@ -8057,7 +9674,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRostroTools.cpp",
-        "linea": 570
+        "linea": 543
       },
       "roles": [
         "asistente",
@@ -8089,7 +9706,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1032
+        "linea": 1052
       },
       "roles": [
         "asistente",
@@ -8146,7 +9763,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 765
+        "linea": 783
       },
       "roles": [
         "asistente",
@@ -8226,7 +9843,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 314
+        "linea": 325
       },
       "roles": [
         "asistente"
@@ -8249,7 +9866,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 285
+        "linea": 296
       },
       "roles": [
         "asistente"
@@ -8283,7 +9900,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 266
+        "linea": 276
       },
       "roles": [
         "asistente"
@@ -8360,7 +9977,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 192
+        "linea": 200
       },
       "roles": [
         "asistente"
@@ -8383,7 +10000,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 46
+        "linea": 45
       },
       "roles": [
         "asistente"
@@ -8483,7 +10100,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 397
+        "linea": 414
       },
       "roles": [
         "asistente"
@@ -8518,7 +10135,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 243
+        "linea": 252
       },
       "roles": [
         "asistente"
@@ -8541,7 +10158,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 427
+        "linea": 444
       },
       "roles": [
         "asistente"
@@ -8581,7 +10198,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 462
+        "linea": 479
       },
       "roles": [
         "asistente"
@@ -8608,7 +10225,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPreguntaTools.cpp",
-        "linea": 409
+        "linea": 396
       },
       "roles": [
         "asistente",
@@ -8632,7 +10249,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPreguntaTools.cpp",
-        "linea": 322
+        "linea": 311
       },
       "roles": [
         "asistente",
@@ -8676,7 +10293,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPreguntaTools.cpp",
-        "linea": 109
+        "linea": 108
       },
       "roles": [
         "asistente",
@@ -8721,7 +10338,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPreguntaTools.cpp",
-        "linea": 154
+        "linea": 151
       },
       "roles": [
         "asistente",
@@ -8745,7 +10362,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPreguntaTools.cpp",
-        "linea": 80
+        "linea": 79
       },
       "roles": [
         "asistente",
@@ -8786,7 +10403,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPreguntaTools.cpp",
-        "linea": 467
+        "linea": 449
       },
       "roles": [
         "asistente",
@@ -8840,7 +10457,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPreguntaTools.cpp",
-        "linea": 191
+        "linea": 186
       },
       "roles": [
         "asistente",
@@ -8876,7 +10493,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPreguntaTools.cpp",
-        "linea": 280
+        "linea": 272
       },
       "roles": [
         "asistente",
@@ -8907,7 +10524,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPrompterTools.cpp",
-        "linea": 175
+        "linea": 176
       },
       "roles": [
         "asistente",
@@ -8956,7 +10573,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPrompterTools.cpp",
-        "linea": 194
+        "linea": 195
       },
       "roles": [
         "asistente",
@@ -9113,7 +10730,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpQrTools.cpp",
-        "linea": 182
+        "linea": 191
       },
       "roles": [
         "asistente",
@@ -9223,7 +10840,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpQrTools.cpp",
-        "linea": 201
+        "linea": 211
       },
       "roles": [
         "asistente",
@@ -9316,7 +10933,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpQrTools.cpp",
-        "linea": 99
+        "linea": 104
       },
       "roles": [
         "asistente",
@@ -9425,7 +11042,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpQrTools.cpp",
-        "linea": 141
+        "linea": 147
       },
       "roles": [
         "asistente",
@@ -9449,7 +11066,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpQrTools.cpp",
-        "linea": 61
+        "linea": 65
       },
       "roles": [
         "asistente",
@@ -9480,7 +11097,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRecetaTools.cpp",
-        "linea": 184
+        "linea": 188
       },
       "roles": [
         "asistente"
@@ -9513,7 +11130,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRecetaTools.cpp",
-        "linea": 208
+        "linea": 211
       },
       "roles": [
         "asistente"
@@ -9581,7 +11198,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRecetaTools.cpp",
-        "linea": 102
+        "linea": 104
       },
       "roles": [
         "asistente"
@@ -9604,7 +11221,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRegistroTools.cpp",
-        "linea": 175
+        "linea": 173
       },
       "roles": [
         "asistente",
@@ -9612,6 +11229,7 @@
         "organizador",
         "recepcion",
         "tecnico",
+        "vigilante",
         "vision"
       ]
     },
@@ -9639,7 +11257,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRegistroTools.cpp",
-        "linea": 213
+        "linea": 208
       },
       "roles": [
         "asistente",
@@ -9647,6 +11265,7 @@
         "organizador",
         "recepcion",
         "tecnico",
+        "vigilante",
         "vision"
       ]
     },
@@ -9706,6 +11325,7 @@
         "organizador",
         "recepcion",
         "tecnico",
+        "vigilante",
         "vision"
       ]
     },
@@ -9733,7 +11353,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRegistroTools.cpp",
-        "linea": 233
+        "linea": 227
       },
       "roles": [
         "asistente",
@@ -9741,6 +11361,7 @@
         "organizador",
         "recepcion",
         "tecnico",
+        "vigilante",
         "vision"
       ]
     },
@@ -9782,7 +11403,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRegistroTools.cpp",
-        "linea": 109
+        "linea": 110
       },
       "roles": [
         "asistente",
@@ -9790,6 +11411,7 @@
         "organizador",
         "recepcion",
         "tecnico",
+        "vigilante",
         "vision"
       ]
     },
@@ -9818,7 +11440,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRostroTools.cpp",
-        "linea": 624
+        "linea": 594
       },
       "roles": [
         "asistente",
@@ -9850,7 +11472,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRostroTools.cpp",
-        "linea": 311
+        "linea": 295
       },
       "roles": [
         "asistente",
@@ -9880,7 +11502,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRostroTools.cpp",
-        "linea": 342
+        "linea": 325
       },
       "roles": [
         "asistente",
@@ -9918,7 +11540,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRostroTools.cpp",
-        "linea": 523
+        "linea": 498
       },
       "roles": [
         "asistente",
@@ -9970,7 +11592,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRostroTools.cpp",
-        "linea": 198
+        "linea": 184
       },
       "roles": [
         "asistente",
@@ -9995,7 +11617,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRostroTools.cpp",
-        "linea": 291
+        "linea": 274
       },
       "roles": [
         "asistente",
@@ -10020,7 +11642,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRostroTools.cpp",
-        "linea": 683
+        "linea": 647
       },
       "roles": [
         "asistente",
@@ -10045,7 +11667,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRostroTools.cpp",
-        "linea": 497
+        "linea": 473
       },
       "roles": [
         "asistente",
@@ -10090,7 +11712,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRostroTools.cpp",
-        "linea": 409
+        "linea": 389
       },
       "roles": [
         "asistente",
@@ -10120,7 +11742,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRostroTools.cpp",
-        "linea": 145
+        "linea": 137
       },
       "roles": [
         "asistente",
@@ -10147,16 +11769,17 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "que me dijo que dijo que escribio leer lo que mandaron que contesto historial conversacion que dijeron leer chat",
+        "propias": "que me dijo que dijo que escribio leer lo que mandaron que contesto historial  conversacion que dijeron leer chat",
         "porPrefijo": "chat mensaje texto escribir conversacion comentario"
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 416
+        "linea": 411
       },
       "roles": [
         "asistente",
-        "recepcion"
+        "recepcion",
+        "vigilante"
       ]
     },
     {
@@ -10187,11 +11810,12 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 393
+        "linea": 388
       },
       "roles": [
         "asistente",
-        "recepcion"
+        "recepcion",
+        "vigilante"
       ]
     },
     {
@@ -10220,16 +11844,17 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "esperar mensaje quedarse esperando a que escriban",
+        "propias": "esperar mensaje quedarse esperando a que escriban avisame cuando escriba el invitado",
         "porPrefijo": "chat mensaje texto escribir conversacion comentario"
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 448
+        "linea": 443
       },
       "roles": [
         "asistente",
-        "recepcion"
+        "recepcion",
+        "vigilante"
       ]
     },
     {
@@ -10244,16 +11869,17 @@
       "soloLectura": false,
       "destructiva": true,
       "etiquetas": {
-        "propias": "reiniciar sala gateway reiniciar servidor de la sala",
+        "propias": "reiniciar sala gateway reiniciar servidor de la sala la sala no responde esta colgada",
         "porPrefijo": ""
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 665
+        "linea": 661
       },
       "roles": [
         "asistente",
-        "recepcion"
+        "recepcion",
+        "vigilante"
       ]
     },
     {
@@ -10268,16 +11894,17 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "se esta cortando se corta entrecortado se cae la transmision va lento red internet conexion ancho de banda tunel calidad",
+        "propias": "se esta cortando se corta entrecortado se cae la transmision va lento red internet  conexion ancho de banda tunel calidad",
         "porPrefijo": "red ip conexion internet ancho de banda"
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 619
+        "linea": 615
       },
       "roles": [
         "asistente",
-        "recepcion"
+        "recepcion",
+        "vigilante"
       ]
     },
     {
@@ -10299,16 +11926,17 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "camara del operador cabina mi camara",
+        "propias": "camara del operador cabina mi camara con que imagen me ven y me oyen los que esperan en el lobby",
         "porPrefijo": "operador humano persona preguntar avisar consultar cabina"
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 634
+        "linea": 630
       },
       "roles": [
         "asistente",
-        "recepcion"
+        "recepcion",
+        "vigilante"
       ]
     },
     {
@@ -10336,11 +11964,12 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 244
+        "linea": 243
       },
       "roles": [
         "asistente",
-        "recepcion"
+        "recepcion",
+        "vigilante"
       ]
     },
     {
@@ -10360,11 +11989,12 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 308
+        "linea": 303
       },
       "roles": [
         "asistente",
-        "recepcion"
+        "recepcion",
+        "vigilante"
       ]
     },
     {
@@ -10392,11 +12022,12 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 288
+        "linea": 284
       },
       "roles": [
         "asistente",
-        "recepcion"
+        "recepcion",
+        "vigilante"
       ]
     },
     {
@@ -10433,11 +12064,12 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 369
+        "linea": 364
       },
       "roles": [
         "asistente",
-        "recepcion"
+        "recepcion",
+        "vigilante"
       ]
     },
     {
@@ -10465,11 +12097,12 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 269
+        "linea": 266
       },
       "roles": [
         "asistente",
-        "recepcion"
+        "recepcion",
+        "vigilante"
       ]
     },
     {
@@ -10504,16 +12137,17 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "pedile que prenda encienda apague que active su camara su microfono pedirle algo pedir camara microfono solicitar",
+        "propias": "pedile que prenda encienda apague que active su camara su microfono pedirle  algo pedir camara microfono solicitar",
         "porPrefijo": "invitado participante persona asistente publico gente lobby entrar admitir"
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 345
+        "linea": 340
       },
       "roles": [
         "asistente",
-        "recepcion"
+        "recepcion",
+        "vigilante"
       ]
     },
     {
@@ -10545,11 +12179,12 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 326
+        "linea": 321
       },
       "roles": [
         "asistente",
-        "recepcion"
+        "recepcion",
+        "vigilante"
       ]
     },
     {
@@ -10586,11 +12221,12 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 585
+        "linea": 581
       },
       "roles": [
         "asistente",
-        "recepcion"
+        "recepcion",
+        "vigilante"
       ]
     },
     {
@@ -10619,7 +12255,8 @@
       },
       "roles": [
         "asistente",
-        "recepcion"
+        "recepcion",
+        "vigilante"
       ]
     },
     {
@@ -10650,7 +12287,8 @@
       },
       "roles": [
         "asistente",
-        "recepcion"
+        "recepcion",
+        "vigilante"
       ]
     },
     {
@@ -10665,7 +12303,7 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "se cayo un invitado se desconecto se fue quien quedo quien esta en la sala conectados lista de gente cuanta gente  cuantos hay cuantos son quienes estan esperando en el lobby  estado de la sala",
+        "propias": "se cayo un invitado se desconecto se fue quien quedo quien esta en la sala conectados  lista de gente cuanta gente  cuantos hay cuantos son quienes estan esperando en el lobby  estado de la sala",
         "porPrefijo": "sala videollamada reunion conferencia webrtc invitados lobby"
       },
       "donde": {
@@ -10674,7 +12312,8 @@
       },
       "roles": [
         "asistente",
-        "recepcion"
+        "recepcion",
+        "vigilante"
       ]
     },
     {
@@ -10701,11 +12340,12 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 568
+        "linea": 564
       },
       "roles": [
         "asistente",
-        "recepcion"
+        "recepcion",
+        "vigilante"
       ]
     },
     {
@@ -10725,11 +12365,12 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 504
+        "linea": 500
       },
       "roles": [
         "asistente",
-        "recepcion"
+        "recepcion",
+        "vigilante"
       ]
     },
     {
@@ -10756,11 +12397,12 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 551
+        "linea": 547
       },
       "roles": [
         "asistente",
-        "recepcion"
+        "recepcion",
+        "vigilante"
       ]
     },
     {
@@ -10786,16 +12428,17 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "ver archivo mirar adjunto abrir subida",
+        "propias": "ver archivo mirar adjunto abrir subida revisar lo que mando antes de ponerlo",
         "porPrefijo": "archivo compartido adjunto subida documento foto pdf"
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 517
+        "linea": 513
       },
       "roles": [
         "asistente",
-        "recepcion"
+        "recepcion",
+        "vigilante"
       ]
     },
     {
@@ -10832,7 +12475,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1551
+        "linea": 1668
       },
       "roles": [
         "asistente"
@@ -10855,7 +12498,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1607
+        "linea": 1725
       },
       "roles": [
         "asistente"
@@ -10873,12 +12516,12 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "para frena detene la grabacion cortar de grabar parar grabacion para la grabacion parar de grabar frena la grabacion  cortar la grabacion terminar de grabar",
+        "propias": "para frena detene la grabacion cortar de grabar parar grabacion para la grabacion parar  de grabar frena la grabacion  cortar la grabacion terminar de grabar",
         "porPrefijo": "grabar grabacion guardar archivo mp4 registro"
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1622
+        "linea": 1740
       },
       "roles": [
         "asistente"
@@ -10905,12 +12548,12 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "salimos al aire salgamos al aire arrancamos la transmision empezar a transmitir empezar arrancar salir al aire comenzar transmision",
+        "propias": "salimos al aire salgamos al aire arrancamos la transmision empezar a transmitir  empezar arrancar salir al aire comenzar transmision",
         "porPrefijo": "transmitir emitir salir al aire vivo directo rtmp stream broadcast"
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1512
+        "linea": 1628
       },
       "roles": [
         "asistente"
@@ -10933,7 +12576,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1537
+        "linea": 1653
       },
       "roles": [
         "asistente"
@@ -10956,7 +12599,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 553
+        "linea": 547
       },
       "roles": [
         "asistente"
@@ -10979,7 +12622,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 330
+        "linea": 326
       },
       "roles": [
         "asistente"
@@ -11016,7 +12659,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 442
+        "linea": 438
       },
       "roles": [
         "asistente"
@@ -11039,7 +12682,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 493
+        "linea": 487
       },
       "roles": [
         "asistente"
@@ -11073,7 +12716,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 516
+        "linea": 510
       },
       "roles": [
         "asistente"
@@ -11424,7 +13067,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "que pantalla es cual cual es cada monitor identificar las pantallas identificar pantallas cual es cada monitor numero nombre  cual es el de la izquierda mostrar el numero",
+        "propias": "que pantalla es cual cual es cada monitor identificar las pantallas identificar  pantallas cual es cada monitor numero nombre  cual es el de la izquierda mostrar el numero",
         "porPrefijo": ""
       },
       "donde": {
@@ -11459,7 +13102,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVentanaTools.cpp",
-        "linea": 670
+        "linea": 674
       },
       "roles": [
         "asistente"
@@ -11482,7 +13125,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVentanaTools.cpp",
-        "linea": 218
+        "linea": 217
       },
       "roles": [
         "asistente"
@@ -11574,7 +13217,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVentanaTools.cpp",
-        "linea": 468
+        "linea": 469
       },
       "roles": [
         "asistente"
