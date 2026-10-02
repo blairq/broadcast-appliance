@@ -61,6 +61,12 @@ class RackManager : public QObject {
     /// Manda el audio del rack de `source` a la salida `device`. Devuelve el
     /// error o "". OJO: el motor reproduce por UNA salida a la vez.
     std::string setOutput(const std::string& source, const std::string& device);
+    /// Los auriculares del operador: la salida de escucha de toda la app (la de
+    /// los racks con nodo de salida y la de la voz del asistente). "" = la del
+    /// sistema. Devuelve el error o "".
+    std::string setAuriculares(const std::string& device);
+    /// {id, nombre} de la salida elegida ("" si es la del sistema).
+    json auriculares() const { return json{{"id", monitorId_}, {"nombre", monitorName_}}; }
 
     // --- Voz a texto ----------------------------------------------------------
     /// Pone (o cambia de modo) el nodo de voz a texto en el rack de `source`,

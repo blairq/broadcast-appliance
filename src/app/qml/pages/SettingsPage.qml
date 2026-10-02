@@ -546,6 +546,40 @@ Rectangle {
                 Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
 
                 // Lo dictado, por el modelo local: qué se hace sin preguntar
+                // Los auriculares del operador: la escucha de toda la app.
+                Text { text: "Salida de auriculares del operador"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+                Text {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: Theme.textDim; font.pixelSize: 12
+                    text: "Por acá suenan la voz del asistente y la escucha de los racks (nunca al aire). Es una sola " +
+                          "para toda la app: cambiarla acá la cambia también en Audio."
+                }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    GlassButton {
+                        compact: true; text: "La del sistema"
+                        active: Studio.voz.auriculares === ""
+                        onClicked: Studio.voz.setAuriculares("")
+                    }
+                    Repeater {
+                        model: Studio.voz.salidasAudio
+                        delegate: Repeater {
+                            required property var modelData
+                            model: modelData.salidas
+                            delegate: GlassButton {
+                                required property var modelData
+                                compact: true; text: modelData.nombre
+                                active: Studio.voz.auriculares === modelData.id
+                                onClicked: Studio.voz.setAuriculares(modelData.id)
+                            }
+                        }
+                    }
+                }
+
+                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
+
                 Text { text: "Lo dictado y el modelo local"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
                 RowLayout {
                     Layout.fillWidth: true
@@ -558,6 +592,18 @@ Rectangle {
                         text: "Pasar lo dictado por el modelo local: elige la acción al instante y la propone en la " +
                               "barra del asistente para que la confirmes. Lo que no es suyo, o sin modelo listo, va " +
                               "al asistente como siempre."
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+                    Toggle { checked: Studio.voz.contestarConVoz; onToggled: (w) => Studio.voz.contestarConVoz = w }
+                    Text {
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        color: Theme.text; font.pixelSize: 13
+                        text: "Contestar con voz (solo en tus auriculares): «listo», lo que no se pudo y por qué, y " +
+                              "la respuesta cuando preguntás algo («¿qué escena está al aire?»)."
                     }
                 }
                 Text {

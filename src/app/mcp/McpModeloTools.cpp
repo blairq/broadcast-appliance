@@ -429,14 +429,26 @@ void McpService::registerModeloTools() {
         t.description =
             "Las acciones que el modelo local hace sin preguntar al operador. Sin argumentos, las lista. "
             "Con `herramienta` y `automatica` (true/false), la agrega o la saca. `modelo_local` "
-            "(true/false) prende o apaga el paso de lo dictado por el modelo local.";
-        t.inputSchema = {{"type", "object"},
-                         {"properties",
-                          {{"herramienta", {{"type", "string"}}},
-                           {"automatica", {{"type", "boolean"}}},
-                           {"modelo_local", {{"type", "boolean"}}}}}};
+            "(true/false) prende o apaga el paso de lo dictado por el modelo local. `contestar_con_voz` y "
+            "`auriculares` (la salida de escucha del operador) tambien.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"herramienta", {{"type", "string"}}},
+              {"automatica", {{"type", "boolean"}}},
+              {"modelo_local", {{"type", "boolean"}}},
+              {"contestar_con_voz", {{"type", "boolean"}}},
+              {"auriculares",
+               {{"type", "string"},
+                {"description", "id de la salida de audio (audio_outputs); \"\" = la del sistema"}}}}}};
         t.run = [voz](const json& a, Done done) {
             if (a.contains("modelo_local")) voz->setUsarModeloLocal(a.value("modelo_local", true));
+            if (a.contains("contestar_con_voz")) voz->setContestarConVoz(a.value("contestar_con_voz", true));
+            if (a.contains("auriculares")) {
+                const QString e =
+                    voz->setAuriculares(QString::fromStdString(a.value("auriculares", std::string())));
+                if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+            }
             if (a.contains("herramienta"))
                 voz->setAutomatica(QString::fromStdString(a.value("herramienta", std::string())),
                                    a.value("automatica", true));
@@ -446,7 +458,10 @@ void McpService::registerModeloTools() {
                 lista.push_back({{"herramienta", m.value("herramienta").toString().toStdString()},
                                  {"titulo", m.value("titulo").toString().toStdString()}});
             }
-            done(ToolResult().data(json{{"modelo_local", voz->usarModeloLocal()}, {"automaticas", lista}}));
+            done(ToolResult().data(json{{"modelo_local", voz->usarModeloLocal()},
+                                        {"contestar_con_voz", voz->contestarConVoz()},
+                                        {"auriculares", voz->auriculares().toStdString()},
+                                        {"automaticas", lista}}));
         };
         core_.addTool(std::move(t));
     }

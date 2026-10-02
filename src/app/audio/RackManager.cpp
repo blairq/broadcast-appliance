@@ -385,6 +385,40 @@ std::string RackManager::setOutput(const std::string& source, const std::string&
     return {};
 }
 
+std::string RackManager::setAuriculares(const std::string& device) {
+    std::string nombre;
+    if (!device.empty()) {
+        struct Ctx {
+            const std::string& id;
+            std::string name;
+            bool found = false;
+        } ctx{device, {}, false};
+        obs_enum_audio_monitoring_devices(
+            [](void* p, const char* n, const char* i) {
+                auto* c = static_cast<Ctx*>(p);
+                if (i != nullptr && c->id == i) {
+                    c->name = n != nullptr ? n : "";
+                    c->found = true;
+                    return false;
+                }
+                return true;
+            },
+            &ctx);
+        if (!ctx.found) return "esa salida de audio ya no esta";
+        nombre = ctx.name;
+    }
+    // "default" es la salida del sistema para libobs.
+    if (!obs_set_audio_monitoring_device(device.empty() ? "Default" : nombre.c_str(),
+                                         device.empty() ? "default" : device.c_str()))
+        return "no se pudo abrir la salida de audio";
+    monitorId_ = device;
+    monitorName_ = nombre;
+    syncMonitors();
+    saveMonitor();
+    emit changed();
+    return {};
+}
+
 void RackManager::syncMonitors() {
     // Suena el rack que tiene nodo de salida (y un dispositivo elegido).
     for (auto& [name, f] : filters_)

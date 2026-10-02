@@ -489,9 +489,10 @@ void Voz::decidir(int id, const QString& frase, const QString& h, const FichaHer
     const QString titulo = ficha.titulo.isEmpty() ? h : ficha.titulo;
     // Automática y sin dudas: se hace. Con dudas (un nombre que no existe, un
     // dato que falta) se propone igual, para que el operador lo vea.
-    if (automaticas_.contains(h) && bloqueos.isEmpty()) {
+    // Una pregunta (solo lee) no cambia nada: se contesta sin preguntar.
+    if ((automaticas_.contains(h) || ficha.lectura) && bloqueos.isEmpty()) {
         bitacora(id, "automatica", {{"herramienta", h.toStdString()}, {"args", args}});
-        hacer(id, h, titulo, args);
+        hacer(id, frase, h, titulo, args);
         return;
     }
     propuesta_ = QVariantMap{{"id", id},
@@ -503,21 +504,106 @@ void Voz::decidir(int id, const QString& frase, const QString& h, const FichaHer
                              {"notas", notas.join(" · ")},
                              {"bloqueos", bloqueos.join(" · ")},
                              {"puedeHacer", bloqueos.isEmpty()}};
+    if (!bloqueos.isEmpty()) responder(id, "No me quedó claro: " + bloqueos.first());
     bitacora(
         id, "propuesta",
         {{"herramienta", h.toStdString()}, {"args", args}, {"bloqueos", bloqueos.join(" | ").toStdString()}});
     emit propuestaCambio();
 }
 
-void Voz::hacer(int id, const QString& herramienta, const QString& titulo, const nlohmann::json& args) {
+void Voz::hacer(int id, const QString& frase, const QString& herramienta, const QString& titulo,
+                const nlohmann::json& args) {
     if (!ejecutor_) return;
+    const bool lectura = ficha_ && ficha_(herramienta).lectura;
     bitacora(id, "ejecutar", {{"herramienta", herramienta.toStdString()}, {"argumentos", args}});
-    ejecutor_(herramienta, args, [this, id, titulo, herramienta](bool ok, const QString& texto) {
-        bitacora(id, "resultado",
-                 {{"herramienta", herramienta.toStdString()}, {"ok", ok}, {"texto", texto.toStdString()}});
-        emit notify((ok ? "Hecho: " : "No se pudo: ") + titulo + (texto.isEmpty() ? "" : " — " + texto),
-                    ok ? "ok" : "warn");
+    ejecutor_(
+        herramienta, args, [this, id, frase, titulo, herramienta, lectura](bool ok, const QString& texto) {
+            bitacora(id, "resultado",
+                     {{"herramienta", herramienta.toStdString()},
+                      {"ok", ok},
+                      {"texto", texto.left(2000).toStdString()}});
+            const QString corto = texto.size() > 160 ? texto.left(157) + "..." : texto;
+            emit notify((ok ? "Hecho: " : "No se pudo: ") + titulo + (corto.isEmpty() ? "" : " — " + corto),
+                        ok ? "ok" : "warn");
+            if (!ok)
+                responder(id, "No pude. " + texto.left(140));
+            else if (lectura)
+                contestarLectura(id, frase, herramienta, texto);
+            else
+                responder(id, "Listo.");
+        });
+}
+
+void Voz::responder(int id, const QString& texto) {
+    const QString t = texto.trimmed();
+    bitacora(id, "respuesta_voz", {{"texto", t.toStdString()}, {"dicha", contestarConVoz_ && vozLista_}});
+    if (contestarConVoz_ && vozLista_ && !t.isEmpty()) decir(t);
+}
+
+void Voz::contestarLectura(int id, const QString& frase, const QString& herramienta, const QString& datos) {
+    // El mismo modelo local, sin prefijo: una oración para decir en voz alta.
+    const std::string texto =
+        "<|im_start|>system\nSos la voz del aparato de transmisión en vivo. Contestale al operador lo que "
+        "preguntó en UNA oración corta en castellano rioplatense, para decir en voz alta: sin listas, sin "
+        "símbolos, sin markdown. Usá solo los datos que te paso.<|im_end|>\n<|im_start|>user\nPregunta: «" +
+        frase.toStdString() + "»\nDatos (de " + herramienta.toStdString() +
+        "): " + datos.left(2500).toStdString() + "<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n";
+    bitacora(id, "modelo_pedido", {{"op", "generar"}, {"para", "contestar"}, {"prompt", texto}});
+    const auto t0 = std::chrono::steady_clock::now();
+    modelos_.generar(QString::fromStdString(texto), false, 60, {}, [this, id, t0](const nlohmann::json& j) {
+        const double ms =
+            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+        QMetaObject::invokeMethod(this, [this, id, j, ms]() {
+            const QString r = QString::fromStdString(j.value("texto", std::string())).trimmed();
+            bitacora(id, "modelo_respuesta",
+                     {{"op", "generar"},
+                      {"para", "contestar"},
+                      {"texto", r.toStdString()},
+                      {"ms_ida_y_vuelta", ms}});
+            responder(id, r.isEmpty() ? QString("Listo.") : r);
+        });
     });
+}
+
+#if defined(BA_HAVE_CLAP)
+QString Voz::auriculares() const {
+    return racks_ != nullptr ? QString::fromStdString(racks_->auriculares().value("id", std::string()))
+                             : QString();
+}
+
+QVariantList Voz::salidasAudio() const {
+    QVariantList out;
+    if (racks_ == nullptr) return out;
+    for (const auto& g : racks_->outputDevices()) {
+        QVariantList salidas;
+        for (const auto& o : g.value("salidas", nlohmann::json::array()))
+            salidas << QVariantMap{{"id", QString::fromStdString(o.value("id", std::string()))},
+                                   {"nombre", QString::fromStdString(o.value("nombre", std::string()))}};
+        out << QVariantMap{{"dispositivo", QString::fromStdString(g.value("dispositivo", std::string()))},
+                           {"salidas", salidas}};
+    }
+    return out;
+}
+
+QString Voz::setAuriculares(const QString& id) {
+    if (racks_ == nullptr) return "el audio no está disponible";
+    const std::string e = racks_->setAuriculares(id.toStdString());
+    emit cambio();
+    if (e.empty() && contestarConVoz_ && vozLista_) decir("Te escucho por acá.");
+    return QString::fromStdString(e);
+}
+
+#else
+QString Voz::auriculares() const { return {}; }
+QVariantList Voz::salidasAudio() const { return {}; }
+QString Voz::setAuriculares(const QString&) { return "el audio no está disponible"; }
+#endif
+
+void Voz::setContestarConVoz(bool on) {
+    if (contestarConVoz_ == on) return;
+    contestarConVoz_ = on;
+    guardarAjustes();
+    emit cambio();
 }
 
 void Voz::confirmar(bool noVolverAPreguntar) {
@@ -533,7 +619,7 @@ void Voz::confirmar(bool noVolverAPreguntar) {
         return;
     }
     if (noVolverAPreguntar) setAutomatica(h, true);
-    hacer(id, h, p.value("titulo").toString(),
+    hacer(id, p.value("frase").toString(), h, p.value("titulo").toString(),
           nlohmann::json::parse(p.value("args").toString().toStdString(), nullptr, false));
 }
 
@@ -563,6 +649,9 @@ void Voz::bitacora(int id, const std::string& evento, nlohmann::json datos) cons
         QFile::rename(ruta, ruta + ".1");
     }
     datos["ts"] = QDateTime::currentDateTime().toString(Qt::ISODateWithMs).toStdString();
+    // El id se reinicia en cada apertura: la sesión (la hora de arranque) los separa.
+    static const std::string sesion = QDateTime::currentDateTime().toString("yyyyMMdd-HHmmss").toStdString();
+    datos["sesion"] = sesion;
     datos["id"] = id;
     datos["evento"] = evento;
     QFile f(ruta);
@@ -580,6 +669,7 @@ void Voz::leerAjustes() {
     hablante_ = j.value("hablante", 0);
     velocidad_ = std::clamp(j.value("velocidad", 1.0), 0.7, 1.5);
     usarModeloLocal_ = j.value("modeloLocal", true);
+    contestarConVoz_ = j.value("contestarConVoz", true);
     automaticas_.clear();
     for (const auto& h : j.value("automaticas", nlohmann::json::array()))
         if (h.is_string()) automaticas_ << QString::fromStdString(h.get<std::string>());
@@ -593,6 +683,7 @@ void Voz::guardarAjustes() const {
                            {"hablante", hablante_},
                            {"velocidad", velocidad_},
                            {"modeloLocal", usarModeloLocal_},
+                           {"contestarConVoz", contestarConVoz_},
                            {"automaticas", autos}};
     const QString ruta = archivoAjustes(rt_.dataRoot());
     QDir().mkpath(QFileInfo(ruta).absolutePath());

@@ -343,6 +343,7 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
                 f.titulo = QString::fromStdString(t->title);
                 const json props = t->inputSchema.value("properties", json::object());
                 f.requiereDatos = props.is_object() && !props.empty();
+                f.lectura = t->readOnly;
                 f.ficha = json{
                     {"title", t->title}, {"description", t->description}, {"inputSchema", t->inputSchema}};
                 return f;
@@ -350,7 +351,7 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
             [voz, llamar](const QString& nombre, const json& args,
                           std::function<void(bool, const QString&)> fin) {
                 llamar(nombre.toStdString(), args, [voz, fin](bool ok, const json&, const std::string& t) {
-                    std::string texto = t.size() > 160 ? t.substr(0, 157) + "..." : t;
+                    const std::string texto = t; // entero: una pregunta se contesta con esto
                     QMetaObject::invokeMethod(voz,
                                               [fin, ok, texto]() { fin(ok, QString::fromStdString(texto)); });
                 });

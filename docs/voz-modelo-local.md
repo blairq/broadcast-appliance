@@ -114,6 +114,20 @@ personas que no existen, o referencias vagas («ese compartido») sin dato.
 quedó en -3,0. «silenciá el micrófono» → silenciado. Todo en
 `Logs/voz-modelo.jsonl`.
 
+### Contestar con voz
+
+La voz contesta por los auriculares del operador (Configuración → Audio y voz
+→ «Salida de auriculares del operador»; nunca al aire): «Listo.» cuando hizo
+algo, «No pude…» o «No me quedó claro…» con el motivo, y **la respuesta** a
+una pregunta: una herramienta de lectura se hace sin pedir confirmación (no
+cambia nada) y el mismo modelo local resume lo que devolvió en una oración.
+
+| pregunta | herramienta | dijo | |
+|---|---|---|---|
+| ¿cómo está la transmisión? | `status` | «la transmisión está bien, sin errores y con 30 fps» | ✓ (1,7 s) |
+| ¿qué escenas tengo? | `scene_list` | «tenés diez escenas: Principal, Apertura, …, Cierre» | nombra las 11 pero dice «diez» (2,7 s) |
+| ¿cuánto está la música? | `audio_measure` | «la música está a -20 decibelios» | ✗ eligió medir la cadena, no el mezclador (2,9 s) |
+
 ## Lo que no funciona (todavía)
 
 **Del modelo (para el próximo fine-tune, `datos/semillas-reactivas.json`):**
@@ -123,6 +137,9 @@ quedó en -3,0. «silenciá el micrófono» → silenciado. Todo en
 - `grafico_ocultar` contra `grafico_mostrar`: «sigue clavado el gráfico,
   bajalo» elige mostrar.
 - `imagen_analizar`: «mirá la toma armada y contame cuántas personas» deriva.
+- «¿cuánto está la música?» elige `audio_measure` (mide la cadena de
+  módulos) en vez de `mixer_list` (el volumen): contesta un nivel de prueba.
+- Al resumir una respuesta cuenta mal («diez» escenas con once nombradas).
 
 **De los datos (lo que el modelo no puede saber con el estado de hoy):**
 
