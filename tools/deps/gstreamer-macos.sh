@@ -49,8 +49,12 @@ for p in "$T/dev"/*.pkg; do
 done
 [ -e "$FW/Versions/1.0/Headers" ] || ln -s include/gstreamer-1.0 "$FW/Versions/1.0/Headers"
 
-# Los de edición (ges, nle) dependen de gst-validate (devtools, que no entra).
-rm -f "$FW/Versions/1.0/lib/gstreamer-1.0/libgstges.dylib" "$FW/Versions/1.0/lib/gstreamer-1.0/libgstnle.dylib"
+# Los de edición (ges, nle) dependen de gst-validate (devtools, que no entra), y
+# la biblioteca «paraguas» del framework (GStreamer) también: se enlaza cada
+# biblioteca por separado, así que no hace falta.
+rm -f "$FW/Versions/1.0/lib/gstreamer-1.0/libgstges.dylib" "$FW/Versions/1.0/lib/gstreamer-1.0/libgstnle.dylib" \
+    "$FW/Versions/1.0/lib/libges-1.0.0.dylib" "$FW/Versions/1.0/lib/libges-1.0.dylib" "$FW/Versions/1.0/bin/ges-launch-1.0" \
+    "$FW/Versions/1.0/GStreamer" "$FW/Versions/1.0/lib/GStreamer" "$FW/GStreamer"
 # Solo arm64.
 log "reduciendo a arm64"
 find "$FW/Versions/1.0" -type f \( -name '*.dylib' -o -name '*.so' -o -perm -u+x \) -print0 |

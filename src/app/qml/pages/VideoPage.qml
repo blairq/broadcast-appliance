@@ -21,6 +21,19 @@ Rectangle {
     // (cada entrada en su franja y los cables que cruzan entre ellas).
     readonly property string vista: vg ? vg.vista : "racks"
     property string msg: ""
+    // Lo que se edita: un controlador, el molde de su tarjeta; una tarjeta, con lo que corre.
+    readonly property string tipoEf: page.nodo ? (page.nodo.tipo === "control" ? page.nodo.params.tarjeta : page.nodo.tipo) : ""
+    readonly property var paramsEf: page.nodo ? (page.nodo.tipo === "control" ? page.nodo.params.params : (page.nodo.efectivos || page.nodo.params)) : ({})
+    // Las tarjetas que maneja el controlador elegido: [{id, grupo}].
+    readonly property var manejadas: {
+        if (!page.nodo || page.nodo.tipo !== "control" || !page.vg) return []
+        const e = page.vg.estudio
+        const out = []
+        for (const c of (e.cables || []))
+            if (c.desde === page.nodo.id && c.salida === "ctl")
+                for (const n of (e.nodos || [])) if (n.id === c.hacia) out.push({ id: n.id, grupo: n.grupo })
+        return out
+    }
     readonly property var nodo: {
         const l = (page.vista === "estudio" ? page.est.nodos : page.g.nodos) || []
         for (let i = 0; i < l.length; ++i) if (l[i].id === page.sel) return l[i]
@@ -44,21 +57,32 @@ Rectangle {
     function colorDe(tipo) {
         if (tipo === "entrada" || tipo === "escena") return "#64748b"
         if (tipo === "obs") return "#0ea5e9"
+        if (tipo === "gst") return "#10b981"
+        if (tipo === "control") return "#fbbf24"
         if (tipo === "compositor") return "#f472b6"
         if (tipo === "croma") return "#22c55e"
         if (tipo === "color") return "#f59e0b"
         if (tipo === "recorte") return "#38bdf8"
         if (tipo === "salida") return "#a78bfa"
+        if (tipo === "retardo") return "#94a3b8"
         return Theme.accent
     }
     function f2(v) { return Number(v).toFixed(2) }
     function hex(n) { return "#" + ("000000" + Number(n).toString(16)).slice(-6).toUpperCase() }
     function resumen(n) {
         const p = n.params || {}
+        if (n.error) return "⚠ " + n.error
         if (n.tipo === "entrada") return "La cámara (ya encuadrada por el PTZ)"
         if (n.tipo === "escena") return "Lo que ve la escena"
         if (n.tipo === "obs") return "Filtro de OBS · " + (p.filtro || "")
-        if (n.tipo === "compositor") return ((n.entradas || []).length - 1) + " entradas · " + (p.ancho || 0) + "×" + (p.alto || 0)
+        if (n.tipo === "control") return "Controlador · " + (p.tarjeta === "gst" ? (p.params || {}).elemento : p.tarjeta === "obs" ? (p.params || {}).filtro : p.tarjeta)
+        if (n.controlador) return "↳ del controlador" + (Object.keys(p.local || {}).length ? " · con ajuste propio" : "")
+        if (n.tipo === "gst") {
+            const pr = p.propiedades || {}
+            const ks = Object.keys(pr)
+            return "GStreamer · " + (p.elemento || "") + (ks.length ? " · " + ks.slice(0, 2).map(k => k + "=" + (typeof pr[k] === "number" ? Number(pr[k]).toFixed(2).replace(/\.?0+$/, "") : pr[k])).join(" ") : "")
+        }
+        if (n.tipo === "compositor") return ((n.entradas || []).length - 1) + " entradas · " + (p.ancho || 0) + "×" + (p.alto || 0) + (n.publicada ? " · en escena" : "")
         if (n.tipo === "color") return "brillo " + f2(p.brillo) + " · contraste " + f2(p.contraste) + " · saturación " + f2(p.saturacion)
         if (n.tipo === "croma") return "fondo " + hex(p.clave) + " · similitud " + f2(p.similitud)
         if (n.tipo === "recorte") {
@@ -69,6 +93,7 @@ Rectangle {
             return partes.length ? partes.join(" · ") : "sin cambios"
         }
         if (n.tipo === "salida") return "«" + (p.nombre || "") + "»" + (n.publicada ? " · en escena" : "")
+        if (n.tipo === "retardo") return (p.cuadros || 0) + " cuadros de atraso"
         return ""
     }
     // Los nodos de afuera (otra entrada, el estudio) en una columna a la
@@ -123,7 +148,7 @@ Rectangle {
     readonly property var arbol: {
         plegTick
         const info = page.vg ? page.vg.entradasInfo : []
-        const orden = ["Cámaras", "Red", "NDI"]
+        const orden = ["Cámaras", "Red", "NDI", "Virtuales"]
         const porGrupo = {}
         for (const e of info) { (porGrupo[e.grupo] = porGrupo[e.grupo] || []).push(e) }
         for (const k in porGrupo) if (orden.indexOf(k) < 0) orden.push(k)
@@ -161,8 +186,17 @@ Rectangle {
             Layout.preferredWidth: 230
             Layout.fillHeight: true
             title: "Entradas de video"
+            GlassButton {
+                id: botonVirtual
+                anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                compact: true
+                text: "+ Entrada virtual…"
+                onClicked: virtualPop.open()
+                ToolTip.visible: hovered; ToolTip.delay: 400
+                ToolTip.text: "Señal de ajuste (barras), negro, color, o cualquier origen de GStreamer"
+            }
             ListView {
-                anchors.fill: parent
+                anchors { left: parent.left; right: parent.right; top: parent.top; bottom: botonVirtual.top; bottomMargin: 8 }
                 clip: true
                 spacing: 6
                 model: page.arbol
@@ -227,7 +261,7 @@ Rectangle {
                 Layout.fillWidth: true
                 spacing: 8
                 Repeater {
-                    model: page.vg ? page.vg.catalogo : []
+                    model: page.vg ? page.vg.catalogo.filter(c => c.tipo !== "control") : []
                     delegate: GlassButton {
                         required property var modelData
                         compact: true
@@ -242,44 +276,12 @@ Rectangle {
                 }
                 GlassButton {
                     compact: true
-                    text: "+ Filtros…"
+                    text: "+ Módulos…"
                     icon: "⌕"
                     enabled: page.vg && page.vg.entrada !== ""
-                    onClicked: { filtrosPopup.lista = page.vg.filtrosObs(); filtrosPopup.open(); buscaFiltro.forceActiveFocus() }
+                    onClicked: catalogo.open()
                     ToolTip.visible: hovered; ToolTip.delay: 400
-                    ToolTip.text: "Cualquier filtro de video de OBS como tarjeta: corrección de color, LUT (.cube), llaves, nitidez, recorte, escala, máscaras, Mejorar imagen, PTZ digital…"
-                    Popup {
-                        id: filtrosPopup
-                        property var lista: []
-                        y: parent.height + 4
-                        width: 340
-                        height: Math.min(460, 70 + lista.length * 34)
-                        padding: 8
-                        background: Rectangle { color: Theme.panel; radius: Theme.radiusSmall; border.color: Theme.glassBorder }
-                        ColumnLayout {
-                            anchors.fill: parent
-                            spacing: 6
-                            TextField { id: buscaFiltro; Layout.fillWidth: true; placeholderText: "Buscar filtro…" }
-                            ListView {
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                clip: true
-                                spacing: 2
-                                model: filtrosPopup.lista.filter(f => buscaFiltro.text === "" ||
-                                    (f.nombre + " " + f.id).toLowerCase().indexOf(buscaFiltro.text.toLowerCase()) >= 0)
-                                delegate: GlassButton {
-                                    required property var modelData
-                                    width: ListView.view.width
-                                    compact: true
-                                    text: modelData.nombre + (modelData.propio ? "  ·  de la app" : "")
-                                    onClicked: {
-                                        page.avisar(page.vg.agregarFiltro(modelData.id, page.nodo && page.nodo.tipo !== "escena" && !page.nodo.externo ? page.sel : ""))
-                                        filtrosPopup.close()
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    ToolTip.text: "Cualquier módulo de video de GStreamer o filtro de OBS como tarjeta, con su ayuda: color, llaves, desentrelazado, textos y reloj, nitidez, efectos, OpenGL…"
                 }
                 Item { width: 12; height: 1 }
                 GlassButton { compact: true; text: "Racks"; active: page.vista === "racks"; onClicked: page.vg.vista = "racks"
@@ -387,15 +389,104 @@ Rectangle {
                             text: !page.nodo ? ""
                                   : page.nodo.tipo === "entrada" ? "La cámara tal como sale del PTZ (Mejorar imagen y el encuadre digital, en «Cámaras PTZ»). De su salida pueden salir varios cables, también hacia otras entradas o un compositor."
                                   : page.nodo.tipo === "escena" ? "Lo que llega acá es lo que ven las escenas que usan esta entrada. Puede venir de otra parte del estudio (un compositor). Sin nada conectado, no se ve."
-                                  : "Del estudio: junta varias entradas. Cada cable a su entrada «+» crea un puerto nuevo. (Todavía no se ejecuta: es el paso siguiente.)"
+                                  : "Del estudio: junta varias entradas en un lienzo. Cada cable a su entrada «+» crea una capa nueva; sin posiciones, van en mosaico. Se pone en las escenas como una fuente, o se cablea a la escena de una entrada."
                             color: Theme.textDim; font.pixelSize: 12
+                        }
+
+                        // Controladores: la misma tarjeta (con los mismos ajustes) en varias entradas.
+                        Rectangle {
+                            visible: !!page.nodo && (!!page.nodo.controlador || page.nodo.tipo === "control")
+                            Layout.fillWidth: true
+                            implicitHeight: ctlCol.implicitHeight + 16
+                            radius: 8
+                            color: Qt.rgba(0.98, 0.75, 0.14, 0.08)
+                            border.color: Qt.rgba(0.98, 0.75, 0.14, 0.45)
+                            ColumnLayout {
+                                id: ctlCol
+                                anchors { left: parent.left; right: parent.right; top: parent.top; margins: 8 }
+                                spacing: 6
+                                Text {
+                                    Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                    color: Theme.text; font.pixelSize: 12
+                                    text: !page.nodo ? ""
+                                          : page.nodo.tipo === "control"
+                                            ? "Maneja " + page.manejadas.length + (page.manejadas.length === 1 ? " tarjeta" : " tarjetas") + ": lo que ajustes acá cambia en todas."
+                                            : "La maneja un controlador: lo que ajustes acá cambia en todas las entradas que maneja."
+                                }
+                                Flow {
+                                    visible: !!page.nodo && page.nodo.tipo === "control"
+                                    Layout.fillWidth: true
+                                    spacing: 4
+                                    Repeater {
+                                        model: page.manejadas
+                                        delegate: GlassButton {
+                                            required property var modelData
+                                            compact: true; text: modelData.grupo
+                                            onClicked: { page.vg.entrada = modelData.grupo; page.sel = modelData.id }
+                                        }
+                                    }
+                                }
+                                Text {
+                                    visible: !!page.nodo && page.nodo.tipo === "control"
+                                    text: "Agregarla también a:"; color: Theme.textDim; font.pixelSize: 11
+                                }
+                                Flow {
+                                    visible: !!page.nodo && page.nodo.tipo === "control"
+                                    Layout.fillWidth: true
+                                    spacing: 4
+                                    Repeater {
+                                        model: page.vg ? page.vg.entradas.filter(e => !page.manejadas.some(m => m.grupo === e)) : []
+                                        delegate: GlassButton {
+                                            required property string modelData
+                                            compact: true; text: "+ " + modelData
+                                            onClicked: page.avisar(page.vg.agregarControlada(page.sel, modelData))
+                                        }
+                                    }
+                                }
+                                GlassButton {
+                                    visible: !!page.nodo && !!page.nodo.controlador
+                                    compact: true
+                                    text: "Soltar del controlador"
+                                    onClicked: page.avisar(page.vg.soltarControl(page.sel))
+                                    ToolTip.visible: hovered; ToolTip.delay: 400
+                                    ToolTip.text: "Esta tarjeta deja de seguir al controlador y se queda con los valores de ahora"
+                                }
+                            }
+                        }
+                        GlassButton {
+                            visible: !!page.nodo && !page.nodo.controlador && ["color", "croma", "recorte", "obs", "gst"].indexOf(page.nodo.tipo) >= 0 && !page.nodo.externo
+                            compact: true
+                            text: "Usar en varias entradas…"
+                            icon: "⇶"
+                            onClicked: {
+                                const e = page.vg.controlar(page.sel)
+                                page.avisar(e)
+                            }
+                            ToolTip.visible: hovered; ToolTip.delay: 400
+                            ToolTip.text: "Hace un controlador con esta tarjeta: después se la agrega a otras entradas (otras cámaras) y un solo ajuste las maneja a todas"
+                        }
+
+                        // Un módulo de GStreamer: qué es, y su ayuda completa.
+                        RowLayout {
+                            visible: page.tipoEf === "gst"
+                            Layout.fillWidth: true
+                            spacing: 8
+                            Text {
+                                Layout.fillWidth: true
+                                text: page.paramsEf ? page.paramsEf.elemento || "" : ""
+                                color: Theme.textFaint; font { pixelSize: 11; family: "Menlo" }
+                            }
+                            GlassButton {
+                                compact: true; text: "Ayuda"; icon: "?"
+                                onClicked: catalogo.abrirEn(page.paramsEf.elemento)
+                            }
                         }
 
                         // Deslizadores de los parámetros numéricos.
                         Repeater {
                             model: {
                                 if (!page.nodo) return []
-                                const t = page.nodo.tipo
+                                const t = page.tipoEf
                                 if (t === "color") return [
                                     { k: "brillo", t: "Brillo", min: -1, max: 1 },
                                     { k: "contraste", t: "Contraste", min: 0, max: 2 },
@@ -405,6 +496,8 @@ Rectangle {
                                     { k: "similitud", t: "Similitud (cuánto se va)", min: 0, max: 1 },
                                     { k: "suavidad", t: "Suavidad del borde", min: 0, max: 1 },
                                     { k: "derrame", t: "Quitar el reflejo de color", min: 0, max: 1 }]
+                                if (t === "retardo") return [
+                                    { k: "cuadros", t: "Cuadros de atraso (para sincronizar)", min: 0, max: 30, entero: true }]
                                 if (t === "recorte") return [
                                     { k: "izquierda", t: "Izquierda", min: 0, max: 0.5 },
                                     { k: "derecha", t: "Derecha", min: 0, max: 0.5 },
@@ -419,21 +512,22 @@ Rectangle {
                                 RowLayout {
                                     Layout.fillWidth: true
                                     Text { text: modelData.t; color: Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true }
-                                    Text { text: page.f2(desl.value); color: Theme.textFaint; font.pixelSize: 11 }
+                                    Text { text: modelData.entero ? Math.round(desl.value) : page.f2(desl.value); color: Theme.textFaint; font.pixelSize: 11 }
                                 }
                                 Slider {
                                     id: desl
                                     Layout.fillWidth: true
                                     from: modelData.min; to: modelData.max
-                                    value: page.nodo ? page.nodo.params[modelData.k] : 0
-                                    onMoved: page.ajustar(page.sel, modelData.k, value)
+                                    stepSize: modelData.entero ? 1 : 0
+                                    value: page.nodo ? page.paramsEf[modelData.k] : 0
+                                    onMoved: page.ajustar(page.sel, modelData.k, modelData.entero ? Math.round(value) : value)
                                 }
                             }
                         }
 
                         // Una tarjeta de OBS: sus controles, de las propiedades del filtro.
                         Repeater {
-                            model: page.nodo && page.nodo.tipo === "obs" ? page.vg.propiedades(page.sel) : []
+                            model: page.nodo && (page.tipoEf === "obs" || page.tipoEf === "gst") ? page.vg.propiedades(page.sel) : []
                             delegate: ColumnLayout {
                                 id: prop
                                 required property var modelData
@@ -488,10 +582,10 @@ Rectangle {
 
                         // Croma: el color de fondo.
                         RowLayout {
-                            visible: !!page.nodo && page.nodo.tipo === "croma"
+                            visible: page.tipoEf === "croma"
                             spacing: 6
                             Text { text: "Fondo"; color: Theme.textDim; font.pixelSize: 12 }
-                            Rectangle { width: 22; height: 22; radius: 4; color: page.nodo && page.nodo.params.clave !== undefined ? page.hex(page.nodo.params.clave) : "transparent"; border.color: Qt.rgba(1, 1, 1, 0.3) }
+                            Rectangle { width: 22; height: 22; radius: 4; color: page.paramsEf && page.paramsEf.clave !== undefined ? page.hex(page.paramsEf.clave) : "transparent"; border.color: Qt.rgba(1, 1, 1, 0.3) }
                             GlassButton { compact: true; text: "Verde"; onClicked: page.avisar(page.vg.ajustar(page.sel, { clave: 0x00B140 })) }
                             GlassButton { compact: true; text: "Azul"; onClicked: page.avisar(page.vg.ajustar(page.sel, { clave: 0x0047BB })) }
                             TextField {
@@ -506,16 +600,128 @@ Rectangle {
 
                         // Recorte: espejo.
                         RowLayout {
-                            visible: !!page.nodo && page.nodo.tipo === "recorte"
+                            visible: page.tipoEf === "recorte"
                             CheckBox {
                                 text: "Espejo ↔"
-                                checked: !!page.nodo && !!page.nodo.params.espejoH
+                                checked: !!page.paramsEf && !!page.paramsEf.espejoH
                                 onToggled: page.avisar(page.vg.ajustar(page.sel, { espejoH: checked }))
                             }
                             CheckBox {
                                 text: "Espejo ↕"
-                                checked: !!page.nodo && !!page.nodo.params.espejoV
+                                checked: !!page.paramsEf && !!page.paramsEf.espejoV
                                 onToggled: page.avisar(page.vg.ajustar(page.sel, { espejoV: checked }))
+                            }
+                        }
+
+                        // Compositor: el lienzo, el armado y cada capa.
+                        ColumnLayout {
+                            id: compPanel
+                            visible: !!page.nodo && page.nodo.tipo === "compositor"
+                            Layout.fillWidth: true
+                            spacing: 6
+                            readonly property var puertos: page.nodo && page.nodo.tipo === "compositor"
+                                ? (page.nodo.entradas || []).filter(e => !e.pedido).map(e => e.id) : []
+                            readonly property var capas: page.nodo && page.nodo.params ? (page.nodo.params.capas || {}) : ({})
+                            // De dónde viene cada puerto (para nombrar la capa).
+                            function origen(puerto) {
+                                const l = (page.vista === "estudio" ? page.est.cables : page.g.cables) || []
+                                for (const c of l) if (c.hacia === page.sel && c.entrada === puerto) {
+                                    const ns = (page.vista === "estudio" ? page.est.nodos : page.g.nodos) || []
+                                    for (const n of ns) if (n.id === c.desde) return (n.grupo || "") + (n.tipo === "entrada" ? "" : " · " + n.etiqueta)
+                                    return c.desde
+                                }
+                                return puerto
+                            }
+                            function armar(cual) {
+                                const ps = compPanel.puertos
+                                const c = {}
+                                // Primero se borra todo (null) y después se pone lo del armado.
+                                for (const p of ps) c[p] = null
+                                if (cual === "pip" && ps.length >= 2) {
+                                    c[ps[0]] = { x: 0, y: 0, ancho: 1, alto: 1, orden: 0 }
+                                    c[ps[1]] = { x: 0.68, y: 0.06, ancho: 0.28, alto: 0.28, orden: 1 }
+                                } else if (cual === "lado" && ps.length >= 2) {
+                                    c[ps[0]] = { x: 0, y: 0.25, ancho: 0.5, alto: 0.5 }
+                                    c[ps[1]] = { x: 0.5, y: 0.25, ancho: 0.5, alto: 0.5 }
+                                }
+                                page.avisar(page.vg.ajustar(page.sel, { capas: c }))
+                            }
+                            Text { text: "Nombre de la fuente"; color: Theme.textDim; font.pixelSize: 12 }
+                            TextField {
+                                Layout.fillWidth: true
+                                text: page.nodo && page.nodo.params && page.nodo.params.nombre !== undefined ? page.nodo.params.nombre : ""
+                                enabled: !!page.nodo && !page.nodo.publicada
+                                onEditingFinished: if (page.nodo && text !== page.nodo.params.nombre) page.avisar(page.vg.ajustar(page.sel, { nombre: text }))
+                            }
+                            RowLayout {
+                                spacing: 6
+                                Text { text: "Lienzo"; color: Theme.textDim; font.pixelSize: 12 }
+                                Repeater {
+                                    model: [ { t: "1080p", w: 1920, h: 1080 }, { t: "720p", w: 1280, h: 720 }, { t: "4K", w: 3840, h: 2160 }, { t: "Vertical", w: 1080, h: 1920 } ]
+                                    delegate: GlassButton {
+                                        required property var modelData
+                                        compact: true; text: modelData.t
+                                        active: !!page.nodo && page.nodo.params && page.nodo.params.ancho === modelData.w && page.nodo.params.alto === modelData.h
+                                        onClicked: page.avisar(page.vg.ajustar(page.sel, { ancho: modelData.w, alto: modelData.h }))
+                                    }
+                                }
+                            }
+                            RowLayout {
+                                spacing: 6
+                                Text { text: "Armado"; color: Theme.textDim; font.pixelSize: 12 }
+                                GlassButton { compact: true; text: "Mosaico"; onClicked: compPanel.armar("mosaico") }
+                                GlassButton { compact: true; text: "Imagen en imagen"; enabled: compPanel.puertos.length >= 2; onClicked: compPanel.armar("pip") }
+                                GlassButton { compact: true; text: "Lado a lado"; enabled: compPanel.puertos.length >= 2; onClicked: compPanel.armar("lado") }
+                            }
+                            Repeater {
+                                model: compPanel.puertos
+                                delegate: ColumnLayout {
+                                    id: capaCol
+                                    required property string modelData
+                                    readonly property var k: compPanel.capas[modelData] || ({})
+                                    Layout.fillWidth: true
+                                    spacing: 2
+                                    Text { text: compPanel.origen(modelData) + "  (" + modelData + ")"; color: Theme.text; font { pixelSize: 12; weight: Font.DemiBold } }
+                                    Text {
+                                        visible: capaCol.k.x === undefined
+                                        text: "En el mosaico"; color: Theme.textFaint; font.pixelSize: 11
+                                    }
+                                    Repeater {
+                                        model: [ { c: "x", t: "X" }, { c: "y", t: "Y" }, { c: "ancho", t: "Ancho" }, { c: "alto", t: "Alto" }, { c: "opacidad", t: "Opacidad" } ]
+                                        delegate: RowLayout {
+                                            required property var modelData
+                                            Layout.fillWidth: true
+                                            spacing: 6
+                                            Text { text: modelData.t; color: Theme.textDim; font.pixelSize: 11; Layout.preferredWidth: 58 }
+                                            Slider {
+                                                Layout.fillWidth: true
+                                                from: 0; to: 1
+                                                value: capaCol.k[modelData.c] !== undefined ? capaCol.k[modelData.c]
+                                                     : modelData.c === "opacidad" || modelData.c === "ancho" || modelData.c === "alto" ? 1 : 0
+                                                onMoved: {
+                                                    const c = {}
+                                                    c[capaCol.modelData] = {}
+                                                    c[capaCol.modelData][modelData.c] = value
+                                                    // La primera vez que se mueve, toma una caja completa (sale del mosaico).
+                                                    if (capaCol.k.x === undefined && modelData.c !== "opacidad")
+                                                        c[capaCol.modelData] = Object.assign({ x: 0, y: 0, ancho: 1, alto: 1 }, c[capaCol.modelData])
+                                                    page.ajustar(page.sel, "capas", c)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            Text {
+                                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                text: page.nodo && page.nodo.publicada
+                                      ? "Ya es una fuente: se pone y se saca de las escenas como cualquier otra."
+                                      : "Se ve como una fuente con este nombre en cualquier escena."
+                                color: Theme.textFaint; font.pixelSize: 11
+                            }
+                            GlassButton {
+                                text: "Poner en la escena al aire"
+                                onClicked: page.avisar(page.vg.aEscena(page.sel, ""))
                             }
                         }
 
@@ -556,5 +762,83 @@ Rectangle {
             }
         }
     }
-}
 
+    CatalogoModulos {
+        id: catalogo
+        vg: page.vg
+        // Abre el catálogo directo en el detalle de un módulo.
+        function abrirEn(elemento) {
+            open()
+            for (const m of modulos) if (m.elemento === elemento) { verDetalle(m); return }
+        }
+        onElegido: (tipo, id) => {
+            const despues = page.nodo && page.nodo.tipo !== "escena" && !page.nodo.externo ? page.sel : ""
+            page.avisar(tipo === "gst" ? page.vg.agregarModulo(id, despues) : page.vg.agregarFiltro(id, despues))
+        }
+    }
+
+    // Una entrada virtual nueva: señal de ajuste, negro… o un pipeline de GStreamer.
+    Popup {
+        id: virtualPop
+        modal: true
+        anchors.centerIn: Overlay.overlay
+        width: 520
+        padding: 18
+        property string preset: "barras-hd"
+        onOpened: { nombreVirtual.text = ""; pipelineVirtual.text = ""; preset = "barras-hd"; nombreVirtual.forceActiveFocus() }
+        background: Rectangle { color: Theme.panel; radius: Theme.radius; border.color: Theme.glassBorder }
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 10
+            Text { text: "Entrada virtual"; color: Theme.text; font { pixelSize: 18; weight: Font.DemiBold } }
+            Text {
+                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                text: "Una entrada más (con su grafo de tarjetas) que genera GStreamer: una señal de ajuste para calibrar, un negro, o cualquier origen (RTSP, SRT…)."
+                color: Theme.textDim; font.pixelSize: 12
+            }
+            TextField { id: nombreVirtual; Layout.fillWidth: true; placeholderText: "Nombre (p. ej. «Barras»)" }
+            Flow {
+                Layout.fillWidth: true
+                spacing: 5
+                Repeater {
+                    model: page.vg ? page.vg.virtuales() : []
+                    delegate: GlassButton {
+                        required property var modelData
+                        compact: true
+                        text: modelData.nombre
+                        active: virtualPop.preset === modelData.id
+                        onClicked: { virtualPop.preset = modelData.id; if (nombreVirtual.text === "") nombreVirtual.text = modelData.nombre }
+                        ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: modelData.descripcion
+                    }
+                }
+                GlassButton {
+                    compact: true; text: "Pipeline propio…"
+                    active: virtualPop.preset === "pipeline"
+                    onClicked: virtualPop.preset = "pipeline"
+                }
+            }
+            TextField {
+                id: pipelineVirtual
+                visible: virtualPop.preset === "pipeline"
+                Layout.fillWidth: true
+                font.family: "Menlo"
+                placeholderText: "rtspsrc location=rtsp://… latency=200 ! decodebin"
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Item { Layout.fillWidth: true }
+                GlassButton { compact: true; text: "Cancelar"; onClicked: virtualPop.close() }
+                GlassButton {
+                    compact: true; text: "Crear en la escena al aire"; active: true
+                    enabled: nombreVirtual.text.trim() !== "" && (virtualPop.preset !== "pipeline" || pipelineVirtual.text.trim() !== "")
+                    onClicked: {
+                        const e = page.vg.crearVirtual(nombreVirtual.text.trim(),
+                                                       virtualPop.preset === "pipeline" ? "pipeline:" + pipelineVirtual.text.trim() : virtualPop.preset, "")
+                        page.avisar(e)
+                        if (e === "") { page.vg.entrada = nombreVirtual.text.trim(); virtualPop.close() }
+                    }
+                }
+            }
+        }
+    }
+}

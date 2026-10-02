@@ -3,6 +3,7 @@
 #include "video/GrafoVideo.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cctype>
 #include <cstring>
 #include <map>
@@ -18,7 +19,9 @@ namespace {
 /// Grilla del editor: columnas de 220 (tarjetas de 180 y lugar para el cable), paso 20.
 constexpr int kColumna = 220;
 
-bool esFiltro(const std::string& t) { return t == "color" || t == "croma" || t == "recorte" || t == "obs"; }
+bool esFiltro(const std::string& t) {
+    return t == "color" || t == "croma" || t == "recorte" || t == "obs" || t == "gst" || t == "retardo";
+}
 
 json fabrica(const std::string& tipo) {
     if (tipo == "color") return {{"brillo", 0.0}, {"contraste", 1.0}, {"saturacion", 1.0}, {"gamma", 1.0}};
@@ -26,9 +29,17 @@ json fabrica(const std::string& tipo) {
     if (tipo == "recorte")
         return {{"izquierda", 0.0}, {"arriba", 0.0}, {"derecha", 0.0}, {"abajo", 0.0}, {"espejoH", false}, {"espejoV", false}};
     if (tipo == "salida") return {{"nombre", ""}};
+    if (tipo == "retardo") return {{"cuadros", 0}};
     if (tipo == "obs") return {{"filtro", ""}, {"ajustes", json::object()}};
+    // Un módulo de GStreamer: el elemento y sus propiedades (lo que cambia de fábrica).
+    if (tipo == "gst") return {{"elemento", ""}, {"propiedades", json::object()}};
+    // Un controlador: el molde de una tarjeta (`tarjeta` = su tipo, `params` =
+    // sus parámetros) que manejan todas las tarjetas conectadas a su `ctl`.
+    if (tipo == "control") return {{"tarjeta", ""}, {"params", json::object()}};
     // Por puerto: {"in_0": {x, y, ancho, alto, opacidad, orden}} (lo ejecuta el estudio).
-    if (tipo == "compositor") return {{"ancho", 1920}, {"alto", 1080}, {"capas", json::object()}};
+    // `nombre`: la fuente con la que se pone en las escenas. Sin capas: mosaico.
+    if (tipo == "compositor")
+        return {{"ancho", 1920}, {"alto", 1080}, {"fondo", 0xFF000000LL}, {"nombre", ""}, {"capas", json::object()}};
     if (tipo == "entrada" || tipo == "escena") return {{"fuente", ""}};
     return json::object();
 }
@@ -40,7 +51,10 @@ std::string titulo(const std::string& tipo) {
     if (tipo == "croma") return "Croma";
     if (tipo == "recorte") return "Recorte y espejo";
     if (tipo == "salida") return "Salida";
+    if (tipo == "retardo") return "Retardo";
     if (tipo == "obs") return "Filtro";
+    if (tipo == "gst") return "Módulo";
+    if (tipo == "control") return "Controlador";
     if (tipo == "compositor") return "Compositor";
     return tipo;
 }
@@ -76,6 +90,21 @@ std::string slug(const std::string& original) {
     return out.empty() ? "entrada" : out;
 }
 
+/// Mezcla `b` en `a`: los objetos clave por clave (a cualquier profundidad),
+/// lo demás se reemplaza, y un null saca la clave (como JSON merge patch).
+void mezclar(json& a, const json& b) {
+    if (!a.is_object() || !b.is_object()) {
+        a = b;
+        return;
+    }
+    for (auto it = b.begin(); it != b.end(); ++it) {
+        if (it.value().is_null())
+            a.erase(it.key());
+        else
+            mezclar(a[it.key()], it.value());
+    }
+}
+
 int indicePedido(const std::string& puerto) {
     if (puerto.rfind("in_", 0) != 0 || puerto.size() < 4) return -1;
     for (size_t i = 3; i < puerto.size(); ++i)
@@ -91,15 +120,20 @@ json GrafoVideo::catalogo() {
         {"color", "Brillo, contraste, saturación y gamma.", "entrada"},
         {"croma", "Saca un fondo de color (verde de fábrica): queda transparente.", "entrada"},
         {"recorte", "Recorta los bordes (quedan transparentes) y da vuelta la imagen.", "entrada"},
+        {"retardo", "Atrasa la imagen unos cuadros: para sincronizar una cámara con otra (o con el audio).", "entrada"},
         {"salida", "Publica la imagen de ese punto como una fuente con nombre, para cualquier escena.", "entrada"},
         {"compositor", "Junta varias entradas en una imagen (mosaico, imagen en imagen). Es del estudio.", "estudio"},
+        {"control", "Maneja con UN ajuste las tarjetas iguales de varias entradas (la misma corrección de color "
+                    "en todas las cámaras): un cable de control a cada una.", "estudio"},
     };
     for (const auto& [t, d, a] : tipos)
         out.push_back({{"tipo", t}, {"titulo", titulo(t)}, {"descripcion", d}, {"params", fabrica(t)}, {"ambito", a}});
     return out;
 }
 
-bool GrafoVideo::tipoValido(const std::string& t) { return esFiltro(t) || t == "salida" || t == "compositor"; }
+bool GrafoVideo::tipoValido(const std::string& t) {
+    return esFiltro(t) || t == "salida" || t == "compositor" || t == "control";
+}
 
 std::string GrafoVideo::idEntrada(const std::string& fuente) { return slug(fuente) + ".entrada"; }
 std::string GrafoVideo::idEscena(const std::string& fuente) { return slug(fuente) + ".escena"; }
@@ -125,7 +159,9 @@ std::vector<GrafoVideo::Cable> GrafoVideo::salientes(const std::string& id) cons
 }
 
 std::vector<GrafoVideo::Puerto> GrafoVideo::puertosEntrada(const Nodo& n) const {
-    if (n.tipo == "entrada") return {};
+    if (n.tipo == "entrada" || n.tipo == "control") return {};
+    // Un filtro tiene además su entrada de control (de un controlador).
+    if (esFiltro(n.tipo)) return {{"in", "video", false}, {"ctl", "control", false}};
     if (n.tipo != "compositor") return {{"in", "video", false}};
     // A pedido: los conectados, en orden, y uno libre al final.
     std::vector<int> usados;
@@ -140,6 +176,7 @@ std::vector<GrafoVideo::Puerto> GrafoVideo::puertosEntrada(const Nodo& n) const 
 
 std::vector<GrafoVideo::Puerto> GrafoVideo::puertosSalida(const Nodo& n) const {
     if (n.tipo == "escena" || n.tipo == "salida") return {};
+    if (n.tipo == "control") return {{"ctl", "control", false}};
     return {{"out", "video", false}};
 }
 
@@ -203,14 +240,18 @@ std::string GrafoVideo::agregar(const std::string& tipo, const std::string& grup
         if (error) *error = "falta qué filtro de OBS (`filtro`)";
         return {};
     }
+    if (tipo == "gst" && (!params.is_object() || params.value("elemento", std::string()).empty())) {
+        if (error) *error = "falta qué módulo de GStreamer (`elemento`)";
+        return {};
+    }
     Nodo n;
     n.tipo = tipo;
     n.etiqueta = titulo(tipo);
     n.params = fabrica(tipo);
     if (params.is_object())
         for (auto it = params.begin(); it != params.end(); ++it) n.params[it.key()] = it.value();
-    // Un compositor es del estudio: suelto, a la derecha de todo.
-    if (tipo == "compositor") {
+    // Un compositor o un controlador es del estudio: suelto, a la derecha de todo.
+    if (tipo == "compositor" || tipo == "control") {
         n.grupo = "";
         n.id = idNuevo("", tipo);
         int x = 0;
@@ -262,7 +303,9 @@ bool GrafoVideo::quitar(const std::string& id, std::string* error) {
         return false;
     }
     // Un filtro (una entrada, una salida) se puentea: lo de antes sigue a lo de después.
-    const std::vector<Cable> antes = entrantes(id), despues = salientes(id);
+    std::vector<Cable> antes = entrantes(id);
+    const std::vector<Cable> despues = salientes(id);
+    antes.erase(std::remove_if(antes.begin(), antes.end(), [](const Cable& c) { return c.entrada == "ctl"; }), antes.end());
     const bool puentear = esFiltro(n->tipo) && antes.size() == 1;
     cables_.erase(std::remove_if(cables_.begin(), cables_.end(),
                                  [&](const Cable& c) { return c.desde == id || c.hacia == id; }),
@@ -287,14 +330,39 @@ std::string GrafoVideo::conectar(const std::string& desde, const std::string& sa
         if (error) *error = "«" + d->etiqueta + "» no tiene salida" + (salida.empty() ? "" : " «" + salida + "»");
         return {};
     }
+    const std::string tipoSal = std::find_if(ps.begin(), ps.end(), [&](const Puerto& p) { return p.id == sal; })->tipo;
     const auto pe = puertosEntrada(*h);
     std::string ent = entrada;
-    if (ent.empty()) ent = pe.empty() ? std::string() : (h->tipo == "compositor" ? pe.back().id : pe[0].id);
-    const bool valida = std::any_of(pe.begin(), pe.end(), [&](const Puerto& p) { return p.id == ent; }) ||
-                        (h->tipo == "compositor" && indicePedido(ent) >= 0);
+    if (ent.empty()) {
+        // El primer puerto del mismo tipo (en un compositor, el libre).
+        if (h->tipo == "compositor" && tipoSal == "video") ent = pe.back().id;
+        for (const auto& p : pe)
+            if (ent.empty() && p.tipo == tipoSal) ent = p.id;
+    }
+    const auto puerto = std::find_if(pe.begin(), pe.end(), [&](const Puerto& p) { return p.id == ent; });
+    const bool valida = puerto != pe.end() || (h->tipo == "compositor" && indicePedido(ent) >= 0);
     if (!valida) {
-        if (error) *error = "«" + h->etiqueta + "» no tiene entrada" + (entrada.empty() ? "" : " «" + entrada + "»");
+        if (error)
+            *error = "«" + h->etiqueta + "» no tiene entrada" +
+                     (entrada.empty() ? (tipoSal == "control" ? " de control" : "") : " «" + entrada + "»");
         return {};
+    }
+    const std::string tipoEnt = puerto != pe.end() ? puerto->tipo : "video";
+    if (tipoEnt != tipoSal) {
+        if (error) *error = "un cable de " + tipoSal + " no va a una entrada de " + tipoEnt;
+        return {};
+    }
+    // Un controlador maneja tarjetas de SU tipo (y del mismo filtro o módulo).
+    if (tipoSal == "control") {
+        const json& m = d->params;
+        const std::string t = m.value("tarjeta", std::string());
+        const bool igual = t == h->tipo &&
+                           (t != "obs" || m["params"].value("filtro", std::string()) == h->params.value("filtro", std::string())) &&
+                           (t != "gst" || m["params"].value("elemento", std::string()) == h->params.value("elemento", std::string()));
+        if (!igual) {
+            if (error) *error = "«" + d->etiqueta + "» maneja tarjetas de otro tipo que «" + h->etiqueta + "»";
+            return {};
+        }
     }
     if (desde == hacia || llega(hacia, desde)) {
         if (error) *error = "ese cable cerraría un círculo";
@@ -330,6 +398,11 @@ bool GrafoVideo::ajustar(const std::string& id, const json& params, std::string*
                 n.etiqueta = it.value().get<std::string>();
                 continue;
             }
+            // `local`: lo propio de una tarjeta manejada por un controlador.
+            if (it.key() == "local" && it.value().is_object() && esFiltro(n.tipo)) {
+                mezclar(n.params["local"], it.value());
+                continue;
+            }
             if (!n.params.contains(it.key())) {
                 if (error) *error = "«" + n.etiqueta + "» no tiene «" + it.key() + "»";
                 return false;
@@ -338,12 +411,7 @@ bool GrafoVideo::ajustar(const std::string& id, const json& params, std::string*
             // Los ajustes de un filtro de OBS y las capas de un compositor se
             // mezclan clave por clave (no se pisan enteros).
             if (viejo.is_object() && it.value().is_object()) {
-                for (auto k = it.value().begin(); k != it.value().end(); ++k) {
-                    if (viejo[k.key()].is_object() && k.value().is_object())
-                        for (auto q = k.value().begin(); q != k.value().end(); ++q) viejo[k.key()][q.key()] = q.value();
-                    else
-                        viejo[k.key()] = k.value();
-                }
+                mezclar(viejo, it.value());
                 continue;
             }
             if ((viejo.is_number() && !it.value().is_number()) || (viejo.is_boolean() && !it.value().is_boolean()) ||
@@ -357,6 +425,17 @@ bool GrafoVideo::ajustar(const std::string& id, const json& params, std::string*
     }
     if (error) *error = "no existe la tarjeta «" + id + "»";
     return false;
+}
+
+void GrafoVideo::quitarEntrada(const std::string& fuente) {
+    std::set<std::string> ids;
+    for (const auto& n : nodos_)
+        if (n.grupo == fuente) ids.insert(n.id);
+    cables_.erase(std::remove_if(cables_.begin(), cables_.end(),
+                                 [&](const Cable& c) { return ids.count(c.desde) || ids.count(c.hacia); }),
+                  cables_.end());
+    nodos_.erase(std::remove_if(nodos_.begin(), nodos_.end(), [&](const Nodo& n) { return ids.count(n.id) > 0; }),
+                 nodos_.end());
 }
 
 bool GrafoVideo::mover(const std::string& id, int x, int y) {
@@ -493,6 +572,130 @@ GrafoVideo GrafoVideo::desde(const json& j) {
     return g;
 }
 
+const GrafoVideo::Nodo* GrafoVideo::controlador(const std::string& id) const {
+    for (const auto& c : cables_)
+        if (c.hacia == id && c.entrada == "ctl") return nodo(c.desde);
+    return nullptr;
+}
+
+json GrafoVideo::efectivos(const Nodo& n) const {
+    const Nodo* c = esFiltro(n.tipo) ? controlador(n.id) : nullptr;
+    json p = n.params;
+    if (c != nullptr) {
+        // Lo del controlador, y encima lo propio de esta tarjeta.
+        mezclar(p, c->params.value("params", json::object()));
+        mezclar(p, n.params.value("local", json::object()));
+    }
+    p.erase("local");
+    return p;
+}
+
+std::string GrafoVideo::controlarDesde(const std::string& id, std::string* error) {
+    const Nodo* n = nodo(id);
+    if (n == nullptr || !esFiltro(n->tipo)) {
+        if (error) *error = "«" + id + "» no es una tarjeta de filtro";
+        return {};
+    }
+    if (const Nodo* c = controlador(id)) return c->id;
+    json molde = n->params;
+    molde.erase("local");
+    const std::string etiqueta = n->etiqueta, tipo = n->tipo;
+    const std::string cid = agregar("control", "", "", json{{"tarjeta", tipo}, {"params", molde}}, error);
+    if (cid.empty()) return {};
+    ajustar(cid, json{{"etiqueta", etiqueta + " (todas)"}}, nullptr); // agregarControlada lo saca
+    // Abajo de todo, en la columna de la tarjeta: los cables de control suben
+    // a cada entrada.
+    int yMax = 0;
+    for (const auto& m : nodos_)
+        if (m.id != cid) yMax = std::max(yMax, m.y);
+    mover(cid, nodo(id)->x, yMax + 200);
+    if (conectar(cid, "ctl", id, "ctl", error).empty()) return {};
+    return cid;
+}
+
+bool GrafoVideo::soltar(const std::string& id, std::string* error) {
+    const Nodo* c = controlador(id);
+    if (c == nullptr) {
+        if (error) *error = "«" + id + "» no está manejada por un controlador";
+        return false;
+    }
+    const json ef = efectivos(*nodo(id));
+    desconectar(c->id, "ctl", id, "ctl");
+    for (auto& n : nodos_)
+        if (n.id == id) n.params = ef;
+    return true;
+}
+
+std::string GrafoVideo::agregarControlada(const std::string& control, const std::string& grupo, const std::string& despues,
+                                          std::string* error) {
+    const Nodo* c = nodo(control);
+    if (c == nullptr || c->tipo != "control") {
+        if (error) *error = "«" + control + "» no es un controlador";
+        return {};
+    }
+    const std::string tipo = c->params.value("tarjeta", std::string());
+    const json molde = c->params.value("params", json::object());
+    const std::string etiqueta = c->etiqueta;
+    const std::string id = agregar(tipo, grupo, despues, molde, error);
+    if (id.empty()) return {};
+    static const std::string kTodas = " (todas)";
+    std::string base = etiqueta;
+    if (base.size() > kTodas.size() && base.compare(base.size() - kTodas.size(), kTodas.size(), kTodas) == 0)
+        base.resize(base.size() - kTodas.size());
+    ajustar(id, json{{"etiqueta", base}}, nullptr);
+    if (conectar(control, "ctl", id, "ctl", error).empty()) return {};
+    return id;
+}
+
+json GrafoVideo::configCompositor(const std::string& id) const {
+    const Nodo* n = nodo(id);
+    if (n == nullptr || n->tipo != "compositor") return json::object();
+    const json& p = n->params;
+    // Los puertos conectados, en orden; cada uno con lo que le llega.
+    struct Entra {
+        int indice;
+        std::string puerto;
+        const Nodo* desde;
+    };
+    std::vector<Entra> es;
+    for (const auto& c : entrantes(id)) {
+        const Nodo* d = nodo(c.desde);
+        // Por ahora, lo que viene de una entrada (un compositor dentro de otro, no).
+        if (d == nullptr || d->grupo.empty() || indicePedido(c.entrada) < 0) continue;
+        es.push_back({indicePedido(c.entrada), c.entrada, d});
+    }
+    const json capas = p.value("capas", json::object());
+    const auto orden = [&](const Entra& e) {
+        const json k = capas.value(e.puerto, json::object());
+        return k.is_object() ? k.value("orden", e.indice) : e.indice;
+    };
+    std::sort(es.begin(), es.end(), [&](const Entra& a, const Entra& b) { return orden(a) < orden(b); });
+    // Sin posición: en mosaico (la grilla más chica que entra).
+    const int n_ = static_cast<int>(es.size());
+    const int cols = std::max(1, static_cast<int>(std::ceil(std::sqrt(static_cast<double>(n_)))));
+    const int filas = std::max(1, (n_ + cols - 1) / cols);
+    json out = json::array();
+    for (int i = 0; i < n_; ++i) {
+        const Entra& e = es[static_cast<size_t>(i)];
+        json k = capas.value(e.puerto, json::object());
+        if (!k.is_object()) k = json::object();
+        const bool ubicada = k.contains("x") || k.contains("ancho");
+        // En la grilla, por el número de puerto (no se mueve si se reordena).
+        int pos = 0;
+        for (const auto& o : es) pos += o.indice < e.indice ? 1 : 0;
+        out.push_back({{"toma", e.desde->id},
+                       {"fuente", e.desde->grupo},
+                       {"x", ubicada ? k.value("x", 0.0) : static_cast<double>(pos % cols) / cols},
+                       {"y", ubicada ? k.value("y", 0.0) : static_cast<double>(pos / cols) / filas},
+                       {"ancho", ubicada ? k.value("ancho", 1.0) : 1.0 / cols},
+                       {"alto", ubicada ? k.value("alto", 1.0) : 1.0 / filas},
+                       {"opacidad", k.value("opacidad", 1.0)},
+                       {"ajuste", k.value("ajuste", std::string("encajar"))}});
+    }
+    return {{"ancho", p.value("ancho", 1920)}, {"alto", p.value("alto", 1080)}, {"fondo", p.value("fondo", 0xFF000000LL)},
+            {"capas", out}};
+}
+
 json GrafoVideo::paraFiltro(const std::string& fuente) const {
     const std::string ie = idEntrada(fuente), is = idEscena(fuente);
     // Lo que se alcanza desde la entrada por nodos de UNA entrada (los de
@@ -517,10 +720,31 @@ json GrafoVideo::paraFiltro(const std::string& fuente) const {
     ns.push_back({{"id", "in"}, {"tipo", "in"}});
     ns.push_back({{"id", "out"}, {"tipo", "out"}});
     for (const auto& n : nodos_)
-        if (dentro.count(n.id) && n.id != ie) ns.push_back({{"id", n.id}, {"tipo", n.tipo}, {"params", n.params}});
+        if (dentro.count(n.id) && n.id != ie) ns.push_back({{"id", n.id}, {"tipo", n.tipo}, {"params", efectivos(n)}});
     for (const auto& c : cables_)
         if (dentro.count(c.desde) && (dentro.count(c.hacia) || c.hacia == is))
             cs.push_back({{"desde", mapear(c.desde)}, {"hacia", mapear(c.hacia)}});
+    // Lo que sale de esta entrada hacia otra parte (un compositor, la escena
+    // de otra entrada): se publica como toma, con el id del nodo.
+    std::set<std::string> tomadas;
+    for (const auto& c : cables_) {
+        if (c.entrada == "ctl" || !dentro.count(c.desde) || dentro.count(c.hacia) || c.hacia == is) continue;
+        if (!tomadas.insert(c.desde).second) continue;
+        const std::string t = "toma:" + c.desde;
+        ns.push_back({{"id", t}, {"tipo", "toma"}, {"params", {{"nombre", c.desde}}}});
+        cs.push_back({{"desde", mapear(c.desde)}, {"hacia", t}});
+    }
+    // Lo que llega a su escena desde afuera: se trae (un compositor, o la toma
+    // de otra entrada).
+    for (const auto& c : entrantes(is)) {
+        if (dentro.count(c.desde)) continue;
+        const Nodo* d = nodo(c.desde);
+        if (d == nullptr) continue;
+        json p = d->tipo == "compositor" ? json{{"compositor", d->id}, {"config", configCompositor(d->id).dump()}}
+                                         : json{{"toma", d->id}, {"fuente", d->grupo}};
+        ns.push_back({{"id", "traer"}, {"tipo", "traer"}, {"params", p}});
+        cs.push_back({{"desde", "traer"}, {"hacia", "out"}});
+    }
     return {{"nodos", ns}, {"cables", cs}};
 }
 
@@ -555,6 +779,8 @@ json GrafoVideo::describir(const std::string& grupo, bool soloGrupo) const {
                       {"x", n.x},
                       {"y", n.y},
                       {"params", n.params},
+                      {"efectivos", efectivos(n)},
+                      {"controlador", controlador(n.id) != nullptr ? controlador(n.id)->id : std::string()},
                       {"externo", externos.count(n.id) > 0},
                       {"entradas", puertos(puertosEntrada(n))},
                       {"salidas", puertos(puertosSalida(n))}});

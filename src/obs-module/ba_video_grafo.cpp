@@ -17,6 +17,11 @@
 //   tipos: in, out, color, croma, recorte, salida, `obs`: cualquier filtro
 //   de video de OBS ({"filtro": id, "ajustes": {…}}), y `gst`: un módulo de
 //   GStreamer ({"elemento": nombre, "propiedades": {…}}, ver ba_gst.hpp).
+//   Lo que cruza entradas (ver ba_video_estudio.hpp): `toma` publica ese
+//   punto ({"nombre"}); `traer` (sin entrada; se calcula al final) trae un
+//   compositor ({"compositor": id, "config": "…"}) o la toma de otra entrada
+//   ({"toma", "fuente"}). `retardo` atrasa la imagen {"cuadros"} (para
+//   sincronizar una cámara con otra o con el audio).
 //
 // Modelo de threading:
 //   `update` (cualquier hilo) arma un Plan nuevo y lo cambia bajo un mutex;
@@ -35,8 +40,12 @@
 #include <obs.h>
 
 #include "ba_gst.hpp"
+#include "ba_video_estudio.hpp"
 
+#include <algorithm>
 #include <cstdint>
+#include <locale>
+#include <sstream>
 #include <iterator>
 #include <map>
 #include <memory>
@@ -47,7 +56,18 @@
 
 namespace {
 
-enum class Tipo { Color, Croma, Recorte, Salida, Obs, Gst };
+enum class Tipo { Color, Croma, Recorte, Salida, Obs, Gst, Toma, Traer, Retardo };
+
+/// Los cuadros guardados de una tarjeta `retardo` (sobreviven a los cambios del plan).
+struct Retardo {
+    std::vector<gs_texrender_t*> anillo;
+    size_t pos = 0;
+    ~Retardo() {
+        obs_enter_graphics();
+        for (gs_texrender_t* t : anillo) gs_texrender_destroy(t);
+        obs_leave_graphics();
+    }
+};
 
 // --- Tarjetas que corren un filtro de OBS -------------------------------------
 //
@@ -78,6 +98,7 @@ struct InstanciaObs {
 /// Una tarjeta del plan, en el orden en que se calcula.
 struct Paso {
     Tipo tipo = Tipo::Color;
+    std::string id; ///< el nodo (para informar sus errores)
     int entrada = -1; ///< el paso que la alimenta (-1 = la entrada de la fuente)
     // color
     float brillo = 0.0f, contraste = 1.0f, saturacion = 1.0f, gamma = 1.0f;
@@ -85,8 +106,13 @@ struct Paso {
     float claveCb = 0.0f, claveCr = 0.0f, similitud = 0.4f, suavidad = 0.08f, derrame = 0.1f;
     // recorte
     float izq = 0.0f, arr = 0.0f, der = 0.0f, aba = 0.0f, espejoX = 0.0f, espejoY = 0.0f;
-    // salida
+    // salida y toma
     std::string nombre;
+    // traer: un compositor, o la toma de otra entrada
+    std::string compositor, config, fuente;
+    // retardo
+    int cuadros = 0;
+    std::shared_ptr<Retardo> retardo;
     // obs
     std::shared_ptr<InstanciaObs> obs;
 #if defined(BA_HAVE_GST)
@@ -99,6 +125,7 @@ struct Plan {
     std::vector<Paso> pasos;
     /// Las tarjetas de OBS por id de nodo (para reusarlas en el plan siguiente).
     std::map<std::string, std::shared_ptr<InstanciaObs>> obs;
+    std::map<std::string, std::shared_ptr<Retardo>> retardos;
 #if defined(BA_HAVE_GST)
     std::map<std::string, std::shared_ptr<ba::gst::TarjetaGst>> gst;
 #endif
@@ -141,6 +168,9 @@ struct Grafo {
     std::uint64_t ultimoCuadro = 0;
     bool listo = false;
     std::uint32_t cx = 0, cy = 0;
+    std::string fuente; ///< la entrada (para las tomas)
+    std::mutex estadoLock;
+    std::map<std::string, std::string> errores; ///< por nodo: por qué una tarjeta no corre
 };
 
 float numero(obs_data_t* p, const char* k, double def) {
@@ -200,8 +230,17 @@ std::map<std::string, std::string> propiedadesGst(obs_data_t* props) {
         case OBS_DATA_STRING: out[k] = obs_data_item_get_string(it); break;
         case OBS_DATA_BOOLEAN: out[k] = obs_data_item_get_bool(it) ? "true" : "false"; break;
         case OBS_DATA_NUMBER:
-            out[k] = obs_data_item_numtype(it) == OBS_DATA_NUM_INT ? std::to_string(obs_data_item_get_int(it))
-                                                                    : std::to_string(obs_data_item_get_double(it));
+            if (obs_data_item_numtype(it) == OBS_DATA_NUM_INT) {
+                out[k] = std::to_string(obs_data_item_get_int(it));
+            } else {
+                // Con punto SIEMPRE: std::to_string sigue el locale de la app
+                // (es_AR: «0,5») y GStreamer no lo entiende (la propiedad no cambiaba).
+                std::ostringstream o;
+                o.imbue(std::locale::classic());
+                o.precision(17);
+                o << obs_data_item_get_double(it);
+                out[k] = o.str();
+            }
             break;
         default: break;
         }
@@ -268,6 +307,7 @@ std::shared_ptr<Plan> armarPlan(const char* json, const Plan* anterior) {
         for (const auto& n : nodos) {
             if (n.tipo == "in" || n.tipo == "out" || indice.count(n.id) || !indice.count(n.desde)) continue;
             Paso p;
+            p.id = n.id;
             p.entrada = indice[n.desde];
             obs_data_t* q = n.params;
             if (n.tipo == "color") {
@@ -317,12 +357,54 @@ std::shared_ptr<Plan> armarPlan(const char* json, const Plan* anterior) {
             } else if (n.tipo == "salida") {
                 p.tipo = Tipo::Salida;
                 p.nombre = q != nullptr ? obs_data_get_string(q, "nombre") : "";
+            } else if (n.tipo == "toma") {
+                p.tipo = Tipo::Toma;
+                p.nombre = q != nullptr ? obs_data_get_string(q, "nombre") : "";
+                if (p.nombre.empty()) continue;
+            } else if (n.tipo == "retardo") {
+                p.tipo = Tipo::Retardo;
+                p.cuadros = q != nullptr ? static_cast<int>(std::clamp<long long>(obs_data_get_int(q, "cuadros"), 0, 120)) : 0;
+                std::shared_ptr<Retardo> r;
+                if (anterior != nullptr && anterior->retardos.count(n.id)) r = anterior->retardos.at(n.id);
+                if (!r || r->anillo.size() != static_cast<size_t>(p.cuadros) + 1) r = std::make_shared<Retardo>();
+                p.retardo = r;
+                plan->retardos[n.id] = r;
             } else {
                 continue; // un tipo que este filtro no conoce: no se calcula
             }
             indice[n.id] = static_cast<int>(plan->pasos.size());
             plan->pasos.push_back(std::move(p));
             avanzo = true;
+        }
+    }
+    // Los `traer` no cuelgan de la entrada: van al final, cuando las tomas de
+    // esta entrada ya se publicaron (un compositor que la recibe la ve fresca).
+    for (const auto& n : nodos) {
+        if (n.tipo != "traer" || indice.count(n.id)) continue;
+        Paso p;
+        p.tipo = Tipo::Traer;
+        obs_data_t* q = n.params;
+        p.compositor = q != nullptr ? obs_data_get_string(q, "compositor") : "";
+        p.config = q != nullptr ? obs_data_get_string(q, "config") : "";
+        p.nombre = q != nullptr ? obs_data_get_string(q, "toma") : "";
+        p.fuente = q != nullptr ? obs_data_get_string(q, "fuente") : "";
+        if (!p.compositor.empty()) ba::video::configurarCompositor(p.compositor, p.config.c_str());
+        indice[n.id] = static_cast<int>(plan->pasos.size());
+        plan->pasos.push_back(std::move(p));
+        // Lo que cuelga de un `traer` (una tarjeta después del compositor) también.
+        bool mas = true;
+        while (mas) {
+            mas = false;
+            for (const auto& m : nodos) {
+                if (m.tipo != "salida" || indice.count(m.id) || !indice.count(m.desde)) continue;
+                Paso s;
+                s.tipo = Tipo::Salida;
+                s.entrada = indice[m.desde];
+                s.nombre = m.params != nullptr ? obs_data_get_string(m.params, "nombre") : "";
+                indice[m.id] = static_cast<int>(plan->pasos.size());
+                plan->pasos.push_back(std::move(s));
+                mas = true;
+            }
         }
     }
     plan->escena = -2;
@@ -384,6 +466,20 @@ void* crear(obs_data_t* settings, obs_source_t* ctx) {
     bfree(errores);
     bfree(ruta);
     actualizar(g, settings);
+    // Por qué una tarjeta no corre (p. ej. un módulo de GStreamer que no
+    // arrancó): {"<id del nodo>": "motivo"}, para la interfaz.
+    proc_handler_add(obs_source_get_proc_handler(ctx), "void estado(out string errores)",
+                     [](void* d, calldata_t* cd) {
+                         auto* x = static_cast<Grafo*>(d);
+                         obs_data_t* o = obs_data_create();
+                         {
+                             std::lock_guard<std::mutex> l(x->estadoLock);
+                             for (const auto& [id, e] : x->errores) obs_data_set_string(o, id.c_str(), e.c_str());
+                         }
+                         calldata_set_string(cd, "errores", obs_data_get_json(o));
+                         obs_data_release(o);
+                     },
+                     g);
     return g;
 }
 
@@ -451,6 +547,12 @@ bool procesar(Grafo* g, const Plan& plan) {
     for (size_t i = 0; i < plan.pasos.size(); ++i) {
         const Paso& p = plan.pasos[i];
         gs_texture_t* en = texDe(p.entrada);
+        // Lo que viene de afuera se pide ANTES de empezar a dibujar este paso:
+        // pedirlo puede despertar otra entrada (que dibuja en lo suyo).
+        gs_texture_t* externa = nullptr;
+        if (p.tipo == Tipo::Traer)
+            externa = !p.compositor.empty() ? ba::video::componer(p.compositor, nullptr, nullptr)
+                                            : ba::video::leerToma(p.nombre, p.fuente, nullptr, nullptr);
         gs_texrender_t* destino = g->texs[i];
         gs_texrender_reset(destino);
         if (!gs_texrender_begin(destino, g->cx, g->cy)) continue;
@@ -484,12 +586,56 @@ bool procesar(Grafo* g, const Plan& plan) {
             break;
         }
         case Tipo::Salida:
+        case Tipo::Toma:
             // Pasa lo que recibe (lo que la siga ve lo mismo) y lo publica.
             pasada(g, en, "Copiar");
             break;
+        case Tipo::Traer: {
+            struct vec4 negro;
+            vec4_set(&negro, 0.0f, 0.0f, 0.0f, 1.0f);
+            gs_clear(GS_CLEAR_COLOR, &negro, 0.0f, 0);
+            if (externa != nullptr) pasada(g, externa, "Copiar");
+            break;
+        }
+        case Tipo::Retardo: {
+            // Un anillo de cuadros + 1: entra el de ahora, sale el de hace N.
+            Retardo& r = *p.retardo;
+            const size_t n = static_cast<size_t>(p.cuadros) + 1;
+            if (r.anillo.size() != n) {
+                for (gs_texrender_t* t : r.anillo) gs_texrender_destroy(t);
+                r.anillo.clear();
+                for (size_t k = 0; k < n; ++k) r.anillo.push_back(gs_texrender_create(GS_RGBA, GS_ZS_NONE));
+                r.pos = 0;
+            }
+            gs_texrender_end(destino); // el anillo se llena fuera de este paso
+            gs_texrender_t* guardar = r.anillo[r.pos % n];
+            gs_texrender_reset(guardar);
+            if (gs_texrender_begin(guardar, g->cx, g->cy)) {
+                gs_ortho(0.0f, static_cast<float>(g->cx), 0.0f, static_cast<float>(g->cy), -100.0f, 100.0f);
+                pasada(g, en, "Copiar");
+                gs_texrender_end(guardar);
+            }
+            r.pos = (r.pos + 1) % n;
+            gs_texture_t* viejo = gs_texrender_get_texture(r.anillo[r.pos % n]);
+            gs_texrender_reset(destino);
+            if (!gs_texrender_begin(destino, g->cx, g->cy)) continue;
+            gs_ortho(0.0f, static_cast<float>(g->cx), 0.0f, static_cast<float>(g->cy), -100.0f, 100.0f);
+            // Al empezar, los guardados todavía están vacíos: pasa el de ahora.
+            pasada(g, viejo != nullptr ? viejo : en, "Copiar");
+            break;
+        }
         case Tipo::Gst:
 #if defined(BA_HAVE_GST)
-            if (!p.gst->procesar(en, g->cx, g->cy, g->fx)) {
+            {
+                const bool corrio = p.gst->procesar(en, g->cx, g->cy, g->fx);
+                std::lock_guard<std::mutex> l(g->estadoLock);
+                if (corrio || p.gst->error().empty())
+                    g->errores.erase(p.id);
+                else
+                    g->errores[p.id] = p.gst->error();
+                if (corrio) break;
+            }
+            {
                 // Sin GStreamer o con el módulo caído: la imagen pasa como vino.
                 gs_texrender_end(destino);
                 gs_texrender_reset(destino);
@@ -523,6 +669,7 @@ bool procesar(Grafo* g, const Plan& plan) {
         }
         gs_texrender_end(destino);
         if (p.tipo == Tipo::Salida && !p.nombre.empty()) aSalida(g, p.nombre, gs_texrender_get_texture(destino));
+        if (p.tipo == Tipo::Toma) ba::video::publicarToma(p.nombre, g->fuente, gs_texrender_get_texture(destino), g->cx, g->cy);
     }
     return true;
 }
@@ -547,7 +694,14 @@ void dibujar(void* data, gs_effect_t*) {
     }
     const std::uint64_t cuadro = obs_get_video_frame_time();
     if (cuadro != g->ultimoCuadro || !g->listo) {
-        if (!procesar(g, *plan)) {
+        // Mientras se calcula, un compositor que la necesite no la vuelve a
+        // despertar (usa la toma del cuadro anterior).
+        obs_source_t* padre = obs_filter_get_parent(g->ctx);
+        g->fuente = padre != nullptr ? obs_source_get_name(padre) : "";
+        ba::video::dibujando(g->fuente, true);
+        const bool ok = procesar(g, *plan);
+        ba::video::dibujando(g->fuente, false);
+        if (!ok) {
             obs_source_skip_video_filter(g->ctx);
             return;
         }

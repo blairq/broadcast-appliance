@@ -1,0 +1,1363 @@
+{
+ "_comentario": "Documentación en castellano de los módulos de video de GStreamer (tools/gst-modulos-docs.py). La lee video/CatalogoGst.",
+ "modulos": {
+  "agingtv": {
+   "titulo": "Película vieja",
+   "categoria": "Efectos artísticos",
+   "para": "Agrega rayas, polvo y envejecimiento de color.",
+   "uso": "Un flashback o una sección de archivo.",
+   "tarjeta": true
+  },
+  "alpha": {
+   "titulo": "Llave de croma / alfa",
+   "categoria": "Llaves y transparencia",
+   "para": "Agrega un canal alfa: uniforme, o sacando un color (verde, azul o uno a elección) como croma.",
+   "uso": "Sacar el fondo verde de un presentador para ponerlo sobre una placa. Con `method` green/blue/custom y `angle` para la tolerancia.",
+   "tarjeta": true
+  },
+  "alphacolor": {
+   "titulo": "Conversión con alfa",
+   "categoria": "Color",
+   "para": "Convierte entre RGB con alfa y YUV con alfa sin perder la transparencia.",
+   "uso": "Interno: lo usan otros pipelines; como tarjeta no cambia la imagen.",
+   "tarjeta": false
+  },
+  "aspectratiocrop": {
+   "titulo": "Recorte a una proporción",
+   "categoria": "Geometría",
+   "para": "Recorta la imagen a una relación de aspecto (4:3, 1:1, 9:16…).",
+   "uso": "Sacar un 9:16 para redes de una cámara 16:9.",
+   "tarjeta": true
+  },
+  "assrender": {
+   "titulo": "Subtítulos ASS/SSA",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Dibuja subtítulos con estilo (libass).",
+   "uso": "Necesita un flujo de subtítulos; no como tarjeta.",
+   "tarjeta": false
+  },
+  "autodeinterlace": {
+   "titulo": "Desentrelazar (automático)",
+   "categoria": "Formato y entrelazado",
+   "para": "Elige solo el desentrelazador según el formato.",
+   "uso": "Lo mismo que «Desentrelazar» sin elegir método.",
+   "tarjeta": true
+  },
+  "autovideoconvert": {
+   "titulo": "Convertir (automático)",
+   "categoria": "Formato y entrelazado",
+   "para": "Elige solo el convertidor de color y escalador.",
+   "uso": "Interno del pipeline.",
+   "tarjeta": false
+  },
+  "autovideoflip": {
+   "titulo": "Girar (automático)",
+   "categoria": "Geometría",
+   "para": "Como «Girar y espejar», eligiendo solo el elemento según el formato.",
+   "uso": "Lo mismo que videoflip; preferir videoflip.",
+   "tarjeta": true
+  },
+  "autovideosink": {
+   "titulo": "Ventana (automática)",
+   "categoria": "Salidas",
+   "para": "Muestra el video en una ventana.",
+   "uso": "Pruebas.",
+   "tarjeta": false
+  },
+  "autovideosrc": {
+   "titulo": "Cámara (automática)",
+   "categoria": "Fuentes",
+   "para": "La primera cámara que encuentre.",
+   "uso": "Pruebas.",
+   "tarjeta": false
+  },
+  "avdeinterlace": {
+   "titulo": "Desentrelazar (libav)",
+   "categoria": "Formato y entrelazado",
+   "para": "El desentrelazador de FFmpeg.",
+   "uso": "Alternativa a «Desentrelazar» si aquel deja serrucho.",
+   "tarjeta": true
+  },
+  "avfvideosrc": {
+   "titulo": "Cámara de la Mac",
+   "categoria": "Fuentes",
+   "para": "Captura una cámara de macOS (AVFoundation).",
+   "uso": "Una cámara USB o la de la Mac por GStreamer.",
+   "tarjeta": false
+  },
+  "avsamplebufferlayersink": {
+   "titulo": "Capa AVSampleBuffer",
+   "categoria": "Salidas",
+   "para": "Salida para una capa de macOS.",
+   "uso": "Interno.",
+   "tarjeta": false
+  },
+  "avvideocompare": {
+   "titulo": "Comparar video (libav)",
+   "categoria": "Análisis y medición",
+   "para": "Compara dos flujos (PSNR/SSIM).",
+   "uso": "Medir calidad entre una fuente y su copia comprimida; necesita dos entradas.",
+   "tarjeta": false
+  },
+  "bayer2rgb": {
+   "titulo": "Bayer a RGB",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Convierte la salida cruda Bayer de un sensor a RGB.",
+   "uso": "Sólo para cámaras industriales que entregan Bayer.",
+   "tarjeta": false
+  },
+  "bulge": {
+   "titulo": "Bulto",
+   "categoria": "Distorsión",
+   "para": "Infla el centro de la imagen.",
+   "uso": "Efecto de lupa / humor.",
+   "tarjeta": true
+  },
+  "burn": {
+   "titulo": "Quemado (color)",
+   "categoria": "Efectos artísticos",
+   "para": "Oscurece y satura los colores como un efecto de «quemado».",
+   "uso": "Un look agresivo para una cortina o una placa.",
+   "tarjeta": true
+  },
+  "burn-yoloxinference": {
+   "titulo": "Inferencia YOLOX (Burn)",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Corre un modelo YOLOX.",
+   "uso": "Necesita el modelo; no como tarjeta.",
+   "tarjeta": false
+  },
+  "cairooverlay": {
+   "titulo": "Dibujo Cairo",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Deja dibujar con Cairo desde código (un callback).",
+   "uso": "Sin código propio no dibuja nada.",
+   "tarjeta": false
+  },
+  "caopengllayersink": {
+   "titulo": "Capa Core Animation",
+   "categoria": "Salidas",
+   "para": "Salida para una capa de macOS.",
+   "uso": "Interno.",
+   "tarjeta": false
+  },
+  "ccdetect": {
+   "titulo": "Detectar subtítulos CC",
+   "categoria": "Subtítulos (closed captions)",
+   "para": "Detecta si llegan subtítulos válidos.",
+   "uso": "Diagnóstico de subtítulos.",
+   "tarjeta": false
+  },
+  "cea608overlay": {
+   "titulo": "Mostrar CC 608",
+   "categoria": "Subtítulos (closed captions)",
+   "para": "Dibuja los closed captions CEA-608 que trae el video.",
+   "uso": "Ver los subtítulos que trae una señal de TV.",
+   "tarjeta": true
+  },
+  "cea708overlay": {
+   "titulo": "Mostrar CC 708",
+   "categoria": "Subtítulos (closed captions)",
+   "para": "Dibuja los closed captions CEA-708.",
+   "uso": "Ver los subtítulos de una señal digital.",
+   "tarjeta": true
+  },
+  "chromahold": {
+   "titulo": "Retener un color",
+   "categoria": "Color",
+   "para": "Deja en blanco y negro toda la imagen menos un color elegido.",
+   "uso": "El efecto «todo gris menos el rojo» para destacar un objeto.",
+   "tarjeta": true
+  },
+  "chromium": {
+   "titulo": "Cromo",
+   "categoria": "Efectos artísticos",
+   "para": "Rompe los colores en bandas metálicas.",
+   "uso": "Efecto artístico de corta duración.",
+   "tarjeta": true
+  },
+  "circle": {
+   "titulo": "Arco",
+   "categoria": "Distorsión",
+   "para": "Curva la imagen en forma de arco.",
+   "uso": "Efecto gráfico.",
+   "tarjeta": true
+  },
+  "clockoverlay": {
+   "titulo": "Reloj",
+   "categoria": "Textos y superposiciones",
+   "para": "Superpone la hora actual (formato configurable).",
+   "uso": "La hora en pantalla en un noticiero o en un monitor de cabina.",
+   "tarjeta": true
+  },
+  "colordetect": {
+   "titulo": "Color dominante",
+   "categoria": "Análisis y medición",
+   "para": "Detecta los colores dominantes de la imagen.",
+   "uso": "Automatizar: reaccionar a un color de fondo o calibrar luces.",
+   "tarjeta": true
+  },
+  "coloreffects": {
+   "titulo": "Efectos de color (LUT)",
+   "categoria": "Color",
+   "para": "Aplica una tabla de color predefinida: calor, sepia, rayos X, cruzado, amarillo-azul.",
+   "uso": "Un look fijo para una sección (sepia para un archivo, calor para un efecto).",
+   "tarjeta": true
+  },
+  "combdetect": {
+   "titulo": "Detectar serrucho",
+   "categoria": "Análisis y medición",
+   "para": "Marca el «serrucho» del entrelazado mal resuelto.",
+   "uso": "Verificar que el desentrelazado quedó bien.",
+   "tarjeta": true
+  },
+  "compositor": {
+   "titulo": "Compositor",
+   "categoria": "Mezcla y composición",
+   "para": "Junta varias entradas en una imagen, cada una con posición, tamaño, opacidad y orden.",
+   "uso": "Un mosaico de cámaras o una imagen en imagen. En el grafo es el nodo «Compositor» del estudio.",
+   "tarjeta": false
+  },
+  "debugqroverlay": {
+   "titulo": "QR de depuración",
+   "categoria": "Análisis y medición",
+   "para": "Dibuja un QR con datos del cuadro (número, tiempo).",
+   "uso": "Medir latencia de punta a punta leyendo el QR del otro lado.",
+   "tarjeta": true
+  },
+  "decklinkvideosink": {
+   "titulo": "Salida Blackmagic DeckLink",
+   "categoria": "Salidas",
+   "para": "Saca video por una placa DeckLink (SDI/HDMI).",
+   "uso": "Programa a un switcher o un monitor SDI.",
+   "tarjeta": false
+  },
+  "decklinkvideosrc": {
+   "titulo": "Entrada Blackmagic DeckLink",
+   "categoria": "Fuentes",
+   "para": "Captura de placas Blackmagic DeckLink (SDI/HDMI).",
+   "uso": "Una señal SDI de un estudio.",
+   "tarjeta": false
+  },
+  "deinterlace": {
+   "titulo": "Desentrelazar",
+   "categoria": "Formato y entrelazado",
+   "para": "Saca el entrelazado (líneas en el movimiento) de una señal 1080i/576i, con varios métodos.",
+   "uso": "Una cámara o placa SDI que entrega entrelazado: método `linear` o `greedyh` para movimiento.",
+   "tarjeta": true
+  },
+  "dicetv": {
+   "titulo": "Dados",
+   "categoria": "Efectos artísticos",
+   "para": "Corta la imagen en cuadraditos que giran.",
+   "uso": "Efecto para una cortina musical.",
+   "tarjeta": true
+  },
+  "diffuse": {
+   "titulo": "Difuminar",
+   "categoria": "Distorsión",
+   "para": "Mueve los píxeles al azar.",
+   "uso": "Efecto de vidrio esmerilado.",
+   "tarjeta": true
+  },
+  "dilate": {
+   "titulo": "Dilatar / erosionar",
+   "categoria": "Nitidez, ruido y desenfoque",
+   "para": "Copia el píxel más claro (o más oscuro, con erode) de alrededor.",
+   "uso": "Engrosar o afinar líneas; arreglar una máscara de croma con huecos.",
+   "tarjeta": true
+  },
+  "dodge": {
+   "titulo": "Sobreexposición (color)",
+   "categoria": "Efectos artísticos",
+   "para": "Aclara y satura los colores (el inverso de «quemado»).",
+   "uso": "Un look brillante y pop para una transición.",
+   "tarjeta": true
+  },
+  "dvbsuboverlay": {
+   "titulo": "Subtítulos DVB",
+   "categoria": "Subtítulos (closed captions)",
+   "para": "Dibuja subtítulos de TV digital DVB.",
+   "uso": "Necesita el flujo DVB.",
+   "tarjeta": false
+  },
+  "dvdspu": {
+   "titulo": "Subtítulos de DVD",
+   "categoria": "Subtítulos (closed captions)",
+   "para": "Dibuja los subtítulos de un DVD.",
+   "uso": "Necesita el flujo del DVD.",
+   "tarjeta": false
+  },
+  "edgetv": {
+   "titulo": "Bordes (efecto)",
+   "categoria": "Efectos artísticos",
+   "para": "Detecta los bordes y los dibuja con colores.",
+   "uso": "Efecto gráfico para una cortina.",
+   "tarjeta": true
+  },
+  "exclusion": {
+   "titulo": "Exclusión",
+   "categoria": "Efectos artísticos",
+   "para": "Mezcla la imagen con su inversa: colores psicodélicos.",
+   "uso": "Efecto artístico para videoclips o separadores.",
+   "tarjeta": true
+  },
+  "fakevideosink": {
+   "titulo": "Descartar video",
+   "categoria": "Salidas",
+   "para": "Recibe y descarta (pruebas de rendimiento).",
+   "uso": "Pruebas.",
+   "tarjeta": false
+  },
+  "fieldanalysis": {
+   "titulo": "Análisis de campos",
+   "categoria": "Análisis y medición",
+   "para": "Analiza si el video es progresivo, entrelazado o con telecine.",
+   "uso": "Diagnosticar una señal antes de elegir desentrelazador.",
+   "tarjeta": true
+  },
+  "fisheye": {
+   "titulo": "Ojo de pez",
+   "categoria": "Distorsión",
+   "para": "Simula un lente ojo de pez.",
+   "uso": "Efecto; o para pruebas de corrección de lente.",
+   "tarjeta": true
+  },
+  "fpsdisplaysink": {
+   "titulo": "Medir cuadros por segundo",
+   "categoria": "Salidas",
+   "para": "Muestra los fps y los cuadros perdidos.",
+   "uso": "Diagnóstico de rendimiento.",
+   "tarjeta": false
+  },
+  "gamma": {
+   "titulo": "Gamma",
+   "categoria": "Color",
+   "para": "Cambia la gamma (la curva de los tonos medios) sin tocar el negro ni el blanco.",
+   "uso": "Levantar las sombras de una cámara que sale empastada sin quemar las altas luces.",
+   "tarjeta": true
+  },
+  "gaussianblur": {
+   "titulo": "Desenfoque gaussiano / nitidez",
+   "categoria": "Nitidez, ruido y desenfoque",
+   "para": "Desenfoca (sigma positivo) o afila (sigma negativo) la imagen.",
+   "uso": "Desenfocar una cámara de fondo para una pantalla de espera, o afilar una imagen blanda.",
+   "tarjeta": true
+  },
+  "gdkpixbufoverlay": {
+   "titulo": "Imagen encima",
+   "categoria": "Textos y superposiciones",
+   "para": "Superpone una imagen (PNG, JPG) en una posición y tamaño.",
+   "uso": "Un logo o una mosca fija sobre una cámara puntual.",
+   "tarjeta": true
+  },
+  "gdkpixbufsink": {
+   "titulo": "Cuadros como imágenes",
+   "categoria": "Salidas",
+   "para": "Entrega cuadros como imágenes por mensajes.",
+   "uso": "Interno.",
+   "tarjeta": false
+  },
+  "glalpha": {
+   "titulo": "Llave de croma (OpenGL)",
+   "categoria": "OpenGL (en la GPU)",
+   "para": "Lo mismo que «Llave de croma / alfa», en la GPU con OpenGL.",
+   "uso": "Croma de un presentador cuando la CPU anda justa.",
+   "tarjeta": true
+  },
+  "glcolorbalance": {
+   "titulo": "Balance de video (OpenGL)",
+   "categoria": "OpenGL (en la GPU)",
+   "para": "Brillo, contraste, matiz y saturación en la GPU.",
+   "uso": "Como «Balance de video», sin cargar la CPU.",
+   "tarjeta": true
+  },
+  "glcolorconvert": {
+   "titulo": "Convertir color (OpenGL)",
+   "categoria": "OpenGL (en la GPU)",
+   "para": "Convierte formatos de color con shaders.",
+   "uso": "Interno.",
+   "tarjeta": false
+  },
+  "glcolorscale": {
+   "titulo": "Convertir y escalar (OpenGL)",
+   "categoria": "OpenGL (en la GPU)",
+   "para": "Convierte y escala en la GPU.",
+   "uso": "Interno.",
+   "tarjeta": false
+  },
+  "gldifferencematte": {
+   "titulo": "Mate por diferencia (OpenGL)",
+   "categoria": "OpenGL (en la GPU)",
+   "para": "Guarda un cuadro de fondo y reemplaza lo que no cambió por una imagen.",
+   "uso": "Sacar un fondo fijo sin pantalla verde (cámara quieta, luz pareja).",
+   "tarjeta": true
+  },
+  "gldownload": {
+   "titulo": "Bajar de OpenGL",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Baja texturas OpenGL a memoria.",
+   "uso": "Interno (la tarjeta lo agrega sola).",
+   "tarjeta": false
+  },
+  "gleffects": {
+   "titulo": "Efectos OpenGL",
+   "categoria": "OpenGL (en la GPU)",
+   "para": "Un conjunto de efectos en la GPU (elegir con `effect`): espejo, compresión, ojo de pez, túnel, calor, sepia, rayos X, brillo…",
+   "uso": "Efectos sin cargar la CPU.",
+   "tarjeta": true
+  },
+  "gleffects_blur": {
+   "titulo": "Desenfoque (OpenGL)",
+   "categoria": "OpenGL (en la GPU)",
+   "para": "Desenfoque 9x9 en la GPU.",
+   "uso": "Fondo desenfocado para una pantalla de espera.",
+   "tarjeta": true
+  },
+  "gleffects_bulge": {
+   "titulo": "Bulto (OpenGL)",
+   "categoria": "OpenGL (en la GPU)",
+   "para": "Infla el centro.",
+   "uso": "Efecto.",
+   "tarjeta": true
+  },
+  "gleffects_fisheye": {
+   "titulo": "Ojo de pez (OpenGL)",
+   "categoria": "OpenGL (en la GPU)",
+   "para": "Lente ojo de pez.",
+   "uso": "Efecto.",
+   "tarjeta": true
+  },
+  "gleffects_glow": {
+   "titulo": "Brillo difuso (OpenGL)",
+   "categoria": "OpenGL (en la GPU)",
+   "para": "Agrega un resplandor a las luces.",
+   "uso": "Look soñador.",
+   "tarjeta": true
+  },
+  "gleffects_heat": {
+   "titulo": "Cámara térmica (OpenGL)",
+   "categoria": "OpenGL (en la GPU)",
+   "para": "Colores de cámara térmica.",
+   "uso": "Efecto.",
+   "tarjeta": true
+  },
+  "gleffects_identity": {
+   "titulo": "Sin efecto (OpenGL)",
+   "categoria": "OpenGL (en la GPU)",
+   "para": "No cambia nada (prueba).",
+   "uso": "Probar la ruta OpenGL.",
+   "tarjeta": true
+  },
+  "gleffects_laplacian": {
+   "titulo": "Bordes laplacianos (OpenGL)",
+   "categoria": "OpenGL (en la GPU)",
+   "para": "Detecta bordes.",
+   "uso": "Efecto gráfico.",
+   "tarjeta": true
+  },
+  "gleffects_lumaxpro": {
+   "titulo": "Proceso cruzado por luma (OpenGL)",
+   "categoria": "OpenGL (en la GPU)",
+   "para": "Look de revelado cruzado según el brillo.",
+   "uso": "Look de color.",
+   "tarjeta": true
+  },
+  "gleffects_mirror": {
+   "titulo": "Espejo (OpenGL)",
+   "categoria": "OpenGL (en la GPU)",
+   "para": "Espeja la mitad.",
+   "uso": "Efecto.",
+   "tarjeta": true
+  },
+  "gleffects_sepia": {
+   "titulo": "Sepia (OpenGL)",
+   "categoria": "OpenGL (en la GPU)",
+   "para": "Tono sepia.",
+   "uso": "Archivo / flashback.",
+   "tarjeta": true
+  },
+  "gleffects_sin": {
+   "titulo": "Todo gris menos el rojo (OpenGL)",
+   "categoria": "OpenGL (en la GPU)",
+   "para": "Deja color sólo en los rojos.",
+   "uso": "Destacar un objeto rojo.",
+   "tarjeta": true
+  },
+  "gleffects_sobel": {
+   "titulo": "Bordes Sobel (OpenGL)",
+   "categoria": "OpenGL (en la GPU)",
+   "para": "Detección de bordes Sobel.",
+   "uso": "Efecto gráfico.",
+   "tarjeta": true
+  },
+  "gleffects_square": {
+   "titulo": "Cuadrado (OpenGL)",
+   "categoria": "OpenGL (en la GPU)",
+   "para": "Deforma en cuadrado.",
+   "uso": "Efecto.",
+   "tarjeta": true
+  },
+  "gleffects_squeeze": {
+   "titulo": "Compresión (OpenGL)",
+   "categoria": "OpenGL (en la GPU)",
+   "para": "Comprime la imagen hacia el centro.",
+   "uso": "Efecto.",
+   "tarjeta": true
+  },
+  "gleffects_stretch": {
+   "titulo": "Estirar (OpenGL)",
+   "categoria": "OpenGL (en la GPU)",
+   "para": "Estira desde el centro.",
+   "uso": "Efecto.",
+   "tarjeta": true
+  },
+  "gleffects_tunnel": {
+   "titulo": "Túnel de luz (OpenGL)",
+   "categoria": "OpenGL (en la GPU)",
+   "para": "Efecto túnel.",
+   "uso": "Efecto.",
+   "tarjeta": true
+  },
+  "gleffects_twirl": {
+   "titulo": "Remolino (OpenGL)",
+   "categoria": "OpenGL (en la GPU)",
+   "para": "Retuerce la imagen.",
+   "uso": "Efecto.",
+   "tarjeta": true
+  },
+  "gleffects_xpro": {
+   "titulo": "Proceso cruzado (OpenGL)",
+   "categoria": "OpenGL (en la GPU)",
+   "para": "Look de revelado cruzado.",
+   "uso": "Look de color.",
+   "tarjeta": true
+  },
+  "gleffects_xray": {
+   "titulo": "Negativo brillante (OpenGL)",
+   "categoria": "OpenGL (en la GPU)",
+   "para": "Negativo con brillo (rayos X).",
+   "uso": "Efecto.",
+   "tarjeta": true
+  },
+  "glfilterbin": {
+   "titulo": "Bin de filtro GL",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Infraestructura de GL.",
+   "uso": "Interno.",
+   "tarjeta": false
+  },
+  "glfiltercube": {
+   "titulo": "Cubo 3D (OpenGL)",
+   "categoria": "OpenGL (en la GPU)",
+   "para": "Pone la imagen en las caras de un cubo que gira.",
+   "uso": "Una transición o una cortina 3D.",
+   "tarjeta": true
+  },
+  "glfilterglass": {
+   "titulo": "Vidrio (OpenGL)",
+   "categoria": "OpenGL (en la GPU)",
+   "para": "Efecto de vidrio reflejado.",
+   "uso": "Efecto.",
+   "tarjeta": true
+  },
+  "glimagesink": {
+   "titulo": "Ventana OpenGL",
+   "categoria": "Salidas",
+   "para": "Muestra el video con OpenGL.",
+   "uso": "Pruebas.",
+   "tarjeta": false
+  },
+  "glimagesinkelement": {
+   "titulo": "Ventana OpenGL (elemento)",
+   "categoria": "Salidas",
+   "para": "El sink OpenGL sin el bin.",
+   "uso": "Interno.",
+   "tarjeta": false
+  },
+  "glmixerbin": {
+   "titulo": "Bin de mezcla GL",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Infraestructura de GL.",
+   "uso": "Interno.",
+   "tarjeta": false
+  },
+  "glmosaic": {
+   "titulo": "Mosaico 3D (OpenGL)",
+   "categoria": "Mezcla y composición",
+   "para": "Junta varias entradas en un cubo/mosaico.",
+   "uso": "Necesita varias entradas: nodo de mezcla.",
+   "tarjeta": false
+  },
+  "gloverlay": {
+   "titulo": "Imagen encima (OpenGL)",
+   "categoria": "OpenGL (en la GPU)",
+   "para": "Superpone una imagen PNG/JPG en la GPU.",
+   "uso": "Un logo sobre una cámara.",
+   "tarjeta": true
+  },
+  "glsinkbin": {
+   "titulo": "Bin de salida GL",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Infraestructura de GL.",
+   "uso": "Interno.",
+   "tarjeta": false
+  },
+  "glsrcbin": {
+   "titulo": "Bin de fuente GL",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Infraestructura de GL.",
+   "uso": "Interno.",
+   "tarjeta": false
+  },
+  "glstereomix": {
+   "titulo": "Mezcla estéreo 3D (OpenGL)",
+   "categoria": "Mezcla y composición",
+   "para": "Combina dos vistas para video estéreo 3D.",
+   "uso": "Necesita dos entradas.",
+   "tarjeta": false
+  },
+  "gltestsrc": {
+   "titulo": "Señal de prueba (OpenGL)",
+   "categoria": "Fuentes",
+   "para": "Patrones de prueba generados en la GPU.",
+   "uso": "Igual que «Señal de prueba».",
+   "tarjeta": false
+  },
+  "gltransformation": {
+   "titulo": "Transformación 3D (OpenGL)",
+   "categoria": "OpenGL (en la GPU)",
+   "para": "Rota, escala y traslada la imagen en 3D (perspectiva).",
+   "uso": "Una cámara inclinada en 3D para una cortina o un cuadro dividido con perspectiva.",
+   "tarjeta": true
+  },
+  "glupload": {
+   "titulo": "Subir a OpenGL",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Sube cuadros a texturas OpenGL.",
+   "uso": "Interno (la tarjeta lo agrega sola).",
+   "tarjeta": false
+  },
+  "glvideoflip": {
+   "titulo": "Girar y espejar (OpenGL)",
+   "categoria": "OpenGL (en la GPU)",
+   "para": "Rotar/espejar en la GPU.",
+   "uso": "Como «Girar y espejar».",
+   "tarjeta": true
+  },
+  "glvideomixer": {
+   "titulo": "Mezclador OpenGL",
+   "categoria": "Mezcla y composición",
+   "para": "Como el compositor, en la GPU.",
+   "uso": "Mosaicos de muchas entradas.",
+   "tarjeta": false
+  },
+  "glvideomixerelement": {
+   "titulo": "Mezclador OpenGL (elemento)",
+   "categoria": "Mezcla y composición",
+   "para": "El mezclador OpenGL sin el bin.",
+   "uso": "Interno.",
+   "tarjeta": false
+  },
+  "gopbuffer": {
+   "titulo": "Búfer de GOP",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Guarda grupos de cuadros comprimidos.",
+   "uso": "Video comprimido.",
+   "tarjeta": false
+  },
+  "h264ccextractor": {
+   "titulo": "Extraer CC de H.264",
+   "categoria": "Subtítulos (closed captions)",
+   "para": "Saca los subtítulos de un flujo H.264.",
+   "uso": "Trabaja sobre video comprimido, no como tarjeta.",
+   "tarjeta": false
+  },
+  "h264ccinserter": {
+   "titulo": "Insertar CC en H.264",
+   "categoria": "Subtítulos (closed captions)",
+   "para": "Mete subtítulos en un flujo H.264.",
+   "uso": "Trabaja sobre video comprimido.",
+   "tarjeta": false
+  },
+  "h264timestamper": {
+   "titulo": "Tiempos de H.264",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Corrige los tiempos de un flujo H.264.",
+   "uso": "Video comprimido.",
+   "tarjeta": false
+  },
+  "h265ccextractor": {
+   "titulo": "Extraer CC de H.265",
+   "categoria": "Subtítulos (closed captions)",
+   "para": "Saca subtítulos de H.265.",
+   "uso": "Video comprimido.",
+   "tarjeta": false
+  },
+  "h265ccinserter": {
+   "titulo": "Insertar CC en H.265",
+   "categoria": "Subtítulos (closed captions)",
+   "para": "Mete subtítulos en H.265.",
+   "uso": "Video comprimido.",
+   "tarjeta": false
+  },
+  "h265timestamper": {
+   "titulo": "Tiempos de H.265",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Corrige los tiempos de H.265.",
+   "uso": "Video comprimido.",
+   "tarjeta": false
+  },
+  "hsvdetector": {
+   "titulo": "Detector HSV",
+   "categoria": "Análisis y medición",
+   "para": "Marca los píxeles dentro de un rango de matiz, saturación y valor.",
+   "uso": "Ver qué parte de la imagen toma una llave de color antes de aplicarla.",
+   "tarjeta": true
+  },
+  "hsvfilter": {
+   "titulo": "Filtro HSV",
+   "categoria": "Color",
+   "para": "Trabaja en matiz/saturación/valor: corre el matiz y multiplica o suma saturación y brillo.",
+   "uso": "Corregir un tinte (una luz LED que tira a verde) corriendo el matiz unos grados.",
+   "tarjeta": true
+  },
+  "imagefreeze": {
+   "titulo": "Congelar imagen",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Genera un flujo continuo a partir de una sola imagen.",
+   "uso": "Se usa en fuentes (una placa fija); como tarjeta congela el primer cuadro.",
+   "tarjeta": false
+  },
+  "imagesequencesrc": {
+   "titulo": "Secuencia de imágenes",
+   "categoria": "Fuentes",
+   "para": "Un video a partir de imágenes numeradas.",
+   "uso": "Un time-lapse o una animación por cuadros.",
+   "tarjeta": false
+  },
+  "interlace": {
+   "titulo": "Entrelazar",
+   "categoria": "Formato y entrelazado",
+   "para": "Convierte video progresivo en entrelazado.",
+   "uso": "Sólo para alimentar un equipo viejo que espera entrelazado.",
+   "tarjeta": true
+  },
+  "intervideosink": {
+   "titulo": "Salida interna",
+   "categoria": "Salidas",
+   "para": "Manda video a otro pipeline del mismo proceso.",
+   "uso": "Conectar pipelines entre sí.",
+   "tarjeta": false
+  },
+  "intervideosrc": {
+   "titulo": "Entrada interna",
+   "categoria": "Fuentes",
+   "para": "Recibe video de otro pipeline del mismo proceso (intervideosink).",
+   "uso": "Conectar pipelines entre sí.",
+   "tarjeta": false
+  },
+  "ioutracker": {
+   "titulo": "Seguimiento de objetos (IoU)",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Sigue objetos entre cuadros a partir de detecciones.",
+   "uso": "Necesita detecciones de un modelo antes.",
+   "tarjeta": false
+  },
+  "ivtc": {
+   "titulo": "Telecine inverso",
+   "categoria": "Formato y entrelazado",
+   "para": "Saca el pulldown 3:2 de una película pasada a 60i.",
+   "uso": "Material de cine transferido a NTSC: vuelve a 24p limpio.",
+   "tarjeta": true
+  },
+  "jifmux": {
+   "titulo": "Armar JPEG",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Reempaqueta JPEG con metadatos.",
+   "uso": "Video comprimido.",
+   "tarjeta": false
+  },
+  "kaleidoscope": {
+   "titulo": "Caleidoscopio",
+   "categoria": "Distorsión",
+   "para": "Efecto caleidoscopio con espejos.",
+   "uso": "Visual para música.",
+   "tarjeta": true
+  },
+  "line21decoder": {
+   "titulo": "Leer CC de la línea 21",
+   "categoria": "Subtítulos (closed captions)",
+   "para": "Extrae los subtítulos de la línea 21 de video SD.",
+   "uso": "Señal analógica NTSC con CC.",
+   "tarjeta": true
+  },
+  "line21encoder": {
+   "titulo": "Escribir CC en la línea 21",
+   "categoria": "Subtítulos (closed captions)",
+   "para": "Inserta subtítulos en la línea 21.",
+   "uso": "Entregar CC a un equipo analógico.",
+   "tarjeta": true
+  },
+  "marble": {
+   "titulo": "Mármol",
+   "categoria": "Distorsión",
+   "para": "Distorsión tipo mármol (turbulencia).",
+   "uso": "Efecto visual.",
+   "tarjeta": true
+  },
+  "mirror": {
+   "titulo": "Espejo partido",
+   "categoria": "Distorsión",
+   "para": "Parte la imagen al medio y refleja una mitad sobre la otra.",
+   "uso": "Efecto de simetría (caleidoscopio simple).",
+   "tarjeta": true
+  },
+  "navseek": {
+   "titulo": "Saltar con el teclado",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Salta en un archivo con las flechas.",
+   "uso": "Reproducción; no en vivo.",
+   "tarjeta": false
+  },
+  "objectdetectionoverlay": {
+   "titulo": "Detecciones encima",
+   "categoria": "Análisis y medición",
+   "para": "Dibuja las cajas de objetos detectados (metadatos de analítica).",
+   "uso": "Ver qué detecta un modelo; necesita la inferencia antes.",
+   "tarjeta": false
+  },
+  "onvifmetadatacombiner": {
+   "titulo": "Combinar metadatos ONVIF",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Junta video y metadatos ONVIF.",
+   "uso": "Interno.",
+   "tarjeta": false
+  },
+  "onvifmetadataextractor": {
+   "titulo": "Extraer metadatos ONVIF",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Separa los metadatos ONVIF.",
+   "uso": "Interno.",
+   "tarjeta": false
+  },
+  "onvifmetadataoverlay": {
+   "titulo": "Analítica ONVIF encima",
+   "categoria": "Análisis y medición",
+   "para": "Dibuja la analítica que manda una cámara ONVIF (detecciones).",
+   "uso": "Ver lo que detecta una cámara IP; necesita su flujo de metadatos.",
+   "tarjeta": false
+  },
+  "optv": {
+   "titulo": "Op art",
+   "categoria": "Efectos artísticos",
+   "para": "Efecto óptico en blanco y negro que sigue el movimiento.",
+   "uso": "Visual para un show musical.",
+   "tarjeta": true
+  },
+  "osxvideosink": {
+   "titulo": "Ventana macOS",
+   "categoria": "Salidas",
+   "para": "Muestra el video en una ventana de macOS.",
+   "uso": "Pruebas.",
+   "tarjeta": false
+  },
+  "overlaycomposition": {
+   "titulo": "Composición de superposiciones",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Aplica superposiciones que llegan como metadatos.",
+   "uso": "Interno de pipelines con subtítulos.",
+   "tarjeta": false
+  },
+  "perspective": {
+   "titulo": "Perspectiva",
+   "categoria": "Distorsión",
+   "para": "Transformación de perspectiva 2D (matriz).",
+   "uso": "Corregir una cámara que mira de costado a una pantalla.",
+   "tarjeta": true
+  },
+  "pinch": {
+   "titulo": "Pellizco",
+   "categoria": "Distorsión",
+   "para": "Contrae el centro de la imagen.",
+   "uso": "Efecto visual.",
+   "tarjeta": true
+  },
+  "qroverlay": {
+   "titulo": "Código QR",
+   "categoria": "Textos y superposiciones",
+   "para": "Dibuja un código QR con el texto que se le pase.",
+   "uso": "Un QR para votar o descargar algo, sobre la cámara del conductor.",
+   "tarjeta": true
+  },
+  "quarktv": {
+   "titulo": "Disolución por movimiento",
+   "categoria": "Efectos artísticos",
+   "para": "Lo que se mueve se deshace en puntos.",
+   "uso": "Efecto visual.",
+   "tarjeta": true
+  },
+  "radioactv": {
+   "titulo": "Radioactivo",
+   "categoria": "Efectos artísticos",
+   "para": "Ilumina el movimiento con un halo de color.",
+   "uso": "Visual para música.",
+   "tarjeta": true
+  },
+  "revtv": {
+   "titulo": "Monitor de forma de onda",
+   "categoria": "Efectos artísticos",
+   "para": "Dibuja cada línea como una forma de onda (estilo vectorscopio retro).",
+   "uso": "Efecto; no reemplaza a un monitor de forma de onda real.",
+   "tarjeta": true
+  },
+  "rfbsrc": {
+   "titulo": "Escritorio remoto (VNC)",
+   "categoria": "Fuentes",
+   "para": "Recibe la pantalla de un servidor VNC.",
+   "uso": "Mostrar la pantalla de otra computadora.",
+   "tarjeta": false
+  },
+  "rgb2bayer": {
+   "titulo": "RGB a Bayer",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Convierte RGB a patrón Bayer.",
+   "uso": "Pruebas de sensores; no como tarjeta.",
+   "tarjeta": false
+  },
+  "rippletv": {
+   "titulo": "Ondas",
+   "categoria": "Efectos artísticos",
+   "para": "Ondas como en el agua, disparadas por el movimiento.",
+   "uso": "Efecto visual.",
+   "tarjeta": true
+  },
+  "rotate": {
+   "titulo": "Rotar a cualquier ángulo",
+   "categoria": "Geometría",
+   "para": "Rota la imagen un ángulo arbitrario (en radianes).",
+   "uso": "Enderezar una cámara que quedó apenas torcida.",
+   "tarjeta": true
+  },
+  "roundedcorners": {
+   "titulo": "Esquinas redondeadas",
+   "categoria": "Geometría",
+   "para": "Redondea las esquinas de la imagen (con transparencia).",
+   "uso": "Un invitado en un recuadro con esquinas suaves, como en una videollamada.",
+   "tarjeta": true
+  },
+  "rsvgoverlay": {
+   "titulo": "SVG encima",
+   "categoria": "Textos y superposiciones",
+   "para": "Superpone un gráfico SVG (vectorial).",
+   "uso": "Un logo vectorial que se ve nítido a cualquier tamaño.",
+   "tarjeta": true
+  },
+  "scenechange": {
+   "titulo": "Detectar cambio de plano",
+   "categoria": "Análisis y medición",
+   "para": "Detecta cuando cambia la escena (un corte).",
+   "uso": "Marcar cortes en una grabación o disparar una acción.",
+   "tarjeta": true
+  },
+  "segmentationoverlay": {
+   "titulo": "Segmentación encima",
+   "categoria": "Análisis y medición",
+   "para": "Dibuja una máscara de segmentación que llega como metadato.",
+   "uso": "Junto con un modelo de segmentación; no como tarjeta sola.",
+   "tarjeta": false
+  },
+  "shagadelictv": {
+   "titulo": "Psicodélico",
+   "categoria": "Efectos artísticos",
+   "para": "Remolinos de color sesentosos.",
+   "uso": "Efecto visual.",
+   "tarjeta": true
+  },
+  "shapewipe": {
+   "titulo": "Cortina con forma",
+   "categoria": "Transiciones",
+   "para": "Una cortina que sigue la forma de una imagen en escala de grises.",
+   "uso": "Necesita la máscara como segunda entrada; no como tarjeta.",
+   "tarjeta": false
+  },
+  "simplevideomark": {
+   "titulo": "Marca de video",
+   "categoria": "Análisis y medición",
+   "para": "Pinta un patrón de bloques que codifica un número.",
+   "uso": "Medir latencia: se marca acá y se lee del otro lado con «Detectar marca».",
+   "tarjeta": true
+  },
+  "simplevideomarkdetect": {
+   "titulo": "Detectar marca de video",
+   "categoria": "Análisis y medición",
+   "para": "Lee el patrón de «Marca de video».",
+   "uso": "El otro extremo de la medición de latencia.",
+   "tarjeta": true
+  },
+  "smooth": {
+   "titulo": "Suavizado",
+   "categoria": "Nitidez, ruido y desenfoque",
+   "para": "Suaviza la imagen respetando los bordes (tolerancia y tamaño).",
+   "uso": "Bajar el ruido de una cámara barata con poca luz.",
+   "tarjeta": true
+  },
+  "smpte": {
+   "titulo": "Transición SMPTE",
+   "categoria": "Transiciones",
+   "para": "Las cortinas estándar SMPTE entre dos entradas.",
+   "uso": "Necesita dos entradas: como nodo de mezcla, no como tarjeta.",
+   "tarjeta": false
+  },
+  "smptealpha": {
+   "titulo": "Transición SMPTE como alfa",
+   "categoria": "Transiciones",
+   "para": "Aplica una cortina SMPTE estándar (barridos, diamantes, relojes) como transparencia.",
+   "uso": "Una entrada que aparece con un barrido clásico encima de otra.",
+   "tarjeta": true
+  },
+  "solarize": {
+   "titulo": "Solarizar",
+   "categoria": "Efectos artísticos",
+   "para": "Invierte los tonos por encima de un umbral (el efecto de la fotografía solarizada).",
+   "uso": "Look artístico; con umbral alto, sólo las altas luces se invierten.",
+   "tarjeta": true
+  },
+  "sphere": {
+   "titulo": "Esfera",
+   "categoria": "Distorsión",
+   "para": "Como si la imagen se viera a través de una esfera.",
+   "uso": "Efecto visual.",
+   "tarjeta": true
+  },
+  "square": {
+   "titulo": "Cuadrado",
+   "categoria": "Distorsión",
+   "para": "Deforma el centro en un cuadrado.",
+   "uso": "Efecto visual.",
+   "tarjeta": true
+  },
+  "ssdobjectdetector": {
+   "titulo": "Detector SSD (viejo)",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Decodifica tensores de SSD MobileNet.",
+   "uso": "Necesita inferencia antes.",
+   "tarjeta": false
+  },
+  "ssdtensordec": {
+   "titulo": "Detector SSD",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Decodifica tensores de SSD MobileNet.",
+   "uso": "Necesita inferencia antes.",
+   "tarjeta": false
+  },
+  "streaktv": {
+   "titulo": "Estela",
+   "categoria": "Efectos artísticos",
+   "para": "Deja estela de lo que se mueve.",
+   "uso": "Efecto para deportes o baile.",
+   "tarjeta": true
+  },
+  "stretch": {
+   "titulo": "Estirar",
+   "categoria": "Distorsión",
+   "para": "Estira la imagen en círculo desde el centro.",
+   "uso": "Efecto visual.",
+   "tarjeta": true
+  },
+  "subtitleoverlay": {
+   "titulo": "Subtítulos",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Dibuja subtítulos que llegan por otra entrada.",
+   "uso": "Necesita un flujo de subtítulos; no como tarjeta.",
+   "tarjeta": false
+  },
+  "textoverlay": {
+   "titulo": "Texto",
+   "categoria": "Textos y superposiciones",
+   "para": "Escribe un texto sobre la imagen, con fuente, alineación y fondo sombreado.",
+   "uso": "Un rótulo rápido o una marca «EN VIVO» sin armar un gráfico.",
+   "tarjeta": true
+  },
+  "textrender": {
+   "titulo": "Renderizar texto",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Convierte un texto en una imagen (sin video de fondo).",
+   "uso": "Interno: necesita texto como entrada.",
+   "tarjeta": false
+  },
+  "timecodestamper": {
+   "titulo": "Código de tiempo",
+   "categoria": "Análisis y medición",
+   "para": "Pega un timecode SMPTE a cada cuadro (interno, LTC o el reloj).",
+   "uso": "Sincronizar grabaciones con timecode; no cambia la imagen.",
+   "tarjeta": true
+  },
+  "timeoverlay": {
+   "titulo": "Marca de tiempo",
+   "categoria": "Textos y superposiciones",
+   "para": "Superpone el tiempo del flujo (running time o timestamp).",
+   "uso": "Medir retrasos entre cámaras: la misma marca en dos salidas.",
+   "tarjeta": true
+  },
+  "tunnel": {
+   "titulo": "Túnel",
+   "categoria": "Distorsión",
+   "para": "Efecto túnel de luz.",
+   "uso": "Efecto visual.",
+   "tarjeta": true
+  },
+  "twirl": {
+   "titulo": "Remolino",
+   "categoria": "Distorsión",
+   "para": "Retuerce la imagen desde el centro.",
+   "uso": "Transición o efecto.",
+   "tarjeta": true
+  },
+  "ultralightfacedetectortensordec": {
+   "titulo": "Detector de caras (tensores)",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Decodifica la salida de un modelo de detección de caras.",
+   "uso": "Necesita la inferencia ONNX antes; para rostros, la app usa YuNet.",
+   "tarjeta": false
+  },
+  "vertigotv": {
+   "titulo": "Vértigo",
+   "categoria": "Efectos artísticos",
+   "para": "Retroalimentación que rota y hace zoom.",
+   "uso": "Efecto visual.",
+   "tarjeta": true
+  },
+  "videoanalyse": {
+   "titulo": "Analizar video",
+   "categoria": "Análisis y medición",
+   "para": "Mide brillo y varianza de cada cuadro y lo informa por mensajes.",
+   "uso": "Detectar una cámara en negro o congelada.",
+   "tarjeta": true
+  },
+  "videobalance": {
+   "titulo": "Balance de video",
+   "categoria": "Color",
+   "para": "Ajusta brillo, contraste, matiz y saturación.",
+   "uso": "Corregir una cámara que sale lavada u oscura, o igualar la saturación entre cámaras. Saturación 0 = blanco y negro.",
+   "tarjeta": true
+  },
+  "videobox": {
+   "titulo": "Caja (recorte o bordes)",
+   "categoria": "Geometría",
+   "para": "Recorta o agrega bordes de un color, con alfa.",
+   "uso": "Achicar una cámara dentro de un marco de color para un cuadro dividido.",
+   "tarjeta": true
+  },
+  "videocodectestsink": {
+   "titulo": "Prueba de códecs",
+   "categoria": "Salidas",
+   "para": "Verificación de conformidad de códecs.",
+   "uso": "Interno.",
+   "tarjeta": false
+  },
+  "videocompare": {
+   "titulo": "Comparar cuadros",
+   "categoria": "Análisis y medición",
+   "para": "Compara la similitud de cuadros (hash perceptual).",
+   "uso": "Detectar una imagen congelada o repetida.",
+   "tarjeta": false
+  },
+  "videoconvert": {
+   "titulo": "Convertir formato de color",
+   "categoria": "Formato y entrelazado",
+   "para": "Convierte entre formatos de píxel (RGB, YUV…) y matrices de color.",
+   "uso": "Interno: la tarjeta ya convierte a la entrada y a la salida.",
+   "tarjeta": false
+  },
+  "videoconvertscale": {
+   "titulo": "Convertir y escalar",
+   "categoria": "Formato y entrelazado",
+   "para": "Convierte el formato de color y escala en un solo paso.",
+   "uso": "Interno del pipeline; como tarjeta no cambia la imagen.",
+   "tarjeta": false
+  },
+  "videocrop": {
+   "titulo": "Recorte",
+   "categoria": "Geometría",
+   "para": "Recorta píxeles de cada borde.",
+   "uso": "Sacar las bandas negras de una captura o el borde sucio de una placa analógica.",
+   "tarjeta": true
+  },
+  "videodiff": {
+   "titulo": "Diferencia entre cuadros",
+   "categoria": "Análisis y medición",
+   "para": "Muestra lo que cambió entre un cuadro y el anterior.",
+   "uso": "Ver movimiento o ruido de compresión.",
+   "tarjeta": true
+  },
+  "videoflip": {
+   "titulo": "Girar y espejar",
+   "categoria": "Geometría",
+   "para": "Rota 90/180/270 grados o espeja horizontal/vertical.",
+   "uso": "Una cámara montada de costado o al revés; el espejo para la cámara del presentador.",
+   "tarjeta": true
+  },
+  "videomedian": {
+   "titulo": "Mediana",
+   "categoria": "Nitidez, ruido y desenfoque",
+   "para": "Filtro de mediana: saca el ruido de «sal y pimienta» sin borronear bordes.",
+   "uso": "Una señal analógica con puntos de ruido.",
+   "tarjeta": true
+  },
+  "videomixer": {
+   "titulo": "Mezclador (viejo)",
+   "categoria": "Mezcla y composición",
+   "para": "Reemplazado por «Compositor».",
+   "uso": "Usar Compositor.",
+   "tarjeta": false
+  },
+  "videoparse": {
+   "titulo": "Interpretar video crudo (viejo)",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Interpreta bytes como cuadros (usar rawvideoparse).",
+   "uso": "Interno.",
+   "tarjeta": false
+  },
+  "videorate": {
+   "titulo": "Ajustar cuadros por segundo",
+   "categoria": "Formato y entrelazado",
+   "para": "Duplica o descarta cuadros para una cadencia exacta.",
+   "uso": "Normalizar una cámara IP de 25 fps a 30 fps (el grafo ya entrega a la cadencia del programa).",
+   "tarjeta": false
+  },
+  "videoscale": {
+   "titulo": "Escalar",
+   "categoria": "Formato y entrelazado",
+   "para": "Cambia el tamaño de la imagen con el método elegido (bilineal, bicúbico, Lanczos…).",
+   "uso": "Interno: el grafo ya escala al tamaño de la entrada; como tarjeta sirve para probar métodos de escalado.",
+   "tarjeta": true
+  },
+  "videosegmentclip": {
+   "titulo": "Recortar al segmento",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Recorta cuadros fuera del segmento.",
+   "uso": "Interno.",
+   "tarjeta": false
+  },
+  "videotestsrc": {
+   "titulo": "Señal de prueba",
+   "categoria": "Fuentes",
+   "para": "Genera patrones: barras SMPTE (100%, 75%, RP 219), negro, blanco, colores, damero, zone plate, ruido…",
+   "uso": "La «Entrada virtual» de señal de ajuste: barras para calibrar monitores y probar la cadena.",
+   "tarjeta": false
+  },
+  "viewfinderbin": {
+   "titulo": "Visor (camerabin)",
+   "categoria": "Salidas",
+   "para": "Interno de camerabin.",
+   "uso": "Interno.",
+   "tarjeta": false
+  },
+  "vulkancolorconvert": {
+   "titulo": "Conversión de color (Vulkan)",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Convierte espacios de color en la GPU con Vulkan.",
+   "uso": "Solo dentro de un pipeline Vulkan; no como tarjeta.",
+   "tarjeta": false
+  },
+  "vulkandownload": {
+   "titulo": "Bajar de Vulkan",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Interno de Vulkan.",
+   "uso": "Interno.",
+   "tarjeta": false
+  },
+  "vulkanimageidentity": {
+   "titulo": "Copia Vulkan",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Interno de Vulkan.",
+   "uso": "Interno.",
+   "tarjeta": false
+  },
+  "vulkanoverlaycompositor": {
+   "titulo": "Superposiciones Vulkan",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Interno de Vulkan.",
+   "uso": "Interno.",
+   "tarjeta": false
+  },
+  "vulkanshaderspv": {
+   "titulo": "Shader Vulkan (SPIR-V)",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Corre shaders SPIR-V en Vulkan.",
+   "uso": "Necesita un pipeline Vulkan.",
+   "tarjeta": false
+  },
+  "vulkansink": {
+   "titulo": "Ventana Vulkan",
+   "categoria": "Salidas",
+   "para": "Muestra el video con Vulkan.",
+   "uso": "Pruebas.",
+   "tarjeta": false
+  },
+  "vulkanupload": {
+   "titulo": "Subir a Vulkan",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Interno de Vulkan.",
+   "uso": "Interno.",
+   "tarjeta": false
+  },
+  "vulkanviewconvert": {
+   "titulo": "Vistas Vulkan",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Convierte vistas estéreo en Vulkan.",
+   "uso": "Interno.",
+   "tarjeta": false
+  },
+  "warptv": {
+   "titulo": "Deformación ondulante",
+   "categoria": "Efectos artísticos",
+   "para": "Deforma la imagen como gelatina.",
+   "uso": "Efecto visual.",
+   "tarjeta": true
+  },
+  "waterripple": {
+   "titulo": "Gota en el agua",
+   "categoria": "Distorsión",
+   "para": "Ondas concéntricas como una gota.",
+   "uso": "Efecto visual.",
+   "tarjeta": true
+  },
+  "wrappercamerabinsrc": {
+   "titulo": "Cámara (camerabin)",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Interno de camerabin.",
+   "uso": "Interno.",
+   "tarjeta": false
+  },
+  "yolosegv8tensordec": {
+   "titulo": "Segmentación YOLO",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Decodifica la segmentación de YOLO.",
+   "uso": "Necesita inferencia antes.",
+   "tarjeta": false
+  },
+  "yolov8tensordec": {
+   "titulo": "Detector YOLO",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Decodifica tensores de YOLO v8-11.",
+   "uso": "Necesita inferencia antes.",
+   "tarjeta": false
+  },
+  "zbar": {
+   "titulo": "Leer códigos de barras y QR",
+   "categoria": "Análisis y medición",
+   "para": "Detecta y lee códigos de barras y QR en la imagen.",
+   "uso": "Leer un QR que muestra alguien a cámara.",
+   "tarjeta": true
+  },
+  "zebrastripe": {
+   "titulo": "Cebra (sobreexposición)",
+   "categoria": "Análisis y medición",
+   "para": "Raya en diagonal las zonas sobreexpuestas.",
+   "uso": "En un monitor de cabina: ver qué cámara quema las altas luces antes de que salga al aire.",
+   "tarjeta": true
+  }
+ }
+}

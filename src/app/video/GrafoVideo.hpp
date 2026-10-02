@@ -10,10 +10,18 @@
 //
 // Nodos, por sus puertos:
 //   fuente    0 -> 1   entrada
-//   filtro    1 -> 1   color, croma, recorte, obs (cualquier filtro de OBS)
+//   filtro    1 -> 1   color, croma, recorte, obs (cualquier filtro de OBS),
+//                      gst (cualquier módulo de video de GStreamer)
 //   varias    N -> 1   compositor: puertos de entrada A PEDIDO (in_0, in_1…;
 //                      siempre queda uno libre, como los sink_%u de GStreamer)
 //   destino   1 -> 0   escena, salida (publica una fuente con nombre)
+//   control   0 -> ctl controlador: el molde de una tarjeta (tipo y params).
+//                      Cada filtro tiene una entrada de control `ctl`; el que
+//                      recibe un cable de un controlador usa los params del
+//                      controlador, con lo suyo (`local`) encima. Así UNA
+//                      corrección maneja las cámaras de tres marcas, y cada
+//                      una puede retocar lo suyo.
+// Los puertos tienen tipo (video o control) y un cable une puertos del mismo tipo.
 // A cada puerto de entrada le llega UN cable (conectar otro reemplaza al
 // anterior); de una salida pueden salir varios (el grafo se ramifica, el
 // `tee`). Sin ciclos en todo el grafo.
@@ -66,6 +74,8 @@ class GrafoVideo {
     /// true si lo creó.
     bool asegurarEntrada(const std::string& fuente);
     std::vector<std::string> entradas() const;
+    /// Saca el sub-grafo de una entrada (sus nodos y sus cables).
+    void quitarEntrada(const std::string& fuente);
 
     // --- Editar ------------------------------------------------------------------
     /// Agrega una tarjeta. En una entrada (`grupo`), después de `despues`
@@ -88,6 +98,14 @@ class GrafoVideo {
     /// de OBS) y `capas` (de un compositor) se mezclan clave por clave.
     bool ajustar(const std::string& id, const nlohmann::json& params, std::string* error);
     bool mover(const std::string& id, int x, int y);
+    /// Hace un controlador con los params de la tarjeta `id` y la conecta a él
+    /// (si ya tenía uno, devuelve ese). El id del controlador, o "".
+    std::string controlarDesde(const std::string& id, std::string* error);
+    /// Suelta la tarjeta de su controlador: se queda con los params que usaba.
+    bool soltar(const std::string& id, std::string* error);
+    /// Agrega en `grupo` una tarjeta del tipo del controlador, manejada por él.
+    std::string agregarControlada(const std::string& control, const std::string& grupo, const std::string& despues,
+                                  std::string* error);
     /// Saca todas las tarjetas de una entrada (queda entrada -> escena).
     void limpiar(const std::string& grupo);
 
@@ -97,6 +115,11 @@ class GrafoVideo {
     const std::vector<Cable>& cables() const { return cables_; }
     std::vector<Puerto> puertosEntrada(const Nodo& n) const;
     std::vector<Puerto> puertosSalida(const Nodo& n) const;
+    /// El controlador que maneja la tarjeta `id` (o nullptr).
+    const Nodo* controlador(const std::string& id) const;
+    /// Los params con los que corre: los suyos, o los de su controlador con
+    /// lo propio (`local`) encima.
+    nlohmann::json efectivos(const Nodo& n) const;
     /// Solo entrada -> escena: no hace falta el filtro.
     bool trivial(const std::string& grupo) const;
     /// Los nombres de las salidas (todo el estudio).
@@ -109,7 +132,16 @@ class GrafoVideo {
     /// Lo que recibe el filtro de `fuente` (el formato de ba_video_grafo):
     /// {nodos:[{id,tipo,params}], cables:[{desde,hacia}]}, con su entrada como
     /// `in` y su escena como `out`.
+    /// Lo que cruza entradas va en nodos que el filtro sabe correr: `toma`
+    /// (publica el punto de un cable que sale de esta entrada, con el id del
+    /// nodo) y `traer` (lo que llega a su escena desde afuera: un compositor,
+    /// con su configuración, o la toma de otra entrada).
     nlohmann::json paraFiltro(const std::string& fuente) const;
+    /// La configuración del compositor `id` para ba_video_compositor:
+    /// {ancho, alto, fondo, capas:[{toma, fuente, x, y, ancho, alto,
+    /// opacidad, ajuste}]} de abajo hacia arriba. Las capas sin posición van
+    /// en mosaico.
+    nlohmann::json configCompositor(const std::string& id) const;
     /// Para la interfaz y MCP. Con `grupo`: ese sub-grafo y, marcados
     /// `externo`, los nodos de afuera que se conectan con él. Sin grupo: todo.
     nlohmann::json describir(const std::string& grupo, bool soloGrupo) const;

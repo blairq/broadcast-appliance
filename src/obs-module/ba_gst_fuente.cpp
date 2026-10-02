@@ -84,8 +84,14 @@ void desarmar(Fuente* f) {
 void armar(Fuente* f) {
     desarmar(f);
     f->error.clear();
-    if (!ba::gst::iniciar()) {
-        f->error = ba::gst::errorInicio();
+    if (!ba::gst::listo()) {
+        if (ba::gst::fallo()) {
+            f->error = ba::gst::errorInicio();
+        } else {
+            // Se está iniciando: se vuelve a probar enseguida (desde el tic).
+            f->error = "GStreamer se está iniciando";
+            f->reintento = os_gettime_ns() + 250'000'000ULL;
+        }
         return;
     }
     if (f->descripcion.empty()) return;
@@ -191,6 +197,8 @@ extern "C" {
 static struct obs_source_info ba_gst_fuente_info = {};
 
 void ba_register_gst_fuente(void) {
+    // Que GStreamer empiece a iniciarse ya (en su hilo), no al primer cuadro.
+    ba::gst::listo();
     ba_gst_fuente_info.id = "ba_gst_fuente";
     ba_gst_fuente_info.type = OBS_SOURCE_TYPE_INPUT;
     ba_gst_fuente_info.output_flags = OBS_SOURCE_ASYNC_VIDEO | OBS_SOURCE_DO_NOT_DUPLICATE;
@@ -208,6 +216,8 @@ void ba_register_gst_fuente(void) {
 
 #else
 
-extern "C" void ba_register_gst_fuente(void) {}
+extern "C" void ba_register_gst_fuente(void) {
+    // Que GStreamer empiece a iniciarse ya (en su hilo), no al primer cuadro.
+    ba::gst::listo();}
 
 #endif

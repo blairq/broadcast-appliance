@@ -27,6 +27,9 @@ uniform float derrame;     // 0..1: cuánto se le saca el verde al borde
 uniform float4 borde;      // izquierda, arriba, derecha, abajo
 uniform float2 espejo;     // 1 = da vuelta ese eje
 
+// Capa de un compositor
+uniform float opacidad;    // 0..1
+
 sampler_state lineal {
 	Filter   = Linear;
 	AddressU = Clamp;
@@ -55,6 +58,12 @@ float4 Despremultiplicar(float4 rgba)
 float4 PSCopiar(VertInOut vert_in) : TARGET
 {
 	return image.Sample(lineal, vert_in.uv);
+}
+
+// Premultiplicado: la opacidad multiplica todo (color y alfa).
+float4 PSCapa(VertInOut vert_in) : TARGET
+{
+	return image.Sample(lineal, vert_in.uv) * opacidad;
 }
 
 float4 PSColor(VertInOut vert_in) : TARGET
@@ -172,5 +181,14 @@ technique Recorte
 	{
 		vertex_shader = VSDefault(vert_in);
 		pixel_shader  = PSRecorte(vert_in);
+	}
+}
+
+technique Capa
+{
+	pass
+	{
+		vertex_shader = VSDefault(vert_in);
+		pixel_shader  = PSCapa(vert_in);
 	}
 }

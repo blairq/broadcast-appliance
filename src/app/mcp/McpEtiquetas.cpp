@@ -365,6 +365,9 @@ const Fila kPropias[] = {
     {"video_tarjeta_agregar", "agregar tarjeta de video croma chroma key fondo verde color brillo contraste "
                               "saturacion recorte espejo salida de video"},
     {"video_filtros", "filtros de video de obs lut cube correccion de color llave nitidez catalogo de filtros"},
+    {"video_modulos", "modulos gstreamer catalogo de filtros de video desentrelazar texto reloj efectos opengl ayuda de filtros"},
+    {"video_entrada_virtual", "entrada virtual senal de ajuste barras de color negro patron de prueba pipeline gstreamer rtsp srt"},
+    {"video_controlador", "misma correccion de color en todas las camaras controlador compartido igualar camaras vincular tarjetas"},
     {"video_tarjeta_quitar", "quitar tarjeta de video sacar el croma sacar filtro"},
     {"video_tarjeta_ajustar", "ajustar croma similitud suavidad brillo contraste recorte"},
     {"video_cable", "conectar tarjetas de video cable rama del grafo"},

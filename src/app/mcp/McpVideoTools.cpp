@@ -17,6 +17,8 @@
 #include <QJsonDocument>
 #include <QPointer>
 
+#include <cctype>
+
 namespace ba::app::mcp {
 
 void McpService::registerVideoTools() {
@@ -26,8 +28,13 @@ void McpService::registerVideoTools() {
         "video", "Grafo de video",
         "Un grafo de video para todo el estudio, como un pipeline de GStreamer: cada entrada es un sub-grafo "
         "(entrada -> tarjetas -> escena) y los cables pueden cruzar entre entradas (p. ej. a un compositor). "
-        "Tarjetas propias (color, croma, recorte, salida) o cualquier filtro de video de OBS. Lo corre la GPU.");
+        "Tarjetas propias (color, croma, recorte, salida), cualquier filtro de video de OBS o cualquier módulo de "
+        "video de GStreamer (video_modulos: el catálogo documentado). Entradas virtuales (barras, negro, un "
+        "pipeline de GStreamer) con video_entrada_virtual. Lo corre la GPU.");
     const QPointer<video::VideoGrafos> v = vg;
+    const auto deQt = [](const QVariant& x) {
+        return json::parse(QJsonDocument::fromVariant(x).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
+    };
     const json entrada = {{"type", "string"}, {"description", "La entrada de video (como en video_grafo)."}};
     const json idTarjeta = {{"type", "string"}, {"description", "El id de la tarjeta (como en video_grafo), p. ej. «camara-1.croma»."}};
     // Lo que cambió, visto desde la entrada que corresponde (o todo el estudio).
@@ -46,7 +53,8 @@ void McpService::registerVideoTools() {
             "Sin `entrada`: todo el estudio (cada entrada con su sub-grafo, los nodos del estudio y los cables "
             "entre ellos) y las tarjetas propias. Con `entrada`: su sub-grafo, con los nodos de afuera que se "
             "conectan con él marcados `externo`. Cada nodo trae sus puertos (`entradas`, `salidas`; un compositor "
-            "tiene puertos a pedido in_0, in_1… y siempre uno libre).";
+            "tiene puertos a pedido in_0, in_1… y siempre uno libre). Una tarjeta que no puede correr trae `error` "
+            "con el motivo (p. ej. un módulo de GStreamer que no arrancó).";
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"entrada", entrada},
@@ -83,14 +91,110 @@ void McpService::registerVideoTools() {
         t.description =
             "Sin `id`: los filtros de video de OBS que se pueden poner como tarjeta (corrección de color, aplicar "
             "LUT .cube, llaves de croma/color/luma, nitidez, recorte, escala, máscaras, Mejorar imagen, PTZ "
-            "digital…). Con `id` de una tarjeta de filtro: sus controles (nombre, tipo, valor, rango, opciones).";
+            "digital…). Con `id` de una tarjeta de filtro de OBS o de un módulo de GStreamer: sus controles (nombre, "
+            "tipo, valor, rango, opciones).";
         t.inputSchema = {{"type", "object"}, {"properties", {{"id", idTarjeta}}}};
-        t.run = [v](const json& a, Done done) {
+        t.run = [v, deQt](const json& a, Done done) {
             if (!v) return done(ToolResult::error("el video no está disponible"));
             const QString id = QString::fromStdString(a.value("id", std::string()));
-            const QVariantList l = id.isEmpty() ? v->filtrosObs() : v->propiedades(id);
-            done(ToolResult().data(json::parse(QJsonDocument::fromVariant(l).toJson(QJsonDocument::Compact).toStdString(),
-                                               nullptr, false)));
+            done(ToolResult().data(deQt(id.isEmpty() ? v->filtrosObs() : v->propiedades(id))));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "video_modulos";
+        t.title = "Los módulos de video de GStreamer (catálogo documentado)";
+        t.category = "video";
+        t.readOnly = true;
+        t.description =
+            "El catálogo de módulos de video de GStreamer que trae el programa, con su documentación en castellano "
+            "(para qué sirven y cómo se usan en vivo). Sin argumentos: un resumen por categoría. `buscar`: por "
+            "palabra (en castellano o en inglés, en el nombre, el título o la descripción). `categoria`: los de "
+            "una. `elemento`: uno solo con todo (clase, licencia, paquete) y sus propiedades. `tarjeta` dice si va "
+            "como tarjeta de filtro (video_tarjeta_agregar tipo gst); los demás son fuentes, salidas o mezcladores.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"buscar", {{"type", "string"}}},
+                           {"categoria", {{"type", "string"}}},
+                           {"elemento", {{"type", "string"}}},
+                           {"soloTarjetas", {{"type", "boolean"}, {"description", "solo los que van como tarjeta"}}}}}};
+        t.examples = {R"({"buscar": "croma"})", R"({"elemento": "deinterlace"})", R"({"categoria": "Color"})"};
+        t.run = [v](const json& a, Done done) {
+            if (!v) return done(ToolResult::error("el video no está disponible"));
+            const video::CatalogoGst& c = v->gst();
+            if (!c.disponible()) return done(ToolResult::error("GStreamer no está disponible: " + c.error()));
+            const std::string el = a.value("elemento", std::string());
+            if (!el.empty()) {
+                json m = c.modulo(el);
+                if (m.empty()) return done(ToolResult::error("no existe el módulo «" + el + "» (video_modulos con buscar)"));
+                m["propiedades"] = c.propiedades(el, json::object());
+                return done(ToolResult().data(m));
+            }
+            const auto minus = [](std::string x) {
+                for (auto& ch : x) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+                return x;
+            };
+            const std::string buscar = minus(a.value("buscar", std::string())), cat = a.value("categoria", std::string());
+            const bool solo = a.value("soloTarjetas", false);
+            if (buscar.empty() && cat.empty() && !solo) {
+                json cats = json::object();
+                for (const auto& m : c.modulos()) {
+                    json& x = cats[m.value("categoria", std::string())];
+                    if (!x.is_object()) x = {{"cantidad", 0}, {"ejemplos", json::array()}};
+                    x["cantidad"] = x.value("cantidad", 0) + 1;
+                    if (!x.contains("ejemplos")) x["ejemplos"] = json::array();
+                    if (x["ejemplos"].size() < 6) x["ejemplos"].push_back(m.value("elemento", std::string()));
+                }
+                return done(ToolResult().data({{"version", c.version()}, {"total", c.modulos().size()}, {"categorias", cats}}));
+            }
+            json out = json::array();
+            for (const auto& m : c.modulos()) {
+                if (!cat.empty() && m.value("categoria", std::string()) != cat) continue;
+                if (solo && !m.value("tarjeta", false)) continue;
+                if (!buscar.empty()) {
+                    const std::string todo = minus(m.value("elemento", "") + " " + m.value("titulo", "") + " " +
+                                                   m.value("nombre", "") + " " + m.value("para", "") + " " +
+                                                   m.value("descripcion", "") + " " + m.value("uso", ""));
+                    if (todo.find(buscar) == std::string::npos) continue;
+                }
+                out.push_back({{"elemento", m.value("elemento", "")},
+                               {"titulo", m.value("titulo", m.value("nombre", ""))},
+                               {"categoria", m.value("categoria", "")},
+                               {"para", m.value("para", m.value("descripcion", ""))},
+                               {"tarjeta", m.value("tarjeta", false)}});
+            }
+            done(ToolResult().data(out));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "video_entrada_virtual";
+        t.title = "Crear una entrada virtual (barras, negro, un pipeline de GStreamer)";
+        t.category = "video";
+        t.description =
+            "Sin `nombre`: las entradas virtuales que hay (barras HD, barras 75 %, barras con la hora, negro, "
+            "blanco, verde, placa de zonas, damero, pelota, ruido). Con `nombre` y `preset` (o `pipeline`, la parte "
+            "de origen de un pipeline de GStreamer como en gst-launch, p. ej. «rtspsrc location=… ! decodebin»): "
+            "la crea en `escena` (vacía = la del aire). Queda como una entrada más: con su sub-grafo de tarjetas.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"nombre", {{"type", "string"}}},
+                           {"preset", {{"type", "string"}}},
+                           {"pipeline", {{"type", "string"}}},
+                           {"escena", {{"type", "string"}}}}}};
+        t.examples = {R"({"nombre": "Barras", "preset": "barras-hd"})",
+                      R"({"nombre": "Cámara IP", "pipeline": "rtspsrc location=rtsp://10.0.0.5/stream latency=200 ! decodebin"})"};
+        t.run = [v, deQt](const json& a, Done done) {
+            if (!v) return done(ToolResult::error("el video no está disponible"));
+            const std::string nombre = a.value("nombre", std::string());
+            if (nombre.empty()) return done(ToolResult().data(deQt(video::VideoGrafos::virtuales())));
+            const std::string pl = a.value("pipeline", std::string());
+            const std::string err = v->crearEntradaVirtual(nombre, pl.empty() ? a.value("preset", std::string("barras-hd")) : "pipeline:" + pl,
+                                                           a.value("escena", std::string()));
+            if (!err.empty()) return done(ToolResult::error(err));
+            done(ToolResult().data(v->describir(nombre)));
         };
         core_.addTool(std::move(t));
     }
@@ -101,25 +205,33 @@ void McpService::registerVideoTools() {
         t.category = "video";
         t.description =
             "Agrega una tarjeta. En la `entrada` (después de `despues`; vacío = justo antes de su escena): `color`, "
-            "`croma`, `recorte` y `obs` (un filtro de OBS: `filtro` = su id, de video_filtros) se intercalan; "
-            "`salida` se cuelga como RAMA (publica ese punto como fuente con nombre). `compositor` es del estudio "
-            "(sin entrada): se le conectan entradas con video_cable.";
+            "`croma`, `recorte`, `obs` (un filtro de OBS: `filtro` = su id, de video_filtros) y `gst` (un módulo de "
+            "GStreamer: `elemento`, de video_modulos) se intercalan; "
+            "`retardo` atrasa la imagen; `salida` se cuelga como RAMA (publica ese punto como fuente con nombre). "
+            "`compositor` es del estudio (sin entrada): se le conectan entradas (o tarjetas) con video_cable, y se "
+            "pone en una escena con video_salida_a_escena o se cablea a la escena de una entrada.";
         t.details =
             "`params` con los de fábrica que quieras cambiar (video_grafo los lista). Croma: `clave` 0xRRGGBB (verde "
             "0x00B140), `similitud`, `suavidad`, `derrame`. Color: `brillo`, `contraste`, `saturacion`, `gamma`. "
-            "Recorte: `izquierda`, `arriba`, `derecha`, `abajo` (0..1), `espejoH`, `espejoV`. Salida: `nombre`. "
+            "Recorte: `izquierda`, `arriba`, `derecha`, `abajo` (0..1), `espejoH`, `espejoV`. Retardo: `cuadros` "
+            "(0..120, para sincronizar). Salida: `nombre`. Compositor: `ancho`, `alto`, `fondo` (0xAARRGGBB), "
+            "`nombre`, y por puerto `capas.in_N` {x, y, ancho, alto (0..1 del lienzo), opacidad, orden, ajuste "
+            "(encajar|llenar)}; sin capas, mosaico; null en una capa la vuelve al mosaico. "
             "Un filtro de OBS: sus ajustes van en `params.ajustes` (video_filtros con el id de la tarjeta los "
-            "lista).";
+            "lista). Un módulo de GStreamer: sus propiedades en `params.propiedades`, con los nombres de "
+            "GStreamer (video_modulos con `elemento` las lista; los enum, por su nick).";
         t.inputSchema = {{"type", "object"},
                          {"required", {"tipo"}},
                          {"properties",
                           {{"entrada", entrada},
-                           {"tipo", {{"type", "string"}, {"enum", {"color", "croma", "recorte", "obs", "salida", "compositor"}}}},
+                           {"tipo", {{"type", "string"}, {"enum", {"color", "croma", "recorte", "obs", "gst", "retardo", "salida", "compositor"}}}},
                            {"filtro", {{"type", "string"}, {"description", "con tipo obs: el id del filtro de OBS"}}},
+                           {"elemento", {{"type", "string"}, {"description", "con tipo gst: el módulo de GStreamer (p. ej. videobalance)"}}},
                            {"despues", idTarjeta},
                            {"params", {{"type", "object"}}}}}};
         t.examples = {R"({"entrada": "Cámara 1", "tipo": "croma"})",
                       R"({"entrada": "Cámara 1", "tipo": "obs", "filtro": "clut_filter", "params": {"ajustes": {"image_path": "/ruta/look.cube"}}})",
+                      R"({"entrada": "Cámara 1", "tipo": "gst", "elemento": "gamma", "params": {"propiedades": {"gamma": 1.3}}})",
                       R"({"tipo": "compositor"})"};
         t.run = [v](const json& a, Done done) {
             if (!v) return done(ToolResult::error("el video no está disponible"));
@@ -135,6 +247,12 @@ void McpService::registerVideoTools() {
             std::string nuevo;
             const std::string err = v->editar([&](video::GrafoVideo& g) {
                 std::string error;
+                if (tipo == "gst") {
+                    nuevo = v->agregarModuloEn(g, a.value("elemento", params.value("elemento", std::string())), e,
+                                               a.value("despues", std::string()), params.value("propiedades", json::object()),
+                                               &error);
+                    return error;
+                }
                 nuevo = g.agregar(tipo, e, a.value("despues", std::string()), params, &error);
                 if (!nuevo.empty() && !etiqueta.empty()) g.ajustar(nuevo, json{{"etiqueta", etiqueta}}, nullptr);
                 return error;
@@ -171,7 +289,9 @@ void McpService::registerVideoTools() {
         t.idempotent = true;
         t.description =
             "Cambia `params` de la tarjeta `id` (solo los que tiene, del mismo tipo) y/o su `etiqueta`. Un filtro de "
-            "OBS: `{\"ajustes\": {…}}` (se mezclan). Un compositor: `{\"capas\": {\"in_0\": {…}}}` por puerto.";
+            "OBS: `{\"ajustes\": {…}}`; un módulo de GStreamer: `{\"propiedades\": {…}}` (se mezclan). Una tarjeta "
+            "manejada por un controlador: el ajuste va al controlador (cambia en todas); lo propio de esa entrada, en "
+            "`{\"local\": {…}}`. Un compositor: `{\"capas\": {\"in_0\": {…}}}` por puerto.";
         t.inputSchema = {{"type", "object"},
                          {"required", {"id", "params"}},
                          {"properties", {{"id", idTarjeta}, {"params", {{"type", "object"}}}, {"entrada", entrada}}}};
@@ -179,9 +299,7 @@ void McpService::registerVideoTools() {
         t.run = [v, hecho](const json& a, Done done) {
             if (!v) return done(ToolResult::error("el video no está disponible"));
             hecho(a.value("entrada", std::string()), v->editar([&](video::GrafoVideo& g) {
-                std::string error;
-                g.ajustar(a.value("id", std::string()), a.value("params", json::object()), &error);
-                return error;
+                return video::VideoGrafos::ajustarEn(g, a.value("id", std::string()), a.value("params", json::object()));
             }), done);
         };
         core_.addTool(std::move(t));
@@ -222,12 +340,58 @@ void McpService::registerVideoTools() {
     }
     {
         Tool t;
-        t.name = "video_salida_a_escena";
-        t.title = "Poner una salida del grafo en una escena";
+        t.name = "video_controlador";
+        t.title = "Manejar tarjetas de varias entradas con un controlador";
         t.category = "video";
         t.description =
-            "Pone la tarjeta salida `id` como fuente en `escena` (vacía = la que está al aire), con su nombre. "
-            "Queda guardada como cualquier fuente de la escena.";
+            "Un controlador es un nodo del estudio con el molde de una tarjeta: las tarjetas conectadas a su salida "
+            "de control (`ctl`) corren con SUS parámetros (la misma corrección de color para las cámaras de tres "
+            "marcas), y cada una puede tener lo suyo encima (`local`, con video_tarjeta_ajustar). Con `tarjeta`: "
+            "hace un controlador con esa tarjeta (o devuelve el que ya la maneja). Con `controlador` y `entrada`: "
+            "agrega a esa entrada una tarjeta manejada por él (antes de su escena, o después de `despues`). Con "
+            "`soltar` (id de tarjeta): la desconecta y se queda con los valores que usaba. Para conectar una "
+            "tarjeta que ya existe: video_cable desde el controlador (salida ctl) a la tarjeta (entrada ctl).";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"tarjeta", idTarjeta},
+                           {"controlador", idTarjeta},
+                           {"entrada", entrada},
+                           {"despues", idTarjeta},
+                           {"soltar", idTarjeta}}}};
+        t.examples = {R"({"tarjeta": "sony.gst"})", R"({"controlador": "estudio.control", "entrada": "Pelco"})",
+                      R"({"soltar": "pelco.gst"})"};
+        t.run = [v](const json& a, Done done) {
+            if (!v) return done(ToolResult::error("el video no está disponible"));
+            std::string hecho;
+            const std::string err = v->editar([&](video::GrafoVideo& g) {
+                std::string e;
+                if (a.contains("soltar")) {
+                    g.soltar(a.value("soltar", std::string()), &e);
+                } else if (a.contains("controlador")) {
+                    hecho = g.agregarControlada(a.value("controlador", std::string()), a.value("entrada", std::string()),
+                                                a.value("despues", std::string()), &e);
+                } else if (a.contains("tarjeta")) {
+                    hecho = g.controlarDesde(a.value("tarjeta", std::string()), &e);
+                } else {
+                    e = "falta `tarjeta`, `controlador` + `entrada`, o `soltar`";
+                }
+                return e;
+            });
+            if (!err.empty()) return done(ToolResult::error(err));
+            json d = v->describir(std::string());
+            if (!hecho.empty()) d["id"] = hecho;
+            done(ToolResult().data(d));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "video_salida_a_escena";
+        t.title = "Poner una salida o un compositor del grafo en una escena";
+        t.category = "video";
+        t.description =
+            "Pone la tarjeta salida `id` (o un compositor) como fuente en `escena` (vacía = la que está al aire), "
+            "con su nombre (`params.nombre`). Queda guardada como cualquier fuente de la escena.";
         t.inputSchema = {{"type", "object"},
                          {"required", {"id"}},
                          {"properties", {{"id", idTarjeta}, {"escena", {{"type", "string"}}}}}};

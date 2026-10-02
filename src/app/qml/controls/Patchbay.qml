@@ -5,8 +5,10 @@
 //
 // Contrato del modelo:
 //   nodos:  [{id, tipo, etiqueta, x, y, resumen?, externo?,
-//             entradas: [{id, pedido?}], salidas: [{id}]}]
+//             entradas: [{id, tipo?, pedido?}], salidas: [{id, tipo?}]}]
 //   cables: [{desde, salida, hacia, entrada}]
+// Los puertos tienen tipo: "video" (de fábrica) o "control" (ámbar; sus
+// cables van punteados). Un cable se suelta solo en un puerto de su tipo.
 // Un puerto `pedido` es uno libre de los que se crean al conectar (los de un
 // compositor): se dibuja hueco, con «+». Un nodo `externo` es de otra parte
 // del grafo (se ve atenuado y no se mueve desde acá). `franjas` dibuja
@@ -71,13 +73,23 @@ Rectangle {
         const p = posOf(n)
         return Qt.point(p.x + (isIn ? 0 : nodeW), p.y + headH + i * rowH + rowH / 2)
     }
-    // La entrada a la que iría un cable soltado en (x, y): el puerto más
-    // cercano (con margen ancho) o, sobre una tarjeta, su primer puerto libre.
-    function inputAt(x, y) {
+    readonly property color colorControl: "#fbbf24"
+    function tipoDe(pt) { return pt && pt.tipo ? pt.tipo : "video" }
+    function tipoPuerto(id, port, isIn) {
+        const n = nodeOf(id)
+        for (const pt of ((n && (isIn ? n.entradas : n.salidas)) || [])) if (pt.id === port) return tipoDe(pt)
+        return "video"
+    }
+    // La entrada a la que iría un cable de `tipo` soltado en (x, y): el puerto
+    // más cercano (con margen ancho) o, sobre una tarjeta, su primer puerto
+    // libre de ese tipo.
+    function inputAt(x, y, tipo) {
+        tipo = tipo || "video"
         let best = null, bd = 40
         for (let i = 0; i < nodos.length; ++i) {
             const n = nodos[i]
             for (const pt of (n.entradas || [])) {
+                if (tipoDe(pt) !== tipo) continue
                 const q = portPos(n.id, pt.id, true)
                 const d = Math.hypot(q.x - x, q.y - y)
                 if (d < bd) { bd = d; best = { node: n.id, port: pt.id } }
@@ -86,7 +98,7 @@ Rectangle {
         if (best) return best
         for (let i = 0; i < nodos.length; ++i) {
             const n = nodos[i]
-            const es = n.entradas || []
+            const es = (n.entradas || []).filter(pt => tipoDe(pt) === tipo)
             if (es.length === 0) continue
             const p = posOf(n)
             if (x >= p.x && x <= p.x + nodeW && y >= p.y && y <= p.y + nodeH(n)) {
@@ -183,6 +195,7 @@ Rectangle {
                     readonly property point b: pb.portPos(modelData.hacia, modelData.entrada, true)
                     readonly property real ctl: pb.cableCtl(a, b)
                     readonly property point mid: pb.cableMid(a, b)
+                    readonly property bool control: pb.tipoPuerto(modelData.desde, modelData.salida, false) === "control"
                     readonly property bool cruza: {
                         const d = pb.nodeOf(modelData.desde), h = pb.nodeOf(modelData.hacia)
                         return !!(d && d.externo) || !!(h && h.externo)
@@ -193,8 +206,11 @@ Rectangle {
                         preferredRendererType: Shape.CurveRenderer
                         ShapePath {
                             // Un cable que sale de (o va a) otra parte del grafo, en otro tono.
-                            strokeColor: cab.cruza ? Qt.rgba(0.78, 0.6, 1, 0.9) : Qt.rgba(0.55, 0.75, 1, 0.9)
-                            strokeWidth: 3
+                            // El de control (un controlador que maneja la tarjeta), ámbar y punteado.
+                            strokeColor: cab.control ? pb.colorControl : cab.cruza ? Qt.rgba(0.78, 0.6, 1, 0.9) : Qt.rgba(0.55, 0.75, 1, 0.9)
+                            strokeWidth: cab.control ? 2 : 3
+                            strokeStyle: cab.control ? ShapePath.DashLine : ShapePath.SolidLine
+                            dashPattern: [4, 3]
                             capStyle: ShapePath.RoundCap
                             fillColor: "transparent"
                             startX: cab.a.x; startY: cab.a.y
@@ -230,7 +246,7 @@ Rectangle {
                 visible: pb.wire !== null
                 preferredRendererType: Shape.CurveRenderer
                 ShapePath {
-                    strokeColor: Theme.ok
+                    strokeColor: pb.wire && pb.wire.tipo === "control" ? pb.colorControl : Theme.ok
                     strokeWidth: 3
                     strokeStyle: ShapePath.DashLine
                     fillColor: "transparent"
@@ -341,16 +357,17 @@ Rectangle {
                             Rectangle {
                                 anchors.fill: parent
                                 radius: 7
-                                color: ip.blanco ? Theme.ok : ip.modelData.pedido ? "transparent" : "#93c5fd"
-                                border.color: ip.modelData.pedido ? "#93c5fd" : "white"
+                                readonly property color base: pb.tipoDe(ip.modelData) === "control" ? pb.colorControl : "#93c5fd"
+                                color: ip.blanco ? Theme.ok : ip.modelData.pedido ? "transparent" : base
+                                border.color: ip.modelData.pedido ? base : "white"
                                 border.width: ip.modelData.pedido ? 2 : 1
                                 Text { visible: !!ip.modelData.pedido; anchors.centerIn: parent; text: "+"; color: "#93c5fd"; font.pixelSize: 10; font.weight: Font.Black }
                             }
                             Text {
-                                visible: (nd.modelData.entradas || []).length > 1
+                                visible: (nd.modelData.entradas || []).length > 1 && ip.modelData.id !== "in"
                                 x: 18
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: ip.modelData.pedido ? "nueva" : ip.modelData.id
+                                text: ip.modelData.pedido ? "nueva" : ip.modelData.id === "ctl" ? "control" : ip.modelData.id
                                 color: Theme.textFaint; font.pixelSize: 10
                             }
                         }
@@ -365,7 +382,7 @@ Rectangle {
                             x: pb.nodeW - 7
                             y: pb.headH + index * pb.rowH + pb.rowH / 2 - 7
                             width: 14; height: 14; radius: 7
-                            color: "#86efac"
+                            color: pb.tipoDe(op.modelData) === "control" ? pb.colorControl : "#86efac"
                             border.color: "white"; border.width: 1
                             MouseArea {
                                 anchors.fill: parent
@@ -375,16 +392,18 @@ Rectangle {
                                 hoverEnabled: true
                                 ToolTip.visible: containsMouse && !pb.wire
                                 ToolTip.delay: 600
-                                ToolTip.text: "Arrastrá hasta la tarjeta (o la entrada) que quieras alimentar: de una salida pueden salir varios cables"
+                                ToolTip.text: pb.tipoDe(op.modelData) === "control"
+                                              ? "Arrastrá hasta una tarjeta igual (de cualquier entrada): pasa a usar los ajustes de este controlador"
+                                              : "Arrastrá hasta la tarjeta (o la entrada) que quieras alimentar: de una salida pueden salir varios cables"
                                 onPressed: {
                                     const p = pb.portPos(nd.modelData.id, op.modelData.id, false)
-                                    pb.wire = { from: nd.modelData.id, out: op.modelData.id, x0: p.x, y0: p.y, x1: p.x, y1: p.y }
+                                    pb.wire = { from: nd.modelData.id, out: op.modelData.id, tipo: pb.tipoDe(op.modelData), x0: p.x, y0: p.y, x1: p.x, y1: p.y }
                                     pb.wireTarget = null
                                 }
                                 onPositionChanged: (ev) => {
                                     if (!pb.wire) return
                                     const q = mapToItem(lienzo, ev.x, ev.y)
-                                    const t = pb.inputAt(q.x, q.y)
+                                    const t = pb.inputAt(q.x, q.y, pb.wire.tipo)
                                     pb.wireTarget = t
                                     const end = t ? pb.portPos(t.node, t.port, true) : q
                                     pb.wire = Object.assign({}, pb.wire, { x1: end.x, y1: end.y })

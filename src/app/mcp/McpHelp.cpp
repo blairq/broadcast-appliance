@@ -428,17 +428,26 @@ La API de Facebook solo transmite y administra videos de **Paginas** (no del per
 
 ## Ver
 - `video_grafo` sin nada: todo el estudio; con `entrada`: su sub-grafo (lo de afuera, marcado `externo`). Los ids son como `camara-1.croma`.
-- `video_filtros`: los filtros de video de OBS que pueden ser tarjeta (correccion de color, LUT .cube, llaves, nitidez, recorte, escala, mascaras, Mejorar imagen, PTZ digital). Con `id` de una tarjeta: sus controles.
+- `video_filtros`: los filtros de video de OBS que pueden ser tarjeta (correccion de color, LUT .cube, llaves, nitidez, recorte, escala, mascaras, Mejorar imagen, PTZ digital). Con `id` de una tarjeta (de OBS o de GStreamer): sus controles.
+- `video_modulos`: los modulos de video de GStreamer, documentados en castellano (para que sirven, uso en vivo). Sin nada: resumen por categoria; `buscar` ("desentrelazar", "croma", "texto"…), `categoria`, o `elemento` (todo, con sus propiedades). `tarjeta: true` = va como tarjeta de filtro.
 
 ## Armar
 - `video_tarjeta_agregar {"entrada": ..., "tipo": "croma"}` (color, croma, recorte se intercalan antes de la escena, o despues de `despues`).
 - Un filtro de OBS: `{"entrada": ..., "tipo": "obs", "filtro": "clut_filter", "params": {"ajustes": {"image_path": "/ruta/look.cube"}}}`.
-- `video_tarjeta_ajustar {"id": ..., "params": {...}}` (de un filtro de OBS: `{"ajustes": {...}}`, se mezclan).
+- Un modulo de GStreamer: `{"entrada": ..., "tipo": "gst", "elemento": "deinterlace", "params": {"propiedades": {"method": "greedyh"}}}` (nombres de GStreamer; los enum por su nick). Los de OpenGL (gl…) corren en la GPU.
+- `video_tarjeta_ajustar {"id": ..., "params": {...}}` (de un filtro de OBS: `{"ajustes": {...}}`; de un modulo de GStreamer: `{"propiedades": {...}}`; se mezclan).
 - `video_cable {"desde": ..., "hacia": ...}`: cualquier par, aunque sean de entradas distintas. A cada puerto le llega un cable (el nuevo reemplaza); de una salida salen varios. `quitar: true` lo saca.
 - `video_tarjeta_quitar` y `video_grafo_limpiar {"entrada": ...}`.
 
+## Una correccion para varias camaras (controladores)
+- `video_controlador {"tarjeta": "sony.gst"}`: hace un controlador (nodo del estudio) con esa tarjeta; `{"controlador": ..., "entrada": "Pelco"}` le agrega a otra entrada una tarjeta manejada por el. Cambiar el controlador (`video_tarjeta_ajustar` sobre el o sobre cualquier tarjeta manejada) cambia todas; lo propio de una camara va en `{"local": {...}}`. `{"soltar": id}` la desconecta. Los cables de control van de la salida `ctl` del controlador a la entrada `ctl` de la tarjeta.
+
+## Entradas virtuales
+- `video_entrada_virtual` sin nada: los presets (barras-hd, barras, barras-75, barras-hora, negro, blanco, verde, zona, damero, pelota, ruido). `{"nombre": "Barras", "preset": "barras-hd"}` la crea en la escena al aire; `pipeline` en vez de `preset`: cualquier origen de GStreamer (`rtspsrc location=… ! decodebin`, `srtsrc uri=srt://:9000 ! decodebin`). Es una entrada mas, con su sub-grafo.
+
 ## Entre entradas
-- `video_tarjeta_agregar {"tipo": "compositor"}`: del estudio; cada cable a el crea un puerto (in_0, in_1...). Sus capas por puerto: `params.capas`. (La ejecucion del compositor llega en el paso siguiente.)
+- `video_tarjeta_agregar {"tipo": "compositor"}`: del estudio; cada cable a el crea un puerto (in_0, in_1...) y una capa. Sin posiciones, mosaico; por puerto `params.capas.in_N` {x, y, ancho, alto en 0..1 del lienzo, opacidad, orden}. Se ve con `video_salida_a_escena {"id": "estudio.compositor"}` (una fuente con su `nombre`) o cableandolo a la escena de una entrada (`video_cable` a `<entrada>.escena`).
+- `retardo {"cuadros": N}`: atrasa una entrada para sincronizarla con otra (o con el audio).
 
 ## Salidas
 - Una tarjeta `salida` publica ese punto como fuente con nombre; `video_salida_a_escena {"id": ...}` la pone en la escena al aire (o en `escena`).

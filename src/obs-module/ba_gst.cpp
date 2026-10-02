@@ -12,8 +12,10 @@
 #include <gst/app/gstappsrc.h>
 #include <gst/gst.h>
 
+#include <atomic>
 #include <cstring>
 #include <mutex>
+#include <thread>
 
 namespace ba::gst {
 
@@ -41,6 +43,25 @@ bool iniciar() {
 
 const std::string& errorInicio() { return g_error; }
 
+namespace {
+std::atomic<bool> g_hecho{false};
+}
+
+bool listo() {
+    // La primera vez GStreamer revisa todos sus plugins (segundos): en un
+    // hilo aparte, nunca en el de video ni en el de la interfaz.
+    static std::once_flag hilo;
+    std::call_once(hilo, []() {
+        std::thread([]() {
+            iniciar();
+            g_hecho = true;
+        }).detach();
+    });
+    return g_hecho && g_listo;
+}
+
+bool fallo() { return g_hecho && !g_listo; }
+
 TarjetaGst::TarjetaGst(std::string elemento, std::map<std::string, std::string> propiedades)
     : elemento_(std::move(elemento)), props_(std::move(propiedades)) {}
 
@@ -64,8 +85,8 @@ void TarjetaGst::desarmar() {
 bool TarjetaGst::armar(std::uint32_t cx, std::uint32_t cy) {
     desarmar();
     error_.clear();
-    if (!iniciar()) {
-        error_ = errorInicio();
+    if (!listo()) {
+        error_ = fallo() ? errorInicio() : "GStreamer se está iniciando";
         return false;
     }
     modulo_ = gst_element_factory_make(elemento_.c_str(), "modulo");
@@ -73,7 +94,10 @@ bool TarjetaGst::armar(std::uint32_t cx, std::uint32_t cy) {
         error_ = "no existe el módulo «" + elemento_ + "»";
         return false;
     }
-    for (const auto& [k, v] : props_) gst_util_set_object_arg(G_OBJECT(modulo_), k.c_str(), v.c_str());
+    {
+        std::lock_guard<std::mutex> l(propsLock_);
+        for (const auto& [k, v] : props_) gst_util_set_object_arg(G_OBJECT(modulo_), k.c_str(), v.c_str());
+    }
     pipeline_ = gst_pipeline_new("ba-tarjeta");
     src_ = gst_element_factory_make("appsrc", "src");
     GstElement* conv1 = gst_element_factory_make("videoconvert", nullptr);
@@ -93,8 +117,37 @@ bool TarjetaGst::armar(std::uint32_t cx, std::uint32_t cy) {
     g_object_set(filtro, "caps", caps, nullptr);
     g_object_set(sink_, "sync", FALSE, "max-buffers", 2, "drop", TRUE, nullptr);
     gst_caps_unref(caps);
-    gst_bin_add_many(GST_BIN(pipeline_), src_, conv1, modulo_, conv2, escala, filtro, sink_, nullptr);
-    if (!gst_element_link_many(src_, conv1, modulo_, conv2, escala, filtro, sink_, nullptr)) {
+    // Los módulos de OpenGL (glcolorbalance, gltransformation…) trabajan sobre
+    // texturas: se los envuelve con glupload/glcolorconvert y gldownload.
+    GstElement* antes = modulo_;
+    GstElement* despues = modulo_;
+    if (elemento_.rfind("gl", 0) == 0) {
+        GstElement* sube = gst_element_factory_make("glupload", nullptr);
+        GstElement* conv = gst_element_factory_make("glcolorconvert", nullptr);
+        GstElement* baja = gst_element_factory_make("gldownload", nullptr);
+        if (!sube || !conv || !baja) {
+            error_ = "falta el soporte OpenGL de GStreamer (glupload)";
+            for (GstElement* e : {sube, conv, baja})
+                if (e != nullptr) gst_object_unref(e);
+            desarmar();
+            return false;
+        }
+        gst_bin_add_many(GST_BIN(pipeline_), sube, conv, baja, nullptr);
+        gst_element_link_many(sube, conv, nullptr);
+        antes = sube;
+        despues = baja;
+        gst_bin_add(GST_BIN(pipeline_), modulo_);
+        if (!gst_element_link(conv, modulo_) || !gst_element_link(modulo_, baja)) {
+            error_ = "el módulo «" + elemento_ + "» no se pudo enganchar a OpenGL";
+            desarmar();
+            return false;
+        }
+    } else {
+        gst_bin_add(GST_BIN(pipeline_), modulo_);
+    }
+    gst_bin_add_many(GST_BIN(pipeline_), src_, conv1, conv2, escala, filtro, sink_, nullptr);
+    if (!gst_element_link_many(src_, conv1, antes, nullptr) ||
+        !gst_element_link_many(despues, conv2, escala, filtro, sink_, nullptr)) {
         error_ = "el módulo «" + elemento_ + "» no acepta video crudo (¿es un filtro de video?)";
         desarmar();
         return false;
@@ -111,18 +164,42 @@ bool TarjetaGst::armar(std::uint32_t cx, std::uint32_t cy) {
     return true;
 }
 
+void TarjetaGst::avisar() {
+    // Al log, una vez por motivo (no uno por cuadro). «Se está iniciando» no
+    // es un error: pasa solo al arrancar.
+    if (error_ == avisado_ || error_ == "GStreamer se está iniciando") return;
+    avisado_ = error_;
+    if (!error_.empty()) blog(LOG_WARNING, "[ba-sources] tarjeta GStreamer «%s»: %s", elemento_.c_str(), error_.c_str());
+}
+
 void TarjetaGst::ajustar(const std::map<std::string, std::string>& propiedades) {
+    std::lock_guard<std::mutex> l(propsLock_);
+    // Una que se sacó vuelve a su valor de fábrica: hay que rearmar.
+    for (const auto& [k, v] : props_)
+        if (!propiedades.count(k)) rearmar_ = true;
     for (const auto& [k, v] : propiedades) {
         const auto it = props_.find(k);
         if (it != props_.end() && it->second == v) continue;
         props_[k] = v;
-        if (modulo_ != nullptr) gst_util_set_object_arg(G_OBJECT(modulo_), k.c_str(), v.c_str());
+        GstElement* m = modulo_;
+        if (m == nullptr) continue;
+        GParamSpec* ps = g_object_class_find_property(G_OBJECT_GET_CLASS(m), k.c_str());
+        if (ps != nullptr && !(ps->flags & GST_PARAM_MUTABLE_PLAYING) && !(ps->flags & GST_PARAM_CONTROLLABLE) &&
+            (ps->flags & G_PARAM_CONSTRUCT_ONLY))
+            rearmar_ = true;
+        else
+            gst_util_set_object_arg(G_OBJECT(m), k.c_str(), v.c_str());
     }
+    for (auto it = props_.begin(); it != props_.end();)
+        it = propiedades.count(it->first) ? std::next(it) : props_.erase(it);
 }
 
 bool TarjetaGst::procesar(gs_texture_t* entrada, std::uint32_t cx, std::uint32_t cy, gs_effect_t* fx) {
-    if (pipeline_ == nullptr || cx != cx_ || cy != cy_) {
-        if (!armar(cx, cy)) return false;
+    if (pipeline_ == nullptr || cx != cx_ || cy != cy_ || rearmar_.exchange(false)) {
+        if (!armar(cx, cy)) {
+            avisar();
+            return false;
+        }
     }
     if (bajada_ == nullptr) bajada_ = gs_texrender_create(GS_RGBA, GS_ZS_NONE);
     if (stage_ == nullptr || gs_stagesurface_get_width(stage_) != cx || gs_stagesurface_get_height(stage_) != cy) {
@@ -188,6 +265,7 @@ bool TarjetaGst::procesar(gs_texture_t* entrada, std::uint32_t cx, std::uint32_t
         }
         gst_object_unref(bus);
     }
+    avisar();
     if (!haySubida_) return false;
 
     // 3) De vuelta a la GPU, con alfa premultiplicado.

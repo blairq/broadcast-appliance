@@ -309,6 +309,10 @@ ba_mac_embed_info_plist(ba-app com.legisstudio.broadcastappliance.app "Broadcast
 # MinGW GUI: subsistema GUI (sin consola), igual que el launcher. Sin esto,
 # MinGW enlaza como consola y el CRT espera `main` en vez de `WinMain`/
 # `wWinMain` (ver el trampoline WinMain->wWinMain en main.cpp).
+# GStreamer (si está vendoreado): el catálogo de módulos y sus propiedades.
+if(BA_HAVE_GST)
+    target_link_libraries(ba-app PRIVATE ba::gstreamer)
+endif()
 if(WIN32)
     # main.cpp trae su propio wWinMain: sin el de Qt (Qt6::EntryPointPrivate).
     set_target_properties(ba-app PROPERTIES WIN32_EXECUTABLE ON qt_no_entrypoint ON)
@@ -372,6 +376,10 @@ if(BA_HAVE_LIBOBS)
             # qt/lib: el Qt vendoreado que viaja en el bundle (BaQtDeploy.cmake).
             INSTALL_RPATH "$ORIGIN;$ORIGIN/qt/lib")
     endif()
+    # Despues de fijar los rpath de arriba (los pisarian): GStreamer, del bundle.
+    if(TARGET ba::gstreamer)
+        ba_gst_rpath(ba-app "")
+    endif()
 else()
     target_compile_definitions(ba-app PRIVATE BA_HAVE_LIBOBS=0)
 endif()
@@ -432,6 +440,9 @@ endif()
     # El catalogo de filtros LSP en castellano (Audio -> filtros).
     qt_add_resources(ba-app "ba_lsp_catalogo" PREFIX "/audio" BASE "${CMAKE_SOURCE_DIR}/datos"
                      FILES "${CMAKE_SOURCE_DIR}/datos/lsp-catalogo.json")
+    # La documentacion en castellano de los modulos de GStreamer (Video -> agregar modulo).
+    qt_add_resources(ba-app "ba_gst_modulos" PREFIX "/video" BASE "${CMAKE_SOURCE_DIR}/datos"
+                     FILES "${CMAKE_SOURCE_DIR}/datos/gst-modulos.json")
     # Las reglas con las que el modelo local completa argumentos (agent/ArgumentosLocales).
     qt_add_resources(ba-app "ba_voz" PREFIX "/voz" BASE "${CMAKE_SOURCE_DIR}/datos"
                      FILES "${CMAKE_SOURCE_DIR}/datos/voz-argumentos.txt")
@@ -584,6 +595,17 @@ endif()
     target_include_directories(test_grabador_wav PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     add_test(NAME test_grabador_wav COMMAND test_grabador_wav)
     # Validar los argumentos que escribe el modelo local (agent/ArgumentosLocales).
+    # El catálogo de módulos de GStreamer (con el GStreamer vendoreado).
+    if(BA_HAVE_GST)
+        add_executable(test_catalogo_gst tests/test_catalogo_gst.cpp video/CatalogoGst.cpp)
+        target_include_directories(test_catalogo_gst PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+        target_link_libraries(test_catalogo_gst PRIVATE ba_core ba::gstreamer)
+        ba_gst_rpath(test_catalogo_gst "")
+        target_compile_definitions(test_catalogo_gst PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+            BA_TEST_GST_DOCS="${CMAKE_SOURCE_DIR}/datos/gst-modulos.json")
+        add_test(NAME test_catalogo_gst COMMAND test_catalogo_gst)
+        set_tests_properties(test_catalogo_gst PROPERTIES SKIP_RETURN_CODE 77)
+    endif()
     # El grafo de tarjetas de video (video/GrafoVideo), sin GPU.
     add_executable(test_grafo_video tests/test_grafo_video.cpp video/GrafoVideo.cpp)
     target_include_directories(test_grafo_video PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

@@ -44,6 +44,7 @@ else()
     list(FILTER BA_SOURCES_SOURCES EXCLUDE REGEX ".*/ba_mejora_imagen\\.cpp$")
     list(FILTER BA_SOURCES_SOURCES EXCLUDE REGEX ".*/ba_ptz_digital\\.cpp$")
     list(FILTER BA_SOURCES_SOURCES EXCLUDE REGEX ".*/ba_video_grafo\\.cpp$")
+    list(FILTER BA_SOURCES_SOURCES EXCLUDE REGEX ".*/ba_video_estudio\\.cpp$")
     list(FILTER BA_SOURCES_SOURCES EXCLUDE REGEX ".*/ba_gst.*\\.cpp$")
 endif()
 

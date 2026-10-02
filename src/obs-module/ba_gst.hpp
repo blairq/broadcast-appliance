@@ -27,6 +27,8 @@
 #include <cstdint>
 #include <map>
 #include <string>
+#include <atomic>
+#include <mutex>
 #include <vector>
 
 typedef struct _GstElement GstElement;
@@ -35,6 +37,11 @@ namespace ba::gst {
 
 /// Inicia GStreamer una sola vez (con el entorno del bundle). false si no hay.
 bool iniciar();
+/// Sin esperar: true si GStreamer ya está listo. La primera llamada lo
+/// inicia en un hilo aparte (la primera vez revisa todos sus plugins).
+bool listo();
+/// true si ya se intentó y no hay GStreamer.
+bool fallo();
 /// El motivo si iniciar() falló.
 const std::string& errorInicio();
 
@@ -47,7 +54,8 @@ class TarjetaGst {
     TarjetaGst& operator=(const TarjetaGst&) = delete;
 
     const std::string& elemento() const { return elemento_; }
-    /// Cambia propiedades en vivo (las que no cambiaron, no se tocan).
+    /// Cambia propiedades en vivo (las que no cambiaron, no se tocan). Si se
+    /// sacó alguna (vuelve a fábrica), el pipeline se rearma en el próximo cuadro.
     void ajustar(const std::map<std::string, std::string>& propiedades);
     /// Pasa `entrada` (cx x cy, alfa premultiplicado) por el módulo y dibuja el
     /// resultado en el render target actual (ya preparado con gs_ortho).
@@ -59,11 +67,13 @@ class TarjetaGst {
 
    private:
     bool armar(std::uint32_t cx, std::uint32_t cy);
+    void avisar();
     void desarmar();
 
     std::string elemento_;
     std::map<std::string, std::string> props_;
     std::string error_;
+    std::string avisado_; ///< el último error que fue al log
     GstElement* pipeline_ = nullptr;
     GstElement* src_ = nullptr;
     GstElement* sink_ = nullptr;
@@ -74,6 +84,8 @@ class TarjetaGst {
     gs_stagesurf_t* stage_ = nullptr;
     gs_texture_t* subida_ = nullptr; ///< lo que devolvió GStreamer
     bool haySubida_ = false;
+    std::mutex propsLock_; ///< ajustar (el hilo del plan) contra armar (el de video)
+    std::atomic<bool> rearmar_{false};
 };
 
 } // namespace ba::gst
