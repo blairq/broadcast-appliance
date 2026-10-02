@@ -298,7 +298,20 @@ def main():
         for g in opt.param_groups:
             g["lr"] = lr_en(paso)
         if args.micro and args.micro < len(mio):
-            suma, n = paso_amortizado(mio, args.micro)   # ya hizo el backward
+            # si un lote con respuestas largas no entra, se reintenta EL MISMO paso con
+            # micro-lotes mas chicos (mismo gradiente) en vez de tirar la corrida
+            micro = args.micro
+            while True:
+                try:
+                    suma, n = paso_amortizado(mio, micro)   # ya hizo el backward
+                    break
+                except torch.OutOfMemoryError:
+                    opt.zero_grad(set_to_none=True)
+                    torch.cuda.empty_cache()
+                    if micro <= 1:
+                        raise
+                    micro = max(1, micro // 2)
+                    print(f"  paso {paso + 1}: sin memoria, reintento con micro-lotes de {micro}", flush=True)
             n_tot = n
         else:
             suma, n = perdida(mio)
