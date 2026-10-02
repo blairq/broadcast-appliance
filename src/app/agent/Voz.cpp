@@ -441,8 +441,15 @@ void Voz::completar(int id, const QString& frase, const QString& h, const FichaH
         bitacora(id, "modelo_pedido",
                  {{"op", "generar"}, {"herramienta", h.toStdString()}, {"prompt", texto}});
         const auto t0 = std::chrono::steady_clock::now();
+        // Más lugar si la herramienta lleva listas u objetos (scene_define arma una escena entera).
+        int maxTokens = 96;
+        for (const auto& [clave, prop] : ficha.ficha.value("inputSchema", nlohmann::json::object())
+                                             .value("properties", nlohmann::json::object())
+                                             .items())
+            if (prop.value("type", std::string()) == "array" || prop.value("type", std::string()) == "object")
+                maxTokens = 256;
         modelos_.generar(
-            QString::fromStdString(texto), false, 96, {},
+            QString::fromStdString(texto), false, maxTokens, {},
             [this, id, frase, h, ficha, estado, t0](const nlohmann::json& j) {
                 const double ms =
                     std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();

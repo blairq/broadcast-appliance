@@ -75,6 +75,7 @@ std::vector<std::string> candidatos(const std::string& herr, const std::string& 
         return v;
     }
     if (empieza(herr, {"grafico_", "rotulo_"})) return graficos;
+    if (empieza(herr, {"laminas_"}) && k == "carrusel") return lista(estado, "carruseles");
     if (empieza(herr, {"participant_", "speaker_", "capture_person"})) return gente;
     std::vector<std::string> todo = escenas;
     for (const auto* l : {&fuentes, &audio, &gente, &graficos})
@@ -137,8 +138,26 @@ std::string sistemaPorDefecto() {
     return "Completás los argumentos de UNA herramienta. Respondé SOLO un objeto JSON en una línea.";
 }
 
+json estadoPara(const std::string& h, const json& estado) {
+    const auto con = [&](std::initializer_list<const char*> claves) {
+        json out = json::object();
+        for (const char* k : claves)
+            if (estado.contains(k)) out[k] = estado[k];
+        return out;
+    };
+    if (empieza(h, {"scene_", "transition_"})) return con({"escena_actual", "escena_armada", "escenas"});
+    if (empieza(h, {"audio", "mixer_"})) return con({"audio"});
+    if (empieza(h, {"source_", "capture_source"}))
+        return con({"escena_actual", "escenas", "fuentes_de_la_escena_actual", "audio"});
+    if (empieza(h, {"participant_", "speaker_", "chat_", "capture_person"})) return con({"participantes"});
+    if (empieza(h, {"grafico_", "rotulo_"})) return con({"graficos", "escena_actual"});
+    if (empieza(h, {"laminas_"})) return con({"carruseles", "escenas", "escena_actual"});
+    return estado;
+}
+
 std::string prompt(const std::string& sistema, const std::string& herramienta, const json& ficha,
-                   const json& estado, const std::string& frase) {
+                   const json& estadoCompleto, const std::string& frase) {
+    const json estado = estadoPara(herramienta, estadoCompleto);
     std::string desc = ficha.value("description", std::string());
     if (desc.size() > 700) desc = desc.substr(0, 700);
     const std::string usuario =
@@ -184,9 +203,15 @@ json leer(const std::string& generado, const std::string& herramienta) {
         const std::regex soloNombre("\\{\\s*" + herramienta + "[^{}\"]*\\}");
         if (std::regex_match(t, soloNombre)) return json::object();
     }
+    // «{capture_ui, format: "jpeg"}»: el nombre de la herramienta y después las claves.
+    std::string base = t;
+    if (!herramienta.empty()) {
+        const std::regex nombreAdelante("^\\{\\s*" + herramienta + "\\s*,");
+        base = std::regex_replace(t, nombreAdelante, "{");
+    }
     // Tal cual, o con las claves sin comillas entre comillas.
     static const std::regex sinComillas(R"(([{,]\s*)([A-Za-z_]\w*)\s*:)");
-    for (const std::string& intento : {t, std::regex_replace(t, sinComillas, "$1\"$2\":")}) {
+    for (const std::string& intento : {base, std::regex_replace(base, sinComillas, "$1\"$2\":")}) {
         json j = json::parse(intento, nullptr, false);
         if (!j.is_object()) continue;
         // Envuelto en el nombre de la herramienta.
@@ -197,10 +222,22 @@ json leer(const std::string& generado, const std::string& herramienta) {
     return json();
 }
 
-Resultado validar(const std::string& herr, const json& ficha, const json& args, const json& estado) {
+Resultado validar(const std::string& herr, const json& ficha, const json& args0, const json& estado) {
     Resultado r;
     const json esquema = ficha.value("inputSchema", json::object());
     const json props = esquema.value("properties", json::object());
+    // Envuelto en una sola clave que no es del esquema ({"properties": {"name": …}}).
+    json args = args0;
+    if (args.is_object() && args.size() == 1 && !props.contains(args.begin().key()) &&
+        args.begin().value().is_object()) {
+        r.notas.push_back("desenvuelto de «" + args.begin().key() + "»");
+        args = json(args.begin().value());
+    }
+    // Lo que el modelo copia en vez de un dato: un texto con forma de
+    // herramienta («scene_take», «grafico_en_escena») o un comodín de la
+    // descripción («guest:N»).
+    static const std::regex formaDeHerramienta("^[a-z]+(_[a-z]+)+$");
+    static const std::regex comodin(".*:[A-Z]$");
     std::map<std::string, double> volumen;
     for (const auto& a : estado.value("audio", json::array()))
         if (a.is_object()) volumen[a.value("nombre", std::string())] = a.value("volumen_db", 0.0);
@@ -215,10 +252,18 @@ Resultado validar(const std::string& herr, const json& ficha, const json& args, 
         }
         const json& p = props[k];
         const std::string tipo = p.value("type", std::string());
-        if (v.is_string() && v.get<std::string>() == herr) {
-            r.notas.push_back("el nombre de la herramienta como valor de " + k + ": afuera");
+        if (v.is_string() && v.get<std::string>().empty()) {
+            r.notas.push_back("vacío: afuera " + k);
             continue;
         }
+        if (v.is_string() &&
+            (v.get<std::string>() == herr ||
+             (std::regex_match(v.get<std::string>(), formaDeHerramienta) && !p.contains("enum")) ||
+             std::regex_match(v.get<std::string>(), comodin))) {
+            r.notas.push_back("«" + v.get<std::string>() + "» no es un dato: afuera " + k);
+            continue;
+        }
+
         // Un valor que la descripción del argumento nombra ("all", "operator"…).
         const std::string desc = p.value("description", std::string());
         const bool especial =

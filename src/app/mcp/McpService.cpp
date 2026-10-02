@@ -308,8 +308,12 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
     if (auto* voz = qobject_cast<agent::Voz*>(vm_.voz()); voz != nullptr) {
         // Una herramienta, por el núcleo, con lo que devuelve como JSON (el
         // estructurado o el texto) y si fue error.
-        const auto llamar = [this](const std::string& nombre, const json& args,
-                                   std::function<void(bool, const json&, const std::string&)> fin) {
+        // Dos sesiones: la que LEE el estado (lee nombres de invitados, y el
+        // núcleo la marca contaminada) no es la que ACTÚA. Si fueran la misma,
+        // cada acción de voz pediría aprobación a mano. La frase la dijo el
+        // operador; los nombres leídos solo se usan para validar.
+        const auto llamarEn = [this](const std::string& sesion, const std::string& nombre, const json& args,
+                                     std::function<void(bool, const json&, const std::string&)> fin) {
             core_.callTool(
                 json{{"name", nombre}, {"arguments", args}},
                 [fin](const json& r) {
@@ -320,7 +324,15 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
                     if (datos.is_null()) datos = json::parse(texto, nullptr, false);
                     fin(!r.value("isError", false), datos.is_discarded() ? json() : datos, texto);
                 },
-                CallContext{"voz-modelo-local", ""});
+                CallContext{sesion, ""});
+        };
+        const auto llamar = [llamarEn](const std::string& nombre, const json& args,
+                                       std::function<void(bool, const json&, const std::string&)> fin) {
+            llamarEn("voz-modelo-local", nombre, args, std::move(fin));
+        };
+        const auto leer = [llamarEn](const std::string& nombre, const json& args,
+                                     std::function<void(bool, const json&, const std::string&)> fin) {
+            llamarEn("voz-modelo-local-estado", nombre, args, std::move(fin));
         };
         voz->setHerramientas(
             [this](const QString& nombre) {
@@ -345,22 +357,22 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
             },
             // El estado que ve el modelo para completar argumentos: los nombres
             // que existen y el volumen de cada fuente de audio.
-            [llamar](std::function<void(json)> listo) {
+            [leer](std::function<void(json)> listo) {
                 auto estado = std::make_shared<json>(json::object());
-                llamar("scene_list", json::object(), [=](bool, const json& sl, const std::string&) {
+                leer("scene_list", json::object(), [=](bool, const json& sl, const std::string&) {
                     json escenas = json::array();
                     for (const auto& e : sl.value("scenes", json::array()))
                         escenas.push_back(e.value("name", std::string()));
                     (*estado)["escena_actual"] = sl.value("current", std::string());
                     (*estado)["escena_armada"] = sl.value("armada", std::string());
                     (*estado)["escenas"] = escenas;
-                    llamar("source_list", json::object(), [=](bool, const json& src, const std::string&) {
+                    leer("source_list", json::object(), [=](bool, const json& src, const std::string&) {
                         json fuentes = json::array();
                         for (const auto& f : src.value("sources", json::array()))
                             fuentes.push_back({{"nombre", f.value("name", std::string())},
                                                {"visible", f.value("visible", true)}});
                         (*estado)["fuentes_de_la_escena_actual"] = fuentes;
-                        llamar("mixer_list", json::object(), [=](bool, const json& mx, const std::string&) {
+                        leer("mixer_list", json::object(), [=](bool, const json& mx, const std::string&) {
                             json audio = json::array();
                             for (const auto& a : mx.value("sources", json::array()))
                                 audio.push_back(
@@ -368,23 +380,34 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
                                      {"volumen_db", std::round(a.value("volumeDb", 0.0) * 10.0) / 10.0},
                                      {"silenciada", a.value("muted", false)}});
                             (*estado)["audio"] = audio;
-                            llamar("room_status", json::object(),
-                                   [=](bool, const json& rs, const std::string&) {
-                                       json gente = json::array();
-                                       for (const auto& x : rs.value("participants", json::array()))
-                                           gente.push_back({{"id", x.value("id", std::string())},
-                                                            {"nombre", x.value("name", std::string())},
-                                                            {"estado", x.value("state", std::string())}});
-                                       (*estado)["participantes"] = gente;
-                                       llamar("grafico_listar", json::object(),
-                                              [=](bool, const json& gr, const std::string&) {
-                                                  json graficos = json::array();
-                                                  for (const auto& g : gr.value("graficos", json::array()))
-                                                      graficos.push_back(g.value("nombre", std::string()));
-                                                  (*estado)["graficos"] = graficos;
-                                                  listo(*estado);
-                                              });
-                                   });
+                            leer("room_status", json::object(),
+                                 [=](bool, const json& rs, const std::string&) {
+                                     json gente = json::array();
+                                     for (const auto& x : rs.value("participants", json::array()))
+                                         gente.push_back({{"id", x.value("id", std::string())},
+                                                          {"nombre", x.value("name", std::string())},
+                                                          {"estado", x.value("state", std::string())}});
+                                     (*estado)["participantes"] = gente;
+                                     leer("grafico_listar", json::object(),
+                                          [=](bool, const json& gr, const std::string&) {
+                                              json graficos = json::array();
+                                              for (const auto& g : gr.value("graficos", json::array()))
+                                                  graficos.push_back(g.value("nombre", std::string()));
+                                              (*estado)["graficos"] = graficos;
+                                              leer("laminas_listar", json::object(),
+                                                   [=](bool, const json& la, const std::string&) {
+                                                       json carruseles = json::array();
+                                                       for (const auto& c :
+                                                            la.value("carruseles", json::array()))
+                                                           carruseles.push_back(
+                                                               c.is_string()
+                                                                   ? c.get<std::string>()
+                                                                   : c.value("nombre", std::string()));
+                                                       (*estado)["carruseles"] = carruseles;
+                                                       listo(*estado);
+                                                   });
+                                          });
+                                 });
                         });
                     });
                 });

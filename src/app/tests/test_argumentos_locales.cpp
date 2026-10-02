@@ -112,6 +112,29 @@ int main() {
         (argumentos::resumen(json{{"name", "Música"}, {"volumeDb", -16}}) == "name: Música · volumeDb: -16"),
         "resumen legible");
 
+    // v6: lo que el modelo copia en vez de un dato, y las formas raras.
+    const json kProps =
+        json::parse(R"J({"inputSchema": {"type": "object", "properties": {"name": {"type": "string"}},
+                                         "required": ["name"]}})J");
+    r = validar("source_properties", kProps, json{{"properties", {{"name", "Logo"}}}}, kEstado);
+    CHECK(r.args.value("name", "") == "Logo" && r.bloqueos.empty(),
+          "desenvuelto de una clave que no es del esquema");
+    r = validar("scene_preview", kSceneSwitch, json{{"name", "scene_take"}}, kEstado);
+    CHECK(!r.args.contains("name") && !r.bloqueos.empty(),
+          "un nombre de herramienta como dato: afuera (y falta)");
+    const json kFeed = json::parse(R"J({"inputSchema": {"type": "object", "properties": {
+        "key": {"type": "string", "description": "operator, guest:N o share:ID"}}}})J");
+    r = validar("capture_feed", kFeed, json{{"key", "guest:N"}}, kEstado);
+    CHECK(!r.args.contains("key"), "el comodín de la descripción (guest:N): afuera");
+    r = validar("scene_export", kSceneSwitch, json{{"name", ""}}, kEstado);
+    CHECK(!r.args.contains("name"), "texto vacío: afuera");
+    CHECK((argumentos::leer(R"(capture_ui, format: "jpeg", maxWidth: 1280})", "capture_ui") ==
+           json{{"format", "jpeg"}, {"maxWidth", 1280}}),
+          "leer: «{herramienta, clave: …}»");
+    CHECK((argumentos::estadoPara("scene_switch", kEstado).contains("escenas") &&
+           !argumentos::estadoPara("scene_switch", kEstado).contains("audio")),
+          "estadoPara: a una de escenas, solo las escenas");
+
     std::printf(g_failures == 0 ? "test_argumentos_locales: OK\n" : "test_argumentos_locales: %d fallos\n",
                 g_failures);
     return g_failures == 0 ? 0 : 1;
