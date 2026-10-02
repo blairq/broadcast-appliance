@@ -8,14 +8,6 @@
    }
   },
   {
-   "frase": "Siento un zumbido en 50 Hz, medí el espectro del in y confirmalo",
-   "plantilla": "Siento un zumbido en 50 Hz, medí el espectro del in y confirmalo",
-   "args": {
-    "source": "{audio_operador}",
-    "punto": "in"
-   }
-  },
-  {
    "frase": "No me convence cómo suenan los agudos, analizá el espectro en el punto de salida",
    "plantilla": "No me convence cómo suenan los agudos, analizá el espectro en el punto de salida",
    "args": {
@@ -153,6 +145,27 @@
    "frase": "pasame los números del out de un canal de la consola",
    "plantilla": "pasame los números del out de un canal de la consola",
    "falta": "¿De qué canal?",
+   "nueva": true
+  },
+  {
+   "frase": "Siento un zumbido en 50 Hz, medí el espectro del in y confirmalo",
+   "plantilla": "hay zumbido en 50 Hz, analizá el espectro en el punto in",
+   "args": {
+    "source": "{audio_operador}",
+    "punto": "in"
+   },
+   "duda": "«medí» es de audio_measure; además no nombra la fuente, se toma el micrófono del operador"
+  },
+  {
+   "frase": "analizá el espectro de una fuente durante 10 segundos",
+   "plantilla": "analizá el espectro de una fuente durante 10 segundos",
+   "falta": "¿De qué fuente de audio?",
+   "nueva": true
+  },
+  {
+   "frase": "analizá el espectro en el punto out de una entrada",
+   "plantilla": "analizá el espectro en el punto out de una entrada",
+   "falta": "¿De qué fuente de audio?",
    "nueva": true
   }
  ],
@@ -641,26 +654,10 @@
    }
   },
   {
-   "frase": "el audio del conductor llega antes que su imagen, retrasalo 40 ms para que den los labios",
-   "plantilla": "el audio de {persona} llega antes que su imagen, retrasalo 40 ms para que den los labios",
-   "args": {
-    "name": "{persona}",
-    "ms": "+40"
-   }
-  },
-  {
    "frase": "no coinciden los labios del invitado con lo que dice, sincronizá su audio",
    "plantilla": "no coinciden los labios de {persona} con lo que dice, sincronizá su audio",
    "args": {
     "name": "{persona}"
-   }
-  },
-  {
-   "frase": "habla y la boca se mueve después, retrasá el audio de la Cámara 2",
-   "plantilla": "habla y la boca se mueve después, retrasá el audio de {fuente}",
-   "args": {
-    "name": "{fuente}",
-    "ms": "+6"
    }
   },
   {
@@ -713,6 +710,35 @@
    "frase": "hay una cámara con los labios desfasados, sincronizala",
    "plantilla": "hay una cámara con los labios desfasados, sincronizala",
    "falta": "¿Qué cámara está desfasada?",
+   "nueva": true
+  },
+  {
+   "frase": "el audio del conductor llega antes que su imagen, retrasalo 40 ms para que den los labios",
+   "plantilla": "retrasá {audio} 40 ms, llega antes que la imagen",
+   "args": {
+    "name": "{audio}",
+    "ms": "+40"
+   }
+  },
+  {
+   "frase": "habla y la boca se mueve después, retrasá el audio de la Cámara 2",
+   "plantilla": "el audio llega antes que la boca, retrasá el audio de {audio}",
+   "args": {
+    "name": "{audio}",
+    "ms": "+6"
+   },
+   "duda": "«habla» es de participant_talk; la frase no dice cuántos ms, se usa la convención de 6"
+  },
+  {
+   "frase": "retrasá el audio de una cámara 40 ms",
+   "plantilla": "retrasá el audio de una cámara 40 ms",
+   "falta": "¿De qué fuente?",
+   "nueva": true
+  },
+  {
+   "frase": "el audio va adelantado del video, sincronizá la fuente",
+   "plantilla": "el audio va adelantado del video, sincronizá la fuente",
+   "falta": "¿Qué fuente?",
    "nueva": true
   }
  ],
@@ -1378,13 +1404,6 @@
    }
   },
   {
-   "frase": "Mostrame la fuente Fondo Estudio tal cual está ahora",
-   "plantilla": "Mostrame {fuente} tal cual está ahora",
-   "args": {
-    "name": "{fuente}"
-   }
-  },
-  {
    "frase": "Una imagen de la fuente Titular, a ver si se lee",
    "plantilla": "Una imagen de {fuente}, a ver si se lee",
    "args": {
@@ -1437,6 +1456,49 @@
    "frase": "sacale una foto a la cámara, quiero chequear el encuadre",
    "plantilla": "sacale una foto a la cámara, quiero chequear el encuadre",
    "falta": "¿De qué cámara?",
+   "nueva": true
+  },
+  {
+   "frase": "capturá la imagen actual de una fuente",
+   "plantilla": "capturá la imagen actual de una fuente",
+   "falta": "¿De qué fuente o escena?",
+   "nueva": true
+  },
+  {
+   "frase": "capturá la imagen de una escena en png",
+   "plantilla": "capturá la imagen de una escena en png",
+   "falta": "¿De qué escena?",
+   "nueva": true
+  },
+  {
+   "frase": "mostrame la imagen actual de la fuente",
+   "plantilla": "mostrame la imagen actual de la fuente",
+   "falta": "¿De qué fuente o escena?",
+   "nueva": true
+  },
+  {
+   "frase": "quiero ver la imagen actual de una escena",
+   "plantilla": "quiero ver la imagen actual de una escena",
+   "falta": "¿De qué escena?",
+   "nueva": true
+  },
+  {
+   "frase": "Mostrame la fuente Fondo Estudio tal cual está ahora",
+   "plantilla": "capturá la imagen actual de {fuente}",
+   "args": {
+    "name": "{fuente}"
+   }
+  },
+  {
+   "frase": "capturá la imagen actual de una fuente",
+   "plantilla": "capturá la imagen actual de una fuente",
+   "falta": "¿De qué fuente o escena?",
+   "nueva": true
+  },
+  {
+   "frase": "capturá una imagen ahora",
+   "plantilla": "capturá una imagen ahora",
+   "falta": "¿De qué fuente o escena?",
    "nueva": true
   }
  ],
@@ -1710,14 +1772,6 @@
    }
   },
   {
-   "frase": "escribile a Pablo por chat: estás tercero, preparate",
-   "plantilla": "escribile a {persona} por chat: estás tercero, preparate",
-   "args": {
-    "text": "estás tercero, preparate",
-    "to": "{persona}"
-   }
-  },
-  {
    "frase": "mandá al chat: gracias a todos, cerramos acá",
    "plantilla": "mandá al chat: gracias a todos, cerramos acá",
    "args": {
@@ -1734,6 +1788,50 @@
    "frase": "escribí algo en el chat de la sala",
    "plantilla": "escribí algo en el chat de la sala",
    "falta": "¿Qué mensaje mando?",
+   "nueva": true
+  },
+  {
+   "frase": "escribile un mensaje por chat a Pablo",
+   "plantilla": "escribile un mensaje por chat a {persona}",
+   "falta": "¿Qué mensaje?",
+   "nueva": true
+  },
+  {
+   "frase": "escribí un mensaje en el chat de la sala",
+   "plantilla": "escribí un mensaje en el chat de la sala",
+   "falta": "¿Qué texto?",
+   "nueva": true
+  },
+  {
+   "frase": "escribile un mensaje por chat a Pablo",
+   "plantilla": "escribile un mensaje por chat a {persona}",
+   "falta": "¿Qué texto le escribo?",
+   "nueva": true
+  },
+  {
+   "frase": "escribí un mensaje en el chat de la sala",
+   "plantilla": "escribí un mensaje en el chat de la sala",
+   "falta": "¿Qué texto escribo?",
+   "nueva": true
+  },
+  {
+   "frase": "escribile a Pablo por chat: estás tercero, preparate",
+   "plantilla": "escribile a {persona} por chat: \"estás tercero, preparate\"",
+   "args": {
+    "text": "estás tercero, preparate",
+    "to": "{persona}"
+   }
+  },
+  {
+   "frase": "escribí un mensaje en el chat",
+   "plantilla": "escribí un mensaje en el chat",
+   "falta": "¿Qué mensaje escribo?",
+   "nueva": true
+  },
+  {
+   "frase": "escribile a Pablo por chat",
+   "plantilla": "escribile a {persona} por chat",
+   "falta": "¿Qué le escribo?",
    "nueva": true
   }
  ],
@@ -2460,18 +2558,8 @@
    "falta": "¿Qué fuente dejo transparente?"
   },
   {
-   "frase": "Sigue clavado el gráfico de encuestas al aire, bajalo.",
-   "plantilla": "Sigue clavado el gráfico de encuestas al aire, bajalo.",
-   "falta": "¿Qué fuente dejo transparente?"
-  },
-  {
    "frase": "Levantá el gráfico animado del aire",
    "plantilla": "Levantá el gráfico animado del aire",
-   "falta": "¿Qué fuente dejo transparente?"
-  },
-  {
-   "frase": "El gráfico de barras tapa al invitado, poné su fuente en transparente",
-   "plantilla": "El gráfico de barras tapa al invitado, poné su fuente en transparente",
    "falta": "¿Qué fuente dejo transparente?"
   },
   {
@@ -2489,6 +2577,55 @@
    "frase": "dejá transparente el gráfico",
    "plantilla": "dejá transparente el gráfico",
    "falta": "¿Qué fuente dejo transparente?",
+   "nueva": true
+  },
+  {
+   "frase": "ocultá un gráfico de la pantalla",
+   "plantilla": "ocultá un gráfico de la pantalla",
+   "falta": "¿Qué gráfico?",
+   "nueva": true
+  },
+  {
+   "frase": "hay un gráfico de más al aire, ocultá el gráfico",
+   "plantilla": "hay un gráfico de más al aire, ocultá el gráfico",
+   "falta": "¿Qué gráfico?",
+   "nueva": true
+  },
+  {
+   "frase": "Sigue clavado el gráfico de encuestas al aire, bajalo.",
+   "plantilla": "{grafico} sigue al aire, ocultá {grafico}",
+   "falta": "¿Qué número de fuente tiene {grafico}?",
+   "duda": "el esquema pide la fuente como número entero y la frase nombra el gráfico, no su número"
+  },
+  {
+   "frase": "ocultá el gráfico que está al aire",
+   "plantilla": "ocultá el gráfico que está al aire",
+   "falta": "¿Qué gráfico?",
+   "nueva": true
+  },
+  {
+   "frase": "El gráfico de barras tapa al invitado, poné su fuente en transparente",
+   "plantilla": "ocultá {grafico}, tapa al invitado",
+   "args": {
+    "fuente": "{grafico}"
+   },
+   "duda": "el esquema pide un entero para fuente; va el hueco del gráfico"
+  },
+  {
+   "frase": "poné una fuente en transparente",
+   "plantilla": "ocultá una fuente",
+   "falta": "¿Qué fuente oculto?"
+  },
+  {
+   "frase": "ocultá el gráfico",
+   "plantilla": "ocultá el gráfico",
+   "falta": "¿Qué gráfico oculto?",
+   "nueva": true
+  },
+  {
+   "frase": "dejá transparente una fuente",
+   "plantilla": "dejá transparente una fuente",
+   "falta": "¿Qué fuente oculto?",
    "nueva": true
   }
  ],
@@ -3063,11 +3200,6 @@
    "falta": "¿En qué carrusel?"
   },
   {
-   "frase": "seguí",
-   "plantilla": "seguí",
-   "falta": "¿En qué carrusel?"
-  },
-  {
    "frase": "volvé a la anterior",
    "plantilla": "volvé a la anterior",
    "falta": "¿En qué carrusel?"
@@ -3080,11 +3212,6 @@
   {
    "frase": "clavá la número 7",
    "plantilla": "clavá la número 7",
-   "falta": "¿En qué carrusel?"
-  },
-  {
-   "frase": "mostrá la cuatro",
-   "plantilla": "mostrá la cuatro",
    "falta": "¿En qué carrusel?"
   },
   {
@@ -3118,11 +3245,6 @@
   {
    "frase": "Andá a la lámina doce sin pasar por las anteriores",
    "plantilla": "Andá a la lámina doce sin pasar por las anteriores",
-   "falta": "¿En qué carrusel?"
-  },
-  {
-   "frase": "El conductor pide la lámina cinco, saltá ya",
-   "plantilla": "El conductor pide la lámina cinco, saltá ya",
    "falta": "¿En qué carrusel?"
   },
   {
@@ -3187,6 +3309,48 @@
   {
    "frase": "mandá al aire la lámina 4",
    "plantilla": "mandá al aire la lámina 4",
+   "falta": "¿En qué carrusel?",
+   "nueva": true
+  },
+  {
+   "frase": "mostrá la cuatro",
+   "plantilla": "andá a la lámina cuatro",
+   "falta": "¿En qué carrusel?",
+   "duda": "«mostrá» no lleva a laminas_ir; se reescribe con «andá a la lámina»"
+  },
+  {
+   "frase": "El conductor pide la lámina cinco, saltá ya",
+   "plantilla": "andá a la lámina cinco ya, la pide el conductor",
+   "falta": "¿En qué carrusel?",
+   "duda": "«saltá» sin objeto; se reescribe con «andá a la lámina»"
+  },
+  {
+   "frase": "andá a la lámina dos",
+   "plantilla": "andá a la lámina dos",
+   "falta": "¿En qué carrusel?",
+   "nueva": true
+  },
+  {
+   "frase": "volvé a la lámina anterior",
+   "plantilla": "volvé a la lámina anterior",
+   "falta": "¿En qué carrusel?",
+   "nueva": true
+  },
+  {
+   "frase": "seguí",
+   "plantilla": "poné la lámina siguiente",
+   "falta": "¿En qué carrusel?",
+   "duda": "la frase no nombra lámina ni carrusel; se interpreta como lámina siguiente"
+  },
+  {
+   "frase": "poné la lámina número 3",
+   "plantilla": "poné la lámina número 3",
+   "falta": "¿En qué carrusel?",
+   "nueva": true
+  },
+  {
+   "frase": "poné la lámina anterior del carrusel",
+   "plantilla": "poné la lámina anterior del carrusel",
    "falta": "¿En qué carrusel?",
    "nueva": true
   }
@@ -3565,16 +3729,6 @@
  ],
  "participant_admit": [
   {
-   "frase": "hacelo pasar",
-   "plantilla": "hacelo pasar",
-   "falta": "¿A quién hago pasar?"
-  },
-  {
-   "frase": "dejalo entrar",
-   "plantilla": "dejalo entrar",
-   "falta": "¿A quién dejo entrar?"
-  },
-  {
    "frase": "que pase Marta",
    "plantilla": "que pase {persona}",
    "args": {
@@ -3650,13 +3804,6 @@
    }
   },
   {
-   "frase": "Abrile la puerta del lobby a Valeria",
-   "plantilla": "Abrile la puerta del lobby a {persona}",
-   "args": {
-    "participant": "{persona}"
-   }
-  },
-  {
    "frase": "admití al que está esperando",
    "plantilla": "admití al que está esperando",
    "falta": "¿A quién del lobby hago pasar?",
@@ -3666,6 +3813,35 @@
    "frase": "dale, que entre",
    "plantilla": "dale, que entre",
    "falta": "¿Quién tiene que entrar?",
+   "nueva": true
+  },
+  {
+   "frase": "hacelo pasar",
+   "plantilla": "hacelo pasar a la sala",
+   "falta": "¿A quién hago pasar?"
+  },
+  {
+   "frase": "dejalo entrar",
+   "plantilla": "dejalo entrar a la sala",
+   "falta": "¿A quién dejo entrar?"
+  },
+  {
+   "frase": "Abrile la puerta del lobby a Valeria",
+   "plantilla": "hacé pasar a {persona} del lobby a la sala",
+   "args": {
+    "participant": "{persona}"
+   }
+  },
+  {
+   "frase": "hacé pasar al que espera en el lobby",
+   "plantilla": "hacé pasar a la sala al del lobby",
+   "falta": "¿A quién hago pasar?",
+   "nueva": true
+  },
+  {
+   "frase": "deja entrar a la sala a uno del lobby",
+   "plantilla": "deja entrar a la sala a uno del lobby",
+   "falta": "¿A quién dejo entrar?",
    "nueva": true
   }
  ],
@@ -3753,24 +3929,9 @@
  ],
  "participant_kick": [
   {
-   "frase": "sacalo ya",
-   "plantilla": "sacalo ya",
-   "falta": "¿A quién saco de la sala?"
-  },
-  {
-   "frase": "desconectalo",
-   "plantilla": "desconectalo",
-   "falta": "¿A quién desconecto?"
-  },
-  {
    "frase": "sacalo de la sala a esa persona",
    "plantilla": "sacalo de la sala a esa persona",
    "falta": "¿A quién saco de la sala?"
-  },
-  {
-   "frase": "ese invitado ya adentro está molestando, desconectalo",
-   "plantilla": "ese invitado ya adentro está molestando, desconectalo",
-   "falta": "¿Qué invitado desconecto?"
   },
   {
    "frase": "echá de la sala a Pérez, ya estaba adentro",
@@ -3842,6 +4003,33 @@
    "plantilla": "sacá a uno de adentro que no tendría que estar",
    "falta": "¿A quién saco?",
    "nueva": true
+  },
+  {
+   "frase": "sacalo ya",
+   "plantilla": "sacalo de la sala ya",
+   "falta": "¿A quién saco de la sala?"
+  },
+  {
+   "frase": "desconectalo",
+   "plantilla": "sacalo de la sala ahora",
+   "falta": "¿A quién saco de la sala?"
+  },
+  {
+   "frase": "ese invitado ya adentro está molestando, desconectalo",
+   "plantilla": "sacá de la sala a ese invitado molesto",
+   "falta": "¿A quién saco de la sala?"
+  },
+  {
+   "frase": "sacá a un invitado de la sala",
+   "plantilla": "sacá a un invitado de la sala",
+   "falta": "¿A quién saco de la sala?",
+   "nueva": true
+  },
+  {
+   "frase": "che, saca de la sala al que molesta",
+   "plantilla": "che, saca de la sala al que molesta",
+   "falta": "¿A quién saco de la sala?",
+   "nueva": true
   }
  ],
  "participant_profile": [
@@ -3898,14 +4086,6 @@
    "frase": "corregile el nombre a Gonzalo, lo escribió con s",
    "plantilla": "corregile el nombre a {persona}, lo escribió mal",
    "falta": "¿Cómo se escribe el nombre correcto?"
-  },
-  {
-   "frase": "sumale en info a la diputada: bloque oficialista, habla segunda",
-   "plantilla": "sumale en info a {persona}: bloque oficialista, habla segunda",
-   "args": {
-    "participant": "{persona}",
-    "info": "bloque oficialista, habla segunda"
-   }
   },
   {
    "frase": "cambiale el nombre a Invitado 4 por Rocío Díaz",
@@ -3968,6 +4148,26 @@
    "plantilla": "cambiale el nombre por Laura Pérez",
    "falta": "¿A quién le cambio el nombre?",
    "nueva": true
+  },
+  {
+   "frase": "sumale en info a la diputada: bloque oficialista, habla segunda",
+   "plantilla": "sumale en info a {persona}: bloque oficialista, segunda oradora",
+   "args": {
+    "participant": "{persona}",
+    "info": "bloque oficialista, segunda oradora"
+   }
+  },
+  {
+   "frase": "cambiá la info del perfil: bloque opositor",
+   "plantilla": "cambiá la info del perfil: bloque opositor",
+   "falta": "¿De quién cambio la info?",
+   "nueva": true
+  },
+  {
+   "frase": "cambiale el nombre en el perfil a Dra. Ruiz",
+   "plantilla": "cambiale el nombre en el perfil a Dra. Ruiz",
+   "falta": "¿A qué persona le cambio el nombre?",
+   "nueva": true
   }
  ],
  "participant_reject": [
@@ -4004,13 +4204,6 @@
   {
    "frase": "El que dice test123 en el lobby, rechazalo",
    "plantilla": "El que dice {persona} en el lobby, rechazalo",
-   "args": {
-    "participant": "{persona}"
-   }
-  },
-  {
-   "frase": "A Martín no lo hagas pasar, cerrale la sesión",
-   "plantilla": "A {persona} no lo hagas pasar, cerrale la sesión",
    "args": {
     "participant": "{persona}"
    }
@@ -4086,9 +4279,27 @@
    "nueva": true
   },
   {
+   "frase": "A Martín no lo hagas pasar, cerrale la sesión",
+   "plantilla": "negale la entrada a {persona} del lobby",
+   "args": {
+    "participant": "{persona}"
+   }
+  },
+  {
    "frase": "ese no pasa, cerrale la sesión",
-   "plantilla": "ese no pasa, cerrale la sesión",
-   "falta": "¿A quién le cierro la sesión?",
+   "plantilla": "negale la entrada a ese del lobby",
+   "falta": "¿A quién le niego la entrada?"
+  },
+  {
+   "frase": "negale la entrada a uno del lobby",
+   "plantilla": "negale la entrada a uno del lobby",
+   "falta": "¿A quién le niego la entrada?",
+   "nueva": true
+  },
+  {
+   "frase": "rechazá la entrada del lobby, dale",
+   "plantilla": "rechazá la entrada del lobby, dale",
+   "falta": "¿A quién le niego la entrada?",
    "nueva": true
   }
  ],
@@ -4220,11 +4431,6 @@
    }
   },
   {
-   "frase": "ese ya hablo, que vuelva atras",
-   "plantilla": "ese ya hablo, que vuelva atras",
-   "falta": "¿Quién vuelve al final de la fila?"
-  },
-  {
    "frase": "Diego ya habló, mandalo al final de la fila",
    "plantilla": "{persona} ya habló, mandalo al final de la fila",
    "args": {
@@ -4325,6 +4531,23 @@
    "plantilla": "volvé a encolar al que acaba de hablar",
    "falta": "¿Quién acaba de hablar? Decime el nombre.",
    "nueva": true
+  },
+  {
+   "frase": "ese ya hablo, que vuelva atras",
+   "plantilla": "mandá a ese orador al final de la fila",
+   "falta": "¿Qué orador vuelve al final de la fila?"
+  },
+  {
+   "frase": "mandá al orador al final de la fila",
+   "plantilla": "mandá al orador al final de la fila",
+   "falta": "¿Qué orador vuelve al final de la fila?",
+   "nueva": true
+  },
+  {
+   "frase": "ponelo al final de la fila de oradores",
+   "plantilla": "ponelo al final de la fila de oradores",
+   "falta": "¿Qué orador vuelve al final de la fila?",
+   "nueva": true
   }
  ],
  "participant_talk": [
@@ -4339,22 +4562,6 @@
   {
    "frase": "hablemos por privado con Nicolás antes de que entre",
    "plantilla": "hablemos por privado con {persona} antes de que entre",
-   "args": {
-    "participant": "{persona}",
-    "on": true
-   }
-  },
-  {
-   "frase": "hablale por monitoreo a Martín mientras espera",
-   "plantilla": "hablale por monitoreo a {persona} mientras espera",
-   "args": {
-    "participant": "{persona}",
-    "on": true
-   }
-  },
-  {
-   "frase": "hablemos por privado con Gustavo mientras espera",
-   "plantilla": "hablemos por privado con {persona} mientras espera",
    "args": {
     "participant": "{persona}",
     "on": true
@@ -4377,24 +4584,8 @@
    }
   },
   {
-   "frase": "necesito hablar con Camila mientras espera, en privado",
-   "plantilla": "necesito hablar con {persona} mientras espera, en privado",
-   "args": {
-    "participant": "{persona}",
-    "on": true
-   }
-  },
-  {
    "frase": "pasame en privado con Valeria, que todavía no entró",
    "plantilla": "pasame en privado con {persona}, que todavía no entró",
-   "args": {
-    "participant": "{persona}",
-    "on": true
-   }
-  },
-  {
-   "frase": "quiero darle indicaciones por privado a Germán, que espera",
-   "plantilla": "quiero darle indicaciones por privado a {persona}, que espera",
    "args": {
     "participant": "{persona}",
     "on": true
@@ -4466,6 +4657,50 @@
    "frase": "quiero hablar en privado con un invitado",
    "plantilla": "quiero hablar en privado con un invitado",
    "falta": "¿Con quién del lobby?",
+   "nueva": true
+  },
+  {
+   "frase": "hablale por monitoreo a Martín mientras espera",
+   "plantilla": "hablale por monitoreo a {persona} del lobby",
+   "args": {
+    "participant": "{persona}",
+    "on": true
+   }
+  },
+  {
+   "frase": "hablemos por privado con Gustavo mientras espera",
+   "plantilla": "hablá por privado con {persona} del lobby",
+   "args": {
+    "participant": "{persona}",
+    "on": true
+   }
+  },
+  {
+   "frase": "necesito hablar con Camila mientras espera, en privado",
+   "plantilla": "hablá en privado con {persona} del lobby",
+   "args": {
+    "participant": "{persona}",
+    "on": true
+   }
+  },
+  {
+   "frase": "quiero darle indicaciones por privado a Germán, que espera",
+   "plantilla": "hablale por privado a {persona} con indicaciones",
+   "args": {
+    "participant": "{persona}",
+    "on": true
+   }
+  },
+  {
+   "frase": "hablale por privado a uno del lobby",
+   "plantilla": "hablale por privado a uno del lobby",
+   "falta": "¿Con quién del lobby hablo?",
+   "nueva": true
+  },
+  {
+   "frase": "quiero hablar por monitoreo con el del lobby",
+   "plantilla": "quiero hablar por monitoreo con el del lobby",
+   "falta": "¿Con quién del lobby hablo?",
    "nueva": true
   }
  ],
@@ -4734,11 +4969,6 @@
    "args": {}
   },
   {
-   "frase": "el pin se filtró, cambialo",
-   "plantilla": "el pin se filtró, cambialo",
-   "args": {}
-  },
-  {
    "frase": "generá un PIN distinto, que el viejo deje de servir",
    "plantilla": "generá un PIN distinto, que el viejo deje de servir",
    "args": {}
@@ -4783,18 +5013,23 @@
    }
   },
   {
-   "frase": "El PIN lo tiene gente que no debe, rotalo",
-   "plantilla": "El PIN lo tiene gente que no debe, rotalo",
-   "args": {}
-  },
-  {
    "frase": "Cambiá el PIN de la sala por uno generado al azar",
    "plantilla": "Cambiá el PIN de la sala por uno generado al azar",
    "args": {}
   },
   {
+   "frase": "el pin se filtró, cambialo",
+   "plantilla": "el pin se filtró, generá un pin nuevo para la sala",
+   "args": {}
+  },
+  {
+   "frase": "El PIN lo tiene gente que no debe, rotalo",
+   "plantilla": "El PIN lo tiene gente que no debe, generá un PIN nuevo",
+   "args": {}
+  },
+  {
    "frase": "Invalidá el PIN actual y dame uno fresco",
-   "plantilla": "Invalidá el PIN actual y dame uno fresco",
+   "plantilla": "Generá un PIN nuevo para la sala, el actual no va más",
    "args": {}
   }
  ],
@@ -4908,8 +5143,15 @@
    }
   },
   {
+   "frase": "Dejá la sala trabada hasta nuevo aviso",
+   "plantilla": "Dejá la sala trabada hasta nuevo aviso",
+   "args": {
+    "locked": true
+   }
+  },
+  {
    "frase": "Destrabá la sala y sacá el lobby",
-   "plantilla": "Destrabá la sala y sacá el lobby",
+   "plantilla": "Destrabá la sala y desactivá el lobby",
    "args": {
     "locked": false,
     "lobby": false
@@ -4917,17 +5159,10 @@
   },
   {
    "frase": "Configurá la sala: lobby sí, cerrada no",
-   "plantilla": "Configurá la sala: lobby sí, cerrada no",
+   "plantilla": "Activá el lobby de la sala y destrabá la sala",
    "args": {
     "lobby": true,
     "locked": false
-   }
-  },
-  {
-   "frase": "Dejá la sala trabada hasta nuevo aviso",
-   "plantilla": "Dejá la sala trabada hasta nuevo aviso",
-   "args": {
-    "locked": true
    }
   }
  ],
@@ -5059,15 +5294,26 @@
    }
   },
   {
-   "frase": "sacá el vínculo automático del rótulo",
-   "plantilla": "sacá el vínculo automático del rótulo",
-   "falta": "¿Qué vínculo quito?",
-   "nueva": true
-  },
-  {
    "frase": "apagá un rato el vínculo, sin borrarlo",
    "plantilla": "apagá un rato el vínculo, sin borrarlo",
    "falta": "¿Qué vínculo apago?",
+   "nueva": true
+  },
+  {
+   "frase": "sacá el vínculo automático del rótulo",
+   "plantilla": "quitá el vínculo automático del rótulo",
+   "falta": "¿Qué vínculo de rótulo quito?"
+  },
+  {
+   "frase": "quitá un vínculo de rótulo",
+   "plantilla": "quitá un vínculo de rótulo",
+   "falta": "¿Qué vínculo de rótulo quito?",
+   "nueva": true
+  },
+  {
+   "frase": "desvinculá el rótulo automático",
+   "plantilla": "desvinculá el rótulo automático",
+   "falta": "¿Qué vínculo de rótulo quito?",
    "nueva": true
   }
  ],
@@ -5168,15 +5414,26 @@
    "falta": "¿En qué fuente está ese gráfico?"
   },
   {
-   "frase": "poné el nombre del que habla en el zócalo, que se cambie solo",
-   "plantilla": "poné el nombre del que habla en el zócalo, que se cambie solo",
+   "frase": "quiero que el rótulo siga al orador sin tocarlo",
+   "plantilla": "quiero que el rótulo siga al orador sin tocarlo",
    "falta": "¿Qué rótulo (fuente y gráfico) vinculo?",
    "nueva": true
   },
   {
-   "frase": "quiero que el rótulo siga al orador sin tocarlo",
-   "plantilla": "quiero que el rótulo siga al orador sin tocarlo",
-   "falta": "¿Qué rótulo (fuente y gráfico) vinculo?",
+   "frase": "poné el nombre del que habla en el zócalo, que se cambie solo",
+   "plantilla": "vinculá el nombre del que habla al zócalo, que se actualice solo",
+   "falta": "¿De qué fuente y en qué gráfico?"
+  },
+  {
+   "frase": "vinculá un rótulo al que habla",
+   "plantilla": "vinculá un rótulo al que habla",
+   "falta": "¿De qué fuente y en qué gráfico?",
+   "nueva": true
+  },
+  {
+   "frase": "vinculá el zócalo con el nombre del orador",
+   "plantilla": "vinculá el zócalo con el nombre del orador",
+   "falta": "¿De qué fuente y en qué gráfico?",
    "nueva": true
   }
  ],
@@ -5331,11 +5588,6 @@
    }
   },
   {
-   "frase": "Quiero otra escena idéntica a Apertura, copiala",
-   "plantilla": "Quiero otra escena idéntica a {escena}, copiala",
-   "falta": "¿Cómo querés que se llame la copia?"
-  },
-  {
    "frase": "Duplicá la escena Entrevista con todo lo que tiene",
    "plantilla": "Duplicá {escena} con todo lo que tiene",
    "falta": "¿Cómo querés que se llame la copia?"
@@ -5369,6 +5621,23 @@
    "plantilla": "haceme una copia que se llame Respaldo",
    "falta": "¿De qué escena?",
    "nueva": true
+  },
+  {
+   "frase": "Quiero otra escena idéntica a Apertura, copiala",
+   "plantilla": "Copiá {escena} en una escena nueva",
+   "falta": "¿Cómo se llama la escena nueva?"
+  },
+  {
+   "frase": "copiá una escena",
+   "plantilla": "copiá una escena",
+   "falta": "¿Qué escena copio y cómo se llama la nueva?",
+   "nueva": true
+  },
+  {
+   "frase": "duplicá la escena en otra nueva",
+   "plantilla": "duplicá la escena en otra nueva",
+   "falta": "¿Qué escena copio y cómo se llama la nueva?",
+   "nueva": true
   }
  ],
  "scene_create": [
@@ -5378,33 +5647,9 @@
    "falta": "¿Cómo se va a llamar la escena?"
   },
   {
-   "frase": "creá una escena vacía que se llame Entrevista",
-   "plantilla": "creá una escena vacía que se llame Entrevista",
-   "args": {
-    "name": "Entrevista"
-   }
-  },
-  {
-   "frase": "necesito una escena nueva vacía para deportes",
-   "plantilla": "necesito una escena nueva vacía para deportes",
-   "falta": "¿Cómo se va a llamar la escena?"
-  },
-  {
    "frase": "Necesito una escena en blanco nueva, sin nada adentro",
    "plantilla": "Necesito una escena en blanco nueva, sin nada adentro",
    "falta": "¿Cómo se va a llamar la escena?"
-  },
-  {
-   "frase": "Agregá una escena nueva vacía, después la lleno yo",
-   "plantilla": "Agregá una escena nueva vacía, después la lleno yo",
-   "falta": "¿Cómo se va a llamar la escena?"
-  },
-  {
-   "frase": "Escena nueva y vacía, ponele Reserva de nombre",
-   "plantilla": "Escena nueva y vacía, ponele Reserva de nombre",
-   "args": {
-    "name": "Reserva"
-   }
   },
   {
    "frase": "Dame una escena en blanco, después le cargo cosas",
@@ -5417,11 +5662,6 @@
    "args": {
     "name": "Cierre"
    }
-  },
-  {
-   "frase": "Abrí una escena nueva vacía, después la lleno yo",
-   "plantilla": "Abrí una escena nueva vacía, después la lleno yo",
-   "falta": "¿Cómo se va a llamar la escena?"
   },
   {
    "frase": "Nueva escena: Móvil Rosario, en blanco",
@@ -5438,31 +5678,10 @@
    }
   },
   {
-   "frase": "Para el segmento del clima necesito una escena vacía llamada Clima",
-   "plantilla": "Para el segmento del clima necesito una escena vacía llamada Clima",
-   "args": {
-    "name": "Clima"
-   }
-  },
-  {
-   "frase": "Creame la escena Previa, vacía por ahora",
-   "plantilla": "Creame la escena Previa, vacía por ahora",
-   "args": {
-    "name": "Previa"
-   }
-  },
-  {
    "frase": "Hacé una escena nueva que se llame Tribuna, sin nada",
    "plantilla": "Hacé una escena nueva que se llame Tribuna, sin nada",
    "args": {
     "name": "Tribuna"
-   }
-  },
-  {
-   "frase": "Sumá una escena vacía, llamala Panel",
-   "plantilla": "Sumá una escena vacía, llamala Panel",
-   "args": {
-    "name": "Panel"
    }
   },
   {
@@ -5473,22 +5692,83 @@
    }
   },
   {
+   "frase": "sumame una escena en blanco, porfa",
+   "plantilla": "sumame una escena en blanco, porfa",
+   "falta": "¿Qué nombre le pongo?",
+   "nueva": true
+  },
+  {
+   "frase": "creá una escena vacía que se llame Entrevista",
+   "plantilla": "creá una escena nueva sin fuentes con el nombre Entrevista",
+   "args": {
+    "name": "Entrevista"
+   }
+  },
+  {
+   "frase": "necesito una escena nueva vacía para deportes",
+   "plantilla": "creá una escena nueva sin fuentes para deportes",
+   "falta": "¿Cómo se llama la escena nueva?"
+  },
+  {
+   "frase": "Agregá una escena nueva vacía, después la lleno yo",
+   "plantilla": "Creá una escena nueva sin fuentes, después agrego las fuentes yo",
+   "falta": "¿Cómo se llama la escena nueva?"
+  },
+  {
+   "frase": "Escena nueva y vacía, ponele Reserva de nombre",
+   "plantilla": "Creá una escena nueva sin fuentes con el nombre Reserva",
+   "args": {
+    "name": "Reserva"
+   }
+  },
+  {
+   "frase": "Abrí una escena nueva vacía, después la lleno yo",
+   "plantilla": "Creá una escena nueva sin fuentes, las fuentes las agrego yo",
+   "falta": "¿Cómo se llama la escena nueva?"
+  },
+  {
+   "frase": "Para el segmento del clima necesito una escena vacía llamada Clima",
+   "plantilla": "Para el segmento del clima creá una escena sin fuentes llamada Clima",
+   "args": {
+    "name": "Clima"
+   }
+  },
+  {
+   "frase": "Creame la escena Previa, vacía por ahora",
+   "plantilla": "Creá la escena Previa, sin fuentes por ahora",
+   "args": {
+    "name": "Previa"
+   }
+  },
+  {
+   "frase": "Sumá una escena vacía, llamala Panel",
+   "plantilla": "Creá una escena sin fuentes con el nombre Panel",
+   "args": {
+    "name": "Panel"
+   }
+  },
+  {
    "frase": "Creá una escena nueva, Móvil Córdoba, todavía vacía",
-   "plantilla": "Creá una escena nueva, Móvil Córdoba, todavía vacía",
+   "plantilla": "Creá una escena nueva sin fuentes llamada Móvil Córdoba",
    "args": {
     "name": "Móvil Córdoba"
    }
   },
   {
    "frase": "creá una escena vacía",
-   "plantilla": "creá una escena vacía",
-   "falta": "¿Cómo se va a llamar la escena?",
+   "plantilla": "creá una escena sin fuentes",
+   "falta": "¿Cómo se llama la escena nueva?"
+  },
+  {
+   "frase": "creá una escena nueva",
+   "plantilla": "creá una escena nueva",
+   "falta": "¿Cómo se llama la escena nueva?",
    "nueva": true
   },
   {
-   "frase": "sumame una escena en blanco, porfa",
-   "plantilla": "sumame una escena en blanco, porfa",
-   "falta": "¿Qué nombre le pongo?",
+   "frase": "necesito una escena nueva sin fuentes",
+   "plantilla": "necesito una escena nueva sin fuentes",
+   "falta": "¿Cómo se llama la escena nueva?",
    "nueva": true
   }
  ],
@@ -5497,18 +5777,6 @@
    "frase": "armame una escena entera con la camara y el logo",
    "plantilla": "armame una escena entera con {fuente} y {fuente2}",
    "falta": "¿Cómo se va a llamar la escena?"
-  },
-  {
-   "frase": "armá la escena Cierre con cámara 1, logo y zócalo, todo de una",
-   "plantilla": "armá la escena Cierre con {fuente}, {fuente2} y {fuente3}, todo de una",
-   "args": {
-    "name": "Cierre",
-    "sources": [
-     "{fuente}",
-     "{fuente2}",
-     "{fuente3}"
-    ]
-   }
   },
   {
    "frase": "armá una escena entera con dos cámaras y el logo",
@@ -5521,18 +5789,6 @@
    "falta": "¿Qué fuentes lleva, de abajo hacia arriba?"
   },
   {
-   "frase": "Armame entera la escena Noticias: fondo, cámara y logo, de una",
-   "plantilla": "Armame entera la escena Noticias: {fuente}, {fuente2} y {fuente3}, de una",
-   "args": {
-    "name": "Noticias",
-    "sources": [
-     "{fuente}",
-     "{fuente2}",
-     "{fuente3}"
-    ]
-   }
-  },
-  {
    "frase": "rehacé entera la escena Clima: mapa abajo y cámara del presentador arriba",
    "plantilla": "rehacé entera {escena}: {fuente} abajo y {fuente2} arriba",
    "args": {
@@ -5541,18 +5797,6 @@
     "sources": [
      "{fuente}",
      "{fuente2}"
-    ]
-   }
-  },
-  {
-   "frase": "definí la escena Entrevista de una: fondo abajo, dos cámaras arriba",
-   "plantilla": "definí la escena Entrevista de una: {fuente} abajo, {fuente2} y {fuente3} arriba",
-   "args": {
-    "name": "Entrevista",
-    "sources": [
-     "{fuente}",
-     "{fuente2}",
-     "{fuente3}"
     ]
    }
   },
@@ -5582,49 +5826,11 @@
    "falta": "¿Cómo se va a llamar la escena y qué más lleva?"
   },
   {
-   "frase": "creá la escena Tarde completa: fondo, dos cámaras, logo",
-   "plantilla": "creá la escena Tarde completa: {fuente}, {fuente2}, {fuente3}, {fuente4}",
-   "args": {
-    "name": "Tarde",
-    "sources": [
-     "{fuente}",
-     "{fuente2}",
-     "{fuente3}",
-     "{fuente4}"
-    ]
-   }
-  },
-  {
    "frase": "rehacé entera la escena Mesa con las tres cámaras",
    "plantilla": "rehacé entera {escena} con {fuente}, {fuente2} y {fuente3}",
    "args": {
     "name": "{escena}",
     "replace": true,
-    "sources": [
-     "{fuente}",
-     "{fuente2}",
-     "{fuente3}"
-    ]
-   }
-  },
-  {
-   "frase": "vaciá y rehacé la escena Deportes: placa, cámara 2 y marcador",
-   "plantilla": "vaciá y rehacé {escena}: {fuente}, {fuente2} y {fuente3}",
-   "args": {
-    "name": "{escena}",
-    "replace": true,
-    "sources": [
-     "{fuente}",
-     "{fuente2}",
-     "{fuente3}"
-    ]
-   }
-  },
-  {
-   "frase": "creá de una la escena Clima con fondo, mapa y reloj, de abajo arriba",
-   "plantilla": "creá de una la escena Clima con {fuente}, {fuente2} y {fuente3}, de abajo arriba",
-   "args": {
-    "name": "Clima",
     "sources": [
      "{fuente}",
      "{fuente2}",
@@ -5647,6 +5853,134 @@
    "frase": "rehacé entera la escena con todas sus capas",
    "plantilla": "rehacé entera la escena con todas sus capas",
    "falta": "¿Qué escena y con qué fuentes, de abajo hacia arriba?",
+   "nueva": true
+  },
+  {
+   "frase": "armá la escena Cierre con cámara 1, logo y zócalo, todo de una",
+   "plantilla": "armá la escena Cierre con {fuente}, {fuente2} y {fuente3}",
+   "args": {
+    "name": "Cierre",
+    "sources": [
+     {
+      "name": "{fuente}"
+     },
+     {
+      "name": "{fuente2}"
+     },
+     {
+      "name": "{fuente3}"
+     }
+    ]
+   }
+  },
+  {
+   "frase": "Armame entera la escena Noticias: fondo, cámara y logo, de una",
+   "plantilla": "armá la escena Noticias con {fuente}, {fuente2} y {fuente3}",
+   "args": {
+    "name": "Noticias",
+    "sources": [
+     {
+      "name": "{fuente}"
+     },
+     {
+      "name": "{fuente2}"
+     },
+     {
+      "name": "{fuente3}"
+     }
+    ]
+   }
+  },
+  {
+   "frase": "definí la escena Entrevista de una: fondo abajo, dos cámaras arriba",
+   "plantilla": "creá la escena Entrevista: {fuente} abajo, {fuente2} y {fuente3} arriba",
+   "args": {
+    "name": "Entrevista",
+    "sources": [
+     {
+      "name": "{fuente}"
+     },
+     {
+      "name": "{fuente2}"
+     },
+     {
+      "name": "{fuente3}"
+     }
+    ]
+   }
+  },
+  {
+   "frase": "vaciá y rehacé la escena Deportes: placa, cámara 2 y marcador",
+   "plantilla": "rehacé {escena} con {fuente}, {fuente2} y {fuente3}",
+   "args": {
+    "name": "{escena}",
+    "replace": true,
+    "sources": [
+     {
+      "name": "{fuente}"
+     },
+     {
+      "name": "{fuente2}"
+     },
+     {
+      "name": "{fuente3}"
+     }
+    ]
+   }
+  },
+  {
+   "frase": "creá de una la escena Clima con fondo, mapa y reloj, de abajo arriba",
+   "plantilla": "creá la escena Clima con {fuente}, {fuente2} y {fuente3}",
+   "args": {
+    "name": "Clima",
+    "sources": [
+     {
+      "name": "{fuente}"
+     },
+     {
+      "name": "{fuente2}"
+     },
+     {
+      "name": "{fuente3}"
+     }
+    ]
+   }
+  },
+  {
+   "frase": "creá una escena nueva con {fuente} y {fuente2}",
+   "plantilla": "creá una escena nueva con {fuente} y {fuente2}",
+   "falta": "¿Qué nombre le pongo a la escena?",
+   "nueva": true
+  },
+  {
+   "frase": "creá la escena Resumen ahora mismo",
+   "plantilla": "creá la escena Resumen ahora mismo",
+   "falta": "¿Qué fuentes lleva la escena Resumen?",
+   "nueva": true
+  },
+  {
+   "frase": "creá la escena Tarde completa: fondo, dos cámaras, logo",
+   "plantilla": "creá la escena Tarde con fondo, dos cámaras y logo",
+   "args": {
+    "name": "Tarde",
+    "sources": [
+     "fondo",
+     "cámara",
+     "cámara",
+     "logo"
+    ]
+   }
+  },
+  {
+   "frase": "creá una escena nueva con fondo y cámara",
+   "plantilla": "creá una escena nueva con fondo y cámara",
+   "falta": "¿Qué nombre le pongo a la escena?",
+   "nueva": true
+  },
+  {
+   "frase": "creá la escena Entrevista",
+   "plantilla": "creá la escena Entrevista",
+   "falta": "¿Qué fuentes lleva la escena?",
    "nueva": true
   }
  ],
@@ -5687,13 +6021,6 @@
   {
    "frase": "Eliminá la escena Entrevista 2, quedó de más",
    "plantilla": "Eliminá {escena}, quedó de más",
-   "args": {
-    "name": "{escena}"
-   }
-  },
-  {
-   "frase": "Chau escena Pronóstico viejo, borrala",
-   "plantilla": "Chau {escena}, borrala",
    "args": {
     "name": "{escena}"
    }
@@ -5760,13 +6087,6 @@
    }
   },
   {
-   "frase": "Esa escena de prueba, borrala",
-   "plantilla": "{escena}, borrala",
-   "args": {
-    "name": "{escena}"
-   }
-  },
-  {
    "frase": "borrá una escena",
    "plantilla": "borrá una escena",
    "falta": "¿Qué escena querés borrar?",
@@ -5776,6 +6096,32 @@
    "frase": "quiero eliminar una de las escenas que sobran",
    "plantilla": "quiero eliminar una de las escenas que sobran",
    "falta": "¿Cuál querés eliminar?",
+   "nueva": true
+  },
+  {
+   "frase": "Chau escena Pronóstico viejo, borrala",
+   "plantilla": "chau, borrá {escena}",
+   "args": {
+    "name": "{escena}"
+   }
+  },
+  {
+   "frase": "Esa escena de prueba, borrala",
+   "plantilla": "borrá {escena} de la lista",
+   "args": {
+    "name": "{escena}"
+   }
+  },
+  {
+   "frase": "borrá una escena de la lista",
+   "plantilla": "borrá una escena de la lista",
+   "falta": "¿Qué escena borro?",
+   "nueva": true
+  },
+  {
+   "frase": "che, borrá la escena que sobra",
+   "plantilla": "che, borrá la escena que sobra",
+   "falta": "¿Qué escena borro?",
    "nueva": true
   }
  ],
@@ -5814,13 +6160,6 @@
    "frase": "quiero versionar las escenas en git, sacame el export",
    "plantilla": "quiero versionar las escenas en git, sacame el export",
    "args": {}
-  },
-  {
-   "frase": "volcame la definición de la escena Noticiero tal cual está",
-   "plantilla": "volcame la definición de {escena} tal cual está",
-   "args": {
-    "name": "{escena}"
-   }
   },
   {
    "frase": "export de escenas completo, todas",
@@ -5874,6 +6213,13 @@
    "frase": "dame el export completo de escenas para el repo",
    "plantilla": "dame el export completo de escenas para el repo",
    "args": {}
+  },
+  {
+   "frase": "volcame la definición de la escena Noticiero tal cual está",
+   "plantilla": "exportá la definición de {escena} tal cual está",
+   "args": {
+    "name": "{escena}"
+   }
   }
  ],
  "scene_folder": [
@@ -5907,14 +6253,6 @@
    "frase": "Agrupá las escenas de invitados en una carpeta propia",
    "plantilla": "Agrupá las escenas de invitados en una carpeta propia",
    "falta": "¿Qué escenas son y cómo se llama la carpeta?"
-  },
-  {
-   "frase": "La escena Entrevista va dentro de la carpeta Bloque 2",
-   "plantilla": "{escena} va dentro de la carpeta Bloque 2",
-   "args": {
-    "scene": "{escena}",
-    "folder": "Bloque 2"
-   }
   },
   {
    "frase": "Pasá la escena Cierre a la carpeta de escenas Final",
@@ -5961,14 +6299,6 @@
    }
   },
   {
-   "frase": "Armá una carpeta Placas y poné ahí la escena Tanda",
-   "plantilla": "Armá una carpeta Placas y poné ahí {escena}",
-   "args": {
-    "scene": "{escena}",
-    "folder": "Placas"
-   }
-  },
-  {
    "frase": "Pasá Deportes a su carpeta, la de Bloque 4",
    "plantilla": "Pasá {escena} a su carpeta, la de Bloque 4",
    "args": {
@@ -5994,6 +6324,34 @@
    "frase": "meté una escena en una carpeta",
    "plantilla": "meté una escena en una carpeta",
    "falta": "¿Qué escena y en qué carpeta?",
+   "nueva": true
+  },
+  {
+   "frase": "La escena Entrevista va dentro de la carpeta Bloque 2",
+   "plantilla": "agrupá {escena} en la carpeta «Bloque 2»",
+   "args": {
+    "scene": "{escena}",
+    "folder": "Bloque 2"
+   }
+  },
+  {
+   "frase": "Armá una carpeta Placas y poné ahí la escena Tanda",
+   "plantilla": "agrupá {escena} en la carpeta nueva «Placas»",
+   "args": {
+    "scene": "{escena}",
+    "folder": "Placas"
+   }
+  },
+  {
+   "frase": "agrupá una escena en la carpeta «Extras»",
+   "plantilla": "agrupá una escena en la carpeta «Extras»",
+   "falta": "¿Qué escena agrupo en la carpeta Extras?",
+   "nueva": true
+  },
+  {
+   "frase": "agrupá en una carpeta la escena que va",
+   "plantilla": "agrupá en una carpeta la escena que va",
+   "falta": "¿Qué escena agrupo y en qué carpeta?",
    "nueva": true
   }
  ],
@@ -6104,14 +6462,6 @@
    "falta": "¿Qué escena muevo y antes de cuál?"
   },
   {
-   "frase": "en el orden de la lista, subí esa escena para que vaya antes de Entrevistas",
-   "plantilla": "en el orden de la lista, subí esa escena para que vaya antes de {escena}",
-   "args": {
-    "scene": "[escena_actual]",
-    "before": "{escena}"
-   }
-  },
-  {
    "frase": "acomodá la escena Tanda antes de Cierre en la lista",
    "plantilla": "acomodá {escena} antes de {escena2} en la lista",
    "args": {
@@ -6206,12 +6556,6 @@
    "nueva": true
   },
   {
-   "frase": "poné antes de la tanda la que corresponde",
-   "plantilla": "poné antes de la tanda la que corresponde",
-   "falta": "¿Qué escena pongo antes?",
-   "nueva": true
-  },
-  {
    "frase": "mové la escena del clima debajo del noticiero",
    "plantilla": "mové {escena} debajo del noticiero",
    "args": {
@@ -6230,23 +6574,34 @@
    "plantilla": "subí una escena en la lista",
    "falta": "¿Qué escena muevo?",
    "nueva": true
+  },
+  {
+   "frase": "en el orden de la lista, subí esa escena para que vaya antes de Entrevistas",
+   "plantilla": "en la lista, subí esta escena antes de {escena}",
+   "args": {
+    "scene": "[escena_actual]",
+    "before": "{escena}"
+   }
+  },
+  {
+   "frase": "poné antes de la tanda la que corresponde",
+   "plantilla": "en la lista, subí antes de {escena} la que corresponde",
+   "falta": "¿Qué escena subo antes de {escena}?"
+  },
+  {
+   "frase": "subí una escena en la lista",
+   "plantilla": "subí una escena en la lista",
+   "falta": "¿Qué escena subo?",
+   "nueva": true
+  },
+  {
+   "frase": "en la lista, bajá una escena al final",
+   "plantilla": "en la lista, bajá una escena al final",
+   "falta": "¿Qué escena bajo?",
+   "nueva": true
   }
  ],
  "scene_preview": [
-  {
-   "frase": "dejá lista la de los sponsors",
-   "plantilla": "dejá lista {escena}",
-   "args": {
-    "name": "{escena}"
-   }
-  },
-  {
-   "frase": "dejame lista la del invitado en pre",
-   "plantilla": "dejame lista {escena} en pre",
-   "args": {
-    "name": "{escena}"
-   }
-  },
   {
    "frase": "no la saques todavia, solo dejala lista",
    "plantilla": "no la saques todavia, solo dejala lista",
@@ -6356,6 +6711,32 @@
    "plantilla": "dejame algo listo en preview",
    "falta": "¿Qué escena armo en preview?",
    "nueva": true
+  },
+  {
+   "frase": "dejá lista la de los sponsors",
+   "plantilla": "cargá {escena} en preview",
+   "args": {
+    "name": "{escena}"
+   }
+  },
+  {
+   "frase": "dejame lista la del invitado en pre",
+   "plantilla": "cargame {escena} en el preview",
+   "args": {
+    "name": "{escena}"
+   }
+  },
+  {
+   "frase": "cargá una escena en preview",
+   "plantilla": "cargá una escena en preview",
+   "falta": "¿Qué escena cargo en preview?",
+   "nueva": true
+  },
+  {
+   "frase": "cargame algo en el preview, rápido",
+   "plantilla": "cargame algo en el preview, rápido",
+   "falta": "¿Qué escena cargo en preview?",
+   "nueva": true
   }
  ],
  "scene_protect": [
@@ -6378,14 +6759,6 @@
   {
    "frase": "protegé esa escena para que nadie la borre ni la renombre",
    "plantilla": "protegé esa escena para que nadie la borre ni la renombre",
-   "args": {
-    "scene": "[escena_actual]",
-    "protected": true
-   }
-  },
-  {
-   "frase": "ponele candado a esa",
-   "plantilla": "ponele candado a esa",
    "args": {
     "scene": "[escena_actual]",
     "protected": true
@@ -6494,8 +6867,30 @@
    "nueva": true
   },
   {
+   "frase": "ponele candado a esa",
+   "plantilla": "protegé {escena} contra borrado",
+   "args": {
+    "scene": "{escena}",
+    "protected": true
+   }
+  },
+  {
    "frase": "sacale el candado, que la quiero renombrar",
-   "plantilla": "sacale el candado, que la quiero renombrar",
+   "plantilla": "sacale la protección a {escena}",
+   "args": {
+    "scene": "{escena}",
+    "protected": false
+   }
+  },
+  {
+   "frase": "protegé la escena contra borrado",
+   "plantilla": "protegé la escena contra borrado",
+   "falta": "¿Qué escena protejo?",
+   "nueva": true
+  },
+  {
+   "frase": "sacale la protección a la escena",
+   "plantilla": "sacale la protección a la escena",
    "falta": "¿A qué escena le saco la protección?",
    "nueva": true
   }
@@ -6648,8 +7043,22 @@
   },
   {
    "frase": "llamala Previa",
-   "plantilla": "llamala Previa",
-   "falta": "¿Qué escena renombro?",
+   "plantilla": "renombrá {escena} como Previa",
+   "args": {
+    "from": "{escena}",
+    "to": "Previa"
+   }
+  },
+  {
+   "frase": "renombrá la escena",
+   "plantilla": "renombrá la escena",
+   "falta": "¿Qué escena renombro y con qué nombre?",
+   "nueva": true
+  },
+  {
+   "frase": "cambiá el nombre de la escena",
+   "plantilla": "cambiá el nombre de la escena",
+   "falta": "¿Qué escena renombro y con qué nombre?",
    "nueva": true
   }
  ],
@@ -6685,13 +7094,6 @@
   {
    "frase": "cortá a la escena Bienvenida, ya al aire",
    "plantilla": "cortá a {escena}, ya al aire",
-   "args": {
-    "name": "{escena}"
-   }
-  },
-  {
-   "frase": "reemplaza lo que sale por el plano dos",
-   "plantilla": "reemplaza lo que sale por {escena}",
    "args": {
     "name": "{escena}"
    }
@@ -6816,6 +7218,25 @@
   {
    "frase": "poné otra cosa al aire ya",
    "plantilla": "poné otra cosa al aire ya",
+   "falta": "¿Qué escena pongo al aire?",
+   "nueva": true
+  },
+  {
+   "frase": "reemplaza lo que sale por el plano dos",
+   "plantilla": "cortá a {escena}",
+   "args": {
+    "name": "{escena}"
+   }
+  },
+  {
+   "frase": "cortá a otra escena",
+   "plantilla": "cortá a otra escena",
+   "falta": "¿A qué escena?",
+   "nueva": true
+  },
+  {
+   "frase": "poné una escena al aire",
+   "plantilla": "poné una escena al aire",
    "falta": "¿Qué escena pongo al aire?",
    "nueva": true
   }
@@ -6966,21 +7387,11 @@
    "falta": "¿Qué archivo compartido borro? Decime el id."
   },
   {
-   "frase": "Ese archivo que compartieron es cualquiera, borralo",
-   "plantilla": "Ese archivo que compartieron es cualquiera, borralo",
-   "falta": "¿Qué archivo compartido borro? Decime el id."
-  },
-  {
    "frase": "Borrá el compartido número 8",
    "plantilla": "Borrá el compartido número 8",
    "args": {
     "id": "8"
    }
-  },
-  {
-   "frase": "Chau a ese compartido, eliminalo",
-   "plantilla": "Chau a ese compartido, eliminalo",
-   "falta": "¿Qué archivo compartido borro? Decime el id."
   },
   {
    "frase": "Limpiá los compartidos: borrá el 23",
@@ -6990,18 +7401,8 @@
    }
   },
   {
-   "frase": "Eso que compartió no sirve, eliminalo",
-   "plantilla": "Eso que compartió no sirve, eliminalo",
-   "falta": "¿Qué archivo compartido borro? Decime el id."
-  },
-  {
    "frase": "Borrame ese archivo de los compartidos",
    "plantilla": "Borrame ese archivo de los compartidos",
-   "falta": "¿Qué archivo compartido borro? Decime el id."
-  },
-  {
-   "frase": "Ese compartido quedó viejo, eliminalo",
-   "plantilla": "Ese compartido quedó viejo, eliminalo",
    "falta": "¿Qué archivo compartido borro? Decime el id."
   },
   {
@@ -7021,6 +7422,38 @@
    "frase": "sacame ese archivo de la lista de compartidos",
    "plantilla": "sacame ese archivo de la lista de compartidos",
    "falta": "¿Qué archivo compartido borro? Decime el id.",
+   "nueva": true
+  },
+  {
+   "frase": "Ese archivo que compartieron es cualquiera, borralo",
+   "plantilla": "borrá el archivo compartido, no sirve",
+   "falta": "¿Qué archivo compartido borro?"
+  },
+  {
+   "frase": "Chau a ese compartido, eliminalo",
+   "plantilla": "borrá el archivo compartido",
+   "falta": "¿Qué archivo compartido borro?"
+  },
+  {
+   "frase": "Eso que compartió no sirve, eliminalo",
+   "plantilla": "borrá el archivo que compartió, no sirve",
+   "falta": "¿Qué archivo compartido borro?"
+  },
+  {
+   "frase": "Ese compartido quedó viejo, eliminalo",
+   "plantilla": "borrá el archivo compartido viejo",
+   "falta": "¿Qué archivo compartido borro?"
+  },
+  {
+   "frase": "borrá un archivo compartido",
+   "plantilla": "borrá un archivo compartido",
+   "falta": "¿Qué archivo compartido borro?",
+   "nueva": true
+  },
+  {
+   "frase": "borrá el compartido del gateway",
+   "plantilla": "borrá el compartido del gateway",
+   "falta": "¿Qué archivo compartido borro?",
    "nueva": true
   }
  ],
@@ -7373,15 +7806,6 @@
    }
   },
   {
-   "frase": "Falta la cámara 3 en la escena Entrevista, agregala.",
-   "plantilla": "Falta la cámara {fuente} en {escena}, agregala.",
-   "args": {
-    "type": "camara",
-    "name": "{fuente}",
-    "scene": "{escena}"
-   }
-  },
-  {
    "frase": "Agregá una imagen del sponsor en pip-br en la escena Principal",
    "plantilla": "Agregá una imagen del sponsor en pip-br en {escena}",
    "args": {
@@ -7480,6 +7904,27 @@
    "frase": "metele algo más a la escena Cierre",
    "plantilla": "metele algo más a {escena}",
    "falta": "¿Qué fuente agrego (tipo y nombre)?",
+   "nueva": true
+  },
+  {
+   "frase": "Falta la cámara 3 en la escena Entrevista, agregala.",
+   "plantilla": "agregá {fuente} como cámara en {escena}",
+   "args": {
+    "type": "camara",
+    "name": "{fuente}",
+    "scene": "{escena}"
+   }
+  },
+  {
+   "frase": "agregá una fuente a la escena",
+   "plantilla": "agregá una fuente a la escena",
+   "falta": "¿Qué fuente agrego y de qué tipo?",
+   "nueva": true
+  },
+  {
+   "frase": "agregá una cámara a la escena",
+   "plantilla": "agregá una cámara a {escena}",
+   "falta": "¿Qué nombre le pongo a la cámara?",
    "nueva": true
   }
  ],
@@ -7727,15 +8172,26 @@
    }
   },
   {
+   "frase": "qué opciones tiene para tocar esa entrada",
+   "plantilla": "qué opciones tiene para tocar esa entrada",
+   "falta": "¿Qué entrada?",
+   "nueva": true
+  },
+  {
    "frase": "abrime el panel de propiedades",
-   "plantilla": "abrime el panel de propiedades",
+   "plantilla": "mostrame las propiedades de la fuente",
+   "falta": "¿De qué fuente?"
+  },
+  {
+   "frase": "qué propiedades tiene la fuente?",
+   "plantilla": "qué propiedades tiene la fuente?",
    "falta": "¿De qué fuente?",
    "nueva": true
   },
   {
-   "frase": "qué opciones tiene para tocar esa entrada",
-   "plantilla": "qué opciones tiene para tocar esa entrada",
-   "falta": "¿Qué entrada?",
+   "frase": "listá las opciones de la fuente",
+   "plantilla": "listá las opciones de la fuente",
+   "falta": "¿De qué fuente?",
    "nueva": true
   }
  ],
@@ -7873,11 +8329,6 @@
    "falta": "¿A qué entrada?"
   },
   {
-   "frase": "esa cámara está en el dispositivo equivocado, cambiásela",
-   "plantilla": "esa cámara está en el dispositivo equivocado, cambiásela",
-   "falta": "¿Qué cámara?"
-  },
-  {
    "frase": "apretale el botón de volver a escanear",
    "plantilla": "apretale el botón de volver a escanear",
    "falta": "¿En qué fuente?"
@@ -8007,6 +8458,23 @@
    "frase": "tocale la configuración a esa cámara",
    "plantilla": "tocale la configuración a esa cámara",
    "falta": "¿A qué fuente y qué propiedad?",
+   "nueva": true
+  },
+  {
+   "frase": "esa cámara está en el dispositivo equivocado, cambiásela",
+   "plantilla": "cambiá el dispositivo de {fuente}, es el equivocado",
+   "falta": "¿A qué dispositivo cambio {fuente}?"
+  },
+  {
+   "frase": "cambiá el dispositivo de la cámara",
+   "plantilla": "cambiá el dispositivo de la cámara",
+   "falta": "¿De qué cámara?",
+   "nueva": true
+  },
+  {
+   "frase": "cambiá una propiedad de la fuente",
+   "plantilla": "cambiá una propiedad de {fuente}",
+   "falta": "¿Qué propiedad cambio?",
    "nueva": true
   }
  ],
@@ -8149,16 +8617,6 @@
    }
   },
   {
-   "frase": "Cambiá el texto del zócalo: ahora habla Gómez",
-   "plantilla": "Cambiá el texto de {grafico}: ahora habla Gómez",
-   "args": {
-    "name": "{grafico}",
-    "settings": {
-     "text": "ahora habla Gómez"
-    }
-   }
-  },
-  {
    "frase": "Escondé el logo un rato pero dejalo en el armado",
    "plantilla": "Escondé {fuente} un rato pero que quede en el armado",
    "args": {
@@ -8229,6 +8687,28 @@
    "plantilla": "achicá el recuadro y mandalo a la esquina",
    "falta": "¿Qué fuente?",
    "nueva": true
+  },
+  {
+   "frase": "Cambiá el texto del zócalo: ahora habla Gómez",
+   "plantilla": "cambiá el texto de {grafico} a \"ahora habla Gómez\"",
+   "args": {
+    "name": "{grafico}",
+    "settings": {
+     "text": "ahora habla Gómez"
+    }
+   }
+  },
+  {
+   "frase": "ocultá la fuente",
+   "plantilla": "ocultá la fuente",
+   "falta": "¿Qué fuente oculto?",
+   "nueva": true
+  },
+  {
+   "frase": "cambiá el texto del zócalo",
+   "plantilla": "cambiá el texto del zócalo",
+   "falta": "¿De qué zócalo?",
+   "nueva": true
   }
  ],
  "speaker_move": [
@@ -8264,14 +8744,6 @@
    }
   },
   {
-   "frase": "el concejal habla antes, pasalo a la posición 1",
-   "plantilla": "{persona} habla antes: a la posición 1",
-   "args": {
-    "participant": "{persona}",
-    "position": 1
-   }
-  },
-  {
    "frase": "Ana va segunda en la fila, no cuarta",
    "plantilla": "{persona} va en el puesto 2 de la fila, no en el 4",
    "args": {
@@ -8285,14 +8757,6 @@
    "args": {
     "participant": "{persona}",
     "position": "-2"
-   }
-  },
-  {
-   "frase": "reordená la fila: Julia a la posición 3",
-   "plantilla": "reordená la fila: {persona} a la posición 3",
-   "args": {
-    "participant": "{persona}",
-    "position": 3
    }
   },
   {
@@ -8312,14 +8776,6 @@
    }
   },
   {
-   "frase": "el participante 18 pasa al puesto 2",
-   "plantilla": "{persona} pasa al puesto 2",
-   "args": {
-    "participant": "{persona}",
-    "position": 2
-   }
-  },
-  {
    "frase": "corré a Esteban al segundo lugar de la fila",
    "plantilla": "corré a {persona} al segundo lugar de la fila",
    "args": {
@@ -8334,12 +8790,6 @@
     "participant": "{persona}",
     "position": 7
    }
-  },
-  {
-   "frase": "pasá a la posición 2 de la fila",
-   "plantilla": "pasá a la posición 2 de la fila",
-   "falta": "¿A quién?",
-   "nueva": true
   },
   {
    "frase": "mové a Carlos en la fila",
@@ -8362,6 +8812,47 @@
    "frase": "cambiá el orden de la fila",
    "plantilla": "cambiá el orden de la fila",
    "falta": "¿A quién muevo y a qué posición?",
+   "nueva": true
+  },
+  {
+   "frase": "el concejal habla antes, pasalo a la posición 1",
+   "plantilla": "mové a {persona} a la posición 1 de la fila",
+   "args": {
+    "participant": "{persona}",
+    "position": 1
+   }
+  },
+  {
+   "frase": "reordená la fila: Julia a la posición 3",
+   "plantilla": "mové a {persona} a la posición 3 de la fila",
+   "args": {
+    "participant": "{persona}",
+    "position": 3
+   }
+  },
+  {
+   "frase": "el participante 18 pasa al puesto 2",
+   "plantilla": "mové a {persona} a la posición 2 de la fila",
+   "args": {
+    "participant": "{persona}",
+    "position": 2
+   }
+  },
+  {
+   "frase": "pasá a la posición 2 de la fila",
+   "plantilla": "mové a la posición 2 de la fila",
+   "falta": "¿A quién muevo a la posición 2?"
+  },
+  {
+   "frase": "mové a la posición 1 de la fila",
+   "plantilla": "mové a la posición 1 de la fila",
+   "falta": "¿A quién muevo a la posición 1?",
+   "nueva": true
+  },
+  {
+   "frase": "mové a Julia en la fila",
+   "plantilla": "mové a {persona} en la fila",
+   "falta": "¿A qué posición de la fila?",
    "nueva": true
   }
  ],
@@ -8520,14 +9011,6 @@
    }
   },
   {
-   "frase": "Dale la palabra al de Rosario, arranca su cronómetro",
-   "plantilla": "Dale la palabra a {persona}, arranca su cronómetro",
-   "args": {
-    "participant": "{persona}",
-    "on": true
-   }
-  },
-  {
    "frase": "ya habló Pérez, bajalo del aire",
    "plantilla": "ya habló {persona}, bajá del aire",
    "args": {
@@ -8538,14 +9021,6 @@
   {
    "frase": "poné a Tomás al aire ahora, aunque no sea su turno",
    "plantilla": "poné a {persona} al aire ahora, aunque no sea su turno",
-   "args": {
-    "participant": "{persona}",
-    "on": true
-   }
-  },
-  {
-   "frase": "poné al aire a Ruiz, le toca hablar",
-   "plantilla": "poné al aire a {persona}, le toca hablar",
    "args": {
     "participant": "{persona}",
     "on": true
@@ -8582,12 +9057,6 @@
    "nueva": true
   },
   {
-   "frase": "dale la palabra, arrancale el reloj",
-   "plantilla": "dale la palabra, arrancale el reloj",
-   "falta": "¿A quién le doy la palabra?",
-   "nueva": true
-  },
-  {
    "frase": "bajá del aire al que está hablando",
    "plantilla": "bajá del aire al que está hablando",
    "falta": "¿A quién bajo del aire?"
@@ -8602,6 +9071,39 @@
    "frase": "sacalo del aire",
    "plantilla": "sacalo del aire",
    "falta": "¿A quién saco del aire?",
+   "nueva": true
+  },
+  {
+   "frase": "Dale la palabra al de Rosario, arranca su cronómetro",
+   "plantilla": "dale la palabra a {persona}",
+   "args": {
+    "participant": "{persona}",
+    "on": true
+   }
+  },
+  {
+   "frase": "poné al aire a Ruiz, le toca hablar",
+   "plantilla": "poné al aire a {persona}",
+   "args": {
+    "participant": "{persona}",
+    "on": true
+   }
+  },
+  {
+   "frase": "dale la palabra, arrancale el reloj",
+   "plantilla": "dale la palabra al orador",
+   "falta": "¿A quién le doy la palabra?"
+  },
+  {
+   "frase": "poné al aire al orador",
+   "plantilla": "poné al aire al orador",
+   "falta": "¿A qué orador pongo al aire?",
+   "nueva": true
+  },
+  {
+   "frase": "sacá del aire al orador",
+   "plantilla": "sacá del aire al orador",
+   "falta": "¿A qué orador saco del aire?",
    "nueva": true
   }
  ],
@@ -8622,11 +9124,6 @@
   {
    "frase": "dejalo siempre en pantalla, los demás van pasando",
    "plantilla": "dejalo siempre en pantalla, los demás van pasando",
-   "falta": "¿A quién?"
-  },
-  {
-   "frase": "fijá a este que es el que presenta",
-   "plantilla": "fijá a este que es el que presenta",
    "falta": "¿A quién?"
   },
   {
@@ -8762,6 +9259,34 @@
    "plantilla": "cambiá el presentador, que el otro rote",
    "falta": "¿Quién es el nuevo presentador?",
    "nueva": true
+  },
+  {
+   "frase": "fijá a este que es el que presenta",
+   "plantilla": "marcá como presentador a la persona",
+   "falta": "¿A quién marco como presentador?"
+  },
+  {
+   "frase": "marcá al presentador",
+   "plantilla": "marcá al presentador",
+   "falta": "¿A quién marco como presentador?",
+   "nueva": true
+  },
+  {
+   "frase": "quitá la marca de presentador",
+   "plantilla": "sacá la marca de presentador",
+   "falta": "¿A quién le saco la marca de presentador?"
+  },
+  {
+   "frase": "marcá como presentador",
+   "plantilla": "marcá como presentador",
+   "falta": "¿A quién marco como presentador?",
+   "nueva": true
+  },
+  {
+   "frase": "poné la marca de presentador",
+   "plantilla": "poné la marca de presentador",
+   "falta": "¿A quién le pongo la marca de presentador?",
+   "nueva": true
   }
  ],
  "speaker_queue": [
@@ -8775,13 +9300,6 @@
   {
    "frase": "mandá al participante 3 a la fila para hablar",
    "plantilla": "mandá a {persona} a la fila para hablar",
-   "args": {
-    "participant": "{persona}"
-   }
-  },
-  {
-   "frase": "Laura quiere hablar, sumala a la fila",
-   "plantilla": "{persona} quiere hablar: a la fila",
    "args": {
     "participant": "{persona}"
    }
@@ -8831,13 +9349,6 @@
   {
    "frase": "sumá a la concejala a la cola de oradores",
    "plantilla": "sumá a {persona} a la cola de oradores",
-   "args": {
-    "participant": "{persona}"
-   }
-  },
-  {
-   "frase": "Mónica está en la sala y quiere hablar, encolala en la fila de oradores",
-   "plantilla": "{persona} está en la sala y quiere hablar: a la fila de oradores",
    "args": {
     "participant": "{persona}"
    }
@@ -8912,6 +9423,32 @@
    "plantilla": "encolá uno más para hablar",
    "falta": "¿A quién?",
    "nueva": true
+  },
+  {
+   "frase": "Laura quiere hablar, sumala a la fila",
+   "plantilla": "sumá a {persona} a la fila de oradores",
+   "args": {
+    "participant": "{persona}"
+   }
+  },
+  {
+   "frase": "Mónica está en la sala y quiere hablar, encolala en la fila de oradores",
+   "plantilla": "{persona} está en la sala, sumá a {persona} a la fila de oradores",
+   "args": {
+    "participant": "{persona}"
+   }
+  },
+  {
+   "frase": "sumá un orador a la fila",
+   "plantilla": "sumá un orador a la fila",
+   "falta": "¿A quién sumo a la fila?",
+   "nueva": true
+  },
+  {
+   "frase": "sumá a la fila de oradores",
+   "plantilla": "sumá a la fila de oradores",
+   "falta": "¿A quién sumo a la fila de oradores?",
+   "nueva": true
   }
  ],
  "speaker_time": [
@@ -8977,14 +9514,6 @@
    }
   },
   {
-   "frase": "Seteá 3:00 de tiempo asignado para Paz",
-   "plantilla": "Seteá 3:00 de tiempo asignado para {persona}",
-   "args": {
-    "participant": "{persona}",
-    "time": "=3:00"
-   }
-  },
-  {
    "frase": "El intendente pidió más, ponele 6:00 en su reloj",
    "plantilla": "{persona} pidió más, ponele 6:00 en su reloj",
    "args": {
@@ -8998,14 +9527,6 @@
    "args": {
     "participant": "{persona}",
     "time": "=2:00"
-   }
-  },
-  {
-   "frase": "Ajustale el tiempo a Rojas, dejalo en 5:00",
-   "plantilla": "Ajustale el tiempo a {persona}, dejalo en 5:00",
-   "args": {
-    "participant": "{persona}",
-    "time": "=5:00"
    }
   },
   {
@@ -9025,23 +9546,9 @@
    }
   },
   {
-   "frase": "Sumale un minuto al tiempo de Herrera, que está hablando",
-   "plantilla": "Sumale un minuto al tiempo de {persona}, que está hablando",
-   "args": {
-    "participant": "{persona}",
-    "time": "+1:00"
-   }
-  },
-  {
    "frase": "ponele tres minutos para hablar",
    "plantilla": "ponele tres minutos para hablar",
    "falta": "¿A quién?",
-   "nueva": true
-  },
-  {
-   "frase": "cambiale el tiempo a Rodríguez",
-   "plantilla": "cambiale el tiempo a {persona}",
-   "falta": "¿Cuánto tiempo le pongo?",
    "nueva": true
   },
   {
@@ -9064,6 +9571,47 @@
    "frase": "ponele tres minutos",
    "plantilla": "ponele tres minutos",
    "falta": "¿A quién le pongo los tres minutos?",
+   "nueva": true
+  },
+  {
+   "frase": "Seteá 3:00 de tiempo asignado para Paz",
+   "plantilla": "poné 3:00 de tiempo asignado para {persona}",
+   "args": {
+    "participant": "{persona}",
+    "time": "=3:00"
+   }
+  },
+  {
+   "frase": "Ajustale el tiempo a Rojas, dejalo en 5:00",
+   "plantilla": "poné el tiempo de {persona} en 5:00",
+   "args": {
+    "participant": "{persona}",
+    "time": "=5:00"
+   }
+  },
+  {
+   "frase": "Sumale un minuto al tiempo de Herrera, que está hablando",
+   "plantilla": "dale un minuto más de tiempo a {persona}",
+   "args": {
+    "participant": "{persona}",
+    "time": "+60"
+   }
+  },
+  {
+   "frase": "cambiale el tiempo a Rodríguez",
+   "plantilla": "poné otro tiempo para {persona}",
+   "falta": "¿Cuánto tiempo le pongo?"
+  },
+  {
+   "frase": "poné el tiempo de Gómez",
+   "plantilla": "poné el tiempo de {persona}",
+   "falta": "¿Cuánto tiempo le pongo?",
+   "nueva": true
+  },
+  {
+   "frase": "poné 4:00 de tiempo asignado",
+   "plantilla": "poné 4:00 de tiempo asignado",
+   "falta": "¿Para qué persona?",
    "nueva": true
   }
  ],
@@ -9094,14 +9642,6 @@
    "plantilla": "Cambiá el tiempo general por orador a cinco minutos",
    "args": {
     "defaultTime": "5m"
-   }
-  },
-  {
-   "frase": "El debate arranca ya: prendé el modo oradores y dejá el carrusel manual",
-   "plantilla": "El debate arranca ya: prendé el modo oradores y dejá el carrusel manual",
-   "args": {
-    "enabled": true,
-    "carousel": "manual"
    }
   },
   {
@@ -9182,6 +9722,14 @@
    "plantilla": "Configurá el modo oradores en cadena, que al sacar a uno entre otro",
    "args": {
     "carousel": "chain"
+   }
+  },
+  {
+   "frase": "El debate arranca ya: prendé el modo oradores y dejá el carrusel manual",
+   "plantilla": "prendé el modo oradores con el carrusel manual",
+   "args": {
+    "enabled": true,
+    "carousel": "manual"
    }
   }
  ],
@@ -9567,14 +10115,6 @@
    }
   },
   {
-   "frase": "Configurá la transición en fade de 300",
-   "plantilla": "Configurá la transición en fade de 300",
-   "args": {
-    "type": "fade",
-    "durationMs": 300
-   }
-  },
-  {
    "frase": "Transición tipo slide, rápida, 400 milisegundos",
    "plantilla": "Transición tipo slide, rápida, 400 milisegundos",
    "args": {
@@ -9606,6 +10146,26 @@
   {
    "frase": "poné otra transición entre escenas, esta no me gusta",
    "plantilla": "poné otra transición entre escenas, esta no me gusta",
+   "falta": "¿Qué tipo de transición?",
+   "nueva": true
+  },
+  {
+   "frase": "Configurá la transición en fade de 300",
+   "plantilla": "poné la transición en fade de 300 ms",
+   "args": {
+    "type": "fade",
+    "durationMs": 300
+   }
+  },
+  {
+   "frase": "poné la transición en 500 ms",
+   "plantilla": "poné la transición en 500 ms",
+   "falta": "¿Qué tipo de transición?",
+   "nueva": true
+  },
+  {
+   "frase": "poné otra transición entre escenas",
+   "plantilla": "poné otra transición entre escenas",
    "falta": "¿Qué tipo de transición?",
    "nueva": true
   }
