@@ -94,8 +94,18 @@ printf 'APPL????' >"$C/PkgInfo"
 # cubre entera. El launcher (Contents/MacOS) queda fuera del manifest, como en
 # Linux y Windows, donde tampoco se verifica a si mismo.
 "$ROOT/tools/deploy" --solo-manifest "$R" >/dev/null
-log "firmando la .app (ad-hoc)"
-codesign --force -s - "$APP" || morir "no se pudo firmar la .app"
+# Con el certificado propio (tools/firma-local.sh) la identidad de la app no
+# cambia entre compilaciones y macOS recuerda los permisos (cámara,
+# micrófono); solo si firma SIN preguntar. Si no, ad-hoc.
+FIRMA="-"
+if security find-identity -p codesigning 2>/dev/null | grep -q '"BA Desarrollo local"'; then
+    PRUEBA="$(mktemp)"
+    cp /usr/bin/true "$PRUEBA"
+    if timeout 15 codesign -f -s "BA Desarrollo local" "$PRUEBA" 2>/dev/null; then FIRMA="BA Desarrollo local"; fi
+    rm -f "$PRUEBA"
+fi
+log "firmando la .app ($([ "$FIRMA" = "-" ] && echo ad-hoc || echo "$FIRMA"))"
+codesign --force -s "$FIRMA" "$APP" || morir "no se pudo firmar la .app"
 codesign --verify --strict "$APP" || morir "la firma de la .app no verifica"
 log "listo: $APP ($(du -sh "$APP" | cut -f1))"
 
