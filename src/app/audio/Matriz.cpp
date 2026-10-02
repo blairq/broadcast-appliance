@@ -121,6 +121,9 @@ Matriz::Matriz(fs::path dataRoot, QObject* parent) : QObject(parent), root_(std:
             sincronizarTomas();
             armarPlan();
         }
+        // Las tarjetas «Entrada» de los racks pueden haber empezado (o dejado)
+        // de usar una entrada de placa.
+        if (usadasPorOtros_) usarEquipo();
     });
     lento_.start(3000);
     hilo_ = std::thread([this]() { bucleMezcla(); });
@@ -587,7 +590,9 @@ void Matriz::usarEquipo() {
     for (const auto& [k, e] : envios_)
         if (k.second.rfind("fis:", 0) == 0 && !e.mute) columnas.insert(k.second);
     equipo_->usarColumnas(columnas);
-    // Entradas físicas que se usan (una pista, la escucha o un envío): su captura se abre.
+    // Entradas físicas que se usan (una pista, la escucha, un envío o la
+    // tarjeta «Entrada» de un rack): su captura se abre.
+    const std::set<std::string> otros = usadasPorOtros_ ? usadasPorOtros_() : std::set<std::string>{};
     for (const auto& f : filas_) {
         if (!equipo_->esEntradaFisica(f)) continue;
         bool usa = false;
@@ -597,6 +602,7 @@ void Matriz::usarEquipo() {
         }
         for (const auto& [k, e] : envios_)
             if (k.first == f) usa = true;
+        if (otros.contains(f)) usa = true;
         if (usa) entradas.insert(f);
     }
     equipo_->usarEntradas(entradas);

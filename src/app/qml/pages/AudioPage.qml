@@ -87,6 +87,7 @@ Rectangle {
         if (t === "monitor") return "#a78bfa"
         if (t === "texto") return "#22c55e"
         if (t === "generator") return "#f59e0b"
+        if (t === "entrada") return "#38bdf8"
         return Theme.accent
     }
     function fmtDb(v) { return (v === undefined || v === null || v <= -139) ? "—" : (Math.round(v * 10) / 10).toFixed(1) }
@@ -336,6 +337,36 @@ Rectangle {
                     onClicked: outPopup.open()
                     ToolTip.visible: hovered; ToolTip.delay: 400
                     ToolTip.text: "Agrega una tarjeta de salida de audio a este grafo: conectale lo que quieras oír."
+                }
+                // Entrada: el audio de OTRA fuente (el micrófono, un invitado,
+                // un canal de placa) como una tarjeta más de este grafo.
+                GlassButton {
+                    compact: true
+                    text: "+ Entrada"
+                    activeColor: "#38bdf8"
+                    active: true
+                    onClicked: entradaPopup.open()
+                    ToolTip.visible: hovered; ToolTip.delay: 400
+                    ToolTip.text: "Trae el audio de otra fuente (por ejemplo, el micrófono) como una tarjeta de este grafo."
+                    Popup {
+                        id: entradaPopup
+                        y: parent.height + 4
+                        padding: 8
+                        background: Rectangle { color: Theme.panel; radius: Theme.radiusSmall; border.color: Theme.glassBorder }
+                        ColumnLayout {
+                            spacing: 4
+                            Text { text: "¿De qué fuente?"; color: Theme.textDim; font.pixelSize: 12 }
+                            Repeater {
+                                model: page.au ? page.au.sources.filter(x => x.nombre !== page.au.source) : []
+                                delegate: GlassButton {
+                                    required property var modelData
+                                    Layout.fillWidth: true; compact: true
+                                    text: modelData.nombre + (modelData.grupo ? "  ·  " + modelData.grupo : "")
+                                    onClicked: { page.msg = page.au.addEntrada(modelData.nombre); entradaPopup.close() }
+                                }
+                            }
+                        }
+                    }
                 }
                 // Voz a texto: como una salida, pero al reconocedor (dictado al
                 // asistente o transcripción continua).
@@ -949,6 +980,21 @@ Rectangle {
                         Layout.fillWidth: true
                         spacing: 6
                         visible: parent.d.tipo === "analyzer" || parent.d.tipo === "generator"
+                        GlassButton { compact: true; text: "Quitar"; onClicked: page.au.removeNode(page.au.selected) }
+                    }
+                    // Entrada: de qué fuente trae el audio
+                    RowLayout {
+                        Layout.fillWidth: true
+                        visible: parent.d.tipo === "entrada"
+                        Text { text: "Fuente"; color: Theme.textDim; font.pixelSize: 12 }
+                        ComboBox {
+                            id: entradaFuente
+                            Layout.fillWidth: true
+                            readonly property var lista: page.au ? page.au.sources.filter(x => x.nombre !== page.au.source).map(x => x.nombre) : []
+                            model: lista
+                            currentIndex: lista.indexOf(parent.parent.d.fuente || "")
+                            onActivated: page.msg = page.au.setEntradaFuente(page.au.selected, currentText)
+                        }
                         GlassButton { compact: true; text: "Quitar"; onClicked: page.au.removeNode(page.au.selected) }
                     }
                     // Voz a texto: el modo, y lo que va transcribiendo

@@ -190,6 +190,13 @@ void AudioViewModel::rebuildDetail() {
             rep["bandas"] = bands;
             j["analisis"] = rep;
         }
+        if (r->kindOf(id) == "entrada") {
+            for (const auto& n : r->describe()["nodos"])
+                if (n["id"] == id) j["fuente"] = n.value("fuente", "");
+            j["ayuda"] = "Trae el audio de otra fuente (después de su propio rack) a este grafo. No se conecta "
+                         "sola: cableala a donde la quieras (la mezcla, el sidechain de un compresor, la voz a "
+                         "texto). Si la fuente es una entrada de placa, su captura se abre sola.";
+        }
         if (r->kindOf(id) == "texto") {
             j["modo"] = r->textoModo();
             j["ayuda"] =
@@ -267,6 +274,25 @@ QString AudioViewModel::addAnalyzer() {
     select(QString::fromStdString(id));
     rebuildGraph();
     return {};
+}
+
+QString AudioViewModel::addEntrada(const QString& fuente) {
+    if (source_.isEmpty()) return "Elegí una fuente con audio.";
+    std::string e;
+    const std::string id = mgr_.addEntrada(source_.toStdString(), fuente.toStdString(), &e);
+    if (id.empty()) return QString::fromStdString(e);
+    autoLayout();
+    select(QString::fromStdString(id));
+    rebuildGraph();
+    rebuildDetail();
+    return {};
+}
+
+QString AudioViewModel::setEntradaFuente(const QString& node, const QString& fuente) {
+    const std::string e = mgr_.setEntradaFuente(source_.toStdString(), node.toStdString(), fuente.toStdString());
+    rebuildGraph();
+    rebuildDetail();
+    return QString::fromStdString(e);
 }
 
 QString AudioViewModel::addGenerator() {

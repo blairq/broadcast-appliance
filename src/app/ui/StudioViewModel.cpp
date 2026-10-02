@@ -350,6 +350,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     audio_ = std::make_unique<audio::AudioViewModel>(*racks_);
     if (voz_) voz_->setRacks(racks_.get()); // la voz sale de los nodos «Voz a texto»
     matriz_ = std::make_unique<audio::Matriz>(rt.dataRoot());
+    // Una entrada de placa que trae la tarjeta «Entrada» de un rack también se abre.
+    matriz_->setUsadasPorOtros([r = racks_.get()]() { return r->fuentesDeEntradas(); });
 #endif
     // Las etiquetas de video ("Invitado 2") pasan a ser el nombre real.
     connect(conference_.get(), &ConferenceViewModel::roomChanged, this,

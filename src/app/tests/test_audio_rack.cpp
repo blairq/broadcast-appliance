@@ -181,6 +181,38 @@ int main() {
         monPeak = std::max(monPeak, std::fabs(rack.monitorPlane(0)[i]));
     CHECK(monPeak > 0.45f && monPeak < 0.55f, "la salida oye la entrada tal cual");
     CHECK(std::fabs(outWired - outNoWire) < 0.02f, "la salida no altera lo que sale al aire");
+    // 5b. Tarjeta ENTRADA: el audio de otra fuente llega por su anillo y se
+    //     suma donde se la cablee; sin anillo, silencio. Se guarda su fuente.
+    {
+        AudioRack r3(lib, &svc, 48000);
+        const std::string ent = r3.addEntrada("Micrófono");
+        CHECK(ent == "entrada" && r3.entradas().size() == 1 && r3.entradas()[0].second == "Micrófono",
+              "agrega la tarjeta de entrada");
+        CHECK(r3.connect(ent, "out", "out", "in", &err), "se cablea la entrada a la mezcla");
+        auto ring = std::make_shared<anillo::Ring>();
+        r3.setEntradaAnillo(ent, ring);
+        // La otra fuente manda 0.25 constante; la propia, silencio.
+        std::vector<float> otra(480, 0.25f), l(480, 0.f), rr(480, 0.f);
+        float* planes[2] = {l.data(), rr.data()};
+        float pico = 0;
+        for (int b = 0; b < 10; ++b) {
+            ring->push(otra.data(), otra.data(), 480);
+            std::fill(l.begin(), l.end(), 0.f);
+            std::fill(rr.begin(), rr.end(), 0.f);
+            r3.process(planes, 2, 480);
+            pico = std::max(pico, l[100]);
+        }
+        CHECK(std::fabs(pico - 0.25f) < 0.01f, "lo que llega de la otra fuente sale en la mezcla");
+        r3.setEntradaAnillo(ent, nullptr);
+        std::fill(l.begin(), l.end(), 0.f);
+        r3.process(planes, 2, 480);
+        CHECK(std::fabs(l[100]) < 1e-6, "sin anillo, la entrada es silencio");
+        AudioRack r4(lib, &svc, 48000);
+        CHECK(r4.load(r3.save(), &err) && r4.entradas().size() == 1 && r4.entradas()[0].second == "Micrófono",
+              "la tarjeta de entrada se guarda con su fuente");
+        CHECK(r4.setEntradaFuente(ent, "Invitado 1") && r4.entradas()[0].second == "Invitado 1",
+              "se le cambia la fuente");
+    }
     // 6. Cables por canal: la derecha de un modulo a la izquierda de otro, y
     //    un solo canal (la otra mitad queda en silencio).
     {

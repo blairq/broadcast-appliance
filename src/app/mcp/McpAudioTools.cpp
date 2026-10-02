@@ -343,20 +343,29 @@ void McpService::registerAudioTools() {
                         "eq, multibanda, limitador) o cualquier id LSP. Se inserta en la cadena despues de "
                         "`after` (vacio = "
                         "justo antes de la salida). `preset` aplica valores de partida (p. ej. \"voz\"). "
-                        "Tambien \"analizador\".";
+                        "Tambien \"analizador\", y \"entrada\" con `fuente`: trae el audio de OTRA fuente "
+                        "(el microfono, un invitado, un canal de placa) como una tarjeta del grafo; despues se "
+                        "cablea con audio_patch (sale por \"out\").";
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"source", kSource},
                            {"module", {{"type", "string"}}},
                            {"after", {{"type", "string"}}},
                            {"label", {{"type", "string"}}},
-                           {"preset", {{"type", "string"}}}}},
+                           {"preset", {{"type", "string"}}},
+                           {"fuente", {{"type", "string"}}}}},
                          {"required", {"source", "module"}}};
         t.run = [mgr](const json& a, Done done) {
             std::string e;
+            const std::string mod = a.value("module", "");
+            if (mod == "entrada") {
+                const std::string id = mgr()->addEntrada(a.value("source", ""), a.value("fuente", ""), &e);
+                if (id.empty()) return done(ToolResult::error(e));
+                AudioRack* r = mgr()->rack(a.value("source", ""), false, &e);
+                return done(ToolResult().data(json{{"nodo", id}, {"rack", r != nullptr ? r->describe() : json()}}));
+            }
             AudioRack* r = mgr()->rack(a.value("source", ""), true, &e);
             if (r == nullptr) return done(ToolResult::error(e));
-            const std::string mod = a.value("module", "");
             if (mod == "analizador" || mod == "analyzer") {
                 const std::string id = r->addAnalyzer(a.value("label", ""), a.value("after", ""));
                 if (id.empty()) return done(ToolResult::error("no existe el nodo " + a.value("after", "")));

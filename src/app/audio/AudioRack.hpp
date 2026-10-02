@@ -12,6 +12,10 @@
 //   salida     una salida de audio del equipo (auriculares, parlantes): copia
 //              lo que le llega para mandarlo a ese dispositivo. No toca lo que
 //              sale al aire; se patchea desde donde se quiera oir.
+//   entrada    el audio de OTRA fuente (el micrófono, un invitado, un canal
+//              de una placa), después de su propio rack: una tarjeta más del
+//              grafo, que se patchea a donde se quiera (la mezcla, el
+//              sidechain de un compresor, la voz a texto). Solo salida.
 //   texto      VOZ A TEXTO (uno por rack): copia lo que le llega para el
 //              reconocedor. Modo «dictado» (push-to-talk al asistente) o
 //              «continuo» (transcripción: subtítulos, acta). Tampoco toca lo que
@@ -42,6 +46,7 @@
 
 #include "audio/Analyzer.hpp"
 #include "audio/ClapHost.hpp"
+#include "audio/RingEstereo.hpp"
 
 namespace ba::app::audio {
 
@@ -64,6 +69,14 @@ class AudioRack {
     std::string addAnalyzer(const std::string& label, const std::string& after);
     /// Generador suelto (no se conecta solo: se patchea a mano o se usa para medir).
     std::string addGenerator(const std::string& label);
+    /// Tarjeta ENTRADA: el audio de la fuente `fuente` (no se conecta sola: se
+    /// patchea). El audio lo trae RackManager (setEntradaAnillo).
+    std::string addEntrada(const std::string& fuente, const std::string& label = {});
+    bool setEntradaFuente(const std::string& id, const std::string& fuente);
+    /// Las tarjetas de entrada: (id del nodo, fuente).
+    std::vector<std::pair<std::string, std::string>> entradas() const;
+    /// El anillo del que lee la tarjeta (nulo = silencio).
+    void setEntradaAnillo(const std::string& id, std::shared_ptr<anillo::Ring> ring);
     /// Nodo de SALIDA de audio del equipo (uno por rack). `device` es el id del
     /// dispositivo y `label` su nombre. Si ya hay uno, le cambia el destino.
     std::string addOutput(const std::string& device, const std::string& label);

@@ -38,9 +38,11 @@
 
 #include <atomic>
 #include <filesystem>
+#include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <string>
 #include <thread>
 #include <vector>
@@ -78,6 +80,9 @@ class Matriz : public QObject {
     Q_PROPERTY(bool pistasPlegadas READ pistasPlegadas WRITE setPistasPlegadas NOTIFY cambio)
 
    public:
+    /// Las fuentes que usan OTROS (las tarjetas «Entrada» de los racks): una
+    /// entrada de placa que alguien trae así también abre su captura.
+    void setUsadasPorOtros(std::function<std::set<std::string>()> f) { usadasPorOtros_ = std::move(f); }
     using json = nlohmann::json;
     static constexpr int kPistas = 6;
     static constexpr int kMaxVirtuales = 16;
@@ -147,6 +152,7 @@ class Matriz : public QObject {
     std::vector<std::string> fuentesConAudio() const;
     /// Abre lo del equipo que se usa y cierra lo que no.
     void usarEquipo();
+    std::function<std::set<std::string>()> usadasPorOtros_;
     static void alAudio(void* param, obs_source* src, const ::audio_data* data, bool muted);
 
     std::filesystem::path root_;

@@ -73,6 +73,8 @@ struct AudioRack::Node {
     std::string id, kind, label, pluginId;
     std::string device; // nodo "monitor": id del dispositivo de salida
     std::string modo;   // nodo "texto": "dictado" o "continuo"
+    std::string fuente; // nodo "entrada": de qué fuente trae el audio
+    std::shared_ptr<anillo::Ring> ring; // nodo "entrada": lo que llega de esa fuente
     std::unique_ptr<ClapInstance> clap;
     std::unique_ptr<Analyzer> analyzer;
     std::unique_ptr<Generator> gen;
@@ -82,7 +84,7 @@ struct AudioRack::Node {
     std::atomic<float> inPow{0}, outPow{0}, inPeak{0}, outPeak{0};
 
     int inputs() const {
-        if (kind == "in" || kind == "generator") return 0;
+        if (kind == "in" || kind == "generator" || kind == "entrada") return 0;
         if (kind == "plugin") return static_cast<int>(clap->inputs().size());
         return 1;
     }
@@ -127,6 +129,7 @@ struct AudioRack::Plan {
         std::vector<InPort> ins;
         std::vector<int> outs;
         std::vector<float* const*> inArr, outArr;
+        std::shared_ptr<anillo::Ring> ring; // tarjeta de entrada
     };
     std::vector<std::unique_ptr<Buf>> bufs;
     std::vector<Step> steps;
@@ -258,12 +261,13 @@ int slotOf(double x, double y) {
 
 void AudioRack::place(Node& n) {
     // Generadores y escucha: fila propia abajo, uno al lado del otro.
-    if (n.kind == "generator" || n.kind == "monitor" || n.kind == "texto") {
+    if (n.kind == "generator" || n.kind == "monitor" || n.kind == "texto" || n.kind == "entrada") {
         double gx = kOrgX, maxY = kOrgY;
         for (const auto& o : nodes_)
             if (o.get() != &n) maxY = std::max(maxY, o->y);
         for (const auto& o : nodes_)
-            if (o.get() != &n && (o->kind == "generator" || o->kind == "monitor" || o->kind == "texto"))
+            if (o.get() != &n && (o->kind == "generator" || o->kind == "monitor" || o->kind == "texto" ||
+                                  o->kind == "entrada"))
                 gx = std::max(gx, o->x + kColW);
         n.x = snapGrid(gx);
         n.y = snapGrid(maxY + kRowH);
@@ -274,7 +278,7 @@ void AudioRack::place(Node& n) {
     int last = 0;
     for (const auto& o : nodes_)
         if (o.get() != &n && o->id != "out" && o->kind != "generator" && o->kind != "monitor" &&
-            o->kind != "texto")
+            o->kind != "texto" && o->kind != "entrada")
             last = std::max(last, slotOf(o->x, o->y));
     setSlot(n, last + 1);
     if (Node* out = find("out"); out != nullptr) setSlot(*out, last + 2);
@@ -292,7 +296,7 @@ void AudioRack::layoutGrid() {
         seq.push_back(id);
     for (const auto& n : nodes_) {
         if (n->kind == "in" || n->kind == "out" || n->kind == "generator" || n->kind == "monitor" ||
-            n->kind == "texto")
+            n->kind == "texto" || n->kind == "entrada")
             continue;
         if (std::find(seq.begin(), seq.end(), n->id) == seq.end()) seq.push_back(n->id);
     }
@@ -303,7 +307,7 @@ void AudioRack::layoutGrid() {
     const int row = (static_cast<int>(seq.size()) + kCols - 1) / kCols;
     int i = 0;
     for (const auto& n : nodes_)
-        if (n->kind == "generator" || n->kind == "monitor" || n->kind == "texto")
+        if (n->kind == "generator" || n->kind == "monitor" || n->kind == "texto" || n->kind == "entrada")
             setSlot(*n, row * kCols + i++);
 }
 
@@ -446,6 +450,43 @@ std::string AudioRack::outputDevice() const {
 }
 
 const float* AudioRack::monitorPlane(int ch) const { return ch == 0 ? monL_.data() : monR_.data(); }
+
+std::string AudioRack::addEntrada(const std::string& fuente, const std::string& label) {
+    auto n = std::make_unique<Node>();
+    n->kind = "entrada";
+    n->fuente = fuente;
+    n->label = label.empty() ? "Entrada: " + fuente : label;
+    n->id = newId("entrada");
+    const std::string id = n->id;
+    nodes_.push_back(std::move(n));
+    place(*nodes_.back());
+    rebuild();
+    return id;
+}
+
+bool AudioRack::setEntradaFuente(const std::string& id, const std::string& fuente) {
+    Node* n = find(id);
+    if (n == nullptr || n->kind != "entrada") return false;
+    if (n->label == "Entrada: " + n->fuente) n->label = "Entrada: " + fuente;
+    n->fuente = fuente;
+    n->ring.reset(); // el anillo nuevo lo trae RackManager
+    rebuild();
+    return true;
+}
+
+std::vector<std::pair<std::string, std::string>> AudioRack::entradas() const {
+    std::vector<std::pair<std::string, std::string>> out;
+    for (const auto& n : nodes_)
+        if (n->kind == "entrada") out.emplace_back(n->id, n->fuente);
+    return out;
+}
+
+void AudioRack::setEntradaAnillo(const std::string& id, std::shared_ptr<anillo::Ring> ring) {
+    Node* n = find(id);
+    if (n == nullptr || n->kind != "entrada" || n->ring == ring) return;
+    n->ring = std::move(ring);
+    rebuild();
+}
 
 std::string AudioRack::addGenerator(const std::string& label) {
     auto n = std::make_unique<Node>();
@@ -676,6 +717,7 @@ void AudioRack::rebuild() {
         }
         for (int p = 0; p < n->outputs(); ++p)
             st.outs.push_back(outBuf[{n->id, p}]);
+        if (n->kind == "entrada") st.ring = n->ring;
         if (n->kind == "in") plan->inBuf = st.outs[0];
         if (n->kind == "out") plan->outRead = st.ins[0].buf;
         plan->steps.push_back(std::move(st));
@@ -778,6 +820,13 @@ void AudioRack::process(float* const* planes, int channels, uint32_t frames) {
                     txt_[off + i] = 0.5f * (st.inArr[0][0][i] + st.inArr[0][1][i]);
                 if (room > 0) txtFrames_ = off + room;
                 meterInto(node.inPow, node.inPeak, st.inArr[0], n, alpha);
+            } else if (node.kind == "entrada") {
+                // Lo que llegó de la otra fuente (silencio si todavía no hay).
+                if (!st.ring || !st.ring->pop(st.outArr[0][0], st.outArr[0][1], n)) {
+                    std::memset(st.outArr[0][0], 0, n * sizeof(float));
+                    std::memset(st.outArr[0][1], 0, n * sizeof(float));
+                }
+                meterInto(node.outPow, node.outPeak, st.outArr[0], n, alpha);
             } else if (node.kind == "generator") {
                 node.gen->render(st.outArr[0], 2, n);
                 meterInto(node.outPow, node.outPeak, st.outArr[0], n, alpha);
@@ -871,6 +920,7 @@ json AudioRack::describe() const {
         }
         if (n->kind == "monitor") j["dispositivo"] = n->device;
         if (n->kind == "texto") j["modo"] = n->modo;
+        if (n->kind == "entrada") j["fuente"] = n->fuente;
         j["medidores"] = meters(n->id);
         nodes.push_back(std::move(j));
     }
@@ -900,6 +950,7 @@ json AudioRack::save() const {
         }
         if (n->kind == "monitor") j["dispositivo"] = n->device;
         if (n->kind == "texto") j["modo"] = n->modo;
+        if (n->kind == "entrada") j["fuente"] = n->fuente;
         if (n->kind == "generator") {
             const auto c = n->gen->config();
             j["senal"] = {{"tipo", Generator::kindName(c.kind)},
@@ -975,6 +1026,8 @@ bool AudioRack::load(const json& j, std::string* error) {
             n->id = "voz-a-texto"; // uno solo por rack
             n->modo = nj.value("modo", "dictado") == "continuo" ? "continuo" : "dictado";
             txtModo_ = n->modo == "continuo" ? 2 : 1;
+        } else if (kind == "entrada") {
+            n->fuente = nj.value("fuente", "");
         } else if (kind == "monitor") {
             n->id = "salida-audio"; // una sola por rack
             n->device = nj.value("dispositivo", "");

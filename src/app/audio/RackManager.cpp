@@ -242,10 +242,18 @@ RackManager::RackManager(fs::path dataRoot, QObject* parent) : QObject(parent), 
     saveTimer_.setSingleShot(true);
     saveTimer_.setInterval(800);
     connect(&saveTimer_, &QTimer::timeout, this, &RackManager::saveNow);
+    revision_.setInterval(2000);
+    connect(&revision_, &QTimer::timeout, this, [this]() {
+        montarPendientes();
+        sincronizarEntradas();
+    });
+    revision_.start();
 }
 
 RackManager::~RackManager() {
     saveNow();
+    revision_.stop();
+    tomas_.clear(); // cada Toma saca su callback
     // Los filtros siguen vivos en OBS; que no apunten al manager.
     for (auto& [name, f] : filters_)
         (void)f;
@@ -676,7 +684,10 @@ std::string RackManager::plantillaDeTipo(const std::string& tipo) const {
     return {};
 }
 
-void RackManager::markDirty() { saveTimer_.start(); }
+void RackManager::markDirty() {
+    saveTimer_.start();
+    sincronizarEntradas();
+}
 
 void RackManager::saveNow() {
     json all = pending_.is_object() ? pending_ : json::object();
@@ -771,6 +782,154 @@ void RackManager::restore() {
         if (src == nullptr) continue;
         obs_source_release(src);
         rack(it.key(), true);
+    }
+}
+
+// --- Tarjetas de entrada (el audio de otra fuente) ---------------------------------
+
+struct RackManager::Toma {
+    std::string fuente;
+    obs_source_t* src = nullptr;
+    std::shared_ptr<anillo::Ring> ring = std::make_shared<anillo::Ring>();
+
+    static void alAudio(void* p, obs_source_t*, const ::audio_data* data, bool muted) {
+        auto* t = static_cast<Toma*>(p);
+        if (data == nullptr || data->frames == 0 || data->data[0] == nullptr) return;
+        const auto* l = reinterpret_cast<const float*>(data->data[0]);
+        const auto* r = data->data[1] != nullptr ? reinterpret_cast<const float*>(data->data[1]) : l;
+        if (muted) {
+            std::vector<float> z(data->frames, 0.0f);
+            t->ring->push(z.data(), z.data(), data->frames);
+        } else {
+            t->ring->push(l, r, data->frames);
+        }
+    }
+    ~Toma() {
+        // Si libobs ya se apagó (cierre temprano), la fuente ya no existe.
+        if (src != nullptr && obs_initialized()) {
+            obs_source_remove_audio_capture_callback(src, &Toma::alAudio, this);
+            obs_source_release(src);
+        }
+    }
+};
+
+std::string RackManager::validarEntrada(const std::string& source, const std::string& fuente) const {
+    if (fuente.empty()) return "falta de qué fuente traer el audio";
+    if (fuente == source) return "una fuente no puede traer su propio audio (sería un lazo)";
+    obs_source_t* src = obs_get_source_by_name(fuente.c_str());
+    if (src == nullptr) return "no existe la fuente '" + fuente + "'";
+    const bool audio = (obs_source_get_output_flags(src) & OBS_SOURCE_AUDIO) != 0;
+    obs_source_release(src);
+    if (!audio) return "'" + fuente + "' no tiene audio";
+    // Lazo entre racks: si `fuente` (o lo que trae su rack, y así) ya trae el
+    // audio de `source`, el sonido daría vueltas (con eco, por la demora).
+    std::set<std::string> vistas;
+    std::vector<std::string> pendientes{fuente};
+    while (!pendientes.empty()) {
+        const std::string f = pendientes.back();
+        pendientes.pop_back();
+        if (!vistas.insert(f).second) continue;
+        auto it = filters_.find(f);
+        if (it == filters_.end() || !it->second->rack) continue;
+        for (const auto& [nodo, origen] : it->second->rack->entradas()) {
+            if (origen == source)
+                return "'" + fuente + "' ya trae el audio de '" + source + "' (directa o indirectamente): sería un lazo";
+            pendientes.push_back(origen);
+        }
+    }
+    return {};
+}
+
+std::string RackManager::addEntrada(const std::string& source, const std::string& fuente, std::string* error) {
+    const std::string e = validarEntrada(source, fuente);
+    if (!e.empty()) {
+        if (error != nullptr) *error = e;
+        return {};
+    }
+    AudioRack* r = rack(source, true, error);
+    if (r == nullptr) return {};
+    const std::string id = r->addEntrada(fuente);
+    markDirty();
+    emit changed();
+    return id;
+}
+
+std::string RackManager::setEntradaFuente(const std::string& source, const std::string& nodo, const std::string& fuente) {
+    std::string e = validarEntrada(source, fuente);
+    if (!e.empty()) return e;
+    AudioRack* r = rack(source, false, &e);
+    if (r == nullptr) return e;
+    if (!r->setEntradaFuente(nodo, fuente)) return "'" + nodo + "' no es una tarjeta de entrada";
+    markDirty();
+    emit changed();
+    return {};
+}
+
+std::set<std::string> RackManager::fuentesDeEntradas() const {
+    std::set<std::string> out;
+    for (const auto& [nombre, f] : filters_)
+        if (f->rack)
+            for (const auto& [nodo, fuente] : f->rack->entradas())
+                if (!fuente.empty()) out.insert(fuente);
+    return out;
+}
+
+void RackManager::sincronizarEntradas() {
+    if (!obs_initialized()) return;
+    std::set<std::string> quiero;
+    for (const auto& [nombre, f] : filters_) {
+        if (!f->rack) continue;
+        for (const auto& [nodo, fuente] : f->rack->entradas()) {
+            const std::string clave = nombre + "\n" + nodo;
+            // Una toma vieja de otra fuente (cambió la tarjeta) se rehace.
+            auto it = tomas_.find(clave);
+            if (it != tomas_.end() && (it->second->fuente != fuente || obs_source_removed(it->second->src))) {
+                f->rack->setEntradaAnillo(nodo, nullptr);
+                tomas_.erase(it);
+                it = tomas_.end();
+            }
+            if (fuente.empty() || !validarEntrada(nombre, fuente).empty()) {
+                f->rack->setEntradaAnillo(nodo, nullptr);
+                continue;
+            }
+            quiero.insert(clave);
+            if (it == tomas_.end()) {
+                obs_source_t* src = obs_get_source_by_name(fuente.c_str());
+                if (src == nullptr) continue; // todavía no existe: en la próxima vuelta
+                auto t = std::make_unique<Toma>();
+                t->fuente = fuente;
+                t->src = src; // la referencia queda en la toma
+                obs_source_add_audio_capture_callback(src, &Toma::alAudio, t.get());
+                it = tomas_.emplace(clave, std::move(t)).first;
+            }
+            f->rack->setEntradaAnillo(nodo, it->second->ring);
+        }
+    }
+    for (auto it = tomas_.begin(); it != tomas_.end();) {
+        if (quiero.contains(it->first)) {
+            ++it;
+            continue;
+        }
+        // El rack o la tarjeta ya no están: se saca la toma (si el rack sigue,
+        // su tarjeta ya no apunta al anillo).
+        const std::string rackNombre = it->first.substr(0, it->first.find('\n'));
+        const std::string nodo = it->first.substr(it->first.find('\n') + 1);
+        if (auto f = filters_.find(rackNombre); f != filters_.end() && f->second->rack)
+            f->second->rack->setEntradaAnillo(nodo, nullptr);
+        it = tomas_.erase(it);
+    }
+}
+
+void RackManager::montarPendientes() {
+    if (!obs_initialized() || !pending_.is_object()) return;
+    std::vector<std::string> nombres;
+    for (auto it = pending_.begin(); it != pending_.end(); ++it)
+        if (!filters_.contains(it.key())) nombres.push_back(it.key());
+    for (const std::string& n : nombres) {
+        obs_source_t* src = obs_get_source_by_name(n.c_str());
+        if (src == nullptr) continue;
+        obs_source_release(src);
+        rack(n, true);
     }
 }
 
