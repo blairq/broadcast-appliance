@@ -6,8 +6,8 @@
     "`etiquetas` son las del buscador (McpIndice), no del protocolo: es lo que hace que",
     "«hay acople» llegue a audio_set sin que nadie nombre la herramienta."
   ],
-  "generado": "2026-10-02T14:20:15+00:00",
-  "cuantas": 332,
+  "generado": "2026-10-02T16:55:29+00:00",
+  "cuantas": 333,
   "repetidas": [],
   "categorias": [
     {
@@ -128,6 +128,7 @@
       "id": "camaras",
       "titulo": "Cámaras PTZ",
       "herramientas": [
+        "ptz_apuntar",
         "ptz_buscar",
         "ptz_camaras",
         "ptz_configurar",
@@ -2293,7 +2294,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1535
+        "linea": 1557
       },
       "roles": [
         "asistente",
@@ -2382,7 +2383,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1504
+        "linea": 1526
       },
       "roles": [
         "asistente",
@@ -2419,7 +2420,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1588
+        "linea": 1610
       },
       "roles": [
         "asistente",
@@ -2444,7 +2445,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1475
+        "linea": 1497
       },
       "roles": [
         "asistente",
@@ -4076,6 +4077,57 @@
       ]
     },
     {
+      "nombre": "ptz_apuntar",
+      "titulo": "Apuntar a un punto o cuadro de la imagen",
+      "categoria": "camaras",
+      "descripcion": "Lo de la tarjeta PTZ con el mouse, sobre la imagen que se ve (ya recortada): `u`, `v` (0 a 1) es el punto que va al centro; con `ancho` y `alto` (0 a 1 de la imagen) se acerca hasta que ese cuadro la llene. Lo hace lo que mueve el joystick: el digital, exacto; una cámara motorizada, aproximado.",
+      "esquema": {
+        "properties": {
+          "alto": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "ancho": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "entrada": {
+            "description": "Nombre de la entrada de video (como en ptz_camaras).",
+            "type": "string"
+          },
+          "u": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "v": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "entrada",
+          "u",
+          "v"
+        ],
+        "type": "object"
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "apuntar la camara a ese punto centrar ahi encuadrar ese cuadro acercar a esa zona",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpPtzTools.cpp",
+        "linea": 181
+      },
+      "roles": []
+    },
+    {
       "nombre": "ptz_buscar",
       "titulo": "Buscar cámaras ONVIF en la red",
       "categoria": "camaras",
@@ -4092,7 +4144,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPtzTools.cpp",
-        "linea": 347
+        "linea": 374
       },
       "roles": []
     },
@@ -4202,7 +4254,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPtzTools.cpp",
-        "linea": 181
+        "linea": 208
       },
       "roles": []
     },
@@ -4290,7 +4342,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPtzTools.cpp",
-        "linea": 326
+        "linea": 353
       },
       "roles": []
     },
@@ -4402,7 +4454,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPtzTools.cpp",
-        "linea": 312
+        "linea": 339
       },
       "roles": []
     },
@@ -4438,7 +4490,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPtzTools.cpp",
-        "linea": 262
+        "linea": 289
       },
       "roles": []
     },
@@ -4481,7 +4533,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPtzTools.cpp",
-        "linea": 283
+        "linea": 310
       },
       "roles": []
     },
@@ -4507,7 +4559,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPtzTools.cpp",
-        "linea": 237
+        "linea": 264
       },
       "roles": []
     },
@@ -4589,7 +4641,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPtzTools.cpp",
-        "linea": 374
+        "linea": 401
       },
       "roles": []
     },
@@ -4610,7 +4662,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1850
+        "linea": 1872
       },
       "roles": [
         "asistente"
@@ -4637,7 +4689,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1755
+        "linea": 1777
       },
       "roles": [
         "asistente"
@@ -4669,7 +4721,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1783
+        "linea": 1805
       },
       "roles": [
         "asistente"
@@ -5168,7 +5220,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 914
+        "linea": 936
       },
       "roles": [
         "asistente",
@@ -5200,7 +5252,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 899
+        "linea": 921
       },
       "roles": [
         "asistente",
@@ -5278,7 +5330,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1046
+        "linea": 1068
       },
       "roles": [
         "asistente",
@@ -5310,7 +5362,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 972
+        "linea": 994
       },
       "roles": [
         "asistente",
@@ -5340,7 +5392,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1007
+        "linea": 1029
       },
       "roles": [
         "asistente",
@@ -5375,7 +5427,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 773
+        "linea": 795
       },
       "roles": [
         "asistente",
@@ -5400,7 +5452,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 741
+        "linea": 763
       },
       "roles": [
         "asistente",
@@ -5435,7 +5487,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 797
+        "linea": 819
       },
       "roles": [
         "asistente",
@@ -5467,7 +5519,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 848
+        "linea": 870
       },
       "roles": [
         "asistente",
@@ -5503,7 +5555,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 946
+        "linea": 968
       },
       "roles": [
         "asistente",
@@ -5539,7 +5591,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 990
+        "linea": 1012
       },
       "roles": [
         "asistente",
@@ -5572,7 +5624,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 818
+        "linea": 840
       },
       "roles": [
         "asistente",
@@ -5597,7 +5649,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 875
+        "linea": 897
       },
       "roles": [
         "asistente",
@@ -5641,7 +5693,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1147
+        "linea": 1169
       },
       "roles": [
         "asistente",
@@ -5666,7 +5718,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 691
+        "linea": 713
       },
       "roles": [
         "asistente",
@@ -6630,7 +6682,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1430
+        "linea": 1452
       },
       "roles": [
         "asistente",
@@ -6681,7 +6733,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1218
+        "linea": 1240
       },
       "roles": [
         "asistente",
@@ -6711,7 +6763,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1188
+        "linea": 1210
       },
       "roles": [
         "asistente",
@@ -6743,7 +6795,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1375
+        "linea": 1397
       },
       "roles": [
         "asistente",
@@ -6779,7 +6831,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1262
+        "linea": 1284
       },
       "roles": [
         "asistente",
@@ -6821,7 +6873,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1397
+        "linea": 1419
       },
       "roles": [
         "asistente",
@@ -6846,7 +6898,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1169
+        "linea": 1191
       },
       "roles": [
         "asistente",
@@ -6911,7 +6963,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1279
+        "linea": 1301
       },
       "roles": [
         "asistente",
@@ -7762,7 +7814,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 257
+        "linea": 267
       },
       "roles": [
         "asistente"
@@ -7799,7 +7851,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 230
+        "linea": 240
       },
       "roles": [
         "asistente"
@@ -7822,7 +7874,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 197
+        "linea": 207
       },
       "roles": [
         "asistente"
@@ -7876,7 +7928,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 281
+        "linea": 291
       },
       "roles": [
         "asistente"
@@ -7943,7 +7995,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 362
+        "linea": 372
       },
       "roles": [
         "asistente"
@@ -7983,7 +8035,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 177
+        "linea": 187
       },
       "roles": [
         "asistente"
@@ -8051,15 +8103,20 @@
       "nombre": "ui_panel_window",
       "titulo": "Sacar un panel a su ventana",
       "categoria": "interfaz",
-      "descripcion": "Abre el padron, la cola de preguntas o la urna en su PROPIA ventana, para mandarla a otro monitor.",
+      "descripcion": "Abre el padron, la cola de preguntas, la urna, el carrusel o el control PTZ de una camara en su PROPIA ventana, para mandarla a otro monitor.",
       "esquema": {
         "properties": {
+          "entrada": {
+            "description": "Con panel=ptz: la entrada de video.",
+            "type": "string"
+          },
           "panel": {
             "enum": [
               "padron",
               "preguntas",
               "votacion",
-              "carrusel"
+              "carrusel",
+              "ptz"
             ],
             "type": "string"
           }
@@ -12475,7 +12532,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1668
+        "linea": 1690
       },
       "roles": [
         "asistente"
@@ -12498,7 +12555,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1725
+        "linea": 1747
       },
       "roles": [
         "asistente"
@@ -12521,7 +12578,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1740
+        "linea": 1762
       },
       "roles": [
         "asistente"
@@ -12553,7 +12610,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1628
+        "linea": 1650
       },
       "roles": [
         "asistente"
@@ -12576,7 +12633,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1653
+        "linea": 1675
       },
       "roles": [
         "asistente"
@@ -12599,7 +12656,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 547
+        "linea": 557
       },
       "roles": [
         "asistente"
@@ -12622,7 +12679,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 326
+        "linea": 336
       },
       "roles": [
         "asistente"
@@ -12659,7 +12716,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 438
+        "linea": 448
       },
       "roles": [
         "asistente"
@@ -12682,7 +12739,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 487
+        "linea": 497
       },
       "roles": [
         "asistente"
@@ -12716,7 +12773,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 510
+        "linea": 520
       },
       "roles": [
         "asistente"

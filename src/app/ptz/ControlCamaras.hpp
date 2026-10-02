@@ -82,6 +82,14 @@ class ControlCamaras : public QObject {
     Q_INVOKABLE QString home(const QString& entrada);
     /// Encuadre digital directo: centro (x, y 0..1) y zoom (1..8).
     Q_INVOKABLE QString encuadre(const QString& entrada, double x, double y, double zoom, double segundos);
+    /// Apuntar con el mouse sobre la imagen de la entrada (lo que se ve, ya
+    /// recortado): (u, v) 0..1 es el punto que va al centro; con un cuadro
+    /// (ancho, alto 0..1 de la imagen), además se acerca hasta que el cuadro
+    /// llene la imagen. ancho = 0: solo centrar. Lo hace lo que mueve el
+    /// joystick: el digital, exacto; una cámara motorizada, aproximado (un
+    /// pulso de movimiento y otro de zoom, porque los protocolos no dicen
+    /// cuántos grados hay en el cuadro).
+    Q_INVOKABLE QString apuntar(const QString& entrada, double u, double v, double ancho, double alto);
     /// {x, y, zoom, moviendo} del PTZ digital (vacío si está apagado).
     Q_INVOKABLE QVariantMap posicion(const QString& entrada) const;
 
@@ -126,6 +134,8 @@ class ControlCamaras : public QObject {
     Camara* camara(const QString& entrada, QString* error);
     /// El backend que recibe el joystick y los presets.
     PtzBackend* activo(Camara& c) const;
+    /// Mueve (o para, con todo en 0) sin cortar el pulso de `apuntar`.
+    void pulsar(const QString& entrada, double pan, double tilt, double zoom);
     void crearHardware(Camara& c);
     void aplicarFiltros(Camara& c, bool mejoraGeneral);
     QVariantMap fila(const Camara& c) const;
@@ -142,6 +152,7 @@ class ControlCamaras : public QObject {
     std::filesystem::path archivo_;
     QString credenciales_;
     std::map<std::string, std::unique_ptr<Camara>> camaras_; ///< todas las conocidas (por nombre)
+    std::map<std::string, int> pulsos_; ///< por entrada: el pulso óptico vigente (uno nuevo cancela el anterior)
     std::map<std::string, QString> tipoEntrada_;              ///< las presentes ahora: hardware | red | ndi
     std::unique_ptr<OnvifBusqueda> busqueda_;
     QTimer revision_;

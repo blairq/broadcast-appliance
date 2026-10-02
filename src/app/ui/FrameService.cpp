@@ -48,6 +48,7 @@ QString FrameService::label(const QString& key) const {
     if (key.startsWith("share:")) return nameOr(key.mid(6).toInt(), "Invitado " + key.mid(6)) + " — pantalla";
     if (key.startsWith("lobby:")) return "Lobby " + key.mid(6);
     if (key.startsWith("backstage:")) return "Fila " + key.mid(10);
+    if (key.startsWith("entrada:")) return key.mid(8);
     return key;
 }
 
@@ -58,6 +59,23 @@ void FrameService::setArmada(const QString& escena) {
     // como renderizar 1080p de una escena que ni siquiera esta al aire.
     engine_.enableScenePreview("armada", escena.toStdString(), 960);
     if (escena.isEmpty()) slots_.erase("armada");
+}
+
+void FrameService::mirarEntrada(const QString& entrada, bool mirar) {
+    if (entrada.isEmpty()) return;
+    int& n = entradas_[entrada];
+    const std::string canal = "entrada:" + entrada.toStdString();
+    if (mirar) {
+        // 960 de ancho, como la armada: para apuntar alcanza y sobra.
+        if (n++ == 0) engine_.enableScenePreview(canal, entrada.toStdString(), 960);
+        return;
+    }
+    if (n > 0 && --n == 0) {
+        engine_.disableScenePreview(canal);
+        entradas_.erase(entrada);
+        entradaBufs_.erase(entrada);
+        slots_.erase("entrada:" + entrada);
+    }
 }
 
 void FrameService::setGuests(int guests) {
@@ -119,6 +137,23 @@ void FrameService::poll() {
         s.image = QImage(sceneBuf_.data(), w, h, w * 4, QImage::Format_RGBA8888).copy();
         ++s.serial;
         any = true;
+    }
+    ++vueltas_;
+    // Entradas que pidió alguien (mirarEntrada). Si la entrada se borró y
+    // volvió, el canal se vuelve a tomar.
+    for (auto& [entrada, n] : entradas_) {
+        const std::string canal = "entrada:" + entrada.toStdString();
+        if (engine_.scenePreviewName(canal).empty()) {
+            if (vueltas_ % 30 != 0) continue; // una vez por segundo, no a 30 Hz
+            engine_.enableScenePreview(canal, entrada.toStdString(), 960);
+        }
+        auto& buf = entradaBufs_[entrada];
+        if (engine_.renderScenePreview(canal, buf, w, h)) {
+            Slot& s = slots_["entrada:" + entrada];
+            s.image = QImage(buf.data(), w, h, w * 4, QImage::Format_RGBA8888).copy();
+            ++s.serial;
+            any = true;
+        }
     }
     // Canales de memoria compartida (con resuscripcion si el escritor cambia):
     // invitados y sus pantallas (B), previews del lobby (B), feed propio (A).

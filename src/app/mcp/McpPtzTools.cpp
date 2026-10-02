@@ -178,6 +178,33 @@ void McpService::registerPtzTools() {
     }
     {
         Tool t;
+        t.name = "ptz_apuntar";
+        t.title = "Apuntar a un punto o cuadro de la imagen";
+        t.category = "camaras";
+        t.description =
+            "Lo de la tarjeta PTZ con el mouse, sobre la imagen que se ve (ya recortada): `u`, `v` (0 a 1) es el "
+            "punto que va al centro; con `ancho` y `alto` (0 a 1 de la imagen) se acerca hasta que ese cuadro la "
+            "llene. Lo hace lo que mueve el joystick: el digital, exacto; una cámara motorizada, aproximado.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"entrada", "u", "v"}},
+                         {"properties",
+                          {{"entrada", entrada},
+                           {"u", {{"type", "number"}, {"minimum", 0}, {"maximum", 1}}},
+                           {"v", {{"type", "number"}, {"minimum", 0}, {"maximum", 1}}},
+                           {"ancho", {{"type", "number"}, {"minimum", 0}, {"maximum", 1}}},
+                           {"alto", {{"type", "number"}, {"minimum", 0}, {"maximum", 1}}}}}};
+        t.examples = {R"({"entrada": "Cámara 1", "u": 0.7, "v": 0.4})",
+                      R"({"entrada": "Cámara 1", "u": 0.3, "v": 0.5, "ancho": 0.25, "alto": 0.3})"};
+        t.run = [c, resultado](const json& a, Done done) {
+            if (!c) return done(ToolResult::error("el PTZ no está disponible"));
+            done(resultado(c->apuntar(qarg(a, "entrada"), a.value("u", 0.5), a.value("v", 0.5), a.value("ancho", 0.0),
+                                      a.value("alto", 0.0)),
+                           "apuntada"));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "ptz_configurar";
         t.title = "Configurar el PTZ de una entrada";
         t.category = "camaras";

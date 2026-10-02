@@ -93,7 +93,13 @@ Window {
             focus: true
             sourceComponent: w.contenido
             // El panel ya está en su ventana: que no ofrezca sacarlo otra vez.
-            onLoaded: if (item && item.enVentana !== undefined) item.enVentana = true
+            onLoaded: {
+                if (!item) return
+                // Los paneles con algo propio (la tarjeta PTZ: «ptz:<entrada>»)
+                // lo leen de su id.
+                if (item.panelId !== undefined) item.panelId = w.panelId
+                if (item.enVentana !== undefined) item.enVentana = true
+            }
         }
     }
 

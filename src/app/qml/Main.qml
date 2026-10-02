@@ -221,12 +221,16 @@ ApplicationWindow {
     // El control del carrusel afuera: en vivo se maneja con una mano mientras
     // la principal tiene las escenas. Es la misma tarjeta del dashboard.
     Component { id: cmpPanelCarrusel;  CarruselContent {} }
+    // El PTZ de una cámara afuera, con su imagen para apuntar con el mouse.
+    // Uno por cámara: el id es «ptz:<entrada>».
+    Component { id: cmpPanelPtz;       PtzContent {} }
 
     function componenteDePanel(id) {
         return id === "padron" ? cmpPanelPadron
              : id === "preguntas" ? cmpPanelPreguntas
              : id === "votacion" ? cmpPanelVotacion
-             : id === "carrusel" ? cmpPanelCarrusel : null
+             : id === "carrusel" ? cmpPanelCarrusel
+             : id.startsWith("ptz:") ? cmpPanelPtz : null
     }
 
     function sacarPanel(id, titulo) {

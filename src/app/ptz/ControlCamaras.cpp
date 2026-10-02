@@ -17,12 +17,17 @@
 #include <obs.h>
 
 #include <QCryptographicHash>
+#include <QPointer>
+#include <QTimer>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QSaveFile>
 
 #include <nlohmann/json.hpp>
+
+#include <algorithm>
+#include <cmath>
 
 namespace ba::app::ptz {
 
@@ -280,8 +285,17 @@ PtzBackend* ControlCamaras::activo(Camara& c) const {
     PtzBackend* b = activo(*c);                                                                                  \
     if (b == nullptr) return QStringLiteral("«%1» no tiene PTZ: prendé el digital o elegí un backend").arg(entrada);
 
+void ControlCamaras::pulsar(const QString& entrada, double pan, double tilt, double zoom) {
+    Camara* c = camara(entrada, nullptr);
+    PtzBackend* b = c != nullptr ? activo(*c) : nullptr;
+    if (b == nullptr) return;
+    if (pan == 0 && tilt == 0 && zoom == 0) b->parar();
+    else b->mover(pan, tilt, zoom);
+}
+
 QString ControlCamaras::mover(const QString& entrada, double pan, double tilt, double zoom) {
     BA_PTZ_ACTIVO(entrada);
+    ++pulsos_[entrada.toStdString()]; // lo manual manda: corta un apuntar a medias
     b->mover(qBound(-1.0, pan, 1.0), qBound(-1.0, tilt, 1.0), qBound(-1.0, zoom, 1.0));
     return {};
 }
@@ -290,6 +304,7 @@ QString ControlCamaras::parar(const QString& entrada) {
     QString error;
     Camara* c = camara(entrada, &error);
     if (c == nullptr) return error;
+    ++pulsos_[entrada.toStdString()];
     // Para todo lo que pueda estar moviéndose (por si cambió el modo en medio).
     if (c->hw) c->hw->parar();
     if (c->dig) c->dig->parar();
@@ -339,7 +354,6 @@ QString ControlCamaras::home(const QString& entrada) {
     return {};
 }
 
-#undef BA_PTZ_ACTIVO
 
 QString ControlCamaras::encuadre(const QString& entrada, double x, double y, double zoom, double segundos) {
     QString error;
@@ -351,6 +365,65 @@ QString ControlCamaras::encuadre(const QString& entrada, double x, double y, dou
     guardarPronto();
     return {};
 }
+
+QString ControlCamaras::apuntar(const QString& entrada, double u, double v, double ancho, double alto) {
+    BA_PTZ_ACTIVO(entrada);
+    u = qBound(0.0, u, 1.0);
+    v = qBound(0.0, v, 1.0);
+    // Cuánto hay que acercar para que el cuadro llene la imagen (el lado que
+    // más ocupa manda: así entra entero).
+    const double lado = std::max(ancho, alto);
+    const double acercar = lado > 0.01 ? 1.0 / lado : 1.0;
+
+    if (b == c->dig.get()) {
+        const QVariantMap p = c->dig->posicion();
+        const double z = p.value("zoom", 1.0).toDouble();
+        const double nz = qBound(1.0, z * acercar, 8.0);
+        // Lo que se ve es una ventana de 1/z centrada en (x, y) del cuadro entero.
+        double x = p.value("x", 0.5).toDouble() + (u - 0.5) / z;
+        double y = p.value("y", 0.5).toDouble() + (v - 0.5) / z;
+        // Que la ventana nueva no se salga del cuadro.
+        x = qBound(0.5 / nz, x, 1.0 - 0.5 / nz);
+        y = qBound(0.5 / nz, y, 1.0 - 0.5 / nz);
+        if (!c->dig->ir(x, y, nz, 0.5)) return c->dig->estado();
+        guardarPronto();
+        return {};
+    }
+
+    // Motorizada: un pulso de pan/tilt proporcional a lo que falta hasta el
+    // centro y, si hubo cuadro, uno de zoom. Las constantes son las de una
+    // cámara de sala típica a velocidad media; con el zoom muy cerrado se
+    // pasa (cada grado es más pantalla) y conviene repetir el clic.
+    constexpr double kVelocidad = 0.5;
+    constexpr double kSegundosPorPantalla = 1.6; ///< cruzar la imagen entera a kVelocidad
+    constexpr double kSegundosPorDoble = 0.9;    ///< duplicar el zoom a kVelocidad
+    const double dx = u - 0.5, dy = v - 0.5;
+    const double mayor = std::max(std::abs(dx), std::abs(dy));
+    const int pulso = ++pulsos_[entrada.toStdString()];
+    QPointer<ControlCamaras> yo(this);
+    auto zoom = [yo, entrada, pulso, acercar, kVelocidad, kSegundosPorDoble]() {
+        if (!yo || yo->pulsos_[entrada.toStdString()] != pulso || acercar <= 1.01) return;
+        yo->pulsar(entrada, 0, 0, kVelocidad);
+        QTimer::singleShot(static_cast<int>(std::log2(acercar) * kSegundosPorDoble * 1000), yo, [yo, entrada, pulso]() {
+            if (yo && yo->pulsos_[entrada.toStdString()] == pulso) yo->pulsar(entrada, 0, 0, 0);
+        });
+    };
+    if (mayor < 0.02) {
+        zoom();
+        return {};
+    }
+    // Las dos velocidades en la misma proporción que la distancia: llega en
+    // diagonal y en un solo pulso. Tilt + es arriba; v crece hacia abajo.
+    b->mover(dx / mayor * kVelocidad, -dy / mayor * kVelocidad, 0);
+    QTimer::singleShot(static_cast<int>(mayor * kSegundosPorPantalla * 1000), this, [yo, entrada, pulso, zoom]() {
+        if (!yo || yo->pulsos_[entrada.toStdString()] != pulso) return;
+        yo->pulsar(entrada, 0, 0, 0);
+        QTimer::singleShot(150, yo, zoom);
+    });
+    return {};
+}
+
+#undef BA_PTZ_ACTIVO
 
 QVariantMap ControlCamaras::posicion(const QString& entrada) const {
     auto it = camaras_.find(entrada.toStdString());

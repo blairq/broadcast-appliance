@@ -85,6 +85,29 @@ que cada entrada tenga lo que le corresponde.
 - **Presets** 1-16: tocar = ir; «Guardar…» y tocar = guardar.
 - Backend con su formulario y «Buscar en la red» (ONVIF).
 
+## La tarjeta del tablero
+
+«+ Tarjeta» → **Control PTZ**: la cámara (se elige arriba y queda guardada en la tarjeta), qué mueve (DIGITAL u
+ÓPTICO), joystick, zoom, velocidad, inicio y las posiciones con nombre (tocar = ir).
+
+Con **⧉** se saca a su propia ventana (una por cámara, `ba:panel:ptz:<entrada>`), que suma la **imagen en vivo** de la
+cámara tal como sale de sus filtros (ya recortada). Sobre ella se apunta con el mouse:
+
+- **clic**: ese punto va al centro;
+- **arrastrar**: un cuadro; se centra en él y se acerca hasta que lo llena (manda el lado que más ocupa);
+- **rueda**: zoom; **doble clic**: cuadro completo (digital).
+
+Lo hace lo que mueve el joystick (`ControlCamaras::apuntar`):
+
+- **Digital**: exacto. Lo que se ve es una ventana de 1/zoom centrada en (x, y); el punto tocado pasa a ser el centro
+  nuevo y la ventana no se sale del cuadro.
+- **Motorizada**: aproximado. VISCA, ONVIF y Panasonic no dicen cuántos grados entran en el cuadro, así que es un pulso
+  de pan/tilt proporcional a la distancia al centro (en diagonal, a velocidad media) y, con cuadro, uno de zoom. Con
+  el zoom muy cerrado se pasa; se corrige con otro clic. Tocar el joystick corta el pulso.
+
+La imagen sale de `Studio.frames` con la clave `entrada:<nombre>` (`FrameService::mirarEntrada`): se renderiza a 960 de
+ancho solo mientras alguna ventana la mira.
+
 ## MCP (categoría `camaras`)
 
 | Herramienta | Qué hace |
@@ -94,6 +117,7 @@ que cada entrada tenga lo que le corresponde.
 | `ptz_parar` | Para todo |
 | `ptz_preset` | `ir` o `guardar` el preset `numero` |
 | `ptz_encuadre` | Encuadre digital exacto (`x`, `y`, `zoom`, `segundos`) |
+| `ptz_apuntar` | Lo del mouse: `u`, `v` de la imagen al centro; con `ancho`, `alto` encuadra ese cuadro |
 | `ptz_configurar` | Backend y sus datos; `digital`, `modo`, `mejora` |
 | `ptz_buscar` | Busca cámaras ONVIF en la red |
 | `ptz_posiciones` | Las posiciones con nombre de una cámara (o de todas) |
@@ -101,6 +125,7 @@ que cada entrada tenga lo que le corresponde.
 | `ptz_posicion_editar` | Cambia `nombre`, `comentario`; `regrabar` la vuelve a registrar |
 | `ptz_posicion_borrar` | La borra (y libera su memoria en la cámara) |
 | `ptz_ir_posicion` | Lleva la cámara a la posición (id o nombre), en `segundos` |
+| `ui_panel_window` `{"panel": "ptz", "entrada"}` | Saca el control PTZ de esa cámara a su ventana |
 | `video_mejora` | Mejorar imagen general (`activa`, `ruido`, `color`, `nitidez`) |
 
 La guía para el asistente está en `help {"topic": "camaras"}`.
