@@ -182,12 +182,127 @@
      ]
     }
    }
+  },
+  "mlx-q4-fp16": {
+   "examen": {
+    "cobertura": [
+     92,
+     97
+    ],
+    "precision": [
+     83,
+     92
+    ],
+    "derivado": [
+     6,
+     8
+    ],
+    "acierto": [
+     89,
+     105
+    ]
+   },
+   "banco": {
+    "0": {
+     "cobertura": [
+      369,
+      394
+     ],
+     "precision": [
+      351,
+      369
+     ],
+     "derivado": [
+      939,
+      1029
+     ],
+     "acierto": [
+      1290,
+      1423
+     ]
+    }
+   }
   }
  },
  "mtp": {
-  "aceptacion_antes": 0.9429097605893186,
-  "aceptacion_despues": 0.9977900552486187,
-  "pasos": 487
+  "pasos_mtp": 3,
+  "antes": {
+   "nombres": {
+    "aceptados_por_ciclo": 1.6430432516935904,
+    "por_paso": [
+     0.9369463262115685,
+     0.9673390970220941,
+     0.8765743073047859
+    ]
+   },
+   "texto": {
+    "aceptados_por_ciclo": 1.5297372060857537,
+    "por_paso": [
+     0.7455048409405256,
+     0.6698656429942419,
+     0.6576168929110106
+    ]
+   }
+  },
+  "despues": {
+   "nombres": {
+    "aceptados_por_ciclo": 1.819697759249609,
+    "por_paso": [
+     0.9984366857738406,
+     1.0,
+     1.0
+    ]
+   },
+   "texto": {
+    "aceptados_por_ciclo": 1.647994467496542,
+    "por_paso": [
+     0.7648686030428768,
+     0.7065420560747664,
+     0.721606648199446
+    ]
+   }
+  },
+  "pasos": 487,
+  "paso_elegido": 487,
+  "despues_q8": {
+   "nombres": {
+    "aceptados_por_ciclo": 1.8212610734757686,
+    "por_paso": [
+     0.9989577905158937,
+     1.0,
+     1.0
+    ]
+   },
+   "texto": {
+    "aceptados_por_ciclo": 1.647994467496542,
+    "por_paso": [
+     0.7662517289073306,
+     0.7033582089552238,
+     0.7236111111111111
+    ]
+   }
+  },
+  "despues_q4": {
+   "nombres": {
+    "aceptados_por_ciclo": 1.8212610734757686,
+    "por_paso": [
+     0.9989577905158937,
+     1.0,
+     1.0
+    ]
+   },
+   "texto": {
+    "aceptados_por_ciclo": 1.6438450899031811,
+    "por_paso": [
+     0.76417704011065,
+     0.7090739008419084,
+     0.7099447513812155
+    ]
+   }
+  },
+  "aceptacion_antes": 0.9369463262115685,
+  "aceptacion_despues": 0.9984366857738406,
+  "texto_respuestas": 734
  },
  "perfil": {
   "nombre": "reactivo",

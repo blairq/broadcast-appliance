@@ -2,76 +2,6 @@
  "_comentario": "Modelos que la app (Configuracion -> Modelos locales) ofrece bajar de Hugging Face. Lo actualiza tools/entrenar/fabricar-modelo.py al subir. La app muestra solo los que existen y son publicos. Los de voz (tipo voz/vad) son de terceros: fijados por commit o por URL y sha256, se agregan a mano.",
  "modelos": [
   {
-   "repo": "BlairQ/broadcast-reactivo-qwen3.5-4b-mlx-q4",
-   "formato": "mlx",
-   "plataformas": [
-    "mac-arm64"
-   ],
-   "archivo": null,
-   "base": "Qwen/Qwen3.5-4B",
-   "perfil": "reactivo",
-   "herramientas": 84,
-   "prompt": "3f9122d8064004c5",
-   "tamano_gb": 3.19,
-   "precision": 92.3,
-   "derivado": 87.0,
-   "examen": 87.6,
-   "fecha": "2026-10-01"
-  },
-  {
-   "repo": "BlairQ/broadcast-reactivo-qwen3.5-4b-GGUF",
-   "formato": "gguf",
-   "plataformas": [
-    "linux-x64",
-    "win-x64"
-   ],
-   "archivo": "broadcast-reactivo-qwen3.5-4b-Q4_K_M.gguf",
-   "base": "Qwen/Qwen3.5-4B",
-   "perfil": "reactivo",
-   "herramientas": 84,
-   "prompt": "3f9122d8064004c5",
-   "tamano_gb": 2.59,
-   "precision": 93.1,
-   "derivado": 88.9,
-   "examen": 88.6,
-   "fecha": "2026-10-01"
-  },
-  {
-   "repo": "BlairQ/broadcast-reactivo-qwen3.5-4b-mtp-ud-mlx-q4",
-   "formato": "mlx",
-   "plataformas": [
-    "mac-arm64"
-   ],
-   "archivo": null,
-   "base": "Qwen/Qwen3.5-4B",
-   "perfil": "reactivo",
-   "herramientas": 84,
-   "prompt": "3f9122d8064004c5",
-   "tamano_gb": 3.19,
-   "precision": 92.6,
-   "derivado": 85.0,
-   "examen": 83.8,
-   "fecha": "2026-10-01"
-  },
-  {
-   "repo": "BlairQ/broadcast-reactivo-qwen3.5-4b-mtp-ud-GGUF",
-   "formato": "gguf",
-   "plataformas": [
-    "linux-x64",
-    "win-x64"
-   ],
-   "archivo": "broadcast-reactivo-qwen3.5-4b-mtp-ud-UD-Q4_K_XL.gguf",
-   "base": "Qwen/Qwen3.5-4B",
-   "perfil": "reactivo",
-   "herramientas": 84,
-   "prompt": "3f9122d8064004c5",
-   "tamano_gb": 2.77,
-   "precision": 94.2,
-   "derivado": 83.9,
-   "examen": 85.7,
-   "fecha": "2026-10-01"
-  },
-  {
    "repo": "csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8",
    "tipo": "voz",
    "formato": "onnx",
@@ -189,6 +119,111 @@
    "calidad": "medium",
    "licencia": "ver MODEL_CARD (voces de piper)",
    "tamano_gb": 0.088,
+   "fecha": "2026-10-01"
+  },
+  {
+   "repo": "BlairQ/broadcast-reactivo-qwen3.5-4b-mlx-q4",
+   "formato": "mlx",
+   "plataformas": [
+    "mac-arm64"
+   ],
+   "archivo": null,
+   "base": "Qwen/Qwen3.5-4B",
+   "perfil": "reactivo",
+   "herramientas": 84,
+   "prompt": "3f9122d8064004c5",
+   "tamano_gb": 3.19,
+   "precision": 92.3,
+   "derivado": 87.0,
+   "examen": 87.6,
+   "fecha": "2026-10-01"
+  },
+  {
+   "repo": "BlairQ/broadcast-reactivo-qwen3.5-4b-GGUF",
+   "formato": "gguf",
+   "plataformas": [
+    "linux-x64",
+    "win-x64"
+   ],
+   "archivo": "broadcast-reactivo-qwen3.5-4b-Q4_K_M.gguf",
+   "base": "Qwen/Qwen3.5-4B",
+   "perfil": "reactivo",
+   "herramientas": 84,
+   "prompt": "3f9122d8064004c5",
+   "tamano_gb": 2.59,
+   "precision": 93.1,
+   "derivado": 88.9,
+   "examen": 88.6,
+   "fecha": "2026-10-01"
+  },
+  {
+   "repo": "BlairQ/broadcast-reactivo-qwen3.5-4b-mtp-ud-mlx-q4",
+   "formato": "mlx",
+   "plataformas": [
+    "mac-arm64"
+   ],
+   "archivo": null,
+   "base": "Qwen/Qwen3.5-4B",
+   "perfil": "reactivo",
+   "herramientas": 84,
+   "prompt": "3f9122d8064004c5",
+   "tamano_gb": 3.19,
+   "precision": 92.6,
+   "derivado": 85.0,
+   "examen": 83.8,
+   "fecha": "2026-10-01"
+  },
+  {
+   "repo": "BlairQ/broadcast-reactivo-qwen3.5-4b-mtp-ud-GGUF",
+   "formato": "gguf",
+   "plataformas": [
+    "linux-x64",
+    "win-x64"
+   ],
+   "archivo": "broadcast-reactivo-qwen3.5-4b-mtp-ud-UD-Q4_K_XL.gguf",
+   "base": "Qwen/Qwen3.5-4B",
+   "perfil": "reactivo",
+   "herramientas": 84,
+   "prompt": "3f9122d8064004c5",
+   "tamano_gb": 2.77,
+   "precision": 94.2,
+   "derivado": 83.9,
+   "examen": 85.7,
+   "fecha": "2026-10-01"
+  },
+  {
+   "repo": "BlairQ/broadcast-reactivo-qwen3.5-9b-mtp-ud-mlx-q4",
+   "formato": "mlx",
+   "plataformas": [
+    "mac-arm64"
+   ],
+   "archivo": null,
+   "base": "Qwen/Qwen3.5-9B",
+   "perfil": "reactivo",
+   "herramientas": 84,
+   "prompt": "3f9122d8064004c5",
+   "tamano_gb": 6.26,
+   "precision": 95.1,
+   "derivado": 91.3,
+   "examen": 84.8,
+   "fecha": "2026-10-01"
+  },
+  {
+   "repo": "BlairQ/broadcast-reactivo-qwen3.5-9b-mtp-ud-GGUF",
+   "formato": "gguf",
+   "plataformas": [
+    "linux-x64",
+    "win-x64"
+   ],
+   "archivo": "broadcast-reactivo-qwen3.5-9b-mtp-ud-UD-Q4_K_XL.gguf",
+   "base": "Qwen/Qwen3.5-9B",
+   "perfil": "reactivo",
+   "herramientas": 84,
+   "prompt": "3f9122d8064004c5",
+   "tamano_gb": 5.69,
+   "precision": 94.9,
+   "derivado": 91.2,
+   "examen": 86.7,
    "fecha": "2026-10-01"
   }
  ]
