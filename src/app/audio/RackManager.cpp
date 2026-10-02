@@ -462,7 +462,9 @@ json RackManager::audioSources() const {
             const std::string type = obs_source_get_id(s);
             // Grupo para el arbol de la interfaz: por donde entra el audio.
             std::string group = "Otras fuentes";
-            if (type == "ba_guest_audio") {
+            if (type == "ba_voz_asistente") {
+                group = "Voz del sistema";
+            } else if (type == "ba_guest_audio") {
                 group = "Invitados";
             } else if (type.find("_input_capture") != std::string::npos) {
                 group = "Micrófonos y líneas del equipo";

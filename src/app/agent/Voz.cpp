@@ -40,6 +40,7 @@ Voz::Voz(AppRuntime& rt, ModelosLocales& modelos, QObject* parent)
     escucha_ = std::make_unique<audio::Escucha>();
     habla_ = std::make_unique<audio::Habla>();
     monitor_ = std::make_unique<audio::MonitorVoz>();
+    monitor_->preparar(); // «Voz del sistema», ya en Audio y en la Matriz
     leerAjustes();
     // Las frases de la transcripción continua (llegan en el hilo de Escucha).
     escucha_->setFrase([this](const std::string& fuente, const audio::Escucha::Resultado& r) {
