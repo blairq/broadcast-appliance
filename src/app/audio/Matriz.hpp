@@ -53,6 +53,8 @@ struct audio_data;
 
 namespace ba::app::audio {
 
+class EquipoAudio;
+
 /// Registra el tipo de fuente de las entradas virtuales (al arrancar libobs).
 void registrarEntradaVirtual();
 
@@ -68,6 +70,12 @@ class Matriz : public QObject {
     Q_PROPERTY(QVariantMap medidores READ medidores NOTIFY medidoresCambio)
     /// Dispositivos de salida del equipo: [{id, nombre}].
     Q_PROPERTY(QVariantList dispositivos READ dispositivos NOTIFY cambio)
+    /// Las entradas y salidas físicas en la matriz (EquipoAudio): mostrarlas o no,
+    /// y cada dispositivo [{id, nombre, tipo, canales, visible, abierto, enApp}].
+    Q_PROPERTY(bool mostrarEquipo READ mostrarEquipo WRITE setMostrarEquipo NOTIFY cambio)
+    Q_PROPERTY(QVariantList equipo READ equipo NOTIFY cambio)
+    /// Las pistas 2-6 de OBS plegadas en la vista (por defecto: solo se ve la 1).
+    Q_PROPERTY(bool pistasPlegadas READ pistasPlegadas WRITE setPistasPlegadas NOTIFY cambio)
 
    public:
     using json = nlohmann::json;
@@ -82,6 +90,13 @@ class Matriz : public QObject {
     QVariantMap cruces() const;
     QVariantMap medidores() const { return medidores_; }
     QVariantList dispositivos() const;
+    bool mostrarEquipo() const;
+    void setMostrarEquipo(bool on);
+    QVariantList equipo() const;
+    bool pistasPlegadas() const { return pistasPlegadas_; }
+    void setPistasPlegadas(bool on);
+    /// Mostrar u ocultar un dispositivo del equipo (lo oculto no se abre).
+    Q_INVOKABLE void setVisibleDispositivo(const QString& id, bool visible);
 
     /// La matriz está a la vista: medidores y relectura de fuentes.
     Q_INVOKABLE void setActiva(bool on);
@@ -130,14 +145,19 @@ class Matriz : public QObject {
     void bucleMezcla();
     void leerMedidores();
     std::vector<std::string> fuentesConAudio() const;
+    /// Abre lo del equipo que se usa y cierra lo que no.
+    void usarEquipo();
     static void alAudio(void* param, obs_source* src, const ::audio_data* data, bool muted);
 
     std::filesystem::path root_;
     std::string pistas_[kPistas];
     std::string usoPista_[kPistas];
     std::vector<std::unique_ptr<Bus>> buses_;
-    std::map<std::pair<std::string, std::string>, Envio> envios_; ///< (fuente, bus)
-    std::vector<std::string> filas_;                              ///< fuentes conocidas
+    std::unique_ptr<EquipoAudio> equipo_;
+    bool pistasPlegadas_ = true;
+    std::map<std::string, std::shared_ptr<std::atomic<float>>> picosEquipo_; ///< columna física -> pico
+    std::map<std::pair<std::string, std::string>, Envio> envios_;            ///< (fuente, bus)
+    std::vector<std::string> filas_;                                         ///< fuentes conocidas
 
     // Tomas: callback de captura por fuente con algún envío a un bus virtual.
     std::mutex tomasLock_;

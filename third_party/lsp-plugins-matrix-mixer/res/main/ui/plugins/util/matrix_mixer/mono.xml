@@ -43,7 +43,7 @@
 				<ui:for id="o" first="1" count=":channels">
 					<ui:with bright="((:cm_${i} or ((${has_solo}) and !:cs_${i})) or :om_${o}) ? 0.75 : 1.0" bg.bright="((:cm_${i} or ((${has_solo}) and !:cs_${i})) or :om_${o}) ? :const_bg_darken : 1.0">
 						<vbox>
-							<knob id="mx_${i}_${o}" size="16" pad.t="4" pad.h="4" scolor="((:mx_${i}_${o} gt 0.0) and !(:cm_${i} or ((${has_solo}) and !:cs_${i})) and !:om_${o}) ? 'kscale' : 'kscale_inactive'"/>
+							<knob id="mx_${i}_${o}" ui:id="cell_${i}_${o}" size="16" pad.t="4" pad.h="4" scolor="((:mx_${i}_${o} gt 0.0) and !(:cm_${i} or ((${has_solo}) and !:cs_${i})) and !:om_${o}) ? 'kscale' : 'kscale_inactive'"/>
 							<value id="mx_${i}_${o}" sline="true" width.min="48" pad.b="4" pad.h="4"/>
 						</vbox>
 					</ui:with>

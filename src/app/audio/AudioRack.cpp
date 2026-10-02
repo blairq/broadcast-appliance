@@ -591,6 +591,16 @@ ClapInstance* AudioRack::plugin(const std::string& id) {
     return n != nullptr && n->kind == "plugin" ? n->clap.get() : nullptr;
 }
 
+int AudioRack::cerrarEditores() {
+    int n = 0;
+    for (auto& node : nodes_)
+        if (node->clap && node->clap->editorOpen()) {
+            node->clap->closeEditor();
+            ++n;
+        }
+    return n;
+}
+
 Analyzer* AudioRack::analyzer(const std::string& id) {
     Node* n = find(id);
     return n != nullptr ? n->analyzer.get() : nullptr;
@@ -773,6 +783,10 @@ void AudioRack::process(float* const* planes, int channels, uint32_t frames) {
                 meterInto(node.outPow, node.outPeak, st.outArr[0], n, alpha);
             } else if (node.kind == "plugin") {
                 if (node.bypass.load(std::memory_order_relaxed)) {
+                    // Anulado: el modulo igual procesa (su interfaz, si esta
+                    // abierta, muestra el audio que entra: sin esto quedaba
+                    // quieta), pero lo que sale es la entrada tal cual.
+                    node.clap->process(st.inArr.data(), st.outArr.data(), n);
                     for (size_t p = 0; p < st.outArr.size(); ++p)
                         for (int c = 0; c < 2; ++c) {
                             if (p == 0 && !st.inArr.empty())

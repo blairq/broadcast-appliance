@@ -7,9 +7,15 @@
 #include <mutex>
 
 #include <QCoreApplication>
+#include <QDateTime>
+#include <QDir>
+#include <QFile>
 #include <QMetaObject>
+#include <QRegularExpression>
 #include <QSocketNotifier>
 #include <QThread>
+
+#include <atomic>
 
 #include <obs.h>
 
@@ -37,21 +43,29 @@ class QtHostServices : public HostServices {
     void runOnMain(std::function<void()> fn) override {
         QMetaObject::invokeMethod(owner_, [fn]() { fn(); }, Qt::QueuedConnection);
     }
+    // Los timers viven en el hilo principal aunque se pidan desde otro: los
+    // racks que OBS restaura de la escena se crean en un hilo de OBS, y un
+    // QTimer nacido ahí (sin bucle de eventos) nunca dispara; la interfaz de
+    // LSP, que se dibuja y atiende el mouse en su timer, quedaba congelada.
     int addTimer(int periodMs, std::function<void()> fn) override {
-        auto* t = new QTimer();
-        t->setInterval(periodMs);
-        QObject::connect(t, &QTimer::timeout, owner_, [fn]() { fn(); });
-        t->start();
         const int id = ++next_;
-        timers_[id] = t;
+        enMain([this, id, periodMs, fn]() {
+            auto* t = new QTimer();
+            t->setInterval(periodMs);
+            QObject::connect(t, &QTimer::timeout, owner_, [fn]() { fn(); });
+            t->start();
+            timers_[id] = t;
+        });
         return id;
     }
     void removeTimer(int id) override {
-        auto it = timers_.find(id);
-        if (it == timers_.end()) return;
-        it->second->stop();
-        it->second->deleteLater();
-        timers_.erase(it);
+        enMain([this, id]() {
+            auto it = timers_.find(id);
+            if (it == timers_.end()) return;
+            it->second->stop();
+            it->second->deleteLater();
+            timers_.erase(it);
+        });
     }
     bool addFd(int fd, uint32_t flags, std::function<void(uint32_t)> fn) override {
 #ifdef _WIN32
@@ -61,35 +75,47 @@ class QtHostServices : public HostServices {
         return false;
 #else
         removeFd(fd);
-        auto& list = fds_[fd];
-        if (flags & 1u) {
-            auto* n = new QSocketNotifier(fd, QSocketNotifier::Read);
-            QObject::connect(n, &QSocketNotifier::activated, owner_, [fn]() { fn(1u); });
-            list.push_back(n);
-        }
-        if (flags & 2u) {
-            auto* n = new QSocketNotifier(fd, QSocketNotifier::Write);
-            QObject::connect(n, &QSocketNotifier::activated, owner_, [fn]() { fn(2u); });
-            list.push_back(n);
-        }
+        // Como los timers: los QSocketNotifier, en el hilo principal.
+        enMain([this, fd, flags, fn]() {
+            auto& list = fds_[fd];
+            if (flags & 1u) {
+                auto* n = new QSocketNotifier(fd, QSocketNotifier::Read);
+                QObject::connect(n, &QSocketNotifier::activated, owner_, [fn]() { fn(1u); });
+                list.push_back(n);
+            }
+            if (flags & 2u) {
+                auto* n = new QSocketNotifier(fd, QSocketNotifier::Write);
+                QObject::connect(n, &QSocketNotifier::activated, owner_, [fn]() { fn(2u); });
+                list.push_back(n);
+            }
+        });
         return true;
 #endif
     }
     void removeFd(int fd) override {
-        auto it = fds_.find(fd);
-        if (it == fds_.end()) return;
-        for (auto* n : it->second) {
-            n->setEnabled(false);
-            n->deleteLater();
-        }
-        fds_.erase(it);
+        enMain([this, fd]() {
+            auto it = fds_.find(fd);
+            if (it == fds_.end()) return;
+            for (auto* n : it->second) {
+                n->setEnabled(false);
+                n->deleteLater();
+            }
+            fds_.erase(it);
+        });
     }
 
     void stateDirty() override;
 
    private:
+    /// Ya, si es el hilo principal; si no, encolado en él (en orden).
+    void enMain(std::function<void()> fn) {
+        if (QThread::currentThread() == owner_->thread())
+            fn();
+        else
+            QMetaObject::invokeMethod(owner_, std::move(fn), Qt::QueuedConnection);
+    }
     QObject* owner_;
-    int next_ = 0;
+    std::atomic<int> next_{0};
     std::map<int, QTimer*> timers_;
     std::map<int, std::vector<QSocketNotifier*>> fds_;
 };
@@ -129,7 +155,10 @@ void* filterCreate(obs_data_t*, obs_source_t* self) {
     auto* f = new RackManager::Filter();
     f->self = self;
     std::shared_ptr<ClapLibrary> lib = g_mgr != nullptr ? g_mgr->library() : nullptr;
-    f->rack = std::make_unique<AudioRack>(lib, nullptr, g_mgr != nullptr ? g_mgr->sampleRate() : 48000);
+    // Con los servicios del proceso (timers, ventanas): sin ellos los plugins de
+    // un rack restaurado de la escena no tienen interfaz que funcione.
+    f->rack = std::make_unique<AudioRack>(lib, g_mgr != nullptr ? g_mgr->services() : nullptr,
+                                          g_mgr != nullptr ? g_mgr->sampleRate() : 48000);
     return f;
 }
 
@@ -356,6 +385,40 @@ std::string RackManager::setOutput(const std::string& source, const std::string&
     return {};
 }
 
+std::string RackManager::setAuriculares(const std::string& device) {
+    std::string nombre;
+    if (!device.empty()) {
+        struct Ctx {
+            const std::string& id;
+            std::string name;
+            bool found = false;
+        } ctx{device, {}, false};
+        obs_enum_audio_monitoring_devices(
+            [](void* p, const char* n, const char* i) {
+                auto* c = static_cast<Ctx*>(p);
+                if (i != nullptr && c->id == i) {
+                    c->name = n != nullptr ? n : "";
+                    c->found = true;
+                    return false;
+                }
+                return true;
+            },
+            &ctx);
+        if (!ctx.found) return "esa salida de audio ya no esta";
+        nombre = ctx.name;
+    }
+    // "default" es la salida del sistema para libobs.
+    if (!obs_set_audio_monitoring_device(device.empty() ? "Default" : nombre.c_str(),
+                                         device.empty() ? "default" : device.c_str()))
+        return "no se pudo abrir la salida de audio";
+    monitorId_ = device;
+    monitorName_ = nombre;
+    syncMonitors();
+    saveMonitor();
+    emit changed();
+    return {};
+}
+
 void RackManager::syncMonitors() {
     // Suena el rack que tiene nodo de salida (y un dispositivo elegido).
     for (auto& [name, f] : filters_)
@@ -399,7 +462,11 @@ json RackManager::audioSources() const {
             const std::string type = obs_source_get_id(s);
             // Grupo para el arbol de la interfaz: por donde entra el audio.
             std::string group = "Otras fuentes";
-            if (type == "ba_guest_audio") {
+            if (type == "ba_voz_asistente") {
+                group = "Voces (texto a audio)"; // la del sistema, la del teleprompter…
+            } else if (type == "ba_entrada_fisica") {
+                group = "Entradas del equipo (placas)";
+            } else if (type == "ba_guest_audio") {
                 group = "Invitados";
             } else if (type.find("_input_capture") != std::string::npos) {
                 group = "Micrófonos y líneas del equipo";
@@ -625,6 +692,70 @@ void RackManager::saveNow() {
         out << all.dump(2);
     }
     fs::rename(tmp, file, ec);
+}
+
+std::string RackManager::restablecerInterfazLsp(bool* ok) {
+    if (ok != nullptr) *ok = false;
+    // Primero las ventanas: LSP guarda su configuración al tocarla, y una
+    // abierta podría volver a escribir lo que se restablece.
+    int cerradas = 0;
+    for (auto& [src, f] : filters_)
+        if (f != nullptr && f->rack) cerradas += f->rack->cerrarEditores();
+
+            // Donde la busca LSP (lsp-runtime-lib, system::get_user_config_path).
+#ifdef _WIN32
+    QString base = qEnvironmentVariable("LOCALAPPDATA");
+    if (base.isEmpty()) base = qEnvironmentVariable("APPDATA");
+    if (base.isEmpty()) base = QDir::homePath() + "/.config";
+#else
+    QString base = qEnvironmentVariable("XDG_CONFIG_HOME");
+    if (base.isEmpty()) base = QDir::homePath() + "/.config";
+#endif
+    const QString ruta = base + "/lsp-plugins/lsp-plugins.cfg";
+    QFile f(ruta);
+    if (!f.exists()) {
+        if (ok != nullptr) *ok = true;
+        return cerradas > 0
+                   ? "Ventanas LSP cerradas; LSP todavía no tenía configuración propia (ya está de fábrica)."
+                   : "LSP todavía no tenía configuración propia: ya está de fábrica.";
+    }
+    if (!f.open(QIODevice::ReadOnly)) return "No se pudo leer " + ruta.toStdString();
+    const QString antes = QString::fromUtf8(f.readAll());
+    f.close();
+
+    // Lo que hace que una ventana no entre en la pantalla (o no se vea):
+    static const std::vector<std::pair<QRegularExpression, QString>> reglas = {
+        {QRegularExpression("^ui_scaling\\s*=.*$", QRegularExpression::MultilineOption),
+         "ui_scaling = 100.00000"},
+        {QRegularExpression("^ui_scaling_host\\s*=.*$", QRegularExpression::MultilineOption),
+         "ui_scaling_host = true"},
+        {QRegularExpression("^font_scaling\\s*=.*$", QRegularExpression::MultilineOption),
+         "font_scaling = 100.00000"},
+        // El zoom por plugin («<plugin>_ui_scaling»): 0 = usar el general.
+        {QRegularExpression("^(\\w+)_ui_scaling\\s*=.*$", QRegularExpression::MultilineOption),
+         "\\1_ui_scaling = 0.00000"},
+    };
+    QString despues = antes;
+    for (const auto& [re, valor] : reglas)
+        despues.replace(re, valor);
+    if (despues == antes) {
+        if (ok != nullptr) *ok = true;
+        return std::string(cerradas > 0 ? "Ventanas LSP cerradas. " : "") +
+               "La configuración de LSP ya estaba de fábrica (zoom 100 %, escala del host).";
+    }
+
+    // Una copia, por si había algo que valía la pena.
+    const QString copia = ruta + ".respaldo-" + QDateTime::currentDateTime().toString("yyyyMMdd-HHmmss");
+    if (!QFile::copy(ruta, copia)) return "No se pudo hacer la copia de " + ruta.toStdString();
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate))
+        return "No se pudo escribir " + ruta.toStdString();
+    f.write(despues.toUtf8());
+    f.close();
+    if (ok != nullptr) *ok = true;
+    return std::string(cerradas > 0 ? "Ventanas LSP cerradas. " : "") +
+           "Interfaz LSP restablecida: zoom 100 %, escala del host, letra 100 %. Copia del archivo "
+           "anterior: " +
+           copia.toStdString();
 }
 
 void RackManager::restore() {

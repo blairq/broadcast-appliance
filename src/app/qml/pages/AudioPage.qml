@@ -139,14 +139,18 @@ Rectangle {
     readonly property var sourceTree: {
         groupTick
         const src = au ? au.sources : []
-        const orden = ["Invitados", "Micrófonos y líneas del equipo", "Audio del equipo (lo que suena)",
-                       "Medios y red", "Otras fuentes"]
+        const orden = ["Invitados", "Micrófonos y líneas del equipo", "Entradas del equipo (placas)", "Voces (texto a audio)",
+                       "Audio del equipo (lo que suena)", "Medios y red", "Otras fuentes"]
         const porGrupo = {}
         for (let i = 0; i < src.length; ++i) {
             const g = src[i].grupo || "Otras fuentes"
             if (!porGrupo[g]) porGrupo[g] = []
             porGrupo[g].push(src[i])
         }
+        // Un grupo nuevo que no está en el orden también se muestra (al final):
+        // antes se descartaba en silencio y la fuente no aparecía.
+        for (const g in porGrupo)
+            if (orden.indexOf(g) < 0) orden.push(g)
         const filas = []
         for (const g of orden) {
             if (!porGrupo[g]) continue
@@ -376,6 +380,14 @@ Rectangle {
                 GlassButton { compact: true; text: "+ Generador"; onClicked: page.msg = page.au.addGenerator() }
                 GlassButton { compact: true; text: "+ Filtros…"; icon: "⌕"; onClicked: catalogoFiltros.open()
                               ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Todos los filtros LSP con captura, búsqueda avanzada y para qué sirve cada uno." }
+                // Si una ventana LSP no aparece (casi siempre: el zoom de su menú
+                // la hizo más grande que la pantalla), esto la vuelve a la normalidad.
+                GlassButton {
+                    compact: true; text: "Restablecer interfaz LSP"; icon: "↺"
+                    onClicked: page.msg = page.au.restablecerInterfazLsp()
+                    ToolTip.visible: hovered; ToolTip.delay: 400
+                    ToolTip.text: "Cierra las ventanas LSP y vuelve su zoom, escala y letra a lo de fábrica (guarda una copia). Para cuando la interfaz de un filtro no aparece."
+                }
                 Item { width: 12; height: 1 }
                 // Un rack armado a mano es media hora de trabajo: guardarlo con
                 // nombre permite ponerselo a otra fuente en un clic.

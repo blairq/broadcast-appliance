@@ -2,6 +2,8 @@
 // src/app/audio/Matriz.cpp — ver Matriz.hpp
 // ============================================================================
 #include "audio/Matriz.hpp"
+#include "audio/AnilloAudio.hpp"
+#include "audio/EquipoAudio.hpp"
 
 #include <QAudioDevice>
 #include <QAudioFormat>
@@ -28,9 +30,10 @@ namespace {
 
 constexpr const char* kTipoEntrada = "ba_entrada_virtual";
 constexpr std::uint32_t kPrimerCanal = 40; // 0 programa, 1-16 invitados, 17-24 micrófonos
-constexpr std::uint32_t kBloque = 480;     // 10 ms a 48 kHz
-constexpr std::uint32_t kColchon = 2 * kBloque;
-constexpr std::uint32_t kTope = 8 * kBloque;
+using anillo::AlDispositivo;
+using anillo::kBloque;
+using anillo::kColchon;
+using anillo::Ring;
 
 float dbALineal(double db) { return db <= -96.0 ? 0.0f : static_cast<float>(std::pow(10.0, db / 20.0)); }
 double linealADb(float x) { return x <= 1e-6f ? -100.0 : 20.0 * std::log10(static_cast<double>(x)); }
@@ -40,67 +43,6 @@ const char* nombreEntrada(void*) { return "Entrada virtual (matriz)"; }
 void* crearEntrada(obs_data_t*, obs_source_t* s) { return s; }
 void destruirEntrada(void*) {}
 obs_source_info g_entrada = {};
-
-/// Ring estéreo planar, para la toma de una fuente o la salida de un bus.
-struct Ring {
-    std::mutex m;
-    std::deque<float> l, r;
-    bool primado = false;
-    void push(const float* a, const float* b, std::uint32_t n) {
-        std::lock_guard<std::mutex> g(m);
-        l.insert(l.end(), a, a + n);
-        r.insert(r.end(), b, b + n);
-        // Deriva: si se acumula, se tira lo viejo (vuelve al colchón).
-        while (l.size() > kTope) {
-            l.erase(l.begin(), l.begin() + static_cast<std::ptrdiff_t>(l.size() - kColchon));
-            r.erase(r.begin(), r.begin() + static_cast<std::ptrdiff_t>(r.size() - kColchon));
-        }
-    }
-    /// Saca n frames (con ceros si falta). Hasta tener el colchón no entrega.
-    bool pop(float* a, float* b, std::uint32_t n) {
-        std::lock_guard<std::mutex> g(m);
-        if (!primado) {
-            if (l.size() < kColchon) return false;
-            primado = true;
-        }
-        const std::uint32_t hay = static_cast<std::uint32_t>(std::min<std::size_t>(n, l.size()));
-        std::copy(l.begin(), l.begin() + hay, a);
-        std::copy(r.begin(), r.begin() + hay, b);
-        l.erase(l.begin(), l.begin() + hay);
-        r.erase(r.begin(), r.begin() + hay);
-        std::fill(a + hay, a + n, 0.0f);
-        std::fill(b + hay, b + n, 0.0f);
-        if (hay == 0) primado = false; // se cortó: vuelve a juntar colchón
-        return hay > 0;
-    }
-};
-
-/// Lo que lee el dispositivo (Qt): float estéreo intercalado desde un Ring.
-class AlDispositivo : public QIODevice {
-   public:
-    explicit AlDispositivo(std::shared_ptr<Ring> ring) : ring_(std::move(ring)) { open(QIODevice::ReadOnly); }
-    bool isSequential() const override { return true; }
-
-   protected:
-    qint64 readData(char* data, qint64 max) override {
-        const auto n = static_cast<std::uint32_t>(max / static_cast<qint64>(2 * sizeof(float)));
-        if (n == 0) return 0;
-        l_.resize(n);
-        r_.resize(n);
-        ring_->pop(l_.data(), r_.data(), n); // si no hay, silencio
-        auto* out = reinterpret_cast<float*>(data);
-        for (std::uint32_t i = 0; i < n; ++i) {
-            out[2 * i] = l_[i];
-            out[2 * i + 1] = r_[i];
-        }
-        return static_cast<qint64>(n) * 2 * static_cast<qint64>(sizeof(float));
-    }
-    qint64 writeData(const char*, qint64) override { return -1; }
-
-   private:
-    std::shared_ptr<Ring> ring_;
-    std::vector<float> l_, r_;
-};
 
 } // namespace
 
@@ -154,6 +96,14 @@ struct Matriz::Plan {
 Matriz::Matriz(fs::path dataRoot, QObject* parent) : QObject(parent), root_(std::move(dataRoot)) {
     for (int i = 0; i < kPistas; ++i)
         pistas_[i] = i == 0 ? "Programa" : "Pista " + std::to_string(i + 1);
+    equipo_ = std::make_unique<EquipoAudio>();
+    // Se enchufó o desenchufó algo (o se ocultó): columnas, filas y plan de nuevo.
+    connect(equipo_.get(), &EquipoAudio::cambio, this, [this]() {
+        refrescar();
+        armarPlan();
+        usarEquipo();
+        emit cambio();
+    });
     cargando_ = true;
     cargar();
     cargando_ = false;
@@ -244,6 +194,30 @@ QVariantList Matriz::filas() const {
     return out;
 }
 
+namespace {
+/// La salida de escucha (los auriculares del operador): el monitoreo de libobs.
+QString nombreEscucha() {
+    const char* nombre = nullptr;
+    const char* id = nullptr;
+    obs_get_audio_monitoring_device(&nombre, &id);
+    if (id == nullptr || std::string(id).empty() || std::string(id) == "default")
+        return "la salida del sistema";
+    return QString::fromUtf8(nombre != nullptr ? nombre : id);
+}
+/// Escuchar una fuente sin sacarla del aire: OBS_MONITORING_TYPE_MONITOR_ONLY
+/// la SACA de la mezcla, así que si tiene alguna pista va «monitor y salida».
+void setEscucha(obs_source_t* s, bool on) {
+    if (!on) {
+        obs_source_set_monitoring_type(s, OBS_MONITORING_TYPE_NONE);
+        return;
+    }
+    obs_source_set_monitoring_type(s, obs_source_get_audio_mixers(s) != 0
+                                          ? OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT
+                                          : OBS_MONITORING_TYPE_MONITOR_ONLY);
+}
+bool escucha(obs_source_t* s) { return obs_source_get_monitoring_type(s) != OBS_MONITORING_TYPE_NONE; }
+} // namespace
+
 QVariantList Matriz::columnas() const {
     QVariantList out;
     for (int i = 0; i < kPistas; ++i)
@@ -253,6 +227,17 @@ QVariantList Matriz::columnas() const {
             {"tipo", "pista"},
             {"indice", i},
             {"uso", QString::fromStdString(i == 0 ? std::string("emisión y grabación") : usoPista_[i])}});
+    // Los auriculares del operador (Configuración → Audio y voz → salida de auriculares).
+    out.push_back(QVariantMap{{"id", "escucha"},
+                              {"nombre", "Escucha"},
+                              {"tipo", "escucha"},
+                              {"dispositivoNombre", nombreEscucha()}});
+    // Las salidas físicas del equipo: una columna por par de canales.
+    for (const auto& c : equipo_->columnas())
+        out.push_back(QVariantMap{{"id", QString::fromStdString(c.id)},
+                                  {"nombre", QString::fromStdString(c.nombre)},
+                                  {"tipo", "fisica"},
+                                  {"dispositivoNombre", QString::fromStdString(c.dispositivo)}});
     for (const auto& b : buses_) {
         QString disp;
         if (b->tipo == "salida")
@@ -275,7 +260,9 @@ QVariantMap Matriz::cruces() const {
         obs_source_t* s = obs_get_source_by_name(f.c_str());
         if (s == nullptr) continue;
         const std::uint32_t mx = obs_source_get_audio_mixers(s);
+        const bool oye = escucha(s);
         obs_source_release(s);
+        if (oye) out[QString::fromStdString(f) + "|escucha"] = QVariantMap{{"activo", true}};
         for (int i = 0; i < kPistas; ++i)
             if ((mx & (1u << i)) != 0)
                 out[QString::fromStdString(f) + QString("|pista%1").arg(i + 1)] =
@@ -341,12 +328,25 @@ QString Matriz::setCruce(const QString& fuenteQ, const QString& busQ, bool activ
         std::uint32_t mx = obs_source_get_audio_mixers(s);
         mx = activo ? (mx | (1u << i)) : (mx & ~(1u << i));
         obs_source_set_audio_mixers(s, mx);
+        // Si se escucha «solo monitor», con una pista no saldría al aire.
+        if (escucha(s)) setEscucha(s, true);
         obs_source_release(s);
+        usarEquipo();
         guardar();
         emit cambio();
         return {};
     }
-    if (buscar(bus) == nullptr) return "No existe el bus.";
+    if (bus == "escucha") {
+        obs_source_t* s = obs_get_source_by_name(fuente.c_str());
+        if (s == nullptr) return "No existe la fuente «" + fuenteQ + "».";
+        setEscucha(s, activo);
+        obs_source_release(s);
+        usarEquipo();
+        guardar();
+        emit cambio();
+        return {};
+    }
+    if (buscar(bus) == nullptr && !equipo_->anilloDe(bus)) return "No existe el bus.";
     const auto k = std::make_pair(fuente, bus);
     if (activo) {
         if (haceLazo(fuente, bus)) return "Eso arma un lazo: la entrada virtual volvería a su propio bus.";
@@ -356,6 +356,7 @@ QString Matriz::setCruce(const QString& fuenteQ, const QString& busQ, bool activ
     }
     sincronizarTomas();
     armarPlan();
+    usarEquipo();
     guardar();
     emit cambio();
     return {};
@@ -578,6 +579,44 @@ void Matriz::sincronizarTomas() {
     }
 }
 
+void Matriz::usarEquipo() {
+    // Columnas físicas que reciben algo: su dispositivo se abre.
+    std::set<std::string> columnas, entradas;
+    for (const auto& [k, e] : envios_)
+        if (k.second.rfind("fis:", 0) == 0 && !e.mute) columnas.insert(k.second);
+    equipo_->usarColumnas(columnas);
+    // Entradas físicas que se usan (una pista, la escucha o un envío): su captura se abre.
+    for (const auto& f : filas_) {
+        if (!equipo_->esEntradaFisica(f)) continue;
+        bool usa = false;
+        if (obs_source_t* s = obs_get_source_by_name(f.c_str())) {
+            usa = obs_source_get_audio_mixers(s) != 0 || escucha(s);
+            obs_source_release(s);
+        }
+        for (const auto& [k, e] : envios_)
+            if (k.first == f) usa = true;
+        if (usa) entradas.insert(f);
+    }
+    equipo_->usarEntradas(entradas);
+}
+
+bool Matriz::mostrarEquipo() const { return equipo_->mostrar(); }
+void Matriz::setMostrarEquipo(bool on) {
+    equipo_->setMostrar(on);
+    guardar();
+}
+QVariantList Matriz::equipo() const { return equipo_->dispositivos(); }
+void Matriz::setPistasPlegadas(bool on) {
+    if (pistasPlegadas_ == on) return;
+    pistasPlegadas_ = on;
+    guardar();
+    emit cambio();
+}
+void Matriz::setVisibleDispositivo(const QString& id, bool visible) {
+    equipo_->setVisible(id.toStdString(), visible);
+    guardar();
+}
+
 void Matriz::armarPlan() {
     auto p = std::make_shared<Plan>();
     std::lock_guard<std::mutex> l(tomasLock_);
@@ -598,6 +637,25 @@ void Matriz::armarPlan() {
             bp.aportes.push_back({t->second, e.ganancia * gl, e.ganancia * gr});
         }
         p->buses.push_back(std::move(bp));
+    }
+    // Las salidas físicas, igual que una salida virtual: al anillo de su par de canales.
+    for (const auto& c : equipo_->columnas()) {
+        Plan::BusPlan bp;
+        bp.id = c.id;
+        bp.aDispositivo = equipo_->anilloDe(c.id);
+        auto& pk = picosEquipo_[c.id];
+        if (!pk) pk = std::make_shared<std::atomic<float>>(0.0f);
+        bp.pico = pk;
+        for (const auto& [k, e] : envios_) {
+            if (k.second != c.id || e.mute) continue;
+            const auto t = tomas_.find(k.first);
+            if (t == tomas_.end()) continue;
+            const float a = (e.pan + 1.0f) * 0.25f * 3.14159265f;
+            const float gl = e.pan == 0.0f ? 1.0f : std::cos(a) * 1.41421356f;
+            const float gr = e.pan == 0.0f ? 1.0f : std::sin(a) * 1.41421356f;
+            bp.aportes.push_back({t->second, e.ganancia * gl, e.ganancia * gr});
+        }
+        if (!bp.aportes.empty()) p->buses.push_back(std::move(bp));
     }
     std::lock_guard<std::mutex> g(planLock_);
     plan_ = std::move(p);
@@ -704,6 +762,8 @@ void Matriz::leerMedidores() {
         m["fila:" + QString::fromStdString(n)] = static_cast<double>(p->load());
     for (const auto& b : buses_)
         m["bus:" + QString::fromStdString(b->id)] = linealADb(b->pico->load());
+    for (const auto& [id, pk] : picosEquipo_)
+        m["bus:" + QString::fromStdString(id)] = linealADb(pk->load());
     // Pistas nativas: el máximo de lo que les llega (sin tocar el audio).
     for (int i = 0; i < kPistas; ++i) {
         double mx = -100.0;
@@ -739,15 +799,28 @@ Matriz::json Matriz::estado() const {
                           {"ajustes", e.ajustes}});
     for (const auto& f : filas_) {
         json pis = json::array();
+        bool oye = false;
         if (obs_source_t* s = obs_get_source_by_name(f.c_str())) {
             const std::uint32_t mx = obs_source_get_audio_mixers(s);
+            oye = escucha(s);
             obs_source_release(s);
             for (int i = 0; i < kPistas; ++i)
                 if ((mx & (1u << i)) != 0) pis.push_back("pista" + std::to_string(i + 1));
         }
-        filas.push_back({{"fuente", f}, {"pistas", pis}});
+        filas.push_back({{"fuente", f}, {"pistas", pis}, {"escucha", oye}});
     }
-    return {{"pistas", pistas}, {"buses", buses}, {"envios", envios}, {"fuentes", filas}};
+    return {{"pistas", pistas},
+            {"escucha", {{"id", "escucha"}, {"dispositivo", nombreEscucha().toStdString()}}},
+            {"equipo",
+             [this] {
+                 json eq = json::array();
+                 for (const auto& c : equipo_->columnas())
+                     eq.push_back({{"id", c.id}, {"nombre", c.nombre}, {"dispositivo", c.dispositivo}});
+                 return json{{"mostrar", equipo_->mostrar()}, {"salidas", eq}};
+             }()},
+            {"buses", buses},
+            {"envios", envios},
+            {"fuentes", filas}};
 }
 
 void Matriz::guardar() const {
@@ -762,6 +835,16 @@ void Matriz::guardar() const {
             obs_source_release(s);
         }
     j["mezcladores"] = mx;
+    // Qué fuentes suenan en la escucha (los auriculares).
+    json oye = json::object();
+    for (const auto& f : filas_)
+        if (obs_source_t* s = obs_get_source_by_name(f.c_str())) {
+            oye[f] = escucha(s);
+            obs_source_release(s);
+        }
+    j["escucha"] = oye;
+    j["equipo"] = equipo_->guardado();
+    j["pistasPlegadas"] = pistasPlegadas_;
     const fs::path p = root_ / "Config" / "audio-matriz.json";
     std::error_code ec;
     fs::create_directories(p.parent_path(), ec);
@@ -804,6 +887,21 @@ void Matriz::cargar() {
             // Las pistas 2-6 que toma la grabación individual no se reponen
             // de un guardado viejo: la grabación las pone y las saca sola.
             obs_source_set_audio_mixers(s, mx.get<std::uint32_t>() & 0x3F);
+            obs_source_release(s);
+        }
+    // Primero el equipo: crea las fuentes de las entradas físicas, que el resto
+    // (pistas, escucha) reconoce por nombre.
+    equipo_->cargar(j.value("equipo", json::object()));
+    pistasPlegadas_ = j.value("pistasPlegadas", true);
+    for (const auto& [fuente, mx2] : j.value("mezcladores", json::object()).items())
+        if (equipo_->esEntradaFisica(fuente))
+            if (obs_source_t* s = obs_get_source_by_name(fuente.c_str())) {
+                obs_source_set_audio_mixers(s, mx2.get<std::uint32_t>() & 0x3F);
+                obs_source_release(s);
+            }
+    for (const auto& [fuente, on] : j.value("escucha", json::object()).items())
+        if (obs_source_t* s = obs_get_source_by_name(fuente.c_str())) {
+            if (on.is_boolean()) setEscucha(s, on.get<bool>());
             obs_source_release(s);
         }
 }

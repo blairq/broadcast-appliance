@@ -50,7 +50,8 @@ void McpService::registerMatrizTools() {
         t.category = "audio_rack";
         t.idempotent = true;
         t.description =
-            "`fuente` → `bus` (pista1..pista6 o el id de un bus virtual): `activo` lo prende o apaga. "
+            "`fuente` → `bus` (pista1..pista6, `escucha` = los auriculares del operador, o el id de un bus "
+            "virtual): `activo` lo prende o apaga. "
             "En buses virtuales, además, `nivel_db` (-60 a +12), `pan` (-1 izq a 1 der) y `mute`; "
             "`ajustes: false` lo vuelve a 0 dB, centro.";
         t.details =
@@ -188,6 +189,43 @@ void McpService::registerMatrizTools() {
                 out.push_back({{"id", v.toMap().value("id").toString().toStdString()},
                                {"nombre", v.toMap().value("nombre").toString().toStdString()}});
             done(ToolResult().data(json{{"dispositivos", out}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "audio_matriz_equipo";
+        t.title = "Entradas y salidas del equipo en la matriz";
+        t.category = "audio_rack";
+        t.description =
+            "Lo enchufado (bocinas, monitores con audio, placas USB) en la matriz: las salidas, una columna "
+            "por par de canales (id fis:...); las entradas, una fila por canal. Sin argumentos lo lista. "
+            "`mostrar` (true/false) muestra u oculta todo el equipo; `dispositivo` (id) con `visible` "
+            "muestra u oculta uno (lo oculto no se abre).";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"mostrar", {{"type", "boolean"}}},
+                           {"dispositivo", {{"type", "string"}}},
+                           {"visible", {{"type", "boolean"}}}}}};
+        t.run = [m](const json& a, Done done) {
+            if (a.contains("mostrar")) m->setMostrarEquipo(a.value("mostrar", true));
+            if (a.contains("dispositivo"))
+                m->setVisibleDispositivo(QString::fromStdString(a.value("dispositivo", std::string())),
+                                         a.value("visible", true));
+            json devs = json::array();
+            for (const QVariant& v : m->equipo()) {
+                const QVariantMap d = v.toMap();
+                devs.push_back({{"id", d.value("id").toString().toStdString()},
+                                {"nombre", d.value("nombre").toString().toStdString()},
+                                {"tipo", d.value("tipo").toString().toStdString()},
+                                {"canales", d.value("canales").toInt()},
+                                {"visible", d.value("visible").toBool()},
+                                {"abierto", d.value("abierto").toBool()},
+                                {"ya_en_audio", d.value("enApp").toBool()}});
+            }
+            done(ToolResult().data(json{{"mostrar", m->mostrarEquipo()},
+                                        {"dispositivos", devs},
+                                        {"matriz", m->estado().value("equipo", json::object())}}));
         };
         core_.addTool(std::move(t));
     }

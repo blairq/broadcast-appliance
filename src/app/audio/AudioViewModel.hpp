@@ -93,6 +93,9 @@ class AudioViewModel : public QObject {
     Q_INVOKABLE void moveNode(const QString& node, double x, double y);
     Q_INVOKABLE void setBypass(const QString& node, bool bypass);
     Q_INVOKABLE QString openEditor(const QString& node);
+    /// Cierra las ventanas LSP y vuelve su configuración de pantalla a la de
+    /// fábrica (con copia). Para cuando una interfaz LSP no aparece.
+    Q_INVOKABLE QString restablecerInterfazLsp();
     /// Parametro del catalogo o nombre LSP; `band` >= 0 para parametros por banda.
     Q_INVOKABLE QString setParam(const QString& node, const QString& key, const QVariant& value,
                                  int band = -1);

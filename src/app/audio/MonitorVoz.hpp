@@ -1,21 +1,26 @@
 // ============================================================================
-// src/app/audio/MonitorVoz.hpp — la voz del asistente, SOLO a los auriculares
+// src/app/audio/MonitorVoz.hpp — «Voz del sistema»: la voz sintetizada, como fuente de audio
 //
-// docs/AUDIO-TTS.md: «la voz del asistente va solo al monitoreo, nunca al bus
-// de programa. Que no exista el camino, no que haya una casilla destildada.»
+// Una fuente de audio más de la app (`ba_voz_asistente`, «Voz del sistema»):
+// aparece en Audio y en la Matriz como cualquier entrada, se le puede poner un
+// rack con filtros y rutearla. Por ella habla el asistente (contestar con voz)
+// y la puede usar cualquier otra función que lea texto en voz alta.
 //
-// Una fuente propia de la app (`ba_voz_asistente`, como el chat o los gráficos)
-// creada PRIVADA —no está en ninguna escena ni canal de salida, así que no
-// entra a la mezcla— y en MONITOR_ONLY: suena por el dispositivo de monitoreo
-// de libobs, el mismo de los auriculares del operador (el PFL de
-// audio_escuchar, la voz del lobby). Se le empuja audio con timestamps
-// seguidos, frase por frase, a medida que se sintetiza.
+// De fábrica NO va al aire: tiene su canal de salida (63, para que se pueda
+// mezclar) pero ninguna pista, y suena en MONITOR_ONLY por la salida de
+// auriculares del operador. Si el operador la rutea a una pista en la Matriz,
+// va a donde la mande (docs/AUDIO-TTS.md: antes era privada y sin camino al
+// aire; el operador pidió poder rutearla).
+//
+// Se le empuja audio con timestamps seguidos, frase por frase, a medida que
+// se sintetiza.
 // ============================================================================
 #pragma once
 
 #include <cstddef>
 #include <cstdint>
 #include <mutex>
+#include <string>
 
 struct obs_source;
 
@@ -26,7 +31,10 @@ void registrarMonitorVoz();
 
 class MonitorVoz {
    public:
-    MonitorVoz() = default;
+    /// `nombre`: como aparece en Audio y en la Matriz; `canal`: su canal de
+    /// salida (63 la del sistema, 62 la del teleprompter).
+    explicit MonitorVoz(std::string nombre = "Voz del sistema", std::uint32_t canal = 63)
+        : nombre_(std::move(nombre)), canal_(canal) {}
     ~MonitorVoz();
     MonitorVoz(const MonitorVoz&) = delete;
     MonitorVoz& operator=(const MonitorVoz&) = delete;
@@ -35,14 +43,27 @@ class MonitorVoz {
     /// frases de una respuesta salen pegadas, sin huecos ni encimadas).
     /// Thread-safe. Sin libobs arriba no hace nada.
     void reproducir(const float* muestras, std::size_t n, std::uint32_t frecuencia);
+    /// Lo mismo, pero que empiece en `inicioNs` (reloj de libobs, os_gettime_ns):
+    /// para sincronizar con algo de afuera (el teleprompter). Si ya pasó, sale
+    /// enseguida.
+    void reproducirEn(const float* muestras, std::size_t n, std::uint32_t frecuencia, std::uint64_t inicioNs);
     /// Corta lo que se está diciendo (el operador volvió a apretar la tecla).
+    /// Silencia hasta que se acabe lo encolado (la fuente no se rearma: así no
+    /// se pierden su rack ni su ruteo).
     void callar();
+    /// Crea la fuente ya (al arrancar), para que esté en Audio y en la Matriz
+    /// antes de que hable por primera vez.
+    void preparar();
 
    private:
     bool asegurar();
     std::mutex lock_;
     struct obs_source* fuente_ = nullptr;
-    std::uint64_t proximo_ = 0; ///< ns: dónde termina lo encolado
+    void empujar(const float* muestras, std::size_t n, std::uint32_t frecuencia, std::uint64_t ts);
+    std::string nombre_;
+    std::uint32_t canal_;
+    std::uint64_t proximo_ = 0;       ///< ns: dónde termina lo encolado
+    std::uint64_t silencioHasta_ = 0; ///< ns: callada hasta que se acabe lo encolado
 };
 
 } // namespace ba::app::audio

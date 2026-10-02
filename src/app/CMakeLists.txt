@@ -33,6 +33,7 @@ file(GLOB_RECURSE BA_APP_SOURCES CONFIGURE_DEPENDS
 
 list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/tests/.*")
 list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/mcp/bridge/.*") # ba-mcp es otro binario
+list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/src/app/tools/.*") # herramientas con su propio main
 
 # WIN32 en MSVC: subsistema GUI (sin consola). En Linux es un ejecutable normal.
 # BroadcastEngine.cpp incluye <obs.h>: sin libobs no puede compilarse, asi que
@@ -315,6 +316,10 @@ if(WIN32)
 endif()
 
 target_link_libraries(ba-app PRIVATE ba_core mbedtls mbedx509 mbedcrypto) # HTTPS propio (net/HttpsClient)
+if(APPLE)
+    # Los canales físicos de cada dispositivo (audio/EquipoAudio: Qt informa de más en la Mac).
+    target_link_libraries(ba-app PRIVATE "-framework CoreAudio" "-framework CoreFoundation")
+endif()
 # Buscar Chromecast en la red (src/app/pantallas/Buscar.cpp).
 if(BA_MDNS_OK)
     target_link_libraries(ba-app PRIVATE ba_mdns)
@@ -427,6 +432,9 @@ endif()
     # El catalogo de filtros LSP en castellano (Audio -> filtros).
     qt_add_resources(ba-app "ba_lsp_catalogo" PREFIX "/audio" BASE "${CMAKE_SOURCE_DIR}/datos"
                      FILES "${CMAKE_SOURCE_DIR}/datos/lsp-catalogo.json")
+    # Las reglas con las que el modelo local completa argumentos (agent/ArgumentosLocales).
+    qt_add_resources(ba-app "ba_voz" PREFIX "/voz" BASE "${CMAKE_SOURCE_DIR}/datos"
+                     FILES "${CMAKE_SOURCE_DIR}/datos/voz-argumentos.txt")
     # Sus capturas (del codigo fuente de LSP, LGPL-3.0: tools/lsp-capturas.sh).
     file(GLOB _ba_lsp_capturas "${CMAKE_SOURCE_DIR}/assets/lsp-capturas/*.jpg")
     qt_add_resources(ba-app "ba_lsp_capturas" PREFIX "/lsp" BASE "${CMAKE_SOURCE_DIR}/assets/lsp-capturas"
@@ -558,6 +566,16 @@ endif()
     endif()
 
     # Modelos locales: leer la API de Hugging Face y verificar lo bajado (sin red).
+    # Las cuentas de la voz del teleprompter (agent/VozPrompterPlan).
+    add_executable(test_voz_prompter tests/test_voz_prompter.cpp agent/VozPrompterPlan.cpp)
+    target_include_directories(test_voz_prompter PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    add_test(NAME test_voz_prompter COMMAND test_voz_prompter)
+    # Validar los argumentos que escribe el modelo local (agent/ArgumentosLocales).
+    add_executable(test_argumentos_locales tests/test_argumentos_locales.cpp agent/ArgumentosLocales.cpp)
+    target_include_directories(test_argumentos_locales PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_argumentos_locales PRIVATE ba_core Qt6::Core)
+    set_target_properties(test_argumentos_locales PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_argumentos_locales COMMAND test_argumentos_locales)
     add_executable(test_modelos_locales tests/test_modelos_locales.cpp agent/ModelosLocales.cpp net/HttpsClient.cpp)
     target_include_directories(test_modelos_locales PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_modelos_locales PRIVATE ba_core Qt6::Core Qt6::Gui mbedtls mbedx509 mbedcrypto)

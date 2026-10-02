@@ -7,6 +7,7 @@
 #pragma once
 
 #include <functional>
+#include <string>
 
 #include <QString>
 #include <QStringList>
@@ -43,6 +44,10 @@ struct Motores {
     std::function<QVariantList()> proveedores;
     /// Los modelos de un proveedor.
     std::function<QStringList(const QString& proveedor)> modelosDe;
+    /// Si el proveedor del lanzamiento es el MODELO LOCAL, lo atiende acá
+    /// mismo (sin programa: el pipeline de agent/Voz) y devuelve true, con
+    /// lo que hizo en `resumen`. Si es otro proveedor, false.
+    std::function<bool(const Lanzamiento&, const std::string& origen, std::string* resumen)> local;
 };
 
 } // namespace ba::app::agent

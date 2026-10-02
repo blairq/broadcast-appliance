@@ -68,7 +68,12 @@ Popup {
 
         // --- Búsqueda avanzada ----------------------------------------------------------
         ColumnLayout {
+            // Ancho fijo: sus hijos con fillWidth (búsqueda, categorías) si no
+            // la estiran a todo el ancho y la grilla queda en 0 (no se veía nada).
             Layout.preferredWidth: 230
+            Layout.minimumWidth: 230
+            Layout.maximumWidth: 230
+            Layout.fillWidth: false
             Layout.fillHeight: true
             spacing: 10
             Text { text: "Filtros de audio"; color: Theme.text; font { pixelSize: 19; weight: Font.DemiBold } }

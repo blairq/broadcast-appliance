@@ -853,6 +853,23 @@ void McpService::registerAudioTools() {
     }
     {
         Tool t;
+        t.name = "audio_lsp_restablecer_interfaz";
+        t.title = "Restablecer la interfaz LSP";
+        t.category = "audio_rack";
+        t.description = "Cierra las ventanas de los modulos LSP y vuelve la configuracion de pantalla de LSP "
+                        "(zoom, escala "
+                        "del host, letra, zoom por plugin) a la de fabrica, con copia del archivo. Para "
+                        "cuando la interfaz "
+                        "de un modulo no aparece o no entra en la pantalla.";
+        t.run = [mgr](const json&, Done done) {
+            bool ok = false;
+            const std::string r = mgr()->restablecerInterfazLsp(&ok);
+            done(ok ? ToolResult::ok(r) : ToolResult::error(r));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "audio_editor";
         t.title = "Abrir la interfaz del modulo";
         t.category = "audio_rack";

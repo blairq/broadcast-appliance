@@ -69,6 +69,67 @@ Panel {
         anchors.fill: parent // el margen ya lo puso Panel (`padding`)
         spacing: 6
 
+        // Lo que el modelo local propone con lo dictado: nada sale al aire sin
+        // un click, salvo lo que el operador dejó «sin volver a preguntar»
+        // (Configuración → Audio y voz).
+        Rectangle {
+            id: propuesta
+            readonly property var p: barra.voz.propuesta || ({})
+            visible: !!p.herramienta
+            Layout.fillWidth: true
+            implicitHeight: filaPropuesta.implicitHeight + 16
+            radius: 10
+            color: Qt.rgba(1, 0.42, 0.17, 0.10)
+            border.color: Qt.rgba(1, 0.42, 0.17, 0.45)
+            ColumnLayout {
+                id: filaPropuesta
+                anchors { fill: parent; margins: 8 }
+                spacing: 6
+                Text {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: Theme.text; font.pixelSize: 13
+                    text: "«" + (propuesta.p.frase || "") + "» → ¿<b>" + (propuesta.p.titulo || "") + "</b>?"
+                    textFormat: Text.StyledText
+                }
+                // Exactamente lo que se va a hacer (los datos los completó el modelo local).
+                Text {
+                    Layout.fillWidth: true
+                    visible: text !== ""
+                    wrapMode: Text.WordWrap
+                    color: Theme.text; font { pixelSize: 12; family: "Menlo" }
+                    text: propuesta.p.resumen || ""
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: !!propuesta.p.notas
+                    wrapMode: Text.WordWrap
+                    color: Theme.textDim; font.pixelSize: 11
+                    text: "Ajustado: " + (propuesta.p.notas || "")
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: !!propuesta.p.bloqueos
+                    wrapMode: Text.WordWrap
+                    color: Theme.warn; font.pixelSize: 11
+                    text: "No se puede hacer así: " + (propuesta.p.bloqueos || "") + ". Decilo de nuevo o pasalo al asistente."
+                }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    GlassButton { compact: true; text: "Hacer"; active: true; enabled: !!propuesta.p.puedeHacer; onClicked: barra.voz.confirmar(false) }
+                    GlassButton {
+                        compact: true; text: "Hacer y no volver a preguntar"; enabled: !!propuesta.p.puedeHacer
+                        ToolTip.visible: hovered; ToolTip.delay: 400
+                        ToolTip.text: "«" + (propuesta.p.titulo || "") + "» se va a hacer sola la próxima vez. Se puede quitar en Configuración → Audio y voz."
+                        onClicked: barra.voz.confirmar(true)
+                    }
+                    GlassButton { compact: true; text: "Al asistente"; onClicked: barra.voz.alAsistente() }
+                    GlassButton { compact: true; text: "No"; onClicked: barra.voz.descartar() }
+                }
+            }
+        }
+
         RowLayout {
             Layout.fillWidth: true
             spacing: 8

@@ -124,7 +124,12 @@ class AgentViewModel : public QObject {
     bool usingChosenVersion() const;
     /// La que fija esta version del sistema (agentes.json, compilado).
     QString pinnedVersion() const;
-    bool running() const { return session_->running(); }
+    bool running() const { return localActivo_ || session_->running(); }
+    /// El MODELO LOCAL como motor (proveedor «local»): lo engancha StudioViewModel
+    /// con agent/Voz. `rol`: quién pide ("asistente" o un rol); `vigilancia`:
+    /// viene de una vigilancia (se dice en voz alta y nunca se hace sola).
+    using Local = std::function<void(const QString& rol, const QString& texto, bool vigilancia)>;
+    void setLocal(Local l) { local_ = std::move(l); }
     bool mcpReady() const { return mcpReady_ ? mcpReady_() : false; }
     QString lastError() const { return lastError_; }
     QVariantList alerts() const;
@@ -257,6 +262,8 @@ class AgentViewModel : public QObject {
     AppRuntime& rt_;
     AlertEngine& alerts_;
     std::unique_ptr<term::TerminalSession> session_;
+    Local local_;
+    bool localActivo_ = false; ///< el asistente es el modelo local y está «andando»
     QString provider_ = "claude-cuenta";
     QString model_;
     bool alertsToChat_ = true;

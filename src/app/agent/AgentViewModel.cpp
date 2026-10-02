@@ -172,6 +172,18 @@ const std::vector<Provider>& providerTable() {
         // La direccion, el modelo y los parametros extra no van en esta tabla
         // —son tuyos y se configuran— sino en Config/modelo-propio.json; ver
         // ModeloPropio.hpp. Aca solo queda dicho que existe y que usa clave.
+        {"local",
+         "local",
+         "Modelo local (en esta máquina, sin internet)",
+         "cuenta",
+         "",
+         "",
+         "",
+         "El modelo de Configuración → Modelos locales. No abre una terminal: lo que se le pide (escrito, "
+         "dictado o una vigilancia) pasa por el mismo camino que la voz: elige la acción, completa los "
+         "datos con el estado del aparato y la propone en la barra del asistente (o la hace, si la dejaste "
+         "automática). Rápido para lo sencillo; para lo complejo, mejor un asistente grande.",
+         {}},
         {"propio",
          "opencode",
          "Modelo propio (API compatible con OpenAI)",
@@ -704,7 +716,11 @@ QString AgentViewModel::usableDir(const QString& runtime, QString* exeOut) const
     return {};
 }
 
-bool AgentViewModel::installed() const { return !usableDir(runtimeOf(provider_)).isEmpty(); }
+bool AgentViewModel::installed() const {
+    // El modelo local no se instala acá: se baja en Configuración → Modelos locales.
+    if (runtimeOf(provider_) == "local") return static_cast<bool>(local_);
+    return !usableDir(runtimeOf(provider_)).isEmpty();
+}
 
 QString AgentViewModel::installedVersion() const {
     const QString d = usableDir(runtimeOf(provider_));
@@ -1156,6 +1172,18 @@ term::Pty::Options AgentViewModel::launchOptions(QString* error) {
 
 Motores AgentViewModel::motores() {
     Motores m;
+    m.local = [this](const Lanzamiento& l, const std::string& origen, std::string* resumen) {
+        const QString proveedor = l.proveedor.isEmpty() ? provider_ : l.proveedor;
+        if (runtimeOf(proveedor) != "local") return false;
+        if (!local_) {
+            *resumen = "el modelo local no está disponible en esta versión";
+            return true;
+        }
+        local_(l.rol, l.encargo, origen.rfind("vigilancia", 0) == 0);
+        *resumen = "Lo atendió el modelo local: lo dijo por los auriculares y, si había algo para hacer, "
+                   "lo propuso en la barra del asistente.";
+        return true;
+    };
     m.lanzar = [this](const Lanzamiento& l, QString* err) { return launchOptionsHeadless(l, err); };
     m.proveedores = [this]() { return providers(); };
     m.modelosDe = [](const QString& p) { return modelosDe(p); };
@@ -1207,6 +1235,16 @@ term::Pty::Options AgentViewModel::launchOptionsHeadless(const Lanzamiento& l, Q
 
 void AgentViewModel::start() {
     setError({});
+    // El modelo local no abre terminal: queda «andando» y atiende lo que llega por send().
+    if (runtimeOf(provider_) == "local") {
+        if (!local_) {
+            setError("El modelo local no está disponible en esta versión.");
+            return;
+        }
+        localActivo_ = true;
+        emit runningChanged();
+        return;
+    }
     if (!installed()) {
         setError("Primero instala el agente (boton Instalar).");
         return;
@@ -1227,6 +1265,11 @@ void AgentViewModel::start() {
 }
 
 void AgentViewModel::stop() {
+    if (localActivo_) {
+        localActivo_ = false;
+        emit runningChanged();
+        return;
+    }
     if (session_->running()) expectedStop_ = true;
     session_->stop();
     emit runningChanged();
@@ -1241,6 +1284,10 @@ void AgentViewModel::send(const QString& text) {
     if (text.trimmed().isEmpty()) return;
     if (!running()) {
         setError("El agente no esta corriendo.");
+        return;
+    }
+    if (localActivo_) {
+        if (local_) local_("asistente", text.trimmed(), false);
         return;
     }
     session_->submit(text.trimmed());

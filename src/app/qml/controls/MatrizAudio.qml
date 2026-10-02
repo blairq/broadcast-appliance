@@ -17,7 +17,11 @@ Item {
     id: mx
     readonly property var mz: Studio.matriz
     readonly property var filas: mz ? mz.filas : []
-    readonly property var cols: mz ? mz.columnas : []
+    // Las pistas 2-6 de OBS (las de la grabación multipista) van plegadas por
+    // defecto: se ve solo la 1 (Programa). Se despliegan con el «+5» de su cabecera.
+    // (Se guarda con la Matriz, en la carpeta portable: no en las preferencias del sistema.)
+    readonly property bool pistasPlegadas: !mz || mz.pistasPlegadas
+    readonly property var cols: mz ? mz.columnas.filter(c => !(pistasPlegadas && c.tipo === "pista" && c.indice > 0)) : []
     readonly property var cruces: mz ? mz.cruces : ({})
     readonly property var med: mz ? mz.medidores : ({})
     property string msg: ""
@@ -40,6 +44,8 @@ Item {
         if (!c) return Theme.accent
         if (c.tipo === "pista") return c.indice === 0 ? "#ef4444" : "#f59e0b"
         if (c.tipo === "salida") return "#a78bfa"
+        if (c.tipo === "escucha") return "#22c55e"
+        if (c.tipo === "fisica") return "#38bdf8"
         return "#14b8a6"
     }
     function idxCol(id) { for (let i = 0; i < cols.length; ++i) if (cols[i].id === id) return i; return -1 }
@@ -109,6 +115,13 @@ Item {
             }
             GlassButton { compact: true; text: "+ Entrada virtual"; activeColor: "#14b8a6"; active: true; onClicked: entradaPop.open() }
             GlassButton { compact: true; text: "+ Salida virtual"; activeColor: "#a78bfa"; active: true; onClicked: salidaPop.open() }
+            GlassButton {
+                compact: true; icon: "🔌"; text: "Equipo"
+                active: !!mx.mz && mx.mz.mostrarEquipo; activeColor: "#38bdf8"
+                onClicked: equipoPop.open()
+                ToolTip.visible: hovered; ToolTip.delay: 400
+                ToolTip.text: "Las entradas y salidas de lo que está enchufado (bocinas, monitores con audio, placas USB): mostrarlas u ocultarlas, todas o una por una."
+            }
         }
         Text {
             visible: mx.msg !== ""
@@ -163,6 +176,8 @@ Item {
                                 Text {
                                     anchors { horizontalCenter: parent.horizontalCenter; top: parent.top; topMargin: 12 }
                                     text: cab.modelData.tipo === "pista" ? String(cab.modelData.indice + 1)
+                                        : cab.modelData.tipo === "escucha" ? "🎧"
+                                        : cab.modelData.tipo === "fisica" ? "🔈"
                                         : cab.modelData.tipo === "salida" ? "OUT" : "IN"
                                     color: cab.col; font { pixelSize: 11; weight: Font.Bold; family: Theme.mono }
                                 }
@@ -182,9 +197,36 @@ Item {
                                 ToolTip.visible: containsMouse
                                 ToolTip.delay: 250
                                 ToolTip.text: cab.modelData.nombre +
-                                    (cab.modelData.tipo === "pista" ? (cab.modelData.uso ? "\n" + cab.modelData.uso : "\nlibre") + "\nnativo: sin retardo"
+                                    (cab.modelData.tipo === "escucha" ? "\n→ " + cab.modelData.dispositivoNombre + "\nlos auriculares del operador: nunca al aire"
+                                     : cab.modelData.tipo === "fisica" ? "\nsalida del equipo\nmezcla propia (~25 ms)"
+                                     : cab.modelData.tipo === "pista" ? (cab.modelData.uso ? "\n" + cab.modelData.uso : "\nlibre") + "\nnativo: sin retardo"
                                      : cab.modelData.tipo === "salida" ? "\n→ " + (cab.modelData.dispositivoNombre || "sin dispositivo")
                                      : "\nvuelve como entrada: «" + cab.modelData.nombre + "»")
+                            }
+                            // En Programa: desplegar o plegar las pistas 2-6.
+                            Rectangle {
+                                visible: cab.modelData.tipo === "pista" && cab.modelData.indice === 0
+                                anchors { right: parent.right; top: parent.top; rightMargin: 1; topMargin: 1 }
+                                width: 22; height: 16; radius: 8
+                                color: plegar.containsMouse ? "#f59e0b" : Qt.rgba(0.96, 0.62, 0.04, 0.25)
+                                border.color: "#f59e0b"
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: mx.pistasPlegadas ? "+5" : "−"
+                                    color: plegar.containsMouse ? "black" : "#f59e0b"
+                                    font { pixelSize: 9; weight: Font.Bold }
+                                }
+                                MouseArea {
+                                    id: plegar
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    onClicked: mx.mz.pistasPlegadas = !mx.pistasPlegadas
+                                    ToolTip.visible: containsMouse
+                                    ToolTip.delay: 250
+                                    ToolTip.text: mx.pistasPlegadas
+                                        ? "Mostrar las pistas 2 a 6 (las de la grabación multipista)"
+                                        : "Plegar las pistas 2 a 6"
+                                }
                             }
                         }
                     }
@@ -341,6 +383,7 @@ Item {
                                         onClicked: (ev) => {
                                             if (ev.button === Qt.RightButton) {
                                                 if (x0.modelData.tipo === "pista") { mx.msg = "Las pistas de OBS son nativas: prender o apagar, sin retardo."; return }
+                                                if (x0.modelData.tipo === "escucha") { mx.msg = "La escucha es prender o apagar: el volumen es el de la fuente."; return }
                                                 if (!x0.activo) mx.msg = mx.mz.setCruce(x0.f, x0.b, true)
                                                 ajustePop.f = x0.f; ajustePop.b = x0.b; ajustePop.col = x0.col
                                                 ajustePop.open()
@@ -432,18 +475,50 @@ Item {
             spacing: 10
             width: 340
             Text {
-                text: busPop.bus.tipo === "pista" ? "Pista " + (busPop.bus.indice + 1) + " de OBS" : busPop.bus.tipo === "salida" ? "Salida virtual" : "Entrada virtual"
+                text: busPop.bus.tipo === "pista" ? "Pista " + (busPop.bus.indice + 1) + " de OBS"
+                      : busPop.bus.tipo === "escucha" ? "Escucha: los auriculares del operador"
+                      : busPop.bus.tipo === "fisica" ? "Salida del equipo"
+                      : busPop.bus.tipo === "salida" ? "Salida virtual" : "Entrada virtual"
                 color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold }
             }
             Text {
                 Layout.fillWidth: true; wrapMode: Text.WordWrap
                 color: Theme.textFaint; font.pixelSize: 11
-                text: busPop.bus.tipo === "pista"
+                text: busPop.bus.tipo === "fisica"
+                      ? "«" + (busPop.bus.nombre || "") + "»: lo que se le manda sale por ese dispositivo (y esos canales). Pasa por la mezcla propia (~25 ms). El dispositivo se abre solo mientras recibe algo."
+                      : busPop.bus.tipo === "escucha"
+                      ? "Lo que se prende acá suena por «" + (busPop.bus.dispositivoNombre || "") + "» y nunca va al aire por esta columna. Las voces (texto a audio) vienen prendidas. El dispositivo es el mismo que en Configuración → Audio y voz."
+                      : busPop.bus.tipo === "pista"
                       ? (busPop.bus.indice === 0 ? "La mezcla del programa: lo que se emite y se graba." : "Libre, o la toma una grabación individual (" + (busPop.bus.uso || "ahora libre") + ").") + " Nativa: sin retardo."
                       : busPop.bus.tipo === "salida" ? "Lo que se le manda sale por un dispositivo del equipo. Pasa por la mezcla propia (~25 ms)."
                       : "Lo que se le manda vuelve como la fuente «" + busPop.bus.nombre + "»: tiene su menú de filtros en Audio y se rutea como cualquier entrada."
             }
+            // La escucha: por qué dispositivo suena.
+            Flow {
+                visible: busPop.bus.tipo === "escucha" && !!Studio.voz
+                Layout.fillWidth: true
+                spacing: 6
+                GlassButton {
+                    compact: true; text: "La del sistema"
+                    active: !!Studio.voz && Studio.voz.auriculares === ""
+                    onClicked: { mx.msg = Studio.voz.setAuriculares(""); mx.mz.refrescar() }
+                }
+                Repeater {
+                    model: Studio.voz ? Studio.voz.salidasAudio : []
+                    delegate: Repeater {
+                        required property var modelData
+                        model: modelData.salidas
+                        delegate: GlassButton {
+                            required property var modelData
+                            compact: true; text: modelData.nombre
+                            active: Studio.voz.auriculares === modelData.id
+                            onClicked: { mx.msg = Studio.voz.setAuriculares(modelData.id); mx.mz.refrescar() }
+                        }
+                    }
+                }
+            }
             RowLayout {
+                visible: busPop.bus.tipo !== "escucha" && busPop.bus.tipo !== "fisica"
                 TextField { id: nombreBus; Layout.fillWidth: true; placeholderText: "nombre" }
                 GlassButton { compact: true; text: "Renombrar"; onClicked: mx.msg = mx.mz.renombrar(busPop.bus.id, nombreBus.text) }
             }
@@ -462,7 +537,16 @@ Item {
             }
             RowLayout {
                 GlassButton {
-                    visible: busPop.bus.tipo !== "pista"
+                    visible: busPop.bus.tipo === "fisica"
+                    compact: true; text: "Ocultar este dispositivo"
+                    onClicked: {
+                        const id = String(busPop.bus.id || "")
+                        mx.mz.setVisibleDispositivo(id.substring(4, id.lastIndexOf(":")), false)
+                        busPop.close()
+                    }
+                }
+                GlassButton {
+                    visible: busPop.bus.tipo !== "pista" && busPop.bus.tipo !== "escucha" && busPop.bus.tipo !== "fisica"
                     compact: true; text: "Quitar"; activeColor: Theme.live
                     onClicked: { mx.msg = mx.mz.quitarBus(busPop.bus.id); busPop.close() }
                 }
@@ -473,6 +557,56 @@ Item {
     }
 
     // --- Agregar buses ---------------------------------------------------------------------
+    // --- El equipo: lo que está enchufado ------------------------------------------------
+    Popup {
+        id: equipoPop
+        anchors.centerIn: parent
+        padding: 16
+        modal: true
+        background: Rectangle { color: Theme.panel; radius: Theme.radius; border.color: "#38bdf8" }
+        ColumnLayout {
+            spacing: 10
+            width: 460
+            Text { text: "Entradas y salidas del equipo"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+            Text {
+                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                color: Theme.textFaint; font.pixelSize: 11
+                text: "Lo que se enchufa aparece solo. Las salidas, un par de canales por columna; las entradas, un " +
+                      "canal por fila (de fábrica, sin ir al aire). Un dispositivo se abre solo mientras se usa; " +
+                      "lo oculto no se abre nunca."
+            }
+            RowLayout {
+                spacing: 10
+                Toggle { checked: !!mx.mz && mx.mz.mostrarEquipo; onToggled: (w) => mx.mz.mostrarEquipo = w }
+                Text { text: "Mostrar el equipo en la matriz"; color: Theme.text; font.pixelSize: 13 }
+            }
+            Repeater {
+                model: mx.mz ? mx.mz.equipo : []
+                delegate: RowLayout {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    spacing: 8
+                    Toggle {
+                        enabled: !!mx.mz && mx.mz.mostrarEquipo && !modelData.enApp
+                        checked: modelData.visible
+                        onToggled: (w) => mx.mz.setVisibleDispositivo(modelData.id, w)
+                    }
+                    Text { text: modelData.tipo === "salida" ? "🔈" : "🎙"; font.pixelSize: 13 }
+                    Text {
+                        Layout.fillWidth: true; elide: Text.ElideRight
+                        text: modelData.nombre + "  ·  " + modelData.canales + (modelData.canales === 1 ? " canal" : " canales")
+                        color: Theme.text; font.pixelSize: 12
+                    }
+                    Text {
+                        text: modelData.enApp ? "ya está en Audio" : modelData.abierto ? "en uso" : ""
+                        color: modelData.abierto ? Theme.ok : Theme.textFaint; font.pixelSize: 11
+                    }
+                }
+            }
+            GlassButton { compact: true; text: "Cerrar"; onClicked: equipoPop.close() }
+        }
+    }
+
     Popup {
         id: entradaPop
         anchors.centerIn: parent

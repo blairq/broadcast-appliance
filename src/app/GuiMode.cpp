@@ -75,6 +75,11 @@ int runGui(int argc, char** argv) {
         std::printf("ba-app: el motor no pudo arrancar: %s\n", rt.lastError().c_str());
         return rc;
     }
+    // Las entradas de audio que el sistema tardó en abrir (BroadcastEngine::
+    // addGlobalAudio) se enganchan cuando llegan.
+    QTimer audioPendiente;
+    QObject::connect(&audioPendiente, &QTimer::timeout, [&rt]() { rt.engine().adoptPendingAudio(); });
+    audioPendiente.start(1000);
     const VideoConfig& v = rt.config().video;
     rt.engine().enablePreview(kPreviewWidth,
                               (kPreviewWidth * v.outputHeight / std::max(1, v.outputWidth)) & ~1);

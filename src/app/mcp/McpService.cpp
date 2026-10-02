@@ -12,6 +12,7 @@
 #include "agent/AgentViewModel.hpp"
 #include "agent/Despachador.hpp"
 #include "agent/Roles.hpp"
+#include "agent/Voz.hpp"
 #include "mcp/McpTraza.hpp"
 #include "ui/PersonasViewModel.hpp"
 
@@ -26,6 +27,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
 #include <set>
 
 #include "AppRuntime.hpp"
@@ -301,6 +303,117 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
     registerFacebookTools();
     registerAlertTools();
     registerAssistantTools();
+    // Lo dictado pasa por el modelo local: necesita saber qué es cada
+    // herramienta (título, si pide datos) y poder hacer las que no piden nada.
+    if (auto* voz = qobject_cast<agent::Voz*>(vm_.voz()); voz != nullptr) {
+        // Una herramienta, por el núcleo, con lo que devuelve como JSON (el
+        // estructurado o el texto) y si fue error.
+        // Dos sesiones: la que LEE el estado (lee nombres de invitados, y el
+        // núcleo la marca contaminada) no es la que ACTÚA. Si fueran la misma,
+        // cada acción de voz pediría aprobación a mano. La frase la dijo el
+        // operador; los nombres leídos solo se usan para validar.
+        const auto llamarEn = [this](const std::string& sesion, const std::string& nombre, const json& args,
+                                     std::function<void(bool, const json&, const std::string&)> fin) {
+            core_.callTool(
+                json{{"name", nombre}, {"arguments", args}},
+                [fin](const json& r) {
+                    std::string texto;
+                    for (const auto& c : r.value("content", json::array()))
+                        if (c.value("type", "") == "text") texto += c.value("text", "");
+                    json datos = r.value("structuredContent", json());
+                    if (datos.is_null()) datos = json::parse(texto, nullptr, false);
+                    fin(!r.value("isError", false), datos.is_discarded() ? json() : datos, texto);
+                },
+                CallContext{sesion, ""});
+        };
+        const auto llamar = [llamarEn](const std::string& nombre, const json& args,
+                                       std::function<void(bool, const json&, const std::string&)> fin) {
+            llamarEn("voz-modelo-local", nombre, args, std::move(fin));
+        };
+        const auto leer = [llamarEn](const std::string& nombre, const json& args,
+                                     std::function<void(bool, const json&, const std::string&)> fin) {
+            llamarEn("voz-modelo-local-estado", nombre, args, std::move(fin));
+        };
+        voz->setHerramientas(
+            [this](const QString& nombre) {
+                agent::Voz::FichaHerramienta f;
+                const Tool* t = core_.findTool(nombre.toStdString());
+                if (t == nullptr) return f;
+                f.existe = true;
+                f.titulo = QString::fromStdString(t->title);
+                const json props = t->inputSchema.value("properties", json::object());
+                f.requiereDatos = props.is_object() && !props.empty();
+                f.lectura = t->readOnly;
+                f.ficha = json{
+                    {"title", t->title}, {"description", t->description}, {"inputSchema", t->inputSchema}};
+                return f;
+            },
+            [voz, llamar](const QString& nombre, const json& args,
+                          std::function<void(bool, const QString&)> fin) {
+                llamar(nombre.toStdString(), args, [voz, fin](bool ok, const json&, const std::string& t) {
+                    const std::string texto = t; // entero: una pregunta se contesta con esto
+                    QMetaObject::invokeMethod(voz,
+                                              [fin, ok, texto]() { fin(ok, QString::fromStdString(texto)); });
+                });
+            },
+            // El estado que ve el modelo para completar argumentos: los nombres
+            // que existen y el volumen de cada fuente de audio.
+            [leer](std::function<void(json)> listo) {
+                auto estado = std::make_shared<json>(json::object());
+                leer("scene_list", json::object(), [=](bool, const json& sl, const std::string&) {
+                    json escenas = json::array();
+                    for (const auto& e : sl.value("scenes", json::array()))
+                        escenas.push_back(e.value("name", std::string()));
+                    (*estado)["escena_actual"] = sl.value("current", std::string());
+                    (*estado)["escena_armada"] = sl.value("armada", std::string());
+                    (*estado)["escenas"] = escenas;
+                    leer("source_list", json::object(), [=](bool, const json& src, const std::string&) {
+                        json fuentes = json::array();
+                        for (const auto& f : src.value("sources", json::array()))
+                            fuentes.push_back({{"nombre", f.value("name", std::string())},
+                                               {"visible", f.value("visible", true)}});
+                        (*estado)["fuentes_de_la_escena_actual"] = fuentes;
+                        leer("mixer_list", json::object(), [=](bool, const json& mx, const std::string&) {
+                            json audio = json::array();
+                            for (const auto& a : mx.value("sources", json::array()))
+                                audio.push_back(
+                                    {{"nombre", a.value("name", std::string())},
+                                     {"volumen_db", std::round(a.value("volumeDb", 0.0) * 10.0) / 10.0},
+                                     {"silenciada", a.value("muted", false)}});
+                            (*estado)["audio"] = audio;
+                            leer("room_status", json::object(),
+                                 [=](bool, const json& rs, const std::string&) {
+                                     json gente = json::array();
+                                     for (const auto& x : rs.value("participants", json::array()))
+                                         gente.push_back({{"id", x.value("id", std::string())},
+                                                          {"nombre", x.value("name", std::string())},
+                                                          {"estado", x.value("state", std::string())}});
+                                     (*estado)["participantes"] = gente;
+                                     leer("grafico_listar", json::object(),
+                                          [=](bool, const json& gr, const std::string&) {
+                                              json graficos = json::array();
+                                              for (const auto& g : gr.value("graficos", json::array()))
+                                                  graficos.push_back(g.value("nombre", std::string()));
+                                              (*estado)["graficos"] = graficos;
+                                              leer("laminas_listar", json::object(),
+                                                   [=](bool, const json& la, const std::string&) {
+                                                       json carruseles = json::array();
+                                                       for (const auto& c :
+                                                            la.value("carruseles", json::array()))
+                                                           carruseles.push_back(
+                                                               c.is_string()
+                                                                   ? c.get<std::string>()
+                                                                   : c.value("nombre", std::string()));
+                                                       (*estado)["carruseles"] = carruseles;
+                                                       listo(*estado);
+                                                   });
+                                          });
+                                 });
+                        });
+                    });
+                });
+            });
+    }
     // El operador delega en el asistente la atencion de alguien del lobby: se
     // habilita la exencion para ESA persona y se le pasa la tarea al agente.
     vm_.setIntakeSink([this](const QString& id, const QString& name, bool yaAdentro) -> QString {

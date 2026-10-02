@@ -96,6 +96,8 @@ class AudioRack {
     void layoutGrid();
 
     ClapInstance* plugin(const std::string& id);
+    /// Cierra las ventanas de los módulos que la tengan abierta. Devuelve cuántas.
+    int cerrarEditores();
     /// "in", "out" o un nodo analizador.
     Analyzer* analyzer(const std::string& id);
     Generator* generator(const std::string& id);

@@ -36,6 +36,7 @@
 #include "agent/ModelosLocales.hpp"
 #include "agent/Roles.hpp"
 #include "agent/Voz.hpp"
+#include "agent/VozPrompter.hpp"
 #include "AppRuntime.hpp"
 #include "diag/DiarioDeArranque.hpp"
 #include "diag/Registro.hpp"
@@ -283,6 +284,14 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         QTimer::singleShot(0, modelos_.get(), [m = modelos_.get()]() { m->arrancarSiCorresponde(); });
         voz_ = std::make_unique<agent::Voz>(rt, *modelos_);
         connect(voz_.get(), &agent::Voz::notify, this, &StudioViewModel::notify);
+        vozPrompter_ = std::make_unique<agent::VozPrompter>(rt, *voz_, conference_.get());
+        // El modelo local como motor de agentes y del asistente (proveedor «local»).
+        if (agent_) {
+            agent::Voz* v = voz_.get();
+            agent_->setLocal([v](const QString& quien, const QString& texto, bool vigilancia) {
+                v->atenderDesde(texto, quien, vigilancia);
+            });
+        }
         // El micrófono del operador se cambia en Configuración: Sala lo muestra.
         connect(voz_.get(), &agent::Voz::cambio, conference_.get(), &ConferenceViewModel::operatorChanged);
         // Barra de mensajes del asistente al operador (y respuestas a invitados).
@@ -504,6 +513,7 @@ QObject* StudioViewModel::system() const { return system_.get(); }
 QObject* StudioViewModel::agent() const { return agent_.get(); }
 QObject* StudioViewModel::modelos() const { return modelos_.get(); }
 QObject* StudioViewModel::voz() const { return voz_.get(); }
+QObject* StudioViewModel::vozPrompter() const { return vozPrompter_.get(); }
 QObject* StudioViewModel::matriz() const {
 #if defined(BA_HAVE_CLAP)
     return matriz_.get();

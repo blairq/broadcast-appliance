@@ -17,6 +17,7 @@
 
 #include <QGuiApplication>
 #include <QImage>
+#include <QScreen>
 #include <QSocketNotifier>
 #include <QTimer>
 #include <QWindow>
@@ -32,6 +33,8 @@ using namespace ba::app::audio;
 
 bool engancharCuadrosLsp(); // capturar_vista_mac.mm
 QImage ultimoCuadroLsp();
+const char* quienTieneElTeclado(void* nsview);
+void dobleClick(void* nsview, double x, double y);
 
 namespace {
 
@@ -178,6 +181,15 @@ int main(int argc, char** argv) {
         }
     });
 
+    // BA_CAPTURA_PRINCIPAL=1: antes, una ventana principal grande (como la de la
+    // app), para reproducir cómo abre el editor con otra ventana ya abierta.
+    std::unique_ptr<QWindow> principal;
+    if (qEnvironmentVariableIsSet("BA_CAPTURA_PRINCIPAL")) {
+        principal = std::make_unique<QWindow>();
+        principal->setGeometry(QGuiApplication::primaryScreen()->availableGeometry());
+        principal->show();
+        QCoreApplication::processEvents();
+    }
     if (!inst->openEditor(inst->desc().name, &err)) {
         std::fprintf(stderr, "no se pudo abrir el editor: %s\n", err.c_str());
         salir = true;
@@ -185,10 +197,43 @@ int main(int argc, char** argv) {
         return 1;
     }
     int rc = 1;
+    // BA_CAPTURA_DOBLECLICK="x,y": un doble click ahí a la mitad de la espera,
+    // y al final se listan los parámetros que cambiaron (prueba de interacción).
+    std::map<std::string, double> antes;
+    for (const auto& p : inst->params())
+        inst->getValue(p.id, antes[p.name]);
+    if (const QByteArray dc = qgetenv("BA_CAPTURA_DOBLECLICK"); !dc.isEmpty()) {
+        const QList<QByteArray> xy = dc.split(',');
+        // BA_CAPTURA_DOBLES=n: n dobles clicks repartidos en la espera.
+        const int n = std::max(1, qEnvironmentVariableIntValue("BA_CAPTURA_DOBLES"));
+        for (int k = 1; k <= n; ++k)
+            QTimer::singleShot(esperar * k / (n + 1), [xy, &inst]() {
+                for (const auto& p : inst->params())
+                    if (p.name == "Matrix gain 1 to 2") {
+                        double v = 0;
+                        inst->getValue(p.id, v);
+                        std::fprintf(stderr, "  antes del doble click: %g\n", v);
+                    }
+                for (QWindow* tw : QGuiApplication::topLevelWindows())
+                    if (tw->isVisible())
+                        dobleClick(reinterpret_cast<void*>(tw->winId()), xy.value(0).toDouble(),
+                                   xy.value(1).toDouble());
+            });
+    }
     QTimer::singleShot(esperar, [&]() {
+        for (const auto& p : inst->params()) {
+            double v = 0;
+            inst->getValue(p.id, v);
+            if (std::fabs(v - antes[p.name]) > 1e-6)
+                std::fprintf(stderr, "cambio: %s %g -> %g\n", p.name.c_str(), antes[p.name], v);
+        }
         // El cuadro viene a la escala de la pantalla (Retina: al doble): se
         // deja al tamaño lógico de la ventana, como las capturas de LSP.
         QImage img = ultimoCuadroLsp();
+        for (QWindow* tw : QGuiApplication::topLevelWindows())
+            if (tw->isVisible())
+                std::fprintf(stderr, "teclado: %s\n",
+                             quienTieneElTeclado(reinterpret_cast<void*>(tw->winId())));
         QWindow* w = QGuiApplication::topLevelWindows().isEmpty()
                          ? nullptr
                          : QGuiApplication::topLevelWindows().first();

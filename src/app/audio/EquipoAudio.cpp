@@ -1,0 +1,436 @@
+// src/app/audio/EquipoAudio.cpp — ver EquipoAudio.hpp
+
+#include "audio/EquipoAudio.hpp"
+
+#include "audio/AnilloAudio.hpp"
+
+#include <QAudioDevice>
+#include <QAudioFormat>
+#include <QAudioSink>
+#include <QAudioSource>
+
+#include <obs.h>
+#if defined(__APPLE__)
+#include <CoreAudio/CoreAudio.h>
+#endif
+#include <util/platform.h>
+
+#include <algorithm>
+#include <cstdio>
+
+namespace ba::app::audio {
+
+namespace {
+
+constexpr const char* kTipo = "ba_entrada_fisica";
+constexpr int kMaxCanales = 32;
+
+const char* nombreTipo(void*) { return "Entrada del equipo (matriz)"; }
+void* crear(obs_data_t*, obs_source_t* s) { return s; }
+void destruir(void*) {}
+obs_source_info g_info = {};
+
+/// Los canales de salida de libobs libres para las entradas físicas (0
+/// programa, 1-16 invitados, 17-24 micrófonos, 40-55 entradas virtuales,
+/// 62-63 las voces).
+std::vector<std::uint32_t>& canalesLibres() {
+    static std::vector<std::uint32_t> libres = [] {
+        std::vector<std::uint32_t> v;
+        for (std::uint32_t c = 25; c <= 39; ++c)
+            v.push_back(c);
+        for (std::uint32_t c = 56; c <= 61; ++c)
+            v.push_back(c);
+        return v;
+    }();
+    return libres;
+}
+
+QAudioFormat formato(int canales) {
+    QAudioFormat f;
+    f.setSampleRate(48000);
+    f.setChannelCount(canales);
+    f.setSampleFormat(QAudioFormat::Float);
+    return f;
+}
+
+std::string idDe(const QAudioDevice& d) { return QString::fromLatin1(d.id()).toStdString(); }
+
+#if defined(__APPLE__)
+/// Los canales físicos según CoreAudio (Qt en la Mac informa los que puede
+/// convertir: 16 para las bocinas de la notebook, que tienen 2).
+int canalesCoreAudio(const std::string& uid, bool entrada) {
+    CFStringRef cfUid = CFStringCreateWithCString(nullptr, uid.c_str(), kCFStringEncodingUTF8);
+    if (cfUid == nullptr) return 0;
+    AudioDeviceID dev = kAudioObjectUnknown;
+    AudioValueTranslation tr{&cfUid, sizeof(cfUid), &dev, sizeof(dev)};
+    AudioObjectPropertyAddress a{kAudioHardwarePropertyDeviceForUID, kAudioObjectPropertyScopeGlobal,
+                                 kAudioObjectPropertyElementMain};
+    UInt32 tam = sizeof(tr);
+    const OSStatus st = AudioObjectGetPropertyData(kAudioObjectSystemObject, &a, 0, nullptr, &tam, &tr);
+    CFRelease(cfUid);
+    if (st != noErr || dev == kAudioObjectUnknown) return 0;
+    AudioObjectPropertyAddress c{kAudioDevicePropertyStreamConfiguration,
+                                 entrada ? kAudioDevicePropertyScopeInput : kAudioDevicePropertyScopeOutput,
+                                 kAudioObjectPropertyElementMain};
+    if (AudioObjectGetPropertyDataSize(dev, &c, 0, nullptr, &tam) != noErr || tam == 0) return 0;
+    std::vector<std::uint8_t> buf(tam);
+    auto* lista = reinterpret_cast<AudioBufferList*>(buf.data());
+    if (AudioObjectGetPropertyData(dev, &c, 0, nullptr, &tam, lista) != noErr) return 0;
+    int n = 0;
+    for (UInt32 i = 0; i < lista->mNumberBuffers; ++i)
+        n += static_cast<int>(lista->mBuffers[i].mNumberChannels);
+    return n;
+}
+#endif
+
+/// Cuántos canales tiene de verdad el dispositivo.
+int canalesDe(const QAudioDevice& d, bool entrada) {
+#if defined(__APPLE__)
+    if (const int n = canalesCoreAudio(idDe(d), entrada); n > 0) return std::clamp(n, 1, kMaxCanales);
+#else
+    (void)entrada;
+#endif
+    // Fuera de la Mac, el formato preferido es el del dispositivo (WASAPI: el del mezclador).
+    const int pref = d.preferredFormat().channelCount();
+    return std::clamp(pref > 0 ? pref : 2, 1, kMaxCanales);
+}
+
+/// Los dispositivos de entrada que ya son una fuente de la app (el micrófono
+/// de la Mac en Audio): no se repiten como entrada física.
+std::set<std::string> yaUsados() {
+    std::set<std::string> out;
+    obs_enum_sources(
+        [](void* p, obs_source_t* s) {
+            const std::string tipo = obs_source_get_id(s);
+            if (tipo.find("input_capture") == std::string::npos) return true;
+            obs_data_t* d = obs_source_get_settings(s);
+            const char* dev = obs_data_get_string(d, "device_id");
+            if (dev != nullptr && *dev != '\0') static_cast<std::set<std::string>*>(p)->insert(dev);
+            obs_data_release(d);
+            return true;
+        },
+        &out);
+    return out;
+}
+
+} // namespace
+
+void registrarEntradaFisica() {
+    g_info.id = kTipo;
+    g_info.type = OBS_SOURCE_TYPE_INPUT;
+    g_info.output_flags = OBS_SOURCE_AUDIO | OBS_SOURCE_DO_NOT_DUPLICATE | OBS_SOURCE_CAP_DISABLED;
+    g_info.get_name = nombreTipo;
+    g_info.create = crear;
+    g_info.destroy = destruir;
+    g_info.icon_type = OBS_ICON_TYPE_AUDIO_INPUT;
+    obs_register_source(&g_info);
+}
+
+// --- Salidas -------------------------------------------------------------------------
+
+struct EquipoAudio::Salida {
+    QAudioDevice dev;
+    std::string id, nombre;
+    int canales = 2;
+    std::vector<std::shared_ptr<anillo::Ring>> pares;
+    std::unique_ptr<anillo::AlDispositivoMulti> io;
+    std::unique_ptr<QAudioSink> sink;
+
+    bool abierta() const { return sink != nullptr; }
+    void abrir() {
+        if (sink) return;
+        if (!dev.isFormatSupported(formato(canales))) {
+            std::printf("ba-app: la salida '%s' no acepta %d canales a 48 kHz\n", nombre.c_str(), canales);
+            return;
+        }
+        io = std::make_unique<anillo::AlDispositivoMulti>(pares, canales);
+        sink = std::make_unique<QAudioSink>(dev, formato(canales));
+        sink->setBufferSize(static_cast<qsizetype>(anillo::kColchon * canales * sizeof(float) * 2));
+        sink->start(io.get());
+    }
+    void cerrar() {
+        if (sink) sink->stop();
+        sink.reset();
+        io.reset();
+    }
+};
+
+// --- Entradas ------------------------------------------------------------------------
+
+struct EquipoAudio::Entrada {
+    QAudioDevice dev;
+    std::string id, nombre;
+    int canales = 1;
+    std::vector<obs_source_t*> fuentes; ///< una por canal
+    std::vector<std::uint32_t> canalesObs;
+    std::unique_ptr<QAudioSource> src;
+    QIODevice* io = nullptr;
+    std::vector<float> uno;
+
+    bool abierta() const { return src != nullptr; }
+    void abrir(QObject* dueno) {
+        if (src) return;
+        if (!dev.isFormatSupported(formato(canales))) {
+            std::printf("ba-app: la entrada '%s' no da %d canales a 48 kHz\n", nombre.c_str(), canales);
+            return;
+        }
+        src = std::make_unique<QAudioSource>(dev, formato(canales));
+        io = src->start();
+        if (io == nullptr) {
+            src.reset();
+            return;
+        }
+        QObject::connect(io, &QIODevice::readyRead, dueno, [this]() { leer(); });
+    }
+    void cerrar() {
+        if (src) src->stop();
+        src.reset();
+        io = nullptr;
+    }
+    /// Lo que llegó, separado por canal: cada uno a su fuente.
+    void leer() {
+        if (io == nullptr) return;
+        const QByteArray b = io->readAll();
+        const auto frames =
+            static_cast<std::uint32_t>(b.size() / static_cast<qsizetype>(canales * sizeof(float)));
+        if (frames == 0) return;
+        const auto* x = reinterpret_cast<const float*>(b.constData());
+        uno.resize(frames);
+        const std::uint64_t ts = os_gettime_ns();
+        for (int c = 0; c < canales && c < static_cast<int>(fuentes.size()); ++c) {
+            for (std::uint32_t i = 0; i < frames; ++i)
+                uno[i] = x[static_cast<std::size_t>(i) * canales + c];
+            obs_source_audio a{};
+            a.data[0] = reinterpret_cast<const std::uint8_t*>(uno.data());
+            a.frames = frames;
+            a.speakers = SPEAKERS_MONO;
+            a.format = AUDIO_FORMAT_FLOAT;
+            a.samples_per_sec = 48000;
+            a.timestamp = ts;
+            obs_source_output_audio(fuentes[static_cast<std::size_t>(c)], &a);
+        }
+    }
+    void crearFuentes() {
+        for (int c = 0; c < canales; ++c) {
+            const std::string n = canales == 1 ? nombre : nombre + " · Entrada " + std::to_string(c + 1);
+            obs_source_t* s = obs_get_source_by_name(n.c_str()); // ya existía (otra enchufada)
+            if (s == nullptr) {
+                s = obs_source_create(kTipo, n.c_str(), nullptr, nullptr);
+                if (s == nullptr) continue;
+                obs_source_set_audio_mixers(s, 0); // no sale al aire sola
+            }
+            fuentes.push_back(s);
+            // Un canal de salida para poder mezclarse (si quedan).
+            auto& libres = canalesLibres();
+            if (!libres.empty()) {
+                canalesObs.push_back(libres.front());
+                obs_set_output_source(libres.front(), s);
+                libres.erase(libres.begin());
+            } else {
+                canalesObs.push_back(0);
+                std::printf("ba-app: no quedan canales para '%s'\n", n.c_str());
+            }
+        }
+    }
+    void quitarFuentes() {
+        cerrar();
+        for (std::size_t i = 0; i < fuentes.size(); ++i) {
+            if (i < canalesObs.size() && canalesObs[i] != 0) {
+                obs_set_output_source(canalesObs[i], nullptr);
+                canalesLibres().push_back(canalesObs[i]);
+            }
+            obs_source_remove(fuentes[i]);
+            obs_source_release(fuentes[i]);
+        }
+        fuentes.clear();
+        canalesObs.clear();
+    }
+};
+
+// --- EquipoAudio ---------------------------------------------------------------------
+
+EquipoAudio::EquipoAudio(QObject* parent) : QObject(parent) {
+    connect(&medios_, &QMediaDevices::audioOutputsChanged, this, [this]() { refrescar(); });
+    connect(&medios_, &QMediaDevices::audioInputsChanged, this, [this]() { refrescar(); });
+    refrescar();
+}
+
+EquipoAudio::~EquipoAudio() {
+    for (auto& [id, s] : salidas_)
+        s->cerrar();
+    for (auto& [id, e] : entradas_)
+        e->quitarFuentes();
+}
+
+bool EquipoAudio::visible(const std::string& id) const {
+    if (!mostrar_) return false;
+    const auto it = visibles_.find(id);
+    return it == visibles_.end() || it->second;
+}
+
+void EquipoAudio::refrescar() {
+    // Salidas: las que hay y se ven.
+    std::set<std::string> vistas;
+    for (const QAudioDevice& d : QMediaDevices::audioOutputs()) {
+        const std::string id = idDe(d);
+        if (!visible(id)) continue;
+        vistas.insert(id);
+        if (salidas_.contains(id)) continue;
+        auto s = std::make_unique<Salida>();
+        s->dev = d;
+        s->id = id;
+        s->nombre = d.description().toStdString();
+        s->canales = canalesDe(d, false);
+        for (int p = 0; p < (s->canales + 1) / 2; ++p)
+            s->pares.push_back(std::make_shared<anillo::Ring>());
+        salidas_[id] = std::move(s);
+    }
+    for (auto it = salidas_.begin(); it != salidas_.end();) {
+        if (vistas.contains(it->first)) {
+            ++it;
+            continue;
+        }
+        it->second->cerrar();
+        it = salidas_.erase(it);
+    }
+    // Entradas: las que hay, se ven y no son ya una entrada de la app.
+    vistas.clear();
+    const std::set<std::string> usados = yaUsados();
+    for (const QAudioDevice& d : QMediaDevices::audioInputs()) {
+        const std::string id = idDe(d);
+        if (!visible(id) || usados.contains(id)) continue;
+        vistas.insert(id);
+        if (entradas_.contains(id)) continue;
+        auto e = std::make_unique<Entrada>();
+        e->dev = d;
+        e->id = id;
+        e->nombre = d.description().toStdString();
+        e->canales = canalesDe(d, true);
+        e->crearFuentes();
+        entradas_[id] = std::move(e);
+    }
+    for (auto it = entradas_.begin(); it != entradas_.end();) {
+        if (vistas.contains(it->first)) {
+            ++it;
+            continue;
+        }
+        it->second->quitarFuentes();
+        it = entradas_.erase(it);
+    }
+    emit cambio();
+}
+
+std::vector<EquipoAudio::Columna> EquipoAudio::columnas() const {
+    std::vector<Columna> out;
+    for (const auto& [id, s] : salidas_)
+        for (int p = 0; p < static_cast<int>(s->pares.size()); ++p) {
+            const int c0 = 2 * p + 1, c1 = std::min(2 * p + 2, s->canales);
+            const std::string canales =
+                s->canales <= 2
+                    ? std::string()
+                    : (c1 > c0 ? std::to_string(c0) + "-" + std::to_string(c1) : std::to_string(c0));
+            out.push_back({"fis:" + id + ":" + std::to_string(p),
+                           canales.empty() ? s->nombre : s->nombre + " · " + canales, s->nombre});
+        }
+    return out;
+}
+
+std::shared_ptr<anillo::Ring> EquipoAudio::anilloDe(const std::string& columna) const {
+    // "fis:<id>:<par>" (el id puede tener «:»: el par es lo último).
+    if (columna.rfind("fis:", 0) != 0) return nullptr;
+    const auto dos = columna.rfind(':');
+    const std::string id = columna.substr(4, dos - 4);
+    const int par = std::atoi(columna.c_str() + dos + 1);
+    const auto it = salidas_.find(id);
+    if (it == salidas_.end() || par < 0 || par >= static_cast<int>(it->second->pares.size())) return nullptr;
+    return it->second->pares[static_cast<std::size_t>(par)];
+}
+
+void EquipoAudio::usarColumnas(const std::set<std::string>& usadas) {
+    for (auto& [id, s] : salidas_) {
+        bool usa = false;
+        for (const auto& c : usadas)
+            if (c.rfind("fis:" + id + ":", 0) == 0) usa = true;
+        if (usa)
+            s->abrir();
+        else
+            s->cerrar();
+    }
+}
+
+void EquipoAudio::usarEntradas(const std::set<std::string>& usadas) {
+    for (auto& [id, e] : entradas_) {
+        bool usa = false;
+        for (obs_source_t* f : e->fuentes)
+            if (usadas.contains(obs_source_get_name(f))) usa = true;
+        if (usa)
+            e->abrir(this);
+        else
+            e->cerrar();
+    }
+}
+
+bool EquipoAudio::esEntradaFisica(const std::string& fuente) const {
+    for (const auto& [id, e] : entradas_)
+        for (obs_source_t* f : e->fuentes)
+            if (fuente == obs_source_get_name(f)) return true;
+    return false;
+}
+
+void EquipoAudio::setMostrar(bool on) {
+    if (mostrar_ == on) return;
+    mostrar_ = on;
+    refrescar();
+}
+
+void EquipoAudio::setVisible(const std::string& id, bool v) {
+    visibles_[id] = v;
+    refrescar();
+}
+
+QVariantList EquipoAudio::dispositivos() const {
+    QVariantList out;
+    const std::set<std::string> usados = yaUsados();
+    const auto agregar = [&](const QAudioDevice& d, const char* tipo) {
+        const std::string id = idDe(d);
+        const auto it = visibles_.find(id);
+        bool abierto = false;
+        if (std::string(tipo) == "salida") {
+            const auto s = salidas_.find(id);
+            abierto = s != salidas_.end() && s->second->abierta();
+        } else {
+            const auto e = entradas_.find(id);
+            abierto = e != entradas_.end() && e->second->abierta();
+        }
+        out.push_back(QVariantMap{{"id", QString::fromStdString(id)},
+                                  {"nombre", d.description()},
+                                  {"tipo", tipo},
+                                  {"canales", canalesDe(d, std::string(tipo) == "entrada")},
+                                  {"visible", it == visibles_.end() || it->second},
+                                  {"abierto", abierto},
+                                  {"enApp", std::string(tipo) == "entrada" && usados.contains(id)}});
+    };
+    for (const QAudioDevice& d : QMediaDevices::audioOutputs())
+        agregar(d, "salida");
+    for (const QAudioDevice& d : QMediaDevices::audioInputs())
+        agregar(d, "entrada");
+    return out;
+}
+
+nlohmann::json EquipoAudio::guardado() const {
+    nlohmann::json v = nlohmann::json::object();
+    for (const auto& [id, on] : visibles_)
+        v[id] = on;
+    return {{"mostrar", mostrar_}, {"visibles", v}};
+}
+
+void EquipoAudio::cargar(const nlohmann::json& j) {
+    if (!j.is_object()) return;
+    mostrar_ = j.value("mostrar", true);
+    visibles_.clear();
+    for (const auto& [id, on] : j.value("visibles", nlohmann::json::object()).items())
+        if (on.is_boolean()) visibles_[id] = on.get<bool>();
+    refrescar();
+}
+
+} // namespace ba::app::audio

@@ -61,6 +61,12 @@ class RackManager : public QObject {
     /// Manda el audio del rack de `source` a la salida `device`. Devuelve el
     /// error o "". OJO: el motor reproduce por UNA salida a la vez.
     std::string setOutput(const std::string& source, const std::string& device);
+    /// Los auriculares del operador: la salida de escucha de toda la app (la de
+    /// los racks con nodo de salida y la de la voz del asistente). "" = la del
+    /// sistema. Devuelve el error o "".
+    std::string setAuriculares(const std::string& device);
+    /// {id, nombre} de la salida elegida ("" si es la del sistema).
+    json auriculares() const { return json{{"id", monitorId_}, {"nombre", monitorName_}}; }
 
     // --- Voz a texto ----------------------------------------------------------
     /// Pone (o cambia de modo) el nodo de voz a texto en el rack de `source`,
@@ -103,6 +109,12 @@ class RackManager : public QObject {
     void saveNow();
     /// Restaura los racks guardados de las fuentes que existan.
     void restore();
+    /// «Restablecer interfaz LSP»: cierra las ventanas LSP abiertas y vuelve la
+    /// configuración global de LSP (la de su menú: zoom, escala del host,
+    /// letra, zoom por plugin) a lo de fábrica, con una copia del archivo.
+    /// Arregla las ventanas que no aparecen (más grandes que la pantalla).
+    /// Devuelve qué hizo, o el error.
+    std::string restablecerInterfazLsp(bool* ok = nullptr);
     double sampleRate() const;
 
     /// Servicios del hilo principal para los plugins.
