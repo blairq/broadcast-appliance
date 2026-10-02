@@ -361,6 +361,14 @@ const Fila kPropias[] = {
     {"ptz_posicion_borrar", "borrar posicion eliminar plano guardado"},
     {"ptz_ir_posicion", "llevar la camara a la posicion ir al plano mover a la posicion guardada"},
     {"ptz_buscar", "buscar camaras onvif en la red descubrir camaras ip"},
+    {"video_grafo", "grafo de video tarjetas de video pipeline de la camara que filtros tiene"},
+    {"video_tarjeta_agregar", "agregar tarjeta de video croma chroma key fondo verde color brillo contraste "
+                              "saturacion recorte espejo salida de video"},
+    {"video_tarjeta_quitar", "quitar tarjeta de video sacar el croma sacar filtro"},
+    {"video_tarjeta_ajustar", "ajustar croma similitud suavidad brillo contraste recorte"},
+    {"video_cable", "conectar tarjetas de video cable rama del grafo"},
+    {"video_salida_a_escena", "poner la salida del grafo en la escena camara con croma en la escena"},
+    {"video_grafo_limpiar", "volver la camara a como vino sacar todas las tarjetas de video"},
     {"video_mejora", "mejorar imagen ruido nitidez calidad de la camara color corrido led"},
 
     // --- Medios ---------------------------------------------------------------

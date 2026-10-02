@@ -12,6 +12,8 @@
 #     la GPU (data/mejora-imagen.effect, que libobs traduce a D3D11/OpenGL).
 #   - FILTRO `ba_ptz_digital`: pan/tilt/zoom recortando en la GPU, el PTZ que
 #     tiene cualquier entrada (data/ptz-digital.effect).
+#   - FILTRO `ba_video_grafo` + FUENTE `ba_video_salida`: el grafo de tarjetas
+#     de video de una entrada y sus salidas con nombre (data/video-grafo.effect).
 #
 # Se compila contra libobs DE VERDAD y en CUALQUIER plataforma: libobs es
 # cross-platform, asi que aca no hay `#ifdef _WIN32`. Si libobs no esta
@@ -41,6 +43,7 @@ else()
     list(FILTER BA_SOURCES_SOURCES EXCLUDE REGEX ".*/ba_dsp_sources\\.cpp$")
     list(FILTER BA_SOURCES_SOURCES EXCLUDE REGEX ".*/ba_mejora_imagen\\.cpp$")
     list(FILTER BA_SOURCES_SOURCES EXCLUDE REGEX ".*/ba_ptz_digital\\.cpp$")
+    list(FILTER BA_SOURCES_SOURCES EXCLUDE REGEX ".*/ba_video_grafo\\.cpp$")
 endif()
 
 # Shared lib: OBS la carga como plugin. En Windows se llama ba-sources.dll.
@@ -111,6 +114,7 @@ file(GLOB_RECURSE BA_SOURCES_TESTS CONFIGURE_DEPENDS
 if(NOT BA_HAVE_LIBOBS)
     list(FILTER BA_SOURCES_TESTS EXCLUDE REGEX ".*/test_ba_sources_real\\.cpp$")
     list(FILTER BA_SOURCES_TESTS EXCLUDE REGEX ".*/test_mejora_imagen\\.cpp$")
+    list(FILTER BA_SOURCES_TESTS EXCLUDE REGEX ".*/test_video_grafo\\.cpp$")
 endif()
 
 # El modulo grafico con el que `test_mejora_imagen` corre el filtro en la GPU.
@@ -127,7 +131,8 @@ foreach(test_source ${BA_SOURCES_TESTS})
     add_executable(${test_name} ${test_source})
     target_link_libraries(${test_name} PRIVATE ba_core)
 
-    if(test_name STREQUAL "test_ba_sources_real" OR test_name STREQUAL "test_mejora_imagen")
+    if(test_name STREQUAL "test_ba_sources_real" OR test_name STREQUAL "test_mejora_imagen"
+       OR test_name STREQUAL "test_video_grafo")
         target_link_libraries(${test_name} PRIVATE ba::libobs ${CMAKE_DL_LIBS})
         # Directorio donde el build deja ba-sources: el test carga desde ahi.
         target_compile_definitions(${test_name} PRIVATE

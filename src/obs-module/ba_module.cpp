@@ -45,7 +45,7 @@ MODULE_EXPORT bool obs_module_load(void) {
     ba_register_ipc_sources();
     ba_register_dsp_sources();
     ba_register_video_filters();
-    blog(LOG_INFO, "[ba-sources] modulo cargado: fuentes IPC de invitado + DSP de canal + Mejorar imagen + PTZ digital");
+    blog(LOG_INFO, "[ba-sources] modulo cargado: fuentes IPC de invitado + DSP de canal + Mejorar imagen + PTZ digital + grafo de video");
     return true;
 }
 

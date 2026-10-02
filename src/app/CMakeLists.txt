@@ -584,6 +584,11 @@ endif()
     target_include_directories(test_grabador_wav PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     add_test(NAME test_grabador_wav COMMAND test_grabador_wav)
     # Validar los argumentos que escribe el modelo local (agent/ArgumentosLocales).
+    # El grafo de tarjetas de video (video/GrafoVideo), sin GPU.
+    add_executable(test_grafo_video tests/test_grafo_video.cpp video/GrafoVideo.cpp)
+    target_include_directories(test_grafo_video PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_grafo_video PRIVATE ba_core)
+    add_test(NAME test_grafo_video COMMAND test_grafo_video)
     add_executable(test_argumentos_locales tests/test_argumentos_locales.cpp agent/ArgumentosLocales.cpp)
     target_include_directories(test_argumentos_locales PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_argumentos_locales PRIVATE ba_core Qt6::Core)

@@ -36,6 +36,7 @@
 #include "agent/FlujosTexto.hpp"
 #include "agent/VocesRack.hpp"
 #include "agent/ModelosLocales.hpp"
+#include "video/VideoGrafos.hpp"
 #include "agent/Roles.hpp"
 #include "agent/Voz.hpp"
 #include "agent/VozPrompter.hpp"
@@ -371,6 +372,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // entradas nuevas y de lo que cambia en Configuración.
     camaras_ = std::make_unique<ptz::ControlCamaras>(rt, rt.dataRoot());
     connect(inputs_.get(), &InputsViewModel::changed, camaras_.get(), &ptz::ControlCamaras::sincronizar);
+    // El grafo de tarjetas de video de cada entrada (después del PTZ).
+    video_ = std::make_unique<video::VideoGrafos>(rt, rt.dataRoot());
+    connect(inputs_.get(), &InputsViewModel::changed, video_.get(), &video::VideoGrafos::sincronizar);
 #if defined(BA_HAVE_CLAP)
     // Racks de audio (LSP) de cada fuente: se montan los guardados.
     racks_ = std::make_unique<audio::RackManager>(rt.dataRoot());
@@ -565,6 +569,7 @@ QObject* StudioViewModel::matriz() const {
 #endif
 }
 QObject* StudioViewModel::camaras() const { return camaras_.get(); }
+QObject* StudioViewModel::video() const { return video_.get(); }
 QObject* StudioViewModel::flujos() const { return flujos_.get(); }
 QObject* StudioViewModel::voces() const { return voces_.get(); }
 QObject* StudioViewModel::despachadorQml() const { return despachador_.get(); }

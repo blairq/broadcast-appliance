@@ -42,6 +42,9 @@ class AudioViewModel;
 namespace ba::app::ptz {
 class ControlCamaras;
 } // namespace ba::app::ptz
+namespace ba::app::video {
+class VideoGrafos;
+} // namespace ba::app::video
 
 namespace ba::app {
 
@@ -167,6 +170,8 @@ class StudioViewModel : public QObject {
     /// El PTZ de cada entrada de video (digital + hardware) y Mejorar imagen:
     /// ptz/ControlCamaras.hpp.
     Q_PROPERTY(QObject* camaras READ camaras CONSTANT)
+    /// Los grafos de tarjetas de video de cada entrada (video/VideoGrafos).
+    Q_PROPERTY(QObject* video READ video CONSTANT)
     /// Las salidas de texto (voz a texto con nombre): agent/FlujosTexto.hpp.
     Q_PROPERTY(QObject* flujos READ flujos CONSTANT)
     /// Las tarjetas «Texto a voz»: voces, idiomas y lo que dicen (agent/VocesRack.hpp).
@@ -254,6 +259,8 @@ class StudioViewModel : public QObject {
     QObject* vozPrompter() const;
     QObject* matriz() const;
     QObject* camaras() const;
+    QObject* video() const;
+    video::VideoGrafos* videoGrafos() const { return video_.get(); }
     QObject* flujos() const;
     QObject* voces() const;
     agent::ModelosLocales* modelosLocales() const { return modelos_.get(); }
@@ -421,6 +428,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<audio::RackManager> racks_;
     std::unique_ptr<audio::Matriz> matriz_;
     std::unique_ptr<ptz::ControlCamaras> camaras_;
+    std::unique_ptr<video::VideoGrafos> video_;
     std::unique_ptr<agent::FlujosTexto> flujos_;
     std::unique_ptr<agent::VocesRack> voces_;
     std::unique_ptr<audio::AudioViewModel> audio_;

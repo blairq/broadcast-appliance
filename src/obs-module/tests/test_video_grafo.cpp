@@ -1,0 +1,254 @@
+// ============================================================================
+// src/obs-module/tests/test_video_grafo.cpp — el grafo de video en la GPU real
+//
+// El filtro `ba_video_grafo` y la fuente `ba_video_salida`, dentro de una
+// libobs real con su modulo grafico (OpenGL en macOS/Linux, D3D11 en
+// Windows): asi se prueba que video-grafo.effect COMPILA en ese backend y que
+// cada tarjeta hace lo suyo:
+//   1. in -> out: la imagen pasa igual.
+//   2. color: saturacion 0 deja gris.
+//   3. croma: el fondo verde se va (alfa 0) y lo rojo queda.
+//   4. recorte y espejo.
+//   5. una rama: la escena con croma y una SALIDA con la imagen original.
+//   6. una salida sin que nadie dibuje su entrada: la despierta ella.
+//   7. `out` sin nada conectado: negro.
+//
+// Sin display (un CI headless) no hay contexto grafico: sale con 77 (SKIP).
+// ============================================================================
+
+#include <obs.h>
+
+#include <chrono>
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <string>
+#include <thread>
+#include <vector>
+
+namespace {
+
+int g_failures = 0;
+
+#define CHECK(cond, msg)                                                                                     \
+    do {                                                                                                     \
+        if (!(cond)) {                                                                                       \
+            std::printf("FALLO: %s (%s, linea %d)\n", msg, #cond, __LINE__);                                 \
+            ++g_failures;                                                                                    \
+        } else {                                                                                             \
+            std::printf("ok: %s\n", msg);                                                                    \
+        }                                                                                                    \
+    } while (0)
+
+constexpr std::uint32_t W = 64, H = 64;
+gs_texture_t* g_tex = nullptr;
+
+const char* pruebaNombre(void*) { return "prueba"; }
+void* pruebaCrear(obs_data_t*, obs_source_t*) { return &g_tex; }
+void pruebaDestruir(void*) {}
+std::uint32_t pruebaAncho(void*) { return W; }
+std::uint32_t pruebaAlto(void*) { return H; }
+void pruebaDibujar(void*, gs_effect_t*) {
+    if (g_tex == nullptr) return;
+    gs_effect_t* fx = obs_get_base_effect(OBS_EFFECT_DEFAULT);
+    gs_effect_set_texture(gs_effect_get_param_by_name(fx, "image"), g_tex);
+    while (gs_effect_loop(fx, "Draw")) gs_draw_sprite(g_tex, 0, W, H);
+}
+
+/// Mitad izquierda verde (fondo), un cuadrado rojo en el medio, mitad derecha gris claro.
+void cargarImagen() {
+    std::vector<std::uint8_t> im(static_cast<std::size_t>(W) * H * 4);
+    for (std::uint32_t y = 0; y < H; ++y)
+        for (std::uint32_t x = 0; x < W; ++x) {
+            std::uint8_t* p = &im[(static_cast<std::size_t>(y) * W + x) * 4];
+            const bool cuadrado = x >= 12 && x < 20 && y >= 28 && y < 36;
+            if (cuadrado) {
+                p[0] = 220, p[1] = 30, p[2] = 30;
+            } else if (x < W / 2) {
+                p[0] = 0, p[1] = 177, p[2] = 64; // verde croma
+            } else {
+                p[0] = 200, p[1] = 200, p[2] = 200;
+            }
+            p[3] = 255;
+        }
+    obs_enter_graphics();
+    if (g_tex == nullptr) g_tex = gs_texture_create(W, H, GS_RGBA, 1, nullptr, GS_DYNAMIC);
+    gs_texture_set_image(g_tex, im.data(), W * 4, false);
+    obs_leave_graphics();
+}
+
+void siguienteCuadro() {
+    const std::uint64_t t = obs_get_video_frame_time();
+    for (int i = 0; i < 200 && obs_get_video_frame_time() == t; ++i)
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+}
+
+/// Dibuja la fuente (con sus filtros) sobre negro transparente y baja el RGBA.
+std::vector<std::uint8_t> dibujar(obs_source_t* src) {
+    std::vector<std::uint8_t> sal(static_cast<std::size_t>(W) * H * 4, 0);
+    obs_enter_graphics();
+    gs_texrender_t* tr = gs_texrender_create(GS_RGBA, GS_ZS_NONE);
+    gs_stagesurf_t* st = gs_stagesurface_create(W, H, GS_RGBA);
+    if (gs_texrender_begin(tr, W, H)) {
+        struct vec4 nada;
+        vec4_zero(&nada);
+        gs_clear(GS_CLEAR_COLOR, &nada, 0.0f, 0);
+        gs_ortho(0.0f, static_cast<float>(W), 0.0f, static_cast<float>(H), -100.0f, 100.0f);
+        gs_blend_state_push();
+        gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
+        obs_source_video_render(src);
+        gs_blend_state_pop();
+        gs_texrender_end(tr);
+        gs_stage_texture(st, gs_texrender_get_texture(tr));
+        std::uint8_t* datos = nullptr;
+        std::uint32_t paso = 0;
+        if (gs_stagesurface_map(st, &datos, &paso)) {
+            for (std::uint32_t y = 0; y < H; ++y)
+                std::memcpy(&sal[static_cast<std::size_t>(y) * W * 4], datos + static_cast<std::size_t>(y) * paso, W * 4);
+            gs_stagesurface_unmap(st);
+        }
+    }
+    gs_stagesurface_destroy(st);
+    gs_texrender_destroy(tr);
+    obs_leave_graphics();
+    return sal;
+}
+
+int px(const std::vector<std::uint8_t>& im, std::uint32_t x, std::uint32_t y, int c) {
+    return im[(static_cast<std::size_t>(y) * W + x) * 4 + c];
+}
+
+void ponerGrafo(obs_source_t* f, const std::string& json) {
+    obs_data_t* s = obs_data_create();
+    obs_data_set_string(s, "grafo", json.c_str());
+    obs_source_update(f, s);
+    obs_data_release(s);
+    siguienteCuadro();
+}
+
+/// Un grafo lineal in -> [tarjeta] -> out.
+std::string lineal(const std::string& tipo, const std::string& params) {
+    return R"({"nodos":[{"id":"in","tipo":"in"},{"id":"t","tipo":")" + tipo + R"(","params":)" + params +
+           R"(},{"id":"out","tipo":"out"}],"cables":[{"desde":"in","hacia":"t"},{"desde":"t","hacia":"out"}]})";
+}
+
+} // namespace
+
+int main() {
+    if (!obs_startup("en-US", nullptr, nullptr)) {
+        std::printf("SKIP: obs_startup fallo (sesion sin plataforma grafica)\n");
+        return 77;
+    }
+    obs_add_data_path(BA_TEST_OBS_DATA_DIR "/libobs/");
+    struct obs_video_info ovi = {};
+    ovi.graphics_module = BA_TEST_GRAPHICS_MODULE;
+    ovi.fps_num = 60;
+    ovi.fps_den = 1;
+    ovi.base_width = ovi.output_width = W;
+    ovi.base_height = ovi.output_height = H;
+    ovi.output_format = VIDEO_FORMAT_NV12;
+    ovi.colorspace = VIDEO_CS_709;
+    ovi.range = VIDEO_RANGE_PARTIAL;
+    ovi.gpu_conversion = true;
+    ovi.scale_type = OBS_SCALE_BICUBIC;
+    const int rc = obs_reset_video(&ovi);
+    if (rc != OBS_VIDEO_SUCCESS) {
+        std::printf("SKIP: obs_reset_video fallo (%d): no hay contexto grafico\n", rc);
+        obs_shutdown();
+        return 77;
+    }
+    obs_add_module_path(BA_SOURCES_MODULE_DIR, BA_SOURCES_MODULE_DIR "/%module%");
+    obs_load_all_modules();
+    obs_post_load_modules();
+
+    struct obs_source_info prueba = {};
+    prueba.id = "ba_prueba_cuadros";
+    prueba.type = OBS_SOURCE_TYPE_INPUT;
+    prueba.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_CUSTOM_DRAW;
+    prueba.get_name = pruebaNombre;
+    prueba.create = pruebaCrear;
+    prueba.destroy = pruebaDestruir;
+    prueba.get_width = pruebaAncho;
+    prueba.get_height = pruebaAlto;
+    prueba.video_render = pruebaDibujar;
+    obs_register_source(&prueba);
+    // Publica: la salida la busca por nombre.
+    obs_source_t* fuente = obs_source_create("ba_prueba_cuadros", "cuadros", nullptr, nullptr);
+    cargarImagen();
+
+    obs_source_t* f = obs_source_create_private("ba_video_grafo", "grafo", nullptr);
+    CHECK(f != nullptr, "existe el filtro ba_video_grafo");
+    if (f == nullptr) return 1;
+    obs_source_filter_add(fuente, f);
+
+    // 1. in -> out
+    ponerGrafo(f, R"({"nodos":[{"id":"in","tipo":"in"},{"id":"out","tipo":"out"}],"cables":[{"desde":"in","hacia":"out"}]})");
+    auto im = dibujar(fuente);
+    CHECK(px(im, 50, 10, 0) == 200 && px(im, 5, 5, 1) == 177 && px(im, 15, 30, 0) == 220, "in -> out: la imagen pasa igual");
+
+    // 2. color: saturacion 0
+    ponerGrafo(f, lineal("color", R"({"saturacion":0})"));
+    im = dibujar(fuente);
+    std::printf("   color: el verde quedo en %d %d %d\n", px(im, 5, 5, 0), px(im, 5, 5, 1), px(im, 5, 5, 2));
+    CHECK(std::abs(px(im, 5, 5, 0) - px(im, 5, 5, 1)) <= 2 && std::abs(px(im, 5, 5, 1) - px(im, 5, 5, 2)) <= 2,
+          "color: con saturacion 0 queda gris");
+    ponerGrafo(f, lineal("color", R"({"brillo":0.2})"));
+    im = dibujar(fuente);
+    CHECK(px(im, 50, 10, 0) > 230, "color: brillo +0,2 aclara");
+
+    // 3. croma (verde de fabrica)
+    ponerGrafo(f, lineal("croma", "{}"));
+    im = dibujar(fuente);
+    std::printf("   croma: fondo alfa %d, rojo alfa %d (%d,%d,%d), gris alfa %d\n", px(im, 5, 5, 3), px(im, 15, 31, 3),
+                px(im, 15, 31, 0), px(im, 15, 31, 1), px(im, 15, 31, 2), px(im, 50, 10, 3));
+    CHECK(px(im, 5, 5, 3) < 10, "croma: el fondo verde se va");
+    CHECK(px(im, 15, 31, 3) > 245 && px(im, 15, 31, 0) > 180, "croma: lo rojo queda");
+    CHECK(px(im, 50, 10, 3) > 245, "croma: lo gris queda");
+
+    // 4. recorte y espejo
+    ponerGrafo(f, lineal("recorte", R"({"izquierda":0.5})"));
+    im = dibujar(fuente);
+    CHECK(px(im, 5, 5, 3) == 0 && px(im, 50, 10, 0) == 200, "recorte: la mitad izquierda se va");
+    ponerGrafo(f, lineal("recorte", R"({"espejoH":true})"));
+    im = dibujar(fuente);
+    CHECK(px(im, 5, 5, 0) == 200 && px(im, 60, 5, 1) == 177, "espejo: izquierda y derecha se dan vuelta");
+
+    // 5. rama: la escena con croma, la salida «S» con lo original
+    obs_data_t* ss = obs_data_create();
+    obs_data_set_string(ss, "fuente", "cuadros");
+    obs_source_t* salida = obs_source_create("ba_video_salida", "S", ss, nullptr);
+    obs_data_release(ss);
+    CHECK(salida != nullptr, "existe la fuente ba_video_salida");
+    ponerGrafo(f, R"({"nodos":[{"id":"in","tipo":"in"},{"id":"c","tipo":"croma"},{"id":"s","tipo":"salida","params":{"nombre":"S"}},{"id":"out","tipo":"out"}],
+                    "cables":[{"desde":"in","hacia":"c"},{"desde":"c","hacia":"out"},{"desde":"in","hacia":"s"}]})");
+    im = dibujar(fuente);
+    auto is = dibujar(salida);
+    CHECK(px(im, 5, 5, 3) < 10, "rama: la escena tiene el croma");
+    CHECK(px(is, 5, 5, 3) == 255 && px(is, 5, 5, 1) == 177, "rama: la salida tiene la imagen original");
+
+    // 6. la salida sola (nadie dibuja la entrada en este cuadro): la despierta
+    ponerGrafo(f, R"({"nodos":[{"id":"in","tipo":"in"},{"id":"col","tipo":"color","params":{"saturacion":0}},{"id":"s","tipo":"salida","params":{"nombre":"S"}},{"id":"out","tipo":"out"}],
+                    "cables":[{"desde":"in","hacia":"out"},{"desde":"in","hacia":"col"},{"desde":"col","hacia":"s"}]})");
+    siguienteCuadro();
+    is = dibujar(salida);
+    std::printf("   salida sola: verde -> %d %d %d\n", px(is, 5, 5, 0), px(is, 5, 5, 1), px(is, 5, 5, 2));
+    CHECK(px(is, 5, 5, 3) == 255 && std::abs(px(is, 5, 5, 0) - px(is, 5, 5, 1)) <= 2,
+          "salida sola: despierta a su entrada y muestra el gris");
+
+    // 7. out sin nada: negro
+    ponerGrafo(f, R"({"nodos":[{"id":"in","tipo":"in"},{"id":"out","tipo":"out"}],"cables":[]})");
+    im = dibujar(fuente);
+    CHECK(px(im, 50, 10, 3) == 0 && px(im, 50, 10, 0) == 0, "out sin nada: no se dibuja");
+
+    obs_source_release(salida);
+    obs_source_filter_remove(fuente, f);
+    obs_source_release(f);
+    obs_source_release(fuente);
+    obs_enter_graphics();
+    gs_texture_destroy(g_tex);
+    obs_leave_graphics();
+    obs_shutdown();
+    std::printf(g_failures == 0 ? "test_video_grafo: OK\n" : "test_video_grafo: %d fallos\n", g_failures);
+    return g_failures == 0 ? 0 : 1;
+}
