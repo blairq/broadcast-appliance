@@ -38,7 +38,9 @@ Rectangle {
     Component.onDestruction: if (page.mirando !== "") Studio.frames.mirarEntrada(page.mirando, false)
 
     function colorDe(tipo) {
-        if (tipo === "in" || tipo === "out") return "#64748b"
+        if (tipo === "entrada" || tipo === "escena") return "#64748b"
+        if (tipo === "obs") return "#0ea5e9"
+        if (tipo === "compositor") return "#f472b6"
         if (tipo === "croma") return "#22c55e"
         if (tipo === "color") return "#f59e0b"
         if (tipo === "recorte") return "#38bdf8"
@@ -49,8 +51,10 @@ Rectangle {
     function hex(n) { return "#" + ("000000" + Number(n).toString(16)).slice(-6).toUpperCase() }
     function resumen(n) {
         const p = n.params || {}
-        if (n.tipo === "in") return "La cámara (ya encuadrada por el PTZ)"
-        if (n.tipo === "out") return "Lo que ve la escena"
+        if (n.tipo === "entrada") return "La cámara (ya encuadrada por el PTZ)"
+        if (n.tipo === "escena") return "Lo que ve la escena"
+        if (n.tipo === "obs") return "Filtro de OBS · " + (p.filtro || "")
+        if (n.tipo === "compositor") return ((n.entradas || []).length - 1) + " entradas · " + (p.ancho || 0) + "×" + (p.alto || 0)
         if (n.tipo === "color") return "brillo " + f2(p.brillo) + " · contraste " + f2(p.contraste) + " · saturación " + f2(p.saturacion)
         if (n.tipo === "croma") return "fondo " + hex(p.clave) + " · similitud " + f2(p.similitud)
         if (n.tipo === "recorte") {
@@ -63,16 +67,31 @@ Rectangle {
         if (n.tipo === "salida") return "«" + (p.nombre || "") + "»" + (n.publicada ? " · en escena" : "")
         return ""
     }
+    // Los nodos de afuera (otra entrada, el estudio) en una columna a la
+    // derecha: su posición es la de su propia vista.
     readonly property var nodosVista: {
         const l = page.g.nodos || []
+        let maxX = 0
+        for (const n of l) if (!n.externo) maxX = Math.max(maxX, n.x)
         const out = []
-        for (let i = 0; i < l.length; ++i) out.push(Object.assign({}, l[i], { resumen: page.resumen(l[i]) }))
+        let yExt = 0
+        for (let i = 0; i < l.length; ++i) {
+            const n = Object.assign({}, l[i], { resumen: page.resumen(l[i]) })
+            if (n.externo) { n.x = maxX + 260; n.y = yExt; yExt += 140 }
+            out.push(n)
+        }
         return out
     }
     function avisar(e) { page.msg = e || "" }
     // Los deslizadores aplican mientras se mueven, sin pedir un cambio por píxel.
     property var pendiente: null
     Timer { id: aplicar; interval: 80; onTriggered: if (page.pendiente) { page.avisar(page.vg.ajustar(page.pendiente.id, page.pendiente.p)); page.pendiente = null } }
+    property var pendienteFiltro: null
+    Timer { id: aplicarFiltro; interval: 80; onTriggered: if (page.pendienteFiltro) { const p = page.pendienteFiltro; page.pendienteFiltro = null; page.avisar(page.vg.ajustarFiltro(p.id, p.k, p.v)) } }
+    function ajustarFiltro(id, clave, valor) {
+        page.pendienteFiltro = { id: id, k: clave, v: valor }
+        aplicarFiltro.restart()
+    }
     function ajustar(id, clave, valor) {
         const p = page.pendiente && page.pendiente.id === id ? page.pendiente.p : {}
         p[clave] = valor
@@ -136,10 +155,51 @@ Rectangle {
                         text: "+ " + modelData.titulo
                         enabled: page.vg && page.vg.entrada !== ""
                         // Después de la tarjeta elegida (o antes de la escena).
-                        onClicked: page.avisar(page.vg.agregar(modelData.tipo, page.nodo && page.nodo.tipo !== "out" ? page.sel : ""))
+                        onClicked: page.avisar(page.vg.agregar(modelData.tipo, page.nodo && page.nodo.tipo !== "escena" && !page.nodo.externo ? page.sel : ""))
                         ToolTip.visible: hovered
                         ToolTip.delay: 500
-                        ToolTip.text: modelData.descripcion + (page.nodo && page.nodo.tipo !== "out" ? " Va después de la tarjeta elegida." : "")
+                        ToolTip.text: modelData.descripcion + (page.nodo && page.nodo.tipo !== "escena" && modelData.ambito !== "estudio" ? " Va después de la tarjeta elegida." : "")
+                    }
+                }
+                GlassButton {
+                    compact: true
+                    text: "+ Filtros…"
+                    icon: "⌕"
+                    enabled: page.vg && page.vg.entrada !== ""
+                    onClicked: { filtrosPopup.lista = page.vg.filtrosObs(); filtrosPopup.open(); buscaFiltro.forceActiveFocus() }
+                    ToolTip.visible: hovered; ToolTip.delay: 400
+                    ToolTip.text: "Cualquier filtro de video de OBS como tarjeta: corrección de color, LUT (.cube), llaves, nitidez, recorte, escala, máscaras, Mejorar imagen, PTZ digital…"
+                    Popup {
+                        id: filtrosPopup
+                        property var lista: []
+                        y: parent.height + 4
+                        width: 340
+                        height: Math.min(460, 70 + lista.length * 34)
+                        padding: 8
+                        background: Rectangle { color: Theme.panel; radius: Theme.radiusSmall; border.color: Theme.glassBorder }
+                        ColumnLayout {
+                            anchors.fill: parent
+                            spacing: 6
+                            TextField { id: buscaFiltro; Layout.fillWidth: true; placeholderText: "Buscar filtro…" }
+                            ListView {
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                clip: true
+                                spacing: 2
+                                model: filtrosPopup.lista.filter(f => buscaFiltro.text === "" ||
+                                    (f.nombre + " " + f.id).toLowerCase().indexOf(buscaFiltro.text.toLowerCase()) >= 0)
+                                delegate: GlassButton {
+                                    required property var modelData
+                                    width: ListView.view.width
+                                    compact: true
+                                    text: modelData.nombre + (modelData.propio ? "  ·  de la app" : "")
+                                    onClicked: {
+                                        page.avisar(page.vg.agregarFiltro(modelData.id, page.nodo && page.nodo.tipo !== "escena" && !page.nodo.externo ? page.sel : ""))
+                                        filtrosPopup.close()
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
                 GlassButton {
@@ -163,8 +223,8 @@ Rectangle {
                 colorDe: page.colorDe
                 onElegir: (id) => page.sel = id
                 onMover: (id, x, y) => page.avisar(page.vg.mover(id, x, y))
-                onConectar: (desde, hacia) => page.avisar(page.vg.conectar(desde, hacia))
-                onDesconectar: (desde, hacia) => page.avisar(page.vg.desconectar(desde, hacia))
+                onConectar: (desde, salida, hacia, entrada) => page.avisar(page.vg.conectar(desde, salida, hacia, entrada))
+                onDesconectar: (desde, salida, hacia, entrada) => page.avisar(page.vg.desconectar(desde, salida, hacia, entrada))
             }
             Text {
                 visible: page.msg !== ""
@@ -235,12 +295,13 @@ Rectangle {
                             color: Theme.textDim; font.pixelSize: 12
                         }
                         Text {
-                            visible: !!page.nodo && (page.nodo.tipo === "in" || page.nodo.tipo === "out")
+                            visible: !!page.nodo && (page.nodo.tipo === "entrada" || page.nodo.tipo === "escena" || page.nodo.tipo === "compositor")
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
-                            text: page.nodo && page.nodo.tipo === "in"
-                                  ? "La cámara tal como sale del PTZ (Mejorar imagen y el encuadre digital, en «Cámaras PTZ»)."
-                                  : "Lo que llega acá es lo que ven las escenas que usan esta entrada. Sin nada conectado, no se ve."
+                            text: !page.nodo ? ""
+                                  : page.nodo.tipo === "entrada" ? "La cámara tal como sale del PTZ (Mejorar imagen y el encuadre digital, en «Cámaras PTZ»). De su salida pueden salir varios cables, también hacia otras entradas o un compositor."
+                                  : page.nodo.tipo === "escena" ? "Lo que llega acá es lo que ven las escenas que usan esta entrada. Puede venir de otra parte del estudio (un compositor). Sin nada conectado, no se ve."
+                                  : "Del estudio: junta varias entradas. Cada cable a su entrada «+» crea un puerto nuevo. (Todavía no se ejecuta: es el paso siguiente.)"
                             color: Theme.textDim; font.pixelSize: 12
                         }
 
@@ -280,6 +341,61 @@ Rectangle {
                                     from: modelData.min; to: modelData.max
                                     value: page.nodo ? page.nodo.params[modelData.k] : 0
                                     onMoved: page.ajustar(page.sel, modelData.k, value)
+                                }
+                            }
+                        }
+
+                        // Una tarjeta de OBS: sus controles, de las propiedades del filtro.
+                        Repeater {
+                            model: page.nodo && page.nodo.tipo === "obs" ? page.vg.propiedades(page.sel) : []
+                            delegate: ColumnLayout {
+                                id: prop
+                                required property var modelData
+                                Layout.fillWidth: true
+                                spacing: 2
+                                Text {
+                                    visible: prop.modelData.kind !== "bool"
+                                    Layout.fillWidth: true
+                                    wrapMode: Text.WordWrap
+                                    text: prop.modelData.label + ((prop.modelData.kind === "float" || prop.modelData.kind === "int")
+                                          ? "  " + Number(deslP.value).toFixed(prop.modelData.kind === "int" ? 0 : 2) + (prop.modelData.suffix || "") : "")
+                                    color: prop.modelData.kind === "header" ? Theme.text : prop.modelData.kind === "info" ? Theme.textFaint : Theme.textDim
+                                    font.pixelSize: prop.modelData.kind === "header" ? 13 : 12
+                                }
+                                Slider {
+                                    id: deslP
+                                    visible: prop.modelData.kind === "float" || prop.modelData.kind === "int"
+                                    Layout.fillWidth: true
+                                    from: prop.modelData.min !== undefined ? prop.modelData.min : 0
+                                    to: prop.modelData.max !== undefined ? prop.modelData.max : 1
+                                    stepSize: prop.modelData.step || 0
+                                    value: typeof prop.modelData.value === "number" ? prop.modelData.value : 0
+                                    onMoved: page.ajustarFiltro(page.sel, prop.modelData.name, prop.modelData.kind === "int" ? Math.round(value) : value)
+                                }
+                                CheckBox {
+                                    visible: prop.modelData.kind === "bool"
+                                    text: prop.modelData.label
+                                    checked: prop.modelData.value === true
+                                    onToggled: page.avisar(page.vg.ajustarFiltro(page.sel, prop.modelData.name, checked))
+                                }
+                                ComboBox {
+                                    visible: prop.modelData.kind === "list"
+                                    Layout.fillWidth: true
+                                    model: prop.modelData.options || []
+                                    textRole: "label"
+                                    currentIndex: {
+                                        const o = prop.modelData.options || []
+                                        for (let i = 0; i < o.length; ++i) if (o[i].value === prop.modelData.value) return i
+                                        return -1
+                                    }
+                                    onActivated: (i) => page.avisar(page.vg.ajustarFiltro(page.sel, prop.modelData.name, prop.modelData.options[i].value))
+                                }
+                                TextField {
+                                    visible: prop.modelData.kind === "text" || prop.modelData.kind === "path" || prop.modelData.kind === "color"
+                                    Layout.fillWidth: true
+                                    text: prop.modelData.value !== undefined ? String(prop.modelData.value) : ""
+                                    placeholderText: prop.modelData.kind === "path" ? "Ruta del archivo" : prop.modelData.kind === "color" ? "#RRGGBB" : ""
+                                    onEditingFinished: if (text !== String(prop.modelData.value)) page.avisar(page.vg.ajustarFiltro(page.sel, prop.modelData.name, text))
                                 }
                             }
                         }
@@ -344,7 +460,7 @@ Rectangle {
                         }
 
                         GlassButton {
-                            visible: !!page.nodo && page.nodo.tipo !== "in" && page.nodo.tipo !== "out"
+                            visible: !!page.nodo && page.nodo.tipo !== "entrada" && page.nodo.tipo !== "escena"
                             compact: true
                             text: "Quitar la tarjeta"
                             onClicked: { page.avisar(page.vg.quitar(page.sel)); page.sel = "" }

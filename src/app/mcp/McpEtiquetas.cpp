@@ -364,6 +364,7 @@ const Fila kPropias[] = {
     {"video_grafo", "grafo de video tarjetas de video pipeline de la camara que filtros tiene"},
     {"video_tarjeta_agregar", "agregar tarjeta de video croma chroma key fondo verde color brillo contraste "
                               "saturacion recorte espejo salida de video"},
+    {"video_filtros", "filtros de video de obs lut cube correccion de color llave nitidez catalogo de filtros"},
     {"video_tarjeta_quitar", "quitar tarjeta de video sacar el croma sacar filtro"},
     {"video_tarjeta_ajustar", "ajustar croma similitud suavidad brillo contraste recorte"},
     {"video_cable", "conectar tarjetas de video cable rama del grafo"},

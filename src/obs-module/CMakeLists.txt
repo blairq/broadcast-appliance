@@ -146,6 +146,10 @@ foreach(test_source ${BA_SOURCES_TESTS})
         endif()
     endif()
 
+    if(test_name STREQUAL "test_video_grafo" AND APPLE AND EXISTS "${BA_OBS_MAC_PREFIX}/plugins/obs-filters.plugin")
+        target_compile_definitions(${test_name} PRIVATE
+            BA_TEST_OBS_FILTERS="${BA_OBS_MAC_PREFIX}/plugins/obs-filters.plugin")
+    endif()
     add_test(NAME ${test_name} COMMAND ${test_name})
     # 77 = saltado (ver src/core/CMakeLists.txt).
     set_tests_properties(${test_name} PROPERTIES SKIP_RETURN_CODE 77)

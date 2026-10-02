@@ -1,16 +1,27 @@
-// src/app/video/GrafoVideo.hpp — el grafo de tarjetas de video de una entrada (lógica pura)
+// src/app/video/GrafoVideo.hpp — el grafo de video del estudio (lógica pura)
 //
-// Como el rack de audio (audio/AudioRack), pero de video y sin hilo de
-// tiempo real: lo ejecuta en la GPU el filtro `ba_video_grafo`
-// (src/obs-module/ba_video_grafo.cpp), que recibe `paraFiltro()`.
+// UN SOLO GRAFO para todo el estudio, como un pipeline de GStreamer con sus
+// bins: cada entrada de video es un SUB-GRAFO (su `grupo`, el nombre de la
+// entrada) con su nodo `entrada` (la cámara, ya encuadrada por el PTZ) y su
+// nodo `escena` (lo que ven las escenas que usan esa entrada). Los nodos
+// sin grupo son del estudio (un compositor, más adelante controladores y el
+// reloj). Los cables van de PUERTO a PUERTO y pueden cruzar entre
+// sub-grafos.
 //
-// Tarjetas: `in` (la entrada, fija), `out` (lo que ve la escena, fija),
-// `color`, `croma`, `recorte` (con espejo) y `salida` (publica ese punto como
-// una fuente con nombre). Cada tarjeta tiene UNA entrada y una salida; de una
-// salida pueden salir varios cables (el grafo se ramifica). Una entrada recibe
-// un solo cable: conectar otro reemplaza al anterior. Sin ciclos.
+// Nodos, por sus puertos:
+//   fuente    0 -> 1   entrada
+//   filtro    1 -> 1   color, croma, recorte, obs (cualquier filtro de OBS)
+//   varias    N -> 1   compositor: puertos de entrada A PEDIDO (in_0, in_1…;
+//                      siempre queda uno libre, como los sink_%u de GStreamer)
+//   destino   1 -> 0   escena, salida (publica una fuente con nombre)
+// A cada puerto de entrada le llega UN cable (conectar otro reemplaza al
+// anterior); de una salida pueden salir varios (el grafo se ramifica, el
+// `tee`). Sin ciclos en todo el grafo.
 //
-// Se guarda (json()) y se describe para la interfaz y MCP (describir()).
+// Lo ejecuta en la GPU el filtro `ba_video_grafo` de cada entrada
+// (src/obs-module/ba_video_grafo.cpp), que recibe `paraFiltro(entrada)`: lo
+// que se alcanza desde esa entrada, sin pasar por nodos de varias entradas
+// (esos los ejecuta el estudio; ver docs/VIDEO-GRAFO.md).
 
 #pragma once
 
@@ -25,58 +36,89 @@ class GrafoVideo {
    public:
     struct Nodo {
         std::string id, tipo, etiqueta;
+        std::string grupo; ///< la entrada a la que pertenece ("" = del estudio)
         int x = 0, y = 0;
         nlohmann::json params = nlohmann::json::object();
     };
     struct Cable {
-        std::string desde, hacia;
-        bool operator==(const Cable& o) const { return desde == o.desde && hacia == o.hacia; }
+        std::string desde, salida = "out", hacia, entrada = "in";
+        bool operator==(const Cable& o) const {
+            return desde == o.desde && salida == o.salida && hacia == o.hacia && entrada == o.entrada;
+        }
+    };
+    struct Puerto {
+        std::string id, tipo = "video";
+        bool pedido = false; ///< libre, de los que se crean al conectar
     };
 
-    /// in -> out.
-    GrafoVideo();
+    GrafoVideo() = default;
 
-    /// Los tipos de tarjeta que se pueden agregar, con su título y sus
-    /// parámetros de fábrica: [{tipo, titulo, descripcion, params}].
+    /// Las tarjetas que se pueden agregar (las propias; las de OBS las lista
+    /// VideoGrafos): [{tipo, titulo, descripcion, params, ambito}]
     static nlohmann::json catalogo();
     static bool tipoValido(const std::string& tipo);
+    /// El id del nodo `entrada` / `escena` de una entrada.
+    static std::string idEntrada(const std::string& fuente);
+    static std::string idEscena(const std::string& fuente);
 
-    /// Agrega una tarjeta. `despues`: el nodo del que cuelga (vacío = el que
-    /// hoy llega a `out`). Una `salida` se agrega como RAMA (no corta la
-    /// cadena); las demás se intercalan (lo que salía de `despues` sale ahora
-    /// de la nueva). Devuelve el id nuevo, o "" con `error`.
-    std::string agregar(const std::string& tipo, const std::string& despues, const nlohmann::json& params,
-                        std::string* error);
-    /// Quita una tarjeta (no `in` ni `out`): lo de antes se une con lo de después.
+    // --- Entradas (sub-grafos) -------------------------------------------------
+    /// Se asegura de que la entrada tenga su sub-grafo (entrada -> escena).
+    /// true si lo creó.
+    bool asegurarEntrada(const std::string& fuente);
+    std::vector<std::string> entradas() const;
+
+    // --- Editar ------------------------------------------------------------------
+    /// Agrega una tarjeta. En una entrada (`grupo`), después de `despues`
+    /// (vacío = lo que hoy llega a su escena): un filtro se intercala; una
+    /// salida se cuelga como rama. Un compositor va al estudio (grupo ""),
+    /// suelto. Devuelve el id nuevo, o "" con `error`.
+    std::string agregar(const std::string& tipo, const std::string& grupo, const std::string& despues,
+                        const nlohmann::json& params, std::string* error);
+    /// Quita una tarjeta (no `entrada` ni `escena`): un filtro une lo de antes
+    /// con lo de después.
     bool quitar(const std::string& id, std::string* error);
-    /// Un cable de `desde` a `hacia` (reemplaza el que llegaba a `hacia`).
-    bool conectar(const std::string& desde, const std::string& hacia, std::string* error);
-    bool desconectar(const std::string& desde, const std::string& hacia);
-    /// Cambia (mezcla) parámetros y/o la etiqueta.
+    /// Un cable de (desde, salida) a (hacia, entrada). `entrada` vacía = el
+    /// primer puerto (en un compositor, uno nuevo). Reemplaza el cable que
+    /// llegaba a ese puerto. Devuelve el puerto usado (o "" con `error`).
+    std::string conectar(const std::string& desde, const std::string& salida, const std::string& hacia,
+                         const std::string& entrada, std::string* error);
+    bool desconectar(const std::string& desde, const std::string& salida, const std::string& hacia,
+                     const std::string& entrada);
+    /// Cambia (mezcla) parámetros y/o la etiqueta. `ajustes` (de una tarjeta
+    /// de OBS) y `capas` (de un compositor) se mezclan clave por clave.
     bool ajustar(const std::string& id, const nlohmann::json& params, std::string* error);
     bool mover(const std::string& id, int x, int y);
+    /// Saca todas las tarjetas de una entrada (queda entrada -> escena).
+    void limpiar(const std::string& grupo);
 
+    // --- Leer ----------------------------------------------------------------------
     const Nodo* nodo(const std::string& id) const;
     const std::vector<Nodo>& nodos() const { return nodos_; }
     const std::vector<Cable>& cables() const { return cables_; }
-    /// Solo in -> out: no hace falta el filtro.
-    bool trivial() const;
-    /// Los nombres de las salidas.
+    std::vector<Puerto> puertosEntrada(const Nodo& n) const;
+    std::vector<Puerto> puertosSalida(const Nodo& n) const;
+    /// Solo entrada -> escena: no hace falta el filtro.
+    bool trivial(const std::string& grupo) const;
+    /// Los nombres de las salidas (todo el estudio).
     std::vector<std::string> salidas() const;
 
     nlohmann::json aJson() const;
-    /// Lee lo guardado; lo que no cierra (tipos raros, cables a nodos que no
-    /// están, ciclos) se descarta. Siempre quedan `in` y `out`.
+    /// Lee lo guardado (versión 2), o migra el formato de antes (un grafo por
+    /// entrada: {"<entrada>": {nodos, cables}}). Lo que no cierra se descarta.
     static GrafoVideo desde(const nlohmann::json& j);
-    /// Lo que recibe el filtro: {nodos:[{id,tipo,params}], cables:[{desde,hacia}]}.
-    nlohmann::json paraFiltro() const;
-    /// Para la interfaz y MCP: nodos con su título, entradas/salidas (0/1) y
-    /// los cables.
-    nlohmann::json describir() const;
+    /// Lo que recibe el filtro de `fuente` (el formato de ba_video_grafo):
+    /// {nodos:[{id,tipo,params}], cables:[{desde,hacia}]}, con su entrada como
+    /// `in` y su escena como `out`.
+    nlohmann::json paraFiltro(const std::string& fuente) const;
+    /// Para la interfaz y MCP. Con `grupo`: ese sub-grafo y, marcados
+    /// `externo`, los nodos de afuera que se conectan con él. Sin grupo: todo.
+    nlohmann::json describir(const std::string& grupo, bool soloGrupo) const;
 
    private:
-    std::string idNuevo(const std::string& tipo) const;
-    bool llega(const std::string& desde, const std::string& hasta) const; ///< hay camino desde -> hasta
+    std::string idNuevo(const std::string& grupo, const std::string& tipo) const;
+    bool llega(const std::string& desde, const std::string& hasta) const;
+    std::vector<Cable> entrantes(const std::string& id) const;
+    std::vector<Cable> salientes(const std::string& id) const;
     std::vector<Nodo> nodos_;
     std::vector<Cable> cables_;
 };

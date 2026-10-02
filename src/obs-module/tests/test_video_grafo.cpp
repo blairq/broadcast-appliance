@@ -159,6 +159,13 @@ int main() {
         return 77;
     }
     obs_add_module_path(BA_SOURCES_MODULE_DIR, BA_SOURCES_MODULE_DIR "/%module%");
+#if defined(BA_TEST_OBS_FILTERS)
+    // obs-filters (el de OBS, vendoreado), para la tarjeta de un filtro de OBS.
+    obs_module_t* filtros = nullptr;
+    if (obs_open_module(&filtros, BA_TEST_OBS_FILTERS "/Contents/MacOS/obs-filters", BA_TEST_OBS_FILTERS "/Contents/Resources") ==
+        MODULE_SUCCESS)
+        obs_init_module(filtros);
+#endif
     obs_load_all_modules();
     obs_post_load_modules();
 
@@ -235,6 +242,34 @@ int main() {
     std::printf("   salida sola: verde -> %d %d %d\n", px(is, 5, 5, 0), px(is, 5, 5, 1), px(is, 5, 5, 2));
     CHECK(px(is, 5, 5, 3) == 255 && std::abs(px(is, 5, 5, 0) - px(is, 5, 5, 1)) <= 2,
           "salida sola: despierta a su entrada y muestra el gris");
+
+    // 8. una tarjeta que corre un filtro de OBS: el PTZ digital (zoom 2 a la
+    //    derecha: la mitad derecha, gris, llena todo).
+    ponerGrafo(f, R"({"nodos":[{"id":"in","tipo":"in"},{"id":"ptz","tipo":"obs","params":{"filtro":"ba_ptz_digital","ajustes":{}}},{"id":"out","tipo":"out"}],
+                    "cables":[{"desde":"in","hacia":"ptz"},{"desde":"ptz","hacia":"out"}]})");
+    {
+        // El filtro de la tarjeta es privado: se lo mueve por su proc, como el PTZ de la app.
+        im = dibujar(fuente); // crea la instancia
+        CHECK(px(im, 50, 10, 0) == 200 && px(im, 5, 5, 1) == 177, "tarjeta PTZ sin zoom: la imagen pasa igual");
+    }
+    // Cambiar los ajustes NO recrea el filtro (sigue el mismo, con su estado).
+    ponerGrafo(f, R"({"nodos":[{"id":"in","tipo":"in"},{"id":"ptz","tipo":"obs","params":{"filtro":"ba_ptz_digital","ajustes":{"x":1}}},{"id":"out","tipo":"out"}],
+                    "cables":[{"desde":"in","hacia":"ptz"},{"desde":"ptz","hacia":"out"}]})");
+    im = dibujar(fuente);
+    CHECK(px(im, 50, 10, 0) == 200, "tarjeta PTZ: un ajuste nuevo no la rompe");
+    // Un filtro que no existe: la tarjeta no se calcula y `out` queda sin nada.
+    ponerGrafo(f, R"({"nodos":[{"id":"in","tipo":"in"},{"id":"x","tipo":"obs","params":{"filtro":"no_existe"}},{"id":"out","tipo":"out"}],
+                    "cables":[{"desde":"in","hacia":"x"},{"desde":"x","hacia":"out"}]})");
+    im = dibujar(fuente);
+    CHECK(px(im, 50, 10, 3) == 0, "un filtro que no existe: no se dibuja (y no se cae)");
+#if defined(BA_TEST_OBS_FILTERS)
+    // 9. un filtro de obs-filters de verdad: «Color Correction», saturación -1 = gris.
+    ponerGrafo(f, R"({"nodos":[{"id":"in","tipo":"in"},{"id":"cc","tipo":"obs","params":{"filtro":"color_filter_v2","ajustes":{"saturation":-1.0}}},{"id":"out","tipo":"out"}],
+                    "cables":[{"desde":"in","hacia":"cc"},{"desde":"cc","hacia":"out"}]})");
+    im = dibujar(fuente);
+    std::printf("   color_filter_v2: el verde quedo en %d %d %d (alfa %d)\n", px(im, 5, 5, 0), px(im, 5, 5, 1), px(im, 5, 5, 2), px(im, 5, 5, 3));
+    CHECK(px(im, 5, 5, 3) > 245 && std::abs(px(im, 5, 5, 0) - px(im, 5, 5, 1)) <= 3, "tarjeta color_filter_v2 (obs-filters): saturacion -1 deja gris");
+#endif
 
     // 7. out sin nada: negro
     ponerGrafo(f, R"({"nodos":[{"id":"in","tipo":"in"},{"id":"out","tipo":"out"}],"cables":[]})");

@@ -14,7 +14,8 @@
 //   El grafo llega como JSON en el ajuste `grafo` (lo arma la app, ver
 //   src/app/video/VideoGrafos):
 //     {"nodos":[{"id","tipo","params":{…}}], "cables":[{"desde","hacia"}]}
-//   tipos: in, out, color, croma, recorte, salida.
+//   tipos: in, out, color, croma, recorte, salida, y `obs`: cualquier filtro
+//   de video de OBS ({"filtro": id, "ajustes": {…}}).
 //
 // Modelo de threading:
 //   `update` (cualquier hilo) arma un Plan nuevo y lo cambia bajo un mutex;
@@ -43,7 +44,33 @@
 
 namespace {
 
-enum class Tipo { Color, Croma, Recorte, Salida };
+enum class Tipo { Color, Croma, Recorte, Salida, Obs };
+
+// --- Tarjetas que corren un filtro de OBS -------------------------------------
+//
+// Un filtro de libobs trabaja sobre una fuente, no sobre una textura. Para
+// correr uno DENTRO del grafo (con ramas), cada tarjeta tiene su fuente
+// privada «portador» (`ba_video_portador`) que dibuja la textura que le llega
+// a la tarjeta, con el filtro puesto encima: se dibuja el portador y sale la
+// textura filtrada. Así sirve cualquier filtro de video de OBS (los de
+// obs-filters, Mejorar imagen, el PTZ digital…) sin escribir ninguno.
+
+struct Portador {
+    gs_texture_t* tex = nullptr; ///< lo que dibuja ahora (solo en el hilo gráfico)
+    std::uint32_t cx = 0, cy = 0;
+};
+
+/// El portador y su filtro, vivos mientras alguna versión del plan los use.
+struct InstanciaObs {
+    std::string filtroId, ajustes; ///< el ajuste aplicado (JSON), para no recrear el filtro
+    obs_source_t* portador = nullptr;
+    obs_source_t* filtro = nullptr;
+    ~InstanciaObs() {
+        if (filtro != nullptr && portador != nullptr) obs_source_filter_remove(portador, filtro);
+        obs_source_release(filtro);
+        obs_source_release(portador);
+    }
+};
 
 /// Una tarjeta del plan, en el orden en que se calcula.
 struct Paso {
@@ -57,10 +84,14 @@ struct Paso {
     float izq = 0.0f, arr = 0.0f, der = 0.0f, aba = 0.0f, espejoX = 0.0f, espejoY = 0.0f;
     // salida
     std::string nombre;
+    // obs
+    std::shared_ptr<InstanciaObs> obs;
 };
 
 struct Plan {
     std::vector<Paso> pasos;
+    /// Las tarjetas de OBS por id de nodo (para reusarlas en el plan siguiente).
+    std::map<std::string, std::shared_ptr<InstanciaObs>> obs;
     /// Lo que llega a la escena: -1 = la entrada tal cual, -2 = nada (negro).
     int escena = -1;
     bool trivial() const { return pasos.empty() && escena == -1; }
@@ -113,7 +144,41 @@ void cromaDe(float r, float g, float b, float& cb, float& cr) {
 }
 
 /// El JSON del grafo -> el plan (orden de calculo desde la entrada).
-std::shared_ptr<Plan> armarPlan(const char* json) {
+/// La instancia de un filtro de OBS para el nodo `id`: la del plan anterior si
+/// es el mismo filtro (con los ajustes al día), o una nueva.
+std::shared_ptr<InstanciaObs> instanciaObs(const Plan* anterior, const std::string& id, const std::string& filtroId,
+                                           obs_data_t* ajustes) {
+    const char* aj = ajustes != nullptr ? obs_data_get_json(ajustes) : "{}";
+    if (anterior != nullptr) {
+        const auto it = anterior->obs.find(id);
+        if (it != anterior->obs.end() && it->second->filtroId == filtroId) {
+            if (it->second->ajustes != aj) {
+                obs_source_update(it->second->filtro, ajustes);
+                it->second->ajustes = aj;
+            }
+            return it->second;
+        }
+    }
+    // libobs crea igual una fuente con un tipo que no conoce (la deja
+    // «faltante» y pasa la imagen sin tocar): se pregunta antes.
+    if (obs_source_get_display_name(filtroId.c_str()) == nullptr) {
+        blog(LOG_WARNING, "[ba-sources] Grafo de video: no existe el filtro «%s»", filtroId.c_str());
+        return nullptr;
+    }
+    auto inst = std::make_shared<InstanciaObs>();
+    inst->filtroId = filtroId;
+    inst->ajustes = aj;
+    inst->portador = obs_source_create_private("ba_video_portador", ("portador " + id).c_str(), nullptr);
+    inst->filtro = obs_source_create_private(filtroId.c_str(), id.c_str(), ajustes);
+    if (inst->portador == nullptr || inst->filtro == nullptr) {
+        blog(LOG_WARNING, "[ba-sources] Grafo de video: no se pudo crear el filtro «%s»", filtroId.c_str());
+        return nullptr;
+    }
+    obs_source_filter_add(inst->portador, inst->filtro);
+    return inst;
+}
+
+std::shared_ptr<Plan> armarPlan(const char* json, const Plan* anterior) {
     auto plan = std::make_shared<Plan>();
     if (json == nullptr || *json == '\0') return plan;
     obs_data_t* d = obs_data_create_from_json(json);
@@ -183,6 +248,14 @@ std::shared_ptr<Plan> armarPlan(const char* json) {
                 p.aba = numero(q, "abajo", 0.0);
                 p.espejoX = q != nullptr && obs_data_get_bool(q, "espejoH") ? 1.0f : 0.0f;
                 p.espejoY = q != nullptr && obs_data_get_bool(q, "espejoV") ? 1.0f : 0.0f;
+            } else if (n.tipo == "obs") {
+                p.tipo = Tipo::Obs;
+                const std::string filtroId = q != nullptr ? obs_data_get_string(q, "filtro") : "";
+                obs_data_t* aj = q != nullptr ? obs_data_get_obj(q, "ajustes") : nullptr;
+                p.obs = filtroId.empty() ? nullptr : instanciaObs(anterior, n.id, filtroId, aj);
+                obs_data_release(aj);
+                if (!p.obs) continue; // un filtro que no existe: la tarjeta no se calcula
+                plan->obs[n.id] = p.obs;
             } else if (n.tipo == "salida") {
                 p.tipo = Tipo::Salida;
                 p.nombre = q != nullptr ? obs_data_get_string(q, "nombre") : "";
@@ -205,10 +278,21 @@ const char* nombre(void*) { return obs_module_text("Grafo de video (BA)"); }
 
 void actualizar(void* data, obs_data_t* s) {
     auto* g = static_cast<Grafo*>(data);
-    auto plan = armarPlan(obs_data_get_string(s, "grafo"));
-    std::lock_guard<std::mutex> l(g->planLock);
-    g->plan = std::move(plan);
-    g->listo = false;
+    std::shared_ptr<const Plan> anterior;
+    {
+        std::lock_guard<std::mutex> l(g->planLock);
+        anterior = g->plan;
+    }
+    // Las tarjetas de OBS del plan anterior se reusan (mismo filtro: solo se
+    // le cambian los ajustes, sin perder su estado).
+    std::shared_ptr<const Plan> plan = armarPlan(obs_data_get_string(s, "grafo"), anterior.get());
+    {
+        std::lock_guard<std::mutex> l(g->planLock);
+        g->plan.swap(plan);
+        g->listo = false;
+    }
+    // `plan` es ahora el viejo: se suelta acá, fuera del hilo gráfico (el
+    // dibujo lo usa bajo el mismo candado, así que ya no lo está usando).
 }
 
 void* crear(obs_data_t* settings, obs_source_t* ctx) {
@@ -345,6 +429,26 @@ bool procesar(Grafo* g, const Plan& plan) {
             // Pasa lo que recibe (lo que la siga ve lo mismo) y lo publica.
             pasada(g, en, "Copiar");
             break;
+        case Tipo::Obs: {
+            // El portador dibuja la textura y su filtro de OBS la procesa.
+            auto* port = static_cast<Portador*>(obs_obj_get_data(p.obs->portador));
+            if (port == nullptr) {
+                pasada(g, en, "Copiar");
+                break;
+            }
+            port->tex = en;
+            port->cx = g->cx;
+            port->cy = g->cy;
+            struct vec4 nada;
+            vec4_zero(&nada);
+            gs_clear(GS_CLEAR_COLOR, &nada, 0.0f, 0);
+            gs_blend_state_push();
+            gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
+            obs_source_video_render(p.obs->portador);
+            gs_blend_state_pop();
+            port->tex = nullptr;
+            break;
+        }
         }
         gs_texrender_end(destino);
         if (p.tipo == Tipo::Salida && !p.nombre.empty()) aSalida(g, p.nombre, gs_texrender_get_texture(destino));
@@ -354,11 +458,10 @@ bool procesar(Grafo* g, const Plan& plan) {
 
 void dibujar(void* data, gs_effect_t*) {
     auto* g = static_cast<Grafo*>(data);
-    std::shared_ptr<const Plan> plan;
-    {
-        std::lock_guard<std::mutex> l(g->planLock);
-        plan = g->plan;
-    }
+    // Todo el dibujo con el plan tomado: `actualizar` no suelta un plan (ni
+    // sus filtros de OBS) mientras se dibuja.
+    std::lock_guard<std::mutex> l(g->planLock);
+    const std::shared_ptr<const Plan> plan = g->plan;
     obs_source_t* objetivo = obs_filter_get_target(g->ctx);
     const std::uint32_t cx = objetivo != nullptr ? obs_source_get_base_width(objetivo) : 0;
     const std::uint32_t cy = objetivo != nullptr ? obs_source_get_base_height(objetivo) : 0;
@@ -386,6 +489,21 @@ void dibujar(void* data, gs_effect_t*) {
     gs_effect_t* fx = obs_get_base_effect(OBS_EFFECT_DEFAULT);
     gs_effect_set_texture(gs_effect_get_param_by_name(fx, "image"), tex);
     while (gs_effect_loop(fx, "Draw")) gs_draw_sprite(tex, 0, g->cx, g->cy);
+}
+
+// --- El portador de una tarjeta de OBS ----------------------------------------
+
+const char* portadorNombre(void*) { return "Portador de tarjeta (BA)"; }
+void* portadorCrear(obs_data_t*, obs_source_t*) { return new (std::nothrow) Portador(); }
+void portadorDestruir(void* data) { delete static_cast<Portador*>(data); }
+std::uint32_t portadorAncho(void* data) { return static_cast<Portador*>(data)->cx; }
+std::uint32_t portadorAlto(void* data) { return static_cast<Portador*>(data)->cy; }
+void portadorDibujar(void* data, gs_effect_t*) {
+    auto* x = static_cast<Portador*>(data);
+    if (x->tex == nullptr) return;
+    gs_effect_t* fx = obs_get_base_effect(OBS_EFFECT_DEFAULT);
+    gs_effect_set_texture(gs_effect_get_param_by_name(fx, "image"), x->tex);
+    while (gs_effect_loop(fx, "Draw")) gs_draw_sprite(x->tex, 0, x->cx, x->cy);
 }
 
 // --- La fuente «Salida» ------------------------------------------------------
@@ -496,6 +614,7 @@ extern "C" {
 
 static struct obs_source_info ba_video_grafo_info = {};
 static struct obs_source_info ba_video_salida_info = {};
+static struct obs_source_info ba_video_portador_info = {};
 
 /// Registra el filtro del grafo y la fuente de sus salidas. La llama
 /// `ba_register_video_filters` (ba_mejora_imagen.cpp).
@@ -523,6 +642,18 @@ void ba_register_video_grafo(void) {
     ba_video_salida_info.hide = salidaOcultar;
     ba_video_salida_info.video_render = salidaDibujar;
     obs_register_source(&ba_video_salida_info);
+
+    ba_video_portador_info.id = "ba_video_portador";
+    ba_video_portador_info.type = OBS_SOURCE_TYPE_INPUT;
+    // Interno: no se ofrece para agregar a mano.
+    ba_video_portador_info.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_CUSTOM_DRAW | OBS_SOURCE_CAP_DISABLED;
+    ba_video_portador_info.get_name = portadorNombre;
+    ba_video_portador_info.create = portadorCrear;
+    ba_video_portador_info.destroy = portadorDestruir;
+    ba_video_portador_info.get_width = portadorAncho;
+    ba_video_portador_info.get_height = portadorAlto;
+    ba_video_portador_info.video_render = portadorDibujar;
+    obs_register_source(&ba_video_portador_info);
 }
 
 } // extern "C"

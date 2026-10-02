@@ -423,19 +423,25 @@ La API de Facebook solo transmite y administra videos de **Paginas** (no del per
 - Otras: `rtmp://`, `srt://ip:puerto?mode=caller`, `https://.../playlist.m3u8` (HLS), `udp://@:5000`.
 - Devuelve si llega imagen y de que tamaño. `input_status` muestra el estado de todas (sin claves).
 - Latencia baja por defecto; `latency: "normal"` para señales inestables (mas colchon). Reconecta sola.)md"},
-    {"video", "Grafo de video", "Tarjetas de video por entrada (croma, color, recorte) y salidas con nombre.",
-     R"md(Cada entrada de video tiene un grafo de tarjetas unidas con cables, como el rack de audio. `in` es la camara (ya encuadrada por el PTZ) y `out` lo que ve la escena. Lo corre la GPU (filtro ba_video_grafo).
+    {"video", "Grafo de video", "Un grafo de video para todo el estudio: entradas, tarjetas, filtros de OBS, compositor, salidas.",
+     R"md(Un solo grafo, como un pipeline de GStreamer: cada entrada de video es un sub-grafo (`<entrada>.entrada` -> tarjetas -> `<entrada>.escena`, lo que ven las escenas) y los cables pueden cruzar entre entradas. Lo corre la GPU.
+
+## Ver
+- `video_grafo` sin nada: todo el estudio; con `entrada`: su sub-grafo (lo de afuera, marcado `externo`). Los ids son como `camara-1.croma`.
+- `video_filtros`: los filtros de video de OBS que pueden ser tarjeta (correccion de color, LUT .cube, llaves, nitidez, recorte, escala, mascaras, Mejorar imagen, PTZ digital). Con `id` de una tarjeta: sus controles.
 
 ## Armar
-- `video_grafo` sin nada: las entradas y las tarjetas; con `entrada`: su grafo (ids y cables).
-- `video_tarjeta_agregar {"entrada": ..., "tipo": "croma"}`: color, croma y recorte se intercalan antes de la escena (o despues de `despues`).
-- `video_tarjeta_ajustar {"entrada": ..., "id": "croma", "params": {"similitud": 0.5}}`. Croma: `clave` = 0xRRGGBB (verde 0x00B140).
-- `video_cable {"entrada": ..., "desde": ..., "hacia": ...}`: a cada tarjeta le llega un cable (el nuevo reemplaza); de una salen varios. `quitar: true` lo saca.
-- `video_tarjeta_quitar` y `video_grafo_limpiar` (vuelve a entrada -> escena).
+- `video_tarjeta_agregar {"entrada": ..., "tipo": "croma"}` (color, croma, recorte se intercalan antes de la escena, o despues de `despues`).
+- Un filtro de OBS: `{"entrada": ..., "tipo": "obs", "filtro": "clut_filter", "params": {"ajustes": {"image_path": "/ruta/look.cube"}}}`.
+- `video_tarjeta_ajustar {"id": ..., "params": {...}}` (de un filtro de OBS: `{"ajustes": {...}}`, se mezclan).
+- `video_cable {"desde": ..., "hacia": ...}`: cualquier par, aunque sean de entradas distintas. A cada puerto le llega un cable (el nuevo reemplaza); de una salida salen varios. `quitar: true` lo saca.
+- `video_tarjeta_quitar` y `video_grafo_limpiar {"entrada": ...}`.
 
-## Ramas y salidas
-- Una tarjeta `salida` publica ese punto como una fuente con nombre: `video_tarjeta_agregar {"entrada": "Camara 1", "tipo": "salida", "despues": "in", "params": {"nombre": "Camara 1 limpia"}}`.
-- `video_salida_a_escena {"entrada": ..., "id": "salida"}` la pone en la escena al aire (o en `escena`). Ejemplo: la escena con croma y otra escena con la camara limpia.
+## Entre entradas
+- `video_tarjeta_agregar {"tipo": "compositor"}`: del estudio; cada cable a el crea un puerto (in_0, in_1...). Sus capas por puerto: `params.capas`. (La ejecucion del compositor llega en el paso siguiente.)
+
+## Salidas
+- Una tarjeta `salida` publica ese punto como fuente con nombre; `video_salida_a_escena {"id": ...}` la pone en la escena al aire (o en `escena`).
 - Mira el resultado con `capture_source`.)md"},
     {"camaras", "Camaras PTZ", "Mover las camaras (pan, tilt, zoom, foco, presets) y mejorar su imagen.",
      R"md(Cada entrada de video tiene PTZ: DIGITAL (recorte y zoom en la GPU, en cualquier camara) y, si la camara es motorizada, el de la camara (backend VISCA, ONVIF o Panasonic). `ptz_camaras` dice que tiene y que puede cada una.
