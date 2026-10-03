@@ -375,6 +375,7 @@ const Fila kPropias[] = {
     {"video_reloj", "reloj del estudio ntp ptp sincronizar relojes genlock reloj externo publicar reloj"},
     {"video_sincronia", "sincronizar streams desfase entre camaras medir retraso alinear video atrasado adelantado lip sync"},
     {"video_desfase", "atrasar adelantar video retraso manual desfase de una entrada"},
+    {"entrada_borrar", "borrar entrada eliminar camara sacar fuente de video de la app quitar entrada de red"},
     {"plugin_listar", "plugins python extensiones programar equipo raro camara rara que plugins hay"},
     {"plugin_escribir", "escribir plugin python programar soporte para equipo raro ptz usb hid logitech rally kandao 360 ojo de pez camara que no anda"},
     {"plugin_probar", "probar plugin sin tocar el aire test informe errores de python"},

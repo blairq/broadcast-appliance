@@ -14,7 +14,7 @@ automatización que maneja el estudio. **Lo escribe el asistente** (ayuda MCP: `
 | Los plugins del usuario | `Datos/Plugins/<id>/` (en macOS, `BroadcastAppliance Datos/Plugins`): **no** están adentro del programa, así que sobreviven a las actualizaciones |
 | Qué está prendido | `Datos/Config/plugins.json` |
 | Sus registros | `Datos/Logs/plugins/<id>.log` |
-| El intérprete | `Resources/python` (CPython 3.12 de python-build-standalone, `make deps-python`; nada del sistema) |
+| El intérprete | `Resources/python` (CPython 3.12 de python-build-standalone + numpy, `make deps-python`; nada del sistema) |
 | El SDK | `Resources/plugins-python/sdk` (fuente: `src/plugins/sdk`) |
 | Los ejemplos | `Resources/plugins-python/ejemplos` (fuente: `assets/plugins`) |
 
@@ -23,7 +23,8 @@ Una carpeta de plugin:
 ```
 Plugins/ptz-rally/
 ├── plugin.json   {"id", "nombre", "descripcion", "version", "principal": "plugin.py",
-│                  "dependencias": ["pyusb", "libusb-package"], "config": {...}, "escena": "Sala"}
+│                  "dependencias": ["pyusb", "libusb-package"], "config": {...}, "escena": "Sala",
+│                  "secretos": [{"clave": "clave", "etiqueta": "Clave de la cámara"}]}
 ├── plugin.py     el código (import ba_plugin as ba … plugin.correr())
 ├── _libs/        las dependencias de pip (las baja la app; portables)
 └── datos/        lo que el plugin quiera guardar
@@ -94,6 +95,29 @@ Está en `src/plugins/sdk/ba_plugin/__init__.py`, con el docstring completo. En 
   - serie (`serie_listar`).
 - `ba_plugin.probar` corre el plugin **sin la app**. Le pasa cuadros y audio de prueba a sus tarjetas, escucha sus entradas, llama controles y devuelve un informe JSON. Es `plugin_probar`.
 
+## Procesos: posix_spawn, no QProcess
+
+Los procesos de los plugins se lanzan con `plugins/Hijo` (`posix_spawn`), no con QProcess: el pip, el
+probador, la lista de equipos y el zip también.
+
+**Por qué.** QProcess hace `fork()` y corre código antes del `exec`. En una app con decenas de hilos, el
+hijo heredaba candados tomados y quedaba dormido para siempre como una copia de ba-app. Pasaba varias
+veces por sesión: un plugin que «no arrancaba en 20 s», `dispositivos_listar` o `plugin_probar` colgados.
+
+**Qué garantiza `Hijo`:**
+- el hijo no hereda descriptores (`POSIX_SPAWN_CLOEXEC_DEFAULT`);
+- va en su propio grupo de procesos, así que matarlo mata también lo que lanzó;
+- la salida y el final se revisan cada 200 ms, además del aviso del sistema.
+
+## Claves y compartir
+
+- **Claves**: el plugin las declara en `"secretos"` y las lee con `plugin.secreto("clave")` (None si
+  todavía no están). Se guardan cifradas en `Credenciales/plugin-<id>-<clave>`. Se cargan desde la
+  página Plugins (Configuración) o el formulario seguro de la barra (`plugin_credenciales`); nunca por el
+  chat ni en `config`.
+- **Exportar / importar**: un .zip con el código y plugin.json, sin `_libs` ni `datos`. Está en la página
+  Plugins y en `plugin_exportar` / `plugin_importar`. Lo arma el `zipfile` del Python del programa.
+
 ## Herramientas MCP (categoría `plugins`)
 
 | Herramienta | Para qué |
@@ -105,6 +129,7 @@ Está en `src/plugins/sdk/ba_plugin/__init__.py`, con el docstring completo. En 
 | `plugin_activar`, `plugin_reiniciar`, `plugin_registro` | Correrlo y ver qué dice |
 | `plugin_control`, `plugin_eventos` | Usarlo |
 | `plugin_tarjeta` | Una tarjeta de video en una entrada, o de audio en una fuente |
+| `plugin_credenciales`, `plugin_exportar`, `plugin_importar` | Claves cifradas; pasar plugins entre aparatos |
 
 También `video_pipeline` / `video_tarjeta_agregar` aceptan `{"tipo": "plugin", "plugin",
 "tarjeta", "parametros"}`, que es una tarjeta `gst` con el módulo `baplugin`.
@@ -131,5 +156,4 @@ También `video_pipeline` / `video_tarjeta_agregar` aceptan `{"tipo": "plugin", 
 
 - **Windows**: memoria compartida con nombre (`CreateFileMapping`) y sockets con winsock en `ba_plugin_gst.cpp`. El SDK ya es portable.
 - **Linux**: tendría que andar tal cual, pero no está probado.
-- **Interfaz**: falta una página de plugins (hoy se manejan por el asistente y quedan visibles en Entradas y PTZ).
 - **Director nativo**: el «quién habla» como entrada del compositor (hoy lo hace un plugin director).

@@ -346,6 +346,28 @@ std::string Plugins::borrar(const std::string& id) {
     detener(id, true);
     procesos_.erase(id);
     guardarActivos();
+    // Sus entradas se van con él (las que creó: tienen `ba_plugin` = id).
+    std::vector<std::string> suyas;
+    std::pair<std::string, std::vector<std::string>*> busca(id, &suyas);
+    obs_enum_sources(
+        [](void* d, obs_source_t* s) {
+            auto* par = static_cast<std::pair<std::string, std::vector<std::string>*>*>(d);
+            obs_data_t* st = obs_source_get_settings(s);
+            if (st != nullptr && par->first == obs_data_get_string(st, "ba_plugin")) par->second->push_back(obs_source_get_name(s));
+            obs_data_release(st);
+            return true;
+        },
+        &busca);
+    for (const auto& n : suyas) {
+        for (const auto& sc : rt_.engine().sceneNames())
+            for (const auto& src : rt_.engine().sceneSources(sc))
+                if (src == n) rt_.removeSource(sc, n);
+        if (obs_source_t* src = obs_get_source_by_name(n.c_str())) {
+            obs_source_remove(src);
+            obs_source_release(src);
+        }
+    }
+    if (!suyas.empty()) rt_.save();
     // No se borra: se mueve a Plugins/.papelera (un plugin hecho a mano vale).
     std::error_code ec;
     const fs::path pap = carpeta_ / ".papelera" / (id + "-" + std::to_string(QDateTime::currentSecsSinceEpoch()));
