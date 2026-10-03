@@ -1008,7 +1008,7 @@ json VideoGrafos::avisosDe(const std::string& entrada) const {
 // --- Entradas de red -----------------------------------------------------------------
 
 std::string VideoGrafos::crearEntradaRed(const std::string& nombre, const std::string& uri, int latenciaMs,
-                                         const std::string& escena, bool audio, bool normalizar) {
+                                         const std::string& escena, int audio, int normalizar, int ntpSync) {
     if (nombre.empty()) return "falta el nombre";
     // Si ya existe (de GStreamer), se actualiza: otra URI, otro colchón.
     if (rt_.engine().sourceTypeId(nombre) == kTipoVirtual) {
@@ -1020,8 +1020,9 @@ std::string VideoGrafos::crearEntradaRed(const std::string& nombre, const std::s
             obs_data_set_int(d, "latencia", latenciaMs);
             obs_data_set_bool(d, "latencia_propia", true);
         }
-        obs_data_set_bool(d, "audio", audio);
-        obs_data_set_bool(d, "normalizar", normalizar);
+        if (audio >= 0) obs_data_set_bool(d, "audio", audio == 1);
+        if (normalizar >= 0) obs_data_set_bool(d, "normalizar", normalizar == 1);
+        if (ntpSync >= 0) obs_data_set_bool(d, "ntp_sync", ntpSync == 1);
         obs_source_update(src, d);
         obs_data_release(d);
         obs_source_release(src);
@@ -1031,10 +1032,12 @@ std::string VideoGrafos::crearEntradaRed(const std::string& nombre, const std::s
     if (uri.empty()) return "falta `uri` (srt://, rtmp://, rtsp://, udp://, http://)";
     if (!rt_.engine().sourceTypeId(nombre).empty()) return "ya hay una fuente que se llama «" + nombre + "» (y no es de red)";
     if (escena.empty()) return "falta `escena`: dónde ponerla (para no tocar la que está al aire sin querer)";
+    if (!asegurarEscena(escena)) return "no se pudo crear la escena «" + escena + "»";
     json ajustes = relojParaFuente();
     ajustes["uri"] = uri;
-    ajustes["audio"] = audio;
-    ajustes["normalizar"] = normalizar;
+    ajustes["audio"] = audio != 0;
+    ajustes["normalizar"] = normalizar != 0;
+    if (ntpSync >= 0) ajustes["ntp_sync"] = ntpSync == 1;
     ajustes["latencia"] = latenciaMs >= 0 ? latenciaMs : reloj_.value("latencia_ms", 200);
     ajustes["latencia_propia"] = latenciaMs >= 0;
     SourceSpec spec;
@@ -1184,10 +1187,17 @@ void VideoGrafos::medirDesfase(const std::string& a, const std::string& b, int s
             json hecho;
             std::string e = ajustarDesfase(adelantada, d, true, &hecho);
             if (!e.empty() && rt_.engine().sourceTypeId(atrasada) == kTipoVirtual) e = ajustarDesfase(atrasada, -d, true, &hecho);
-            if (e.empty())
+            if (e.empty()) {
                 r["aplicado"] = hecho;
-            else
-                r["no_aplicado"] = e;
+                // Se vuelve a medir sola: lo que importa es el «después».
+                return medirDesfase(a, b, 5, false, [r, listo](json despues) mutable {
+                    r["despues"] = {{"desfase_ms", despues.value("desfase_ms", 0)},
+                                    {"significa", despues.value("significa", despues.value("error", std::string()))},
+                                    {"confianza", despues.value("confianza", 0.0)}};
+                    listo(r);
+                });
+            }
+            r["no_aplicado"] = e;
         }
         listo(r);
     });
@@ -1212,12 +1222,22 @@ json VideoGrafos::entradasDeHost(const std::string& host) const {
 
 std::string VideoGrafos::sumarAEscena(const std::string& nombre, const std::string& escena) {
     if (rt_.engine().sourceTypeId(nombre).empty()) return "no existe «" + nombre + "»";
+    if (!asegurarEscena(escena)) return "no se pudo crear la escena «" + escena + "»";
     SourceSpec spec;
     spec.id = rt_.engine().sourceTypeId(nombre);
     spec.name = nombre;
     if (!rt_.addSource(escena, spec)) return rt_.lastError().empty() ? "no se pudo" : rt_.lastError();
     rt_.save();
     return {};
+}
+
+bool VideoGrafos::asegurarEscena(const std::string& escena) {
+    if (escena.empty()) return false;
+    for (const auto& n : rt_.engine().sceneNames())
+        if (n == escena) return true;
+    const bool ok = rt_.addScene(escena);
+    if (ok) rt_.save();
+    return ok;
 }
 
 bool VideoGrafos::mostrarEnEscena(const std::string& nombre, const std::string& escena, bool visible) {
@@ -1230,6 +1250,7 @@ std::string VideoGrafos::armarMosaico(const std::string& escena, const std::vect
                                       const std::string& disposicion, const std::string& nombre, bool ocultarSueltas,
                                       json* hecho) {
     if (escena.empty()) return "falta `escena`";
+    if (!asegurarEscena(escena)) return "no se pudo crear la escena «" + escena + "»";
     if (entradas.size() < 2) return "hacen falta al menos dos entradas";
     for (const auto& e : entradas)
         if (!esEntrada(e)) return "«" + e + "» no es una entrada de video";

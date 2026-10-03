@@ -105,7 +105,13 @@ json planDeSinCuidar(const json& ficha, const json& analisis, const json& lienzo
     pasos.push_back("Colchón de 200 ms (red local cableada; con Wi-Fi o por internet, 400-800)");
     // PTZ.
     const json ptz = ficha.value("ptz", json::object());
-    if (!ptz.empty() && ptz.value("tiene", false)) {
+    if (ficha.contains("onvif") && !ficha.value("onvif", true)) {
+        // ONVIF no contestó (pide clave): NO se sabe si tiene PTZ.
+        args["ptz"] = false;
+        plan["ptz"] = "desconocido";
+        pasos.push_back("PTZ: no se sabe (ONVIF pide usuario y clave). Con la clave: camara_ficha y camara_agregar con "
+                        "`solo_ptz`. Mientras, el PTZ digital (recorte y zoom en la GPU)");
+    } else if (!ptz.empty() && ptz.value("tiene", false)) {
         args["ptz"] = true;
         std::string perfilPtz = ptz.value("perfil", std::string());
         pasos.push_back("PTZ por ONVIF" + (perfilPtz.empty() ? std::string() : " con el perfil «" + perfilPtz + "»") +

@@ -153,7 +153,7 @@ void McpService::registerRedTools() {
         t.description =
             "Conecta la cámara `ip` como entrada de video sincronizada (con su clave guardada): la URL del `perfil` "
             "ONVIF (o `url`, o la del plan de camara_ficha), con la `normalizar` y `latencia_ms` del plan, y su PTZ por "
-            "ONVIF configurado si tiene (`ptz: false` para no). Va a la `escena` (obligatoria). Si YA hay una entrada "
+            "ONVIF configurado si tiene (`ptz: false` para no). Va a la `escena` (obligatoria; si no existe, la crea). Si YA hay una entrada "
             "con esa URL, no abre otro stream: `reusar: true` suma la misma a la escena. `solo_ptz: true` + `entrada`: "
             "solo configura el PTZ de una entrada que ya existe (cuando la clave llega después). Devuelve el estado "
             "con su diagnóstico: revisalo (video_estado de nuevo a los segundos: la conexión tarda).";

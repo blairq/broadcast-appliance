@@ -122,6 +122,7 @@ struct Fuente {
     std::int64_t latenciaMs = 0, desfaseMs = 0;
     bool conAudio = true;
     bool normalizar = true;
+    bool ntpSync = true; ///< RTSP: usar la hora de captura del que manda (RTCP); si su reloj está mal, conviene apagarlo
     // Lo armado
     std::string error;
     GstElement* pipeline = nullptr;
@@ -133,6 +134,8 @@ struct Fuente {
     // Para diagnosticar
     std::uint64_t recibidos = 0, tarde = 0, saltados = 0, descartados = 0;
     std::int64_t colchonMs = 0; ///< cuánto falta para el último cuadro del colchón
+    double adelantoMs = 0;      ///< promedio de cuánto le falta a cada cuadro al llegar (≈ latencia si el reloj está bien)
+    std::uint64_t ventanaNs = 0, tardeVentana = 0, recibidosVentana = 0, tarde10 = 0, recibidos10 = 0;
     std::uint64_t primeroNs = 0, cuentaFps = 0;
     double fpsMedido = 0;
     std::string formato, colorimetria;
@@ -211,7 +214,24 @@ GstFlowReturn alVideo(GstAppSink* sink, gpointer datos) {
     const GstClockTime ahora = gst_clock_get_time(f->clock);
     std::lock_guard<std::mutex> l(f->colaLock);
     ++f->recibidos;
-    if (vence + 40 * GST_MSECOND < ahora) ++f->tarde; // llegó cuando ya tenía que estar en pantalla
+    ++f->recibidosVentana;
+    if (vence + 40 * GST_MSECOND < ahora) {
+        ++f->tarde; // llegó cuando ya tenía que estar en pantalla
+        ++f->tardeVentana;
+    }
+    // Cuánto le falta al llegar (promedio móvil): con el reloj bien, ronda la
+    // latencia; mucho más es que la hora de captura del que manda está corrida.
+    const double falta = (static_cast<double>(vence) - static_cast<double>(ahora)) / 1e6;
+    f->adelantoMs = f->recibidos == 1 ? falta : f->adelantoMs * 0.95 + falta * 0.05;
+    // Ventanas de 10 s: lo de ahora, no lo del arranque.
+    const std::uint64_t nv = os_gettime_ns();
+    if (f->ventanaNs == 0) f->ventanaNs = nv;
+    if (nv - f->ventanaNs >= 10'000'000'000ULL) {
+        f->tarde10 = f->tardeVentana;
+        f->recibidos10 = f->recibidosVentana;
+        f->tardeVentana = f->recibidosVentana = 0;
+        f->ventanaNs = nv;
+    }
     f->video.push_back({s, vence});
     while (f->video.size() > kMaxColchon) {
         gst_sample_unref(f->video.front().muestra);
@@ -342,7 +362,8 @@ void alPrepararOrigen(GstElement*, GstElement* origen, gpointer datos) {
     GObjectClass* k = G_OBJECT_GET_CLASS(origen);
     const std::string lat = std::to_string(std::max<std::int64_t>(f->latenciaMs, 20));
     if (g_object_class_find_property(k, "latency") != nullptr) gst_util_set_object_arg(G_OBJECT(origen), "latency", lat.c_str());
-    if (g_object_class_find_property(k, "ntp-sync") != nullptr) gst_util_set_object_arg(G_OBJECT(origen), "ntp-sync", "true");
+    if (g_object_class_find_property(k, "ntp-sync") != nullptr)
+        gst_util_set_object_arg(G_OBJECT(origen), "ntp-sync", f->ntpSync ? "true" : "false");
     if (g_object_class_find_property(k, "buffer-mode") != nullptr)
         gst_util_set_object_arg(G_OBJECT(origen), "buffer-mode", "synced");
 }
@@ -443,6 +464,8 @@ void armar(Fuente* f) {
     {
         std::lock_guard<std::mutex> l(f->colaLock);
         f->recibidos = f->tarde = f->saltados = f->descartados = 0;
+        f->ventanaNs = f->tardeVentana = f->recibidosVentana = f->tarde10 = f->recibidos10 = 0;
+        f->adelantoMs = 0;
     }
     if (gst_element_set_state(p, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
         f->error = "el pipeline no arrancó";
@@ -461,12 +484,13 @@ void actualizar(void* data, obs_data_t* s) {
     const int dominio = static_cast<int>(obs_data_get_int(s, "reloj_dominio"));
     const bool audio = obs_data_get_bool(s, "audio");
     const bool normalizar = obs_data_get_bool(s, "normalizar");
+    const bool ntpSync = obs_data_get_bool(s, "ntp_sync");
     const std::int64_t latencia = obs_data_get_int(s, "latencia"), desfase = obs_data_get_int(s, "desfase");
     // La latencia y el desfase se cambian EN VIVO (solo mueven el colchón); lo
     // demás rearma el pipeline. (Con `uri`, la latencia también va al jitter
     // buffer de RTSP/SRT: se rearma.)
     const bool rearmar = uri != f->uri || d != f->descripcion || reloj != f->reloj || servidor != f->relojServidor ||
-                         puerto != f->relojPuerto || dominio != f->relojDominio || audio != f->conAudio || normalizar != f->normalizar ||
+                         puerto != f->relojPuerto || dominio != f->relojDominio || audio != f->conAudio || normalizar != f->normalizar || ntpSync != f->ntpSync ||
                          (latencia != f->latenciaMs && !uri.empty()) || f->pipeline == nullptr;
     const std::int64_t corrimiento =
         (latencia + desfase - f->latenciaMs - f->desfaseMs) * static_cast<std::int64_t>(GST_MSECOND);
@@ -478,6 +502,7 @@ void actualizar(void* data, obs_data_t* s) {
     f->relojDominio = dominio;
     f->conAudio = audio;
     f->normalizar = normalizar;
+    f->ntpSync = ntpSync;
     f->latenciaMs = latencia;
     f->desfaseMs = desfase;
     if (rearmar) {
@@ -512,6 +537,7 @@ void* crear(obs_data_t* settings, obs_source_t* ctx) {
                          }
                          obs_data_set_int(o, "latencia_ms", x->latenciaMs);
                          obs_data_set_bool(o, "normalizado", x->normalizar);
+                         obs_data_set_bool(o, "ntp_sync", x->ntpSync);
                          obs_data_set_int(o, "desfase_ms", x->desfaseMs);
                          obs_data_set_string(o, "formato", x->formato.c_str());
                          obs_data_set_string(o, "colorimetria", x->colorimetria.c_str());
@@ -527,6 +553,10 @@ void* crear(obs_data_t* settings, obs_source_t* ctx) {
                              obs_data_set_int(o, "saltados", static_cast<long long>(x->saltados));
                              obs_data_set_int(o, "descartados", static_cast<long long>(x->descartados));
                              obs_data_set_int(o, "colchon_ms", x->colchonMs);
+                             obs_data_set_int(o, "adelanto_ms", static_cast<long long>(x->adelantoMs));
+                             // Lo de los últimos 10 s (o lo que va, si todavía no pasaron).
+                             obs_data_set_int(o, "tarde_10s", static_cast<long long>(x->recibidos10 ? x->tarde10 : x->tardeVentana));
+                             obs_data_set_int(o, "recibidos_10s", static_cast<long long>(x->recibidos10 ? x->recibidos10 : x->recibidosVentana));
                              obs_data_set_int(o, "en_colchon", static_cast<long long>(x->video.size()));
                              if (!x->origen.empty()) {
                                  obs_data_t* og = obs_data_create_from_json(x->origen.c_str());
@@ -636,6 +666,7 @@ void porDefecto(obs_data_t* s) {
     obs_data_set_default_string(s, "reloj", "sistema");
     obs_data_set_default_bool(s, "audio", true);
     obs_data_set_default_bool(s, "normalizar", true);
+    obs_data_set_default_bool(s, "ntp_sync", true);
 }
 
 } // namespace

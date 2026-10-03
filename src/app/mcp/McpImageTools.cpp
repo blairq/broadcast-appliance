@@ -564,7 +564,8 @@ void McpService::registerImageTools() {
                {{"type", "string"},
                 {"description",
                  "que mirar: 'programa' (lo que sale al aire, por defecto), 'interfaz' (la "
-                 "pantalla de la app), o una clave de feeds_list (guest:1, lobby:2, armada...)"}}}}}};
+                 "pantalla de la app), el NOMBRE de una escena o fuente (cualquiera, este o no al aire: no "
+                 "hace falta armarla), o una clave de feeds_list (guest:1, lobby:2, armada...)"}}}}}};
         t.examples = {R"({"que": "Se ve a alguien o esta el cuadro en negro?"})",
                       R"({"que": "El rotulo de abajo dice el nombre correcto?", "fuente": "programa"})",
                       R"({"que": "Cuantas personas hay en cuadro?", "fuente": "guest:1"})"};
@@ -585,8 +586,11 @@ void McpService::registerImageTools() {
                 if (!renderSource(rt, "", 1280, img, err) && !feedImage(vm, "program", img))
                     return done(ToolResult::error("No hay imagen del programa: " + err));
             } else if (!feedImage(vm, fuente, img)) {
-                return done(
-                    ToolResult::error("Sin imagen en '" + fuente + "'. feeds_list muestra los validos."));
+                // Una escena o una fuente por su nombre: se dibuja aparte (no toca
+                // el programa ni la armada).
+                if (!renderSource(rt, fuente, 1280, img, err))
+                    return done(ToolResult::error("Sin imagen en '" + fuente + "': no es una escena, una fuente ni una "
+                                                  "clave de feeds_list (" + err + ")."));
             }
             if (img.isNull()) return done(ToolResult::error("No se pudo tomar la imagen."));
 

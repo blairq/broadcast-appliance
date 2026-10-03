@@ -174,7 +174,9 @@ class VideoGrafos : public QObject {
     /// Una entrada de red (srt://, rtmp://, rtsp://, udp://, http://) con el
     /// reloj del estudio. `latenciaMs` < 0: la del estudio. "" o el error.
     std::string crearEntradaRed(const std::string& nombre, const std::string& uri, int latenciaMs,
-                                const std::string& escena, bool audio, bool normalizar = true);
+                                const std::string& escena, int audio = -1, int normalizar = -1, int ntpSync = -1);
+    // (audio, normalizar, ntpSync: 1 sí, 0 no, -1 sin decir: al crear, de
+    // fábrica; al actualizar una que ya existe, no se toca.)
     /// Corre una entrada `ms` (o la lleva a `ms` si !relativo): una fuente de
     /// GStreamer por su colchón (para los dos lados); una cámara, solo para
     /// atrás, con una tarjeta retardo. "" o el error; `hecho` dice qué se tocó.
@@ -187,6 +189,8 @@ class VideoGrafos : public QObject {
     nlohmann::json entradasDeHost(const std::string& host) const;
     /// Suma a `escena` una fuente que ya existe (la misma, no otra copia). "" o el error.
     std::string sumarAEscena(const std::string& nombre, const std::string& escena);
+    /// Crea la escena si no existe. true si existe (o se creó).
+    bool asegurarEscena(const std::string& escena);
     /// Muestra u oculta una fuente en una escena.
     bool mostrarEnEscena(const std::string& nombre, const std::string& escena, bool visible);
     /// Un mosaico (o imagen en imagen, o lado a lado) de `entradas` en `escena`,

@@ -558,7 +558,7 @@ void McpService::registerVideoTools() {
         t.title = "Mosaico, imagen en imagen o lado a lado de varias entradas (en una llamada)";
         t.category = "video";
         t.description =
-            "Junta `entradas` en una `escena` en UNA llamada: crea el compositor (o rearma el que se llame `nombre`), "
+            "Junta `entradas` en una `escena` (si no existe, la crea) en UNA llamada: crea el compositor (o rearma el que se llame `nombre`), "
             "conecta lo que llega a la escena de cada entrada (o sea, con sus tarjetas de color, etc.), lo pone en la "
             "escena y, con `ocultar_sueltas` (de fábrica, sí), oculta en esa escena las entradas sueltas (el mosaico "
             "las sigue recibiendo: no se apagan). `disposicion`: mosaico (grilla), pip (la primera de fondo y las "
@@ -617,11 +617,26 @@ void McpService::registerVideoTools() {
                        {"tamaño", std::to_string(st.value("ancho", 0)) + "x" + std::to_string(st.value("alto", 0))},
                        {"latencia_grafo_ms", st.value("latencia_grafo_ms", 0.0)},
                        {"diagnostico", video::diagnosticar(st)}};
-                if (st.contains("gstreamer"))
-                    r["red"] = {{"reloj", st["gstreamer"].value("reloj", std::string())},
-                                {"latencia_ms", st["gstreamer"].value("latencia_ms", 0)},
-                                {"desfase_ms", st["gstreamer"].value("desfase_ms", 0)},
-                                {"fps", st["gstreamer"].value("fps_recibidos", 0.0)}};
+                if (st.contains("gstreamer")) {
+                    const json& g = st["gstreamer"];
+                    r["red"] = {{"reloj", g.value("reloj", std::string())},
+                                {"latencia_ms", g.value("latencia_ms", 0)},
+                                {"desfase_ms", g.value("desfase_ms", 0)},
+                                {"fps", std::round(g.value("fps_recibidos", 0.0))},
+                                {"normalizada", g.value("normalizado", false)},
+                                {"tarde_10s", g.value("tarde_10s", 0)}};
+                    // Cómo llega (antes de normalizar), en una línea.
+                    const json o = g.value("origen", json::object());
+                    if (!o.empty())
+                        r["llega"] = std::to_string(o.value("ancho", 0)) + "x" + std::to_string(o.value("alto", 0)) + " " +
+                                     o.value("formato", std::string()) + ", " + o.value("matriz", std::string()) + " rango " +
+                                     o.value("rango", std::string()) + ", " +
+                                     (o.value("fps_variable", false) ? std::string("fps variables")
+                                                                      : std::to_string(std::lround(o.value("fps", 0.0))) + " fps") +
+                                     (o.value("entrelazado", false) ? ", entrelazada" : "") +
+                                     (o.value("pixel", std::string("cuadrado")) != "cuadrado" ? ", píxel " + o.value("pixel", std::string()) : "");
+                    r["entra"] = g.value("formato", std::string()) + ", " + g.value("colorimetria", std::string());
+                }
                 out.push_back(r);
             }
             done(ToolResult().data({{"entradas", out}, {"reloj_estudio", v->reloj()}}));
@@ -637,7 +652,7 @@ void McpService::registerVideoTools() {
             "Crea una entrada de video (y audio) desde `uri`: srt://host:puerto (o srt://:puerto?mode=listener para "
             "recibir), rtmp://servidor/app/clave, rtsp://camara/stream, udp://@:5000, http(s)://…/x.m3u8 o un "
             "archivo. Usa el reloj del estudio (video_reloj) y un COLCHÓN de `latencia_ms` (de fábrica, el del "
-            "estudio): cada cuadro sale a su hora de captura + latencia, así dos streams con la misma latencia "
+            "estudio; la `escena` se crea si no existe): cada cuadro sale a su hora de captura + latencia, así dos streams con la misma latencia "
             "salen juntos. RTSP trae la hora de captura del que manda (RTCP/NTP): se alinea solo. SRT y RTMP no la "
             "traen: el desfase entre ellos se mide con video_sincronia. Sobre una entrada de red que ya existe, la "
             "actualiza (otra uri o latencia).";
@@ -652,15 +667,21 @@ void McpService::registerVideoTools() {
                            {"normalizar",
                             {{"type", "boolean"},
                              {"description", "de fábrica, sí: GStreamer la desentrelaza si hace falta, la lleva a los cuadros "
-                                             "del estudio, a píxel cuadrado y a color BT.709 antes de entrar"}}}}}};
+                                             "del estudio, a píxel cuadrado y a color BT.709 antes de entrar"}}},
+                           {"ntp_sync",
+                            {{"type", "boolean"},
+                             {"description", "RTSP: usar la hora de captura que manda la cámara (de fábrica, sí). Si su reloj "
+                                             "está corrido (video_estado lo avisa), false"}}}}}};
         t.examples = {R"({"nombre": "Móvil SRT", "uri": "srt://:9000?mode=listener", "escena": "Móvil", "latencia_ms": 300})",
                       R"({"nombre": "Corresponsal", "uri": "rtmp://10.0.0.20/live/corresponsal", "escena": "Móvil"})"};
         t.run = [v](const json& a, Done done) {
             if (!v) return done(ToolResult::error("el video no está disponible"));
             const std::string n = a.value("nombre", std::string());
             const std::string err = v->crearEntradaRed(n, a.value("uri", std::string()), a.value("latencia_ms", -1),
-                                                       a.value("escena", std::string()), a.value("audio", true),
-                                                       a.value("normalizar", true));
+                                                       a.value("escena", std::string()),
+                                                       a.contains("audio") ? (a.value("audio", true) ? 1 : 0) : -1,
+                                                       a.contains("normalizar") ? (a.value("normalizar", true) ? 1 : 0) : -1,
+                                                       a.contains("ntp_sync") ? (a.value("ntp_sync", true) ? 1 : 0) : -1);
             if (!err.empty()) return done(ToolResult::error(err));
             json st = v->estadoEntrada(n);
             st["nota"] = "la conexión tarda unos segundos: mirá de nuevo con video_estado";

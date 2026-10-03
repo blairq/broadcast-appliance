@@ -102,10 +102,21 @@ json diagnosticar(const json& e) {
                     "el reloj «" + g.value("reloj", std::string()) + "» todavía no está sincronizado: los cuadros salen a "
                     "destiempo",
                     "esperar unos segundos; si no sincroniza, revisar `video_reloj` (servidor y puerto accesibles)");
-        const double recibidos = g.value("recibidos", 0.0), tarde = g.value("llegaron_tarde", 0.0);
+        // Los cuadros tarde de los ÚLTIMOS 10 s (los del arranque no cuentan).
+        const double recibidos = g.value("recibidos_10s", g.value("recibidos", 0.0)),
+                     tarde = g.value("tarde_10s", g.value("llegaron_tarde", 0.0));
+        // El reloj del que manda corrido: los cuadros llegan con mucho más
+        // adelanto que la latencia (o con atraso), y la entrada sale desfasada.
+        const double adelanto = g.value("adelanto_ms", 0.0), lat = g.value("latencia_ms", 0.0) + g.value("desfase_ms", 0.0);
+        if (g.value("recibidos", 0.0) > 30 && adelanto - lat > 250)
+            agregar(out, "aviso", "reloj",
+                    "los cuadros llegan ~" + n0(adelanto - lat) + " ms antes de lo que deberían: la hora de captura que manda «" +
+                        nombre + "» (RTCP/NTP) no coincide con la del estudio, y la entrada sale ATRASADA esos ms",
+                    "poner en hora la cámara (NTP), o no usar su hora: `video_entrada_red {\"nombre\": \"" + nombre +
+                        "\", \"ntp_sync\": false}` (después, si hace falta, alinear con video_sincronia)");
         if (recibidos > 30 && tarde / recibidos > 0.05)
             agregar(out, "aviso", "colchón",
-                    "el " + n0(100 * tarde / recibidos) + "% de los cuadros llegó tarde: el colchón (" +
+                    "en los últimos 10 s el " + n0(100 * tarde / recibidos) + "% de los cuadros llegó tarde: el colchón (" +
                         n0(g.value("latencia_ms", 0.0)) + " ms) es corto para esta red",
                     "subir su colchón: `video_entrada_red {\"nombre\": \"" + nombre +
                         "\", \"latencia_ms\": …}` (sobre la que ya existe, la actualiza), o para todas `video_reloj "

@@ -427,9 +427,21 @@ void Red::reconocer(const std::string& ip) {
         e["siguiente_paso"] = siguientePaso(e);
         return trabajoListo();
     }
+    // Un grabador: cuántos canales sugiere el modelo (DS-7208 = 8, DS-7616 = 16).
+    int canales = grabador ? 4 : 1;
+    if (grabador) {
+        static const QRegularExpression re(R"(ds-?[79]\d(\d\d))", QRegularExpression::CaseInsensitiveOption);
+        const auto mm = re.match(QString::fromStdString(pi.onvifModelo + " " + pi.onvifNombre));
+        if (mm.hasMatch() && mm.captured(1).toInt() > 0) {
+            e["canales_segun_modelo"] = mm.captured(1).toInt();
+            canales = std::min(mm.captured(1).toInt(), 16);
+        }
+    }
     json cands = json::array();
-    for (const auto& c : biblioteca_.candidatas(m.id, ip, puertoRtsp, grabador ? 4 : 1))
-        cands.push_back({{"url", c.url}, {"perfil", c.perfil}});
+    // Se prueba el principal de cada canal (el secundario, solo del primero).
+    for (const auto& c : biblioteca_.candidatas(m.id, ip, puertoRtsp, canales))
+        if (!grabador || c.perfil.find("secundario") == std::string::npos || c.url.find("/102") != std::string::npos)
+            cands.push_back({{"url", c.url}, {"perfil", c.perfil}});
     sondearRtsp(ip, cands, [this, ip](json resultados) {
         if (!esc_) return;
         json& e = esc_->equipos[ip];
@@ -509,7 +521,8 @@ void Red::sondearRtsp(const std::string& ip, json candidatas, Listo listo) {
     auto probar = std::make_shared<std::function<void()>>();
     *probar = [this, candidatas, conClave, usuario, pass, resultados, i, vistas, probar, listo]() {
         // Alcanza con dos que se vean (principal y secundario), o se cortan si no contesta nada.
-        if (*i >= candidatas.size() || *vistas >= 2 ||
+        // (En un grabador se prueban todos los canales: cada uno es una cámara.)
+        if (*i >= candidatas.size() || (*vistas >= 2 && candidatas.size() <= 6) ||
             (*i >= 2 && std::all_of(resultados->begin(), resultados->end(), [](const json& r) { return r.value("codigo", 0) == 0; }))) {
             // El ciclo (esta función se tiene a sí misma) se corta en la
             // vuelta siguiente: borrarla ACÁ sería borrar lo que se está
@@ -904,7 +917,7 @@ std::string Red::agregar(const std::string& ip, const json& op, json* hecho) {
     const bool normalizar = op.value("normalizar", fi.value("plan", json::object()).value("argumentos", json::object()).value("normalizar", true));
     const int latencia = op.value("latencia_ms", 200);
     const QString uri = conClave ? rtsp::conClave(QString::fromStdString(url), usuario, pass) : QString::fromStdString(url);
-    const std::string err = video_->crearEntradaRed(nombre, uri.toStdString(), latencia, escena, true, normalizar);
+    const std::string err = video_->crearEntradaRed(nombre, uri.toStdString(), latencia, escena, 1, normalizar ? 1 : 0);
     if (!err.empty()) return err;
     json h{{"entrada", nombre}, {"url", url}, {"normalizar", normalizar}, {"latencia_ms", latencia}, {"escena", escena}};
     // El PTZ por ONVIF, si lo tiene (y no se pidió que no).
