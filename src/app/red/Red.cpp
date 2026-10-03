@@ -715,7 +715,7 @@ void Red::ficha(const std::string& ip, Listo listo) {
         QNetworkReply* r = http_->post(pedido, datos);
         connect(r, &QNetworkReply::finished, this, [r, cb, f, terminar]() {
             r->deleteLater();
-            const QByteArray xml = r->readAll();
+            const QByteArray xml = r->isOpen() ? r->readAll() : QByteArray(); // cortada por tiempo: ya está cerrada
             try {
                 cb(r->error() == QNetworkReply::NoError && ptz::onvif::leerFalla(xml).isEmpty(), xml);
             } catch (const std::exception& ex) {

@@ -70,7 +70,7 @@ void PtzOnvif::soap(const QString& url, const QString& cuerpo, Respuesta alTermi
     connect(r, &QNetworkReply::finished, this, [this, r, gen, alTerminar = std::move(alTerminar)]() {
         r->deleteLater();
         if (gen != generacion_) return; // de una configuración anterior
-        const QByteArray xml = r->readAll();
+        const QByteArray xml = r->isOpen() ? r->readAll() : QByteArray(); // cortada por tiempo: ya está cerrada
         const QString falla = onvif::leerFalla(xml);
         if (r->error() != QNetworkReply::NoError && xml.isEmpty()) {
             setEstado(false, QStringLiteral("Sin respuesta de la cámara (%1)").arg(r->errorString()));

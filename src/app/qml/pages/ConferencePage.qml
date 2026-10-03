@@ -1181,7 +1181,7 @@ Rectangle {
                 visible: wgDlg.config !== ""
                 Layout.fillWidth: true
                 Layout.preferredHeight: 260
-                TextArea { readOnly: true; text: wgDlg.config; font.family: "monospace"; font.pixelSize: 11; wrapMode: TextEdit.NoWrap; selectByMouse: true }
+                TextArea { readOnly: true; text: wgDlg.config; font.family: Theme.mono; font.pixelSize: 11; wrapMode: TextEdit.NoWrap; selectByMouse: true }
             }
             GlassButton { visible: wgDlg.config !== ""; text: "Copiar configuracion"; compact: true; onClicked: Studio.copiar(wgDlg.config) }
         }

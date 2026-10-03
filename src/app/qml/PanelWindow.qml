@@ -104,7 +104,9 @@ Window {
     }
 
     Shortcut {
-        sequence: StandardKey.Cancel
+        // `sequences`: StandardKey.Cancel tiene varias teclas (Esc y Cmd+.) y con
+        // `sequence` Qt avisaba que solo tomaba una.
+        sequences: [StandardKey.Cancel]
         onActivated: w.close()
     }
 }

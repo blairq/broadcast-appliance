@@ -29,7 +29,7 @@ void ClienteOnvif::soap(const QString& u, const QString& cuerpo, bool conClave, 
     QNetworkReply* r = red_->post(pedido, datos);
     connect(r, &QNetworkReply::finished, this, [r, cb]() {
         r->deleteLater();
-        const QByteArray xml = r->readAll();
+        const QByteArray xml = r->isOpen() ? r->readAll() : QByteArray(); // cortada por tiempo: ya está cerrada
         QString falla = onvif::leerFalla(xml);
         if (falla.isEmpty() && r->error() != QNetworkReply::NoError && xml.isEmpty()) falla = "sin respuesta: " + r->errorString();
         cb(falla.isEmpty(), xml, falla);

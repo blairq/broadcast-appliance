@@ -246,7 +246,7 @@ Rectangle {
                                 Layout.preferredHeight: 150
                                 clip: true
                                 TextArea { id: extraF; wrapMode: TextEdit.NoWrap; selectByMouse: true
-                                           font { family: "monospace"; pixelSize: 11 } }
+                                           font { family: Theme.mono; pixelSize: 11 } }
                             }
                             Text { text: "Instrucciones para este modelo (se suman al prompt)"
                                    color: Theme.textDim; font.pixelSize: 12 }
