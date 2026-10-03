@@ -259,59 +259,44 @@ Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: 10
-            Flow {
+            // Misma barra que el audio: qué veo · qué agrego · cómo lo miro · ⋯
+            BarraGrafo {
                 Layout.fillWidth: true
-                spacing: 8
-                Repeater {
-                    model: page.vg ? page.vg.catalogo.filter(c => c.tipo !== "control") : []
-                    delegate: GlassButton {
-                        required property var modelData
-                        compact: true
-                        text: "+ " + modelData.titulo
-                        enabled: page.vg && page.vg.entrada !== ""
-                        // Después de la tarjeta elegida (o antes de la escena).
-                        onClicked: page.avisar(page.vg.agregar(modelData.tipo, page.nodo && page.nodo.tipo !== "escena" && !page.nodo.externo ? page.sel : ""))
-                        ToolTip.visible: hovered
-                        ToolTip.delay: 500
-                        ToolTip.text: modelData.descripcion + (page.nodo && page.nodo.tipo !== "escena" && modelData.ambito !== "estudio" ? " Va después de la tarjeta elegida." : "")
-                    }
-                }
-                GlassButton {
-                    compact: true
-                    text: "+ Módulos…"
-                    icon: "⌕"
-                    enabled: page.vg && page.vg.entrada !== ""
-                    onClicked: catalogo.open()
-                    ToolTip.visible: hovered; ToolTip.delay: 400
-                    ToolTip.text: "Cualquier módulo de video de GStreamer o filtro de OBS como tarjeta, con su ayuda: color, llaves, desentrelazado, textos y reloj, nitidez, efectos, OpenGL…"
-                }
-                GlassButton {
-                    compact: true
-                    text: "Sincronía y red…"
-                    icon: "⏱"
-                    onClicked: sincronia.open()
-                    ToolTip.visible: hovered; ToolTip.delay: 400
-                    ToolTip.text: "Reloj del estudio, entradas de red (SRT, RTMP, RTSP) con su diagnóstico, medir y corregir la sincronía entre entradas"
-                }
-                Item { width: 12; height: 1 }
-                GlassButton { compact: true; text: "Racks"; active: page.vista === "racks"; onClicked: page.vg.vista = "racks"
-                              ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "El pipeline de la entrada elegida" }
-                GlassButton { compact: true; text: "Estudio"; icon: "▦"; active: page.vista === "estudio"; onClicked: page.vg.vista = "estudio"
-                              ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Todas las entradas, cada una en su franja, y los cables entre ellas" }
-                Item { width: 12; height: 1 }
-                GlassButton {
-                    compact: true
-                    text: "Volver a como vino"
-                    visible: page.g.trivial === false
-                    onClicked: ApplicationWindow.window.confirm({
+                titulo: page.vista === "estudio" ? "Estudio" : (page.vg ? page.vg.entrada : "")
+                vistas: [
+                    { id: "racks", t: "Racks", tip: "El pipeline de la entrada elegida" },
+                    { id: "estudio", t: "Estudio", icon: "▦", tip: "Todas las entradas, cada una en su franja, y los cables entre ellas" }
+                ]
+                vista: page.vista
+                onElegirVista: (id) => page.vg.vista = id
+                puedeAgregar: !!page.vg && page.vg.entrada !== ""
+                porQueNoAgregar: "Elegí una entrada a la izquierda"
+                agregar: [
+                    { titulo: "Tarjetas" + (page.nodo && page.nodo.tipo !== "escena" && !page.nodo.externo ? " (van después de «" + (page.nodo.etiqueta || page.sel) + "»)" : ""),
+                      items: (page.vg ? page.vg.catalogo.filter(c => c.tipo !== "control") : []).map(c => ({
+                          t: c.titulo, tip: c.descripcion,
+                          f: () => page.avisar(page.vg.agregar(c.tipo, page.nodo && page.nodo.tipo !== "escena" && !page.nodo.externo ? page.sel : ""))
+                      })) },
+                    { titulo: "Todos los módulos",
+                      items: [{ t: "Buscar módulo…", tip: "Cualquier módulo de video de GStreamer o filtro de OBS como tarjeta, con su ayuda: color, llaves, desentrelazado, textos y reloj, nitidez, efectos, OpenGL…", f: () => catalogo.open() }] }
+                ]
+                acciones: [
+                    { t: "Sincronía y red…", icon: "⏱", f: () => sincronia.open(),
+                      tip: "Reloj del estudio, entradas de red (SRT, RTMP, RTSP) con su diagnóstico, medir y corregir la sincronía entre entradas" }
+                ]
+                mas: page.g.trivial === false ? [{
+                    t: "Volver a como vino", peligro: true, tip: "Saca todas las tarjetas de esta entrada",
+                    f: () => ApplicationWindow.window.confirm({
                         title: "¿Sacar todas las tarjetas de «" + page.vg.entrada + "»?",
                         text: "La entrada vuelve a ir directo a la escena. Las salidas que estén en escenas quedan en negro.",
                         accept: "Sacar todo", reject: "Cancelar",
                         action: function() { page.avisar(page.vg.limpiar()); page.sel = "" }
                     })
-                }
+                }] : []
+                lienzo: grafo
             }
             Patchbay {
+                id: grafo
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 nodos: page.vista === "estudio" ? page.nodosEstudio : page.nodosVista
@@ -323,7 +308,6 @@ Rectangle {
                 onMover: (id, x, y) => page.avisar(page.vg.mover(id, x, page.vista === "estudio" ? y - 30 : y))
                 onConectar: (desde, salida, hacia, entrada) => page.avisar(page.vg.conectar(desde, salida, hacia, entrada))
                 onDesconectar: (desde, salida, hacia, entrada) => page.avisar(page.vg.desconectar(desde, salida, hacia, entrada))
-                puedeOrdenar: true
                 onOrdenar: page.avisar(page.vg.ordenar())
             }
             Text {

@@ -194,7 +194,9 @@ Rectangle {
 
         // --- Fuentes con audio + salida de escucha -------------------------------------------
         ColumnLayout {
+            Layout.fillWidth: false  // ancho fijo aunque un texto largo empuje (ver EquiposPage)
             Layout.preferredWidth: 250
+            Layout.maximumWidth: 250
             Layout.fillHeight: true
             spacing: 10
 
@@ -316,147 +318,46 @@ Rectangle {
             Layout.fillHeight: true
             spacing: 10
 
-            // El Flow va dentro de un Item que el layout dimensiona: si se le
-            // deja a el mismo el Layout.fillWidth, su alto depende del ancho y
-            // el ancho de su alto, y Qt aborta el layout ("polish loop").
-            Item {
+            // Misma barra que el video: qué veo · qué agrego · cómo lo miro · ⋯
+            BarraGrafo {
                 Layout.fillWidth: true
-                implicitHeight: barra.implicitHeight
-            Flow {
-                id: barra
-                width: parent.width
-                spacing: 6
-                Text { text: page.au ? page.au.source : ""; color: Theme.text; font { pixelSize: 17; weight: Font.DemiBold } }
-                Item { width: 12; height: 1 }
-                // Primero de la fila: manda el audio de esta fuente a una salida
-                // del equipo (auriculares, parlantes) sin tocar lo que va al aire.
-                GlassButton {
-                    compact: true
-                    text: "+ Salida"
-                    activeColor: "#a78bfa"
-                    active: true
-                    onClicked: outPopup.open()
-                    ToolTip.visible: hovered; ToolTip.delay: 400
-                    ToolTip.text: "Agrega una tarjeta de salida de audio a este grafo: conectale lo que quieras oír."
-                }
-                // Entrada: el audio de OTRA fuente (el micrófono, un invitado,
-                // un canal de placa) como una tarjeta más de este grafo.
-                GlassButton {
-                    compact: true
-                    text: "+ Entrada"
-                    activeColor: "#38bdf8"
-                    active: true
-                    onClicked: entradaPopup.open()
-                    ToolTip.visible: hovered; ToolTip.delay: 400
-                    ToolTip.text: "Trae el audio de otra fuente (por ejemplo, el micrófono) como una tarjeta de este grafo."
-                    Popup {
-                        id: entradaPopup
-                        y: parent.height + 4
-                        padding: 8
-                        background: Rectangle { color: Theme.panel; radius: Theme.radiusSmall; border.color: Theme.glassBorder }
-                        ColumnLayout {
-                            spacing: 4
-                            Text { text: "¿De qué fuente?"; color: Theme.textDim; font.pixelSize: 12 }
-                            Repeater {
-                                model: page.au ? page.au.sources.filter(x => x.nombre !== page.au.source) : []
-                                delegate: GlassButton {
-                                    required property var modelData
-                                    Layout.fillWidth: true; compact: true
-                                    text: modelData.nombre + (modelData.grupo ? "  ·  " + modelData.grupo : "")
-                                    onClicked: { page.msg = page.au.addEntrada(modelData.nombre); entradaPopup.close() }
-                                }
-                            }
-                        }
-                    }
-                }
-                // Texto a voz: dice una salida de texto (o lo que se le pide)
-                // con la voz y el idioma elegidos.
-                GlassButton {
-                    compact: true
-                    visible: !!Studio.voces
-                    text: "+ Texto a voz"
-                    activeColor: "#f472b6"
-                    active: true
-                    onClicked: page.msg = page.au.addHabla()
-                    ToolTip.visible: hovered; ToolTip.delay: 400
-                    ToolTip.text: "Dice en voz alta (con la voz y el idioma que elijas) lo que llega por una salida de texto."
-                }
-                // Voz a texto: como una salida, pero al reconocedor (dictado al
-                // asistente o transcripción continua).
-                GlassButton {
-                    compact: true
-                    visible: Studio.voz.disponible
-                    text: "+ Voz a texto"
-                    activeColor: "#22c55e"
-                    active: true
-                    onClicked: textoPopup.open()
-                    ToolTip.visible: hovered; ToolTip.delay: 400
-                    ToolTip.text: "Transcribe lo que le llega: para dictarle al asistente o para subtítulos y acta."
-                    Popup {
-                        id: textoPopup
-                        y: parent.height + 4
-                        padding: 8
-                        background: Rectangle { color: Theme.panel; radius: Theme.radiusSmall; border.color: Theme.glassBorder }
-                        ColumnLayout {
-                            spacing: 6
-                            GlassButton {
-                                Layout.fillWidth: true; compact: true; text: "Dictado al asistente (F9)"
-                                onClicked: { page.msg = page.au.addTexto("dictado"); textoPopup.close() }
-                            }
-                            GlassButton {
-                                Layout.fillWidth: true; compact: true; text: "Transcripción continua"
-                                onClicked: { page.msg = page.au.addTexto("continuo"); textoPopup.close() }
-                            }
-                        }
-                    }
-                }
-                Repeater {
-                    model: page.au ? page.au.catalog : []
-                    delegate: GlassButton {
-                        required property var modelData
-                        compact: true
-                        text: "+ " + modelData.titulo
-                        onClicked: page.msg = page.au.addModule(modelData.clave, "")
-                        ToolTip.visible: hovered; ToolTip.text: modelData.ayuda; ToolTip.delay: 400
-                    }
-                }
-                GlassButton { compact: true; text: "+ Analizador"; onClicked: page.msg = page.au.addAnalyzer() }
-                GlassButton { compact: true; text: "+ Generador"; onClicked: page.msg = page.au.addGenerator() }
-                GlassButton { compact: true; text: "+ Filtros…"; icon: "⌕"; onClicked: catalogoFiltros.open()
-                              ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Todos los filtros LSP con captura, búsqueda avanzada y para qué sirve cada uno." }
+                titulo: page.au ? page.au.source : ""
+                agregar: [
+                    { titulo: "Conectar", items: [
+                        { t: "Salida (auriculares, parlantes…)", color: "#a78bfa", f: () => outPopup.open(),
+                          tip: "Una tarjeta de salida de audio en este grafo: conectale lo que quieras oír, sin tocar lo que va al aire." }
+                    ].concat((page.au ? page.au.sources.filter(x => x.nombre !== page.au.source) : []).map(x => ({
+                        t: "Entrada: " + x.nombre, color: "#38bdf8", f: () => page.msg = page.au.addEntrada(x.nombre),
+                        tip: "Trae el audio de «" + x.nombre + "»" + (x.grupo ? " (" + x.grupo + ")" : "") + " como una tarjeta de este grafo."
+                    }))) },
+                    { titulo: "Procesar", items: (page.au ? page.au.catalog : []).map(c => ({
+                        t: c.titulo, tip: c.ayuda, f: () => page.msg = page.au.addModule(c.clave, "")
+                    })).concat([{ t: "Filtros LSP…", tip: "Todos los filtros LSP con captura, búsqueda avanzada y para qué sirve cada uno.", f: () => catalogoFiltros.open() }]) },
+                    { titulo: "Medir y generar", items: [
+                        { t: "Analizador", tip: "Espectro y niveles de lo que le llega", f: () => page.msg = page.au.addAnalyzer() },
+                        { t: "Generador", tip: "Tono, ruido o barrido para probar la cadena", f: () => page.msg = page.au.addGenerator() }
+                    ] },
+                    { titulo: "Voz", items: [].concat(
+                        Studio.voces ? [{ t: "Texto a voz", color: "#f472b6", f: () => page.msg = page.au.addHabla(),
+                                          tip: "Dice en voz alta (con la voz y el idioma que elijas) lo que llega por una salida de texto." }] : [],
+                        Studio.voz.disponible ? [
+                            { t: "Voz a texto: dictado al asistente (F9)", color: "#22c55e", f: () => page.msg = page.au.addTexto("dictado"),
+                              tip: "Transcribe lo que le llega para dictarle al asistente." },
+                            { t: "Voz a texto: transcripción continua", color: "#22c55e", f: () => page.msg = page.au.addTexto("continuo"),
+                              tip: "Transcribe todo el tiempo: subtítulos y acta." }
+                        ] : []) }
+                ]
+                acciones: [
+                    // Un rack armado a mano es media hora de trabajo: guardarlo con
+                    // nombre permite ponérselo a otra fuente en un clic.
+                    { t: "Plantillas", icon: "▤", f: () => plantillasPopup.open(),
+                      tip: "Guardar este rack con nombre, o ponerle a esta fuente uno guardado" }
+                ]
                 // Si una ventana LSP no aparece (casi siempre: el zoom de su menú
                 // la hizo más grande que la pantalla), esto la vuelve a la normalidad.
-                GlassButton {
-                    compact: true; text: "Restablecer interfaz LSP"; icon: "↺"
-                    onClicked: page.msg = page.au.restablecerInterfazLsp()
-                    ToolTip.visible: hovered; ToolTip.delay: 400
-                    ToolTip.text: "Cierra las ventanas LSP y vuelve su zoom, escala y letra a lo de fábrica (guarda una copia). Para cuando la interfaz de un filtro no aparece."
-                }
-                Item { width: 12; height: 1 }
-                // Un rack armado a mano es media hora de trabajo: guardarlo con
-                // nombre permite ponerselo a otra fuente en un clic.
-                GlassButton {
-                    compact: true
-                    text: "Plantillas"
-                    icon: "▤"
-                    onClicked: plantillasPopup.open()
-                    ToolTip.visible: hovered; ToolTip.delay: 400
-                    ToolTip.text: "Guardar este rack con nombre, o ponerle a esta fuente uno guardado"
-                }
-                Item { width: 12; height: 1 }
-                GlassButton {
-                    compact: true; text: "Ordenar"
-                    onClicked: page.au.tidy()
-                    ToolTip.visible: hovered; ToolTip.delay: 400
-                    ToolTip.text: "Acomoda las tarjetas en la grilla, siguiendo el orden de la cadena"
-                }
-                GlassButton {
-                    compact: true; text: "Grilla"; active: page.showGrid
-                    onClicked: page.showGrid = !page.showGrid
-                    ToolTip.visible: hovered; ToolTip.delay: 400
-                    ToolTip.text: "Dejar la grilla a la vista (si no, aparece sola al mover algo)"
-                }
-            }
+                mas: [{ t: "Restablecer interfaz LSP", f: () => page.msg = page.au.restablecerInterfazLsp(),
+                        tip: "Cierra las ventanas LSP y vuelve su zoom, escala y letra a lo de fábrica (guarda una copia). Para cuando la interfaz de un filtro no aparece." }]
+                lienzo: lienzoAudio
             }
             Text {
                 Layout.fillWidth: true
@@ -468,26 +369,46 @@ Rectangle {
             }
 
             Rectangle {
+                id: lienzoAudio
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 radius: 16
                 color: Qt.rgba(0, 0, 0, 0.25)
                 border.color: Qt.rgba(1, 1, 1, 0.06)
                 clip: true
+                // La API que usa BarraGrafo (la misma que el Patchbay del video).
+                property real zoom: 0   // 0 = que entre a lo ancho (sin agrandar)
+                property alias grilla: page.showGrid
+                readonly property real anchoGrafo: {
+                    let m = 0
+                    for (let k = 0; k < page.nodes.length; ++k) m = Math.max(m, page.nodes[k].x + page.nodeW)
+                    return m + 40
+                }
+                readonly property real escala: zoom > 0 ? zoom : Math.max(0.4, Math.min(1, (flick.width - 8) / Math.max(1, anchoGrafo)))
+                function acercar(f) { zoom = Math.max(0.25, Math.min(2.5, escala * f)) }
+                function ordenar() { page.au.tidy() }
+                // Cmd/Ctrl + rueda: zoom (la rueda sola sigue desplazando).
+                WheelHandler {
+                    target: null
+                    acceptedModifiers: Qt.ControlModifier | Qt.MetaModifier
+                    onWheel: (ev) => lienzoAudio.acercar(ev.angleDelta.y > 0 ? 1.12 : 1 / 1.12)
+                }
 
                 Flickable {
                     id: flick
                     anchors.fill: parent
-                    contentWidth: 2600
-                    contentHeight: 1400
+                    contentWidth: canvas.width * lienzoAudio.escala
+                    contentHeight: canvas.height * lienzoAudio.escala
                     interactive: page.wire === null
                     ScrollBar.horizontal: ScrollBar {}
                     ScrollBar.vertical: ScrollBar {}
 
                     Item {
                         id: canvas
-                        width: flick.contentWidth
-                        height: flick.contentHeight
+                        width: 2600
+                        height: 1400
+                        scale: lienzoAudio.escala
+                        transformOrigin: Item.TopLeft
                         MouseArea { anchors.fill: parent; onClicked: page.au.select("") }
 
                         // Grilla: fija con el boton, o mientras se acomoda algo.

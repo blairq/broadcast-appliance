@@ -58,8 +58,13 @@ Rectangle {
         spacing: 16
 
         // --- Detectores y lista -------------------------------------------------------
+        // Ancho FIJO: un layout con hijos que llenan a lo ancho se vuelve él
+        // mismo «fillWidth», y con los detalles largos de la red se comía la
+        // pantalla y empujaba el equipo elegido afuera.
         ColumnLayout {
+            Layout.fillWidth: false
             Layout.preferredWidth: 380
+            Layout.maximumWidth: 380
             Layout.fillHeight: true
             spacing: 10
             Text { text: "Equipos"; color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
