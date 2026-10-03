@@ -93,6 +93,7 @@ Está en `src/plugins/sdk/ba_plugin/__init__.py`, con el docstring completo. En 
   - **UVC**: `UVC.abrir(vid, pid)` con PTZ estándar (`mover/parar/ir_a/rangos`) y las unidades de extensión de la marca (`unidades/xu_explorar/xu_leer/xu_escribir`). No le saca la imagen al sistema;
   - HID (`hid_listar/hid_abrir`);
   - serie (`serie_listar`).
+- `ba_plugin.herramientas`: ffmpeg, ffprobe, yt-dlp y gst-launch **del programa** (`tools/deps/herramientas.sh`, en `herramientas/` del bundle y primeros en el PATH de cada plugin): `ruta(nombre)`, `correr(nombre, *args)`, `probar(archivo)` (ffprobe en JSON). No se bajan.
 - `ba_plugin.probar` corre el plugin **sin la app**. Le pasa cuadros y audio de prueba a sus tarjetas, escucha sus entradas, llama controles y devuelve un informe JSON. Es `plugin_probar`.
 
 ## Procesos: posix_spawn, no QProcess

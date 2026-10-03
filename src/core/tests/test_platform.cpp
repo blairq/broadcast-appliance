@@ -26,6 +26,7 @@
 //   4. SingleInstance: exclusion dentro del proceso y entre procesos.
 
 #include "ipc/ControlProtocol.hpp"
+#include "platform/Herramientas.hpp"
 #include "platform/LocalSocket.hpp"
 #include "platform/Paths.hpp"
 #include "platform/Process.hpp"
@@ -278,6 +279,31 @@ int childMain(int argc, char** argv) {
 // ============================================================================
 // 1) Paths
 // ============================================================================
+
+// Las herramientas de medios: primeras en el PATH, una sola vez, con sus variables.
+void testHerramientas() {
+    namespace fs = std::filesystem;
+#ifndef _WIN32
+    const fs::path dir = fs::temp_directory_path() / ("ba-herr-" + std::to_string(::getpid()));
+    fs::create_directories(dir);
+    { std::ofstream(dir / "ffmpeg") << "#!/bin/sh\n"; }
+    setenv("BA_HERRAMIENTAS_RAIZ", dir.string().c_str(), 1);
+    setenv("PATH", "/usr/bin:/bin", 1);
+    CHECK(herramientasDir() == dir);
+    CHECK(herramienta("ffmpeg") == dir / "ffmpeg");
+    CHECK(herramienta("no-existe").empty());
+    CHECK(prepararHerramientas());
+    const std::string path = std::getenv("PATH");
+    CHECK(path.rfind(dir.string() + ":", 0) == 0);
+    CHECK(path.find("/usr/bin:/bin") != std::string::npos);
+    CHECK(std::string(std::getenv("BA_FFMPEG")) == (dir / "ffmpeg").string());
+    CHECK(std::string(std::getenv("BA_HERRAMIENTAS")) == dir.string());
+    prepararHerramientas(); // no se acumula
+    CHECK(std::string(std::getenv("PATH")) == path);
+    unsetenv("BA_HERRAMIENTAS_RAIZ");
+    fs::remove_all(dir);
+#endif
+}
 
 void testPaths() {
     namespace fs = std::filesystem;
@@ -671,6 +697,7 @@ int main(int argc, char** argv) {
 #endif
 
     testPaths();
+    testHerramientas();
     testProcessExitCode();
     testProcessMissingExe();
     testProcessEnvAndCwd();

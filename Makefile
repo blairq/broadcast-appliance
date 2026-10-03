@@ -235,7 +235,7 @@ deps-webrtc-win:
 # para los headers), libwebrtc de Windows y las fuentes compartidas.
 deps-win: deps-win-toolchain deps-qt deps-qt-host deps-obs deps-obs-deps-win deps-ndi-src deps-webrtc-win \
           deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared deps-clap deps-lsp-win \
-          deps-libreoffice-win
+          deps-libreoffice-win deps-herramientas-win
 
 # Plugins LSP (CLAP) para Windows: compilados desde fuente (tools/deps/lsp-win.sh).
 deps-lsp-win: deps-win-toolchain
@@ -303,7 +303,7 @@ dist-win: release-win
 # Todo lo que el build completo de Linux necesita (libobs y sus deps desde
 # fuente, Qt del host, libwebrtc de Linux, fuentes compartidas...).
 deps-linux: deps-obs-linux deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared-host \
-            deps-clap deps-lsp deps-libreoffice-linux deps-sherpa-onnx
+            deps-clap deps-lsp deps-libreoffice-linux deps-sherpa-onnx deps-herramientas
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=linux
 
 # --- macOS arm64 (Apple Silicon), nativo -------------------------------------
@@ -337,7 +337,7 @@ check-macos-tools:
 # deps-ndi-src: el fuente de libmicrodns (buscar televisores por mDNS); en
 # Linux viene compilada con obs-deps.
 deps-macos: check-macos-tools deps-obs-macos deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts \
-            deps-cloudflared-host deps-clap deps-ndi-src deps-libreoffice-mac deps-sherpa-onnx deps-gstreamer-macos deps-python
+            deps-cloudflared-host deps-clap deps-ndi-src deps-libreoffice-mac deps-sherpa-onnx deps-gstreamer-macos deps-python deps-herramientas
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=macos
 	@# LSP (modulos del rack de audio) es opcional en macOS mientras se valida:
 	@# sin el, el rack funciona con el analizador y el generador.
@@ -1421,6 +1421,23 @@ deps-python:
 		echo "Python ya está ($(EXTERNS_DIR)/python)"; exit 0; fi; \
 	$(MAKE) --no-print-directory _ba_baja ARCHIVO="$(DL_DIR)/$(PY_TGZ)" URL="$(PY_URL)/$(subst +,%2B,$(PY_TGZ))" SHA="$(PY_SHA)" QUE="Python" && \
 	bash tools/deps/python.sh "$(DL_DIR)/$(PY_TGZ)" "$(EXTERNS_DIR)/python"
+
+# --- Herramientas de medios (ffmpeg, ffprobe, yt-dlp, deno) --------------------
+# Adentro del programa (herramientas/): para arreglar o bajar un video sin
+# bajar nada en el momento. Versiones y sha256 fijados en el script.
+# HERR_PLAT: macos-arm64 | linux-x64 | linux-arm64 | win-x64 (por defecto, el host).
+HERR_HOST := $(shell uname -s)-$(shell uname -m)
+HERR_PLAT ?= $(if $(filter Darwin-arm64,$(HERR_HOST)),macos-arm64,$(if $(filter Linux-x86_64,$(HERR_HOST)),linux-x64,$(if $(filter Linux-aarch64,$(HERR_HOST)),linux-arm64,win-x64)))
+
+.PHONY: deps-herramientas
+deps-herramientas:
+	@if [ -f "$(EXTERNS_DIR)/herramientas/$(HERR_PLAT)/LICENCIAS.txt" ] && grep -q "yt-dlp 2026.08.19" "$(EXTERNS_DIR)/herramientas/$(HERR_PLAT)/LICENCIAS.txt"; then \
+		echo "Herramientas ya están ($(EXTERNS_DIR)/herramientas/$(HERR_PLAT))"; exit 0; fi; \
+	bash tools/deps/herramientas.sh "$(HERR_PLAT)" "$(DL_DIR)" "$(EXTERNS_DIR)/herramientas/$(HERR_PLAT)"
+
+.PHONY: deps-herramientas-win
+deps-herramientas-win:
+	@$(MAKE) --no-print-directory deps-herramientas HERR_PLAT=win-x64
 
 .PHONY: deps-gstreamer-macos
 deps-gstreamer-macos:
