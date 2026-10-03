@@ -411,9 +411,9 @@ void Traductor::alFrase(const QString& flujo, const QString& texto) {
             if (c > 40) j.texto = j.texto.left(c + 1);
             soltar(id);
             juntas_[id].texto = resto;
-            if (!resto.isEmpty()) juntas_[id].timer->start(t.value("espera_ms", 1200));
+            if (!resto.isEmpty()) juntas_[id].timer->start(t.value("espera_ms", 600));
         } else {
-            j.timer->start(t.value("espera_ms", 1200));
+            j.timer->start(t.value("espera_ms", 600));
         }
     }
 }

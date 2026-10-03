@@ -652,6 +652,10 @@ Rectangle {
 
                 // Lo dictado, por el modelo local: qué se hace sin preguntar
                 // Los auriculares del operador: la escucha de toda la app.
+                // Subtítulos y traducción: cuándo corta una frase la transcripción continua.
+                AjustesCorte { Layout.fillWidth: true }
+                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
+
                 Text { text: "Salida de auriculares del operador"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
                 Text {
                     Layout.fillWidth: true

@@ -55,6 +55,9 @@ ColumnLayout {
         color: Theme.amber; font.pixelSize: 11
     }
 
+    AjustesCorte { Layout.fillWidth: true }
+    Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
+
     // --- Probar ---------------------------------------------------------------------
     Text { text: "Probar"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
     RowLayout {

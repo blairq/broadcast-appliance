@@ -8,6 +8,7 @@
 // ============================================================================
 
 #include "agent/Traductor.hpp"
+#include "agent/Voz.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/StudioViewModel.hpp"
@@ -136,6 +137,40 @@ void McpService::registerTraduccionTools() {
             const json faltaban = t->faltan(de, para);
             if (const std::string e = t->bajar(de, para); !e.empty()) return done(ToolResult::error(e));
             done(ToolResult().data({{"bajando", faltaban}, {"nota", faltaban.empty() ? "ya estaba todo" : "se bajan de a uno"}}));
+        };
+        core_.addTool(std::move(x));
+    }
+    {
+        Tool x;
+        x.name = "voz_cortes";
+        x.title = "Cuándo corta una frase la transcripción continua";
+        x.category = "traduccion";
+        x.description =
+            "Sin argumentos: los cortes de la transcripción continua (la que alimenta subtítulos y traducción) y lo que oye cada "
+            "una ahora. Con `pausa` (silencio que corta, 0,1-3 s; 0,35 típico), `maximo` (largo máximo de frase, 2-30 s; al "
+            "pasarlo corta en la próxima pausa corta; 6 típico) y/o `umbral` (0,1-0,95; más alto ignora el ruido de la sala; "
+            "0,5 típico): los cambia y se guardan. Si el operador dice que «no corta nunca», bajá `maximo` y subí `umbral`.";
+        x.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"pausa", {{"type", "number"}}}, {"maximo", {{"type", "number"}}}, {"umbral", {{"type", "number"}}}}}};
+        x.run = [vmp = &vm_](const json& a, Done done) {
+            auto* vz = qobject_cast<agent::Voz*>(vmp->voz());
+            if (vz == nullptr) return done(ToolResult::error("la voz no está"));
+            QVariantMap c = vz->cortes();
+            if (a.contains("pausa") || a.contains("maximo") || a.contains("umbral")) {
+                const QString e = vz->setCortes(a.value("pausa", c.value("pausa").toDouble()), a.value("maximo", c.value("maximo").toDouble()),
+                                                a.value("umbral", c.value("umbral").toDouble()));
+                if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+                c = vz->cortes();
+            }
+            json oido = json::array();
+            for (const QVariant& v : vz->oido()) {
+                const QVariantMap m = v.toMap();
+                oido.push_back({{"flujo", m.value("flujo").toString().toStdString()}, {"hablando", m.value("hablando").toBool()},
+                                {"segundos", m.value("segundos").toDouble()}});
+            }
+            done(ToolResult().data({{"pausa", c.value("pausa").toDouble()}, {"maximo", c.value("maximo").toDouble()},
+                                    {"umbral", c.value("umbral").toDouble()}, {"oido", oido}}));
         };
         core_.addTool(std::move(x));
     }

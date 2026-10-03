@@ -38,6 +38,7 @@
 #include <nlohmann/json.hpp>
 
 #include <QObject>
+#include <QTimer>
 #include <QSet>
 #include <QString>
 #include <QVariantList>
@@ -112,6 +113,11 @@ class Voz : public QObject {
     Q_PROPERTY(QVariantList salidasAudio READ salidasAudio NOTIFY cambio)
     /// Las herramientas que se hacen sin preguntar: [{herramienta, titulo}].
     Q_PROPERTY(QVariantList automaticas READ automaticas NOTIFY cambio)
+    /// Cuándo corta una frase la transcripción continua (subtítulos, traducción):
+    /// {pausa, maximo, umbral} (ver audio::Escucha::Cortes).
+    Q_PROPERTY(QVariantMap cortes READ cortes NOTIFY cambio)
+    /// Lo que oye ahora cada transcripción continua: [{flujo, hablando, segundos}].
+    Q_PROPERTY(QVariantList oido READ oido NOTIFY oidoCambio)
 
    public:
     Voz(AppRuntime& rt, ModelosLocales& modelos, QObject* parent = nullptr);
@@ -125,6 +131,10 @@ class Voz : public QObject {
     QString ultimo() const { return ultimo_; }
     QString tecla() const { return "F9"; }
 
+    QVariantMap cortes() const;
+    QVariantList oido() const { return oido_; }
+    /// Cambia los cortes (y los guarda). "" o el error.
+    Q_INVOKABLE QString setCortes(double pausa, double maximo, double umbral);
     Q_INVOKABLE void apretar();
     Q_INVOKABLE void soltar();
     Q_INVOKABLE void cancelar();
@@ -230,6 +240,7 @@ class Voz : public QObject {
     void atenderDesde(const QString& texto, const QString& quien, bool disparador);
 
    signals:
+    void oidoCambio();
     void cambio();
     void transcripcionCambio();
     /// Una frase nueva de la transcripción continua.
@@ -291,6 +302,9 @@ class Voz : public QObject {
     QVariantMap propuesta_;
     bool usarModeloLocal_ = true;
     bool contestarConVoz_ = true;
+    double cortePausa_ = 0.35, corteMaximo_ = 6.0, corteUmbral_ = 0.5;
+    QVariantList oido_;
+    ::QTimer* oidoT_ = nullptr;
     QVariantMap vozParaOtros_;
     QStringList automaticas_;
     int ultimoId_ = 0;       ///< el `id` de la última frase atendida (bitácora)

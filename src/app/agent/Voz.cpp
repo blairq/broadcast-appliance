@@ -13,6 +13,7 @@
 #include <QKeyEvent>
 #include <QRegularExpression>
 #include <QTime>
+#include <QTimer>
 
 #include <algorithm>
 #include <chrono>
@@ -45,6 +46,21 @@ Voz::Voz(AppRuntime& rt, ModelosLocales& modelos, QObject* parent)
     monitor_ = std::make_unique<audio::MonitorVoz>();
     monitor_->preparar(); // «Voz del sistema», ya en Audio y en la Matriz
     leerAjustes();
+    escucha_->setCortes({cortePausa_, corteMaximo_, corteUmbral_});
+    // Lo que oye cada transcripción continua, para el indicador de la interfaz
+    // (encontrar el punto justo de los cortes hablando).
+    oidoT_ = new QTimer(this);
+    oidoT_->setInterval(200);
+    connect(oidoT_, &QTimer::timeout, this, [this]() {
+        QVariantList l;
+        for (const auto& [k, o] : escucha_->oido())
+            l << QVariantMap{{"flujo", QString::fromStdString(k)}, {"hablando", o.hablando}, {"segundos", o.segundos}};
+        if (l != oido_) {
+            oido_ = l;
+            emit oidoCambio();
+        }
+    });
+    oidoT_->start();
     // Las frases de la transcripción continua (llegan en el hilo de Escucha).
     // La clave es el nombre de la SALIDA DE TEXTO (la tarjeta), no la fuente.
     escucha_->setFrase([this](const std::string& flujo, const audio::Escucha::Resultado& r) {
@@ -838,6 +854,9 @@ void Voz::leerAjustes() {
     velocidad_ = std::clamp(j.value("velocidad", 1.0), 0.7, 1.5);
     usarModeloLocal_ = j.value("modeloLocal", true);
     contestarConVoz_ = j.value("contestarConVoz", true);
+    cortePausa_ = j.value("corte_pausa", 0.35);
+    corteMaximo_ = j.value("corte_maximo", 6.0);
+    corteUmbral_ = j.value("corte_umbral", 0.5);
     automaticas_.clear();
     for (const auto& h : j.value("automaticas", nlohmann::json::array()))
         if (h.is_string()) automaticas_ << QString::fromStdString(h.get<std::string>());
@@ -852,11 +871,33 @@ void Voz::guardarAjustes() const {
                            {"velocidad", velocidad_},
                            {"modeloLocal", usarModeloLocal_},
                            {"contestarConVoz", contestarConVoz_},
+                           {"corte_pausa", cortePausa_},
+                           {"corte_maximo", corteMaximo_},
+                           {"corte_umbral", corteUmbral_},
                            {"automaticas", autos}};
     const QString ruta = archivoAjustes(rt_.dataRoot());
     QDir().mkpath(QFileInfo(ruta).absolutePath());
     QFile f(ruta);
     if (f.open(QIODevice::WriteOnly | QIODevice::Truncate)) f.write(QByteArray::fromStdString(j.dump(1)));
+}
+
+QVariantMap Voz::cortes() const {
+    return {{"pausa", cortePausa_}, {"maximo", corteMaximo_}, {"umbral", corteUmbral_}};
+}
+
+QString Voz::setCortes(double pausa, double maximo, double umbral) {
+    if (pausa < 0.1 || pausa > 3) return "La pausa va de 0,1 a 3 s.";
+    if (maximo < 2 || maximo > 30) return "El largo máximo va de 2 a 30 s.";
+    if (umbral < 0.1 || umbral > 0.95) return "El umbral va de 0,1 a 0,95.";
+    cortePausa_ = pausa;
+    corteMaximo_ = maximo;
+    corteUmbral_ = umbral;
+#if defined(BA_HAVE_VOZ)
+    escucha_->setCortes({pausa, maximo, umbral});
+#endif
+    guardarAjustes();
+    emit cambio();
+    return {};
 }
 
 QVariantList Voz::voces() const {

@@ -23,7 +23,7 @@
 // ORACIONES ENTERAS. La transcripción continua manda un pedazo en cada pausa
 // del orador, a veces a mitad de una idea; traducido suelto sale mal. Se juntan
 // los pedazos hasta que uno termina en punto (., ?, !, …) o pasa `espera_ms`
-// (1,2 s por defecto) sin que llegue otro; uno muy largo se corta en la última
+// (0,6 s por defecto) sin que llegue otro; uno muy largo se corta en la última
 // coma.
 //
 // La configuración (qué se traduce a qué) va en Datos/Config/traducciones.json.
