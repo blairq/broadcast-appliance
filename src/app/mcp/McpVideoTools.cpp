@@ -621,6 +621,21 @@ void McpService::registerVideoTools() {
     }
     {
         Tool t;
+        t.name = "video_ordenar";
+        t.title = "Acomodar las tarjetas del grafo de video";
+        t.category = "video";
+        t.description = "Acomoda las tarjetas del grafo (una franja por entrada, en columnas según la cadena; el botón "
+                        "«Ordenar» de la página Video). No cambia ninguna conexión.";
+        t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
+        t.run = [vg](const json&, Done done) {
+            const QString e = vg->ordenar();
+            if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+            done(ToolResult().text("Tarjetas acomodadas."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "video_estado";
         t.title = "Las entradas de video y cómo está cada una (y qué le pasa)";
         t.category = "video";

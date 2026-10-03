@@ -481,6 +481,24 @@ void McpService::registerAudioTools() {
     }
     {
         Tool t;
+        t.name = "audio_ordenar";
+        t.title = "Acomodar las tarjetas del rack";
+        t.category = "audio_rack";
+        t.description = "Acomoda las tarjetas del rack de `source` en la grilla siguiendo el orden de la cadena (el botón "
+                        "«Ordenar» de la página Audio). No cambia ningún cable.";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"source", kSource}}}, {"required", {"source"}}};
+        t.run = [mgr](const json& a, Done done) {
+            std::string e;
+            AudioRack* r = mgr()->rack(a.value("source", ""), false, &e);
+            if (r == nullptr) return done(ToolResult::error(e.empty() ? "esa fuente no tiene rack" : e));
+            r->layoutGrid();
+            mgr()->markDirty();
+            done(ToolResult().data(r->describe()));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "audio_bypass";
         t.title = "Anular / activar un modulo";
         t.category = "audio_rack";

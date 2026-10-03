@@ -596,6 +596,16 @@ const Fila kPropias[] = {
                      // admitir, perdio las palabras que la encontraban. Las
                      // etiquetas no dependen de como quedo redactada.
                      "no me acuerdo como se llama quien es el que espera como se llama el que llego"},
+    {"traducir", "traducir traduccion idioma ingles portugues frances aleman ruso chino como se dice probar"},
+    {"traduccion_", "traduccion en vivo subtitulos en otro idioma traducir al orador doblaje pista en ingles bajar idioma"},
+    {"traducciones", "traducciones activas en vivo idiomas que se estan traduciendo demora"},
+    {"glosario_", "glosario terminos vocabulario legislativo chubut como se traduce palabra nombre propio corregir traduccion"},
+    {"voz_cortes", "no corta nunca tarda en traducir pausa silencio cortar frase largo maximo umbral ruido sala detector de voz"},
+    {"texto_publicar", "escribir subtitulo a mano mandar texto a una salida de texto probar subtitulos sin hablar"},
+    {"subtitulos_limpiar", "borrar subtitulos sacar subtitulo de pantalla limpiar cuadro de subtitulos"},
+    {"audio_ordenar", "ordenar acomodar tarjetas del rack de audio grilla prolijo"},
+    {"video_ordenar", "ordenar acomodar tarjetas del grafo de video franjas prolijo"},
+    {"plugin_panel", "panel del plugin controles deslizador boton mover control del plugin indicador"},
     {"ventanas_ordenar", "ordenar acomodar las ventanas repartir entre monitores que no se "
                          "amontonen ordena las ventanas armar el puesto"},
     {"monitor_identificar", "que pantalla es cual cual es cada monitor identificar las pantallas identificar "
