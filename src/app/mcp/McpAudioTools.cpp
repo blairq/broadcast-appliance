@@ -345,7 +345,8 @@ void McpService::registerAudioTools() {
                         "justo antes de la salida). `preset` aplica valores de partida (p. ej. \"voz\"). "
                         "Tambien \"analizador\", y \"entrada\" con `fuente`: trae el audio de OTRA fuente "
                         "(el microfono, un invitado, un canal de placa) como una tarjeta del grafo; despues se "
-                        "cablea con audio_patch (sale por \"out\").";
+                        "cablea con audio_patch (sale por \"out\"). \"traducir\" pone una tarjeta Traducir (sin "
+                        "cables) que traduce la salida de texto `desde` al idioma `a`; se ajusta con traduccion_ajustar.";
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"source", kSource},
@@ -353,7 +354,9 @@ void McpService::registerAudioTools() {
                            {"after", {{"type", "string"}}},
                            {"label", {{"type", "string"}}},
                            {"preset", {{"type", "string"}}},
-                           {"fuente", {{"type", "string"}}}}},
+                           {"fuente", {{"type", "string"}}},
+                           {"desde", {{"type", "string"}}},
+                           {"a", {{"type", "string"}, {"enum", {"es", "en", "pt", "fr", "de", "ru", "zh"}}}}}},
                          {"required", {"source", "module"}}};
         t.run = [mgr](const json& a, Done done) {
             std::string e;
@@ -363,6 +366,12 @@ void McpService::registerAudioTools() {
                 if (id.empty()) return done(ToolResult::error(e));
                 AudioRack* r = mgr()->rack(a.value("source", ""), false, &e);
                 return done(ToolResult().data(json{{"nodo", id}, {"rack", r != nullptr ? r->describe() : json()}}));
+            }
+            if (mod == "traducir") {
+                const std::string id = mgr()->addTraduccion(
+                    {{"fuente", a.value("source", "")}, {"desde", a.value("desde", "")}, {"a", a.value("a", "en")}}, &e);
+                if (id.empty()) return done(ToolResult::error(e));
+                return done(ToolResult().data(json{{"id", id}, {"aviso", "ajustala con traduccion_ajustar {id}; traducciones muestra si falta bajar el idioma"}}));
             }
             AudioRack* r = mgr()->rack(a.value("source", ""), true, &e);
             if (r == nullptr) return done(ToolResult::error(e));

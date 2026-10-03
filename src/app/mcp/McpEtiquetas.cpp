@@ -599,6 +599,8 @@ const Fila kPropias[] = {
     {"traducir", "traducir traduccion idioma ingles portugues frances aleman ruso chino como se dice probar"},
     {"traduccion_", "traduccion en vivo subtitulos en otro idioma traducir al orador doblaje pista en ingles bajar idioma"},
     {"traducciones", "traducciones activas en vivo idiomas que se estan traduciendo demora"},
+    {"traduccion_agregar", "traducir en vivo tarjeta traducir rack de audio subtitulos en ingles otro idioma salida de texto"},
+    {"traduccion_ajustar", "cambiar pausar quitar tarjeta traducir idioma espera rotulo archivo"},
     {"glosario_", "glosario terminos vocabulario legislativo chubut como se traduce palabra nombre propio corregir traduccion"},
     {"voz_cortes", "no corta nunca tarda en traducir pausa silencio cortar frase largo maximo umbral ruido sala detector de voz"},
     {"texto_publicar", "escribir subtitulo a mano mandar texto a una salida de texto probar subtitulos sin hablar"},
