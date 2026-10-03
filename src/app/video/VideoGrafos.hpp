@@ -132,6 +132,10 @@ class VideoGrafos : public QObject {
     Q_INVOKABLE QString aEscena(const QString& id, const QString& escena);
     /// La entrada elegida vuelve a «entrada -> escena».
     Q_INVOKABLE QString limpiar();
+    /// Acomoda todas las tarjetas: una franja por entrada (en columnas según la
+    /// cadena, las ramas abajo), los controladores a la izquierda, los
+    /// compositores a la derecha. "" o el error.
+    Q_INVOKABLE QString ordenar();
     // --- Sincronía y red, para la interfaz (controls/PanelSincronia.qml) ---------
     Q_INVOKABLE QVariantMap relojUi() const;
     Q_INVOKABLE QString configurarRelojUi(const QVariantMap& cambios);

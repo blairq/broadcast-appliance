@@ -333,7 +333,10 @@ Rectangle {
                 Panel {
                     Layout.fillWidth: true
                     Layout.preferredHeight: alertCol.implicitHeight + 64
-                    title: "Disparadores (" + ag.alerts.length + ")"
+                    id: panelDisparadores
+                    // Los de los plugins que se declaran disparadores (cuando ninguno de los tipos alcanza).
+                    readonly property var dePlugins: Studio.plugins ? Studio.plugins.lista.filter(p => p.disparador) : []
+                    title: "Disparadores (" + (ag.alerts.length + dePlugins.length) + ")"
                     ColumnLayout {
                         id: alertCol
                         anchors.fill: parent
@@ -353,6 +356,27 @@ Rectangle {
                                     Text { text: modelData.type + (modelData.fired > 0 ? " · " + modelData.fired + " avisos" : ""); color: Theme.textFaint; font.pixelSize: 10 }
                                 }
                                 GlassButton { compact: true; text: "✕"; onClicked: ag.deleteAlert(modelData.id) }
+                            }
+                        }
+                        Repeater {
+                            model: panelDisparadores.dePlugins
+                            delegate: RowLayout {
+                                id: filaPlugin
+                                required property var modelData
+                                Layout.fillWidth: true
+                                readonly property bool prendido: modelData.estado !== "apagado" && modelData.estado !== "caido"
+                                Toggle { checked: filaPlugin.prendido; onToggled: (wanted) => Studio.plugins.prender(modelData.id, wanted) }
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 0
+                                    Text { text: modelData.nombre; color: filaPlugin.prendido ? Theme.text : Theme.textFaint; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true }
+                                    Text {
+                                        Layout.fillWidth: true; elide: Text.ElideRight
+                                        text: "plugin · " + (modelData.dice ? modelData.dice.texto : modelData.estado) + (modelData.error ? " · " + modelData.error : "")
+                                        color: modelData.error ? Theme.warn : Theme.textFaint; font.pixelSize: 10
+                                    }
+                                }
+                                GlassButton { compact: true; text: "Plugins"; onClicked: ApplicationWindow.window.page = 23 }
                             }
                         }
                         Text { visible: ag.events.length > 0; text: "Últimos avisos"; color: Theme.textDim; font { pixelSize: 12; weight: Font.DemiBold } Layout.topMargin: 6 }

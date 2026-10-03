@@ -552,6 +552,93 @@ QString VideoGrafos::desconectar(const QString& desde, const QString& salida, co
         return std::string();
     }));
 }
+QString VideoGrafos::ordenar() {
+    return q(editar([&](GrafoVideo& g) {
+        constexpr int kCol = 220, kSep = 24, kEntreFranjas = 60;
+        // El alto de una tarjeta, como la dibuja el Patchbay (cabecera + filas de puertos + cuerpo).
+        const auto alto = [&g](const GrafoVideo::Nodo& n) {
+            const size_t filas = std::max<size_t>({g.puertosEntrada(n).size(), g.puertosSalida(n).size(), 1});
+            return 34 + static_cast<int>(filas) * 24 + 40;
+        };
+        std::vector<const GrafoVideo::Nodo*> controles, otrosEstudio;
+        std::map<std::string, std::vector<const GrafoVideo::Nodo*>> grupos;
+        std::vector<std::string> orden;
+        for (const QString& e : entradas_) orden.push_back(e.toStdString());
+        for (const auto& n : g.nodos()) {
+            if (n.grupo.empty()) {
+                (n.tipo == "control" ? controles : otrosEstudio).push_back(&n);
+                continue;
+            }
+            if (std::find(orden.begin(), orden.end(), n.grupo) == orden.end()) orden.push_back(n.grupo);
+            grupos[n.grupo].push_back(&n);
+        }
+        const int xBase = controles.empty() ? 0 : kCol + 40;
+        std::map<std::string, std::pair<int, int>> pos;
+        int y = 0, maxCol = 0;
+        for (const std::string& gr : orden) {
+            const auto it = grupos.find(gr);
+            if (it == grupos.end()) continue;
+            std::set<std::string> ids;
+            for (const auto* n : it->second) ids.insert(n->id);
+            // La profundidad de cada tarjeta: el camino más largo desde una sin entradas del grupo.
+            std::map<std::string, std::vector<std::string>> hacia;
+            std::map<std::string, int> entrantes;
+            for (const auto& c : g.cables())
+                if (ids.count(c.desde) && ids.count(c.hacia)) {
+                    hacia[c.desde].push_back(c.hacia);
+                    ++entrantes[c.hacia];
+                }
+            std::map<std::string, int> prof;
+            std::vector<std::string> cola;
+            for (const auto& id : ids)
+                if (!entrantes.count(id)) {
+                    prof[id] = 0;
+                    cola.push_back(id);
+                }
+            for (size_t k = 0; k < cola.size(); ++k)
+                for (const auto& h : hacia[cola[k]]) {
+                    prof[h] = std::max(prof[h], prof[cola[k]] + 1);
+                    if (--entrantes[h] == 0) cola.push_back(h);
+                }
+            for (const auto& id : ids)
+                if (!prof.count(id)) prof[id] = 0; // en un ciclo: al principio
+            // La escena, siempre en la última columna de su franja.
+            int ultima = 0;
+            for (const auto& [id, p] : prof) ultima = std::max(ultima, p);
+            for (const auto* n : it->second)
+                if (n->tipo == "escena") prof[n->id] = std::max(prof[n->id], ultima);
+            std::map<int, int> altoCol;
+            int altoFranja = 0;
+            // Primero la cadena principal (la que llega a la escena), después las ramas.
+            std::vector<const GrafoVideo::Nodo*> nodos = it->second;
+            std::stable_sort(nodos.begin(), nodos.end(), [](const GrafoVideo::Nodo* a, const GrafoVideo::Nodo* b) {
+                const auto rama = [](const GrafoVideo::Nodo* n) { return n->tipo == "salida" || n->tipo == "rostros" || n->tipo == "sincro"; };
+                return rama(a) < rama(b);
+            });
+            for (const auto* n : nodos) {
+                const int col = prof[n->id];
+                pos[n->id] = {xBase + col * kCol, y + altoCol[col]};
+                altoCol[col] += alto(*n) + kSep;
+                altoFranja = std::max(altoFranja, altoCol[col]);
+                maxCol = std::max(maxCol, col);
+            }
+            y += altoFranja + kEntreFranjas;
+        }
+        int yc = 0;
+        for (const auto* n : controles) {
+            pos[n->id] = {0, yc};
+            yc += alto(*n) + kSep;
+        }
+        int yo = 0;
+        for (const auto* n : otrosEstudio) {
+            pos[n->id] = {xBase + (maxCol + 1) * kCol + 40, yo};
+            yo += alto(*n) + kSep;
+        }
+        for (const auto& [id, p] : pos) g.mover(id, p.first, p.second);
+        return std::string();
+    }));
+}
+
 QString VideoGrafos::mover(const QString& id, int x, int y) {
     return q(editar([&](GrafoVideo& g) {
         g.mover(id.toStdString(), x, y);

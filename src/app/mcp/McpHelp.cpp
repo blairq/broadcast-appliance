@@ -435,7 +435,7 @@ La API de Facebook solo transmite y administra videos de **Paginas** (no del per
 **La misma correccion de color en varias camaras** (que cambiando una vez cambie en todas), en UNA llamada:
 `video_pipeline {"entradas": ["Sony", "Pelco", "Panasonic"], "tarjetas": [{"tipo": "gst", "elemento": "videobalance", "propiedades": {"contrast": 1.1, "saturation": 0.9}, "compartida": "Color camaras"}], "local_por_entrada": {"Pelco": {"propiedades": {"hue": 0.04}}}}`. El controlador queda como `estudio.color-camaras`. `modo: "agregar"` si la entrada ya tiene tarjetas que hay que conservar (de fabrica las reemplaza). Despues, ajustar la comun: `video_tarjeta_ajustar` sobre cualquiera de las manejadas (va al controlador) o sobre el controlador. `video_controlador` para hacerlo a partir de una tarjeta que ya existe.
 
-**Corregir una camara**: `videobalance` (brillo, contraste, saturacion, matiz), `gamma`, filtros de OBS (`video_filtros`: correccion de color, LUT .cube). Una dominante (verde, magenta): `hue` chico (±0.02 a ±0.08).
+**Corregir una camara** (SIEMPRE primero GStreamer): tarjeta `gst` con `videobalance` (brillo, contraste, saturacion, matiz) y `gamma`; una dominante (verde, magenta): `hue` chico (±0.02 a ±0.08). Solo si GStreamer no alcanza: la tarjeta `color` propia o un filtro de OBS (`video_filtros`: LUT .cube).
 
 **Entrelazada / mal declarada** (`video_estado` lo dice): `{"tipo": "normalizar", "params": {"desentrelazar": "yadif"}}` (desentrelaza en la fuente, donde estan los campos); colores corridos en HD que declara 601: `{"matriz_declarada": "601", "matriz_real": "709"}`. Los cuadros por segundo distintos al lienzo los convierte libobs solo (repite o salta cuadros): no hace falta tarjeta.
 
@@ -550,7 +550,7 @@ Equipos (`from ba_plugin import dispositivos as d`; dependencias `pyusb`, `libus
 
 ## Reglas
 - Nada bloquea para siempre: todo con timeout; los bucles en hilos de `al_iniciar` y mirando `plugin.andando`.
-- Las tarjetas tienen que ser rápidas (1080p a 30 fps = 33 ms por cuadro, y es en serie con el video): numpy vectorizado; si tarda, sale el cuadro anterior.
+- Las tarjetas tienen que ser rápidas (1080p a 30 fps = 33 ms por cuadro, y es en serie con el video): numpy vectorizado; si tarda, sale el cuadro anterior. Si el plugin solo tiene que MEDIR (color, brillo, quién está), que mida cada pocos cuadros sobre una versión achicada (`a[::8, ::8]`) y aplique lo que calcula con una tarjeta gst (`plugin.llamar("video_tarjeta_ajustar", ...)` sobre un `videobalance`): procesar el cuadro entero en Python en cada cámara carga la máquina y traba la interfaz.
 - `print` va al registro (`plugin_registro`); usá `plugin.estado(...)` para lo que tiene que ver el operador.
 - Las bibliotecas van en `dependencias` (pip, se bajan a la carpeta del plugin: portable, sobreviven a las actualizaciones). **numpy ya viene con el programa** (declararlo no cuesta nada); la primera vez que se baja algo grande (opencv) puede tardar un par de minutos.
 - Claves de equipos (usuario, contraseña, token de la API de la marca): nunca por el chat ni en `config`. Declaralas en plugin.json (`"secretos": [{"clave": "clave", "etiqueta": "Clave de la cámara"}]`), pedilas con `plugin_credenciales {"id"}` (formulario seguro en la barra) y en el plugin `plugin.secreto("clave")` (None si todavía no están: que espere y lo diga con `plugin.estado`).)md"},
@@ -793,6 +793,12 @@ Como armarlo bien:
 - Los archivos van en `Medios/` y los discursos en `Discursos/`, dentro de la carpeta del evento: si no estan, `evento_revisar` lo dice.
 
 Correrlo es otra cosa: `evento_correr` SALE AL AIRE. Eso lo decide el operador, no vos. Si queres mostrarle como quedo, `evento_ensayo_rapido` recorre todo sin tocar nada.
+
+## Video: primero GStreamer
+Para CUALQUIER cosa de video (color, brillo, contraste, nitidez, ruido, desentrelazado, recorte, efectos, textos, sincronia, entradas raras) pensa primero en GStreamer: tarjetas `gst` con los modulos de `video_modulos` (videobalance, gamma, videocrop, gaussianblur, deinterlace, timeoverlay…), armadas con `video_pipeline` (y `compartida` para varias camaras). Las tarjetas propias (`color`, `croma`, `recorte`) y los filtros de OBS (`obs`, `video_filtros`) solo si GStreamer no lo resuelve o si te los piden. Algo que se calcula en Python (un plugin) MIDE sobre una imagen chica y aplica la correccion con una tarjeta gst (plugin.llamar video_tarjeta_ajustar): una tarjeta de plugin que procesa el cuadro entero en cada camara carga la maquina.
+
+## Automatizaciones («cuando pasa X, hace Y»)
+Primero un disparador del sistema: `alert_types` dice cuales hay y `alert_create` lo crea (aparece en la lista de Disparadores). Si ningun tipo alcanza (una cara que aparece o se va, un dato de un equipo raro), un plugin con `"disparador": true` en su plugin.json: asi aparece TAMBIEN en la lista de Disparadores (y en alert_list), con su interruptor.
 
 ## Cuando algo no se puede: un plugin
 Si un equipo no se maneja con las herramientas (una camara con un PTZ propio de la marca, una 360, varias camaras que tienen que trabajar juntas, un aparato que manda datos) o te piden algo que el sistema no hace, NO digas que no se puede: escribi un plugin de Python (`help {"topic": "plugins"}`). `dispositivos_listar` -> `plugin_escribir` -> `plugin_probar` -> `plugin_activar`. Un plugin puede ser entrada de video/audio, tarjeta del grafo, PTZ de una camara, canal de datos y puede llamar cualquier herramienta del sistema. Contale al operador que lo vas a hacer y, al terminar, como se usa.

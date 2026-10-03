@@ -323,6 +323,8 @@ Rectangle {
                 onMover: (id, x, y) => page.avisar(page.vg.mover(id, x, page.vista === "estudio" ? y - 30 : y))
                 onConectar: (desde, salida, hacia, entrada) => page.avisar(page.vg.conectar(desde, salida, hacia, entrada))
                 onDesconectar: (desde, salida, hacia, entrada) => page.avisar(page.vg.desconectar(desde, salida, hacia, entrada))
+                puedeOrdenar: true
+                onOrdenar: page.avisar(page.vg.ordenar())
             }
             Text {
                 visible: page.msg !== ""

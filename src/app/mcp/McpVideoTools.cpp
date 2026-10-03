@@ -226,7 +226,8 @@ void McpService::registerVideoTools() {
         t.title = "Agregar una tarjeta de video";
         t.category = "video";
         t.description =
-            "Agrega una tarjeta. En la `entrada` (después de `despues`; vacío = justo antes de su escena): `color`, "
+            "Agrega una tarjeta (para video, PRIMERO GStreamer: `gst` con un módulo de video_modulos). En la `entrada` "
+            "(después de `despues`; vacío = justo antes de su escena): `color`, "
             "`croma`, `recorte`, `obs` (un filtro de OBS: `filtro` = su id, de video_filtros) y `gst` (un módulo de "
             "GStreamer: `elemento`, de video_modulos) y `plugin` (la tarjeta de un plugin de Python: `plugin`, "
             "`tarjeta`, `parametros`) se intercalan; "
@@ -466,7 +467,8 @@ void McpService::registerVideoTools() {
         t.description =
             "Arma, en orden, las tarjetas de la `entrada` (de la cámara hacia la escena) en UNA llamada y valida "
             "cada una. `modo`: «reemplazar» (de fábrica: saca las que había) o «agregar» (al final). Cada tarjeta: "
-            "{tipo, ...}. Tipos: `gst` (+`elemento` y `propiedades`, de video_modulos), `obs` (+`filtro` y "
+            "{tipo, ...}. Tipos (usá `gst` primero: color, nitidez, efectos y casi todo lo de video se hace con GStreamer): "
+            "`gst` (+`elemento` y `propiedades`, de video_modulos), `obs` (+`filtro` y "
             "`ajustes`), `color` {brillo, contraste, saturacion, gamma}, `croma`, `recorte`, `retardo` {ms}, "
             "`normalizar` {matriz_declarada, matriz_real, rango_declarado, rango_real, desentrelazar}, `rostros`, "
             "`salida` {nombre} (rama). COMPARTIR entre entradas: `compartida: \"nombre\"` en la tarjeta; la primera "

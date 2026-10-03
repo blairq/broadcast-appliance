@@ -35,6 +35,14 @@ Rectangle {
     signal mover(string id, int x, int y)
     signal conectar(string desde, string salida, string hacia, string entrada)
     signal desconectar(string desde, string salida, string hacia, string entrada)
+    /// Pide acomodar las tarjetas (la página decide cómo: VideoGrafos::ordenar).
+    signal ordenar()
+    /// Si se muestra el botón «Ordenar».
+    property bool puedeOrdenar: false
+    /// Zoom a mano (0 = que entre a lo ancho, como siempre).
+    property real zoom: 0
+    /// La grilla de fondo (las tarjetas encajan en ella al soltarlas).
+    property bool grilla: true
 
     readonly property int nodeW: 180
     readonly property int headH: 34
@@ -122,7 +130,9 @@ Rectangle {
         for (let i = 0; i < nodos.length; ++i) m = Math.max(m, nodos[i].x + nodeW)
         return m + 40
     }
-    readonly property real escala: Math.max(0.4, Math.min(1, (flick.width - 8) / Math.max(1, anchoGrafo)))
+    readonly property real escalaAjustada: Math.max(0.4, Math.min(1, (flick.width - 8) / Math.max(1, anchoGrafo)))
+    readonly property real escala: pb.zoom > 0 ? pb.zoom : pb.escalaAjustada
+    function acercar(f) { pb.zoom = Math.max(0.25, Math.min(2.5, pb.escala * f)) }
 
     Flickable {
         id: flick
@@ -140,6 +150,25 @@ Rectangle {
             scale: pb.escala
             transformOrigin: Item.TopLeft
             MouseArea { anchors.fill: parent; onClicked: pb.elegir("") }
+
+            // La grilla (debajo de todo): líneas cada 20 px y más marcadas cada 100.
+            Canvas {
+                anchors.fill: parent
+                visible: pb.grilla
+                z: -3
+                onPaint: {
+                    const c = getContext("2d")
+                    c.clearRect(0, 0, width, height)
+                    for (let x = 0; x <= width; x += pb.grid) {
+                        c.strokeStyle = x % 100 === 0 ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.03)"
+                        c.beginPath(); c.moveTo(x + 0.5, 0); c.lineTo(x + 0.5, height); c.stroke()
+                    }
+                    for (let y = 0; y <= height; y += pb.grid) {
+                        c.strokeStyle = y % 100 === 0 ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.03)"
+                        c.beginPath(); c.moveTo(0, y + 0.5); c.lineTo(width, y + 0.5); c.stroke()
+                    }
+                }
+            }
 
             // Franjas (debajo de todo).
             Repeater {
@@ -420,6 +449,40 @@ Rectangle {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // Cmd/Ctrl + rueda: zoom (la rueda sola sigue desplazando).
+    WheelHandler {
+        target: null
+        acceptedModifiers: Qt.ControlModifier | Qt.MetaModifier
+        onWheel: (ev) => pb.acercar(ev.angleDelta.y > 0 ? 1.12 : 1 / 1.12)
+    }
+
+    // Zoom, grilla y ordenar (arriba a la derecha, sin escalar).
+    Row {
+        anchors { top: parent.top; right: parent.right; margins: 8 }
+        spacing: 4
+        z: 50
+        Repeater {
+            model: [
+                { t: "−", tip: "Alejar (Cmd + rueda)", f: () => pb.acercar(1 / 1.2) },
+                { t: Math.round(pb.escala * 100) + "%", tip: "Tamaño real (100 %)", f: () => pb.zoom = 1 },
+                { t: "+", tip: "Acercar (Cmd + rueda)", f: () => pb.acercar(1.2) },
+                { t: "Ajustar", tip: "Que entre todo a lo ancho", f: () => pb.zoom = 0 },
+                { t: "▦", tip: pb.grilla ? "Ocultar la grilla" : "Mostrar la grilla", f: () => pb.grilla = !pb.grilla },
+                { t: "Ordenar", tip: "Acomodar las tarjetas: una franja por entrada, en el orden de la cadena", f: () => pb.ordenar(), solo: true }
+            ]
+            delegate: Rectangle {
+                required property var modelData
+                visible: !modelData.solo || pb.puedeOrdenar
+                width: Math.max(28, etiqueta.implicitWidth + 16); height: 26; radius: 8
+                color: zma.containsMouse ? Qt.rgba(1, 1, 1, 0.16) : Qt.rgba(0, 0, 0, 0.55)
+                border.color: Qt.rgba(1, 1, 1, 0.14)
+                Text { id: etiqueta; anchors.centerIn: parent; text: modelData.t; color: Theme.text; font.pixelSize: 12 }
+                MouseArea { id: zma; anchors.fill: parent; hoverEnabled: true; onClicked: modelData.f() }
+                ToolTip.visible: zma.containsMouse; ToolTip.delay: 500; ToolTip.text: modelData.tip
             }
         }
     }

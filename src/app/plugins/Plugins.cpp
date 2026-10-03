@@ -214,6 +214,9 @@ json Plugins::estado(const std::string& id) const {
            {"carpeta", carpetaDe(id).string()},
            {"estado", "apagado"}};
     if (const json sec = secretosDe(id); !sec.empty()) e["secretos"] = sec;
+    // Un plugin que automatiza algo («cuando pasa X, hacé Y») se declara
+    // disparador: aparece también en la lista de Disparadores.
+    if (man.value("disparador", false)) e["disparador"] = true;
     auto it = procesos_.find(id);
     if (it == procesos_.end()) return e;
     const Proceso& p = *it->second;

@@ -10,6 +10,7 @@
 
 #include "agent/AlertEngine.hpp"
 #include "mcp/McpService.hpp"
+#include "plugins/Plugins.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/StudioViewModel.hpp"
 
@@ -105,8 +106,18 @@ void McpService::registerAlertTools() {
         t.title = "Disparadores activos";
         t.category = "alertas";
         t.readOnly = true;
-        t.description = "Los disparadores con su estado (activo, cuantas veces se disparo, la ultima vez).";
-        t.run = [&eng](const json&, Done done) { done(ToolResult().data(json{{"alerts", eng.list()}})); };
+        t.description = "Los disparadores con su estado (activo, cuantas veces se disparo, la ultima vez) y los plugins que "
+                        "se declaran disparadores (`plugins`: se prenden y apagan con plugin_activar).";
+        auto* pl = vm_.plugins();
+        t.run = [&eng, pl](const json&, Done done) {
+            json dePlugins = json::array();
+            if (pl != nullptr)
+                for (const auto& p : pl->listar())
+                    if (p.value("disparador", false))
+                        dePlugins.push_back({{"id", p.value("id", "")}, {"nombre", p.value("nombre", "")}, {"estado", p.value("estado", "")},
+                                             {"descripcion", p.value("descripcion", "")}});
+            done(ToolResult().data(json{{"alerts", eng.list()}, {"plugins", dePlugins}}));
+        };
         core_.addTool(std::move(t));
     }
     {
