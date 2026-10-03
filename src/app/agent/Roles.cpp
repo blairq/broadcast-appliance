@@ -325,7 +325,13 @@ const std::set<std::string>& Roles::juegoDelAsistente() {
         "escenas",  "fuentes",   "imagenes", "sala",    "oradores",  "salidas", "graficos",   "rostros",
         "interfaz", "ventanas",  "operador", "medios",  "recetas",   "audio",   "audio_rack", "config",
         "sistema",  "equipo",    "entradas", "alertas", "pantallas", "evento",  "prompter",   "qr",
-        "cuentas",  "asistente", "youtube",  "twitch",  "facebook",  "padron",  "preguntas",  "laminas"};
+        "cuentas",  "asistente", "youtube",  "twitch",  "facebook",  "padron",  "preguntas",  "laminas",
+        // El grafo de video (tarjetas, módulos de GStreamer, controladores,
+        // compositor, relojes y sincronía) y las cámaras PTZ: armar bien un
+        // pipeline es justo lo que el operador le va a pedir. Faltaban, y la
+        // ayuda igual se las describía (probado: terminaba metiendo cadenas de
+        // GStreamer a mano en fuentes sueltas).
+        "video",    "camaras"};
     return c;
 }
 

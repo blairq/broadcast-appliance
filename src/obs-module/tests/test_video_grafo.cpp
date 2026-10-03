@@ -17,6 +17,7 @@
 // ============================================================================
 
 #include <obs.h>
+#include <util/platform.h>
 
 #include <chrono>
 #include <cmath>
@@ -487,6 +488,82 @@ int main() {
     ponerGrafo(f, lineal("retardo", R"({"cuadros":0})"));
     im = dibujar(fuente);
     CHECK(px(im, 50, 10, 0) == 200, "retardo de 0: pasa directo");
+
+    // 14. normalizar: sin diferencia entre lo declarado y lo real, no cambia;
+    // 709 declarado pero en verdad 601: decodificar con 601 resta más Cb y Cr
+    // (negativos en un verde), así que sube el rojo y el verde.
+    ponerGrafo(f, lineal("normalizar", R"({"matriz_declarada":"709","matriz_real":"709"})"));
+    im = dibujar(fuente);
+    CHECK(std::abs(px(im, 5, 5, 1) - 177) <= 2 && std::abs(px(im, 5, 5, 0) - 0) <= 2, "normalizar igual a igual: no cambia");
+    ponerGrafo(f, lineal("normalizar", R"({"matriz_declarada":"709","matriz_real":"601"})"));
+    im = dibujar(fuente);
+    std::printf("   normalizar 709->601: el verde (0,177,64) quedo en %d %d %d\n", px(im, 5, 5, 0), px(im, 5, 5, 1), px(im, 5, 5, 2));
+    CHECK(px(im, 5, 5, 0) > 8 && px(im, 5, 5, 1) > 190 && px(im, 5, 5, 3) == 255, "normalizar 709->601: corrige el color");
+    // retardo en ms: 100 ms a 60 fps = 6 cuadros (pasa igual con imagen quieta).
+    ponerGrafo(f, lineal("retardo", R"({"ms":100})"));
+    for (int i = 0; i < 10; ++i) {
+        im = dibujar(fuente);
+        siguienteCuadro();
+    }
+    CHECK(px(im, 50, 10, 0) == 200, "retardo en ms: la imagen llega");
+
+#if defined(BA_TEST_GST_RAIZ)
+    // 15. La fuente con colchón: con 600 ms de latencia no muestra nada antes
+    // de tiempo, y su `estado` dice reloj, formato y colorimetría.
+    {
+        obs_data_t* gs3 = obs_data_create();
+        obs_data_set_string(gs3, "pipeline", "videotestsrc pattern=blue is-live=true ! video/x-raw,width=64,height=64,framerate=30/1");
+        obs_data_set_int(gs3, "latencia", 600);
+        obs_source_t* lat = obs_source_create("ba_gst_fuente", "colchon", gs3, nullptr);
+        obs_data_release(gs3);
+        const std::uint64_t t0 = os_gettime_ns();
+        std::uint64_t primero = 0;
+        for (int i = 0; i < 300 && primero == 0; ++i) {
+            siguienteCuadro();
+            std::vector<std::uint8_t> il = dibujar(lat);
+            if (px(il, 32, 32, 2) > 200) primero = os_gettime_ns();
+        }
+        const double ms = primero == 0 ? -1 : static_cast<double>(primero - t0) / 1e6;
+        std::printf("   colchón de 600 ms: el primer cuadro apareció a los %.0f ms\n", ms);
+        CHECK(ms >= 550, "fuente con latencia: no presenta antes de tiempo");
+        calldata_t cd = {};
+        proc_handler_call(obs_source_get_proc_handler(lat), "estado", &cd);
+        const char* info = calldata_string(&cd, "info");
+        std::printf("   estado: %s\n", info != nullptr ? info : "(nada)");
+        const std::string si = info != nullptr ? info : "";
+        CHECK(si.find("\"reloj\":\"sistema\"") != std::string::npos && si.find("\"latencia_ms\":600") != std::string::npos &&
+                  si.find("\"colorimetria\":\"bt709") != std::string::npos && si.find("\"origen\":{") != std::string::npos && si.find("\"ancho\":64") != std::string::npos,
+              "fuente: el estado informa reloj, latencia, colorimetría y tamaño");
+        calldata_free(&cd);
+        obs_source_release(lat);
+    }
+#endif
+
+#if defined(BA_TEST_GST_RAIZ)
+    // Diagnóstico a mano (no corre si no se pide): BA_TEST_URI=rtsp://… abre
+    // esa fuente de red real y muestra qué píxeles llegan.
+    if (const char* uri = std::getenv("BA_TEST_URI")) {
+        obs_data_t* gu = obs_data_create();
+        obs_data_set_string(gu, "uri", uri);
+        obs_data_set_int(gu, "latencia", 200);
+        obs_data_set_bool(gu, "audio", false);
+        obs_source_t* red = obs_source_create("ba_gst_fuente", "red", gu, nullptr);
+        obs_data_release(gu);
+        std::vector<std::uint8_t> ir;
+        for (int i = 0; i < 600; ++i) {
+            siguienteCuadro();
+            ir = dibujar(red);
+            if (i % 60 == 59)
+                std::printf("   uri: %ux%u, centro %d %d %d %d\n", obs_source_get_width(red), obs_source_get_height(red),
+                            px(ir, 32, 32, 0), px(ir, 32, 32, 1), px(ir, 32, 32, 2), px(ir, 32, 32, 3));
+        }
+        calldata_t cd = {};
+        proc_handler_call(obs_source_get_proc_handler(red), "estado", &cd);
+        std::printf("   estado: %s\n", calldata_string(&cd, "info"));
+        calldata_free(&cd);
+        obs_source_release(red);
+    }
+#endif
 
     // 7. out sin nada: negro
     ponerGrafo(f, R"({"nodos":[{"id":"in","tipo":"in"},{"id":"out","tipo":"out"}],"cables":[]})");

@@ -2,6 +2,8 @@
 
 #include "video/VideoGrafos.hpp"
 
+#include "video/Sincronia.hpp"
+
 #include "AppRuntime.hpp"
 #include "BroadcastEngine.hpp"
 #include "InputSpecs.hpp"
@@ -9,12 +11,14 @@
 #include <obs.h>
 
 #include <QCoreApplication>
+#include <QDateTime>
 #include <QFile>
 #include <QPointer>
 #include <QJsonDocument>
 #include <QSaveFile>
 
 #include <algorithm>
+#include <cmath>
 #include <functional>
 #include <set>
 #include <thread>
@@ -117,6 +121,34 @@ const Virtual kVirtuales[] = {
     {"ruido", "Ruido", "Nieve de TV.", "videotestsrc pattern=snow is-live=true"},
 };
 
+} // namespace
+
+namespace {
+const char* desentrelazadoDe(obs_deinterlace_mode m) {
+    switch (m) {
+    case OBS_DEINTERLACE_MODE_DISABLE: return "no";
+    case OBS_DEINTERLACE_MODE_DISCARD: return "descartar";
+    case OBS_DEINTERLACE_MODE_RETRO: return "retro";
+    case OBS_DEINTERLACE_MODE_BLEND: return "mezclar";
+    case OBS_DEINTERLACE_MODE_BLEND_2X: return "mezclar2x";
+    case OBS_DEINTERLACE_MODE_LINEAR: return "lineal";
+    case OBS_DEINTERLACE_MODE_LINEAR_2X: return "lineal2x";
+    case OBS_DEINTERLACE_MODE_YADIF: return "yadif";
+    case OBS_DEINTERLACE_MODE_YADIF_2X: return "yadif2x";
+    }
+    return "no";
+}
+obs_deinterlace_mode desentrelazadoDesde(const std::string& m) {
+    if (m == "descartar") return OBS_DEINTERLACE_MODE_DISCARD;
+    if (m == "retro") return OBS_DEINTERLACE_MODE_RETRO;
+    if (m == "mezclar") return OBS_DEINTERLACE_MODE_BLEND;
+    if (m == "mezclar2x") return OBS_DEINTERLACE_MODE_BLEND_2X;
+    if (m == "lineal") return OBS_DEINTERLACE_MODE_LINEAR;
+    if (m == "lineal2x") return OBS_DEINTERLACE_MODE_LINEAR_2X;
+    if (m == "yadif") return OBS_DEINTERLACE_MODE_YADIF;
+    if (m == "yadif2x") return OBS_DEINTERLACE_MODE_YADIF_2X;
+    return OBS_DEINTERLACE_MODE_DISABLE;
+}
 } // namespace
 
 VideoGrafos::VideoGrafos(AppRuntime& rt, std::filesystem::path dataRoot, QObject* parent)
@@ -418,7 +450,10 @@ std::string VideoGrafos::crearEntradaVirtual(const std::string& nombre, const st
     SourceSpec spec;
     spec.id = kTipoVirtual;
     spec.name = nombre;
-    spec.settingsJson = json{{"pipeline", origen}}.dump();
+    json ajustes = relojParaFuente();
+    ajustes["pipeline"] = origen;
+    ajustes["latencia"] = 0; // generada acá: no hay red que esperar
+    spec.settingsJson = ajustes.dump();
     const std::string sc = escena.empty() ? rt_.engine().currentScene() : escena;
     if (!rt_.addSource(sc, spec)) return rt_.lastError().empty() ? "no se pudo crear" : rt_.lastError();
     rt_.save();
@@ -651,6 +686,25 @@ void VideoGrafos::sincronizar() {
 void VideoGrafos::aplicar(const std::string& entrada) {
     obs_source_t* src = obs_get_source_by_name(entrada.c_str());
     if (src == nullptr) return;
+    // El desentrelazado de una tarjeta `normalizar` va a la FUENTE (libobs es
+    // quien tiene los campos). Sin tarjeta, se deja como estaba, salvo que lo
+    // hubiera puesto esta.
+    if ((obs_source_get_output_flags(src) & OBS_SOURCE_ASYNC) != 0) {
+        std::string modo, campo = "arriba";
+        for (const auto& n : grafo_.nodos())
+            if (n.grupo == entrada && n.tipo == "normalizar") {
+                modo = n.params.value("desentrelazar", std::string("no"));
+                campo = n.params.value("campo", std::string("arriba"));
+            }
+        if (!modo.empty()) {
+            obs_source_set_deinterlace_mode(src, desentrelazadoDesde(modo));
+            obs_source_set_deinterlace_field_order(src, campo == "abajo" ? OBS_DEINTERLACE_FIELD_ORDER_BOTTOM
+                                                                        : OBS_DEINTERLACE_FIELD_ORDER_TOP);
+            desentrelazadas_.insert(entrada);
+        } else if (desentrelazadas_.erase(entrada) > 0) {
+            obs_source_set_deinterlace_mode(src, OBS_DEINTERLACE_MODE_DISABLE);
+        }
+    }
     const json para = grafo_.paraFiltro(entrada);
     // Solo «in -> out»: no hace falta el filtro.
     const bool trivial = para["nodos"].size() == 2 && para["cables"].size() == 1 &&
@@ -813,6 +867,332 @@ void VideoGrafos::actualizarEstudio() {
     }
 }
 
+
+// --- El reloj del estudio ------------------------------------------------------------
+
+json VideoGrafos::reloj() const { return reloj_; }
+
+json VideoGrafos::relojParaFuente() const {
+    return {{"reloj", reloj_.value("tipo", std::string("sistema"))},
+            {"reloj_servidor", reloj_.value("servidor", std::string())},
+            {"reloj_puerto", reloj_.value("puerto", 0)},
+            {"reloj_dominio", reloj_.value("dominio", 0)}};
+}
+
+std::string VideoGrafos::configurarReloj(const json& cambios) {
+    json r = reloj_;
+    for (const char* k : {"tipo", "servidor", "puerto", "dominio", "latencia_ms", "publicar_puerto"})
+        if (cambios.contains(k)) r[k] = cambios[k];
+    const std::string tipo = r.value("tipo", std::string("sistema"));
+    if (tipo != "sistema" && tipo != "ntp" && tipo != "ptp" && tipo != "red")
+        return "reloj desconocido «" + tipo + "»: sistema, ntp, ptp o red";
+    if ((tipo == "ntp" || tipo == "red") && r.value("servidor", std::string()).empty())
+        return "con reloj " + tipo + " hace falta `servidor`";
+    // Publicar el reloj de este aparato (para que otros usen `red` contra él).
+    const int publicar = r.value("publicar_puerto", 0);
+    if (publicar != reloj_.value("publicar_puerto", 0)) {
+        calldata_t cd = {};
+        calldata_set_int(&cd, "puerto", publicar);
+        const bool hay = proc_handler_call(obs_get_proc_handler(), "ba_reloj_publicar", &cd);
+        const std::string e = hay ? calldata_string(&cd, "error") : "este programa no trae GStreamer";
+        const bool ok = hay && calldata_bool(&cd, "ok");
+        calldata_free(&cd);
+        if (!ok) return "no se pudo publicar el reloj: " + e;
+    }
+    reloj_ = r;
+    QSaveFile f(QString::fromStdString((archivo_.parent_path() / "video-reloj.json").string()));
+    if (f.open(QIODevice::WriteOnly)) {
+        f.write(QByteArray::fromStdString(reloj_.dump(2)));
+        f.commit();
+    }
+    // A todas las fuentes de GStreamer (las de red, con la latencia del estudio
+    // si no tienen una propia).
+    const json rf = relojParaFuente();
+    for (const std::string& n : rt_.engine().sourceNames()) {
+        if (rt_.engine().sourceTypeId(n) != kTipoVirtual) continue;
+        obs_source_t* src = obs_get_source_by_name(n.c_str());
+        if (src == nullptr) continue;
+        obs_data_t* actual = obs_source_get_settings(src);
+        obs_data_t* d = obs_data_create_from_json(rf.dump().c_str());
+        if (*obs_data_get_string(actual, "uri") != '\0' && !obs_data_get_bool(actual, "latencia_propia") &&
+            reloj_.contains("latencia_ms"))
+            obs_data_set_int(d, "latencia", reloj_.value("latencia_ms", 200));
+        obs_source_update(src, d);
+        obs_data_release(d);
+        obs_data_release(actual);
+        obs_source_release(src);
+    }
+    rt_.save();
+    return {};
+}
+
+// --- Estado de una entrada -------------------------------------------------------------
+
+
+json VideoGrafos::estadoEntrada(const std::string& entrada) const {
+    if (!esEntrada(entrada)) return {{"error", "«" + entrada + "» no es una entrada de video"}};
+    json out{{"entrada", entrada}, {"tipo", rt_.engine().sourceTypeId(entrada)}};
+    obs_source_t* src = obs_get_source_by_name(entrada.c_str());
+    if (src == nullptr) return out;
+    obs_video_info ovi{};
+    obs_get_video_info(&ovi);
+    out["lienzo"] = {{"ancho", ovi.base_width}, {"alto", ovi.base_height},
+                     {"fps", ovi.fps_den > 0 ? static_cast<double>(ovi.fps_num) / ovi.fps_den : 0.0}};
+    out["ancho"] = obs_source_get_width(src);
+    out["alto"] = obs_source_get_height(src);
+    out["activa"] = obs_source_active(src);
+    out["mostrandose"] = obs_source_showing(src);
+    const bool async = (obs_source_get_output_flags(src) & OBS_SOURCE_ASYNC) != 0;
+    out["asincronica"] = async;
+    if (async) {
+        out["desentrelazado"] = desentrelazadoDe(obs_source_get_deinterlace_mode(src));
+        out["campo"] = obs_source_get_deinterlace_field_order(src) == OBS_DEINTERLACE_FIELD_ORDER_BOTTOM ? "abajo" : "arriba";
+    }
+    obs_data_t* aj = obs_source_get_settings(src);
+    out["ajustes"] = json::parse(obs_data_get_json(aj), nullptr, false);
+    obs_data_release(aj);
+    // Una fuente de GStreamer (red o virtual): todo lo que mide.
+    calldata_t cd = {};
+    if (proc_handler_call(obs_source_get_proc_handler(src), "estado", &cd)) {
+        const char* info = calldata_string(&cd, "info");
+        if (info != nullptr) out["gstreamer"] = json::parse(info, nullptr, false);
+        const char* e = calldata_string(&cd, "error");
+        if (e != nullptr && *e) out["error"] = e;
+        out["andando"] = calldata_bool(&cd, "andando");
+    }
+    calldata_free(&cd);
+    obs_source_release(src);
+    // Lo que agrega su sub-grafo: latencia y lo que dicen las tarjetas.
+    int cuadros = 0;
+    double ms = 0;
+    for (const auto& n : grafo_.nodos()) {
+        if (n.grupo != entrada) continue;
+        const json p = grafo_.efectivos(n);
+        if (n.tipo == "gst" && p.value("esperar", 0) == 0) ++cuadros;
+        if (n.tipo == "retardo") {
+            if (p.value("ms", 0) > 0)
+                ms += p.value("ms", 0);
+            else
+                cuadros += p.value("cuadros", 0);
+        }
+    }
+    const double cuadroMs = out["lienzo"].value("fps", 30.0) > 0 ? 1000.0 / out["lienzo"].value("fps", 30.0) : 33.3;
+    double latencia = ms + cuadros * cuadroMs;
+    if (out.contains("gstreamer"))
+        latencia += out["gstreamer"].value("latencia_ms", 0) + out["gstreamer"].value("desfase_ms", 0);
+    out["latencia_grafo_ms"] = std::round(latencia);
+    const json errs = erroresDe(entrada), avs = avisosDe(entrada);
+    if (!errs.empty()) out["errores_tarjetas"] = errs;
+    if (!avs.empty()) out["avisos_tarjetas"] = avs;
+    return out;
+}
+
+json VideoGrafos::avisosDe(const std::string& entrada) const {
+    json out = json::object();
+    obs_source_t* src = obs_get_source_by_name(entrada.c_str());
+    if (src == nullptr) return out;
+    if (obs_source_t* f = obs_source_get_filter_by_name(src, kFiltro)) {
+        calldata_t cd = {};
+        if (proc_handler_call(obs_source_get_proc_handler(f), "estado", &cd)) {
+            const char* a = calldata_string(&cd, "avisos");
+            if (a != nullptr) out = json::parse(a, nullptr, false);
+        }
+        calldata_free(&cd);
+        obs_source_release(f);
+    }
+    obs_source_release(src);
+    return out.is_object() ? out : json::object();
+}
+
+// --- Entradas de red -----------------------------------------------------------------
+
+std::string VideoGrafos::crearEntradaRed(const std::string& nombre, const std::string& uri, int latenciaMs,
+                                         const std::string& escena, bool audio, bool normalizar) {
+    if (nombre.empty()) return "falta el nombre";
+    // Si ya existe (de GStreamer), se actualiza: otra URI, otro colchón.
+    if (rt_.engine().sourceTypeId(nombre) == kTipoVirtual) {
+        obs_source_t* src = obs_get_source_by_name(nombre.c_str());
+        if (src == nullptr) return "no existe «" + nombre + "»";
+        obs_data_t* d = obs_data_create();
+        if (!uri.empty()) obs_data_set_string(d, "uri", uri.c_str());
+        if (latenciaMs >= 0) {
+            obs_data_set_int(d, "latencia", latenciaMs);
+            obs_data_set_bool(d, "latencia_propia", true);
+        }
+        obs_data_set_bool(d, "audio", audio);
+        obs_data_set_bool(d, "normalizar", normalizar);
+        obs_source_update(src, d);
+        obs_data_release(d);
+        obs_source_release(src);
+        rt_.save();
+        return {};
+    }
+    if (uri.empty()) return "falta `uri` (srt://, rtmp://, rtsp://, udp://, http://)";
+    if (!rt_.engine().sourceTypeId(nombre).empty()) return "ya hay una fuente que se llama «" + nombre + "» (y no es de red)";
+    if (escena.empty()) return "falta `escena`: dónde ponerla (para no tocar la que está al aire sin querer)";
+    json ajustes = relojParaFuente();
+    ajustes["uri"] = uri;
+    ajustes["audio"] = audio;
+    ajustes["normalizar"] = normalizar;
+    ajustes["latencia"] = latenciaMs >= 0 ? latenciaMs : reloj_.value("latencia_ms", 200);
+    ajustes["latencia_propia"] = latenciaMs >= 0;
+    SourceSpec spec;
+    spec.id = kTipoVirtual;
+    spec.name = nombre;
+    spec.settingsJson = ajustes.dump();
+    if (!rt_.addSource(escena, spec)) return rt_.lastError().empty() ? "no se pudo crear" : rt_.lastError();
+    rt_.save();
+    sincronizar();
+    return {};
+}
+
+// --- Desfases --------------------------------------------------------------------------
+
+std::string VideoGrafos::ajustarDesfase(const std::string& entrada, double ms, bool relativo, json* hecho) {
+    if (!esEntrada(entrada)) return "«" + entrada + "» no es una entrada de video";
+    // Una fuente de GStreamer: su colchón se corre en vivo (para adelante o para atrás).
+    if (rt_.engine().sourceTypeId(entrada) == kTipoVirtual) {
+        obs_source_t* src = obs_get_source_by_name(entrada.c_str());
+        if (src == nullptr) return "no existe «" + entrada + "»";
+        obs_data_t* actual = obs_source_get_settings(src);
+        const long long antes = obs_data_get_int(actual, "desfase");
+        const long long ahora = relativo ? antes + std::llround(ms) : std::llround(ms);
+        obs_data_t* d = obs_data_create();
+        obs_data_set_int(d, "desfase", ahora);
+        obs_source_update(src, d);
+        obs_data_release(d);
+        obs_data_release(actual);
+        obs_source_release(src);
+        rt_.save();
+        if (hecho != nullptr) *hecho = {{"entrada", entrada}, {"como", "desfase de la fuente"}, {"antes_ms", antes}, {"ahora_ms", ahora}};
+        return {};
+    }
+    // Otra entrada (una cámara): solo se puede ATRASAR, con una tarjeta retardo
+    // al principio del sub-grafo (la de sincronía, que se reusa).
+    std::string id;
+    double antes = 0;
+    for (const auto& n : grafo_.nodos())
+        if (n.grupo == entrada && n.tipo == "retardo" && n.params.value("sincronia", false)) {
+            id = n.id;
+            antes = n.params.value("ms", 0);
+        }
+    const double ahora = relativo ? antes + ms : ms;
+    if (ahora < 0)
+        return "«" + entrada + "» es una cámara: no se la puede adelantar (" + std::to_string(std::lround(ahora)) +
+               " ms). Atrasá la otra entrada.";
+    const std::string e = editar([&](GrafoVideo& g) {
+        std::string err;
+        if (id.empty()) {
+            const std::string nuevo = g.agregar("retardo", entrada, GrafoVideo::idEntrada(entrada),
+                                                json{{"ms", std::lround(ahora)}, {"sincronia", true}}, &err);
+            if (!nuevo.empty()) g.ajustar(nuevo, json{{"etiqueta", "Sincronía (retardo)"}}, nullptr);
+        } else {
+            g.ajustar(id, json{{"ms", std::lround(ahora)}}, &err);
+        }
+        return err;
+    });
+    if (!e.empty()) return e;
+    if (hecho != nullptr) *hecho = {{"entrada", entrada}, {"como", "retardo en el grafo"}, {"antes_ms", antes}, {"ahora_ms", std::lround(ahora)}};
+    return {};
+}
+
+void VideoGrafos::medirDesfase(const std::string& a, const std::string& b, int segundos, bool aplicar,
+                               std::function<void(json)> listo) {
+    for (const std::string& e : {a, b})
+        if (!esEntrada(e)) return listo({{"error", "«" + e + "» no es una entrada de video"}});
+    if (a == b) return listo({{"error", "son la misma entrada"}});
+    // Una tarjeta `sincro` antes de la escena de cada una (mide lo que sale).
+    std::string err = editar([&](GrafoVideo& g) {
+        std::string e;
+        for (const std::string& x : {a, b}) {
+            bool hay = false;
+            for (const auto& n : g.nodos())
+                if (n.grupo == x && n.tipo == "sincro") hay = true;
+            if (!hay && g.agregar("sincro", x, "", json{{"auto", true}}, &e).empty()) return e;
+        }
+        return std::string();
+    });
+    if (!err.empty()) return listo({{"error", err}});
+    const int ms = std::clamp(segundos, 3, 30) * 1000;
+    auto inicio = std::make_shared<qint64>(QDateTime::currentMSecsSinceEpoch());
+    auto timer = new QTimer(this);
+    timer->setInterval(400);
+    QPointer<VideoGrafos> yo = this;
+    connect(timer, &QTimer::timeout, this, [this, yo, timer, a, b, ms, inicio, aplicar, listo]() {
+        // Pedir las huellas las mantiene tomando; al final se usan.
+        const auto pedir = [this](const std::string& e, std::vector<std::uint64_t>* t, std::vector<std::uint8_t>* g) {
+            std::string id;
+            for (const auto& n : grafo_.nodos())
+                if (n.grupo == e && n.tipo == "sincro") id = n.id;
+            obs_source_t* src = obs_get_source_by_name(e.c_str());
+            if (src == nullptr || id.empty()) {
+                obs_source_release(src);
+                return;
+            }
+            if (obs_source_t* f = obs_source_get_filter_by_name(src, kFiltro)) {
+                calldata_t cd = {};
+                calldata_set_string(&cd, "nodo", id.c_str());
+                calldata_set_ptr(&cd, "horas", t);
+                calldata_set_ptr(&cd, "grillas", g);
+                proc_handler_call(obs_source_get_proc_handler(f), "sincro", &cd);
+                calldata_free(&cd);
+                obs_source_release(f);
+            }
+            obs_source_release(src);
+        };
+        if (QDateTime::currentMSecsSinceEpoch() - *inicio < ms) {
+            pedir(a, nullptr, nullptr);
+            pedir(b, nullptr, nullptr);
+            return;
+        }
+        timer->stop();
+        timer->deleteLater();
+        std::vector<std::uint64_t> ta, tb;
+        std::vector<std::uint8_t> ga, gb;
+        pedir(a, &ta, &ga);
+        pedir(b, &tb, &gb);
+        const Medicion m = ::ba::app::video::medirDesfase(ta, ga, tb, gb);
+        // Las tarjetas que se pusieron para medir, se van.
+        editar([&](GrafoVideo& g) {
+            std::vector<std::string> sacar;
+            for (const auto& n : g.nodos())
+                if (n.tipo == "sincro" && n.params.value("auto", false) && (n.grupo == a || n.grupo == b)) sacar.push_back(n.id);
+            for (const auto& id : sacar) g.quitar(id, nullptr);
+            return std::string();
+        });
+        json r{{"a", a}, {"b", b}, {"cuadros_a", ta.size()}, {"cuadros_b", tb.size()}};
+        if (!m.ok) {
+            r["error"] = m.motivo;
+            r["medido"] = false;
+            return listo(r);
+        }
+        r["medido"] = true;
+        r["desfase_ms"] = std::lround(m.desfaseMs);
+        const bool alineadas = std::fabs(m.desfaseMs) < m.cuadroMs * 0.5;
+        r["significa"] = alineadas ? "están sincronizadas (menos de medio cuadro de diferencia)"
+                         : m.desfaseMs > 0
+                             ? "«" + b + "» atrasa " + std::to_string(std::lround(m.desfaseMs)) + " ms respecto de «" + a + "»"
+                             : "«" + a + "» atrasa " + std::to_string(std::lround(-m.desfaseMs)) + " ms respecto de «" + b + "»";
+        r["confianza"] = std::round(m.confianza * 100) / 100;
+        r["metodo"] = m.metodo;
+        r["resolucion_ms"] = std::round(m.cuadroMs);
+        if (aplicar && std::fabs(m.desfaseMs) >= m.cuadroMs * 0.5) {
+            // Se atrasa la que va adelantada; si es de GStreamer se puede adelantar la otra.
+            const std::string adelantada = m.desfaseMs > 0 ? a : b, atrasada = m.desfaseMs > 0 ? b : a;
+            const double d = std::fabs(m.desfaseMs);
+            json hecho;
+            std::string e = ajustarDesfase(adelantada, d, true, &hecho);
+            if (!e.empty() && rt_.engine().sourceTypeId(atrasada) == kTipoVirtual) e = ajustarDesfase(atrasada, -d, true, &hecho);
+            if (e.empty())
+                r["aplicado"] = hecho;
+            else
+                r["no_aplicado"] = e;
+        }
+        listo(r);
+    });
+    timer->start();
+}
+
 void VideoGrafos::guardar() const {
     std::error_code ec;
     std::filesystem::create_directories(archivo_.parent_path(), ec);
@@ -823,6 +1203,13 @@ void VideoGrafos::guardar() const {
 }
 
 void VideoGrafos::cargar() {
+    {
+        QFile r(QString::fromStdString((archivo_.parent_path() / "video-reloj.json").string()));
+        if (r.open(QIODevice::ReadOnly)) {
+            const json j = json::parse(r.readAll().toStdString(), nullptr, false);
+            if (j.is_object()) reloj_ = j;
+        }
+    }
     // El de ahora; si no está, el de antes (un grafo por entrada), migrado.
     for (const auto& ruta : {archivo_, archivoViejo_}) {
         QFile f(QString::fromStdString(ruta.string()));

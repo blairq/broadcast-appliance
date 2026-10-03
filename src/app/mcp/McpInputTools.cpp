@@ -95,6 +95,8 @@ void McpService::registerInputTools() {
         t.category = "entradas";
         t.openWorld = true;
         t.description =
+            "SI HAY QUE SINCRONIZARLA con otras (varios streams, varias camaras de red), usá video_entrada_red: esa "
+            "tiene colchon y reloj del estudio y se mide con video_sincronia; esta no. "
             "Agrega a una escena una señal por la red: camara IP (rtsp://usuario:clave@ip:554/ruta), RTMP, "
             "SRT "
             "(srt://ip:puerto?mode=caller), HLS/HTTP(S) o UDP/RTP. Con reconexion automatica y latencia baja "

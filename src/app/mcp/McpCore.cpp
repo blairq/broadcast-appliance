@@ -655,8 +655,9 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
     if (!permitida(*tool, ctx.rol)) {
         finish(ToolResult::error("La herramienta '" + name + "' (categoria `" + tool->category +
                                  "`) no esta en el juego del rol `" + ctx.rol +
-                                 "`. Si el encargo la necesita, pediselo a otro rol con `agente_encargar` "
-                                 "o dejalo dicho en tu resumen final."));
+                                 "`. `agente_roles` dice que roles tienen esa categoria: si alguno la tiene, "
+                                 "pediselo con `agente_encargar`; si ninguno, no se puede desde aca: decile al "
+                                 "operador que hace falta y no improvises otro camino."));
         return;
     }
     const std::string problem = validate(tool->inputSchema, args);

@@ -20,7 +20,8 @@ namespace {
 constexpr int kColumna = 220;
 
 bool esFiltro(const std::string& t) {
-    return t == "color" || t == "croma" || t == "recorte" || t == "obs" || t == "gst" || t == "retardo" || t == "rostros";
+    return t == "color" || t == "croma" || t == "recorte" || t == "obs" || t == "gst" || t == "retardo" || t == "rostros" ||
+           t == "normalizar" || t == "sincro";
 }
 
 json fabrica(const std::string& tipo) {
@@ -29,14 +30,26 @@ json fabrica(const std::string& tipo) {
     if (tipo == "recorte")
         return {{"izquierda", 0.0}, {"arriba", 0.0}, {"derecha", 0.0}, {"abajo", 0.0}, {"espejoH", false}, {"espejoV", false}};
     if (tipo == "salida") return {{"nombre", ""}};
-    if (tipo == "retardo") return {{"cuadros", 0}};
+    // `ms` (lo que se mide) manda sobre `cuadros` si es > 0.
+    if (tipo == "retardo") return {{"cuadros", 0}, {"ms", 0}};
+    // Una fuente que declaró mal su color: cómo la decodificó libobs (lo
+    // declarado) y cómo es en verdad. `desentrelazar` se aplica a la fuente
+    // (en libobs, que tiene los campos): no | descartar | retro | mezclar |
+    // lineal | yadif | yadif2x; `campo`: arriba | abajo.
+    if (tipo == "normalizar")
+        return {{"matriz_declarada", "709"}, {"rango_declarado", "limitado"}, {"matriz_real", "709"}, {"rango_real", "limitado"},
+                {"desentrelazar", "no"}, {"campo", "arriba"}};
+    // La huella para medir desfases (la pone video_sincronia y la saca al terminar).
+    if (tipo == "sincro") return {{"auto", false}};
     // `uso`: para qué la usa Personas (mirar | autoalta | puerta); `auto`: la
     // puso Personas sola (y la saca cuando no la necesita).
     if (tipo == "rostros")
         return {{"uso", "mirar"}, {"cada", 500}, {"ancho", 640}, {"marcar", false}, {"auto", false}};
     if (tipo == "obs") return {{"filtro", ""}, {"ajustes", json::object()}};
     // Un módulo de GStreamer: el elemento y sus propiedades (lo que cambia de fábrica).
-    if (tipo == "gst") return {{"elemento", ""}, {"propiedades", json::object()}};
+    // `esperar` (ms): 0 entrega el cuadro anterior (1 cuadro de latencia, nunca
+    // frena el video); más espera el de ahora (sin latencia, puede frenar).
+    if (tipo == "gst") return {{"elemento", ""}, {"propiedades", json::object()}, {"esperar", 0}};
     // Un controlador: el molde de una tarjeta (`tarjeta` = su tipo, `params` =
     // sus parámetros) que manejan todas las tarjetas conectadas a su `ctl`.
     if (tipo == "control") return {{"tarjeta", ""}, {"params", json::object()}};
@@ -56,6 +69,8 @@ std::string titulo(const std::string& tipo) {
     if (tipo == "recorte") return "Recorte y espejo";
     if (tipo == "salida") return "Salida";
     if (tipo == "retardo") return "Retardo";
+    if (tipo == "normalizar") return "Normalizar";
+    if (tipo == "sincro") return "Sincronía";
     if (tipo == "rostros") return "Rostros";
     if (tipo == "obs") return "Filtro";
     if (tipo == "gst") return "Módulo";
@@ -127,7 +142,9 @@ json GrafoVideo::catalogo() {
         {"recorte", "Recorta los bordes (quedan transparentes) y da vuelta la imagen.", "entrada"},
         {"rostros", "Reconoce caras en este punto de la entrada (para Personas: anotado, puerta). La imagen pasa igual; "
                     "con «marcar», dibuja las caras.", "entrada"},
-        {"retardo", "Atrasa la imagen unos cuadros: para sincronizar una cámara con otra (o con el audio).", "entrada"},
+        {"normalizar", "Corrige una fuente que declara mal su color (BT.601/709, rango limitado/completo) y la "
+                       "desentrelaza (en la fuente, donde están los campos).", "entrada"},
+        {"retardo", "Atrasa la imagen (`ms`, o `cuadros`): para sincronizar una cámara con otra o con el audio.", "entrada"},
         {"salida", "Publica la imagen de ese punto como una fuente con nombre, para cualquier escena.", "entrada"},
         {"compositor", "Junta varias entradas en una imagen (mosaico, imagen en imagen). Es del estudio.", "estudio"},
         {"control", "Maneja con UN ajuste las tarjetas iguales de varias entradas (la misma corrección de color "

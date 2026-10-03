@@ -160,6 +160,29 @@ class VideoGrafos : public QObject {
     /// {entrada: uso}. Las que puso Personas y ya no hacen falta se van; una
     /// que puso alguien a mano se queda (con uso «mirar»). "" o el error.
     std::string configurarRostros(const std::map<std::string, std::string>& quiero);
+    // --- Relojes y sincronía ---------------------------------------------------
+    /// El reloj del estudio: {tipo (sistema|ntp|ptp|red), servidor, puerto,
+    /// dominio, latencia_ms (la de las entradas de red), publicar_puerto}.
+    nlohmann::json reloj() const;
+    /// Lo cambia, lo guarda y lo aplica a todas las fuentes de GStreamer. "" o el error.
+    std::string configurarReloj(const nlohmann::json& cambios);
+    /// Todo lo que se sabe de una entrada: tamaño, si es asincrónica y su
+    /// desentrelazado, sus ajustes, lo que mide su pipeline de GStreamer (reloj,
+    /// fps, formato, colorimetría, colchón, cuadros tarde), la latencia que
+    /// agrega su sub-grafo, y los errores y avisos de sus tarjetas.
+    nlohmann::json estadoEntrada(const std::string& entrada) const;
+    /// Una entrada de red (srt://, rtmp://, rtsp://, udp://, http://) con el
+    /// reloj del estudio. `latenciaMs` < 0: la del estudio. "" o el error.
+    std::string crearEntradaRed(const std::string& nombre, const std::string& uri, int latenciaMs,
+                                const std::string& escena, bool audio, bool normalizar = true);
+    /// Corre una entrada `ms` (o la lleva a `ms` si !relativo): una fuente de
+    /// GStreamer por su colchón (para los dos lados); una cámara, solo para
+    /// atrás, con una tarjeta retardo. "" o el error; `hecho` dice qué se tocó.
+    std::string ajustarDesfase(const std::string& entrada, double ms, bool relativo, nlohmann::json* hecho);
+    /// Mide durante `segundos` cuánto atrasa `b` respecto de `a` (tarjetas
+    /// `sincro` puestas y sacadas solas) y, con `aplicar`, lo corrige.
+    void medirDesfase(const std::string& a, const std::string& b, int segundos, bool aplicar,
+                      std::function<void(nlohmann::json)> listo);
     /// Crea una entrada virtual; "" o el error.
     std::string crearEntradaVirtual(const std::string& nombre, const std::string& preset, const std::string& escena);
 
@@ -183,6 +206,9 @@ class VideoGrafos : public QObject {
     nlohmann::json conPublicadas(nlohmann::json d) const;
     /// Los errores de las tarjetas de `entrada` (de su filtro): {id: motivo}.
     nlohmann::json erroresDe(const std::string& entrada) const;
+    nlohmann::json avisosDe(const std::string& entrada) const;
+    /// Los ajustes de reloj para una fuente de GStreamer nueva.
+    nlohmann::json relojParaFuente() const;
     void guardar() const;
     void cargar();
 
@@ -196,6 +222,8 @@ class VideoGrafos : public QObject {
     QTimer revision_;
     std::set<std::string> mostradas_; ///< entradas que este objeto mantiene activas
     std::string erroresVistos_;       ///< los errores de las tarjetas, la última vez
+    nlohmann::json reloj_ = {{"tipo", "sistema"}, {"latencia_ms", 200}}; ///< el del estudio (video-reloj.json)
+    std::set<std::string> desentrelazadas_; ///< entradas a las que una tarjeta normalizar les puso desentrelazado
     /// El catálogo se arma en un hilo al arrancar (GStreamer revisa sus
     /// plugins; la primera vez tarda): mientras tanto, uno vacío.
     std::shared_ptr<const CatalogoGst> gst_ = std::make_shared<CatalogoGst>();

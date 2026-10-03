@@ -19,7 +19,7 @@ if(APPLE AND EXISTS "${BA_GST_FW}/Versions/1.0/lib/libgstreamer-1.0.dylib")
     # Headers/: las cabeceras del framework, aplanadas (gst/, glib.h, glibconfig.h por arquitectura).
     target_include_directories(ba::gstreamer INTERFACE "${_g}/Headers")
     set(_libs "")
-    foreach(_l gstreamer-1.0 gstbase-1.0 gstapp-1.0 gstvideo-1.0 glib-2.0 gobject-2.0)
+    foreach(_l gstreamer-1.0 gstbase-1.0 gstapp-1.0 gstvideo-1.0 gstaudio-1.0 gstnet-1.0 glib-2.0 gobject-2.0)
         list(APPEND _libs "${_g}/lib/lib${_l}.dylib")
     endforeach()
     target_link_libraries(ba::gstreamer INTERFACE ${_libs})

@@ -423,38 +423,41 @@ La API de Facebook solo transmite y administra videos de **Paginas** (no del per
 - Otras: `rtmp://`, `srt://ip:puerto?mode=caller`, `https://.../playlist.m3u8` (HLS), `udp://@:5000`.
 - Devuelve si llega imagen y de que tamaño. `input_status` muestra el estado de todas (sin claves).
 - Latencia baja por defecto; `latency: "normal"` para señales inestables (mas colchon). Reconecta sola.)md"},
-    {"video", "Grafo de video", "Un grafo de video para todo el estudio: entradas, tarjetas, filtros de OBS, compositor, salidas.",
-     R"md(Un solo grafo, como un pipeline de GStreamer: cada entrada de video es un sub-grafo (`<entrada>.entrada` -> tarjetas -> `<entrada>.escena`, lo que ven las escenas) y los cables pueden cruzar entre entradas. Lo corre la GPU.
+    {"video", "Grafo de video", "Armar pipelines de video: correccion compartida entre camaras, modulos de GStreamer, compositor, entradas de red, relojes y sincronia.",
+     R"md(Un solo grafo para todo el video del estudio, como un pipeline de GStreamer. Cada entrada (camara, red, virtual) es un sub-grafo: `<entrada>.entrada` -> tarjetas -> `<entrada>.escena` (lo que ven las escenas). Corre en la GPU, adentro de libobs. Todas las entradas marchan con el reloj de video del estudio (`status`: lienzo y fps).
 
-## Ver
-- `video_grafo` sin nada: todo el estudio; con `entrada`: su sub-grafo (lo de afuera, marcado `externo`). Los ids son como `camara-1.croma`.
-- `video_filtros`: los filtros de video de OBS que pueden ser tarjeta (correccion de color, LUT .cube, llaves, nitidez, recorte, escala, mascaras, Mejorar imagen, PTZ digital). Con `id` de una tarjeta (de OBS o de GStreamer): sus controles.
-- `video_modulos`: los modulos de video de GStreamer, documentados en castellano (para que sirven, uso en vivo). Sin nada: resumen por categoria; `buscar` ("desentrelazar", "croma", "texto"…), `categoria`, o `elemento` (todo, con sus propiedades). `tarjeta: true` = va como tarjeta de filtro.
+## Como trabajar (siempre en este orden)
+1. **Mirar**: `video_estado` (todas, con su diagnostico) y `video_estado {"entrada": ...}` antes de tocar nada: tamaño, fps, formato, color (BT.601/709, rango), si llega entrelazada, reloj, colchon de red. `video_grafo` muestra las tarjetas.
+2. **Armar** con `video_pipeline` (UNA llamada por entrada, valida todo y no cambia nada si algo falla). Las herramientas sueltas (`video_tarjeta_agregar`, `_ajustar`, `_quitar`, `video_cable`) son para retoques.
+3. **Verificar**: `video_estado {"entrada": ...}` otra vez (el `diagnostico` tiene que quedar sin errores) y `capture_source {"name": ...}` para ver la imagen.
 
-## Armar
-- `video_tarjeta_agregar {"entrada": ..., "tipo": "croma"}` (color, croma, recorte se intercalan antes de la escena, o despues de `despues`).
-- Un filtro de OBS: `{"entrada": ..., "tipo": "obs", "filtro": "clut_filter", "params": {"ajustes": {"image_path": "/ruta/look.cube"}}}`.
-- Un modulo de GStreamer: `{"entrada": ..., "tipo": "gst", "elemento": "deinterlace", "params": {"propiedades": {"method": "greedyh"}}}` (nombres de GStreamer; los enum por su nick). Los de OpenGL (gl…) corren en la GPU.
-- `video_tarjeta_ajustar {"id": ..., "params": {...}}` (de un filtro de OBS: `{"ajustes": {...}}`; de un modulo de GStreamer: `{"propiedades": {...}}`; se mezclan).
-- `video_cable {"desde": ..., "hacia": ...}`: cualquier par, aunque sean de entradas distintas. A cada puerto le llega un cable (el nuevo reemplaza); de una salida salen varios. `quitar: true` lo saca.
-- `video_tarjeta_quitar` y `video_grafo_limpiar {"entrada": ...}`.
+## Recetas
+**La misma correccion de color en varias camaras** (que cambiando una vez cambie en todas):
+`video_pipeline {"entrada": "Sony", "tarjetas": [{"tipo": "gst", "elemento": "videobalance", "propiedades": {"contrast": 1.1, "saturation": 0.9}, "compartida": "Correccion camaras"}]}` y lo mismo en las otras con el mismo `compartida` (sin repetir las propiedades: las toma del controlador). Lo propio de una camara, encima: `"local": {"propiedades": {"hue": 0.04}}`. Despues, ajustar la comun: `video_tarjeta_ajustar` sobre cualquiera de las manejadas (va al controlador) o sobre el controlador. `video_controlador` para hacerlo a partir de una tarjeta que ya existe.
 
-## Una correccion para varias camaras (controladores)
-- `video_controlador {"tarjeta": "sony.gst"}`: hace un controlador (nodo del estudio) con esa tarjeta; `{"controlador": ..., "entrada": "Pelco"}` le agrega a otra entrada una tarjeta manejada por el. Cambiar el controlador (`video_tarjeta_ajustar` sobre el o sobre cualquier tarjeta manejada) cambia todas; lo propio de una camara va en `{"local": {...}}`. `{"soltar": id}` la desconecta. Los cables de control van de la salida `ctl` del controlador a la entrada `ctl` de la tarjeta.
+**Corregir una camara**: `videobalance` (brillo, contraste, saturacion, matiz), `gamma`, filtros de OBS (`video_filtros`: correccion de color, LUT .cube). Una dominante (verde, magenta): `hue` chico (±0.02 a ±0.08).
 
-## Rostros
-- La tarjeta `rostros` le da a Personas la imagen de ESE punto de la entrada (despues de corregir el color, de recortar…). Personas la pone sola: al usar `entrada:<camara>` como feed (rostro_ver, rostro_calidad, el anotado automatico, la camara de la puerta) aparece en el grafo, y se va al dejar de usarla. `{"marcar": true}` dibuja las caras reconocidas (mejor en una rama con una salida, no en lo que va al aire).
+**Entrelazada / mal declarada** (`video_estado` lo dice): `{"tipo": "normalizar", "params": {"desentrelazar": "yadif"}}` (desentrelaza en la fuente, donde estan los campos); colores corridos en HD que declara 601: `{"matriz_declarada": "601", "matriz_real": "709"}`. Los cuadros por segundo distintos al lienzo los convierte libobs solo (repite o salta cuadros): no hace falta tarjeta.
 
-## Entradas virtuales
-- `video_entrada_virtual` sin nada: los presets (barras-hd, barras, barras-75, barras-hora, negro, blanco, verde, zona, damero, pelota, ruido). `{"nombre": "Barras", "preset": "barras-hd"}` la crea en la escena al aire; `pipeline` en vez de `preset`: cualquier origen de GStreamer (`rtspsrc location=… ! decodebin`, `srtsrc uri=srt://:9000 ! decodebin`). Es una entrada mas, con su sub-grafo.
+**Mosaico / imagen en imagen**: `video_tarjeta_agregar {"tipo": "compositor"}`, un `video_cable` de cada entrada (o de su ultima tarjeta) al compositor, y `video_salida_a_escena {"id": "estudio.compositor", "escena": ...}`. Sin capas: mosaico; `params.capas.in_N` {x, y, ancho, alto 0..1, opacidad, orden} para otro armado.
 
-## Entre entradas
-- `video_tarjeta_agregar {"tipo": "compositor"}`: del estudio; cada cable a el crea un puerto (in_0, in_1...) y una capa. Sin posiciones, mosaico; por puerto `params.capas.in_N` {x, y, ancho, alto en 0..1 del lienzo, opacidad, orden}. Se ve con `video_salida_a_escena {"id": "estudio.compositor"}` (una fuente con su `nombre`) o cableandolo a la escena de una entrada (`video_cable` a `<entrada>.escena`).
-- `retardo {"cuadros": N}`: atrasa una entrada para sincronizarla con otra (o con el audio).
+**Streams de red** (SRT, RTMP, RTSP): `video_entrada_red {"nombre", "uri", "escena", "latencia_ms"}` (nunca `network_input_add` para esto: esa no se sincroniza). Cada cuadro sale a su hora de captura + latencia (un colchon propio). Mas latencia = mas tolerancia a la red y mas retraso.
 
-## Salidas
-- Una tarjeta `salida` publica ese punto como fuente con nombre; `video_salida_a_escena {"id": ...}` la pone en la escena al aire (o en `escena`).
-- Mira el resultado con `capture_source`.)md"},
+**Sincronizar entradas**: `video_sincronia {"a": ..., "b": ..., "aplicar": true}` mide cuanto atrasa una de otra comparando lo que se ve (necesita algo en comun que cambie: la misma imagen, movimiento, un aplauso) y lo corrige; volver a medir debe dar ~0. A mano: `video_desfase {"entrada", "ms"}`.
+- RTSP trae la hora de captura del que manda (RTCP/NTP): con el mismo reloj se alinea solo.
+- SRT y RTMP no la traen: se mide con `video_sincronia`.
+- Camaras locales: solo se pueden atrasar (retardo); para alinear con una de red, se atrasa la local o se adelanta la de red (su desfase acepta negativos).
+
+**Relojes**: `video_reloj` sin nada dice el reloj del estudio y como esta en cada entrada de red. `{"tipo": "ntp", "servidor": ...}` (todos contra el mismo NTP), `{"tipo": "ptp", "dominio": 0}` (IEEE 1588), `{"tipo": "red", "servidor": ip, "puerto": 8554}` (el reloj de OTRO aparato), `{"publicar_puerto": 8554}` (publicar el de este para que otros lo usen), `{"latencia_ms": ...}` (el colchon de todas las de red).
+
+**Modulos de GStreamer**: `video_modulos` (catalogo documentado en castellano; `buscar`, `categoria`, `elemento` con sus propiedades). Solo los `tarjeta: true` van en una entrada. Un modulo en 4:2:0 o con latencia lo avisa el diagnostico. Las propiedades se pasan con su nombre de GStreamer (los enum por su nick).
+
+**Rostros**: la tarjeta `rostros` la pone Personas sola al usar `entrada:<camara>`; `marcar` dibuja las caras.
+
+## Cosas a saber
+- Las tarjetas `gst` agregan 1 cuadro de latencia (no frenan el video). Si dos entradas se comparan y solo una tiene `gst`, eso es un cuadro de diferencia: tenelo en cuenta o medilo con `video_sincronia`.
+- `video_grafo_limpiar {"entrada"}` deja una entrada como vino.
+- Entradas virtuales de prueba (barras, placa de zonas, pelota): `video_entrada_virtual {"nombre", "preset", "escena"}`.)md"},
     {"camaras", "Camaras PTZ", "Mover las camaras (pan, tilt, zoom, foco, presets) y mejorar su imagen.",
      R"md(Cada entrada de video tiene PTZ: DIGITAL (recorte y zoom en la GPU, en cualquier camara) y, si la camara es motorizada, el de la camara (backend VISCA, ONVIF o Panasonic). `ptz_camaras` dice que tiene y que puede cada una.
 

@@ -47,6 +47,8 @@
 #include "ba_video_estudio.hpp"
 
 #include <algorithm>
+#include <deque>
+#include <array>
 #include <cstdint>
 #include <cstring>
 #include <locale>
@@ -61,7 +63,35 @@
 
 namespace {
 
-enum class Tipo { Color, Croma, Recorte, Salida, Obs, Gst, Toma, Traer, Retardo, Rostros };
+enum class Tipo { Color, Croma, Recorte, Salida, Obs, Gst, Toma, Traer, Retardo, Rostros, Normalizar, Sincro };
+
+/// La huella de cada cuadro de una tarjeta `sincro`: una grilla de luma de
+/// 16x9 (144 bytes) con la hora de libobs del cuadro. Con dos huellas se mide
+/// cuánto atrasa una entrada respecto de otra (ver VideoGrafos::medirDesfase).
+/// Se baja en TRES tiempos (copia en un cuadro, lectura dos después): la GPU
+/// nunca espera. Solo mientras la app la pide.
+struct Huella {
+    static constexpr int kAncho = 16, kAlto = 9, kLado = kAncho * kAlto;
+    /// Se baja a 8x eso y se promedian bloques de 8x8 en la CPU: reducir de
+    /// golpe a 16x9 con la GPU muestrea 4 píxeles por casilla y sale ruido.
+    static constexpr int kFactor = 8;
+    static constexpr size_t kMaxCuadros = 1200; ///< ~20 s a 60 fps
+    gs_texrender_t* chico = nullptr;
+    gs_stagesurf_t* lectura[3] = {};
+    std::uint64_t horaDe[3] = {};
+    bool lleno[3] = {};
+    int turno = 0;
+    std::uint64_t ultimoCuadro = 0;
+    std::mutex lock;
+    std::deque<std::pair<std::uint64_t, std::array<std::uint8_t, kLado>>> cuadros;
+    std::uint64_t pedidoMs = 0;
+    ~Huella() {
+        obs_enter_graphics();
+        gs_texrender_destroy(chico);
+        for (auto* l : lectura) gs_stagesurface_destroy(l);
+        obs_leave_graphics();
+    }
+};
 
 /// Lo de una tarjeta `rostros` (sobrevive a los cambios del plan).
 ///
@@ -148,8 +178,12 @@ struct Paso {
     // retardo
     int cuadros = 0;
     std::shared_ptr<Retardo> retardo;
+    // normalizar: filas de la corrección afín sobre RGB
+    float corr[12] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0};
     // rostros
     std::shared_ptr<Analisis> analisis;
+    // sincro
+    std::shared_ptr<Huella> huella;
     int cadaMs = 500, anchoAnalisis = 640;
     bool marcar = false;
     // obs
@@ -166,6 +200,7 @@ struct Plan {
     std::map<std::string, std::shared_ptr<InstanciaObs>> obs;
     std::map<std::string, std::shared_ptr<Retardo>> retardos;
     std::map<std::string, std::shared_ptr<Analisis>> analisis;
+    std::map<std::string, std::shared_ptr<Huella>> huellas;
 #if defined(BA_HAVE_GST)
     std::map<std::string, std::shared_ptr<ba::gst::TarjetaGst>> gst;
 #endif
@@ -198,7 +233,7 @@ struct Grafo {
     gs_effect_t* fx = nullptr;
     gs_eparam_t *pImage = nullptr, *pTexel = nullptr, *pBrillo = nullptr, *pContraste = nullptr,
                 *pSaturacion = nullptr, *pGamma = nullptr, *pClave = nullptr, *pSimilitud = nullptr,
-                *pSuavidad = nullptr, *pDerrame = nullptr, *pBorde = nullptr, *pEspejo = nullptr;
+                *pSuavidad = nullptr, *pDerrame = nullptr, *pBorde = nullptr, *pEspejo = nullptr, *pCorr[3] = {};
 
     std::mutex planLock;
     std::shared_ptr<const Plan> plan = std::make_shared<Plan>();
@@ -211,6 +246,7 @@ struct Grafo {
     std::string fuente; ///< la entrada (para las tomas)
     std::mutex estadoLock;
     std::map<std::string, std::string> errores; ///< por nodo: por qué una tarjeta no corre
+    std::map<std::string, std::string> avisos;  ///< por nodo: algo a saber (formato, latencia)
 };
 
 float numero(obs_data_t* p, const char* k, double def) {
@@ -303,6 +339,39 @@ std::shared_ptr<ba::gst::TarjetaGst> tarjetaGst(const Plan* anterior, const std:
 }
 #endif
 
+/// La matriz YUV -> RGB que usa libobs (filas de 4: rgb = M·[y,u,v,1]).
+void matrizDe(const std::string& m, bool completo, double out[12]) {
+    float cm[16];
+    float mn[3], mx[3];
+    video_format_get_parameters_for_format(m == "601" ? VIDEO_CS_601 : VIDEO_CS_709, completo ? VIDEO_RANGE_FULL : VIDEO_RANGE_PARTIAL,
+                                           VIDEO_FORMAT_NV12, cm, mn, mx);
+    for (int i = 0; i < 12; ++i) out[i] = cm[i];
+}
+
+/// La corrección de una fuente que declaró (matriz, rango) pero en verdad es
+/// otra: libobs la pasó a RGB con la declarada; se vuelve a YUV con esa y se
+/// pasa a RGB con la real. C = Dreal · Ddecl⁻¹ (afín, filas de 4).
+void correccion(const std::string& mDecl, bool cDecl, const std::string& mReal, bool cReal, float out[12]) {
+    double d[12], r[12];
+    matrizDe(mDecl, cDecl, d);
+    matrizDe(mReal, cReal, r);
+    // Inversa de [A b; 0 1] = [A⁻¹ -A⁻¹b; 0 1].
+    const double a = d[0], b = d[1], c = d[2], e = d[4], f = d[5], g = d[6], h = d[8], i = d[9], j = d[10];
+    const double det = a * (f * j - g * i) - b * (e * j - g * h) + c * (e * i - f * h);
+    if (det == 0) return;
+    double inv[12];
+    inv[0] = (f * j - g * i) / det, inv[1] = (c * i - b * j) / det, inv[2] = (b * g - c * f) / det;
+    inv[4] = (g * h - e * j) / det, inv[5] = (a * j - c * h) / det, inv[6] = (c * e - a * g) / det;
+    inv[8] = (e * i - f * h) / det, inv[9] = (b * h - a * i) / det, inv[10] = (a * f - b * e) / det;
+    for (int k = 0; k < 3; ++k) inv[k * 4 + 3] = -(inv[k * 4] * d[3] + inv[k * 4 + 1] * d[7] + inv[k * 4 + 2] * d[11]);
+    // C = R · inv
+    for (int row = 0; row < 3; ++row) {
+        for (int col = 0; col < 3; ++col)
+            out[row * 4 + col] = static_cast<float>(r[row * 4] * inv[col] + r[row * 4 + 1] * inv[4 + col] + r[row * 4 + 2] * inv[8 + col]);
+        out[row * 4 + 3] = static_cast<float>(r[row * 4] * inv[3] + r[row * 4 + 1] * inv[7] + r[row * 4 + 2] * inv[11] + r[row * 4 + 3]);
+    }
+}
+
 std::shared_ptr<Plan> armarPlan(const char* json, const Plan* anterior) {
     auto plan = std::make_shared<Plan>();
     if (json == nullptr || *json == '\0') return plan;
@@ -390,6 +459,7 @@ std::shared_ptr<Plan> armarPlan(const char* json, const Plan* anterior) {
                 obs_data_t* pr = q != nullptr ? obs_data_get_obj(q, "propiedades") : nullptr;
                 p.gst = tarjetaGst(anterior, n.id, elemento, propiedadesGst(pr));
                 obs_data_release(pr);
+                p.gst->setEspera(q != nullptr ? static_cast<int>(obs_data_get_int(q, "esperar")) : 0);
                 plan->gst[n.id] = p.gst;
 #else
                 continue; // sin GStreamer: la tarjeta no se calcula
@@ -401,6 +471,21 @@ std::shared_ptr<Plan> armarPlan(const char* json, const Plan* anterior) {
                 p.tipo = Tipo::Toma;
                 p.nombre = q != nullptr ? obs_data_get_string(q, "nombre") : "";
                 if (p.nombre.empty()) continue;
+            } else if (n.tipo == "normalizar") {
+                p.tipo = Tipo::Normalizar;
+                const auto txt = [&](const char* k, const char* def) {
+                    const char* v = q != nullptr ? obs_data_get_string(q, k) : "";
+                    return std::string(v != nullptr && *v ? v : def);
+                };
+                correccion(txt("matriz_declarada", "709"), txt("rango_declarado", "limitado") == "completo",
+                           txt("matriz_real", "709"), txt("rango_real", "limitado") == "completo", p.corr);
+            } else if (n.tipo == "sincro") {
+                p.tipo = Tipo::Sincro;
+                std::shared_ptr<Huella> h;
+                if (anterior != nullptr && anterior->huellas.count(n.id)) h = anterior->huellas.at(n.id);
+                if (!h) h = std::make_shared<Huella>();
+                p.huella = h;
+                plan->huellas[n.id] = h;
             } else if (n.tipo == "rostros") {
                 p.tipo = Tipo::Rostros;
                 if (q != nullptr) {
@@ -418,6 +503,12 @@ std::shared_ptr<Plan> armarPlan(const char* json, const Plan* anterior) {
             } else if (n.tipo == "retardo") {
                 p.tipo = Tipo::Retardo;
                 p.cuadros = q != nullptr ? static_cast<int>(std::clamp<long long>(obs_data_get_int(q, "cuadros"), 0, 120)) : 0;
+                // En milisegundos (lo que se mide), pasado a cuadros del lienzo.
+                const long long ms = q != nullptr ? obs_data_get_int(q, "ms") : 0;
+                obs_video_info ovi = {};
+                if (ms > 0 && obs_get_video_info(&ovi) && ovi.fps_den > 0)
+                    p.cuadros = static_cast<int>(std::clamp<long long>(
+                        (ms * ovi.fps_num + 500LL * ovi.fps_den) / (1000LL * ovi.fps_den), 0, 120));
                 std::shared_ptr<Retardo> r;
                 if (anterior != nullptr && anterior->retardos.count(n.id)) r = anterior->retardos.at(n.id);
                 if (!r || r->anillo.size() != static_cast<size_t>(p.cuadros) + 1) r = std::make_shared<Retardo>();
@@ -479,6 +570,11 @@ void despertarSiPiden(void* data, std::uint32_t, std::uint32_t) {
         std::lock_guard<std::mutex> l(g->planLock);
         if (g->ultimoCuadro == obs_get_video_frame_time()) return; // ya se dibujó
         for (const auto& p : g->plan->pasos) {
+            if (p.tipo == Tipo::Sincro) {
+                std::lock_guard<std::mutex> lh(p.huella->lock);
+                if (p.huella->pedidoMs != 0 && ahora - p.huella->pedidoMs <= kAnalisisSinPedidoMs) toca = true;
+                continue;
+            }
             if (p.tipo != Tipo::Rostros) continue;
             std::lock_guard<std::mutex> la(p.analisis->lock);
             const std::uint64_t pedido = p.analisis->pedidoMs;
@@ -534,6 +630,9 @@ void* crear(obs_data_t* settings, obs_source_t* ctx) {
         g->pDerrame = gs_effect_get_param_by_name(g->fx, "derrame");
         g->pBorde = gs_effect_get_param_by_name(g->fx, "borde");
         g->pEspejo = gs_effect_get_param_by_name(g->fx, "espejo");
+        g->pCorr[0] = gs_effect_get_param_by_name(g->fx, "corr0");
+        g->pCorr[1] = gs_effect_get_param_by_name(g->fx, "corr1");
+        g->pCorr[2] = gs_effect_get_param_by_name(g->fx, "corr2");
     }
     g->entrada = gs_texrender_create(GS_RGBA, GS_ZS_NONE);
     obs_leave_graphics();
@@ -546,7 +645,7 @@ void* crear(obs_data_t* settings, obs_source_t* ctx) {
     actualizar(g, settings);
     // Por qué una tarjeta no corre (p. ej. un módulo de GStreamer que no
     // arrancó): {"<id del nodo>": "motivo"}, para la interfaz.
-    proc_handler_add(obs_source_get_proc_handler(ctx), "void estado(out string errores)",
+    proc_handler_add(obs_source_get_proc_handler(ctx), "void estado(out string errores, out string avisos)",
                      [](void* d, calldata_t* cd) {
                          auto* x = static_cast<Grafo*>(d);
                          obs_data_t* o = obs_data_create();
@@ -556,6 +655,14 @@ void* crear(obs_data_t* settings, obs_source_t* ctx) {
                          }
                          calldata_set_string(cd, "errores", obs_data_get_json(o));
                          obs_data_release(o);
+                         obs_data_t* av = obs_data_create();
+                         {
+                             std::lock_guard<std::mutex> l(x->estadoLock);
+                             for (const auto& [id, a] : x->avisos)
+                                 if (!a.empty()) obs_data_set_string(av, id.c_str(), a.c_str());
+                         }
+                         calldata_set_string(cd, "avisos", obs_data_get_json(av));
+                         obs_data_release(av);
                      },
                      g);
     // La app pide el último cuadro de una tarjeta `rostros` (y con eso la
@@ -598,6 +705,35 @@ void* crear(obs_data_t* settings, obs_source_t* ctx) {
                          std::lock_guard<std::mutex> l(a->lock);
                          a->cajas = cajas != nullptr ? cajas : "";
                          a->cajasMs = os_gettime_ns() / 1000000;
+                     },
+                     g);
+    // Las huellas de una tarjeta `sincro` (y pedirlas la mantiene tomando):
+    // `horas` es un std::vector<std::uint64_t>* (hora de libobs de cada
+    // cuadro) y `grillas` un std::vector<std::uint8_t>* (144 bytes por cuadro).
+    proc_handler_add(obs_source_get_proc_handler(ctx), "void sincro(in string nodo, in ptr horas, in ptr grillas, out int cuadros)",
+                     [](void* d, calldata_t* cd) {
+                         auto* x = static_cast<Grafo*>(d);
+                         const char* nodo = calldata_string(cd, "nodo");
+                         auto* horas = static_cast<std::vector<std::uint64_t>*>(calldata_ptr(cd, "horas"));
+                         auto* grillas = static_cast<std::vector<std::uint8_t>*>(calldata_ptr(cd, "grillas"));
+                         std::shared_ptr<Huella> h;
+                         {
+                             std::lock_guard<std::mutex> l(x->planLock);
+                             const auto it = x->plan->huellas.find(nodo != nullptr ? nodo : "");
+                             if (it != x->plan->huellas.end()) h = it->second;
+                         }
+                         if (!h) return;
+                         std::lock_guard<std::mutex> l(h->lock);
+                         h->pedidoMs = os_gettime_ns() / 1000000;
+                         if (horas != nullptr && grillas != nullptr) {
+                             horas->clear();
+                             grillas->clear();
+                             for (const auto& [t, g] : h->cuadros) {
+                                 horas->push_back(t);
+                                 grillas->insert(grillas->end(), g.begin(), g.end());
+                             }
+                         }
+                         calldata_set_int(cd, "cuadros", static_cast<long long>(h->cuadros.size()));
                      },
                      g);
     // Si la app pide cuadros de una entrada que ninguna escena dibuja, se la
@@ -699,6 +835,60 @@ void bajarAnalisis(const Paso& p, gs_texture_t* en, std::uint32_t cx, std::uint3
     a.ultimaMs = ahora;
 }
 
+/// La tarjeta `sincro`: lee la huella copiada hace dos cuadros y copia la de
+/// ahora. Una vez por cuadro de libobs y solo mientras la app la pide.
+void tomarHuella(Huella& h, gs_texture_t* en) {
+    const std::uint64_t cuadro = obs_get_video_frame_time();
+    if (cuadro == h.ultimoCuadro) return;
+    h.ultimoCuadro = cuadro;
+    {
+        std::lock_guard<std::mutex> l(h.lock);
+        if (h.pedidoMs == 0 || os_gettime_ns() / 1000000 - h.pedidoMs > kAnalisisSinPedidoMs) return;
+    }
+    const int ahora = h.turno, leer = (h.turno + 1) % 3; // el de hace dos cuadros
+    if (h.lleno[leer] && h.lectura[leer] != nullptr) {
+        std::uint8_t* datos = nullptr;
+        std::uint32_t paso = 0;
+        if (gs_stagesurface_map(h.lectura[leer], &datos, &paso)) {
+            std::array<std::uint8_t, Huella::kLado> grilla{};
+            constexpr int F = Huella::kFactor;
+            for (int y = 0; y < Huella::kAlto; ++y)
+                for (int x = 0; x < Huella::kAncho; ++x) {
+                    unsigned suma = 0;
+                    for (int yy = 0; yy < F; ++yy)
+                        for (int xx = 0; xx < F; ++xx) {
+                            const std::uint8_t* q =
+                                datos + static_cast<size_t>(y * F + yy) * paso + static_cast<size_t>(x * F + xx) * 4; // BGRA
+                            suma += (q[2] * 54u + q[1] * 183u + q[0] * 19u) >> 8; // luma 709
+                        }
+                    grilla[static_cast<size_t>(y * Huella::kAncho + x)] = static_cast<std::uint8_t>(suma / (F * F));
+                }
+            gs_stagesurface_unmap(h.lectura[leer]);
+            std::lock_guard<std::mutex> l(h.lock);
+            h.cuadros.emplace_back(h.horaDe[leer], grilla);
+            while (h.cuadros.size() > Huella::kMaxCuadros) h.cuadros.pop_front();
+        }
+        h.lleno[leer] = false;
+    }
+    if (h.chico == nullptr) h.chico = gs_texrender_create(GS_BGRA, GS_ZS_NONE);
+    constexpr std::uint32_t W = Huella::kAncho * Huella::kFactor, H = Huella::kAlto * Huella::kFactor;
+    if (h.lectura[ahora] == nullptr) h.lectura[ahora] = gs_stagesurface_create(W, H, GS_BGRA);
+    gs_texrender_reset(h.chico);
+    if (!gs_texrender_begin(h.chico, W, H)) return;
+    gs_ortho(0.0f, static_cast<float>(W), 0.0f, static_cast<float>(H), -100.0f, 100.0f);
+    gs_effect_t* fx = obs_get_base_effect(OBS_EFFECT_DEFAULT);
+    gs_effect_set_texture(gs_effect_get_param_by_name(fx, "image"), en);
+    gs_blend_state_push();
+    gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
+    while (gs_effect_loop(fx, "Draw")) gs_draw_sprite(en, 0, W, H);
+    gs_blend_state_pop();
+    gs_texrender_end(h.chico);
+    gs_stage_texture(h.lectura[ahora], gs_texrender_get_texture(h.chico));
+    h.horaDe[ahora] = cuadro;
+    h.lleno[ahora] = true;
+    h.turno = (h.turno + 1) % 3;
+}
+
 /// Dibuja un rectángulo hueco (cuatro barras) con el efecto sólido.
 void rectangulo(gs_effect_t* solido, gs_eparam_t* pColor, float x, float y, float w, float h, float grueso) {
     const auto barra = [&](float bx, float by, float bw, float bh) {
@@ -780,6 +970,7 @@ bool procesar(Grafo* g, const Plan& plan) {
             externa = !p.compositor.empty() ? ba::video::componer(p.compositor, nullptr, nullptr)
                                             : ba::video::leerToma(p.nombre, p.fuente, nullptr, nullptr);
         if (p.tipo == Tipo::Rostros) bajarAnalisis(p, en, g->cx, g->cy);
+        if (p.tipo == Tipo::Sincro) tomarHuella(*p.huella, en);
         gs_texrender_t* destino = g->texs[i];
         gs_texrender_reset(destino);
         if (!gs_texrender_begin(destino, g->cx, g->cy)) continue;
@@ -812,6 +1003,18 @@ bool procesar(Grafo* g, const Plan& plan) {
             pasada(g, en, "Recorte");
             break;
         }
+        case Tipo::Normalizar: {
+            struct vec4 fila;
+            for (int k = 0; k < 3; ++k) {
+                vec4_set(&fila, p.corr[k * 4], p.corr[k * 4 + 1], p.corr[k * 4 + 2], p.corr[k * 4 + 3]);
+                gs_effect_set_vec4(g->pCorr[k], &fila);
+            }
+            pasada(g, en, "Normalizar");
+            break;
+        }
+        case Tipo::Sincro:
+            pasada(g, en, "Copiar");
+            break;
         case Tipo::Rostros:
             pasada(g, en, "Copiar");
             if (p.marcar) marcarCaras(*p.analisis, g->cx, g->cy);
@@ -864,6 +1067,11 @@ bool procesar(Grafo* g, const Plan& plan) {
                     g->errores.erase(p.id);
                 else
                     g->errores[p.id] = p.gst->error();
+                std::string aviso = p.gst->aviso();
+                if (p.gst->latenciaCuadros() > 0)
+                    aviso += std::string(aviso.empty() ? "" : "; ") + "agrega 1 cuadro de latencia (`esperar` lo saca, pero puede frenar el video)";
+                if (!p.gst->formato().empty()) aviso += " [trabaja en " + p.gst->formato() + "]";
+                g->avisos[p.id] = aviso;
                 if (corrio) break;
             }
             {

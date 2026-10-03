@@ -42,6 +42,11 @@ bool iniciar();
 bool listo();
 /// true si ya se intentó y no hay GStreamer.
 bool fallo();
+/// Publica el reloj de este aparato en la red (GstNetTimeProvider) para que
+/// otros se sincronicen con él (`reloj: red`). puerto 0 = apagar.
+bool publicarReloj(int puerto, std::string& error);
+/// El puerto en el que se publica (0: no se publica).
+int relojPublicado();
 /// El motivo si iniciar() falló.
 const std::string& errorInicio();
 
@@ -64,10 +69,20 @@ class TarjetaGst {
     bool procesar(gs_texture_t* entrada, std::uint32_t cx, std::uint32_t cy, gs_effect_t* fx);
     /// Lo último que pasó (para el log y la interfaz).
     const std::string& error() const { return error_; }
+    /// Algo a saber que no es un error (p. ej. que trabaja en 4:2:0).
+    const std::string& aviso() const { return aviso_; }
+    /// En qué formato le llega la imagen al módulo (tras negociar).
+    const std::string& formato() const { return formato_; }
+    /// Cuánto esperar por el cuadro de ahora: 0 (de fábrica) entrega el
+    /// anterior y nunca frena el video; más, sin latencia pero puede frenar.
+    void setEspera(int ms) { esperaMs_ = ms < 0 ? 0 : (ms > 100 ? 100 : ms); }
+    /// La latencia que agrega, en cuadros.
+    int latenciaCuadros() const { return esperaMs_ > 0 ? 0 : 1; }
 
    private:
     bool armar(std::uint32_t cx, std::uint32_t cy);
     void avisar();
+    void revisarFormato();
     void desarmar();
 
     std::string elemento_;
@@ -79,7 +94,11 @@ class TarjetaGst {
     GstElement* sink_ = nullptr;
     GstElement* modulo_ = nullptr;
     std::uint32_t cx_ = 0, cy_ = 0;
-    std::uint64_t pts_ = 0;
+    std::uint64_t t0_ = 0;         ///< la hora de libobs del primer cuadro
+    int fpsNum_ = 30, fpsDen_ = 1; ///< los del lienzo
+    int esperaMs_ = 0;             ///< cuánto esperar el cuadro de ahora (0: usar el anterior)
+    bool revisado_ = false;        ///< ya se miró en qué formato trabaja el módulo
+    std::string formato_, aviso_;
     gs_texrender_t* bajada_ = nullptr; ///< la entrada despremultiplicada, para bajarla
     gs_stagesurf_t* stage_ = nullptr;
     gs_texture_t* subida_ = nullptr; ///< lo que devolvió GStreamer

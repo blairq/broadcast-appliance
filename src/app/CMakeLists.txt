@@ -611,6 +611,17 @@ endif()
     target_include_directories(test_grafo_video PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_grafo_video PRIVATE ba_core)
     add_test(NAME test_grafo_video COMMAND test_grafo_video)
+
+    # La medición de desfase entre dos entradas (datos sintéticos).
+    add_executable(test_sincronia tests/test_sincronia.cpp video/Sincronia.cpp)
+    target_include_directories(test_sincronia PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_sincronia PRIVATE ba_core)
+    add_test(NAME test_sincronia COMMAND test_sincronia)
+
+    add_executable(test_diagnostico_video tests/test_diagnostico_video.cpp video/Diagnostico.cpp)
+    target_include_directories(test_diagnostico_video PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_diagnostico_video PRIVATE ba_core)
+    add_test(NAME test_diagnostico_video COMMAND test_diagnostico_video)
     add_executable(test_argumentos_locales tests/test_argumentos_locales.cpp agent/ArgumentosLocales.cpp)
     target_include_directories(test_argumentos_locales PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_argumentos_locales PRIVATE ba_core Qt6::Core)

@@ -12,6 +12,7 @@
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/StudioViewModel.hpp"
+#include "video/Diagnostico.hpp"
 #include "video/VideoGrafos.hpp"
 
 #include <QJsonDocument>
@@ -177,19 +178,24 @@ void McpService::registerVideoTools() {
             "Sin `nombre`: las entradas virtuales que hay (barras HD, barras 75 %, barras con la hora, negro, "
             "blanco, verde, placa de zonas, damero, pelota, ruido). Con `nombre` y `preset` (o `pipeline`, la parte "
             "de origen de un pipeline de GStreamer como en gst-launch, p. ej. «rtspsrc location=… ! decodebin»): "
-            "la crea en `escena` (vacía = la del aire). Queda como una entrada más: con su sub-grafo de tarjetas.";
+            "la crea en `escena` (obligatoria: para no tocar la que está al aire sin querer; `al_aire: true` la pone en "
+            "la del aire). Queda como una entrada más: con su sub-grafo de tarjetas. Para un stream de red "
+            "(srt/rtmp/rtsp) usá video_entrada_red, que lo sincroniza.";
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"nombre", {{"type", "string"}}},
                            {"preset", {{"type", "string"}}},
                            {"pipeline", {{"type", "string"}}},
-                           {"escena", {{"type", "string"}}}}}};
+                           {"escena", {{"type", "string"}}},
+                           {"al_aire", {{"type", "boolean"}}}}}};
         t.examples = {R"({"nombre": "Barras", "preset": "barras-hd"})",
                       R"({"nombre": "Cámara IP", "pipeline": "rtspsrc location=rtsp://10.0.0.5/stream latency=200 ! decodebin"})"};
         t.run = [v, deQt](const json& a, Done done) {
             if (!v) return done(ToolResult::error("el video no está disponible"));
             const std::string nombre = a.value("nombre", std::string());
             if (nombre.empty()) return done(ToolResult().data(deQt(video::VideoGrafos::virtuales())));
+            if (a.value("escena", std::string()).empty() && !a.value("al_aire", false))
+                return done(ToolResult::error("falta `escena` (o `al_aire: true` para ponerla en la que está al aire)"));
             const std::string pl = a.value("pipeline", std::string());
             const std::string err = v->crearEntradaVirtual(nombre, pl.empty() ? a.value("preset", std::string("barras-hd")) : "pipeline:" + pl,
                                                            a.value("escena", std::string()));
@@ -225,7 +231,7 @@ void McpService::registerVideoTools() {
                          {"required", {"tipo"}},
                          {"properties",
                           {{"entrada", entrada},
-                           {"tipo", {{"type", "string"}, {"enum", {"color", "croma", "recorte", "obs", "gst", "retardo", "rostros", "salida", "compositor"}}}},
+                           {"tipo", {{"type", "string"}, {"enum", {"color", "croma", "recorte", "obs", "gst", "retardo", "normalizar", "rostros", "salida", "compositor"}}}},
                            {"filtro", {{"type", "string"}, {"description", "con tipo obs: el id del filtro de OBS"}}},
                            {"elemento", {{"type", "string"}, {"description", "con tipo gst: el módulo de GStreamer (p. ej. videobalance)"}}},
                            {"despues", idTarjeta},
@@ -421,6 +427,293 @@ void McpService::registerVideoTools() {
         };
         core_.addTool(std::move(t));
     }
+    // ============================================================================
+    // Armar pipelines enteros, diagnosticar, relojes y sincronía.
+    // ============================================================================
+    {
+        Tool t;
+        t.name = "video_pipeline";
+        t.title = "Armar la cadena de tarjetas de una entrada (en una llamada)";
+        t.category = "video";
+        t.description =
+            "Arma, en orden, las tarjetas de la `entrada` (de la cámara hacia la escena) en UNA llamada y valida "
+            "cada una. `modo`: «reemplazar» (de fábrica: saca las que había) o «agregar» (al final). Cada tarjeta: "
+            "{tipo, ...}. Tipos: `gst` (+`elemento` y `propiedades`, de video_modulos), `obs` (+`filtro` y "
+            "`ajustes`), `color` {brillo, contraste, saturacion, gamma}, `croma`, `recorte`, `retardo` {ms}, "
+            "`normalizar` {matriz_declarada, matriz_real, rango_declarado, rango_real, desentrelazar}, `rostros`, "
+            "`salida` {nombre} (rama). COMPARTIR entre entradas: `compartida: \"nombre\"` en la tarjeta; la primera "
+            "vez crea un controlador con ese nombre y las siguientes (en otras entradas, con el mismo nombre) "
+            "quedan manejadas por él: cambiar el controlador las cambia a todas. Lo propio de una entrada sobre lo "
+            "compartido: `local: {...}` (p. ej. {\"propiedades\": {\"hue\": -0.05}}). Devuelve el sub-grafo y el "
+            "diagnóstico de la entrada.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"required", {"entrada", "tarjetas"}},
+            {"properties",
+             {{"entrada", entrada},
+              {"modo", {{"type", "string"}, {"enum", {"reemplazar", "agregar"}}}},
+              {"tarjetas",
+               {{"type", "array"},
+                {"items",
+                 {{"type", "object"},
+                  {"properties",
+                   {{"tipo", {{"type", "string"}}},
+                    {"elemento", {{"type", "string"}}},
+                    {"filtro", {{"type", "string"}}},
+                    {"propiedades", {{"type", "object"}}},
+                    {"ajustes", {{"type", "object"}}},
+                    {"params", {{"type", "object"}, {"description", "los de una tarjeta propia (color, croma, retardo…)"}}},
+                    {"compartida", {{"type", "string"}}},
+                    {"local", {{"type", "object"}}},
+                    {"etiqueta", {{"type", "string"}}}}},
+                  {"required", {"tipo"}}}}}}}}};
+        t.examples = {
+            R"({"entrada": "Sony", "tarjetas": [{"tipo": "gst", "elemento": "videobalance", "propiedades": {"contrast": 1.1, "saturation": 0.9}, "compartida": "Corrección cámaras"}]})",
+            R"({"entrada": "Pelco", "tarjetas": [{"tipo": "gst", "elemento": "videobalance", "compartida": "Corrección cámaras", "local": {"propiedades": {"hue": 0.04}}}]})",
+            R"({"entrada": "Panasonic", "tarjetas": [{"tipo": "normalizar", "params": {"desentrelazar": "yadif"}}, {"tipo": "gst", "elemento": "videobalance", "compartida": "Corrección cámaras"}]})"};
+        t.run = [v](const json& a, Done done) {
+            if (!v) return done(ToolResult::error("el video no está disponible"));
+            const std::string e = a.value("entrada", std::string());
+            if (!v->esEntrada(e)) return done(ToolResult::error("«" + e + "» no es una entrada de video (video_grafo las lista)"));
+            const json tarjetas = a.value("tarjetas", json::array());
+            if (!tarjetas.is_array() || tarjetas.empty()) return done(ToolResult::error("faltan `tarjetas`"));
+            json hechas = json::array();
+            const std::string err = v->editar([&](video::GrafoVideo& g) {
+                if (a.value("modo", std::string("reemplazar")) == "reemplazar") g.limpiar(e);
+                std::string despues;
+                int i = 0;
+                for (const auto& tj : tarjetas) {
+                    ++i;
+                    const std::string tipo = tj.value("tipo", std::string());
+                    const std::string donde = "tarjeta " + std::to_string(i) + " (" + tipo + "): ";
+                    std::string error, id;
+                    // ¿Compartida? Si ya hay un controlador con ese nombre, se la maneja él.
+                    const std::string comp = tj.value("compartida", std::string());
+                    std::string control;
+                    if (!comp.empty())
+                        for (const auto& n : g.nodos())
+                            if (n.tipo == "control" && n.etiqueta == comp) control = n.id;
+                    if (!control.empty()) {
+                        id = g.agregarControlada(control, e, despues, &error);
+                    } else if (tipo == "gst") {
+                        json props = tj.value("propiedades", json::object());
+                        id = v->agregarModuloEn(g, tj.value("elemento", std::string()), e, despues, props, &error);
+                    } else if (tipo == "obs") {
+                        const std::string f = tj.value("filtro", std::string());
+                        if (video::VideoGrafos::nombreFiltro(f).empty())
+                            error = "no existe el filtro de OBS «" + f + "» (video_filtros)";
+                        else
+                            id = g.agregar("obs", e, despues, json{{"filtro", f}, {"ajustes", tj.value("ajustes", json::object())}}, &error);
+                        if (!id.empty()) g.ajustar(id, json{{"etiqueta", video::VideoGrafos::nombreFiltro(f)}}, nullptr);
+                    } else {
+                        id = g.agregar(tipo, e, despues, tj.value("params", json::object()), &error);
+                    }
+                    if (id.empty()) return donde + (error.empty() ? "no se pudo agregar" : error);
+                    if (!comp.empty() && control.empty()) {
+                        control = g.controlarDesde(id, &error);
+                        if (control.empty()) return donde + error;
+                        g.ajustar(control, json{{"etiqueta", comp}}, nullptr);
+                    }
+                    if (tj.contains("local") && !g.ajustar(id, json{{"local", tj["local"]}}, &error)) return donde + error;
+                    if (tj.contains("etiqueta")) g.ajustar(id, json{{"etiqueta", tj["etiqueta"]}}, nullptr);
+                    hechas.push_back({{"id", id}, {"tipo", tipo}, {"compartida", comp}, {"controlador", control}});
+                    // La próxima va después de esta (una salida es rama: no corre la cadena).
+                    if (tipo != "salida") despues = id;
+                }
+                return std::string();
+            });
+            if (!err.empty()) return done(ToolResult::error(err + " (no se cambió nada)"));
+            json d = v->describir(e);
+            d["hechas"] = hechas;
+            d["diagnostico"] = video::diagnosticar(v->estadoEntrada(e));
+            done(ToolResult().data(d));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "video_estado";
+        t.title = "Cómo está una entrada de video (y qué le pasa)";
+        t.category = "video";
+        t.readOnly = true;
+        t.description =
+            "Sin `entrada`: todas, con su diagnóstico resumido. Con `entrada`: tamaño, cuadros por segundo "
+            "(declarados y medidos), formato, colorimetría (BT.601/709, rango), si llega entrelazada y su "
+            "desentrelazado, el reloj y si está sincronizado, el colchón de red (latencia, cuadros que llegaron "
+            "tarde), la latencia que agrega su sub-grafo, y los errores y avisos de sus tarjetas. `diagnostico`: "
+            "cada problema con su gravedad y el ARREGLO (herramienta y argumentos). Usala antes y después de armar.";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"entrada", entrada}}}};
+        t.run = [v](const json& a, Done done) {
+            if (!v) return done(ToolResult::error("el video no está disponible"));
+            v->sincronizar();
+            const std::string e = a.value("entrada", std::string());
+            if (!e.empty()) {
+                json st = v->estadoEntrada(e);
+                if (st.contains("error") && !st.contains("tipo")) return done(ToolResult::error(st.value("error", std::string())));
+                st["diagnostico"] = video::diagnosticar(st);
+                return done(ToolResult().data(st));
+            }
+            json out = json::array();
+            for (const QString& n : v->entradas()) {
+                const json st = v->estadoEntrada(n.toStdString());
+                json r{{"entrada", n.toStdString()},
+                       {"tipo", st.value("tipo", std::string())},
+                       {"tamaño", std::to_string(st.value("ancho", 0)) + "x" + std::to_string(st.value("alto", 0))},
+                       {"latencia_grafo_ms", st.value("latencia_grafo_ms", 0.0)},
+                       {"diagnostico", video::diagnosticar(st)}};
+                if (st.contains("gstreamer"))
+                    r["red"] = {{"reloj", st["gstreamer"].value("reloj", std::string())},
+                                {"latencia_ms", st["gstreamer"].value("latencia_ms", 0)},
+                                {"desfase_ms", st["gstreamer"].value("desfase_ms", 0)},
+                                {"fps", st["gstreamer"].value("fps_recibidos", 0.0)}};
+                out.push_back(r);
+            }
+            done(ToolResult().data({{"entradas", out}, {"reloj_estudio", v->reloj()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "video_entrada_red";
+        t.title = "Recibir un stream de red (SRT, RTMP, RTSP, UDP, HTTP) sincronizado";
+        t.category = "video";
+        t.description =
+            "Crea una entrada de video (y audio) desde `uri`: srt://host:puerto (o srt://:puerto?mode=listener para "
+            "recibir), rtmp://servidor/app/clave, rtsp://camara/stream, udp://@:5000, http(s)://…/x.m3u8 o un "
+            "archivo. Usa el reloj del estudio (video_reloj) y un COLCHÓN de `latencia_ms` (de fábrica, el del "
+            "estudio): cada cuadro sale a su hora de captura + latencia, así dos streams con la misma latencia "
+            "salen juntos. RTSP trae la hora de captura del que manda (RTCP/NTP): se alinea solo. SRT y RTMP no la "
+            "traen: el desfase entre ellos se mide con video_sincronia. Sobre una entrada de red que ya existe, la "
+            "actualiza (otra uri o latencia).";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"nombre"}},
+                         {"properties",
+                          {{"nombre", {{"type", "string"}}},
+                           {"uri", {{"type", "string"}}},
+                           {"escena", {{"type", "string"}, {"description", "dónde ponerla (obligatoria al crear)"}}},
+                           {"latencia_ms", {{"type", "integer"}, {"description", "el colchón (de fábrica, el del estudio)"}}},
+                           {"audio", {{"type", "boolean"}, {"description", "con su audio (de fábrica, sí)"}}},
+                           {"normalizar",
+                            {{"type", "boolean"},
+                             {"description", "de fábrica, sí: GStreamer la desentrelaza si hace falta, la lleva a los cuadros "
+                                             "del estudio, a píxel cuadrado y a color BT.709 antes de entrar"}}}}}};
+        t.examples = {R"({"nombre": "Móvil SRT", "uri": "srt://:9000?mode=listener", "escena": "Móvil", "latencia_ms": 300})",
+                      R"({"nombre": "Corresponsal", "uri": "rtmp://10.0.0.20/live/corresponsal", "escena": "Móvil"})"};
+        t.run = [v](const json& a, Done done) {
+            if (!v) return done(ToolResult::error("el video no está disponible"));
+            const std::string n = a.value("nombre", std::string());
+            const std::string err = v->crearEntradaRed(n, a.value("uri", std::string()), a.value("latencia_ms", -1),
+                                                       a.value("escena", std::string()), a.value("audio", true),
+                                                       a.value("normalizar", true));
+            if (!err.empty()) return done(ToolResult::error(err));
+            json st = v->estadoEntrada(n);
+            st["nota"] = "la conexión tarda unos segundos: mirá de nuevo con video_estado";
+            done(ToolResult().data(st));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "video_reloj";
+        t.title = "El reloj del estudio (sincronía de las entradas de red)";
+        t.category = "video";
+        t.description =
+            "Sin argumentos: el reloj del estudio y en qué estado está en cada entrada de red. Cambiarlo: `tipo` "
+            "sistema (el de esta máquina; de fábrica) | ntp (`servidor`, `puerto` 123: todos los equipos del lugar "
+            "contra el mismo NTP) | ptp (`dominio`; IEEE 1588, el de los equipos de estudio; necesita permisos) | "
+            "red (`servidor`, `puerto`: el reloj que publica OTRO Broadcast Appliance). `latencia_ms`: el colchón "
+            "de las entradas de red (más = más tolerancia a la red, más retraso). `publicar_puerto`: publica el "
+            "reloj de ESTE aparato en ese puerto para que otros usen `red` contra él (0 = dejar de publicar). Se "
+            "aplica a todas las entradas de GStreamer.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"tipo", {{"type", "string"}, {"enum", {"sistema", "ntp", "ptp", "red"}}}},
+                           {"servidor", {{"type", "string"}}},
+                           {"puerto", {{"type", "integer"}}},
+                           {"dominio", {{"type", "integer"}}},
+                           {"latencia_ms", {{"type", "integer"}}},
+                           {"publicar_puerto", {{"type", "integer"}}}}}};
+        t.examples = {R"({})", R"({"tipo": "ntp", "servidor": "pool.ntp.org"})", R"({"publicar_puerto": 8554})",
+                      R"({"tipo": "red", "servidor": "10.0.0.5", "puerto": 8554})", R"({"latencia_ms": 400})"};
+        t.run = [v](const json& a, Done done) {
+            if (!v) return done(ToolResult::error("el video no está disponible"));
+            if (!a.empty()) {
+                const std::string err = v->configurarReloj(a);
+                if (!err.empty()) return done(ToolResult::error(err));
+            }
+            json fuentes = json::array();
+            for (const QString& n : v->entradas()) {
+                const json st = v->estadoEntrada(n.toStdString());
+                if (!st.contains("gstreamer")) continue;
+                fuentes.push_back({{"entrada", n.toStdString()},
+                                   {"reloj", st["gstreamer"].value("reloj", std::string())},
+                                   {"sincronizado", st["gstreamer"].value("reloj_sincronizado", false)},
+                                   {"latencia_ms", st["gstreamer"].value("latencia_ms", 0)},
+                                   {"desfase_ms", st["gstreamer"].value("desfase_ms", 0)}});
+            }
+            done(ToolResult().data({{"reloj", v->reloj()},
+                                    {"entradas_gstreamer", fuentes},
+                                    {"nota", "las cámaras locales (USB, captura) van con el reloj de libobs; se alinean "
+                                             "con video_sincronia (retardo)"}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "video_sincronia";
+        t.title = "Medir (y corregir) cuánto atrasa una entrada respecto de otra";
+        t.category = "video";
+        t.description =
+            "Mide durante `segundos` (de fábrica 8) cuánto atrasa `b` respecto de `a`, comparando cuadro a cuadro "
+            "lo que se ve. Funciona si las dos ven algo EN COMÚN que cambie: la misma imagen por dos caminos (el "
+            "mismo stream por SRT y por RTMP: muy preciso) o dos cámaras del mismo lugar con movimiento, un "
+            "aplauso o un flash. Con imagen quieta no puede (lo dice). Con `aplicar`, lo corrige: atrasa la que "
+            "va adelantada (una entrada de red, con su desfase; una cámara, con una tarjeta retardo). La "
+            "resolución es un cuadro del lienzo. Conviene volver a medir después de aplicar (debe dar ~0).";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"a", "b"}},
+                         {"properties",
+                          {{"a", entrada},
+                           {"b", entrada},
+                           {"segundos", {{"type", "integer"}}},
+                           {"aplicar", {{"type", "boolean"}}}}}};
+        t.examples = {R"({"a": "Móvil SRT", "b": "Corresponsal RTMP", "aplicar": true})"};
+        t.run = [v](const json& a, Done done) {
+            if (!v) return done(ToolResult::error("el video no está disponible"));
+            v->medirDesfase(a.value("a", std::string()), a.value("b", std::string()), a.value("segundos", 8),
+                            a.value("aplicar", false), [done](json r) {
+                                // Sin poder empezar (una entrada que no existe): error. Si midió
+                                // y no encontró nada, eso es un dato (con el motivo).
+                                if (r.contains("error") && !r.contains("medido"))
+                                    return done(ToolResult::error(r.value("error", std::string())));
+                                done(ToolResult().data(r));
+                            });
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "video_desfase";
+        t.title = "Correr una entrada en el tiempo a mano";
+        t.category = "video";
+        t.description =
+            "Atrasa (o adelanta) una entrada `ms` milisegundos: una entrada de red, con el desfase de su colchón "
+            "(para los dos lados, en vivo); una cámara local, solo para atrás (una tarjeta retardo). `relativo` "
+            "(de fábrica, sí) suma a lo que tenía; sin él, lo deja en `ms`. Para medirlo solo: video_sincronia.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"entrada", "ms"}},
+                         {"properties", {{"entrada", entrada}, {"ms", {{"type", "number"}}}, {"relativo", {{"type", "boolean"}}}}}};
+        t.run = [v](const json& a, Done done) {
+            if (!v) return done(ToolResult::error("el video no está disponible"));
+            json hecho;
+            const std::string err = v->ajustarDesfase(a.value("entrada", std::string()), a.value("ms", 0.0),
+                                                      a.value("relativo", true), &hecho);
+            if (!err.empty()) return done(ToolResult::error(err));
+            done(ToolResult().data(hecho));
+        };
+        core_.addTool(std::move(t));
+    }
+
 }
 
 } // namespace ba::app::mcp

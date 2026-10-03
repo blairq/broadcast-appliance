@@ -110,9 +110,17 @@ bool TarjetaGst::armar(std::uint32_t cx, std::uint32_t cy) {
         desarmar();
         return false;
     }
+    // Los cuadros por segundo del lienzo (no unos fijos: un módulo que mira el
+    // tiempo —desentrelazar, timeoverlay— necesita los de verdad) y el color
+    // explícito: lo que baja de libobs es sRGB.
+    obs_video_info ovi = {};
+    const bool hayVideo = obs_get_video_info(&ovi) && ovi.fps_num > 0 && ovi.fps_den > 0;
+    fpsNum_ = hayVideo ? static_cast<int>(ovi.fps_num) : 30;
+    fpsDen_ = hayVideo ? static_cast<int>(ovi.fps_den) : 1;
     GstCaps* caps = gst_caps_new_simple("video/x-raw", "format", G_TYPE_STRING, "RGBA", "width", G_TYPE_INT,
                                         static_cast<int>(cx), "height", G_TYPE_INT, static_cast<int>(cy), "framerate",
-                                        GST_TYPE_FRACTION, 30, 1, nullptr);
+                                        GST_TYPE_FRACTION, fpsNum_, fpsDen_, "colorimetry", G_TYPE_STRING, "sRGB",
+                                        "interlace-mode", G_TYPE_STRING, "progressive", nullptr);
     g_object_set(src_, "caps", caps, "format", GST_FORMAT_TIME, "is-live", TRUE, "block", FALSE, nullptr);
     g_object_set(filtro, "caps", caps, nullptr);
     g_object_set(sink_, "sync", FALSE, "max-buffers", 2, "drop", TRUE, nullptr);
@@ -159,9 +167,30 @@ bool TarjetaGst::armar(std::uint32_t cx, std::uint32_t cy) {
     }
     cx_ = cx;
     cy_ = cy;
-    pts_ = 0;
+    t0_ = 0;
     haySubida_ = false;
+    revisado_ = false;
+    aviso_.clear();
     return true;
+}
+
+void TarjetaGst::revisarFormato() {
+    revisado_ = true;
+    GstPad* pad = gst_element_get_static_pad(modulo_, "sink");
+    if (pad == nullptr) return;
+    GstCaps* caps = gst_pad_get_current_caps(pad);
+    gst_object_unref(pad);
+    if (caps == nullptr) return;
+    const GstStructure* st = gst_caps_get_structure(caps, 0);
+    const char* f = st != nullptr ? gst_structure_get_string(st, "format") : nullptr;
+    const std::string fmt = f != nullptr ? f : "";
+    formato_ = fmt;
+    // Los 4:2:0 y 4:2:2 guardan el color a menor resolución: en un croma o un
+    // borde fino se nota. Se avisa (la tarjeta anda igual).
+    for (const char* sub : {"I420", "YV12", "NV12", "NV21", "YUY2", "UYVY", "YVYU", "Y42B", "I420_10LE", "NV12_10LE32"})
+        if (fmt == sub)
+            aviso_ = "«" + elemento_ + "» trabaja en " + fmt + ": el color queda a menor resolución (se nota en bordes y en un croma)";
+    gst_caps_unref(caps);
 }
 
 void TarjetaGst::avisar() {
@@ -231,14 +260,24 @@ bool TarjetaGst::procesar(gs_texture_t* entrada, std::uint32_t cx, std::uint32_t
         gst_buffer_unmap(buf, &m);
     }
     gs_stagesurface_unmap(stage_);
-    GST_BUFFER_PTS(buf) = pts_;
-    GST_BUFFER_DURATION(buf) = GST_SECOND / 30;
-    pts_ += GST_SECOND / 30;
+    // La hora del cuadro, del reloj de video de libobs (el mismo para todo el grafo).
+    const std::uint64_t ahora = obs_get_video_frame_time();
+    if (t0_ == 0) t0_ = ahora;
+    GST_BUFFER_PTS(buf) = ahora - t0_;
+    GST_BUFFER_DURATION(buf) = gst_util_uint64_scale_int(GST_SECOND, fpsDen_, fpsNum_);
     gst_app_src_push_buffer(GST_APP_SRC(src_), buf); // se queda con el buffer
 
-    // 2) Lo que devuelve (espera un poco: los filtros comunes devuelven en el
-    //    acto; los que tienen retardo propio entregan el cuadro anterior).
-    if (GstSample* s = gst_app_sink_try_pull_sample(GST_APP_SINK(sink_), 40 * GST_MSECOND)) {
+    // 2) Lo que devuelve. Sin esperar (de fábrica): se usa lo último que
+    //    salió, en general el cuadro anterior —un cuadro de latencia fijo— y
+    //    el hilo de video no se frena nunca. Con `esperar`, aguarda hasta ese
+    //    tanto por el cuadro de ahora (sin latencia, pero puede frenar).
+    GstSample* ultimo = gst_app_sink_try_pull_sample(GST_APP_SINK(sink_), static_cast<GstClockTime>(esperaMs_) * GST_MSECOND);
+    while (GstSample* otro = gst_app_sink_try_pull_sample(GST_APP_SINK(sink_), 0)) {
+        if (ultimo != nullptr) gst_sample_unref(ultimo);
+        ultimo = otro;
+    }
+    if (ultimo != nullptr && !revisado_) revisarFormato();
+    if (GstSample* s = ultimo) {
         GstBuffer* b = gst_sample_get_buffer(s);
         GstMapInfo r;
         if (b != nullptr && gst_buffer_map(b, &r, GST_MAP_READ)) {
