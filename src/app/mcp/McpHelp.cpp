@@ -636,6 +636,22 @@ La carpeta es `BA_HERRAMIENTAS`. Si en los datos hay una carpeta `Herramientas/`
 - **Con GStreamer**: `gst-discoverer-1.0 in.mp4` (lo mismo que ffprobe); `gst-launch-1.0` para probar una cadena antes de llevarla al grafo.
 
 Despues: `media_find` para encontrarlo y usarlo en una escena.)md"},
+    {"traduccion", "Traducción en vivo", "Traducir lo que dice el orador (castellano) a inglés, portugués, francés, alemán, ruso o chino, sin red: subtítulos y voz en otro idioma; el glosario de términos del evento (Legislatura del Chubut incluida).",
+     R"md(La traducción toma una **salida de texto** (la de una tarjeta «Voz a texto»: «Orador») y publica otra con lo mismo en otro idioma («Orador · en»). Corre en la máquina, sin red, con modelos OPUS-MT (0,1 a 0,6 s por frase). Castellano <-> inglés y castellano <-> portugués son directos; francés, alemán, ruso y chino pasan por el inglés.
+
+## Receta: subtítulos en inglés y voz en inglés por la pista 2
+1. Voz a texto del orador (help {"topic": "audio_rack"}): una salida «Orador», modo continuo.
+2. `traduccion_agregar {"desde": "Orador", "a": "en", "rotulo": "Subtítulos EN"}` (el rótulo es una fuente de texto de la escena). Si dice `faltan`, `traduccion_bajar {"a": "en"}` y esperá (modelo_local_estado muestra el avance).
+3. `texto_a_voz {"fuente": "Traduccion", "voz": "csukuangfj/vits-piper-en_US-amy-medium", "lee": "Orador · en"}` y en la Matriz esa fuente a la pista 2.
+4. `traducciones` muestra la última frase traducida y cuánto tardó.
+
+## El glosario (lo que no se puede traducir mal)
+Antes de traducir, cada término conocido se reemplaza por su traducción ya hecha. Sin esto «cuarto intermedio» sale «middle room» y «no es moco de pavo» «turkey mucus». Viene con dos grupos: «general» (cabina) y «legislativo-chubut» (sesiones, mociones, sobre tablas, bloques, comisiones, ciudades). **Antes de un evento, sumá sus términos**: nombres de comisiones, programas, leyes con nombre, cargos, instituciones.
+- `glosario_ver {"buscar"?}`: lo que hay, y `archivo`: el JSON del operador (Datos/Config/glosario-traduccion.json). Se puede editar directo: cada término `{"es": ["forma", "otra forma"], "en": "...", "pt": "...", "fr": "...", "de": "...", "ru": "...", "zh": "...", "grupo": "..."}`; pisa al de fábrica por la primera forma.
+- `glosario_agregar {"es": [...], "en": "...", ...}`, `glosario_quitar {"es"}` o `{"grupo", "activo": false}`.
+- Probá con `traducir {"texto", "a"}` antes de salir al aire.
+- Reglas: varias formas en `es` (singular, plural, femenino); la traducción debe encajar en la frase (si el término es «solicito pasar a cuarto intermedio», que la traducción sea la frase entera); en ruso y chino el término se aplica al pasar por el inglés, así que cuidá la forma en inglés (palabras comunes: «parliamentary group», no «caucus»).
+- Los modelos traducen palabra por palabra lo que no conocen: un modismo nuevo, un nombre propio que se puede leer como palabra común (Esquel, Gaiman…) va al glosario con su forma en cada idioma.)md"},
     {"medios", "Medios", "Buscar imagenes, videos y musica del sistema y usarlos en escenas.",
      R"md(Carpetas (dentro del sistema portable): `Media/` (la biblioteca: logos, placas, fondos, musica, videos), `Shares/` (lo que compartieron los invitados), `Recordings/`.
 

@@ -351,7 +351,9 @@ Rectangle {
                     // Un rack armado a mano es media hora de trabajo: guardarlo con
                     // nombre permite ponérselo a otra fuente en un clic.
                     { t: "Plantillas", icon: "▤", f: () => plantillasPopup.open(),
-                      tip: "Guardar este rack con nombre, o ponerle a esta fuente uno guardado" }
+                      tip: "Guardar este rack con nombre, o ponerle a esta fuente uno guardado" },
+                    { t: "Traducción…", icon: "文", f: () => traduccionPopup.open(),
+                      tip: "Traducir en vivo una salida de texto (lo que transcribe «Voz a texto») a otro idioma, y el glosario de términos" }
                 ]
                 // Si una ventana LSP no aparece (casi siempre: el zoom de su menú
                 // la hizo más grande que la pantalla), esto la vuelve a la normalidad.
@@ -1395,6 +1397,32 @@ Rectangle {
     }
 
     // --- Plantillas de rack ---------------------------------------------------
+    Popup {
+        id: traduccionPopup
+        anchors.centerIn: parent
+        width: Math.min(parent.width - 80, 900)
+        height: Math.min(parent.height - 80, 760)
+        modal: true
+        padding: 18
+        background: Rectangle { color: Theme.panel; radius: Theme.radiusSmall; border.color: Theme.glassBorder }
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 10
+            RowLayout {
+                Layout.fillWidth: true
+                Text { text: "Traducción en vivo"; color: Theme.text; font { pixelSize: 18; weight: Font.DemiBold } Layout.fillWidth: true }
+                GlassButton { compact: true; text: "Cerrar"; onClicked: traduccionPopup.close() }
+            }
+            ScrollView {
+                id: trScroll
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                contentWidth: availableWidth
+                clip: true
+                PanelTraduccion { width: trScroll.availableWidth }
+            }
+        }
+    }
     Popup {
         id: plantillasPopup
         anchors.centerIn: Overlay.overlay

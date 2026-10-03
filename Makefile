@@ -1417,7 +1417,7 @@ PY_URL := https://github.com/astral-sh/python-build-standalone/releases/download
 .PHONY: deps-python
 deps-python:
 	@if [ -x "$(EXTERNS_DIR)/python/bin/python3" ] && [ "$$($(EXTERNS_DIR)/python/bin/python3 -c 'import platform; print(platform.python_version())')" = "$(PY_VER)" ] && \
-	    $(EXTERNS_DIR)/python/bin/python3 -c 'import numpy' 2>/dev/null; then \
+	    $(EXTERNS_DIR)/python/bin/python3 -c 'import numpy, ctranslate2, sentencepiece, sacremoses, subword_nmt' 2>/dev/null; then \
 		echo "Python ya está ($(EXTERNS_DIR)/python)"; exit 0; fi; \
 	$(MAKE) --no-print-directory _ba_baja ARCHIVO="$(DL_DIR)/$(PY_TGZ)" URL="$(PY_URL)/$(subst +,%2B,$(PY_TGZ))" SHA="$(PY_SHA)" QUE="Python" && \
 	bash tools/deps/python.sh "$(DL_DIR)/$(PY_TGZ)" "$(EXTERNS_DIR)/python"

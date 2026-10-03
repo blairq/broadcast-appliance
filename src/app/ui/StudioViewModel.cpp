@@ -36,6 +36,7 @@
 #include "agent/AlertEngine.hpp"
 #include "agent/Despachador.hpp"
 #include "agent/FlujosTexto.hpp"
+#include "agent/Traductor.hpp"
 #include "agent/VocesRack.hpp"
 #include "agent/ModelosLocales.hpp"
 #include "red/Red.hpp"
@@ -432,6 +433,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         marca("voces");
         voces_->setFlujos(flujos_.get());
         voces_->setVozSistema([v = voz_.get()]() { return v != nullptr ? v->vozElegida() : QString(); });
+        // La traducción en vivo: de una salida de texto a otra, en otro idioma.
+        traductor_ = std::make_unique<agent::Traductor>(rt.dataRoot(), *modelos_, *flujos_);
+        marca("traductor");
     }
     inputs_ = std::make_unique<InputsViewModel>(rt, *this);
     marca("inputs");
@@ -468,8 +472,18 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     audio_ = std::make_unique<audio::AudioViewModel>(*racks_);
     marca("audio");
     if (voz_) voz_->setRacks(racks_.get()); // la voz sale de los nodos «Voz a texto»
-    flujos_->setConfig([r = racks_.get()](const QString& flujo) { return r->textoDe(flujo.toStdString()); });
-    flujos_->setLista([r = racks_.get()]() { return r->textos(); });
+    // Las salidas de texto: las de las tarjetas «Voz a texto» y las traducidas.
+    flujos_->setConfig([r = racks_.get(), t = traductor_.get()](const QString& flujo) {
+        nlohmann::json c = r->textoDe(flujo.toStdString());
+        if (c.is_null() && t != nullptr) c = t->salidaDe(flujo.toStdString());
+        return c;
+    });
+    flujos_->setLista([r = racks_.get(), t = traductor_.get()]() {
+        nlohmann::json l = r->textos();
+        if (t != nullptr)
+            for (const auto& s : t->salidas()) l.push_back(s);
+        return l;
+    });
     if (voces_) {
         voces_->setRacks(racks_.get());
         connect(racks_.get(), &audio::RackManager::changed, voces_.get(), &agent::VocesRack::cambio);
@@ -664,6 +678,7 @@ QObject* StudioViewModel::seguidor() const { return seguidor_.get(); }
 QObject* StudioViewModel::dispositivosQml() const { return dispositivos_.get(); }
 QObject* StudioViewModel::flujos() const { return flujos_.get(); }
 QObject* StudioViewModel::voces() const { return voces_.get(); }
+QObject* StudioViewModel::traductor() const { return traductor_.get(); }
 QObject* StudioViewModel::despachadorQml() const { return despachador_.get(); }
 QObject* StudioViewModel::messages() const { return messages_.get(); }
 

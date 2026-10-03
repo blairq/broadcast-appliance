@@ -118,7 +118,8 @@ QVariantList FlujosTexto::flujos() const {
             const QString n = QString::fromStdString(t.value("flujo", ""));
             const auto sal = t.value("salidas", nlohmann::json::object());
             por[n] = QVariantMap{{"nombre", n},
-                                 {"origen", "Voz a texto en «" + QString::fromStdString(t.value("fuente", "")) + "»"},
+                                 {"origen", t.contains("origen") ? QString::fromStdString(t.value("origen", ""))
+                                                                 : "Voz a texto en «" + QString::fromStdString(t.value("fuente", "")) + "»"},
                                  {"modo", QString::fromStdString(t.value("modo", ""))},
                                  {"archivo", sal.value("archivo", false)},
                                  {"rotulo", QString::fromStdString(sal.value("rotulo", std::string()))},

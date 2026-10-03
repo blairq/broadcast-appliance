@@ -336,7 +336,9 @@ const std::set<std::string>& Roles::juegoDelAsistente() {
         // hay, el asistente escribe uno (no se queda en «no puedo»).
         "plugins",
         // Los equipos: detectar y manejar (red, esta máquina, USB), con acciones declaradas.
-        "equipos"};
+        "equipos",
+        // La traducción en vivo y su glosario de términos del evento.
+        "traduccion"};
     return c;
 }
 

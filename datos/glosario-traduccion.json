@@ -1,0 +1,839 @@
+{
+ "_comentario": "Glosario de fábrica de la traducción en vivo (agent/Traductor). Antes de traducir, cada término en castellano (y sus variantes) se reemplaza por su traducción al idioma de destino: el modelo lo respeta y no lo traduce palabra por palabra. Lo del operador va en Datos/Config/glosario-traduccion.json (se suma a esto y lo puede pisar o apagar). Idiomas: en, pt (Brasil), fr, de, ru, zh (mandarín simplificado). En ruso y chino el término se aplica al pasar por el inglés (meter cirílico o chino en la frase en inglés rompe al modelo).",
+ "version": 1,
+ "terminos": [
+  {
+   "grupo": "general",
+   "es": [
+    "cuarto intermedio",
+    "un cuarto intermedio"
+   ],
+   "en": "a recess",
+   "pt": "um recesso",
+   "fr": "une suspension de séance",
+   "de": "eine Sitzungsunterbrechung",
+   "ru": "перерыв",
+   "zh": "休会"
+  },
+  {
+   "grupo": "general",
+   "es": [
+    "solicito pasar a cuarto intermedio",
+    "pido pasar a cuarto intermedio",
+    "pasar a cuarto intermedio"
+   ],
+   "en": "I request a recess",
+   "pt": "peço que passemos ao recesso",
+   "fr": "je demande une suspension de séance",
+   "de": "ich beantrage eine Sitzungsunterbrechung",
+   "ru": "объявить перерыв",
+   "zh": "宣布休会"
+  },
+  {
+   "grupo": "general",
+   "es": [
+    "no es moco de pavo"
+   ],
+   "en": "is no small feat",
+   "pt": "não é pouca coisa",
+   "fr": "ce n'est pas rien",
+   "de": "ist keine Kleinigkeit",
+   "ru": "это немалое достижение",
+   "zh": "可不是小事"
+  },
+  {
+   "grupo": "general",
+   "es": [
+    "buenas noches a todos",
+    "buenas noches a todas y todos"
+   ],
+   "en": "good evening everyone",
+   "pt": "boa noite a todos",
+   "fr": "bonsoir à tous",
+   "de": "guten Abend allerseits",
+   "ru": "добрый вечер всем",
+   "zh": "大家晚上好"
+  },
+  {
+   "grupo": "general",
+   "es": [
+    "compañero",
+    "compañera"
+   ],
+   "en": "colleague",
+   "pt": "colega",
+   "fr": "collègue",
+   "de": "Kollege",
+   "ru": "коллега",
+   "zh": "同事"
+  },
+  {
+   "grupo": "general",
+   "es": [
+    "compañeros",
+    "compañeras"
+   ],
+   "en": "colleagues",
+   "pt": "colegas",
+   "fr": "collègues",
+   "de": "Kollegen",
+   "ru": "коллеги",
+   "zh": "同事们"
+  },
+  {
+   "grupo": "general",
+   "es": [
+    "intendente",
+    "intendenta"
+   ],
+   "en": "mayor",
+   "pt": "prefeito",
+   "fr": "maire",
+   "de": "Bürgermeister",
+   "ru": "мэр",
+   "zh": "市长"
+  },
+  {
+   "grupo": "general",
+   "es": [
+    "intendencia"
+   ],
+   "en": "mayor's office",
+   "pt": "prefeitura",
+   "fr": "mairie",
+   "de": "Bürgermeisteramt",
+   "ru": "мэрия",
+   "zh": "市政府"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "Legislatura del Chubut",
+    "Legislatura de la Provincia del Chubut",
+    "Honorable Legislatura del Chubut"
+   ],
+   "en": "Chubut Provincial Legislature",
+   "pt": "Assembleia Legislativa de Chubut",
+   "fr": "Assemblée législative de Chubut",
+   "de": "Provinzparlament von Chubut",
+   "ru": "Законодательное собрание провинции Чубут",
+   "zh": "丘布特省议会"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "Legislatura provincial",
+    "la Legislatura"
+   ],
+   "en": "the Provincial Legislature",
+   "pt": "a Assembleia Legislativa",
+   "fr": "l'Assemblée législative",
+   "de": "das Provinzparlament",
+   "ru": "Законодательное собрание",
+   "zh": "省议会"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "diputado provincial",
+    "diputada provincial",
+    "diputado",
+    "diputada"
+   ],
+   "en": "provincial legislator",
+   "pt": "deputado estadual",
+   "fr": "député provincial",
+   "de": "Provinzabgeordneter",
+   "ru": "депутат провинции",
+   "zh": "省议员"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "diputados provinciales",
+    "diputadas provinciales",
+    "diputados",
+    "diputadas",
+    "diputadas y diputados",
+    "diputados y diputadas"
+   ],
+   "en": "provincial legislators",
+   "pt": "deputados estaduais",
+   "fr": "députés provinciaux",
+   "de": "Provinzabgeordnete",
+   "ru": "депутаты провинции",
+   "zh": "省议员们"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "sesión ordinaria"
+   ],
+   "en": "regular session",
+   "pt": "sessão ordinária",
+   "fr": "séance ordinaire",
+   "de": "ordentliche Sitzung",
+   "ru": "очередное заседание",
+   "zh": "例会"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "sesión extraordinaria"
+   ],
+   "en": "special session",
+   "pt": "sessão extraordinária",
+   "fr": "séance extraordinaire",
+   "de": "Sondersitzung",
+   "ru": "внеочередное заседание",
+   "zh": "特别会议"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "sesión especial"
+   ],
+   "en": "special session",
+   "pt": "sessão especial",
+   "fr": "séance spéciale",
+   "de": "Sondersitzung",
+   "ru": "специальное заседание",
+   "zh": "专门会议"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "sesión preparatoria"
+   ],
+   "en": "preparatory session",
+   "pt": "sessão preparatória",
+   "fr": "séance préparatoire",
+   "de": "vorbereitende Sitzung",
+   "ru": "подготовительное заседание",
+   "zh": "预备会议"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "período de sesiones ordinarias",
+    "periodo de sesiones ordinarias"
+   ],
+   "en": "regular legislative term",
+   "pt": "período legislativo ordinário",
+   "fr": "session ordinaire",
+   "de": "ordentliche Sitzungsperiode",
+   "ru": "очередная сессия",
+   "zh": "常会会期"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "sobre tablas",
+    "tratamiento sobre tablas"
+   ],
+   "en": "immediate consideration without committee referral",
+   "pt": "votação imediata sem passar pelas comissões",
+   "fr": "examen immédiat sans renvoi en commission",
+   "de": "sofortige Behandlung ohne Ausschussüberweisung",
+   "ru": "немедленное рассмотрение без передачи в комиссию",
+   "zh": "不经委员会审议的即时审议"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "moción de preferencia"
+   ],
+   "en": "priority motion",
+   "pt": "moção de preferência",
+   "fr": "motion de priorité",
+   "de": "Vorrangantrag",
+   "ru": "предложение о приоритетном рассмотрении",
+   "zh": "优先审议动议"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "moción de orden"
+   ],
+   "en": "point of order",
+   "pt": "questão de ordem",
+   "fr": "motion d'ordre",
+   "de": "Geschäftsordnungsantrag",
+   "ru": "процедурное предложение",
+   "zh": "程序动议"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "cuestión de privilegio"
+   ],
+   "en": "question of privilege",
+   "pt": "questão de privilégio",
+   "fr": "question de privilège",
+   "de": "Frage der Immunität und Vorrechte",
+   "ru": "вопрос о привилегиях",
+   "zh": "特权问题"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "orden del día"
+   ],
+   "en": "agenda",
+   "pt": "ordem do dia",
+   "fr": "ordre du jour",
+   "de": "Tagesordnung",
+   "ru": "повестка дня",
+   "zh": "议程"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "asuntos entrados"
+   ],
+   "en": "items received",
+   "pt": "expediente recebido",
+   "fr": "affaires reçues",
+   "de": "Eingänge",
+   "ru": "поступившие документы",
+   "zh": "收到的议案"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "despacho de comisión",
+    "dictamen de comisión"
+   ],
+   "en": "committee report",
+   "pt": "parecer da comissão",
+   "fr": "rapport de commission",
+   "de": "Ausschussbericht",
+   "ru": "заключение комиссии",
+   "zh": "委员会报告"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "comisión permanente"
+   ],
+   "en": "standing committee",
+   "pt": "comissão permanente",
+   "fr": "commission permanente",
+   "de": "ständiger Ausschuss",
+   "ru": "постоянная комиссия",
+   "zh": "常设委员会"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "Comisión de Hacienda, Presupuesto y Cuentas",
+    "Comisión de Hacienda"
+   ],
+   "en": "Finance and Budget Committee",
+   "pt": "Comissão de Finanças e Orçamento",
+   "fr": "Commission des finances et du budget",
+   "de": "Haushalts- und Finanzausschuss",
+   "ru": "комиссия по финансам и бюджету",
+   "zh": "财政预算委员会"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "Comisión de Legislación General"
+   ],
+   "en": "General Legislation Committee",
+   "pt": "Comissão de Legislação Geral",
+   "fr": "Commission de la législation générale",
+   "de": "Ausschuss für allgemeine Gesetzgebung",
+   "ru": "комиссия по общему законодательству",
+   "zh": "一般立法委员会"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "Comisión de Asuntos Constitucionales y Justicia",
+    "Comisión de Asuntos Constitucionales"
+   ],
+   "en": "Constitutional Affairs and Justice Committee",
+   "pt": "Comissão de Constituição e Justiça",
+   "fr": "Commission des affaires constitutionnelles et de la justice",
+   "de": "Ausschuss für Verfassung und Justiz",
+   "ru": "комиссия по конституционным вопросам и правосудию",
+   "zh": "宪法事务与司法委员会"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "Labor Parlamentaria",
+    "comisión de Labor Parlamentaria"
+   ],
+   "en": "Parliamentary Business Committee",
+   "pt": "Comissão de Trabalhos Parlamentares",
+   "fr": "Conférence des présidents",
+   "de": "Ältestenrat",
+   "ru": "комиссия по организации парламентской работы",
+   "zh": "议事协调委员会"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "votación nominal"
+   ],
+   "en": "roll-call vote",
+   "pt": "votação nominal",
+   "fr": "vote par appel nominal",
+   "de": "namentliche Abstimmung",
+   "ru": "поимённое голосование",
+   "zh": "唱名表决"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "a mano alzada",
+    "votación a mano alzada"
+   ],
+   "en": "by show of hands",
+   "pt": "por votação simbólica",
+   "fr": "à main levée",
+   "de": "durch Handzeichen",
+   "ru": "поднятием рук",
+   "zh": "举手表决"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "aprobado en general"
+   ],
+   "en": "approved in general",
+   "pt": "aprovado de forma geral",
+   "fr": "adopté dans son ensemble",
+   "de": "im Grundsatz angenommen",
+   "ru": "принят в целом",
+   "zh": "整体通过"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "aprobado en particular"
+   ],
+   "en": "approved article by article",
+   "pt": "aprovado artigo por artigo",
+   "fr": "adopté article par article",
+   "de": "artikelweise angenommen",
+   "ru": "принят постатейно",
+   "zh": "逐条通过"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "por unanimidad"
+   ],
+   "en": "unanimously",
+   "pt": "por unanimidade",
+   "fr": "à l'unanimité",
+   "de": "einstimmig",
+   "ru": "единогласно",
+   "zh": "一致"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "quórum",
+    "quorum"
+   ],
+   "en": "quorum",
+   "pt": "quórum",
+   "fr": "quorum",
+   "de": "Beschlussfähigkeit",
+   "ru": "кворум",
+   "zh": "法定人数"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "banca",
+    "la banca"
+   ],
+   "en": "seat",
+   "pt": "cadeira",
+   "fr": "siège",
+   "de": "Sitz",
+   "ru": "место",
+   "zh": "席位"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "bloque",
+    "el bloque"
+   ],
+   "en": "parliamentary group",
+   "pt": "bancada",
+   "fr": "groupe parlementaire",
+   "de": "Fraktion",
+   "ru": "фракция",
+   "zh": "党团"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "bloque oficialista"
+   ],
+   "en": "ruling parliamentary group",
+   "pt": "bancada governista",
+   "fr": "groupe de la majorité",
+   "de": "Regierungsfraktion",
+   "ru": "правящая фракция",
+   "zh": "执政党党团"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "bloque opositor",
+    "bloque de la oposición"
+   ],
+   "en": "opposition parliamentary group",
+   "pt": "bancada de oposição",
+   "fr": "groupe d'opposition",
+   "de": "Oppositionsfraktion",
+   "ru": "оппозиционная фракция",
+   "zh": "反对党党团"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "vicegobernador",
+    "vicegobernadora"
+   ],
+   "en": "Deputy Governor",
+   "pt": "vice-governador",
+   "fr": "vice-gouverneur",
+   "de": "Vizegouverneur",
+   "ru": "вице-губернатор",
+   "zh": "副省长"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "gobernador del Chubut",
+    "gobernador de la provincia"
+   ],
+   "en": "Governor of Chubut",
+   "pt": "governador de Chubut",
+   "fr": "gouverneur de Chubut",
+   "de": "Gouverneur von Chubut",
+   "ru": "губернатор Чубута",
+   "zh": "丘布特省省长"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "secretario legislativo",
+    "secretaria legislativa"
+   ],
+   "en": "Legislative Secretary",
+   "pt": "secretário legislativo",
+   "fr": "secrétaire législatif",
+   "de": "Parlamentssekretär",
+   "ru": "секретарь законодательного собрания",
+   "zh": "立法秘书"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "presidente de la Legislatura",
+    "señor presidente"
+   ],
+   "en": "Mr. Speaker",
+   "pt": "senhor presidente",
+   "fr": "monsieur le président",
+   "de": "Herr Präsident",
+   "ru": "господин председатель",
+   "zh": "议长先生"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "presidenta de la Legislatura",
+    "señora presidenta"
+   ],
+   "en": "Madam Speaker",
+   "pt": "senhora presidenta",
+   "fr": "madame la présidente",
+   "de": "Frau Präsidentin",
+   "ru": "госпожа председатель",
+   "zh": "议长女士"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "proyecto de ley"
+   ],
+   "en": "bill",
+   "pt": "projeto de lei",
+   "fr": "projet de loi",
+   "de": "Gesetzentwurf",
+   "ru": "законопроект",
+   "zh": "法案"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "proyecto de resolución"
+   ],
+   "en": "draft resolution",
+   "pt": "projeto de resolução",
+   "fr": "projet de résolution",
+   "de": "Beschlussentwurf",
+   "ru": "проект резолюции",
+   "zh": "决议草案"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "proyecto de declaración"
+   ],
+   "en": "draft declaration",
+   "pt": "projeto de declaração",
+   "fr": "projet de déclaration",
+   "de": "Erklärungsentwurf",
+   "ru": "проект заявления",
+   "zh": "声明草案"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "pedido de informes"
+   ],
+   "en": "request for information",
+   "pt": "pedido de informações",
+   "fr": "demande d'information",
+   "de": "Auskunftsersuchen",
+   "ru": "запрос информации",
+   "zh": "质询"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "ley provincial"
+   ],
+   "en": "provincial law",
+   "pt": "lei estadual",
+   "fr": "loi provinciale",
+   "de": "Provinzgesetz",
+   "ru": "закон провинции",
+   "zh": "省法律"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "Poder Ejecutivo provincial",
+    "Poder Ejecutivo"
+   ],
+   "en": "Provincial Executive",
+   "pt": "Poder Executivo estadual",
+   "fr": "pouvoir exécutif provincial",
+   "de": "Provinzregierung",
+   "ru": "исполнительная власть провинции",
+   "zh": "省行政当局"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "Poder Judicial"
+   ],
+   "en": "Judiciary",
+   "pt": "Poder Judiciário",
+   "fr": "pouvoir judiciaire",
+   "de": "Justiz",
+   "ru": "судебная власть",
+   "zh": "司法机关"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "Superior Tribunal de Justicia"
+   ],
+   "en": "Provincial Supreme Court",
+   "pt": "Tribunal Superior de Justiça",
+   "fr": "Cour suprême provinciale",
+   "de": "Oberster Gerichtshof der Provinz",
+   "ru": "Верховный суд провинции",
+   "zh": "省最高法院"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "Tribunal de Cuentas"
+   ],
+   "en": "Court of Audit",
+   "pt": "Tribunal de Contas",
+   "fr": "Cour des comptes",
+   "de": "Rechnungshof",
+   "ru": "Счётная палата",
+   "zh": "审计法院"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "Fiscalía de Estado",
+    "fiscal de Estado"
+   ],
+   "en": "State Attorney's Office",
+   "pt": "Procuradoria-Geral do Estado",
+   "fr": "Parquet de l'État",
+   "de": "Staatsanwaltschaft der Provinz",
+   "ru": "государственная прокуратура провинции",
+   "zh": "省检察署"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "Boletín Oficial"
+   ],
+   "en": "Official Gazette",
+   "pt": "Diário Oficial",
+   "fr": "Journal officiel",
+   "de": "Amtsblatt",
+   "ru": "Официальный бюллетень",
+   "zh": "政府公报"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "promulgación",
+    "promulgar"
+   ],
+   "en": "enactment",
+   "pt": "sanção",
+   "fr": "promulgation",
+   "de": "Verkündung",
+   "ru": "промульгация",
+   "zh": "颁布"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "Concejo Deliberante"
+   ],
+   "en": "City Council",
+   "pt": "Câmara Municipal",
+   "fr": "conseil municipal",
+   "de": "Gemeinderat",
+   "ru": "городской совет",
+   "zh": "市议会"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "concejal",
+    "concejala"
+   ],
+   "en": "city councilor",
+   "pt": "vereador",
+   "fr": "conseiller municipal",
+   "de": "Gemeinderat",
+   "ru": "член городского совета",
+   "zh": "市议员"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "regalías petroleras",
+    "regalías hidrocarburíferas"
+   ],
+   "en": "oil royalties",
+   "pt": "royalties do petróleo",
+   "fr": "redevances pétrolières",
+   "de": "Erdöl-Förderabgaben",
+   "ru": "нефтяные роялти",
+   "zh": "石油特许权使用费"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "comunidades mapuche-tehuelche",
+    "pueblo mapuche-tehuelche"
+   ],
+   "en": "Mapuche-Tehuelche communities",
+   "pt": "comunidades mapuche-tehuelche",
+   "fr": "communautés mapuche-tehuelche",
+   "de": "Mapuche-Tehuelche-Gemeinschaften",
+   "ru": "общины мапуче-теуэльче",
+   "zh": "马普切-特维尔切社区"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "Península Valdés"
+   ],
+   "en": "Valdés Peninsula",
+   "pt": "Península Valdés",
+   "fr": "péninsule Valdés",
+   "de": "Halbinsel Valdés",
+   "ru": "полуостров Вальдес",
+   "zh": "瓦尔德斯半岛"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "Comodoro Rivadavia",
+    "Comodoro"
+   ],
+   "en": "Comodoro Rivadavia",
+   "pt": "Comodoro Rivadavia",
+   "fr": "Comodoro Rivadavia",
+   "de": "Comodoro Rivadavia",
+   "ru": "Комодоро-Ривадавия",
+   "zh": "里瓦达维亚海军准将城"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "Puerto Madryn"
+   ],
+   "en": "Puerto Madryn",
+   "pt": "Puerto Madryn",
+   "fr": "Puerto Madryn",
+   "de": "Puerto Madryn",
+   "ru": "Пуэрто-Мадрин",
+   "zh": "马德林港"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "Trelew"
+   ],
+   "en": "Trelew",
+   "pt": "Trelew",
+   "fr": "Trelew",
+   "de": "Trelew",
+   "ru": "Трелью",
+   "zh": "特雷利乌"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "Rawson"
+   ],
+   "en": "Rawson",
+   "pt": "Rawson",
+   "fr": "Rawson",
+   "de": "Rawson",
+   "ru": "Росон",
+   "zh": "罗森"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "Esquel"
+   ],
+   "en": "Esquel",
+   "pt": "Esquel",
+   "fr": "Esquel",
+   "de": "Esquel",
+   "ru": "Эскель",
+   "zh": "埃斯克尔"
+  }
+ ]
+}

@@ -21,6 +21,7 @@ Rectangle {
     readonly property string rielSection: "Barra de navegación"
     readonly property string modelosSection: "Modelos locales"
     readonly property string vozSection: "Audio y voz"
+    readonly property string traduccionSection: "Traducción"
     readonly property var ml: Studio.modelos
     readonly property var sys: Studio.system
     property string updateError: ""
@@ -72,7 +73,7 @@ Rectangle {
             ListView {
                 anchors.fill: parent
                 spacing: 4
-                model: Studio.settings.sections.concat([page.rielSection, page.vozSection, page.modelosSection, page.systemSection])
+                model: Studio.settings.sections.concat([page.rielSection, page.vozSection, page.traduccionSection, page.modelosSection, page.systemSection])
                 delegate: Rectangle {
                     required property string modelData
                     width: ListView.view.width
@@ -96,6 +97,7 @@ Rectangle {
                 contentWidth: availableWidth
                 visible: page.section !== page.systemSection && page.section !== page.rielSection
                          && page.section !== page.modelosSection && page.section !== page.vozSection
+                         && page.section !== page.traduccionSection
                 ColumnLayout {
                     width: parent.width
                     spacing: 14
@@ -148,6 +150,11 @@ Rectangle {
                 anchors.fill: parent
                 active: page.section === page.vozSection
                 sourceComponent: vozComp
+            }
+            Loader {
+                anchors.fill: parent
+                active: page.section === page.traduccionSection
+                sourceComponent: traduccionComp
             }
         }
     }
@@ -230,7 +237,7 @@ Rectangle {
                         property bool verFicha: false
                         Component.onCompleted: if (modelData.tipo === "reactivo") ml.revisarHerramientas(modelData.repo, false)
                         // Las voces que contestan van en su propia sección.
-                        visible: modelData.tipo !== "tts"
+                        visible: modelData.tipo !== "tts" && modelData.tipo !== "traduccion"
                         Layout.fillWidth: true
                         implicitHeight: fila.implicitHeight + 20
                         radius: Theme.radiusSmall
@@ -550,6 +557,14 @@ Rectangle {
     // --- Audio y voz -----------------------------------------------------------------
     // El micrófono del operador (lo que oye el lobby y de donde se le dicta al
     // asistente), dónde hay voz a texto, la voz que contesta y lo transcripto.
+    Component {
+        id: traduccionComp
+        ScrollView {
+            clip: true
+            contentWidth: availableWidth
+            PanelTraduccion { width: parent.width }
+        }
+    }
     Component {
         id: vozComp
         ScrollView {

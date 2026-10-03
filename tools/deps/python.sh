@@ -32,6 +32,10 @@ rm -rf "$OUT"/lib/python3.*/test "$OUT"/lib/python3.*/idlelib "$OUT"/lib/python3
 # numpy viene incluido: casi todo plugin de video lo usa, y bajarlo para cada
 # uno era lo más lento de probar un plugin. Versión fija.
 "$OUT/bin/python3" -m pip install -q --disable-pip-version-check --no-warn-script-location "numpy==2.5.3"
+# La traducción en vivo (assets/traductor, agent/Traductor): CTranslate2 con los
+# modelos OPUS-MT de Argos, y sus tokenizadores. Sin torch ni stanza.
+"$OUT/bin/python3" -m pip install -q --disable-pip-version-check --no-warn-script-location \
+    "ctranslate2==4.8.2" "sentencepiece==0.2.2" "sacremoses==0.2.0" "subword-nmt==0.3.8"
 # El bytecode, precompilado acá: en ejecución Python corre con -B (no escribe
 # nada adentro del programa: escribir en la .app rompe el sello de la firma).
 find "$OUT" -name '__pycache__' -type d -prune -exec rm -rf {} +
@@ -44,5 +48,5 @@ if [ "$(uname -s)" = Darwin ]; then
             file -b "$f" | grep -q Mach-O && codesign -f -s - "$f" 2>/dev/null || true
         done
 fi
-"$OUT/bin/python3" -c 'import sys, ssl, sqlite3, ctypes; print("python", sys.version.split()[0], "ok")'
+"$OUT/bin/python3" -c 'import sys, ssl, sqlite3, ctypes, ctranslate2, sentencepiece, sacremoses, subword_nmt; print("python", sys.version.split()[0], "ok")'
 log "listo: $OUT ($(du -sh "$OUT" | cut -f1))"

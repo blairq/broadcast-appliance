@@ -20,3 +20,6 @@ install(DIRECTORY "${CMAKE_SOURCE_DIR}/src/plugins/sdk/" DESTINATION plugins-pyt
         PATTERN "__pycache__" EXCLUDE PATTERN "tests" EXCLUDE)
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/plugins/" DESTINATION plugins-python/ejemplos COMPONENT bundle
         PATTERN "__pycache__" EXCLUDE PATTERN "_libs" EXCLUDE)
+# El traductor en vivo (agent/Traductor): corre con este mismo Python.
+install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/traductor/" DESTINATION traductor COMPONENT bundle
+        PATTERN "__pycache__" EXCLUDE)

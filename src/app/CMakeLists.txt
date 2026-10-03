@@ -458,7 +458,8 @@ endif()
             RENAME lsp-capturas-LEEME.txt COMPONENT bundle)
     # Los modelos locales que se ofrecen bajar (los actualiza la fabrica al subir).
     qt_add_resources(ba-app "ba_modelos" PREFIX "/agent" BASE "${CMAKE_SOURCE_DIR}/datos"
-                     FILES "${CMAKE_SOURCE_DIR}/datos/modelos-catalogo.json")
+                     FILES "${CMAKE_SOURCE_DIR}/datos/modelos-catalogo.json"
+                           "${CMAKE_SOURCE_DIR}/datos/glosario-traduccion.json")
     # El logo, para el icono de la ventana (tools/icono.py los genera).
     set(_ba_iconos "")
     foreach(_lado 16 24 32 48 64 128 256 512)
