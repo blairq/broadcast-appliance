@@ -397,10 +397,12 @@ void McpService::registerVideoTools() {
         t.title = "Poner una salida o un compositor del grafo en una escena";
         t.category = "video";
         t.description =
-            "Pone la tarjeta salida `id` (o un compositor) como fuente en `escena` (vacía = la que está al aire), "
-            "con su nombre (`params.nombre`). Queda guardada como cualquier fuente de la escena.";
+            "Pone la tarjeta salida `id` (o un compositor) como fuente en `escena` (obligatoria: nunca la del aire sin "
+            "pedirlo). La fuente se llama como el nombre de la tarjeta (se cambia con video_tarjeta_ajustar "
+            "{\"params\": {\"nombre\": …}} antes de ponerla). Queda guardada como cualquier fuente de la escena. Para un "
+            "mosaico entero en una llamada: video_mosaico.";
         t.inputSchema = {{"type", "object"},
-                         {"required", {"id"}},
+                         {"required", {"id", "escena"}},
                          {"properties", {{"id", idTarjeta}, {"escena", {{"type", "string"}}}}}};
         t.run = [v](const json& a, Done done) {
             if (!v) return done(ToolResult::error("el video no está disponible"));
@@ -444,13 +446,22 @@ void McpService::registerVideoTools() {
             "`salida` {nombre} (rama). COMPARTIR entre entradas: `compartida: \"nombre\"` en la tarjeta; la primera "
             "vez crea un controlador con ese nombre y las siguientes (en otras entradas, con el mismo nombre) "
             "quedan manejadas por él: cambiar el controlador las cambia a todas. Lo propio de una entrada sobre lo "
-            "compartido: `local: {...}` (p. ej. {\"propiedades\": {\"hue\": -0.05}}). Devuelve el sub-grafo y el "
-            "diagnóstico de la entrada.";
+            "compartido: `local: {...}` (p. ej. {\"propiedades\": {\"hue\": -0.05}}). VARIAS ENTRADAS en una llamada: "
+            "`entradas: [...]` con las mismas `tarjetas` y `local_por_entrada` para lo propio de cada una (el caso «la "
+            "misma corrección en las tres cámaras»). El controlador toma el id del nombre compartido (estudio.<nombre>). "
+            "Devuelve el sub-grafo y el diagnóstico de cada entrada.";
         t.inputSchema = {
             {"type", "object"},
-            {"required", {"entrada", "tarjetas"}},
+            {"required", {"tarjetas"}},
             {"properties",
              {{"entrada", entrada},
+              {"entradas",
+               {{"type", "array"},
+                {"items", {{"type", "string"}}},
+                {"description", "la MISMA cadena en varias entradas a la vez (las `compartida` quedan manejadas por un solo controlador)"}}},
+              {"local_por_entrada",
+               {{"type", "object"},
+                {"description", "lo propio de cada entrada sobre lo compartido: {\"Pelco\": {\"propiedades\": {\"hue\": 0.04}}}"}}},
               {"modo", {{"type", "string"}, {"enum", {"reemplazar", "agregar"}}}},
               {"tarjetas",
                {{"type", "array"},
@@ -470,74 +481,119 @@ void McpService::registerVideoTools() {
         t.examples = {
             R"({"entrada": "Sony", "tarjetas": [{"tipo": "gst", "elemento": "videobalance", "propiedades": {"contrast": 1.1, "saturation": 0.9}, "compartida": "Corrección cámaras"}]})",
             R"({"entrada": "Pelco", "tarjetas": [{"tipo": "gst", "elemento": "videobalance", "compartida": "Corrección cámaras", "local": {"propiedades": {"hue": 0.04}}}]})",
-            R"({"entrada": "Panasonic", "tarjetas": [{"tipo": "normalizar", "params": {"desentrelazar": "yadif"}}, {"tipo": "gst", "elemento": "videobalance", "compartida": "Corrección cámaras"}]})"};
+            R"({"entrada": "Panasonic", "tarjetas": [{"tipo": "normalizar", "params": {"desentrelazar": "yadif"}}, {"tipo": "gst", "elemento": "videobalance", "compartida": "Corrección cámaras"}]})",
+            R"({"entradas": ["Sony", "Pelco", "Panasonic"], "tarjetas": [{"tipo": "gst", "elemento": "videobalance", "propiedades": {"contrast": 1.1, "saturation": 0.85}, "compartida": "Color cámaras"}], "local_por_entrada": {"Pelco": {"propiedades": {"hue": 0.04}}}})"};
         t.run = [v](const json& a, Done done) {
             if (!v) return done(ToolResult::error("el video no está disponible"));
-            const std::string e = a.value("entrada", std::string());
-            if (!v->esEntrada(e)) return done(ToolResult::error("«" + e + "» no es una entrada de video (video_grafo las lista)"));
+            std::vector<std::string> entradas;
+            for (const auto& x : a.value("entradas", json::array())) entradas.push_back(x.get<std::string>());
+            if (a.contains("entrada")) entradas.insert(entradas.begin(), a.value("entrada", std::string()));
+            if (entradas.empty()) return done(ToolResult::error("falta `entrada` (o `entradas`)"));
+            for (const auto& e : entradas)
+                if (!v->esEntrada(e)) return done(ToolResult::error("«" + e + "» no es una entrada de video (video_estado las lista)"));
             const json tarjetas = a.value("tarjetas", json::array());
             if (!tarjetas.is_array() || tarjetas.empty()) return done(ToolResult::error("faltan `tarjetas`"));
+            const json localPor = a.value("local_por_entrada", json::object());
             json hechas = json::array();
+            // Todo en UNA edición: si algo falla en cualquier entrada, no cambia nada.
             const std::string err = v->editar([&](video::GrafoVideo& g) {
-                if (a.value("modo", std::string("reemplazar")) == "reemplazar") g.limpiar(e);
-                std::string despues;
-                int i = 0;
-                for (const auto& tj : tarjetas) {
-                    ++i;
-                    const std::string tipo = tj.value("tipo", std::string());
-                    const std::string donde = "tarjeta " + std::to_string(i) + " (" + tipo + "): ";
-                    std::string error, id;
-                    // ¿Compartida? Si ya hay un controlador con ese nombre, se la maneja él.
-                    const std::string comp = tj.value("compartida", std::string());
-                    std::string control;
-                    if (!comp.empty())
-                        for (const auto& n : g.nodos())
-                            if (n.tipo == "control" && n.etiqueta == comp) control = n.id;
-                    if (!control.empty()) {
-                        id = g.agregarControlada(control, e, despues, &error);
-                    } else if (tipo == "gst") {
-                        json props = tj.value("propiedades", json::object());
-                        id = v->agregarModuloEn(g, tj.value("elemento", std::string()), e, despues, props, &error);
-                    } else if (tipo == "obs") {
-                        const std::string f = tj.value("filtro", std::string());
-                        if (video::VideoGrafos::nombreFiltro(f).empty())
-                            error = "no existe el filtro de OBS «" + f + "» (video_filtros)";
-                        else
-                            id = g.agregar("obs", e, despues, json{{"filtro", f}, {"ajustes", tj.value("ajustes", json::object())}}, &error);
-                        if (!id.empty()) g.ajustar(id, json{{"etiqueta", video::VideoGrafos::nombreFiltro(f)}}, nullptr);
-                    } else {
-                        id = g.agregar(tipo, e, despues, tj.value("params", json::object()), &error);
+                for (const std::string& e : entradas) {
+                    if (a.value("modo", std::string("reemplazar")) == "reemplazar") g.limpiar(e);
+                    std::string despues;
+                    int i = 0;
+                    for (json tj : tarjetas) {
+                        ++i;
+                        // Lo propio de esta entrada, sobre la tarjeta compartida.
+                        if (!tj.value("compartida", std::string()).empty() && localPor.contains(e)) tj["local"] = localPor[e];
+                        const std::string tipo = tj.value("tipo", std::string());
+                        const std::string donde = "«" + e + "», tarjeta " + std::to_string(i) + " (" + tipo + "): ";
+                        std::string error, id;
+                        const std::string comp = tj.value("compartida", std::string());
+                        std::string control;
+                        if (!comp.empty())
+                            for (const auto& n : g.nodos())
+                                if (n.tipo == "control" && n.etiqueta == comp) control = n.id;
+                        if (!control.empty()) {
+                            id = g.agregarControlada(control, e, despues, &error);
+                        } else if (tipo == "gst") {
+                            id = v->agregarModuloEn(g, tj.value("elemento", std::string()), e, despues, tj.value("propiedades", json::object()), &error);
+                        } else if (tipo == "obs") {
+                            const std::string f = tj.value("filtro", std::string());
+                            if (video::VideoGrafos::nombreFiltro(f).empty())
+                                error = "no existe el filtro de OBS «" + f + "» (video_filtros)";
+                            else
+                                id = g.agregar("obs", e, despues, json{{"filtro", f}, {"ajustes", tj.value("ajustes", json::object())}}, &error);
+                            if (!id.empty()) g.ajustar(id, json{{"etiqueta", video::VideoGrafos::nombreFiltro(f)}}, nullptr);
+                        } else {
+                            id = g.agregar(tipo, e, despues, tj.value("params", json::object()), &error);
+                        }
+                        if (id.empty()) return donde + (error.empty() ? "no se pudo agregar" : error);
+                        if (!comp.empty() && control.empty()) {
+                            control = g.controlarDesde(id, &error);
+                            if (control.empty()) return donde + error;
+                            g.ajustar(control, json{{"etiqueta", comp}}, nullptr);
+                            control = g.renombrar(control, comp); // id legible: estudio.<nombre>
+                        }
+                        if (tj.contains("local") && !g.ajustar(id, json{{"local", tj["local"]}}, &error)) return donde + error;
+                        if (tj.contains("etiqueta")) g.ajustar(id, json{{"etiqueta", tj["etiqueta"]}}, nullptr);
+                        hechas.push_back({{"entrada", e}, {"id", id}, {"tipo", tipo}, {"compartida", comp}, {"controlador", control}});
+                        if (tipo != "salida") despues = id;
                     }
-                    if (id.empty()) return donde + (error.empty() ? "no se pudo agregar" : error);
-                    if (!comp.empty() && control.empty()) {
-                        control = g.controlarDesde(id, &error);
-                        if (control.empty()) return donde + error;
-                        g.ajustar(control, json{{"etiqueta", comp}}, nullptr);
-                    }
-                    if (tj.contains("local") && !g.ajustar(id, json{{"local", tj["local"]}}, &error)) return donde + error;
-                    if (tj.contains("etiqueta")) g.ajustar(id, json{{"etiqueta", tj["etiqueta"]}}, nullptr);
-                    hechas.push_back({{"id", id}, {"tipo", tipo}, {"compartida", comp}, {"controlador", control}});
-                    // La próxima va después de esta (una salida es rama: no corre la cadena).
-                    if (tipo != "salida") despues = id;
                 }
                 return std::string();
             });
             if (!err.empty()) return done(ToolResult::error(err + " (no se cambió nada)"));
-            json d = v->describir(e);
-            d["hechas"] = hechas;
-            d["diagnostico"] = video::diagnosticar(v->estadoEntrada(e));
+            json d{{"hechas", hechas}};
+            json diag = json::object();
+            for (const auto& e : entradas) diag[e] = video::diagnosticar(v->estadoEntrada(e));
+            d["diagnostico"] = diag;
+            if (entradas.size() == 1) d["grafo"] = v->describir(entradas[0]);
             done(ToolResult().data(d));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
+        t.name = "video_mosaico";
+        t.title = "Mosaico, imagen en imagen o lado a lado de varias entradas (en una llamada)";
+        t.category = "video";
+        t.description =
+            "Junta `entradas` en una `escena` en UNA llamada: crea el compositor (o rearma el que se llame `nombre`), "
+            "conecta lo que llega a la escena de cada entrada (o sea, con sus tarjetas de color, etc.), lo pone en la "
+            "escena y, con `ocultar_sueltas` (de fábrica, sí), oculta en esa escena las entradas sueltas (el mosaico "
+            "las sigue recibiendo: no se apagan). `disposicion`: mosaico (grilla), pip (la primera de fondo y las "
+            "demás chicas arriba a la derecha) o lado (una al lado de la otra). Para retocar después: "
+            "video_tarjeta_ajustar sobre el compositor (`capas`).";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"escena", "entradas"}},
+                         {"properties",
+                          {{"escena", {{"type", "string"}}},
+                           {"entradas", {{"type", "array"}, {"items", {{"type", "string"}}}}},
+                           {"disposicion", {{"type", "string"}, {"enum", {"mosaico", "pip", "lado"}}}},
+                           {"nombre", {{"type", "string"}, {"description", "el de la fuente del mosaico (de fábrica, «Estudio · compositor»)"}}},
+                           {"ocultar_sueltas", {{"type", "boolean"}}}}}};
+        t.examples = {R"({"escena": "Exterior", "entradas": ["Axis Terreno", "SRT 1", "SRT 2"], "nombre": "Mosaico Exterior"})"};
+        t.run = [v](const json& a, Done done) {
+            if (!v) return done(ToolResult::error("el video no está disponible"));
+            std::vector<std::string> es;
+            for (const auto& x : a.value("entradas", json::array())) es.push_back(x.get<std::string>());
+            json hecho;
+            const std::string err = v->armarMosaico(a.value("escena", std::string()), es, a.value("disposicion", std::string("mosaico")),
+                                                    a.value("nombre", std::string()), a.value("ocultar_sueltas", true), &hecho);
+            if (!err.empty()) return done(ToolResult::error(err));
+            hecho["verificar"] = "capture_source {\"name\": \"" + hecho.value("fuente", std::string()) + "\"} (el primer cuadro puede tardar un instante)";
+            done(ToolResult().data(hecho));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "video_estado";
-        t.title = "Cómo está una entrada de video (y qué le pasa)";
+        t.title = "Las entradas de video y cómo está cada una (y qué le pasa)";
         t.category = "video";
         t.readOnly = true;
         t.description =
-            "Sin `entrada`: todas, con su diagnóstico resumido. Con `entrada`: tamaño, cuadros por segundo "
+            "Sin `entrada`: LISTA todas las entradas de video (cámaras, red, virtuales) con su diagnóstico resumido. Con `entrada`: tamaño, cuadros por segundo "
             "(declarados y medidos), formato, colorimetría (BT.601/709, rango), si llega entrelazada y su "
             "desentrelazado, el reloj y si está sincronizado, el colchón de red (latencia, cuadros que llegaron "
             "tarde), la latencia que agrega su sub-grafo, y los errores y avisos de sus tarjetas. `diagnostico`: "

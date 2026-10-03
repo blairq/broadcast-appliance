@@ -462,6 +462,21 @@ void GrafoVideo::quitarEntrada(const std::string& fuente) {
                  nodos_.end());
 }
 
+std::string GrafoVideo::renombrar(const std::string& id, const std::string& nombre) {
+    const Nodo* n = nodo(id);
+    if (n == nullptr || !n->grupo.empty() || nombre.empty()) return id;
+    std::string nuevo = "estudio." + slug(nombre);
+    if (nuevo == id) return id;
+    for (int i = 2; nodo(nuevo) != nullptr; ++i) nuevo = "estudio." + slug(nombre) + "-" + std::to_string(i);
+    for (auto& x : nodos_)
+        if (x.id == id) x.id = nuevo;
+    for (auto& c : cables_) {
+        if (c.desde == id) c.desde = nuevo;
+        if (c.hacia == id) c.hacia = nuevo;
+    }
+    return nuevo;
+}
+
 bool GrafoVideo::mover(const std::string& id, int x, int y) {
     for (auto& n : nodos_)
         if (n.id == id) {

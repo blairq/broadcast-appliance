@@ -193,7 +193,7 @@ QVariantList Red::equiposQml() const { return aVariant(equipos_).toList(); }
 json Red::equipo(const std::string& ip) const {
     for (const auto& e : equipos_)
         if (e.value("ip", std::string()) == ip) return e;
-    return json();
+    return json::object(); // vacío: no está en el último escaneo
 }
 
 // --- Credenciales ------------------------------------------------------------------------
@@ -326,15 +326,18 @@ void Red::terminarBarrido() {
         const QVariantMap m = v.toMap();
         // El device_service puede traer varias direcciones (una 169.254…,
         // autoasignada): la que cae en una de las subredes que se barren.
-        QString host = m["host"].toString().section(':', 0, 0);
-        for (const QString& d : m["direccion"].toString().split(' ', Qt::SkipEmptyParts)) {
+        // La IP de la que vino la respuesta es la de verdad.
+        QString host = m["origen"].toString();
+        if (host.isEmpty()) host = m["host"].toString().section(':', 0, 0);
+        if (m["origen"].toString().isEmpty())
+            for (const QString& d : m["direccion"].toString().split(' ', Qt::SkipEmptyParts)) {
             const QHostAddress h(QUrl(d).host());
             if (h.isNull() || h.isLinkLocal()) continue;
             for (const QString& sr : esc_->subredes) {
                 const auto par = QHostAddress::parseSubnet(sr);
                 if (h.isInSubnet(par)) host = h.toString();
             }
-        }
+            }
         onvif[host.toStdString()] = {{"direccion", m["direccion"].toString().toStdString()},
                                      {"nombre", m["nombre"].toString().toStdString()},
                                      {"modelo", m["modelo"].toString().toStdString()}};
@@ -353,6 +356,11 @@ void Red::terminarBarrido() {
         }
         if (onvif.count(ip)) e["onvif"] = onvif[ip];
         e["credenciales_guardadas"] = tieneClave(ip);
+        // ¿Ya está conectada como entrada?
+        if (video_ != nullptr) {
+            const json ya = video_->entradasDeHost(ip);
+            if (!ya.empty()) e["ya_conectada"] = ya;
+        }
         esc_->equipos[ip] = e;
     }
     if (esc_->equipos.empty()) return cerrarEscaneo();
@@ -471,6 +479,12 @@ json Red::siguientePaso(const json& e) const {
     }
     const bool conClave = e.value("credenciales_guardadas", false);
     const bool onvif = e.contains("onvif");
+    if (e.contains("ya_conectada") && !e["ya_conectada"].empty()) {
+        const std::string n = e["ya_conectada"][0].value("entrada", std::string());
+        return "YA ESTÁ CONECTADA como la entrada «" + n + "»: para tenerla en otra escena, camara_agregar {\"ip\": \"" + ip +
+               "\", \"escena\": …, \"reusar\": true} (la misma entrada, no otro stream)" +
+               (onvif && !conClave ? ". Para su PTZ ONVIF falta la clave: camara_credenciales {\"ips\": [\"" + ip + "\"], \"pedir\": true}" : "");
+    }
     if (onvif && !conClave)
         return "pedir usuario y clave (camara_credenciales {\"ip\": \"" + ip + "\", \"pedir\": true}; usuario de fábrica: " +
                e.value("usuario_de_fabrica", std::string("admin")) + ") y después camara_ficha: ONVIF da la URL exacta, "
@@ -550,7 +564,7 @@ void Red::sondearRtsp(const std::string& ip, json candidatas, Listo listo) {
 
 void Red::probarUrls(const std::string& ip, Listo listo) {
     json e = equipo(ip);
-    if (e.is_null()) return listo({{"error", "«" + ip + "» no está en el último escaneo: red_escanear primero"}});
+    if (e.empty()) return listo({{"error", "«" + ip + "» no está en el último escaneo: red_escanear primero"}});
     std::set<int> pu;
     for (const auto& p : e.value("puertos", json::array())) pu.insert(p.get<int>());
     const int puertoRtsp = pu.count(554) ? 554 : pu.count(8554) ? 8554 : 554;
@@ -667,24 +681,34 @@ void Red::ficha(const std::string& ip, Listo listo) {
     if (servicio.isEmpty() || servicio.contains(' ')) servicio = "http://" + QString::fromStdString(ip) + "/onvif/device_service";
     auto f = std::make_shared<json>(json{{"ip", ip}, {"marca", e.value("marca", json::object())}});
     auto desfase = std::make_shared<qint64>(0);
-    // Un pedido SOAP: con clave si hay.
-    const auto soap = [this, usuario, pass, conClave, desfase](const QString& url, const QString& cuerpo, bool autent,
-                                                               std::function<void(bool, QByteArray)> cb) {
+    auto listoUnaVez = std::make_shared<bool>(false);
+    const auto terminar = [this, f, listo, ip, listoUnaVez]() {
+        if (*listoUnaVez) return;
+        *listoUnaVez = true;
+        fichas_[ip] = *f;
+        emit cambio();
+        listo(*f);
+    };
+    // Un pedido SOAP: con clave si hay. Lo que pase en la respuesta (un dato
+    // inesperado) termina la ficha con el error: nunca tumba la app ni la
+    // deja esperando.
+    const auto soap = [this, usuario, pass, conClave, desfase, f, terminar](const QString& url, const QString& cuerpo, bool autent,
+                                                                             std::function<void(bool, QByteArray)> cb) {
         QNetworkRequest pedido{QUrl(url)};
         pedido.setHeader(QNetworkRequest::ContentTypeHeader, "application/soap+xml; charset=utf-8");
         pedido.setTransferTimeout(6000);
         const QByteArray datos = autent && conClave ? ptz::onvif::sobre(cuerpo, usuario, pass, *desfase) : ptz::onvif::sobre(cuerpo);
         QNetworkReply* r = http_->post(pedido, datos);
-        connect(r, &QNetworkReply::finished, this, [r, cb]() {
+        connect(r, &QNetworkReply::finished, this, [r, cb, f, terminar]() {
             r->deleteLater();
             const QByteArray xml = r->readAll();
-            cb(r->error() == QNetworkReply::NoError && ptz::onvif::leerFalla(xml).isEmpty(), xml);
+            try {
+                cb(r->error() == QNetworkReply::NoError && ptz::onvif::leerFalla(xml).isEmpty(), xml);
+            } catch (const std::exception& ex) {
+                (*f)["error"] = std::string("falló al leer la respuesta ONVIF: ") + ex.what();
+                terminar();
+            }
         });
-    };
-    const auto terminar = [this, f, listo, ip]() {
-        fichas_[ip] = *f;
-        emit cambio();
-        listo(*f);
     };
     // 1) La hora (sin clave): la autenticación usa la de la cámara.
     soap(servicio, ptz::onvif::getSystemDateAndTime(), false, [=](bool, QByteArray xml) {
@@ -823,8 +847,24 @@ QVariantMap Red::fichaDe(const QString& ip) const {
 
 std::string Red::agregar(const std::string& ip, const json& op, json* hecho) {
     if (video_ == nullptr) return "el video no está disponible";
+    // Solo el PTZ de una entrada que ya existe (cuando llega la clave después).
+    if (op.value("solo_ptz", false)) {
+        const std::string entrada = op.value("entrada", std::string());
+        if (entrada.empty()) return "con `solo_ptz` hace falta `entrada` (la que ya muestra esta cámara)";
+        QString u, c;
+        if (!clave(ip, u, c)) return "falta la clave ONVIF: camara_credenciales primero";
+        if (!camaras_) return "el PTZ no está disponible";
+        const json fi = fichas_.count(ip) ? fichas_.at(ip) : json::object();
+        QVariantMap conf{{"host", QString::fromStdString(ip)}, {"usuario", u}, {"clave", c}};
+        const std::string pp = fi.value("ptz", json::object()).value("perfil", std::string());
+        if (!pp.empty()) conf["perfil"] = QString::fromStdString(pp);
+        const QString e = camaras_->configurar(QString::fromStdString(entrada), "onvif", conf);
+        if (!e.isEmpty()) return e.toStdString();
+        if (hecho != nullptr) *hecho = {{"entrada", entrada}, {"ptz", "ONVIF configurado"}};
+        return {};
+    }
     const std::string escena = op.value("escena", std::string());
-    if (escena.empty()) return "falta `escena`";
+    if (escena.empty() && !op.value("solo_ptz", false)) return "falta `escena` (preguntale al operador en cuál va)";
     QString usuario, pass;
     const bool conClave = clave(ip, usuario, pass);
     const json fi = fichas_.count(ip) ? fichas_.at(ip) : json::object();
@@ -844,6 +884,19 @@ std::string Red::agregar(const std::string& ip, const json& op, json* hecho) {
                 break;
             }
     if (url.empty()) return "no hay una URL que ande: camara_credenciales y camara_ficha primero (o `url` a mano)";
+    // ¿Ya hay una entrada con esta misma URL? Otra copia abriría otro stream
+    // (doble ancho de banda, doble decodificación).
+    for (const auto& ya : video_->entradasDeHost(ip))
+        if (ya.value("url", std::string()) == rtsp::sinClave(QString::fromStdString(url)).toStdString() && !op.value("duplicar", false)) {
+            const std::string n = ya.value("entrada", std::string());
+            if (!op.value("reusar", false))
+                return "ya existe la entrada «" + n + "» con esta misma URL: `reusar: true` la suma a «" + escena +
+                       "» (la misma, sin abrir otro stream) o `duplicar: true` si de verdad hace falta otra";
+            const std::string e2 = video_->sumarAEscena(n, escena);
+            if (!e2.empty()) return e2;
+            if (hecho != nullptr) *hecho = {{"entrada", n}, {"reusada", true}, {"escena", escena}};
+            return {};
+        }
     // El nombre: el pedido, el de ONVIF o «Marca ip».
     std::string nombre = op.value("nombre", std::string());
     if (nombre.empty()) nombre = e.value("onvif", json::object()).value("nombre", std::string());
@@ -862,8 +915,15 @@ std::string Red::agregar(const std::string& ip, const json& op, json* hecho) {
         if (!pp.empty()) conf["perfil"] = QString::fromStdString(pp);
         const QString e2 = camaras_->configurar(QString::fromStdString(nombre), "onvif", conf);
         h["ptz"] = e2.isEmpty() ? json("ONVIF configurado") : json("no se pudo configurar: " + e2.toStdString());
+    } else if (tienePtz) {
+        h["ptz"] = "no (se pidió sin PTZ)";
+    } else if (e.contains("onvif") && (!conClave || fi.empty() || fi.contains("error"))) {
+        // No se sabe: ONVIF no se pudo consultar (falta la clave), no que no tenga.
+        h["ptz"] = "PENDIENTE: la cámara anuncia ONVIF («" + e["onvif"].value("nombre", std::string()) +
+                   "») pero no se pudo consultar (falta su usuario y clave ONVIF). Con la clave: camara_ficha y "
+                   "camara_agregar {\"ip\": \"" + ip + "\", \"solo_ptz\": true, \"entrada\": \"" + nombre + "\"}. Mientras, PTZ digital.";
     } else {
-        h["ptz"] = tienePtz ? "no (se pidió sin PTZ)" : "no tiene PTZ por ONVIF (queda el PTZ digital)";
+        h["ptz"] = "no tiene PTZ por ONVIF (queda el PTZ digital: recorte y zoom en la GPU)";
     }
     if (hecho != nullptr) *hecho = h;
     return {};

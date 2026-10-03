@@ -354,7 +354,11 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                                     : "[OPERADOR] ignoro el mensaje de " + who + ".";
             else if (kind == "credential") {
                 const QString p = QString::fromStdString(item.value("platform", ""));
-                if (p.startsWith("camara:"))
+                if (p.startsWith("camaras:"))
+                    note = st == "saved" ? "[OPERADOR] guardo usuario y clave de las camaras " + p.mid(8) +
+                                               " (las que dejo sin clave, no). Siguiente paso: camara_ficha de cada una."
+                                         : "[OPERADOR] cerro el formulario de las camaras " + p.mid(8) + " sin guardar.";
+                else if (p.startsWith("camara:"))
                     note = st == "saved" ? "[OPERADOR] guardo usuario y clave de la camara " + p.mid(7) +
                                                ". Siguiente paso: camara_ficha {\"ip\": \"" + p.mid(7) + "\"}."
                                          : "[OPERADOR] cerro el formulario de la camara " + p.mid(7) + " sin guardar.";
@@ -607,6 +611,23 @@ QString StudioViewModel::saveAccountCredential(const QString& platform, const QV
     if (platform.startsWith("camara:")) {
         if (!red_) return "El escáner de red no está disponible.";
         return red_->guardarCredenciales(platform.mid(7), v.value("usuario").toString(), v.value("clave").toString());
+    }
+    // Varias cámaras en un formulario: «usuario|<ip>» y «clave|<ip>». Las que
+    // quedan sin clave se saltean (se pueden completar después).
+    if (platform.startsWith("camaras:")) {
+        if (!red_) return "El escáner de red no está disponible.";
+        int guardadas = 0;
+        for (const QString& ip : platform.mid(8).split(',', Qt::SkipEmptyParts)) {
+            const QString clave = v.value("clave|" + ip).toString();
+            if (clave.isEmpty()) continue;
+            QString usuario = v.value("usuario|" + ip).toString().trimmed();
+            if (usuario.isEmpty())
+                usuario = QString::fromStdString(red_->equipo(ip.toStdString()).value("usuario_de_fabrica", std::string("admin")));
+            const QString e = red_->guardarCredenciales(ip, usuario, clave);
+            if (!e.isEmpty()) return ip + ": " + e;
+            ++guardadas;
+        }
+        return guardadas == 0 ? "No escribiste ninguna clave." : QString();
     }
     const std::string p = accounts::normalize(platform.toStdString());
     if (p == "youtube") {

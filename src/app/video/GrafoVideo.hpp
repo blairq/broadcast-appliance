@@ -98,6 +98,10 @@ class GrafoVideo {
     /// de OBS) y `capas` (de un compositor) se mezclan clave por clave.
     bool ajustar(const std::string& id, const nlohmann::json& params, std::string* error);
     bool mover(const std::string& id, int x, int y);
+    /// Le cambia el id a un nodo del estudio por uno legible a partir de
+    /// `nombre` («Color cámaras» -> estudio.color-camaras), cables incluidos.
+    /// Devuelve el id nuevo (o el mismo si no se pudo).
+    std::string renombrar(const std::string& id, const std::string& nombre);
     /// Hace un controlador con los params de la tarjeta `id` y la conecta a él
     /// (si ya tenía uno, devuelve ese). El id del controlador, o "".
     std::string controlarDesde(const std::string& id, std::string* error);

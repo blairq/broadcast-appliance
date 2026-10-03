@@ -19,6 +19,7 @@
 #include <QDateTime>
 #include <QList>
 #include <QString>
+#include <QStringList>
 
 #include <cstdint>
 
@@ -146,6 +147,8 @@ struct Encontrada {
     QString direccion; ///< el device_service (el primer XAddr)
     QString nombre;    ///< del scope onvif://www.onvif.org/name/...
     QString modelo;    ///< del scope .../hardware/...
+    QStringList todas; ///< todos los XAddr (puede anunciar una 169.254 además de la de la red)
+    QString origen;    ///< la IP de la que vino la respuesta (la de verdad)
 };
 /// Lee un ProbeMatch (vacío si no lo es).
 Encontrada leerEncontrada(const QByteArray& xml);

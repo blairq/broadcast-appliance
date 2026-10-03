@@ -183,6 +183,19 @@ class VideoGrafos : public QObject {
     /// `sincro` puestas y sacadas solas) y, con `aplicar`, lo corrige.
     void medirDesfase(const std::string& a, const std::string& b, int segundos, bool aplicar,
                       std::function<void(nlohmann::json)> listo);
+    /// Las entradas de red (GStreamer) que ya toman video de `host`: [{entrada, url}].
+    nlohmann::json entradasDeHost(const std::string& host) const;
+    /// Suma a `escena` una fuente que ya existe (la misma, no otra copia). "" o el error.
+    std::string sumarAEscena(const std::string& nombre, const std::string& escena);
+    /// Muestra u oculta una fuente en una escena.
+    bool mostrarEnEscena(const std::string& nombre, const std::string& escena, bool visible);
+    /// Un mosaico (o imagen en imagen, o lado a lado) de `entradas` en `escena`,
+    /// en una vez: el compositor, los cables (desde lo que llega a la escena de
+    /// cada una, o sea con sus tarjetas) y la fuente en la escena. Con
+    /// `ocultarSueltas`, oculta en esa escena las entradas sueltas (el
+    /// compositor las sigue recibiendo). "" o el error; `hecho` dice qué quedó.
+    std::string armarMosaico(const std::string& escena, const std::vector<std::string>& entradas, const std::string& disposicion,
+                             const std::string& nombre, bool ocultarSueltas, nlohmann::json* hecho);
     /// Crea una entrada virtual; "" o el error.
     std::string crearEntradaVirtual(const std::string& nombre, const std::string& preset, const std::string& escena);
 

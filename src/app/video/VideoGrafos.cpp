@@ -13,6 +13,7 @@
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QFile>
+#include <QUrl>
 #include <QPointer>
 #include <QJsonDocument>
 #include <QSaveFile>
@@ -1191,6 +1192,106 @@ void VideoGrafos::medirDesfase(const std::string& a, const std::string& b, int s
         listo(r);
     });
     timer->start();
+}
+
+json VideoGrafos::entradasDeHost(const std::string& host) const {
+    json out = json::array();
+    for (const std::string& n : rt_.engine().sourceNames()) {
+        if (rt_.engine().sourceTypeId(n) != kTipoVirtual) continue;
+        const json aj = json::parse(rt_.engine().sourceSettingsJson(n), nullptr, false);
+        const std::string uri = aj.is_object() ? aj.value("uri", std::string()) : std::string();
+        const QUrl u(QString::fromStdString(uri));
+        if (!uri.empty() && u.host().toStdString() == host) {
+            QUrl sin = u;
+            sin.setUserInfo({});
+            out.push_back({{"entrada", n}, {"url", sin.toString().toStdString()}});
+        }
+    }
+    return out;
+}
+
+std::string VideoGrafos::sumarAEscena(const std::string& nombre, const std::string& escena) {
+    if (rt_.engine().sourceTypeId(nombre).empty()) return "no existe «" + nombre + "»";
+    SourceSpec spec;
+    spec.id = rt_.engine().sourceTypeId(nombre);
+    spec.name = nombre;
+    if (!rt_.addSource(escena, spec)) return rt_.lastError().empty() ? "no se pudo" : rt_.lastError();
+    rt_.save();
+    return {};
+}
+
+bool VideoGrafos::mostrarEnEscena(const std::string& nombre, const std::string& escena, bool visible) {
+    const bool ok = rt_.setSourceVisible(escena, nombre, visible);
+    if (ok) rt_.save();
+    return ok;
+}
+
+std::string VideoGrafos::armarMosaico(const std::string& escena, const std::vector<std::string>& entradas,
+                                      const std::string& disposicion, const std::string& nombre, bool ocultarSueltas,
+                                      json* hecho) {
+    if (escena.empty()) return "falta `escena`";
+    if (entradas.size() < 2) return "hacen falta al menos dos entradas";
+    for (const auto& e : entradas)
+        if (!esEntrada(e)) return "«" + e + "» no es una entrada de video";
+    std::string comp;
+    const std::string err = editar([&](GrafoVideo& g) {
+        std::string e;
+        // Si ya hay un compositor con ese nombre, se rearma ese.
+        for (const auto& n : g.nodos())
+            if (n.tipo == "compositor" && !nombre.empty() && n.params.value("nombre", std::string()) == nombre) comp = n.id;
+        if (comp.empty()) {
+            comp = g.agregar("compositor", "", "", json::object(), &e);
+            if (comp.empty()) return e;
+        } else {
+            std::vector<GrafoVideo::Cable> viejos;
+            for (const auto& c : g.cables())
+                if (c.hacia == comp) viejos.push_back(c);
+            for (const auto& c : viejos) g.desconectar(c.desde, c.salida, c.hacia, c.entrada);
+        }
+        obs_video_info ovi{};
+        obs_get_video_info(&ovi);
+        json params{{"ancho", ovi.base_width ? ovi.base_width : 1920}, {"alto", ovi.base_height ? ovi.base_height : 1080}};
+        if (!nombre.empty()) params["nombre"] = nombre;
+        if (!g.ajustar(comp, params, &e)) return e;
+        if (!nombre.empty()) g.ajustar(comp, json{{"etiqueta", nombre}}, nullptr);
+        // De cada entrada, lo que llega a su escena (con sus tarjetas).
+        json capas = json::object();
+        for (size_t i = 0; i < entradas.size(); ++i) {
+            std::string desde = GrafoVideo::idEntrada(entradas[i]);
+            for (const auto& c : g.cables())
+                if (c.hacia == GrafoVideo::idEscena(entradas[i]) && c.entrada == "in") desde = c.desde;
+            const std::string puerto = g.conectar(desde, "out", comp, "", &e);
+            if (puerto.empty()) return e;
+            json k;
+            if (disposicion == "pip") {
+                k = i == 0 ? json{{"x", 0}, {"y", 0}, {"ancho", 1}, {"alto", 1}, {"orden", 0}}
+                           : json{{"x", 0.68}, {"y", 0.06 + 0.3 * static_cast<double>(i - 1)}, {"ancho", 0.28}, {"alto", 0.28},
+                                  {"orden", static_cast<int>(i)}};
+            } else if (disposicion == "lado") {
+                const double w = 1.0 / static_cast<double>(entradas.size());
+                // Cada una en su franja de toda la altura: el encaje la centra.
+                k = {{"x", w * static_cast<double>(i)}, {"y", 0}, {"ancho", w}, {"alto", 1}};
+            } else {
+                k = nullptr; // mosaico: sin posición, la grilla
+            }
+            capas[puerto] = k;
+        }
+        g.ajustar(comp, json{{"capas", capas}}, nullptr);
+        return std::string();
+    });
+    if (!err.empty()) return err;
+    const std::string pe = ponerEnEscena(comp, escena);
+    if (!pe.empty() && pe.find("ya hay") == std::string::npos) return pe;
+    json ocultas = json::array();
+    if (ocultarSueltas)
+        for (const auto& e : entradas)
+            if (mostrarEnEscena(e, escena, false)) ocultas.push_back(e);
+    const GrafoVideo::Nodo* n = grafo_.nodo(comp);
+    if (hecho != nullptr)
+        *hecho = {{"compositor", comp}, {"fuente", n ? n->params.value("nombre", std::string()) : std::string()},
+                  {"disposicion", disposicion.empty() ? "mosaico" : disposicion}, {"entradas", entradas}, {"ocultas", ocultas},
+                  {"nota", "las entradas ocultas siguen alimentando el mosaico (el compositor las mantiene activas)"}};
+    return {};
 }
 
 void VideoGrafos::guardar() const {

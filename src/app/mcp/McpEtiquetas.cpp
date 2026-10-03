@@ -369,6 +369,7 @@ const Fila kPropias[] = {
     {"video_entrada_virtual", "entrada virtual senal de ajuste barras de color negro patron de prueba pipeline gstreamer rtsp srt"},
     {"video_controlador", "misma correccion de color en todas las camaras controlador compartido igualar camaras vincular tarjetas"},
     {"video_pipeline", "armar pipeline de video cadena de tarjetas correccion de color compartida entre camaras igualar camaras"},
+    {"video_mosaico", "mosaico de camaras imagen en imagen pip lado a lado multicamara juntar camaras en una escena"},
     {"video_estado", "estado de la camara resolucion fps cuadros por segundo espacio de color colorimetria entrelazado diagnostico de video"},
     {"video_entrada_red", "stream de red srt rtmp rtsp udp recibir video por red entrada remota corresponsal movil jitter buffer latencia"},
     {"video_reloj", "reloj del estudio ntp ptp sincronizar relojes genlock reloj externo publicar reloj"},

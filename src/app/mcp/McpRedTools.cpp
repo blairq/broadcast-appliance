@@ -56,55 +56,68 @@ void McpService::registerRedTools() {
     {
         Tool t;
         t.name = "camara_credenciales";
-        t.title = "Usuario y clave de una cámara de la red";
+        t.title = "Usuario y clave de cámaras de la red";
         t.category = "entradas";
         t.description =
-            "Con `pedir: true` (lo correcto): le muestra al operador un formulario seguro en la barra para que escriba "
-            "usuario y clave de la cámara `ip` (vos no los ves; se guardan cifrados) y espera hasta `esperar_seg` "
-            "(de fábrica 300). Decile antes cuál es el usuario de fábrica y de dónde sale la clave (las `notas` del "
-            "escaneo: EZVIZ = código de verificación de la etiqueta). Con `usuario` y `clave`: los guarda directo "
-            "(solo si el operador te los dio). Después: camara_ficha.";
+            "Con `pedir: true` (lo correcto): muestra al operador UN formulario seguro en la barra con usuario y clave de "
+            "cada cámara de `ips` (vos nunca los ves; se guardan cifrados) y vuelve enseguida: cuando lo complete te "
+            "llega a tu chat «[OPERADOR] guardo…». Mientras, seguí con lo demás. Decile antes en el chat qué usuario va "
+            "y de dónde sale la clave (las `notas` del escaneo: EZVIZ = código de verificación de la etiqueta, Axis = un "
+            "usuario ONVIF, grabador = su clave). `esperar_seg` > 0 espera la respuesta. Con `usuario` y `clave` (de una "
+            "sola `ip`): los guarda directo, solo si el operador te los dio. Después: camara_ficha.";
         t.inputSchema = {{"type", "object"},
-                         {"required", {"ip"}},
                          {"properties",
-                          {{"ip", ip},
+                          {{"ips", {{"type", "array"}, {"items", {{"type", "string"}}}}},
+                           {"ip", ip},
                            {"pedir", {{"type", "boolean"}}},
                            {"texto", {{"type", "string"}, {"description", "lo que se le dice al operador en el formulario"}}},
                            {"esperar_seg", {{"type", "integer"}}},
                            {"usuario", {{"type", "string"}}},
                            {"clave", {{"type", "string"}}}}}};
+        t.examples = {R"({"ips": ["192.168.1.140", "192.168.1.226"], "pedir": true})"};
         t.run = [r, msgs](const json& a, Done done) {
             if (!r) return done(ToolResult::error("el escáner no está disponible"));
-            const std::string i = a.value("ip", std::string());
+            std::vector<std::string> ips;
+            for (const auto& x : a.value("ips", json::array())) ips.push_back(x.get<std::string>());
+            if (a.contains("ip")) ips.push_back(a.value("ip", std::string()));
+            if (ips.empty()) return done(ToolResult::error("falta `ips` (o `ip`)"));
             if (!a.value("pedir", false)) {
-                if (!a.contains("usuario")) return done(ToolResult::error("falta `usuario` (o `pedir: true`)"));
-                const QString e = r->guardarCredenciales(QString::fromStdString(i), QString::fromStdString(a.value("usuario", std::string())),
+                if (!a.contains("usuario") || ips.size() != 1) return done(ToolResult::error("con `usuario` y `clave` va una sola `ip` (si no, `pedir: true`)"));
+                const QString e = r->guardarCredenciales(QString::fromStdString(ips[0]), QString::fromStdString(a.value("usuario", std::string())),
                                                          QString::fromStdString(a.value("clave", std::string())));
                 if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
-                return done(ToolResult::ok("Guardadas (cifradas). Siguiente: camara_ficha {\"ip\": \"" + i + "\"}."));
+                return done(ToolResult::ok("Guardadas (cifradas). Siguiente: camara_ficha {\"ip\": \"" + ips[0] + "\"}."));
             }
             if (msgs == nullptr) return done(ToolResult::error("no hay barra del operador"));
-            const json eq = r->equipo(i);
-            const std::string quien = eq.is_null() ? i
-                                                   : eq.value("marca", json::object()).value("nombre", std::string("cámara")) + " (" + i + ")";
+            json campos = json::array();
+            std::string lista, plataforma = "camaras:";
+            for (size_t k = 0; k < ips.size(); ++k) {
+                const json eq = r->equipo(ips[k]);
+                const std::string quien = eq.empty() ? ips[k]
+                                                     : eq.value("marca", json::object()).value("nombre", std::string("cámara")).substr(0, 24) + " " + ips[k];
+                const std::string usuarioFab = eq.empty() ? std::string("admin") : eq.value("usuario_de_fabrica", std::string("admin"));
+                campos.push_back({{"key", "usuario|" + ips[k]}, {"label", "Usuario · " + quien}, {"secret", false}, {"placeholder", usuarioFab}});
+                campos.push_back({{"key", "clave|" + ips[k]}, {"label", "Clave · " + quien}, {"secret", true}});
+                lista += (k ? ", " : "") + quien;
+                plataforma += (k ? "," : "") + ips[k];
+            }
             json spec{{"kind", "credential"},
-                      {"platform", "camara:" + i},
+                      {"platform", plataforma},
                       {"priority", "info"},
-                      {"title", "Usuario y clave de " + quien},
-                      {"text", a.value("texto", "Para conectar la cámara " + quien + ". Usuario de fábrica: " +
-                                                     (eq.is_null() ? std::string("admin") : eq.value("usuario_de_fabrica", std::string("admin"))) +
-                                                     ". Se guarda cifrado en este equipo; el asistente no lo ve.")},
-                      {"fields",
-                       {{{"key", "usuario"}, {"label", "Usuario"}, {"secret", false}, {"placeholder", "admin"}},
-                        {{"key", "clave"}, {"label", "Clave (o código de verificación)"}, {"secret", true}}}}};
+                      {"title", ips.size() == 1 ? "Usuario y clave de " + lista : "Usuario y clave de " + std::to_string(ips.size()) + " cámaras"},
+                      {"text", a.value("texto", "Para conectar: " + lista + ". Se guarda cifrado en este equipo; el asistente no lo ve. "
+                                                "Si dejás el usuario vacío, va el de fábrica.")},
+                      {"fields", campos}};
             const int id = msgs->post(spec);
-            const int seg = a.value("esperar_seg", 300);
-            if (seg <= 0) return done(ToolResult::ok("Formulario en la barra (id " + std::to_string(id) + ")."));
-            msgs->waitAnswer(id, seg * 1000, [done, id, i](json item) {
+            const int seg = a.value("esperar_seg", 0);
+            if (seg <= 0)
+                return done(ToolResult::ok("Formulario en la barra del operador (id " + std::to_string(id) +
+                                           "). Cuando lo complete te llega a tu chat; mientras, seguí con lo demás."));
+            msgs->waitAnswer(id, seg * 1000, [done, id](json item) {
                 if (item.is_null())
-                    return done(ToolResult::ok("Todavía no lo completó (el formulario " + std::to_string(id) + " sigue en la barra)."));
+                    return done(ToolResult::ok("Todavía no lo completó (el formulario " + std::to_string(id) + " sigue en la barra; te aviso cuando lo haga)."));
                 if (item.value("status", "") != "saved") return done(ToolResult::ok("El operador cerró el formulario sin guardar."));
-                done(ToolResult::ok("Guardadas (cifradas). Siguiente: camara_ficha {\"ip\": \"" + i + "\"}."));
+                done(ToolResult::ok("Guardadas (cifradas). Siguiente: camara_ficha de cada una."));
             });
         };
         core_.addTool(std::move(t));
@@ -140,13 +153,19 @@ void McpService::registerRedTools() {
         t.description =
             "Conecta la cámara `ip` como entrada de video sincronizada (con su clave guardada): la URL del `perfil` "
             "ONVIF (o `url`, o la del plan de camara_ficha), con la `normalizar` y `latencia_ms` del plan, y su PTZ por "
-            "ONVIF configurado si tiene (`ptz: false` para no). Va a la `escena` (obligatoria). Devuelve el estado "
-            "de la entrada con su diagnóstico: revisalo (video_estado de nuevo a los segundos: la conexión tarda).";
+            "ONVIF configurado si tiene (`ptz: false` para no). Va a la `escena` (obligatoria). Si YA hay una entrada "
+            "con esa URL, no abre otro stream: `reusar: true` suma la misma a la escena. `solo_ptz: true` + `entrada`: "
+            "solo configura el PTZ de una entrada que ya existe (cuando la clave llega después). Devuelve el estado "
+            "con su diagnóstico: revisalo (video_estado de nuevo a los segundos: la conexión tarda).";
         t.inputSchema = {{"type", "object"},
-                         {"required", {"ip", "escena"}},
+                         {"required", {"ip"}},
                          {"properties",
                           {{"ip", ip},
                            {"escena", {{"type", "string"}}},
+                           {"reusar", {{"type", "boolean"}}},
+                           {"duplicar", {{"type", "boolean"}}},
+                           {"solo_ptz", {{"type", "boolean"}}},
+                           {"entrada", {{"type", "string"}, {"description", "con solo_ptz: la entrada que ya muestra esta cámara"}}},
                            {"nombre", {{"type", "string"}}},
                            {"perfil", {{"type", "string"}, {"description", "token del perfil ONVIF (de camara_ficha)"}}},
                            {"url", {{"type", "string"}, {"description", "una URL RTSP a mano (sin clave: se le pone la guardada)"}}},
@@ -158,7 +177,7 @@ void McpService::registerRedTools() {
             json hecho;
             const std::string e = r->agregar(a.value("ip", std::string()), a, &hecho);
             if (!e.empty()) return done(ToolResult::error(e));
-            if (vg != nullptr) {
+            if (vg != nullptr && !a.value("solo_ptz", false)) {
                 json st = vg->estadoEntrada(hecho.value("entrada", std::string()));
                 st["diagnostico"] = video::diagnosticar(st);
                 hecho["estado"] = st;

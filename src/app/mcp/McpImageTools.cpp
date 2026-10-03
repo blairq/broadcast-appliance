@@ -249,15 +249,36 @@ void McpService::registerImageTools() {
             withImageProps(json{{"name", {{"type", "string"}, {"description", "Fuente o escena."}}}});
         t.inputSchema["required"] = {"name"};
         t.run = [&rt, &core](const json& a, Done done) {
-            QImage img;
-            std::string err;
-            if (!renderSource(rt, a["name"], a.value("maxWidth", 1280), img, err))
-                return done(ToolResult::error(err));
-            ToolResult r;
-            r.text("'" + a["name"].get<std::string>() + "' (" + std::to_string(img.width()) + "x" +
-                   std::to_string(img.height()) + ")");
-            addImage(r, img, a, 1280, core, rt.dataRoot());
-            done(r);
+            // Una fuente recién creada (una cámara de red que todavía conecta)
+            // da negro el primer instante: se reintenta un poco antes de
+            // contestar con una imagen que engaña.
+            auto intento = std::make_shared<std::function<void(int)>>();
+            *intento = [&rt, &core, a, done, intento](int n) {
+                QImage img;
+                std::string err;
+                if (!renderSource(rt, a["name"], a.value("maxWidth", 1280), img, err)) {
+                    QTimer::singleShot(0, [intento]() { *intento = nullptr; });
+                    return done(ToolResult::error(err));
+                }
+                bool negra = !img.isNull();
+                const QImage chica = img.scaled(32, 18);
+                for (int y = 0; y < chica.height() && negra; ++y)
+                    for (int x = 0; x < chica.width() && negra; ++x)
+                        if (qGray(chica.pixel(x, y)) > 6) negra = false;
+                if (negra && n < 8) {
+                    QTimer::singleShot(250, [intento, n]() {
+                        if (*intento) (*intento)(n + 1);
+                    });
+                    return;
+                }
+                QTimer::singleShot(0, [intento]() { *intento = nullptr; });
+                ToolResult r;
+                r.text("'" + a["name"].get<std::string>() + "' (" + std::to_string(img.width()) + "x" + std::to_string(img.height()) +
+                       ")" + (negra ? " — sale NEGRA (sin señal todavía, o la imagen es negra de verdad)" : ""));
+                addImage(r, img, a, 1280, core, rt.dataRoot());
+                done(r);
+            };
+            (*intento)(0);
         };
         core_.addTool(std::move(t));
     }

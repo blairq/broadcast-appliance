@@ -448,6 +448,7 @@ Encontrada leerEncontrada(const QByteArray& xml) {
         }
     }
     if (e.direccion.isEmpty() && !dirs.isEmpty()) e.direccion = dirs.first();
+    e.todas = dirs;
     for (const QString& s : primerTexto(xml, QStringLiteral("Scopes")).split(' ', Qt::SkipEmptyParts)) {
         static const QString kNombre = QStringLiteral("onvif://www.onvif.org/name/");
         static const QString kModelo = QStringLiteral("onvif://www.onvif.org/hardware/");

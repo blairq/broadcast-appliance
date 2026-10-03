@@ -2,6 +2,7 @@
 
 #include "ptz/OnvifBusqueda.hpp"
 
+#include <QHostAddress>
 #include <QNetworkInterface>
 #include <QUdpSocket>
 #include <QUrl>
@@ -53,8 +54,14 @@ void OnvifBusqueda::leer(QUdpSocket* s) {
     while (s->hasPendingDatagrams()) {
         QByteArray d;
         d.resize(static_cast<int>(s->pendingDatagramSize()));
-        s->readDatagram(d.data(), d.size());
-        const onvif::Encontrada e = onvif::leerEncontrada(d);
+        QHostAddress desde;
+        s->readDatagram(d.data(), d.size(), &desde);
+        onvif::Encontrada e = onvif::leerEncontrada(d);
+        e.origen = QHostAddress(desde.toIPv4Address()).toString();
+        // La dirección a usar: la que coincide con quien contestó (no una
+        // 169.254 autoasignada que la cámara anuncia primero).
+        for (const QString& x : e.todas)
+            if (QUrl(x).host() == e.origen) e.direccion = x;
         if (e.direccion.isEmpty()) continue;
         bool repetida = false;
         for (const auto& x : encontradas_) repetida = repetida || x.direccion == e.direccion;
@@ -72,7 +79,9 @@ QVariantList OnvifBusqueda::encontradas() const {
         out << QVariantMap{{"direccion", e.direccion},
                            {"host", u.port() > 0 && u.port() != 80 ? u.host() + ":" + QString::number(u.port()) : u.host()},
                            {"nombre", e.nombre},
-                           {"modelo", e.modelo}};
+                           {"modelo", e.modelo},
+                           {"origen", e.origen},
+                           {"todas", e.todas}};
     }
     return out;
 }

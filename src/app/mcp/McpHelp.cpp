@@ -432,14 +432,14 @@ La API de Facebook solo transmite y administra videos de **Paginas** (no del per
 3. **Verificar**: `video_estado {"entrada": ...}` otra vez (el `diagnostico` tiene que quedar sin errores) y `capture_source {"name": ...}` para ver la imagen.
 
 ## Recetas
-**La misma correccion de color en varias camaras** (que cambiando una vez cambie en todas):
-`video_pipeline {"entrada": "Sony", "tarjetas": [{"tipo": "gst", "elemento": "videobalance", "propiedades": {"contrast": 1.1, "saturation": 0.9}, "compartida": "Correccion camaras"}]}` y lo mismo en las otras con el mismo `compartida` (sin repetir las propiedades: las toma del controlador). Lo propio de una camara, encima: `"local": {"propiedades": {"hue": 0.04}}`. Despues, ajustar la comun: `video_tarjeta_ajustar` sobre cualquiera de las manejadas (va al controlador) o sobre el controlador. `video_controlador` para hacerlo a partir de una tarjeta que ya existe.
+**La misma correccion de color en varias camaras** (que cambiando una vez cambie en todas), en UNA llamada:
+`video_pipeline {"entradas": ["Sony", "Pelco", "Panasonic"], "tarjetas": [{"tipo": "gst", "elemento": "videobalance", "propiedades": {"contrast": 1.1, "saturation": 0.9}, "compartida": "Color camaras"}], "local_por_entrada": {"Pelco": {"propiedades": {"hue": 0.04}}}}`. El controlador queda como `estudio.color-camaras`. `modo: "agregar"` si la entrada ya tiene tarjetas que hay que conservar (de fabrica las reemplaza). Despues, ajustar la comun: `video_tarjeta_ajustar` sobre cualquiera de las manejadas (va al controlador) o sobre el controlador. `video_controlador` para hacerlo a partir de una tarjeta que ya existe.
 
 **Corregir una camara**: `videobalance` (brillo, contraste, saturacion, matiz), `gamma`, filtros de OBS (`video_filtros`: correccion de color, LUT .cube). Una dominante (verde, magenta): `hue` chico (±0.02 a ±0.08).
 
 **Entrelazada / mal declarada** (`video_estado` lo dice): `{"tipo": "normalizar", "params": {"desentrelazar": "yadif"}}` (desentrelaza en la fuente, donde estan los campos); colores corridos en HD que declara 601: `{"matriz_declarada": "601", "matriz_real": "709"}`. Los cuadros por segundo distintos al lienzo los convierte libobs solo (repite o salta cuadros): no hace falta tarjeta.
 
-**Mosaico / imagen en imagen**: `video_tarjeta_agregar {"tipo": "compositor"}`, un `video_cable` de cada entrada (o de su ultima tarjeta) al compositor, y `video_salida_a_escena {"id": "estudio.compositor", "escena": ...}`. Sin capas: mosaico; `params.capas.in_N` {x, y, ancho, alto 0..1, opacidad, orden} para otro armado.
+**Mosaico / imagen en imagen / lado a lado**: `video_mosaico {"escena", "entradas": [...], "disposicion": "mosaico|pip|lado", "nombre"}` en UNA llamada (toma cada entrada con sus tarjetas y oculta las sueltas en esa escena: el mosaico las sigue recibiendo). Para retocar: `video_tarjeta_ajustar` sobre el compositor con `capas.in_N` {x, y, ancho, alto 0..1, opacidad, orden}.
 
 **Streams de red** (SRT, RTMP, RTSP): `video_entrada_red {"nombre", "uri", "escena", "latencia_ms"}` (nunca `network_input_add` para esto: esa no se sincroniza). Cada cuadro sale a su hora de captura + latencia (un colchon propio). Mas latencia = mas tolerancia a la red y mas retraso.
 
@@ -463,9 +463,9 @@ La API de Facebook solo transmite y administra videos de **Paginas** (no del per
 
 ## El camino (siempre este)
 1. `red_escanear` (unos 10 s): cada equipo con su IP, MAC y fabricante, la marca (y por que la reconocio), sus puertos, las URLs RTSP tipicas probadas (`se ve` / `pide usuario y clave` / `no existe`), `notas` de la marca y `siguiente_paso`. **Segui el `siguiente_paso`.** Contale al operador lo que encontraste en pocas lineas (cuantas camaras, de que marca, cuales andan ya y cuales piden clave), no le tires el JSON.
-2. Si pide clave: `camara_credenciales {"ip", "pedir": true}`. Muestra un formulario seguro en la barra del operador: **nunca le pidas la clave por el chat**. Antes decile que usuario va (`usuario_de_fabrica`) y de donde sale la clave (las `notas`: EZVIZ = el codigo de verificacion de la etiqueta, y el RTSP hay que habilitarlo en su app; Hikvision = la del grabador; Axis = la de un usuario ONVIF).
+2. Si pide clave: `camara_credenciales {"ips": [...], "pedir": true}` (UN formulario para todas las que la pidan, y vuelve enseguida: cuando el operador lo completa te llega «[OPERADOR] guardo…» al chat; mientras, segui con lo demas). Es un formulario seguro en la barra: **nunca le pidas la clave por el chat**. Antes decile que usuario va (`usuario_de_fabrica`) y de donde sale la clave (las `notas`: EZVIZ = el codigo de verificacion de la etiqueta, y el RTSP hay que habilitarlo en su app; Hikvision = la del grabador; Axis = la de un usuario ONVIF).
 3. `camara_ficha {"ip"}`: ONVIF completo (perfiles con su URL exacta, PTZ, imagen) + el analisis de GStreamer del stream + `plan`. Leele el plan al operador en dos lineas.
-4. `camara_agregar {"ip", "escena", "nombre"}` con `plan.argumentos`: la entrada queda sincronizada (colchon y reloj del estudio), normalizada solo si hace falta, y con su PTZ ONVIF si tiene. Preguntá en que escena va si no te lo dijeron (no la pongas en la que esta al aire sin preguntar).
+4. `camara_agregar {"ip", "escena", "nombre"}` con `plan.argumentos` (si ya esta conectada, `reusar: true` la suma a otra escena sin abrir otro stream; si la clave ONVIF llega despues, `solo_ptz: true` + `entrada` le configura el PTZ): la entrada queda sincronizada (colchon y reloj del estudio), normalizada solo si hace falta, y con su PTZ ONVIF si tiene. Preguntá en que escena va si no te lo dijeron (no la pongas en la que esta al aire sin preguntar).
 5. `video_estado {"entrada"}` a los segundos: resolucion real y diagnostico. Si algo queda mal, el diagnostico dice el arreglo.
 
 ## A saber
