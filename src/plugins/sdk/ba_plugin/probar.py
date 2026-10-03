@@ -224,6 +224,9 @@ def main():
         elif t == "llamar":
             informe["llamadas_al_sistema"].append({"herramienta": m.get("herramienta"), "args": m.get("args")})
             ctl.enviar({"t": "respuesta", "n": m.get("n"), "ok": True, "resultado": {"prueba": True}})
+        elif t == "secreto":
+            informe.setdefault("claves_pedidas", []).append(m.get("nombre"))
+            ctl.enviar({"t": "respuesta", "n": m.get("n"), "ok": True, "resultado": None})
         elif t == "aviso":
             informe["avisos"].append(m.get("texto"))
         elif t == "estado":

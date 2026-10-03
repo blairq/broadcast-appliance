@@ -13,6 +13,7 @@
 // La fuente es una sola, Studio.plugins (plugins/Plugins.cpp).
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Dialogs
 import QtQuick.Layouts
 import BA
 import "../controls"
@@ -56,8 +57,15 @@ Rectangle {
         for (const p of page.pl.lista) if (p.estado === "corriendo") ++n
         return n
     }
+    FileDialog {
+        id: importarDlg
+        title: "Plugin exportado (.zip)"
+        nameFilters: ["Plugin (*.zip)"]
+        onAccepted: page.pl.importarUi(selectedFile)
+    }
     Connections {
         target: page.pl
+        function onAviso(texto, ok) { Studio.notify(texto, ok ? "info" : "error") }
         function onRespuesta(id, control, texto, ok) {
             const r = Object.assign({}, page.respuestas)
             r[id + "/" + control] = { texto: texto, ok: ok }
@@ -95,6 +103,11 @@ Rectangle {
                     text: "falta Python en el programa"; dot: Theme.live
                 }
                 Item { Layout.fillWidth: true }
+                GlassButton {
+                    compact: true; text: "Importar…"; icon: "⇩"
+                    onClicked: importarDlg.open()
+                    ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Instalar un plugin exportado en otro aparato (.zip)"
+                }
                 GlassButton { compact: true; text: "Abrir la carpeta"; icon: "▤"; onClicked: page.pl.abrirCarpeta("") }
             }
             Text {
@@ -309,6 +322,11 @@ Rectangle {
                                 Item { Layout.fillWidth: true }
                                 GlassButton { compact: true; text: "Carpeta"; icon: "▤"; onClicked: page.pl.abrirCarpeta(tarjeta.modelData.id) }
                                 GlassButton {
+                                    compact: true; text: "Exportar"; icon: "⇧"
+                                    onClicked: page.pl.exportarUi(tarjeta.modelData.id)
+                                    ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Un .zip para instalarlo en otro aparato (sin sus bibliotecas ni datos)"
+                                }
+                                GlassButton {
                                     compact: true; text: "Borrar"; icon: "✕"
                                     onClicked: {
                                         const e = page.pl.borrarUi(tarjeta.modelData.id)
@@ -448,11 +466,43 @@ Rectangle {
                                 color: Theme.textFaint; font.pixelSize: 11; wrapMode: Text.WordWrap
                             }
 
-                            // Configuración: el "config" de plugin.json.
+                            // Configuración: las claves (cifradas) y el "config" de plugin.json.
                             ColumnLayout {
                                 visible: page.vista === "config"
                                 Layout.fillWidth: true
                                 spacing: 6
+                                Text {
+                                    visible: claves.count > 0
+                                    text: "Claves (se guardan cifradas; el plugin las lee con plugin.secreto)"
+                                    color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold }
+                                }
+                                Repeater {
+                                    id: claves
+                                    model: page.vista === "config" && tarjeta.abierta ? page.pl.secretosUi(tarjeta.modelData.id) : []
+                                    delegate: RowLayout {
+                                        id: sec
+                                        required property var modelData
+                                        Layout.fillWidth: true
+                                        spacing: 8
+                                        Text { text: sec.modelData.etiqueta; color: Theme.text; font.pixelSize: 12; Layout.preferredWidth: 200; elide: Text.ElideRight }
+                                        TextField {
+                                            id: valorSec
+                                            Layout.fillWidth: true
+                                            echoMode: TextInput.Password
+                                            placeholderText: sec.modelData.cargada ? "cargada ✓ (escribí para cambiarla)" : "sin cargar"
+                                            color: Theme.text; font.pixelSize: 12
+                                        }
+                                        GlassButton {
+                                            compact: true; text: "Guardar"
+                                            enabled: valorSec.text !== ""
+                                            onClicked: {
+                                                const e = page.pl.guardarSecreto(tarjeta.modelData.id, sec.modelData.clave, valorSec.text)
+                                                Studio.notify(e !== "" ? e : "Clave guardada (cifrada)", e !== "" ? "error" : "info")
+                                                if (e === "") valorSec.text = ""
+                                            }
+                                        }
+                                    }
+                                }
                                 Text {
                                     Layout.fillWidth: true
                                     text: "Lo que el plugin lee en plugin.config (número de serie, IP, modo…). Al guardar se le pasa en vivo."
@@ -471,7 +521,7 @@ Rectangle {
                                 RowLayout {
                                     Item { Layout.fillWidth: true }
                                     GlassButton {
-                                        compact: true; text: "Guardar"; active: true
+                                        compact: true; text: "Guardar configuración"; active: true
                                         onClicked: {
                                             const e = page.pl.guardarConfig(tarjeta.modelData.id, configArea.text)
                                             Studio.notify(e !== "" ? e : "Configuración guardada", e !== "" ? "error" : "info")

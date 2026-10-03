@@ -31,6 +31,7 @@
 #include <QProcess>
 #include <QString>
 #include <QTimer>
+#include <QUrl>
 #include <QVariantList>
 #include <QVariantMap>
 #include <QStringList>
@@ -96,6 +97,10 @@ class Plugins : public QObject {
     std::string escribir(const std::string& id, const json& archivos, const json& manifiesto, json* hecho);
     std::string desdeEjemplo(const std::string& ejemplo, const std::string& id);
     std::string borrar(const std::string& id);
+    /// Un .zip con el plugin (sin _libs ni datos) en Datos/Exportado. Async: {archivo} o {error}.
+    void exportar(const std::string& id, std::function<void(json)> listo);
+    /// Instala un plugin desde un .zip exportado (o una carpeta). Async: {id} o {error}.
+    void importar(const std::string& archivo, bool reemplazar, std::function<void(json)> listo);
     /// Baja las dependencias de plugin.json a _libs (si cambiaron). Async.
     void dependencias(const std::string& id, std::function<void(std::string error, std::string salida)> listo);
     /// Corre el probador (sin la app) y devuelve su informe. Async.
@@ -108,6 +113,7 @@ class Plugins : public QObject {
     /// Un pedido al plugin (control, ptz.*, info). `listo` con {ok, resultado|error}.
     void pedir(const std::string& id, const std::string& accion, const json& args, std::function<void(json)> listo, int timeoutMs = 10000);
     json eventos(const std::string& id, const std::string& canal, int cuantos) const;
+    json secretosDe(const std::string& id) const;
     /// Lo que hay conectado: cámaras y micrófonos (GStreamer) + USB, HID y serie (Python).
     void dispositivos(std::function<void(json)> listo);
     void dispositivosPython(json gst, std::function<void(json)> listo);
@@ -144,12 +150,20 @@ class Plugins : public QObject {
     Q_INVOKABLE void buscarEquipos();
     Q_INVOKABLE void abrirCarpeta(const QString& id) const;
     Q_INVOKABLE QString codigo(const QString& id) const;
+    /// Exportar / importar desde la interfaz: el resultado llega por `aviso(texto, ok)`.
+    Q_INVOKABLE void exportarUi(const QString& id);
+    Q_INVOKABLE void importarUi(const QUrl& archivo);
+    /// Las claves que declara el plugin ("secretos" en plugin.json): [{clave, etiqueta, cargada}].
+    Q_INVOKABLE QVariantList secretosUi(const QString& id) const;
+    /// Guarda una clave del plugin, cifrada (Credenciales/plugin-<id>-<clave>). "" o el error.
+    Q_INVOKABLE QString guardarSecreto(const QString& id, const QString& nombre, const QString& valor);
 
    signals:
     void cambio();
     void eventosCambio();
     void equiposCambio();
     void respuesta(const QString& id, const QString& control, const QString& texto, bool ok);
+    void aviso(const QString& texto, bool ok);
     /// Un evento de un plugin (para los disparadores).
     void evento(const QString& plugin, const QString& canal, const QString& datosJson);
 
@@ -162,7 +176,7 @@ class Plugins : public QObject {
 
     void arrancar(const std::string& id);
     void detener(const std::string& id, bool porPedido);
-    void alSalir(const std::string& id, int codigo, QProcess::ExitStatus st);
+    void alSalir(const std::string& id, int codigo, bool caido);
     void alLeer(const std::string& id);
     void alError(const std::string& id);
     void recibir(const std::string& id, const json& m);
@@ -182,6 +196,7 @@ class Plugins : public QObject {
     QPointer<OperatorMessages> mensajes_;
     Llamador llamador_;
     std::filesystem::path carpeta_, logs_, config_;
+    QString credenciales_;
     std::map<std::string, std::unique_ptr<Proceso>> procesos_;
     std::map<int, Pendiente> pendientes_;
     int n_ = 0;

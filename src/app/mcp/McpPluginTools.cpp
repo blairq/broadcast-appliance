@@ -12,6 +12,7 @@
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "plugins/Plugins.hpp"
+#include "ui/OperatorMessages.hpp"
 #include "ui/StudioViewModel.hpp"
 
 #include <QPointer>
@@ -263,6 +264,77 @@ void McpService::registerPluginTools() {
                                     a.value("parametros", json::object()), &hecho);
             if (!e.empty()) return done(ToolResult::error(e));
             done(ToolResult().data(hecho));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "plugin_credenciales";
+        t.title = "Pedir las claves de un plugin";
+        t.category = "plugins";
+        t.description =
+            "Muestra al operador UN formulario seguro en la barra con las claves que declara el plugin (\"secretos\" en "
+            "plugin.json: [{\"clave\": \"clave\", \"etiqueta\": \"Clave de la cámara\"}]) y vuelve enseguida. Se guardan "
+            "cifradas; vos nunca las ves; el plugin las lee con plugin.secreto(\"clave\") (None si todavía no están). "
+            "Decile antes al operador de dónde sale cada una. Nunca pidas una clave por el chat.";
+        t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", id}, {"texto", {{"type", "string"}}}}}};
+        auto* msgs = static_cast<OperatorMessages*>(vm_.messages());
+        t.run = [p, msgs](const json& a, Done done) {
+            if (!p) return done(ToolResult::error("los plugins no están disponibles"));
+            if (msgs == nullptr) return done(ToolResult::error("no hay barra del operador"));
+            const std::string i = a.value("id", std::string());
+            const json sec = p->secretosDe(i);
+            if (sec.empty())
+                return done(ToolResult::error("el plugin «" + i + "» no declara claves: agregá \"secretos\" a su plugin.json con plugin_escribir"));
+            json campos = json::array();
+            for (const auto& x : sec)
+                campos.push_back({{"key", x.value("clave", "")},
+                                  {"label", x.value("etiqueta", "") + (x.value("cargada", false) ? " (ya cargada: vacío = no cambiar)" : "")},
+                                  {"secret", true}});
+            const int n = msgs->post({{"kind", "credential"},
+                                      {"platform", "plugin:" + i},
+                                      {"priority", "info"},
+                                      {"title", "Claves del plugin «" + i + "»"},
+                                      {"text", a.value("texto", std::string("Se guardan cifradas en este equipo; el asistente no las ve."))},
+                                      {"fields", campos}});
+            done(ToolResult::ok("Formulario en la barra del operador (id " + std::to_string(n) +
+                                "). Cuando lo complete te llega a tu chat; el plugin las lee con plugin.secreto()."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "plugin_exportar";
+        t.title = "Exportar un plugin (para otro aparato)";
+        t.category = "plugins";
+        t.description = "Arma un .zip con el plugin (código, plugin.json y sus archivos; sin las bibliotecas ni sus datos) en Datos/Exportado. "
+                        "En el otro aparato: plugin_importar.";
+        t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", id}}}};
+        t.run = [p](const json& a, Done done) {
+            if (!p) return done(ToolResult::error("los plugins no están disponibles"));
+            p->exportar(a.value("id", std::string()), [done](json r) {
+                if (r.contains("error")) return done(ToolResult::error(r.value("error", std::string())));
+                done(ToolResult().data(r));
+            });
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "plugin_importar";
+        t.title = "Instalar un plugin desde un .zip";
+        t.category = "plugins";
+        t.description = "Instala el plugin de un .zip exportado (plugin_exportar). Si ya existe, `reemplazar: true` pisa su código (conserva "
+                        "_libs y datos). Queda apagado: después plugin_probar y plugin_activar.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"archivo"}},
+                         {"properties", {{"archivo", {{"type", "string"}, {"description", "ruta del .zip"}}}, {"reemplazar", {{"type", "boolean"}}}}}};
+        t.run = [p](const json& a, Done done) {
+            if (!p) return done(ToolResult::error("los plugins no están disponibles"));
+            p->importar(a.value("archivo", std::string()), a.value("reemplazar", false), [done](json r) {
+                if (r.contains("error")) return done(ToolResult::error(r.value("error", std::string())));
+                done(ToolResult().data(r));
+            });
         };
         core_.addTool(std::move(t));
     }

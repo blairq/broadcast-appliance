@@ -48,6 +48,9 @@ def cortar_a(escena, motivo):
 def al_hablar(datos, de):
     if not isinstance(datos, dict) or not datos.get("hablando", True):
         return
+    # Solo los equipos que le importan (config "de": ["kandao-*", ...]; de fábrica, todos).
+    if not any(fnmatch.fnmatch(de, p) for p in cfg.get("de", ["*"])):
+        return
     estado["ultimo_habla"] = time.monotonic()
     cortar_a(escena_de(de, datos), f"habla {datos.get('persona', '?')} ({de})")
 

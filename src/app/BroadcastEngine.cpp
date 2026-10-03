@@ -331,6 +331,26 @@ void BroadcastEngine::shutdown() {
     }
     releaseScenes(); // transicion, escenas, fuentes y vumetros
 
+#if defined(__APPLE__)
+    // Los micrófonos de CoreAudio (mac-capture) siguen entregando audio desde
+    // su hilo hasta que la fuente se destruye, y obs_shutdown libera la salida
+    // de audio ANTES que las fuentes: un bloque que llegaba en ese medio
+    // tumbaba la app al cerrar (copy_audio_data -> audio_output_get_planes).
+    // Se los desconecta del dispositivo antes (uno que no existe: para y no
+    // vuelve a arrancar).
+    obs_enum_sources(
+        [](void*, obs_source_t* s) {
+            const char* id = obs_source_get_unversioned_id(s);
+            if (id != nullptr && std::string(id).rfind("coreaudio_", 0) == 0) {
+                obs_data_t* d = obs_data_create();
+                obs_data_set_string(d, "device_id", "ba-cerrando");
+                obs_source_update(s, d);
+                obs_data_release(d);
+            }
+            return true;
+        },
+        nullptr);
+#endif
     obs_shutdown();
     started_ = false;
     releaseWindowingPlatform();

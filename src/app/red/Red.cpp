@@ -949,4 +949,20 @@ QString Red::agregarDesdeUi(const QString& ip, const QString& nombre, const QStr
     return QString::fromStdString(agregar(ip.toStdString(), op, &h));
 }
 
+QVariantList Red::entradasDe(const QString& ip) const {
+    if (video_ == nullptr) return {};
+    const json e = video_->entradasDeHost(ip.toStdString());
+    return QJsonDocument::fromJson(QByteArray::fromStdString(e.dump())).toVariant().toList();
+}
+
+QString Red::ptzDesdeUi(const QString& ip, const QString& entrada) {
+    json h;
+    return QString::fromStdString(agregar(ip.toStdString(), json{{"solo_ptz", true}, {"entrada", entrada.toStdString()}}, &h));
+}
+
+QString Red::reusarDesdeUi(const QString& ip, const QString& escena) {
+    json h;
+    return QString::fromStdString(agregar(ip.toStdString(), json{{"reusar", true}, {"escena", escena.toStdString()}}, &h));
+}
+
 } // namespace ba::app::red

@@ -477,7 +477,7 @@ Casos típicos:
 2. **Leé un ejemplo**: `plugin_listar` → `plugin_ver {"id": "ejemplo-basico"}` (también `ejemplo-ptz-uvc`, `ejemplo-director`, `ejemplo-360`).
 3. **Escribilo**: `plugin_escribir {"id", "manifiesto": {"nombre", "descripcion", "dependencias": [...], "config": {...}}, "archivos": {"plugin.py": "..."}}`.
 4. **Probalo sin tocar el aire**: `plugin_probar {"id"}` → informe (lo declarado, tarjetas con ms por cuadro y qué cambiaron, entradas con cuadros por segundo, controles, eventos, registro con los errores de Python). Si `ok` es false o algo no cierra, arreglá y volvé a probar. `controles: [{"nombre", "args"}]` llama controles; `ptz: true` mueve el equipo un instante.
-5. **Activalo**: `plugin_activar {"id"}`. Sus entradas aparecen solas (escena del manifiesto o «Plugins»), su PTZ queda como el de esa entrada (`ptz_*` y la botonera andan igual), sus tarjetas se ponen con `plugin_tarjeta` (o en `video_pipeline` con `{"tipo": "plugin", "plugin", "tarjeta", "parametros"}`).
+5. **Activalo**: `plugin_activar {"id"}`. Sus entradas aparecen solas (escena del manifiesto o «Plugins»), su PTZ queda como el de esa entrada (`ptz_*` y la botonera andan igual), sus tarjetas se ponen con `plugin_tarjeta` (o en `video_pipeline` con `{"tipo": "plugin", "plugin", "tarjeta", "parametros"}`) y se gradúan con `video_tarjeta_ajustar {"id": "<id de la tarjeta>", "params": {"parametros": {"fuerza": 0.5}}}` (o los parámetros sueltos: `{"fuerza": 0.5}`). Una entrada que no está al aire solo se dibuja cuando alguien la mira: para verificar, capturá dos veces (la primera puede ser un cuadro viejo).
 6. **Verificá en vivo**: `video_estado {"entrada"}`, `imagen_analizar`, `plugin_registro`, `plugin_control {"id"}` (info de sus medios), `plugin_eventos`.
 7. **Contale al operador** qué hace y cómo se usa. Si después cambiás el código: `plugin_escribir` + `plugin_reiniciar`.
 
@@ -512,16 +512,16 @@ class Ptz:
 def modo(args): return {"ok": True}
 
 plugin.evento("hablando", {"angulo": 37, "persona": 2})        # canal de datos (con hora)
-@plugin.escuchar("*/hablando")                                  # de otros plugins: "kandao-1/hablando", "*/x", "id/*"
+@plugin.escuchar("*/hablando")                                  # "kandao-1/hablando", "*/x", "id/*" (los propios también llegan)
 def al_hablar(datos, de): ...
 
 plugin.llamar("scene_switch", {"name": "Exterior"})             # CUALQUIER herramienta del sistema (las tuyas)
-plugin.aviso("texto", "warning"); plugin.estado("conectado a la Rally")
+plugin.aviso("texto", "warning"); plugin.estado("conectado a la Rally"); plugin.secreto("clave")  # claves cifradas
 @plugin.al_iniciar / @plugin.al_terminar / @plugin.cada(segundos) / @plugin.al_cambiar_config
 plugin.correr()                                                 # al final
 ```
 Equipos (`from ba_plugin import dispositivos as d`; dependencias `pyusb`, `libusb-package`, `hidapi`, `pyserial`):
-- `d.usb_listar()`, `d.hid_listar()`, `d.serie_listar()`.
+- `d.usb_listar()` → `[{"vid": "046d", "pid": "0881", "fabricante", "producto", "serie", "bus", "direccion", "uvc": true}]` (vid/pid en hex, texto); `d.hid_listar()` → `[{vid, pid, producto, fabricante, uso, ruta}]`; `d.serie_listar()` → `[{puerto, descripcion, vid, pid, serie}]`.
 - `uvc = d.UVC.abrir("046d", "0881")`: `uvc.info()` (terminal de cámara, unidades de extensión con su GUID, rangos), `uvc.mover(pan, tilt, zoom)` / `uvc.parar()` (UVC estándar), `uvc.ir_a(pan=, tilt=, zoom=)`, y lo propio de la marca: `uvc.unidades()`, `uvc.xu_explorar(unidad)` (qué selectores contestan), `uvc.xu_leer(unidad, selector)`, `uvc.xu_escribir(unidad, selector, bytes)`. No le saca la imagen al sistema: se mueve mientras se ve.
 - `h = d.hid_abrir(vid, pid)`: `h.write(bytes)`, `h.read(64, 100)`.
 
@@ -530,15 +530,15 @@ Equipos (`from ba_plugin import dispositivos as d`; dependencias `pyusb`, `libus
 - **Partir una imagen en varias entradas** (dos ojos de pez en un cuadro, 2x2 de un grabador): una sola entrada y en su grafo tarjetas `recorte` + `salida` (cada salida es una fuente con nombre). No abras el mismo dispositivo dos veces.
 - **Desdoblar un ojo de pez / coser 360**: tarjeta de plugin con OpenCV (`opencv-python-headless`): calculá los mapas UNA vez (`cv2.fisheye.initUndistortRectifyMap` o `cv2.remap` con mapas propios) y aplicá `cv2.remap` por cuadro. Si se hace pesado, que la entrada venga más chica.
 - **Varios equipos iguales**: un plugin por equipo (copiá con `plugin_desde_ejemplo` o `plugin_escribir`) con su `config` (número de serie, IP) y su `escena`; o uno que declare N entradas.
-- **Quién habla / director**: cada plugin de equipo publica `plugin.evento("hablando", {...})`; un plugin director `@plugin.escuchar("*/hablando")` decide (tiempo mínimo en cada plano, no cortar a mitad de frase) y usa `plugin.llamar(...)`: `scene_switch`, el compositor con `video_tarjeta_ajustar` (capas), `ptz_*` para apuntar otra cámara. Preguntale al operador si lo quiere automático o con confirmación (`operator_ask`).
+- **Quién habla / director**: cada plugin de equipo publica `plugin.evento("hablando", {...})` (ojo: si hay un director corriendo que escucha `*/hablando`, también lo recibe; en pruebas usá otro canal o su `config.de`); un plugin director `@plugin.escuchar("*/hablando")` decide (tiempo mínimo en cada plano, no cortar a mitad de frase) y usa `plugin.llamar(...)`: `scene_switch`, el compositor con `video_tarjeta_ajustar` (capas), `ptz_*` para apuntar otra cámara. Preguntale al operador si lo quiere automático o con confirmación (`operator_ask`).
 - **Audio de un equipo**: entrada con `gst_audio` o `enviar_audio`; tarjetas de audio sobre cualquier fuente con `plugin_tarjeta {"fuente"}`.
 
 ## Reglas
 - Nada bloquea para siempre: todo con timeout; los bucles en hilos de `al_iniciar` y mirando `plugin.andando`.
 - Las tarjetas tienen que ser rápidas (1080p a 30 fps = 33 ms por cuadro, y es en serie con el video): numpy vectorizado; si tarda, sale el cuadro anterior.
 - `print` va al registro (`plugin_registro`); usá `plugin.estado(...)` para lo que tiene que ver el operador.
-- Las bibliotecas van en `dependencias` (pip, se bajan a la carpeta del plugin: portable, sobreviven a las actualizaciones).
-- Claves de equipos: nunca por el chat. Si el equipo es de red, `camara_credenciales` (formulario seguro); el plugin las recibe en su `config` solo si el operador las cargó ahí.)md"},
+- Las bibliotecas van en `dependencias` (pip, se bajan a la carpeta del plugin: portable, sobreviven a las actualizaciones). **numpy ya viene con el programa** (declararlo no cuesta nada); la primera vez que se baja algo grande (opencv) puede tardar un par de minutos.
+- Claves de equipos (usuario, contraseña, token de la API de la marca): nunca por el chat ni en `config`. Declaralas en plugin.json (`"secretos": [{"clave": "clave", "etiqueta": "Clave de la cámara"}]`), pedilas con `plugin_credenciales {"id"}` (formulario seguro en la barra) y en el plugin `plugin.secreto("clave")` (None si todavía no están: que espere y lo diga con `plugin.estado`).)md"},
     {"camaras_red", "Camaras de la red", "Encontrar camaras IP, grabadores y equipos de video en la red y conectarlos bien (marca, URLs, clave, PTZ, normalizar).",
      R"md(Para "¿que camaras hay?", "agregá la camara del patio", "conectá el DVR", "tengo una Axis/Hikvision/EZVIZ…".
 

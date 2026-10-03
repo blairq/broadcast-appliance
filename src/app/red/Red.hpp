@@ -100,6 +100,12 @@ class Red : public QObject {
     /// perfil, normalizar, latencia_ms, ptz}). `hecho` dice qué se hizo.
     std::string agregar(const std::string& ip, const nlohmann::json& opciones, nlohmann::json* hecho);
     Q_INVOKABLE QString agregarDesdeUi(const QString& ip, const QString& nombre, const QString& escena);
+    /// Las entradas que ya toman video de esta cámara: [{entrada, url}].
+    Q_INVOKABLE QVariantList entradasDe(const QString& ip) const;
+    /// Solo el PTZ de una entrada que ya existe (la clave llegó después). "" o el error.
+    Q_INVOKABLE QString ptzDesdeUi(const QString& ip, const QString& entrada);
+    /// La misma entrada (sin otro stream) en otra escena. "" o el error.
+    Q_INVOKABLE QString reusarDesdeUi(const QString& ip, const QString& escena);
 
     Biblioteca& biblioteca() { return biblioteca_; }
     const Oui& oui() const { return oui_; }

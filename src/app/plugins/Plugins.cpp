@@ -1,8 +1,10 @@
 // src/app/plugins/Plugins.cpp — ver Plugins.hpp
 
 #include "plugins/Plugins.hpp"
+#include "plugins/Hijo.hpp"
 
 #include "AppRuntime.hpp"
+#include "net/Credentials.hpp"
 #include "platform/Paths.hpp"
 #include "ptz/ControlCamaras.hpp"
 #include "ptz/PtzPlugin.hpp"
@@ -13,6 +15,7 @@
 #include <QDateTime>
 #include <QCoreApplication>
 #include <QDesktopServices>
+#include <QFileInfo>
 #include <QJsonDocument>
 #include <QUrl>
 #include <QProcessEnvironment>
@@ -24,6 +27,7 @@
 #endif
 
 #include <algorithm>
+#include <cctype>
 #include <fstream>
 #include <sstream>
 #include <thread>
@@ -91,18 +95,12 @@ bool coincide(const std::string& patron, const std::string& nombre) {
     return (pp == "*" || pp == np) && (pc == "*" || pc == nc);
 }
 
-/// Que un proceso avance aunque Qt no avise. Pasó de verdad: después de usar
-/// el monitor de dispositivos de GStreamer (y alguna otra vez), un QProcess
-/// quedaba en «Starting» para siempre —nunca llegaba `started`, ni su salida,
-/// ni `finished`— y el plugin «no arrancaba» o una herramienta se colgaba.
-/// Cada tanto se le pregunta a mano (esperas de 0 ms: no traba nada).
-void vigilar(QProcess* p, int ms = 250) {
-    auto* t = new QTimer(p);
-    QObject::connect(t, &QTimer::timeout, p, [p]() {
-        if (p->state() == QProcess::Starting) p->waitForStarted(0);
-        else if (p->state() == QProcess::Running && !p->waitForReadyRead(0)) p->waitForFinished(0);
-    });
-    t->start(ms);
+/// El entorno de un Python del programa: el del sistema sin PYTHON* (corre con -I igual).
+QProcessEnvironment entornoPython() {
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    for (const QString& k : env.keys())
+        if (k.startsWith("PYTHON")) env.remove(k);
+    return env;
 }
 
 constexpr int kMaxCaidas = 5;
@@ -110,7 +108,7 @@ constexpr qint64 kVentanaCaidasMs = 60'000;
 } // namespace
 
 struct Plugins::Proceso {
-    std::unique_ptr<QProcess> p;
+    std::unique_ptr<Hijo> p;
     QByteArray pendiente; ///< stdout sin línea completa
     QByteArray errPendiente;
     std::string estado = "apagado"; ///< apagado | arrancando | corriendo | reiniciando | caido | dependencias
@@ -137,6 +135,7 @@ Plugins::Plugins(AppRuntime& rt, video::VideoGrafos* video, ptz::ControlCamaras*
     carpeta_ = rt.dataRoot() / "Plugins";
     logs_ = rt.dataRoot() / "Logs" / "plugins";
     config_ = rt.dataRoot() / "Config" / "plugins.json";
+    credenciales_ = q(rt.dataRoot() / "Credenciales");
     std::error_code ec;
     fs::create_directories(carpeta_, ec);
     fs::create_directories(logs_, ec);
@@ -165,10 +164,10 @@ Plugins::~Plugins() {
         if (!pr->p) continue;
         pr->porPedido = true;
         pr->p->disconnect(this);
-        pr->p->write("{\"t\":\"chau\"}\n");
-        pr->p->closeWriteChannel();
-        if (!pr->p->waitForFinished(1500)) pr->p->kill();
-        pr->p->waitForFinished(500);
+        pr->p->escribir("{\"t\":\"chau\"}\n");
+        pr->p->cerrarEntrada();
+        pr->p->terminar();
+        // ~Hijo lo mata (al grupo) si sigue vivo.
     }
     for (auto& [n, pe] : pendientes_) delete pe.timer;
 }
@@ -214,6 +213,7 @@ json Plugins::estado(const std::string& id) const {
            {"dependencias", man.value("dependencias", json::array())},
            {"carpeta", carpetaDe(id).string()},
            {"estado", "apagado"}};
+    if (const json sec = secretosDe(id); !sec.empty()) e["secretos"] = sec;
     auto it = procesos_.find(id);
     if (it == procesos_.end()) return e;
     const Proceso& p = *it->second;
@@ -223,7 +223,7 @@ json Plugins::estado(const std::string& id) const {
     if (p.estado == "corriendo") {
         e["desde_s"] = (QDateTime::currentMSecsSinceEpoch() - p.desde) / 1000;
         e["puerto_medios"] = p.puerto;
-        e["pid"] = p.p ? static_cast<long long>(p.p->processId()) : 0;
+        e["pid"] = p.p ? static_cast<long long>(p.p->pid()) : 0;
     }
     if (p.reinicios) e["reinicios"] = p.reinicios;
     json ent = json::array(), tar = json::array(), ptz = json::array(), ctl = json::array(), esc = json::array();
@@ -364,32 +364,40 @@ void Plugins::dependencias(const std::string& id, std::function<void(std::string
     if (man.empty()) return listo("no existe el plugin «" + id + "»", {});
     json deps = man.value("dependencias", json::array());
     if (!deps.is_array() || deps.empty()) return listo({}, {});
+    // Lo que ya trae el Python del programa (numpy) no se baja de nuevo.
+    const fs::path incluidos = python().parent_path().parent_path() / "lib" / "python3.12" / "site-packages";
+    auto yaViene = [&](std::string paquete) {
+        const size_t corte = paquete.find_first_of("=<>![ ");
+        if (corte != std::string::npos) paquete = paquete.substr(0, corte);
+        for (auto& c : paquete) c = c == '-' ? '_' : static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        return !paquete.empty() && fs::exists(incluidos / paquete);
+    };
     std::vector<std::string> lista;
     for (const auto& d : deps)
-        if (d.is_string()) lista.push_back(d.get<std::string>());
+        if (d.is_string() && !yaViene(d.get<std::string>())) lista.push_back(d.get<std::string>());
+    if (lista.empty()) return listo({}, "ya vienen con el programa");
     std::sort(lista.begin(), lista.end());
     std::string firma;
     for (const auto& d : lista) firma += d + "\n";
     const fs::path sello = dir / "_libs" / ".dependencias";
     if (leerTexto(sello) == firma) return listo({}, "ya estaban");
     if (!fs::exists(python())) return listo("falta el Python del programa (" + python().string() + ")", {});
-    auto* p = new QProcess(this);
     QStringList args{"-I", "-B", "-m", "pip", "install", "--disable-pip-version-check", "--no-warn-script-location", "--upgrade",
                      "--target", q(dir / "_libs")};
     for (const auto& d : lista) args << q(d);
-    p->setProcessChannelMode(QProcess::MergedChannels);
-    vigilar(p);
     auto it = procesos_.find(id);
     if (it != procesos_.end() && it->second->estado == "apagado") it->second->estado = "dependencias";
-    connect(p, &QProcess::finished, this, [this, p, listo, sello, firma, id](int codigo, QProcess::ExitStatus) {
-        const std::string salida = p->readAll().toStdString();
-        p->deleteLater();
-        escribirRegistro(id, QByteArray::fromStdString("[pip] " + salida));
-        if (codigo != 0) return listo("pip no pudo bajar las dependencias", salida.size() > 3000 ? salida.substr(salida.size() - 3000) : salida);
-        escribirTexto(sello, firma);
-        listo({}, salida.size() > 800 ? salida.substr(salida.size() - 800) : salida);
-    });
-    p->start(q(python()), args);
+    escribirRegistro(id, "[pip] bajando: " + QByteArray::fromStdString(firma).replace('\n', ' ') + "\n");
+    Hijo::correr(this, q(python()), args, entornoPython(), 15 * 60 * 1000,
+                 [this, listo, sello, firma, id](int codigo, QByteArray out, QByteArray err) {
+                     const std::string salida = (out + err).toStdString();
+                     escribirRegistro(id, QByteArray::fromStdString("[pip] " + salida));
+                     if (codigo != 0)
+                         return listo("pip no pudo bajar las dependencias",
+                                      salida.size() > 3000 ? salida.substr(salida.size() - 3000) : salida);
+                     escribirTexto(sello, firma);
+                     listo({}, salida.size() > 800 ? salida.substr(salida.size() - 800) : salida);
+                 });
 }
 
 void Plugins::probar(const std::string& id, double segundos, const json& controles, bool ptz, std::function<void(json)> listo0) {
@@ -404,33 +412,21 @@ void Plugins::probar(const std::string& id, double segundos, const json& control
     emit cambio();
     dependencias(id, [this, id, segundos, controles, ptz, listo](std::string err, std::string salida) {
         if (!err.empty()) return listo(json{{"ok", false}, {"error", err}, {"pip", salida}});
-        auto* p = new QProcess(this);
         QStringList args{"-I", "-B", q(sdk() / "ba_plugin" / "probar.py"), q(carpetaDe(id)), "--segundos", QString::number(segundos)};
         if (controles.is_array())
             for (const auto& c : controles)
                 args << "--control" << q(c.value("nombre", std::string())) << q(c.value("args", json::object()).dump());
         if (ptz) args << "--ptz";
-        QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
-        for (const QString& k : env.keys())
-            if (k.startsWith("PYTHON")) env.remove(k);
-        p->setProcessEnvironment(env);
-        vigilar(p);
-        auto* plazo = new QTimer(p);
-        plazo->setSingleShot(true);
-        connect(plazo, &QTimer::timeout, p, [p]() { p->kill(); });
-        plazo->start(static_cast<int>((segundos + 60) * 1000));
-        connect(p, &QProcess::finished, this, [p, listo](int, QProcess::ExitStatus st) {
-            const QByteArray out = p->readAllStandardOutput(), err = p->readAllStandardError();
-            p->deleteLater();
-            json r = json::parse(out.toStdString(), nullptr, false);
-            if (r.is_discarded() || !r.is_object())
-                r = {{"ok", false},
-                     {"error", st == QProcess::CrashExit ? "el probador se cortó (¿tardó demasiado?)" : "el probador no devolvió un informe"},
-                     {"salida", out.right(2000).toStdString()},
-                     {"registro", err.right(3000).toStdString()}};
-            listo(r);
-        });
-        p->start(q(python()), args);
+        Hijo::correr(this, q(python()), args, entornoPython(), static_cast<int>((segundos + 60) * 1000),
+                     [listo](int codigo, QByteArray out, QByteArray err) {
+                         json r = json::parse(out.toStdString(), nullptr, false);
+                         if (r.is_discarded() || !r.is_object())
+                             r = {{"ok", false},
+                                  {"error", codigo < 0 ? "el probador se cortó (¿tardó demasiado?)" : "el probador no devolvió un informe"},
+                                  {"salida", out.right(2000).toStdString()},
+                                  {"registro", err.right(3000).toStdString()}};
+                         listo(r);
+                     });
     });
 }
 
@@ -494,7 +490,6 @@ void Plugins::arrancar(const std::string& id) {
         emit cambio();
         return;
     }
-    p.p = std::make_unique<QProcess>();
     p.pendiente.clear();
     p.errPendiente.clear();
     p.declarado = json::array();
@@ -504,28 +499,18 @@ void Plugins::arrancar(const std::string& id) {
     p.puerto = 0;
     p.estadoPlugin = nullptr;
     p.estado = "arrancando";
-    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
-    for (const QString& k : env.keys())
-        if (k.startsWith("PYTHON")) env.remove(k);
+    QProcessEnvironment env = entornoPython();
     env.insert("BA_PLUGIN_DIR", q(carpetaDe(id)));
     env.insert("BA_PLUGIN_ID", q(id));
     env.insert("BA_PLUGIN_CANAL", "stdio");
     env.insert("BA_DATA_ROOT", q(rt_.dataRoot()));
-    p.p->setProcessEnvironment(env);
-    p.p->setWorkingDirectory(q(carpetaDe(id)));
-    QProcess* proc = p.p.get();
-    connect(proc, &QProcess::started, this, [this, id, proc]() {
-        escribirRegistro(id, "[app] proceso " + QByteArray::number(proc->processId()) + " arrancado\n");
-    });
-    connect(proc, &QProcess::readyReadStandardOutput, this, [this, id]() { alLeer(id); });
-    vigilar(proc);
-    connect(proc, &QProcess::readyReadStandardError, this, [this, id, proc]() { escribirRegistro(id, proc->readAllStandardError()); });
-    connect(proc, &QProcess::finished, this, [this, id](int c, QProcess::ExitStatus st) {
-        // Fuera de la señal: alSalir puede soltar el QProcess que la emite.
-        QTimer::singleShot(0, this, [this, id, c, st]() { alSalir(id, c, st); });
-    });
-    connect(proc, &QProcess::errorOccurred, this, [this, id](QProcess::ProcessError e) {
-        if (e == QProcess::FailedToStart) QTimer::singleShot(0, this, [this, id]() { alError(id); });
+    p.p = std::make_unique<Hijo>();
+    Hijo* proc = p.p.get();
+    connect(proc, &Hijo::salida, this, [this, id]() { alLeer(id); });
+    connect(proc, &Hijo::errores, this, [this, id, proc]() { escribirRegistro(id, proc->leerErrores()); });
+    connect(proc, &Hijo::termino, this, [this, id](int c, bool caido) {
+        // Fuera de la señal: alSalir suelta el Hijo que la emite.
+        QTimer::singleShot(0, this, [this, id, c, caido]() { alSalir(id, c, caido); });
     });
     // Tiene 20 s para declararse.
     if (p.plazo) p.plazo->deleteLater();
@@ -535,13 +520,21 @@ void Plugins::arrancar(const std::string& id) {
         auto it = procesos_.find(id);
         if (it == procesos_.end() || it->second->listo || !it->second->p) return;
         it->second->error = "no terminó de arrancar en 20 s (¿se quedó esperando algo antes de plugin.correr()?)";
-        escribirRegistro(id, "[app] 20 s sin «listo»: " + QByteArray::number(it->second->p->bytesAvailable()) +
-                                 " bytes sin leer, estado del proceso " + QByteArray::number(static_cast<int>(it->second->p->state())) + "\n");
-        it->second->p->kill();
+        it->second->p->matar();
     });
     p.plazo->start(20000);
     escribirRegistro(id, "---- arranca " + QDateTime::currentDateTime().toString(Qt::ISODate).toUtf8() + " ----\n");
-    proc->start(q(python()), {"-I", "-B", "-u", q(sdk() / "correr.py"), q(carpetaDe(id))});
+    QString err;
+    if (!proc->iniciar(q(python()), {"-I", "-B", "-u", q(sdk() / "correr.py"), q(carpetaDe(id))}, env, q(carpetaDe(id)), false, &err)) {
+        p.p.reset();
+        p.plazo->stop();
+        p.estado = "caido";
+        p.error = err.toStdString();
+        auto cbs = std::move(p.alListo);
+        for (auto& cb : cbs) cb(estado(id));
+    } else {
+        escribirRegistro(id, "[app] proceso " + QByteArray::number(proc->pid()) + " arrancado\n");
+    }
     emit cambio();
 }
 
@@ -556,16 +549,14 @@ void Plugins::detener(const std::string& id, bool porPedido) {
     }
     if (!p.p) return;
     p.porPedido = porPedido;
-    QProcess* proc = p.p.release();
+    Hijo* proc = p.p.release();
     proc->disconnect(this);
     proc->setParent(this);
-    proc->write("{\"t\":\"chau\"}\n");
-    proc->closeWriteChannel();
-    // Si en 3 s no se fue, se lo mata. Sin esperar acá (no se traba la app).
-    QTimer::singleShot(3000, proc, [proc]() {
-        if (proc->state() != QProcess::NotRunning) proc->kill();
-    });
-    connect(proc, &QProcess::finished, proc, &QObject::deleteLater);
+    proc->escribir("{\"t\":\"chau\"}\n");
+    proc->cerrarEntrada();
+    // Si en 3 s no se fue, se lo mata (al grupo). Sin esperar acá: no se traba la app.
+    QTimer::singleShot(3000, proc, [proc]() { proc->matar(); });
+    connect(proc, &Hijo::termino, proc, &QObject::deleteLater);
     anotarPuerto(id, 0);
     p.listo = false;
     p.puerto = 0;
@@ -576,14 +567,14 @@ void Plugins::alError(const std::string& id) {
     auto it = procesos_.find(id);
     if (it == procesos_.end()) return;
     it->second->error = "no se pudo arrancar Python";
-    alSalir(id, -1, QProcess::CrashExit);
+    alSalir(id, -1, true);
 }
 
-void Plugins::alSalir(const std::string& id, int codigo, QProcess::ExitStatus st) {
+void Plugins::alSalir(const std::string& id, int codigo, bool caido) {
     auto it = procesos_.find(id);
     if (it == procesos_.end() || !it->second->p) return;
     Proceso& p = *it->second;
-    escribirRegistro(id, p.p->readAllStandardError());
+    escribirRegistro(id, p.p->leerErrores());
     p.p.reset();
     anotarPuerto(id, 0);
     p.puerto = 0;
@@ -599,7 +590,7 @@ void Plugins::alSalir(const std::string& id, int codigo, QProcess::ExitStatus st
     p.caidas.push_back(ahora);
     p.caidas.erase(std::remove_if(p.caidas.begin(), p.caidas.end(), [&](qint64 t) { return ahora - t > kVentanaCaidasMs; }), p.caidas.end());
     if (p.error.empty())
-        p.error = st == QProcess::CrashExit ? "se cayó" : "terminó (código " + std::to_string(codigo) + ")";
+        p.error = caido ? "se cayó" : "terminó (código " + std::to_string(codigo) + ")";
     {
         // La última línea del registro suele ser el motivo.
         for (auto r = p.registro.rbegin(); r != p.registro.rend(); ++r)
@@ -658,9 +649,10 @@ std::string Plugins::registro(const std::string& id, int lineas) const {
     }
     // Sin proceso (o recién abierta la app): del archivo.
     const std::string s = leerTexto(logs_ / (id + ".log"), 10'000'000);
+    if (s.empty()) return fs::exists(carpetaDe(id)) ? "(todavía no corrió: no hay registro)" : "(no existe el plugin «" + id + "»)";
     size_t pos = s.size();
-    for (int k = 0; k <= lineas && pos > 0; ++k) pos = s.rfind('\n', pos - 1);
-    return pos == std::string::npos ? s : s.substr(pos + 1);
+    for (int k = 0; k <= lineas && pos > 0 && pos != std::string::npos; ++k) pos = s.rfind('\n', pos - 1);
+    return pos == std::string::npos || pos == 0 ? s : s.substr(pos + 1);
 }
 
 // --- Protocolo ---------------------------------------------------------------------------------------
@@ -669,7 +661,7 @@ void Plugins::alLeer(const std::string& id) {
     auto it = procesos_.find(id);
     if (it == procesos_.end() || !it->second->p) return;
     Proceso& p = *it->second;
-    p.pendiente += p.p->readAllStandardOutput();
+    p.pendiente += p.p->leerSalida();
     int nl;
     while ((nl = p.pendiente.indexOf('\n')) >= 0) {
         const QByteArray linea = p.pendiente.left(nl);
@@ -693,8 +685,8 @@ void Plugins::alLeer(const std::string& id) {
 
 void Plugins::enviar(const std::string& id, const json& m) {
     auto it = procesos_.find(id);
-    if (it == procesos_.end() || !it->second->p || it->second->p->state() != QProcess::Running) return;
-    it->second->p->write(QByteArray::fromStdString(m.dump() + "\n"));
+    if (it == procesos_.end() || !it->second->p || !it->second->p->corriendo()) return;
+    it->second->p->escribir(QByteArray::fromStdString(m.dump() + "\n"));
 }
 
 void Plugins::recibir(const std::string& id, const json& m) {
@@ -760,9 +752,13 @@ void Plugins::recibir(const std::string& id, const json& m) {
             if (r.contains("structuredContent")) {
                 res = r["structuredContent"];
             } else {
+                // El primer bloque de texto (los siguientes son avisos del servidor).
                 std::string texto;
                 for (const auto& c : r.value("content", json::array()))
-                    if (c.value("type", "") == "text") texto += c.value("text", std::string());
+                    if (c.value("type", "") == "text") {
+                        texto = c.value("text", std::string());
+                        break;
+                    }
                 res = json::parse(texto, nullptr, false);
                 if (res.is_discarded()) res = texto;
             }
@@ -775,6 +771,24 @@ void Plugins::recibir(const std::string& id, const json& m) {
             }
             yo->enviar(id, out);
         });
+    } else if (t == "secreto") {
+        // Una clave que el operador cargó (cifrada): solo las que declara el plugin.
+        const std::string nombre = m.value("nombre", std::string());
+        bool declarada = false;
+        for (const auto& x : secretosDe(id)) declarada = declarada || x.value("clave", "") == nombre;
+        json r{{"t", "respuesta"}, {"n", m.value("n", 0)}};
+        QByteArray valor;
+        if (!declarada) {
+            r["ok"] = false;
+            r["error"] = "«" + nombre + "» no está en \"secretos\" de plugin.json";
+        } else if (!cred::read(credenciales_, ("plugin-" + id + "-" + nombre).c_str(), valor)) {
+            r["ok"] = true;
+            r["resultado"] = nullptr; // todavía no la cargaron
+        } else {
+            r["ok"] = true;
+            r["resultado"] = valor.toStdString();
+        }
+        enviar(id, r);
     } else if (t == "respuesta") {
         auto pe = pendientes_.find(m.value("n", 0));
         if (pe == pendientes_.end()) return;
@@ -913,8 +927,15 @@ std::string Plugins::ponerTarjeta(const std::string& id, const std::string& tarj
             }
     if (!existe)
         return "el plugin «" + id + "» no declaró la tarjeta «" + tarjeta + "» (¿está corriendo? plugin_activar; plugin_ver dice lo que declara)";
+    // Con TODOS sus parámetros (los de fábrica que declara, con lo pedido encima):
+    // así se ven y se ajustan desde el grafo.
+    json todos = json::object();
+    for (const auto& d : it->second->declarado)
+        if (d.value("t", "") == "tarjeta" && d.value("nombre", "") == tarjeta) todos = d.value("parametros", json::object());
+    if (!todos.is_object()) todos = json::object();
+    if (parametros.is_object()) todos.update(parametros);
     json props{{"plugin", id}, {"tarjeta", tarjeta}};
-    if (parametros.is_object() && !parametros.empty()) props["parametros"] = parametros.dump();
+    if (!todos.empty()) props["parametros"] = todos.dump();
     return video_->agregarTarjetaGst(entrada, "baplugin", props, hecho);
 }
 
@@ -1066,17 +1087,13 @@ print(json.dumps(out, ensure_ascii=False, default=str))
     escribirTexto(herr / "listar.py", script);
     dependencias(".herramientas", [this, herr, gst, listo](std::string err, std::string) {
         if (!err.empty()) return listo(json{{"camaras_y_microfonos", gst}, {"usb_error", err}});
-        auto* p = new QProcess(this);
-        vigilar(p);
-        connect(p, &QProcess::finished, this, [p, gst, listo](int, QProcess::ExitStatus) {
-            json r = json::parse(p->readAllStandardOutput().toStdString(), nullptr, false);
-            const std::string err = p->readAllStandardError().right(1500).toStdString();
-            p->deleteLater();
-            if (r.is_discarded() || !r.is_object()) r = {{"usb_error", err}};
-            r["camaras_y_microfonos"] = gst;
-            listo(r);
-        });
-        p->start(q(python()), {"-I", "-B", q(herr / "listar.py"), q(sdk()), q(herr / "_libs")});
+        Hijo::correr(this, q(python()), {"-I", "-B", q(herr / "listar.py"), q(sdk()), q(herr / "_libs")}, entornoPython(), 30000,
+                     [gst, listo](int, QByteArray out, QByteArray err) {
+                         json r = json::parse(out.toStdString(), nullptr, false);
+                         if (r.is_discarded() || !r.is_object()) r = {{"usb_error", err.right(1500).toStdString()}};
+                         r["camaras_y_microfonos"] = gst;
+                         listo(r);
+                     });
     });
 }
 
@@ -1177,6 +1194,131 @@ void Plugins::abrirCarpeta(const QString& id) const {
 QString Plugins::codigo(const QString& id) const {
     const json v = ver(id.toStdString(), "");
     return q(v.value("contenido", std::string()));
+}
+
+json Plugins::secretosDe(const std::string& id) const {
+    json out = json::array();
+    const json man = leerJson(carpetaDe(id) / "plugin.json");
+    for (const auto& x : man.value("secretos", json::array())) {
+        const std::string clave = x.is_string() ? x.get<std::string>() : x.value("clave", std::string());
+        if (clave.empty() || !idValido(clave)) continue;
+        const std::string etiqueta = x.is_object() ? x.value("etiqueta", clave) : clave;
+        out.push_back({{"clave", clave},
+                       {"etiqueta", etiqueta},
+                       {"cargada", cred::exists(credenciales_, ("plugin-" + id + "-" + clave).c_str())}});
+    }
+    return out;
+}
+
+QVariantList Plugins::secretosUi(const QString& id) const { return qv(secretosDe(id.toStdString())).toList(); }
+
+QString Plugins::guardarSecreto(const QString& id, const QString& nombre, const QString& valor) {
+    const std::string i = id.toStdString(), n = nombre.toStdString();
+    bool declarada = false;
+    for (const auto& x : secretosDe(i)) declarada = declarada || x.value("clave", "") == n;
+    if (!declarada) return "El plugin no declara la clave «" + nombre + "»";
+    const std::string nom = "plugin-" + i + "-" + n;
+    if (valor.isEmpty()) cred::remove(credenciales_, nom.c_str());
+    else if (!cred::write(credenciales_, nom.c_str(), valor.toUtf8())) return "No se pudo guardar";
+    emit cambio();
+    return {};
+}
+
+// --- Exportar e importar (con el zipfile del Python del programa: nada más que vendorear) ----
+
+namespace {
+const char* kZip = R"PY(import json, os, shutil, sys, zipfile
+accion = sys.argv[1]
+if accion == "exportar":
+    origen, destino = sys.argv[2], sys.argv[3]
+    base = os.path.basename(origen.rstrip("/"))
+    with zipfile.ZipFile(destino, "w", zipfile.ZIP_DEFLATED) as z:
+        for raiz, dirs, archivos in os.walk(origen):
+            rel = os.path.relpath(raiz, origen)
+            dirs[:] = [d for d in dirs if not (rel == "." and d in ("_libs", "datos")) and d != "__pycache__"]
+            for a in archivos:
+                if a.endswith(".pyc"):
+                    continue
+                p = os.path.join(raiz, a)
+                z.write(p, os.path.join(base, os.path.relpath(p, origen)))
+    print(json.dumps({"archivo": destino}))
+else:
+    archivo, carpeta, reemplazar = sys.argv[2], sys.argv[3], sys.argv[4] == "1"
+    with zipfile.ZipFile(archivo) as z:
+        nombres = [n for n in z.namelist() if not n.startswith("__MACOSX")]
+        mans = [n for n in nombres if n.count("/") == 1 and n.endswith("/plugin.json")]
+        if len(mans) != 1:
+            print(json.dumps({"error": "no es un plugin exportado (tiene que tener <id>/plugin.json)"})); sys.exit(0)
+        base = mans[0].split("/")[0]
+        man = json.loads(z.read(mans[0]))
+        pid = man.get("id") or base
+        if not pid or pid.startswith(".") or any(c not in "abcdefghijklmnopqrstuvwxyz0123456789-_" for c in pid):
+            print(json.dumps({"error": f"id inválido: {pid!r}"})); sys.exit(0)
+        destino = os.path.join(carpeta, pid)
+        if os.path.exists(destino):
+            if not reemplazar:
+                print(json.dumps({"error": f"ya hay un plugin «{pid}» (reemplazar: true para pisarlo; su _libs y datos se conservan)", "id": pid})); sys.exit(0)
+        for n in nombres:
+            if not n.startswith(base + "/") or ".." in n.split("/") or n.endswith("/"):
+                continue
+            rel = n[len(base) + 1:]
+            if rel.split("/")[0] in ("_libs", "datos"):
+                continue
+            p = os.path.join(destino, rel)
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            with z.open(n) as src, open(p, "wb") as dst:
+                shutil.copyfileobj(src, dst)
+    print(json.dumps({"id": pid}))
+)PY";
+} // namespace
+
+void Plugins::exportar(const std::string& id, std::function<void(json)> listo) {
+    if (!idValido(id) || !fs::exists(carpetaDe(id) / "plugin.json")) return listo(json{{"error", "no existe el plugin «" + id + "»"}});
+    const json man = leerJson(carpetaDe(id) / "plugin.json");
+    const fs::path dir = rt_.dataRoot() / "Exportado";
+    std::error_code ec;
+    fs::create_directories(dir, ec);
+    const fs::path destino = dir / ("plugin-" + id + "-" + man.value("version", std::string("1.0")) + ".zip");
+    Hijo::correr(this, q(python()), {"-I", "-B", "-c", kZip, "exportar", q(carpetaDe(id)), q(destino)}, entornoPython(), 120000,
+                 [listo](int, QByteArray out, QByteArray err) {
+                     json r = json::parse(out.toStdString(), nullptr, false);
+                     listo(r.is_discarded() || !r.is_object() ? json{{"error", "no se pudo armar el zip: " + err.right(800).toStdString()}} : r);
+                 });
+}
+
+void Plugins::importar(const std::string& archivo, bool reemplazar, std::function<void(json)> listo) {
+    if (!fs::exists(archivo)) return listo(json{{"error", "no existe «" + archivo + "»"}});
+    Hijo::correr(this, q(python()), {"-I", "-B", "-c", kZip, "importar", q(fs::path(archivo)), q(carpeta_), reemplazar ? "1" : "0"},
+                 entornoPython(), 120000, [this, listo](int, QByteArray out, QByteArray err) {
+                     json r = json::parse(out.toStdString(), nullptr, false);
+                     if (r.is_discarded() || !r.is_object()) r = {{"error", "no se pudo abrir el zip: " + err.right(800).toStdString()}};
+                     if (!r.contains("error")) {
+                         r["estado"] = estado(r.value("id", std::string()));
+                         r["siguiente"] = "plugin_probar y plugin_activar (las bibliotecas se bajan al probarlo o prenderlo)";
+                         emit cambio();
+                     }
+                     listo(r);
+                 });
+}
+
+void Plugins::exportarUi(const QString& id) {
+    QPointer<Plugins> yo(this);
+    exportar(id.toStdString(), [yo](json r) {
+        if (!yo) return;
+        if (r.contains("error")) return emit yo->aviso(q(r.value("error", std::string())), false);
+        const QString arch = q(r.value("archivo", std::string()));
+        QDesktopServices::openUrl(QUrl::fromLocalFile(QFileInfo(arch).absolutePath()));
+        emit yo->aviso("Exportado: " + arch, true);
+    });
+}
+
+void Plugins::importarUi(const QUrl& archivo) {
+    QPointer<Plugins> yo(this);
+    importar(archivo.toLocalFile().toStdString(), false, [yo](json r) {
+        if (!yo) return;
+        emit yo->aviso(r.contains("error") ? q(r.value("error", std::string())) : "Instalado «" + q(r.value("id", std::string())) + "»: probalo y prendelo",
+                       !r.contains("error"));
+    });
 }
 
 } // namespace ba::app::plugins

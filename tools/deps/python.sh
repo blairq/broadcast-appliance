@@ -29,6 +29,9 @@ rm -rf "$OUT.tmp"
 rm -rf "$OUT/include" "$OUT/share"
 rm -rf "$OUT"/lib/python3.*/test "$OUT"/lib/python3.*/idlelib "$OUT"/lib/python3.*/tkinter \
        "$OUT"/lib/python3.*/turtledemo "$OUT"/lib/tcl* "$OUT"/lib/tk* "$OUT"/lib/itcl* "$OUT"/lib/thread*
+# numpy viene incluido: casi todo plugin de video lo usa, y bajarlo para cada
+# uno era lo más lento de probar un plugin. Versión fija.
+"$OUT/bin/python3" -m pip install -q --disable-pip-version-check --no-warn-script-location "numpy==2.5.3"
 # El bytecode, precompilado acá: en ejecución Python corre con -B (no escribe
 # nada adentro del programa: escribir en la .app rompe el sello de la firma).
 find "$OUT" -name '__pycache__' -type d -prune -exec rm -rf {} +

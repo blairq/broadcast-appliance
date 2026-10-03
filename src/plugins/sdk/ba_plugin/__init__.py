@@ -302,6 +302,25 @@ class Plugin:
             raise RuntimeError(r.get("error", "falló"))
         return r.get("resultado")
 
+    def secreto(self, nombre: str, timeout: float = 5.0) -> str | None:
+        """Una clave que el operador cargó en la app (cifrada; nunca en plugin.json ni en el chat).
+
+        Se declara en plugin.json: ``"secretos": [{"clave": "clave", "etiqueta": "Clave de la cámara"}]``.
+        Devuelve None si todavía no la cargaron (se cargan en la página Plugins o con ``plugin_credenciales``)."""
+        with self._lock:
+            self._n += 1
+            n = self._n
+            ev, caja = threading.Event(), []
+            self._pendientes[n] = (ev, caja)
+        self._enviar({"t": "secreto", "n": n, "nombre": nombre})
+        if not ev.wait(timeout):
+            self._pendientes.pop(n, None)
+            raise RuntimeError(f"la app no contestó la clave «{nombre}»")
+        r = caja[0]
+        if not r.get("ok", False):
+            raise RuntimeError(r.get("error", "falló"))
+        return r.get("resultado")
+
     def aviso(self, texto: str, prioridad: str = "info") -> None:
         """Un aviso corto en la barra del operador (info, success, warning, critical)."""
         self._enviar({"t": "aviso", "texto": texto, "prioridad": prioridad})

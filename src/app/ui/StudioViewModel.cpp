@@ -633,6 +633,19 @@ QString StudioViewModel::saveAccountCredential(const QString& platform, const QV
         }
         return guardadas == 0 ? "No escribiste ninguna clave." : QString();
     }
+    // Las claves de un plugin (plugin:<id>): un campo por cada una que declara.
+    if (platform.startsWith("plugin:")) {
+        if (!plugins_) return "Los plugins no están disponibles.";
+        int guardadas = 0;
+        for (auto it = v.begin(); it != v.end(); ++it) {
+            const QString valor = it.value().toString();
+            if (valor.isEmpty()) continue;
+            const QString e = plugins_->guardarSecreto(platform.mid(7), it.key(), valor);
+            if (!e.isEmpty()) return e;
+            ++guardadas;
+        }
+        return guardadas == 0 ? "No escribiste ninguna clave." : QString();
+    }
     const std::string p = accounts::normalize(platform.toStdString());
     if (p == "youtube") {
         QString path = v.value("importFile").toString();

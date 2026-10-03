@@ -323,7 +323,8 @@ void McpService::registerVideoTools() {
             "Cambia `params` de la tarjeta `id` (solo los que tiene, del mismo tipo) y/o su `etiqueta`. Un filtro de "
             "OBS: `{\"ajustes\": {…}}`; un módulo de GStreamer: `{\"propiedades\": {…}}` (se mezclan). Una tarjeta "
             "manejada por un controlador: el ajuste va al controlador (cambia en todas); lo propio de esa entrada, en "
-            "`{\"local\": {…}}`. Un compositor: `{\"capas\": {\"in_0\": {…}}}` por puerto.";
+            "`{\"local\": {…}}`. Un compositor: `{\"capas\": {\"in_0\": {…}}}` por puerto. La tarjeta de un plugin de "
+            "Python: `{\"parametros\": {\"fuerza\": 0.5}}` (o los parámetros sueltos), se mezclan con los que tiene.";
         t.inputSchema = {{"type", "object"},
                          {"required", {"id", "params"}},
                          {"properties", {{"id", idTarjeta}, {"params", {{"type", "object"}}}, {"entrada", entrada}}}};

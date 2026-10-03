@@ -569,6 +569,28 @@ std::string VideoGrafos::ajustarEn(GrafoVideo& g, const std::string& id, json p)
             p.erase(propio);
         }
     if (p.empty()) return {};
+    // Una tarjeta de un plugin de Python (gst `baplugin`): sus ajustes viven en
+    // la propiedad `parametros` (JSON en texto). Se aceptan como objeto
+    // (`{"parametros": {"fuerza": 0.5}}`) o sueltos (`{"fuerza": 0.5}`), y se
+    // mezclan con los que ya tiene.
+    if (n->tipo == "gst" && n->params.value("elemento", std::string()) == "baplugin") {
+        json cambios = p.contains("parametros") && p["parametros"].is_object() ? p["parametros"] : json::object();
+        for (auto it = p.begin(); it != p.end(); ++it)
+            if (it.key() != "parametros" && it.key() != "propiedades" && it.key() != "esperar" && it.key() != "elemento")
+                cambios[it.key()] = it.value();
+        if (!cambios.empty()) {
+            const json pr0 = n->params.value("propiedades", json::object());
+            json actuales = json::parse(pr0.value("parametros", std::string("{}")), nullptr, false);
+            if (!actuales.is_object()) actuales = json::object();
+            actuales.update(cambios);
+            json q2 = json::object();
+            if (p.contains("esperar")) q2["esperar"] = p["esperar"];
+            json pr = p.value("propiedades", json::object());
+            pr["parametros"] = actuales.dump();
+            q2["propiedades"] = pr;
+            p = q2;
+        }
+    }
     std::string destino = id;
     if (const GrafoVideo::Nodo* c = g.controlador(id)) destino = c->id;
     const GrafoVideo::Nodo* d = g.nodo(destino);

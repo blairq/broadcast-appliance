@@ -220,8 +220,36 @@ Popup {
                             }
                         }
                     }
+                    // Si ya está conectada: su PTZ (cuando la clave llegó después) y otra escena.
+                    ColumnLayout {
+                        readonly property var ya: { bus.tick; return bus.red && bus.sel !== "" ? bus.red.entradasDe(bus.sel) : [] }
+                        id: yaCol
+                        visible: ya.length > 0
+                        Layout.fillWidth: true
+                        spacing: 6
+                        Text { text: "Ya está en el estudio"; color: Theme.textDim; font { pixelSize: 11; capitalization: Font.AllUppercase; letterSpacing: 0.5 } }
+                        Repeater {
+                            model: yaCol.ya
+                            delegate: RowLayout {
+                                required property var modelData
+                                Layout.fillWidth: true
+                                Text { text: "«" + modelData.entrada + "»"; color: Theme.text; font.pixelSize: 12; Layout.fillWidth: true; elide: Text.ElideRight }
+                                GlassButton {
+                                    compact: true; text: "Configurar su PTZ"
+                                    onClicked: { const e = bus.red.ptzDesdeUi(bus.sel, modelData.entrada); agregarMsg.text = e === "" ? "PTZ configurado: se mueve desde Cámaras PTZ." : e }
+                                    ToolTip.visible: hovered; ToolTip.delay: 400
+                                    ToolTip.text: "Con la clave ONVIF ya guardada (después de cargarla y de «Analizar»)"
+                                }
+                                ComboBox { id: otraEscena; Layout.preferredWidth: 170; model: bus.escenas }
+                                GlassButton {
+                                    compact: true; text: "Sumar a esa escena"
+                                    onClicked: { const e = bus.red.reusarDesdeUi(bus.sel, otraEscena.currentText); agregarMsg.text = e === "" ? "Sumada a «" + otraEscena.currentText + "» (el mismo stream, no otro)." : e }
+                                }
+                            }
+                        }
+                    }
                     // Agregar.
-                    Text { text: "Agregar al estudio"; color: Theme.textDim; font { pixelSize: 11; capitalization: Font.AllUppercase; letterSpacing: 0.5 } }
+                    Text { text: yaCol.visible ? "Agregar otra vez (otro stream)" : "Agregar al estudio"; color: Theme.textDim; font { pixelSize: 11; capitalization: Font.AllUppercase; letterSpacing: 0.5 } }
                     RowLayout {
                         Layout.fillWidth: true
                         TextField { id: nombreCam; Layout.fillWidth: true; placeholderText: bus.actual && bus.actual.onvif ? bus.actual.onvif.nombre : "Nombre de la entrada" }
