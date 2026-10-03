@@ -290,7 +290,16 @@ void tick(void* data, float segundos) {
     s->cambio = false;
     for (int i = 0; i < kMaxLineas; ++i) {
         obs_data_t* d = obs_data_create();
-        if (s->font != nullptr) obs_data_set_obj(d, "font", s->font);
+        // La letra con valores EXPLÍCITOS: los «por defecto» de un objeto no se
+        // copian al pasarlo a otra fuente, y la de texto de libobs se quedaba con
+        // su tamaño de fábrica (256: letras cuatro veces más grandes que el cuadro).
+        obs_data_t* f = obs_data_create();
+        obs_data_set_string(f, "face", s->font != nullptr ? obs_data_get_string(s->font, "face") : "Helvetica");
+        obs_data_set_string(f, "style", s->font != nullptr ? obs_data_get_string(s->font, "style") : "Regular");
+        obs_data_set_int(f, "size", s->tamano);
+        obs_data_set_int(f, "flags", s->font != nullptr ? obs_data_get_int(s->font, "flags") : 0);
+        obs_data_set_obj(d, "font", f);
+        obs_data_release(f);
         obs_data_set_string(d, "text", i < static_cast<int>(s->actual.size()) ? s->actual[static_cast<size_t>(i)].c_str() : "");
         obs_data_set_int(d, "color1", s->colorTexto);
         obs_data_set_int(d, "color2", s->colorTexto);
