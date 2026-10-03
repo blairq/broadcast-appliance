@@ -38,12 +38,14 @@
 #include <QVariantList>
 #include <QVariantMap>
 
+#include <cstdint>
 #include <filesystem>
 #include <functional>
 #include <map>
 #include <memory>
 #include <set>
 #include <string>
+#include <vector>
 
 namespace ba::app {
 class AppRuntime;
@@ -146,6 +148,18 @@ class VideoGrafos : public QObject {
     /// Ajusta `id`; si la maneja un controlador, el ajuste va al controlador
     /// (salvo la etiqueta). "" o el error.
     static std::string ajustarEn(GrafoVideo& g, const std::string& id, nlohmann::json params);
+    // --- Rostros (lo usa Personas) ------------------------------------------
+    /// El último cuadro que bajó la tarjeta `rostros` de `entrada` (BGRA), y
+    /// pedirlo la mantiene bajando. false si la entrada no tiene esa tarjeta.
+    /// `serie` sube con cada cuadro nuevo (0: todavía ninguno).
+    bool cuadroRostros(const std::string& entrada, std::vector<std::uint8_t>& bgra, int& ancho, int& alto,
+                       std::uint64_t& serie) const;
+    /// Las caras para marcar en esa tarjeta: [{x, y, ancho, alto}] en 0..1.
+    void marcarCaras(const std::string& entrada, const nlohmann::json& cajas) const;
+    /// Pone o saca las tarjetas `rostros` que Personas necesita: `quiero` es
+    /// {entrada: uso}. Las que puso Personas y ya no hacen falta se van; una
+    /// que puso alguien a mano se queda (con uso «mirar»). "" o el error.
+    std::string configurarRostros(const std::map<std::string, std::string>& quiero);
     /// Crea una entrada virtual; "" o el error.
     std::string crearEntradaVirtual(const std::string& nombre, const std::string& preset, const std::string& escena);
 

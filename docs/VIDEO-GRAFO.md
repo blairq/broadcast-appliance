@@ -73,6 +73,19 @@ Un solo grafo para todo el video, como un pipeline de GStreamer con sus bins: ca
   con su sub-grafo. Hay presets (barras HD, 75 %, barras con la hora, negro, blanco, verde, placa de zonas,
   damero, pelota, ruido) al tamaño del lienzo. Interfaz: «+ Entrada virtual…»; MCP: `video_entrada_virtual`.
 
+## Rostros (Personas usa el pipeline)
+
+- La tarjeta `rostros` deja pasar la imagen y, MIENTRAS ALGUIEN LA PIDE, baja un cuadro chico (`ancho`, de
+  fábrica 640) cada `cada` ms, en dos tiempos (se copia en un cuadro y se lee en el siguiente: la GPU no se
+  frena). Sin pedidos en 3 s, no cuesta nada. Si ninguna escena dibuja esa entrada, el filtro la dibuja aparte
+  (con el callback de render principal), así Personas puede mirar una cámara que no está al aire.
+- La app la lee con el proc `analisis` del filtro (`VideoGrafos::cuadroRostros`) y le manda las caras
+  reconocidas con el proc `caras`; con `marcar`, la tarjeta las dibuja (vencen a los 2 s).
+- Personas trata a cada cámara del estudio como el feed `entrada:<cámara>`: lo ofrece en sus listas, y al
+  usarlo (la página, `rostro_ver`, el anotado automático, la cámara de la puerta) le pone sola la tarjeta en
+  el grafo (`auto: true`, con su `uso`) y se la saca cuando deja de usarla. Una puesta a mano se queda.
+  Moverla de lugar cambia qué imagen mira (antes o después de corregir el color, de recortar).
+
 ## Lo que sigue
 
 1. ~~Modelo global con sub-grafos, puertos y puertos a pedido.~~
@@ -80,7 +93,7 @@ Un solo grafo para todo el video, como un pipeline de GStreamer con sus bins: ca
 3. Nodos que cruzan entradas: ~~controladores compartidos con cables de control~~; falta ejecutar el compositor de
    N entradas.
 4. Sincronizar (reloj y retardos por entrada) y Normalizar (resolución, fps, espacio de color).
-5. Rostros como nodo de análisis (Personas y el PTZ lo usan).
+5. ~~Rostros como nodo de análisis (Personas lo usa).~~ Falta: que el PTZ encuadre con esas caras.
 6. ~~Módulos de GStreamer como tarjeta y entradas virtuales.~~ Falta: salidas de GStreamer (red) y el costo por
    cuadro de cada tarjeta a la vista.
 

@@ -424,6 +424,59 @@ int main() {
         obs_source_release(comp);
     }
 
+    // 13. rostros: baja un cuadro chico mientras la app lo pide (sin que nadie
+    // dibuje la entrada: el grafo la despierta) y marca las caras que le mandan.
+    {
+        ponerGrafo(f, lineal("rostros", R"({"cada":100,"ancho":32})"));
+        std::vector<std::uint8_t> bgra;
+        long long ancho = 0, alto = 0, serie = 0;
+        const auto pedir = [&]() {
+            calldata_t cd = {};
+            calldata_set_string(&cd, "nodo", "t");
+            calldata_set_ptr(&cd, "destino", &bgra);
+            proc_handler_call(obs_source_get_proc_handler(f), "analisis", &cd);
+            ancho = calldata_int(&cd, "ancho");
+            alto = calldata_int(&cd, "alto");
+            serie = calldata_int(&cd, "serie");
+            calldata_free(&cd);
+        };
+        pedir(); // el primer pedido la prende
+        for (int i = 0; i < 300 && serie < 2; ++i) {
+            siguienteCuadro();
+            pedir();
+        }
+        std::printf("   rostros: %lldx%lld, serie %lld, bytes %zu\n", ancho, alto, serie, bgra.size());
+        // Pide 32 pero el mínimo es 160: la imagen de 64 baja entera.
+        CHECK(serie >= 2 && ancho == 64 && alto == 64 && bgra.size() == 64u * 64u * 4u,
+              "rostros: baja cuadros chicos mientras se piden (despertando la entrada)");
+        const std::uint8_t* q = bgra.data() + (5 * 64 + 5) * 4;
+        std::printf("   rostros: el verde en BGRA = %d %d %d %d\n", q[0], q[1], q[2], q[3]);
+        CHECK(bgra.size() == 16384 && q[1] > 160 && q[2] < 30 && q[0] > 40 && q[0] < 90, "rostros: el cuadro llega en BGRA");
+        // Sin pedidos, deja de bajar: en 6,5 s sin pedir, a uno cada 100 ms
+        // bajaría ~65; con el corte a los 3 s, ~30.
+        const long long antes = serie;
+        std::this_thread::sleep_for(std::chrono::milliseconds(6500));
+        pedir();
+        std::printf("   rostros: %lld cuadros en 6,5 s sin pedidos\n", serie - antes);
+        CHECK(serie - antes <= 45, "rostros: sin pedidos deja de bajar cuadros");
+        // Marcar: una caja en el cuarto de arriba a la izquierda.
+        ponerGrafo(f, lineal("rostros", R"({"cada":100,"ancho":32,"marcar":true})"));
+        {
+            calldata_t cd = {};
+            calldata_set_string(&cd, "nodo", "t");
+            calldata_set_string(&cd, "cajas", R"([{"x":0.0,"y":0.0,"ancho":0.5,"alto":0.5}])");
+            proc_handler_call(obs_source_get_proc_handler(f), "caras", &cd);
+            calldata_free(&cd);
+        }
+        for (int i = 0; i < 3; ++i) {
+            im = dibujar(fuente);
+            siguienteCuadro();
+        }
+        std::printf("   rostros marcar: borde %d %d %d · adentro %d %d %d\n", px(im, 0, 10, 0), px(im, 0, 10, 1), px(im, 0, 10, 2),
+                    px(im, 10, 10, 0), px(im, 10, 10, 1), px(im, 10, 10, 2));
+        CHECK(px(im, 0, 10, 1) > 180 && px(im, 0, 10, 0) < 80 && px(im, 0, 10, 2) < 140 && px(im, 10, 10, 1) == 177, "rostros: marca la caja (borde verde, adentro igual)");
+    }
+
     // 12. retardo: con la imagen quieta, pasa igual (y no se cae al cambiar de largo).
     ponerGrafo(f, lineal("retardo", R"({"cuadros":3})"));
     for (int i = 0; i < 6; ++i) {

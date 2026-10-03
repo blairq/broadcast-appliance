@@ -689,6 +689,81 @@ void VideoGrafos::aplicar(const std::string& entrada) {
     obs_source_release(src);
 }
 
+namespace {
+/// El id de la tarjeta `rostros` de una entrada ("" si no tiene).
+std::string tarjetaRostros(const GrafoVideo& g, const std::string& entrada) {
+    for (const auto& n : g.nodos())
+        if (n.grupo == entrada && n.tipo == "rostros") return n.id;
+    return {};
+}
+} // namespace
+
+bool VideoGrafos::cuadroRostros(const std::string& entrada, std::vector<std::uint8_t>& bgra, int& ancho, int& alto,
+                                std::uint64_t& serie) const {
+    const std::string id = tarjetaRostros(grafo_, entrada);
+    if (id.empty()) return false;
+    obs_source_t* src = obs_get_source_by_name(entrada.c_str());
+    if (src == nullptr) return false;
+    bool ok = false;
+    if (obs_source_t* f = obs_source_get_filter_by_name(src, kFiltro)) {
+        calldata_t cd = {};
+        calldata_set_string(&cd, "nodo", id.c_str());
+        calldata_set_ptr(&cd, "destino", &bgra);
+        if (proc_handler_call(obs_source_get_proc_handler(f), "analisis", &cd)) {
+            ancho = static_cast<int>(calldata_int(&cd, "ancho"));
+            alto = static_cast<int>(calldata_int(&cd, "alto"));
+            serie = static_cast<std::uint64_t>(calldata_int(&cd, "serie"));
+            ok = true;
+        }
+        calldata_free(&cd);
+        obs_source_release(f);
+    }
+    obs_source_release(src);
+    return ok;
+}
+
+void VideoGrafos::marcarCaras(const std::string& entrada, const json& cajas) const {
+    const std::string id = tarjetaRostros(grafo_, entrada);
+    if (id.empty()) return;
+    obs_source_t* src = obs_get_source_by_name(entrada.c_str());
+    if (src == nullptr) return;
+    if (obs_source_t* f = obs_source_get_filter_by_name(src, kFiltro)) {
+        calldata_t cd = {};
+        calldata_set_string(&cd, "nodo", id.c_str());
+        calldata_set_string(&cd, "cajas", cajas.dump().c_str());
+        proc_handler_call(obs_source_get_proc_handler(f), "caras", &cd);
+        calldata_free(&cd);
+        obs_source_release(f);
+    }
+    obs_source_release(src);
+}
+
+std::string VideoGrafos::configurarRostros(const std::map<std::string, std::string>& quiero) {
+    return editar([&](GrafoVideo& g) {
+        std::string e;
+        for (const std::string& entrada : g.entradas()) {
+            const std::string id = tarjetaRostros(g, entrada);
+            const auto it = quiero.find(entrada);
+            if (it != quiero.end()) {
+                if (id.empty()) {
+                    // Antes de la escena: ve la imagen ya corregida (color, recorte).
+                    const std::string nuevo = g.agregar("rostros", entrada, "", json{{"uso", it->second}, {"auto", true}}, &e);
+                    if (nuevo.empty()) return e;
+                } else if (g.nodo(id)->params.value("uso", std::string()) != it->second) {
+                    g.ajustar(id, json{{"uso", it->second}}, &e);
+                }
+            } else if (!id.empty()) {
+                const GrafoVideo::Nodo* n = g.nodo(id);
+                if (n->params.value("auto", false))
+                    g.quitar(id, &e);
+                else if (n->params.value("uso", std::string()) != "mirar")
+                    g.ajustar(id, json{{"uso", "mirar"}}, &e);
+            }
+        }
+        return std::string();
+    });
+}
+
 void VideoGrafos::actualizarEstudio() {
     // Las fuentes de los compositores, con su configuración al día.
     for (const std::string& nombre : rt_.engine().sourceNames()) {
@@ -715,6 +790,9 @@ void VideoGrafos::actualizarEstudio() {
         if (d != nullptr && h != nullptr && !d->grupo.empty() && h->grupo != d->grupo && c.entrada != "ctl")
             quiero.insert(d->grupo);
     }
+    // Y las que tienen una tarjeta de rostros: Personas mira por ahí.
+    for (const auto& n : grafo_.nodos())
+        if (n.tipo == "rostros" && !n.grupo.empty()) quiero.insert(n.grupo);
     for (const std::string& e : quiero)
         if (!mostradas_.count(e))
             if (obs_source_t* o = obs_get_source_by_name(e.c_str())) {

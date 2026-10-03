@@ -20,7 +20,7 @@ namespace {
 constexpr int kColumna = 220;
 
 bool esFiltro(const std::string& t) {
-    return t == "color" || t == "croma" || t == "recorte" || t == "obs" || t == "gst" || t == "retardo";
+    return t == "color" || t == "croma" || t == "recorte" || t == "obs" || t == "gst" || t == "retardo" || t == "rostros";
 }
 
 json fabrica(const std::string& tipo) {
@@ -30,6 +30,10 @@ json fabrica(const std::string& tipo) {
         return {{"izquierda", 0.0}, {"arriba", 0.0}, {"derecha", 0.0}, {"abajo", 0.0}, {"espejoH", false}, {"espejoV", false}};
     if (tipo == "salida") return {{"nombre", ""}};
     if (tipo == "retardo") return {{"cuadros", 0}};
+    // `uso`: para qué la usa Personas (mirar | autoalta | puerta); `auto`: la
+    // puso Personas sola (y la saca cuando no la necesita).
+    if (tipo == "rostros")
+        return {{"uso", "mirar"}, {"cada", 500}, {"ancho", 640}, {"marcar", false}, {"auto", false}};
     if (tipo == "obs") return {{"filtro", ""}, {"ajustes", json::object()}};
     // Un módulo de GStreamer: el elemento y sus propiedades (lo que cambia de fábrica).
     if (tipo == "gst") return {{"elemento", ""}, {"propiedades", json::object()}};
@@ -52,6 +56,7 @@ std::string titulo(const std::string& tipo) {
     if (tipo == "recorte") return "Recorte y espejo";
     if (tipo == "salida") return "Salida";
     if (tipo == "retardo") return "Retardo";
+    if (tipo == "rostros") return "Rostros";
     if (tipo == "obs") return "Filtro";
     if (tipo == "gst") return "Módulo";
     if (tipo == "control") return "Controlador";
@@ -120,6 +125,8 @@ json GrafoVideo::catalogo() {
         {"color", "Brillo, contraste, saturación y gamma.", "entrada"},
         {"croma", "Saca un fondo de color (verde de fábrica): queda transparente.", "entrada"},
         {"recorte", "Recorta los bordes (quedan transparentes) y da vuelta la imagen.", "entrada"},
+        {"rostros", "Reconoce caras en este punto de la entrada (para Personas: anotado, puerta). La imagen pasa igual; "
+                    "con «marcar», dibuja las caras.", "entrada"},
         {"retardo", "Atrasa la imagen unos cuadros: para sincronizar una cámara con otra (o con el audio).", "entrada"},
         {"salida", "Publica la imagen de ese punto como una fuente con nombre, para cualquier escena.", "entrada"},
         {"compositor", "Junta varias entradas en una imagen (mosaico, imagen en imagen). Es del estudio.", "estudio"},

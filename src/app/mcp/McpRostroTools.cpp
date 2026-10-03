@@ -149,7 +149,7 @@ void McpService::registerRostroTools() {
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"feed", {{"type", "string"}, {"description", "clave de feeds_list (por defecto program)"}}}}}};
+             {{"feed", {{"type", "string"}, {"description", "clave de feeds_list (por defecto program), o «entrada:<camara>» para una camara del estudio (lo mira por su tarjeta Rostros del grafo de video, que se pone sola)"}}}}}};
         t.examples = {R"({"feed": "guest:1"})", R"({})"};
         t.run = [pvDe, preparar](const json& a, Done done) {
             if (const std::string e = preparar(); !e.empty()) return done(ToolResult::error(e));
@@ -343,7 +343,7 @@ void McpService::registerRostroTools() {
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"feed", {{"type", "string"}, {"description", "clave de feeds_list (por defecto program)"}}}}}};
+             {{"feed", {{"type", "string"}, {"description", "clave de feeds_list (por defecto program), o «entrada:<camara>» para una camara del estudio (lo mira por su tarjeta Rostros del grafo de video, que se pone sola)"}}}}}};
         t.examples = {R"({"feed": "guest:1"})"};
         t.run = [pvDe, preparar](const json& a, Done done) {
             if (const std::string e = preparar(); !e.empty()) return done(ToolResult::error(e));
@@ -567,7 +567,7 @@ void McpService::registerRostroTools() {
             {"properties",
              {{"activo", {{"type", "boolean"}}},
               {"feed",
-               {{"type", "string"}, {"description", "que camara mira la entrada (clave de feeds_list)"}}}}}};
+               {{"type", "string"}, {"description", "que camara mira la entrada (clave de feeds_list, o «entrada:<camara>» para una camara del estudio: se le pone sola la tarjeta Rostros en el grafo de video)"}}}}}};
         t.examples = {R"({"activo": true, "feed": "cam:2"})", R"({})"};
         t.run = [pvDe, preparar](const json& a, Done done) {
             if (const std::string e = preparar(); !e.empty()) return done(ToolResult::error(e));
@@ -610,7 +610,7 @@ void McpService::registerRostroTools() {
                            {"feed",
                             {{"type", "string"},
                              {"description",
-                              "que camara mirar (clave de feeds_list), o \"lobby\" para todas las posiciones "
+                              "que camara mirar (clave de feeds_list, o «entrada:<camara>» para una camara del estudio), o \"lobby\" para todas las posiciones "
                               "de espera por turno"}}}}}};
         t.examples = {R"({"activo": true, "feed": "lobby"})", R"({"activo": true, "feed": "guest:1"})",
                       R"({})"};

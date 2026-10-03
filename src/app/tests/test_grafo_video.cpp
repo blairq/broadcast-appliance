@@ -257,6 +257,20 @@ int main() {
         CHECK(k.entradas().size() == 1 && k.nodo(GrafoVideo::idEntrada("A")) == nullptr && k.cables().size() == 1,
               "quitarEntrada saca el sub-grafo");
     }
+    // Rostros: un filtro más (la imagen pasa), con lo que Personas necesita.
+    {
+        GrafoVideo k;
+        k.asegurarEntrada("Cam");
+        std::string e;
+        const std::string r = k.agregar("rostros", "Cam", "", json{{"uso", "puerta"}, {"auto", true}}, &e);
+        const json pf = k.paraFiltro("Cam");
+        bool ok = false;
+        for (const auto& n : pf["nodos"])
+            if (n.value("tipo", "") == "rostros")
+                ok = n["params"].value("uso", "") == "puerta" && n["params"].value("cada", 0) == 500 && n["params"].value("auto", false);
+        CHECK(!r.empty() && ok && pf["cables"].size() == 2, "rostros: tarjeta intercalada, con uso, cada y auto");
+        CHECK(k.quitar(r, &e) && k.trivial("Cam"), "rostros: al quitarla, la entrada vuelve a como vino");
+    }
     // El retardo es un filtro más.
     {
         GrafoVideo k;

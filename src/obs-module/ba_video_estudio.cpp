@@ -85,6 +85,8 @@ void dibujarTex(gs_texture_t* tex, float x, float y, float w, float h, const cha
     gs_matrix_pop();
 }
 
+} // namespace
+
 /// Dibuja la entrada `fuente` aparte (su filtro llena sus tomas).
 void despertar(const std::string& fuente) {
     {
@@ -111,8 +113,6 @@ void despertar(const std::string& fuente) {
     }
     obs_source_release(o);
 }
-
-} // namespace
 
 void dibujando(const std::string& fuente, bool si) {
     std::lock_guard<std::mutex> l(g_lock);

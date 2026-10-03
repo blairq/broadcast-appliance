@@ -442,6 +442,9 @@ La API de Facebook solo transmite y administra videos de **Paginas** (no del per
 ## Una correccion para varias camaras (controladores)
 - `video_controlador {"tarjeta": "sony.gst"}`: hace un controlador (nodo del estudio) con esa tarjeta; `{"controlador": ..., "entrada": "Pelco"}` le agrega a otra entrada una tarjeta manejada por el. Cambiar el controlador (`video_tarjeta_ajustar` sobre el o sobre cualquier tarjeta manejada) cambia todas; lo propio de una camara va en `{"local": {...}}`. `{"soltar": id}` la desconecta. Los cables de control van de la salida `ctl` del controlador a la entrada `ctl` de la tarjeta.
 
+## Rostros
+- La tarjeta `rostros` le da a Personas la imagen de ESE punto de la entrada (despues de corregir el color, de recortar…). Personas la pone sola: al usar `entrada:<camara>` como feed (rostro_ver, rostro_calidad, el anotado automatico, la camara de la puerta) aparece en el grafo, y se va al dejar de usarla. `{"marcar": true}` dibuja las caras reconocidas (mejor en una rama con una salida, no en lo que va al aire).
+
 ## Entradas virtuales
 - `video_entrada_virtual` sin nada: los presets (barras-hd, barras, barras-75, barras-hora, negro, blanco, verde, zona, damero, pelota, ruido). `{"nombre": "Barras", "preset": "barras-hd"}` la crea en la escena al aire; `pipeline` en vez de `preset`: cualquier origen de GStreamer (`rtspsrc location=… ! decodebin`, `srtsrc uri=srt://:9000 ! decodebin`). Es una entrada mas, con su sub-grafo.
 

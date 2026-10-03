@@ -43,6 +43,10 @@ void configurarCompositor(const std::string& id, const char* config);
 /// El lienzo del compositor `id` en este cuadro, o nullptr.
 gs_texture_t* componer(const std::string& id, std::uint32_t* cx, std::uint32_t* cy);
 
+/// Dibuja la entrada `fuente` aparte, en el hilo gráfico (su filtro corre y
+/// llena sus tomas y sus tarjetas de análisis). No hace nada si ya se está
+/// dibujando.
+void despertar(const std::string& fuente);
 /// Mientras una entrada se dibuja (su filtro), para no despertarla de nuevo.
 void dibujando(const std::string& fuente, bool si);
 

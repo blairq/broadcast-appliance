@@ -214,7 +214,8 @@ void McpService::registerVideoTools() {
             "`params` con los de fábrica que quieras cambiar (video_grafo los lista). Croma: `clave` 0xRRGGBB (verde "
             "0x00B140), `similitud`, `suavidad`, `derrame`. Color: `brillo`, `contraste`, `saturacion`, `gamma`. "
             "Recorte: `izquierda`, `arriba`, `derecha`, `abajo` (0..1), `espejoH`, `espejoV`. Retardo: `cuadros` "
-            "(0..120, para sincronizar). Salida: `nombre`. Compositor: `ancho`, `alto`, `fondo` (0xAARRGGBB), "
+            "(0..120, para sincronizar). Rostros: `cada` (ms), `marcar` (dibuja las caras); la pone sola Personas "
+            "al elegir una camara (`entrada:<camara>`), `uso` dice para que. Salida: `nombre`. Compositor: `ancho`, `alto`, `fondo` (0xAARRGGBB), "
             "`nombre`, y por puerto `capas.in_N` {x, y, ancho, alto (0..1 del lienzo), opacidad, orden, ajuste "
             "(encajar|llenar)}; sin capas, mosaico; null en una capa la vuelve al mosaico. "
             "Un filtro de OBS: sus ajustes van en `params.ajustes` (video_filtros con el id de la tarjeta los "
@@ -224,7 +225,7 @@ void McpService::registerVideoTools() {
                          {"required", {"tipo"}},
                          {"properties",
                           {{"entrada", entrada},
-                           {"tipo", {{"type", "string"}, {"enum", {"color", "croma", "recorte", "obs", "gst", "retardo", "salida", "compositor"}}}},
+                           {"tipo", {{"type", "string"}, {"enum", {"color", "croma", "recorte", "obs", "gst", "retardo", "rostros", "salida", "compositor"}}}},
                            {"filtro", {{"type", "string"}, {"description", "con tipo obs: el id del filtro de OBS"}}},
                            {"elemento", {{"type", "string"}, {"description", "con tipo gst: el módulo de GStreamer (p. ej. videobalance)"}}},
                            {"despues", idTarjeta},

@@ -65,6 +65,7 @@ Rectangle {
         if (tipo === "recorte") return "#38bdf8"
         if (tipo === "salida") return "#a78bfa"
         if (tipo === "retardo") return "#94a3b8"
+        if (tipo === "rostros") return "#f43f5e"
         return Theme.accent
     }
     function f2(v) { return Number(v).toFixed(2) }
@@ -94,6 +95,7 @@ Rectangle {
         }
         if (n.tipo === "salida") return "«" + (p.nombre || "") + "»" + (n.publicada ? " · en escena" : "")
         if (n.tipo === "retardo") return (p.cuadros || 0) + " cuadros de atraso"
+        if (n.tipo === "rostros") return ({ mirar: "Personas mira", autoalta: "Personas anota sola", puerta: "Puerta: acredita" })[p.uso] + (p.marcar ? " · marca" : "")
         return ""
     }
     // Los nodos de afuera (otra entrada, el estudio) en una columna a la
@@ -496,6 +498,8 @@ Rectangle {
                                     { k: "similitud", t: "Similitud (cuánto se va)", min: 0, max: 1 },
                                     { k: "suavidad", t: "Suavidad del borde", min: 0, max: 1 },
                                     { k: "derrame", t: "Quitar el reflejo de color", min: 0, max: 1 }]
+                                if (t === "rostros") return [
+                                    { k: "cada", t: "Cada cuánto mira (ms)", min: 100, max: 3000, entero: true }]
                                 if (t === "retardo") return [
                                     { k: "cuadros", t: "Cuadros de atraso (para sincronizar)", min: 0, max: 30, entero: true }]
                                 if (t === "recorte") return [
@@ -595,6 +599,27 @@ Rectangle {
                                     const v = parseInt(text.replace("#", ""), 16)
                                     if (!isNaN(v)) page.avisar(page.vg.ajustar(page.sel, { clave: v }))
                                 }
+                            }
+                        }
+
+                        // Rostros: para qué la usa Personas, y marcar las caras.
+                        ColumnLayout {
+                            visible: page.tipoEf === "rostros"
+                            Layout.fillWidth: true
+                            spacing: 4
+                            Text {
+                                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                color: Theme.textDim; font.pixelSize: 12
+                                text: !page.paramsEf ? "" : (page.paramsEf.auto
+                                      ? "La puso Personas (" + ({ mirar: "la página la está mirando", autoalta: "anotado automático", puerta: "cámara de la puerta" })[page.paramsEf.uso] + "): se va sola cuando deja de usarla."
+                                      : "Personas reconoce caras con lo que pasa por acá. Moverla de lugar cambia qué imagen mira (antes o después de corregir el color, de recortar…).")
+                            }
+                            CheckBox {
+                                text: "Marcar las caras en la imagen"
+                                checked: !!page.paramsEf && !!page.paramsEf.marcar
+                                onToggled: page.avisar(page.vg.ajustar(page.sel, { marcar: checked }))
+                                ToolTip.visible: hovered; ToolTip.delay: 400
+                                ToolTip.text: "Para probar o para un monitor: conviene ponerla en una rama (con una salida), no en lo que va al aire"
                             }
                         }
 

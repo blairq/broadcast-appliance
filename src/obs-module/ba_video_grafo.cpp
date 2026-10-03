@@ -21,7 +21,10 @@
 //   punto ({"nombre"}); `traer` (sin entrada; se calcula al final) trae un
 //   compositor ({"compositor": id, "config": "…"}) o la toma de otra entrada
 //   ({"toma", "fuente"}). `retardo` atrasa la imagen {"cuadros"} (para
-//   sincronizar una cámara con otra o con el audio).
+//   sincronizar una cámara con otra o con el audio). `rostros` deja pasar
+//   la imagen y, mientras alguien la pide (proc `analisis`), baja un cuadro
+//   chico cada tanto para el reconocimiento de caras de la app; con
+//   {"marcar": true} dibuja las caras que le devuelve la app (proc `caras`).
 //
 // Modelo de threading:
 //   `update` (cualquier hilo) arma un Plan nuevo y lo cambia bajo un mutex;
@@ -38,12 +41,14 @@
 
 #include <obs-module.h>
 #include <obs.h>
+#include <util/platform.h>
 
 #include "ba_gst.hpp"
 #include "ba_video_estudio.hpp"
 
 #include <algorithm>
 #include <cstdint>
+#include <cstring>
 #include <locale>
 #include <sstream>
 #include <iterator>
@@ -56,7 +61,37 @@
 
 namespace {
 
-enum class Tipo { Color, Croma, Recorte, Salida, Obs, Gst, Toma, Traer, Retardo };
+enum class Tipo { Color, Croma, Recorte, Salida, Obs, Gst, Toma, Traer, Retardo, Rostros };
+
+/// Lo de una tarjeta `rostros` (sobrevive a los cambios del plan).
+///
+/// La imagen se BAJA chica (`ancho` de lado) y en dos tiempos: se copia a la
+/// superficie de lectura en un cuadro y se lee en el siguiente, así la GPU no
+/// se frena esperando. Solo mientras la app la pide: sin pedidos no cuesta nada.
+struct Analisis {
+    gs_texrender_t* chico = nullptr;
+    gs_stagesurf_t* lectura = nullptr;
+    bool enCamino = false;          ///< hay una copia esperando ser leída
+    std::uint64_t ultimaMs = 0;     ///< cuándo se pidió la última copia
+    std::mutex lock;                ///< lo de abajo: lo lee la app
+    std::vector<std::uint8_t> bgra; ///< el último cuadro bajado
+    int ancho = 0, alto = 0;
+    std::uint64_t serie = 0;        ///< sube con cada cuadro nuevo
+    std::uint64_t pedidoMs = 0;     ///< el último pedido de la app
+    std::string cajas;              ///< las caras para marcar: JSON [{x,y,ancho,alto}] en 0..1
+    std::uint64_t cajasMs = 0;      ///< cuándo llegaron (vencen: ver kCajasVencenMs)
+    ~Analisis() {
+        obs_enter_graphics();
+        gs_texrender_destroy(chico);
+        gs_stagesurface_destroy(lectura);
+        obs_leave_graphics();
+    }
+};
+/// Sin pedidos de la app en este rato, la tarjeta deja de bajar cuadros.
+constexpr std::uint64_t kAnalisisSinPedidoMs = 3000;
+/// Las caras marcadas se borran si no llegan nuevas en este rato: si se dejó
+/// de mirar, no quedan cajas viejas encima de la imagen.
+constexpr std::uint64_t kCajasVencenMs = 2000;
 
 /// Los cuadros guardados de una tarjeta `retardo` (sobreviven a los cambios del plan).
 struct Retardo {
@@ -113,6 +148,10 @@ struct Paso {
     // retardo
     int cuadros = 0;
     std::shared_ptr<Retardo> retardo;
+    // rostros
+    std::shared_ptr<Analisis> analisis;
+    int cadaMs = 500, anchoAnalisis = 640;
+    bool marcar = false;
     // obs
     std::shared_ptr<InstanciaObs> obs;
 #if defined(BA_HAVE_GST)
@@ -126,6 +165,7 @@ struct Plan {
     /// Las tarjetas de OBS por id de nodo (para reusarlas en el plan siguiente).
     std::map<std::string, std::shared_ptr<InstanciaObs>> obs;
     std::map<std::string, std::shared_ptr<Retardo>> retardos;
+    std::map<std::string, std::shared_ptr<Analisis>> analisis;
 #if defined(BA_HAVE_GST)
     std::map<std::string, std::shared_ptr<ba::gst::TarjetaGst>> gst;
 #endif
@@ -361,6 +401,20 @@ std::shared_ptr<Plan> armarPlan(const char* json, const Plan* anterior) {
                 p.tipo = Tipo::Toma;
                 p.nombre = q != nullptr ? obs_data_get_string(q, "nombre") : "";
                 if (p.nombre.empty()) continue;
+            } else if (n.tipo == "rostros") {
+                p.tipo = Tipo::Rostros;
+                if (q != nullptr) {
+                    obs_data_set_default_int(q, "cada", 500);
+                    obs_data_set_default_int(q, "ancho", 640);
+                }
+                p.cadaMs = q != nullptr ? static_cast<int>(std::clamp<long long>(obs_data_get_int(q, "cada"), 100, 10000)) : 500;
+                p.anchoAnalisis = q != nullptr ? static_cast<int>(std::clamp<long long>(obs_data_get_int(q, "ancho"), 160, 1920)) : 640;
+                p.marcar = q != nullptr && obs_data_get_bool(q, "marcar");
+                std::shared_ptr<Analisis> a;
+                if (anterior != nullptr && anterior->analisis.count(n.id)) a = anterior->analisis.at(n.id);
+                if (!a) a = std::make_shared<Analisis>();
+                p.analisis = a;
+                plan->analisis[n.id] = a;
             } else if (n.tipo == "retardo") {
                 p.tipo = Tipo::Retardo;
                 p.cuadros = q != nullptr ? static_cast<int>(std::clamp<long long>(obs_data_get_int(q, "cuadros"), 0, 120)) : 0;
@@ -412,6 +466,30 @@ std::shared_ptr<Plan> armarPlan(const char* json, const Plan* anterior) {
         if (n.tipo == "out") plan->escena = indice.count(n.desde) ? indice[n.desde] : -2;
     for (auto& n : nodos) obs_data_release(n.params);
     return plan;
+}
+
+/// En cada cuadro (hilo gráfico): si una tarjeta `rostros` de este grafo está
+/// pedida y le toca bajar otro cuadro, pero nadie dibujó la entrada en este
+/// cuadro, se la dibuja aparte.
+void despertarSiPiden(void* data, std::uint32_t, std::uint32_t) {
+    auto* g = static_cast<Grafo*>(data);
+    const std::uint64_t ahora = os_gettime_ns() / 1000000;
+    bool toca = false;
+    {
+        std::lock_guard<std::mutex> l(g->planLock);
+        if (g->ultimoCuadro == obs_get_video_frame_time()) return; // ya se dibujó
+        for (const auto& p : g->plan->pasos) {
+            if (p.tipo != Tipo::Rostros) continue;
+            std::lock_guard<std::mutex> la(p.analisis->lock);
+            const std::uint64_t pedido = p.analisis->pedidoMs;
+            if (pedido != 0 && ahora - pedido <= kAnalisisSinPedidoMs &&
+                (ahora - p.analisis->ultimaMs >= static_cast<std::uint64_t>(p.cadaMs) || p.analisis->enCamino))
+                toca = true;
+        }
+    }
+    if (!toca) return;
+    obs_source_t* padre = obs_filter_get_parent(g->ctx);
+    if (padre != nullptr) ba::video::despertar(obs_source_get_name(padre));
 }
 
 const char* nombre(void*) { return obs_module_text("Grafo de video (BA)"); }
@@ -480,11 +558,57 @@ void* crear(obs_data_t* settings, obs_source_t* ctx) {
                          obs_data_release(o);
                      },
                      g);
+    // La app pide el último cuadro de una tarjeta `rostros` (y con eso la
+    // mantiene bajando). `destino` es un std::vector<std::uint8_t>* (BGRA).
+    proc_handler_add(obs_source_get_proc_handler(ctx),
+                     "void analisis(in string nodo, in ptr destino, out int ancho, out int alto, out int serie)",
+                     [](void* d, calldata_t* cd) {
+                         auto* x = static_cast<Grafo*>(d);
+                         const char* nodo = calldata_string(cd, "nodo");
+                         auto* destino = static_cast<std::vector<std::uint8_t>*>(calldata_ptr(cd, "destino"));
+                         std::shared_ptr<Analisis> a;
+                         {
+                             std::lock_guard<std::mutex> l(x->planLock);
+                             const auto it = x->plan->analisis.find(nodo != nullptr ? nodo : "");
+                             if (it != x->plan->analisis.end()) a = it->second;
+                         }
+                         if (!a) return;
+                         std::lock_guard<std::mutex> l(a->lock);
+                         a->pedidoMs = os_gettime_ns() / 1000000;
+                         if (destino != nullptr) *destino = a->bgra;
+                         calldata_set_int(cd, "ancho", a->ancho);
+                         calldata_set_int(cd, "alto", a->alto);
+                         calldata_set_int(cd, "serie", static_cast<long long>(a->serie));
+                     },
+                     g);
+    // Las caras que la app reconoció, para marcarlas: JSON
+    // [{"x","y","ancho","alto"}] en fracciones de la imagen.
+    proc_handler_add(obs_source_get_proc_handler(ctx), "void caras(in string nodo, in string cajas)",
+                     [](void* d, calldata_t* cd) {
+                         auto* x = static_cast<Grafo*>(d);
+                         const char* nodo = calldata_string(cd, "nodo");
+                         const char* cajas = calldata_string(cd, "cajas");
+                         std::shared_ptr<Analisis> a;
+                         {
+                             std::lock_guard<std::mutex> l(x->planLock);
+                             const auto it = x->plan->analisis.find(nodo != nullptr ? nodo : "");
+                             if (it != x->plan->analisis.end()) a = it->second;
+                         }
+                         if (!a) return;
+                         std::lock_guard<std::mutex> l(a->lock);
+                         a->cajas = cajas != nullptr ? cajas : "";
+                         a->cajasMs = os_gettime_ns() / 1000000;
+                     },
+                     g);
+    // Si la app pide cuadros de una entrada que ninguna escena dibuja, se la
+    // dibuja aparte (cada tanto, no en cada cuadro).
+    obs_add_main_render_callback(despertarSiPiden, g);
     return g;
 }
 
 void destruir(void* data) {
     auto* g = static_cast<Grafo*>(data);
+    obs_remove_main_render_callback(despertarSiPiden, g);
     obs_enter_graphics();
     gs_effect_destroy(g->fx);
     gs_texrender_destroy(g->entrada);
@@ -516,6 +640,108 @@ void aSalida(Grafo* g, const std::string& nombre, gs_texture_t* tex) {
     s->cx = g->cx;
     s->cy = g->cy;
     s->cuadro = obs_get_video_frame_time();
+}
+
+/// La tarjeta `rostros`: lee lo que quedó en camino y, si toca, baja otro.
+/// Se llama ANTES de empezar a dibujar el paso (usa sus propias texturas).
+void bajarAnalisis(const Paso& p, gs_texture_t* en, std::uint32_t cx, std::uint32_t cy) {
+    Analisis& a = *p.analisis;
+    const std::uint64_t ahora = os_gettime_ns() / 1000000;
+    std::uint64_t pedido = 0;
+    {
+        std::lock_guard<std::mutex> l(a.lock);
+        pedido = a.pedidoMs;
+    }
+    // 1) La copia del cuadro anterior ya está: se lee sin esperar a la GPU.
+    if (a.enCamino && a.lectura != nullptr) {
+        std::uint8_t* datos = nullptr;
+        std::uint32_t paso = 0;
+        if (gs_stagesurface_map(a.lectura, &datos, &paso)) {
+            const int w = static_cast<int>(gs_stagesurface_get_width(a.lectura));
+            const int h = static_cast<int>(gs_stagesurface_get_height(a.lectura));
+            std::lock_guard<std::mutex> l(a.lock);
+            a.bgra.resize(static_cast<size_t>(w) * h * 4);
+            for (int y = 0; y < h; ++y)
+                std::memcpy(a.bgra.data() + static_cast<size_t>(y) * w * 4, datos + static_cast<size_t>(y) * paso,
+                            static_cast<size_t>(w) * 4);
+            a.ancho = w;
+            a.alto = h;
+            ++a.serie;
+            gs_stagesurface_unmap(a.lectura);
+        }
+        a.enCamino = false;
+    }
+    // 2) Otra, si alguien la está pidiendo y ya pasó el intervalo.
+    if (pedido == 0 || ahora - pedido > kAnalisisSinPedidoMs || ahora - a.ultimaMs < static_cast<std::uint64_t>(p.cadaMs))
+        return;
+    const std::uint32_t w = std::min<std::uint32_t>(cx, static_cast<std::uint32_t>(p.anchoAnalisis));
+    const std::uint32_t h = std::max<std::uint32_t>(1, static_cast<std::uint32_t>(static_cast<std::uint64_t>(cy) * w / std::max<std::uint32_t>(1, cx)));
+    if (a.chico == nullptr) a.chico = gs_texrender_create(GS_BGRA, GS_ZS_NONE);
+    if (a.lectura == nullptr || gs_stagesurface_get_width(a.lectura) != w || gs_stagesurface_get_height(a.lectura) != h) {
+        gs_stagesurface_destroy(a.lectura);
+        a.lectura = gs_stagesurface_create(w, h, GS_BGRA);
+    }
+    gs_texrender_reset(a.chico);
+    if (!gs_texrender_begin(a.chico, w, h)) return;
+    gs_ortho(0.0f, static_cast<float>(w), 0.0f, static_cast<float>(h), -100.0f, 100.0f);
+    struct vec4 negro;
+    vec4_set(&negro, 0.0f, 0.0f, 0.0f, 1.0f);
+    gs_clear(GS_CLEAR_COLOR, &negro, 0.0f, 0);
+    gs_effect_t* fx = obs_get_base_effect(OBS_EFFECT_DEFAULT);
+    gs_effect_set_texture(gs_effect_get_param_by_name(fx, "image"), en);
+    gs_blend_state_push();
+    gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
+    while (gs_effect_loop(fx, "Draw")) gs_draw_sprite(en, 0, w, h);
+    gs_blend_state_pop();
+    gs_texrender_end(a.chico);
+    gs_stage_texture(a.lectura, gs_texrender_get_texture(a.chico));
+    a.enCamino = true;
+    a.ultimaMs = ahora;
+}
+
+/// Dibuja un rectángulo hueco (cuatro barras) con el efecto sólido.
+void rectangulo(gs_effect_t* solido, gs_eparam_t* pColor, float x, float y, float w, float h, float grueso) {
+    const auto barra = [&](float bx, float by, float bw, float bh) {
+        gs_effect_set_color(pColor, 0xFF22C55E); // verde «reconocido» (0xAARRGGBB)
+        gs_matrix_push();
+        gs_matrix_translate3f(bx, by, 0.0f);
+        while (gs_effect_loop(solido, "Solid"))
+            gs_draw_sprite(nullptr, 0, static_cast<std::uint32_t>(std::max(1.0f, bw)), static_cast<std::uint32_t>(std::max(1.0f, bh)));
+        gs_matrix_pop();
+    };
+    barra(x, y, w, grueso);
+    barra(x, y + h - grueso, w, grueso);
+    barra(x, y, grueso, h);
+    barra(x + w - grueso, y, grueso, h);
+}
+
+/// Las caras que mandó la app, encima de la imagen (en el render target actual).
+void marcarCaras(Analisis& a, std::uint32_t cx, std::uint32_t cy) {
+    std::string cajas;
+    {
+        std::lock_guard<std::mutex> l(a.lock);
+        if (os_gettime_ns() / 1000000 - a.cajasMs <= kCajasVencenMs) cajas = a.cajas;
+    }
+    if (cajas.empty()) return;
+    obs_data_t* d = obs_data_create_from_json(("{\"c\":" + cajas + "}").c_str());
+    if (d == nullptr) return;
+    obs_data_array_t* arr = obs_data_get_array(d, "c");
+    gs_effect_t* solido = obs_get_base_effect(OBS_EFFECT_SOLID);
+    gs_eparam_t* pColor = gs_effect_get_param_by_name(solido, "color");
+    const float W = static_cast<float>(cx), H = static_cast<float>(cy);
+    const float grueso = std::max(2.0f, W / 480.0f);
+    gs_blend_state_push();
+    gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
+    for (size_t i = 0; arr != nullptr && i < obs_data_array_count(arr); ++i) {
+        obs_data_t* c = obs_data_array_item(arr, i);
+        rectangulo(solido, pColor, static_cast<float>(obs_data_get_double(c, "x")) * W, static_cast<float>(obs_data_get_double(c, "y")) * H,
+                   static_cast<float>(obs_data_get_double(c, "ancho")) * W, static_cast<float>(obs_data_get_double(c, "alto")) * H,
+                   grueso);
+        obs_data_release(c);
+    }
+    gs_blend_state_pop();
+    obs_data_array_release(arr);
+    obs_data_release(d);
 }
 
 /// Las tarjetas del cuadro actual (una vez por cuadro).
@@ -553,6 +779,7 @@ bool procesar(Grafo* g, const Plan& plan) {
         if (p.tipo == Tipo::Traer)
             externa = !p.compositor.empty() ? ba::video::componer(p.compositor, nullptr, nullptr)
                                             : ba::video::leerToma(p.nombre, p.fuente, nullptr, nullptr);
+        if (p.tipo == Tipo::Rostros) bajarAnalisis(p, en, g->cx, g->cy);
         gs_texrender_t* destino = g->texs[i];
         gs_texrender_reset(destino);
         if (!gs_texrender_begin(destino, g->cx, g->cy)) continue;
@@ -585,6 +812,10 @@ bool procesar(Grafo* g, const Plan& plan) {
             pasada(g, en, "Recorte");
             break;
         }
+        case Tipo::Rostros:
+            pasada(g, en, "Copiar");
+            if (p.marcar) marcarCaras(*p.analisis, g->cx, g->cy);
+            break;
         case Tipo::Salida:
         case Tipo::Toma:
             // Pasa lo que recibe (lo que la siga ve lo mismo) y lo publica.
