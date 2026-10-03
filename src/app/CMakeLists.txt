@@ -440,6 +440,10 @@ endif()
     # El catalogo de filtros LSP en castellano (Audio -> filtros).
     qt_add_resources(ba-app "ba_lsp_catalogo" PREFIX "/audio" BASE "${CMAKE_SOURCE_DIR}/datos"
                      FILES "${CMAKE_SOURCE_DIR}/datos/lsp-catalogo.json")
+    # El escaner de red: las marcas de camaras con sus URLs tipicas y la base de
+    # fabricantes por MAC (registro OUI de la IEEE). Van como archivos (data/red).
+    install(FILES "${CMAKE_SOURCE_DIR}/datos/camaras-urls.json" "${CMAKE_SOURCE_DIR}/datos/oui.tsv"
+            DESTINATION data/red COMPONENT bundle)
     # La documentacion en castellano de los modulos de GStreamer (Video -> agregar modulo).
     qt_add_resources(ba-app "ba_gst_modulos" PREFIX "/video" BASE "${CMAKE_SOURCE_DIR}/datos"
                      FILES "${CMAKE_SOURCE_DIR}/datos/gst-modulos.json")
@@ -622,6 +626,13 @@ endif()
     target_include_directories(test_diagnostico_video PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_diagnostico_video PRIVATE ba_core)
     add_test(NAME test_diagnostico_video COMMAND test_diagnostico_video)
+
+    # El escáner de red: la base OUI, la biblioteca de URLs y RTSP (sin red).
+    add_executable(test_red tests/test_red.cpp red/Biblioteca.cpp red/Rtsp.cpp red/Plan.cpp)
+    target_include_directories(test_red PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_red PRIVATE ba_core Qt6::Core)
+    target_compile_definitions(test_red PRIVATE BA_TEST_DATOS="${CMAKE_SOURCE_DIR}/datos")
+    add_test(NAME test_red COMMAND test_red)
     add_executable(test_argumentos_locales tests/test_argumentos_locales.cpp agent/ArgumentosLocales.cpp)
     target_include_directories(test_argumentos_locales PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_argumentos_locales PRIVATE ba_core Qt6::Core)

@@ -123,6 +123,17 @@ json valorJson(const GValue* v) {
 
 } // namespace
 
+bool iniciarGStreamer(std::string* error) {
+#if defined(BA_HAVE_GST)
+    const bool ok = iniciarGst();
+    if (!ok && error != nullptr) *error = g_err;
+    return ok;
+#else
+    if (error != nullptr) *error = "esta compilación no trae GStreamer";
+    return false;
+#endif
+}
+
 CatalogoGst::CatalogoGst() : error_("GStreamer se está iniciando (la primera vez revisa sus módulos: unos segundos)") {}
 
 CatalogoGst::CatalogoGst(const std::filesystem::path& docs) {

@@ -1,0 +1,684 @@
+{
+ "_comentario": "Las URLs típicas de cámaras IP y grabadores, por marca (lo lee red/BibliotecaCamaras). `detectar`: cómo reconocerla (expresiones regulares, sin importar mayúsculas) en el nombre/modelo ONVIF, el encabezado Server o el título de su página web, el fabricante de su MAC (datos/oui.tsv), o un puerto propio abierto. Orden: ONVIF, web, MAC, puerto (la MAC sola engaña: EZVIZ usa MACs de Hikvision). `rtsp`: rutas a probar, en orden de preferencia; {canal} es 1, 2, 3… en un grabador. `usuario`: el de fábrica. Si no está: el estándar ONVIF (GetStreamUri) lo resuelve con usuario y clave, y si no, buscar el modelo en https://www.ispyconnect.com/cameras .",
+ "marcas": [
+  {
+   "id": "axis",
+   "nombre": "Axis",
+   "detectar": {
+    "onvif": [
+     "^axis",
+     "axis "
+    ],
+    "server": [
+     "axis"
+    ],
+    "titulo": [
+     "axis"
+    ],
+    "mac": [
+     "axis comm"
+    ]
+   },
+   "usuario": "root",
+   "rtsp": [
+    {
+     "perfil": "principal",
+     "ruta": "/axis-media/media.amp"
+    },
+    {
+     "perfil": "principal (H.264)",
+     "ruta": "/axis-media/media.amp?videocodec=h264"
+    },
+    {
+     "perfil": "cámara {canal} de un codificador",
+     "ruta": "/axis-media/media.amp?camera={canal}",
+     "canales": true
+    }
+   ],
+   "foto": "/axis-cgi/jpg/image.cgi",
+   "ptz": "onvif (y VAPIX)",
+   "notas": "Puede tener el visor anónimo habilitado (RTSP sin clave). ONVIF siempre pide usuario: se crea en Configuración → Sistema → Usuarios → ONVIF."
+  },
+  {
+   "id": "hikvision",
+   "nombre": "Hikvision (y HiWatch, Annke, LTS, grabadores DVR/NVR)",
+   "detectar": {
+    "onvif": [
+     "hikvision",
+     "^ds-",
+     "dvr container",
+     "nvr container",
+     "hiwatch",
+     "annke"
+    ],
+    "server": [
+     "hikvision",
+     "app-webs",
+     "dnvrs-webs",
+     "dvrdvs-webs",
+     "webserver"
+    ],
+    "titulo": [
+     "hikvision",
+     "^login$"
+    ],
+    "puertos": [
+     8000
+    ],
+    "mac": [
+     "hikvision"
+    ]
+   },
+   "usuario": "admin",
+   "rtsp": [
+    {
+     "perfil": "principal",
+     "ruta": "/Streaming/Channels/101"
+    },
+    {
+     "perfil": "secundario",
+     "ruta": "/Streaming/Channels/102"
+    },
+    {
+     "perfil": "canal {canal} (grabador), principal",
+     "ruta": "/Streaming/Channels/{canal}01",
+     "canales": true
+    },
+    {
+     "perfil": "canal {canal} (grabador), secundario",
+     "ruta": "/Streaming/Channels/{canal}02",
+     "canales": true
+    },
+    {
+     "perfil": "principal (firmware viejo)",
+     "ruta": "/h264/ch1/main/av_stream"
+    }
+   ],
+   "foto": "/ISAPI/Streaming/channels/101/picture",
+   "ptz": "onvif (en domos PTZ)",
+   "notas": "En un grabador, cada cámara es un canal: 101 = canal 1 principal, 102 = canal 1 secundario, 201 = canal 2… Las cámaras analógicas (HD-TVI) de un DVR solo se ven por el DVR. ONVIF a veces hay que habilitarlo y crear un usuario ONVIF aparte (Red → Avanzado → Protocolo de integración)."
+  },
+  {
+   "id": "ezviz",
+   "nombre": "EZVIZ",
+   "detectar": {
+    "onvif": [
+     "^cs-",
+     "ezviz"
+    ],
+    "server": [
+     "ezviz"
+    ],
+    "mac": [
+     "ezviz"
+    ]
+   },
+   "usuario": "admin",
+   "rtsp": [
+    {
+     "perfil": "principal",
+     "ruta": "/h264/ch1/main/av_stream"
+    },
+    {
+     "perfil": "secundario",
+     "ruta": "/h264/ch1/sub/av_stream"
+    },
+    {
+     "perfil": "principal (alternativa)",
+     "ruta": "/Streaming/Channels/101"
+    }
+   ],
+   "ptz": "solo por su app (los modelos que giran, como la C6, no exponen PTZ ONVIF en general)",
+   "notas": "La CLAVE es el CÓDIGO DE VERIFICACIÓN de 6 letras de la etiqueta de la cámara (usuario admin). El RTSP viene APAGADO: se habilita en la app EZVIZ → la cámara → Configuración → Servicio de red local / RTSP. Algunos modelos nuevos no lo tienen."
+  },
+  {
+   "id": "dahua",
+   "nombre": "Dahua (y Imou, Amcrest, Lorex)",
+   "detectar": {
+    "onvif": [
+     "dahua",
+     "^ipc-",
+     "^dh-",
+     "imou",
+     "amcrest",
+     "lorex"
+    ],
+    "server": [
+     "dahua",
+     "dh"
+    ],
+    "titulo": [
+     "web service",
+     "dahua"
+    ],
+    "puertos": [
+     37777
+    ],
+    "mac": [
+     "dahua",
+     "imou"
+    ]
+   },
+   "usuario": "admin",
+   "rtsp": [
+    {
+     "perfil": "principal",
+     "ruta": "/cam/realmonitor?channel=1&subtype=0"
+    },
+    {
+     "perfil": "secundario",
+     "ruta": "/cam/realmonitor?channel=1&subtype=1"
+    },
+    {
+     "perfil": "canal {canal} (grabador)",
+     "ruta": "/cam/realmonitor?channel={canal}&subtype=0",
+     "canales": true
+    }
+   ],
+   "foto": "/cgi-bin/snapshot.cgi",
+   "ptz": "onvif",
+   "notas": "Imou: la clave es el código de seguridad de la etiqueta. Amcrest y Lorex usan las mismas rutas."
+  },
+  {
+   "id": "reolink",
+   "nombre": "Reolink",
+   "detectar": {
+    "onvif": [
+     "reolink",
+     "^rlc-",
+     "^e1",
+     "^cx"
+    ],
+    "titulo": [
+     "reolink"
+    ],
+    "mac": [
+     "reolink"
+    ]
+   },
+   "usuario": "admin",
+   "rtsp": [
+    {
+     "perfil": "principal (H.264)",
+     "ruta": "/h264Preview_01_main"
+    },
+    {
+     "perfil": "secundario",
+     "ruta": "/h264Preview_01_sub"
+    },
+    {
+     "perfil": "principal (H.265)",
+     "ruta": "/h265Preview_01_main"
+    },
+    {
+     "perfil": "principal (nuevo)",
+     "ruta": "/Preview_01_main"
+    }
+   ],
+   "ptz": "onvif (E1 Zoom, RLC-823A…)",
+   "notas": "RTSP y ONVIF se habilitan en Configuración → Red → Avanzado → Puerto. Las de batería no tienen RTSP."
+  },
+  {
+   "id": "uniview",
+   "nombre": "Uniview (UNV)",
+   "detectar": {
+    "onvif": [
+     "uniview",
+     "^ipc\\d",
+     "unv"
+    ],
+    "titulo": [
+     "uniview"
+    ],
+    "mac": [
+     "uniview",
+     "zhejiang uniview"
+    ]
+   },
+   "usuario": "admin",
+   "rtsp": [
+    {
+     "perfil": "principal",
+     "ruta": "/unicast/c1/s0/live"
+    },
+    {
+     "perfil": "secundario",
+     "ruta": "/unicast/c1/s1/live"
+    },
+    {
+     "perfil": "principal (alternativa)",
+     "ruta": "/media/video1"
+    }
+   ],
+   "ptz": "onvif"
+  },
+  {
+   "id": "tapo",
+   "nombre": "TP-Link Tapo / VIGI",
+   "detectar": {
+    "onvif": [
+     "tapo",
+     "^c\\d{3}",
+     "vigi"
+    ],
+    "server": [
+     "tp-link"
+    ],
+    "mac": [
+     "tp-link"
+    ]
+   },
+   "usuario": "(la cuenta de cámara)",
+   "rtsp": [
+    {
+     "perfil": "principal",
+     "ruta": "/stream1"
+    },
+    {
+     "perfil": "secundario",
+     "ruta": "/stream2"
+    }
+   ],
+   "ptz": "onvif (C200, C210, C500…)",
+   "notas": "Hay que crear una «cuenta de cámara» en la app Tapo (Configuración avanzada): ese usuario y clave, no los de la cuenta TP-Link."
+  },
+  {
+   "id": "foscam",
+   "nombre": "Foscam",
+   "detectar": {
+    "onvif": [
+     "foscam"
+    ],
+    "titulo": [
+     "ipcam client",
+     "foscam"
+    ],
+    "puertos": [
+     88
+    ],
+    "mac": [
+     "foscam",
+     "shenzhen foscam"
+    ]
+   },
+   "usuario": "admin",
+   "rtsp": [
+    {
+     "perfil": "principal",
+     "ruta": "/videoMain",
+     "puerto": 88
+    },
+    {
+     "perfil": "secundario",
+     "ruta": "/videoSub",
+     "puerto": 88
+    },
+    {
+     "perfil": "principal (puerto 554)",
+     "ruta": "/videoMain"
+    }
+   ],
+   "ptz": "onvif"
+  },
+  {
+   "id": "hanwha",
+   "nombre": "Hanwha / Wisenet / Samsung",
+   "detectar": {
+    "onvif": [
+     "hanwha",
+     "wisenet",
+     "samsung",
+     "^xn",
+     "^qn",
+     "^pn"
+    ],
+    "server": [
+     "hanwha",
+     "samsung"
+    ],
+    "mac": [
+     "hanwha",
+     "samsung techwin"
+    ]
+   },
+   "usuario": "admin",
+   "rtsp": [
+    {
+     "perfil": "principal",
+     "ruta": "/profile2/media.smp"
+    },
+    {
+     "perfil": "secundario",
+     "ruta": "/profile3/media.smp"
+    },
+    {
+     "perfil": "primer perfil",
+     "ruta": "/profile1/media.smp"
+    }
+   ],
+   "ptz": "onvif"
+  },
+  {
+   "id": "bosch",
+   "nombre": "Bosch",
+   "detectar": {
+    "onvif": [
+     "bosch",
+     "autodome",
+     "dinion",
+     "flexidome"
+    ],
+    "server": [
+     "bosch",
+     "vcs"
+    ],
+    "mac": [
+     "bosch security"
+    ]
+   },
+   "usuario": "service",
+   "rtsp": [
+    {
+     "perfil": "principal",
+     "ruta": "/rtsp_tunnel?inst=1"
+    },
+    {
+     "perfil": "secundario",
+     "ruta": "/rtsp_tunnel?inst=2"
+    },
+    {
+     "perfil": "principal (alternativa)",
+     "ruta": "/?inst=1"
+    }
+   ],
+   "ptz": "onvif (AUTODOME)"
+  },
+  {
+   "id": "vivotek",
+   "nombre": "Vivotek",
+   "detectar": {
+    "onvif": [
+     "vivotek"
+    ],
+    "server": [
+     "vivotek",
+     "boa"
+    ],
+    "mac": [
+     "vivotek"
+    ]
+   },
+   "usuario": "root",
+   "rtsp": [
+    {
+     "perfil": "principal",
+     "ruta": "/live.sdp"
+    },
+    {
+     "perfil": "secundario",
+     "ruta": "/live2.sdp"
+    }
+   ],
+   "ptz": "onvif"
+  },
+  {
+   "id": "panasonic",
+   "nombre": "Panasonic / i-PRO (también las PTZ de estudio AW-)",
+   "detectar": {
+    "onvif": [
+     "panasonic",
+     "i-pro",
+     "^wv-",
+     "^aw-"
+    ],
+    "server": [
+     "panasonic",
+     "i-pro"
+    ],
+    "mac": [
+     "panasonic",
+     "i-pro"
+    ]
+   },
+   "usuario": "admin",
+   "rtsp": [
+    {
+     "perfil": "principal",
+     "ruta": "/MediaInput/h264/stream_1"
+    },
+    {
+     "perfil": "secundario",
+     "ruta": "/MediaInput/h264/stream_2"
+    },
+    {
+     "perfil": "PTZ de estudio (AW-)",
+     "ruta": "/MediaInput/stream_1"
+    }
+   ],
+   "ptz": "las AW- por su protocolo propio (backend Panasonic del PTZ); las de seguridad por ONVIF"
+  },
+  {
+   "id": "sony",
+   "nombre": "Sony",
+   "detectar": {
+    "onvif": [
+     "sony",
+     "^snc-",
+     "^srg-",
+     "^brc-"
+    ],
+    "server": [
+     "sony"
+    ],
+    "mac": [
+     "sony"
+    ]
+   },
+   "usuario": "admin",
+   "rtsp": [
+    {
+     "perfil": "principal",
+     "ruta": "/media/video1"
+    },
+    {
+     "perfil": "secundario",
+     "ruta": "/media/video2"
+    }
+   ],
+   "ptz": "las SRG/BRC de estudio por VISCA sobre IP (backend VISCA del PTZ); las SNC por ONVIF"
+  },
+  {
+   "id": "grandstream",
+   "nombre": "Grandstream",
+   "detectar": {
+    "onvif": [
+     "grandstream",
+     "^gxv"
+    ],
+    "server": [
+     "grandstream"
+    ],
+    "mac": [
+     "grandstream"
+    ]
+   },
+   "usuario": "admin",
+   "rtsp": [
+    {
+     "perfil": "principal",
+     "ruta": "/0"
+    },
+    {
+     "perfil": "secundario",
+     "ruta": "/4"
+    }
+   ]
+  },
+  {
+   "id": "milesight",
+   "nombre": "Milesight",
+   "detectar": {
+    "onvif": [
+     "milesight",
+     "^msc-"
+    ],
+    "server": [
+     "milesight"
+    ],
+    "mac": [
+     "milesight"
+    ]
+   },
+   "usuario": "admin",
+   "rtsp": [
+    {
+     "perfil": "principal",
+     "ruta": "/main"
+    },
+    {
+     "perfil": "secundario",
+     "ruta": "/sub"
+    }
+   ],
+   "ptz": "onvif"
+  },
+  {
+   "id": "mobotix",
+   "nombre": "Mobotix",
+   "detectar": {
+    "onvif": [
+     "mobotix"
+    ],
+    "server": [
+     "mobotix"
+    ],
+    "mac": [
+     "mobotix"
+    ]
+   },
+   "usuario": "admin",
+   "rtsp": [
+    {
+     "perfil": "principal",
+     "ruta": "/stream0/mobotix.mjpeg"
+    },
+    {
+     "perfil": "H.264",
+     "ruta": "/stream0/mobotix.h264"
+    }
+   ]
+  },
+  {
+   "id": "avtech",
+   "nombre": "AVTECH",
+   "detectar": {
+    "onvif": [
+     "avtech"
+    ],
+    "server": [
+     "avtech"
+    ],
+    "mac": [
+     "avtech"
+    ]
+   },
+   "usuario": "admin",
+   "rtsp": [
+    {
+     "perfil": "principal",
+     "ruta": "/live/h264"
+    },
+    {
+     "perfil": "canal {canal}",
+     "ruta": "/live/h264/ch{canal}",
+     "canales": true
+    }
+   ]
+  },
+  {
+   "id": "ubiquiti",
+   "nombre": "Ubiquiti UniFi",
+   "detectar": {
+    "onvif": [
+     "ubiquiti",
+     "unifi"
+    ],
+    "server": [
+     "ubiquiti",
+     "unifi"
+    ],
+    "mac": [
+     "ubiquiti"
+    ]
+   },
+   "usuario": "",
+   "rtsp": [],
+   "notas": "Las UniFi Protect no dan RTSP directo: se habilita en Protect (la cámara → Configuración → Avanzado → RTSP) y la URL es rtsps://<NVR>:7441/<código> (se copia de ahí)."
+  },
+  {
+   "id": "generica",
+   "nombre": "Genérica (se prueban las rutas más comunes)",
+   "detectar": {},
+   "usuario": "admin",
+   "rtsp": [
+    {
+     "perfil": "raíz",
+     "ruta": "/"
+    },
+    {
+     "perfil": "live",
+     "ruta": "/live"
+    },
+    {
+     "perfil": "stream1",
+     "ruta": "/stream1"
+    },
+    {
+     "perfil": "h264",
+     "ruta": "/h264"
+    },
+    {
+     "perfil": "video1",
+     "ruta": "/video1"
+    },
+    {
+     "perfil": "11 (muchas chinas)",
+     "ruta": "/11"
+    },
+    {
+     "perfil": "ch0_0",
+     "ruta": "/live/ch00_0"
+    },
+    {
+     "perfil": "media/video1",
+     "ruta": "/media/video1"
+    },
+    {
+     "perfil": "Hikvision",
+     "ruta": "/Streaming/Channels/101"
+    },
+    {
+     "perfil": "Dahua",
+     "ruta": "/cam/realmonitor?channel=1&subtype=0"
+    },
+    {
+     "perfil": "Axis",
+     "ruta": "/axis-media/media.amp"
+    },
+    {
+     "perfil": "EZVIZ/Hik viejo",
+     "ruta": "/h264/ch1/main/av_stream"
+    },
+    {
+     "perfil": "Uniview",
+     "ruta": "/unicast/c1/s0/live"
+    },
+    {
+     "perfil": "Reolink",
+     "ruta": "/h264Preview_01_main"
+    }
+   ],
+   "notas": "Con usuario y clave, ONVIF (GetStreamUri) da la URL exacta: es lo mejor si la cámara lo tiene."
+  }
+ ]
+}

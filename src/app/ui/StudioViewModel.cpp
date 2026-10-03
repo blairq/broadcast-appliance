@@ -37,6 +37,7 @@
 #include "agent/FlujosTexto.hpp"
 #include "agent/VocesRack.hpp"
 #include "agent/ModelosLocales.hpp"
+#include "red/Red.hpp"
 #include "video/VideoGrafos.hpp"
 #include "agent/Roles.hpp"
 #include "agent/Voz.hpp"
@@ -353,9 +354,14 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                                     : "[OPERADOR] ignoro el mensaje de " + who + ".";
             else if (kind == "credential") {
                 const QString p = QString::fromStdString(item.value("platform", ""));
-                note = st == "saved"
-                           ? "[OPERADOR] guardo la credencial de " + p + ". Siguiente paso: " + p + "_login."
-                           : "[OPERADOR] cerro el formulario de credenciales de " + p + " sin guardar.";
+                if (p.startsWith("camara:"))
+                    note = st == "saved" ? "[OPERADOR] guardo usuario y clave de la camara " + p.mid(7) +
+                                               ". Siguiente paso: camara_ficha {\"ip\": \"" + p.mid(7) + "\"}."
+                                         : "[OPERADOR] cerro el formulario de la camara " + p.mid(7) + " sin guardar.";
+                else
+                    note = st == "saved"
+                               ? "[OPERADOR] guardo la credencial de " + p + ". Siguiente paso: " + p + "_login."
+                               : "[OPERADOR] cerro el formulario de credenciales de " + p + " sin guardar.";
             }
             if (!note.isEmpty()) agent_->deliverNote(note);
         });
@@ -377,6 +383,11 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // El grafo de tarjetas de video de cada entrada (después del PTZ).
     video_ = std::make_unique<video::VideoGrafos>(rt, rt.dataRoot());
     connect(inputs_.get(), &InputsViewModel::changed, video_.get(), &video::VideoGrafos::sincronizar);
+    // Los equipos de video de la red: la biblioteca de marcas y la base OUI
+    // vienen con el programa (data/red).
+    red_ = std::make_unique<red::Red>(ba::platform::bundleRoot() / "data" / "red",
+                                      QString::fromStdWString((rt.dataRoot() / "Credenciales").wstring()), video_.get(),
+                                      camaras_.get());
 #if defined(BA_HAVE_CLAP)
     // Racks de audio (LSP) de cada fuente: se montan los guardados.
     racks_ = std::make_unique<audio::RackManager>(rt.dataRoot());
@@ -572,6 +583,7 @@ QObject* StudioViewModel::matriz() const {
 }
 QObject* StudioViewModel::camaras() const { return camaras_.get(); }
 QObject* StudioViewModel::video() const { return video_.get(); }
+QObject* StudioViewModel::red() const { return red_.get(); }
 QObject* StudioViewModel::flujos() const { return flujos_.get(); }
 QObject* StudioViewModel::voces() const { return voces_.get(); }
 QObject* StudioViewModel::despachadorQml() const { return despachador_.get(); }
@@ -591,6 +603,11 @@ QVariantMap StudioViewModel::accountGuide(const QString& platform) const {
 }
 
 QString StudioViewModel::saveAccountCredential(const QString& platform, const QVariantMap& v) {
+    // Una cámara de la red (camara:<ip>): usuario y clave, cifrados.
+    if (platform.startsWith("camara:")) {
+        if (!red_) return "El escáner de red no está disponible.";
+        return red_->guardarCredenciales(platform.mid(7), v.value("usuario").toString(), v.value("clave").toString());
+    }
     const std::string p = accounts::normalize(platform.toStdString());
     if (p == "youtube") {
         QString path = v.value("importFile").toString();

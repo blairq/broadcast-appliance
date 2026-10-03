@@ -22,6 +22,10 @@
 
 namespace ba::app::video {
 
+/// Inicia GStreamer una vez (con el entorno del bundle). Bloquea la primera
+/// vez (revisa sus plugins): llamarla fuera del hilo de la interfaz.
+bool iniciarGStreamer(std::string* error = nullptr);
+
 class CatalogoGst {
    public:
     /// Inicia GStreamer (una vez) y lee la documentación de `docs`
