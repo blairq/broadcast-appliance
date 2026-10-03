@@ -23,6 +23,13 @@ Rectangle {
         return null
     }
     readonly property bool conHw: cam !== null && cam.backend !== "ninguno"
+    // Si la entrada es una cámara de red: ip, marca, modelo, onvif, ptz (sí/no/no se sabe), usuario…
+    property int redTick: 0
+    readonly property var red: { redTick; return Studio.red && sel !== "" ? Studio.red.camaraDeEntrada(sel) : ({}) }
+    readonly property bool esDeRed: page.red.ip !== undefined
+    property string ptzMsg: ""
+    property bool ptzOk: false
+    property bool activandoPtz: false
     readonly property bool mueveDigital: cam !== null && cam.modo === "digital"
     // Lo que puede lo que mueve el joystick ahora.
     readonly property var caps: cam === null ? ({}) : (mueveDigital ? cam.capacidadesDigital : cam.capacidades)
@@ -49,6 +56,18 @@ Rectangle {
     }
 
     function avisar(e) { page.error = e }
+    onSelChanged: { page.ptzMsg = ""; page.redTick++ }
+    Connections {
+        target: Studio.red
+        function onPtzListo(entrada, ok, texto) {
+            if (entrada !== page.sel) return
+            page.activandoPtz = false
+            page.ptzOk = ok
+            page.ptzMsg = texto
+            page.redTick++
+        }
+        function onCambio() { page.redTick++ }
+    }
 
     RowLayout {
         anchors { fill: parent; leftMargin: page.leftInset; margins: 20 }
@@ -96,6 +115,12 @@ Rectangle {
                                        color: Theme.textDim; font.pixelSize: 11 }
                             }
                             Text { visible: modelData.mejoraActiva; text: "✦ Mejorar imagen"; color: Theme.accentSoft; font.pixelSize: 10 }
+                            Text {
+                                readonly property var r: { page.redTick; return Studio.red ? Studio.red.camaraDeEntrada(modelData.entrada) : ({}) }
+                                visible: modelData.backend === "ninguno" && r.ip !== undefined && r.ptz !== false
+                                text: r.ptz === true ? "⚙ PTZ real disponible: configuralo" : "⚙ Cámara de red: ¿tiene PTZ real?"
+                                color: Theme.amber; font.pixelSize: 10
+                            }
                         }
                     }
                     MouseArea { anchors.fill: parent; onClicked: { page.sel = modelData.entrada; page.error = "" } }
@@ -165,6 +190,69 @@ Rectangle {
                     }
                 }
 
+                // Una cámara de red que todavía se mueve solo en digital: cómo
+                // activar su PTZ de verdad (ONVIF), sin buscar el backend a mano.
+                Panel {
+                    Layout.fillWidth: true
+                    visible: page.esDeRed && !page.conHw
+                    Layout.preferredHeight: visible ? ptzRealCol.implicitHeight + 64 : 0
+                    title: "Mover la cámara de verdad (PTZ real)"
+                    ColumnLayout {
+                        id: ptzRealCol
+                        anchors.fill: parent
+                        spacing: 8
+                        Text {
+                            Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.text; font.pixelSize: 12
+                            text: "«" + page.sel + "» es una cámara de red en " + (page.red.ip || "") +
+                                  (page.red.marca ? " (" + page.red.marca + (page.red.modelo ? " " + page.red.modelo : "") + ")" : "") +
+                                  ". Ahora el joystick mueve solo el RECORTE digital. " +
+                                  (page.red.ptz === true ? "La cámara tiene PTZ por ONVIF: con su usuario y clave se mueve el motor, con zoom óptico y sus presets."
+                                                         : "Si es una cámara PTZ (domo, motorizada), con su usuario y clave ONVIF se mueve el motor, con zoom óptico y sus presets.")
+                        }
+                        Repeater {
+                            model: page.red.notas || []
+                            delegate: Text { required property var modelData; Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                             text: "• " + modelData; color: Theme.textDim; font.pixelSize: 11 }
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+                            TextField {
+                                id: ptzUsuario
+                                Layout.preferredWidth: 180
+                                placeholderText: "Usuario ONVIF"
+                                text: page.red.usuario || ""
+                            }
+                            TextField {
+                                id: ptzClave
+                                Layout.fillWidth: true
+                                echoMode: TextInput.Password
+                                placeholderText: page.red.tieneClave ? "Clave (ya guardada: vacío = usar esa)" : "Clave"
+                            }
+                            GlassButton {
+                                text: page.activandoPtz ? "Consultando la cámara…" : "Activar PTZ real"
+                                active: true
+                                enabled: !page.activandoPtz && ptzUsuario.text.trim() !== "" && (ptzClave.text !== "" || page.red.tieneClave)
+                                onClicked: {
+                                    page.activandoPtz = true
+                                    page.ptzMsg = ""
+                                    Studio.red.activarPtzReal(page.sel, ptzUsuario.text, ptzClave.text)
+                                    ptzClave.text = ""
+                                }
+                            }
+                        }
+                        Text {
+                            visible: page.ptzMsg !== ""
+                            Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 12
+                            text: page.ptzMsg; color: page.ptzOk ? Theme.ok : Theme.warn
+                        }
+                        Text {
+                            Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
+                            text: "La clave se guarda cifrada en este equipo. Si la cámara no es ONVIF (VISCA, Panasonic…), elegí su control abajo, en «La cámara»."
+                        }
+                    }
+                }
+
                 // Joystick, zoom, foco y presets.
                 Panel {
                     Layout.fillWidth: true
@@ -174,6 +262,19 @@ Rectangle {
                         id: mandos
                         anchors.fill: parent
                         spacing: 10
+                        Text {
+                            visible: !page.conHw
+                            Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
+                            text: page.cam && page.cam.digital ? "Mueve el recorte digital (zoom y encuadre en la GPU): esta cámara no tiene el motor configurado." +
+                                                                 (page.esDeRed ? " Para moverla de verdad: «Activar PTZ real», arriba." : " Si es motorizada, elegí su control en «La cámara», abajo.")
+                                                               : "Esta cámara no tiene PTZ: prendé el digital (abajo) o configurá su control."
+                        }
+                        Text {
+                            visible: page.conHw
+                            Layout.fillWidth: true; wrapMode: Text.WordWrap; color: page.cam && page.cam.listo ? Theme.ok : Theme.warn; font.pixelSize: 12
+                            text: page.cam ? "Motor: " + page.cam.backend.toUpperCase() + (page.cam.conf && page.cam.conf.host ? " en " + page.cam.conf.host : "") +
+                                             " — " + (page.cam.estado || (page.cam.listo ? "contesta" : "no contesta")) : ""
+                        }
                         RowLayout {
                             visible: page.conHw && page.cam.digital
                             spacing: 8
@@ -433,7 +534,7 @@ Rectangle {
                     id: panelHw
                     Layout.fillWidth: true
                     Layout.preferredHeight: hwCol.implicitHeight + 64
-                    title: "La cámara"
+                    title: "La cámara: su control (motor)"
                     property string backend: page.cam ? page.cam.backend : "ninguno"
                     property var valores: ({})
                     function definicion() {

@@ -106,12 +106,19 @@ class Red : public QObject {
     Q_INVOKABLE QString ptzDesdeUi(const QString& ip, const QString& entrada);
     /// La misma entrada (sin otro stream) en otra escena. "" o el error.
     Q_INVOKABLE QString reusarDesdeUi(const QString& ip, const QString& escena);
+    /// Si la entrada es una cámara de red: {ip, marca, modelo, onvif, ptz (true/false/null = no se sabe),
+    /// tieneClave, usuario, notas}. Vacío si no lo es. Para la página PTZ.
+    Q_INVOKABLE QVariantMap camaraDeEntrada(const QString& entrada) const;
+    /// El PTZ real de una cámara de red desde la página PTZ: guarda usuario y clave (si vienen), la
+    /// consulta por ONVIF y, si tiene PTZ, lo configura. El resultado llega por `ptzListo`.
+    Q_INVOKABLE void activarPtzReal(const QString& entrada, const QString& usuario, const QString& clave);
 
     Biblioteca& biblioteca() { return biblioteca_; }
     const Oui& oui() const { return oui_; }
 
    signals:
     void cambio();
+    void ptzListo(const QString& entrada, bool ok, const QString& texto);
 
    private:
     struct Escaneo;
