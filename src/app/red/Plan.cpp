@@ -100,9 +100,12 @@ json planDeSinCuidar(const json& ficha, const json& analisis, const json& lienzo
     pasos.push_back("El color (" + o.value("matriz", std::string("lo que declare")) + ", rango " + o.value("rango", std::string("el que declare")) +
                     ") lo convierte libobs en la GPU: no hace falta tarjeta");
     if (o.value("hdr", false)) pasos.push_back("OJO: manda HDR y el estudio es SDR: pasar la cámara a SDR (Rec.709)");
-    // Latencia.
-    args["latencia_ms"] = 200;
-    pasos.push_back("Colchón de 200 ms (red local cableada; con Wi-Fi o por internet, 400-800)");
+    // Latencia: una PTZ se maneja mirando la imagen; cada ms de colchón es un
+    // ms más entre mover el joystick y ver que se movió.
+    const bool esPtz = ficha.value("ptz", json::object()).value("tiene", false);
+    args["latencia_ms"] = esPtz ? 60 : 200;
+    pasos.push_back(esPtz ? "Colchón de 60 ms (es PTZ: se maneja mirando la imagen; con Wi-Fi o por internet, 300-600)"
+                          : "Colchón de 200 ms (red local cableada; con Wi-Fi o por internet, 400-800)");
     // PTZ.
     const json ptz = ficha.value("ptz", json::object());
     if (ficha.contains("onvif") && !ficha.value("onvif", true)) {

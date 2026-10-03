@@ -368,8 +368,12 @@ void alPrepararOrigen(GstElement*, GstElement* origen, gpointer datos) {
     if (g_object_class_find_property(k, "latency") != nullptr) gst_util_set_object_arg(G_OBJECT(origen), "latency", lat.c_str());
     if (g_object_class_find_property(k, "ntp-sync") != nullptr)
         gst_util_set_object_arg(G_OBJECT(origen), "ntp-sync", f->ntpSync && !f->ntpApagadoSolo ? "true" : "false");
+    // Con la hora de la cámara (ntp-sync) «synced» alinea varias cámaras; sin
+    // ella, «synced» fija la hora con el PRIMER paquete y si ese llegó tarde
+    // cada cuadro quedaba ~200 ms adelantado (esperando en el colchón, un PTZ
+    // que respondía tarde). «slave» sigue la llegada real.
     if (g_object_class_find_property(k, "buffer-mode") != nullptr)
-        gst_util_set_object_arg(G_OBJECT(origen), "buffer-mode", "synced");
+        gst_util_set_object_arg(G_OBJECT(origen), "buffer-mode", f->ntpSync && !f->ntpApagadoSolo ? "synced" : "slave");
 }
 
 void enganchar(Fuente* f, GstElement* p, const char* nombre, GstFlowReturn (*cb)(GstAppSink*, gpointer)) {

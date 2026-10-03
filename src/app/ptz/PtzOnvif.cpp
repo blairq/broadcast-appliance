@@ -91,6 +91,8 @@ void PtzOnvif::soap(const QString& url, const QString& cuerpo, Respuesta alTermi
 
 void PtzOnvif::configurar(const QJsonObject& conf) {
     ++generacion_;
+    enVuelo_ = hayPendiente_ = false;
+    ePan_ = eTilt_ = eZoom_ = 9;
     junta_.stop();
     dispositivo_ = urlDispositivo(conf.value("host").toString(), conf.value("puerto").toInt(80));
     usuario_ = conf.value("usuario").toString();
@@ -165,33 +167,75 @@ void PtzOnvif::mover(double pan, double tilt, double zoom) {
         parar();
         return;
     }
-    pan_ = pan;
-    tilt_ = tilt;
-    zoom_ = zoom;
-    hayMovimiento_ = true;
-    if (!junta_.isActive()) {
-        vaciar();
-        junta_.start();
-    }
+    enviarMovimiento(pan, tilt, zoom);
 }
 
-void PtzOnvif::vaciar() {
-    if (!hayMovimiento_) {
-        junta_.stop();
-        return;
-    }
-    hayMovimiento_ = false;
-    soap(servicios_.ptz, onvif::continuousMove(perfil_.token, pan_, tilt_, zoom_), [](bool, const QByteArray&) {});
-}
+void PtzOnvif::vaciar() { junta_.stop(); }
 
 void PtzOnvif::parar() {
-    pan_ = tilt_ = zoom_ = 0;
-    junta_.stop();
-    hayMovimiento_ = false;
     if (servicios_.ptz.isEmpty()) return;
-    soap(servicios_.ptz, onvif::stop(perfil_.token), [](bool, const QByteArray&) {});
+    enviarMovimiento(0, 0, 0);
     // Dónde quedó (para mostrarlo y para saber si el zoom se movió de verdad).
-    QTimer::singleShot(500, this, [this]() { leerMotor(); });
+    QTimer::singleShot(600, this, [this]() { leerMotor(); });
+}
+
+void PtzOnvif::enviarMovimiento(double pan, double tilt, double zoom) {
+    // Lo mismo que ya se mandó no se repite (el joystick reenvía cada 60 ms).
+    const auto igual = [](double a, double b) { return std::abs(a - b) < 0.02; };
+    if (!enVuelo_ && igual(pan, ePan_) && igual(tilt, eTilt_) && igual(zoom, eZoom_)) return;
+    if (enVuelo_) {
+        pPan_ = pan;
+        pTilt_ = tilt;
+        pZoom_ = zoom;
+        hayPendiente_ = true;
+        return;
+    }
+    mandar(pan, tilt, zoom);
+}
+
+void PtzOnvif::mandar(double pan, double tilt, double zoom) {
+    enVuelo_ = true;
+    ePan_ = pan;
+    eTilt_ = tilt;
+    eZoom_ = zoom;
+    QPointer<PtzOnvif> yo(this);
+    const auto despues = [yo](bool) {
+        if (!yo) return;
+        yo->enVuelo_ = false;
+        if (yo->hayPendiente_) {
+            yo->hayPendiente_ = false;
+            yo->enviarMovimiento(yo->pPan_, yo->pTilt_, yo->pZoom_);
+        }
+    };
+    const bool quieto = pan == 0 && tilt == 0 && zoom == 0;
+    if (esAxis()) {
+        // VAPIX: unas diez veces más rápido que el SOAP de ONVIF en la misma cámara.
+        const auto v = [](double x) { return static_cast<int>(std::lround(std::clamp(x, -1.0, 1.0) * 100)); };
+        vapix(QStringLiteral("continuouspantiltmove=%1,%2&continuouszoommove=%3").arg(v(pan)).arg(v(tilt)).arg(v(zoom)), despues);
+        return;
+    }
+    if (quieto) soap(servicios_.ptz, onvif::stop(perfil_.token), [despues](bool ok, const QByteArray&) { despues(ok); });
+    else soap(servicios_.ptz, onvif::continuousMove(perfil_.token, pan, tilt, zoom), [despues](bool ok, const QByteArray&) { despues(ok); });
+}
+
+void PtzOnvif::vapix(const QString& consulta, std::function<void(bool)> alTerminar) {
+    const QUrl base(dispositivo_);
+    QUrl url;
+    url.setScheme("http");
+    url.setHost(base.host());
+    if (base.port() > 0) url.setPort(base.port());
+    url.setPath("/axis-cgi/com/ptz.cgi");
+    url.setQuery(consulta);
+    QNetworkRequest pedido{url};
+    pedido.setTransferTimeout(3000);
+    QNetworkReply* r = red_->get(pedido);
+    connect(r, &QNetworkReply::finished, this, [this, r, alTerminar]() {
+        r->deleteLater();
+        const int cod = r->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        const bool ok = cod > 0 && cod < 400;
+        if (!ok) setEstado(listo(), QStringLiteral("La cámara no aceptó el movimiento (HTTP %1)").arg(cod));
+        if (alTerminar) alTerminar(ok);
+    });
 }
 
 void PtzOnvif::leerMotor() {
@@ -318,32 +362,16 @@ bool PtzOnvif::apuntar(double u, double v, double ancho, double alto) {
     // Axis (VAPIX): la cámara sabe centrar un punto de la imagen y acercar a un
     // cuadro con su campo de visión real; con pulsos de tiempo, con zoom puesto,
     // quedaba corrida. Coordenadas en una imagen de 1000x1000: proporcionales.
-    if (!fabricante_.contains("AXIS", Qt::CaseInsensitive)) return false;
-    const QUrl base(dispositivo_);
+    if (!esAxis()) return false;
     const int x = static_cast<int>(std::lround(std::clamp(u, 0.0, 1.0) * 1000)),
               y = static_cast<int>(std::lround(std::clamp(v, 0.0, 1.0) * 1000));
-    QString q;
     const double lado = std::max(ancho, alto);
-    if (lado > 0.01) {
-        const int z = static_cast<int>(std::lround(std::clamp(100.0 / lado, 100.0, 9999.0)));
-        q = QStringLiteral("areazoom=%1,%2,%3").arg(x).arg(y).arg(z);
-    } else {
-        q = QStringLiteral("center=%1,%2").arg(x).arg(y);
-    }
-    QUrl url;
-    url.setScheme("http");
-    url.setHost(base.host());
-    if (base.port() > 0) url.setPort(base.port());
-    url.setPath("/axis-cgi/com/ptz.cgi");
-    url.setQuery(q + "&imagewidth=1000&imageheight=1000");
-    QNetworkRequest pedido{url};
-    pedido.setTransferTimeout(4000);
-    QNetworkReply* r = red_->get(pedido);
-    connect(r, &QNetworkReply::finished, this, [this, r]() {
-        r->deleteLater();
-        const int cod = r->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-        if (cod >= 400 || cod == 0) setEstado(listo(), QStringLiteral("La cámara no aceptó el apuntado (HTTP %1)").arg(cod));
-        QTimer::singleShot(1500, this, [this]() { leerMotor(); });
+    const QString q = lado > 0.01 ? QStringLiteral("areazoom=%1,%2,%3").arg(x).arg(y).arg(static_cast<int>(std::lround(std::clamp(100.0 / lado, 100.0, 9999.0))))
+                                  : QStringLiteral("center=%1,%2").arg(x).arg(y);
+    ePan_ = eTilt_ = eZoom_ = 9; // lo que se mande después no es «lo mismo»
+    QPointer<PtzOnvif> yo(this);
+    vapix(q + "&imagewidth=1000&imageheight=1000", [yo](bool) {
+        if (yo) QTimer::singleShot(1500, yo, [yo]() { if (yo) yo->leerMotor(); });
     });
     return true;
 }

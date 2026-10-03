@@ -68,6 +68,17 @@ class PtzOnvif : public PtzBackend {
     QVariantMap crudo_;     ///< las respuestas aplanadas
     QVariantMap funciones_; ///< el resumen: qué eje se mueve cómo
     QString fabricante_;    ///< de GetDeviceInformation (para lo propio de cada marca)
+    // Los movimientos: UNO en vuelo por vez; mientras tanto se guarda solo el
+    // último pedido (los de en medio ya no importan). Encolados, la cámara los
+    // ejecutaba en fila y el «parar» llegaba tarde: respondía tarde y se pasaba.
+    bool enVuelo_ = false;
+    bool hayPendiente_ = false;
+    double pPan_ = 0, pTilt_ = 0, pZoom_ = 0;     ///< el pendiente
+    double ePan_ = 9, eTilt_ = 9, eZoom_ = 9;     ///< el último mandado (9: nada)
+    void enviarMovimiento(double pan, double tilt, double zoom);
+    void mandar(double pan, double tilt, double zoom);
+    bool esAxis() const { return fabricante_.contains("AXIS", Qt::CaseInsensitive); }
+    void vapix(const QString& consulta, std::function<void(bool)> alTerminar);
     void vaciar();
 
     QNetworkAccessManager* red_ = nullptr;

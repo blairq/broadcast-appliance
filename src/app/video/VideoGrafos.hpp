@@ -47,6 +47,9 @@
 #include <string>
 #include <vector>
 
+struct obs_source;
+struct obs_data;
+
 namespace ba::app {
 class AppRuntime;
 }
@@ -238,6 +241,8 @@ class VideoGrafos : public QObject {
 
    private:
     void aplicar(const std::string& entrada);
+    /// Cambiar ajustes de una fuente de modo que sobrevivan al reinicio (ver el .cpp).
+    void actualizarFuente(::obs_source* src, ::obs_data* cambios);
     /// Los compositores publicados al día, y las entradas que alimentan otra
     /// parte del estudio, activas.
     void actualizarEstudio();

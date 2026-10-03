@@ -846,6 +846,13 @@ std::string VideoGrafos::configurarRostros(const std::map<std::string, std::stri
     });
 }
 
+void VideoGrafos::actualizarFuente(::obs_source* src, ::obs_data* cambios) {
+    // Por AppRuntime: cambia la fuente Y la copia de sus ajustes que se guarda.
+    // Con obs_source_update directo, el cambio andaba hasta reiniciar.
+    const char* json = obs_data_get_json(cambios);
+    if (!rt_.updateSourceSettings(obs_source_get_name(src), json != nullptr ? json : "{}")) obs_source_update(src, cambios);
+}
+
 void VideoGrafos::actualizarEstudio() {
     // Las fuentes de los compositores, con su configuración al día.
     for (const std::string& nombre : rt_.engine().sourceNames()) {
@@ -945,7 +952,7 @@ std::string VideoGrafos::configurarReloj(const json& cambios) {
         if (*obs_data_get_string(actual, "uri") != '\0' && !obs_data_get_bool(actual, "latencia_propia") &&
             reloj_.contains("latencia_ms"))
             obs_data_set_int(d, "latencia", reloj_.value("latencia_ms", 200));
-        obs_source_update(src, d);
+        actualizarFuente(src, d); // en vivo Y en la configuración guardada (si no, se perdía al reiniciar)
         obs_data_release(d);
         obs_data_release(actual);
         obs_source_release(src);
@@ -1050,7 +1057,7 @@ std::string VideoGrafos::crearEntradaRed(const std::string& nombre, const std::s
         if (audio >= 0) obs_data_set_bool(d, "audio", audio == 1);
         if (normalizar >= 0) obs_data_set_bool(d, "normalizar", normalizar == 1);
         if (ntpSync >= 0) obs_data_set_bool(d, "ntp_sync", ntpSync == 1);
-        obs_source_update(src, d);
+        actualizarFuente(src, d); // en vivo Y en la configuración guardada (si no, se perdía al reiniciar)
         obs_data_release(d);
         obs_source_release(src);
         rt_.save();
@@ -1109,7 +1116,7 @@ std::string VideoGrafos::crearEntradaPipeline(const std::string& nombre, const s
         obs_source_t* src = obs_get_source_by_name(nombre.c_str());
         if (src == nullptr) return "no existe «" + nombre + "»";
         obs_data_t* d = obs_data_create_from_json(ajustes.dump().c_str());
-        obs_source_update(src, d);
+        actualizarFuente(src, d); // en vivo Y en la configuración guardada (si no, se perdía al reiniciar)
         obs_data_release(d);
         obs_source_release(src);
         rt_.save();
@@ -1199,7 +1206,7 @@ std::string VideoGrafos::ajustarDesfase(const std::string& entrada, double ms, b
         const long long ahora = relativo ? antes + std::llround(ms) : std::llround(ms);
         obs_data_t* d = obs_data_create();
         obs_data_set_int(d, "desfase", ahora);
-        obs_source_update(src, d);
+        actualizarFuente(src, d); // en vivo Y en la configuración guardada (si no, se perdía al reiniciar)
         obs_data_release(d);
         obs_data_release(actual);
         obs_source_release(src);
