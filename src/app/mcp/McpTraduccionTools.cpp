@@ -79,7 +79,9 @@ void McpService::registerTraduccionTools() {
             "Cada frase de la salida `desde` (p. ej. «Orador», la de una tarjeta «Voz a texto»: texto_flujos) se traduce a `a` y "
             "se publica en la salida `nombre` («<desde> · <a>» si no se dice). Esa salida se usa como cualquier otra: "
             "texto_a_voz {lee} con una voz del idioma, subtítulos en un `rotulo` (fuente de texto de la escena), `archivo` "
-            "(.txt y .srt). Si falta bajar un paquete, traduccion_bajar.";
+            "(.txt y .srt). Queda como una tarjeta «Traducir» en el rack de audio de `fuente` (si no se dice, el de la voz a "
+            "texto que publica `desde`); su `id` es «<fuente>#<nodo>». `espera_ms`: cuánto espera el fin de la oración (600). "
+            "Si falta bajar un paquete, traduccion_bajar.";
         x.inputSchema = {{"type", "object"},
                          {"required", {"desde", "a"}},
                          {"properties",
@@ -87,8 +89,10 @@ void McpService::registerTraduccionTools() {
                            {"a", idioma},
                            {"idioma_desde", idioma},
                            {"nombre", {{"type", "string"}}},
+                           {"fuente", {{"type", "string"}, {"description", "la fuente de audio en cuyo rack va la tarjeta"}}},
                            {"rotulo", {{"type", "string"}}},
-                           {"archivo", {{"type", "boolean"}}}}}};
+                           {"archivo", {{"type", "boolean"}}},
+                           {"espera_ms", {{"type", "integer"}, {"minimum", 100}, {"maximum", 10000}}}}}};
         x.examples = {R"({"desde": "Orador", "a": "en", "rotulo": "Subtítulos EN"})"};
         x.run = [t](const json& a, Done done) {
             if (!t) return done(ToolResult::error("el traductor no está"));
@@ -106,16 +110,20 @@ void McpService::registerTraduccionTools() {
         x.name = "traduccion_ajustar";
         x.title = "Pausar o cambiar una traducción";
         x.category = "traduccion";
-        x.description = "Cambia una traducción (`id` de `traducciones`): `activa` (pausarla), `rotulo`, `archivo`, `nombre`. "
-                        "Con `quitar: true` la borra.";
+        x.description = "Cambia una traducción (`id` de `traducciones`, «<fuente>#<nodo>» de su tarjeta): `activa` (pausarla), "
+                        "`desde`, `idioma_desde`, `a`, `nombre`, `rotulo`, `archivo`, `espera_ms`. Con `quitar: true` saca la tarjeta.";
         x.inputSchema = {{"type", "object"},
                          {"required", {"id"}},
                          {"properties",
                           {{"id", {{"type", "string"}}},
                            {"activa", {{"type", "boolean"}}},
+                           {"desde", {{"type", "string"}}},
+                           {"idioma_desde", idioma},
+                           {"a", idioma},
                            {"rotulo", {{"type", "string"}}},
                            {"archivo", {{"type", "boolean"}}},
                            {"nombre", {{"type", "string"}}},
+                           {"espera_ms", {{"type", "integer"}, {"minimum", 100}, {"maximum", 10000}}},
                            {"quitar", {{"type", "boolean"}}}}}};
         x.run = [t](const json& a, Done done) {
             if (!t) return done(ToolResult::error("el traductor no está"));

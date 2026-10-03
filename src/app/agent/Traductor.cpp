@@ -104,12 +104,67 @@ Traductor::~Traductor() {
 
 // --- Configuración --------------------------------------------------------------------
 
+namespace {
+/// `nombre` vacío = «<desde> · <a>» (sigue al idioma si se lo cambia).
+json resolverNombre(json t) {
+    if (t.value("nombre", std::string()).empty()) t["nombre"] = t.value("desde", std::string()) + " · " + t.value("a", std::string("en"));
+    return t;
+}
+} // namespace
+
 void Traductor::leer() {
+    if (tarjetas_.listar) {
+        json l = json::array();
+        for (const auto& t : tarjetas_.listar()) l.push_back(resolverNombre(t));
+        for (const auto& t : porMigrar_) l.push_back(t);
+        traducciones_ = l;
+        return;
+    }
     const json j = leerJson(root_ / "Config" / "traducciones.json");
     traducciones_ = j.is_object() ? j.value("traducciones", json::array()) : json::array();
 }
 
-void Traductor::guardar() const { escribirJson(root_ / "Config" / "traducciones.json", {{"traducciones", traducciones_}}); }
+void Traductor::guardar() const {
+    if (!tarjetas_.listar) escribirJson(root_ / "Config" / "traducciones.json", {{"traducciones", traducciones_}});
+}
+
+void Traductor::setTarjetas(Tarjetas t) {
+    porMigrar_ = traducciones_; // las del archivo
+    tarjetas_ = std::move(t);
+    migrar();
+    sincronizar();
+}
+
+void Traductor::migrar() {
+    if (porMigrar_.empty() || migrando_) return;
+    migrando_ = true; // agregar una tarjeta avisa que cambió el rack, y eso vuelve acá
+    json quedan = json::array();
+    for (const auto& v : porMigrar_) {
+        std::string id;
+        if (tarjetas_.agregar(v, &id).empty()) {
+            // La última frase sigue a la vista con el id nuevo.
+            const auto u = ultima_.find(v.value("id", std::string()));
+            if (u != ultima_.end()) ultima_[id] = u->second;
+        } else {
+            quedan.push_back(v);
+        }
+    }
+    porMigrar_ = quedan;
+    const fs::path a = root_ / "Config" / "traducciones.json";
+    std::error_code ec;
+    if (porMigrar_.empty()) fs::rename(a, a.string() + ".migrado", ec);
+    else escribirJson(a, {{"traducciones", porMigrar_}});
+    migrando_ = false;
+}
+
+void Traductor::sincronizar() {
+    migrar();
+    const json antes = traducciones_;
+    leer();
+    if (traducciones_ == antes) return;
+    emit cambio();
+    emit flujos_.cambio();
+}
 
 json Traductor::lista() const {
     json out = json::array();
@@ -118,11 +173,12 @@ json Traductor::lista() const {
         pasos(t.value("idioma_desde", std::string("es")), t.value("a", std::string()), &err);
         const json f = faltan(t.value("idioma_desde", std::string("es")), t.value("a", std::string()));
         t["faltan"] = f;
-        t["estado"] = !err.empty() ? err
-                      : !f.empty() ? "falta bajar " + std::to_string(f.size()) + " paquete(s)"
-                      : !t.value("activa", true) ? "pausada"
-                      : motor_.startsWith("error") ? motor_.toStdString()
-                                                    : "lista";
+        t["estado"] = t.value("desde", std::string()).empty() ? "elegí qué salida de texto traducir"
+                      : !err.empty()                          ? err
+                      : !f.empty()                            ? "falta bajar " + std::to_string(f.size()) + " paquete(s)"
+                      : !t.value("activa", true)              ? "pausada"
+                      : motor_.startsWith("error")            ? motor_.toStdString()
+                                                              : "lista";
         const auto u = ultima_.find(t.value("id", std::string()));
         if (u != ultima_.end()) t["ultima"] = u->second;
         out.push_back(t);
@@ -143,14 +199,26 @@ std::string Traductor::agregar(const std::string& desde, const std::string& idio
     if (n == desde) return "la salida traducida no puede llamarse igual que la original";
     for (const auto& t : traducciones_)
         if (t.value("nombre", "") == n) return "ya hay una traducción que publica en «" + n + "»";
-    json t{{"id", "t" + std::to_string(QDateTime::currentMSecsSinceEpoch())},
-           {"desde", desde},
+    json t{{"desde", desde},
            {"idioma_desde", de},
            {"a", a},
-           {"nombre", n},
+           {"nombre", nombre},
            {"activa", opciones.value("activa", true)},
            {"rotulo", opciones.value("rotulo", std::string())},
-           {"archivo", opciones.value("archivo", false)}};
+           {"archivo", opciones.value("archivo", false)},
+           {"espera_ms", opciones.value("espera_ms", 600)}};
+    if (opciones.contains("fuente")) t["fuente"] = opciones["fuente"];
+    if (tarjetas_.agregar) {
+        std::string id;
+        const std::string e = tarjetas_.agregar(t, &id);
+        if (!e.empty()) return e;
+        sincronizar();
+        for (const auto& x : traducciones_)
+            if (x.value("id", "") == id && hecha) *hecha = x;
+        return {};
+    }
+    t["id"] = "t" + std::to_string(QDateTime::currentMSecsSinceEpoch());
+    t["nombre"] = n;
     traducciones_.push_back(t);
     guardar();
     if (hecha) *hecha = t;
@@ -160,10 +228,27 @@ std::string Traductor::agregar(const std::string& desde, const std::string& idio
 }
 
 std::string Traductor::ajustar(const std::string& id, const json& cambios) {
+    json c = json::object();
+    for (const char* k : {"activa", "rotulo", "archivo", "nombre", "a", "idioma_desde", "espera_ms", "desde"})
+        if (cambios.contains(k)) c[k] = cambios[k];
+    if (c.contains("a") && !nombresIdiomas().count(c.value("a", std::string()))) return "idioma «" + c.value("a", std::string()) + "» desconocido";
+    if (c.contains("idioma_desde") && !nombresIdiomas().count(c.value("idioma_desde", std::string())))
+        return "idioma de origen «" + c.value("idioma_desde", std::string()) + "» desconocido";
+    for (auto& t : porMigrar_)
+        if (t.value("id", "") == id) {
+            for (auto it = c.begin(); it != c.end(); ++it) t[it.key()] = it.value();
+            escribirJson(root_ / "Config" / "traducciones.json", {{"traducciones", porMigrar_}});
+            sincronizar();
+            return {};
+        }
+    if (tarjetas_.ajustar) {
+        const std::string e = tarjetas_.ajustar(id, c);
+        if (e.empty()) sincronizar();
+        return e;
+    }
     for (auto& t : traducciones_) {
         if (t.value("id", "") != id) continue;
-        for (const char* k : {"activa", "rotulo", "archivo", "nombre", "a", "idioma_desde", "espera_ms"})
-            if (cambios.contains(k)) t[k] = cambios[k];
+        for (auto it = c.begin(); it != c.end(); ++it) t[it.key()] = it.value();
         guardar();
         emit cambio();
         emit flujos_.cambio();
@@ -173,6 +258,18 @@ std::string Traductor::ajustar(const std::string& id, const json& cambios) {
 }
 
 std::string Traductor::quitar(const std::string& id) {
+    for (auto it = porMigrar_.begin(); it != porMigrar_.end(); ++it)
+        if (it->value("id", "") == id) {
+            porMigrar_.erase(it);
+            escribirJson(root_ / "Config" / "traducciones.json", {{"traducciones", porMigrar_}});
+            sincronizar();
+            return {};
+        }
+    if (tarjetas_.quitar) {
+        const std::string e = tarjetas_.quitar(id);
+        if (e.empty()) sincronizar();
+        return e;
+    }
     const auto n = traducciones_.size();
     traducciones_.erase(std::remove_if(traducciones_.begin(), traducciones_.end(), [&](const json& t) { return t.value("id", "") == id; }),
                         traducciones_.end());
@@ -185,12 +282,16 @@ std::string Traductor::quitar(const std::string& id) {
 
 json Traductor::salidas() const {
     json out = json::array();
-    for (const auto& t : traducciones_)
+    for (const auto& t : traducciones_) {
+        if (t.value("desde", std::string()).empty()) continue;
+        const auto idioma = nombresIdiomas().find(t.value("a", std::string("en")));
         out.push_back({{"flujo", t.value("nombre", "")},
                        {"fuente", t.value("desde", "")},
-                       {"origen", "Traducción al " + nombresIdiomas().at(t.value("a", std::string("en"))) + " de «" + t.value("desde", std::string()) + "»"},
+                       {"origen", "Traducción al " + (idioma != nombresIdiomas().end() ? idioma->second : t.value("a", std::string())) +
+                                      " de «" + t.value("desde", std::string()) + "»"},
                        {"modo", "traduccion"},
                        {"salidas", {{"archivo", t.value("archivo", false)}, {"rotulo", t.value("rotulo", std::string())}}}});
+    }
     return out;
 }
 
@@ -603,9 +704,9 @@ QString Traductor::ajustarUi(const QString& id, const QVariantMap& cambios) { re
 QString Traductor::quitarUi(const QString& id) { return q(quitar(id.toStdString())); }
 QString Traductor::bajarUi(const QString& de, const QString& a) { return q(bajar(de.isEmpty() ? "es" : de.toStdString(), a.toStdString())); }
 
-void Traductor::probarUi(const QString& texto, const QString& a) {
+void Traductor::probarUi(const QString& texto, const QString& a, const QString& de) {
     QPointer<Traductor> yo(this);
-    traducir(texto, "es", a.toStdString(), [yo, a](json r) {
+    traducir(texto, de.isEmpty() ? "es" : de.toStdString(), a.toStdString(), [yo, a](json r) {
         if (!yo) return;
         const bool ok = r.contains("texto");
         emit yo->probado(a, ok ? q(r["texto"].get<std::string>()) + "  (" + QString::number(r.value("ms", 0)) + " ms)"

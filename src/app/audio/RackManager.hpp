@@ -142,6 +142,18 @@ class RackManager : public QObject {
     /// El anillo por el que suena esa tarjeta (nulo si no existe).
     std::shared_ptr<anillo::Ring> anilloHabla(const std::string& source, const std::string& nodo) const;
 
+    // --- Traducir (tarjeta «traducir», la usa agent/Traductor) -------------------
+    /// Agrega una tarjeta TRADUCIR. `t`: {fuente?, desde, idioma_desde, a, nombre,
+    /// rotulo, archivo, activa, espera_ms}. Sin `fuente` va al rack de la voz a
+    /// texto que publica `desde` (o de la traducción que lo publica). Devuelve el
+    /// id «<fuente>#<nodo>» o "" con el error.
+    std::string addTraduccion(const json& t, std::string* error);
+    /// `id`: «<fuente>#<nodo>».
+    std::string setTraduccionOpciones(const std::string& id, const json& cambios);
+    std::string quitarTraduccion(const std::string& id);
+    /// Todas: [{id, fuente, nodo, desde, idioma_desde, a, nombre, rotulo, archivo, activa, espera_ms}].
+    json traducciones() const;
+
     // --- Grabar lo que le llega a la tarjeta de salida -------------------------
     /// Prende o apaga la grabación de la tarjeta «Salida de audio» de `source`
     /// (Recordings/Audio/<fuente>-<fecha>.wav). "" o el error.
@@ -174,6 +186,8 @@ class RackManager : public QObject {
 
    signals:
     void changed();
+    /// Cambió algo de algún rack (cada markDirty: también al quitar una tarjeta a mano).
+    void editado();
 
    private:
     std::filesystem::path root_;

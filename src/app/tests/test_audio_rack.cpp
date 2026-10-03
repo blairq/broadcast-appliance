@@ -229,6 +229,25 @@ int main() {
         CHECK(r4.setEntradaFuente(ent, "Invitado 1") && r4.entradas()[0].second == "Invitado 1",
               "se le cambia la fuente");
     }
+    // 5c. Tarjeta TRADUCIR: sin puertos, fuera del proceso de audio; se
+    //     guarda con sus opciones y el título dice el idioma.
+    {
+        AudioRack r5(lib, &svc, 48000);
+        const std::string tr = r5.addTraduccion({{"desde", "Orador"}, {"a", "pt"}});
+        CHECK(!tr.empty() && r5.kindOf(tr) == "traducir" && r5.traducciones().size() == 1, "agrega la tarjeta de traducir");
+        CHECK(!r5.connect("in", "out", tr, "in", &err), "no se le puede cablear audio");
+        std::vector<float> l(480, 0.5f), rr(480, 0.5f);
+        float* planes[2] = {l.data(), rr.data()};
+        r5.process(planes, 2, 480);
+        CHECK(std::fabs(l[100] - 0.5f) < 0.01f, "el audio pasa igual con la tarjeta puesta");
+        CHECK(r5.setTraduccionOpciones(tr, {{"a", "fr"}, {"espera_ms", 900}}), "se ajusta");
+        AudioRack r6(lib, &svc, 48000);
+        CHECK(r6.load(r5.save(), &err), "carga un rack con traducir");
+        const json t = r6.traducciones().at(0);
+        CHECK(t.value("desde", "") == "Orador" && t.value("a", "") == "fr" && t.value("espera_ms", 0) == 900,
+              "la traducción vuelve del archivo con sus opciones");
+        CHECK(r5.remove(tr, &err) && r5.traducciones().empty(), "se quita");
+    }
     // 6. Cables por canal: la derecha de un modulo a la izquierda de otro, y
     //    un solo canal (la otra mitad queda en silencio).
     {

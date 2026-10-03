@@ -495,6 +495,20 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         connect(racks_.get(), &audio::RackManager::changed, voces_.get(), &agent::VocesRack::cambio);
     }
     connect(racks_.get(), &audio::RackManager::changed, flujos_.get(), &agent::FlujosTexto::cambio);
+    // Cada traducción es una tarjeta «Traducir» de un rack.
+    if (traductor_) {
+        auto* r = racks_.get();
+        traductor_->setTarjetas({[r]() { return r->traducciones(); },
+                                 [r](const nlohmann::json& t, std::string* id) {
+                                     std::string e;
+                                     *id = r->addTraduccion(t, &e);
+                                     return e;
+                                 },
+                                 [r](const std::string& id, const nlohmann::json& c) { return r->setTraduccionOpciones(id, c); },
+                                 [r](const std::string& id) { return r->quitarTraduccion(id); }});
+        connect(racks_.get(), &audio::RackManager::changed, traductor_.get(), &agent::Traductor::sincronizar);
+        connect(racks_.get(), &audio::RackManager::editado, traductor_.get(), &agent::Traductor::sincronizar);
+    }
     matriz_ = std::make_unique<audio::Matriz>(rt.dataRoot());
     marca("matriz");
     // Una entrada de placa que trae la tarjeta «Entrada» de un rack también se abre.

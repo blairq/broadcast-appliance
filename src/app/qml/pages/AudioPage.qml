@@ -89,6 +89,7 @@ Rectangle {
         if (t === "generator") return "#f59e0b"
         if (t === "entrada") return "#38bdf8"
         if (t === "habla") return "#f472b6"
+        if (t === "traducir") return "#eab308"
         return Theme.accent
     }
     function fmtDb(v) { return (v === undefined || v === null || v <= -139) ? "—" : (Math.round(v * 10) / 10).toFixed(1) }
@@ -340,6 +341,8 @@ Rectangle {
                     { titulo: "Voz", items: [].concat(
                         Studio.voces ? [{ t: "Texto a voz", color: "#f472b6", f: () => page.msg = page.au.addHabla(),
                                           tip: "Dice en voz alta (con la voz y el idioma que elijas) lo que llega por una salida de texto." }] : [],
+                        Studio.traductor ? [{ t: "Traducir", color: "#eab308", f: () => page.msg = page.au.addTraduccion(),
+                                              tip: "Traduce lo que publica una «Voz a texto» a otro idioma y lo publica en otra salida de texto (subtítulos, archivo, texto a voz)." }] : [],
                         Studio.voz.disponible ? [
                             { t: "Voz a texto: dictado al asistente (F9)", color: "#22c55e", f: () => page.msg = page.au.addTexto("dictado"),
                               tip: "Transcribe lo que le llega para dictarle al asistente." },
@@ -989,6 +992,14 @@ Rectangle {
                         }
                         Text { Layout.fillWidth: true; text: hablaCol.estado; color: Theme.textFaint; font.pixelSize: 11; wrapMode: Text.WordWrap }
                         GlassButton { compact: true; text: "Quitar"; onClicked: page.au.removeNode(page.au.selected) }
+                    }
+                    // Traducir: qué traduce, a qué idioma, dónde publica
+                    TarjetaTraduccion {
+                        Layout.fillWidth: true
+                        visible: parent.d.tipo === "traducir"
+                        traduccionId: parent.d.traduccion_id || ""
+                        onQuitar: page.au.removeNode(page.au.selected)
+                        onAbrirGlosario: traduccionPopup.open()
                     }
                     // Salida de audio: grabar todo lo que le llega
                     ColumnLayout {

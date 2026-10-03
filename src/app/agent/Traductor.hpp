@@ -26,7 +26,11 @@
 // (0,6 s por defecto) sin que llegue otro; uno muy largo se corta en la última
 // coma.
 //
-// La configuración (qué se traduce a qué) va en Datos/Config/traducciones.json.
+// CADA TRADUCCIÓN ES UNA TARJETA «Traducir» del rack de audio (AudioRack, sin
+// audio: va al lado de la voz a texto cuya salida traduce) y se guarda con el
+// rack. Sin racks (compilado sin CLAP) se guarda en Datos/Config/traducciones.json;
+// lo que hubiera ahí pasa a tarjetas la primera vez (el archivo queda como
+// traducciones.json.migrado).
 #pragma once
 
 #include <QObject>
@@ -78,6 +82,19 @@ class Traductor : public QObject {
 
     static const std::map<std::string, std::string>& nombresIdiomas();
 
+    /// Dónde viven las traducciones: las tarjetas «Traducir» de los racks. Los
+    /// ids son los de las tarjetas («<fuente>#<nodo>»).
+    struct Tarjetas {
+        std::function<json()> listar; ///< [{id, fuente, nodo, desde, idioma_desde, a, nombre, rotulo, archivo, activa, espera_ms}]
+        /// Agrega una (en `t["fuente"]` o al lado de la voz a texto de `t["desde"]`). "" o el error.
+        std::function<std::string(const json& t, std::string* id)> agregar;
+        std::function<std::string(const std::string& id, const json& cambios)> ajustar;
+        std::function<std::string(const std::string& id)> quitar;
+    };
+    void setTarjetas(Tarjetas t);
+    /// Vuelve a leer las tarjetas (cuando cambia un rack).
+    void sincronizar();
+
     // --- Traducciones (configuración) --------------------------------------------------
     json lista() const;
     /// Traduce la salida `desde` (en `idiomaDesde`) a `a`; publica en `nombre`
@@ -122,7 +139,7 @@ class Traductor : public QObject {
     Q_INVOKABLE QString quitarUi(const QString& id);
     Q_INVOKABLE QString bajarUi(const QString& de, const QString& a);
     /// Prueba una frase: el resultado llega por `probado`.
-    Q_INVOKABLE void probarUi(const QString& texto, const QString& a);
+    Q_INVOKABLE void probarUi(const QString& texto, const QString& a, const QString& de = QString());
     Q_INVOKABLE QString glosarioAgregarUi(const QVariantMap& entrada);
     Q_INVOKABLE QString glosarioQuitarUi(const QString& es);
     Q_INVOKABLE QString glosarioGrupoUi(const QString& grupo, bool activo);
@@ -153,7 +170,13 @@ class Traductor : public QObject {
     std::filesystem::path root_;
     ModelosLocales& modelos_;
     FlujosTexto& flujos_;
-    json traducciones_ = json::array();
+    json traducciones_ = json::array(); ///< las tarjetas (o el archivo, sin racks), con `nombre` ya resuelto
+    Tarjetas tarjetas_;
+    /// Las del archivo viejo que todavía no pasaron a tarjeta (su rack no está
+    /// montado): siguen traduciendo y se reintenta en cada cambio de los racks.
+    json porMigrar_ = json::array();
+    bool migrando_ = false;
+    void migrar();
     json fabrica_ = json::array();  ///< datos/glosario-traduccion.json
     json operador_ = json::object(); ///< {terminos: [...], apagados: [es...], grupos_apagados: [...]}
     std::unique_ptr<plugins::Hijo> hijo_;

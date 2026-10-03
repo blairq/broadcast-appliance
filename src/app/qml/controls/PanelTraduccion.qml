@@ -34,7 +34,8 @@ ColumnLayout {
         color: Theme.textDim; font.pixelSize: 12
         text: "Toma lo que transcribe una tarjeta «Voz a texto» (una salida de texto, p. ej. «Orador») y lo publica traducido " +
               "en otra salida, que se usa igual: subtítulos en un rótulo, archivo, o una tarjeta «Texto a voz» con una voz del " +
-              "idioma. Sin red, en esta máquina."
+              "idioma. Sin red, en esta máquina. Cada traducción es una tarjeta «Traducir» en el rack de audio de la fuente " +
+              "(al lado de su voz a texto): se agrega acá o desde «+ Agregar» → Voz → Traducir."
     }
     RowLayout {
         spacing: 8
@@ -128,7 +129,8 @@ ColumnLayout {
                     }
                     Text {
                         Layout.fillWidth: true; elide: Text.ElideRight
-                        text: "«" + fila.modelData.desde + "» → " + panel.nombreIdioma(fila.modelData.a) + " → «" + fila.modelData.nombre + "»"
+                        text: "«" + (fila.modelData.desde || "—") + "» → " + panel.nombreIdioma(fila.modelData.a) + " → «" + fila.modelData.nombre + "»" +
+                              (fila.modelData.fuente ? "   · tarjeta en «" + fila.modelData.fuente + "»" : "")
                         color: Theme.text; font.pixelSize: 13
                     }
                     Text {

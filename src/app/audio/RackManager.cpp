@@ -821,6 +821,7 @@ void RackManager::markDirty() {
     sincronizarGrabaciones();
     normalizarFlujos();
     sincronizarEntradas();
+    emit editado();
 }
 
 void RackManager::saveNow() {
@@ -1176,6 +1177,81 @@ RackManager::json RackManager::hablas() const {
                 h["nodo"] = h.value("id", "");
                 h.erase("id");
                 out.push_back(h);
+            }
+    return out;
+}
+
+// --- Traducir ------------------------------------------------------------------------------
+
+namespace {
+bool partirId(const std::string& id, std::string& fuente, std::string& nodo) {
+    const auto i = id.rfind('#');
+    if (i == std::string::npos || i == 0 || i + 1 == id.size()) return false;
+    fuente = id.substr(0, i);
+    nodo = id.substr(i + 1);
+    return true;
+}
+} // namespace
+
+std::string RackManager::addTraduccion(const json& t, std::string* error) {
+    std::string fuente = t.value("fuente", std::string());
+    const std::string desde = t.value("desde", std::string());
+    if (fuente.empty() && !desde.empty()) {
+        const json tx = textoDe(desde);
+        if (tx.is_object()) fuente = tx.value("fuente", std::string());
+        if (fuente.empty())
+            for (const auto& x : traducciones())
+                if (x.value("nombre", std::string()) == desde ||
+                    (x.value("nombre", std::string()).empty() && x.value("desde", std::string()) + " · " + x.value("a", std::string()) == desde))
+                    fuente = x.value("fuente", std::string());
+    }
+    if (fuente.empty()) {
+        if (error) *error = "no hay una voz a texto que publique «" + desde + "»: decí en qué fuente va la tarjeta (`fuente`)";
+        return {};
+    }
+    AudioRack* r = rack(fuente, true, error);
+    if (r == nullptr) return {};
+    json o = t;
+    o.erase("fuente");
+    o.erase("id");
+    const std::string nodo = r->addTraduccion(o);
+    markDirty();
+    emit changed();
+    return fuente + "#" + nodo;
+}
+
+std::string RackManager::setTraduccionOpciones(const std::string& id, const json& cambios) {
+    std::string fuente, nodo, e;
+    if (!partirId(id, fuente, nodo)) return "no hay una traducción «" + id + "»";
+    AudioRack* r = rack(fuente, false, &e);
+    if (r == nullptr) return e;
+    if (!r->setTraduccionOpciones(nodo, cambios)) return "no hay una traducción «" + id + "»";
+    markDirty();
+    emit changed();
+    return {};
+}
+
+std::string RackManager::quitarTraduccion(const std::string& id) {
+    std::string fuente, nodo, e;
+    if (!partirId(id, fuente, nodo)) return "no hay una traducción «" + id + "»";
+    AudioRack* r = rack(fuente, false, &e);
+    if (r == nullptr) return e;
+    if (r->kindOf(nodo) != "traducir") return "no hay una traducción «" + id + "»";
+    if (!r->remove(nodo, &e)) return e;
+    markDirty();
+    emit changed();
+    return {};
+}
+
+RackManager::json RackManager::traducciones() const {
+    json out = json::array();
+    for (const auto& [nombre, f] : filters_)
+        if (f != nullptr && f->rack)
+            for (json t : f->rack->traducciones()) {
+                t["fuente"] = nombre;
+                t["nodo"] = t.value("id", "");
+                t["id"] = nombre + "#" + t.value("id", std::string());
+                out.push_back(t);
             }
     return out;
 }

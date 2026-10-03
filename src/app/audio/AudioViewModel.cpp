@@ -207,6 +207,12 @@ void AudioViewModel::rebuildDetail() {
                          "Ponela en una fuente que siempre tenga audio (una entrada virtual, un micrófono): el "
                          "rack procesa mientras su fuente suena.";
         }
+        if (r->kindOf(id) == "traducir") {
+            j["traduccion_id"] = source_.toStdString() + "#" + id;
+            j["ayuda"] = "Traduce lo que publica una salida de texto (la de una «Voz a texto») y lo publica en otra, en otro "
+                         "idioma: esa se usa como cualquiera (subtítulos, archivo, una tarjeta «Texto a voz» con una voz del "
+                         "idioma). No lleva cables: no toca el audio.";
+        }
         if (r->kindOf(id) == "texto") {
             std::string modo = "dictado";
             for (const auto& t : r->textos())
@@ -342,6 +348,25 @@ QString AudioViewModel::addHabla() {
     if (id.empty()) return QString::fromStdString(e);
     autoLayout();
     select(QString::fromStdString(id));
+    rebuildGraph();
+    rebuildDetail();
+    return {};
+}
+
+QString AudioViewModel::addTraduccion() {
+    if (source_.isEmpty()) return "Elegí una fuente con audio.";
+    // Si este rack tiene una voz a texto, traduce lo que ella publica.
+    std::string desde;
+    for (const auto& t : mgr_.textos())
+        if (t.value("fuente", std::string()) == source_.toStdString()) {
+            desde = t.value("flujo", std::string());
+            break;
+        }
+    std::string e;
+    const std::string id = mgr_.addTraduccion({{"fuente", source_.toStdString()}, {"desde", desde}, {"a", "en"}}, &e);
+    if (id.empty()) return QString::fromStdString(e);
+    autoLayout();
+    select(QString::fromStdString(id.substr(id.rfind('#') + 1)));
     rebuildGraph();
     rebuildDetail();
     return {};

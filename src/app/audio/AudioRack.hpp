@@ -19,6 +19,8 @@
 //   habla      TEXTO A VOZ: dice (con la voz y el idioma elegidos) lo que
 //              llega por una salida de texto, o lo que se le pide; su audio
 //              sale por su puerto y se patchea como cualquier otro.
+//   traducir   TRADUCIR (sin audio): toma una salida de texto (la de una voz
+//              a texto) y publica otra en otro idioma (agent/Traductor).
 //   texto      VOZ A TEXTO (uno por rack): copia lo que le llega para el
 //              reconocedor. Modo «dictado» (push-to-talk al asistente) o
 //              «continuo» (transcripción: subtítulos, acta). Tampoco toca lo que
@@ -89,6 +91,14 @@ class AudioRack {
     bool setHablaOpciones(const std::string& id, const json& cambios);
     /// [{id, flujo, voz, hablante, velocidad}]
     json hablas() const;
+    /// Tarjeta TRADUCIR (sin audio): traduce una salida de texto a otro idioma y
+    /// publica otra. Opciones: {desde, idioma_desde, a, nombre (la salida que
+    /// publica, "" = «<desde> · <a>»), rotulo, archivo, activa, espera_ms}. Lo
+    /// hace agent/Traductor, que lee las tarjetas de todos los racks.
+    std::string addTraduccion(const json& opciones);
+    bool setTraduccionOpciones(const std::string& id, const json& cambios);
+    /// [{id, desde, idioma_desde, a, nombre, rotulo, archivo, activa, espera_ms}]
+    json traducciones() const;
     /// Nodo de SALIDA de audio del equipo (uno por rack). `device` es el id del
     /// dispositivo y `label` su nombre. Si ya hay uno, le cambia el destino.
     std::string addOutput(const std::string& device, const std::string& label);

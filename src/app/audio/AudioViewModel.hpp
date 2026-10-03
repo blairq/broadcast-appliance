@@ -68,6 +68,9 @@ class AudioViewModel : public QObject {
     Q_INVOKABLE QString addHabla();
     /// {flujo?, voz?, hablante?, velocidad?}
     Q_INVOKABLE QString setHablaOpciones(const QString& node, const QVariantMap& cambios);
+    /// Tarjeta TRADUCIR: traduce una salida de texto a otro idioma (la usa
+    /// Studio.traductor; se ajusta con Studio.traductor.ajustarUi(«<fuente>#<nodo>»)).
+    Q_INVOKABLE QString addTraduccion();
     /// Grabar todo lo que le llega a la tarjeta de salida (.wav).
     Q_INVOKABLE QString setGrabar(bool grabar);
     /// {grabar, grabando, archivo, segundos, bytes, conCable, carpeta}.
