@@ -277,23 +277,6 @@ Rectangle {
                           t: c.titulo, tip: c.descripcion,
                           f: () => page.avisar(page.vg.agregar(c.tipo, page.nodo && page.nodo.tipo !== "escena" && !page.nodo.externo ? page.sel : ""))
                       })) },
-                    { titulo: "Superresolución (agranda x2: lo que sigue trabaja al doble)",
-                      items: (function() {
-                          const l = []
-                          const sr = Studio.superres
-                          const m = sr ? sr.motores : []
-                          const desp = page.nodo && page.nodo.tipo !== "escena" && !page.nodo.externo ? page.sel : ""
-                          if (m.indexOf("apple") >= 0) l.push({ t: "Apple (VideoToolbox)", tip: "La de macOS 26: ~3 ms, la mejor en una Mac (entrada hasta 960x960)",
-                                                                f: () => page.avisar(page.vg.agregarSuperresUi("apple", "", desp)) })
-                          if (m.indexOf("fsr") >= 0) l.push({ t: "FSR 1 (cualquier GPU)", tip: "AMD FidelityFX, sin red neuronal, en OpenGL: menos de 1 ms",
-                                                              f: () => page.avisar(page.vg.agregarSuperresUi("fsr", "", desp)) })
-                          if (m.indexOf("onnx") >= 0)
-                              for (const x of (sr ? sr.modelos : []))
-                                  l.push({ t: "Red: " + x.nombre, tip: (x.arquitectura || "") + " · x" + (x.escala || 2) + (x.licencia ? " · " + x.licencia : ""),
-                                           f: () => page.avisar(page.vg.agregarSuperresUi("onnx", x.ruta, desp)) })
-                          l.push({ t: "Entrenar / bajar modelos…", f: () => superresPop.open() })
-                          return l
-                      })() },
                     { titulo: "Todos los módulos",
                       items: [{ t: "Buscar módulo…", tip: "Cualquier módulo de video de GStreamer o filtro de OBS como tarjeta, con su ayuda: color, llaves, desentrelazado, textos y reloj, nitidez, efectos, OpenGL…", f: () => catalogo.open() }] }
                 ]
@@ -648,6 +631,71 @@ Rectangle {
                                 text: "Espejo ↕"
                                 checked: !!page.paramsEf && !!page.paramsEf.espejoV
                                 onToggled: page.avisar(page.vg.ajustar(page.sel, { espejoV: checked }))
+                            }
+                        }
+
+                        // Superresolución (el plugin de GStreamer basuperres): motor, modelo, nitidez.
+                        ColumnLayout {
+                            visible: page.tipoEf === "superres"
+                            Layout.fillWidth: true
+                            spacing: 6
+                            readonly property var motores: Studio.superres ? Studio.superres.motores : []
+                            Text {
+                                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                color: Theme.textDim; font.pixelSize: 12
+                                text: "Duplica la resolución: lo que sigue trabaja al doble y la escena la recibe grande. Demora un cuadro; el audio de la entrada se atrasa lo mismo (solo)."
+                            }
+                            Flow {
+                                Layout.fillWidth: true
+                                spacing: 4
+                                Repeater {
+                                    model: [
+                                        { m: "auto", t: "Automático", tip: "La red si hay modelo; si no, Apple (macOS 26); si no, FSR" },
+                                        { m: "apple", t: "Apple", tip: "VideoToolbox, macOS 26: la mejor en una Mac (entrada hasta 960x960)" },
+                                        { m: "fsr", t: "FSR 1", tip: "AMD, sin red neuronal: cualquier GPU, menos de 1 ms" },
+                                        { m: "onnx", t: "Red ONNX", tip: "Un modelo: la red chica entrenada con la cámara, SPAN o Real-ESRGAN" }
+                                    ].filter(o => o.m === "auto" || parent.parent.motores.indexOf(o.m) >= 0)
+                                    delegate: GlassButton {
+                                        required property var modelData
+                                        compact: true; text: modelData.t
+                                        active: !!page.paramsEf && (page.paramsEf.motor || "auto") === modelData.m
+                                        onClicked: page.avisar(page.vg.ajustar(page.sel, { motor: modelData.m }))
+                                        ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: modelData.tip
+                                    }
+                                }
+                            }
+                            RowLayout {
+                                visible: !!page.paramsEf && (page.paramsEf.motor === "onnx" || page.paramsEf.motor === "auto")
+                                Layout.fillWidth: true
+                                spacing: 6
+                                Text { text: "Modelo"; color: Theme.textDim; font.pixelSize: 12 }
+                                ComboBox {
+                                    Layout.fillWidth: true
+                                    readonly property var lista: [{ nombre: "— ninguno —", ruta: "" }].concat(Studio.superres ? Studio.superres.modelos : [])
+                                    model: lista.map(x => x.nombre)
+                                    currentIndex: Math.max(0, lista.findIndex(x => x.ruta === (page.paramsEf ? page.paramsEf.modelo || "" : "")))
+                                    onActivated: (i) => page.avisar(page.vg.ajustar(page.sel, { modelo: lista[i].ruta }))
+                                }
+                                GlassButton { compact: true; text: "Entrenar…"; onClicked: superresPop.open() }
+                            }
+                            RowLayout {
+                                visible: !!page.paramsEf && (page.paramsEf.motor === "fsr" || page.paramsEf.motor === "auto")
+                                Layout.fillWidth: true
+                                spacing: 6
+                                Text { text: "Nitidez (FSR)"; color: Theme.textDim; font.pixelSize: 12 }
+                                Slider {
+                                    id: nitidezSr
+                                    Layout.fillWidth: true
+                                    // RCAS: 0 = lo más afilado; 2 = casi nada. Se muestra al revés (más = más nítido).
+                                    from: 0; to: 2; stepSize: 0.05
+                                    value: page.paramsEf ? 2 - (page.paramsEf.nitidez !== undefined ? page.paramsEf.nitidez : 0.2) : 1.8
+                                    onMoved: page.ajustar(page.sel, "nitidez", Math.round((2 - value) * 100) / 100)
+                                }
+                            }
+                            CheckBox {
+                                text: "Activa (si no, pasa sin tocar)"
+                                checked: !page.paramsEf || page.paramsEf.activo !== false
+                                onToggled: page.avisar(page.vg.ajustar(page.sel, { activo: checked }))
                             }
                         }
 

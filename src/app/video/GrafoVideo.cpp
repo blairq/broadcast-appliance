@@ -21,7 +21,7 @@ constexpr int kColumna = 220;
 
 bool esFiltro(const std::string& t) {
     return t == "color" || t == "croma" || t == "recorte" || t == "obs" || t == "gst" || t == "retardo" || t == "rostros" ||
-           t == "normalizar" || t == "sincro";
+           t == "normalizar" || t == "sincro" || t == "superres";
 }
 
 json fabrica(const std::string& tipo) {
@@ -45,6 +45,11 @@ json fabrica(const std::string& tipo) {
     // puso Personas sola (y la saca cuando no la necesita).
     if (tipo == "rostros")
         return {{"uso", "mirar"}, {"cada", 500}, {"ancho", 640}, {"marcar", false}, {"auto", false}};
+    // Superresolución x2 (el plugin de GStreamer basuperres): `motor` auto | apple |
+    // fsr | onnx (con `modelo`, la ruta del .onnx), `nitidez` (FSR), `proveedor`
+    // (onnx: auto | cpu | coreml | dml), `activo`. Lo que la sigue trabaja al doble.
+    if (tipo == "superres")
+        return {{"motor", "auto"}, {"modelo", ""}, {"nitidez", 0.2}, {"proveedor", "auto"}, {"activo", true}, {"esperar", 0}};
     if (tipo == "obs") return {{"filtro", ""}, {"ajustes", json::object()}};
     // Un módulo de GStreamer: el elemento y sus propiedades (lo que cambia de fábrica).
     // `esperar` (ms): 0 entrega el cuadro anterior (1 cuadro de latencia, nunca
@@ -74,6 +79,7 @@ std::string titulo(const std::string& tipo) {
     if (tipo == "rostros") return "Rostros";
     if (tipo == "obs") return "Filtro";
     if (tipo == "gst") return "Módulo";
+    if (tipo == "superres") return "Superresolución";
     if (tipo == "control") return "Controlador";
     if (tipo == "compositor") return "Compositor";
     return tipo;
@@ -145,6 +151,8 @@ json GrafoVideo::catalogo() {
         {"normalizar", "Corrige una fuente que declara mal su color (BT.601/709, rango limitado/completo) y la "
                        "desentrelaza (en la fuente, donde están los campos).", "entrada"},
         {"retardo", "Atrasa la imagen (`ms`, o `cuadros`): para sincronizar una cámara con otra o con el audio.", "entrada"},
+        {"superres", "Duplica la resolución (Apple en macOS 26, FSR 1 en cualquier GPU, o una red ONNX entrenada con la "
+                     "cámara): lo que la sigue trabaja al doble y la escena la recibe grande. Compensa el audio solo.", "entrada"},
         {"salida", "Publica la imagen de ese punto como una fuente con nombre, para cualquier escena.", "entrada"},
         {"compositor", "Junta varias entradas en una imagen (mosaico, imagen en imagen). Es del estudio.", "estudio"},
         {"control", "Maneja con UN ajuste las tarjetas iguales de varias entradas (la misma corrección de color "

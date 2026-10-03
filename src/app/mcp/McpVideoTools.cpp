@@ -250,7 +250,7 @@ void McpService::registerVideoTools() {
                          {"required", {"tipo"}},
                          {"properties",
                           {{"entrada", entrada},
-                           {"tipo", {{"type", "string"}, {"enum", {"color", "croma", "recorte", "obs", "gst", "plugin", "retardo", "normalizar", "rostros", "salida", "compositor"}}}},
+                           {"tipo", {{"type", "string"}, {"enum", {"color", "croma", "recorte", "obs", "gst", "plugin", "retardo", "normalizar", "rostros", "salida", "compositor", "superres"}}}},
                            {"plugin", {{"type", "string"}, {"description", "con tipo plugin: el id del plugin de Python (plugin_listar)"}}},
                            {"tarjeta", {{"type", "string"}, {"description", "con tipo plugin: la tarjeta de video que declaró"}}},
                            {"parametros", {{"type", "object"}, {"description", "con tipo plugin: sus ajustes"}}},

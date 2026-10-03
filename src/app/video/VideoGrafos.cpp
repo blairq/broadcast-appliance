@@ -442,10 +442,12 @@ std::string VideoGrafos::agregarSuperres(const std::string& entrada, const std::
     if (it == elementos.end()) return "motor: apple, fsr u onnx";
     if (!motoresSuperres().contains(QString::fromStdString(motor))) return "este sistema no tiene el motor «" + motor + "»";
     if (motor == "onnx" && modelo.empty()) return "el motor onnx necesita `modelo` (la ruta del .onnx)";
-    const json props = motor == "onnx" ? json{{"modelo", modelo}} : json::object();
+    // La tarjeta «Superresolución» (el plugin basuperres), con el motor elegido.
     return editar([&](GrafoVideo& g) {
         std::string e;
-        agregarModuloEn(g, it->second, entrada.empty() ? entrada_.toStdString() : entrada, despues, props, &e);
+        const std::string id = g.agregar("superres", entrada.empty() ? entrada_.toStdString() : entrada, despues,
+                                         json{{"motor", motor}, {"modelo", motor == "onnx" ? modelo : std::string()}}, &e);
+        (void)id;
         return e;
     });
 }
@@ -494,6 +496,25 @@ std::string VideoGrafos::crearEntradaVirtual(const std::string& nombre, const st
 
 QString VideoGrafos::crearVirtual(const QString& nombre, const QString& preset, const QString& escena) {
     return q(crearEntradaVirtual(nombre.toStdString(), preset.toStdString(), escena.toStdString()));
+}
+
+void VideoGrafos::compensarAudio(const std::string& entrada) {
+    // Una tarjeta de superresolución entrega el cuadro anterior (un cuadro de
+    // demora en el video): el audio de la entrada se atrasa lo mismo, así no
+    // queda adelantado. Se suma a lo que haya puesto el operador (se lleva
+    // aparte lo que se agregó acá).
+    int tarjetas = 0;
+    for (const auto& n : grafo_.nodos())
+        if (n.grupo == entrada && n.tipo == "superres" && grafo_.efectivos(n).value("esperar", 0) == 0 &&
+            grafo_.efectivos(n).value("activo", true))
+            ++tarjetas;
+    obs_video_info ovi{};
+    const double cuadroMs = obs_get_video_info(&ovi) && ovi.fps_num > 0 ? 1000.0 * ovi.fps_den / ovi.fps_num : 33.3;
+    const int deseado = static_cast<int>(std::lround(tarjetas * cuadroMs));
+    const int antes = compAudio_.count(entrada) ? compAudio_[entrada] : 0;
+    if (deseado == antes) return;
+    const int actual = rt_.engine().sourceSyncOffset(entrada);
+    if (rt_.engine().setSourceSyncOffset(entrada, actual - antes + deseado)) compAudio_[entrada] = deseado;
 }
 
 std::string VideoGrafos::editar(const std::function<std::string(GrafoVideo&)>& f) {
@@ -881,6 +902,7 @@ void VideoGrafos::aplicar(const std::string& entrada) {
     }
     if (f != nullptr) obs_source_release(f);
     obs_source_release(src);
+    compensarAudio(entrada);
 }
 
 namespace {
@@ -1115,7 +1137,7 @@ json VideoGrafos::estadoEntrada(const std::string& entrada) const {
     for (const auto& n : grafo_.nodos()) {
         if (n.grupo != entrada) continue;
         const json p = grafo_.efectivos(n);
-        if (n.tipo == "gst" && p.value("esperar", 0) == 0) ++cuadros;
+        if ((n.tipo == "gst" || n.tipo == "superres") && p.value("esperar", 0) == 0) ++cuadros;
         if (n.tipo == "retardo") {
             if (p.value("ms", 0) > 0)
                 ms += p.value("ms", 0);

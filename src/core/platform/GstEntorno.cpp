@@ -22,6 +22,15 @@ void poner(const char* k, const fs::path& v) {
     setenv(k, t.c_str(), 1);
 #endif
 }
+std::string texto(const fs::path& v) {
+    const std::u8string s = v.u8string();
+    return std::string(s.begin(), s.end());
+}
+#ifdef _WIN32
+constexpr char kSepRuta = ';';
+#else
+constexpr char kSepRuta = ':';
+#endif
 void ponerTexto(const char* k, const char* v) {
 #ifdef _WIN32
     _putenv_s(k, v);
@@ -48,8 +57,13 @@ bool prepararGst() {
     if (raiz.empty()) return false;
     // Solo los plugins del bundle: la ruta del sistema apunta a la nuestra y la
     // del usuario queda vacía.
-    poner("GST_PLUGIN_SYSTEM_PATH_1_0", raiz / "lib" / "gstreamer-1.0");
-    poner("GST_PLUGIN_SYSTEM_PATH", raiz / "lib" / "gstreamer-1.0");
+    // Los de GStreamer y los propios (gst-plugins/: superresolución…).
+    std::string ruta = texto(raiz / "lib" / "gstreamer-1.0");
+    std::error_code ec2;
+    if (fs::is_directory(bundleRoot() / "gst-plugins", ec2)) ruta += std::string(1, kSepRuta) + texto(bundleRoot() / "gst-plugins");
+    if (const char* extra = std::getenv("BA_GST_PLUGINS_EXTRA"); extra != nullptr && *extra != '\0') ruta += std::string(1, kSepRuta) + extra;
+    ponerTexto("GST_PLUGIN_SYSTEM_PATH_1_0", ruta.c_str());
+    ponerTexto("GST_PLUGIN_SYSTEM_PATH", ruta.c_str());
     ponerTexto("GST_PLUGIN_PATH_1_0", "");
     ponerTexto("GST_PLUGIN_PATH", "");
 #ifdef _WIN32

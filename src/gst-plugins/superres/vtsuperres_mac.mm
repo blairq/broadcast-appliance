@@ -1,5 +1,5 @@
 // ============================================================================
-// src/obs-module/ba_gst_superres_mac.mm — superresolución x2 con VideoToolbox
+// src/gst-plugins/superres/vtsuperres_mac.mm — superresolución x2 con VideoToolbox
 //
 // Proposito:
 //   Elemento de GStreamer `bavtsuperres`: duplica la resolución de un video
@@ -9,9 +9,8 @@
 //   la GPU/Neural Engine. Medido en una M1 Pro: ~2,3 ms por cuadro de 768x576.
 //   No es «agrandar»: reconstruye bordes y saca los bloques de compresión.
 //
-//   Lo usa la entrada de red (ba_gst_fuente, ajuste `superres`) después de
-//   llevar la imagen a píxel cuadrado y NV12:
-//     ... ! videoconvertscale ! video/x-raw,format=NV12 ! bavtsuperres ! ...
+//   Uno de los motores de `basuperres` (plugin.cpp); también se puede usar
+//   suelto: ... ! videoconvert ! video/x-raw,format=NV12 ! bavtsuperres ! ...
 //
 //   Limites de Apple: entrada entre 96x96 y 960x960, factor 2, NV12 de rango
 //   limitado (420v). Lo que no entra (una cámara HD) pasa SIN TOCAR (modo
@@ -25,6 +24,8 @@
 #include <gst/base/gstbasetransform.h>
 #include <gst/gst.h>
 #include <gst/video/video.h>
+
+#include "comun.hpp"
 
 #import <CoreMedia/CoreMedia.h>
 #import <CoreVideo/CoreVideo.h>
@@ -72,7 +73,7 @@ struct _BaVtSuperRes {
     void* config;      ///< VTLowLatencySuperResolutionScalerConfiguration* (retenido)
     CVPixelBufferPoolRef poolIn, poolOut;
     guint64 cuadros;
-    gdouble msTotal;
+    ba::sr::Demora* demora;
 };
 
 G_DEFINE_TYPE(BaVtSuperRes, ba_vtsuperres, GST_TYPE_BASE_TRANSFORM)
@@ -136,35 +137,7 @@ static bool abrirSesion(BaVtSuperRes* s, int w, int h) {
 }
 
 static GstCaps* transformarCaps(GstBaseTransform* bt, GstPadDirection dir, GstCaps* caps, GstCaps* filtro) {
-    auto* s = BA_VTSUPERRES(bt);
-    GstCaps* out = gst_caps_new_empty();
-    for (guint i = 0; i < gst_caps_get_size(caps); ++i) {
-        GstStructure* st = gst_structure_copy(gst_caps_get_structure(caps, i));
-        // La forma sin tocar (passthrough) siempre vale.
-        gst_caps_append_structure(out, gst_structure_copy(st));
-        int w = 0, h = 0;
-        if (s->activo && gst_structure_get_int(st, "width", &w) && gst_structure_get_int(st, "height", &h)) {
-            if (dir == GST_PAD_SINK && entra(w, h)) {
-                gst_structure_set(st, "width", G_TYPE_INT, w * kFactor, "height", G_TYPE_INT, h * kFactor, nullptr);
-                // El doble, PRIMERO: es lo que se prefiere cuando se puede.
-                GstCaps* d = gst_caps_new_full(st, nullptr);
-                gst_caps_append(d, out);
-                out = d;
-                st = nullptr;
-            } else if (dir == GST_PAD_SRC && w % kFactor == 0 && h % kFactor == 0 && entra(w / kFactor, h / kFactor)) {
-                gst_structure_set(st, "width", G_TYPE_INT, w / kFactor, "height", G_TYPE_INT, h / kFactor, nullptr);
-                gst_caps_append_structure(out, st);
-                st = nullptr;
-            }
-        }
-        if (st != nullptr) gst_structure_free(st);
-    }
-    if (filtro != nullptr) {
-        GstCaps* f = gst_caps_intersect_full(filtro, out, GST_CAPS_INTERSECT_FIRST);
-        gst_caps_unref(out);
-        out = f;
-    }
-    return out;
+    return ba::sr::transformarCaps(dir, caps, filtro, BA_VTSUPERRES(bt)->activo, [](int w, int h) { return entra(w, h); });
 }
 
 static gboolean tamanoSalida(GstBaseTransform*, GstPadDirection, GstCaps*, gsize, GstCaps* otras, gsize* otro) {
@@ -260,7 +233,8 @@ static GstFlowReturn transformar(GstBaseTransform* bt, GstBuffer* inbuf, GstBuff
             gst_video_frame_unmap(&fo);
             gst_video_frame_unmap(&fi);
             ++s->cuadros;
-            s->msTotal += static_cast<gdouble>(g_get_monotonic_time() - t0) / 1000.0;
+            s->demora->anotar(static_cast<double>(g_get_monotonic_time() - t0) / 1000.0);
+            ba::sr::quizasAvisarLatencia(bt, *s->demora);
             return ret;
         }
     }
@@ -280,17 +254,28 @@ static void ponerPropiedad(GObject* o, guint id, const GValue* v, GParamSpec* ps
 static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
     auto* s = BA_VTSUPERRES(o);
     if (id == PROP_ACTIVO) g_value_set_boolean(v, s->activo);
-    else if (id == PROP_MS) g_value_set_double(v, s->cuadros > 0 ? s->msTotal / static_cast<gdouble>(s->cuadros) : 0.0);
+    else if (id == PROP_MS) g_value_set_double(v, s->demora->media());
     else G_OBJECT_WARN_INVALID_PROPERTY_ID(o, id, ps);
 }
 
 static gboolean parar(GstBaseTransform* bt) {
     soltarSesion(BA_VTSUPERRES(bt));
+    BA_VTSUPERRES(bt)->demora->reiniciar();
     return TRUE;
+}
+
+static gboolean consultar(GstBaseTransform* bt, GstPadDirection dir, GstQuery* q) {
+    return ba::sr::consultaLatencia(bt, q, *BA_VTSUPERRES(bt)->demora, GST_BASE_TRANSFORM_CLASS(ba_vtsuperres_parent_class)->query, dir);
+}
+
+static gboolean eventoEntrada(GstBaseTransform* bt, GstEvent* ev) {
+    if (GST_EVENT_TYPE(ev) == GST_EVENT_FLUSH_STOP || GST_EVENT_TYPE(ev) == GST_EVENT_STREAM_START) BA_VTSUPERRES(bt)->demora->reiniciar();
+    return GST_BASE_TRANSFORM_CLASS(ba_vtsuperres_parent_class)->sink_event(bt, ev);
 }
 
 static void ba_vtsuperres_finalize(GObject* o) {
     soltarSesion(BA_VTSUPERRES(o));
+    delete BA_VTSUPERRES(o)->demora;
     G_OBJECT_CLASS(ba_vtsuperres_parent_class)->finalize(o);
 }
 
@@ -303,7 +288,7 @@ static void ba_vtsuperres_class_init(BaVtSuperResClass* k) {
     go->finalize = ba_vtsuperres_finalize;
     g_object_class_install_property(go, PROP_ACTIVO,
                                     g_param_spec_boolean("activo", "Activo", "Duplica la resolución (si el tamaño entra)", TRUE,
-                                                         static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+                                                         static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | GST_PARAM_MUTABLE_PLAYING)));
     g_object_class_install_property(go, PROP_MS,
                                     g_param_spec_double("ms-por-cuadro", "ms por cuadro", "Lo que tarda en promedio", 0, 1000, 0,
                                                         static_cast<GParamFlags>(G_PARAM_READABLE | G_PARAM_STATIC_STRINGS)));
@@ -317,6 +302,10 @@ static void ba_vtsuperres_class_init(BaVtSuperResClass* k) {
     bt->transform_size = tamanoSalida;
     bt->transform = transformar;
     bt->stop = parar;
+    bt->query = consultar;
+    bt->sink_event = eventoEntrada;
+    bt->fixate_caps = ba::sr::fijarCaps;
+    bt->transform_meta = ba::sr::transformarMeta;
     bt->passthrough_on_same_caps = TRUE;
 }
 
@@ -327,13 +316,13 @@ static void ba_vtsuperres_init(BaVtSuperRes* s) {
     s->config = nullptr;
     s->poolIn = s->poolOut = nullptr;
     s->cuadros = 0;
-    s->msTotal = 0;
+    s->demora = new ba::sr::Demora();
+    gst_base_transform_set_qos_enabled(GST_BASE_TRANSFORM(s), TRUE);
 }
 
-namespace ba::gst {
-/// Registra `bavtsuperres` (lo llama registrarElementosPlugin). Sin macOS 26 no registra nada.
-void registrarSuperres() {
-    if (!soportado()) return;
-    gst_element_register(nullptr, "bavtsuperres", GST_RANK_NONE, BA_TYPE_VTSUPERRES);
+/// Registra `bavtsuperres` en el plugin. Sin macOS 26 no registra nada.
+extern "C" gboolean ba_registrar_vtsuperres(GstPlugin* plugin) {
+    if (!soportado()) return TRUE;
+    return gst_element_register(plugin, "bavtsuperres", GST_RANK_NONE, BA_TYPE_VTSUPERRES);
 }
-} // namespace ba::gst
+extern "C" gboolean ba_vtsuperres_soportado() { return soportado() ? TRUE : FALSE; }

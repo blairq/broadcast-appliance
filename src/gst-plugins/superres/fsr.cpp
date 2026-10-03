@@ -1,5 +1,5 @@
 // ============================================================================
-// src/obs-module/ba_gst_fsr.cpp — FSR1 (AMD FidelityFX Super Resolution) x2
+// src/gst-plugins/superres/fsr.cpp — FSR1 (AMD FidelityFX Super Resolution) x2
 //
 // Proposito:
 //   Elemento de GStreamer `bafsr`: duplica la resolución con FSR 1.0 de AMD
@@ -307,12 +307,5 @@ static void ba_fsr_init(BaFsr* s) {
     gst_object_unref(out);
 }
 
-namespace ba::gst {
-/// Registra `bafsr` (lo llama registrarElementosPlugin). Sin el plugin de OpenGL no registra nada.
-void registrarFsr() {
-    GstElementFactory* f = gst_element_factory_find("glshader");
-    if (f == nullptr) return;
-    gst_object_unref(f);
-    gst_element_register(nullptr, "bafsr", GST_RANK_NONE, BA_TYPE_FSR);
-}
-} // namespace ba::gst
+/// Registra `bafsr` en el plugin (necesita los elementos de OpenGL de GStreamer al usarlo).
+extern "C" gboolean ba_registrar_fsr(GstPlugin* plugin) { return gst_element_register(plugin, "bafsr", GST_RANK_NONE, BA_TYPE_FSR); }

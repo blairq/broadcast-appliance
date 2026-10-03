@@ -66,7 +66,7 @@ bool fallo() { return g_hecho && !g_listo; }
 TarjetaGst::TarjetaGst(std::string elemento, std::map<std::string, std::string> propiedades)
     : elemento_(std::move(elemento)), props_(std::move(propiedades)) {
     // Los filtros de superresolución devuelven el doble: la tarjeta no lo achica de vuelta.
-    if (elemento_ == "bavtsuperres" || elemento_ == "bafsr" || elemento_ == "baonnxsr") factor_ = 2;
+    if (elemento_ == "basuperres" || elemento_ == "bavtsuperres" || elemento_ == "bafsr" || elemento_ == "baonnxsr") factor_ = 2;
 }
 
 TarjetaGst::~TarjetaGst() {
@@ -226,8 +226,10 @@ void TarjetaGst::ajustar(const std::map<std::string, std::string>& propiedades) 
         GstElement* m = modulo_;
         if (m == nullptr) continue;
         GParamSpec* ps = g_object_class_find_property(G_OBJECT_GET_CLASS(m), k.c_str());
+        // Lo que GStreamer marca como «solo con la cadena parada» (MUTABLE_READY o
+        // de construcción) rearma el pipeline; lo demás se cambia en vivo.
         if (ps != nullptr && !(ps->flags & GST_PARAM_MUTABLE_PLAYING) && !(ps->flags & GST_PARAM_CONTROLLABLE) &&
-            (ps->flags & G_PARAM_CONSTRUCT_ONLY))
+            ((ps->flags & G_PARAM_CONSTRUCT_ONLY) || (ps->flags & GST_PARAM_MUTABLE_READY)))
             rearmar_ = true;
         else
             gst_util_set_object_arg(G_OBJECT(m), k.c_str(), v.c_str());

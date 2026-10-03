@@ -973,11 +973,8 @@ void registrarFiltroAudioPlugin() {
 }
 
 void registrarElementosPlugin() {
-#if defined(__APPLE__)
-    registrarSuperres();
-#endif
-    registrarFsr();
-    registrarOnnxSr();
+    // La superresolución (basuperres, bafsr, baonnxsr, bavtsuperres) es un
+    // plugin de GStreamer aparte: src/gst-plugins/superres.
     gst_element_register(nullptr, "baplugin", GST_RANK_NONE, ba_plugin_filtro_get_type());
     gst_element_register(nullptr, "bapluginsrc", GST_RANK_NONE, ba_plugin_fuente_get_type());
 }

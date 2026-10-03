@@ -1,5 +1,5 @@
 // ============================================================================
-// src/obs-module/ba_gst_onnxsr.cpp — superresolución x2 con una red ONNX
+// src/gst-plugins/superres/onnxsr.cpp — superresolución x2 con una red ONNX
 //
 // Proposito:
 //   Elemento de GStreamer `baonnxsr`: duplica la resolución con una red
@@ -27,7 +27,9 @@
 #include <gst/gst.h>
 #include <gst/video/video.h>
 
-#if defined(BA_HAVE_ROSTROS)
+#include "comun.hpp"
+
+#if defined(BA_HAVE_ORT)
 #include <onnxruntime_cxx_api.h>
 #if defined(__APPLE__)
 #include <coreml_provider_factory.h>
@@ -46,7 +48,7 @@ G_BEGIN_DECLS
 G_DECLARE_FINAL_TYPE(BaOnnxSr, ba_onnxsr, BA, ONNXSR, GstBaseTransform)
 G_END_DECLS
 
-#if defined(BA_HAVE_ROSTROS)
+#if defined(BA_HAVE_ORT)
 struct Red {
     Ort::Env env{ORT_LOGGING_LEVEL_WARNING, "baonnxsr"};
     std::unique_ptr<Ort::Session> sesion;
@@ -64,20 +66,19 @@ struct _BaOnnxSr {
     gchar* proveedor;
     gboolean procesa;
     gchar* error;
-#if defined(BA_HAVE_ROSTROS)
+#if defined(BA_HAVE_ORT)
     Red* red;
     GThread* preparando;   ///< la red se arma en otro hilo (CoreML compila ~3 s)
     std::atomic<Red*>* lista; ///< lo que dejó el hilo
     int pw, ph;            ///< el tamaño para el que se prepara
 #endif
-    guint64 cuadros;
-    gdouble msTotal;
-    gdouble ms; ///< promedio de los últimos cuadros (móvil)
+    gboolean activo;
+    ba::sr::Demora* demora;
 };
 
 G_DEFINE_TYPE(BaOnnxSr, ba_onnxsr, GST_TYPE_BASE_TRANSFORM)
 
-enum { PROP_0, PROP_MODELO, PROP_PROVEEDOR, PROP_MS, PROP_ERROR, PROP_PROVEEDOR_USADO };
+enum { PROP_0, PROP_ACTIVO, PROP_MODELO, PROP_PROVEEDOR, PROP_MS, PROP_ERROR, PROP_PROVEEDOR_USADO };
 
 static GstStaticPadTemplate sinkTpl = GST_STATIC_PAD_TEMPLATE("sink", GST_PAD_SINK, GST_PAD_ALWAYS,
                                                               GST_STATIC_CAPS(GST_VIDEO_CAPS_MAKE("NV12")));
@@ -93,7 +94,7 @@ static void ponerError(BaOnnxSr* s, const std::string& e) {
 }
 
 static void soltarRed(BaOnnxSr* s) {
-#if defined(BA_HAVE_ROSTROS)
+#if defined(BA_HAVE_ORT)
     if (s->preparando != nullptr) {
         g_thread_join(s->preparando);
         s->preparando = nullptr;
@@ -106,7 +107,7 @@ static void soltarRed(BaOnnxSr* s) {
 
 /// Abre la sesión para este tamaño (en el hilo de preparación). false si no se pudo (queda el error).
 static bool abrirRed(BaOnnxSr* s, int w, int h) {
-#if defined(BA_HAVE_ROSTROS)
+#if defined(BA_HAVE_ORT)
     try {
         auto* r = new Red();
         Ort::SessionOptions op;
@@ -174,32 +175,7 @@ static bool abrirRed(BaOnnxSr* s, int w, int h) {
 
 static GstCaps* transformarCaps(GstBaseTransform* bt, GstPadDirection dir, GstCaps* caps, GstCaps* filtro) {
     auto* s = BA_ONNXSR(bt);
-    GstCaps* out = gst_caps_new_empty();
-    for (guint i = 0; i < gst_caps_get_size(caps); ++i) {
-        GstStructure* st = gst_structure_copy(gst_caps_get_structure(caps, i));
-        gst_caps_append_structure(out, gst_structure_copy(st));
-        int w = 0, h = 0;
-        if (hayModelo(s) && gst_structure_get_int(st, "width", &w) && gst_structure_get_int(st, "height", &h)) {
-            if (dir == GST_PAD_SINK) {
-                gst_structure_set(st, "width", G_TYPE_INT, w * 2, "height", G_TYPE_INT, h * 2, nullptr);
-                GstCaps* d = gst_caps_new_full(st, nullptr);
-                gst_caps_append(d, out);
-                out = d;
-                st = nullptr;
-            } else if (w % 2 == 0 && h % 2 == 0) {
-                gst_structure_set(st, "width", G_TYPE_INT, w / 2, "height", G_TYPE_INT, h / 2, nullptr);
-                gst_caps_append_structure(out, st);
-                st = nullptr;
-            }
-        }
-        if (st != nullptr) gst_structure_free(st);
-    }
-    if (filtro != nullptr) {
-        GstCaps* f = gst_caps_intersect_full(filtro, out, GST_CAPS_INTERSECT_FIRST);
-        gst_caps_unref(out);
-        out = f;
-    }
-    return out;
+    return ba::sr::transformarCaps(dir, caps, filtro, s->activo && hayModelo(s));
 }
 
 static gboolean tamanoSalida(GstBaseTransform*, GstPadDirection, GstCaps*, gsize, GstCaps* otras, gsize* otro) {
@@ -260,7 +236,7 @@ static GstFlowReturn transformar(GstBaseTransform* bt, GstBuffer* inbuf, GstBuff
     const int poY = GST_VIDEO_FRAME_PLANE_STRIDE(&fo, 0), poUV = GST_VIDEO_FRAME_PLANE_STRIDE(&fo, 1);
     const gint64 t0 = g_get_monotonic_time();
     bool hecho = false;
-#if defined(BA_HAVE_ROSTROS)
+#if defined(BA_HAVE_ORT)
     // La red se prepara en otro hilo: mientras tanto la imagen sale agrandada
     // simple (la entrada no se congela los segundos que tarda CoreML en compilar).
     if (s->red == nullptr) {
@@ -347,10 +323,9 @@ static GstFlowReturn transformar(GstBaseTransform* bt, GstBuffer* inbuf, GstBuff
     gst_video_frame_unmap(&fo);
     gst_video_frame_unmap(&fi);
     const double ms = static_cast<double>(g_get_monotonic_time() - t0) / 1000.0;
-    if (!hecho) return GST_FLOW_OK; // preparando o sin red: no cuenta para el promedio
-    ++s->cuadros;
-    s->msTotal += ms;
-    s->ms = s->cuadros == 1 ? ms : s->ms * 0.9 + ms * 0.1;
+    if (!hecho) return GST_FLOW_OK; // preparando o sin red: no cuenta para la demora
+    s->demora->anotar(ms);
+    ba::sr::quizasAvisarLatencia(bt, *s->demora);
     return GST_FLOW_OK;
 }
 
@@ -363,6 +338,10 @@ static void ponerPropiedad(GObject* o, guint id, const GValue* v, GParamSpec* ps
             g_free(s->error);
             s->error = nullptr;
             soltarRed(s);
+            gst_base_transform_reconfigure_src(GST_BASE_TRANSFORM(s));
+            break;
+        case PROP_ACTIVO:
+            s->activo = g_value_get_boolean(v);
             gst_base_transform_reconfigure_src(GST_BASE_TRANSFORM(s));
             break;
         case PROP_PROVEEDOR:
@@ -379,10 +358,11 @@ static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
     switch (id) {
         case PROP_MODELO: g_value_set_string(v, s->modelo); break;
         case PROP_PROVEEDOR: g_value_set_string(v, s->proveedor); break;
-        case PROP_MS: g_value_set_double(v, s->ms); break;
+        case PROP_MS: g_value_set_double(v, s->demora->media()); break;
+        case PROP_ACTIVO: g_value_set_boolean(v, s->activo); break;
         case PROP_ERROR: g_value_set_string(v, s->error); break;
         case PROP_PROVEEDOR_USADO:
-#if defined(BA_HAVE_ROSTROS)
+#if defined(BA_HAVE_ORT)
             g_value_set_string(v, s->red != nullptr ? s->red->proveedor.c_str() : "");
 #else
             g_value_set_string(v, "");
@@ -394,18 +374,30 @@ static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
 
 static gboolean parar(GstBaseTransform* bt) {
     soltarRed(BA_ONNXSR(bt));
+    BA_ONNXSR(bt)->demora->reiniciar();
     return TRUE;
+}
+
+static gboolean consultar(GstBaseTransform* bt, GstPadDirection dir, GstQuery* q) {
+    return ba::sr::consultaLatencia(bt, q, *BA_ONNXSR(bt)->demora, GST_BASE_TRANSFORM_CLASS(ba_onnxsr_parent_class)->query, dir);
+}
+
+/// Un corte (flush) o un stream nuevo: la demora se vuelve a medir.
+static gboolean eventoEntrada(GstBaseTransform* bt, GstEvent* ev) {
+    if (GST_EVENT_TYPE(ev) == GST_EVENT_FLUSH_STOP || GST_EVENT_TYPE(ev) == GST_EVENT_STREAM_START) BA_ONNXSR(bt)->demora->reiniciar();
+    return GST_BASE_TRANSFORM_CLASS(ba_onnxsr_parent_class)->sink_event(bt, ev);
 }
 
 static void ba_onnxsr_finalize(GObject* o) {
     auto* s = BA_ONNXSR(o);
     soltarRed(s);
-#if defined(BA_HAVE_ROSTROS)
+#if defined(BA_HAVE_ORT)
     delete s->lista;
 #endif
     g_free(s->modelo);
     g_free(s->proveedor);
     g_free(s->error);
+    delete s->demora;
     G_OBJECT_CLASS(ba_onnxsr_parent_class)->finalize(o);
 }
 
@@ -416,8 +408,9 @@ static void ba_onnxsr_class_init(BaOnnxSrClass* k) {
     go->set_property = ponerPropiedad;
     go->get_property = leerPropiedad;
     go->finalize = ba_onnxsr_finalize;
-    const auto rw = static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+    const auto rw = static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | GST_PARAM_MUTABLE_PLAYING);
     const auto ro = static_cast<GParamFlags>(G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
+    g_object_class_install_property(go, PROP_ACTIVO, g_param_spec_boolean("activo", "Activo", "Agranda (FALSE: pasa sin tocar)", TRUE, rw));
     g_object_class_install_property(go, PROP_MODELO, g_param_spec_string("modelo", "Modelo", "Ruta del .onnx (vacío: pasa sin tocar)", nullptr, rw));
     g_object_class_install_property(go, PROP_PROVEEDOR,
                                     g_param_spec_string("proveedor", "Proveedor", "auto, cpu, coreml (macOS) o dml (Windows)", "auto", rw));
@@ -434,6 +427,10 @@ static void ba_onnxsr_class_init(BaOnnxSrClass* k) {
     bt->set_caps = ponerCaps;
     bt->transform = transformar;
     bt->stop = parar;
+    bt->query = consultar;
+    bt->sink_event = eventoEntrada;
+    bt->fixate_caps = ba::sr::fijarCaps;
+    bt->transform_meta = ba::sr::transformarMeta;
     bt->passthrough_on_same_caps = TRUE;
 }
 
@@ -442,18 +439,16 @@ static void ba_onnxsr_init(BaOnnxSr* s) {
     s->proveedor = g_strdup("auto");
     s->error = nullptr;
     s->procesa = FALSE;
-#if defined(BA_HAVE_ROSTROS)
+#if defined(BA_HAVE_ORT)
     s->red = nullptr;
     s->preparando = nullptr;
     s->lista = new std::atomic<Red*>(nullptr);
     s->pw = s->ph = 0;
 #endif
-    s->cuadros = 0;
-    s->msTotal = 0;
-    s->ms = 0;
+    s->activo = TRUE;
+    s->demora = new ba::sr::Demora();
+    gst_base_transform_set_qos_enabled(GST_BASE_TRANSFORM(s), TRUE);
 }
 
-namespace ba::gst {
-/// Registra `baonnxsr` (lo llama registrarElementosPlugin).
-void registrarOnnxSr() { gst_element_register(nullptr, "baonnxsr", GST_RANK_NONE, BA_TYPE_ONNXSR); }
-} // namespace ba::gst
+/// Registra `baonnxsr` en el plugin.
+extern "C" gboolean ba_registrar_onnxsr(GstPlugin* plugin) { return gst_element_register(plugin, "baonnxsr", GST_RANK_NONE, BA_TYPE_ONNXSR); }

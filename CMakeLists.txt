@@ -268,6 +268,10 @@ endif()
 add_subdirectory(src/app)
 add_subdirectory(src/grafico)
 add_subdirectory(src/obs-module)
+# Plugins de GStreamer propios (superresolución): solo si hay GStreamer.
+if(BA_HAVE_GST)
+    add_subdirectory(src/gst-plugins)
+endif()
 
 # --- Reglas de instalación (layout 5.1) -------------------------------------
 # El layout espeja el portable de OBS (spec §5.1). Las rutas de destino son

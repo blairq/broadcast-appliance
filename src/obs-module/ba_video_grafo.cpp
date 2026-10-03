@@ -477,6 +477,28 @@ std::shared_ptr<Plan> armarPlan(const char* json, const Plan* anterior) {
 #else
                 continue; // sin GStreamer: la tarjeta no se calcula
 #endif
+            } else if (n.tipo == "superres") {
+#if defined(BA_HAVE_GST)
+                // La tarjeta «Superresolución»: el plugin de GStreamer basuperres (x2).
+                p.tipo = Tipo::Gst;
+                std::map<std::string, std::string> props;
+                const char* claves[] = {"motor", "modelo", "proveedor"};
+                for (const char* k : claves)
+                    if (q != nullptr && *obs_data_get_string(q, k) != '\0') props[k] = obs_data_get_string(q, k);
+                if (q != nullptr) {
+                    char nit[32];
+                    std::snprintf(nit, sizeof nit, "%.3f", obs_data_has_user_value(q, "nitidez") ? obs_data_get_double(q, "nitidez") : 0.2);
+                    for (char* c = nit; *c; ++c)
+                        if (*c == ',') *c = '.'; // sin locale: 0.200
+                    props["nitidez"] = nit;
+                    props["activo"] = !obs_data_has_user_value(q, "activo") || obs_data_get_bool(q, "activo") ? "true" : "false";
+                }
+                p.gst = tarjetaGst(anterior, n.id, "basuperres", props);
+                p.gst->setEspera(q != nullptr ? static_cast<int>(obs_data_get_int(q, "esperar")) : 0);
+                plan->gst[n.id] = p.gst;
+#else
+                continue;
+#endif
             } else if (n.tipo == "salida") {
                 p.tipo = Tipo::Salida;
                 p.nombre = q != nullptr ? obs_data_get_string(q, "nombre") : "";

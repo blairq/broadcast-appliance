@@ -69,14 +69,6 @@ if(BA_HAVE_LIBOBS)
     if(BA_HAVE_GST)
         target_link_libraries(ba-sources PRIVATE ba::gstreamer)
         ba_gst_rpath(ba-sources "../../bin/64bit/")
-        # macOS: la superresolución de VideoToolbox como elemento de GStreamer.
-        if(APPLE)
-            target_sources(ba-sources PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/ba_gst_superres_mac.mm")
-            set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/ba_gst_superres_mac.mm"
-                PROPERTIES COMPILE_FLAGS "-fobjc-arc")
-            target_link_libraries(ba-sources PRIVATE "-framework VideoToolbox" "-framework CoreVideo"
-                "-framework CoreMedia" "-framework Foundation")
-        endif()
     endif()
     target_compile_definitions(ba-sources PRIVATE BA_HAVE_LIBOBS=1)
     set_target_properties(ba-sources PROPERTIES PREFIX "")

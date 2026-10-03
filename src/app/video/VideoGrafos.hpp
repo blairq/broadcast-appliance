@@ -162,6 +162,8 @@ class VideoGrafos : public QObject {
     Q_INVOKABLE QStringList motoresSuperres() const;
     /// La dirección de una entrada de red (para grabar de ella al entrenar). Vacía si no es de red.
     std::string uriDe(const std::string& entrada) const;
+    /// Atrasa el audio de la entrada lo que demoran sus tarjetas de superresolución.
+    void compensarAudio(const std::string& entrada);
     Q_INVOKABLE QString nuevaEntradaRed(const QString& nombre, const QString& uri, const QString& escena, int latenciaMs, bool normalizar);
     Q_INVOKABLE QStringList escenasUi() const;
 
@@ -293,6 +295,7 @@ class VideoGrafos : public QObject {
     /// El catálogo se arma en un hilo al arrancar (GStreamer revisa sus
     /// plugins; la primera vez tarda): mientras tanto, uno vacío.
     std::shared_ptr<const CatalogoGst> gst_ = std::make_shared<CatalogoGst>();
+    std::map<std::string, int> compAudio_; ///< entrada -> ms de audio agregados por las tarjetas
 };
 
 } // namespace ba::app::video
