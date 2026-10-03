@@ -61,9 +61,10 @@ def correr(cmd, env=None, salida=None):
 def puntaje(m):
     """Lo que manda: argumentos exactos en prueba y precision en el banco (lo que
     se ve al aire), con la cobertura y el derivado como desempate."""
-    p, b = m.get("prueba", {}), m.get("banco", {})
+    p, b, e = m.get("prueba", {}), m.get("banco", {}), m.get("examen", {})
     return (p.get("args_exactos", 0) + b.get("precision", 0)
-            + 0.5 * (b.get("cobertura", 0) + b.get("derivado", 0)) + 0.5 * p.get("falta_dato", 0))
+            + 0.5 * (b.get("cobertura", 0) + b.get("derivado", 0)) + 0.5 * p.get("falta_dato", 0)
+            + 0.5 * e.get("acierto", 0))  # el examen tambien manda (la vuelta 2 lo subio 6,6 puntos)
 
 
 def autoexamen(corpus, dest, rnd, n=400):
@@ -180,7 +181,11 @@ def main():
     rnd = random.Random(31)
     mejor_p, sin_mejora = -1.0, 0
     if (W / "mejor" / "medidas.json").exists():
-        mejor_p = puntaje(json.loads((W / "mejor" / "medidas.json").read_text())["medidas"])
+        # el mejor se re-mide con la MISMA muestra del banco que las vueltas nuevas:
+        # comparar el banco entero contra una muestra de 500 corto el bucle de la v3
+        # («dos vueltas sin mejorar» cuando la vuelta 3 si mejoraba)
+        corpus_mejor = sorted(W.glob("vuelta-*/corpus"))[-1]
+        mejor_p = puntaje(medir(W / "mejor", corpus_mejor, W / "mejor" / "medidas.json", args.limite_banco)["medidas"])
     for v in range(args.desde, args.desde + args.vueltas):
         d = W / f"vuelta-{v}"
         d.mkdir(exist_ok=True)
