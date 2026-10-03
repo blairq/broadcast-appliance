@@ -65,6 +65,8 @@ def main():
     ap.add_argument("--sesgo", type=float, default=0.0, help="dial de derivar en la eleccion")
     ap.add_argument("--json", help="donde dejar medidas y fallos")
     ap.add_argument("--tipo", choices=["bf16", "fp16"], default="bf16", help="fp16: ver si desborda (M1/M2)")
+    ap.add_argument("--con-falta", action="store_true",
+                    help="dejar elegir falta_dato en banco/examen (diagnostico: cuanto pregunta)")
     args = ap.parse_args()
     conj = set(args.conjuntos.split(","))
     corpus = Path(args.corpus).expanduser()
@@ -123,7 +125,11 @@ def main():
     # ELEGIR con el nombre restringido (como evaluar.py), para comparar con el de nombres
     # falta_dato tambien se puede elegir: antes, forzado a «herramienta o derivar», lo
     # que el modelo queria PREGUNTAR caia en derivar (18 de 31 en el examen de la vuelta 1)
-    nombres = lp.herramientas_reactivas() + [tc.DERIVAR, tc.FALTA]
+    # Por defecto NO: el banco y el examen se miden con un estado fijo cualquiera,
+    # cuyas entidades no son las que nombran sus frases; un modelo que aprendio a
+    # preguntar cuando el nombre no esta en el estado (lo correcto) pregunta, y la
+    # cobertura deja de medir la ELECCION. --con-falta lo deja elegir (diagnostico).
+    nombres = lp.herramientas_reactivas() + [tc.DERIVAR] + ([tc.FALTA] if args.con_falta else [])
     puente = tc.COLA + "<tool_call>\n<function="
     seqs = {n: tok(puente + n + ">", add_special_tokens=False).input_ids for n in nombres}
     comun = min(len(s) for s in seqs.values())
