@@ -1,0 +1,15 @@
+{
+  "id": "ejemplo-director",
+  "nombre": "Ejemplo: director por quién habla",
+  "descripcion": "Escucha los eventos «hablando» de otros plugins (una cámara de sala, una 360, un arreglo de micrófonos…) y cambia de plano: a la escena de quien habla, con un tiempo mínimo en cada plano y volviendo al general cuando hay silencio. Con `modo: proponer` le pregunta al operador en vez de cambiar. Para probarlo sin equipos: el control «simular».",
+  "version": "1.0",
+  "principal": "plugin.py",
+  "dependencias": [],
+  "config": {
+    "modo": "automatico",
+    "general": "General",
+    "planos": {"*/1": "Persona 1", "*/2": "Persona 2", "*/3": "Persona 3"},
+    "minimo_s": 4.0,
+    "silencio_s": 6.0
+  }
+}

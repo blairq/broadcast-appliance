@@ -152,6 +152,10 @@ foreach(test_source ${BA_SOURCES_TESTS})
             target_link_libraries(${test_name} PRIVATE ba::gstreamer)
             ba_gst_rpath(${test_name} "")
             target_compile_definitions(${test_name} PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0")
+            if(BA_HAVE_PYTHON)
+                target_compile_definitions(${test_name} PRIVATE BA_TEST_PYTHON="${BA_PYTHON_DIR}/bin/python3"
+                    BA_TEST_PLUGINS_SDK="${CMAKE_SOURCE_DIR}/src/plugins/sdk")
+            endif()
         endif()
         if(NOT WIN32)
             set_target_properties(${test_name} PROPERTIES

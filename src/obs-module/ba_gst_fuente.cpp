@@ -117,7 +117,7 @@ struct Fuente {
     obs_source_t* ctx = nullptr;
     std::mutex lock;
     // Lo pedido
-    std::string uri, descripcion, reloj, relojServidor;
+    std::string uri, descripcion, descripcionAudio, reloj, relojServidor;
     int relojPuerto = 0, relojDominio = 0;
     std::int64_t latenciaMs = 0, desfaseMs = 0;
     bool conAudio = true;
@@ -389,7 +389,7 @@ void armar(Fuente* f) {
         }
         return;
     }
-    if (f->uri.empty() && f->descripcion.empty()) return;
+    if (f->uri.empty() && f->descripcion.empty() && f->descripcionAudio.empty()) return;
     f->clock = relojDe(f->reloj, f->relojServidor, f->relojPuerto, f->relojDominio, f->error);
     if (f->clock == nullptr) return;
     // Los sinks NO esperan al reloj (sync=false): la hora la pone el colchón.
@@ -421,7 +421,14 @@ void armar(Fuente* f) {
                                     "audio/x-raw,format=F32LE,layout=interleaved,rate=48000,channels=2 ! ") +
                         sinkAudio;
     } else {
-        completo = f->descripcion + " ! queue name=ba_origen ! " + antesSink + capsVideo + " ! " + sinkVideo;
+        if (!f->descripcion.empty())
+            completo = f->descripcion + " ! queue name=ba_origen ! " + antesSink + capsVideo + " ! " + sinkVideo;
+        // El audio de un pipeline va aparte (`pipeline_audio`): p. ej. el de un
+        // plugin, o un micrófono que acompaña a una cámara.
+        if (!f->descripcionAudio.empty() && f->conAudio)
+            completo += std::string(completo.empty() ? "" : " ") + f->descripcionAudio +
+                        " ! queue ! audioconvert ! audioresample ! audio/x-raw,format=F32LE,layout=interleaved,rate=48000,channels=2 ! " +
+                        sinkAudio;
     }
     GError* err = nullptr;
     GstElement* p = gst_parse_launch(completo.c_str(), &err);
@@ -478,7 +485,8 @@ const char* nombre(void*) { return obs_module_text("Fuente GStreamer (BA)"); }
 void actualizar(void* data, obs_data_t* s) {
     auto* f = static_cast<Fuente*>(data);
     std::lock_guard<std::mutex> l(f->lock);
-    const std::string uri = obs_data_get_string(s, "uri"), d = obs_data_get_string(s, "pipeline");
+    const std::string uri = obs_data_get_string(s, "uri"), d = obs_data_get_string(s, "pipeline"),
+                      da = obs_data_get_string(s, "pipeline_audio");
     const std::string reloj = obs_data_get_string(s, "reloj"), servidor = obs_data_get_string(s, "reloj_servidor");
     const int puerto = static_cast<int>(obs_data_get_int(s, "reloj_puerto"));
     const int dominio = static_cast<int>(obs_data_get_int(s, "reloj_dominio"));
@@ -489,13 +497,14 @@ void actualizar(void* data, obs_data_t* s) {
     // La latencia y el desfase se cambian EN VIVO (solo mueven el colchón); lo
     // demás rearma el pipeline. (Con `uri`, la latencia también va al jitter
     // buffer de RTSP/SRT: se rearma.)
-    const bool rearmar = uri != f->uri || d != f->descripcion || reloj != f->reloj || servidor != f->relojServidor ||
+    const bool rearmar = uri != f->uri || d != f->descripcion || da != f->descripcionAudio || reloj != f->reloj || servidor != f->relojServidor ||
                          puerto != f->relojPuerto || dominio != f->relojDominio || audio != f->conAudio || normalizar != f->normalizar || ntpSync != f->ntpSync ||
                          (latencia != f->latenciaMs && !uri.empty()) || f->pipeline == nullptr;
     const std::int64_t corrimiento =
         (latencia + desfase - f->latenciaMs - f->desfaseMs) * static_cast<std::int64_t>(GST_MSECOND);
     f->uri = uri;
     f->descripcion = d;
+    f->descripcionAudio = da;
     f->reloj = reloj;
     f->relojServidor = servidor;
     f->relojPuerto = puerto;
@@ -586,7 +595,7 @@ void tic(void* data, float) {
     auto* f = static_cast<Fuente*>(data);
     std::lock_guard<std::mutex> l(f->lock);
     if (f->pipeline == nullptr) {
-        if ((!f->descripcion.empty() || !f->uri.empty()) && f->reintento != 0 && os_gettime_ns() >= f->reintento) {
+        if ((!f->descripcion.empty() || !f->descripcionAudio.empty() || !f->uri.empty()) && f->reintento != 0 && os_gettime_ns() >= f->reintento) {
             f->reintento = 0;
             armar(f);
         }
@@ -646,6 +655,7 @@ obs_properties_t* propiedades(void*) {
     obs_properties_t* p = obs_properties_create();
     obs_properties_add_text(p, "uri", obs_module_text("URI (srt://, rtmp://, rtsp://, udp://, http://, archivo)"), OBS_TEXT_DEFAULT);
     obs_properties_add_text(p, "pipeline", obs_module_text("O un pipeline de GStreamer (origen)"), OBS_TEXT_MULTILINE);
+    obs_properties_add_text(p, "pipeline_audio", obs_module_text("Y el de su audio (opcional)"), OBS_TEXT_MULTILINE);
     obs_properties_add_int(p, "latencia", obs_module_text("Latencia (ms)"), 0, 10000, 10);
     obs_properties_add_int(p, "desfase", obs_module_text("Desfase (ms)"), -5000, 5000, 1);
     obs_property_t* r = obs_properties_add_list(p, "reloj", obs_module_text("Reloj"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
@@ -722,6 +732,7 @@ void ba_register_gst_fuente(void) {
     ba_gst_fuente_info.get_properties = propiedades;
     ba_gst_fuente_info.get_defaults = porDefecto;
     obs_register_source(&ba_gst_fuente_info);
+    ba::gst::registrarFiltroAudioPlugin();
     // El reloj del estudio, para que otros aparatos se sincronicen con este:
     // proc global «ba_reloj_publicar» (puerto 0 = apagar).
     proc_handler_add(obs_get_proc_handler(),
@@ -732,6 +743,14 @@ void ba_register_gst_fuente(void) {
                          calldata_set_bool(cd, "ok", ok);
                          calldata_set_string(cd, "error", e.c_str());
                          calldata_set_int(cd, "puerto_publicado", ba::gst::relojPublicado());
+                     },
+                     nullptr);
+    // El puerto de medios de un plugin de Python (lo anuncia al arrancar; 0 = se
+    // cerró): lo usan `baplugin` y `bapluginsrc` (ba_plugin_gst.cpp).
+    proc_handler_add(obs_get_proc_handler(), "void ba_plugin_puerto(in string plugin, in int puerto)",
+                     [](void*, calldata_t* cd) {
+                         const char* p = calldata_string(cd, "plugin");
+                         if (p != nullptr) ba::gst::puertoPlugin(p, static_cast<int>(calldata_int(cd, "puerto")));
                      },
                      nullptr);
 }

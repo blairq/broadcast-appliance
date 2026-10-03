@@ -23,6 +23,21 @@
 
 namespace ba::app::mcp {
 
+namespace {
+/// `{"tipo": "plugin", "plugin", "tarjeta", "parametros"}` es una tarjeta `gst`
+/// con el módulo `baplugin` (la tarjeta de video de un plugin de Python).
+nlohmann::json tarjetaDePlugin(nlohmann::json tj) {
+    if (tj.value("tipo", std::string()) != "plugin") return tj;
+    nlohmann::json props{{"plugin", tj.value("plugin", std::string())}, {"tarjeta", tj.value("tarjeta", std::string())}};
+    const nlohmann::json par = tj.value("parametros", nlohmann::json::object());
+    if (par.is_object() && !par.empty()) props["parametros"] = par.dump();
+    tj["tipo"] = "gst";
+    tj["elemento"] = "baplugin";
+    tj["propiedades"] = props;
+    return tj;
+}
+} // namespace
+
 void McpService::registerVideoTools() {
     video::VideoGrafos* vg = vm_.videoGrafos();
     if (vg == nullptr) return;
@@ -213,7 +228,8 @@ void McpService::registerVideoTools() {
         t.description =
             "Agrega una tarjeta. En la `entrada` (después de `despues`; vacío = justo antes de su escena): `color`, "
             "`croma`, `recorte`, `obs` (un filtro de OBS: `filtro` = su id, de video_filtros) y `gst` (un módulo de "
-            "GStreamer: `elemento`, de video_modulos) se intercalan; "
+            "GStreamer: `elemento`, de video_modulos) y `plugin` (la tarjeta de un plugin de Python: `plugin`, "
+            "`tarjeta`, `parametros`) se intercalan; "
             "`retardo` atrasa la imagen; `salida` se cuelga como RAMA (publica ese punto como fuente con nombre). "
             "`compositor` es del estudio (sin entrada): se le conectan entradas (o tarjetas) con video_cable, y se "
             "pone en una escena con video_salida_a_escena o se cablea a la escena de una entrada.";
@@ -232,7 +248,10 @@ void McpService::registerVideoTools() {
                          {"required", {"tipo"}},
                          {"properties",
                           {{"entrada", entrada},
-                           {"tipo", {{"type", "string"}, {"enum", {"color", "croma", "recorte", "obs", "gst", "retardo", "normalizar", "rostros", "salida", "compositor"}}}},
+                           {"tipo", {{"type", "string"}, {"enum", {"color", "croma", "recorte", "obs", "gst", "plugin", "retardo", "normalizar", "rostros", "salida", "compositor"}}}},
+                           {"plugin", {{"type", "string"}, {"description", "con tipo plugin: el id del plugin de Python (plugin_listar)"}}},
+                           {"tarjeta", {{"type", "string"}, {"description", "con tipo plugin: la tarjeta de video que declaró"}}},
+                           {"parametros", {{"type", "object"}, {"description", "con tipo plugin: sus ajustes"}}},
                            {"filtro", {{"type", "string"}, {"description", "con tipo obs: el id del filtro de OBS"}}},
                            {"elemento", {{"type", "string"}, {"description", "con tipo gst: el módulo de GStreamer (p. ej. videobalance)"}}},
                            {"despues", idTarjeta},
@@ -243,8 +262,13 @@ void McpService::registerVideoTools() {
                       R"({"tipo": "compositor"})"};
         t.run = [v](const json& a, Done done) {
             if (!v) return done(ToolResult::error("el video no está disponible"));
-            const std::string e = a.value("entrada", std::string()), tipo = a.value("tipo", std::string());
+            const json ap = tarjetaDePlugin(json{{"tipo", a.value("tipo", std::string())},
+                                                 {"plugin", a.value("plugin", std::string())},
+                                                 {"tarjeta", a.value("tarjeta", std::string())},
+                                                 {"parametros", a.value("parametros", json::object())}});
+            const std::string e = a.value("entrada", std::string()), tipo = ap.value("tipo", std::string());
             json params = a.value("params", json::object());
+            if (ap.contains("elemento")) params = {{"elemento", ap["elemento"]}, {"propiedades", ap["propiedades"]}};
             std::string etiqueta;
             if (tipo == "obs") {
                 const std::string f = a.value("filtro", params.value("filtro", std::string()));
@@ -469,7 +493,10 @@ void McpService::registerVideoTools() {
                 {"items",
                  {{"type", "object"},
                   {"properties",
-                   {{"tipo", {{"type", "string"}}},
+                   {{"tipo", {{"type", "string"}, {"description", "color, croma, recorte, obs, gst, plugin (+ `plugin`, `tarjeta`, `parametros`), retardo, normalizar…"}}},
+                    {"plugin", {{"type", "string"}}},
+                    {"tarjeta", {{"type", "string"}}},
+                    {"parametros", {{"type", "object"}}},
                     {"elemento", {{"type", "string"}}},
                     {"filtro", {{"type", "string"}}},
                     {"propiedades", {{"type", "object"}}},
@@ -504,6 +531,7 @@ void McpService::registerVideoTools() {
                     int i = 0;
                     for (json tj : tarjetas) {
                         ++i;
+                        tj = tarjetaDePlugin(tj);
                         // Lo propio de esta entrada, sobre la tarjeta compartida.
                         if (!tj.value("compartida", std::string()).empty() && localPor.contains(e)) tj["local"] = localPor[e];
                         const std::string tipo = tj.value("tipo", std::string());

@@ -17,6 +17,9 @@
 // ============================================================================
 
 #include <obs.h>
+#if defined(BA_TEST_GST_RAIZ)
+#include <gst/gst.h>
+#endif
 #include <util/platform.h>
 
 #include <chrono>
@@ -28,6 +31,8 @@
 #include <cstring>
 #include <string>
 #include <thread>
+#include <signal.h>
+#include <unistd.h>
 #include <vector>
 
 namespace {
@@ -562,6 +567,164 @@ int main() {
         std::printf("   estado: %s\n", calldata_string(&cd, "info"));
         calldata_free(&cd);
         obs_source_release(red);
+    }
+#endif
+
+#if defined(BA_TEST_GST_RAIZ) && defined(BA_TEST_PYTHON)
+    // 11. Un plugin de Python (docs/PLUGINS.md): su tarjeta en el grafo
+    // (`baplugin`) y su entrada de video y audio (`bapluginsrc` adentro de
+    // ba_gst_fuente). Python puro, sin numpy: corre con el Python vendoreado.
+    {
+        char plantilla[] = "/tmp/ba-plugin-pruebaXXXXXX";
+        const std::string dir = mkdtemp(plantilla);
+        const std::string id = dir.substr(dir.rfind('/') + 1);
+        {
+            std::FILE* j = std::fopen((dir + "/plugin.json").c_str(), "w");
+            std::fputs("{\"principal\": \"plugin.py\"}", j);
+            std::fclose(j);
+            std::FILE* py = std::fopen((dir + "/plugin.py").c_str(), "w");
+            std::fputs(R"PY(import array, time
+import ba_plugin as ba
+plugin = ba.Plugin()
+T = bytes(255 - i for i in range(256))
+
+@plugin.tarjeta("negativo")
+def negativo(c, p):
+    a = bytearray(bytes(c.datos).translate(T))
+    a[3::4] = bytes(c.datos)[3::4]
+    c.datos[:] = a
+
+@plugin.tarjeta("mitad", medio="audio")
+def mitad(b, p):
+    a = array.array("f"); a.frombytes(bytes(b.datos))
+    b.datos[:] = array.array("f", (x * 0.5 for x in a)).tobytes()
+
+e = plugin.entrada("Prueba", video=True, audio=True)
+
+@plugin.al_iniciar
+def video():
+    cuadro = bytes([200, 100, 50, 255]) * (64 * 36)
+    while plugin.andando:
+        e.enviar_video(cuadro, ancho=64, alto=36, fps=30)
+        time.sleep(1 / 30)
+
+@plugin.al_iniciar
+def audio():
+    blk = array.array("f", [0.4] * 960).tobytes()
+    while plugin.andando:
+        e.enviar_audio(blk, 48000, 2)
+        time.sleep(0.01)
+
+plugin.correr()
+)PY",
+                       py);
+            std::fclose(py);
+        }
+        // stdin abierto (si se cierra, el plugin termina): un `sleep`.
+        const std::string cmd = "sleep 60 | \"" BA_TEST_PYTHON "\" -I -B -u \"" BA_TEST_PLUGINS_SDK "/correr.py\" \"" + dir + "\"";
+        std::FILE* proc = popen(cmd.c_str(), "r");
+        char linea[4096] = {};
+        int puerto = 0;
+        long pid = 0;
+        if (proc != nullptr && std::fgets(linea, sizeof linea, proc) != nullptr) {
+            const std::string l = linea;
+            const auto pm = l.find("\"medios\": "), pp = l.find("\"pid\": ");
+            if (pm != std::string::npos) puerto = std::atoi(l.c_str() + pm + 10);
+            if (pp != std::string::npos) pid = std::atol(l.c_str() + pp + 7);
+        }
+        std::printf("   plugin: %s (pid %ld, medios en %d)\n", id.c_str(), pid, puerto);
+        CHECK(puerto > 0, "plugin: arranca y anuncia su puerto de medios");
+        // El puerto por el proc global, como lo hace la app.
+        {
+            calldata_t cd = {};
+            calldata_set_string(&cd, "plugin", id.c_str());
+            calldata_set_int(&cd, "puerto", puerto);
+            proc_handler_call(obs_get_proc_handler(), "ba_plugin_puerto", &cd);
+            calldata_free(&cd);
+        }
+        // La tarjeta: el negativo del cuadro de prueba.
+        ponerGrafo(f, (R"({"nodos":[{"id":"in","tipo":"in"},{"id":"pl","tipo":"gst","params":{"elemento":"baplugin","propiedades":{"plugin":")" + id +
+                       R"(","tarjeta":"negativo"}}},{"id":"out","tipo":"out"}],"cables":[{"desde":"in","hacia":"pl"},{"desde":"pl","hacia":"out"}]})")
+                          .c_str());
+        std::vector<std::uint8_t> base;
+        for (int i = 0; i < 300; ++i) {
+            im = dibujar(fuente);
+            siguienteCuadro();
+            if (px(im, 5, 5, 1) < 80 && px(im, 5, 5, 3) > 245) break;
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+        std::printf("   plugin tarjeta negativo: %d %d %d (alfa %d)\n", px(im, 5, 5, 0), px(im, 5, 5, 1), px(im, 5, 5, 2), px(im, 5, 5, 3));
+        CHECK(px(im, 5, 5, 1) < 80 && px(im, 5, 5, 0) > 170 && px(im, 5, 5, 3) > 245, "plugin: la tarjeta de Python invierte el cuadro (verde -> magenta)");
+        // La entrada: video y audio del plugin, por ba_gst_fuente.
+        obs_data_t* pd = obs_data_create();
+        obs_data_set_string(pd, "pipeline", ("bapluginsrc plugin=" + id + " entrada=Prueba").c_str());
+        obs_data_set_string(pd, "pipeline_audio", ("bapluginsrc plugin=" + id + " entrada=Prueba medio=audio").c_str());
+        obs_data_set_bool(pd, "audio", true);
+        obs_data_set_bool(pd, "normalizar", false);
+        obs_data_set_int(pd, "latencia", 100);
+        obs_source_t* ent = obs_source_create("ba_gst_fuente", "plugin-entrada", pd, nullptr);
+        obs_data_release(pd);
+        std::vector<std::uint8_t> ie;
+        for (int i = 0; i < 400; ++i) {
+            siguienteCuadro();
+            ie = dibujar(ent);
+            if (obs_source_get_width(ent) == 64 && px(ie, 32, 32, 3) > 245) break;
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+        std::printf("   plugin entrada: %ux%u, centro %d %d %d\n", obs_source_get_width(ent), obs_source_get_height(ent), px(ie, 32, 32, 0),
+                    px(ie, 32, 32, 1), px(ie, 32, 32, 2));
+        CHECK(obs_source_get_width(ent) == 64 && obs_source_get_height(ent) == 36, "plugin: la entrada de video llega con su tamaño");
+        CHECK(std::abs(px(ie, 32, 32, 0) - 200) < 20 && std::abs(px(ie, 32, 32, 1) - 100) < 20, "plugin: la entrada trae el color que manda");
+        {
+            calldata_t cd = {};
+            proc_handler_call(obs_source_get_proc_handler(ent), "estado", &cd);
+            const char* info = calldata_string(&cd, "info");
+            std::printf("   plugin entrada estado: %s\n", info != nullptr ? info : "(nada)");
+            calldata_free(&cd);
+        }
+        obs_source_release(ent);
+        // Un pipeline suelto: la tarjeta de audio (mitad) sobre el audio del plugin.
+        GError* gerr = nullptr;
+        GstElement* pa = gst_parse_launch(("bapluginsrc plugin=" + id + " entrada=Prueba medio=audio ! baplugin plugin=" + id +
+                                           " tarjeta=mitad ! appsink name=s sync=false")
+                                              .c_str(),
+                                          &gerr);
+        CHECK(pa != nullptr && gerr == nullptr, "plugin: pipeline de audio con bapluginsrc ! baplugin");
+        if (pa != nullptr) {
+            gst_element_set_state(pa, GST_STATE_PLAYING);
+            GstElement* sk = gst_bin_get_by_name(GST_BIN(pa), "s");
+            float muestra = 0;
+            for (int i = 0; i < 20 && muestra == 0; ++i) {
+                GstSample* smp = nullptr;
+                g_signal_emit_by_name(sk, "try-pull-sample", static_cast<GstClockTime>(500 * GST_MSECOND), &smp);
+                if (smp != nullptr) {
+                    GstMapInfo mi;
+                    GstBuffer* b = gst_sample_get_buffer(smp);
+                    if (gst_buffer_map(b, &mi, GST_MAP_READ)) {
+                        if (mi.size >= 4) std::memcpy(&muestra, mi.data, 4);
+                        gst_buffer_unmap(b, &mi);
+                    }
+                    gst_sample_unref(smp);
+                }
+            }
+            std::printf("   plugin audio: 0.4 por la tarjeta «mitad» -> %.3f\n", muestra);
+            CHECK(std::abs(muestra - 0.2f) < 0.01f, "plugin: el audio del plugin pasa por su tarjeta de audio (0.4 -> 0.2)");
+            gst_object_unref(sk);
+            gst_element_set_state(pa, GST_STATE_NULL);
+            gst_object_unref(pa);
+        }
+        if (gerr != nullptr) g_error_free(gerr);
+        // Sin el plugin: la tarjeta deja pasar la imagen (no se traba).
+        if (pid > 0) kill(static_cast<pid_t>(pid), SIGTERM);
+        for (int i = 0; i < 100; ++i) {
+            im = dibujar(fuente);
+            siguienteCuadro();
+            if (px(im, 5, 5, 1) > 150) break;
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+        CHECK(px(im, 5, 5, 1) > 150, "plugin caído: la tarjeta deja pasar la imagen original");
+        if (proc != nullptr) pclose(proc);
+        std::system(("rm -rf \"" + dir + "\"").c_str());
     }
 #endif
 

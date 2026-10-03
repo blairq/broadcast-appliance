@@ -48,6 +48,9 @@ class VideoGrafos;
 namespace ba::app::red {
 class Red;
 } // namespace ba::app::red
+namespace ba::app::plugins {
+class Plugins;
+} // namespace ba::app::plugins
 
 namespace ba::app {
 
@@ -177,6 +180,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* video READ video CONSTANT)
     /// Los equipos de video de la red (escáner, credenciales, ficha, agregar): red/Red.hpp.
     Q_PROPERTY(QObject* red READ red CONSTANT)
+    /// Los plugins de Python (pages/PluginsPage.qml).
+    Q_PROPERTY(QObject* plugins READ pluginsQml CONSTANT)
     /// Las salidas de texto (voz a texto con nombre): agent/FlujosTexto.hpp.
     Q_PROPERTY(QObject* flujos READ flujos CONSTANT)
     /// Las tarjetas «Texto a voz»: voces, idiomas y lo que dicen (agent/VocesRack.hpp).
@@ -268,6 +273,9 @@ class StudioViewModel : public QObject {
     video::VideoGrafos* videoGrafos() const { return video_.get(); }
     QObject* red() const;
     red::Red* redEquipos() const { return red_.get(); }
+    /// Los plugins de Python (docs/PLUGINS.md).
+    plugins::Plugins* plugins() const { return plugins_.get(); }
+    QObject* pluginsQml() const;
     QObject* flujos() const;
     QObject* voces() const;
     agent::ModelosLocales* modelosLocales() const { return modelos_.get(); }
@@ -437,6 +445,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<ptz::ControlCamaras> camaras_;
     std::unique_ptr<video::VideoGrafos> video_;
     std::unique_ptr<red::Red> red_;
+    std::unique_ptr<plugins::Plugins> plugins_;
     std::unique_ptr<agent::FlujosTexto> flujos_;
     std::unique_ptr<agent::VocesRack> voces_;
     std::unique_ptr<audio::AudioViewModel> audio_;

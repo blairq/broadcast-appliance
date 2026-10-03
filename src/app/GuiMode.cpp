@@ -32,6 +32,7 @@
 #include "agent/AgentViewModel.hpp"
 #include "AppRuntime.hpp"
 #include "mcp/McpService.hpp"
+#include "plugins/Plugins.hpp"
 #include "term/TerminalView.hpp"
 #include "ui/FrameService.hpp"
 #include "ui/InputsViewModel.hpp"
@@ -140,6 +141,14 @@ int runGui(int argc, char** argv) {
         auto* agentVm = static_cast<agent::AgentViewModel*>(vm.agent());
         agentVm->setSystemPrompt([&mcpService]() { return mcpService.agentPrompt(); });
         agentVm->setMcpReady([&mcpService]() { return mcpService.port() != 0; });
+        // Los plugins de Python llaman herramientas del servidor (lo mismo que
+        // puede el asistente) y arrancan los que estaban prendidos.
+        if (auto* pl = vm.plugins()) {
+            pl->setLlamador([&mcpService](const std::string& h, const nlohmann::json& args, std::function<void(nlohmann::json)> listo) {
+                mcpService.core().callTool({{"name", h}, {"arguments", args}}, std::move(listo), mcp::CallContext{"plugin", ""});
+            });
+            QTimer::singleShot(3000, pl, [pl]() { pl->arrancarGuardados(); });
+        }
         if (rt.config().mcpEnabled) {
             if (mcpService.start(static_cast<quint16>(rt.config().mcpPort))) {
                 std::printf("ba-app: servidor MCP en %s (token: bin/64bit/ba-mcp --token; stdio: ba-mcp)\n",

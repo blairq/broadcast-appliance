@@ -9,6 +9,7 @@
 #include "ptz/OnvifBusqueda.hpp"
 #include "ptz/Posiciones.hpp"
 #include "ptz/PtzBackend.hpp"
+#include "ptz/PtzPlugin.hpp"
 #include "ptz/PtzDigital.hpp"
 #include "ptz/PtzOnvif.hpp"
 #include "ptz/PtzPanasonic.hpp"
@@ -628,6 +629,7 @@ void ControlCamaras::crearHardware(Camara& c) {
     if (c.backend == "visca") c.hw = std::make_unique<PtzVisca>();
     else if (c.backend == "onvif") c.hw = std::make_unique<PtzOnvif>();
     else if (c.backend == "panasonic") c.hw = std::make_unique<PtzPanasonic>();
+    else if (c.backend == "plugin") c.hw = std::make_unique<PtzPlugin>();
     if (!c.hw) return;
     connect(c.hw.get(), &PtzBackend::estadoCambio, this, &ControlCamaras::cambio);
     QJsonObject conf = c.conf;
@@ -637,13 +639,14 @@ void ControlCamaras::crearHardware(Camara& c) {
 }
 
 QString ControlCamaras::configurar(const QString& entrada, const QString& backend, const QVariantMap& conf) {
-    static const QStringList kValidos{"ninguno", "visca", "onvif", "panasonic"};
+    static const QStringList kValidos{"ninguno", "visca", "onvif", "panasonic", "plugin"};
     if (!kValidos.contains(backend))
-        return QStringLiteral("Backend «%1» desconocido (ninguno, visca, onvif, panasonic)").arg(backend);
+        return QStringLiteral("Backend «%1» desconocido (ninguno, visca, onvif, panasonic, plugin)").arg(backend);
     QString error;
     Camara* c = camara(entrada, &error);
     if (c == nullptr) return error;
-    if (backend != "ninguno" && conf.value("host").toString().trimmed().isEmpty())
+    if (backend == "plugin" && conf.value("plugin").toString().isEmpty()) return QStringLiteral("Falta el plugin");
+    if (backend != "ninguno" && backend != "plugin" && conf.value("host").toString().trimmed().isEmpty())
         return QStringLiteral("Falta la dirección de la cámara");
     QJsonObject j = QJsonObject::fromVariantMap(conf);
     const QString clave = j.take("clave").toString();
@@ -659,6 +662,12 @@ QString ControlCamaras::configurar(const QString& entrada, const QString& backen
     guardarPronto();
     emit cambio();
     return {};
+}
+
+void ControlCamaras::refrescarPlugins() {
+    for (auto& [nombre, c] : camaras_)
+        if (c && c->backend == "plugin" && c->hw) static_cast<PtzPlugin*>(c->hw.get())->refrescar();
+    emit cambio();
 }
 
 QString ControlCamaras::setDigital(const QString& entrada, bool prendido) {

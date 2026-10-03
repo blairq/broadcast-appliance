@@ -35,6 +35,7 @@ bool iniciar() {
         g_listo = gst_init_check(nullptr, nullptr, &err);
         if (!g_listo) g_error = err != nullptr ? err->message : "gst_init falló";
         if (err != nullptr) g_error_free(err);
+        if (g_listo) registrarElementosPlugin();
         if (g_listo) blog(LOG_INFO, "[ba-sources] GStreamer %s listo", gst_version_string());
         else blog(LOG_WARNING, "[ba-sources] GStreamer: %s", g_error.c_str());
     });

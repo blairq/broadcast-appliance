@@ -168,6 +168,9 @@ void InputsViewModel::rebuildInputs() {
             {"where",
              QString::fromStdString(hw      ? s.value(inputs::kVideoProp, std::string())
                                     : isNdi ? "NDI: " + s.value("ndi_name", s.value("host", std::string()))
+                                    : type == "ba_gst_fuente"
+                                        ? (s.contains("ba_plugin") ? "Plugin: " + s.value("ba_plugin", std::string())
+                                                                    : inputs::redactUrl(s.value("uri", s.value("pipeline", std::string()))))
                                             : inputs::redactUrl(s.value("input", std::string())))},
             {"width", w},
             {"height", h},

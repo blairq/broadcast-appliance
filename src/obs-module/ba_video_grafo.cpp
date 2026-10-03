@@ -318,6 +318,13 @@ std::map<std::string, std::string> propiedadesGst(obs_data_t* props) {
                 out[k] = o.str();
             }
             break;
+        case OBS_DATA_OBJECT: {
+            // Un objeto va como JSON (los `parametros` de una tarjeta de un plugin).
+            obs_data_t* o = obs_data_item_get_obj(it);
+            out[k] = o != nullptr ? obs_data_get_json(o) : "{}";
+            obs_data_release(o);
+            break;
+        }
         default: break;
         }
     }

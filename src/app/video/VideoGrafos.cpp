@@ -1,6 +1,7 @@
 // src/app/video/VideoGrafos.cpp — ver VideoGrafos.hpp
 
 #include "video/VideoGrafos.hpp"
+#include "video/Diagnostico.hpp"
 
 #include "video/Sincronia.hpp"
 
@@ -406,7 +407,11 @@ QVariantList VideoGrafos::virtuales() {
 
 std::string VideoGrafos::agregarModuloEn(GrafoVideo& g, const std::string& elemento, const std::string& grupo,
                                          const std::string& despues, const json& propiedades, std::string* error) const {
-    const json m = gst().modulo(elemento);
+    // `baplugin`: una tarjeta de un plugin de Python. Lo registra el módulo de
+    // video (no está en el catálogo de la app): no se valida acá.
+    const json m = elemento == "baplugin"
+                       ? json{{"tarjeta", true}, {"titulo", "Plugin · " + (propiedades.is_object() ? propiedades.value("tarjeta", std::string()) : std::string())}}
+                       : gst().modulo(elemento);
     if (m.empty()) {
         if (error) *error = gst().disponible() ? "no existe el módulo de GStreamer «" + elemento + "»" : gst().error();
         return {};
@@ -1048,6 +1053,115 @@ std::string VideoGrafos::crearEntradaRed(const std::string& nombre, const std::s
     rt_.save();
     sincronizar();
     return {};
+}
+
+std::string VideoGrafos::agregarTarjetaGst(const std::string& entrada, const std::string& elemento, const json& propiedades,
+                                           json* hecho) {
+    if (!esEntrada(entrada)) return "«" + entrada + "» no es una entrada de video";
+    std::string id;
+    const std::string e = editar([&](GrafoVideo& g) {
+        std::string err;
+        id = agregarModuloEn(g, elemento, entrada, "", propiedades, &err);
+        return err;
+    });
+    if (!e.empty()) return e;
+    if (hecho != nullptr) *hecho = {{"entrada", entrada}, {"tarjeta", id}, {"elemento", elemento}, {"propiedades", propiedades}};
+    return {};
+}
+
+std::string VideoGrafos::crearEntradaPipeline(const std::string& nombre, const std::string& video, const std::string& audio,
+                                              const std::string& escena, int latenciaMs, int normalizar, const json& extra) {
+    if (nombre.empty()) return "falta el nombre";
+    if (video.empty() && audio.empty()) return "falta el pipeline (de video y/o de audio)";
+    json ajustes = extra.is_object() ? extra : json::object();
+    ajustes["uri"] = "";
+    ajustes["pipeline"] = video;
+    ajustes["pipeline_audio"] = audio;
+    ajustes["audio"] = !audio.empty();
+    if (normalizar >= 0) ajustes["normalizar"] = normalizar == 1;
+    if (latenciaMs >= 0) {
+        ajustes["latencia"] = latenciaMs;
+        ajustes["latencia_propia"] = true;
+    }
+    if (rt_.engine().sourceTypeId(nombre) == kTipoVirtual) {
+        obs_source_t* src = obs_get_source_by_name(nombre.c_str());
+        if (src == nullptr) return "no existe «" + nombre + "»";
+        obs_data_t* d = obs_data_create_from_json(ajustes.dump().c_str());
+        obs_source_update(src, d);
+        obs_data_release(d);
+        obs_source_release(src);
+        rt_.save();
+        return {};
+    }
+    if (!rt_.engine().sourceTypeId(nombre).empty()) return "ya hay una fuente que se llama «" + nombre + "» (y no es de GStreamer)";
+    if (escena.empty()) return "falta `escena`: dónde ponerla (para no tocar la que está al aire sin querer)";
+    if (!asegurarEscena(escena)) return "no se pudo crear la escena «" + escena + "»";
+    json todo = relojParaFuente();
+    todo.update(ajustes);
+    if (!todo.contains("normalizar")) todo["normalizar"] = false;
+    if (!todo.contains("latencia")) {
+        todo["latencia"] = 60;
+        todo["latencia_propia"] = true;
+    }
+    SourceSpec spec;
+    spec.id = kTipoVirtual;
+    spec.name = nombre;
+    spec.settingsJson = todo.dump();
+    if (!rt_.addSource(escena, spec)) return rt_.lastError().empty() ? "no se pudo crear" : rt_.lastError();
+    rt_.save();
+    sincronizar();
+    return {};
+}
+
+// --- Sincronía y red, para la interfaz -------------------------------------------------
+
+QVariantMap VideoGrafos::relojUi() const { return aVariant(reloj()).toMap(); }
+
+QString VideoGrafos::configurarRelojUi(const QVariantMap& cambios) { return q(configurarReloj(deVariant(cambios))); }
+
+QVariantList VideoGrafos::estadoRed() const {
+    QVariantList out;
+    for (const QString& e : entradas_) {
+        if (rt_.engine().sourceTypeId(e.toStdString()) != kTipoVirtual) continue;
+        json st = estadoEntrada(e.toStdString());
+        st["diagnostico"] = diagnosticar(st);
+        out << aVariant(st);
+    }
+    return out;
+}
+
+QVariantList VideoGrafos::diagnosticoUi() const {
+    QVariantList out;
+    for (const QString& e : entradas_) {
+        json st = estadoEntrada(e.toStdString());
+        const json d = diagnosticar(st);
+        if (d.empty()) continue;
+        out << aVariant(json{{"entrada", e.toStdString()}, {"diagnostico", d}});
+    }
+    return out;
+}
+
+void VideoGrafos::medirUi(const QString& a, const QString& b, bool aplicar) {
+    QPointer<VideoGrafos> yo(this);
+    medirDesfase(a.toStdString(), b.toStdString(), 6, aplicar, [yo](json r) {
+        if (yo) emit yo->medicion(aVariant(r).toMap());
+    });
+}
+
+QString VideoGrafos::desfaseUi(const QString& entrada, double ms) {
+    json hecho;
+    return q(ajustarDesfase(entrada.toStdString(), ms, false, &hecho));
+}
+
+QString VideoGrafos::nuevaEntradaRed(const QString& nombre, const QString& uri, const QString& escena, int latenciaMs, bool normalizar) {
+    return q(crearEntradaRed(nombre.trimmed().toStdString(), uri.trimmed().toStdString(), latenciaMs, escena.trimmed().toStdString(), -1,
+                             normalizar ? 1 : 0, -1));
+}
+
+QStringList VideoGrafos::escenasUi() const {
+    QStringList out;
+    for (const auto& s : rt_.engine().sceneNames()) out << QString::fromStdString(s);
+    return out;
 }
 
 // --- Desfases --------------------------------------------------------------------------

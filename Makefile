@@ -337,7 +337,7 @@ check-macos-tools:
 # deps-ndi-src: el fuente de libmicrodns (buscar televisores por mDNS); en
 # Linux viene compilada con obs-deps.
 deps-macos: check-macos-tools deps-obs-macos deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts \
-            deps-cloudflared-host deps-clap deps-ndi-src deps-libreoffice-mac deps-sherpa-onnx deps-gstreamer-macos
+            deps-cloudflared-host deps-clap deps-ndi-src deps-libreoffice-mac deps-sherpa-onnx deps-gstreamer-macos deps-python
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=macos
 	@# LSP (modulos del rack de audio) es opcional en macOS mientras se valida:
 	@# sin el, el rack funciona con el analizador y el generador.
@@ -1405,6 +1405,22 @@ GST_RT := gstreamer-1.0-$(GST_VER)-universal.pkg
 GST_RT_SHA := 529fdf4a4027d942e59b5b3564f6400adaa008f63ce5f3fed4ffe35d73911994
 GST_DEV := gstreamer-1.0-devel-$(GST_VER)-universal.pkg
 GST_DEV_SHA := 72a44870cf02472cbf6e9a84bcc25ee6807dd1c26659a112066373544d365e7a
+# --- Python de los plugins (docs/PLUGINS.md) -----------------------------------
+# CPython relocalizable de python-build-standalone: va adentro del programa
+# (Resources/python). Versión y sha256 fijados (el digest que publica GitHub).
+PY_REL := 20261001
+PY_VER := 3.12.15
+PY_TGZ := cpython-$(PY_VER)+$(PY_REL)-aarch64-apple-darwin-install_only_stripped.tar.gz
+PY_SHA := 10cab8f6ed6202fdd81637aa6eda4af8d5b7eaa8fc42f9df3c6bea4923de0d93
+PY_URL := https://github.com/astral-sh/python-build-standalone/releases/download/$(PY_REL)
+
+.PHONY: deps-python
+deps-python:
+	@if [ -x "$(EXTERNS_DIR)/python/bin/python3" ] && [ "$$($(EXTERNS_DIR)/python/bin/python3 -c 'import platform; print(platform.python_version())')" = "$(PY_VER)" ]; then \
+		echo "Python ya está ($(EXTERNS_DIR)/python)"; exit 0; fi; \
+	$(MAKE) --no-print-directory _ba_baja ARCHIVO="$(DL_DIR)/$(PY_TGZ)" URL="$(PY_URL)/$(subst +,%2B,$(PY_TGZ))" SHA="$(PY_SHA)" QUE="Python" && \
+	bash tools/deps/python.sh "$(DL_DIR)/$(PY_TGZ)" "$(EXTERNS_DIR)/python"
+
 .PHONY: deps-gstreamer-macos
 deps-gstreamer-macos:
 	@if [ -f "$(EXTERNS_DIR)/gstreamer-macos/GStreamer.framework/Versions/1.0/lib/libgstreamer-1.0.dylib" ]; then \

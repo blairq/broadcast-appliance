@@ -331,7 +331,10 @@ const std::set<std::string>& Roles::juegoDelAsistente() {
         // pipeline es justo lo que el operador le va a pedir. Faltaban, y la
         // ayuda igual se las describía (probado: terminaba metiendo cadenas de
         // GStreamer a mano en fuentes sueltas).
-        "video",    "camaras"};
+        "video",    "camaras",
+        // Los plugins de Python: cuando un equipo no se puede manejar con lo que
+        // hay, el asistente escribe uno (no se queda en «no puedo»).
+        "plugins"};
     return c;
 }
 

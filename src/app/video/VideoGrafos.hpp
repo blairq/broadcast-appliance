@@ -129,6 +129,18 @@ class VideoGrafos : public QObject {
     Q_INVOKABLE QString aEscena(const QString& id, const QString& escena);
     /// La entrada elegida vuelve a «entrada -> escena».
     Q_INVOKABLE QString limpiar();
+    // --- Sincronía y red, para la interfaz (controls/PanelSincronia.qml) ---------
+    Q_INVOKABLE QVariantMap relojUi() const;
+    Q_INVOKABLE QString configurarRelojUi(const QVariantMap& cambios);
+    /// Las entradas de GStreamer (red y plugins) con su estado y diagnóstico.
+    Q_INVOKABLE QVariantList estadoRed() const;
+    /// Todas las entradas de video, con su diagnóstico (las que tienen algo que decir).
+    Q_INVOKABLE QVariantList diagnosticoUi() const;
+    /// Mide (y con `aplicar` corrige) cuánto atrasa `b` de `a`: el resultado llega por `medicion`.
+    Q_INVOKABLE void medirUi(const QString& a, const QString& b, bool aplicar);
+    Q_INVOKABLE QString desfaseUi(const QString& entrada, double ms);
+    Q_INVOKABLE QString nuevaEntradaRed(const QString& nombre, const QString& uri, const QString& escena, int latenciaMs, bool normalizar);
+    Q_INVOKABLE QStringList escenasUi() const;
 
     // --- Para MCP --------------------------------------------------------------
     /// El sub-grafo de `entrada` (o todo el estudio si `entrada` es vacía), o {"error"}.
@@ -171,6 +183,15 @@ class VideoGrafos : public QObject {
     /// fps, formato, colorimetría, colchón, cuadros tarde), la latencia que
     /// agrega su sub-grafo, y los errores y avisos de sus tarjetas.
     nlohmann::json estadoEntrada(const std::string& entrada) const;
+    /// Agrega al final del sub-grafo de `entrada` una tarjeta `gst` con ese
+    /// módulo (p. ej. `baplugin`, la de un plugin de Python). "" o el error.
+    std::string agregarTarjetaGst(const std::string& entrada, const std::string& elemento, const nlohmann::json& propiedades, nlohmann::json* hecho);
+    /// Una entrada de GStreamer a partir de un pipeline de origen (video y/o
+    /// audio): un dispositivo local raro, la entrada de un plugin… Con el
+    /// colchón y el reloj del estudio. `extra` va a los ajustes de la fuente
+    /// (p. ej. `ba_plugin`). Si ya existe y es de GStreamer, la actualiza.
+    std::string crearEntradaPipeline(const std::string& nombre, const std::string& video, const std::string& audio,
+                                     const std::string& escena, int latenciaMs, int normalizar, const nlohmann::json& extra = {});
     /// Una entrada de red (srt://, rtmp://, rtsp://, udp://, http://) con el
     /// reloj del estudio. `latenciaMs` < 0: la del estudio. "" o el error.
     std::string crearEntradaRed(const std::string& nombre, const std::string& uri, int latenciaMs,
@@ -212,6 +233,8 @@ class VideoGrafos : public QObject {
     void vistaCambio();
     /// El catálogo de GStreamer quedó listo.
     void gstListo();
+    /// El resultado de medirUi.
+    void medicion(const QVariantMap& resultado);
 
    private:
     void aplicar(const std::string& entrada);

@@ -285,6 +285,14 @@ Rectangle {
                     ToolTip.visible: hovered; ToolTip.delay: 400
                     ToolTip.text: "Cualquier módulo de video de GStreamer o filtro de OBS como tarjeta, con su ayuda: color, llaves, desentrelazado, textos y reloj, nitidez, efectos, OpenGL…"
                 }
+                GlassButton {
+                    compact: true
+                    text: "Sincronía y red…"
+                    icon: "⏱"
+                    onClicked: sincronia.open()
+                    ToolTip.visible: hovered; ToolTip.delay: 400
+                    ToolTip.text: "Reloj del estudio, entradas de red (SRT, RTMP, RTSP) con su diagnóstico, medir y corregir la sincronía entre entradas"
+                }
                 Item { width: 12; height: 1 }
                 GlassButton { compact: true; text: "Racks"; active: page.vista === "racks"; onClicked: page.vg.vista = "racks"
                               ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "El pipeline de la entrada elegida" }
@@ -787,6 +795,8 @@ Rectangle {
             }
         }
     }
+
+    PanelSincronia { id: sincronia; vg: page.vg }
 
     CatalogoModulos {
         id: catalogo

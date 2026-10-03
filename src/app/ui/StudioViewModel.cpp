@@ -38,6 +38,7 @@
 #include "agent/VocesRack.hpp"
 #include "agent/ModelosLocales.hpp"
 #include "red/Red.hpp"
+#include "plugins/Plugins.hpp"
 #include "video/VideoGrafos.hpp"
 #include "agent/Roles.hpp"
 #include "agent/Voz.hpp"
@@ -392,6 +393,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     red_ = std::make_unique<red::Red>(ba::platform::bundleRoot() / "data" / "red",
                                       QString::fromStdWString((rt.dataRoot() / "Credenciales").wstring()), video_.get(),
                                       camaras_.get());
+    // Los plugins de Python: en los datos (Plugins/), con el Python del programa.
+    plugins_ = std::make_unique<plugins::Plugins>(rt, video_.get(), camaras_.get(), messages_.get());
 #if defined(BA_HAVE_CLAP)
     // Racks de audio (LSP) de cada fuente: se montan los guardados.
     racks_ = std::make_unique<audio::RackManager>(rt.dataRoot());
@@ -588,6 +591,7 @@ QObject* StudioViewModel::matriz() const {
 QObject* StudioViewModel::camaras() const { return camaras_.get(); }
 QObject* StudioViewModel::video() const { return video_.get(); }
 QObject* StudioViewModel::red() const { return red_.get(); }
+QObject* StudioViewModel::pluginsQml() const { return plugins_.get(); }
 QObject* StudioViewModel::flujos() const { return flujos_.get(); }
 QObject* StudioViewModel::voces() const { return voces_.get(); }
 QObject* StudioViewModel::despachadorQml() const { return despachador_.get(); }

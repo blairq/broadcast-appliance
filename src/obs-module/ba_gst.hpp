@@ -47,6 +47,13 @@ bool fallo();
 bool publicarReloj(int puerto, std::string& error);
 /// El puerto en el que se publica (0: no se publica).
 int relojPublicado();
+/// Los plugins de Python (ba_plugin_gst.cpp): registra `baplugin` y
+/// `bapluginsrc` (lo hace iniciar()) y anota el puerto de medios de un plugin
+/// (0 = no está corriendo).
+void registrarElementosPlugin();
+void puertoPlugin(const std::string& plugin, int puerto);
+/// El filtro de audio de OBS `ba_plugin_audio` (una tarjeta de audio de un plugin).
+void registrarFiltroAudioPlugin();
 /// El motivo si iniciar() falló.
 const std::string& errorInicio();
 

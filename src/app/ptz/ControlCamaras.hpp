@@ -99,6 +99,8 @@ class ControlCamaras : public QObject {
     /// deja la que estaba guardada. Devuelve "" o el error.
     Q_INVOKABLE QString configurar(const QString& entrada, const QString& backend, const QVariantMap& conf);
     Q_INVOKABLE QString setDigital(const QString& entrada, bool prendido);
+    /// Los PTZ que maneja un plugin: el plugin arrancó, se cayó o volvió.
+    void refrescarPlugins();
     /// "general" | "si" | "no".
     Q_INVOKABLE QString setMejora(const QString& entrada, const QString& modo);
     /// Qué mueve el joystick cuando hay hardware: "optico" | "digital".
