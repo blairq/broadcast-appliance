@@ -122,6 +122,7 @@ struct Fuente {
     std::int64_t latenciaMs = 0, desfaseMs = 0;
     bool conAudio = true;
     bool normalizar = true;
+    bool superres = false; ///< duplicar la resolución (bavtsuperres, macOS 26) si el cuadro es chico
     bool ntpSync = true; ///< RTSP: usar la hora de captura del que manda (RTCP); si su reloj está mal, conviene apagarlo
     /// La hora de la cámara estaba muy corrida (la entrada salía con segundos de
     /// atraso): se dejó de usar sola, hasta que alguien vuelva a pedir ntp_sync.
@@ -420,6 +421,20 @@ void armar(Fuente* f) {
         capsVideo = "video/x-raw,format=NV12,colorimetry=bt709,interlace-mode=progressive,pixel-aspect-ratio=1/1";
         if (hay) capsVideo += ",framerate=" + std::to_string(ovi.fps_num) + "/" + std::to_string(ovi.fps_den);
     }
+    // SUPERRESOLUCIÓN (macOS 26): una cámara chica (PAL, 768x576) sale al
+    // doble con la red de Apple, ANTES del resto: en NV12 de rango limitado y
+    // píxel cuadrado, que es lo que acepta. Si el cuadro es grande (más de
+    // 960x960) el elemento lo deja pasar sin tocar.
+    if (f->superres) {
+        GstElementFactory* fac = gst_element_factory_find("bavtsuperres");
+        if (fac != nullptr) {
+            gst_object_unref(fac);
+            antesSink += "video/x-raw,format=NV12,colorimetry=bt709,pixel-aspect-ratio=1/1 ! bavtsuperres name=ba_superres ! ";
+            if (!f->normalizar) antesSink = "videoconvertscale ! " + antesSink + "videoconvert ! ";
+        } else {
+            blog(LOG_WARNING, "[ba_gst_fuente] superresolución pedida pero no está (necesita macOS 26)");
+        }
+    }
     std::string completo;
     if (!f->uri.empty()) {
         completo = "uridecodebin3 name=ba_dec uri=\"" + f->uri + "\" ba_dec. ! queue name=ba_origen ! " + antesSink + capsVideo +
@@ -500,13 +515,14 @@ void actualizar(void* data, obs_data_t* s) {
     const int dominio = static_cast<int>(obs_data_get_int(s, "reloj_dominio"));
     const bool audio = obs_data_get_bool(s, "audio");
     const bool normalizar = obs_data_get_bool(s, "normalizar");
+    const bool superres = obs_data_get_bool(s, "superres");
     const bool ntpSync = obs_data_get_bool(s, "ntp_sync");
     const std::int64_t latencia = obs_data_get_int(s, "latencia"), desfase = obs_data_get_int(s, "desfase");
     // La latencia y el desfase se cambian EN VIVO (solo mueven el colchón); lo
     // demás rearma el pipeline. (Con `uri`, la latencia también va al jitter
     // buffer de RTSP/SRT: se rearma.)
     const bool rearmar = uri != f->uri || d != f->descripcion || da != f->descripcionAudio || reloj != f->reloj || servidor != f->relojServidor ||
-                         puerto != f->relojPuerto || dominio != f->relojDominio || audio != f->conAudio || normalizar != f->normalizar || ntpSync != f->ntpSync ||
+                         puerto != f->relojPuerto || dominio != f->relojDominio || audio != f->conAudio || normalizar != f->normalizar || superres != f->superres || ntpSync != f->ntpSync ||
                          (latencia != f->latenciaMs && !uri.empty()) || f->pipeline == nullptr;
     const std::int64_t corrimiento =
         (latencia + desfase - f->latenciaMs - f->desfaseMs) * static_cast<std::int64_t>(GST_MSECOND);
@@ -519,6 +535,7 @@ void actualizar(void* data, obs_data_t* s) {
     f->relojDominio = dominio;
     f->conAudio = audio;
     f->normalizar = normalizar;
+    f->superres = superres;
     if (ntpSync != f->ntpSync) f->ntpApagadoSolo = false; // lo pidieron de nuevo: se vuelve a probar
     f->ntpSync = ntpSync;
     f->latenciaMs = latencia;
@@ -555,6 +572,15 @@ void* crear(obs_data_t* settings, obs_source_t* ctx) {
                          }
                          obs_data_set_int(o, "latencia_ms", x->latenciaMs);
                          obs_data_set_bool(o, "normalizado", x->normalizar);
+                         obs_data_set_bool(o, "superres", x->superres);
+                         if (x->pipeline != nullptr) {
+                             if (GstElement* sr = gst_bin_get_by_name(GST_BIN(x->pipeline), "ba_superres")) {
+                                 gdouble ms = 0;
+                                 g_object_get(sr, "ms-por-cuadro", &ms, nullptr);
+                                 obs_data_set_double(o, "superres_ms", ms);
+                                 gst_object_unref(sr);
+                             }
+                         }
                          obs_data_set_bool(o, "ntp_sync", x->ntpSync && !x->ntpApagadoSolo);
                          obs_data_set_bool(o, "ntp_apagado_solo", x->ntpApagadoSolo);
                          obs_data_set_int(o, "desfase_ms", x->desfaseMs);
@@ -706,6 +732,7 @@ obs_properties_t* propiedades(void*) {
     obs_properties_add_int(p, "reloj_dominio", obs_module_text("Dominio PTP"), 0, 127, 1);
     obs_properties_add_bool(p, "audio", obs_module_text("Con audio"));
     obs_properties_add_bool(p, "normalizar", obs_module_text("Normalizar (desentrelazar, cuadros y color del estudio)"));
+    obs_properties_add_bool(p, "superres", obs_module_text("Superresolución x2 (macOS 26, cámaras de hasta 960x960)"));
     return p;
 }
 
@@ -714,6 +741,7 @@ void porDefecto(obs_data_t* s) {
     obs_data_set_default_string(s, "reloj", "sistema");
     obs_data_set_default_bool(s, "audio", true);
     obs_data_set_default_bool(s, "normalizar", true);
+    obs_data_set_default_bool(s, "superres", false);
     obs_data_set_default_bool(s, "ntp_sync", true);
 }
 

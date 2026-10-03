@@ -175,7 +175,7 @@ Popup {
                                     text: "colchón " + (fila.g.latencia_ms || 0) + " ms · desfase " + (fila.g.desfase_ms || 0) + " ms · reloj " + (fila.g.reloj || "?") +
                                           (fila.g.reloj_sincronizado === false ? " (sin sincronizar)" : "") +
                                           (fila.g.recibidos_10s > 0 ? " · tarde " + Math.round(100 * (fila.g.tarde_10s || 0) / fila.g.recibidos_10s) + "%" : "") +
-                                          (fila.g.normalizado ? " · normalizada" : "")
+                                          (fila.g.normalizado ? " · normalizada" : "") + (fila.g.superres ? " · superres x2" : "")
                                     color: Theme.textDim; font.pixelSize: 11; elide: Text.ElideRight
                                 }
                                 SpinBox {
@@ -185,6 +185,17 @@ Popup {
                                     ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Desfase (ms): positivo la atrasa"
                                 }
                                 GlassButton { compact: true; text: "Desfasar"; onClicked: pop.avisar(pop.vg.desfaseUi(fila.modelData.entrada, desf.value), "Desfase aplicado") }
+                                // Superresolución x2 (macOS 26): para cámaras chicas (PAL, hasta 960x960).
+                                Text { visible: pop.vg.haySuperres(); text: "Superres x2"; color: Theme.textDim; font.pixelSize: 11 }
+                                Toggle {
+                                    visible: pop.vg.haySuperres()
+                                    checked: fila.g.superres === true
+                                    onToggled: (w) => pop.avisar(pop.vg.superresUi(fila.modelData.entrada, w), w ? "Superresolución prendida" : "Superresolución apagada")
+                                    ToolTip.visible: hov.hovered; ToolTip.delay: 400
+                                    ToolTip.text: "Duplica la resolución con la superresolución de Apple (para cámaras de hasta 960x960; las más grandes pasan sin tocar)" +
+                                                  (fila.g.superres_ms > 0 ? ". Ahora: " + Number(fila.g.superres_ms).toFixed(1) + " ms por cuadro" : "")
+                                    HoverHandler { id: hov }
+                                }
                             }
                             Repeater {
                                 model: fila.modelData.diagnostico || []

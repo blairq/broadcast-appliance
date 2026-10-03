@@ -51,6 +51,8 @@ int relojPublicado();
 /// `bapluginsrc` (lo hace iniciar()) y anota el puerto de medios de un plugin
 /// (0 = no está corriendo).
 void registrarElementosPlugin();
+/// macOS 26: `bavtsuperres`, superresolución x2 con VideoToolbox (ba_gst_superres_mac.mm).
+void registrarSuperres();
 void puertoPlugin(const std::string& plugin, int puerto);
 /// El filtro de audio de OBS `ba_plugin_audio` (una tarjeta de audio de un plugin).
 void registrarFiltroAudioPlugin();

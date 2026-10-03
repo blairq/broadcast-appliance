@@ -1,6 +1,8 @@
 // src/app/video/VideoGrafos.cpp — ver VideoGrafos.hpp
 
 #include "video/VideoGrafos.hpp"
+
+#include <gst/gst.h>
 #include "video/Diagnostico.hpp"
 
 #include "video/Sincronia.hpp"
@@ -1129,7 +1131,7 @@ json VideoGrafos::avisosDe(const std::string& entrada) const {
 // --- Entradas de red -----------------------------------------------------------------
 
 std::string VideoGrafos::crearEntradaRed(const std::string& nombre, const std::string& uri, int latenciaMs,
-                                         const std::string& escena, int audio, int normalizar, int ntpSync) {
+                                         const std::string& escena, int audio, int normalizar, int ntpSync, int superres) {
     if (nombre.empty()) return "falta el nombre";
     // Si ya existe (de GStreamer), se actualiza: otra URI, otro colchón.
     if (rt_.engine().sourceTypeId(nombre) == kTipoVirtual) {
@@ -1144,6 +1146,7 @@ std::string VideoGrafos::crearEntradaRed(const std::string& nombre, const std::s
         if (audio >= 0) obs_data_set_bool(d, "audio", audio == 1);
         if (normalizar >= 0) obs_data_set_bool(d, "normalizar", normalizar == 1);
         if (ntpSync >= 0) obs_data_set_bool(d, "ntp_sync", ntpSync == 1);
+        if (superres >= 0) obs_data_set_bool(d, "superres", superres == 1);
         actualizarFuente(src, d); // en vivo Y en la configuración guardada (si no, se perdía al reiniciar)
         obs_data_release(d);
         obs_source_release(src);
@@ -1159,6 +1162,7 @@ std::string VideoGrafos::crearEntradaRed(const std::string& nombre, const std::s
     ajustes["audio"] = audio != 0;
     ajustes["normalizar"] = normalizar != 0;
     if (ntpSync >= 0) ajustes["ntp_sync"] = ntpSync == 1;
+    if (superres >= 0) ajustes["superres"] = superres == 1;
     ajustes["latencia"] = latenciaMs >= 0 ? latenciaMs : reloj_.value("latencia_ms", 200);
     ajustes["latencia_propia"] = latenciaMs >= 0;
     SourceSpec spec;
@@ -1267,6 +1271,18 @@ void VideoGrafos::medirUi(const QString& a, const QString& b, bool aplicar) {
 QString VideoGrafos::desfaseUi(const QString& entrada, double ms) {
     json hecho;
     return q(ajustarDesfase(entrada.toStdString(), ms, false, &hecho));
+}
+
+QString VideoGrafos::superresUi(const QString& entrada, bool activa) {
+    if (activa && !haySuperres()) return "Este sistema no tiene superresolución (necesita macOS 26).";
+    return q(crearEntradaRed(entrada.toStdString(), {}, -1, {}, -1, -1, -1, activa ? 1 : 0));
+}
+
+bool VideoGrafos::haySuperres() const {
+    GstElementFactory* f = gst_element_factory_find("bavtsuperres");
+    if (f == nullptr) return false;
+    gst_object_unref(f);
+    return true;
 }
 
 QString VideoGrafos::nuevaEntradaRed(const QString& nombre, const QString& uri, const QString& escena, int latenciaMs, bool normalizar) {

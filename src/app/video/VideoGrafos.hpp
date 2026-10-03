@@ -146,6 +146,10 @@ class VideoGrafos : public QObject {
     /// Mide (y con `aplicar` corrige) cuánto atrasa `b` de `a`: el resultado llega por `medicion`.
     Q_INVOKABLE void medirUi(const QString& a, const QString& b, bool aplicar);
     Q_INVOKABLE QString desfaseUi(const QString& entrada, double ms);
+    /// Superresolución x2 de una entrada de red (macOS 26: bavtsuperres). "" o el error.
+    Q_INVOKABLE QString superresUi(const QString& entrada, bool activa);
+    /// Si este sistema tiene superresolución (el elemento de GStreamer está registrado).
+    Q_INVOKABLE bool haySuperres() const;
     Q_INVOKABLE QString nuevaEntradaRed(const QString& nombre, const QString& uri, const QString& escena, int latenciaMs, bool normalizar);
     Q_INVOKABLE QStringList escenasUi() const;
 
@@ -202,7 +206,8 @@ class VideoGrafos : public QObject {
     /// Una entrada de red (srt://, rtmp://, rtsp://, udp://, http://) con el
     /// reloj del estudio. `latenciaMs` < 0: la del estudio. "" o el error.
     std::string crearEntradaRed(const std::string& nombre, const std::string& uri, int latenciaMs,
-                                const std::string& escena, int audio = -1, int normalizar = -1, int ntpSync = -1);
+                                const std::string& escena, int audio = -1, int normalizar = -1, int ntpSync = -1,
+                                int superres = -1);
     // (audio, normalizar, ntpSync: 1 sí, 0 no, -1 sin decir: al crear, de
     // fábrica; al actualizar una que ya existe, no se toca.)
     /// Corre una entrada `ms` (o la lleva a `ms` si !relativo): una fuente de

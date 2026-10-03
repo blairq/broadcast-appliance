@@ -716,6 +716,10 @@ void McpService::registerVideoTools() {
                             {{"type", "boolean"},
                              {"description", "de fábrica, sí: GStreamer la desentrelaza si hace falta, la lleva a los cuadros "
                                              "del estudio, a píxel cuadrado y a color BT.709 antes de entrar"}}},
+                           {"superres",
+                            {{"type", "boolean"},
+                             {"description", "superresolución x2 (macOS 26, cámaras de hasta 960x960: una PAL de 768x576 sale "
+                                             "en 1536x1152, ~3 ms por cuadro). Para cámaras viejas o de baja definición"}}},
                            {"ntp_sync",
                             {{"type", "boolean"},
                              {"description", "RTSP: usar la hora de captura que manda la cámara (de fábrica, sí). Si su reloj "
@@ -733,7 +737,8 @@ void McpService::registerVideoTools() {
                                                        a.value("escena", std::string()),
                                                        a.contains("audio") ? (a.value("audio", true) ? 1 : 0) : -1,
                                                        a.contains("normalizar") ? (a.value("normalizar", true) ? 1 : 0) : -1,
-                                                       a.contains("ntp_sync") ? (a.value("ntp_sync", true) ? 1 : 0) : -1);
+                                                       a.contains("ntp_sync") ? (a.value("ntp_sync", true) ? 1 : 0) : -1,
+                                                       a.contains("superres") ? (a.value("superres", false) ? 1 : 0) : -1);
             if (!err.empty()) return done(ToolResult::error(err));
             esperarEntrada(v, n, a.value("esperar_seg", 4) * 1000, [done](json st) { done(ToolResult().data(st)); });
         };
