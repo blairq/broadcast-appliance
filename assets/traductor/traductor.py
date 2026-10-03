@@ -37,6 +37,8 @@ import zipfile
 import ctranslate2
 import sentencepiece as spm
 
+_ORACIONES = re.compile(r"(?<=[.!?\u2026])\s+")
+
 _salida = os.fdopen(os.dup(1), "w", encoding="utf-8", buffering=1)
 os.dup2(2, 1)  # un print() de una biblioteca no rompe el protocolo
 
@@ -72,15 +74,27 @@ class Paquete:
             self.tok, self.norm, self.detok = MosesTokenizer(lang=de), MosesPunctNormalizer(lang=de), MosesDetokenizer(lang=a)
 
     def traducir(self, texto: str) -> str:
+        # Oración por oración (en lote): el modelo se entrenó con oraciones, y una
+        # larga con varias ideas la resume o la corta.
+        partes = [p for p in _ORACIONES.split(texto.strip()) if p.strip()]
+        if len(partes) > 1:
+            return " ".join(self._lote(partes))
+        return self._lote([texto])[0]
+
+    def _lote(self, textos: list) -> list:
+        entradas = [self._piezas(t) for t in textos]
+        r = self.traductor.translate_batch(entradas, beam_size=2, max_decoding_length=256)
+        return [self._texto(x.hypotheses[0]) for x in r]
+
+    def _piezas(self, texto: str) -> list:
         if self.sp is not None:
-            piezas = self.sp.encode(texto, out_type=str)
-        else:
-            piezas = self.bpe.process_line(" ".join(self.tok.tokenize(self.norm.normalize(texto), escape=False))).split()
-        r = self.traductor.translate_batch([piezas], beam_size=2, max_decoding_length=256)
-        salida = r[0].hypotheses[0]
+            return self.sp.encode(texto, out_type=str)
+        return self.bpe.process_line(" ".join(self.tok.tokenize(self.norm.normalize(texto), escape=False))).split()
+
+    def _texto(self, salida: list) -> str:
         if self.sp is not None:
             # Algunos paquetes traen piezas que el .model no conoce: se arma a mano.
-            return "".join(salida).replace("▁", " ").strip()
+            return "".join(salida).replace("\u2581", " ").strip()
         return self.detok.detokenize(" ".join(salida).replace("@@ ", "").split())
 
 

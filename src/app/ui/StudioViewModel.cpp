@@ -37,6 +37,7 @@
 #include "agent/Despachador.hpp"
 #include "agent/FlujosTexto.hpp"
 #include "agent/Traductor.hpp"
+#include "agent/Subtitulos.hpp"
 #include "agent/VocesRack.hpp"
 #include "agent/ModelosLocales.hpp"
 #include "red/Red.hpp"
@@ -426,6 +427,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // Las salidas de texto (antes que la Voz las use).
     flujos_ = std::make_unique<agent::FlujosTexto>(rt.dataRoot());
     marca("flujos");
+    // Los cuadros «Subtítulos» de las escenas muestran una salida de texto.
+    subtitulos_ = std::make_unique<agent::Subtitulos>(*flujos_);
     if (voz_) voz_->setFlujos(flujos_.get());
     // Las tarjetas «Texto a voz»: dicen lo que llega por una salida de texto.
     if (modelos_) {

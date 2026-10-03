@@ -20,6 +20,12 @@
 // cabina y Legislatura del Chubut) más el del operador, que se suma o lo pisa:
 // Datos/Config/glosario-traduccion.json. Los grupos se pueden apagar.
 //
+// ORACIONES ENTERAS. La transcripción continua manda un pedazo en cada pausa
+// del orador, a veces a mitad de una idea; traducido suelto sale mal. Se juntan
+// los pedazos hasta que uno termina en punto (., ?, !, …) o pasa `espera_ms`
+// (1,2 s por defecto) sin que llegue otro; uno muy largo se corta en la última
+// coma.
+//
 // La configuración (qué se traduce a qué) va en Datos/Config/traducciones.json.
 #pragma once
 
@@ -37,6 +43,8 @@
 #include <map>
 #include <memory>
 #include <set>
+
+class QTimer;
 
 namespace ba::app::plugins {
 class Hijo;
@@ -157,6 +165,14 @@ class Traductor : public QObject {
     int caidas_ = 0;
     std::map<std::string, json> ultima_; ///< id de traducción -> {texto, ms, hora}
     std::deque<std::string> porBajar_;
+    /// Lo que llegó de cada traducción y todavía no cierra una oración (la
+    /// transcripción corta en cada pausa, a veces a mitad de idea).
+    struct Junta {
+        QString texto;
+        QTimer* timer = nullptr;
+    };
+    std::map<std::string, Junta> juntas_;
+    void soltar(const std::string& id);
 };
 
 } // namespace ba::app::agent

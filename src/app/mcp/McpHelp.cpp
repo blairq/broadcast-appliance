@@ -641,7 +641,8 @@ Despues: `media_find` para encontrarlo y usarlo en una escena.)md"},
 
 ## Receta: subtítulos en inglés y voz en inglés por la pista 2
 1. Voz a texto del orador (help {"topic": "audio_rack"}): una salida «Orador», modo continuo.
-2. `traduccion_agregar {"desde": "Orador", "a": "en", "rotulo": "Subtítulos EN"}` (el rótulo es una fuente de texto de la escena). Si dice `faltan`, `traduccion_bajar {"a": "en"}` y esperá (modelo_local_estado muestra el avance).
+2. `traduccion_agregar {"desde": "Orador", "a": "en"}`. Si dice `faltan`, `traduccion_bajar {"a": "en"}` y esperá (modelo_local_estado muestra el avance). Los pedazos de la transcripción se juntan hasta cerrar una oración (o 1,2 s sin más texto: `espera_ms` en traduccion_ajustar) antes de traducir.
+2b. Subtítulos: en la escena, un cuadro **«Subtítulos»** (`source_add` type `ba_subtitulos`, settings `{"flujo": "Orador · en"}`; abajo y a lo ancho, p. ej. layout {x: 0.08, y: 0.78, w: 0.84, h: 0.16}). Parte en líneas (`caracteres`, 42), muestra `lineas` (2) a la vez, cada bloque el tiempo de leerlo (`cps`, 17 caracteres por segundo; `minimo` 1,5 s), con fondo detrás de cada línea, y se borra solo (`borrar`). Para original y traducción a la vez, dos cuadros. Probar sin hablar: `texto_publicar {"flujo": "Orador", "texto": "..."}`.
 3. `texto_a_voz {"fuente": "Traduccion", "voz": "csukuangfj/vits-piper-en_US-amy-medium", "lee": "Orador · en"}` y en la Matriz esa fuente a la pista 2.
 4. `traducciones` muestra la última frase traducida y cuánto tardó.
 

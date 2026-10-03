@@ -834,6 +834,22 @@
    "de": "Esquel",
    "ru": "Эскель",
    "zh": "埃斯克尔"
+  },
+  {
+   "grupo": "legislativo-chubut",
+   "es": [
+    "fue girado a",
+    "fue girada a",
+    "girado a",
+    "girada a",
+    "se giró a"
+   ],
+   "en": "was referred to",
+   "pt": "foi encaminhado à",
+   "fr": "a été renvoyé à",
+   "de": "wurde überwiesen an",
+   "ru": "был направлен в",
+   "zh": "被提交至"
   }
  ]
 }

@@ -162,7 +162,7 @@ std::string Traductor::agregar(const std::string& desde, const std::string& idio
 std::string Traductor::ajustar(const std::string& id, const json& cambios) {
     for (auto& t : traducciones_) {
         if (t.value("id", "") != id) continue;
-        for (const char* k : {"activa", "rotulo", "archivo", "nombre", "a", "idioma_desde"})
+        for (const char* k : {"activa", "rotulo", "archivo", "nombre", "a", "idioma_desde", "espera_ms"})
             if (cambios.contains(k)) t[k] = cambios[k];
         guardar();
         emit cambio();
@@ -378,11 +378,55 @@ void Traductor::traducir(const QString& texto, const std::string& de, const std:
     mandar();
 }
 
+namespace {
+/// Termina una oración: punto, signo de pregunta o de exclamación, puntos suspensivos.
+bool cierra(const QString& t) {
+    const QString s = t.trimmed();
+    if (s.isEmpty()) return false;
+    const QChar c = s.back();
+    return c == '.' || c == '?' || c == '!' || c == QChar(0x2026) || c == QChar(0x3002) || c == ':' || c == ';';
+}
+constexpr int kLargoMaximo = 280; ///< caracteres: más que esto no se espera
+} // namespace
+
 void Traductor::alFrase(const QString& flujo, const QString& texto) {
     const std::string f = flujo.toStdString();
     for (const auto& t : traducciones_) {
         if (t.value("desde", "") != f || !t.value("activa", true)) continue;
-        const std::string id = t.value("id", ""), nombre = t.value("nombre", "");
+        const std::string id = t.value("id", "");
+        Junta& j = juntas_[id];
+        j.texto = j.texto.isEmpty() ? texto.trimmed() : j.texto + " " + texto.trimmed();
+        if (!j.timer) {
+            j.timer = new QTimer(this);
+            j.timer->setSingleShot(true);
+            connect(j.timer, &QTimer::timeout, this, [this, id]() { soltar(id); });
+        }
+        if (cierra(j.texto)) {
+            j.timer->stop();
+            soltar(id);
+        } else if (j.texto.size() > kLargoMaximo) {
+            // Demasiado largo sin punto: se traduce hasta la última coma y el resto espera.
+            const int c = j.texto.lastIndexOf(',');
+            const QString resto = c > 40 ? j.texto.mid(c + 1).trimmed() : QString();
+            if (c > 40) j.texto = j.texto.left(c + 1);
+            soltar(id);
+            juntas_[id].texto = resto;
+            if (!resto.isEmpty()) juntas_[id].timer->start(t.value("espera_ms", 1200));
+        } else {
+            j.timer->start(t.value("espera_ms", 1200));
+        }
+    }
+}
+
+void Traductor::soltar(const std::string& id) {
+    auto jt = juntas_.find(id);
+    if (jt == juntas_.end() || jt->second.texto.trimmed().isEmpty()) return;
+    const QString texto = jt->second.texto;
+    jt->second.texto.clear();
+    for (const auto& t : traducciones_) {
+        if (t.value("id", "") != id) continue;
+        const std::string nombre = t.value("nombre", "");
+        const QString flujo = QString::fromStdString(t.value("desde", std::string()));
         QPointer<Traductor> yo(this);
         traducir(texto, t.value("idioma_desde", std::string("es")), t.value("a", std::string()), [yo, id, nombre, flujo](json r) {
             if (!yo) return;

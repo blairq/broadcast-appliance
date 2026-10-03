@@ -31,6 +31,7 @@ class Voz;
 class VozPrompter;
 class FlujosTexto;
 class Traductor;
+class Subtitulos;
 class VocesRack;
 } // namespace ba::app::agent
 
@@ -468,6 +469,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<agent::FlujosTexto> flujos_;
     std::unique_ptr<agent::VocesRack> voces_;
     std::unique_ptr<agent::Traductor> traductor_;
+    std::unique_ptr<agent::Subtitulos> subtitulos_;
     std::unique_ptr<audio::AudioViewModel> audio_;
 #endif
     std::unique_ptr<YouTubeViewModel> youtube_;

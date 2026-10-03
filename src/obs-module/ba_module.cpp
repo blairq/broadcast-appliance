@@ -42,6 +42,10 @@ void ba_register_video_filters(void);
 /// como entrada; sin GStreamer no registra nada).
 void ba_register_gst_fuente(void);
 
+/// Definida en ba_subtitulos.cpp: la fuente `ba_subtitulos` (subtítulos de una
+/// salida de texto de la app: transcripción o traducción).
+void ba_register_subtitulos(void);
+
 /// Punto de entrada del modulo. Lo invoca libobs al cargar la biblioteca.
 ///
 /// :returns: true si el modulo quedo registrado.
@@ -50,6 +54,7 @@ MODULE_EXPORT bool obs_module_load(void) {
     ba_register_dsp_sources();
     ba_register_video_filters();
     ba_register_gst_fuente();
+    ba_register_subtitulos();
     blog(LOG_INFO, "[ba-sources] modulo cargado: fuentes IPC de invitado + DSP de canal + Mejorar imagen + PTZ digital + grafo de video");
     return true;
 }

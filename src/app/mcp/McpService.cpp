@@ -1081,7 +1081,8 @@ void McpService::registerTools() {
             "Cada fuente: {type, name, settings?, layout?, visible?, volume?, muted?}. `type` es el id de "
             "libobs (ver source_types): p. ej. image_source {file}, color_source_v3 {color, width, "
             "height}, text_ft2_source_v2 {text, font:{face,size}, color1}, ffmpeg_source {local_file, "
-            "looping}, v4l2_input (camara), ba_guest_video {slot, channel: guest|share}. `layout`: preset "
+            "looping}, v4l2_input (camara), ba_guest_video {slot, channel: guest|share}, ba_subtitulos {flujo: \"Orador · en\", "
+            "lineas, caracteres, ancho} (subtitulos de una salida de texto). `layout`: preset "
             "o {x,y,w,h}. Consejo: exporta una escena con scene_export, modificala y pasala aca.";
         t.inputSchema = {
             {"type", "object"},

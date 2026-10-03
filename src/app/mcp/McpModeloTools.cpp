@@ -469,6 +469,28 @@ void McpService::registerModeloTools() {
     }
     {
         Tool t;
+        t.name = "texto_publicar";
+        t.title = "Escribir una frase en una salida de texto";
+        t.category = "agentes";
+        t.description =
+            "Publica `texto` en la salida de texto `flujo` como si lo hubiera dicho alguien: le llega a todo lo que la usa "
+            "(cuadros «Subtítulos» de las escenas, traducciones, «Texto a voz», disparadores, archivo). Para un subtítulo "
+            "escrito a mano o para probar la cadena sin hablar.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"flujo", "texto"}},
+                         {"properties", {{"flujo", {{"type", "string"}}}, {"texto", {{"type", "string"}}}}}};
+        t.run = [vmp = &vm_](const json& a, Done done) {
+            auto* fl = qobject_cast<agent::FlujosTexto*>(vmp->flujos());
+            if (fl == nullptr) return done(ToolResult::error("no hay salidas de texto"));
+            const std::string f = a.value("flujo", std::string()), tx = a.value("texto", std::string());
+            if (f.empty() || tx.empty()) return done(ToolResult::error("faltan `flujo` y `texto`"));
+            fl->publicar(QString::fromStdString(f), QString::fromStdString(tx), "Escrito a mano");
+            done(ToolResult().text("Publicado en «" + f + "»."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "voces";
         t.title = "Las voces (texto a voz) por idioma";
         t.category = "agentes";
