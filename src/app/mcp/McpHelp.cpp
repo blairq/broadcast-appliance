@@ -24,8 +24,8 @@ const char* kInstructions =
 Como trabajar:
 1. Orientate con `status` y mira el programa con `capture_program` (o `capture_multiview` para todas las escenas).
 2. Si no sabes como hacer algo: `help` (guia y catalogo), `help {"topic": ...}` o `help_search {"query": ...}`.
-3. Despues de cada cambio visual, VERIFICA con una captura (capture_source / capture_program). No supongas.
-4. Las acciones ocurren en vivo: si hay transmision (`status.streaming`), lo que cambies en la escena al aire lo ve el publico. Para preparar algo sin que se vea, armalo en otra escena y revisalo con capture_source antes de scene_switch.
+3. Despues de cada cambio visual, VERIFICA mirando: si la captura (capture_source / capture_program) no te devuelve la imagen, `imagen_analizar` sobre la escena o fuente con una pregunta concreta. No supongas. Para comparar brillo o color fino usa numeros, no la vista.
+4. Las acciones ocurren en vivo: si hay transmision (`status.streaming`), lo que cambies en la escena al aire lo ve el publico. Para preparar algo sin que se vea, armalo en otra escena y revisala (imagen_analizar) antes de scene_switch.
 5. Las personas se nombran por nombre o id (room_status las lista). Para verlas: capture_person / capture_people.)md";
 
 struct TopicDef {
@@ -452,6 +452,10 @@ La API de Facebook solo transmite y administra videos de **Paginas** (no del per
 
 **Modulos de GStreamer**: `video_modulos` (catalogo documentado en castellano; `buscar`, `categoria`, `elemento` con sus propiedades). Solo los `tarjeta: true` van en una entrada. Un modulo en 4:2:0 o con latencia lo avisa el diagnostico. Las propiedades se pasan con su nombre de GStreamer (los enum por su nick).
 
+**"¿Esta todo bien?" (revisar todo)**: `video_estado` sin nada (todas las entradas con su diagnostico) -> aplicar los arreglos de gravedad `aviso` o `error` (cada uno trae la llamada exacta; los `info` son solo para contar) -> si se tocaron desfases o relojes, `video_sincronia` sin aplicar entre las que tienen que coincidir (debe dar ~0) -> `status` (fps, cuadros perdidos, CPU) -> `mixer_list` (que audio traen: las entradas ocultas en un mosaico siguen sonando en esa escena si traen audio). Un «llegaron tarde» con «recien conectada» es la rafaga del arranque: no subas el colchon, volve a mirar en 10 s.
+
+**Ver la imagen**: `imagen_analizar` sobre una escena o fuente, con una pregunta concreta («¿hay algo estirado o en negro?», «¿que hora marcan los relojes de cada recuadro?»). Sirve para encuadre, negros, estirados y leer texto; NO para comparar brillo o color fino entre recuadros: para eso estan los numeros (`video_grafo`, valores efectivos).
+
 **Rostros**: la tarjeta `rostros` la pone Personas sola al usar `entrada:<camara>`; `marcar` dibuja las caras.
 
 ## Cosas a saber
@@ -463,9 +467,9 @@ La API de Facebook solo transmite y administra videos de **Paginas** (no del per
 
 ## El camino (siempre este)
 1. `red_escanear` (unos 10 s): cada equipo con su IP, MAC y fabricante, la marca (y por que la reconocio), sus puertos, las URLs RTSP tipicas probadas (`se ve` / `pide usuario y clave` / `no existe`), `notas` de la marca y `siguiente_paso`. **Segui el `siguiente_paso`.** Contale al operador lo que encontraste en pocas lineas (cuantas camaras, de que marca, cuales andan ya y cuales piden clave), no le tires el JSON.
-2. Si pide clave: `camara_credenciales {"ips": [...], "pedir": true}` (UN formulario para todas las que la pidan, y vuelve enseguida: cuando el operador lo completa te llega «[OPERADOR] guardo…» al chat; mientras, segui con lo demas). Es un formulario seguro en la barra: **nunca le pidas la clave por el chat**. Antes decile que usuario va (`usuario_de_fabrica`) y de donde sale la clave (las `notas`: EZVIZ = el codigo de verificacion de la etiqueta, y el RTSP hay que habilitarlo en su app; Hikvision = la del grabador; Axis = la de un usuario ONVIF).
+2. Si pide clave: `camara_credenciales {"ips": [...], "pedir": true}` (UN formulario para todas las que la pidan; si ya hay uno abierto, las suma a ese. Vuelve enseguida: cuando el operador lo completa te llega «[OPERADOR] guardo…» al chat; mientras, segui con lo demas). Es un formulario seguro en la barra: **nunca le pidas la clave por el chat**. Antes decile que usuario va (`usuario_de_fabrica`) y de donde sale la clave (las `notas`: EZVIZ = el codigo de verificacion de la etiqueta, y el RTSP hay que habilitarlo en su app; Hikvision = la del grabador; Axis = la de un usuario ONVIF).
 3. `camara_ficha {"ip"}`: ONVIF completo (perfiles con su URL exacta, PTZ, imagen) + el analisis de GStreamer del stream + `plan`. Leele el plan al operador en dos lineas.
-4. `camara_agregar {"ip", "escena", "nombre"}` con `plan.argumentos` (si ya esta conectada, `reusar: true` la suma a otra escena sin abrir otro stream; si la clave ONVIF llega despues, `solo_ptz: true` + `entrada` le configura el PTZ): la entrada queda sincronizada (colchon y reloj del estudio), normalizada solo si hace falta, y con su PTZ ONVIF si tiene. Preguntá en que escena va si no te lo dijeron (no la pongas en la que esta al aire sin preguntar).
+4. `camara_agregar {"ip", "escena", "nombre"}` con `plan.argumentos` (si ya esta conectada, `reusar: true` la suma a otra escena sin abrir otro stream; si la clave ONVIF llega despues, `solo_ptz: true` + `entrada` le configura el PTZ): la entrada queda sincronizada (colchon y reloj del estudio), normalizada solo si hace falta, y con su PTZ ONVIF si tiene. Preguntá en que escena va si no te lo dijeron (no la pongas en la que esta al aire sin preguntar). Espera a que conecte y devuelve `estado.diagnostico`: aplica lo que proponga (p. ej. `video_entrada_red {"nombre", "ntp_sync": false}` si el reloj de la camara esta corrido; `video_entrada_red` sobre una entrada existente la actualiza).
 5. `video_estado {"entrada"}` a los segundos: resolucion real y diagnostico. Si algo queda mal, el diagnostico dice el arreglo.
 
 ## A saber

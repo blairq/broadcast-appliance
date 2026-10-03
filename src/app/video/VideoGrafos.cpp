@@ -1292,6 +1292,11 @@ std::string VideoGrafos::armarMosaico(const std::string& escena, const std::vect
                 const double w = 1.0 / static_cast<double>(entradas.size());
                 // Cada una en su franja de toda la altura: el encaje la centra.
                 k = {{"x", w * static_cast<double>(i)}, {"y", 0}, {"ancho", w}, {"alto", 1}};
+            } else if (entradas.size() == 3) {
+                // Tres en una grilla de 2x2 dejan un hueco negro: la primera
+                // arriba al centro y las otras dos abajo.
+                k = i == 0 ? json{{"x", 0.25}, {"y", 0}, {"ancho", 0.5}, {"alto", 0.5}}
+                           : json{{"x", 0.5 * static_cast<double>(i - 1)}, {"y", 0.5}, {"ancho", 0.5}, {"alto", 0.5}};
             } else {
                 k = nullptr; // mosaico: sin posición, la grilla
             }

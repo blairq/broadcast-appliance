@@ -55,6 +55,12 @@ int main() {
     // Ya desentrelazada: no se queja más del entrelazado.
     mal["desentrelazado"] = "yadif";
     CHECK(!hay(diagnosticar(mal), "entrelazado", "error"), "desentrelazada: ya no lo marca");
+    // Recién conectada: la ráfaga del arranque llega tarde, no es el colchón.
+    json nueva = ok;
+    nueva["gstreamer"] = {{"recibidos", 130}, {"recibidos_10s", 130}, {"tarde_10s", 20}, {"latencia_ms", 200}};
+    CHECK(hay(diagnosticar(nueva), "colchón", "info") && !hay(diagnosticar(nueva), "colchón", "aviso"), "arrancando: el colchón es información");
+    nueva["gstreamer"]["recibidos"] = 900;
+    CHECK(hay(diagnosticar(nueva), "colchón", "aviso"), "andando hace rato: el colchón corto es aviso");
     // Tarjetas: un error y un aviso de 4:2:0.
     json t = ok;
     t["errores_tarjetas"] = {{"cam.gst", "no existe el módulo «x»"}};

@@ -9,6 +9,7 @@
 // Lo mismo que el botón «Buscar en la red» de Entradas (red/Red).
 // ============================================================================
 
+#include "mcp/EsperarEntrada.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "red/Red.hpp"
@@ -18,6 +19,8 @@
 #include "video/VideoGrafos.hpp"
 
 #include <QPointer>
+
+#include <algorithm>
 
 namespace ba::app::mcp {
 
@@ -89,6 +92,28 @@ void McpService::registerRedTools() {
                 return done(ToolResult::ok("Guardadas (cifradas). Siguiente: camara_ficha {\"ip\": \"" + ips[0] + "\"}."));
             }
             if (msgs == nullptr) return done(ToolResult::error("no hay barra del operador"));
+            // Si ya hay un formulario de claves de cámaras abierto, se le suman
+            // estas: el operador completa uno solo.
+            int abierto = 0;
+            for (const auto& m : msgs->list(false)) {
+                const std::string pl = m.value("platform", std::string());
+                if (m.value("kind", std::string()) != "credential" || m.value("status", std::string()) != "open") continue;
+                if (pl.rfind("camaras:", 0) != 0 && pl.rfind("camara:", 0) != 0) continue;
+                abierto = m.value("id", 0);
+                const std::string previas = pl.substr(pl.find(':') + 1);
+                std::vector<std::string> todas;
+                size_t i0 = 0;
+                while (i0 <= previas.size()) {
+                    const size_t c = previas.find(',', i0);
+                    const std::string x = previas.substr(i0, c == std::string::npos ? std::string::npos : c - i0);
+                    if (!x.empty()) todas.push_back(x);
+                    if (c == std::string::npos) break;
+                    i0 = c + 1;
+                }
+                for (const auto& x : ips)
+                    if (std::find(todas.begin(), todas.end(), x) == todas.end()) todas.push_back(x);
+                ips = todas;
+            }
             json campos = json::array();
             std::string lista, plataforma = "camaras:";
             for (size_t k = 0; k < ips.size(); ++k) {
@@ -108,10 +133,12 @@ void McpService::registerRedTools() {
                       {"text", a.value("texto", "Para conectar: " + lista + ". Se guarda cifrado en este equipo; el asistente no lo ve. "
                                                 "Si dejás el usuario vacío, va el de fábrica.")},
                       {"fields", campos}};
-            const int id = msgs->post(spec);
+            const bool sumado = abierto > 0 && msgs->revise(abierto, spec);
+            const int id = sumado ? abierto : msgs->post(spec);
             const int seg = a.value("esperar_seg", 0);
             if (seg <= 0)
-                return done(ToolResult::ok("Formulario en la barra del operador (id " + std::to_string(id) +
+                return done(ToolResult::ok((sumado ? "Sumadas al formulario que ya estaba en la barra (id " : "Formulario en la barra del operador (id ") +
+                                           std::to_string(id) + (sumado ? "; ahora con " + lista : std::string()) +
                                            "). Cuando lo complete te llega a tu chat; mientras, seguí con lo demás."));
             msgs->waitAnswer(id, seg * 1000, [done, id](json item) {
                 if (item.is_null())
@@ -155,8 +182,10 @@ void McpService::registerRedTools() {
             "ONVIF (o `url`, o la del plan de camara_ficha), con la `normalizar` y `latencia_ms` del plan, y su PTZ por "
             "ONVIF configurado si tiene (`ptz: false` para no). Va a la `escena` (obligatoria; si no existe, la crea). Si YA hay una entrada "
             "con esa URL, no abre otro stream: `reusar: true` suma la misma a la escena. `solo_ptz: true` + `entrada`: "
-            "solo configura el PTZ de una entrada que ya existe (cuando la clave llega después). Devuelve el estado "
-            "con su diagnóstico: revisalo (video_estado de nuevo a los segundos: la conexión tarda).";
+            "solo configura el PTZ de una entrada que ya existe (cuando la clave llega después). Espera a que conecte "
+            "(hasta `esperar_seg`, 5 de fábrica) y devuelve el estado con su diagnóstico: aplicá los arreglos que "
+            "proponga (p. ej. `ntp_sync: false` si el reloj de la cámara está corrido) con video_entrada_red sobre esa "
+            "entrada.";
         t.inputSchema = {{"type", "object"},
                          {"required", {"ip"}},
                          {"properties",
@@ -171,19 +200,21 @@ void McpService::registerRedTools() {
                            {"url", {{"type", "string"}, {"description", "una URL RTSP a mano (sin clave: se le pone la guardada)"}}},
                            {"normalizar", {{"type", "boolean"}}},
                            {"latencia_ms", {{"type", "integer"}}},
-                           {"ptz", {{"type", "boolean"}}}}}};
+                           {"ptz", {{"type", "boolean"}}},
+                           {"esperar_seg", {{"type", "integer"}, {"description", "cuánto esperar a que conecte (0: no esperar)"}}}}}};
         t.run = [r, vg](const json& a, Done done) {
             if (!r) return done(ToolResult::error("el escáner no está disponible"));
             json hecho;
             const std::string e = r->agregar(a.value("ip", std::string()), a, &hecho);
             if (!e.empty()) return done(ToolResult::error(e));
-            if (vg != nullptr && !a.value("solo_ptz", false)) {
-                json st = vg->estadoEntrada(hecho.value("entrada", std::string()));
-                st["diagnostico"] = video::diagnosticar(st);
-                hecho["estado"] = st;
-            }
-            hecho["nota"] = "la conexión tarda unos segundos: video_estado de nuevo para ver resolución y diagnóstico";
-            done(ToolResult().data(hecho));
+            if (vg == nullptr || a.value("solo_ptz", false)) return done(ToolResult().data(hecho));
+            // Espera a que conecte: vuelve con la resolución y el diagnóstico (el
+            // reloj corrido de la cámara, por ejemplo) sin otro video_estado.
+            esperarEntrada(QPointer<video::VideoGrafos>(vg), hecho.value("entrada", std::string()), a.value("esperar_seg", 5) * 1000,
+                           [done, hecho](json st) mutable {
+                               hecho["estado"] = std::move(st);
+                               done(ToolResult().data(hecho));
+                           });
         };
         core_.addTool(std::move(t));
     }

@@ -9,6 +9,7 @@
 // así que agregarlas no le cambia el prompt.
 // ============================================================================
 
+#include "mcp/EsperarEntrada.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/StudioViewModel.hpp"
@@ -561,7 +562,7 @@ void McpService::registerVideoTools() {
             "Junta `entradas` en una `escena` (si no existe, la crea) en UNA llamada: crea el compositor (o rearma el que se llame `nombre`), "
             "conecta lo que llega a la escena de cada entrada (o sea, con sus tarjetas de color, etc.), lo pone en la "
             "escena y, con `ocultar_sueltas` (de fábrica, sí), oculta en esa escena las entradas sueltas (el mosaico "
-            "las sigue recibiendo: no se apagan). `disposicion`: mosaico (grilla), pip (la primera de fondo y las "
+            "las sigue recibiendo: no se apagan). `disposicion`: mosaico (grilla; con 3, una arriba al centro y dos abajo, sin hueco), pip (la primera de fondo y las "
             "demás chicas arriba a la derecha) o lado (una al lado de la otra). Para retocar después: "
             "video_tarjeta_ajustar sobre el compositor (`capas`).";
         t.inputSchema = {{"type", "object"},
@@ -581,7 +582,8 @@ void McpService::registerVideoTools() {
             const std::string err = v->armarMosaico(a.value("escena", std::string()), es, a.value("disposicion", std::string("mosaico")),
                                                     a.value("nombre", std::string()), a.value("ocultar_sueltas", true), &hecho);
             if (!err.empty()) return done(ToolResult::error(err));
-            hecho["verificar"] = "capture_source {\"name\": \"" + hecho.value("fuente", std::string()) + "\"} (el primer cuadro puede tardar un instante)";
+            hecho["verificar"] = "imagen_analizar sobre «" + hecho.value("fuente", std::string()) +
+                                 "» con una pregunta concreta (¿algo estirado o en negro?; el primer cuadro puede tardar un instante)";
             done(ToolResult().data(hecho));
         };
         core_.addTool(std::move(t));
@@ -671,7 +673,11 @@ void McpService::registerVideoTools() {
                            {"ntp_sync",
                             {{"type", "boolean"},
                              {"description", "RTSP: usar la hora de captura que manda la cámara (de fábrica, sí). Si su reloj "
-                                             "está corrido (video_estado lo avisa), false"}}}}}};
+                                             "está corrido (video_estado lo avisa), false"}}},
+                           {"esperar_seg",
+                            {{"type", "integer"},
+                             {"description", "cuánto esperar a que conecte antes de devolver el estado con su diagnóstico (4 de "
+                                             "fábrica; 0: no esperar)"}}}}}};
         t.examples = {R"({"nombre": "Móvil SRT", "uri": "srt://:9000?mode=listener", "escena": "Móvil", "latencia_ms": 300})",
                       R"({"nombre": "Corresponsal", "uri": "rtmp://10.0.0.20/live/corresponsal", "escena": "Móvil"})"};
         t.run = [v](const json& a, Done done) {
@@ -683,9 +689,7 @@ void McpService::registerVideoTools() {
                                                        a.contains("normalizar") ? (a.value("normalizar", true) ? 1 : 0) : -1,
                                                        a.contains("ntp_sync") ? (a.value("ntp_sync", true) ? 1 : 0) : -1);
             if (!err.empty()) return done(ToolResult::error(err));
-            json st = v->estadoEntrada(n);
-            st["nota"] = "la conexión tarda unos segundos: mirá de nuevo con video_estado";
-            done(ToolResult().data(st));
+            esperarEntrada(v, n, a.value("esperar_seg", 4) * 1000, [done](json st) { done(ToolResult().data(st)); });
         };
         core_.addTool(std::move(t));
     }

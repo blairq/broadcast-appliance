@@ -114,7 +114,15 @@ json diagnosticar(const json& e) {
                         nombre + "» (RTCP/NTP) no coincide con la del estudio, y la entrada sale ATRASADA esos ms",
                     "poner en hora la cámara (NTP), o no usar su hora: `video_entrada_red {\"nombre\": \"" + nombre +
                         "\", \"ntp_sync\": false}` (después, si hace falta, alinear con video_sincronia)");
-        if (recibidos > 30 && tarde / recibidos > 0.05)
+        // Recién conectada (todo lo recibido entra en la ventana de 10 s): la
+        // ráfaga del arranque llega tarde siempre; no es el colchón.
+        const bool arrancando = g.contains("recibidos_10s") && g.value("recibidos", 0.0) < 1.3 * recibidos;
+        if (arrancando && recibidos > 30 && tarde / recibidos > 0.05)
+            agregar(out, "info", "colchón",
+                    "recién conectada: el " + n0(100 * tarde / recibidos) + "% de los cuadros del arranque llegó tarde (la "
+                    "ráfaga inicial, es normal)",
+                    "no tocar el colchón todavía: volver a mirar con `video_estado` en 10 s");
+        else if (recibidos > 30 && tarde / recibidos > 0.05)
             agregar(out, "aviso", "colchón",
                     "en los últimos 10 s el " + n0(100 * tarde / recibidos) + "% de los cuadros llegó tarde: el colchón (" +
                         n0(g.value("latencia_ms", 0.0)) + " ms) es corto para esta red",
