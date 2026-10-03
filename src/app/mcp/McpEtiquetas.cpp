@@ -603,6 +603,7 @@ const Fila kPropias[] = {
     {"voz_cortes", "no corta nunca tarda en traducir pausa silencio cortar frase largo maximo umbral ruido sala detector de voz"},
     {"texto_publicar", "escribir subtitulo a mano mandar texto a una salida de texto probar subtitulos sin hablar"},
     {"subtitulos_limpiar", "borrar subtitulos sacar subtitulo de pantalla limpiar cuadro de subtitulos"},
+    {"superres_", "superresolucion mejorar resolucion camara baja definicion vieja pal agrandar nitidez upscale escalar entrenar modelo fsr span esrgan"},
     {"audio_ordenar", "ordenar acomodar tarjetas del rack de audio grilla prolijo"},
     {"video_ordenar", "ordenar acomodar tarjetas del grafo de video franjas prolijo"},
     {"plugin_panel", "panel del plugin controles deslizador boton mover control del plugin indicador"},

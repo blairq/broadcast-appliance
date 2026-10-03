@@ -282,7 +282,9 @@ Rectangle {
                 ]
                 acciones: [
                     { t: "Sincronía y red…", icon: "⏱", f: () => sincronia.open(),
-                      tip: "Reloj del estudio, entradas de red (SRT, RTMP, RTSP) con su diagnóstico, medir y corregir la sincronía entre entradas" }
+                      tip: "Reloj del estudio, entradas de red (SRT, RTMP, RTSP) con su diagnóstico, medir y corregir la sincronía entre entradas" },
+                    { t: "Superresolución…", icon: "✦", f: () => superresPop.open(),
+                      tip: "Duplicar la resolución de las cámaras de red (Apple, FSR, redes ONNX) y entrenar una red con lo que ve una cámara" }
                 ]
                 mas: page.g.trivial === false ? [{
                     t: "Volver a como vino", peligro: true, tip: "Saca todas las tarjetas de esta entrada",
@@ -783,6 +785,32 @@ Rectangle {
     }
 
     PanelSincronia { id: sincronia; vg: page.vg }
+    Popup {
+        id: superresPop
+        anchors.centerIn: parent
+        width: Math.min(parent.width - 80, 980)
+        height: Math.min(parent.height - 80, 760)
+        modal: true
+        padding: 18
+        background: Rectangle { color: Theme.panel; radius: Theme.radiusSmall; border.color: Theme.glassBorder }
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 10
+            RowLayout {
+                Layout.fillWidth: true
+                Text { text: "Superresolución"; color: Theme.text; font { pixelSize: 18; weight: Font.DemiBold } Layout.fillWidth: true }
+                GlassButton { compact: true; text: "Cerrar"; onClicked: superresPop.close() }
+            }
+            ScrollView {
+                id: srScroll
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                contentWidth: availableWidth
+                clip: true
+                PanelSuperres { width: srScroll.availableWidth; vg: page.vg; visible: superresPop.opened }
+            }
+        }
+    }
 
     CatalogoModulos {
         id: catalogo

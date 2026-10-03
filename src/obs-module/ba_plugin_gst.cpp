@@ -976,6 +976,8 @@ void registrarElementosPlugin() {
 #if defined(__APPLE__)
     registrarSuperres();
 #endif
+    registrarFsr();
+    registrarOnnxSr();
     gst_element_register(nullptr, "baplugin", GST_RANK_NONE, ba_plugin_filtro_get_type());
     gst_element_register(nullptr, "bapluginsrc", GST_RANK_NONE, ba_plugin_fuente_get_type());
 }

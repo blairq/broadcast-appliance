@@ -23,3 +23,6 @@ install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/plugins/" DESTINATION plugins-pyth
 # El traductor en vivo (agent/Traductor): corre con este mismo Python.
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/traductor/" DESTINATION traductor COMPONENT bundle
         PATTERN "__pycache__" EXCLUDE)
+# El laboratorio de superresolución (video/SuperRes): entrena y convierte modelos.
+install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/superres/" DESTINATION superres COMPONENT bundle
+        PATTERN "__pycache__" EXCLUDE)

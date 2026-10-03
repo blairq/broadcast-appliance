@@ -53,6 +53,9 @@ int relojPublicado();
 void registrarElementosPlugin();
 /// macOS 26: `bavtsuperres`, superresolución x2 con VideoToolbox (ba_gst_superres_mac.mm).
 void registrarSuperres();
+/// `bafsr`: FSR 1 (AMD) x2 en OpenGL (ba_gst_fsr.cpp). `baonnxsr`: una red ONNX x2 (ba_gst_onnxsr.cpp).
+void registrarFsr();
+void registrarOnnxSr();
 void puertoPlugin(const std::string& plugin, int puerto);
 /// El filtro de audio de OBS `ba_plugin_audio` (una tarjeta de audio de un plugin).
 void registrarFiltroAudioPlugin();

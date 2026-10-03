@@ -38,6 +38,7 @@
 #include "agent/FlujosTexto.hpp"
 #include "agent/Traductor.hpp"
 #include "agent/Subtitulos.hpp"
+#include "video/SuperRes.hpp"
 #include "agent/VocesRack.hpp"
 #include "agent/ModelosLocales.hpp"
 #include "red/Red.hpp"
@@ -449,6 +450,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     connect(inputs_.get(), &InputsViewModel::changed, camaras_.get(), &ptz::ControlCamaras::sincronizar);
     // El grafo de tarjetas de video de cada entrada (después del PTZ).
     video_ = std::make_unique<video::VideoGrafos>(rt, rt.dataRoot());
+    // La superresolución de las entradas de red (motores, modelos, laboratorio).
+    superres_ = std::make_unique<video::SuperRes>(rt.dataRoot(), video_.get());
     marca("video");
     connect(inputs_.get(), &InputsViewModel::changed, video_.get(), &video::VideoGrafos::sincronizar);
     // Los equipos de video de la red: la biblioteca de marcas y la base OUI
@@ -682,6 +685,7 @@ QObject* StudioViewModel::dispositivosQml() const { return dispositivos_.get(); 
 QObject* StudioViewModel::flujos() const { return flujos_.get(); }
 QObject* StudioViewModel::voces() const { return voces_.get(); }
 QObject* StudioViewModel::traductor() const { return traductor_.get(); }
+QObject* StudioViewModel::superres() const { return superres_.get(); }
 QObject* StudioViewModel::despachadorQml() const { return despachador_.get(); }
 QObject* StudioViewModel::messages() const { return messages_.get(); }
 

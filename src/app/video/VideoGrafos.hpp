@@ -150,6 +150,14 @@ class VideoGrafos : public QObject {
     Q_INVOKABLE QString superresUi(const QString& entrada, bool activa);
     /// Si este sistema tiene superresolución (el elemento de GStreamer está registrado).
     Q_INVOKABLE bool haySuperres() const;
+    /// El motor de superresolución de una entrada de red: "" (ninguno), apple,
+    /// fsr u onnx (con `modelo`, la ruta del .onnx). "" o el error.
+    std::string superresMotor(const std::string& entrada, const std::string& motor, const std::string& modelo);
+    Q_INVOKABLE QString superresMotorUi(const QString& entrada, const QString& motor, const QString& modelo);
+    /// Qué motores hay en este sistema: [apple?, fsr?, onnx?].
+    Q_INVOKABLE QStringList motoresSuperres() const;
+    /// La dirección de una entrada de red (para grabar de ella al entrenar). Vacía si no es de red.
+    std::string uriDe(const std::string& entrada) const;
     Q_INVOKABLE QString nuevaEntradaRed(const QString& nombre, const QString& uri, const QString& escena, int latenciaMs, bool normalizar);
     Q_INVOKABLE QStringList escenasUi() const;
 

@@ -1278,6 +1278,51 @@ QString VideoGrafos::superresUi(const QString& entrada, bool activa) {
     return q(crearEntradaRed(entrada.toStdString(), {}, -1, {}, -1, -1, -1, activa ? 1 : 0));
 }
 
+std::string VideoGrafos::superresMotor(const std::string& entrada, const std::string& motor, const std::string& modelo) {
+    if (rt_.engine().sourceTypeId(entrada) != kTipoVirtual) return "«" + entrada + "» no es una entrada de red";
+    if (!motor.empty() && motor != "apple" && motor != "fsr" && motor != "onnx") return "motor: apple, fsr u onnx (o vacío para apagar)";
+    const QStringList hay = motoresSuperres();
+    if (!motor.empty() && !hay.contains(QString::fromStdString(motor))) return "este sistema no tiene el motor «" + motor + "»";
+    if (motor == "onnx" && modelo.empty()) return "el motor onnx necesita `modelo` (la ruta del .onnx)";
+    obs_source_t* src = obs_get_source_by_name(entrada.c_str());
+    if (src == nullptr) return "no existe «" + entrada + "»";
+    obs_data_t* d = obs_data_create();
+    obs_data_set_bool(d, "superres", false); // el interruptor viejo: lo manda el motor
+    obs_data_set_string(d, "superres_motor", motor.c_str());
+    obs_data_set_string(d, "superres_modelo", motor == "onnx" ? modelo.c_str() : "");
+    actualizarFuente(src, d);
+    obs_data_release(d);
+    obs_source_release(src);
+    rt_.save();
+    return {};
+}
+
+QString VideoGrafos::superresMotorUi(const QString& entrada, const QString& motor, const QString& modelo) {
+    return q(superresMotor(entrada.toStdString(), motor.toStdString(), modelo.toStdString()));
+}
+
+QStringList VideoGrafos::motoresSuperres() const {
+    QStringList l;
+    for (const auto& [motor, elemento] : {std::pair{"apple", "bavtsuperres"}, {"fsr", "bafsr"}, {"onnx", "baonnxsr"}}) {
+        GstElementFactory* f = gst_element_factory_find(elemento);
+        if (f == nullptr) continue;
+        gst_object_unref(f);
+        l << motor;
+    }
+    return l;
+}
+
+std::string VideoGrafos::uriDe(const std::string& entrada) const {
+    if (rt_.engine().sourceTypeId(entrada) != kTipoVirtual) return {};
+    obs_source_t* src = obs_get_source_by_name(entrada.c_str());
+    if (src == nullptr) return {};
+    obs_data_t* d = obs_source_get_settings(src);
+    std::string u = obs_data_get_string(d, "uri");
+    obs_data_release(d);
+    obs_source_release(src);
+    return u;
+}
+
 bool VideoGrafos::haySuperres() const {
     GstElementFactory* f = gst_element_factory_find("bavtsuperres");
     if (f == nullptr) return false;

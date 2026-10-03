@@ -11,6 +11,7 @@
 
 #include "mcp/EsperarEntrada.hpp"
 #include "mcp/McpService.hpp"
+#include "video/SuperRes.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/StudioViewModel.hpp"
 #include "video/Diagnostico.hpp"
@@ -684,6 +685,13 @@ void McpService::registerVideoTools() {
                                      (o.value("entrelazado", false) ? ", entrelazada" : "") +
                                      (o.value("pixel", std::string("cuadrado")) != "cuadrado" ? ", píxel " + o.value("pixel", std::string()) : "");
                     r["entra"] = g.value("formato", std::string()) + ", " + g.value("colorimetria", std::string());
+                    if (!g.value("superres_motor", std::string()).empty()) {
+                        json sr{{"motor", g.value("superres_motor", std::string())}, {"ms_por_cuadro", std::round(g.value("superres_ms", 0.0) * 10) / 10}};
+                        if (!g.value("superres_modelo", std::string()).empty()) sr["modelo"] = g.value("superres_modelo", std::string());
+                        if (!g.value("superres_proveedor", std::string()).empty()) sr["acelera"] = g.value("superres_proveedor", std::string());
+                        if (!g.value("superres_error", std::string()).empty()) sr["error"] = g.value("superres_error", std::string());
+                        r["superres"] = sr;
+                    }
                 }
                 out.push_back(r);
             }
@@ -743,6 +751,104 @@ void McpService::registerVideoTools() {
             esperarEntrada(v, n, a.value("esperar_seg", 4) * 1000, [done](json st) { done(ToolResult().data(st)); });
         };
         core_.addTool(std::move(t));
+    }
+    if (video::SuperRes* sr = vm_.superresVideo()) {
+        const QPointer<video::SuperRes> srp = sr;
+        {
+            Tool t;
+            t.name = "superres_estado";
+            t.title = "Superresolución: motores, modelos y el trabajo en curso";
+            t.category = "video";
+            t.readOnly = true;
+            t.description =
+                "Qué motores de superresolución hay en este sistema (apple: VideoToolbox macOS 26, ~3 ms; fsr: FSR 1 de AMD, "
+                "cualquier GPU, sin red; onnx: una red ONNX), los modelos ONNX que hay (red chica entrenada con una cámara, "
+                "SPAN, Real-ESRGAN: con su ganancia en dB si se midió), si el laboratorio está listo y el trabajo en curso "
+                "(entrenando, convirtiendo…). Cada entrada de red dice su motor en video_estado. Ayuda: help {\"topic\": \"superres\"}.";
+            t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
+            t.run = [srp](const json&, Done done) {
+                if (!srp) return done(ToolResult::error("no disponible"));
+                json mot = json::array();
+                for (const QString& m : srp->motores()) mot.push_back(m.toStdString());
+                const QVariantMap tr = srp->trabajo();
+                json trabajo = json::parse(QJsonDocument::fromVariant(tr).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
+                done(ToolResult().data({{"motores", mot}, {"modelos", srp->modelos()}, {"laboratorio_listo", srp->laboratorioListo()},
+                                        {"trabajo", trabajo}, {"carpeta", srp->carpetaModelos().string()}}));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "superres_aplicar";
+            t.title = "Poner (o sacar) la superresolución de una entrada de red";
+            t.category = "video";
+            t.description =
+                "Duplica la resolución de una entrada de red (`entrada`) con `motor`: apple (la de Apple, la mejor en una Mac con "
+                "macOS 26), fsr (FSR 1, cualquier GPU), onnx (con `modelo`: el archivo de superres_estado, p. ej. "
+                "chica-Axis_terreno.onnx) o vacío para sacarla. Con un motor lento la entrada pierde cuadros: mirá superres_ms "
+                "en video_estado (tiene que quedar bastante debajo de 33 ms a 30 fps).";
+            t.inputSchema = {{"type", "object"},
+                             {"required", {"entrada", "motor"}},
+                             {"properties",
+                              {{"entrada", {{"type", "string"}}},
+                               {"motor", {{"type", "string"}, {"enum", {"", "apple", "fsr", "onnx"}}}},
+                               {"modelo", {{"type", "string"}}}}}};
+            t.run = [srp](const json& a, Done done) {
+                if (!srp) return done(ToolResult::error("no disponible"));
+                const std::string e = srp->aplicar(a.value("entrada", std::string()), a.value("motor", std::string()), a.value("modelo", std::string()));
+                if (!e.empty()) return done(ToolResult::error(e));
+                done(ToolResult().text("Hecho. En unos segundos video_estado muestra el tamaño nuevo y lo que tarda (superres_ms)."));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "superres_modelo";
+            t.title = "Bajar y convertir un modelo de superresolución (SPAN o Real-ESRGAN)";
+            t.category = "video";
+            t.description =
+                "Baja y convierte a ONNX `cual`: span (SPAN x2, Apache-2.0: liviano y fiel) o esrgan (Real-ESRGAN compacto x4, "
+                "BSD-3: limpia ruido y compresión, pesado: en una Mac ~290 ms por cuadro, no da en vivo). La primera vez baja el "
+                "laboratorio (PyTorch, ~800 MB). Corre en segundo plano: el avance en superres_estado.";
+            t.inputSchema = {{"type", "object"}, {"required", {"cual"}}, {"properties", {{"cual", {{"type", "string"}, {"enum", {"span", "esrgan"}}}}}}};
+            t.run = [srp](const json& a, Done done) {
+                if (!srp) return done(ToolResult::error("no disponible"));
+                const std::string e = srp->convertir(a.value("cual", std::string()));
+                if (!e.empty()) return done(ToolResult::error(e));
+                done(ToolResult().text("Empezó (superres_estado muestra el avance)."));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "superres_entrenar";
+            t.title = "Entrenar la red chica mirando una cámara (un botón)";
+            t.category = "video";
+            t.description =
+                "Graba ~1 minuto de la entrada de red `entrada` (de su dirección, sin tocar la imagen al aire), arma pares «la "
+                "imagen achicada y comprimida -> la original» y entrena una red chica (solo luma, x2) `minutos` minutos (5 de "
+                "fábrica) para deshacer lo que hace ESA cámara. Si ya había una red de esa entrada, sigue desde ella. Con "
+                "`aplicar` (de fábrica, sí) la pone en la entrada al terminar. Dice cuánto mejora contra el agrandado común "
+                "(dB). Corre en segundo plano: el avance en superres_estado.";
+            t.inputSchema = {{"type", "object"},
+                             {"required", {"entrada"}},
+                             {"properties",
+                              {{"entrada", {{"type", "string"}}},
+                               {"minutos", {{"type", "number"}, {"minimum", 1}, {"maximum", 120}}},
+                               {"aplicar", {{"type", "boolean"}}},
+                               {"cancelar", {{"type", "boolean"}}}}}};
+            t.run = [srp](const json& a, Done done) {
+                if (!srp) return done(ToolResult::error("no disponible"));
+                if (a.value("cancelar", false)) {
+                    srp->cancelar();
+                    return done(ToolResult().text("Cancelado."));
+                }
+                const std::string e = srp->entrenar(a.value("entrada", std::string()), a.value("minutos", 5.0), 60, a.value("aplicar", true));
+                if (!e.empty()) return done(ToolResult::error(e));
+                done(ToolResult().text("Empezó: graba ~1 minuto y entrena. superres_estado muestra el avance y la ganancia en dB."));
+            };
+            core_.addTool(std::move(t));
+        }
     }
     {
         Tool t;
