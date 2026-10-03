@@ -1,0 +1,1115 @@
+{
+ "schema": 1,
+ "modelo": {
+  "repo": "broadcast-reactivo-qwen3.5-4b-v2-GGUF",
+  "build": "v2-4b",
+  "version": "2",
+  "fecha": "2026-10-03",
+  "base": "Qwen/Qwen3.5-4B",
+  "base_revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+  "commit": "3d791a1",
+  "corpus": "271addc85e22ac82",
+  "perfil": "reactivo",
+  "archivo": "broadcast-reactivo-qwen3.5-4b-v2-Q4_K_M.gguf",
+  "cuantizacion": {
+   "tipo": "Q4_K_M"
+  },
+  "vision": {
+   "incluida": true,
+   "archivo": "mmproj-F16.gguf"
+  },
+  "mtp": {
+   "en_gguf": true
+  }
+ },
+ "endpoints": [
+  {
+   "nombre": "audio_analyze",
+   "esquema_huella": "b2dcdba4c996120e",
+   "parametros": [
+    "punto",
+    "reiniciar",
+    "segundos",
+    "source"
+   ],
+   "requeridos": [
+    "source"
+   ],
+   "solo_lectura": true,
+   "categoria": "audio"
+  },
+  {
+   "nombre": "audio_escuchar",
+   "esquema_huella": "9ad2840c36655e76",
+   "parametros": [
+    "escuchar",
+    "name"
+   ],
+   "requeridos": [],
+   "solo_lectura": false,
+   "categoria": "audio"
+  },
+  {
+   "nombre": "audio_measure",
+   "esquema_huella": "bd560d9ac00e1500",
+   "parametros": [
+    "nivel_db",
+    "node",
+    "source",
+    "tipo"
+   ],
+   "requeridos": [
+    "source",
+    "tipo"
+   ],
+   "solo_lectura": true,
+   "categoria": "audio"
+  },
+  {
+   "nombre": "audio_set",
+   "esquema_huella": "b23aae6b3fc1c8ce",
+   "parametros": [
+    "muted",
+    "name",
+    "volumeDb"
+   ],
+   "requeridos": [
+    "name"
+   ],
+   "solo_lectura": false,
+   "categoria": "audio"
+  },
+  {
+   "nombre": "audio_sincro",
+   "esquema_huella": "aa9dd1f4ff727b03",
+   "parametros": [
+    "ms",
+    "name"
+   ],
+   "requeridos": [
+    "name"
+   ],
+   "solo_lectura": false,
+   "categoria": "audio"
+  },
+  {
+   "nombre": "capture_feed",
+   "esquema_huella": "e2b2589e0c147b1d",
+   "parametros": [
+    "format",
+    "key",
+    "maxWidth",
+    "quality"
+   ],
+   "requeridos": [
+    "key"
+   ],
+   "solo_lectura": true,
+   "categoria": "imagenes"
+  },
+  {
+   "nombre": "capture_multiview",
+   "esquema_huella": "46095b43e1c2acfe",
+   "parametros": [
+    "cellWidth",
+    "format",
+    "maxWidth",
+    "quality"
+   ],
+   "requeridos": [],
+   "solo_lectura": true,
+   "categoria": "imagenes"
+  },
+  {
+   "nombre": "capture_people",
+   "esquema_huella": "482876b92da73866",
+   "parametros": [
+    "format",
+    "maxWidth",
+    "quality",
+    "state"
+   ],
+   "requeridos": [],
+   "solo_lectura": true,
+   "categoria": "imagenes"
+  },
+  {
+   "nombre": "capture_person",
+   "esquema_huella": "2555316036e68ad2",
+   "parametros": [
+    "format",
+    "includeScreen",
+    "maxWidth",
+    "participant",
+    "quality"
+   ],
+   "requeridos": [
+    "participant"
+   ],
+   "solo_lectura": true,
+   "categoria": "imagenes"
+  },
+  {
+   "nombre": "capture_program",
+   "esquema_huella": "9aebd9adf7d911d9",
+   "parametros": [
+    "format",
+    "maxWidth",
+    "quality"
+   ],
+   "requeridos": [],
+   "solo_lectura": true,
+   "categoria": "imagenes"
+  },
+  {
+   "nombre": "capture_sequence",
+   "esquema_huella": "9fd57f39d57913bf",
+   "parametros": [
+    "format",
+    "frames",
+    "intervalMs",
+    "maxWidth",
+    "participant",
+    "quality",
+    "target"
+   ],
+   "requeridos": [],
+   "solo_lectura": true,
+   "categoria": "imagenes"
+  },
+  {
+   "nombre": "capture_source",
+   "esquema_huella": "a56c606a2cb010ad",
+   "parametros": [
+    "format",
+    "maxWidth",
+    "name",
+    "quality"
+   ],
+   "requeridos": [
+    "name"
+   ],
+   "solo_lectura": true,
+   "categoria": "imagenes"
+  },
+  {
+   "nombre": "capture_ui",
+   "esquema_huella": "777117c6adcee8c8",
+   "parametros": [
+    "format",
+    "maxWidth",
+    "quality",
+    "window"
+   ],
+   "requeridos": [],
+   "solo_lectura": true,
+   "categoria": "imagenes"
+  },
+  {
+   "nombre": "chat_history",
+   "esquema_huella": "54c4344f34ee599e",
+   "parametros": [
+    "limit"
+   ],
+   "requeridos": [],
+   "solo_lectura": true,
+   "categoria": "sala"
+  },
+  {
+   "nombre": "chat_send",
+   "esquema_huella": "503b6900367306bd",
+   "parametros": [
+    "text",
+    "to"
+   ],
+   "requeridos": [
+    "text"
+   ],
+   "solo_lectura": false,
+   "categoria": "sala"
+  },
+  {
+   "nombre": "chat_wait",
+   "esquema_huella": "05c3394e29e8d57f",
+   "parametros": [
+    "participant",
+    "timeoutSec"
+   ],
+   "requeridos": [
+    "participant"
+   ],
+   "solo_lectura": true,
+   "categoria": "sala"
+  },
+  {
+   "nombre": "gateway_restart",
+   "esquema_huella": "efddc7bd8bbcef73",
+   "parametros": [],
+   "requeridos": [],
+   "solo_lectura": false,
+   "categoria": "sala"
+  },
+  {
+   "nombre": "grabacion_individual",
+   "esquema_huella": "02b78df607f1c655",
+   "parametros": [
+    "arrancar",
+    "parar",
+    "todas"
+   ],
+   "requeridos": [],
+   "solo_lectura": false,
+   "categoria": "salidas"
+  },
+  {
+   "nombre": "grafico_en_escena",
+   "esquema_huella": "efddc7bd8bbcef73",
+   "parametros": [],
+   "requeridos": [],
+   "solo_lectura": true,
+   "categoria": "graficos"
+  },
+  {
+   "nombre": "grafico_listar",
+   "esquema_huella": "efddc7bd8bbcef73",
+   "parametros": [],
+   "requeridos": [],
+   "solo_lectura": true,
+   "categoria": "graficos"
+  },
+  {
+   "nombre": "grafico_mostrar",
+   "esquema_huella": "fdc09c365be93a63",
+   "parametros": [
+    "duracionMs",
+    "fps",
+    "fuente",
+    "nombre",
+    "parametros",
+    "repetir"
+   ],
+   "requeridos": [
+    "fuente",
+    "nombre"
+   ],
+   "solo_lectura": false,
+   "categoria": "graficos"
+  },
+  {
+   "nombre": "grafico_ocultar",
+   "esquema_huella": "6877cecbde3a475c",
+   "parametros": [
+    "fuente"
+   ],
+   "requeridos": [
+    "fuente"
+   ],
+   "solo_lectura": false,
+   "categoria": "graficos"
+  },
+  {
+   "nombre": "guest_source_add",
+   "esquema_huella": "426614195a958ac9",
+   "parametros": [
+    "kind",
+    "layout",
+    "scene",
+    "slot"
+   ],
+   "requeridos": [
+    "slot"
+   ],
+   "solo_lectura": false,
+   "categoria": "fuentes"
+  },
+  {
+   "nombre": "imagen_analizar",
+   "esquema_huella": "31251f1318f27f2d",
+   "parametros": [
+    "fuente",
+    "que"
+   ],
+   "requeridos": [
+    "que"
+   ],
+   "solo_lectura": true,
+   "categoria": "imagenes"
+  },
+  {
+   "nombre": "laminas_aplicar",
+   "esquema_huella": "eaee180ece56a123",
+   "parametros": [
+    "carrusel",
+    "escena"
+   ],
+   "requeridos": [
+    "carrusel"
+   ],
+   "solo_lectura": false,
+   "categoria": "laminas"
+  },
+  {
+   "nombre": "laminas_buscar",
+   "esquema_huella": "c064ac203a156635",
+   "parametros": [
+    "carrusel",
+    "texto"
+   ],
+   "requeridos": [
+    "carrusel",
+    "texto"
+   ],
+   "solo_lectura": true,
+   "categoria": "laminas"
+  },
+  {
+   "nombre": "laminas_ir",
+   "esquema_huella": "f08c02f392c99e90",
+   "parametros": [
+    "carrusel",
+    "hacia",
+    "numero"
+   ],
+   "requeridos": [
+    "carrusel"
+   ],
+   "solo_lectura": false,
+   "categoria": "laminas"
+  },
+  {
+   "nombre": "laminas_listar",
+   "esquema_huella": "efddc7bd8bbcef73",
+   "parametros": [],
+   "requeridos": [],
+   "solo_lectura": true,
+   "categoria": "laminas"
+  },
+  {
+   "nombre": "laminas_ver",
+   "esquema_huella": "4bafab16dca0924b",
+   "parametros": [
+    "carrusel"
+   ],
+   "requeridos": [
+    "carrusel"
+   ],
+   "solo_lectura": true,
+   "categoria": "laminas"
+  },
+  {
+   "nombre": "mixer_list",
+   "esquema_huella": "efddc7bd8bbcef73",
+   "parametros": [],
+   "requeridos": [],
+   "solo_lectura": true,
+   "categoria": "audio"
+  },
+  {
+   "nombre": "network_status",
+   "esquema_huella": "efddc7bd8bbcef73",
+   "parametros": [],
+   "requeridos": [],
+   "solo_lectura": true,
+   "categoria": "sala"
+  },
+  {
+   "nombre": "participant_admit",
+   "esquema_huella": "df89d05f386bd4ac",
+   "parametros": [
+    "participant"
+   ],
+   "requeridos": [
+    "participant"
+   ],
+   "solo_lectura": false,
+   "categoria": "sala"
+  },
+  {
+   "nombre": "participant_admit_all",
+   "esquema_huella": "efddc7bd8bbcef73",
+   "parametros": [],
+   "requeridos": [],
+   "solo_lectura": false,
+   "categoria": "sala"
+  },
+  {
+   "nombre": "participant_kick",
+   "esquema_huella": "df89d05f386bd4ac",
+   "parametros": [
+    "participant"
+   ],
+   "requeridos": [
+    "participant"
+   ],
+   "solo_lectura": false,
+   "categoria": "sala"
+  },
+  {
+   "nombre": "participant_profile",
+   "esquema_huella": "e081f24ae1dfd747",
+   "parametros": [
+    "contact",
+    "info",
+    "name",
+    "participant"
+   ],
+   "requeridos": [
+    "participant"
+   ],
+   "solo_lectura": false,
+   "categoria": "sala"
+  },
+  {
+   "nombre": "participant_reject",
+   "esquema_huella": "df89d05f386bd4ac",
+   "parametros": [
+    "participant"
+   ],
+   "requeridos": [
+    "participant"
+   ],
+   "solo_lectura": false,
+   "categoria": "sala"
+  },
+  {
+   "nombre": "participant_request",
+   "esquema_huella": "1693109fffe03e93",
+   "parametros": [
+    "participant",
+    "what"
+   ],
+   "requeridos": [
+    "participant",
+    "what"
+   ],
+   "solo_lectura": false,
+   "categoria": "sala"
+  },
+  {
+   "nombre": "participant_requeue",
+   "esquema_huella": "df89d05f386bd4ac",
+   "parametros": [
+    "participant"
+   ],
+   "requeridos": [
+    "participant"
+   ],
+   "solo_lectura": false,
+   "categoria": "oradores"
+  },
+  {
+   "nombre": "participant_talk",
+   "esquema_huella": "20cc47580f7d1f0e",
+   "parametros": [
+    "on",
+    "participant"
+   ],
+   "requeridos": [
+    "participant"
+   ],
+   "solo_lectura": false,
+   "categoria": "sala"
+  },
+  {
+   "nombre": "record_start",
+   "esquema_huella": "efddc7bd8bbcef73",
+   "parametros": [],
+   "requeridos": [],
+   "solo_lectura": false,
+   "categoria": "salidas"
+  },
+  {
+   "nombre": "record_stop",
+   "esquema_huella": "efddc7bd8bbcef73",
+   "parametros": [],
+   "requeridos": [],
+   "solo_lectura": false,
+   "categoria": "salidas"
+  },
+  {
+   "nombre": "room_link",
+   "esquema_huella": "9c6efee047289801",
+   "parametros": [
+    "board",
+    "target",
+    "withPin"
+   ],
+   "requeridos": [],
+   "solo_lectura": true,
+   "categoria": "sala"
+  },
+  {
+   "nombre": "room_pin",
+   "esquema_huella": "e522cad0273ba7d3",
+   "parametros": [
+    "pin"
+   ],
+   "requeridos": [],
+   "solo_lectura": false,
+   "categoria": "sala"
+  },
+  {
+   "nombre": "room_set",
+   "esquema_huella": "eae811896efc484c",
+   "parametros": [
+    "lobby",
+    "locked"
+   ],
+   "requeridos": [],
+   "solo_lectura": false,
+   "categoria": "sala"
+  },
+  {
+   "nombre": "room_status",
+   "esquema_huella": "efddc7bd8bbcef73",
+   "parametros": [],
+   "requeridos": [],
+   "solo_lectura": true,
+   "categoria": "sala"
+  },
+  {
+   "nombre": "rotulo_desvincular",
+   "esquema_huella": "f3d64dcd19f78661",
+   "parametros": [
+    "activo",
+    "id"
+   ],
+   "requeridos": [
+    "id"
+   ],
+   "solo_lectura": false,
+   "categoria": "graficos"
+  },
+  {
+   "nombre": "rotulo_vincular",
+   "esquema_huella": "5eba4ad5b2a69933",
+   "parametros": [
+    "dispara",
+    "fuente",
+    "grafico",
+    "id",
+    "repetir",
+    "valores"
+   ],
+   "requeridos": [
+    "fuente",
+    "grafico",
+    "valores"
+   ],
+   "solo_lectura": false,
+   "categoria": "graficos"
+  },
+  {
+   "nombre": "rotulo_vinculos",
+   "esquema_huella": "efddc7bd8bbcef73",
+   "parametros": [],
+   "requeridos": [],
+   "solo_lectura": true,
+   "categoria": "graficos"
+  },
+  {
+   "nombre": "scene_copy",
+   "esquema_huella": "cf83f7aaac6b9ce8",
+   "parametros": [
+    "from",
+    "to"
+   ],
+   "requeridos": [
+    "from",
+    "to"
+   ],
+   "solo_lectura": false,
+   "categoria": "escenas"
+  },
+  {
+   "nombre": "scene_create",
+   "esquema_huella": "098974972159a1c5",
+   "parametros": [
+    "name"
+   ],
+   "requeridos": [
+    "name"
+   ],
+   "solo_lectura": false,
+   "categoria": "escenas"
+  },
+  {
+   "nombre": "scene_define",
+   "esquema_huella": "bd84ee311879ba7d",
+   "parametros": [
+    "name",
+    "replace",
+    "sources",
+    "switch"
+   ],
+   "requeridos": [
+    "name",
+    "sources"
+   ],
+   "solo_lectura": false,
+   "categoria": "escenas"
+  },
+  {
+   "nombre": "scene_delete",
+   "esquema_huella": "098974972159a1c5",
+   "parametros": [
+    "name"
+   ],
+   "requeridos": [
+    "name"
+   ],
+   "solo_lectura": false,
+   "categoria": "escenas"
+  },
+  {
+   "nombre": "scene_export",
+   "esquema_huella": "80576ae0fc380fb1",
+   "parametros": [
+    "name"
+   ],
+   "requeridos": [],
+   "solo_lectura": true,
+   "categoria": "escenas"
+  },
+  {
+   "nombre": "scene_folder",
+   "esquema_huella": "6d07a27d8d72202c",
+   "parametros": [
+    "folder",
+    "scene"
+   ],
+   "requeridos": [
+    "scene"
+   ],
+   "solo_lectura": false,
+   "categoria": "escenas"
+  },
+  {
+   "nombre": "scene_list",
+   "esquema_huella": "efddc7bd8bbcef73",
+   "parametros": [],
+   "requeridos": [],
+   "solo_lectura": true,
+   "categoria": "escenas"
+  },
+  {
+   "nombre": "scene_move",
+   "esquema_huella": "4f9662318d864f68",
+   "parametros": [
+    "before",
+    "scene"
+   ],
+   "requeridos": [
+    "scene"
+   ],
+   "solo_lectura": false,
+   "categoria": "escenas"
+  },
+  {
+   "nombre": "scene_preview",
+   "esquema_huella": "098974972159a1c5",
+   "parametros": [
+    "name"
+   ],
+   "requeridos": [
+    "name"
+   ],
+   "solo_lectura": false,
+   "categoria": "escenas"
+  },
+  {
+   "nombre": "scene_protect",
+   "esquema_huella": "1f78c74f05414bf0",
+   "parametros": [
+    "protected",
+    "scene"
+   ],
+   "requeridos": [
+    "scene"
+   ],
+   "solo_lectura": false,
+   "categoria": "escenas"
+  },
+  {
+   "nombre": "scene_rename",
+   "esquema_huella": "fa76ea16e7b446f5",
+   "parametros": [
+    "from",
+    "to"
+   ],
+   "requeridos": [
+    "from",
+    "to"
+   ],
+   "solo_lectura": false,
+   "categoria": "escenas"
+  },
+  {
+   "nombre": "scene_switch",
+   "esquema_huella": "1a5e74f1de5d8b78",
+   "parametros": [
+    "name"
+   ],
+   "requeridos": [
+    "name"
+   ],
+   "solo_lectura": false,
+   "categoria": "escenas"
+  },
+  {
+   "nombre": "scene_take",
+   "esquema_huella": "efddc7bd8bbcef73",
+   "parametros": [],
+   "requeridos": [],
+   "solo_lectura": false,
+   "categoria": "escenas"
+  },
+  {
+   "nombre": "share_delete",
+   "esquema_huella": "3797626bd17e346d",
+   "parametros": [
+    "id"
+   ],
+   "requeridos": [
+    "id"
+   ],
+   "solo_lectura": false,
+   "categoria": "sala"
+  },
+  {
+   "nombre": "share_list",
+   "esquema_huella": "efddc7bd8bbcef73",
+   "parametros": [],
+   "requeridos": [],
+   "solo_lectura": true,
+   "categoria": "sala"
+  },
+  {
+   "nombre": "share_take",
+   "esquema_huella": "3797626bd17e346d",
+   "parametros": [
+    "id"
+   ],
+   "requeridos": [
+    "id"
+   ],
+   "solo_lectura": false,
+   "categoria": "sala"
+  },
+  {
+   "nombre": "share_view",
+   "esquema_huella": "5822aa2297b21e0b",
+   "parametros": [
+    "id",
+    "maxWidth"
+   ],
+   "requeridos": [
+    "id"
+   ],
+   "solo_lectura": true,
+   "categoria": "sala"
+  },
+  {
+   "nombre": "source_add",
+   "esquema_huella": "1784559d28987c11",
+   "parametros": [
+    "layout",
+    "name",
+    "scene",
+    "settings",
+    "type",
+    "visible"
+   ],
+   "requeridos": [
+    "name",
+    "type"
+   ],
+   "solo_lectura": false,
+   "categoria": "fuentes"
+  },
+  {
+   "nombre": "source_list",
+   "esquema_huella": "b1c18e57f91f9e44",
+   "parametros": [
+    "scene"
+   ],
+   "requeridos": [],
+   "solo_lectura": true,
+   "categoria": "fuentes"
+  },
+  {
+   "nombre": "source_properties",
+   "esquema_huella": "098974972159a1c5",
+   "parametros": [
+    "name"
+   ],
+   "requeridos": [
+    "name"
+   ],
+   "solo_lectura": true,
+   "categoria": "fuentes"
+  },
+  {
+   "nombre": "source_remove",
+   "esquema_huella": "034f762bce481832",
+   "parametros": [
+    "name",
+    "scene"
+   ],
+   "requeridos": [
+    "name"
+   ],
+   "solo_lectura": false,
+   "categoria": "fuentes"
+  },
+  {
+   "nombre": "source_set_property",
+   "esquema_huella": "a3c65777c8595edc",
+   "parametros": [
+    "press",
+    "property",
+    "source",
+    "value"
+   ],
+   "requeridos": [
+    "property",
+    "source"
+   ],
+   "solo_lectura": false,
+   "categoria": "fuentes"
+  },
+  {
+   "nombre": "source_types",
+   "esquema_huella": "efddc7bd8bbcef73",
+   "parametros": [],
+   "requeridos": [],
+   "solo_lectura": true,
+   "categoria": "fuentes"
+  },
+  {
+   "nombre": "source_update",
+   "esquema_huella": "7668a5c15c0fbd55",
+   "parametros": [
+    "layout",
+    "muted",
+    "name",
+    "order",
+    "rename",
+    "scene",
+    "settings",
+    "visible",
+    "volumeDb"
+   ],
+   "requeridos": [
+    "name"
+   ],
+   "solo_lectura": false,
+   "categoria": "fuentes"
+  },
+  {
+   "nombre": "speaker_move",
+   "esquema_huella": "9f4269bbfd303abf",
+   "parametros": [
+    "participant",
+    "position"
+   ],
+   "requeridos": [
+    "participant",
+    "position"
+   ],
+   "solo_lectura": false,
+   "categoria": "oradores"
+  },
+  {
+   "nombre": "speaker_next",
+   "esquema_huella": "efddc7bd8bbcef73",
+   "parametros": [],
+   "requeridos": [],
+   "solo_lectura": false,
+   "categoria": "oradores"
+  },
+  {
+   "nombre": "speaker_on_air",
+   "esquema_huella": "20cc47580f7d1f0e",
+   "parametros": [
+    "on",
+    "participant"
+   ],
+   "requeridos": [
+    "participant"
+   ],
+   "solo_lectura": false,
+   "categoria": "oradores"
+  },
+  {
+   "nombre": "speaker_presenter",
+   "esquema_huella": "c942de9deb84c2ce",
+   "parametros": [
+    "on",
+    "participant"
+   ],
+   "requeridos": [
+    "participant"
+   ],
+   "solo_lectura": false,
+   "categoria": "oradores"
+  },
+  {
+   "nombre": "speaker_queue",
+   "esquema_huella": "df89d05f386bd4ac",
+   "parametros": [
+    "participant"
+   ],
+   "requeridos": [
+    "participant"
+   ],
+   "solo_lectura": false,
+   "categoria": "oradores"
+  },
+  {
+   "nombre": "speaker_time",
+   "esquema_huella": "3e7899f5a2528dc4",
+   "parametros": [
+    "participant",
+    "time"
+   ],
+   "requeridos": [
+    "participant",
+    "time"
+   ],
+   "solo_lectura": false,
+   "categoria": "oradores"
+  },
+  {
+   "nombre": "speakers_config",
+   "esquema_huella": "1ec4e9f91fefc864",
+   "parametros": [
+    "carousel",
+    "defaultSlot",
+    "defaultTime",
+    "enabled",
+    "graceSec",
+    "multi"
+   ],
+   "requeridos": [],
+   "solo_lectura": false,
+   "categoria": "oradores"
+  },
+  {
+   "nombre": "speakers_status",
+   "esquema_huella": "efddc7bd8bbcef73",
+   "parametros": [],
+   "requeridos": [],
+   "solo_lectura": true,
+   "categoria": "oradores"
+  },
+  {
+   "nombre": "status",
+   "esquema_huella": "efddc7bd8bbcef73",
+   "parametros": [],
+   "requeridos": [],
+   "solo_lectura": true,
+   "categoria": "estado"
+  },
+  {
+   "nombre": "stream_start",
+   "esquema_huella": "b25969d2a6f2e79c",
+   "parametros": [
+    "key",
+    "server"
+   ],
+   "requeridos": [],
+   "solo_lectura": false,
+   "categoria": "salidas"
+  },
+  {
+   "nombre": "stream_stop",
+   "esquema_huella": "efddc7bd8bbcef73",
+   "parametros": [],
+   "requeridos": [],
+   "solo_lectura": false,
+   "categoria": "salidas"
+  },
+  {
+   "nombre": "transition_set",
+   "esquema_huella": "270207cd645451ca",
+   "parametros": [
+    "durationMs",
+    "type"
+   ],
+   "requeridos": [
+    "type"
+   ],
+   "solo_lectura": false,
+   "categoria": "escenas"
+  }
+ ],
+ "endpoints_huella": "356103001427fce1",
+ "esquema_huella_metodo": {
+  "algoritmo": "sha256",
+  "largo": 16,
+  "json": "sort_keys,separators=(',',':'),utf-8",
+  "de": "inputSchema del endpoint MCP"
+ },
+ "inventario_mcp": {
+  "generado": "2026-09-29T15:32:51+00:00",
+  "cuantas": 292
+ },
+ "formato": {
+  "id": "qwen3.5-tool-call-xml",
+  "version": 1,
+  "prompt_huella": "900e34cd7e5900fb",
+  "cabeza": "prompt.json#cabeza",
+  "cola": "<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n",
+  "fin_turno": "<|im_end|>",
+  "usuario": {
+   "con_estado": "Estado: {estado}\nPedido: {frase}",
+   "sin_estado": "{frase}",
+   "estado_json": "separators=(',',':'),ensure_ascii=false"
+  },
+  "estado_claves": [
+   "escena_actual",
+   "escena_armada",
+   "escenas",
+   "fuentes_de_la_escena_actual",
+   "audio",
+   "participantes",
+   "graficos",
+   "carruseles"
+  ],
+  "llamada": {
+   "abre": "<tool_call>",
+   "funcion": "<function={nombre}>",
+   "parametro": "<parameter={clave}>\n{valor}\n</parameter>",
+   "cierra_funcion": "</function>",
+   "cierra": "</tool_call>",
+   "regex_llamada": "<tool_call>\\s*<function=([^>\\n]+)>(.*?)</function>\\s*</tool_call>",
+   "regex_parametro": "<parameter=([^>\\n]+)>\\n?(.*?)\\n?</parameter>"
+  },
+  "pseudo": {
+   "derivar": {
+    "nombre": "derivar",
+    "parametros": []
+   },
+   "falta_dato": {
+    "nombre": "falta_dato",
+    "parametros": [
+     "pregunta"
+    ]
+   }
+  },
+  "texto_sin_llamada": "charla",
+  "valores": {
+   "cambio": "^[+-]\\d+(\\.\\d+)?$",
+   "exacto": "^=-?\\d+(\\.\\d+)?$",
+   "booleano": [
+    "true",
+    "false"
+   ],
+   "un_poco": 3,
+   "sin_cantidad": 6
+  },
+  "turnos": 1,
+  "tool_response": false
+ }
+}

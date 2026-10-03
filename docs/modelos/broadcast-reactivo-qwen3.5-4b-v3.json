@@ -1,0 +1,453 @@
+{
+ "base": "Qwen/Qwen3.5-4B",
+ "base_revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+ "base_licencia": "apache-2.0",
+ "corpus_firma": "40ef5c533c6ee254",
+ "corpus_ejemplos": 11608,
+ "repo_commit": "f351b99",
+ "arquitectura": {
+  "tipo": "qwen3_5",
+  "pesos_gb": 9.3,
+  "capas": 32,
+  "atencion_lineal": true,
+  "mtp": 1,
+  "vision": true,
+  "modo": "repartir",
+  "extra": []
+ },
+ "entrenamiento": {
+  "modo": "repartir",
+  "adaptador_de": "/home/usuario/entrenamientos/tc/vuelta-3/adaptador",
+  "lote": 8,
+  "lr": 0.0002,
+  "lora_r": 32,
+  "epocas": 2.0
+ },
+ "medidas": {
+  "bf16": {
+   "banco": {
+    "0": {
+     "cobertura": [
+      302,
+      394
+     ],
+     "precision": [
+      280,
+      302
+     ],
+     "derivado": [
+      905,
+      1029
+     ],
+     "acierto": [
+      1185,
+      1423
+     ],
+     "pregunta": [
+      0,
+      394
+     ]
+    }
+   },
+   "examen": {
+    "cobertura": [
+     67,
+     97
+    ],
+    "precision": [
+     62,
+     67
+    ],
+    "derivado": [
+     7,
+     8
+    ],
+    "acierto": [
+     69,
+     105
+    ],
+    "pregunta": [
+     0,
+     97
+    ]
+   },
+   "prueba": {
+    "casos": 408,
+    "conteos": {
+     "formato": [
+      408,
+      408
+     ],
+     "herramienta": [
+      391,
+      408
+     ],
+     "args_exactos": [
+      292,
+      318
+     ],
+     "falta_dato": [
+      79,
+      90
+     ]
+    },
+    "formato": 1.0,
+    "herramienta": 0.9583333333333334,
+    "args_exactos": 0.9182389937106918,
+    "falta_dato": 0.8777777777777778
+   },
+   "charla": {
+    "casos": 300,
+    "nll_por_token": 0.560668395829004,
+    "llamadas_en_charla": 0.03
+   }
+  },
+  "mlx-q4": {
+   "banco": {
+    "0": {
+     "cobertura": [
+      105,
+      139
+     ],
+     "precision": [
+      96,
+      105
+     ],
+     "derivado": [
+      316,
+      361
+     ],
+     "acierto": [
+      412,
+      500
+     ],
+     "pregunta": [
+      0,
+      139
+     ]
+    }
+   },
+   "examen": {
+    "cobertura": [
+     65,
+     97
+    ],
+    "precision": [
+     61,
+     65
+    ],
+    "derivado": [
+     7,
+     8
+    ],
+    "acierto": [
+     68,
+     105
+    ],
+    "pregunta": [
+     0,
+     97
+    ]
+   },
+   "prueba": {
+    "casos": 408,
+    "conteos": {
+     "formato": [
+      408,
+      408
+     ],
+     "herramienta": [
+      386,
+      408
+     ],
+     "args_exactos": [
+      289,
+      318
+     ],
+     "falta_dato": [
+      78,
+      90
+     ]
+    },
+    "formato": 1.0,
+    "herramienta": 0.946078431372549,
+    "args_exactos": 0.9088050314465409,
+    "falta_dato": 0.8666666666666667
+   },
+   "charla": {
+    "casos": 300,
+    "nll_por_token": 0.7164985864608311,
+    "llamadas_en_charla": 0.02
+   }
+  },
+  "mlx-q4-fp16": {
+   "banco": {
+    "0": {
+     "cobertura": [
+      105,
+      139
+     ],
+     "precision": [
+      96,
+      105
+     ],
+     "derivado": [
+      316,
+      361
+     ],
+     "acierto": [
+      412,
+      500
+     ],
+     "pregunta": [
+      0,
+      139
+     ]
+    }
+   },
+   "examen": {
+    "cobertura": [
+     66,
+     97
+    ],
+    "precision": [
+     61,
+     66
+    ],
+    "derivado": [
+     7,
+     8
+    ],
+    "acierto": [
+     68,
+     105
+    ],
+    "pregunta": [
+     0,
+     97
+    ]
+   },
+   "prueba": {
+    "casos": 408,
+    "conteos": {
+     "formato": [
+      408,
+      408
+     ],
+     "herramienta": [
+      387,
+      408
+     ],
+     "args_exactos": [
+      289,
+      318
+     ],
+     "falta_dato": [
+      79,
+      90
+     ]
+    },
+    "formato": 1.0,
+    "herramienta": 0.9485294117647058,
+    "args_exactos": 0.9088050314465409,
+    "falta_dato": 0.8777777777777778
+   },
+   "charla": {
+    "casos": 300,
+    "nll_por_token": 0.7156634772873888,
+    "llamadas_en_charla": 0.02
+   }
+  }
+ },
+ "mtp": {
+  "pasos_mtp": 3,
+  "antes": {
+   "nombres": {
+    "aceptados_por_ciclo": 2.038772213247173,
+    "por_paso": [
+     0.8294212676993253,
+     0.8237597911227154,
+     0.8680972388955582
+    ]
+   },
+   "texto": {
+    "aceptados_por_ciclo": 1.1544117647058822,
+    "por_paso": [
+     0.6554621848739496,
+     0.522036682179031,
+     0.5161466885604816
+    ]
+   }
+  },
+  "despues": {
+   "nombres": {
+    "aceptados_por_ciclo": 2.2122968735151574,
+    "por_paso": [
+     0.8636320440938896,
+     0.8670158260275532,
+     0.8983745389974047
+    ]
+   },
+   "texto": {
+    "aceptados_por_ciclo": 1.6699929971988796,
+    "por_paso": [
+     0.7690826330532213,
+     0.7105630525825966,
+     0.7053270397842212
+    ]
+   }
+  },
+  "pasos": 1445,
+  "paso_elegido": 1445,
+  "despues_q8": {
+   "nombres": {
+    "aceptados_por_ciclo": 2.21191675377744,
+    "por_paso": [
+     0.8632519243561722,
+     0.8670691422713294,
+     0.8991527739819623
+    ]
+   },
+   "texto": {
+    "aceptados_por_ciclo": 1.6726190476190477,
+    "por_paso": [
+     0.7703081232492998,
+     0.7112659698025552,
+     0.703429724277068
+    ]
+   }
+  },
+  "despues_q4": {
+   "nombres": {
+    "aceptados_por_ciclo": 2.2106813646298584,
+    "por_paso": [
+     0.8639171338971776,
+     0.8667349493570047,
+     0.8953837749248839
+    ]
+   },
+   "texto": {
+    "aceptados_por_ciclo": 1.6607142857142858,
+    "por_paso": [
+     0.7682072829131653,
+     0.7071977638015374,
+     0.6987461877329719
+    ]
+   }
+  },
+  "aceptacion_antes": 0.8294212676993253,
+  "aceptacion_despues": 0.8636320440938896,
+  "texto_respuestas": 1841
+ },
+ "perfil": {
+  "nombre": "reactivo",
+  "categorias": [
+   "audio",
+   "escenas",
+   "fuentes",
+   "sala",
+   "oradores",
+   "imagenes",
+   "estado",
+   "salidas",
+   "graficos",
+   "laminas"
+  ],
+  "entradas": [
+   "pedidos"
+  ],
+  "herramientas": [
+   "audio_analyze",
+   "audio_escuchar",
+   "audio_measure",
+   "audio_set",
+   "audio_sincro",
+   "capture_feed",
+   "capture_multiview",
+   "capture_people",
+   "capture_person",
+   "capture_program",
+   "capture_sequence",
+   "capture_source",
+   "capture_ui",
+   "chat_history",
+   "chat_send",
+   "chat_wait",
+   "gateway_restart",
+   "grabacion_individual",
+   "grafico_en_escena",
+   "grafico_listar",
+   "grafico_mostrar",
+   "grafico_ocultar",
+   "guest_source_add",
+   "imagen_analizar",
+   "laminas_aplicar",
+   "laminas_buscar",
+   "laminas_ir",
+   "laminas_listar",
+   "laminas_ver",
+   "mixer_list",
+   "network_status",
+   "participant_admit",
+   "participant_admit_all",
+   "participant_kick",
+   "participant_profile",
+   "participant_reject",
+   "participant_request",
+   "participant_requeue",
+   "participant_talk",
+   "record_start",
+   "record_stop",
+   "room_link",
+   "room_pin",
+   "room_set",
+   "room_status",
+   "rotulo_desvincular",
+   "rotulo_vincular",
+   "rotulo_vinculos",
+   "scene_copy",
+   "scene_create",
+   "scene_define",
+   "scene_delete",
+   "scene_export",
+   "scene_folder",
+   "scene_list",
+   "scene_move",
+   "scene_preview",
+   "scene_protect",
+   "scene_rename",
+   "scene_switch",
+   "scene_take",
+   "share_delete",
+   "share_list",
+   "share_take",
+   "share_view",
+   "source_add",
+   "source_list",
+   "source_properties",
+   "source_remove",
+   "source_set_property",
+   "source_types",
+   "source_update",
+   "speaker_move",
+   "speaker_next",
+   "speaker_on_air",
+   "speaker_presenter",
+   "speaker_queue",
+   "speaker_time",
+   "speakers_config",
+   "speakers_status",
+   "status",
+   "stream_start",
+   "stream_stop",
+   "transition_set"
+  ],
+  "prompt": "900e34cd7e5900fb",
+  "etiquetas": null,
+  "formato": "tc"
+ },
+ "repos": [
+  "broadcast-reactivo-qwen3.5-4b-v3-mlx-q4",
+  "broadcast-reactivo-qwen3.5-4b-v3-GGUF"
+ ]
+}

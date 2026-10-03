@@ -994,8 +994,14 @@ con otras fichas es otro modelo, aunque siga contestando.
                  "prompt": self.man["perfil"].get("prompt"),
                  "tamano_gb": self.man.get("exportado", {}).get("tam_gb", {}).get("mlx_q4" if mlx else "gguf_q4"),
                  "precision": pct(b.get("precision")), "derivado": pct(b.get("derivado")),
-                 "examen": pct(x.get("acierto")), "fecha": datetime.date.today().isoformat()}
+                 "examen": pct(x.get("acierto")), "fecha": datetime.date.today().isoformat(),
+                 "version": self.man.get("version"),
+                 "formato_llamada": "qwen3.5-tool-call-xml" if self.man["perfil"].get("formato") == "tc"
+                 else "nombre-de-herramienta", "manifiesto": "modelo.json"}
             cat["modelos"] = [m for m in cat["modelos"] if m["repo"] != repo] + [e]
+        # la app solo habla tool calling: los modelos de solo nombres (v1) salen del catalogo
+        cat["modelos"] = [m for m in cat["modelos"] if not m["repo"].startswith(f"{self.a.hf_usuario}/broadcast-reactivo")
+                          or m.get("formato_llamada") == "qwen3.5-tool-call-xml"]
         cat_f.write_text(json.dumps(cat, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
         log(f"catalogo: datos/modelos-catalogo.json ({len(cat['modelos'])} modelos)")
 
@@ -1160,8 +1166,72 @@ entrenadas; contesta charla con una llamada en el {100 * ch16.get('llamadas_en_c
         # el de la receta de unsloth es otro GGUF: no pisar el repo del Q4_K_M
         return n + ("-mtp-ud" if self.man.get("repo_pedido") and not self.a.repo else "")
 
+    def modelo_json(self, formato_repo, repo):
+        """modelo.json: lo que la app compara al revisar un modelo, sin prosa.
+        Endpoints cubiertos (con la huella de su esquema, calculable desde el
+        registro MCP de la app), version de entrenamiento y formato de llamada."""
+        sys.path.insert(0, str(RAIZ / "tools"))
+        import lib_prompt as lp
+        inv = lp.inventario()
+        por = {h["nombre"]: h for h in inv["herramientas"]}
+        canon = lambda x: json.dumps(x, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        huella = lambda x: hashlib.sha256(canon(x).encode()).hexdigest()[:16]
+        nombres = sorted(self.man["perfil"]["herramientas"])
+        endpoints = [{"nombre": n, "esquema_huella": huella(por[n]["esquema"]),
+                      "parametros": sorted((por[n]["esquema"].get("properties") or {}).keys()),
+                      "requeridos": sorted(por[n]["esquema"].get("required") or []),
+                      "solo_lectura": bool(por[n].get("soloLectura")), "categoria": por[n].get("categoria")}
+                     for n in nombres if n in por]
+        ex = self.man.get("exportado", {})
+        m = self.man
+        out = {
+            "schema": 1,
+            "modelo": {"repo": repo, "build": m["nombre"], "version": self.a.version or m.get("version"),
+                       "fecha": datetime.date.today().isoformat(), "base": m.get("base"),
+                       "base_revision": m.get("base_revision"), "commit": m.get("repo_commit"),
+                       "corpus": m.get("corpus_firma"), "perfil": m["perfil"].get("nombre"),
+                       "archivo": "model.safetensors" if formato_repo == "mlx" else self.gguf_nombre,
+                       "cuantizacion": ({"tipo": "mlx-affine", "bits": 4, "grupo": 64,
+                                         "dtype": (ex.get("mlx_dtype") or {}).get("tipo")} if formato_repo == "mlx"
+                                        else {"tipo": ex.get("cuant", "Q4_K_M")}),
+                       "vision": {"incluida": bool(ex.get("vision")),
+                                  "archivo": "model.safetensors" if formato_repo == "mlx" else
+                                  ("mmproj-F16.gguf" if ex.get("mmproj") else None)},
+                       "mtp": ({"archivos": ["mtp.safetensors", "mtp-q8.safetensors"], "normas": "hf-sin-+1"}
+                               if formato_repo == "mlx" else {"en_gguf": True}) if m.get("mtp") else None},
+            "endpoints": endpoints,
+            "endpoints_huella": huella([[e["nombre"], e["esquema_huella"]] for e in endpoints]),
+            "esquema_huella_metodo": {"algoritmo": "sha256", "largo": 16, "json": "sort_keys,separators=(',',':'),utf-8",
+                                      "de": "inputSchema del endpoint MCP"},
+            "inventario_mcp": {"generado": inv.get("generado"), "cuantas": inv.get("cuantas")},
+        }
+        if m["perfil"].get("formato") == "tc":
+            import lib_tc as tc
+            out["formato"] = {
+                "id": "qwen3.5-tool-call-xml", "version": 1, "prompt_huella": tc.huella(),
+                "cabeza": "prompt.json#cabeza", "cola": tc.COLA, "fin_turno": tc.FIN,
+                "usuario": {"con_estado": "Estado: {estado}\nPedido: {frase}", "sin_estado": "{frase}",
+                            "estado_json": "separators=(',',':'),ensure_ascii=false"},
+                "estado_claves": ["escena_actual", "escena_armada", "escenas", "fuentes_de_la_escena_actual", "audio",
+                                  "participantes", "graficos", "carruseles"],
+                "llamada": {"abre": "<tool_call>", "funcion": "<function={nombre}>", "parametro":
+                            "<parameter={clave}>\n{valor}\n</parameter>", "cierra_funcion": "</function>",
+                            "cierra": "</tool_call>", "regex_llamada": tc.RE_LLAMADA.pattern,
+                            "regex_parametro": tc.RE_PARAM.pattern},
+                "pseudo": {"derivar": {"nombre": tc.DERIVAR, "parametros": []},
+                           "falta_dato": {"nombre": tc.FALTA, "parametros": ["pregunta"]}},
+                "texto_sin_llamada": "charla",
+                "valores": {"cambio": r"^[+-]\d+(\.\d+)?$", "exacto": r"^=-?\d+(\.\d+)?$",
+                            "booleano": ["true", "false"], "un_poco": 3, "sin_cantidad": 6},
+                "turnos": 1, "tool_response": False}
+        else:
+            out["formato"] = {"id": "nombre-de-herramienta", "version": 1, "prompt_huella": m["perfil"].get("prompt")}
+        return out
+
     def empaquetar(self):
         self.completar_datos()
+        if self.a.version:
+            self.man["version"] = self.a.version
         rep = self.dir / "repos"
         if rep.exists():
             shutil.rmtree(rep)
@@ -1190,6 +1260,11 @@ entrenadas; contesta charla con una llamada en el {100 * ch16.get('llamadas_en_c
             if eq:
                 (d / "equivalencias.json").write_text(json.dumps(eq, ensure_ascii=False, indent=1))
             (d / "prompt.json").write_text(json.dumps(self.prompt_para_servir(), ensure_ascii=False, indent=1))
+            mj = self.modelo_json(formato, repo)
+            (d / "modelo.json").write_text(json.dumps(mj, ensure_ascii=False, indent=1))
+            # copia versionada en el repo del aparato (texto chico, como la tarjeta)
+            (RAIZ / "docs" / "modelos").mkdir(parents=True, exist_ok=True)
+            (RAIZ / "docs" / "modelos" / f"{repo}.modelo.json").write_text(json.dumps(mj, ensure_ascii=False, indent=1))
             (d / ".gitattributes").write_text("*.safetensors filter=lfs diff=lfs merge=lfs -text\n"
                                               "*.gguf filter=lfs diff=lfs merge=lfs -text\n")
             (d / "README.md").write_text(self.tarjeta(formato, repo), encoding="utf-8")
@@ -1235,10 +1310,7 @@ entrenadas; contesta charla con una llamada en el {100 * ch16.get('llamadas_en_c
         self.man["subido"] = {"repos": subidos, "privado": not self.a.publico,
                               "fecha": datetime.datetime.now().isoformat(timespec="seconds")}
         (self.dir / "subido").write_text("\n".join(subidos))
-        if self.a.formato == "tc":
-            log("catalogo: el formato tc todavia no lo entiende la app; no se ofrece")
-        else:
-            self.actualizar_catalogo(subidos)
+        self.actualizar_catalogo(subidos)
         for u in subidos:
             log(f"subido: {u}{' (privado)' if not self.a.publico else ''}")
 
@@ -1288,6 +1360,7 @@ def main():
     ap.add_argument("--rehacer", choices=ETAPAS, help="rehacer desde esta etapa (las anteriores se reusan)")
     ap.add_argument("--sin-mtp", action="store_true", help="no entrenar la cabeza MTP (usar la de la base)")
     ap.add_argument("--conservar", action="store_true", help="no borrar el fusionado ni el GGUF bf16 al exportar")
+    ap.add_argument("--version", help="version de entrenamiento del modelo (va a modelo.json: la compara la app)")
     ap.add_argument("--formato", choices=["nombres", "tc"], default="nombres",
                     help="nombres: el modelo contesta solo la herramienta (lib_prompt); tc: tool calling con "
                          "argumentos (lib_tc, docs/entrenamiento-avanzado.md)")
