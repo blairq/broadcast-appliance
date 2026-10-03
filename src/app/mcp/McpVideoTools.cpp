@@ -779,8 +779,38 @@ void McpService::registerVideoTools() {
         }
         {
             Tool t;
+            t.name = "superres_tarjeta";
+            t.title = "Agregar una tarjeta de superresolución al grafo de una entrada";
+            t.category = "video";
+            t.description =
+                "La forma de fábrica: una TARJETA del grafo de video de `entrada` (cualquier entrada: cámara, red, virtual) "
+                "que duplica la resolución; lo que la sigue trabaja al doble y la escena la recibe grande. `motor`: apple "
+                "(macOS 26, ~3 ms, la mejor en una Mac), fsr (FSR 1, cualquier GPU, <1 ms) u onnx (`modelo`: archivo de "
+                "superres_estado, p. ej. la red chica entrenada con esa cámara). `despues`: el id de la tarjeta tras la que va "
+                "(vacío: al final, antes de la escena). Es un filtro de GStreamer: se quita como cualquier tarjeta.";
+            t.inputSchema = {{"type", "object"},
+                             {"required", {"entrada", "motor"}},
+                             {"properties",
+                              {{"entrada", {{"type", "string"}}},
+                               {"motor", {{"type", "string"}, {"enum", {"apple", "fsr", "onnx"}}}},
+                               {"modelo", {{"type", "string"}}},
+                               {"despues", {{"type", "string"}}}}}};
+            t.run = [srp, v = vm_.videoGrafos()](const json& a, Done done) {
+                if (!srp || v == nullptr) return done(ToolResult::error("no disponible"));
+                std::string modelo = a.value("modelo", std::string());
+                if (!modelo.empty() && modelo.find('/') == std::string::npos && modelo.find('\\') == std::string::npos)
+                    modelo = (srp->carpetaModelos() / modelo).string();
+                const std::string e = v->agregarSuperres(a.value("entrada", std::string()), a.value("motor", std::string()), modelo,
+                                                         a.value("despues", std::string()));
+                if (!e.empty()) return done(ToolResult::error(e));
+                done(ToolResult().text("Tarjeta agregada. video_estado muestra el tamaño nuevo en unos segundos."));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
             t.name = "superres_aplicar";
-            t.title = "Poner (o sacar) la superresolución de una entrada de red";
+            t.title = "Superresolución EN LA FUENTE de una entrada de red (alternativa a la tarjeta)";
             t.category = "video";
             t.description =
                 "Duplica la resolución de una entrada de red (`entrada`) con `motor`: apple (la de Apple, la mejor en una Mac con "

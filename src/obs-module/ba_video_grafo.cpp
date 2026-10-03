@@ -47,6 +47,7 @@
 #include "ba_video_estudio.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <deque>
 #include <array>
 #include <cstdint>
@@ -243,6 +244,11 @@ struct Grafo {
     std::uint64_t ultimoCuadro = 0;
     bool listo = false;
     std::uint32_t cx = 0, cy = 0;
+    /// El tamaño del paso que se está dibujando (una tarjeta de superresolución
+    /// lo duplica: lo que la sigue trabaja más grande).
+    std::uint32_t tw = 0, th = 0;
+    /// Lo que sale a la escena (el filtro informa este tamaño a libobs).
+    std::atomic<std::uint32_t> outW{0}, outH{0};
     std::string fuente; ///< la entrada (para las tomas)
     std::mutex estadoLock;
     std::map<std::string, std::string> errores; ///< por nodo: por qué una tarjeta no corre
@@ -765,7 +771,7 @@ void pasada(Grafo* g, gs_texture_t* tex, const char* tecnica) {
     gs_effect_set_texture(g->pImage, tex);
     gs_blend_state_push();
     gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
-    while (gs_effect_loop(g->fx, tecnica)) gs_draw_sprite(tex, 0, g->cx, g->cy);
+    while (gs_effect_loop(g->fx, tecnica)) gs_draw_sprite(tex, 0, g->tw, g->th);
     gs_blend_state_pop();
 }
 
@@ -776,12 +782,12 @@ void aSalida(Grafo* g, const std::string& nombre, gs_texture_t* tex) {
     if (it == salidas().end()) return;
     Salida* s = it->second;
     gs_texrender_reset(s->tex);
-    if (!gs_texrender_begin(s->tex, g->cx, g->cy)) return;
-    gs_ortho(0.0f, static_cast<float>(g->cx), 0.0f, static_cast<float>(g->cy), -100.0f, 100.0f);
+    if (!gs_texrender_begin(s->tex, g->tw, g->th)) return;
+    gs_ortho(0.0f, static_cast<float>(g->tw), 0.0f, static_cast<float>(g->th), -100.0f, 100.0f);
     pasada(g, tex, "Copiar");
     gs_texrender_end(s->tex);
-    s->cx = g->cx;
-    s->cy = g->cy;
+    s->cx = g->tw;
+    s->cy = g->th;
     s->cuadro = obs_get_video_frame_time();
 }
 
@@ -944,6 +950,8 @@ void marcarCaras(Analisis& a, std::uint32_t cx, std::uint32_t cy) {
 /// Las tarjetas del cuadro actual (una vez por cuadro).
 bool procesar(Grafo* g, const Plan& plan) {
     // La entrada, tal como llega a este filtro (con los filtros de antes).
+    g->tw = g->cx;
+    g->th = g->cy;
     gs_texrender_reset(g->entrada);
     if (!gs_texrender_begin(g->entrada, g->cx, g->cy)) return false;
     struct vec4 nada;
@@ -964,24 +972,37 @@ bool procesar(Grafo* g, const Plan& plan) {
     const auto texDe = [&](int i) -> gs_texture_t* {
         return i < 0 ? gs_texrender_get_texture(g->entrada) : gs_texrender_get_texture(g->texs[static_cast<size_t>(i)]);
     };
-    struct vec2 texel;
-    vec2_set(&texel, 1.0f / static_cast<float>(g->cx), 1.0f / static_cast<float>(g->cy));
-    gs_effect_set_vec2(g->pTexel, &texel);
+    // El tamaño de lo que sale de cada paso: el de su entrada, salvo una
+    // tarjeta que agranda (superresolución: x2) y lo que viene de afuera.
+    std::vector<std::pair<std::uint32_t, std::uint32_t>> tam(plan.pasos.size(), {g->cx, g->cy});
+    const auto tamDe = [&](int i) { return i < 0 ? std::pair<std::uint32_t, std::uint32_t>{g->cx, g->cy} : tam[static_cast<size_t>(i)]; };
     for (size_t i = 0; i < plan.pasos.size(); ++i) {
         const Paso& p = plan.pasos[i];
         gs_texture_t* en = texDe(p.entrada);
+        const auto [iw, ih] = tamDe(p.entrada);
+        std::uint32_t ow = iw, oh = ih;
+        if (p.tipo == Tipo::Traer) ow = g->cx, oh = g->cy;
+#if defined(BA_HAVE_GST)
+        if (p.tipo == Tipo::Gst && p.gst) ow = iw * p.gst->factor(), oh = ih * p.gst->factor();
+#endif
+        tam[i] = {ow, oh};
+        g->tw = ow;
+        g->th = oh;
+        struct vec2 texel;
+        vec2_set(&texel, 1.0f / static_cast<float>(iw), 1.0f / static_cast<float>(ih));
+        gs_effect_set_vec2(g->pTexel, &texel);
         // Lo que viene de afuera se pide ANTES de empezar a dibujar este paso:
         // pedirlo puede despertar otra entrada (que dibuja en lo suyo).
         gs_texture_t* externa = nullptr;
         if (p.tipo == Tipo::Traer)
             externa = !p.compositor.empty() ? ba::video::componer(p.compositor, nullptr, nullptr)
                                             : ba::video::leerToma(p.nombre, p.fuente, nullptr, nullptr);
-        if (p.tipo == Tipo::Rostros) bajarAnalisis(p, en, g->cx, g->cy);
+        if (p.tipo == Tipo::Rostros) bajarAnalisis(p, en, iw, ih);
         if (p.tipo == Tipo::Sincro) tomarHuella(*p.huella, en);
         gs_texrender_t* destino = g->texs[i];
         gs_texrender_reset(destino);
-        if (!gs_texrender_begin(destino, g->cx, g->cy)) continue;
-        gs_ortho(0.0f, static_cast<float>(g->cx), 0.0f, static_cast<float>(g->cy), -100.0f, 100.0f);
+        if (!gs_texrender_begin(destino, ow, oh)) continue;
+        gs_ortho(0.0f, static_cast<float>(ow), 0.0f, static_cast<float>(oh), -100.0f, 100.0f);
         switch (p.tipo) {
         case Tipo::Color:
             gs_effect_set_float(g->pBrillo, p.brillo);
@@ -1024,7 +1045,7 @@ bool procesar(Grafo* g, const Plan& plan) {
             break;
         case Tipo::Rostros:
             pasada(g, en, "Copiar");
-            if (p.marcar) marcarCaras(*p.analisis, g->cx, g->cy);
+            if (p.marcar) marcarCaras(*p.analisis, ow, oh);
             break;
         case Tipo::Salida:
         case Tipo::Toma:
@@ -1051,16 +1072,16 @@ bool procesar(Grafo* g, const Plan& plan) {
             gs_texrender_end(destino); // el anillo se llena fuera de este paso
             gs_texrender_t* guardar = r.anillo[r.pos % n];
             gs_texrender_reset(guardar);
-            if (gs_texrender_begin(guardar, g->cx, g->cy)) {
-                gs_ortho(0.0f, static_cast<float>(g->cx), 0.0f, static_cast<float>(g->cy), -100.0f, 100.0f);
+            if (gs_texrender_begin(guardar, ow, oh)) {
+                gs_ortho(0.0f, static_cast<float>(ow), 0.0f, static_cast<float>(oh), -100.0f, 100.0f);
                 pasada(g, en, "Copiar");
                 gs_texrender_end(guardar);
             }
             r.pos = (r.pos + 1) % n;
             gs_texture_t* viejo = gs_texrender_get_texture(r.anillo[r.pos % n]);
             gs_texrender_reset(destino);
-            if (!gs_texrender_begin(destino, g->cx, g->cy)) continue;
-            gs_ortho(0.0f, static_cast<float>(g->cx), 0.0f, static_cast<float>(g->cy), -100.0f, 100.0f);
+            if (!gs_texrender_begin(destino, ow, oh)) continue;
+            gs_ortho(0.0f, static_cast<float>(ow), 0.0f, static_cast<float>(oh), -100.0f, 100.0f);
             // Al empezar, los guardados todavía están vacíos: pasa el de ahora.
             pasada(g, viejo != nullptr ? viejo : en, "Copiar");
             break;
@@ -1068,7 +1089,7 @@ bool procesar(Grafo* g, const Plan& plan) {
         case Tipo::Gst:
 #if defined(BA_HAVE_GST)
             {
-                const bool corrio = p.gst->procesar(en, g->cx, g->cy, g->fx);
+                const bool corrio = p.gst->procesar(en, iw, ih, g->fx);
                 std::lock_guard<std::mutex> l(g->estadoLock);
                 if (corrio || p.gst->error().empty())
                     g->errores.erase(p.id);
@@ -1082,11 +1103,12 @@ bool procesar(Grafo* g, const Plan& plan) {
                 if (corrio) break;
             }
             {
-                // Sin GStreamer o con el módulo caído: la imagen pasa como vino.
+                // Sin GStreamer o con el módulo caído: la imagen pasa como vino
+                // (agrandada simple si la tarjeta agranda: el tamaño no salta).
                 gs_texrender_end(destino);
                 gs_texrender_reset(destino);
-                if (gs_texrender_begin(destino, g->cx, g->cy)) {
-                    gs_ortho(0.0f, static_cast<float>(g->cx), 0.0f, static_cast<float>(g->cy), -100.0f, 100.0f);
+                if (gs_texrender_begin(destino, ow, oh)) {
+                    gs_ortho(0.0f, static_cast<float>(ow), 0.0f, static_cast<float>(oh), -100.0f, 100.0f);
                     pasada(g, en, "Copiar");
                 }
             }
@@ -1100,8 +1122,8 @@ bool procesar(Grafo* g, const Plan& plan) {
                 break;
             }
             port->tex = en;
-            port->cx = g->cx;
-            port->cy = g->cy;
+            port->cx = iw;
+            port->cy = ih;
             struct vec4 nada;
             vec4_zero(&nada);
             gs_clear(GS_CLEAR_COLOR, &nada, 0.0f, 0);
@@ -1115,8 +1137,11 @@ bool procesar(Grafo* g, const Plan& plan) {
         }
         gs_texrender_end(destino);
         if (p.tipo == Tipo::Salida && !p.nombre.empty()) aSalida(g, p.nombre, gs_texrender_get_texture(destino));
-        if (p.tipo == Tipo::Toma) ba::video::publicarToma(p.nombre, g->fuente, gs_texrender_get_texture(destino), g->cx, g->cy);
+        if (p.tipo == Tipo::Toma) ba::video::publicarToma(p.nombre, g->fuente, gs_texrender_get_texture(destino), ow, oh);
     }
+    const auto [sw, sh] = plan.escena >= 0 ? tam[static_cast<size_t>(plan.escena)] : std::pair<std::uint32_t, std::uint32_t>{g->cx, g->cy};
+    g->outW = sw;
+    g->outH = sh;
     return true;
 }
 
@@ -1130,6 +1155,8 @@ void dibujar(void* data, gs_effect_t*) {
     const std::uint32_t cx = objetivo != nullptr ? obs_source_get_base_width(objetivo) : 0;
     const std::uint32_t cy = objetivo != nullptr ? obs_source_get_base_height(objetivo) : 0;
     if (g->fx == nullptr || cx == 0 || cy == 0 || plan->trivial()) {
+        g->outW = 0;
+        g->outH = 0;
         obs_source_skip_video_filter(g->ctx);
         return;
     }
@@ -1159,7 +1186,22 @@ void dibujar(void* data, gs_effect_t*) {
                                          : gs_texrender_get_texture(g->texs[static_cast<size_t>(plan->escena)]);
     gs_effect_t* fx = obs_get_base_effect(OBS_EFFECT_DEFAULT);
     gs_effect_set_texture(gs_effect_get_param_by_name(fx, "image"), tex);
-    while (gs_effect_loop(fx, "Draw")) gs_draw_sprite(tex, 0, g->cx, g->cy);
+    const std::uint32_t ow = g->outW ? g->outW.load() : g->cx, oh = g->outH ? g->outH.load() : g->cy;
+    while (gs_effect_loop(fx, "Draw")) gs_draw_sprite(tex, 0, ow, oh);
+}
+
+/// El tamaño que sale a la escena: el de la entrada, salvo que una tarjeta lo agrande.
+std::uint32_t grafoAncho(void* data) {
+    auto* g = static_cast<Grafo*>(data);
+    if (g->outW > 0) return g->outW;
+    obs_source_t* t = obs_filter_get_target(g->ctx);
+    return t != nullptr ? obs_source_get_base_width(t) : 0;
+}
+std::uint32_t grafoAlto(void* data) {
+    auto* g = static_cast<Grafo*>(data);
+    if (g->outH > 0) return g->outH;
+    obs_source_t* t = obs_filter_get_target(g->ctx);
+    return t != nullptr ? obs_source_get_base_height(t) : 0;
 }
 
 // --- El portador de una tarjeta de OBS ----------------------------------------
@@ -1298,6 +1340,8 @@ void ba_register_video_grafo(void) {
     ba_video_grafo_info.destroy = destruir;
     ba_video_grafo_info.update = actualizar;
     ba_video_grafo_info.video_render = dibujar;
+    ba_video_grafo_info.get_width = grafoAncho;
+    ba_video_grafo_info.get_height = grafoAlto;
     obs_register_source(&ba_video_grafo_info);
 
     ba_video_salida_info.id = "ba_video_salida";

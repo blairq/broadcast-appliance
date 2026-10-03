@@ -654,7 +654,7 @@ Antes de traducir, cada término conocido se reemplaza por su traducción ya hec
 - Reglas: varias formas en `es` (singular, plural, femenino); la traducción debe encajar en la frase (si el término es «solicito pasar a cuarto intermedio», que la traducción sea la frase entera); en ruso y chino el término se aplica al pasar por el inglés, así que cuidá la forma en inglés (palabras comunes: «parliamentary group», no «caucus»).
 - Los modelos traducen palabra por palabra lo que no conocen: un modismo nuevo, un nombre propio que se puede leer como palabra común (Esquel, Gaiman…) va al glosario con su forma en cada idioma.)md"},
     {"superres", "Superresolución", "Mejorar la resolución de una cámara de baja definición (PAL, 720p): motores apple, fsr y redes ONNX (red chica entrenada con la propia cámara, SPAN, Real-ESRGAN).",
-     R"md(Duplica la resolución de una ENTRADA DE RED (RTSP, SRT…) dentro de su cadena de GStreamer, antes de que entre al estudio: una cámara de 768x576 sale en 1536x1152. El audio no pasa por ahí; la sincronía se mantiene mientras lo que tarda entre en el colchón de la entrada (`latencia_ms`): si `superres.ms_por_cuadro` (video_estado) se acerca al colchón, subilo (video_entrada_red `latencia_ms`).
+     R"md(**Es una TARJETA del grafo de video** (un filtro de GStreamer que agranda x2), en cualquier entrada: `superres_tarjeta {"entrada", "motor"}`. Lo que la sigue trabaja al doble y la escena la recibe grande: una cámara de 768x576 sale en 1536x1152. En una entrada de red también se puede poner en la fuente misma (`superres_aplicar`), antes del grafo. El audio no pasa por ahí; la sincronía se mantiene mientras lo que tarda entre en el colchón de la entrada (`latencia_ms`): si `superres.ms_por_cuadro` (video_estado) se acerca al colchón, subilo (video_entrada_red `latencia_ms`).
 
 ## Motores (`superres_estado` dice cuáles hay)
 | Motor | Qué es | Costo | Cuándo |
@@ -666,10 +666,10 @@ Antes de traducir, cada término conocido se reemplaza por su traducción ya hec
 | `onnx` + Real-ESRGAN | Compacto x4 (BSD), limpia mucho | ~290 ms en una Mac | No da en vivo aquí; para comparar |
 
 ## Recetas
-- Una cámara vieja en una Mac: `superres_aplicar {"entrada": "Axis terreno", "motor": "apple"}`.
-- Probar FSR: `superres_aplicar {"entrada", "motor": "fsr"}`.
+- Una cámara vieja en una Mac: `superres_tarjeta {"entrada": "Axis terreno", "motor": "apple"}`.
+- Probar FSR: `superres_tarjeta {"entrada", "motor": "fsr"}`.
 - Entrenar con un botón: `superres_entrenar {"entrada": "Axis terreno", "minutos": 5}` (graba ~1 minuto de la cámara sin tocar el aire, entrena y la aplica; dice cuánto mejora en dB contra el agrandado común). La primera vez baja el laboratorio (PyTorch, ~800 MB, una vez). Volver a entrenar sigue desde la red anterior.
-- SPAN o Real-ESRGAN: `superres_modelo {"cual": "span"}` y después `superres_aplicar {"motor": "onnx", "modelo": "span-x2.onnx"}`.
+- SPAN o Real-ESRGAN: `superres_modelo {"cual": "span"}` y después `superres_tarjeta {"entrada", "motor": "onnx", "modelo": "span-x2.onnx"}`.
 - Sacarla: `superres_aplicar {"entrada", "motor": ""}`.
 - Después de aplicar, a los pocos segundos `video_estado`: el `tamaño` nuevo y `superres.ms_por_cuadro`. Si pasa de ~25 ms a 30 fps, la entrada pierde cuadros: usá un motor más liviano.)md"},
     {"medios", "Medios", "Buscar imagenes, videos y musica del sistema y usarlos en escenas.",

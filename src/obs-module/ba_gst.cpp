@@ -64,7 +64,10 @@ bool listo() {
 bool fallo() { return g_hecho && !g_listo; }
 
 TarjetaGst::TarjetaGst(std::string elemento, std::map<std::string, std::string> propiedades)
-    : elemento_(std::move(elemento)), props_(std::move(propiedades)) {}
+    : elemento_(std::move(elemento)), props_(std::move(propiedades)) {
+    // Los filtros de superresolución devuelven el doble: la tarjeta no lo achica de vuelta.
+    if (elemento_ == "bavtsuperres" || elemento_ == "bafsr" || elemento_ == "baonnxsr") factor_ = 2;
+}
 
 TarjetaGst::~TarjetaGst() {
     desarmar();
@@ -123,7 +126,16 @@ bool TarjetaGst::armar(std::uint32_t cx, std::uint32_t cy) {
                                         GST_TYPE_FRACTION, fpsNum_, fpsDen_, "colorimetry", G_TYPE_STRING, "sRGB",
                                         "interlace-mode", G_TYPE_STRING, "progressive", nullptr);
     g_object_set(src_, "caps", caps, "format", GST_FORMAT_TIME, "is-live", TRUE, "block", FALSE, nullptr);
-    g_object_set(filtro, "caps", caps, nullptr);
+    if (factor_ > 1) {
+        // Lo que sale: el tamaño agrandado (la superresolución lo duplica).
+        GstCaps* grande = gst_caps_copy(caps);
+        gst_caps_set_simple(grande, "width", G_TYPE_INT, static_cast<int>(cx * factor_), "height", G_TYPE_INT,
+                            static_cast<int>(cy * factor_), nullptr);
+        g_object_set(filtro, "caps", grande, nullptr);
+        gst_caps_unref(grande);
+    } else {
+        g_object_set(filtro, "caps", caps, nullptr);
+    }
     g_object_set(sink_, "sync", FALSE, "max-buffers", 2, "drop", TRUE, nullptr);
     gst_caps_unref(caps);
     // Los módulos de OpenGL (glcolorbalance, gltransformation…) trabajan sobre
@@ -278,16 +290,17 @@ bool TarjetaGst::procesar(gs_texture_t* entrada, std::uint32_t cx, std::uint32_t
         ultimo = otro;
     }
     if (ultimo != nullptr && !revisado_) revisarFormato();
+    const std::uint32_t ox = cx * factor_, oy = cy * factor_;
     if (GstSample* s = ultimo) {
         GstBuffer* b = gst_sample_get_buffer(s);
         GstMapInfo r;
         if (b != nullptr && gst_buffer_map(b, &r, GST_MAP_READ)) {
-            if (subida_ == nullptr || gs_texture_get_width(subida_) != cx || gs_texture_get_height(subida_) != cy) {
+            if (subida_ == nullptr || gs_texture_get_width(subida_) != ox || gs_texture_get_height(subida_) != oy) {
                 gs_texture_destroy(subida_);
-                subida_ = gs_texture_create(cx, cy, GS_RGBA, 1, nullptr, GS_DYNAMIC);
+                subida_ = gs_texture_create(ox, oy, GS_RGBA, 1, nullptr, GS_DYNAMIC);
             }
-            if (r.size >= tam) {
-                gs_texture_set_image(subida_, r.data, cx * 4, false);
+            if (r.size >= static_cast<gsize>(ox) * oy * 4) {
+                gs_texture_set_image(subida_, r.data, ox * 4, false);
                 haySubida_ = true;
             }
             gst_buffer_unmap(b, &r);
@@ -312,7 +325,7 @@ bool TarjetaGst::procesar(gs_texture_t* entrada, std::uint32_t cx, std::uint32_t
     gs_effect_set_texture(pImage, subida_);
     gs_blend_state_push();
     gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
-    while (gs_effect_loop(fx, "Premultiplicar")) gs_draw_sprite(subida_, 0, cx, cy);
+    while (gs_effect_loop(fx, "Premultiplicar")) gs_draw_sprite(subida_, 0, ox, oy);
     gs_blend_state_pop();
     return true;
 }

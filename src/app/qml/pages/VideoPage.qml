@@ -277,6 +277,23 @@ Rectangle {
                           t: c.titulo, tip: c.descripcion,
                           f: () => page.avisar(page.vg.agregar(c.tipo, page.nodo && page.nodo.tipo !== "escena" && !page.nodo.externo ? page.sel : ""))
                       })) },
+                    { titulo: "Superresolución (agranda x2: lo que sigue trabaja al doble)",
+                      items: (function() {
+                          const l = []
+                          const sr = Studio.superres
+                          const m = sr ? sr.motores : []
+                          const desp = page.nodo && page.nodo.tipo !== "escena" && !page.nodo.externo ? page.sel : ""
+                          if (m.indexOf("apple") >= 0) l.push({ t: "Apple (VideoToolbox)", tip: "La de macOS 26: ~3 ms, la mejor en una Mac (entrada hasta 960x960)",
+                                                                f: () => page.avisar(page.vg.agregarSuperresUi("apple", "", desp)) })
+                          if (m.indexOf("fsr") >= 0) l.push({ t: "FSR 1 (cualquier GPU)", tip: "AMD FidelityFX, sin red neuronal, en OpenGL: menos de 1 ms",
+                                                              f: () => page.avisar(page.vg.agregarSuperresUi("fsr", "", desp)) })
+                          if (m.indexOf("onnx") >= 0)
+                              for (const x of (sr ? sr.modelos : []))
+                                  l.push({ t: "Red: " + x.nombre, tip: (x.arquitectura || "") + " · x" + (x.escala || 2) + (x.licencia ? " · " + x.licencia : ""),
+                                           f: () => page.avisar(page.vg.agregarSuperresUi("onnx", x.ruta, desp)) })
+                          l.push({ t: "Entrenar / bajar modelos…", f: () => superresPop.open() })
+                          return l
+                      })() },
                     { titulo: "Todos los módulos",
                       items: [{ t: "Buscar módulo…", tip: "Cualquier módulo de video de GStreamer o filtro de OBS como tarjeta, con su ayuda: color, llaves, desentrelazado, textos y reloj, nitidez, efectos, OpenGL…", f: () => catalogo.open() }] }
                 ]

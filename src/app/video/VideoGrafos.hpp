@@ -112,6 +112,10 @@ class VideoGrafos : public QObject {
     Q_INVOKABLE QString agregarFiltro(const QString& filtroId, const QString& despues);
     /// Un módulo de GStreamer como tarjeta (`elemento`, p. ej. "videobalance").
     Q_INVOKABLE QString agregarModulo(const QString& elemento, const QString& despues);
+    /// Una tarjeta de SUPERRESOLUCIÓN (un filtro de GStreamer que agranda x2: bafsr, bavtsuperres o
+    /// baonnxsr con `modelo`) en `entrada` (vacía: la elegida), después de `despues`. "" o el error.
+    std::string agregarSuperres(const std::string& entrada, const std::string& motor, const std::string& modelo, const std::string& despues);
+    Q_INVOKABLE QString agregarSuperresUi(const QString& motor, const QString& modelo, const QString& despues);
     /// Crea una entrada virtual en la escena (vacía = la del aire): `preset` es
     /// un id de virtuales() o, si empieza con «pipeline:», el pipeline de origen.
     Q_INVOKABLE QString crearVirtual(const QString& nombre, const QString& preset, const QString& escena);

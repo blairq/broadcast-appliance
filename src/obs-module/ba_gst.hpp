@@ -79,6 +79,9 @@ class TarjetaGst {
     /// `fx` es el efecto del grafo (técnicas Despremultiplicar/Premultiplicar).
     /// false si no se pudo (entonces el llamador copia la entrada).
     bool procesar(gs_texture_t* entrada, std::uint32_t cx, std::uint32_t cy, gs_effect_t* fx);
+    /// Cuánto agranda: 2 si el módulo es de superresolución (bavtsuperres, bafsr,
+    /// baonnxsr), 1 si no. La tarjeta devuelve la imagen de cx*factor x cy*factor.
+    std::uint32_t factor() const { return factor_; }
     /// Lo último que pasó (para el log y la interfaz).
     const std::string& error() const { return error_; }
     /// Algo a saber que no es un error (p. ej. que trabaja en 4:2:0).
@@ -106,6 +109,7 @@ class TarjetaGst {
     GstElement* sink_ = nullptr;
     GstElement* modulo_ = nullptr;
     std::uint32_t cx_ = 0, cy_ = 0;
+    std::uint32_t factor_ = 1;
     std::uint64_t t0_ = 0;         ///< la hora de libobs del primer cuadro
     int fpsNum_ = 30, fpsDen_ = 1; ///< los del lienzo
     int esperaMs_ = 0;             ///< cuánto esperar el cuadro de ahora (0: usar el anterior)

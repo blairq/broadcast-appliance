@@ -411,9 +411,14 @@ std::string VideoGrafos::agregarModuloEn(GrafoVideo& g, const std::string& eleme
                                          const std::string& despues, const json& propiedades, std::string* error) const {
     // `baplugin`: una tarjeta de un plugin de Python. Lo registra el módulo de
     // video (no está en el catálogo de la app): no se valida acá.
+    // Los de superresolución (también del módulo de video): agrandan x2.
+    static const std::map<std::string, std::string> kSuperres{
+        {"bavtsuperres", "Superresolución · Apple"}, {"bafsr", "Superresolución · FSR"}, {"baonnxsr", "Superresolución · red"}};
+    const auto sr = kSuperres.find(elemento);
     const json m = elemento == "baplugin"
                        ? json{{"tarjeta", true}, {"titulo", "Plugin · " + (propiedades.is_object() ? propiedades.value("tarjeta", std::string()) : std::string())}}
-                       : gst().modulo(elemento);
+                   : sr != kSuperres.end() ? json{{"tarjeta", true}, {"titulo", sr->second}}
+                                           : gst().modulo(elemento);
     if (m.empty()) {
         if (error) *error = gst().disponible() ? "no existe el módulo de GStreamer «" + elemento + "»" : gst().error();
         return {};
@@ -429,6 +434,24 @@ std::string VideoGrafos::agregarModuloEn(GrafoVideo& g, const std::string& eleme
                                      error);
     if (!id.empty()) g.ajustar(id, json{{"etiqueta", m.value("titulo", m.value("nombre", elemento))}}, nullptr);
     return id;
+}
+
+std::string VideoGrafos::agregarSuperres(const std::string& entrada, const std::string& motor, const std::string& modelo, const std::string& despues) {
+    const std::map<std::string, std::string> elementos{{"apple", "bavtsuperres"}, {"fsr", "bafsr"}, {"onnx", "baonnxsr"}};
+    const auto it = elementos.find(motor);
+    if (it == elementos.end()) return "motor: apple, fsr u onnx";
+    if (!motoresSuperres().contains(QString::fromStdString(motor))) return "este sistema no tiene el motor «" + motor + "»";
+    if (motor == "onnx" && modelo.empty()) return "el motor onnx necesita `modelo` (la ruta del .onnx)";
+    const json props = motor == "onnx" ? json{{"modelo", modelo}} : json::object();
+    return editar([&](GrafoVideo& g) {
+        std::string e;
+        agregarModuloEn(g, it->second, entrada.empty() ? entrada_.toStdString() : entrada, despues, props, &e);
+        return e;
+    });
+}
+
+QString VideoGrafos::agregarSuperresUi(const QString& motor, const QString& modelo, const QString& despues) {
+    return q(agregarSuperres({}, motor.toStdString(), modelo.toStdString(), despues.toStdString()));
 }
 
 QString VideoGrafos::agregarModulo(const QString& elemento, const QString& despues) {
