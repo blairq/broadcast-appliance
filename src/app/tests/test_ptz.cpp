@@ -157,8 +157,10 @@ void pruebaOnvif() {
     CHECK(s.contains("soap-message-security-1.0#Base64Binary"), "ONVIF: EncodingType del nonce (Base64Binary)");
     CHECK(s.contains("<s:Body><trt:GetProfiles/></s:Body>"), "ONVIF: cuerpo");
     CHECK(!onvif::sobre(onvif::getProfiles()).contains("Security"), "ONVIF: sin usuario, sin WS-Security");
-    CHECK(onvif::continuousMove("T", 1, -0.5, 0).contains(R"(<tt:PanTilt x="1.000" y="-0.500"/><tt:Zoom x="0.000"/>)"),
-          "ONVIF: ContinuousMove");
+    CHECK(onvif::continuousMove("T", 1, -0.5, 0).contains(R"(<tt:PanTilt x="1.000" y="-0.500"/></tptz:Velocity>)"),
+          "onvif continuousMove: solo pan/tilt (sin zoom en 0)");
+    CHECK(onvif::continuousMove("T", 0, 0, 0.5).contains(R"(<tptz:Velocity><tt:Zoom x="0.500"/></tptz:Velocity>)"),
+          "onvif continuousMove: solo zoom (sin PanTilt en 0,0: la Axis lo toma como parar)");
     CHECK(onvif::setPreset("T", "Preset 2").indexOf("PresetToken") < 0 && onvif::setPreset("T", "P", "p2").contains("p2"),
           "ONVIF: SetPreset nuevo o pisando");
 

@@ -43,6 +43,29 @@ Item {
     property string error: ""
     property var pos: ({})
     property var posiciones: []
+    // Rostros y seguimiento (Studio.seguidor): las caras que se vieron, la elegida y si se la sigue.
+    readonly property var sg: Studio.seguidor
+    readonly property var caras: sg && sg.caras[entrada] ? sg.caras[entrada] : []
+    readonly property var siguiendo: sg && sg.siguiendo[entrada] ? sg.siguiendo[entrada] : null
+    property int elegida: -1
+    property bool analizando: false
+    function nombreCara(c, i) { return c.nombre ? c.nombre : "Cara " + (i + 1) + " (sin nombre)" }
+    function seguirElegida() {
+        const i = t.elegida >= 0 && t.elegida < t.caras.length ? t.elegida : (t.caras.length === 1 ? 0 : -1)
+        if (i < 0) { t.avisar(t.caras.length === 0 ? "Primero «Analizar rostros» (o no hay caras en cuadro)" : "Elegí a quién seguir: tocá su recuadro o elegilo en la lista"); return }
+        const c = t.caras[i]
+        t.avisar(t.sg.seguir(t.entrada, c.id ? { id: c.id, nombre: c.nombre } : { x: c.x + c.ancho / 2, y: c.y + c.alto / 2 }))
+    }
+    Connections {
+        target: t.sg
+        function onAnalizado(cual, error) {
+            if (cual !== t.entrada) return
+            t.analizando = false
+            if (error !== "") t.avisar(error)
+            else if (t.caras.length === 0) t.avisar("No se ve ninguna cara")
+            else { t.avisar(""); if (t.elegida >= t.caras.length) t.elegida = -1 }
+        }
+    }
 
     function avisar(e) { t.error = e || "" }
     function leerPosiciones() { t.posiciones = cc && entrada !== "" ? cc.posiciones(entrada) : [] }
@@ -161,6 +184,32 @@ Item {
                 color: Qt.rgba(1, 0.42, 0.17, 0.15)
                 border { color: Theme.accent; width: 2 }
             }
+            // Las caras analizadas (y la que se sigue), sobre la imagen. Tocar una la elige.
+            Repeater {
+                model: t.caras
+                delegate: Rectangle {
+                    required property var modelData
+                    required property int index
+                    readonly property bool esObjetivo: t.siguiendo !== null &&
+                        (t.siguiendo.id ? modelData.id === t.siguiendo.id
+                                        : Math.abs(modelData.x + modelData.ancho / 2 - t.siguiendo.x) < 0.06 && Math.abs(modelData.y + modelData.alto / 2 - t.siguiendo.y) < 0.06)
+                    x: vista.ix + modelData.x * vista.iw
+                    y: vista.iy + modelData.y * vista.ih
+                    width: modelData.ancho * vista.iw
+                    height: modelData.alto * vista.ih
+                    z: 2
+                    color: "transparent"
+                    border.width: esObjetivo || index === t.elegida ? 3 : 2
+                    border.color: esObjetivo ? Theme.ok : index === t.elegida ? Theme.accent : (modelData.nombre ? "#4fc3f7" : Qt.rgba(1, 1, 1, 0.7))
+                    Text {
+                        anchors { left: parent.left; bottom: parent.top; bottomMargin: 2 }
+                        text: (parent.esObjetivo ? "◎ " : "") + t.nombreCara(modelData, index)
+                        color: parent.border.color; font.pixelSize: 11; font.weight: Font.DemiBold
+                        style: Text.Outline; styleColor: Qt.rgba(0, 0, 0, 0.8)
+                    }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: t.elegida = index }
+                }
+            }
             // La mira en el centro: ahí va lo que se toque.
             Rectangle { anchors.centerIn: parent; width: 18; height: 1; color: Qt.rgba(1, 1, 1, 0.35) }
             Rectangle { anchors.centerIn: parent; width: 1; height: 18; color: Qt.rgba(1, 1, 1, 0.35) }
@@ -215,6 +264,50 @@ Item {
                 color: Theme.text; font.pixelSize: 11
                 style: Text.Outline; styleColor: Qt.rgba(0, 0, 0, 0.6)
             }
+        }
+
+        // --- Rostros y seguimiento (en ventana) -----------------------------------------------
+        RowLayout {
+            visible: t.enVentana && t.cam !== null
+            Layout.fillWidth: true
+            spacing: 6
+            GlassButton {
+                compact: true
+                text: t.analizando ? "Analizando…" : "Analizar rostros"
+                icon: "☻"
+                enabled: !t.analizando && t.sg && t.sg.disponible
+                onClicked: { t.analizando = true; t.sg.analizar(t.entrada) }
+                ToolTip.visible: hovered; ToolTip.delay: 400
+                ToolTip.text: t.sg && t.sg.disponible ? "Busca las caras en la imagen y reconoce a las que conoce (Personas)" : "Este programa se armó sin reconocimiento de rostros"
+            }
+            ComboBox {
+                id: elegirCara
+                Layout.fillWidth: true
+                Layout.minimumWidth: 140
+                model: t.caras.map((c, i) => t.nombreCara(c, i))
+                currentIndex: t.elegida
+                displayText: t.elegida >= 0 && t.elegida < t.caras.length ? t.nombreCara(t.caras[t.elegida], t.elegida)
+                                                                           : (t.caras.length ? "¿A quién seguir?" : "Sin caras analizadas")
+                onActivated: (i) => t.elegida = i
+                enabled: t.caras.length > 0
+            }
+            GlassButton {
+                compact: true
+                text: t.siguiendo ? "Dejar de seguir" : "Tracking"
+                icon: t.siguiendo ? "■" : "◎"
+                active: t.siguiendo !== null
+                enabled: t.sg && t.sg.disponible
+                onClicked: t.siguiendo ? t.sg.dejar(t.entrada) : t.seguirElegida()
+                ToolTip.visible: hovered; ToolTip.delay: 400
+                ToolTip.text: "La cámara sigue a la persona elegida y la mantiene en el centro (con el motor si tiene; si no, con el recorte)"
+            }
+        }
+        Text {
+            visible: t.enVentana && t.siguiendo !== null
+            Layout.fillWidth: true
+            text: t.siguiendo ? "Siguiendo a " + (t.siguiendo.nombre || "la cara elegida") + " — " + t.siguiendo.estado : ""
+            color: t.siguiendo && t.siguiendo.estado.startsWith("perdida") ? Theme.warn : Theme.ok
+            font.pixelSize: 11; elide: Text.ElideRight
         }
 
         // --- Joystick y zoom -----------------------------------------------------------------

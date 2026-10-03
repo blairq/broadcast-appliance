@@ -259,8 +259,12 @@ QString getCapabilities() {
 QString getProfiles() { return QStringLiteral("<trt:GetProfiles/>"); }
 
 QString continuousMove(const QString& perfil, double pan, double tilt, double zoom) {
-    return "<tptz:ContinuousMove>" + perfilXml(perfil) + "<tptz:Velocity><tt:PanTilt x=\"" + num(pan) + "\" y=\"" +
-           num(tilt) + "\"/><tt:Zoom x=\"" + num(zoom) + "\"/></tptz:Velocity></tptz:ContinuousMove>";
+    // Cada eje va SOLO si se mueve: algunas cámaras (Axis P5512, comprobado)
+    // toman un PanTilt en 0,0 como «parar» y descartan el zoom que va al lado.
+    QString v;
+    if (pan != 0 || tilt != 0) v += "<tt:PanTilt x=\"" + num(pan) + "\" y=\"" + num(tilt) + "\"/>";
+    if (zoom != 0) v += "<tt:Zoom x=\"" + num(zoom) + "\"/>";
+    return "<tptz:ContinuousMove>" + perfilXml(perfil) + "<tptz:Velocity>" + v + "</tptz:Velocity></tptz:ContinuousMove>";
 }
 
 QString stop(const QString& perfil) {
@@ -369,6 +373,7 @@ QList<Perfil> leerPerfiles(const QByteArray& xml) {
                 --profundidad;
             } else if (profundidad == 1 && n == QLatin1String("PTZConfiguration")) {
                 p.tienePtz = true;
+                p.configPtz = r.attributes().value("token").toString();
             } else if (profundidad == 1 && n == QLatin1String("VideoSourceConfiguration")) {
                 enFuente = true;
             } else if (enFuente && profundidad == 2 && n == QLatin1String("SourceToken")) {
@@ -386,6 +391,150 @@ QList<Perfil> leerPerfiles(const QByteArray& xml) {
         }
     }
     return out;
+}
+
+QString getNodes() { return "<tptz:GetNodes/>"; }
+QString getConfigurations() { return "<tptz:GetConfigurations/>"; }
+QString getConfigurationOptions(const QString& configPtz) {
+    return "<tptz:GetConfigurationOptions><tptz:ConfigurationToken>" + esc(configPtz) +
+           "</tptz:ConfigurationToken></tptz:GetConfigurationOptions>";
+}
+QString imagingGetOptions(const QString& fuenteVideo) {
+    return "<timg:GetOptions><timg:VideoSourceToken>" + esc(fuenteVideo) + "</timg:VideoSourceToken></timg:GetOptions>";
+}
+QString imagingGetMoveOptions(const QString& fuenteVideo) {
+    return "<timg:GetMoveOptions><timg:VideoSourceToken>" + esc(fuenteVideo) + "</timg:VideoSourceToken></timg:GetMoveOptions>";
+}
+
+QVariantMap aplanar(const QByteArray& xml) {
+    QVariantMap out;
+    QXmlStreamReader r(xml);
+    QStringList camino;
+    bool enCuerpo = false;
+    const auto poner = [&out](const QString& k, const QString& v) {
+        if (v.isEmpty()) return;
+        const QString ya = out.value(k).toString();
+        if (ya.isEmpty()) out[k] = v;
+        else if (!ya.split(" | ").contains(v)) out[k] = ya + " | " + v;
+    };
+    while (!r.atEnd()) {
+        const auto t = r.readNext();
+        if (t == QXmlStreamReader::StartElement) {
+            if (!enCuerpo) {
+                if (r.name() == QLatin1String("Body")) enCuerpo = true;
+                continue;
+            }
+            camino << r.name().toString();
+            const QString k = camino.mid(1).join('.'); // sin la respuesta (GetNodesResponse…)
+            for (const auto& a : r.attributes()) poner(k + "@" + a.name().toString(), a.value().toString());
+        } else if (t == QXmlStreamReader::Characters && enCuerpo && !camino.isEmpty() && !r.isWhitespace()) {
+            poner(camino.mid(1).join('.'), r.text().toString().trimmed());
+        } else if (t == QXmlStreamReader::EndElement && enCuerpo) {
+            if (camino.isEmpty()) enCuerpo = false;
+            else camino.removeLast();
+        }
+    }
+    return out;
+}
+
+namespace {
+/// ¿Alguna clave de `m` contiene `trozo`?
+bool tiene(const QVariantMap& m, const QString& trozo) {
+    for (auto it = m.begin(); it != m.end(); ++it)
+        if (it.key().contains(trozo)) return true;
+    return false;
+}
+/// El primer valor cuya clave termina en `fin`.
+QString valor(const QVariantMap& m, const QString& fin) {
+    for (auto it = m.begin(); it != m.end(); ++it)
+        if (it.key().endsWith(fin)) return it.value().toString().section(" | ", 0, 0);
+    return {};
+}
+} // namespace
+
+QVariantMap resumirFunciones(const QVariantMap& crudo_) {
+    const QVariantMap nodos = crudo_.value("nodos").toMap(), conf = crudo_.value("configuraciones").toMap(),
+                      img = crudo_.value("imagen").toMap(), mov = crudo_.value("imagen_mover").toMap();
+    QVariantMap pt{{"continuo", tiene(nodos, "ContinuousPanTiltVelocitySpace")},
+                   {"absoluto", tiene(nodos, "AbsolutePanTiltPositionSpace")},
+                   {"relativo", tiene(nodos, "RelativePanTiltTranslationSpace")}};
+    if (!valor(conf, "PanTiltLimits.Range.XRange.Min").isEmpty())
+        pt["limites"] = QVariantList{valor(conf, "PanTiltLimits.Range.XRange.Min").toDouble(), valor(conf, "PanTiltLimits.Range.XRange.Max").toDouble(),
+                                     valor(conf, "PanTiltLimits.Range.YRange.Min").toDouble(), valor(conf, "PanTiltLimits.Range.YRange.Max").toDouble()};
+    QVariantMap zm{{"continuo", tiene(nodos, "ContinuousZoomVelocitySpace")},
+                   {"absoluto", tiene(nodos, "AbsoluteZoomPositionSpace")},
+                   {"relativo", tiene(nodos, "RelativeZoomTranslationSpace")}};
+    const QString zmin = valor(conf, "ZoomLimits.Range.XRange.Min"), zmax = valor(conf, "ZoomLimits.Range.XRange.Max");
+    if (!zmin.isEmpty()) {
+        zm["limites"] = QVariantList{zmin.toDouble(), zmax.toDouble()};
+        // Un rango vacío: la configuración PTZ del perfil tiene el zoom trabado.
+        if (zmax.toDouble() - zmin.toDouble() < 1e-6) zm["bloqueado"] = true;
+    }
+    QVariantMap fo{{"continuo", tiene(mov, "Continuous")}, {"absoluto", tiene(mov, "Absolute")}, {"relativo", tiene(mov, "Relative")},
+                   {"auto", valor(img, "AutoFocusModes").contains("AUTO")}};
+    QVariantList aux;
+    for (const QString& a : valor(nodos, "AuxiliaryCommands").split(" | ", Qt::SkipEmptyParts)) aux << a;
+    for (auto it = nodos.begin(); it != nodos.end(); ++it)
+        if (it.key().endsWith("AuxiliaryCommands"))
+            for (const QString& a : it.value().toString().split(" | ", Qt::SkipEmptyParts))
+                if (!aux.contains(a)) aux << a;
+    QVariantMap imagen;
+    for (const char* k : {"Brightness", "ColorSaturation", "Contrast", "Sharpness", "IrCutFilterModes", "WhiteBalance.Mode", "Exposure.Mode",
+                          "WideDynamicRange.Mode", "BacklightCompensation.Mode"})
+        if (tiene(img, k)) imagen[QString::fromUtf8(k)] = true;
+    return {{"panTilt", pt},
+                  {"zoom", zm},
+                  {"foco", fo},
+                  {"home", valor(nodos, "HomeSupported") == "true"},
+                  {"presetsMax", valor(nodos, "MaximumNumberOfPresets").toInt()},
+                  {"auxiliares", aux},
+                  {"imagen", imagen},
+                  // Qué se pudo preguntar: si la cámara no contestó, lo de siempre vale más que un «no».
+                  {"nodosOk", !nodos.isEmpty() && !nodos.contains("error")},
+                  {"imagenOk", !mov.isEmpty() && !mov.contains("error")},
+                  {"crudo", crudo_}};
+}
+
+QString getStatus(const QString& perfil) { return "<tptz:GetStatus>" + perfilXml(perfil) + "</tptz:GetStatus>"; }
+
+QString relativeZoom(const QString& perfil, double dz) {
+    return "<tptz:RelativeMove>" + perfilXml(perfil) + "<tptz:Translation><tt:Zoom x=\"" + num(dz) +
+           "\"/></tptz:Translation></tptz:RelativeMove>";
+}
+
+QString absoluteZoom(const QString& perfil, double z) {
+    return "<tptz:AbsoluteMove>" + perfilXml(perfil) + "<tptz:Position><tt:Zoom x=\"" + num(z) +
+           "\"/></tptz:Position></tptz:AbsoluteMove>";
+}
+
+EstadoPtz leerEstadoPtz(const QByteArray& xml) {
+    EstadoPtz e;
+    QXmlStreamReader r(xml);
+    bool enPos = false, enMov = false;
+    while (!r.atEnd()) {
+        const auto t = r.readNext();
+        if (t == QXmlStreamReader::StartElement) {
+            const auto n = r.name();
+            if (n == QLatin1String("Position")) enPos = true;
+            else if (n == QLatin1String("MoveStatus")) enMov = true;
+            else if (enPos && n == QLatin1String("PanTilt")) {
+                e.pan = r.attributes().value("x").toDouble();
+                e.tilt = r.attributes().value("y").toDouble();
+                e.ok = true;
+            } else if (enPos && n == QLatin1String("Zoom")) {
+                e.zoom = r.attributes().value("x").toDouble();
+                e.hayZoom = e.ok = true;
+            } else if (enMov && n == QLatin1String("PanTilt")) {
+                e.movPanTilt = r.readElementText().trimmed();
+            } else if (enMov && n == QLatin1String("Zoom")) {
+                e.movZoom = r.readElementText().trimmed();
+            }
+        } else if (t == QXmlStreamReader::EndElement) {
+            if (r.name() == QLatin1String("Position")) enPos = false;
+            else if (r.name() == QLatin1String("MoveStatus")) enMov = false;
+        }
+    }
+    return e;
 }
 
 QList<Preset> leerPresets(const QByteArray& xml) {

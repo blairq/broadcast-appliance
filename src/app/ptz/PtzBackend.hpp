@@ -67,6 +67,10 @@ class PtzBackend : public QObject {
     // --- Memorias para las posiciones con nombre (ptz/Posiciones) -----------
     /// Hasta qué número de memoria tiene (0 = no tiene memorias propias).
     virtual int memorias() const { return capacidades().presets; }
+    /// Dónde está el motor, si el protocolo lo dice: {pan, tilt, zoom (0..1), moviendo}.
+    virtual QVariantMap motor() const { return {}; }
+    /// Lo que la cámara dice que puede (por protocolo), con cómo se maneja cada eje.
+    virtual QVariantMap funciones() const { return {}; }
     /// La cámara identifica sus memorias con un token que elige ella (ONVIF).
     virtual bool usaTokens() const { return false; }
     /// Graba donde está ahora en la memoria `n` (o, con tokens, en una nueva

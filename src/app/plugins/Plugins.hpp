@@ -117,6 +117,11 @@ class Plugins : public QObject {
     /// Lo que hay conectado: cámaras y micrófonos (GStreamer) + USB, HID y serie (Python).
     void dispositivos(std::function<void(json)> listo);
     void dispositivosPython(json gst, std::function<void(json)> listo);
+    /// Cámaras y micrófonos que ve GStreamer, con el `gst` para un pipeline. Bloquea (~1 s): en otro hilo.
+    static json camarasYMicrofonos();
+    /// Corre `codigo` con el Python del programa, el SDK y las bibliotecas de herramientas (pyusb,
+    /// hidapi, pyserial); `listo` con lo que imprima como JSON (o {error}).
+    void correrPython(const QString& codigo, const QStringList& args, std::function<void(json)> listo);
     /// Pone una tarjeta de video del plugin en una entrada (grafo).
     std::string ponerTarjeta(const std::string& id, const std::string& tarjeta, const std::string& entrada, const json& parametros,
                              json* hecho);

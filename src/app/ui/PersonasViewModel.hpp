@@ -116,6 +116,9 @@ class PersonasViewModel : public QObject {
     /// Pide mirar quién hay en `feed`. La respuesta llega en `vistos`, más
     /// tarde: el reconocimiento no corre en el hilo de la interfaz.
     Q_INVOKABLE void mirar(const QString& feed);
+    /// Una cámara del estudio que se analiza o se sigue (PTZ): lleva su
+    /// tarjeta «Rostros» mientras `usar` (ver Seguidor).
+    void usarCamara(const QString& entrada, bool usar);
 
     /// Las claves de video que se pueden mirar, con su etiqueta.
     Q_INVOKABLE QVariantList fuentes() const;

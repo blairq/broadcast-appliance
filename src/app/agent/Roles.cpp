@@ -334,7 +334,9 @@ const std::set<std::string>& Roles::juegoDelAsistente() {
         "video",    "camaras",
         // Los plugins de Python: cuando un equipo no se puede manejar con lo que
         // hay, el asistente escribe uno (no se queda en «no puedo»).
-        "plugins"};
+        "plugins",
+        // Los equipos: detectar y manejar (red, esta máquina, USB), con acciones declaradas.
+        "equipos"};
     return c;
 }
 

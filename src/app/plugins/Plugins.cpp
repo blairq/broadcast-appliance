@@ -1000,7 +1000,7 @@ std::string Plugins::ponerFiltroAudio(const std::string& id, const std::string& 
 namespace {
 /// Cámaras y micrófonos que ve GStreamer. En un hilo aparte: en macOS el
 /// monitor (AVFoundation) despacha al hilo principal y desde ahí se traba.
-json camarasGst() {
+json camarasGstImpl() {
     json gst = json::array();
 #if defined(BA_HAVE_GST)
     if (video::iniciarGStreamer()) {
@@ -1078,7 +1078,7 @@ void Plugins::dispositivos(std::function<void(json)> listo0) {
     // 1) Cámaras y micrófonos (GStreamer, en otro hilo); 2) USB, HID y serie (Python).
     QPointer<Plugins> yo(this);
     std::thread([yo, listo]() {
-        json gst = camarasGst();
+        json gst = camarasGstImpl();
         QMetaObject::invokeMethod(
             qApp, [yo, listo, gst]() {
                 if (yo) yo->dispositivosPython(gst, listo);
@@ -1340,6 +1340,30 @@ void Plugins::importarUi(const QUrl& archivo) {
         if (!yo) return;
         emit yo->aviso(r.contains("error") ? q(r.value("error", std::string())) : "Instalado «" + q(r.value("id", std::string())) + "»: probalo y prendelo",
                        !r.contains("error"));
+    });
+}
+
+json Plugins::camarasYMicrofonos() { return camarasGstImpl(); }
+
+void Plugins::correrPython(const QString& codigo, const QStringList& args, std::function<void(json)> listo) {
+    const fs::path herr = carpeta_ / ".herramientas";
+    std::error_code ec;
+    fs::create_directories(herr, ec);
+    if (!fs::exists(herr / "plugin.json"))
+        escribirTexto(herr / "plugin.json",
+                      json{{"id", ".herramientas"}, {"dependencias", {"pyusb", "libusb-package", "hidapi", "pyserial"}}}.dump(2));
+    QPointer<Plugins> yo(this);
+    dependencias(".herramientas", [yo, herr, codigo, args, listo](std::string err, std::string) {
+        if (!yo) return;
+        if (!err.empty()) return listo(json{{"error", err}});
+        const QString pre = QString("import sys; sys.path[:0] = [%1, %2]\n").arg(
+            q(json(yo->sdk().string()).dump()), q(json((herr / "_libs").string()).dump()));
+        Hijo::correr(yo, q(yo->python()), QStringList{"-I", "-B", "-c", pre + codigo} + args, entornoPython(), 60000,
+                     [listo](int, QByteArray out, QByteArray errb) {
+                         json r = json::parse(out.trimmed().toStdString(), nullptr, false);
+                         if (r.is_discarded()) r = {{"error", (errb.right(1500) + out.right(500)).toStdString()}};
+                         listo(r);
+                     });
     });
 }
 

@@ -101,6 +101,10 @@ class ControlCamaras : public QObject {
     Q_INVOKABLE QString setDigital(const QString& entrada, bool prendido);
     /// Los PTZ que maneja un plugin: el plugin arrancó, se cayó o volvió.
     void refrescarPlugins();
+    /// Qué mueve ahora el PTZ de la entrada: "optico", "digital" o "" (nada).
+    QString modoActivo(const QString& entrada);
+    /// Todo lo que el protocolo dijo que la cámara puede, con las respuestas crudas.
+    QVariantMap funcionesDe(const QString& entrada);
     /// "general" | "si" | "no".
     Q_INVOKABLE QString setMejora(const QString& entrada, const QString& modo);
     /// Qué mueve el joystick cuando hay hardware: "optico" | "digital".

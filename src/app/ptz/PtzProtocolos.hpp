@@ -19,6 +19,7 @@
 #include <QDateTime>
 #include <QList>
 #include <QString>
+#include <QVariantMap>
 #include <QStringList>
 
 #include <cstdint>
@@ -113,6 +114,23 @@ QString gotoPreset(const QString& perfil, const QString& preset);
 /// Guarda en un preset nuevo (sin token) o pisa uno existente.
 QString setPreset(const QString& perfil, const QString& nombre, const QString& preset = {});
 QString gotoHomePosition(const QString& perfil);
+/// Dónde está el motor (y si se mueve).
+QString getStatus(const QString& perfil);
+/// Para mapear lo que la cámara ofrece de verdad (ver PtzOnvif::funciones).
+QString getNodes();
+QString getConfigurations();
+QString getConfigurationOptions(const QString& configPtz);
+QString imagingGetOptions(const QString& fuenteVideo);
+QString imagingGetMoveOptions(const QString& fuenteVideo);
+/// El cuerpo de una respuesta aplanado: "Nodo.Hijo.Hoja" -> texto y "Nodo.Hijo@attr" -> valor
+/// (si un camino se repite, los valores se juntan con " | ").
+QVariantMap aplanar(const QByteArray& xml);
+/// De las respuestas aplanadas (nodos, configuraciones, opciones, imagen, imagen_mover):
+/// qué eje se mueve cómo, límites, foco, home, presets, auxiliares; con el `crudo` adentro.
+QVariantMap resumirFunciones(const QVariantMap& crudo);
+/// Zoom relativo (TranslationGenericSpace, -1..1) y absoluto (PositionGenericSpace, 0..1).
+QString relativeZoom(const QString& perfil, double dz);
+QString absoluteZoom(const QString& perfil, double z);
 QString removePreset(const QString& perfil, const QString& preset);
 /// Foco por el servicio de imagen (timg:Move continuo / timg:Stop).
 QString focoMover(const QString& fuenteVideo, double v);
@@ -128,6 +146,7 @@ QDateTime leerHora(const QByteArray& xml);
 
 struct Perfil {
     QString token, nombre, fuenteVideo;
+    QString configPtz; ///< el token de su PTZConfiguration
     bool tienePtz = false;
 };
 QList<Perfil> leerPerfiles(const QByteArray& xml);
@@ -140,6 +159,13 @@ QList<Preset> leerPresets(const QByteArray& xml);
 QString leerTokenPreset(const QByteArray& xml);
 /// Si la respuesta es un Fault, su texto (vacío si no).
 QString leerFalla(const QByteArray& xml);
+struct EstadoPtz {
+    bool ok = false;
+    double pan = 0, tilt = 0, zoom = 0;
+    bool hayZoom = false;
+    QString movPanTilt, movZoom; ///< IDLE | MOVING | UNKNOWN
+};
+EstadoPtz leerEstadoPtz(const QByteArray& xml);
 
 /// WS-Discovery: el Probe (multicast 239.255.255.250:3702).
 QByteArray sondeo(const QString& idMensaje);

@@ -1009,25 +1009,28 @@ void Red::activarPtzReal(const QString& entrada, const QString& usuario, const Q
     if (!usuario.trimmed().isEmpty() && !clave.isEmpty() && !guardarClave(ip, usuario.trimmed(), clave))
         return emit ptzListo(entrada, false, "No se pudo guardar la clave");
     QPointer<Red> yo(this);
-    ficha(ip, [yo, ip, entrada](json f) {
+    activarPtz(ip, entrada, [yo, entrada](bool ok, QString texto) {
+        if (yo) emit yo->ptzListo(entrada, ok, texto);
+    });
+}
+
+void Red::activarPtz(const std::string& ip, const QString& entrada, std::function<void(bool, QString)> listo) {
+    QPointer<Red> yo(this);
+    ficha(ip, [yo, ip, entrada, listo](json f) {
         if (!yo) return;
         if (!f.value("onvif", false))
-            return emit yo->ptzListo(entrada, false,
-                                     QString::fromStdString(f.value("error", std::string("La cámara no contestó por ONVIF"))) +
-                                         ". Revisá el usuario y la clave (en una Axis: un usuario ONVIF, que se crea en la web de la "
-                                         "cámara, Sistema → Usuarios → ONVIF) y que la cámara tenga la hora bien.");
+            return listo(false, QString::fromStdString(f.value("error", std::string("La cámara no contestó por ONVIF"))) +
+                                    ". Revisá el usuario y la clave (en una Axis: un usuario ONVIF, que se crea en la web de la "
+                                    "cámara, Sistema → Usuarios → ONVIF) y que la cámara tenga la hora bien.");
         const json ptz = f.value("ptz", json::object());
         if (!ptz.value("tiene", false))
-            return emit yo->ptzListo(entrada, false,
-                                     "La cámara contestó por ONVIF pero no ofrece PTZ (o ese usuario no tiene permiso de PTZ). "
-                                     "Queda el PTZ digital.");
+            return listo(false, "La cámara contestó por ONVIF pero no ofrece PTZ (o ese usuario no tiene permiso de PTZ). Queda el PTZ digital.");
         json h;
         const std::string e = yo->agregar(ip, json{{"solo_ptz", true}, {"entrada", entrada.toStdString()}}, &h);
-        if (!e.empty()) return emit yo->ptzListo(entrada, false, QString::fromStdString(e));
+        if (!e.empty()) return listo(false, QString::fromStdString(e));
         const size_t presets = ptz.value("presets", json::array()).size();
-        emit yo->ptzListo(entrada, true,
-                          "PTZ real activado por ONVIF" + (presets ? QString(" (%1 presets de la cámara)").arg(presets) : QString()) +
-                              ". El joystick ahora mueve la cámara.");
+        listo(true, "PTZ real activado por ONVIF" + (presets ? QString(" (%1 presets de la cámara)").arg(presets) : QString()) +
+                        ". El joystick ahora mueve la cámara.");
     });
 }
 

@@ -2,6 +2,11 @@
 
 #include "ptz/PtzOnvif.hpp"
 
+#include <algorithm>
+#include <memory>
+#include <functional>
+#include <QPointer>
+
 #include <QAuthenticator>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
@@ -36,6 +41,20 @@ Capacidades PtzOnvif::capacidades() const {
     c.panTilt = c.zoom = c.home = ptz;
     c.presets = ptz ? 32 : 0;
     c.foco = !servicios_.imaging.isEmpty() && !perfil_.fuenteVideo.isEmpty();
+    // Con lo que la cámara dijo que puede (mapearFunciones), cada control de verdad.
+    if (ptz && funciones_.value("nodosOk").toBool()) {
+        const QVariantMap pt = funciones_.value("panTilt").toMap(), zm = funciones_.value("zoom").toMap(),
+                          fo = funciones_.value("foco").toMap();
+        c.panTilt = pt.value("continuo").toBool() || pt.value("relativo").toBool() || pt.value("absoluto").toBool();
+        c.zoom = !zm.value("bloqueado").toBool() &&
+                 (zm.value("continuo").toBool() || zm.value("absoluto").toBool() || zm.value("relativo").toBool());
+        c.home = funciones_.value("home").toBool();
+        if (funciones_.value("presetsMax").toInt() > 0) c.presets = std::min(funciones_.value("presetsMax").toInt(), 100);
+        if (funciones_.value("imagenOk").toBool()) {
+            c.foco = fo.value("continuo").toBool();
+            c.autoFoco = fo.value("auto").toBool();
+        }
+    }
     return c;
 }
 
@@ -122,7 +141,7 @@ void PtzOnvif::paso(const QString& que) {
                 emit estadoCambio();
                 return;
             }
-            leerPresets();
+            mapearFunciones();
         });
     }
 }
@@ -130,6 +149,7 @@ void PtzOnvif::paso(const QString& que) {
 void PtzOnvif::leerPresets() {
     soap(servicios_.ptz, onvif::getPresets(perfil_.token), [this](bool ok, const QByteArray& xml) {
         if (ok) presets_ = onvif::leerPresets(xml);
+        leerMotor();
         setEstado(true, QStringLiteral("Conectada (ONVIF, perfil %1, %2 presets)")
                             .arg(perfil_.nombre.isEmpty() ? perfil_.token : perfil_.nombre)
                             .arg(presets_.size()));
@@ -163,10 +183,25 @@ void PtzOnvif::vaciar() {
 }
 
 void PtzOnvif::parar() {
+    pan_ = tilt_ = zoom_ = 0;
     junta_.stop();
     hayMovimiento_ = false;
     if (servicios_.ptz.isEmpty()) return;
     soap(servicios_.ptz, onvif::stop(perfil_.token), [](bool, const QByteArray&) {});
+    // Dónde quedó (para mostrarlo y para saber si el zoom se movió de verdad).
+    QTimer::singleShot(500, this, [this]() { leerMotor(); });
+}
+
+void PtzOnvif::leerMotor() {
+    if (servicios_.ptz.isEmpty() || perfil_.token.isEmpty()) return;
+    soap(servicios_.ptz, onvif::getStatus(perfil_.token), [this](bool ok, const QByteArray& xml) {
+        if (!ok) return;
+        const onvif::EstadoPtz e = onvif::leerEstadoPtz(xml);
+        if (!e.ok) return;
+        motor_ = {{"pan", e.pan}, {"tilt", e.tilt}, {"zoom", e.hayZoom ? QVariant(e.zoom) : QVariant()},
+                  {"moviendo", e.movPanTilt == "MOVING" || e.movZoom == "MOVING"}};
+        emit estadoCambio();
+    });
 }
 
 void PtzOnvif::enfocar(double v) {
@@ -229,6 +264,48 @@ void PtzOnvif::borrarPosicion(int, const QString& token) {
 void PtzOnvif::home() {
     if (servicios_.ptz.isEmpty()) return;
     soap(servicios_.ptz, onvif::gotoHomePosition(perfil_.token), [](bool, const QByteArray&) {});
+}
+
+void PtzOnvif::mapearFunciones() {
+    crudo_.clear();
+    struct Pedido {
+        QString clave, url, cuerpo;
+    };
+    auto pedidos = std::make_shared<QList<Pedido>>(QList<Pedido>{
+        {"nodos", servicios_.ptz, onvif::getNodes()},
+        {"configuraciones", servicios_.ptz, onvif::getConfigurations()},
+    });
+    if (!perfil_.configPtz.isEmpty()) pedidos->append({"opciones", servicios_.ptz, onvif::getConfigurationOptions(perfil_.configPtz)});
+    if (!servicios_.imaging.isEmpty() && !perfil_.fuenteVideo.isEmpty()) {
+        pedidos->append({"imagen", servicios_.imaging, onvif::imagingGetOptions(perfil_.fuenteVideo)});
+        pedidos->append({"imagen_mover", servicios_.imaging, onvif::imagingGetMoveOptions(perfil_.fuenteVideo)});
+    }
+    // De a uno (hay cámaras que se atoran con pedidos en paralelo).
+    auto siguiente = std::make_shared<std::function<void()>>();
+    QPointer<PtzOnvif> yo(this);
+    *siguiente = [yo, pedidos, siguiente]() {
+        if (!yo) return;
+        if (pedidos->isEmpty()) {
+            yo->resumirFunciones();
+            // Se suelta la recursión fuera de esta llamada.
+            QTimer::singleShot(0, yo, [siguiente]() { *siguiente = nullptr; });
+            yo->leerPresets();
+            return;
+        }
+        const Pedido p = pedidos->takeFirst();
+        yo->soap(p.url, p.cuerpo, [yo, p, siguiente](bool ok, const QByteArray& xml) {
+            if (!yo) return;
+            if (ok) yo->crudo_[p.clave] = onvif::aplanar(xml);
+            else yo->crudo_[p.clave] = QVariantMap{{"error", onvif::leerFalla(xml)}};
+            if (*siguiente) (*siguiente)();
+        });
+    };
+    (*siguiente)();
+}
+
+void PtzOnvif::resumirFunciones() {
+    funciones_ = onvif::resumirFunciones(crudo_);
+    emit estadoCambio();
 }
 
 } // namespace ba::app::ptz

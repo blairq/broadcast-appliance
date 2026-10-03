@@ -51,6 +51,9 @@ class Red;
 namespace ba::app::plugins {
 class Plugins;
 } // namespace ba::app::plugins
+namespace ba::app::dispositivos {
+class Dispositivos;
+} // namespace ba::app::dispositivos
 
 namespace ba::app {
 
@@ -63,6 +66,7 @@ class PrompterViewModel;
 class PantallasViewModel;
 class QrViewModel;
 class PersonasViewModel;
+class Seguidor;
 class PublicoViewModel;
 class CarruselViewModel;
 class MediosViewModel;
@@ -176,6 +180,10 @@ class StudioViewModel : public QObject {
     /// El PTZ de cada entrada de video (digital + hardware) y Mejorar imagen:
     /// ptz/ControlCamaras.hpp.
     Q_PROPERTY(QObject* camaras READ camaras CONSTANT)
+    /// Analizar las caras de una cámara y seguir a una con el PTZ (ui/Seguidor).
+    Q_PROPERTY(QObject* seguidor READ seguidor CONSTANT)
+    /// Los equipos: detectores, catálogo y acciones (dispositivos/Dispositivos).
+    Q_PROPERTY(QObject* dispositivos READ dispositivosQml CONSTANT)
     /// Los grafos de tarjetas de video de cada entrada (video/VideoGrafos).
     Q_PROPERTY(QObject* video READ video CONSTANT)
     /// Los equipos de video de la red (escáner, credenciales, ficha, agregar): red/Red.hpp.
@@ -276,6 +284,10 @@ class StudioViewModel : public QObject {
     /// Los plugins de Python (docs/PLUGINS.md).
     plugins::Plugins* plugins() const { return plugins_.get(); }
     QObject* pluginsQml() const;
+    QObject* seguidor() const;
+    Seguidor* seguidorPtz() const { return seguidor_.get(); }
+    QObject* dispositivosQml() const;
+    dispositivos::Dispositivos* equipos() const { return dispositivos_.get(); }
     QObject* flujos() const;
     QObject* voces() const;
     agent::ModelosLocales* modelosLocales() const { return modelos_.get(); }
@@ -446,6 +458,8 @@ class StudioViewModel : public QObject {
     std::unique_ptr<video::VideoGrafos> video_;
     std::unique_ptr<red::Red> red_;
     std::unique_ptr<plugins::Plugins> plugins_;
+    std::unique_ptr<Seguidor> seguidor_;
+    std::unique_ptr<dispositivos::Dispositivos> dispositivos_;
     std::unique_ptr<agent::FlujosTexto> flujos_;
     std::unique_ptr<agent::VocesRack> voces_;
     std::unique_ptr<audio::AudioViewModel> audio_;

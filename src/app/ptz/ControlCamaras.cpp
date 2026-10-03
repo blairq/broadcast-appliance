@@ -136,6 +136,9 @@ QVariantMap ControlCamaras::fila(const Camara& c) const {
             {"capacidades", c.hw ? c.hw->capacidades().mapa() : QVariantMap{}},
             {"capacidadesDigital", c.digital && c.dig ? c.dig->capacidades().mapa() : QVariantMap{}},
             {"listo", c.hw ? c.hw->listo() : c.digital},
+            {"motor", c.hw ? c.hw->motor() : QVariantMap{}},
+            // El resumen (sin las respuestas crudas: la lista se rearma seguido y la mira la interfaz).
+            {"funciones", [&c]() { QVariantMap f = c.hw ? c.hw->funciones() : QVariantMap{}; f.remove("crudo"); return f; }()},
             {"estado", c.hw ? c.hw->estado() : (c.digital ? QStringLiteral("Digital (recorte en la GPU)")
                                                            : QStringLiteral("PTZ apagado"))},
             {"estadoDigital", c.dig ? c.dig->estado() : QString()},
@@ -662,6 +665,18 @@ QString ControlCamaras::configurar(const QString& entrada, const QString& backen
     guardarPronto();
     emit cambio();
     return {};
+}
+
+QVariantMap ControlCamaras::funcionesDe(const QString& entrada) {
+    Camara* c = camara(entrada, nullptr);
+    return c != nullptr && c->hw ? c->hw->funciones() : QVariantMap{};
+}
+
+QString ControlCamaras::modoActivo(const QString& entrada) {
+    Camara* c = camara(entrada, nullptr);
+    PtzBackend* b = c != nullptr ? activo(*c) : nullptr;
+    if (b == nullptr) return {};
+    return b == c->dig.get() ? QStringLiteral("digital") : QStringLiteral("optico");
 }
 
 void ControlCamaras::refrescarPlugins() {

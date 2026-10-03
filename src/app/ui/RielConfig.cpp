@@ -35,6 +35,7 @@ const std::vector<Grupo>& catalogo() {
          {{0, "dashboard", "⌂", "Dashboard"},
           {1, "escenas", "▦", "Escenas y fuentes"},
           {8, "entradas", "◉", "Entradas de video (cámaras, capturadoras, red)"},
+          {24, "equipos", "⌁", "Equipos: buscar lo que hay en la red, la máquina y el USB, y manejarlo (ONVIF, claves, PTZ, UVC)"},
           {21, "camaras", "⌖", "Cámaras PTZ: mover, zoom, presets y mejorar la imagen de cada cámara"},
           {22, "video", "⧈", "Video: tarjetas por entrada (croma, color, recorte) y salidas con nombre"},
           {9, "audio", "🎚", "Audio: patchbay de módulos LSP por fuente"}}},

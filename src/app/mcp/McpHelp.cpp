@@ -462,6 +462,21 @@ La API de Facebook solo transmite y administra videos de **Paginas** (no del per
 - Las tarjetas `gst` agregan 1 cuadro de latencia (no frenan el video). Si dos entradas se comparan y solo una tiene `gst`, eso es un cuadro de diferencia: tenelo en cuenta o medilo con `video_sincronia`.
 - `video_grafo_limpiar {"entrada"}` deja una entrada como vino.
 - Entradas virtuales de prueba (barras, placa de zonas, pelota): `video_entrada_virtual {"nombre", "preset", "escena"}`.)md"},
+    {"equipos", "Equipos", "Detectar equipos (red local, camaras y microfonos de la maquina, USB/HID/serie) y manejarlos con acciones: ficha, funciones ONVIF, operaciones ONVIF crudas, pedidos HTTP a la API de la marca, claves, agregar como entrada, PTZ real, explorar UVC.",
+     R"md(Un catalogo unico de equipos, con acciones declaradas por tipo. Es el camino general para "¿que hay conectado?" y "hacele X a tal equipo".
+
+## El camino
+1. `equipos_escanear {"detector"?}` (red, local, usb; sin detector, todos): cada equipo con `id` («red:192.168.1.90», «local:video:0», «usb:046d:0881:…»), `tipo` y sus `acciones`.
+2. `equipo_ver {"id"}`: todo lo que se sabe y cada accion con sus parametros.
+3. `equipo_accion {"id", "accion", "args"}`.
+
+## Acciones utiles
+- Camara de la red: `pedir_clave` (formulario seguro: nunca pidas la clave por el chat), `ficha` (ONVIF + analisis + plan), `funciones_onvif` (que ejes se mueven y como, limites, foco, home, presets, auxiliares, y su posicion), `onvif` (una operacion cruda: `servicio` ptz|media|imaging|device y `cuerpo` con el XML del Body; {perfil}, {config_ptz} y {fuente} se reemplazan), `http` (la API propia de la marca: Axis VAPIX `/axis-cgi/com/ptz.cgi?query=limits`, Hikvision ISAPI…), `agregar`, `activar_ptz`.
+- Camara de esta maquina: `agregar` (como entrada de GStreamer).
+- USB con camara UVC: `explorar_uvc` (PTZ estandar y unidades de extension de la marca: el primer paso para un plugin).
+
+## Diagnosticar un PTZ que no responde
+`funciones_onvif` dice que declara la camara; `onvif` con `<tptz:GetStatus><tptz:ProfileToken>{perfil}</tptz:ProfileToken></tptz:GetStatus>` dice donde esta; probar un movimiento (`RelativeMove`, `AbsoluteMove`) y volver a mirar. Si el protocolo acepta y la posicion no cambia, probar la API de la marca con `http`; si tampoco, es la camara (mecanica o un limite en su configuracion).)md"},
     {"plugins", "Plugins de Python", "Cuando un equipo o un pedido no se puede con lo que hay: escribir un plugin (PTZ raros por USB/HID, camaras 360, varias camaras que se sincronizan, datos de quien habla, tarjetas de video y audio en Python, manejar el sistema).",
      R"md(**Nunca contestes «no se puede» por un equipo raro o un pedido que las herramientas no cubren: escribí un plugin.** Un plugin es un programa en Python que corre en su propio proceso (si se cae, la emisión sigue y se reinicia solo) y le suma al sistema lo que haga falta. Lo escribís vos; el operador no programa.
 

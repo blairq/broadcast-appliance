@@ -64,6 +64,12 @@ bool prepararGst() {
     if (!cache.empty()) poner("GST_REGISTRY_1_0", cache / "gstreamer-1.0-registry.bin");
     poner("GIO_EXTRA_MODULES", raiz / "lib" / "gio" / "modules");
     ponerTexto("GIO_USE_VFS", "local");
+    // Sin resolución de proxy: el de GIO (libproxy) busca la configuración
+    // automática de la red (WPAD) antes de cada conexión, y una cámara RTSP de
+    // la red local tardaba MINUTOS en conectar (y avisaba «pxbackend: Could not
+    // parse ignore mask 169.254/16»). Las fuentes de red de un estudio no van
+    // por proxy; y así tampoco se lee la configuración del sistema.
+    ponerTexto("GIO_USE_PROXY_RESOLVER", "dummy");
     return true;
 }
 

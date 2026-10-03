@@ -8,6 +8,8 @@
 #include <QDir>
 #include <QFile>
 #include <QImage>
+
+#include <set>
 #include <QJsonObject>
 #include <QSet>
 #include <QTimer>
@@ -52,6 +54,8 @@ struct PersonasViewModel::Impl {
     /// rostros se mantiene mientras se la mire.
     QString feedMirado;
     std::int64_t miradoMs = 0;
+    /// Las cámaras que se están siguiendo (Seguidor): llevan su tarjeta mientras tanto.
+    std::set<QString> seguidas;
 #if BA_HAVE_ROSTROS
     /// El reconocimiento, en su propio hilo. Ver Reconocedor.hpp: en el de la
     /// interfaz colgaba al aparato entero.
@@ -106,6 +110,7 @@ bool PersonasViewModel::borrar(const QString&) { return false; }
 void PersonasViewModel::sumarCara(const QString&, const QString&, bool) { emit notify(d_->aviso, "error"); }
 void PersonasViewModel::mirar(const QString&) {}
 void PersonasViewModel::sincronizarRostros() {}
+void PersonasViewModel::usarCamara(const QString&, bool) {}
 void PersonasViewModel::analizar(const QString&, bool, const QString&) {}
 QVariantList PersonasViewModel::vistos() const { return {}; }
 QVariantList PersonasViewModel::fuentes() const { return {}; }
@@ -347,8 +352,17 @@ void PersonasViewModel::sincronizarRostros() {
         quiero[cam(d_->feedMirado)] = "mirar";
     if (d_->autoalta && !cam(d_->feedAuto).empty()) quiero[cam(d_->feedAuto)] = "autoalta";
     if (d_->puertaAuto && !cam(d_->feedPuerta).empty()) quiero[cam(d_->feedPuerta)] = "puerta";
+    for (const QString& e : d_->seguidas) quiero[e.toStdString()] = "seguir";
     const std::string e = vg->configurarRostros(quiero);
     if (!e.empty()) emit notify(QString::fromStdString(e), "error");
+}
+
+void PersonasViewModel::usarCamara(const QString& entrada, bool usar) {
+    const bool antes = d_->seguidas.count(entrada) > 0;
+    if (usar == antes) return;
+    if (usar) d_->seguidas.insert(entrada);
+    else d_->seguidas.erase(entrada);
+    sincronizarRostros();
 }
 
 bool PersonasViewModel::autoalta() const { return d_->autoalta; }

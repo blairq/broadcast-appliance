@@ -39,6 +39,9 @@
 #include "agent/ModelosLocales.hpp"
 #include "red/Red.hpp"
 #include "plugins/Plugins.hpp"
+#include "ui/Seguidor.hpp"
+#include "dispositivos/Dispositivos.hpp"
+#include "dispositivos/Registro.hpp"
 #include "video/VideoGrafos.hpp"
 #include "agent/Roles.hpp"
 #include "agent/Voz.hpp"
@@ -395,6 +398,11 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                                       camaras_.get());
     // Los plugins de Python: en los datos (Plugins/), con el Python del programa.
     plugins_ = std::make_unique<plugins::Plugins>(rt, video_.get(), camaras_.get(), messages_.get());
+    // Seguir una cara con el PTZ (la ventana del PTZ y el asistente).
+    seguidor_ = std::make_unique<Seguidor>(personas_.get(), camaras_.get());
+    // Los equipos (red, esta máquina, USB): un catálogo con acciones declaradas.
+    dispositivos_ = std::make_unique<dispositivos::Dispositivos>();
+    dispositivos::registrarTodo(*dispositivos_, {red_.get(), plugins_.get(), video_.get(), camaras_.get(), messages_.get()});
 #if defined(BA_HAVE_CLAP)
     // Racks de audio (LSP) de cada fuente: se montan los guardados.
     racks_ = std::make_unique<audio::RackManager>(rt.dataRoot());
@@ -592,6 +600,8 @@ QObject* StudioViewModel::camaras() const { return camaras_.get(); }
 QObject* StudioViewModel::video() const { return video_.get(); }
 QObject* StudioViewModel::red() const { return red_.get(); }
 QObject* StudioViewModel::pluginsQml() const { return plugins_.get(); }
+QObject* StudioViewModel::seguidor() const { return seguidor_.get(); }
+QObject* StudioViewModel::dispositivosQml() const { return dispositivos_.get(); }
 QObject* StudioViewModel::flujos() const { return flujos_.get(); }
 QObject* StudioViewModel::voces() const { return voces_.get(); }
 QObject* StudioViewModel::despachadorQml() const { return despachador_.get(); }

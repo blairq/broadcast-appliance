@@ -13,6 +13,7 @@
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ptz/ControlCamaras.hpp"
+#include "ui/Seguidor.hpp"
 #include "ui/StudioViewModel.hpp"
 
 #include "AppRuntime.hpp"
@@ -109,6 +110,70 @@ void McpService::registerPtzTools() {
             });
         };
         core_.addTool(std::move(t));
+    }
+    if (auto* sg = vm_.seguidorPtz()) {
+        const QPointer<Seguidor> seg = sg;
+        {
+            Tool t;
+            t.name = "ptz_rostros";
+            t.title = "Las caras que ve una cámara";
+            t.category = "camaras";
+            t.readOnly = true;
+            t.description =
+                "Mira la cámara `entrada` y devuelve las caras que hay: dónde (x, y, ancho, alto en 0..1 del cuadro) y, "
+                "si la reconoce (Personas), su `id` y `nombre`. Para seguir a una: ptz_seguir.";
+            t.inputSchema = {{"type", "object"}, {"required", {"entrada"}}, {"properties", {{"entrada", entrada}}}};
+            t.run = [seg](const json& a, Done done) {
+                if (!seg) return done(ToolResult::error("el seguimiento no está disponible"));
+                const QString e = qarg(a, "entrada");
+                auto conexion = std::make_shared<QMetaObject::Connection>();
+                *conexion = QObject::connect(seg, &Seguidor::analizado, seg, [seg, e, done, conexion](const QString& cual, const QString& error) {
+                    if (cual != e) return;
+                    QObject::disconnect(*conexion);
+                    if (!error.isEmpty()) return done(ToolResult::error(error.toStdString()));
+                    const QJsonDocument d = QJsonDocument::fromVariant(seg->caras().value(e));
+                    done(ToolResult().data({{"entrada", e.toStdString()},
+                                            {"caras", json::parse(d.toJson(QJsonDocument::Compact).toStdString(), nullptr, false)}}));
+                });
+                seg->analizar(e);
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "ptz_seguir";
+            t.title = "Seguir a una persona con el PTZ";
+            t.category = "camaras";
+            t.description =
+                "La cámara `entrada` sigue a una cara y la mantiene en el centro: con el PTZ real si tiene motor (pulsos de "
+                "pan/tilt), si no con el recorte digital. `persona`: el id de alguien reconocido (de ptz_rostros o Personas; "
+                "la sigue aunque se cruce con otro); o `x`, `y` (0..1): la cara sin nombre que está ahí. `parar: true` deja "
+                "de seguir. El estado (siguiendo, centrada, perdida) sale en ptz_camaras… y en la ventana del PTZ.";
+            t.inputSchema = {{"type", "object"},
+                             {"required", {"entrada"}},
+                             {"properties",
+                              {{"entrada", entrada},
+                               {"persona", {{"type", "string"}}},
+                               {"nombre", {{"type", "string"}}},
+                               {"x", {{"type", "number"}}},
+                               {"y", {{"type", "number"}}},
+                               {"parar", {{"type", "boolean"}}}}}};
+            t.run = [seg](const json& a, Done done) {
+                if (!seg) return done(ToolResult::error("el seguimiento no está disponible"));
+                const QString e = qarg(a, "entrada");
+                if (a.value("parar", false)) {
+                    seg->dejar(e);
+                    return done(ToolResult::ok("Dejó de seguir en «" + e.toStdString() + "»."));
+                }
+                QVariantMap obj{{"id", qarg(a, "persona")}, {"nombre", qarg(a, "nombre")}};
+                if (a.contains("x")) obj["x"] = a.value("x", 0.5);
+                if (a.contains("y")) obj["y"] = a.value("y", 0.5);
+                const QString err = seg->seguir(e, obj);
+                if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
+                done(ToolResult::ok("Siguiendo en «" + e.toStdString() + "». Para dejar: ptz_seguir {\"entrada\", \"parar\": true}."));
+            };
+            core_.addTool(std::move(t));
+        }
     }
     {
         Tool t;

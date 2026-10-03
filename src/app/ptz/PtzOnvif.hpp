@@ -48,6 +48,8 @@ class PtzOnvif : public PtzBackend {
     void grabarPosicion(int n, const QString& nombre, std::function<void(bool, QString)> listo) override;
     void irAPosicion(int n, const QString& token) override;
     void borrarPosicion(int n, const QString& token) override;
+    QVariantMap motor() const override { return motor_; }
+    QVariantMap funciones() const override { return funciones_; }
 
     /// El device_service de un host ("192.168.1.20" o una URL completa).
     static QString urlDispositivo(const QString& host, int puerto);
@@ -57,6 +59,13 @@ class PtzOnvif : public PtzBackend {
     void soap(const QString& url, const QString& cuerpo, Respuesta alTerminar, bool conClave = true);
     void paso(const QString& que);
     void leerPresets();
+    void leerMotor();
+    /// Le pregunta a la cámara qué ofrece (nodos, configuración PTZ, imagen) y
+    /// arma `funciones_`; después sigue con los presets.
+    void mapearFunciones();
+    void resumirFunciones();
+    QVariantMap crudo_;     ///< las respuestas aplanadas
+    QVariantMap funciones_; ///< el resumen: qué eje se mueve cómo
     void vaciar();
 
     QNetworkAccessManager* red_ = nullptr;
@@ -65,6 +74,7 @@ class PtzOnvif : public PtzBackend {
     onvif::Servicios servicios_;
     onvif::Perfil perfil_;
     QList<onvif::Preset> presets_;
+    QVariantMap motor_;
     int generacion_ = 0; ///< una reconfiguración invalida respuestas viejas
 
     bool hayMovimiento_ = false;
