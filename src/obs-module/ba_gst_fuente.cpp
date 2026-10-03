@@ -429,8 +429,13 @@ void armar(Fuente* f) {
         GstElementFactory* fac = gst_element_factory_find("bavtsuperres");
         if (fac != nullptr) {
             gst_object_unref(fac);
-            antesSink += "video/x-raw,format=NV12,colorimetry=bt709,pixel-aspect-ratio=1/1 ! bavtsuperres name=ba_superres ! ";
-            if (!f->normalizar) antesSink = "videoconvertscale ! " + antesSink + "videoconvert ! ";
+            // ANTES de `videorate`: si el lienzo va a más cuadros que la cámara,
+            // no se superresuelve cada cuadro repetido. Con una cola que descarta
+            // lo viejo: si un cuadro tarda, no se acumula demora.
+            const std::string sr = "videoconvertscale ! video/x-raw,format=NV12,colorimetry=bt709,pixel-aspect-ratio=1/1 ! "
+                                   "queue leaky=downstream max-size-buffers=2 max-size-time=0 max-size-bytes=0 ! "
+                                   "bavtsuperres name=ba_superres ! ";
+            antesSink = f->normalizar ? "deinterlace mode=auto ! " + sr + "videorate ! videoconvertscale ! " : sr + "videoconvert ! ";
         } else {
             blog(LOG_WARNING, "[ba_gst_fuente] superresolución pedida pero no está (necesita macOS 26)");
         }
