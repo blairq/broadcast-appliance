@@ -50,6 +50,7 @@ class PtzOnvif : public PtzBackend {
     void borrarPosicion(int n, const QString& token) override;
     QVariantMap motor() const override { return motor_; }
     QVariantMap funciones() const override { return funciones_; }
+    bool apuntar(double u, double v, double ancho, double alto) override;
 
     /// El device_service de un host ("192.168.1.20" o una URL completa).
     static QString urlDispositivo(const QString& host, int puerto);
@@ -66,6 +67,7 @@ class PtzOnvif : public PtzBackend {
     void resumirFunciones();
     QVariantMap crudo_;     ///< las respuestas aplanadas
     QVariantMap funciones_; ///< el resumen: qué eje se mueve cómo
+    QString fabricante_;    ///< de GetDeviceInformation (para lo propio de cada marca)
     void vaciar();
 
     QNetworkAccessManager* red_ = nullptr;

@@ -416,6 +416,12 @@ podar_mac() {
     # apunta a una libfbclient que no existe con ese nombre y convertir no lo
     # usa. Firebird en si queda: libmergedlo enlaza libfbclient directo.
     rm -rf "$c/Frameworks/intl" 2>/dev/null || true
+    # La usamos SOLO sin interfaz (--headless): que macOS la trate como app de
+    # fondo. Si no, cada conversión (y cada corrida de test_conversion) ponía
+    # el ícono de LibreOffice en el Dock, como si se abriera otro programa.
+    /usr/libexec/PlistBuddy -c "Delete :LSUIElement" "$c/Info.plist" >/dev/null 2>&1 || true
+    /usr/libexec/PlistBuddy -c "Add :LSUIElement bool true" "$c/Info.plist" >/dev/null ||
+        morir "no pude marcar la .app como de fondo (LSUIElement)"
     # Podar rompe el sello de la .app (la firma de TDF cubre cada archivo): se
     # vuelve a firmar entera, ad-hoc. Sin esto, macOS no la da por firmada.
     codesign --force --deep -s - "$1/LibreOffice.app" >/dev/null 2>&1 ||

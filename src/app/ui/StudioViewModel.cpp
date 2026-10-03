@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "platform/Paths.hpp"
+#include <QElapsedTimer>
 #include "ui/StudioViewModel.hpp"
 #include <QClipboard>
 #include <QDateTime>
@@ -100,6 +101,17 @@ QString hms(std::chrono::steady_clock::time_point since) {
 } // namespace
 
 StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(parent), rt_(rt) {
+    // El arranque, medido: cada etapa que tarde más de 150 ms queda en el registro
+    // (la interfaz tardaba ~12 s en aparecer y no se sabía en qué).
+    QElapsedTimer relojArranque;
+    relojArranque.start();
+    qint64 ultimaMarca = 0;
+    const auto marca = [&relojArranque, &ultimaMarca](const char* que) {
+        const qint64 ahora = relojArranque.elapsed();
+        if (ahora - ultimaMarca > 150)
+            ba::diag::registro().info("arranque: " + std::string(que) + " tardó " + std::to_string(ahora - ultimaMarca) + " ms");
+        ultimaMarca = ahora;
+    };
     // Modo seguro (el circuit breaker del launcher, tras varias caidas
     // seguidas): NADA que venga del disco. Aquel apaga todo; el diario apaga al
     // culpable. Juntos cubren los dos casos: el que rompe una cosa y el que
@@ -110,11 +122,16 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                                    "modo seguro: no se carga nada del disco en esta corrida");
     }
     scenes_ = std::make_unique<ScenesModel>(rt);
+    marca("scenes");
     sources_ = std::make_unique<SourcesModel>(rt);
+    marca("sources");
     sources_->setScene(currentScene());
     mixer_ = std::make_unique<MixerModel>(rt);
+    marca("mixer");
     types_ = std::make_unique<SourceTypesModel>(rt);
+    marca("types");
     settings_ = std::make_unique<SettingsModel>(rt);
+    marca("settings");
     {
         // La disposicion del dashboard sale de un archivo que se edita solo y
         // que tambien toca el asistente: si queda roto, no puede impedir que el
@@ -122,11 +139,15 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         ba::diag::Cargando c("dashboard");
         dashboard_ = std::make_unique<DashboardModel>(c.saltear() ? std::filesystem::path{}
                                                                   : rt.dataRoot() / "Config" / "ui.json");
+                                                                  marca("dashboard");
     }
     frames_ = std::make_unique<FrameService>(rt.engine(), rt.config().guests);
+    marca("frames");
     frames_->setLobbySlots(rt.gateway().lobbySlots);
     props_ = std::make_unique<PropertiesModel>(rt);
+    marca("props");
     conference_ = std::make_unique<ConferenceViewModel>(rt);
+    marca("conference");
     // El encargo al asistente vive aca (necesita el MCP): la sala solo avisa.
     conference_->setIntakeSink([this](const QString& id, const QString& name, bool yaAdentro) {
         return assistantIntake(id, name, yaAdentro);
@@ -135,37 +156,48 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // Un solo renderizador de gráficos para todos los que disparan uno: el
     // guion, el editor, el rotulador y el asistente.
     emisor_ = std::make_unique<graficos::Emisor>(rt.dataRoot());
+    marca("emisor");
     // El guion del evento necesita la sala para los cues de orador.
     {
         // El guion abre solo el ultimo evento que se toco, que es un archivo
         // del disco y puede venir de cualquier lado.
         ba::diag::Cargando c("evento");
         evento_ = std::make_unique<EventoViewModel>(rt, conference_.get(), emisor_.get(), c.saltear());
+        marca("evento");
     }
     connect(evento_.get(), &EventoViewModel::notify, this, &StudioViewModel::notify);
     grafico_ = std::make_unique<GraficoViewModel>(rt, *emisor_);
+    marca("grafico");
     // El rotulador mira la escena que está al aire, así que la sigue.
     rotulador_ = std::make_unique<RotuladorViewModel>(rt, *emisor_, conference_.get());
+    marca("rotulador");
     // El teleprompter: los discursos son los del evento (los mismos que lee el
     // cue) y el estado es del gateway, así que necesita a los dos.
     prompter_ = std::make_unique<PrompterViewModel>(evento_.get(), conference_.get());
+    marca("prompter");
     connect(prompter_.get(), &PrompterViewModel::notify, this, &StudioViewModel::notify);
     // Pantallas externas: necesita la sala para saber con qué dirección la ve
     // un televisor de la red.
     pantallas_ = std::make_unique<PantallasViewModel>(rt, conference_.get());
+    marca("pantallas");
     connect(pantallas_.get(), &PantallasViewModel::notify, this, &StudioViewModel::notify);
     // Códigos QR: la biblioteca es del aparato y del evento, y los enlaces
     // propios (sala, prompter, rótulos) se los pide al gateway.
     qr_ = std::make_unique<QrViewModel>(rt, evento_.get(), conference_.get());
+    marca("qr");
     // Despues de `frames_`: mira los mismos videos que el resto de la interfaz.
     personas_ = std::make_unique<PersonasViewModel>(rt, *this);
+    marca("personas");
     // Las preguntas del publico y la urna. Viven en B; esto las trae y las
     // modera. No consulta nada hasta que una vista se muestra (ver `activo`).
     publico_ = std::make_unique<PublicoViewModel>(conference_.get(), this);
+    marca("publico");
     connect(publico_.get(), &PublicoViewModel::notify, this, &StudioViewModel::notify);
     medios_ = std::make_unique<MediosViewModel>(rt, this);
+    marca("medios");
     connect(medios_.get(), &MediosViewModel::notify, this, &StudioViewModel::notify);
     carruseles_ = std::make_unique<CarruselViewModel>(rt, this);
+    marca("carruseles");
     connect(carruseles_.get(), &CarruselViewModel::notify, this, &StudioViewModel::notify);
     // La tarjeta de control sigue a la escena: al cortar a otra escena pasa a
     // manejar el carrusel que esa escena tenga. Sin esto el operador tendria
@@ -186,6 +218,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     vinculos_ = std::make_unique<graficos::Vinculos>(
         cargandoVinculos.saltear() ? std::filesystem::path{} : rt.dataRoot() / "Config" / "vinculos.json",
         *emisor_);
+        marca("vinculos");
     vinculos_->setContexto([this]() { return contextoDeVinculos(); });
     rotulador_->setVinculos(vinculos_.get());
     evento_->setVinculos(vinculos_.get());
@@ -195,6 +228,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         // llevara puesto el arranque, la proxima vez se saltea.
         ba::diag::Cargando c("extensiones");
         extensiones_ = std::make_unique<ExtensionesModel>(rt);
+        marca("extensiones");
         if (c.saltear()) extensiones_.reset();
     }
     if (extensiones_) connect(extensiones_.get(), &ExtensionesModel::notify, this, &StudioViewModel::notify);
@@ -203,8 +237,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // no se cargara, el operador quedaria sin poder llegar a Configuracion
     // justo cuando algo anda mal.
     riel_ = std::make_unique<RielConfig>(rt.dataRoot() / "Config" / "riel.json");
+    marca("riel");
 
     registro_ = std::make_unique<RegistroViewModel>(rt);
+    marca("registro");
     connect(registro_.get(), &RegistroViewModel::notify, this, &StudioViewModel::notify);
     connect(vinculos_.get(), &graficos::Vinculos::actuo, this,
             [this](const QString&, const QString& texto, bool error) {
@@ -217,17 +253,22 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
          (rt.dataRoot() / "data" / "cacert.pem").string(),
          (QCoreApplication::applicationDirPath() + "/../../data/cacert.pem").toStdString()});
     youtube_ = std::make_unique<YouTubeViewModel>(rt);
+    marca("youtube");
     connect(youtube_.get(), &YouTubeViewModel::notify, this, &StudioViewModel::notify);
     twitch_ = std::make_unique<TwitchViewModel>(rt);
+    marca("twitch");
     connect(twitch_.get(), &TwitchViewModel::notify, this, &StudioViewModel::notify);
     facebook_ = std::make_unique<FacebookViewModel>(rt);
+    marca("facebook");
     connect(facebook_.get(), &FacebookViewModel::notify, this, &StudioViewModel::notify);
     system_ = std::make_unique<SystemViewModel>();
+    marca("system");
     connect(system_.get(), &SystemViewModel::quitForUpdate, this, [this]() {
         emit notify("Cerrando para actualizar: el sistema vuelve a abrir solo en unos segundos.", "info");
         QTimer::singleShot(800, this, [this]() { emit quitRequested(); });
     });
     chatOverlay_ = std::make_unique<ChatOverlayRenderer>(*youtube_, *conference_, *twitch_, *facebook_);
+    marca("chatOverlay");
     // Disparadores (alertas) contra el estado real de la app, y la pestaña Asistente.
     {
         agent::AlertInputs in;
@@ -287,17 +328,21 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         };
         alerts_ = std::make_unique<agent::AlertEngine>(std::move(in),
                                                        (rt.dataRoot() / "Config" / "alertas.json").string());
+                                                       marca("alerts");
         connect(alerts_.get(), &agent::AlertEngine::fired, this, [this](const nlohmann::json& ev) {
             for (const auto& n : ev.value("notify", nlohmann::json::array()))
                 if (n == "ui") emit notify("⚠ " + QString::fromStdString(ev.value("text", "")), "warn");
         });
         alerts_->start(250);
         agent_ = std::make_unique<agent::AgentViewModel>(rt, *alerts_);
+        marca("agent");
         connect(agent_.get(), &agent::AgentViewModel::notify, this, &StudioViewModel::notify);
         // Los roles automaticos: un disparo que un rol activo reclama va a un
         // agente de un tiro y NO al chat del asistente interactivo.
         roles_ = std::make_unique<agent::Roles>(rt.dataRoot() / "Config" / "roles.json");
+        marca("roles");
         despachador_ = std::make_unique<agent::Despachador>(*roles_, agent_->motores());
+        marca("despachador");
         connect(despachador_.get(), &agent::Despachador::notify, this, &StudioViewModel::notify);
         agent_->setReclamado([this](const nlohmann::json& ev) { return despachador_->evento(ev); });
         // El modelo local: sus archivos en Modelos/ (portable), el motor junto a ba-app.
@@ -306,11 +351,13 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         connect(modelos_.get(), &agent::ModelosLocales::notify, this, &StudioViewModel::notify);
         QTimer::singleShot(0, modelos_.get(), [m = modelos_.get()]() { m->arrancarSiCorresponde(); });
         voz_ = std::make_unique<agent::Voz>(rt, *modelos_);
+        marca("voz");
         modelos_->setProbadorTc([v = voz_.get()](const QString& frase, agent::ModelosLocales::Respuesta r) {
             v->probarTc(frase, std::move(r));
         });
         connect(voz_.get(), &agent::Voz::notify, this, &StudioViewModel::notify);
         vozPrompter_ = std::make_unique<agent::VozPrompter>(rt, *voz_, conference_.get());
+        marca("vozPrompter");
         // El modelo local como motor de agentes y del asistente (proveedor «local»).
         if (agent_) {
             agent::Voz* v = voz_.get();
@@ -324,6 +371,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         connect(voz_.get(), &agent::Voz::cambio, conference_.get(), &ConferenceViewModel::operatorChanged);
         // Barra de mensajes del asistente al operador (y respuestas a invitados).
         messages_ = std::make_unique<OperatorMessages>();
+        marca("messages");
         if (rt.config().safeMode) {
             // El launcher arranco en modo seguro tras varias caidas: que el
             // operador sepa por que no ve sus escenas.
@@ -376,38 +424,49 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     }
     // Las salidas de texto (antes que la Voz las use).
     flujos_ = std::make_unique<agent::FlujosTexto>(rt.dataRoot());
+    marca("flujos");
     if (voz_) voz_->setFlujos(flujos_.get());
     // Las tarjetas «Texto a voz»: dicen lo que llega por una salida de texto.
     if (modelos_) {
         voces_ = std::make_unique<agent::VocesRack>(*modelos_);
+        marca("voces");
         voces_->setFlujos(flujos_.get());
         voces_->setVozSistema([v = voz_.get()]() { return v != nullptr ? v->vozElegida() : QString(); });
     }
     inputs_ = std::make_unique<InputsViewModel>(rt, *this);
+    marca("inputs");
     // El PTZ de cada entrada (y Mejorar imagen): se entera enseguida de las
     // entradas nuevas y de lo que cambia en Configuración.
     camaras_ = std::make_unique<ptz::ControlCamaras>(rt, rt.dataRoot());
+    marca("camaras");
     connect(inputs_.get(), &InputsViewModel::changed, camaras_.get(), &ptz::ControlCamaras::sincronizar);
     // El grafo de tarjetas de video de cada entrada (después del PTZ).
     video_ = std::make_unique<video::VideoGrafos>(rt, rt.dataRoot());
+    marca("video");
     connect(inputs_.get(), &InputsViewModel::changed, video_.get(), &video::VideoGrafos::sincronizar);
     // Los equipos de video de la red: la biblioteca de marcas y la base OUI
     // vienen con el programa (data/red).
     red_ = std::make_unique<red::Red>(ba::platform::bundleRoot() / "data" / "red",
                                       QString::fromStdWString((rt.dataRoot() / "Credenciales").wstring()), video_.get(),
                                       camaras_.get());
+                                      marca("red");
     // Los plugins de Python: en los datos (Plugins/), con el Python del programa.
     plugins_ = std::make_unique<plugins::Plugins>(rt, video_.get(), camaras_.get(), messages_.get());
+    marca("plugins");
     // Seguir una cara con el PTZ (la ventana del PTZ y el asistente).
     seguidor_ = std::make_unique<Seguidor>(personas_.get(), camaras_.get());
+    marca("seguidor");
     // Los equipos (red, esta máquina, USB): un catálogo con acciones declaradas.
     dispositivos_ = std::make_unique<dispositivos::Dispositivos>();
+    marca("dispositivos");
     dispositivos::registrarTodo(*dispositivos_, {red_.get(), plugins_.get(), video_.get(), camaras_.get(), messages_.get()});
 #if defined(BA_HAVE_CLAP)
     // Racks de audio (LSP) de cada fuente: se montan los guardados.
     racks_ = std::make_unique<audio::RackManager>(rt.dataRoot());
+    marca("racks");
     racks_->restore();
     audio_ = std::make_unique<audio::AudioViewModel>(*racks_);
+    marca("audio");
     if (voz_) voz_->setRacks(racks_.get()); // la voz sale de los nodos «Voz a texto»
     flujos_->setConfig([r = racks_.get()](const QString& flujo) { return r->textoDe(flujo.toStdString()); });
     flujos_->setLista([r = racks_.get()]() { return r->textos(); });
@@ -417,6 +476,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     }
     connect(racks_.get(), &audio::RackManager::changed, flujos_.get(), &agent::FlujosTexto::cambio);
     matriz_ = std::make_unique<audio::Matriz>(rt.dataRoot());
+    marca("matriz");
     // Una entrada de placa que trae la tarjeta «Entrada» de un rack también se abre.
     matriz_->setUsadasPorOtros([r = racks_.get()]() { return r->fuentesDeEntradas(); });
 #endif

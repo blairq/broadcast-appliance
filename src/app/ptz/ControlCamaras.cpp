@@ -394,6 +394,11 @@ QString ControlCamaras::apuntar(const QString& entrada, double u, double v, doub
         return {};
     }
 
+    // Motorizada que sabe apuntar sola (Axis): exacto, con su campo de visión real.
+    if (b->apuntar(u, v, ancho, alto)) {
+        ++pulsos_[entrada.toStdString()];
+        return {};
+    }
     // Motorizada: un pulso de pan/tilt proporcional a lo que falta hasta el
     // centro y, si hubo cuadro, uno de zoom. Las constantes son las de una
     // cámara de sala típica a velocidad media; con el zoom muy cerrado se

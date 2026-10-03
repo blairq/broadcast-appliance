@@ -67,6 +67,16 @@ class PtzBackend : public QObject {
     // --- Memorias para las posiciones con nombre (ptz/Posiciones) -----------
     /// Hasta qué número de memoria tiene (0 = no tiene memorias propias).
     virtual int memorias() const { return capacidades().presets; }
+    /// Apuntar EXACTO a un punto (u, v en 0..1 de la imagen) y, con `ancho`/`alto` > 0, acercar
+    /// hasta que ese cuadro llene la imagen, si la cámara lo sabe hacer sola (Axis: center y
+    /// areazoom). false: no sabe (ControlCamaras usa pulsos aproximados).
+    virtual bool apuntar(double u, double v, double ancho, double alto) {
+        Q_UNUSED(u);
+        Q_UNUSED(v);
+        Q_UNUSED(ancho);
+        Q_UNUSED(alto);
+        return false;
+    }
     /// Dónde está el motor, si el protocolo lo dice: {pan, tilt, zoom (0..1), moviendo}.
     virtual QVariantMap motor() const { return {}; }
     /// Lo que la cámara dice que puede (por protocolo), con cómo se maneja cada eje.

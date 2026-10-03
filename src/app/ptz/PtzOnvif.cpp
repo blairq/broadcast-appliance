@@ -3,6 +3,8 @@
 #include "ptz/PtzOnvif.hpp"
 
 #include <algorithm>
+#include <cmath>
+#include <QUrl>
 #include <memory>
 #include <functional>
 #include <QPointer>
@@ -272,6 +274,7 @@ void PtzOnvif::mapearFunciones() {
         QString clave, url, cuerpo;
     };
     auto pedidos = std::make_shared<QList<Pedido>>(QList<Pedido>{
+        {"equipo", dispositivo_, R"(<GetDeviceInformation xmlns="http://www.onvif.org/ver10/device/wsdl"/>)"},
         {"nodos", servicios_.ptz, onvif::getNodes()},
         {"configuraciones", servicios_.ptz, onvif::getConfigurations()},
     });
@@ -305,7 +308,44 @@ void PtzOnvif::mapearFunciones() {
 
 void PtzOnvif::resumirFunciones() {
     funciones_ = onvif::resumirFunciones(crudo_);
+    fabricante_ = crudo_.value("equipo").toMap().value("Manufacturer").toString();
+    funciones_["fabricante"] = fabricante_;
+    funciones_["apuntarExacto"] = fabricante_.contains("AXIS", Qt::CaseInsensitive);
     emit estadoCambio();
+}
+
+bool PtzOnvif::apuntar(double u, double v, double ancho, double alto) {
+    // Axis (VAPIX): la cámara sabe centrar un punto de la imagen y acercar a un
+    // cuadro con su campo de visión real; con pulsos de tiempo, con zoom puesto,
+    // quedaba corrida. Coordenadas en una imagen de 1000x1000: proporcionales.
+    if (!fabricante_.contains("AXIS", Qt::CaseInsensitive)) return false;
+    const QUrl base(dispositivo_);
+    const int x = static_cast<int>(std::lround(std::clamp(u, 0.0, 1.0) * 1000)),
+              y = static_cast<int>(std::lround(std::clamp(v, 0.0, 1.0) * 1000));
+    QString q;
+    const double lado = std::max(ancho, alto);
+    if (lado > 0.01) {
+        const int z = static_cast<int>(std::lround(std::clamp(100.0 / lado, 100.0, 9999.0)));
+        q = QStringLiteral("areazoom=%1,%2,%3").arg(x).arg(y).arg(z);
+    } else {
+        q = QStringLiteral("center=%1,%2").arg(x).arg(y);
+    }
+    QUrl url;
+    url.setScheme("http");
+    url.setHost(base.host());
+    if (base.port() > 0) url.setPort(base.port());
+    url.setPath("/axis-cgi/com/ptz.cgi");
+    url.setQuery(q + "&imagewidth=1000&imageheight=1000");
+    QNetworkRequest pedido{url};
+    pedido.setTransferTimeout(4000);
+    QNetworkReply* r = red_->get(pedido);
+    connect(r, &QNetworkReply::finished, this, [this, r]() {
+        r->deleteLater();
+        const int cod = r->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        if (cod >= 400 || cod == 0) setEstado(listo(), QStringLiteral("La cámara no aceptó el apuntado (HTTP %1)").arg(cod));
+        QTimer::singleShot(1500, this, [this]() { leerMotor(); });
+    });
+    return true;
 }
 
 } // namespace ba::app::ptz

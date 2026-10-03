@@ -32,6 +32,7 @@
 #include "agent/AgentViewModel.hpp"
 #include "AppRuntime.hpp"
 #include "mcp/McpService.hpp"
+#include <QElapsedTimer>
 #include "plugins/Plugins.hpp"
 #include "term/TerminalView.hpp"
 #include "ui/FrameService.hpp"
@@ -88,7 +89,10 @@ int runGui(int argc, char** argv) {
 
     int result = 0;
     {
+        QElapsedTimer relojGui;
+        relojGui.start();
         StudioViewModel vm(rt);
+        ba::diag::registro().info("arranque: el modelo de la app, " + std::to_string(relojGui.restart()) + " ms");
         auto* frames = static_cast<FrameService*>(vm.frames());
         VideoItem::setService(frames);
         qmlRegisterSingletonInstance("BA", 1, 0, "Studio", &vm);
@@ -110,7 +114,9 @@ int runGui(int argc, char** argv) {
         // exporta, asi lo que se ve es exactamente lo que sale.
         engine.addImageProvider("qr", new QrImageProvider(vm.qrVm()));
         QObject::connect(&vm, &StudioViewModel::quitRequested, &app, &QGuiApplication::quit);
+        relojGui.restart();
         engine.load(QUrl("qrc:/qml/Main.qml"));
+        ba::diag::registro().info("arranque: la interfaz (QML), " + std::to_string(relojGui.restart()) + " ms");
         if (engine.rootObjects().isEmpty()) {
             std::printf("ba-app: no se pudo cargar la interfaz QML\n");
             rt.stop();
@@ -133,7 +139,9 @@ int runGui(int argc, char** argv) {
         }
 
         // Servidor MCP: un asistente de IA maneja y ve toda la app (127.0.0.1 + token).
+        relojGui.restart();
         mcp::McpService mcpService(rt, vm);
+        ba::diag::registro().info("arranque: el servidor MCP, " + std::to_string(relojGui.restart()) + " ms");
         mcpService.setMainWindow([&engine]() -> QQuickWindow* {
             return engine.rootObjects().isEmpty() ? nullptr
                                                   : qobject_cast<QQuickWindow*>(engine.rootObjects().first());

@@ -109,6 +109,7 @@ class Supervisor {
     // periodo de gracia de arranque no se evalua el heartbeat (libobs tarda en
     // cargar modulos y el proceso todavia no late).
     std::uint64_t launchedAtMs_[2] = {0, 0};
+    std::uint64_t latidoAlLanzar_[2] = {0, 0}; ///< el latido que había al lanzarlo (para saber si ya latió)
     bool inStartupGrace(bool isA) const;
 
     // Politica de reinicio (spec 3.1.8).
