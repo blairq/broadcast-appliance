@@ -84,6 +84,7 @@ Está en `src/plugins/sdk/ba_plugin/__init__.py`, con el docstring completo. En 
 - `plugin.entrada(nombre, gst=…, gst_audio=…)` o `entrada(nombre, video=True, audio=True)` + `enviar_video(arr)` / `enviar_audio(muestras)`.
 - `@plugin.tarjeta(nombre, medio="video"|"audio", parametros={…})`: `cuadro.array()` es (alto, ancho, 4) RGBA en memoria compartida y se cambia en el lugar.
 - `@plugin.ptz(entrada)` sobre una clase con `mover/parar/home/ir_a_preset/guardar_preset/enfocar/auto_foco` y `capacidades`.
+- `plugin.panel([...])`: **la interfaz del plugin para el operador**, descripta y dibujada por la app (página Plugins → «Usar»; el asistente la maneja con `plugin_panel`). Controles: `ba.seccion`, `ba.deslizador`, `ba.interruptor`, `ba.opcion`, `ba.texto`, `ba.numero`, `ba.boton` (lo que mueve el operador) y `ba.indicador`, `ba.medidor` (lo que muestra el plugin con `plugin.mostrar(clave, valor)`, a lo sumo 10 veces por segundo). Lo del operador queda en `plugin.valores` y llega a `@plugin.al_cambiar(clave)`; se guarda en `Plugins/<id>/.panel.json` y vuelve al reiniciar. No hay QML propio de un plugin a propósito: correría adentro de la app, y un plugin no puede colgar nada.
 - `@plugin.control(nombre)`, `plugin.evento(canal, datos)`, `@plugin.escuchar("*/canal")`.
 - `plugin.llamar(herramienta, args)`: cualquier herramienta MCP.
 - `plugin.estado(texto)`, `plugin.aviso(texto)`.

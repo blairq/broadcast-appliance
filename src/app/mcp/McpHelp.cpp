@@ -526,6 +526,20 @@ class Ptz:
 @plugin.control("modo", descripcion="...", parametros={"modo": "auto|manual"})   # plugin_control
 def modo(args): return {"ok": True}
 
+# PANEL: la interfaz del operador (la dibuja la app; plugin_panel la maneja igual). Los valores se guardan solos.
+plugin.panel([
+    ba.seccion("Seguimiento"),
+    ba.interruptor("seguir", "Seguir al que habla", defecto=True),
+    ba.deslizador("suavidad", "Suavidad", 0, 1, defecto=0.5),
+    ba.opcion("modo", "Modo", ["auto", "manual"]),
+    ba.boton("calibrar", "Calibrar", al_tocar=calibrar),        # también texto(), numero()
+    ba.indicador("caras", "Caras vistas"), ba.medidor("confianza", "Confianza", 0, 1),
+])
+plugin.valores["suavidad"]                                      # lo que puso el operador
+@plugin.al_cambiar("modo")
+def al_modo(valor): ...
+plugin.mostrar("caras", 3)                                      # indicadores en vivo (se puede llamar en cada cuadro)
+
 plugin.evento("hablando", {"angulo": 37, "persona": 2})        # canal de datos (con hora)
 @plugin.escuchar("*/hablando")                                  # "kandao-1/hablando", "*/x", "id/*" (los propios también llegan)
 def al_hablar(datos, de): ...
@@ -552,6 +566,7 @@ Equipos (`from ba_plugin import dispositivos as d`; dependencias `pyusb`, `libus
 - Nada bloquea para siempre: todo con timeout; los bucles en hilos de `al_iniciar` y mirando `plugin.andando`.
 - Las tarjetas tienen que ser rápidas (1080p a 30 fps = 33 ms por cuadro, y es en serie con el video): numpy vectorizado; si tarda, sale el cuadro anterior. Si el plugin solo tiene que MEDIR (color, brillo, quién está), que mida cada pocos cuadros sobre una versión achicada (`a[::8, ::8]`) y aplique lo que calcula con una tarjeta gst (`plugin.llamar("video_tarjeta_ajustar", ...)` sobre un `videobalance`): procesar el cuadro entero en Python en cada cámara carga la máquina y traba la interfaz.
 - `print` va al registro (`plugin_registro`); usá `plugin.estado(...)` para lo que tiene que ver el operador.
+- **Todo plugin que el operador tenga que manejar lleva `plugin.panel`** (lo que se ajusta: deslizadores, interruptores, opciones; lo que se hace: botones; lo que pasa: indicadores y medidores). Los humanos usan el sistema igual que vos: nada de "pedímelo por el chat". `@plugin.control` queda para lo que pide el asistente con argumentos (y también aparece como botón).
 - Las bibliotecas van en `dependencias` (pip, se bajan a la carpeta del plugin: portable, sobreviven a las actualizaciones). **numpy ya viene con el programa** (declararlo no cuesta nada); la primera vez que se baja algo grande (opencv) puede tardar un par de minutos.
 - Claves de equipos (usuario, contraseña, token de la API de la marca): nunca por el chat ni en `config`. Declaralas en plugin.json (`"secretos": [{"clave": "clave", "etiqueta": "Clave de la cámara"}]`), pedilas con `plugin_credenciales {"id"}` (formulario seguro en la barra) y en el plugin `plugin.secreto("clave")` (None si todavía no están: que espere y lo diga con `plugin.estado`).)md"},
     {"camaras_red", "Camaras de la red", "Encontrar camaras IP, grabadores y equipos de video en la red y conectarlos bien (marca, URLs, clave, PTZ, normalizar).",

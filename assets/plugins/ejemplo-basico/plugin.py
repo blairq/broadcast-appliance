@@ -1,4 +1,4 @@
-"""Ejemplo básico: tarjeta de video, filtro de audio, entrada propia, control y evento."""
+"""Ejemplo básico: tarjeta de video, filtro de audio, entrada propia, panel, control y evento."""
 import math
 import time
 
@@ -35,20 +35,31 @@ pelota = plugin.entrada("Pelota", video=True, audio=True)
 def generar_video():
     ancho, alto, fps = 640, 360, 30
     x, y, vx, vy = 100.0, 100.0, 7.0, 5.0
+    rebotes = 0
     fondo = np.zeros((alto, ancho, 4), np.uint8)
     fondo[..., 3] = 255
     fondo[..., 2] = np.linspace(40, 120, ancho, dtype=np.uint8)[None, :]
     yy, xx = np.mgrid[0:alto, 0:ancho]
     siguiente = time.monotonic()
     while plugin.andando:
-        x, y = x + vx, y + vy
+        if plugin.valores.get("pausa"):
+            time.sleep(0.05)
+            siguiente = time.monotonic()
+            continue
+        v = float(plugin.valores.get("velocidad", 1.0))
+        x, y = x + vx * v, y + vy * v
         if not 30 < x < ancho - 30:
             vx = -vx
+            rebotes += 1
             plugin.evento("rebote", {"borde": "costado", "x": round(x)})
         if not 30 < y < alto - 30:
             vy = -vy
+            rebotes += 1
+        plugin.mostrar("rebotes", rebotes)
+        plugin.mostrar("altura", 1 - y / alto)
+        r = float(plugin.valores.get("tamano", 30))
         cuadro = fondo.copy()
-        cuadro[(xx - x) ** 2 + (yy - y) ** 2 < 900, :3] = plugin.config.get("color", [255, 200, 0])
+        cuadro[(xx - x) ** 2 + (yy - y) ** 2 < r * r, :3] = plugin.config.get("color", [255, 200, 0])
         pelota.enviar_video(cuadro, fps=fps)
         siguiente += 1 / fps
         time.sleep(max(0, siguiente - time.monotonic()))
@@ -67,7 +78,34 @@ def generar_audio():
         time.sleep(max(0, siguiente - time.monotonic()))
 
 
-# 4) Un CONTROL (lo pide el asistente con plugin_control o la interfaz) y un EVENTO.
+# 4) Un PANEL para el operador (lo dibuja la app; los valores se guardan solos).
+COLORES = {"amarillo": [255, 200, 0], "rojo": [230, 40, 40], "verde": [40, 200, 90], "blanco": [255, 255, 255]}
+
+
+def avisar():
+    plugin.aviso("Hola desde el panel de la pelota")
+
+
+plugin.panel([
+    ba.seccion("Movimiento"),
+    ba.interruptor("pausa", "Pausa"),
+    ba.deslizador("velocidad", "Velocidad", 0.0, 3.0, defecto=1.0, unidad="x"),
+    ba.deslizador("tamano", "Tamaño", 10, 80, paso=1, defecto=30, unidad="px"),
+    ba.seccion("Color"),
+    ba.opcion("color", "Color", list(COLORES), defecto="amarillo"),
+    ba.boton("avisar", "Avisar", ayuda="Manda un aviso a la barra del operador", al_tocar=avisar),
+    ba.seccion("Lo que pasa"),
+    ba.indicador("rebotes", "Rebotes"),
+    ba.medidor("altura", "Altura", 0, 1),
+])
+
+
+@plugin.al_cambiar("color")
+def al_color(nombre):
+    plugin.config["color"] = COLORES.get(nombre, [255, 200, 0])
+
+
+# 5) Un CONTROL (lo pide el asistente con plugin_control o la interfaz) y un EVENTO.
 @plugin.control("color", descripcion="Cambia el color de la pelota", parametros={"rgb": "[r, g, b] de 0 a 255"})
 def cambiar_color(args):
     plugin.config["color"] = [int(v) for v in args.get("rgb", [255, 200, 0])][:3]

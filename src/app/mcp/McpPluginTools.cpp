@@ -219,6 +219,31 @@ void McpService::registerPluginTools() {
     }
     {
         Tool t;
+        t.name = "plugin_panel";
+        t.title = "El panel de un plugin (lo mismo que ve el operador)";
+        t.category = "plugins";
+        t.description =
+            "Sin `clave`: el panel del plugin (sus controles: deslizador, interruptor, opcion, texto, numero, boton, "
+            "indicador, medidor) con los valores de ahora. Con `clave` y `valor`: mueve ese control (o toca el botón, "
+            "sin `valor`) como si fuera el operador; queda guardado. Los indicadores y medidores los pone el plugin.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"id"}},
+                         {"properties", {{"id", id}, {"clave", {{"type", "string"}}}, {"valor", json::object()}}}};
+        t.run = [p](const json& a, Done done) {
+            if (!p) return done(ToolResult::error("los plugins no están disponibles"));
+            const std::string pid = a.value("id", std::string()), clave = a.value("clave", std::string());
+            if (!clave.empty()) {
+                if (const std::string e = p->ponerValor(pid, clave, a.contains("valor") ? a["valor"] : json(true)); !e.empty())
+                    return done(ToolResult::error(e));
+            }
+            const json pn = p->panel(pid);
+            if (pn.is_null()) return done(ToolResult::error("«" + pid + "» no tiene panel (o no está prendido)"));
+            done(ToolResult().data({{"panel", pn}, {"valores", p->valores(pid)}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "plugin_eventos";
         t.title = "Lo que publican los plugins (canales de datos)";
         t.category = "plugins";

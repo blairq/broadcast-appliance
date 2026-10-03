@@ -23,6 +23,13 @@ sistema cualquiera de estas cosas:
 - EVENTOS (canales de datos): ``plugin.evento("hablando", {...})`` publica;
   ``@plugin.escuchar("otro-plugin/hablando")`` recibe. Con eso un plugin
   "director" junta lo de varios equipos.
+- PANEL: su propia interfaz para el operador, DESCRIPTA (la dibuja la app con
+  sus controles: si el plugin se cae, la app sigue). ``plugin.panel([...])``
+  con ``ba.deslizador``, ``ba.interruptor``, ``ba.opcion``, ``ba.texto``,
+  ``ba.numero``, ``ba.boton``, ``ba.indicador``, ``ba.medidor`` y
+  ``ba.seccion``. Lo que mueve el operador llega a ``plugin.valores`` (y a
+  ``@plugin.al_cambiar("clave")``); ``plugin.mostrar(clave, valor)`` actualiza
+  un indicador (o mueve un control) en vivo. Se guarda solo entre reinicios.
 - Y puede ACTUAR SOBRE TODO EL SISTEMA: ``plugin.llamar("scene_switch",
   {"name": "Exterior"})`` llama cualquier herramienta del servidor MCP de la app
   (escenas, audio, PTZ, grafo de video, avisos al operador…).
@@ -145,6 +152,76 @@ class Entrada:
         return self._canal_audio.enviar_audio(muestras, tasa, canales, pts_ns, timeout)
 
 
+# --- El panel: controles que dibuja la app ---------------------------------------------
+# Cada función devuelve la descripción de un control (un dict). `clave` es el
+# nombre del valor (``plugin.valores[clave]``); `al_cambiar` (opcional) es la
+# función ``f(valor)`` que corre cuando el operador lo mueve.
+
+def _control(tipo: str, clave: str, etiqueta: str | None, ayuda: str, al_cambiar, **extra) -> dict:
+    d = {"tipo": tipo, "clave": clave, "etiqueta": etiqueta if etiqueta is not None else clave}
+    if ayuda:
+        d["ayuda"] = ayuda
+    d.update({k: v for k, v in extra.items() if v is not None})
+    if al_cambiar is not None:
+        d["_fn"] = al_cambiar
+    return d
+
+
+def seccion(titulo: str) -> dict:
+    """Un título que separa grupos de controles."""
+    return {"tipo": "seccion", "clave": "", "etiqueta": titulo}
+
+
+def deslizador(clave: str, etiqueta: str | None = None, minimo: float = 0.0, maximo: float = 1.0, paso: float | None = None,
+               defecto: float | None = None, unidad: str = "", ayuda: str = "", al_cambiar=None) -> dict:
+    """Un valor entre `minimo` y `maximo` (con `paso` entero, el valor es entero)."""
+    return _control("deslizador", clave, etiqueta, ayuda, al_cambiar, minimo=minimo, maximo=maximo, paso=paso,
+                    defecto=minimo if defecto is None else defecto, unidad=unidad or None)
+
+
+def interruptor(clave: str, etiqueta: str | None = None, defecto: bool = False, ayuda: str = "", al_cambiar=None) -> dict:
+    """Sí / no."""
+    return _control("interruptor", clave, etiqueta, ayuda, al_cambiar, defecto=bool(defecto))
+
+
+def opcion(clave: str, etiqueta: str | None = None, opciones: list | tuple = (), defecto: str | None = None, ayuda: str = "",
+           al_cambiar=None) -> dict:
+    """Una entre varias (`opciones`: textos)."""
+    ops = [str(o) for o in opciones]
+    return _control("opcion", clave, etiqueta, ayuda, al_cambiar, opciones=ops, defecto=defecto if defecto is not None else (ops[0] if ops else ""))
+
+
+def texto(clave: str, etiqueta: str | None = None, defecto: str = "", ayuda: str = "", al_cambiar=None) -> dict:
+    """Un texto (se manda al confirmar con Enter o al salir del campo)."""
+    return _control("texto", clave, etiqueta, ayuda, al_cambiar, defecto=defecto)
+
+
+def numero(clave: str, etiqueta: str | None = None, defecto: float = 0, minimo: float | None = None, maximo: float | None = None,
+           unidad: str = "", ayuda: str = "", al_cambiar=None) -> dict:
+    """Un número escrito a mano."""
+    return _control("numero", clave, etiqueta, ayuda, al_cambiar, defecto=defecto, minimo=minimo, maximo=maximo, unidad=unidad or None)
+
+
+def boton(clave: str, etiqueta: str | None = None, ayuda: str = "", peligro: bool = False, al_tocar=None) -> dict:
+    """Un botón: `al_tocar()` (o ``@plugin.al_cambiar(clave)``) corre cada vez que lo tocan."""
+    fn = (lambda _v: al_tocar()) if al_tocar is not None else None
+    return _control("boton", clave, etiqueta, ayuda, fn, peligro=peligro or None)
+
+
+def indicador(clave: str, etiqueta: str | None = None, unidad: str = "", ayuda: str = "") -> dict:
+    """Muestra un valor que pone el plugin (``plugin.mostrar(clave, v)``): texto o número."""
+    return _control("indicador", clave, etiqueta, ayuda, None, unidad=unidad or None)
+
+
+def medidor(clave: str, etiqueta: str | None = None, minimo: float = 0.0, maximo: float = 1.0, unidad: str = "",
+            ayuda: str = "") -> dict:
+    """Una barra que llena el plugin (``plugin.mostrar(clave, v)``): nivel, carga, confianza…"""
+    return _control("medidor", clave, etiqueta, ayuda, None, minimo=minimo, maximo=maximo, unidad=unidad or None)
+
+
+_ENTRADAS_PANEL = ("deslizador", "interruptor", "opcion", "texto", "numero")
+
+
 class Plugin:
     """El plugin. Uno por proceso: ``plugin = ba.Plugin()``."""
 
@@ -176,6 +253,11 @@ class Plugin:
         self._n = 0
         self._lock = threading.Lock()
         self._pool = ThreadPoolExecutor(max_workers=8, thread_name_prefix="ba-pedido")
+        #: Lo que el operador puso en el panel (y lo que el plugin mostró): clave -> valor.
+        self.valores: dict = {}
+        self._al_valor: dict[str, list[Callable]] = {}
+        self._mostrar_pend: dict = {}
+        self._mostrar_hilo: threading.Thread | None = None
         self._salida = None  # el canal con la app (stdout de verdad)
         self._medios: _medios.Servidor | None = None
         self._declarado = False
@@ -277,6 +359,56 @@ class Plugin:
             self._periodicos.append((segundos, fn))
             return fn
         return deco
+
+    def panel(self, controles: list, titulo: str = "") -> None:
+        """Declara el panel del plugin: la lista de controles (``ba.deslizador(...)``, ``ba.boton(...)``…).
+
+        La app lo dibuja en la página Plugins (con su estilo, también en ventana aparte) y el asistente lo
+        maneja con ``plugin_panel``. Se puede volver a llamar para cambiarlo. Los valores de los controles se
+        guardan solos: al reiniciar, ``plugin.valores`` vuelve con lo que había puesto el operador."""
+        limpios = []
+        for c in controles:
+            c = dict(c)
+            fn = c.pop("_fn", None)
+            if fn is not None and c.get("clave"):
+                self._al_valor.setdefault(c["clave"], [])
+                if fn not in self._al_valor[c["clave"]]:
+                    self._al_valor[c["clave"]].append(fn)
+            if c.get("tipo") in _ENTRADAS_PANEL:
+                self.valores.setdefault(c["clave"], c.get("defecto"))
+            limpios.append(c)
+        self._redeclarar({"t": "panel", "nombre": "panel", "titulo": titulo, "controles": limpios})
+
+    def al_cambiar(self, clave: str):
+        """Decorador: ``def f(valor)`` cuando el operador (o el asistente) cambia `clave` del panel o toca su botón."""
+        def deco(fn):
+            self._al_valor.setdefault(clave, []).append(fn)
+            return fn
+        return deco
+
+    def mostrar(self, clave: str, valor: Any) -> None:
+        """Pone un valor en el panel: un indicador o medidor, o mueve un control. Se puede llamar seguido
+        (en cada cuadro): a la app le llega a lo sumo 10 veces por segundo, lo último."""
+        self.valores[clave] = valor
+        with self._lock:
+            self._mostrar_pend[clave] = valor
+            if self._mostrar_hilo is None:
+                self._mostrar_hilo = threading.Thread(target=self._mostrar_bucle, name="ba-panel", daemon=True)
+                self._mostrar_hilo.start()
+
+    def _mostrar_bucle(self) -> None:
+        while self.andando:
+            time.sleep(0.1)
+            with self._lock:
+                pend, self._mostrar_pend = self._mostrar_pend, {}
+            if pend:
+                self._enviar({"t": "valores", "valores": pend})
+
+    def _valor_de_la_app(self, clave: str, valor: Any, avisar: bool = True) -> None:
+        self.valores[clave] = valor
+        if avisar:
+            for fn in self._al_valor.get(clave, []):
+                self._pool.submit(self._protegido, fn, valor)
 
     # --- Hablar con el sistema ----------------------------------------------------
 
@@ -416,6 +548,11 @@ class Plugin:
                 if _coincide(patron, f"{de}/{canal}"):
                     for fn in fns:
                         self._pool.submit(self._protegido, fn, m.get("datos"), de)
+        elif t == "valor":
+            self._valor_de_la_app(m.get("clave", ""), m.get("valor"))
+        elif t == "valores":
+            for k, v in (m.get("valores") or {}).items():
+                self._valor_de_la_app(k, v)
         elif t == "config":
             self.config.update(m.get("config", {}))
             for fn in self._al_config:
@@ -450,7 +587,7 @@ class Plugin:
             return c["fn"](args.get("args", {}) or {})
         if accion == "info":
             return {"entradas": [e.declaracion() for e in self._entradas.values()], "tarjetas": list(self._tarjetas),
-                    "ptz": list(self._ptz), "controles": list(self._controles), "escucha": list(self._escuchas),
+                    "ptz": list(self._ptz), "controles": list(self._controles), "escucha": list(self._escuchas), "valores": self.valores,
                     "medios": self._medios.resumen() if self._medios else {}}
         raise KeyError(f"no sé «{accion}»")
 

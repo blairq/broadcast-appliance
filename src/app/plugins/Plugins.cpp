@@ -27,6 +27,8 @@
 #endif
 
 #include <algorithm>
+#include <cmath>
+#include <cstdlib>
 #include <cctype>
 #include <fstream>
 #include <sstream>
@@ -46,6 +48,12 @@ QVariant qv(const json& j) {
     if (j.is_null()) return {};
     if (j.is_array() || j.is_object()) return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump())).toVariant();
     return QJsonDocument::fromJson(QByteArray::fromStdString(json::array({j}).dump())).toVariant().toList().value(0);
+}
+
+json dejson(const QVariant& v) {
+    const QByteArray b = QJsonDocument::fromVariant(QVariantList{v}).toJson(QJsonDocument::Compact);
+    const json j = json::parse(b.toStdString(), nullptr, false);
+    return j.is_array() && !j.empty() ? j[0] : json();
 }
 
 json leerJson(const fs::path& p) {
@@ -157,6 +165,7 @@ Plugins::Plugins(AppRuntime& rt, video::VideoGrafos* video, ptz::ControlCamaras*
 }
 
 Plugins::~Plugins() {
+    guardarValores();
     auto& e = ptz::PtzPlugin::enlace();
     e.pedir = nullptr;
     e.capacidades = nullptr;
@@ -245,6 +254,7 @@ json Plugins::estado(const std::string& id) const {
     e["ptz"] = ptz;
     e["controles"] = ctl;
     if (!esc.empty()) e["escucha"] = esc;
+    if (const json pn = panel(id); !pn.is_null()) e["panel"] = pn;
     return e;
 }
 
@@ -723,7 +733,7 @@ void Plugins::recibir(const std::string& id, const json& m) {
         p.puerto = m.value("medios", 0);
         p.python = m.value("python", std::string());
         anotarPuerto(id, p.puerto);
-    } else if (t == "entrada" || t == "tarjeta" || t == "ptz" || t == "control" || t == "escuchar") {
+    } else if (t == "entrada" || t == "tarjeta" || t == "ptz" || t == "control" || t == "escuchar" || t == "panel") {
         const std::string clave = m.value("nombre", m.value("entrada", m.value("canal", std::string())));
         auto& d = p.declarado;
         d.erase(std::remove_if(d.begin(), d.end(),
@@ -750,12 +760,23 @@ void Plugins::recibir(const std::string& id, const json& m) {
             if (d.value("t", "") == "entrada") declararEntrada(id, d);
         for (const auto& d : json(p.declarado))
             if (d.value("t", "") == "ptz") declararPtz(id, d);
+        // El panel vuelve como lo dejó el operador (solo lo que él puso, no lo que mostró el plugin).
+        if (const json g = leerJson(carpetaDe(id) / ".panel.json"); g.is_object() && !g.empty()) {
+            enviar(id, {{"t", "valores"}, {"valores", g}});
+            valoresDe(id).update(g);
+        }
         auto cbs = std::move(p.alListo);
         for (auto& cb : cbs) cb(estado(id));
         emit cambio();
     } else if (t == "estado") {
         p.estadoPlugin = {{"texto", m.value("texto", std::string())}, {"ok", m.value("ok", true)}};
         emit cambio();
+    } else if (t == "valores") {
+        // Lo que muestra el plugin (indicadores, medidores): no se guarda en disco.
+        if (m.contains("valores") && m["valores"].is_object()) {
+            valoresDe(id).update(m["valores"]);
+            emit valoresCambio(q(id));
+        }
     } else if (t == "aviso") {
         avisar("«" + id + "»: " + m.value("texto", std::string()), m.value("prioridad", std::string("info")));
     } else if (t == "evento") {
@@ -1185,6 +1206,95 @@ void Plugins::controlUi(const QString& id, const QString& control, const QString
         const bool ok = r.value("ok", false);
         emit yo->respuesta(id, control, q(ok ? (r.contains("resultado") ? r["resultado"].dump(2) : std::string("hecho")) : r.value("error", std::string())), ok);
     }, 30000);
+}
+
+// --- El panel ---------------------------------------------------------------------------------
+
+json Plugins::panel(const std::string& id) const {
+    auto it = procesos_.find(id);
+    if (it == procesos_.end()) return nullptr;
+    for (const auto& d : it->second->declarado)
+        if (d.value("t", "") == "panel") return {{"titulo", d.value("titulo", std::string())}, {"controles", d.value("controles", json::array())}};
+    return nullptr;
+}
+
+json& Plugins::valoresDe(const std::string& id) const {
+    auto it = valores_.find(id);
+    if (it != valores_.end()) return it->second;
+    json g = leerJson(carpetaDe(id) / ".panel.json");
+    return valores_[id] = g.is_object() ? g : json::object();
+}
+
+json Plugins::valores(const std::string& id) const { return valoresDe(id); }
+
+std::string Plugins::ponerValor(const std::string& id, const std::string& clave, const json& valor) {
+    const json pn = panel(id);
+    if (pn.is_null()) return "«" + id + "» no tiene panel (o no está prendido)";
+    auto it = procesos_.find(id);
+    if (it == procesos_.end() || it->second->estado != "corriendo") return "«" + id + "» no está corriendo";
+    std::string tipo;
+    json c;
+    for (const auto& x : pn["controles"])
+        if (x.value("clave", "") == clave) { tipo = x.value("tipo", ""); c = x; }
+    if (tipo.empty() || tipo == "seccion") return "el panel de «" + id + "» no tiene el control «" + clave + "»";
+    if (tipo == "indicador" || tipo == "medidor") return "«" + clave + "» lo muestra el plugin: no se mueve desde afuera";
+    json v = valor;
+    // Que llegue del tipo que espera el plugin (la interfaz y el asistente mandan lo que tienen).
+    if (tipo == "deslizador" || tipo == "numero") {
+        double d = v.is_number() ? v.get<double>() : v.is_string() ? std::atof(v.get<std::string>().c_str()) : 0.0;
+        if (c.contains("minimo") && c["minimo"].is_number()) d = std::max(d, c["minimo"].get<double>());
+        if (c.contains("maximo") && c["maximo"].is_number()) d = std::min(d, c["maximo"].get<double>());
+        const bool entero = c.contains("paso") && c["paso"].is_number() && std::floor(c["paso"].get<double>()) == c["paso"].get<double>();
+        v = entero ? json(static_cast<long long>(std::llround(d))) : json(d);
+    } else if (tipo == "interruptor") {
+        v = v.is_boolean() ? v.get<bool>() : v.is_string() ? (v == "true" || v == "si" || v == "sí" || v == "1") : v.is_number() && v.get<double>() != 0;
+    } else if (tipo == "opcion") {
+        const std::string o = v.is_string() ? v.get<std::string>() : v.dump();
+        bool hay = false;
+        for (const auto& x : c.value("opciones", json::array())) hay = hay || x == o;
+        if (!hay) return "«" + o + "» no es una opción de «" + clave + "»";
+        v = o;
+    } else if (tipo == "texto") {
+        v = v.is_string() ? v.get<std::string>() : v.dump();
+    } else if (tipo == "boton") {
+        v = true;
+    }
+    enviar(id, {{"t", "valor"}, {"clave", clave}, {"valor", v}});
+    if (tipo != "boton") {
+        valoresDe(id)[clave] = v;
+        valoresSucios_.insert(id);
+        if (!guardarValoresT_) {
+            guardarValoresT_ = new QTimer(this);
+            guardarValoresT_->setSingleShot(true);
+            guardarValoresT_->setInterval(800);
+            connect(guardarValoresT_, &QTimer::timeout, this, [this]() { guardarValores(); });
+        }
+        guardarValoresT_->start();
+        emit valoresCambio(q(id));
+    }
+    return {};
+}
+
+void Plugins::guardarValores() {
+    for (const auto& id : valoresSucios_) {
+        // Solo lo que mueve el operador (los controles de entrada), no lo que muestra el plugin.
+        json g = json::object();
+        const json pn = panel(id);
+        if (pn.is_null()) continue; // apagado: lo que hay en disco queda como está
+        const json& v = valoresDe(id);
+        for (const auto& c : pn["controles"]) {
+                const std::string t = c.value("tipo", ""), k = c.value("clave", "");
+                if ((t == "deslizador" || t == "interruptor" || t == "opcion" || t == "texto" || t == "numero") && v.contains(k)) g[k] = v[k];
+            }
+        escribirTexto(carpetaDe(id) / ".panel.json", g.dump(2));
+    }
+    valoresSucios_.clear();
+}
+
+QVariantMap Plugins::valoresUi(const QString& id) const { return qv(valoresDe(id.toStdString())).toMap(); }
+
+QString Plugins::panelUi(const QString& id, const QString& clave, const QVariant& valor) {
+    return q(ponerValor(id.toStdString(), clave.toStdString(), dejson(valor)));
 }
 
 QString Plugins::tarjetaUi(const QString& id, const QString& tarjeta, const QString& destino, bool audio) {

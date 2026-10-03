@@ -27,6 +27,8 @@ Rectangle {
     property string vista: "resumen"     // resumen | registro | codigo | config
     property string textoVista: ""
     property var respuestas: ({})        // "id/control" -> {texto, ok}
+    property var configForm: ({})        // el "config" de plugin.json, para el formulario
+    property bool configJson: false      // editarlo como JSON en vez de formulario
 
     function colorDeEstado(e) {
         switch (e) {
@@ -50,7 +52,11 @@ Rectangle {
         if (page.abierto === "") return
         if (page.vista === "registro") page.textoVista = page.pl.registroUi(page.abierto)
         else if (page.vista === "codigo") page.textoVista = page.pl.codigo(page.abierto)
-        else if (page.vista === "config") page.textoVista = page.pl.configTexto(page.abierto)
+        else if (page.vista === "config") {
+            page.textoVista = page.pl.configTexto(page.abierto)
+            try { const c = JSON.parse(page.textoVista); page.configForm = (c && typeof c === "object" && !Array.isArray(c)) ? c : ({}) }
+            catch (e) { page.configForm = ({}); page.configJson = true }
+        }
     }
     function corriendo() {
         let n = 0
@@ -362,9 +368,32 @@ Rectangle {
                                     }
                                 }
 
+                                // Su panel (plugin.panel): lo primero que se usa.
+                                Panel {
+                                    visible: !!tarjeta.modelData.panel
+                                    Layout.fillWidth: true
+                                    padding: 12
+                                    implicitHeight: panelCol.implicitHeight + 2 * padding
+                                    ColumnLayout {
+                                        id: panelCol
+                                        anchors.fill: parent
+                                        spacing: 6
+                                        Text {
+                                            text: tarjeta.modelData.panel && tarjeta.modelData.panel.titulo ? tarjeta.modelData.panel.titulo : "Panel"
+                                            color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold }
+                                        }
+                                        PanelPlugin {
+                                            Layout.fillWidth: true
+                                            pluginId: tarjeta.modelData.id
+                                            controles: tarjeta.modelData.panel ? tarjeta.modelData.panel.controles : []
+                                            corriendo: tarjeta.modelData.estado === "corriendo"
+                                        }
+                                    }
+                                }
+
                                 Text {
                                     visible: (tarjeta.modelData.controles || []).length > 0
-                                    text: "Controles"; color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold }
+                                    text: tarjeta.modelData.panel ? "Más acciones" : "Acciones"; color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold }
                                 }
                                 Repeater {
                                     model: tarjeta.modelData.controles || []
@@ -374,25 +403,52 @@ Rectangle {
                                         readonly property var resp: page.respuestas[tarjeta.modelData.id + "/" + modelData.nombre]
                                         Layout.fillWidth: true
                                         spacing: 4
+                                        // Lo escrito en cada parámetro (clave -> texto); se arma el JSON al tocar.
+                                        property var escrito: ({})
+                                        readonly property var claves: Object.keys(modelData.parametros || {})
+                                        function argumentos() {
+                                            const o = {}
+                                            for (const k of ctl.claves) {
+                                                const t = (ctl.escrito[k] || "").trim()
+                                                if (t === "") continue
+                                                // Un número, una lista o sí/no se mandan como tales; lo demás, como texto.
+                                                try { o[k] = JSON.parse(t) } catch (e) { o[k] = t }
+                                            }
+                                            return JSON.stringify(o)
+                                        }
                                         RowLayout {
                                             Layout.fillWidth: true
                                             spacing: 8
                                             GlassButton {
                                                 compact: true; text: ctl.modelData.nombre; icon: "▶"
                                                 enabled: tarjeta.modelData.estado === "corriendo"
-                                                onClicked: page.pl.controlUi(tarjeta.modelData.id, ctl.modelData.nombre, args.text)
-                                            }
-                                            TextField {
-                                                id: args
-                                                Layout.fillWidth: true
-                                                visible: Object.keys(ctl.modelData.parametros || {}).length > 0
-                                                placeholderText: JSON.stringify(ctl.modelData.parametros || {})
-                                                color: Theme.text; font.pixelSize: 11
+                                                onClicked: page.pl.controlUi(tarjeta.modelData.id, ctl.modelData.nombre, ctl.argumentos())
                                             }
                                             Text {
-                                                Layout.fillWidth: !args.visible
+                                                Layout.fillWidth: true
                                                 text: ctl.modelData.descripcion || ""
                                                 color: Theme.textDim; font.pixelSize: 11; elide: Text.ElideRight
+                                            }
+                                        }
+                                        Repeater {
+                                            model: ctl.claves
+                                            delegate: RowLayout {
+                                                id: par
+                                                required property string modelData
+                                                readonly property var ejemplo: ctl.modelData.parametros[modelData]
+                                                Layout.fillWidth: true
+                                                Layout.leftMargin: 24
+                                                spacing: 8
+                                                Text { text: par.modelData; color: Theme.textDim; font.pixelSize: 11; Layout.preferredWidth: 120; elide: Text.ElideRight }
+                                                TextField {
+                                                    Layout.fillWidth: true
+                                                    color: Theme.text; font.pixelSize: 11
+                                                    // Un ejemplo numérico es el valor de fábrica; un texto, cómo se escribe.
+                                                    placeholderText: typeof par.ejemplo === "string" ? par.ejemplo : JSON.stringify(par.ejemplo)
+                                                    onTextEdited: { const e = ctl.escrito; e[par.modelData] = text; ctl.escrito = e }
+                                                    onAccepted: page.pl.controlUi(tarjeta.modelData.id, ctl.modelData.nombre, ctl.argumentos())
+                                                    background: Rectangle { color: Theme.field; radius: 6 }
+                                                }
                                             }
                                         }
                                         Text {
@@ -503,12 +559,63 @@ Rectangle {
                                         }
                                     }
                                 }
-                                Text {
+                                RowLayout {
                                     Layout.fillWidth: true
-                                    text: "Lo que el plugin lee en plugin.config (número de serie, IP, modo…). Al guardar se le pasa en vivo."
-                                    color: Theme.textDim; font.pixelSize: 11; wrapMode: Text.WordWrap
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: "Lo que el plugin lee en plugin.config (número de serie, IP, modo…). Al guardar se le pasa en vivo."
+                                        color: Theme.textDim; font.pixelSize: 11; wrapMode: Text.WordWrap
+                                    }
+                                    GlassButton {
+                                        compact: true; text: page.configJson ? "Como formulario" : "Como JSON"
+                                        onClicked: {
+                                            if (page.configJson) { try { page.configForm = JSON.parse(configArea.text) } catch (e) { Studio.notify("El JSON no es válido", "error"); return } }
+                                            else configArea.text = JSON.stringify(page.configForm, null, 2)
+                                            page.configJson = !page.configJson
+                                        }
+                                    }
+                                }
+                                // Un campo por clave, según lo que tenga: sí/no, número, texto (lo demás, en JSON).
+                                Repeater {
+                                    model: page.configJson ? [] : Object.keys(page.configForm)
+                                    delegate: RowLayout {
+                                        id: cf
+                                        required property string modelData
+                                        readonly property var v: page.configForm[modelData]
+                                        readonly property string clase: typeof v === "boolean" ? "si_no" : typeof v === "number" ? "numero" : typeof v === "string" ? "texto" : "json"
+                                        Layout.fillWidth: true
+                                        spacing: 8
+                                        Text { text: cf.modelData; color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 200; elide: Text.ElideRight }
+                                        Toggle {
+                                            visible: cf.clase === "si_no"
+                                            checked: cf.v === true
+                                            onToggled: (quiero) => { const c = page.configForm; c[cf.modelData] = quiero; page.configForm = Object.assign({}, c) }
+                                        }
+                                        TextField {
+                                            visible: cf.clase !== "si_no"
+                                            Layout.fillWidth: true
+                                            color: Theme.text; font { pixelSize: 12; family: cf.clase === "json" ? Theme.mono : Theme.font }
+                                            text: cf.clase === "json" ? JSON.stringify(cf.v) : String(cf.v)
+                                            validator: cf.clase === "numero" ? numValido : null
+                                            DoubleValidator { id: numValido; locale: "C" }
+                                            onEditingFinished: {
+                                                const c = page.configForm
+                                                if (cf.clase === "numero") c[cf.modelData] = Number(text)
+                                                else if (cf.clase === "json") { try { c[cf.modelData] = JSON.parse(text) } catch (e) { Studio.notify("«" + cf.modelData + "»: JSON no válido", "error"); return } }
+                                                else c[cf.modelData] = text
+                                                page.configForm = Object.assign({}, c)
+                                            }
+                                            background: Rectangle { color: Theme.field; radius: 6 }
+                                        }
+                                    }
+                                }
+                                Text {
+                                    visible: !page.configJson && Object.keys(page.configForm).length === 0
+                                    text: "Este plugin no tiene configuración."
+                                    color: Theme.textFaint; font.pixelSize: 12
                                 }
                                 ScrollView {
+                                    visible: page.configJson
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: 220
                                     TextArea {
@@ -523,7 +630,7 @@ Rectangle {
                                     GlassButton {
                                         compact: true; text: "Guardar configuración"; active: true
                                         onClicked: {
-                                            const e = page.pl.guardarConfig(tarjeta.modelData.id, configArea.text)
+                                            const e = page.pl.guardarConfig(tarjeta.modelData.id, page.configJson ? configArea.text : JSON.stringify(page.configForm, null, 2))
                                             Studio.notify(e !== "" ? e : "Configuración guardada", e !== "" ? "error" : "info")
                                         }
                                     }

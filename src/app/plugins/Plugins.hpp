@@ -42,6 +42,7 @@
 #include <filesystem>
 #include <functional>
 #include <map>
+#include <set>
 #include <memory>
 #include <string>
 #include <vector>
@@ -122,6 +123,13 @@ class Plugins : public QObject {
     /// Corre `codigo` con el Python del programa, el SDK y las bibliotecas de herramientas (pyusb,
     /// hidapi, pyserial); `listo` con lo que imprima como JSON (o {error}).
     void correrPython(const QString& codigo, const QStringList& args, std::function<void(json)> listo);
+    /// El panel del plugin (lo que declaró con plugin.panel): {titulo, controles} o null si no tiene.
+    json panel(const std::string& id) const;
+    /// Los valores del panel (lo del operador, guardado, y lo que mostró el plugin).
+    json valores(const std::string& id) const;
+    /// Mueve un control del panel (o toca un botón) como si fuera el operador. "" o el error.
+    std::string ponerValor(const std::string& id, const std::string& clave, const json& valor);
+
     /// Pone una tarjeta de video del plugin en una entrada (grafo).
     std::string ponerTarjeta(const std::string& id, const std::string& tarjeta, const std::string& entrada, const json& parametros,
                              json* hecho);
@@ -162,6 +170,9 @@ class Plugins : public QObject {
     Q_INVOKABLE QVariantList secretosUi(const QString& id) const;
     /// Guarda una clave del plugin, cifrada (Credenciales/plugin-<id>-<clave>). "" o el error.
     Q_INVOKABLE QString guardarSecreto(const QString& id, const QString& nombre, const QString& valor);
+    /// El panel: los valores de ahora (cambian por `valoresCambio(id)`) y mover un control.
+    Q_INVOKABLE QVariantMap valoresUi(const QString& id) const;
+    Q_INVOKABLE QString panelUi(const QString& id, const QString& clave, const QVariant& valor);
 
    signals:
     void cambio();
@@ -169,6 +180,8 @@ class Plugins : public QObject {
     void equiposCambio();
     void respuesta(const QString& id, const QString& control, const QString& texto, bool ok);
     void aviso(const QString& texto, bool ok);
+    /// Cambió algún valor del panel de un plugin (va aparte de `cambio`: puede ser 10 veces por segundo).
+    void valoresCambio(const QString& id);
     /// Un evento de un plugin (para los disparadores).
     void evento(const QString& plugin, const QString& canal, const QString& datosJson);
 
@@ -194,6 +207,8 @@ class Plugins : public QObject {
     json leerActivos() const;
     void avisar(const std::string& texto, const std::string& prioridad) const;
     void escribirRegistro(const std::string& id, const QByteArray& datos);
+    json& valoresDe(const std::string& id) const;
+    void guardarValores();
 
     AppRuntime& rt_;
     QPointer<video::VideoGrafos> video_;
@@ -210,6 +225,10 @@ class Plugins : public QObject {
     std::map<std::string, json> pruebas_;
     json equipos_;
     bool buscandoEquipos_ = false;
+    /// id -> valores del panel (Plugins/<id>/.panel.json; se cargan al primer uso).
+    mutable std::map<std::string, json> valores_;
+    std::set<std::string> valoresSucios_;
+    QTimer* guardarValoresT_ = nullptr;
 };
 
 } // namespace ba::app::plugins
