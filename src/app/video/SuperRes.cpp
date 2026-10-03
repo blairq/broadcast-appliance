@@ -30,6 +30,17 @@ SuperRes::SuperRes(fs::path dataRoot, VideoGrafos* video, QObject* parent) : QOb
     std::error_code ec;
     fs::create_directories(carpetaModelos(), ec);
     trabajo_ = {{"corriendo", false}};
+    // GStreamer arranca en otro hilo: hasta que registra los elementos, no hay
+    // motores. Se mira cada 2 s hasta que aparecen (la interfaz se actualiza).
+    auto* t = new QTimer(this);
+    t->setInterval(2000);
+    connect(t, &QTimer::timeout, this, [this, t]() {
+        if (motores().isEmpty()) return;
+        t->stop();
+        t->deleteLater();
+        emit cambio();
+    });
+    t->start();
 }
 
 SuperRes::~SuperRes() {
