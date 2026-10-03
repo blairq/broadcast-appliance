@@ -71,6 +71,17 @@ RepoHf leerRepoHf(const std::string& cuerpo);
 std::string shaBlobGit(const std::filesystem::path& archivo);
 /// La carpeta de un repo dentro de Modelos/: "BlairQ/x" -> "BlairQ__x".
 std::string carpetaDeRepo(const std::string& repo);
+
+/// La huella del esquema de una herramienta, como la escribe el modelo.json
+/// del repo («esquema_huella_metodo»): sha256 del inputSchema en JSON con las
+/// claves ordenadas, sin espacios, UTF-8; los primeros 16 hex.
+std::string huellaEsquema(const nlohmann::json& inputSchema);
+
+/// Compara lo que dice el modelo.json (con qué herramientas se entrenó el
+/// modelo) con las herramientas de la app de hoy ({nombre: inputSchema}).
+/// Devuelve {entrenadas, iguales, cambiaron: [..], no_estan: [..],
+/// herramientas_app, sin_entrenar, cobertura (0..1), por_categoria, ...}.
+nlohmann::json compararFicha(const nlohmann::json& modeloJson, const nlohmann::json& herramientasApp);
 /// La plataforma como la nombra el catálogo: mac-arm64, linux-x64, win-x64.
 std::string plataformaCatalogo();
 
@@ -99,6 +110,9 @@ class ModelosLocales : public QObject {
     Q_PROPERTY(bool alArrancar READ alArrancar WRITE setAlArrancar NOTIFY cambio)
     /// Las últimas pruebas (frase, herramienta, prob, ms), la más nueva primero.
     Q_PROPERTY(QVariantList pruebas READ pruebas NOTIFY pruebasCambio)
+    /// Con qué herramientas se entrenó cada modelo (su modelo.json) comparado con
+    /// las de la app de hoy: repo -> {estado: buscando|ok|sin_ficha|error, ...}.
+    Q_PROPERTY(QVariantMap fichas READ fichas NOTIFY fichasCambio)
 
    public:
     using json = nlohmann::json;
@@ -139,6 +153,14 @@ class ModelosLocales : public QObject {
     /// Preguntarle algo de una imagen (ruta o file:// URL): va a `pruebas`.
     Q_INVOKABLE void probarVision(const QString& imagen, const QString& pregunta);
     Q_INVOKABLE void abrirCarpeta() const;
+    /// Busca el modelo.json del repo (el bajado, el guardado o el de Hugging
+    /// Face) y lo compara con las herramientas de hoy; el resultado va a `fichas`.
+    Q_INVOKABLE void revisarHerramientas(const QString& repo, bool forzar = false);
+    QVariantMap fichas() const { return fichas_; }
+    /// La ficha de un repo ya revisada (o vacía).
+    json ficha(const QString& repo) const;
+    /// Quién dice las herramientas de hoy ({nombre: inputSchema}); lo pone GuiMode.
+    void setHerramientas(std::function<json()> f) { herramientas_ = std::move(f); }
 
     /// Para el resto de la app: qué herramienta atiende la frase. Contesta
     /// {"herramienta","derivar","prob","ms"} o {"error"}; sin modelo listo,
@@ -185,6 +207,7 @@ class ModelosLocales : public QObject {
     void cambio();
     void descargaCambio();
     void pruebasCambio();
+    void fichasCambio();
     void notify(const QString& text, const QString& kind);
 
    private:
@@ -222,6 +245,12 @@ class ModelosLocales : public QObject {
         std::function<void(const QString&)> delta;
     };
     std::map<std::int64_t, Espera> esperas_;
+
+    QVariantMap fichas_;
+    std::map<QString, json> fichasJson_;
+    std::function<json()> herramientas_;
+    std::vector<std::thread> hilosFicha_;
+    void ponerFicha(const QString& repo, json ficha);
 
     std::thread hiloDescarga_;
     std::atomic<bool> cancelar_{false};

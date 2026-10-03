@@ -223,7 +223,12 @@ Rectangle {
                 Repeater {
                     model: ml.catalogo
                     delegate: Rectangle {
+                        id: modeloFila
                         required property var modelData
+                        // Con qué herramientas se entrenó (su modelo.json), contra las de hoy.
+                        readonly property var ficha: modelData.tipo === "reactivo" ? (ml.fichas[modelData.repo] || null) : null
+                        property bool verFicha: false
+                        Component.onCompleted: if (modelData.tipo === "reactivo") ml.revisarHerramientas(modelData.repo, false)
                         // Las voces que contestan van en su propia sección.
                         visible: modelData.tipo !== "tts"
                         Layout.fillWidth: true
@@ -253,11 +258,92 @@ Rectangle {
                                         : modelData.tipo === "vad"
                                           ? "Detector de voz (recorta los silencios) · " + modelData.licencia
                                         : modelData.formato.toUpperCase() + " · " + modelData.tamano_gb + " GB · " +
-                                          modelData.herramientas + " herramientas · " +
+                                          (modeloFila.ficha && modeloFila.ficha.estado === "ok" ? "" : modelData.herramientas + " herramientas (según el catálogo) · ") +
                                           (modelData.precision !== undefined
                                            ? "precisión " + modelData.precision + "% · examen " + modelData.examen + "% · "
                                            : "llamada nativa (v2) · ") + modelData.fecha
                                     color: Theme.textDim; font.pixelSize: 11
+                                }
+                                // --- Herramientas con las que se entrenó ---
+                                RowLayout {
+                                    visible: !!modeloFila.ficha
+                                    Layout.fillWidth: true
+                                    spacing: 8
+                                    Text {
+                                        Layout.fillWidth: true
+                                        wrapMode: Text.WordWrap
+                                        font.pixelSize: 11
+                                        readonly property var f: modeloFila.ficha || ({})
+                                        readonly property int problemas: f.estado === "ok" ? (f.cambiaron.length + f.no_estan.length) : 0
+                                        color: f.estado === "ok" ? (problemas > 0 ? Theme.amber : Theme.ok)
+                                             : f.estado === "error" ? Theme.live : Theme.textFaint
+                                        text: {
+                                            if (f.estado === "buscando") return "Revisando con qué herramientas se entrenó…"
+                                            if (f.estado === "sin_ficha") return "Sin modelo.json: no se sabe con qué herramientas se entrenó" + (f.nota ? " — " + f.nota : ".")
+                                            if (f.estado === "error") return "No se pudo revisar: " + (f.nota || "")
+                                            if (f.estado !== "ok") return ""
+                                            let t = "Entrenado con " + f.entrenadas + " herramientas"
+                                            if (f.catalogo_dice !== undefined && String(f.catalogo_dice) !== String(f.entrenadas))
+                                                t += " (el catálogo decía " + f.catalogo_dice + ")"
+                                            t += " · " + f.iguales + " iguales a las de hoy"
+                                            if (f.cambiaron.length) t += " · " + f.cambiaron.length + " cambiaron"
+                                            if (f.no_estan.length) t += " · " + f.no_estan.length + " ya no existen"
+                                            t += " · conoce " + f.iguales + " de las " + f.herramientas_app + " del sistema (" + Math.round(f.cobertura * 100) + " %)"
+                                            return t
+                                        }
+                                    }
+                                    GlassButton {
+                                        compact: true
+                                        visible: !!modeloFila.ficha && modeloFila.ficha.estado === "ok"
+                                        text: modeloFila.verFicha ? "Ocultar" : "Ver cuáles"
+                                        onClicked: modeloFila.verFicha = !modeloFila.verFicha
+                                    }
+                                    GlassButton {
+                                        compact: true
+                                        visible: !!modeloFila.ficha && modeloFila.ficha.estado !== "buscando"
+                                        text: "↻"
+                                        onClicked: ml.revisarHerramientas(modeloFila.modelData.repo, true)
+                                        ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Volver a buscar el modelo.json en Hugging Face"
+                                    }
+                                }
+                                ColumnLayout {
+                                    visible: modeloFila.verFicha && !!modeloFila.ficha && modeloFila.ficha.estado === "ok"
+                                    Layout.fillWidth: true
+                                    spacing: 4
+                                    readonly property var f: modeloFila.ficha && modeloFila.ficha.estado === "ok" ? modeloFila.ficha : null
+                                    Text {
+                                        Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                        visible: !!parent.f
+                                        text: !parent.f ? "" : "Por tema: " + Object.keys(parent.f.por_categoria).sort((a, b) => parent.f.por_categoria[b] - parent.f.por_categoria[a])
+                                              .map(k => k + " " + parent.f.por_categoria[k]).join(" · ")
+                                        color: Theme.textDim; font.pixelSize: 11
+                                    }
+                                    Text {
+                                        Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                        visible: !!parent.f && parent.f.cambiaron.length > 0
+                                        text: !parent.f ? "" : "Cambiaron desde el entrenamiento (las puede llamar mal): " + parent.f.cambiaron.join(", ")
+                                        color: Theme.amber; font.pixelSize: 11
+                                    }
+                                    Text {
+                                        Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                        visible: !!parent.f && parent.f.no_estan.length > 0
+                                        text: !parent.f ? "" : "Ya no existen en el sistema: " + parent.f.no_estan.join(", ")
+                                        color: Theme.amber; font.pixelSize: 11
+                                    }
+                                    Text {
+                                        Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                        visible: !!parent.f
+                                        text: !parent.f ? "" : "Las que conoce tal cual: " + parent.f.lista.join(", ")
+                                        color: Theme.textFaint; font { pixelSize: 10; family: Theme.mono }
+                                    }
+                                    Text {
+                                        Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                        visible: !!parent.f
+                                        text: !parent.f ? "" : "Versión " + (parent.f.build || "?") + " · " + (parent.f.fecha || "") +
+                                              (parent.f.inventario_entrenamiento ? " · el sistema tenía " + parent.f.inventario_entrenamiento.cuantas + " herramientas al entrenarlo" : "") +
+                                              " · de " + parent.f.de + (parent.f.nota ? ". " + parent.f.nota : "")
+                                        color: Theme.textFaint; font.pixelSize: 10
+                                    }
                                 }
                             }
                             Text {

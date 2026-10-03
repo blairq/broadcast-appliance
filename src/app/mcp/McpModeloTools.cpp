@@ -41,8 +41,17 @@ json aJson(const QVariantMap& m) {
 
 json estado(agent::ModelosLocales& ml, agent::Voz* voz) {
     json catalogo = json::array();
-    for (const QVariant& v : ml.catalogo())
-        catalogo.push_back(aJson(v.toMap()));
+    for (const QVariant& v : ml.catalogo()) {
+        json e = aJson(v.toMap());
+        // Con qué herramientas se entrenó (su modelo.json) contra las de hoy.
+        // Sin la lista entera de las que conoce: con «iguales» alcanza.
+        json f = ml.ficha(v.toMap().value("repo").toString());
+        if (!f.empty()) {
+            f.erase("lista");
+            e["entrenamiento"] = f;
+        }
+        catalogo.push_back(e);
+    }
     QVariantMap info = ml.info();
     info.remove("pruebas"); // las frases de prueba: largas y no hacen falta acá
     json r{{"estado", ml.estado().toStdString()},
@@ -109,7 +118,8 @@ void McpService::registerModeloTools() {
         t.description = "El modelo chico que corre en esta maquina (elige la herramienta para una frase "
                         "de cabina y, si trae vision, mira imagenes) y la voz (push-to-talk): cual esta "
                         "cargado, ajustes, descarga en curso, el catalogo para esta plataforma (cuales "
-                        "estan bajados) y el estado de la voz.";
+                        "estan bajados, y con cuantas herramientas se entreno cada uno —`entrenamiento`: segun su "
+                        "modelo.json, cuantas siguen iguales, cuales cambiaron o ya no existen—) y el estado de la voz.";
         t.run = [&ml, voz](const json&, Done done) { done(ToolResult().data(estado(ml, voz))); };
         core_.addTool(std::move(t));
     }

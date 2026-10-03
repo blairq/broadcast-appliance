@@ -110,6 +110,8 @@ void vivo(const char* binarios, const char* repo) {
 
 } // namespace
 
+using json = nlohmann::json;
+
 int main(int argc, char** argv) {
     QCoreApplication app(argc, argv);
     // Recortada de la API real (BlairQ/broadcast-reactivo-qwen3.5-4b-mtp-ud-mlx-q4).
@@ -141,6 +143,23 @@ int main(int argc, char** argv) {
     CHECK(lfs, "archivo LFS: tamano y sha256");
     CHECK(chico, "archivo chico: blobId, sin sha256");
     CHECK(leerRepoHf("no es json").archivos.empty(), "una respuesta rota no da archivos");
+
+    // modelo.json: la huella del esquema es la de la fábrica (Python, json.dumps
+    // con sort_keys, sin espacios, UTF-8 sin escapar). Valor calculado allá.
+    const json esquema = json::parse(R"j({"type":"object","required":["nombre"],"properties":{
+        "nombre":{"type":"string","description":"la cámara (año, señal)"},
+        "nivel":{"type":"number","minimum":0.5,"maximum":12}}})j");
+    CHECK(huellaEsquema(esquema) == "8e9be2ddb688cf7d", "huella del esquema igual a la de Python (con tildes y decimales)");
+    const json mj{{"modelo", {{"build", "v3-4b"}}},
+                  {"endpoints", json::array({{{"nombre", "a"}, {"esquema_huella", huellaEsquema(esquema)}, {"categoria", "audio"}},
+                                             {{"nombre", "b"}, {"esquema_huella", "0000000000000000"}, {"categoria", "audio"}},
+                                             {{"nombre", "c"}, {"esquema_huella", "1111111111111111"}, {"categoria", "sala"}}})}};
+    const json hoy{{"a", esquema}, {"b", esquema}, {"d", esquema}, {"e", esquema}};
+    const json f = compararFicha(mj, hoy);
+    CHECK(f["entrenadas"] == 3 && f["iguales"] == 1, "una igual");
+    CHECK(f["cambiaron"] == json::array({"b"}) && f["no_estan"] == json::array({"c"}), "una cambió y otra ya no está");
+    CHECK(f["herramientas_app"] == 4 && f["sin_entrenar"] == 2, "de las 4 de hoy, 2 no las vio nunca");
+    CHECK(f["por_categoria"]["audio"] == 2 && f["build"] == "v3-4b", "por tema y versión");
 
     // Los mismos valores que `printf 'hola\n' | git hash-object --stdin`.
     CHECK(shaBlobGit(escribir("blob-hola.txt", "hola\n")) == "5c1b14949828006ed75a3e8858957f86a2f7e2eb",

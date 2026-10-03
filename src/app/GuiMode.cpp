@@ -30,6 +30,7 @@
 #include <cstdio>
 
 #include "agent/AgentViewModel.hpp"
+#include "agent/ModelosLocales.hpp"
 #include "AppRuntime.hpp"
 #include "mcp/McpService.hpp"
 #include <QElapsedTimer>
@@ -146,6 +147,15 @@ int runGui(int argc, char** argv) {
             return engine.rootObjects().isEmpty() ? nullptr
                                                   : qobject_cast<QQuickWindow*>(engine.rootObjects().first());
         });
+        // Con qué herramientas se entrenó cada modelo local (su modelo.json) se
+        // compara contra las de hoy: el esquema de cada una, tal cual lo ve el modelo.
+        if (auto* ml = qobject_cast<agent::ModelosLocales*>(vm.modelos())) {
+            ml->setHerramientas([&mcpService]() {
+                nlohmann::json m = nlohmann::json::object();
+                for (const auto& t : mcpService.core().tools()) m[t.name] = t.inputSchema;
+                return m;
+            });
+        }
         auto* agentVm = static_cast<agent::AgentViewModel*>(vm.agent());
         agentVm->setSystemPrompt([&mcpService]() { return mcpService.agentPrompt(); });
         agentVm->setMcpReady([&mcpService]() { return mcpService.port() != 0; });
