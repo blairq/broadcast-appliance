@@ -476,6 +476,7 @@ def main():
     total = args.pasos or int(len(E) // args.lote * args.epocas)
     rnd = random.Random(args.semilla)
     orden, orden_t, t0 = [], [], time.time()
+    salteados = 0
     for paso in range(total):
         if len(orden) < args.lote:
             orden = list(range(len(E)))
@@ -487,19 +488,26 @@ def main():
         for g_ in opt.param_groups:
             g_["lr"] = (args.lr * (paso + 1) / calor if paso < calor else
                         args.lr * 0.5 * (1 + math.cos(math.pi * (paso - calor) / max(1, total - calor))))
-        perd, bien = lote_nombres(lote, grad=True)
-        # con --repartir la perdida queda en la placa de lm_head, no en la de la cabeza
-        n = bien[0][1].sum().clamp(min=1).to(perd.device)
-        (perd / n).backward()
-        if TX:
-            if len(orden_t) < args.lote_texto:
-                orden_t = list(range(len(TX)))
-                rnd.shuffle(orden_t)
-            lt, orden_t = [TX[i] for i in orden_t[:args.lote_texto]], orden_t[args.lote_texto:]
-            perd_t, bien_t = lote_texto(lt, grad=True)
-            n_t = bien_t[0][1].sum().clamp(min=1).to(perd_t.device)
-            (args.peso_texto * perd_t / n_t).backward()
-        opt.step()
+        # un lote que no entra en la placa (un estado del aparato muy largo) se SALTEA
+        # y se anota, en vez de tirar una corrida que va por el 80 %
+        try:
+            perd, bien = lote_nombres(lote, grad=True)
+            # con --repartir la perdida queda en la placa de lm_head, no en la de la cabeza
+            n = bien[0][1].sum().clamp(min=1).to(perd.device)
+            (perd / n).backward()
+            if TX:
+                if len(orden_t) < args.lote_texto:
+                    orden_t = list(range(len(TX)))
+                    rnd.shuffle(orden_t)
+                lt, orden_t = [TX[i] for i in orden_t[:args.lote_texto]], orden_t[args.lote_texto:]
+                perd_t, bien_t = lote_texto(lt, grad=True)
+                n_t = bien_t[0][1].sum().clamp(min=1).to(perd_t.device)
+                (args.peso_texto * perd_t / n_t).backward()
+            opt.step()
+        except torch.OutOfMemoryError:
+            salteados += 1
+            print(f"  paso {paso + 1}: sin memoria, lote salteado ({salteados} en total)", flush=True)
+            torch.cuda.empty_cache()
         opt.zero_grad(set_to_none=True)
         if (paso + 1) % 50 == 0:
             print(f"paso {paso + 1}/{total} · perdida nombres {(perd / n).item():.3f}"
