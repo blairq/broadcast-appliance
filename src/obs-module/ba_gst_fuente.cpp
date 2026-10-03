@@ -123,6 +123,10 @@ struct Fuente {
     bool conAudio = true;
     bool normalizar = true;
     bool ntpSync = true; ///< RTSP: usar la hora de captura del que manda (RTCP); si su reloj está mal, conviene apagarlo
+    /// La hora de la cámara estaba muy corrida (la entrada salía con segundos de
+    /// atraso): se dejó de usar sola, hasta que alguien vuelva a pedir ntp_sync.
+    bool ntpApagadoSolo = false;
+    std::uint64_t ntpMalDesde = 0;
     // Lo armado
     std::string error;
     GstElement* pipeline = nullptr;
@@ -363,7 +367,7 @@ void alPrepararOrigen(GstElement*, GstElement* origen, gpointer datos) {
     const std::string lat = std::to_string(std::max<std::int64_t>(f->latenciaMs, 20));
     if (g_object_class_find_property(k, "latency") != nullptr) gst_util_set_object_arg(G_OBJECT(origen), "latency", lat.c_str());
     if (g_object_class_find_property(k, "ntp-sync") != nullptr)
-        gst_util_set_object_arg(G_OBJECT(origen), "ntp-sync", f->ntpSync ? "true" : "false");
+        gst_util_set_object_arg(G_OBJECT(origen), "ntp-sync", f->ntpSync && !f->ntpApagadoSolo ? "true" : "false");
     if (g_object_class_find_property(k, "buffer-mode") != nullptr)
         gst_util_set_object_arg(G_OBJECT(origen), "buffer-mode", "synced");
 }
@@ -511,6 +515,7 @@ void actualizar(void* data, obs_data_t* s) {
     f->relojDominio = dominio;
     f->conAudio = audio;
     f->normalizar = normalizar;
+    if (ntpSync != f->ntpSync) f->ntpApagadoSolo = false; // lo pidieron de nuevo: se vuelve a probar
     f->ntpSync = ntpSync;
     f->latenciaMs = latencia;
     f->desfaseMs = desfase;
@@ -546,7 +551,8 @@ void* crear(obs_data_t* settings, obs_source_t* ctx) {
                          }
                          obs_data_set_int(o, "latencia_ms", x->latenciaMs);
                          obs_data_set_bool(o, "normalizado", x->normalizar);
-                         obs_data_set_bool(o, "ntp_sync", x->ntpSync);
+                         obs_data_set_bool(o, "ntp_sync", x->ntpSync && !x->ntpApagadoSolo);
+                         obs_data_set_bool(o, "ntp_apagado_solo", x->ntpApagadoSolo);
                          obs_data_set_int(o, "desfase_ms", x->desfaseMs);
                          obs_data_set_string(o, "formato", x->formato.c_str());
                          obs_data_set_string(o, "colorimetria", x->colorimetria.c_str());
@@ -600,6 +606,34 @@ void tic(void* data, float) {
             armar(f);
         }
         return;
+    }
+    // La hora de la cámara (RTCP) muy corrida: cada cuadro llega con mucho más
+    // adelanto que el colchón y la entrada sale con SEGUNDOS de atraso (pasa
+    // cuando la cámara se reinicia y pierde la hora). Sostenido 3 s: se deja de
+    // usar su hora y se rearma (la sincronía entre cámaras se mide aparte).
+    if (f->ntpSync && !f->ntpApagadoSolo && f->uri.rfind("rtsp", 0) == 0) {
+        double adelanto = 0;
+        std::uint64_t recibidos = 0;
+        {
+            std::lock_guard<std::mutex> lc(f->colaLock);
+            adelanto = f->adelantoMs;
+            recibidos = f->recibidos;
+        }
+        const double exceso = adelanto - static_cast<double>(f->latenciaMs + f->desfaseMs);
+        const std::uint64_t ahoraNs = os_gettime_ns();
+        if (recibidos > 60 && exceso > 400) {
+            if (f->ntpMalDesde == 0) f->ntpMalDesde = ahoraNs;
+            else if (ahoraNs - f->ntpMalDesde > 3'000'000'000ULL) {
+                blog(LOG_WARNING, "[ba-sources] fuente GStreamer: la hora de la cámara está corrida %.0f ms; se deja de usar (ntp-sync)", exceso);
+                f->ntpApagadoSolo = true;
+                f->ntpMalDesde = 0;
+                desarmar(f);
+                f->reintento = ahoraNs;
+                return;
+            }
+        } else {
+            f->ntpMalDesde = 0;
+        }
     }
     // El colchón: el último cuadro vencido se muestra; los vencidos de antes
     // se saltean (llegaron juntos, o la máquina se atrasó).

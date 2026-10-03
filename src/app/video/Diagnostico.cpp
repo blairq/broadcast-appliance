@@ -108,6 +108,12 @@ json diagnosticar(const json& e) {
         // El reloj del que manda corrido: los cuadros llegan con mucho más
         // adelanto que la latencia (o con atraso), y la entrada sale desfasada.
         const double adelanto = g.value("adelanto_ms", 0.0), lat = g.value("latencia_ms", 0.0) + g.value("desfase_ms", 0.0);
+        if (g.value("ntp_apagado_solo", false))
+            agregar(out, "info", "reloj",
+                    "la hora que mandaba «" + nombre + "» estaba muy corrida (la entrada salía con segundos de atraso): se dejó de "
+                    "usar sola",
+                    "poner en hora la cámara (NTP); para volver a usar su hora: `video_entrada_red {\"nombre\": \"" + nombre +
+                        "\", \"ntp_sync\": true}`");
         if (g.value("recibidos", 0.0) > 30 && adelanto - lat > 250)
             agregar(out, "aviso", "reloj",
                     "los cuadros llegan ~" + n0(adelanto - lat) + " ms antes de lo que deberían: la hora de captura que manda «" +
