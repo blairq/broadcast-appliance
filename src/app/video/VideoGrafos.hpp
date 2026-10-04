@@ -169,6 +169,10 @@ class VideoGrafos : public QObject {
     /// La demora que agreguen se compensa sola (el colchón atrasa el video igual).
     std::string filtrosAudio(const std::string& entrada, const nlohmann::json& filtros);
     nlohmann::json filtrosAudioDe(const std::string& entrada) const;
+    Q_INVOKABLE QVariantList filtrosAudioUi(const QString& entrada) const;
+    /// Agrega uno de los de uso común (compresor, pasa_altos, eco, volumen) al final.
+    Q_INVOKABLE QString agregarFiltroAudioUi(const QString& entrada, const QString& cual);
+    Q_INVOKABLE QString quitarFiltroAudioUi(const QString& entrada, int indice);
     std::string superresMotor(const std::string& entrada, const std::string& motor,
                               const std::string& modelo);
     Q_INVOKABLE QString superresMotorUi(const QString& entrada, const QString& motor, const QString& modelo);

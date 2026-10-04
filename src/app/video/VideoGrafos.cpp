@@ -1724,6 +1724,32 @@ json VideoGrafos::filtrosAudioDe(const std::string& entrada) const {
     return j.is_array() ? j : json::array();
 }
 
+QVariantList VideoGrafos::filtrosAudioUi(const QString& entrada) const {
+    return aVariant(filtrosAudioDe(entrada.toStdString())).toList();
+}
+
+QString VideoGrafos::agregarFiltroAudioUi(const QString& entrada, const QString& cual) {
+    static const std::map<std::string, json> kComunes{
+        {"compresor", {{"elemento", "audiodynamic"}, {"propiedades", {{"mode", "compressor"}, {"characteristics", "soft-knee"}, {"ratio", 0.5}, {"threshold", 0.25}}}}},
+        {"pasa_altos", {{"elemento", "audiocheblimit"}, {"propiedades", {{"mode", "high-pass"}, {"cutoff", 80.0}, {"poles", 4}}}}},
+        {"eco", {{"elemento", "audioecho"}, {"propiedades", {{"delay", 250000000}, {"max-delay", 500000000}, {"intensity", 0.3}, {"feedback", 0.2}}}}},
+        {"volumen", {{"elemento", "volume"}, {"propiedades", {{"volume", 1.5}}}}}};
+    const auto it = kComunes.find(cual.toStdString());
+    if (it == kComunes.end()) return "filtro desconocido";
+    json l = filtrosAudioDe(entrada.toStdString());
+    json f = it->second;
+    f["id"] = cual.toStdString() + std::to_string(l.size());
+    l.push_back(f);
+    return q(filtrosAudio(entrada.toStdString(), l));
+}
+
+QString VideoGrafos::quitarFiltroAudioUi(const QString& entrada, int indice) {
+    json l = filtrosAudioDe(entrada.toStdString());
+    if (indice < 0 || indice >= static_cast<int>(l.size())) return "no hay ese filtro";
+    l.erase(l.begin() + indice);
+    return q(filtrosAudio(entrada.toStdString(), l));
+}
+
 QString VideoGrafos::superresMotorUi(const QString& entrada, const QString& motor, const QString& modelo) {
     return q(superresMotor(entrada.toStdString(), motor.toStdString(), modelo.toStdString()));
 }

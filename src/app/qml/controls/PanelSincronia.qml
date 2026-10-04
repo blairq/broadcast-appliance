@@ -197,6 +197,47 @@ Popup {
                                     HoverHandler { id: hov }
                                 }
                             }
+                            // Lo que corre en su cadena de GStreamer (las tarjetas del grafo y el audio).
+                            Text {
+                                visible: (fila.g.filtros || []).length > 0
+                                Layout.fillWidth: true
+                                Layout.leftMargin: 170
+                                text: "En GStreamer: " + (fila.g.filtros || []).map(f => (f.audio ? "🔊 " : "") + f.elemento +
+                                          (f.ms > 0 ? " " + Number(f.ms).toFixed(0) + " ms" : "") + (f.andando === false ? " (no está)" : "")).join(" → ") +
+                                      (fila.g.compensacion_ms > 0 ? "  ·  audio y video atrasados " + fila.g.compensacion_ms + " ms juntos" : "")
+                                color: Theme.textFaint; font.pixelSize: 11; wrapMode: Text.WordWrap
+                            }
+                            // Los filtros de audio de la entrada.
+                            RowLayout {
+                                id: filaAudio
+                                Layout.leftMargin: 170
+                                spacing: 6
+                                property var lista: pop.vg.filtrosAudioUi(fila.modelData.entrada)
+                                function refrescar() { lista = pop.vg.filtrosAudioUi(fila.modelData.entrada) }
+                                Text { text: "Audio:"; color: Theme.textDim; font.pixelSize: 11 }
+                                Repeater {
+                                    model: filaAudio.lista
+                                    delegate: GlassButton {
+                                        required property var modelData
+                                        required property int index
+                                        compact: true
+                                        text: modelData.elemento + "  ✕"
+                                        ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Sacar este filtro de audio"
+                                        onClicked: { pop.avisar(pop.vg.quitarFiltroAudioUi(fila.modelData.entrada, index), "Filtro sacado"); filaAudio.refrescar() }
+                                    }
+                                }
+                                ComboBox {
+                                    model: [ { t: "+ filtro de audio…", v: "" }, { t: "Compresor", v: "compresor" }, { t: "Pasa altos (80 Hz)", v: "pasa_altos" },
+                                             { t: "Eco", v: "eco" }, { t: "Volumen x1,5", v: "volumen" } ]
+                                    textRole: "t"
+                                    implicitWidth: 170
+                                    onActivated: (i) => {
+                                        const v = model[i].v
+                                        if (v) { pop.avisar(pop.vg.agregarFiltroAudioUi(fila.modelData.entrada, v), "Filtro agregado (la demora se compensa sola)"); filaAudio.refrescar() }
+                                        currentIndex = 0
+                                    }
+                                }
+                            }
                             Repeater {
                                 model: fila.modelData.diagnostico || []
                                 delegate: Text {
