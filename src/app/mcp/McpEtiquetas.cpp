@@ -624,6 +624,8 @@ const Fila kPropias[] = {
     {"superres_plugin_elemento", "crear plugin propio elemento gstreamer superresolucion tensorrt cuda memoria gpu contrato"},
     {"superres_plugin_borrar", "borrar desinstalar plugin superresolucion"},
     {"superres_destilar", "destilar destilacion entrenar red propia maestro esrgan imitar camara superresolucion"},
+    {"entrada_control", "control evento entrada gstreamer cadena propagar efecto senal activar"},
+    {"superres_programador", "programador superresolucion preview programa activar reposo camaras gpu capacidad"},
     {"entrada_filtros_audio", "audio filtros entrada plugin python compresor ecualizador eco gstreamer cadena"},
     {"superres_runtime_gpu", "gpu placa nvidia amd intel cuda tensorrt rocm migraphx openvino directml runtime onnx"},
     {"superres_runtime_gpu_instalar", "bajar instalar runtime gpu nvidia cuda tensorrt amd rocm intel openvino"},

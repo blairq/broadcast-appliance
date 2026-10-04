@@ -174,6 +174,27 @@ class VideoGrafos : public QObject {
     /// La demora que agreguen se compensa sola (el colchón atrasa el video igual).
     std::string filtrosAudio(const std::string& entrada, const nlohmann::json& filtros);
     nlohmann::json filtrosAudioDe(const std::string& entrada) const;
+
+    // --- Canal de control de las entradas de GStreamer ------------------------------------
+    /// Manda `control` (un objeto plano) a la cadena de GStreamer de la entrada como
+    /// evento estándar «ba/control» (personalizado, hacia abajo, fuera de banda): cada
+    /// elemento que lo entiende lo usa y todos lo dejan pasar. La entrada lo recuerda
+    /// y lo vuelve a mandar si se rearma. "" o el error.
+    std::string controlEntrada(const std::string& entrada, const nlohmann::json& control);
+
+    // --- Programador de superresolución ---------------------------------------------------
+    /// Con varias cámaras, las redes de todas quedan cargadas y calientes, pero
+    /// solo trabajan las que se ven grandes: el programador mira el programa y el
+    /// preview (la escena armada para el próximo take) cada 250 ms y manda por el
+    /// canal de control `superres` = activo (hasta `max_activas`, por prioridad:
+    /// programa, después preview, más grande primero), barato (se ve grande pero no
+    /// tiene turno) o reposo (no se ve, o se ve más chica que la cámara: la red no
+    /// suma nada). Se prende al pasar a preview: la transición pasa fuera del aire.
+    /// Configuración: {activo, max_activas, transicion_ms}; estado por entrada.
+    nlohmann::json programador() const;
+    std::string configurarProgramador(const nlohmann::json& cambios);
+    Q_INVOKABLE QVariantMap programadorUi() const;
+    Q_INVOKABLE QString configurarProgramadorUi(const QVariantMap& cambios);
     Q_INVOKABLE QVariantList filtrosAudioUi(const QString& entrada) const;
     /// Agrega uno de los de uso común (compresor, pasa_altos, eco, volumen) al final.
     Q_INVOKABLE QString agregarFiltroAudioUi(const QString& entrada, const QString& cual);
@@ -301,6 +322,11 @@ class VideoGrafos : public QObject {
 
    private:
     ResolverPlugin resolverPlugin_;
+    void evaluarSuperres();
+    QTimer programadorTimer_;
+    nlohmann::json programador_ = {{"activo", true}, {"max_activas", 3}, {"transicion_ms", 400}};
+    nlohmann::json estadoProgramador_ = nlohmann::json::object();
+    std::map<std::string, std::string> modoSr_; ///< lo último mandado a cada entrada
     void aplicar(const std::string& entrada);
     /// Las tarjetas que cuelgan en fila de la entrada y son de imagen (color,
     /// croma, recorte, superresolución, módulos de GStreamer) pasan a la cadena

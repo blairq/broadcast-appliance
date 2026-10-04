@@ -14,6 +14,7 @@
 #include "InputSpecs.hpp"
 
 #include <obs.h>
+#include <graphics/matrix4.h>
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -186,6 +187,11 @@ VideoGrafos::VideoGrafos(AppRuntime& rt, std::filesystem::path dataRoot, QObject
     connect(&revision_, &QTimer::timeout, this, &VideoGrafos::sincronizar);
     revision_.start();
     QTimer::singleShot(0, this, &VideoGrafos::sincronizar);
+    // El programador de superresolución (programa / preview): rápido, para que
+    // la red se prenda apenas una cámara pasa a preview.
+    programadorTimer_.setInterval(250);
+    connect(&programadorTimer_, &QTimer::timeout, this, &VideoGrafos::evaluarSuperres);
+    programadorTimer_.start();
     // El catálogo de GStreamer, en un hilo: iniciarlo revisa sus plugins (la
     // primera vez, segundos) y no puede trabar la interfaz.
     QFile f(QStringLiteral(":/video/gst-modulos.json"));
@@ -1499,6 +1505,7 @@ json VideoGrafos::estadoEntrada(const std::string& entrada) const {
         out["tarjetas_en_gstreamer"] = l;
     }
     if (!medidas.empty()) out["demoras_tarjetas_ms"] = medidas;
+    if (estadoProgramador_.contains(entrada)) out["superres_programador"] = estadoProgramador_[entrada];
     if (compAudio_.count(entrada)) out["audio_atrasado_ms"] = compAudio_.at(entrada);
     const json errs = erroresDe(entrada), avs = avisosDe(entrada);
     if (!errs.empty()) out["errores_tarjetas"] = errs;
@@ -1707,6 +1714,180 @@ std::string VideoGrafos::superresMotor(const std::string& entrada, const std::st
 namespace {
 bool hayElemento(const char* elemento);
 } // namespace
+
+std::string VideoGrafos::controlEntrada(const std::string& entrada, const json& control) {
+    if (rt_.engine().sourceTypeId(entrada) != kTipoVirtual)
+        return "«" + entrada + "» no es una entrada de GStreamer (red, pipeline o plugin)";
+    if (!control.is_object() || control.empty()) return "`control` tiene que ser un objeto con campos";
+    obs_source_t* src = obs_get_source_by_name(entrada.c_str());
+    if (src == nullptr) return "no existe «" + entrada + "»";
+    calldata_t cd = {};
+    const std::string js = control.dump();
+    calldata_set_string(&cd, "json", js.c_str());
+    const bool llamo = proc_handler_call(obs_source_get_proc_handler(src), "control", &cd);
+    const bool ok = llamo && calldata_bool(&cd, "ok");
+    calldata_free(&cd);
+    obs_source_release(src);
+    return ok ? std::string() : "la entrada no aceptó el control";
+}
+
+namespace {
+/// Lo que se ve de cada entrada en una escena: el ancho mayor en pantalla (px del lienzo).
+struct Recorrido {
+    const VideoGrafos* vg;
+    const GrafoVideo* grafo;
+    std::function<std::string(const std::string&)> entradaDe;
+    std::map<std::string, double>* anchos;
+    double factor;
+    double lienzoAncho;
+    int profundidad;
+};
+
+void recorrerEscena(obs_scene_t* escena, Recorrido r);
+
+bool alItem(obs_scene_t*, obs_sceneitem_t* item, void* d) {
+    auto* r = static_cast<Recorrido*>(d);
+    if (!obs_sceneitem_visible(item)) return true;
+    obs_source_t* src = obs_sceneitem_get_source(item);
+    if (src == nullptr) return true;
+    matrix4 m;
+    obs_sceneitem_get_box_transform(item, &m);
+    const double anchoCaja = std::hypot(m.x.x, m.x.y) * r->factor;
+    if (obs_sceneitem_is_group(item)) {
+        // Los de un grupo: con la escala del grupo.
+        vec2 esc;
+        obs_sceneitem_get_scale(item, &esc);
+        Recorrido sub = *r;
+        sub.factor = r->factor * esc.x;
+        obs_sceneitem_group_enum_items(item, alItem, &sub);
+        return true;
+    }
+    if (obs_scene_t* anidada = obs_scene_from_source(src); anidada != nullptr && r->profundidad < 6) {
+        // Una escena dentro de otra: su lienzo entra en la caja.
+        Recorrido sub = *r;
+        sub.factor = r->lienzoAncho > 0 ? anchoCaja / r->lienzoAncho : r->factor;
+        sub.profundidad = r->profundidad + 1;
+        recorrerEscena(anidada, sub);
+        return true;
+    }
+    const std::string e = r->entradaDe(obs_source_get_name(src));
+    if (!e.empty()) (*r->anchos)[e] = std::max((*r->anchos)[e], anchoCaja);
+    return true;
+}
+
+void recorrerEscena(obs_scene_t* escena, Recorrido r) { obs_scene_enum_items(escena, alItem, &r); }
+} // namespace
+
+void VideoGrafos::evaluarSuperres() {
+    if (!obs_initialized()) return;
+    // Las entradas con superresolución en su cadena de GStreamer.
+    std::set<std::string> conSr;
+    for (const auto& [entrada, ids] : enEntrada_)
+        for (const auto& id : ids)
+            if (const auto* n = grafo_.nodo(id); n != nullptr && n->tipo == "superres") conSr.insert(entrada);
+    if (conSr.empty()) {
+        estadoProgramador_ = json::object();
+        return;
+    }
+    const bool activo = programador_.value("activo", true);
+    const int maxActivas = std::clamp(programador_.value("max_activas", 3), 0, 16);
+    const int transicion = std::clamp(programador_.value("transicion_ms", 400), 0, 10000);
+    obs_video_info ovi{};
+    obs_get_video_info(&ovi);
+    // Qué fuente es de qué entrada: la entrada misma, o una salida de su grafo.
+    const auto entradaDe = [this](const std::string& nombre) -> std::string {
+        if (esEntrada(nombre)) return nombre;
+        if (rt_.engine().sourceTypeId(nombre) == kTipoSalida)
+            for (const auto& n : grafo_.nodos())
+                if (n.tipo == "salida" && n.params.value("nombre", std::string()) == nombre) return n.grupo;
+        return {};
+    };
+    const auto anchosDe = [&](const std::string& escena) {
+        std::map<std::string, double> anchos;
+        if (escena.empty()) return anchos;
+        obs_source_t* src = obs_get_source_by_name(escena.c_str());
+        if (src == nullptr) return anchos;
+        if (obs_scene_t* sc = obs_scene_from_source(src))
+            recorrerEscena(sc, Recorrido{this, &grafo_, entradaDe, &anchos, 1.0, static_cast<double>(ovi.base_width), 0});
+        obs_source_release(src);
+        return anchos;
+    };
+    const std::string escPrograma = rt_.engine().currentScene();
+    const std::string escPreview = rt_.engine().scenePreviewName("armada");
+    const auto enPrograma = anchosDe(escPrograma);
+    const auto enPreview = anchosDe(escPreview);
+
+    struct Cand {
+        std::string entrada;
+        double prioridad, aumento;
+        bool programa, preview;
+    };
+    std::vector<Cand> candidatos;
+    json estado = json::object();
+    for (const std::string& e : conSr) {
+        const double ap = enPrograma.count(e) ? enPrograma.at(e) : 0.0;
+        const double av = enPreview.count(e) ? enPreview.at(e) : 0.0;
+        obs_source_t* src = obs_get_source_by_name(e.c_str());
+        const double ancho = src != nullptr ? obs_source_get_width(src) : 0.0;
+        if (src != nullptr) obs_source_release(src);
+        // Cuánto se agranda en pantalla respecto de la cámara (la fuente sale x2).
+        const double aumento = ancho > 0 ? std::max(ap, av) / (ancho / 2.0) : 0.0;
+        estado[e] = {{"programa", ap > 0}, {"preview", av > 0}, {"aumento", std::round(aumento * 100) / 100}};
+        // La red suma si la cámara se ve más grande que su imagen original.
+        if ((ap > 0 || av > 0) && aumento > 1.1)
+            candidatos.push_back({e, (ap > 0 ? 2.0 : 0.0) + (av > 0 ? 1.0 : 0.0) + std::min(aumento, 4.0) / 4.0, aumento,
+                                  ap > 0, av > 0});
+    }
+    std::sort(candidatos.begin(), candidatos.end(), [](const Cand& a, const Cand& b) { return a.prioridad > b.prioridad; });
+    std::map<std::string, std::string> quiero;
+    for (const std::string& e : conSr) quiero[e] = activo ? "reposo" : "activo";
+    if (activo)
+        for (size_t i = 0; i < candidatos.size(); ++i)
+            quiero[candidatos[i].entrada] = static_cast<int>(i) < maxActivas ? "activo" : "barato";
+    for (const auto& [e, modo] : quiero) {
+        estado[e]["modo"] = modo;
+        if (modoSr_.count(e) && modoSr_[e] == modo) continue;
+        if (controlEntrada(e, json{{"superres", modo}, {"transicion_ms", transicion}}).empty()) {
+            modoSr_[e] = modo;
+            blog(LOG_INFO, "[video-grafo] superresolución de «%s»: %s", e.c_str(), modo.c_str());
+        }
+    }
+    // Las que ya no tienen superresolución: se olvida lo mandado.
+    for (auto it = modoSr_.begin(); it != modoSr_.end();)
+        it = conSr.count(it->first) ? std::next(it) : modoSr_.erase(it);
+    estadoProgramador_ = estado;
+}
+
+json VideoGrafos::programador() const {
+    json out = programador_;
+    out["entradas"] = estadoProgramador_;
+    out["programa"] = rt_.engine().currentScene();
+    out["preview"] = rt_.engine().scenePreviewName("armada");
+    return out;
+}
+
+std::string VideoGrafos::configurarProgramador(const json& cambios) {
+    if (!cambios.is_object()) return "se esperaba un objeto";
+    for (const char* k : {"activo", "max_activas", "transicion_ms"})
+        if (cambios.contains(k)) programador_[k] = cambios[k];
+    programador_["max_activas"] = std::clamp(programador_.value("max_activas", 3), 0, 16);
+    programador_["transicion_ms"] = std::clamp(programador_.value("transicion_ms", 400), 0, 10000);
+    QSaveFile f(QString::fromStdString((archivo_.parent_path() / "superres-programador.json").string()));
+    if (f.open(QIODevice::WriteOnly)) {
+        f.write(QByteArray::fromStdString(programador_.dump(1)));
+        f.commit();
+    }
+    modoSr_.clear(); // que vuelva a mandar todo con lo nuevo
+    evaluarSuperres();
+    return {};
+}
+
+QVariantMap VideoGrafos::programadorUi() const { return aVariant(programador()).toMap(); }
+
+QString VideoGrafos::configurarProgramadorUi(const QVariantMap& cambios) {
+    const json j = json::parse(QJsonDocument::fromVariant(cambios).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
+    return q(configurarProgramador(j.is_object() ? j : json::object()));
+}
 
 std::string VideoGrafos::filtrosAudio(const std::string& entrada, const json& filtros) {
     if (rt_.engine().sourceTypeId(entrada) != kTipoVirtual)
@@ -2146,6 +2327,14 @@ void VideoGrafos::cargar() {
         if (r.open(QIODevice::ReadOnly)) {
             const json j = json::parse(r.readAll().toStdString(), nullptr, false);
             if (j.is_object()) reloj_ = j;
+        }
+    }
+    {
+        QFile r(QString::fromStdString((archivo_.parent_path() / "superres-programador.json").string()));
+        if (r.open(QIODevice::ReadOnly)) {
+            const json j = json::parse(r.readAll().toStdString(), nullptr, false);
+            if (j.is_object())
+                for (const auto& [k, v] : j.items()) programador_[k] = v;
         }
     }
     // El de ahora; si no está, el de antes (un grafo por entrada), migrado.

@@ -919,6 +919,57 @@ void McpService::registerVideoTools() {
     }
     {
         Tool t;
+        t.name = "entrada_control";
+        t.title = "Mandar un evento de control a la cadena de GStreamer de una entrada";
+        t.category = "video";
+        t.description =
+            "El canal de control de las entradas de GStreamer: `control` (un objeto plano: texto, números, sí/no) "
+            "viaja por la cadena de la entrada como evento estándar de GStreamer «ba/control» (personalizado, hacia "
+            "abajo, fuera de banda): cada elemento que lo entiende lo usa y todos lo dejan pasar; la entrada lo "
+            "recuerda y lo reenvía si la cadena se rearma. Hoy lo entiende la superresolución: {\"superres\": "
+            "\"activo\"|\"reposo\"|\"barato\", \"transicion_ms\": 400} (lo usa el programador; a mano, con el "
+            "programador apagado). Se suma a lo anterior: campos nuevos para efectos o eventos futuros.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"entrada", "control"}},
+                         {"properties", {{"entrada", {{"type", "string"}}}, {"control", {{"type", "object"}}}}}};
+        t.examples = {R"({"entrada": "Cámara 1", "control": {"superres": "activo", "transicion_ms": 300}})"};
+        t.run = [v](const json& a, Done done) {
+            if (!v) return done(ToolResult::error("el video no está disponible"));
+            const std::string e = v->controlEntrada(a.value("entrada", std::string()), a.value("control", json::object()));
+            if (!e.empty()) return done(ToolResult::error(e));
+            done(ToolResult().text("Mandado por la cadena de la entrada."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "superres_programador";
+        t.title = "Programador de superresolución: qué cámaras usan la red según programa y preview";
+        t.category = "video";
+        t.description =
+            "Con varias cámaras, las redes de todas quedan cargadas y calientes pero solo trabajan las que se ven "
+            "grandes: el programador mira el programa y el preview (la escena armada) y pone cada cámara en activo "
+            "(hasta `max_activas`, por prioridad: programa, preview, más grande), barato (se ve grande pero no tiene "
+            "turno: agrandado afilado) o reposo (no se ve o se ve chica). Se prende al pasar a preview, con una mezcla "
+            "gradual de `transicion_ms`: la mejora entra sin saltos ni cuadros negros. Sin argumentos devuelve la "
+            "configuración y el estado de cada cámara; con `activo` false, todas las redes trabajan siempre.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"activo", {{"type", "boolean"}}},
+                           {"max_activas", {{"type", "integer"}}},
+                           {"transicion_ms", {{"type", "integer"}}}}}};
+        t.run = [v](const json& a, Done done) {
+            if (!v) return done(ToolResult::error("el video no está disponible"));
+            if (!a.empty()) {
+                const std::string e = v->configurarProgramador(a);
+                if (!e.empty()) return done(ToolResult::error(e));
+            }
+            done(ToolResult().data(v->programador()));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "entrada_filtros_audio";
         t.title = "Filtros de audio de una entrada (en su cadena de GStreamer)";
         t.category = "video";

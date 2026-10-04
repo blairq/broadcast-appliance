@@ -87,6 +87,48 @@ ejemplo, un elemento con TensorRT para una 5060):
   subida pasa de largo y el filtro va primero, antes de lo que solo anda en la CPU.
 - **`memoria_salida: ""`.** Para un elemento que ya entrega en memoria de sistema.
 
+## Cámaras calientes y programador
+
+Con varias cámaras, todas tienen su red **cargada y caliente**, pero solo trabajan las que se ven grandes.
+
+**Modos de las redes** (`bacoremlsr` y `baonnxsr`; propiedad `modo` o canal de control):
+- **activo:** corre la red.
+- **reposo:** sale el agrandado común en la GPU, que cuesta décimos de ms. Una pasada de mantenimiento cada ~5 s
+  tiene la red lista y su demora medida.
+- **barato:** reposo más un afilado.
+
+En los tres modos la salida es x2: nada se renegocia ni salta en la escena. Al cambiar de modo, la mezcla gradual
+entre el agrandado común y la red dura `transicion-ms` (400 ms de fábrica), y nunca sale un cuadro negro.
+
+**Canal de control** (el mecanismo estándar de GStreamer):
+- Es un evento personalizado, hacia abajo y fuera de banda (`GST_EVENT_CUSTOM_DOWNSTREAM_OOB`), con una
+  GstStructure `ba/control`.
+- La entrada lo empuja por su cadena (proc `control` de `ba_gst_fuente`, MCP `entrada_control`). Cada elemento
+  que lo entiende lo usa y todos lo dejan pasar.
+- Se recuerda: si la cadena se rearma, se vuelve a mandar.
+- Para efectos o eventos futuros se agregan campos.
+
+**Programador** (`VideoGrafos`, cada 250 ms; MCP `superres_programador`, panel «Programador»):
+- Mira el programa y el preview (la escena armada), incluidas las escenas anidadas, los grupos y las salidas del
+  grafo.
+- Calcula cuánto se agranda cada cámara en pantalla.
+- **activo:** hasta `max_activas` (3 de fábrica), con prioridad para lo que está al aire y después preview; a
+  igual prioridad, la más grande.
+- **barato:** lo que se ve grande y no tiene turno.
+- **reposo:** lo que no se ve, o se ve más chico que la cámara.
+- Como la red se prende al pasar a preview, la transición ocurre fuera del aire.
+
+**Compensación única:** todas las entradas usan la mayor demora del estudio. El piso es la latencia que declara
+cada cadena: una red en reposo declara la demora que tiene activa, así prenderla no mueve el audio. Las cámaras
+quedan alineadas entre sí.
+
+Probado en vivo:
+- Con «Comparación IA» al aire, sus 3 cámaras se ven agrandadas x1,88 en pantalla → activo; las demás, en reposo.
+- Al armar «Comparación», sus cámaras pasan a barato.
+- Con el take se intercambian: las nuevas al aire pasan a activo, una de preview toma el turno libre y el resto
+  queda en barato.
+- Todo a 30 fps, 1536x1152 fijo, sin cuadros tarde.
+
 ## Audio
 
 Los filtros de audio de una entrada (`entrada_filtros_audio`) son elementos de GStreamer en la cadena de su
@@ -134,6 +176,8 @@ declara su demora (LATENCY = `espera-ms`), y el colchón compensa la demora real
 | `superres_destilar` | Destilar una red. |
 | `superres_plugin_elemento`, `superres_plugin_borrar` | Crear y borrar plugins propios. |
 | `entrada_filtros_audio` | Los filtros de audio de una entrada. |
+| `entrada_control` | Evento `ba/control` por la cadena de una entrada. |
+| `superres_programador` | Ver y configurar el programador. |
 | `video_estado` | Filtros, demoras y compensación de cada entrada. |
 
 ## Probado y sin probar
