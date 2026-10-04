@@ -632,7 +632,7 @@ void armar(Fuente* f) {
         // redes y libobs no saben de píxeles no cuadrados).
         const std::string cadena =
             std::string(f->normalizar ? "videoconvertscale ! video/x-raw,pixel-aspect-ratio=1/1 ! " : "") +
-            "queue leaky=downstream max-size-buffers=2 max-size-time=0 max-size-bytes=0 ! " + cadenaV +
+            "queue leaky=downstream max-size-buffers=1 max-size-time=0 max-size-bytes=0 ! " + cadenaV +
             "videoconvert ! ";
         antesSink = f->normalizar ? "deinterlace mode=auto ! " + cadena + "videorate ! videoconvertscale ! "
                                   : cadena;
@@ -885,7 +885,7 @@ void* crear(obs_data_t* settings, obs_source_t* ctx) {
                             g_object_get(el, "ms-por-cuadro", &ms, nullptr);
                             obs_data_set_double(e, "ms", ms);
                         }
-                        for (const char* prop : {"error", "motor-usado", "proveedor-usado"}) {
+                        for (const char* prop : {"error", "motor-usado", "proveedor-usado", "unidades-usadas"}) {
                             GParamSpec* ps = g_object_class_find_property(k, prop);
                             if (ps == nullptr || ps->value_type != G_TYPE_STRING) continue;
                             gchar* v = nullptr;

@@ -1155,6 +1155,11 @@ json VideoGrafos::pasarAEntrada(const std::string& entrada, json& para) {
             if (q.value("escala_red", 2) > 2) pr["escala-red"] = std::to_string(q.value("escala_red", 2));
             if (!q.value("proveedor", std::string()).empty()) pr["proveedor"] = q.value("proveedor", std::string());
             pr["nitidez"] = decimal(q.value("nitidez", 0.2));
+            // CoreML: dónde corre la red (auto = el Neural Engine).
+            static const std::map<std::string, std::string> kUnidades{
+                {"todas", "1"}, {"ane", "2"}, {"gpu", "3"}, {"cpu", "4"}};
+            if (const auto u = kUnidades.find(q.value("unidades", std::string())); u != kUnidades.end())
+                pr["unidades"] = u->second;
             pr["activo"] = activo ? "true" : "false";
         } else {
             break; // lo demás (salidas, tomas, rostros, retardo, filtros de OBS…) sigue en libobs

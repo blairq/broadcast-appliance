@@ -91,6 +91,7 @@ struct _BaSuperRes {
     gchar* usado;  ///< motor que quedó
     gchar* modelo;
     gchar* proveedor;
+    gint unidades; ///< coreml: 0 auto, 1 todas, 2 ane, 3 gpu, 4 cpu
     gdouble nitidez;
     gboolean activo;
     gchar* error;
@@ -106,6 +107,8 @@ enum {
     PROP_PROVEEDOR,
     PROP_ACTIVO,
     PROP_ESCALA_RED,
+    PROP_UNIDADES,
+    PROP_UNIDADES_USADAS,
     PROP_MOTOR_USADO,
     PROP_MS,
     PROP_ERROR
@@ -169,6 +172,7 @@ static void armar(BaSuperRes* s) {
                      s->proveedor != nullptr ? s->proveedor : "auto", nullptr);
     } else if (m == "coreml") {
         g_object_set(e, "modelo", s->modelo != nullptr ? s->modelo : "", "escala", s->escalaRed, nullptr);
+        gst_util_set_object_arg(G_OBJECT(e), "unidades", std::to_string(s->unidades).c_str());
     } else if (m == "fsr") {
         g_object_set(e, "nitidez", s->nitidez, nullptr);
     }
@@ -220,6 +224,10 @@ static void ponerPropiedad(GObject* o, guint id, const GValue* v, GParamSpec* ps
             s->escalaRed = g_value_get_int(v);
             rearmar = true;
             break;
+        case PROP_UNIDADES:
+            s->unidades = std::clamp(g_value_get_int(v), 0, 4);
+            rearmar = true;
+            break;
         case PROP_PROVEEDOR:
             g_free(s->proveedor);
             s->proveedor = g_strdup(kProveedores[std::clamp(g_value_get_enum(v), 0, 3)]);
@@ -245,6 +253,15 @@ static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
         }
         case PROP_ACTIVO: g_value_set_boolean(v, s->activo); break;
         case PROP_ESCALA_RED: g_value_set_int(v, s->escalaRed); break;
+        case PROP_UNIDADES: g_value_set_int(v, s->unidades); break;
+        case PROP_UNIDADES_USADAS: {
+            gchar* u = nullptr;
+            if (s->motor != nullptr &&
+                g_object_class_find_property(G_OBJECT_GET_CLASS(s->motor), "unidades-usadas") != nullptr)
+                g_object_get(s->motor, "unidades-usadas", &u, nullptr);
+            g_value_take_string(v, u);
+            break;
+        }
         case PROP_MODELO: g_value_set_string(v, s->modelo); break;
         case PROP_NITIDEZ: g_value_set_double(v, s->nitidez); break;
         case PROP_PROVEEDOR: {
@@ -319,6 +336,14 @@ static void ba_superres_class_init(BaSuperResClass* k) {
                                                      "Lo que agranda la red del modelo (2; 4 = entra a la mitad y sale x2)",
                                                      2, 4, 2, listo));
     g_object_class_install_property(
+        go, PROP_UNIDADES,
+        g_param_spec_int("unidades", "Unidades",
+                         "coreml: dónde corre la red (0 auto = Neural Engine, 1 todas, 2 ane, 3 gpu, 4 cpu)", 0, 4,
+                         0, listo));
+    g_object_class_install_property(
+        go, PROP_UNIDADES_USADAS,
+        g_param_spec_string("unidades-usadas", "Unidades usadas", "coreml: dónde quedó la red", nullptr, ro));
+    g_object_class_install_property(
         go, PROP_MOTOR_USADO, g_param_spec_string("motor-usado", "Motor usado", "El que quedó", nullptr, ro));
     g_object_class_install_property(
         go, PROP_MS,
@@ -342,6 +367,7 @@ static void ba_superres_init(BaSuperRes* s) {
     s->error = nullptr;
     s->motor = nullptr;
     s->escalaRed = 2;
+    s->unidades = 0;
     s->convEntrada = gst_element_factory_make("videoconvert", "entrada");
     s->nv12 = gst_element_factory_make("capsfilter", "nv12");
     s->convSalida = gst_element_factory_make("videoconvert", "salida");
