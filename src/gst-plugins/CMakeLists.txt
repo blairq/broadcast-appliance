@@ -36,6 +36,11 @@ if(APPLE)
 endif()
 add_library(gstbasuperres MODULE ${_srs})
 ba_plugin_gst(gstbasuperres)
+if(WIN32)
+    # GL/glext.h y KHR/khrplatform.h (Khronos, MIT): gstglfuncs.h los pide y el
+    # SDK de Windows no los trae (baglsl).
+    target_include_directories(gstbasuperres PRIVATE "${CMAKE_SOURCE_DIR}/third_party/khronos")
+endif()
 if(EXISTS "${BA_ORT_DIR}/include/onnxruntime_cxx_api.h" AND EXISTS "${_ba_ort}")
     target_include_directories(gstbasuperres PRIVATE "${BA_ORT_DIR}/include")
     target_link_libraries(gstbasuperres PRIVATE "${_ba_ort}")
