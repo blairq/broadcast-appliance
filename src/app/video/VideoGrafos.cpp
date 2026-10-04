@@ -547,23 +547,49 @@ QString VideoGrafos::crearVirtual(const QString& nombre, const QString& preset, 
 }
 
 void VideoGrafos::compensarAudio(const std::string& entrada) {
-    // Una tarjeta de superresolución entrega el cuadro anterior (un cuadro de
-    // demora en el video): el audio de la entrada se atrasa lo mismo, así no
-    // queda adelantado. Se suma a lo que haya puesto el operador (se lleva
-    // aparte lo que se agregó acá).
-    int tarjetas = 0;
-    for (const auto& n : grafo_.nodos())
-        if (n.grupo == entrada && n.tipo == "superres" && grafo_.efectivos(n).value("esperar", 0) == 0 &&
-            grafo_.efectivos(n).value("activo", true))
-            ++tarjetas;
+    // Las tarjetas del grafo (superresolución, módulos de GStreamer, plugins)
+    // demoran el video: el audio de la entrada se atrasa lo MISMO, medido (lo
+    // viejo que es el cuadro que se dibuja: depende de cuánto tarda cada red).
+    // Sin medición todavía, un cuadro por tarjeta. Se suma a lo que haya puesto
+    // el operador (se lleva aparte lo que se agregó acá).
     obs_video_info ovi{};
     const double cuadroMs =
         obs_get_video_info(&ovi) && ovi.fps_num > 0 ? 1000.0 * ovi.fps_den / ovi.fps_num : 33.3;
-    const int deseado = static_cast<int>(std::lround(tarjetas * cuadroMs));
+    const json medidas = demorasDe(entrada);
+    double total = 0;
+    for (const auto& n : grafo_.nodos()) {
+        if (n.grupo != entrada || (n.tipo != "superres" && n.tipo != "gst" && n.tipo != "plugin")) continue;
+        const json p = grafo_.efectivos(n);
+        if (!p.value("activo", true)) continue;
+        const double m = medidas.value(n.id, 0.0);
+        if (m > 0)
+            total += m;
+        else if (p.value("esperar", 0) == 0)
+            total += cuadroMs;
+    }
+    const int deseado = static_cast<int>(std::lround(total));
     const int antes = compAudio_.count(entrada) ? compAudio_[entrada] : 0;
-    if (deseado == antes) return;
+    // Sin saltos chicos (el audio no se corre por cada vaivén de la medición).
+    if (std::abs(deseado - antes) < 8) return;
     const int actual = rt_.engine().sourceSyncOffset(entrada);
     if (rt_.engine().setSourceSyncOffset(entrada, actual - antes + deseado)) compAudio_[entrada] = deseado;
+}
+
+nlohmann::json VideoGrafos::demorasDe(const std::string& entrada) const {
+    json out = json::object();
+    obs_source_t* src = obs_get_source_by_name(entrada.c_str());
+    if (src == nullptr) return out;
+    if (obs_source_t* f = obs_source_get_filter_by_name(src, kFiltro)) {
+        calldata_t cd = {};
+        if (proc_handler_call(obs_source_get_proc_handler(f), "estado", &cd)) {
+            const char* d = calldata_string(&cd, "demoras");
+            if (d != nullptr) out = json::parse(d, nullptr, false);
+        }
+        calldata_free(&cd);
+        obs_source_release(f);
+    }
+    obs_source_release(src);
+    return out.is_object() ? out : json::object();
 }
 
 std::string VideoGrafos::editar(const std::function<std::string(GrafoVideo&)>& f) {
@@ -1210,10 +1236,17 @@ json VideoGrafos::estadoEntrada(const std::string& entrada) const {
     // Lo que agrega su sub-grafo: latencia y lo que dicen las tarjetas.
     int cuadros = 0;
     double ms = 0;
+    const json medidas = demorasDe(entrada);
     for (const auto& n : grafo_.nodos()) {
         if (n.grupo != entrada) continue;
         const json p = grafo_.efectivos(n);
-        if ((n.tipo == "gst" || n.tipo == "superres") && p.value("esperar", 0) == 0) ++cuadros;
+        if (n.tipo == "gst" || n.tipo == "superres" || n.tipo == "plugin") {
+            const double m = medidas.value(n.id, 0.0);
+            if (m > 0)
+                ms += m; // medida
+            else if (p.value("esperar", 0) == 0)
+                ++cuadros;
+        }
         if (n.tipo == "retardo") {
             if (p.value("ms", 0) > 0)
                 ms += p.value("ms", 0);
@@ -1227,6 +1260,8 @@ json VideoGrafos::estadoEntrada(const std::string& entrada) const {
     if (out.contains("gstreamer"))
         latencia += out["gstreamer"].value("latencia_ms", 0) + out["gstreamer"].value("desfase_ms", 0);
     out["latencia_grafo_ms"] = std::round(latencia);
+    if (!medidas.empty()) out["demoras_tarjetas_ms"] = medidas;
+    if (compAudio_.count(entrada)) out["audio_atrasado_ms"] = compAudio_.at(entrada);
     const json errs = erroresDe(entrada), avs = avisosDe(entrada);
     if (!errs.empty()) out["errores_tarjetas"] = errs;
     if (!avs.empty()) out["avisos_tarjetas"] = avs;

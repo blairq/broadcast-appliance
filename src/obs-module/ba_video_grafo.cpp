@@ -269,6 +269,7 @@ struct Grafo {
     std::mutex estadoLock;
     std::map<std::string, std::string> errores; ///< por nodo: por qué una tarjeta no corre
     std::map<std::string, std::string> avisos;  ///< por nodo: algo a saber (formato, latencia)
+    std::map<std::string, double> demoras;      ///< por nodo: la demora medida (ms)
 };
 
 float numero(obs_data_t* p, const char* k, double def) {
@@ -724,7 +725,7 @@ void* crear(obs_data_t* settings, obs_source_t* ctx) {
     // Por qué una tarjeta no corre (p. ej. un módulo de GStreamer que no
     // arrancó): {"<id del nodo>": "motivo"}, para la interfaz.
     proc_handler_add(
-        obs_source_get_proc_handler(ctx), "void estado(out string errores, out string avisos)",
+        obs_source_get_proc_handler(ctx), "void estado(out string errores, out string avisos, out string demoras)",
         [](void* d, calldata_t* cd) {
             auto* x = static_cast<Grafo*>(d);
             obs_data_t* o = obs_data_create();
@@ -743,6 +744,13 @@ void* crear(obs_data_t* settings, obs_source_t* ctx) {
             }
             calldata_set_string(cd, "avisos", obs_data_get_json(av));
             obs_data_release(av);
+            obs_data_t* de = obs_data_create();
+            {
+                std::lock_guard<std::mutex> l(x->estadoLock);
+                for (const auto& [id, ms] : x->demoras) obs_data_set_double(de, id.c_str(), ms);
+            }
+            calldata_set_string(cd, "demoras", obs_data_get_json(de));
+            obs_data_release(de);
         },
         g);
     // La app pide el último cuadro de una tarjeta `rostros` (y con eso la
@@ -1187,6 +1195,7 @@ bool procesar(Grafo* g, const Plan& plan) {
                              "agrega 1 cuadro de latencia (`esperar` lo saca, pero puede frenar el video)";
                 if (!p.gst->formato().empty()) aviso += " [trabaja en " + p.gst->formato() + "]";
                 g->avisos[p.id] = aviso;
+                g->demoras[p.id] = p.gst->demoraMs();
                 if (corrio) break;
             }
                 {

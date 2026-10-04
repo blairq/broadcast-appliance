@@ -308,6 +308,12 @@ bool TarjetaGst::procesar(gs_texture_t* entrada, std::uint32_t cx, std::uint32_t
     const std::uint32_t ox = cx * factor_, oy = cy * factor_;
     if (GstSample* s = ultimo) {
         GstBuffer* b = gst_sample_get_buffer(s);
+        // La demora real: cuánto más viejo es este resultado que el cuadro de ahora.
+        if (b != nullptr && GST_BUFFER_PTS_IS_VALID(b) && GST_BUFFER_PTS(b) <= ahora - t0_) {
+            const double ms = static_cast<double>(ahora - t0_ - GST_BUFFER_PTS(b)) / 1e6;
+            const double antes = demoraMs_.load();
+            demoraMs_.store(antes == 0 ? ms : antes * 0.9 + ms * 0.1);
+        }
         GstMapInfo r;
         if (b != nullptr && gst_buffer_map(b, &r, GST_MAP_READ)) {
             if (subida_ == nullptr || gs_texture_get_width(subida_) != ox ||

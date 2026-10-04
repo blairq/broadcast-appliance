@@ -88,6 +88,9 @@ class TarjetaGst {
     void setEspera(int ms) { esperaMs_ = ms < 0 ? 0 : (ms > 100 ? 100 : ms); }
     /// La latencia que agrega, en cuadros.
     int latenciaCuadros() const { return esperaMs_ > 0 ? 0 : 1; }
+    /// La demora MEDIDA (ms): lo viejo que es el cuadro que se dibuja respecto
+    /// del que entró ahora (su marca de tiempo sobrevive al plugin). Promediada.
+    double demoraMs() const { return demoraMs_.load(); }
 
    private:
     bool armar(std::uint32_t cx, std::uint32_t cy);
@@ -108,6 +111,7 @@ class TarjetaGst {
     std::uint64_t t0_ = 0;         ///< la hora de libobs del primer cuadro
     int fpsNum_ = 30, fpsDen_ = 1; ///< los del lienzo
     int esperaMs_ = 0;             ///< cuánto esperar el cuadro de ahora (0: usar el anterior)
+    std::atomic<double> demoraMs_{0}; ///< medida: ahora - marca del cuadro que se dibuja
     bool revisado_ = false;        ///< ya se miró en qué formato trabaja el módulo
     std::string formato_, aviso_;
     gs_texrender_t* bajada_ = nullptr; ///< la entrada despremultiplicada, para bajarla

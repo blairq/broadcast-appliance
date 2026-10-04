@@ -169,6 +169,8 @@ class VideoGrafos : public QObject {
     std::string uriDe(const std::string& entrada) const;
     /// Atrasa el audio de la entrada lo que demoran sus tarjetas de superresolución.
     void compensarAudio(const std::string& entrada);
+    /// La demora medida de cada tarjeta de la entrada (ms), por id de nodo.
+    nlohmann::json demorasDe(const std::string& entrada) const;
     Q_INVOKABLE QString nuevaEntradaRed(const QString& nombre, const QString& uri, const QString& escena,
                                         int latenciaMs, bool normalizar);
     Q_INVOKABLE QStringList escenasUi() const;
