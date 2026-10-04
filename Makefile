@@ -235,7 +235,7 @@ deps-webrtc-win:
 # para los headers), libwebrtc de Windows y las fuentes compartidas.
 deps-win: deps-win-toolchain deps-qt deps-qt-host deps-obs deps-obs-deps-win deps-ndi-src deps-webrtc-win \
           deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared deps-clap deps-lsp-win \
-          deps-libreoffice-win deps-herramientas-win deps-gstreamer-win
+          deps-libreoffice-win deps-herramientas-win deps-gstreamer-win deps-python-win
 
 # Plugins LSP (CLAP) para Windows: compilados desde fuente (tools/deps/lsp-win.sh).
 deps-lsp-win: deps-win-toolchain
@@ -303,7 +303,7 @@ dist-win: release-win
 # Todo lo que el build completo de Linux necesita (libobs y sus deps desde
 # fuente, Qt del host, libwebrtc de Linux, fuentes compartidas...).
 deps-linux: deps-obs-linux deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared-host \
-            deps-clap deps-lsp deps-libreoffice-linux deps-sherpa-onnx deps-herramientas deps-gstreamer-linux
+            deps-clap deps-lsp deps-libreoffice-linux deps-sherpa-onnx deps-herramientas deps-gstreamer-linux deps-python
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=linux
 
 # --- macOS arm64 (Apple Silicon), nativo -------------------------------------
@@ -1410,17 +1410,29 @@ GST_DEV_SHA := 72a44870cf02472cbf6e9a84bcc25ee6807dd1c26659a112066373544d365e7a
 # (Resources/python). Versión y sha256 fijados (el digest que publica GitHub).
 PY_REL := 20261001
 PY_VER := 3.12.15
-PY_TGZ := cpython-$(PY_VER)+$(PY_REL)-aarch64-apple-darwin-install_only_stripped.tar.gz
-PY_SHA := 10cab8f6ed6202fdd81637aa6eda4af8d5b7eaa8fc42f9df3c6bea4923de0d93
 PY_URL := https://github.com/astral-sh/python-build-standalone/releases/download/$(PY_REL)
+PY_TGZ_macos-arm64 := cpython-$(PY_VER)+$(PY_REL)-aarch64-apple-darwin-install_only_stripped.tar.gz
+PY_SHA_macos-arm64 := 10cab8f6ed6202fdd81637aa6eda4af8d5b7eaa8fc42f9df3c6bea4923de0d93
+PY_TGZ_linux-x64 := cpython-$(PY_VER)+$(PY_REL)-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz
+PY_SHA_linux-x64 := 7bb1659e3235077b7f63d5b6eb6ce653c6fcd6c5041e9d5f73b42ce10421464d
+PY_TGZ_win-x64 := cpython-$(PY_VER)+$(PY_REL)-x86_64-pc-windows-msvc-install_only_stripped.tar.gz
+PY_SHA_win-x64 := 52124cee54126f3f360eaa378288f6f64c402c983a3c14c95eff67f4af986aaa
 
-.PHONY: deps-python
+# El del sistema que compila (macOS o Linux) en extern/python; el de Windows,
+# en extern/python-win (sus bibliotecas se bajan con el pip del de Linux).
+.PHONY: deps-python deps-python-win
 deps-python:
 	@if [ -x "$(EXTERNS_DIR)/python/bin/python3" ] && [ "$$($(EXTERNS_DIR)/python/bin/python3 -c 'import platform; print(platform.python_version())')" = "$(PY_VER)" ] && \
 	    $(EXTERNS_DIR)/python/bin/python3 -c 'import numpy, ctranslate2, sentencepiece, sacremoses, subword_nmt' 2>/dev/null; then \
 		echo "Python ya está ($(EXTERNS_DIR)/python)"; exit 0; fi; \
-	$(MAKE) --no-print-directory _ba_baja ARCHIVO="$(DL_DIR)/$(PY_TGZ)" URL="$(PY_URL)/$(subst +,%2B,$(PY_TGZ))" SHA="$(PY_SHA)" QUE="Python" && \
-	bash tools/deps/python.sh "$(DL_DIR)/$(PY_TGZ)" "$(EXTERNS_DIR)/python"
+	$(MAKE) --no-print-directory _ba_baja ARCHIVO="$(DL_DIR)/$(PY_TGZ_$(HERR_PLAT))" URL="$(PY_URL)/$(subst +,%2B,$(PY_TGZ_$(HERR_PLAT)))" SHA="$(PY_SHA_$(HERR_PLAT))" QUE="Python" && \
+	bash tools/deps/python.sh "$(DL_DIR)/$(PY_TGZ_$(HERR_PLAT))" "$(EXTERNS_DIR)/python" $(HERR_PLAT)
+deps-python-win: deps-python
+	@if [ -f "$(EXTERNS_DIR)/python-win/python.exe" ] && [ -d "$(EXTERNS_DIR)/python-win/Lib/site-packages/ctranslate2" ] && \
+	    grep -q "$(PY_VER)" "$(EXTERNS_DIR)/python-win/.version" 2>/dev/null; then \
+		echo "Python de Windows ya está ($(EXTERNS_DIR)/python-win)"; exit 0; fi; \
+	$(MAKE) --no-print-directory _ba_baja ARCHIVO="$(DL_DIR)/$(PY_TGZ_win-x64)" URL="$(PY_URL)/$(subst +,%2B,$(PY_TGZ_win-x64))" SHA="$(PY_SHA_win-x64)" QUE="Python (Windows)" && \
+	bash tools/deps/python.sh "$(DL_DIR)/$(PY_TGZ_win-x64)" "$(EXTERNS_DIR)/python-win" win-x64 "$(EXTERNS_DIR)/python/bin/python3"
 
 # --- Herramientas de medios (ffmpeg, ffprobe, yt-dlp, deno) --------------------
 # Adentro del programa (herramientas/): para arreglar o bajar un video sin

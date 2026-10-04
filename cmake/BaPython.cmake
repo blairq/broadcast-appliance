@@ -7,11 +7,19 @@
 # en plugins-python/: son Python puro.
 # ============================================================================
 set(BA_HAVE_PYTHON OFF)
-set(BA_PYTHON_DIR "${CMAKE_SOURCE_DIR}/extern/python")
-if(EXISTS "${BA_PYTHON_DIR}/bin/python3")
+if(WIN32)
+    set(BA_PYTHON_DIR "${CMAKE_SOURCE_DIR}/extern/python-win")
+    set(_ba_py "${BA_PYTHON_DIR}/python.exe")
+else()
+    set(BA_PYTHON_DIR "${CMAKE_SOURCE_DIR}/extern/python")
+    set(_ba_py "${BA_PYTHON_DIR}/bin/python3")
+endif()
+if(EXISTS "${_ba_py}")
     set(BA_HAVE_PYTHON ON)
-    # Con su bytecode (precompilado en tools/deps/python.sh): corre con -B.
-    install(DIRECTORY "${BA_PYTHON_DIR}/" DESTINATION python USE_SOURCE_PERMISSIONS COMPONENT bundle)
+    # Con su bytecode (precompilado en tools/deps/python.sh): corre con -B. Las
+    # cabeceras y los .lib son solo para compilar extensiones.
+    install(DIRECTORY "${BA_PYTHON_DIR}/" DESTINATION python USE_SOURCE_PERMISSIONS COMPONENT bundle
+            PATTERN "include" EXCLUDE PATTERN "libs" EXCLUDE PATTERN ".version" EXCLUDE)
     message(STATUS "Python de los plugins: ${BA_PYTHON_DIR}")
 else()
     message(STATUS "Python de los plugins: no está (make deps-python); los plugins no van a poder correr")

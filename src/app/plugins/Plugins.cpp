@@ -400,7 +400,11 @@ void Plugins::dependencias(const std::string& id, std::function<void(std::string
     json deps = man.value("dependencias", json::array());
     if (!deps.is_array() || deps.empty()) return listo({}, {});
     // Lo que ya trae el Python del programa (numpy) no se baja de nuevo.
+#if defined(_WIN32)
+    const fs::path incluidos = python().parent_path() / "Lib" / "site-packages";
+#else
     const fs::path incluidos = python().parent_path().parent_path() / "lib" / "python3.12" / "site-packages";
+#endif
     auto yaViene = [&](std::string paquete) {
         const size_t corte = paquete.find_first_of("=<>![ ");
         if (corte != std::string::npos) paquete = paquete.substr(0, corte);
