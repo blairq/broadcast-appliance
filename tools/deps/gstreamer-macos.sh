@@ -62,4 +62,11 @@ find "$FW/Versions/1.0" -type f \( -name '*.dylib' -o -name '*.so' -o -perm -u+x
             lipo -thin arm64 "$f" -output "$f.arm64" 2>/dev/null && mv "$f.arm64" "$f"
         fi
     done
+# Firma ad-hoc de lo que quedó sin firma (Apple Silicon no carga código sin
+# firma; make app-macos vuelve a sellar la .app entera).
+find "$FW/Versions/1.0" -type f \( -name '*.dylib' -o -name '*.so' -o -perm -u+x -o -name GStreamer \) -print0 |
+    while IFS= read -r -d '' f; do
+        file -b "$f" | grep -q Mach-O || continue
+        codesign -v "$f" 2>/dev/null || codesign -f -s - "$f" 2>/dev/null || true
+    done
 log "listo: $FW ($(du -sh "$FW" | cut -f1), $(ls "$FW/Versions/1.0/lib/gstreamer-1.0" | wc -l | tr -d ' ') plugins)"
