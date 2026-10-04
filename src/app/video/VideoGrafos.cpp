@@ -1688,7 +1688,7 @@ bool hayElemento(const char* elemento) {
 QStringList VideoGrafos::motoresSuperres() const {
     QStringList l;
     for (const auto& [motor, elemento] :
-         {std::pair{"apple", "bavtsuperres"}, {"fsr", "bafsr"}, {"onnx", "baonnxsr"}, {"coreml", "bacoremlsr"}})
+         {std::pair{"apple", "bavtsuperres"}, {"fsr", "bafsr"}, {"onnx", "baonnxsr"}, {"coreml", "bacoremlsr"}, {"glsl", "baglsl"}})
         if (hayElemento(elemento)) l << motor;
     return l;
 }

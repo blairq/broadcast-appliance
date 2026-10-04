@@ -323,7 +323,7 @@ json SuperRes::plugins() const {
                 for (const char* k : {"ms_coreml", "ms_coreml_tamano", "arquitectura", "archivos", "instalado"})
                     if (inst.contains(k)) r[k == std::string("instalado") ? "fecha_instalado" : k] = inst[k];
         }
-        if (r.value("tipo", "") == "glsl") aca = false; // el motor de shaders, todavía no
+        if (r.value("tipo", "") == "glsl") aca = motores().contains("glsl"); // baglsl (OpenGL)
         r["aca"] = aca;
         r.erase("origen");
         out.push_back(r);
@@ -412,7 +412,11 @@ json SuperRes::resolverPlugin(const std::string& id, std::string* error) const {
     const json p = json::parse(f, nullptr, false);
     if (!p.is_object()) return fallar("plugin.json de «" + id + "» roto");
     const json archivos = p.value("archivos", json::object());
-    if (p.value("tipo", "") == "glsl") return fallar("el motor de shaders GLSL todavía no está");
+    if (p.value("tipo", "") == "glsl") {
+        if (!archivos.contains("glsl")) return fallar("plugin.json de «" + id + "» sin shader");
+        if (!motores().contains("glsl")) return fallar("este sistema no tiene el motor de shaders (baglsl)");
+        return json{{"motor", "glsl"}, {"modelo", (dir / archivos["glsl"].get<std::string>()).string()}, {"escala_red", 2}};
+    }
     const int escala = p.value("escala", 2);
     const int escalaRed = escala == 4 ? 4 : 2; // una x4 entra a la mitad y sale x2
 #if defined(__APPLE__)

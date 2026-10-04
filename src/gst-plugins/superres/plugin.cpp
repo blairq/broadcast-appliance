@@ -37,6 +37,7 @@
 extern "C" {
 gboolean ba_registrar_fsr(GstPlugin* plugin);
 gboolean ba_registrar_onnxsr(GstPlugin* plugin);
+gboolean ba_registrar_glsl(GstPlugin* plugin);
 #if defined(__APPLE__)
 gboolean ba_registrar_vtsuperres(GstPlugin* plugin);
 gboolean ba_vtsuperres_soportado();
@@ -54,6 +55,7 @@ static GType tipoMotor() {
             {2, "FSR 1 de AMD (OpenGL, cualquier GPU)", "fsr"},
             {3, "Una red ONNX (propiedad modelo)", "onnx"},
             {4, "Una red CoreML (.mlmodelc, Neural Engine/GPU de la Mac)", "coreml"},
+            {5, "Un shader de mpv (.glsl: FSRCNNX, Anime4K; OpenGL, cualquier GPU)", "glsl"},
             {0, nullptr, nullptr}};
         g_once_init_leave(&t, g_enum_register_static("BaSuperResMotor", v));
     }
@@ -71,8 +73,8 @@ static GType tipoProveedor() {
     }
     return t;
 }
-static const char* kMotores[] = {"auto", "apple", "fsr", "onnx", "coreml"};
-constexpr int kNumMotores = 5;
+static const char* kMotores[] = {"auto", "apple", "fsr", "onnx", "coreml", "glsl"};
+constexpr int kNumMotores = 6;
 static const char* kProveedores[] = {"auto", "cpu", "coreml", "dml"};
 
 G_BEGIN_DECLS
@@ -133,7 +135,7 @@ static bool hay(const char* fabrica) {
 static std::string elegir(BaSuperRes* s) {
     const std::string p = s->pedido != nullptr ? s->pedido : "auto";
     const bool conModelo = s->modelo != nullptr && *s->modelo != '\0';
-    if (p == "apple" || p == "fsr" || p == "onnx" || p == "coreml") return p;
+    if (p == "apple" || p == "fsr" || p == "onnx" || p == "coreml" || p == "glsl") return p;
     if (conModelo && hay("baonnxsr")) return "onnx";
 #if defined(__APPLE__)
     if (ba_vtsuperres_soportado()) return "apple";
@@ -156,16 +158,40 @@ static void armar(BaSuperRes* s) {
                           : m == "onnx"   ? "baonnxsr"
                           : m == "fsr"    ? "bafsr"
                           : m == "coreml" ? "bacoremlsr"
+                          : m == "glsl"   ? "baglsl"
                                           : "identity";
     // El formato que pide el motor: CoreML toma NV12 o BGRA tal cual (si viene
     // de vtdec, con su IOSurface: sin copias) y convierte en la GPU; los demás, NV12.
-    GstCaps* c =
-        gst_caps_from_string(m == "coreml" ? "video/x-raw,format={NV12,BGRA}" : "video/x-raw,format=NV12");
+    GstCaps* c = gst_caps_from_string(m == "coreml" ? "video/x-raw,format={NV12,BGRA}"
+                                      : m == "glsl" ? "video/x-raw"
+                                                    : "video/x-raw,format=NV12");
     g_object_set(s->nv12, "caps", c, nullptr);
     gst_caps_unref(c);
-    GstElement* e = gst_element_factory_make(fabrica, "motor");
+    GstElement* e = nullptr;
+    if (m == "glsl" && s->activo && hay("baglsl")) {
+        // El shader corre en la GPU: se sube, se convierte a RGBA, el shader, y se baja.
+        GError* err = nullptr;
+        e = gst_parse_bin_from_description(
+            "glupload ! glcolorconvert ! baglsl name=shader ! glcolorconvert ! gldownload", TRUE, &err);
+        if (err != nullptr) {
+            s->error = g_strdup(err->message);
+            g_error_free(err);
+            if (e != nullptr) gst_object_unref(e);
+            e = nullptr;
+        } else {
+            gst_object_set_name(GST_OBJECT(e), "motor");
+            if (GstElement* sh = gst_bin_get_by_name(GST_BIN(e), "shader")) {
+                g_object_set(sh, "shader", s->modelo != nullptr ? s->modelo : "", nullptr);
+                gst_object_unref(sh);
+            }
+        }
+    } else {
+        e = gst_element_factory_make(fabrica, "motor");
+    }
     if (!s->activo) {
         // Apagado: pasa sin tocar (y sin agrandar).
+    } else if (m == "glsl") {
+        if (e == nullptr) e = gst_element_factory_make("identity", "motor");
     } else if (e == nullptr) {
         s->error =
             g_strdup((std::string("no hay el motor «") + m + "» (" + fabrica + ") en este sistema").c_str());
@@ -392,7 +418,7 @@ static void ba_superres_init(BaSuperRes* s) {
 }
 
 static gboolean plugin_init(GstPlugin* plugin) {
-    gboolean ok = ba_registrar_fsr(plugin) && ba_registrar_onnxsr(plugin);
+    gboolean ok = ba_registrar_fsr(plugin) && ba_registrar_onnxsr(plugin) && ba_registrar_glsl(plugin);
 #if defined(__APPLE__)
     ok = ok && ba_registrar_vtsuperres(plugin) && ba_registrar_coremlsr(plugin);
 #endif
