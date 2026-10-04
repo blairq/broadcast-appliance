@@ -37,7 +37,7 @@ JOBS="${1:-$(nproc)}"
 VER=1.28.7
 COMMIT=070125524a8422e29d3b69a372ed4f62fd343ffa
 # Subir RECETA al cambiar opciones: si no, «ya está» y no recompila.
-RECETA=2
+RECETA=3
 URL=https://gitlab.freedesktop.org/gstreamer/gstreamer.git
 SRC="$ROOT/extern/.build-gstreamer"
 PREFIX="$ROOT/extern/gstreamer-linux"
@@ -59,6 +59,20 @@ fi
 git -C "$SRC" fetch -q origin "$COMMIT" 2>/dev/null || git -C "$SRC" fetch -q origin "refs/tags/$VER"
 git -C "$SRC" checkout -q -f "$COMMIT"
 [ "$(git -C "$SRC" rev-parse HEAD)" = "$COMMIT" ] || { log "ERROR: el commit no coincide"; exit 1; }
+# gobject-introspection: el subproyecto de GStreamer es la 1.84, que pide glib
+# 2.84; la base del sistema es glib 2.80 (Ubuntu 24.04). Se fija la 1.80.1, la
+# de glib 2.80 (también desde fuente, con su sha256).
+cat >"$SRC/subprojects/gobject-introspection.wrap" <<'WRAP'
+[wrap-file]
+directory = gobject-introspection-1.80.1
+source_url = https://download.gnome.org/sources/gobject-introspection/1.80/gobject-introspection-1.80.1.tar.xz
+source_filename = gobject-introspection-1.80.1.tar.xz
+source_hash = a1df7c424e15bda1ab639c00e9051b9adf5cea1a9e512f8a603b53cd199bc6d8
+
+[provide]
+dependency_names = gobject-introspection-1.0
+program_names = g-ir-scanner, g-ir-compiler, g-ir-annotation-tool, g-ir-doc-tool, g-ir-inspect, g-ir-generate
+WRAP
 
 # Lo de extern/obs-deps-linux primero; después, el sistema (la base). SRT está
 # compilado estático (va dentro de libobs): su .pc deja en Libs.private lo que
