@@ -36,13 +36,15 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 JOBS="${1:-$(nproc)}"
 VER=1.28.7
 COMMIT=070125524a8422e29d3b69a372ed4f62fd343ffa
+# Subir RECETA al cambiar opciones: si no, «ya está» y no recompila.
+RECETA=2
 URL=https://gitlab.freedesktop.org/gstreamer/gstreamer.git
 SRC="$ROOT/extern/.build-gstreamer"
 PREFIX="$ROOT/extern/gstreamer-linux"
 DEPS="$ROOT/extern/obs-deps-linux"
 log() { printf '\033[1;36m[gstreamer-linux]\033[0m %s\n' "$*"; }
 
-if [ -f "$PREFIX/.version" ] && [ "$(cat "$PREFIX/.version")" = "$VER $COMMIT" ]; then
+if [ -f "$PREFIX/.version" ] && [ "$(cat "$PREFIX/.version")" = "$VER $COMMIT r$RECETA" ]; then
     log "ya está ($PREFIX)"
     exit 0
 fi
@@ -116,5 +118,5 @@ done
 find "$PREFIX/lib/python3.12" -name '*.so' -type f -exec sh -c 'patchelf --set-rpath "\$ORIGIN/../../../../../bin/64bit/gstreamer/lib:\$ORIGIN/../../../../../bin/64bit:\$ORIGIN/../../../../../../bin/64bit/gstreamer/lib:\$ORIGIN/../../../../../../bin/64bit" "$1"' _ {} \; 2>/dev/null || true
 strip --strip-unneeded "$PREFIX"/lib/*.so* "$PREFIX"/lib/gstreamer-1.0/*.so 2>/dev/null || true
 
-echo "$VER $COMMIT" >"$PREFIX/.version"
+echo "$VER $COMMIT r$RECETA" >"$PREFIX/.version"
 log "listo: $PREFIX ($(du -sh "$PREFIX" | cut -f1), $(ls "$PREFIX/lib/gstreamer-1.0" | wc -l) plugins)"
