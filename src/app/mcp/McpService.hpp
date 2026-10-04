@@ -133,7 +133,10 @@ void addImage(ToolResult& r, const QImage& img, const json& args, int defaultWid
               const std::filesystem::path& raiz);
 /// Rectangulo en fracciones del lienzo a partir de un preset o {x,y,w,h}.
 /// :returns: false (con `err`) si no se entiende.
-bool parseLayout(const json& v, float& x, float& y, float& w, float& h, std::string& err);
+/// `{x,y,w,h}` en fracciones del lienzo (o un preset). Si vino en píxeles (algún
+/// valor > 4) lo convierte con el lienzo y lo cuenta en `nota`.
+bool parseLayout(const json& v, float& x, float& y, float& w, float& h, std::string& err,
+                 std::string* nota = nullptr);
 /// "m:ss", "90", "90s", "1.5m" -> segundos (0 = invalido).
 int parseSeconds(const json& v);
 

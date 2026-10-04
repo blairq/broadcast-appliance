@@ -166,12 +166,30 @@ void addImage(ToolResult& r, const QImage& img, const json& args, int defaultWid
     r.structured["capturas"] = archivos;
 }
 
-bool parseLayout(const json& v, float& x, float& y, float& w, float& h, std::string& err) {
+bool parseLayout(const json& v, float& x, float& y, float& w, float& h, std::string& err, std::string* nota) {
     if (v.is_object()) {
         x = v.value("x", 0.0f);
         y = v.value("y", 0.0f);
         w = v.value("w", 1.0f);
         h = v.value("h", 1.0f);
+        // Van en fracciones del lienzo (0..1). Con algún valor mayor que 4 es
+        // evidente que vinieron en PÍXELES (un 640 en fracciones manda el cuadro
+        // fuera de pantalla y la escena sale negra): se convierten con el lienzo.
+        if (std::max({std::abs(x), std::abs(y), w, h}) > 4.0f) {
+            obs_video_info ovi{};
+            if (!obs_get_video_info(&ovi) || ovi.base_width == 0 || ovi.base_height == 0) {
+                err = "layout {x,y,w,h} va en fracciones del lienzo (0..1), no en píxeles";
+                return false;
+            }
+            const float bw = static_cast<float>(ovi.base_width), bh = static_cast<float>(ovi.base_height);
+            if (nota != nullptr)
+                *nota = "layout en píxeles: convertido a fracciones del lienzo de " + std::to_string(ovi.base_width) +
+                        "x" + std::to_string(ovi.base_height) + " (la próxima, mandá 0..1)";
+            x /= bw;
+            w /= bw;
+            y /= bh;
+            h /= bh;
+        }
         if (w <= 0 || h <= 0) {
             err = "w y h deben ser > 0 (fracciones del lienzo, 1 = todo)";
             return false;
@@ -1076,7 +1094,9 @@ void McpService::registerTools() {
         t.description =
             "Crea (o rehace con replace=true) una escena con todas sus fuentes de una vez, en orden de "
             "abajo hacia arriba. Una fuente con el nombre de otra que ya existe se COMPARTE (misma "
-            "camara en dos escenas); si trae settings, se actualizan.";
+            "camara en dos escenas); si trae settings, se actualizan. Al rehacer, las que vuelven a venir "
+            "en la lista se CONSERVAN (con su camara, grafo y filtros): solo se quitan las que no estan. "
+            "`layout` en fracciones del lienzo (0..1); si llega en pixeles se convierte y se avisa.";
         t.details =
             "Cada fuente: {type, name, settings?, layout?, visible?, volume?, muted?}. `type` es el id de "
             "libobs (ver source_types): p. ej. image_source {file}, color_source_v3 {color, width, "
@@ -1105,7 +1125,7 @@ void McpService::registerTools() {
                   {"required", {"type", "name"}}}}}},
               {"replace",
                {{"type", "boolean"},
-                {"description", "Si existe, vaciarla y rehacerla."},
+                {"description", "Si existe, rehacerla (las fuentes que se repiten se conservan)."},
                 {"default", false}}},
               {"switch",
                {{"type", "boolean"}, {"description", "Ponerla al aire al terminar."}, {"default", false}}}}},
@@ -1122,14 +1142,26 @@ void McpService::registerTools() {
         t.run = [&rt, persist, sceneExists](const json& a, Done done) {
             const std::string name = a["name"];
             std::vector<std::string> log;
+            // Las que vienen en la lista nueva: si ya están en la escena, se
+            // CONSERVAN (vaciar y volver a agregar borraba una entrada que vivía
+            // solo acá y la recreaba vacía, sin su cámara ni su grafo).
+            std::set<std::string> listadas;
+            for (const json& s : a["sources"])
+                listadas.insert(s.value("name", std::string()));
+            std::vector<std::string> antes;
             if (sceneExists(name)) {
                 if (!a.value("replace", false))
                     return done(
                         ToolResult::error("La escena '" + name +
                                           "' ya existe: usa replace=true para rehacerla, u otro nombre."));
-                for (const std::string& s : rt.engine().sceneSources(name))
-                    rt.removeSource(name, s);
-                log.push_back("vaciada");
+                antes = rt.engine().sceneSources(name);
+                int quitadas = 0;
+                for (const std::string& s : antes)
+                    if (!listadas.count(s)) {
+                        rt.removeSource(name, s);
+                        ++quitadas;
+                    }
+                log.push_back("rehecha (" + std::to_string(quitadas) + " quitada(s); las que siguen, conservadas)");
             } else if (!rt.addScene(name)) {
                 return done(ToolResult::error(rt.lastError()));
             }
@@ -1142,10 +1174,27 @@ void McpService::registerTools() {
                 spec.visible = s.value("visible", true);
                 spec.volume = s.value("volume", 1.0f);
                 spec.muted = s.value("muted", false);
-                std::string err;
+                std::string err, nota;
                 if (s.contains("layout") &&
-                    !parseLayout(s["layout"], spec.rect.x, spec.rect.y, spec.rect.w, spec.rect.h, err)) {
+                    !parseLayout(s["layout"], spec.rect.x, spec.rect.y, spec.rect.w, spec.rect.h, err, &nota)) {
                     log.push_back(spec.name + ": " + err);
+                    continue;
+                }
+                if (!nota.empty()) log.push_back(spec.name + ": " + nota);
+                if (std::find(antes.begin(), antes.end(), spec.name) != antes.end()) {
+                    // Ya estaba en la escena: se le aplica lo que trae el pedido.
+                    if (s.contains("layout")) rt.setSourceRect(name, spec.name, spec.rect);
+                    rt.setSourceVisible(name, spec.name, spec.visible);
+                    if (s.contains("settings")) {
+                        json cur = json::parse(rt.engine().sourceSettingsJson(spec.name), nullptr, false);
+                        if (!cur.is_object()) cur = json::object();
+                        cur.merge_patch(s["settings"]);
+                        rt.updateSourceSettings(spec.name, cur.dump());
+                    }
+                    if (s.contains("volume")) rt.setVolume(spec.name, spec.volume);
+                    if (s.contains("muted")) rt.setMuted(spec.name, spec.muted);
+                    ++added;
+                    log.push_back(spec.name + ": conservada (ya estaba)");
                     continue;
                 }
                 const bool existed = !rt.engine().sourceTypeId(spec.name).empty();
@@ -1160,6 +1209,16 @@ void McpService::registerTools() {
                 }
                 ++added;
                 if (existed) log.push_back(spec.name + ": compartida (ya existia)");
+            }
+            // El orden, el de la lista (de abajo hacia arriba): cada una, arriba de todo.
+            {
+                const auto ahora = rt.engine().sceneSources(name);
+                for (const json& s : a["sources"]) {
+                    const std::string n = s.value("name", std::string());
+                    if (std::find(ahora.begin(), ahora.end(), n) == ahora.end()) continue;
+                    for (std::size_t i = 0; i < ahora.size(); ++i)
+                        rt.moveSource(name, n, 1);
+                }
             }
             if (a.value("switch", false)) rt.setScene(name);
             persist();
@@ -1346,8 +1405,9 @@ void McpService::registerTools() {
             if (a.contains("layout")) {
                 CanvasRect r;
                 std::string err;
-                if (!parseLayout(a["layout"], r.x, r.y, r.w, r.h, err)) return done(ToolResult::error(err));
-                (rt.setSourceRect(scene, name, r) ? did : failed).push_back("layout");
+                std::string nota;
+                if (!parseLayout(a["layout"], r.x, r.y, r.w, r.h, err, &nota)) return done(ToolResult::error(err));
+                (rt.setSourceRect(scene, name, r) ? did : failed).push_back(nota.empty() ? "layout" : "layout (" + nota + ")");
             }
             if (a.contains("order")) {
                 const json& o = a["order"];
