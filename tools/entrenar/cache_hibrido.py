@@ -266,22 +266,25 @@ def _de_capa(c):
     return [c.conv_states, c.recurrent_states] if _lineal(c) else [c.keys, c.values]
 
 
-def atras_por_capas(reg, kv, grads, extra=None):
+def atras_por_capas(reg, kv, grads, antes=None, despues=None):
     """grads: el gradiente de cada tensor de tensores(kv) (o None), en ese orden.
-    extra: lista que el recalculo de cada capa llena con mas raices de gradiente
-    cero (las fichas de prefijo_repartido); se vacia capa a capa."""
+    antes(idx): antes de recalcular la capa idx (prefijo_repartido prepara lo que
+    recibio en el forward). despues(idx) -> [(tensor, gradiente)]: raices de mas
+    para el backward de esa capa (lo que la capa mando a la otra placa, con el
+    gradiente que volvio); se llama despues del recalculo y antes del backward."""
     g = None
     for capa, idx, h, a, kw, foto in reversed(reg):
         _poner_capa(kv.layers[idx], foto)  # la capa como estaba antes de correr: vacia
+        if antes:
+            antes(idx)
         x = h.detach().requires_grad_(True)
         with torch.enable_grad():
             out = capa(x, *a, **kw)
         out = out[0] if isinstance(out, tuple) else out
         raices, gs = [out], [torch.zeros_like(out) if g is None else g.to(out.device)]
-        if extra:
-            raices += list(extra)
-            gs += [torch.zeros_like(t) for t in extra]
-            extra.clear()
+        for t, gt in (despues(idx) if despues else []):
+            raices.append(t)
+            gs.append(gt)
         for t, gt in zip(_de_capa(kv.layers[idx]), grads[2 * idx:2 * idx + 2]):
             if gt is not None and t is not None and t.requires_grad:
                 raices.append(t)

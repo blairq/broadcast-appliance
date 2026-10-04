@@ -127,9 +127,11 @@ def main():
                     help="no guardar las activaciones (prefijo y sufijo): se recalculan en el backward, capa por capa")
     ap.add_argument("--fsdp", action="store_true",
                     help="las dos placas como una (FSDP2): pesos repartidos, lote repartido, a la vez")
-    ap.add_argument("--soltar", choices=["si", "no"],
-                    help="FSDP: soltar los pesos de cada capa despues del forward (menos memoria, mas"
-                         " comunicacion). Sin decir: segun el tamano del modelo (repartido.repartir)")
+    ap.add_argument("--pesos", choices=["enteros", "repartidos"],
+                    help="con --fsdp: «enteros» = una copia del modelo por placa y el prefijo repartido"
+                         " por secuencia (lo mas rapido si entra: el 4B); «repartidos» = FSDP2, cada placa"
+                         " la mitad de cada capa (para lo que no entra en una: el 9B). Sin decir: segun"
+                         " el tamano (enteros si los pesos ocupan menos del 35%% de la placa)")
     ap.add_argument("--prefijo-repartido", choices=["si", "no"], default="si",
                     help="con --fsdp en dos placas: cada placa hace la mitad de los tokens del prefijo"
                          " (prefijo_repartido.py; verificado con verificar-gradiente.py)")
@@ -263,16 +265,26 @@ def main():
         if not dist_on or args.repartir or args.cuatro_bits or not args.recalcular:
             raise SystemExit("--fsdp: con dos o mas placas, con --recalcular, sin --repartir ni --cuatro-bits")
         import repartido
-        if hibrido and mundo == 2 and args.prefijo_repartido == "si":
-            # ANTES de repartir los pesos: los embeddings del prefijo se leen de la tabla entera
-            import prefijo_repartido
-            pre_rep = prefijo_repartido.Prefijo(modelo.get_base_model().model,
-                                                torch.tensor([ids_pre], device=dev), rank, mundo)
-            log(f"prefijo repartido por secuencia: tokens 0..{pre_rep.m} en la placa 0, el resto en la 1")
-        raiz, n, soltar = repartido.repartir(modelo, None if args.soltar is None else args.soltar == "si")
-        entrenables = [p for p in modelo.parameters() if p.requires_grad]  # ahora son pedazos (DTensor)
-        log(f"FSDP2: {n} capas repartidas entre {mundo} placas"
-            f" · {'sueltan' if soltar else 'conservan'} los pesos entre forward y backward")
+        pesos = args.pesos
+        if pesos is None:
+            tam = sum(p.numel() * p.element_size() for p in modelo.parameters())
+            pesos = "enteros" if tam < 0.35 * torch.cuda.get_device_properties(dev).total_memory else "repartidos"
+        if pesos == "enteros":
+            # UNA COPIA POR PLACA, el lote y el prefijo repartidos, y los gradientes
+            # sumados al final del paso. Sin comunicacion de FSDP en medio del prefijo:
+            # las placas van desfasadas una capa sin esperarse (prefijo_repartido)
+            if hibrido and mundo == 2 and args.prefijo_repartido == "si":
+                import prefijo_repartido
+                pre_rep = prefijo_repartido.Prefijo(modelo.get_base_model().model,
+                                                    torch.tensor([ids_pre], device=dev), rank, mundo)
+                log(f"pesos enteros en cada placa · prefijo repartido por secuencia: tokens 0..{pre_rep.m}"
+                    f" en la placa 0, el resto en la 1")
+            else:
+                log("pesos enteros en cada placa · el prefijo entero en cada una")
+        else:
+            raiz, n, _ = repartido.repartir(modelo, soltar=True)
+            entrenables = [p for p in modelo.parameters() if p.requires_grad]  # ahora son pedazos (DTensor)
+            log(f"FSDP2: {n} capas repartidas entre {mundo} placas (cada placa la mitad de cada capa)")
     opt = torch.optim.AdamW(entrenables, lr=args.lr, weight_decay=0.01, fused=True)
     ids_pre_t = torch.tensor([ids_pre], device=dev)
     Lp = len(ids_pre)
@@ -408,6 +420,8 @@ def main():
             if pre_rep is not None:
                 pre_rep.adelante(kv0)
                 ts = pre_rep.juntar(kv0)
+                prefijo_repartido.esperar_envios()
+                pre_rep.recibidos = None
             else:
                 texto(input_ids=ids_pre_t, past_key_values=kv0, use_cache=True)
                 ts = ch.tensores(kv0)
@@ -514,7 +528,7 @@ def main():
             if dist_on:
                 dist.all_reduce(n_tot)
             (suma / n_tot * mundo).backward()   # promedio por token sobre TODO el lote
-        if dist_on and not args.fsdp:  # con FSDP ya los promedio el reduce-scatter
+        if dist_on and raiz is None:  # con FSDP ya los promedio el reduce-scatter
             for p in entrenables:
                 dist.all_reduce(p.grad)
                 p.grad /= mundo

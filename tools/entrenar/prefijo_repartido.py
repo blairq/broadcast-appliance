@@ -18,12 +18,21 @@ backward los gradientes vuelven de la 1 a la 0):
 El resto de la capa (normas, proyecciones, MLP, LoRA) es token a token: cada
 placa lo suyo.
 
-EL ORDEN DE LOS MENSAJES. Las dos placas recorren las capas a la par (FSDP
-arma los pesos de cada capa en las dos a la vez). Dentro de una capa, la placa
-0 manda halo -> estado (o K/V) y la 1 los recibe en ese orden; en el backward
-el motor de autograd ejecuta primero lo creado despues, asi que los gradientes
-vuelven estado -> halo en las dos. Los mensajes van por un grupo de NCCL
-propio, separado del de FSDP.
+LAS DOS PLACAS DESFASADAS UNA CAPA, NO A LA PAR. Hacia adelante la placa 0 no
+necesita nada de la 1: manda (isend, sin esperar) y sigue con la capa
+siguiente; la 1 va una capa atras, recibiendo. La 1 GUARDA lo que recibio. En
+el backward es al reves: la 1 recalcula cada capa con lo guardado (no necesita
+a la 0), hace su backward, manda los gradientes de lo recibido y sigue; la 0
+va una capa atras y suma esos gradientes como raices de su backward. Ninguna
+placa espera a la otra salvo una capa al principio.
+
+REQUIERE LOS PESOS ENTEROS EN CADA PLACA (entrenar-rapido --pesos enteros).
+Con FSDP cada capa comunica dentro de su backward (trae la capa siguiente,
+reparte gradientes) y con el desfase el orden de esas comunicaciones y el de
+las nuestras se cruzaba entre placas: se trababa. Con una copia por placa no
+hay comunicacion de pesos en medio y los gradientes del LoRA se suman al final
+del paso. La cuenta de cada capa es la misma que en una placa: lo verifica
+verificar-gradiente.py.
 
 LOS CACHES. Al terminar el prefijo, cada placa tiene el cache de SUS tokens; se
 juntan (juntar) para que los sufijos de las dos placas vean el prefijo entero.
@@ -39,48 +48,39 @@ import torch.nn.functional as F
 
 import cache_hibrido as ch
 
-_sp = {"activo": False, "rank": 0, "m": 0, "grupo": None, "fichas": None}
-
-
-class _Enviar(torch.autograd.Function):
-    """Placa 0 -> 1. Devuelve una ficha (escalar) que entra como raiz del
-    backward: al ejecutarse su backward, recibe el gradiente de la placa 1."""
-
-    @staticmethod
-    def forward(ctx, x):
-        dist.send(x.contiguous(), 1, group=_sp["grupo"])
-        ctx.forma, ctx.tipo = x.shape, x.dtype
-        return x.new_zeros(())
-
-    @staticmethod
-    def backward(ctx, _):
-        g = torch.empty(ctx.forma, dtype=ctx.tipo, device=torch.cuda.current_device())
-        dist.recv(g, 1, group=_sp["grupo"])
-        return g
-
-
-class _Recibir(torch.autograd.Function):
-    @staticmethod
-    def forward(ctx, ancla, forma, tipo):
-        t = torch.empty(forma, dtype=tipo, device=ancla.device)
-        dist.recv(t, 0, group=_sp["grupo"])
-        return t
-
-    @staticmethod
-    def backward(ctx, g):
-        dist.send(g.contiguous(), 0, group=_sp["grupo"])
-        return None, None, None
+_sp = {"activo": False, "rank": 0, "m": 0, "grupo": None, "modo": None,
+       "recibidos": None, "salientes": None, "hojas": None, "pendientes": [], "envios": []}
 
 
 def _pasar(x=None, forma=None, tipo=None, device=None):
-    """En la placa 0 manda x; en la 1 devuelve lo recibido (forma y tipo dados)."""
-    if _sp["rank"] == 0:
-        ficha = _Enviar.apply(x)
-        if _sp["fichas"] is not None and ficha.requires_grad:
-            _sp["fichas"].append(ficha)
+    """De la placa 0 a la 1. En la 0 devuelve None; en la 1, lo recibido.
+
+    Hacia adelante (sin grafo): la 0 manda sin esperar; la 1 recibe y lo guarda.
+    Al recalcular para el backward: la 0 anota lo que habia mandado (sera raiz
+    con el gradiente que devuelva la 1); la 1 usa lo guardado como hoja, cuyo
+    gradiente devuelve despues."""
+    rank, grupo = _sp["rank"], _sp["grupo"]
+    if _sp["modo"] == "adelante":
+        if rank == 0:
+            x = x.detach().contiguous()
+            _sp["envios"].append((dist.isend(x, 1, group=grupo), x))
+            return None
+        t = torch.empty(tuple(forma), dtype=tipo, device=device)
+        dist.recv(t, 0, group=grupo)
+        _sp["recibidos"].append(t)
+        return t
+    if rank == 0:
+        _sp["salientes"].append(x)
         return None
-    ancla = torch.zeros((), device=device, requires_grad=torch.is_grad_enabled())
-    return _Recibir.apply(ancla, tuple(forma), tipo)
+    t = _sp["recibidos"].pop(0).detach().requires_grad_(True)
+    _sp["hojas"].append(t)
+    return t
+
+
+def esperar_envios():
+    for w, _ in _sp["envios"]:
+        w.wait()
+    _sp["envios"].clear()
 
 
 def _lineal(self, hidden_states, cache_params):
@@ -183,20 +183,19 @@ def instalar():
 
 
 @contextlib.contextmanager
-def repartiendo(fichas=None):
-    _sp["activo"], _sp["fichas"] = True, fichas
+def repartiendo(modo):
+    _sp["activo"], _sp["modo"] = True, modo
     try:
         yield
     finally:
-        _sp["activo"], _sp["fichas"] = False, None
+        _sp["activo"], _sp["modo"] = False, None
 
 
 class Prefijo:
     """El prefijo de UNA corrida de entrenamiento, repartido entre dos placas.
 
     Lo constante se calcula una vez (los embeddings del prefijo: la tabla esta
-    congelada; y las posiciones con su RoPE). Llamar ANTES de repartir el modelo
-    con FSDP: los embeddings se leen de la tabla entera."""
+    congelada; y las posiciones con su RoPE)."""
 
     def __init__(self, texto, ids_pre, rank, mundo, grupo=None):
         if mundo != 2:
@@ -214,16 +213,20 @@ class Prefijo:
         self.capas = list(texto.layers)
 
     def adelante(self, kv):
-        """Hacia adelante sin grafo, guardando la entrada de cada capa (para
-        atras). Deja en kv el cache de los tokens de ESTA placa."""
-        reg = []
+        """Hacia adelante sin grafo, guardando la entrada de cada capa y (en la
+        placa 1) lo recibido de la 0, para atras. Deja en kv el cache de los
+        tokens de ESTA placa."""
+        reg, self.recibidos = [], []
         h = self.emb
         kw = dict(position_embeddings=self.pos_emb, attention_mask=None, position_ids=None,
                   past_key_values=kv, use_cache=True)
-        with torch.no_grad(), repartiendo():
+        with torch.no_grad(), repartiendo("adelante"):
             for i, capa in enumerate(self.capas):
                 reg.append((capa, i, h, (), kw, ch._foto_capa(kv.layers[i])))
+                _sp["recibidos"] = []
                 h = capa(h, **kw)
+                self.recibidos.append(_sp["recibidos"])
+        _sp["recibidos"] = None
         return reg
 
     def juntar(self, kv):
@@ -268,10 +271,41 @@ class Prefijo:
                 mios += [gk, gv] if self.rank == 1 else [None, None]
             else:
                 mios += [None if t is None else t[:, :, self.lo:self.hi] for t in (gk, gv)]
-        fichas = []
-        with repartiendo(fichas):
-            ch.atras_por_capas(reg, kv, mios, extra=fichas)
+        grupo = _sp["grupo"]
 
+        def antes(idx):
+            if self.rank == 1:
+                _sp["recibidos"], _sp["hojas"] = list(self.recibidos[idx]), []
+                if idx + 1 < len(self.capas):  # la capa anterior ya termino: devolver sus gradientes
+                    devolver()
+            else:
+                _sp["salientes"] = []
+
+        def devolver():
+            for hj in _sp["pendientes"]:
+                gr = hj.grad if hj.grad is not None else torch.zeros_like(hj)
+                gr = gr.contiguous()
+                _sp["envios"].append((dist.isend(gr, 0, group=grupo), gr))
+            _sp["pendientes"] = []
+
+        def despues(idx):
+            if self.rank == 1:
+                _sp["pendientes"] = _sp["hojas"]
+                return []
+            pares = []
+            for t in _sp["salientes"]:  # en el orden en que se mandaron
+                gr = torch.empty(t.shape, dtype=t.dtype, device=t.device)
+                dist.recv(gr, 1, group=grupo)
+                pares.append((t, gr))
+            return pares
+
+        _sp["pendientes"] = []
+        with repartiendo("atras"):
+            ch.atras_por_capas(reg, kv, mios, antes=antes, despues=despues)
+            if self.rank == 1:
+                devolver()  # los de la capa 0
+        esperar_envios()
+        self.recibidos = None
 
 def sumar(hojas):
     """El gradiente del cache que junto cada placa con sus sufijos, sumado entre

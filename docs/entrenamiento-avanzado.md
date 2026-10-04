@@ -166,57 +166,81 @@ a la otra. `entrenar-rapido.py --fsdp` (con `repartido.py`):
   si el modelo ocupa menos del 35 % de la placa (el 4B), se conservan armados
   entre el forward y el backward (19,3 GB por placa, 9,2 s/paso); si no
   (el 9B), se sueltan (14,8 GB con el 4B, 9,9 s/paso).
-- **El prefijo repartido por secuencia** (`prefijo_repartido.py`, activo por
-  defecto con `--fsdp` en dos placas). Con FSDP solo, cada placa repetía el
-  prefijo entero, 6 de los 9,2 s del paso. Ahora la placa 0 hace los tokens
-  [0, m) y la 1 los [m, L), a la vez y capa por capa.
+- **Dos modos** (`--pesos`, que por defecto se elige por el tamaño del modelo):
+  - **`enteros`** (si el modelo ocupa menos del 35 % de una placa, como el
+    4B): una copia del modelo por placa, el lote y **el prefijo repartidos**,
+    y los gradientes sumados al final del paso.
+  - **`repartidos`** (lo que no entra en una placa, como el 9B): FSDP2, cada
+    placa con la mitad de cada capa y el prefijo entero en cada una.
+  - Con el 4B, FSDP igual conservaba los pesos armados en las dos placas
+    (20,8 GB por placa), así que repartirlos no ahorraba nada ahí.
+- **El prefijo repartido por secuencia** (`prefijo_repartido.py`). La placa 0
+  hace los tokens [0, m) y la 1 los [m, L).
   - Por causalidad solo cruza información de la 0 a la 1. En la atención
     lineal cruzan el estado recurrente al llegar a m (fla lo acepta como
     `initial_state`, diferenciable) y los 3 tokens del borde de la
-    convolución. Es la idea de LASP (arXiv:2404.02882) en su forma más simple.
-  - En la atención completa cruzan K y V de la placa 0, y la 1 atiende a todo
-    con la máscara causal corrida.
-  - En el backward los gradientes vuelven por el mismo camino, con funciones de
-    autograd que mandan y reciben (grupo de NCCL propio). El orden de los
-    mensajes coincide en las dos placas porque autograd ejecuta primero lo
-    creado después.
+    convolución. En la atención completa cruzan K y V. Es la idea de LASP
+    (arXiv:2404.02882) en su forma más simple.
+  - **Las placas van desfasadas una capa, no a la par.** Hacia adelante la 0
+    manda sin esperar (`isend`) y sigue; la 1 va una capa atrás y **guarda lo
+    que recibe** (~200 MB por paso). En el backward es al revés: la 1 recalcula
+    cada capa con lo guardado y devuelve los gradientes de lo recibido; la 0 va
+    una capa atrás y los suma como raíces de su backward. Solo se espera una
+    capa al principio.
+  - A la par, en cambio, en cada capa lineal una placa esperaba el núcleo
+    recurrente de la otra (8,15 s/paso).
+  - Con FSDP el desfase se trababa. Cada capa comunica dentro de su backward
+    (trae la capa siguiente, reparte gradientes), y el orden de esas
+    comunicaciones se cruzaba entre placas con el de las nuestras. Por eso el
+    prefijo repartido va solo con los pesos enteros.
   - Los cachés de cada mitad se juntan para los sufijos. El gradiente del caché
-    se suma entre placas y se reparte por rango de tokens.
+    se suma entre placas (el backward del prefijo es lineal en él) y se reparte
+    por rango de tokens.
   - Lo constante va en caché: los embeddings del prefijo (la tabla está
     congelada) y su RoPE.
-- **Verificación del gradiente** (`verificar-gradiente.py`, con torchrun en
-  dos placas; correrla después de tocar cualquiera de estas piezas). La verdad
-  se calcula en **fp64** con el 0.8B, que tiene la misma arquitectura. Contra
-  ella se miden, en fp32 sin TF32, el camino de una placa y el de dos.
+- **Verificación del gradiente** (`verificar-gradiente.py --pesos
+  enteros|repartidos`, con torchrun en dos placas; correrla después de tocar
+  cualquiera de estas piezas). La verdad se calcula en **fp64** con el 0.8B,
+  que tiene la misma arquitectura. Contra ella se miden, en fp32 sin TF32, el
+  camino de una placa y el de dos.
   - Partir los tokens cambia el orden de las sumas: no puede dar idéntico bit
     a bit. Lo que se pide es que esté tan cerca de la verdad como una placa.
     Un término de más o de menos daría órdenes de magnitud de diferencia.
-  - Resultado: caché del prefijo 4,06e-5 con una placa y 4,51e-5 con dos;
-    gradiente con coseno 0,999999998 con una y 0,999999997 con dos. Pasa.
-  - Con el kernel de fla (TF32 adentro) las dos versiones quedan igual de lejos
+  - Resultados:
+
+    | Modo | Caché del prefijo (1 placa / 2 placas) | Coseno del gradiente (1 / 2) | Resultado |
+    |---|---|---|---|
+    | `enteros` | 4,06e-5 / 4,51e-5 | 0,999999998 / 0,999999997 | Pasa |
+    | `repartidos` | 4,06e-5 / 4,06e-5 | 0,999999998 / 0,999999998 | Pasa |
+
+  - Con el kernel de fla (TF32 adentro) una y dos placas quedan igual de lejos
     de la verdad: coseno 0,99883 con una y 0,99890 con dos.
-  - Además verifica que los parámetros del optimizador sean los pedazos
-    repartidos.
+  - Además verifica que el optimizador reciba los parámetros correctos.
   - Dos trampas que encontró en el camino:
     - `from_pretrained(dtype=float32)` deja la base en bf16; hace falta
       `.float()`. En bf16 el redondeo cambia con el reparto y tapaba todo.
-    - Con los pesos conservados, un forward **sin backward** (la validación, o
-      el de inicio de FSDP) los dejaba armados. El optimizador actualizaba los
-      pedazos y el forward siguiente usaba la copia vieja: el modelo no
-      aprendía. Ahora `repartido.soltar_todo()` va después de cada uno.
-- **Medido con el 4B** (prefijo de 8.203 tokens, lote 16, micro 4): **11,6
-  s/paso** repartido por capas → 9,2 con FSDP → **8,15 con el prefijo
-  repartido (1,42×)**, con 20,8 GB por placa.
-  - Por paso: prefijo hacia adelante 1,31 s, micro-lotes 3,2 s, backward del
-    prefijo 3,27 s.
-  - La pérdida de entrenamiento y la de validación siguen la misma curva que
-    sin repartir: 0,3934 contra 0,3914 a los 15 pasos y 0,3572 contra 0,3566
-    a los 30.
-- **Lo que falta para la mitad exacta**: en cada capa lineal una placa espera
-  el núcleo recurrente de la otra (en el forward la 1 a la 0, en el backward
-  al revés). Solaparlo pide calcular aparte el efecto del estado inicial, que
-  en la regla delta no es aditivo (LASP-2, arXiv:2502.07563, lo hace para la
-  atención lineal simple).
+    - Con FSDP y los pesos conservados, un forward **sin backward** (la
+      validación, o el de inicio de FSDP) los dejaba armados. El optimizador
+      actualizaba los pedazos y el forward siguiente usaba la copia vieja: el
+      modelo no aprendía. Ahora `repartido.soltar_todo()` va después de cada
+      uno.
+- **Medido con el 4B** (prefijo de 8.203 tokens, lote 16, micro 4):
+
+  | Configuración | s/paso |
+  |---|---|
+  | Repartido por capas (antes) | 11,6 |
+  | FSDP | 9,2 |
+  | Prefijo repartido a la par | 8,15 |
+  | **Pesos enteros + prefijo repartido y desfasado** | **7,18 (1,62×)** |
+
+  - Memoria: 17,5 GB por placa. Uso de las placas: 98–99 %.
+  - Por paso: prefijo hacia adelante 1,0 s (el ideal es ~0,9), micro-lotes
+    2,9 s, backward del prefijo 3,0 s, suma de gradientes 0,03 s.
+  - La pérdida de validación sigue la misma curva: 0,3933 contra 0,3914 a los
+    15 pasos y 0,3564 contra 0,3566 a los 30.
+  - El backward del prefijo no baja a la mitad exacta por el costo fijo por
+    capa (32 backwards, muchos kernels chicos del LoRA), no por esperas: las
+    dos placas tardan lo mismo.
 
 **Reanudar.** Se llama con `python`, no con `torchrun`: el proceso supervisa.
 Lanza torchrun en su propio grupo de procesos y, si la corrida se cae, termina

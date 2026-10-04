@@ -52,10 +52,8 @@ def repartir(modelo, soltar=None, bf16=True):
     fuera: congelada y entera en cada placa (o atada a los embeddings).
 
     soltar: si cada capa suelta sus pesos al terminar el forward (y los vuelve a
-    traer para el backward). Soltar ahorra memoria y cuesta comunicacion: con el
-    4B (8 GB en bf16) no soltar es ~7% mas rapido (9,2 vs 9,9 s/paso) y el pico
-    sube de 14,8 a 19,3 GB. None = decidir por tamano: no soltar si los pesos
-    ocupan menos del 35% de la placa."""
+    traer para el backward). entrenar-rapido usa FSDP solo para lo que no entra
+    en una placa, y ahi suelta (soltar=True); None = decidir por tamano."""
     from torch.distributed.fsdp import MixedPrecisionPolicy, fully_shard
     # bf16=False: todo en la precision de los pesos (las pruebas de gradiente, en fp32)
     mp = MixedPrecisionPolicy(param_dtype=torch.bfloat16 if bf16 else None, reduce_dtype=torch.float32)

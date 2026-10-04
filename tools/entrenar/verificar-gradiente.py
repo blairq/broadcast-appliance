@@ -17,7 +17,13 @@ La regla delta va por su version en torch (--nucleo torch): el kernel de fla
 usa TF32 adentro y taparia la comparacion. --nucleo fla mide el error practico
 del kernel de entrenamiento, sin pasar o no pasar.
 
-    .venv-entrenar/bin/torchrun --nproc_per_node 2 tools/entrenar/verificar-gradiente.py [--soltar si|no]
+    .venv-entrenar/bin/torchrun --nproc_per_node 2 tools/entrenar/verificar-gradiente.py [--pesos enteros|repartidos]
+
+Los dos modos de entrenar-rapido --fsdp:
+  enteros     una copia por placa, el prefijo repartido por secuencia y desfasado
+              una capa (prefijo_repartido), gradientes sumados al final;
+  repartidos  FSDP2 (cada placa la mitad de cada capa), el prefijo entero en cada
+              placa.
 
 Sale con 0 si pasa y con 1 si no. Correrlo despues de tocar repartido.py,
 prefijo_repartido.py o cache_hibrido.py.
@@ -38,7 +44,7 @@ import repartido  # noqa: E402
 ap = argparse.ArgumentParser()
 ap.add_argument("--base", default="Qwen/Qwen3.5-0.8B")
 ap.add_argument("--prefijo", type=int, default=301, help="tokens (impar: la mitad no es exacta)")
-ap.add_argument("--soltar", choices=["si", "no"], default="si")
+ap.add_argument("--pesos", choices=["enteros", "repartidos"], default="enteros")
 ap.add_argument("--nucleo", choices=["torch", "fla"], default="torch",
                 help="la regla delta: torch (fp32 de verdad: verifica el METODO) o fla (el kernel"
                      " de entrenamiento, con TF32 adentro: mide el error practico)")
@@ -166,20 +172,37 @@ if rank == 0:
     torch.cuda.empty_cache()
 dist.barrier()
 
-# las dos placas: prefijo repartido + FSDP + medio lote cada una
+# las dos placas, medio lote cada una
 m = cargar()
-P = pr.Prefijo(texto_de(m), pre, rank, 2)
-repartido.repartir(m, soltar=args.soltar == "si", bf16=False)
-# lo que recibiria el optimizador: los pedazos (DTensor), no copias armadas
-from torch.distributed.tensor import DTensor  # noqa: E402
-pedazos = all(isinstance(p, DTensor) for p in m.parameters() if p.requires_grad)
 torch.cuda.reset_peak_memory_stats()
-kv0 = DynamicCache(config=m.config)
-reg = P.adelante(kv0)
-ts = P.juntar(kv0)
-hojas = sufijos(m, ts, suf[rank * 2:(rank + 1) * 2], 2.0)  # x mundo: FSDP promedia
-P.atras(reg, kv0, pr.sumar(hojas))
-g = grads(m, completo=True)
+if args.pesos == "enteros":
+    for p in m.parameters():  # mismos pesos de partida (como entrenar-rapido)
+        if p.requires_grad:
+            dist.broadcast(p.data, 0)
+    P = pr.Prefijo(texto_de(m), pre, rank, 2)
+    kv0 = DynamicCache(config=m.config)
+    reg = P.adelante(kv0)
+    ts = P.juntar(kv0)
+    hojas = sufijos(m, ts, suf[rank * 2:(rank + 1) * 2], 2.0)  # x mundo, como entrenar-rapido
+    P.atras(reg, kv0, pr.sumar(hojas))
+    for p in m.parameters():  # el promedio entre placas, como entrenar-rapido
+        if p.requires_grad and p.grad is not None:
+            dist.all_reduce(p.grad)
+            p.grad /= 2
+    pedazos = True
+    g = grads(m)
+else:
+    repartido.repartir(m, soltar=True, bf16=False)
+    # lo que recibiria el optimizador: los pedazos (DTensor), no copias armadas
+    from torch.distributed.tensor import DTensor  # noqa: E402
+    pedazos = all(isinstance(p, DTensor) for p in m.parameters() if p.requires_grad)
+    kv0 = DynamicCache(config=m.config)
+    with ch.grabando() as reg:
+        texto_de(m)(input_ids=pre, past_key_values=kv0, use_cache=True)
+    ts = [t.detach().clone() for t in ch.tensores(kv0)]
+    hojas = sufijos(m, ch.tensores(kv0), suf[rank * 2:(rank + 1) * 2], 2.0)  # FSDP promedia
+    ch.atras_por_capas(reg, kv0, [h.grad for h in hojas])
+    g = grads(m, completo=True)
 pico = torch.cuda.max_memory_allocated() / 2**30
 
 if rank == 0:
@@ -191,7 +214,7 @@ if rank == 0:
     print(f"cache del prefijo vs fp64:   una placa {c1:.2e} · dos placas {c2:.2e}")
     print(f"gradiente vs fp64:           una placa {e1:.2e} (coseno {cos1:.9f})"
           f" · dos placas {e2:.2e} (coseno {cos2:.9f}) · {n}/{total} tensores")
-    print(f"pico de memoria (dos placas): {pico:.2f} GiB · parametros repartidos: {'si' if pedazos else 'NO'}")
+    print(f"pico de memoria (dos placas): {pico:.2f} GiB · parametros del optimizador bien: {'si' if pedazos else 'NO'}")
     if args.nucleo == "fla":
         print("(con fla no se juzga: TF32 adentro del kernel)")
         codigo = 0
