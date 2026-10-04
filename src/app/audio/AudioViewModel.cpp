@@ -195,22 +195,26 @@ void AudioViewModel::rebuildDetail() {
         if (r->kindOf(id) == "entrada") {
             for (const auto& n : r->describe()["nodos"])
                 if (n["id"] == id) j["fuente"] = n.value("fuente", "");
-            j["ayuda"] = "Trae el audio de otra fuente (después de su propio rack) a este grafo. No se conecta "
-                         "sola: cableala a donde la quieras (la mezcla, el sidechain de un compresor, la voz a "
-                         "texto). Si la fuente es una entrada de placa, su captura se abre sola.";
+            j["ayuda"] =
+                "Trae el audio de otra fuente (después de su propio rack) a este grafo. No se conecta "
+                "sola: cableala a donde la quieras (la mezcla, el sidechain de un compresor, la voz a "
+                "texto). Si la fuente es una entrada de placa, su captura se abre sola.";
         }
         if (r->kindOf(id) == "habla") {
             for (const auto& h : r->hablas())
                 if (h.value("id", "") == id) j["habla"] = h;
-            j["ayuda"] = "Dice con la voz elegida lo que llega por una salida de texto (o lo que escribas abajo). "
-                         "Suena por su puerto: cableala a la mezcla, a la salida de audio o a otra voz a texto. "
-                         "Ponela en una fuente que siempre tenga audio (una entrada virtual, un micrófono): el "
-                         "rack procesa mientras su fuente suena.";
+            j["ayuda"] =
+                "Dice con la voz elegida lo que llega por una salida de texto (o lo que escribas abajo). "
+                "Suena por su puerto: cableala a la mezcla, a la salida de audio o a otra voz a texto. "
+                "Ponela en una fuente que siempre tenga audio (una entrada virtual, un micrófono): el "
+                "rack procesa mientras su fuente suena.";
         }
         if (r->kindOf(id) == "traducir") {
             j["traduccion_id"] = source_.toStdString() + "#" + id;
-            j["ayuda"] = "Traduce lo que publica una salida de texto (la de una «Voz a texto») y lo publica en otra, en otro "
-                         "idioma: esa se usa como cualquiera (subtítulos, archivo, una tarjeta «Texto a voz» con una voz del "
+            j["ayuda"] = "Traduce lo que publica una salida de texto (la de una «Voz a texto») y lo publica "
+                         "en otra, en otro "
+                         "idioma: esa se usa como cualquiera (subtítulos, archivo, una tarjeta «Texto a voz» "
+                         "con una voz del "
                          "idioma). No lleva cables: no toca el audio.";
         }
         if (r->kindOf(id) == "texto") {
@@ -290,7 +294,8 @@ QString AudioViewModel::addTexto(const QString& modo) {
 }
 
 QString AudioViewModel::setTextoOpciones(const QString& node, const QVariantMap& cambios) {
-    const json c = json::parse(QJsonDocument(QJsonObject::fromVariantMap(cambios)).toJson().toStdString(), nullptr, false);
+    const json c = json::parse(QJsonDocument(QJsonObject::fromVariantMap(cambios)).toJson().toStdString(),
+                               nullptr, false);
     const std::string e = mgr_.setTextoOpciones(source_.toStdString(), node.toStdString(), c);
     rebuildGraph();
     rebuildDetail();
@@ -335,7 +340,8 @@ QString AudioViewModel::addEntrada(const QString& fuente) {
 }
 
 QString AudioViewModel::setEntradaFuente(const QString& node, const QString& fuente) {
-    const std::string e = mgr_.setEntradaFuente(source_.toStdString(), node.toStdString(), fuente.toStdString());
+    const std::string e =
+        mgr_.setEntradaFuente(source_.toStdString(), node.toStdString(), fuente.toStdString());
     rebuildGraph();
     rebuildDetail();
     return QString::fromStdString(e);
@@ -363,7 +369,8 @@ QString AudioViewModel::addTraduccion() {
             break;
         }
     std::string e;
-    const std::string id = mgr_.addTraduccion({{"fuente", source_.toStdString()}, {"desde", desde}, {"a", "en"}}, &e);
+    const std::string id =
+        mgr_.addTraduccion({{"fuente", source_.toStdString()}, {"desde", desde}, {"a", "en"}}, &e);
     if (id.empty()) return QString::fromStdString(e);
     autoLayout();
     select(QString::fromStdString(id.substr(id.rfind('#') + 1)));
@@ -373,7 +380,8 @@ QString AudioViewModel::addTraduccion() {
 }
 
 QString AudioViewModel::setHablaOpciones(const QString& node, const QVariantMap& cambios) {
-    const json c = json::parse(QJsonDocument(QJsonObject::fromVariantMap(cambios)).toJson().toStdString(), nullptr, false);
+    const json c = json::parse(QJsonDocument(QJsonObject::fromVariantMap(cambios)).toJson().toStdString(),
+                               nullptr, false);
     const std::string e = mgr_.setHablaOpciones(source_.toStdString(), node.toStdString(), c);
     rebuildDetail();
     return QString::fromStdString(e);

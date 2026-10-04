@@ -14,7 +14,8 @@ using json = nlohmann::json;
 
 namespace {
 std::string minus(std::string s) {
-    for (auto& c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    for (auto& c : s)
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     return s;
 }
 bool coincide(const json& patrones, const std::string& texto) {
@@ -49,7 +50,8 @@ std::string Oui::normalizar(const std::string& mac) {
         }
         if (!std::isxdigit(static_cast<unsigned char>(c))) return {};
         parte += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
-        if (mac.find(':') == std::string::npos && mac.find('-') == std::string::npos && parte.size() == 2) cerrar();
+        if (mac.find(':') == std::string::npos && mac.find('-') == std::string::npos && parte.size() == 2)
+            cerrar();
     }
     cerrar();
     return out.size() == 12 ? out : std::string();
@@ -116,7 +118,8 @@ bool Biblioteca::leer(const std::string& ruta) {
 
 Marca Biblioteca::reconocer(const Pistas& p) const {
     Marca mejor{"generica", "Genérica", "no se reconoció la marca", 0};
-    const auto probar = [&](int confianza, const char* clave, const std::string& texto, const std::string& porque) {
+    const auto probar = [&](int confianza, const char* clave, const std::string& texto,
+                            const std::string& porque) {
         if (confianza <= mejor.confianza || texto.empty()) return;
         for (const auto& m : marcas_) {
             if (coincide(m["detectar"].value(clave, json::array()), texto)) {
@@ -134,14 +137,15 @@ Marca Biblioteca::reconocer(const Pistas& p) const {
         for (const auto& m : marcas_)
             for (const auto& pu : m["detectar"].value("puertos", json::array()))
                 if (p.puertos.count(pu.get<int>())) {
-                    mejor = {m.value("id", ""), m.value("nombre", ""), "tiene abierto el puerto " + std::to_string(pu.get<int>()), 0};
+                    mejor = {m.value("id", ""), m.value("nombre", ""),
+                             "tiene abierto el puerto " + std::to_string(pu.get<int>()), 0};
                     return mejor;
                 }
     return mejor;
 }
 
-std::vector<Candidata> Biblioteca::candidatas(const std::string& marca, const std::string& host, int puertoRtsp,
-                                              int canales) const {
+std::vector<Candidata> Biblioteca::candidatas(const std::string& marca, const std::string& host,
+                                              int puertoRtsp, int canales) const {
     std::vector<Candidata> out;
     const auto agregar = [&](const json& m) {
         for (const auto& r : m.value("rtsp", json::array())) {

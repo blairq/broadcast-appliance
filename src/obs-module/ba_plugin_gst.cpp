@@ -38,8 +38,8 @@
 #include <gst/base/gstpushsrc.h>
 #include <gst/gst.h>
 #include <gst/video/video.h>
-#include <obs-module.h>
 #include <media-io/audio-io.h>
+#include <obs-module.h>
 
 #include <nlohmann/json.hpp>
 
@@ -85,8 +85,10 @@ gint64 ahoraMs() { return g_get_monotonic_time() / 1000; }
 
 void puertoPlugin(const std::string& plugin, int puerto) {
     std::lock_guard<std::mutex> l(g_puertosLock);
-    if (puerto > 0) g_puertos[plugin] = puerto;
-    else g_puertos.erase(plugin);
+    if (puerto > 0)
+        g_puertos[plugin] = puerto;
+    else
+        g_puertos.erase(plugin);
 }
 
 // --- El canal con el plugin -----------------------------------------------------------
@@ -253,10 +255,11 @@ class CanalPlugin {
 
 namespace {
 
-const char* kCaps =
-    "video/x-raw, format=(string){ RGBA, BGRA, RGBx, BGRx, I420, NV12 }, width=(int)[1,16384], height=(int)[1,16384], "
-    "framerate=(fraction)[0/1,1000/1]; "
-    "audio/x-raw, format=(string)F32LE, layout=(string)interleaved, rate=(int)[1,384000], channels=(int)[1,64]";
+const char* kCaps = "video/x-raw, format=(string){ RGBA, BGRA, RGBx, BGRx, I420, NV12 }, "
+                    "width=(int)[1,16384], height=(int)[1,16384], "
+                    "framerate=(fraction)[0/1,1000/1]; "
+                    "audio/x-raw, format=(string)F32LE, layout=(string)interleaved, rate=(int)[1,384000], "
+                    "channels=(int)[1,64]";
 
 // ===================================================================================
 // baplugin: la tarjeta
@@ -392,8 +395,9 @@ bool asegurarConexion(BaPluginFiltro* yo, Filtro& f, size_t tam) {
         desconectar(f, e, 1000);
         if (!f.avisado && yo != nullptr) {
             f.avisado = true;
-            GST_ELEMENT_WARNING(yo, RESOURCE, OPEN_READ, ("plugin «%s», tarjeta «%s»: %s", f.plugin.c_str(), f.tarjeta.c_str(), e.c_str()),
-                                (nullptr));
+            GST_ELEMENT_WARNING(
+                yo, RESOURCE, OPEN_READ,
+                ("plugin «%s», tarjeta «%s»: %s", f.plugin.c_str(), f.tarjeta.c_str(), e.c_str()), (nullptr));
         }
         return false;
     }
@@ -451,8 +455,11 @@ GstFlowReturn filtroTransformar(GstBaseTransform* t, GstBuffer* buf) {
         }
         if (f.conectado && !f.ocupado) {
             std::memcpy(f.canal.mem(), m.data, tam);
-            json c{{"c", ++f.n}, {"pts", GST_BUFFER_PTS_IS_VALID(buf) ? static_cast<long long>(GST_BUFFER_PTS(buf)) : -1}};
-            if (!f.esVideo) c["muestras"] = tam / (4 * static_cast<size_t>(std::max(1, GST_AUDIO_INFO_CHANNELS(&f.ainfo))));
+            json c{{"c", ++f.n},
+                   {"pts", GST_BUFFER_PTS_IS_VALID(buf) ? static_cast<long long>(GST_BUFFER_PTS(buf)) : -1}};
+            if (!f.esVideo)
+                c["muestras"] =
+                    tam / (4 * static_cast<size_t>(std::max(1, GST_AUDIO_INFO_CHANNELS(&f.ainfo))));
             if (f.canal.enviar(c)) {
                 f.ocupado = true;
                 conError = false;
@@ -485,7 +492,8 @@ gboolean filtroCaps(GstBaseTransform* t, GstCaps* in, GstCaps*) {
     std::lock_guard<std::mutex> l(f.lock);
     const GstStructure* s = gst_caps_get_structure(in, 0);
     f.esVideo = gst_structure_has_name(s, "video/x-raw");
-    const bool ok = f.esVideo ? gst_video_info_from_caps(&f.vinfo, in) : gst_audio_info_from_caps(&f.ainfo, in);
+    const bool ok =
+        f.esVideo ? gst_video_info_from_caps(&f.vinfo, in) : gst_audio_info_from_caps(&f.ainfo, in);
     f.capsListas = ok;
     f.capsCambiaron = true;
     return ok;
@@ -502,24 +510,24 @@ void filtroPoner(GObject* o, guint id, const GValue* v, GParamSpec* ps) {
     Filtro& f = *reinterpret_cast<BaPluginFiltro*>(o)->f;
     std::lock_guard<std::mutex> l(f.lock);
     switch (id) {
-    case P_PLUGIN:
-        f.plugin = g_value_get_string(v) ? g_value_get_string(v) : "";
-        desconectar(f, {}, 0);
-        break;
-    case P_TARJETA:
-        f.tarjeta = g_value_get_string(v) ? g_value_get_string(v) : "";
-        desconectar(f, {}, 0);
-        break;
-    case P_PARAMETROS:
-        f.parametros = g_value_get_string(v) ? g_value_get_string(v) : "{}";
-        f.paramsCambiaron = true;
-        break;
-    case P_PUERTO:
-        f.puerto = g_value_get_int(v);
-        desconectar(f, {}, 0);
-        break;
-    case P_ESPERA: f.esperaMs = g_value_get_int(v); break;
-    default: G_OBJECT_WARN_INVALID_PROPERTY_ID(o, id, ps);
+        case P_PLUGIN:
+            f.plugin = g_value_get_string(v) ? g_value_get_string(v) : "";
+            desconectar(f, {}, 0);
+            break;
+        case P_TARJETA:
+            f.tarjeta = g_value_get_string(v) ? g_value_get_string(v) : "";
+            desconectar(f, {}, 0);
+            break;
+        case P_PARAMETROS:
+            f.parametros = g_value_get_string(v) ? g_value_get_string(v) : "{}";
+            f.paramsCambiaron = true;
+            break;
+        case P_PUERTO:
+            f.puerto = g_value_get_int(v);
+            desconectar(f, {}, 0);
+            break;
+        case P_ESPERA: f.esperaMs = g_value_get_int(v); break;
+        default: G_OBJECT_WARN_INVALID_PROPERTY_ID(o, id, ps);
     }
 }
 
@@ -527,18 +535,18 @@ void filtroLeer(GObject* o, guint id, GValue* v, GParamSpec* ps) {
     Filtro& f = *reinterpret_cast<BaPluginFiltro*>(o)->f;
     std::lock_guard<std::mutex> l(f.lock);
     switch (id) {
-    case P_PLUGIN: g_value_set_string(v, f.plugin.c_str()); break;
-    case P_TARJETA: g_value_set_string(v, f.tarjeta.c_str()); break;
-    case P_PARAMETROS: g_value_set_string(v, f.parametros.c_str()); break;
-    case P_PUERTO: g_value_set_int(v, f.puerto); break;
-    case P_ESPERA: g_value_set_int(v, f.esperaMs); break;
-    case P_ESTADO: {
-        const json e{{"conectado", f.conectado}, {"error", f.error},       {"cuadros", f.cuadros},
-                     {"procesados", f.procesados}, {"tarde", f.tarde}, {"sin_procesar", f.pasados}};
-        g_value_set_string(v, e.dump().c_str());
-        break;
-    }
-    default: G_OBJECT_WARN_INVALID_PROPERTY_ID(o, id, ps);
+        case P_PLUGIN: g_value_set_string(v, f.plugin.c_str()); break;
+        case P_TARJETA: g_value_set_string(v, f.tarjeta.c_str()); break;
+        case P_PARAMETROS: g_value_set_string(v, f.parametros.c_str()); break;
+        case P_PUERTO: g_value_set_int(v, f.puerto); break;
+        case P_ESPERA: g_value_set_int(v, f.esperaMs); break;
+        case P_ESTADO: {
+            const json e{{"conectado", f.conectado},   {"error", f.error}, {"cuadros", f.cuadros},
+                         {"procesados", f.procesados}, {"tarde", f.tarde}, {"sin_procesar", f.pasados}};
+            g_value_set_string(v, e.dump().c_str());
+            break;
+        }
+        default: G_OBJECT_WARN_INVALID_PROPERTY_ID(o, id, ps);
     }
 }
 
@@ -553,23 +561,30 @@ void ba_plugin_filtro_class_init(BaPluginFiltroClass* k) {
     go->get_property = filtroLeer;
     go->finalize = filtroFinalizar;
     const auto rw = static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
-    g_object_class_install_property(go, P_PLUGIN, g_param_spec_string("plugin", "Plugin", "El id del plugin", "", rw));
-    g_object_class_install_property(go, P_TARJETA, g_param_spec_string("tarjeta", "Tarjeta", "La tarjeta del plugin", "", rw));
+    g_object_class_install_property(go, P_PLUGIN,
+                                    g_param_spec_string("plugin", "Plugin", "El id del plugin", "", rw));
     g_object_class_install_property(
-        go, P_PARAMETROS, g_param_spec_string("parametros", "Parámetros", "Los ajustes de la tarjeta (JSON)", "{}",
-                                              static_cast<GParamFlags>(rw | GST_PARAM_MUTABLE_PLAYING)));
-    g_object_class_install_property(go, P_PUERTO, g_param_spec_int("puerto", "Puerto", "El de medios del plugin (0: el que anuncie)", 0, 65535, 0, rw));
+        go, P_TARJETA, g_param_spec_string("tarjeta", "Tarjeta", "La tarjeta del plugin", "", rw));
+    g_object_class_install_property(
+        go, P_PARAMETROS,
+        g_param_spec_string("parametros", "Parámetros", "Los ajustes de la tarjeta (JSON)", "{}",
+                            static_cast<GParamFlags>(rw | GST_PARAM_MUTABLE_PLAYING)));
+    g_object_class_install_property(
+        go, P_PUERTO,
+        g_param_spec_int("puerto", "Puerto", "El de medios del plugin (0: el que anuncie)", 0, 65535, 0, rw));
     g_object_class_install_property(
         go, P_ESPERA,
-        g_param_spec_int("espera-ms", "Espera", "Cuánto esperar la vuelta de cada cuadro (después, sale el último)", 0, 1000, 25,
+        g_param_spec_int("espera-ms", "Espera",
+                         "Cuánto esperar la vuelta de cada cuadro (después, sale el último)", 0, 1000, 25,
                          static_cast<GParamFlags>(rw | GST_PARAM_MUTABLE_PLAYING)));
-    g_object_class_install_property(go, P_ESTADO,
-                                    g_param_spec_string("estado", "Estado", "Conexión y cuadros (JSON)", "{}",
-                                                        static_cast<GParamFlags>(G_PARAM_READABLE | G_PARAM_STATIC_STRINGS)));
+    g_object_class_install_property(
+        go, P_ESTADO,
+        g_param_spec_string("estado", "Estado", "Conexión y cuadros (JSON)", "{}",
+                            static_cast<GParamFlags>(G_PARAM_READABLE | G_PARAM_STATIC_STRINGS)));
     auto* ge = GST_ELEMENT_CLASS(k);
-    gst_element_class_set_static_metadata(ge, "Plugin de Broadcast Appliance (tarjeta)", "Filter/Effect/Video/Audio",
-                                          "Pasa cada cuadro o bloque de audio por una tarjeta de un plugin de Python",
-                                          "Broadcast Appliance");
+    gst_element_class_set_static_metadata(
+        ge, "Plugin de Broadcast Appliance (tarjeta)", "Filter/Effect/Video/Audio",
+        "Pasa cada cuadro o bloque de audio por una tarjeta de un plugin de Python", "Broadcast Appliance");
     GstCaps* c = gst_caps_from_string(kCaps);
     gst_element_class_add_pad_template(ge, gst_pad_template_new("sink", GST_PAD_SINK, GST_PAD_ALWAYS, c));
     gst_element_class_add_pad_template(ge, gst_pad_template_new("src", GST_PAD_SRC, GST_PAD_ALWAYS, c));
@@ -626,7 +641,8 @@ enum { F_0, F_PLUGIN, F_ENTRADA, F_MEDIO, F_PUERTO, F_ESTADO };
 bool capsDeCabecera(BaPluginFuente* yo, Fuente& f, const json& m) {
     GstCaps* caps = nullptr;
     if (f.esVideo) {
-        const GstVideoFormat fmt = gst_video_format_from_string(m.value("formato", std::string("RGBA")).c_str());
+        const GstVideoFormat fmt =
+            gst_video_format_from_string(m.value("formato", std::string("RGBA")).c_str());
         const int w = m.value("ancho", 0), h = m.value("alto", 0);
         if (fmt == GST_VIDEO_FORMAT_UNKNOWN || w <= 0 || h <= 0) return false;
         gst_video_info_set_format(&f.vinfo, fmt, static_cast<guint>(w), static_cast<guint>(h));
@@ -663,7 +679,8 @@ void copiarCuadro(const Fuente& f, const uint8_t* origen, size_t tamOrigen, GstB
                   {size_t(w) * h, size_t(cw), size_t(cw), size_t(ch)},
                   {size_t(w) * h + size_t(cw) * ch, size_t(cw), size_t(cw), size_t(ch)}};
     } else if (fmt == GST_VIDEO_FORMAT_NV12) {
-        planos = {{0, size_t(w), size_t(w), size_t(h)}, {size_t(w) * h, size_t(cw) * 2, size_t(cw) * 2, size_t(ch)}};
+        planos = {{0, size_t(w), size_t(w), size_t(h)},
+                  {size_t(w) * h, size_t(cw) * 2, size_t(cw) * 2, size_t(ch)}};
     } else {
         const size_t st = f.cab.value("stride", w * 4);
         planos = {{0, st, size_t(w) * 4, size_t(h)}};
@@ -703,7 +720,8 @@ GstFlowReturn fuenteCrear(GstPushSrc* s, GstBuffer** out) {
             }
             std::string e;
             const int puerto = puertoFijo > 0 ? puertoFijo : puertoDe(plugin);
-            if (!f.canal.conectar(puerto, e) || !f.canal.enviar({{"rol", "entrada"}, {"nombre", entrada}, {"medio", medio}})) {
+            if (!f.canal.conectar(puerto, e) ||
+                !f.canal.enviar({{"rol", "entrada"}, {"nombre", entrada}, {"medio", medio}})) {
                 f.error = e;
                 f.proximoIntento = ahoraMs() + 500;
                 continue;
@@ -745,7 +763,8 @@ GstFlowReturn fuenteCrear(GstPushSrc* s, GstBuffer** out) {
             buf = gst_buffer_new_allocate(nullptr, GST_VIDEO_INFO_SIZE(&f.vinfo), nullptr);
             copiarCuadro(f, f.canal.mem(), tam, buf);
         } else {
-            const size_t bytes = std::min(tam, m.value("muestras", static_cast<size_t>(0)) * 4 * static_cast<size_t>(f.canales));
+            const size_t bytes = std::min(tam, m.value("muestras", static_cast<size_t>(0)) * 4 *
+                                                   static_cast<size_t>(f.canales));
             buf = gst_buffer_new_allocate(nullptr, bytes, nullptr);
             gst_buffer_fill(buf, 0, f.canal.mem(), bytes);
         }
@@ -779,11 +798,11 @@ void fuentePoner(GObject* o, guint id, const GValue* v, GParamSpec* ps) {
     std::lock_guard<std::mutex> l(f.lock);
     const char* s = G_VALUE_HOLDS_STRING(v) ? g_value_get_string(v) : nullptr;
     switch (id) {
-    case F_PLUGIN: f.plugin = s ? s : ""; break;
-    case F_ENTRADA: f.entrada = s ? s : ""; break;
-    case F_MEDIO: f.medio = s ? s : "video"; break;
-    case F_PUERTO: f.puerto = g_value_get_int(v); break;
-    default: G_OBJECT_WARN_INVALID_PROPERTY_ID(o, id, ps);
+        case F_PLUGIN: f.plugin = s ? s : ""; break;
+        case F_ENTRADA: f.entrada = s ? s : ""; break;
+        case F_MEDIO: f.medio = s ? s : "video"; break;
+        case F_PUERTO: f.puerto = g_value_get_int(v); break;
+        default: G_OBJECT_WARN_INVALID_PROPERTY_ID(o, id, ps);
     }
 }
 
@@ -791,14 +810,17 @@ void fuenteLeer(GObject* o, guint id, GValue* v, GParamSpec* ps) {
     Fuente& f = *reinterpret_cast<BaPluginFuente*>(o)->f;
     std::lock_guard<std::mutex> l(f.lock);
     switch (id) {
-    case F_PLUGIN: g_value_set_string(v, f.plugin.c_str()); break;
-    case F_ENTRADA: g_value_set_string(v, f.entrada.c_str()); break;
-    case F_MEDIO: g_value_set_string(v, f.medio.c_str()); break;
-    case F_PUERTO: g_value_set_int(v, f.puerto); break;
-    case F_ESTADO:
-        g_value_set_string(v, json{{"conectado", f.conectado}, {"error", f.error}, {"recibidos", f.recibidos.load()}}.dump().c_str());
-        break;
-    default: G_OBJECT_WARN_INVALID_PROPERTY_ID(o, id, ps);
+        case F_PLUGIN: g_value_set_string(v, f.plugin.c_str()); break;
+        case F_ENTRADA: g_value_set_string(v, f.entrada.c_str()); break;
+        case F_MEDIO: g_value_set_string(v, f.medio.c_str()); break;
+        case F_PUERTO: g_value_set_int(v, f.puerto); break;
+        case F_ESTADO:
+            g_value_set_string(
+                v, json{{"conectado", f.conectado}, {"error", f.error}, {"recibidos", f.recibidos.load()}}
+                       .dump()
+                       .c_str());
+            break;
+        default: G_OBJECT_WARN_INVALID_PROPERTY_ID(o, id, ps);
     }
 }
 
@@ -813,16 +835,23 @@ void ba_plugin_fuente_class_init(BaPluginFuenteClass* k) {
     go->get_property = fuenteLeer;
     go->finalize = fuenteFinalizar;
     const auto rw = static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
-    g_object_class_install_property(go, F_PLUGIN, g_param_spec_string("plugin", "Plugin", "El id del plugin", "", rw));
-    g_object_class_install_property(go, F_ENTRADA, g_param_spec_string("entrada", "Entrada", "La entrada del plugin", "", rw));
-    g_object_class_install_property(go, F_MEDIO, g_param_spec_string("medio", "Medio", "video o audio", "video", rw));
-    g_object_class_install_property(go, F_PUERTO, g_param_spec_int("puerto", "Puerto", "El de medios del plugin (0: el que anuncie)", 0, 65535, 0, rw));
-    g_object_class_install_property(go, F_ESTADO,
-                                    g_param_spec_string("estado", "Estado", "Conexión y cuadros (JSON)", "{}",
-                                                        static_cast<GParamFlags>(G_PARAM_READABLE | G_PARAM_STATIC_STRINGS)));
+    g_object_class_install_property(go, F_PLUGIN,
+                                    g_param_spec_string("plugin", "Plugin", "El id del plugin", "", rw));
+    g_object_class_install_property(
+        go, F_ENTRADA, g_param_spec_string("entrada", "Entrada", "La entrada del plugin", "", rw));
+    g_object_class_install_property(go, F_MEDIO,
+                                    g_param_spec_string("medio", "Medio", "video o audio", "video", rw));
+    g_object_class_install_property(
+        go, F_PUERTO,
+        g_param_spec_int("puerto", "Puerto", "El de medios del plugin (0: el que anuncie)", 0, 65535, 0, rw));
+    g_object_class_install_property(
+        go, F_ESTADO,
+        g_param_spec_string("estado", "Estado", "Conexión y cuadros (JSON)", "{}",
+                            static_cast<GParamFlags>(G_PARAM_READABLE | G_PARAM_STATIC_STRINGS)));
     auto* ge = GST_ELEMENT_CLASS(k);
     gst_element_class_set_static_metadata(ge, "Plugin de Broadcast Appliance (entrada)", "Source/Video/Audio",
-                                          "El video o el audio que manda un plugin de Python", "Broadcast Appliance");
+                                          "El video o el audio que manda un plugin de Python",
+                                          "Broadcast Appliance");
     GstCaps* c = gst_caps_from_string(kCaps);
     gst_element_class_add_pad_template(ge, gst_pad_template_new("src", GST_PAD_SRC, GST_PAD_ALWAYS, c));
     gst_caps_unref(c);
@@ -879,7 +908,8 @@ void* audioCrear(obs_data_t* s, obs_source_t* ctx) {
     gst_audio_info_init(&a->f.ainfo);
     const audio_output_info* oi = obs_get_audio() ? audio_output_get_info(obs_get_audio()) : nullptr;
     const int canales = oi ? static_cast<int>(get_audio_channels(oi->speakers)) : 2;
-    gst_audio_info_set_format(&a->f.ainfo, GST_AUDIO_FORMAT_F32LE, oi ? static_cast<int>(oi->samples_per_sec) : 48000, canales, nullptr);
+    gst_audio_info_set_format(&a->f.ainfo, GST_AUDIO_FORMAT_F32LE,
+                              oi ? static_cast<int>(oi->samples_per_sec) : 48000, canales, nullptr);
     a->f.capsListas = true;
     audioActualizar(a, s);
     return a;
@@ -904,8 +934,8 @@ obs_audio_data* audioFiltrar(void* d, obs_audio_data* au) {
     const size_t n = au->frames;
     if (n == 0 || canales <= 0) return au;
     const size_t tam = n * static_cast<size_t>(canales) * sizeof(float);
-    if (!asegurarConexion(nullptr, f, std::max(tam, static_cast<size_t>(48000 * canales * 4 / 4))) || f.canal.mem() == nullptr ||
-        f.canal.tam() < tam)
+    if (!asegurarConexion(nullptr, f, std::max(tam, static_cast<size_t>(48000 * canales * 4 / 4))) ||
+        f.canal.mem() == nullptr || f.canal.tam() < tam)
         return au;
     if (f.paramsCambiaron) {
         f.paramsCambiaron = false;

@@ -75,8 +75,8 @@ std::string resumen(const json& args);
 // signo (-4 / +3); valor exacto con «=» adelante (=-10); true / false; enums
 // tal cual. Se lee con la misma expresión que lib_tc.leer.
 struct LlamadaTc {
-    bool hay = false;         ///< había un <tool_call>
-    std::string funcion;      ///< el nombre (o "derivar", "falta_dato")
+    bool hay = false;                                            ///< había un <tool_call>
+    std::string funcion;                                         ///< el nombre (o "derivar", "falta_dato")
     std::vector<std::pair<std::string, std::string>> parametros; ///< tal cual (texto)
 };
 LlamadaTc leerTc(const std::string& generado);

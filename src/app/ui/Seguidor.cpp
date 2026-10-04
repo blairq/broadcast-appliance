@@ -19,7 +19,7 @@
 namespace ba::app {
 
 struct Seguidor::Estado {
-    QString id;      ///< persona reconocida (vacío: por posición)
+    QString id; ///< persona reconocida (vacío: por posición)
     QString nombre;
     double x = 0.5, y = 0.5; ///< dónde se la vio por última vez (0..1)
     qint64 vistaMs = 0;
@@ -50,18 +50,21 @@ bool Seguidor::disponible() const {
 QVariantMap Seguidor::siguiendo() const {
     QVariantMap m;
     for (const auto& [entrada, e] : seguidas_)
-        m[entrada] = QVariantMap{{"id", e->id}, {"nombre", e->nombre}, {"estado", e->estado}, {"x", e->x}, {"y", e->y}};
+        m[entrada] = QVariantMap{
+            {"id", e->id}, {"nombre", e->nombre}, {"estado", e->estado}, {"x", e->x}, {"y", e->y}};
     return m;
 }
 
 #if BA_HAVE_ROSTROS
 namespace {
 /// Las caras vistas, en 0..1 del cuadro y con su nombre si se las reconoce.
-QVariantList describir(PersonasViewModel* p, const std::vector<Reconocedor::Visto>& vistos, const QImage& img) {
+QVariantList describir(PersonasViewModel* p, const std::vector<Reconocedor::Visto>& vistos,
+                       const QImage& img) {
     QVariantList out;
     const double w = std::max(1, img.width()), h = std::max(1, img.height());
     for (const auto& v : vistos) {
-        QVariantMap c{{"x", v.cara.x / w}, {"y", v.cara.y / h}, {"ancho", v.cara.ancho / w}, {"alto", v.cara.alto / h}};
+        QVariantMap c{
+            {"x", v.cara.x / w}, {"y", v.cara.y / h}, {"ancho", v.cara.ancho / w}, {"alto", v.cara.alto / h}};
         if (p != nullptr && !v.vector.empty()) {
             const auto m = p->libreta().buscar(v.vector);
             if (!m.id.empty() && m.parecido >= ba::rostros::kMismaPersona) {
@@ -81,15 +84,16 @@ void Seguidor::analizar(const QString& entrada) {
 #if BA_HAVE_ROSTROS
     if (!personas_) return;
     QPointer<Seguidor> yo(this);
-    personas_->pedirAnalisis("entrada:" + entrada, false,
-                             [yo, entrada](std::vector<Reconocedor::Visto> vistos, const QImage& img, const QString& error) {
-                                 if (!yo) return;
-                                 if (error.isEmpty()) {
-                                     yo->caras_[entrada] = describir(yo->personas_, vistos, img);
-                                     emit yo->cambio();
-                                 }
-                                 emit yo->analizado(entrada, error);
-                             });
+    personas_->pedirAnalisis(
+        "entrada:" + entrada, false,
+        [yo, entrada](std::vector<Reconocedor::Visto> vistos, const QImage& img, const QString& error) {
+            if (!yo) return;
+            if (error.isEmpty()) {
+                yo->caras_[entrada] = describir(yo->personas_, vistos, img);
+                emit yo->cambio();
+            }
+            emit yo->analizado(entrada, error);
+        });
 #else
     emit analizado(entrada, "Este programa se armó sin reconocimiento de rostros");
 #endif
@@ -98,7 +102,8 @@ void Seguidor::analizar(const QString& entrada) {
 QString Seguidor::seguir(const QString& entrada, const QVariantMap& objetivo) {
 #if BA_HAVE_ROSTROS
     if (!personas_ || !camaras_) return "El seguimiento no está disponible";
-    if (camaras_->modoActivo(entrada).isEmpty()) return "«" + entrada + "» no tiene PTZ: prendé el digital o configurá su motor";
+    if (camaras_->modoActivo(entrada).isEmpty())
+        return "«" + entrada + "» no tiene PTZ: prendé el digital o configurá su motor";
     auto& e = seguidas_[entrada];
     if (!e) e = std::make_unique<Estado>();
     e->id = objetivo.value("id").toString();
@@ -140,55 +145,59 @@ void Seguidor::vuelta(const QString& entrada) {
     if (e.enVuelo) return;
     e.enVuelo = true;
     QPointer<Seguidor> yo(this);
-    personas_->pedirAnalisis("entrada:" + entrada, true,
-                             [yo, entrada](std::vector<Reconocedor::Visto> vistos, const QImage& img, const QString& error) {
-                                 if (!yo) return;
-                                 auto it2 = yo->seguidas_.find(entrada);
-                                 if (it2 == yo->seguidas_.end()) return;
-                                 Estado& e = *it2->second;
-                                 e.enVuelo = false;
-                                 const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
-                                 const QVariantList caras = error.isEmpty() ? describir(yo->personas_, vistos, img) : QVariantList{};
-                                 if (error.isEmpty()) yo->caras_[entrada] = caras;
-                                 // El objetivo: la misma persona si está reconocida; si no, la cara más cercana a donde estaba.
-                                 int mejor = -1;
-                                 double dmin = 1e9;
-                                 for (int i = 0; i < caras.size(); ++i) {
-                                     const QVariantMap c = caras[i].toMap();
-                                     const double cx = c["x"].toDouble() + c["ancho"].toDouble() / 2, cy = c["y"].toDouble() + c["alto"].toDouble() / 2;
-                                     if (!e.id.isEmpty()) {
-                                         if (c.value("id").toString() == e.id) {
-                                             mejor = i;
-                                             break;
-                                         }
-                                         continue;
-                                     }
-                                     const double d = std::hypot(cx - e.x, cy - e.y);
-                                     if (d < dmin) {
-                                         dmin = d;
-                                         mejor = i;
-                                     }
-                                 }
-                                 // Sin nombre, una cara muy lejos de donde estaba es otra persona.
-                                 if (e.id.isEmpty() && mejor >= 0 && dmin > 0.35 && ahora - e.vistaMs < 1500) mejor = -1;
-                                 if (mejor < 0) {
-                                     if (!e.parada) {
-                                         yo->camaras_->parar(entrada);
-                                         e.parada = true;
-                                     }
-                                     e.estado = ahora - e.vistaMs > 2000 ? "perdida: esperando a que vuelva" : "buscando";
-                                     emit yo->cambio();
-                                     return;
-                                 }
-                                 const QVariantMap c = caras[mejor].toMap();
-                                 const double cx = c["x"].toDouble() + c["ancho"].toDouble() / 2, cy = c["y"].toDouble() + c["alto"].toDouble() / 2;
-                                 e.x = cx;
-                                 e.y = cy;
-                                 e.vistaMs = ahora;
-                                 if (e.nombre.isEmpty()) e.nombre = c.value("nombre").toString();
-                                 yo->corregir(entrada, e, cx, cy, c["alto"].toDouble());
-                                 emit yo->cambio();
-                             });
+    personas_->pedirAnalisis(
+        "entrada:" + entrada, true,
+        [yo, entrada](std::vector<Reconocedor::Visto> vistos, const QImage& img, const QString& error) {
+            if (!yo) return;
+            auto it2 = yo->seguidas_.find(entrada);
+            if (it2 == yo->seguidas_.end()) return;
+            Estado& e = *it2->second;
+            e.enVuelo = false;
+            const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
+            const QVariantList caras =
+                error.isEmpty() ? describir(yo->personas_, vistos, img) : QVariantList{};
+            if (error.isEmpty()) yo->caras_[entrada] = caras;
+            // El objetivo: la misma persona si está reconocida; si no, la cara más cercana a donde estaba.
+            int mejor = -1;
+            double dmin = 1e9;
+            for (int i = 0; i < caras.size(); ++i) {
+                const QVariantMap c = caras[i].toMap();
+                const double cx = c["x"].toDouble() + c["ancho"].toDouble() / 2,
+                             cy = c["y"].toDouble() + c["alto"].toDouble() / 2;
+                if (!e.id.isEmpty()) {
+                    if (c.value("id").toString() == e.id) {
+                        mejor = i;
+                        break;
+                    }
+                    continue;
+                }
+                const double d = std::hypot(cx - e.x, cy - e.y);
+                if (d < dmin) {
+                    dmin = d;
+                    mejor = i;
+                }
+            }
+            // Sin nombre, una cara muy lejos de donde estaba es otra persona.
+            if (e.id.isEmpty() && mejor >= 0 && dmin > 0.35 && ahora - e.vistaMs < 1500) mejor = -1;
+            if (mejor < 0) {
+                if (!e.parada) {
+                    yo->camaras_->parar(entrada);
+                    e.parada = true;
+                }
+                e.estado = ahora - e.vistaMs > 2000 ? "perdida: esperando a que vuelva" : "buscando";
+                emit yo->cambio();
+                return;
+            }
+            const QVariantMap c = caras[mejor].toMap();
+            const double cx = c["x"].toDouble() + c["ancho"].toDouble() / 2,
+                         cy = c["y"].toDouble() + c["alto"].toDouble() / 2;
+            e.x = cx;
+            e.y = cy;
+            e.vistaMs = ahora;
+            if (e.nombre.isEmpty()) e.nombre = c.value("nombre").toString();
+            yo->corregir(entrada, e, cx, cy, c["alto"].toDouble());
+            emit yo->cambio();
+        });
 #else
     Q_UNUSED(entrada);
 #endif

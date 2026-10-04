@@ -28,15 +28,16 @@ struct Medicion {
     double desfaseMs = 0;
     /// 0..1: qué tan claro es el pico de la correlación.
     double confianza = 0;
-    std::string metodo;        ///< "espacial" o "energia"
-    double cuadroMs = 0;       ///< la duración de un cuadro (la resolución de la medición)
-    int cuadros = 0;           ///< cuántos cuadros en común se usaron
-    std::string motivo;        ///< por qué no se pudo (si !ok)
+    std::string metodo;  ///< "espacial" o "energia"
+    double cuadroMs = 0; ///< la duración de un cuadro (la resolución de la medición)
+    int cuadros = 0;     ///< cuántos cuadros en común se usaron
+    std::string motivo;  ///< por qué no se pudo (si !ok)
 };
 
 /// :param ta, ga: horas (ns de libobs) y grillas (144 bytes por cuadro) de A.
 /// :param maxMs: hasta cuánto desfase se busca, para un lado y para el otro.
 Medicion medirDesfase(const std::vector<std::uint64_t>& ta, const std::vector<std::uint8_t>& ga,
-                      const std::vector<std::uint64_t>& tb, const std::vector<std::uint8_t>& gb, double maxMs = 1500);
+                      const std::vector<std::uint64_t>& tb, const std::vector<std::uint8_t>& gb,
+                      double maxMs = 1500);
 
 } // namespace ba::app::video

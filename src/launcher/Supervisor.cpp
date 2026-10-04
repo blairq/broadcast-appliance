@@ -133,7 +133,8 @@ bool Supervisor::inStartupGrace(bool isA) const {
     if (at == 0) return false;
     const std::uint64_t pasado = nowMs() - at;
     if (pasado < kStartupGraceMs) return true;
-    const bool latio = health_.read(isA ? cfg_.slotA : cfg_.slotB).lastBeatQpc != latidoAlLanzar_[isA ? 1 : 0];
+    const bool latio =
+        health_.read(isA ? cfg_.slotA : cfg_.slotB).lastBeatQpc != latidoAlLanzar_[isA ? 1 : 0];
     return !latio && pasado < kPrimerLatidoMs;
 }
 

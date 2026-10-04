@@ -54,7 +54,8 @@ Voz::Voz(AppRuntime& rt, ModelosLocales& modelos, QObject* parent)
     connect(oidoT_, &QTimer::timeout, this, [this]() {
         QVariantList l;
         for (const auto& [k, o] : escucha_->oido())
-            l << QVariantMap{{"flujo", QString::fromStdString(k)}, {"hablando", o.hablando}, {"segundos", o.segundos}};
+            l << QVariantMap{
+                {"flujo", QString::fromStdString(k)}, {"hablando", o.hablando}, {"segundos", o.segundos}};
         if (l != oido_) {
             oido_ = l;
             emit oidoCambio();
@@ -82,7 +83,8 @@ Voz::Voz(AppRuntime& rt, ModelosLocales& modelos, QObject* parent)
                 transcripcion_.removeFirst();
             emit transcripcionCambio();
             emit frase(fuente, t);
-            if (flujos_ != nullptr) flujos_->publicar(fl, t, "Voz a texto en «" + fuente + "»", r.segundosDeAudio);
+            if (flujos_ != nullptr)
+                flujos_->publicar(fl, t, "Voz a texto en «" + fuente + "»", r.segundosDeAudio);
         });
     });
     connect(&modelos_, &ModelosLocales::cambio, this, &Voz::revisarModelos);
@@ -450,7 +452,7 @@ void Voz::atenderDe(const QString& frase, const QString& origen, const nlohmann:
         // devolvérselo sería un bucle.
         if (origen.startsWith("asistente:") || (asistenteLocal_ && asistenteLocal_())) {
             responder(id, !modelos_.listo() ? "El modelo local no está listo todavía."
-                                             : "El modelo local está apagado para lo dictado.");
+                                            : "El modelo local está apagado para lo dictado.");
             return;
         }
         emit dictado(f);
@@ -519,8 +521,10 @@ void Voz::probarTc(const QString& frase, std::function<void(const nlohmann::json
             QMetaObject::invokeMethod(this, [r, j]() { r(j); });
         });
     };
-    if (contexto_) contexto_(conEstado);
-    else conEstado(nlohmann::json::object());
+    if (contexto_)
+        contexto_(conEstado);
+    else
+        conEstado(nlohmann::json::object());
 }
 
 void Voz::derivarA(int id, const QString& f, const QString& origen, const std::string& motivo) {
@@ -549,14 +553,17 @@ void Voz::atenderTc(int id, const QString& f, const QString& origen) {
     const auto conEstado = [this, id, f, origen](const nlohmann::json& estado) {
         const QString estadoJson = estadoTc(estado);
         bitacora(id, "modelo_pedido",
-                 {{"op", "llamar"}, {"frase", f.toStdString()}, {"modelo", modelos_.activo().toStdString()},
+                 {{"op", "llamar"},
+                  {"frase", f.toStdString()},
+                  {"modelo", modelos_.activo().toStdString()},
                   {"estado", estadoJson.toStdString()}});
         const auto t0 = std::chrono::steady_clock::now();
         modelos_.llamar(estadoJson, f, [this, id, f, estado, t0, origen](const nlohmann::json& j) {
             const double ms =
                 std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
             QMetaObject::invokeMethod(this, [this, id, f, estado, j, ms, origen]() {
-                bitacora(id, "modelo_respuesta", {{"op", "llamar"}, {"respuesta", j}, {"ms_ida_y_vuelta", ms}});
+                bitacora(id, "modelo_respuesta",
+                         {{"op", "llamar"}, {"respuesta", j}, {"ms_ida_y_vuelta", ms}});
                 if (j.contains("error")) {
                     derivarA(id, f, origen, "error del modelo: " + j.value("error", std::string()));
                     return;
@@ -598,17 +605,23 @@ void Voz::atenderTc(int id, const QString& f, const QString& origen) {
                 const nlohmann::json crudos = argumentos::argsDesdeTc(l, ficha.ficha);
                 const auto r = argumentos::validar(h.toStdString(), ficha.ficha, crudos, estado);
                 QStringList notas, bloqueos;
-                for (const auto& n : r.notas) notas << QString::fromStdString(n);
-                for (const auto& b : r.bloqueos) bloqueos << QString::fromStdString(b);
+                for (const auto& n : r.notas)
+                    notas << QString::fromStdString(n);
+                for (const auto& b : r.bloqueos)
+                    bloqueos << QString::fromStdString(b);
                 bitacora(id, "argumentos",
-                         {{"crudos", crudos}, {"args", r.args}, {"notas", notas.join(" | ").toStdString()},
+                         {{"crudos", crudos},
+                          {"args", r.args},
+                          {"notas", notas.join(" | ").toStdString()},
                           {"bloqueos", bloqueos.join(" | ").toStdString()}});
                 decidir(id, f, h, ficha, r.args, notas, bloqueos);
             });
         });
     };
-    if (contexto_) contexto_(conEstado);
-    else conEstado(nlohmann::json::object());
+    if (contexto_)
+        contexto_(conEstado);
+    else
+        conEstado(nlohmann::json::object());
 }
 
 void Voz::completar(int id, const QString& frase, const QString& h, const FichaHerramienta& ficha) {

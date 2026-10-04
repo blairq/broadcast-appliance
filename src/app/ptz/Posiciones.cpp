@@ -14,7 +14,11 @@ QString Posicion::definicion() const {
 }
 
 QJsonObject Posicion::json() const {
-    QJsonObject j{{"id", id}, {"nombre", nombre}, {"comentario", comentario}, {"creada", creada}, {"modificada", modificada}};
+    QJsonObject j{{"id", id},
+                  {"nombre", nombre},
+                  {"comentario", comentario},
+                  {"creada", creada},
+                  {"modificada", modificada}};
     if (ancho > 0 && alto > 0) j["definicion"] = QJsonObject{{"ancho", ancho}, {"alto", alto}};
     if (digital) j["digital"] = QJsonObject{{"x", x}, {"y", y}, {"zoom", zoom}};
     if (tieneCamara()) {
@@ -116,7 +120,8 @@ int Posiciones::memoriaLibre(int hasta, int desde) const {
 
 QJsonArray Posiciones::json() const {
     QJsonArray a;
-    for (const Posicion& p : lista_) a.append(p.json());
+    for (const Posicion& p : lista_)
+        a.append(p.json());
     return a;
 }
 

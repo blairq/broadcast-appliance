@@ -10,8 +10,8 @@ namespace fs = std::filesystem;
 
 namespace {
 /// Datos del usuario que versiones anteriores dejaban adentro del bundle.
-constexpr const char* kDatos[] = {"Config", "Credenciales", "Logs", "Recordings", "Media",   "Eventos",
-                                  "Modelos", "Agentes",     "Shares", "Respaldos", "Exportado", "Runtime"};
+constexpr const char* kDatos[] = {"Config",  "Credenciales", "Logs",   "Recordings", "Media",     "Eventos",
+                                  "Modelos", "Agentes",      "Shares", "Respaldos",  "Exportado", "Runtime"};
 /// De fábrica, ampliables por el usuario: se siembran (se copia lo que falta).
 constexpr const char* kSemillas[] = {"Graficos", "Extensiones"};
 

@@ -135,8 +135,10 @@ void GrabadorWav::bucle() {
                 }
                 continue;
             }
-            const std::size_t va = std::min<std::size_t>(lote.size() - hecho, static_cast<std::size_t>(lugar));
-            f_.write(reinterpret_cast<const char*>(lote.data() + hecho), static_cast<std::streamsize>(va * sizeof(float)));
+            const std::size_t va =
+                std::min<std::size_t>(lote.size() - hecho, static_cast<std::size_t>(lugar));
+            f_.write(reinterpret_cast<const char*>(lote.data() + hecho),
+                     static_cast<std::streamsize>(va * sizeof(float)));
             datosArchivo_ += va * sizeof(float);
             frames_ += va / 2;
             hecho += va;

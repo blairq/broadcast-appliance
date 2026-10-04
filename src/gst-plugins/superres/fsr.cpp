@@ -190,7 +190,8 @@ enum { PROP_0, PROP_NITIDEZ };
 
 static GstStaticPadTemplate sinkTpl =
     GST_STATIC_PAD_TEMPLATE("sink", GST_PAD_SINK, GST_PAD_ALWAYS, GST_STATIC_CAPS("video/x-raw"));
-static GstStaticPadTemplate srcTpl = GST_STATIC_PAD_TEMPLATE("src", GST_PAD_SRC, GST_PAD_ALWAYS, GST_STATIC_CAPS("video/x-raw"));
+static GstStaticPadTemplate srcTpl =
+    GST_STATIC_PAD_TEMPLATE("src", GST_PAD_SRC, GST_PAD_ALWAYS, GST_STATIC_CAPS("video/x-raw"));
 
 /// El shader, armado en el hilo de OpenGL con la versión de GLSL del contexto
 /// (core en macOS, compatibilidad o ES en otros): GStreamer lo adapta.
@@ -200,9 +201,10 @@ static GstGLShader* crearShader(GstElement* glshader, gpointer fuente) {
     if (ctx == nullptr) return nullptr;
     GError* err = nullptr;
     GstGLSLStage* v = gst_glsl_stage_new_default_vertex(ctx);
-    GstGLSLStage* f = gst_glsl_stage_new_with_string(ctx, GL_FRAGMENT_SHADER, GST_GLSL_VERSION_NONE,
-                                                     static_cast<GstGLSLProfile>(GST_GLSL_PROFILE_ES | GST_GLSL_PROFILE_COMPATIBILITY),
-                                                     static_cast<const char*>(fuente));
+    GstGLSLStage* f = gst_glsl_stage_new_with_string(
+        ctx, GL_FRAGMENT_SHADER, GST_GLSL_VERSION_NONE,
+        static_cast<GstGLSLProfile>(GST_GLSL_PROFILE_ES | GST_GLSL_PROFILE_COMPATIBILITY),
+        static_cast<const char*>(fuente));
     GstGLShader* sh = gst_gl_shader_new_link_with_stages(ctx, &err, v, f, nullptr);
     if (sh == nullptr) {
         GST_ERROR_OBJECT(glshader, "FSR: el shader no compiló: %s", err ? err->message : "?");
@@ -214,12 +216,13 @@ static GstGLShader* crearShader(GstElement* glshader, gpointer fuente) {
 
 static void ponerUniformes(BaFsr* s) {
     if (s->ancho <= 0) return;
-    GstStructure* u = gst_structure_new("u", "entrada_ancho", G_TYPE_FLOAT, static_cast<float>(s->ancho), "entrada_alto", G_TYPE_FLOAT,
-                                        static_cast<float>(s->alto), nullptr);
+    GstStructure* u = gst_structure_new("u", "entrada_ancho", G_TYPE_FLOAT, static_cast<float>(s->ancho),
+                                        "entrada_alto", G_TYPE_FLOAT, static_cast<float>(s->alto), nullptr);
     g_object_set(s->easu, "uniforms", u, nullptr);
     gst_structure_free(u);
-    u = gst_structure_new("u", "salida_ancho", G_TYPE_FLOAT, static_cast<float>(s->ancho * 2), "salida_alto", G_TYPE_FLOAT,
-                          static_cast<float>(s->alto * 2), "nitidez", G_TYPE_FLOAT, static_cast<float>(s->nitidez), nullptr);
+    u = gst_structure_new("u", "salida_ancho", G_TYPE_FLOAT, static_cast<float>(s->ancho * 2), "salida_alto",
+                          G_TYPE_FLOAT, static_cast<float>(s->alto * 2), "nitidez", G_TYPE_FLOAT,
+                          static_cast<float>(s->nitidez), nullptr);
     g_object_set(s->rcas, "uniforms", u, nullptr);
     gst_structure_free(u);
 }
@@ -233,7 +236,8 @@ static GstPadProbeReturn alCaps(GstPad*, GstPadProbeInfo* info, gpointer data) {
     gst_event_parse_caps(ev, &caps);
     const GstStructure* st = gst_caps_get_structure(caps, 0);
     gint w = 0, h = 0;
-    if (gst_structure_get_int(st, "width", &w) && gst_structure_get_int(st, "height", &h) && (w != s->ancho || h != s->alto)) {
+    if (gst_structure_get_int(st, "width", &w) && gst_structure_get_int(st, "height", &h) &&
+        (w != s->ancho || h != s->alto)) {
         s->ancho = w;
         s->alto = h;
         GstCaps* d = gst_caps_from_string("video/x-raw(memory:GLMemory),format=RGBA");
@@ -256,8 +260,10 @@ static void ponerPropiedad(GObject* o, guint id, const GValue* v, GParamSpec* ps
 }
 
 static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
-    if (id == PROP_NITIDEZ) g_value_set_double(v, BA_FSR(o)->nitidez);
-    else G_OBJECT_WARN_INVALID_PROPERTY_ID(o, id, ps);
+    if (id == PROP_NITIDEZ)
+        g_value_set_double(v, BA_FSR(o)->nitidez);
+    else
+        G_OBJECT_WARN_INVALID_PROPERTY_ID(o, id, ps);
 }
 
 static void ba_fsr_class_init(BaFsrClass* k) {
@@ -265,11 +271,13 @@ static void ba_fsr_class_init(BaFsrClass* k) {
     GstElementClass* ge = GST_ELEMENT_CLASS(k);
     go->set_property = ponerPropiedad;
     go->get_property = leerPropiedad;
-    g_object_class_install_property(go, PROP_NITIDEZ,
-                                    g_param_spec_double("nitidez", "Nitidez", "Cuánto afila RCAS, en paradas (0 = el máximo)", 0.0, 2.0, 0.2,
-                                                        static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
-    gst_element_class_set_static_metadata(ge, "Superresolución x2 FSR1 (AMD, OpenGL)", "Filter/Effect/Video/Scaler",
-                                          "Duplica la resolución con FSR 1.0 (EASU + RCAS) en la GPU", "Broadcast Appliance");
+    g_object_class_install_property(
+        go, PROP_NITIDEZ,
+        g_param_spec_double("nitidez", "Nitidez", "Cuánto afila RCAS, en paradas (0 = el máximo)", 0.0, 2.0,
+                            0.2, static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+    gst_element_class_set_static_metadata(
+        ge, "Superresolución x2 FSR1 (AMD, OpenGL)", "Filter/Effect/Video/Scaler",
+        "Duplica la resolución con FSR 1.0 (EASU + RCAS) en la GPU", "Broadcast Appliance");
     gst_element_class_add_static_pad_template(ge, &sinkTpl);
     gst_element_class_add_static_pad_template(ge, &srcTpl);
 }
@@ -308,4 +316,6 @@ static void ba_fsr_init(BaFsr* s) {
 }
 
 /// Registra `bafsr` en el plugin (necesita los elementos de OpenGL de GStreamer al usarlo).
-extern "C" gboolean ba_registrar_fsr(GstPlugin* plugin) { return gst_element_register(plugin, "bafsr", GST_RANK_NONE, BA_TYPE_FSR); }
+extern "C" gboolean ba_registrar_fsr(GstPlugin* plugin) {
+    return gst_element_register(plugin, "bafsr", GST_RANK_NONE, BA_TYPE_FSR);
+}

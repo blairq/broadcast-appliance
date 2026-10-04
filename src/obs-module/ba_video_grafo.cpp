@@ -47,24 +47,37 @@
 #include "ba_video_estudio.hpp"
 
 #include <algorithm>
-#include <atomic>
-#include <deque>
 #include <array>
+#include <atomic>
 #include <cstdint>
 #include <cstring>
-#include <locale>
-#include <sstream>
+#include <deque>
 #include <iterator>
+#include <locale>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <new>
+#include <sstream>
 #include <string>
 #include <vector>
 
 namespace {
 
-enum class Tipo { Color, Croma, Recorte, Salida, Obs, Gst, Toma, Traer, Retardo, Rostros, Normalizar, Sincro };
+enum class Tipo {
+    Color,
+    Croma,
+    Recorte,
+    Salida,
+    Obs,
+    Gst,
+    Toma,
+    Traer,
+    Retardo,
+    Rostros,
+    Normalizar,
+    Sincro
+};
 
 /// La huella de cada cuadro de una tarjeta `sincro`: una grilla de luma de
 /// 16x9 (144 bytes) con la hora de libobs del cuadro. Con dos huellas se mide
@@ -89,7 +102,8 @@ struct Huella {
     ~Huella() {
         obs_enter_graphics();
         gs_texrender_destroy(chico);
-        for (auto* l : lectura) gs_stagesurface_destroy(l);
+        for (auto* l : lectura)
+            gs_stagesurface_destroy(l);
         obs_leave_graphics();
     }
 };
@@ -107,10 +121,10 @@ struct Analisis {
     std::mutex lock;                ///< lo de abajo: lo lee la app
     std::vector<std::uint8_t> bgra; ///< el último cuadro bajado
     int ancho = 0, alto = 0;
-    std::uint64_t serie = 0;        ///< sube con cada cuadro nuevo
-    std::uint64_t pedidoMs = 0;     ///< el último pedido de la app
-    std::string cajas;              ///< las caras para marcar: JSON [{x,y,ancho,alto}] en 0..1
-    std::uint64_t cajasMs = 0;      ///< cuándo llegaron (vencen: ver kCajasVencenMs)
+    std::uint64_t serie = 0;    ///< sube con cada cuadro nuevo
+    std::uint64_t pedidoMs = 0; ///< el último pedido de la app
+    std::string cajas;          ///< las caras para marcar: JSON [{x,y,ancho,alto}] en 0..1
+    std::uint64_t cajasMs = 0;  ///< cuándo llegaron (vencen: ver kCajasVencenMs)
     ~Analisis() {
         obs_enter_graphics();
         gs_texrender_destroy(chico);
@@ -130,7 +144,8 @@ struct Retardo {
     size_t pos = 0;
     ~Retardo() {
         obs_enter_graphics();
-        for (gs_texrender_t* t : anillo) gs_texrender_destroy(t);
+        for (gs_texrender_t* t : anillo)
+            gs_texrender_destroy(t);
         obs_leave_graphics();
     }
 };
@@ -164,7 +179,7 @@ struct InstanciaObs {
 /// Una tarjeta del plan, en el orden en que se calcula.
 struct Paso {
     Tipo tipo = Tipo::Color;
-    std::string id; ///< el nodo (para informar sus errores)
+    std::string id;   ///< el nodo (para informar sus errores)
     int entrada = -1; ///< el paso que la alimenta (-1 = la entrada de la fuente)
     // color
     float brillo = 0.0f, contraste = 1.0f, saturacion = 1.0f, gamma = 1.0f;
@@ -214,10 +229,10 @@ struct Plan {
 
 struct Salida {
     obs_source_t* ctx = nullptr;
-    std::string fuente;                ///< la entrada de la que sale (para despertarla)
-    gs_texrender_t* tex = nullptr;     ///< lo ultimo que le mando el grafo
+    std::string fuente;            ///< la entrada de la que sale (para despertarla)
+    gs_texrender_t* tex = nullptr; ///< lo ultimo que le mando el grafo
     std::uint32_t cx = 0, cy = 0;
-    std::uint64_t cuadro = 0;          ///< cuando se lleno
+    std::uint64_t cuadro = 0;            ///< cuando se lleno
     gs_texrender_t* despertar = nullptr; ///< para dibujar la entrada si nadie la dibuja
 };
 
@@ -234,7 +249,8 @@ struct Grafo {
     gs_effect_t* fx = nullptr;
     gs_eparam_t *pImage = nullptr, *pTexel = nullptr, *pBrillo = nullptr, *pContraste = nullptr,
                 *pSaturacion = nullptr, *pGamma = nullptr, *pClave = nullptr, *pSimilitud = nullptr,
-                *pSuavidad = nullptr, *pDerrame = nullptr, *pBorde = nullptr, *pEspejo = nullptr, *pCorr[3] = {};
+                *pSuavidad = nullptr, *pDerrame = nullptr, *pBorde = nullptr, *pEspejo = nullptr,
+                *pCorr[3] = {};
 
     std::mutex planLock;
     std::shared_ptr<const Plan> plan = std::make_shared<Plan>();
@@ -268,8 +284,8 @@ void cromaDe(float r, float g, float b, float& cb, float& cr) {
 /// El JSON del grafo -> el plan (orden de calculo desde la entrada).
 /// La instancia de un filtro de OBS para el nodo `id`: la del plan anterior si
 /// es el mismo filtro (con los ajustes al día), o una nueva.
-std::shared_ptr<InstanciaObs> instanciaObs(const Plan* anterior, const std::string& id, const std::string& filtroId,
-                                           obs_data_t* ajustes) {
+std::shared_ptr<InstanciaObs> instanciaObs(const Plan* anterior, const std::string& id,
+                                           const std::string& filtroId, obs_data_t* ajustes) {
     const char* aj = ajustes != nullptr ? obs_data_get_json(ajustes) : "{}";
     if (anterior != nullptr) {
         const auto it = anterior->obs.find(id);
@@ -309,29 +325,29 @@ std::map<std::string, std::string> propiedadesGst(obs_data_t* props) {
     for (obs_data_item_t* it = obs_data_first(props); it != nullptr; obs_data_item_next(&it)) {
         const char* k = obs_data_item_get_name(it);
         switch (obs_data_item_gettype(it)) {
-        case OBS_DATA_STRING: out[k] = obs_data_item_get_string(it); break;
-        case OBS_DATA_BOOLEAN: out[k] = obs_data_item_get_bool(it) ? "true" : "false"; break;
-        case OBS_DATA_NUMBER:
-            if (obs_data_item_numtype(it) == OBS_DATA_NUM_INT) {
-                out[k] = std::to_string(obs_data_item_get_int(it));
-            } else {
-                // Con punto SIEMPRE: std::to_string sigue el locale de la app
-                // (es_AR: «0,5») y GStreamer no lo entiende (la propiedad no cambiaba).
-                std::ostringstream o;
-                o.imbue(std::locale::classic());
-                o.precision(17);
-                o << obs_data_item_get_double(it);
-                out[k] = o.str();
+            case OBS_DATA_STRING: out[k] = obs_data_item_get_string(it); break;
+            case OBS_DATA_BOOLEAN: out[k] = obs_data_item_get_bool(it) ? "true" : "false"; break;
+            case OBS_DATA_NUMBER:
+                if (obs_data_item_numtype(it) == OBS_DATA_NUM_INT) {
+                    out[k] = std::to_string(obs_data_item_get_int(it));
+                } else {
+                    // Con punto SIEMPRE: std::to_string sigue el locale de la app
+                    // (es_AR: «0,5») y GStreamer no lo entiende (la propiedad no cambiaba).
+                    std::ostringstream o;
+                    o.imbue(std::locale::classic());
+                    o.precision(17);
+                    o << obs_data_item_get_double(it);
+                    out[k] = o.str();
+                }
+                break;
+            case OBS_DATA_OBJECT: {
+                // Un objeto va como JSON (los `parametros` de una tarjeta de un plugin).
+                obs_data_t* o = obs_data_item_get_obj(it);
+                out[k] = o != nullptr ? obs_data_get_json(o) : "{}";
+                obs_data_release(o);
+                break;
             }
-            break;
-        case OBS_DATA_OBJECT: {
-            // Un objeto va como JSON (los `parametros` de una tarjeta de un plugin).
-            obs_data_t* o = obs_data_item_get_obj(it);
-            out[k] = o != nullptr ? obs_data_get_json(o) : "{}";
-            obs_data_release(o);
-            break;
-        }
-        default: break;
+            default: break;
         }
     }
     return out;
@@ -339,8 +355,9 @@ std::map<std::string, std::string> propiedadesGst(obs_data_t* props) {
 
 /// La tarjeta de GStreamer del nodo `id`: la del plan anterior si es el mismo
 /// módulo (con las propiedades al día, en vivo), o una nueva.
-std::shared_ptr<ba::gst::TarjetaGst> tarjetaGst(const Plan* anterior, const std::string& id, const std::string& elemento,
-                                                 const std::map<std::string, std::string>& props) {
+std::shared_ptr<ba::gst::TarjetaGst> tarjetaGst(const Plan* anterior, const std::string& id,
+                                                const std::string& elemento,
+                                                const std::map<std::string, std::string>& props) {
     if (anterior != nullptr) {
         const auto it = anterior->gst.find(id);
         if (it != anterior->gst.end() && it->second->elemento() == elemento) {
@@ -356,9 +373,11 @@ std::shared_ptr<ba::gst::TarjetaGst> tarjetaGst(const Plan* anterior, const std:
 void matrizDe(const std::string& m, bool completo, double out[12]) {
     float cm[16];
     float mn[3], mx[3];
-    video_format_get_parameters_for_format(m == "601" ? VIDEO_CS_601 : VIDEO_CS_709, completo ? VIDEO_RANGE_FULL : VIDEO_RANGE_PARTIAL,
+    video_format_get_parameters_for_format(m == "601" ? VIDEO_CS_601 : VIDEO_CS_709,
+                                           completo ? VIDEO_RANGE_FULL : VIDEO_RANGE_PARTIAL,
                                            VIDEO_FORMAT_NV12, cm, mn, mx);
-    for (int i = 0; i < 12; ++i) out[i] = cm[i];
+    for (int i = 0; i < 12; ++i)
+        out[i] = cm[i];
 }
 
 /// La corrección de una fuente que declaró (matriz, rango) pero en verdad es
@@ -376,12 +395,15 @@ void correccion(const std::string& mDecl, bool cDecl, const std::string& mReal, 
     inv[0] = (f * j - g * i) / det, inv[1] = (c * i - b * j) / det, inv[2] = (b * g - c * f) / det;
     inv[4] = (g * h - e * j) / det, inv[5] = (a * j - c * h) / det, inv[6] = (c * e - a * g) / det;
     inv[8] = (e * i - f * h) / det, inv[9] = (b * h - a * i) / det, inv[10] = (a * f - b * e) / det;
-    for (int k = 0; k < 3; ++k) inv[k * 4 + 3] = -(inv[k * 4] * d[3] + inv[k * 4 + 1] * d[7] + inv[k * 4 + 2] * d[11]);
+    for (int k = 0; k < 3; ++k)
+        inv[k * 4 + 3] = -(inv[k * 4] * d[3] + inv[k * 4 + 1] * d[7] + inv[k * 4 + 2] * d[11]);
     // C = R · inv
     for (int row = 0; row < 3; ++row) {
         for (int col = 0; col < 3; ++col)
-            out[row * 4 + col] = static_cast<float>(r[row * 4] * inv[col] + r[row * 4 + 1] * inv[4 + col] + r[row * 4 + 2] * inv[8 + col]);
-        out[row * 4 + 3] = static_cast<float>(r[row * 4] * inv[3] + r[row * 4 + 1] * inv[7] + r[row * 4 + 2] * inv[11] + r[row * 4 + 3]);
+            out[row * 4 + col] = static_cast<float>(r[row * 4] * inv[col] + r[row * 4 + 1] * inv[4 + col] +
+                                                    r[row * 4 + 2] * inv[8 + col]);
+        out[row * 4 + 3] = static_cast<float>(r[row * 4] * inv[3] + r[row * 4 + 1] * inv[7] +
+                                              r[row * 4 + 2] * inv[11] + r[row * 4 + 3]);
     }
 }
 
@@ -441,10 +463,12 @@ std::shared_ptr<Plan> armarPlan(const char* json, const Plan* anterior) {
             } else if (n.tipo == "croma") {
                 p.tipo = Tipo::Croma;
                 // El color de fondo como 0xRRGGBB (de fabrica, verde).
-                const long long c = q != nullptr && obs_data_has_user_value(q, "clave") ? obs_data_get_int(q, "clave")
-                                                                                       : 0x00B140;
-                cromaDe(static_cast<float>((c >> 16) & 0xFF) / 255.0f, static_cast<float>((c >> 8) & 0xFF) / 255.0f,
-                        static_cast<float>(c & 0xFF) / 255.0f, p.claveCb, p.claveCr);
+                const long long c = q != nullptr && obs_data_has_user_value(q, "clave")
+                                        ? obs_data_get_int(q, "clave")
+                                        : 0x00B140;
+                cromaDe(static_cast<float>((c >> 16) & 0xFF) / 255.0f,
+                        static_cast<float>((c >> 8) & 0xFF) / 255.0f, static_cast<float>(c & 0xFF) / 255.0f,
+                        p.claveCb, p.claveCr);
                 p.similitud = numero(q, "similitud", 0.4);
                 p.suavidad = numero(q, "suavidad", 0.08);
                 p.derrame = numero(q, "derrame", 0.1);
@@ -484,14 +508,19 @@ std::shared_ptr<Plan> armarPlan(const char* json, const Plan* anterior) {
                 std::map<std::string, std::string> props;
                 const char* claves[] = {"motor", "modelo", "proveedor"};
                 for (const char* k : claves)
-                    if (q != nullptr && *obs_data_get_string(q, k) != '\0') props[k] = obs_data_get_string(q, k);
+                    if (q != nullptr && *obs_data_get_string(q, k) != '\0')
+                        props[k] = obs_data_get_string(q, k);
                 if (q != nullptr) {
                     char nit[32];
-                    std::snprintf(nit, sizeof nit, "%.3f", obs_data_has_user_value(q, "nitidez") ? obs_data_get_double(q, "nitidez") : 0.2);
+                    std::snprintf(nit, sizeof nit, "%.3f",
+                                  obs_data_has_user_value(q, "nitidez") ? obs_data_get_double(q, "nitidez")
+                                                                        : 0.2);
                     for (char* c = nit; *c; ++c)
                         if (*c == ',') *c = '.'; // sin locale: 0.200
                     props["nitidez"] = nit;
-                    props["activo"] = !obs_data_has_user_value(q, "activo") || obs_data_get_bool(q, "activo") ? "true" : "false";
+                    props["activo"] = !obs_data_has_user_value(q, "activo") || obs_data_get_bool(q, "activo")
+                                          ? "true"
+                                          : "false";
                 }
                 p.gst = tarjetaGst(anterior, n.id, "basuperres", props);
                 p.gst->setEspera(q != nullptr ? static_cast<int>(obs_data_get_int(q, "esperar")) : 0);
@@ -527,8 +556,14 @@ std::shared_ptr<Plan> armarPlan(const char* json, const Plan* anterior) {
                     obs_data_set_default_int(q, "cada", 500);
                     obs_data_set_default_int(q, "ancho", 640);
                 }
-                p.cadaMs = q != nullptr ? static_cast<int>(std::clamp<long long>(obs_data_get_int(q, "cada"), 100, 10000)) : 500;
-                p.anchoAnalisis = q != nullptr ? static_cast<int>(std::clamp<long long>(obs_data_get_int(q, "ancho"), 160, 1920)) : 640;
+                p.cadaMs =
+                    q != nullptr
+                        ? static_cast<int>(std::clamp<long long>(obs_data_get_int(q, "cada"), 100, 10000))
+                        : 500;
+                p.anchoAnalisis =
+                    q != nullptr
+                        ? static_cast<int>(std::clamp<long long>(obs_data_get_int(q, "ancho"), 160, 1920))
+                        : 640;
                 p.marcar = q != nullptr && obs_data_get_bool(q, "marcar");
                 std::shared_ptr<Analisis> a;
                 if (anterior != nullptr && anterior->analisis.count(n.id)) a = anterior->analisis.at(n.id);
@@ -537,7 +572,10 @@ std::shared_ptr<Plan> armarPlan(const char* json, const Plan* anterior) {
                 plan->analisis[n.id] = a;
             } else if (n.tipo == "retardo") {
                 p.tipo = Tipo::Retardo;
-                p.cuadros = q != nullptr ? static_cast<int>(std::clamp<long long>(obs_data_get_int(q, "cuadros"), 0, 120)) : 0;
+                p.cuadros =
+                    q != nullptr
+                        ? static_cast<int>(std::clamp<long long>(obs_data_get_int(q, "cuadros"), 0, 120))
+                        : 0;
                 // En milisegundos (lo que se mide), pasado a cuadros del lienzo.
                 const long long ms = q != nullptr ? obs_data_get_int(q, "ms") : 0;
                 obs_video_info ovi = {};
@@ -546,7 +584,8 @@ std::shared_ptr<Plan> armarPlan(const char* json, const Plan* anterior) {
                         (ms * ovi.fps_num + 500LL * ovi.fps_den) / (1000LL * ovi.fps_den), 0, 120));
                 std::shared_ptr<Retardo> r;
                 if (anterior != nullptr && anterior->retardos.count(n.id)) r = anterior->retardos.at(n.id);
-                if (!r || r->anillo.size() != static_cast<size_t>(p.cuadros) + 1) r = std::make_shared<Retardo>();
+                if (!r || r->anillo.size() != static_cast<size_t>(p.cuadros) + 1)
+                    r = std::make_shared<Retardo>();
                 p.retardo = r;
                 plan->retardos[n.id] = r;
             } else {
@@ -590,7 +629,8 @@ std::shared_ptr<Plan> armarPlan(const char* json, const Plan* anterior) {
     plan->escena = -2;
     for (const auto& n : nodos)
         if (n.tipo == "out") plan->escena = indice.count(n.desde) ? indice[n.desde] : -2;
-    for (auto& n : nodos) obs_data_release(n.params);
+    for (auto& n : nodos)
+        obs_data_release(n.params);
     return plan;
 }
 
@@ -607,14 +647,16 @@ void despertarSiPiden(void* data, std::uint32_t, std::uint32_t) {
         for (const auto& p : g->plan->pasos) {
             if (p.tipo == Tipo::Sincro) {
                 std::lock_guard<std::mutex> lh(p.huella->lock);
-                if (p.huella->pedidoMs != 0 && ahora - p.huella->pedidoMs <= kAnalisisSinPedidoMs) toca = true;
+                if (p.huella->pedidoMs != 0 && ahora - p.huella->pedidoMs <= kAnalisisSinPedidoMs)
+                    toca = true;
                 continue;
             }
             if (p.tipo != Tipo::Rostros) continue;
             std::lock_guard<std::mutex> la(p.analisis->lock);
             const std::uint64_t pedido = p.analisis->pedidoMs;
             if (pedido != 0 && ahora - pedido <= kAnalisisSinPedidoMs &&
-                (ahora - p.analisis->ultimaMs >= static_cast<std::uint64_t>(p.cadaMs) || p.analisis->enCamino))
+                (ahora - p.analisis->ultimaMs >= static_cast<std::uint64_t>(p.cadaMs) ||
+                 p.analisis->enCamino))
                 toca = true;
         }
     }
@@ -673,104 +715,111 @@ void* crear(obs_data_t* settings, obs_source_t* ctx) {
     obs_leave_graphics();
     if (g->fx == nullptr) {
         blog(LOG_WARNING, "[ba-sources] Grafo de video: no se pudo cargar %s (%s); la imagen pasa sin tocar",
-             ruta != nullptr ? ruta : "video-grafo.effect", errores != nullptr ? errores : "no esta el archivo");
+             ruta != nullptr ? ruta : "video-grafo.effect",
+             errores != nullptr ? errores : "no esta el archivo");
     }
     bfree(errores);
     bfree(ruta);
     actualizar(g, settings);
     // Por qué una tarjeta no corre (p. ej. un módulo de GStreamer que no
     // arrancó): {"<id del nodo>": "motivo"}, para la interfaz.
-    proc_handler_add(obs_source_get_proc_handler(ctx), "void estado(out string errores, out string avisos)",
-                     [](void* d, calldata_t* cd) {
-                         auto* x = static_cast<Grafo*>(d);
-                         obs_data_t* o = obs_data_create();
-                         {
-                             std::lock_guard<std::mutex> l(x->estadoLock);
-                             for (const auto& [id, e] : x->errores) obs_data_set_string(o, id.c_str(), e.c_str());
-                         }
-                         calldata_set_string(cd, "errores", obs_data_get_json(o));
-                         obs_data_release(o);
-                         obs_data_t* av = obs_data_create();
-                         {
-                             std::lock_guard<std::mutex> l(x->estadoLock);
-                             for (const auto& [id, a] : x->avisos)
-                                 if (!a.empty()) obs_data_set_string(av, id.c_str(), a.c_str());
-                         }
-                         calldata_set_string(cd, "avisos", obs_data_get_json(av));
-                         obs_data_release(av);
-                     },
-                     g);
+    proc_handler_add(
+        obs_source_get_proc_handler(ctx), "void estado(out string errores, out string avisos)",
+        [](void* d, calldata_t* cd) {
+            auto* x = static_cast<Grafo*>(d);
+            obs_data_t* o = obs_data_create();
+            {
+                std::lock_guard<std::mutex> l(x->estadoLock);
+                for (const auto& [id, e] : x->errores)
+                    obs_data_set_string(o, id.c_str(), e.c_str());
+            }
+            calldata_set_string(cd, "errores", obs_data_get_json(o));
+            obs_data_release(o);
+            obs_data_t* av = obs_data_create();
+            {
+                std::lock_guard<std::mutex> l(x->estadoLock);
+                for (const auto& [id, a] : x->avisos)
+                    if (!a.empty()) obs_data_set_string(av, id.c_str(), a.c_str());
+            }
+            calldata_set_string(cd, "avisos", obs_data_get_json(av));
+            obs_data_release(av);
+        },
+        g);
     // La app pide el último cuadro de una tarjeta `rostros` (y con eso la
     // mantiene bajando). `destino` es un std::vector<std::uint8_t>* (BGRA).
-    proc_handler_add(obs_source_get_proc_handler(ctx),
-                     "void analisis(in string nodo, in ptr destino, out int ancho, out int alto, out int serie)",
-                     [](void* d, calldata_t* cd) {
-                         auto* x = static_cast<Grafo*>(d);
-                         const char* nodo = calldata_string(cd, "nodo");
-                         auto* destino = static_cast<std::vector<std::uint8_t>*>(calldata_ptr(cd, "destino"));
-                         std::shared_ptr<Analisis> a;
-                         {
-                             std::lock_guard<std::mutex> l(x->planLock);
-                             const auto it = x->plan->analisis.find(nodo != nullptr ? nodo : "");
-                             if (it != x->plan->analisis.end()) a = it->second;
-                         }
-                         if (!a) return;
-                         std::lock_guard<std::mutex> l(a->lock);
-                         a->pedidoMs = os_gettime_ns() / 1000000;
-                         if (destino != nullptr) *destino = a->bgra;
-                         calldata_set_int(cd, "ancho", a->ancho);
-                         calldata_set_int(cd, "alto", a->alto);
-                         calldata_set_int(cd, "serie", static_cast<long long>(a->serie));
-                     },
-                     g);
+    proc_handler_add(
+        obs_source_get_proc_handler(ctx),
+        "void analisis(in string nodo, in ptr destino, out int ancho, out int alto, out int serie)",
+        [](void* d, calldata_t* cd) {
+            auto* x = static_cast<Grafo*>(d);
+            const char* nodo = calldata_string(cd, "nodo");
+            auto* destino = static_cast<std::vector<std::uint8_t>*>(calldata_ptr(cd, "destino"));
+            std::shared_ptr<Analisis> a;
+            {
+                std::lock_guard<std::mutex> l(x->planLock);
+                const auto it = x->plan->analisis.find(nodo != nullptr ? nodo : "");
+                if (it != x->plan->analisis.end()) a = it->second;
+            }
+            if (!a) return;
+            std::lock_guard<std::mutex> l(a->lock);
+            a->pedidoMs = os_gettime_ns() / 1000000;
+            if (destino != nullptr) *destino = a->bgra;
+            calldata_set_int(cd, "ancho", a->ancho);
+            calldata_set_int(cd, "alto", a->alto);
+            calldata_set_int(cd, "serie", static_cast<long long>(a->serie));
+        },
+        g);
     // Las caras que la app reconoció, para marcarlas: JSON
     // [{"x","y","ancho","alto"}] en fracciones de la imagen.
-    proc_handler_add(obs_source_get_proc_handler(ctx), "void caras(in string nodo, in string cajas)",
-                     [](void* d, calldata_t* cd) {
-                         auto* x = static_cast<Grafo*>(d);
-                         const char* nodo = calldata_string(cd, "nodo");
-                         const char* cajas = calldata_string(cd, "cajas");
-                         std::shared_ptr<Analisis> a;
-                         {
-                             std::lock_guard<std::mutex> l(x->planLock);
-                             const auto it = x->plan->analisis.find(nodo != nullptr ? nodo : "");
-                             if (it != x->plan->analisis.end()) a = it->second;
-                         }
-                         if (!a) return;
-                         std::lock_guard<std::mutex> l(a->lock);
-                         a->cajas = cajas != nullptr ? cajas : "";
-                         a->cajasMs = os_gettime_ns() / 1000000;
-                     },
-                     g);
+    proc_handler_add(
+        obs_source_get_proc_handler(ctx), "void caras(in string nodo, in string cajas)",
+        [](void* d, calldata_t* cd) {
+            auto* x = static_cast<Grafo*>(d);
+            const char* nodo = calldata_string(cd, "nodo");
+            const char* cajas = calldata_string(cd, "cajas");
+            std::shared_ptr<Analisis> a;
+            {
+                std::lock_guard<std::mutex> l(x->planLock);
+                const auto it = x->plan->analisis.find(nodo != nullptr ? nodo : "");
+                if (it != x->plan->analisis.end()) a = it->second;
+            }
+            if (!a) return;
+            std::lock_guard<std::mutex> l(a->lock);
+            a->cajas = cajas != nullptr ? cajas : "";
+            a->cajasMs = os_gettime_ns() / 1000000;
+        },
+        g);
     // Las huellas de una tarjeta `sincro` (y pedirlas la mantiene tomando):
     // `horas` es un std::vector<std::uint64_t>* (hora de libobs de cada
     // cuadro) y `grillas` un std::vector<std::uint8_t>* (144 bytes por cuadro).
-    proc_handler_add(obs_source_get_proc_handler(ctx), "void sincro(in string nodo, in ptr horas, in ptr grillas, out int cuadros)",
-                     [](void* d, calldata_t* cd) {
-                         auto* x = static_cast<Grafo*>(d);
-                         const char* nodo = calldata_string(cd, "nodo");
-                         auto* horas = static_cast<std::vector<std::uint64_t>*>(calldata_ptr(cd, "horas"));
-                         auto* grillas = static_cast<std::vector<std::uint8_t>*>(calldata_ptr(cd, "grillas"));
-                         std::shared_ptr<Huella> h;
-                         {
-                             std::lock_guard<std::mutex> l(x->planLock);
-                             const auto it = x->plan->huellas.find(nodo != nullptr ? nodo : "");
-                             if (it != x->plan->huellas.end()) h = it->second;
-                         }
-                         if (!h) return;
-                         std::lock_guard<std::mutex> l(h->lock);
-                         h->pedidoMs = os_gettime_ns() / 1000000;
-                         if (horas != nullptr && grillas != nullptr) {
-                             horas->clear();
-                             grillas->clear();
-                             for (const auto& [t, g] : h->cuadros) {
-                                 horas->push_back(t);
-                                 grillas->insert(grillas->end(), g.begin(), g.end());
-                             }
-                         }
-                         calldata_set_int(cd, "cuadros", static_cast<long long>(h->cuadros.size()));
-                     },
-                     g);
+    proc_handler_add(
+        obs_source_get_proc_handler(ctx),
+        "void sincro(in string nodo, in ptr horas, in ptr grillas, out int cuadros)",
+        [](void* d, calldata_t* cd) {
+            auto* x = static_cast<Grafo*>(d);
+            const char* nodo = calldata_string(cd, "nodo");
+            auto* horas = static_cast<std::vector<std::uint64_t>*>(calldata_ptr(cd, "horas"));
+            auto* grillas = static_cast<std::vector<std::uint8_t>*>(calldata_ptr(cd, "grillas"));
+            std::shared_ptr<Huella> h;
+            {
+                std::lock_guard<std::mutex> l(x->planLock);
+                const auto it = x->plan->huellas.find(nodo != nullptr ? nodo : "");
+                if (it != x->plan->huellas.end()) h = it->second;
+            }
+            if (!h) return;
+            std::lock_guard<std::mutex> l(h->lock);
+            h->pedidoMs = os_gettime_ns() / 1000000;
+            if (horas != nullptr && grillas != nullptr) {
+                horas->clear();
+                grillas->clear();
+                for (const auto& [t, g] : h->cuadros) {
+                    horas->push_back(t);
+                    grillas->insert(grillas->end(), g.begin(), g.end());
+                }
+            }
+            calldata_set_int(cd, "cuadros", static_cast<long long>(h->cuadros.size()));
+        },
+        g);
     // Si la app pide cuadros de una entrada que ninguna escena dibuja, se la
     // dibuja aparte (cada tanto, no en cada cuadro).
     obs_add_main_render_callback(despertarSiPiden, g);
@@ -783,7 +832,8 @@ void destruir(void* data) {
     obs_enter_graphics();
     gs_effect_destroy(g->fx);
     gs_texrender_destroy(g->entrada);
-    for (gs_texrender_t* t : g->texs) gs_texrender_destroy(t);
+    for (gs_texrender_t* t : g->texs)
+        gs_texrender_destroy(t);
     obs_leave_graphics();
     delete g;
 }
@@ -793,7 +843,8 @@ void pasada(Grafo* g, gs_texture_t* tex, const char* tecnica) {
     gs_effect_set_texture(g->pImage, tex);
     gs_blend_state_push();
     gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
-    while (gs_effect_loop(g->fx, tecnica)) gs_draw_sprite(tex, 0, g->tw, g->th);
+    while (gs_effect_loop(g->fx, tecnica))
+        gs_draw_sprite(tex, 0, g->tw, g->th);
     gs_blend_state_pop();
 }
 
@@ -833,8 +884,8 @@ void bajarAnalisis(const Paso& p, gs_texture_t* en, std::uint32_t cx, std::uint3
             std::lock_guard<std::mutex> l(a.lock);
             a.bgra.resize(static_cast<size_t>(w) * h * 4);
             for (int y = 0; y < h; ++y)
-                std::memcpy(a.bgra.data() + static_cast<size_t>(y) * w * 4, datos + static_cast<size_t>(y) * paso,
-                            static_cast<size_t>(w) * 4);
+                std::memcpy(a.bgra.data() + static_cast<size_t>(y) * w * 4,
+                            datos + static_cast<size_t>(y) * paso, static_cast<size_t>(w) * 4);
             a.ancho = w;
             a.alto = h;
             ++a.serie;
@@ -843,12 +894,15 @@ void bajarAnalisis(const Paso& p, gs_texture_t* en, std::uint32_t cx, std::uint3
         a.enCamino = false;
     }
     // 2) Otra, si alguien la está pidiendo y ya pasó el intervalo.
-    if (pedido == 0 || ahora - pedido > kAnalisisSinPedidoMs || ahora - a.ultimaMs < static_cast<std::uint64_t>(p.cadaMs))
+    if (pedido == 0 || ahora - pedido > kAnalisisSinPedidoMs ||
+        ahora - a.ultimaMs < static_cast<std::uint64_t>(p.cadaMs))
         return;
     const std::uint32_t w = std::min<std::uint32_t>(cx, static_cast<std::uint32_t>(p.anchoAnalisis));
-    const std::uint32_t h = std::max<std::uint32_t>(1, static_cast<std::uint32_t>(static_cast<std::uint64_t>(cy) * w / std::max<std::uint32_t>(1, cx)));
+    const std::uint32_t h = std::max<std::uint32_t>(
+        1, static_cast<std::uint32_t>(static_cast<std::uint64_t>(cy) * w / std::max<std::uint32_t>(1, cx)));
     if (a.chico == nullptr) a.chico = gs_texrender_create(GS_BGRA, GS_ZS_NONE);
-    if (a.lectura == nullptr || gs_stagesurface_get_width(a.lectura) != w || gs_stagesurface_get_height(a.lectura) != h) {
+    if (a.lectura == nullptr || gs_stagesurface_get_width(a.lectura) != w ||
+        gs_stagesurface_get_height(a.lectura) != h) {
         gs_stagesurface_destroy(a.lectura);
         a.lectura = gs_stagesurface_create(w, h, GS_BGRA);
     }
@@ -862,7 +916,8 @@ void bajarAnalisis(const Paso& p, gs_texture_t* en, std::uint32_t cx, std::uint3
     gs_effect_set_texture(gs_effect_get_param_by_name(fx, "image"), en);
     gs_blend_state_push();
     gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
-    while (gs_effect_loop(fx, "Draw")) gs_draw_sprite(en, 0, w, h);
+    while (gs_effect_loop(fx, "Draw"))
+        gs_draw_sprite(en, 0, w, h);
     gs_blend_state_pop();
     gs_texrender_end(a.chico);
     gs_stage_texture(a.lectura, gs_texrender_get_texture(a.chico));
@@ -892,16 +947,18 @@ void tomarHuella(Huella& h, gs_texture_t* en) {
                     unsigned suma = 0;
                     for (int yy = 0; yy < F; ++yy)
                         for (int xx = 0; xx < F; ++xx) {
-                            const std::uint8_t* q =
-                                datos + static_cast<size_t>(y * F + yy) * paso + static_cast<size_t>(x * F + xx) * 4; // BGRA
-                            suma += (q[2] * 54u + q[1] * 183u + q[0] * 19u) >> 8; // luma 709
+                            const std::uint8_t* q = datos + static_cast<size_t>(y * F + yy) * paso +
+                                                    static_cast<size_t>(x * F + xx) * 4; // BGRA
+                            suma += (q[2] * 54u + q[1] * 183u + q[0] * 19u) >> 8;        // luma 709
                         }
-                    grilla[static_cast<size_t>(y * Huella::kAncho + x)] = static_cast<std::uint8_t>(suma / (F * F));
+                    grilla[static_cast<size_t>(y * Huella::kAncho + x)] =
+                        static_cast<std::uint8_t>(suma / (F * F));
                 }
             gs_stagesurface_unmap(h.lectura[leer]);
             std::lock_guard<std::mutex> l(h.lock);
             h.cuadros.emplace_back(h.horaDe[leer], grilla);
-            while (h.cuadros.size() > Huella::kMaxCuadros) h.cuadros.pop_front();
+            while (h.cuadros.size() > Huella::kMaxCuadros)
+                h.cuadros.pop_front();
         }
         h.lleno[leer] = false;
     }
@@ -915,7 +972,8 @@ void tomarHuella(Huella& h, gs_texture_t* en) {
     gs_effect_set_texture(gs_effect_get_param_by_name(fx, "image"), en);
     gs_blend_state_push();
     gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
-    while (gs_effect_loop(fx, "Draw")) gs_draw_sprite(en, 0, W, H);
+    while (gs_effect_loop(fx, "Draw"))
+        gs_draw_sprite(en, 0, W, H);
     gs_blend_state_pop();
     gs_texrender_end(h.chico);
     gs_stage_texture(h.lectura[ahora], gs_texrender_get_texture(h.chico));
@@ -931,7 +989,8 @@ void rectangulo(gs_effect_t* solido, gs_eparam_t* pColor, float x, float y, floa
         gs_matrix_push();
         gs_matrix_translate3f(bx, by, 0.0f);
         while (gs_effect_loop(solido, "Solid"))
-            gs_draw_sprite(nullptr, 0, static_cast<std::uint32_t>(std::max(1.0f, bw)), static_cast<std::uint32_t>(std::max(1.0f, bh)));
+            gs_draw_sprite(nullptr, 0, static_cast<std::uint32_t>(std::max(1.0f, bw)),
+                           static_cast<std::uint32_t>(std::max(1.0f, bh)));
         gs_matrix_pop();
     };
     barra(x, y, w, grueso);
@@ -959,9 +1018,10 @@ void marcarCaras(Analisis& a, std::uint32_t cx, std::uint32_t cy) {
     gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
     for (size_t i = 0; arr != nullptr && i < obs_data_array_count(arr); ++i) {
         obs_data_t* c = obs_data_array_item(arr, i);
-        rectangulo(solido, pColor, static_cast<float>(obs_data_get_double(c, "x")) * W, static_cast<float>(obs_data_get_double(c, "y")) * H,
-                   static_cast<float>(obs_data_get_double(c, "ancho")) * W, static_cast<float>(obs_data_get_double(c, "alto")) * H,
-                   grueso);
+        rectangulo(solido, pColor, static_cast<float>(obs_data_get_double(c, "x")) * W,
+                   static_cast<float>(obs_data_get_double(c, "y")) * H,
+                   static_cast<float>(obs_data_get_double(c, "ancho")) * W,
+                   static_cast<float>(obs_data_get_double(c, "alto")) * H, grueso);
         obs_data_release(c);
     }
     gs_blend_state_pop();
@@ -990,14 +1050,18 @@ bool procesar(Grafo* g, const Plan& plan) {
     gs_texrender_end(g->entrada);
     if (!ok) return false;
 
-    while (g->texs.size() < plan.pasos.size()) g->texs.push_back(gs_texrender_create(GS_RGBA, GS_ZS_NONE));
+    while (g->texs.size() < plan.pasos.size())
+        g->texs.push_back(gs_texrender_create(GS_RGBA, GS_ZS_NONE));
     const auto texDe = [&](int i) -> gs_texture_t* {
-        return i < 0 ? gs_texrender_get_texture(g->entrada) : gs_texrender_get_texture(g->texs[static_cast<size_t>(i)]);
+        return i < 0 ? gs_texrender_get_texture(g->entrada)
+                     : gs_texrender_get_texture(g->texs[static_cast<size_t>(i)]);
     };
     // El tamaño de lo que sale de cada paso: el de su entrada, salvo una
     // tarjeta que agranda (superresolución: x2) y lo que viene de afuera.
     std::vector<std::pair<std::uint32_t, std::uint32_t>> tam(plan.pasos.size(), {g->cx, g->cy});
-    const auto tamDe = [&](int i) { return i < 0 ? std::pair<std::uint32_t, std::uint32_t>{g->cx, g->cy} : tam[static_cast<size_t>(i)]; };
+    const auto tamDe = [&](int i) {
+        return i < 0 ? std::pair<std::uint32_t, std::uint32_t>{g->cx, g->cy} : tam[static_cast<size_t>(i)];
+    };
     for (size_t i = 0; i < plan.pasos.size(); ++i) {
         const Paso& p = plan.pasos[i];
         gs_texture_t* en = texDe(p.entrada);
@@ -1026,89 +1090,89 @@ bool procesar(Grafo* g, const Plan& plan) {
         if (!gs_texrender_begin(destino, ow, oh)) continue;
         gs_ortho(0.0f, static_cast<float>(ow), 0.0f, static_cast<float>(oh), -100.0f, 100.0f);
         switch (p.tipo) {
-        case Tipo::Color:
-            gs_effect_set_float(g->pBrillo, p.brillo);
-            gs_effect_set_float(g->pContraste, p.contraste);
-            gs_effect_set_float(g->pSaturacion, p.saturacion);
-            gs_effect_set_float(g->pGamma, p.gamma);
-            pasada(g, en, "Color");
-            break;
-        case Tipo::Croma: {
-            struct vec2 clave;
-            vec2_set(&clave, p.claveCb, p.claveCr);
-            gs_effect_set_vec2(g->pClave, &clave);
-            gs_effect_set_float(g->pSimilitud, p.similitud);
-            gs_effect_set_float(g->pSuavidad, p.suavidad);
-            gs_effect_set_float(g->pDerrame, p.derrame);
-            pasada(g, en, "Croma");
-            break;
-        }
-        case Tipo::Recorte: {
-            struct vec4 borde;
-            vec4_set(&borde, p.izq, p.arr, p.der, p.aba);
-            struct vec2 espejo;
-            vec2_set(&espejo, p.espejoX, p.espejoY);
-            gs_effect_set_vec4(g->pBorde, &borde);
-            gs_effect_set_vec2(g->pEspejo, &espejo);
-            pasada(g, en, "Recorte");
-            break;
-        }
-        case Tipo::Normalizar: {
-            struct vec4 fila;
-            for (int k = 0; k < 3; ++k) {
-                vec4_set(&fila, p.corr[k * 4], p.corr[k * 4 + 1], p.corr[k * 4 + 2], p.corr[k * 4 + 3]);
-                gs_effect_set_vec4(g->pCorr[k], &fila);
+            case Tipo::Color:
+                gs_effect_set_float(g->pBrillo, p.brillo);
+                gs_effect_set_float(g->pContraste, p.contraste);
+                gs_effect_set_float(g->pSaturacion, p.saturacion);
+                gs_effect_set_float(g->pGamma, p.gamma);
+                pasada(g, en, "Color");
+                break;
+            case Tipo::Croma: {
+                struct vec2 clave;
+                vec2_set(&clave, p.claveCb, p.claveCr);
+                gs_effect_set_vec2(g->pClave, &clave);
+                gs_effect_set_float(g->pSimilitud, p.similitud);
+                gs_effect_set_float(g->pSuavidad, p.suavidad);
+                gs_effect_set_float(g->pDerrame, p.derrame);
+                pasada(g, en, "Croma");
+                break;
             }
-            pasada(g, en, "Normalizar");
-            break;
-        }
-        case Tipo::Sincro:
-            pasada(g, en, "Copiar");
-            break;
-        case Tipo::Rostros:
-            pasada(g, en, "Copiar");
-            if (p.marcar) marcarCaras(*p.analisis, ow, oh);
-            break;
-        case Tipo::Salida:
-        case Tipo::Toma:
-            // Pasa lo que recibe (lo que la siga ve lo mismo) y lo publica.
-            pasada(g, en, "Copiar");
-            break;
-        case Tipo::Traer: {
-            struct vec4 negro;
-            vec4_set(&negro, 0.0f, 0.0f, 0.0f, 1.0f);
-            gs_clear(GS_CLEAR_COLOR, &negro, 0.0f, 0);
-            if (externa != nullptr) pasada(g, externa, "Copiar");
-            break;
-        }
-        case Tipo::Retardo: {
-            // Un anillo de cuadros + 1: entra el de ahora, sale el de hace N.
-            Retardo& r = *p.retardo;
-            const size_t n = static_cast<size_t>(p.cuadros) + 1;
-            if (r.anillo.size() != n) {
-                for (gs_texrender_t* t : r.anillo) gs_texrender_destroy(t);
-                r.anillo.clear();
-                for (size_t k = 0; k < n; ++k) r.anillo.push_back(gs_texrender_create(GS_RGBA, GS_ZS_NONE));
-                r.pos = 0;
+            case Tipo::Recorte: {
+                struct vec4 borde;
+                vec4_set(&borde, p.izq, p.arr, p.der, p.aba);
+                struct vec2 espejo;
+                vec2_set(&espejo, p.espejoX, p.espejoY);
+                gs_effect_set_vec4(g->pBorde, &borde);
+                gs_effect_set_vec2(g->pEspejo, &espejo);
+                pasada(g, en, "Recorte");
+                break;
             }
-            gs_texrender_end(destino); // el anillo se llena fuera de este paso
-            gs_texrender_t* guardar = r.anillo[r.pos % n];
-            gs_texrender_reset(guardar);
-            if (gs_texrender_begin(guardar, ow, oh)) {
-                gs_ortho(0.0f, static_cast<float>(ow), 0.0f, static_cast<float>(oh), -100.0f, 100.0f);
+            case Tipo::Normalizar: {
+                struct vec4 fila;
+                for (int k = 0; k < 3; ++k) {
+                    vec4_set(&fila, p.corr[k * 4], p.corr[k * 4 + 1], p.corr[k * 4 + 2], p.corr[k * 4 + 3]);
+                    gs_effect_set_vec4(g->pCorr[k], &fila);
+                }
+                pasada(g, en, "Normalizar");
+                break;
+            }
+            case Tipo::Sincro: pasada(g, en, "Copiar"); break;
+            case Tipo::Rostros:
                 pasada(g, en, "Copiar");
-                gs_texrender_end(guardar);
+                if (p.marcar) marcarCaras(*p.analisis, ow, oh);
+                break;
+            case Tipo::Salida:
+            case Tipo::Toma:
+                // Pasa lo que recibe (lo que la siga ve lo mismo) y lo publica.
+                pasada(g, en, "Copiar");
+                break;
+            case Tipo::Traer: {
+                struct vec4 negro;
+                vec4_set(&negro, 0.0f, 0.0f, 0.0f, 1.0f);
+                gs_clear(GS_CLEAR_COLOR, &negro, 0.0f, 0);
+                if (externa != nullptr) pasada(g, externa, "Copiar");
+                break;
             }
-            r.pos = (r.pos + 1) % n;
-            gs_texture_t* viejo = gs_texrender_get_texture(r.anillo[r.pos % n]);
-            gs_texrender_reset(destino);
-            if (!gs_texrender_begin(destino, ow, oh)) continue;
-            gs_ortho(0.0f, static_cast<float>(ow), 0.0f, static_cast<float>(oh), -100.0f, 100.0f);
-            // Al empezar, los guardados todavía están vacíos: pasa el de ahora.
-            pasada(g, viejo != nullptr ? viejo : en, "Copiar");
-            break;
-        }
-        case Tipo::Gst:
+            case Tipo::Retardo: {
+                // Un anillo de cuadros + 1: entra el de ahora, sale el de hace N.
+                Retardo& r = *p.retardo;
+                const size_t n = static_cast<size_t>(p.cuadros) + 1;
+                if (r.anillo.size() != n) {
+                    for (gs_texrender_t* t : r.anillo)
+                        gs_texrender_destroy(t);
+                    r.anillo.clear();
+                    for (size_t k = 0; k < n; ++k)
+                        r.anillo.push_back(gs_texrender_create(GS_RGBA, GS_ZS_NONE));
+                    r.pos = 0;
+                }
+                gs_texrender_end(destino); // el anillo se llena fuera de este paso
+                gs_texrender_t* guardar = r.anillo[r.pos % n];
+                gs_texrender_reset(guardar);
+                if (gs_texrender_begin(guardar, ow, oh)) {
+                    gs_ortho(0.0f, static_cast<float>(ow), 0.0f, static_cast<float>(oh), -100.0f, 100.0f);
+                    pasada(g, en, "Copiar");
+                    gs_texrender_end(guardar);
+                }
+                r.pos = (r.pos + 1) % n;
+                gs_texture_t* viejo = gs_texrender_get_texture(r.anillo[r.pos % n]);
+                gs_texrender_reset(destino);
+                if (!gs_texrender_begin(destino, ow, oh)) continue;
+                gs_ortho(0.0f, static_cast<float>(ow), 0.0f, static_cast<float>(oh), -100.0f, 100.0f);
+                // Al empezar, los guardados todavía están vacíos: pasa el de ahora.
+                pasada(g, viejo != nullptr ? viejo : en, "Copiar");
+                break;
+            }
+            case Tipo::Gst:
 #if defined(BA_HAVE_GST)
             {
                 const bool corrio = p.gst->procesar(en, iw, ih, g->fx);
@@ -1119,49 +1183,53 @@ bool procesar(Grafo* g, const Plan& plan) {
                     g->errores[p.id] = p.gst->error();
                 std::string aviso = p.gst->aviso();
                 if (p.gst->latenciaCuadros() > 0)
-                    aviso += std::string(aviso.empty() ? "" : "; ") + "agrega 1 cuadro de latencia (`esperar` lo saca, pero puede frenar el video)";
+                    aviso += std::string(aviso.empty() ? "" : "; ") +
+                             "agrega 1 cuadro de latencia (`esperar` lo saca, pero puede frenar el video)";
                 if (!p.gst->formato().empty()) aviso += " [trabaja en " + p.gst->formato() + "]";
                 g->avisos[p.id] = aviso;
                 if (corrio) break;
             }
-            {
-                // Sin GStreamer o con el módulo caído: la imagen pasa como vino
-                // (agrandada simple si la tarjeta agranda: el tamaño no salta).
-                gs_texrender_end(destino);
-                gs_texrender_reset(destino);
-                if (gs_texrender_begin(destino, ow, oh)) {
-                    gs_ortho(0.0f, static_cast<float>(ow), 0.0f, static_cast<float>(oh), -100.0f, 100.0f);
-                    pasada(g, en, "Copiar");
+                {
+                    // Sin GStreamer o con el módulo caído: la imagen pasa como vino
+                    // (agrandada simple si la tarjeta agranda: el tamaño no salta).
+                    gs_texrender_end(destino);
+                    gs_texrender_reset(destino);
+                    if (gs_texrender_begin(destino, ow, oh)) {
+                        gs_ortho(0.0f, static_cast<float>(ow), 0.0f, static_cast<float>(oh), -100.0f, 100.0f);
+                        pasada(g, en, "Copiar");
+                    }
                 }
-            }
 #endif
-            break;
-        case Tipo::Obs: {
-            // El portador dibuja la textura y su filtro de OBS la procesa.
-            auto* port = static_cast<Portador*>(obs_obj_get_data(p.obs->portador));
-            if (port == nullptr) {
-                pasada(g, en, "Copiar");
+                break;
+            case Tipo::Obs: {
+                // El portador dibuja la textura y su filtro de OBS la procesa.
+                auto* port = static_cast<Portador*>(obs_obj_get_data(p.obs->portador));
+                if (port == nullptr) {
+                    pasada(g, en, "Copiar");
+                    break;
+                }
+                port->tex = en;
+                port->cx = iw;
+                port->cy = ih;
+                struct vec4 nada;
+                vec4_zero(&nada);
+                gs_clear(GS_CLEAR_COLOR, &nada, 0.0f, 0);
+                gs_blend_state_push();
+                gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
+                obs_source_video_render(p.obs->portador);
+                gs_blend_state_pop();
+                port->tex = nullptr;
                 break;
             }
-            port->tex = en;
-            port->cx = iw;
-            port->cy = ih;
-            struct vec4 nada;
-            vec4_zero(&nada);
-            gs_clear(GS_CLEAR_COLOR, &nada, 0.0f, 0);
-            gs_blend_state_push();
-            gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
-            obs_source_video_render(p.obs->portador);
-            gs_blend_state_pop();
-            port->tex = nullptr;
-            break;
-        }
         }
         gs_texrender_end(destino);
-        if (p.tipo == Tipo::Salida && !p.nombre.empty()) aSalida(g, p.nombre, gs_texrender_get_texture(destino));
-        if (p.tipo == Tipo::Toma) ba::video::publicarToma(p.nombre, g->fuente, gs_texrender_get_texture(destino), ow, oh);
+        if (p.tipo == Tipo::Salida && !p.nombre.empty())
+            aSalida(g, p.nombre, gs_texrender_get_texture(destino));
+        if (p.tipo == Tipo::Toma)
+            ba::video::publicarToma(p.nombre, g->fuente, gs_texrender_get_texture(destino), ow, oh);
     }
-    const auto [sw, sh] = plan.escena >= 0 ? tam[static_cast<size_t>(plan.escena)] : std::pair<std::uint32_t, std::uint32_t>{g->cx, g->cy};
+    const auto [sw, sh] = plan.escena >= 0 ? tam[static_cast<size_t>(plan.escena)]
+                                           : std::pair<std::uint32_t, std::uint32_t>{g->cx, g->cy};
     g->outW = sw;
     g->outH = sh;
     return true;
@@ -1204,12 +1272,14 @@ void dibujar(void* data, gs_effect_t*) {
         g->listo = true;
     }
     if (plan->escena == -2) return; // `out` sin nada conectado: no se dibuja nada
-    gs_texture_t* tex = plan->escena < 0 ? gs_texrender_get_texture(g->entrada)
-                                         : gs_texrender_get_texture(g->texs[static_cast<size_t>(plan->escena)]);
+    gs_texture_t* tex = plan->escena < 0
+                            ? gs_texrender_get_texture(g->entrada)
+                            : gs_texrender_get_texture(g->texs[static_cast<size_t>(plan->escena)]);
     gs_effect_t* fx = obs_get_base_effect(OBS_EFFECT_DEFAULT);
     gs_effect_set_texture(gs_effect_get_param_by_name(fx, "image"), tex);
     const std::uint32_t ow = g->outW ? g->outW.load() : g->cx, oh = g->outH ? g->outH.load() : g->cy;
-    while (gs_effect_loop(fx, "Draw")) gs_draw_sprite(tex, 0, ow, oh);
+    while (gs_effect_loop(fx, "Draw"))
+        gs_draw_sprite(tex, 0, ow, oh);
 }
 
 /// El tamaño que sale a la escena: el de la entrada, salvo que una tarjeta lo agrande.
@@ -1238,7 +1308,8 @@ void portadorDibujar(void* data, gs_effect_t*) {
     if (x->tex == nullptr) return;
     gs_effect_t* fx = obs_get_base_effect(OBS_EFFECT_DEFAULT);
     gs_effect_set_texture(gs_effect_get_param_by_name(fx, "image"), x->tex);
-    while (gs_effect_loop(fx, "Draw")) gs_draw_sprite(x->tex, 0, x->cx, x->cy);
+    while (gs_effect_loop(fx, "Draw"))
+        gs_draw_sprite(x->tex, 0, x->cx, x->cy);
 }
 
 // --- La fuente «Salida» ------------------------------------------------------
@@ -1279,7 +1350,9 @@ void salidaDestruir(void* data) {
 }
 
 /// La entrada de la que sale, con referencia (o nulo).
-obs_source_t* origen(Salida* x) { return x->fuente.empty() ? nullptr : obs_get_source_by_name(x->fuente.c_str()); }
+obs_source_t* origen(Salida* x) {
+    return x->fuente.empty() ? nullptr : obs_get_source_by_name(x->fuente.c_str());
+}
 
 std::uint32_t salidaAncho(void* data) {
     auto* x = static_cast<Salida*>(data);
@@ -1340,7 +1413,8 @@ void salidaDibujar(void* data, gs_effect_t*) {
     if (tex == nullptr) return;
     gs_effect_t* fx = obs_get_base_effect(OBS_EFFECT_DEFAULT);
     gs_effect_set_texture(gs_effect_get_param_by_name(fx, "image"), tex);
-    while (gs_effect_loop(fx, "Draw")) gs_draw_sprite(tex, 0, x->cx, x->cy);
+    while (gs_effect_loop(fx, "Draw"))
+        gs_draw_sprite(tex, 0, x->cx, x->cy);
 }
 
 } // namespace

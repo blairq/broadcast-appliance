@@ -38,16 +38,19 @@ std::string categoriaDe(const std::string& elemento, const std::string& clase) {
     if (tiene(clase, "Analyzer") || tiene(clase, "Detector") || tiene(elemento, "detect")) return "Análisis";
     if (tiene(elemento, "frei0r")) return "Frei0r (efectos)";
     if (tiene(elemento, "gl")) return "OpenGL";
-    if (tiene(elemento, "balance") || tiene(elemento, "gamma") || tiene(elemento, "color") || tiene(elemento, "lut") ||
-        tiene(elemento, "hsv"))
+    if (tiene(elemento, "balance") || tiene(elemento, "gamma") || tiene(elemento, "color") ||
+        tiene(elemento, "lut") || tiene(elemento, "hsv"))
         return "Color";
     if (tiene(elemento, "alpha") || tiene(elemento, "key")) return "Llaves y transparencia";
-    if (tiene(elemento, "crop") || tiene(elemento, "flip") || tiene(elemento, "scale") || tiene(elemento, "box") ||
-        tiene(elemento, "rotate") || tiene(elemento, "transform") || tiene(elemento, "mirror"))
+    if (tiene(elemento, "crop") || tiene(elemento, "flip") || tiene(elemento, "scale") ||
+        tiene(elemento, "box") || tiene(elemento, "rotate") || tiene(elemento, "transform") ||
+        tiene(elemento, "mirror"))
         return "Geometría";
-    if (tiene(elemento, "overlay") || tiene(elemento, "text") || tiene(elemento, "clock") || tiene(elemento, "time"))
+    if (tiene(elemento, "overlay") || tiene(elemento, "text") || tiene(elemento, "clock") ||
+        tiene(elemento, "time"))
         return "Textos y superposiciones";
-    if (tiene(elemento, "deinterlace") || tiene(elemento, "interlace") || tiene(elemento, "rate")) return "Formato";
+    if (tiene(elemento, "deinterlace") || tiene(elemento, "interlace") || tiene(elemento, "rate"))
+        return "Formato";
     if (tiene(clase, "Converter")) return "Formato";
     return "Efectos";
 }
@@ -79,44 +82,45 @@ std::string meta(GstElementFactory* f, const char* k) {
 /// ¿Es un módulo de video (y no de audio, ni demuxer, ni red de bajo nivel)?
 bool esDeVideo(const std::string& clase) {
     if (clase.find("Video") == std::string::npos && clase.find("Image") == std::string::npos) return false;
-    for (const char* no : {"Demuxer", "Muxer", "Parser", "Decoder", "Encoder", "Payloader", "Depayloader", "Audio"})
+    for (const char* no :
+         {"Demuxer", "Muxer", "Parser", "Decoder", "Encoder", "Payloader", "Depayloader", "Audio"})
         if (clase.find(no) != std::string::npos) return false;
     return true;
 }
 
 json valorJson(const GValue* v) {
     switch (G_TYPE_FUNDAMENTAL(G_VALUE_TYPE(v))) {
-    case G_TYPE_BOOLEAN: return static_cast<bool>(g_value_get_boolean(v));
-    case G_TYPE_INT: return g_value_get_int(v);
-    case G_TYPE_UINT: return g_value_get_uint(v);
-    case G_TYPE_INT64: return g_value_get_int64(v);
-    case G_TYPE_UINT64: return g_value_get_uint64(v);
-    case G_TYPE_LONG: return g_value_get_long(v);
-    case G_TYPE_ULONG: return g_value_get_ulong(v);
-    case G_TYPE_FLOAT: return g_value_get_float(v);
-    case G_TYPE_DOUBLE: return g_value_get_double(v);
-    case G_TYPE_STRING: {
-        const gchar* s = g_value_get_string(v);
-        return s != nullptr ? s : "";
-    }
-    case G_TYPE_ENUM: {
-        GEnumClass* c = G_ENUM_CLASS(g_type_class_ref(G_VALUE_TYPE(v)));
-        GEnumValue* e = g_enum_get_value(c, g_value_get_enum(v));
-        json r = e != nullptr ? json(e->value_nick) : json(g_value_get_enum(v));
-        g_type_class_unref(c);
-        return r;
-    }
-    case G_TYPE_FLAGS: {
-        GFlagsClass* c = G_FLAGS_CLASS(g_type_class_ref(G_VALUE_TYPE(v)));
-        std::string s;
-        const guint val = g_value_get_flags(v);
-        for (guint i = 0; i < c->n_values; ++i)
-            if (c->values[i].value != 0 && (val & c->values[i].value) == c->values[i].value)
-                s += (s.empty() ? "" : "+") + std::string(c->values[i].value_nick);
-        g_type_class_unref(c);
-        return s;
-    }
-    default: return nullptr;
+        case G_TYPE_BOOLEAN: return static_cast<bool>(g_value_get_boolean(v));
+        case G_TYPE_INT: return g_value_get_int(v);
+        case G_TYPE_UINT: return g_value_get_uint(v);
+        case G_TYPE_INT64: return g_value_get_int64(v);
+        case G_TYPE_UINT64: return g_value_get_uint64(v);
+        case G_TYPE_LONG: return g_value_get_long(v);
+        case G_TYPE_ULONG: return g_value_get_ulong(v);
+        case G_TYPE_FLOAT: return g_value_get_float(v);
+        case G_TYPE_DOUBLE: return g_value_get_double(v);
+        case G_TYPE_STRING: {
+            const gchar* s = g_value_get_string(v);
+            return s != nullptr ? s : "";
+        }
+        case G_TYPE_ENUM: {
+            GEnumClass* c = G_ENUM_CLASS(g_type_class_ref(G_VALUE_TYPE(v)));
+            GEnumValue* e = g_enum_get_value(c, g_value_get_enum(v));
+            json r = e != nullptr ? json(e->value_nick) : json(g_value_get_enum(v));
+            g_type_class_unref(c);
+            return r;
+        }
+        case G_TYPE_FLAGS: {
+            GFlagsClass* c = G_FLAGS_CLASS(g_type_class_ref(G_VALUE_TYPE(v)));
+            std::string s;
+            const guint val = g_value_get_flags(v);
+            for (guint i = 0; i < c->n_values; ++i)
+                if (c->values[i].value != 0 && (val & c->values[i].value) == c->values[i].value)
+                    s += (s.empty() ? "" : "+") + std::string(c->values[i].value_nick);
+            g_type_class_unref(c);
+            return s;
+        }
+        default: return nullptr;
     }
 }
 #endif
@@ -134,7 +138,8 @@ bool iniciarGStreamer(std::string* error) {
 #endif
 }
 
-CatalogoGst::CatalogoGst() : error_("GStreamer se está iniciando (la primera vez revisa sus módulos: unos segundos)") {}
+CatalogoGst::CatalogoGst()
+    : error_("GStreamer se está iniciando (la primera vez revisa sus módulos: unos segundos)") {}
 
 CatalogoGst::CatalogoGst(const std::filesystem::path& docs) {
     std::ifstream in(docs);
@@ -233,7 +238,8 @@ json CatalogoGst::propiedades(const std::string& elemento, const json& actuales)
             continue;
         json r{{"nombre", nombre},
                {"descripcion", g_param_spec_get_blurb(p) ? g_param_spec_get_blurb(p) : ""},
-               {"enVivo", (p->flags & GST_PARAM_MUTABLE_PLAYING) != 0 || (p->flags & GST_PARAM_CONTROLLABLE) != 0}};
+               {"enVivo",
+                (p->flags & GST_PARAM_MUTABLE_PLAYING) != 0 || (p->flags & GST_PARAM_CONTROLLABLE) != 0}};
         GValue v = G_VALUE_INIT;
         g_value_init(&v, p->value_type);
         g_object_get_property(G_OBJECT(e), nombre.c_str(), &v);
@@ -243,19 +249,25 @@ json CatalogoGst::propiedades(const std::string& elemento, const json& actuales)
         if (t == G_TYPE_PARAM_BOOLEAN) {
             r["tipo"] = "bool";
         } else if (t == G_TYPE_PARAM_INT) {
-            r["tipo"] = "int", r["min"] = G_PARAM_SPEC_INT(p)->minimum, r["max"] = G_PARAM_SPEC_INT(p)->maximum;
+            r["tipo"] = "int", r["min"] = G_PARAM_SPEC_INT(p)->minimum,
+            r["max"] = G_PARAM_SPEC_INT(p)->maximum;
         } else if (t == G_TYPE_PARAM_UINT) {
-            r["tipo"] = "int", r["min"] = G_PARAM_SPEC_UINT(p)->minimum, r["max"] = G_PARAM_SPEC_UINT(p)->maximum;
+            r["tipo"] = "int", r["min"] = G_PARAM_SPEC_UINT(p)->minimum,
+            r["max"] = G_PARAM_SPEC_UINT(p)->maximum;
         } else if (t == G_TYPE_PARAM_INT64) {
-            r["tipo"] = "int", r["min"] = G_PARAM_SPEC_INT64(p)->minimum, r["max"] = G_PARAM_SPEC_INT64(p)->maximum;
+            r["tipo"] = "int", r["min"] = G_PARAM_SPEC_INT64(p)->minimum,
+            r["max"] = G_PARAM_SPEC_INT64(p)->maximum;
         } else if (t == G_TYPE_PARAM_UINT64) {
             r["tipo"] = "int", r["min"] = 0, r["max"] = static_cast<double>(G_PARAM_SPEC_UINT64(p)->maximum);
         } else if (t == G_TYPE_PARAM_LONG) {
-            r["tipo"] = "int", r["min"] = G_PARAM_SPEC_LONG(p)->minimum, r["max"] = G_PARAM_SPEC_LONG(p)->maximum;
+            r["tipo"] = "int", r["min"] = G_PARAM_SPEC_LONG(p)->minimum,
+            r["max"] = G_PARAM_SPEC_LONG(p)->maximum;
         } else if (t == G_TYPE_PARAM_FLOAT) {
-            r["tipo"] = "double", r["min"] = G_PARAM_SPEC_FLOAT(p)->minimum, r["max"] = G_PARAM_SPEC_FLOAT(p)->maximum;
+            r["tipo"] = "double", r["min"] = G_PARAM_SPEC_FLOAT(p)->minimum,
+            r["max"] = G_PARAM_SPEC_FLOAT(p)->maximum;
         } else if (t == G_TYPE_PARAM_DOUBLE) {
-            r["tipo"] = "double", r["min"] = G_PARAM_SPEC_DOUBLE(p)->minimum, r["max"] = G_PARAM_SPEC_DOUBLE(p)->maximum;
+            r["tipo"] = "double", r["min"] = G_PARAM_SPEC_DOUBLE(p)->minimum,
+            r["max"] = G_PARAM_SPEC_DOUBLE(p)->maximum;
         } else if (t == G_TYPE_PARAM_STRING) {
             r["tipo"] = "string";
         } else if (t == G_TYPE_PARAM_ENUM || t == G_TYPE_PARAM_FLAGS) {

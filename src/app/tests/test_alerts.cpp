@@ -195,7 +195,8 @@ int main(int argc, char** argv) {
     CHECK(fired.size() == 2 && fired[0]["data"]["texto"] == "Hacemos un cuarto intermedio" &&
               fired[1]["data"]["flujo"] == "Sala",
           "los correctos");
-    CHECK(fired.size() == 2 && fired[0]["untrusted"] == true, "lo que dijo una persona llega como dato no confiable");
+    CHECK(fired.size() == 2 && fired[0]["untrusted"] == true,
+          "lo que dijo una persona llega como dato no confiable");
     eng.clear();
     fired.clear();
 

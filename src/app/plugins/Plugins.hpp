@@ -30,11 +30,11 @@
 #include <QPointer>
 #include <QProcess>
 #include <QString>
+#include <QStringList>
 #include <QTimer>
 #include <QUrl>
 #include <QVariantList>
 #include <QVariantMap>
-#include <QStringList>
 
 #include <nlohmann/json.hpp>
 
@@ -42,8 +42,8 @@
 #include <filesystem>
 #include <functional>
 #include <map>
-#include <set>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -74,10 +74,11 @@ class Plugins : public QObject {
    public:
     using json = nlohmann::json;
     /// Llamar una herramienta del servidor MCP (lo arma GuiMode, que tiene el servicio).
-    using Llamador = std::function<void(const std::string& herramienta, const json& args, std::function<void(json resultado)> listo)>;
+    using Llamador = std::function<void(const std::string& herramienta, const json& args,
+                                        std::function<void(json resultado)> listo)>;
 
-    Plugins(AppRuntime& rt, video::VideoGrafos* video, ptz::ControlCamaras* camaras, OperatorMessages* mensajes,
-            QObject* parent = nullptr);
+    Plugins(AppRuntime& rt, video::VideoGrafos* video, ptz::ControlCamaras* camaras,
+            OperatorMessages* mensajes, QObject* parent = nullptr);
     ~Plugins() override;
 
     void setLlamador(Llamador l) { llamador_ = std::move(l); }
@@ -103,16 +104,19 @@ class Plugins : public QObject {
     /// Instala un plugin desde un .zip exportado (o una carpeta). Async: {id} o {error}.
     void importar(const std::string& archivo, bool reemplazar, std::function<void(json)> listo);
     /// Baja las dependencias de plugin.json a _libs (si cambiaron). Async.
-    void dependencias(const std::string& id, std::function<void(std::string error, std::string salida)> listo);
+    void dependencias(const std::string& id,
+                      std::function<void(std::string error, std::string salida)> listo);
     /// Corre el probador (sin la app) y devuelve su informe. Async.
-    void probar(const std::string& id, double segundos, const json& controles, bool ptz, std::function<void(json)> listo);
+    void probar(const std::string& id, double segundos, const json& controles, bool ptz,
+                std::function<void(json)> listo);
     /// Prende o apaga (y lo deja así para la próxima vez). `listo` cuando terminó de declararse o falló.
     void activar(const std::string& id, bool activo, std::function<void(json estado)> listo);
     void reiniciar(const std::string& id, std::function<void(json estado)> listo);
     json estado(const std::string& id) const;
     std::string registro(const std::string& id, int lineas) const;
     /// Un pedido al plugin (control, ptz.*, info). `listo` con {ok, resultado|error}.
-    void pedir(const std::string& id, const std::string& accion, const json& args, std::function<void(json)> listo, int timeoutMs = 10000);
+    void pedir(const std::string& id, const std::string& accion, const json& args,
+               std::function<void(json)> listo, int timeoutMs = 10000);
     json eventos(const std::string& id, const std::string& canal, int cuantos) const;
     json secretosDe(const std::string& id) const;
     /// Lo que hay conectado: cámaras y micrófonos (GStreamer) + USB, HID y serie (Python).
@@ -131,11 +135,11 @@ class Plugins : public QObject {
     std::string ponerValor(const std::string& id, const std::string& clave, const json& valor);
 
     /// Pone una tarjeta de video del plugin en una entrada (grafo).
-    std::string ponerTarjeta(const std::string& id, const std::string& tarjeta, const std::string& entrada, const json& parametros,
-                             json* hecho);
+    std::string ponerTarjeta(const std::string& id, const std::string& tarjeta, const std::string& entrada,
+                             const json& parametros, json* hecho);
     /// Pone una tarjeta de audio del plugin como filtro de una fuente.
-    std::string ponerFiltroAudio(const std::string& id, const std::string& tarjeta, const std::string& fuente, const json& parametros,
-                                 json* hecho);
+    std::string ponerFiltroAudio(const std::string& id, const std::string& tarjeta, const std::string& fuente,
+                                 const json& parametros, json* hecho);
 
     // --- Para la interfaz ----------------------------------------------------------
     QVariantList listaQml() const;
@@ -157,7 +161,8 @@ class Plugins : public QObject {
     Q_INVOKABLE QString guardarConfig(const QString& id, const QString& texto);
     /// Llama un control; la respuesta llega por `respuesta(id, control, texto, ok)`.
     Q_INVOKABLE void controlUi(const QString& id, const QString& control, const QString& argsJson);
-    Q_INVOKABLE QString tarjetaUi(const QString& id, const QString& tarjeta, const QString& destino, bool audio);
+    Q_INVOKABLE QString tarjetaUi(const QString& id, const QString& tarjeta, const QString& destino,
+                                  bool audio);
     Q_INVOKABLE QStringList entradasVideo() const;
     Q_INVOKABLE QStringList fuentesConAudio() const;
     Q_INVOKABLE void buscarEquipos();

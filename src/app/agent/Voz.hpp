@@ -38,9 +38,9 @@
 #include <nlohmann/json.hpp>
 
 #include <QObject>
-#include <QTimer>
 #include <QSet>
 #include <QString>
+#include <QTimer>
 #include <QVariantList>
 #include <QVariantMap>
 

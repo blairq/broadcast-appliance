@@ -54,7 +54,7 @@ struct Red {
     std::unique_ptr<Ort::Session> sesion;
     std::string entrada, salida;
     int canales = 1;
-    int factor = 2;   ///< lo que agranda el modelo (2 o 4)
+    int factor = 2; ///< lo que agranda el modelo (2 o 4)
     std::string proveedor;
 };
 #endif
@@ -68,9 +68,9 @@ struct _BaOnnxSr {
     gchar* error;
 #if defined(BA_HAVE_ORT)
     Red* red;
-    GThread* preparando;   ///< la red se arma en otro hilo (CoreML compila ~3 s)
+    GThread* preparando;      ///< la red se arma en otro hilo (CoreML compila ~3 s)
     std::atomic<Red*>* lista; ///< lo que dejó el hilo
-    int pw, ph;            ///< el tamaño para el que se prepara
+    int pw, ph;               ///< el tamaño para el que se prepara
 #endif
     gboolean activo;
     ba::sr::Demora* demora;
@@ -82,8 +82,8 @@ enum { PROP_0, PROP_ACTIVO, PROP_MODELO, PROP_PROVEEDOR, PROP_MS, PROP_ERROR, PR
 
 static GstStaticPadTemplate sinkTpl = GST_STATIC_PAD_TEMPLATE("sink", GST_PAD_SINK, GST_PAD_ALWAYS,
                                                               GST_STATIC_CAPS(GST_VIDEO_CAPS_MAKE("NV12")));
-static GstStaticPadTemplate srcTpl = GST_STATIC_PAD_TEMPLATE("src", GST_PAD_SRC, GST_PAD_ALWAYS,
-                                                             GST_STATIC_CAPS(GST_VIDEO_CAPS_MAKE("NV12")));
+static GstStaticPadTemplate srcTpl =
+    GST_STATIC_PAD_TEMPLATE("src", GST_PAD_SRC, GST_PAD_ALWAYS, GST_STATIC_CAPS(GST_VIDEO_CAPS_MAKE("NV12")));
 
 static bool hayModelo(BaOnnxSr* s) { return s->modelo != nullptr && *s->modelo != '\0'; }
 
@@ -122,7 +122,8 @@ static bool abrirRed(BaOnnxSr* s, int w, int h) {
 #if defined(__APPLE__)
         if (pedido == "auto" || pedido == "coreml") {
             // MLProgram + todas las unidades (CPU, GPU, Neural Engine).
-            if (OrtSessionOptionsAppendExecutionProvider_CoreML(op, COREML_FLAG_CREATE_MLPROGRAM) == nullptr) r->proveedor = "coreml";
+            if (OrtSessionOptionsAppendExecutionProvider_CoreML(op, COREML_FLAG_CREATE_MLPROGRAM) == nullptr)
+                r->proveedor = "coreml";
         }
 #elif defined(_WIN32)
         if (pedido == "auto" || pedido == "dml") {
@@ -144,20 +145,24 @@ static bool abrirRed(BaOnnxSr* s, int w, int h) {
         r->salida = r->sesion->GetOutputNameAllocated(0, al).get();
         const auto forma = r->sesion->GetInputTypeInfo(0).GetTensorTypeAndShapeInfo().GetShape();
         r->canales = forma.size() == 4 && forma[1] > 0 ? static_cast<int>(forma[1]) : 1;
-        if (r->canales != 1 && r->canales != 3) throw std::runtime_error("el modelo tiene que tener 1 (luma) o 3 (RGB) canales de entrada");
+        if (r->canales != 1 && r->canales != 3)
+            throw std::runtime_error("el modelo tiene que tener 1 (luma) o 3 (RGB) canales de entrada");
         // Lo que agranda: una pasada de prueba (y de paso calienta la red).
         std::vector<float> prueba(static_cast<size_t>(r->canales) * w * h, 0.5f);
         const std::array<int64_t, 4> dims{1, r->canales, h, w};
         Ort::MemoryInfo mem = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
-        Ort::Value t = Ort::Value::CreateTensor<float>(mem, prueba.data(), prueba.size(), dims.data(), dims.size());
+        Ort::Value t =
+            Ort::Value::CreateTensor<float>(mem, prueba.data(), prueba.size(), dims.data(), dims.size());
         const char* ins[] = {r->entrada.c_str()};
         const char* outs[] = {r->salida.c_str()};
         auto res = r->sesion->Run(Ort::RunOptions{nullptr}, ins, &t, 1, outs, 1);
         const auto fo = res[0].GetTensorTypeAndShapeInfo().GetShape();
         r->factor = fo.size() == 4 ? static_cast<int>(fo[3] / w) : 0;
-        if (r->factor != 2 && r->factor != 4) throw std::runtime_error("el modelo agranda x" + std::to_string(r->factor) + ": se usa x2 o x4");
+        if (r->factor != 2 && r->factor != 4)
+            throw std::runtime_error("el modelo agranda x" + std::to_string(r->factor) + ": se usa x2 o x4");
         s->lista->store(r);
-        GST_INFO_OBJECT(s, "red %s: %d canal(es), x%d, %s", s->modelo, r->canales, r->factor, r->proveedor.c_str());
+        GST_INFO_OBJECT(s, "red %s: %d canal(es), x%d, %s", s->modelo, r->canales, r->factor,
+                        r->proveedor.c_str());
         g_free(s->error);
         s->error = nullptr;
         return true;
@@ -178,7 +183,8 @@ static GstCaps* transformarCaps(GstBaseTransform* bt, GstPadDirection dir, GstCa
     return ba::sr::transformarCaps(dir, caps, filtro, s->activo && hayModelo(s));
 }
 
-static gboolean tamanoSalida(GstBaseTransform*, GstPadDirection, GstCaps*, gsize, GstCaps* otras, gsize* otro) {
+static gboolean tamanoSalida(GstBaseTransform*, GstPadDirection, GstCaps*, gsize, GstCaps* otras,
+                             gsize* otro) {
     GstVideoInfo vi;
     if (!gst_video_info_from_caps(&vi, otras)) return FALSE;
     *otro = GST_VIDEO_INFO_SIZE(&vi);
@@ -187,7 +193,8 @@ static gboolean tamanoSalida(GstBaseTransform*, GstPadDirection, GstCaps*, gsize
 
 static gboolean ponerCaps(GstBaseTransform* bt, GstCaps* incaps, GstCaps* outcaps) {
     auto* s = BA_ONNXSR(bt);
-    if (!gst_video_info_from_caps(&s->in, incaps) || !gst_video_info_from_caps(&s->out, outcaps)) return FALSE;
+    if (!gst_video_info_from_caps(&s->in, incaps) || !gst_video_info_from_caps(&s->out, outcaps))
+        return FALSE;
     s->procesa = GST_VIDEO_INFO_WIDTH(&s->out) == 2 * GST_VIDEO_INFO_WIDTH(&s->in);
     soltarRed(s); // se abre al primer cuadro, con este tamaño
     gst_base_transform_set_passthrough(bt, !s->procesa);
@@ -246,11 +253,14 @@ static GstFlowReturn transformar(GstBaseTransform* bt, GstBuffer* inbuf, GstBuff
         } else if (s->preparando == nullptr && s->error == nullptr && hayModelo(s)) {
             s->pw = w;
             s->ph = h;
-            s->preparando = g_thread_new("baonnxsr-preparar", [](gpointer d) -> gpointer {
-                auto* x = static_cast<BaOnnxSr*>(d);
-                abrirRed(x, x->pw, x->ph);
-                return nullptr;
-            }, s);
+            s->preparando = g_thread_new(
+                "baonnxsr-preparar",
+                [](gpointer d) -> gpointer {
+                    auto* x = static_cast<BaOnnxSr*>(d);
+                    abrirRed(x, x->pw, x->ph);
+                    return nullptr;
+                },
+                s);
         }
     }
     if (Red* r = s->red) {
@@ -259,7 +269,8 @@ static GstFlowReturn transformar(GstBaseTransform* bt, GstBuffer* inbuf, GstBuff
             std::vector<float> in(static_cast<size_t>(C) * w * h);
             if (C == 1) {
                 for (int y = 0; y < h; ++y)
-                    for (int x = 0; x < w; ++x) in[static_cast<size_t>(y) * w + x] = (Y[y * pY + x] - 16.0f) / 219.0f;
+                    for (int x = 0; x < w; ++x)
+                        in[static_cast<size_t>(y) * w + x] = (Y[y * pY + x] - 16.0f) / 219.0f;
             } else {
                 // NV12 (BT.709, rango limitado) -> RGB 0..1, NCHW.
                 const size_t plano = static_cast<size_t>(w) * h;
@@ -276,7 +287,8 @@ static GstFlowReturn transformar(GstBaseTransform* bt, GstBuffer* inbuf, GstBuff
             }
             const std::array<int64_t, 4> dims{1, C, h, w};
             Ort::MemoryInfo mem = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
-            Ort::Value t = Ort::Value::CreateTensor<float>(mem, in.data(), in.size(), dims.data(), dims.size());
+            Ort::Value t =
+                Ort::Value::CreateTensor<float>(mem, in.data(), in.size(), dims.data(), dims.size());
             const char* ins[] = {r->entrada.c_str()};
             const char* outs[] = {r->salida.c_str()};
             auto res = r->sesion->Run(Ort::RunOptions{nullptr}, ins, &t, 1, outs, 1);
@@ -291,7 +303,8 @@ static GstFlowReturn transformar(GstBaseTransform* bt, GstBuffer* inbuf, GstBuff
                     for (int dy = 0; dy < k; ++dy)
                         for (int dx = 0; dx < k; ++dx) {
                             const size_t i = static_cast<size_t>(y * k + dy) * W + (x * k + dx);
-                            for (int c = 0; c < C; ++c) acc[c] += o[c * planoO + i];
+                            for (int c = 0; c < C; ++c)
+                                acc[c] += o[c * planoO + i];
                         }
                     if (C == 1) {
                         oY[y * poY + x] = sat(16.0f + 219.0f * acc[0] * div);
@@ -299,8 +312,10 @@ static GstFlowReturn transformar(GstBaseTransform* bt, GstBuffer* inbuf, GstBuff
                         const float R = acc[0] * div, G = acc[1] * div, B = acc[2] * div;
                         oY[y * poY + x] = sat(16.0f + 219.0f * (0.2126f * R + 0.7152f * G + 0.0722f * B));
                         if ((x & 1) == 0 && (y & 1) == 0) {
-                            oUV[(y / 2) * poUV + x] = sat(128.0f + 224.0f * (-0.1146f * R - 0.3854f * G + 0.5f * B));
-                            oUV[(y / 2) * poUV + x + 1] = sat(128.0f + 224.0f * (0.5f * R - 0.4542f * G - 0.0458f * B));
+                            oUV[(y / 2) * poUV + x] =
+                                sat(128.0f + 224.0f * (-0.1146f * R - 0.3854f * G + 0.5f * B));
+                            oUV[(y / 2) * poUV + x + 1] =
+                                sat(128.0f + 224.0f * (0.5f * R - 0.4542f * G - 0.0458f * B));
                         }
                     }
                 }
@@ -316,7 +331,8 @@ static GstFlowReturn transformar(GstBaseTransform* bt, GstBuffer* inbuf, GstBuff
         // Sin red (o falló): se agranda simple para que la imagen siga.
         for (int y = 0; y < h * 2; ++y) {
             const guint8* fila = Y + (y / 2) * pY;
-            for (int x = 0; x < w * 2; ++x) oY[y * poY + x] = fila[x / 2];
+            for (int x = 0; x < w * 2; ++x)
+                oY[y * poY + x] = fila[x / 2];
         }
         colorX2(UV, pUV, w / 2, h / 2, oUV, poUV);
     }
@@ -379,12 +395,14 @@ static gboolean parar(GstBaseTransform* bt) {
 }
 
 static gboolean consultar(GstBaseTransform* bt, GstPadDirection dir, GstQuery* q) {
-    return ba::sr::consultaLatencia(bt, q, *BA_ONNXSR(bt)->demora, GST_BASE_TRANSFORM_CLASS(ba_onnxsr_parent_class)->query, dir);
+    return ba::sr::consultaLatencia(bt, q, *BA_ONNXSR(bt)->demora,
+                                    GST_BASE_TRANSFORM_CLASS(ba_onnxsr_parent_class)->query, dir);
 }
 
 /// Un corte (flush) o un stream nuevo: la demora se vuelve a medir.
 static gboolean eventoEntrada(GstBaseTransform* bt, GstEvent* ev) {
-    if (GST_EVENT_TYPE(ev) == GST_EVENT_FLUSH_STOP || GST_EVENT_TYPE(ev) == GST_EVENT_STREAM_START) BA_ONNXSR(bt)->demora->reiniciar();
+    if (GST_EVENT_TYPE(ev) == GST_EVENT_FLUSH_STOP || GST_EVENT_TYPE(ev) == GST_EVENT_STREAM_START)
+        BA_ONNXSR(bt)->demora->reiniciar();
     return GST_BASE_TRANSFORM_CLASS(ba_onnxsr_parent_class)->sink_event(bt, ev);
 }
 
@@ -408,18 +426,30 @@ static void ba_onnxsr_class_init(BaOnnxSrClass* k) {
     go->set_property = ponerPropiedad;
     go->get_property = leerPropiedad;
     go->finalize = ba_onnxsr_finalize;
-    const auto rw = static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | GST_PARAM_MUTABLE_PLAYING);
+    const auto rw =
+        static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | GST_PARAM_MUTABLE_PLAYING);
     const auto ro = static_cast<GParamFlags>(G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
-    g_object_class_install_property(go, PROP_ACTIVO, g_param_spec_boolean("activo", "Activo", "Agranda (FALSE: pasa sin tocar)", TRUE, rw));
-    g_object_class_install_property(go, PROP_MODELO, g_param_spec_string("modelo", "Modelo", "Ruta del .onnx (vacío: pasa sin tocar)", nullptr, rw));
+    g_object_class_install_property(
+        go, PROP_ACTIVO,
+        g_param_spec_boolean("activo", "Activo", "Agranda (FALSE: pasa sin tocar)", TRUE, rw));
+    g_object_class_install_property(
+        go, PROP_MODELO,
+        g_param_spec_string("modelo", "Modelo", "Ruta del .onnx (vacío: pasa sin tocar)", nullptr, rw));
     g_object_class_install_property(go, PROP_PROVEEDOR,
-                                    g_param_spec_string("proveedor", "Proveedor", "auto, cpu, coreml (macOS) o dml (Windows)", "auto", rw));
-    g_object_class_install_property(go, PROP_MS, g_param_spec_double("ms-por-cuadro", "ms por cuadro", "Lo que tarda (promedio móvil)", 0, 100000, 0, ro));
-    g_object_class_install_property(go, PROP_ERROR, g_param_spec_string("error", "Error", "Por qué no anda (si no anda)", nullptr, ro));
-    g_object_class_install_property(go, PROP_PROVEEDOR_USADO,
-                                    g_param_spec_string("proveedor-usado", "Proveedor usado", "Con qué corre la red", nullptr, ro));
-    gst_element_class_set_static_metadata(ge, "Superresolución x2 con una red ONNX", "Filter/Effect/Video/Scaler",
-                                          "Duplica la resolución con un modelo ONNX (luma o RGB, x2 o x4)", "Broadcast Appliance");
+                                    g_param_spec_string("proveedor", "Proveedor",
+                                                        "auto, cpu, coreml (macOS) o dml (Windows)", "auto",
+                                                        rw));
+    g_object_class_install_property(go, PROP_MS,
+                                    g_param_spec_double("ms-por-cuadro", "ms por cuadro",
+                                                        "Lo que tarda (promedio móvil)", 0, 100000, 0, ro));
+    g_object_class_install_property(
+        go, PROP_ERROR, g_param_spec_string("error", "Error", "Por qué no anda (si no anda)", nullptr, ro));
+    g_object_class_install_property(
+        go, PROP_PROVEEDOR_USADO,
+        g_param_spec_string("proveedor-usado", "Proveedor usado", "Con qué corre la red", nullptr, ro));
+    gst_element_class_set_static_metadata(
+        ge, "Superresolución x2 con una red ONNX", "Filter/Effect/Video/Scaler",
+        "Duplica la resolución con un modelo ONNX (luma o RGB, x2 o x4)", "Broadcast Appliance");
     gst_element_class_add_static_pad_template(ge, &sinkTpl);
     gst_element_class_add_static_pad_template(ge, &srcTpl);
     bt->transform_caps = transformarCaps;
@@ -451,4 +481,6 @@ static void ba_onnxsr_init(BaOnnxSr* s) {
 }
 
 /// Registra `baonnxsr` en el plugin.
-extern "C" gboolean ba_registrar_onnxsr(GstPlugin* plugin) { return gst_element_register(plugin, "baonnxsr", GST_RANK_NONE, BA_TYPE_ONNXSR); }
+extern "C" gboolean ba_registrar_onnxsr(GstPlugin* plugin) {
+    return gst_element_register(plugin, "baonnxsr", GST_RANK_NONE, BA_TYPE_ONNXSR);
+}

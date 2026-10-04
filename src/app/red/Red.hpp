@@ -113,7 +113,8 @@ class Red : public QObject {
     /// consulta por ONVIF y, si tiene PTZ, lo configura. El resultado llega por `ptzListo`.
     Q_INVOKABLE void activarPtzReal(const QString& entrada, const QString& usuario, const QString& clave);
     /// Lo mismo con respuesta: consulta la cámara `ip` por ONVIF y configura el PTZ de `entrada`.
-    void activarPtz(const std::string& ip, const QString& entrada, std::function<void(bool ok, QString texto)> listo);
+    void activarPtz(const std::string& ip, const QString& entrada,
+                    std::function<void(bool ok, QString texto)> listo);
 
     Biblioteca& biblioteca() { return biblioteca_; }
     const Oui& oui() const { return oui_; }

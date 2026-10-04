@@ -53,8 +53,7 @@ std::filesystem::path dataRootFor(const std::filesystem::path& bundle) {
     // permisos de cámara y micrófono.
     if (norm.filename() == "Resources" && norm.parent_path().filename() == "Contents") {
         const std::filesystem::path app = norm.parent_path().parent_path();
-        if (app.extension() == ".app")
-            return app.parent_path() / (app.stem().string() + " Datos");
+        if (app.extension() == ".app") return app.parent_path() / (app.stem().string() + " Datos");
     }
     return norm;
 }

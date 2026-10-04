@@ -18,10 +18,10 @@
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QFile>
-#include <QUrl>
-#include <QPointer>
 #include <QJsonDocument>
+#include <QPointer>
 #include <QSaveFile>
+#include <QUrl>
 
 #include <algorithm>
 #include <cmath>
@@ -42,11 +42,15 @@ constexpr const char* kTipoCompositor = "ba_video_compositor";
 const std::set<std::string> kNoTarjeta = {"ba_video_grafo", "ba_audio_rack"};
 
 QVariant aVariant(const json& j) {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump())).toVariant().toMap().value("v");
+    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump()))
+        .toVariant()
+        .toMap()
+        .value("v");
 }
 json deVariant(const QVariant& v) {
-    return json::parse(QJsonDocument::fromVariant(QVariantMap{{"v", v}}).toJson(QJsonDocument::Compact).toStdString(),
-                       nullptr, false)
+    return json::parse(
+               QJsonDocument::fromVariant(QVariantMap{{"v", v}}).toJson(QJsonDocument::Compact).toStdString(),
+               nullptr, false)
         .value("v", json());
 }
 QString q(const std::string& s) { return QString::fromStdString(s); }
@@ -54,8 +58,13 @@ QString q(const char* s) { return QString::fromUtf8(s != nullptr ? s : ""); }
 
 /// 0xAABBGGRR de libobs -> "#RRGGBB".
 QString colorHex(long long c) {
-    const int r = static_cast<int>(c & 0xFF), g = static_cast<int>((c >> 8) & 0xFF), b = static_cast<int>((c >> 16) & 0xFF);
-    return QStringLiteral("#%1%2%3").arg(r, 2, 16, QChar('0')).arg(g, 2, 16, QChar('0')).arg(b, 2, 16, QChar('0')).toUpper();
+    const int r = static_cast<int>(c & 0xFF), g = static_cast<int>((c >> 8) & 0xFF),
+              b = static_cast<int>((c >> 16) & 0xFF);
+    return QStringLiteral("#%1%2%3")
+        .arg(r, 2, 16, QChar('0'))
+        .arg(g, 2, 16, QChar('0'))
+        .arg(b, 2, 16, QChar('0'))
+        .toUpper();
 }
 /// Las propiedades de un módulo de GStreamer (CatalogoGst) como controles de
 /// PropertiesModel.
@@ -64,8 +73,10 @@ QVariantList controlesGst(const json& props) {
     for (const auto& p : props) {
         const std::string tipo = p.value("tipo", "");
         QString ayuda = q(p.value("descripcion", ""));
-        if (!p.value("enVivo", false)) ayuda += QStringLiteral(" (GStreamer no asegura que cambie con el video andando)");
-        QVariantMap r{{"name", q(p.value("nombre", ""))}, {"label", q(p.value("nombre", ""))}, {"help", ayuda}};
+        if (!p.value("enVivo", false))
+            ayuda += QStringLiteral(" (GStreamer no asegura que cambie con el video andando)");
+        QVariantMap r{
+            {"name", q(p.value("nombre", ""))}, {"label", q(p.value("nombre", ""))}, {"help", ayuda}};
         const json& v = p.contains("valor") ? p["valor"] : p["defecto"];
         if (tipo == "bool") {
             r["kind"] = "bool";
@@ -81,7 +92,8 @@ QVariantList controlesGst(const json& props) {
             r["kind"] = "list";
             QVariantList ops;
             for (const auto& o : p.value("opciones", json::array()))
-                ops << QVariantMap{{"value", q(o.value("nick", ""))}, {"label", q(o.value("descripcion", ""))}};
+                ops << QVariantMap{{"value", q(o.value("nick", ""))},
+                                   {"label", q(o.value("descripcion", ""))}};
             r["options"] = ops;
             r["value"] = v.is_string() ? q(v.get<std::string>()) : QString();
         } else if (tipo == "string" || tipo == "flags") {
@@ -89,7 +101,8 @@ QVariantList controlesGst(const json& props) {
             r["value"] = v.is_string() ? q(v.get<std::string>()) : QString();
             if (tipo == "flags") {
                 QStringList nicks;
-                for (const auto& o : p.value("opciones", json::array())) nicks << q(o.value("nick", ""));
+                for (const auto& o : p.value("opciones", json::array()))
+                    nicks << q(o.value("nick", ""));
                 r["help"] = ayuda + QStringLiteral(" Valores, unidos con «+»: ") + nicks.join(", ");
             }
         } else {
@@ -108,20 +121,27 @@ struct Virtual {
     const char* origen; ///< el pipeline, antes de las caps
 };
 const Virtual kVirtuales[] = {
-    {"barras-hd", "Barras HD (SMPTE RP 219)", "Las barras de color de HD: para calibrar monitores y probar la cadena.",
+    {"barras-hd", "Barras HD (SMPTE RP 219)",
+     "Las barras de color de HD: para calibrar monitores y probar la cadena.",
      "videotestsrc pattern=smpte-rp-219 is-live=true"},
-    {"barras", "Barras SMPTE (100 %)", "Las barras clásicas al 100 %.", "videotestsrc pattern=smpte100 is-live=true"},
+    {"barras", "Barras SMPTE (100 %)", "Las barras clásicas al 100 %.",
+     "videotestsrc pattern=smpte100 is-live=true"},
     {"barras-75", "Barras SMPTE (75 %)", "Barras al 75 %: las de ajuste de la TV analógica.",
      "videotestsrc pattern=smpte75 is-live=true"},
-    {"barras-hora", "Barras con la hora", "Barras HD con la hora encima: se ve si la señal está viva o congelada.",
-     "videotestsrc pattern=smpte-rp-219 is-live=true ! clockoverlay time-format=\"%H:%M:%S\" font-desc=\"Sans 40\" "
+    {"barras-hora", "Barras con la hora",
+     "Barras HD con la hora encima: se ve si la señal está viva o congelada.",
+     "videotestsrc pattern=smpte-rp-219 is-live=true ! clockoverlay time-format=\"%H:%M:%S\" "
+     "font-desc=\"Sans 40\" "
      "halignment=center valignment=bottom"},
-    {"negro", "Negro", "Una pantalla negra (para tapar una salida sin sacarla).", "videotestsrc pattern=black is-live=true"},
+    {"negro", "Negro", "Una pantalla negra (para tapar una salida sin sacarla).",
+     "videotestsrc pattern=black is-live=true"},
     {"blanco", "Blanco", "Una pantalla blanca.", "videotestsrc pattern=white is-live=true"},
-    {"verde", "Verde croma", "Verde para probar una llave de croma.", "videotestsrc pattern=green is-live=true"},
+    {"verde", "Verde croma", "Verde para probar una llave de croma.",
+     "videotestsrc pattern=green is-live=true"},
     {"zona", "Placa de zonas", "Círculos concéntricos (zone plate): muestran el aliasing de un escalado.",
      "videotestsrc pattern=zone-plate kx2=20 ky2=20 kt=1 is-live=true"},
-    {"damero", "Damero", "Cuadros de 8 píxeles: nitidez y escalado.", "videotestsrc pattern=checkers-8 is-live=true"},
+    {"damero", "Damero", "Cuadros de 8 píxeles: nitidez y escalado.",
+     "videotestsrc pattern=checkers-8 is-live=true"},
     {"pelota", "Pelota en movimiento", "Una pelota que se mueve: para ver cuadros perdidos o trabados.",
      "videotestsrc pattern=ball is-live=true"},
     {"ruido", "Ruido", "Nieve de TV.", "videotestsrc pattern=snow is-live=true"},
@@ -132,15 +152,15 @@ const Virtual kVirtuales[] = {
 namespace {
 const char* desentrelazadoDe(obs_deinterlace_mode m) {
     switch (m) {
-    case OBS_DEINTERLACE_MODE_DISABLE: return "no";
-    case OBS_DEINTERLACE_MODE_DISCARD: return "descartar";
-    case OBS_DEINTERLACE_MODE_RETRO: return "retro";
-    case OBS_DEINTERLACE_MODE_BLEND: return "mezclar";
-    case OBS_DEINTERLACE_MODE_BLEND_2X: return "mezclar2x";
-    case OBS_DEINTERLACE_MODE_LINEAR: return "lineal";
-    case OBS_DEINTERLACE_MODE_LINEAR_2X: return "lineal2x";
-    case OBS_DEINTERLACE_MODE_YADIF: return "yadif";
-    case OBS_DEINTERLACE_MODE_YADIF_2X: return "yadif2x";
+        case OBS_DEINTERLACE_MODE_DISABLE: return "no";
+        case OBS_DEINTERLACE_MODE_DISCARD: return "descartar";
+        case OBS_DEINTERLACE_MODE_RETRO: return "retro";
+        case OBS_DEINTERLACE_MODE_BLEND: return "mezclar";
+        case OBS_DEINTERLACE_MODE_BLEND_2X: return "mezclar2x";
+        case OBS_DEINTERLACE_MODE_LINEAR: return "lineal";
+        case OBS_DEINTERLACE_MODE_LINEAR_2X: return "lineal2x";
+        case OBS_DEINTERLACE_MODE_YADIF: return "yadif";
+        case OBS_DEINTERLACE_MODE_YADIF_2X: return "yadif2x";
     }
     return "no";
 }
@@ -158,9 +178,7 @@ obs_deinterlace_mode desentrelazadoDesde(const std::string& m) {
 } // namespace
 
 VideoGrafos::VideoGrafos(AppRuntime& rt, std::filesystem::path dataRoot, QObject* parent)
-    : QObject(parent),
-      rt_(rt),
-      archivo_(dataRoot / "Config" / "video-grafo.json"),
+    : QObject(parent), rt_(rt), archivo_(dataRoot / "Config" / "video-grafo.json"),
       archivoViejo_(dataRoot / "Config" / "video-grafos.json") {
     cargar();
     revision_.setInterval(1500);
@@ -225,7 +243,8 @@ json VideoGrafos::conPublicadas(json d) const {
         const std::string tipo = n.value("tipo", std::string());
         if (tipo == "salida" || tipo == "compositor") {
             const std::string nombre = n["params"].value("nombre", std::string());
-            n["publicada"] = !nombre.empty() && rt_.engine().sourceTypeId(nombre) == (tipo == "salida" ? kTipoSalida : kTipoCompositor);
+            n["publicada"] = !nombre.empty() && rt_.engine().sourceTypeId(nombre) ==
+                                                    (tipo == "salida" ? kTipoSalida : kTipoCompositor);
         }
     }
     return d;
@@ -249,7 +268,8 @@ json VideoGrafos::erroresDe(const std::string& entrada) const {
 }
 
 json VideoGrafos::describir(const std::string& entrada) const {
-    if (!entrada.empty() && !esEntrada(entrada)) return {{"error", "«" + entrada + "» no es una entrada de video"}};
+    if (!entrada.empty() && !esEntrada(entrada))
+        return {{"error", "«" + entrada + "» no es una entrada de video"}};
     json d = conPublicadas(grafo_.describir(entrada, !entrada.empty()));
     // Por qué no corre una tarjeta (lo informa el filtro de su entrada).
     std::map<std::string, json> errores;
@@ -286,13 +306,15 @@ QVariantList VideoGrafos::filtrosObs() const {
         if (kNoTarjeta.count(fid)) continue;
         const uint32_t flags = obs_get_source_output_flags(id);
         // De video, que se dibujan (no los asíncronos) y que no están retirados.
-        if (!(flags & OBS_SOURCE_VIDEO) || (flags & OBS_SOURCE_ASYNC) || (flags & OBS_SOURCE_CAP_DISABLED)) continue;
+        if (!(flags & OBS_SOURCE_VIDEO) || (flags & OBS_SOURCE_ASYNC) || (flags & OBS_SOURCE_CAP_DISABLED))
+            continue;
         const std::string nombre = nombreFiltro(fid);
         if (nombre.empty()) continue;
         out << QVariantMap{{"id", q(fid)}, {"nombre", q(nombre)}, {"propio", fid.rfind("ba_", 0) == 0}};
     }
     std::sort(out.begin(), out.end(), [](const QVariant& a, const QVariant& b) {
-        return a.toMap().value("nombre").toString().localeAwareCompare(b.toMap().value("nombre").toString()) < 0;
+        return a.toMap().value("nombre").toString().localeAwareCompare(b.toMap().value("nombre").toString()) <
+               0;
     });
     return out;
 }
@@ -306,7 +328,8 @@ QVariantList VideoGrafos::propiedades(const QString& idNodo) const {
     const std::string tipo = ctl ? n->params.value("tarjeta", std::string()) : n->tipo;
     const json params = ctl ? n->params.value("params", json::object()) : grafo_.efectivos(*n);
     if (tipo == "gst")
-        return controlesGst(gst().propiedades(params.value("elemento", std::string()), params.value("propiedades", json::object())));
+        return controlesGst(gst().propiedades(params.value("elemento", std::string()),
+                                              params.value("propiedades", json::object())));
     if (tipo != "obs") return out;
     const std::string fid = params.value("filtro", std::string());
     obs_properties_t* props = obs_get_source_properties(fid.c_str());
@@ -323,62 +346,65 @@ QVariantList VideoGrafos::propiedades(const QString& idNodo) const {
                           {"label", obs_property_description(p) ? q(obs_property_description(p)) : q(k)},
                           {"help", q(obs_property_long_description(p))}};
             switch (obs_property_get_type(p)) {
-            case OBS_PROPERTY_BOOL:
-                r["kind"] = "bool";
-                r["value"] = obs_data_get_bool(d, k);
-                break;
-            case OBS_PROPERTY_INT:
-                r["kind"] = "int";
-                r["value"] = static_cast<qlonglong>(obs_data_get_int(d, k));
-                r["min"] = obs_property_int_min(p);
-                r["max"] = obs_property_int_max(p);
-                r["step"] = obs_property_int_step(p);
-                r["suffix"] = q(obs_property_int_suffix(p));
-                break;
-            case OBS_PROPERTY_FLOAT:
-                r["kind"] = "float";
-                r["value"] = obs_data_get_double(d, k);
-                r["min"] = obs_property_float_min(p);
-                r["max"] = obs_property_float_max(p);
-                r["step"] = obs_property_float_step(p);
-                r["suffix"] = q(obs_property_float_suffix(p));
-                break;
-            case OBS_PROPERTY_TEXT:
-                r["kind"] = obs_property_text_type(p) == OBS_TEXT_INFO ? "info" : "text";
-                r["value"] = q(obs_data_get_string(d, k));
-                break;
-            case OBS_PROPERTY_PATH:
-                r["kind"] = "path";
-                r["value"] = q(obs_data_get_string(d, k));
-                r["filtro"] = q(obs_property_path_filter(p));
-                break;
-            case OBS_PROPERTY_LIST: {
-                r["kind"] = "list";
-                const auto fmt = obs_property_list_format(p);
-                QVariantList ops;
-                for (size_t i = 0; i < obs_property_list_item_count(p); ++i) {
-                    const QVariant v = fmt == OBS_COMBO_FORMAT_INT     ? QVariant(static_cast<qlonglong>(obs_property_list_item_int(p, i)))
-                                       : fmt == OBS_COMBO_FORMAT_FLOAT ? QVariant(obs_property_list_item_float(p, i))
-                                                                       : QVariant(q(obs_property_list_item_string(p, i)));
-                    ops << QVariantMap{{"value", v}, {"label", q(obs_property_list_item_name(p, i))}};
+                case OBS_PROPERTY_BOOL:
+                    r["kind"] = "bool";
+                    r["value"] = obs_data_get_bool(d, k);
+                    break;
+                case OBS_PROPERTY_INT:
+                    r["kind"] = "int";
+                    r["value"] = static_cast<qlonglong>(obs_data_get_int(d, k));
+                    r["min"] = obs_property_int_min(p);
+                    r["max"] = obs_property_int_max(p);
+                    r["step"] = obs_property_int_step(p);
+                    r["suffix"] = q(obs_property_int_suffix(p));
+                    break;
+                case OBS_PROPERTY_FLOAT:
+                    r["kind"] = "float";
+                    r["value"] = obs_data_get_double(d, k);
+                    r["min"] = obs_property_float_min(p);
+                    r["max"] = obs_property_float_max(p);
+                    r["step"] = obs_property_float_step(p);
+                    r["suffix"] = q(obs_property_float_suffix(p));
+                    break;
+                case OBS_PROPERTY_TEXT:
+                    r["kind"] = obs_property_text_type(p) == OBS_TEXT_INFO ? "info" : "text";
+                    r["value"] = q(obs_data_get_string(d, k));
+                    break;
+                case OBS_PROPERTY_PATH:
+                    r["kind"] = "path";
+                    r["value"] = q(obs_data_get_string(d, k));
+                    r["filtro"] = q(obs_property_path_filter(p));
+                    break;
+                case OBS_PROPERTY_LIST: {
+                    r["kind"] = "list";
+                    const auto fmt = obs_property_list_format(p);
+                    QVariantList ops;
+                    for (size_t i = 0; i < obs_property_list_item_count(p); ++i) {
+                        const QVariant v =
+                            fmt == OBS_COMBO_FORMAT_INT
+                                ? QVariant(static_cast<qlonglong>(obs_property_list_item_int(p, i)))
+                            : fmt == OBS_COMBO_FORMAT_FLOAT
+                                ? QVariant(obs_property_list_item_float(p, i))
+                                : QVariant(q(obs_property_list_item_string(p, i)));
+                        ops << QVariantMap{{"value", v}, {"label", q(obs_property_list_item_name(p, i))}};
+                    }
+                    r["options"] = ops;
+                    r["value"] = fmt == OBS_COMBO_FORMAT_INT
+                                     ? QVariant(static_cast<qlonglong>(obs_data_get_int(d, k)))
+                                 : fmt == OBS_COMBO_FORMAT_FLOAT ? QVariant(obs_data_get_double(d, k))
+                                                                 : QVariant(q(obs_data_get_string(d, k)));
+                    break;
                 }
-                r["options"] = ops;
-                r["value"] = fmt == OBS_COMBO_FORMAT_INT     ? QVariant(static_cast<qlonglong>(obs_data_get_int(d, k)))
-                             : fmt == OBS_COMBO_FORMAT_FLOAT ? QVariant(obs_data_get_double(d, k))
-                                                             : QVariant(q(obs_data_get_string(d, k)));
-                break;
-            }
-            case OBS_PROPERTY_COLOR:
-            case OBS_PROPERTY_COLOR_ALPHA:
-                r["kind"] = "color";
-                r["value"] = colorHex(obs_data_get_int(d, k));
-                break;
-            case OBS_PROPERTY_GROUP:
-                out << QVariantMap{{"name", q(k)}, {"label", r["label"]}, {"kind", "header"}};
-                walk(obs_property_group_content(p));
-                continue;
-            default:
-                continue; // botones, fuentes, listas editables: no tienen sentido acá
+                case OBS_PROPERTY_COLOR:
+                case OBS_PROPERTY_COLOR_ALPHA:
+                    r["kind"] = "color";
+                    r["value"] = colorHex(obs_data_get_int(d, k));
+                    break;
+                case OBS_PROPERTY_GROUP:
+                    out << QVariantMap{{"name", q(k)}, {"label", r["label"]}, {"kind", "header"}};
+                    walk(obs_property_group_content(p));
+                    continue;
+                default: continue; // botones, fuentes, listas editables: no tienen sentido acá
             }
             out << r;
         }
@@ -405,50 +431,67 @@ QString VideoGrafos::versionGst() const {
 QVariantList VideoGrafos::virtuales() {
     QVariantList out;
     for (const auto& v : kVirtuales)
-        out << QVariantMap{{"id", v.id}, {"nombre", q(v.nombre)}, {"descripcion", q(v.descripcion)}, {"pipeline", q(v.origen)}};
+        out << QVariantMap{{"id", v.id},
+                           {"nombre", q(v.nombre)},
+                           {"descripcion", q(v.descripcion)},
+                           {"pipeline", q(v.origen)}};
     return out;
 }
 
 std::string VideoGrafos::agregarModuloEn(GrafoVideo& g, const std::string& elemento, const std::string& grupo,
-                                         const std::string& despues, const json& propiedades, std::string* error) const {
+                                         const std::string& despues, const json& propiedades,
+                                         std::string* error) const {
     // `baplugin`: una tarjeta de un plugin de Python. Lo registra el módulo de
     // video (no está en el catálogo de la app): no se valida acá.
     // Los de superresolución (también del módulo de video): agrandan x2.
-    static const std::map<std::string, std::string> kSuperres{
-        {"bavtsuperres", "Superresolución · Apple"}, {"bafsr", "Superresolución · FSR"}, {"baonnxsr", "Superresolución · red"}};
+    static const std::map<std::string, std::string> kSuperres{{"bavtsuperres", "Superresolución · Apple"},
+                                                              {"bafsr", "Superresolución · FSR"},
+                                                              {"baonnxsr", "Superresolución · red"}};
     const auto sr = kSuperres.find(elemento);
     const json m = elemento == "baplugin"
-                       ? json{{"tarjeta", true}, {"titulo", "Plugin · " + (propiedades.is_object() ? propiedades.value("tarjeta", std::string()) : std::string())}}
+                       ? json{{"tarjeta", true},
+                              {"titulo", "Plugin · " + (propiedades.is_object()
+                                                            ? propiedades.value("tarjeta", std::string())
+                                                            : std::string())}}
                    : sr != kSuperres.end() ? json{{"tarjeta", true}, {"titulo", sr->second}}
                                            : gst().modulo(elemento);
     if (m.empty()) {
-        if (error) *error = gst().disponible() ? "no existe el módulo de GStreamer «" + elemento + "»" : gst().error();
+        if (error)
+            *error =
+                gst().disponible() ? "no existe el módulo de GStreamer «" + elemento + "»" : gst().error();
         return {};
     }
     if (!m.value("tarjeta", false)) {
         if (error)
-            *error = "«" + elemento + "» no va como tarjeta de filtro (" + m.value("categoria", std::string()) + "): " +
-                     m.value("uso", m.value("descripcion", std::string()));
+            *error = "«" + elemento + "» no va como tarjeta de filtro (" +
+                     m.value("categoria", std::string()) +
+                     "): " + m.value("uso", m.value("descripcion", std::string()));
         return {};
     }
-    const std::string id = g.agregar("gst", grupo, despues,
-                                     json{{"elemento", elemento}, {"propiedades", propiedades.is_object() ? propiedades : json::object()}},
-                                     error);
-    if (!id.empty()) g.ajustar(id, json{{"etiqueta", m.value("titulo", m.value("nombre", elemento))}}, nullptr);
+    const std::string id = g.agregar(
+        "gst", grupo, despues,
+        json{{"elemento", elemento}, {"propiedades", propiedades.is_object() ? propiedades : json::object()}},
+        error);
+    if (!id.empty())
+        g.ajustar(id, json{{"etiqueta", m.value("titulo", m.value("nombre", elemento))}}, nullptr);
     return id;
 }
 
-std::string VideoGrafos::agregarSuperres(const std::string& entrada, const std::string& motor, const std::string& modelo, const std::string& despues) {
-    const std::map<std::string, std::string> elementos{{"apple", "bavtsuperres"}, {"fsr", "bafsr"}, {"onnx", "baonnxsr"}};
+std::string VideoGrafos::agregarSuperres(const std::string& entrada, const std::string& motor,
+                                         const std::string& modelo, const std::string& despues) {
+    const std::map<std::string, std::string> elementos{
+        {"apple", "bavtsuperres"}, {"fsr", "bafsr"}, {"onnx", "baonnxsr"}};
     const auto it = elementos.find(motor);
     if (it == elementos.end()) return "motor: apple, fsr u onnx";
-    if (!motoresSuperres().contains(QString::fromStdString(motor))) return "este sistema no tiene el motor «" + motor + "»";
+    if (!motoresSuperres().contains(QString::fromStdString(motor)))
+        return "este sistema no tiene el motor «" + motor + "»";
     if (motor == "onnx" && modelo.empty()) return "el motor onnx necesita `modelo` (la ruta del .onnx)";
     // La tarjeta «Superresolución» (el plugin basuperres), con el motor elegido.
     return editar([&](GrafoVideo& g) {
         std::string e;
-        const std::string id = g.agregar("superres", entrada.empty() ? entrada_.toStdString() : entrada, despues,
-                                         json{{"motor", motor}, {"modelo", motor == "onnx" ? modelo : std::string()}}, &e);
+        const std::string id =
+            g.agregar("superres", entrada.empty() ? entrada_.toStdString() : entrada, despues,
+                      json{{"motor", motor}, {"modelo", motor == "onnx" ? modelo : std::string()}}, &e);
         (void)id;
         return e;
     });
@@ -461,12 +504,14 @@ QString VideoGrafos::agregarSuperresUi(const QString& motor, const QString& mode
 QString VideoGrafos::agregarModulo(const QString& elemento, const QString& despues) {
     return q(editar([&](GrafoVideo& g) {
         std::string e;
-        agregarModuloEn(g, elemento.toStdString(), entrada_.toStdString(), despues.toStdString(), json::object(), &e);
+        agregarModuloEn(g, elemento.toStdString(), entrada_.toStdString(), despues.toStdString(),
+                        json::object(), &e);
         return e;
     }));
 }
 
-std::string VideoGrafos::crearEntradaVirtual(const std::string& nombre, const std::string& preset, const std::string& escena) {
+std::string VideoGrafos::crearEntradaVirtual(const std::string& nombre, const std::string& preset,
+                                             const std::string& escena) {
     if (nombre.empty()) return "falta el nombre";
     if (!rt_.engine().sourceTypeId(nombre).empty()) return "ya hay una fuente que se llama «" + nombre + "»";
     std::string origen;
@@ -479,7 +524,8 @@ std::string VideoGrafos::crearEntradaVirtual(const std::string& nombre, const st
         // Al tamaño y la cadencia del lienzo.
         obs_video_info ovi{};
         if (obs_get_video_info(&ovi))
-            origen += " ! video/x-raw,width=" + std::to_string(ovi.base_width) + ",height=" + std::to_string(ovi.base_height) +
+            origen += " ! video/x-raw,width=" + std::to_string(ovi.base_width) +
+                      ",height=" + std::to_string(ovi.base_height) +
                       ",framerate=" + std::to_string(ovi.fps_num) + "/" + std::to_string(ovi.fps_den);
     }
     SourceSpec spec;
@@ -511,7 +557,8 @@ void VideoGrafos::compensarAudio(const std::string& entrada) {
             grafo_.efectivos(n).value("activo", true))
             ++tarjetas;
     obs_video_info ovi{};
-    const double cuadroMs = obs_get_video_info(&ovi) && ovi.fps_num > 0 ? 1000.0 * ovi.fps_den / ovi.fps_num : 33.3;
+    const double cuadroMs =
+        obs_get_video_info(&ovi) && ovi.fps_num > 0 ? 1000.0 * ovi.fps_den / ovi.fps_num : 33.3;
     const int deseado = static_cast<int>(std::lround(tarjetas * cuadroMs));
     const int antes = compAudio_.count(entrada) ? compAudio_[entrada] : 0;
     if (deseado == antes) return;
@@ -529,7 +576,8 @@ std::string VideoGrafos::editar(const std::function<std::string(GrafoVideo&)>& f
     nombrarSalidas(grafo_);
     if (grafo_.aJson() != antes.aJson()) {
         guardar();
-        for (const QString& e : entradas_) aplicar(e.toStdString());
+        for (const QString& e : entradas_)
+            aplicar(e.toStdString());
         actualizarEstudio();
         emit cambio();
     }
@@ -538,7 +586,8 @@ std::string VideoGrafos::editar(const std::function<std::string(GrafoVideo&)>& f
 
 void VideoGrafos::nombrarSalidas(GrafoVideo& g) const {
     std::set<std::string> usados;
-    for (const auto& s : g.salidas()) usados.insert(s);
+    for (const auto& s : g.salidas())
+        usados.insert(s);
     std::vector<std::pair<std::string, std::string>> sinNombre;
     for (const auto& n : g.nodos())
         if ((n.tipo == "salida" || n.tipo == "compositor") && n.params.value("nombre", std::string()).empty())
@@ -555,7 +604,8 @@ void VideoGrafos::nombrarSalidas(GrafoVideo& g) const {
         for (int i = 1;; ++i) {
             nombre = i == 1 ? base : base + " " + std::to_string(i);
             const std::string tipo = rt_.engine().sourceTypeId(nombre);
-            if (!usados.count(nombre) && (tipo.empty() || tipo == (comp ? kTipoCompositor : kTipoSalida))) break;
+            if (!usados.count(nombre) && (tipo.empty() || tipo == (comp ? kTipoCompositor : kTipoSalida)))
+                break;
         }
         usados.insert(nombre);
         g.ajustar(id, json{{"nombre", nombre}}, nullptr);
@@ -574,8 +624,9 @@ QString VideoGrafos::agregarFiltro(const QString& filtroId, const QString& despu
     if (nombre.empty()) return "No existe el filtro «" + filtroId + "»";
     return q(editar([&](GrafoVideo& g) {
         std::string e;
-        const std::string id = g.agregar("obs", entrada_.toStdString(), despues.toStdString(),
-                                         json{{"filtro", filtroId.toStdString()}, {"ajustes", json::object()}}, &e);
+        const std::string id =
+            g.agregar("obs", entrada_.toStdString(), despues.toStdString(),
+                      json{{"filtro", filtroId.toStdString()}, {"ajustes", json::object()}}, &e);
         if (!id.empty()) g.ajustar(id, json{{"etiqueta", nombre}}, nullptr);
         return e;
     }));
@@ -587,14 +638,16 @@ QString VideoGrafos::quitar(const QString& id) {
         return e;
     }));
 }
-QString VideoGrafos::conectar(const QString& desde, const QString& salida, const QString& hacia, const QString& entrada) {
+QString VideoGrafos::conectar(const QString& desde, const QString& salida, const QString& hacia,
+                              const QString& entrada) {
     return q(editar([&](GrafoVideo& g) {
         std::string e;
         g.conectar(desde.toStdString(), salida.toStdString(), hacia.toStdString(), entrada.toStdString(), &e);
         return e;
     }));
 }
-QString VideoGrafos::desconectar(const QString& desde, const QString& salida, const QString& hacia, const QString& entrada) {
+QString VideoGrafos::desconectar(const QString& desde, const QString& salida, const QString& hacia,
+                                 const QString& entrada) {
     return q(editar([&](GrafoVideo& g) {
         g.desconectar(desde.toStdString(), salida.toStdString(), hacia.toStdString(), entrada.toStdString());
         return std::string();
@@ -611,7 +664,8 @@ QString VideoGrafos::ordenar() {
         std::vector<const GrafoVideo::Nodo*> controles, otrosEstudio;
         std::map<std::string, std::vector<const GrafoVideo::Nodo*>> grupos;
         std::vector<std::string> orden;
-        for (const QString& e : entradas_) orden.push_back(e.toStdString());
+        for (const QString& e : entradas_)
+            orden.push_back(e.toStdString());
         for (const auto& n : g.nodos()) {
             if (n.grupo.empty()) {
                 (n.tipo == "control" ? controles : otrosEstudio).push_back(&n);
@@ -627,7 +681,8 @@ QString VideoGrafos::ordenar() {
             const auto it = grupos.find(gr);
             if (it == grupos.end()) continue;
             std::set<std::string> ids;
-            for (const auto* n : it->second) ids.insert(n->id);
+            for (const auto* n : it->second)
+                ids.insert(n->id);
             // La profundidad de cada tarjeta: el camino más largo desde una sin entradas del grupo.
             std::map<std::string, std::vector<std::string>> hacia;
             std::map<std::string, int> entrantes;
@@ -652,17 +707,21 @@ QString VideoGrafos::ordenar() {
                 if (!prof.count(id)) prof[id] = 0; // en un ciclo: al principio
             // La escena, siempre en la última columna de su franja.
             int ultima = 0;
-            for (const auto& [id, p] : prof) ultima = std::max(ultima, p);
+            for (const auto& [id, p] : prof)
+                ultima = std::max(ultima, p);
             for (const auto* n : it->second)
                 if (n->tipo == "escena") prof[n->id] = std::max(prof[n->id], ultima);
             std::map<int, int> altoCol;
             int altoFranja = 0;
             // Primero la cadena principal (la que llega a la escena), después las ramas.
             std::vector<const GrafoVideo::Nodo*> nodos = it->second;
-            std::stable_sort(nodos.begin(), nodos.end(), [](const GrafoVideo::Nodo* a, const GrafoVideo::Nodo* b) {
-                const auto rama = [](const GrafoVideo::Nodo* n) { return n->tipo == "salida" || n->tipo == "rostros" || n->tipo == "sincro"; };
-                return rama(a) < rama(b);
-            });
+            std::stable_sort(
+                nodos.begin(), nodos.end(), [](const GrafoVideo::Nodo* a, const GrafoVideo::Nodo* b) {
+                    const auto rama = [](const GrafoVideo::Nodo* n) {
+                        return n->tipo == "salida" || n->tipo == "rostros" || n->tipo == "sincro";
+                    };
+                    return rama(a) < rama(b);
+                });
             for (const auto* n : nodos) {
                 const int col = prof[n->id];
                 pos[n->id] = {xBase + col * kCol, y + altoCol[col]};
@@ -682,7 +741,8 @@ QString VideoGrafos::ordenar() {
             pos[n->id] = {xBase + (maxCol + 1) * kCol + 40, yo};
             yo += alto(*n) + kSep;
         }
-        for (const auto& [id, p] : pos) g.mover(id, p.first, p.second);
+        for (const auto& [id, p] : pos)
+            g.mover(id, p.first, p.second);
         return std::string();
     }));
 }
@@ -709,9 +769,11 @@ std::string VideoGrafos::ajustarEn(GrafoVideo& g, const std::string& id, json p)
     // (`{"parametros": {"fuerza": 0.5}}`) o sueltos (`{"fuerza": 0.5}`), y se
     // mezclan con los que ya tiene.
     if (n->tipo == "gst" && n->params.value("elemento", std::string()) == "baplugin") {
-        json cambios = p.contains("parametros") && p["parametros"].is_object() ? p["parametros"] : json::object();
+        json cambios =
+            p.contains("parametros") && p["parametros"].is_object() ? p["parametros"] : json::object();
         for (auto it = p.begin(); it != p.end(); ++it)
-            if (it.key() != "parametros" && it.key() != "propiedades" && it.key() != "esperar" && it.key() != "elemento")
+            if (it.key() != "parametros" && it.key() != "propiedades" && it.key() != "esperar" &&
+                it.key() != "elemento")
                 cambios[it.key()] = it.value();
         if (!cambios.empty()) {
             const json pr0 = n->params.value("propiedades", json::object());
@@ -765,19 +827,24 @@ QString VideoGrafos::soltarControl(const QString& id) {
 QString VideoGrafos::ajustarFiltro(const QString& id, const QString& clave, const QVariant& valor) {
     json v = deVariant(valor);
     const GrafoVideo::Nodo* n = grafo_.nodo(id.toStdString());
-    const std::string tipo = n == nullptr ? "" : n->tipo == "control" ? n->params.value("tarjeta", std::string()) : n->tipo;
+    const std::string tipo = n == nullptr           ? ""
+                             : n->tipo == "control" ? n->params.value("tarjeta", std::string())
+                                                    : n->tipo;
     const bool esGst = tipo == "gst";
     const char* donde = esGst ? "propiedades" : "ajustes";
     if (esGst) {
         // GStreamer lee el valor como texto: un entero que vino como 3.0 va como 3.
-        if (v.is_number_float() && v.get<double>() == static_cast<double>(static_cast<long long>(v.get<double>())))
+        if (v.is_number_float() &&
+            v.get<double>() == static_cast<double>(static_cast<long long>(v.get<double>())))
             v = static_cast<long long>(v.get<double>());
     } else if (v.is_string() && v.get<std::string>().size() == 7 && v.get<std::string>()[0] == '#') {
         // Los colores llegan como "#RRGGBB" y libobs los quiere 0xAABBGGRR.
         const long long rgb = std::stoll(v.get<std::string>().substr(1), nullptr, 16);
         v = 0xFF000000LL | ((rgb & 0xFF) << 16) | (rgb & 0xFF00) | ((rgb >> 16) & 0xFF);
     }
-    return q(editar([&](GrafoVideo& g) { return ajustarEn(g, id.toStdString(), json{{donde, {{clave.toStdString(), v}}}}); }));
+    return q(editar([&](GrafoVideo& g) {
+        return ajustarEn(g, id.toStdString(), json{{donde, {{clave.toStdString(), v}}}});
+    }));
 }
 QString VideoGrafos::limpiar() {
     return q(editar([&](GrafoVideo& g) {
@@ -796,7 +863,8 @@ std::string VideoGrafos::ponerEnEscena(const std::string& id, const std::string&
     const bool comp = n->tipo == "compositor";
     const std::string nombre = n->params.value("nombre", std::string());
     const std::string tipo = rt_.engine().sourceTypeId(nombre);
-    if (!tipo.empty() && tipo != (comp ? kTipoCompositor : kTipoSalida)) return "ya hay otra fuente que se llama «" + nombre + "»";
+    if (!tipo.empty() && tipo != (comp ? kTipoCompositor : kTipoSalida))
+        return "ya hay otra fuente que se llama «" + nombre + "»";
     SourceSpec spec;
     spec.id = comp ? kTipoCompositor : kTipoSalida;
     spec.name = nombre;
@@ -830,7 +898,8 @@ void VideoGrafos::sincronizar() {
         if (grafo_.asegurarEntrada(e.toStdString())) nuevos = true;
     if (nuevos) guardar();
     if (entrada_.isEmpty() && !entradas_.isEmpty()) entrada_ = entradas_.first();
-    for (const QString& e : entradas_) aplicar(e.toStdString());
+    for (const QString& e : entradas_)
+        aplicar(e.toStdString());
     actualizarEstudio();
     // Si cambió por qué alguna tarjeta no corre, la interfaz se entera.
     json errores = json::object();
@@ -862,7 +931,7 @@ void VideoGrafos::aplicar(const std::string& entrada) {
         if (!modo.empty()) {
             obs_source_set_deinterlace_mode(src, desentrelazadoDesde(modo));
             obs_source_set_deinterlace_field_order(src, campo == "abajo" ? OBS_DEINTERLACE_FIELD_ORDER_BOTTOM
-                                                                        : OBS_DEINTERLACE_FIELD_ORDER_TOP);
+                                                                         : OBS_DEINTERLACE_FIELD_ORDER_TOP);
             desentrelazadas_.insert(entrada);
         } else if (desentrelazadas_.erase(entrada) > 0) {
             obs_source_set_deinterlace_mode(src, OBS_DEINTERLACE_MODE_DISABLE);
@@ -871,7 +940,8 @@ void VideoGrafos::aplicar(const std::string& entrada) {
     const json para = grafo_.paraFiltro(entrada);
     // Solo «in -> out»: no hace falta el filtro.
     const bool trivial = para["nodos"].size() == 2 && para["cables"].size() == 1 &&
-                         para["cables"][0].value("desde", "") == "in" && para["cables"][0].value("hacia", "") == "out";
+                         para["cables"][0].value("desde", "") == "in" &&
+                         para["cables"][0].value("hacia", "") == "out";
     obs_source_t* f = obs_source_get_filter_by_name(src, kFiltro);
     if (trivial) {
         if (f != nullptr) obs_source_filter_remove(src, f);
@@ -897,7 +967,8 @@ void VideoGrafos::aplicar(const std::string& entrada) {
         }
         // El último en aplicarse («abajo» en libobs: índice 0), después del
         // PTZ digital, que entra también abajo cuando se lo prende.
-        if (obs_source_t* g = f != nullptr ? obs_source_get_ref(f) : obs_source_get_filter_by_name(src, kFiltro)) {
+        if (obs_source_t* g =
+                f != nullptr ? obs_source_get_ref(f) : obs_source_get_filter_by_name(src, kFiltro)) {
             obs_source_filter_set_order(src, g, OBS_ORDER_MOVE_BOTTOM);
             obs_source_release(g);
         }
@@ -916,8 +987,8 @@ std::string tarjetaRostros(const GrafoVideo& g, const std::string& entrada) {
 }
 } // namespace
 
-bool VideoGrafos::cuadroRostros(const std::string& entrada, std::vector<std::uint8_t>& bgra, int& ancho, int& alto,
-                                std::uint64_t& serie) const {
+bool VideoGrafos::cuadroRostros(const std::string& entrada, std::vector<std::uint8_t>& bgra, int& ancho,
+                                int& alto, std::uint64_t& serie) const {
     const std::string id = tarjetaRostros(grafo_, entrada);
     if (id.empty()) return false;
     obs_source_t* src = obs_get_source_by_name(entrada.c_str());
@@ -965,7 +1036,8 @@ std::string VideoGrafos::configurarRostros(const std::map<std::string, std::stri
             if (it != quiero.end()) {
                 if (id.empty()) {
                     // Antes de la escena: ve la imagen ya corregida (color, recorte).
-                    const std::string nuevo = g.agregar("rostros", entrada, "", json{{"uso", it->second}, {"auto", true}}, &e);
+                    const std::string nuevo =
+                        g.agregar("rostros", entrada, "", json{{"uso", it->second}, {"auto", true}}, &e);
                     if (nuevo.empty()) return e;
                 } else if (g.nodo(id)->params.value("uso", std::string()) != it->second) {
                     g.ajustar(id, json{{"uso", it->second}}, &e);
@@ -986,7 +1058,8 @@ void VideoGrafos::actualizarFuente(::obs_source* src, ::obs_data* cambios) {
     // Por AppRuntime: cambia la fuente Y la copia de sus ajustes que se guarda.
     // Con obs_source_update directo, el cambio andaba hasta reiniciar.
     const char* json = obs_data_get_json(cambios);
-    if (!rt_.updateSourceSettings(obs_source_get_name(src), json != nullptr ? json : "{}")) obs_source_update(src, cambios);
+    if (!rt_.updateSourceSettings(obs_source_get_name(src), json != nullptr ? json : "{}"))
+        obs_source_update(src, cambios);
 }
 
 void VideoGrafos::actualizarEstudio() {
@@ -1037,7 +1110,6 @@ void VideoGrafos::actualizarEstudio() {
         it = mostradas_.erase(it);
     }
 }
-
 
 // --- El reloj del estudio ------------------------------------------------------------
 
@@ -1099,7 +1171,6 @@ std::string VideoGrafos::configurarReloj(const json& cambios) {
 
 // --- Estado de una entrada -------------------------------------------------------------
 
-
 json VideoGrafos::estadoEntrada(const std::string& entrada) const {
     if (!esEntrada(entrada)) return {{"error", "«" + entrada + "» no es una entrada de video"}};
     json out{{"entrada", entrada}, {"tipo", rt_.engine().sourceTypeId(entrada)}};
@@ -1107,7 +1178,8 @@ json VideoGrafos::estadoEntrada(const std::string& entrada) const {
     if (src == nullptr) return out;
     obs_video_info ovi{};
     obs_get_video_info(&ovi);
-    out["lienzo"] = {{"ancho", ovi.base_width}, {"alto", ovi.base_height},
+    out["lienzo"] = {{"ancho", ovi.base_width},
+                     {"alto", ovi.base_height},
                      {"fps", ovi.fps_den > 0 ? static_cast<double>(ovi.fps_num) / ovi.fps_den : 0.0}};
     out["ancho"] = obs_source_get_width(src);
     out["alto"] = obs_source_get_height(src);
@@ -1117,7 +1189,9 @@ json VideoGrafos::estadoEntrada(const std::string& entrada) const {
     out["asincronica"] = async;
     if (async) {
         out["desentrelazado"] = desentrelazadoDe(obs_source_get_deinterlace_mode(src));
-        out["campo"] = obs_source_get_deinterlace_field_order(src) == OBS_DEINTERLACE_FIELD_ORDER_BOTTOM ? "abajo" : "arriba";
+        out["campo"] = obs_source_get_deinterlace_field_order(src) == OBS_DEINTERLACE_FIELD_ORDER_BOTTOM
+                           ? "abajo"
+                           : "arriba";
     }
     obs_data_t* aj = obs_source_get_settings(src);
     out["ajustes"] = json::parse(obs_data_get_json(aj), nullptr, false);
@@ -1147,7 +1221,8 @@ json VideoGrafos::estadoEntrada(const std::string& entrada) const {
                 cuadros += p.value("cuadros", 0);
         }
     }
-    const double cuadroMs = out["lienzo"].value("fps", 30.0) > 0 ? 1000.0 / out["lienzo"].value("fps", 30.0) : 33.3;
+    const double cuadroMs =
+        out["lienzo"].value("fps", 30.0) > 0 ? 1000.0 / out["lienzo"].value("fps", 30.0) : 33.3;
     double latencia = ms + cuadros * cuadroMs;
     if (out.contains("gstreamer"))
         latencia += out["gstreamer"].value("latencia_ms", 0) + out["gstreamer"].value("desfase_ms", 0);
@@ -1178,7 +1253,8 @@ json VideoGrafos::avisosDe(const std::string& entrada) const {
 // --- Entradas de red -----------------------------------------------------------------
 
 std::string VideoGrafos::crearEntradaRed(const std::string& nombre, const std::string& uri, int latenciaMs,
-                                         const std::string& escena, int audio, int normalizar, int ntpSync, int superres) {
+                                         const std::string& escena, int audio, int normalizar, int ntpSync,
+                                         int superres) {
     if (nombre.empty()) return "falta el nombre";
     // Si ya existe (de GStreamer), se actualiza: otra URI, otro colchón.
     if (rt_.engine().sourceTypeId(nombre) == kTipoVirtual) {
@@ -1201,7 +1277,8 @@ std::string VideoGrafos::crearEntradaRed(const std::string& nombre, const std::s
         return {};
     }
     if (uri.empty()) return "falta `uri` (srt://, rtmp://, rtsp://, udp://, http://)";
-    if (!rt_.engine().sourceTypeId(nombre).empty()) return "ya hay una fuente que se llama «" + nombre + "» (y no es de red)";
+    if (!rt_.engine().sourceTypeId(nombre).empty())
+        return "ya hay una fuente que se llama «" + nombre + "» (y no es de red)";
     if (escena.empty()) return "falta `escena`: dónde ponerla (para no tocar la que está al aire sin querer)";
     if (!asegurarEscena(escena)) return "no se pudo crear la escena «" + escena + "»";
     json ajustes = relojParaFuente();
@@ -1222,8 +1299,8 @@ std::string VideoGrafos::crearEntradaRed(const std::string& nombre, const std::s
     return {};
 }
 
-std::string VideoGrafos::agregarTarjetaGst(const std::string& entrada, const std::string& elemento, const json& propiedades,
-                                           json* hecho) {
+std::string VideoGrafos::agregarTarjetaGst(const std::string& entrada, const std::string& elemento,
+                                           const json& propiedades, json* hecho) {
     if (!esEntrada(entrada)) return "«" + entrada + "» no es una entrada de video";
     std::string id;
     const std::string e = editar([&](GrafoVideo& g) {
@@ -1232,12 +1309,15 @@ std::string VideoGrafos::agregarTarjetaGst(const std::string& entrada, const std
         return err;
     });
     if (!e.empty()) return e;
-    if (hecho != nullptr) *hecho = {{"entrada", entrada}, {"tarjeta", id}, {"elemento", elemento}, {"propiedades", propiedades}};
+    if (hecho != nullptr)
+        *hecho = {
+            {"entrada", entrada}, {"tarjeta", id}, {"elemento", elemento}, {"propiedades", propiedades}};
     return {};
 }
 
-std::string VideoGrafos::crearEntradaPipeline(const std::string& nombre, const std::string& video, const std::string& audio,
-                                              const std::string& escena, int latenciaMs, int normalizar, const json& extra) {
+std::string VideoGrafos::crearEntradaPipeline(const std::string& nombre, const std::string& video,
+                                              const std::string& audio, const std::string& escena,
+                                              int latenciaMs, int normalizar, const json& extra) {
     if (nombre.empty()) return "falta el nombre";
     if (video.empty() && audio.empty()) return "falta el pipeline (de video y/o de audio)";
     json ajustes = extra.is_object() ? extra : json::object();
@@ -1260,7 +1340,8 @@ std::string VideoGrafos::crearEntradaPipeline(const std::string& nombre, const s
         rt_.save();
         return {};
     }
-    if (!rt_.engine().sourceTypeId(nombre).empty()) return "ya hay una fuente que se llama «" + nombre + "» (y no es de GStreamer)";
+    if (!rt_.engine().sourceTypeId(nombre).empty())
+        return "ya hay una fuente que se llama «" + nombre + "» (y no es de GStreamer)";
     if (escena.empty()) return "falta `escena`: dónde ponerla (para no tocar la que está al aire sin querer)";
     if (!asegurarEscena(escena)) return "no se pudo crear la escena «" + escena + "»";
     json todo = relojParaFuente();
@@ -1284,7 +1365,9 @@ std::string VideoGrafos::crearEntradaPipeline(const std::string& nombre, const s
 
 QVariantMap VideoGrafos::relojUi() const { return aVariant(reloj()).toMap(); }
 
-QString VideoGrafos::configurarRelojUi(const QVariantMap& cambios) { return q(configurarReloj(deVariant(cambios))); }
+QString VideoGrafos::configurarRelojUi(const QVariantMap& cambios) {
+    return q(configurarReloj(deVariant(cambios)));
+}
 
 QVariantList VideoGrafos::estadoRed() const {
     QVariantList out;
@@ -1325,11 +1408,15 @@ QString VideoGrafos::superresUi(const QString& entrada, bool activa) {
     return q(crearEntradaRed(entrada.toStdString(), {}, -1, {}, -1, -1, -1, activa ? 1 : 0));
 }
 
-std::string VideoGrafos::superresMotor(const std::string& entrada, const std::string& motor, const std::string& modelo) {
-    if (rt_.engine().sourceTypeId(entrada) != kTipoVirtual) return "«" + entrada + "» no es una entrada de red";
-    if (!motor.empty() && motor != "apple" && motor != "fsr" && motor != "onnx") return "motor: apple, fsr u onnx (o vacío para apagar)";
+std::string VideoGrafos::superresMotor(const std::string& entrada, const std::string& motor,
+                                       const std::string& modelo) {
+    if (rt_.engine().sourceTypeId(entrada) != kTipoVirtual)
+        return "«" + entrada + "» no es una entrada de red";
+    if (!motor.empty() && motor != "apple" && motor != "fsr" && motor != "onnx")
+        return "motor: apple, fsr u onnx (o vacío para apagar)";
     const QStringList hay = motoresSuperres();
-    if (!motor.empty() && !hay.contains(QString::fromStdString(motor))) return "este sistema no tiene el motor «" + motor + "»";
+    if (!motor.empty() && !hay.contains(QString::fromStdString(motor)))
+        return "este sistema no tiene el motor «" + motor + "»";
     if (motor == "onnx" && modelo.empty()) return "el motor onnx necesita `modelo` (la ruta del .onnx)";
     obs_source_t* src = obs_get_source_by_name(entrada.c_str());
     if (src == nullptr) return "no existe «" + entrada + "»";
@@ -1365,7 +1452,8 @@ bool hayElemento(const char* elemento) {
 
 QStringList VideoGrafos::motoresSuperres() const {
     QStringList l;
-    for (const auto& [motor, elemento] : {std::pair{"apple", "bavtsuperres"}, {"fsr", "bafsr"}, {"onnx", "baonnxsr"}})
+    for (const auto& [motor, elemento] :
+         {std::pair{"apple", "bavtsuperres"}, {"fsr", "bafsr"}, {"onnx", "baonnxsr"}})
         if (hayElemento(elemento)) l << motor;
     return l;
 }
@@ -1383,14 +1471,16 @@ std::string VideoGrafos::uriDe(const std::string& entrada) const {
 
 bool VideoGrafos::haySuperres() const { return hayElemento("bavtsuperres"); }
 
-QString VideoGrafos::nuevaEntradaRed(const QString& nombre, const QString& uri, const QString& escena, int latenciaMs, bool normalizar) {
-    return q(crearEntradaRed(nombre.trimmed().toStdString(), uri.trimmed().toStdString(), latenciaMs, escena.trimmed().toStdString(), -1,
-                             normalizar ? 1 : 0, -1));
+QString VideoGrafos::nuevaEntradaRed(const QString& nombre, const QString& uri, const QString& escena,
+                                     int latenciaMs, bool normalizar) {
+    return q(crearEntradaRed(nombre.trimmed().toStdString(), uri.trimmed().toStdString(), latenciaMs,
+                             escena.trimmed().toStdString(), -1, normalizar ? 1 : 0, -1));
 }
 
 QStringList VideoGrafos::escenasUi() const {
     QStringList out;
-    for (const auto& s : rt_.engine().sceneNames()) out << QString::fromStdString(s);
+    for (const auto& s : rt_.engine().sceneNames())
+        out << QString::fromStdString(s);
     return out;
 }
 
@@ -1412,7 +1502,11 @@ std::string VideoGrafos::ajustarDesfase(const std::string& entrada, double ms, b
         obs_data_release(actual);
         obs_source_release(src);
         rt_.save();
-        if (hecho != nullptr) *hecho = {{"entrada", entrada}, {"como", "desfase de la fuente"}, {"antes_ms", antes}, {"ahora_ms", ahora}};
+        if (hecho != nullptr)
+            *hecho = {{"entrada", entrada},
+                      {"como", "desfase de la fuente"},
+                      {"antes_ms", antes},
+                      {"ahora_ms", ahora}};
         return {};
     }
     // Otra entrada (una cámara): solo se puede ATRASAR, con una tarjeta retardo
@@ -1426,8 +1520,8 @@ std::string VideoGrafos::ajustarDesfase(const std::string& entrada, double ms, b
         }
     const double ahora = relativo ? antes + ms : ms;
     if (ahora < 0)
-        return "«" + entrada + "» es una cámara: no se la puede adelantar (" + std::to_string(std::lround(ahora)) +
-               " ms). Atrasá la otra entrada.";
+        return "«" + entrada + "» es una cámara: no se la puede adelantar (" +
+               std::to_string(std::lround(ahora)) + " ms). Atrasá la otra entrada.";
     const std::string e = editar([&](GrafoVideo& g) {
         std::string err;
         if (id.empty()) {
@@ -1440,7 +1534,11 @@ std::string VideoGrafos::ajustarDesfase(const std::string& entrada, double ms, b
         return err;
     });
     if (!e.empty()) return e;
-    if (hecho != nullptr) *hecho = {{"entrada", entrada}, {"como", "retardo en el grafo"}, {"antes_ms", antes}, {"ahora_ms", std::lround(ahora)}};
+    if (hecho != nullptr)
+        *hecho = {{"entrada", entrada},
+                  {"como", "retardo en el grafo"},
+                  {"antes_ms", antes},
+                  {"ahora_ms", std::lround(ahora)}};
     return {};
 }
 
@@ -1468,7 +1566,8 @@ void VideoGrafos::medirDesfase(const std::string& a, const std::string& b, int s
     QPointer<VideoGrafos> yo = this;
     connect(timer, &QTimer::timeout, this, [this, yo, timer, a, b, ms, inicio, aplicar, listo]() {
         // Pedir las huellas las mantiene tomando; al final se usan.
-        const auto pedir = [this](const std::string& e, std::vector<std::uint64_t>* t, std::vector<std::uint8_t>* g) {
+        const auto pedir = [this](const std::string& e, std::vector<std::uint64_t>* t,
+                                  std::vector<std::uint8_t>* g) {
             std::string id;
             for (const auto& n : grafo_.nodos())
                 if (n.grupo == e && n.tipo == "sincro") id = n.id;
@@ -1504,8 +1603,10 @@ void VideoGrafos::medirDesfase(const std::string& a, const std::string& b, int s
         editar([&](GrafoVideo& g) {
             std::vector<std::string> sacar;
             for (const auto& n : g.nodos())
-                if (n.tipo == "sincro" && n.params.value("auto", false) && (n.grupo == a || n.grupo == b)) sacar.push_back(n.id);
-            for (const auto& id : sacar) g.quitar(id, nullptr);
+                if (n.tipo == "sincro" && n.params.value("auto", false) && (n.grupo == a || n.grupo == b))
+                    sacar.push_back(n.id);
+            for (const auto& id : sacar)
+                g.quitar(id, nullptr);
             return std::string();
         });
         json r{{"a", a}, {"b", b}, {"cuadros_a", ta.size()}, {"cuadros_b", tb.size()}};
@@ -1519,8 +1620,10 @@ void VideoGrafos::medirDesfase(const std::string& a, const std::string& b, int s
         const bool alineadas = std::fabs(m.desfaseMs) < m.cuadroMs * 0.5;
         r["significa"] = alineadas ? "están sincronizadas (menos de medio cuadro de diferencia)"
                          : m.desfaseMs > 0
-                             ? "«" + b + "» atrasa " + std::to_string(std::lround(m.desfaseMs)) + " ms respecto de «" + a + "»"
-                             : "«" + a + "» atrasa " + std::to_string(std::lround(-m.desfaseMs)) + " ms respecto de «" + b + "»";
+                             ? "«" + b + "» atrasa " + std::to_string(std::lround(m.desfaseMs)) +
+                                   " ms respecto de «" + a + "»"
+                             : "«" + a + "» atrasa " + std::to_string(std::lround(-m.desfaseMs)) +
+                                   " ms respecto de «" + b + "»";
         r["confianza"] = std::round(m.confianza * 100) / 100;
         r["metodo"] = m.metodo;
         r["resolucion_ms"] = std::round(m.cuadroMs);
@@ -1530,14 +1633,16 @@ void VideoGrafos::medirDesfase(const std::string& a, const std::string& b, int s
             const double d = std::fabs(m.desfaseMs);
             json hecho;
             std::string e = ajustarDesfase(adelantada, d, true, &hecho);
-            if (!e.empty() && rt_.engine().sourceTypeId(atrasada) == kTipoVirtual) e = ajustarDesfase(atrasada, -d, true, &hecho);
+            if (!e.empty() && rt_.engine().sourceTypeId(atrasada) == kTipoVirtual)
+                e = ajustarDesfase(atrasada, -d, true, &hecho);
             if (e.empty()) {
                 r["aplicado"] = hecho;
                 // Se vuelve a medir sola: lo que importa es el «después».
                 return medirDesfase(a, b, 5, false, [r, listo](json despues) mutable {
-                    r["despues"] = {{"desfase_ms", despues.value("desfase_ms", 0)},
-                                    {"significa", despues.value("significa", despues.value("error", std::string()))},
-                                    {"confianza", despues.value("confianza", 0.0)}};
+                    r["despues"] = {
+                        {"desfase_ms", despues.value("desfase_ms", 0)},
+                        {"significa", despues.value("significa", despues.value("error", std::string()))},
+                        {"confianza", despues.value("confianza", 0.0)}};
                     listo(r);
                 });
             }
@@ -1591,8 +1696,8 @@ bool VideoGrafos::mostrarEnEscena(const std::string& nombre, const std::string& 
 }
 
 std::string VideoGrafos::armarMosaico(const std::string& escena, const std::vector<std::string>& entradas,
-                                      const std::string& disposicion, const std::string& nombre, bool ocultarSueltas,
-                                      json* hecho) {
+                                      const std::string& disposicion, const std::string& nombre,
+                                      bool ocultarSueltas, json* hecho) {
     if (escena.empty()) return "falta `escena`";
     if (!asegurarEscena(escena)) return "no se pudo crear la escena «" + escena + "»";
     if (entradas.size() < 2) return "hacen falta al menos dos entradas";
@@ -1603,7 +1708,9 @@ std::string VideoGrafos::armarMosaico(const std::string& escena, const std::vect
         std::string e;
         // Si ya hay un compositor con ese nombre, se rearma ese.
         for (const auto& n : g.nodos())
-            if (n.tipo == "compositor" && !nombre.empty() && n.params.value("nombre", std::string()) == nombre) comp = n.id;
+            if (n.tipo == "compositor" && !nombre.empty() &&
+                n.params.value("nombre", std::string()) == nombre)
+                comp = n.id;
         if (comp.empty()) {
             comp = g.agregar("compositor", "", "", json::object(), &e);
             if (comp.empty()) return e;
@@ -1611,11 +1718,13 @@ std::string VideoGrafos::armarMosaico(const std::string& escena, const std::vect
             std::vector<GrafoVideo::Cable> viejos;
             for (const auto& c : g.cables())
                 if (c.hacia == comp) viejos.push_back(c);
-            for (const auto& c : viejos) g.desconectar(c.desde, c.salida, c.hacia, c.entrada);
+            for (const auto& c : viejos)
+                g.desconectar(c.desde, c.salida, c.hacia, c.entrada);
         }
         obs_video_info ovi{};
         obs_get_video_info(&ovi);
-        json params{{"ancho", ovi.base_width ? ovi.base_width : 1920}, {"alto", ovi.base_height ? ovi.base_height : 1080}};
+        json params{{"ancho", ovi.base_width ? ovi.base_width : 1920},
+                    {"alto", ovi.base_height ? ovi.base_height : 1080}};
         if (!nombre.empty()) params["nombre"] = nombre;
         if (!g.ajustar(comp, params, &e)) return e;
         if (!nombre.empty()) g.ajustar(comp, json{{"etiqueta", nombre}}, nullptr);
@@ -1630,7 +1739,10 @@ std::string VideoGrafos::armarMosaico(const std::string& escena, const std::vect
             json k;
             if (disposicion == "pip") {
                 k = i == 0 ? json{{"x", 0}, {"y", 0}, {"ancho", 1}, {"alto", 1}, {"orden", 0}}
-                           : json{{"x", 0.68}, {"y", 0.06 + 0.3 * static_cast<double>(i - 1)}, {"ancho", 0.28}, {"alto", 0.28},
+                           : json{{"x", 0.68},
+                                  {"y", 0.06 + 0.3 * static_cast<double>(i - 1)},
+                                  {"ancho", 0.28},
+                                  {"alto", 0.28},
                                   {"orden", static_cast<int>(i)}};
             } else if (disposicion == "lado") {
                 const double w = 1.0 / static_cast<double>(entradas.size());
@@ -1640,7 +1752,10 @@ std::string VideoGrafos::armarMosaico(const std::string& escena, const std::vect
                 // Tres en una grilla de 2x2 dejan un hueco negro: la primera
                 // arriba al centro y las otras dos abajo.
                 k = i == 0 ? json{{"x", 0.25}, {"y", 0}, {"ancho", 0.5}, {"alto", 0.5}}
-                           : json{{"x", 0.5 * static_cast<double>(i - 1)}, {"y", 0.5}, {"ancho", 0.5}, {"alto", 0.5}};
+                           : json{{"x", 0.5 * static_cast<double>(i - 1)},
+                                  {"y", 0.5},
+                                  {"ancho", 0.5},
+                                  {"alto", 0.5}};
             } else {
                 k = nullptr; // mosaico: sin posición, la grilla
             }
@@ -1658,9 +1773,14 @@ std::string VideoGrafos::armarMosaico(const std::string& escena, const std::vect
             if (mostrarEnEscena(e, escena, false)) ocultas.push_back(e);
     const GrafoVideo::Nodo* n = grafo_.nodo(comp);
     if (hecho != nullptr)
-        *hecho = {{"compositor", comp}, {"fuente", n ? n->params.value("nombre", std::string()) : std::string()},
-                  {"disposicion", disposicion.empty() ? "mosaico" : disposicion}, {"entradas", entradas}, {"ocultas", ocultas},
-                  {"nota", "las entradas ocultas siguen alimentando el mosaico (el compositor las mantiene activas)"}};
+        *hecho = {
+            {"compositor", comp},
+            {"fuente", n ? n->params.value("nombre", std::string()) : std::string()},
+            {"disposicion", disposicion.empty() ? "mosaico" : disposicion},
+            {"entradas", entradas},
+            {"ocultas", ocultas},
+            {"nota",
+             "las entradas ocultas siguen alimentando el mosaico (el compositor las mantiene activas)"}};
     return {};
 }
 

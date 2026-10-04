@@ -24,7 +24,8 @@ class PtzPlugin : public PtzBackend {
    public:
     struct Enlace {
         /// Manda `accion` (ptz.mover, ptz.parar…) con `args` al plugin.
-        std::function<void(const QString& plugin, const std::string& accion, const nlohmann::json& args)> pedir;
+        std::function<void(const QString& plugin, const std::string& accion, const nlohmann::json& args)>
+            pedir;
         /// Lo que declaró el plugin para esa entrada (vacío si no corre).
         std::function<nlohmann::json(const QString& plugin, const QString& entrada)> capacidades;
     };

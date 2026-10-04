@@ -30,7 +30,8 @@ class ClienteOnvif : public QObject {
    public:
     using Listo = std::function<void(QVariantMap resultado)>;
 
-    ClienteOnvif(const QString& host, const QString& usuario, const QString& clave, QObject* parent = nullptr);
+    ClienteOnvif(const QString& host, const QString& usuario, const QString& clave,
+                 QObject* parent = nullptr);
 
     /// Hora, servicios y perfiles. `listo` con {servicios, perfiles} o {error}.
     void preparar(Listo listo);
@@ -42,7 +43,8 @@ class ClienteOnvif : public QObject {
     void llamar(const QString& servicio, const QString& cuerpo, Listo listo);
 
    private:
-    void soap(const QString& url, const QString& cuerpo, bool conClave, std::function<void(bool, QByteArray, QString)> cb);
+    void soap(const QString& url, const QString& cuerpo, bool conClave,
+              std::function<void(bool, QByteArray, QString)> cb);
     QString url(const QString& servicio) const;
     QString completar(QString cuerpo) const;
 

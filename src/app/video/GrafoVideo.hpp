@@ -108,8 +108,8 @@ class GrafoVideo {
     /// Suelta la tarjeta de su controlador: se queda con los params que usaba.
     bool soltar(const std::string& id, std::string* error);
     /// Agrega en `grupo` una tarjeta del tipo del controlador, manejada por él.
-    std::string agregarControlada(const std::string& control, const std::string& grupo, const std::string& despues,
-                                  std::string* error);
+    std::string agregarControlada(const std::string& control, const std::string& grupo,
+                                  const std::string& despues, std::string* error);
     /// Saca todas las tarjetas de una entrada (queda entrada -> escena).
     void limpiar(const std::string& grupo);
 

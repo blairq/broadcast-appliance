@@ -60,7 +60,8 @@ void pruebaDibujar(void*, gs_effect_t*) {
     if (g_tex == nullptr) return;
     gs_effect_t* fx = obs_get_base_effect(OBS_EFFECT_DEFAULT);
     gs_effect_set_texture(gs_effect_get_param_by_name(fx, "image"), g_tex);
-    while (gs_effect_loop(fx, "Draw")) gs_draw_sprite(g_tex, 0, g_w, g_h);
+    while (gs_effect_loop(fx, "Draw"))
+        gs_draw_sprite(g_tex, 0, g_w, g_h);
 }
 
 /// Cuadro RGBA (bytes) -> la textura que dibuja la fuente.
@@ -103,13 +104,14 @@ double dibujar(obs_source_t* src, std::vector<std::uint8_t>& salida) {
         std::uint32_t paso = 0;
         if (gs_stagesurface_map(st, &datos, &paso)) {
             for (std::uint32_t y = 0; y < g_h; ++y) {
-                std::memcpy(&salida[static_cast<std::size_t>(y) * g_w * 4], datos + static_cast<std::size_t>(y) * paso,
-                            static_cast<std::size_t>(g_w) * 4);
+                std::memcpy(&salida[static_cast<std::size_t>(y) * g_w * 4],
+                            datos + static_cast<std::size_t>(y) * paso, static_cast<std::size_t>(g_w) * 4);
             }
             gs_stagesurface_unmap(st);
         }
     }
-    const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    const double ms =
+        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
     gs_stagesurface_destroy(st);
     gs_texrender_destroy(tr);
     obs_leave_graphics();
@@ -137,9 +139,14 @@ double px(const std::vector<std::uint8_t>& im, std::uint32_t x, std::uint32_t y,
 }
 
 void llenar(std::vector<std::uint8_t>& im, std::uint32_t x, std::uint32_t y, double r, double g, double b) {
-    auto a = [](double v) { return static_cast<std::uint8_t>(std::lround(std::fmin(1.0, std::fmax(0.0, v)) * 255)); };
+    auto a = [](double v) {
+        return static_cast<std::uint8_t>(std::lround(std::fmin(1.0, std::fmax(0.0, v)) * 255));
+    };
     std::uint8_t* p = &im[(static_cast<std::size_t>(y) * g_w + x) * 4];
-    p[0] = a(r); p[1] = a(g); p[2] = a(b); p[3] = 255;
+    p[0] = a(r);
+    p[1] = a(g);
+    p[2] = a(b);
+    p[3] = 255;
 }
 
 // --- Las pruebas ---------------------------------------------------------------
@@ -147,11 +154,13 @@ void llenar(std::vector<std::uint8_t>& im, std::uint32_t x, std::uint32_t y, dou
 void pruebaFuente(obs_source_t* fuente) {
     std::vector<std::uint8_t> im(static_cast<std::size_t>(g_w) * g_h * 4), sal;
     for (std::uint32_t y = 0; y < g_h; ++y)
-        for (std::uint32_t x = 0; x < g_w; ++x) llenar(im, x, y, 0.2, 0.4, 0.6);
+        for (std::uint32_t x = 0; x < g_w; ++x)
+            llenar(im, x, y, 0.2, 0.4, 0.6);
     cargar(im);
     siguienteCuadro();
     dibujar(fuente, sal);
-    std::printf("sin filtro: %.3f %.3f %.3f (era 0.2 0.4 0.6)\n", px(sal, 8, 8, 0), px(sal, 8, 8, 1), px(sal, 8, 8, 2));
+    std::printf("sin filtro: %.3f %.3f %.3f (era 0.2 0.4 0.6)\n", px(sal, 8, 8, 0), px(sal, 8, 8, 1),
+                px(sal, 8, 8, 2));
     CHECK(std::fabs(px(sal, 8, 8, 1) - 0.4) < 0.01, "la fuente de prueba se dibuja (sin el filtro)");
 }
 
@@ -187,11 +196,13 @@ void pruebaRuido(obs_source_t* fuente) {
 
     // Movimiento: todo pasa a blanco de golpe -> la salida sigue enseguida.
     for (std::uint32_t y = 0; y < g_h; ++y)
-        for (std::uint32_t x = 0; x < g_w; ++x) llenar(im, x, y, 1, 1, 1);
+        for (std::uint32_t x = 0; x < g_w; ++x)
+            llenar(im, x, y, 1, 1, 1);
     cargar(im);
     siguienteCuadro();
     dibujar(fuente, sal);
-    std::printf("movimiento: tras el cambio el centro vale %.3f (era 0.5, ahora 1.0)\n", px(sal, g_w / 2, g_h / 2, 1));
+    std::printf("movimiento: tras el cambio el centro vale %.3f (era 0.5, ahora 1.0)\n",
+                px(sal, g_w / 2, g_h / 2, 1));
     CHECK(px(sal, g_w / 2, g_h / 2, 1) > 0.95, "un cambio grande no deja estela");
     sacar(fuente, f);
 }
@@ -204,17 +215,20 @@ void pruebaColor(obs_source_t* fuente) {
     const std::uint32_t borde = g_w / 2;
     for (std::uint32_t y = 0; y < g_h; ++y)
         for (std::uint32_t x = 0; x < g_w; ++x) {
-            if (x < borde) llenar(im, x, y, 0.6, 0.1, 0.1);
-            else if (x == borde) llenar(im, x, y, 0.9, 0.77, 0.77);
-            else llenar(im, x, y, 0.8, 0.8, 0.8);
+            if (x < borde)
+                llenar(im, x, y, 0.6, 0.1, 0.1);
+            else if (x == borde)
+                llenar(im, x, y, 0.9, 0.77, 0.77);
+            else
+                llenar(im, x, y, 0.8, 0.8, 0.8);
         }
     cargar(im);
     siguienteCuadro();
     dibujar(fuente, sal);
     const double antes = px(im, borde, g_h / 2, 0) - px(im, borde, g_h / 2, 1);
     const double despues = px(sal, borde, g_h / 2, 0) - px(sal, borde, g_h / 2, 1);
-    std::printf("color: tinte rojo de la columna corrida %.3f -> %.3f; el rojo del LED %.3f -> %.3f\n", antes, despues,
-                px(im, 4, g_h / 2, 0), px(sal, 4, g_h / 2, 0));
+    std::printf("color: tinte rojo de la columna corrida %.3f -> %.3f; el rojo del LED %.3f -> %.3f\n", antes,
+                despues, px(im, 4, g_h / 2, 0), px(sal, 4, g_h / 2, 0));
     // Una columna de UN pixel es el peor caso para el color a media resolucion
     // (comparte bloque 2x2 con una blanca); lo real son varios pixeles.
     CHECK(despues < 0.6 * antes, "el color corrido sobre un brillo parejo baja al menos un 40%");
@@ -236,7 +250,8 @@ void pruebaNitidez(obs_source_t* fuente) {
     dibujar(fuente, sal);
     std::printf("nitidez: junto al borde %.3f | %.3f (era 0.300 | 0.700)\n", px(sal, borde - 1, g_h / 2, 1),
                 px(sal, borde, g_h / 2, 1));
-    CHECK(px(sal, borde, g_h / 2, 1) > 0.75 && px(sal, borde - 1, g_h / 2, 1) < 0.25, "el borde gana contraste");
+    CHECK(px(sal, borde, g_h / 2, 1) > 0.75 && px(sal, borde - 1, g_h / 2, 1) < 0.25,
+          "el borde gana contraste");
     CHECK(std::fabs(px(sal, 4, g_h / 2, 1) - 0.3) < 0.01, "lo plano queda igual");
     sacar(fuente, f);
 }
@@ -252,7 +267,8 @@ Pos posicion(obs_source_t* f) {
     calldata_t cd;
     calldata_init(&cd);
     proc_handler_call(obs_source_get_proc_handler(f), "posicion", &cd);
-    Pos p{calldata_float(&cd, "x"), calldata_float(&cd, "y"), calldata_float(&cd, "zoom"), calldata_bool(&cd, "moviendo")};
+    Pos p{calldata_float(&cd, "x"), calldata_float(&cd, "y"), calldata_float(&cd, "zoom"),
+          calldata_bool(&cd, "moviendo")};
     calldata_free(&cd);
     return p;
 }
@@ -299,9 +315,11 @@ void pruebaPtzDigital(obs_source_t* fuente) {
     ir(f, 0.75, 0.5, 2.0, 0.0);
     siguienteCuadro();
     dibujar(fuente, sal);
-    std::printf("ptz digital: con zoom 2 a la derecha, x=1/8 vale %.3f, x=7/8 vale %.3f (la mitad clara: 0.8)\n",
-                px(sal, g_w / 8, g_h / 2, 1), px(sal, g_w * 7 / 8, g_h / 2, 1));
-    CHECK(px(sal, g_w / 8, g_h / 2, 1) > 0.75 && px(sal, g_w * 7 / 8, g_h / 2, 1) > 0.75, "el zoom recorta la ventana pedida");
+    std::printf(
+        "ptz digital: con zoom 2 a la derecha, x=1/8 vale %.3f, x=7/8 vale %.3f (la mitad clara: 0.8)\n",
+        px(sal, g_w / 8, g_h / 2, 1), px(sal, g_w * 7 / 8, g_h / 2, 1));
+    CHECK(px(sal, g_w / 8, g_h / 2, 1) > 0.75 && px(sal, g_w * 7 / 8, g_h / 2, 1) > 0.75,
+          "el zoom recorta la ventana pedida");
 
     // La ventana no sale del cuadro.
     ir(f, 0.05, 0.5, 2.0, 0.0);
@@ -311,17 +329,21 @@ void pruebaPtzDigital(obs_source_t* fuente) {
     // El joystick: a velocidad 1 hacia la derecha avanza, con la rampa.
     ir(f, 0.5, 0.5, 2.0, 0.0);
     mover(f, 1.0, 0.0, 0.0);
-    for (int i = 0; i < 30; ++i) siguienteCuadro(); // ~0,5 s a 60 fps
+    for (int i = 0; i < 30; ++i)
+        siguienteCuadro(); // ~0,5 s a 60 fps
     p = posicion(f);
-    std::printf("ptz digital: tras ~0,5 s a velocidad 1, x = %.3f (salio de 0.5), moviendo = %d\n", p.x, p.moviendo);
+    std::printf("ptz digital: tras ~0,5 s a velocidad 1, x = %.3f (salio de 0.5), moviendo = %d\n", p.x,
+                p.moviendo);
     CHECK(p.x > 0.53 && p.moviendo, "a velocidad 1 la ventana se mueve");
     mover(f, 0.0, 0.0, 0.0);
-    for (int i = 0; i < 40; ++i) siguienteCuadro();
+    for (int i = 0; i < 40; ++i)
+        siguienteCuadro();
     CHECK(!posicion(f).moviendo, "al soltar el joystick frena");
 
     // Ir a un preset en 0,3 s: a mitad de camino esta entre medio, al final llega.
     ir(f, 0.5, 0.5, 1.0, 0.3);
-    for (int i = 0; i < 40; ++i) siguienteCuadro();
+    for (int i = 0; i < 40; ++i)
+        siguienteCuadro();
     p = posicion(f);
     CHECK(std::fabs(p.zoom - 1.0) < 1e-6 && !p.moviendo, "llega al preset");
     sacar(fuente, f);
@@ -368,7 +390,8 @@ int clip(obs_source_t* fuente, int argc, char** argv) {
     calldata_init(&cd);
     if (proc_handler_call(obs_source_get_proc_handler(f), "tiempos", &cd)) {
         std::printf("GPU por pasada: temporal %.3f ms, color %.3f ms, final %.3f ms\n",
-                    calldata_float(&cd, "temporal"), calldata_float(&cd, "color"), calldata_float(&cd, "final"));
+                    calldata_float(&cd, "temporal"), calldata_float(&cd, "color"),
+                    calldata_float(&cd, "final"));
     }
     calldata_free(&cd);
     obs_source_set_enabled(f, false);
@@ -378,7 +401,8 @@ int clip(obs_source_t* fuente, int argc, char** argv) {
         sin.push_back(dibujar(fuente, sal));
     }
     const double mc = mediana(con), ms = mediana(sin);
-    std::printf("%zu cuadros %ux%u (mediana, dibujar + bajar): %.2f ms con el filtro, %.2f ms sin el -> filtro %.2f ms\n",
+    std::printf("%zu cuadros %ux%u (mediana, dibujar + bajar): %.2f ms con el filtro, %.2f ms sin el -> "
+                "filtro %.2f ms\n",
                 clip.size(), g_w, g_h, mc, ms, mc - ms);
     sacar(fuente, f);
     return 0;
@@ -443,7 +467,8 @@ int main(int argc, char** argv) {
         pruebaNitidez(fuente);
         pruebaPtzDigital(fuente);
         rcFinal = g_failures == 0 ? 0 : 1;
-        std::printf(g_failures == 0 ? "OK: los filtros de video andan en la GPU\n" : "%d fallos\n", g_failures);
+        std::printf(g_failures == 0 ? "OK: los filtros de video andan en la GPU\n" : "%d fallos\n",
+                    g_failures);
     }
 
     obs_source_release(fuente);

@@ -114,19 +114,23 @@ class ControlCamaras : public QObject {
     Q_INVOKABLE void sincronizar();
 
     // --- Posiciones con nombre (ptz/Posiciones) --------------------------------
-    /// [{id, nombre, comentario, definicion, digital{x,y,zoom}, camara{backend,memoria|token}, creada, modificada}]
+    /// [{id, nombre, comentario, definicion, digital{x,y,zoom}, camara{backend,memoria|token}, creada,
+    /// modificada}]
     Q_INVOKABLE QVariantList posiciones(const QString& entrada) const;
     /// Registra donde está ahora la cámara (cabeza y/o recorte) con ese
     /// nombre. {ok, error, aviso, id}.
-    Q_INVOKABLE QVariantMap crearPosicion(const QString& entrada, const QString& nombre, const QString& comentario);
+    Q_INVOKABLE QVariantMap crearPosicion(const QString& entrada, const QString& nombre,
+                                          const QString& comentario);
     /// cambios: {nombre?, comentario?, regrabar?: bool (vuelve a registrar
     /// donde está ahora)}. {ok, error, aviso}.
-    Q_INVOKABLE QVariantMap editarPosicion(const QString& entrada, const QString& idONombre, const QVariantMap& cambios);
+    Q_INVOKABLE QVariantMap editarPosicion(const QString& entrada, const QString& idONombre,
+                                           const QVariantMap& cambios);
     /// Borra la posición (y libera su memoria en la cámara).
     Q_INVOKABLE QString borrarPosicion(const QString& entrada, const QString& idONombre);
     /// Va a la posición: la cámara a su memoria y el recorte a su encuadre.
     /// {ok, error, aviso}.
-    Q_INVOKABLE QVariantMap irAPosicion(const QString& entrada, const QString& idONombre, double segundos = 1.0);
+    Q_INVOKABLE QVariantMap irAPosicion(const QString& entrada, const QString& idONombre,
+                                        double segundos = 1.0);
 
     /// Para MCP: el estado de una entrada (o de todas), como json.
     QJsonObject estadoJson(const QString& entrada = {}) const;
@@ -158,8 +162,9 @@ class ControlCamaras : public QObject {
     std::filesystem::path archivo_;
     QString credenciales_;
     std::map<std::string, std::unique_ptr<Camara>> camaras_; ///< todas las conocidas (por nombre)
-    std::map<std::string, int> pulsos_; ///< por entrada: el pulso óptico vigente (uno nuevo cancela el anterior)
-    std::map<std::string, QString> tipoEntrada_;              ///< las presentes ahora: hardware | red | ndi
+    std::map<std::string, int>
+        pulsos_; ///< por entrada: el pulso óptico vigente (uno nuevo cancela el anterior)
+    std::map<std::string, QString> tipoEntrada_; ///< las presentes ahora: hardware | red | ndi
     std::unique_ptr<OnvifBusqueda> busqueda_;
     QTimer revision_;
     QTimer guardado_;

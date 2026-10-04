@@ -124,7 +124,8 @@ class RackManager : public QObject {
     /// (después de su propio rack). Devuelve el id del nodo o "" con el error.
     std::string addEntrada(const std::string& source, const std::string& fuente, std::string* error);
     /// Cambia de qué fuente trae el audio una tarjeta de entrada.
-    std::string setEntradaFuente(const std::string& source, const std::string& nodo, const std::string& fuente);
+    std::string setEntradaFuente(const std::string& source, const std::string& nodo,
+                                 const std::string& fuente);
     /// "" si el rack de `source` puede traer el audio de `fuente`; si no, por
     /// qué (no existe, es ella misma, o haría un lazo entre racks).
     std::string validarEntrada(const std::string& source, const std::string& fuente) const;
@@ -214,7 +215,7 @@ class RackManager : public QObject {
     /// La toma de audio de una tarjeta de entrada: el callback de captura de
     /// la fuente de origen empuja a su anillo; el rack lo saca.
     struct Toma;
-    std::map<std::string, std::unique_ptr<Toma>> tomas_; ///< "<rack>\n<nodo>"
+    std::map<std::string, std::unique_ptr<Toma>> tomas_;                ///< "<rack>\n<nodo>"
     std::map<std::string, std::shared_ptr<anillo::Ring>> anillosHabla_; ///< "<rack>\n<nodo>"
     /// Pone y saca las tomas según las tarjetas de entrada de todos los racks.
     void sincronizarEntradas();
@@ -226,7 +227,8 @@ class RackManager : public QObject {
     void normalizarFlujos();
     /// Arranca o para los grabadores según la marca de cada tarjeta de salida.
     void sincronizarGrabaciones();
-    bool flujoLibre(const std::string& flujo, const std::string& salvoRack, const std::string& salvoNodo) const;
+    bool flujoLibre(const std::string& flujo, const std::string& salvoRack,
+                    const std::string& salvoNodo) const;
     QTimer revision_;
 };
 

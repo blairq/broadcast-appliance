@@ -26,9 +26,9 @@
 //   crean y actualizan en el tick (hilo gráfico) para no pelear con el render.
 // ============================================================================
 
+#include <graphics/vec4.h>
 #include <obs-module.h>
 #include <obs.h>
-#include <graphics/vec4.h>
 
 #include <algorithm>
 #include <deque>
@@ -56,9 +56,9 @@ struct Subs {
     // Cola de bloques y lo que se muestra.
     std::deque<std::vector<std::string>> cola;
     std::vector<std::string> actual;
-    double restante = 0;  ///< lo que le queda al bloque actual
-    double vacio = 0;     ///< desde que terminó el último (para borrar)
-    bool cambio = true;   ///< hay que pasarles el texto/estilo a las hijas
+    double restante = 0; ///< lo que le queda al bloque actual
+    double vacio = 0;    ///< desde que terminó el último (para borrar)
+    bool cambio = true;  ///< hay que pasarles el texto/estilo a las hijas
 };
 
 const char* nombre(void*) { return obs_module_text("Subtítulos"); }
@@ -68,7 +68,8 @@ const char* nombre(void*) { return obs_module_text("Subtítulos"); }
 /// Largo en caracteres (UTF-8: cuenta los que no son de continuación).
 size_t largo(const std::string& s) {
     size_t n = 0;
-    for (unsigned char c : s) n += (c & 0xC0) != 0x80;
+    for (unsigned char c : s)
+        n += (c & 0xC0) != 0x80;
     return n;
 }
 
@@ -112,13 +113,15 @@ std::vector<std::vector<std::string>> bloques(const std::string& texto, size_t c
     // anterior lleno, se reparte mejor (2 + 1 se ve peor que pasar una línea).
     std::vector<std::vector<std::string>> out;
     for (size_t i = 0; i < lineas.size(); i += nLineas)
-        out.emplace_back(lineas.begin() + static_cast<long>(i), lineas.begin() + static_cast<long>(std::min(lineas.size(), i + nLineas)));
+        out.emplace_back(lineas.begin() + static_cast<long>(i),
+                         lineas.begin() + static_cast<long>(std::min(lineas.size(), i + nLineas)));
     return out;
 }
 
 double duracion(const std::vector<std::string>& b, double cps, double minimo) {
     size_t n = 0;
-    for (const auto& l : b) n += largo(l);
+    for (const auto& l : b)
+        n += largo(l);
     return std::max(minimo, static_cast<double>(n) / std::max(1.0, cps));
 }
 
@@ -129,9 +132,11 @@ void procAgregar(void* data, calldata_t* cd) {
     const char* t = calldata_string(cd, "texto");
     if (t == nullptr || *t == '\0') return;
     std::lock_guard<std::mutex> l(s->mu);
-    for (auto& b : bloques(t, static_cast<size_t>(s->caracteres), static_cast<size_t>(s->nLineas))) s->cola.push_back(std::move(b));
+    for (auto& b : bloques(t, static_cast<size_t>(s->caracteres), static_cast<size_t>(s->nLineas)))
+        s->cola.push_back(std::move(b));
     // Si se atrasó mucho (alguien habla sin parar), se descarta lo más viejo.
-    while (s->cola.size() > 12) s->cola.pop_front();
+    while (s->cola.size() > 12)
+        s->cola.pop_front();
 }
 
 void procLimpiar(void* data, calldata_t*) {
@@ -211,11 +216,12 @@ void defectos(obs_data_t* d) {
 obs_properties_t* propiedades(void*) {
     obs_properties_t* p = obs_properties_create();
     // La lista de salidas de texto la da la app (proc global `ba_flujos_texto`).
-    obs_property_t* fl = obs_properties_add_list(p, "flujo", "Qué muestra (salida de texto)", OBS_COMBO_TYPE_EDITABLE, OBS_COMBO_FORMAT_STRING);
+    obs_property_t* fl = obs_properties_add_list(p, "flujo", "Qué muestra (salida de texto)",
+                                                 OBS_COMBO_TYPE_EDITABLE, OBS_COMBO_FORMAT_STRING);
     calldata_t cd;
     calldata_init(&cd);
     if (proc_handler_call(obs_get_proc_handler(), "ba_flujos_texto", &cd)) {
-        const char* lista = calldata_string(&cd, "lista");  // una por línea
+        const char* lista = calldata_string(&cd, "lista"); // una por línea
         std::string l = lista != nullptr ? lista : "";
         size_t i = 0;
         while (i < l.size()) {
@@ -227,7 +233,8 @@ obs_properties_t* propiedades(void*) {
         }
     }
     calldata_free(&cd);
-    obs_property_set_long_description(fl, "La transcripción de una «Voz a texto» o una traducción (Audio → Traducción).");
+    obs_property_set_long_description(
+        fl, "La transcripción de una «Voz a texto» o una traducción (Audio → Traducción).");
     obs_properties_add_font(p, "font", "Letra");
     obs_properties_add_color_alpha(p, "color", "Color del texto");
     obs_properties_add_bool(p, "fondo", "Fondo detrás de cada línea");
@@ -240,10 +247,11 @@ obs_properties_t* propiedades(void*) {
     obs_properties_add_float(p, "cps", "Velocidad de lectura (caracteres por segundo)", 5, 40, 0.5);
     obs_properties_add_float(p, "minimo", "Tiempo mínimo en pantalla (s)", 0.5, 10, 0.1);
     obs_properties_add_float(p, "borrar", "Se borra después de (s)", 1, 60, 0.5);
-    obs_properties_add_button(p, "limpiar", "Borrar ahora", [](obs_properties_t*, obs_property_t*, void* data) {
-        procLimpiar(data, nullptr);
-        return false;
-    });
+    obs_properties_add_button(p, "limpiar", "Borrar ahora",
+                              [](obs_properties_t*, obs_property_t*, void* data) {
+                                  procLimpiar(data, nullptr);
+                                  return false;
+                              });
     return p;
 }
 
@@ -265,7 +273,9 @@ void tick(void* data, float segundos) {
     std::lock_guard<std::mutex> l(s->mu);
     if (!s->actual.empty()) {
         // Con bloques esperando, el que se ve se apura (hasta el doble).
-        s->restante -= segundos * (s->cola.empty() ? 1.0 : std::min(2.0, 1.0 + 0.35 * static_cast<double>(s->cola.size())));
+        s->restante -=
+            segundos *
+            (s->cola.empty() ? 1.0 : std::min(2.0, 1.0 + 0.35 * static_cast<double>(s->cola.size())));
         if (s->restante <= 0 && !s->cola.empty()) {
             s->actual = std::move(s->cola.front());
             s->cola.pop_front();
@@ -294,13 +304,17 @@ void tick(void* data, float segundos) {
         // copian al pasarlo a otra fuente, y la de texto de libobs se quedaba con
         // su tamaño de fábrica (256: letras cuatro veces más grandes que el cuadro).
         obs_data_t* f = obs_data_create();
-        obs_data_set_string(f, "face", s->font != nullptr ? obs_data_get_string(s->font, "face") : "Helvetica");
-        obs_data_set_string(f, "style", s->font != nullptr ? obs_data_get_string(s->font, "style") : "Regular");
+        obs_data_set_string(f, "face",
+                            s->font != nullptr ? obs_data_get_string(s->font, "face") : "Helvetica");
+        obs_data_set_string(f, "style",
+                            s->font != nullptr ? obs_data_get_string(s->font, "style") : "Regular");
         obs_data_set_int(f, "size", s->tamano);
         obs_data_set_int(f, "flags", s->font != nullptr ? obs_data_get_int(s->font, "flags") : 0);
         obs_data_set_obj(d, "font", f);
         obs_data_release(f);
-        obs_data_set_string(d, "text", i < static_cast<int>(s->actual.size()) ? s->actual[static_cast<size_t>(i)].c_str() : "");
+        obs_data_set_string(d, "text",
+                            i < static_cast<int>(s->actual.size()) ? s->actual[static_cast<size_t>(i)].c_str()
+                                                                   : "");
         obs_data_set_int(d, "color1", s->colorTexto);
         obs_data_set_int(d, "color2", s->colorTexto);
         obs_data_set_bool(d, "outline", s->contorno);
@@ -315,7 +329,7 @@ void dibujarCaja(float x, float y, float w, float h, uint32_t abgr) {
     gs_effect_t* solid = obs_get_base_effect(OBS_EFFECT_SOLID);
     gs_eparam_t* color = gs_effect_get_param_by_name(solid, "color");
     struct vec4 c;
-    vec4_from_rgba(&c, abgr);  // libobs guarda ABGR: vec4_from_rgba lo lee en ese orden
+    vec4_from_rgba(&c, abgr); // libobs guarda ABGR: vec4_from_rgba lo lee en ese orden
     gs_effect_set_vec4(color, &c);
     gs_technique_t* tech = gs_effect_get_technique(solid, "Solid");
     gs_technique_begin(tech);

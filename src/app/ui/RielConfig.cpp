@@ -35,7 +35,9 @@ const std::vector<Grupo>& catalogo() {
          {{0, "dashboard", "⌂", "Dashboard"},
           {1, "escenas", "▦", "Escenas y fuentes"},
           {8, "entradas", "◉", "Entradas de video (cámaras, capturadoras, red)"},
-          {24, "equipos", "⌁", "Equipos: buscar lo que hay en la red, la máquina y el USB, y manejarlo (ONVIF, claves, PTZ, UVC)"},
+          {24, "equipos", "⌁",
+           "Equipos: buscar lo que hay en la red, la máquina y el USB, y manejarlo (ONVIF, claves, PTZ, "
+           "UVC)"},
           {21, "camaras", "⌖", "Cámaras PTZ: mover, zoom, presets y mejorar la imagen de cada cámara"},
           {22, "video", "⧈", "Video: tarjetas por entrada (croma, color, recorte) y salidas con nombre"},
           {9, "audio", "🎚", "Audio: patchbay de módulos LSP por fuente"}}},
@@ -58,7 +60,8 @@ const std::vector<Grupo>& catalogo() {
          {{7, "asistente", "✦", "Asistente: la terminal del agente que trabaja con vos"},
           {14, "agentes", "⚇", "Agentes: los roles automáticos, qué hacen y qué hicieron"},
           {13, "registro", "❑", "Registro: todo lo que pasa, de los tres procesos"},
-          {23, "plugins", "⌬", "Plugins: programas en Python para equipos raros, tarjetas y automatizaciones"},
+          {23, "plugins", "⌬",
+           "Plugins: programas en Python para equipos raros, tarjetas y automatizaciones"},
           {6, "configuracion", "⚙", "Configuración"}}},
     };
     return g;

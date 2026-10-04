@@ -13,7 +13,8 @@ namespace ba::app::ptz {
 OnvifBusqueda::OnvifBusqueda(QObject* parent) : QObject(parent) {
     reloj_.setSingleShot(true);
     connect(&reloj_, &QTimer::timeout, this, [this]() {
-        for (QUdpSocket* s : sockets_) s->deleteLater();
+        for (QUdpSocket* s : sockets_)
+            s->deleteLater();
         sockets_.clear();
         emit cambio();
         emit terminada();
@@ -30,9 +31,11 @@ void OnvifBusqueda::buscar(int ms) {
     QList<QHostAddress> locales;
     if (destino.isMulticast()) {
         for (const QNetworkInterface& i : QNetworkInterface::allInterfaces()) {
-            if (!(i.flags() & QNetworkInterface::IsUp) || !(i.flags() & QNetworkInterface::CanMulticast)) continue;
+            if (!(i.flags() & QNetworkInterface::IsUp) || !(i.flags() & QNetworkInterface::CanMulticast))
+                continue;
             for (const QNetworkAddressEntry& e : i.addressEntries())
-                if (e.ip().protocol() == QAbstractSocket::IPv4Protocol && !e.ip().isLoopback()) locales << e.ip();
+                if (e.ip().protocol() == QAbstractSocket::IPv4Protocol && !e.ip().isLoopback())
+                    locales << e.ip();
         }
     }
     if (locales.isEmpty()) locales << QHostAddress(QHostAddress::AnyIPv4);
@@ -64,7 +67,8 @@ void OnvifBusqueda::leer(QUdpSocket* s) {
             if (QUrl(x).host() == e.origen) e.direccion = x;
         if (e.direccion.isEmpty()) continue;
         bool repetida = false;
-        for (const auto& x : encontradas_) repetida = repetida || x.direccion == e.direccion;
+        for (const auto& x : encontradas_)
+            repetida = repetida || x.direccion == e.direccion;
         if (!repetida) {
             encontradas_ << e;
             emit cambio();
@@ -76,12 +80,13 @@ QVariantList OnvifBusqueda::encontradas() const {
     QVariantList out;
     for (const auto& e : encontradas_) {
         const QUrl u(e.direccion);
-        out << QVariantMap{{"direccion", e.direccion},
-                           {"host", u.port() > 0 && u.port() != 80 ? u.host() + ":" + QString::number(u.port()) : u.host()},
-                           {"nombre", e.nombre},
-                           {"modelo", e.modelo},
-                           {"origen", e.origen},
-                           {"todas", e.todas}};
+        out << QVariantMap{
+            {"direccion", e.direccion},
+            {"host", u.port() > 0 && u.port() != 80 ? u.host() + ":" + QString::number(u.port()) : u.host()},
+            {"nombre", e.nombre},
+            {"modelo", e.modelo},
+            {"origen", e.origen},
+            {"todas", e.todas}};
     }
     return out;
 }

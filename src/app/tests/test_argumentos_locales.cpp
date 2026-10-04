@@ -136,13 +136,15 @@ int main() {
           "estadoPara: a una de escenas, solo las escenas");
 
     // v2: la llamada nativa (<tool_call><function=…><parameter=…>).
-    auto tc = argumentos::leerTc("<tool_call>\n<function=audio_set>\n<parameter=name>\nMúsica\n</parameter>\n"
-                                 "<parameter=volumeDb>\n-4\n</parameter>\n</function>\n</tool_call><|im_end|>");
+    auto tc =
+        argumentos::leerTc("<tool_call>\n<function=audio_set>\n<parameter=name>\nMúsica\n</parameter>\n"
+                           "<parameter=volumeDb>\n-4\n</parameter>\n</function>\n</tool_call><|im_end|>");
     CHECK(tc.hay && tc.funcion == "audio_set" && tc.parametros.size() == 2, "leerTc: función y parámetros");
     CHECK(tc.parametros.size() == 2 && tc.parametros[0].second == "Música" && tc.parametros[1].second == "-4",
           "leerTc: valores sin los saltos de línea");
     r = validar("audio_set", kAudioSet, argumentos::argsDesdeTc(tc, kAudioSet), kEstado);
-    CHECK(r.args.value("volumeDb", 0.0) == -16.0 && r.args.value("name", "") == "Música", "tc: -4 es un cambio");
+    CHECK(r.args.value("volumeDb", 0.0) == -16.0 && r.args.value("name", "") == "Música",
+          "tc: -4 es un cambio");
     tc = argumentos::leerTc("<tool_call>\n<function=audio_set>\n<parameter=name>\nMúsica\n</parameter>\n"
                             "<parameter=volumeDb>\n=-10\n</parameter>\n</function>\n</tool_call>");
     r = validar("audio_set", kAudioSet, argumentos::argsDesdeTc(tc, kAudioSet), kEstado);
@@ -154,7 +156,8 @@ int main() {
     CHECK(tc.hay && tc.funcion == "derivar" && tc.parametros.empty(), "tc: derivar sin parámetros");
     tc = argumentos::leerTc("<tool_call>\n<function=falta_dato>\n<parameter=pregunta>\n¿A qué escena?\n"
                             "</parameter>\n</function>\n</tool_call>");
-    CHECK(tc.funcion == "falta_dato" && tc.parametros.size() == 1 && tc.parametros[0].second == "¿A qué escena?",
+    CHECK(tc.funcion == "falta_dato" && tc.parametros.size() == 1 &&
+              tc.parametros[0].second == "¿A qué escena?",
           "tc: falta_dato con la pregunta");
     CHECK(!argumentos::leerTc("Hola, ¿cómo andás?").hay, "tc: charla, sin llamada");
     tc = argumentos::leerTc("<tool_call>\n<function=transition_set>\n<parameter=ms>\n500\n</parameter>\n"

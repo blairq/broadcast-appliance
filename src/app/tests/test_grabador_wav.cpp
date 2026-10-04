@@ -62,9 +62,11 @@ int main() {
         CHECK(!g.grabando(), "termina");
         g.agregar(l.data(), r.data(), 250); // después de terminar no hace nada
         const auto b = leer(dir / "Mic-uno.wav");
-        CHECK(b.size() == 4 + 4 + 4 + 24 + 12 + 8 + 1000 * 8, "tamaño: encabezado + 1000 frames estéreo float");
+        CHECK(b.size() == 4 + 4 + 4 + 24 + 12 + 8 + 1000 * 8,
+              "tamaño: encabezado + 1000 frames estéreo float");
         if (b.size() >= 60) {
-            CHECK(std::memcmp(b.data(), "RIFF", 4) == 0 && std::memcmp(b.data() + 8, "WAVE", 4) == 0, "RIFF/WAVE");
+            CHECK(std::memcmp(b.data(), "RIFF", 4) == 0 && std::memcmp(b.data() + 8, "WAVE", 4) == 0,
+                  "RIFF/WAVE");
             CHECK(leer32(b, 4) == b.size() - 8, "tamaño RIFF completado al cerrar");
             CHECK(leer16(b, 20) == 3 && leer16(b, 22) == 2 && leer32(b, 24) == 48000 && leer16(b, 34) == 32,
                   "formato: float, estéreo, 48 kHz, 32 bits");
@@ -83,7 +85,8 @@ int main() {
         std::vector<float> l(2500, 0.5f), r(2500, -0.5f);
         g.agregar(l.data(), r.data(), 2500);
         g.terminar();
-        CHECK(fs::exists(dir / "Sala.wav") && fs::exists(dir / "Sala-parte2.wav") && fs::exists(dir / "Sala-parte3.wav"),
+        CHECK(fs::exists(dir / "Sala.wav") && fs::exists(dir / "Sala-parte2.wav") &&
+                  fs::exists(dir / "Sala-parte3.wav"),
               "corta en partes");
         const auto p1 = leer(dir / "Sala.wav"), p3 = leer(dir / "Sala-parte3.wav");
         CHECK(p1.size() >= 56 && leer32(p1, 52) == 8000, "la parte 1 llena hasta el tope");

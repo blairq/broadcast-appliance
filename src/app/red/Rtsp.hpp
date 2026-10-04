@@ -26,8 +26,8 @@ QString sinClave(const QString& url);
 QString conClave(const QString& url, const QString& usuario, const QString& clave);
 
 struct Respuesta {
-    int codigo = 0;          ///< 0 = no se entendió
-    QString esquema;         ///< Basic | Digest (de WWW-Authenticate)
+    int codigo = 0;  ///< 0 = no se entendió
+    QString esquema; ///< Basic | Digest (de WWW-Authenticate)
     QString realm, nonce;
     QByteArray sdp;          ///< el cuerpo, si vino
     QString codec;           ///< del SDP: H264, H265, JPEG, MP4V…
@@ -41,7 +41,8 @@ Respuesta leer(const QByteArray& datos);
 /// autorización si se pasa.
 QByteArray describe(const QString& url, int cseq, const QString& autorizacion = {});
 /// La línea Authorization para un DESCRIBE de `url` con esas credenciales.
-QString autorizacion(const Respuesta& desafio, const QString& url, const QString& usuario, const QString& clave);
+QString autorizacion(const Respuesta& desafio, const QString& url, const QString& usuario,
+                     const QString& clave);
 
 /// Lo que se dice de una prueba: "se ve", "pide usuario y clave", "no existe", "no contesta".
 QString estadoDe(int codigo);

@@ -60,8 +60,10 @@ bool prepararGst() {
     // Los de GStreamer y los propios (gst-plugins/: superresolución…).
     std::string ruta = texto(raiz / "lib" / "gstreamer-1.0");
     std::error_code ec2;
-    if (fs::is_directory(bundleRoot() / "gst-plugins", ec2)) ruta += std::string(1, kSepRuta) + texto(bundleRoot() / "gst-plugins");
-    if (const char* extra = std::getenv("BA_GST_PLUGINS_EXTRA"); extra != nullptr && *extra != '\0') ruta += std::string(1, kSepRuta) + extra;
+    if (fs::is_directory(bundleRoot() / "gst-plugins", ec2))
+        ruta += std::string(1, kSepRuta) + texto(bundleRoot() / "gst-plugins");
+    if (const char* extra = std::getenv("BA_GST_PLUGINS_EXTRA"); extra != nullptr && *extra != '\0')
+        ruta += std::string(1, kSepRuta) + extra;
     ponerTexto("GST_PLUGIN_SYSTEM_PATH_1_0", ruta.c_str());
     ponerTexto("GST_PLUGIN_SYSTEM_PATH", ruta.c_str());
     ponerTexto("GST_PLUGIN_PATH_1_0", "");

@@ -3,8 +3,8 @@
 #include "video/Sincronia.hpp"
 
 #include <cmath>
-#include <cstdio>
 #include <cstdint>
+#include <cstdio>
 #include <random>
 #include <vector>
 
@@ -12,14 +12,14 @@ using ba::app::video::medirDesfase;
 
 namespace {
 int fallos = 0;
-#define CHECK(c, m)                                                       \
-    do {                                                                  \
-        if (c)                                                            \
-            std::printf("ok: %s\n", m);                                   \
-        else {                                                            \
-            std::printf("FALLO: %s (%s, linea %d)\n", m, #c, __LINE__);   \
-            ++fallos;                                                     \
-        }                                                                 \
+#define CHECK(c, m)                                                                                          \
+    do {                                                                                                     \
+        if (c)                                                                                               \
+            std::printf("ok: %s\n", m);                                                                      \
+        else {                                                                                               \
+            std::printf("FALLO: %s (%s, linea %d)\n", m, #c, __LINE__);                                      \
+            ++fallos;                                                                                        \
+        }                                                                                                    \
     } while (0)
 
 constexpr std::uint64_t kPeriodo = 33'333'333; // 30 fps
@@ -75,9 +75,10 @@ int main() {
         std::vector<std::uint8_t> ga, gb;
         armar(base, cuadros, 6, rng, ta, ga, tb, gb);
         const auto m = medirDesfase(ta, ga, tb, gb);
-        std::printf("   misma imagen, B +200 ms: %s %.1f ms (confianza %.2f, %s)\n", m.ok ? "ok" : m.motivo.c_str(), m.desfaseMs,
-                    m.confianza, m.metodo.c_str());
-        CHECK(m.ok && std::fabs(m.desfaseMs - 200) < 20 && m.metodo == "espacial", "misma imagen: mide 200 ms (espacial)");
+        std::printf("   misma imagen, B +200 ms: %s %.1f ms (confianza %.2f, %s)\n",
+                    m.ok ? "ok" : m.motivo.c_str(), m.desfaseMs, m.confianza, m.metodo.c_str());
+        CHECK(m.ok && std::fabs(m.desfaseMs - 200) < 20 && m.metodo == "espacial",
+              "misma imagen: mide 200 ms (espacial)");
         // Al revés: A atrasa, el desfase da negativo.
         const auto r = medirDesfase(tb, gb, ta, ga);
         CHECK(r.ok && std::fabs(r.desfaseMs + 200) < 20, "al revés da -200 ms");
@@ -104,9 +105,10 @@ int main() {
             }
         }
         const auto m = medirDesfase(ta, ga, tb, gb);
-        std::printf("   dos cámaras, un flash, B +133 ms: %s %.1f ms (confianza %.2f, %s)\n", m.ok ? "ok" : m.motivo.c_str(),
-                    m.desfaseMs, m.confianza, m.metodo.c_str());
-        CHECK(m.ok && std::fabs(m.desfaseMs - 133.3) < 25 && m.metodo == "energia", "dos cámaras: mide 133 ms (energía)");
+        std::printf("   dos cámaras, un flash, B +133 ms: %s %.1f ms (confianza %.2f, %s)\n",
+                    m.ok ? "ok" : m.motivo.c_str(), m.desfaseMs, m.confianza, m.metodo.c_str());
+        CHECK(m.ok && std::fabs(m.desfaseMs - 133.3) < 25 && m.metodo == "energia",
+              "dos cámaras: mide 133 ms (energía)");
     }
     // Imagen quieta: no hay nada que medir, y lo dice.
     {
@@ -115,10 +117,12 @@ int main() {
         for (int c = 0; c < 100; ++c) {
             ta.push_back(static_cast<std::uint64_t>(c) * kPeriodo);
             tb.push_back(static_cast<std::uint64_t>(c) * kPeriodo);
-            for (size_t j = 0; j < kLado; ++j) ga.push_back(100), gb.push_back(100);
+            for (size_t j = 0; j < kLado; ++j)
+                ga.push_back(100), gb.push_back(100);
         }
         const auto m = medirDesfase(ta, ga, tb, gb);
-        CHECK(!m.ok && m.motivo.find("quieta") != std::string::npos, "imagen quieta: no mide y explica por qué");
+        CHECK(!m.ok && m.motivo.find("quieta") != std::string::npos,
+              "imagen quieta: no mide y explica por qué");
     }
     std::printf(fallos == 0 ? "test_sincronia: OK\n" : "test_sincronia: %d fallos\n", fallos);
     return fallos == 0 ? 0 : 1;

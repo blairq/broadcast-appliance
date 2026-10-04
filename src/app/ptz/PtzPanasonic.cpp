@@ -48,11 +48,14 @@ void PtzPanasonic::encolar(const QString& orden, bool reemplaza, bool primero) {
     if (reemplaza) {
         // Misma familia (#PTS, #Z, #F): queda la última.
         const QString pref = orden.left(orden.startsWith("#PTS") ? 4 : 2);
-        cola_.erase(std::remove_if(cola_.begin(), cola_.end(), [&](const QString& o) { return o.startsWith(pref); }),
-                    cola_.end());
+        cola_.erase(
+            std::remove_if(cola_.begin(), cola_.end(), [&](const QString& o) { return o.startsWith(pref); }),
+            cola_.end());
     }
-    if (primero) cola_.prepend(orden);
-    else cola_.append(orden);
+    if (primero)
+        cola_.prepend(orden);
+    else
+        cola_.append(orden);
     if (!enVuelo_ && !espacio_.isActive()) siguiente();
 }
 
@@ -75,8 +78,11 @@ void PtzPanasonic::siguiente() {
             setEstado(false, QStringLiteral("Sin respuesta de %1 (%2)").arg(host_, r->errorString()));
         } else {
             const QByteArray cuerpo = r->readAll();
-            if (panasonic::respuestaOk(orden, cuerpo)) setEstado(true, QStringLiteral("Conectada (Panasonic %1)").arg(host_));
-            else setEstado(true, QStringLiteral("La cámara rechazó %1 (%2)").arg(orden, QString::fromLatin1(cuerpo).trimmed()));
+            if (panasonic::respuestaOk(orden, cuerpo))
+                setEstado(true, QStringLiteral("Conectada (Panasonic %1)").arg(host_));
+            else
+                setEstado(true, QStringLiteral("La cámara rechazó %1 (%2)")
+                                    .arg(orden, QString::fromLatin1(cuerpo).trimmed()));
         }
         espacio_.start();
     });

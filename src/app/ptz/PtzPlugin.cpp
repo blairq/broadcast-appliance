@@ -33,7 +33,8 @@ void PtzPlugin::configurar(const QJsonObject& conf) {
 
 void PtzPlugin::refrescar() {
     const bool hay = enlace().capacidades && enlace().capacidades(plugin_, entrada_).is_object();
-    setEstado(hay, hay ? QStringLiteral("Plugin «%1»").arg(plugin_) : QStringLiteral("El plugin «%1» no está corriendo").arg(plugin_));
+    setEstado(hay, hay ? QStringLiteral("Plugin «%1»").arg(plugin_)
+                       : QStringLiteral("El plugin «%1» no está corriendo").arg(plugin_));
 }
 
 void PtzPlugin::pedir(const std::string& accion, nlohmann::json args) {
@@ -42,7 +43,9 @@ void PtzPlugin::pedir(const std::string& accion, nlohmann::json args) {
     enlace().pedir(plugin_, accion, args);
 }
 
-void PtzPlugin::mover(double pan, double tilt, double zoom) { pedir("ptz.mover", {{"pan", pan}, {"tilt", tilt}, {"zoom", zoom}}); }
+void PtzPlugin::mover(double pan, double tilt, double zoom) {
+    pedir("ptz.mover", {{"pan", pan}, {"tilt", tilt}, {"zoom", zoom}});
+}
 void PtzPlugin::parar() { pedir("ptz.parar", nlohmann::json::object()); }
 void PtzPlugin::enfocar(double velocidad) { pedir("ptz.enfocar", {{"velocidad", velocidad}}); }
 void PtzPlugin::autoFoco(bool automatico) { pedir("ptz.auto_foco", {{"prendido", automatico}}); }
@@ -51,4 +54,3 @@ void PtzPlugin::guardarPreset(int numero) { pedir("ptz.guardar_preset", {{"numer
 void PtzPlugin::home() { pedir("ptz.home", nlohmann::json::object()); }
 
 } // namespace ba::app::ptz
-

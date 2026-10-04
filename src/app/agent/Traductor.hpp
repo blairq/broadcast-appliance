@@ -78,7 +78,8 @@ class Traductor : public QObject {
     using json = nlohmann::json;
     using Listo = std::function<void(json)>;
 
-    Traductor(std::filesystem::path dataRoot, ModelosLocales& modelos, FlujosTexto& flujos, QObject* parent = nullptr);
+    Traductor(std::filesystem::path dataRoot, ModelosLocales& modelos, FlujosTexto& flujos,
+              QObject* parent = nullptr);
     ~Traductor() override;
 
     static const std::map<std::string, std::string>& nombresIdiomas();
@@ -86,7 +87,8 @@ class Traductor : public QObject {
     /// Dónde viven las traducciones: las tarjetas «Traducir» de los racks. Los
     /// ids son los de las tarjetas («<fuente>#<nodo>»).
     struct Tarjetas {
-        std::function<json()> listar; ///< [{id, fuente, nodo, desde, idioma_desde, a, nombre, rotulo, archivo, activa, espera_ms}]
+        std::function<json()> listar; ///< [{id, fuente, nodo, desde, idioma_desde, a, nombre, rotulo,
+                                      ///< archivo, activa, espera_ms}]
         /// Agrega una (en `t["fuente"]` o al lado de la voz a texto de `t["desde"]`). "" o el error.
         std::function<std::string(const json& t, std::string* id)> agregar;
         std::function<std::string(const std::string& id, const json& cambios)> ajustar;
@@ -100,8 +102,8 @@ class Traductor : public QObject {
     json lista() const;
     /// Traduce la salida `desde` (en `idiomaDesde`) a `a`; publica en `nombre`
     /// ("" = «<desde> · <a>»). `opciones`: {rotulo, archivo, activa}. "" o el error.
-    std::string agregar(const std::string& desde, const std::string& idiomaDesde, const std::string& a, const std::string& nombre,
-                        const json& opciones, json* hecha);
+    std::string agregar(const std::string& desde, const std::string& idiomaDesde, const std::string& a,
+                        const std::string& nombre, const json& opciones, json* hecha);
     std::string ajustar(const std::string& id, const json& cambios);
     std::string quitar(const std::string& id);
     /// Para FlujosTexto: las salidas que publica el traductor, con su configuración.
@@ -178,7 +180,7 @@ class Traductor : public QObject {
     json porMigrar_ = json::array();
     bool migrando_ = false;
     void migrar();
-    json fabrica_ = json::array();  ///< datos/glosario-traduccion.json
+    json fabrica_ = json::array();   ///< datos/glosario-traduccion.json
     json operador_ = json::object(); ///< {terminos: [...], apagados: [es...], grupos_apagados: [...]}
     std::unique_ptr<plugins::Hijo> hijo_;
     QByteArray pendiente_;

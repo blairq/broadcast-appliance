@@ -2,11 +2,11 @@
 // src/app/ui/StudioViewModel.cpp — ver StudioViewModel.hpp
 // ============================================================================
 
-#include "platform/Paths.hpp"
-#include <QElapsedTimer>
 #include "ui/StudioViewModel.hpp"
+#include "platform/Paths.hpp"
 #include <QClipboard>
 #include <QDateTime>
+#include <QElapsedTimer>
 
 #include <QGuiApplication>
 #include <QScreen>
@@ -36,27 +36,24 @@
 #include "agent/AlertEngine.hpp"
 #include "agent/Despachador.hpp"
 #include "agent/FlujosTexto.hpp"
-#include "agent/Traductor.hpp"
-#include "agent/Subtitulos.hpp"
-#include "video/SuperRes.hpp"
-#include "agent/VocesRack.hpp"
 #include "agent/ModelosLocales.hpp"
-#include "red/Red.hpp"
-#include "plugins/Plugins.hpp"
-#include "ui/Seguidor.hpp"
-#include "dispositivos/Dispositivos.hpp"
-#include "dispositivos/Registro.hpp"
-#include "video/VideoGrafos.hpp"
 #include "agent/Roles.hpp"
+#include "agent/Subtitulos.hpp"
+#include "agent/Traductor.hpp"
+#include "agent/VocesRack.hpp"
 #include "agent/Voz.hpp"
 #include "agent/VozPrompter.hpp"
 #include "AppRuntime.hpp"
 #include "diag/DiarioDeArranque.hpp"
 #include "diag/Registro.hpp"
+#include "dispositivos/Dispositivos.hpp"
+#include "dispositivos/Registro.hpp"
 #include "graficos/Emisor.hpp"
 #include "graficos/Vinculos.hpp"
 #include "net/HttpsClient.hpp"
+#include "plugins/Plugins.hpp"
 #include "ptz/ControlCamaras.hpp"
+#include "red/Red.hpp"
 #include "ui/CarruselViewModel.hpp"
 #include "ui/ChatOverlayRenderer.hpp"
 #include "ui/ConferenceClient.hpp"
@@ -80,10 +77,13 @@
 #include "ui/RegistroViewModel.hpp"
 #include "ui/RielConfig.hpp"
 #include "ui/RotuladorViewModel.hpp"
+#include "ui/Seguidor.hpp"
 #include "ui/SettingsModel.hpp"
 #include "ui/SystemViewModel.hpp"
 #include "ui/TwitchViewModel.hpp"
 #include "ui/YouTubeViewModel.hpp"
+#include "video/SuperRes.hpp"
+#include "video/VideoGrafos.hpp"
 #include <QCoreApplication>
 
 namespace ba::app {
@@ -112,7 +112,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     const auto marca = [&relojArranque, &ultimaMarca](const char* que) {
         const qint64 ahora = relojArranque.elapsed();
         if (ahora - ultimaMarca > 150)
-            ba::diag::registro().info("arranque: " + std::string(que) + " tardó " + std::to_string(ahora - ultimaMarca) + " ms");
+            ba::diag::registro().info("arranque: " + std::string(que) + " tardó " +
+                                      std::to_string(ahora - ultimaMarca) + " ms");
         ultimaMarca = ahora;
     };
     // Modo seguro (el circuit breaker del launcher, tras varias caidas
@@ -142,7 +143,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         ba::diag::Cargando c("dashboard");
         dashboard_ = std::make_unique<DashboardModel>(c.saltear() ? std::filesystem::path{}
                                                                   : rt.dataRoot() / "Config" / "ui.json");
-                                                                  marca("dashboard");
+        marca("dashboard");
     }
     frames_ = std::make_unique<FrameService>(rt.engine(), rt.config().guests);
     marca("frames");
@@ -221,7 +222,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     vinculos_ = std::make_unique<graficos::Vinculos>(
         cargandoVinculos.saltear() ? std::filesystem::path{} : rt.dataRoot() / "Config" / "vinculos.json",
         *emisor_);
-        marca("vinculos");
+    marca("vinculos");
     vinculos_->setContexto([this]() { return contextoDeVinculos(); });
     rotulador_->setVinculos(vinculos_.get());
     evento_->setVinculos(vinculos_.get());
@@ -331,7 +332,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         };
         alerts_ = std::make_unique<agent::AlertEngine>(std::move(in),
                                                        (rt.dataRoot() / "Config" / "alertas.json").string());
-                                                       marca("alerts");
+        marca("alerts");
         connect(alerts_.get(), &agent::AlertEngine::fired, this, [this](const nlohmann::json& ev) {
             for (const auto& n : ev.value("notify", nlohmann::json::array()))
                 if (n == "ui") emit notify("⚠ " + QString::fromStdString(ev.value("text", "")), "warn");
@@ -410,17 +411,21 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             else if (kind == "credential") {
                 const QString p = QString::fromStdString(item.value("platform", ""));
                 if (p.startsWith("camaras:"))
-                    note = st == "saved" ? "[OPERADOR] guardo usuario y clave de las camaras " + p.mid(8) +
-                                               " (las que dejo sin clave, no). Siguiente paso: camara_ficha de cada una."
-                                         : "[OPERADOR] cerro el formulario de las camaras " + p.mid(8) + " sin guardar.";
+                    note =
+                        st == "saved"
+                            ? "[OPERADOR] guardo usuario y clave de las camaras " + p.mid(8) +
+                                  " (las que dejo sin clave, no). Siguiente paso: camara_ficha de cada una."
+                            : "[OPERADOR] cerro el formulario de las camaras " + p.mid(8) + " sin guardar.";
                 else if (p.startsWith("camara:"))
-                    note = st == "saved" ? "[OPERADOR] guardo usuario y clave de la camara " + p.mid(7) +
-                                               ". Siguiente paso: camara_ficha {\"ip\": \"" + p.mid(7) + "\"}."
-                                         : "[OPERADOR] cerro el formulario de la camara " + p.mid(7) + " sin guardar.";
-                else
                     note = st == "saved"
-                               ? "[OPERADOR] guardo la credencial de " + p + ". Siguiente paso: " + p + "_login."
-                               : "[OPERADOR] cerro el formulario de credenciales de " + p + " sin guardar.";
+                               ? "[OPERADOR] guardo usuario y clave de la camara " + p.mid(7) +
+                                     ". Siguiente paso: camara_ficha {\"ip\": \"" + p.mid(7) + "\"}."
+                               : "[OPERADOR] cerro el formulario de la camara " + p.mid(7) + " sin guardar.";
+                else
+                    note =
+                        st == "saved"
+                            ? "[OPERADOR] guardo la credencial de " + p + ". Siguiente paso: " + p + "_login."
+                            : "[OPERADOR] cerro el formulario de credenciales de " + p + " sin guardar.";
             }
             if (!note.isEmpty()) agent_->deliverNote(note);
         });
@@ -457,9 +462,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // Los equipos de video de la red: la biblioteca de marcas y la base OUI
     // vienen con el programa (data/red).
     red_ = std::make_unique<red::Red>(ba::platform::bundleRoot() / "data" / "red",
-                                      QString::fromStdWString((rt.dataRoot() / "Credenciales").wstring()), video_.get(),
-                                      camaras_.get());
-                                      marca("red");
+                                      QString::fromStdWString((rt.dataRoot() / "Credenciales").wstring()),
+                                      video_.get(), camaras_.get());
+    marca("red");
     // Los plugins de Python: en los datos (Plugins/), con el Python del programa.
     plugins_ = std::make_unique<plugins::Plugins>(rt, video_.get(), camaras_.get(), messages_.get());
     marca("plugins");
@@ -469,7 +474,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // Los equipos (red, esta máquina, USB): un catálogo con acciones declaradas.
     dispositivos_ = std::make_unique<dispositivos::Dispositivos>();
     marca("dispositivos");
-    dispositivos::registrarTodo(*dispositivos_, {red_.get(), plugins_.get(), video_.get(), camaras_.get(), messages_.get()});
+    dispositivos::registrarTodo(*dispositivos_,
+                                {red_.get(), plugins_.get(), video_.get(), camaras_.get(), messages_.get()});
 #if defined(BA_HAVE_CLAP)
     // Racks de audio (LSP) de cada fuente: se montan los guardados.
     racks_ = std::make_unique<audio::RackManager>(rt.dataRoot());
@@ -487,7 +493,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     flujos_->setLista([r = racks_.get(), t = traductor_.get()]() {
         nlohmann::json l = r->textos();
         if (t != nullptr)
-            for (const auto& s : t->salidas()) l.push_back(s);
+            for (const auto& s : t->salidas())
+                l.push_back(s);
         return l;
     });
     if (voces_) {
@@ -498,14 +505,15 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // Cada traducción es una tarjeta «Traducir» de un rack.
     if (traductor_) {
         auto* r = racks_.get();
-        traductor_->setTarjetas({[r]() { return r->traducciones(); },
-                                 [r](const nlohmann::json& t, std::string* id) {
-                                     std::string e;
-                                     *id = r->addTraduccion(t, &e);
-                                     return e;
-                                 },
-                                 [r](const std::string& id, const nlohmann::json& c) { return r->setTraduccionOpciones(id, c); },
-                                 [r](const std::string& id) { return r->quitarTraduccion(id); }});
+        traductor_->setTarjetas(
+            {[r]() { return r->traducciones(); },
+             [r](const nlohmann::json& t, std::string* id) {
+                 std::string e;
+                 *id = r->addTraduccion(t, &e);
+                 return e;
+             },
+             [r](const std::string& id, const nlohmann::json& c) { return r->setTraduccionOpciones(id, c); },
+             [r](const std::string& id) { return r->quitarTraduccion(id); }});
         connect(racks_.get(), &audio::RackManager::changed, traductor_.get(), &agent::Traductor::sincronizar);
         connect(racks_.get(), &audio::RackManager::editado, traductor_.get(), &agent::Traductor::sincronizar);
     }
@@ -720,7 +728,8 @@ QString StudioViewModel::saveAccountCredential(const QString& platform, const QV
     // Una cámara de la red (camara:<ip>): usuario y clave, cifrados.
     if (platform.startsWith("camara:")) {
         if (!red_) return "El escáner de red no está disponible.";
-        return red_->guardarCredenciales(platform.mid(7), v.value("usuario").toString(), v.value("clave").toString());
+        return red_->guardarCredenciales(platform.mid(7), v.value("usuario").toString(),
+                                         v.value("clave").toString());
     }
     // Varias cámaras en un formulario: «usuario|<ip>» y «clave|<ip>». Las que
     // quedan sin clave se saltean (se pueden completar después).
@@ -732,7 +741,8 @@ QString StudioViewModel::saveAccountCredential(const QString& platform, const QV
             if (clave.isEmpty()) continue;
             QString usuario = v.value("usuario|" + ip).toString().trimmed();
             if (usuario.isEmpty())
-                usuario = QString::fromStdString(red_->equipo(ip.toStdString()).value("usuario_de_fabrica", std::string("admin")));
+                usuario = QString::fromStdString(
+                    red_->equipo(ip.toStdString()).value("usuario_de_fabrica", std::string("admin")));
             const QString e = red_->guardarCredenciales(ip, usuario, clave);
             if (!e.isEmpty()) return ip + ": " + e;
             ++guardadas;

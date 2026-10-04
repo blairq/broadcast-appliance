@@ -149,15 +149,19 @@ int main(int argc, char** argv) {
     const json esquema = json::parse(R"j({"type":"object","required":["nombre"],"properties":{
         "nombre":{"type":"string","description":"la cámara (año, señal)"},
         "nivel":{"type":"number","minimum":0.5,"maximum":12}}})j");
-    CHECK(huellaEsquema(esquema) == "8e9be2ddb688cf7d", "huella del esquema igual a la de Python (con tildes y decimales)");
-    const json mj{{"modelo", {{"build", "v3-4b"}}},
-                  {"endpoints", json::array({{{"nombre", "a"}, {"esquema_huella", huellaEsquema(esquema)}, {"categoria", "audio"}},
-                                             {{"nombre", "b"}, {"esquema_huella", "0000000000000000"}, {"categoria", "audio"}},
-                                             {{"nombre", "c"}, {"esquema_huella", "1111111111111111"}, {"categoria", "sala"}}})}};
+    CHECK(huellaEsquema(esquema) == "8e9be2ddb688cf7d",
+          "huella del esquema igual a la de Python (con tildes y decimales)");
+    const json mj{
+        {"modelo", {{"build", "v3-4b"}}},
+        {"endpoints",
+         json::array({{{"nombre", "a"}, {"esquema_huella", huellaEsquema(esquema)}, {"categoria", "audio"}},
+                      {{"nombre", "b"}, {"esquema_huella", "0000000000000000"}, {"categoria", "audio"}},
+                      {{"nombre", "c"}, {"esquema_huella", "1111111111111111"}, {"categoria", "sala"}}})}};
     const json hoy{{"a", esquema}, {"b", esquema}, {"d", esquema}, {"e", esquema}};
     const json f = compararFicha(mj, hoy);
     CHECK(f["entrenadas"] == 3 && f["iguales"] == 1, "una igual");
-    CHECK(f["cambiaron"] == json::array({"b"}) && f["no_estan"] == json::array({"c"}), "una cambió y otra ya no está");
+    CHECK(f["cambiaron"] == json::array({"b"}) && f["no_estan"] == json::array({"c"}),
+          "una cambió y otra ya no está");
     CHECK(f["herramientas_app"] == 4 && f["sin_entrenar"] == 2, "de las 4 de hoy, 2 no las vio nunca");
     CHECK(f["por_categoria"]["audio"] == 2 && f["build"] == "v3-4b", "por tema y versión");
 

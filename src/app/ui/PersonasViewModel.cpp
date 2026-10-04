@@ -1,19 +1,19 @@
 // ============================================================================
 // src/app/ui/PersonasViewModel.cpp — ver PersonasViewModel.hpp
 // ============================================================================
-#include "platform/Paths.hpp"
 #include "ui/PersonasViewModel.hpp"
+#include "platform/Paths.hpp"
 
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QImage>
 
-#include <set>
 #include <QJsonObject>
 #include <QSet>
 #include <QTimer>
 #include <QUrl>
+#include <set>
 
 #include <algorithm>
 
@@ -144,12 +144,13 @@ bool cuadro(StudioViewModel& vm, const QString& feed, QImage& img, std::vector<s
         auto* vg = vm.videoGrafos();
         int w = 0, h = 0;
         std::uint64_t serie = 0;
-        if (vg == nullptr || !vg->cuadroRostros(feed.mid(8).toStdString(), bgra, w, h, serie) || serie == 0 || w <= 0 ||
-            h <= 0 || bgra.size() < static_cast<std::size_t>(w) * h * 4)
+        if (vg == nullptr || !vg->cuadroRostros(feed.mid(8).toStdString(), bgra, w, h, serie) || serie == 0 ||
+            w <= 0 || h <= 0 || bgra.size() < static_cast<std::size_t>(w) * h * 4)
             return false;
         img = QImage(w, h, QImage::Format_ARGB32); // BGRA en memoria
         for (int y = 0; y < h; ++y)
-            std::memcpy(img.scanLine(y), bgra.data() + static_cast<std::size_t>(y) * w * 4, static_cast<std::size_t>(w) * 4);
+            std::memcpy(img.scanLine(y), bgra.data() + static_cast<std::size_t>(y) * w * 4,
+                        static_cast<std::size_t>(w) * 4);
         return true;
     }
     auto* frames = static_cast<FrameService*>(vm.frames());
@@ -173,7 +174,10 @@ void marcarSiCamara(StudioViewModel& vm, const QString& feed, const std::vector<
     const double w = img.width(), h = img.height();
     nlohmann::json cajas = nlohmann::json::array();
     for (const auto& v : vistos)
-        cajas.push_back({{"x", v.cara.x / w}, {"y", v.cara.y / h}, {"ancho", v.cara.ancho / w}, {"alto", v.cara.alto / h}});
+        cajas.push_back({{"x", v.cara.x / w},
+                         {"y", v.cara.y / h},
+                         {"ancho", v.cara.ancho / w},
+                         {"alto", v.cara.alto / h}});
     vg->marcarCaras(feed.mid(8).toStdString(), cajas);
 }
 
@@ -306,7 +310,8 @@ void PersonasViewModel::pedirAnalisis(const QString& feed, bool descartable, Ana
     const int w = img->width();
     const int h = img->height();
     d_->rec.pedir(std::move(bgra), w, h, descartable,
-                  [this, feed, luego = std::move(luego), img](std::vector<Reconocedor::Visto> vistos, const QString& error) {
+                  [this, feed, luego = std::move(luego), img](std::vector<Reconocedor::Visto> vistos,
+                                                              const QString& error) {
                       if (error.isEmpty()) marcarSiCamara(d_->vm, feed, vistos, *img);
                       luego(std::move(vistos), *img, error);
                   });
@@ -317,11 +322,12 @@ void PersonasViewModel::reintentarAnalisis(const QString& feed, Analisis luego, 
     std::vector<std::uint8_t> bgra;
     if (cuadro(d_->vm, feed, *img, bgra)) {
         const int w = img->width(), h = img->height();
-        d_->rec.pedir(std::move(bgra), w, h, false,
-                      [this, feed, luego = std::move(luego), img](std::vector<Reconocedor::Visto> v, const QString& e) {
-                          if (e.isEmpty()) marcarSiCamara(d_->vm, feed, v, *img);
-                          luego(std::move(v), *img, e);
-                      });
+        d_->rec.pedir(
+            std::move(bgra), w, h, false,
+            [this, feed, luego = std::move(luego), img](std::vector<Reconocedor::Visto> v, const QString& e) {
+                if (e.isEmpty()) marcarSiCamara(d_->vm, feed, v, *img);
+                luego(std::move(v), *img, e);
+            });
     } else if (intento < 10) {
         QTimer::singleShot(200, this, [this, feed, luego = std::move(luego), intento]() mutable {
             reintentarAnalisis(feed, std::move(luego), intento + 1);
@@ -347,12 +353,15 @@ void PersonasViewModel::sincronizarRostros() {
     auto* vg = d_->vm.videoGrafos();
     if (vg == nullptr) return;
     std::map<std::string, std::string> quiero;
-    const auto cam = [](const QString& f) { return f.startsWith("entrada:") ? f.mid(8).toStdString() : std::string(); };
+    const auto cam = [](const QString& f) {
+        return f.startsWith("entrada:") ? f.mid(8).toStdString() : std::string();
+    };
     if (!cam(d_->feedMirado).empty() && QDateTime::currentMSecsSinceEpoch() - d_->miradoMs < 15000)
         quiero[cam(d_->feedMirado)] = "mirar";
     if (d_->autoalta && !cam(d_->feedAuto).empty()) quiero[cam(d_->feedAuto)] = "autoalta";
     if (d_->puertaAuto && !cam(d_->feedPuerta).empty()) quiero[cam(d_->feedPuerta)] = "puerta";
-    for (const QString& e : d_->seguidas) quiero[e.toStdString()] = "seguir";
+    for (const QString& e : d_->seguidas)
+        quiero[e.toStdString()] = "seguir";
     const std::string e = vg->configurarRostros(quiero);
     if (!e.empty()) emit notify(QString::fromStdString(e), "error");
 }
@@ -360,8 +369,10 @@ void PersonasViewModel::sincronizarRostros() {
 void PersonasViewModel::usarCamara(const QString& entrada, bool usar) {
     const bool antes = d_->seguidas.count(entrada) > 0;
     if (usar == antes) return;
-    if (usar) d_->seguidas.insert(entrada);
-    else d_->seguidas.erase(entrada);
+    if (usar)
+        d_->seguidas.insert(entrada);
+    else
+        d_->seguidas.erase(entrada);
     sincronizarRostros();
 }
 

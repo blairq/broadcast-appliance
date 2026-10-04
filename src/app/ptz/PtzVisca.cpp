@@ -66,7 +66,9 @@ void PtzVisca::configurar(const QJsonObject& conf) {
             pendienteTcp_.clear();
         });
         connect(tcp_, &QTcpSocket::errorOccurred, this, [this]() {
-            setEstado(false, QStringLiteral("No conecta con %1:%2 (%3)").arg(host_).arg(puerto_).arg(tcp_->errorString()));
+            setEstado(
+                false,
+                QStringLiteral("No conecta con %1:%2 (%3)").arg(host_).arg(puerto_).arg(tcp_->errorString()));
             reconexion_.start();
         });
         conectarTcp();
@@ -103,8 +105,10 @@ void PtzVisca::conectarTcp() {
 
 void PtzVisca::enviar(const QByteArray& m) {
     if (tcp_ != nullptr) {
-        if (tcp_->state() == QAbstractSocket::ConnectedState) tcp_->write(m);
-        else pendienteTcp_ = m; // la última; al conectar sale
+        if (tcp_->state() == QAbstractSocket::ConnectedState)
+            tcp_->write(m);
+        else
+            pendienteTcp_ = m; // la última; al conectar sale
     } else if (udp_ != nullptr && !dir_.isNull()) {
         const QByteArray d = transporte_ == "sony" ? visca::conEncabezado(0x0100, m, ++secuencia_) : m;
         udp_->writeDatagram(d, dir_, static_cast<quint16>(puerto_));

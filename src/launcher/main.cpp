@@ -18,10 +18,10 @@
 //   --app-arg=<x>    argumento extra para A (repetible)
 //   --gw-arg=<x>     argumento extra para B (repetible)
 
+#include "Datos.hpp"
 #include "Log.hpp"
 #include "platform/Paths.hpp"
 #include "security/CredentialStore.hpp"
-#include "Datos.hpp"
 #include "Supervisor.hpp"
 #include "Updater.hpp"
 

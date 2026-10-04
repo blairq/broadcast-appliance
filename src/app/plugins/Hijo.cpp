@@ -47,8 +47,8 @@ void Hijo::cerrarTodo() {
 #endif
 }
 
-bool Hijo::iniciar(const QString& programa, const QStringList& args, const QProcessEnvironment& env, const QString& carpeta,
-                   bool unirErrores, QString* error) {
+bool Hijo::iniciar(const QString& programa, const QStringList& args, const QProcessEnvironment& env,
+                   const QString& carpeta, bool unirErrores, QString* error) {
 #if defined(_WIN32)
     (void)programa;
     (void)args;
@@ -92,20 +92,25 @@ bool Hijo::iniciar(const QString& programa, const QStringList& args, const QProc
     sigemptyset(&vacio);
     posix_spawnattr_setsigmask(&at, &vacio);
     sigemptyset(&defecto);
-    for (int s : {SIGPIPE, SIGCHLD, SIGINT, SIGTERM, SIGHUP, SIGQUIT}) sigaddset(&defecto, s);
+    for (int s : {SIGPIPE, SIGCHLD, SIGINT, SIGTERM, SIGHUP, SIGQUIT})
+        sigaddset(&defecto, s);
     posix_spawnattr_setsigdefault(&at, &defecto);
 
     const QByteArray prog = programa.toLocal8Bit();
     std::vector<QByteArray> a8;
     a8.push_back(prog);
-    for (const QString& x : args) a8.push_back(x.toLocal8Bit());
+    for (const QString& x : args)
+        a8.push_back(x.toLocal8Bit());
     std::vector<char*> argv;
-    for (auto& x : a8) argv.push_back(x.data());
+    for (auto& x : a8)
+        argv.push_back(x.data());
     argv.push_back(nullptr);
     std::vector<QByteArray> e8;
-    for (const QString& x : env.toStringList()) e8.push_back(x.toLocal8Bit());
+    for (const QString& x : env.toStringList())
+        e8.push_back(x.toLocal8Bit());
     std::vector<char*> envp;
-    for (auto& x : e8) envp.push_back(x.data());
+    for (auto& x : e8)
+        envp.push_back(x.data());
     envp.push_back(nullptr);
 
     pid_t pid = -1;
@@ -119,7 +124,9 @@ bool Hijo::iniciar(const QString& programa, const QStringList& args, const QProc
         ::close(pin[1]);
         ::close(pout[0]);
         if (perr[0] >= 0) ::close(perr[0]);
-        if (error) *error = QStringLiteral("no se pudo lanzar «%1»: %2").arg(programa, QString::fromLocal8Bit(strerror(r)));
+        if (error)
+            *error = QStringLiteral("no se pudo lanzar «%1»: %2")
+                         .arg(programa, QString::fromLocal8Bit(strerror(r)));
         return false;
     }
     pid_ = pid;
@@ -258,7 +265,8 @@ QByteArray Hijo::leerErrores() {
     return b;
 }
 
-void Hijo::correr(QObject* dueno, const QString& programa, const QStringList& args, const QProcessEnvironment& env, int topeMs,
+void Hijo::correr(QObject* dueno, const QString& programa, const QStringList& args,
+                  const QProcessEnvironment& env, int topeMs,
                   std::function<void(int, QByteArray, QByteArray)> listo) {
     auto* h = new Hijo(dueno);
     QString e;

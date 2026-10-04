@@ -268,7 +268,8 @@ struct Config {
         // La web viene con el programa: del bundle; si no está (la copia
         // sombra solo trae bin/, obs-plugins/ y data/), de la raíz real.
         std::error_code ec;
-        const std::filesystem::path web = std::filesystem::exists(bundle / "Web", ec) ? bundle / "Web" : root / "Web";
+        const std::filesystem::path web =
+            std::filesystem::exists(bundle / "Web", ec) ? bundle / "Web" : root / "Web";
         if (webroot.empty()) webroot = utf8(web / "guest");
         if (adminWebroot.empty()) adminWebroot = utf8(web / "admin");
         if (sharesDir.empty()) sharesDir = utf8(root / "Shares");

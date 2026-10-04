@@ -35,13 +35,15 @@ class VideoGrafos;
 
 class SuperRes : public QObject {
     Q_OBJECT
-    /// [{archivo, nombre, arquitectura, escala, canales, psnr_red, psnr_bicubico, licencia, fecha, tamano_mb}]
+    /// [{archivo, nombre, arquitectura, escala, canales, psnr_red, psnr_bicubico, licencia, fecha,
+    /// tamano_mb}]
     Q_PROPERTY(QVariantList modelos READ modelosQml NOTIFY cambio)
     /// Qué motores hay en este sistema (apple, fsr, onnx).
     Q_PROPERTY(QStringList motores READ motores NOTIFY cambio)
     /// Si el laboratorio ya tiene sus bibliotecas.
     Q_PROPERTY(bool laboratorioListo READ laboratorioListo NOTIFY cambio)
-    /// El trabajo en curso o el último: {que, entrada, corriendo, pct, texto, error, psnr_red, psnr_bicubico, modelo}
+    /// El trabajo en curso o el último: {que, entrada, corriendo, pct, texto, error, psnr_red, psnr_bicubico,
+    /// modelo}
     Q_PROPERTY(QVariantMap trabajo READ trabajo NOTIFY trabajoCambio)
 
    public:
@@ -90,7 +92,8 @@ class SuperRes : public QObject {
     std::filesystem::path python() const;
     std::filesystem::path libs() const;
     /// Corre `args` con el Python del programa; cada línea JSON va a `trabajo`; `fin` al terminar.
-    std::string correr(const QString& que, const QString& entrada, const QStringList& args, std::function<void(bool ok)> fin);
+    std::string correr(const QString& que, const QString& entrada, const QStringList& args,
+                       std::function<void(bool ok)> fin);
     void linea(const QByteArray& l);
 
     std::filesystem::path root_;

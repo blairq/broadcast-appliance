@@ -24,11 +24,11 @@
 
 #include <obs-module.h>
 
+#include <atomic>
 #include <cstdint>
 #include <map>
-#include <string>
-#include <atomic>
 #include <mutex>
+#include <string>
 #include <vector>
 
 typedef struct _GstElement GstElement;

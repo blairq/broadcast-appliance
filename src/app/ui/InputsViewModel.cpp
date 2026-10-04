@@ -2,8 +2,8 @@
 // src/app/ui/InputsViewModel.cpp — ver InputsViewModel.hpp
 // ============================================================================
 
-#include "platform/Paths.hpp"
 #include "ui/InputsViewModel.hpp"
+#include "platform/Paths.hpp"
 
 #include <QImage>
 #include <QMetaObject>
@@ -166,13 +166,14 @@ void InputsViewModel::rebuildInputs() {
             {"kind", hw      ? "hardware"
                      : isNdi ? "ndi"
                              : "red"},
-            {"where",
-             QString::fromStdString(hw      ? s.value(inputs::kVideoProp, std::string())
-                                    : isNdi ? "NDI: " + s.value("ndi_name", s.value("host", std::string()))
-                                    : type == "ba_gst_fuente"
-                                        ? (s.contains("ba_plugin") ? "Plugin: " + s.value("ba_plugin", std::string())
-                                                                    : inputs::redactUrl(s.value("uri", s.value("pipeline", std::string()))))
-                                            : inputs::redactUrl(s.value("input", std::string())))},
+            {"where", QString::fromStdString(
+                          hw      ? s.value(inputs::kVideoProp, std::string())
+                          : isNdi ? "NDI: " + s.value("ndi_name", s.value("host", std::string()))
+                          : type == "ba_gst_fuente"
+                              ? (s.contains("ba_plugin")
+                                     ? "Plugin: " + s.value("ba_plugin", std::string())
+                                     : inputs::redactUrl(s.value("uri", s.value("pipeline", std::string()))))
+                              : inputs::redactUrl(s.value("input", std::string())))},
             {"width", w},
             {"height", h},
             {"receiving", w > 0},
@@ -273,8 +274,9 @@ QString InputsViewModel::addNetwork(const QString& url, const QString& name, con
         return "La direccion tiene que empezar con rtsp://, rtmp://, srt://, http(s)://, udp:// o rtp://.";
     const std::string nm =
         name.trimmed().isEmpty() ? "Red " + inputs::redactUrl(u).substr(0, 40) : name.trimmed().toStdString();
-    const SourceSpec spec = inputs::networkSpec(u, nm, json{{"latency", lowLatency ? "low" : "normal"}},
-                                                (ba::platform::bundleRoot() / "data" / "cacert.pem").string());
+    const SourceSpec spec =
+        inputs::networkSpec(u, nm, json{{"latency", lowLatency ? "low" : "normal"}},
+                            (ba::platform::bundleRoot() / "data" / "cacert.pem").string());
     const std::string sc = scene.isEmpty() ? rt_.engine().currentScene() : scene.toStdString();
     if (!rt_.addSource(sc, spec)) return QString::fromStdString(rt_.lastError());
     rt_.save();

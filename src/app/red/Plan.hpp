@@ -22,7 +22,8 @@ namespace ba::app::red {
 ///        alto, fps, bitrate, uri, ptz}, ptz {…}).
 /// :param analisis: el de GStreamer del perfil elegido, si ya se hizo ({} si no).
 /// :param lienzo: {ancho, alto, fps}.
-nlohmann::json planDe(const nlohmann::json& ficha, const nlohmann::json& analisis, const nlohmann::json& lienzo);
+nlohmann::json planDe(const nlohmann::json& ficha, const nlohmann::json& analisis,
+                      const nlohmann::json& lienzo);
 
 /// El perfil que conviene de una lista (índice, o -1).
 int elegirPerfil(const nlohmann::json& perfiles, int altoLienzo);

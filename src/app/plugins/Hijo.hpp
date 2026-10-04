@@ -40,8 +40,8 @@ class Hijo : public QObject {
     ~Hijo() override; ///< si sigue vivo, lo mata (al grupo)
 
     /// Lo lanza. `unirErrores`: stderr va con stdout. false + `error` si no se pudo.
-    bool iniciar(const QString& programa, const QStringList& args, const QProcessEnvironment& env, const QString& carpeta,
-                 bool unirErrores, QString* error);
+    bool iniciar(const QString& programa, const QStringList& args, const QProcessEnvironment& env,
+                 const QString& carpeta, bool unirErrores, QString* error);
     qint64 pid() const { return pid_; }
     bool corriendo() const { return pid_ > 0 && !termino_; }
 
@@ -56,8 +56,9 @@ class Hijo : public QObject {
 
     /// Para comandos cortos: lo corre, junta toda la salida y avisa al final
     /// (`codigo` -1 si no arrancó o se lo mató por `topeMs`).
-    static void correr(QObject* dueno, const QString& programa, const QStringList& args, const QProcessEnvironment& env,
-                       int topeMs, std::function<void(int codigo, QByteArray salida, QByteArray errores)> listo);
+    static void correr(QObject* dueno, const QString& programa, const QStringList& args,
+                       const QProcessEnvironment& env, int topeMs,
+                       std::function<void(int codigo, QByteArray salida, QByteArray errores)> listo);
 
    signals:
     void salida();  ///< hay algo nuevo en stdout

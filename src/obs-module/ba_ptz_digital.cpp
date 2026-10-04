@@ -56,10 +56,10 @@ struct Ptz {
     gs_eparam_t* pEscala = nullptr;
 
     std::mutex mu;
-    double x = 0.5, y = 0.5, zoom = 1.0;  ///< posicion actual
-    double vx = 0, vy = 0, vz = 0;        ///< velocidad pedida (-1..1)
-    double ax = 0, ay = 0, az = 0;        ///< velocidad aplicada (con rampa)
-    bool yendo = false;                   ///< hacia un preset
+    double x = 0.5, y = 0.5, zoom = 1.0; ///< posicion actual
+    double vx = 0, vy = 0, vz = 0;       ///< velocidad pedida (-1..1)
+    double ax = 0, ay = 0, az = 0;       ///< velocidad aplicada (con rampa)
+    bool yendo = false;                  ///< hacia un preset
     double desdeX = 0, desdeY = 0, desdeZ = 1, haciaX = 0, haciaY = 0, haciaZ = 1;
     double t = 0, duracion = 0;
 };
@@ -135,14 +135,16 @@ void* crear(obs_data_t*, obs_source_t* ctx) {
     obs_leave_graphics();
     if (p->fx == nullptr) {
         blog(LOG_WARNING, "[ba-sources] PTZ digital: no se pudo cargar %s (%s); la imagen pasa sin recortar",
-             ruta != nullptr ? ruta : "ptz-digital.effect", errores != nullptr ? errores : "no esta el archivo");
+             ruta != nullptr ? ruta : "ptz-digital.effect",
+             errores != nullptr ? errores : "no esta el archivo");
     }
     bfree(errores);
     bfree(ruta);
     proc_handler_t* ph = obs_source_get_proc_handler(ctx);
     proc_handler_add(ph, "void mover(in float vx, in float vy, in float vz)", procMover, p);
     proc_handler_add(ph, "void ir(in float x, in float y, in float zoom, in float segundos)", procIr, p);
-    proc_handler_add(ph, "void posicion(out float x, out float y, out float zoom, out bool moviendo)", procPosicion, p);
+    proc_handler_add(ph, "void posicion(out float x, out float y, out float zoom, out bool moviendo)",
+                     procPosicion, p);
     return p;
 }
 
@@ -197,7 +199,8 @@ void dibujar(void* data, gs_effect_t*) {
         y = p->y;
         zoom = p->zoom;
     }
-    if (p->fx == nullptr || cx == 0 || cy == 0 || (zoom < 1.0005 && std::fabs(x - 0.5) < 1e-4 && std::fabs(y - 0.5) < 1e-4)) {
+    if (p->fx == nullptr || cx == 0 || cy == 0 ||
+        (zoom < 1.0005 && std::fabs(x - 0.5) < 1e-4 && std::fabs(y - 0.5) < 1e-4)) {
         obs_source_skip_video_filter(p->ctx);
         return;
     }

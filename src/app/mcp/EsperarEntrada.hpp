@@ -14,7 +14,8 @@
 
 namespace ba::app::mcp {
 
-inline void esperarEntrada(QPointer<video::VideoGrafos> v, std::string entrada, int restanteMs, std::function<void(nlohmann::json)> cb) {
+inline void esperarEntrada(QPointer<video::VideoGrafos> v, std::string entrada, int restanteMs,
+                           std::function<void(nlohmann::json)> cb) {
     if (!v) return cb(nlohmann::json{{"error", "el video ya no está"}});
     nlohmann::json st = v->estadoEntrada(entrada);
     const nlohmann::json g = st.value("gstreamer", nlohmann::json::object());

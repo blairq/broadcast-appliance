@@ -320,7 +320,8 @@ Resultado validar(const std::string& herr, const json& ficha, const json& args0,
 
 LlamadaTc leerTc(const std::string& generado) {
     LlamadaTc l;
-    static const std::regex llamada(R"(<tool_call>\s*<function=([^>\n]+)>([\s\S]*?)</function>\s*</tool_call>)");
+    static const std::regex llamada(
+        R"(<tool_call>\s*<function=([^>\n]+)>([\s\S]*?)</function>\s*</tool_call>)");
     static const std::regex parametro(R"(<parameter=([^>\n]+)>\n?([\s\S]*?)\n?</parameter>)");
     std::smatch m;
     if (!std::regex_search(generado, m, llamada)) return l;
@@ -360,9 +361,12 @@ json argsDesdeTc(const LlamadaTc& llamada, const json& ficha) {
             args[k] = v == "true" || v == "verdadero" || v == "sí" || v == "si" || v == "1";
         } else if (tipo == "array" || tipo == "object") {
             const json j = json::parse(v, nullptr, false);
-            if (!j.is_discarded()) args[k] = j;
-            else if (tipo == "array") args[k] = json::array({v});
-            else args[k] = v;
+            if (!j.is_discarded())
+                args[k] = j;
+            else if (tipo == "array")
+                args[k] = json::array({v});
+            else
+                args[k] = v;
         } else {
             // Texto (y enums): tal cual; un «=» adelante de un texto no significa nada.
             args[k] = v;

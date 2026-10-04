@@ -23,9 +23,9 @@
 
 #pragma once
 
+#include <functional>
 #include <QMediaDevices>
 #include <QObject>
-#include <functional>
 #include <QVariantList>
 
 #include <nlohmann/json.hpp>

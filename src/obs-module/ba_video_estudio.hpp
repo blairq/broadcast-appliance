@@ -34,7 +34,8 @@ void publicarToma(const std::string& nombre, const std::string& fuente, gs_textu
                   std::uint32_t cy);
 /// La toma `nombre` de este cuadro (despierta a `fuente` si hace falta), o
 /// nullptr. `cx`/`cy`: su tamaño.
-gs_texture_t* leerToma(const std::string& nombre, const std::string& fuente, std::uint32_t* cx, std::uint32_t* cy);
+gs_texture_t* leerToma(const std::string& nombre, const std::string& fuente, std::uint32_t* cx,
+                       std::uint32_t* cy);
 
 /// La configuración del compositor `id` (JSON: {ancho, alto, fondo,
 /// capas:[{toma, fuente, x, y, ancho, alto, opacidad}]}, en orden de abajo

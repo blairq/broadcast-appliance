@@ -3,8 +3,8 @@
 #include "video/GrafoVideo.hpp"
 
 #include <algorithm>
-#include <cmath>
 #include <cctype>
+#include <cmath>
 #include <cstring>
 #include <map>
 #include <set>
@@ -20,15 +20,17 @@ namespace {
 constexpr int kColumna = 220;
 
 bool esFiltro(const std::string& t) {
-    return t == "color" || t == "croma" || t == "recorte" || t == "obs" || t == "gst" || t == "retardo" || t == "rostros" ||
-           t == "normalizar" || t == "sincro" || t == "superres";
+    return t == "color" || t == "croma" || t == "recorte" || t == "obs" || t == "gst" || t == "retardo" ||
+           t == "rostros" || t == "normalizar" || t == "sincro" || t == "superres";
 }
 
 json fabrica(const std::string& tipo) {
     if (tipo == "color") return {{"brillo", 0.0}, {"contraste", 1.0}, {"saturacion", 1.0}, {"gamma", 1.0}};
-    if (tipo == "croma") return {{"clave", 0x00B140}, {"similitud", 0.4}, {"suavidad", 0.08}, {"derrame", 0.1}};
+    if (tipo == "croma")
+        return {{"clave", 0x00B140}, {"similitud", 0.4}, {"suavidad", 0.08}, {"derrame", 0.1}};
     if (tipo == "recorte")
-        return {{"izquierda", 0.0}, {"arriba", 0.0}, {"derecha", 0.0}, {"abajo", 0.0}, {"espejoH", false}, {"espejoV", false}};
+        return {{"izquierda", 0.0}, {"arriba", 0.0},    {"derecha", 0.0},
+                {"abajo", 0.0},     {"espejoH", false}, {"espejoV", false}};
     if (tipo == "salida") return {{"nombre", ""}};
     // `ms` (lo que se mide) manda sobre `cuadros` si es > 0.
     if (tipo == "retardo") return {{"cuadros", 0}, {"ms", 0}};
@@ -37,8 +39,8 @@ json fabrica(const std::string& tipo) {
     // (en libobs, que tiene los campos): no | descartar | retro | mezclar |
     // lineal | yadif | yadif2x; `campo`: arriba | abajo.
     if (tipo == "normalizar")
-        return {{"matriz_declarada", "709"}, {"rango_declarado", "limitado"}, {"matriz_real", "709"}, {"rango_real", "limitado"},
-                {"desentrelazar", "no"}, {"campo", "arriba"}};
+        return {{"matriz_declarada", "709"}, {"rango_declarado", "limitado"}, {"matriz_real", "709"},
+                {"rango_real", "limitado"},  {"desentrelazar", "no"},         {"campo", "arriba"}};
     // La huella para medir desfases (la pone video_sincronia y la saca al terminar).
     if (tipo == "sincro") return {{"auto", false}};
     // `uso`: para qué la usa Personas (mirar | autoalta | puerta); `auto`: la
@@ -49,7 +51,8 @@ json fabrica(const std::string& tipo) {
     // fsr | onnx (con `modelo`, la ruta del .onnx), `nitidez` (FSR), `proveedor`
     // (onnx: auto | cpu | coreml | dml), `activo`. Lo que la sigue trabaja al doble.
     if (tipo == "superres")
-        return {{"motor", "auto"}, {"modelo", ""}, {"nitidez", 0.2}, {"proveedor", "auto"}, {"activo", true}, {"esperar", 0}};
+        return {{"motor", "auto"},     {"modelo", ""},   {"nitidez", 0.2},
+                {"proveedor", "auto"}, {"activo", true}, {"esperar", 0}};
     if (tipo == "obs") return {{"filtro", ""}, {"ajustes", json::object()}};
     // Un módulo de GStreamer: el elemento y sus propiedades (lo que cambia de fábrica).
     // `esperar` (ms): 0 entrega el cuadro anterior (1 cuadro de latencia, nunca
@@ -61,7 +64,11 @@ json fabrica(const std::string& tipo) {
     // Por puerto: {"in_0": {x, y, ancho, alto, opacidad, orden}} (lo ejecuta el estudio).
     // `nombre`: la fuente con la que se pone en las escenas. Sin capas: mosaico.
     if (tipo == "compositor")
-        return {{"ancho", 1920}, {"alto", 1080}, {"fondo", 0xFF000000LL}, {"nombre", ""}, {"capas", json::object()}};
+        return {{"ancho", 1920},
+                {"alto", 1080},
+                {"fondo", 0xFF000000LL},
+                {"nombre", ""},
+                {"capas", json::object()}};
     if (tipo == "entrada" || tipo == "escena") return {{"fuente", ""}};
     return json::object();
 }
@@ -93,7 +100,8 @@ std::string slug(const std::string& original) {
         {"Á", 'a'}, {"É", 'e'}, {"Í", 'i'}, {"Ó", 'o'}, {"Ú", 'u'}, {"Ü", 'u'}, {"Ñ", 'n'}};
     std::string s = original;
     for (const auto& [con, sin] : kTildes)
-        for (size_t p = s.find(con); p != std::string::npos; p = s.find(con, p)) s.replace(p, std::strlen(con), 1, sin);
+        for (size_t p = s.find(con); p != std::string::npos; p = s.find(con, p))
+            s.replace(p, std::strlen(con), 1, sin);
     std::string out;
     bool guion = false;
     for (unsigned char c : s) {
@@ -112,7 +120,8 @@ std::string slug(const std::string& original) {
             guion = true;
         }
     }
-    while (!out.empty() && out.back() == '-') out.pop_back();
+    while (!out.empty() && out.back() == '-')
+        out.pop_back();
     return out.empty() ? "entrada" : out;
 }
 
@@ -146,20 +155,33 @@ json GrafoVideo::catalogo() {
         {"color", "Brillo, contraste, saturación y gamma.", "entrada"},
         {"croma", "Saca un fondo de color (verde de fábrica): queda transparente.", "entrada"},
         {"recorte", "Recorta los bordes (quedan transparentes) y da vuelta la imagen.", "entrada"},
-        {"rostros", "Reconoce caras en este punto de la entrada (para Personas: anotado, puerta). La imagen pasa igual; "
-                    "con «marcar», dibuja las caras.", "entrada"},
-        {"normalizar", "Corrige una fuente que declara mal su color (BT.601/709, rango limitado/completo) y la "
-                       "desentrelaza (en la fuente, donde están los campos).", "entrada"},
-        {"retardo", "Atrasa la imagen (`ms`, o `cuadros`): para sincronizar una cámara con otra o con el audio.", "entrada"},
-        {"superres", "Duplica la resolución (Apple en macOS 26, FSR 1 en cualquier GPU, o una red ONNX entrenada con la "
-                     "cámara): lo que la sigue trabaja al doble y la escena la recibe grande. Compensa el audio solo.", "entrada"},
-        {"salida", "Publica la imagen de ese punto como una fuente con nombre, para cualquier escena.", "entrada"},
-        {"compositor", "Junta varias entradas en una imagen (mosaico, imagen en imagen). Es del estudio.", "estudio"},
-        {"control", "Maneja con UN ajuste las tarjetas iguales de varias entradas (la misma corrección de color "
-                    "en todas las cámaras): un cable de control a cada una.", "estudio"},
+        {"rostros",
+         "Reconoce caras en este punto de la entrada (para Personas: anotado, puerta). La imagen pasa igual; "
+         "con «marcar», dibuja las caras.",
+         "entrada"},
+        {"normalizar",
+         "Corrige una fuente que declara mal su color (BT.601/709, rango limitado/completo) y la "
+         "desentrelaza (en la fuente, donde están los campos).",
+         "entrada"},
+        {"retardo",
+         "Atrasa la imagen (`ms`, o `cuadros`): para sincronizar una cámara con otra o con el audio.",
+         "entrada"},
+        {"superres",
+         "Duplica la resolución (Apple en macOS 26, FSR 1 en cualquier GPU, o una red ONNX entrenada con la "
+         "cámara): lo que la sigue trabaja al doble y la escena la recibe grande. Compensa el audio solo.",
+         "entrada"},
+        {"salida", "Publica la imagen de ese punto como una fuente con nombre, para cualquier escena.",
+         "entrada"},
+        {"compositor", "Junta varias entradas en una imagen (mosaico, imagen en imagen). Es del estudio.",
+         "estudio"},
+        {"control",
+         "Maneja con UN ajuste las tarjetas iguales de varias entradas (la misma corrección de color "
+         "en todas las cámaras): un cable de control a cada una.",
+         "estudio"},
     };
     for (const auto& [t, d, a] : tipos)
-        out.push_back({{"tipo", t}, {"titulo", titulo(t)}, {"descripcion", d}, {"params", fabrica(t)}, {"ambito", a}});
+        out.push_back(
+            {{"tipo", t}, {"titulo", titulo(t)}, {"descripcion", d}, {"params", fabrica(t)}, {"ambito", a}});
     return out;
 }
 
@@ -201,7 +223,8 @@ std::vector<GrafoVideo::Puerto> GrafoVideo::puertosEntrada(const Nodo& n) const 
         if (indicePedido(c.entrada) >= 0) usados.push_back(indicePedido(c.entrada));
     std::sort(usados.begin(), usados.end());
     std::vector<Puerto> out;
-    for (int i : usados) out.push_back({"in_" + std::to_string(i), "video", false});
+    for (int i : usados)
+        out.push_back({"in_" + std::to_string(i), "video", false});
     out.push_back({"in_" + std::to_string(usados.empty() ? 0 : usados.back() + 1), "video", true});
     return out;
 }
@@ -281,13 +304,15 @@ std::string GrafoVideo::agregar(const std::string& tipo, const std::string& grup
     n.etiqueta = titulo(tipo);
     n.params = fabrica(tipo);
     if (params.is_object())
-        for (auto it = params.begin(); it != params.end(); ++it) n.params[it.key()] = it.value();
+        for (auto it = params.begin(); it != params.end(); ++it)
+            n.params[it.key()] = it.value();
     // Un compositor o un controlador es del estudio: suelto, a la derecha de todo.
     if (tipo == "compositor" || tipo == "control") {
         n.grupo = "";
         n.id = idNuevo("", tipo);
         int x = 0;
-        for (const auto& m : nodos_) x = std::max(x, m.x + kColumna);
+        for (const auto& m : nodos_)
+            x = std::max(x, m.x + kColumna);
         n.x = x;
         n.y = 0;
         nodos_.push_back(std::move(n));
@@ -300,7 +325,8 @@ std::string GrafoVideo::agregar(const std::string& tipo, const std::string& grup
     std::string desde = despues;
     if (desde.empty()) {
         desde = idEntrada(grupo);
-        for (const auto& c : entrantes(idEscena(grupo))) desde = c.desde;
+        for (const auto& c : entrantes(idEscena(grupo)))
+            desde = c.desde;
     }
     const Nodo* d = nodo(desde);
     if (d == nullptr || puertosSalida(*d).empty()) {
@@ -337,19 +363,22 @@ bool GrafoVideo::quitar(const std::string& id, std::string* error) {
     // Un filtro (una entrada, una salida) se puentea: lo de antes sigue a lo de después.
     std::vector<Cable> antes = entrantes(id);
     const std::vector<Cable> despues = salientes(id);
-    antes.erase(std::remove_if(antes.begin(), antes.end(), [](const Cable& c) { return c.entrada == "ctl"; }), antes.end());
+    antes.erase(std::remove_if(antes.begin(), antes.end(), [](const Cable& c) { return c.entrada == "ctl"; }),
+                antes.end());
     const bool puentear = esFiltro(n->tipo) && antes.size() == 1;
     cables_.erase(std::remove_if(cables_.begin(), cables_.end(),
                                  [&](const Cable& c) { return c.desde == id || c.hacia == id; }),
                   cables_.end());
     if (puentear)
-        for (const auto& c : despues) cables_.push_back({antes[0].desde, antes[0].salida, c.hacia, c.entrada});
-    nodos_.erase(std::remove_if(nodos_.begin(), nodos_.end(), [&](const Nodo& x) { return x.id == id; }), nodos_.end());
+        for (const auto& c : despues)
+            cables_.push_back({antes[0].desde, antes[0].salida, c.hacia, c.entrada});
+    nodos_.erase(std::remove_if(nodos_.begin(), nodos_.end(), [&](const Nodo& x) { return x.id == id; }),
+                 nodos_.end());
     return true;
 }
 
-std::string GrafoVideo::conectar(const std::string& desde, const std::string& salida, const std::string& hacia,
-                                 const std::string& entrada, std::string* error) {
+std::string GrafoVideo::conectar(const std::string& desde, const std::string& salida,
+                                 const std::string& hacia, const std::string& entrada, std::string* error) {
     const Nodo* d = nodo(desde);
     const Nodo* h = nodo(hacia);
     if (d == nullptr || h == nullptr) {
@@ -359,10 +388,12 @@ std::string GrafoVideo::conectar(const std::string& desde, const std::string& sa
     const auto ps = puertosSalida(*d);
     const std::string sal = salida.empty() ? (ps.empty() ? std::string() : ps[0].id) : salida;
     if (std::none_of(ps.begin(), ps.end(), [&](const Puerto& p) { return p.id == sal; })) {
-        if (error) *error = "«" + d->etiqueta + "» no tiene salida" + (salida.empty() ? "" : " «" + salida + "»");
+        if (error)
+            *error = "«" + d->etiqueta + "» no tiene salida" + (salida.empty() ? "" : " «" + salida + "»");
         return {};
     }
-    const std::string tipoSal = std::find_if(ps.begin(), ps.end(), [&](const Puerto& p) { return p.id == sal; })->tipo;
+    const std::string tipoSal =
+        std::find_if(ps.begin(), ps.end(), [&](const Puerto& p) { return p.id == sal; })->tipo;
     const auto pe = puertosEntrada(*h);
     std::string ent = entrada;
     if (ent.empty()) {
@@ -389,10 +420,13 @@ std::string GrafoVideo::conectar(const std::string& desde, const std::string& sa
         const json& m = d->params;
         const std::string t = m.value("tarjeta", std::string());
         const bool igual = t == h->tipo &&
-                           (t != "obs" || m["params"].value("filtro", std::string()) == h->params.value("filtro", std::string())) &&
-                           (t != "gst" || m["params"].value("elemento", std::string()) == h->params.value("elemento", std::string()));
+                           (t != "obs" || m["params"].value("filtro", std::string()) ==
+                                              h->params.value("filtro", std::string())) &&
+                           (t != "gst" || m["params"].value("elemento", std::string()) ==
+                                              h->params.value("elemento", std::string()));
         if (!igual) {
-            if (error) *error = "«" + d->etiqueta + "» maneja tarjetas de otro tipo que «" + h->etiqueta + "»";
+            if (error)
+                *error = "«" + d->etiqueta + "» maneja tarjetas de otro tipo que «" + h->etiqueta + "»";
             return {};
         }
     }
@@ -446,7 +480,8 @@ bool GrafoVideo::ajustar(const std::string& id, const json& params, std::string*
                 mezclar(viejo, it.value());
                 continue;
             }
-            if ((viejo.is_number() && !it.value().is_number()) || (viejo.is_boolean() && !it.value().is_boolean()) ||
+            if ((viejo.is_number() && !it.value().is_number()) ||
+                (viejo.is_boolean() && !it.value().is_boolean()) ||
                 (viejo.is_string() && !it.value().is_string())) {
                 if (error) *error = "«" + it.key() + "» no es de ese tipo";
                 return false;
@@ -466,8 +501,9 @@ void GrafoVideo::quitarEntrada(const std::string& fuente) {
     cables_.erase(std::remove_if(cables_.begin(), cables_.end(),
                                  [&](const Cable& c) { return ids.count(c.desde) || ids.count(c.hacia); }),
                   cables_.end());
-    nodos_.erase(std::remove_if(nodos_.begin(), nodos_.end(), [&](const Nodo& n) { return ids.count(n.id) > 0; }),
-                 nodos_.end());
+    nodos_.erase(
+        std::remove_if(nodos_.begin(), nodos_.end(), [&](const Nodo& n) { return ids.count(n.id) > 0; }),
+        nodos_.end());
 }
 
 std::string GrafoVideo::renombrar(const std::string& id, const std::string& nombre) {
@@ -475,7 +511,8 @@ std::string GrafoVideo::renombrar(const std::string& id, const std::string& nomb
     if (n == nullptr || !n->grupo.empty() || nombre.empty()) return id;
     std::string nuevo = "estudio." + slug(nombre);
     if (nuevo == id) return id;
-    for (int i = 2; nodo(nuevo) != nullptr; ++i) nuevo = "estudio." + slug(nombre) + "-" + std::to_string(i);
+    for (int i = 2; nodo(nuevo) != nullptr; ++i)
+        nuevo = "estudio." + slug(nombre) + "-" + std::to_string(i);
     for (auto& x : nodos_)
         if (x.id == id) x.id = nuevo;
     for (auto& c : cables_) {
@@ -509,7 +546,9 @@ void GrafoVideo::limpiar(const std::string& grupo) {
                                  }),
                   cables_.end());
     nodos_.erase(std::remove_if(nodos_.begin(), nodos_.end(),
-                                [&](const Nodo& x) { return std::find(sacar.begin(), sacar.end(), x.id) != sacar.end(); }),
+                                [&](const Nodo& x) {
+                                    return std::find(sacar.begin(), sacar.end(), x.id) != sacar.end();
+                                }),
                  nodos_.end());
     if (nodo(ie) != nullptr && nodo(is) != nullptr) cables_.push_back({ie, "out", is, "in"});
 }
@@ -528,14 +567,20 @@ bool GrafoVideo::trivial(const std::string& grupo) const {
 std::vector<std::string> GrafoVideo::salidas() const {
     std::vector<std::string> out;
     for (const auto& n : nodos_)
-        if (n.tipo == "salida" && !n.params.value("nombre", std::string()).empty()) out.push_back(n.params.value("nombre", ""));
+        if (n.tipo == "salida" && !n.params.value("nombre", std::string()).empty())
+            out.push_back(n.params.value("nombre", ""));
     return out;
 }
 
 json GrafoVideo::aJson() const {
     json ns = json::array(), cs = json::array();
     for (const auto& n : nodos_)
-        ns.push_back({{"id", n.id}, {"tipo", n.tipo}, {"etiqueta", n.etiqueta}, {"grupo", n.grupo}, {"x", n.x}, {"y", n.y},
+        ns.push_back({{"id", n.id},
+                      {"tipo", n.tipo},
+                      {"etiqueta", n.etiqueta},
+                      {"grupo", n.grupo},
+                      {"x", n.x},
+                      {"y", n.y},
                       {"params", n.params}});
     for (const auto& c : cables_)
         cs.push_back({{"desde", c.desde}, {"salida", c.salida}, {"hacia", c.hacia}, {"entrada", c.entrada}});
@@ -551,7 +596,9 @@ GrafoVideo GrafoVideo::desde(const json& j) {
             Nodo x;
             x.id = n.value("id", std::string());
             x.tipo = n.value("tipo", std::string());
-            if (x.id.empty() || ids.count(x.id) || !(x.tipo == "entrada" || x.tipo == "escena" || tipoValido(x.tipo))) continue;
+            if (x.id.empty() || ids.count(x.id) ||
+                !(x.tipo == "entrada" || x.tipo == "escena" || tipoValido(x.tipo)))
+                continue;
             x.etiqueta = n.value("etiqueta", titulo(x.tipo));
             x.grupo = n.value("grupo", std::string());
             x.x = n.value("x", 0);
@@ -559,14 +606,16 @@ GrafoVideo GrafoVideo::desde(const json& j) {
             x.params = fabrica(x.tipo);
             const json p = n.value("params", json::object());
             if (p.is_object())
-                for (auto it = p.begin(); it != p.end(); ++it) x.params[it.key()] = it.value();
+                for (auto it = p.begin(); it != p.end(); ++it)
+                    x.params[it.key()] = it.value();
             ids.insert(x.id);
             g.nodos_.push_back(std::move(x));
         }
         for (const auto& c : j.value("cables", json::array())) {
             std::string e;
             g.conectar(c.value("desde", std::string()), c.value("salida", std::string("out")),
-                       c.value("hacia", std::string()), c.value("entrada", std::string("in")), &e); // valida todo
+                       c.value("hacia", std::string()), c.value("entrada", std::string("in")),
+                       &e); // valida todo
         }
         return g;
     }
@@ -598,7 +647,8 @@ GrafoVideo GrafoVideo::desde(const json& j) {
             x.params = fabrica(tipo);
             const json p = n.value("params", json::object());
             if (p.is_object())
-                for (auto q = p.begin(); q != p.end(); ++q) x.params[q.key()] = q.value();
+                for (auto q = p.begin(); q != p.end(); ++q)
+                    x.params[q.key()] = q.value();
             g.nodos_.push_back(std::move(x));
         }
         g.cables_.erase(std::remove_if(g.cables_.begin(), g.cables_.end(),
@@ -606,7 +656,8 @@ GrafoVideo GrafoVideo::desde(const json& j) {
                         g.cables_.end());
         const json cs = it.value().value("cables", json::array());
         std::map<std::string, std::string> alimenta; // quién alimentaba cada nodo
-        for (const auto& c : cs) alimenta[mapear(c.value("hacia", std::string()))] = mapear(c.value("desde", std::string()));
+        for (const auto& c : cs)
+            alimenta[mapear(c.value("hacia", std::string()))] = mapear(c.value("desde", std::string()));
         for (const auto& c : cs) {
             std::string d = mapear(c.value("desde", std::string()));
             // Una salida ya no deja pasar: lo que salía de ella sale de lo que la alimentaba.
@@ -673,8 +724,8 @@ bool GrafoVideo::soltar(const std::string& id, std::string* error) {
     return true;
 }
 
-std::string GrafoVideo::agregarControlada(const std::string& control, const std::string& grupo, const std::string& despues,
-                                          std::string* error) {
+std::string GrafoVideo::agregarControlada(const std::string& control, const std::string& grupo,
+                                          const std::string& despues, std::string* error) {
     const Nodo* c = nodo(control);
     if (c == nullptr || c->tipo != "control") {
         if (error) *error = "«" + control + "» no es un controlador";
@@ -729,7 +780,8 @@ json GrafoVideo::configCompositor(const std::string& id) const {
         const bool ubicada = k.contains("x") || k.contains("ancho");
         // En la grilla, por el número de puerto (no se mueve si se reordena).
         int pos = 0;
-        for (const auto& o : es) pos += o.indice < e.indice ? 1 : 0;
+        for (const auto& o : es)
+            pos += o.indice < e.indice ? 1 : 0;
         out.push_back({{"toma", e.desde->id},
                        {"fuente", e.desde->grupo},
                        {"x", ubicada ? k.value("x", 0.0) : static_cast<double>(pos % cols) / cols},
@@ -739,7 +791,9 @@ json GrafoVideo::configCompositor(const std::string& id) const {
                        {"opacidad", k.value("opacidad", 1.0)},
                        {"ajuste", k.value("ajuste", std::string("encajar"))}});
     }
-    return {{"ancho", p.value("ancho", 1920)}, {"alto", p.value("alto", 1080)}, {"fondo", p.value("fondo", 0xFF000000LL)},
+    return {{"ancho", p.value("ancho", 1920)},
+            {"alto", p.value("alto", 1080)},
+            {"fondo", p.value("fondo", 0xFF000000LL)},
             {"capas", out}};
 }
 
@@ -767,7 +821,8 @@ json GrafoVideo::paraFiltro(const std::string& fuente) const {
     ns.push_back({{"id", "in"}, {"tipo", "in"}});
     ns.push_back({{"id", "out"}, {"tipo", "out"}});
     for (const auto& n : nodos_)
-        if (dentro.count(n.id) && n.id != ie) ns.push_back({{"id", n.id}, {"tipo", n.tipo}, {"params", efectivos(n)}});
+        if (dentro.count(n.id) && n.id != ie)
+            ns.push_back({{"id", n.id}, {"tipo", n.tipo}, {"params", efectivos(n)}});
     for (const auto& c : cables_)
         if (dentro.count(c.desde) && (dentro.count(c.hacia) || c.hacia == is))
             cs.push_back({{"desde", mapear(c.desde)}, {"hacia", mapear(c.hacia)}});
@@ -787,8 +842,9 @@ json GrafoVideo::paraFiltro(const std::string& fuente) const {
         if (dentro.count(c.desde)) continue;
         const Nodo* d = nodo(c.desde);
         if (d == nullptr) continue;
-        json p = d->tipo == "compositor" ? json{{"compositor", d->id}, {"config", configCompositor(d->id).dump()}}
-                                         : json{{"toma", d->id}, {"fuente", d->grupo}};
+        json p = d->tipo == "compositor"
+                     ? json{{"compositor", d->id}, {"config", configCompositor(d->id).dump()}}
+                     : json{{"toma", d->id}, {"fuente", d->grupo}};
         ns.push_back({{"id", "traer"}, {"tipo", "traer"}, {"params", p}});
         cs.push_back({{"desde", "traer"}, {"hacia", "out"}});
     }
@@ -812,7 +868,8 @@ json GrafoVideo::describir(const std::string& grupo, bool soloGrupo) const {
         }
     const auto puertos = [](const std::vector<Puerto>& ps) {
         json a = json::array();
-        for (const auto& p : ps) a.push_back({{"id", p.id}, {"tipo", p.tipo}, {"pedido", p.pedido}});
+        for (const auto& p : ps)
+            a.push_back({{"id", p.id}, {"tipo", p.tipo}, {"pedido", p.pedido}});
         return a;
     };
     json ns = json::array(), cs = json::array();
@@ -833,8 +890,10 @@ json GrafoVideo::describir(const std::string& grupo, bool soloGrupo) const {
                       {"salidas", puertos(puertosSalida(n))}});
     }
     for (const auto& c : cables_)
-        if ((visibles.count(c.desde) || externos.count(c.desde)) && (visibles.count(c.hacia) || externos.count(c.hacia)))
-            cs.push_back({{"desde", c.desde}, {"salida", c.salida}, {"hacia", c.hacia}, {"entrada", c.entrada}});
+        if ((visibles.count(c.desde) || externos.count(c.desde)) &&
+            (visibles.count(c.hacia) || externos.count(c.hacia)))
+            cs.push_back(
+                {{"desde", c.desde}, {"salida", c.salida}, {"hacia", c.hacia}, {"entrada", c.entrada}});
     return {{"nodos", ns}, {"cables", cs}, {"trivial", soloGrupo ? trivial(grupo) : false}};
 }
 

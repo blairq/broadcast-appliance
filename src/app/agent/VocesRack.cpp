@@ -44,8 +44,8 @@ void VocesRack::setFlujos(FlujosTexto* flujos) {
 }
 
 QString VocesRack::nombreIdioma(const QString& c) {
-    static const std::map<QString, QString> n{{"es", "Castellano"}, {"en", "Inglés"},   {"pt", "Portugués"},
-                                              {"fr", "Francés"},    {"it", "Italiano"},  {"de", "Alemán"},
+    static const std::map<QString, QString> n{{"es", "Castellano"}, {"en", "Inglés"},     {"pt", "Portugués"},
+                                              {"fr", "Francés"},    {"it", "Italiano"},   {"de", "Alemán"},
                                               {"ca", "Catalán"},    {"nl", "Neerlandés"}, {"pl", "Polaco"}};
     auto it = n.find(c);
     return it == n.end() ? c : it->second;
@@ -56,7 +56,8 @@ QVariantList VocesRack::voces() const {
     for (const QVariant& v : modelos_.catalogo()) {
         const QVariantMap m = v.toMap();
         if (m.value("tipo").toString() != "tts") continue;
-        const QString idioma = m.value("idioma").toString().isEmpty() ? QStringLiteral("es") : m.value("idioma").toString();
+        const QString idioma =
+            m.value("idioma").toString().isEmpty() ? QStringLiteral("es") : m.value("idioma").toString();
         out << QVariantMap{{"repo", m.value("repo")},
                            {"nombre", m.value("nombre")},
                            {"idioma", idioma},
@@ -108,7 +109,8 @@ VocesRack::Cargada* VocesRack::voz(const QString& repo) {
             auto pendientes = std::move(c.pendientes);
             c.pendientes.clear();
             if (c.lista)
-                for (const auto& [tarjeta, texto] : pendientes) decirCon(tarjeta, texto);
+                for (const auto& [tarjeta, texto] : pendientes)
+                    decirCon(tarjeta, texto);
             emit cambio();
         });
     });
@@ -124,7 +126,8 @@ QString VocesRack::estado(const QString& fuente, const QString& nodo) const {
 #if defined(BA_HAVE_CLAP) && defined(BA_HAVE_VOZ)
     if (racks_ == nullptr) return {};
     for (const auto& h : racks_->hablas()) {
-        if (QString::fromStdString(h.value("fuente", "")) != fuente || QString::fromStdString(h.value("nodo", "")) != nodo)
+        if (QString::fromStdString(h.value("fuente", "")) != fuente ||
+            QString::fromStdString(h.value("nodo", "")) != nodo)
             continue;
         QString repo = QString::fromStdString(h.value("voz", ""));
         if (repo.isEmpty() && vozSistema_) repo = vozSistema_();
@@ -153,7 +156,8 @@ QString VocesRack::decir(const QString& fuente, const QString& nodo, const QStri
             decirCon(h, texto);
             return {};
         }
-    return QStringLiteral("«%1» no tiene una tarjeta de texto a voz%2").arg(fuente, nodo.isEmpty() ? "" : " «" + nodo + "»");
+    return QStringLiteral("«%1» no tiene una tarjeta de texto a voz%2")
+        .arg(fuente, nodo.isEmpty() ? "" : " «" + nodo + "»");
 #else
     Q_UNUSED(fuente);
     Q_UNUSED(nodo);
@@ -166,7 +170,8 @@ void VocesRack::alFrase(const QString& flujo, const QString& texto) {
 #if defined(BA_HAVE_CLAP) && defined(BA_HAVE_VOZ)
     if (racks_ == nullptr) return;
     for (const auto& h : racks_->hablas())
-        if (!h.value("flujo", std::string()).empty() && QString::fromStdString(h.value("flujo", "")) == flujo) decirCon(h, texto);
+        if (!h.value("flujo", std::string()).empty() && QString::fromStdString(h.value("flujo", "")) == flujo)
+            decirCon(h, texto);
 #else
     Q_UNUSED(flujo);
     Q_UNUSED(texto);
@@ -189,25 +194,26 @@ void VocesRack::decirCon(const nlohmann::json& tarjeta, const QString& texto) {
     const std::string clave = fuente + "\n" + nodo;
     const int hablante = tarjeta.value("hablante", 0);
     const float velocidad = static_cast<float>(std::clamp(tarjeta.value("velocidad", 1.0), 0.5, 2.0));
-    c->habla->decir(texto.toStdString(), hablante, velocidad,
-                    [this, ring, clave](const float* m, std::size_t n, std::uint32_t f) {
-                        // A 48 kHz estéreo (el rack y libobs van a 48 kHz).
-                        constexpr int kSalida = 48000;
-                        std::vector<float> out(static_cast<std::size_t>(static_cast<double>(n) * kSalida / f) + 1024);
-                        std::size_t hechos = 0;
-                        ba::dsp::Resampler rs;
-                        rs.configure(static_cast<int>(f), kSalida, 1, ba::dsp::Quality::SincMedium);
-                        if (!rs.resample(m, n, out.data(), out.size(), &hechos) || hechos == 0) return;
-                        // Pegado a lo anterior de esta tarjeta; si no suena nada, un poco adelante.
-                        const std::uint64_t ahora = os_gettime_ns();
-                        std::uint64_t ts;
-                        {
-                            std::lock_guard<std::mutex> l(proximoLock_);
-                            ts = std::max<std::uint64_t>(proximo_[clave], ahora + 60'000'000ULL);
-                            proximo_[clave] = ts + static_cast<std::uint64_t>(hechos) * 1'000'000'000ULL / kSalida;
-                        }
-                        ring->pushEn(out.data(), out.data(), static_cast<std::uint32_t>(hechos), ts, ahora, kSalida);
-                    });
+    c->habla->decir(
+        texto.toStdString(), hablante, velocidad,
+        [this, ring, clave](const float* m, std::size_t n, std::uint32_t f) {
+            // A 48 kHz estéreo (el rack y libobs van a 48 kHz).
+            constexpr int kSalida = 48000;
+            std::vector<float> out(static_cast<std::size_t>(static_cast<double>(n) * kSalida / f) + 1024);
+            std::size_t hechos = 0;
+            ba::dsp::Resampler rs;
+            rs.configure(static_cast<int>(f), kSalida, 1, ba::dsp::Quality::SincMedium);
+            if (!rs.resample(m, n, out.data(), out.size(), &hechos) || hechos == 0) return;
+            // Pegado a lo anterior de esta tarjeta; si no suena nada, un poco adelante.
+            const std::uint64_t ahora = os_gettime_ns();
+            std::uint64_t ts;
+            {
+                std::lock_guard<std::mutex> l(proximoLock_);
+                ts = std::max<std::uint64_t>(proximo_[clave], ahora + 60'000'000ULL);
+                proximo_[clave] = ts + static_cast<std::uint64_t>(hechos) * 1'000'000'000ULL / kSalida;
+            }
+            ring->pushEn(out.data(), out.data(), static_cast<std::uint32_t>(hechos), ts, ahora, kSalida);
+        });
 #else
     Q_UNUSED(tarjeta);
     Q_UNUSED(texto);

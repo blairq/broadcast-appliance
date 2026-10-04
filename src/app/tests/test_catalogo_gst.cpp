@@ -5,8 +5,8 @@
 // enum (videoflip method) trae sus opciones. Con `--volcar` imprime el
 // catálogo entero (para escribir la documentación de datos/gst-modulos.json).
 
-#include <filesystem>
 #include "video/CatalogoGst.hpp"
+#include <filesystem>
 
 #include <cstdio>
 #include <cstdlib>
@@ -54,7 +54,8 @@ int main(int argc, char** argv) {
     std::printf("GStreamer %s: %zu módulos de video\n", c.version().c_str(), ms.size());
     CHECK(ms.size() > 80, "hay muchos módulos de video");
     const json vb = c.modulo("videobalance");
-    CHECK(vb.value("rol", "") == "filtro" && vb.value("licencia", "") == "LGPL" && vb.value("categoria", "") == "Color",
+    CHECK(vb.value("rol", "") == "filtro" && vb.value("licencia", "") == "LGPL" &&
+              vb.value("categoria", "") == "Color",
           "videobalance: filtro, LGPL, de color");
     CHECK(c.modulo("videotestsrc").value("rol", "") == "fuente", "videotestsrc es una fuente");
     CHECK(c.modulo("compositor").value("rol", "") == "mezcla", "compositor es de mezcla");
@@ -62,18 +63,21 @@ int main(int argc, char** argv) {
     bool sat = false;
     for (const auto& p : ps)
         if (p.value("nombre", "") == "saturation")
-            sat = p.value("tipo", "") == "double" && p.value("max", 0.0) == 2.0 && p.value("valor", 0.0) == 0.5 &&
-                  p.value("defecto", 0.0) == 1.0;
+            sat = p.value("tipo", "") == "double" && p.value("max", 0.0) == 2.0 &&
+                  p.value("valor", 0.0) == 0.5 && p.value("defecto", 0.0) == 1.0;
     CHECK(sat, "videobalance.saturation: double 0..2, de fábrica 1, con el valor actual");
     bool metodo = false;
     for (const auto& p : c.propiedades("videoflip", json::object()))
-        if (p.value("nombre", "") == "method") metodo = p.value("tipo", "") == "enum" && p["opciones"].size() >= 8;
+        if (p.value("nombre", "") == "method")
+            metodo = p.value("tipo", "") == "enum" && p["opciones"].size() >= 8;
     CHECK(metodo, "videoflip.method: un enum con sus opciones");
     CHECK(c.propiedades("no-existe", json::object()).empty(), "un módulo que no existe: sin propiedades");
     // La documentación en castellano, y si va como tarjeta.
-    CHECK(vb.value("titulo", "") == "Balance de video" && !vb.value("para", "").empty() && vb.value("tarjeta", false),
+    CHECK(vb.value("titulo", "") == "Balance de video" && !vb.value("para", "").empty() &&
+              vb.value("tarjeta", false),
           "videobalance: documentado y va como tarjeta");
-    CHECK(!c.modulo("videotestsrc").value("tarjeta", true), "videotestsrc no va como tarjeta (es una fuente)");
+    CHECK(!c.modulo("videotestsrc").value("tarjeta", true),
+          "videotestsrc no va como tarjeta (es una fuente)");
     CHECK(c.modulo("glcolorbalance").value("tarjeta", false), "glcolorbalance va como tarjeta (OpenGL)");
     int sinDoc = 0;
     for (const auto& m : ms)

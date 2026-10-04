@@ -23,8 +23,8 @@
 #include <util/platform.h>
 
 #include <chrono>
-#include <cmath>
 #include <clocale>
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -65,7 +65,8 @@ void pruebaDibujar(void*, gs_effect_t*) {
     if (g_tex == nullptr) return;
     gs_effect_t* fx = obs_get_base_effect(OBS_EFFECT_DEFAULT);
     gs_effect_set_texture(gs_effect_get_param_by_name(fx, "image"), g_tex);
-    while (gs_effect_loop(fx, "Draw")) gs_draw_sprite(g_tex, 0, W, H);
+    while (gs_effect_loop(fx, "Draw"))
+        gs_draw_sprite(g_tex, 0, W, H);
 }
 
 /// Mitad izquierda verde (fondo), un cuadrado rojo en el medio, mitad derecha gris claro.
@@ -117,7 +118,8 @@ std::vector<std::uint8_t> dibujar(obs_source_t* src) {
         std::uint32_t paso = 0;
         if (gs_stagesurface_map(st, &datos, &paso)) {
             for (std::uint32_t y = 0; y < H; ++y)
-                std::memcpy(&sal[static_cast<std::size_t>(y) * W * 4], datos + static_cast<std::size_t>(y) * paso, W * 4);
+                std::memcpy(&sal[static_cast<std::size_t>(y) * W * 4],
+                            datos + static_cast<std::size_t>(y) * paso, W * 4);
             gs_stagesurface_unmap(st);
         }
     }
@@ -177,8 +179,8 @@ int main() {
 #if defined(BA_TEST_OBS_FILTERS)
     // obs-filters (el de OBS, vendoreado), para la tarjeta de un filtro de OBS.
     obs_module_t* filtros = nullptr;
-    if (obs_open_module(&filtros, BA_TEST_OBS_FILTERS "/Contents/MacOS/obs-filters", BA_TEST_OBS_FILTERS "/Contents/Resources") ==
-        MODULE_SUCCESS)
+    if (obs_open_module(&filtros, BA_TEST_OBS_FILTERS "/Contents/MacOS/obs-filters",
+                        BA_TEST_OBS_FILTERS "/Contents/Resources") == MODULE_SUCCESS)
         obs_init_module(filtros);
 #endif
     obs_load_all_modules();
@@ -205,15 +207,19 @@ int main() {
     obs_source_filter_add(fuente, f);
 
     // 1. in -> out
-    ponerGrafo(f, R"({"nodos":[{"id":"in","tipo":"in"},{"id":"out","tipo":"out"}],"cables":[{"desde":"in","hacia":"out"}]})");
+    ponerGrafo(
+        f,
+        R"({"nodos":[{"id":"in","tipo":"in"},{"id":"out","tipo":"out"}],"cables":[{"desde":"in","hacia":"out"}]})");
     auto im = dibujar(fuente);
-    CHECK(px(im, 50, 10, 0) == 200 && px(im, 5, 5, 1) == 177 && px(im, 15, 30, 0) == 220, "in -> out: la imagen pasa igual");
+    CHECK(px(im, 50, 10, 0) == 200 && px(im, 5, 5, 1) == 177 && px(im, 15, 30, 0) == 220,
+          "in -> out: la imagen pasa igual");
 
     // 2. color: saturacion 0
     ponerGrafo(f, lineal("color", R"({"saturacion":0})"));
     im = dibujar(fuente);
     std::printf("   color: el verde quedo en %d %d %d\n", px(im, 5, 5, 0), px(im, 5, 5, 1), px(im, 5, 5, 2));
-    CHECK(std::abs(px(im, 5, 5, 0) - px(im, 5, 5, 1)) <= 2 && std::abs(px(im, 5, 5, 1) - px(im, 5, 5, 2)) <= 2,
+    CHECK(std::abs(px(im, 5, 5, 0) - px(im, 5, 5, 1)) <= 2 &&
+              std::abs(px(im, 5, 5, 1) - px(im, 5, 5, 2)) <= 2,
           "color: con saturacion 0 queda gris");
     ponerGrafo(f, lineal("color", R"({"brillo":0.2})"));
     im = dibujar(fuente);
@@ -222,8 +228,9 @@ int main() {
     // 3. croma (verde de fabrica)
     ponerGrafo(f, lineal("croma", "{}"));
     im = dibujar(fuente);
-    std::printf("   croma: fondo alfa %d, rojo alfa %d (%d,%d,%d), gris alfa %d\n", px(im, 5, 5, 3), px(im, 15, 31, 3),
-                px(im, 15, 31, 0), px(im, 15, 31, 1), px(im, 15, 31, 2), px(im, 50, 10, 3));
+    std::printf("   croma: fondo alfa %d, rojo alfa %d (%d,%d,%d), gris alfa %d\n", px(im, 5, 5, 3),
+                px(im, 15, 31, 3), px(im, 15, 31, 0), px(im, 15, 31, 1), px(im, 15, 31, 2),
+                px(im, 50, 10, 3));
     CHECK(px(im, 5, 5, 3) < 10, "croma: el fondo verde se va");
     CHECK(px(im, 15, 31, 3) > 245 && px(im, 15, 31, 0) > 180, "croma: lo rojo queda");
     CHECK(px(im, 50, 10, 3) > 245, "croma: lo gris queda");
@@ -242,7 +249,9 @@ int main() {
     obs_source_t* salida = obs_source_create("ba_video_salida", "S", ss, nullptr);
     obs_data_release(ss);
     CHECK(salida != nullptr, "existe la fuente ba_video_salida");
-    ponerGrafo(f, R"({"nodos":[{"id":"in","tipo":"in"},{"id":"c","tipo":"croma"},{"id":"s","tipo":"salida","params":{"nombre":"S"}},{"id":"out","tipo":"out"}],
+    ponerGrafo(
+        f,
+        R"({"nodos":[{"id":"in","tipo":"in"},{"id":"c","tipo":"croma"},{"id":"s","tipo":"salida","params":{"nombre":"S"}},{"id":"out","tipo":"out"}],
                     "cables":[{"desde":"in","hacia":"c"},{"desde":"c","hacia":"out"},{"desde":"in","hacia":"s"}]})");
     im = dibujar(fuente);
     auto is = dibujar(salida);
@@ -250,7 +259,9 @@ int main() {
     CHECK(px(is, 5, 5, 3) == 255 && px(is, 5, 5, 1) == 177, "rama: la salida tiene la imagen original");
 
     // 6. la salida sola (nadie dibuja la entrada en este cuadro): la despierta
-    ponerGrafo(f, R"({"nodos":[{"id":"in","tipo":"in"},{"id":"col","tipo":"color","params":{"saturacion":0}},{"id":"s","tipo":"salida","params":{"nombre":"S"}},{"id":"out","tipo":"out"}],
+    ponerGrafo(
+        f,
+        R"({"nodos":[{"id":"in","tipo":"in"},{"id":"col","tipo":"color","params":{"saturacion":0}},{"id":"s","tipo":"salida","params":{"nombre":"S"}},{"id":"out","tipo":"out"}],
                     "cables":[{"desde":"in","hacia":"out"},{"desde":"in","hacia":"col"},{"desde":"col","hacia":"s"}]})");
     siguienteCuadro();
     is = dibujar(salida);
@@ -260,38 +271,51 @@ int main() {
 
     // 8. una tarjeta que corre un filtro de OBS: el PTZ digital (zoom 2 a la
     //    derecha: la mitad derecha, gris, llena todo).
-    ponerGrafo(f, R"({"nodos":[{"id":"in","tipo":"in"},{"id":"ptz","tipo":"obs","params":{"filtro":"ba_ptz_digital","ajustes":{}}},{"id":"out","tipo":"out"}],
+    ponerGrafo(
+        f,
+        R"({"nodos":[{"id":"in","tipo":"in"},{"id":"ptz","tipo":"obs","params":{"filtro":"ba_ptz_digital","ajustes":{}}},{"id":"out","tipo":"out"}],
                     "cables":[{"desde":"in","hacia":"ptz"},{"desde":"ptz","hacia":"out"}]})");
     {
         // El filtro de la tarjeta es privado: se lo mueve por su proc, como el PTZ de la app.
         im = dibujar(fuente); // crea la instancia
-        CHECK(px(im, 50, 10, 0) == 200 && px(im, 5, 5, 1) == 177, "tarjeta PTZ sin zoom: la imagen pasa igual");
+        CHECK(px(im, 50, 10, 0) == 200 && px(im, 5, 5, 1) == 177,
+              "tarjeta PTZ sin zoom: la imagen pasa igual");
     }
     // Cambiar los ajustes NO recrea el filtro (sigue el mismo, con su estado).
-    ponerGrafo(f, R"({"nodos":[{"id":"in","tipo":"in"},{"id":"ptz","tipo":"obs","params":{"filtro":"ba_ptz_digital","ajustes":{"x":1}}},{"id":"out","tipo":"out"}],
+    ponerGrafo(
+        f,
+        R"({"nodos":[{"id":"in","tipo":"in"},{"id":"ptz","tipo":"obs","params":{"filtro":"ba_ptz_digital","ajustes":{"x":1}}},{"id":"out","tipo":"out"}],
                     "cables":[{"desde":"in","hacia":"ptz"},{"desde":"ptz","hacia":"out"}]})");
     im = dibujar(fuente);
     CHECK(px(im, 50, 10, 0) == 200, "tarjeta PTZ: un ajuste nuevo no la rompe");
     // Un filtro que no existe: la tarjeta no se calcula y `out` queda sin nada.
-    ponerGrafo(f, R"({"nodos":[{"id":"in","tipo":"in"},{"id":"x","tipo":"obs","params":{"filtro":"no_existe"}},{"id":"out","tipo":"out"}],
+    ponerGrafo(
+        f,
+        R"({"nodos":[{"id":"in","tipo":"in"},{"id":"x","tipo":"obs","params":{"filtro":"no_existe"}},{"id":"out","tipo":"out"}],
                     "cables":[{"desde":"in","hacia":"x"},{"desde":"x","hacia":"out"}]})");
     im = dibujar(fuente);
     CHECK(px(im, 50, 10, 3) == 0, "un filtro que no existe: no se dibuja (y no se cae)");
 #if defined(BA_TEST_OBS_FILTERS)
     // 9. un filtro de obs-filters de verdad: «Color Correction», saturación -1 = gris.
-    ponerGrafo(f, R"({"nodos":[{"id":"in","tipo":"in"},{"id":"cc","tipo":"obs","params":{"filtro":"color_filter_v2","ajustes":{"saturation":-1.0}}},{"id":"out","tipo":"out"}],
+    ponerGrafo(
+        f,
+        R"({"nodos":[{"id":"in","tipo":"in"},{"id":"cc","tipo":"obs","params":{"filtro":"color_filter_v2","ajustes":{"saturation":-1.0}}},{"id":"out","tipo":"out"}],
                     "cables":[{"desde":"in","hacia":"cc"},{"desde":"cc","hacia":"out"}]})");
     for (int i = 0; i < 4; ++i) { // el plan nuevo entra en el próximo tic de video
         im = dibujar(fuente);
         siguienteCuadro();
     }
-    std::printf("   color_filter_v2: el verde quedo en %d %d %d (alfa %d)\n", px(im, 5, 5, 0), px(im, 5, 5, 1), px(im, 5, 5, 2), px(im, 5, 5, 3));
-    CHECK(px(im, 5, 5, 3) > 245 && std::abs(px(im, 5, 5, 0) - px(im, 5, 5, 1)) <= 3, "tarjeta color_filter_v2 (obs-filters): saturacion -1 deja gris");
+    std::printf("   color_filter_v2: el verde quedo en %d %d %d (alfa %d)\n", px(im, 5, 5, 0),
+                px(im, 5, 5, 1), px(im, 5, 5, 2), px(im, 5, 5, 3));
+    CHECK(px(im, 5, 5, 3) > 245 && std::abs(px(im, 5, 5, 0) - px(im, 5, 5, 1)) <= 3,
+          "tarjeta color_filter_v2 (obs-filters): saturacion -1 deja gris");
 #endif
 
 #if defined(BA_TEST_GST_RAIZ)
     // 10. GStreamer: una tarjeta `gst` (videobalance) y la fuente ba_gst_fuente.
-    ponerGrafo(f, R"({"nodos":[{"id":"in","tipo":"in"},{"id":"vb","tipo":"gst","params":{"elemento":"videobalance","propiedades":{"saturation":0.0}}},{"id":"out","tipo":"out"}],
+    ponerGrafo(
+        f,
+        R"({"nodos":[{"id":"in","tipo":"in"},{"id":"vb","tipo":"gst","params":{"elemento":"videobalance","propiedades":{"saturation":0.0}}},{"id":"out","tipo":"out"}],
                     "cables":[{"desde":"in","hacia":"vb"},{"desde":"vb","hacia":"out"}]})");
     // GStreamer se inicia en su hilo (la primera vez revisa sus plugins):
     // hasta entonces la tarjeta deja pasar la imagen. Se espera hasta 30 s.
@@ -301,56 +325,76 @@ int main() {
         if (std::abs(px(im, 5, 5, 0) - px(im, 5, 5, 1)) <= 6) break;
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
-    std::printf("   gst videobalance saturation=0: el verde quedo en %d %d %d (alfa %d)\n", px(im, 5, 5, 0), px(im, 5, 5, 1),
-                px(im, 5, 5, 2), px(im, 5, 5, 3));
-    CHECK(px(im, 5, 5, 3) > 245 && std::abs(px(im, 5, 5, 0) - px(im, 5, 5, 1)) <= 6, "tarjeta gst videobalance: saturacion 0 deja gris");
-    ponerGrafo(f, R"({"nodos":[{"id":"in","tipo":"in"},{"id":"vb","tipo":"gst","params":{"elemento":"videobalance","propiedades":{"saturation":1.0}}},{"id":"out","tipo":"out"}],
+    std::printf("   gst videobalance saturation=0: el verde quedo en %d %d %d (alfa %d)\n", px(im, 5, 5, 0),
+                px(im, 5, 5, 1), px(im, 5, 5, 2), px(im, 5, 5, 3));
+    CHECK(px(im, 5, 5, 3) > 245 && std::abs(px(im, 5, 5, 0) - px(im, 5, 5, 1)) <= 6,
+          "tarjeta gst videobalance: saturacion 0 deja gris");
+    ponerGrafo(
+        f,
+        R"({"nodos":[{"id":"in","tipo":"in"},{"id":"vb","tipo":"gst","params":{"elemento":"videobalance","propiedades":{"saturation":1.0}}},{"id":"out","tipo":"out"}],
                     "cables":[{"desde":"in","hacia":"vb"},{"desde":"vb","hacia":"out"}]})");
     for (int i = 0; i < 4; ++i) {
         im = dibujar(fuente);
         siguienteCuadro();
     }
-    CHECK(px(im, 5, 5, 1) > px(im, 5, 5, 0) + 80, "tarjeta gst: la propiedad cambia en vivo (vuelve el verde)");
+    CHECK(px(im, 5, 5, 1) > px(im, 5, 5, 0) + 80,
+          "tarjeta gst: la propiedad cambia en vivo (vuelve el verde)");
     // Con el locale de la app (decimales con coma): la propiedad llega igual.
-    if (std::setlocale(LC_NUMERIC, "es_AR.UTF-8") != nullptr || std::setlocale(LC_NUMERIC, "de_DE.UTF-8") != nullptr) {
-        ponerGrafo(f, R"({"nodos":[{"id":"in","tipo":"in"},{"id":"vb","tipo":"gst","params":{"elemento":"videobalance","propiedades":{"saturation":0.5}}},{"id":"out","tipo":"out"}],
+    if (std::setlocale(LC_NUMERIC, "es_AR.UTF-8") != nullptr ||
+        std::setlocale(LC_NUMERIC, "de_DE.UTF-8") != nullptr) {
+        ponerGrafo(
+            f,
+            R"({"nodos":[{"id":"in","tipo":"in"},{"id":"vb","tipo":"gst","params":{"elemento":"videobalance","propiedades":{"saturation":0.5}}},{"id":"out","tipo":"out"}],
                         "cables":[{"desde":"in","hacia":"vb"},{"desde":"vb","hacia":"out"}]})");
         for (int i = 0; i < 6; ++i) {
             im = dibujar(fuente);
             siguienteCuadro();
         }
-        std::printf("   gst con coma decimal (saturation 0,5): %d %d %d\n", px(im, 5, 5, 0), px(im, 5, 5, 1), px(im, 5, 5, 2));
-        CHECK(px(im, 5, 5, 0) > 30 && px(im, 5, 5, 1) < 160, "tarjeta gst con el locale de la app (coma decimal): saturación 0,5 se aplica");
+        std::printf("   gst con coma decimal (saturation 0,5): %d %d %d\n", px(im, 5, 5, 0), px(im, 5, 5, 1),
+                    px(im, 5, 5, 2));
+        CHECK(px(im, 5, 5, 0) > 30 && px(im, 5, 5, 1) < 160,
+              "tarjeta gst con el locale de la app (coma decimal): saturación 0,5 se aplica");
         std::setlocale(LC_NUMERIC, "C");
     }
     // Un módulo de OpenGL: la tarjeta lo envuelve con glupload/gldownload.
-    ponerGrafo(f, R"({"nodos":[{"id":"in","tipo":"in"},{"id":"gl","tipo":"gst","params":{"elemento":"glcolorbalance","propiedades":{"saturation":0.0}}},{"id":"out","tipo":"out"}],
+    ponerGrafo(
+        f,
+        R"({"nodos":[{"id":"in","tipo":"in"},{"id":"gl","tipo":"gst","params":{"elemento":"glcolorbalance","propiedades":{"saturation":0.0}}},{"id":"out","tipo":"out"}],
                     "cables":[{"desde":"in","hacia":"gl"},{"desde":"gl","hacia":"out"}]})");
     for (int i = 0; i < 100; ++i) {
         im = dibujar(fuente);
         siguienteCuadro();
         if (i > 4 && std::abs(px(im, 5, 5, 0) - px(im, 5, 5, 1)) <= 6) break;
     }
-    std::printf("   gst glcolorbalance saturation=0: %d %d %d (alfa %d)\n", px(im, 5, 5, 0), px(im, 5, 5, 1), px(im, 5, 5, 2),
-                px(im, 5, 5, 3));
-    CHECK(px(im, 5, 5, 3) > 245 && std::abs(px(im, 5, 5, 0) - px(im, 5, 5, 1)) <= 6, "tarjeta gst OpenGL (glcolorbalance): saturacion 0 deja gris");
+    std::printf("   gst glcolorbalance saturation=0: %d %d %d (alfa %d)\n", px(im, 5, 5, 0), px(im, 5, 5, 1),
+                px(im, 5, 5, 2), px(im, 5, 5, 3));
+    CHECK(px(im, 5, 5, 3) > 245 && std::abs(px(im, 5, 5, 0) - px(im, 5, 5, 1)) <= 6,
+          "tarjeta gst OpenGL (glcolorbalance): saturacion 0 deja gris");
     // Un enum por su nick (gleffects: «heat», la paleta de cámara térmica).
-    ponerGrafo(f, R"({"nodos":[{"id":"in","tipo":"in"},{"id":"ge","tipo":"gst","params":{"elemento":"gleffects","propiedades":{"effect":"heat"}}},{"id":"out","tipo":"out"}],
+    ponerGrafo(
+        f,
+        R"({"nodos":[{"id":"in","tipo":"in"},{"id":"ge","tipo":"gst","params":{"elemento":"gleffects","propiedades":{"effect":"heat"}}},{"id":"out","tipo":"out"}],
                     "cables":[{"desde":"in","hacia":"ge"},{"desde":"ge","hacia":"out"}]})");
     for (int i = 0; i < 100; ++i) {
         im = dibujar(fuente);
         siguienteCuadro();
         if (i > 4 && (px(im, 5, 5, 0) != 0 || px(im, 5, 5, 1) != 177)) break;
     }
-    std::printf("   gst gleffects heat: el verde quedo en %d %d %d\n", px(im, 5, 5, 0), px(im, 5, 5, 1), px(im, 5, 5, 2));
-    CHECK(px(im, 5, 5, 0) != 0 || px(im, 5, 5, 1) != 177, "tarjeta gst gleffects (enum por nick): cambia la imagen");
-    ponerGrafo(f, R"({"nodos":[{"id":"in","tipo":"in"},{"id":"x","tipo":"gst","params":{"elemento":"no-existe-este"}},{"id":"out","tipo":"out"}],
+    std::printf("   gst gleffects heat: el verde quedo en %d %d %d\n", px(im, 5, 5, 0), px(im, 5, 5, 1),
+                px(im, 5, 5, 2));
+    CHECK(px(im, 5, 5, 0) != 0 || px(im, 5, 5, 1) != 177,
+          "tarjeta gst gleffects (enum por nick): cambia la imagen");
+    ponerGrafo(
+        f,
+        R"({"nodos":[{"id":"in","tipo":"in"},{"id":"x","tipo":"gst","params":{"elemento":"no-existe-este"}},{"id":"out","tipo":"out"}],
                     "cables":[{"desde":"in","hacia":"x"},{"desde":"x","hacia":"out"}]})");
     im = dibujar(fuente);
     CHECK(px(im, 50, 10, 0) == 200, "tarjeta gst con un modulo que no existe: la imagen pasa igual");
 
     obs_data_t* gs = obs_data_create();
-    obs_data_set_string(gs, "pipeline", "videotestsrc pattern=red is-live=true ! video/x-raw,width=64,height=64,framerate=30/1");
+    obs_data_set_string(
+        gs, "pipeline",
+        "videotestsrc pattern=red is-live=true ! video/x-raw,width=64,height=64,framerate=30/1");
     obs_source_t* gf = obs_source_create("ba_gst_fuente", "senal", gs, nullptr);
     obs_data_release(gs);
     CHECK(gf != nullptr, "existe la fuente ba_gst_fuente");
@@ -360,17 +404,22 @@ int main() {
         ig = dibujar(gf);
         if (px(ig, 32, 32, 0) > 200) break;
     }
-    std::printf("   ba_gst_fuente (videotestsrc red): %d %d %d\n", px(ig, 32, 32, 0), px(ig, 32, 32, 1), px(ig, 32, 32, 2));
+    std::printf("   ba_gst_fuente (videotestsrc red): %d %d %d\n", px(ig, 32, 32, 0), px(ig, 32, 32, 1),
+                px(ig, 32, 32, 2));
     CHECK(px(ig, 32, 32, 0) > 200 && px(ig, 32, 32, 1) < 50, "fuente GStreamer: llegan los cuadros (rojo)");
     // Como en la app: una tarjeta gst sobre la fuente GStreamer (asíncrona), a 1280x720.
     {
         obs_data_t* gs2 = obs_data_create();
-        obs_data_set_string(gs2, "pipeline", "videotestsrc pattern=smpte-rp-219 is-live=true ! video/x-raw,width=1280,height=720,framerate=30/1");
+        obs_data_set_string(gs2, "pipeline",
+                            "videotestsrc pattern=smpte-rp-219 is-live=true ! "
+                            "video/x-raw,width=1280,height=720,framerate=30/1");
         obs_source_t* barras = obs_source_create("ba_gst_fuente", "barras", gs2, nullptr);
         obs_data_release(gs2);
         obs_source_t* g2 = obs_source_create_private("ba_video_grafo", "grafo2", nullptr);
         obs_source_filter_add(barras, g2);
-        ponerGrafo(g2, R"({"nodos":[{"id":"in","tipo":"in"},{"id":"vb","tipo":"gst","params":{"elemento":"videobalance","propiedades":{"saturation":0.0}}},{"id":"out","tipo":"out"}],
+        ponerGrafo(
+            g2,
+            R"({"nodos":[{"id":"in","tipo":"in"},{"id":"vb","tipo":"gst","params":{"elemento":"videobalance","propiedades":{"saturation":0.0}}},{"id":"out","tipo":"out"}],
                         "cables":[{"desde":"in","hacia":"vb"},{"desde":"vb","hacia":"out"}]})");
         std::vector<std::uint8_t> ib;
         int gris = 0;
@@ -382,8 +431,10 @@ int main() {
             if (px(ib, x, y, 3) > 0 && std::abs(px(ib, x, y, 0) - px(ib, x, y, 2)) <= 8) gris = 1;
         }
         const int x = W * 3 / 10, y = H / 4;
-        std::printf("   gst sobre ba_gst_fuente 1280x720: %d %d %d (alfa %d)\n", px(ib, x, y, 0), px(ib, x, y, 1), px(ib, x, y, 2), px(ib, x, y, 3));
-        CHECK(gris == 1, "tarjeta gst sobre una fuente GStreamer (asíncrona, 1280x720): saturación 0 deja gris");
+        std::printf("   gst sobre ba_gst_fuente 1280x720: %d %d %d (alfa %d)\n", px(ib, x, y, 0),
+                    px(ib, x, y, 1), px(ib, x, y, 2), px(ib, x, y, 3));
+        CHECK(gris == 1,
+              "tarjeta gst sobre una fuente GStreamer (asíncrona, 1280x720): saturación 0 deja gris");
         obs_source_filter_remove(barras, g2);
         obs_source_release(g2);
         obs_source_release(barras);
@@ -394,41 +445,51 @@ int main() {
     // 11. Lo que cruza entradas: una toma, el compositor (fuente) y `traer`.
     {
         // La entrada publica la toma «cam» (una rama, como una salida).
-        ponerGrafo(f, R"({"nodos":[{"id":"in","tipo":"in"},{"id":"t","tipo":"toma","params":{"nombre":"cam"}},{"id":"out","tipo":"out"}],
+        ponerGrafo(
+            f,
+            R"({"nodos":[{"id":"in","tipo":"in"},{"id":"t","tipo":"toma","params":{"nombre":"cam"}},{"id":"out","tipo":"out"}],
                         "cables":[{"desde":"in","hacia":"out"},{"desde":"in","hacia":"t"}]})");
         // Un compositor de 64x64: la toma en la mitad derecha, estirada; el resto, fondo negro.
-        const char* config = R"({"ancho":64,"alto":64,"capas":[{"toma":"cam","fuente":"cuadros","x":0.5,"y":0,"ancho":0.5,"alto":1,"ajuste":"llenar"}]})";
+        const char* config =
+            R"({"ancho":64,"alto":64,"capas":[{"toma":"cam","fuente":"cuadros","x":0.5,"y":0,"ancho":0.5,"alto":1,"ajuste":"llenar"}]})";
         obs_data_t* cs = obs_data_create();
         obs_data_set_string(cs, "nodo", "estudio.compositor");
         obs_data_set_string(cs, "config", config);
         obs_source_t* comp = obs_source_create("ba_video_compositor", "comp", cs, nullptr);
         obs_data_release(cs);
-        CHECK(comp != nullptr && obs_source_get_width(comp) == 64, "existe la fuente ba_video_compositor (64x64)");
+        CHECK(comp != nullptr && obs_source_get_width(comp) == 64,
+              "existe la fuente ba_video_compositor (64x64)");
         siguienteCuadro();
         // Nadie dibujó «cuadros» en este cuadro: el compositor la despierta.
         auto ic = dibujar(comp);
-        std::printf("   compositor: fondo %d %d %d %d · izq de la toma %d %d %d · der %d %d %d\n", px(ic, 10, 10, 0),
-                    px(ic, 10, 10, 1), px(ic, 10, 10, 2), px(ic, 10, 10, 3), px(ic, 40, 10, 0), px(ic, 40, 10, 1),
-                    px(ic, 40, 10, 2), px(ic, 60, 10, 0), px(ic, 60, 10, 1), px(ic, 60, 10, 2));
-        CHECK(px(ic, 10, 10, 3) == 255 && px(ic, 10, 10, 0) < 5 && px(ic, 10, 10, 1) < 5, "compositor: el fondo es negro");
-        CHECK(px(ic, 40, 10, 1) > 150 && px(ic, 40, 10, 0) < 30, "compositor: la mitad izquierda de la toma (verde)");
-        CHECK(px(ic, 60, 10, 0) > 180 && px(ic, 60, 10, 1) > 180, "compositor: la mitad derecha de la toma (gris)");
+        std::printf("   compositor: fondo %d %d %d %d · izq de la toma %d %d %d · der %d %d %d\n",
+                    px(ic, 10, 10, 0), px(ic, 10, 10, 1), px(ic, 10, 10, 2), px(ic, 10, 10, 3),
+                    px(ic, 40, 10, 0), px(ic, 40, 10, 1), px(ic, 40, 10, 2), px(ic, 60, 10, 0),
+                    px(ic, 60, 10, 1), px(ic, 60, 10, 2));
+        CHECK(px(ic, 10, 10, 3) == 255 && px(ic, 10, 10, 0) < 5 && px(ic, 10, 10, 1) < 5,
+              "compositor: el fondo es negro");
+        CHECK(px(ic, 40, 10, 1) > 150 && px(ic, 40, 10, 0) < 30,
+              "compositor: la mitad izquierda de la toma (verde)");
+        CHECK(px(ic, 60, 10, 0) > 180 && px(ic, 60, 10, 1) > 180,
+              "compositor: la mitad derecha de la toma (gris)");
         // La escena de la entrada recibe el compositor (que la recibe a ella):
         // sin recursión, con la toma fresca de este mismo cuadro.
-        std::string g2 = R"({"nodos":[{"id":"in","tipo":"in"},{"id":"t","tipo":"toma","params":{"nombre":"cam"}},
+        std::string g2 =
+            R"({"nodos":[{"id":"in","tipo":"in"},{"id":"t","tipo":"toma","params":{"nombre":"cam"}},
                             {"id":"tr","tipo":"traer","params":{"compositor":"estudio.compositor","config":")";
         for (const char* c = config; *c; ++c) {
             if (*c == '"') g2 += '\\';
             g2 += *c;
         }
-        g2 += R"("}},{"id":"out","tipo":"out"}],"cables":[{"desde":"in","hacia":"t"},{"desde":"tr","hacia":"out"}]})";
+        g2 +=
+            R"("}},{"id":"out","tipo":"out"}],"cables":[{"desde":"in","hacia":"t"},{"desde":"tr","hacia":"out"}]})";
         ponerGrafo(f, g2);
         for (int i = 0; i < 3; ++i) {
             im = dibujar(fuente);
             siguienteCuadro();
         }
-        std::printf("   traer: %d %d %d · %d %d %d\n", px(im, 10, 10, 0), px(im, 10, 10, 1), px(im, 10, 10, 2), px(im, 40, 10, 0),
-                    px(im, 40, 10, 1), px(im, 40, 10, 2));
+        std::printf("   traer: %d %d %d · %d %d %d\n", px(im, 10, 10, 0), px(im, 10, 10, 1),
+                    px(im, 10, 10, 2), px(im, 40, 10, 0), px(im, 40, 10, 1), px(im, 40, 10, 2));
         CHECK(px(im, 10, 10, 1) < 5 && px(im, 40, 10, 1) > 150 && px(im, 60, 10, 0) > 180,
               "traer: la escena de la entrada muestra el compositor que la recibe");
         obs_source_release(comp);
@@ -461,7 +522,8 @@ int main() {
               "rostros: baja cuadros chicos mientras se piden (despertando la entrada)");
         const std::uint8_t* q = bgra.data() + (5 * 64 + 5) * 4;
         std::printf("   rostros: el verde en BGRA = %d %d %d %d\n", q[0], q[1], q[2], q[3]);
-        CHECK(bgra.size() == 16384 && q[1] > 160 && q[2] < 30 && q[0] > 40 && q[0] < 90, "rostros: el cuadro llega en BGRA");
+        CHECK(bgra.size() == 16384 && q[1] > 160 && q[2] < 30 && q[0] > 40 && q[0] < 90,
+              "rostros: el cuadro llega en BGRA");
         // Sin pedidos, deja de bajar: en 6,5 s sin pedir, a uno cada 100 ms
         // bajaría ~65; con el corte a los 3 s, ~30.
         const long long antes = serie;
@@ -482,9 +544,12 @@ int main() {
             im = dibujar(fuente);
             siguienteCuadro();
         }
-        std::printf("   rostros marcar: borde %d %d %d · adentro %d %d %d\n", px(im, 0, 10, 0), px(im, 0, 10, 1), px(im, 0, 10, 2),
-                    px(im, 10, 10, 0), px(im, 10, 10, 1), px(im, 10, 10, 2));
-        CHECK(px(im, 0, 10, 1) > 180 && px(im, 0, 10, 0) < 80 && px(im, 0, 10, 2) < 140 && px(im, 10, 10, 1) == 177, "rostros: marca la caja (borde verde, adentro igual)");
+        std::printf("   rostros marcar: borde %d %d %d · adentro %d %d %d\n", px(im, 0, 10, 0),
+                    px(im, 0, 10, 1), px(im, 0, 10, 2), px(im, 10, 10, 0), px(im, 10, 10, 1),
+                    px(im, 10, 10, 2));
+        CHECK(px(im, 0, 10, 1) > 180 && px(im, 0, 10, 0) < 80 && px(im, 0, 10, 2) < 140 &&
+                  px(im, 10, 10, 1) == 177,
+              "rostros: marca la caja (borde verde, adentro igual)");
     }
 
     // 12. retardo: con la imagen quieta, pasa igual (y no se cae al cambiar de largo).
@@ -493,7 +558,8 @@ int main() {
         im = dibujar(fuente);
         siguienteCuadro();
     }
-    CHECK(px(im, 50, 10, 0) == 200 && px(im, 5, 5, 1) == 177, "retardo de 3 cuadros: la imagen (quieta) llega igual");
+    CHECK(px(im, 50, 10, 0) == 200 && px(im, 5, 5, 1) == 177,
+          "retardo de 3 cuadros: la imagen (quieta) llega igual");
     ponerGrafo(f, lineal("retardo", R"({"cuadros":0})"));
     im = dibujar(fuente);
     CHECK(px(im, 50, 10, 0) == 200, "retardo de 0: pasa directo");
@@ -503,11 +569,14 @@ int main() {
     // (negativos en un verde), así que sube el rojo y el verde.
     ponerGrafo(f, lineal("normalizar", R"({"matriz_declarada":"709","matriz_real":"709"})"));
     im = dibujar(fuente);
-    CHECK(std::abs(px(im, 5, 5, 1) - 177) <= 2 && std::abs(px(im, 5, 5, 0) - 0) <= 2, "normalizar igual a igual: no cambia");
+    CHECK(std::abs(px(im, 5, 5, 1) - 177) <= 2 && std::abs(px(im, 5, 5, 0) - 0) <= 2,
+          "normalizar igual a igual: no cambia");
     ponerGrafo(f, lineal("normalizar", R"({"matriz_declarada":"709","matriz_real":"601"})"));
     im = dibujar(fuente);
-    std::printf("   normalizar 709->601: el verde (0,177,64) quedo en %d %d %d\n", px(im, 5, 5, 0), px(im, 5, 5, 1), px(im, 5, 5, 2));
-    CHECK(px(im, 5, 5, 0) > 8 && px(im, 5, 5, 1) > 190 && px(im, 5, 5, 3) == 255, "normalizar 709->601: corrige el color");
+    std::printf("   normalizar 709->601: el verde (0,177,64) quedo en %d %d %d\n", px(im, 5, 5, 0),
+                px(im, 5, 5, 1), px(im, 5, 5, 2));
+    CHECK(px(im, 5, 5, 0) > 8 && px(im, 5, 5, 1) > 190 && px(im, 5, 5, 3) == 255,
+          "normalizar 709->601: corrige el color");
     // retardo en ms: 100 ms a 60 fps = 6 cuadros (pasa igual con imagen quieta).
     ponerGrafo(f, lineal("retardo", R"({"ms":100})"));
     for (int i = 0; i < 10; ++i) {
@@ -521,7 +590,9 @@ int main() {
     // de tiempo, y su `estado` dice reloj, formato y colorimetría.
     {
         obs_data_t* gs3 = obs_data_create();
-        obs_data_set_string(gs3, "pipeline", "videotestsrc pattern=blue is-live=true ! video/x-raw,width=64,height=64,framerate=30/1");
+        obs_data_set_string(
+            gs3, "pipeline",
+            "videotestsrc pattern=blue is-live=true ! video/x-raw,width=64,height=64,framerate=30/1");
         obs_data_set_int(gs3, "latencia", 600);
         obs_source_t* lat = obs_source_create("ba_gst_fuente", "colchon", gs3, nullptr);
         obs_data_release(gs3);
@@ -540,8 +611,11 @@ int main() {
         const char* info = calldata_string(&cd, "info");
         std::printf("   estado: %s\n", info != nullptr ? info : "(nada)");
         const std::string si = info != nullptr ? info : "";
-        CHECK(si.find("\"reloj\":\"sistema\"") != std::string::npos && si.find("\"latencia_ms\":600") != std::string::npos &&
-                  si.find("\"colorimetria\":\"bt709") != std::string::npos && si.find("\"origen\":{") != std::string::npos && si.find("\"ancho\":64") != std::string::npos,
+        CHECK(si.find("\"reloj\":\"sistema\"") != std::string::npos &&
+                  si.find("\"latencia_ms\":600") != std::string::npos &&
+                  si.find("\"colorimetria\":\"bt709") != std::string::npos &&
+                  si.find("\"origen\":{") != std::string::npos &&
+                  si.find("\"ancho\":64") != std::string::npos,
               "fuente: el estado informa reloj, latencia, colorimetría y tamaño");
         calldata_free(&cd);
         obs_source_release(lat);
@@ -563,8 +637,9 @@ int main() {
             siguienteCuadro();
             ir = dibujar(red);
             if (i % 60 == 59)
-                std::printf("   uri: %ux%u, centro %d %d %d %d\n", obs_source_get_width(red), obs_source_get_height(red),
-                            px(ir, 32, 32, 0), px(ir, 32, 32, 1), px(ir, 32, 32, 2), px(ir, 32, 32, 3));
+                std::printf("   uri: %ux%u, centro %d %d %d %d\n", obs_source_get_width(red),
+                            obs_source_get_height(red), px(ir, 32, 32, 0), px(ir, 32, 32, 1),
+                            px(ir, 32, 32, 2), px(ir, 32, 32, 3));
         }
         calldata_t cd = {};
         proc_handler_call(obs_source_get_proc_handler(red), "estado", &cd);
@@ -574,7 +649,8 @@ int main() {
     }
 #endif
 
-#if defined(BA_TEST_GST_RAIZ) && defined(BA_TEST_PYTHON) && !defined(_WIN32) // (lanza el plugin con sleep | python: Unix)
+#if defined(BA_TEST_GST_RAIZ) && defined(BA_TEST_PYTHON) &&                                                  \
+    !defined(_WIN32) // (lanza el plugin con sleep | python: Unix)
     // 11. Un plugin de Python (docs/PLUGINS.md): su tarjeta en el grafo
     // (`baplugin`) y su entrada de video y audio (`bapluginsrc` adentro de
     // ba_gst_fuente). Python puro, sin numpy: corre con el Python vendoreado.
@@ -625,7 +701,9 @@ plugin.correr()
             std::fclose(py);
         }
         // stdin abierto (si se cierra, el plugin termina): un `sleep`.
-        const std::string cmd = "sleep 60 | \"" BA_TEST_PYTHON "\" -I -B -u \"" BA_TEST_PLUGINS_SDK "/correr.py\" \"" + dir + "\"";
+        const std::string cmd = "sleep 60 | \"" BA_TEST_PYTHON "\" -I -B -u \"" BA_TEST_PLUGINS_SDK
+                                "/correr.py\" \"" +
+                                dir + "\"";
         std::FILE* proc = popen(cmd.c_str(), "r");
         char linea[4096] = {};
         int puerto = 0;
@@ -647,9 +725,12 @@ plugin.correr()
             calldata_free(&cd);
         }
         // La tarjeta: el negativo del cuadro de prueba.
-        ponerGrafo(f, (R"({"nodos":[{"id":"in","tipo":"in"},{"id":"pl","tipo":"gst","params":{"elemento":"baplugin","propiedades":{"plugin":")" + id +
-                       R"(","tarjeta":"negativo"}}},{"id":"out","tipo":"out"}],"cables":[{"desde":"in","hacia":"pl"},{"desde":"pl","hacia":"out"}]})")
-                          .c_str());
+        ponerGrafo(
+            f,
+            (R"({"nodos":[{"id":"in","tipo":"in"},{"id":"pl","tipo":"gst","params":{"elemento":"baplugin","propiedades":{"plugin":")" +
+             id +
+             R"(","tarjeta":"negativo"}}},{"id":"out","tipo":"out"}],"cables":[{"desde":"in","hacia":"pl"},{"desde":"pl","hacia":"out"}]})")
+                .c_str());
         std::vector<std::uint8_t> base;
         for (int i = 0; i < 300; ++i) {
             im = dibujar(fuente);
@@ -657,12 +738,15 @@ plugin.correr()
             if (px(im, 5, 5, 1) < 80 && px(im, 5, 5, 3) > 245) break;
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
-        std::printf("   plugin tarjeta negativo: %d %d %d (alfa %d)\n", px(im, 5, 5, 0), px(im, 5, 5, 1), px(im, 5, 5, 2), px(im, 5, 5, 3));
-        CHECK(px(im, 5, 5, 1) < 80 && px(im, 5, 5, 0) > 170 && px(im, 5, 5, 3) > 245, "plugin: la tarjeta de Python invierte el cuadro (verde -> magenta)");
+        std::printf("   plugin tarjeta negativo: %d %d %d (alfa %d)\n", px(im, 5, 5, 0), px(im, 5, 5, 1),
+                    px(im, 5, 5, 2), px(im, 5, 5, 3));
+        CHECK(px(im, 5, 5, 1) < 80 && px(im, 5, 5, 0) > 170 && px(im, 5, 5, 3) > 245,
+              "plugin: la tarjeta de Python invierte el cuadro (verde -> magenta)");
         // La entrada: video y audio del plugin, por ba_gst_fuente.
         obs_data_t* pd = obs_data_create();
         obs_data_set_string(pd, "pipeline", ("bapluginsrc plugin=" + id + " entrada=Prueba").c_str());
-        obs_data_set_string(pd, "pipeline_audio", ("bapluginsrc plugin=" + id + " entrada=Prueba medio=audio").c_str());
+        obs_data_set_string(pd, "pipeline_audio",
+                            ("bapluginsrc plugin=" + id + " entrada=Prueba medio=audio").c_str());
         obs_data_set_bool(pd, "audio", true);
         obs_data_set_bool(pd, "normalizar", false);
         obs_data_set_int(pd, "latencia", 100);
@@ -675,10 +759,12 @@ plugin.correr()
             if (obs_source_get_width(ent) == 64 && px(ie, 32, 32, 3) > 245) break;
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
-        std::printf("   plugin entrada: %ux%u, centro %d %d %d\n", obs_source_get_width(ent), obs_source_get_height(ent), px(ie, 32, 32, 0),
-                    px(ie, 32, 32, 1), px(ie, 32, 32, 2));
-        CHECK(obs_source_get_width(ent) == 64 && obs_source_get_height(ent) == 36, "plugin: la entrada de video llega con su tamaño");
-        CHECK(std::abs(px(ie, 32, 32, 0) - 200) < 20 && std::abs(px(ie, 32, 32, 1) - 100) < 20, "plugin: la entrada trae el color que manda");
+        std::printf("   plugin entrada: %ux%u, centro %d %d %d\n", obs_source_get_width(ent),
+                    obs_source_get_height(ent), px(ie, 32, 32, 0), px(ie, 32, 32, 1), px(ie, 32, 32, 2));
+        CHECK(obs_source_get_width(ent) == 64 && obs_source_get_height(ent) == 36,
+              "plugin: la entrada de video llega con su tamaño");
+        CHECK(std::abs(px(ie, 32, 32, 0) - 200) < 20 && std::abs(px(ie, 32, 32, 1) - 100) < 20,
+              "plugin: la entrada trae el color que manda");
         {
             calldata_t cd = {};
             proc_handler_call(obs_source_get_proc_handler(ent), "estado", &cd);
@@ -689,7 +775,8 @@ plugin.correr()
         obs_source_release(ent);
         // Un pipeline suelto: la tarjeta de audio (mitad) sobre el audio del plugin.
         GError* gerr = nullptr;
-        GstElement* pa = gst_parse_launch(("bapluginsrc plugin=" + id + " entrada=Prueba medio=audio ! baplugin plugin=" + id +
+        GstElement* pa = gst_parse_launch(("bapluginsrc plugin=" + id +
+                                           " entrada=Prueba medio=audio ! baplugin plugin=" + id +
                                            " tarjeta=mitad ! appsink name=s sync=false")
                                               .c_str(),
                                           &gerr);
@@ -700,7 +787,8 @@ plugin.correr()
             float muestra = 0;
             for (int i = 0; i < 20 && muestra == 0; ++i) {
                 GstSample* smp = nullptr;
-                g_signal_emit_by_name(sk, "try-pull-sample", static_cast<GstClockTime>(500 * GST_MSECOND), &smp);
+                g_signal_emit_by_name(sk, "try-pull-sample", static_cast<GstClockTime>(500 * GST_MSECOND),
+                                      &smp);
                 if (smp != nullptr) {
                     GstMapInfo mi;
                     GstBuffer* b = gst_sample_get_buffer(smp);
@@ -712,7 +800,8 @@ plugin.correr()
                 }
             }
             std::printf("   plugin audio: 0.4 por la tarjeta «mitad» -> %.3f\n", muestra);
-            CHECK(std::abs(muestra - 0.2f) < 0.01f, "plugin: el audio del plugin pasa por su tarjeta de audio (0.4 -> 0.2)");
+            CHECK(std::abs(muestra - 0.2f) < 0.01f,
+                  "plugin: el audio del plugin pasa por su tarjeta de audio (0.4 -> 0.2)");
             gst_object_unref(sk);
             gst_element_set_state(pa, GST_STATE_NULL);
             gst_object_unref(pa);

@@ -10,7 +10,10 @@
 namespace ba::app::dispositivos {
 
 QVariantMap Parametro::mapa() const {
-    QVariantMap m{{"clave", clave}, {"etiqueta", etiqueta.isEmpty() ? clave : etiqueta}, {"tipo", tipo}, {"obligatorio", obligatorio}};
+    QVariantMap m{{"clave", clave},
+                  {"etiqueta", etiqueta.isEmpty() ? clave : etiqueta},
+                  {"tipo", tipo},
+                  {"obligatorio", obligatorio}};
     if (!opciones.isEmpty()) m["opciones"] = opciones;
     if (!ayuda.isEmpty()) m["ayuda"] = ayuda;
     if (defecto.isValid()) m["defecto"] = defecto;
@@ -19,8 +22,13 @@ QVariantMap Parametro::mapa() const {
 
 QVariantMap Accion::mapa() const {
     QVariantList ps;
-    for (const auto& p : parametros) ps << p.mapa();
-    return {{"id", id}, {"titulo", titulo}, {"descripcion", descripcion}, {"parametros", ps}, {"modifica", modifica}};
+    for (const auto& p : parametros)
+        ps << p.mapa();
+    return {{"id", id},
+            {"titulo", titulo},
+            {"descripcion", descripcion},
+            {"parametros", ps},
+            {"modifica", modifica}};
 }
 
 Dispositivos::Dispositivos(QObject* parent) : QObject(parent) {}
@@ -52,7 +60,8 @@ QVariantList Dispositivos::equipos(const QString& tipo, const QString& buscar) c
     for (const auto& [id, e] : equipos_) {
         if (!tipo.isEmpty() && e.value("tipo").toString() != tipo) continue;
         if (!buscar.isEmpty()) {
-            const QString todo = e.value("nombre").toString() + " " + e.value("detalle").toString() + " " + id;
+            const QString todo =
+                e.value("nombre").toString() + " " + e.value("detalle").toString() + " " + id;
             if (!todo.contains(buscar, Qt::CaseInsensitive)) continue;
         }
         out << conAcciones(e);
@@ -88,16 +97,19 @@ void Dispositivos::escanear(const QString& detector, Listo listo) {
         emit cambio();
         d->escanear([yo, did, faltan, resumen, listo](QVariantMap r) {
             if (!yo) return;
-            QVariantMap est{{"escaneando", false}, {"cuando", QDateTime::currentDateTime().toString("HH:mm:ss")}};
+            QVariantMap est{{"escaneando", false},
+                            {"cuando", QDateTime::currentDateTime().toString("HH:mm:ss")}};
             if (r.contains("error")) {
                 est["error"] = r.value("error");
                 (*resumen)[did] = QVariantMap{{"error", r.value("error")}};
             } else {
                 // Lo de este detector se reemplaza entero (lo que ya no está, se va).
                 for (auto it = yo->equipos_.begin(); it != yo->equipos_.end();)
-                    it = it->second.value("detector").toString() == did ? yo->equipos_.erase(it) : std::next(it);
+                    it = it->second.value("detector").toString() == did ? yo->equipos_.erase(it)
+                                                                        : std::next(it);
                 const QVariantList l = r.value("equipos").toList();
-                for (const QVariant& e : l) yo->anotar(did, e.toMap());
+                for (const QVariant& e : l)
+                    yo->anotar(did, e.toMap());
                 est["cuantos"] = l.size();
                 (*resumen)[did] = QVariantMap{{"encontrados", l.size()}};
             }
@@ -110,20 +122,23 @@ void Dispositivos::escanear(const QString& detector, Listo listo) {
 
 void Dispositivos::correr(const QString& id, const QString& accion, const QVariantMap& args, Listo listo) {
     const auto it = equipos_.find(id);
-    if (it == equipos_.end()) return listo({{"error", "no hay un equipo «" + id + "» (equipos_escanear primero)"}});
+    if (it == equipos_.end())
+        return listo({{"error", "no hay un equipo «" + id + "» (equipos_escanear primero)"}});
     const QVariantMap e = it->second;
     const auto at = acciones_.find(e.value("tipo").toString());
     if (at != acciones_.end())
         for (const auto& a : at->second) {
             if (a.id != accion) continue;
-            if (a.aplica && !a.aplica(e)) return listo({{"error", "«" + accion + "» no aplica a este equipo ahora"}});
+            if (a.aplica && !a.aplica(e))
+                return listo({{"error", "«" + accion + "» no aplica a este equipo ahora"}});
             for (const auto& p : a.parametros)
                 if (p.obligatorio && args.value(p.clave).toString().isEmpty())
                     return listo({{"error", "falta «" + p.clave + "» (" + p.etiqueta + ")"}});
             return a.correr(e, args, std::move(listo));
         }
     QStringList hay;
-    for (const QVariant& a : accionesDe(e)) hay << a.toMap().value("id").toString();
+    for (const QVariant& a : accionesDe(e))
+        hay << a.toMap().value("id").toString();
     listo({{"error", "«" + accion + "» no es una acción de este equipo (tiene: " + hay.join(", ") + ")"}});
 }
 
@@ -133,7 +148,8 @@ QString Dispositivos::resumenAcciones() const {
         QStringList l;
         for (const auto& a : acs) {
             QStringList ps;
-            for (const auto& p : a.parametros) ps << p.clave + (p.obligatorio ? "" : "?");
+            for (const auto& p : a.parametros)
+                ps << p.clave + (p.obligatorio ? "" : "?");
             l << a.id + (ps.isEmpty() ? QString() : "(" + ps.join(", ") + ")");
         }
         tipos << tipo + ": " + l.join(", ");
@@ -143,7 +159,8 @@ QString Dispositivos::resumenAcciones() const {
 
 QString Dispositivos::resumenDetectores() const {
     QStringList l;
-    for (const auto& d : detectores_) l << d.id + " (" + d.nombre + ")";
+    for (const auto& d : detectores_)
+        l << d.id + " (" + d.nombre + ")";
     return l.join(", ");
 }
 

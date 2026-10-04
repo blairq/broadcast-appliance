@@ -423,7 +423,9 @@ La API de Facebook solo transmite y administra videos de **Paginas** (no del per
 - Otras: `rtmp://`, `srt://ip:puerto?mode=caller`, `https://.../playlist.m3u8` (HLS), `udp://@:5000`.
 - Devuelve si llega imagen y de que tamaño. `input_status` muestra el estado de todas (sin claves).
 - Latencia baja por defecto; `latency: "normal"` para señales inestables (mas colchon). Reconecta sola.)md"},
-    {"video", "Grafo de video", "Armar pipelines de video: correccion compartida entre camaras, modulos de GStreamer, compositor, entradas de red, relojes y sincronia.",
+    {"video", "Grafo de video",
+     "Armar pipelines de video: correccion compartida entre camaras, modulos de GStreamer, compositor, "
+     "entradas de red, relojes y sincronia.",
      R"md(Un solo grafo para todo el video del estudio, como un pipeline de GStreamer. Cada entrada (camara, red, virtual) es un sub-grafo: `<entrada>.entrada` -> tarjetas -> `<entrada>.escena` (lo que ven las escenas). Corre en la GPU, adentro de libobs. Todas las entradas marchan con el reloj de video del estudio (`status`: lienzo y fps).
 
 ## Como trabajar (siempre en este orden)
@@ -462,7 +464,10 @@ La API de Facebook solo transmite y administra videos de **Paginas** (no del per
 - Las tarjetas `gst` agregan 1 cuadro de latencia (no frenan el video). Si dos entradas se comparan y solo una tiene `gst`, eso es un cuadro de diferencia: tenelo en cuenta o medilo con `video_sincronia`.
 - `video_grafo_limpiar {"entrada"}` deja una entrada como vino.
 - Entradas virtuales de prueba (barras, placa de zonas, pelota): `video_entrada_virtual {"nombre", "preset", "escena"}`.)md"},
-    {"equipos", "Equipos", "Detectar equipos (red local, camaras y microfonos de la maquina, USB/HID/serie) y manejarlos con acciones: ficha, funciones ONVIF, operaciones ONVIF crudas, pedidos HTTP a la API de la marca, claves, agregar como entrada, PTZ real, explorar UVC.",
+    {"equipos", "Equipos",
+     "Detectar equipos (red local, camaras y microfonos de la maquina, USB/HID/serie) y manejarlos con "
+     "acciones: ficha, funciones ONVIF, operaciones ONVIF crudas, pedidos HTTP a la API de la marca, claves, "
+     "agregar como entrada, PTZ real, explorar UVC.",
      R"md(Un catalogo unico de equipos, con acciones declaradas por tipo. Es el camino general para "¿que hay conectado?" y "hacele X a tal equipo".
 
 ## El camino
@@ -477,7 +482,10 @@ La API de Facebook solo transmite y administra videos de **Paginas** (no del per
 
 ## Diagnosticar un PTZ que no responde
 `funciones_onvif` dice que declara la camara; `onvif` con `<tptz:GetStatus><tptz:ProfileToken>{perfil}</tptz:ProfileToken></tptz:GetStatus>` dice donde esta; probar un movimiento (`RelativeMove`, `AbsoluteMove`) y volver a mirar. Si el protocolo acepta y la posicion no cambia, probar la API de la marca con `http`; si tampoco, es la camara (mecanica o un limite en su configuracion).)md"},
-    {"plugins", "Plugins de Python", "Cuando un equipo o un pedido no se puede con lo que hay: escribir un plugin (PTZ raros por USB/HID, camaras 360, varias camaras que se sincronizan, datos de quien habla, tarjetas de video y audio en Python, manejar el sistema).",
+    {"plugins", "Plugins de Python",
+     "Cuando un equipo o un pedido no se puede con lo que hay: escribir un plugin (PTZ raros por USB/HID, "
+     "camaras 360, varias camaras que se sincronizan, datos de quien habla, tarjetas de video y audio en "
+     "Python, manejar el sistema).",
      R"md(**Nunca contestes «no se puede» por un equipo raro o un pedido que las herramientas no cubren: escribí un plugin.** Un plugin es un programa en Python que corre en su propio proceso (si se cae, la emisión sigue y se reinicia solo) y le suma al sistema lo que haga falta. Lo escribís vos; el operador no programa.
 
 Casos típicos:
@@ -569,7 +577,9 @@ Equipos (`from ba_plugin import dispositivos as d`; dependencias `pyusb`, `libus
 - **Todo plugin que el operador tenga que manejar lleva `plugin.panel`** (lo que se ajusta: deslizadores, interruptores, opciones; lo que se hace: botones; lo que pasa: indicadores y medidores). Los humanos usan el sistema igual que vos: nada de "pedímelo por el chat". `@plugin.control` queda para lo que pide el asistente con argumentos (y también aparece como botón).
 - Las bibliotecas van en `dependencias` (pip, se bajan a la carpeta del plugin: portable, sobreviven a las actualizaciones). **numpy ya viene con el programa** (declararlo no cuesta nada); la primera vez que se baja algo grande (opencv) puede tardar un par de minutos.
 - Claves de equipos (usuario, contraseña, token de la API de la marca): nunca por el chat ni en `config`. Declaralas en plugin.json (`"secretos": [{"clave": "clave", "etiqueta": "Clave de la cámara"}]`), pedilas con `plugin_credenciales {"id"}` (formulario seguro en la barra) y en el plugin `plugin.secreto("clave")` (None si todavía no están: que espere y lo diga con `plugin.estado`).)md"},
-    {"camaras_red", "Camaras de la red", "Encontrar camaras IP, grabadores y equipos de video en la red y conectarlos bien (marca, URLs, clave, PTZ, normalizar).",
+    {"camaras_red", "Camaras de la red",
+     "Encontrar camaras IP, grabadores y equipos de video en la red y conectarlos bien (marca, URLs, clave, "
+     "PTZ, normalizar).",
      R"md(Para "¿que camaras hay?", "agregá la camara del patio", "conectá el DVR", "tengo una Axis/Hikvision/EZVIZ…".
 
 ## El camino (siempre este)
@@ -607,7 +617,9 @@ Equipos (`from ba_plugin import dispositivos as d`; dependencias `pyusb`, `libus
 
 ## Mejorar imagen
 `video_mejora {"activa": true}` (lo general: ruido, color pegado al brillo, nitidez; 0-100) y por camara `ptz_configurar {"entrada": ..., "mejora": "si"|"no"|"general"}`.)md"},
-    {"herramientas", "Herramientas de medios", "ffmpeg, ffprobe, yt-dlp y gst-launch INCLUIDOS en el programa (no se bajan): arreglar un archivo de video o audio (desfase de audio, formato, recorte, volumen) o traer un video de una pagina.",
+    {"herramientas", "Herramientas de medios",
+     "ffmpeg, ffprobe, yt-dlp y gst-launch INCLUIDOS en el programa (no se bajan): arreglar un archivo de "
+     "video o audio (desfase de audio, formato, recorte, volumen) o traer un video de una pagina.",
      R"md(Vienen adentro del programa y estan PRIMERAS en el PATH de la consola, de los plugins y de todo lo que lanza el sistema. **No bajes ni instales nada** (ni brew, apt, pip, winget, ni un ffmpeg de internet): ya estan.
 
 | Herramienta | Para que | Variable |
@@ -636,7 +648,10 @@ La carpeta es `BA_HERRAMIENTAS`. Si en los datos hay una carpeta `Herramientas/`
 - **Con GStreamer**: `gst-discoverer-1.0 in.mp4` (lo mismo que ffprobe); `gst-launch-1.0` para probar una cadena antes de llevarla al grafo.
 
 Despues: `media_find` para encontrarlo y usarlo en una escena.)md"},
-    {"traduccion", "Traducción en vivo", "Traducir lo que dice el orador (castellano) a inglés, portugués, francés, alemán, ruso o chino, sin red: subtítulos y voz en otro idioma; el glosario de términos del evento (Legislatura del Chubut incluida).",
+    {"traduccion", "Traducción en vivo",
+     "Traducir lo que dice el orador (castellano) a inglés, portugués, francés, alemán, ruso o chino, sin "
+     "red: subtítulos y voz en otro idioma; el glosario de términos del evento (Legislatura del Chubut "
+     "incluida).",
      R"md(La traducción toma una **salida de texto** (la de una tarjeta «Voz a texto»: «Orador») y publica otra con lo mismo en otro idioma («Orador · en»). Corre en la máquina, sin red, con modelos OPUS-MT (0,1 a 0,6 s por frase). Castellano <-> inglés y castellano <-> portugués son directos; francés, alemán, ruso y chino pasan por el inglés.
 
 ## Receta: subtítulos en inglés y voz en inglés por la pista 2
@@ -653,7 +668,9 @@ Antes de traducir, cada término conocido se reemplaza por su traducción ya hec
 - Probá con `traducir {"texto", "a"}` antes de salir al aire.
 - Reglas: varias formas en `es` (singular, plural, femenino); la traducción debe encajar en la frase (si el término es «solicito pasar a cuarto intermedio», que la traducción sea la frase entera); en ruso y chino el término se aplica al pasar por el inglés, así que cuidá la forma en inglés (palabras comunes: «parliamentary group», no «caucus»).
 - Los modelos traducen palabra por palabra lo que no conocen: un modismo nuevo, un nombre propio que se puede leer como palabra común (Esquel, Gaiman…) va al glosario con su forma en cada idioma.)md"},
-    {"superres", "Superresolución", "Mejorar la resolución de una cámara de baja definición (PAL, 720p): motores apple, fsr y redes ONNX (red chica entrenada con la propia cámara, SPAN, Real-ESRGAN).",
+    {"superres", "Superresolución",
+     "Mejorar la resolución de una cámara de baja definición (PAL, 720p): motores apple, fsr y redes ONNX "
+     "(red chica entrenada con la propia cámara, SPAN, Real-ESRGAN).",
      R"md(**Es una TARJETA del grafo de video** (un filtro de GStreamer que agranda x2), en cualquier entrada: `superres_tarjeta {"entrada", "motor"}`. Lo que la sigue trabaja al doble y la escena la recibe grande: una cámara de 768x576 sale en 1536x1152. En una entrada de red también se puede poner en la fuente misma (`superres_aplicar`), antes del grafo. El audio no pasa por ahí; la sincronía se mantiene mientras lo que tarda entre en el colchón de la entrada (`latencia_ms`): si `superres.ms_por_cuadro` (video_estado) se acerca al colchón, subilo (video_entrada_red `latencia_ms`).
 
 ## Motores (`superres_estado` dice cuáles hay)

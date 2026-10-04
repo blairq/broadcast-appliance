@@ -79,7 +79,9 @@ QVariantList SystemViewModel::backups() const {
     return out;
 }
 
-bool SystemViewModel::canRollback() const { return QFileInfo(programa() + "/.actualizacion-anterior").isDir(); }
+bool SystemViewModel::canRollback() const {
+    return QFileInfo(programa() + "/.actualizacion-anterior").isDir();
+}
 
 void SystemViewModel::refresh() { emit changed(); }
 

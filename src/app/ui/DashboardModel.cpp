@@ -34,8 +34,7 @@ const Kind kKinds[] = {
     // Primera a proposito: es la que se mira todo el tiempo.
     {"direccion", "Dirección"}, {"outputs", "Salidas"},   {"scenes", "Escenas"},    {"mixer", "Mezclador"},
     {"guests", "Invitados"},    {"health", "Sistema"},    {"monitor", "Monitor"},   {"sources", "Fuentes"},
-    {"lobby", "Sala"},          {"speakers", "Oradores"}, {"carrusel", "Carrusel"},
-    {"ptz", "Control PTZ"},
+    {"lobby", "Sala"},          {"speakers", "Oradores"}, {"carrusel", "Carrusel"}, {"ptz", "Control PTZ"},
 };
 
 } // namespace

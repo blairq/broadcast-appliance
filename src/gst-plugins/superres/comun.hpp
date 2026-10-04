@@ -56,8 +56,10 @@ inline bool escalarCampo(GstStructure* st, const char* campo, int por) {
             b = b / -por;
         }
         if (a > b) return false;
-        if (a == b) gst_structure_set(st, campo, G_TYPE_INT, a, nullptr);
-        else gst_structure_set(st, campo, GST_TYPE_INT_RANGE, a, b, nullptr);
+        if (a == b)
+            gst_structure_set(st, campo, G_TYPE_INT, a, nullptr);
+        else
+            gst_structure_set(st, campo, GST_TYPE_INT_RANGE, a, b, nullptr);
     } else if (GST_VALUE_HOLDS_LIST(v)) {
         GValue lista = G_VALUE_INIT;
         g_value_init(&lista, GST_TYPE_LIST);
@@ -83,16 +85,19 @@ inline bool escalarCampo(GstStructure* st, const char* campo, int por) {
 
 /// caps del otro lado: el doble (o la mitad) PRIMERO y, detrás, la misma forma (pasante).
 /// `puede(ancho, alto)` (opcional): si el motor acepta ese tamaño de ENTRADA (cuando es fijo).
-inline GstCaps* transformarCaps(GstPadDirection dir, GstCaps* caps, GstCaps* filtro, bool activo, bool (*puede)(int, int) = nullptr) {
+inline GstCaps* transformarCaps(GstPadDirection dir, GstCaps* caps, GstCaps* filtro, bool activo,
+                                bool (*puede)(int, int) = nullptr) {
     GstCaps* doble = gst_caps_new_empty();
     GstCaps* igual = gst_caps_new_empty();
     for (guint i = 0; i < gst_caps_get_size(caps); ++i) {
         const GstStructure* st = gst_caps_get_structure(caps, i);
         GstCapsFeatures* feat = gst_caps_get_features(caps, i);
-        gst_caps_append_structure_full(igual, gst_structure_copy(st), feat ? gst_caps_features_copy(feat) : nullptr);
+        gst_caps_append_structure_full(igual, gst_structure_copy(st),
+                                       feat ? gst_caps_features_copy(feat) : nullptr);
         if (!activo) continue;
         int w = 0, h = 0;
-        if (puede != nullptr && gst_structure_get_int(st, "width", &w) && gst_structure_get_int(st, "height", &h)) {
+        if (puede != nullptr && gst_structure_get_int(st, "width", &w) &&
+            gst_structure_get_int(st, "height", &h)) {
             const bool entrada = dir == GST_PAD_SINK;
             if (entrada ? !puede(w, h) : (w % 2 != 0 || h % 2 != 0 || !puede(w / 2, h / 2))) continue;
         }
@@ -158,7 +163,8 @@ struct Demora {
     GstClockTime latencia() {
         std::lock_guard<std::mutex> l(mu);
         double peor = 0;
-        for (size_t i = 0; i < std::min(n, ms.size()); ++i) peor = std::max(peor, ms[i]);
+        for (size_t i = 0; i < std::min(n, ms.size()); ++i)
+            peor = std::max(peor, ms[i]);
         return static_cast<GstClockTime>(std::max(1.0, peor * 1.2) * GST_MSECOND);
     }
     void reiniciar() {
@@ -170,7 +176,8 @@ struct Demora {
 };
 
 /// La consulta LATENCY: la de arriba más la del motor. Devuelve lo que hizo el padre.
-inline gboolean consultaLatencia(GstBaseTransform* bt, GstQuery* q, Demora& d, gboolean (*padre)(GstBaseTransform*, GstPadDirection, GstQuery*),
+inline gboolean consultaLatencia(GstBaseTransform* bt, GstQuery* q, Demora& d,
+                                 gboolean (*padre)(GstBaseTransform*, GstPadDirection, GstQuery*),
                                  GstPadDirection dir) {
     if (!padre(bt, dir, q)) return FALSE;
     if (dir == GST_PAD_SRC && GST_QUERY_TYPE(q) == GST_QUERY_LATENCY) {

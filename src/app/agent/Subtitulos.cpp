@@ -19,7 +19,8 @@ FlujosTexto* gFlujos = nullptr;
 void listaFlujos(void*, calldata_t* cd) {
     std::string l;
     if (gFlujos != nullptr)
-        for (const QVariant& v : gFlujos->flujos()) l += v.toMap().value("nombre").toString().toStdString() + "\n";
+        for (const QVariant& v : gFlujos->flujos())
+            l += v.toMap().value("nombre").toString().toStdString() + "\n";
     calldata_set_string(cd, "lista", l.c_str());
 }
 
@@ -54,7 +55,8 @@ Subtitulos::Subtitulos(FlujosTexto& flujos, QObject* parent) : QObject(parent), 
     gActivo = this;
     gFlujos = &flujos;
     if (!registrado) {
-        proc_handler_add(obs_get_proc_handler(), "void ba_flujos_texto(out string lista)", listaFlujos, nullptr);
+        proc_handler_add(obs_get_proc_handler(), "void ba_flujos_texto(out string lista)", listaFlujos,
+                         nullptr);
         registrado = true;
     }
     connect(&flujos_, &FlujosTexto::frase, this, &Subtitulos::alFrase);

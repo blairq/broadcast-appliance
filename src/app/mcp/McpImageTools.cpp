@@ -273,8 +273,9 @@ void McpService::registerImageTools() {
                 }
                 QTimer::singleShot(0, [intento]() { *intento = nullptr; });
                 ToolResult r;
-                r.text("'" + a["name"].get<std::string>() + "' (" + std::to_string(img.width()) + "x" + std::to_string(img.height()) +
-                       ")" + (negra ? " — sale NEGRA (sin señal todavía, o la imagen es negra de verdad)" : ""));
+                r.text("'" + a["name"].get<std::string>() + "' (" + std::to_string(img.width()) + "x" +
+                       std::to_string(img.height()) + ")" +
+                       (negra ? " — sale NEGRA (sin señal todavía, o la imagen es negra de verdad)" : ""));
                 addImage(r, img, a, 1280, core, rt.dataRoot());
                 done(r);
             };
@@ -589,8 +590,10 @@ void McpService::registerImageTools() {
                 // Una escena o una fuente por su nombre: se dibuja aparte (no toca
                 // el programa ni la armada).
                 if (!renderSource(rt, fuente, 1280, img, err))
-                    return done(ToolResult::error("Sin imagen en '" + fuente + "': no es una escena, una fuente ni una "
-                                                  "clave de feeds_list (" + err + ")."));
+                    return done(ToolResult::error("Sin imagen en '" + fuente +
+                                                  "': no es una escena, una fuente ni una "
+                                                  "clave de feeds_list (" +
+                                                  err + ")."));
             }
             if (img.isNull()) return done(ToolResult::error("No se pudo tomar la imagen."));
 

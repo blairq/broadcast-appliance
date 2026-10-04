@@ -221,7 +221,8 @@ int main() {
             std::vector<float> c(9600), d(9600);
             futuro.pop(c.data(), d.data(), 9600);
             const bool frasEntera = std::all_of(c.begin(), c.end(), [](float x) { return x == 0.5f; });
-            CHECK(silencioAntes && frasEntera, "lo agendado a futuro suena a su hora y entero (no se recorta)");
+            CHECK(silencioAntes && frasEntera,
+                  "lo agendado a futuro suena a su hora y entero (no se recorta)");
         }
         AudioRack r4(lib, &svc, 48000);
         CHECK(r4.load(r3.save(), &err) && r4.entradas().size() == 1 && r4.entradas()[0].second == "Micrófono",
@@ -234,7 +235,8 @@ int main() {
     {
         AudioRack r5(lib, &svc, 48000);
         const std::string tr = r5.addTraduccion({{"desde", "Orador"}, {"a", "pt"}});
-        CHECK(!tr.empty() && r5.kindOf(tr) == "traducir" && r5.traducciones().size() == 1, "agrega la tarjeta de traducir");
+        CHECK(!tr.empty() && r5.kindOf(tr) == "traducir" && r5.traducciones().size() == 1,
+              "agrega la tarjeta de traducir");
         CHECK(!r5.connect("in", "out", tr, "in", &err), "no se le puede cablear audio");
         std::vector<float> l(480, 0.5f), rr(480, 0.5f);
         float* planes[2] = {l.data(), rr.data()};

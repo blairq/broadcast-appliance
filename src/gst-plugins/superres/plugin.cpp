@@ -45,11 +45,12 @@ gboolean ba_vtsuperres_soportado();
 static GType tipoMotor() {
     static GType t = 0;
     if (g_once_init_enter(&t)) {
-        static const GEnumValue v[] = {{0, "Elegir solo (red si hay modelo; Apple en macOS 26; si no, FSR)", "auto"},
-                                       {1, "Apple VideoToolbox (macOS 26, entrada hasta 960x960)", "apple"},
-                                       {2, "FSR 1 de AMD (OpenGL, cualquier GPU)", "fsr"},
-                                       {3, "Una red ONNX (propiedad modelo)", "onnx"},
-                                       {0, nullptr, nullptr}};
+        static const GEnumValue v[] = {
+            {0, "Elegir solo (red si hay modelo; Apple en macOS 26; si no, FSR)", "auto"},
+            {1, "Apple VideoToolbox (macOS 26, entrada hasta 960x960)", "apple"},
+            {2, "FSR 1 de AMD (OpenGL, cualquier GPU)", "fsr"},
+            {3, "Una red ONNX (propiedad modelo)", "onnx"},
+            {0, nullptr, nullptr}};
         g_once_init_leave(&t, g_enum_register_static("BaSuperResMotor", v));
     }
     return t;
@@ -80,8 +81,8 @@ struct _BaSuperRes {
     GstElement* nv12;
     GstElement* motor;
     GstElement* convSalida;
-    gchar* pedido;   ///< motor pedido
-    gchar* usado;    ///< motor que quedó
+    gchar* pedido; ///< motor pedido
+    gchar* usado;  ///< motor que quedó
     gchar* modelo;
     gchar* proveedor;
     gdouble nitidez;
@@ -91,10 +92,22 @@ struct _BaSuperRes {
 
 G_DEFINE_TYPE(BaSuperRes, ba_superres, GST_TYPE_BIN)
 
-enum { PROP_0, PROP_MOTOR, PROP_MODELO, PROP_NITIDEZ, PROP_PROVEEDOR, PROP_ACTIVO, PROP_MOTOR_USADO, PROP_MS, PROP_ERROR };
+enum {
+    PROP_0,
+    PROP_MOTOR,
+    PROP_MODELO,
+    PROP_NITIDEZ,
+    PROP_PROVEEDOR,
+    PROP_ACTIVO,
+    PROP_MOTOR_USADO,
+    PROP_MS,
+    PROP_ERROR
+};
 
-static GstStaticPadTemplate sinkTpl = GST_STATIC_PAD_TEMPLATE("sink", GST_PAD_SINK, GST_PAD_ALWAYS, GST_STATIC_CAPS("video/x-raw"));
-static GstStaticPadTemplate srcTpl = GST_STATIC_PAD_TEMPLATE("src", GST_PAD_SRC, GST_PAD_ALWAYS, GST_STATIC_CAPS("video/x-raw"));
+static GstStaticPadTemplate sinkTpl =
+    GST_STATIC_PAD_TEMPLATE("sink", GST_PAD_SINK, GST_PAD_ALWAYS, GST_STATIC_CAPS("video/x-raw"));
+static GstStaticPadTemplate srcTpl =
+    GST_STATIC_PAD_TEMPLATE("src", GST_PAD_SRC, GST_PAD_ALWAYS, GST_STATIC_CAPS("video/x-raw"));
 
 static bool hay(const char* fabrica) {
     GstElementFactory* f = gst_element_factory_find(fabrica);
@@ -125,15 +138,20 @@ static void armar(BaSuperRes* s) {
     g_free(s->error);
     s->error = nullptr;
     const std::string m = s->activo ? elegir(s) : "ninguno";
-    const char* fabrica = m == "apple" ? "bavtsuperres" : m == "onnx" ? "baonnxsr" : m == "fsr" ? "bafsr" : "identity";
+    const char* fabrica = m == "apple"  ? "bavtsuperres"
+                          : m == "onnx" ? "baonnxsr"
+                          : m == "fsr"  ? "bafsr"
+                                        : "identity";
     GstElement* e = gst_element_factory_make(fabrica, "motor");
     if (!s->activo) {
         // Apagado: pasa sin tocar (y sin agrandar).
     } else if (e == nullptr) {
-        s->error = g_strdup((std::string("no hay el motor «") + m + "» (" + fabrica + ") en este sistema").c_str());
+        s->error =
+            g_strdup((std::string("no hay el motor «") + m + "» (" + fabrica + ") en este sistema").c_str());
         e = gst_element_factory_make("identity", "motor"); // la imagen sigue, sin agrandar
     } else if (m == "onnx") {
-        g_object_set(e, "modelo", s->modelo != nullptr ? s->modelo : "", "proveedor", s->proveedor != nullptr ? s->proveedor : "auto", nullptr);
+        g_object_set(e, "modelo", s->modelo != nullptr ? s->modelo : "", "proveedor",
+                     s->proveedor != nullptr ? s->proveedor : "auto", nullptr);
     } else if (m == "fsr") {
         g_object_set(e, "nitidez", s->nitidez, nullptr);
     }
@@ -158,8 +176,10 @@ static void ponerPropiedad(GObject* o, guint id, const GValue* v, GParamSpec* ps
             break;
         case PROP_ACTIVO:
             s->activo = g_value_get_boolean(v);
-            if (s->motor != nullptr && g_object_class_find_property(G_OBJECT_GET_CLASS(s->motor), "activo") != nullptr)
-                g_object_set(s->motor, "activo", s->activo, nullptr); // los que saben pasar sin tocar, en vivo
+            if (s->motor != nullptr &&
+                g_object_class_find_property(G_OBJECT_GET_CLASS(s->motor), "activo") != nullptr)
+                g_object_set(s->motor, "activo", s->activo,
+                             nullptr); // los que saben pasar sin tocar, en vivo
             else
                 rearmar = true;
             break;
@@ -173,13 +193,15 @@ static void ponerPropiedad(GObject* o, guint id, const GValue* v, GParamSpec* ps
             break;
         case PROP_NITIDEZ:
             s->nitidez = g_value_get_double(v);
-            if (s->motor != nullptr && g_object_class_find_property(G_OBJECT_GET_CLASS(s->motor), "nitidez") != nullptr)
+            if (s->motor != nullptr &&
+                g_object_class_find_property(G_OBJECT_GET_CLASS(s->motor), "nitidez") != nullptr)
                 g_object_set(s->motor, "nitidez", s->nitidez, nullptr);
             break;
         case PROP_PROVEEDOR:
             g_free(s->proveedor);
             s->proveedor = g_strdup(kProveedores[std::clamp(g_value_get_enum(v), 0, 3)]);
-            if (s->motor != nullptr && g_object_class_find_property(G_OBJECT_GET_CLASS(s->motor), "proveedor") != nullptr)
+            if (s->motor != nullptr &&
+                g_object_class_find_property(G_OBJECT_GET_CLASS(s->motor), "proveedor") != nullptr)
                 g_object_set(s->motor, "proveedor", s->proveedor, nullptr);
             break;
         default: G_OBJECT_WARN_INVALID_PROPERTY_ID(o, id, ps); return;
@@ -211,14 +233,16 @@ static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
         case PROP_MOTOR_USADO: g_value_set_string(v, s->usado); break;
         case PROP_MS: {
             gdouble ms = 0;
-            if (s->motor != nullptr && g_object_class_find_property(G_OBJECT_GET_CLASS(s->motor), "ms-por-cuadro") != nullptr)
+            if (s->motor != nullptr &&
+                g_object_class_find_property(G_OBJECT_GET_CLASS(s->motor), "ms-por-cuadro") != nullptr)
                 g_object_get(s->motor, "ms-por-cuadro", &ms, nullptr);
             g_value_set_double(v, ms);
             break;
         }
         case PROP_ERROR: {
             gchar* e = nullptr;
-            if (s->error == nullptr && s->motor != nullptr && g_object_class_find_property(G_OBJECT_GET_CLASS(s->motor), "error") != nullptr)
+            if (s->error == nullptr && s->motor != nullptr &&
+                g_object_class_find_property(G_OBJECT_GET_CLASS(s->motor), "error") != nullptr)
                 g_object_get(s->motor, "error", &e, nullptr);
             g_value_take_string(v, s->error != nullptr ? g_strdup(s->error) : e);
             break;
@@ -245,22 +269,37 @@ static void ba_superres_class_init(BaSuperResClass* k) {
     go->finalize = ba_superres_finalize;
     // Lo que se puede cambiar andando (MUTABLE_PLAYING) y lo que rearma el motor
     // (MUTABLE_READY: con la cadena parada; la tarjeta del grafo rearma sola).
-    const auto vivo = static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | GST_PARAM_MUTABLE_PLAYING);
-    const auto listo = static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | GST_PARAM_MUTABLE_READY);
+    const auto vivo =
+        static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | GST_PARAM_MUTABLE_PLAYING);
+    const auto listo =
+        static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | GST_PARAM_MUTABLE_READY);
     const auto ro = static_cast<GParamFlags>(G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
-    g_object_class_install_property(go, PROP_MOTOR, g_param_spec_enum("motor", "Motor", "Con qué se agranda", tipoMotor(), 0, listo));
-    g_object_class_install_property(go, PROP_MODELO, g_param_spec_string("modelo", "Modelo", "Ruta del .onnx (motor onnx)", "", vivo));
+    g_object_class_install_property(
+        go, PROP_MOTOR, g_param_spec_enum("motor", "Motor", "Con qué se agranda", tipoMotor(), 0, listo));
+    g_object_class_install_property(
+        go, PROP_MODELO, g_param_spec_string("modelo", "Modelo", "Ruta del .onnx (motor onnx)", "", vivo));
     g_object_class_install_property(go, PROP_NITIDEZ,
-                                    g_param_spec_double("nitidez", "Nitidez", "FSR: cuánto afila, en paradas (0 = el máximo)", 0.0, 2.0, 0.2, vivo));
+                                    g_param_spec_double("nitidez", "Nitidez",
+                                                        "FSR: cuánto afila, en paradas (0 = el máximo)", 0.0,
+                                                        2.0, 0.2, vivo));
     g_object_class_install_property(go, PROP_PROVEEDOR,
-                                    g_param_spec_enum("proveedor", "Proveedor", "Motor onnx: con qué acelerar la red", tipoProveedor(), 0, listo));
+                                    g_param_spec_enum("proveedor", "Proveedor",
+                                                      "Motor onnx: con qué acelerar la red", tipoProveedor(),
+                                                      0, listo));
     g_object_class_install_property(go, PROP_ACTIVO,
-                                    g_param_spec_boolean("activo", "Activo", "Agranda (FALSE: pasa sin tocar, del mismo tamaño)", TRUE, vivo));
-    g_object_class_install_property(go, PROP_MOTOR_USADO, g_param_spec_string("motor-usado", "Motor usado", "El que quedó", nullptr, ro));
-    g_object_class_install_property(go, PROP_MS, g_param_spec_double("ms-por-cuadro", "ms por cuadro", "Lo que tarda (onnx/apple)", 0, 100000, 0, ro));
-    g_object_class_install_property(go, PROP_ERROR, g_param_spec_string("error", "Error", "Por qué no anda (si no anda)", nullptr, ro));
-    gst_element_class_set_static_metadata(ge, "Superresolución x2", "Filter/Effect/Video/Scaler",
-                                          "Duplica la resolución: Apple (VideoToolbox), FSR 1 (AMD) o una red ONNX", "Broadcast Appliance");
+                                    g_param_spec_boolean("activo", "Activo",
+                                                         "Agranda (FALSE: pasa sin tocar, del mismo tamaño)",
+                                                         TRUE, vivo));
+    g_object_class_install_property(
+        go, PROP_MOTOR_USADO, g_param_spec_string("motor-usado", "Motor usado", "El que quedó", nullptr, ro));
+    g_object_class_install_property(
+        go, PROP_MS,
+        g_param_spec_double("ms-por-cuadro", "ms por cuadro", "Lo que tarda (onnx/apple)", 0, 100000, 0, ro));
+    g_object_class_install_property(
+        go, PROP_ERROR, g_param_spec_string("error", "Error", "Por qué no anda (si no anda)", nullptr, ro));
+    gst_element_class_set_static_metadata(
+        ge, "Superresolución x2", "Filter/Effect/Video/Scaler",
+        "Duplica la resolución: Apple (VideoToolbox), FSR 1 (AMD) o una red ONNX", "Broadcast Appliance");
     gst_element_class_add_static_pad_template(ge, &sinkTpl);
     gst_element_class_add_static_pad_template(ge, &srcTpl);
 }
@@ -284,8 +323,10 @@ static void ba_superres_init(BaSuperRes* s) {
     gst_element_link(s->convEntrada, s->nv12);
     GstPad* in = gst_element_get_static_pad(s->convEntrada, "sink");
     GstPad* out = gst_element_get_static_pad(s->convSalida, "src");
-    gst_element_add_pad(GST_ELEMENT(s), gst_ghost_pad_new_from_template("sink", in, gst_static_pad_template_get(&sinkTpl)));
-    gst_element_add_pad(GST_ELEMENT(s), gst_ghost_pad_new_from_template("src", out, gst_static_pad_template_get(&srcTpl)));
+    gst_element_add_pad(GST_ELEMENT(s),
+                        gst_ghost_pad_new_from_template("sink", in, gst_static_pad_template_get(&sinkTpl)));
+    gst_element_add_pad(GST_ELEMENT(s),
+                        gst_ghost_pad_new_from_template("src", out, gst_static_pad_template_get(&srcTpl)));
     gst_object_unref(in);
     gst_object_unref(out);
     armar(s);
@@ -301,5 +342,5 @@ static gboolean plugin_init(GstPlugin* plugin) {
 
 #define PACKAGE "basuperres"
 GST_PLUGIN_DEFINE(GST_VERSION_MAJOR, GST_VERSION_MINOR, basuperres,
-                  "Superresolución x2: Apple (VideoToolbox), FSR 1 (AMD, OpenGL) y redes ONNX", plugin_init, "1.0", "GPL",
-                  "Broadcast Appliance", "Broadcast Appliance")
+                  "Superresolución x2: Apple (VideoToolbox), FSR 1 (AMD, OpenGL) y redes ONNX", plugin_init,
+                  "1.0", "GPL", "Broadcast Appliance", "Broadcast Appliance")

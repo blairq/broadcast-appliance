@@ -19,8 +19,8 @@
 #include <QDateTime>
 #include <QList>
 #include <QString>
-#include <QVariantMap>
 #include <QStringList>
+#include <QVariantMap>
 
 #include <cstdint>
 

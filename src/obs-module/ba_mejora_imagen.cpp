@@ -121,7 +121,8 @@ void liberarGraficos(Mejora* m) {
     gs_texrender_destroy(m->medio);
     for (int s = 0; s < kTimers; ++s) {
         gs_timer_range_destroy(m->rango[s]);
-        for (int p = 0; p < kPasadas; ++p) gs_timer_destroy(m->timer[s][p]);
+        for (int p = 0; p < kPasadas; ++p)
+            gs_timer_destroy(m->timer[s][p]);
     }
     m->fx = nullptr;
 }
@@ -155,18 +156,21 @@ void* crear(obs_data_t* settings, obs_source_t* ctx) {
     m->medio = gs_texrender_create(GS_RGBA16F, GS_ZS_NONE);
     for (int s = 0; s < kTimers; ++s) {
         m->rango[s] = gs_timer_range_create();
-        for (int p = 0; p < kPasadas; ++p) m->timer[s][p] = gs_timer_create();
+        for (int p = 0; p < kPasadas; ++p)
+            m->timer[s][p] = gs_timer_create();
     }
     obs_leave_graphics();
     if (m->fx == nullptr) {
-        blog(LOG_WARNING, "[ba-sources] Mejorar imagen: no se pudo cargar %s (%s); la imagen pasa sin filtrar",
-             ruta != nullptr ? ruta : "mejora-imagen.effect", errores != nullptr ? errores : "no esta el archivo");
+        blog(LOG_WARNING,
+             "[ba-sources] Mejorar imagen: no se pudo cargar %s (%s); la imagen pasa sin filtrar",
+             ruta != nullptr ? ruta : "mejora-imagen.effect",
+             errores != nullptr ? errores : "no esta el archivo");
     }
     bfree(errores);
     bfree(ruta);
     actualizar(m, settings);
-    proc_handler_add(obs_source_get_proc_handler(ctx), "void tiempos(out float temporal, out float color, out float final)",
-                     tiempos, m);
+    proc_handler_add(obs_source_get_proc_handler(ctx),
+                     "void tiempos(out float temporal, out float color, out float final)", tiempos, m);
     return m;
 }
 
@@ -187,14 +191,18 @@ void leerTiempos(Mejora* m) {
         if (!gs_timer_range_get_data(m->rango[s], &disjunto, &frecuencia)) continue;
         std::uint64_t ticks[kPasadas] = {};
         bool todos = true;
-        for (int p = 0; p < kPasadas; ++p) todos = todos && gs_timer_get_data(m->timer[s][p], &ticks[p]);
+        for (int p = 0; p < kPasadas; ++p)
+            todos = todos && gs_timer_get_data(m->timer[s][p], &ticks[p]);
         if (!todos) continue;
         m->enVuelo[s] = false;
         // Todo en cero: el driver no implementa las consultas de tiempo (el
         // OpenGL de Apple Silicon). Queda sin medir, no en «0 ms».
-        if (disjunto || frecuencia == 0 || (ticks[kTemporal] == 0 && ticks[kColor] == 0 && ticks[kFinal] == 0)) continue;
+        if (disjunto || frecuencia == 0 ||
+            (ticks[kTemporal] == 0 && ticks[kColor] == 0 && ticks[kFinal] == 0))
+            continue;
         for (int p = 0; p < kPasadas; ++p) {
-            const float v = static_cast<float>(1000.0 * static_cast<double>(ticks[p]) / static_cast<double>(frecuencia));
+            const float v =
+                static_cast<float>(1000.0 * static_cast<double>(ticks[p]) / static_cast<double>(frecuencia));
             const float viejo = m->ms[p].load();
             m->ms[p] = viejo == 0.0f ? v : viejo * 0.9f + v * 0.1f;
         }
@@ -254,7 +262,8 @@ bool procesar(Mejora* m) {
         if (medir) gs_timer_begin(m->timer[m->slot][kColor]);
         gs_blend_state_push();
         gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
-        while (gs_effect_loop(m->fx, "ColorMedio")) gs_draw_sprite(limpio, 0, mx, my);
+        while (gs_effect_loop(m->fx, "ColorMedio"))
+            gs_draw_sprite(limpio, 0, mx, my);
         gs_blend_state_pop();
         if (medir) gs_timer_end(m->timer[m->slot][kColor]);
         gs_texrender_end(m->medio);
@@ -303,7 +312,8 @@ void dibujar(void* data, gs_effect_t*) {
     if (medir) gs_timer_begin(m->timer[m->slot][kFinal]);
     gs_blend_state_push();
     gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
-    while (gs_effect_loop(m->fx, "Final")) gs_draw_sprite(limpio, 0, m->cx, m->cy);
+    while (gs_effect_loop(m->fx, "Final"))
+        gs_draw_sprite(limpio, 0, m->cx, m->cy);
     gs_blend_state_pop();
     if (medir) {
         gs_timer_end(m->timer[m->slot][kFinal]);

@@ -50,7 +50,8 @@ QString FlujosTexto::carpeta() const {
     return QString::fromStdString((root_ / "Recordings" / "Transcripciones").string());
 }
 
-void FlujosTexto::publicar(const QString& flujo, const QString& texto, const QString& origen, double segundos) {
+void FlujosTexto::publicar(const QString& flujo, const QString& texto, const QString& origen,
+                           double segundos) {
     const QString t = texto.trimmed();
     if (flujo.isEmpty() || t.isEmpty()) return;
     Frase f;
@@ -62,10 +63,12 @@ void FlujosTexto::publicar(const QString& flujo, const QString& texto, const QSt
     f.cuando = QDateTime::currentDateTime();
     f.hora = f.cuando.toString("HH:mm:ss");
     frases_.push_back(f);
-    while (frases_.size() > kTope) frases_.pop_front();
+    while (frases_.size() > kTope)
+        frases_.pop_front();
 
     const nlohmann::json conf = config_ ? config_(flujo) : nlohmann::json();
-    const nlohmann::json salidas = conf.is_object() ? conf.value("salidas", nlohmann::json::object()) : nlohmann::json::object();
+    const nlohmann::json salidas =
+        conf.is_object() ? conf.value("salidas", nlohmann::json::object()) : nlohmann::json::object();
     if (salidas.value("archivo", false)) escribirArchivo(f);
     const std::string rotulo = salidas.value("rotulo", std::string());
     if (!rotulo.empty()) ponerRotulo(QString::fromStdString(rotulo), t);
@@ -117,24 +120,28 @@ QVariantList FlujosTexto::flujos() const {
         for (const auto& t : lista_()) {
             const QString n = QString::fromStdString(t.value("flujo", ""));
             const auto sal = t.value("salidas", nlohmann::json::object());
-            por[n] = QVariantMap{{"nombre", n},
-                                 {"origen", t.contains("origen") ? QString::fromStdString(t.value("origen", ""))
-                                                                 : "Voz a texto en «" + QString::fromStdString(t.value("fuente", "")) + "»"},
-                                 {"modo", QString::fromStdString(t.value("modo", ""))},
-                                 {"archivo", sal.value("archivo", false)},
-                                 {"rotulo", QString::fromStdString(sal.value("rotulo", std::string()))},
-                                 {"cantidad", 0}};
+            por[n] = QVariantMap{
+                {"nombre", n},
+                {"origen", t.contains("origen")
+                               ? QString::fromStdString(t.value("origen", ""))
+                               : "Voz a texto en «" + QString::fromStdString(t.value("fuente", "")) + "»"},
+                {"modo", QString::fromStdString(t.value("modo", ""))},
+                {"archivo", sal.value("archivo", false)},
+                {"rotulo", QString::fromStdString(sal.value("rotulo", std::string()))},
+                {"cantidad", 0}};
         }
     }
     for (const Frase& f : frases_) {
         QVariantMap& m = por[f.flujo];
-        if (!m.contains("nombre")) m = QVariantMap{{"nombre", f.flujo}, {"origen", f.origen}, {"cantidad", 0}};
+        if (!m.contains("nombre"))
+            m = QVariantMap{{"nombre", f.flujo}, {"origen", f.origen}, {"cantidad", 0}};
         m["ultima"] = f.texto;
         m["hora"] = f.hora;
         m["cantidad"] = m["cantidad"].toInt() + 1;
     }
     QVariantList out;
-    for (const auto& [n, m] : por) out << m;
+    for (const auto& [n, m] : por)
+        out << m;
     return out;
 }
 
@@ -142,7 +149,8 @@ QVariantList FlujosTexto::ultimas(const QString& flujo, int n) const {
     QVariantList out;
     for (auto it = frases_.rbegin(); it != frases_.rend() && out.size() < n; ++it)
         if (flujo.isEmpty() || it->flujo == flujo)
-            out.prepend(QVariantMap{{"flujo", it->flujo}, {"texto", it->texto}, {"hora", it->hora}, {"origen", it->origen}});
+            out.prepend(QVariantMap{
+                {"flujo", it->flujo}, {"texto", it->texto}, {"hora", it->hora}, {"origen", it->origen}});
     return out;
 }
 

@@ -59,7 +59,8 @@ Respuesta leer(const QByteArray& datos) {
             if (r.esquema.isEmpty() || esquema.compare("Digest", Qt::CaseInsensitive) == 0) {
                 r.esquema = esquema;
                 const auto campo = [&](const char* n) {
-                    const QRegularExpression re(QString(n) + R"re(\s*=\s*"([^"]*)")re", QRegularExpression::CaseInsensitiveOption);
+                    const QRegularExpression re(QString(n) + R"re(\s*=\s*"([^"]*)")re",
+                                                QRegularExpression::CaseInsensitiveOption);
                     const auto m = re.match(v);
                     return m.hasMatch() ? m.captured(1) : QString();
                 };
@@ -90,7 +91,8 @@ QByteArray describe(const QString& url, int cseq, const QString& autorizacion) {
     return p + "\r\n";
 }
 
-QString autorizacion(const Respuesta& desafio, const QString& url, const QString& usuario, const QString& clave) {
+QString autorizacion(const Respuesta& desafio, const QString& url, const QString& usuario,
+                     const QString& clave) {
     if (desafio.esquema.compare("Basic", Qt::CaseInsensitive) == 0)
         return "Basic " + QString::fromLatin1((usuario + ":" + clave).toUtf8().toBase64());
     const auto md5 = [](const QString& s) {

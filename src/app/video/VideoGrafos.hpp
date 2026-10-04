@@ -114,14 +114,18 @@ class VideoGrafos : public QObject {
     Q_INVOKABLE QString agregarModulo(const QString& elemento, const QString& despues);
     /// Una tarjeta de SUPERRESOLUCIÓN (un filtro de GStreamer que agranda x2: bafsr, bavtsuperres o
     /// baonnxsr con `modelo`) en `entrada` (vacía: la elegida), después de `despues`. "" o el error.
-    std::string agregarSuperres(const std::string& entrada, const std::string& motor, const std::string& modelo, const std::string& despues);
-    Q_INVOKABLE QString agregarSuperresUi(const QString& motor, const QString& modelo, const QString& despues);
+    std::string agregarSuperres(const std::string& entrada, const std::string& motor,
+                                const std::string& modelo, const std::string& despues);
+    Q_INVOKABLE QString agregarSuperresUi(const QString& motor, const QString& modelo,
+                                          const QString& despues);
     /// Crea una entrada virtual en la escena (vacía = la del aire): `preset` es
     /// un id de virtuales() o, si empieza con «pipeline:», el pipeline de origen.
     Q_INVOKABLE QString crearVirtual(const QString& nombre, const QString& preset, const QString& escena);
     Q_INVOKABLE QString quitar(const QString& id);
-    Q_INVOKABLE QString conectar(const QString& desde, const QString& salida, const QString& hacia, const QString& entrada);
-    Q_INVOKABLE QString desconectar(const QString& desde, const QString& salida, const QString& hacia, const QString& entrada);
+    Q_INVOKABLE QString conectar(const QString& desde, const QString& salida, const QString& hacia,
+                                 const QString& entrada);
+    Q_INVOKABLE QString desconectar(const QString& desde, const QString& salida, const QString& hacia,
+                                    const QString& entrada);
     Q_INVOKABLE QString mover(const QString& id, int x, int y);
     Q_INVOKABLE QString ajustar(const QString& id, const QVariantMap& params);
     /// Hace un controlador con la tarjeta `id` (la misma corrección para varias entradas).
@@ -156,7 +160,8 @@ class VideoGrafos : public QObject {
     Q_INVOKABLE bool haySuperres() const;
     /// El motor de superresolución de una entrada de red: "" (ninguno), apple,
     /// fsr u onnx (con `modelo`, la ruta del .onnx). "" o el error.
-    std::string superresMotor(const std::string& entrada, const std::string& motor, const std::string& modelo);
+    std::string superresMotor(const std::string& entrada, const std::string& motor,
+                              const std::string& modelo);
     Q_INVOKABLE QString superresMotorUi(const QString& entrada, const QString& motor, const QString& modelo);
     /// Qué motores hay en este sistema: [apple?, fsr?, onnx?].
     Q_INVOKABLE QStringList motoresSuperres() const;
@@ -164,7 +169,8 @@ class VideoGrafos : public QObject {
     std::string uriDe(const std::string& entrada) const;
     /// Atrasa el audio de la entrada lo que demoran sus tarjetas de superresolución.
     void compensarAudio(const std::string& entrada);
-    Q_INVOKABLE QString nuevaEntradaRed(const QString& nombre, const QString& uri, const QString& escena, int latenciaMs, bool normalizar);
+    Q_INVOKABLE QString nuevaEntradaRed(const QString& nombre, const QString& uri, const QString& escena,
+                                        int latenciaMs, bool normalizar);
     Q_INVOKABLE QStringList escenasUi() const;
 
     // --- Para MCP --------------------------------------------------------------
@@ -181,7 +187,8 @@ class VideoGrafos : public QObject {
     const CatalogoGst& gst() const;
     /// Agrega un módulo de GStreamer a `grupo` (MCP y la interfaz): el id o "".
     std::string agregarModuloEn(GrafoVideo& g, const std::string& elemento, const std::string& grupo,
-                                const std::string& despues, const nlohmann::json& propiedades, std::string* error) const;
+                                const std::string& despues, const nlohmann::json& propiedades,
+                                std::string* error) const;
     /// Ajusta `id`; si la maneja un controlador, el ajuste va al controlador
     /// (salvo la etiqueta). "" o el error.
     static std::string ajustarEn(GrafoVideo& g, const std::string& id, nlohmann::json params);
@@ -210,18 +217,20 @@ class VideoGrafos : public QObject {
     nlohmann::json estadoEntrada(const std::string& entrada) const;
     /// Agrega al final del sub-grafo de `entrada` una tarjeta `gst` con ese
     /// módulo (p. ej. `baplugin`, la de un plugin de Python). "" o el error.
-    std::string agregarTarjetaGst(const std::string& entrada, const std::string& elemento, const nlohmann::json& propiedades, nlohmann::json* hecho);
+    std::string agregarTarjetaGst(const std::string& entrada, const std::string& elemento,
+                                  const nlohmann::json& propiedades, nlohmann::json* hecho);
     /// Una entrada de GStreamer a partir de un pipeline de origen (video y/o
     /// audio): un dispositivo local raro, la entrada de un plugin… Con el
     /// colchón y el reloj del estudio. `extra` va a los ajustes de la fuente
     /// (p. ej. `ba_plugin`). Si ya existe y es de GStreamer, la actualiza.
-    std::string crearEntradaPipeline(const std::string& nombre, const std::string& video, const std::string& audio,
-                                     const std::string& escena, int latenciaMs, int normalizar, const nlohmann::json& extra = {});
+    std::string crearEntradaPipeline(const std::string& nombre, const std::string& video,
+                                     const std::string& audio, const std::string& escena, int latenciaMs,
+                                     int normalizar, const nlohmann::json& extra = {});
     /// Una entrada de red (srt://, rtmp://, rtsp://, udp://, http://) con el
     /// reloj del estudio. `latenciaMs` < 0: la del estudio. "" o el error.
     std::string crearEntradaRed(const std::string& nombre, const std::string& uri, int latenciaMs,
-                                const std::string& escena, int audio = -1, int normalizar = -1, int ntpSync = -1,
-                                int superres = -1);
+                                const std::string& escena, int audio = -1, int normalizar = -1,
+                                int ntpSync = -1, int superres = -1);
     // (audio, normalizar, ntpSync: 1 sí, 0 no, -1 sin decir: al crear, de
     // fábrica; al actualizar una que ya existe, no se toca.)
     /// Corre una entrada `ms` (o la lleva a `ms` si !relativo): una fuente de
@@ -245,10 +254,12 @@ class VideoGrafos : public QObject {
     /// cada una, o sea con sus tarjetas) y la fuente en la escena. Con
     /// `ocultarSueltas`, oculta en esa escena las entradas sueltas (el
     /// compositor las sigue recibiendo). "" o el error; `hecho` dice qué quedó.
-    std::string armarMosaico(const std::string& escena, const std::vector<std::string>& entradas, const std::string& disposicion,
-                             const std::string& nombre, bool ocultarSueltas, nlohmann::json* hecho);
+    std::string armarMosaico(const std::string& escena, const std::vector<std::string>& entradas,
+                             const std::string& disposicion, const std::string& nombre, bool ocultarSueltas,
+                             nlohmann::json* hecho);
     /// Crea una entrada virtual; "" o el error.
-    std::string crearEntradaVirtual(const std::string& nombre, const std::string& preset, const std::string& escena);
+    std::string crearEntradaVirtual(const std::string& nombre, const std::string& preset,
+                                    const std::string& escena);
 
    public slots:
     /// Revisa entradas y filtros (al cambiar las entradas, y cada 1,5 s).
@@ -290,8 +301,10 @@ class VideoGrafos : public QObject {
     QTimer revision_;
     std::set<std::string> mostradas_; ///< entradas que este objeto mantiene activas
     std::string erroresVistos_;       ///< los errores de las tarjetas, la última vez
-    nlohmann::json reloj_ = {{"tipo", "sistema"}, {"latencia_ms", 200}}; ///< el del estudio (video-reloj.json)
-    std::set<std::string> desentrelazadas_; ///< entradas a las que una tarjeta normalizar les puso desentrelazado
+    nlohmann::json reloj_ = {{"tipo", "sistema"},
+                             {"latencia_ms", 200}}; ///< el del estudio (video-reloj.json)
+    std::set<std::string>
+        desentrelazadas_; ///< entradas a las que una tarjeta normalizar les puso desentrelazado
     /// El catálogo se arma en un hilo al arrancar (GStreamer revisa sus
     /// plugins; la primera vez tarda): mientras tanto, uno vacío.
     std::shared_ptr<const CatalogoGst> gst_ = std::make_shared<CatalogoGst>();

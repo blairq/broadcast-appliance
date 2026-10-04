@@ -70,7 +70,9 @@ bool prepararHerramientas(const fs::path& extra) {
     // Una sola vez (si el proceso se relanza a sí mismo, no se acumula).
     if (actual.rfind(antes, 0) != 0) poner("PATH", antes + actual);
     if (!dir.empty()) poner("BA_HERRAMIENTAS", texto(dir));
-    for (const auto& [var, nombre] : {std::pair{"BA_FFMPEG", "ffmpeg"}, {"BA_FFPROBE", "ffprobe"}, {"BA_YTDLP", "yt-dlp"},
+    for (const auto& [var, nombre] : {std::pair{"BA_FFMPEG", "ffmpeg"},
+                                      {"BA_FFPROBE", "ffprobe"},
+                                      {"BA_YTDLP", "yt-dlp"},
                                       {"BA_GST_LAUNCH", "gst-launch-1.0"}})
         if (const fs::path p = herramienta(nombre); !p.empty()) poner(var, texto(p));
     return !dir.empty();

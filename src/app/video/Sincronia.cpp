@@ -20,8 +20,8 @@ struct Serie {
     std::vector<float> e;              ///< por índice: la energía del cambio (o NaN)
 };
 
-Serie serieDe(const std::vector<std::uint64_t>& t, const std::vector<std::uint8_t>& g, std::uint64_t t0, double periodo,
-              size_t largo) {
+Serie serieDe(const std::vector<std::uint64_t>& t, const std::vector<std::uint8_t>& g, std::uint64_t t0,
+              double periodo, size_t largo) {
     Serie s;
     s.d.assign(largo, {});
     s.e.assign(largo, std::nanf(""));
@@ -53,8 +53,7 @@ struct Pico {
 };
 
 /// El lag de B respecto de A que mejor correlaciona; `corr(lag)` da la correlación.
-template <typename F>
-Pico buscarPico(int L, F corr) {
+template <typename F> Pico buscarPico(int L, F corr) {
     Pico p;
     for (int lag = -L; lag <= L; ++lag) {
         const double c = corr(lag);
@@ -73,7 +72,8 @@ Pico buscarPico(int L, F corr) {
 } // namespace
 
 Medicion medirDesfase(const std::vector<std::uint64_t>& ta, const std::vector<std::uint8_t>& ga,
-                      const std::vector<std::uint64_t>& tb, const std::vector<std::uint8_t>& gb, double maxMs) {
+                      const std::vector<std::uint64_t>& tb, const std::vector<std::uint8_t>& gb,
+                      double maxMs) {
     Medicion m;
     if (ta.size() < 30 || tb.size() < 30 || ga.size() < ta.size() * kLado || gb.size() < tb.size() * kLado) {
         m.motivo = "hacen falta más cuadros de las dos entradas (al menos 30 de cada una)";
@@ -120,7 +120,8 @@ Medicion medirDesfase(const std::vector<std::uint64_t>& ta, const std::vector<st
             const auto& va = a.d[k];
             const auto& vb = b.d[static_cast<size_t>(kb)];
             if (va.empty() || vb.empty()) continue;
-            for (size_t j = 0; j < kLado; ++j) ab += va[j] * vb[j], aa += va[j] * va[j], bb += vb[j] * vb[j];
+            for (size_t j = 0; j < kLado; ++j)
+                ab += va[j] * vb[j], aa += va[j] * va[j], bb += vb[j] * vb[j];
             ++n;
         }
         if (lag == 0) comunes = n;
@@ -138,7 +139,8 @@ Medicion medirDesfase(const std::vector<std::uint64_t>& ta, const std::vector<st
         }
         if (xa.size() < 10) return -1.0;
         double ma = 0, mb = 0;
-        for (size_t i = 0; i < xa.size(); ++i) ma += xa[i], mb += xb[i];
+        for (size_t i = 0; i < xa.size(); ++i)
+            ma += xa[i], mb += xb[i];
         ma /= static_cast<double>(xa.size());
         mb /= static_cast<double>(xb.size());
         double ab = 0, aa = 0, bb = 0;
@@ -157,9 +159,10 @@ Medicion medirDesfase(const std::vector<std::uint64_t>& ta, const std::vector<st
     m.cuadros = comunes;
     m.confianza = std::clamp(espacial ? esp.valor : (ene.valor - std::max(0.0, ene.segundo)) * 2, 0.0, 1.0);
     if (p.valor < 0.3 || p.lag == -L || p.lag == L) {
-        m.motivo = p.lag == -L || p.lag == L ? "el mejor ajuste quedó en el borde de lo buscado: el desfase es mayor que " +
-                                                   std::to_string(static_cast<int>(maxMs)) + " ms, o no hay nada en común"
-                                             : "no se encontró un momento en común entre las dos (¿ven lo mismo?)";
+        m.motivo = p.lag == -L || p.lag == L
+                       ? "el mejor ajuste quedó en el borde de lo buscado: el desfase es mayor que " +
+                             std::to_string(static_cast<int>(maxMs)) + " ms, o no hay nada en común"
+                       : "no se encontró un momento en común entre las dos (¿ven lo mismo?)";
         return m;
     }
     // Afinar entre cuadros: parábola por el pico y sus vecinos.
@@ -174,7 +177,8 @@ Medicion medirDesfase(const std::vector<std::uint64_t>& ta, const std::vector<st
     // Un pico apenas más alto que el resto no es una medición: mejor decir
     // que no se pudo que dar un número que no vale.
     if (m.confianza < 0.3) {
-        m.motivo = "no hay una coincidencia clara entre las dos (confianza " + std::to_string(m.confianza).substr(0, 4) +
+        m.motivo = "no hay una coincidencia clara entre las dos (confianza " +
+                   std::to_string(m.confianza).substr(0, 4) +
                    "): hace falta más movimiento en común, o que las dos vean lo mismo";
         return m;
     }

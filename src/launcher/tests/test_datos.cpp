@@ -64,7 +64,8 @@ int main() {
           "Config se muda");
     CHECK(leer(datos / "Modelos" / "m" / "model.safetensors") == "pesos", "Modelos se muda");
     CHECK(!fs::exists(datos / "Logs"), "una carpeta vacía del bundle no se muda");
-    CHECK(leer(datos / "Graficos" / "zocalo.json") == "fabrica" && fs::exists(bundle / "Graficos" / "zocalo.json"),
+    CHECK(leer(datos / "Graficos" / "zocalo.json") == "fabrica" &&
+              fs::exists(bundle / "Graficos" / "zocalo.json"),
           "Graficos se siembra (y queda en el bundle)");
 
     // 3. y 4.

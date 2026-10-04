@@ -126,9 +126,13 @@ int canalesDe(const QAudioDevice& d, bool entrada, EquipoAudio* equipo = nullptr
                     cc.valor[clave] = n;
                     cc.pidiendo.erase(clave);
                 }
-                if (avisar) QMetaObject::invokeMethod(avisar.data(), [avisar]() {
-                    if (avisar) avisar->canalesSabidos();
-                }, Qt::QueuedConnection);
+                if (avisar)
+                    QMetaObject::invokeMethod(
+                        avisar.data(),
+                        [avisar]() {
+                            if (avisar) avisar->canalesSabidos();
+                        },
+                        Qt::QueuedConnection);
             }).detach();
         }
     }
@@ -276,12 +280,14 @@ struct EquipoAudio::Entrada {
         if (pedida) return;
         pedida = true;
         std::vector<obs_source_t*> refs;
-        for (obs_source_t* f : fuentes) refs.push_back(obs_source_get_ref(f));
+        for (obs_source_t* f : fuentes)
+            refs.push_back(obs_source_get_ref(f));
         QMetaObject::invokeMethod(
             trabajador(),
             [hh = h, d = dev, c = canales, n = nombre, refs]() {
                 if (hh->src) {
-                    for (obs_source_t* f : refs) obs_source_release(f);
+                    for (obs_source_t* f : refs)
+                        obs_source_release(f);
                     return;
                 }
                 hh->fuentes = refs;
@@ -296,9 +302,10 @@ struct EquipoAudio::Entrada {
                     hh->src.reset();
                     return;
                 }
-                QObject::connect(hh->io, &QIODevice::readyRead, trabajador(), [w = std::weak_ptr<Hilo>(hh)]() {
-                    if (auto x = w.lock()) leer(*x);
-                });
+                QObject::connect(hh->io, &QIODevice::readyRead, trabajador(),
+                                 [w = std::weak_ptr<Hilo>(hh)]() {
+                                     if (auto x = w.lock()) leer(*x);
+                                 });
                 hh->abierta = true;
             },
             Qt::QueuedConnection);
@@ -314,7 +321,8 @@ struct EquipoAudio::Entrada {
                 hh->io = nullptr;
                 hh->abierta = false;
                 if (obs_initialized())
-                    for (obs_source_t* f : hh->fuentes) obs_source_release(f);
+                    for (obs_source_t* f : hh->fuentes)
+                        obs_source_release(f);
                 hh->fuentes.clear();
             },
             Qt::QueuedConnection);

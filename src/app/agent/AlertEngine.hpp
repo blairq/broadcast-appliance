@@ -72,9 +72,9 @@ struct AlertInputs {
     };
     std::function<std::vector<Audio>()> audio;
     std::function<std::vector<Media>()> media;
-    std::function<json()> room;              ///< snapshot de la sala (participants, order, serverNowMs)
-    std::function<std::vector<json>()> chat; ///< {key, platform, author, text}
-    std::function<json()> roomChat;          ///< chat de la sala: [{uid, fromId, fromName, to, text, mine}]
+    std::function<json()> room;                ///< snapshot de la sala (participants, order, serverNowMs)
+    std::function<std::vector<json>()> chat;   ///< {key, platform, author, text}
+    std::function<json()> roomChat;            ///< chat de la sala: [{uid, fromId, fromName, to, text, mine}]
     std::function<std::vector<json>()> textos; ///< salidas de texto: {key, flujo, texto, origen}
     std::function<Status()> status;
     std::function<double()> diskFreeGb;  ///< -1 = desconocido

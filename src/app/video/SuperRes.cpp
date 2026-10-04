@@ -20,13 +20,19 @@ namespace ba::app::video {
 namespace {
 using json = nlohmann::json;
 QString q8(const fs::path& p) { return QString::fromStdWString(p.wstring()); }
-QVariant qv(const json& j) { return QJsonDocument::fromJson(QByteArray::fromStdString(json::array({j}).dump())).toVariant().toList().value(0); }
+QVariant qv(const json& j) {
+    return QJsonDocument::fromJson(QByteArray::fromStdString(json::array({j}).dump()))
+        .toVariant()
+        .toList()
+        .value(0);
+}
 // Lo que baja el laboratorio: versiones fijas (CPU/MPS; en Windows con NVIDIA
 // se puede cambiar por la de CUDA a mano).
 const QStringList kBibliotecas{"torch==2.14.1", "spandrel==0.4.2", "onnx==1.23.1"};
 } // namespace
 
-SuperRes::SuperRes(fs::path dataRoot, VideoGrafos* video, QObject* parent) : QObject(parent), root_(std::move(dataRoot)), video_(video) {
+SuperRes::SuperRes(fs::path dataRoot, VideoGrafos* video, QObject* parent)
+    : QObject(parent), root_(std::move(dataRoot)), video_(video) {
     std::error_code ec;
     fs::create_directories(carpetaModelos(), ec);
     trabajo_ = {{"corriendo", false}};
@@ -66,7 +72,9 @@ bool SuperRes::laboratorioListo() const {
     return fs::exists(libs() / ".ok", ec);
 }
 
-QStringList SuperRes::motores() const { return video_ != nullptr ? video_->motoresSuperres() : QStringList{}; }
+QStringList SuperRes::motores() const {
+    return video_ != nullptr ? video_->motoresSuperres() : QStringList{};
+}
 
 json SuperRes::modelos() const {
     json out = json::array();
@@ -90,8 +98,10 @@ json SuperRes::modelos() const {
 
 QVariantList SuperRes::modelosQml() const { return qv(modelos()).toList(); }
 
-std::string SuperRes::correr(const QString& que, const QString& entrada, const QStringList& args, std::function<void(bool)> fin) {
-    if (hijo_ && hijo_->corriendo()) return "ya hay un trabajo andando: «" + trabajo_.value("que").toString().toStdString() + "»";
+std::string SuperRes::correr(const QString& que, const QString& entrada, const QStringList& args,
+                             std::function<void(bool)> fin) {
+    if (hijo_ && hijo_->corriendo())
+        return "ya hay un trabajo andando: «" + trabajo_.value("que").toString().toStdString() + "»";
     std::error_code ec;
     if (!fs::exists(python(), ec)) return "el programa no trae Python";
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
@@ -110,7 +120,8 @@ std::string SuperRes::correr(const QString& que, const QString& entrada, const Q
     connect(hijo_.get(), &plugins::Hijo::termino, this, [this](int codigo, bool) {
         const bool ok = codigo == 0 && !trabajo_.contains("error");
         trabajo_["corriendo"] = false;
-        if (!ok && !trabajo_.contains("error")) trabajo_["error"] = QString("terminó con código %1").arg(codigo);
+        if (!ok && !trabajo_.contains("error"))
+            trabajo_["error"] = QString("terminó con código %1").arg(codigo);
         if (ok) trabajo_["pct"] = 100;
         emit trabajoCambio();
         emit cambio();
@@ -118,8 +129,9 @@ std::string SuperRes::correr(const QString& que, const QString& entrada, const Q
         fin_ = nullptr;
         if (f) QTimer::singleShot(0, this, [f = std::move(f), ok]() { f(ok); });
     });
-    trabajo_ = {{"que", que}, {"entrada", entrada}, {"corriendo", true}, {"pct", 0}, {"texto", "Arrancando…"},
-                {"desde", QDateTime::currentDateTime().toString("HH:mm:ss")}};
+    trabajo_ = {
+        {"que", que}, {"entrada", entrada},     {"corriendo", true},
+        {"pct", 0},   {"texto", "Arrancando…"}, {"desde", QDateTime::currentDateTime().toString("HH:mm:ss")}};
     fin_ = std::move(fin);
     pendiente_.clear();
     QString err;
@@ -144,8 +156,10 @@ void SuperRes::linea(const QByteArray& l) {
         }
         return;
     }
-    for (const auto& [k, v] : m.items()) trabajo_[QString::fromStdString(k)] = qv(v);
-    if (m.value("ev", "") == "error") trabajo_["error"] = QString::fromStdString(m.value("error", std::string("falló")));
+    for (const auto& [k, v] : m.items())
+        trabajo_[QString::fromStdString(k)] = qv(v);
+    if (m.value("ev", "") == "error")
+        trabajo_["error"] = QString::fromStdString(m.value("error", std::string("falló")));
     emit trabajoCambio();
 }
 
@@ -154,8 +168,8 @@ std::string SuperRes::prepararLaboratorio() {
     std::error_code ec;
     fs::create_directories(libs(), ec);
     return correr("Preparar el laboratorio (PyTorch, ~800 MB)", {},
-                  QStringList{"-m", "pip", "install", "--disable-pip-version-check", "--no-warn-script-location", "--progress-bar", "off",
-                              "--target", q8(libs())} +
+                  QStringList{"-m", "pip", "install", "--disable-pip-version-check",
+                              "--no-warn-script-location", "--progress-bar", "off", "--target", q8(libs())} +
                       kBibliotecas,
                   [this](bool ok) {
                       if (ok) {
@@ -191,28 +205,36 @@ std::string SuperRes::convertir(const std::string& cual) {
 std::string SuperRes::entrenar(const std::string& entrada, double minutos, int segundos, bool aplicarAlFin) {
     if (video_ == nullptr) return "no hay video";
     const std::string uri = video_->uriDe(entrada);
-    if (uri.empty()) return "«" + entrada + "» no es una entrada de red (se entrena grabando de su dirección)";
+    if (uri.empty())
+        return "«" + entrada + "» no es una entrada de red (se entrena grabando de su dirección)";
     minutos = std::clamp(minutos, 1.0, 120.0);
     std::string seguro;
-    for (char c : entrada) seguro += (std::isalnum(static_cast<unsigned char>(c)) || c == '-') ? c : '_';
+    for (char c : entrada)
+        seguro += (std::isalnum(static_cast<unsigned char>(c)) || c == '-') ? c : '_';
     const fs::path salida = carpetaModelos() / ("chica-" + seguro + ".onnx");
     const auto lanzar = [=, this]() {
         const fs::path lab = ba::platform::bundleRoot() / "superres" / "laboratorio.py";
-        QStringList a{q8(lab), "chica", "--libs", q8(libs()), "--uri", QString::fromStdString(uri), "--segundos", QString::number(segundos),
-                      "--minutos", QString::number(minutos), "--salida", q8(salida), "--nombre",
-                      QString::fromStdString("Red chica de «" + entrada + "»")};
+        QStringList a{q8(lab),      "chica",
+                      "--libs",     q8(libs()),
+                      "--uri",      QString::fromStdString(uri),
+                      "--segundos", QString::number(segundos),
+                      "--minutos",  QString::number(minutos),
+                      "--salida",   q8(salida),
+                      "--nombre",   QString::fromStdString("Red chica de «" + entrada + "»")};
         std::error_code ec;
         if (fs::exists(salida.string() + ".pt", ec)) a << "--desde" << q8(salida);
-        return correr("Entrenar con lo que ve «" + QString::fromStdString(entrada) + "»", QString::fromStdString(entrada), a,
-                      [this, entrada, salida, aplicarAlFin](bool ok) {
-                          if (ok && aplicarAlFin) {
-                              const std::string e = aplicar(entrada, "onnx", salida.string());
-                              trabajo_["texto"] = e.empty() ? QString("Listo y aplicado a «%1»").arg(QString::fromStdString(entrada))
-                                                            : QString::fromStdString("Listo, pero no se pudo aplicar: " + e);
-                              emit trabajoCambio();
-                          }
-                          emit cambio();
-                      });
+        return correr(
+            "Entrenar con lo que ve «" + QString::fromStdString(entrada) + "»",
+            QString::fromStdString(entrada), a, [this, entrada, salida, aplicarAlFin](bool ok) {
+                if (ok && aplicarAlFin) {
+                    const std::string e = aplicar(entrada, "onnx", salida.string());
+                    trabajo_["texto"] =
+                        e.empty() ? QString("Listo y aplicado a «%1»").arg(QString::fromStdString(entrada))
+                                  : QString::fromStdString("Listo, pero no se pudo aplicar: " + e);
+                    emit trabajoCambio();
+                }
+                emit cambio();
+            });
     };
     if (!laboratorioListo()) {
         despues_ = [lanzar]() { lanzar(); };
@@ -229,13 +251,16 @@ void SuperRes::cancelar() {
     }
 }
 
-std::string SuperRes::aplicar(const std::string& entrada, const std::string& motor, const std::string& modelo) {
+std::string SuperRes::aplicar(const std::string& entrada, const std::string& motor,
+                              const std::string& modelo) {
     if (video_ == nullptr) return "no hay video";
     std::string ruta = modelo;
-    if (motor == "onnx" && !modelo.empty() && modelo.find('/') == std::string::npos && modelo.find('\\') == std::string::npos)
+    if (motor == "onnx" && !modelo.empty() && modelo.find('/') == std::string::npos &&
+        modelo.find('\\') == std::string::npos)
         ruta = (carpetaModelos() / modelo).string();
     std::error_code ec;
-    if (motor == "onnx" && !fs::exists(ruta, ec)) return "no existe el modelo «" + modelo + "» (superres_estado lista los que hay)";
+    if (motor == "onnx" && !fs::exists(ruta, ec))
+        return "no existe el modelo «" + modelo + "» (superres_estado lista los que hay)";
     return video_->superresMotor(entrada, motor, motor == "onnx" ? ruta : std::string());
 }
 

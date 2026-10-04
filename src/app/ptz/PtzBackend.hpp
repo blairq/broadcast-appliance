@@ -36,10 +36,10 @@ struct Capacidades {
     bool foco = false;     ///< foco manual continuo
     bool autoFoco = false; ///< prender/apagar el automático
     bool home = false;
-    int presets = 0;       ///< cuántos (0 = no tiene)
+    int presets = 0; ///< cuántos (0 = no tiene)
 
     QVariantMap mapa() const {
-        return {{"panTilt", panTilt}, {"zoom", zoom},   {"foco", foco},
+        return {{"panTilt", panTilt},   {"zoom", zoom}, {"foco", foco},
                 {"autoFoco", autoFoco}, {"home", home}, {"presets", presets}};
     }
 };

@@ -66,8 +66,10 @@ std::map<std::string, GstClock*>& relojes() {
 }
 
 /// El reloj pedido (con referencia), o nullptr con el motivo.
-GstClock* relojDe(const std::string& tipo, const std::string& servidor, int puerto, int dominio, std::string& error) {
-    const std::string clave = tipo + "|" + servidor + "|" + std::to_string(puerto) + "|" + std::to_string(dominio);
+GstClock* relojDe(const std::string& tipo, const std::string& servidor, int puerto, int dominio,
+                  std::string& error) {
+    const std::string clave =
+        tipo + "|" + servidor + "|" + std::to_string(puerto) + "|" + std::to_string(dominio);
     std::lock_guard<std::mutex> l(g_relojesLock);
     auto it = relojes().find(clave);
     if (it != relojes().end()) return GST_CLOCK(gst_object_ref(it->second));
@@ -122,10 +124,11 @@ struct Fuente {
     std::int64_t latenciaMs = 0, desfaseMs = 0;
     bool conAudio = true;
     bool normalizar = true;
-    bool superres = false; ///< duplicar la resolución (bavtsuperres, macOS 26) si el cuadro es chico
+    bool superres = false;      ///< duplicar la resolución (bavtsuperres, macOS 26) si el cuadro es chico
     std::string superresMotor;  ///< "" (según `superres`), apple, fsr, onnx
     std::string superresModelo; ///< el .onnx (motor onnx)
-    bool ntpSync = true; ///< RTSP: usar la hora de captura del que manda (RTCP); si su reloj está mal, conviene apagarlo
+    bool ntpSync =
+        true; ///< RTSP: usar la hora de captura del que manda (RTCP); si su reloj está mal, conviene apagarlo
     /// La hora de la cámara estaba muy corrida (la entrada salía con segundos de
     /// atraso): se dejó de usar sola, hasta que alguien vuelva a pedir ntp_sync.
     bool ntpApagadoSolo = false;
@@ -141,7 +144,8 @@ struct Fuente {
     // Para diagnosticar
     std::uint64_t recibidos = 0, tarde = 0, saltados = 0, descartados = 0;
     std::int64_t colchonMs = 0; ///< cuánto falta para el último cuadro del colchón
-    double adelantoMs = 0;      ///< promedio de cuánto le falta a cada cuadro al llegar (≈ latencia si el reloj está bien)
+    double adelantoMs =
+        0; ///< promedio de cuánto le falta a cada cuadro al llegar (≈ latencia si el reloj está bien)
     std::uint64_t ventanaNs = 0, tardeVentana = 0, recibidosVentana = 0, tarde10 = 0, recibidos10 = 0;
     std::uint64_t primeroNs = 0, cuentaFps = 0;
     double fpsMedido = 0;
@@ -165,18 +169,23 @@ std::string describirOrigen(GstCaps* c) {
     obs_data_set_bool(o, "fps_variable", fn == 0);
     obs_data_set_bool(o, "entrelazado", GST_VIDEO_INFO_IS_INTERLACED(&info));
     const int pn = GST_VIDEO_INFO_PAR_N(&info), pd = GST_VIDEO_INFO_PAR_D(&info);
-    obs_data_set_string(o, "pixel", pn == pd ? "cuadrado" : (std::to_string(pn) + "/" + std::to_string(pd) + " (no cuadrado)").c_str());
+    obs_data_set_string(
+        o, "pixel",
+        pn == pd ? "cuadrado" : (std::to_string(pn) + "/" + std::to_string(pd) + " (no cuadrado)").c_str());
     const GstVideoColorimetry& k = GST_VIDEO_INFO_COLORIMETRY(&info);
-    const char* matriz = k.matrix == GST_VIDEO_COLOR_MATRIX_BT601   ? "BT.601"
-                         : k.matrix == GST_VIDEO_COLOR_MATRIX_BT709 ? "BT.709"
+    const char* matriz = k.matrix == GST_VIDEO_COLOR_MATRIX_BT601    ? "BT.601"
+                         : k.matrix == GST_VIDEO_COLOR_MATRIX_BT709  ? "BT.709"
                          : k.matrix == GST_VIDEO_COLOR_MATRIX_BT2020 ? "BT.2020"
-                         : k.matrix == GST_VIDEO_COLOR_MATRIX_RGB   ? "RGB"
-                                                                    : "sin declarar";
+                         : k.matrix == GST_VIDEO_COLOR_MATRIX_RGB    ? "RGB"
+                                                                     : "sin declarar";
     obs_data_set_string(o, "matriz", matriz);
-    obs_data_set_string(o, "rango", k.range == GST_VIDEO_COLOR_RANGE_0_255     ? "completo"
-                                    : k.range == GST_VIDEO_COLOR_RANGE_16_235 ? "limitado"
-                                                                              : "sin declarar");
-    obs_data_set_bool(o, "hdr", k.transfer == GST_VIDEO_TRANSFER_SMPTE2084 || k.transfer == GST_VIDEO_TRANSFER_ARIB_STD_B67);
+    obs_data_set_string(o, "rango",
+                        k.range == GST_VIDEO_COLOR_RANGE_0_255    ? "completo"
+                        : k.range == GST_VIDEO_COLOR_RANGE_16_235 ? "limitado"
+                                                                  : "sin declarar");
+    obs_data_set_bool(o, "hdr",
+                      k.transfer == GST_VIDEO_TRANSFER_SMPTE2084 ||
+                          k.transfer == GST_VIDEO_TRANSFER_ARIB_STD_B67);
     const std::string r = obs_data_get_json(o);
     obs_data_release(o);
     return r;
@@ -186,8 +195,10 @@ constexpr size_t kMaxColchon = 300; ///< ~10 s a 30 fps: más es un error de rel
 
 void vaciar(Fuente* f) {
     std::lock_guard<std::mutex> l(f->colaLock);
-    for (auto& p : f->video) gst_sample_unref(p.muestra);
-    for (auto& p : f->audio) gst_sample_unref(p.muestra);
+    for (auto& p : f->video)
+        gst_sample_unref(p.muestra);
+    for (auto& p : f->audio)
+        gst_sample_unref(p.muestra);
     f->video.clear();
     f->audio.clear();
 }
@@ -278,14 +289,14 @@ GstFlowReturn alAudio(GstAppSink* sink, gpointer datos) {
 /// GStreamer -> libobs: el formato.
 video_format formatoObs(GstVideoFormat g) {
     switch (g) {
-    case GST_VIDEO_FORMAT_NV12: return VIDEO_FORMAT_NV12;
-    case GST_VIDEO_FORMAT_I420: return VIDEO_FORMAT_I420;
-    case GST_VIDEO_FORMAT_YUY2: return VIDEO_FORMAT_YUY2;
-    case GST_VIDEO_FORMAT_UYVY: return VIDEO_FORMAT_UYVY;
-    case GST_VIDEO_FORMAT_BGRA: return VIDEO_FORMAT_BGRA;
-    case GST_VIDEO_FORMAT_BGRx: return VIDEO_FORMAT_BGRX;
-    case GST_VIDEO_FORMAT_RGBA: return VIDEO_FORMAT_RGBA;
-    default: return VIDEO_FORMAT_NONE;
+        case GST_VIDEO_FORMAT_NV12: return VIDEO_FORMAT_NV12;
+        case GST_VIDEO_FORMAT_I420: return VIDEO_FORMAT_I420;
+        case GST_VIDEO_FORMAT_YUY2: return VIDEO_FORMAT_YUY2;
+        case GST_VIDEO_FORMAT_UYVY: return VIDEO_FORMAT_UYVY;
+        case GST_VIDEO_FORMAT_BGRA: return VIDEO_FORMAT_BGRA;
+        case GST_VIDEO_FORMAT_BGRx: return VIDEO_FORMAT_BGRX;
+        case GST_VIDEO_FORMAT_RGBA: return VIDEO_FORMAT_RGBA;
+        default: return VIDEO_FORMAT_NONE;
     }
 }
 
@@ -316,19 +327,22 @@ void presentarVideo(Fuente* f, GstSample* s) {
     else if (c.matrix == GST_VIDEO_COLOR_MATRIX_BT601)
         cs = VIDEO_CS_601;
     frame.full_range = completo;
-    video_format_get_parameters_for_format(cs, completo ? VIDEO_RANGE_FULL : VIDEO_RANGE_PARTIAL, fmt, frame.color_matrix,
-                                           frame.color_range_min, frame.color_range_max);
+    video_format_get_parameters_for_format(cs, completo ? VIDEO_RANGE_FULL : VIDEO_RANGE_PARTIAL, fmt,
+                                           frame.color_matrix, frame.color_range_min, frame.color_range_max);
     obs_source_output_video(f->ctx, &frame);
     gst_video_frame_unmap(&vf);
     // Lo que se informa (el tic ya tiene `lock`).
     gchar* col = gst_video_colorimetry_to_string(&c);
     f->formato = gst_video_format_to_string(GST_VIDEO_INFO_FORMAT(&info));
-    f->colorimetria = std::string(col != nullptr ? col : "") + (completo ? " (rango completo)" : " (rango limitado)");
+    f->colorimetria =
+        std::string(col != nullptr ? col : "") + (completo ? " (rango completo)" : " (rango limitado)");
     g_free(col);
     f->ancho = static_cast<int>(frame.width);
     f->alto = static_cast<int>(frame.height);
     f->entrelazado = GST_VIDEO_INFO_IS_INTERLACED(&info);
-    f->fpsDeclarado = GST_VIDEO_INFO_FPS_D(&info) > 0 ? static_cast<double>(GST_VIDEO_INFO_FPS_N(&info)) / GST_VIDEO_INFO_FPS_D(&info) : 0;
+    f->fpsDeclarado = GST_VIDEO_INFO_FPS_D(&info) > 0
+                          ? static_cast<double>(GST_VIDEO_INFO_FPS_N(&info)) / GST_VIDEO_INFO_FPS_D(&info)
+                          : 0;
 }
 
 void presentarAudio(Fuente* f, GstSample* s) {
@@ -368,15 +382,18 @@ void alPrepararOrigen(GstElement*, GstElement* origen, gpointer datos) {
     auto* f = static_cast<Fuente*>(datos);
     GObjectClass* k = G_OBJECT_GET_CLASS(origen);
     const std::string lat = std::to_string(std::max<std::int64_t>(f->latenciaMs, 20));
-    if (g_object_class_find_property(k, "latency") != nullptr) gst_util_set_object_arg(G_OBJECT(origen), "latency", lat.c_str());
+    if (g_object_class_find_property(k, "latency") != nullptr)
+        gst_util_set_object_arg(G_OBJECT(origen), "latency", lat.c_str());
     if (g_object_class_find_property(k, "ntp-sync") != nullptr)
-        gst_util_set_object_arg(G_OBJECT(origen), "ntp-sync", f->ntpSync && !f->ntpApagadoSolo ? "true" : "false");
+        gst_util_set_object_arg(G_OBJECT(origen), "ntp-sync",
+                                f->ntpSync && !f->ntpApagadoSolo ? "true" : "false");
     // Con la hora de la cámara (ntp-sync) «synced» alinea varias cámaras; sin
     // ella, «synced» fija la hora con el PRIMER paquete y si ese llegó tarde
     // cada cuadro quedaba ~200 ms adelantado (esperando en el colchón, un PTZ
     // que respondía tarde). «slave» sigue la llegada real.
     if (g_object_class_find_property(k, "buffer-mode") != nullptr)
-        gst_util_set_object_arg(G_OBJECT(origen), "buffer-mode", f->ntpSync && !f->ntpApagadoSolo ? "synced" : "slave");
+        gst_util_set_object_arg(G_OBJECT(origen), "buffer-mode",
+                                f->ntpSync && !f->ntpApagadoSolo ? "synced" : "slave");
 }
 
 void enganchar(Fuente* f, GstElement* p, const char* nombre, GstFlowReturn (*cb)(GstAppSink*, gpointer)) {
@@ -405,8 +422,10 @@ void armar(Fuente* f) {
     if (f->clock == nullptr) return;
     // Los sinks NO esperan al reloj (sync=false): la hora la pone el colchón.
     // async=false: una rama sin datos (un stream sin audio) no traba el arranque.
-    const char* sinkVideo = "appsink name=ba_video sync=false async=false max-buffers=8 drop=false emit-signals=false";
-    const char* sinkAudio = "appsink name=ba_audio sync=false async=false max-buffers=64 drop=false emit-signals=false";
+    const char* sinkVideo =
+        "appsink name=ba_video sync=false async=false max-buffers=8 drop=false emit-signals=false";
+    const char* sinkAudio =
+        "appsink name=ba_audio sync=false async=false max-buffers=64 drop=false emit-signals=false";
     // NORMALIZAR (de fábrica): GStreamer deja todo igual antes de libobs
     // —desentrelaza solo si viene entrelazado (`deinterlace mode=auto`), lleva
     // a los cuadros del lienzo (`videorate`) y al color del estudio: NV12,
@@ -420,7 +439,8 @@ void armar(Fuente* f) {
         antesSink = "deinterlace mode=auto ! videorate ! videoconvertscale ! ";
         // pixel-aspect-ratio=1/1: libobs no sabe de píxeles no cuadrados (una
         // cámara PAL de 704x576 con píxel 12/11 se vería apretada): se escala.
-        capsVideo = "video/x-raw,format=NV12,colorimetry=bt709,interlace-mode=progressive,pixel-aspect-ratio=1/1";
+        capsVideo =
+            "video/x-raw,format=NV12,colorimetry=bt709,interlace-mode=progressive,pixel-aspect-ratio=1/1";
         if (hay) capsVideo += ",framerate=" + std::to_string(ovi.fps_num) + "/" + std::to_string(ovi.fps_den);
     }
     // SUPERRESOLUCIÓN (macOS 26): una cámara chica (PAL, 768x576) sale al
@@ -429,9 +449,12 @@ void armar(Fuente* f) {
     // 960x960) el elemento lo deja pasar sin tocar.
     const std::string motor = !f->superresMotor.empty() ? f->superresMotor : (f->superres ? "apple" : "");
     std::string elementoSr;
-    if (motor == "apple") elementoSr = "bavtsuperres";
-    else if (motor == "fsr") elementoSr = "bafsr";
-    else if (motor == "onnx" && !f->superresModelo.empty()) elementoSr = "baonnxsr";
+    if (motor == "apple")
+        elementoSr = "bavtsuperres";
+    else if (motor == "fsr")
+        elementoSr = "bafsr";
+    else if (motor == "onnx" && !f->superresModelo.empty())
+        elementoSr = "baonnxsr";
     if (!elementoSr.empty()) {
         GstElementFactory* fac = gst_element_factory_find(elementoSr.c_str());
         if (fac != nullptr) {
@@ -439,36 +462,43 @@ void armar(Fuente* f) {
             std::string extra;
             if (elementoSr == "baonnxsr") {
                 std::string m = f->superresModelo;
-                for (size_t i = 0; (i = m.find('"', i)) != std::string::npos; i += 2) m.insert(i, "\\");
+                for (size_t i = 0; (i = m.find('"', i)) != std::string::npos; i += 2)
+                    m.insert(i, "\\");
                 extra = " modelo=\"" + m + "\"";
             }
             // ANTES de `videorate`: si el lienzo va a más cuadros que la cámara,
             // no se superresuelve cada cuadro repetido. Con una cola que descarta
             // lo viejo: si un cuadro tarda, no se acumula demora.
-            const std::string sr = std::string("videoconvertscale ! video/x-raw,format=NV12,colorimetry=bt709,pixel-aspect-ratio=1/1 ! "
-                                               "queue leaky=downstream max-size-buffers=2 max-size-time=0 max-size-bytes=0 ! ") +
-                                   elementoSr + " name=ba_superres" + extra + " ! videoconvert ! ";
-            antesSink = f->normalizar ? "deinterlace mode=auto ! " + sr + "videorate ! videoconvertscale ! " : sr;
+            const std::string sr =
+                std::string(
+                    "videoconvertscale ! video/x-raw,format=NV12,colorimetry=bt709,pixel-aspect-ratio=1/1 ! "
+                    "queue leaky=downstream max-size-buffers=2 max-size-time=0 max-size-bytes=0 ! ") +
+                elementoSr + " name=ba_superres" + extra + " ! videoconvert ! ";
+            antesSink =
+                f->normalizar ? "deinterlace mode=auto ! " + sr + "videorate ! videoconvertscale ! " : sr;
         } else {
-            blog(LOG_WARNING, "[ba_gst_fuente] superresolución «%s» pedida pero el elemento %s no está", motor.c_str(), elementoSr.c_str());
+            blog(LOG_WARNING, "[ba_gst_fuente] superresolución «%s» pedida pero el elemento %s no está",
+                 motor.c_str(), elementoSr.c_str());
         }
     }
     std::string completo;
     if (!f->uri.empty()) {
-        completo = "uridecodebin3 name=ba_dec uri=\"" + f->uri + "\" ba_dec. ! queue name=ba_origen ! " + antesSink + capsVideo +
-                   " ! " + sinkVideo;
+        completo = "uridecodebin3 name=ba_dec uri=\"" + f->uri + "\" ba_dec. ! queue name=ba_origen ! " +
+                   antesSink + capsVideo + " ! " + sinkVideo;
         if (f->conAudio)
             completo += std::string(" ba_dec. ! queue ! audioconvert ! audioresample ! "
                                     "audio/x-raw,format=F32LE,layout=interleaved,rate=48000,channels=2 ! ") +
                         sinkAudio;
     } else {
         if (!f->descripcion.empty())
-            completo = f->descripcion + " ! queue name=ba_origen ! " + antesSink + capsVideo + " ! " + sinkVideo;
+            completo =
+                f->descripcion + " ! queue name=ba_origen ! " + antesSink + capsVideo + " ! " + sinkVideo;
         // El audio de un pipeline va aparte (`pipeline_audio`): p. ej. el de un
         // plugin, o un micrófono que acompaña a una cámara.
         if (!f->descripcionAudio.empty() && f->conAudio)
             completo += std::string(completo.empty() ? "" : " ") + f->descripcionAudio +
-                        " ! queue ! audioconvert ! audioresample ! audio/x-raw,format=F32LE,layout=interleaved,rate=48000,channels=2 ! " +
+                        " ! queue ! audioconvert ! audioresample ! "
+                        "audio/x-raw,format=F32LE,layout=interleaved,rate=48000,channels=2 ! " +
                         sinkAudio;
     }
     GError* err = nullptr;
@@ -487,20 +517,21 @@ void armar(Fuente* f) {
     // Cómo llega la señal (antes de normalizar): para el diagnóstico.
     if (GstElement* q = gst_bin_get_by_name(GST_BIN(p), "ba_origen")) {
         if (GstPad* pad = gst_element_get_static_pad(q, "sink")) {
-            gst_pad_add_probe(pad, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
-                              [](GstPad*, GstPadProbeInfo* info, gpointer d) -> GstPadProbeReturn {
-                                  GstEvent* ev = GST_PAD_PROBE_INFO_EVENT(info);
-                                  if (GST_EVENT_TYPE(ev) == GST_EVENT_CAPS) {
-                                      GstCaps* c = nullptr;
-                                      gst_event_parse_caps(ev, &c);
-                                      const std::string desc = describirOrigen(c);
-                                      auto* x = static_cast<Fuente*>(d);
-                                      std::lock_guard<std::mutex> l(x->colaLock);
-                                      x->origen = desc;
-                                  }
-                                  return GST_PAD_PROBE_OK;
-                              },
-                              f, nullptr);
+            gst_pad_add_probe(
+                pad, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
+                [](GstPad*, GstPadProbeInfo* info, gpointer d) -> GstPadProbeReturn {
+                    GstEvent* ev = GST_PAD_PROBE_INFO_EVENT(info);
+                    if (GST_EVENT_TYPE(ev) == GST_EVENT_CAPS) {
+                        GstCaps* c = nullptr;
+                        gst_event_parse_caps(ev, &c);
+                        const std::string desc = describirOrigen(c);
+                        auto* x = static_cast<Fuente*>(d);
+                        std::lock_guard<std::mutex> l(x->colaLock);
+                        x->origen = desc;
+                    }
+                    return GST_PAD_PROBE_OK;
+                },
+                f, nullptr);
             gst_object_unref(pad);
         }
         gst_object_unref(q);
@@ -528,7 +559,8 @@ void actualizar(void* data, obs_data_t* s) {
     std::lock_guard<std::mutex> l(f->lock);
     const std::string uri = obs_data_get_string(s, "uri"), d = obs_data_get_string(s, "pipeline"),
                       da = obs_data_get_string(s, "pipeline_audio");
-    const std::string reloj = obs_data_get_string(s, "reloj"), servidor = obs_data_get_string(s, "reloj_servidor");
+    const std::string reloj = obs_data_get_string(s, "reloj"),
+                      servidor = obs_data_get_string(s, "reloj_servidor");
     const int puerto = static_cast<int>(obs_data_get_int(s, "reloj_puerto"));
     const int dominio = static_cast<int>(obs_data_get_int(s, "reloj_dominio"));
     const bool audio = obs_data_get_bool(s, "audio");
@@ -541,8 +573,11 @@ void actualizar(void* data, obs_data_t* s) {
     // La latencia y el desfase se cambian EN VIVO (solo mueven el colchón); lo
     // demás rearma el pipeline. (Con `uri`, la latencia también va al jitter
     // buffer de RTSP/SRT: se rearma.)
-    const bool rearmar = uri != f->uri || d != f->descripcion || da != f->descripcionAudio || reloj != f->reloj || servidor != f->relojServidor ||
-                         puerto != f->relojPuerto || dominio != f->relojDominio || audio != f->conAudio || normalizar != f->normalizar || superres != f->superres || superresMotor != f->superresMotor || superresModelo != f->superresModelo || ntpSync != f->ntpSync ||
+    const bool rearmar = uri != f->uri || d != f->descripcion || da != f->descripcionAudio ||
+                         reloj != f->reloj || servidor != f->relojServidor || puerto != f->relojPuerto ||
+                         dominio != f->relojDominio || audio != f->conAudio || normalizar != f->normalizar ||
+                         superres != f->superres || superresMotor != f->superresMotor ||
+                         superresModelo != f->superresModelo || ntpSync != f->ntpSync ||
                          (latencia != f->latenciaMs && !uri.empty()) || f->pipeline == nullptr;
     const std::int64_t corrimiento =
         (latencia + desfase - f->latenciaMs - f->desfaseMs) * static_cast<std::int64_t>(GST_MSECOND);
@@ -570,7 +605,8 @@ void actualizar(void* data, obs_data_t* s) {
     std::lock_guard<std::mutex> lc(f->colaLock);
     for (auto* q : {&f->video, &f->audio})
         for (auto& p : *q)
-            p.vence = static_cast<GstClockTime>(std::max<std::int64_t>(0, static_cast<std::int64_t>(p.vence) + corrimiento));
+            p.vence = static_cast<GstClockTime>(
+                std::max<std::int64_t>(0, static_cast<std::int64_t>(p.vence) + corrimiento));
 }
 
 void* crear(obs_data_t* settings, obs_source_t* ctx) {
@@ -580,73 +616,79 @@ void* crear(obs_data_t* settings, obs_source_t* ctx) {
     // El colchón ya decide cuándo va cada cuadro: libobs lo muestra al llegar.
     obs_source_set_async_unbuffered(ctx, true);
     actualizar(f, settings);
-    proc_handler_add(obs_source_get_proc_handler(ctx), "void estado(out string error, out bool andando, out string info)",
-                     [](void* d, calldata_t* cd) {
-                         auto* x = static_cast<Fuente*>(d);
-                         std::lock_guard<std::mutex> l(x->lock);
-                         calldata_set_string(cd, "error", x->error.c_str());
-                         calldata_set_bool(cd, "andando", x->pipeline != nullptr);
-                         obs_data_t* o = obs_data_create();
-                         obs_data_set_string(o, "reloj", x->reloj.empty() ? "sistema" : x->reloj.c_str());
-                         if (x->clock != nullptr) {
-                             obs_data_set_bool(o, "reloj_sincronizado", gst_clock_is_synced(x->clock));
-                             obs_data_set_string(o, "reloj_nombre", GST_OBJECT_NAME(x->clock));
-                         }
-                         obs_data_set_int(o, "latencia_ms", x->latenciaMs);
-                         obs_data_set_bool(o, "normalizado", x->normalizar);
-                         obs_data_set_bool(o, "superres", x->superres || !x->superresMotor.empty());
-                         obs_data_set_string(o, "superres_motor", !x->superresMotor.empty() ? x->superresMotor.c_str() : (x->superres ? "apple" : ""));
-                         obs_data_set_string(o, "superres_modelo", x->superresModelo.c_str());
-                         if (x->pipeline != nullptr) {
-                             if (GstElement* sr = gst_bin_get_by_name(GST_BIN(x->pipeline), "ba_superres")) {
-                                 gdouble ms = 0;
-                                 if (g_object_class_find_property(G_OBJECT_GET_CLASS(sr), "ms-por-cuadro") != nullptr)
-                                     g_object_get(sr, "ms-por-cuadro", &ms, nullptr);
-                                 obs_data_set_double(o, "superres_ms", ms);
-                                 if (g_object_class_find_property(G_OBJECT_GET_CLASS(sr), "error") != nullptr) {
-                                     gchar* e = nullptr;
-                                     gchar* pr = nullptr;
-                                     g_object_get(sr, "error", &e, "proveedor-usado", &pr, nullptr);
-                                     if (e != nullptr) obs_data_set_string(o, "superres_error", e);
-                                     if (pr != nullptr) obs_data_set_string(o, "superres_proveedor", pr);
-                                     g_free(e);
-                                     g_free(pr);
-                                 }
-                                 gst_object_unref(sr);
-                             }
-                         }
-                         obs_data_set_bool(o, "ntp_sync", x->ntpSync && !x->ntpApagadoSolo);
-                         obs_data_set_bool(o, "ntp_apagado_solo", x->ntpApagadoSolo);
-                         obs_data_set_int(o, "desfase_ms", x->desfaseMs);
-                         obs_data_set_string(o, "formato", x->formato.c_str());
-                         obs_data_set_string(o, "colorimetria", x->colorimetria.c_str());
-                         obs_data_set_int(o, "ancho", x->ancho);
-                         obs_data_set_int(o, "alto", x->alto);
-                         obs_data_set_bool(o, "entrelazado", x->entrelazado);
-                         obs_data_set_double(o, "fps_declarados", x->fpsDeclarado);
-                         {
-                             std::lock_guard<std::mutex> lc(x->colaLock);
-                             obs_data_set_double(o, "fps_recibidos", x->fpsMedido);
-                             obs_data_set_int(o, "recibidos", static_cast<long long>(x->recibidos));
-                             obs_data_set_int(o, "llegaron_tarde", static_cast<long long>(x->tarde));
-                             obs_data_set_int(o, "saltados", static_cast<long long>(x->saltados));
-                             obs_data_set_int(o, "descartados", static_cast<long long>(x->descartados));
-                             obs_data_set_int(o, "colchon_ms", x->colchonMs);
-                             obs_data_set_int(o, "adelanto_ms", static_cast<long long>(x->adelantoMs));
-                             // Lo de los últimos 10 s (o lo que va, si todavía no pasaron).
-                             obs_data_set_int(o, "tarde_10s", static_cast<long long>(x->recibidos10 ? x->tarde10 : x->tardeVentana));
-                             obs_data_set_int(o, "recibidos_10s", static_cast<long long>(x->recibidos10 ? x->recibidos10 : x->recibidosVentana));
-                             obs_data_set_int(o, "en_colchon", static_cast<long long>(x->video.size()));
-                             if (!x->origen.empty()) {
-                                 obs_data_t* og = obs_data_create_from_json(x->origen.c_str());
-                                 obs_data_set_obj(o, "origen", og);
-                                 obs_data_release(og);
-                             }
-                         }
-                         calldata_set_string(cd, "info", obs_data_get_json(o));
-                         obs_data_release(o);
-                     },
-                     f);
+    proc_handler_add(
+        obs_source_get_proc_handler(ctx), "void estado(out string error, out bool andando, out string info)",
+        [](void* d, calldata_t* cd) {
+            auto* x = static_cast<Fuente*>(d);
+            std::lock_guard<std::mutex> l(x->lock);
+            calldata_set_string(cd, "error", x->error.c_str());
+            calldata_set_bool(cd, "andando", x->pipeline != nullptr);
+            obs_data_t* o = obs_data_create();
+            obs_data_set_string(o, "reloj", x->reloj.empty() ? "sistema" : x->reloj.c_str());
+            if (x->clock != nullptr) {
+                obs_data_set_bool(o, "reloj_sincronizado", gst_clock_is_synced(x->clock));
+                obs_data_set_string(o, "reloj_nombre", GST_OBJECT_NAME(x->clock));
+            }
+            obs_data_set_int(o, "latencia_ms", x->latenciaMs);
+            obs_data_set_bool(o, "normalizado", x->normalizar);
+            obs_data_set_bool(o, "superres", x->superres || !x->superresMotor.empty());
+            obs_data_set_string(o, "superres_motor",
+                                !x->superresMotor.empty() ? x->superresMotor.c_str()
+                                                          : (x->superres ? "apple" : ""));
+            obs_data_set_string(o, "superres_modelo", x->superresModelo.c_str());
+            if (x->pipeline != nullptr) {
+                if (GstElement* sr = gst_bin_get_by_name(GST_BIN(x->pipeline), "ba_superres")) {
+                    gdouble ms = 0;
+                    if (g_object_class_find_property(G_OBJECT_GET_CLASS(sr), "ms-por-cuadro") != nullptr)
+                        g_object_get(sr, "ms-por-cuadro", &ms, nullptr);
+                    obs_data_set_double(o, "superres_ms", ms);
+                    if (g_object_class_find_property(G_OBJECT_GET_CLASS(sr), "error") != nullptr) {
+                        gchar* e = nullptr;
+                        gchar* pr = nullptr;
+                        g_object_get(sr, "error", &e, "proveedor-usado", &pr, nullptr);
+                        if (e != nullptr) obs_data_set_string(o, "superres_error", e);
+                        if (pr != nullptr) obs_data_set_string(o, "superres_proveedor", pr);
+                        g_free(e);
+                        g_free(pr);
+                    }
+                    gst_object_unref(sr);
+                }
+            }
+            obs_data_set_bool(o, "ntp_sync", x->ntpSync && !x->ntpApagadoSolo);
+            obs_data_set_bool(o, "ntp_apagado_solo", x->ntpApagadoSolo);
+            obs_data_set_int(o, "desfase_ms", x->desfaseMs);
+            obs_data_set_string(o, "formato", x->formato.c_str());
+            obs_data_set_string(o, "colorimetria", x->colorimetria.c_str());
+            obs_data_set_int(o, "ancho", x->ancho);
+            obs_data_set_int(o, "alto", x->alto);
+            obs_data_set_bool(o, "entrelazado", x->entrelazado);
+            obs_data_set_double(o, "fps_declarados", x->fpsDeclarado);
+            {
+                std::lock_guard<std::mutex> lc(x->colaLock);
+                obs_data_set_double(o, "fps_recibidos", x->fpsMedido);
+                obs_data_set_int(o, "recibidos", static_cast<long long>(x->recibidos));
+                obs_data_set_int(o, "llegaron_tarde", static_cast<long long>(x->tarde));
+                obs_data_set_int(o, "saltados", static_cast<long long>(x->saltados));
+                obs_data_set_int(o, "descartados", static_cast<long long>(x->descartados));
+                obs_data_set_int(o, "colchon_ms", x->colchonMs);
+                obs_data_set_int(o, "adelanto_ms", static_cast<long long>(x->adelantoMs));
+                // Lo de los últimos 10 s (o lo que va, si todavía no pasaron).
+                obs_data_set_int(o, "tarde_10s",
+                                 static_cast<long long>(x->recibidos10 ? x->tarde10 : x->tardeVentana));
+                obs_data_set_int(
+                    o, "recibidos_10s",
+                    static_cast<long long>(x->recibidos10 ? x->recibidos10 : x->recibidosVentana));
+                obs_data_set_int(o, "en_colchon", static_cast<long long>(x->video.size()));
+                if (!x->origen.empty()) {
+                    obs_data_t* og = obs_data_create_from_json(x->origen.c_str());
+                    obs_data_set_obj(o, "origen", og);
+                    obs_data_release(og);
+                }
+            }
+            calldata_set_string(cd, "info", obs_data_get_json(o));
+            obs_data_release(o);
+        },
+        f);
     return f;
 }
 
@@ -665,7 +707,8 @@ void tic(void* data, float) {
     auto* f = static_cast<Fuente*>(data);
     std::lock_guard<std::mutex> l(f->lock);
     if (f->pipeline == nullptr) {
-        if ((!f->descripcion.empty() || !f->descripcionAudio.empty() || !f->uri.empty()) && f->reintento != 0 && os_gettime_ns() >= f->reintento) {
+        if ((!f->descripcion.empty() || !f->descripcionAudio.empty() || !f->uri.empty()) &&
+            f->reintento != 0 && os_gettime_ns() >= f->reintento) {
             f->reintento = 0;
             armar(f);
         }
@@ -686,9 +729,13 @@ void tic(void* data, float) {
         const double exceso = adelanto - static_cast<double>(f->latenciaMs + f->desfaseMs);
         const std::uint64_t ahoraNs = os_gettime_ns();
         if (recibidos > 60 && exceso > 400) {
-            if (f->ntpMalDesde == 0) f->ntpMalDesde = ahoraNs;
+            if (f->ntpMalDesde == 0)
+                f->ntpMalDesde = ahoraNs;
             else if (ahoraNs - f->ntpMalDesde > 3'000'000'000ULL) {
-                blog(LOG_WARNING, "[ba-sources] fuente GStreamer: la hora de la cámara está corrida %.0f ms; se deja de usar (ntp-sync)", exceso);
+                blog(LOG_WARNING,
+                     "[ba-sources] fuente GStreamer: la hora de la cámara está corrida %.0f ms; se deja de "
+                     "usar (ntp-sync)",
+                     exceso);
                 f->ntpApagadoSolo = true;
                 f->ntpMalDesde = 0;
                 desarmar(f);
@@ -718,9 +765,11 @@ void tic(void* data, float) {
             audios.push_back(f->audio.front().muestra);
             f->audio.pop_front();
         }
-        f->colchonMs = f->video.empty() ? 0
-                                         : (static_cast<std::int64_t>(f->video.back().vence) - static_cast<std::int64_t>(ahora)) /
-                                               static_cast<std::int64_t>(GST_MSECOND);
+        f->colchonMs =
+            f->video.empty()
+                ? 0
+                : (static_cast<std::int64_t>(f->video.back().vence) - static_cast<std::int64_t>(ahora)) /
+                      static_cast<std::int64_t>(GST_MSECOND);
     }
     if (video != nullptr) {
         presentarVideo(f, video);
@@ -732,7 +781,8 @@ void tic(void* data, float) {
     }
     GstBus* bus = gst_element_get_bus(f->pipeline);
     if (bus == nullptr) return;
-    GstMessage* m = gst_bus_pop_filtered(bus, static_cast<GstMessageType>(GST_MESSAGE_ERROR | GST_MESSAGE_EOS));
+    GstMessage* m =
+        gst_bus_pop_filtered(bus, static_cast<GstMessageType>(GST_MESSAGE_ERROR | GST_MESSAGE_EOS));
     gst_object_unref(bus);
     if (m == nullptr) return;
     if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_ERROR) {
@@ -751,12 +801,17 @@ void tic(void* data, float) {
 
 obs_properties_t* propiedades(void*) {
     obs_properties_t* p = obs_properties_create();
-    obs_properties_add_text(p, "uri", obs_module_text("URI (srt://, rtmp://, rtsp://, udp://, http://, archivo)"), OBS_TEXT_DEFAULT);
-    obs_properties_add_text(p, "pipeline", obs_module_text("O un pipeline de GStreamer (origen)"), OBS_TEXT_MULTILINE);
-    obs_properties_add_text(p, "pipeline_audio", obs_module_text("Y el de su audio (opcional)"), OBS_TEXT_MULTILINE);
+    obs_properties_add_text(p, "uri",
+                            obs_module_text("URI (srt://, rtmp://, rtsp://, udp://, http://, archivo)"),
+                            OBS_TEXT_DEFAULT);
+    obs_properties_add_text(p, "pipeline", obs_module_text("O un pipeline de GStreamer (origen)"),
+                            OBS_TEXT_MULTILINE);
+    obs_properties_add_text(p, "pipeline_audio", obs_module_text("Y el de su audio (opcional)"),
+                            OBS_TEXT_MULTILINE);
     obs_properties_add_int(p, "latencia", obs_module_text("Latencia (ms)"), 0, 10000, 10);
     obs_properties_add_int(p, "desfase", obs_module_text("Desfase (ms)"), -5000, 5000, 1);
-    obs_property_t* r = obs_properties_add_list(p, "reloj", obs_module_text("Reloj"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
+    obs_property_t* r = obs_properties_add_list(p, "reloj", obs_module_text("Reloj"), OBS_COMBO_TYPE_LIST,
+                                                OBS_COMBO_FORMAT_STRING);
     obs_property_list_add_string(r, "Sistema", "sistema");
     obs_property_list_add_string(r, "NTP", "ntp");
     obs_property_list_add_string(r, "PTP", "ptp");
@@ -765,14 +820,19 @@ obs_properties_t* propiedades(void*) {
     obs_properties_add_int(p, "reloj_puerto", obs_module_text("Puerto del reloj"), 0, 65535, 1);
     obs_properties_add_int(p, "reloj_dominio", obs_module_text("Dominio PTP"), 0, 127, 1);
     obs_properties_add_bool(p, "audio", obs_module_text("Con audio"));
-    obs_properties_add_bool(p, "normalizar", obs_module_text("Normalizar (desentrelazar, cuadros y color del estudio)"));
-    obs_properties_add_bool(p, "superres", obs_module_text("Superresolución x2 (macOS 26, cámaras de hasta 960x960)"));
-    obs_property_t* sm = obs_properties_add_list(p, "superres_motor", obs_module_text("Motor de superresolución"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
+    obs_properties_add_bool(p, "normalizar",
+                            obs_module_text("Normalizar (desentrelazar, cuadros y color del estudio)"));
+    obs_properties_add_bool(p, "superres",
+                            obs_module_text("Superresolución x2 (macOS 26, cámaras de hasta 960x960)"));
+    obs_property_t* sm =
+        obs_properties_add_list(p, "superres_motor", obs_module_text("Motor de superresolución"),
+                                OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
     obs_property_list_add_string(sm, "Ninguno (o el interruptor de arriba)", "");
     obs_property_list_add_string(sm, "Apple (VideoToolbox, macOS 26)", "apple");
     obs_property_list_add_string(sm, "FSR 1 (AMD, cualquier GPU)", "fsr");
     obs_property_list_add_string(sm, "Red ONNX (el modelo de abajo)", "onnx");
-    obs_properties_add_path(p, "superres_modelo", obs_module_text("Modelo ONNX"), OBS_PATH_FILE, "Modelo (*.onnx)", nullptr);
+    obs_properties_add_path(p, "superres_modelo", obs_module_text("Modelo ONNX"), OBS_PATH_FILE,
+                            "Modelo (*.onnx)", nullptr);
     return p;
 }
 
@@ -841,24 +901,26 @@ void ba_register_gst_fuente(void) {
     ba::gst::registrarFiltroAudioPlugin();
     // El reloj del estudio, para que otros aparatos se sincronicen con este:
     // proc global «ba_reloj_publicar» (puerto 0 = apagar).
-    proc_handler_add(obs_get_proc_handler(),
-                     "void ba_reloj_publicar(in int puerto, out bool ok, out string error, out int puerto_publicado)",
-                     [](void*, calldata_t* cd) {
-                         std::string e;
-                         const bool ok = ba::gst::publicarReloj(static_cast<int>(calldata_int(cd, "puerto")), e);
-                         calldata_set_bool(cd, "ok", ok);
-                         calldata_set_string(cd, "error", e.c_str());
-                         calldata_set_int(cd, "puerto_publicado", ba::gst::relojPublicado());
-                     },
-                     nullptr);
+    proc_handler_add(
+        obs_get_proc_handler(),
+        "void ba_reloj_publicar(in int puerto, out bool ok, out string error, out int puerto_publicado)",
+        [](void*, calldata_t* cd) {
+            std::string e;
+            const bool ok = ba::gst::publicarReloj(static_cast<int>(calldata_int(cd, "puerto")), e);
+            calldata_set_bool(cd, "ok", ok);
+            calldata_set_string(cd, "error", e.c_str());
+            calldata_set_int(cd, "puerto_publicado", ba::gst::relojPublicado());
+        },
+        nullptr);
     // El puerto de medios de un plugin de Python (lo anuncia al arrancar; 0 = se
     // cerró): lo usan `baplugin` y `bapluginsrc` (ba_plugin_gst.cpp).
-    proc_handler_add(obs_get_proc_handler(), "void ba_plugin_puerto(in string plugin, in int puerto)",
-                     [](void*, calldata_t* cd) {
-                         const char* p = calldata_string(cd, "plugin");
-                         if (p != nullptr) ba::gst::puertoPlugin(p, static_cast<int>(calldata_int(cd, "puerto")));
-                     },
-                     nullptr);
+    proc_handler_add(
+        obs_get_proc_handler(), "void ba_plugin_puerto(in string plugin, in int puerto)",
+        [](void*, calldata_t* cd) {
+            const char* p = calldata_string(cd, "plugin");
+            if (p != nullptr) ba::gst::puertoPlugin(p, static_cast<int>(calldata_int(cd, "puerto")));
+        },
+        nullptr);
 }
 
 } // extern "C"

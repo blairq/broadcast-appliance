@@ -138,8 +138,8 @@ class Escucha {
     std::map<std::string, std::unique_ptr<Corriente>> corrientes_; // solo el hilo de trabajo
     Frase frase_;
     std::string vadModelo_;
-    Cortes cortes_;         ///< bajo contLock_
-    int versionCortes_ = 0; ///< bajo contLock_: al cambiar, las corrientes se rearman
+    Cortes cortes_;                    ///< bajo contLock_
+    int versionCortes_ = 0;            ///< bajo contLock_: al cambiar, las corrientes se rearman
     std::map<std::string, Oido> oido_; ///< bajo contLock_
 
     std::mutex colaLock_;

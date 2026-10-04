@@ -51,7 +51,8 @@ struct Ring {
         }
         std::lock_guard<std::mutex> g(m);
         // Hasta cuándo alcanza lo que ya hay (se saca a ritmo real desde ahora).
-        const std::uint64_t fin = ahoraNs + static_cast<std::uint64_t>(l.size()) * 1'000'000'000ULL / frecuencia;
+        const std::uint64_t fin =
+            ahoraNs + static_cast<std::uint64_t>(l.size()) * 1'000'000'000ULL / frecuencia;
         if (tsNs > fin + 20'000'000ULL && tsNs - ahoraNs < 60'000'000'000ULL) {
             const std::size_t hueco = static_cast<std::size_t>((tsNs - fin) * frecuencia / 1'000'000'000ULL);
             l.insert(l.end(), hueco, 0.0f);

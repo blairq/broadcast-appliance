@@ -23,16 +23,16 @@
 namespace ba::app::ptz {
 
 struct Posicion {
-    QString id;         ///< "1", "2"… (no cambia aunque cambie el nombre)
-    QString nombre;     ///< único en la cámara
+    QString id;     ///< "1", "2"… (no cambia aunque cambie el nombre)
+    QString nombre; ///< único en la cámara
     QString comentario;
     // El encuadre digital (si se registró).
     bool digital = false;
     double x = 0.5, y = 0.5, zoom = 1.0;
     // La memoria de la cámara (si se registró).
-    QString backend;    ///< el que tenía la cámara: visca | onvif | panasonic ("" = sin)
-    int memoria = 0;    ///< VISCA / Panasonic (0 = ninguna)
-    QString token;      ///< ONVIF
+    QString backend; ///< el que tenía la cámara: visca | onvif | panasonic ("" = sin)
+    int memoria = 0; ///< VISCA / Panasonic (0 = ninguna)
+    QString token;   ///< ONVIF
     // La definición de la entrada al registrarla.
     int ancho = 0, alto = 0;
     QString creada, modificada; ///< ISO 8601

@@ -47,13 +47,15 @@ void McpService::registerInputTools() {
         t.title = "Borrar una entrada";
         t.category = "entradas";
         t.destructive = true;
-        t.description =
-            "Borra la entrada `nombre` (cámara, capturadora, de red, de un plugin): la saca de TODAS las escenas y de "
-            "la app, con su grafo de video. Para sacarla de una sola escena, source_remove.";
-        t.inputSchema = {{"type", "object"}, {"required", {"nombre"}}, {"properties", {{"nombre", {{"type", "string"}}}}}};
+        t.description = "Borra la entrada `nombre` (cámara, capturadora, de red, de un plugin): la saca de "
+                        "TODAS las escenas y de "
+                        "la app, con su grafo de video. Para sacarla de una sola escena, source_remove.";
+        t.inputSchema = {
+            {"type", "object"}, {"required", {"nombre"}}, {"properties", {{"nombre", {{"type", "string"}}}}}};
         t.run = [&rt, &vm](const json& a, Done done) {
             const std::string n = a.value("nombre", std::string());
-            if (rt.engine().sourceTypeId(n).empty()) return done(ToolResult::error("no hay una entrada «" + n + "»"));
+            if (rt.engine().sourceTypeId(n).empty())
+                return done(ToolResult::error("no hay una entrada «" + n + "»"));
             auto* inp = static_cast<InputsViewModel*>(vm.inputs());
             if (inp == nullptr) return done(ToolResult::error("las entradas no están disponibles"));
             inp->remove(QString::fromStdString(n));
@@ -116,7 +118,8 @@ void McpService::registerInputTools() {
         t.category = "entradas";
         t.openWorld = true;
         t.description =
-            "SI HAY QUE SINCRONIZARLA con otras (varios streams, varias camaras de red), usá video_entrada_red: esa "
+            "SI HAY QUE SINCRONIZARLA con otras (varios streams, varias camaras de red), usá "
+            "video_entrada_red: esa "
             "tiene colchon y reloj del estudio y se mide con video_sincronia; esta no. "
             "Agrega a una escena una señal por la red: camara IP (rtsp://usuario:clave@ip:554/ruta), RTMP, "
             "SRT "

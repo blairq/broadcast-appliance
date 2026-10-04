@@ -322,16 +322,16 @@ const std::set<std::string>& Roles::juegoDelAsistente() {
         // «equipo». El asistente se quedo sin poder poner musica ni mirar el
         // disco, y no fallaba nada: simplemente esas herramientas no existian
         // para el. Ver el aviso de McpCore::setRoles.
-        "escenas",  "fuentes",   "imagenes", "sala",    "oradores",  "salidas", "graficos",   "rostros",
-        "interfaz", "ventanas",  "operador", "medios",  "recetas",   "audio",   "audio_rack", "config",
-        "sistema",  "equipo",    "entradas", "alertas", "pantallas", "evento",  "prompter",   "qr",
-        "cuentas",  "asistente", "youtube",  "twitch",  "facebook",  "padron",  "preguntas",  "laminas",
+        "escenas", "fuentes", "imagenes", "sala", "oradores", "salidas", "graficos", "rostros", "interfaz",
+        "ventanas", "operador", "medios", "recetas", "audio", "audio_rack", "config", "sistema", "equipo",
+        "entradas", "alertas", "pantallas", "evento", "prompter", "qr", "cuentas", "asistente", "youtube",
+        "twitch", "facebook", "padron", "preguntas", "laminas",
         // El grafo de video (tarjetas, módulos de GStreamer, controladores,
         // compositor, relojes y sincronía) y las cámaras PTZ: armar bien un
         // pipeline es justo lo que el operador le va a pedir. Faltaban, y la
         // ayuda igual se las describía (probado: terminaba metiendo cadenas de
         // GStreamer a mano en fuentes sueltas).
-        "video",    "camaras",
+        "video", "camaras",
         // Los plugins de Python: cuando un equipo no se puede manejar con lo que
         // hay, el asistente escribe uno (no se queda en «no puedo»).
         "plugins",

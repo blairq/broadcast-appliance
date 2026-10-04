@@ -67,7 +67,8 @@ gs_effect_t* efecto() {
         char* ruta = obs_module_file("video-grafo.effect");
         if (ruta != nullptr) fx = gs_effect_create_from_file(ruta, nullptr);
         bfree(ruta);
-        if (fx == nullptr) blog(LOG_WARNING, "[ba-sources] Estudio de video: no se pudo cargar video-grafo.effect");
+        if (fx == nullptr)
+            blog(LOG_WARNING, "[ba-sources] Estudio de video: no se pudo cargar video-grafo.effect");
     }
     return fx;
 }
@@ -81,7 +82,8 @@ void dibujarTex(gs_texture_t* tex, float x, float y, float w, float h, const cha
     gs_matrix_push();
     gs_matrix_translate3f(x, y, 0.0f);
     while (gs_effect_loop(fx, tecnica))
-        gs_draw_sprite(tex, 0, static_cast<std::uint32_t>(std::max(1.0f, w)), static_cast<std::uint32_t>(std::max(1.0f, h)));
+        gs_draw_sprite(tex, 0, static_cast<std::uint32_t>(std::max(1.0f, w)),
+                       static_cast<std::uint32_t>(std::max(1.0f, h)));
     gs_matrix_pop();
 }
 
@@ -101,7 +103,8 @@ void despertar(const std::string& fuente) {
     static std::vector<gs_texrender_t*> aparte;
     static size_t profundidad = 0;
     if (w != 0 && h != 0 && profundidad < 8) {
-        while (aparte.size() <= profundidad) aparte.push_back(gs_texrender_create(GS_RGBA, GS_ZS_NONE));
+        while (aparte.size() <= profundidad)
+            aparte.push_back(gs_texrender_create(GS_RGBA, GS_ZS_NONE));
         gs_texrender_t* t = aparte[profundidad++];
         gs_texrender_reset(t);
         if (gs_texrender_begin(t, w, h)) {
@@ -148,7 +151,8 @@ void publicarToma(const std::string& nombre, const std::string& fuente, gs_textu
     t.cuadro = obs_get_video_frame_time();
 }
 
-gs_texture_t* leerToma(const std::string& nombre, const std::string& fuente, std::uint32_t* cx, std::uint32_t* cy) {
+gs_texture_t* leerToma(const std::string& nombre, const std::string& fuente, std::uint32_t* cx,
+                       std::uint32_t* cy) {
     const std::uint64_t ahora = obs_get_video_frame_time();
     bool fresca = false;
     {
@@ -239,8 +243,8 @@ gs_texture_t* componer(const std::string& id, std::uint32_t* cx, std::uint32_t* 
     if (gs_texrender_begin(copia.tex, copia.ancho, copia.alto)) {
         const float W = static_cast<float>(copia.ancho), H = static_cast<float>(copia.alto);
         struct vec4 fondo;
-        vec4_from_rgba(&fondo, ((copia.fondo >> 16) & 0xFF) | (copia.fondo & 0xFF00) | ((copia.fondo & 0xFF) << 16) |
-                                   (copia.fondo & 0xFF000000));
+        vec4_from_rgba(&fondo, ((copia.fondo >> 16) & 0xFF) | (copia.fondo & 0xFF00) |
+                                   ((copia.fondo & 0xFF) << 16) | (copia.fondo & 0xFF000000));
         // Premultiplicado.
         fondo.x *= fondo.w;
         fondo.y *= fondo.w;
@@ -381,12 +385,14 @@ void compDibujar(void* data, gs_effect_t*) {
     if (tex == nullptr) return;
     gs_effect_t* fx = obs_get_base_effect(OBS_EFFECT_DEFAULT);
     gs_effect_set_texture(gs_effect_get_param_by_name(fx, "image"), tex);
-    while (gs_effect_loop(fx, "Draw")) gs_draw_sprite(tex, 0, w, h);
+    while (gs_effect_loop(fx, "Draw"))
+        gs_draw_sprite(tex, 0, w, h);
 }
 
 obs_properties_t* compPropiedades(void*) {
     obs_properties_t* p = obs_properties_create();
-    obs_properties_add_text(p, "info", obs_module_text("Se arma en la página Video (el grafo del estudio)."), OBS_TEXT_INFO);
+    obs_properties_add_text(p, "info", obs_module_text("Se arma en la página Video (el grafo del estudio)."),
+                            OBS_TEXT_INFO);
     return p;
 }
 

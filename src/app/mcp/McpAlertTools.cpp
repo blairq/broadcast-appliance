@@ -10,8 +10,8 @@
 
 #include "agent/AlertEngine.hpp"
 #include "mcp/McpService.hpp"
-#include "plugins/Plugins.hpp"
 #include "mcp/McpToolsCommon.hpp"
+#include "plugins/Plugins.hpp"
 #include "ui/StudioViewModel.hpp"
 
 namespace ba::app::mcp {
@@ -71,7 +71,8 @@ void McpService::registerAlertTools() {
                 {"enum",
                  [] {
                      json e = json::array();
-                     for (const auto& t : agent::AlertEngine::types()) e.push_back(t.value("type", ""));
+                     for (const auto& t : agent::AlertEngine::types())
+                         e.push_back(t.value("type", ""));
                      return e;
                  }()}}},
               {"name", {{"type", "string"}}},
@@ -106,7 +107,8 @@ void McpService::registerAlertTools() {
         t.title = "Disparadores activos";
         t.category = "alertas";
         t.readOnly = true;
-        t.description = "Los disparadores con su estado (activo, cuantas veces se disparo, la ultima vez) y los plugins que "
+        t.description = "Los disparadores con su estado (activo, cuantas veces se disparo, la ultima vez) y "
+                        "los plugins que "
                         "se declaran disparadores (`plugins`: se prenden y apagan con plugin_activar).";
         auto* pl = vm_.plugins();
         t.run = [&eng, pl](const json&, Done done) {
@@ -114,7 +116,9 @@ void McpService::registerAlertTools() {
             if (pl != nullptr)
                 for (const auto& p : pl->listar())
                     if (p.value("disparador", false))
-                        dePlugins.push_back({{"id", p.value("id", "")}, {"nombre", p.value("nombre", "")}, {"estado", p.value("estado", "")},
+                        dePlugins.push_back({{"id", p.value("id", "")},
+                                             {"nombre", p.value("nombre", "")},
+                                             {"estado", p.value("estado", "")},
                                              {"descripcion", p.value("descripcion", "")}});
             done(ToolResult().data(json{{"alerts", eng.list()}, {"plugins", dePlugins}}));
         };

@@ -44,29 +44,37 @@ int main() {
 
     std::string e;
     const std::string col = g.agregar("color", sony, "", json::object(), &e);
-    CHECK(col == "sony-ptz.color" && hay(g, es, col) && hay(g, col, ss) && !hay(g, es, ss), "color se intercala antes de la escena");
+    CHECK(col == "sony-ptz.color" && hay(g, es, col) && hay(g, col, ss) && !hay(g, es, ss),
+          "color se intercala antes de la escena");
     const std::string cro = g.agregar("croma", sony, col, json{{"similitud", 0.5}}, &e);
-    CHECK(hay(g, col, cro) && hay(g, cro, ss) && g.nodo(cro)->params.value("similitud", 0.0) == 0.5, "croma después de color");
+    CHECK(hay(g, col, cro) && hay(g, cro, ss) && g.nodo(cro)->params.value("similitud", 0.0) == 0.5,
+          "croma después de color");
     const std::string sal = g.agregar("salida", sony, es, json{{"nombre", "Sony limpia"}}, &e);
     CHECK(hay(g, es, sal) && hay(g, es, col), "la salida es una rama");
     CHECK(g.nodo(sal)->grupo == sony && !g.trivial(sony), "las tarjetas son del sub-grafo de su entrada");
     CHECK(g.agregar("obs", sony, "", json::object(), &e).empty(), "un filtro de OBS sin `filtro`: error");
-    const std::string ob = g.agregar("obs", pelco, "", json{{"filtro", "color_filter_v2"}, {"ajustes", {{"saturation", 0.2}}}}, &e);
+    const std::string ob = g.agregar(
+        "obs", pelco, "", json{{"filtro", "color_filter_v2"}, {"ajustes", {{"saturation", 0.2}}}}, &e);
     CHECK(!ob.empty() && hay(g, GrafoVideo::idEntrada(pelco), ob), "una tarjeta de OBS en Pelco");
-    CHECK(g.agregar("color", "No existe", "", json::object(), &e).empty(), "en una entrada que no está: error");
+    CHECK(g.agregar("color", "No existe", "", json::object(), &e).empty(),
+          "en una entrada que no está: error");
     CHECK(g.agregar("color", sony, ss, json::object(), &e).empty(), "de la escena no se cuelga nada");
 
     // Compositor (del estudio) con entradas a pedido, de dos cámaras.
     const std::string comp = g.agregar("compositor", "", "", json::object(), &e);
     CHECK(comp == "estudio.compositor" && g.nodo(comp)->grupo.empty(), "el compositor es del estudio");
-    CHECK(g.puertosEntrada(*g.nodo(comp)).size() == 1 && g.puertosEntrada(*g.nodo(comp))[0].pedido, "un puerto libre a pedido");
+    CHECK(g.puertosEntrada(*g.nodo(comp)).size() == 1 && g.puertosEntrada(*g.nodo(comp))[0].pedido,
+          "un puerto libre a pedido");
     CHECK(g.conectar(cro, "", comp, "", &e) == "in_0", "primera entrada: in_0");
-    CHECK(g.conectar(GrafoVideo::idEntrada(pelco), "", comp, "", &e) == "in_1", "segunda: in_1 (entre entradas distintas)");
+    CHECK(g.conectar(GrafoVideo::idEntrada(pelco), "", comp, "", &e) == "in_1",
+          "segunda: in_1 (entre entradas distintas)");
     CHECK(g.puertosEntrada(*g.nodo(comp)).size() == 3, "dos conectados y uno libre");
     CHECK(g.conectar(GrafoVideo::idEntrada(pana), "", comp, "in_1", &e) == "in_1" &&
-              !hay(g, GrafoVideo::idEntrada(pelco), comp) && hay(g, GrafoVideo::idEntrada(pana), comp, "in_1"),
+              !hay(g, GrafoVideo::idEntrada(pelco), comp) &&
+              hay(g, GrafoVideo::idEntrada(pana), comp, "in_1"),
           "conectar a un puerto ocupado lo reemplaza");
-    CHECK(g.conectar(comp, "", GrafoVideo::idEscena(pelco), "", &e) == "in" && hay(g, comp, GrafoVideo::idEscena(pelco)),
+    CHECK(g.conectar(comp, "", GrafoVideo::idEscena(pelco), "", &e) == "in" &&
+              hay(g, comp, GrafoVideo::idEscena(pelco)),
           "el compositor puede alimentar la escena de otra entrada");
     CHECK(!g.trivial(pelco), "con algo de afuera en su escena no es trivial");
 
@@ -76,12 +84,14 @@ int main() {
     CHECK(g.conectar(cro, "", es, "", &e).empty(), "a la entrada no le llega nada");
 
     // Quitar: un filtro se puentea; un compositor solo suelta sus cables.
-    CHECK(g.quitar(col, &e) && hay(g, es, cro) && g.nodo(col) == nullptr, "quitar un filtro une lo de antes con lo de después");
+    CHECK(g.quitar(col, &e) && hay(g, es, cro) && g.nodo(col) == nullptr,
+          "quitar un filtro une lo de antes con lo de después");
     CHECK(!g.quitar(es, &e) && !g.quitar(ss, &e), "entrada y escena no se quitan");
 
     // Ajustar: los ajustes de OBS y las capas del compositor se mezclan.
     CHECK(g.ajustar(ob, json{{"ajustes", {{"gamma", 0.1}}}}, &e) &&
-              g.nodo(ob)->params["ajustes"].value("saturation", 0.0) == 0.2 && g.nodo(ob)->params["ajustes"].value("gamma", 0.0) == 0.1,
+              g.nodo(ob)->params["ajustes"].value("saturation", 0.0) == 0.2 &&
+              g.nodo(ob)->params["ajustes"].value("gamma", 0.0) == 0.1,
           "los ajustes de OBS se mezclan clave por clave");
     CHECK(g.ajustar(comp, json{{"capas", {{"in_0", {{"x", 0.5}}}}}}, &e) &&
               g.ajustar(comp, json{{"capas", {{"in_0", {{"ancho", 0.5}}}}}}, &e) &&
@@ -119,27 +129,34 @@ int main() {
     CHECK(h.aJson() == g.aJson(), "guardar y leer da lo mismo");
 
     // Migración del formato de antes.
-    const json viejo = {{"Cámara 1",
-                         {{"version", 1},
-                          {"nodos",
-                           {{{"id", "in"}, {"tipo", "in"}, {"x", 0}, {"y", 0}},
-                            {{"id", "out"}, {"tipo", "out"}, {"x", 440}, {"y", 0}},
-                            {{"id", "croma"}, {"tipo", "croma"}, {"x", 220}, {"y", 0}, {"params", {{"similitud", 0.6}}}},
-                            {{"id", "salida"}, {"tipo", "salida"}, {"x", 220}, {"y", 140}, {"params", {{"nombre", "C1 limpia"}}}}}},
-                          {"cables",
-                           {{{"desde", "in"}, {"hacia", "croma"}},
-                            {{"desde", "croma"}, {"hacia", "out"}},
-                            {{"desde", "in"}, {"hacia", "salida"}}}}}}};
+    const json viejo = {
+        {"Cámara 1",
+         {{"version", 1},
+          {"nodos",
+           {{{"id", "in"}, {"tipo", "in"}, {"x", 0}, {"y", 0}},
+            {{"id", "out"}, {"tipo", "out"}, {"x", 440}, {"y", 0}},
+            {{"id", "croma"}, {"tipo", "croma"}, {"x", 220}, {"y", 0}, {"params", {{"similitud", 0.6}}}},
+            {{"id", "salida"},
+             {"tipo", "salida"},
+             {"x", 220},
+             {"y", 140},
+             {"params", {{"nombre", "C1 limpia"}}}}}},
+          {"cables",
+           {{{"desde", "in"}, {"hacia", "croma"}},
+            {{"desde", "croma"}, {"hacia", "out"}},
+            {{"desde", "in"}, {"hacia", "salida"}}}}}}};
     const GrafoVideo m = GrafoVideo::desde(viejo);
     const std::string me = GrafoVideo::idEntrada("Cámara 1"), mss = GrafoVideo::idEscena("Cámara 1");
     CHECK(me == "camara-1.entrada", "el id pasa las tildes a su letra");
-    CHECK(hay(m, me, "camara-1.croma") && hay(m, "camara-1.croma", mss) && hay(m, me, "camara-1.salida"), "migra nodos y cables");
-    CHECK(m.nodo("camara-1.croma")->params.value("similitud", 0.0) == 0.6 && m.salidas().size() == 1, "migra los parámetros");
+    CHECK(hay(m, me, "camara-1.croma") && hay(m, "camara-1.croma", mss) && hay(m, me, "camara-1.salida"),
+          "migra nodos y cables");
+    CHECK(m.nodo("camara-1.croma")->params.value("similitud", 0.0) == 0.6 && m.salidas().size() == 1,
+          "migra los parámetros");
 
     // Con un locale como el de la app (no el «C» de los tests): los acentos
     // no rompen el UTF-8 del id (se caía al guardar el json).
-    if (std::setlocale(LC_ALL, "es_AR.ISO8859-1") != nullptr || std::setlocale(LC_ALL, "en_US.ISO8859-1") != nullptr ||
-        std::setlocale(LC_ALL, "") != nullptr) {
+    if (std::setlocale(LC_ALL, "es_AR.ISO8859-1") != nullptr ||
+        std::setlocale(LC_ALL, "en_US.ISO8859-1") != nullptr || std::setlocale(LC_ALL, "") != nullptr) {
         GrafoVideo z;
         z.asegurarEntrada("Camara Cámara FaceTime HD");
         bool ok = true;
@@ -156,25 +173,34 @@ int main() {
     // Controladores: UNA corrección de color para tres cámaras de marcas distintas.
     {
         GrafoVideo k;
-        for (const char* c : {"Sony", "Pelco", "Panasonic"}) k.asegurarEntrada(c);
+        for (const char* c : {"Sony", "Pelco", "Panasonic"})
+            k.asegurarEntrada(c);
         std::string e;
-        const std::string sony = k.agregar("gst", "Sony", "", json{{"elemento", "videobalance"}, {"propiedades", {{"saturation", 1.2}}}}, &e);
+        const std::string sony =
+            k.agregar("gst", "Sony", "",
+                      json{{"elemento", "videobalance"}, {"propiedades", {{"saturation", 1.2}}}}, &e);
         const std::string ctl = k.controlarDesde(sony, &e);
-        CHECK(!ctl.empty() && k.nodo(ctl)->tipo == "control" && k.nodo(ctl)->grupo.empty(), "controlarDesde hace un controlador del estudio");
-        CHECK(k.controlador(sony) != nullptr && k.controlador(sony)->id == ctl, "la tarjeta queda manejada por él");
+        CHECK(!ctl.empty() && k.nodo(ctl)->tipo == "control" && k.nodo(ctl)->grupo.empty(),
+              "controlarDesde hace un controlador del estudio");
+        CHECK(k.controlador(sony) != nullptr && k.controlador(sony)->id == ctl,
+              "la tarjeta queda manejada por él");
         const std::string pelco = k.agregarControlada(ctl, "Pelco", "", &e);
         const std::string pana = k.agregarControlada(ctl, "Panasonic", "", &e);
-        CHECK(!pelco.empty() && !pana.empty() && k.controlador(pana)->id == ctl, "agregarControlada en las otras dos");
-        CHECK(k.nodo(pelco)->etiqueta == k.nodo(sony)->etiqueta, "la controlada se llama como la original (sin «(todas)»)");
+        CHECK(!pelco.empty() && !pana.empty() && k.controlador(pana)->id == ctl,
+              "agregarControlada en las otras dos");
+        CHECK(k.nodo(pelco)->etiqueta == k.nodo(sony)->etiqueta,
+              "la controlada se llama como la original (sin «(todas)»)");
         // Cambiar el controlador cambia las tres.
-        CHECK(k.ajustar(ctl, json{{"params", {{"propiedades", {{"saturation", 0.8}, {"hue", 0.1}}}}}}, &e), "ajustar el controlador");
+        CHECK(k.ajustar(ctl, json{{"params", {{"propiedades", {{"saturation", 0.8}, {"hue", 0.1}}}}}}, &e),
+              "ajustar el controlador");
         const auto sat = [&](const std::string& fuente) {
             const json pf = k.paraFiltro(fuente);
             for (const auto& n : pf["nodos"])
                 if (n.value("tipo", "") == "gst") return n["params"]["propiedades"].value("saturation", -1.0);
             return -1.0;
         };
-        CHECK(sat("Sony") == 0.8 && sat("Pelco") == 0.8 && sat("Panasonic") == 0.8, "las tres cámaras corren con lo del controlador");
+        CHECK(sat("Sony") == 0.8 && sat("Pelco") == 0.8 && sat("Panasonic") == 0.8,
+              "las tres cámaras corren con lo del controlador");
         // Lo propio de una cámara (la Pelco tira a verde: un poco de matiz).
         CHECK(k.ajustar(pelco, json{{"local", {{"propiedades", {{"hue", -0.05}}}}}}, &e), "ajustar lo local");
         double hue = 0;
@@ -182,17 +208,23 @@ int main() {
         for (const auto& n : pfPelco["nodos"])
             if (n.value("tipo", "") == "gst") hue = n["params"]["propiedades"].value("hue", 0.0);
         CHECK(hue == -0.05 && sat("Pelco") == 0.8, "lo local pisa solo lo suyo");
-        CHECK(!k.paraFiltro("Pelco").dump().empty() && k.paraFiltro("Pelco").dump().find("\"local\"") == std::string::npos,
+        CHECK(!k.paraFiltro("Pelco").dump().empty() &&
+                  k.paraFiltro("Pelco").dump().find("\"local\"") == std::string::npos,
               "el filtro no recibe `local`");
         // El cable de control no es de video: no se mete en el pipeline.
-        CHECK(k.paraFiltro("Sony")["cables"].size() == 2, "el filtro de Sony: in -> tarjeta -> out (sin el control)");
+        CHECK(k.paraFiltro("Sony")["cables"].size() == 2,
+              "el filtro de Sony: in -> tarjeta -> out (sin el control)");
         // Tipos de puerto: control solo a control, y del mismo tipo de tarjeta.
         const std::string croma = k.agregar("croma", "Sony", "", json::object(), &e);
-        CHECK(k.conectar(ctl, "ctl", croma, "ctl", &e).empty(), "un controlador de videobalance no maneja un croma");
-        CHECK(k.conectar(ctl, "ctl", croma, "in", &e).empty(), "un cable de control no va a una entrada de video");
-        CHECK(k.conectar(GrafoVideo::idEntrada("Sony"), "out", sony, "ctl", &e).empty(), "un cable de video no va a un control");
+        CHECK(k.conectar(ctl, "ctl", croma, "ctl", &e).empty(),
+              "un controlador de videobalance no maneja un croma");
+        CHECK(k.conectar(ctl, "ctl", croma, "in", &e).empty(),
+              "un cable de control no va a una entrada de video");
+        CHECK(k.conectar(GrafoVideo::idEntrada("Sony"), "out", sony, "ctl", &e).empty(),
+              "un cable de video no va a un control");
         // Quitar una tarjeta manejada la puentea igual (el cable de control no cuenta).
-        CHECK(k.quitar(pana, &e) && hay(k, GrafoVideo::idEntrada("Panasonic"), GrafoVideo::idEscena("Panasonic")),
+        CHECK(k.quitar(pana, &e) &&
+                  hay(k, GrafoVideo::idEntrada("Panasonic"), GrafoVideo::idEscena("Panasonic")),
               "quitar una tarjeta manejada la puentea");
         // Soltar: se queda con lo que usaba.
         CHECK(k.soltar(pelco, &e) && k.controlador(pelco) == nullptr &&
@@ -200,20 +232,22 @@ int main() {
               "soltar deja la tarjeta con los valores que usaba");
         // Guardar y leer.
         const GrafoVideo r = GrafoVideo::desde(k.aJson());
-        CHECK(r.controlador(sony) != nullptr && r.nodo(ctl)->params["params"]["propiedades"].value("saturation", 0.0) == 0.8,
+        CHECK(r.controlador(sony) != nullptr &&
+                  r.nodo(ctl)->params["params"]["propiedades"].value("saturation", 0.0) == 0.8,
               "el controlador y su cable se guardan");
     }
 
     // Lo que cruza entradas: tomas, el compositor y traer.
     {
         GrafoVideo k;
-        for (const char* c : {"Sony", "Pelco", "Panasonic"}) k.asegurarEntrada(c);
+        for (const char* c : {"Sony", "Pelco", "Panasonic"})
+            k.asegurarEntrada(c);
         std::string e;
         const std::string comp = k.agregar("compositor", "", "", json::object(), &e);
         const std::string croma = k.agregar("croma", "Sony", "", json::object(), &e);
-        k.conectar(croma, "out", comp, "", &e);                               // in_0: el croma de Sony
-        k.conectar(GrafoVideo::idEntrada("Pelco"), "out", comp, "", &e);       // in_1: la Pelco tal cual
-        k.conectar(GrafoVideo::idEntrada("Panasonic"), "out", comp, "", &e);   // in_2
+        k.conectar(croma, "out", comp, "", &e);                              // in_0: el croma de Sony
+        k.conectar(GrafoVideo::idEntrada("Pelco"), "out", comp, "", &e);     // in_1: la Pelco tal cual
+        k.conectar(GrafoVideo::idEntrada("Panasonic"), "out", comp, "", &e); // in_2
         const json pf = k.paraFiltro("Sony");
         bool toma = false;
         for (const auto& n : pf["nodos"])
@@ -225,18 +259,24 @@ int main() {
             if (c.value("desde", "") == "in" && c.value("hacia", "").rfind("toma:", 0) == 0) tomaPelco = true;
         CHECK(tomaPelco, "Pelco publica su entrada tal cual");
         const json cfg = k.configCompositor(comp);
-        CHECK(cfg["capas"].size() == 3 && cfg["capas"][0].value("toma", "") == croma && cfg["capas"][1].value("fuente", "") == "Pelco",
+        CHECK(cfg["capas"].size() == 3 && cfg["capas"][0].value("toma", "") == croma &&
+                  cfg["capas"][1].value("fuente", "") == "Pelco",
               "el compositor: tres capas, en orden, con su toma y su entrada");
         CHECK(cfg["capas"][2].value("x", -1.0) == 0.0 && cfg["capas"][2].value("y", -1.0) == 0.5 &&
                   cfg["capas"][1].value("x", -1.0) == 0.5 && cfg["capas"][0].value("ancho", 0.0) == 0.5,
               "sin posiciones: mosaico de 2x2");
-        k.ajustar(comp, json{{"capas", {{"in_1", {{"x", 0.7}, {"y", 0.05}, {"ancho", 0.25}, {"alto", 0.25}, {"orden", 9}}}}}}, &e);
+        k.ajustar(
+            comp,
+            json{{"capas",
+                  {{"in_1", {{"x", 0.7}, {"y", 0.05}, {"ancho", 0.25}, {"alto", 0.25}, {"orden", 9}}}}}},
+            &e);
         const json cfg2 = k.configCompositor(comp);
         CHECK(cfg2["capas"][2].value("fuente", "") == "Pelco" && cfg2["capas"][2].value("x", 0.0) == 0.7,
               "una capa con posición y orden: arriba de todo, donde se pidió");
         // Volver al mosaico: null saca la posición.
         k.ajustar(comp, json{{"capas", {{"in_1", nullptr}}}}, &e);
-        CHECK(k.configCompositor(comp)["capas"][1].value("x", -1.0) == 0.5, "null en una capa la vuelve al mosaico");
+        CHECK(k.configCompositor(comp)["capas"][1].value("x", -1.0) == 0.5,
+              "null en una capa la vuelve al mosaico");
         // La escena de Panasonic recibe el compositor: su filtro lo trae.
         k.conectar(comp, "out", GrafoVideo::idEscena("Panasonic"), "in", &e);
         bool traer = false;
@@ -254,7 +294,8 @@ int main() {
         k.asegurarEntrada("A");
         k.asegurarEntrada("B");
         k.quitarEntrada("A");
-        CHECK(k.entradas().size() == 1 && k.nodo(GrafoVideo::idEntrada("A")) == nullptr && k.cables().size() == 1,
+        CHECK(k.entradas().size() == 1 && k.nodo(GrafoVideo::idEntrada("A")) == nullptr &&
+                  k.cables().size() == 1,
               "quitarEntrada saca el sub-grafo");
     }
     // Rostros: un filtro más (la imagen pasa), con lo que Personas necesita.
@@ -267,8 +308,10 @@ int main() {
         bool ok = false;
         for (const auto& n : pf["nodos"])
             if (n.value("tipo", "") == "rostros")
-                ok = n["params"].value("uso", "") == "puerta" && n["params"].value("cada", 0) == 500 && n["params"].value("auto", false);
-        CHECK(!r.empty() && ok && pf["cables"].size() == 2, "rostros: tarjeta intercalada, con uso, cada y auto");
+                ok = n["params"].value("uso", "") == "puerta" && n["params"].value("cada", 0) == 500 &&
+                     n["params"].value("auto", false);
+        CHECK(!r.empty() && ok && pf["cables"].size() == 2,
+              "rostros: tarjeta intercalada, con uso, cada y auto");
         CHECK(k.quitar(r, &e) && k.trivial("Cam"), "rostros: al quitarla, la entrada vuelve a como vino");
     }
     // El retardo es un filtro más.

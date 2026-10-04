@@ -36,8 +36,10 @@ bool iniciar() {
         if (!g_listo) g_error = err != nullptr ? err->message : "gst_init falló";
         if (err != nullptr) g_error_free(err);
         if (g_listo) registrarElementosPlugin();
-        if (g_listo) blog(LOG_INFO, "[ba-sources] GStreamer %s listo", gst_version_string());
-        else blog(LOG_WARNING, "[ba-sources] GStreamer: %s", g_error.c_str());
+        if (g_listo)
+            blog(LOG_INFO, "[ba-sources] GStreamer %s listo", gst_version_string());
+        else
+            blog(LOG_WARNING, "[ba-sources] GStreamer: %s", g_error.c_str());
     });
     return g_listo;
 }
@@ -66,7 +68,9 @@ bool fallo() { return g_hecho && !g_listo; }
 TarjetaGst::TarjetaGst(std::string elemento, std::map<std::string, std::string> propiedades)
     : elemento_(std::move(elemento)), props_(std::move(propiedades)) {
     // Los filtros de superresolución devuelven el doble: la tarjeta no lo achica de vuelta.
-    if (elemento_ == "basuperres" || elemento_ == "bavtsuperres" || elemento_ == "bafsr" || elemento_ == "baonnxsr") factor_ = 2;
+    if (elemento_ == "basuperres" || elemento_ == "bavtsuperres" || elemento_ == "bafsr" ||
+        elemento_ == "baonnxsr")
+        factor_ = 2;
 }
 
 TarjetaGst::~TarjetaGst() {
@@ -100,7 +104,8 @@ bool TarjetaGst::armar(std::uint32_t cx, std::uint32_t cy) {
     }
     {
         std::lock_guard<std::mutex> l(propsLock_);
-        for (const auto& [k, v] : props_) gst_util_set_object_arg(G_OBJECT(modulo_), k.c_str(), v.c_str());
+        for (const auto& [k, v] : props_)
+            gst_util_set_object_arg(G_OBJECT(modulo_), k.c_str(), v.c_str());
     }
     pipeline_ = gst_pipeline_new("ba-tarjeta");
     src_ = gst_element_factory_make("appsrc", "src");
@@ -121,10 +126,10 @@ bool TarjetaGst::armar(std::uint32_t cx, std::uint32_t cy) {
     const bool hayVideo = obs_get_video_info(&ovi) && ovi.fps_num > 0 && ovi.fps_den > 0;
     fpsNum_ = hayVideo ? static_cast<int>(ovi.fps_num) : 30;
     fpsDen_ = hayVideo ? static_cast<int>(ovi.fps_den) : 1;
-    GstCaps* caps = gst_caps_new_simple("video/x-raw", "format", G_TYPE_STRING, "RGBA", "width", G_TYPE_INT,
-                                        static_cast<int>(cx), "height", G_TYPE_INT, static_cast<int>(cy), "framerate",
-                                        GST_TYPE_FRACTION, fpsNum_, fpsDen_, "colorimetry", G_TYPE_STRING, "sRGB",
-                                        "interlace-mode", G_TYPE_STRING, "progressive", nullptr);
+    GstCaps* caps = gst_caps_new_simple(
+        "video/x-raw", "format", G_TYPE_STRING, "RGBA", "width", G_TYPE_INT, static_cast<int>(cx), "height",
+        G_TYPE_INT, static_cast<int>(cy), "framerate", GST_TYPE_FRACTION, fpsNum_, fpsDen_, "colorimetry",
+        G_TYPE_STRING, "sRGB", "interlace-mode", G_TYPE_STRING, "progressive", nullptr);
     g_object_set(src_, "caps", caps, "format", GST_FORMAT_TIME, "is-live", TRUE, "block", FALSE, nullptr);
     if (factor_ > 1) {
         // Lo que sale: el tamaño agrandado (la superresolución lo duplica).
@@ -200,9 +205,11 @@ void TarjetaGst::revisarFormato() {
     formato_ = fmt;
     // Los 4:2:0 y 4:2:2 guardan el color a menor resolución: en un croma o un
     // borde fino se nota. Se avisa (la tarjeta anda igual).
-    for (const char* sub : {"I420", "YV12", "NV12", "NV21", "YUY2", "UYVY", "YVYU", "Y42B", "I420_10LE", "NV12_10LE32"})
+    for (const char* sub :
+         {"I420", "YV12", "NV12", "NV21", "YUY2", "UYVY", "YVYU", "Y42B", "I420_10LE", "NV12_10LE32"})
         if (fmt == sub)
-            aviso_ = "«" + elemento_ + "» trabaja en " + fmt + ": el color queda a menor resolución (se nota en bordes y en un croma)";
+            aviso_ = "«" + elemento_ + "» trabaja en " + fmt +
+                     ": el color queda a menor resolución (se nota en bordes y en un croma)";
     gst_caps_unref(caps);
 }
 
@@ -211,7 +218,8 @@ void TarjetaGst::avisar() {
     // es un error: pasa solo al arrancar.
     if (error_ == avisado_ || error_ == "GStreamer se está iniciando") return;
     avisado_ = error_;
-    if (!error_.empty()) blog(LOG_WARNING, "[ba-sources] tarjeta GStreamer «%s»: %s", elemento_.c_str(), error_.c_str());
+    if (!error_.empty())
+        blog(LOG_WARNING, "[ba-sources] tarjeta GStreamer «%s»: %s", elemento_.c_str(), error_.c_str());
 }
 
 void TarjetaGst::ajustar(const std::map<std::string, std::string>& propiedades) {
@@ -228,7 +236,8 @@ void TarjetaGst::ajustar(const std::map<std::string, std::string>& propiedades) 
         GParamSpec* ps = g_object_class_find_property(G_OBJECT_GET_CLASS(m), k.c_str());
         // Lo que GStreamer marca como «solo con la cadena parada» (MUTABLE_READY o
         // de construcción) rearma el pipeline; lo demás se cambia en vivo.
-        if (ps != nullptr && !(ps->flags & GST_PARAM_MUTABLE_PLAYING) && !(ps->flags & GST_PARAM_CONTROLLABLE) &&
+        if (ps != nullptr && !(ps->flags & GST_PARAM_MUTABLE_PLAYING) &&
+            !(ps->flags & GST_PARAM_CONTROLLABLE) &&
             ((ps->flags & G_PARAM_CONSTRUCT_ONLY) || (ps->flags & GST_PARAM_MUTABLE_READY)))
             rearmar_ = true;
         else
@@ -246,7 +255,8 @@ bool TarjetaGst::procesar(gs_texture_t* entrada, std::uint32_t cx, std::uint32_t
         }
     }
     if (bajada_ == nullptr) bajada_ = gs_texrender_create(GS_RGBA, GS_ZS_NONE);
-    if (stage_ == nullptr || gs_stagesurface_get_width(stage_) != cx || gs_stagesurface_get_height(stage_) != cy) {
+    if (stage_ == nullptr || gs_stagesurface_get_width(stage_) != cx ||
+        gs_stagesurface_get_height(stage_) != cy) {
         gs_stagesurface_destroy(stage_);
         stage_ = gs_stagesurface_create(cx, cy, GS_RGBA);
     }
@@ -259,7 +269,8 @@ bool TarjetaGst::procesar(gs_texture_t* entrada, std::uint32_t cx, std::uint32_t
     gs_effect_set_texture(pImage, entrada);
     gs_blend_state_push();
     gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
-    while (gs_effect_loop(fx, "Despremultiplicar")) gs_draw_sprite(entrada, 0, cx, cy);
+    while (gs_effect_loop(fx, "Despremultiplicar"))
+        gs_draw_sprite(entrada, 0, cx, cy);
     gs_blend_state_pop();
     gs_texrender_end(bajada_);
     gs_stage_texture(stage_, gs_texrender_get_texture(bajada_));
@@ -271,7 +282,8 @@ bool TarjetaGst::procesar(gs_texture_t* entrada, std::uint32_t cx, std::uint32_t
     GstMapInfo m;
     if (gst_buffer_map(buf, &m, GST_MAP_WRITE)) {
         for (std::uint32_t y = 0; y < cy; ++y)
-            std::memcpy(m.data + static_cast<gsize>(y) * cx * 4, datos + static_cast<gsize>(y) * paso, cx * 4);
+            std::memcpy(m.data + static_cast<gsize>(y) * cx * 4, datos + static_cast<gsize>(y) * paso,
+                        cx * 4);
         gst_buffer_unmap(buf, &m);
     }
     gs_stagesurface_unmap(stage_);
@@ -286,7 +298,8 @@ bool TarjetaGst::procesar(gs_texture_t* entrada, std::uint32_t cx, std::uint32_t
     //    salió, en general el cuadro anterior —un cuadro de latencia fijo— y
     //    el hilo de video no se frena nunca. Con `esperar`, aguarda hasta ese
     //    tanto por el cuadro de ahora (sin latencia, pero puede frenar).
-    GstSample* ultimo = gst_app_sink_try_pull_sample(GST_APP_SINK(sink_), static_cast<GstClockTime>(esperaMs_) * GST_MSECOND);
+    GstSample* ultimo =
+        gst_app_sink_try_pull_sample(GST_APP_SINK(sink_), static_cast<GstClockTime>(esperaMs_) * GST_MSECOND);
     while (GstSample* otro = gst_app_sink_try_pull_sample(GST_APP_SINK(sink_), 0)) {
         if (ultimo != nullptr) gst_sample_unref(ultimo);
         ultimo = otro;
@@ -297,7 +310,8 @@ bool TarjetaGst::procesar(gs_texture_t* entrada, std::uint32_t cx, std::uint32_t
         GstBuffer* b = gst_sample_get_buffer(s);
         GstMapInfo r;
         if (b != nullptr && gst_buffer_map(b, &r, GST_MAP_READ)) {
-            if (subida_ == nullptr || gs_texture_get_width(subida_) != ox || gs_texture_get_height(subida_) != oy) {
+            if (subida_ == nullptr || gs_texture_get_width(subida_) != ox ||
+                gs_texture_get_height(subida_) != oy) {
                 gs_texture_destroy(subida_);
                 subida_ = gs_texture_create(ox, oy, GS_RGBA, 1, nullptr, GS_DYNAMIC);
             }
@@ -327,7 +341,8 @@ bool TarjetaGst::procesar(gs_texture_t* entrada, std::uint32_t cx, std::uint32_t
     gs_effect_set_texture(pImage, subida_);
     gs_blend_state_push();
     gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
-    while (gs_effect_loop(fx, "Premultiplicar")) gs_draw_sprite(subida_, 0, ox, oy);
+    while (gs_effect_loop(fx, "Premultiplicar"))
+        gs_draw_sprite(subida_, 0, ox, oy);
     gs_blend_state_pop();
     return true;
 }
