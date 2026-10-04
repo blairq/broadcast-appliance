@@ -130,6 +130,9 @@ def main():
     ap.add_argument("--soltar", choices=["si", "no"],
                     help="FSDP: soltar los pesos de cada capa despues del forward (menos memoria, mas"
                          " comunicacion). Sin decir: segun el tamano del modelo (repartido.repartir)")
+    ap.add_argument("--prefijo-repartido", choices=["si", "no"], default="si",
+                    help="con --fsdp en dos placas: cada placa hace la mitad de los tokens del prefijo"
+                         " (prefijo_repartido.py; verificado con verificar-gradiente.py)")
     ap.add_argument("--reanudar", action="store_true", help="seguir desde <salida>/estado/estado.pt")
     ap.add_argument("--guardar-cada-min", type=float, default=10.0,
                     help="cada cuantos minutos se guarda el estado para reanudar")
@@ -255,11 +258,17 @@ def main():
     if dist_on:  # mismos pesos iniciales en las dos placas
         for p in entrenables:
             dist.broadcast(p.data, 0)
-    raiz = None
+    raiz = pre_rep = None
     if args.fsdp:
         if not dist_on or args.repartir or args.cuatro_bits or not args.recalcular:
             raise SystemExit("--fsdp: con dos o mas placas, con --recalcular, sin --repartir ni --cuatro-bits")
         import repartido
+        if hibrido and mundo == 2 and args.prefijo_repartido == "si":
+            # ANTES de repartir los pesos: los embeddings del prefijo se leen de la tabla entera
+            import prefijo_repartido
+            pre_rep = prefijo_repartido.Prefijo(modelo.get_base_model().model,
+                                                torch.tensor([ids_pre], device=dev), rank, mundo)
+            log(f"prefijo repartido por secuencia: tokens 0..{pre_rep.m} en la placa 0, el resto en la 1")
         raiz, n, soltar = repartido.repartir(modelo, None if args.soltar is None else args.soltar == "si")
         entrenables = [p for p in modelo.parameters() if p.requires_grad]  # ahora son pedazos (DTensor)
         log(f"FSDP2: {n} capas repartidas entre {mundo} placas"
@@ -337,14 +346,17 @@ def main():
         reg = None
         with torch.autocast("cuda", dtype=torch.bfloat16):
             kv0 = DynamicCache(config=modelo.config)
-            if args.recalcular:
+            if pre_rep is not None:
+                # cada placa su mitad del prefijo, a la vez (prefijo_repartido)
+                reg = pre_rep.adelante(kv0)
+            elif args.recalcular:
                 # hacia adelante sin grafo, guardando la entrada de cada capa: el
                 # backward del prefijo va capa por capa (cache_hibrido.atras_por_capas)
                 with ch.grabando() as reg:
                     texto(input_ids=ids_pre_t, past_key_values=kv0, use_cache=True)
             else:
                 texto(input_ids=ids_pre_t, past_key_values=kv0, use_cache=True)
-        ts = ch.tensores(kv0)
+        ts = pre_rep.juntar(kv0) if pre_rep is not None else ch.tensores(kv0)
         hojas = [t.detach().requires_grad_(t.is_floating_point()) for t in ts]
         n_total = torch.tensor(float(sum(n for _, n in lote)), device=dev)
         if dist_on:
@@ -359,7 +371,12 @@ def main():
             suma_total = suma_total + suma.detach().to(dev)
         if raiz is not None:
             raiz.set_requires_gradient_sync(True)
-        if reg is not None:
+        if pre_rep is not None:
+            # el gradiente del cache, sumado entre placas (el backward del prefijo es
+            # lineal en el); cada placa hace el backward de su mitad
+            with torch.autocast("cuda", dtype=torch.bfloat16):
+                pre_rep.atras(reg, kv0, prefijo_repartido.sumar(hojas))
+        elif reg is not None:
             with torch.autocast("cuda", dtype=torch.bfloat16):
                 ch.atras_por_capas(reg, kv0, [h.grad for h in hojas])
         else:
@@ -388,13 +405,19 @@ def main():
         tam = max(1, 2 * args.micro) if args.micro else 32
         with torch.no_grad(), torch.autocast("cuda", dtype=torch.bfloat16):
             kv0 = DynamicCache(config=modelo.config)
-            texto(input_ids=ids_pre_t, past_key_values=kv0, use_cache=True)
-            ts = ch.tensores(kv0)
+            if pre_rep is not None:
+                pre_rep.adelante(kv0)
+                ts = pre_rep.juntar(kv0)
+            else:
+                texto(input_ids=ids_pre_t, past_key_values=kv0, use_cache=True)
+                ts = ch.tensores(kv0)
             for i in range(0, len(mias), tam):
                 a, b = perdida(mias[i:i + tam], grad=False, kv_dado=ch.desde_tensores(modelo.config, ts))
                 s += torch.stack([a.detach(), b.float()]).to(dev)
         if dist_on:
             dist.all_reduce(s)
+        if raiz is not None:
+            repartido.soltar_todo(modelo)
         modelo.train()
         return (s[0] / s[1]).item()
 

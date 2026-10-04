@@ -166,14 +166,57 @@ a la otra. `entrenar-rapido.py --fsdp` (con `repartido.py`):
   si el modelo ocupa menos del 35 % de la placa (el 4B), se conservan armados
   entre el forward y el backward (19,3 GB por placa, 9,2 s/paso); si no
   (el 9B), se sueltan (14,8 GB con el 4B, 9,9 s/paso).
-- **Medido con el 4B** (prefijo de 8.203 tokens, lote 16, micro 4): 11,6 s/paso
-  repartido por capas → 9,2 s/paso con FSDP (1,26×). Por paso: prefijo hacia
-  adelante 1,8 s, dos micro-lotes de 2 s y backward del prefijo 4,2 s. Cada
-  placa repite el prefijo entero: es el techo de este esquema.
-- **Próximo salto**: repartir el prefijo mismo entre las placas por secuencia.
-  LASP (arXiv:2404.02882) para la atención lineal, pasando el estado de una
-  placa a la otra, y Ulysses (arXiv:2309.14509) para las 8 capas de atención
-  completa.
+- **El prefijo repartido por secuencia** (`prefijo_repartido.py`, activo por
+  defecto con `--fsdp` en dos placas). Con FSDP solo, cada placa repetía el
+  prefijo entero, 6 de los 9,2 s del paso. Ahora la placa 0 hace los tokens
+  [0, m) y la 1 los [m, L), a la vez y capa por capa.
+  - Por causalidad solo cruza información de la 0 a la 1. En la atención
+    lineal cruzan el estado recurrente al llegar a m (fla lo acepta como
+    `initial_state`, diferenciable) y los 3 tokens del borde de la
+    convolución. Es la idea de LASP (arXiv:2404.02882) en su forma más simple.
+  - En la atención completa cruzan K y V de la placa 0, y la 1 atiende a todo
+    con la máscara causal corrida.
+  - En el backward los gradientes vuelven por el mismo camino, con funciones de
+    autograd que mandan y reciben (grupo de NCCL propio). El orden de los
+    mensajes coincide en las dos placas porque autograd ejecuta primero lo
+    creado después.
+  - Los cachés de cada mitad se juntan para los sufijos. El gradiente del caché
+    se suma entre placas y se reparte por rango de tokens.
+  - Lo constante va en caché: los embeddings del prefijo (la tabla está
+    congelada) y su RoPE.
+- **Verificación del gradiente** (`verificar-gradiente.py`, con torchrun en
+  dos placas; correrla después de tocar cualquiera de estas piezas). La verdad
+  se calcula en **fp64** con el 0.8B, que tiene la misma arquitectura. Contra
+  ella se miden, en fp32 sin TF32, el camino de una placa y el de dos.
+  - Partir los tokens cambia el orden de las sumas: no puede dar idéntico bit
+    a bit. Lo que se pide es que esté tan cerca de la verdad como una placa.
+    Un término de más o de menos daría órdenes de magnitud de diferencia.
+  - Resultado: caché del prefijo 4,06e-5 con una placa y 4,51e-5 con dos;
+    gradiente con coseno 0,999999998 con una y 0,999999997 con dos. Pasa.
+  - Con el kernel de fla (TF32 adentro) las dos versiones quedan igual de lejos
+    de la verdad: coseno 0,99883 con una y 0,99890 con dos.
+  - Además verifica que los parámetros del optimizador sean los pedazos
+    repartidos.
+  - Dos trampas que encontró en el camino:
+    - `from_pretrained(dtype=float32)` deja la base en bf16; hace falta
+      `.float()`. En bf16 el redondeo cambia con el reparto y tapaba todo.
+    - Con los pesos conservados, un forward **sin backward** (la validación, o
+      el de inicio de FSDP) los dejaba armados. El optimizador actualizaba los
+      pedazos y el forward siguiente usaba la copia vieja: el modelo no
+      aprendía. Ahora `repartido.soltar_todo()` va después de cada uno.
+- **Medido con el 4B** (prefijo de 8.203 tokens, lote 16, micro 4): **11,6
+  s/paso** repartido por capas → 9,2 con FSDP → **8,15 con el prefijo
+  repartido (1,42×)**, con 20,8 GB por placa.
+  - Por paso: prefijo hacia adelante 1,31 s, micro-lotes 3,2 s, backward del
+    prefijo 3,27 s.
+  - La pérdida de entrenamiento y la de validación siguen la misma curva que
+    sin repartir: 0,3934 contra 0,3914 a los 15 pasos y 0,3572 contra 0,3566
+    a los 30.
+- **Lo que falta para la mitad exacta**: en cada capa lineal una placa espera
+  el núcleo recurrente de la otra (en el forward la 1 a la 0, en el backward
+  al revés). Solaparlo pide calcular aparte el efecto del estado inicial, que
+  en la regla delta no es aditivo (LASP-2, arXiv:2502.07563, lo hace para la
+  atención lineal simple).
 
 **Reanudar.** Se llama con `python`, no con `torchrun`: el proceso supervisa.
 Lanza torchrun en su propio grupo de procesos y, si la corrida se cae, termina

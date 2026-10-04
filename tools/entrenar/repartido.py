@@ -20,8 +20,8 @@ gradiente de su salida y el de su cache. De paso, una sola capa viva por vez.
 Es el esquema de «Schedule-Level Shared-Prefix Reuse» (arXiv:2606.01143):
 el backward del prefijo es lineal en el gradiente que llega por K/V, asi que
 acumularlo en los micro-lotes y correrlo una vez da el gradiente exacto.
-Verificado contra una sola placa (fp32, Qwen3.5-0.8B): el error queda en el
-ruido de la propia placa contra si misma.
+Verificado con verificar-gradiente.py: contra la verdad en fp64, las dos placas
+quedan tan cerca como una sola (coseno 0,999999997 vs 0,999999998).
 
 PRECISION: los pesos del LoRA quedan en fp32 (repartidos, el optimizador
 trabaja ahi); para calcular se arman en bf16 y los gradientes se reducen en fp32
@@ -44,7 +44,7 @@ def capas_de(modelo):
     return [m for m in modelo.modules() if type(m).__name__.endswith("DecoderLayer")]
 
 
-def repartir(modelo, soltar=None):
+def repartir(modelo, soltar=None, bf16=True):
     """Una unidad FSDP por capa del decodificador y la raiz en el modelo de texto
     (embeddings y norma final). La raiz es el modelo de TEXTO y no el envoltorio
     de PEFT porque el prefijo y los sufijos llaman al de texto directamente (los
@@ -57,7 +57,8 @@ def repartir(modelo, soltar=None):
     sube de 14,8 a 19,3 GB. None = decidir por tamano: no soltar si los pesos
     ocupan menos del 35% de la placa."""
     from torch.distributed.fsdp import MixedPrecisionPolicy, fully_shard
-    mp = MixedPrecisionPolicy(param_dtype=torch.bfloat16, reduce_dtype=torch.float32)
+    # bf16=False: todo en la precision de los pesos (las pruebas de gradiente, en fp32)
+    mp = MixedPrecisionPolicy(param_dtype=torch.bfloat16 if bf16 else None, reduce_dtype=torch.float32)
     interno = modelo.get_base_model() if hasattr(modelo, "get_base_model") else modelo
     capas = capas_de(interno)
     if soltar is None:
@@ -66,7 +67,25 @@ def repartir(modelo, soltar=None):
     for c in capas:
         fully_shard(c, mp_policy=mp, reshard_after_forward=soltar)
     fully_shard(interno.model, mp_policy=mp)
+    # FSDP se inicializa con el primer forward y toma como raiz al primer modulo
+    # que corre: el prefijo repartido llama a las capas directo, asi que un token
+    # por la raiz primero (en todas las placas a la vez)
+    with torch.no_grad():
+        interno.model(input_ids=torch.zeros((1, 1), dtype=torch.long, device=torch.cuda.current_device()))
+    soltar_todo(modelo)
     return interno.model, len(capas), soltar
+
+
+def soltar_todo(modelo):
+    """Deja todos los pesos repartidos. IMPRESCINDIBLE despues de un forward sin
+    backward (el de inicio, la validacion) cuando las capas conservan los pesos
+    armados: quedaban armados con los valores de ese momento; el optimizador
+    actualizaba los pedazos y el forward siguiente usaba la copia vieja (y quien
+    pidiera los parametros recibia la copia armada en vez del pedazo)."""
+    from torch.distributed.fsdp import FSDPModule
+    for m in modelo.modules():
+        if isinstance(m, FSDPModule):
+            m.reshard()
 
 
 def _opciones(**kw):
