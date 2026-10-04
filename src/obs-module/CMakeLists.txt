@@ -30,6 +30,13 @@ file(GLOB_RECURSE BA_SOURCES_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/*.cc"
 )
 
+# macOS: la superresolución CoreML sin copias a la CPU (IOSurface + Neural Engine).
+if(APPLE)
+    list(APPEND BA_SOURCES_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ba_coreml_mac.mm")
+    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/ba_coreml_mac.mm" PROPERTIES
+        COMPILE_FLAGS "-fobjc-arc" COMPILE_DEFINITIONS "GL_SILENCE_DEPRECATION")
+endif()
+
 # Excluir los unit tests del propio lib: son ejecutables, no parte de la DLL
 # (mismo criterio que ba_core).
 list(FILTER BA_SOURCES_SOURCES EXCLUDE REGEX ".*/tests/.*")
@@ -78,6 +85,8 @@ if(BA_HAVE_LIBOBS)
             SUFFIX ".so"
             BUILD_RPATH "${BA_OBS_MAC_PREFIX}/lib"
             INSTALL_RPATH "@loader_path;@loader_path/../../bin/64bit")
+        target_link_libraries(ba-sources PRIVATE "-framework CoreML" "-framework CoreVideo" "-framework IOSurface"
+                                                  "-framework OpenGL" "-framework Foundation")
     elseif(NOT WIN32)
         set_target_properties(ba-sources PROPERTIES
             BUILD_RPATH "${BA_OBS_LINUX_PREFIX}/lib"
