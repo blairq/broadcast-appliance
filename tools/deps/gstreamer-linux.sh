@@ -37,7 +37,7 @@ JOBS="${1:-$(nproc)}"
 VER=1.28.7
 COMMIT=070125524a8422e29d3b69a372ed4f62fd343ffa
 # Subir RECETA al cambiar opciones: si no, «ya está» y no recompila.
-RECETA=4
+RECETA=5
 URL=https://gitlab.freedesktop.org/gstreamer/gstreamer.git
 SRC="$ROOT/extern/.build-gstreamer"
 PREFIX="$ROOT/extern/gstreamer-linux"
@@ -139,6 +139,12 @@ log "compilando ($JOBS hilos)"
 ninja -C "$B" -j"$JOBS" >"$SRC/compilar.log" 2>&1 || { tail -40 "$SRC/compilar.log"; exit 1; }
 meson install -C "$B" --quiet >/dev/null
 
+# Los .typelib de GLib, GObject, Gio y GModule: desde glib 2.80 los provee glib
+# (no gobject-introspection), y la glib es la del sistema, que no los trae
+# instalados: van los que generó la compilación.
+for t in "$B"/subprojects/gobject-introspection-*/gir/{GLib,GObject,Gio,GModule,GioUnix,GLibUnix}-2.0.typelib; do
+    [ -f "$t" ] && cp "$t" "$PREFIX/lib/girepository-1.0/"
+done
 cp -a "$LADO"/lib/libbz2.so.1.0* "$LADO"/lib/libmpg123.so* "$LADO"/lib/libout123.so* "$LADO"/lib/libsyn123.so* "$PREFIX/lib/" 2>/dev/null || true
 # Lo que no va en el bundle: cabeceras y .pc quedan (los usa el build), el
 # resto de herramientas de desarrollo no.
