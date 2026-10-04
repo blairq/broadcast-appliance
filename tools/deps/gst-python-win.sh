@@ -73,6 +73,8 @@ export WINEPREFIX="$T/wineprefix" WINEDEBUG=-all DISPLAY= WINEDLLOVERRIDES="msco
 export BA_WINE="$WINE" BA_PYW="$PYW"
 # Windows no distingue mayúsculas: el Python dice «Include» y la carpeta es «include».
 [ -e "$PYW/Include" ] || ln -s include "$PYW/Include"
+# meson (cruzado desde Linux) busca la biblioteca con el nombre de Unix.
+[ -e "$PYW/libs/python3.12.lib" ] || ln -s python312.lib "$PYW/libs/python3.12.lib"
 cp "$ROOT/tools/deps/python-wine.py" "$T/python-win"
 chmod +x "$T/python-win"
 "$WINE" wineboot -u >/dev/null 2>&1 || true
