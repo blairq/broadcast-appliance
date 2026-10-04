@@ -49,8 +49,18 @@ git -C "$SRC" fetch -q origin "$COMMIT" 2>/dev/null || git -C "$SRC" fetch -q or
 git -C "$SRC" checkout -q -f "$COMMIT"
 [ "$(git -C "$SRC" rev-parse HEAD)" = "$COMMIT" ] || { log "ERROR: el commit no coincide"; exit 1; }
 
-# Lo de extern/obs-deps-linux primero; después, el sistema (la base).
-export PKG_CONFIG_PATH="$DEPS/lib/pkgconfig:$DEPS/share/pkgconfig"
+# Lo de extern/obs-deps-linux primero; después, el sistema (la base). SRT está
+# compilado estático (va dentro de libobs): su .pc deja en Libs.private lo que
+# pide (mbedTLS, la de C++), y el plugin no lo enlazaba. Un .pc corregido, solo
+# para esta compilación, lo pone en Libs.
+PC="$SRC/pc"
+mkdir -p "$PC"
+for n in srt haisrt; do
+    [ -f "$DEPS/lib/pkgconfig/$n.pc" ] || continue
+    sed -e 's/^Libs: \(.*\)$/Libs: \1 -lmbedtls -lmbedx509 -lmbedcrypto -lstdc++ -lm -lpthread/' -e '/^Libs.private:/d' \
+        "$DEPS/lib/pkgconfig/$n.pc" >"$PC/$n.pc"
+done
+export PKG_CONFIG_PATH="$PC:$DEPS/lib/pkgconfig:$DEPS/share/pkgconfig"
 export CFLAGS="-O2" CXXFLAGS="-O2"
 export LDFLAGS="-L$DEPS/lib"
 
