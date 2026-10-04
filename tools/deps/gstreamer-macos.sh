@@ -7,10 +7,13 @@
 # bundle lleva en bin/64bit (como libobs.framework). En ejecución, la app y el
 # módulo de video usan SOLO esos plugins (ba::platform::prepararGst).
 #
-# Qué entra: el núcleo, base, good, bad, ugly, libav, red, efectos, análisis,
-# códecs (incluidos los GPL: la app ya es GPL por libobs; ojo con las patentes
-# de los «restricted» si se distribuye). Qué NO: python, gtk y devtools (la app
-# no los usa). Del paquete de desarrollo, solo las cabeceras y los .pc.
+# Qué entra: TODO (núcleo, base, good, bad, ugly, libav, red, efectos,
+# análisis, códecs —incluidos los GPL: la app ya es GPL por libobs; ojo con las
+# patentes de los «restricted» si se distribuye—, gtk, devtools, edición y los
+# .typelib de la introspección). Lo único que se saca del paquete de Python son
+# sus piezas compiladas para Python 3.9 (el del sistema de Apple): el de los
+# plugins es el 3.12 y sus bindings se compilan aparte (gst-python-mac.sh).
+# Del paquete de desarrollo, solo las cabeceras y los .pc.
 # Todo se reduce a arm64 (el bundle es de Apple Silicon): la mitad de tamaño.
 #
 # Uso: tools/deps/gstreamer-macos.sh <runtime.pkg> <devel.pkg> <salida>
@@ -36,7 +39,6 @@ for p in "$T/rt"/*.pkg; do
     n="$(basename "$p")"
     case "$n" in
     osx-framework-*) continue ;;
-    gstreamer-1.0-python-* | gstreamer-1.0-gtk-* | gstreamer-1.0-devtools-*) log "afuera: $n"; continue ;;
     esac
     [ -d "$p/Payload" ] && ditto "$p/Payload" "$FW/Versions/1.0"
 done
@@ -49,12 +51,9 @@ for p in "$T/dev"/*.pkg; do
 done
 [ -e "$FW/Versions/1.0/Headers" ] || ln -s include/gstreamer-1.0 "$FW/Versions/1.0/Headers"
 
-# Los de edición (ges, nle) dependen de gst-validate (devtools, que no entra), y
-# la biblioteca «paraguas» del framework (GStreamer) también: se enlaza cada
-# biblioteca por separado, así que no hace falta.
-rm -f "$FW/Versions/1.0/lib/gstreamer-1.0/libgstges.dylib" "$FW/Versions/1.0/lib/gstreamer-1.0/libgstnle.dylib" \
-    "$FW/Versions/1.0/lib/libges-1.0.0.dylib" "$FW/Versions/1.0/lib/libges-1.0.dylib" "$FW/Versions/1.0/bin/ges-launch-1.0" \
-    "$FW/Versions/1.0/GStreamer" "$FW/Versions/1.0/lib/GStreamer" "$FW/GStreamer"
+# Las piezas de Python 3.9 (site-packages y el plugin libgstpython enlazado a
+# ese Python): las reemplazan las compiladas para el 3.12 (gst-python-mac.sh).
+rm -rf "$FW"/Versions/1.0/lib/python3.* "$FW/Versions/1.0/lib/gstreamer-1.0/libgstpython.dylib"
 # Solo arm64.
 log "reduciendo a arm64"
 find "$FW/Versions/1.0" -type f \( -name '*.dylib' -o -name '*.so' -o -perm -u+x \) -print0 |

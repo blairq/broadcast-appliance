@@ -85,6 +85,29 @@ bool prepararGst() {
     const fs::path cache = cacheDir();
     if (!cache.empty()) poner("GST_REGISTRY_1_0", cache / "gstreamer-1.0-registry.bin");
     poner("GIO_EXTRA_MODULES", raiz / "lib" / "gio" / "modules");
+    // Python con GStreamer (los plugins de Python del usuario y libgstpython):
+    // la introspección del bundle, y el Python del bundle para el que se
+    // compilaron los bindings (libgstpython lo inicializa adentro de este
+    // proceso: sin PYTHONHOME buscaría la biblioteca estándar al lado del .exe).
+    // Los Python hijos corren con -I o sin las PYTHON* (plugins/Plugins), así
+    // que PYTHONHOME no los toca; GI_TYPELIB_PATH y la ruta de bibliotecas sí
+    // les llegan (las heredan).
+    poner("GI_TYPELIB_PATH", raiz / "lib" / "girepository-1.0");
+    {
+        std::error_code ec3;
+        const fs::path py = bundleRoot() / "python";
+        if (fs::is_directory(py, ec3)) poner("PYTHONHOME", py);
+    }
+#if defined(__linux__)
+    {
+        // gi abre las bibliotecas de los .typelib por nombre (dlopen): en un
+        // proceso de Python hijo, solo las encuentra por LD_LIBRARY_PATH.
+        const char* l = std::getenv("LD_LIBRARY_PATH");
+        std::string v = texto(raiz / "lib") + ":" + texto(bundleRoot() / "bin" / "64bit");
+        if (l != nullptr && *l != '\0') v += std::string(":") + l;
+        ponerTexto("LD_LIBRARY_PATH", v.c_str());
+    }
+#endif
     ponerTexto("GIO_USE_VFS", "local");
     // Sin resolución de proxy: el de GIO (libproxy) busca la configuración
     // automática de la red (WPAD) antes de cada conexión, y una cámara RTSP de

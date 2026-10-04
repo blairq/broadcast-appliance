@@ -47,7 +47,13 @@ elseif(UNIX AND NOT APPLE AND EXISTS "${CMAKE_SOURCE_DIR}/extern/gstreamer-linux
     target_link_libraries(ba::gstreamer INTERFACE ${_libs} PkgConfig::BA_GLIB)
     target_compile_definitions(ba::gstreamer INTERFACE BA_HAVE_GST=1)
     install(DIRECTORY "${_g}/" DESTINATION bin/64bit/gstreamer USE_SOURCE_PERMISSIONS
-            PATTERN "include" EXCLUDE PATTERN "pkgconfig" EXCLUDE PATTERN ".version" EXCLUDE PATTERN "*.a" EXCLUDE)
+            PATTERN "include" EXCLUDE PATTERN "pkgconfig" EXCLUDE PATTERN ".version" EXCLUDE PATTERN "*.a" EXCLUDE
+            PATTERN "python3.*" EXCLUDE)
+    # Los bindings de Python (gi con los overrides de Gst), al Python de los plugins.
+    if(EXISTS "${_g}/lib/python3.12/site-packages")
+        install(DIRECTORY "${_g}/lib/python3.12/site-packages/" DESTINATION python/lib/python3.12/site-packages
+                USE_SOURCE_PERMISSIONS PATTERN "__pycache__" EXCLUDE)
+    endif()
     message(STATUS "GStreamer: ${_g}")
 elseif(WIN32 AND EXISTS "${CMAKE_SOURCE_DIR}/extern/gstreamer-win/lib/gstreamer-1.0.lib")
     # Windows: el oficial de MSVC (make deps-gstreamer-win). Las DLL van junto

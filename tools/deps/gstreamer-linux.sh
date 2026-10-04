@@ -106,6 +106,14 @@ find "$PREFIX/lib" -maxdepth 1 -name '*.so*' -type f -exec patchelf --set-rpath 
 find "$PREFIX/lib/gstreamer-1.0" -name '*.so' -type f -exec patchelf --set-rpath '$ORIGIN/..:$ORIGIN/../../..' {} \;
 find "$PREFIX/libexec" -type f -perm -u+x -exec sh -c 'file "$1" | grep -q ELF && patchelf --set-rpath "\$ORIGIN/../../lib:\$ORIGIN/../../.." "$1"' _ {} \;
 find "$PREFIX/bin" -type f -perm -u+x -exec sh -c 'file "$1" | grep -q ELF && patchelf --set-rpath "\$ORIGIN/../lib:\$ORIGIN/../.." "$1"' _ {} \;
+# libgstpython inicializa el Python del bundle (python/lib/libpython3.12.so):
+# desde bin/64bit/gstreamer/lib/gstreamer-1.0 son cinco niveles hasta la raíz.
+for f in "$PREFIX"/lib/gstreamer-1.0/libgstpython*.so; do
+    [ -f "$f" ] && patchelf --set-rpath '$ORIGIN/..:$ORIGIN/../../..:$ORIGIN/../../../../../python/lib' "$f"
+done
+# Las extensiones de gi (_gi*.so) buscan libgirepository y GStreamer: van a
+# python/lib/python3.12/site-packages/gi en el bundle.
+find "$PREFIX/lib/python3.12" -name '*.so' -type f -exec sh -c 'patchelf --set-rpath "\$ORIGIN/../../../../../bin/64bit/gstreamer/lib:\$ORIGIN/../../../../../bin/64bit" "$1"' _ {} \; 2>/dev/null || true
 strip --strip-unneeded "$PREFIX"/lib/*.so* "$PREFIX"/lib/gstreamer-1.0/*.so 2>/dev/null || true
 
 echo "$VER $COMMIT" >"$PREFIX/.version"
