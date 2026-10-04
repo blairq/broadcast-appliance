@@ -258,7 +258,14 @@ set(BA_SHERPA_DIR "${CMAKE_SOURCE_DIR}/extern/sherpa-onnx")
 set(BA_HAVE_VOZ OFF)
 # (y los racks de audio: Escucha, Habla y MonitorVoz viven en audio/, que sin
 # CLAP no se compila)
-if(BA_HAVE_CLAP AND EXISTS "${BA_SHERPA_DIR}/.ok"
+# (extern/ puede tener el sherpa-onnx de OTRO sistema —el volumen de Docker es
+# el mismo para Linux y Windows—: se mira que estén las bibliotecas de ESTE.)
+if(MSVC)
+    set(_ba_sherpa_lib "${BA_SHERPA_DIR}/lib/sherpa-onnx-core.lib")
+else()
+    set(_ba_sherpa_lib "${BA_SHERPA_DIR}/lib/libsherpa-onnx-core.a")
+endif()
+if(BA_HAVE_CLAP AND EXISTS "${BA_SHERPA_DIR}/.ok" AND EXISTS "${_ba_sherpa_lib}"
    AND EXISTS "${CMAKE_SOURCE_DIR}/extern/rostros/onnxruntime/include/onnxruntime_cxx_api.h")
     set(BA_HAVE_VOZ ON)
 else()

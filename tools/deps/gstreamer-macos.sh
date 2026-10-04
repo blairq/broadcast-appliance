@@ -51,6 +51,11 @@ for p in "$T/dev"/*.pkg; do
 done
 [ -e "$FW/Versions/1.0/Headers" ] || ln -s include/gstreamer-1.0 "$FW/Versions/1.0/Headers"
 
+# La biblioteca «paraguas» del framework (Versions/1.0/GStreamer: solo reexporta
+# las demás): el programa enlaza cada biblioteca por separado, y como binario
+# principal del framework su firma exige sellar el framework entero como
+# paquete (no verifica suelta).
+rm -f "$FW/Versions/1.0/GStreamer" "$FW/Versions/1.0/lib/GStreamer" "$FW/GStreamer"
 # Las piezas de Python 3.9 (site-packages y el plugin libgstpython enlazado a
 # ese Python): las reemplazan las compiladas para el 3.12 (gst-python-mac.sh).
 rm -rf "$FW"/Versions/1.0/lib/python3.* "$FW/Versions/1.0/lib/gstreamer-1.0/libgstpython.dylib"
