@@ -85,8 +85,6 @@ struct _BaSuperRes {
     GstElement* convEntrada;
     GstElement* nv12;
     GstElement* motor;
-    GstElement* mitad;      ///< videoscale antes del motor: una red x4 recibe la imagen a la mitad
-    GstElement* mitadCaps;  ///< y su tamaño exacto (la mitad de lo que entra al bin)
     GstElement* convSalida;
     gint escalaRed;    ///< lo que agranda la red (2; 4 = entra a la mitad y sale x2)
     gchar* pedido; ///< motor pedido
@@ -144,12 +142,6 @@ static void armar(BaSuperRes* s) {
         gst_bin_remove(GST_BIN(s), s->motor);
         s->motor = nullptr;
     }
-    for (GstElement** x : {&s->mitad, &s->mitadCaps})
-        if (*x != nullptr) {
-            gst_element_set_state(*x, GST_STATE_NULL);
-            gst_bin_remove(GST_BIN(s), *x);
-            *x = nullptr;
-        }
     gst_element_unlink(s->nv12, s->convSalida);
     g_free(s->error);
     s->error = nullptr;
@@ -159,9 +151,10 @@ static void armar(BaSuperRes* s) {
                           : m == "fsr"    ? "bafsr"
                           : m == "coreml" ? "bacoremlsr"
                                           : "identity";
-    // El formato que pide el motor: CoreML trabaja en BGRA (el modelo convierte
-    // el color en el acelerador); los demás, en NV12.
-    GstCaps* c = gst_caps_from_string(m == "coreml" ? "video/x-raw,format=BGRA" : "video/x-raw,format=NV12");
+    // El formato que pide el motor: CoreML toma NV12 o BGRA tal cual (si viene
+    // de vtdec, con su IOSurface: sin copias) y convierte en la GPU; los demás, NV12.
+    GstCaps* c =
+        gst_caps_from_string(m == "coreml" ? "video/x-raw,format={NV12,BGRA}" : "video/x-raw,format=NV12");
     g_object_set(s->nv12, "caps", c, nullptr);
     gst_caps_unref(c);
     GstElement* e = gst_element_factory_make(fabrica, "motor");
@@ -185,39 +178,10 @@ static void armar(BaSuperRes* s) {
     gst_element_post_message(GST_ELEMENT(s), gst_message_new_latency(GST_OBJECT(s)));
     s->motor = e;
     gst_bin_add(GST_BIN(s), e);
-    if (m == "coreml" && s->escalaRed == 4) {
-        // Una red x4 recibe la imagen a la mitad: sale x2 de la original con la
-        // cuarta parte del trabajo (la negociación fija el tamaño: el motor pide
-        // la cuarta parte de lo que sale).
-        s->mitad = gst_element_factory_make("videoscale", "mitad");
-        s->mitadCaps = gst_element_factory_make("capsfilter", "mitad-tamano");
-        gst_bin_add_many(GST_BIN(s), s->mitad, s->mitadCaps, nullptr);
-        gst_element_link_many(s->nv12, s->mitad, s->mitadCaps, e, s->convSalida, nullptr);
-        gst_element_sync_state_with_parent(s->mitad);
-        gst_element_sync_state_with_parent(s->mitadCaps);
-    } else {
-        gst_element_link_many(s->nv12, e, s->convSalida, nullptr);
-    }
+    // Una red x4 recibe la imagen a la mitad: lo hace el motor (bacoremlsr
+    // `escala`), que sale x2 de lo que entra.
+    gst_element_link_many(s->nv12, e, s->convSalida, nullptr);
     gst_element_sync_state_with_parent(e);
-}
-
-/// Al llegar el formato de la cámara: la red x4 recibe exactamente la mitad
-/// (si no, nada obliga a achicar y la salida quedaría x4).
-static GstPadProbeReturn alFormato(GstPad*, GstPadProbeInfo* info, gpointer data) {
-    auto* s = static_cast<BaSuperRes*>(data);
-    GstEvent* ev = GST_PAD_PROBE_INFO_EVENT(info);
-    if (GST_EVENT_TYPE(ev) != GST_EVENT_CAPS || s->mitadCaps == nullptr) return GST_PAD_PROBE_OK;
-    GstCaps* caps = nullptr;
-    gst_event_parse_caps(ev, &caps);
-    int w = 0, h = 0;
-    if (caps != nullptr && gst_caps_get_size(caps) > 0 &&
-        gst_structure_get_int(gst_caps_get_structure(caps, 0), "width", &w) &&
-        gst_structure_get_int(gst_caps_get_structure(caps, 0), "height", &h)) {
-        GstCaps* m = gst_caps_new_simple("video/x-raw", "width", G_TYPE_INT, w / 2, "height", G_TYPE_INT, h / 2, nullptr);
-        g_object_set(s->mitadCaps, "caps", m, nullptr);
-        gst_caps_unref(m);
-    }
-    return GST_PAD_PROBE_OK;
 }
 
 static void ponerPropiedad(GObject* o, guint id, const GValue* v, GParamSpec* ps) {
@@ -377,8 +341,6 @@ static void ba_superres_init(BaSuperRes* s) {
     s->activo = TRUE;
     s->error = nullptr;
     s->motor = nullptr;
-    s->mitad = nullptr;
-    s->mitadCaps = nullptr;
     s->escalaRed = 2;
     s->convEntrada = gst_element_factory_make("videoconvert", "entrada");
     s->nv12 = gst_element_factory_make("capsfilter", "nv12");
@@ -389,7 +351,6 @@ static void ba_superres_init(BaSuperRes* s) {
     gst_bin_add_many(GST_BIN(s), s->convEntrada, s->nv12, s->convSalida, nullptr);
     gst_element_link(s->convEntrada, s->nv12);
     GstPad* in = gst_element_get_static_pad(s->convEntrada, "sink");
-    gst_pad_add_probe(in, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM, alFormato, s, nullptr);
     GstPad* out = gst_element_get_static_pad(s->convSalida, "src");
     gst_element_add_pad(GST_ELEMENT(s),
                         gst_ghost_pad_new_from_template("sink", in, gst_static_pad_template_get(&sinkTpl)));

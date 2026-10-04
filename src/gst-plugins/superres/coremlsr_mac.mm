@@ -1,26 +1,44 @@
 // ============================================================================
-// src/gst-plugins/superres/coremlsr_mac.mm — superresolución con un modelo CoreML
+// src/gst-plugins/superres/coremlsr_mac.mm — superresolución x2 con un modelo CoreML
 //
 // Proposito:
-//   Elemento de GStreamer `bacoremlsr`: agranda con una red convertida a CoreML
-//   (.mlmodelc), que corre ENTERA en el Neural Engine o la GPU de la Mac. La
-//   misma red por ONNX Runtime + CoreML se partía en decenas de pedazos (CPU y
-//   ANE alternados): Real-ESRGAN compacto pasó de 9 s a ~39 ms por cuadro.
+//   Elemento de GStreamer `bacoremlsr`: duplica la resolución con una red
+//   convertida a CoreML (.mlmodelc), que corre ENTERA en el Neural Engine o la
+//   GPU de la Mac. (La misma red por ONNX Runtime + CoreML se partía en decenas
+//   de pedazos: Real-ESRGAN compacto pasó de 9 s a ~39 ms por cuadro.)
 //
 //   El modelo lo arma el laboratorio (assets/superres/laboratorio.py,
-//   `instalar`): entrada y salida como IMAGEN RGB (CoreML convierte el color en
-//   el acelerador; acá entra y sale BGRA sin tocar los píxeles), con tamaños de
-//   entrada fijos (los de las cámaras comunes: el Neural Engine no acepta
-//   tamaños libres). `escala` es lo que agranda la red (2 o 4); una red x4
-//   recibe la imagen a la mitad (lo arma basuperres) y sale x2 de la original.
+//   `instalar`): entrada y salida como IMAGEN RGB, con tamaños de entrada fijos
+//   (los de las cámaras comunes: el Neural Engine no acepta tamaños libres).
+//   `escala` es lo que agranda la RED (2 o 4): el elemento siempre sale x2 de lo
+//   que entra; una red x4 recibe la imagen a la mitad (el elemento la achica).
+//
+// SIN COPIAS A LA CPU:
+//   - Entrada: si el cuadro viene de vtdec (decodificador de la Mac) trae su
+//     CVPixelBuffer (GstCoreVideoMeta, una IOSurface): se usa ESE. Si no, se
+//     envuelve la memoria del buffer (sin copiar).
+//   - Color y tamaño de entrada de la red (NV12 -> BGRA, mitad para una x4): en
+//     la GPU, con VTPixelTransferSession, a una IOSurface de un pool.
+//   - Salida: CoreML escribe directo en una IOSurface del pool de salida
+//     (outputBackings) y esa IOSurface ES el buffer que sale (GstMemory que la
+//     envuelve; en Apple Silicon la memoria es unificada: leerla no copia).
+//   Sin GstCoreVideoMeta (otra fuente), igual: la única pasada por la CPU es
+//   la que haya hecho quien produjo el cuadro.
 //
 //   Mientras el modelo se carga (en otro hilo: la primera vez el Neural Engine
 //   lo prepara, unos segundos), o si el tamaño de la cámara no es uno de los del
-//   modelo, la imagen sale agrandada común (vImage): nunca se corta.
+//   modelo, la imagen sale agrandada común (en la GPU): nunca se corta.
+//
+// GStreamer:
+//   - CAPS: entra NV12 o BGRA (memoria de sistema, con o sin GstCoreVideoMeta),
+//     sale BGRA al doble (transform_caps duplica/divide; pasante si está apagado).
+//   - ALLOCATION: acepta GstVideoMeta (strides con relleno) arriba; abajo
+//     entrega sus propios buffers (IOSurface) con GstVideoMeta.
+//   - LATENCY: declara lo que tarda la red (y avisa si cambia); QoS activado.
 //
 // Modelo de threading:
-//   `transform` corre en el hilo de streaming; la predicción es sincrónica.
-//   El modelo se carga en un hilo aparte y se entrega por un atómico.
+//   Todo en el hilo de streaming (la predicción es sincrónica); el modelo se
+//   carga en un hilo aparte y se entrega por un atómico.
 // ============================================================================
 
 #include <gst/base/gstbasetransform.h>
@@ -33,6 +51,7 @@
 #import <CoreML/CoreML.h>
 #import <CoreVideo/CoreVideo.h>
 #import <Foundation/Foundation.h>
+#import <VideoToolbox/VideoToolbox.h>
 
 #include <atomic>
 #include <cstring>
@@ -49,23 +68,45 @@ struct _BaCoreMlSr {
     gchar* modelo;
     gint escala; ///< lo que agranda la red (2 o 4)
     gboolean activo;
-    gboolean procesa; ///< negociado: la salida es escala x la entrada
+    gboolean procesa; ///< negociado: la salida es el doble de la entrada
     gchar* error;
     std::atomic<void*>* listo; ///< MLModel* (retenido) que dejó el hilo de carga
     void* red;                 ///< MLModel* (retenido) en uso
     GThread* cargando;
-    gboolean tamanoOk; ///< el tamaño de entrada está entre los del modelo
+    gboolean tamanoOk; ///< el tamaño de entrada de la red está entre los del modelo
+    int redW, redH;    ///< lo que recibe la red
+    VTPixelTransferSessionRef transfer;
+    CVPixelBufferPoolRef poolRed;    ///< BGRA redW x redH (entrada de la red)
+    CVPixelBufferPoolRef poolSalida; ///< BGRA 2w x 2h (lo que sale)
+    guint64 sinMeta, conMeta;        ///< cuántos cuadros llegaron con su CVPixelBuffer
     ba::sr::Demora* demora;
 };
 
 G_DEFINE_TYPE(BaCoreMlSr, ba_coremlsr, GST_TYPE_BASE_TRANSFORM)
 
-enum { PROP_0, PROP_MODELO, PROP_ESCALA, PROP_ACTIVO, PROP_MS, PROP_ERROR };
+enum { PROP_0, PROP_MODELO, PROP_ESCALA, PROP_ACTIVO, PROP_MS, PROP_ERROR, PROP_SIN_COPIAS };
 
-static GstStaticPadTemplate sinkTpl = GST_STATIC_PAD_TEMPLATE("sink", GST_PAD_SINK, GST_PAD_ALWAYS,
-                                                              GST_STATIC_CAPS(GST_VIDEO_CAPS_MAKE("BGRA")));
-static GstStaticPadTemplate srcTpl = GST_STATIC_PAD_TEMPLATE("src", GST_PAD_SRC, GST_PAD_ALWAYS,
-                                                             GST_STATIC_CAPS(GST_VIDEO_CAPS_MAKE("BGRA")));
+static GstStaticPadTemplate sinkTpl = GST_STATIC_PAD_TEMPLATE(
+    "sink", GST_PAD_SINK, GST_PAD_ALWAYS, GST_STATIC_CAPS(GST_VIDEO_CAPS_MAKE("{ NV12, BGRA }")));
+static GstStaticPadTemplate srcTpl =
+    GST_STATIC_PAD_TEMPLATE("src", GST_PAD_SRC, GST_PAD_ALWAYS, GST_STATIC_CAPS(GST_VIDEO_CAPS_MAKE("BGRA")));
+
+// --- El CVPixelBuffer que trae un cuadro de vtdec ---------------------------------
+// GstCoreVideoMeta (gst-plugins-bad, sys/applemedia/corevideobuffer.h) no es API
+// pública: se busca por nombre y se lee con su forma, que es estable desde 1.0.
+struct MetaCoreVideo {
+    GstMeta meta;
+    CVBufferRef cvbuf;
+    CVPixelBufferRef pixbuf;
+};
+
+static CVPixelBufferRef pixelBufferDe(GstBuffer* b) {
+    static GType api = 0;
+    if (api == 0) api = g_type_from_name("GstCoreVideoMetaAPI");
+    if (api == 0) return nullptr;
+    auto* m = reinterpret_cast<MetaCoreVideo*>(gst_buffer_get_meta(b, api));
+    return m != nullptr ? m->pixbuf : nullptr;
+}
 
 static void ponerError(BaCoreMlSr* s, const std::string& e) {
     GST_OBJECT_LOCK(s);
@@ -107,6 +148,25 @@ static void soltarRed(BaCoreMlSr* s) {
     }
 }
 
+static void soltarPools(BaCoreMlSr* s) {
+    if (s->poolRed != nullptr) CVPixelBufferPoolRelease(s->poolRed);
+    if (s->poolSalida != nullptr) CVPixelBufferPoolRelease(s->poolSalida);
+    s->poolRed = s->poolSalida = nullptr;
+}
+
+static CVPixelBufferPoolRef crearPool(int w, int h) {
+    NSDictionary* atr = @{
+        (id)kCVPixelBufferPixelFormatTypeKey : @(kCVPixelFormatType_32BGRA),
+        (id)kCVPixelBufferWidthKey : @(w),
+        (id)kCVPixelBufferHeightKey : @(h),
+        (id)kCVPixelBufferIOSurfacePropertiesKey : @{},
+        (id)kCVPixelBufferMetalCompatibilityKey : @YES,
+    };
+    CVPixelBufferPoolRef p = nullptr;
+    CVPixelBufferPoolCreate(kCFAllocatorDefault, nullptr, (__bridge CFDictionaryRef)atr, &p);
+    return p;
+}
+
 /// ¿El modelo acepta este tamaño de entrada? (sus tamaños fijos)
 static bool aceptaTamano(MLModel* m, int w, int h) {
     MLFeatureDescription* d = m.modelDescription.inputDescriptionsByName[@"entrada"];
@@ -125,119 +185,226 @@ static bool aceptaTamano(MLModel* m, int w, int h) {
     return false;
 }
 
+/// El formato cambia (NV12/BGRA -> BGRA): la salida es BGRA al doble.
 static GstCaps* transformarCaps(GstBaseTransform* bt, GstPadDirection dir, GstCaps* caps, GstCaps* filtro) {
     auto* s = BA_COREMLSR(bt);
-    return ba::sr::transformarCaps(dir, caps, filtro, s->activo, nullptr, s->escala);
+    GstCaps* sinFormato = gst_caps_copy(caps);
+    for (guint i = 0; i < gst_caps_get_size(sinFormato); ++i)
+        gst_structure_remove_fields(gst_caps_get_structure(sinFormato, i), "format", "colorimetry", "chroma-site",
+                                    nullptr);
+    GstCaps* r = ba::sr::transformarCaps(dir, sinFormato, nullptr, s->activo, nullptr, 2);
+    gst_caps_unref(sinFormato);
+    GstCaps* plantilla = gst_static_pad_template_get_caps(dir == GST_PAD_SINK ? &srcTpl : &sinkTpl);
+    GstCaps* out = gst_caps_intersect_full(r, plantilla, GST_CAPS_INTERSECT_FIRST);
+    gst_caps_unref(r);
+    gst_caps_unref(plantilla);
+    if (filtro != nullptr) {
+        GstCaps* f = gst_caps_intersect_full(filtro, out, GST_CAPS_INTERSECT_FIRST);
+        gst_caps_unref(out);
+        out = f;
+    }
+    return out;
 }
 
-static GstCaps* fijarCaps(GstBaseTransform* bt, GstPadDirection dir, GstCaps* caps, GstCaps* otras) {
-    return ba::sr::fijarCapsPor(dir, caps, otras, BA_COREMLSR(bt)->escala);
-}
-
-static gboolean tamanoSalida(GstBaseTransform*, GstPadDirection, GstCaps*, gsize, GstCaps* otras, gsize* otro) {
-    GstVideoInfo vi;
-    if (!gst_video_info_from_caps(&vi, otras)) return FALSE;
-    *otro = GST_VIDEO_INFO_SIZE(&vi);
-    return TRUE;
+static GstCaps* fijarCaps(GstBaseTransform*, GstPadDirection dir, GstCaps* caps, GstCaps* otras) {
+    return ba::sr::fijarCapsPor(dir, caps, otras, 2);
 }
 
 static gboolean ponerCaps(GstBaseTransform* bt, GstCaps* incaps, GstCaps* outcaps) {
     auto* s = BA_COREMLSR(bt);
     if (!gst_video_info_from_caps(&s->in, incaps) || !gst_video_info_from_caps(&s->out, outcaps)) return FALSE;
     const int w = GST_VIDEO_INFO_WIDTH(&s->in), h = GST_VIDEO_INFO_HEIGHT(&s->in);
-    s->procesa = GST_VIDEO_INFO_WIDTH(&s->out) == w * s->escala && GST_VIDEO_INFO_HEIGHT(&s->out) == h * s->escala;
-    gst_base_transform_set_passthrough(bt, !s->procesa);
+    s->procesa = GST_VIDEO_INFO_WIDTH(&s->out) == w * 2 && GST_VIDEO_INFO_HEIGHT(&s->out) == h * 2;
+    // Mismo tamaño (apagado): igual puede cambiar el formato; si no cambia, pasante.
+    gst_base_transform_set_passthrough(bt, !s->procesa && gst_caps_is_equal(incaps, outcaps));
+    s->redW = s->escala == 4 ? w / 2 : w;
+    s->redH = s->escala == 4 ? h / 2 : h;
+    soltarPools(s);
+    if (s->procesa) {
+        s->poolRed = crearPool(s->redW, s->redH);
+        s->poolSalida = crearPool(w * 2, h * 2);
+    } else {
+        s->poolSalida = crearPool(w, h);
+    }
     s->tamanoOk = FALSE;
     if (s->procesa && s->red == nullptr && s->cargando == nullptr && s->modelo != nullptr && *s->modelo != '\0')
         s->cargando = g_thread_new("bacoremlsr-carga", cargar, s);
-    if (s->red != nullptr) s->tamanoOk = aceptaTamano((__bridge MLModel*)s->red, w, h);
-    GST_INFO_OBJECT(s, "CoreML x%d %s (%dx%d)", s->escala, s->procesa ? "activo" : "apagado", w, h);
+    if (s->red != nullptr) s->tamanoOk = aceptaTamano((__bridge MLModel*)s->red, s->redW, s->redH);
+    GST_INFO_OBJECT(s, "CoreML red x%d %s (%dx%d -> red %dx%d)", s->escala, s->procesa ? "activo" : "apagado", w,
+                    h, s->redW, s->redH);
     return TRUE;
 }
 
-/// Agrandado común (mientras el modelo se carga, o si el tamaño no es del modelo).
-static void agrandarComun(GstVideoFrame* fi, GstVideoFrame* fo) {
-    vImage_Buffer a{GST_VIDEO_FRAME_PLANE_DATA(fi, 0), static_cast<vImagePixelCount>(GST_VIDEO_FRAME_HEIGHT(fi)),
-                    static_cast<vImagePixelCount>(GST_VIDEO_FRAME_WIDTH(fi)),
-                    static_cast<size_t>(GST_VIDEO_FRAME_PLANE_STRIDE(fi, 0))};
-    vImage_Buffer b{GST_VIDEO_FRAME_PLANE_DATA(fo, 0), static_cast<vImagePixelCount>(GST_VIDEO_FRAME_HEIGHT(fo)),
-                    static_cast<vImagePixelCount>(GST_VIDEO_FRAME_WIDTH(fo)),
-                    static_cast<size_t>(GST_VIDEO_FRAME_PLANE_STRIDE(fo, 0))};
-    vImageScale_ARGB8888(&a, &b, nullptr, kvImageHighQualityResampling);
+/// Arriba pueden mandar cuadros con relleno (GstVideoMeta).
+static gboolean proponer(GstBaseTransform* bt, GstQuery* decidida, GstQuery* q) {
+    gst_query_add_allocation_meta(q, GST_VIDEO_META_API_TYPE, nullptr);
+    return GST_BASE_TRANSFORM_CLASS(ba_coremlsr_parent_class)->propose_allocation(bt, decidida, q);
 }
 
-static GstFlowReturn transformar(GstBaseTransform* bt, GstBuffer* inbuf, GstBuffer* outbuf) {
+/// El cuadro de entrada como CVPixelBuffer: el de vtdec si lo trae; si no, la
+/// memoria del buffer envuelta (sin copiar; queda mapeada hasta soltarla).
+struct Entrada {
+    CVPixelBufferRef pb = nullptr;
+    GstVideoFrame frame{};
+    bool mapeado = false;
+};
+
+static bool entradaDe(BaCoreMlSr* s, GstBuffer* b, Entrada& e) {
+    if (CVPixelBufferRef pb = pixelBufferDe(b)) {
+        e.pb = CVPixelBufferRetain(pb);
+        ++s->conMeta;
+        return true;
+    }
+    ++s->sinMeta;
+    if (!gst_video_frame_map(&e.frame, &s->in, b, GST_MAP_READ)) return false;
+    e.mapeado = true;
+    const int w = GST_VIDEO_FRAME_WIDTH(&e.frame), h = GST_VIDEO_FRAME_HEIGHT(&e.frame);
+    if (GST_VIDEO_FRAME_FORMAT(&e.frame) == GST_VIDEO_FORMAT_BGRA) {
+        CVPixelBufferCreateWithBytes(kCFAllocatorDefault, w, h, kCVPixelFormatType_32BGRA,
+                                     GST_VIDEO_FRAME_PLANE_DATA(&e.frame, 0), GST_VIDEO_FRAME_PLANE_STRIDE(&e.frame, 0),
+                                     nullptr, nullptr, nullptr, &e.pb);
+    } else {
+        void* planos[2] = {GST_VIDEO_FRAME_PLANE_DATA(&e.frame, 0), GST_VIDEO_FRAME_PLANE_DATA(&e.frame, 1)};
+        size_t anchos[2] = {static_cast<size_t>(w), static_cast<size_t>((w + 1) / 2)};
+        size_t altos[2] = {static_cast<size_t>(h), static_cast<size_t>((h + 1) / 2)};
+        size_t strides[2] = {static_cast<size_t>(GST_VIDEO_FRAME_PLANE_STRIDE(&e.frame, 0)),
+                             static_cast<size_t>(GST_VIDEO_FRAME_PLANE_STRIDE(&e.frame, 1))};
+        const bool completo = GST_VIDEO_INFO_COLORIMETRY(&s->in).range == GST_VIDEO_COLOR_RANGE_0_255;
+        CVPixelBufferCreateWithPlanarBytes(
+            kCFAllocatorDefault, w, h,
+            completo ? kCVPixelFormatType_420YpCbCr8BiPlanarFullRange : kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+            nullptr, 0, 2, planos, anchos, altos, strides, nullptr, nullptr, nullptr, &e.pb);
+        if (e.pb != nullptr) {
+            // El color de la entrada (para convertir bien a RGB).
+            const auto matriz = GST_VIDEO_INFO_COLORIMETRY(&s->in).matrix;
+            CVBufferSetAttachment(e.pb, kCVImageBufferYCbCrMatrixKey,
+                                  matriz == GST_VIDEO_COLOR_MATRIX_BT601 ? kCVImageBufferYCbCrMatrix_ITU_R_601_4
+                                                                         : kCVImageBufferYCbCrMatrix_ITU_R_709_2,
+                                  kCVAttachmentMode_ShouldPropagate);
+        }
+    }
+    return e.pb != nullptr;
+}
+
+static void soltarEntrada(Entrada& e) {
+    if (e.pb != nullptr) CVPixelBufferRelease(e.pb);
+    if (e.mapeado) gst_video_frame_unmap(&e.frame);
+}
+
+/// Una IOSurface (CVPixelBuffer BGRA) como GstBuffer, sin copiar: queda
+/// bloqueada para leer mientras viva el buffer.
+static GstBuffer* bufferDe(CVPixelBufferRef pb) {
+    CVPixelBufferLockBaseAddress(pb, kCVPixelBufferLock_ReadOnly);
+    const size_t stride = CVPixelBufferGetBytesPerRow(pb), alto = CVPixelBufferGetHeight(pb);
+    auto* base = static_cast<guint8*>(CVPixelBufferGetBaseAddress(pb));
+    GstBuffer* b = gst_buffer_new_wrapped_full(
+        GST_MEMORY_FLAG_READONLY, base, stride * alto, 0, stride * alto, CVPixelBufferRetain(pb), [](gpointer d) {
+            auto p = static_cast<CVPixelBufferRef>(d);
+            CVPixelBufferUnlockBaseAddress(p, kCVPixelBufferLock_ReadOnly);
+            CVPixelBufferRelease(p);
+        });
+    gsize offset[GST_VIDEO_MAX_PLANES] = {0};
+    gint strides[GST_VIDEO_MAX_PLANES] = {static_cast<gint>(stride)};
+    gst_buffer_add_video_meta_full(b, GST_VIDEO_FRAME_FLAG_NONE, GST_VIDEO_FORMAT_BGRA,
+                                   static_cast<guint>(CVPixelBufferGetWidth(pb)), static_cast<guint>(alto), 1, offset,
+                                   strides);
+    return b;
+}
+
+/// La red: entrada (ya del tamaño de la red) -> `salida` del pool. false si no se pudo.
+static bool predecir(BaCoreMlSr* s, CVPixelBufferRef entrada, CVPixelBufferRef salida) {
+    @autoreleasepool {
+        NSError* err = nil;
+        MLFeatureValue* fv = [MLFeatureValue featureValueWithPixelBuffer:entrada];
+        MLDictionaryFeatureProvider* prov = [[MLDictionaryFeatureProvider alloc] initWithDictionary:@{@"entrada": fv}
+                                                                                            error:&err];
+        if (prov == nil) return false;
+        MLPredictionOptions* op = [[MLPredictionOptions alloc] init];
+        if (@available(macOS 14.0, *)) op.outputBackings = @{@"salida": (__bridge id)salida};
+        id<MLFeatureProvider> res = [(__bridge MLModel*)s->red predictionFromFeatures:prov options:op error:&err];
+        if (res == nil) {
+            ponerError(s, std::string("CoreML: ") + (err ? err.localizedDescription.UTF8String : "falló"));
+            return false;
+        }
+        CVPixelBufferRef r = [res featureValueForName:@"salida"].imageBufferValue;
+        if (r == nullptr) return false;
+        if (r == salida) return true; // escribió directo en nuestra IOSurface
+        // Sin outputBackings (macOS viejo, u otro formato): a nuestra IOSurface, en la GPU.
+        return VTPixelTransferSessionTransferImage(s->transfer, r, salida) == noErr;
+    }
+}
+
+static GstFlowReturn prepararSalida(GstBaseTransform* bt, GstBuffer* inbuf, GstBuffer** outbuf) {
     auto* s = BA_COREMLSR(bt);
-    if (!s->procesa) return GST_FLOW_OK;
+    if (gst_base_transform_is_passthrough(bt)) {
+        *outbuf = inbuf;
+        return GST_FLOW_OK;
+    }
+    if (s->poolSalida == nullptr) return GST_FLOW_NOT_NEGOTIATED;
     // ¿Terminó de cargar el modelo?
-    if (s->red == nullptr) {
+    if (s->procesa && s->red == nullptr) {
         if (void* p = s->listo->exchange(nullptr)) {
             s->red = p;
-            s->tamanoOk = aceptaTamano((__bridge MLModel*)s->red, GST_VIDEO_INFO_WIDTH(&s->in), GST_VIDEO_INFO_HEIGHT(&s->in));
+            s->tamanoOk = aceptaTamano((__bridge MLModel*)s->red, s->redW, s->redH);
             if (!s->tamanoOk)
-                ponerError(s, "el modelo no acepta " + std::to_string(GST_VIDEO_INFO_WIDTH(&s->in)) + "x" +
-                                  std::to_string(GST_VIDEO_INFO_HEIGHT(&s->in)) +
+                ponerError(s, "el modelo no acepta " + std::to_string(s->redW) + "x" + std::to_string(s->redH) +
                                   " (instalado para los tamaños de cámara comunes): sale agrandado común");
         }
     }
-    GstVideoFrame fi, fo;
-    if (!gst_video_frame_map(&fi, &s->in, inbuf, GST_MAP_READ)) return GST_FLOW_ERROR;
-    if (!gst_video_frame_map(&fo, &s->out, outbuf, GST_MAP_WRITE)) {
-        gst_video_frame_unmap(&fi);
+    Entrada e;
+    if (!entradaDe(s, inbuf, e)) {
+        soltarEntrada(e);
+        GST_ELEMENT_ERROR(s, STREAM, FAILED, ("no se pudo leer el cuadro"), (nullptr));
+        return GST_FLOW_ERROR;
+    }
+    CVPixelBufferRef salida = nullptr;
+    CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, s->poolSalida, &salida);
+    if (salida == nullptr) {
+        soltarEntrada(e);
         return GST_FLOW_ERROR;
     }
     const gint64 t0 = g_get_monotonic_time();
     bool hecho = false;
-    if (s->red != nullptr && s->tamanoOk) {
-        @autoreleasepool {
-            const int w = GST_VIDEO_FRAME_WIDTH(&fi), h = GST_VIDEO_FRAME_HEIGHT(&fi);
-            CVPixelBufferRef pb = nullptr;
-            // El cuadro de GStreamer, sin copiar, como CVPixelBuffer BGRA.
-            CVPixelBufferCreateWithBytes(kCFAllocatorDefault, w, h, kCVPixelFormatType_32BGRA, GST_VIDEO_FRAME_PLANE_DATA(&fi, 0),
-                                         GST_VIDEO_FRAME_PLANE_STRIDE(&fi, 0), nullptr, nullptr, nullptr, &pb);
-            if (pb != nullptr) {
-                NSError* err = nil;
-                MLFeatureValue* fv = [MLFeatureValue featureValueWithPixelBuffer:pb];
-                MLDictionaryFeatureProvider* prov = [[MLDictionaryFeatureProvider alloc] initWithDictionary:@{@"entrada": fv}
-                                                                                                    error:&err];
-                id<MLFeatureProvider> res = prov ? [(__bridge MLModel*)s->red predictionFromFeatures:prov error:&err] : nil;
-                CVPixelBufferRef r = res ? [res featureValueForName:@"salida"].imageBufferValue : nullptr;
-                if (r != nullptr && static_cast<int>(CVPixelBufferGetWidth(r)) == GST_VIDEO_FRAME_WIDTH(&fo) &&
-                    static_cast<int>(CVPixelBufferGetHeight(r)) == GST_VIDEO_FRAME_HEIGHT(&fo)) {
-                    CVPixelBufferLockBaseAddress(r, kCVPixelBufferLock_ReadOnly);
-                    const OSType fmt = CVPixelBufferGetPixelFormatType(r);
-                    vImage_Buffer de{CVPixelBufferGetBaseAddress(r), CVPixelBufferGetHeight(r), CVPixelBufferGetWidth(r),
-                                     CVPixelBufferGetBytesPerRow(r)};
-                    vImage_Buffer a{GST_VIDEO_FRAME_PLANE_DATA(&fo, 0), static_cast<vImagePixelCount>(GST_VIDEO_FRAME_HEIGHT(&fo)),
-                                    static_cast<vImagePixelCount>(GST_VIDEO_FRAME_WIDTH(&fo)),
-                                    static_cast<size_t>(GST_VIDEO_FRAME_PLANE_STRIDE(&fo, 0))};
-                    if (fmt == kCVPixelFormatType_32BGRA) {
-                        vImageCopyBuffer(&de, &a, 4, kvImageNoFlags);
-                        hecho = true;
-                    } else if (fmt == kCVPixelFormatType_32ARGB) {
-                        const uint8_t mapa[4] = {3, 2, 1, 0}; // ARGB -> BGRA
-                        vImagePermuteChannels_ARGB8888(&de, &a, mapa, kvImageNoFlags);
-                        hecho = true;
-                    } else {
-                        ponerError(s, "el modelo devuelve un formato de imagen inesperado");
-                    }
-                    CVPixelBufferUnlockBaseAddress(r, kCVPixelBufferLock_ReadOnly);
-                } else if (err != nil) {
-                    ponerError(s, std::string("CoreML: ") + err.localizedDescription.UTF8String);
-                }
-                CVPixelBufferRelease(pb);
-            }
+    if (s->procesa && s->red != nullptr && s->tamanoOk) {
+        CVPixelBufferRef red = nullptr;
+        const bool directo = CVPixelBufferGetPixelFormatType(e.pb) == kCVPixelFormatType_32BGRA &&
+                             static_cast<int>(CVPixelBufferGetWidth(e.pb)) == s->redW &&
+                             static_cast<int>(CVPixelBufferGetHeight(e.pb)) == s->redH &&
+                             CVPixelBufferGetIOSurface(e.pb) != nullptr;
+        if (directo) {
+            red = CVPixelBufferRetain(e.pb);
+        } else if (CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, s->poolRed, &red) == kCVReturnSuccess &&
+                   VTPixelTransferSessionTransferImage(s->transfer, e.pb, red) != noErr) {
+            CVPixelBufferRelease(red);
+            red = nullptr;
+        }
+        if (red != nullptr) {
+            hecho = predecir(s, red, salida);
+            CVPixelBufferRelease(red);
         }
         if (hecho) {
             s->demora->anotar(static_cast<double>(g_get_monotonic_time() - t0) / 1000.0);
             ba::sr::quizasAvisarLatencia(bt, *s->demora);
         }
     }
-    if (!hecho) agrandarComun(&fi, &fo);
-    gst_video_frame_unmap(&fo);
-    gst_video_frame_unmap(&fi);
+    // Sin la red (cargando, tamaño que no es del modelo, apagado): agrandado
+    // común en la GPU, o solo el cambio de formato.
+    if (!hecho && VTPixelTransferSessionTransferImage(s->transfer, e.pb, salida) != noErr) {
+        soltarEntrada(e);
+        CVPixelBufferRelease(salida);
+        GST_ELEMENT_ERROR(s, STREAM, FAILED, ("no se pudo convertir el cuadro"), (nullptr));
+        return GST_FLOW_ERROR;
+    }
+    soltarEntrada(e);
+    *outbuf = bufferDe(salida);
+    CVPixelBufferRelease(salida);
+    // Marcas de tiempo, banderas y metadatos (los que no dependen del tamaño).
+    GST_BASE_TRANSFORM_GET_CLASS(bt)->copy_metadata(bt, inbuf, *outbuf);
     return GST_FLOW_OK;
 }
+
+/// El trabajo ya lo hizo prepararSalida (el buffer de salida es la IOSurface de la red).
+static GstFlowReturn transformar(GstBaseTransform*, GstBuffer*, GstBuffer*) { return GST_FLOW_OK; }
 
 static void ponerPropiedad(GObject* o, guint id, const GValue* v, GParamSpec* ps) {
     auto* s = BA_COREMLSR(o);
@@ -248,10 +415,7 @@ static void ponerPropiedad(GObject* o, guint id, const GValue* v, GParamSpec* ps
             s->modelo = g_value_dup_string(v);
             ponerError(s, "");
             break;
-        case PROP_ESCALA:
-            s->escala = g_value_get_int(v);
-            gst_base_transform_reconfigure_src(GST_BASE_TRANSFORM(s));
-            break;
+        case PROP_ESCALA: s->escala = g_value_get_int(v) >= 4 ? 4 : 2; break;
         case PROP_ACTIVO:
             s->activo = g_value_get_boolean(v);
             gst_base_transform_reconfigure_src(GST_BASE_TRANSFORM(s));
@@ -267,6 +431,11 @@ static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
         case PROP_ESCALA: g_value_set_int(v, s->escala); break;
         case PROP_ACTIVO: g_value_set_boolean(v, s->activo); break;
         case PROP_MS: g_value_set_double(v, s->demora->media()); break;
+        case PROP_SIN_COPIAS:
+            g_value_set_double(v, s->conMeta + s->sinMeta > 0
+                                      ? static_cast<double>(s->conMeta) / static_cast<double>(s->conMeta + s->sinMeta)
+                                      : 0.0);
+            break;
         case PROP_ERROR:
             GST_OBJECT_LOCK(s);
             g_value_set_string(v, s->error);
@@ -276,13 +445,27 @@ static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
     }
 }
 
+static gboolean arrancar(GstBaseTransform* bt) {
+    auto* s = BA_COREMLSR(bt);
+    if (s->transfer == nullptr) VTPixelTransferSessionCreate(kCFAllocatorDefault, &s->transfer);
+    return s->transfer != nullptr;
+}
+
 static gboolean parar(GstBaseTransform* bt) {
-    BA_COREMLSR(bt)->demora->reiniciar();
+    auto* s = BA_COREMLSR(bt);
+    s->demora->reiniciar();
+    soltarPools(s);
+    if (s->transfer != nullptr) {
+        VTPixelTransferSessionInvalidate(s->transfer);
+        CFRelease(s->transfer);
+        s->transfer = nullptr;
+    }
     return TRUE;
 }
 
 static gboolean consultar(GstBaseTransform* bt, GstPadDirection dir, GstQuery* q) {
-    return ba::sr::consultaLatencia(bt, q, *BA_COREMLSR(bt)->demora, GST_BASE_TRANSFORM_CLASS(ba_coremlsr_parent_class)->query, dir);
+    return ba::sr::consultaLatencia(bt, q, *BA_COREMLSR(bt)->demora,
+                                    GST_BASE_TRANSFORM_CLASS(ba_coremlsr_parent_class)->query, dir);
 }
 
 static gboolean eventoEntrada(GstBaseTransform* bt, GstEvent* ev) {
@@ -294,6 +477,8 @@ static gboolean eventoEntrada(GstBaseTransform* bt, GstEvent* ev) {
 static void ba_coremlsr_finalize(GObject* o) {
     auto* s = BA_COREMLSR(o);
     soltarRed(s);
+    soltarPools(s);
+    if (s->transfer != nullptr) CFRelease(s->transfer);
     delete s->listo;
     delete s->demora;
     g_free(s->modelo);
@@ -308,26 +493,41 @@ static void ba_coremlsr_class_init(BaCoreMlSrClass* k) {
     go->set_property = ponerPropiedad;
     go->get_property = leerPropiedad;
     go->finalize = ba_coremlsr_finalize;
-    const auto listo = static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | GST_PARAM_MUTABLE_READY);
-    const auto vivo = static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | GST_PARAM_MUTABLE_PLAYING);
+    const auto listo =
+        static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | GST_PARAM_MUTABLE_READY);
+    const auto vivo =
+        static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | GST_PARAM_MUTABLE_PLAYING);
     const auto ro = static_cast<GParamFlags>(G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
-    g_object_class_install_property(go, PROP_MODELO, g_param_spec_string("modelo", "Modelo", "Ruta del .mlmodelc", "", listo));
-    g_object_class_install_property(
-        go, PROP_ESCALA, g_param_spec_int("escala", "Escala", "Lo que agranda la red (2 o 4)", 2, 4, 2, listo));
-    g_object_class_install_property(go, PROP_ACTIVO, g_param_spec_boolean("activo", "Activo", "Agranda", TRUE, vivo));
+    g_object_class_install_property(go, PROP_MODELO,
+                                    g_param_spec_string("modelo", "Modelo", "Ruta del .mlmodelc", "", listo));
+    g_object_class_install_property(go, PROP_ESCALA,
+                                    g_param_spec_int("escala", "Escala de la red",
+                                                     "Lo que agranda la red (2; 4 = recibe la mitad): sale x2", 2,
+                                                     4, 2, listo));
+    g_object_class_install_property(go, PROP_ACTIVO,
+                                    g_param_spec_boolean("activo", "Activo", "Agranda", TRUE, vivo));
     g_object_class_install_property(go, PROP_MS,
-                                    g_param_spec_double("ms-por-cuadro", "ms por cuadro", "Lo que tarda en promedio", 0, 100000, 0, ro));
-    g_object_class_install_property(go, PROP_ERROR, g_param_spec_string("error", "Error", "Por qué no anda (si no anda)", nullptr, ro));
-    gst_element_class_set_static_metadata(ge, "Superresolución (CoreML)", "Filter/Effect/Video/Scaler",
-                                          "Agranda con una red convertida a CoreML, en el Neural Engine o la GPU de la Mac",
-                                          "Broadcast Appliance");
+                                    g_param_spec_double("ms-por-cuadro", "ms por cuadro",
+                                                        "Lo que tarda la red en promedio", 0, 100000, 0, ro));
+    g_object_class_install_property(
+        go, PROP_SIN_COPIAS,
+        g_param_spec_double("sin-copias", "Sin copias",
+                            "Fracción de cuadros que llegaron con su IOSurface (de vtdec)", 0, 1, 0, ro));
+    g_object_class_install_property(go, PROP_ERROR,
+                                    g_param_spec_string("error", "Error", "Por qué no anda (si no anda)", nullptr, ro));
+    gst_element_class_set_static_metadata(
+        ge, "Superresolución (CoreML)", "Filter/Effect/Video/Scaler",
+        "Duplica la resolución con una red CoreML en el Neural Engine o la GPU, sin copias (IOSurface)",
+        "Broadcast Appliance");
     gst_element_class_add_static_pad_template(ge, &sinkTpl);
     gst_element_class_add_static_pad_template(ge, &srcTpl);
     bt->transform_caps = transformarCaps;
     bt->fixate_caps = fijarCaps;
     bt->set_caps = ponerCaps;
-    bt->transform_size = tamanoSalida;
+    bt->propose_allocation = proponer;
+    bt->prepare_output_buffer = prepararSalida;
     bt->transform = transformar;
+    bt->start = arrancar;
     bt->stop = parar;
     bt->query = consultar;
     bt->sink_event = eventoEntrada;
@@ -345,6 +545,10 @@ static void ba_coremlsr_init(BaCoreMlSr* s) {
     s->red = nullptr;
     s->cargando = nullptr;
     s->tamanoOk = FALSE;
+    s->redW = s->redH = 0;
+    s->transfer = nullptr;
+    s->poolRed = s->poolSalida = nullptr;
+    s->conMeta = s->sinMeta = 0;
     s->demora = new ba::sr::Demora();
     gst_base_transform_set_qos_enabled(GST_BASE_TRANSFORM(s), TRUE);
 }

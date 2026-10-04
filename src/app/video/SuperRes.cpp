@@ -38,6 +38,11 @@ SuperRes::SuperRes(fs::path dataRoot, VideoGrafos* video, QObject* parent)
     std::error_code ec;
     fs::create_directories(carpetaModelos(), ec);
     trabajo_ = {{"corriendo", false}};
+    // Las tarjetas guardan el id del plugin; al mandarlas a la cadena de la
+    // entrada se traduce a lo de esta máquina (CoreML, ONNX…).
+    if (video_ != nullptr)
+        video_->setResolverPlugin(
+            [this](const std::string& id, std::string* error) { return resolverPlugin(id, error); });
     // GStreamer arranca en otro hilo: hasta que registra los elementos, no hay
     // motores. Se mira cada 2 s hasta que aparecen (la interfaz se actualiza).
     auto* t = new QTimer(this);
@@ -52,6 +57,7 @@ SuperRes::SuperRes(fs::path dataRoot, VideoGrafos* video, QObject* parent)
 }
 
 SuperRes::~SuperRes() {
+    if (video_ != nullptr) video_->setResolverPlugin({});
     if (hijo_) {
         hijo_->disconnect(this);
         hijo_->terminar();

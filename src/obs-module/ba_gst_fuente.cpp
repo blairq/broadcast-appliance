@@ -28,6 +28,20 @@
 // colorimetría (BT.601/709, rango limitado o completo) y así se le pasa a
 // libobs, que convierte bien y en la GPU.
 //
+// LOS FILTROS (`filtros`, JSON): las tarjetas del grafo de video (y de audio)
+// corren ACÁ, como elementos de GStreamer en la cadena de la entrada —no en
+// libobs—:
+//     {"video": [{"id", "elemento", "propiedades": {…}}, …],
+//      "audio": [{"id", "elemento", "propiedades": {…}}, …],
+//      "alfa": true|false}       (alfa: sale BGRA con transparencia, p. ej. croma)
+// Cada uno es un elemento con nombre `ba_f_<id>` (`ba_fa_<id>` los de audio),
+// entre videoconvert/audioconvert, así la negociación de caps elige solo el
+// formato (y la memoria) que le sirve a cada uno. Cambiar una propiedad que el
+// elemento acepta andando (GST_PARAM_MUTABLE_PLAYING) se aplica en vivo; lo
+// demás (otro elemento, otro motor) rearma la cadena. La demora de los filtros
+// se mide (lo viejo que llega cada cuadro) y el colchón la absorbe para audio y
+// video por igual: siguen sincronizados.
+//
 // El proc `estado` da todo lo que hace falta para diagnosticar: si anda, el
 // error, el reloj y si está sincronizado, resolución, cuadros por segundo,
 // formato, colorimetría, el colchón y cuántos cuadros llegaron tarde.
@@ -48,12 +62,17 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cctype>
+#include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <deque>
 #include <map>
 #include <mutex>
 #include <new>
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace {
 
@@ -110,6 +129,13 @@ GstClock* relojDe(const std::string& tipo, const std::string& servidor, int puer
 
 // --- La fuente ---------------------------------------------------------------------
 
+/// Un filtro de la cadena: un elemento de GStreamer con sus propiedades (como texto).
+struct Filtro {
+    std::string id, elemento;
+    std::string nombre; ///< el id sin caracteres raros: el nombre del elemento es ba_f_<nombre>
+    std::vector<std::pair<std::string, std::string>> props;
+};
+
 struct Pendiente {
     GstSample* muestra = nullptr;
     GstClockTime vence = 0; ///< cuándo presentarla, en el reloj del pipeline
@@ -127,6 +153,11 @@ struct Fuente {
     bool superres = false;      ///< duplicar la resolución (bavtsuperres, macOS 26) si el cuadro es chico
     std::string superresMotor;  ///< "" (según `superres`), apple, fsr, onnx
     std::string superresModelo; ///< el .onnx (motor onnx)
+    std::string filtrosJson;    ///< lo pedido (para no rearmar si no cambió)
+    std::vector<Filtro> filtrosV, filtrosA;
+    bool alfa = false;
+    std::string firmaFiltros;            ///< lo que obliga a rearmar (elementos y propiedades no vivas)
+    std::vector<std::string> avisosFiltros;
     bool ntpSync =
         true; ///< RTSP: usar la hora de captura del que manda (RTCP); si su reloj está mal, conviene apagarlo
     /// La hora de la cámara estaba muy corrida (la entrada salía con segundos de
@@ -149,6 +180,10 @@ struct Fuente {
     std::uint64_t ventanaNs = 0, tardeVentana = 0, recibidosVentana = 0, tarde10 = 0, recibidos10 = 0;
     std::uint64_t primeroNs = 0, cuentaFps = 0;
     double fpsMedido = 0;
+    // La demora de los filtros: lo viejo que llega cada cuadro/bloque (pico que
+    // baja despacio), y lo que se agregó al colchón para absorberla.
+    double retrasoV = 0, retrasoA = 0;
+    std::int64_t compMs = 0;
     std::string formato, colorimetria;
     int ancho = 0, alto = 0;
     bool entrelazado = false;
@@ -205,7 +240,7 @@ void vaciar(Fuente* f) {
 
 /// Cuándo hay que presentar esta muestra: su hora de captura en el reloj del
 /// pipeline, más la latencia y el desfase.
-GstClockTime venceDe(Fuente* f, GstSample* s) {
+GstClockTime venceDe(Fuente* f, GstSample* s, double* retrasoMs = nullptr) {
     GstBuffer* b = gst_sample_get_buffer(s);
     const GstSegment* seg = gst_sample_get_segment(s);
     const GstClockTime base = f->pipeline != nullptr ? gst_element_get_base_time(f->pipeline) : 0;
@@ -215,7 +250,12 @@ GstClockTime venceDe(Fuente* f, GstSample* s) {
     // Sin hora (algunas fuentes no la ponen): la de llegada.
     const GstClockTime ahora = gst_clock_get_time(f->clock);
     const GstClockTime captura = GST_CLOCK_TIME_IS_VALID(t) ? base + t : ahora;
-    const std::int64_t extra = (f->latenciaMs + f->desfaseMs) * static_cast<std::int64_t>(GST_MSECOND);
+    if (retrasoMs != nullptr)
+        *retrasoMs = GST_CLOCK_TIME_IS_VALID(t)
+                         ? (static_cast<double>(ahora) - static_cast<double>(captura)) / 1e6
+                         : -1;
+    const std::int64_t extra =
+        (f->latenciaMs + f->desfaseMs + f->compMs) * static_cast<std::int64_t>(GST_MSECOND);
     const std::int64_t v = static_cast<std::int64_t>(captura) + extra;
     return v > 0 ? static_cast<GstClockTime>(v) : 0;
 }
@@ -228,9 +268,11 @@ GstFlowReturn alVideo(GstAppSink* sink, gpointer datos) {
         gst_sample_unref(s);
         return GST_FLOW_OK;
     }
-    const GstClockTime vence = venceDe(f, s);
+    double retraso = -1;
+    const GstClockTime vence = venceDe(f, s, &retraso);
     const GstClockTime ahora = gst_clock_get_time(f->clock);
     std::lock_guard<std::mutex> l(f->colaLock);
+    if (retraso >= 0) f->retrasoV = retraso > f->retrasoV ? retraso : f->retrasoV - (f->retrasoV - retraso) * 0.01;
     ++f->recibidos;
     ++f->recibidosVentana;
     if (vence + 40 * GST_MSECOND < ahora) {
@@ -276,8 +318,10 @@ GstFlowReturn alAudio(GstAppSink* sink, gpointer datos) {
         gst_sample_unref(s);
         return GST_FLOW_OK;
     }
-    const GstClockTime vence = venceDe(f, s);
+    double retraso = -1;
+    const GstClockTime vence = venceDe(f, s, &retraso);
     std::lock_guard<std::mutex> l(f->colaLock);
+    if (retraso >= 0) f->retrasoA = retraso > f->retrasoA ? retraso : f->retrasoA - (f->retrasoA - retraso) * 0.01;
     f->audio.push_back({s, vence});
     while (f->audio.size() > kMaxColchon * 4) {
         gst_sample_unref(f->audio.front().muestra);
@@ -405,8 +449,128 @@ void enganchar(Fuente* f, GstElement* p, const char* nombre, GstFlowReturn (*cb)
     gst_object_unref(sink);
 }
 
+// --- Los filtros ---------------------------------------------------------------------
+
+/// Un valor de obs_data como texto para gst_util_set_object_arg.
+std::string comoTexto(obs_data_item_t* it) {
+    switch (obs_data_item_gettype(it)) {
+        case OBS_DATA_STRING: return obs_data_item_get_string(it);
+        case OBS_DATA_BOOLEAN: return obs_data_item_get_bool(it) ? "true" : "false";
+        case OBS_DATA_NUMBER: {
+            if (obs_data_item_numtype(it) == OBS_DATA_NUM_INT) return std::to_string(obs_data_item_get_int(it));
+            char b[64];
+            std::snprintf(b, sizeof b, "%.6g", obs_data_item_get_double(it));
+            for (char* c = b; *c; ++c)
+                if (*c == ',') *c = '.'; // sin locale
+            return b;
+        }
+        default: return {};
+    }
+}
+
+std::vector<Filtro> leerFiltros(obs_data_t* d, const char* clave) {
+    std::vector<Filtro> out;
+    obs_data_array_t* a = d != nullptr ? obs_data_get_array(d, clave) : nullptr;
+    for (size_t i = 0; a != nullptr && i < obs_data_array_count(a); ++i) {
+        obs_data_t* x = obs_data_array_item(a, i);
+        Filtro f;
+        f.id = obs_data_get_string(x, "id");
+        f.elemento = obs_data_get_string(x, "elemento");
+        if (f.id.empty()) f.id = std::to_string(i);
+        f.nombre = f.id;
+        for (char& c : f.nombre)
+            if (!std::isalnum(static_cast<unsigned char>(c))) c = '_';
+        if (obs_data_t* pr = obs_data_get_obj(x, "propiedades")) {
+            for (obs_data_item_t* it = obs_data_first(pr); it != nullptr; obs_data_item_next(&it)) {
+                const std::string v = comoTexto(it);
+                if (obs_data_item_gettype(it) != OBS_DATA_STRING || !v.empty())
+                    f.props.emplace_back(obs_data_item_get_name(it), v);
+            }
+            obs_data_release(pr);
+        }
+        if (!f.elemento.empty()) out.push_back(std::move(f));
+        obs_data_release(x);
+    }
+    obs_data_array_release(a);
+    return out;
+}
+
+/// La especificación de una propiedad del elemento (sin instanciarlo).
+GParamSpec* especDe(const std::string& elemento, const std::string& prop) {
+    GstElementFactory* fac = gst_element_factory_find(elemento.c_str());
+    if (fac == nullptr) return nullptr;
+    GType t = gst_element_factory_get_element_type(fac);
+    if (t == 0) {
+        // Todavía no cargado: se carga el plugin.
+        auto* cargada = GST_ELEMENT_FACTORY(gst_plugin_feature_load(GST_PLUGIN_FEATURE(fac)));
+        if (cargada != nullptr) {
+            t = gst_element_factory_get_element_type(cargada);
+            gst_object_unref(cargada);
+        }
+    }
+    gst_object_unref(fac);
+    if (t == 0) return nullptr;
+    auto* k = static_cast<GObjectClass*>(g_type_class_ref(t));
+    GParamSpec* ps = g_object_class_find_property(k, prop.c_str());
+    g_type_class_unref(k);
+    return ps;
+}
+
+/// Lo que obliga a rearmar: qué elementos, en qué orden, y las propiedades que
+/// no se pueden cambiar andando.
+std::string firmaDe(const std::vector<Filtro>& v, const std::vector<Filtro>& a, bool alfa) {
+    std::string r = alfa ? "A|" : "|";
+    for (const auto* l : {&v, &a}) {
+        for (const auto& f : *l) {
+            r += f.id + "=" + f.elemento + "{";
+            for (const auto& [k, val] : f.props) {
+                GParamSpec* ps = especDe(f.elemento, k);
+                if (ps != nullptr && (ps->flags & GST_PARAM_MUTABLE_PLAYING) != 0) continue;
+                r += k + ":" + val + ";";
+            }
+            r += "}";
+        }
+        r += "#";
+    }
+    return r;
+}
+
+/// Las propiedades de un filtro sobre su elemento (las que tiene; las demás, aviso).
+void ponerPropiedades(GstElement* e, const Filtro& f, std::vector<std::string>* avisos) {
+    for (const auto& [k, v] : f.props) {
+        GParamSpec* ps = g_object_class_find_property(G_OBJECT_GET_CLASS(e), k.c_str());
+        if (ps == nullptr || (ps->flags & G_PARAM_WRITABLE) == 0) {
+            if (avisos != nullptr) avisos->push_back(f.elemento + ": no tiene la propiedad «" + k + "»");
+            continue;
+        }
+        gst_util_set_object_arg(G_OBJECT(e), k.c_str(), v.c_str());
+    }
+}
+
+bool hayFabrica(const std::string& elemento) {
+    GstElementFactory* fac = gst_element_factory_find(elemento.c_str());
+    if (fac == nullptr) return false;
+    gst_object_unref(fac);
+    return true;
+}
+
+/// La cadena de un tipo de filtros, para gst_parse_launch ("" si no hay ninguno).
+std::string cadenaDe(const std::vector<Filtro>& v, const char* conv, const char* prefijo,
+                     std::vector<std::string>& avisos) {
+    std::string r;
+    for (const auto& f : v) {
+        if (!hayFabrica(f.elemento)) {
+            avisos.push_back("no está el elemento «" + f.elemento + "» (filtro " + f.id + "): pasa sin él");
+            continue;
+        }
+        r += std::string(conv) + " ! " + f.elemento + " name=" + prefijo + f.nombre + " ! ";
+    }
+    return r;
+}
+
 void armar(Fuente* f) {
     desarmar(f);
+    f->avisosFiltros.clear();
     f->error.clear();
     if (!ba::gst::listo()) {
         if (ba::gst::fallo()) {
@@ -443,51 +607,55 @@ void armar(Fuente* f) {
             "video/x-raw,format=NV12,colorimetry=bt709,interlace-mode=progressive,pixel-aspect-ratio=1/1";
         if (hay) capsVideo += ",framerate=" + std::to_string(ovi.fps_num) + "/" + std::to_string(ovi.fps_den);
     }
-    // SUPERRESOLUCIÓN (macOS 26): una cámara chica (PAL, 768x576) sale al
-    // doble con la red de Apple, ANTES del resto: en NV12 de rango limitado y
-    // píxel cuadrado, que es lo que acepta. Si el cuadro es grande (más de
-    // 960x960) el elemento lo deja pasar sin tocar.
-    const std::string motor = !f->superresMotor.empty() ? f->superresMotor : (f->superres ? "apple" : "");
-    std::string elementoSr;
-    if (motor == "apple")
-        elementoSr = "bavtsuperres";
-    else if (motor == "fsr")
-        elementoSr = "bafsr";
-    else if (motor == "onnx" && !f->superresModelo.empty())
-        elementoSr = "baonnxsr";
-    if (!elementoSr.empty()) {
-        GstElementFactory* fac = gst_element_factory_find(elementoSr.c_str());
-        if (fac != nullptr) {
-            gst_object_unref(fac);
-            std::string extra;
-            if (elementoSr == "baonnxsr") {
-                std::string m = f->superresModelo;
-                for (size_t i = 0; (i = m.find('"', i)) != std::string::npos; i += 2)
-                    m.insert(i, "\\");
-                extra = " modelo=\"" + m + "\"";
-            }
-            // ANTES de `videorate`: si el lienzo va a más cuadros que la cámara,
-            // no se superresuelve cada cuadro repetido. Con una cola que descarta
-            // lo viejo: si un cuadro tarda, no se acumula demora.
-            const std::string sr =
-                std::string(
-                    "videoconvertscale ! video/x-raw,format=NV12,colorimetry=bt709,pixel-aspect-ratio=1/1 ! "
-                    "queue leaky=downstream max-size-buffers=2 max-size-time=0 max-size-bytes=0 ! ") +
-                elementoSr + " name=ba_superres" + extra + " ! videoconvert ! ";
-            antesSink =
-                f->normalizar ? "deinterlace mode=auto ! " + sr + "videorate ! videoconvertscale ! " : sr;
-        } else {
-            blog(LOG_WARNING, "[ba_gst_fuente] superresolución «%s» pedida pero el elemento %s no está",
-                 motor.c_str(), elementoSr.c_str());
+    // LOS FILTROS: las tarjetas del grafo, como elementos de GStreamer. La
+    // superresolución vieja (`superres_motor`) es un filtro más.
+    std::vector<Filtro> filtrosV = f->filtrosV;
+    if (filtrosV.empty()) {
+        const std::string motor =
+            !f->superresMotor.empty() ? f->superresMotor : (f->superres ? "apple" : "");
+        Filtro sr{"superres", "", "superres", {}};
+        if (motor == "apple")
+            sr.elemento = "bavtsuperres";
+        else if (motor == "fsr")
+            sr.elemento = "bafsr";
+        else if (motor == "onnx" && !f->superresModelo.empty()) {
+            sr.elemento = "baonnxsr";
+            sr.props.emplace_back("modelo", f->superresModelo);
+        }
+        if (!sr.elemento.empty()) filtrosV.push_back(std::move(sr));
+    }
+    const std::string cadenaV = cadenaDe(filtrosV, "videoconvert", "ba_f_", f->avisosFiltros);
+    if (!cadenaV.empty()) {
+        // ANTES de `videorate`: si el lienzo va a más cuadros que la cámara, no
+        // se procesa cada cuadro repetido. Con una cola que descarta lo viejo:
+        // si un filtro tarda, no se acumula demora. Píxel cuadrado primero (las
+        // redes y libobs no saben de píxeles no cuadrados).
+        const std::string cadena =
+            std::string(f->normalizar ? "videoconvertscale ! video/x-raw,pixel-aspect-ratio=1/1 ! " : "") +
+            "queue leaky=downstream max-size-buffers=2 max-size-time=0 max-size-bytes=0 ! " + cadenaV +
+            "videoconvert ! ";
+        antesSink = f->normalizar ? "deinterlace mode=auto ! " + cadena + "videorate ! videoconvertscale ! "
+                                  : cadena;
+    }
+    if (f->alfa) {
+        // Con transparencia (croma, recorte): BGRA, que libobs recibe con alfa.
+        capsVideo = "video/x-raw,format=BGRA";
+        if (f->normalizar) {
+            obs_video_info ovi = {};
+            capsVideo += ",interlace-mode=progressive,pixel-aspect-ratio=1/1";
+            if (obs_get_video_info(&ovi) && ovi.fps_num > 0)
+                capsVideo += ",framerate=" + std::to_string(ovi.fps_num) + "/" + std::to_string(ovi.fps_den);
         }
     }
+    const std::string cadenaA = cadenaDe(f->filtrosA, "audioconvert", "ba_fa_", f->avisosFiltros);
     std::string completo;
     if (!f->uri.empty()) {
         completo = "uridecodebin3 name=ba_dec uri=\"" + f->uri + "\" ba_dec. ! queue name=ba_origen ! " +
                    antesSink + capsVideo + " ! " + sinkVideo;
         if (f->conAudio)
-            completo += std::string(" ba_dec. ! queue ! audioconvert ! audioresample ! "
-                                    "audio/x-raw,format=F32LE,layout=interleaved,rate=48000,channels=2 ! ") +
+            completo += " ba_dec. ! queue ! " + cadenaA +
+                        "audioconvert ! audioresample ! "
+                        "audio/x-raw,format=F32LE,layout=interleaved,rate=48000,channels=2 ! " +
                         sinkAudio;
     } else {
         if (!f->descripcion.empty())
@@ -497,7 +665,8 @@ void armar(Fuente* f) {
         // plugin, o un micrófono que acompaña a una cámara.
         if (!f->descripcionAudio.empty() && f->conAudio)
             completo += std::string(completo.empty() ? "" : " ") + f->descripcionAudio +
-                        " ! queue ! audioconvert ! audioresample ! "
+                        " ! queue ! " + cadenaA +
+                        "audioconvert ! audioresample ! "
                         "audio/x-raw,format=F32LE,layout=interleaved,rate=48000,channels=2 ! " +
                         sinkAudio;
     }
@@ -536,6 +705,17 @@ void armar(Fuente* f) {
         }
         gst_object_unref(q);
     }
+    // Las propiedades de cada filtro (las que no tiene, se avisan).
+    for (const auto* l : {&filtrosV, &f->filtrosA})
+        for (const auto& x : *l) {
+            const std::string n = (l == &filtrosV ? "ba_f_" : "ba_fa_") + x.nombre;
+            if (GstElement* e = gst_bin_get_by_name(GST_BIN(p), n.c_str())) {
+                ponerPropiedades(e, x, &f->avisosFiltros);
+                gst_object_unref(e);
+            }
+        }
+    for (const auto& a : f->avisosFiltros)
+        blog(LOG_WARNING, "[ba_gst_fuente] %s", a.c_str());
     enganchar(f, p, "ba_video", alVideo);
     enganchar(f, p, "ba_audio", alAudio);
     gst_pipeline_use_clock(GST_PIPELINE(p), f->clock);
@@ -545,6 +725,8 @@ void armar(Fuente* f) {
         f->recibidos = f->tarde = f->saltados = f->descartados = 0;
         f->ventanaNs = f->tardeVentana = f->recibidosVentana = f->tarde10 = f->recibidos10 = 0;
         f->adelantoMs = 0;
+        f->retrasoV = f->retrasoA = 0;
+        f->compMs = 0;
     }
     if (gst_element_set_state(p, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
         f->error = "el pipeline no arrancó";
@@ -569,6 +751,18 @@ void actualizar(void* data, obs_data_t* s) {
     const std::string superresMotor = obs_data_get_string(s, "superres_motor");
     const std::string superresModelo = obs_data_get_string(s, "superres_modelo");
     const bool ntpSync = obs_data_get_bool(s, "ntp_sync");
+    const std::string filtrosJson = obs_data_get_string(s, "filtros");
+    std::vector<Filtro> filtrosV, filtrosA;
+    bool alfa = false;
+    if (!filtrosJson.empty()) {
+        if (obs_data_t* fj = obs_data_create_from_json(filtrosJson.c_str())) {
+            filtrosV = leerFiltros(fj, "video");
+            filtrosA = leerFiltros(fj, "audio");
+            alfa = obs_data_get_bool(fj, "alfa");
+            obs_data_release(fj);
+        }
+    }
+    const std::string firma = firmaDe(filtrosV, filtrosA, alfa);
     const std::int64_t latencia = obs_data_get_int(s, "latencia"), desfase = obs_data_get_int(s, "desfase");
     // La latencia y el desfase se cambian EN VIVO (solo mueven el colchón); lo
     // demás rearma el pipeline. (Con `uri`, la latencia también va al jitter
@@ -578,6 +772,7 @@ void actualizar(void* data, obs_data_t* s) {
                          dominio != f->relojDominio || audio != f->conAudio || normalizar != f->normalizar ||
                          superres != f->superres || superresMotor != f->superresMotor ||
                          superresModelo != f->superresModelo || ntpSync != f->ntpSync ||
+                         firma != f->firmaFiltros ||
                          (latencia != f->latenciaMs && !uri.empty()) || f->pipeline == nullptr;
     const std::int64_t corrimiento =
         (latencia + desfase - f->latenciaMs - f->desfaseMs) * static_cast<std::int64_t>(GST_MSECOND);
@@ -593,6 +788,12 @@ void actualizar(void* data, obs_data_t* s) {
     f->superres = superres;
     f->superresMotor = superresMotor;
     f->superresModelo = superresModelo;
+    const bool filtrosCambiaron = filtrosJson != f->filtrosJson;
+    f->filtrosJson = filtrosJson;
+    f->filtrosV = std::move(filtrosV);
+    f->filtrosA = std::move(filtrosA);
+    f->alfa = alfa;
+    f->firmaFiltros = firma;
     if (ntpSync != f->ntpSync) f->ntpApagadoSolo = false; // lo pidieron de nuevo: se vuelve a probar
     f->ntpSync = ntpSync;
     f->latenciaMs = latencia;
@@ -601,6 +802,16 @@ void actualizar(void* data, obs_data_t* s) {
         armar(f);
         return;
     }
+    // Solo cambiaron propiedades que se pueden cambiar andando: en vivo.
+    if (filtrosCambiaron && f->pipeline != nullptr)
+        for (const auto* l : {&f->filtrosV, &f->filtrosA})
+            for (const auto& x : *l) {
+                const std::string n = (l == &f->filtrosV ? "ba_f_" : "ba_fa_") + x.nombre;
+                if (GstElement* e = gst_bin_get_by_name(GST_BIN(f->pipeline), n.c_str())) {
+                    ponerPropiedades(e, x, nullptr);
+                    gst_object_unref(e);
+                }
+            }
     // Lo que ya está en el colchón se corre lo mismo.
     std::lock_guard<std::mutex> lc(f->colaLock);
     for (auto* q : {&f->video, &f->audio})
@@ -637,7 +848,7 @@ void* crear(obs_data_t* settings, obs_source_t* ctx) {
                                                           : (x->superres ? "apple" : ""));
             obs_data_set_string(o, "superres_modelo", x->superresModelo.c_str());
             if (x->pipeline != nullptr) {
-                if (GstElement* sr = gst_bin_get_by_name(GST_BIN(x->pipeline), "ba_superres")) {
+                if (GstElement* sr = gst_bin_get_by_name(GST_BIN(x->pipeline), "ba_f_superres")) {
                     gdouble ms = 0;
                     if (g_object_class_find_property(G_OBJECT_GET_CLASS(sr), "ms-por-cuadro") != nullptr)
                         g_object_get(sr, "ms-por-cuadro", &ms, nullptr);
@@ -654,6 +865,51 @@ void* crear(obs_data_t* settings, obs_source_t* ctx) {
                     gst_object_unref(sr);
                 }
             }
+            // Cada filtro: su elemento y lo que informe (lo que tarda, el motor, por qué no anda).
+            obs_data_array_t* fs = obs_data_array_create();
+            for (const auto* l : {&x->filtrosV, &x->filtrosA})
+                for (const auto& fl : *l) {
+                    obs_data_t* e = obs_data_create();
+                    obs_data_set_string(e, "id", fl.id.c_str());
+                    obs_data_set_string(e, "elemento", fl.elemento.c_str());
+                    obs_data_set_bool(e, "audio", l == &x->filtrosA);
+                    const std::string n = (l == &x->filtrosV ? "ba_f_" : "ba_fa_") + fl.nombre;
+                    GstElement* el =
+                        x->pipeline != nullptr ? gst_bin_get_by_name(GST_BIN(x->pipeline), n.c_str()) : nullptr;
+                    obs_data_set_bool(e, "andando", el != nullptr);
+                    if (el != nullptr) {
+                        GObjectClass* k = G_OBJECT_GET_CLASS(el);
+                        if (GParamSpec* ps = g_object_class_find_property(k, "ms-por-cuadro");
+                            ps != nullptr && ps->value_type == G_TYPE_DOUBLE) {
+                            gdouble ms = 0;
+                            g_object_get(el, "ms-por-cuadro", &ms, nullptr);
+                            obs_data_set_double(e, "ms", ms);
+                        }
+                        for (const char* prop : {"error", "motor-usado", "proveedor-usado"}) {
+                            GParamSpec* ps = g_object_class_find_property(k, prop);
+                            if (ps == nullptr || ps->value_type != G_TYPE_STRING) continue;
+                            gchar* v = nullptr;
+                            g_object_get(el, prop, &v, nullptr);
+                            if (v != nullptr && *v != '\0') obs_data_set_string(e, prop, v);
+                            g_free(v);
+                        }
+                        gst_object_unref(el);
+                    }
+                    obs_data_array_push_back(fs, e);
+                    obs_data_release(e);
+                }
+            obs_data_set_array(o, "filtros", fs);
+            obs_data_array_release(fs);
+            obs_data_array_t* av = obs_data_array_create();
+            for (const auto& a : x->avisosFiltros) {
+                obs_data_t* e = obs_data_create();
+                obs_data_set_string(e, "aviso", a.c_str());
+                obs_data_array_push_back(av, e);
+                obs_data_release(e);
+            }
+            obs_data_set_array(o, "avisos_filtros", av);
+            obs_data_array_release(av);
+            obs_data_set_bool(o, "alfa", x->alfa);
             obs_data_set_bool(o, "ntp_sync", x->ntpSync && !x->ntpApagadoSolo);
             obs_data_set_bool(o, "ntp_apagado_solo", x->ntpApagadoSolo);
             obs_data_set_int(o, "desfase_ms", x->desfaseMs);
@@ -679,6 +935,11 @@ void* crear(obs_data_t* settings, obs_source_t* ctx) {
                     o, "recibidos_10s",
                     static_cast<long long>(x->recibidos10 ? x->recibidos10 : x->recibidosVentana));
                 obs_data_set_int(o, "en_colchon", static_cast<long long>(x->video.size()));
+                // La demora de los filtros (video respecto del audio, medida) y lo
+                // que el colchón agregó para que sigan juntos.
+                obs_data_set_int(o, "retraso_video_ms", std::lround(x->retrasoV));
+                obs_data_set_int(o, "retraso_audio_ms", std::lround(x->retrasoA));
+                obs_data_set_int(o, "compensacion_ms", x->compMs);
                 if (!x->origen.empty()) {
                     obs_data_t* og = obs_data_create_from_json(x->origen.c_str());
                     obs_data_set_obj(o, "origen", og);
@@ -726,7 +987,8 @@ void tic(void* data, float) {
             adelanto = f->adelantoMs;
             recibidos = f->recibidos;
         }
-        const double exceso = adelanto - static_cast<double>(f->latenciaMs + f->desfaseMs);
+        // (Lo que agregó el colchón por la demora de los filtros no es culpa del reloj.)
+        const double exceso = adelanto - static_cast<double>(f->latenciaMs + f->desfaseMs + f->compMs);
         const std::uint64_t ahoraNs = os_gettime_ns();
         if (recibidos > 60 && exceso > 400) {
             if (f->ntpMalDesde == 0)
@@ -745,6 +1007,26 @@ void tic(void* data, float) {
         } else {
             f->ntpMalDesde = 0;
         }
+    }
+    // Los filtros demoran el video: si llega más tarde de lo que el colchón
+    // espera, el colchón crece lo que falta (para audio Y video: siguen juntos).
+    // Con margen y sin saltos chicos; si la demora baja, se achica.
+    if (!f->filtrosV.empty() || !f->filtrosA.empty() || !f->superresMotor.empty() || f->superres) {
+        std::lock_guard<std::mutex> lc(f->colaLock);
+        const double llega = std::max(f->retrasoV, f->retrasoA);
+        const std::int64_t deseado = std::clamp<std::int64_t>(
+            static_cast<std::int64_t>(std::lround(llega + 15.0)) - f->latenciaMs - f->desfaseMs, 0, 3000);
+        if (f->recibidos > 15 && std::llabs(deseado - f->compMs) >= 8) {
+            const std::int64_t corr = (deseado - f->compMs) * static_cast<std::int64_t>(GST_MSECOND);
+            for (auto* q : {&f->video, &f->audio})
+                for (auto& pe : *q)
+                    pe.vence = static_cast<GstClockTime>(
+                        std::max<std::int64_t>(0, static_cast<std::int64_t>(pe.vence) + corr));
+            f->compMs = deseado;
+        }
+    } else if (f->compMs != 0) {
+        std::lock_guard<std::mutex> lc(f->colaLock);
+        f->compMs = 0;
     }
     // El colchón: el último cuadro vencido se muestra; los vencidos de antes
     // se saltean (llegaron juntos, o la máquina se atrasó).
@@ -831,6 +1113,8 @@ obs_properties_t* propiedades(void*) {
     obs_property_list_add_string(sm, "Apple (VideoToolbox, macOS 26)", "apple");
     obs_property_list_add_string(sm, "FSR 1 (AMD, cualquier GPU)", "fsr");
     obs_property_list_add_string(sm, "Red ONNX (el modelo de abajo)", "onnx");
+    obs_properties_add_text(p, "filtros", obs_module_text("Filtros (JSON: video, audio, alfa)"),
+                            OBS_TEXT_MULTILINE);
     obs_properties_add_path(p, "superres_modelo", obs_module_text("Modelo ONNX"), OBS_PATH_FILE,
                             "Modelo (*.onnx)", nullptr);
     return p;

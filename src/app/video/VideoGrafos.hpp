@@ -285,6 +285,14 @@ class VideoGrafos : public QObject {
    private:
     ResolverPlugin resolverPlugin_;
     void aplicar(const std::string& entrada);
+    /// Las tarjetas que cuelgan en fila de la entrada y son de imagen (color,
+    /// croma, recorte, superresolución, módulos de GStreamer) pasan a la cadena
+    /// de GStreamer de la fuente (`filtros` de ba_gst_fuente): las saca de
+    /// `para` (lo que va al filtro de libobs) y devuelve los filtros
+    /// {"video": [...], "alfa"}. Anota cuáles corren en la entrada.
+    nlohmann::json pasarAEntrada(const std::string& entrada, nlohmann::json& para);
+    /// Lo que informa la cadena de GStreamer de la entrada sobre sus filtros.
+    nlohmann::json filtrosDeEntrada(const std::string& entrada) const;
     /// Cambiar ajustes de una fuente de modo que sobrevivan al reinicio (ver el .cpp).
     void actualizarFuente(::obs_source* src, ::obs_data* cambios);
     /// Los compositores publicados al día, y las entradas que alimentan otra
@@ -319,6 +327,8 @@ class VideoGrafos : public QObject {
     /// plugins; la primera vez tarda): mientras tanto, uno vacío.
     std::shared_ptr<const CatalogoGst> gst_ = std::make_shared<CatalogoGst>();
     std::map<std::string, int> compAudio_; ///< entrada -> ms de audio agregados por las tarjetas
+    std::map<std::string, std::set<std::string>> enEntrada_; ///< entrada -> tarjetas que corren en GStreamer
+    std::map<std::string, std::string> filtrosAplicados_;    ///< entrada -> lo último que se le mandó
 };
 
 } // namespace ba::app::video

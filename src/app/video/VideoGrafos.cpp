@@ -25,6 +25,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <functional>
 #include <set>
 #include <thread>
@@ -264,7 +265,17 @@ json VideoGrafos::erroresDe(const std::string& entrada) const {
         obs_source_release(f);
     }
     obs_source_release(src);
-    return out.is_object() ? out : json::object();
+    if (!out.is_object()) out = json::object();
+    // Las que corren en la cadena de GStreamer de la entrada.
+    if (enEntrada_.count(entrada) && !enEntrada_.at(entrada).empty())
+        for (const auto& f : filtrosDeEntrada(entrada)) {
+            const std::string id = f.value("id", std::string());
+            if (!f.value("andando", false))
+                out[id] = "el elemento " + f.value("elemento", std::string()) + " no está en la cadena";
+            else if (f.contains("error"))
+                out[id] = f["error"];
+        }
+    return out;
 }
 
 json VideoGrafos::describir(const std::string& entrada) const {
@@ -578,6 +589,9 @@ void VideoGrafos::compensarAudio(const std::string& entrada) {
     double total = 0;
     for (const auto& n : grafo_.nodos()) {
         if (n.grupo != entrada || (n.tipo != "superres" && n.tipo != "gst" && n.tipo != "plugin")) continue;
+        // Las que corren en la cadena de GStreamer de la entrada: su colchón
+        // ya atrasa el audio lo mismo que el video.
+        if (enEntrada_.count(entrada) && enEntrada_.at(entrada).count(n.id)) continue;
         const json p = grafo_.efectivos(n);
         if (!p.value("activo", true)) continue;
         const double m = medidas.value(n.id, 0.0);
@@ -983,6 +997,26 @@ void VideoGrafos::aplicar(const std::string& entrada) {
         }
     }
     json para = grafo_.paraFiltro(entrada);
+    // Una entrada de GStreamer: sus tarjetas de imagen corren en su cadena.
+    if (rt_.engine().sourceTypeId(entrada) == kTipoVirtual) {
+        const json filtros = pasarAEntrada(entrada, para);
+        const std::string js = filtros.value("video", json::array()).empty() ? std::string() : filtros.dump();
+        const auto ya = filtrosAplicados_.find(entrada);
+        if (ya == filtrosAplicados_.end() || ya->second != js) {
+            obs_data_t* actual = obs_source_get_settings(src);
+            const bool igual = js == obs_data_get_string(actual, "filtros");
+            obs_data_release(actual);
+            if (!igual) {
+                obs_data_t* d = obs_data_create();
+                obs_data_set_string(d, "filtros", js.c_str());
+                actualizarFuente(src, d);
+                obs_data_release(d);
+            }
+            filtrosAplicados_[entrada] = js;
+        }
+    } else {
+        enEntrada_.erase(entrada);
+    }
     // Los plugins de superresolución, traducidos a lo de esta máquina.
     if (resolverPlugin_)
         for (auto& n : para["nodos"]) {
@@ -1037,6 +1071,123 @@ void VideoGrafos::aplicar(const std::string& entrada) {
     if (f != nullptr) obs_source_release(f);
     obs_source_release(src);
     compensarAudio(entrada);
+}
+
+namespace {
+/// Un número con decimales sin el locale (para propiedades de GStreamer).
+std::string decimal(double v) {
+    char b[64];
+    std::snprintf(b, sizeof b, "%.6g", v);
+    for (char* c = b; *c; ++c)
+        if (*c == ',') *c = '.';
+    return b;
+}
+} // namespace
+
+json VideoGrafos::pasarAEntrada(const std::string& entrada, json& para) {
+    json video = json::array();
+    bool alfa = false;
+    std::set<std::string>& movidas = enEntrada_[entrada];
+    movidas.clear();
+    auto& nodos = para["nodos"];
+    auto& cables = para["cables"];
+    while (true) {
+        // La entrada tiene que alimentar UNA sola tarjeta (si no, la imagen sin
+        // tocar hace falta en otra parte del grafo).
+        std::vector<size_t> desdeIn;
+        for (size_t i = 0; i < cables.size(); ++i)
+            if (cables[i].value("desde", "") == "in") desdeIn.push_back(i);
+        if (desdeIn.size() != 1) break;
+        const std::string id = cables[desdeIn[0]].value("hacia", "");
+        auto it = std::find_if(nodos.begin(), nodos.end(), [&](const json& n) { return n.value("id", "") == id; });
+        if (it == nodos.end()) break;
+        const std::string tipo = it->value("tipo", "");
+        const json p = it->value("params", json::object());
+        json f = {{"id", id}};
+        json pr = json::object();
+        if (tipo == "color") {
+            f["elemento"] = "bacolor";
+            for (const char* k : {"brillo", "contraste", "saturacion", "gamma"})
+                if (p.contains(k) && p[k].is_number()) pr[k] = decimal(p[k].get<double>());
+        } else if (tipo == "croma") {
+            f["elemento"] = "bacroma";
+            pr["clave"] = std::to_string(p.value("clave", 0x00B140));
+            for (const char* k : {"similitud", "suavidad", "derrame"})
+                if (p.contains(k) && p[k].is_number()) pr[k] = decimal(p[k].get<double>());
+            alfa = true;
+        } else if (tipo == "recorte") {
+            f["elemento"] = "barecorte";
+            bool recorta = false;
+            for (const char* k : {"izquierda", "arriba", "derecha", "abajo"}) {
+                const double v = p.value(k, 0.0);
+                pr[k] = decimal(v);
+                recorta = recorta || v > 0;
+            }
+            pr["espejo-h"] = p.value("espejoH", false) ? "true" : "false";
+            pr["espejo-v"] = p.value("espejoV", false) ? "true" : "false";
+            alfa = alfa || recorta;
+        } else if (tipo == "gst") {
+            const std::string el = p.value("elemento", std::string());
+            if (el.empty()) break;
+            f["elemento"] = el;
+            for (const auto& [k, v] : p.value("propiedades", json::object()).items())
+                pr[k] = v.is_string() ? v.get<std::string>()
+                        : v.is_boolean() ? std::string(v.get<bool>() ? "true" : "false")
+                        : v.is_number_integer() ? std::to_string(v.get<long long>())
+                        : v.is_number() ? decimal(v.get<double>())
+                                        : v.dump();
+        } else if (tipo == "superres") {
+            f["elemento"] = "basuperres";
+            json q = p;
+            const std::string plugin = p.value("plugin", std::string());
+            bool activo = p.value("activo", true);
+            if (!plugin.empty() && resolverPlugin_) {
+                std::string err;
+                const json r = resolverPlugin_(plugin, &err);
+                if (r.is_object() && !r.empty())
+                    for (const auto& [k, v] : r.items()) q[k] = v;
+                else
+                    activo = false; // sin el plugin acá: pasa sin tocar
+            }
+            const std::string motor = q.value("motor", std::string("auto"));
+            if (!motor.empty() && motor != "auto") pr["motor"] = motor;
+            if (!q.value("modelo", std::string()).empty()) pr["modelo"] = q.value("modelo", std::string());
+            if (q.value("escala_red", 2) > 2) pr["escala-red"] = std::to_string(q.value("escala_red", 2));
+            if (!q.value("proveedor", std::string()).empty()) pr["proveedor"] = q.value("proveedor", std::string());
+            pr["nitidez"] = decimal(q.value("nitidez", 0.2));
+            pr["activo"] = activo ? "true" : "false";
+        } else {
+            break; // lo demás (salidas, tomas, rostros, retardo, filtros de OBS…) sigue en libobs
+        }
+        if (tipo != "superres" && !p.value("activo", true)) {
+            // Apagada: no se agrega a la cadena (pasa sin tocar), pero igual sale del grafo.
+        } else {
+            f["propiedades"] = pr;
+            video.push_back(f);
+        }
+        movidas.insert(id);
+        // Recablear: lo que salía de la tarjeta ahora sale de la entrada.
+        cables.erase(cables.begin() + static_cast<long>(desdeIn[0]));
+        for (auto& c : cables)
+            if (c.value("desde", "") == id) c["desde"] = "in";
+        nodos.erase(it);
+    }
+    return {{"video", video}, {"alfa", alfa}};
+}
+
+json VideoGrafos::filtrosDeEntrada(const std::string& entrada) const {
+    json out = json::array();
+    obs_source_t* src = obs_get_source_by_name(entrada.c_str());
+    if (src == nullptr) return out;
+    calldata_t cd = {};
+    if (proc_handler_call(obs_source_get_proc_handler(src), "estado", &cd)) {
+        const char* info = calldata_string(&cd, "info");
+        const json j = info != nullptr ? json::parse(info, nullptr, false) : json();
+        if (j.is_object()) out = j.value("filtros", json::array());
+    }
+    calldata_free(&cd);
+    obs_source_release(src);
+    return out;
 }
 
 namespace {
@@ -1275,7 +1426,8 @@ json VideoGrafos::estadoEntrada(const std::string& entrada) const {
     for (const auto& n : grafo_.nodos()) {
         if (n.grupo != entrada) continue;
         const json p = grafo_.efectivos(n);
-        if (n.tipo == "gst" || n.tipo == "superres" || n.tipo == "plugin") {
+        const bool enGst = enEntrada_.count(entrada) && enEntrada_.at(entrada).count(n.id);
+        if ((n.tipo == "gst" || n.tipo == "superres" || n.tipo == "plugin") && !enGst) {
             const double m = medidas.value(n.id, 0.0);
             if (m > 0)
                 ms += m; // medida
@@ -1294,7 +1446,15 @@ json VideoGrafos::estadoEntrada(const std::string& entrada) const {
     double latencia = ms + cuadros * cuadroMs;
     if (out.contains("gstreamer"))
         latencia += out["gstreamer"].value("latencia_ms", 0) + out["gstreamer"].value("desfase_ms", 0);
+    if (out.contains("gstreamer") && out["gstreamer"].is_object())
+        latencia += out["gstreamer"].value("compensacion_ms", 0);
     out["latencia_grafo_ms"] = std::round(latencia);
+    if (enEntrada_.count(entrada) && !enEntrada_.at(entrada).empty()) {
+        json l = json::array();
+        for (const auto& id : enEntrada_.at(entrada))
+            l.push_back(id);
+        out["tarjetas_en_gstreamer"] = l;
+    }
     if (!medidas.empty()) out["demoras_tarjetas_ms"] = medidas;
     if (compAudio_.count(entrada)) out["audio_atrasado_ms"] = compAudio_.at(entrada);
     const json errs = erroresDe(entrada), avs = avisosDe(entrada);
