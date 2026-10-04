@@ -237,7 +237,8 @@ deps-webrtc-win:
 # para los headers), libwebrtc de Windows y las fuentes compartidas.
 deps-win: deps-win-toolchain deps-qt deps-qt-host deps-obs deps-obs-deps-win deps-ndi-src deps-webrtc-win \
           deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared deps-clap deps-lsp-win \
-          deps-libreoffice-win deps-herramientas-win deps-gstreamer-win deps-python-win deps-gst-python-win
+          deps-libreoffice-win deps-herramientas-win deps-gstreamer-win deps-python-win deps-gst-python-win \
+          deps-rostros deps-onnxruntime-win deps-sherpa-onnx-win
 
 # Plugins LSP (CLAP) para Windows: compilados desde fuente (tools/deps/lsp-win.sh).
 deps-lsp-win: deps-win-toolchain
@@ -992,6 +993,14 @@ ORT_URL := https://github.com/microsoft/onnxruntime/releases/download/v$(ORT_VER
 # rostros. Los modelos de voz NO: se bajan a pedido desde la app.
 deps-sherpa-onnx: deps-rostros
 	tools/deps/sherpa-onnx.sh
+
+# Windows: el ONNX Runtime oficial con DirectML (tools/deps/onnxruntime-win.sh)
+# y sherpa-onnx compilado con clang-cl contra él, cada uno en su carpeta.
+.PHONY: deps-onnxruntime-win deps-sherpa-onnx-win
+deps-onnxruntime-win:
+	tools/deps/onnxruntime-win.sh "$(DL_DIR)"
+deps-sherpa-onnx-win: deps-onnxruntime-win deps-win-toolchain
+	tools/deps/sherpa-onnx.sh win
 
 deps-rostros:
 	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }

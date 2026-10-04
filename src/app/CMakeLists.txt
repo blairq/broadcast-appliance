@@ -254,7 +254,11 @@ endif()
 # Va contra el ONNX Runtime de los rostros, asi que hace falta ese tambien. Sin
 # los dos, la app compila igual y la voz no aparece (BA_HAVE_VOZ). Los modelos
 # de voz no viajan: se bajan a pedido.
-set(BA_SHERPA_DIR "${CMAKE_SOURCE_DIR}/extern/sherpa-onnx")
+if(WIN32)
+    set(BA_SHERPA_DIR "${CMAKE_SOURCE_DIR}/extern/sherpa-onnx-win") # make deps-sherpa-onnx-win
+else()
+    set(BA_SHERPA_DIR "${CMAKE_SOURCE_DIR}/extern/sherpa-onnx")
+endif()
 set(BA_HAVE_VOZ OFF)
 # (y los racks de audio: Escucha, Habla y MonitorVoz viven en audio/, que sin
 # CLAP no se compila)
@@ -265,8 +269,7 @@ if(MSVC)
 else()
     set(_ba_sherpa_lib "${BA_SHERPA_DIR}/lib/libsherpa-onnx-core.a")
 endif()
-if(BA_HAVE_CLAP AND EXISTS "${BA_SHERPA_DIR}/.ok" AND EXISTS "${_ba_sherpa_lib}"
-   AND EXISTS "${CMAKE_SOURCE_DIR}/extern/rostros/onnxruntime/include/onnxruntime_cxx_api.h")
+if(BA_HAVE_CLAP AND EXISTS "${BA_SHERPA_DIR}/.ok" AND EXISTS "${_ba_sherpa_lib}" AND BA_HAVE_ORT)
     set(BA_HAVE_VOZ ON)
 else()
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/audio/(Escucha|Habla)\\.cpp$")

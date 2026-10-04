@@ -236,6 +236,7 @@ if(BA_WIN_STATIC_PART)
     return()
 endif()
 
+include(${CMAKE_SOURCE_DIR}/cmake/BaOnnxRuntime.cmake)
 include(${CMAKE_SOURCE_DIR}/cmake/BaLibObs.cmake)
 include(${CMAKE_SOURCE_DIR}/cmake/BaGStreamer.cmake)
 include(${CMAKE_SOURCE_DIR}/cmake/BaPython.cmake)

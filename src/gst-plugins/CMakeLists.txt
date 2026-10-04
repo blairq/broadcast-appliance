@@ -8,14 +8,8 @@
 #   superres/  basuperres (+ bafsr, baonnxsr, bavtsuperres): superresolución x2.
 # ============================================================================
 
-set(BA_ORT_DIR "${CMAKE_SOURCE_DIR}/extern/rostros/onnxruntime")
-if(WIN32)
-    set(_ba_ort "${BA_ORT_DIR}/lib/onnxruntime.lib")
-elseif(APPLE)
-    set(_ba_ort "${BA_ORT_DIR}/lib/libonnxruntime.dylib")
-else()
-    set(_ba_ort "${BA_ORT_DIR}/lib/libonnxruntime.so")
-endif()
+# El ONNX Runtime de esta plataforma (cmake/BaOnnxRuntime.cmake).
+set(_ba_ort "${BA_ORT_LIB}")
 
 set(_srs superres/plugin.cpp superres/fsr.cpp superres/onnxsr.cpp)
 if(APPLE)
