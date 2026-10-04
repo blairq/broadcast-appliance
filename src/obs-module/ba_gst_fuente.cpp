@@ -188,6 +188,12 @@ struct Fuente {
     // baja despacio), y lo que se agregó al colchón para absorberla.
     double retrasoV = 0, retrasoA = 0;
     std::int64_t compMs = 0;
+    double declaradoMs = 0;            ///< la latencia que declara la cadena (LATENCY: filtros incluidos)
+    std::uint64_t consultaNs = 0;      ///< cuándo se preguntó por última vez
+    // El canal de control (evento «ba/control»): lo último pedido, para volver a
+    // mandarlo si la cadena se rearma.
+    GstStructure* control = nullptr;
+    bool controlEnviado = false;
     std::string formato, colorimetria;
     int ancho = 0, alto = 0;
     bool entrelazado = false;
@@ -453,6 +459,73 @@ void enganchar(Fuente* f, GstElement* p, const char* nombre, GstFlowReturn (*cb)
     gst_object_unref(sink);
 }
 
+// --- Una sola compensación para todo el estudio ----------------------------------------
+// Cada entrada calcula cuánto le falta al colchón por sus filtros; todas usan la
+// MAYOR: las cámaras siguen alineadas entre sí (una con superresolución no queda
+// atrasada respecto de otra sin ella) y prender o apagar una red no mueve nada.
+std::mutex g_compLock;
+std::map<const Fuente*, std::int64_t> g_compPropia;
+
+std::int64_t compensacionEstudio(const Fuente* f, std::int64_t propia) {
+    std::lock_guard<std::mutex> l(g_compLock);
+    g_compPropia[f] = propia;
+    std::int64_t m = 0;
+    for (const auto& [x, v] : g_compPropia)
+        m = std::max(m, v);
+    return m;
+}
+
+void olvidarCompensacion(const Fuente* f) {
+    std::lock_guard<std::mutex> l(g_compLock);
+    g_compPropia.erase(f);
+}
+
+// --- El canal de control ------------------------------------------------------------
+// Un evento de GStreamer estándar: personalizado, hacia abajo y fuera de banda
+// (GST_EVENT_CUSTOM_DOWNSTREAM_OOB, no espera detrás de los cuadros), con una
+// GstStructure «ba/control». Entra por la cola del origen y recorre toda la
+// cadena: cada elemento que lo entiende lo usa (la superresolución: `superres`
+// = activo | reposo | barato, `transicion_ms`) y todos lo dejan pasar. Sirve
+// para cualquier efecto o evento futuro: se agregan campos.
+
+/// JSON plano -> GstStructure «ba/control» (texto, números, sí/no).
+GstStructure* estructuraDe(const char* json) {
+    obs_data_t* d = obs_data_create_from_json(json != nullptr ? json : "{}");
+    if (d == nullptr) return nullptr;
+    GstStructure* st = gst_structure_new_empty("ba/control");
+    for (obs_data_item_t* it = obs_data_first(d); it != nullptr; obs_data_item_next(&it)) {
+        const char* k = obs_data_item_get_name(it);
+        switch (obs_data_item_gettype(it)) {
+            case OBS_DATA_STRING: gst_structure_set(st, k, G_TYPE_STRING, obs_data_item_get_string(it), nullptr); break;
+            case OBS_DATA_BOOLEAN: gst_structure_set(st, k, G_TYPE_BOOLEAN, obs_data_item_get_bool(it), nullptr); break;
+            case OBS_DATA_NUMBER:
+                if (obs_data_item_numtype(it) == OBS_DATA_NUM_INT)
+                    gst_structure_set(st, k, G_TYPE_INT, static_cast<int>(obs_data_item_get_int(it)), nullptr);
+                else
+                    gst_structure_set(st, k, G_TYPE_DOUBLE, obs_data_item_get_double(it), nullptr);
+                break;
+            default: break;
+        }
+    }
+    obs_data_release(d);
+    return st;
+}
+
+/// Manda lo último pedido por la cadena (entra por la cola del origen).
+bool enviarControl(Fuente* f) {
+    if (f->pipeline == nullptr || f->control == nullptr) return false;
+    GstElement* q = gst_bin_get_by_name(GST_BIN(f->pipeline), "ba_origen");
+    if (q == nullptr) return false;
+    GstPad* pad = gst_element_get_static_pad(q, "sink");
+    bool ok = false;
+    if (pad != nullptr) {
+        ok = gst_pad_send_event(pad, gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB, gst_structure_copy(f->control)));
+        gst_object_unref(pad);
+    }
+    gst_object_unref(q);
+    return ok;
+}
+
 // --- Los filtros ---------------------------------------------------------------------
 
 /// Un valor de obs_data como texto para gst_util_set_object_arg.
@@ -600,6 +673,7 @@ std::string cadenaDe(const std::vector<Filtro>& v, const char* conv, const char*
 void armar(Fuente* f) {
     desarmar(f);
     f->avisosFiltros.clear();
+    f->controlEnviado = false; // la cadena nueva lo recibe apenas pasen cuadros
     f->error.clear();
     if (!ba::gst::listo()) {
         if (ba::gst::fallo()) {
@@ -1031,8 +1105,42 @@ void* crear(obs_data_t* settings, obs_source_t* ctx) {
                     obs_data_release(og);
                 }
             }
+            if (x->control != nullptr) {
+                gchar* c = gst_structure_to_string(x->control);
+                obs_data_set_string(o, "control", c);
+                g_free(c);
+            }
             calldata_set_string(cd, "info", obs_data_get_json(o));
             obs_data_release(o);
+        },
+        f);
+    // El canal de control: un JSON plano que se suma a lo último pedido y va por
+    // la cadena como evento «ba/control» (ver arriba). Se recuerda: si la cadena
+    // se rearma, lo vuelve a recibir.
+    proc_handler_add(
+        obs_source_get_proc_handler(ctx), "void control(in string json, out bool ok)",
+        [](void* d, calldata_t* cd) {
+            auto* x = static_cast<Fuente*>(d);
+            GstStructure* nuevo = estructuraDe(calldata_string(cd, "json"));
+            if (nuevo == nullptr) {
+                calldata_set_bool(cd, "ok", false);
+                return;
+            }
+            std::lock_guard<std::mutex> l(x->lock);
+            if (x->control == nullptr) {
+                x->control = nuevo;
+            } else {
+                gst_structure_foreach(
+                    nuevo,
+                    [](GQuark campo, const GValue* v, gpointer dst) -> gboolean {
+                        gst_structure_id_set_value(static_cast<GstStructure*>(dst), campo, v);
+                        return TRUE;
+                    },
+                    x->control);
+                gst_structure_free(nuevo);
+            }
+            x->controlEnviado = enviarControl(x);
+            calldata_set_bool(cd, "ok", true);
         },
         f);
     return f;
@@ -1040,9 +1148,11 @@ void* crear(obs_data_t* settings, obs_source_t* ctx) {
 
 void destruir(void* data) {
     auto* f = static_cast<Fuente*>(data);
+    olvidarCompensacion(f);
     {
         std::lock_guard<std::mutex> l(f->lock);
         desarmar(f);
+        if (f->control != nullptr) gst_structure_free(f->control);
     }
     delete f;
 }
@@ -1093,14 +1203,40 @@ void tic(void* data, float) {
             f->ntpMalDesde = 0;
         }
     }
-    // Los filtros demoran el video: si llega más tarde de lo que el colchón
-    // espera, el colchón crece lo que falta (para audio Y video: siguen juntos).
-    // Con margen y sin saltos chicos; si la demora baja, se achica.
-    if (!f->filtrosV.empty() || !f->filtrosA.empty() || !f->superresMotor.empty() || f->superres) {
+    // Los filtros demoran el video: el colchón crece lo que falta (para audio Y
+    // video: siguen juntos). Lo que falta sale de lo medido (lo viejo que llega
+    // cada cuadro) y, como piso, de la latencia que DECLARAN los elementos (una
+    // red en reposo llega rápido pero declara lo que tarda activa: prenderla no
+    // mueve el audio). Todas las entradas usan la mayor del estudio.
+    const bool hayFiltros = !f->filtrosV.empty() || !f->filtrosA.empty() || !f->superresMotor.empty() || f->superres;
+    const std::uint64_t ahoraNs = os_gettime_ns();
+    if (hayFiltros && ahoraNs - f->consultaNs > 1'000'000'000ULL) {
+        f->consultaNs = ahoraNs;
+        if (GstElement* sink = gst_bin_get_by_name(GST_BIN(f->pipeline), "ba_video")) {
+            if (GstPad* pad = gst_element_get_static_pad(sink, "sink")) {
+                GstQuery* q = gst_query_new_latency();
+                if (gst_pad_peer_query(pad, q)) {
+                    gboolean vivo = FALSE;
+                    GstClockTime min = 0, max = 0;
+                    gst_query_parse_latency(q, &vivo, &min, &max);
+                    f->declaradoMs = GST_CLOCK_TIME_IS_VALID(min) ? static_cast<double>(min) / 1e6 : 0;
+                }
+                gst_query_unref(q);
+                gst_object_unref(pad);
+            }
+            gst_object_unref(sink);
+        }
+    }
+    {
         std::lock_guard<std::mutex> lc(f->colaLock);
-        const double llega = std::max(f->retrasoV, f->retrasoA);
-        const std::int64_t deseado = std::clamp<std::int64_t>(
-            static_cast<std::int64_t>(std::lround(llega + 15.0)) - f->latenciaMs - f->desfaseMs, 0, 3000);
+        std::int64_t propia = 0;
+        if (hayFiltros) {
+            const double llega = std::max({f->retrasoV, f->retrasoA, f->declaradoMs});
+            propia = std::clamp<std::int64_t>(static_cast<std::int64_t>(std::lround(llega + 15.0)) - f->latenciaMs -
+                                                  f->desfaseMs,
+                                              0, 3000);
+        }
+        const std::int64_t deseado = compensacionEstudio(f, f->recibidos > 15 ? propia : 0);
         if (f->recibidos > 15 && std::llabs(deseado - f->compMs) >= 8) {
             const std::int64_t corr = (deseado - f->compMs) * static_cast<std::int64_t>(GST_MSECOND);
             for (auto* q : {&f->video, &f->audio})
@@ -1109,10 +1245,9 @@ void tic(void* data, float) {
                         std::max<std::int64_t>(0, static_cast<std::int64_t>(pe.vence) + corr));
             f->compMs = deseado;
         }
-    } else if (f->compMs != 0) {
-        std::lock_guard<std::mutex> lc(f->colaLock);
-        f->compMs = 0;
     }
+    // El control pendiente, apenas la cadena (nueva) pasa cuadros.
+    if (!f->controlEnviado && f->control != nullptr && f->recibidos > 0) f->controlEnviado = enviarControl(f);
     // El colchón: el último cuadro vencido se muestra; los vencidos de antes
     // se saltean (llegaron juntos, o la máquina se atrasó).
     GstSample* video = nullptr;

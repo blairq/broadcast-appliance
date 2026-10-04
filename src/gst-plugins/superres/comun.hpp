@@ -30,6 +30,7 @@
 #include <array>
 #include <cmath>
 #include <mutex>
+#include <string>
 
 namespace ba::sr {
 
@@ -216,6 +217,78 @@ inline void quizasAvisarLatencia(GstBaseTransform* bt, Demora& d) {
     if ((a > b * 1.25 && a - b > 2.0 * GST_MSECOND) || (a < b * 0.5 && b - a > 2.0 * GST_MSECOND)) {
         d.informada = ahora;
         gst_element_post_message(GST_ELEMENT(bt), gst_message_new_latency(GST_OBJECT(bt)));
+    }
+}
+
+// --- Modos de una red: activo, reposo, barato -----------------------------------------
+// Para tener cargadas (y calientes) las redes de todas las cámaras sin gastar el
+// acelerador en las que no se ven: la app (el programador) las prende al pasar a
+// preview. En todos los modos la salida es x2 (el tamaño nunca cambia: nada se
+// renegocia ni salta en la escena) y nunca hay un cuadro en negro:
+//   activo  la red
+//   reposo  agrandado común en la GPU (décimos de ms); la red queda cargada y
+//           una pasada de mantenimiento cada tanto la tiene caliente
+//   barato  como reposo, más un afilado (para lo que se ve pero no tiene turno)
+// Al cambiar, mezcla gradual entre el agrandado común y la red en
+// `transicion-ms` (de fábrica 400 ms): la mejora entra sin saltos.
+// Se cambia con la propiedad `modo` o con el evento estándar del canal de control
+// de la entrada (GST_EVENT_CUSTOM_DOWNSTREAM_OOB «ba/control», campos `superres`
+// y `transicion_ms`), que todos los elementos dejan pasar.
+
+enum ModoSr { kActivo = 0, kReposo = 1, kBarato = 2 };
+
+inline GType tipoModoSr() {
+    static GType t = 0;
+    if (g_once_init_enter(&t)) {
+        static const GEnumValue v[] = {{kActivo, "La red", "activo"},
+                                       {kReposo, "Cargada y caliente; sale el agrandado común", "reposo"},
+                                       {kBarato, "Cargada; sale el agrandado común afilado", "barato"},
+                                       {0, nullptr, nullptr}};
+        g_once_init_leave(&t, g_enum_register_static("BaSuperResModo", v));
+    }
+    return t;
+}
+
+/// Lee un evento del canal de control. true si era «ba/control» y traía `superres`.
+inline bool leerControlSr(GstEvent* ev, int& modo, int& transicionMs) {
+    if (GST_EVENT_TYPE(ev) != GST_EVENT_CUSTOM_DOWNSTREAM_OOB && GST_EVENT_TYPE(ev) != GST_EVENT_CUSTOM_DOWNSTREAM)
+        return false;
+    const GstStructure* st = gst_event_get_structure(ev);
+    if (st == nullptr || !gst_structure_has_name(st, "ba/control")) return false;
+    gint t = 0;
+    if (gst_structure_get_int(st, "transicion_ms", &t)) transicionMs = std::clamp(t, 0, 10000);
+    const gchar* m = gst_structure_get_string(st, "superres");
+    if (m == nullptr) return false;
+    const std::string x = m;
+    modo = x == "reposo" ? kReposo : x == "barato" ? kBarato : kActivo;
+    return true;
+}
+
+/// La mezcla gradual (solo el hilo de streaming): 0 = agrandado común, 1 = la red.
+struct Mezcla {
+    double valor = 1.0;
+    /// Avanza un cuadro hacia lo que pide el modo y devuelve el valor para ese cuadro.
+    double avanzar(int modo, int transicionMs, double fps) {
+        const double objetivo = modo == kActivo ? 1.0 : 0.0;
+        const double cuadros = std::max(1.0, fps * transicionMs / 1000.0);
+        const double paso = 1.0 / cuadros;
+        if (valor < objetivo)
+            valor = std::min(objetivo, valor + paso);
+        else if (valor > objetivo)
+            valor = std::max(objetivo, valor - paso);
+        return valor;
+    }
+};
+
+/// dst = dst*(1-k) + src*k, byte a byte (cualquier formato de 8 bits por canal).
+inline void mezclarPlano(guint8* dst, int pasoDst, const guint8* src, int pasoSrc, int anchoBytes, int alto,
+                         double k) {
+    const int kk = static_cast<int>(std::lround(std::clamp(k, 0.0, 1.0) * 256.0));
+    for (int y = 0; y < alto; ++y) {
+        guint8* d = dst + static_cast<size_t>(y) * pasoDst;
+        const guint8* s = src + static_cast<size_t>(y) * pasoSrc;
+        for (int x = 0; x < anchoBytes; ++x)
+            d[x] = static_cast<guint8>((d[x] * (256 - kk) + s[x] * kk) >> 8);
     }
 }
 

@@ -428,6 +428,11 @@ struct _BaOnnxSr {
     Obrero* obrero;
     std::deque<Trabajo*>* pendientes;
     gboolean entradaCuda; ///< la entrada es memory:CUDAMemory
+    // Modos (ver comun.hpp): lo pide la propiedad o el canal de control.
+    std::atomic<int>* modo;
+    std::atomic<int>* transicionMs;
+    ba::sr::Mezcla mezcla; ///< solo el hilo de streaming
+    guint64 cuadros;
 #if defined(BA_HAVE_GST_CUDA)
     GstCudaContext* cuda;
 #endif
@@ -452,7 +457,10 @@ enum {
     PROP_ERROR,
     PROP_PROVEEDOR_USADO,
     PROP_PROVEEDORES,
-    PROP_BIBLIOTECA
+    PROP_BIBLIOTECA,
+    PROP_MODO,
+    PROP_TRANSICION,
+    PROP_MEZCLA
 };
 
 #if defined(BA_HAVE_GST_CUDA)
@@ -695,11 +703,22 @@ static void agrandarSimple(GstVideoFrame* fi, GstVideoFrame* fo) {
     const int pY = GST_VIDEO_FRAME_PLANE_STRIDE(fi, 0);
     auto* oY = static_cast<guint8*>(GST_VIDEO_FRAME_PLANE_DATA(fo, 0));
     const int poY = GST_VIDEO_FRAME_PLANE_STRIDE(fo, 0);
+    // La luma bilineal (como el color): sin escalones.
     for (int y = 0; y < h * 2; ++y) {
-        const guint8* fila = Y + (y / 2) * pY;
+        const float sy = std::max(0.0f, (y + 0.5f) / 2.0f - 0.5f);
+        const int y0 = std::min(static_cast<int>(sy), h - 1), y1 = std::min(y0 + 1, h - 1);
+        const int fy = static_cast<int>((sy - static_cast<float>(y0)) * 256.0f);
+        const guint8* r0 = Y + static_cast<size_t>(y0) * pY;
+        const guint8* r1 = Y + static_cast<size_t>(y1) * pY;
         guint8* o = oY + static_cast<size_t>(y) * poY;
-        for (int x = 0; x < w * 2; ++x)
-            o[x] = fila[x / 2];
+        for (int x = 0; x < w * 2; ++x) {
+            const int x0 = x == 0 ? 0 : std::min((x - 1) / 2, w - 1);
+            const int x1 = std::min(x0 + ((x & 1) == 0 ? 1 : 1), w - 1);
+            const int fx = x == 0 ? 0 : ((x & 1) != 0 ? 64 : 192); // 1/4 y 3/4 entre muestras
+            const int a = r0[x0] * (256 - fx) + r0[x1] * fx;
+            const int b = r1[x0] * (256 - fx) + r1[x1] * fx;
+            o[x] = static_cast<guint8>((a * (256 - fy) + b * fy + (1 << 15)) >> 16);
+        }
     }
     colorX2(static_cast<const guint8*>(GST_VIDEO_FRAME_PLANE_DATA(fi, 1)), GST_VIDEO_FRAME_PLANE_STRIDE(fi, 1),
             w / 2, h / 2, static_cast<guint8*>(GST_VIDEO_FRAME_PLANE_DATA(fo, 1)), GST_VIDEO_FRAME_PLANE_STRIDE(fo, 1));
@@ -894,53 +913,105 @@ static bool correrEnPlaca(BaOnnxSr* s, Red* r, GstBuffer* inbuf, GstVideoFrame* 
 }
 #endif
 
-/// Un cuadro (en el hilo de la red): false si no se pudo usar la red.
-static bool procesar(BaOnnxSr* s, GstBuffer* inbuf, GstBuffer* outbuf) {
-#if defined(BA_HAVE_GST_CUDA) && defined(BA_HAVE_ORT)
-    if (s->entradaCuda && s->red != nullptr && s->red->enPlaca()) {
-        GstVideoFrame fo;
-        if (!gst_video_frame_map(&fo, &s->out, outbuf, GST_MAP_WRITE)) return false;
-        const gint64 t0 = g_get_monotonic_time();
-        bool ok = false;
-        try {
-            ok = correrEnPlaca(s, s->red, inbuf, &fo);
-        } catch (const std::exception& e) {
-            ponerError(s, std::string("la red en la placa falló: ") + e.what());
+/// Afilado del agrandado común (modo barato): la luma, 3x3 en cruz.
+static void afilarLuma(GstVideoFrame* f) {
+    auto* Y = static_cast<guint8*>(GST_VIDEO_FRAME_PLANE_DATA(f, 0));
+    const int p = GST_VIDEO_FRAME_PLANE_STRIDE(f, 0), w = GST_VIDEO_FRAME_WIDTH(f), h = GST_VIDEO_FRAME_HEIGHT(f);
+    std::vector<guint8> arriba(static_cast<size_t>(w)), actual(static_cast<size_t>(w));
+    std::memcpy(arriba.data(), Y, static_cast<size_t>(w));
+    for (int y = 0; y < h; ++y) {
+        guint8* fila = Y + static_cast<size_t>(y) * p;
+        std::memcpy(actual.data(), fila, static_cast<size_t>(w));
+        const guint8* abajo = Y + static_cast<size_t>(std::min(y + 1, h - 1)) * p;
+        for (int x = 0; x < w; ++x) {
+            const int c = actual[x];
+            const int cruz = arriba[x] + abajo[x] + actual[std::max(x - 1, 0)] + actual[std::min(x + 1, w - 1)];
+            fila[x] = sat(static_cast<float>(c) + 0.25f * (4 * c - cruz));
         }
-        gst_video_frame_unmap(&fo);
-        if (ok) {
-            s->demora->anotar(static_cast<double>(g_get_monotonic_time() - t0) / 1000.0);
-            return true;
-        }
-        // Si falló, sigue por el camino de la CPU (el mapeo baja el cuadro).
+        std::swap(arriba, actual);
     }
-#endif
-    GstVideoFrame fi, fo;
-    if (!gst_video_frame_map(&fi, &s->in, inbuf, GST_MAP_READ)) return false;
-    if (!gst_video_frame_map(&fo, &s->out, outbuf, GST_MAP_WRITE)) {
-        gst_video_frame_unmap(&fi);
-        return false;
-    }
-    bool hecho = false;
+}
+
+/// La red sobre `inbuf`, con el resultado en `fo` (CUDA si la entrada está en la
+/// placa y la red también; si no, en la CPU). true si anduvo.
+static bool correrRedEn(BaOnnxSr* s, GstBuffer* inbuf, GstVideoFrame* fi, GstVideoFrame* fo) {
 #if defined(BA_HAVE_ORT)
-    if (Red* r = s->red) {
-        const gint64 t0 = g_get_monotonic_time();
-        try {
+    Red* r = s->red;
+    if (r == nullptr) return false;
+    const gint64 t0 = g_get_monotonic_time();
+    try {
+        bool ok = false;
+#if defined(BA_HAVE_GST_CUDA)
+        if (s->entradaCuda && r->enPlaca()) ok = correrEnPlaca(s, r, inbuf, fo);
+#endif
+        if (!ok && fi != nullptr) {
             if (r->nv12)
-                correrNv12(r, &fi, &fo);
+                correrNv12(r, fi, fo);
             else
-                correrFloat(r, &fi, &fo);
-            hecho = true;
-            s->demora->anotar(static_cast<double>(g_get_monotonic_time() - t0) / 1000.0);
-        } catch (const std::exception& e) {
-            ponerError(s, std::string("la red falló: ") + e.what());
+                correrFloat(r, fi, fo);
+            ok = true;
+        }
+        if (ok) s->demora->anotar(static_cast<double>(g_get_monotonic_time() - t0) / 1000.0);
+        return ok;
+    } catch (const std::exception& e) {
+        ponerError(s, std::string("la red falló: ") + e.what());
+    }
+#else
+    (void)s;
+    (void)inbuf;
+    (void)fi;
+    (void)fo;
+#endif
+    return false;
+}
+
+/// Un cuadro (en el hilo de la red), con su modo. false si no se usó la red.
+static bool procesar(BaOnnxSr* s, GstBuffer* inbuf, GstBuffer* outbuf, double mezcla, bool barato, bool mantener) {
+    GstVideoFrame fi, fo;
+    if (!gst_video_frame_map(&fo, &s->out, outbuf, GST_MAP_WRITE)) return false;
+    bool usoRed = false;
+    // Activo del todo con la red y el cuadro en la placa (CUDA): sin mapear la
+    // entrada en la CPU (eso la bajaría).
+#if defined(BA_HAVE_ORT)
+    if (mezcla >= 1.0 && s->entradaCuda && s->red != nullptr && s->red->enPlaca())
+        usoRed = correrRedEn(s, inbuf, nullptr, &fo);
+#endif
+    if (usoRed) {
+        gst_video_frame_unmap(&fo);
+        return true;
+    }
+    // La entrada en la CPU (si está en la placa, el mapeo la baja): para el
+    // agrandado común o si la red corre en la CPU.
+    const bool hayFi = gst_video_frame_map(&fi, &s->in, inbuf, GST_MAP_READ);
+    // Activo del todo: la red directo a la salida.
+    if (mezcla >= 1.0) usoRed = correrRedEn(s, inbuf, hayFi ? &fi : nullptr, &fo);
+    if (!usoRed && hayFi) {
+        // Lo de base (nunca negro): el agrandado común; afilado en modo barato.
+        agrandarSimple(&fi, &fo);
+        if (barato && mezcla <= 0.0) afilarLuma(&fo);
+        // La transición (mezcla con la red) o la pasada de mantenimiento.
+        if (mezcla > 0.0 || mantener) {
+            GstBuffer* tmp = gst_buffer_new_allocate(nullptr, GST_VIDEO_INFO_SIZE(&s->out), nullptr);
+            GstVideoFrame ft;
+            if (tmp != nullptr && gst_video_frame_map(&ft, &s->out, tmp, GST_MAP_READWRITE)) {
+                if (correrRedEn(s, inbuf, &fi, &ft) && mezcla > 0.0) {
+                    for (int pl = 0; pl < 2; ++pl)
+                        ba::sr::mezclarPlano(static_cast<guint8*>(GST_VIDEO_FRAME_PLANE_DATA(&fo, pl)),
+                                             GST_VIDEO_FRAME_PLANE_STRIDE(&fo, pl),
+                                             static_cast<const guint8*>(GST_VIDEO_FRAME_PLANE_DATA(&ft, pl)),
+                                             GST_VIDEO_FRAME_PLANE_STRIDE(&ft, pl), GST_VIDEO_FRAME_WIDTH(&fo),
+                                             pl == 0 ? GST_VIDEO_FRAME_HEIGHT(&fo) : GST_VIDEO_FRAME_HEIGHT(&fo) / 2,
+                                             mezcla);
+                    usoRed = true;
+                }
+                gst_video_frame_unmap(&ft);
+            }
+            if (tmp != nullptr) gst_buffer_unref(tmp);
         }
     }
-#endif
-    if (!hecho) agrandarSimple(&fi, &fo);
+    if (hayFi) gst_video_frame_unmap(&fi);
     gst_video_frame_unmap(&fo);
-    gst_video_frame_unmap(&fi);
-    return hecho;
+    return usoRed;
 }
 
 /// ¿Terminó de prepararse la red? Si no hay, empieza a prepararla.
@@ -1001,7 +1072,16 @@ static GstFlowReturn generar(GstBaseTransform* bt, GstBuffer** outbuf) {
         auto* t = new Trabajo();
         t->entrada = in;
         t->salida = out;
-        t->listo = s->obrero->enviar([s, in, out] { return procesar(s, in, out); });
+        // El modo de este cuadro: la mezcla avanza un paso hacia lo pedido.
+        const int modo = s->modo->load();
+        const double fps = GST_VIDEO_INFO_FPS_D(&s->in) > 0 && GST_VIDEO_INFO_FPS_N(&s->in) > 0
+                               ? static_cast<double>(GST_VIDEO_INFO_FPS_N(&s->in)) / GST_VIDEO_INFO_FPS_D(&s->in)
+                               : 30.0;
+        const double mezcla = s->mezcla.avanzar(modo, s->transicionMs->load(), fps);
+        const bool barato = modo == ba::sr::kBarato;
+        const bool mantener = mezcla <= 0.0 && (++s->cuadros % 150) == 0; // la red caliente
+        t->listo = s->obrero->enviar(
+            [s, in, out, mezcla, barato, mantener] { return procesar(s, in, out, mezcla, barato, mantener); });
         s->pendientes->push_back(t);
     }
     while (!s->pendientes->empty()) {
@@ -1019,7 +1099,7 @@ static GstFlowReturn transformar(GstBaseTransform* bt, GstBuffer* inbuf, GstBuff
     // Solo sin red en marcha (generar manda todo al hilo de la red).
     auto* s = BA_ONNXSR(bt);
     if (s->procesa) {
-        procesar(s, inbuf, outbuf);
+        procesar(s, inbuf, outbuf, 1.0, false, false);
     } else if (s->entradaCuda) {
         // Mismo tamaño (apagado): de la placa a la memoria de sistema, tal cual.
         GstVideoFrame fi, fo;
@@ -1067,6 +1147,8 @@ static void ponerPropiedad(GObject* o, guint id, const GValue* v, GParamSpec* ps
             g_free(s->cache);
             s->cache = g_value_dup_string(v);
             break;
+        case PROP_MODO: s->modo->store(g_value_get_enum(v)); break;
+        case PROP_TRANSICION: s->transicionMs->store(g_value_get_int(v)); break;
         default: G_OBJECT_WARN_INVALID_PROPERTY_ID(o, id, ps);
     }
 }
@@ -1079,6 +1161,9 @@ static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
         case PROP_DISPOSITIVO: g_value_set_int(v, s->dispositivo); break;
         case PROP_FP16: g_value_set_boolean(v, s->fp16); break;
         case PROP_CACHE: g_value_set_string(v, s->cache); break;
+        case PROP_MODO: g_value_set_enum(v, s->modo->load()); break;
+        case PROP_TRANSICION: g_value_set_int(v, s->transicionMs->load()); break;
+        case PROP_MEZCLA: g_value_set_double(v, s->mezcla.valor); break;
         case PROP_MS: g_value_set_double(v, s->demora->media()); break;
         case PROP_ACTIVO: g_value_set_boolean(v, s->activo); break;
         case PROP_ERROR: {
@@ -1140,6 +1225,13 @@ static void ponerContexto(GstElement* e, GstContext* c) {
 
 static gboolean eventoEntrada(GstBaseTransform* bt, GstEvent* ev) {
     auto* s = BA_ONNXSR(bt);
+    // El canal de control de la entrada: el modo (y lo deja pasar).
+    int modo = s->modo->load(), tr = s->transicionMs->load();
+    if (ba::sr::leerControlSr(ev, modo, tr)) {
+        s->modo->store(modo);
+        s->transicionMs->store(tr);
+        GST_INFO_OBJECT(s, "control: modo %d, transición %d ms", modo, tr);
+    }
     if (GST_EVENT_TYPE(ev) == GST_EVENT_FLUSH_STOP || GST_EVENT_TYPE(ev) == GST_EVENT_STREAM_START) {
         descartar(s);
         s->demora->reiniciar();
@@ -1156,6 +1248,8 @@ static void ba_onnxsr_finalize(GObject* o) {
     soltarRed(s);
     delete s->obrero;
     delete s->pendientes;
+    delete s->modo;
+    delete s->transicionMs;
 #if defined(BA_HAVE_ORT)
     delete s->lista;
 #endif
@@ -1212,6 +1306,20 @@ static void ba_onnxsr_class_init(BaOnnxSrClass* k) {
     g_object_class_install_property(
         go, PROP_PROVEEDORES,
         g_param_spec_string("proveedores", "Proveedores", "Los que trae este ONNX Runtime", nullptr, ro));
+    g_object_class_install_property(go, PROP_MODO,
+                                    g_param_spec_enum("modo", "Modo",
+                                                      "activo (la red), reposo (cargada; agrandado común) o barato "
+                                                      "(cargada; agrandado común afilado). También por el canal de "
+                                                      "control (evento ba/control, campo superres)",
+                                                      ba::sr::tipoModoSr(), ba::sr::kActivo, rw));
+    g_object_class_install_property(go, PROP_TRANSICION,
+                                    g_param_spec_int("transicion-ms", "Transición",
+                                                     "Cuánto tarda en entrar o salir la red (mezcla gradual)", 0,
+                                                     10000, 400, rw));
+    g_object_class_install_property(go, PROP_MEZCLA,
+                                    g_param_spec_double("mezcla", "Mezcla",
+                                                        "Cuánto de la red sale ahora (0 agrandado común, 1 la red)",
+                                                        0, 1, 1, ro));
     g_object_class_install_property(
         go, PROP_BIBLIOTECA,
         g_param_spec_string("biblioteca", "Biblioteca", "Qué ONNX Runtime se usa (programa o BA_ORT_GPU)", nullptr,
@@ -1260,6 +1368,10 @@ static void ba_onnxsr_init(BaOnnxSr* s) {
 #if defined(BA_HAVE_GST_CUDA)
     s->cuda = nullptr;
 #endif
+    s->modo = new std::atomic<int>(ba::sr::kActivo);
+    s->transicionMs = new std::atomic<int>(400);
+    s->mezcla = ba::sr::Mezcla{};
+    s->cuadros = 0;
     s->activo = TRUE;
     s->demora = new ba::sr::Demora();
     gst_base_transform_set_qos_enabled(GST_BASE_TRANSFORM(s), TRUE);

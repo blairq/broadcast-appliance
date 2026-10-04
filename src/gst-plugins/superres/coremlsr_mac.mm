@@ -94,6 +94,11 @@ struct _BaCoreMlSr {
     void* cola;                      ///< dispatch_queue_t (retenida) donde corre la red
     std::deque<struct Trabajo*>* pendientes;
     ba::sr::Demora* demora;
+    // Modos (ver comun.hpp): lo pide la propiedad o el canal de control.
+    std::atomic<int>* modo;
+    std::atomic<int>* transicionMs;
+    ba::sr::Mezcla mezcla; ///< solo el hilo de streaming
+    guint64 cuadros;
 };
 
 /// Un cuadro en vuelo.
@@ -102,6 +107,9 @@ struct Trabajo {
     CVPixelBufferRef salida = nullptr;
     dispatch_semaphore_t listo = nullptr;
     bool ok = false;
+    double mezcla = 1.0;   ///< 0 agrandado común, 1 la red, en el medio: transición
+    bool barato = false;   ///< afilar el agrandado común
+    bool mantener = false; ///< pasada de mantenimiento (la red caliente; el resultado no se usa)
 };
 
 G_DEFINE_TYPE(BaCoreMlSr, ba_coremlsr, GST_TYPE_BASE_TRANSFORM)
@@ -109,7 +117,20 @@ G_DEFINE_TYPE(BaCoreMlSr, ba_coremlsr, GST_TYPE_BASE_TRANSFORM)
 GST_DEBUG_CATEGORY_STATIC(ba_coremlsr_debug);
 #define GST_CAT_DEFAULT ba_coremlsr_debug
 
-enum { PROP_0, PROP_MODELO, PROP_ESCALA, PROP_ACTIVO, PROP_MS, PROP_ERROR, PROP_SIN_COPIAS, PROP_UNIDADES, PROP_UNIDADES_USADAS };
+enum {
+    PROP_0,
+    PROP_MODELO,
+    PROP_ESCALA,
+    PROP_ACTIVO,
+    PROP_MS,
+    PROP_ERROR,
+    PROP_SIN_COPIAS,
+    PROP_UNIDADES,
+    PROP_UNIDADES_USADAS,
+    PROP_MODO,
+    PROP_TRANSICION,
+    PROP_MEZCLA
+};
 
 static const char* kUnidades[] = {"auto", "todas", "ane", "gpu", "cpu"};
 static GType tipoUnidades() {
@@ -369,35 +390,93 @@ static bool predecir(BaCoreMlSr* s, CVPixelBufferRef entrada, CVPixelBufferRef s
 }
 
 /// Procesa un cuadro (en la cola de la red): `t->salida` queda con el resultado.
+/// La entrada al tamaño de la red, como CVPixelBuffer (retenido) o nullptr.
+static CVPixelBufferRef entradaDeRed(BaCoreMlSr* s, CVPixelBufferRef pb) {
+    const bool directo = CVPixelBufferGetPixelFormatType(pb) == kCVPixelFormatType_32BGRA &&
+                         static_cast<int>(CVPixelBufferGetWidth(pb)) == s->redW &&
+                         static_cast<int>(CVPixelBufferGetHeight(pb)) == s->redH && CVPixelBufferGetIOSurface(pb) != nullptr;
+    if (directo) return CVPixelBufferRetain(pb);
+    CVPixelBufferRef red = nullptr;
+    if (CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, s->poolRed, &red) != kCVReturnSuccess) return nullptr;
+    if (VTPixelTransferSessionTransferImage(s->transfer, pb, red) != noErr) {
+        CVPixelBufferRelease(red);
+        return nullptr;
+    }
+    return red;
+}
+
+/// La red sobre la entrada, con el resultado en `destino`. true si anduvo.
+static bool correrRed(BaCoreMlSr* s, CVPixelBufferRef pb, CVPixelBufferRef destino) {
+    if (s->red == nullptr || !s->tamanoOk) return false;
+    const gint64 t0 = g_get_monotonic_time();
+    CVPixelBufferRef red = entradaDeRed(s, pb);
+    if (red == nullptr) return false;
+    const bool ok = predecir(s, red, destino);
+    CVPixelBufferRelease(red);
+    if (ok) s->demora->anotar(static_cast<double>(g_get_monotonic_time() - t0) / 1000.0);
+    return ok;
+}
+
+/// Afilado del agrandado común (modo barato): 3x3 con la Aceleración de la CPU (~1 ms).
+static void afilar(CVPixelBufferRef src, CVPixelBufferRef dst) {
+    CVPixelBufferLockBaseAddress(src, kCVPixelBufferLock_ReadOnly);
+    CVPixelBufferLockBaseAddress(dst, 0);
+    vImage_Buffer a{CVPixelBufferGetBaseAddress(src), CVPixelBufferGetHeight(src), CVPixelBufferGetWidth(src),
+                    CVPixelBufferGetBytesPerRow(src)};
+    vImage_Buffer b{CVPixelBufferGetBaseAddress(dst), CVPixelBufferGetHeight(dst), CVPixelBufferGetWidth(dst),
+                    CVPixelBufferGetBytesPerRow(dst)};
+    static const int16_t k[9] = {0, -1, 0, -1, 8, -1, 0, -1, 0}; // /4: centro 2, cruz -0,25
+    vImageConvolve_ARGB8888(&a, &b, nullptr, 0, 0, k, 3, 3, 4, nullptr, kvImageEdgeExtend);
+    CVPixelBufferUnlockBaseAddress(dst, 0);
+    CVPixelBufferUnlockBaseAddress(src, kCVPixelBufferLock_ReadOnly);
+}
+
+/// destino = destino*(1-k) + red*k (en la transición).
+static void mezclar(CVPixelBufferRef destino, CVPixelBufferRef red, double k) {
+    CVPixelBufferLockBaseAddress(red, kCVPixelBufferLock_ReadOnly);
+    CVPixelBufferLockBaseAddress(destino, 0);
+    ba::sr::mezclarPlano(static_cast<guint8*>(CVPixelBufferGetBaseAddress(destino)),
+                         static_cast<int>(CVPixelBufferGetBytesPerRow(destino)),
+                         static_cast<const guint8*>(CVPixelBufferGetBaseAddress(red)),
+                         static_cast<int>(CVPixelBufferGetBytesPerRow(red)),
+                         static_cast<int>(CVPixelBufferGetWidth(destino)) * 4,
+                         static_cast<int>(CVPixelBufferGetHeight(destino)), k);
+    CVPixelBufferUnlockBaseAddress(destino, 0);
+    CVPixelBufferUnlockBaseAddress(red, kCVPixelBufferLock_ReadOnly);
+}
+
 static void procesar(BaCoreMlSr* s, Trabajo* t) {
     Entrada e;
     if (!entradaDe(s, t->entrada, e)) {
         soltarEntrada(e);
         return;
     }
-    const gint64 t0 = g_get_monotonic_time();
-    bool hecho = false;
-    if (s->red != nullptr && s->tamanoOk) {
-        CVPixelBufferRef red = nullptr;
-        const bool directo = CVPixelBufferGetPixelFormatType(e.pb) == kCVPixelFormatType_32BGRA &&
-                             static_cast<int>(CVPixelBufferGetWidth(e.pb)) == s->redW &&
-                             static_cast<int>(CVPixelBufferGetHeight(e.pb)) == s->redH &&
-                             CVPixelBufferGetIOSurface(e.pb) != nullptr;
-        if (directo) {
-            red = CVPixelBufferRetain(e.pb);
-        } else if (CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, s->poolRed, &red) == kCVReturnSuccess &&
-                   VTPixelTransferSessionTransferImage(s->transfer, e.pb, red) != noErr) {
-            CVPixelBufferRelease(red);
-            red = nullptr;
-        }
-        if (red != nullptr) {
-            hecho = predecir(s, red, t->salida);
-            CVPixelBufferRelease(red);
-        }
-        if (hecho) s->demora->anotar(static_cast<double>(g_get_monotonic_time() - t0) / 1000.0);
+    // Activo del todo: la red directo a la salida.
+    if (t->mezcla >= 1.0 && correrRed(s, e.pb, t->salida)) {
+        t->ok = true;
+        soltarEntrada(e);
+        return;
     }
-    // Sin la red (cargando, tamaño que no es del modelo): agrandado común en la GPU.
-    t->ok = hecho || VTPixelTransferSessionTransferImage(s->transfer, e.pb, t->salida) == noErr;
+    // Lo de base (siempre sale algo: nunca negro): el agrandado común en la GPU,
+    // afilado en modo barato.
+    if (t->barato && t->mezcla <= 0.0) {
+        CVPixelBufferRef tmp = nullptr;
+        if (CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, s->poolSalida, &tmp) == kCVReturnSuccess &&
+            VTPixelTransferSessionTransferImage(s->transfer, e.pb, tmp) == noErr) {
+            afilar(tmp, t->salida);
+            t->ok = true;
+        }
+        if (tmp != nullptr) CVPixelBufferRelease(tmp);
+    }
+    if (!t->ok) t->ok = VTPixelTransferSessionTransferImage(s->transfer, e.pb, t->salida) == noErr;
+    // La transición (la red mezclada) o la pasada de mantenimiento (la red caliente).
+    if (t->ok && (t->mezcla > 0.0 || t->mantener)) {
+        CVPixelBufferRef red = nullptr;
+        if (CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, s->poolSalida, &red) == kCVReturnSuccess &&
+            correrRed(s, e.pb, red) && t->mezcla > 0.0)
+            mezclar(t->salida, red, t->mezcla);
+        if (red != nullptr) CVPixelBufferRelease(red);
+    }
     soltarEntrada(e);
 }
 
@@ -452,6 +531,15 @@ static GstFlowReturn generar(GstBaseTransform* bt, GstBuffer** outbuf) {
         quizasTomarRed(s);
         auto* t = new Trabajo();
         t->entrada = in;
+        // El modo de este cuadro: la mezcla avanza un paso hacia lo pedido.
+        const int modo = s->modo->load();
+        const double fps = GST_VIDEO_INFO_FPS_D(&s->in) > 0 && GST_VIDEO_INFO_FPS_N(&s->in) > 0
+                               ? static_cast<double>(GST_VIDEO_INFO_FPS_N(&s->in)) / GST_VIDEO_INFO_FPS_D(&s->in)
+                               : 30.0;
+        t->mezcla = s->mezcla.avanzar(modo, s->transicionMs->load(), fps);
+        t->barato = modo == ba::sr::kBarato;
+        // En reposo, una pasada de la red cada ~5 s: queda caliente y su demora medida.
+        t->mantener = t->mezcla <= 0.0 && (++s->cuadros % 150) == 0;
         CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, s->poolSalida, &t->salida);
         t->listo = dispatch_semaphore_create(0);
         if (t->salida == nullptr) {
@@ -525,6 +613,8 @@ static void ponerPropiedad(GObject* o, guint id, const GValue* v, GParamSpec* ps
             s->unidades = std::clamp(g_value_get_enum(v), 0, 4);
             soltarRed(s); // se vuelve a cargar con las unidades nuevas
             break;
+        case PROP_MODO: s->modo->store(g_value_get_enum(v)); break;
+        case PROP_TRANSICION: s->transicionMs->store(g_value_get_int(v)); break;
         case PROP_ACTIVO:
             s->activo = g_value_get_boolean(v);
             gst_base_transform_reconfigure_src(GST_BASE_TRANSFORM(s));
@@ -540,6 +630,9 @@ static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
         case PROP_ESCALA: g_value_set_int(v, s->escala); break;
         case PROP_ACTIVO: g_value_set_boolean(v, s->activo); break;
         case PROP_UNIDADES: g_value_set_enum(v, s->unidades); break;
+        case PROP_MODO: g_value_set_enum(v, s->modo->load()); break;
+        case PROP_TRANSICION: g_value_set_int(v, s->transicionMs->load()); break;
+        case PROP_MEZCLA: g_value_set_double(v, s->mezcla.valor); break;
         case PROP_UNIDADES_USADAS: g_value_set_string(v, kUnidades[std::clamp(s->unidadesUsadas, 0, 4)]); break;
         case PROP_MS: g_value_set_double(v, s->demora->media()); break;
         case PROP_SIN_COPIAS:
@@ -587,6 +680,13 @@ static gboolean consultar(GstBaseTransform* bt, GstPadDirection dir, GstQuery* q
 
 static gboolean eventoEntrada(GstBaseTransform* bt, GstEvent* ev) {
     auto* s = BA_COREMLSR(bt);
+    // El canal de control de la entrada: el modo (y lo deja pasar).
+    int modo = s->modo->load(), tr = s->transicionMs->load();
+    if (ba::sr::leerControlSr(ev, modo, tr)) {
+        s->modo->store(modo);
+        s->transicionMs->store(tr);
+        GST_INFO_OBJECT(s, "control: modo %d, transición %d ms", modo, tr);
+    }
     if (GST_EVENT_TYPE(ev) == GST_EVENT_FLUSH_STOP || GST_EVENT_TYPE(ev) == GST_EVENT_STREAM_START) {
         descartar(s);
         s->demora->reiniciar();
@@ -607,6 +707,8 @@ static void ba_coremlsr_finalize(GObject* o) {
     if (s->transfer != nullptr) CFRelease(s->transfer);
     if (s->cola != nullptr) (void)(__bridge_transfer dispatch_queue_t)s->cola;
     delete s->pendientes;
+    delete s->modo;
+    delete s->transicionMs;
     delete s->listo;
     delete s->demora;
     g_free(s->modelo);
@@ -623,6 +725,7 @@ static void ba_coremlsr_class_init(BaCoreMlSrClass* k) {
     go->finalize = ba_coremlsr_finalize;
     GST_DEBUG_CATEGORY_INIT(ba_coremlsr_debug, "bacoremlsr", 0, "Superresolución CoreML");
     gst_type_mark_as_plugin_api(tipoUnidades(), static_cast<GstPluginAPIFlags>(0));
+    gst_type_mark_as_plugin_api(ba::sr::tipoModoSr(), static_cast<GstPluginAPIFlags>(0));
     const auto listo =
         static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | GST_PARAM_MUTABLE_READY);
     const auto vivo =
@@ -648,6 +751,20 @@ static void ba_coremlsr_class_init(BaCoreMlSrClass* k) {
     g_object_class_install_property(go, PROP_UNIDADES,
                                     g_param_spec_enum("unidades", "Unidades", "Dónde corre la red", tipoUnidades(), 0,
                                                       listo));
+    g_object_class_install_property(go, PROP_MODO,
+                                    g_param_spec_enum("modo", "Modo",
+                                                      "activo (la red), reposo (cargada; agrandado común) o barato "
+                                                      "(cargada; agrandado común afilado). También por el canal de "
+                                                      "control (evento ba/control, campo superres)",
+                                                      ba::sr::tipoModoSr(), ba::sr::kActivo, vivo));
+    g_object_class_install_property(go, PROP_TRANSICION,
+                                    g_param_spec_int("transicion-ms", "Transición",
+                                                     "Cuánto tarda en entrar o salir la red (mezcla gradual)", 0,
+                                                     10000, 400, vivo));
+    g_object_class_install_property(go, PROP_MEZCLA,
+                                    g_param_spec_double("mezcla", "Mezcla",
+                                                        "Cuánto de la red sale ahora (0 agrandado común, 1 la red)",
+                                                        0, 1, 1, ro));
     g_object_class_install_property(
         go, PROP_UNIDADES_USADAS,
         g_param_spec_string("unidades-usadas", "Unidades usadas", "Dónde quedó la red", nullptr, ro));
@@ -690,6 +807,10 @@ static void ba_coremlsr_init(BaCoreMlSr* s) {
     s->unidadesUsadas = 0;
     s->cola = nullptr;
     s->pendientes = new std::deque<Trabajo*>();
+    s->modo = new std::atomic<int>(ba::sr::kActivo);
+    s->transicionMs = new std::atomic<int>(400);
+    s->mezcla = ba::sr::Mezcla{};
+    s->cuadros = 0;
     s->demora = new ba::sr::Demora();
     gst_base_transform_set_qos_enabled(GST_BASE_TRANSFORM(s), TRUE);
 }
