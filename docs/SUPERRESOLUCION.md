@@ -102,6 +102,29 @@ declara su demora (LATENCY = `espera-ms`), y el colchón compensa la demora real
   no usa la GPU.
 - **`runtime_gpu.py`.** El ONNX Runtime de GPU, con versiones fijas de PyPI verificadas por sha256.
 
+## En la interfaz
+
+- **Tarjeta «Superresolución»** (Video, al seleccionarla):
+  - el método;
+  - instalar;
+  - nitidez de FSR;
+  - **dónde corre una red CoreML** (Neural Engine, GPU, CPU);
+  - «Destilar una red chica de esta…»;
+  - «Red propia, placa y plugins…».
+- **Panel de superresolución** (ese botón, o el menú ✦):
+  - entradas;
+  - entrenar la red propia;
+  - **placa de video**: detectada, runtime de GPU, bajar con o sin TensorRT;
+  - **destilar**: entrada, maestro, minutos, CPU o GPU, aplicar;
+  - **plugins propios**: crear, editar con las propiedades del elemento, borrar, ver si andan;
+  - modelos.
+- **Panel de sincronía**: cada entrada de GStreamer muestra lo que corre en su cadena (con la demora de cada filtro
+  y la compensación) y sus **filtros de audio**:
+  - «+ filtro…» abre el editor: un módulo de GStreamer con sus propiedades, o una tarjeta de audio de un plugin de
+    Python con sus parámetros;
+  - tocar un filtro lo edita, ‹ › lo mueve y ✕ lo saca;
+  - «Rápidos…»: compresor, pasa altos, eco y volumen.
+
 ## Herramientas MCP
 
 | Herramienta | Para qué |
@@ -109,6 +132,7 @@ declara su demora (LATENCY = `espera-ms`), y el colchón compensa la demora real
 | `superres_plugins`, `superres_instalar`, `superres_tarjeta {plugin}` | Elegir e instalar métodos y ponerlos en una tarjeta. |
 | `superres_runtime_gpu`, `superres_runtime_gpu_instalar` | Ver la placa y bajar su runtime. |
 | `superres_destilar` | Destilar una red. |
+| `superres_plugin_elemento`, `superres_plugin_borrar` | Crear y borrar plugins propios. |
 | `entrada_filtros_audio` | Los filtros de audio de una entrada. |
 | `video_estado` | Filtros, demoras y compensación de cada entrada. |
 
