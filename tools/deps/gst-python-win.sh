@@ -92,7 +92,7 @@ cp "$T/pc/python-3.12.pc" "$T/pc/python-3.12-embed.pc"
 
 cat >"$T/cruzado.ini" <<EOF
 [binaries]
-c = ['$LLVM/clang-cl', '--target=x86_64-pc-windows-msvc', '/winsysroot', '$SYS']
+c = ['$LLVM/clang-cl', '--target=x86_64-pc-windows-msvc', '/winsysroot', '$SYS', '-fuse-ld=lld-link']
 c_ld = '$LLVM/lld-link'
 ar = '$LLVM/llvm-lib'
 windres = '$LLVM/llvm-rc'
