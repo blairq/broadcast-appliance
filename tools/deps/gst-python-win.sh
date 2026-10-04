@@ -117,7 +117,7 @@ export PATH="$VENV/bin:$LLVM:$PATH"
 
 log "PyGObject $PYGO_VER"
 meson setup "$T/b1" "$T/pygobject-$PYGO_VER" --cross-file "$T/cruzado.ini" --prefix="$T/stage" --libdir=lib \
-    --buildtype=release -Dpython="$T/python-win" -Dpycairo=disabled -Dtests=false >"$T/b1.log" 2>&1 || { tail -40 "$T/b1.log"; exit 1; }
+    --buildtype=release -Dpython="$T/python-win" -Dpycairo=disabled -Dtests=false >"$T/b1.log" 2>&1 || { tail -40 "$T/b1.log"; cp "$T/b1/meson-logs/meson-log.txt" "$EXT/.gst-python-win-meson.log" 2>/dev/null; exit 1; }
 ninja -C "$T/b1" >>"$T/b1.log" 2>&1 || { tail -40 "$T/b1.log"; exit 1; }
 # pygobject-3.0.pc para gst-python (meson install pondría rutas de Windows).
 mkdir -p "$T/stage/lib/pkgconfig"
