@@ -460,9 +460,15 @@ class Fabrica:
         if self.a.formato == "tc":  # prefijo de ~8.000 tokens: lote 8 y recalculo por capa
             comun += ["--lote", "8"] + ([] if "--recalcular" in comun else ["--recalcular"])
         env = {"PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True", "BA_ETIQUETAS": "0"}
-        if self.adaptador.exists():
+        a_medias = (self.adaptador / "estado" / "estado.pt").exists()
+        if self.adaptador.exists() and not a_medias:
             shutil.rmtree(self.adaptador)
-        if cfg["modo"] == "repartir":
+        if self.a.formato == "tc":
+            # las dos placas como una (FSDP2): entrenar-rapido supervisa y, si se
+            # corta, sigue desde su ultimo estado (tambien al volver a fabricar)
+            correr([PY, E / "entrenar-rapido.py", "--fsdp", "--micro", "4"] + comun
+                   + (["--reanudar"] if a_medias else []), env=env, salida=self.dir / "entrenar.log")
+        elif cfg["modo"] == "repartir":
             correr([PY, E / "entrenar-rapido.py", "--repartir"] + comun, env=env, salida=self.dir / "entrenar.log")
         else:
             correr([RAIZ / ".venv-entrenar/bin/torchrun", "--nproc_per_node", "2", E / "entrenar-rapido.py"] + comun,

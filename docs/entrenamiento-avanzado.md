@@ -132,6 +132,63 @@ de atención completa y las de la atención lineal de Qwen3.5), lr 2e-4, lote
 - Kernels de triton de la atención lineal: cada capa corre con su placa
   activa y el autoajuste va con candado (los hilos del backward se pisaban).
 
+#### Las dos placas como una (FSDP2, desde la v4 de tool calling)
+
+Con el formato de *tool calling* el prefijo pasó a ~8.200 tokens (las fichas
+de las herramientas) y el modelo repartido por capas deja una placa esperando
+a la otra. `entrenar-rapido.py --fsdp` (con `repartido.py`):
+
+- **FSDP2** (`fully_shard`; ZeRO-3, arXiv:1910.02054; PyTorch FSDP,
+  arXiv:2304.11277): cada placa guarda la mitad de cada capa y calcula la
+  mitad del lote **a la vez**; antes de usar una capa la arma trayendo la otra
+  mitad por P2P (NCCL, mismo switch PCIe) y los gradientes se promedian con
+  reduce-scatter. LoRA en fp32 repartido; se calcula en bf16.
+- **Prefijo amortizado** (el esquema de *Schedule-Level Shared-Prefix Reuse*,
+  arXiv:2606.01143): el prefijo hacia adelante una vez, su caché cortado en
+  hojas que juntan el gradiente de todos los micro-lotes, y un solo backward
+  del prefijo. Es exacto porque ese backward es lineal en el gradiente que
+  llega por K/V.
+- **Backward del prefijo capa por capa y a mano**
+  (`cache_hibrido.atras_por_capas`). Con el recálculo por checkpoint, autograd
+  recibía los gradientes de los cachés de las 32 capas a la vez y recalculaba
+  muchas juntas: 10,9 → más de 23,5 GB en una placa. Ahora va de la última a la
+  primera, cada una recalculada llamando al módulo (FSDP arma y suelta sus
+  pesos), con una sola capa viva. Además resuelve el detalle de FSDP: sus
+  ganchos esperan el gradiente por la salida de la capa, y el nuestro llega
+  por el caché.
+- **Verificado**: el gradiente con FSDP contra los mismos medios lotes en una
+  sola placa da coseno 0,9998, igual que una placa contra sí misma (0,99965).
+  El resto es el no determinismo de los kernels de triton de fla.
+- **Reparto parejo**: el lote se ordena por largo y se reparte en zigzag;
+  dentro de cada placa los micro-lotes juntan largos parecidos. Son los mismos
+  16 ejemplos, así que el gradiente es el mismo.
+- **Pesos que se sueltan o no** (`--soltar`). Por defecto lo decide el tamaño:
+  si el modelo ocupa menos del 35 % de la placa (el 4B), se conservan armados
+  entre el forward y el backward (19,3 GB por placa, 9,2 s/paso); si no
+  (el 9B), se sueltan (14,8 GB con el 4B, 9,9 s/paso).
+- **Medido con el 4B** (prefijo de 8.203 tokens, lote 16, micro 4): 11,6 s/paso
+  repartido por capas → 9,2 s/paso con FSDP (1,26×). Por paso: prefijo hacia
+  adelante 1,8 s, dos micro-lotes de 2 s y backward del prefijo 4,2 s. Cada
+  placa repite el prefijo entero: es el techo de este esquema.
+- **Próximo salto**: repartir el prefijo mismo entre las placas por secuencia.
+  LASP (arXiv:2404.02882) para la atención lineal, pasando el estado de una
+  placa a la otra, y Ulysses (arXiv:2309.14509) para las 8 capas de atención
+  completa.
+
+**Reanudar.** Se llama con `python`, no con `torchrun`: el proceso supervisa.
+Lanza torchrun en su propio grupo de procesos y, si la corrida se cae, termina
+el grupo entero y relanza con `--reanudar`. Si la caída fue por memoria,
+relanza con micro-lotes a la mitad (con FSDP la otra placa queda esperando en
+una comunicación y no se puede reintentar adentro). Los trabajadores mueren
+con su padre (`PR_SET_PDEATHSIG`): antes quedaban huérfanos con la placa
+ocupada. Cada `--guardar-cada-min` (10) queda `<salida>/estado/estado.pt`
+(~1 GB; escritura atómica): LoRA y optimizador completos, paso, barajado,
+generador y el mejor hasta ahora. Lleva la huella del corpus y del plan, y no
+retoma con otros datos. `tc-bucle` y la fábrica, si encuentran un estado a
+medias, siguen desde ahí sin regenerar el corpus. La tokenización del corpus
+queda en caché (`<corpus>/.tokens-<huella>.json`). Probado matando torchrun
+con SIGKILL a mitad de la corrida: relanzó, siguió en el paso 13 y terminó.
+
 ### 4. Medir
 
 `tools/entrenar/evaluar.py` con decodificación **restringida** a los nombres

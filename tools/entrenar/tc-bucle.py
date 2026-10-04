@@ -191,12 +191,18 @@ def main():
         d.mkdir(exist_ok=True)
         log(f"=== vuelta {v} ===")
         corpus = d / "corpus"
-        correr([PY, E / "tc-corpus.py", "--salida", corpus], salida=d / "corpus.log")
-        huella = json.loads((corpus / "huella.json").read_text())
         ad = d / "adaptador"
+        # una vuelta cortada a mitad del entrenamiento sigue desde su estado: con el
+        # MISMO corpus (el estado lleva su huella; regenerarlo lo invalidaria)
+        a_medias = (ad / "estado" / "estado.pt").exists() and not (ad / "adapter_config.json").exists()
+        if not (a_medias and (corpus / "huella.json").exists()):
+            correr([PY, E / "tc-corpus.py", "--salida", corpus], salida=d / "corpus.log")
+        huella = json.loads((corpus / "huella.json").read_text())
         if not (ad / "adapter_config.json").exists():
-            correr([PY, E / "entrenar-rapido.py", "--repartir", "--recalcular", "--base", args.base, "--datos", corpus,
-                    "--salida", ad, "--epocas", str(args.epocas), "--eval-cada", "200", "--lote", "16", "--micro", "4"],
+            # las dos placas como una (FSDP2; entrenar-rapido supervisa y reanuda)
+            correr([PY, E / "entrenar-rapido.py", "--fsdp", "--recalcular", "--base", args.base, "--datos", corpus,
+                    "--salida", ad, "--epocas", str(args.epocas), "--eval-cada", "200", "--lote", "16", "--micro", "4"]
+                   + (["--reanudar"] if a_medias else []),
                    env={"PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True"}, salida=d / "entrenar.log")
         m = medir(ad, corpus, d / "medidas.json", args.limite_banco)
         med = m["medidas"]

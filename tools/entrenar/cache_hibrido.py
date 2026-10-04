@@ -165,7 +165,7 @@ def volver(kv, f, n_prefijo):
 # de un cache vacio, antes de cada corrida se vacia la capa de ese cache: la
 # recalculada hace exactamente la misma cuenta. Los tensores que el lote ya uso
 # siguen en el grafo; la capa vaciada recibe tensores nuevos (no se pisan).
-_recalcular = {"activo": False}
+_recalcular = {"activo": False, "grabar": None}
 
 
 _ATRIBUTOS = ("conv_states", "recurrent_states", "has_previous_state", "is_conv_states_initialized",
@@ -203,7 +203,13 @@ def recalcular_por_capa(modelo):
         orig = getattr(capa, attr)
         idx = getattr(capa, "layer_idx", i)
 
-        def envuelto(hidden_states, *a, _orig=orig, _idx=idx, **kw):
+        def envuelto(hidden_states, *a, _orig=orig, _idx=idx, _capa=capa, **kw):
+            if _recalcular["grabar"] is not None:  # grabando(): ver abajo
+                kv = kw.get("past_key_values")
+                _recalcular["grabar"].append((_capa, _idx, hidden_states.detach(), a, kw,
+                                              _foto_capa(kv.layers[_idx]) if kv is not None else None))
+                with torch.no_grad():
+                    return _orig(hidden_states, *a, **kw)
             if not (_recalcular["activo"] and torch.is_grad_enabled()):
                 return _orig(hidden_states, *a, **kw)
             kv = kw.get("past_key_values")
@@ -227,3 +233,53 @@ class recalculando:
 
     def __exit__(self, *e):
         _recalcular["activo"] = False
+
+
+# EL PREFIJO HACIA ATRAS, CAPA POR CAPA Y A MANO (paso_amortizado de entrenar-rapido).
+#
+# Con el recalculo de arriba, el backward del prefijo arranca con los gradientes
+# de los caches de TODAS las capas a la vez (llegan por las hojas de los
+# micro-lotes). Autograd los tiene listos juntos y dispara el recalculo de
+# muchas capas al mismo tiempo: con 8.000 tokens, ~400 MB por capa x 32 = el
+# pico que no entraba en una placa (medido: 10,9 -> mas de 23,5 GB). Aca el
+# orden es explicito: la ultima capa, despues la anterior, ... cada una se
+# recalcula llamando al MODULO (con FSDP: arma sus pesos, y al terminar su
+# backward los suelta y reparte el gradiente) y se le pasa a la vez el
+# gradiente de su salida y el de su cache. Una sola capa viva por vez.
+#
+#   with grabando() as reg:              # hacia adelante, sin grafo
+#       texto(input_ids=..., past_key_values=kv, use_cache=True)
+#   ... micro-lotes sobre hojas de tensores(kv), que juntan gradiente ...
+#   atras_por_capas(reg, kv, [h.grad for h in hojas])
+
+
+class grabando:
+    def __enter__(self):
+        _recalcular["grabar"] = []
+        return _recalcular["grabar"]
+
+    def __exit__(self, *e):
+        _recalcular["grabar"] = None
+
+
+def _de_capa(c):
+    return [c.conv_states, c.recurrent_states] if _lineal(c) else [c.keys, c.values]
+
+
+def atras_por_capas(reg, kv, grads):
+    """grads: el gradiente de cada tensor de tensores(kv) (o None), en ese orden."""
+    g = None
+    for capa, idx, h, a, kw, foto in reversed(reg):
+        _poner_capa(kv.layers[idx], foto)  # la capa como estaba antes de correr: vacia
+        x = h.detach().requires_grad_(True)
+        with torch.enable_grad():
+            out = capa(x, *a, **kw)
+        out = out[0] if isinstance(out, tuple) else out
+        raices, gs = [out], [torch.zeros_like(out) if g is None else g.to(out.device)]
+        for t, gt in zip(_de_capa(kv.layers[idx]), grads[2 * idx:2 * idx + 2]):
+            if gt is not None and t is not None and t.requires_grad:
+                raices.append(t)
+                gs.append(gt.to(t.device))
+        torch.autograd.backward(raices, gs)
+        g = x.grad
+        del out, raices, gs, x
