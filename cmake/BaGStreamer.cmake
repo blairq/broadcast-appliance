@@ -83,6 +83,11 @@ elseif(WIN32 AND EXISTS "${CMAKE_SOURCE_DIR}/extern/gstreamer-win/lib/gstreamer-
             PATTERN "bin" EXCLUDE PATTERN "include" EXCLUDE PATTERN "*.lib" EXCLUDE PATTERN "*.def" EXCLUDE
             PATTERN "*.a" EXCLUDE PATTERN "pkgconfig" EXCLUDE PATTERN ".version" EXCLUDE PATTERN "duplicadas.txt" EXCLUDE
             PATTERN "*.pdb" EXCLUDE) # símbolos de depuración (231 MB): no hacen nada en el aparato
+    # gstpython.dll para el Python 3.12 del bundle (tools/deps/gst-python-win.sh).
+    file(GLOB _ba_gstpy "${CMAKE_SOURCE_DIR}/extern/gst-python-win/gstpython*.dll")
+    if(_ba_gstpy)
+        install(FILES ${_ba_gstpy} DESTINATION gst-plugins COMPONENT bundle)
+    endif()
     message(STATUS "GStreamer: ${_g}")
 else()
     message(STATUS "GStreamer: no está (make deps-gstreamer-macos / -linux / -win); se compila sin él")

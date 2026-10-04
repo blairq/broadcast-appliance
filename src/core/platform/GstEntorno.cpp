@@ -74,6 +74,9 @@ bool prepararGst() {
         const char* p = std::getenv("PATH");
         const std::string bin = texto(bundleRoot() / "bin" / "64bit");
         ponerTexto("PATH", (bin + ";" + (p != nullptr ? p : "")).c_str());
+        // Python 3.8+ no busca las DLL de las extensiones por el PATH: gi
+        // (PyGObject, con el parche de GStreamer) las agrega de acá.
+        ponerTexto("PYGI_DLL_DIRS", bin.c_str());
     }
     const char* escaner = "gst-plugin-scanner.exe";
 #else

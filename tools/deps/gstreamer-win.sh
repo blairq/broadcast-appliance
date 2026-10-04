@@ -54,6 +54,7 @@ cp -a "$D"/lib/*.lib "$OUT/lib/"
 mkdir -p "$OUT/lib/glib-2.0" "$OUT/lib/gstreamer-1.0"
 cp -a "$D/lib/glib-2.0/include" "$OUT/lib/glib-2.0/"
 cp -a "$D/lib/gstreamer-1.0/include" "$OUT/lib/gstreamer-1.0/" # gst/gl/gstglconfig.h
+cp -a "$D/lib/pkgconfig" "$OUT/lib/" # para compilar los bindings de Python (gst-python-win.sh)
 
 # Las DLL que ya trae el bundle con el mismo nombre.
 : >"$OUT/duplicadas.txt"
@@ -67,5 +68,5 @@ for dir in "$@"; do
         fi
     done
 done
-echo "1.26.11 msvc_x86_64" >"$OUT/.version"
+echo "1.26.11 msvc_x86_64 r2" >"$OUT/.version"
 log "listo: $OUT ($(du -sh "$OUT" | cut -f1), $(ls "$OUT/lib/gstreamer-1.0" | wc -l) plugins, $(wc -l <"$OUT/duplicadas.txt") DLL ya estaban)"
