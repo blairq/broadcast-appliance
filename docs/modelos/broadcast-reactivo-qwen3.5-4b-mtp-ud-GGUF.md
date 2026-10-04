@@ -44,14 +44,14 @@ Reentrenada para este modelo, con 3 borradores EN CADENA (cada paso recibe la sa
 
 | datos | cabeza | aceptados por ciclo | por paso |
 |---|---|---|---|
-| nombres de herramienta | original | 1.59 | 94% / 88% / 81% |
-| nombres de herramienta | entrenada | 1.83 | 100% / 100% / 100% |
-| nombres de herramienta | entrenada, lineales q8 | 1.83 | 100% / 100% / 100% |
-| nombres de herramienta | entrenada, lineales q4 | 1.83 | 100% / 100% / 100% |
-| texto libre | original | 1.52 | 74% / 65% / 67% |
-| texto libre | entrenada | 1.49 | 72% / 67% / 68% |
-| texto libre | entrenada, lineales q8 | 1.49 | 72% / 67% / 67% |
-| texto libre | entrenada, lineales q4 | 1.49 | 72% / 67% / 67% |
+| nombres de herramienta | original | 1.57 | 93% / 88% / 82% |
+| nombres de herramienta | entrenada | 1.82 | 100% / 100% / 100% |
+| nombres de herramienta | entrenada, lineales q8 | 1.82 | 100% / 100% / 100% |
+| nombres de herramienta | entrenada, lineales q4 | 1.82 | 100% / 100% / 100% |
+| texto libre | original | 1.50 | 75% / 64% / 62% |
+| texto libre | entrenada | 1.58 | 74% / 69% / 69% |
+| texto libre | entrenada, lineales q8 | 1.58 | 74% / 69% / 69% |
+| texto libre | entrenada, lineales q4 | 1.57 | 74% / 69% / 68% |
 
 ## Uso
 
