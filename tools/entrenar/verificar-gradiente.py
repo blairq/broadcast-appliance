@@ -45,6 +45,8 @@ ap = argparse.ArgumentParser()
 ap.add_argument("--base", default="Qwen/Qwen3.5-0.8B")
 ap.add_argument("--prefijo", type=int, default=301, help="tokens (impar: la mitad no es exacta)")
 ap.add_argument("--pesos", choices=["enteros", "repartidos"], default="enteros")
+ap.add_argument("--lora-fusionado", action="store_true",
+                help="las corridas en fp32 con lora_fusionado (la verdad en fp64 va con peft)")
 ap.add_argument("--nucleo", choices=["torch", "fla"], default="torch",
                 help="la regla delta: torch (fp32 de verdad: verifica el METODO) o fla (el kernel"
                      " de entrenamiento, con TF32 adentro: mide el error practico)")
@@ -100,6 +102,9 @@ def cargar(tipo=torch.float32):
     m = AutoModelForCausalLM.from_pretrained(args.base, dtype=torch.float32, device_map={"": dev}).float()
     m = get_peft_model(m, LoraConfig(r=8, lora_alpha=8, target_modules=BLANCOS, init_lora_weights=False))
     m = m.to(tipo)
+    if args.lora_fusionado and tipo == torch.float32:
+        import lora_fusionado
+        lora_fusionado.instalar(m)
     ch.recalcular_por_capa(m)
     if args.nucleo == "torch" or tipo == torch.float64:  # fla no compila en fp64
         from transformers.models.qwen3_5 import modeling_qwen3_5 as q

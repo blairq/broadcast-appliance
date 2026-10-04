@@ -255,6 +255,16 @@ a la otra. `entrenar-rapido.py --fsdp` (con `repartido.py`):
       con la cola llena; no es la placa esperando a la CPU.
     - Y costaba 3,5 GB fijos (la memoria de trabajo de una capa queda reservada
       para el grafo), que los micro-lotes largos necesitan.
+    - **LoRA fusionado** (`lora_fusionado.py`, `--lora-fusionado si`): un kernel
+      de triton que hace `x·Wᵀ + (s·x·Aᵀ)·Bᵀ` sobre el mismo bloque de salida
+      (y `dy·W + (s·dy·B)·A` en el backward), sin escribir y releer por
+      separado la salida de la base y la del LoRA.
+      - Pasa la verificación contra fp64 en los dos modos, pero da lo mismo:
+        6,26 contra 6,34 s/paso. El costo está en los productos grandes, que
+        cuBLAS ya hace a pleno.
+      - Queda apagado por defecto.
+      - Trampa: con el largo de las filas en la clave del autoajuste de triton,
+        re-autoajustaba en cada micro-lote (16,8 s/paso).
     - Lección de la verificación: un buffer que recibe por NCCL tiene que ser
       contiguo. `zeros_like` de una vista traspuesta copió el orden de memoria y
       lo recibido quedó desordenado. La norma no lo delata; la comparación contra

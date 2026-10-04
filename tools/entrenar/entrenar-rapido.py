@@ -135,6 +135,9 @@ def main():
     ap.add_argument("--prefijo-repartido", choices=["si", "no"], default="si",
                     help="con --fsdp en dos placas: cada placa hace la mitad de los tokens del prefijo"
                          " (prefijo_repartido.py; verificado con verificar-gradiente.py)")
+    ap.add_argument("--lora-fusionado", choices=["si", "no"], default="no",
+                    help="cada lineal con LoRA en un kernel de triton (lora_fusionado.py) en vez de base y"
+                         " LoRA por separado. Verificado; con el 4B no gana (6,26 vs 6,34 s/paso)")
     ap.add_argument("--reanudar", action="store_true", help="seguir desde <salida>/estado/estado.pt")
     ap.add_argument("--guardar-cada-min", type=float, default=10.0,
                     help="cada cuantos minutos se guarda el estado para reanudar")
@@ -252,6 +255,9 @@ def main():
     cfg = LoraConfig(r=args.rango, lora_alpha=args.rango, lora_dropout=0.0, bias="none",
                      target_modules=blancos, task_type="CAUSAL_LM")
     modelo = get_peft_model(modelo, cfg)
+    if args.lora_fusionado == "si":
+        import lora_fusionado
+        log(f"LoRA fusionado (base + rango bajo en un kernel): {lora_fusionado.instalar(modelo)} lineales")
     if args.recalcular:
         log(f"recalcular el prefijo capa por capa: {ch.recalcular_por_capa(modelo)} capas")
     entrenables = [p for p in modelo.parameters() if p.requires_grad]
