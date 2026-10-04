@@ -1049,6 +1049,36 @@ void McpService::registerVideoTools() {
         }
         {
             Tool t;
+            t.name = "superres_destilar";
+            t.title = "Destilar una red grande en una propia chica, a medida de una cámara";
+            t.category = "video";
+            t.description =
+                "Entrena una red propia chica (luma x2: corre en vivo hasta en la CPU) que IMITA a una red grande del "
+                "catálogo (`maestro`: realesr-general-x4v3 de fábrica, lsdir-compact-x4…) en lo que ve la entrada de "
+                "red `entrada`: graba 60 s, el maestro procesa cada cuadro y la chica aprende a llegar a eso. Para "
+                "máquinas donde el maestro no da en vivo. `minutos` de entrenamiento; `cpu` true para no usar la GPU "
+                "(más lento, no calienta); `aplicar` la pone en la entrada al terminar. Queda como plugin "
+                "«destilada-<entrada>» (superres_plugins). El avance, en superres_estado.";
+            t.inputSchema = {{"type", "object"},
+                             {"required", {"entrada"}},
+                             {"properties",
+                              {{"entrada", {{"type", "string"}}},
+                               {"maestro", {{"type", "string"}}},
+                               {"minutos", {{"type", "number"}}},
+                               {"cpu", {{"type", "boolean"}}},
+                               {"aplicar", {{"type", "boolean"}}}}}};
+            t.run = [srp](const json& a, Done done) {
+                if (!srp) return done(ToolResult::error("no disponible"));
+                const std::string e = srp->destilar(a.value("entrada", std::string()), a.value("maestro", std::string()),
+                                                    a.value("minutos", 10.0), a.value("aplicar", false),
+                                                    a.value("cpu", false));
+                if (!e.empty()) return done(ToolResult::error(e));
+                done(ToolResult().text("Destilando: superres_estado muestra el avance."));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
             t.name = "superres_runtime_gpu";
             t.title = "El ONNX Runtime de GPU de esta máquina (NVIDIA, AMD, Intel)";
             t.category = "video";

@@ -574,9 +574,143 @@ def entrenar_chica(args) -> None:
     decir(ev="listo", modelo=args.salida, psnr_red=round(red, 2), psnr_bicubico=round(bic, 2), ganancia_db=round(red - bic, 2), pasos=paso)
 
 
+def destilar(args) -> None:
+    """DESTILACIÓN: una red propia chica (la de `chica`, luma x2: corre en vivo
+    hasta en la CPU) que aprende a imitar a una grande (el MAESTRO, p. ej.
+    Real-ESRGAN, demasiado pesada para algunas máquinas) mirando lo que ve
+    ESTA cámara. No hace falta la imagen «verdadera» al doble: el objetivo es lo
+    que saca el maestro de cada cuadro (su x4 achicado a x2, que suaviza sus
+    artefactos), y la red chica aprende a llegar a eso desde el cuadro tal cual.
+    Así sale una red a medida de la cámara, con el estilo del maestro."""
+    import numpy as np
+    import torch
+    import torch.nn.functional as F
+
+    if not args.receta:
+        raise SystemExit("destilar: falta --receta (el maestro, del catálogo)")
+    receta = json.loads(open(args.receta, encoding="utf-8").read())
+    tmp = tempfile.mkdtemp(prefix="ba-destilar-")
+    try:
+        # Los cuadros de la cámara en color (el maestro trabaja en RGB).
+        entrada = args.uri or args.entrada
+        if not entrada:
+            raise SystemExit("falta --uri (una cámara) o --entrada (un video)")
+        origen = ["-rtsp_transport", "tcp"] if entrada.startswith("rtsp") else []
+        crudo = os.path.join(tmp, "cuadros.rgb")
+        decir(ev="progreso", texto=f"Grabando {args.segundos} s…", pct=2)
+        vf = f"fps={args.cuadros_por_segundo},scale=trunc(iw*sar/2)*2:trunc(ih/2)*2,setsar=1,format=rgb24"
+        subprocess.run([ffmpeg(), "-v", "error", *origen, "-i", entrada, "-t", str(args.segundos), "-vf", vf,
+                        "-f", "rawvideo", crudo], check=True, timeout=args.segundos + 120)
+        info = subprocess.run([ffprobe(), "-v", "error", *origen, "-select_streams", "v:0", "-show_entries",
+                               "stream=width,height,sample_aspect_ratio", "-of", "json", entrada],
+                              capture_output=True, text=True, timeout=60)
+        st = json.loads(info.stdout)["streams"][0]
+        sar = st.get("sample_aspect_ratio", "1:1")
+        a, b = (int(x) for x in sar.split(":")) if ":" in sar and sar != "0:1" else (1, 1)
+        w, h = (int(st["width"] * a / b) // 2) * 2, (st["height"] // 2) * 2
+        datos = np.fromfile(crudo, dtype=np.uint8)
+        n = datos.size // (w * h * 3)
+        if n < 4:
+            raise SystemExit("llegaron muy pocos cuadros")
+        cuadros = datos[: n * w * h * 3].reshape(n, h, w, 3)
+        dev, nombre_dev = (torch.device("cpu"), "cpu") if args.cpu else dispositivo()
+        # El maestro: su x4 de cada cuadro, achicado a x2 (promedio 2x2).
+        decir(ev="progreso", texto=f"El maestro ({receta.get('nombre', receta['id'])}) mira {n} cuadros…", pct=10)
+        import spandrel
+
+        pesos = bajar_receta(receta["origen"], args.pesos or tmp)
+        maestro = spandrel.ModelLoader().load_from_file(pesos).model.eval().to(dev)
+        escala = int(receta.get("escala", 4))
+        w709 = torch.tensor([0.2126, 0.7152, 0.0722]).view(1, 3, 1, 1)
+        entradas, objetivos = [], []
+        with torch.no_grad():
+            for i in range(n):
+                x = torch.from_numpy(cuadros[i]).permute(2, 0, 1)[None].float() / 255.0
+                y = maestro(x.to(dev)).clamp(0, 1).cpu()
+                if escala == 4:
+                    y = F.avg_pool2d(y, 2)
+                entradas.append((x * w709).sum(1, keepdim=True)[0])
+                objetivos.append((y * w709).sum(1, keepdim=True)[0])
+                if i % 5 == 0:
+                    decir(ev="progreso", texto=f"Maestro: {i + 1}/{n}", pct=10 + round(20 * (i + 1) / n))
+        del maestro
+        B = torch.stack(entradas)[:, 0]   # la cámara (luma)
+        A = torch.stack(objetivos)[:, 0]  # lo que saca el maestro, al doble (luma)
+        nval = max(1, len(A) // 10)
+        Av, Bv = A[-nval:], B[-nval:]
+        A, B = (A[:-nval], B[:-nval]) if len(A) > nval else (A, B)
+        torch.manual_seed(0)
+        modelo = red_chica(args.canales, args.capas).to(dev)
+        if args.desde and os.path.exists(args.desde + ".pt"):
+            modelo.load_state_dict(torch.load(args.desde + ".pt", map_location="cpu"))
+        opt = torch.optim.Adam(modelo.parameters(), lr=args.lr)
+        p = args.parche
+        rng = np.random.default_rng(0)
+
+        def lote(k):
+            idx = rng.integers(0, len(B), k)
+            ys = rng.integers(0, B.shape[1] - p, k)
+            xs = rng.integers(0, B.shape[2] - p, k)
+            lo = torch.stack([B[i, y:y + p, x:x + p] for i, y, x in zip(idx, ys, xs)])[:, None]
+            hi = torch.stack([A[i, 2 * y:2 * y + 2 * p, 2 * x:2 * x + 2 * p] for i, y, x in zip(idx, ys, xs)])[:, None]
+            if rng.random() < 0.5:
+                lo, hi = lo.flip(3), hi.flip(3)
+            return lo.to(dev), hi.to(dev)
+
+        def psnr(x, y):
+            return 10 * math.log10(1.0 / max(torch.mean((x - y) ** 2).item(), 1e-10))
+
+        def validar():
+            modelo.eval()
+            with torch.no_grad():
+                lo, hi = Bv[:, None].to(dev), Av[:, None].to(dev)
+                out = modelo(lo).clamp(0, 1)
+                bic = F.interpolate(lo, scale_factor=2, mode="bicubic", align_corners=False).clamp(0, 1)
+                r = psnr(out, hi), psnr(bic, hi)
+            modelo.train()
+            return r
+
+        decir(ev="progreso", texto=f"Aprendiendo del maestro en {nombre_dev}…", pct=30)
+        fin = time.time() + args.minutos * 60
+        t0, paso, ultimo = time.time(), 0, 0.0
+        while time.time() < fin:
+            lo, hi = lote(args.lote)
+            loss = F.l1_loss(modelo(lo), hi)
+            opt.zero_grad()
+            loss.backward()
+            opt.step()
+            paso += 1
+            if paso % 500 == 0:
+                for g in opt.param_groups:
+                    g["lr"] = max(args.lr * 0.1, g["lr"] * 0.9)
+            if time.time() - ultimo > 10:
+                ultimo = time.time()
+                red, bic = validar()
+                pct = 30 + 65 * min(1.0, (time.time() - t0) / max(args.minutos * 60, 1))
+                decir(ev="progreso", pct=round(pct), paso=paso, parecido_maestro_db=round(red, 2),
+                      texto=f"Paso {paso}: {red:.2f} dB de parecido al maestro ({bic:.2f} dB el agrandado común)")
+        red, bic = validar()
+        torch.save(modelo.state_dict(), args.salida + ".pt")
+        exportar(modelo, 1, args.salida, {
+            "nombre": args.nombre or f"Destilada de {receta.get('nombre', receta['id'])}",
+            "arquitectura": "red chica (luma x2), destilada", "escala": 2, "canales": 1,
+            "maestro": receta["id"], "entrenada_con": (args.uri and "una cámara") or args.entrada,
+            "cuadros": int(n), "tamano": [w, h], "pasos": paso, "dispositivo": nombre_dev,
+            "parecido_maestro_db": round(red, 2), "parecido_bicubico_db": round(bic, 2),
+            "licencia": "propia (destilada en este equipo)", "fecha": time.strftime("%Y-%m-%d %H:%M"),
+        })
+        try:
+            exportar_nv12(modelo, 1, 2, args.salida[:-5] + "-nv12.onnx" if args.salida.endswith(".onnx") else args.salida + "-nv12.onnx")
+        except Exception as e:  # noqa: BLE001
+            decir(ev="aviso", texto=f"la versión NV12 no se pudo: {e}")
+        decir(ev="listo", modelo=args.salida, parecido_maestro_db=round(red, 2), parecido_bicubico_db=round(bic, 2), pasos=paso)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("comando", choices=["chica", "span", "esrgan", "instalar"])
+    ap.add_argument("comando", choices=["chica", "span", "esrgan", "instalar", "destilar"])
     ap.add_argument("--receta", default="", help="instalar: el JSON de la receta (del catálogo)")
     ap.add_argument("--salida", required=True)
     ap.add_argument("--pesos", default=None, help="carpeta para los pesos bajados")
@@ -595,6 +729,7 @@ def main() -> None:
     ap.add_argument("--lr", type=float, default=2e-3)
     ap.add_argument("--desde", default="", help="seguir entrenando esta red (.onnx: usa su .pt)")
     ap.add_argument("--nombre", default="")
+    ap.add_argument("--cpu", action="store_true", help="entrenar en la CPU (no calienta la GPU; más lento)")
     ap.add_argument("--libs", default="", help="carpeta con PyTorch, spandrel y onnx (la baja la app una vez)")
     a = ap.parse_args()
     if a.libs:
@@ -605,6 +740,8 @@ def main() -> None:
             entrenar_chica(a)
         elif a.comando == "instalar":
             instalar(a)
+        elif a.comando == "destilar":
+            destilar(a)
         else:
             convertir(a.comando, a.salida, a.pesos or os.path.dirname(os.path.abspath(a.salida)))
     except SystemExit as e:

@@ -720,6 +720,13 @@ Rectangle {
                                 spacing: 6
                                 GlassButton { compact: true; text: srPanel.avanzado ? "Ocultar avanzado" : "Avanzado…"; onClicked: srPanel.avanzado = !srPanel.avanzado }
                                 GlassButton { compact: true; text: "Entrenar la red propia…"; onClicked: superresPop.open() }
+                                // Destilar: una red chica que imita a la red elegida, a medida de esta cámara.
+                                GlassButton {
+                                    compact: true
+                                    visible: !!srPanel.actual && srPanel.actual.tipo === "red" && !srPanel.actual.propio
+                                    text: "Destilar una red chica de esta…"
+                                    onClicked: page.avisar(srPanel.sr.destilarUi(page.vg.entrada, srPanel.elegido, 15, true, true))
+                                }
                             }
                             // A mano: un motor y un modelo (sin plugin).
                             Flow {

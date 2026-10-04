@@ -621,6 +621,7 @@ const Fila kPropias[] = {
     {"traducciones", "traducciones activas en vivo idiomas que se estan traduciendo demora"},
     {"superres_plugins", "plugins superresolucion lista modelos realesrgan esrgan fsrcnnx anime4k instalados disponibles"},
     {"superres_instalar", "instalar bajar plugin superresolucion modelo coreml onnx tensorrt"},
+    {"superres_destilar", "destilar destilacion entrenar red propia maestro esrgan imitar camara superresolucion"},
     {"entrada_filtros_audio", "audio filtros entrada plugin python compresor ecualizador eco gstreamer cadena"},
     {"superres_runtime_gpu", "gpu placa nvidia amd intel cuda tensorrt rocm migraphx openvino directml runtime onnx"},
     {"superres_runtime_gpu_instalar", "bajar instalar runtime gpu nvidia cuda tensorrt amd rocm intel openvino"},

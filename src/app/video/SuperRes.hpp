@@ -66,6 +66,11 @@ class SuperRes : public QObject {
     /// `minutos`); si `aplicar`, al terminar la pone en esa entrada. Sigue desde la
     /// red anterior de esa entrada si la hay.
     std::string entrenar(const std::string& entrada, double minutos, int segundos, bool aplicar);
+    /// DESTILACIÓN: entrena una red propia chica (luma x2, corre en vivo hasta en la
+    /// CPU) que imita al plugin `maestro` (del catálogo: Real-ESRGAN, LSDIR…) en lo
+    /// que ve la entrada. `cpu`: sin la GPU (más lento, no calienta). "" o el error.
+    std::string destilar(const std::string& entrada, const std::string& maestro, double minutos, bool aplicar,
+                         bool cpu);
     void cancelar();
     /// Pone un motor (y modelo, por nombre de archivo o ruta) en una entrada.
     std::string aplicar(const std::string& entrada, const std::string& motor, const std::string& modelo);
@@ -106,6 +111,10 @@ class SuperRes : public QObject {
     Q_INVOKABLE QString borrarModelo(const QString& archivo);
     Q_INVOKABLE QVariantList pluginsUi() const;
     Q_INVOKABLE QString instalarPluginUi(const QString& id) { return q(instalarPlugin(id.toStdString())); }
+    Q_INVOKABLE QString destilarUi(const QString& entrada, const QString& maestro, double minutos, bool aplicar,
+                                   bool cpu) {
+        return q(destilar(entrada.toStdString(), maestro.toStdString(), minutos, aplicar, cpu));
+    }
 
    signals:
     void cambio();

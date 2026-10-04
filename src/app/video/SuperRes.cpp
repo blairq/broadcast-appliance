@@ -269,6 +269,54 @@ std::string SuperRes::entrenar(const std::string& entrada, double minutos, int s
     return lanzar();
 }
 
+std::string SuperRes::destilar(const std::string& entrada, const std::string& maestro, double minutos,
+                               bool aplicarAlFin, bool cpu) {
+    if (video_ == nullptr) return "no hay video";
+    const std::string uri = video_->uriDe(entrada);
+    if (uri.empty()) return "«" + entrada + "» no es una entrada de red (se destila grabando de su dirección)";
+    json receta;
+    for (const auto& r : catalogo_)
+        if (r.value("id", "") == (maestro.empty() ? std::string("realesr-general-x4v3") : maestro)) receta = r;
+    if (!receta.is_object() || receta.value("tipo", "") != "red")
+        return "el maestro tiene que ser una red del catálogo (superres_plugins: realesr-general-x4v3, lsdir-compact-x4…)";
+    minutos = std::clamp(minutos, 1.0, 240.0);
+    std::string seguro;
+    for (char c : entrada)
+        seguro += (std::isalnum(static_cast<unsigned char>(c)) || c == '-') ? c : '_';
+    const fs::path salida = carpetaModelos() / ("destilada-" + seguro + ".onnx");
+    const fs::path archivoReceta = carpetaModelos() / (".maestro-" + seguro + ".json");
+    std::ofstream(archivoReceta) << receta.dump(1);
+    const auto lanzar = [=, this]() {
+        const fs::path lab = ba::platform::bundleRoot() / "superres" / "laboratorio.py";
+        QStringList a{q8(lab),     "destilar",          "--libs",     q8(libs()),
+                      "--receta",  q8(archivoReceta),   "--uri",      QString::fromStdString(uri),
+                      "--segundos", "60",               "--minutos",  QString::number(minutos),
+                      "--salida",  q8(salida),          "--pesos",    q8(carpetaModelos() / ".pesos"),
+                      "--nombre",  QString::fromStdString("Destilada de " + receta.value("nombre", maestro) +
+                                                           " para «" + entrada + "»")};
+        if (cpu) a << "--cpu";
+        std::error_code ec;
+        if (fs::exists(salida.string() + ".pt", ec)) a << "--desde" << q8(salida);
+        return correr("Destilar «" + QString::fromStdString(receta.value("nombre", maestro)) + "» para «" +
+                          QString::fromStdString(entrada) + "»",
+                      QString::fromStdString(entrada), a, [this, entrada, salida, aplicarAlFin](bool ok) {
+                          if (ok && aplicarAlFin) {
+                              const std::string e = aplicar(entrada, "onnx", salida.string());
+                              trabajo_["texto"] = e.empty() ? QString("Lista y aplicada a «%1»")
+                                                                  .arg(QString::fromStdString(entrada))
+                                                            : QString::fromStdString("Lista, pero no se pudo aplicar: " + e);
+                              emit trabajoCambio();
+                          }
+                          emit cambio();
+                      });
+    };
+    if (!laboratorioListo()) {
+        despues_ = [lanzar]() { lanzar(); };
+        return prepararLaboratorio();
+    }
+    return lanzar();
+}
+
 void SuperRes::cancelar() {
     despues_ = nullptr;
     if (hijo_ && hijo_->corriendo()) {
