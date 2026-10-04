@@ -495,6 +495,8 @@ bool BroadcastEngine::addSource(const std::string& sceneName, const SourceSpec& 
     if (item != nullptr) {
         if ((obs_source_get_output_flags(src) & OBS_SOURCE_VIDEO) != 0) {
             placeItem(reinterpret_cast<obs_scene_item*>(item), spec.rect);
+            if (spec.recorte[0] + spec.recorte[1] + spec.recorte[2] + spec.recorte[3] > 0)
+                setSourceCrop(sceneName, spec.name, spec.recorte[0], spec.recorte[1], spec.recorte[2], spec.recorte[3]);
         }
         obs_sceneitem_set_visible(item, spec.visible);
     }
@@ -596,6 +598,39 @@ bool BroadcastEngine::setSourceRect(const std::string& sceneName, const std::str
     }
     placeItem(reinterpret_cast<obs_scene_item*>(item), rect);
     return true;
+}
+
+bool BroadcastEngine::setSourceCrop(const std::string& sceneName, const std::string& name, float izquierda,
+                                    float arriba, float derecha, float abajo) {
+    obs_scene* sc = sceneByName(sceneName);
+    obs_sceneitem_t* item =
+        sc != nullptr ? obs_scene_find_source(reinterpret_cast<obs_scene_t*>(sc), name.c_str()) : nullptr;
+    if (item == nullptr) return false;
+    obs_source_t* src = obs_sceneitem_get_source(item);
+    const float w = static_cast<float>(obs_source_get_width(src)), h = static_cast<float>(obs_source_get_height(src));
+    // Sin tamaño todavía (una cámara que arranca): queda pendiente.
+    std::erase_if(recortesPendientes_, [&](const RecortePendiente& r) { return r.escena == sceneName && r.fuente == name; });
+    if (w <= 0 || h <= 0) {
+        recortesPendientes_.push_back({sceneName, name, {izquierda, arriba, derecha, abajo}});
+        return true;
+    }
+    auto px = [](float f, float total) { return static_cast<int>(std::lround(std::clamp(f, 0.0f, 0.95f) * total)); };
+    obs_sceneitem_crop c{};
+    c.left = px(izquierda, w);
+    c.top = px(arriba, h);
+    c.right = px(derecha, w);
+    c.bottom = px(abajo, h);
+    if (c.left + c.right >= static_cast<int>(w) || c.top + c.bottom >= static_cast<int>(h)) return false;
+    obs_sceneitem_set_crop(item, &c);
+    return true;
+}
+
+void BroadcastEngine::aplicarRecortesPendientes() {
+    if (recortesPendientes_.empty()) return;
+    const auto pendientes = recortesPendientes_;
+    recortesPendientes_.clear();
+    for (const auto& r : pendientes)
+        setSourceCrop(r.escena, r.fuente, r.r[0], r.r[1], r.r[2], r.r[3]); // si sigue sin tamaño, vuelve a quedar
 }
 
 bool BroadcastEngine::renameSource(const std::string& from, const std::string& to) {

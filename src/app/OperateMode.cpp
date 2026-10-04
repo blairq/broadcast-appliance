@@ -375,6 +375,7 @@ void AppRuntime::tick() {
     if (health_.valid()) {
         health_.beat(kHealthSlot);
     }
+    engine_.aplicarRecortesPendientes(); // los de cámaras que recién tienen tamaño
 }
 
 bool AppRuntime::setOperatorFeed(const std::string& videoSource, const std::string& audioSource) {
@@ -751,6 +752,21 @@ bool AppRuntime::removeSource(const std::string& scene, const std::string& name)
         sc->sources.erase(std::remove_if(sc->sources.begin(), sc->sources.end(),
                                          [&](const SourceSpec& s) { return s.name == name; }),
                           sc->sources.end());
+    }
+    return true;
+}
+
+bool AppRuntime::setSourceCrop(const std::string& scene, const std::string& name, float izquierda, float arriba,
+                               float derecha, float abajo) {
+    if (!engine_.setSourceCrop(scene, name, izquierda, arriba, derecha, abajo)) {
+        lastError_ = "no se pudo recortar '" + name + "' en '" + scene + "' (¿recorte más grande que la imagen?)";
+        return false;
+    }
+    if (SourceSpec* s = findSpec(scene, name)) {
+        s->recorte[0] = izquierda;
+        s->recorte[1] = arriba;
+        s->recorte[2] = derecha;
+        s->recorte[3] = abajo;
     }
     return true;
 }

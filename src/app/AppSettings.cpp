@@ -87,6 +87,10 @@ SourceSpec sourceFromJson(const json& s) {
     if (r.is_array() && r.size() == 4) {
         spec.rect = CanvasRect{r[0].get<float>(), r[1].get<float>(), r[2].get<float>(), r[3].get<float>()};
     }
+    const json rc = s.value("recorte", json());
+    if (rc.is_array() && rc.size() == 4)
+        for (int i = 0; i < 4; ++i)
+            spec.recorte[i] = rc[i].is_number() ? rc[i].get<float>() : 0.0f;
     return spec;
 }
 
@@ -95,13 +99,16 @@ json sourceToJson(const SourceSpec& s) {
     if (settings.is_discarded()) {
         settings = json::object();
     }
-    return json{{"id", s.id},
-                {"name", s.name},
-                {"settings", settings},
-                {"visible", s.visible},
-                {"volume", s.volume},
-                {"muted", s.muted},
-                {"rect", {s.rect.x, s.rect.y, s.rect.w, s.rect.h}}};
+    json j{{"id", s.id},
+           {"name", s.name},
+           {"settings", settings},
+           {"visible", s.visible},
+           {"volume", s.volume},
+           {"muted", s.muted},
+           {"rect", {s.rect.x, s.rect.y, s.rect.w, s.rect.h}}};
+    if (s.recorte[0] + s.recorte[1] + s.recorte[2] + s.recorte[3] > 0)
+        j["recorte"] = {s.recorte[0], s.recorte[1], s.recorte[2], s.recorte[3]};
+    return j;
 }
 
 std::string relativeToRoot(const fs::path& p, const fs::path& root) {

@@ -26,6 +26,15 @@ json diagnosticar(const json& e) {
     const json g = e.value("gstreamer", json::object());
     const bool esGst = !g.empty();
 
+    // 0) Que se esté mostrando: sin eso OBS no la dibuja, y su grafo de tarjetas
+    //    (superresolución, filtros) no trabaja; el tamaño que informa es el de
+    //    la cámara, no el de la salida del grafo.
+    if (e.contains("mostrandose") && !e.value("mostrandose", true))
+        agregar(out, "info", "grafo",
+                "no se está mostrando (no está en programa ni en la vista previa): su grafo de tarjetas no trabaja "
+                "y el tamaño que informa es el de la entrada, sin procesar",
+                "ponela en una escena visible (scene_preview o scene_switch) para ver el resultado de sus tarjetas");
+
     // 1) Que ande.
     const bool iniciando = e.value("error", std::string()) == "GStreamer se está iniciando";
     if (iniciando)

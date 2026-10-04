@@ -95,6 +95,8 @@ class AppRuntime {
     bool moveSource(const std::string& scene, const std::string& name, int delta);
     bool setSourceVisible(const std::string& scene, const std::string& name, bool visible);
     bool setSourceRect(const std::string& scene, const std::string& name, const CanvasRect& rect);
+    bool setSourceCrop(const std::string& scene, const std::string& name, float izquierda, float arriba, float derecha,
+                       float abajo);
     bool updateSourceSettings(const std::string& name, const std::string& settingsJson);
     bool setVolume(const std::string& name, float mul);
     bool setMuted(const std::string& name, bool muted);

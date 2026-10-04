@@ -1385,7 +1385,18 @@ void McpService::registerTools() {
               {"settings", {{"type", "object"}, {"description", "Solo las claves a cambiar."}}},
               {"volumeDb", {{"type", "number"}, {"minimum", -100}, {"maximum", 26}}},
               {"muted", {{"type", "boolean"}}},
-              {"rename", {{"type", "string"}, {"description", "Nuevo nombre (en todas las escenas)."}}}}},
+              {"rename", {{"type", "string"}, {"description", "Nuevo nombre (en todas las escenas)."}}},
+              {"recorte",
+               {{"type", "object"},
+                {"description",
+                 "Lo que se ve de la fuente en ESTA escena: {izquierda, arriba, derecha, abajo} en fracciones de "
+                 "su tamaño (0..1). Con el layout, amplía una zona (p. ej. comparar el mismo detalle). Todo en 0 "
+                 "lo saca."},
+                {"properties",
+                 {{"izquierda", {{"type", "number"}}},
+                  {"arriba", {{"type", "number"}}},
+                  {"derecha", {{"type", "number"}}},
+                  {"abajo", {{"type", "number"}}}}}}}}},
             {"required", {"name"}}};
         t.examples = {R"({"name": "Logo", "layout": "pip-br", "visible": true})",
                       R"({"name": "Titulo principal", "settings": {"text": "Ultimo momento"}})",
@@ -1408,6 +1419,14 @@ void McpService::registerTools() {
                 std::string nota;
                 if (!parseLayout(a["layout"], r.x, r.y, r.w, r.h, err, &nota)) return done(ToolResult::error(err));
                 (rt.setSourceRect(scene, name, r) ? did : failed).push_back(nota.empty() ? "layout" : "layout (" + nota + ")");
+            }
+            if (a.contains("recorte") && a["recorte"].is_object()) {
+                const json& c = a["recorte"];
+                (rt.setSourceCrop(scene, name, c.value("izquierda", 0.0f), c.value("arriba", 0.0f),
+                                  c.value("derecha", 0.0f), c.value("abajo", 0.0f))
+                     ? did
+                     : failed)
+                    .push_back("recorte");
             }
             if (a.contains("order")) {
                 const json& o = a["order"];

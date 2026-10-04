@@ -116,6 +116,8 @@ struct SourceSpec {
     bool visible = true;
     float volume = 1.0f; ///< ganancia lineal (1 = 0 dB)
     bool muted = false;
+    /// Recorte en la escena: izquierda, arriba, derecha, abajo (fracciones de su tamaño).
+    float recorte[4] = {0, 0, 0, 0};
 };
 
 /// Tipo de fuente disponible en esta libobs (para "Agregar fuente").
@@ -267,6 +269,14 @@ class BroadcastEngine {
 
     /// Ubica la fuente en `rect` (fracciones del lienzo) dentro de la escena.
     bool setSourceRect(const std::string& scene, const std::string& name, const CanvasRect& rect);
+    /// Recorta la fuente EN LA ESCENA (lo que se ve de ella): izquierda, arriba,
+    /// derecha, abajo en fracciones de su tamaño (0..1). Junto con el layout,
+    /// amplía una zona. Todo en 0 lo saca.
+    bool setSourceCrop(const std::string& scene, const std::string& name, float izquierda, float arriba, float derecha,
+                       float abajo);
+    /// Los recortes que esperan que su fuente tenga tamaño (una cámara que recién
+    /// arranca mide 0x0 y OBS recorta en píxeles): se aplican apenas lo tiene.
+    void aplicarRecortesPendientes();
 
     /// Renombra una fuente (en todas las escenas).
     bool renameSource(const std::string& from, const std::string& to);
@@ -612,6 +622,11 @@ class BroadcastEngine {
     bool ready() const { return started_; }
 
    private:
+    struct RecortePendiente {
+        std::string escena, fuente;
+        float r[4];
+    };
+    std::vector<RecortePendiente> recortesPendientes_;
     // Crea los codificadores si todavia no existen (se comparten entre las dos
     // salidas: codificar una sola vez y muxar dos veces).
     bool ensureEncoders(const EncoderConfig& enc);
