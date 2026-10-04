@@ -41,7 +41,9 @@ RE_CONTEXTO = re.compile(r"^\[(escena_armada|escena_actual)\]$")
 
 
 RELLENO = {"escena": "la del cierre", "audio": "la música", "audio_operador": "", "fuente": "la cámara 2",
-           "persona": "Laura", "grafico": "el zócalo", "carrusel": "la presentación"}
+           "persona": "Laura", "grafico": "el zócalo", "carrusel": "la presentación", "camara": "la dos",
+           "posicion": "el atril", "discurso": "el del intendente", "medio": "la tanda", "pregunta": "la de Juan",
+           "pantalla": "la tele del hall", "receta": "la de apertura"}
 
 
 # que tipo de entidad recibe cada familia de herramientas (como candidatos() en
@@ -49,7 +51,11 @@ RELLENO = {"escena": "la del cierre", "audio": "la música", "audio_operador": "
 ENTIDADES = [(("scene_", "transition_"), {"escena"}), (("audio", "mixer_"), {"audio", "audio_operador"}),
              (("source_", "capture_source"), {"fuente", "audio", "audio_operador", "escena"}),
              (("participant_", "speaker_", "capture_person", "chat_"), {"persona"}),
-             (("grafico_", "rotulo_"), {"grafico", "escena"}), (("laminas_",), {"carrusel", "escena"})]
+             (("grafico_", "rotulo_"), {"grafico", "escena"}), (("laminas_",), {"carrusel", "escena"}),
+             # v4: los comandos nuevos
+             (("ptz_",), {"camara", "posicion"}), (("rostro_ver",), {"camara"}), (("prompter_",), {"discurso"}),
+             (("media_use",), {"medio", "escena"}), (("pregunta_moderar",), {"pregunta"}),
+             (("pantalla_",), {"pantalla", "carrusel"}), (("receta_",), {"receta"})]
 
 
 def validar(a, esq, herramienta=None):
@@ -176,7 +182,8 @@ def main():
     sem = json.loads((RAIZ / "datos/semillas-reactivas.json").read_text())["herramientas"]
     funcs = {f["function"]["name"]: f["function"] for f in tc.funciones()}
     hechas = json.loads(SALIDA.read_text()) if SALIDA.exists() else {}
-    nombres = [h for h in lp.herramientas_reactivas() if h in sem]
+    # con --sumar entran tambien las herramientas SIN semillas (las nuevas de un perfil)
+    nombres = [h for h in lp.herramientas_reactivas() if h in sem or args.sumar]
     if args.solo:
         nombres = [h for h in nombres if h in args.solo.split(",")]
 

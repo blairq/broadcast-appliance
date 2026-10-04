@@ -1,0 +1,50 @@
+{
+ "_comentario": "v4: el repertorio reactivo (como «reactivo») mas los comandos en vivo nuevos: PTZ (llamar posiciones, mover, parar, encuadre), teleprompter, medios, guion, preguntas y votacion, pantallas, recetas y quien es quien. Pendientes del inventario nuevo: ptz_seguir, ptz_rostros, traduccion, subtitulos.",
+ "categorias": [
+  "audio",
+  "escenas",
+  "fuentes",
+  "sala",
+  "oradores",
+  "imagenes",
+  "estado",
+  "salidas",
+  "graficos",
+  "laminas"
+ ],
+ "excluir": [
+  "grafico_probar",
+  "grafico_repertorio",
+  "laminas_armar",
+  "laminas_desarmar",
+  "laminas_editar",
+  "laminas_etiquetar",
+  "laminas_sin_analizar",
+  "operator_feed"
+ ],
+ "incluir": [
+  "ptz_ir_posicion",
+  "ptz_preset",
+  "ptz_mover",
+  "ptz_parar",
+  "ptz_encuadre",
+  "ptz_posicion_crear",
+  "ptz_posiciones",
+  "prompter_control",
+  "prompter_cargar",
+  "prompter_estado",
+  "media_use",
+  "evento_correr",
+  "pregunta_moderar",
+  "preguntas_ver",
+  "votacion_abrir",
+  "votacion_ver",
+  "pantalla_mostrar",
+  "pantalla_parar",
+  "receta_correr",
+  "rostro_ver"
+ ],
+ "entradas": [
+  "pedidos"
+ ]
+}

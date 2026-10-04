@@ -3375,6 +3375,129 @@
    "origen": "tc-sumar"
   }
  ],
+ "evento_correr": [
+  {
+   "frase": "dale al próximo cue",
+   "plantilla": "dale al próximo cue",
+   "args": {
+    "accion": "siguiente"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "andá al bloque 3, cue 2",
+   "plantilla": "andá al bloque 3, cue 2",
+   "args": {
+    "accion": "ir",
+    "bloque": 3,
+    "cue": 2
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "se cortó el panel, saltá directo al bloque 4",
+   "plantilla": "se cortó el panel, saltá directo al bloque 4",
+   "args": {
+    "accion": "ir",
+    "bloque": 4
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "pausá el guion",
+   "plantilla": "pausá el guion",
+   "args": {
+    "accion": "pausar"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "pausá todo que el orador se demora",
+   "plantilla": "pausá todo que el orador se demora",
+   "args": {
+    "accion": "pausar"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "reanudá el guion",
+   "plantilla": "reanudá el guion",
+   "args": {
+    "accion": "reanudar"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "ya volvió el orador, seguí el guion desde donde quedó",
+   "plantilla": "ya volvió el orador, seguí el guion desde donde quedó",
+   "args": {
+    "accion": "reanudar"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "pará el guion",
+   "plantilla": "pará el guion",
+   "args": {
+    "accion": "parar"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "se suspendió el acto, pará el guion del todo",
+   "plantilla": "se suspendió el acto, pará el guion del todo",
+   "args": {
+    "accion": "parar"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "terminamos el ensayo, pará el guion",
+   "plantilla": "terminamos el ensayo, pará el guion",
+   "args": {
+    "accion": "parar"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "arrancá el guion",
+   "plantilla": "arrancá el guion",
+   "args": {
+    "accion": "arrancar"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "dale, arrancá el guion que ya entró la gente",
+   "plantilla": "dale, arrancá el guion que ya entró la gente",
+   "args": {
+    "accion": "arrancar"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "arrancá el guion en modo ensayo",
+   "plantilla": "arrancá el guion en modo ensayo",
+   "args": {
+    "accion": "arrancar",
+    "ensayo": true
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
  "gateway_restart": [
   {
    "frase": "reinicia la sala",
@@ -5494,6 +5617,172 @@
    "origen": "tc-sumar"
   }
  ],
+ "media_use": [
+  {
+   "frase": "música de fondo en loop con ambiente.mp3",
+   "plantilla": "música de fondo en loop con {medio}",
+   "args": {
+    "path": "{medio}",
+    "loop": true
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "necesito el video resumen.mp4 en la escena Cierre ya",
+   "plantilla": "necesito el video {medio} en la escena {escena} ya",
+   "args": {
+    "path": "{medio}",
+    "scene": "{escena}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "poné el video intro.mp4",
+   "plantilla": "poné el video {medio}",
+   "args": {
+    "path": "{medio}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "agregá cortina.mp3 de música de fondo",
+   "plantilla": "agregá {medio} de música de fondo",
+   "args": {
+    "path": "{medio}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "poné cortina.mp3 en la escena Apertura",
+   "plantilla": "poné {medio} en la escena {escena}",
+   "args": {
+    "path": "{medio}",
+    "scene": "{escena}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "agregá el video institucional.mp4 a la escena Pausa, en loop",
+   "plantilla": "agregá el video {medio} a la escena {escena}, en loop",
+   "args": {
+    "path": "{medio}",
+    "scene": "{escena}",
+    "loop": true
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "cargá logo.png en Cierre pero oculto",
+   "plantilla": "cargá {medio} en {escena} pero oculto",
+   "args": {
+    "path": "{medio}",
+    "scene": "{escena}",
+    "visible": false
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "poné la imagen placa.png en la escena Espera",
+   "plantilla": "poné la imagen {medio} en la escena {escena}",
+   "args": {
+    "path": "{medio}",
+    "scene": "{escena}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "agregá spot.mp4 a Intervalo y llamalo Spot sponsor",
+   "plantilla": "agregá {medio} a {escena} y llamalo Spot sponsor",
+   "args": {
+    "path": "{medio}",
+    "scene": "{escena}",
+    "name": "Spot sponsor"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "la escena Espera está muda, agregale musica.mp3 de fondo",
+   "plantilla": "la escena {escena} está muda, agregale {medio} de fondo",
+   "args": {
+    "path": "{medio}",
+    "scene": "{escena}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "poné el video entrevista.mp4 sin loop en Bloque 2",
+   "plantilla": "poné el video {medio} sin loop en {escena}",
+   "args": {
+    "path": "{medio}",
+    "scene": "{escena}",
+    "loop": false
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "agregá aplausos.wav",
+   "plantilla": "agregá {medio}",
+   "args": {
+    "path": "{medio}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "cargá fondo.mp4 en loop en la escena Pausa",
+   "plantilla": "cargá {medio} en loop en la escena {escena}",
+   "args": {
+    "path": "{medio}",
+    "scene": "{escena}",
+    "loop": true
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "agregá la imagen mapa.png a Intervalo, todavía invisible",
+   "plantilla": "agregá la imagen {medio} a {escena}, todavía invisible",
+   "args": {
+    "path": "{medio}",
+    "scene": "{escena}",
+    "visible": false
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "poné música de fondo",
+   "plantilla": "poné música de fondo",
+   "falta": "¿qué archivo de música?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "agregá un video a la escena Apertura",
+   "plantilla": "agregá un video a la escena {escena}",
+   "falta": "¿qué video?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "cargá una imagen en loop",
+   "plantilla": "cargá una imagen en loop",
+   "falta": "¿qué imagen?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
  "mixer_list": [
   {
    "frase": "mostrame el mezclador",
@@ -5756,6 +6045,330 @@
    "nueva": true,
    "frase": "a los invitados les aparece aviso de seguridad al abrir el link",
    "origen": "bucle"
+  }
+ ],
+ "pantalla_mostrar": [
+  {
+   "frase": "QR del wifi en el monitor del buffet, abajo que diga Wifi gratis",
+   "plantilla": "QR del wifi en {pantalla}, abajo que diga Wifi gratis",
+   "args": {
+    "pantalla": "{pantalla}",
+    "tipo": "qr",
+    "qr": "wifi",
+    "pie": "Wifi gratis"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "carrusel Fotos en la pantalla del buffet",
+   "plantilla": "carrusel {carrusel} en {pantalla}",
+   "args": {
+    "pantalla": "{pantalla}",
+    "tipo": "carrusel",
+    "carrusel": "{carrusel}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "reloj en la pantalla del atril",
+   "plantilla": "reloj en {pantalla}",
+   "args": {
+    "pantalla": "{pantalla}",
+    "tipo": "reloj"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "mostrá el reloj en la tele del hall",
+   "plantilla": "mostrá el reloj en {pantalla}",
+   "args": {
+    "pantalla": "{pantalla}",
+    "tipo": "reloj"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "mostrá la votación en la pantalla grande",
+   "plantilla": "mostrá la votación en {pantalla}",
+   "args": {
+    "pantalla": "{pantalla}",
+    "tipo": "votacion"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "abrió la votación, mostrala en la tele del hall",
+   "plantilla": "abrió la votación, mostrala en {pantalla}",
+   "args": {
+    "pantalla": "{pantalla}",
+    "tipo": "votacion"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "mostrá el QR de evento.com/encuesta en la tele de entrada",
+   "plantilla": "mostrá el QR de evento.com/encuesta en {pantalla}",
+   "args": {
+    "pantalla": "{pantalla}",
+    "tipo": "qr",
+    "qr": "evento.com/encuesta"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "mostrá el cartel Volvemos en 10 minutos en la tele del hall",
+   "plantilla": "mostrá el cartel Volvemos en 10 minutos en {pantalla}",
+   "args": {
+    "pantalla": "{pantalla}",
+    "tipo": "mensaje",
+    "texto": "Volvemos en 10 minutos"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "mostrá la web evento.com en el monitor de prensa",
+   "plantilla": "mostrá la web evento.com en {pantalla}",
+   "args": {
+    "pantalla": "{pantalla}",
+    "tipo": "url",
+    "url": "evento.com"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "mostrá el prompter en el monitor de piso",
+   "plantilla": "mostrá el prompter en {pantalla}",
+   "args": {
+    "pantalla": "{pantalla}",
+    "tipo": "prompter"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "el orador no ve el texto, mostrá el prompter en la tele del atril",
+   "plantilla": "el orador no ve el texto, mostrá el prompter en {pantalla}",
+   "args": {
+    "pantalla": "{pantalla}",
+    "tipo": "prompter"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "mostrá el carrusel Sponsors en la tele del hall",
+   "plantilla": "mostrá el carrusel {carrusel} en {pantalla}",
+   "args": {
+    "pantalla": "{pantalla}",
+    "tipo": "carrusel",
+    "carrusel": "{carrusel}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "mostrá el programa en el monitor de escenario",
+   "plantilla": "mostrá el programa en {pantalla}",
+   "args": {
+    "pantalla": "{pantalla}",
+    "tipo": "programa"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "mostrá el tally en el monitor de cámaras",
+   "plantilla": "mostrá el tally en {pantalla}",
+   "args": {
+    "pantalla": "{pantalla}",
+    "tipo": "tally"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "los camarógrafos no saben quién sale, mostrá el tally en la tele de piso",
+   "plantilla": "los camarógrafos no saben quién sale, mostrá el tally en {pantalla}",
+   "args": {
+    "pantalla": "{pantalla}",
+    "tipo": "tally"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "mostrá el reloj en la tele",
+   "plantilla": "mostrá el reloj en la tele",
+   "falta": "¿en qué pantalla?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "mostrá la votación en una pantalla",
+   "plantilla": "mostrá la votación en una pantalla",
+   "falta": "¿en cuál pantalla?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
+ "pantalla_parar": [
+  {
+   "frase": "pará la tele del hall",
+   "plantilla": "pará {pantalla}",
+   "args": {
+    "pantalla": "{pantalla}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "fondo de pantalla en la tele del atril",
+   "plantilla": "fondo de pantalla en {pantalla}",
+   "args": {
+    "pantalla": "{pantalla}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "liberá la pantalla del buffet",
+   "plantilla": "liberá {pantalla}",
+   "args": {
+    "pantalla": "{pantalla}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "pará el reloj del monitor de escenario",
+   "plantilla": "pará el reloj de {pantalla}",
+   "args": {
+    "pantalla": "{pantalla}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "dejá la pantalla de entrada como estaba",
+   "plantilla": "dejá {pantalla} como estaba",
+   "args": {
+    "pantalla": "{pantalla}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "la tele de prensa todavía muestra el programa, pará eso",
+   "plantilla": "{pantalla} todavía muestra el programa, pará eso",
+   "args": {
+    "pantalla": "{pantalla}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "pará la tele",
+   "plantilla": "pará la tele",
+   "falta": "¿cuál tele?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "volvé la pantalla grande a su fondo",
+   "plantilla": "volvé {pantalla} a su fondo",
+   "args": {
+    "pantalla": "{pantalla}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "ya votaron, volvé la tele del hall a lo de antes",
+   "plantilla": "ya votaron, volvé {pantalla} a lo de antes",
+   "args": {
+    "pantalla": "{pantalla}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "quitá el QR del monitor del buffet",
+   "plantilla": "quitá el QR de {pantalla}",
+   "args": {
+    "pantalla": "{pantalla}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "terminá lo que muestra la tele de entrada",
+   "plantilla": "terminá lo que muestra {pantalla}",
+   "args": {
+    "pantalla": "{pantalla}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "el monitor de prensa sigue con la votación vieja, volvelo a su fondo",
+   "plantilla": "{pantalla} sigue con la votación vieja, volvelo a su fondo",
+   "args": {
+    "pantalla": "{pantalla}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "quitá el cartel de la tele del hall, ya volvimos",
+   "plantilla": "quitá el cartel de {pantalla}, ya volvimos",
+   "args": {
+    "pantalla": "{pantalla}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "el prompter terminó, volvé el monitor de piso a su fondo",
+   "plantilla": "el prompter terminó, volvé {pantalla} a su fondo",
+   "args": {
+    "pantalla": "{pantalla}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "terminá el tally del monitor de cámaras",
+   "plantilla": "terminá el tally de {pantalla}",
+   "args": {
+    "pantalla": "{pantalla}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "volvé la tele del hall al fondo de pantalla",
+   "plantilla": "volvé {pantalla} al fondo de pantalla",
+   "args": {
+    "pantalla": "{pantalla}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "volvé la pantalla a su fondo",
+   "plantilla": "volvé la pantalla a su fondo",
+   "falta": "¿qué pantalla?",
+   "nueva": true,
+   "origen": "tc-nuevas"
   }
  ],
  "participant_admit": [
@@ -7000,6 +7613,1614 @@
    "origen": "tc-sumar"
   }
  ],
+ "pregunta_moderar": [
+  {
+   "frase": "elegí la pregunta {pregunta}",
+   "plantilla": "elegí la pregunta {pregunta}",
+   "args": {
+    "accion": "elegir",
+    "id": "{pregunta}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "la próxima es {pregunta}, elegila",
+   "plantilla": "la próxima es {pregunta}, elegila",
+   "args": {
+    "accion": "elegir",
+    "id": "{pregunta}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "elegí {pregunta} para la ronda que sigue",
+   "plantilla": "elegí {pregunta} para la ronda que sigue",
+   "args": {
+    "accion": "elegir",
+    "id": "{pregunta}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "dejá de elegir {pregunta}",
+   "plantilla": "dejá de elegir {pregunta}",
+   "args": {
+    "accion": "des_elegir",
+    "id": "{pregunta}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "al aire {pregunta}, ya",
+   "plantilla": "al aire {pregunta}, ya",
+   "args": {
+    "accion": "al_aire",
+    "id": "{pregunta}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "la oradora ya contestó {pregunta}",
+   "plantilla": "la oradora ya contestó {pregunta}",
+   "args": {
+    "accion": "responder",
+    "id": "{pregunta}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "descartá {pregunta}",
+   "plantilla": "descartá {pregunta}",
+   "args": {
+    "accion": "descartar",
+    "id": "{pregunta}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "{pregunta} está repetida, descartala",
+   "plantilla": "{pregunta} está repetida, descartala",
+   "args": {
+    "accion": "descartar",
+    "id": "{pregunta}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "limpiá la cola de preguntas",
+   "plantilla": "limpiá la cola de preguntas",
+   "args": {
+    "accion": "limpiar"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "limpiá las respondidas de la cola",
+   "plantilla": "limpiá las respondidas de la cola",
+   "args": {
+    "accion": "limpiar"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "descartá esa pregunta",
+   "plantilla": "descartá esa pregunta",
+   "falta": "¿Qué pregunta descarto?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
+ "preguntas_ver": [
+  {
+   "frase": "¿qué preguntas hay?",
+   "plantilla": "¿qué preguntas hay?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿cuántas preguntas quedan en la cola?",
+   "plantilla": "¿cuántas preguntas quedan en la cola?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿cuál es la próxima pregunta?",
+   "plantilla": "¿cuál es la próxima pregunta?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿llegaron preguntas nuevas?",
+   "plantilla": "¿llegaron preguntas nuevas?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué preguntó la gente?",
+   "plantilla": "¿qué preguntó la gente?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "a ver la cola de preguntas",
+   "plantilla": "a ver la cola de preguntas",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "el moderador pide la próxima, ¿qué pregunta sigue?",
+   "plantilla": "el moderador pide la próxima, ¿qué pregunta sigue?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿cuántas preguntas mandó el público?",
+   "plantilla": "¿cuántas preguntas mandó el público?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "no me aparece ninguna pregunta, ¿hay algo en la cola?",
+   "plantilla": "no me aparece ninguna pregunta, ¿hay algo en la cola?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué pregunta sigue?",
+   "plantilla": "¿qué pregunta sigue?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿quedó alguna pregunta sin responder?",
+   "plantilla": "¿quedó alguna pregunta sin responder?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿hay preguntas del público para el panel?",
+   "plantilla": "¿hay preguntas del público para el panel?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
+ "prompter_cargar": [
+  {
+   "frase": "{discurso} en el prompter, ya",
+   "plantilla": "{discurso} en el prompter, ya",
+   "args": {
+    "rel": "{discurso}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "quiero {discurso} en el teleprompter",
+   "plantilla": "quiero {discurso} en el teleprompter",
+   "args": {
+    "rel": "{discurso}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "en el prompter tiene que estar {discurso}",
+   "plantilla": "en el prompter tiene que estar {discurso}",
+   "args": {
+    "rel": "{discurso}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿me cargás {discurso} en el teleprompter?",
+   "plantilla": "¿me cargás {discurso} en el teleprompter?",
+   "args": {
+    "rel": "{discurso}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "cargá {discurso} en el prompter",
+   "plantilla": "cargá {discurso} en el prompter",
+   "args": {
+    "rel": "{discurso}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "abrí {discurso} en el teleprompter",
+   "plantilla": "abrí {discurso} en el teleprompter",
+   "args": {
+    "rel": "{discurso}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "el prompter está en blanco, cargá {discurso}",
+   "plantilla": "el prompter está en blanco, cargá {discurso}",
+   "args": {
+    "rel": "{discurso}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "cambiá el discurso del prompter por {discurso}",
+   "plantilla": "cambiá el discurso del prompter por {discurso}",
+   "args": {
+    "rel": "{discurso}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "cargá el discurso {discurso}",
+   "plantilla": "cargá el discurso {discurso}",
+   "args": {
+    "rel": "{discurso}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "el orador tiene el texto equivocado, cargá {discurso}",
+   "plantilla": "el orador tiene el texto equivocado, cargá {discurso}",
+   "args": {
+    "rel": "{discurso}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "cargá {discurso}, que ya sube el ministro",
+   "plantilla": "cargá {discurso}, que ya sube el ministro",
+   "args": {
+    "rel": "{discurso}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "abrí el discurso {discurso} para la oradora",
+   "plantilla": "abrí el discurso {discurso} para la oradora",
+   "args": {
+    "rel": "{discurso}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "cargá el discurso en el prompter",
+   "plantilla": "cargá el discurso en el prompter",
+   "falta": "¿Qué discurso cargo?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "el prompter está vacío, cargale algo al orador",
+   "plantilla": "el prompter está vacío, cargale algo al orador",
+   "falta": "¿Qué discurso cargo en el prompter?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
+ "prompter_control": [
+  {
+   "frase": "pará el prompter",
+   "plantilla": "pará el prompter",
+   "args": {
+    "corriendo": false
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "velocidad del prompter a 120",
+   "plantilla": "velocidad del prompter a 120",
+   "args": {
+    "ppm": 120
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "bajá la velocidad a 90 palabras por minuto",
+   "plantilla": "bajá la velocidad a 90 palabras por minuto",
+   "args": {
+    "ppm": 90
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "el orador se adelantó, andá al párrafo 12",
+   "plantilla": "el orador se adelantó, andá al párrafo 12",
+   "args": {
+    "parrafo": 12
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "avisale al orador que le quedan dos minutos",
+   "plantilla": "avisale al orador que le quedan dos minutos",
+   "args": {
+    "aviso": "Quedan dos minutos"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "avisale a la oradora que cierre ya",
+   "plantilla": "avisale a la oradora que cierre ya",
+   "args": {
+    "aviso": "Cerrá ya"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "pánico en el prompter",
+   "plantilla": "pánico en el prompter",
+   "args": {
+    "panico": true
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "arrancá el prompter",
+   "plantilla": "arrancá el prompter",
+   "args": {
+    "corriendo": true
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "frená el texto, el orador está improvisando",
+   "plantilla": "frená el texto, el orador está improvisando",
+   "args": {
+    "corriendo": false
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "subí la velocidad del prompter a 150",
+   "plantilla": "subí la velocidad del prompter a 150",
+   "args": {
+    "ppm": 150
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "el texto va muy rápido para el orador, bajalo a 100 ppm",
+   "plantilla": "el texto va muy rápido para el orador, bajalo a 100 ppm",
+   "args": {
+    "ppm": 100
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "saltá al párrafo 5",
+   "plantilla": "saltá al párrafo 5",
+   "args": {
+    "parrafo": 5
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "saltá al 75 por ciento del texto",
+   "plantilla": "saltá al 75 por ciento del texto",
+   "args": {
+    "avancePct": 75
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
+ "prompter_estado": [
+  {
+   "frase": "¿cómo está el prompter?",
+   "plantilla": "¿cómo está el prompter?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué discurso está cargado en el prompter?",
+   "plantilla": "¿qué discurso está cargado en el prompter?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿el prompter está corriendo o está parado?",
+   "plantilla": "¿el prompter está corriendo o está parado?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿por dónde va el texto del prompter?",
+   "plantilla": "¿por dónde va el texto del prompter?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿a qué velocidad está el prompter?",
+   "plantilla": "¿a qué velocidad está el prompter?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿cuánto le falta al discurso del prompter?",
+   "plantilla": "¿cuánto le falta al discurso del prompter?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué pantallas del prompter están conectadas?",
+   "plantilla": "¿qué pantallas del prompter están conectadas?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿está conectada la pantalla del atril?",
+   "plantilla": "¿está conectada la pantalla del atril?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "estado del prompter, rápido",
+   "plantilla": "estado del prompter, rápido",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "el orador dice que no ve nada en el atril",
+   "plantilla": "el orador dice que no ve nada en el atril",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "el texto del atril no avanza, fijate qué pasa",
+   "plantilla": "el texto del atril no avanza, fijate qué pasa",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "antes de arrancar, ¿qué tiene cargado el prompter?",
+   "plantilla": "antes de arrancar, ¿qué tiene cargado el prompter?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿cuántos minutos le quedan al discurso?",
+   "plantilla": "¿cuántos minutos le quedan al discurso?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "la pantalla de control del prompter está en negro",
+   "plantilla": "la pantalla de control del prompter está en negro",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿en qué parte del discurso está el orador?",
+   "plantilla": "¿en qué parte del discurso está el orador?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "el texto va muy lento, ¿a cuánto está?",
+   "plantilla": "el texto va muy lento, ¿a cuánto está?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
+ "ptz_encuadre": [
+  {
+   "frase": "zoom digital al doble en la dos",
+   "plantilla": "zoom digital al doble en {camara}",
+   "args": {
+    "entrada": "{camara}",
+    "zoom": 2
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "recortá la cámara del fondo a zoom tres",
+   "plantilla": "recortá {camara} a zoom tres",
+   "args": {
+    "entrada": "{camara}",
+    "zoom": 3
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "centrá el recorte de la uno",
+   "plantilla": "centrá el recorte de {camara}",
+   "args": {
+    "entrada": "{camara}",
+    "x": 0.5,
+    "y": 0.5
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "sin recorte en la cámara lateral",
+   "plantilla": "sin recorte en {camara}",
+   "args": {
+    "entrada": "{camara}",
+    "zoom": 1
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "recorte de la dos al lado izquierdo del cuadro",
+   "plantilla": "recorte de {camara} al lado izquierdo del cuadro",
+   "args": {
+    "entrada": "{camara}",
+    "x": 0.25
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "en la uno recortá la mitad derecha, zoom dos",
+   "plantilla": "en {camara} recortá la mitad derecha, zoom dos",
+   "args": {
+    "entrada": "{camara}",
+    "x": 0.75,
+    "zoom": 2
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "zoom digital cuatro en la dos, en tres segundos",
+   "plantilla": "zoom digital cuatro en {camara}, en tres segundos",
+   "args": {
+    "entrada": "{camara}",
+    "zoom": 4,
+    "segundos": 3
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "recorte de la central al centro con zoom dos, al corte",
+   "plantilla": "recorte de {camara} al centro con zoom dos, al corte",
+   "args": {
+    "entrada": "{camara}",
+    "x": 0.5,
+    "y": 0.5,
+    "zoom": 2,
+    "segundos": 0
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "el recorte de la dos quedó corrido, centralo",
+   "plantilla": "el recorte de {camara} quedó corrido, centralo",
+   "args": {
+    "entrada": "{camara}",
+    "x": 0.5,
+    "y": 0.5
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "bajá el recorte de la uno a la parte de abajo",
+   "plantilla": "bajá el recorte de {camara} a la parte de abajo",
+   "args": {
+    "entrada": "{camara}",
+    "y": 0.75
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "zoom digital máximo en la tres",
+   "plantilla": "zoom digital máximo en {camara}",
+   "args": {
+    "entrada": "{camara}",
+    "zoom": 8
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "centrá el recorte digital",
+   "plantilla": "centrá el recorte digital",
+   "falta": "¿de qué cámara?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
+ "ptz_ir_posicion": [
+  {
+   "frase": "apuntá la dos a Laura",
+   "plantilla": "apuntá {camara} a {posicion}",
+   "args": {
+    "entrada": "{camara}",
+    "posicion": "{posicion}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "la uno al atril",
+   "plantilla": "{camara} a {posicion}",
+   "args": {
+    "entrada": "{camara}",
+    "posicion": "{posicion}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "posición el atril en la cámara del fondo",
+   "plantilla": "posición {posicion} en {camara}",
+   "args": {
+    "entrada": "{camara}",
+    "posicion": "{posicion}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "apuntá la dos a la panorámica en tres segundos",
+   "plantilla": "apuntá {camara} a {posicion} en tres segundos",
+   "args": {
+    "entrada": "{camara}",
+    "posicion": "{posicion}",
+    "segundos": 3
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "la uno a Laura, al corte",
+   "plantilla": "{camara} a {posicion}, al corte",
+   "args": {
+    "entrada": "{camara}",
+    "posicion": "{posicion}",
+    "segundos": 0
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "en la uno andá a la posición del atril",
+   "plantilla": "en {camara} andá a la posición {posicion}",
+   "args": {
+    "entrada": "{camara}",
+    "posicion": "{posicion}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "sube el orador, la tres al atril en dos segundos",
+   "plantilla": "sube el orador, {camara} a {posicion} en dos segundos",
+   "args": {
+    "entrada": "{camara}",
+    "posicion": "{posicion}",
+    "segundos": 2
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "cámara central a la panorámica, ya",
+   "plantilla": "{camara} a {posicion}, ya",
+   "args": {
+    "entrada": "{camara}",
+    "posicion": "{posicion}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "recuperá la posición Laura en la uno",
+   "plantilla": "recuperá la posición {posicion} en {camara}",
+   "args": {
+    "entrada": "{camara}",
+    "posicion": "{posicion}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "apuntá la dos a la panorámica, movimiento suave de cuatro segundos",
+   "plantilla": "apuntá {camara} a {posicion}, movimiento suave de cuatro segundos",
+   "args": {
+    "entrada": "{camara}",
+    "posicion": "{posicion}",
+    "segundos": 4
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "apuntá a Laura",
+   "plantilla": "apuntá a Laura",
+   "falta": "¿con qué cámara?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "una cámara a la panorámica, rápido",
+   "plantilla": "una cámara a la panorámica, rápido",
+   "falta": "¿qué cámara?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "llevá la cámara tres a la panorámica",
+   "plantilla": "llevá {camara} a {posicion}",
+   "args": {
+    "entrada": "{camara}",
+    "posicion": "{posicion}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "llevá despacio la tres al atril, cinco segundos",
+   "plantilla": "llevá despacio {camara} a {posicion}, cinco segundos",
+   "args": {
+    "entrada": "{camara}",
+    "posicion": "{posicion}",
+    "segundos": 5
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "llevá la dos a su posición guardada",
+   "plantilla": "llevá {camara} a su posición guardada",
+   "falta": "¿a qué posición?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
+ "ptz_mover": [
+  {
+   "frase": "girá la dos a la derecha",
+   "plantilla": "girá {camara} a la derecha",
+   "args": {
+    "entrada": "{camara}",
+    "pan": 0.5
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "girá la uno a la izquierda un segundo",
+   "plantilla": "girá {camara} a la izquierda un segundo",
+   "args": {
+    "entrada": "{camara}",
+    "pan": -0.5,
+    "duracion_ms": 1000
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "bajá la cámara del fondo medio segundo",
+   "plantilla": "bajá {camara} medio segundo",
+   "args": {
+    "entrada": "{camara}",
+    "tilt": -0.5,
+    "duracion_ms": 500
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "acercá la dos con el zoom óptico",
+   "plantilla": "acercá {camara} con el zoom óptico",
+   "args": {
+    "entrada": "{camara}",
+    "zoom": 0.5
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "alejá el zoom de la uno dos segundos",
+   "plantilla": "alejá el zoom de {camara} dos segundos",
+   "args": {
+    "entrada": "{camara}",
+    "zoom": -0.5,
+    "duracion_ms": 2000
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "girá despacito la tres a la derecha",
+   "plantilla": "girá despacito {camara} a la derecha",
+   "args": {
+    "entrada": "{camara}",
+    "pan": 0.2
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "girá rápido la dos a la izquierda",
+   "plantilla": "girá rápido {camara} a la izquierda",
+   "args": {
+    "entrada": "{camara}",
+    "pan": -1
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "la uno, arriba y a la derecha, un segundo",
+   "plantilla": "{camara}, arriba y a la derecha, un segundo",
+   "args": {
+    "entrada": "{camara}",
+    "pan": 0.5,
+    "tilt": 0.5,
+    "duracion_ms": 1000
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "la tres quedó muy cerrada, alejá el zoom",
+   "plantilla": "{camara} quedó muy cerrada, alejá el zoom",
+   "args": {
+    "entrada": "{camara}",
+    "zoom": -0.5
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "el orador se corrió a la izquierda, girá la uno",
+   "plantilla": "el orador se corrió a la izquierda, girá {camara}",
+   "args": {
+    "entrada": "{camara}",
+    "pan": -0.5
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "bajá despacio la cámara central tres segundos",
+   "plantilla": "bajá despacio {camara} tres segundos",
+   "args": {
+    "entrada": "{camara}",
+    "tilt": -0.2,
+    "duracion_ms": 3000
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "acercá rápido la dos con zoom óptico, medio segundo",
+   "plantilla": "acercá rápido {camara} con zoom óptico, medio segundo",
+   "args": {
+    "entrada": "{camara}",
+    "zoom": 1,
+    "duracion_ms": 500
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "paneo lento a la derecha en la lateral, cinco segundos",
+   "plantilla": "paneo lento a la derecha en {camara}, cinco segundos",
+   "args": {
+    "entrada": "{camara}",
+    "pan": 0.2,
+    "duracion_ms": 5000
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "girá la cámara a la derecha",
+   "plantilla": "girá la cámara a la derecha",
+   "falta": "¿qué cámara?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "acercá un poco con el zoom óptico",
+   "plantilla": "acercá un poco con el zoom óptico",
+   "falta": "¿en qué cámara?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
+ "ptz_parar": [
+  {
+   "frase": "pará la dos",
+   "plantilla": "pará {camara}",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "stop en la cámara lateral",
+   "plantilla": "stop en {camara}",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "dejá quieta la cámara del atril",
+   "plantilla": "dejá quieta {camara}",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "ojo que la tres sigue paneando, pará el movimiento",
+   "plantilla": "ojo que {camara} sigue paneando, pará el movimiento",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "la uno sigue girando, que se quede quieta",
+   "plantilla": "{camara} sigue girando, que se quede quieta",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "frená la cámara del fondo ya",
+   "plantilla": "frená {camara} ya",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "detené la uno, se sigue moviendo",
+   "plantilla": "detené {camara}, se sigue moviendo",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "frená el zoom de la dos",
+   "plantilla": "frená el zoom de {camara}",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "detené todo movimiento de la uno",
+   "plantilla": "detené todo movimiento de {camara}",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "rápido, frená la cámara lateral que está en vivo",
+   "plantilla": "rápido, frená {camara} que está en vivo",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "parame la tres ahí",
+   "plantilla": "parame {camara} ahí",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "frená la cámara que se mueve sola",
+   "plantilla": "frená la cámara que se mueve sola",
+   "falta": "¿qué cámara?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "detené el movimiento, rápido",
+   "plantilla": "detené el movimiento, rápido",
+   "falta": "¿de qué cámara?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
+ "ptz_posicion_crear": [
+  {
+   "frase": "guardá esta posición de la dos como púlpito",
+   "plantilla": "guardá esta posición de {camara} como púlpito",
+   "args": {
+    "entrada": "{camara}",
+    "nombre": "púlpito"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "registrá la uno así como plano general",
+   "plantilla": "registrá {camara} así como plano general",
+   "args": {
+    "entrada": "{camara}",
+    "nombre": "plano general"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "guardá donde está la dos como Marta, comentario: la oradora de la izquierda",
+   "plantilla": "guardá donde está {camara} como Marta, comentario: la oradora de la izquierda",
+   "args": {
+    "entrada": "{camara}",
+    "nombre": "Marta",
+    "comentario": "la oradora de la izquierda"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "este encuadre de la uno guardalo como mesa",
+   "plantilla": "este encuadre de {camara} guardalo como mesa",
+   "args": {
+    "entrada": "{camara}",
+    "nombre": "mesa"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "quedó bien la tres, guardala como banda",
+   "plantilla": "quedó bien {camara}, guardala como banda",
+   "args": {
+    "entrada": "{camara}",
+    "nombre": "banda"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "nueva posición en la cámara lateral: escalera",
+   "plantilla": "nueva posición en {camara}: escalera",
+   "args": {
+    "entrada": "{camara}",
+    "nombre": "escalera"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "guardá la dos como entrada, nota: puerta principal",
+   "plantilla": "guardá {camara} como entrada, nota: puerta principal",
+   "args": {
+    "entrada": "{camara}",
+    "nombre": "entrada",
+    "comentario": "puerta principal"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "registrá la posición actual de la uno con nombre primer plano",
+   "plantilla": "registrá la posición actual de {camara} con nombre primer plano",
+   "args": {
+    "entrada": "{camara}",
+    "nombre": "primer plano"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "guardá esta posición como podio",
+   "plantilla": "guardá esta posición como podio",
+   "falta": "¿de qué cámara?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "registrá la uno como está ahora",
+   "plantilla": "registrá {camara} como está ahora",
+   "falta": "¿con qué nombre?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "el plano de la cámara del fondo está perfecto, guardalo como público",
+   "plantilla": "el plano de {camara} está perfecto, guardalo como público",
+   "args": {
+    "entrada": "{camara}",
+    "nombre": "público"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "guardá la tres como altar",
+   "plantilla": "guardá {camara} como altar",
+   "args": {
+    "entrada": "{camara}",
+    "nombre": "altar"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "posición nueva en la dos, se llama detalle manos",
+   "plantilla": "posición nueva en {camara}, se llama detalle manos",
+   "args": {
+    "entrada": "{camara}",
+    "nombre": "detalle manos"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "guardá la uno como pantalla, comentario: para las diapositivas",
+   "plantilla": "guardá {camara} como pantalla, comentario: para las diapositivas",
+   "args": {
+    "entrada": "{camara}",
+    "nombre": "pantalla",
+    "comentario": "para las diapositivas"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "antes de moverla, registrá la tres como plano medio",
+   "plantilla": "antes de moverla, registrá {camara} como plano medio",
+   "args": {
+    "entrada": "{camara}",
+    "nombre": "plano medio"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "creá la posición coro en la tres",
+   "plantilla": "creá la posición coro en {camara}",
+   "args": {
+    "entrada": "{camara}",
+    "nombre": "coro"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "creá posición invitado en la dos, comentario: silla de la derecha",
+   "plantilla": "creá posición invitado en {camara}, comentario: silla de la derecha",
+   "args": {
+    "entrada": "{camara}",
+    "nombre": "invitado",
+    "comentario": "silla de la derecha"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
+ "ptz_posiciones": [
+  {
+   "frase": "¿qué posiciones tiene la dos?",
+   "plantilla": "¿qué posiciones tiene {camara}?",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué posiciones hay guardadas?",
+   "plantilla": "¿qué posiciones hay guardadas?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿la tres tiene alguna posición guardada?",
+   "plantilla": "¿{camara} tiene alguna posición guardada?",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿cuántas posiciones tiene guardadas la tres?",
+   "plantilla": "¿cuántas posiciones tiene guardadas {camara}?",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿a dónde puedo apuntar la dos?",
+   "plantilla": "¿a dónde puedo apuntar {camara}?",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué encuadres guardados tiene la cámara del fondo?",
+   "plantilla": "¿qué encuadres guardados tiene {camara}?",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "antes de arrancar, ¿qué posiciones tenemos en todas las cámaras?",
+   "plantilla": "antes de arrancar, ¿qué posiciones tenemos en todas las cámaras?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿está guardada la posición del coro en la tres? listame las posiciones",
+   "plantilla": "¿está guardada la posición del coro en {camara}? listame las posiciones",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "posiciones de la dos",
+   "plantilla": "posiciones de {camara}",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué nombres tienen las posiciones de la cámara lateral?",
+   "plantilla": "¿qué nombres tienen las posiciones de {camara}?",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "mostrame todas las posiciones de todas las cámaras",
+   "plantilla": "mostrame todas las posiciones de todas las cámaras",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "mostrame las posiciones de cada cámara",
+   "plantilla": "mostrame las posiciones de cada cámara",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
+ "ptz_preset": [
+  {
+   "frase": "preset tres en la dos",
+   "plantilla": "preset tres en {camara}",
+   "args": {
+    "entrada": "{camara}",
+    "numero": 3,
+    "accion": "ir"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "la tres al preset uno",
+   "plantilla": "{camara} al preset uno",
+   "args": {
+    "entrada": "{camara}",
+    "numero": 1,
+    "accion": "ir"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "andá al preset dos en la cámara lateral",
+   "plantilla": "andá al preset dos en {camara}",
+   "args": {
+    "entrada": "{camara}",
+    "numero": 2,
+    "accion": "ir"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "guardá el preset 4 en la uno",
+   "plantilla": "guardá el preset 4 en {camara}",
+   "args": {
+    "entrada": "{camara}",
+    "numero": 4,
+    "accion": "guardar"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "entra el orador, la tres al preset 6",
+   "plantilla": "entra el orador, {camara} al preset 6",
+   "args": {
+    "entrada": "{camara}",
+    "numero": 6,
+    "accion": "ir"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "recuperá el preset 10 de la cámara del fondo",
+   "plantilla": "recuperá el preset 10 de {camara}",
+   "args": {
+    "entrada": "{camara}",
+    "numero": 10,
+    "accion": "ir"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿podés mover la uno al preset ocho?",
+   "plantilla": "¿podés mover {camara} al preset ocho?",
+   "args": {
+    "entrada": "{camara}",
+    "numero": 8,
+    "accion": "ir"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "andá al preset cuatro",
+   "plantilla": "andá al preset cuatro",
+   "falta": "¿en qué cámara?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "preset 9, cámara lateral",
+   "plantilla": "preset 9, {camara}",
+   "args": {
+    "entrada": "{camara}",
+    "numero": 9,
+    "accion": "ir"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "sobrescribí el preset 2 de la uno con este encuadre",
+   "plantilla": "sobrescribí el preset 2 de {camara} con este encuadre",
+   "args": {
+    "entrada": "{camara}",
+    "numero": 2,
+    "accion": "guardar"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "cuando termine el tema, la dos al preset 15",
+   "plantilla": "cuando termine el tema, {camara} al preset 15",
+   "args": {
+    "entrada": "{camara}",
+    "numero": 15,
+    "accion": "ir"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
+ "receta_correr": [
+  {
+   "frase": "ejecutá apertura",
+   "plantilla": "ejecutá {receta}",
+   "args": {
+    "id": "{receta}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "dale a la receta cierre",
+   "plantilla": "dale a la receta {receta}",
+   "args": {
+    "id": "{receta}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "entra el orador, ejecutá la receta de entrada",
+   "plantilla": "entra el orador, ejecutá la receta {receta}",
+   "args": {
+    "id": "{receta}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "ejecutá la secuencia guardada intervalo, todos los pasos",
+   "plantilla": "ejecutá la secuencia guardada {receta}, todos los pasos",
+   "args": {
+    "id": "{receta}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "rápido, receta cierre",
+   "plantilla": "rápido, receta {receta}",
+   "args": {
+    "id": "{receta}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "necesito que corras la receta apertura ahora",
+   "plantilla": "necesito que corras la receta {receta} ahora",
+   "args": {
+    "id": "{receta}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "ejecutá la receta de la pausa, estamos en tiempo",
+   "plantilla": "ejecutá la receta {receta}, estamos en tiempo",
+   "args": {
+    "id": "{receta}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "vamos con la receta entrada",
+   "plantilla": "vamos con la receta {receta}",
+   "args": {
+    "id": "{receta}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "ejecutá apertura de punta a punta",
+   "plantilla": "ejecutá {receta} de punta a punta",
+   "args": {
+    "id": "{receta}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "se cortó la transmisión, corré la receta de emergencia",
+   "plantilla": "se cortó la transmisión, corré la receta {receta}",
+   "args": {
+    "id": "{receta}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "ejecutá la secuencia guardada",
+   "plantilla": "ejecutá la secuencia guardada",
+   "falta": "¿Cuál secuencia ejecuto?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "corré la receta apertura",
+   "plantilla": "corré la receta {receta}",
+   "args": {
+    "id": "{receta}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "corré de nuevo la receta cierre",
+   "plantilla": "corré de nuevo la receta {receta}",
+   "args": {
+    "id": "{receta}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "corré la receta",
+   "plantilla": "corré la receta",
+   "falta": "¿Qué receta corro?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
  "record_start": [
   {
    "frase": "poné a grabar esto",
@@ -7727,6 +9948,133 @@
    "tipo_nueva": "pregunta",
    "nueva": true,
    "origen": "tc-sumar"
+  }
+ ],
+ "rostro_ver": [
+  {
+   "frase": "¿quién está en la dos?",
+   "plantilla": "¿quién está en {camara}?",
+   "args": {
+    "feed": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "identificá a la persona de la cámara tres",
+   "plantilla": "identificá a la persona de {camara}",
+   "args": {
+    "feed": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿quién habla ahora?",
+   "plantilla": "¿quién habla ahora?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "reconocé la cara en la uno",
+   "plantilla": "reconocé la cara en {camara}",
+   "args": {
+    "feed": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿cómo se llama el que está en el atril?",
+   "plantilla": "¿cómo se llama el que está en el atril?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "no sé quién es ese, identificalo en la tres",
+   "plantilla": "no sé quién es ese, identificalo en {camara}",
+   "args": {
+    "feed": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "identificá quién está en cámara",
+   "plantilla": "identificá quién está en cámara",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿a quién tiene la uno?",
+   "plantilla": "¿a quién tiene {camara}?",
+   "args": {
+    "feed": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "subió alguien al escenario, ¿quién es?",
+   "plantilla": "subió alguien al escenario, ¿quién es?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "reconocimiento facial en la dos",
+   "plantilla": "reconocimiento facial en {camara}",
+   "args": {
+    "feed": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿ese de la cámara cuatro es el intendente?",
+   "plantilla": "¿ese de {camara} es el intendente?",
+   "args": {
+    "feed": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "fijate quién es la persona que encuadra la tres",
+   "plantilla": "fijate quién es la persona que encuadra {camara}",
+   "args": {
+    "feed": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "necesito el nombre del que habla, solo identificalo",
+   "plantilla": "necesito el nombre del que habla, solo identificalo",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "identificá la cara de la cámara uno rápido",
+   "plantilla": "identificá la cara de {camara} rápido",
+   "args": {
+    "feed": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "no tengo el zócalo, ¿quién está hablando en la dos?",
+   "plantilla": "no tengo el zócalo, ¿quién está hablando en {camara}?",
+   "args": {
+    "feed": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
   }
  ],
  "rotulo_desvincular": [
@@ -14067,6 +16415,280 @@
    "tipo_nueva": "sintoma",
    "nueva": true,
    "origen": "tc-sumar"
+  }
+ ],
+ "votacion_abrir": [
+  {
+   "frase": "votación formal del presupuesto: afirmativo, negativo, abstención",
+   "plantilla": "votación formal del presupuesto: afirmativo, negativo, abstención",
+   "args": {
+    "pregunta": "Presupuesto",
+    "opciones": [
+     "Afirmativo",
+     "Negativo",
+     "Abstención"
+    ],
+    "modo": "formal"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "preguntale al público si quieren café o té",
+   "plantilla": "preguntale al público si quieren café o té",
+   "args": {
+    "pregunta": "¿Café o té?",
+    "opciones": [
+     "Café",
+     "Té"
+    ]
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "encuesta en vivo: ¿les gustó el panel? sí, no, más o menos",
+   "plantilla": "encuesta en vivo: ¿les gustó el panel? sí, no, más o menos",
+   "args": {
+    "pregunta": "¿Les gustó el panel?",
+    "opciones": [
+     "Sí",
+     "No",
+     "Más o menos"
+    ],
+    "modo": "encuesta",
+    "enVivo": true
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "que voten el tema del próximo encuentro: salud, educación o trabajo",
+   "plantilla": "que voten el tema del próximo encuentro: salud, educación o trabajo",
+   "args": {
+    "pregunta": "Tema del próximo encuentro",
+    "opciones": [
+     "Salud",
+     "Educación",
+     "Trabajo"
+    ]
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "votación nominal, no secreta: ¿se aprueba el reglamento? sí o no",
+   "plantilla": "votación nominal, no secreta: ¿se aprueba el reglamento? sí o no",
+   "args": {
+    "pregunta": "¿Se aprueba el reglamento?",
+    "opciones": [
+     "Sí",
+     "No"
+    ],
+    "secreta": false
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "votación formal y secreta: ¿se acepta la renuncia? sí o no",
+   "plantilla": "votación formal y secreta: ¿se acepta la renuncia? sí o no",
+   "args": {
+    "pregunta": "¿Se acepta la renuncia?",
+    "opciones": [
+     "Sí",
+     "No"
+    ],
+    "modo": "formal",
+    "secreta": true
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "encuesta con resultados en vivo: ¿qué charla repetimos? la uno o la dos",
+   "plantilla": "encuesta con resultados en vivo: ¿qué charla repetimos? la uno o la dos",
+   "args": {
+    "pregunta": "¿Qué charla repetimos?",
+    "opciones": [
+     "La uno",
+     "La dos"
+    ],
+    "modo": "encuesta",
+    "enVivo": true
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "votación secreta ya",
+   "plantilla": "votación secreta ya",
+   "falta": "¿Qué se vota y con qué opciones?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "abrí encuesta: ¿qué horario prefieren?",
+   "plantilla": "abrí encuesta: ¿qué horario prefieren?",
+   "falta": "¿Qué opciones de horario?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "abrí votación: ¿aprobamos el acta? sí o no",
+   "plantilla": "abrí votación: ¿aprobamos el acta? sí o no",
+   "args": {
+    "pregunta": "¿Aprobamos el acta?",
+    "opciones": [
+     "Sí",
+     "No"
+    ]
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "abrí encuesta: mejor charla, Laura, Pedro o Ana",
+   "plantilla": "abrí encuesta: mejor charla, Laura, Pedro o Ana",
+   "args": {
+    "pregunta": "Mejor charla",
+    "opciones": [
+     "Laura",
+     "Pedro",
+     "Ana"
+    ],
+    "modo": "encuesta"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "abrí votación secreta para presidente: Gómez o Ruiz",
+   "plantilla": "abrí votación secreta para presidente: Gómez o Ruiz",
+   "args": {
+    "pregunta": "Presidente",
+    "opciones": [
+     "Gómez",
+     "Ruiz"
+    ],
+    "secreta": true
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "abrí la votación de la moción, a favor o en contra",
+   "plantilla": "abrí la votación de la moción, a favor o en contra",
+   "args": {
+    "pregunta": "Moción",
+    "opciones": [
+     "A favor",
+     "En contra"
+    ]
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "abrí encuesta: ¿desde dónde nos ven? Córdoba, Rosario, Mendoza, otro",
+   "plantilla": "abrí encuesta: ¿desde dónde nos ven? Córdoba, Rosario, Mendoza, otro",
+   "args": {
+    "pregunta": "¿Desde dónde nos ven?",
+    "opciones": [
+     "Córdoba",
+     "Rosario",
+     "Mendoza",
+     "Otro"
+    ],
+    "modo": "encuesta"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "abrí una votación",
+   "plantilla": "abrí una votación",
+   "falta": "¿Qué pregunta y qué opciones?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
+ "votacion_ver": [
+  {
+   "frase": "¿cómo va la votación?",
+   "plantilla": "¿cómo va la votación?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿quiénes faltan votar?",
+   "plantilla": "¿quiénes faltan votar?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "se terminó el tiempo, cerrá la encuesta",
+   "plantilla": "se terminó el tiempo, cerrá la encuesta",
+   "args": {
+    "cerrar": true
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿quién ganó la encuesta?",
+   "plantilla": "¿quién ganó la encuesta?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿cómo salieron las votaciones anteriores?",
+   "plantilla": "¿cómo salieron las votaciones anteriores?",
+   "args": {
+    "historial": true
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿ya votaron todos los concejales?",
+   "plantilla": "¿ya votaron todos los concejales?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "recuento al aire, que lo vea la gente",
+   "plantilla": "recuento al aire, que lo vea la gente",
+   "args": {
+    "enVivo": true
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿cuántos sí y cuántos no hay?",
+   "plantilla": "¿cuántos sí y cuántos no hay?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "el contador no se mueve, ¿cuántos votos entraron?",
+   "plantilla": "el contador no se mueve, ¿cuántos votos entraron?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "resultado de la encuesta, rápido",
+   "plantilla": "resultado de la encuesta, rápido",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
   }
  ]
 }

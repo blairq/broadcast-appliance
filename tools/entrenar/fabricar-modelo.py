@@ -1218,8 +1218,9 @@ entrenadas; contesta charla con una llamada en el {100 * ch16.get('llamadas_en_c
                 "cabeza": "prompt.json#cabeza", "cola": tc.COLA, "fin_turno": tc.FIN,
                 "usuario": {"con_estado": "Estado: {estado}\nPedido: {frase}", "sin_estado": "{frase}",
                             "estado_json": "separators=(',',':'),ensure_ascii=false"},
-                "estado_claves": ["escena_actual", "escena_armada", "escenas", "fuentes_de_la_escena_actual", "audio",
-                                  "participantes", "graficos", "carruseles"],
+                # las del perfil con que se entreno (v4: + camaras con posiciones, discursos,
+                # medios, preguntas, pantallas, recetas)
+                "estado_claves": tc.ESTADO_CLAVES_V4 if tc.NUEVO else tc.ESTADO_CLAVES,
                 "llamada": {"abre": "<tool_call>", "funcion": "<function={nombre}>", "parametro":
                             "<parameter={clave}>\n{valor}\n</parameter>", "cierra_funcion": "</function>",
                             "cierra": "</tool_call>", "regex_llamada": tc.RE_LLAMADA.pattern,

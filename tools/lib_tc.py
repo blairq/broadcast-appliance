@@ -59,6 +59,20 @@ Si el pedido es para una de las funciones, llamala con sus argumentos. Reglas:
 - Si no es para estas funciones, llamá a derivar. Si falta un dato obligatorio, llamá a falta_dato con la pregunta.
 - Si es una charla o una pregunta general, contestá en texto, corto y en castellano."""
 
+# v4 (perfil vivo4): mas cosas del estado se nombran (camaras y sus posiciones,
+# pantallas, discursos, medios, preguntas, recetas). El perfil «reactivo» conserva
+# su sistema tal cual: v2 y v3 se entrenaron con ese prompt byte a byte.
+SISTEMA_V4 = SISTEMA.replace(
+    "- Nombres (escenas, fuentes, audio, participantes, gráficos, carruseles): copiá EXACTAMENTE uno de los del estado.",
+    "- Nombres (escenas, fuentes, audio, participantes, gráficos, carruseles, cámaras y sus posiciones, pantallas): copiá"
+    " EXACTAMENTE uno de los del estado. Discursos y medios van por su ruta; preguntas y recetas, por su id.")
+NUEVO = lp.PERFIL != "reactivo"
+
+
+def sistema():
+    return SISTEMA_V4 if NUEVO else SISTEMA
+
+
 INSTRUCCION_QWEN = (
     "\n\nIf you choose to call a function ONLY reply in the following format with NO suffix:\n\n<tool_call>\n"
     "<function=example_function_name>\n<parameter=example_parameter_1>\nvalue_1\n</parameter>\n"
@@ -127,7 +141,7 @@ def cabeza(inv=None):
     """La parte FIJA (se procesa una vez y se reusa entre pedidos)."""
     tools = "\n".join(json.dumps(f, ensure_ascii=False) for f in funciones(inv))
     return (f"<|im_start|>system\n# Tools\n\nYou have access to the following functions:\n\n<tools>\n{tools}\n</tools>"
-            f"{INSTRUCCION_QWEN}\n\n{SISTEMA}<|im_end|>\n<|im_start|>user\n")
+            f"{INSTRUCCION_QWEN}\n\n{sistema()}<|im_end|>\n<|im_start|>user\n")
 
 
 COLA = "<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"
@@ -215,9 +229,49 @@ GRAFICOS = [("Zócalo", ["el zócalo"]), ("Logo", ["el logo"]), ("Marcador", ["e
 CARRUSELES = [("Presentación", ["la presentación"]), ("Sponsors", ["los sponsors"]),
               ("Fotos del evento", ["las fotos", "las fotos del evento"]), ("Agenda", ["la agenda"])]
 
+# v4: lo que nombran los comandos nuevos (PTZ, teleprompter, medios, preguntas,
+# pantallas, recetas). Cada entrada: (valor que va en los argumentos, como lo dice
+# el operador[, lo que muestra el estado]).
+CAMARAS = [("Cámara 1", ["la cámara 1", "la uno"]), ("Cámara 2", ["la cámara 2", "la dos"]),
+           ("Cámara 3", ["la cámara 3", "la tres"]), ("Cámara PTZ", ["la PTZ", "la robótica"]),
+           ("Cámara del atril", ["la cámara del atril", "la del atril"]), ("Cámara general", ["la general", "la cámara general"])]
+POSICIONES = [("Atril", ["el atril", "al atril"]), ("Panorámica", ["la panorámica", "panorámica"]),
+              ("Laura", ["Laura", "a Laura"]), ("Martín", ["Martín", "a Martín"]), ("Mesa", ["la mesa", "a la mesa"]),
+              ("Público", ["el público", "al público"]), ("Escenario", ["el escenario", "al escenario"]),
+              ("Plano general", ["el plano general", "general"]), ("Conductor", ["el conductor", "al conductor"]),
+              ("Invitado 1", ["el invitado 1", "al invitado uno"]), ("Puerta", ["la puerta", "a la puerta"])]
+DISCURSOS = [("intendente.txt", ["el discurso del intendente", "el del intendente"]),
+             ("Apertura/bienvenida.txt", ["el de bienvenida", "la bienvenida"]),
+             ("cierre.txt", ["el de cierre", "el discurso de cierre"]),
+             ("gobernador.txt", ["el del gobernador", "el discurso del gobernador"]),
+             ("Ministra/salud.txt", ["el de la ministra", "el de salud"])]
+MEDIOS = [("Media/tanda1.mp4", ["la tanda", "la tanda 1"], "Tanda 1"),
+          ("Media/cortina.mp3", ["la cortina", "la cortina musical"], "Cortina musical"),
+          ("Media/institucional.mp4", ["el institucional", "el video institucional"], "Video institucional"),
+          ("Media/espera.mp4", ["el fondo de espera", "el video de espera"], "Fondo de espera"),
+          ("Media/cierre.mp3", ["la música de cierre", "el tema de cierre"], "Música de cierre"),
+          ("Media/logo.mov", ["el logo animado", "la animación del logo"], "Logo animado")]
+PREGUNTAS = [("q3", ["la de Juan", "la pregunta de Juan"], "¿Cuándo empieza la obra del puente?|Juan"),
+             ("q7", ["la del presupuesto", "la de Ana"], "¿Cuánto se destina a salud?|Ana"),
+             ("q11", ["la de las becas", "la de Pedro"], "¿Siguen las becas este año?|Pedro"),
+             ("q14", ["la del transporte", "la de Marta"], "¿Qué pasa con el colectivo 5?|Marta"),
+             ("q20", ["la última", "la de Diego"], "¿Hay fecha para la próxima sesión?|Diego")]
+PANTALLAS = [("TV del hall", ["la tele del hall", "la del hall"]), ("Pantalla del escenario", ["la pantalla del escenario", "la del escenario"]),
+             ("Monitor de prensa", ["el monitor de prensa", "la de prensa"]), ("TV de la entrada", ["la tele de la entrada", "la de la entrada"])]
+RECETAS = [("r1", ["la receta de apertura", "la apertura"], "Apertura"), ("r2", ["la receta de cierre", "la de cierre"], "Cierre"),
+           ("r3", ["la de la tanda", "la receta de la tanda"], "Tanda"), ("r4", ["la de entrevista", "la receta de entrevista"], "Entrevista"),
+           ("r5", ["la de corte a publicidad", "el corte"], "Corte a publicidad")]
+
 TIPOS = {"escena": ESCENAS, "audio": AUDIO, "fuente": FUENTES, "persona": PERSONAS,
-         "grafico": GRAFICOS, "carrusel": CARRUSELES}
-RE_HUECO = re.compile(r"\{(escena|audio|audio_operador|fuente|persona|grafico|carrusel)(\d?)\}")
+         "grafico": GRAFICOS, "carrusel": CARRUSELES,
+         "camara": CAMARAS, "posicion": POSICIONES, "discurso": DISCURSOS, "medio": MEDIOS,
+         "pregunta": PREGUNTAS, "pantalla": PANTALLAS, "receta": RECETAS}
+RE_HUECO = re.compile(r"\{(escena|audio|audio_operador|fuente|persona|grafico|carrusel|camara|posicion|discurso|medio"
+                      r"|pregunta|pantalla|receta)(\d?)\}")
+# las claves del estado (v4 suma las de los comandos nuevos)
+ESTADO_CLAVES = ["escena_actual", "escena_armada", "escenas", "fuentes_de_la_escena_actual", "audio", "participantes",
+                 "graficos", "carruseles"]
+ESTADO_CLAVES_V4 = ESTADO_CLAVES + ["camaras", "discursos", "medios", "preguntas", "pantallas", "recetas"]
 
 
 def estado_sintetico(rnd, necesita=()):
@@ -226,7 +280,7 @@ def estado_sintetico(rnd, necesita=()):
     def elegir(pool, k_min, k_max, obligatorias=0):
         k = rnd.randint(max(k_min, obligatorias), max(k_max, obligatorias))
         return rnd.sample(pool, min(k, len(pool)))
-    cuantos = {t: sum(1 for x in necesita if x == t) for t in TIPOS}
+    cuantos = {t: sum(1 for x in necesita if x == t) for t in list(TIPOS) + ["posicion"]}
     escenas = elegir(ESCENAS, 3, 9, cuantos["escena"] + 1)
     micro = rnd.choice(MICROS)
     audio = [micro] + elegir(AUDIO, 1, 6, cuantos["audio"])
@@ -249,6 +303,26 @@ def estado_sintetico(rnd, necesita=()):
     }
     formas = {"escena": escenas, "audio": audio[1:], "audio_operador": [micro], "fuente": fuentes,
               "persona": personas, "grafico": graficos, "carrusel": carruseles}
+    if NUEVO:
+        camaras = elegir(CAMARAS, 1, 4, cuantos.get("camara", 0))
+        posiciones = {}
+        for c in camaras:
+            posiciones[c[0]] = rnd.sample(POSICIONES, rnd.randint(max(1, cuantos.get("posicion", 0)), 5))
+        discursos = elegir(DISCURSOS, 0, 4, cuantos.get("discurso", 0))
+        medios = elegir(MEDIOS, 0, 5, cuantos.get("medio", 0))
+        preguntas = elegir(PREGUNTAS, 0, 4, cuantos.get("pregunta", 0))
+        pantallas = elegir(PANTALLAS, 0, 3, cuantos.get("pantalla", 0))
+        recetas = elegir(RECETAS, 0, 4, cuantos.get("receta", 0))
+        est.update({
+            "camaras": [{"nombre": c[0], "posiciones": [p[0] for p in posiciones[c[0]]]} for c in camaras],
+            "discursos": [d[0] for d in discursos],
+            "medios": [{"nombre": m[2], "ruta": m[0]} for m in medios],
+            "preguntas": [{"id": q[0], "texto": q[2].split("|")[0], "autor": q[2].split("|")[1],
+                           "estado": rnd.choice(["en cola", "elegida", "al aire"])} for q in preguntas],
+            "pantallas": [x[0] for x in pantallas],
+            "recetas": [{"id": r[0], "nombre": r[2]} for r in recetas]})
+        formas.update({"camara": camaras, "posiciones": posiciones, "discurso": discursos, "medio": medios,
+                       "pregunta": preguntas, "pantalla": pantallas, "receta": recetas})
     return est, formas
 
 
@@ -280,12 +354,21 @@ def rellenar(plantilla, args, formas, rnd):
     """Pone en la frase y en los argumentos las entidades del estado de turno:
     {audio} en la frase -> como lo dice el operador; en los args -> el nombre exacto."""
     usados, elegidos = {}, {}
-    for m in RE_HUECO.finditer(plantilla + " " + json.dumps(args, ensure_ascii=False)):
+    # la camara antes que la posicion: la posicion se elige entre las de ESA camara
+    huecos = sorted(RE_HUECO.finditer(plantilla + " " + json.dumps(args, ensure_ascii=False)),
+                    key=lambda m: m.group(1) == "posicion")
+    for m in huecos:
         tipo, n = m.group(1), m.group(2)
         clave = tipo + n
         if clave in elegidos:
             continue
-        libres = [e for e in formas.get(tipo, []) if e[0] not in usados.get(tipo, set())]
+        if tipo == "posicion":  # una posicion de LA camara del pedido
+            cam = elegidos.get("camara" + n) or elegidos.get("camara")
+            pool = formas.get("posiciones", {}).get(cam[0], []) if cam else \
+                [p for ps in formas.get("posiciones", {}).values() for p in ps]
+        else:
+            pool = formas.get(tipo, [])
+        libres = [e for e in pool if e[0] not in usados.get(tipo, set())]
         if not libres:
             return None, None
         e = rnd.choice(libres)

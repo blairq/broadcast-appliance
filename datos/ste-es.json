@@ -755,6 +755,20 @@
      "herramientas": [
       "participant_requeue"
      ]
+    },
+    {
+     "objeto": "contenido en una pantalla del lugar",
+     "ejemplo": "poné la votación en la pantalla grande",
+     "herramientas": [
+      "pantalla_mostrar"
+     ]
+    },
+    {
+     "objeto": "video o audio de la biblioteca de medios",
+     "ejemplo": "poné el video de apertura",
+     "herramientas": [
+      "media_use"
+     ]
     }
    ]
   },
@@ -931,6 +945,13 @@
      "ejemplo": "sacá a Carla del lobby",
      "herramientas": [
       "participant_reject"
+     ]
+    },
+    {
+     "objeto": "contenido de una pantalla del lugar",
+     "ejemplo": "sacá el reloj de la pantalla del escenario",
+     "herramientas": [
+      "pantalla_parar"
      ]
     }
    ]
@@ -1636,6 +1657,13 @@
      "herramientas": [
       "transition_set"
      ]
+    },
+    {
+     "objeto": "discurso del prompter por otro",
+     "ejemplo": "cambiá el discurso del prompter por el de cierre",
+     "herramientas": [
+      "prompter_cargar"
+     ]
     }
    ]
   },
@@ -1774,6 +1802,20 @@
      "ejemplo": "mostrá el gráfico animado del resultado",
      "herramientas": [
       "grafico_mostrar"
+     ]
+    },
+    {
+     "objeto": "contenido en una pantalla del lugar (mostrá X en la pantalla Y)",
+     "ejemplo": "mostrá el reloj en la pantalla del escenario",
+     "herramientas": [
+      "pantalla_mostrar"
+     ]
+    },
+    {
+     "objeto": "posiciones guardadas de una cámara PTZ (mostrame)",
+     "ejemplo": "mostrame las posiciones de la cámara 2",
+     "herramientas": [
+      "ptz_posiciones"
      ]
     }
    ]
@@ -2168,6 +2210,13 @@
      "herramientas": [
       "participant_profile"
      ]
+    },
+    {
+     "objeto": "video o audio de la biblioteca a una escena",
+     "ejemplo": "agregá la música de fondo a la escena Panel",
+     "herramientas": [
+      "media_use"
+     ]
     }
    ]
   },
@@ -2290,6 +2339,13 @@
      "herramientas": [
       "scene_protect"
      ]
+    },
+    {
+     "objeto": "contenido de una pantalla del lugar",
+     "ejemplo": "quitá la votación de la pantalla grande",
+     "herramientas": [
+      "pantalla_parar"
+     ]
     }
    ]
   },
@@ -2383,6 +2439,20 @@
      "ejemplo": "arrancá con la escena Apertura al aire",
      "herramientas": [
       "scene_switch"
+     ]
+    },
+    {
+     "objeto": "desplazamiento del texto del prompter",
+     "ejemplo": "arrancá el prompter",
+     "herramientas": [
+      "prompter_control"
+     ]
+    },
+    {
+     "objeto": "evento o secuencia programada",
+     "ejemplo": "arrancá el evento de apertura",
+     "herramientas": [
+      "evento_correr"
      ]
     }
    ]
@@ -2481,6 +2551,20 @@
      "herramientas": [
       "grabacion_individual"
      ]
+    },
+    {
+     "objeto": "movimiento de una cámara PTZ",
+     "ejemplo": "pará la cámara 2",
+     "herramientas": [
+      "ptz_parar"
+     ]
+    },
+    {
+     "objeto": "desplazamiento del texto del prompter",
+     "ejemplo": "pará el prompter",
+     "herramientas": [
+      "prompter_control"
+     ]
     }
    ]
   },
@@ -2506,6 +2590,20 @@
      "ejemplo": "detené la transmisión",
      "herramientas": [
       "stream_stop"
+     ]
+    },
+    {
+     "objeto": "movimiento de una cámara PTZ",
+     "ejemplo": "detené la cámara 2",
+     "herramientas": [
+      "ptz_parar"
+     ]
+    },
+    {
+     "objeto": "desplazamiento del texto del prompter",
+     "ejemplo": "detené el prompter",
+     "herramientas": [
+      "prompter_control"
      ]
     }
    ]
@@ -2546,6 +2644,13 @@
      "ejemplo": "terminá el turno del orador al aire",
      "herramientas": [
       "speaker_next"
+     ]
+    },
+    {
+     "objeto": "lo que muestra una pantalla del lugar",
+     "ejemplo": "terminá lo de la pantalla grande",
+     "herramientas": [
+      "pantalla_parar"
      ]
     }
    ]
@@ -2601,6 +2706,20 @@
      "ejemplo": "abrí el micrófono de Ana",
      "herramientas": [
       "audio_set"
+     ]
+    },
+    {
+     "objeto": "votación o encuesta al público",
+     "ejemplo": "abrí la votación: sí o no",
+     "herramientas": [
+      "votacion_abrir"
+     ]
+    },
+    {
+     "objeto": "discurso en el prompter",
+     "ejemplo": "abrí el discurso de cierre en el prompter",
+     "herramientas": [
+      "prompter_cargar"
      ]
     }
    ]
@@ -2945,6 +3064,13 @@
      "herramientas": [
       "source_set_property"
      ]
+    },
+    {
+     "objeto": "velocidad del prompter",
+     "ejemplo": "subí la velocidad del prompter",
+     "herramientas": [
+      "prompter_control"
+     ]
     }
    ]
   },
@@ -3028,6 +3154,13 @@
      "ejemplo": "bajá a la invitada Paz a la posición 7 de la fila",
      "herramientas": [
       "speaker_move"
+     ]
+    },
+    {
+     "objeto": "velocidad del prompter",
+     "ejemplo": "bajá la velocidad del prompter",
+     "herramientas": [
+      "prompter_control"
      ]
     }
    ]
@@ -3174,6 +3307,13 @@
      "ejemplo": "creá la escena Panel con la cámara 1 y el zócalo",
      "herramientas": [
       "scene_define"
+     ]
+    },
+    {
+     "objeto": "posición guardada de una cámara PTZ",
+     "ejemplo": "creá una posición de la cámara 2 en el atril",
+     "herramientas": [
+      "ptz_posicion_crear"
      ]
     }
    ]
@@ -4136,6 +4276,20 @@
      "herramientas": [
       "scene_preview"
      ]
+    },
+    {
+     "objeto": "discurso en el prompter",
+     "ejemplo": "cargá el discurso de apertura en el prompter",
+     "herramientas": [
+      "prompter_cargar"
+     ]
+    },
+    {
+     "objeto": "archivo de la biblioteca de medios",
+     "ejemplo": "cargá la música de fondo",
+     "herramientas": [
+      "media_use"
+     ]
     }
    ]
   },
@@ -4210,6 +4364,13 @@
      "ejemplo": "volvé a poner a Carla al final de la fila",
      "herramientas": [
       "participant_requeue"
+     ]
+    },
+    {
+     "objeto": "pantalla del lugar a su fondo o a lo de antes",
+     "ejemplo": "volvé la pantalla grande a su fondo",
+     "herramientas": [
+      "pantalla_parar"
      ]
     }
    ]
@@ -5454,6 +5615,20 @@
      "herramientas": [
       "grabacion_individual"
      ]
+    },
+    {
+     "objeto": "movimiento de una cámara PTZ",
+     "ejemplo": "frená la cámara 2",
+     "herramientas": [
+      "ptz_parar"
+     ]
+    },
+    {
+     "objeto": "desplazamiento del texto del prompter",
+     "ejemplo": "frená el prompter",
+     "herramientas": [
+      "prompter_control"
+     ]
     }
    ]
   },
@@ -5803,6 +5978,13 @@
      "herramientas": [
       "scene_switch"
      ]
+    },
+    {
+     "objeto": "a otra parte del texto del prompter",
+     "ejemplo": "saltá al segundo párrafo del prompter",
+     "herramientas": [
+      "prompter_control"
+     ]
     }
    ]
   },
@@ -5833,6 +6015,13 @@
      "ejemplo": "llevame a la lámina 12",
      "herramientas": [
       "laminas_ir"
+     ]
+    },
+    {
+     "objeto": "cámara PTZ a una posición guardada",
+     "ejemplo": "llevá la cámara 2 a la posición del atril",
+     "herramientas": [
+      "ptz_ir_posicion"
      ]
     }
    ]
@@ -6490,6 +6679,13 @@
      "ejemplo": "corré a Esteban al segundo lugar de la fila",
      "herramientas": [
       "speaker_move"
+     ]
+    },
+    {
+     "objeto": "receta guardada (una serie de pasos)",
+     "ejemplo": "corré la receta de cierre",
+     "herramientas": [
+      "receta_correr"
      ]
     }
    ]
