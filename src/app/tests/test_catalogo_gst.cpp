@@ -29,7 +29,11 @@ int fallos = 0;
 
 int main(int argc, char** argv) {
 #if defined(BA_TEST_GST_RAIZ)
+#if defined(_WIN32)
+    _putenv_s("BA_GST_RAIZ", BA_TEST_GST_RAIZ);
+#else
     setenv("BA_GST_RAIZ", BA_TEST_GST_RAIZ, 1);
+#endif
 #endif
     CatalogoGst c(std::filesystem::path(BA_TEST_GST_DOCS));
     if (!c.disponible()) {
