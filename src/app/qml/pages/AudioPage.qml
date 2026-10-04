@@ -1105,6 +1105,7 @@ Rectangle {
                     AjustesCorte {
                         Layout.fillWidth: true
                         visible: parent.d.tipo === "texto" && parent.d.modo === "continuo"
+                        flujo: parent.d.flujo || ""
                     }
                     Repeater {
                         model: parent.d.tipo === "texto" && parent.d.modo === "continuo"

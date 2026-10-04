@@ -119,33 +119,10 @@ ColumnLayout {
         Toggle { checked: panel.t.archivo === true; onToggled: (q) => panel.cambiar({ archivo: q }) }
         Text { text: ".txt y .srt"; color: Theme.textFaint; font.pixelSize: 11; Layout.fillWidth: true }
     }
-    RowLayout {
+    TiemposTraduccion {
         Layout.fillWidth: true
-        Text { text: "Espera"; color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 70 }
-        Slider {
-            id: espera
-            Layout.fillWidth: true
-            from: 200; to: 3000; stepSize: 100
-            value: panel.t.espera_ms || 600
-            onPressedChanged: if (!pressed) panel.cambiar({ espera_ms: Math.round(value) })
-            ToolTip.visible: hovered; ToolTip.delay: 400
-            ToolTip.text: "Cuánto espera a que termine la oración antes de traducir lo que tiene (si no llega un punto). Más = frases más enteras; menos = sale antes."
-        }
-        Text { text: (espera.value / 1000).toFixed(1).replace(".", ",") + " s"; color: Theme.textFaint; font.pixelSize: 11 }
-    }
-    RowLayout {
-        Layout.fillWidth: true
-        Text { text: "Máximo"; color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 70 }
-        Slider {
-            id: maximo
-            Layout.fillWidth: true
-            from: 2000; to: 20000; stepSize: 500
-            value: panel.t.maximo_ms || 8000
-            onPressedChanged: if (!pressed) panel.cambiar({ maximo_ms: Math.round(value) })
-            ToolTip.visible: hovered; ToolTip.delay: 400
-            ToolTip.text: "Si el orador encadena frases sin terminar la oración, a este tiempo se traduce lo que hay (hasta la última coma). Menos = sale antes pero más cortado."
-        }
-        Text { text: (maximo.value / 1000).toFixed(1).replace(".", ",") + " s"; color: Theme.textFaint; font.pixelSize: 11 }
+        t: panel.t
+        onCambiar: (c) => panel.cambiar(c)
     }
     Text {
         visible: !!panel.t.ultima

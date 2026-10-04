@@ -1,7 +1,8 @@
 // Cuándo corta una frase la transcripción continua (Studio.voz.cortes): la pausa
 // que la termina, lo más que dura y cuán seguro tiene que estar el detector de
 // que es voz. Con el indicador en vivo de cada transcripción, para encontrar el
-// punto justo hablando. Lo usan Configuración → Audio y voz y el panel de Traducción.
+// punto justo hablando. Lo usan Configuración → Audio y voz y la tarjeta «Voz a
+// texto» (con `flujo`: su indicador solo).
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -11,6 +12,9 @@ ColumnLayout {
     id: ac
     readonly property var vz: Studio.voz
     readonly property var c: vz ? vz.cortes : ({ pausa: 0.35, maximo: 6, umbral: 0.5 })
+    /// En una tarjeta «Voz a texto»: el indicador muestra solo su salida y se
+    /// avisa que los cortes valen para todas las transcripciones continuas.
+    property string flujo: ""
     spacing: 8
 
     function poner(pausa, maximo, umbral) {
@@ -19,7 +23,11 @@ ColumnLayout {
     }
     function dos(x) { return Number(x).toFixed(2).replace(".", ",") }
 
-    Text { text: "Cortes de la transcripción continua"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+    Text {
+        Layout.fillWidth: true; wrapMode: Text.WordWrap
+        text: "Cortes de la transcripción continua" + (ac.flujo !== "" ? " (valen para todas)" : "")
+        color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold }
+    }
     Text {
         Layout.fillWidth: true; wrapMode: Text.WordWrap
         color: Theme.textDim; font.pixelSize: 11
@@ -36,32 +44,15 @@ ColumnLayout {
             { k: "umbral", t: "Umbral de voz", min: 0.2, max: 0.9, paso: 0.05, u: "",
               ayuda: "Cuán seguro tiene que estar el detector de que es voz. Más alto ignora más el ruido de la sala." }
         ]
-        delegate: RowLayout {
-            id: fila
+        delegate: FilaTiempo {
             required property var modelData
             Layout.fillWidth: true
-            spacing: 10
-            Text {
-                text: fila.modelData.t; color: Theme.textDim; font.pixelSize: 12
-                Layout.preferredWidth: 170
-                ToolTip.visible: h.hovered; ToolTip.text: fila.modelData.ayuda; ToolTip.delay: 300
-                HoverHandler { id: h }
-            }
-            Slider {
-                id: sl
-                Layout.fillWidth: true
-                from: fila.modelData.min; to: fila.modelData.max; stepSize: fila.modelData.paso
-                snapMode: Slider.SnapAlways
-                Binding on value { when: !sl.pressed; value: ac.c[fila.modelData.k] }
-                onPressedChanged: if (!pressed) {
-                    const n = Object.assign({}, ac.c); n[fila.modelData.k] = value
-                    ac.poner(n.pausa, n.maximo, n.umbral)
-                }
-            }
-            Text {
-                Layout.preferredWidth: 56; horizontalAlignment: Text.AlignRight
-                text: ac.dos(sl.value) + fila.modelData.u
-                color: Theme.text; font { pixelSize: 12; family: Theme.mono }
+            titulo: modelData.t; ayuda: modelData.ayuda
+            desde: modelData.min; hasta: modelData.max; paso: modelData.paso; unidad: modelData.u
+            valor: ac.c[modelData.k]
+            onElegido: (v) => {
+                const n = Object.assign({}, ac.c); n[modelData.k] = v
+                ac.poner(n.pausa, n.maximo, n.umbral)
             }
         }
     }
@@ -79,13 +70,13 @@ ColumnLayout {
     }
     // Lo que oye ahora cada transcripción continua.
     Text {
-        visible: ac.vz && ac.vz.oido.length === 0
+        visible: ac.flujo === "" && ac.vz && ac.vz.oido.length === 0
         Layout.fillWidth: true; wrapMode: Text.WordWrap
         text: "No hay ninguna transcripción continua andando (Audio → rack → «+ Agregar» → «Voz a texto: transcripción continua»)."
         color: Theme.textFaint; font.pixelSize: 11
     }
     Repeater {
-        model: ac.vz ? ac.vz.oido : []
+        model: ac.vz ? ac.vz.oido.filter(o => ac.flujo === "" || o.flujo === ac.flujo) : []
         delegate: RowLayout {
             id: o
             required property var modelData

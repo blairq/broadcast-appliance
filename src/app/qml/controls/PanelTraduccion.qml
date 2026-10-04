@@ -1,5 +1,5 @@
 // Traducción en vivo (Studio.traductor, agent/Traductor): de una salida de texto
-// a otra en otro idioma, y el glosario de términos del evento. Lo usan
+// a otra en otro idioma (cada una es una tarjeta «Traducir»), y el glosario de términos del evento. Lo usan
 // Configuración → Traducción y el botón «Traducción…» de la página Audio.
 import QtQuick
 import QtQuick.Controls
@@ -56,7 +56,14 @@ ColumnLayout {
         color: Theme.amber; font.pixelSize: 11
     }
 
-    AjustesCorte { Layout.fillWidth: true }
+    Text {
+        Layout.fillWidth: true; wrapMode: Text.WordWrap
+        color: Theme.textFaint; font.pixelSize: 11
+        readonly property var c: Studio.voz ? Studio.voz.cortes : ({ pausa: 0.35, maximo: 6 })
+        text: "Cuándo corta la transcripción (pausa " + Number(c.pausa).toFixed(2).replace(".", ",") + " s, largo máximo " +
+              Number(c.maximo).toFixed(1).replace(".", ",") + " s) se ajusta en la tarjeta «Voz a texto» o en Configuración → Audio y voz. " +
+              "Lo de abajo es de cada traducción."
+    }
     Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
 
     // --- Probar ---------------------------------------------------------------------
@@ -164,6 +171,11 @@ ColumnLayout {
                         onToggled: (q) => panel.avisar(panel.tr.ajustarUi(fila.modelData.id, { archivo: q }), "")
                     }
                     Item { Layout.fillWidth: true }
+                }
+                TiemposTraduccion {
+                    Layout.fillWidth: true
+                    t: fila.modelData
+                    onCambiar: (c) => panel.avisar(panel.tr.ajustarUi(fila.modelData.id, c), "")
                 }
                 Text {
                     visible: !!fila.modelData.ultima
