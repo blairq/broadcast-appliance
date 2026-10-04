@@ -68,7 +68,8 @@ B="$SRC/b"
 rm -rf "$PREFIX"
 log "configurando $VER ($COMMIT)"
 # Si ya hay una carpeta de compilación, se reconfigura (solo se recompila lo que cambia).
-[ -f "$B/build.ninja" ] && RECONF=--reconfigure || RECONF=
+# (Sin la caché de dependencias: si no, sigue usando lo que encontró antes.)
+if [ -f "$B/build.ninja" ]; then RECONF=--reconfigure; meson configure --clearcache "$B" >/dev/null; else RECONF=; fi
 meson setup $RECONF "$B" "$SRC" --prefix="$PREFIX" --libdir=lib --libexecdir=libexec --buildtype=release \
     --wrap-mode=default -Dauto_features=auto \
     -Dbase=enabled -Dgood=enabled -Dbad=enabled -Dugly=enabled -Dlibav=enabled -Drtsp_server=enabled \
