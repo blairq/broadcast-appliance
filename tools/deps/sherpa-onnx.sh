@@ -58,6 +58,14 @@ fi
 git -C "$SRC" fetch -q origin "$REV" 2>/dev/null || git -C "$SRC" fetch -q --tags origin
 git -C "$SRC" checkout -q -f "$REV"
 [ "$(git -C "$SRC" rev-parse HEAD)" = "$REV" ] || morir "no es el commit fijado ($REV)"
+if [ "$WIN" = 1 ]; then
+    # En Windows sin GPU, cmake/onnxruntime.cmake no define la biblioteca de
+    # importación (IMPORTED_IMPLIB vacío: «set_target_properties called with
+    # incorrect number of arguments»). Como la rama con GPU: la DLL y el .lib.
+    sed -i 's|^        set(location_onnxruntime_lib $ENV{SHERPA_ONNXRUNTIME_LIB_DIR}/onnxruntime.lib)$|        set(location_onnxruntime_lib $ENV{SHERPA_ONNXRUNTIME_LIB_DIR}/onnxruntime.dll)\n        set(location_onnxruntime_lib2 $ENV{SHERPA_ONNXRUNTIME_LIB_DIR}/onnxruntime.lib)|' \
+        "$SRC/cmake/onnxruntime.cmake"
+    grep -q 'location_onnxruntime_lib2 $ENV{SHERPA_ONNXRUNTIME_LIB_DIR}/onnxruntime.lib)$' "$SRC/cmake/onnxruntime.cmake" || morir "no pude parchear cmake/onnxruntime.cmake"
+fi
 
 extra=()
 if [ "$WIN" = 1 ]; then
