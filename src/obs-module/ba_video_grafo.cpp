@@ -511,6 +511,8 @@ std::shared_ptr<Plan> armarPlan(const char* json, const Plan* anterior) {
                 for (const char* k : claves)
                     if (q != nullptr && *obs_data_get_string(q, k) != '\0')
                         props[k] = obs_data_get_string(q, k);
+                if (q != nullptr && obs_data_get_int(q, "escala_red") > 2)
+                    props["escala-red"] = std::to_string(obs_data_get_int(q, "escala_red"));
                 if (q != nullptr) {
                     char nit[32];
                     std::snprintf(nit, sizeof nit, "%.3f",

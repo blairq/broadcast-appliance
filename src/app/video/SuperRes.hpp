@@ -70,6 +70,20 @@ class SuperRes : public QObject {
     /// Pone un motor (y modelo, por nombre de archivo o ruta) en una entrada.
     std::string aplicar(const std::string& entrada, const std::string& motor, const std::string& modelo);
 
+    // --- Plugins (datos/superres-catalogo.json + Datos/Modelos/superres/<id>/) -----------
+    /// Todos: los del catálogo (instalados o no) y los instalados que no están en
+    /// él (la red propia entrenada acá). Cada uno: {id, nombre, tipo, descripcion,
+    /// escala, plataformas, instalado, aca (sirve en esta máquina), ms_coreml?, licencia}.
+    json plugins() const;
+    /// Instala un plugin del catálogo (laboratorio `instalar`). "" o el error.
+    std::string instalarPlugin(const std::string& id);
+    /// Lo de esta máquina para ese plugin: {motor, modelo, escala_red, proveedor?}
+    /// o vacío con `error`. Lo usa el grafo al mandar la tarjeta.
+    json resolverPlugin(const std::string& id, std::string* error) const;
+    /// Pone una tarjeta «Superresolución» con ese plugin en la entrada (o se lo cambia
+    /// a la que tiene). "" o el error.
+    std::string tarjetaConPlugin(const std::string& entrada, const std::string& id);
+
     // --- Interfaz ---------------------------------------------------------------------
     QVariantList modelosQml() const;
     Q_INVOKABLE QString prepararUi() { return q(prepararLaboratorio()); }
@@ -82,6 +96,8 @@ class SuperRes : public QObject {
         return q(aplicar(entrada.toStdString(), motor.toStdString(), modelo.toStdString()));
     }
     Q_INVOKABLE QString borrarModelo(const QString& archivo);
+    Q_INVOKABLE QVariantList pluginsUi() const;
+    Q_INVOKABLE QString instalarPluginUi(const QString& id) { return q(instalarPlugin(id.toStdString())); }
 
    signals:
     void cambio();
@@ -96,6 +112,7 @@ class SuperRes : public QObject {
                        std::function<void(bool ok)> fin);
     void linea(const QByteArray& l);
 
+    json catalogo_ = json::array(); ///< las recetas (del recurso)
     std::filesystem::path root_;
     VideoGrafos* video_;
     QVariantMap trabajo_;

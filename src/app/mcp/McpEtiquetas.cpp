@@ -619,6 +619,8 @@ const Fila kPropias[] = {
     {"traduccion_",
      "traduccion en vivo subtitulos en otro idioma traducir al orador doblaje pista en ingles bajar idioma"},
     {"traducciones", "traducciones activas en vivo idiomas que se estan traduciendo demora"},
+    {"superres_plugins", "plugins superresolucion lista modelos realesrgan esrgan fsrcnnx anime4k instalados disponibles"},
+    {"superres_instalar", "instalar bajar plugin superresolucion modelo coreml onnx tensorrt"},
     {"traduccion_agregar",
      "traducir en vivo tarjeta traducir rack de audio subtitulos en ingles otro idioma salida de texto"},
     {"traduccion_ajustar", "cambiar pausar quitar tarjeta traducir idioma espera rotulo archivo"},

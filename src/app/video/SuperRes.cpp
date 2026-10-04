@@ -7,11 +7,13 @@
 #include "video/VideoGrafos.hpp"
 
 #include <QDateTime>
+#include <QFile>
 #include <QJsonDocument>
 #include <QProcessEnvironment>
 #include <QTimer>
 
 #include <fstream>
+#include <set>
 
 namespace fs = std::filesystem;
 
@@ -262,6 +264,152 @@ std::string SuperRes::aplicar(const std::string& entrada, const std::string& mot
     if (motor == "onnx" && !fs::exists(ruta, ec))
         return "no existe el modelo «" + modelo + "» (superres_estado lista los que hay)";
     return video_->superresMotor(entrada, motor, motor == "onnx" ? ruta : std::string());
+}
+
+namespace {
+const char* kPlataforma =
+#if defined(__APPLE__)
+    "mac";
+#elif defined(_WIN32)
+    "windows";
+#else
+    "linux";
+#endif
+} // namespace
+
+json SuperRes::plugins() const {
+    json out = json::array();
+    std::set<std::string> vistos;
+    const QStringList motores = this->motores();
+    auto leerPlugin = [this](const std::string& id) -> json {
+        std::ifstream f(carpetaModelos() / id / "plugin.json");
+        if (!f) return nullptr;
+        const json j = json::parse(f, nullptr, false);
+        return j.is_object() ? j : json(nullptr);
+    };
+    for (json r : catalogo_) {
+        const std::string id = r.value("id", std::string());
+        vistos.insert(id);
+        const json inst = leerPlugin(id);
+        bool aca = false;
+        for (const auto& p : r.value("plataformas", json::array()))
+            if (p == kPlataforma) aca = true;
+        if (r.value("tipo", "") == "integrado") {
+            r["instalado"] = true;
+            aca = aca && motores.contains(QString::fromStdString(r.value("motor", std::string())));
+        } else {
+            r["instalado"] = inst.is_object();
+            if (inst.is_object())
+                for (const char* k : {"ms_coreml", "ms_coreml_tamano", "arquitectura", "archivos", "instalado"})
+                    if (inst.contains(k)) r[k == std::string("instalado") ? "fecha_instalado" : k] = inst[k];
+        }
+        if (r.value("tipo", "") == "glsl") aca = false; // el motor de shaders, todavía no
+        r["aca"] = aca;
+        r.erase("origen");
+        out.push_back(r);
+    }
+    // Las instaladas que no están en el catálogo: la red propia (entrenada acá) y otras.
+    std::error_code ec;
+    for (const auto& e : fs::directory_iterator(carpetaModelos(), ec)) {
+        std::string id;
+        json m = json::object();
+        if (e.is_directory()) {
+            id = e.path().filename().string();
+            const json p = leerPlugin(id);
+            if (!p.is_object()) continue;
+            m = p;
+        } else if (e.path().extension() == ".onnx") {
+            id = e.path().stem().string();
+            std::ifstream f(e.path().string() + ".json");
+            if (f) {
+                const json d = json::parse(f, nullptr, false);
+                if (d.is_object()) m = d;
+            }
+            m["tipo"] = "red";
+            m["archivos"] = {{"onnx", e.path().filename().string()}};
+        } else {
+            continue;
+        }
+        if (vistos.count(id)) continue;
+        vistos.insert(id);
+        m["id"] = id;
+        if (!m.contains("nombre")) m["nombre"] = id;
+        m["instalado"] = true;
+        m["aca"] = true; // ONNX corre en cualquier sistema
+        m["propio"] = true;
+        out.push_back(m);
+    }
+    return out;
+}
+
+QVariantList SuperRes::pluginsUi() const { return qv(plugins()).toList(); }
+
+std::string SuperRes::instalarPlugin(const std::string& id) {
+    json receta;
+    for (const auto& r : catalogo_)
+        if (r.value("id", "") == id) receta = r;
+    if (!receta.is_object()) return "no hay un plugin «" + id + "» en el catálogo (superres_plugins los lista)";
+    if (receta.value("tipo", "") == "integrado") return "«" + id + "» viene con el programa: no hace falta instalarlo";
+    const fs::path dir = carpetaModelos() / id;
+    const fs::path archivoReceta = carpetaModelos() / (".receta-" + id + ".json");
+    std::ofstream(archivoReceta) << receta.dump(1);
+    const auto lanzar = [this, receta, dir, archivoReceta]() {
+        const fs::path lab = ba::platform::bundleRoot() / "superres" / "laboratorio.py";
+        return correr("Instalar «" + QString::fromStdString(receta.value("nombre", std::string())) + "»", {},
+                      {q8(lab), "instalar", "--receta", q8(archivoReceta), "--salida", q8(dir), "--libs", q8(libs())},
+                      [this, archivoReceta](bool) {
+                          std::error_code ec;
+                          fs::remove(archivoReceta, ec);
+                          emit cambio();
+                      });
+    };
+    // Una red necesita el laboratorio (PyTorch); un shader, no.
+    if (receta.value("tipo", "") == "red" && !laboratorioListo()) {
+        despues_ = [lanzar]() { lanzar(); };
+        return prepararLaboratorio();
+    }
+    return lanzar();
+}
+
+json SuperRes::resolverPlugin(const std::string& id, std::string* error) const {
+    auto fallar = [&](const std::string& e) {
+        if (error) *error = e;
+        return json::object();
+    };
+    if (id == "apple" || id == "fsr") {
+        if (!motores().contains(QString::fromStdString(id))) return fallar("este sistema no tiene «" + id + "»");
+        return json{{"motor", id}, {"modelo", ""}, {"escala_red", 2}};
+    }
+    const fs::path dir = carpetaModelos() / id;
+    std::ifstream f(dir / "plugin.json");
+    if (!f) {
+        // Una red suelta (las de antes: <id>.onnx).
+        std::error_code ec;
+        if (fs::exists(carpetaModelos() / (id + ".onnx"), ec))
+            return json{{"motor", "onnx"}, {"modelo", (carpetaModelos() / (id + ".onnx")).string()}, {"escala_red", 2}};
+        return fallar("el plugin «" + id + "» no está instalado (superres_instalar)");
+    }
+    const json p = json::parse(f, nullptr, false);
+    if (!p.is_object()) return fallar("plugin.json de «" + id + "» roto");
+    const json archivos = p.value("archivos", json::object());
+    if (p.value("tipo", "") == "glsl") return fallar("el motor de shaders GLSL todavía no está");
+    const int escala = p.value("escala", 2);
+    const int escalaRed = escala == 4 ? 4 : 2; // una x4 entra a la mitad y sale x2
+#if defined(__APPLE__)
+    if (archivos.contains("coreml") && motores().contains("coreml"))
+        return json{{"motor", "coreml"}, {"modelo", (dir / archivos["coreml"].get<std::string>()).string()},
+                    {"escala_red", escalaRed}};
+#endif
+    if (archivos.contains("onnx") && motores().contains("onnx"))
+        return json{{"motor", "onnx"}, {"modelo", (dir / archivos["onnx"].get<std::string>()).string()}, {"escala_red", 2}};
+    return fallar("«" + id + "» no tiene un modelo que corra en esta máquina");
+}
+
+std::string SuperRes::tarjetaConPlugin(const std::string& entrada, const std::string& id) {
+    if (video_ == nullptr) return "no hay video";
+    std::string err;
+    if (resolverPlugin(id, &err).empty()) return err;
+    return video_->superresPlugin(entrada, id);
 }
 
 QString SuperRes::borrarModelo(const QString& archivo) {

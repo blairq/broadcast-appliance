@@ -497,6 +497,25 @@ std::string VideoGrafos::agregarSuperres(const std::string& entrada, const std::
     });
 }
 
+std::string VideoGrafos::superresPlugin(const std::string& entrada, const std::string& plugin) {
+    const std::string e = entrada.empty() ? entrada_.toStdString() : entrada;
+    return editar([&](GrafoVideo& g) -> std::string {
+        // Si ya tiene una tarjeta de superresolución, se le cambia el plugin.
+        for (const auto& n : g.nodos())
+            if (n.grupo == e && n.tipo == "superres") {
+                json p = n.params;
+                p["plugin"] = plugin;
+                p["activo"] = true;
+                std::string err;
+                g.ajustar(n.id, p, &err);
+                return err;
+            }
+        std::string err;
+        g.agregar("superres", e, "", json{{"plugin", plugin}}, &err);
+        return err;
+    });
+}
+
 QString VideoGrafos::agregarSuperresUi(const QString& motor, const QString& modelo, const QString& despues) {
     return q(agregarSuperres({}, motor.toStdString(), modelo.toStdString(), despues.toStdString()));
 }
@@ -963,7 +982,23 @@ void VideoGrafos::aplicar(const std::string& entrada) {
             obs_source_set_deinterlace_mode(src, OBS_DEINTERLACE_MODE_DISABLE);
         }
     }
-    const json para = grafo_.paraFiltro(entrada);
+    json para = grafo_.paraFiltro(entrada);
+    // Los plugins de superresolución, traducidos a lo de esta máquina.
+    if (resolverPlugin_)
+        for (auto& n : para["nodos"]) {
+            if (n.value("tipo", "") != "superres") continue;
+            json& p = n["params"];
+            const std::string id = p.value("plugin", std::string());
+            if (id.empty()) continue;
+            std::string err;
+            const json r = resolverPlugin_(id, &err);
+            if (!r.is_object() || r.empty()) {
+                // Sin el plugin aquí: pasa sin tocar (y se avisa en el estado).
+                p["activo"] = false;
+                continue;
+            }
+            for (auto it = r.begin(); it != r.end(); ++it) p[it.key()] = it.value();
+        }
     // Solo «in -> out»: no hace falta el filtro.
     const bool trivial = para["nodos"].size() == 2 && para["cables"].size() == 1 &&
                          para["cables"][0].value("desde", "") == "in" &&
@@ -1488,7 +1523,7 @@ bool hayElemento(const char* elemento) {
 QStringList VideoGrafos::motoresSuperres() const {
     QStringList l;
     for (const auto& [motor, elemento] :
-         {std::pair{"apple", "bavtsuperres"}, {"fsr", "bafsr"}, {"onnx", "baonnxsr"}})
+         {std::pair{"apple", "bavtsuperres"}, {"fsr", "bafsr"}, {"onnx", "baonnxsr"}, {"coreml", "bacoremlsr"}})
         if (hayElemento(elemento)) l << motor;
     return l;
 }

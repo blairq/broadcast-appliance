@@ -50,9 +50,12 @@ json fabrica(const std::string& tipo) {
     // Superresolución x2 (el plugin de GStreamer basuperres): `motor` auto | apple |
     // fsr | onnx (con `modelo`, la ruta del .onnx), `nitidez` (FSR), `proveedor`
     // (onnx: auto | cpu | coreml | dml), `activo`. Lo que la sigue trabaja al doble.
+    // `plugin`: el id de un plugin de superresolución (video/SuperRes: el catálogo y
+    // los instalados); la app lo traduce al motor y el modelo de ESTA máquina al
+    // mandar el grafo (CoreML en la Mac, ONNX/DirectML o TensorRT en Windows…).
     if (tipo == "superres")
-        return {{"motor", "auto"},     {"modelo", ""},   {"nitidez", 0.2},
-                {"proveedor", "auto"}, {"activo", true}, {"esperar", 0}};
+        return {{"plugin", ""},        {"motor", "auto"}, {"modelo", ""},   {"escala_red", 2},
+                {"nitidez", 0.2},      {"proveedor", "auto"}, {"activo", true}, {"esperar", 0}};
     if (tipo == "obs") return {{"filtro", ""}, {"ajustes", json::object()}};
     // Un módulo de GStreamer: el elemento y sus propiedades (lo que cambia de fábrica).
     // `esperar` (ms): 0 entrega el cuadro anterior (1 cuadro de latencia, nunca

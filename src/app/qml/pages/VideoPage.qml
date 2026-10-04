@@ -634,52 +634,71 @@ Rectangle {
                             }
                         }
 
-                        // Superresolución (el plugin de GStreamer basuperres): motor, modelo, nitidez.
+                        // Superresolución: se elige un PLUGIN (video/SuperRes: el catálogo y los
+                        // instalados); la app lo corre con lo mejor de esta máquina.
                         ColumnLayout {
+                            id: srPanel
                             visible: page.tipoEf === "superres"
                             Layout.fillWidth: true
                             spacing: 6
-                            readonly property var motores: Studio.superres ? Studio.superres.motores : []
+                            readonly property var sr: Studio.superres
+                            readonly property var motores: sr ? sr.motores : []
+                            // (depende de `modelos` para refrescarse cuando se instala algo)
+                            readonly property var plugins: sr ? (sr.modelos, sr.pluginsUi()) : []
+                            readonly property var visibles: plugins.filter(p => p.aca || !p.instalado)
+                            readonly property string elegido: page.paramsEf ? (page.paramsEf.plugin || "") : ""
+                            readonly property var actual: visibles.find(p => p.id === elegido) || null
+                            readonly property var trabajo: sr ? sr.trabajo : ({})
+                            property bool avanzado: false
                             Text {
                                 Layout.fillWidth: true; wrapMode: Text.WordWrap
                                 color: Theme.textDim; font.pixelSize: 12
-                                text: "Duplica la resolución: lo que sigue trabaja al doble y la escena la recibe grande. Demora un cuadro; el audio de la entrada se atrasa lo mismo (solo)."
+                                text: "Agranda x2: lo que sigue trabaja al doble y la escena la recibe grande. Elegí el método; la demora se mide y el audio de la entrada se atrasa lo mismo (solo)."
                             }
-                            Flow {
+                            RowLayout {
                                 Layout.fillWidth: true
-                                spacing: 4
-                                Repeater {
-                                    model: [
-                                        { m: "auto", t: "Automático", tip: "La red si hay modelo; si no, Apple (macOS 26); si no, FSR" },
-                                        { m: "apple", t: "Apple", tip: "VideoToolbox, macOS 26: la mejor en una Mac (entrada hasta 960x960)" },
-                                        { m: "fsr", t: "FSR 1", tip: "AMD, sin red neuronal: cualquier GPU, menos de 1 ms" },
-                                        { m: "onnx", t: "Red ONNX", tip: "Un modelo: la red chica entrenada con la cámara, SPAN o Real-ESRGAN" }
-                                    ].filter(o => o.m === "auto" || parent.parent.motores.indexOf(o.m) >= 0)
-                                    delegate: GlassButton {
-                                        required property var modelData
-                                        compact: true; text: modelData.t
-                                        active: !!page.paramsEf && (page.paramsEf.motor || "auto") === modelData.m
-                                        onClicked: page.avisar(page.vg.ajustar(page.sel, { motor: modelData.m }))
-                                        ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: modelData.tip
+                                spacing: 6
+                                Text { text: "Método"; color: Theme.textDim; font.pixelSize: 12 }
+                                ComboBox {
+                                    id: srCombo
+                                    Layout.fillWidth: true
+                                    readonly property var lista: [{ id: "", nombre: "— elegí un método —", instalado: true }].concat(srPanel.visibles)
+                                    model: lista.map(p => p.nombre + (!p.instalado ? "  (instalar)" : p.ms_coreml ? "  · " + Number(p.ms_coreml).toFixed(0) + " ms" : ""))
+                                    currentIndex: Math.max(0, lista.findIndex(p => p.id === srPanel.elegido))
+                                    onActivated: (i) => {
+                                        const p = lista[i]
+                                        if (p.id === "") return
+                                        if (!p.instalado) {
+                                            const e = srPanel.sr.instalarPluginUi(p.id)
+                                            page.avisar(e === "" ? "" : e)
+                                            if (e === "") Studio.notify("Instalando «" + p.nombre + "»: tarda unos minutos", "info")
+                                            return
+                                        }
+                                        page.avisar(page.vg.ajustar(page.sel, { plugin: p.id, activo: true }))
                                     }
                                 }
                             }
-                            RowLayout {
-                                visible: !!page.paramsEf && (page.paramsEf.motor === "onnx" || page.paramsEf.motor === "auto")
+                            Text {
+                                visible: !!srPanel.actual
+                                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                color: Theme.text; font.pixelSize: 11
+                                text: srPanel.actual ? (srPanel.actual.descripcion || "") + (srPanel.actual.licencia ? "  (" + srPanel.actual.licencia + ")" : "") : ""
+                            }
+                            // Instalando (el laboratorio): el avance.
+                            ColumnLayout {
+                                visible: !!srPanel.trabajo.corriendo || (!!srPanel.trabajo.que && String(srPanel.trabajo.que).indexOf("Instalar") === 0)
                                 Layout.fillWidth: true
-                                spacing: 6
-                                Text { text: "Modelo"; color: Theme.textDim; font.pixelSize: 12 }
-                                ComboBox {
-                                    Layout.fillWidth: true
-                                    readonly property var lista: [{ nombre: "— ninguno —", ruta: "" }].concat(Studio.superres ? Studio.superres.modelos : [])
-                                    model: lista.map(x => x.nombre)
-                                    currentIndex: Math.max(0, lista.findIndex(x => x.ruta === (page.paramsEf ? page.paramsEf.modelo || "" : "")))
-                                    onActivated: (i) => page.avisar(page.vg.ajustar(page.sel, { modelo: lista[i].ruta }))
+                                spacing: 2
+                                Text { text: srPanel.trabajo.que || ""; color: Theme.textDim; font.pixelSize: 11 }
+                                ProgressBar { Layout.fillWidth: true; from: 0; to: 100; value: srPanel.trabajo.pct || 0; visible: !!srPanel.trabajo.corriendo }
+                                Text {
+                                    Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                    text: srPanel.trabajo.error ? "✕ " + srPanel.trabajo.error : (srPanel.trabajo.texto || "")
+                                    color: srPanel.trabajo.error ? Theme.live : Theme.textFaint; font.pixelSize: 11
                                 }
-                                GlassButton { compact: true; text: "Entrenar…"; onClicked: superresPop.open() }
                             }
                             RowLayout {
-                                visible: !!page.paramsEf && (page.paramsEf.motor === "fsr" || page.paramsEf.motor === "auto")
+                                visible: srPanel.elegido === "fsr" || (!!page.paramsEf && page.paramsEf.motor === "fsr" && srPanel.elegido === "")
                                 Layout.fillWidth: true
                                 spacing: 6
                                 Text { text: "Nitidez (FSR)"; color: Theme.textDim; font.pixelSize: 12 }
@@ -696,6 +715,40 @@ Rectangle {
                                 text: "Activa (si no, pasa sin tocar)"
                                 checked: !page.paramsEf || page.paramsEf.activo !== false
                                 onToggled: page.avisar(page.vg.ajustar(page.sel, { activo: checked }))
+                            }
+                            RowLayout {
+                                spacing: 6
+                                GlassButton { compact: true; text: srPanel.avanzado ? "Ocultar avanzado" : "Avanzado…"; onClicked: srPanel.avanzado = !srPanel.avanzado }
+                                GlassButton { compact: true; text: "Entrenar la red propia…"; onClicked: superresPop.open() }
+                            }
+                            // A mano: un motor y un modelo (sin plugin).
+                            Flow {
+                                visible: srPanel.avanzado
+                                Layout.fillWidth: true
+                                spacing: 4
+                                Repeater {
+                                    model: [
+                                        { m: "apple", t: "Apple" }, { m: "fsr", t: "FSR 1" }, { m: "onnx", t: "Red ONNX" }, { m: "coreml", t: "Red CoreML" }
+                                    ].filter(o => srPanel.motores.indexOf(o.m) >= 0)
+                                    delegate: GlassButton {
+                                        required property var modelData
+                                        compact: true; text: modelData.t
+                                        active: srPanel.elegido === "" && !!page.paramsEf && page.paramsEf.motor === modelData.m
+                                        onClicked: page.avisar(page.vg.ajustar(page.sel, { plugin: "", motor: modelData.m }))
+                                    }
+                                }
+                            }
+                            RowLayout {
+                                visible: srPanel.avanzado && srPanel.elegido === "" && !!page.paramsEf && (page.paramsEf.motor === "onnx" || page.paramsEf.motor === "coreml")
+                                Layout.fillWidth: true
+                                spacing: 6
+                                Text { text: "Modelo"; color: Theme.textDim; font.pixelSize: 12 }
+                                TextField {
+                                    Layout.fillWidth: true
+                                    text: page.paramsEf ? page.paramsEf.modelo || "" : ""
+                                    placeholderText: "ruta del .onnx o del .mlmodelc"
+                                    onEditingFinished: page.avisar(page.vg.ajustar(page.sel, { modelo: text }))
+                                }
                             }
                         }
 

@@ -116,6 +116,9 @@ class VideoGrafos : public QObject {
     /// baonnxsr con `modelo`) en `entrada` (vacía: la elegida), después de `despues`. "" o el error.
     std::string agregarSuperres(const std::string& entrada, const std::string& motor,
                                 const std::string& modelo, const std::string& despues);
+    /// La tarjeta «Superresolución» con un plugin (por id; lo traduce SuperRes):
+    /// la agrega o le cambia el plugin a la que hay. "" o el error.
+    std::string superresPlugin(const std::string& entrada, const std::string& plugin);
     Q_INVOKABLE QString agregarSuperresUi(const QString& motor, const QString& modelo,
                                           const QString& despues);
     /// Crea una entrada virtual en la escena (vacía = la del aire): `preset` es
@@ -171,6 +174,10 @@ class VideoGrafos : public QObject {
     void compensarAudio(const std::string& entrada);
     /// La demora medida de cada tarjeta de la entrada (ms), por id de nodo.
     nlohmann::json demorasDe(const std::string& entrada) const;
+    /// Traduce el id de un plugin de superresolución a lo de esta máquina:
+    /// {motor, modelo, escala_red, proveedor?} o "" + error (lo pone SuperRes).
+    using ResolverPlugin = std::function<nlohmann::json(const std::string& id, std::string* error)>;
+    void setResolverPlugin(ResolverPlugin r) { resolverPlugin_ = std::move(r); }
     Q_INVOKABLE QString nuevaEntradaRed(const QString& nombre, const QString& uri, const QString& escena,
                                         int latenciaMs, bool normalizar);
     Q_INVOKABLE QStringList escenasUi() const;
@@ -276,6 +283,7 @@ class VideoGrafos : public QObject {
     void medicion(const QVariantMap& resultado);
 
    private:
+    ResolverPlugin resolverPlugin_;
     void aplicar(const std::string& entrada);
     /// Cambiar ajustes de una fuente de modo que sobrevivan al reinicio (ver el .cpp).
     void actualizarFuente(::obs_source* src, ::obs_data* cambios);

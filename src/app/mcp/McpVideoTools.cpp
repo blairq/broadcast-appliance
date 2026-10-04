@@ -954,37 +954,80 @@ void McpService::registerVideoTools() {
         {
             Tool t;
             t.name = "superres_tarjeta";
-            t.title = "Agregar una tarjeta de superresolución al grafo de una entrada";
+            t.title = "Poner una tarjeta de superresolución (con un plugin) en una entrada";
             t.category = "video";
-            t.description = "La forma de fábrica: una TARJETA del grafo de video de `entrada` (cualquier "
-                            "entrada: cámara, red, virtual) "
-                            "que duplica la resolución; lo que la sigue trabaja al doble y la escena la "
-                            "recibe grande. `motor`: apple "
-                            "(macOS 26, ~3 ms, la mejor en una Mac), fsr (FSR 1, cualquier GPU, <1 ms) u "
-                            "onnx (`modelo`: archivo de "
-                            "superres_estado, p. ej. la red chica entrenada con esa cámara). `despues`: el "
-                            "id de la tarjeta tras la que va "
-                            "(vacío: al final, antes de la escena). Es un filtro de GStreamer: se quita como "
-                            "cualquier tarjeta.";
+            t.description =
+                "Una TARJETA del grafo de video de `entrada` (cámara, red o virtual) que agranda x2; lo que la "
+                "sigue trabaja al doble y la escena la recibe grande. Lo de fábrica: `plugin`, el id de un plugin "
+                "de superresolución instalado (superres_plugins: apple, fsr, realesr-general-x4v3, la red propia…): "
+                "la app lo corre con lo mejor de ESTA máquina (CoreML en la Mac, ONNX con DirectML o TensorRT en "
+                "Windows/Linux). Si la entrada ya tiene la tarjeta, le cambia el plugin. A mano (sin plugin): "
+                "`motor` apple | fsr | onnx | coreml con `modelo` (ruta). `despues`: tras qué tarjeta (vacío: al final).";
             t.inputSchema = {{"type", "object"},
-                             {"required", {"entrada", "motor"}},
+                             {"required", {"entrada"}},
                              {"properties",
                               {{"entrada", {{"type", "string"}}},
-                               {"motor", {{"type", "string"}, {"enum", {"apple", "fsr", "onnx"}}}},
+                               {"plugin", {{"type", "string"}, {"description", "id de superres_plugins"}}},
+                               {"motor", {{"type", "string"}, {"enum", {"apple", "fsr", "onnx", "coreml"}}}},
                                {"modelo", {{"type", "string"}}},
                                {"despues", {{"type", "string"}}}}}};
+            t.examples = {R"({"entrada": "Axis terreno", "plugin": "realesr-general-x4v3"})"};
             t.run = [srp, v = vm_.videoGrafos()](const json& a, Done done) {
                 if (!srp || v == nullptr) return done(ToolResult::error("no disponible"));
+                const std::string entrada = a.value("entrada", std::string());
+                if (a.contains("plugin")) {
+                    const std::string e = srp->tarjetaConPlugin(entrada, a.value("plugin", std::string()));
+                    if (!e.empty()) return done(ToolResult::error(e));
+                    return done(ToolResult().text("Tarjeta con el plugin «" + a.value("plugin", std::string()) +
+                                                  "». video_estado muestra el tamaño nuevo y su demora (el audio se "
+                                                  "atrasa solo) en unos segundos; la entrada tiene que estar a la vista."));
+                }
+                if (!a.contains("motor")) return done(ToolResult::error("falta `plugin` (o `motor`)"));
                 std::string modelo = a.value("modelo", std::string());
                 if (!modelo.empty() && modelo.find('/') == std::string::npos &&
                     modelo.find('\\') == std::string::npos)
                     modelo = (srp->carpetaModelos() / modelo).string();
                 const std::string e =
-                    v->agregarSuperres(a.value("entrada", std::string()), a.value("motor", std::string()),
-                                       modelo, a.value("despues", std::string()));
+                    v->agregarSuperres(entrada, a.value("motor", std::string()), modelo, a.value("despues", std::string()));
                 if (!e.empty()) return done(ToolResult::error(e));
-                done(ToolResult().text(
-                    "Tarjeta agregada. video_estado muestra el tamaño nuevo en unos segundos."));
+                done(ToolResult().text("Tarjeta agregada. video_estado muestra el tamaño nuevo en unos segundos."));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "superres_plugins";
+            t.title = "Plugins de superresolución: cuáles hay, cuáles están instalados y cuáles sirven acá";
+            t.category = "video";
+            t.readOnly = true;
+            t.description =
+                "Los plugins de superresolución: los del catálogo (redes como Real-ESRGAN, LSDIR, NomosUni, "
+                "SPAN; shaders como FSRCNNX y Anime4K; los integrados apple y fsr) y los instalados que no están en "
+                "él (la red propia entrenada con una cámara). Cada uno: qué hace, escala, plataformas, `instalado`, "
+                "`aca` (si corre en esta máquina) y `ms_coreml` (lo que tarda medido). Se instalan con "
+                "superres_instalar y se ponen con superres_tarjeta {plugin}.";
+            t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
+            t.run = [srp](const json&, Done done) {
+                if (!srp) return done(ToolResult::error("no disponible"));
+                done(ToolResult().data({{"plugins", srp->plugins()}}));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "superres_instalar";
+            t.title = "Instalar un plugin de superresolución del catálogo";
+            t.category = "video";
+            t.description =
+                "Baja el plugin `id` (verificado por sha256) y lo prepara para esta máquina: una red se exporta a "
+                "ONNX y, en la Mac, a CoreML para el Neural Engine (y se mide cuánto tarda); un shader se guarda. "
+                "Corre en el laboratorio (la primera vez baja PyTorch): el avance, en superres_estado (`trabajo`).";
+            t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
+            t.run = [srp](const json& a, Done done) {
+                if (!srp) return done(ToolResult::error("no disponible"));
+                const std::string e = srp->instalarPlugin(a.value("id", std::string()));
+                if (!e.empty()) return done(ToolResult::error(e));
+                done(ToolResult().text("Instalando: superres_estado muestra el avance."));
             };
             core_.addTool(std::move(t));
         }

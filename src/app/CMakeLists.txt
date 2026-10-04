@@ -456,7 +456,7 @@ endif()
             DESTINATION data/red COMPONENT bundle)
     # La documentacion en castellano de los modulos de GStreamer (Video -> agregar modulo).
     qt_add_resources(ba-app "ba_gst_modulos" PREFIX "/video" BASE "${CMAKE_SOURCE_DIR}/datos"
-                     FILES "${CMAKE_SOURCE_DIR}/datos/gst-modulos.json")
+                     FILES "${CMAKE_SOURCE_DIR}/datos/gst-modulos.json" "${CMAKE_SOURCE_DIR}/datos/superres-catalogo.json")
     # Las reglas con las que el modelo local completa argumentos (agent/ArgumentosLocales).
     qt_add_resources(ba-app "ba_voz" PREFIX "/voz" BASE "${CMAKE_SOURCE_DIR}/datos"
                      FILES "${CMAKE_SOURCE_DIR}/datos/voz-argumentos.txt")
