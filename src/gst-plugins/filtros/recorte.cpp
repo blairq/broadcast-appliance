@@ -33,6 +33,9 @@ struct _BaRecorte {
 
 G_DEFINE_TYPE(BaRecorte, ba_recorte, GST_TYPE_VIDEO_FILTER)
 
+GST_DEBUG_CATEGORY_STATIC(ba_recorte_debug);
+#define GST_CAT_DEFAULT ba_recorte_debug
+
 enum { PROP_0, PROP_IZQ, PROP_ARR, PROP_DER, PROP_ABA, PROP_ESPEJO_H, PROP_ESPEJO_V, PROP_MODO };
 
 static GType tipoModo() {
@@ -222,6 +225,7 @@ static void finalizar(GObject* o) {
 }
 
 static void ba_recorte_class_init(BaRecorteClass* k) {
+    GST_DEBUG_CATEGORY_INIT(ba_recorte_debug, "barecorte", 0, "Recorte y espejo");
     auto* go = G_OBJECT_CLASS(k);
     auto* ge = GST_ELEMENT_CLASS(k);
     go->set_property = ponerPropiedad;
@@ -248,12 +252,12 @@ static void ba_recorte_class_init(BaRecorteClass* k) {
     gst_element_class_add_static_pad_template(ge, &sinkTpl);
     gst_element_class_add_static_pad_template(ge, &srcTpl);
     auto* bt = GST_BASE_TRANSFORM_CLASS(k);
-    bt->before_transform = antes;
-    bt->transform_caps = transformarCaps;
+    bt->before_transform = GST_DEBUG_FUNCPTR(antes);
+    bt->transform_caps = GST_DEBUG_FUNCPTR(transformarCaps);
     auto* vf = GST_VIDEO_FILTER_CLASS(k);
-    vf->set_info = alFormato;
-    vf->transform_frame_ip = enLugar;
-    vf->transform_frame = recortar;
+    vf->set_info = GST_DEBUG_FUNCPTR(alFormato);
+    vf->transform_frame_ip = GST_DEBUG_FUNCPTR(enLugar);
+    vf->transform_frame = GST_DEBUG_FUNCPTR(recortar);
 }
 
 static void ba_recorte_init(BaRecorte* r) {

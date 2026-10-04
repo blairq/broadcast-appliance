@@ -78,6 +78,9 @@ struct _BaVtSuperRes {
 
 G_DEFINE_TYPE(BaVtSuperRes, ba_vtsuperres, GST_TYPE_BASE_TRANSFORM)
 
+GST_DEBUG_CATEGORY_STATIC(ba_vtsuperres_debug);
+#define GST_CAT_DEFAULT ba_vtsuperres_debug
+
 enum { PROP_0, PROP_ACTIVO, PROP_MS };
 
 static GstStaticPadTemplate sinkTpl = GST_STATIC_PAD_TEMPLATE("sink", GST_PAD_SINK, GST_PAD_ALWAYS,
@@ -280,6 +283,7 @@ static void ba_vtsuperres_finalize(GObject* o) {
 }
 
 static void ba_vtsuperres_class_init(BaVtSuperResClass* k) {
+    GST_DEBUG_CATEGORY_INIT(ba_vtsuperres_debug, "bavtsuperres", 0, "Superresolución VideoToolbox");
     GObjectClass* go = G_OBJECT_CLASS(k);
     GstElementClass* ge = GST_ELEMENT_CLASS(k);
     GstBaseTransformClass* bt = GST_BASE_TRANSFORM_CLASS(k);
@@ -297,16 +301,16 @@ static void ba_vtsuperres_class_init(BaVtSuperResClass* k) {
                                           "Broadcast Appliance");
     gst_element_class_add_static_pad_template(ge, &sinkTpl);
     gst_element_class_add_static_pad_template(ge, &srcTpl);
-    bt->transform_caps = transformarCaps;
-    bt->set_caps = ponerCaps;
-    bt->transform_size = tamanoSalida;
-    bt->transform = transformar;
-    bt->stop = parar;
-    bt->query = consultar;
-    bt->sink_event = eventoEntrada;
-    bt->fixate_caps = ba::sr::fijarCaps;
-    bt->transform_meta = ba::sr::transformarMeta;
-    bt->passthrough_on_same_caps = TRUE;
+    bt->transform_caps = GST_DEBUG_FUNCPTR(transformarCaps);
+    bt->set_caps = GST_DEBUG_FUNCPTR(ponerCaps);
+    bt->transform_size = GST_DEBUG_FUNCPTR(tamanoSalida);
+    bt->transform = GST_DEBUG_FUNCPTR(transformar);
+    bt->stop = GST_DEBUG_FUNCPTR(parar);
+    bt->query = GST_DEBUG_FUNCPTR(consultar);
+    bt->sink_event = GST_DEBUG_FUNCPTR(eventoEntrada);
+    bt->fixate_caps = GST_DEBUG_FUNCPTR(ba::sr::fijarCaps);
+    bt->transform_meta = GST_DEBUG_FUNCPTR(ba::sr::transformarMeta);
+    bt->passthrough_on_same_caps = GST_DEBUG_FUNCPTR(TRUE);
 }
 
 static void ba_vtsuperres_init(BaVtSuperRes* s) {

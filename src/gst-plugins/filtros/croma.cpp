@@ -33,6 +33,9 @@ struct _BaCroma {
 
 G_DEFINE_TYPE(BaCroma, ba_croma, GST_TYPE_VIDEO_FILTER)
 
+GST_DEBUG_CATEGORY_STATIC(ba_croma_debug);
+#define GST_CAT_DEFAULT ba_croma_debug
+
 enum { PROP_0, PROP_CLAVE, PROP_SIMILITUD, PROP_SUAVIDAD, PROP_DERRAME, PROP_ACTIVO };
 
 #define FORMATOS "{ BGRA, RGBA, ARGB, ABGR }"
@@ -133,6 +136,7 @@ static void finalizar(GObject* o) {
 }
 
 static void ba_croma_class_init(BaCromaClass* k) {
+    GST_DEBUG_CATEGORY_INIT(ba_croma_debug, "bacroma", 0, "Croma");
     auto* go = G_OBJECT_CLASS(k);
     auto* ge = GST_ELEMENT_CLASS(k);
     go->set_property = ponerPropiedad;
@@ -158,8 +162,8 @@ static void ba_croma_class_init(BaCromaClass* k) {
                                           "Broadcast Appliance");
     gst_element_class_add_static_pad_template(ge, &sinkTpl);
     gst_element_class_add_static_pad_template(ge, &srcTpl);
-    GST_BASE_TRANSFORM_CLASS(k)->before_transform = antes;
-    GST_VIDEO_FILTER_CLASS(k)->transform_frame_ip = transformar;
+    GST_BASE_TRANSFORM_CLASS(k)->before_transform = GST_DEBUG_FUNCPTR(antes);
+    GST_VIDEO_FILTER_CLASS(k)->transform_frame_ip = GST_DEBUG_FUNCPTR(transformar);
 }
 
 static void ba_croma_init(BaCroma* c) {

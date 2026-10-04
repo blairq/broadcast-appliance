@@ -99,6 +99,9 @@ struct _BaSuperRes {
 
 G_DEFINE_TYPE(BaSuperRes, ba_superres, GST_TYPE_BIN)
 
+GST_DEBUG_CATEGORY_STATIC(ba_superres_debug);
+#define GST_CAT_DEFAULT ba_superres_debug
+
 enum {
     PROP_0,
     PROP_MOTOR,
@@ -303,6 +306,7 @@ static void ba_superres_finalize(GObject* o) {
 }
 
 static void ba_superres_class_init(BaSuperResClass* k) {
+    GST_DEBUG_CATEGORY_INIT(ba_superres_debug, "basuperres", 0, "Superresolución");
     GObjectClass* go = G_OBJECT_CLASS(k);
     GstElementClass* ge = GST_ELEMENT_CLASS(k);
     go->set_property = ponerPropiedad;

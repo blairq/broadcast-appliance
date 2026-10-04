@@ -186,6 +186,9 @@ struct _BaFsr {
 
 G_DEFINE_TYPE(BaFsr, ba_fsr, GST_TYPE_BIN)
 
+GST_DEBUG_CATEGORY_STATIC(ba_fsr_debug);
+#define GST_CAT_DEFAULT ba_fsr_debug
+
 enum { PROP_0, PROP_NITIDEZ };
 
 static GstStaticPadTemplate sinkTpl =
@@ -267,6 +270,7 @@ static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
 }
 
 static void ba_fsr_class_init(BaFsrClass* k) {
+    GST_DEBUG_CATEGORY_INIT(ba_fsr_debug, "bafsr", 0, "FSR 1");
     GObjectClass* go = G_OBJECT_CLASS(k);
     GstElementClass* ge = GST_ELEMENT_CLASS(k);
     go->set_property = ponerPropiedad;

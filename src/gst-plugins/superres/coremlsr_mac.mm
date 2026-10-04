@@ -54,6 +54,7 @@
 #include <gst/video/video.h>
 
 #include "comun.hpp"
+#include "cvmemoria_mac.h"
 
 #import <Accelerate/Accelerate.h>
 #import <CoreML/CoreML.h>
@@ -105,6 +106,9 @@ struct Trabajo {
 
 G_DEFINE_TYPE(BaCoreMlSr, ba_coremlsr, GST_TYPE_BASE_TRANSFORM)
 
+GST_DEBUG_CATEGORY_STATIC(ba_coremlsr_debug);
+#define GST_CAT_DEFAULT ba_coremlsr_debug
+
 enum { PROP_0, PROP_MODELO, PROP_ESCALA, PROP_ACTIVO, PROP_MS, PROP_ERROR, PROP_SIN_COPIAS, PROP_UNIDADES, PROP_UNIDADES_USADAS };
 
 static const char* kUnidades[] = {"auto", "todas", "ane", "gpu", "cpu"};
@@ -127,23 +131,6 @@ static GstStaticPadTemplate sinkTpl = GST_STATIC_PAD_TEMPLATE(
     "sink", GST_PAD_SINK, GST_PAD_ALWAYS, GST_STATIC_CAPS(GST_VIDEO_CAPS_MAKE("{ NV12, BGRA }")));
 static GstStaticPadTemplate srcTpl =
     GST_STATIC_PAD_TEMPLATE("src", GST_PAD_SRC, GST_PAD_ALWAYS, GST_STATIC_CAPS(GST_VIDEO_CAPS_MAKE("BGRA")));
-
-// --- El CVPixelBuffer que trae un cuadro de vtdec ---------------------------------
-// GstCoreVideoMeta (gst-plugins-bad, sys/applemedia/corevideobuffer.h) no es API
-// pública: se busca por nombre y se lee con su forma, que es estable desde 1.0.
-struct MetaCoreVideo {
-    GstMeta meta;
-    CVBufferRef cvbuf;
-    CVPixelBufferRef pixbuf;
-};
-
-static CVPixelBufferRef pixelBufferDe(GstBuffer* b) {
-    static GType api = 0;
-    if (api == 0) api = g_type_from_name("GstCoreVideoMetaAPI");
-    if (api == 0) return nullptr;
-    auto* m = reinterpret_cast<MetaCoreVideo*>(gst_buffer_get_meta(b, api));
-    return m != nullptr ? m->pixbuf : nullptr;
-}
 
 static void ponerError(BaCoreMlSr* s, const std::string& e) {
     GST_OBJECT_LOCK(s);
@@ -281,9 +268,26 @@ static gboolean ponerCaps(GstBaseTransform* bt, GstCaps* incaps, GstCaps* outcap
     return TRUE;
 }
 
-/// Arriba pueden mandar cuadros con relleno (GstVideoMeta).
+/// Arriba: un pool de IOSurfaces (quien escribe el cuadro lo hace directo en
+/// memoria que la GPU y el Neural Engine usan sin copiar) y GstVideoMeta.
 static gboolean proponer(GstBaseTransform* bt, GstQuery* decidida, GstQuery* q) {
     gst_query_add_allocation_meta(q, GST_VIDEO_META_API_TYPE, nullptr);
+    GstCaps* caps = nullptr;
+    gboolean necesita = FALSE;
+    gst_query_parse_allocation(q, &caps, &necesita);
+    GstVideoInfo vi;
+    if (necesita && caps != nullptr && gst_video_info_from_caps(&vi, caps) && ba_cv_formato(&vi) != 0) {
+        GstBufferPool* pool = ba_cv_pool_nuevo();
+        GstStructure* conf = gst_buffer_pool_get_config(pool);
+        gst_buffer_pool_config_set_params(conf, caps, static_cast<guint>(GST_VIDEO_INFO_SIZE(&vi)), 2, 0);
+        gst_buffer_pool_config_add_option(conf, GST_BUFFER_POOL_OPTION_VIDEO_META);
+        if (gst_buffer_pool_set_config(pool, conf))
+            gst_query_add_allocation_pool(q, pool, static_cast<guint>(GST_VIDEO_INFO_SIZE(&vi)), 2, 0);
+        else
+            GST_WARNING_OBJECT(bt, "no se pudo configurar el pool de IOSurfaces");
+        gst_object_unref(pool);
+        return TRUE;
+    }
     return GST_BASE_TRANSFORM_CLASS(ba_coremlsr_parent_class)->propose_allocation(bt, decidida, q);
 }
 
@@ -296,7 +300,7 @@ struct Entrada {
 };
 
 static bool entradaDe(BaCoreMlSr* s, GstBuffer* b, Entrada& e) {
-    if (CVPixelBufferRef pb = pixelBufferDe(b)) {
+    if (CVPixelBufferRef pb = ba_cv_pixbuf_de(b)) {
         e.pb = CVPixelBufferRetain(pb);
         ++s->conMeta;
         return true;
@@ -337,25 +341,9 @@ static void soltarEntrada(Entrada& e) {
     if (e.mapeado) gst_video_frame_unmap(&e.frame);
 }
 
-/// Una IOSurface (CVPixelBuffer BGRA) como GstBuffer, sin copiar: queda
-/// bloqueada para leer mientras viva el buffer.
-static GstBuffer* bufferDe(CVPixelBufferRef pb) {
-    CVPixelBufferLockBaseAddress(pb, kCVPixelBufferLock_ReadOnly);
-    const size_t stride = CVPixelBufferGetBytesPerRow(pb), alto = CVPixelBufferGetHeight(pb);
-    auto* base = static_cast<guint8*>(CVPixelBufferGetBaseAddress(pb));
-    GstBuffer* b = gst_buffer_new_wrapped_full(
-        GST_MEMORY_FLAG_READONLY, base, stride * alto, 0, stride * alto, CVPixelBufferRetain(pb), [](gpointer d) {
-            auto p = static_cast<CVPixelBufferRef>(d);
-            CVPixelBufferUnlockBaseAddress(p, kCVPixelBufferLock_ReadOnly);
-            CVPixelBufferRelease(p);
-        });
-    gsize offset[GST_VIDEO_MAX_PLANES] = {0};
-    gint strides[GST_VIDEO_MAX_PLANES] = {static_cast<gint>(stride)};
-    gst_buffer_add_video_meta_full(b, GST_VIDEO_FRAME_FLAG_NONE, GST_VIDEO_FORMAT_BGRA,
-                                   static_cast<guint>(CVPixelBufferGetWidth(pb)), static_cast<guint>(alto), 1, offset,
-                                   strides);
-    return b;
-}
+/// Una IOSurface como GstBuffer, sin copiar: memoria CoreVideo (se bloquea
+/// solo al mapear) + GstVideoMeta + GstCoreVideoMeta (ver cvmemoria_mac.h).
+static GstBuffer* bufferDe(CVPixelBufferRef pb) { return ba_cv_buffer_nuevo(pb); }
 
 /// La red: entrada (ya del tamaño de la red) -> `salida` del pool. false si no se pudo.
 static bool predecir(BaCoreMlSr* s, CVPixelBufferRef entrada, CVPixelBufferRef salida) {
@@ -579,6 +567,9 @@ static gboolean arrancar(GstBaseTransform* bt) {
 static gboolean parar(GstBaseTransform* bt) {
     auto* s = BA_COREMLSR(bt);
     descartar(s);
+    GST_INFO_OBJECT(s, "cuadros con IOSurface: %" G_GUINT64_FORMAT ", copiados/envueltos: %" G_GUINT64_FORMAT
+                       ", la red tardó %.1f ms",
+                    s->conMeta, s->sinMeta, s->demora->media());
     s->demora->reiniciar();
     soltarPools(s);
     if (s->transfer != nullptr) {
@@ -630,6 +621,8 @@ static void ba_coremlsr_class_init(BaCoreMlSrClass* k) {
     go->set_property = ponerPropiedad;
     go->get_property = leerPropiedad;
     go->finalize = ba_coremlsr_finalize;
+    GST_DEBUG_CATEGORY_INIT(ba_coremlsr_debug, "bacoremlsr", 0, "Superresolución CoreML");
+    gst_type_mark_as_plugin_api(tipoUnidades(), static_cast<GstPluginAPIFlags>(0));
     const auto listo =
         static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | GST_PARAM_MUTABLE_READY);
     const auto vivo =
@@ -664,17 +657,17 @@ static void ba_coremlsr_class_init(BaCoreMlSrClass* k) {
         "Broadcast Appliance");
     gst_element_class_add_static_pad_template(ge, &sinkTpl);
     gst_element_class_add_static_pad_template(ge, &srcTpl);
-    bt->transform_caps = transformarCaps;
-    bt->fixate_caps = fijarCaps;
-    bt->set_caps = ponerCaps;
-    bt->propose_allocation = proponer;
-    bt->prepare_output_buffer = prepararSalida;
-    bt->transform = transformar;
-    bt->generate_output = generar;
-    bt->start = arrancar;
-    bt->stop = parar;
-    bt->query = consultar;
-    bt->sink_event = eventoEntrada;
+    bt->transform_caps = GST_DEBUG_FUNCPTR(transformarCaps);
+    bt->fixate_caps = GST_DEBUG_FUNCPTR(fijarCaps);
+    bt->set_caps = GST_DEBUG_FUNCPTR(ponerCaps);
+    bt->propose_allocation = GST_DEBUG_FUNCPTR(proponer);
+    bt->prepare_output_buffer = GST_DEBUG_FUNCPTR(prepararSalida);
+    bt->transform = GST_DEBUG_FUNCPTR(transformar);
+    bt->generate_output = GST_DEBUG_FUNCPTR(generar);
+    bt->start = GST_DEBUG_FUNCPTR(arrancar);
+    bt->stop = GST_DEBUG_FUNCPTR(parar);
+    bt->query = GST_DEBUG_FUNCPTR(consultar);
+    bt->sink_event = GST_DEBUG_FUNCPTR(eventoEntrada);
     bt->transform_meta = ba::sr::transformarMeta;
     bt->passthrough_on_same_caps = TRUE;
 }

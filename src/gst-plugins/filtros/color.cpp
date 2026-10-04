@@ -32,6 +32,9 @@ struct _BaColor {
 
 G_DEFINE_TYPE(BaColor, ba_color, GST_TYPE_VIDEO_FILTER)
 
+GST_DEBUG_CATEGORY_STATIC(ba_color_debug);
+#define GST_CAT_DEFAULT ba_color_debug
+
 enum { PROP_0, PROP_BRILLO, PROP_CONTRASTE, PROP_SATURACION, PROP_GAMMA };
 
 #define FORMATOS "{ NV12, I420, Y444, BGRA, RGBA, ARGB, ABGR, BGRx, RGBx, xRGB, xBGR }"
@@ -169,6 +172,7 @@ static void finalizar(GObject* o) {
 }
 
 static void ba_color_class_init(BaColorClass* k) {
+    GST_DEBUG_CATEGORY_INIT(ba_color_debug, "bacolor", 0, "Color");
     auto* go = G_OBJECT_CLASS(k);
     auto* ge = GST_ELEMENT_CLASS(k);
     go->set_property = ponerPropiedad;
@@ -190,8 +194,8 @@ static void ba_color_class_init(BaColorClass* k) {
                                           "Broadcast Appliance");
     gst_element_class_add_static_pad_template(ge, &sinkTpl);
     gst_element_class_add_static_pad_template(ge, &srcTpl);
-    GST_BASE_TRANSFORM_CLASS(k)->before_transform = antes;
-    GST_VIDEO_FILTER_CLASS(k)->transform_frame_ip = transformar;
+    GST_BASE_TRANSFORM_CLASS(k)->before_transform = GST_DEBUG_FUNCPTR(antes);
+    GST_VIDEO_FILTER_CLASS(k)->transform_frame_ip = GST_DEBUG_FUNCPTR(transformar);
 }
 
 static void ba_color_init(BaColor* c) {
