@@ -161,6 +161,47 @@
    "version": "2",
    "formato_llamada": "qwen3.5-tool-call-xml",
    "manifiesto": "modelo.json"
+  },
+  {
+   "repo": "BlairQ/broadcast-reactivo-qwen3.5-4b-v3-mlx-q4",
+   "formato": "mlx",
+   "plataformas": [
+    "mac-arm64"
+   ],
+   "archivo": null,
+   "base": "Qwen/Qwen3.5-4B",
+   "perfil": "reactivo",
+   "herramientas": 84,
+   "prompt": "900e34cd7e5900fb",
+   "tamano_gb": 3.19,
+   "precision": 91.4,
+   "derivado": 87.5,
+   "examen": 64.8,
+   "fecha": "2026-10-03",
+   "version": "3",
+   "formato_llamada": "qwen3.5-tool-call-xml",
+   "manifiesto": "modelo.json"
+  },
+  {
+   "repo": "BlairQ/broadcast-reactivo-qwen3.5-4b-v3-GGUF",
+   "formato": "gguf",
+   "plataformas": [
+    "linux-x64",
+    "win-x64"
+   ],
+   "archivo": "broadcast-reactivo-qwen3.5-4b-v3-Q4_K_M.gguf",
+   "base": "Qwen/Qwen3.5-4B",
+   "perfil": "reactivo",
+   "herramientas": 84,
+   "prompt": "900e34cd7e5900fb",
+   "tamano_gb": 2.59,
+   "precision": 92.7,
+   "derivado": 87.9,
+   "examen": 65.7,
+   "fecha": "2026-10-03",
+   "version": "3",
+   "formato_llamada": "qwen3.5-tool-call-xml",
+   "manifiesto": "modelo.json"
   }
  ]
 }

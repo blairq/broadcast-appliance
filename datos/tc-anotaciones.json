@@ -570,6 +570,36 @@
    "plantilla": "medí el audio de {audio} ahora",
    "falta": "¿Mido la respuesta de la cadena o la curva del compresor?",
    "nueva": true
+  },
+  {
+   "plantilla": "hay acople en {audio}",
+   "args": {
+    "source": "{audio}",
+    "tipo": "respuesta"
+   },
+   "nueva": true,
+   "frase": "hay acople en {audio}",
+   "origen": "bucle"
+  },
+  {
+   "plantilla": "che, {audio} esta acoplando al aire",
+   "args": {
+    "source": "{audio}",
+    "tipo": "respuesta"
+   },
+   "nueva": true,
+   "frase": "che, {audio} esta acoplando al aire",
+   "origen": "bucle"
+  },
+  {
+   "plantilla": "se acopla {audio}, medí su cadena ya",
+   "args": {
+    "source": "{audio}",
+    "tipo": "respuesta"
+   },
+   "nueva": true,
+   "frase": "se acopla {audio}, medí su cadena ya",
+   "origen": "bucle"
   }
  ],
  "audio_set": [
@@ -4578,6 +4608,24 @@
    "tipo_nueva": "pregunta",
    "nueva": true,
    "origen": "tc-sumar"
+  },
+  {
+   "plantilla": "¿que dice el letrero del fondo de la imagen? dale",
+   "args": {
+    "que": "qué dice el letrero del fondo de la imagen"
+   },
+   "nueva": true,
+   "frase": "¿que dice el letrero del fondo de la imagen? dale",
+   "origen": "bucle"
+  },
+  {
+   "plantilla": "decime que texto tiene la pancarta de la imagen",
+   "args": {
+    "que": "qué texto tiene la pancarta de la imagen"
+   },
+   "nueva": true,
+   "frase": "decime que texto tiene la pancarta de la imagen",
+   "origen": "bucle"
   }
  ],
  "laminas_aplicar": [
@@ -4929,6 +4977,27 @@
    "tipo_nueva": "sintoma",
    "nueva": true,
    "origen": "tc-sumar"
+  },
+  {
+   "plantilla": "buscame una lamina, rapido",
+   "falta": "¿Qué texto busco y en qué carrusel?",
+   "nueva": true,
+   "frase": "buscame una lamina, rapido",
+   "origen": "bucle"
+  },
+  {
+   "plantilla": "dale, buscá en los carruseles ya",
+   "falta": "¿Qué texto busco y en qué carrusel?",
+   "nueva": true,
+   "frase": "dale, buscá en los carruseles ya",
+   "origen": "bucle"
+  },
+  {
+   "plantilla": "che, encontrame una lamina",
+   "falta": "¿Qué texto busco y en qué carrusel?",
+   "nueva": true,
+   "frase": "che, encontrame una lamina",
+   "origen": "bucle"
   }
  ],
  "laminas_ir": [
@@ -5666,6 +5735,27 @@
    "tipo_nueva": "sintoma",
    "nueva": true,
    "origen": "tc-sumar"
+  },
+  {
+   "plantilla": "al invitado le salta error de certificado en el link",
+   "args": {},
+   "nueva": true,
+   "frase": "al invitado le salta error de certificado en el link",
+   "origen": "bucle"
+  },
+  {
+   "plantilla": "el navegador del remoto dice conexion no segura",
+   "args": {},
+   "nueva": true,
+   "frase": "el navegador del remoto dice conexion no segura",
+   "origen": "bucle"
+  },
+  {
+   "plantilla": "a los invitados les aparece aviso de seguridad al abrir el link",
+   "args": {},
+   "nueva": true,
+   "frase": "a los invitados les aparece aviso de seguridad al abrir el link",
+   "origen": "bucle"
   }
  ],
  "participant_admit": [
@@ -8293,6 +8383,24 @@
    "plantilla": "necesito una escena nueva sin fuentes",
    "falta": "¿Cómo se llama la escena nueva?",
    "nueva": true
+  },
+  {
+   "plantilla": "creá ahora una escena sin fuentes con el nombre {escena}, rapido",
+   "args": {
+    "name": "{escena}"
+   },
+   "nueva": true,
+   "frase": "creá ahora una escena sin fuentes con el nombre {escena}, rapido",
+   "origen": "bucle"
+  },
+  {
+   "plantilla": "che, creá la escena {escena} sin fuentes, urgente",
+   "args": {
+    "name": "{escena}"
+   },
+   "nueva": true,
+   "frase": "che, creá la escena {escena} sin fuentes, urgente",
+   "origen": "bucle"
   }
  ],
  "scene_define": [
@@ -12089,6 +12197,36 @@
    "plantilla": "ocultá una fuente de la escena",
    "falta": "¿Qué fuente?",
    "nueva": true
+  },
+  {
+   "plantilla": "no se ve {fuente} en el aire",
+   "args": {
+    "name": "{fuente}",
+    "visible": true
+   },
+   "nueva": true,
+   "frase": "no se ve {fuente} en el aire",
+   "origen": "bucle"
+  },
+  {
+   "plantilla": "che, falta {fuente} en el programa",
+   "args": {
+    "name": "{fuente}",
+    "visible": true
+   },
+   "nueva": true,
+   "frase": "che, falta {fuente} en el programa",
+   "origen": "bucle"
+  },
+  {
+   "plantilla": "{fuente} esta oculta al aire, mostrá {fuente}",
+   "args": {
+    "name": "{fuente}",
+    "visible": true
+   },
+   "nueva": true,
+   "frase": "{fuente} esta oculta al aire, mostrá {fuente}",
+   "origen": "bucle"
   }
  ],
  "speaker_move": [
@@ -12237,10 +12375,10 @@
   },
   {
    "frase": "¿podés dejar a Julián en el puesto cuatro de la fila?",
-   "plantilla": "¿podés dejar a {persona} en el puesto cuatro de la fila?",
+   "plantilla": "¿podés mover a {persona} al puesto 4 de la fila?",
    "args": {
     "participant": "{persona}",
-    "position": "=4"
+    "position": 4
    },
    "tipo_nueva": "orden",
    "nueva": true,
