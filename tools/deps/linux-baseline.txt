@@ -15,7 +15,7 @@
 #   - ALSA/PulseAudio                               -> el servidor de audio
 #   - udev, drm                                     -> dispositivos del kernel
 #   - fontconfig/freetype                           -> las fuentes del sistema
-#   - glib/gthread/gmodule/dbus/gssapi, zlib/zstd/bz2, libatomic
+#   - glib/gthread/gmodule/gio/dbus/gssapi, zlib/zstd/bz2, libatomic
 #                                                   -> lo que exige Qt oficial
 #     (gmodule: Qt PDF; bz2 y libatomic: el motor FFmpeg de Qt Multimedia)
 # libstdc++/libgcc_s: el bundle lleva los suyos en bin/64bit/cxx/ y el
@@ -81,6 +81,7 @@ libglib-2.0.so.0
 libgthread-2.0.so.0
 libgobject-2.0.so.0
 libgmodule-2.0.so.0
+libgio-2.0.so.0
 libdbus-1.so.3
 libgssapi_krb5.so.2
 libz.so.1

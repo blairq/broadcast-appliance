@@ -15,7 +15,10 @@
 # que ya viajan en bin/64bit). ORC (acelera videoconvert y compañía) se
 # compila como subproyecto fijado del propio GStreamer. Las demás
 # dependencias opcionales que no estén se apagan solas (auto): lo que queda
-# afuera lo dice el resumen de meson en el registro.
+# afuera lo dice el resumen de meson en el registro. Los códecs que la imagen
+# de compilar tiene pero un Linux cualquiera no (ogg, vorbis, opus, FLAC, bz2,
+# mpg123) se compilan como subproyectos fijados del
+# propio GStreamer (--force-fallback-for) y viajan en gstreamer/lib.
 #
 # RPATH: las bibliotecas se encuentran entre sí ($ORIGIN), los plugins suben a
 # lib/ ($ORIGIN/..) y a bin/64bit ($ORIGIN/../../..) para FFmpeg y compañía.
@@ -72,6 +75,7 @@ log "configurando $VER ($COMMIT)"
 if [ -f "$B/build.ninja" ]; then RECONF=--reconfigure; meson configure --clearcache "$B" >/dev/null; else RECONF=; fi
 meson setup $RECONF "$B" "$SRC" --prefix="$PREFIX" --libdir=lib --libexecdir=libexec --buildtype=release \
     --wrap-mode=default -Dauto_features=auto -Dpkg_config_path="$PKG_CONFIG_PATH" \
+    --force-fallback-for=ogg,vorbis,opus,flac,bzip2,mpg123 \
     -Dbase=enabled -Dgood=enabled -Dbad=enabled -Dugly=enabled -Dlibav=enabled -Drtsp_server=enabled \
     -Dgpl=enabled -Dorc=enabled \
     -Dpython=disabled -Ddevtools=disabled -Dges=disabled -Drs=disabled -Dgst-examples=disabled -Dsharp=disabled \
@@ -92,7 +96,7 @@ rm -rf "$PREFIX/share/gtk-doc" "$PREFIX/share/man" "$PREFIX/lib/cmake"
 
 # RPATH relativos (meson deja el del árbol de build o ninguno).
 log "RPATH relativos"
-find "$PREFIX/lib" -maxdepth 1 -name '*.so*' -type f -exec patchelf --set-rpath '$ORIGIN:$ORIGIN/..' {} \;
+find "$PREFIX/lib" -maxdepth 1 -name '*.so*' -type f -exec patchelf --set-rpath '$ORIGIN:$ORIGIN/../..' {} \;
 find "$PREFIX/lib/gstreamer-1.0" -name '*.so' -type f -exec patchelf --set-rpath '$ORIGIN/..:$ORIGIN/../../..' {} \;
 find "$PREFIX/libexec" -type f -perm -u+x -exec sh -c 'file "$1" | grep -q ELF && patchelf --set-rpath "\$ORIGIN/../../lib:\$ORIGIN/../../.." "$1"' _ {} \;
 find "$PREFIX/bin" -type f -perm -u+x -exec sh -c 'file "$1" | grep -q ELF && patchelf --set-rpath "\$ORIGIN/../lib:\$ORIGIN/../.." "$1"' _ {} \;

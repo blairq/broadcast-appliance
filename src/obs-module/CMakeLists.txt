@@ -68,7 +68,6 @@ if(BA_HAVE_LIBOBS)
     # ba_gst_fuente. El módulo va en obs-plugins/64bit: el framework, en bin/64bit.
     if(BA_HAVE_GST)
         target_link_libraries(ba-sources PRIVATE ba::gstreamer)
-        ba_gst_rpath(ba-sources "../../bin/64bit/")
     endif()
     target_compile_definitions(ba-sources PRIVATE BA_HAVE_LIBOBS=1)
     set_target_properties(ba-sources PROPERTIES PREFIX "")
@@ -83,6 +82,10 @@ if(BA_HAVE_LIBOBS)
         set_target_properties(ba-sources PROPERTIES
             BUILD_RPATH "${BA_OBS_LINUX_PREFIX}/lib"
             INSTALL_RPATH "$ORIGIN:$ORIGIN/../../bin/64bit")
+    endif()
+    # Después de fijar los rpath de arriba (los pisarían): GStreamer, del bundle.
+    if(BA_HAVE_GST)
+        ba_gst_rpath(ba-sources "../../bin/64bit/")
     endif()
 endif()
 
