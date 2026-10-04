@@ -231,11 +231,23 @@ a la otra. `entrenar-rapido.py --fsdp` (con `repartido.py`):
   | Repartido por capas (antes) | 11,6 |
   | FSDP | 9,2 |
   | Prefijo repartido a la par | 8,15 |
-  | **Pesos enteros + prefijo repartido y desfasado** | **7,18 (1,62×)** |
+  | Pesos enteros + prefijo repartido y desfasado | 7,18 |
+  | **+ atención causal sin matriz + sin sincronizar por paso** | **6,24 (1,86×)** |
 
   - Memoria: 17,5 GB por placa. Uso de las placas: 98–99 %.
-  - Por paso: prefijo hacia adelante 1,0 s (el ideal es ~0,9), micro-lotes
-    2,9 s, backward del prefijo 3,0 s, suma de gradientes 0,03 s.
+  - **Atención sin matriz de máscara.** La placa 1 pasaba la máscara causal
+    como matriz de bool: el kernel genérico calculaba todos los bloques y leía
+    la máscara de memoria. Era el 29 % del backward del prefijo, con solo 8
+    capas. `causal_lower_right` (la variante causal con las consultas al final
+    de las claves) saltea los bloques tapados.
+  - **Sin ida y vuelta a la CPU.** El chequeo de «¿toca guardar el estado?»
+    leía un valor de la placa en cada paso, y eso dejaba a la placa esperando
+    a la CPU entre pasos. Ahora se pregunta cada 10 pasos.
+  - **Entre placas, P2P directo.** NCCL va por `P2P/CUMEM` (mismo switch PCIe,
+    `PIX`), sin pasar por la RAM.
+  - Antes de esos dos arreglos, por paso: prefijo hacia adelante 1,0 s (el
+    ideal es ~0,9), micro-lotes 2,9 s, backward del prefijo 3,0 s, suma de
+    gradientes 0,03 s.
   - La pérdida de validación sigue la misma curva: 0,3933 contra 0,3914 a los
     15 pasos y 0,3564 contra 0,3566 a los 30.
   - El backward del prefijo no baja a la mitad exacta por el costo fijo por

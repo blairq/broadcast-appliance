@@ -564,11 +564,16 @@ def main():
             guardar_estado(paso + 1)
             t_estado = time.time()
         # EL ESTADO PARA REANUDAR: la decision la toma la placa 0 (los relojes de
-        # cada proceso difieren) y la comparte, porque guardar es colectivo
-        toca = torch.tensor([float(time.time() - t_estado > args.guardar_cada_min * 60)], device=dev)
-        if dist_on:
-            dist.broadcast(toca, 0)
-        if toca.item() and paso + 1 < total:
+        # cada proceso difieren) y la comparte, porque guardar es colectivo. Se
+        # pregunta cada 10 pasos: leer la respuesta (.item) sincroniza la CPU con
+        # la placa, y en cada paso dejaba a la placa esperando el paso siguiente
+        toca = False
+        if (paso + 1) % 10 == 0 and paso + 1 < total:
+            t = torch.tensor([float(time.time() - t_estado > args.guardar_cada_min * 60)], device=dev)
+            if dist_on:
+                dist.broadcast(t, 0)
+            toca = bool(t.item())
+        if toca:
             guardar_estado(paso + 1)
             t_estado = time.time()
             log(f"  estado guardado (paso {paso + 1})")

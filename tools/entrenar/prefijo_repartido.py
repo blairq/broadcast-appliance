@@ -147,10 +147,11 @@ def _completa(self, hidden_states, position_embeddings, past_key_values):
         m = _sp["m"]
         kv0 = _pasar(forma=(2, k.shape[0], k.shape[1], m, k.shape[3]), tipo=k.dtype, device=k.device)
         K_, V_ = torch.cat([kv0[0], k], dim=2), torch.cat([kv0[1], v], dim=2)
-        # la consulta i (posicion m+i) ve las claves 0..m+i
-        mascara = (torch.arange(m + Lq, device=q.device)[None, :]
-                   <= (m + torch.arange(Lq, device=q.device))[:, None])
-        causal = False
+        # la consulta i (posicion m+i) ve las claves 0..m+i: causal alineada abajo a
+        # la derecha. Como variante (no como matriz de bool) el kernel saltea los
+        # bloques tapados y no lee una mascara de memoria (era el 29% del backward)
+        from torch.nn.attention.bias import causal_lower_right
+        mascara, causal = causal_lower_right(Lq, m + Lq), False
     out = F.scaled_dot_product_attention(q, repeat_kv(K_, self.num_key_value_groups),
                                          repeat_kv(V_, self.num_key_value_groups),
                                          attn_mask=mascara, is_causal=causal, scale=self.scaling)
