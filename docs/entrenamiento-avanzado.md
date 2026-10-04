@@ -245,6 +245,20 @@ a la otra. `entrenar-rapido.py --fsdp` (con `repartido.py`):
     a la CPU entre pasos. Ahora se pregunta cada 10 pasos.
   - **Entre placas, P2P directo.** NCCL va por `P2P/CUMEM` (mismo switch PCIe,
     `PIX`), sin pasar por la RAM.
+  - **Probado y descartado: grafos de CUDA** para el backward del prefijo (un
+    grafo por capa, grabado una vez; la forma del prefijo no cambia en toda la
+    corrida).
+    - Pasó la verificación contra fp64, pero no ganó nada: 2,11 s con y sin
+      grafos. El backward está limitado por el cálculo de la placa, no por
+      lanzar kernels.
+    - «Command Buffer Full» en el perfil quiere decir que la CPU va ADELANTE
+      con la cola llena; no es la placa esperando a la CPU.
+    - Y costaba 3,5 GB fijos (la memoria de trabajo de una capa queda reservada
+      para el grafo), que los micro-lotes largos necesitan.
+    - Lección de la verificación: un buffer que recibe por NCCL tiene que ser
+      contiguo. `zeros_like` de una vista traspuesta copió el orden de memoria y
+      lo recibido quedó desordenado. La norma no lo delata; la comparación contra
+      fp64 sí.
   - Antes de esos dos arreglos, por paso: prefijo hacia adelante 1,0 s (el
     ideal es ~0,9), micro-lotes 2,9 s, backward del prefijo 3,0 s, suma de
     gradientes 0,03 s.
