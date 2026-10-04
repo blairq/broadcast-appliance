@@ -8,6 +8,9 @@
 //      sin pisar lo que el usuario cambió.
 //   5. Si no se puede crear la carpeta, se usa el bundle.
 
+#ifndef _WIN32
+#include <unistd.h>
+#endif
 #include "Datos.hpp"
 
 #include <cstdio>
@@ -74,15 +77,17 @@ int main() {
     CHECK(leer(datos / "Graficos" / "zocalo.json") == "editado", "lo editado de Graficos no se pisa");
     CHECK(leer(datos / "Graficos" / "nuevo.json") == "fabrica", "lo nuevo de fábrica se siembra");
 
-    // 5.
+    // 5. (Como root —Docker, CI— los permisos no frenan nada: no se prueba.)
 #ifndef _WIN32
-    const fs::path ro = base / "solo-lectura";
-    fs::create_directories(ro);
-    fs::permissions(ro, fs::perms::owner_read | fs::perms::owner_exec);
-    avisos.clear();
-    CHECK(prepararDatos(bundle, ro / "Datos", avisos) == bundle && !avisos.empty(),
-          "sin poder crear la carpeta: se usa el bundle y se avisa");
-    fs::permissions(ro, fs::perms::owner_all);
+    if (geteuid() != 0) {
+        const fs::path ro = base / "solo-lectura";
+        fs::create_directories(ro);
+        fs::permissions(ro, fs::perms::owner_read | fs::perms::owner_exec);
+        avisos.clear();
+        CHECK(prepararDatos(bundle, ro / "Datos", avisos) == bundle && !avisos.empty(),
+              "sin poder crear la carpeta: se usa el bundle y se avisa");
+        fs::permissions(ro, fs::perms::owner_all);
+    }
 #endif
     fs::remove_all(base);
     std::printf(g_fallos == 0 ? "test_datos: OK\n" : "test_datos: %d fallos\n", g_fallos);
