@@ -2,8 +2,10 @@
 
 #include "video/VideoGrafos.hpp"
 
-#include <gst/gst.h>
 #include "video/Diagnostico.hpp"
+#if defined(BA_HAVE_GST)
+#include <gst/gst.h>
+#endif
 
 #include "video/Sincronia.hpp"
 
@@ -1346,14 +1348,25 @@ QString VideoGrafos::superresMotorUi(const QString& entrada, const QString& moto
     return q(superresMotor(entrada.toStdString(), motor.toStdString(), modelo.toStdString()));
 }
 
+namespace {
+/// Si GStreamer tiene ese elemento (sin GStreamer en este sistema, ninguno).
+bool hayElemento(const char* elemento) {
+#if defined(BA_HAVE_GST)
+    GstElementFactory* f = gst_element_factory_find(elemento);
+    if (f == nullptr) return false;
+    gst_object_unref(f);
+    return true;
+#else
+    (void)elemento;
+    return false;
+#endif
+}
+} // namespace
+
 QStringList VideoGrafos::motoresSuperres() const {
     QStringList l;
-    for (const auto& [motor, elemento] : {std::pair{"apple", "bavtsuperres"}, {"fsr", "bafsr"}, {"onnx", "baonnxsr"}}) {
-        GstElementFactory* f = gst_element_factory_find(elemento);
-        if (f == nullptr) continue;
-        gst_object_unref(f);
-        l << motor;
-    }
+    for (const auto& [motor, elemento] : {std::pair{"apple", "bavtsuperres"}, {"fsr", "bafsr"}, {"onnx", "baonnxsr"}})
+        if (hayElemento(elemento)) l << motor;
     return l;
 }
 
@@ -1368,12 +1381,7 @@ std::string VideoGrafos::uriDe(const std::string& entrada) const {
     return u;
 }
 
-bool VideoGrafos::haySuperres() const {
-    GstElementFactory* f = gst_element_factory_find("bavtsuperres");
-    if (f == nullptr) return false;
-    gst_object_unref(f);
-    return true;
-}
+bool VideoGrafos::haySuperres() const { return hayElemento("bavtsuperres"); }
 
 QString VideoGrafos::nuevaEntradaRed(const QString& nombre, const QString& uri, const QString& escena, int latenciaMs, bool normalizar) {
     return q(crearEntradaRed(nombre.trimmed().toStdString(), uri.trimmed().toStdString(), latenciaMs, escena.trimmed().toStdString(), -1,
