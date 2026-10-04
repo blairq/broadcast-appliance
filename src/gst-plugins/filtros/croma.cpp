@@ -51,14 +51,23 @@ static inline void cbcr(float r, float g, float b, float& cb, float& cr) {
 
 static GstFlowReturn transformar(GstVideoFilter* vf, GstVideoFrame* fr) {
     auto* c = BA_CROMA(vf);
-    std::lock_guard<std::mutex> l(*c->mu);
+    // Los ajustes, copiados bajo el lock; el cuadro va sin él.
+    guint clave;
+    gdouble similitud, suavidad, derrame;
+    {
+        std::lock_guard<std::mutex> l(*c->mu);
+        clave = c->clave;
+        similitud = c->similitud;
+        suavidad = c->suavidad;
+        derrame = c->derrame;
+    }
     ba::filtros::Orden o{};
     if (!ba::filtros::ordenDe(GST_VIDEO_FRAME_FORMAT(fr), o) || o.a < 0) return GST_FLOW_NOT_NEGOTIATED;
     const int w = GST_VIDEO_FRAME_WIDTH(fr), h = GST_VIDEO_FRAME_HEIGHT(fr);
     auto* d = static_cast<std::uint8_t*>(GST_VIDEO_FRAME_PLANE_DATA(fr, 0));
     const int st = GST_VIDEO_FRAME_PLANE_STRIDE(fr, 0);
     float kcb = 0, kcr = 0;
-    cbcr(((c->clave >> 16) & 0xFF) / 255.0f, ((c->clave >> 8) & 0xFF) / 255.0f, (c->clave & 0xFF) / 255.0f, kcb,
+    cbcr(((clave >> 16) & 0xFF) / 255.0f, ((clave >> 8) & 0xFF) / 255.0f, (clave & 0xFF) / 255.0f, kcb,
          kcr);
     std::vector<float>& dist = *c->dist;
     dist.resize(static_cast<size_t>(w) * h);
@@ -71,9 +80,9 @@ static GstFlowReturn transformar(GstVideoFilter* vf, GstVideoFrame* fr) {
             q[x] = std::hypot(cb - kcb, cr - kcr);
         }
     }
-    const float sim = static_cast<float>(c->similitud) * 0.5f;
-    const float suav = std::max(static_cast<float>(c->suavidad) * 0.5f, 0.001f);
-    const float der = std::max(static_cast<float>(c->derrame) * 0.5f, 0.001f);
+    const float sim = static_cast<float>(similitud) * 0.5f;
+    const float suav = std::max(static_cast<float>(suavidad) * 0.5f, 0.001f);
+    const float der = std::max(static_cast<float>(derrame) * 0.5f, 0.001f);
     for (int y = 0; y < h; ++y) {
         std::uint8_t* p = d + static_cast<size_t>(y) * st;
         const float* q = dist.data() + static_cast<size_t>(y) * w;

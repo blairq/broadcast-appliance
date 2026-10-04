@@ -63,18 +63,30 @@ static void rehacer(BaColor* c) {
 }
 
 static void actualizarPasante(BaColor* c) {
-    gst_base_transform_set_passthrough(GST_BASE_TRANSFORM(c), neutro(c));
+    bool n;
+    {
+        std::lock_guard<std::mutex> l(*c->mu);
+        n = neutro(c);
+    }
+    gst_base_transform_set_passthrough(GST_BASE_TRANSFORM(c), n);
 }
 
 static GstFlowReturn transformar(GstVideoFilter* vf, GstVideoFrame* fr) {
     auto* c = BA_COLOR(vf);
-    std::lock_guard<std::mutex> l(*c->mu);
-    if (c->cambio) rehacer(c);
+    // Bajo el lock, solo copiar (y rehacer las tablas si cambió algo: 256
+    // valores). Las tablas las toca solo este hilo; el cuadro va sin el lock.
+    gdouble saturacion, contraste;
+    {
+        std::lock_guard<std::mutex> l(*c->mu);
+        if (c->cambio) rehacer(c);
+        saturacion = c->saturacion;
+        contraste = c->contraste;
+    }
     const GstVideoFormat f = GST_VIDEO_FRAME_FORMAT(fr);
     const int w = GST_VIDEO_FRAME_WIDTH(fr), h = GST_VIDEO_FRAME_HEIGHT(fr);
     const auto& tr = *c->tablaRgb;
     const auto& ty = *c->tablaY;
-    const float sat = static_cast<float>(c->saturacion);
+    const float sat = static_cast<float>(saturacion);
     ba::filtros::Orden o{};
     if (ba::filtros::ordenDe(f, o)) {
         auto* d = static_cast<std::uint8_t*>(GST_VIDEO_FRAME_PLANE_DATA(fr, 0));
@@ -105,7 +117,7 @@ static GstFlowReturn transformar(GstVideoFilter* vf, GstVideoFrame* fr) {
         for (int x = 0; x < w; ++x)
             p[x] = ty[p[x]];
     }
-    const int kc = static_cast<int>(sat * std::max(0.0, c->contraste) * 256.0);
+    const int kc = static_cast<int>(sat * std::max(0.0, contraste) * 256.0);
     if (kc == 256) return GST_FLOW_OK;
     const auto croma = [kc](std::uint8_t v) {
         return static_cast<std::uint8_t>(std::clamp(128 + (((v - 128) * kc) >> 8), 16, 240));
