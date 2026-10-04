@@ -100,7 +100,7 @@ pkg-config = 'pkg-config'
 python = '$T/python-win'
 
 [built-in options]
-c_link_args = ['/winsysroot:$SYS', '/machine:x64']
+c_link_args = ['/winsysroot:$SYS', '/machine:x64', '/LIBPATH:$PYW/libs']
 b_vscrt = 'md'
 
 [properties]
